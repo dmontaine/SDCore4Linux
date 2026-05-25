@@ -156,8 +156,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    if not(bitand(kernel(K$COMMAND.OPTIONS, 0), CMD.QUIET)) then
       *display "[ ScarletDME Rev " : SD.REV.STAMP : "   Copyright Ladybridge Systems, " : SD.COPYRIGHT.YEAR : " ]"
 * rev 0.9.1 back to single rev track 
-      display "SD, the Multivalue String Database, version " : SD.REV.STAMP 
+      display "SD-AI, the Multivalue String Database, version " : SD.REV.STAMP 
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
+      display
+      display WARNING: This version of SD is not suitable for production use.
+      display          We are testing AI code check and refactoring.
       display
       * following must be left to comply with clause 1 of the gpl licence
       display "This program is free software and is supplied with ABSOLUTELY NO WARRANTY."
