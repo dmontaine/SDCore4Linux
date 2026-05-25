@@ -1,3 +1,10 @@
+sd install and delete scripts (AI Modified) including complete sd database files
+
+This is an experimental repository containing source code modified by Claud AI. It is being tested. For the curious or developers only. Unlike the production system this contains the scripts and the sd database files in a single repository.
+
+Warning: It can not be run in parallel with a production sd system.
+-------------------------------------------------------------------------------------------------------------------------
+
 SD, the Multivalue String Database
 
 SD is a multivalue database in the Pr1me Information tradition.  It contains open source code from the Open Source databases openQM and ScarletDME and open source code developed by the SD developers after the fork from ScarletDME.  While it shares many of the same features, it was forked to explore some new ideas as to what a modern multivalue database should contain.
