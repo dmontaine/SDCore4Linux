@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* rev 1.0-2 May 25 2026 dsm update login message to warn system not suitable for production
 * rev 0.9.1 Mar 25 mab return to single rev tracking
 * rev 0.9.0 Jan 25 mab change permission required for account login, must now either be;
 *                      1) users ACCOUNT
