@@ -174,6 +174,35 @@ built without it** — the loud failure mode did not fire.
 in the replaced `PQ` arm would have aborted bootstrap pass 1 and there would be
 no object. This is what `bbcmp.py` could not do (it aborts on `$IFNDEF`).
 
+***AND §I IS ALSO VERIFIED AT RUN TIME, NOT ONLY ON DISK.*** `sd` runs
+non-interactively as an ordinary user with **no sudo** — `sd --version` exit 0 is
+the control that it runs at all, and `sd COUNT VOC` answers **410 record(s)**.
+Against a live account VOC:
+
+| `COUNT VOC WITH @ID =` | result | |
+|---|---|---|
+| `SED`, `MODIFY`, `UPDATE.RECORD`, `LISTPQ`, `PROC` | **0** each | removed |
+| `ED`, `EDIT`, `CATALOG` | **1** each | controls |
+
+***THE MEASUREMENT IS DATED, WHICH IS WHAT MAKES IT WORTH ANYTHING.*** An account
+VOC can survive a reinstall, and this one did not: `/home/sd/user_accounts/don`
+and its `VOC` are stamped **11:35:12**, eight seconds after the binary, so it was
+built by this install.
+
+**Two controls came back 0 and both are explained rather than waved away.**
+`MODIFY.ACCOUNT` and `MODIFY.PASSWORD` are absent from a user VOC because
+***`CREATEA:422` BUILDS A NEW ACCOUNT'S VOC FROM `NEWVOC`, NOT `VOC_TEMPLATE`***,
+and neither name is in `NEWVOC`. `MODIFY.PASSWORD` is in neither file at all,
+which is plan §E5 confirmed.
+
+***THAT IS WORTH KEEPING FOR §L: THE PRODUCT ALREADY SHIPS TWO VOCABULARIES.***
+`VOC_TEMPLATE` 423 records, `NEWVOC` 407, and the 17 only in `VOC_TEMPLATE` are
+exactly the administrative set — `CREATE.ACCOUNT`, `DELETE.ACCOUNT`,
+`MODIFY.ACCOUNT`, `UPDATE.ACCOUNT`, `ACCOUNTS`, `MESSAGES`, `GPL.BP`, `BP`,
+`QFILE`, `UNLOCK`, the three compile passes, `LOAD.LANGUAGE`, `$HOLD`,
+`BP.OUT`, `GPL.BP.OUT`. Only `%t` is in `NEWVOC` alone. **§L's tiers can extend
+an existing split rather than invent one**, and the plan does not say this.
+
 ***WHAT IT STILL DOES NOT ESTABLISH.*** The `PQ` dispatch has not been *run* —
 nothing shipped is type `PQ`, so it needs a record written by hand. Steps 1–3
 remain unexercised. And this install was of **`origin/main`**, not the working
