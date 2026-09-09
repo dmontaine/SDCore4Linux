@@ -52,7 +52,7 @@ makes the table findable. **It said `| ID |` until 9 Sep 2026 and the checker
 refused the whole file** — *"no index table found"*, exit 2. Changed on the
 owner's ruling that day, for conformity with the port and to adopt the checker.
 
-***NEXT FREE ID: 20.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 21.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -61,6 +61,7 @@ the two files are not comparable by number.
 
 | | SEV | What | Where |
 |---|---|---|---|
+| 20 | **B** | ***SD DOES NOT KNOW WHICH PERSON IS THE ADMINISTRATOR, AND THAT BLOCKS ENTRY 18's SECOND HALF.*** Measured 9 Sep 2026 by reading `CPROC`, and it **corrects entry 18's premise**. On `sudo sd`, `CPROC:279` sees uid 0, `CPROC:281` drops the effective uid with `!EUID_SET('sdsys')`, and ***`CPROC:285` REPLACES THE SESSION IDENTITY — `logname = kernel(K$USERNAME, 0)` makes `@logname` `sdsys`*** — before `$LOGIN` is called at `:291`. So by the time any gate could read the register, **the real person's name is gone**. The owner's *"is also a registered user of SD as an administrator"* has no person to look up, and `CPROC:2483`'s own `is_grp_member(@logname, …)` entry test is answered for `sdsys` rather than for whoever typed `sudo`. ***THIS ALSO NARROWS ENTRY 18's OTHER CLAIM***: the OS half is *effectively* enforced already, since reaching uid 0 by `sudo sd` requires sudoers membership — what is missing is the register half, not the sudoers half. **The port hit this and answered it with a SEPARATE concept**, `K$OS.ADMINISTRATOR` — *"is the SIGNED-IN PERSON an administrator"* as distinct from the session flag — keeping `@logname` the signed-in user. ***A RULING IS NEEDED BEFORE 18's GATES CAN BE WRITTEN***: whether SD preserves the real identity across the drop, and if so where. See §20 | `GPL.BP/CPROC:279-291`, `:2483`; entry 18 |
 | 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** Classified 9 Sep from each script's own header: **113 testing, 38 admin, 6 build**. The testing half is 51 `verify-*`, **28 `test-*-units` that test the verifiers themselves**, 18 `probe-*` and 16 harness. Of the 38 admin, 19 are Windows mechanism with no counterpart here, **12 are the `secure-*` ACL family whose INTENT is §L's POSIX security posture**, and 7 have a direct Linux need the plan already schedules (`upgrade-voc`/`-dicts` §F1/F2, `check-install` §F7, `finish-install`, `clean-deadvoc`, `api-listener`, `restart-sd`). The plan mentions none of it: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in ~1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
 | ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
 | 3 | **S** | **`EDIT` MEANS DIFFERENT THINGS IN THE TWO SYSTEMS, WHICH IS A NEAR-MISS NAME WAITING TO BITE.** Here `VOC_TEMPLATE/EDIT` → `$ED`, the **line** editor. In the port `voc_template/edit` → `$EDIT`, the **full-screen** editor. A user or an agent moving between the two gets a different program from the same word | `sdsys/VOC_TEMPLATE/EDIT` vs `sd4windows/.../voc_template/edit` |
@@ -476,6 +477,57 @@ which is entry 18's second gate failing closed on its own instrument.
 **Recommended: 3, with the wrapping caveat. It is the owner's ruling, not this
 file's** — and it should be taken before entry 18 is implemented, because it
 decides what entry 18's "member of sudoers" test actually reads.
+
+## 20. SD does not know which person is the administrator
+
+***FOUND 9 Sep 2026 WHILE STARTING ENTRY 18's SECOND COMMIT, AND IT STOPPED
+IT.*** The gates were to be swapped for "read the register for this person's
+tier". **There is no this-person to read.**
+
+```
+CPROC:279    if system(27) = 0 then          ;* entered as root?
+CPROC:281      call !EUID_SET('sdsys',rstat) ;* drop to sdsys
+CPROC:285      logname = kernel(K$USERNAME, 0)  ;* username in syscom -> sdsys
+CPROC:288      void kernel(K$ADMINISTRATOR, 1)  ;* set admin bit
+CPROC:291    i = '$LOGIN' ; call @i(j,0)
+```
+
+***THE IDENTITY IS REPLACED BEFORE `$LOGIN` RUNS.*** After `sudo sd`, `@logname`
+is **`sdsys`**, not the person who typed it. Consequences, none of them
+hypothetical:
+
+- **Entry 18's register test has no subject.** *"A registered user of SD as an
+  administrator"* needs a name, and the name is gone by `:285`.
+- ***`CPROC:2483` IS ALREADY AFFECTED***, and it is shipped code, not planned
+  work: `if not(is_grp_member(@logname, acc.record<ACC$GROUP>))` decides who may
+  enter an account, and on this path it asks about `sdsys`.
+- **An audit trail cannot name the administrator**, for the same reason.
+
+***AND IT CORRECTS ENTRY 18 IN THE OTHER DIRECTION TOO, WHICH IS THE HALF THAT
+MAKES THIS CHEAPER THAN IT LOOKS.*** Entry 18 says *"nothing tests sudoers"*.
+**Reaching uid 0 through `sudo sd` requires sudoers membership**, so the OS half
+is largely enforced already, by the operating system, before SD starts. What is
+genuinely missing is the **register** half. (`su` with the root password, or
+root's own shell, reach uid 0 without sudoers — so it is "largely", not
+"wholly", and that gap is worth stating rather than rounding away.)
+
+**The port's answer, and it is a design rather than a patch:** a separate
+`K$OS.ADMINISTRATOR` — *"is the SIGNED-IN PERSON an administrator"* — kept
+distinct from the session's `USR_ADMIN` flag, with `@logname` and the audit
+message continuing to read the signed-in user.
+
+***WHAT HAS TO BE RULED, AND IT IS NOT THIS FILE'S TO TAKE.*** Whether SD
+preserves the real identity across the privilege drop — and if so whether the
+person's name lives beside `sdsys` (two identities, as the port has) or replaces
+the drop entirely. **Until that is decided, entry 18's gates cannot be written
+against the register**, because there is nothing to key them on.
+
+***A WARNING FOR WHOEVER IMPLEMENTS IT, FROM THE PORT'S RECORD RATHER THAN FROM
+HERE.*** Its `sdusers` gate ran at `LOGIN:380` *before the account was chosen*,
+and the model gave an administrator no account — so **every administrator would
+have been refused at the door**. A login-path gate is the one change in this
+area that can lock everybody out of the machine, and it should be built with
+that failure in front of you.
 
 ## 18. What "administrator" means — the owner's definition, and the gap to it
 

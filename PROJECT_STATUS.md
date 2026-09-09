@@ -78,6 +78,27 @@ refuses a legitimate administrator**; and every SD account today has a real
 login shell (`don` `/bin/bash`, `sdsys` `/bin/sh`), which is the known-bad
 starting state a §13 verifier must prove the system moved away from.
 
+***ENTRY 18 IS HALF BUILT AND ITS SECOND HALF IS BLOCKED BY A NEW FINDING —
+`PRE_RELEASE` 20. READ THAT BEFORE RESUMING.*** Commit 1 landed 9 Sep: the
+register records a tier (`ACC$TIER` 5 / `ACC$PRIOR.TIER` 6 in `SYSCOM/KEYS.H`,
+`CREATEA` writing it from `ADMINISTRATOR`/`PROGRAMMER`). ***COMMIT 2 WAS STARTED
+AND DELIBERATELY STOPPED***, because the gates cannot be written as planned:
+
+***ON `sudo sd`, `CPROC:285` REPLACES THE SESSION IDENTITY WITH `sdsys` BEFORE
+`$LOGIN` RUNS***, so *"is this person a registered SD administrator"* has **no
+person to look up**. `CPROC:2483`'s shipped `is_grp_member(@logname, …)` account
+gate is already answered for `sdsys` rather than for whoever typed `sudo`.
+**A ruling is needed on whether SD preserves the real identity across the drop**
+— the port keeps two, a session flag plus *"is the signed-in person an
+administrator"*. ***AND ENTRY 18 IS WRONG IN THE OTHER DIRECTION TOO***: the
+sudoers half is largely enforced already, because reaching uid 0 via `sudo sd`
+requires it. The missing half is the **register**, not sudoers.
+
+***ONE THING THAT WAS CHECKED AND IS SOUND: THE ENTRY-19 FIX DOES NOT BREAK THE
+`sudo sd` ADMINISTRATOR PATH.*** `CPROC:128` is `$internal`, so `CPROC:288`'s
+`kernel(K$ADMINISTRATOR, 1)` still sets the flag under the new `HDR_INTERNAL`
+gate. That was the one silent regression available and it did not happen.
+
 ***`PRE_RELEASE` 14's MECHANISM IS BUILT (9 Sep) AND IS INERT UNTIL ENTRY 18
 LANDS. DO NOT READ IT AS DONE.*** `gplbld/sd-elevate` is one validated helper;
 `gplbld/sdcore.sudoers` grants `%sdadmin` **that one command and not the eight
