@@ -576,11 +576,53 @@ is the standing risk to retire before step 4's removals bury it.
 **Next planned work is step 3 (`D5`/`J4`/`D6`), in START HERE** — the `ERR.H`
 generator, which also closes the drifted-header gap below.
 
+**Guards ported from the Windows version — surveyed 9 Sep 2026, owner's ask.**
+The survey is recorded so it is not repeated: the port has **1** Claude hook and
+**170** `gplbld` scripts (157 `.ps1`, 13 `.py`).
+
+- ***THE CLAUDE HOOK WAS ALREADY HERE AND IS ALREADY IDENTICAL.***
+  `.claude/hooks/no-program-edits.py` and `.claude/settings.json` are
+  **byte-identical** to the port's, `python` resolves at `/usr/bin/python` so the
+  settings command is not silently taking its `|| exit 0` branch, and
+  `--selftest` reports **32 cases (14 deny, 18 allow), 0 failed**. It also fired
+  for real this session, on an inline `python -c` writing a scratch fixture.
+  There were no user-level or `settings.local.json` hooks in either project, and
+  no active git hooks in either.
+- **`gplbld/check-msglen.py` is ported, byte-for-byte.** Does a message fit
+  `k_error()`'s buffer once `sysmsg()` expands it. **Copied rather than adapted
+  because all four constants were checked against this tree first and all four
+  match** — `MAX_ERROR_LINES` 3 / `MAX_EMSG_LEN` 80 (`sddefs.h:124-125`), the
+  buffer declaration and 10-byte `"%08X: "` prefix (`k_error.c:160,212`), the D1
+  `sizeof(s) - n` fix (`k_error.c:226`), and the `\n`→LF+CR substitution
+  (`messages.c:337-340`). **It hard-codes the bound 231 and will not notice if
+  those change**, which its header now says.
+- **Run on `MESSAGES/10099`, added this session: 165 rendered against a bound of
+  231, 3 escapes, exit 0.** The instrument was shown to discriminate rather than
+  merely pass — an over-long fixture gives `fits: False` exit **1**, and one with
+  no escapes is **REFUSED** at exit **2** rather than passing. *Worth knowing:*
+  10099 renders as **4 lines where `k_error` is sized for 3**, which is not a
+  fault here because `CPROC` shows it with BASIC `display sysmsg(...)` rather
+  than raising it through `k_error()`; the port ships the same 4-line text.
+- **Examined and NOT ported, each for a stated reason** — do not redo this:
+  `check-stale-leads.py` ***would be valuable here and cannot be copied***: it
+  refuses at its line 637 unless `PRE_RELEASE_FIXES.md` sits beside
+  `PROJECT_STATUS.md`, and this project has no such file, so a verbatim copy is a
+  silent no-op. It needs adapting, and it looks for exactly the fault this file
+  produced on 9 Sep — an opening claim contradicted later in the same entry ·
+  `stage.py` and `bootstrap.py` build a Windows *installer*; here
+  `installsdai.sh` bootstraps on the target machine · `checksyntax.py` /
+  `mkbasicsyntax.py` are `micro`-editor syntax tooling, and `micro` is not part
+  of this port · `mkvocdoc.py` is coupled to `sd.iss` and the port's 26 Aug
+  CONFIG-display decision · the other 157 are `.ps1` — the `verify-`, `secure-`,
+  `probe-`, `ssh-` and `vm-` families, all Windows-specific.
+
 **Standing gaps:**
 
 - **No `assert-current` equivalent.** Nothing refuses to run a check against an
   install older than its source, so a green result can come from the previous
   build. This matters more from step 2 on, where a wrong answer is silent.
+  **The port's is `gplbld/assert-current.ps1` — PowerShell, so this is a rewrite
+  and not a copy**, which is why the 9 Sep survey above did not close it.
 - ~~**Two generated headers drifted.**~~ **CLOSED 9 Sep 2026** — see "Step 3"
   below. `gplbld/gen_includes.py` regenerates `SYSCOM/ERR.H`,
   `GPL.BP/ERRTEXT.H`, `GPL.BP/REVSTAMP.H`, `GPL.BP/OPCODES.H` from the C
