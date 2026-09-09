@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 08 Sep 26 "sd -stop" signalled unvalidated pids, so a stale entry with pid 0
+ *           made kill(0, SIGTERM) terminate the caller's whole process group.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -407,16 +409,23 @@ bool stop_sd() {
       if ((sysseg = (SYSSEG*)shmat(shmid, NULL, 0)) != (void*)(-1)) {
         /* Send all SD processes the SIGTERM signal */
 
+        /* 08 Sep 26  The pid was not validated before being signalled.  A stale
+           user table entry whose uid is set but whose pid is 0 turned this into
+           kill(0, SIGTERM), which POSIX defines as "every process in my process
+           group" -- so "sd -stop" run from a script or a terminal could
+           terminate the script, the shell, and anything else running alongside
+           it, reporting nothing.  A negative pid addresses a process group in
+           the same way.  Signal only a real process id.  */
         for (i = 1; i <= sysseg->max_users; i++) {
           uptr = UPtr(i);
-          if (uptr->uid) {
+          if (uptr->uid && (uptr->pid > 0)) {
             kill(uptr->pid, SIGTERM);
           }
         }
 
         /* Shutdown the sdlnxd daemon if it is running */
 
-        if (sysseg->sdlnxd_pid)
+        if (sysseg->sdlnxd_pid > 0)
           kill(sysseg->sdlnxd_pid, SIGTERM);
 
         /* Dettach the shared memory */

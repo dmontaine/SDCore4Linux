@@ -1,3 +1,111 @@
+L1.0-0 - in progress
+-------------
+The L is for Linux, and parallels the W of SD Core for Windows.  1.0-1 and 1.0-2
+were releases of the SD this work was built from, not releases of this system.
+This is the first release under the new numbering rather than an increment, so
+everything below is what L1.0-0 contains rather than what changed since 1.0-2.
+
+Entries are newest first, by date.  This section is written for someone using
+SD: what changed, why it mattered, and what it does not do.
+
+
+08 Sep 26  ERROR MESSAGES ARE NO LONGER CUT OFF AFTER THE FIRST LINE.
+
+           Anything SD reported as a program error was truncated at about 84
+           characters, so a message written as three lines lost the last two -
+           usually the part saying what to do about it.
+
+           The room was always there: the buffer holds 241 characters and the
+           limit had been set to 84 by a typing slip, a + where a * was meant.
+           Long messages now print in full.
+
+08 Sep 26  "sd -stop" NO LONGER RISKS KILLING THE PROGRAM THAT RAN IT.
+
+           Stopping SD signals every session in its user table.  It did that
+           without checking that the recorded process id was real, and a stale
+           entry can carry a process id of 0 - which on Linux does not mean
+           "nobody", it means EVERY PROCESS IN MY PROCESS GROUP.
+
+           So "sd -stop" run from a script or a terminal could terminate the
+           script, the shell, or anything else running alongside it, and say
+           nothing about having done so.  SD now signals only a real process id.
+
+           WHETHER YOU EVER HIT THIS depends on whether a session ever died in a
+           way that left its entry behind with no process id.  Nothing about a
+           normal stop changes.
+
+08 Sep 26  "sd -cleanup" NOW RELEASES A DEAD SESSION'S TASK LOCKS.
+
+           It already gave back the file, record and group locks a lost session
+           was holding, but never its task locks - so a LOCK taken by a program
+           that was then killed stayed taken, and no recovery an administrator
+           had would shift it.  A nightly job guarded by LOCK 3 would not run
+           again until SD was restarted.
+
+           IF YOU HAVE BEEN RESTARTING SD TO CLEAR A STUCK TASK LOCK, you should
+           not need to any more.  It was comparing the lock against the wrong
+           session's number - the one running the cleanup rather than the one
+           being cleaned up.
+
+08 Sep 26  GLOBAL CATALOGUING NOW REQUIRES ADMINISTRATOR RIGHTS WHICHEVER WAY
+           YOU ASK FOR IT, AND DELETE.CATALOG REQUIRES THEM AT ALL.
+
+           CATALOG already required them for the spelled-out form,
+           "CATALOG BP MYPROG GLOBAL".  It did NOT require them when the same
+           thing was asked for by putting a *, !, _ or $ in front of the name -
+           "CATALOG BP $MYPROG" - which is the form most people use.
+
+           DELETE.CATALOG required nothing at all, by either route.
+
+           THIS MATTERS BECAUSE THE GLOBAL CATALOGUE HOLDS THE PROGRAMS SD RUNS
+           FOR EVERYBODY, $LOGIN among them.  Replacing one ran your code in
+           every session on the machine, administrators included; deleting one
+           stopped everybody signing in.
+
+           NOTHING CHANGES FOR LOCAL AND PRIVATE CATALOGUING, which is what
+           programmers use day to day:
+
+               CATALOG BP MYPROG          private catalogue, this account
+               CATALOG BP MYPROG LOCAL    this account's VOC
+
+           Both still work, in any account you are allowed to enter.  The only
+           thing you can no longer do as an ordinary user is catalogue or delete
+           a program whose name starts with *, !, _ or $, because those
+           characters mean "system-wide".  Name it without one.
+
+08 Sep 26  "term default" NOW RESTORES 120 x 36, NOT 20 x 24.
+
+           It was setting the page to the smallest size SD allows rather than
+           the default, which wrapped every standard report.  It now sets the
+           documented width and depth - the same size a session starts with when
+           nothing else tells it otherwise.
+
+08 Sep 26  SET.SOCKET.MODE CAN NOW TURN KEEP-ALIVE OFF.
+
+           SET.SOCKET.MODE(skt, SKT$INFO.KEEP.ALIVE, 0) returned 1, for success,
+           and switched keep-alive ON.  The value you passed was read and then
+           discarded.  SOCKET.INFO(skt, SKT$INFO.KEEP.ALIVE) reads the socket
+           itself and had been telling the truth all along, so the two disagreed.
+
+           The setting is now whatever you asked for.  If you have code that
+           worked around this by not calling it, the workaround is no longer
+           needed.
+
+08 Sep 26  ENCRYPT.FIELD HAS BEEN REMOVED.  IT COULD NEVER WORK.
+
+           The verb was in the account template and pointed at a program called
+           $CRYPTO which is not part of this distribution, so typing it answered
+
+               Unable to load '$CRYPTO' object code at line 1550 of $CPROC
+
+           which names neither the verb you typed nor anything you could act on.
+           "Verb not found" is the honest answer, and that is what you get now.
+
+           Nothing in the documentation referred to the verb and field encryption
+           was not available through it before.  THE ENCRYPT KEYWORD IS A
+           DIFFERENT THING and is untouched.
+
+
 Version 1.0-2
 -------------
 (mab)  Add back LISTPQ - sentence to list procs (SD.VOCLIB, VOC_TEMPLATE, NEWVOC)

@@ -17,7 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
- * rev 0.9-3 SIGPIPE Error in op_writeskt() (WRITE.SOCKET)  issue #89 / ScarletDME 
+ * 08 Sep 26 SET.SOCKET.MODE could not turn keep-alive off; the caller's value
+ *           was read and then overwritten with TRUE.
+ * rev 0.9-3 SIGPIPE Error in op_writeskt() (WRITE.SOCKET)  issue #89 / ScarletDME
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -670,7 +672,10 @@ void op_setskt() {
     case SKT_INFO_KEEP_ALIVE:
       GetInt(descr);
       n = (descr->data.value != 0);
-      n = TRUE;
+      /* 08 Sep 26  "n = TRUE;" stood here and discarded the value the caller
+         passed, so SET.SOCKET.MODE(skt, SKT$INFO.KEEP.ALIVE, 0) returned 1 for
+         success and switched keep-alive ON.  SOCKET.INFO() reads the socket and
+         had been telling the truth all along, so the two disagreed.  */
       setsockopt(sockvar->socket_handle, SOL_SOCKET, SO_KEEPALIVE, (char*)&n,
                  sizeof(int));
       break;

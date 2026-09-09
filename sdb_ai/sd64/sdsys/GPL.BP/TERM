@@ -162,8 +162,19 @@ $include syscom terminfo.h
          k = T$USER9                ; s = 'u9    : User 9  @(-109) (synchronous command)' ; gosub show
 
       case keyword = KW$DEFAULT                  ;* TERM DEFAULT
-         width = MIN.WIDTH
-         depth = if @term.type = 'sdterm' then 25 else 24
+* 08 Sep 26  This set width = MIN.WIDTH, which is 20 -- the smallest page SD
+* allows, not the default -- and a hard-coded depth of 24.  "term default"
+* therefore wrapped every standard report.  The constants it should have used
+* are in INT$KEYS.H beside MIN.WIDTH, and LOGIN lines 85 and 90 already use them
+* to size a session that says nothing else, so this now restores exactly what a
+* session starts with: 120 x 36.
+*
+* The old line read: depth = if @term.type = 'sdterm' then 25 else 24
+* The sdterm case is dropped rather than carried forward, because LOGIN does not
+* make that distinction either.  If sdterm really does have 25 usable lines,
+* this is the line to revisit -- it was not measured on a terminal.
+         width = DEFAULT.WIDTH
+         depth = DEFAULT.DEPTH
          call @parser(parser$get.token, token.type, token, keyword)
          if token.type # PARSER$END then stop sysmsg(2018) ;* Unexpected token (XX)
 

@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 08 Sep 26 remove_user() compared task locks against the cleanup process's own
+ *           user number instead of the dead session's, so "sd -cleanup" never
+ *           released them.
  * 31 Dec 23 SD Launch - prior history suppressed
  * END-HISTORY
  *
@@ -296,8 +299,15 @@ Private void remove_user(USER_ENTRY* uptr) {
 
   /* Give away process locks */
 
+  /* 08 Sep 26  This compared against process.user_no -- the user number of the
+     process running the cleanup, not the dead session being removed.  Every
+     other loop in this function uses user_no, set from uptr->uid above.  So
+     "sd -cleanup" gave back file, record and group locks and silently kept the
+     task locks: a LOCK taken by a program that was then killed stayed taken
+     until SD was restarted, and a nightly job guarded by LOCK n never ran
+     again.  */
   for (i = 0; i < 64; i++) {
-    if (sysseg->task_locks[i] == process.user_no)
+    if (sysseg->task_locks[i] == user_no)
       sysseg->task_locks[i] = 0;
   }
 
