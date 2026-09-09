@@ -707,10 +707,33 @@ declared through `sd.h`. Message 10032 is 68 bytes against a bound of 231.
 **identical error classes AND counts**, so neither edit introduced one.
 
 ***WHAT IS NOT ESTABLISHED: NONE OF IT HAS RUN.*** `CPROC` is compiled only by
-the install's two-stage bootstrap. ***THE WITNESS IS `WHOAMI` UNDER `sudo sd`***
-— it prints User, Account, uid, euid and the admin flag together, so `User`
-naming the **person** rather than `sdsys`, with `Process EUID` still showing
-sdsys's, is the whole change visible in one screen. **Today it prints `sdsys`.**
+the install's two-stage bootstrap.
+
+***THE WITNESS IS THE VERB `WHO.AM.I`, NOT `WHOAMI`. CORRECTED 9 Sep 2026 AFTER
+THE OWNER TRIED IT AND IT WAS NOT THERE.*** This entry said `WHOAMI`, which is
+the **program** name in `GPL.BP`; the **verb** is `WHO.AM.I`
+(`VOC_TEMPLATE/WHO.AM.I` = `V` / `CA` / `$WHOAMI`, present in `NEWVOC` too).
+`whoami` and `WHOAMI` both answer *"is not in your VOC"*, measured by the owner
+under `sudo sd`. ***A NEAR-MISS NAME OF EXACTLY THE KIND CLAUDE.md WARNS
+ABOUT***, and it cost a round trip.
+
+***AND `WHO` IS A THIRD, DIFFERENT THING — DO NOT USE IT AS THE WITNESS.***
+`VOC_TEMPLATE/WHO` is `V` / `IN` / `16`, a CPROC internal verb, and it prints
+the **user number and the ACCOUNT** — the owner's run answered `65 SDSYS`. That
+`SDSYS` is `@who`, the account, and it is **correct and unchanged by this
+work**; it is not `@logname` and says nothing about the person.
+
+**`WHO.AM.I` witnesses two things at once** (`GPL.BP/WHOAMI:43-55`):
+
+| Line | Before an install of this work | After |
+|---|---|---|
+| `User        :` | `sdsys` | ***the person*** |
+| `Account     :` | `SDSYS` | `SDSYS` — unchanged |
+| `Process EUID:` | sdsys's | sdsys's — unchanged, the drop stays |
+| `Admin?      :` | yes | **yes — this also re-checks the entry-19 fix** on the live `sudo sd` path |
+
+**Run it under `sudo sd` BEFORE installing to bank the baseline**, then again
+after.
 
 **Two incidental findings, both leads rather than established:**
 
