@@ -16,12 +16,29 @@ has been exercised on an installed system.**
 
 ### Your next task
 
-**Step 4 — the shrink, as one release** (plan "Suggested order"): remove `I1`
-TAPE · `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `G1` BP test programs · `G2`
-VFS · `G3` OPGEN · `G4` SDNet · then `I2` PROC (the one with compiler and opcode
-reach). Large, and a good place to insist on the lower-case migration going in
-with it. Mind the near-miss names (`MODIFY` the record editor goes; `MODIFYA`
-= MODIFY.ACCOUNT stays).
+**Step 4 — the shrink, IN PROGRESS.** See "Step 4" below for what is done.
+Remaining: `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `I2` PROC · `G1` BP test
+programs · `G2` VFS · `G3` OPGEN · `G4` SDNet.
+
+***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
+`I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
+and doing them in one pass means those are edited once and `update.accounts`
+(§F2) runs once. `I1` TAPE was exempt — it is copied in from `tape/` at install,
+never shipped in `VOC_TEMPLATE` — so it went alone. Do the VOC-touching removals
+together. Mind the near-miss names (`MODIFY` the record editor goes; `MODIFYA` =
+MODIFY.ACCOUNT stays; `MODIFY.PASSWORD` stays). `I2` PROC is the deep one
+(compiler + opcode `OP_PROCREAD`); the plan says report "PROC not supported" at
+the `CPROC:1530` dispatch and RETIRE the opcode slot rather than reuse it. A good
+place to fold in the lower-case migration.
+
+**Higher-value unpaid debt still owed: EXERCISE steps 2 and 3** on an install.
+- Step 2 (`A1`–`A6`) is where a wrong fix is silent; `A1` needs an *induced
+  commit failure* (a read-only or externally-locked record) to reach at all.
+- Step 3 regenerated `SYSCOM/ERR.H`, `GPL.BP/ERRTEXT.H`, `REVSTAMP.H` and
+  reformatted every SDEXT/crypto/Python error `$define` from C spelling to SD
+  spelling. **No BASIC references the renamed defines** (checked: they flow as
+  numbers, ERRTEXT.H maps number→text), so the risk is low, but it has not been
+  seen on a running system. An install would confirm error text now displays.
 
 **Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
 run on an installed system.
@@ -349,6 +366,27 @@ dirties the four files even when content is identical. The build only ever runs
 | D5 | on an installed system, trigger a Python or crypto error and confirm the message text shows, not a bare number |
 | J4 | edit `gplsrc/err.h`, run `make` — it must fail at `check-includes` until `gen_includes.py` is run |
 | D6 | compile `ERRTEXT`/`APISRVR` in the bootstrap — must succeed without running ERRGEN/REVSTAMP (the tracked `.H` files are current) |
+
+## Step 4 — the shrink (in progress), 9 Sep 2026
+
+One release (L1.0-0). Removing subsystems named in the project stance. Ordered
+so the VOC-touching ones go together; TAPE was independent and went first.
+
+| | What | Done? |
+|---|---|---|
+| I1 | TAPE/RESTORE: deleted `sd64/tape/` (24 records — 5 `GPL.BP`, 19 `VOC` verbs) and the install prompt at `installsdai.sh:475`. It was copied in at install from `tape/`, never shipped in `VOC_TEMPLATE`, so nothing else referenced it (grep confirmed). `bash -n installsdai.sh` clean | **done** |
+| I3 | SED — `GPL.BP/SED`, `VOC_TEMPLATE/SED`, its key file | pending |
+| I4 | UPDATE.RECORD — `GPL.BP/UPDREC`, `VOC_TEMPLATE/UPDATE.RECORD` | pending |
+| I5 | MODIFY — `GPL.BP/MODIFY`, `VOC_TEMPLATE/MODIFY`. **Keep `MODIFYA`, `MODIFY.PASSWORD`** | pending |
+| I2 | PROC — `GPL.BP/PROC`+`BBPROC`, `bbcmp.py` compile step + `installsdai.sh:500`, `LISTPQ`, `OP_PROCREAD`/`op_procread()` + BCOMP, `CPROC:1530` dispatch. Report "not supported" at dispatch; RETIRE the opcode | pending |
+| G1 | 22 SDSYS `BP` test programs | pending |
+| G2 | VFS scaffolding | pending |
+| G3 | OPGEN (`GPL.BP/OPGEN`; `OPCODES.H` already covered by `gen_includes.py`) | pending |
+| G4 | SDNet (`gplsrc/netfiles.c`) | pending |
+
+**Not exercised.** I1 removed data records and an install prompt; nothing in the
+C build depends on them, so `make` is unaffected, but an install that used to
+offer the TAPE prompt has not been re-run.
 
 ## Open
 
