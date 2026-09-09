@@ -45,6 +45,13 @@ is done; **read the table, never the section headings** — short entries have n
 section at all, so counting `## N.` headings gives an answer that is wrong and
 looks authoritative.
 
+***THE FIRST COLUMN IS THE ID AND ITS HEADER CELL IS DELIBERATELY EMPTY. DO NOT
+"FIX" IT TO `| ID |`.*** The port's checker finds this table by matching
+`^\|\s*\|\s*SEV\s*\|` (`test-fixlist-units.ps1:106`), so the empty cell is what
+makes the table findable. **It said `| ID |` until 9 Sep 2026 and the checker
+refused the whole file** — *"no index table found"*, exit 2. Changed on the
+owner's ruling that day, for conformity with the port and to adopt the checker.
+
 ***NEXT FREE ID: 20.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
@@ -52,7 +59,7 @@ scanning.**
 and carries 186 entries. This one starts at 1 — the port's ids are its own and
 the two files are not comparable by number.
 
-| ID | SEV | What | Where |
+| | SEV | What | Where |
 |---|---|---|---|
 | 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** Classified 9 Sep from each script's own header: **113 testing, 38 admin, 6 build**. The testing half is 51 `verify-*`, **28 `test-*-units` that test the verifiers themselves**, 18 `probe-*` and 16 harness. Of the 38 admin, 19 are Windows mechanism with no counterpart here, **12 are the `secure-*` ACL family whose INTENT is §L's POSIX security posture**, and 7 have a direct Linux need the plan already schedules (`upgrade-voc`/`-dicts` §F1/F2, `check-install` §F7, `finish-install`, `clean-deadvoc`, `api-listener`, `restart-sd`). The plan mentions none of it: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in ~1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
 | ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
@@ -178,9 +185,26 @@ the tool merely named it. ***CONVENTION, ADOPTED 9 Sep 2026: A PORT ENTRY IS
 CITED AS "the port's entry N", NEVER AS "PRE_RELEASE N".*** Fixed at all four
 sites; the checker then reports **26 passed, 0 failed, exit 0**.
 
-**Left undecided deliberately:** whether this file's header becomes `| | SEV |`
-to adopt the checker outright. That is a convention change and the owner's call;
-until it is taken, the run above is reproducible only on a copy.
+***ADOPTED ON THE OWNER'S RULING, 9 Sep 2026: THIS FILE'S HEADER IS NOW
+`| | SEV | What | Where |` AND THE CHECKER RUNS AGAINST THE REAL FILE.***
+**26 passed, 0 failed, exit 0**, and `## 2`'s heading gained its `DONE` marker
+to clear the one standing NOTE — a note that is always present is a note nobody
+reads. Run it with:
+
+```sh
+pwsh -NoProfile -File /home/don/Projects/SDCoreProject/sd4windows/sdb_ai/sd64/gplbld/test-fixlist-units.ps1 -Root /home/don/Projects/sdcore4linux
+```
+
+***IT HAS BEEN WATCHED REFUSING AND FAILING ON THIS FILE, NOT ONLY PASSING***,
+which is what makes the green worth anything: **exit 2** *"no index table
+found"* before the header changed, and **2 FAILs** on the citations before they
+were fixed. **It is `pwsh`-only and lives in the port's tree** — a development
+convenience, so nothing may come to depend on it; a Linux-native replacement is
+still entry 9's business.
+
+***AND IT ONLY CHECKS THIS FILE.*** It says nothing about PROJECT_STATUS.md,
+which is the document `check-stale-leads.py` was for and where entry 9's real
+gap remains.
 
 ### What language, and it should not default
 
@@ -226,7 +250,7 @@ runs inside `sd`; or accept manual check tables in PROJECT_STATUS and say so.
 choose it** — steps 1 to 4 have accumulated an unexercised check table each,
 which is the shape of a decision nobody made.
 
-## 2. The editors
+## 2. The editors — **S** — ***DONE 9 Sep 2026***
 
 **What this tree has.** `GPL.BP/MICRO`, catalogued `$MICRO`, reached by
 `MICRO` in both `VOC_TEMPLATE` and `NEWVOC`. `EDIT` and `ED` both point at
