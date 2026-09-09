@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 PROC is removed (plan I2). The PQ dispatch case now refuses by name
+*           with sysmsg 10099 instead of calling $PROC. It is kept rather than
+*           deleted because deleting it would drop a PQ record into the
+*           "invalid dispatch code" arm, which is the wrong thing to say: the
+*           record is valid PROC, it is the interpreter that has gone. The
+*           proc.* SYSCOM slots stay - removing common slots shifts every slot
+*           after them.
 * rev 0.9.0 Jan 25 mab change permission required for account logto, must now either be;
 *                      1) users ACCOUNT
 *                      2) member of the ACCOUNT's linux group
@@ -1528,47 +1535,16 @@ $endif
             end case
 
          case voc.entry.type[1,2] = 'PQ'
-               ins at.sentence before sentence.stack<1>
-               at.sentence = new.sentence
-               last.command = at.sentence
+               * PROC was removed from SD (plan I2). This case is kept rather
+               * than deleted so that a PQ record refuses BY NAME: without it a
+               * PROC would fall into the 'invalid dispatch code' arm above,
+               * which says the wrong thing. The record is valid PROC; it is
+               * the interpreter that has gone. PQ records on disk are left
+               * alone.
 
-               * Set the pointers and the active buffers
-
-               mat proc.ibuf = ''
-
-               s = @sentence
-               loop
-               while s # ''
-                  c = s[1,1]
-                  if c = '"' or c = "'" or c = '\' then
-                     j = index(s, c, 2) ; if j = 0 then j = len(s)
-                     proc.ibuf(0)<-1> = s[1,j]
-                     s = trimf(s[j+1, 9999999])
-                  end else
-                     proc.ibuf(0)<-1> = field(s, ' ', 1)
-                     s = trimf(s[col2() + 1, 999999])
-                  end
-               repeat
-
-               * If this is a PQ style Proc, change the field marks in the
-               * primary input buffer to spaces.
-
-               c = voc.entry.type[3,1]
-               if c # 'N' and c # 'X' then
-                  convert @fm to ' ' in proc.ibuf(0)
-               end
-
-               proc.iptr = 1
-               proc.iptr.cpos = 1
-               proc.acti = 0
-
-               mat proc.obuf = ''
-               proc.acto = 0
-
-               i = '$PROC'
-               call @i(voc.rec, verb, filename, @voc, '')
-               i = ''                ;* Ensure link unsnapped
-               mat proc.fvar = 0     ;* Ensure all files are closed
+               display sysmsg(10099, verb)
+               * PROC is not supported in this version of SD, and '%1' is a PROC
+               unwinding = 2
 
          case voc.entry.type[1,1] = 'R'                       ;* **** Remote
             open voc.rec<2> to rem.f then

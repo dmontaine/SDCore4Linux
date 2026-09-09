@@ -9,6 +9,38 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  PROC, SED, UPDATE.RECORD AND MODIFY HAVE BEEN REMOVED.
+
+           SED was the full-screen editor, and UPDATE.RECORD and MODIFY were
+           full-screen record editors - MODIFY the one inherited from OpenQM.
+           All three are gone, along with the PROC language.  LISTPQ, the
+           sentence that listed the PROCs in a VOC, goes with PROC.
+
+           A VOC item of type PQ now says that PROC is not supported instead of
+           running.  Your PQ records are left alone: it is the interpreter that
+           has gone, not the records, and SD says so by name rather than
+           complaining that the record is invalid.
+
+           ED, the line editor, is not affected and is now the way to edit a
+           record.
+
+           Four names are close enough to invite confusion and NONE of them is
+           affected:
+
+           * MODIFY.ACCOUNT and MODIFY.PASSWORD are different verbs with
+             different programs behind them, and both remain.
+           * LIST, COUNT, SELECT and SORT are the query processor, which is a
+             different thing from PROC despite the similar name.
+           * PROCREAD and PROCWRITE, the two BASIC statements, still compile.
+             With the interpreter gone PROCREAD simply reports that it is not
+             running inside a PROC, which is what it already did anywhere else.
+             Nothing you have compiled stops loading.
+           * The PHANTOM debugger is untouched.
+
+           An account created before this update keeps whatever was in its VOC
+           at the time - SD only ever adds records at an update, never removes
+           them.
+
 09 Sep 26  SD NO LONGER CLAIMS TO SUPPORT VIRTUAL FILE SYSTEMS.
 
            SD advertised a "virtual file system": you could write a VOC file
