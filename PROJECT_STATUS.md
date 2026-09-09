@@ -26,11 +26,14 @@ report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
 lower-case migration here.
 
 ***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
-the tree), ***but the fixes' behaviour is unexercised.*** `G4` in particular is
-core file-I/O surgery (open/read/write/delete/lock/select/AK across 7 C files),
-and a generic command does not touch that dispatch — so a file-I/O smoke test
-(open, read, write, delete, LOCK, SELECT, an AK query on a normal DYNAMIC and
-DIRECTORY file) is still owed before trusting it.
+the tree). **`G4`'s read side is now witnessed:** the owner ran `SELECT VOC`,
+`LIST VOC ID.SUP` and `COUNT VOC` and records listed normally — exercising
+op_open, read_record, op_readv (field) and op_select, i.e. the open/read/select
+paths G4 rewrote. ***Still not witnessed: write, delete, record lock*** (op_write
+/op_delete in `op_dio3.c`, the six `op_lock.c` sites). They use the same edit
+pattern as the proven paths, so the risk is low, but a create/write/read/delete
+on a scratch file (e.g. `CREATE.FILE DATA G4TEST`, `ED` a record and `FI`, `LIST`
+it, `DELETE` it) would close it.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
