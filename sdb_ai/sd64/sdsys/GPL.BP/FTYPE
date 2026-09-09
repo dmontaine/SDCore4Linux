@@ -18,13 +18,16 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 The VFS: case is gone. The C has never recognised a VFS: pathname,
+*           so reporting one as a virtual file system said a file pointer was
+*           valid that OPEN then refused. It now falls through and is reported
+*           by what it actually is.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
 * Mult   Multi-file
-* VFS    Virtual file system
 * Err    Error
 * Dir    Directory file
 * DH     Dynamic hashed file
@@ -46,8 +49,6 @@ $include keys.h
 
 
    if dcount(path, @vm) > 1 then return ('Mult')
-
-   if upcase(path[1,4]) = 'VFS:' then return ('VFS')
 
    if upcase(path[1,6]) = '@SDSYS' then path = @sdsys:path[7,9999]
 

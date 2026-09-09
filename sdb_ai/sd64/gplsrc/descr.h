@@ -314,9 +314,10 @@ struct FILE_VAR {
 #define DIRECTORY_FILE 1
 #define DYNAMIC_FILE 2
 #define SEQ_FILE 3
-/* 4 was NET_FILE - SDNet removed (plan G4). Slot left unused rather than
-   renumbering VFS_FILE. */
-#define VFS_FILE 5
+/* 4 was NET_FILE - SDNet removed (plan G4).  5 was VFS_FILE - the virtual
+   file system scaffolding removed (plan G2).  Both slots are left unused
+   rather than renumbering the types above them.  Neither value is persisted:
+   fvar->type lives only in the runtime FILE_VAR. */
   /* Tokens also in BP DEBUG.H */
   u_char flags;
 #define FV_RDONLY 0x01  /* Read only file */

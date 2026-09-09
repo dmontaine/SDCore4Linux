@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 Every pathname is now absolutised. The branch that left a VFS:
+*           pathname relative was waiting for a handler the C never had, so
+*           the name it produced could not be opened by anything.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -137,23 +140,21 @@ parse.as.q.pointer:
 
             if pathname[1,1] = '@' then pathname = parse.pathname.tokens(pathname)
 
-            if upcase(pathname[1,4]) # 'VFS:' then
-               * Make pathname absolute
-* 20240121 mab use @VM not hard coded hex fd 
-               if not(pathname matches "'":@ds:"'0X":@VM:"1A':\'0X") then
-                  pathname = dir : @ds : pathname
-               end
+            * Make pathname absolute
+* 20240121 mab use @VM not hard coded hex fd
+            if not(pathname matches "'":@ds:"'0X":@VM:"1A':\'0X") then
+               pathname = dir : @ds : pathname
+            end
 
-               * If we got here by following a Q-pointer, we need to convert a
-               * relative pathname to absolute form.
+            * If we got here by following a Q-pointer, we need to convert a
+            * relative pathname to absolute form.
 
-               if qpath # '' then
-                  qfile = voc.rec<fno>
-						if qfile[1,1] # @ds then
-							* Convert voc item to absolute path
-							qfile = qpath : @ds : qfile
-						end
-               end
+            if qpath # '' then
+               qfile = voc.rec<fno>
+					if qfile[1,1] # @ds then
+						* Convert voc item to absolute path
+						qfile = qpath : @ds : qfile
+					end
             end
 
             set.status 0

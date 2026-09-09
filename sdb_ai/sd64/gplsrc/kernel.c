@@ -597,7 +597,7 @@ void k_return() {
   }
   /* -------------------- */
   if ((obj_hdr->id == 0) /* Return from recursive program */
-      || (process.program.flags & (PF_IS_TRIGGER | PF_IS_VFS | HDR_IS_CLASS))) {
+      || (process.program.flags & (PF_IS_TRIGGER | HDR_IS_CLASS))) {
     k_exit_cause = K_EXIT_RECURSIVE;
   } else {
     if ((--(obj_hdr->ext_hdr.prog.refs) == 0) &&

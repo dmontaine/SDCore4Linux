@@ -144,9 +144,11 @@
 #define ER_PERM        3035    /* Permissions error (os.errno) */
 #define ER_SEEK_ERROR  3036    /* Seek error */
 #define ER_WRITE_ERROR 3037    /* Write error (os.errno) */
-#define ER_VFS_NAME    3038    /* Bad class name in VFS entry */
-#define ER_VFS_CLASS   3039    /* VFS class routine not found */
-#define ER_VFS_NGLBL   3040    /* VFS class routine is not globally catalogued */
+/* 3038, 3039 and 3040 are RETIRED - do not recycle.  They were ER_VFS_NAME,
+   ER_VFS_CLASS and ER_VFS_NGLBL, and were never raised; the VFS scaffolding
+   was removed by plan G2.  The numbers stay claimed because the client
+   library ships its own public copy of this header
+   (examples/windows.c/winsdclilib/err.h), which is deliberately left alone. */
 #define ER_ENCRYPTED   3041    /* Access denied to encrypted file */
 
 /* 4000 - 4999   SDClient errors */

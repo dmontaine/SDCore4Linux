@@ -98,7 +98,10 @@ struct PROGRAM {
 #define IGNORE_ABORTS 0x00040000L  /* Ignore aborts from EXECUTEd sentence */
 #define PF_IS_TRIGGER 0x00080000L  /* Is trigger program */
 #define SORT_ACTIVE 0x00100000L    /* Program has sort in progress */
-#define PF_IS_VFS 0x00200000L      /* Is VFS handler */
+/* 0x00200000L is RETIRED - do not recycle.  It was PF_IS_VFS, and the LS 16
+   bits of this word come from the compiled object header, so an object built
+   by another MultiValue implementation could carry it.  BCOMP has no
+   directive that ever set it; the VFS scaffolding was removed by plan G2. */
 #define PF_CAPTURING 0x00400000L   /* Capture data stacked for this CPROC */
 #define PF_IN_TRIGGER 0x00800000L  /* This or lower program is a trigger */
 #define PF_PRINTER_ON 0x01000000L  /* PRINTER ON? */

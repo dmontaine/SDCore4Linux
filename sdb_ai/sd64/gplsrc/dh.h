@@ -102,7 +102,10 @@ struct DH_FILE {
                                             change. Test only in FILE_ENTRY) */
 #define DHF_NOCASE 0x00000010  /* Case insensitive ids */
 #define DHF_TRUSTED 0x00000020 /* Access requires trusted program */
-#define DHF_VFS 0x00000040     /* Not DH at all - It's a VFS */
+/* 0x00000040 is RETIRED - do not recycle.  It was DHF_VFS, and it is a file
+   header bit (see the comment above), so a file written by another MultiValue
+   implementation could carry it.  No SD build ever set it: it is not in
+   DHF_CREATE.  The VFS scaffolding was removed by plan G2. */
 #define DHF_CREATE 0x000000B8  /* Bits that can be set on creation */
 /* MS 16 bits are internal... */
 #define DHF_TRIGGER 0x00010000  /* File has trigger */
@@ -151,8 +154,9 @@ struct AK_CTRL {
 Public int select_ftype[HIGH_SELECT + 1]; /* Select list file type */
 #define SEL_NONE 0
 #define SEL_DH 1
-#define SEL_VFS 2
-Public void* select_file[HIGH_SELECT + 1];    /* DH_FILE (DH), FILE_VAR (VFS) */
+/* 2 was SEL_VFS - VFS scaffolding removed (plan G2).  In-memory only, so the
+   slot may be reused. */
+Public void* select_file[HIGH_SELECT + 1];    /* DH_FILE */
 Public int32_t select_group[HIGH_SELECT + 1]; /* Group for active DH select */
 
 /* ======================================================================

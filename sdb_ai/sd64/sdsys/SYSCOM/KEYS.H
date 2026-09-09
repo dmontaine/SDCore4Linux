@@ -26,7 +26,7 @@
       $define FL$TYPE.DH        3  ;* DH file
       $define FL$TYPE.DIR       4  ;* Directory file
       $define FL$TYPE.SEQ       5  ;* Sequential file
-      $define FL$TYPE.VFS       6  ;* Virtual file system
+      * 6 was FL$TYPE.VFS - VFS scaffolding removed (plan G2)
       $define FL$MODULUS        5  ;* Get file modulus
       $define FL$MINMOD         6  ;* Get mimimum modulus value for file
       $define FL$GRPSIZE        7  ;* Get group size

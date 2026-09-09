@@ -506,7 +506,7 @@ void op_readv() {
   fvar = descr->data.fvar;
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
-  if ((field_no != 0) && (fvar->type != VFS_FILE)) {
+  if (field_no != 0) {
     /* Reading a field of a local file */
 
     /* Push lock flag onto e-stack. This corresponds to the lock bits of
