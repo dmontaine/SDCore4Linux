@@ -472,18 +472,9 @@ sudo touch /usr/local/sdsys/gcat/\$CPROC
 # create errlog
 sudo touch /usr/local/sdsys/errlog
 #
-# install TAPE and RESTORE system?
-printf "%b\n" "$YELLOW"
-# read -p "Install TAPE and RESTORE subsystem? (y/N) " yn
-read -r -p "Install TAPE and RESTORE subsystem? (y/N) " yn
-printf "%b\n" "$NC"
-case $yn in
-    [yY] )  echo "Copying TAPE and RESTORE programs to GPL.BP."
-            sudo cp tape/GPL.BP/* /usr/local/sdsys/GPL.BP
-            echo "Copying TAPE and RESTORE verbs to VOC."
-            sudo cp -R tape/VOC/* /usr/local/sdsys/VOC_TEMPLATE
-            echo ;;
-esac
+# The TAPE and RESTORE subsystem was removed (plan I1, step 4 shrink). It was
+# optional and copied in here at install time from tape/, which is gone; an
+# install that declined the old prompt never had it and is unchanged.
 #
 # copy install template
 sudo cp -R bin "$sdsysdir"

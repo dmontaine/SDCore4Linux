@@ -9,6 +9,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  THE TAPE AND RESTORE SUBSYSTEM HAS BEEN REMOVED.
+
+           SD no longer ships the tape verbs - ACCOUNT.SAVE, ACCOUNT.RESTORE,
+           FILE.SAVE, RESTORE.ACCOUNTS, SET.DEVICE, the T.* family (T.ATT,
+           T.REW, T.DUMP and the rest) - or the programs behind them.  They were
+           an optional part of the install: you were asked "Install TAPE and
+           RESTORE subsystem?" and most installs said no.  The question is gone
+           and so are the programs.
+
+           This is part of making SD a smaller system.  Tape was a way of moving
+           whole accounts to and from magnetic tape devices, which is not how
+           anyone backs up or transfers data now; ordinary file copies and the
+           account directory serve that purpose.  If you had installed it and
+           relied on a T.* verb, it is no longer present.
+
 09 Sep 26  ENCRYPTION, SDEXT AND EMBEDDED-PYTHON ERRORS NOW SHOW THEIR MESSAGE
            TEXT INSTEAD OF A BARE NUMBER.
 
