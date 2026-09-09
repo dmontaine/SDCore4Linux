@@ -114,13 +114,12 @@ individually exercised and are collected here so the later pass has the list:
   should show message text, not a bare number. **No BASIC references the renamed
   defines** (checked: they flow as numbers, ERRTEXT.H maps number→text).
 - `G4` write/delete/record-lock (read/select observed; see the Step-4 note).
-- `G2`: `sd` has not started from a pcode library built without `_EXTENDLIST`.
-  Loud rather than silent if wrong — `load_pcode()` refuses to start — so the
-  next install witnesses it. See the Step-4 note.
-- §I: **the edited `CPROC` has not been compiled** (`bbcmp.py` cannot; see the
-  §I note). Loud if wrong — the bootstrap aborts the install. The behaviour to
-  look for once installed: a VOC record of type `PQ` prints message `10099`
-  naming the verb, **not** sysmsg 5053 "invalid dispatch code".
+- ~~`G2`: `sd` has not started from a pcode library built without
+  `_EXTENDLIST`.~~ ***CLOSED 9 Sep 2026 — see "The 11:35 install" below.***
+- ~~§I: the edited `CPROC` has not been compiled.~~ ***CLOSED 9 Sep 2026 — same
+  install.*** **Still open from §I:** a VOC record of type `PQ` printing message
+  `10099` naming the verb, **not** sysmsg 5053 "invalid dispatch code". Nothing
+  shipped is type `PQ`, so this needs one written by hand.
 
 **Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
 run on an installed system.
@@ -145,6 +144,40 @@ start with, e.g.:
 ```sh
 grep -n -i -E 'PROC|TAPE|SDNet|OPGEN|VFS' /home/don/Projects/SDCoreProject/sd4windows/*.md
 ```
+
+### The 11:35 install, 9 Sep 2026 — G2 and §I are closed
+
+***THE OWNER RAN THE REWRITTEN INSTALLER AND IT WORKED.*** He ran it; this
+session did not. `/usr/local/sdsys/bin/sd`, **11:35:04**, 1,592,528 bytes. What
+follows was then measured **on the installed tree**, this session, every row
+against a control that fired:
+
+| On `/usr/local/sdsys` | removed | control |
+|---|---|---|
+| `GPL.BP/_EXTENDLIST` · `PCODE.OUT/_EXTENDLIST` | **0**, **0** | `_DELLIST` **1**, **1** |
+| `GPL.BP/SED` · `MODIFY` · `PROC` · `UPDREC` | **0** each | `ED`, `MODIFYA`, `QPROC`, `BBPROC` **1** each |
+| `VOC_TEMPLATE`+`NEWVOC`: `SED`, `UPDATE.RECORD`, `MODIFY`, `LISTPQ` | **0** each | `MODIFY.ACCOUNT`, `ED`, `EDIT` present |
+| `MESSAGES/10099` — must be **PRESENT** | **1** | `5053` **1** |
+
+***THE FOUR CONTROLS IN ROW 2 ARE THE NEAR-MISS NAMES***, so that table also
+shows the removal took the right things and not their neighbours.
+
+**`G2` is closed, and the chain matters more than the conclusion.**
+`GPL.BP.OUT/CPROC` exists, dated **11:35:12**. It is produced by the bootstrap's
+`sd -i` compiling `GPL.BP`; for that `sd` had to run; for `sd` to run
+`load_pcode()` had to succeed; and `load_pcode()` **refuses to start** when a
+`Pcode()` entry has no library object. `bin/pcode` was rebuilt from the
+`pcode_fs` list with `_EXTENDLIST` gone. **So `sd` started from a pcode library
+built without it** — the loud failure mode did not fire.
+
+**§I is closed on the same object.** The edited `CPROC` compiled: a syntax error
+in the replaced `PQ` arm would have aborted bootstrap pass 1 and there would be
+no object. This is what `bbcmp.py` could not do (it aborts on `$IFNDEF`).
+
+***WHAT IT STILL DOES NOT ESTABLISH.*** The `PQ` dispatch has not been *run* —
+nothing shipped is type `PQ`, so it needs a record written by hand. Steps 1–3
+remain unexercised. And this install was of **`origin/main`**, not the working
+tree; that is now how installs work here (`PRE_RELEASE` 15).
 
 ### State of the tree
 
