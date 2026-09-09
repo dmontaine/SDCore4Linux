@@ -203,10 +203,50 @@ exactly the administrative set — `CREATE.ACCOUNT`, `DELETE.ACCOUNT`,
 `BP.OUT`, `GPL.BP.OUT`. Only `%t` is in `NEWVOC` alone. **§L's tiers can extend
 an existing split rather than invent one**, and the plan does not say this.
 
-***WHAT IT STILL DOES NOT ESTABLISH.*** The `PQ` dispatch has not been *run* —
-nothing shipped is type `PQ`, so it needs a record written by hand. Steps 1–3
-remain unexercised. And this install was of **`origin/main`**, not the working
-tree; that is now how installs work here (`PRE_RELEASE` 15).
+### Exercised on the live install, 9 Sep 2026 — §I2 and B1/B2 CLOSED
+
+The owner: *"this is a test machine — you don't have to worry about the running
+sd, it is only there for testing."* So the two checks held back were run.
+
+***§I2's `PQ` DISPATCH IS RUN, NOT JUST COMPILED.*** A type-`PQ` VOC record was
+built by hand — `CREATE.FILE PQSRC DIRECTORY`, the record written as an ordinary
+file (a directory file's records **are** OS files, which avoids driving `ED`),
+then `COPY FROM PQSRC TO VOC TESTPQ`, *1 record(s) copied*. Invoking it:
+
+```
+PROC is not supported in this version of SD, and TESTPQ is a PROC.
+```
+
+**Anchored both ways, as the instrument rule asks:** the success wording present
+**1**, and `invalid dispatch code` (sysmsg 5053, the arm a deleted case would
+have fallen into) present **0**, as are *not found* and *Unexpected token*.
+**Cleaned up afterwards** — `COUNT VOC` 410 before, 412 with the fixtures, **410
+after**.
+
+***B1 AND B2 ARE CLOSED — the two the Open list called most worth doing.*** As
+uid 1000:
+
+| run as an ordinary user | sysmsg 2001 |
+|---|---|
+| `CATALOG BP $X` — the prefix route B2 was written for | **refused** |
+| `CATALOG GLOBAL BP X` — the keyword route | **refused** |
+| `DELETE.CATALOG $X` — B1 | **refused** |
+| `CATALOG BP X` — **local, the control** | **not refused** (fails *"File BP.OUT not found"*) |
+
+The control is what makes the other three mean anything: the gate discriminates
+rather than refusing everything.
+
+***AND THE MEASUREMENT FOUND SOMETHING THE FIX DID NOT: `system(27)` IS
+`getuid()`*** (`gplsrc/op_sys.c:222`). So "administrator" in these gates is
+**literal root**, `sd` is not setuid, and a session runs as the invoking Unix
+user — **an SD ADMINISTRATOR who is not root will be refused, and any user who is
+root admitted.** B1/B2 are correct as written and follow the existing rev 0.9.0
+convention; **what needs deciding is what "administrator" means**, before §L can
+grant the tier anything. `PRE_RELEASE` 18, and the same root as 14.
+
+***WHAT IS STILL NOT ESTABLISHED.*** Steps 2 and 3 remain unexercised, and the
+rest of step 1 (`D1`, `D2`, `C1`, `D3`, `B4`). This install was of
+**`origin/main`**, not the working tree (`PRE_RELEASE` 15).
 
 ### State of the tree
 
