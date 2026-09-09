@@ -65,7 +65,7 @@ the two files are not comparable by number.
 | 9 | **S** | ***`gplbld/check-stale-leads.py` CANNOT RUN HERE AT ALL, AND ADDING THIS FILE DOES NOT CHANGE THAT*** — measured 9 Sep 2026, not predicted. Copied verbatim and run, it exits **2 before any phase executes**: *"REFUSING - could not bound section 7"*. It is keyed to the port's PROJECT_STATUS structure — a section 7, `> ###` START HERE items, a `✅` task table — none of which exists here. **The unadapted copy was removed rather than committed**, because a tool that always exits 2 reads as a guard the project has. See §9 | `sd4windows/sdb_ai/sd64/gplbld/check-stale-leads.py` |
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
-| ~~19~~ | **B** | ***DONE 9 Sep 2026 — MEASURED, THEN FIXED TO MATCH THE PORT.*** The C hole was real at **both** ends (`op_kernel.c:302-312`): any positive argument set `USR_ADMIN` without calling `IsAdmin()`, and the `\|\| IsAdmin()` made `kernel(26,0)` *re-grant* rather than clear whenever the caller ran as root, so `CPROC:2713`'s admin-drop on `LOGTO` did nothing for a root OS user. ***BUT THE READING "bypassable from any BASIC program" IS REFUTED:*** `KERNEL` is an `int.intrinsics` entry resolved only in internal mode (`BCOMP:3758`), and a non-internal probe (`kernel(26,1)`) compiled from the non-root `don` account **fails with "Unrecognised statement", 2 errors** — KERNEL is unreachable from ordinary BASIC. So the opcode can only be emitted by an `$internal` program (LOGIN, CPROC). **Fixed by gating the flag change on `HDR_INTERNAL`**, the port's exact fix (its PRE_RELEASE 170 / 13 Aug 26). Build clean, 0 warnings; `bin/sd` boots. The `$internal`-path effect is reasoned + conformity, not witnessed (an ordinary user cannot compile `$internal`). Unblocks entry 18 | `gplsrc/op_kernel.c:302-312` |
+| ~~19~~ | **B** | ***DONE 9 Sep 2026 — MEASURED, THEN FIXED TO MATCH THE PORT.*** The C hole was real at **both** ends (`op_kernel.c:302-312`): any positive argument set `USR_ADMIN` without calling `IsAdmin()`, and the `\|\| IsAdmin()` made `kernel(26,0)` *re-grant* rather than clear whenever the caller ran as root, so `CPROC:2713`'s admin-drop on `LOGTO` did nothing for a root OS user. ***BUT THE READING "bypassable from any BASIC program" IS REFUTED:*** `KERNEL` is an `int.intrinsics` entry resolved only in internal mode (`BCOMP:3758`), and a non-internal probe (`kernel(26,1)`) compiled from the non-root `don` account **fails with "Unrecognised statement", 2 errors** — KERNEL is unreachable from ordinary BASIC. So the opcode can only be emitted by an `$internal` program (LOGIN, CPROC). **Fixed by gating the flag change on `HDR_INTERNAL`**, the port's exact fix (its entry 170 / 13 Aug 26). Build clean, 0 warnings; `bin/sd` boots. The `$internal`-path effect is reasoned + conformity, not witnessed (an ordinary user cannot compile `$internal`). Unblocks entry 18 | `gplsrc/op_kernel.c:302-312` |
 | 18 | **B** | ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
@@ -138,6 +138,49 @@ when a check has gone blind.**
 
 ***SO THE GAP IS NOT "31 SCRIPTS". IT IS AN ENTIRE VERIFICATION LAYER PLUS THE
 POSIX EXPRESSION OF 12 SECURITY POLICIES.***
+
+### PowerShell is on the development machine — measured 9 Sep 2026
+
+***THE OWNER INSTALLED THE `pwsh` SNAP (7.6.5) FOR DEVELOPMENT AND RULED IT MUST
+NOT BECOME AN INSTALL REQUIREMENT.*** Nothing this project ships uses it, and
+the language split below is unchanged. **It is a reading aid, not a dependency.**
+
+**What it actually buys, measured rather than hoped:**
+
+| | |
+|---|---|
+| `.ps1` in the port | **157** |
+| reference Windows-only mechanism (`Get-LocalUser`, ACLs, registry, services, `.exe`) | ***130*** — these cannot run here whatever interpreter exists |
+| no obvious Windows mechanism | 27 |
+
+***SO `pwsh` DOES NOT MAKE THE PORT'S SUITE PORTABLE, AND IT SETTLES ENTRY 8 BY
+MEASUREMENT RATHER THAN BY READING***: `assert-current.ps1` carries **40**
+Windows-mechanism hits, so *"a rewrite, not a copy"* stands.
+
+***WHAT IT DID BUY, AND IT FOUND A REAL DEFECT IN AN HOUR.***
+`test-fixlist-units.ps1` **runs on Linux** and is a consistency checker for
+`PRE_RELEASE_FIXES.md` — index rows against detail sections, struck-in-index vs
+silent-in-section, and citations of ids that do not exist. Against the port:
+**284 passed, 0 failed**. It takes `-Root`, so it can be aimed here.
+
+***AIMED AT THIS FILE IT REFUSED RATHER THAN SCORING GREEN*** — *"no index table
+found - every check below would have passed by measuring nothing"*, exit 2 —
+**the same null-case discipline entry 9 found in `check-stale-leads.py`**. The
+sole blocker is one cell: it matches `^\|\s*\|\s*SEV\s*\|` (line 106), so the
+port's header is `| | SEV | … |` and this file's said `| ID | SEV | … |`.
+
+***AND WITH THAT ONE CELL CHANGED IT FOUND TWO GENUINE DEFECTS HERE:*** three
+citations reading `PRE_RELEASE 170` and one reading `PRE_RELEASE 100 and 103`
+**meant the PORT's entries** but are indistinguishable — to a reader or a tool —
+from citations of *this* file's ids. **This file's own header says the two
+numbering spaces are not comparable**, so the ambiguity was already a defect;
+the tool merely named it. ***CONVENTION, ADOPTED 9 Sep 2026: A PORT ENTRY IS
+CITED AS "the port's entry N", NEVER AS "PRE_RELEASE N".*** Fixed at all four
+sites; the checker then reports **26 passed, 0 failed, exit 0**.
+
+**Left undecided deliberately:** whether this file's header becomes `| | SEV |`
+to adopt the checker outright. That is a convention change and the owner's call;
+until it is taken, the run above is reproducible only on a copy.
 
 ### What language, and it should not default
 

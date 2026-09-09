@@ -40,7 +40,7 @@ BASIC program" claim is REFUTED**: `KERNEL` resolves only in internal mode
 (`BCOMP:3758`), and a non-internal probe compiled from the non-root `don`
 account failed *"Unrecognised statement"*, 2 errors. So the opcode is reachable
 only from an `$internal` program (LOGIN, CPROC). Gated the flag change on
-`HDR_INTERNAL` (the port's PRE_RELEASE 170 fix); build clean, `bin/sd` boots.
+`HDR_INTERNAL` (the port's entry 170 fix); build clean, `bin/sd` boots.
 The fix's `$internal`-path effect is **reasoned + conformity, not witnessed** —
 an ordinary user cannot compile `$internal`, so it is unwitnessable from
 ordinary BASIC, which is the same fact that makes the old hole unreachable. **An
@@ -345,7 +345,7 @@ and own entry to an account. Fixture cleaned up: `COUNT VOC` **410 → 411 →
 410** (the compile made a `BP.OUT` pointer; both it and `ADMTEST19` deleted).
 
 ***FIX: GATE THE FLAG CHANGE ON `HDR_INTERNAL`*** — the Windows port's exact fix
-(`op_kernel.c:400-427` there, its PRE_RELEASE 170, 13 Aug 26). Clean
+(`op_kernel.c:400-427` there, its entry 170, 13 Aug 26). Clean
 `rm -f gplobj/op_kernel.o` rebuild, 0 warnings; `bin/sd --version` exit 0.
 
 ***WHAT IS NOT WITNESSED, WRITTEN IN THE CONDITIONAL.*** The fix would change
@@ -477,7 +477,7 @@ objection as well as the resolution:
 an induced I/O failure (read-only file, mandatory lock, full disk).
 
 ***THE RECORD CHECK PAID FOR ITSELF HERE AND IT IS WORTH SAYING WHY.*** Both
-fixes exist in the Windows tree as PRE_RELEASE 100 and 103, and its entries
+fixes exist in the Windows tree as its entries 100 and 103, and those entries
 corrected the plan on two points this session would otherwise have got wrong:
 
 1. **Seven call sites, not four.** `/home/don/Documents/claude_plan.md` §A5 lists
