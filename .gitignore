@@ -1,0 +1,30 @@
+# Build output. Everything ignored here is produced by `make` from source that
+# IS tracked, so nothing is lost by leaving it out. See CLAUDE.md, "Project
+# constraints": binaries are not tracked, and the README's claim that the tree
+# contains no binary bits should be true of this fork as well as of upstream.
+#
+# Each rule below names the Makefile line that creates the thing, so a later
+# session can check the claim rather than trusting it.
+
+# Compiled objects and linked binaries. Makefile:67 does
+#   $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
+# so both directories are created by the build and need no placeholder here.
+sdb_ai/sd64/gplobj/
+sdb_ai/sd64/bin/*
+!sdb_ai/sd64/bin/README
+
+# Terminal definitions. The `terminfo` target (Makefile:104-108) does
+#   rm -Rf $(TERMINFO) && mkdir -p $(TERMINFO) && sdtic -pterminfo terminfo.src
+# and `sd:` depends on it (Makefile:74), so a plain `make` regenerates the whole
+# directory from the tracked terminfo.src.
+sdb_ai/sd64/terminfo/
+
+# Written by installsdai.sh:388 before the build, pointing at whatever Python
+# headers the machine has. It is machine-specific and must not be shared.
+sdb_ai/sd64/gplsrc/sdext_python_inc.h
+
+# Build log.
+sdb_ai/sd64/pcode_bld.log
+
+# Editors.
+.vscode/
