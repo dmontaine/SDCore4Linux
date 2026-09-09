@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 dm  ADMINISTRATOR and PROGRAMMER keywords; the tier is written to
+*               ACCOUNTS field 5 (ACC$TIER).  PRE_RELEASE 18.  Nothing reads it
+*               yet - the gates are a separate change, and the per-tier VOC is
+*               SL1 and is not designed.
 * rev 1.0-1 Jan 26 group account now have linux group name written as lower case
 *           with "sdg_" prefix
 *           use "adduser" -p parameter when creating linux user account
@@ -42,6 +46,19 @@
 *                                                        Note - users will need to be added to group with MODIFY.ACCOUNT ADD group_name username
 *    CREATE.ACCOUNT OTHER acc.name pathname {NO.QUERY} - account created in pathname, maintained for backwards compatiblilty. This will require manual editing
 *                                                        of the accounts record to specify linux group the account belongs to.
+*
+* 09 Sep 26 dm - THE TIER, PRE_RELEASE 18.  {ADMINISTRATOR | PROGRAMMER} may be
+*   given on any of the forms above, in any position among the trailing
+*   keywords.  Omitting both gives STANDARD, which is the default and is not
+*   itself a keyword.  ADMINISTRATOR wins over PROGRAMMER whichever order they
+*   are typed in.  The tier is written to ACCOUNTS field 5.
+*
+*   THEY CANNOT BE ABBREVIATED - they are matched on token text, not through
+*   the shared KW$ table.  See more.args for why.
+*
+*   WHAT THE TIER DOES NOT DO YET: nothing reads field 5, and every account
+*   still gets the same VOC.  Recording the tier is this change; the gates that
+*   consult it are the next one, and the per-tier VOC is SL1.
 *
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -103,6 +120,10 @@ deffun valid_os_path(path) calling '!valid_os_path'
    *
    uid = ''
    group_name = ''   ;* will be set to callers entered group name on group create, no case changes
+* 09 Sep 26 dm - PRE_RELEASE 18.  STANDARD is the default, so an account made
+*   by somebody who has read none of this is the least privileged one.  The
+*   keyword GRANTS rather than restricts.
+   tier = 'STANDARD'
    begin case
    case upcase(acc.type) = 'USER' 
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
@@ -389,7 +410,14 @@ PW.TRY.AGAIN:
      acc.rec<ACC$GROUP> = "sdu_":acc.uname
    case upcase(acc.type) = "GROUP"
      acc.rec<ACC$GROUP> = group_name
-   end case  
+   end case
+* 09 Sep 26 dm - PRE_RELEASE 18.  Field 5 is the SD half of the owner's
+*   definition of an administrator: sudoers membership is the OS half, and this
+*   is the register saying what SD thinks the account is.  Written for every
+*   account type, so a listing never has to treat a blank as a tier.
+*   ACC$PRIOR.TIER (6) is left blank, which is what "not suspended" reads as.
+*   NOTHING CONSULTS THIS YET - the gates are the second commit.
+   acc.rec<ACC$TIER> = tier
    write acc.rec to acc.f, acc.name
    close acc.f
 
@@ -507,10 +535,29 @@ more.args:
          case keyword = KW$NO.QUERY
             no.query = @true
 
+* 09 Sep 26 dm - PRE_RELEASE 18, the tier keywords.
+*
+*   MATCHED ON THE TOKEN TEXT RATHER THAN ON A KW$ CONSTANT, and that is the
+*   port's reasoning taken as-is: the keyword numbers in SYSCOM/PARSER.H are a
+*   positional table shared by every verb, so adding an entry to serve one verb
+*   is a larger and riskier change than this is worth.  THE COST IS THAT THESE
+*   CANNOT BE ABBREVIATED, unlike NO.QUERY.
+*
+*   STANDARD IS NOT A KEYWORD, it is the default - again matching the port.  A
+*   caller who types it gets the "unexpected token" answer below.
+         case upcase(token) = 'ADMINISTRATOR'
+            tier = 'ADMINISTRATOR'
+
+* AND PROGRAMMER MUST NOT DOWNGRADE.  Both keywords are accepted on one command
+*   line and in either order, so PROGRAMMER given after ADMINISTRATOR would
+*   otherwise silently take the higher tier away again.
+         case upcase(token) = 'PROGRAMMER'
+            if tier # 'ADMINISTRATOR' then tier = 'PROGRAMMER'
+
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)
       end case
-   repeat   
+   repeat
 return
 * ======================================================================
 
