@@ -45,7 +45,7 @@ is done; **read the table, never the section headings** — short entries have n
 section at all, so counting `## N.` headings gives an answer that is wrong and
 looks authoritative.
 
-***NEXT FREE ID: 13.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 14.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -65,6 +65,7 @@ the two files are not comparable by number.
 | 9 | **S** | ***`gplbld/check-stale-leads.py` CANNOT RUN HERE AT ALL, AND ADDING THIS FILE DOES NOT CHANGE THAT*** — measured 9 Sep 2026, not predicted. Copied verbatim and run, it exits **2 before any phase executes**: *"REFUSING - could not bound section 7"*. It is keyed to the port's PROJECT_STATUS structure — a section 7, `> ###` START HERE items, a `✅` task table — none of which exists here. **The unadapted copy was removed rather than committed**, because a tool that always exits 2 reads as a guard the project has. See §9 | `sd4windows/sdb_ai/sd64/gplbld/check-stale-leads.py` |
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
+| 13 | **B** | ***ssh IS AN UNGUARDED WAY PAST THE TIER MODEL, AND THE INSTALLER TURNS IT ON.*** Every distro branch installs an ssh server (`installsdai.sh:254,272,285,295`) and the Arch branch starts and enables `sshd` (`:265-266`). SD users are **ordinary Unix users** — `CREATEA:331` does `usermod -aG sdusers` on an account that already exists, so it keeps its login shell. **Nothing in this project writes `AllowGroups` or `ForceCommand`** (grep: zero hits across the installer and `GPL.BP`). So a STANDARD account that §L1 denies `SH` and `!` **just ssh's in and gets a shell**, never touching SD. This is the exact failure the port measured on 21 Aug 2026 — *"a stock sshd_config: no AllowGroups and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt"* — except here it is the **default state rather than a regression**. See §13 | `installsdai.sh:254-296`; `sdsys/GPL.BP/CREATEA:331`; plan §L5, §H:854, plan:17 |
 | 12 | **S** | ***`sdbasic.yaml` IS GENERATED AND VALIDATED BUT NOTHING PUTS IT WHERE micro LOOKS***, so entry 2's highlighting does not yet reach a user. **Measured on this box, 9 Sep:** micro **2.0.15**, config dir `~/.config/micro`, and **no `/usr/share/micro`** — micro has no system-wide syntax path, so placement must be per-user and an installer running as root cannot do it for everyone. Three shapes in §12; the port's answer to the same problem was a per-user config home. **Until this lands the feature is inert, and inert is indistinguishable from working** — micro reports an unusable syntax file by not highlighting | `installsdai.sh`; `gplbld/microcfg/syntax/sdbasic.yaml` |
 
 ---
@@ -96,10 +97,24 @@ when a check has gone blind.**
 
 **The 38 admin scripts split three ways, and only the first is genuinely gone:**
 
-- **19 Windows mechanism, no counterpart here** — 6 ssh, the service, 3
+- **13 Windows mechanism, no counterpart here** — the service, 3
   elevation/logon, profile reclamation, 3 Windows-account, system PATH, Windows
   Firewall, route groups, `micro-home` (an ACL problem Linux does not have), and
   `install-editors` (ruled out by entry 2).
+- ***4 ssh SCRIPTS THAT THIS ENTRY FIRST GOT WRONG.*** They were filed as
+  "Windows mechanism, no counterpart" and **the owner challenged it: this project
+  uses ssh.** He is right, and the error is the same one this entry criticises in
+  the `secure-*` family — sorting by mechanism and putting policy in the wrong
+  bucket. Only `install-ssh` and `remove-ssh` are Windows-only (Linux gets sshd
+  from the distribution; **this installer already installs it**).
+  `allow-ssh-groups` writes `AllowGroups` and `ForceCommand`, which are
+  **OpenSSH directives in `sshd_config`, identical on Linux** — it transfers more
+  literally than almost anything else in the port. `restore-sshonly` and
+  `ssh-firewall` are policy with a Linux mechanism (`ufw`/`firewalld`/`nftables`).
+  `ssh-preflight` needs rethinking rather than porting: refusing to install
+  because sshd exists is right on Windows and absurd here, but its real concern —
+  **SD writing into an `sshd_config` it does not own** — is sharper on Linux, not
+  softer. **This is entry 13.**
 - ***12 `secure-*` — WINDOWS MECHANISM, TRANSFERABLE INTENT.*** Lock the global
   catalogue, the pcode library, the credential store, the audit log, the dump
   directory, the SDSYS system directories. On Linux these are POSIX modes,
@@ -191,6 +206,65 @@ record.
 meaning the line editor (entry 3), and whether `MICRO` should check the editor
 exists before shelling out (entry 4). The ruling was about which editors ship,
 not about those two.
+
+## 13. ssh is an unguarded way past the tier model
+
+***RAISED BY THE OWNER, 9 Sep 2026, AS A CHALLENGE TO A CLASSIFICATION*** — *"we
+will be using ssh here so why is there no counterpart"* — and the answer turned
+out to be bigger than the misfiling.
+
+**Three measurements, none of them inferred:**
+
+1. **The installer installs an ssh server on every distribution** —
+   `installsdai.sh:254` (`openssh`), `:272` and `:285` (`openssh-server`), `:295`
+   (`openssh`) — and the Arch branch **starts and enables `sshd`** at `:265-266`.
+2. **An SD user is an ordinary Unix user with a login shell.** `CREATEA:331` runs
+   `usermod -aG sdusers <name>` on an account that **already exists**; it does not
+   create one and does not set a shell, so the account keeps whatever `adduser`
+   gave it.
+3. ***NOTHING IN THIS PROJECT WRITES `AllowGroups` OR `ForceCommand`.*** Grep
+   across `installsdai.sh`, `deletesdai.sh` and all of `GPL.BP`: **zero hits.**
+
+**So the tier boundary §L1 draws does not hold at the edge of the machine.** A
+STANDARD account is denied `SH` and `!` inside SD, and then reaches a shell by
+running `ssh` — never entering SD at all. **The port measured this exact failure**
+on 21 Aug 2026, on a machine found with a stock `sshd_config`: *"no AllowGroups
+and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt."*
+Here it is not a regression to guard against; **it is the state the installer
+leaves behind.**
+
+***THE PLAN EXCLUDES THIS BY NAME AND THE EXCLUSION IS TOO BROAD.*** Line 17
+lists *"elevation, Windows groups and ACLs, the firewall, OpenSSH"* and says
+**"None of it applies here"**; §H:854 repeats *"OpenSSH install/removal"*. What
+those name is install/removal, which genuinely is Windows-only. **The ssh-only
+account model is neither named nor considered anywhere in the plan** — `ssh`
+appears on 4 lines of ~1,600.
+
+***AND §L5 IS RIGHT ABOUT WHAT IT ADDRESSES, WHICH IS WHY THE GAP IS EASY TO
+MISS.*** It argues that reaching a shell is *"a policy question, not a
+privilege-escalation one"* here, because `sd` is not setuid so `SH` hands the
+person a shell **as themselves**. That reasoning is sound — and it is entirely
+about reaching the shell **from inside SD**. ssh reaches it from outside, with
+SD absent from the path, and §L5 never considers it. **The conclusion "then
+`os.users` is not needed and §L1 is the whole of the answer" does not survive
+that.**
+
+**What has to be decided, and it belongs with §L rather than after it:**
+
+- Do SD accounts get a **real login shell** at all? If the answer for STANDARD is
+  no, that is `ForceCommand` or a restricted shell, and it is the whole fix.
+- If yes, then **§L1's verb withholding is a convenience, not a boundary**, and
+  the documentation must say so rather than implying containment.
+- Either way, **does SD write to `sshd_config`?** Doing so silently to a file the
+  administrator owns is worse than not doing it; the port's answer was an
+  explicit, removable fenced block plus a preflight that refuses when someone
+  else has written the file.
+
+**Related verifiers that exist there and nowhere here:** `verify-sshonly`,
+`verify-sshadmin`, `verify-allowgroups`, `probe-sshfirewall`,
+`probe-sshpreflight`, `probe-sshremote` — the last of which is the one that
+proved the scoping actually blocks a **remote** machine, host to guest, because
+NAT could not show it.
 
 ## 12. Getting `sdbasic.yaml` to where micro looks
 
