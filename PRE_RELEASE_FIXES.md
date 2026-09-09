@@ -45,7 +45,7 @@ is done; **read the table, never the section headings** — short entries have n
 section at all, so counting `## N.` headings gives an answer that is wrong and
 looks authoritative.
 
-***NEXT FREE ID: 19.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 20.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -65,7 +65,8 @@ the two files are not comparable by number.
 | 9 | **S** | ***`gplbld/check-stale-leads.py` CANNOT RUN HERE AT ALL, AND ADDING THIS FILE DOES NOT CHANGE THAT*** — measured 9 Sep 2026, not predicted. Copied verbatim and run, it exits **2 before any phase executes**: *"REFUSING - could not bound section 7"*. It is keyed to the port's PROJECT_STATUS structure — a section 7, `> ###` START HERE items, a `✅` task table — none of which exists here. **The unadapted copy was removed rather than committed**, because a tool that always exits 2 reads as a guard the project has. See §9 | `sd4windows/sdb_ai/sd64/gplbld/check-stale-leads.py` |
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
-| 18 | **B** | ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as**, and §L has to decide that before it can grant the tier anything. Same root as entry 14 | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
+| 19 | **B** | ***LEAD, READ NOT MEASURED, DO NOT TREAT AS ESTABLISHED: `kernel(K$ADMINISTRATOR, 1)` MAY GRANT ADMIN TO ANY CALLER.*** `op_kernel.c:305-307` reads `if (n >= 0) { if ((n > 0) || IsAdmin()) my_uptr->flags \|= USR_ADMIN;` — so a positive argument appears to short-circuit `IsAdmin()` and set the flag unconditionally. If that reading is right, every gate resting on `K$ADMINISTRATOR` (including `LOGIN:217`'s SDSYS restriction) is bypassable from any BASIC program, and entry 18's definition cannot be enforced whatever it is set to. **The check that settles it:** a program doing `x = kernel(26, 1)` then `crt kernel(26, -1)` run from a non-root account — 1 means the hole is real. Same family as plan §B6 | `gplsrc/op_kernel.c:305-307` |
+| 18 | **B** | ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
 | 15 | **S** | ***AN INSTALL NOW TESTS `origin/main`, NOT THE WORKING TREE — SO COMMIT AND PUSH BEFORE TESTING, OR YOU ARE TESTING SOMETHING ELSE.*** Owner's decision, 9 Sep 2026: the installer always clones `main` from GitHub. That **reverses plan §F9**, which removed the download precisely so an install would build the bundled `sdb_ai/` tree, and it reverses CLAUDE.md's *"builds from the `sdb_ai/` tree bundled in this repository, not from a clone."* The decision is the owner's and stands; **the consequence is that uncommitted work is invisible to an install and nothing detects that.** The port's answer to the same class of problem is `assert-current` (entry 8), which refuses to test a tree source has moved past. **Until something checks, the discipline is manual.** CLAUDE.md's project-constraint wording needs correcting to match | `installsdai.sh`; plan §F9; CLAUDE.md "Project constraints" |
@@ -287,6 +288,36 @@ and refuses to run the verbs when it is absent. **What must not happen is the
 present state**, where the answer depends on a machine's history and neither
 outcome is detected. Note `sudo passwd` is unrestricted by argument, so a
 `sudoers` entry for it is root by another route unless it is wrapped.
+
+## 18. What "administrator" means — the owner's definition, and the gap to it
+
+***OWNER, 9 Sep 2026:*** *"An administrator is a person who is a member of
+sudoers and is also a registered user of SD as an administrator. If they are not
+a registered user they should be refused entry."* And: *"that is the current path
+in the windows version — you can be a windows administrator and still not have
+access to sd."* **So OS privilege is necessary and not sufficient**, which is the
+opposite of what this tree implements.
+
+**Measured against that, 9 Sep 2026 — three parts, and only one exists:**
+
+| The definition needs | Today |
+|---|---|
+| member of **sudoers** | **nothing tests it.** Both admin tests are `getuid() == 0` — `system(27)` (`op_sys.c:222`) in the catalogue gates, and `IsAdmin()` (`linuxlb.c:54-55`) behind `kernel(K$ADMINISTRATOR)`. Root is not sudoers, and a sudoer is not root |
+| **registered** in SD as an administrator | ***THERE IS NOWHERE TO RECORD IT.*** `@SDSYS/ACCOUNTS` has three fields — `ACC$PATH` 1, `ACC$DESCR` 2, `ACC$GROUP` 3 (`SYSCOM/KEYS.H:257-260`) — and no tier. Both shipped records carry an empty field 2 |
+| unregistered → **refused entry** | **partly there.** `LOGIN:210-213` refuses a forced account (`sd -Aname`) not in the register with sysmsg 5018 and terminates the connection. Whether the *default* path refuses an unregistered user is not established |
+
+***THE PORT ALREADY HAS THE FIELD AND CONFORMITY SAYS TAKE IT:*** its
+`syscom/KEYS.H:292,294` define **`ACC$TIER 5`** — STANDARD, PROGRAMMER,
+ADMINISTRATOR — and **`ACC$PRIOR.TIER 6`**, the tier SUSPENDED displaced. **Field
+4 is skipped in both trees and is retired** (`ACC$USERS`); do not reuse it.
+
+**So the work is §L2, and it is now specified rather than open:** add
+`ACC$TIER`/`ACC$PRIOR.TIER` to `SYSCOM/KEYS.H` at 5 and 6, have `CREATEA` write
+the tier, replace `system(27) # 0` and `IsAdmin()` with a test that reads the
+register **and** checks sudoers membership, and make the login path refuse an
+unregistered user rather than only a forced one. **Entry 19 has to be settled
+first** — if `kernel(K$ADMINISTRATOR, 1)` grants the flag to any caller, none of
+this holds.
 
 ## 13. ssh is an unguarded way past the tier model
 

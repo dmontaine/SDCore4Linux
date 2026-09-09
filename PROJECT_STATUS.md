@@ -32,7 +32,22 @@ has been exercised on an installed system.**
 was not compiled this session (see "Step 4 / §I" for what instrument was tried
 and why it could not).
 
-**Your next task is step 5, the installer.** ***`F9` IS SUPERSEDED — DO NOT DO
+***START WITH `PRE_RELEASE` 19 — IT IS ONE SHORT PROGRAM AND IT GATES §L.***
+Session ended out of credits, 9 Sep 2026, mid-investigation. `op_kernel.c:305-307`
+**reads as though** `kernel(K$ADMINISTRATOR, 1)` sets `USR_ADMIN` for any caller,
+short-circuiting `IsAdmin()`. **Read, not measured** — the check is a BASIC
+program doing `x = kernel(26, 1)` then `crt kernel(26, -1)` from a non-root
+account; **1 means the hole is real** and every administrator gate is bypassable,
+including `LOGIN:217`'s SDSYS restriction. A test machine and a live install were
+available, and `CREATE.FILE BP DIRECTORY` is how to get a program into an account
+without an editor — that is how the `PQ` fixture was made.
+
+**Then `PRE_RELEASE` 18**, which is now specified rather than open: the owner
+defined "administrator" on 9 Sep as **sudoers member AND registered SD
+administrator, with unregistered users refused entry**. The gap table and the
+port's `ACC$TIER 5` / `ACC$PRIOR.TIER 6` are in that entry.
+
+**Your next task after those is step 5, the installer.** ***`F9` IS SUPERSEDED — DO NOT DO
 IT.*** The owner ruled on 9 Sep 2026 that the installer always clones `main`
 from GitHub, which is the opposite of §F9's "drop the clone and build the
 bundled tree". Done that day; see "Installer" below. Remaining: `F1` upgrade
