@@ -1,0 +1,69 @@
+ChangesApplied.txt
+==================
+Remediations applied to /home/don/sdscripts_ai/sdb_ai/sd64/sdsys/GPL.BP
+Applied by Composer AI - 2026/06/10
+
+Every change is marked with "Modified by Composer AI - 2026/06/10." and
+terminated by a comment line containing 20 dashes. Replaced code is
+commented out immediately above each change.
+
+Summary: 38 files, 48 change blocks (phase 1 + phase 2).
+
+Phase 1 — safe input guards
+---------------------------
+ABSPATH             43   Return directory when rel path is empty.
+CREATE_USER         56   Validate username via !valid_os_name (phase 2 refactor).
+SET_PASSWD         107   Validate username via !valid_os_name (phase 2 refactor).
+IS_USER             43   Early return on empty username.
+IS_GROUP            43   Early return on empty group name.
+IS_GRP_MEMBER       44   Early return on empty user or group.
+IS_GRP_MEMBER       67   Skip member scan when /etc/group field 4 is empty.
+USERNO              45   Return empty on empty name lookup.
+DELACC             190   Validate group_name via !valid_os_name before groupdel.
+DELACC             217   Validate username via !valid_os_name before userdel.
+MODIFYA            102   Validate names via !valid_os_name before usermod.
+MODIFYA            126   Validate names via !valid_os_name before deluser.
+CREATEA            299   Validate pathname via !valid_os_path before chmod.
+CREATEA            325   Validate acc.uname via !valid_os_name before usermod.
+CREATEA            614   Validate group/user names in create.group.
+
+Phase 2 — shared helpers and extended coverage
+----------------------------------------------
+VALID_OS_NAME       22   New !valid_os_name catalogued function.
+VALID_OS_PATH       20   New !valid_os_path catalogued function.
+VALID_SHELL_CMD     20   New !valid_shell_cmd catalogued function.
+CPROC             3258   OS.COMMAND: require admin; reject shell metacharacters.
+WRITE_INSTALL_DICTS  47   Track DICT.FILE.OPEN for safe CLOSE.
+WRITE_INSTALL_DICTS  59   Skip malformed transfer records.
+WRITE_INSTALL_DICTS  68   CLOSE only when dictionary file is open.
+WRITE_INSTALL_DICTS 106   Close last dictionary file on completion.
+APISRVR            871   Reject invalid login names via !valid_os_name.
+SDCLIENT           249   Use !valid_os_name for remote connect username.
+SD_KEY_FROM_PW      23   Reject empty password or salt before SDEXT.
+USERNAME            45   Reject non-positive userno before kernel lookup.
+PY_RUNSTRING        27   Reject empty Python script string.
+PY_RUNFILE          30   Reject empty/unsafe script path via !valid_os_path.
+PY_GETATTR          28   Reject empty object name.
+PY_DICTGETKEYS      43   Reject empty dictname.
+PY_DICTGETVALUES    43   Reject empty dictname.
+PY_CREATEDICT       44   Reject empty dictname.
+PY_CLEARDICT        43   Reject empty dictname.
+PY_DICTIDEL         44   Reject empty dictname or key.
+PY_DICTVALGETS      44   Reject empty dictname or key.
+PY_DICTVALSETS      45   Reject empty dictname or key.
+PY_LISTCLR          43   Reject empty listname.
+PY_LISTGETS         43   Reject empty listname.
+PY_LISTAPPD         44   Reject empty listname or objname.
+PY_STRGET           43   Reject empty strname.
+PY_STRSET           44   Reject empty strname.
+PY_OBJLEN           28   Reject empty objname.
+PY_OBJTYPE          28   Reject empty objname.
+
+Verification
+------------
+Not compiled or executed in this pass. After catalogue rebuild, smoke-test:
+  !valid_os_name, !valid_os_path, !valid_shell_cmd
+  OS.COMMAND (admin + metachar rejection)
+  CREATE/DELETE/MODIFY.ACCOUNT paths
+  PY_* routines with empty-argument calls
+  WRITE_INSTALL_DICTS (install-time utility)

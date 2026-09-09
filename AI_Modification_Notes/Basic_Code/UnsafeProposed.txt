@@ -1,0 +1,71 @@
+UnsafeProposed.txt
+==================
+Remediations identified but NOT applied to
+/home/don/sdscripts_ai/sdb_ai/sd64/sdsys/GPL.BP
+Prepared by Composer AI - 2026/06/10 (updated after phase 2)
+
+Phase 2 addressed shared validation helpers, CPROC OS.COMMAND hardening,
+Python bridge empty-argument guards, WRITE_INSTALL_DICTS cleanup, and
+refactoring of phase-1 inline validation to catalogued ! functions.
+
+1. OS.EXECUTE still invokes a shell — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+Phase 1/2 added !valid_os_name, !valid_os_path, and !valid_shell_cmd guards
+before sudo and OS.COMMAND invocations. Commands are still passed to /bin/sh
+via OS.EXECUTE/os.execute. A full fix requires fork/exec with an argument
+vector or a dedicated SDEXT syscall without a shell.
+
+Still not hardened:
+  BCOMP          compiles arbitrary OS.EXECUTE into user programs
+  CPROC RUN.EXE  kernel K$RUNEXE path (separate from OS.COMMAND)
+  User-written Basic programs containing OS.EXECUTE
+
+2. Large programs not reviewed — STILL DEFERRED
+--------------------------------------------------------------------------
+BCOMP, PARSER, QPROC, SED, PROC, DEBUG, LOGIN (beyond existing checks),
+CONFIG/CONFIGF, UPDREC, and most _* inline opcode helpers were not modified.
+These require interactive regression testing and catalogue rebuild validation.
+
+3. Implicit BEGIN CASE fall-through — STILL DEFERRED
+--------------------------------------------------------------------------
+Intentional shared epilogues were not annotated or broken apart without
+maintainer confirmation. Wrongly adding BREAK would change runtime behaviour.
+
+4. Password and credential handling — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+SD_KEY_FROM_PW now rejects empty password/salt. SET_PASSWD username validation
+done. APISRVR/SDCLIENT login name validation added. Not changed: encryption
+strength, PAM flow, password logging in APISRVR debug paths, CREATEA
+interactive password prompts.
+
+5. File and path operations — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+WRITE_INSTALL_DICTS received malformed-record and CLOSE guards. CATALOG,
+COPY, COPYP, BUILDI, and other directory walkers unchanged.
+
+6. Python embedding — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+Empty-argument guards added to PY_* wrappers. Not changed: Python unavailable
+at runtime, reference counting, exception propagation, PY_INITIALIZE/
+PY_FINALIZE lifecycle edge cases.
+
+7. Header / dictionary synchronisation — UNCHANGED
+--------------------------------------------------------------------------
+HEADER.H, OPCODES.H, BCOMP.H, DEBUG.H must stay aligned with C headers.
+No header edits in either phase.
+
+8. Shared validation helper — RESOLVED
+--------------------------------------------------------------------------
+Phase 2 created !valid_os_name, !valid_os_path, !valid_shell_cmd and
+refactored phase-1 programs to call !valid_os_name/!valid_os_path.
+
+9. OS.COMMAND space handling — ACCEPTED RISK
+--------------------------------------------------------------------------
+!valid_shell_cmd allows spaces (e.g. "ls -la") but rejects ;|&$`<> and
+newlines. Commands with embedded quotes or $() substitution are not
+blocked; blocking them would break legitimate admin commands on some sites.
+
+10. No automated verification — UNCHANGED
+---------------------------------------------------------------------------
+Basic sources were not compiled. Catalogue rebuild and verb smoke tests
+remain required before production deployment.

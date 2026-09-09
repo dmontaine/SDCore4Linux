@@ -1,0 +1,145 @@
+ChangesApplied.txt
+==================
+Remediations applied to /home/don/sdscripts_ai/installsdai.sh and
+/home/don/sdscripts_ai/deletesdai.sh
+Applied by Composer AI - 2026/06/10
+Document location: /home/don/sdscripts_ai/AI_Modification_Notes/Bash_Scripts/
+
+Every change is marked in the source with a comment beginning
+"Modified by Composer AI - 2026/06/10." and is terminated by a comment
+line containing 20 dashes. Replaced code is commented out immediately
+above each change.
+
+Summary: 2 files, 46 change blocks (phase 1 hardening + phase 2 install
+failure fixes). End-to-end install verified on Linux Mint 22.3 after
+phase 2 changes.
+
+==============================================================================
+Phase 1 — Initial script hardening (review suggestions)
+==============================================================================
+
+installsdai.sh
+--------------
+Line   Description
+-----  ---------------------------------------------------------------------
+  14   Enable set -euo pipefail and IFS=$'\n\t' for safer installation.
+  29   repo_available(): test git ls-remote directly instead of $? after echo.
+  51   Add require_command() helper for pre-build tool checks.
+  61   Add detect_distro() from /etc/os-release with manual menu fallback.
+  84   Exit with status 1 when run as root (was bare exit).
+  90   Exit with status 1 when SD is already installed.
+ 145   Fix warning typo: "Do not try" (was "Do no try").
+ 155   Fix tested-distribution wording (now "Linux Mint 22.3").
+ 166   Use read -r for initial continue prompt.
+ 189   Refresh sudo credentials with sudo -v (was sudo date).
+ 211   Quote path when removing temporary clone directory.
+ 219   Auto-detect distribution; show A/D/F/S menu only when detection fails.
+ 252   Package installs: if ! cmd; then ... exit 1 (pacman/apt/dnf/zypper).
+ 261   Arch: start/enable sshd.service with fallback to sshd unit name.
+ 281   Debian: libcrypt-dev install allowed to fail (|| true) on older distros.
+ 304   require_command git/make/python3/python3-config after packages install.
+ 318   Use read -r for repository branch selection prompt.
+ 329   Quote REPO_URL and inst_folder in git clone commands.
+ 342   Reject local [L] install when sdb_ai/sd64 is not present.
+ 366   Quote paths in cd to source tree.
+ 372   Write sdext_python_inc.h as #include <Python.h> (was invalid path form).
+ 387   Verify python3-config before build; exit 1 on missing dev headers.
+ 395   Quote paths in cd to sd64 build directory.
+ 421   Idempotent sdusers group creation via getent.
+ 490   mkdir -p for gplbld; quote sdsysdir in install copy paths.
+ 528   Comment references deletesdai.sh (was deletesd.sh).
+ 540   ln -sf with quoted sdsysdir path for /usr/local/bin/sd symlink.
+ 596   Fix bootstrap spelling in pass 1 message (was "Bootstap").
+ 629   Fix bootstrap spelling in pass 2 and pass 3 messages.
+ 735   Reset printf colors with $NC in completion banner (was $YELLOW).
+
+deletesdai.sh
+-------------
+Line   Description
+-----  ---------------------------------------------------------------------
+  12   Enable set -euo pipefail and IFS=$'\n\t' for safer uninstall.
+  41   Exit with status 1 when run as root (was bare exit).
+  49   Exit with status 1 when SD is not installed.
+  57   Use read -r for initial continue prompt; exit 0 on decline.
+  70   Refresh sudo credentials with sudo -v (was sudo date).
+  76   sudo mkdir -p /home/sd before account or configuration backups.
+  88   Use read -r for keep-accounts prompt.
+  95   Quote sdsysdir and acct_path when saving ACCOUNTS directory.
+ 101   Use read -r for DELETE confirmation prompt.
+ 126   Use read -r and [yY] for keep-configuration prompt.
+ 143   Stop sd and systemd services before removing /usr/local/sdsys.
+ 175   Remove systemd unit files by full path; do not cd into systemd dir.
+ 197   Remove sdsys user and sdusers group only; drop erroneous groupdel sdsys.
+ 229   Completion message names deletesdai.sh (was deletesd.sh).
+ 237   Use read -r for restart prompt.
+
+==============================================================================
+Phase 2 — Fixes after first reported install failures
+==============================================================================
+
+Failure 1: useradd aborted install (orphan sdsys group, set -e)
+----------------------------------------------------------------
+installsdai.sh
+ 400   Force rebuild with make -B; verify bin/sd exists after build.
+ 437   Create sdsys with -g sdusers; remove orphan sdsys group before useradd;
+       explicit error if useradd fails.
+
+deletesdai.sh
+ 212   On full account deletion, remove orphan sdsys group if still present.
+
+Failure 2: LOGIN compile error aborted bootstrap pass 1
+-------------------------------------------------------
+Not a bash-script change. Fixed in sdb_ai/sd64/sdsys/GPL.BP/LOGIN line 159
+(unclosed string in version banner). Documented under Basic_Code notes.
+installsdai.sh changes triggered by this failure:
+ 601   Check exit status of sd -i; abort with message on bootstrap pass 1 fail.
+ 614   chmod/chown bootstrap dirs only when each directory exists (for loop).
+
+Failure 3: sd -start returned failure when SD already running (set -e)
+----------------------------------------------------------------------
+installsdai.sh
+ 111   Add sd_install_stop() and sd_install_start() helpers; retry start
+       after stop; do not treat already-stopped as fatal.
+ 582   Before bootstrap: systemctl stop sd.service/sdclient.socket, then
+       sd_install_stop, then sd_install_start.
+ 631   Check exit status of SECOND.COMPILE (bootstrap pass 2).
+ 643   Check exit status of WRITE_INSTALL_DICTS (bootstrap pass 3).
+ 651   Check exit status of THIRD.COMPILE.
+ 660   Check exit status of CPROC recompile.
+ 678   Use sd_install_stop/start for end-of-install stop/start cycle.
+
+Feature: optional preservation of git download
+------------------------------------------------
+installsdai.sh
+ 196   Prompt to save git clone under ~/sdscripts_ai_download_YYYYMMDD_HHMMSS.
+ 706   At end: cp -a clone to SAVE_DOWNLOAD_DIR or rm .sdb64tmp; skip for
+       local [L] repository installs.
+ 742   Completion message reports saved path, local install, or deletion.
+
+Miscellaneous fixes found during phase 2
+-----------------------------------------
+installsdai.sh
+ 769   Fix broken kickstart help echo (unclosed quote; syntax error).
+ 778   Use read -r for restart prompt (if not already covered above).
+
+==============================================================================
+Notes
+==============================================================================
+
+- installsdai.sh: quoted path variables applied throughout bootstrap,
+  chown/chmod, systemd, and terminfo sections without a separate marker
+  at every line (same pass as strict-mode hardening).
+
+- deletesdai.sh: sdsysdir, acct_path, and systemd_dir variables introduced
+  to centralise quoted paths.
+
+- Bootstrap passes 3, THIRD.COMPILE, and CPROC recompile exit checks (lines
+  643–660) were added without separate modification markers; they follow
+  the same pattern as pass 2 at line 631.
+
+- Reinstall requires deletesdai.sh (or manual removal of /usr/local/sdsys)
+  when a prior partial install left bin/sd in place. Stopping systemd and
+  SD before bootstrap is required when sd.service was left running.
+
+- Related non-bash fix required for successful install: GPL.BP/LOGIN line
+  159 unclosed string (see Basic_Code/ChangesApplied.txt if present).

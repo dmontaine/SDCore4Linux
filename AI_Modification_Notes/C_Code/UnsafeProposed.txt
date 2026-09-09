@@ -1,0 +1,84 @@
+UnsafeProposed.txt
+==================
+Remediations identified but NOT applied to /home/don/sdb64/sd64/gplsrc
+Prepared by Composer AI - 2026/06/10 (updated after phase 2)
+
+These items were reviewed alongside ChangesApplied.txt. Phase 2 addressed
+most gcc -fanalyzer findings (tree now reports 0 warnings per file).
+What remains below requires design decisions, behaviour changes, or
+per-site buffer analysis that cannot be made safely without maintainer
+input.
+
+1. Shell command injection through system()
+--------------------------------------------------------------------------
+Locations: linuxprt.c spool_print_job(), lnx.c sdsendmail(), sdlnxd.c
+cleanup path.
+
+Phase 2 applied shell quoting (linuxprt.c, lnx.c) and quoted cleanup
+paths (sdlnxd.c), reducing truncation risk. Arguments are still passed
+to /bin/sh via system(). A safe fix changes behaviour: either accept
+that shell metacharacters in printer banners/options or mail subjects are
+literal (breaking sites that rely on shell syntax), or rewrite with
+fork()/execvp() argument vectors. Recommendation: posix_spawn()/execvp()
+with documented semantics change.
+
+2. Unchecked allocations — RESOLVED in phase 2
+--------------------------------------------------------------------------
+The original ~119 fanalyzer null-deref / uninitialized-value warnings
+were remediated across 55 files (VM opcodes, dh_* layer, tools, kernel).
+Policy used: k_error() on k_alloc failure in the VM; fprintf+exit or
+error-return in standalone tools; malloc NULL guards with early exit.
+
+Remaining risk is runtime policy consistency (some paths abort, others
+return status codes) — a tree-wide k_alloc-on-failure policy would still
+be a maintainer decision, but analyzer-visible defects are cleared.
+
+3. Implicit switch fall-throughs — MOSTLY RESOLVED
+--------------------------------------------------------------------------
+Intentional fall-through sites in op_*, sd.c, sdclilib.c, op_seqio.c,
+etc. were annotated with __attribute__((fallthrough)) or equivalent
+comments after review. Any unlisted fall-through in files outside the
+review scope should be checked individually before adding breaks.
+
+4. Unbounded strcpy()/strcat()/sprintf() throughout the tree
+--------------------------------------------------------------------------
+Approximate counts unchanged: strcpy ~191, sprintf ~154, strcat ~34.
+Only provably overflowable command builders (linuxprt.c, lnx.c) and
+scattered snprintf conversions were touched. Blind strncpy/snprintf
+risks silent truncation in record/key handling. Recommendation: convert
+incrementally with buffer invariant analysis (existing "-gwb 22Feb20"
+snprintf work is the template).
+
+5. sysmsg() writable string-literal pointer — RESOLVED
+--------------------------------------------------------------------------
+messages.c now uses a static fallback buffer and resets message state
+so error paths cannot free or sprintf into a string literal.
+
+6. Signed/unsigned comparison warnings — MOSTLY RESOLVED
+--------------------------------------------------------------------------
+sdtic.c, sdtermlb.c, strings.c, linuxlb.c, op_oconv.c and related
+sites received targeted casts or variable init. linuxlb.h min/max macros
+remain unchanged; call sites were cast instead. sd.h FormatBytes macro
+and any unlisted shared-header sites were not changed (too far-reaching).
+
+7. strtok() usage — PARTIALLY RESOLVED
+--------------------------------------------------------------------------
+strtok_r() applied in messages.c, netfiles.c, op_dio1.c, op_dio2.c,
+op_oconv.c, op_sh.c, sdidx.c, sdtic.c. Other strtok() call sites, if
+any remain, should be migrated opportunistically.
+
+8. atoi() without error detection — PARTIALLY RESOLVED
+--------------------------------------------------------------------------
+strtol() with validation applied in sd.c, netfiles.c, sdidx.c, sdtic.c
+and other reviewed sites. Remaining atoi() uses may rely on 0-on-error
+semantics; replace only where input is not already validated.
+
+9. Generated header dependency — UNCHANGED
+--------------------------------------------------------------------------
+op_sdpyobj.c and sdext_py.c include "sdext_python_inc.h", created by
+the install script. Fresh checkouts need a stand-in (e.g. a one-line
+file that includes <Python.h>) to build. Not a logic defect.
+
+10. system() to execvp() migration — DEFERRED
+---------------------------------------------------------------------------
+See item 1. Quoting is applied; full exec rewrite is not.

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-}/.claude/hooks/no-program-edits.py\"; [ -f \"$f\" ] || f=\"$(git rev-parse --show-toplevel 2>/dev/null)/.claude/hooks/no-program-edits.py\"; [ -f \"$f\" ] && python \"$f\" || exit 0",
+            "timeout": 15,
+            "statusMessage": "Checking for program-driven file edits"
+          }
+        ]
+      }
+    ]
+  }
+}

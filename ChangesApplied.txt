@@ -1,0 +1,83 @@
+ChangesApplied.txt
+==================
+Remediations applied to /home/don/sdscripts_ai
+Applied by Composer AI - 2026/06/10
+
+Every change is marked in the source with a comment beginning
+"Modified by Composer AI - 2026/06/10." and is terminated by a comment
+line containing 20 dashes. Replaced code is commented out immediately
+above each change.
+
+Summary: 2 files, 41 change blocks.
+
+installsdai.sh
+--------------
+Line   Description
+-----  ---------------------------------------------------------------------
+  14   Enable set -euo pipefail and IFS=$'\n\t' for safer installation.
+  29   repo_available(): test git ls-remote directly instead of $? after echo.
+  51   Add require_command() helper for pre-build tool checks.
+  61   Add detect_distro() from /etc/os-release with manual menu fallback.
+  84   Exit with status 1 when run as root (was bare exit).
+  90   Exit with status 1 when SD is already installed.
+ 119   Fix warning typo: "Do not try" (was "Do no try").
+ 129   Fix tested-distribution text: Fedora 42 (was "Fedora 4r").
+ 140   Use read -r for initial continue prompt.
+ 163   Refresh sudo credentials with sudo -v (was sudo date).
+ 170   Prompt to save git download under ~/sdscripts_ai_download_<datetime>.
+ 186   Quote path when removing temporary clone directory.
+ 193   Auto-detect distribution; show A/D/F/S menu only when detection fails.
+ 213   Package installs: if ! cmd; then ... exit 1 (pacman/apt/dnf/zypper).
+ 220   Arch: start/enable sshd.service with fallback to sshd unit name.
+ 240   Debian: libcrypt-dev install allowed to fail (|| true) on older distros.
+ 263   require_command git/make/python3/python3-config after packages install.
+ 278   Use read -r for repository branch selection prompt.
+ 289   Quote REPO_URL and inst_folder in git clone commands.
+ 301   Reject local [L] install when sdb_ai/sd64 is not present.
+ 325   Quote paths in cd to source tree.
+ 331   Write sdext_python_inc.h as #include <Python.h> (was invalid path form).
+ 344   Verify python3-config before build; exit 1 on missing dev headers.
+ 354   Quote paths in cd to sd64 build directory.
+ 374   Force rebuild with make -B; verify bin/sd exists after build.
+ 393   Create sdsys with -g sdusers; remove orphan sdsys group before useradd.
+ 369   Idempotent sdusers group creation via getent (superseded at 393 for user).
+ 418   mkdir -p for gplbld; quote sdsysdir in install copy paths.
+ 456   Comment references deletesdai.sh (was deletesd.sh).
+ 468   ln -sf with quoted sdsysdir path for /usr/local/bin/sd symlink.
+ 513   Fix bootstrap spelling in pass 1 message (was "Bootstap").
+ 538   Fix bootstrap spelling in pass 2 and pass 3 messages.
+ 600   Reset printf colors with $NC in completion banner (was $YELLOW).
+ 607   Save git clone to SAVE_DOWNLOAD_DIR or remove .sdb64tmp at end of install.
+ 642   Completion message reports saved path, local install, or deletion.
+ 668   Fix broken kickstart help echo lines (syntax error).
+
+deletesdai.sh
+-------------
+Line   Description
+-----  ---------------------------------------------------------------------
+  12   Enable set -euo pipefail and IFS=$'\n\t' for safer uninstall.
+  41   Exit with status 1 when run as root (was bare exit).
+  49   Exit with status 1 when SD is not installed.
+  57   Use read -r for initial continue prompt; exit 0 on decline.
+  70   Refresh sudo credentials with sudo -v (was sudo date).
+  76   sudo mkdir -p /home/sd before account or configuration backups.
+  88   Use read -r for keep-accounts prompt.
+  95   Quote sdsysdir and acct_path when saving ACCOUNTS directory.
+ 101   Use read -r for DELETE confirmation prompt.
+ 126   Use read -r and [yY] for keep-configuration prompt.
+ 143   Stop sd and systemd services before removing /usr/local/sdsys.
+ 175   Remove systemd unit files by full path; do not cd into systemd dir.
+ 197   Remove sdsys user and sdusers group only; drop erroneous groupdel sdsys.
+ 212   Remove orphan sdsys group on full account deletion.
+ 223   Completion message names deletesdai.sh (was deletesd.sh).
+ 231   Use read -r for restart prompt.
+
+Notes
+-----
+- installsdai.sh: quoted path variables applied throughout bootstrap,
+  chown/chmod, systemd, and terminfo sections without separate markers
+  at every line (same pass as strict-mode hardening).
+- deletesdai.sh: sdsysdir, acct_path, and systemd_dir variables introduced
+  to centralise quoted paths.
+- Neither script was executed end-to-end after these edits; run on a test
+  VM before production use.

@@ -1,0 +1,128 @@
+UnsafeProposed.txt
+==================
+Remediations identified but NOT applied to /home/don/sdscripts_ai
+Prepared by Composer AI - 2026/06/10 (install/delete script pass)
+
+installsdai.sh and deletesdai.sh received strict-mode hardening, path
+quoting, service stop ordering (delete), idempotent user/group creation
+(install), distribution auto-detection, Python header stand-in, and
+related fixes documented in ChangesApplied.txt.
+
+1. No install rollback — STILL DEFERRED
+--------------------------------------------------------------------------
+If make succeeds but a bootstrap pass (sd -i, SECOND.COMPILE,
+WRITE_INSTALL_DICTS, THIRD.COMPILE, or CPROC compile) fails, a partial
+installation may remain under /usr/local/sdsys with systemd units and
+symlinks in place. A safe fix adds an ERR trap or explicit cleanup
+function that reverses copies, removes units, and deletes the symlink
+when a post-build step fails. Requires maintainer agreement on how
+aggressive automatic rollback should be.
+
+2. set -e without ERR trap — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+Both scripts now use set -euo pipefail. Unexpected failures (e.g. a
+single chmod, cp, or bootstrap command) exit immediately, sometimes
+without a user-friendly message. Not changed: trap ERR handlers with
+line numbers and a summary of what was left on disk.
+
+3. Shared installer library — STILL DEFERRED
+--------------------------------------------------------------------------
+Color variables, root check, sudo -v, read prompts, and reboot handling
+are duplicated across installsdai.sh and deletesdai.sh. Extracting a
+sourced sd_install_common.sh would reduce drift but was not done to keep
+this pass scoped to the two existing scripts.
+
+4. Distribution detection — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+detect_distro() reads /etc/os-release and falls back to the manual
+A/D/F/S menu. Not changed: validation that the detected ID matches
+supported package names; handling of Linux Mint, Pop!_OS, Rocky, Alma,
+or WSL variants that may need manual selection. Mis-detection could
+install the wrong package set.
+
+5. Python build integration — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+sdext_python_inc.h is now written as #include <Python.h>. The install
+script does not inject python3-config --includes or --cflags into the
+make invocation. Build still depends on the sd64 Makefile (or site
+environment) finding Python headers on its own. Sites with non-default
+Python layouts may still need manual CFLAGS adjustment.
+
+6. Bootstrap sd -stop/-start cycling — UNCHANGED
+--------------------------------------------------------------------------
+installsdai.sh still stops and starts SD several times around systemd
+enable (lines ~560–580). This appears to be a historical workaround;
+it was not refactored because the underlying race or socket-binding
+reason is not documented and changing the sequence needs runtime
+testing on Fedora and Ubuntu.
+
+7. define_install.h / CPROC bootstrap edit — UNCHANGED
+--------------------------------------------------------------------------
+The install still overwrites GPL.BP/define_install.h with a one-line
+comment and recompiles CPROC via sudo bin/sd -internal BASIC. This
+depends on SD bootstrap internals and was not reviewed for correctness
+across SD versions.
+
+8. SSH service handling — PARTIALLY ADDRESSED
+--------------------------------------------------------------------------
+Arch installs start/enable sshd (with sshd.service fallback). Debian and
+Fedora install openssh-server but do not enable or start it. If remote
+SSH access is required immediately after install, behaviour is
+inconsistent across distributions.
+
+9. Git required for local install — ACCEPTED RISK
+--------------------------------------------------------------------------
+require_command git runs even when the user selects the local repository
+option and never clones. Removing the git check for local-only installs
+would be a small behaviour change; left as-is because git is a listed
+build dependency.
+
+10. deletesdai.sh — user group membership — STILL DEFERRED
+---------------------------------------------------------------------------
+Uninstall does not remove the invoking user from the sdusers group
+(install adds them with usermod -aG). Reboot is recommended but not
+enforced. A complete cleanup would gpasswd -d "$USER" sdusers when
+accounts are deleted.
+
+11. deletesdai.sh — configuration deletion confirmation — STILL DEFERRED
+---------------------------------------------------------------------------
+Account deletion requires typing DELETE; choosing not to keep sd.conf
+does not require equivalent confirmation. Asymmetric risk: config loss
+is one keystroke away.
+
+12. deletesdai.sh — backup merge behaviour — STILL DEFERRED
+---------------------------------------------------------------------------
+Saving ACCOUNTS uses cp -r into /home/sd without clearing a prior backup.
+A second uninstall can nest or mingle directories. Safer behaviour:
+rm -rf "$acct_path/ACCOUNTS" before cp, or use a timestamped backup dir.
+
+13. deletesdai.sh — sd.conf save when missing — STILL DEFERRED
+---------------------------------------------------------------------------
+Keeping configuration runs sudo mv /etc/sd.conf "$acct_path" without
+checking that /etc/sd.conf exists. mv failure aborts the script under
+set -e. Should test -f before mv.
+
+14. deletesdai.sh — systemd daemon-reload — STILL DEFERRED
+---------------------------------------------------------------------------
+Unit files are removed but systemctl daemon-reload is not run. Stale
+unit references may linger until reboot. Low risk if services were
+stopped first, but a reload is best practice.
+
+15. deletesdai.sh — per-account OS groups — UNCHANGED
+---------------------------------------------------------------------------
+Note in script: sdu_* and sdg_* groups may need manual removal. No
+automated scan or deletion was added; wrong automation could delete
+unrelated groups on shared systems.
+
+16. No automated end-to-end verification — UNCHANGED
+---------------------------------------------------------------------------
+Neither script was run through a full install/uninstall cycle after the
+2026/06/10 edits. ChangesApplied.txt recommends testing on a VM before
+production use. No CI job or shellcheck gate was added to the repository.
+
+17. AI-modified SD payload — ACCEPTED RISK
+---------------------------------------------------------------------------
+These scripts install the sdb_ai tree (C and Basic remediations from
+parallel passes). Script hardening does not validate that the cloned or
+local source tree matches expected checksums, branches, or review status.
+Production use remains explicitly discouraged in the install banner.

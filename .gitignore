@@ -28,3 +28,7 @@ sdb_ai/sd64/pcode_bld.log
 
 # Editors.
 .vscode/
+
+# A redundant archive of AI_Modification_Notes/, which is tracked. Ignored so
+# `git status` stays clean; deleting it outright is probably the right answer.
+AI_Modification_Notes.zip
