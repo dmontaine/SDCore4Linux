@@ -73,7 +73,7 @@ the two files are not comparable by number.
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
 | ~~19~~ | **B** | ***DONE 9 Sep 2026 — MEASURED, THEN FIXED TO MATCH THE PORT.*** The C hole was real at **both** ends (`op_kernel.c:302-312`): any positive argument set `USR_ADMIN` without calling `IsAdmin()`, and the `\|\| IsAdmin()` made `kernel(26,0)` *re-grant* rather than clear whenever the caller ran as root, so `CPROC:2713`'s admin-drop on `LOGTO` did nothing for a root OS user. ***BUT THE READING "bypassable from any BASIC program" IS REFUTED:*** `KERNEL` is an `int.intrinsics` entry resolved only in internal mode (`BCOMP:3758`), and a non-internal probe (`kernel(26,1)`) compiled from the non-root `don` account **fails with "Unrecognised statement", 2 errors** — KERNEL is unreachable from ordinary BASIC. So the opcode can only be emitted by an `$internal` program (LOGIN, CPROC). **Fixed by gating the flag change on `HDR_INTERNAL`**, the port's exact fix (its entry 170 / 13 Aug 26). Build clean, 0 warnings; `bin/sd` boots. The `$internal`-path effect is reasoned + conformity, not witnessed (an ordinary user cannot compile `$internal`). Unblocks entry 18 | `gplsrc/op_kernel.c:302-312` |
-| 18 | **B** | ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
+| 18 | **B** | ***HALF BUILT 9 Sep 2026 (commit 1 of 2): THE REGISTER RECORDS A TIER, AND NOTHING READS IT YET.*** `SYSCOM/KEYS.H` gains `ACC$TIER` 5 / `ACC$PRIOR.TIER` 6; `CREATEA` takes `ADMINISTRATOR`/`PROGRAMMER` (token text, not `KW$`, so **no abbreviation**) and writes field 5, `STANDARD` being the default. **Field 4 is free in this tree — unlike the port — and is left free for conformity anyway.** ***Commit 2 is the gates, `sdadmin` membership and the ten call sites.*** Every account still gets the same VOC (§L1, undesigned). Compile check was **bounded**: `$internal`, so error classes were compared against HEAD and are identical, none on an added line. ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
 | 15 | **S** | ***AN INSTALL NOW TESTS `origin/main`, NOT THE WORKING TREE — SO COMMIT AND PUSH BEFORE TESTING, OR YOU ARE TESTING SOMETHING ELSE.*** Owner's decision, 9 Sep 2026: the installer always clones `main` from GitHub. That **reverses plan §F9**, which removed the download precisely so an install would build the bundled `sdb_ai/` tree, and it reverses CLAUDE.md's *"builds from the `sdb_ai/` tree bundled in this repository, not from a clone."* The decision is the owner's and stands; **the consequence is that uncommitted work is invisible to an install and nothing detects that.** The port's answer to the same class of problem is `assert-current` (entry 8), which refuses to test a tree source has moved past. **Until something checks, the discipline is manual.** CLAUDE.md's project-constraint wording needs correcting to match | `installsdai.sh`; plan §F9; CLAUDE.md "Project constraints" |
@@ -505,7 +505,45 @@ the tier, replace `system(27) # 0` and `IsAdmin()` with a test that reads the
 register **and** checks sudoers membership, and make the login path refuse an
 unregistered user rather than only a forced one. **Entry 19 has to be settled
 first** — if `kernel(K$ADMINISTRATOR, 1)` grants the flag to any caller, none of
-this holds.
+this holds. ***ENTRY 19 IS SETTLED (9 Sep) — it does not.***
+
+### Half built, 9 Sep 2026 — the register records a tier; nothing reads it
+
+**Commit 1 of two.** `SYSCOM/KEYS.H` gains `ACC$TIER` **5** and
+`ACC$PRIOR.TIER` **6**, and `CREATEA` takes `ADMINISTRATOR`/`PROGRAMMER` and
+writes field 5 for every account type.
+
+***FIELD 4 IS SKIPPED FOR A DIFFERENT REASON THAN THE PORT'S, AND THE
+DIFFERENCE IS WORTH KEEPING.*** The port must skip it: records written there
+between 13 and 14 Aug 26 carry a retired grant list, so a new meaning would read
+old data as new. ***HERE FIELD 4 WAS NEVER WRITTEN*** — `ACC$USERS` survives
+only as a history line, the define was never present, and the one shipped record
+`ACCOUNTS/SDSYS` has **three** fields (checked, not assumed). **So field 4 is
+genuinely free here and is left free anyway, for conformity** — the two
+`ACCOUNTS` layouts stay comparable. A later session must not "reclaim" it.
+
+**Keywords are matched on token text, not a `KW$` constant** — `PARSER.H`'s
+numbers are a positional table shared by every verb, so adding one for a single
+verb is the larger change. **The cost is that they cannot be abbreviated.**
+`STANDARD` is the default and is *not* a keyword; `ADMINISTRATOR` wins over
+`PROGRAMMER` in either order, so a later `PROGRAMMER` cannot silently downgrade.
+
+***WHAT THIS HALF DOES NOT DO, AND IT IS MOST OF IT.*** Nothing reads field 5 —
+the gates are commit 2 — and **every account still gets the same VOC**, because
+the per-tier VOC delta is §L1 and is not designed. **A tier recorded here does
+not yet change what an account may do.**
+
+***THE COMPILE CHECK WAS BOUNDED AND SAYS SO.*** `CREATEA` is `$internal`, so an
+ordinary account cannot compile it — `INT$KEYS.H` is internal-only. What was run
+instead is a **controlled comparison**: HEAD's `CREATEA` and the edited one
+compiled the same way, and the error classes are **identical** (`INT$KEYS.H not
+found`, `$CATALOG`, `@ variable as lvalue`), every one landing on a
+**pre-existing** `@system.return.code` line and **none on a line this change
+added**. The one extra `@` row is the same error set shifted by the comment
+lines (offset +21, checked). ***THAT IS NOT A COMPILE; THE INSTALL'S TWO-STAGE
+BOOTSTRAP IS STILL THE ONLY REAL ONE***, and a syntax error there aborts the
+install, which is the loud failure this relies on. Fixtures removed —
+`COUNT VOC` 410 before and after.
 
 ## 13. ssh is an unguarded way past the tier model
 

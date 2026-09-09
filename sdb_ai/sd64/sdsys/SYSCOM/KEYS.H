@@ -3,6 +3,8 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
+      *               Windows port.  PRE_RELEASE 18.
       * rev 0.9-2 Mar 25 mab add sdpyobj
       * rev 0.9.0 Jan 25 mab with the change in ownership of group ACCOUNTS
       *                      add SYSTEM() keys
@@ -258,6 +260,38 @@
       $define ACC$DESCR        2     ;* Account description
       * REV 0.9.0
       $define ACC$GROUP        3     ;* lINUX group for this Account
+      * 09 Sep 26 dm - THE TIER, PRE_RELEASE 18.  The owner's definition of an
+      *   administrator, 9 Sep 2026, is "a member of sudoers AND a registered
+      *   user of SD as an administrator", so OS privilege is necessary and not
+      *   sufficient.  Field 5 is the second half - the place SD records what it
+      *   thinks an account is.  Before this there was nowhere to record it and
+      *   every administrator test in the tree was getuid() == 0.
+      *
+      *   FIELD 4 IS SKIPPED, AND THE REASON HERE IS NOT THE PORT'S.  In the
+      *   port, records written between 13 and 14 Aug 26 carry a grant list in
+      *   field 4 (its retired ACC$USERS), so a new meaning there would read old
+      *   data as new.  IN THIS TREE FIELD 4 WAS NEVER WRITTEN: ACC$USERS
+      *   survives only as the history line above, the define was never present,
+      *   and the one shipped record (ACCOUNTS/SDSYS) has three fields - checked
+      *   9 Sep 26, not assumed.  So field 4 is genuinely free here and is left
+      *   free ANYWAY, for conformity: the two ACCOUNTS layouts stay comparable,
+      *   which is worth more than one reclaimed field.  Do not reuse it.
+      $define ACC$TIER         5     ;* STANDARD, PROGRAMMER, ADMINISTRATOR
+      *                              ;*   or SUSPENDED
+      $define ACC$PRIOR.TIER   6     ;* the tier SUSPENDED displaced
+      * 09 Sep 26 dm - SUSPENDED IS A FOURTH TIER RATHER THAN A FLAG, and field
+      *   6 is what it displaced.  One field answers "what may this account do",
+      *   so a listing has one column and nobody has to combine two.  The cost
+      *   is that the tier it replaced would be lost, and field 6 stops that.
+      *
+      *   BLANK IS NORMAL AND MEANS "not suspended".  It is also what every
+      *   account written before today carries, which reads correctly.
+      *
+      *   NEITHER FIELD IS READ BY ANYTHING YET.  This define and CREATEA's
+      *   write are the register half; the gates that consult it are the second
+      *   commit of PRE_RELEASE 18, and the VOC delta per tier is SL1 and is
+      *   not designed.  A tier recorded here does not yet change what an
+      *   account may do.
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
