@@ -162,6 +162,23 @@ bundled tree". Done that day; see "Installer" below. Remaining: `F1` upgrade
 split · `F2` `UPDATE.ACCOUNTS` · `F3` `[locked]` · `F4` config parser · `F5`
 changelog location · `F7` self-check · `F6`, `F8`.
 
+***OWNER'S SHAPE FOR STEP 5, 9 Sep 2026: ONE SCRIPT DOES INSTALL, UPGRADE AND
+DELETE.*** Recorded as a selection of direction, not his exact words. Today the
+two scripts (`installsdai.sh`, `deletesdai.sh`) and the fact that
+`installsdai.sh:117-122` **refuses over an existing install** force the upstream
+dance: run delete (saving `/home/sd/ACCOUNTS` + `sd.conf` to a staging area),
+reboot, run install (which restores them at `:575-596`). **The owner wants that
+collapsed into a single entry point that detects state and does the right thing
+— install when absent, in-place upgrade when present, delete on request.** His
+framing of why it matters: on Windows a user downloads a new *installer* and it
+updates what is installed; ***on Linux the user downloads source and compiles***,
+so the Linux equivalent is one script, not an installer binary. **Upstream's
+delete-reboot-reinstall "does less account-upgrade work than the Windows port"**
+— so the in-place upgrade must carry `F2`'s `UPDATE.ACCOUNTS` account refresh,
+which is the part upstream skips. This does **not** reorder the F-items; it says
+the container they land in is one unified script, and that `F1`'s "detect an
+existing install" replaces the current refusal at `:117`.
+
 ***AND THE CONSEQUENCE F9 EXISTED TO PREVENT IS NOW LIVE: AN INSTALL TESTS
 `origin/main`, NOT THE WORKING TREE.*** Commit and push before testing, or you
 are testing something else and nothing will tell you. `PRE_RELEASE` 15.
