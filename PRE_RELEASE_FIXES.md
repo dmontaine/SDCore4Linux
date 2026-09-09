@@ -45,7 +45,7 @@ is done; **read the table, never the section headings** — short entries have n
 section at all, so counting `## N.` headings gives an answer that is wrong and
 looks authoritative.
 
-***NEXT FREE ID: 14.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 15.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -65,6 +65,7 @@ the two files are not comparable by number.
 | 9 | **S** | ***`gplbld/check-stale-leads.py` CANNOT RUN HERE AT ALL, AND ADDING THIS FILE DOES NOT CHANGE THAT*** — measured 9 Sep 2026, not predicted. Copied verbatim and run, it exits **2 before any phase executes**: *"REFUSING - could not bound section 7"*. It is keyed to the port's PROJECT_STATUS structure — a section 7, `> ###` START HERE items, a `✅` task table — none of which exists here. **The unadapted copy was removed rather than committed**, because a tool that always exits 2 reads as a guard the project has. See §9 | `sd4windows/sdb_ai/sd64/gplbld/check-stale-leads.py` |
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
+| 14 | **B** | ***"ELEVATION DOES NOT APPLY HERE" IS WRONG — IT IS SPELLED `sudo`, AND IT IS ALREADY LOAD-BEARING IN THE SHIPPED BASIC.*** **8 `GPL.BP` programs shell out to `sudo`** from `OS.EXECUTE`: `useradd -m` (`CREATE_USER:64`), `passwd` (`SET_PASSWD:115`), `userdel`/`groupdel` (`DELACC:223,197`), `usermod -aG`/`groupadd`/`chmod g+s` (`CREATEA:331,634,306`), `usermod`/`deluser` (`MODIFYA:108,131`). ***AND NOTHING CONFIGURES sudoers*** — zero hits for `sudoers`/`NOPASSWD`/`visudo` across the installer, uninstaller and all of `GPL.BP`. So an SD ADMINISTRATOR's real privilege is whatever the machine's sudo rules already say, not what §L1 grants: with broad sudo they are root (`sudo passwd root`), without it account management silently fails or blocks on a password prompt inside an SD session. **The plan says `sudo` zero times in ~1,600 lines.** See §14 | `GPL.BP/{CREATE_USER,SET_PASSWD,CREATEA,DELACC,MODIFYA}`; plan:17, §H:853, §L1, §L5:1164 |
 | 13 | **B** | ***ssh IS AN UNGUARDED WAY PAST THE TIER MODEL, AND THE INSTALLER TURNS IT ON.*** Every distro branch installs an ssh server (`installsdai.sh:254,272,285,295`) and the Arch branch starts and enables `sshd` (`:265-266`). SD users are **ordinary Unix users** — `CREATEA:331` does `usermod -aG sdusers` on an account that already exists, so it keeps its login shell. **Nothing in this project writes `AllowGroups` or `ForceCommand`** (grep: zero hits across the installer and `GPL.BP`). So a STANDARD account that §L1 denies `SH` and `!` **just ssh's in and gets a shell**, never touching SD. This is the exact failure the port measured on 21 Aug 2026 — *"a stock sshd_config: no AllowGroups and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt"* — except here it is the **default state rather than a regression**. See §13 | `installsdai.sh:254-296`; `sdsys/GPL.BP/CREATEA:331`; plan §L5, §H:854, plan:17 |
 | 12 | **S** | ***`sdbasic.yaml` IS GENERATED AND VALIDATED BUT NOTHING PUTS IT WHERE micro LOOKS***, so entry 2's highlighting does not yet reach a user. **Measured on this box, 9 Sep:** micro **2.0.15**, config dir `~/.config/micro`, and **no `/usr/share/micro`** — micro has no system-wide syntax path, so placement must be per-user and an installer running as root cannot do it for everyone. Three shapes in §12; the port's answer to the same problem was a per-user config home. **Until this lands the feature is inert, and inert is indistinguishable from working** — micro reports an unusable syntax file by not highlighting | `installsdai.sh`; `gplbld/microcfg/syntax/sdbasic.yaml` |
 
@@ -100,7 +101,12 @@ when a check has gone blind.**
 - **13 Windows mechanism, no counterpart here** — the service, 3
   elevation/logon, profile reclamation, 3 Windows-account, system PATH, Windows
   Firewall, route groups, `micro-home` (an ACL problem Linux does not have), and
-  `install-editors` (ruled out by entry 2).
+  `install-editors` (ruled out by entry 2). ***THE 3 ELEVATION SCRIPTS ARE IN
+  THIS BUCKET FOR THEIR MECHANISM ONLY — UAC CONSENT HAS NO ANALOGUE — AND THE
+  OWNER WAS RIGHT TO PUSH BACK ON THE WORDING.*** The **requirement** they serve,
+  that some operations run with more privilege than the caller has, applies here
+  in full and is `sudo`. That is **entry 14**, and it is not a porting job: this
+  tree already does it, unconfigured.
 - ***4 ssh SCRIPTS THAT THIS ENTRY FIRST GOT WRONG.*** They were filed as
   "Windows mechanism, no counterpart" and **the owner challenged it: this project
   uses ssh.** He is right, and the error is the same one this entry criticises in
@@ -126,8 +132,35 @@ when a check has gone blind.**
   `clean-deadvoc`, `api-listener`, `restart-sd`.
 
 ***SO THE GAP IS NOT "31 SCRIPTS". IT IS AN ENTIRE VERIFICATION LAYER PLUS THE
-POSIX EXPRESSION OF 12 SECURITY POLICIES.*** The verifiers whose subjects are
-this project's too:
+POSIX EXPRESSION OF 12 SECURITY POLICIES.***
+
+### What language, and it should not default
+
+**The owner's expectation, 9 Sep 2026:** *"most powershell scripts will need to
+be converted to bash."* True for the count. **But the tree already answers this
+two different ways, and the split is not arbitrary:**
+
+- **`installsdai.sh` is bash and stays bash** — CLAUDE.md makes that a rule.
+- ***EVERY BUILD AND CHECKING TOOL HERE IS ALREADY PYTHON*** — `bbcmp.py`,
+  `bootstrap`-era `pcode_bld.py`, `gen_includes.py`, and this week
+  `check-msglen.py`, `mkbasicsyntax.py`, `checksyntax.py`.
+
+**A recommendation rather than a survey:**
+
+| Kind | Language | Why |
+|---|---|---|
+| operational — start/stop, install packages, write a config block, set modes | **bash** | shell-shaped work, matches `installsdai.sh`, and the reader is an administrator |
+| verifiers and their unit tests | **Python** | they parse output, compare before/after state and hold exit-code discipline. PowerShell's structured output has no bash analogue, and rewriting 51 verifiers plus **28 unit tests** in bash reproduces in `awk` and `sed` what the port got from objects |
+
+***THE 28 UNIT TESTS ARE THE ARGUMENT.*** They are test code that drives other
+test code against fixtures. In bash that is a large amount of quoting and
+temporary files; in Python it is `unittest`, which is already available because
+the build requires Python.
+
+**Not a decision this file can take** — it is the owner's, and it should be taken
+before the first verifier is written rather than discovered after twenty.
+
+### The verifiers whose subjects are this project's too
 
 | The port proved | With | The plan schedules it at |
 |---|---|---|
@@ -206,6 +239,50 @@ record.
 meaning the line editor (entry 3), and whether `MICRO` should check the editor
 exists before shelling out (entry 4). The ruling was about which editors ship,
 not about those two.
+
+## 14. `sudo` is this project's elevation model, and nothing defines it
+
+***RAISED BY THE OWNER, 9 Sep 2026:*** *"I assume some scripts need to run as an
+administrator here as they did on windows."* Correct, and it is already true of
+code that ships — this is not future porting work.
+
+**Eight `GPL.BP` programs shell out to `sudo` from `OS.EXECUTE`:**
+
+| Program | Command |
+|---|---|
+| `CREATE_USER:64` | `sudo useradd -m <name>` |
+| `SET_PASSWD:115` | `sudo passwd <name>` |
+| `DELACC:197,223` | `sudo groupdel`, `sudo userdel` |
+| `CREATEA:306,331,634,636` | `sudo chmod g+s`, `sudo usermod -aG sdusers`, `sudo groupadd` |
+| `MODIFYA:108,131` | `sudo usermod -aG`, `sudo deluser` |
+
+***AND NOTHING IN THE PROJECT CONFIGURES sudoers*** — zero hits for `sudoers`,
+`NOPASSWD` or `visudo` across `installsdai.sh`, `deletesdai.sh` and all of
+`GPL.BP`.
+
+**So the ADMINISTRATOR tier's real privilege is decided outside SD**, by whatever
+sudo rules the machine already has, and there are only two states:
+
+- **Broad sudo** — then the SD administrator is root. `sudo passwd root` is in
+  reach, and so is everything §L withholds. **The tier is then a UI convention,
+  not a boundary**, exactly as entry 13 finds for ssh.
+- **No sudo** — then `CREATE.ACCOUNT`, `DELETE.ACCOUNT` and password setting
+  fail, or **block on a password prompt inside an SD session**, which is a
+  hang rather than an error.
+
+***THE PLAN SAYS `sudo` ZERO TIMES.*** It reasons about root — §L5:1164 says the
+Windows elevated-session carve-out's *"Linux equivalent is root, and it should be
+stated rather than inherited by accident"*, which is exactly the right instinct —
+but it never connects that to the `sudo` calls already in `GPL.BP`, and plan:17
+and §H:853 file elevation under *"none of it applies here"*.
+
+**What has to be decided:** whether SD ships a `sudoers.d` drop-in naming exactly
+these commands for a group (the narrow, auditable answer, and the closest thing
+to the port's explicit elevation helper), or whether it documents a prerequisite
+and refuses to run the verbs when it is absent. **What must not happen is the
+present state**, where the answer depends on a machine's history and neither
+outcome is detected. Note `sudo passwd` is unrestricted by argument, so a
+`sudoers` entry for it is root by another route unless it is wrapped.
 
 ## 13. ssh is an unguarded way past the tier model
 
