@@ -17,10 +17,13 @@ has been exercised on an installed system.**
 ### Your next task
 
 **Step 4 — the shrink, IN PROGRESS.** See "Step 4" below. Done: `I1` TAPE, `G3`
-OPGEN. Remaining: `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `I2` PROC · `G1`
-BP test programs (**owner decision pending on the `PY_*` Python examples — keep
-or remove; the plan says keep if they are the documented examples, and Python is
-this project's kept feature**) · `G2` VFS · `G4` SDNet.
+OPGEN, `G1` BP test programs (PY_* kept). Remaining, in rough risk order: `G4`
+SDNet (`gplsrc/netfiles.c` + 3 verbs; `NETFILES` stays accepted-and-ignored) ·
+`G2` VFS (touches `err.h`→regenerate `ERR.H`, `KEYS.H`, the name resolver) ·
+then the VOC-coherence set as **one pass**: `I3` SED · `I4` UPDATE.RECORD · `I5`
+MODIFY · `I2` PROC. `I2` is the deep one — compiler + opcode `OP_PROCREAD`,
+report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
+lower-case migration here.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
@@ -381,7 +384,7 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | I4 | UPDATE.RECORD — `GPL.BP/UPDREC`, `VOC_TEMPLATE/UPDATE.RECORD` | pending |
 | I5 | MODIFY — `GPL.BP/MODIFY`, `VOC_TEMPLATE/MODIFY`. **Keep `MODIFYA`, `MODIFY.PASSWORD`** | pending |
 | I2 | PROC — `GPL.BP/PROC`+`BBPROC`, `bbcmp.py` compile step + `installsdai.sh:500`, `LISTPQ`, `OP_PROCREAD`/`op_procread()` + BCOMP, `CPROC:1530` dispatch. Report "not supported" at dispatch; RETIRE the opcode | pending |
-| G1 | 22 SDSYS `BP` test programs | pending |
+| G1 | SDSYS `BP` test programs: removed 18 (`BIGSTR_TEST`, `MSGTEST`, `PCL`, `PCL.GRID`, `PCODE_LIST`, `SDTEST_V8`, `SD_ENCRYPT`/`_B64`/`_EXT`, `SD_EXT`, `TEST.THEN.ELSE`, `TESTSZ`, `U0032`, `U50BB`, `VFS.CLS`, `pref_t`, `sdTests`, `tilde_test`). **Kept `PY_JSON`/`PY_TERM`/`PY_TEST`/`PY_TEST2`** (owner decision 9 Sep — the documented examples for the kept Python feature). Verified no VOC verb dispatches to the `BP` dir and no bootstrap program names them; the `PCL` name-collision is with the `GPL.BP/PCL` printer subsystem (a different dir, stays) — `NEWVOC/PCL` is only a printer keyword. No changelog entry (SDSYS dev cleanup, no product function) | **done** |
 | G2 | VFS scaffolding | pending |
 | G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
 | G4 | SDNet (`gplsrc/netfiles.c`) | pending |
