@@ -113,18 +113,71 @@ objection as well as the resolution:
   **This was not measured on an sdterm terminal.** If sdterm really has 25 usable
   lines, `GPL.BP/TERM` is the line to revisit.
 
+## Step 2, first third — unchecked return values, 8 Sep 2026
+
+`A5` and `A6`. **`make sd`: 0 errors, 0 warnings**; `dh_ak.o`, `op_seqio.o`,
+`dh_file.o` recompiled, `sd` relinked. **Not exercised** — forcing either needs
+an induced I/O failure (read-only file, mandatory lock, full disk).
+
+***THE RECORD CHECK PAID FOR ITSELF HERE AND IT IS WORTH SAYING WHY.*** Both
+fixes exist in the Windows tree as PRE_RELEASE 100 and 103, and its entries
+corrected the plan on two points this session would otherwise have got wrong:
+
+1. **Seven call sites, not four.** `/home/don/Documents/claude_plan.md` §A5 lists
+   `2280`, `2301`, `2429`, `3471`. There are also `3524`, `3895` and `3929`.
+   Counted in this tree: 7 calls, 7 guards.
+2. ***A CALLER-SIDE TEST FOR 0 WOULD NOT HAVE BEEN ENOUGH.*** `get_ak_node()` has
+   three failure paths and the middle one — `dh_read_group` failing on the free
+   node — assigned `new_node_num` from `GetAKFwdLink()` **before** the read, then
+   fell to the exit **without clearing it**. It returned a non-zero node number,
+   the head of the free chain, with `free_chain` never advanced: a node the file
+   still believes is free, which two allocations could be given. The 0 convention
+   is now total inside the function.
+
+| | Where | Fix |
+|---|---|---|
+| A5 | `gplsrc/dh_ak.c` | `get_ak_node()` failure made total (free-node path clears, `chsize64` checked → `DHE_AK_WRITE_ERROR`); all 7 call sites abort on 0 using each function's own idiom — `goto exit_ak_write`, `goto exit_update_internal_node`, `head = 0; goto exit_write_ak_big_rec` |
+| A5 | `dh_ak.c` root split | `node_ptr->node_num = get_ak_node(...)` took a temporary `old_root_node_num`; it assigned straight into the node structure, so a test after the store reads a value already committed |
+| A6 | `gplsrc/op_seqio.c:1433` | `WEOFSEQ` — truncate checked, `process.status = -ER_IOE` + `os_error` |
+| A6 | `gplsrc/op_seqio.c:752` | `OPENSEQ … OVERWRITE` — same |
+| A6 | `gplsrc/dh_file.c:831` | `SetFileSize()` returns `chsize64(...) == 0` instead of unconditional `TRUE` |
+
+**Two details taken from the record rather than rediscovered:**
+
+- ***THE STATUS HAS TO BE NEGATIVE.*** Both opcodes already carry a `k_error`
+  guarded on `process.status < 0` (`sysmsg(1420)` in `op_weofseq`, `sysmsg(1416)`
+  in `op_openseq`), and positive values are handed back to the program. A
+  positive status would have left the report unable to fire.
+- **The `goto exit_op_openseq` was checked in this tree, not assumed.** The
+  truncate is at `:752`, the file variable is not published into `fvar_descr`
+  until `:761`, and the exit frees `fvar` and `sq_file` whenever status is set.
+
+**`SetFileSize` is behaviour-neutral today** — its only callers, `dh_clear.c:107`
+and `:114`, still discard the result. It is fixed so that a caller *can* check.
+
+**One instrument lesson from this session, recorded because it nearly cost a
+wrong edit:** a `grep | head -12` cut off the line defining `DHE_AK_WRITE_ERROR`
+and I briefly concluded the symbol did not exist. It is `err.h:261`. A truncated
+instrument reads exactly like a negative result.
+
 ## Open
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
 doing, because a wrong catalogue gate would refuse an administrator.
 
-**Then step 2 of the plan: data integrity.** `A5` `dh_ak.c:2750` —
-`get_ak_node()` returns 0 on error and no caller checks, so a failed index
-extension writes over the index header; `A2`/`A3` the transaction directory-id
-encoding in `txn.c:148,180,187`; `A6` unchecked `chsize64()` in
-`op_seqio.c:752,1433`; `A4` nested commit; then `A1` commit rollback, the one
-real piece of work.
+**Step 2 is being done in thirds, at the owner's request. First third is above.**
+
+- **Second third — transactions, the localised half.** `A2` the directory-file
+  id encoding (`txn.c:148` passes the raw id to `dir_write()`, which expects an
+  already-mapped name; `:180` builds the delete path from the raw id); `A3`
+  `remove()`'s result discarded at `:187`; `A4` a nested commit abandoning the
+  outer transaction (`:126` clears `process.txn_id`, and only `rollback()` at
+  `:582` restores it) plus `system(1008)` never decremented.
+- **Final third — `A1` commit rollback.** Before-images for every record a commit
+  overwrites, restored if it fails part way, with a summary line to `errlog`.
+  **Check the Windows record first**: this session's experience is that its
+  entries carry corrections the plan does not.
 
 ***STEP 2 IS WHERE "IT COMPILED" IS WORTH LEAST.*** Every item touches
 transactions or index structure, and the failure mode of `A5` is a permanently

@@ -2277,7 +2277,15 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
 
   /* Create leftmost new node */
 
+  /* 08 Sep 26  get_ak_node() answers "I could not" with 0, and node 0 is the AK
+     header -- dh_file.c maps group 0 to offset 0 deliberately.  Every one of the
+     seven call sites used the value without testing it, so a transient write
+     error became permanent corruption of the structure every SELECT, LIST and
+     query on that key is answered from.  The error was always reported; it was
+     reported after the header had been overwritten.  */
   new_node1_num = get_ak_node(dh_file, subfile);
+  if (new_node1_num == 0)
+    goto exit_ak_write;
   new_node1 = (DH_TERM_NODE *)k_alloc(50, DH_AK_NODE_SIZE);
   memset((char *)new_node1, '\0', DH_AK_NODE_SIZE);
   new_node1->node_type = AK_TERM_NODE;
@@ -2298,7 +2306,9 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
 
   /* Create new node to right */
 
-  new_node2_num = get_ak_node(dh_file, subfile);
+  new_node2_num = get_ak_node(dh_file, subfile);   /* 08 Sep 26  see above */
+  if (new_node2_num == 0)
+    goto exit_ak_write;
   new_node2 = (DH_TERM_NODE *)k_alloc(50, DH_AK_NODE_SIZE);
   memset((char *)new_node2, '\0', DH_AK_NODE_SIZE);
   new_node2->node_type = AK_TERM_NODE;
@@ -2426,7 +2436,9 @@ Private bool ak_write(DH_FILE *dh_file, /* File descriptor */
      node and we add a new right node.                                    */
 
   if (rec_offset < used_bytes) {
-    new_node3_num = get_ak_node(dh_file, subfile);
+    new_node3_num = get_ak_node(dh_file, subfile);   /* 08 Sep 26  see above */
+    if (new_node3_num == 0)
+      goto exit_ak_write;
     new_node3 = (DH_TERM_NODE *)k_alloc(50, DH_AK_NODE_SIZE);
     memset((char *)new_node3, '\0', DH_AK_NODE_SIZE);
     new_node3->node_type = AK_TERM_NODE;
@@ -2763,10 +2775,26 @@ Private int32_t get_ak_node(DH_FILE *dh_file, int16_t subfile) {
     file_bytes = filelength64(dh_file->sf[subfile].fu);
     new_node_num = (int32_t)((file_bytes - dh_file->ak_header_bytes) / DH_AK_NODE_SIZE + 1);
 
-    chsize64(dh_file->sf[subfile].fu, file_bytes + DH_AK_NODE_SIZE);
+    /* 08 Sep 26  The truncate that makes room for the node just computed was
+       unchecked, so a full disk or an I/O error handed the caller a node number
+       past the end of the file.  chsize64() returns non-zero on failure --
+       sdfix.c:2492 is the control.  */
+    if (chsize64(dh_file->sf[subfile].fu, file_bytes + DH_AK_NODE_SIZE)) {
+      dh_err = DHE_AK_WRITE_ERROR;
+      new_node_num = 0;
+      goto exit_get_ak_node;
+    }
   } else {
     new_node_num = GetAKFwdLink(dh_file, ak_header->free_chain);
     if (!dh_read_group(dh_file, subfile, new_node_num, (char *)&ak_node, DH_FREE_NODE_SIZE)) {
+      /* 08 Sep 26  This path used to fall through to the exit WITHOUT clearing
+         new_node_num, which was assigned from GetAKFwdLink() above -- so it
+         returned a NON-ZERO node number, the head of the free chain, while
+         ak_header->free_chain was never advanced.  A caller testing the result
+         for 0 cannot see that: it is handed a node the file still believes is
+         free, and two allocations can be given the same node.  The 0 convention
+         is therefore made total here rather than guarded at the call sites.  */
+      new_node_num = 0;
       goto exit_get_ak_node;
     }
 
@@ -3402,6 +3430,12 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
   int16_t key_len;              /* Space required for key data */
   int16_t key_diff;             /* Difference from previous space requirement */
   int32_t new_node_num;         /* Offset of new node if we split */
+  /* 08 Sep 26  The old root's new home is taken into a temporary and tested
+     before it is stored.  It used to be assigned straight into
+     node_ptr->node_num, so a test afterwards would have been reading a value
+     already committed to the node structure -- and 0, the allocator's failure
+     answer, is the AK header.  */
+  int32_t old_root_node_num;    /* New home for the old root node */
   DH_INT_NODE *new_node = NULL; /* Pointer to new node buffer */
   NODE *root_node;              /* Pointer to new root NODE structure */
   int16_t moved_children;
@@ -3468,7 +3502,11 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
        buffer becomes the left half, a new node buffer is allocated for
        the right half.                                                     */
 
+    /* 08 Sep 26  Test the allocator, as the k_alloc() below already is: 0 means
+       it could not, and node 0 is the AK header.  */
     new_node_num = get_ak_node(dh_file, subfile);
+    if (new_node_num == 0)
+      goto exit_update_internal_node;
     new_node = (DH_INT_NODE *)k_alloc(55, DH_AK_NODE_SIZE);
     /* Modified by Composer AI - 2026/06/10.
        k_alloc() can return NULL; abort the split on allocation failure. */
@@ -3521,7 +3559,10 @@ Private bool update_internal_node(DH_FILE *dh_file,  /* DH file affected and... 
     {
       /* Write out the old root internal node into a new position */
 
-      node_ptr->node_num = get_ak_node(dh_file, subfile);
+      old_root_node_num = get_ak_node(dh_file, subfile);
+      if (old_root_node_num == 0)
+        goto exit_update_internal_node;
+      node_ptr->node_num = old_root_node_num;
 
       /* Create a new root internal node to point to the old and new
          child nodes.                                                 */
@@ -3892,7 +3933,12 @@ Private int32_t write_ak_big_rec(DH_FILE *dh_file, int16_t subfile, STRING_CHUNK
     goto exit_write_ak_big_rec;
   }
 
+  /* 08 Sep 26  head == 0 is already how this function reports failure -- see the
+     k_alloc() guard directly above, and ak_write tests the result -- so the
+     allocator's own 0 needs only to be let through rather than used as a node.  */
   head = get_ak_node(dh_file, subfile);
+  if (head == 0)
+    goto exit_write_ak_big_rec;
   node_num = head;
 
   memset((char *)buff, '\0', DH_AK_NODE_SIZE);
@@ -3926,7 +3972,13 @@ Private int32_t write_ak_big_rec(DH_FILE *dh_file, int16_t subfile, STRING_CHUNK
 
     if (data_len != 0) /* More */
     {
+      /* 08 Sep 26  Untested, this also stored node 0 as a forward link, so the
+         chain itself could be left pointing at the AK header.  */
       next_node_num = get_ak_node(dh_file, subfile);
+      if (next_node_num == 0) {
+        head = 0;
+        goto exit_write_ak_big_rec;
+      }
       buff->next = SetAKFwdLink(dh_file, next_node_num);
     }
 

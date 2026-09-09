@@ -749,7 +749,18 @@ Private void openseq(bool map_name) {
     {
       if (ValidFileHandle(fu)) {
         Seek(fu, sq_file->posn, SEEK_SET);
-        chsize64(fu, sq_file->posn);
+        /* 08 Sep 26  OPENSEQ ... OVERWRITE promises the previous content is
+           gone.  The truncate's result was discarded, so if it failed the old
+           file stayed as it was and later writes replaced only the front of it.
+           Negative status, so the k_error(sysmsg(1416)) at the exit can fire.
+           The goto is safe here and was checked rather than assumed: the file
+           variable is not published into fvar_descr until line 761, below this
+           block, and the exit frees fvar and sq_file whenever status is set.  */
+        if (chsize64(fu, sq_file->posn)) {
+          process.status = -ER_IOE;
+          process.os_error = OSError;
+          goto exit_op_openseq;
+        }
         sq_file->base = -1;
       }
     }
@@ -1430,7 +1441,21 @@ void op_weofseq() {
   flush_seq(fvar, FALSE);
 
   Seek(fu, sq_file->posn, SEEK_SET);
-  chsize64(fu, sq_file->posn);
+  /* 08 Sep 26  WEOFSEQ is nothing but this truncate, and its result was
+     discarded -- so process.status stayed 0, the exit below pushed 0 for
+     success whatever happened, and the k_error(sysmsg(1420)) guarded on
+     process.status < 0 could never fire.  What it costs is a stale tail: the
+     old content past the new end survives, so a file written by a later and
+     shorter run can still carry rows from an earlier, longer one, and that file
+     is the answer somebody takes away.
+     The status must be NEGATIVE: positive values here are handed back to the
+     program, and the guard below tests for < 0.  chsize64() returns non-zero on
+     failure (sdfix.c:2492 is the control).  */
+  if (chsize64(fu, sq_file->posn)) {
+    process.status = -ER_IOE;
+    process.os_error = OSError;
+    goto exit_op_weofseq;
+  }
   sq_file->base = -1;
 
 exit_op_weofseq:
