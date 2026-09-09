@@ -6,8 +6,9 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-*Handoff updated 9 Sep 2026. Steps 2 and 3 implemented, neither exercised on a
-running system. Step 4's §G is complete; `G2` is built but not installed.*
+*Handoff updated 9 Sep 2026. **Step 4 is complete.** Steps 2 and 3 implemented,
+neither exercised on a running system; §I built nothing and compiled nothing —
+the next install is what proves it.*
 
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
 repository, with a `file:line` verification table for every defect it claims.
@@ -16,12 +17,23 @@ has been exercised on an installed system.**
 
 ### Your next task
 
-**Step 4 — the shrink, IN PROGRESS.** See "Step 4" below. Done: `I1` TAPE, `G3`
-OPGEN, `G1` BP test programs (PY_* kept), `G4` SDNet, `G2` VFS. **All of §G is
-done.** Remaining is the VOC-coherence set as **one pass**: `I3` SED · `I4`
-UPDATE.RECORD · `I5` MODIFY · `I2` PROC. `I2` is the deep one — compiler +
-opcode `OP_PROCREAD`, report "PROC not supported" at `CPROC:1530`, RETIRE the
-opcode slot. Fold in the lower-case migration here.
+***STEP 4 IS COMPLETE.*** All of §G and all of §I are done — `I1` TAPE, `I3` SED,
+`I4` UPDATE.RECORD, `I5` MODIFY, `I2` PROC, `G1` BP test programs (PY_* kept),
+`G2` VFS, `G3` OPGEN, `G4` SDNet. **None of §I has been installed**; the BASIC
+was not compiled this session (see "Step 4 / §I" for what instrument was tried
+and why it could not).
+
+**Your next task is step 5, the installer** — `F9` drop the clone first, because
+until it is done an install does not test this tree, then `F1` upgrade split ·
+`F2` `UPDATE.ACCOUNTS` · `F3` `[locked]` · `F4` config parser · `F5` changelog
+location · `F7` self-check · `F6`, `F8`.
+
+***THE LOWER-CASE MIGRATION WAS NOT FOLDED INTO STEP 4, AND THE EARLIER
+SUGGESTION HERE THAT IT SHOULD BE IS WITHDRAWN.*** The plan puts §M at step **7**,
+after the installer and the security model, and §M2's migration is written as a
+rename step inside `installsdai.sh` and `update.accounts` — which is §F2, step 5,
+and does not exist yet. Folding it in here would have meant writing the migration
+before the thing it lives in.
 
 ***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
 the tree). **`G4` is CLOSED by the owner's decision, 9 Sep.** Its read side was
@@ -62,6 +74,10 @@ individually exercised and are collected here so the later pass has the list:
 - `G2`: `sd` has not started from a pcode library built without `_EXTENDLIST`.
   Loud rather than silent if wrong — `load_pcode()` refuses to start — so the
   next install witnesses it. See the Step-4 note.
+- §I: **the edited `CPROC` has not been compiled** (`bbcmp.py` cannot; see the
+  §I note). Loud if wrong — the bootstrap aborts the install. The behaviour to
+  look for once installed: a VOC record of type `PQ` prints message `10099`
+  naming the verb, **not** sysmsg 5053 "invalid dispatch code".
 
 **Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
 run on an installed system.
@@ -403,10 +419,10 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | | What | Done? |
 |---|---|---|
 | I1 | TAPE/RESTORE: deleted `sd64/tape/` (24 records — 5 `GPL.BP`, 19 `VOC` verbs) and the install prompt at `installsdai.sh:475`. It was copied in at install from `tape/`, never shipped in `VOC_TEMPLATE`, so nothing else referenced it (grep confirmed). `bash -n installsdai.sh` clean | **done** |
-| I3 | SED — `GPL.BP/SED`, `VOC_TEMPLATE/SED`, its key file | pending |
-| I4 | UPDATE.RECORD — `GPL.BP/UPDREC`, `VOC_TEMPLATE/UPDATE.RECORD` | pending |
-| I5 | MODIFY — `GPL.BP/MODIFY`, `VOC_TEMPLATE/MODIFY`. **Keep `MODIFYA`, `MODIFY.PASSWORD`** | pending |
-| I2 | PROC — `GPL.BP/PROC`+`BBPROC`, `bbcmp.py` compile step + `installsdai.sh:500`, `LISTPQ`, `OP_PROCREAD`/`op_procread()` + BCOMP, `CPROC:1530` dispatch. Report "not supported" at dispatch; RETIRE the opcode | pending |
+| I3 | SED — `GPL.BP/SED` + `VOC_TEMPLATE/SED` + `NEWVOC/SED`. **Its "key file" is `&SED.BINDINGS&`, created per account at run time and never shipped, so there was nothing to delete.** SED's own messages `6694`/`6695` kept, as the port kept them | **done** |
+| I4 | UPDATE.RECORD — `GPL.BP/UPDREC` + `VOC_TEMPLATE/UPDATE.RECORD` + `NEWVOC/UPDATE.RECORD` | **done** |
+| I5 | MODIFY — `GPL.BP/MODIFY` + `VOC_TEMPLATE/MODIFY` + `NEWVOC/MODIFY` | **done** |
+| I2 | PROC — `GPL.BP/PROC` and `LISTPQ` in all three places (`SD.VOCLIB`, `VOC_TEMPLATE`, `NEWVOC`). PROC is a VOC record **TYPE**, not a verb, so it has no VOC record of its own. `CPROC`'s `PQ` case is **replaced, not deleted** — it refuses by name with new `MESSAGES/10099`, the port's number and its wording. **`OP_PROCREAD`, `op_procread()` and BCOMP's `st.procread`/`st.procwrite` are KEPT** (owner's ruling, 9 Sep — see below). `proc.*` SYSCOM slots kept | **done** |
 | G1 | SDSYS `BP` test programs: removed 18 (`BIGSTR_TEST`, `MSGTEST`, `PCL`, `PCL.GRID`, `PCODE_LIST`, `SDTEST_V8`, `SD_ENCRYPT`/`_B64`/`_EXT`, `SD_EXT`, `TEST.THEN.ELSE`, `TESTSZ`, `U0032`, `U50BB`, `VFS.CLS`, `pref_t`, `sdTests`, `tilde_test`). **Kept `PY_JSON`/`PY_TERM`/`PY_TEST`/`PY_TEST2`** (owner decision 9 Sep — the documented examples for the kept Python feature). Verified no VOC verb dispatches to the `BP` dir and no bootstrap program names them; the `PCL` name-collision is with the `GPL.BP/PCL` printer subsystem (a different dir, stays) — `NEWVOC/PCL` is only a printer keyword. No changelog entry (SDSYS dev cleanup, no product function) | **done** |
 | G2 | VFS scaffolding: the BASIC advertised a virtual file system the C never implemented. Removed `VFS_FILE` 5 (`descr.h`), `SEL_VFS` (`dh.h:154`), `FL_TYPE_VFS` (`keys.h:57`) and the three uses — `op_dio3.c:509` guard, `kernel.c:600` flag test, `pdump.c:227` print. **RETIRED, comments left in place: `DHF_VFS` 0x40 (`dh.h:105`, a file-header bit), `PF_IS_VFS` 0x00200000 (`kernel.h:101`, an object-header bit), errors 3038–3040 (`err.h:147`).** BASIC: `FTYPE`'s `VFS:` case, `_VOC_REF`'s branch that left a `VFS:` pathname relative, `FL$TYPE.VFS` (`SYSCOM/KEYS.H:29`); `ERR.H`/`ERRTEXT.H` regenerated. `GPL.BP/_EXTENDLIST` deleted with its four registrations (`pcode.h:38`, `gplbld/pcode_bld.py`, `gplbld/COMP_PCODE`, the record). **Left alone by ruling: `examples/windows.c/winsdclilib/err.h`** — the client library's public error header, so removing codes there is an API change. Clean `rm -f gplobj/*.o` build, 79 files, 0 warnings; 12 removal checks each against a control. **Not installed** | **done** |
 | G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
@@ -452,6 +468,54 @@ CLAUDE.md:**
   installed tree will not match the source tree** until a clean install. The
   Windows port did not face this: its upgrade writes `Type: filesandordirs` and
   deletes the whole directory first.
+
+### Step 4 / §I — where the plan was wrong, and what was not checked
+
+***THE PLAN'S §I2 IS WRONG IN THREE PLACES AND THE RECORD CAUGHT ALL THREE
+BEFORE ANYTHING WAS DELETED.*** This is the grep-the-record rule paying for
+itself; each was then confirmed against source rather than taken on the
+document's word.
+
+| Plan says | Measured |
+|---|---|
+| "`GPL.BP/PROC` and `GPL.BP/BBPROC` (the PROC compiler)" | ***`BBPROC` IS NOT PROC.*** Its own first line reads *"BootStrap Build process … a mini command processor … compile from source the basic programs needed by sd to run"*. It is one of `bbcmp.py`'s three bootstrap seeds (`installsdai.sh:491`). **Deleting it would have broken every install.** Windows HISTORY.md:31800 says it in one line: *"`QPROC` and `BBPROC` are not PROC despite the names"* |
+| "`installsdai.sh:500` is one of three bootstrap compile steps and goes with it" | Line 500 is `chown -R sdsys:sdusers`. The three `bbcmp.py` steps are 491–493 and compile `BBPROC`, `BCOMP`, `PATHTKN` — **none is PROC. The installer needed no change at all** |
+| "Retire the opcode … as the port did" | **The port kept `OP_PROCREAD`** — `opcodes.h:516` and `op_misc.c:1208` carry it in `sd4windows` today. The plan cites the port as its authority for the opposite of what the port did |
+
+***OWNER'S RULING, 9 Sep 2026: KEEP `PROCREAD`/`PROCWRITE`, MATCH THE PORT.***
+So §I2 is BASIC-only and **no C file was touched**. Three measurements backed
+the question: the port kept them; `op_procread()` (`op_misc.c:1226`) already
+self-guards by walking the call stack for a program named `$PROC` and returning
+empty plus error status when it is absent, so with `GPL.BP/PROC` gone it answers
+correctly with **no C change**; and `PROCWRITE` has no opcode at all — `BCOMP`
+compiles it to a store into `SYSCOM.PROC.IBUF`, and those common slots must stay
+because removing one shifts every slot after it.
+
+**Four near-miss names, each checked and each kept** — the first three are the
+port's list, the fourth is new here: `QPROC` (query processor) · `PDBG`/`PDEBUG`
+(PHANTOM debugger, not PROC's) · `_KEYEDIT`/`KEYCODE.H` (`OP_KEYEDIT` is a BASIC
+opcode, `opcodes.h:441`, and `_BINDKEY`, `_KEYCODE` and `BCOMP` reference them,
+so they are not orphaned by SED/UPDREC going) · **`ST.MODIFY` in `bbcmp.py:5826`
+and `BCOMP` is the BASIC `MODIFY btree, data` statement, nothing to do with the
+`MODIFY` verb.** `MODIFYA` is reached by `VOC_TEMPLATE/MODIFY.ACCOUNT` → `$MODIFYA`,
+a different catalogue name from the deleted `$MODIFY`. All nine were asserted
+present after the deletions, as controls on the `git rm`.
+
+***THE BASIC WAS NOT COMPILED THIS SESSION, AND THE INSTRUMENT THAT WAS TRIED
+COULD NOT DO IT.*** `gplbld/bbcmp.py` cannot compile `CPROC`: it aborts on
+`$IFNDEF`, which `CPROC` uses, and before that it fails to resolve
+`$include define_install.h` because **`bbcmp.py:7141` upper-cases every include
+name** and the file on disk is lower case. It is the restricted bootstrap
+compiler for `BBPROC`/`BCOMP`/`PATHTKN` only. So the check that stands is
+structural: `begin case`/`end case` **31/31 unchanged**, `loop` and `repeat`
+each down by exactly **1** — the single pair removed from the `PQ` arm. **The
+install's two-stage bootstrap is what compiles `CPROC`, and a syntax error there
+aborts the install**, which is the loud failure this is relying on.
+
+***AND THAT `bbcmp.py` UPPER-CASING IS A §M TRAP WORTH KEEPING.*** On a
+case-sensitive filesystem an include whose file is lower case is unresolvable to
+that compiler. The real `BCOMP` evidently resolves it, since installs work — but
+§M1's "fold, then rename" has a second lookup here that the plan does not name.
 
 ## Open
 
