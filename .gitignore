@@ -6,6 +6,16 @@
 # Each rule below names the Makefile line that creates the thing, so a later
 # session can check the claim rather than trusting it.
 
+# The installer's download directory.  It lives at $HOME/.sdb64tmp since
+# 9 Sep 2026 and should never appear here at all - but it USED to be created in
+# whatever directory the installer was run from, and a run that aborted before
+# its cleanup left one behind.  On 9 Sep 2026 that leftover was committed by a
+# `git add -A` that nobody read first: 91 build-output files, ~4 MB, in 4b30ef0.
+# The rules below did not catch it because they are anchored at sdb_ai/sd64/ and
+# the leftover was at .sdb64tmp/sdb_ai/sd64/.  Anchored at the root so an old
+# installer, or one interrupted mid-run, cannot repeat it.
+/.sdb64tmp/
+
 # Compiled objects and linked binaries. Makefile:67 does
 #   $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
 # so both directories are created by the build and need no placeholder here.
