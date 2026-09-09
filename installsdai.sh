@@ -39,7 +39,13 @@ IFS=$'\n\t'
 REPO_URL="https://github.com/dmontaine/SDCore4Linux"
 REPO_BRANCH="main"
 # define where we expect to find the package
-dflt_git_folder=".sdb64tmp"
+# 09 Sep 26  THE DOWNLOAD GOES UNDER $HOME, NOT INTO WHATEVER DIRECTORY THE
+#            SCRIPT WAS RUN FROM.  It used to be "$(pwd)/.sdb64tmp", so running
+#            the installer from a clone of this repository dropped a 4 MB build
+#            tree inside the project and made "git status" dirty - and a clean
+#            git status is a working instrument here.  Absolute, so it does not
+#            move when the script cd's into the build tree.
+dflt_git_folder="${HOME}/.sdb64tmp"
 #
 # 09 Sep 26  THE CLONE'S SOURCE TREE IS ONE LEVEL DOWN, AND THIS IS THE TRAP.
 #            The old codeberg repository WAS the source tree - its root held
@@ -223,7 +229,11 @@ echo
 # Modified by Composer AI - 2026/06/10.
 # Quote path variables when removing the temporary clone directory.
 # rm -fr $cwd/$dflt_git_folder
-rm -fr "${cwd}/${dflt_git_folder}"
+# 09 Sep 26  sudo, and for the same reason as the cleanup at the end of the
+#            script: a previous run that got as far as "sudo make" left
+#            root-owned gplobj/ and terminfo/ behind, and an ordinary rm cannot
+#            remove those.
+sudo rm -fr "${dflt_git_folder}"
 # --------------------
 printf "%b\n" "$NC"
 #
@@ -311,7 +321,7 @@ if [ -d "${inst_folder}/sd64" ]; then
 else
     printf "%b\n" "$RED"
     echo "The download did not contain ${repo_src_subdir}/sd64, aborting."
-    echo "Looked in: ${cwd}/${inst_folder}"
+    echo "Looked in: ${inst_folder}"
     echo "This means the repository layout changed, not that your download failed."
     printf "%b\n" "$NC"
     exit 1
@@ -320,7 +330,8 @@ fi
 #
 # Modified by Composer AI - 2026/06/10.
 # cd $cwd/$inst_folder
-cd "${cwd}/${inst_folder}"
+# 09 Sep 26  inst_folder is absolute now - see dflt_git_folder.
+cd "${inst_folder}"
 # --------------------
 #
 # rev 0.9.0 need python dev to build, did we get it?
@@ -350,7 +361,7 @@ fi
 #
 # Modified by Composer AI - 2026/06/10.
 # cd $cwd/$inst_folder/sd64
-cd "${cwd}/${inst_folder}/sd64"
+cd "${inst_folder}/sd64"
 # --------------------
 #
 # Modified by Composer AI - 2026/06/10.
@@ -646,16 +657,27 @@ sd_install_stop
 #
 echo
 echo Compiling terminfo database
-sudo "${cwd}/${inst_folder}/sd64/bin/sdtic" -v "${cwd}/${inst_folder}/sd64/terminfo.src"
+sudo "${inst_folder}/sd64/bin/sdtic" -v "${inst_folder}/sd64/terminfo.src"
 echo Terminfo compilation complete
-sudo cp "${cwd}/${inst_folder}/sd64/terminfo.src" "$sdsysdir"
+sudo cp "${inst_folder}/sd64/terminfo.src" "$sdsysdir"
 echo
 
 # 09 Sep 26  The download is always removed.  There is no longer a saved-copy
 #            branch, and no local-repository case to exempt.
-if [ -d "${cwd}/${dflt_git_folder}" ]; then
-    echo "Remove ${cwd}/${dflt_git_folder}"
-    rm -fr "${cwd}/${dflt_git_folder}"
+# 09 Sep 26  ***sudo, AND THIS IS THE BUG THAT MADE THE FIRST GITHUB INSTALL
+#            "FAIL" AFTER IT HAD ACTUALLY SUCCEEDED.***  installsdai.sh:359 runs
+#            "sudo make -B", so gplobj/ and terminfo/ inside the download are
+#            owned by root.  A plain "rm -fr" as the calling user cannot unlink
+#            files inside a root-owned directory: it deletes everything else,
+#            prints "Permission denied", and RETURNS 1 - which under
+#            "set -euo pipefail" at line 28 aborts the script.  SD was already
+#            installed and working by then; the run just ended on an error with
+#            no message, leaving a stripped .sdb64tmp holding only those two
+#            directories.  It was invisible before only because the <L>ocal
+#            option left no download for this block to find.
+if [ -d "${dflt_git_folder}" ]; then
+    echo "Remove ${dflt_git_folder}"
+    sudo rm -fr "${dflt_git_folder}"
 fi
 cd "$cwd"
 #
