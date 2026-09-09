@@ -1255,8 +1255,6 @@ display.data.common:
                message := ' (Dynamic)'
             case n = FVAR.SEQ
                message := ' (Sequential)'
-            case n = FVAR.NET
-               message := ' (Networked)'
          end case
 
       case var.type = V$ARRAY

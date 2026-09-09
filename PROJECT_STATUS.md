@@ -17,13 +17,19 @@ has been exercised on an installed system.**
 ### Your next task
 
 **Step 4 — the shrink, IN PROGRESS.** See "Step 4" below. Done: `I1` TAPE, `G3`
-OPGEN, `G1` BP test programs (PY_* kept). Remaining, in rough risk order: `G4`
-SDNet (`gplsrc/netfiles.c` + 3 verbs; `NETFILES` stays accepted-and-ignored) ·
-`G2` VFS (touches `err.h`→regenerate `ERR.H`, `KEYS.H`, the name resolver) ·
+OPGEN, `G1` BP test programs (PY_* kept), `G4` SDNet. Remaining: `G2` VFS
+(touches `err.h`→regenerate `ERR.H`, `KEYS.H`, the name resolver, `_EXTENDLIST`,
+`VFS_FILE` type 5 in `descr.h` — the twin of the `NET_FILE` removal just done) ·
 then the VOC-coherence set as **one pass**: `I3` SED · `I4` UPDATE.RECORD · `I5`
 MODIFY · `I2` PROC. `I2` is the deep one — compiler + opcode `OP_PROCREAD`,
 report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
 lower-case migration here.
+
+***None of step 4 has run on an install.*** `G4` in particular is core file-I/O
+surgery (open/read/write/delete/lock/select/AK across 7 C files) verified only by
+a clean `-Wall -Wformat=2` build — the same instrument the port used, but an
+install + a file-I/O smoke test (open, read, write, delete, LOCK, SELECT, an AK
+query on a normal DYNAMIC and DIRECTORY file) is owed before trusting it.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
@@ -387,7 +393,7 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | G1 | SDSYS `BP` test programs: removed 18 (`BIGSTR_TEST`, `MSGTEST`, `PCL`, `PCL.GRID`, `PCODE_LIST`, `SDTEST_V8`, `SD_ENCRYPT`/`_B64`/`_EXT`, `SD_EXT`, `TEST.THEN.ELSE`, `TESTSZ`, `U0032`, `U50BB`, `VFS.CLS`, `pref_t`, `sdTests`, `tilde_test`). **Kept `PY_JSON`/`PY_TERM`/`PY_TEST`/`PY_TEST2`** (owner decision 9 Sep — the documented examples for the kept Python feature). Verified no VOC verb dispatches to the `BP` dir and no bootstrap program names them; the `PCL` name-collision is with the `GPL.BP/PCL` printer subsystem (a different dir, stays) — `NEWVOC/PCL` is only a printer keyword. No changelog entry (SDSYS dev cleanup, no product function) | **done** |
 | G2 | VFS scaffolding | pending |
 | G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
-| G4 | SDNet (`gplsrc/netfiles.c`) | pending |
+| G4 | SDNet: deleted `gplsrc/netfiles.c` (removed from `gpl.src`), the `;` dispatch + `net_open` in `op_dio1.c`, and **every `NET_FILE` case / `net_*` call across `op_dio1/2/3/4.c`, `op_lock.c`, `dh_ak.c`** (~30 sites); removed the `NET_FILE` type (`descr.h`, `FVAR.NET` in `DEBUG.H` + the "(Networked)" DEBUG arm), the `net_*` prototypes (`sd.h`), and the 3 verbs (`GPL.BP/SETSRVR`/`DELSRVR`/`LISTSRVR`, `VOC_TEMPLATE/SET.SERVER`/`DELETE.SERVER`/`LIST.SERVERS`). `K$GET.SDNET.CONNECTIONS` now returns empty. **Kept (deliberate residue): `sdnet.h` (socket/termios portability header, NOT SDNet — build breaks without it), `NETFILES` config + sysseg field, `USR_SDNET`, `K$SDNET`, `SrvrOpenSDNet`.** Clean `rm -f gplobj/*.o` build: 0 warnings, 0 errors, `sd` linked | **done** |
 
 **Not exercised.** I1 removed data records and an install prompt; nothing in the
 C build depends on them, so `make` is unaffected, but an install that used to

@@ -314,7 +314,8 @@ struct FILE_VAR {
 #define DIRECTORY_FILE 1
 #define DYNAMIC_FILE 2
 #define SEQ_FILE 3
-#define NET_FILE 4
+/* 4 was NET_FILE - SDNet removed (plan G4). Slot left unused rather than
+   renumbering VFS_FILE. */
 #define VFS_FILE 5
   /* Tokens also in BP DEBUG.H */
   u_char flags;

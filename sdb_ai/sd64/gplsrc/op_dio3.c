@@ -146,9 +146,7 @@ void op_clrfile() {
   if (fvar->flags & FV_RDONLY)
     k_error(sysmsg(1403));
 
-  if (fvar->type == NET_FILE) {
-    process.status = net_clearfile(fvar);
-  } else {
+  {
     /* Get exclusive access to the file_lock entry in the file table. Because
       acquisition of a file lock may require scanning the record lock table,
       the file_lock entry is protected by the REC_LOCK_SEM. The file table
@@ -416,10 +414,6 @@ void op_delete() {
         }
       }
       break;
-
-    case NET_FILE:
-      net_delete(fvar, id, id_len, keep_lock);
-      break;
   }
 
 exit_op_delete:
@@ -433,7 +427,7 @@ exit_op_delete:
 
   if (process.status >= 0) {
     /* Release record lock if non-transactional DELETE */
-    if (!keep_lock && (txn_id == 0) && (id_len != 0) && (fvar->type != NET_FILE)) {
+    if (!keep_lock && (txn_id == 0) && (id_len != 0)) {
       unlock_record(fvar, id, id_len);
     }
   } else if (!(op_flags & P_ON_ERROR))
@@ -512,7 +506,7 @@ void op_readv() {
   fvar = descr->data.fvar;
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
-  if ((field_no != 0) && (fvar->type != NET_FILE) && (fvar->type != VFS_FILE)) {
+  if ((field_no != 0) && (fvar->type != VFS_FILE)) {
     /* Reading a field of a local file */
 
     /* Push lock flag onto e-stack. This corresponds to the lock bits of
@@ -545,30 +539,7 @@ void op_readv() {
     if (id_len <= 0) {
       status = process.status = ER_IID;
     } else {
-      if (fvar->type == NET_FILE) {
-        switch (net_readv(fvar, id, id_len, field_no, op_flags, &str)) {
-          case SV_OK: /* Record exists. Take THEN clause */
-            k_release(descr);
-            InitDescr(descr, STRING);
-            descr->data.str.saddr = str;
-            status = 0;
-            break;
-          case SV_LOCKED:
-            if (my_uptr->events)
-              process_events();
-            process.op_flags = op_flags;
-            pc = op_pc;
-            lock_beep();
-            Sleep(250);
-            return;
-          case SV_ON_ERROR: /* Fatal error */
-            status = -1;
-            break;
-          default: /* Take ELSE clause */
-            status = 1;
-            break;
-        }
-      } else {
+      {
         if (fvar->type == DIRECTORY_FILE) {
           if (!map_t1_id(id, id_len, mapped_id)) {
             status = process.status = ER_IID;
@@ -614,7 +585,7 @@ void op_readv() {
 
         /* Read the record */
 
-        if (txn_id && (fvar->type != NET_FILE)) {
+        if (txn_id) {
           switch (txn_read(fvar, id, id_len, actual_id, &str)) {
             case TXC_FOUND: /* Found the record */
               goto exit_op_readv;
@@ -715,10 +686,6 @@ void op_mapmarks() {
   switch (fvar->type) {
     case DIRECTORY_FILE:
       fvar->access.dir.mark_mapping = state;
-      break;
-
-    case NET_FILE:
-      net_mark_mapping(fvar, state);
       break;
   }
 
@@ -864,10 +831,6 @@ void op_write() {
       }
 
       break;
-
-    case NET_FILE:
-      net_write(fvar, id, id_len, src_descr->data.str.saddr, keep_lock); /* 0295 */
-      break;
   }
 
 exit_op_write:
@@ -884,7 +847,7 @@ exit_op_write:
   if (process.status >= 0) {
     /* Release record lock if non-transactional WRITE */
 
-    if (!keep_lock && (txn_id == 0) && (fvar->type != NET_FILE)) {
+    if (!keep_lock && (txn_id == 0)) {
       unlock_record(fvar, lock_id, id_len);
     }
   } else if (!(op_flags & P_ON_ERROR)) {
@@ -983,7 +946,6 @@ Private void read_record(bool matread) {
   DESCRIPTOR temp_descr; /* Temporary string used by MATREAD */
   DESCRIPTOR *str_descr; /* Descriptor into which to perform string read */
   STRING_CHUNK *str;
-  bool is_net_file;
   u_int32_t txn_id;
   struct stat statbuf;
 
@@ -1004,7 +966,6 @@ Private void read_record(bool matread) {
   fvar_descr = e_stack - 2;
   k_get_file(fvar_descr);
   fvar = fvar_descr->data.fvar;
-  is_net_file = (fvar->type == NET_FILE);
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   /* Get target descr */
@@ -1041,7 +1002,7 @@ Private void read_record(bool matread) {
     goto exit_op_read; /* We failed to extract the record id */
   }
 
-  if (!is_net_file) {
+  {
     /* Aquire lock if necessary */
 
     if (op_flags & P_REC_LOCKS) /* READL or READU */
@@ -1083,10 +1044,10 @@ Private void read_record(bool matread) {
     /* If we're in a transaction, we must scan the transaction cache for a
       possible reference to this record.                                   */
 
-    if (txn_id && (fvar->type != NET_FILE)) {
+    if (txn_id) {
       switch (txn_read(fvar, id, id_len, actual_id, &str)) {
         case TXC_FOUND: /* Found the record */
-          /* For a directory file, the cached record is in internal format 
+          /* For a directory file, the cached record is in internal format
              so we do not need to apply mark mapping.                      */
 
           if ((op_flags & P_PICKREAD)) {
@@ -1220,32 +1181,6 @@ Private void read_record(bool matread) {
       }
 
       (void)ts_terminate();
-      break;
-
-    case NET_FILE:
-      switch (net_read(fvar, id, id_len, op_flags, &str)) {
-        case SV_OK: /* Take THEN clause */
-          if ((op_flags & P_PICKREAD)) {
-            k_release(str_descr);
-            InitDescr(str_descr, STRING);
-          }
-          str_descr->data.str.saddr = str;
-          break;
-        case SV_ON_ERROR: /* Fatal error */
-          status = -1;
-          break;
-        case SV_LOCKED:
-          if (my_uptr->events)
-            process_events();
-          process.op_flags = op_flags;
-          pc = op_pc;
-          lock_beep();
-          Sleep(250);
-          return;
-        default: /* Take ELSE clause */
-          status = 1;
-          break;
-      }
       break;
   }
 

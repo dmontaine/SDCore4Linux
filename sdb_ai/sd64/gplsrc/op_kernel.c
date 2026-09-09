@@ -406,8 +406,10 @@ void op_kernel() {
       break;
 
     case K_GET_SDNET_CONNECTIONS:
+      /* SDNet removed (plan G4). The key is kept accepted so a program asking
+         does not fail, but there are never any connections now. */
       InitDescr(&result, STRING);
-      result.data.str.saddr = get_sdnet_connections();
+      result.data.str.saddr = NULL;
       break;
 
     case K_INVALIDATE_OBJECT:
