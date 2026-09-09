@@ -26,14 +26,20 @@ report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
 lower-case migration here.
 
 ***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
-the tree). **`G4`'s read side is now witnessed:** the owner ran `SELECT VOC`,
-`LIST VOC ID.SUP` and `COUNT VOC` and records listed normally — exercising
-op_open, read_record, op_readv (field) and op_select, i.e. the open/read/select
-paths G4 rewrote. ***Still not witnessed: write, delete, record lock*** (op_write
-/op_delete in `op_dio3.c`, the six `op_lock.c` sites). They use the same edit
-pattern as the proven paths, so the risk is low, but a create/write/read/delete
-on a scratch file (e.g. `CREATE.FILE DATA G4TEST`, `ED` a record and `FI`, `LIST`
-it, `DELETE` it) would close it.
+the tree). **`G4` is CLOSED by the owner's decision, 9 Sep.** Its read side was
+observed: `SELECT VOC` / `LIST VOC ID.SUP` / `COUNT VOC` listed records normally,
+exercising op_open, read_record, op_readv and op_select. Write, delete and record
+lock were *not* run; the owner accepted them on the read-side witness plus
+conformity with the Windows port, which exercised these paths. That acceptance is
+reasoning, not a measurement — if a G4 file-I/O fault ever surfaces, op_write /
+op_delete (`op_dio3.c`) and the six `op_lock.c` sites are where to look first.
+
+***Testing bar for the shrink (owner's ruling, 9 Sep):*** because this walks a
+path the Windows port already walked, an occasional compile-and-run test is
+enough for now; more extensive testing comes later. So the remaining removals
+(`G2`, `I3`/`I4`/`I5`/`I2`) are held to "compiles clean and the tree still
+installs and runs a command", not a per-fix exercise — with the deferred testing
+tracked in Open.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
@@ -46,14 +52,15 @@ MODIFY.ACCOUNT stays; `MODIFY.PASSWORD` stays). `I2` PROC is the deep one
 the `CPROC:1530` dispatch and RETIRE the opcode slot rather than reuse it. A good
 place to fold in the lower-case migration.
 
-**Higher-value unpaid debt still owed: EXERCISE steps 2 and 3** on an install.
+**Deferred to a later testing pass** (owner's testing-bar ruling, 9 Sep — see the
+Step-4 note above: compile-and-run is enough for now). These behaviours are not
+individually exercised and are collected here so the later pass has the list:
 - Step 2 (`A1`–`A6`) is where a wrong fix is silent; `A1` needs an *induced
   commit failure* (a read-only or externally-locked record) to reach at all.
-- Step 3 regenerated `SYSCOM/ERR.H`, `GPL.BP/ERRTEXT.H`, `REVSTAMP.H` and
-  reformatted every SDEXT/crypto/Python error `$define` from C spelling to SD
-  spelling. **No BASIC references the renamed defines** (checked: they flow as
-  numbers, ERRTEXT.H maps number→text), so the risk is low, but it has not been
-  seen on a running system. An install would confirm error text now displays.
+- Step 3's regenerated `ERR.H`/`ERRTEXT.H` — an error from a crypto/Python code
+  should show message text, not a bare number. **No BASIC references the renamed
+  defines** (checked: they flow as numbers, ERRTEXT.H maps number→text).
+- `G4` write/delete/record-lock (read/select observed; see the Step-4 note).
 
 **Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
 run on an installed system.
@@ -402,7 +409,7 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | G1 | SDSYS `BP` test programs: removed 18 (`BIGSTR_TEST`, `MSGTEST`, `PCL`, `PCL.GRID`, `PCODE_LIST`, `SDTEST_V8`, `SD_ENCRYPT`/`_B64`/`_EXT`, `SD_EXT`, `TEST.THEN.ELSE`, `TESTSZ`, `U0032`, `U50BB`, `VFS.CLS`, `pref_t`, `sdTests`, `tilde_test`). **Kept `PY_JSON`/`PY_TERM`/`PY_TEST`/`PY_TEST2`** (owner decision 9 Sep — the documented examples for the kept Python feature). Verified no VOC verb dispatches to the `BP` dir and no bootstrap program names them; the `PCL` name-collision is with the `GPL.BP/PCL` printer subsystem (a different dir, stays) — `NEWVOC/PCL` is only a printer keyword. No changelog entry (SDSYS dev cleanup, no product function) | **done** |
 | G2 | VFS scaffolding | pending |
 | G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
-| G4 | SDNet: deleted `gplsrc/netfiles.c` (removed from `gpl.src`), the `;` dispatch + `net_open` in `op_dio1.c`, and **every `NET_FILE` case / `net_*` call across `op_dio1/2/3/4.c`, `op_lock.c`, `dh_ak.c`** (~30 sites); removed the `NET_FILE` type (`descr.h`, `FVAR.NET` in `DEBUG.H` + the "(Networked)" DEBUG arm), the `net_*` prototypes (`sd.h`), and the 3 verbs (`GPL.BP/SETSRVR`/`DELSRVR`/`LISTSRVR`, `VOC_TEMPLATE/SET.SERVER`/`DELETE.SERVER`/`LIST.SERVERS`). `K$GET.SDNET.CONNECTIONS` now returns empty. **Kept (deliberate residue): `sdnet.h` (socket/termios portability header, NOT SDNet — build breaks without it), `NETFILES` config + sysseg field, `USR_SDNET`, `K$SDNET`, `SrvrOpenSDNet`.** Clean `rm -f gplobj/*.o` build: 0 warnings, 0 errors, `sd` linked | **done** |
+| G4 | SDNet: deleted `gplsrc/netfiles.c` (removed from `gpl.src`), the `;` dispatch + `net_open` in `op_dio1.c`, and **every `NET_FILE` case / `net_*` call across `op_dio1/2/3/4.c`, `op_lock.c`, `dh_ak.c`** (~30 sites); removed the `NET_FILE` type (`descr.h`, `FVAR.NET` in `DEBUG.H` + the "(Networked)" DEBUG arm), the `net_*` prototypes (`sd.h`), and the 3 verbs (`GPL.BP/SETSRVR`/`DELSRVR`/`LISTSRVR`, `VOC_TEMPLATE/SET.SERVER`/`DELETE.SERVER`/`LIST.SERVERS`). `K$GET.SDNET.CONNECTIONS` now returns empty. **Kept (deliberate residue): `sdnet.h` (socket/termios portability header, NOT SDNet — build breaks without it), `NETFILES` config + sysseg field, `USR_SDNET`, `K$SDNET`, `SrvrOpenSDNet`.** Clean `rm -f gplobj/*.o` build; installs and runs at `2b4d9f0`; read side observed (`SELECT`/`LIST`/`COUNT VOC`). **CLOSED 9 Sep** (owner) — write/delete/lock accepted on conformity, not measured | **done** |
 
 **Not exercised.** I1 removed data records and an install prompt; nothing in the
 C build depends on them, so `make` is unaffected, but an install that used to
