@@ -516,11 +516,42 @@ root's own shell, reach uid 0 without sudoers — so it is "largely", not
 distinct from the session's `USR_ADMIN` flag, with `@logname` and the audit
 message continuing to read the signed-in user.
 
-***WHAT HAS TO BE RULED, AND IT IS NOT THIS FILE'S TO TAKE.*** Whether SD
-preserves the real identity across the privilege drop — and if so whether the
-person's name lives beside `sdsys` (two identities, as the port has) or replaces
-the drop entirely. **Until that is decided, entry 18's gates cannot be written
-against the register**, because there is nothing to key them on.
+***RULED 9 Sep 2026: THE PORT'S MODEL — TWO IDENTITIES.*** The owner's
+selection from the four shapes offered; **recorded as a selection, not as his
+words.** `@logname` keeps the real signed-in person, `USR_ADMIN` stays the
+session flag, and a **separate** test answers *"is the signed-in person an
+administrator"*. **Not built.**
+
+**What the ruling commits to — three pieces, and the first is the load-bearing
+one:**
+
+1. ***`CPROC:285` STOPS REPLACING `@logname`.*** The euid drop at `:281` is for
+   file ownership and umask and **stays**; what goes is the identity
+   substitution. This is the change that makes the other two possible, and it
+   is also the one that can alter behaviour anywhere `@logname` is currently
+   `sdsys` after a `sudo` start. ***THAT SET HAS NOT BEEN ENUMERATED — DO IT
+   FIRST.*** `CPROC:2483`, `:2890`, `:3110` and `:3333` are four known readers.
+2. **A new kernel key**, this tree's equivalent of the port's
+   `K$OS.ADMINISTRATOR`. ***NEXT FREE NUMBER IS 57*** — `keys.h` runs to
+   `K_RUNEXE 56`, checked 9 Sep.
+3. **The gates read it** — `CATALOG:108,202`, `DELCAT:119` (today `system(27) #
+   0`) and the `kernel(K$ADMINISTRATOR,-1)` sites.
+
+***THE PORT'S `IsAdmin()` IS NOT OURS AND MUST NOT BE COPIED STRAIGHT.*** Its
+version asks `getgrouplist()` — *"is this ACCOUNT an administrator"*. **Ours is
+`getuid() == 0`** (`linuxlb.c:54-55`), which is *"is this process root"* and
+answers the wrong question entirely. The Linux test has to be the owner's own
+definition: **sudoers membership AND `ACC$TIER` = `ADMINISTRATOR` in the
+register**, keyed on the preserved `@logname`.
+
+***AND THE PORT'S `CN_SOCKET` GUARD TRANSFERS — CHECK IT RATHER THAN ASSUME IT
+DOES NOT.*** Its `K_OS_ADMINISTRATOR` returns
+`is_admin && (connection_type != CN_SOCKET)`, because an API session is forked
+by a privileged service and only the *effective* uid changes, so the real uid
+stays privileged and the test answers TRUE for every remote client. **This tree
+has `CN_SOCKET 0x02` and `connection_type` (`kernel.h:50,54`)**, and its
+`IsAdmin()` reads `getuid()` — the real uid — so ***the identical hole is
+available here*** if the new key is written without the guard.
 
 ***A WARNING FOR WHOEVER IMPLEMENTS IT, FROM THE PORT'S RECORD RATHER THAN FROM
 HERE.*** Its `sdusers` gate ran at `LOGIN:380` *before the account was chosen*,

@@ -88,9 +88,21 @@ AND DELIBERATELY STOPPED***, because the gates cannot be written as planned:
 `$LOGIN` RUNS***, so *"is this person a registered SD administrator"* has **no
 person to look up**. `CPROC:2483`'s shipped `is_grp_member(@logname, …)` account
 gate is already answered for `sdsys` rather than for whoever typed `sudo`.
-**A ruling is needed on whether SD preserves the real identity across the drop**
-— the port keeps two, a session flag plus *"is the signed-in person an
-administrator"*. ***AND ENTRY 18 IS WRONG IN THE OTHER DIRECTION TOO***: the
+***RULED 9 Sep 2026 — THE PORT'S MODEL, TWO IDENTITIES*** (owner's selection).
+`@logname` keeps the real person, `USR_ADMIN` stays the session flag, and a
+separate key answers *"is the signed-in person an administrator"*. **Not
+built.** Three pieces, in `PRE_RELEASE` §20: **(1)** `CPROC:285` stops replacing
+`@logname` — the euid drop stays, only the identity substitution goes, and
+***the set of things that currently read `@logname` as `sdsys` after a sudo
+start has NOT been enumerated; do that first*** (`CPROC:2483`, `:2890`, `:3110`,
+`:3333` are four known readers); **(2)** a new kernel key, **57 is free**;
+**(3)** the gates read it. ***DO NOT COPY THE PORT'S `IsAdmin()`*** — its
+`getgrouplist()` asks *"is this account an administrator"*, ours is
+`getuid() == 0` and asks the wrong question; the Linux test is the owner's own
+definition, sudoers **and** the register. ***AND CARRY THE PORT'S `CN_SOCKET`
+GUARD***: this tree has `connection_type`/`CN_SOCKET` (`kernel.h:50,54`) and an
+`IsAdmin()` reading the real uid, so the port's every-API-session-is-admin hole
+is available here too. ***AND ENTRY 18 IS WRONG IN THE OTHER DIRECTION TOO***: the
 sudoers half is largely enforced already, because reaching uid 0 via `sudo sd`
 requires it. The missing half is the **register**, not sudoers.
 
