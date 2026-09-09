@@ -54,7 +54,7 @@ the two files are not comparable by number.
 
 | ID | SEV | What | Where |
 |---|---|---|---|
-| 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** 51 are on subjects §H already excludes as Windows-only. **21 are verifiers whose subject exists here too** — `verify-tiers`, `-tierapi`, `-tierchange`, `-catgate`, `-txn`, `-vocverbs`, `-fold`, `-lcnames`, `-nocase`, `-setpw`, `-createaccount`, `-delaccount`, `-upgrade` and 8 more — plus 10 neutral guards including `assert-current` and `cycle`. The plan mentions none of them: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in 1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
+| 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** Classified 9 Sep from each script's own header: **113 testing, 38 admin, 6 build**. The testing half is 51 `verify-*`, **28 `test-*-units` that test the verifiers themselves**, 18 `probe-*` and 16 harness. Of the 38 admin, 19 are Windows mechanism with no counterpart here, **12 are the `secure-*` ACL family whose INTENT is §L's POSIX security posture**, and 7 have a direct Linux need the plan already schedules (`upgrade-voc`/`-dicts` §F1/F2, `check-install` §F7, `finish-install`, `clean-deadvoc`, `api-listener`, `restart-sd`). The plan mentions none of it: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in ~1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
 | ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
 | 3 | **S** | **`EDIT` MEANS DIFFERENT THINGS IN THE TWO SYSTEMS, WHICH IS A NEAR-MISS NAME WAITING TO BITE.** Here `VOC_TEMPLATE/EDIT` → `$ED`, the **line** editor. In the port `voc_template/edit` → `$EDIT`, the **full-screen** editor. A user or an agent moving between the two gets a different program from the same word | `sdsys/VOC_TEMPLATE/EDIT` vs `sd4windows/.../voc_template/edit` |
 | 4 | **M** | **`MICRO` shells out to a hard-coded `micro` with no check that it exists and no test of the result.** `Editor = "micro"` at line 37, `execute "!" : editor : …` at line 201, and nothing between. The port's UPSTREAM #16 records the consequence: it reports *"Record is unchanged"* when the editor is absent, which blames the user's data for a missing binary | `sdsys/GPL.BP/MICRO:37,201` |
@@ -77,13 +77,41 @@ incidental hits across the plan's ~1,600 lines — plan:246 (a `$CRED` *verifier
 a different sense of the word) and plan:1402 (a reference to CLAUDE.md's
 instrument rule). Neither is about porting the suite.
 
-**§H's "Windows-only work" list is right about what it covers and does not reach
-this.** Elevation and consent, Windows groups and ACL lockdowns, firewall rules,
-OpenSSH, the service, profile reclamation, RDPACCOUNT — 51 of the 157 scripts
-are on those subjects and are correctly excluded. The classification is by
-script name and is mine, not the plan's.
+***THE FIRST COUNT IN THIS ENTRY WAS A NAME-BASED GUESS AND UNDER-COUNTED THE
+TESTING SIDE BADLY*** — it said "51 excluded, 31 relevant". Reclassified 9 Sep
+2026 from **each script's own header line**, which is the classification below.
+It is still mine rather than the plan's, but it is read rather than inferred.
 
-***THE PROBLEM IS THE OTHER 31.*** 21 verifiers and 10 guards whose subjects are
+| | | |
+|---|---:|---|
+| **Testing & verification** | **113** | 51 `verify-*` · **28 `test-*-units`** · 18 `probe-*` · 16 harness (`VerifyInstall1`/`2`, `assert-current`, `suite-only`, `elevate-once`, `capture-state`/`diff-capture`, the throwaway test account, the VM scripts) |
+| **SD admin / operational** | **38** | see the split below |
+| **Build & dev tooling** | **6** | `cycle`, `strip-comments`, `stale-binaries`, `check-datatree-litter`, `cleanup-devlitter`, `reword-yn-prompts` |
+
+***A THIRD OF THE TESTING CODE TESTS THE TESTS*** — 28 `test-*-units` drive the
+verifiers against fixtures. That is not over-engineering: it is the same rule
+CLAUDE.md states, that a check which passes because it did nothing must fail.
+**Whatever verification this project builds needs that layer or it will not know
+when a check has gone blind.**
+
+**The 38 admin scripts split three ways, and only the first is genuinely gone:**
+
+- **19 Windows mechanism, no counterpart here** — 6 ssh, the service, 3
+  elevation/logon, profile reclamation, 3 Windows-account, system PATH, Windows
+  Firewall, route groups, `micro-home` (an ACL problem Linux does not have), and
+  `install-editors` (ruled out by entry 2).
+- ***12 `secure-*` — WINDOWS MECHANISM, TRANSFERABLE INTENT.*** Lock the global
+  catalogue, the pcode library, the credential store, the audit log, the dump
+  directory, the SDSYS system directories. On Linux these are POSIX modes,
+  ownership and UMASK — **which is precisely §L's security posture**. Not ports;
+  reimplementations of the same policy, and the port's scripts are the clearest
+  statement of what that policy is.
+- **7 with a direct Linux need, most already scheduled** — `upgrade-voc` and
+  `upgrade-dicts` (§F1/§F2), `check-install` (§F7), `finish-install`,
+  `clean-deadvoc`, `api-listener`, `restart-sd`.
+
+***SO THE GAP IS NOT "31 SCRIPTS". IT IS AN ENTIRE VERIFICATION LAYER PLUS THE
+POSIX EXPRESSION OF 12 SECURITY POLICIES.*** The verifiers whose subjects are
 this project's too:
 
 | The port proved | With | The plan schedules it at |
