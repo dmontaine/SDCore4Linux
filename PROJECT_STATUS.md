@@ -15,20 +15,22 @@ taken in thirds at the owner's request, and the first third is done.**
 
 ### Your next task
 
-**Step 2, second third — transactions, the localised half.** All in
-`gplsrc/txn.c`, all verified present:
+**Step 2, final third — `A1`, commit rollback.** The second third (`A2`, `A3`,
+`A4`) is committed; see "Step 2, second third" below. `A1` is the one real piece
+of work in step 2: before-images for every record a commit overwrites, restored
+if the commit fails part way, with a summary line to `errlog`.
 
-| | Where | What |
-|---|---|---|
-| A2 | `txn.c:148` | passes the raw `txn->id` to `dir_write()`, which expects an already-mapped name — `op_dio3.c:849` passes `mapped_id`. Ids containing `* , = > < % / + : ; ? \ "` or starting `.`/`~` are written under the wrong name and read back as missing |
-| A2 | `txn.c:180` | the delete path builds its own path from the raw id, same fault |
-| A3 | `txn.c:187` | `remove()`'s result discarded, so a delete that could not happen commits as success |
-| A4 | `txn.c:126` | commit clears `process.txn_id` and never restores the enclosing transaction from the stack; only `rollback()` at `:582` does. A nested commit silently abandons the outer transaction's writes |
-| A4 | `op_sys.c:335` | `system(1008)` is raised on BEGIN and never lowered, so it cannot answer "am I in a transaction". `system(1007)` is sound |
-
-The final third is `A1`, commit rollback — before-images for every record a
-commit overwrites, restored if it fails part way, with a summary line to
-`errlog`. That is the one real piece of work in step 2.
+The Windows port has it built — `txn.c` there carries `capture_undo()`,
+`replay_undo()`, `free_undo()`, the `TXN_UNDO` stack, and the `replay_undo()`
+call at the head of `txn_abort()` (the far side of the `k_error()` longjmp).
+UPSTREAM_FIXES 32 is the write-up; PRE_RELEASE_FIXES 102 the port. It also needs
+one piece of groundwork the directory-file code lacks: a `dir_read()` shaped
+like `dir_write()`, because the only current reader (`read_record()`) can only
+be reached by executing a READ opcode and a commit cannot. **The lock half of
+entry 32 travels with it** — `txn_abort()` releasing `commit_txn_id`, and
+`op_txncmt()` clearing `commit_txn_id` on the success path — so `commit_txn_id`
+becomes load-bearing (non-zero = "a commit is in flight") and gets an explicit
+`= 0` initialiser. None of that was touched this session.
 
 ### ***BEFORE YOU IMPLEMENT ANYTHING, GREP THE WINDOWS RECORD***
 
@@ -50,9 +52,11 @@ grep -n -i -E 'txn\.c|dir_write|txn_id' /home/don/Projects/SDCoreProject/sd4wind
 - Renamed from `sdscripts_ai` on 8 Sep 2026. Git identity is **repo-local**
   (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`, so other
   repositories will still ask.
-- ***TEN FIXES ARE COMMITTED AND NOT ONE HAS BEEN EXERCISED.*** The owner ran an
-  install and could log in, so the tree builds and runs — that is all it
-  establishes. Per-fix checks are listed under step 1; none has been run.
+- ***THIRTEEN FIXES ARE COMMITTED AND NOT ONE HAS BEEN EXERCISED.*** The owner
+  ran an install (of the first ten) and could log in, so that tree builds and
+  runs — all it establishes. The three added this session (`A2`, `A3`, `A4`)
+  compile and link; the install predates them. Per-fix checks are listed under
+  step 1 and the second-third section; none has been run.
 
 ## Verified — 8 Sep 2026
 
@@ -194,13 +198,65 @@ wrong edit:** a `grep | head -12` cut off the line defining `DHE_AK_WRITE_ERROR`
 and I briefly concluded the symbol did not exist. It is `err.h:261`. A truncated
 instrument reads exactly like a negative result.
 
+## Step 2, second third — transactions, the localised half, 8 Sep 2026
+
+`A2`, `A3`, `A4`, all in `gplsrc/txn.c`. **`make`: only `txn.o` recompiled, `sd`
+relinked, 0 errors, 0 warnings. Not exercised** — every check below needs a fresh
+install and an induced condition; none was run this session. Step 2 is where "it
+compiled" is worth least.
+
+| | Where | Fix |
+|---|---|---|
+| A2 | `txn.c` TXN_WRITE/DIRECTORY_FILE (`:187`) | `map_t1_id(txn->id, …, mapped_id)` then `dir_write(fvar, mapped_id, …)`; map failure raises 1422 rather than skip |
+| A2 | `txn.c` TXN_DELETE/DIRECTORY_FILE (`:225`) | same map, **before** the statistics counters; `snprintf` uses `mapped_id` |
+| A3 | `txn.c` same delete arm (`:255`–`:268`) | `stat`/`S_IFREG` guard + tested `remove()` (`errno != ENOENT` → `ER_PERM`, `log_permissions_error`, 1423), copied line-for-line from the non-transactional twin `op_dio3.c:390`–`:403` |
+| A4 | `txn.c` `end_txn_level()` | reinstate-and-decrement lifted out of `rollback()` into `end_txn_level()`; called from `op_txncmt()` too, **before** `exit_op_txncmt:` |
+
+**What the Windows record (UPSTREAM_FIXES 17/31/36) added beyond the plan:**
+
+- **A2 — the cache is right to hold the raw id; do not "fix" the write-side
+  split.** `op_dio3.c:817`/`:846` deliberately pass the raw `id` to
+  `txn_write()`/`txn_delete()`, because `txn_read`/`txn_write`/`txn_delete`/
+  `clear_parent` all match the cache against the id the BASIC statement used.
+  The mapping belongs only at the point of contact with the disk — the two
+  `op_txncmt()` arms — which is where this went.
+- **A2 — map failure raises the arm's own error, not a silent skip.** It cannot
+  fire (both entry points validate before caching) but a silent skip is the null
+  case the instrument rules refuse.
+- **A3 was more than "test `remove()`".** The plan named only the discarded
+  result; the record adds the `S_IFREG` device-name guard, so the arm now matches
+  its non-transactional twin exactly.
+- **A4 needs no `op_sys.c` edit.** `op_sys.c:336` merely reads `txn_depth`;
+  fixing the decrement makes `SYSTEM(1008)` balanced. The plan's `op_sys.c:335`
+  reference is the read site, not an edit site.
+
+**Objection raised and resolved (CLAUDE.md rule):** placing `end_txn_level()`
+before `exit_op_txncmt:` means the five `k_error()` paths do **not** pop the
+level — correct, a broken commit must not pop as though it committed. That leaves
+a **pre-existing** gap: on those error paths `process.txn_id` was zeroed at the
+top, so `txn_abort()`/`op_txnrbk()` find nothing and the level stays counted with
+the stack orphaned. This third does **not** widen it (the directory-file delete
+could not fail before A3, and now can, reaching that state more often — the trade
+is deliberate: the alternative is reporting a deletion that did not happen). The
+gap is `A1`'s to close, because it needs a decision about the records already
+written, not a decrement.
+
+**Cheap checks, none run:**
+
+| Fix | Check |
+|---|---|
+| A2 write | inside a transaction, `WRITE rec ON dirfile, ','` then `COMMIT`, then `READ … FROM dirfile, ','` — must read back. On disk the file is `%C`, not `,` |
+| A2 delete | inside a transaction, `DELETE dirfile, ';'` then `COMMIT` — `%Y` must be gone, and a later `READ` must return not-found |
+| A3 | make a directory-file record's on-disk file read-only, delete it inside a transaction — the commit must now report the error, not succeed silently |
+| A4 | outer txn writes `R2`, inner txn writes `R3` and commits, outer commits — both `R2` and `R3` must land; `SYSTEM(1008)` balanced across the pair; `SYSTEM(1007)` names the parent after the inner commit |
+
 ## Open
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
 doing, because a wrong catalogue gate would refuse an administrator.
 
-**Step 2's remaining thirds are in START HERE**, with the line numbers.
+**Step 2's remaining third (`A1`) is in START HERE.**
 
 ***STEP 2 IS WHERE "IT COMPILED" IS WORTH LEAST.*** Every item touches
 transactions or index structure, and `A5`'s failure mode is a permanently

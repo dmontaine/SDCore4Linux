@@ -17,6 +17,33 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ *  8 Sep 26 Linux port - the directory-file arms of op_txncmt() now map the
+ *           record id before touching the disk.  dir_write()'s second parameter
+ *           is a MAPPED id (op_dio3.c passes map_t1_id()'s output outside a
+ *           transaction); both arms here were handed txn->id, which is the RAW
+ *           id, because op_dio3.c caches the id the statement used.  A WRITE
+ *           inside a transaction therefore created a file the matching READ
+ *           could never find, and a DELETE removed a path that never existed,
+ *           tolerated the ENOENT and reported success - neither needing an
+ *           induced fault; an ordinary successful commit was enough.  The cache
+ *           is right to hold the raw id and is unchanged.  UPSTREAM_FIXES 36
+ *           (plan A2).
+ *  8 Sep 26 Linux port - the directory-file delete at commit now tests remove()
+ *           and carries the S_IFREG guard, copying the non-transactional twin
+ *           (op_dio3.c).  It was a bare remove() with its return discarded - the
+ *           only arm of the four that checked nothing - so a delete that failed
+ *           inside a transaction was reported as done and the record stayed on
+ *           disk.  UPSTREAM_FIXES 31 (plan A3).
+ *  8 Sep 26 Linux port - op_txncmt() now leaves the transaction level it
+ *           commits.  It undid neither half of what op_txnbgn() did, so
+ *           txn_depth only ever climbed (SYSTEM(1008) could not answer "am I in
+ *           a transaction") and a NESTED commit orphaned the outer
+ *           transaction's cache on txn_stack - process.txn_id was zeroed above,
+ *           so the outer COMMIT then wrote an empty cache and its records were
+ *           lost silently.  The reinstate-and-decrement block is lifted out of
+ *           rollback() into end_txn_level() and called from both, because
+ *           having it in one place with one caller is what the defect was.
+ *           UPSTREAM_FIXES 17 (plan A4).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -70,6 +97,7 @@ Private TXN_STACK* txn_stack = NULL;
 
 Private TXN_CACHE* alloc_txn(int16_t id_len);
 Private void rollback(void);
+Private void end_txn_level(void);
 Private void clear_parent(int16_t fno, char* id, int16_t id_len);
 
 /* ======================================================================
@@ -117,6 +145,10 @@ void op_txncmt() {
   DH_FILE* dh_file;
   char path[MAX_PATHNAME_LEN + 1];
   STRING_CHUNK* str;
+  struct stat statbuf; /* A3: the S_IFREG guard in the delete arm below */
+  /* A2: the cached id is the RAW one; the disk wants the MAPPED one.  Sized as
+     op_dio3.c sizes it - every mapped character can become two.            */
+  char mapped_id[2 * MAX_ID_LEN + 1];
 
   if (sysseg->flags & SSF_SUSPEND)
     suspend_updates();
@@ -145,7 +177,20 @@ void op_txncmt() {
             break;
 
           case DIRECTORY_FILE:
-            if (!dir_write(fvar, txn->id, txn->str)) {
+            /* A2 (UPSTREAM_FIXES 36): map the raw cached id to the filename
+               dir_write() expects, exactly as the non-transactional twin does
+               at op_dio3.c:838/849.  The failure return cannot fire here - both
+               entry points call map_t1_id() and refuse ER_IID before anything
+               is cached - but a silent skip would be the null case the
+               instrument rules refuse, so it raises 1422 like every other
+               failure in this arm. */
+            if (!map_t1_id(txn->id, txn->id_len, mapped_id)) {
+              process.status = -ER_IID;
+              k_error(sysmsg(1422));
+              goto exit_op_txncmt;
+            }
+
+            if (!dir_write(fvar, mapped_id, txn->str)) {
               k_error(sysmsg(1422));
               goto exit_op_txncmt;
             }
@@ -171,6 +216,18 @@ void op_txncmt() {
             break;
 
           case DIRECTORY_FILE:
+            /* A2 (UPSTREAM_FIXES 36): map the raw cached id here too, and
+               BEFORE the counters - they were incremented first, so an id that
+               could not be mapped would have counted a delete that never
+               happened.  It cannot fire today (op_dio3.c:362 validates before
+               caching) but a statistic raised by a path that then refuses is
+               the null case in miniature. */
+            if (!map_t1_id(txn->id, txn->id_len, mapped_id)) {
+              process.status = -ER_IID;
+              k_error(sysmsg(1423));
+              goto exit_op_txncmt;
+            }
+
             /* Increment statistics and transaction counters */
 
             StartExclusive(FILE_TABLE_LOCK, 50);
@@ -180,11 +237,37 @@ void op_txncmt() {
             EndExclusive(FILE_TABLE_LOCK);
             /* converted sprintf() -gwb 22Feb20 */
             if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%s", fptr->pathname,
-                         DS, txn->id) >= (MAX_PATHNAME_LEN + 1)) {
+                         DS, mapped_id) >= (MAX_PATHNAME_LEN + 1)) {
                /* TODO should log more detail here */
                k_error("Overflowed path/filename length in op_txncmt()!");
-            } else
-              remove(path);
+            } else {
+              /* A3 (UPSTREAM_FIXES 31): test the delete.  This was a bare
+                 remove() with its return discarded - the only arm of the four
+                 that checked nothing - so a delete that failed inside a
+                 transaction was reported as done and the record stayed on disk.
+                 The shape below is this switch's own (the dh_delete arm above
+                 raises 1423) and matches the non-transactional twin at
+                 op_dio3.c:390-403.  ENOENT is tolerated, exactly as
+                 DHE_RECORD_NOT_FOUND is above: the record is gone, which is what
+                 was asked for. */
+
+              /* 0408 Check that this really is a file, not CON, COMn, LPTn */
+              if (!stat(path, &statbuf) && !(statbuf.st_mode & S_IFREG)) {
+                process.status = -ER_IID;
+                k_error(sysmsg(1423));
+                goto exit_op_txncmt;
+              }
+
+              if (remove(path) < 0) {
+                process.os_error = errno;
+                if (process.os_error != ENOENT) {
+                  process.status = -ER_PERM;
+                  log_permissions_error(fvar);
+                  k_error(sysmsg(1423));
+                  goto exit_op_txncmt;
+                }
+              }
+            }
             break;
         }
 
@@ -221,6 +304,18 @@ void op_txncmt() {
   /* Release all locks acquired during this transaction */
 
   unlock_txn(commit_txn_id);
+
+  /* A4 (UPSTREAM_FIXES 17): leave the transaction level this commit ended,
+     which this function never did.  See end_txn_level().  DELIBERATELY BEFORE
+     THE LABEL, so the write/delete error paths above - which have already
+     called k_error() on a broken transaction - do not pop a level as though
+     they had committed.  (That leaves a separate, pre-existing gap: on those
+     error paths process.txn_id was zeroed at the top, so txn_abort() and
+     op_txnrbk() find nothing and the level stays counted.  That is a different
+     defect - it needs a decision about the records already written, not a
+     decrement - and is left for the commit-rollback work, plan A1.)          */
+
+  end_txn_level();
 
 exit_op_txncmt:
   return;
@@ -534,7 +629,6 @@ Private TXN_CACHE* alloc_txn(int16_t id_len) {
    rollback()  -  Roll back top level transaction                         */
 
 Private void rollback() {
-  TXN_STACK* stk;
   TXN_CACHE* txn;
   TXN_CACHE* next_txn;
   FILE_VAR* fvar;
@@ -576,6 +670,29 @@ Private void rollback() {
   unlock_txn(process.txn_id);
 
   /* Exit from this transaction */
+
+  end_txn_level();
+}
+
+/* ======================================================================
+   end_txn_level()  -  Leave one transaction level, reinstating the parent
+
+   A4 (UPSTREAM_FIXES 17) - LIFTED OUT OF rollback() SO THAT COMMIT CAN DO IT
+   TOO.  op_txnbgn() does two things - increments txn_depth, and if a
+   transaction is already running pushes that one onto txn_stack.  rollback()
+   undid both; op_txncmt() undid NEITHER, and BCOMP's st.commit jumps past the
+   OP.TXNEND that would have called rollback(), so on the committed path nothing
+   ever reversed them.  It is one function rather than two copies because the
+   defect was exactly that the bookkeeping lived in one place with one caller.
+
+   THE unlock STAYS WITH THE CALLER and is not moved in here: the two pass
+   different ids.  rollback() unlocks process.txn_id, still the running
+   transaction at that point, while op_txncmt() has already zeroed
+   process.txn_id (so the close action does not loop) and unlocks the saved
+   commit_txn_id.  Folding that in would have to re-derive which id to use.   */
+
+Private void end_txn_level() {
+  TXN_STACK* stk;
 
   if ((stk = txn_stack) != NULL) /* Reinstate nested transaction */
   {
