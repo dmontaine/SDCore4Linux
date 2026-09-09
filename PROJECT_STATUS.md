@@ -61,15 +61,30 @@ which is local). "Registered SD administrator" is the first gate and "sudoers
 member" is the second. **The shipped docs are local and are the prose model for
 §L**; the port's code and record stay authoritative for `file:line`.
 
-***BUT `PRE_RELEASE` 14 MUST BE RULED FIRST — IT DECIDES WHAT 18's "MEMBER OF
-SUDOERS" TEST ACTUALLY READS.*** Groundwork done 9 Sep: the hang is **measured**
-(`sudo -n -v` answers *"a password is required"*, and **0 of 10** call sites pass
-`-n`), and **the membership test has three answers, not two** — `sudo -n -l`
-exits 1 both for "needs a password" and for "may not sudo", so a test on that
-exit code **refuses a legitimate administrator**. Three shapes and a
-recommendation are in `PRE_RELEASE` §14; **`PRE_RELEASE` 13's half is measured
-too** (every SD account has a real login shell, so §L1's verb withholding is a
-convenience rather than a boundary). ***BOTH ARE RULINGS, NOT WORK ITEMS.***
+***`PRE_RELEASE` 14 AND 13 WERE RULED ON 9 Sep 2026 AND ARE NOW SPECIFIED WORK,
+NOT OPEN QUESTIONS.*** Both are the owner's selections, recorded as selections
+rather than as his words. **Neither is built.**
+
+| | Ruled | What it commits to |
+|---|---|---|
+| **14** | SD ships a **`sudoers.d` drop-in for a group SD owns** | **18's second gate reads SD's own group** — portable across distributions, and it sidesteps the three-answer problem. The 10 call sites stop hanging (`NOPASSWD`) |
+| **13** | **A STANDARD account gets no real login shell**; the tier is to be a **boundary** | ***SD must write to `sshd_config`*** — there is no way to hold the boundary without it. The port's fenced block + refusing preflight is the model |
+
+***THE MEASUREMENTS BEHIND THEM, BECAUSE THE FIXES WILL BE CHECKED AGAINST
+THEM.*** `sudo -n -v` answers *"a password is required"* and **0 of 10** call
+sites pass `-n`, so the hang is real here; `sudo -n -l` exits **1** both for
+"needs a password" and "may not sudo", so **a membership test on that exit code
+refuses a legitimate administrator**; and every SD account today has a real
+login shell (`don` `/bin/bash`, `sdsys` `/bin/sh`), which is the known-bad
+starting state a §13 verifier must prove the system moved away from.
+
+***TWO COSTS THE RULINGS DO NOT REMOVE, AND §14/§13 CARRY THEM:*** `sudo passwd`
+and `usermod -aG` are **unrestricted by argument**, so a drop-in naming them
+plainly is root by another route and they need wrapping; and a **malformed
+`sudoers` file can lock `sudo` out of the machine**, so `visudo -cf` before
+install, mode 0440, and no `.` or `~` in the filename. Open sub-decisions (the
+group's name, who is put in it, the §13 mechanism, PROGRAMMER's case) are listed
+in those two sections.
 
 **Your next task after those is step 5, the installer.** ***`F9` IS SUPERSEDED — DO NOT DO
 IT.*** The owner ruled on 9 Sep 2026 that the installer always clones `main`

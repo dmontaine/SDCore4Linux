@@ -70,8 +70,8 @@ the two files are not comparable by number.
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
 | 15 | **S** | ***AN INSTALL NOW TESTS `origin/main`, NOT THE WORKING TREE — SO COMMIT AND PUSH BEFORE TESTING, OR YOU ARE TESTING SOMETHING ELSE.*** Owner's decision, 9 Sep 2026: the installer always clones `main` from GitHub. That **reverses plan §F9**, which removed the download precisely so an install would build the bundled `sdb_ai/` tree, and it reverses CLAUDE.md's *"builds from the `sdb_ai/` tree bundled in this repository, not from a clone."* The decision is the owner's and stands; **the consequence is that uncommitted work is invisible to an install and nothing detects that.** The port's answer to the same class of problem is `assert-current` (entry 8), which refuses to test a tree source has moved past. **Until something checks, the discipline is manual.** CLAUDE.md's project-constraint wording needs correcting to match | `installsdai.sh`; plan §F9; CLAUDE.md "Project constraints" |
-| 14 | **B** | ***"ELEVATION DOES NOT APPLY HERE" IS WRONG — IT IS SPELLED `sudo`, AND IT IS ALREADY LOAD-BEARING IN THE SHIPPED BASIC.*** **8 `GPL.BP` programs shell out to `sudo`** from `OS.EXECUTE`: `useradd -m` (`CREATE_USER:64`), `passwd` (`SET_PASSWD:115`), `userdel`/`groupdel` (`DELACC:223,197`), `usermod -aG`/`groupadd`/`chmod g+s` (`CREATEA:331,634,306`), `usermod`/`deluser` (`MODIFYA:108,131`). ***AND NOTHING CONFIGURES sudoers*** — zero hits for `sudoers`/`NOPASSWD`/`visudo` across the installer, uninstaller and all of `GPL.BP`. So an SD ADMINISTRATOR's real privilege is whatever the machine's sudo rules already say, not what §L1 grants: with broad sudo they are root (`sudo passwd root`), without it account management silently fails or blocks on a password prompt inside an SD session. **The plan says `sudo` zero times in ~1,600 lines.** ***MEASURED 9 Sep 2026: THE HANG IS REAL*** — `sudo -n -v` as `don` answers *"a password is required"* (exit 1) and **0 of 10 call sites pass `-n`**, so `create.account` blocks on a password prompt inside the session. **And the membership test has three answers, not two**: `sudo -n -l` exits 1 both for "needs a password" and for "may not sudo", so a test on that exit code refuses a legitimate administrator. Three shapes and a recommendation in §14 — **the ruling gates entry 18** |  `GPL.BP/{CREATE_USER,SET_PASSWD,CREATEA,DELACC,MODIFYA}`; plan:17, §H:853, §L1, §L5:1164 |
-| 13 | **B** | ***ssh IS AN UNGUARDED WAY PAST THE TIER MODEL, AND THE INSTALLER TURNS IT ON.*** Every distro branch installs an ssh server (`installsdai.sh:254,272,285,295`) and the Arch branch starts and enables `sshd` (`:265-266`). SD users are **ordinary Unix users** — `CREATEA:331` does `usermod -aG sdusers` on an account that already exists, so it keeps its login shell. **Nothing in this project writes `AllowGroups` or `ForceCommand`** (grep: zero hits across the installer and `GPL.BP`). So a STANDARD account that §L1 denies `SH` and `!` **just ssh's in and gets a shell**, never touching SD. This is the exact failure the port measured on 21 Aug 2026 — *"a stock sshd_config: no AllowGroups and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt"* — except here it is the **default state rather than a regression**. ***MEASURED 9 Sep 2026: every SD account has a real login shell*** (`don` `/bin/bash`, `sdsys` `/bin/sh`, none `nologin`), so §L1's verb withholding is **a convenience, not a boundary**. `sshd` is inactive on this box, which makes the exposure latent here but not absent. See §13 | `installsdai.sh:254-296`; `sdsys/GPL.BP/CREATEA:331`; plan §L5, §H:854, plan:17 |
+| 14 | **B** | ***RULED 9 Sep 2026 — SD SHIPS A `sudoers.d` DROP-IN FOR A GROUP SD OWNS*** (owner's selection; §14 carries the ruling, the wrapping cost for `sudo passwd`/`usermod`, the three open sub-decisions and the `visudo -cf` trap). **Not built.** ***"ELEVATION DOES NOT APPLY HERE" IS WRONG — IT IS SPELLED `sudo`, AND IT IS ALREADY LOAD-BEARING IN THE SHIPPED BASIC.*** **8 `GPL.BP` programs shell out to `sudo`** from `OS.EXECUTE`: `useradd -m` (`CREATE_USER:64`), `passwd` (`SET_PASSWD:115`), `userdel`/`groupdel` (`DELACC:223,197`), `usermod -aG`/`groupadd`/`chmod g+s` (`CREATEA:331,634,306`), `usermod`/`deluser` (`MODIFYA:108,131`). ***AND NOTHING CONFIGURES sudoers*** — zero hits for `sudoers`/`NOPASSWD`/`visudo` across the installer, uninstaller and all of `GPL.BP`. So an SD ADMINISTRATOR's real privilege is whatever the machine's sudo rules already say, not what §L1 grants: with broad sudo they are root (`sudo passwd root`), without it account management silently fails or blocks on a password prompt inside an SD session. **The plan says `sudo` zero times in ~1,600 lines.** ***MEASURED 9 Sep 2026: THE HANG IS REAL*** — `sudo -n -v` as `don` answers *"a password is required"* (exit 1) and **0 of 10 call sites pass `-n`**, so `create.account` blocks on a password prompt inside the session. **And the membership test has three answers, not two**: `sudo -n -l` exits 1 both for "needs a password" and for "may not sudo", so a test on that exit code refuses a legitimate administrator. Three shapes and a recommendation in §14 — **the ruling gates entry 18** |  `GPL.BP/{CREATE_USER,SET_PASSWD,CREATEA,DELACC,MODIFYA}`; plan:17, §H:853, §L1, §L5:1164 |
+| 13 | **B** | ***RULED 9 Sep 2026 — A STANDARD ACCOUNT DOES NOT GET A REAL LOGIN SHELL; THE TIER IS TO BE A BOUNDARY*** (owner's selection), ***WHICH COMMITS SD TO WRITING `sshd_config`*** — the port's fenced block + refusing preflight is the model. Mechanism (`ForceCommand` vs restricted shell vs `AllowGroups`) and PROGRAMMER's case are still open; see §13. **Not built.** ***ssh IS AN UNGUARDED WAY PAST THE TIER MODEL, AND THE INSTALLER TURNS IT ON.*** Every distro branch installs an ssh server (`installsdai.sh:254,272,285,295`) and the Arch branch starts and enables `sshd` (`:265-266`). SD users are **ordinary Unix users** — `CREATEA:331` does `usermod -aG sdusers` on an account that already exists, so it keeps its login shell. **Nothing in this project writes `AllowGroups` or `ForceCommand`** (grep: zero hits across the installer and `GPL.BP`). So a STANDARD account that §L1 denies `SH` and `!` **just ssh's in and gets a shell**, never touching SD. This is the exact failure the port measured on 21 Aug 2026 — *"a stock sshd_config: no AllowGroups and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt"* — except here it is the **default state rather than a regression**. ***MEASURED 9 Sep 2026: every SD account has a real login shell*** (`don` `/bin/bash`, `sdsys` `/bin/sh`, none `nologin`), so §L1's verb withholding is **a convenience, not a boundary**. `sshd` is inactive on this box, which makes the exposure latent here but not absent. See §13 | `installsdai.sh:254-296`; `sdsys/GPL.BP/CREATEA:331`; plan §L5, §H:854, plan:17 |
 | 12 | **S** | ***`sdbasic.yaml` IS GENERATED AND VALIDATED BUT NOTHING PUTS IT WHERE micro LOOKS***, so entry 2's highlighting does not yet reach a user. **Measured on this box, 9 Sep:** micro **2.0.15**, config dir `~/.config/micro`, and **no `/usr/share/micro`** — micro has no system-wide syntax path, so placement must be per-user and an installer running as root cannot do it for everyone. Three shapes in §12; the port's answer to the same problem was a per-user config home. **Until this lands the feature is inert, and inert is indistinguishable from working** — micro reports an unusable syntax file by not highlighting | `installsdai.sh`; `gplbld/microcfg/syntax/sdbasic.yaml` |
 
 ---
@@ -247,6 +247,41 @@ not about those two.
 
 ## 14. `sudo` is this project's elevation model, and nothing defines it
 
+***RULED 9 Sep 2026: SD SHIPS A `sudoers.d` DROP-IN FOR A GROUP SD OWNS.***
+Shape 3 below, chosen by the owner from the three offered. **This is recorded as
+a selection, not as his words** — he picked the shape; the wording here is mine.
+
+**What the ruling settles, and what it therefore commits to:**
+
+- **Entry 18's second gate reads SD's own group**, not `sudo`/`wheel` and not
+  `sudo -n -l`. That is what makes it portable across the distributions the
+  installer serves, and it sidesteps the three-answer problem below entirely.
+- **The 10 call sites stop hanging**, because the named commands are `NOPASSWD`
+  for that group.
+
+***THE COST THE RULING DOES NOT REMOVE, AND IT MUST BE DESIGNED FOR:*** `sudo
+passwd` is **unrestricted by argument**, so a drop-in that names it plainly is
+root by another route — `sudo passwd root`. The same is true of `usermod -aG`
+(add yourself to `sudo`). **These need wrapping in a script SD owns that refuses
+`root` and any name not an SD account**, or the drop-in grants more than the
+tier does.
+
+**Open sub-decisions this ruling creates** (none is settled by it):
+
+| | |
+|---|---|
+| the group's name | `sdusers` (all SD users) and `sdu_<name>` (per account) are taken. Something like `sdadmin` is the gap |
+| who is put in it | `CREATEA` on an ADMINISTRATOR-tier account, presumably — which ties this to §L2 and entry 18 |
+| where it is written | the installer, and `deletesdai.sh` must remove it |
+
+***A TRAP TO WRITE INTO WHATEVER BUILDS THIS: A MALFORMED `sudoers` FILE CAN
+LOCK `sudo` OUT OF THE MACHINE.*** The drop-in must be validated with
+`visudo -cf <file>` **before** it is moved into `/etc/sudoers.d/`, installed
+mode **0440**, and given a name with no `.` or `~` (sudo ignores those silently
+— a file that is ignored looks exactly like one that grants nothing). **And
+`#includedir /etc/sudoers.d` must be confirmed present in `/etc/sudoers` rather
+than assumed**, or the drop-in is inert.
+
 ***RAISED BY THE OWNER, 9 Sep 2026:*** *"I assume some scripts need to run as an
 administrator here as they did on windows."* Correct, and it is already true of
 code that ships — this is not future porting work.
@@ -397,6 +432,26 @@ about reaching the shell **from inside SD**. ssh reaches it from outside, with
 SD absent from the path, and §L5 never considers it. **The conclusion "then
 `os.users` is not needed and §L1 is the whole of the answer" does not survive
 that.**
+
+***RULED 9 Sep 2026: A STANDARD ACCOUNT DOES NOT GET A REAL LOGIN SHELL — THE
+TIER IS TO BE A BOUNDARY.*** Chosen by the owner from the three offered;
+**recorded as a selection, not as his words.** So the answer to this section's
+first bullet is *no*, and `ForceCommand` or a restricted shell is the fix rather
+than a documentation change.
+
+***THAT DECIDES THE THIRD BULLET TOO: SD MUST WRITE TO `sshd_config`.*** There
+is no way to hold the boundary without it. **The port's answer is the model to
+copy** — an explicit, removable fenced block, plus a preflight that **refuses**
+when someone else has written the file, rather than editing an administrator's
+configuration silently. `allow-ssh-groups.ps1` writes exactly these directives
+and is the one port script that transfers almost literally (entry 1).
+
+**Still to decide inside the ruling** (it fixes the direction, not the
+mechanism): whether the restriction is `ForceCommand` into `sd`, a restricted
+login shell, or `AllowGroups` excluding STANDARD; and what PROGRAMMER gets,
+which this ruling did not cover. ***AND THE MEASUREMENT BELOW IS WHAT THE FIX
+WILL BE CHECKED AGAINST***: today every SD account has a real shell, so a
+verifier for this has a known-bad starting state to prove it moved away from.
 
 **What has to be decided, and it belongs with §L rather than after it:**
 
