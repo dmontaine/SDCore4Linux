@@ -1,0 +1,34 @@
+# SD Core for Linux - the privileged helper.
+#
+# Written by installsdai.sh to /etc/sudoers.d/sdcore, mode 0440, root:root.
+# Removed by deletesdai.sh.  Validate with:
+#
+#     visudo -cf /etc/sudoers.d/sdcore
+#
+# WHY THIS NAMES ONE COMMAND AND NOT EIGHT.
+#
+# Ten call sites in GPL.BP shell out to sudo: useradd, userdel, usermod,
+# groupadd, groupdel, deluser, passwd and chmod g+s.  Naming those here would
+# grant root by another route, because not one of them is restricted by its
+# arguments - "sudo passwd root", "sudo usermod -aG sudo <me>" and
+# "sudo chmod g+s <anything>" would all be permitted.
+#
+# So sudoers names only sd-elevate, and sd-elevate decides what may happen.
+# It whitelists SD's own groups (sdusers, sdu_*, sdg_*), refuses root, sdsys
+# and every account below UID_MIN, and confines chmod g+s to the accounts
+# root.  gplbld/test-sd-elevate.py drives those rules.
+#
+# A command listed with no arguments permits ANY arguments - that is
+# deliberate here, because the helper is what validates them.
+#
+# TWO PROPERTIES THIS ENTRY DEPENDS ON, both enforced by the installer:
+#
+#   1. /usr/local/sbin/sd-elevate is root-owned and NOT writable by sdsys or
+#      sdusers.  It lives outside /usr/local/sdsys precisely because that tree
+#      is chown -R sdsys:sdusers'd - a helper inside it could be rewritten by
+#      anyone who reached the sdsys account, and this entry would then hand
+#      them root.
+#   2. /etc/sudoers has its "#includedir /etc/sudoers.d" line, or this file is
+#      never read and the account verbs fail with no explanation.
+
+%sdadmin ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate

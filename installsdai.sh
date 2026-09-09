@@ -431,6 +431,59 @@ fi
 echo "Setting user: sdsys primary group to sdusers."
 sudo usermod -g sdusers -G sdusers sdsys
 # --------------------
+# PRE_RELEASE 14, the owner's ruling of 9 Sep 2026: SD ships a sudoers.d
+# drop-in for a group SD owns.
+#
+# WHY.  SD's account verbs shell out to sudo (useradd, passwd, usermod,
+# groupadd, groupdel, userdel, chmod g+s) from ten call sites in GPL.BP.  With
+# no sudoers configuration those block on a PASSWORD PROMPT INSIDE an SD
+# session, which is a hang rather than an error - measured 9 Sep 2026, when
+# "sudo -n -v" on this machine answered "a password is required".
+#
+# The drop-in names ONE command, SD's own helper, which validates its
+# arguments; see gplbld/sdcore.sudoers for why naming useradd/passwd/usermod
+# directly would be root by another route.
+if ! getent group sdadmin &>/dev/null; then
+  echo "Creating group: sdadmin."
+  sudo groupadd --system sdadmin
+else
+  echo "Group sdadmin already exists."
+fi
+
+# Root-owned, and deliberately NOT under /usr/local/sdsys: that tree is
+# chown -R sdsys:sdusers'd further down, so a helper living there could be
+# rewritten by anyone who reached the sdsys account - and the sudoers entry
+# would then hand them root.
+echo "Installing privileged helper: /usr/local/sbin/sd-elevate."
+sudo mkdir -p /usr/local/sbin
+sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevate
+
+# Validate BEFORE installing.  A malformed sudoers file can lock sudo out of
+# the machine, so this is checked rather than trusted.
+echo "Validating sudoers drop-in."
+if ! sudo visudo -cf gplbld/sdcore.sudoers; then
+  printf "%b\n" "$RED"
+  echo "gplbld/sdcore.sudoers failed validation. Install terminated!"
+  printf "%b\n" "$NC"
+  exit 1
+fi
+
+# The drop-in is inert unless /etc/sudoers includes the directory, and an
+# ignored file looks exactly like one that grants nothing.  Checked rather
+# than assumed.  sudo 1.9.1+ writes @includedir, older writes #includedir.
+if ! sudo grep -Eq '^[[:space:]]*[@#]includedir[[:space:]]+/etc/sudoers\.d' /etc/sudoers; then
+  printf "%b\n" "$RED"
+  echo "/etc/sudoers has no includedir for /etc/sudoers.d, so the drop-in would"
+  echo "be ignored. Add '#includedir /etc/sudoers.d' using visudo, then re-run."
+  echo "Install terminated!"
+  printf "%b\n" "$NC"
+  exit 1
+fi
+
+# The filename must carry no '.' or '~' - sudo skips those silently.
+sudo install -o root -g root -m 0440 gplbld/sdcore.sudoers /etc/sudoers.d/sdcore
+echo "Installed: /etc/sudoers.d/sdcore (members of sdadmin may run sd-elevate)."
+# --------------------
 #
 sudo cp -R sdsys /usr/local
 # Fool sd's vm into thinking gcat is populated
