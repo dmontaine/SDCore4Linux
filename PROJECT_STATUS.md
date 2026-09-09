@@ -33,6 +33,13 @@ It is the owner's standing decision — CLAUDE.md Project stance, 8 Sep 2026,
 *"lower case throughout, matching the port"* — and it is **conformity with SD
 Core for Windows**, which outranks conformity with upstream. §M happens.
 
+***OWNER'S RULING ON THE TIMING, 9 Sep 2026: "no problem with delaying it until
+later in the port as long as it is done by the end."*** So the schedule below is
+settled, and §M is a **commitment on the port, not a plan item that may lapse**.
+It is listed in Open as release-blocking for that reason: **the port is not
+finished with `GPL.BP` and `SYSCOM` still upper case.** A later session that
+finds §M inconvenient may re-order it; it may not drop it.
+
 **What was withdrawn is a SCHEDULING suggestion, and it was a prior session's,
 not the owner's.** The line *"a good place to insist on the lower-case migration
 going in with it"* entered this file in `3d61b3a` (step 3) and hardened by
@@ -539,6 +546,18 @@ that compiler. The real `BCOMP` evidently resolves it, since installs work — b
 §M1's "fold, then rename" has a second lookup here that the plan does not name.
 
 ## Open
+
+***RELEASE-BLOCKING: §M, THE LOWER-CASE CONVERSION.*** Owner's ruling, 9 Sep
+2026 — later in the port is fine, **by the end is not optional**. Scheduled at
+step 7 with §N, per the plan; the reasoning and the two dependencies are in the
+step-4 note above. `M1`'s fold (the colon prompt and query language, and BASIC
+`OPEN` including Q-pointers — order **as typed, then lower case, then upper
+case**) has no dependency on `update.accounts` and may be started at any time.
+Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
+`git mv` may need a two-step for a case-only rename, verified with
+`git ls-files` rather than by looking at the working tree; and
+**`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
+the plan does not name (found 9 Sep — see the §I note).
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
