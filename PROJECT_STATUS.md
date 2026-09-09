@@ -6,19 +6,53 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+*Handoff written 8 Sep 2026, end of session. Tree clean, everything pushed.*
+
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
-repository. It carries a verification table with `file:line` for every defect it
-claims. Next work is step 1 of its "Suggested order"; step 0 is done, below.
+repository, with a `file:line` verification table for every defect it claims.
+Work follows its "Suggested order". **Steps 0 and 1 are done; step 2 is being
+taken in thirds at the owner's request, and the first third is done.**
 
-**Pushed to GitHub 8 Sep 2026.** `main` tracks `origin/main`; local and remote
-both at `e5ceb16`, verified with `git ls-remote` and `git rev-parse` after the
-push. The canonical remote is `git@github.com:dmontaine/SDCore4Linux.git` —
-**capitalised**; the lower-case form works only via a redirect that prints
-"This repository moved" on every push.
+### Your next task
 
-Renamed from `sdscripts_ai` to `sdcore4linux` on 8 Sep 2026. Git identity is set
-**repo-local** (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`
-on this machine, so other repositories will still ask.
+**Step 2, second third — transactions, the localised half.** All in
+`gplsrc/txn.c`, all verified present:
+
+| | Where | What |
+|---|---|---|
+| A2 | `txn.c:148` | passes the raw `txn->id` to `dir_write()`, which expects an already-mapped name — `op_dio3.c:849` passes `mapped_id`. Ids containing `* , = > < % / + : ; ? \ "` or starting `.`/`~` are written under the wrong name and read back as missing |
+| A2 | `txn.c:180` | the delete path builds its own path from the raw id, same fault |
+| A3 | `txn.c:187` | `remove()`'s result discarded, so a delete that could not happen commits as success |
+| A4 | `txn.c:126` | commit clears `process.txn_id` and never restores the enclosing transaction from the stack; only `rollback()` at `:582` does. A nested commit silently abandons the outer transaction's writes |
+| A4 | `op_sys.c:335` | `system(1008)` is raised on BEGIN and never lowered, so it cannot answer "am I in a transaction". `system(1007)` is sound |
+
+The final third is `A1`, commit rollback — before-images for every record a
+commit overwrites, restored if it fails part way, with a summary line to
+`errlog`. That is the one real piece of work in step 2.
+
+### ***BEFORE YOU IMPLEMENT ANYTHING, GREP THE WINDOWS RECORD***
+
+Not a formality. It corrected the plan **twice in one session**, and both times
+the fix would otherwise have looked complete and been wrong — see "Step 2, first
+third" below for what it caught. `/home/don/Projects/SDCoreProject/sd4windows`
+has `PRE_RELEASE_FIXES.md`, `UPSTREAM_FIXES.md` and `HISTORY.md`; the entries are
+long, and the detail near the end of one is usually the correction.
+
+```sh
+grep -n -i -E 'txn\.c|dir_write|txn_id' /home/don/Projects/SDCoreProject/sd4windows/*.md
+```
+
+### State of the tree
+
+- **Clean and pushed.** `main` tracks `origin/main`; remote is
+  `git@github.com:dmontaine/SDCore4Linux.git` — **capitalised**, the lower-case
+  form only works through a redirect that warns on every push.
+- Renamed from `sdscripts_ai` on 8 Sep 2026. Git identity is **repo-local**
+  (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`, so other
+  repositories will still ask.
+- ***TEN FIXES ARE COMMITTED AND NOT ONE HAS BEEN EXERCISED.*** The owner ran an
+  install and could log in, so the tree builds and runs — that is all it
+  establishes. Per-fix checks are listed under step 1; none has been run.
 
 ## Verified — 8 Sep 2026
 
@@ -166,35 +200,22 @@ instrument reads exactly like a negative result.
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
 doing, because a wrong catalogue gate would refuse an administrator.
 
-**Step 2 is being done in thirds, at the owner's request. First third is above.**
-
-- **Second third — transactions, the localised half.** `A2` the directory-file
-  id encoding (`txn.c:148` passes the raw id to `dir_write()`, which expects an
-  already-mapped name; `:180` builds the delete path from the raw id); `A3`
-  `remove()`'s result discarded at `:187`; `A4` a nested commit abandoning the
-  outer transaction (`:126` clears `process.txn_id`, and only `rollback()` at
-  `:582` restores it) plus `system(1008)` never decremented.
-- **Final third — `A1` commit rollback.** Before-images for every record a commit
-  overwrites, restored if it fails part way, with a summary line to `errlog`.
-  **Check the Windows record first**: this session's experience is that its
-  entries carry corrections the plan does not.
+**Step 2's remaining thirds are in START HERE**, with the line numbers.
 
 ***STEP 2 IS WHERE "IT COMPILED" IS WORTH LEAST.*** Every item touches
-transactions or index structure, and the failure mode of `A5` is a permanently
+transactions or index structure, and `A5`'s failure mode is a permanently
 damaged index rather than an error. Build a way to exercise a fix before making
 it, not after.
 
-**Still missing, and step 2 is the reason it now matters:** the `assert-current`
-equivalent. Nothing refuses to run a check against an install older than its
-source, so a green result can come from the previous build.
+**Standing gaps:**
 
-**Standing gaps, from CLAUDE.md:**
-
-- No equivalent of the Windows `assert-current` guard: nothing refuses to run a
-  verification against a tree whose install is older than its source.
-- `SYSCOM/ERR.H` is generated from `gplsrc/err.h` by hand and has drifted. So has
-  `GPL.BP/REVSTAMP.H` from `gplsrc/revstamp.h` — `revstamp.h:36-38` says as much.
-  Plan §D5/§J4 is the generator that ends both.
+- **No `assert-current` equivalent.** Nothing refuses to run a check against an
+  install older than its source, so a green result can come from the previous
+  build. This matters more from step 2 on, where a wrong answer is silent.
+- **Two generated headers are kept in step by hand and have drifted.**
+  `SYSCOM/ERR.H` from `gplsrc/err.h` (wrong sign, C spelling, missing codes), and
+  `GPL.BP/REVSTAMP.H` from `gplsrc/revstamp.h` — `revstamp.h:36-38` says so in a
+  comment. Plan §D5/§J4 is the generator that ends both, and §N needs it.
 
 **Undecided:**
 
