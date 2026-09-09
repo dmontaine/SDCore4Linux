@@ -16,9 +16,11 @@ has been exercised on an installed system.**
 
 ### Your next task
 
-**Step 4 — the shrink, IN PROGRESS.** See "Step 4" below for what is done.
-Remaining: `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `I2` PROC · `G1` BP test
-programs · `G2` VFS · `G3` OPGEN · `G4` SDNet.
+**Step 4 — the shrink, IN PROGRESS.** See "Step 4" below. Done: `I1` TAPE, `G3`
+OPGEN. Remaining: `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `I2` PROC · `G1`
+BP test programs (**owner decision pending on the `PY_*` Python examples — keep
+or remove; the plan says keep if they are the documented examples, and Python is
+this project's kept feature**) · `G2` VFS · `G4` SDNet.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
@@ -381,7 +383,7 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | I2 | PROC — `GPL.BP/PROC`+`BBPROC`, `bbcmp.py` compile step + `installsdai.sh:500`, `LISTPQ`, `OP_PROCREAD`/`op_procread()` + BCOMP, `CPROC:1530` dispatch. Report "not supported" at dispatch; RETIRE the opcode | pending |
 | G1 | 22 SDSYS `BP` test programs | pending |
 | G2 | VFS scaffolding | pending |
-| G3 | OPGEN (`GPL.BP/OPGEN`; `OPCODES.H` already covered by `gen_includes.py`) | pending |
+| G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
 | G4 | SDNet (`gplsrc/netfiles.c`) | pending |
 
 **Not exercised.** I1 removed data records and an install prompt; nothing in the
