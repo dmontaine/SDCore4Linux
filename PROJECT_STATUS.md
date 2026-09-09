@@ -32,17 +32,22 @@ has been exercised on an installed system.**
 was not compiled this session (see "Step 4 / §I" for what instrument was tried
 and why it could not).
 
-***START WITH `PRE_RELEASE` 19 — IT IS ONE SHORT PROGRAM AND IT GATES §L.***
-Session ended out of credits, 9 Sep 2026, mid-investigation. `op_kernel.c:305-307`
-**reads as though** `kernel(K$ADMINISTRATOR, 1)` sets `USR_ADMIN` for any caller,
-short-circuiting `IsAdmin()`. **Read, not measured** — the check is a BASIC
-program doing `x = kernel(26, 1)` then `crt kernel(26, -1)` from a non-root
-account; **1 means the hole is real** and every administrator gate is bypassable,
-including `LOGIN:217`'s SDSYS restriction. A test machine and a live install were
-available, and `CREATE.FILE BP DIRECTORY` is how to get a program into an account
-without an editor — that is how the `PQ` fixture was made.
+***`PRE_RELEASE` 19 IS DONE (9 Sep 2026) — MEASURED, THEN FIXED TO MATCH THE
+PORT.*** The `op_kernel.c` reading was confirmed on source (a positive argument
+set `USR_ADMIN` with no `IsAdmin()` call, and `|| IsAdmin()` made `kernel(26,0)`
+re-grant rather than clear for a root caller) — **but the "bypassable from any
+BASIC program" claim is REFUTED**: `KERNEL` resolves only in internal mode
+(`BCOMP:3758`), and a non-internal probe compiled from the non-root `don`
+account failed *"Unrecognised statement"*, 2 errors. So the opcode is reachable
+only from an `$internal` program (LOGIN, CPROC). Gated the flag change on
+`HDR_INTERNAL` (the port's PRE_RELEASE 170 fix); build clean, `bin/sd` boots.
+The fix's `$internal`-path effect is **reasoned + conformity, not witnessed** —
+an ordinary user cannot compile `$internal`, so it is unwitnessable from
+ordinary BASIC, which is the same fact that makes the old hole unreachable. **An
+install of `origin/main` would carry it to the running system** (`PRE_RELEASE`
+15). See "Step 5 / PRE_RELEASE 19" below.
 
-**Then `PRE_RELEASE` 18**, which is now specified rather than open: the owner
+***YOUR NEXT TASK IS `PRE_RELEASE` 18***, now unblocked and specified: the owner
 defined "administrator" on 9 Sep as **sudoers member AND registered SD
 administrator, with unregistered users refused entry**. The gap table and the
 port's `ACC$TIER 5` / `ACC$PRIOR.TIER 6` are in that entry.
@@ -262,6 +267,40 @@ grant the tier anything. `PRE_RELEASE` 18, and the same root as 14.
 ***WHAT IS STILL NOT ESTABLISHED.*** Steps 2 and 3 remain unexercised, and the
 rest of step 1 (`D1`, `D2`, `C1`, `D3`, `B4`). This install was of
 **`origin/main`**, not the working tree (`PRE_RELEASE` 15).
+
+### Step 5 / PRE_RELEASE 19 — the K$ADMINISTRATOR grant hole, 9 Sep 2026
+
+`op_kernel.c:302-312`, `case K_ADMINISTRATOR`. Two questions: is the C hole
+real, and is it reachable from ordinary BASIC.
+
+***THE C HOLE IS REAL AT BOTH ENDS, CONFIRMED ON SOURCE.*** The old code
+`if ((n > 0) || IsAdmin()) set; else clear;` set `USR_ADMIN` for any positive
+argument with no `IsAdmin()` call, and for `n == 0` the `|| IsAdmin()` *re-set*
+the flag whenever the caller ran as root — so `CPROC:2713`'s admin-drop on a
+`LOGTO` did nothing for a root OS user. That second end is the reachable one.
+
+***REACHABILITY MEASURED ON THE 11:35 INSTALL, AS uid 1000 (non-root), AND THE
+"bypassable from any BASIC program" READING IS REFUTED.*** A probe
+`BP/ADMTEST19` doing `KERNEL(26,1)` / `KERNEL(26,-1)`, compiled `BASIC BP
+ADMTEST19` as an ordinary (non-internal) program, returned **`6: Unrecognised
+statement` + `Matrix KERNEL is not referenced in a DIM statement`, 2 errors —
+does not compile.** `KERNEL` is an `int.intrinsics` entry located only under
+`if internal` (`BCOMP:3758,3781`), so a non-`$internal` program cannot emit the
+opcode. The opcode is reachable only from LOGIN and CPROC, which are `$internal`
+and own entry to an account. Fixture cleaned up: `COUNT VOC` **410 → 411 →
+410** (the compile made a `BP.OUT` pointer; both it and `ADMTEST19` deleted).
+
+***FIX: GATE THE FLAG CHANGE ON `HDR_INTERNAL`*** — the Windows port's exact fix
+(`op_kernel.c:400-427` there, its PRE_RELEASE 170, 13 Aug 26). Clean
+`rm -f gplobj/op_kernel.o` rebuild, 0 warnings; `bin/sd --version` exit 0.
+
+***WHAT IS NOT WITNESSED, WRITTEN IN THE CONDITIONAL.*** The fix would change
+behaviour only for `$internal` callers, which an ordinary user cannot compile,
+so it is unwitnessable from ordinary BASIC — the same fact that makes the old
+hole unreachable. An install of `origin/main` would boot with it; if it did
+not, a syntax/link fault would abort the two-stage bootstrap. `IsAdmin()` is now
+prototyped-but-unused in `op_kernel.c` (defined in `linuxlb.c`, called
+elsewhere) — no warning, it is `extern`.
 
 ### State of the tree
 
