@@ -10,6 +10,17 @@
 #   rev 2.1 Apr 27 2026 dsm - change git repository to codeberg.org
 #
 #   rev 2.1ai May 24 2026 dsm - modified script to test ai version
+#
+#   09 Sep 2026 - two questions removed and the source fixed.  The installer no
+#   longer asks whether to keep the download, and no longer asks which
+#   repository to use: it always clones the main branch from
+#   github.com/dmontaine/SDCore4Linux and always deletes the download when it
+#   finishes.  The <D>evelopment branch and <L>ocal repository options are gone
+#   with the question.  Debian and Ubuntu only for now - the pacman, dnf and
+#   zypper branches are removed and a non-Debian system is refused by name
+#   rather than silently taking a branch that installs nothing; Arch, Fedora and
+#   openSUSE are served by the upstream sdb64 installer until this one is
+#   stable.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -19,10 +30,24 @@ IFS=$'\n\t'
 # --------------------
 
 # all important url of repository, change this to use your own fork
-REPO_URL="https://codeberg.org/stringdatabase/sdb_ai"  
+#
+# 09 Sep 26  Now GitHub, always the main branch, and no longer a choice.  The
+#            repository moved to github.com/dmontaine/SDCore4Linux; codeberg is
+#            where this came from and is not where it is maintained.
+#            MIND THE CAPITALISATION - the lower-case form only works through a
+#            redirect.
+REPO_URL="https://github.com/dmontaine/SDCore4Linux"
+REPO_BRANCH="main"
 # define where we expect to find the package
 dflt_git_folder=".sdb64tmp"
-dflt_local_folder="sdb_ai" 
+#
+# 09 Sep 26  THE CLONE'S SOURCE TREE IS ONE LEVEL DOWN, AND THIS IS THE TRAP.
+#            The old codeberg repository WAS the source tree - its root held
+#            sd64/ - so the installer built from the clone root.  SDCore4Linux
+#            holds the installer at the root and the source under sdb_ai/, so
+#            the clone gives <tmp>/sdb_ai/sd64.  Building from <tmp> would fail
+#            the "not an sd install repo" check with nothing to explain it.
+repo_src_subdir="sdb_ai"
 
 #function to test git repo availability
 repo_available() {
@@ -34,12 +59,12 @@ repo_available() {
 #   if [ $? -eq 0 ]; then
   if git ls-remote -q "$REPO_URL" &>/dev/null; then
 # --------------------
-    echo "The Git repository at codeberg.org is available."
+    echo "The Git repository at github.com is available."
     echo "Creating temporary source code repository."
     return 0
   else
     printf "%b\n" "$RED"
-    echo "Sdb_ai repository is not available."
+    echo "The SDCore4Linux repository is not available."
     echo "Verify your internet connection and then try again."
     printf "%b\n" "$NC"
     # exit
@@ -158,8 +183,12 @@ echo
 echo "Installer tested on Linux Mint 22.3."
 # --------------------
 echo
-echo "This script will download the SD source code from the selected branch, compile and install SD."
-printf "If a local repository is found in %s, an option is provided to install SD \nfrom the local repository.\n" "$dflt_local_folder"
+# 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
+#            repository.  There is no selection any more: main, from GitHub.
+echo "This script will download the SD source code from the main branch at"
+echo "${REPO_URL}, compile it and install SD."
+echo
+echo "The download is temporary and is removed when the install finishes."
 echo
 #
 printf "%b\n" "$YELLOW"
@@ -174,13 +203,7 @@ case $yn in
     * ) exit 0 ;;
 esac
 #
-# do we have a local repository?
-#
-if [ -d "$dflt_local_folder" ]; then
-    LOCAL_REPO=1
-else
-    LOCAL_REPO=0
-fi
+# 09 Sep 26  The local-repository probe is gone with the <L> menu option it fed.
 #
 printf "%b\n" "$GREEN"
 echo "If requested, enter your account password:"
@@ -193,21 +216,10 @@ sudo -v
 # --------------------
 clear
 echo
-# Modified by Composer AI - 2026/06/10.
-# Ask whether to preserve the git download under ~/sdscripts_ai_download_<datetime>.
-SAVE_DOWNLOAD=0
-SAVE_DOWNLOAD_DIR=""
-printf "%b\n" "$YELLOW"
-read -r -p "Save downloaded source to a directory under your home folder? (y/N) " yn
-printf "%b\n" "$NC"
-case $yn in
-    [yY] ) SAVE_DOWNLOAD=1
-           SAVE_DOWNLOAD_DIR="${HOME}/sdscripts_ai_download_$(date +%Y%m%d_%H%M%S)"
-           echo "Download will be saved to: ${SAVE_DOWNLOAD_DIR}"
-           ;;
-    * )    SAVE_DOWNLOAD=0 ;;
-esac
-# --------------------
+# 09 Sep 26  The "Save downloaded source to a directory under your home folder?"
+#            question is gone.  The download is working material, not something
+#            the user is left holding: it is always removed when the install
+#            finishes.  Somebody who wants the source clones the repository.
 # Modified by Composer AI - 2026/06/10.
 # Quote path variables when removing the temporary clone directory.
 # rm -fr $cwd/$dflt_git_folder
@@ -224,82 +236,54 @@ printf "%b\n" "$NC"
 # is_suse=0
 # printf "%bChoose your distribution.\n" "$GREEN"
 detect_distro
-distro_sum=$((is_arch + is_debian + is_fedora + is_suse))
-if [ "$distro_sum" -eq 0 ]; then
-printf "%bChoose your distribution.\n" "$GREEN"
-echo
-echo " Enter <A> if you are installing on an Arch based distribution." 
-echo " Enter <D> if you are installing on a Debian or Ubuntu based distribution."
-echo " Enter <F> if you are installing on a Fedora Based distribution."
-echo " Enter <S> if you are installing on an openSuse Based distribution."
-echo " Or press enter with no entry to exit the installer."
-printf "%b\n" "$YELLOW"
-# read -p "Continue? (a/d/f/s) " adfs
-read -r -p "Continue? (a/d/f/s) " adfs
-printf "%b\n" "$NC"
-case $adfs in
-    [aA] ) is_arch=1;;
-    [dD] ) is_debian=1;;
-    [fF] ) is_fedora=1;;
-    [sS] ) is_suse=1;;
-    * ) exit 0 ;;
-esac
-else
-  echo "Detected distribution from /etc/os-release."
-fi
-# --------------------
-#
-# package installer is based on distro, clunky but easy to read
-if [ $is_arch -eq 1 ]; then
-    if ! sudo pacman -S git base-devel micro lynx libbsd libsodium openssh python; then
-        printf "%b\n" "$RED"
-        echo "Package installation using pacman failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    else   
-        # Modified by Composer AI - 2026/06/10.
-        # Try sshd.service first; fall back to sshd on Arch variants.
-        # sudo systemctl start sshd
-        # sudo systemctl enable sshd
-        sudo systemctl start sshd.service 2>/dev/null || sudo systemctl start sshd
-        sudo systemctl enable sshd.service 2>/dev/null || sudo systemctl enable sshd
-        # --------------------
+# 09 Sep 26  DEBIAN AND UBUNTU ONLY, DELIBERATELY AND TEMPORARILY.  Arch, Fedora
+#            and openSUSE are served by the upstream sdb64 installer while this
+#            one is stabilised; they come back once it is.  Refusing is the
+#            point: silently running the Debian branch on Fedora would install
+#            nothing and fail later, somewhere that does not name the cause.
+if [ "$is_debian" -ne 1 ]; then
+    printf "%b\n" "$RED"
+    echo "This installer currently supports Debian and Ubuntu based"
+    echo "distributions only."
+    echo
+    if [ "$is_arch" -eq 1 ] || [ "$is_fedora" -eq 1 ] || [ "$is_suse" -eq 1 ]; then
+        echo "Detected an Arch, Fedora or openSUSE based distribution from"
+        echo "/etc/os-release.  Support for it will return; for now use the"
+        echo "upstream sdb64 installer on this system."
+    else
+        echo "Could not identify this distribution from /etc/os-release."
     fi
+    printf "%b\n" "$NC"
+    exit 1
 fi
+echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 #
-if [ $is_debian -eq 1 ]; then
-    if ! sudo apt-get -y install git build-essential micro lynx libbsd-dev libsodium-dev openssh-server python3-dev; then
-        printf "%b\n" "$RED"
-        echo "Package installation using apt-get failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
-    # run this along as only required on Ubuntu 26.04 and
-    # don't want to abort if not found on earlier distributions
-    sudo apt-get -y --ignore-missing install libcrypt-dev || true
-fi
+# The manual a/d/f/s distribution menu is gone with the other three branches.
+# Detection either recognises Debian/Ubuntu or the refusal above has already
+# exited, so there is nothing left to ask.
 #
-if [ $is_fedora -eq 1 ]; then
-    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libbsd-devel libsodium-devel openssh-server python3-devel; then
-        printf "%b\n" "$RED"
-        echo "Package installation using dnf failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
-fi
+# 09 Sep 26  The pacman, dnf and zypper branches are removed with the rest of
+#            the multi-distribution support; only apt-get is left.  They return
+#            with the distributions, not before, so that what comes back is
+#            written against an installer that works rather than restored from
+#            memory.
 #
-if [ $is_suse -eq 1 ]; then
-    if ! sudo zypper --non-interactive install git make automake gcc gcc-c++ kernel-default-devel micro-editor lynx libbsd-devel libsodium-devel openssh python3-devel; then
-        printf "%b\n" "$RED"
-        echo "Package installation using zypper failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
+# NOTE the Arch branch also START-ed and ENABLE-d sshd, which no other branch
+# did.  That asymmetry is deliberately not carried into the apt branch here:
+# whether SD turns an ssh server on is a decision, not an install detail, and it
+# is PRE_RELEASE 13.  On Debian and Ubuntu the openssh-server package starts its
+# own service, so removing the Arch lines changes nothing on this platform.
+if ! sudo apt-get -y install git build-essential micro lynx libbsd-dev libsodium-dev openssh-server python3-dev; then
+    printf "%b\n" "$RED"
+    echo "Package installation using apt-get failed.  Exiting script."
+    echo "Verify your internet connection and then try again."
+    printf "%b\n" "$NC"
+    exit 1
 fi
+# run this along as only required on Ubuntu 26.04 and
+# don't want to abort if not found on earlier distributions
+sudo apt-get -y --ignore-missing install libcrypt-dev || true
+#
 
 # Modified by Composer AI - 2026/06/10.
 # Confirm build tools are available after distribution packages are installed.
@@ -310,55 +294,26 @@ require_command python3-config
 # --------------------
 
 echo
-echo "Select: "
-echo "  <M>ain branch."
-echo "  <D>evelopment branch."
-if [ $LOCAL_REPO -eq 1 ]; then
-    echo "  <L>ocal repository."
-    # read -p "Select repository? (M/D/L) " mdl
-    read -r -p "Select repository? (M/D/L) " mdl
-else
-    # read -p "Select repository? (M/D) " mdl
-    read -r -p "Select repository? (M/D) " mdl
-fi
-printf "%b\n" "$NC"
-#
-# check that sdb64 repository is accessible
-case $mdl in
-    [mM] ) echo "Installing the main version at: $REPO_URL"
-           inst_folder=$dflt_git_folder
-           repo_available
-           # git clone -b main $REPO_URL $inst_folder
-           git clone -b main "$REPO_URL" "$inst_folder"
-           ;;
+# 09 Sep 26  The <M>ain / <D>evelopment / <L>ocal menu is gone.  There is one
+#            source: the main branch at GitHub.  The development branch is not
+#            something to hand an end user, and the local-repository option
+#            installed whatever happened to be sitting in ./sdb_ai, which is not
+#            a decision an installer should offer either.
+echo "Installing the main branch from: ${REPO_URL}"
+repo_available
+git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
 
-    [dD] ) echo "Installing the development version at: $REPO_URL"
-           inst_folder=$dflt_git_folder
-           repo_available
-           # git clone -b dev $REPO_URL $inst_folder
-           git clone -b dev "$REPO_URL" "$inst_folder"
-           ;;
-
-    [lL] ) # Modified by Composer AI - 2026/06/10.
-           # Reject local install when no local repository is present.
-           # echo "Installing local repository found in $dflt_local_folder"
-           # inst_folder=$dflt_local_folder
-           if [ "$LOCAL_REPO" -ne 1 ] || [ ! -d "${dflt_local_folder}/sd64" ]; then
-             echo "Local repository not available in ${dflt_local_folder}."
-             exit 1
-           fi
-           echo "Installing local repository found in ${dflt_local_folder}"
-           inst_folder=$dflt_local_folder
-           # --------------------
-           ;;
-    * )    echo "No matching selection, exit."
-           exit 1;;
-esac
+# The source tree is one level down in this repository - see repo_src_subdir.
+inst_folder="${dflt_git_folder}/${repo_src_subdir}"
 
 if [ -d "${inst_folder}/sd64" ]; then
     echo "Installing from ${inst_folder}."
 else
-    echo "${inst_folder} not found or not an sd install repo, aborting"
+    printf "%b\n" "$RED"
+    echo "The download did not contain ${repo_src_subdir}/sd64, aborting."
+    echo "Looked in: ${cwd}/${inst_folder}"
+    echo "This means the repository layout changed, not that your download failed."
+    printf "%b\n" "$NC"
     exit 1
 fi
 
@@ -696,30 +651,12 @@ echo Terminfo compilation complete
 sudo cp "${cwd}/${inst_folder}/sd64/terminfo.src" "$sdsysdir"
 echo
 
-# Modified by Composer AI - 2026/06/10.
-# Save or remove the temporary git clone; local-repo installs are not copied.
-# if [ -d "${cwd}/${dflt_git_folder}" ]; then
-#     echo "Remove ${cwd}/${dflt_git_folder}"
-#     rm -fr "${cwd}/${dflt_git_folder}"
-# fi
+# 09 Sep 26  The download is always removed.  There is no longer a saved-copy
+#            branch, and no local-repository case to exempt.
 if [ -d "${cwd}/${dflt_git_folder}" ]; then
-    if [ "$SAVE_DOWNLOAD" -eq 1 ] && [ "${inst_folder}" = "${dflt_git_folder}" ]; then
-        if [ -e "${SAVE_DOWNLOAD_DIR}" ]; then
-            printf "%b\n" "$RED"
-            echo "Save directory already exists: ${SAVE_DOWNLOAD_DIR}"
-            echo "Leaving temporary clone at ${cwd}/${dflt_git_folder}"
-            printf "%b\n" "$NC"
-        else
-            echo "Saving download to ${SAVE_DOWNLOAD_DIR}"
-            cp -a "${cwd}/${dflt_git_folder}" "${SAVE_DOWNLOAD_DIR}"
-            rm -fr "${cwd}/${dflt_git_folder}"
-        fi
-    else
-        echo "Remove ${cwd}/${dflt_git_folder}"
-        rm -fr "${cwd}/${dflt_git_folder}"
-    fi
+    echo "Remove ${cwd}/${dflt_git_folder}"
+    rm -fr "${cwd}/${dflt_git_folder}"
 fi
-# --------------------
 cd "$cwd"
 #
 # display end of script message
@@ -732,20 +669,9 @@ printf "%bThe SD server is installed.%b\n" "$RED" "$NC"
 # --------------------
 echo "---------------------------"
 echo
-# Modified by Composer AI - 2026/06/10.
-# Report whether the temporary git clone was saved or deleted.
-# printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
-# echo "has been deleted."
-if [ "$SAVE_DOWNLOAD" -eq 1 ] && [ -d "${SAVE_DOWNLOAD_DIR}" ]; then
-    printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
-    echo "was saved to ${SAVE_DOWNLOAD_DIR}."
-elif [ "${inst_folder}" = "${dflt_local_folder}" ]; then
-    printf "%bThe local repository was used for installation; nothing was downloaded.%b\n" "$GREEN" "$NC"
-else
-    printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
-    echo "has been deleted."
-fi
-# --------------------
+# 09 Sep 26  One outcome to report now: the download is always deleted.
+printf "%bThe temporary source code directory used during the install%b\n" "$GREEN" "$NC"
+echo "has been deleted."
 echo
 echo "The /home/sd directory has been created."
 echo "User directories are created under /home/sd/user_accounts."

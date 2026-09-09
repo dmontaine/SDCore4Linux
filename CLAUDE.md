@@ -279,8 +279,12 @@ separately when §K needs checking.
 
 - **Linux only.** Windows development lives in `sd4windows`. Do not add `#ifdef`
   branches to keep Windows building.
-- **The installer is a shell script and stays one** — `installsdai.sh`. It builds
-  from the `sdb_ai/` tree bundled in this repository, not from a clone.
+- **The installer is a shell script and stays one** — `installsdai.sh`. ***It
+  clones `main` from `github.com/dmontaine/SDCore4Linux` and builds
+  `sdb_ai/sd64` from the clone*** (owner, 9 Sep 2026, superseding plan §F9 and
+  the earlier wording here, which said it built the bundled tree). **So an
+  install tests `origin/main`, not your working tree — commit and push first, or
+  you are testing something else.** Nothing checks this; see `PRE_RELEASE` 15.
 - **Binaries are not tracked, and must stay that way.** `.gitignore` covers
   `sd64/bin/` (except its README), `sd64/gplobj/`, `sd64/terminfo/`,
   `pcode_bld.log` and the installer-generated `gplsrc/sdext_python_inc.h`. All of

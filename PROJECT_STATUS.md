@@ -32,10 +32,16 @@ has been exercised on an installed system.**
 was not compiled this session (see "Step 4 / §I" for what instrument was tried
 and why it could not).
 
-**Your next task is step 5, the installer** — `F9` drop the clone first, because
-until it is done an install does not test this tree, then `F1` upgrade split ·
-`F2` `UPDATE.ACCOUNTS` · `F3` `[locked]` · `F4` config parser · `F5` changelog
-location · `F7` self-check · `F6`, `F8`.
+**Your next task is step 5, the installer.** ***`F9` IS SUPERSEDED — DO NOT DO
+IT.*** The owner ruled on 9 Sep 2026 that the installer always clones `main`
+from GitHub, which is the opposite of §F9's "drop the clone and build the
+bundled tree". Done that day; see "Installer" below. Remaining: `F1` upgrade
+split · `F2` `UPDATE.ACCOUNTS` · `F3` `[locked]` · `F4` config parser · `F5`
+changelog location · `F7` self-check · `F6`, `F8`.
+
+***AND THE CONSEQUENCE F9 EXISTED TO PREVENT IS NOW LIVE: AN INSTALL TESTS
+`origin/main`, NOT THE WORKING TREE.*** Commit and push before testing, or you
+are testing something else and nothing will tell you. `PRE_RELEASE` 15.
 
 ***THE LOWER-CASE CONVERSION IS NOT IN QUESTION AND NOTHING HAS BEEN DROPPED.***
 It is the owner's standing decision — CLAUDE.md Project stance, 8 Sep 2026,
