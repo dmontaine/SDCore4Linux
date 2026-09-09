@@ -45,7 +45,7 @@ is done; **read the table, never the section headings** — short entries have n
 section at all, so counting `## N.` headings gives an answer that is wrong and
 looks authoritative.
 
-***NEXT FREE ID: 12.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 13.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -55,7 +55,7 @@ the two files are not comparable by number.
 | ID | SEV | What | Where |
 |---|---|---|---|
 | 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** 51 are on subjects §H already excludes as Windows-only. **21 are verifiers whose subject exists here too** — `verify-tiers`, `-tierapi`, `-tierchange`, `-catgate`, `-txn`, `-vocverbs`, `-fold`, `-lcnames`, `-nocase`, `-setpw`, `-createaccount`, `-delaccount`, `-upgrade` and 8 more — plus 10 neutral guards including `assert-current` and `cycle`. The plan mentions none of them: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in 1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
-| 2 | **S** | ***THE PLAN DOES NOT MENTION THE `MICRO` VERB OR THE EDITOR STORY AT ALL*** — `grep -w -i MICRO` on the plan returns nothing. This tree ships `GPL.BP/MICRO`; the port **deleted it on 17 Aug 2026** and replaced it with `gpl.bp/EDIT`, one program reached by **two** verbs. Under the conformity stance this is unaddressed work, and §H's exclusion of *"editor bundling via winget"* rules out the Windows **mechanism**, not the feature. See §2 | `sdsys/GPL.BP/MICRO`; `sdsys/{VOC_TEMPLATE,NEWVOC}/MICRO`; plan §H:856 |
+| ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
 | 3 | **S** | **`EDIT` MEANS DIFFERENT THINGS IN THE TWO SYSTEMS, WHICH IS A NEAR-MISS NAME WAITING TO BITE.** Here `VOC_TEMPLATE/EDIT` → `$ED`, the **line** editor. In the port `voc_template/edit` → `$EDIT`, the **full-screen** editor. A user or an agent moving between the two gets a different program from the same word | `sdsys/VOC_TEMPLATE/EDIT` vs `sd4windows/.../voc_template/edit` |
 | 4 | **M** | **`MICRO` shells out to a hard-coded `micro` with no check that it exists and no test of the result.** `Editor = "micro"` at line 37, `execute "!" : editor : …` at line 201, and nothing between. The port's UPSTREAM #16 records the consequence: it reports *"Record is unchanged"* when the editor is absent, which blames the user's data for a missing binary | `sdsys/GPL.BP/MICRO:37,201` |
 | 5 | **S** | ***`bbcmp.py` UPPER-CASES EVERY `$include` NAME, SO A LOWER-CASE INCLUDE IS UNRESOLVABLE ON ext4.*** Found 9 Sep 2026 trying to compile `CPROC`: `$include define_install.h` fails because the file on disk is lower case. **This is a third name lookup that plan §M1 does not name** — §M1 lists the colon prompt/query language and BASIC `OPEN`, and stops there | `sdb_ai/sd64/gplbld/bbcmp.py:7141` |
@@ -65,6 +65,7 @@ the two files are not comparable by number.
 | 9 | **S** | ***`gplbld/check-stale-leads.py` CANNOT RUN HERE AT ALL, AND ADDING THIS FILE DOES NOT CHANGE THAT*** — measured 9 Sep 2026, not predicted. Copied verbatim and run, it exits **2 before any phase executes**: *"REFUSING - could not bound section 7"*. It is keyed to the port's PROJECT_STATUS structure — a section 7, `> ###` START HERE items, a `✅` task table — none of which exists here. **The unadapted copy was removed rather than committed**, because a tool that always exits 2 reads as a guard the project has. See §9 | `sd4windows/sdb_ai/sd64/gplbld/check-stale-leads.py` |
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
+| 12 | **S** | ***`sdbasic.yaml` IS GENERATED AND VALIDATED BUT NOTHING PUTS IT WHERE micro LOOKS***, so entry 2's highlighting does not yet reach a user. **Measured on this box, 9 Sep:** micro **2.0.15**, config dir `~/.config/micro`, and **no `/usr/share/micro`** — micro has no system-wide syntax path, so placement must be per-user and an installer running as root cannot do it for everyone. Three shapes in §12; the port's answer to the same problem was a per-user config home. **Until this lands the feature is inert, and inert is indistinguishable from working** — micro reports an unusable syntax file by not highlighting | `installsdai.sh`; `gplbld/microcfg/syntax/sdbasic.yaml` |
 
 ---
 
@@ -126,10 +127,69 @@ when they are absent (entry 4). §H excludes *"editor bundling via winget"*,
 which is a **mechanism**; the packaging question here is `apt`/`dnf` and is not
 the same question.
 
-**What is undecided and needs the owner:** whether to adopt the port's `EDIT`
-program and two-verb arrangement, or keep `MICRO` and fix entry 4, or drop the
-full-screen editor entirely and let `ED` be the editor as §I3/§I5 already made
-it for the removed screen editors.
+***THE OWNER RULED ON 9 Sep 2026 AND THE REASONING IS THE USEFUL PART.*** The
+port bundled both editors *"as we wanted to know what version was included
+rather than having a situation where whatever the user got was dependent on the
+date of the download."* **That reason does not transfer**: on Linux the
+distribution's package manager already pins and updates micro, and it is the
+practice this project keeps. So:
+
+- **Microsoft Edit is dropped.** Not excluded as Windows-only — it runs on Linux
+  — but not wanted.
+- **micro stays, at whatever version the distribution ships.** No bundling, no
+  download step, nothing in the installer that fetches an editor.
+- ***THE SD BASIC SYNTAX HIGHLIGHTING IS RETAINED, AND IT IS THE ONLY PIECE OF
+  THE PORT'S EDITOR WORK THAT COMES ACROSS.***
+
+**Implemented the same day.** `gplbld/mkbasicsyntax.py` and
+`gplbld/checksyntax.py` ported; `gplbld/microcfg/syntax/sdbasic.yaml` generated
+from **this tree's** `sdsys/GPL.BP/BCOMP` — 218 statements, 37 reserved words,
+176 intrinsics, validated at 24 quoted patterns and 0 bad. Generated rather than
+copied on principle: BCOMP is the compiler, so the highlighting cannot drift
+from the language. **It came out byte-identical to the port's** apart from the
+header, which is itself the measurement that the two trees' BCOMP tables agree.
+
+***AND ONE THING HAD TO CHANGE IN SD OR THE FILE WOULD HAVE DONE NOTHING.***
+micro picks a syntax file by matching a regex against the **file name it is
+given** — the working copy's, not the record's. This tree's `MICRO` wrote
+`<record>.editing`; `sdbasic.yaml` detects `\.sdbasic$`. So `MICRO` now appends
+`.sdbasic` for a BP record, using the port's own test
+(`DictText # "DICT" and upcase(InFileName[-2,2]) = "BP"`). Checked against the
+regex: `MYPROG.editing.sdbasic` highlights, `MYPROG.editing` and
+`DICT.MYPROG.editing` do not — which is the intended answer for a VOC or data
+record.
+
+**Still undecided, and NOT settled by the above:** whether `EDIT` should stop
+meaning the line editor (entry 3), and whether `MICRO` should check the editor
+exists before shelling out (entry 4). The ruling was about which editors ship,
+not about those two.
+
+## 12. Getting `sdbasic.yaml` to where micro looks
+
+**Measured on the development machine, 9 Sep 2026:** micro **2.0.15**, its
+configuration directory is `~/.config/micro`, and there is **no
+`/usr/share/micro`** — stock micro has no system-wide syntax path. So the file
+has to land in a **per-user** directory, and `installsdai.sh` runs under `sudo`
+and cannot populate the home of every user who will ever run SD.
+
+Three shapes, and the first is recommended:
+
+1. ***`MICRO` PLACES IT ON FIRST USE.*** Before launching, copy the shipped
+   `sdbasic.yaml` into `$HOME/.config/micro/syntax/` if it is absent or older.
+   Per-user, needs no privilege, self-heals for accounts created later, and
+   leaves the user's own micro settings alone. **Closest to the port**, whose
+   `micro-home.ps1` solved the same problem by giving the caller a config home.
+2. **The installer seeds it** for existing users and the skeleton profile.
+   Misses every account created afterwards.
+3. **`MICRO` passes `-config-dir`** at a shared location. Works, but **bypasses
+   the user's own micro configuration**, which is theirs and not SD's to
+   override.
+
+***UNTIL THIS LANDS THE FEATURE IS INERT, AND INERT LOOKS EXACTLY LIKE
+WORKING*** — `checksyntax.py`'s own header makes the point: micro reports a
+syntax file it cannot use by simply not highlighting, which is what a file it
+never found looks like too. **Whoever does this must check highlighting on a
+real record, not just that the file was copied.**
 
 ## 9. Porting `check-stale-leads.py`
 
