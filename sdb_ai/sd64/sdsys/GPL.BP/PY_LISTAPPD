@@ -41,6 +41,13 @@ $catalog !py_listappd
 $include KEYS.H
 $include ERR.H
 *
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if listname = '' or objname = '' then
+   set.status 1
+   return 1
+end
+* --------------------
 rtn_stat = SDPYOBJ("",objname,listname,SD_PyListAppd)
 *
 return rtn_stat

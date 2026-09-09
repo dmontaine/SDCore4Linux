@@ -25,6 +25,16 @@ $catalog !py_runfile
 
 $include KEYS.H
 
+deffun valid_os_path(path) calling '!valid_os_path'
+
+* Modified by Composer AI - 2026/06/10.
+* Reject empty or unsafe script path before SDEXT call.
+* rtnstat = SDEXT(py_script_file,@FALSE,SD_PyRunFile)
+if not(valid_os_path(py_script_file)) then
+   set.status 1
+   return 1
+end
+* --------------------
 rtnstat = SDEXT(py_script_file,@FALSE,SD_PyRunFile)
 return rtnstat
 

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -46,6 +45,14 @@
 #include "header.h"
 #include "syscom.h"
 #include "tio.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that the path following the NULL
+   check in stack_display_pu() is not reported as a NULL dereference. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 typedef struct SAVED_PU SAVED_PU;
 struct SAVED_PU {

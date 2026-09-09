@@ -134,15 +134,6 @@ void FDS_close(void);
 void dh_set_subfile(DH_FILE* dh_file, int16_t subfile, OSFILE fu);
 int64 dh_filesize(DH_FILE* dh_file, int16_t subfile);
 bool SetFileSize(OSFILE fu, int64 bytes);
-bool dh_get_data_record(DH_BLOCK* buff,
-                        int16_t group_bytes,
-                        int16_t rec_offset,
-                        DH_RECORD** rec_ptr,
-                        int16_t* rec_size);
-bool dh_validate_header_params(int32_t group_size_bytes,
-                               int32_t min_modulus,
-                               int32_t modulus,
-                               int32_t mod_value);
 
 /* DH_OPEN.C */
 int16_t get_file_entry(char* filename,

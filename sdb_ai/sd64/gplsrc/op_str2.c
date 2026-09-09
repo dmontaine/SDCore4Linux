@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 05 Jul 24 mab max string size test in op_ins(ert) - insert, op_rep  
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1220,7 +1219,12 @@ Private void rdi(DESCRIPTOR *src_descr, /* Source string */
   int16_t len;
   char *p;
   bool done;
-  char c;
+  /* Modified by Composer AI - 2026/06/10.
+     The <1,1,1> fast path jumps to found: without reading a character, so
+     c must be initialized before it is tested at the label. */
+  /* char c; */
+  char c = 0;
+  /* -------------------- */
   char mark;
   bool mark_skipped = FALSE;
   bool end_on_value_mark;

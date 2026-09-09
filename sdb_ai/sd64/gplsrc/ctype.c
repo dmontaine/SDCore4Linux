@@ -18,7 +18,6 @@
  * 
  * START-HISTORY 
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -29,7 +28,7 @@
  * should be relatively easy to implement.
  *
  * Although the C library provides locale support functions, these are not
- * immediately applicable here because Q_M requires binary transparency and
+ // * immediately applicable here because Q_M requires binary transparency and
  * the ability to sort right justified strings (amongst other problems).
  *
  * It is likely that Q_M will be adapted to support Unicode and all the
@@ -42,18 +41,12 @@
 
 #include "sd.h"
 
-#define EXTRACT_MAX_SRC_LEN 16777216
-
-/* Non-heap empty string returned only when malloc fails for Extract/CNullString. */
-static char extract_static_empty[1] = { '\0' };
-
 Private char* CNullString(void);
 
 /* ======================================================================
-   Set default_character maps
-   Maps are byte-indexed (0..255); Unicode/locale is not handled here.     */
+   Set default_character maps                                             */
 
-void set_default_character_maps(void) {
+void set_default_character_maps() {
   int i;
   int j;
   for (i = 0; i < 256; i++) {
@@ -90,28 +83,17 @@ void set_default_character_maps(void) {
 char* LowerCaseString(char* s) {
   char* p;
 
-  if (s == NULL)
-    return NULL;
-
   p = s;
-  while ((*p = LowerCase(*p)) != '\0') {
-    p++;
+  while ((*(p++) = LowerCase(*p)) != '\0') {
   }
   return s;
 }
 
 /* ======================================================================
-   MemCompareNoCase()  -  Case insensitive variant of memcmp
-   Uses UpperCase() on each byte; not locale-aware.                       */
+   MemCompareNoCase()  -  Case insensitive variant of memcmp              */
 
 int MemCompareNoCase(char* p, char* q, int16_t len) {
   signed char c;
-
-  if (p == NULL || q == NULL) {
-    if (p == q)
-      return 0;
-    return (p == NULL) ? -1 : 1;
-  }
 
   while (len--) {
     if ((c = UpperCase(*p) - UpperCase(*q)) != 0)
@@ -127,9 +109,6 @@ int MemCompareNoCase(char* p, char* q, int16_t len) {
    memichr()  -  Case insensitive variant of memchr()                     */
 
 char* memichr(char* s, char c, int n) {
-  if (s == NULL)
-    return NULL;
-
   c = UpperCase(c);
 
   while (n--) {
@@ -145,38 +124,15 @@ char* memichr(char* s, char c, int n) {
    memucpy()  -  Copy a specified number of bytes, converting to uppercase */
 
 void memucpy(char* tgt, char* src, int16_t len) {
-  if (tgt == NULL || src == NULL)
-    return;
-
   while (len--)
     *(tgt++) = UpperCase(*(src++));
-}
-
-/* ======================================================================
-   sort_compare()  -  Compare two strings for sorting                     */
-
-int sort_compare(char* s1, char* s2, int16_t bytes, bool nocase) {
-  if (s1 == NULL || s2 == NULL) {
-    if (s1 == s2)
-      return 0;
-    return (s1 == NULL) ? -1 : 1;
-  }
-  if (nocase)
-    return MemCompareNoCase(s1, s2, bytes);
-  return memcmp(s1, s2, bytes);
 }
 
 /* ======================================================================
    StringCompLenNoCase()  -  Case insensitive variant of strncmp          */
 
 int StringCompLenNoCase(char* p, char* q, int16_t len) {
-  char c;
-
-  if (p == NULL || q == NULL) {
-    if (p == q)
-      return 0;
-    return (p == NULL) ? -1 : 1;
-  }
+  register char c;
 
   while (len--) {
     if (((c = UpperCase(*p) - UpperCase(*q)) != 0) || (*p == '\0') ||
@@ -193,10 +149,7 @@ int StringCompLenNoCase(char* p, char* q, int16_t len) {
    UpperCaseMem()  -  Uppercase specified number of bytes                 */
 
 void UpperCaseMem(char* str, int16_t len) {
-  char c;
-
-  if (str == NULL)
-    return;
+  register char c;
 
   while (len--) {
     c = UpperCase(*str);
@@ -210,9 +163,6 @@ void UpperCaseMem(char* str, int16_t len) {
 char* UpperCaseString(char* s) {
   char* p;
 
-  if (s == NULL)
-    return NULL;
-
   p = s;
   while ((*p = UpperCase(*p)) != '\0') {
     p++;
@@ -222,8 +172,8 @@ char* UpperCaseString(char* s) {
 }
 
 /* ======================================================================
-   Dcount()  -  Count fields, values or subvalues
-   Only the first byte of delim_str is used (single-character delimiter). */
+   Dcount()  -  Count fields, values or subvalues                       
+   copied from qmclilib.c                                              */
 
 int Dcount(char* src, char* delim_str) {
   int32_t src_len;
@@ -231,18 +181,17 @@ int Dcount(char* src, char* delim_str) {
   int32_t ct = 0;
   char delim;
 
-  if (src == NULL || delim_str == NULL || delim_str[0] == '\0')
-    return 0;
+  if (strlen(delim_str) != 0) {
+    delim = *delim_str;
 
-  delim = delim_str[0];
-
-  src_len = strlen(src);
-  if (src_len != 0) {
-    ct = 1;
-    while ((p = memchr(src, delim, src_len)) != NULL) {
-      src_len -= (1 + p - src);
-      src = p + 1;
-      ct++;
+    src_len = strlen(src);
+    if (src_len != 0) {
+      ct = 1;
+      while ((p = memchr(src, delim, src_len)) != NULL) {
+        src_len -= (1 + p - src);
+        src = p + 1;
+        ct++;
+      }
     }
   }
 
@@ -250,76 +199,80 @@ int Dcount(char* src, char* delim_str) {
 }
 
 /* ======================================================================
-   Extract()  -  Extract field, value or subvalue
-   Returns malloc'd string; use free_extract_string() to release.
-   fno/vno/svno less than 1 are treated as 1 (whole field/value).
-   Field 0 with vno>0 addresses the attribute portion before the first
-   field mark (see op_dio2.c OSPATH chown parameters).                    */
+   Extract()  -  Extract field, value or subvalue                      
+   copied from qmclilib.c                                              */
 
 char* Extract(char* src, int fno, int vno, int svno) {
   int32_t src_len;
   char* p;
   char* result;
 
-  if (src == NULL)
-    goto null_result;
-
   src_len = strlen(src);
-  if (src_len == 0 || src_len > EXTRACT_MAX_SRC_LEN)
-    goto null_result;
+  if (src_len == 0)
+    goto null_result; /* Extracting from null string */
 
-  /* Step 1  -  Initialise variables */
+  /* Setp 1  -  Initialise variables */
 
   if (fno < 1)
     fno = 1;
 
   /* Step 2  -  Position to start of item */
 
+  /* Skip to start field */
+
   while (--fno) {
     p = memchr(src, FIELD_MARK, src_len);
     if (p == NULL)
-      goto null_result;
+      goto null_result; /* No such field */
     src_len -= (1 + p - src);
     src = p + 1;
   }
   p = memchr(src, FIELD_MARK, src_len);
   if (p != NULL)
-    src_len = p - src;
+    src_len = p - src; /* Adjust to ignore later fields */
 
   if (vno < 1)
-    goto done;
+    goto done; /* Extracting whole field */
+
+  /* Skip to start value */
 
   while (--vno) {
     p = memchr(src, VALUE_MARK, src_len);
     if (p == NULL)
-      goto null_result;
+      goto null_result; /* No such value */
     src_len -= (1 + p - src);
     src = p + 1;
   }
 
   p = memchr(src, VALUE_MARK, src_len);
   if (p != NULL)
-    src_len = p - src;
+    src_len = p - src; /* Adjust to ignore later values */
 
   if (svno < 1)
-    goto done;
+    goto done; /* Extracting whole value */
+
+  /* Skip to start subvalue */
 
   while (--svno) {
     p = memchr(src, SUBVALUE_MARK, src_len);
     if (p == NULL)
-      goto null_result;
+      goto null_result; /* No such subvalue */
     src_len -= (1 + p - src);
     src = p + 1;
   }
   p = memchr(src, SUBVALUE_MARK, src_len);
   if (p != NULL)
-    src_len = p - src;
+    src_len = p - src; /* Adjust to ignore later fields */
 
 done:
-  result = malloc((size_t)src_len + 1);
+  result = malloc(src_len + 1);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; return the empty-string helper instead of
+     passing NULL to memcpy(). */
   if (result == NULL)
-    goto null_result;
-  memcpy(result, src, (size_t)src_len);
+    return CNullString();
+  /* -------------------- */
+  memcpy(result, src, src_len);
   result[src_len] = '\0';
   return result;
 
@@ -327,22 +280,22 @@ null_result:
   return CNullString();
 }
 
-/* ======================================================================
-   free_extract_string()  -  Release result from Extract()               */
 
-void free_extract_string(char* p) {
-  if (p != NULL && p != extract_static_empty)
-    free(p);
-}
-
-Private char* CNullString(void) {
+Private char* CNullString() {
   char* p;
+  static char empty[1] = {'\0'};
 
+  /* Modified by Composer AI - 2026/06/10.
+     malloc(1) can fail; return a static empty string instead. */
+  /* p = malloc(1);
+  *p = '\0';
+  return p; */
   p = malloc(1);
   if (p == NULL)
-    return extract_static_empty;
-  p[0] = '\0';
+    return empty;
+  *p = '\0';
   return p;
+  /* -------------------- */
 }
 
 /* END-CODE */

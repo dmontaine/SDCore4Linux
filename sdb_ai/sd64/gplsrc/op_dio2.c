@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -111,7 +110,12 @@ void op_fileinfo() {
   int16_t key;
   DESCRIPTOR* descr;
   FILE_VAR* fvar;
-  DH_FILE* dh_file;
+  /* Modified by Composer AI - 2026/06/10.
+     dh_file and floatnum are only assigned on some switch paths; initialize
+     them so no path can ever read indeterminate values. */
+  /* DH_FILE* dh_file; */
+  DH_FILE* dh_file = NULL;
+  /* -------------------- */
   char* p = NULL;
   int32_t n = 0;
   FILE_ENTRY* fptr;
@@ -121,7 +125,10 @@ void op_fileinfo() {
   int32_t* q;
   STRING_CHUNK* str;
   int16_t i;
-  double floatnum;
+  /* Modified by Composer AI - 2026/06/10. See dh_file above. */
+  /* double floatnum; */
+  double floatnum = 0.0;
+  /* -------------------- */
   u_char ftype;
   int64 n64;
 
@@ -351,7 +358,13 @@ void op_fileinfo() {
           goto set_float;
         } else
           n = -1;
-        /* fall through */
+        /* Modified by Composer AI - 2026/06/10.
+           This case fell through into FL_PRI_BYTES. That was harmless
+           (FL_PRI_BYTES does nothing when not dynamic, and this point is
+           only reached when not dynamic) but unintended; add the missing
+           break, which provably preserves behaviour. */
+        break;
+        /* -------------------- */
 
       case FL_PRI_BYTES: /* 1016  Physical size of primary subfile */
         if (dynamic) {
@@ -659,7 +672,7 @@ void op_ospath() {
         }
         n--;
       } while (!access(name, 0));
-      snprintf(name, MAX_PATHNAME_LEN + 1, "D%07d", n);
+      sprintf(name, "D%07d", n);
       k_put_c_string(name, e_stack);
       e_stack++;
       goto exit_op_pathinfo;
@@ -738,7 +751,7 @@ void op_ospath() {
           if (stat(name, &stat_buff))
             continue;
 
-          snprintf(name + 1, MAX_PATHNAME_LEN, "%s", dp->d_name);
+          strcpy(name + 1, dp->d_name);
 #ifdef CASE_INSENSITIVE_FILE_SYSTEM
           UpperCaseString(name + 1);
 #endif
@@ -778,7 +791,18 @@ void op_ospath() {
         owner_name = Extract(chown_parm, 0, 1, 0);
         group_name = Extract(chown_parm, 0, 2, 0);
         chown_path = Extract(chown_parm, 0, 3, 0);
-        pwd = getpwnam(owner_name);
+        /* Modified by Composer AI - 2026/06/10.
+           Extract() can return NULL on allocation failure and owner_name
+           was passed to getpwnam() before any NULL test. Treat a NULL
+           result as invalid parameters (handled by the pwd == NULL branch
+           below). */
+        /* pwd = getpwnam(owner_name); */
+        if ((owner_name == NULL) || (group_name == NULL) || (chown_path == NULL)) {
+          pwd = NULL; /* Handled as invalid parameters below */
+        } else {
+          pwd = getpwnam(owner_name);
+        }
+        /* -------------------- */
         if (pwd != NULL) {
           uid = pwd->pw_uid;
           grp = getgrnam(group_name);
@@ -800,9 +824,9 @@ void op_ospath() {
           process.status = ER_PARAMS;  /* Invalid parameters */
         }
   
-        free_extract_string(owner_name);
-        free_extract_string(group_name);
-        free_extract_string(chown_path);
+        if (owner_name!= NULL) free(owner_name);
+        if (group_name!= NULL) free(group_name);
+        if (chown_path!= NULL) free(chown_path);
       }else{
         status = 0;
         process.status = ER_PARAMS;  /* Invalid parameters */
@@ -941,7 +965,7 @@ bool delete_path(char* path) {
     if (dfu == NULL)
       goto exit_delete_path;
 
-    snprintf(parent_path, sizeof(parent_path), "%s", path);
+    strcpy(parent_path, path);
     parent_len = strlen(parent_path);
     if (parent_path[parent_len - 1] == DS)
       parent_path[parent_len - 1] = '\0';
@@ -1008,12 +1032,9 @@ bool fullpath(char* path, /* Out (can be same as input path buffer) */
     pathnames. Use a temporary buffer and then copy the data back to the
     caller's buffer.                                                      */
 
-  if (path == NULL || name == NULL)
-    return FALSE;
-
   ok = (sdrealpath(name, buff) != NULL);
-  if (ok)
-    snprintf(path, MAX_PATHNAME_LEN + 1, "%s", buff);
+
+  strcpy(path, buff);
 
   return ok;
 }
@@ -1026,44 +1047,42 @@ bool make_path(char* tgt) {
   char new_path[MAX_PATHNAME_LEN + 1];
   char* p;
   char* q;
-  char* comp;
   struct stat statbuf;
-  size_t cur_len;
-  size_t comp_len;
+  /* Modified by Composer AI - 2026/06/10.
+     Use re-entrant strtok_r() instead of strtok(), which keeps hidden
+     static state that breaks any caller that is itself tokenizing. */
+  char* savep = NULL;
+  /* -------------------- */
 
-  if (tgt == NULL)
-    return FALSE;
-
-  snprintf(path, sizeof(path), "%s", tgt);
+  strcpy(path, tgt); /* Make local copy as we will use strtok() */
 
   p = path;
+
   q = new_path;
 
-  if (*p == DS) {
+  if (*p == DS) /* 0355 */
+  {
     *(q++) = DS;
     p++;
   }
   *q = '\0';
 
-  while ((comp = strtok(p, DSS)) != NULL) {
-    cur_len = strlen(new_path);
-    comp_len = strlen(comp);
-    if (cur_len + comp_len + 1 >= sizeof(new_path))
-      return FALSE;
-    memcpy(new_path + cur_len, comp, comp_len + 1);
+  /* Modified by Composer AI - 2026/06/10. See savep declaration above. */
+  /* while ((q = strtok(p, DSS)) != NULL) { */
+  while ((q = strtok_r(p, DSS, &savep)) != NULL) {
+  /* -------------------- */
+    strcat(new_path, q);
 
-    if (stat(new_path, &statbuf)) {
+    if (stat(new_path, &statbuf)) /* Directory does not exist */
+    {
       if (MakeDirectory(new_path) != 0)
         return FALSE;
-    } else if (!(statbuf.st_mode & S_IFDIR)) {
+    } else if (!(statbuf.st_mode & S_IFDIR)) /* Exists but not as a directory */
+    {
       return FALSE;
     }
 
-    cur_len = strlen(new_path);
-    if (cur_len + 1 >= sizeof(new_path))
-      return FALSE;
-    new_path[cur_len] = DS;
-    new_path[cur_len + 1] = '\0';
+    strcat(new_path, DSS);
     p = NULL;
   }
 

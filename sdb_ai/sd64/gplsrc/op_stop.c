@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 11 Jun 24 mab remove pickmsg op_errmsg and pick style abort op_pabort
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:

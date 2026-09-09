@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -151,7 +150,11 @@ STRING_CHUNK* s_alloc(
   if (size <= SMALL_BLOCK_SIZE) {
     /* May be able to use small block cache */
 
-    for (i = 0; i < POOL_RANGES; i++) {
+    /* Modified by Composer AI - 2026/06/10.
+       POOL_RANGES is a size_t; cast for comparison with int16_t loop index. */
+    /* for (i = 0; i < POOL_RANGES; i++) { */
+    for (i = 0; i < (int16_t)POOL_RANGES; i++) {
+    /* -------------------- */
       if (size <= pool_bytes[i]) {
         size = pool_bytes[i]; /* Round up to cached size for small strings */
         if (pool_count[i]) {
@@ -178,6 +181,13 @@ STRING_CHUNK* s_alloc(
   reqd_size = ((u_int16_t)size) + sizeof(struct STRING_CHUNK) - 1;
 
   p = (STRING_CHUNK*)k_alloc(2, reqd_size);
+  /* Modified by Composer AI - 2026/06/10.
+     k_alloc() is malloc() and can return NULL. */
+  if (p == NULL) {
+    k_error("Insufficient memory for string chunk");
+    return NULL; /* Not reached - k_error() aborts */
+  }
+  /* -------------------- */
 
 allocated_from_cache:
 
@@ -205,7 +215,10 @@ void s_free(STRING_CHUNK* str) {
     if ((bytes = str->alloc_size) <= SMALL_BLOCK_SIZE) {
       /* May be able to cache this block for the future */
 
-      for (i = 0; i < POOL_RANGES; i++) {
+      /* Modified by Composer AI - 2026/06/10. See POOL_RANGES cast above. */
+      /* for (i = 0; i < POOL_RANGES; i++) { */
+      for (i = 0; i < (int16_t)POOL_RANGES; i++) {
+      /* -------------------- */
         if (bytes == pool_bytes[i]) /* 0365 was <= */
         {
           if (pool_count[i] < pool_max[i]) {
@@ -471,7 +484,10 @@ void s_free_all() {
   /* Free all pool memory. This is primarilly for the memory leak check
     of MEMTRACE.                                                        */
 
-  for (i = 0; i < POOL_RANGES; i++) {
+  /* Modified by Composer AI - 2026/06/10. See POOL_RANGES cast above. */
+  /* for (i = 0; i < POOL_RANGES; i++) { */
+  for (i = 0; i < (int16_t)POOL_RANGES; i++) {
+  /* -------------------- */
     while (pool[i] != NULL) {
       p = pool[i];
       pool[i] = p->next;

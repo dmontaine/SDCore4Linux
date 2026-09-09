@@ -42,8 +42,6 @@
 
 #define DH_GROUP_MULTIPLIER 1024
 #define DH_MAX_GROUP_SIZE_BYTES (MAX_GROUP_SIZE * DH_GROUP_MULTIPLIER)
-#define DH_BIGREC_MAX_DATA (32 * 1024 * 1024)
-#define DH_BIGREC_MAX_CHAIN_NODES 8192
 
 /* File header parameters.
    The DHHeaderSize macro should be used to determine the primary and

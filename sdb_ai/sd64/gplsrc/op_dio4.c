@@ -21,7 +21,6 @@
  * rev 0.9.0 Jan 25 mab fix period or tilde character mapping (%t / %d) 
  *                      to match either case
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  *  START-DESCRIPTION:
@@ -1129,7 +1128,7 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
   struct stat statbuf;
 
   fptr = FPtr(fvar->file_id);
-  snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s", (char*)(fptr->pathname));
+  strcpy(pathname, (char*)(fptr->pathname));
   path_len = strlen(pathname);
 
   if ((dfu = opendir(pathname)) != NULL) {
@@ -1151,7 +1150,7 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
         continue; /* 1.3-8  Carry on rather than end */
 
       if (statbuf.st_mode & S_IFREG) {
-        snprintf(name, sizeof(name), "%s", dp->d_name);
+        strcpy(name, dp->d_name);
 #ifdef CASE_INSENSITIVE_FILE_SYSTEM
         if (!Option(OptSelectKeepCase))
           UpperCaseString(name);
@@ -1282,7 +1281,7 @@ void op_dir() {
         if (stat(name, &statbuf))
           continue;
 
-        snprintf(name, sizeof(name), "%s", dp->d_name);
+        strcpy(name, dp->d_name);
 #ifdef CASE_INSENSITIVE_FILE_SYSTEM
         UpperCaseString(name);
 #endif

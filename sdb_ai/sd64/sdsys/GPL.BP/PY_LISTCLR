@@ -40,6 +40,13 @@ $catalog !py_listclr
 $include KEYS.H
 $include ERR.H
 *
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if listname = '' then
+   set.status 1
+   return 1
+end
+* --------------------
 rtn_stat = SDPYOBJ("","",listname,SD_PyListClr)
 *
 return rtn_stat

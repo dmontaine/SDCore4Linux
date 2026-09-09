@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -137,13 +136,27 @@ void check_lost_users() {
       nice to do the whole job here, there are so many dependencies that
       sdlnxd ends up carrying around most of SD.                          */
     // converted to snprintf() -gwb 25Feb20
-    if (snprintf(cmd, MAX_PATHNAME_LEN + 10, "%s/bin/sd -cleanup", sysseg->sysdir) >= (MAX_PATHNAME_LEN + 10)) {
+    /* Modified by Composer AI - 2026/06/10.
+       Single-quote the executable path so spaces or shell metacharacters
+       in the (administrator controlled) system directory cannot break or
+       inject into the command. Also do not execute the command at all if
+       it would have been truncated, instead of running a mangled path. */
+    /* if (snprintf(cmd, MAX_PATHNAME_LEN + 10, "%s/bin/sd -cleanup", sysseg->sysdir) >= (MAX_PATHNAME_LEN + 10)) {
         printf(
             "Overflowed path/filename buffer. Truncated to:\n%s/bin/sd "
             "-cleanup",
             sysseg->sysdir);
       }
-    system(cmd);
+    system(cmd); */
+    if (snprintf(cmd, sizeof(cmd), "'%s/bin/sd' -cleanup", sysseg->sysdir) >= (int)sizeof(cmd)) {
+        printf(
+            "Overflowed path/filename buffer. Cleanup not run for:\n%s/bin/sd "
+            "-cleanup",
+            sysseg->sysdir);
+      } else {
+        system(cmd);
+      }
+    /* -------------------- */
   }
 }
 
@@ -180,7 +193,11 @@ void log_message(char* msg) {
     sprintf(buff, "%s%cerrlog", sysseg->sysdir, DS);
     errlog = open(buff, O_RDWR | O_CREAT | O_BINARY, 0777);
 
-    if (errlog >= 0) {
+    /* Modified by Composer AI - 2026/06/10.
+       If the open() failed, "bytes" was used uninitialized and write()/
+       close() were called with a negative file descriptor. Move the
+       write and close inside the successful-open branch. */
+    /* if (errlog >= 0) {
       lseek(errlog, 0, SEEK_END);
 
       timenow = time(NULL);
@@ -194,7 +211,23 @@ void log_message(char* msg) {
 
     write(errlog, buff, bytes);
 
-    close(errlog);
+    close(errlog); */
+    if (errlog >= 0) {
+      lseek(errlog, 0, SEEK_END);
+
+      timenow = time(NULL);
+      ltime = localtime(&timenow);
+
+      bytes = sprintf(buff, "%02d %.3s %02d %02d:%02d:%02d [sdlnxd]:%s   %s%s",
+                      ltime->tm_mday, month_names[ltime->tm_mon],
+                      ltime->tm_year % 100, ltime->tm_hour, ltime->tm_min,
+                      ltime->tm_sec, Newline, msg, Newline);
+
+      write(errlog, buff, bytes);
+
+      close(errlog);
+    }
+    /* -------------------- */
 
     EndExclusive(ERRLOG_SEM);
   }

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -611,9 +610,45 @@ Private void clear_parent(int16_t fno,    /* File number */
   fptr = FPtr(fno);
   nocase = (fptr->flags & DHF_NOCASE) != 0;
 
-  for (stack = txn_stack; stack != NULL; stack = stack->next) {
+  /* Modified by Composer AI - 2026/06/10.
+     Use-after-free: when an entry was dechained and k_free'd, the for
+     loop update clause still executed "prev = txn", leaving prev
+     pointing at freed memory; a later removal in the same scan then
+     wrote through it ("prev->next = ..."). Only advance prev when the
+     current entry was NOT removed. */
+  /* for (stack = txn_stack; stack != NULL; stack = stack->next) {
     prev = NULL;
     for (txn = stack->txn_head; txn != NULL; prev = txn, txn = next) {
+      next = txn->next;
+      switch (txn->mode) {
+        case TXN_WRITE:
+        case TXN_DELETE:
+          if ((txn->fvar->file_id == fno) && (txn->id_len == id_len) &&
+              (IdMatch(txn->id, id, id_len))) {
+            if (txn->mode == TXN_WRITE) {
+              if (((str = txn->str) != NULL) && (--(str->ref_ct) == 0))
+                s_free(str);
+            }
+
+            / * Dechain this entry * /
+
+            if (prev == NULL)
+              stack->txn_head = txn->next;
+            else
+              prev->next = txn->next;
+            if (txn->next == NULL)
+              stack->txn_tail = prev;
+            k_free(txn);
+          }
+          break;
+      }
+    }
+  } */
+  for (stack = txn_stack; stack != NULL; stack = stack->next) {
+    prev = NULL;
+    for (txn = stack->txn_head; txn != NULL; txn = next) {
+      bool removed = FALSE;
+
       next = txn->next;
       switch (txn->mode) {
         case TXN_WRITE:
@@ -634,11 +669,15 @@ Private void clear_parent(int16_t fno,    /* File number */
             if (txn->next == NULL)
               stack->txn_tail = prev;
             k_free(txn);
+            removed = TRUE;
           }
           break;
       }
+      if (!removed)
+        prev = txn;
     }
   }
+  /* -------------------- */
 }
 
 /* END-CODE */

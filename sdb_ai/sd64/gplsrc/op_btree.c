@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -49,6 +48,15 @@
  */
 
 #include "sd.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that paths following a k_error()
+   call (e.g. the NULL check after k_alloc at op_btinit) are not
+   reported as NULL dereferences. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 #define MAX_BTREE_KEYS 10
 
@@ -113,6 +121,12 @@ void op_btadd() {
   new_bte->right = NULL;
   new_bte->data = NULL;
   new_bte->key[0] = NULL;
+  /* Modified by Composer AI - 2026/06/10.
+     If bt_get_string() fails below, free_btree_element() reads
+     new_bte->parent before it has been assigned. Initialize it with
+     the other members of the newly allocated element. */
+  new_bte->parent = NULL;
+  /* -------------------- */
 
   /* Find the data */
 
@@ -298,6 +312,14 @@ void op_btadda() {
     bt_not_a_btree();
   bth = descr->data.btree;
   keys = bth->keys; /* Number of keys */
+  /* Modified by Composer AI - 2026/06/10.
+     Validate the key count from the BTree header. A key count outside
+     1..MAX_BTREE_KEYS would leave the new element's key array
+     uninitialized (used later in the tree walk and in
+     free_btree_element) and under-allocate the element below. */
+  if ((keys < 1) || (keys > MAX_BTREE_KEYS))
+    bt_key_count();
+  /* -------------------- */
 
   /* Find the keys array */
 
@@ -321,6 +343,12 @@ void op_btadda() {
   new_bte->left = NULL;
   new_bte->right = NULL;
   new_bte->data = NULL;
+  /* Modified by Composer AI - 2026/06/10.
+     If bt_get_string() fails below, free_btree_element() reads
+     new_bte->parent before it has been assigned. Initialize it with
+     the other members of the newly allocated element. */
+  new_bte->parent = NULL;
+  /* -------------------- */
   for (index = 0; index < keys; index++)
     new_bte->key[index] = NULL;
 

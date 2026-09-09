@@ -40,6 +40,14 @@ $catalog !is_user
 
 user_found = @false
 set.status 0
+* Modified by Composer AI - 2026/06/10.
+* Empty username cannot match /etc/passwd; avoid pointless file scan.
+* read the /etc/passwd file
+if username = '' then
+   set.status 1
+   return user_found
+end
+* --------------------
 * read the /etc/passwd file
 openpath "/etc" to etc then 
   read rec from etc, "passwd" then 

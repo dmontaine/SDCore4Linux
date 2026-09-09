@@ -40,6 +40,13 @@ $catalog !py_strget
 $include KEYS.H
 $include ERR.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if strname = '' then
+   set.status 1
+   return ''
+end
+* --------------------
 string = SDPYOBJ("","",strname,SD_PYStrGet)
 *
 return string

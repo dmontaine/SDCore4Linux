@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -66,57 +65,6 @@ Private int16_t FDS_open_count = 0;
 Private void restart_tx_ref(void);
 
 bool FDS_open(DH_FILE* dh_file, int16_t subfile);
-
-/* ====================================================================== */
-
-bool dh_validate_header_params(int32_t group_size_bytes,
-                               int32_t min_modulus,
-                               int32_t modulus,
-                               int32_t mod_value) {
-  if (group_size_bytes <= 0 || group_size_bytes > DH_MAX_GROUP_SIZE_BYTES)
-    return FALSE;
-  if (min_modulus < 1 || modulus < min_modulus)
-    return FALSE;
-  if (mod_value < 1 || mod_value < modulus)
-    return FALSE;
-  return TRUE;
-}
-
-/* ====================================================================== */
-
-bool dh_get_data_record(DH_BLOCK* buff,
-                        int16_t group_bytes,
-                        int16_t rec_offset,
-                        DH_RECORD** rec_ptr,
-                        int16_t* rec_size) {
-  DH_RECORD* rp;
-
-  if (buff == NULL || rec_ptr == NULL || rec_size == NULL)
-    return FALSE;
-
-  if (buff->used_bytes <= 0 || buff->used_bytes > group_bytes) {
-    dh_err = DHE_POINTER_ERROR;
-    return FALSE;
-  }
-
-  if (rec_offset < (int16_t)offsetof(DH_BLOCK, record) ||
-      rec_offset >= buff->used_bytes) {
-    dh_err = DHE_POINTER_ERROR;
-    return FALSE;
-  }
-
-  rp = (DH_RECORD*)(((char*)buff) + rec_offset);
-  *rec_size = rp->next;
-
-  if (*rec_size < (int16_t)RECORD_HEADER_SIZE ||
-      (rec_offset + *rec_size) > buff->used_bytes) {
-    dh_err = DHE_POINTER_ERROR;
-    return FALSE;
-  }
-
-  *rec_ptr = rp;
-  return TRUE;
-}
 
 /* ====================================================================== */
 
@@ -455,11 +403,6 @@ int32_t dh_get_overflow(
 
     group_bytes = (int16_t)(dh_file->group_size);
     buff = (char*)k_alloc(74, group_bytes);
-    if (buff == NULL) {
-      dh_err = DHE_NO_MEM;
-      ogrp = 0;
-      goto exit_get_overflow;
-    }
 
     if (!ValidFileHandle(dh_file->sf[subfile].fu)) {
       if (!FDS_open(dh_file, subfile)) {
@@ -531,10 +474,6 @@ void dh_free_overflow(DH_FILE* dh_file, int32_t ogrp) {
   group_bytes = (int16_t)(dh_file->group_size);
 
   buff = (char*)k_alloc(103, group_bytes);
-  if (buff == NULL) {
-    dh_err = DHE_NO_MEM;
-    return;
-  }
   memset(buff, '\0', group_bytes);
 
   header_lock = GetGroupWriteLock(dh_file, 0);
@@ -554,19 +493,9 @@ bool dh_flush_header(DH_FILE* dh_file) {
   DH_HEADER header;
   FILE_ENTRY* fptr;
 
-  if (dh_file == NULL) {
-    dh_err = DHE_FILE_NOT_OPEN;
-    return FALSE;
-  }
-
-  fptr = FPtr(dh_file->file_id);
-  if (fptr == NULL) {
-    dh_err = DHE_NOT_A_FILE;
-    return FALSE;
-  }
-
   /* Save if we have updated the file or statistics counting is enabled */
 
+  fptr = FPtr(dh_file->file_id);
   if (((dh_file->flags & FILE_UPDATED) || fptr->stats.reset) &&
       !(dh_file->flags & DHF_RDONLY)) {
     dh_file->flags &= ~FILE_UPDATED;
@@ -575,8 +504,6 @@ bool dh_flush_header(DH_FILE* dh_file) {
       if (!FDS_open(dh_file, PRIMARY_SUBFILE)) {
         log_printf("DH_FLUSH_HEADER: FDS open failure %d on %s subfile %d.\n",
                    process.os_error, fptr->pathname, PRIMARY_SUBFILE);
-        if (dh_err == 0)
-          dh_err = DHE_FDS_OPEN_ERR;
         return FALSE;
       }
     }
@@ -587,8 +514,6 @@ bool dh_flush_header(DH_FILE* dh_file) {
 
     if (!read_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)0, (char*)(&header),
                  DH_HEADER_SIZE)) {
-      if (dh_err == 0)
-        dh_err = DHE_READ_ERROR;
       return FALSE;
     }
 
@@ -610,8 +535,6 @@ bool dh_flush_header(DH_FILE* dh_file) {
 
     if (!write_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)0, (char*)(&header),
                   DH_HEADER_SIZE)) {
-      if (dh_err == 0)
-        dh_err = DHE_PSFH_WRITE_ERROR;
       return FALSE;
     }
 
@@ -906,10 +829,7 @@ int OpenFile(char* path, int mode, int rights) {
    SetFileSize()  -  Change file size                                     */
 
 bool SetFileSize(OSFILE fu, int64 bytes) {
-  if (chsize64(fu, bytes) != 0) {
-    process.os_error = OSError;
-    return FALSE;
-  }
+  chsize64(fu, bytes);
   return TRUE;
 }
 

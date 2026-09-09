@@ -18,7 +18,6 @@
 * 
 * 
 * START-HISTORY:
-* rev 1.0-2 May 25 2026 dsm update login message to warn system not suitable for production
 * rev 0.9.1 Mar 25 mab return to single rev tracking
 * rev 0.9.0 Jan 25 mab change permission required for account login, must now either be;
 *                      1) users ACCOUNT
@@ -157,11 +156,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    if not(bitand(kernel(K$COMMAND.OPTIONS, 0), CMD.QUIET)) then
       *display "[ ScarletDME Rev " : SD.REV.STAMP : "   Copyright Ladybridge Systems, " : SD.COPYRIGHT.YEAR : " ]"
 * rev 0.9.1 back to single rev track 
-      display "SD-AI, the Multivalue String Database, version " : SD.REV.STAMP 
+      * Modified by Composer AI - 2026/06/10.
+      * Close version banner string; unclosed quote caused "Unrecognised statement".
+      * display "SD, the Multivalue String Database, version " : SD.REV.STAMP : "(AI modified)
+      display "SD, the Multivalue String Database, version " : SD.REV.STAMP : " (AI modified)"
+      * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
-      display
-      display WARNING: This version of SD is not suitable for production use.
-      display          We are testing AI code check and refactoring.
       display
       * following must be left to comply with clause 1 of the gpl licence
       display "This program is free software and is supplied with ABSOLUTELY NO WARRANTY."

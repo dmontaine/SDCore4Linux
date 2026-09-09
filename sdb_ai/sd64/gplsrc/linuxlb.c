@@ -18,12 +18,10 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
- * Linux portability shims: file length, username, path canonicalisation,
- * sleep.  Callers of itoa()/Ltoa() must supply a buffer of at least 24 bytes.
+ *
  *
  * END-DESCRIPTION
  *
@@ -32,7 +30,6 @@
 
 #include "sd.h"
 
-#include <limits.h>
 #include <pwd.h>
 #include <time.h>
 
@@ -40,16 +37,14 @@
 #include <crypt.h>
 #endif
 
-#define ITOA_BUF_MIN 24
-
 /* ======================================================================
    filelength64()  -  Return file size in bytes                           */
 
-int64 filelength64(int fd) {
+int64 filelength64(fd) int fd;
+{
   struct stat statbuf;
 
-  if (fstat(fd, &statbuf) != 0)
-    return (int64)-1;
+  fstat(fd, &statbuf);
   return statbuf.st_size;
 }
 
@@ -63,47 +58,56 @@ bool IsAdmin(void) {
 /* ======================================================================
    itoa()  -  Convert integer to string                                   */
 
-char* itoa(int value, char* string, int radix) {
-  (void)radix;
-  snprintf(string, ITOA_BUF_MIN, "%d", value);
+char* itoa(value, string, radix) int value;
+char* string;
+int radix; /* Ignored */
+{
+  sprintf(string, "%d", value);
   return string;
 }
 
 /* ======================================================================
    Ltoa()  -  Convert long integer to string                              */
 
-char* Ltoa(int32_t value, char* string, int radix) {
-  (void)radix;
-  snprintf(string, ITOA_BUF_MIN, "%d", value);
+char* Ltoa(value, string, radix) int32_t value;
+char* string;
+int radix; /* Ignored */
+{
+  sprintf(string, "%d", value);
   return string;
 }
 
 /* ======================================================================
    GetUserName()  -  Return user name for logged in user.                 */
 
-bool GetUserName(char* name, u_int32_t* bytes) {
+bool GetUserName(name, bytes) char* name;
+u_int32_t* bytes; /* Buffer size - updated to actual size on exit */
+{
+  char* p;
+  int n = 0;
   struct passwd* pw;
-  size_t len;
-  size_t buf_sz;
-
-  if (name == NULL || bytes == NULL || *bytes == 0)
-    return FALSE;
 
   pw = getpwuid(getuid());
-  if (pw == NULL || pw->pw_name == NULL) {
-    name[0] = '\0';
-    *bytes = 0;
-    return FALSE;
+  p = (pw == NULL) ? NULL : (pw->pw_name);
+
+  if (p != NULL) {
+    n = strlen(p);
+    /* Modified by Composer AI - 2026/06/10.
+       The truncation test was inverted: a name shorter than the buffer
+       was padded by copying bytes from beyond the end of the password
+       entry (returning a wrong length), and a name longer than the
+       buffer was copied in full, overflowing it. Truncate only when the
+       name does not fit. */
+    /* if (*bytes >= n)
+      n = *bytes - 1; */
+    if (n >= (int)*bytes)
+      n = *bytes - 1;
+    /* -------------------- */
+    memcpy(name, p, n);
   }
+  *(name + n) = '\0';
+  *bytes = n;
 
-  len = strlen(pw->pw_name);
-  buf_sz = (size_t)*bytes;
-  if (len >= buf_sz)
-    len = buf_sz - 1;
-
-  memcpy(name, pw->pw_name, len);
-  name[len] = '\0';
-  *bytes = (u_int32_t)len;
   return TRUE;
 }
 
@@ -112,7 +116,7 @@ bool GetUserName(char* name, u_int32_t* bytes) {
                     pathnames that do not exist.                          */
 
 char* sdrealpath(char* inpath,  /* Supplied path */
-                 char* outpath) /* Full path (PATH_MAX bytes) */
+                 char* outpath) /* Full path */
 {
   char* tgt;
   char* p;
@@ -121,10 +125,6 @@ char* sdrealpath(char* inpath,  /* Supplied path */
   int n;
   int link_depth = 0;
   char link_buf[PATH_MAX + 1];
-  size_t remain;
-
-  if (inpath == NULL || outpath == NULL)
-    return NULL;
 
   switch (inpath[0]) {
     case '/': /* Absolute pathname */
@@ -136,11 +136,8 @@ char* sdrealpath(char* inpath,  /* Supplied path */
       return NULL;
 
     default: /* Relative pathname - get current directory */
-      if (getcwd(outpath, PATH_MAX) == NULL)
-        return NULL;
+      getcwd(outpath, PATH_MAX);
       tgt = strchr(outpath, '\0');
-      if (tgt == NULL)
-        return NULL;
       break;
   }
 
@@ -149,16 +146,12 @@ char* sdrealpath(char* inpath,  /* Supplied path */
     /* Skip over multiple delimiters */
     while (*p == '/')
       p++;
-    if (*p == '\0')
-      break;
 
     /* Find next delimiter or end of inpath */
     q = p;
     while (*q != '\0' && *q != '/')
       q++;
-    n = (int)(q - p);
-    if (n == 0)
-      break;
+    n = q - p;
 
     if ((*p == '.') && (n == 1)) /* . reference */
     {
@@ -172,18 +165,18 @@ char* sdrealpath(char* inpath,  /* Supplied path */
       }
     } else /* Name reference */
     {
-      if (tgt > outpath && *(tgt - 1) != '/')
+      if (*(tgt - 1) != '/')
         *(tgt++) = '/';
 
       /* Append this name unless it would overrun the buffer */
 
-      if ((size_t)(tgt + n - outpath) >= PATH_MAX)
+      if (tgt + n - outpath >= PATH_MAX)
         return NULL;
 
-      memcpy(tgt, p, (size_t)n);
+      memcpy(tgt, p, n);
+      p = q + 1;
       tgt += n;
       *tgt = '\0';
-      p = q;
 
       /* Check the path exists and whether it is a symlink */
 
@@ -191,15 +184,21 @@ char* sdrealpath(char* inpath,  /* Supplied path */
         if (errno != ENOENT)
           return NULL;
 
-        /* Glue remaining components for paths that do not exist yet */
+        /* Simply glue unrecognised component(s) on the end so that we
+          return a fully resolved path of what we might be trying to
+          create.                                                      */
 
-        if (*p != '\0') {
-          remain = strlen(p);
-          if ((size_t)(tgt - outpath) + 1 + remain >= PATH_MAX)
-            return NULL;
+        /* Modified by Composer AI - 2026/06/10.
+           Cast the (always non-negative) pointer difference so the
+           comparison is not done between signed and unsigned types. */
+        /* if ((p - inpath) <= strlen(inpath)) { */
+        if ((size_t)(p - inpath) <= strlen(inpath)) {
+        /* -------------------- */
+          if (tgt + strlen(p) + 1 >= outpath + PATH_MAX)
+            return NULL; /* Too long */
 
           *(tgt++) = '/';
-          memcpy(tgt, p, remain + 1);
+          strcpy(tgt, p);
         }
         return outpath;
       }
@@ -208,38 +207,32 @@ char* sdrealpath(char* inpath,  /* Supplied path */
         if (++link_depth > 20)
           return NULL; /* Symlinks too deep */
 
-        n = (int)readlink(outpath, link_buf, PATH_MAX);
-        if (n < 0 || n >= PATH_MAX)
+        n = readlink(outpath, link_buf, PATH_MAX);
+        if (n < 0)
           return NULL;
 
         link_buf[n] = '\0';
 
         if (link_buf[0] == '/') /* It's an absolute symlink */
         {
-          snprintf(outpath, PATH_MAX + 1, "%s", link_buf);
-          tgt = strchr(outpath, '\0');
-          if (tgt == NULL)
-            return NULL;
+          strcpy(outpath, link_buf);
+          tgt = outpath + n;
         } else {
           /* Back up one level unless already at root directory */
-          if (tgt > outpath + 1) {
+          if (tgt > outpath + 1)
             while (*((--tgt) - 1) != '/') {
             }
-          }
 
-          if ((size_t)(tgt + n - outpath) >= PATH_MAX)
+          if (tgt + n - outpath >= PATH_MAX)
             return NULL;
 
-          memcpy(tgt, link_buf, (size_t)n);
+          strcpy(tgt, link_buf);
           tgt += n;
-          *tgt = '\0';
         }
       }
     }
 
     p = q;
-    if (*p == '/')
-      p++;
   }
 
   /* Remove trailing / if present unless root directory reference */
@@ -254,15 +247,13 @@ char* sdrealpath(char* inpath,  /* Supplied path */
 /* ======================================================================
    Sleep()  -  Sleep for period in milliseconds                           */
 
-void Sleep(int32_t n) {
+void Sleep(n) int32_t n;
+{
   struct timespec period;
   struct timespec remaining;
 
-  if (n < 0)
-    n = 0;
-
   period.tv_sec = n / 1000;
-  period.tv_nsec = (long)((n % 1000) * 1000000);
+  period.tv_nsec = (n % 1000) * 1000000;
   nanosleep(&period, &remaining);
 }
 

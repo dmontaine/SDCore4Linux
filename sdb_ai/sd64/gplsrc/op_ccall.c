@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -68,7 +67,12 @@ Private void ccall_c(unsigned char* s1, void* s2) {
   #endif
   u_int32_t Stk[50];
   int StkCnt;
-  u_int64 res64;
+  /* Modified by Composer AI - 2026/06/10.
+     res64 was used uninitialized if a result was stored before any
+     call/load operation had set it. Initialize to zero. */
+  /* u_int64 res64; */
+  u_int64 res64 = 0;
+  /* -------------------- */
   void* v;
 
   u_int64 (*Fn0)();
@@ -122,7 +126,7 @@ Private void ccall_c(unsigned char* s1, void* s2) {
         break;
 
       case 6: /* call function */
-        memcpy(&Fn0, s1, sizeof(Fn0));
+        Fn0 = *(void**)s1;
         s1 += sizeof(void*);
         switch (StkCnt) {
           case 0:

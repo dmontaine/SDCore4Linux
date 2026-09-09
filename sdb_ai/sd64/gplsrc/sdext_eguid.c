@@ -20,10 +20,7 @@
  * 
  * START-HISTORY:
  * rev 0.9.0 Jan 25 mab initial commit
-  * 24 May 26 - Code reviewed and updated by Claude AI
- * END-HISTORY
- *
- * START-DESCRIPTION:
+  * START-DESCRIPTION:
  *
  *
  * END-DESCRIPTION
@@ -84,7 +81,13 @@ void sdext_eguid_set(int key, char* Arg){
       break;
 
     case SD_EUID_RESTORE: /* Restore euid    */
-      if (caller_uid < 0){
+      /* Modified by Composer AI - 2026/06/10.
+         caller_uid is uid_t (unsigned), so "caller_uid < 0" is always false
+         and the "RESTORE before SET" error could never be reported. Compare
+         against the (uid_t)-1 sentinel it is initialized with instead. */
+      /* if (caller_uid < 0){ */
+      if (caller_uid == (uid_t)-1){
+      /* -------------------- */
         myResult =  SD_EUID_NSET_Err; /* SD_EUID_RESTORE called before SD_EUID_SET */ 
       } else {
         if (((setegid(caller_gid) == 0) && (seteuid(caller_uid) == 0)) == FALSE){

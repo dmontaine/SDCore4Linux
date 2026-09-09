@@ -59,17 +59,23 @@ TEMPSRCS := $(wildcard *.c)
 SRCS     := $(TEMPSRCS:sdclient.c=)
 OBJS     := $(SRCS:.c=.o)
 DIROBJS  := $(addprefix $(GPLOBJ),$(OBJS))
-	
+
+# Define BITSIZE variable
+BITSIZE := 64
+
+# Create necessary directories
+$(shell mkdir -p $(GPLOBJ) $(GPLBIN))
+
+# Default target
+all: sd
+
 sd: ARCH :=
-sd: BITSIZE := 64
-# rev 0.9.0 python
 sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE
 sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
-	@cd $(GPLOBJ)
-	@$(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd	
+	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd
 
-sdclilib.so: sdclilib.o
+sdclilib.so: sdclilib.o linuxlb.o
 	@echo Linking $@
 	@$(COMP) -shared -Wl,$(SONAME_OPT),sdclilib.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o -o $(GPLBIN)sdclilib.so
 	@$(COMP) -shared -Wl,$(SONAME_OPT),libsdcli.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o -o $(GPLBIN)libsdcli.so
@@ -92,17 +98,21 @@ sdidx: sdidx.o
 
 sdlnxd: sdlnxd.o sdsem.o
 	@echo Linking $@
-	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdlnxd.o $(GPLOBJ)sdsem.o -o $(GPLBIN)sdlnxd	
+	@$(COMP) $(C_FLAGS) -lc $(GPLOBJ)sdlnxd.o $(GPLOBJ)sdsem.o -o $(GPLBIN)sdlnxd
 
 terminfo:
 	@echo Compiling terminfo library
 	@rm -Rf $(TERMINFO)
-	@mkdir $(TERMINFO)
+	@mkdir -p $(TERMINFO)
 	@$(GPLBIN)sdtic -pterminfo $(MAIN)terminfo.src
 
 sdclilib.o: sdclilib.c revstamp.h
 	@echo Compiling $@ with -fPIC
 	@$(COMP) $(C_FLAGS) -fPIC -c $(GPLSRC)sdclilib.c -o $(GPLOBJ)sdclilib.o
+
+linuxlb.o: linuxlb.c
+	@echo Compiling $@
+	@$(COMP) $(C_FLAGS) -c $(GPLSRC)linuxlb.c -o $(GPLOBJ)linuxlb.o
 
 # We need to make sure that anything that includes revstamp.h gets built if revstamp.h
 # changes.
@@ -113,7 +123,6 @@ config.o: config.c config.h sd.h revstamp.h
 kernel.o: kernel.c sd.h revstamp.h header.h tio.h debug.h keys.h syscom.h config.h \
 	options.h dh_int.h locks.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)kernel.o
-
 
 op_kernel.o: op_kernel.c sd.h revstamp.h header.h tio.h debug.h keys.h syscom.h \
 	config.h options.h dh_int.h locks.h
@@ -128,7 +137,7 @@ pdump.o: pdump.c sd.h header.h syscom.h config.h revstamp.h locks.h dh_int.h
 sd.o:	sd.c sd.h revstamp.h header.h debug.h dh_int.h tio.h config.h options.h \
 locks.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sd.o
-	
+
 sdclient.o: sdclient.c sddefs.h revstamp.h sdclient.h err.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sdclient.o
 
@@ -153,4 +162,11 @@ sysseg.o: sysseg.c sd.h locks.h config.h revstamp.h
 .c.o:
 	@echo Compiling $@, $(BITSIZE) bit target.
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)$@
-	
+
+.PHONY: all clean
+
+clean:
+	@echo Cleaning build files
+	@$(RM) -f $(GPLOBJ)*.o
+	@$(RM) -f $(GPLBIN)sd $(GPLBIN)sdclilib.so $(GPLBIN)libsdcli.so $(GPLBIN)sdtic $(GPLBIN)sdfix $(GPLBIN)sdconv $(GPLBIN)sdidx $(GPLBIN)sdlnxd
+	@$(RM) -Rf $(TERMINFO)

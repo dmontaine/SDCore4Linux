@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1177,7 +1176,11 @@ void op_quotient() {
 
   DESCRIPTOR* arg1;
   DESCRIPTOR* arg2;
-  int32_t result;
+  /* Modified by Composer AI - 2026/06/10.
+     result was used uninitialized if neither switch case matched. */
+  /* int32_t result; */
+  int32_t result = 0;
+  /* -------------------- */
 
   arg1 = e_stack - 1;
   GetNum(arg1);

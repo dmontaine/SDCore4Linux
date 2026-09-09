@@ -40,6 +40,14 @@ $no.xref
 function abspath((dir), rel)
 $catalogue !abspath
 
+   * Modified by Composer AI - 2026/06/10.
+   * Null relative path returns the directory root unchanged.
+   if rel = '' then
+      if dir = '' then return @path
+      return dir
+   end
+   * --------------------
+
    begin case
       case rel[1,6] = '@SDSYS'            ;* SDSYS reference
          path = @sdsys : rel[7,99999]

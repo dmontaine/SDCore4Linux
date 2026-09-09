@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -533,7 +532,10 @@ void process_file() {
           case '#': /* Numeric parameter */
             if ((n = lookup((char*)id, numnames, NumNumNames)) < 0)
               continue;
-            numerics[n] = atoi(++p);
+            /* Modified by Composer AI - 2026/06/10. atoi -> strtol. */
+            /* numerics[n] = atoi(++p); */
+            numerics[n] = (int)strtol(++p, NULL, 10);
+            /* -------------------- */
             if (n >= tinfo.header.num_count)
               tinfo.header.num_count = n + 1;
             break;
@@ -612,11 +614,22 @@ void process_file() {
 
       /* Write to terminfo database */
 
-      p = strtok(term_name, "|");
-      do {
-        if ((name_head == NULL) || in_list(p))
-          (void)write_entry(p);
-      } while ((p = strtok(NULL, "|")) != NULL);
+      /* Modified by Composer AI - 2026/06/10.
+         Use re-entrant strtok_r() instead of strtok(). */
+      {
+        char* savep = NULL;
+        /* p = strtok(term_name, "|");
+        do {
+          if ((name_head == NULL) || in_list(p))
+            (void)write_entry(p);
+        } while ((p = strtok(NULL, "|")) != NULL); */
+        p = strtok_r(term_name, "|", &savep);
+        do {
+          if ((name_head == NULL) || in_list(p))
+            (void)write_entry(p);
+        } while ((p = strtok_r(NULL, "|", &savep)) != NULL);
+      }
+      /* -------------------- */
 
       errors = 0;
       reset_buffers();
@@ -942,6 +955,11 @@ void decompile_entry() {
     }
 
     tn = malloc(offsetof(struct TN, name) + strlen(p) + 1);
+    /* Modified by Composer AI - 2026/06/10.
+       malloc() can fail; skip duplicate tracking on allocation failure. */
+    if (tn == NULL)
+      goto exit_decompile_entry;
+    /* -------------------- */
     strcpy(tn->name, p);
     tn->next = tn_head;
     tn_head = tn;
@@ -957,7 +975,11 @@ void decompile_entry() {
   /* ----- Booleans */
 
   for (i = 0; i < tinfo.header.bool_count; i++, p++) {
-    if (i < NumBoolNames) {
+    /* Modified by Composer AI - 2026/06/10.
+       NumBoolNames is size_t; cast for comparison with int16_t index. */
+    /* if (i < NumBoolNames) { */
+    if (i < (int)NumBoolNames) {
+    /* -------------------- */
       n = *p;
       if (n == -1)
         continue; /* Absent string */
@@ -983,7 +1005,10 @@ void decompile_entry() {
       continue; /* Absent number */
     if (n == -2)
       continue; /* Cancelled number */
-    if (i < NumNumNames) {
+    /* Modified by Composer AI - 2026/06/10. See NumNumNames cast above. */
+    /* if (i < NumNumNames) { */
+    if (i < (int)NumNumNames) {
+    /* -------------------- */
       emit("%s#%d", numnames[i], (int)n);
     }
   }
@@ -1001,7 +1026,10 @@ void decompile_entry() {
       continue; /* Absent string */
     if (n == -2)
       continue; /* Cancelled string */
-    if (i < NumStrNames) {
+    /* Modified by Composer AI - 2026/06/10. See NumStrNames cast above. */
+    /* if (i < NumStrNames) { */
+    if (i < (int)NumStrNames) {
+    /* -------------------- */
       if (strcmp(strnames[i], "acsc") == 0)
         continue; /* Omit acsc */
 
@@ -1162,6 +1190,11 @@ void build_index(bool decomp) {
 
               n = strlen(dp2->d_name);
               p = malloc(offsetof(struct NAME, name) + n + 1);
+              /* Modified by Composer AI - 2026/06/10.
+                 malloc() can fail; skip this directory entry. */
+              if (p == NULL)
+                continue;
+              /* -------------------- */
               strcpy(p->name, dp2->d_name);
 
               for (q = name_head, prev = NULL; q != NULL; q = q->next) {

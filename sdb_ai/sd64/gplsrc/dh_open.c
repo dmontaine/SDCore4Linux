@@ -18,7 +18,6 @@
  *
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -111,10 +110,10 @@ DH_FILE* dh_open(char path[]) {
   /* Open primary subfile */
   /* replaced sprintf() -gwb 22Feb20 */
   /* 0.9.0 */
-  if (snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s%c%%0", filename, DS) >=
-      (MAX_PATHNAME_LEN + 1)) {
-    dh_err = DHE_NAME_TOO_LONG;
-    goto exit_dh_open;
+  if (snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s%c%%0", filename, DS) >= (MAX_PATHNAME_LEN + 1)) {
+    /* TODO: this should be added to the system log file. */
+     k_error("Overflowed directory/filename path length in dh_open()!");
+     goto exit_dh_open;
   }
   if (access(pathname, 2))
     read_only = TRUE;
@@ -157,13 +156,6 @@ DH_FILE* dh_open(char path[]) {
     goto exit_dh_open;
   }
 
-  if (!dh_validate_header_params(header.group_size, header.params.min_modulus,
-                                 header.params.modulus,
-                                 header.params.mod_value)) {
-    dh_err = DHE_PSFH_FAULT;
-    goto exit_dh_open;
-  }
-
   /* Check if this file may contain a record id longer than the maximum
      we can support.  The longest_id element of the DH_PARAMS structure
      is set to the length of the longest id written to the file.  This
@@ -178,10 +170,10 @@ DH_FILE* dh_open(char path[]) {
   /* Open overflow subfile */
   /* converted to snprintf() -gwb 22Feb20 */
   /* rev 0.9.0 */
-  if (snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s%c%%1", filename, DS) >=
-      (MAX_PATHNAME_LEN + 1)) {
-    dh_err = DHE_NAME_TOO_LONG;
-    goto exit_dh_open;
+  if (snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s%c%%1", filename, DS) >= (MAX_PATHNAME_LEN + 1)) {
+    /* TODO: this should be added to the system log file. */
+     k_error("Overflowed directory/filename path length in dh_open()!");
+     goto exit_dh_open;
   }
   if (access(pathname, 2))
     read_only = TRUE;
@@ -237,7 +229,14 @@ DH_FILE* dh_open(char path[]) {
     dh_file->akpath = NULL;
   else {
     dh_file->akpath = (char*)k_alloc(106, strlen(header.akpath) + 1);
-    strcpy(dh_file->akpath, header.akpath);
+    /* Modified by Composer AI - 2026/06/10.
+       k_alloc() can return NULL; leave akpath unset on failure. */
+    if (dh_file->akpath == NULL) {
+      dh_file->akpath = NULL;
+    } else {
+      strcpy(dh_file->akpath, header.akpath);
+    }
+    /* -------------------- */
   }
 
   /* Transfer file units into DH_FILE structure so that we do not have
@@ -254,24 +253,32 @@ DH_FILE* dh_open(char path[]) {
   if (header.trigger_name[0] != '\0') {
     dh_file->trigger_name =
         (char*)k_alloc(69, strlen(header.trigger_name) + 1); /* 0259 */
-    strcpy(dh_file->trigger_name, header.trigger_name);
+    /* Modified by Composer AI - 2026/06/10.
+       k_alloc() can return NULL; skip trigger setup on failure. */
+    if (dh_file->trigger_name == NULL) {
+      dh_file->trigger_name = NULL;
+    } else {
+      strcpy(dh_file->trigger_name, header.trigger_name);
+    }
+    /* -------------------- */
+    if (dh_file->trigger_name != NULL) {
+      /* Attempt to snap link to trigger function */
 
-    /* Attempt to snap link to trigger function */
+      obj = (OBJECT_HEADER*)load_object(header.trigger_name, FALSE);
+      if (obj != NULL)
+        obj->ext_hdr.prog.refs += 1;
+      dh_file->trigger = (u_char*)obj;
+      dh_file->flags |= DHF_TRIGGER;
 
-    obj = (OBJECT_HEADER*)load_object(header.trigger_name, FALSE);
-    if (obj != NULL)
-      obj->ext_hdr.prog.refs += 1;
-    dh_file->trigger = (u_char*)obj;
-    dh_file->flags |= DHF_TRIGGER;
+      /* Copy the trigger mode flags. If this file pre-dates the introduction
+         of these flags, the byte will be zero. Set the defaults to be as they
+         were for old versions of the system.                                 */
 
-    /* Copy the trigger mode flags. If this file pre-dates the introduction
-       of these flags, the byte will be zero. Set the defaults to be as they
-       were for old versions of the system.                                 */
-
-    if (header.trigger_modes)
-      dh_file->trigger_modes = header.trigger_modes;
-    else
-      dh_file->trigger_modes = TRG_PRE_WRITE | TRG_PRE_DELETE;
+      if (header.trigger_modes)
+        dh_file->trigger_modes = header.trigger_modes;
+      else
+        dh_file->trigger_modes = TRG_PRE_WRITE | TRG_PRE_DELETE;
+    }
   }
 
   /* Now process any AK indices */
@@ -351,10 +358,6 @@ DH_FILE* dh_open(char path[]) {
           /* Fetch I-type from separate node */
 
           ibuff = (char*)k_alloc(53, DH_AK_NODE_SIZE);
-          if (ibuff == NULL) {
-            dh_err = DHE_NO_MEM;
-            goto exit_dh_open;
-          }
           do {
             if (!dh_read_group(dh_file, subfile, ak_node_num, ibuff,
                                DH_AK_NODE_SIZE)) {
@@ -363,8 +366,6 @@ DH_FILE* dh_open(char path[]) {
 
             n = ((DH_ITYPE_NODE*)ibuff)->used_bytes -
                 offsetof(DH_ITYPE_NODE, data);
-            if (n < 0 || n > (DH_AK_NODE_SIZE - (int)offsetof(DH_ITYPE_NODE, data)))
-              n = DH_AK_NODE_SIZE - (int)offsetof(DH_ITYPE_NODE, data);
             ts_copy((char*)(((DH_ITYPE_NODE*)ibuff)->data), n);
             ak_node_num = GetAKFwdLink(dh_file, ((DH_ITYPE_NODE*)ibuff)->next);
           } while (ak_node_num);
@@ -444,11 +445,7 @@ exit_dh_open:
 int32_t dh_modulus(DH_FILE* dh_file) {
   FILE_ENTRY* fptr;
 
-  if (dh_file == NULL)
-    return 0;
   fptr = FPtr(dh_file->file_id);
-  if (fptr == NULL)
-    return 0;
   return fptr->params.modulus;
 }
 

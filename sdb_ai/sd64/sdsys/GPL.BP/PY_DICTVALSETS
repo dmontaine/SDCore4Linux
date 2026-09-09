@@ -42,6 +42,13 @@ $catalog !py_dictvalsets
 $include KEYS.H
 $include ERR.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if dictname = '' or key = '' then
+   set.status 1
+   return 1
+end
+* --------------------
 rtn_status = SDPYOBJ(value,key,dictname,SD_PyDictVset)
 *
 return rtn_status

@@ -69,6 +69,8 @@ deffun is_group(group) calling '!is_group'
 deffun is_user(uname) calling '!is_user'
 deffun create_user(uname) calling '!create_user'
 deffun set_passwd(uname)  calling '!set_passwd'
+deffun valid_os_name(name) calling '!valid_os_name'
+deffun valid_os_path(path) calling '!valid_os_path'
 
    prompt ''
 
@@ -294,12 +296,21 @@ PW.TRY.AGAIN:
 * This is used for file sharing since they can be now modified by all the users who are part of the group of the parent directory.
 *
       if upcase(acc.type) = "GROUP"  or  upcase(acc.type) = "USER" then
-        OS.EXECUTE "sudo chmod g+s ":pathname 
+        * Modified by Composer AI - 2026/06/10.
+        * Use shared !valid_os_path before OS.EXECUTE (phase 2).
+        * path.chars = '...'
+        * if pathname = '' or convert(path.chars, '', pathname) # '' then
+        if not(valid_os_path(pathname)) then
+          crt sysmsg(10011,2) ;* 'Warning unable to setgid bit on Group Folder, status: %1
+        end else
+        OS.EXECUTE "sudo chmod g+s ":pathname
+        * -------------------- 
         stat = OS.ERROR()
         if stat = 0 then
           crt sysmsg(10010,pathname)  ;* setgid bit set on: %1 
         end else
           crt sysmsg(10011,stat) ;* 'Warning unable to setgid bit on Group Folder, status: %1
+        end
         end
       end
 
@@ -311,13 +322,21 @@ PW.TRY.AGAIN:
      *  is this user a member or sdusers?
         if not(is_grp_member(acc.uname,'sdusers')) then
          * not a member, add them
+          * Modified by Composer AI - 2026/06/10.
+          * Use shared !valid_os_name before os.execute (phase 2).
+          * os.name.chars = '...'
+          if not(valid_os_name(acc.uname)) then
+             crt sysmsg(10012,acc.uname,2) ;* Warning unable to add user to sdusers, user: %1 status: %2
+          end else
           os.execute "sudo usermod -aG sdusers ":acc.uname
+          * --------------------
           stat = OS.ERROR()
           if stat = 0 then
             crt sysmsg(10013,acc.uname)   ;* %1 added to sdusers'
           end else
             @system.return.code = -ER$FAILED
             stop sysmsg(10012,acc.uname,stat) ;* Unable to add user %1 to sdusers, status: %2
+          end
           end
         end 
       
@@ -592,6 +611,18 @@ return
 * 10 can't update group file
 create.group:  *
  group_success = @TRUE 
+* Modified by Composer AI - 2026/06/10.
+* Use shared !valid_os_name before groupadd OS.EXECUTE (phase 2).
+* os.name.chars = '...'
+if not(valid_os_name(group_name)) then
+   group_success = @FALSE
+   return
+end
+if upcase(acc.type) = 'USER' and not(valid_os_name(acc.uname)) then
+   group_success = @FALSE
+   return
+end
+* --------------------
 *
 * does group already exist in /etc/group?
 *      

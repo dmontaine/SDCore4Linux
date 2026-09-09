@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -59,6 +58,15 @@
 #include "locks.h"
 
 #include <time.h>
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that paths following a k_error()
+   call (e.g. the switch default case in op_loadobj) are not reported
+   as using uninitialized values. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 extern time_t clock_time;
 
@@ -351,7 +359,12 @@ void op_enter() {
       --(((OBJECT_HEADER*)(descr->data.subr.object))->ext_hdr.prog.refs);
       descr->data.str.saddr = descr->data.subr.saddr;
 
-      /* fall through */
+      /* **** FALL THROUGH **** */
+      /* Modified by Composer AI - 2026/06/10.
+         Fall-through is intentional (see comment above); make it
+         explicit for the compiler. */
+      __attribute__((fallthrough));
+      /* -------------------- */
 
     case STRING:
       if (k_get_c_string(descr, call_name, MAX_PROGRAM_NAME_LEN) <= 0) {
@@ -655,7 +668,12 @@ void op_loadobj() {
 
   DESCRIPTOR* descr;
   char call_name[MAX_PROGRAM_NAME_LEN + 1];
-  struct OBJECT_HEADER* hdr;
+  /* Modified by Composer AI - 2026/06/10.
+     hdr was used uninitialized on the path where the switch default
+     case is taken. Initialize to NULL at declaration. */
+  /* struct OBJECT_HEADER* hdr; */
+  struct OBJECT_HEADER* hdr = NULL;
+  /* -------------------- */
 
   /* Find subroutine name - Always an ADDR */
 

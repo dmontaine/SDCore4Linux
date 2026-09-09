@@ -18,14 +18,12 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
  *
  * Linux printers work by diverting the output to the prt subdirectory of
- * the Q_M_SYS account and then feeding this file to the Linux spooler (lp).
- * Spool command lines are built with bounded buffers and shell-safe quoting.
+ * the Q_M_SYS account and then feeding this file to the Linux spooler.
  *
  * END-DESCRIPTION
  *
@@ -36,234 +34,149 @@
 #include "tio.h"
 #include "config.h"
 
-#include <ctype.h>
-#include <stdarg.h>
-
-#define SPOOL_CMD_SIZE 4096
-#define MAX_PRINTER_NAME_LEN 127
-#define MAX_SPOOL_TEXT_LEN 512
+#define FILE_BUFF_SIZE 1024
 
 void to_file(PRINT_UNIT* pu, char* str, int16_t bytes);
-
-/* Return FALSE if s contains shell metacharacters or control characters. */
-
-static bool spool_text_safe(const char* s) {
-  const unsigned char* p;
-
-  if (s == NULL)
-    return TRUE;
-
-  for (p = (const unsigned char*)s; *p != '\0'; p++) {
-    if (*p < ' ' || *p == 0x7f)
-      return FALSE;
-    switch (*p) {
-      case ';':
-      case '|':
-      case '&':
-      case '$':
-      case '`':
-      case '"':
-      case '\'':
-      case '\\':
-      case '<':
-      case '>':
-      case '!':
-      case '*':
-      case '?':
-      case '[':
-      case ']':
-      case '{':
-      case '}':
-      case '(':
-      case ')':
-      case '\n':
-      case '\r':
-      case '\t':
-        return FALSE;
-      default:
-        break;
-    }
-  }
-  return TRUE;
-}
-
-/* Append a shell single-quoted argument; embedded quotes use '\''. */
-
-static bool append_shell_quoted(char** pp, char* end, const char* s) {
-  char* p;
-  const char* q;
-
-  if (pp == NULL || *pp == NULL || end == NULL || s == NULL)
-    return FALSE;
-
-  p = *pp;
-  if (p + 1 >= end)
-    return FALSE;
-  *(p++) = '\'';
-
-  for (q = s; *q != '\0'; q++) {
-    if (*q == '\'') {
-      if (p + 4 >= end)
-        return FALSE;
-      memcpy(p, "'\\''", 4);
-      p += 4;
-    } else {
-      if (p + 1 >= end)
-        return FALSE;
-      *(p++) = *q;
-    }
-  }
-
-  if (p + 2 >= end)
-    return FALSE;
-  *(p++) = '\'';
-  *p = '\0';
-  *pp = p;
-  return TRUE;
-}
-
-static bool cmd_append(char** pp, char* end, const char* fmt, ...) {
-  va_list ap;
-  int n;
-  size_t rem;
-
-  if (pp == NULL || *pp == NULL || end <= *pp)
-    return FALSE;
-
-  rem = (size_t)(end - *pp);
-  va_start(ap, fmt);
-  n = vsnprintf(*pp, rem, fmt, ap);
-  va_end(ap);
-  if (n < 0 || (size_t)n >= rem)
-    return FALSE;
-  *pp += n;
-  return TRUE;
-}
 
 /* ======================================================================
    to_printer  -  Send text to printer                                    */
 
-void to_printer(PRINT_UNIT* pu, char* str, int16_t bytes) {
-  to_file(pu, str, bytes);
-}
+void to_printer(pu, str, bytes) PRINT_UNIT* pu;
+char* str;
+int16_t bytes;
+{ to_file(pu, str, bytes); }
 
 /* ======================================================================
    validate_printer()  -  Check printer name is valid                     */
 
-bool validate_printer(char* printer_name) {
-  const unsigned char* p;
-  size_t len;
-
-  if (printer_name == NULL)
-    return TRUE; /* Default destination */
-
-  len = strlen(printer_name);
-  if (len == 0 || len > MAX_PRINTER_NAME_LEN)
-    return FALSE;
-
-  for (p = (const unsigned char*)printer_name; *p != '\0'; p++) {
-    if (!isalnum(*p) && *p != '_' && *p != '-' && *p != '.' && *p != '@')
-      return FALSE;
-  }
-  return TRUE;
-}
+bool validate_printer(printer_name) char* printer_name;
+{ return TRUE; }
 
 /* ======================================================================
    end_printer()  -  End access to printer                                */
 
-void end_printer(PRINT_UNIT* pu) {
-  if (pu == NULL)
-    return;
-
-  if (!(pu->flags & PU_KEEP_OPEN))
+void end_printer(pu) PRINT_UNIT* pu;
+{
+  if (!(pu->flags & PU_KEEP_OPEN)) {
     end_file(pu);
+  }
 }
+
+/* Modified by Composer AI - 2026/06/10.
+   Helper for spool_print_job(): copies src into dst wrapped in single
+   quotes with any embedded single quote rewritten as '\'' so the value
+   cannot inject shell commands when passed to system(). Returns the
+   number of characters written, or -1 if it does not fit. */
+static int shell_quote_arg(char* dst, int dst_size, const char* src) {
+  int n = 0;
+
+  if (n >= dst_size - 1)
+    return -1;
+  dst[n++] = '\'';
+  for (; *src != '\0'; src++) {
+    if (*src == '\'') {
+      if (n + 4 >= dst_size)
+        return -1;
+      dst[n++] = '\'';
+      dst[n++] = '\\';
+      dst[n++] = '\'';
+      dst[n++] = '\'';
+    } else {
+      if (n + 1 >= dst_size)
+        return -1;
+      dst[n++] = *src;
+    }
+  }
+  if (n + 2 > dst_size)
+    return -1;
+  dst[n++] = '\'';
+  dst[n] = '\0';
+  return n;
+}
+/* -------------------- */
 
 /* ======================================================================
    spool_print_job()                                                      */
 
 void spool_print_job(PRINT_UNIT* pu) {
-  char cmd[SPOOL_CMD_SIZE];
-  char* p;
-  char* end;
-  const char* spool_cmd;
-  int st;
+  char cmd[300];
+  /* Modified by Composer AI - 2026/06/10.
+     The command was assembled with unbounded sprintf() calls into a fixed
+     300 byte buffer. Long printer names, banners, options or pathnames
+     overflowed the stack buffer. Build the command with bounded snprintf()
+     calls instead and refuse to run a truncated command.
+     Additionally, the printer name, banner, options and pathname are now
+     passed through shell_quote_arg() so shell metacharacters in them
+     cannot inject commands into the system() call. */
+  /* char* p;
 
-  if (pu == NULL || pu->file.pathname == NULL || pu->file.pathname[0] == '\0')
-    return;
-
-  p = cmd;
-  end = cmd + SPOOL_CMD_SIZE;
-
-  if (pu->spooler != NULL && pu->spooler[0] != '\0') {
-    if (!spool_text_safe(pu->spooler) ||
-        strlen(pu->spooler) > MAX_PATHNAME_LEN)
-      return;
-    spool_cmd = pu->spooler;
+  if (pu->spooler != NULL) {
+    p = cmd + sprintf(cmd, "%s ", pu->spooler);
   } else if (pcfg.spooler[0] != '\0') {
-    if (!spool_text_safe(pcfg.spooler))
-      return;
-    spool_cmd = pcfg.spooler;
+    p = cmd + sprintf(cmd, "%s ", pcfg.spooler);
   } else {
-    spool_cmd = "lp";
+    p = cmd + sprintf(cmd, "lp ");
   }
 
-  if (!cmd_append(&p, end, "%s ", spool_cmd))
+  if (pu->copies > 1)
+    p += sprintf(p, " -n %d", pu->copies); / * Copies * /
+  if (pu->printer_name != NULL)
+    p += sprintf(p, " -d %s", pu->printer_name); / * Printer * /
+  if (pu->banner != NULL)
+    p += sprintf(p, " -t \"%s\"", pu->banner); / * Banner * /
+  if (pu->options != NULL)
+    p += sprintf(p, " -o \"%s\"", pu->options); / * Options * /
+  if (pu->flags & PU_LAND)
+    p += sprintf(p, " -o \"landscape\"");
+
+  p += sprintf(p, " '%s' > /dev/null", pu->file.pathname); / * File to print * /
+
+  system(cmd); */
+  int n;
+  char qbuf[300];
+
+  if (pu->spooler != NULL) {
+    n = snprintf(cmd, sizeof(cmd), "%s ", pu->spooler);
+  } else if (pcfg.spooler[0] != '\0') {
+    n = snprintf(cmd, sizeof(cmd), "%s ", pcfg.spooler);
+  } else {
+    n = snprintf(cmd, sizeof(cmd), "lp ");
+  }
+
+  if ((pu->copies > 1) && (n < (int)sizeof(cmd)))
+    n += snprintf(cmd + n, sizeof(cmd) - n, " -n %d", pu->copies); /* Copies */
+  if ((pu->printer_name != NULL) && (n < (int)sizeof(cmd))) { /* Printer */
+    if (shell_quote_arg(qbuf, sizeof(qbuf), pu->printer_name) < 0)
+      goto cmd_too_long;
+    n += snprintf(cmd + n, sizeof(cmd) - n, " -d %s", qbuf);
+  }
+  if ((pu->banner != NULL) && (n < (int)sizeof(cmd))) { /* Banner */
+    if (shell_quote_arg(qbuf, sizeof(qbuf), pu->banner) < 0)
+      goto cmd_too_long;
+    n += snprintf(cmd + n, sizeof(cmd) - n, " -t %s", qbuf);
+  }
+  if ((pu->options != NULL) && (n < (int)sizeof(cmd))) { /* Options */
+    if (shell_quote_arg(qbuf, sizeof(qbuf), pu->options) < 0)
+      goto cmd_too_long;
+    n += snprintf(cmd + n, sizeof(cmd) - n, " -o %s", qbuf);
+  }
+  if ((pu->flags & PU_LAND) && (n < (int)sizeof(cmd)))
+    n += snprintf(cmd + n, sizeof(cmd) - n, " -o \"landscape\"");
+
+  if (n < (int)sizeof(cmd)) { /* File to print */
+    if (shell_quote_arg(qbuf, sizeof(qbuf), pu->file.pathname) < 0)
+      goto cmd_too_long;
+    n += snprintf(cmd + n, sizeof(cmd) - n, " %s > /dev/null", qbuf);
+  }
+
+  if (n >= (int)sizeof(cmd)) {
+cmd_too_long:
+    fprintf(stderr, "spool_print_job: print command too long - job not spooled\n");
     return;
-
-  if (pu->copies > 1) {
-    if (!cmd_append(&p, end, "-n %d ", (int)pu->copies))
-      return;
   }
 
-  if (pu->printer_name != NULL && pu->printer_name[0] != '\0') {
-    if (!validate_printer(pu->printer_name))
-      return;
-    if (!cmd_append(&p, end, "-d "))
-      return;
-    if (!append_shell_quoted(&p, end, pu->printer_name))
-      return;
-    if (!cmd_append(&p, end, " "))
-      return;
-  }
-
-  if (pu->banner != NULL && pu->banner[0] != '\0') {
-    if (!spool_text_safe(pu->banner) || strlen(pu->banner) > MAX_SPOOL_TEXT_LEN)
-      return;
-    if (!cmd_append(&p, end, "-t "))
-      return;
-    if (!append_shell_quoted(&p, end, pu->banner))
-      return;
-    if (!cmd_append(&p, end, " "))
-      return;
-  }
-
-  if (pu->options != NULL && pu->options[0] != '\0') {
-    if (!spool_text_safe(pu->options) ||
-        strlen(pu->options) > MAX_SPOOL_TEXT_LEN)
-      return;
-    if (!cmd_append(&p, end, "-o "))
-      return;
-    if (!append_shell_quoted(&p, end, pu->options))
-      return;
-    if (!cmd_append(&p, end, " "))
-      return;
-  }
-
-  if (pu->flags & PU_LAND) {
-    if (!cmd_append(&p, end, "-o landscape "))
-      return;
-  }
-
-  if (!cmd_append(&p, end, " "))
-    return;
-  if (!append_shell_quoted(&p, end, pu->file.pathname))
-    return;
-  if (!cmd_append(&p, end, " > /dev/null"))
-    return;
-
-  st = system(cmd);
-  (void)st; /* Spool failure is non-fatal; job file may still exist */
+  system(cmd);
+  /* -------------------- */
 }
 
 /* END-CODE */

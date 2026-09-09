@@ -18,7 +18,6 @@
  *
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -145,18 +144,10 @@ void op_fcontrol() {
       UpperCaseString(header.akpath);
 #endif
 
-      if (dh_file->akpath != NULL) {
-        k_free(dh_file->akpath);
-        dh_file->akpath = NULL;
-      }
       if (header.akpath[0] == '\0')
         dh_file->akpath = NULL;
       else {
         dh_file->akpath = (char*)k_alloc(107, strlen(header.akpath) + 1);
-        if (dh_file->akpath == NULL) {
-          process.status = ER_IOE;
-          goto exit_op_fcontrol;
-        }
         strcpy(dh_file->akpath, header.akpath);
       }
 
@@ -286,16 +277,8 @@ void op_grpstat() {
     goto exit_op_grpstat;
 
   dh_file = fvar->access.dh.dh_file;
-  if (dh_file == NULL)
-    goto exit_op_grpstat;
 
   fptr = FPtr(dh_file->file_id);
-  if (fptr == NULL)
-    goto exit_op_grpstat;
-
-  if (group < 1 || group > fptr->params.modulus)
-    goto exit_op_grpstat;
-
   while (fptr->file_lock < 0)
     Sleep(1000); /* Clearfile in progress */
 
@@ -328,17 +311,12 @@ void op_grpstat() {
 
     rec_offset = offsetof(DH_BLOCK, record);
     while (rec_offset < used_bytes) {
-      int16_t rec_size;
-
-      if (!dh_get_data_record((DH_BLOCK*)dh_buffer, group_bytes, rec_offset,
-                              &rec_ptr, &rec_size)) {
-        goto exit_op_grpstat;
-      }
+      rec_ptr = (DH_RECORD*)(dh_buffer + rec_offset);
       record_count++;
       if (rec_ptr->flags & DH_BIG_REC)
         large_record_count++;
 
-      rec_offset += rec_size;
+      rec_offset += rec_ptr->next;
     }
 
     /* Move to next group buffer */

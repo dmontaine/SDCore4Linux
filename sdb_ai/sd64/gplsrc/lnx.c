@@ -18,13 +18,10 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
  *
- * Linux-specific helpers.  sdsendmail() pipes message text to the system
- * mail(1) command; attachments are not implemented on this platform.
  *
  * END-DESCRIPTION
  *
@@ -33,255 +30,196 @@
 
 #include "sd.h"
 
-#include <ctype.h>
-#include <stdarg.h>
+/* Modified by Composer AI - 2026/06/10.
+   Helper for sdsendmail(): copies src into dst wrapped in single quotes
+   with any embedded single quote rewritten as '\'' so the value cannot
+   inject shell commands when passed to system(). Returns the number of
+   characters written, or -1 if it does not fit. */
+static int shell_quote_arg(char* dst, int dst_size, const char* src) {
+  int n = 0;
 
-#define MAIL_CMD_SIZE 8192
-#define MAIL_TEMPNAME_SIZE 32
-#define MAX_MAIL_FIELD_LEN 4096
-
-/* Addresses and recipient lists: printable, no shell metacharacters. */
-
-static bool mail_field_safe(const char* s) {
-  const unsigned char* p;
-
-  if (s == NULL)
-    return TRUE;
-
-  if (strlen(s) > MAX_MAIL_FIELD_LEN)
-    return FALSE;
-
-  for (p = (const unsigned char*)s; *p != '\0'; p++) {
-    if (*p < ' ' || *p == 0x7f)
-      return FALSE;
-    if (!isalnum(*p) && strchr("@.,-_+ ", (int)*p) == NULL)
-      return FALSE;
-  }
-  return TRUE;
-}
-
-/* Subject lines: reject shell metacharacters (quoted via shell escaping). */
-
-static bool mail_subject_safe(const char* s) {
-  const unsigned char* p;
-
-  if (s == NULL)
-    return FALSE;
-
-  if (strlen(s) > 255)
-    return FALSE;
-
-  for (p = (const unsigned char*)s; *p != '\0'; p++) {
-    if (*p < ' ' || *p == 0x7f)
-      return FALSE;
-    switch (*p) {
-      case ';':
-      case '|':
-      case '&':
-      case '$':
-      case '`':
-      case '"':
-      case '\\':
-      case '<':
-      case '>':
-      case '!':
-      case '*':
-      case '?':
-      case '[':
-      case ']':
-      case '{':
-      case '}':
-      case '(':
-      case ')':
-      case '\n':
-      case '\r':
-      case '\t':
-        return FALSE;
-      /* Single quotes are allowed; append_shell_quoted() escapes them. */
-      default:
-        break;
-    }
-  }
-  return TRUE;
-}
-
-static bool append_shell_quoted(char** pp, char* end, const char* s) {
-  char* p;
-  const char* q;
-
-  if (pp == NULL || *pp == NULL || end == NULL || s == NULL)
-    return FALSE;
-
-  p = *pp;
-  if (p + 1 >= end)
-    return FALSE;
-  *(p++) = '\'';
-
-  for (q = s; *q != '\0'; q++) {
-    if (*q == '\'') {
-      if (p + 4 >= end)
-        return FALSE;
-      memcpy(p, "'\\''", 4);
-      p += 4;
+  if (n >= dst_size - 1)
+    return -1;
+  dst[n++] = '\'';
+  for (; *src != '\0'; src++) {
+    if (*src == '\'') {
+      if (n + 4 >= dst_size)
+        return -1;
+      dst[n++] = '\'';
+      dst[n++] = '\\';
+      dst[n++] = '\'';
+      dst[n++] = '\'';
     } else {
-      if (p + 1 >= end)
-        return FALSE;
-      *(p++) = *q;
+      if (n + 1 >= dst_size)
+        return -1;
+      dst[n++] = *src;
     }
   }
-
-  if (p + 2 >= end)
-    return FALSE;
-  *(p++) = '\'';
-  *p = '\0';
-  *pp = p;
-  return TRUE;
+  if (n + 2 > dst_size)
+    return -1;
+  dst[n++] = '\'';
+  dst[n] = '\0';
+  return n;
 }
 
-static bool cmd_append(char** pp, char* end, const char* fmt, ...) {
-  va_list ap;
-  int n;
-  size_t rem;
+/* Modified by Composer AI - 2026/06/10.
+   Helper for sdsendmail(): quotes a whitespace separated address list,
+   quoting each token individually so the resulting argument structure of
+   the mail command is unchanged but shell metacharacters in the
+   addresses cannot inject commands. Returns length or -1 if too long. */
+static int shell_quote_list(char* dst, int dst_size, const char* src) {
+  int n = 0;
+  int q;
+  char token[256];
+  int t;
 
-  if (pp == NULL || *pp == NULL || end <= *pp)
-    return FALSE;
+  dst[0] = '\0';
+  while (*src != '\0') {
+    while ((*src == ' ') || (*src == '\t'))
+      src++;
+    if (*src == '\0')
+      break;
 
-  rem = (size_t)(end - *pp);
-  va_start(ap, fmt);
-  n = vsnprintf(*pp, rem, fmt, ap);
-  va_end(ap);
-  if (n < 0 || (size_t)n >= rem)
-    return FALSE;
-  *pp += n;
-  return TRUE;
+    t = 0;
+    while ((*src != '\0') && (*src != ' ') && (*src != '\t')) {
+      if (t >= (int)sizeof(token) - 1)
+        return -1;
+      token[t++] = *(src++);
+    }
+    token[t] = '\0';
+
+    if (n > 0) {
+      if (n + 1 >= dst_size)
+        return -1;
+      dst[n++] = ' ';
+      dst[n] = '\0';
+    }
+    q = shell_quote_arg(dst + n, dst_size - n, token);
+    if (q < 0)
+      return -1;
+    n += q;
+  }
+  return n;
 }
+/* -------------------- */
 
 /* ======================================================================
    sdsendmail()  -  Send email                                            */
 
-bool sdsendmail(char* sender,
-                char* recipients,
-                char* cc_recipients,
-                char* bcc_recipients,
-                char* subject,
-                char* text,
-                char* attachments) {
+bool sdsendmail(
+    sender,
+    recipients,
+    cc_recipients,
+    bcc_recipients,
+    subject,
+    text,
+    attachments) char* sender; /* Sender's address:  fred@acme.com */
+char* recipients;              /* Comma separated list of recipient addresses */
+char* cc_recipients;           /* Comma separated list of recipient addresses */
+char* bcc_recipients;          /* Comma separated list of recipient addresses */
+char* subject;                 /* Subject line */
+char* text;                    /* Text of email */
+char* attachments;             /* Comma separated list of attachment files */
+{
   bool status = FALSE;
-  char tempname[MAIL_TEMPNAME_SIZE];
-  char command[MAIL_CMD_SIZE];
-  char* p;
-  char* end;
+  /*  20240122  mab change sprintf to snprintf and test for buffer overflow */
+
+  #define tempnamesz 13      /* 12 char + \0 */
+  char tempname[tempnamesz]; /* .sd__mailnnnn */
+  char command[1024 + 1];
   int tfu;
   int n;
-  int st;
-  const char* body;
-  bool temp_created = FALSE;
 
-  (void)attachments; /* Not supported on Linux */
+  /* Write mail text to a temporary file */
 
-  if (my_uptr == NULL || subject == NULL) {
-    process.status = ER_NO_TEMP;
-    goto exit_sendmail;
-  }
-
-  if (!mail_subject_safe(subject) || !mail_field_safe(recipients) ||
-      !mail_field_safe(cc_recipients) || !mail_field_safe(bcc_recipients) ||
-      !mail_field_safe(sender)) {
-    process.status = ER_NO_TEMP;
-    goto exit_sendmail;
-  }
-
-  if (snprintf(tempname, sizeof(tempname), ".sd_mail%u",
-               (unsigned)my_uptr->uid) >= (int)sizeof(tempname)) {
+/*  20240122  mab change sprintf to snprintf and test for buffer overflow */
+  if (snprintf(tempname, tempnamesz, ".sd_mail%d", my_uptr->uid) >= tempnamesz) {
     process.status = ER_NO_TEMP;
     process.os_error = errno;
     goto exit_sendmail;
-  }
-
+  };
+  
   tfu = open(tempname, O_RDWR | O_CREAT | O_TRUNC, default_access);
   if (tfu < 0) {
     process.status = ER_NO_TEMP;
     process.os_error = errno;
     goto exit_sendmail;
   }
-  temp_created = TRUE;
 
-  body = (text != NULL) ? text : null_string;
-  n = (int)strlen(body);
-  if (write(tfu, body, (size_t)n) != n) {
+  n = strlen(text);
+  if (write(tfu, text, n) != n) {
     process.status = ER_NO_TEMP;
-    process.os_error = errno;
-    close(tfu);
-    remove(tempname);
     goto exit_sendmail;
   }
 
-  if (close(tfu) != 0) {
-    process.status = ER_NO_TEMP;
-    process.os_error = errno;
-    remove(tempname);
-    goto exit_sendmail;
+  close(tfu);
+
+  /* Construct mail command */
+
+  /* Modified by Composer AI - 2026/06/10.
+     The mail command was assembled with unbounded sprintf() calls into a
+     fixed buffer; long subject or recipient lists overflowed it. Use
+     bounded snprintf() calls and fail the send (ER_LENGTH) instead of
+     executing a truncated command.
+     Additionally, the subject is now shell-quoted as a single argument
+     and each recipient address is individually shell-quoted, so shell
+     metacharacters in them cannot inject commands into the system()
+     call. The argument structure of the generated command is otherwise
+     unchanged. */
+  /* n = sprintf(command, "mail -s \"%s\"", subject);
+
+  if (cc_recipients != NULL)
+    n += sprintf(command + n, " -c %s", cc_recipients);
+  if (bcc_recipients != NULL)
+    n += sprintf(command + n, " -b %s", bcc_recipients);
+  if (recipients != NULL)
+    n += sprintf(command + n, " %s", recipients);
+
+  sprintf(command + n, " <%s", tempname);
+
+  system(command); */
+  {
+    char qbuf[1024 + 1];
+
+    if (shell_quote_arg(qbuf, sizeof(qbuf), subject) < 0)
+      goto cmd_too_long;
+    n = snprintf(command, sizeof(command), "mail -s %s", qbuf);
+
+    if ((cc_recipients != NULL) && (n < (int)sizeof(command))) {
+      if (shell_quote_list(qbuf, sizeof(qbuf), cc_recipients) < 0)
+        goto cmd_too_long;
+      n += snprintf(command + n, sizeof(command) - n, " -c %s", qbuf);
+    }
+    if ((bcc_recipients != NULL) && (n < (int)sizeof(command))) {
+      if (shell_quote_list(qbuf, sizeof(qbuf), bcc_recipients) < 0)
+        goto cmd_too_long;
+      n += snprintf(command + n, sizeof(command) - n, " -b %s", qbuf);
+    }
+    if ((recipients != NULL) && (n < (int)sizeof(command))) {
+      if (shell_quote_list(qbuf, sizeof(qbuf), recipients) < 0)
+        goto cmd_too_long;
+      n += snprintf(command + n, sizeof(command) - n, " %s", qbuf);
+    }
+
+    if (n < (int)sizeof(command))
+      n += snprintf(command + n, sizeof(command) - n, " <%s", tempname);
+
+    if (n >= (int)sizeof(command)) {
+cmd_too_long:
+      process.status = ER_LENGTH;
+      remove(tempname);
+      goto exit_sendmail;
+    }
   }
-  tfu = -1;
 
-  p = command;
-  end = command + MAIL_CMD_SIZE;
+  system(command);
+  /* -------------------- */
 
-  if (!cmd_append(&p, end, "mail -s "))
-    goto exit_sendmail_cmd;
-  if (!append_shell_quoted(&p, end, subject))
-    goto exit_sendmail_cmd;
-
-  if (sender != NULL && sender[0] != '\0') {
-    if (!cmd_append(&p, end, " -r "))
-      goto exit_sendmail_cmd;
-    if (!append_shell_quoted(&p, end, sender))
-      goto exit_sendmail_cmd;
-  }
-
-  if (cc_recipients != NULL && cc_recipients[0] != '\0') {
-    if (!cmd_append(&p, end, " -c "))
-      goto exit_sendmail_cmd;
-    if (!append_shell_quoted(&p, end, cc_recipients))
-      goto exit_sendmail_cmd;
-  }
-
-  if (bcc_recipients != NULL && bcc_recipients[0] != '\0') {
-    if (!cmd_append(&p, end, " -b "))
-      goto exit_sendmail_cmd;
-    if (!append_shell_quoted(&p, end, bcc_recipients))
-      goto exit_sendmail_cmd;
-  }
-
-  if (recipients != NULL && recipients[0] != '\0') {
-    if (!cmd_append(&p, end, " "))
-      goto exit_sendmail_cmd;
-    if (!append_shell_quoted(&p, end, recipients))
-      goto exit_sendmail_cmd;
-  }
-
-  if (!cmd_append(&p, end, " <"))
-    goto exit_sendmail_cmd;
-  if (!append_shell_quoted(&p, end, tempname))
-    goto exit_sendmail_cmd;
-
-  st = system(command);
-  if (st != 0) {
-    process.status = ER_NO_TEMP;
-    process.os_error = errno;
-    remove(tempname);
-    goto exit_sendmail;
-  }
+  /* Delete temporary file */
 
   remove(tempname);
-  temp_created = FALSE;
-  status = TRUE;
-  goto exit_sendmail;
 
-exit_sendmail_cmd:
-  process.status = ER_NO_TEMP;
-  if (temp_created)
-    remove(tempname);
+  status = TRUE;
 
 exit_sendmail:
   return status;

@@ -868,6 +868,15 @@ vb.login:
                end
 
                username = cmnd[3,n]
+               * Modified by Composer AI - 2026/06/10.
+               * Reject shell-unsafe login names before authentication.
+               deffun valid_os_name(name) calling '!valid_os_name'
+               if not(valid_os_name(username)) then
+                  abort.message = sysmsg(5017) ;* Invalid user name or password
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.login
+               end
+               * --------------------
                pos = 3 + n + bitand(n, 1)
 
                * Extract password

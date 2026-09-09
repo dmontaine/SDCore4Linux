@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -226,7 +225,11 @@ bool tsettermtype(termname) char* termname;
 
   /* ---------- Read the booleans */
 
-  i = max(NumBoolNames, bool_count);
+  /* Modified by Composer AI - 2026/06/10.
+     NumBoolNames is size_t; cast for max() with int bool_count. */
+  /* i = max(NumBoolNames, bool_count); */
+  i = max((int)NumBoolNames, bool_count);
+  /* -------------------- */
   if ((tinfo.Booleans = (signed char*)k_alloc(94, i)) == NULL) {
     process.status = ER_TI_BOOLMEM; /* Error allocating space for booleans */
     goto exit_settermtype;
@@ -246,7 +249,11 @@ bool tsettermtype(termname) char* termname;
 
   /* ---------- Read the numbers */
 
-  bytes = max(NumNumNames, num_count) * sizeof(int16_t);
+  /* Modified by Composer AI - 2026/06/10.
+     NumNumNames is size_t; cast for max() with int num_count. */
+  /* bytes = max(NumNumNames, num_count) * sizeof(int16_t); */
+  bytes = max((int)NumNumNames, num_count) * sizeof(int16_t);
+  /* -------------------- */
   if ((tinfo.Numbers = (int16_t*)k_alloc(95, bytes)) == NULL) {
     process.status = ER_TI_NUMMEM; /* Error allocating space for numbers */
     goto exit_settermtype;
@@ -262,7 +269,11 @@ bool tsettermtype(termname) char* termname;
 
   /* ---------- Read string offsets */
 
-  bytes = max(NumStrNames, str_count) * sizeof(char*);
+  /* Modified by Composer AI - 2026/06/10.
+     NumStrNames is size_t; cast for max() with int str_count. */
+  /* bytes = max(NumStrNames, str_count) * sizeof(char*); */
+  bytes = max((int)NumStrNames, str_count) * sizeof(char*);
+  /* -------------------- */
   if ((tinfo.Strings = (char**)k_alloc(96, bytes)) == NULL) {
     process.status =
         ER_TI_STROMEM; /* Error allocating space for string offsets */
@@ -288,17 +299,26 @@ bool tsettermtype(termname) char* termname;
 
   /* Clear undefined entries */
 
-  for (i = bool_count; i < NumBoolNames; i++)
+  /* Modified by Composer AI - 2026/06/10.
+     Num*Names macros are size_t; cast for comparison with int loop index. */
+  /* for (i = bool_count; i < NumBoolNames; i++) */
+  for (i = bool_count; i < (int)NumBoolNames; i++)
     tinfo.Booleans[i] = ABSENT_BOOLEAN;
-  for (i = num_count; i < NumNumNames; i++)
+  /* for (i = num_count; i < NumNumNames; i++) */
+  for (i = num_count; i < (int)NumNumNames; i++)
     tinfo.Numbers[i] = ABSENT_NUMERIC;
-  for (i = str_count; i < NumStrNames; i++)
+  /* for (i = str_count; i < NumStrNames; i++) */
+  for (i = str_count; i < (int)NumStrNames; i++)
     tinfo.Strings[i] = ABSENT_STRING;
+  /* -------------------- */
 
   /* Force all of the cancelled strings to null pointers so we don't have
     to test them in the rest of the library.                             */
 
-  for (i = 0; i < NumStrNames; i++) {
+  /* Modified by Composer AI - 2026/06/10. See NumStrNames cast above. */
+  /* for (i = 0; i < NumStrNames; i++) { */
+  for (i = 0; i < (int)NumStrNames; i++) {
+  /* -------------------- */
     if (tinfo.Strings[i] == CANCELLED_STRING)
       tinfo.Strings[i] = ABSENT_STRING;
   }
@@ -329,7 +349,8 @@ int tgetbool(char* str) {
   int i;
 
   if (tinfo.Booleans != NULL) {
-    for (i = 0; i < NumBoolNames; i++) {
+    /* Modified by Composer AI - 2026/06/10. See NumBoolNames cast above. */
+    for (i = 0; i < (int)NumBoolNames; i++) {
       if (!strcmp(str, boolnames[i]))
         return tinfo.Booleans[i];
     }
@@ -345,7 +366,8 @@ int tgetnum(char* str) {
   int i;
 
   if (tinfo.Numbers != NULL) {
-    for (i = 0; i < NumNumNames; i++) {
+    /* Modified by Composer AI - 2026/06/10. See NumNumNames cast above. */
+    for (i = 0; i < (int)NumNumNames; i++) {
       if (!strcmp(str, numnames[i])) {
         if (tinfo.Numbers[i] >= 0)
           return tinfo.Numbers[i];
@@ -373,7 +395,8 @@ char* sdtgetstr(id) char* id;
   if (tinfo.Strings == NULL)
     return null_string;
 
-  for (i = 0; i < NumStrNames; i++) {
+  /* Modified by Composer AI - 2026/06/10. See NumStrNames cast above. */
+  for (i = 0; i < (int)NumStrNames; i++) {
     if (!strcmp(id, strnames[i])) {
       result = tinfo.Strings[i];
       if ((result != NULL) && ((p = strstr(result, "$<")) != NULL)) {

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -66,11 +65,6 @@ void dh_split(DH_FILE* dh_file) {
   int16_t space;
   u_int32_t file_size;
   int32_t next_tgt_group;
-  int32_t old_modulus;
-  int32_t old_mod_value;
-  int32_t new_mod_value;
-  int16_t rec_size;
-  bool split_ok = FALSE;
 
   fptr = FPtr(dh_file->file_id);
   group_bytes = (int16_t)(dh_file->group_size);
@@ -104,15 +98,12 @@ void dh_split(DH_FILE* dh_file) {
     }
   }
 
-  /* Calculate group to split (defer modulus update until success) */
+  /* Calculate group to split */
 
-  old_modulus = fptr->params.modulus;
-  old_mod_value = fptr->params.mod_value;
-  new_group = old_modulus + 1;
-  new_mod_value = old_mod_value;
-  if (new_group > new_mod_value)
-    new_mod_value <<= 1;
-  group = (new_group - 1) - (new_mod_value >> 1) + 1;
+  new_group = ++(fptr->params.modulus);
+  if (new_group > fptr->params.mod_value)
+    fptr->params.mod_value <<= 1;
+  group = (new_group - 1) - (fptr->params.mod_value >> 1) + 1;
 
   /* Lock group to be created while we own the file table lock.  If we unlock
     the file table before doing this, another user could attempt to access
@@ -183,10 +174,7 @@ void dh_split(DH_FILE* dh_file) {
 
     rec_offset = offsetof(DH_BLOCK, record);
     while (rec_offset < used_bytes) {
-      if (!dh_get_data_record(src_buff, group_bytes, rec_offset, &rec_ptr,
-                              &rec_size)) {
-        goto exit_dh_split;
-      }
+      rec_ptr = (DH_RECORD*)(((char*)src_buff) + rec_offset);
 
       memcpy(id, rec_ptr->id, rec_ptr->id_len);
 
@@ -194,7 +182,7 @@ void dh_split(DH_FILE* dh_file) {
 
       tgt = (dh_hash_group(fptr, id, rec_ptr->id_len) == new_group) ? 1 : 0;
 
-      reqd_bytes = rec_size;
+      reqd_bytes = rec_ptr->next;
       space = group_bytes - tgt_buff[tgt]->used_bytes;
       if (reqd_bytes > space) /* Flush buffer and make an overflow block */
       {
@@ -222,7 +210,7 @@ void dh_split(DH_FILE* dh_file) {
       memcpy(((char*)(tgt_buff[tgt])) + tgt_buff[tgt]->used_bytes,
              (char*)rec_ptr, reqd_bytes);
       tgt_buff[tgt]->used_bytes += reqd_bytes;
-      rec_offset += rec_size;
+      rec_offset += rec_ptr->next;
     }
 
     /* If this was an overflow block, give it away */
@@ -246,26 +234,12 @@ void dh_split(DH_FILE* dh_file) {
     }
   }
 
-  fptr->params.modulus = new_group;
-  fptr->params.mod_value = new_mod_value;
-
   /* Update file header */
 
   dh_file->flags |= FILE_UPDATED;
-  if (!dh_flush_header(dh_file)) {
-    if (dh_err == 0)
-      dh_err = DHE_PSFH_WRITE_ERROR;
-    goto exit_dh_split;
-  }
-  split_ok = TRUE;
+  dh_flush_header(dh_file);
 
 exit_dh_split:
-  if (!split_ok) {
-    StartExclusive(FILE_TABLE_LOCK, 34);
-    fptr->params.modulus = old_modulus;
-    fptr->params.mod_value = old_mod_value;
-    EndExclusive(FILE_TABLE_LOCK);
-  }
   if (src_group_lock != 0)
     FreeGroupWriteLock(src_group_lock);
   if (new_group_lock != 0)
@@ -312,9 +286,6 @@ void dh_merge(DH_FILE* dh_file) {
   int32_t tgrp;
   int32_t next_tgt_group;
   int32_t n;
-  int32_t old_modulus;
-  int32_t old_mod_value;
-  bool merge_ok = FALSE;
 
   fptr = FPtr(dh_file->file_id);
   group_bytes = (int16_t)(dh_file->group_size);
@@ -368,11 +339,8 @@ void dh_merge(DH_FILE* dh_file) {
                                Lock group (wrong group)
  */
 
-  old_modulus = fptr->params.modulus;
-  old_mod_value = fptr->params.mod_value;
-  n = old_mod_value >> 1;
-  (--(fptr->params.modulus));
-  if (fptr->params.modulus == n)
+  n = fptr->params.mod_value >> 1;
+  if ((--(fptr->params.modulus)) == n)
     fptr->params.mod_value = n;
 
   EndExclusive(FILE_TABLE_LOCK);
@@ -427,10 +395,8 @@ void dh_merge(DH_FILE* dh_file) {
 
     src_rec_offset = offsetof(DH_BLOCK, record);
     while (src_rec_offset < src_used_bytes) {
-      if (!dh_get_data_record(src_buff, group_bytes, src_rec_offset, &src_rec_ptr,
-                              &rec_bytes)) {
-        goto exit_dh_merge;
-      }
+      src_rec_ptr = (DH_RECORD*)(((char*)src_buff) + src_rec_offset);
+      rec_bytes = src_rec_ptr->next;
 
       if (rec_bytes > group_bytes - tgt_buff->used_bytes) /* Need overflow */
       {
@@ -490,20 +456,9 @@ void dh_merge(DH_FILE* dh_file) {
   /* Update file header */
 
   dh_file->flags |= FILE_UPDATED;
-  if (!dh_flush_header(dh_file)) {
-    if (dh_err == 0)
-      dh_err = DHE_PSFH_WRITE_ERROR;
-    goto exit_dh_merge;
-  }
-  merge_ok = TRUE;
+  dh_flush_header(dh_file);
 
 exit_dh_merge:
-  if (!merge_ok) {
-    StartExclusive(FILE_TABLE_LOCK, 35);
-    fptr->params.modulus = old_modulus;
-    fptr->params.mod_value = old_mod_value;
-    EndExclusive(FILE_TABLE_LOCK);
-  }
   if (src_lock != 0)
     FreeGroupWriteLock(src_lock);
   if (tgt_lock != 0)

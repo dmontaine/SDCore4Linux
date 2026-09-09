@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -92,14 +91,7 @@ int32_t hash(char id[], int16_t id_len) {
 int32_t dh_hash_group(FILE_ENTRY* fptr, char id[], int16_t id_len) {
   int32_t hash_value;
   int32_t group;
-  int32_t mod_value;
   char u_id[MAX_ID_LEN];
-
-  if (id_len < 0 || id_len > MAX_KEY_LEN)
-    return 1;
-
-  if (fptr->params.modulus < 1 || fptr->params.mod_value < 1)
-    return 1;
 
   if (fptr->flags & DHF_NOCASE) {
     memucpy(u_id, id, id_len);
@@ -111,10 +103,7 @@ int32_t dh_hash_group(FILE_ENTRY* fptr, char id[], int16_t id_len) {
   group = (hash_value % fptr->params.mod_value) + 1;
 
   if (group > fptr->params.modulus) {
-    mod_value = fptr->params.mod_value >> 1;
-    if (mod_value < 1)
-      mod_value = 1;
-    group = (hash_value % mod_value) + 1;
+    group = (hash_value % (fptr->params.mod_value >> 1)) + 1;
   }
 
   return group;

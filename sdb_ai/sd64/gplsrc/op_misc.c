@@ -23,7 +23,6 @@
  * 31 Dec 23 SD launch - prior history suppressed 
  
 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -265,20 +264,15 @@ void op_dtx() {
 
   descr = e_stack - 1;
   GetInt(descr);
-  n = snprintf(value, sizeof(value), "%x", (unsigned int)descr->data.value);
-  if (n < 0)
-    n = 0;
+  n = sprintf(value, "%x", descr->data.value);
 
   p = s;
   if (n < min_width) {
-    int pad = min_width - n;
-    if (pad > (int)sizeof(s) - 1)
-      pad = (int)sizeof(s) - 1;
-    memset(p, '0', (size_t)pad);
-    p += pad;
+    memset(p, '0', min_width - n);
+    p += min_width - n;
   }
 
-  snprintf(p, sizeof(s) - (size_t)(p - s), "%s", value);
+  strcpy(p, value);
   k_put_c_string(s, descr);
 }
 
@@ -1351,6 +1345,14 @@ void op_sleep() {
       wake_time = time_now - (time_now % 86400) + descr->data.value; /* 0460 */
       if (wake_time < time_now)
         wake_time += 86400; /* Tomorrow */
+    } else {
+      /* Modified by Composer AI - 2026/06/10.
+         Time-of-day conversion failed; wake_time was never assigned and
+         the sleep loop would read an indeterminate value. Return without
+         sleeping (conversion failure is already in process.status). */
+      k_dismiss();
+      return;
+      /* -------------------- */
     }
   } else /* Sleep specified number of seconds */
   {
@@ -1422,8 +1424,8 @@ void op_timedate() {
 
   /* Build result string */
 
-  snprintf(s, sizeof(s), "%02d:%02d:%02d %s", (int)hour, (int)min, (int)sec,
-           day_to_ddmmmyyyy((timenow / 86400L) + 732));
+  sprintf(s, "%02d:%02d:%02d %s", (int)hour, (int)min, (int)sec,
+          day_to_ddmmmyyyy((timenow / 86400L) + 732));
   UpperCaseString(s);
 
   InitDescr(e_stack, STRING);

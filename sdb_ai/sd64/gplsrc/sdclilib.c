@@ -19,12 +19,6 @@
  *               log local connections
  *               on local connection, set user / group id to user who forked process
  *               on connectlocal if account fails, disconnect!
- * rev 1.0-3 mab add some connection logging to syslog
- *               remove on local connection: set user / group id to user who forked process
- *                Not sure made any sense, local connect is forked from running sd process,
- *                   so by default it must be a valid user.
- *                Also causes Apache spawned process to fail, but doesn't if run from test c program ??
- *
  *  Warning: sdclilib does not maintian a storage area for Getarg parameters for each session.
  *  Using Callx will "overwrite" the previous Callx parameters regardless of session number.
  *  A solution would be to add the return call buffers to the session structure....
@@ -33,9 +27,8 @@
  *    Then use session_idx*MAX_ARGS as the offset into CallArgArray for the sessions SDCall arguments
  *  I cannot find where the transfer buffer "buff" is freed, need to test for memory leak to see if this is really the case.
  *     For now I have added code to disconnect() to free buff if there are no more remainging active connections.
- *  rem to copy to (at least for Fedora) /usr/lib64
  *
- * 24 May 26 - Code reviewed and updated by Claude AI
+ * 
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -147,12 +140,8 @@
 
 void set_default_character_maps(void);
 
-#include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include "linuxlb.h"
-
-bool GetConfigPath(char* inipath);
 #define NetErr(msg, winerr, lnxerr) net_error(msg, lnxerr)
 
 #define DLLEntry
@@ -186,19 +175,6 @@ struct ARGDATA {
 
 /* Packet buffer */
 #define BUFF_INCR 4096
-#define SDCLI_LOGIN_DATA_MAX \
-  (2 + MAX_USERNAME_LEN + 1 + 2 + MAX_USERNAME_LEN + 1)
-#define SDCLI_SDERROR_MAX 512
-#define SDCLI_MAX_PACKET_BYTES (16 * 1024 * 1024)
-#define SDCLI_ABORT_MSG_MAX 1024
-#define SDCLI_HOST_MAX 255
-#define SDCLI_CONFIG_SECTION_MAX 32
-#define SDCLI_CONFIG_LINE_MAX 200
-
-#define MAX_ARGS 20
-#define MAX_SESSIONS 4
-#define CALL_ARG_SLOT(i) ((session_idx * MAX_ARGS) + (i))
-
 typedef struct INBUFF INBUFF;
 struct INBUFF {
   union {
@@ -237,10 +213,14 @@ Private int32_t buff_size;  /* Allocated size of buffer */
 Private int32_t buff_bytes; /* Size of received packet */
 Private FILE* srvr_debug = NULL;
 
-/* rev 0.9.0 — per-session Callx argument storage */
-Private char* CallArgArray[MAX_ARGS * MAX_SESSIONS];
-Private int CallArgArraySz[MAX_ARGS * MAX_SESSIONS];
+/* rev 0.9.0 */
+/* buffers for Callx return arguments  */
+#define MAX_ARGS 20
+Private char *    CallArgArray[MAX_ARGS];          /* create an array of pointers, for string arguments (returned by Callx) not sure if this is correct */
+Private int       CallArgArraySz[MAX_ARGS];        /* and size of memory allocated for each  string length + terminator */
 
+
+#define MAX_SESSIONS 4
 Private struct {
   bool is_local;
   int16_t context;
@@ -256,50 +236,6 @@ Private struct {
   int pid; /* 0421 Pid of child process */
 } session[MAX_SESSIONS];
 Private int16_t session_idx = 0;
-
-static void sdcli_copy_bounded(char* dst,
-                               size_t dst_sz,
-                               const char* src,
-                               int n) {
-  size_t copy;
-
-  if (dst == NULL || dst_sz == 0)
-    return;
-  if (src == NULL || n <= 0) {
-    dst[0] = '\0';
-    return;
-  }
-  copy = (size_t)n;
-  if (copy >= dst_sz)
-    copy = dst_sz - 1;
-  memcpy(dst, src, copy);
-  dst[copy] = '\0';
-}
-
-static void sdcli_set_error_idx(int16_t idx, const char* fmt, ...) {
-  va_list ap;
-
-  if (idx < 0 || idx >= MAX_SESSIONS)
-    return;
-  va_start(ap, fmt);
-  vsnprintf(session[idx].sderror, sizeof session[idx].sderror, fmt, ap);
-  va_end(ap);
-}
-
-static int32_t sdcli_payload_len(size_t field_offset) {
-  int32_t n;
-
-  if (buff == NULL || buff_bytes <= 0)
-    return 0;
-  n = buff_bytes - (int32_t)field_offset;
-  if (n < 0)
-    return 0;
-  if (n > buff_size)
-    n = buff_size;
-  if (n > SDCLI_MAX_PACKET_BYTES)
-    n = SDCLI_MAX_PACKET_BYTES;
-  return n;
-}
 
 /* Matching data */
 Private char* component_start;
@@ -359,14 +295,13 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
   if ((argc < 0) || (argc > MAX_ARGS)) {
     Abort("Illegal argument count in call", FALSE);
   }
+ /* free up any memory allocated for prev callx arg strorage */
   for (i = 0; i < MAX_ARGS; i++) {
-    int slot = CALL_ARG_SLOT(i);
-
-    if (CallArgArray[slot] != NULL) {
-      free(CallArgArray[slot]);
-      CallArgArray[slot] = NULL;
-      CallArgArraySz[slot] = 0;
-    }
+	if (CallArgArray[i] != NULL ){
+	 free(CallArgArray[i]);
+	 CallArgArray[i] = NULL;
+	 CallArgArraySz[i] = 0;
+	}
   }
   /* Accumulate outgoing packet size */
   bytes = 2;                        /* Subrname length */
@@ -388,10 +323,8 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
     if (q == NULL) {
       Abort("Unable to allocate network buffer", FALSE);
     }
-    if (buff != NULL)
-      free(buff);
+    free(buff);
     buff = q;
-    buff_size = n;
   }
   /* Set up outgoing packet */
   p = (char*)buff;
@@ -401,29 +334,34 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
   p += (subrname_len + 1) & ~1;
   *((int16_t*)p) = ShortInt(argc); /* Arg count */
   p += 2;
+ /* we do 2 things in this block, move callx args to the send buffer    */
+ /* and save a copy pointed to by  CallArgArray[i]   for use by GetArg  */
   va_start(ap, argc);
   for (i = 1; i <= argc; i++) {
-    int slot = CALL_ARG_SLOT(i - 1);
-
+  /* first move arg to io buffer  */
     arg = va_arg(ap, char*);
     arg_len = (arg == NULL) ? 0 : strlen(arg);
     *((int32_t*)p) = LongInt(arg_len); /* Arg length */
     p += 4;
     if (arg_len)
       memcpy(p, arg, arg_len); /* Arg text */
-    p += (arg_len + 1) & ~1;
-    arg_p = (char*)malloc((size_t)arg_len + 1);
-    if (arg_p == NULL) {
-      Abort("Unable to allocate Callx buffer", FALSE);
-    }
-    CallArgArray[slot] = arg_p;
-    CallArgArraySz[slot] = arg_len + 1;
-    if (arg_len == 0) {
-      *arg_p = '\0';
-    } else {
-      memcpy(arg_p, arg, (size_t)arg_len);
-      arg_p[arg_len] = '\0';
-    }
+	p += (arg_len + 1) & ~1;
+  /* now save a copy                    */
+	arg_p = (char *)malloc((arg_len+1) * sizeof(char));   /* reserver mem for string and terminator */
+	/* if we fail to allocate memory, bomb out */
+	if (arg_p == NULL) {
+	   Abort("Unable to allocate Callx buffer", FALSE);
+	} else {
+   /* save ponter to allocated memory */
+	  CallArgArray[i-1] = arg_p;
+	  CallArgArraySz[i-1] = arg_len + 1;  /* along with the buffer size (string sz + terminator)    */
+	  if (arg_len == 0) {
+		*arg_p = '\0';
+	  } else {
+   /* copy arg to allocated memory, we are assuming arg is '\0' terminated, probably should check on this */
+		strcpy(arg_p,arg);
+	  }
+	}
   }
   va_end(ap);
   if (!message_pair(SrvrCall, (char*)buff, bytes)) {
@@ -441,24 +379,23 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
 	   /*  memcpy(arg, argptr->text, arg_len);  */
 	   /*  arg[arg_len] = '\0';                 */
 	   /* check CallArgArray buffer is large enough for returned value */
-        if (CallArgArraySz[CALL_ARG_SLOT(i - 1)] < (arg_len + 1)) {
-          if (CallArgArray[CALL_ARG_SLOT(i - 1)] != NULL)
-            free(CallArgArray[CALL_ARG_SLOT(i - 1)]);
-          CallArgArray[CALL_ARG_SLOT(i - 1)] =
-              malloc((size_t)arg_len + 1);
-          if (CallArgArray[CALL_ARG_SLOT(i - 1)] != NULL) {
-            CallArgArraySz[CALL_ARG_SLOT(i - 1)] = arg_len + 1;
-            memcpy(CallArgArray[CALL_ARG_SLOT(i - 1)], argptr->text,
-                   (size_t)arg_len);
-            CallArgArray[CALL_ARG_SLOT(i - 1)][arg_len] = '\0';
-          } else {
-            Abort("Unable to allocate Callx buffer on return", FALSE);
-          }
-        } else {
-          memcpy(CallArgArray[CALL_ARG_SLOT(i - 1)], argptr->text,
-                 (size_t)arg_len);
-          CallArgArray[CALL_ARG_SLOT(i - 1)][arg_len] = '\0';
-        }
+		if ((CallArgArraySz[i-1]) < (arg_len+1)) {
+	   /* not large enough, free and re allocate  */
+		  if (CallArgArray[i-1] != NULL)
+			 free(CallArgArray[i-1]);
+		  CallArgArray[i-1] = malloc((arg_len+1) * sizeof(char));
+		  if (CallArgArray[i-1] != NULL){
+			CallArgArraySz[i-1] = (arg_len+1) * sizeof(char);
+			memcpy(CallArgArray[i-1], argptr->text, arg_len);
+			CallArgArray[i-1][arg_len] = '\0';
+		  }else{
+			Abort("Unable to allocate Callx buffer on return", FALSE);
+		  }
+		}else{
+	  /* existing buffer large enough  */
+		  memcpy(CallArgArray[i-1], argptr->text, arg_len);
+		  CallArgArray[i-1][arg_len] = '\0';
+		}
 
 		offset +=
             offsetof(ARGDATA, text) + ((LongInt(argptr->arglen) + 1) & ~1);
@@ -492,18 +429,19 @@ char* DLLEntry SDGetArg(int ArgNbr) {
 	Abort("Illegal argument index in call", TRUE);
     return NULL;
   }
-  arg_idx = CALL_ARG_SLOT(ArgNbr - 1);
-  if (CallArgArray[arg_idx] == NULL) {
-    Abort("Argument value NULL", TRUE);
+  arg_idx = ArgNbr - 1;
+  if ((CallArgArray[arg_idx] == NULL)) {
+	Abort("Argument value NULL", TRUE);
     return NULL;
   }
-  arg_len = (int)strlen(CallArgArray[arg_idx]);
-  arg = (char*)malloc((size_t)arg_len + 1);
+  arg_len = strlen(CallArgArray[arg_idx]);
+  arg = (char *)malloc((arg_len+1) * sizeof(char));   /* reserver mem for string and terminator */
+  /* if we fail to allocate memory, bomb out */
   if (arg == NULL) {
-    Abort("GetgArg Memory Allocation Failed", TRUE);
+	Abort("GetgArg Memory Allocation Failed", TRUE);
     return NULL;
   }
-  memcpy(arg, CallArgArray[arg_idx], (size_t)arg_len + 1);
+  strcpy(arg,CallArgArray[arg_idx]);
   return arg;
 }
 
@@ -523,6 +461,8 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
   INBUFF* q;
   struct ARGDATA* argptr;
   int offset;
+
+#define MAX_ARGS 20
 
   if (context_error(CX_CONNECTED))
     return;
@@ -560,10 +500,8 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
     if (q == NULL) {
       Abort("Unable to allocate network buffer", FALSE);
     }
-    if (buff != NULL)
-      free(buff);
+    free(buff);
     buff = q;
-    buff_size = n;
   }
 
   /* Set up outgoing packet */
@@ -606,10 +544,8 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
       arg = va_arg(ap, char*);
       if (i == argptr->argno) {
         arg_len = LongInt(argptr->arglen);
-        if (arg_len >= 0 && arg_len <= SDCLI_MAX_PACKET_BYTES) {
-          memcpy(arg, argptr->text, (size_t)arg_len);
-          arg[arg_len] = '\0';
-        }
+        memcpy(arg, argptr->text, arg_len);
+        arg[arg_len] = '\0';
 
         offset +=
             offsetof(ARGDATA, text) + ((LongInt(argptr->arglen) + 1) & ~1);
@@ -672,7 +608,7 @@ SDChange(char* src, char* old, char* new, int occurrences, int start) {
   if (start < 1)
     start = 1;
 
-  /* Count occurrences of old string in source string, remembering start of
+  /* Count occurences of old string in source string, remembering start of
     region to change.                                                     */
 
   changes = 0;
@@ -745,10 +681,8 @@ SDChange(char* src, char* old, char* new, int occurrences, int start) {
   return new_str;
 
 return_unchanged:
-  new_str = (char*)malloc((size_t)src_len + 1);
-  if (new_str == NULL)
-    return NullString();
-  memcpy(new_str, src, (size_t)src_len + 1);
+  new_str = (char*)malloc(src_len + 1);
+  strcpy(new_str, src);
   return new_str;
 }
 
@@ -812,9 +746,8 @@ exit_sdclose:
 int DLLEntry
 SDConnect(char* host, int port, char* username, char* password, char* account) {
   int status = FALSE;
-  char login_data[SDCLI_LOGIN_DATA_MAX];
+  char login_data[2 + MAX_USERNAME_LEN + 2 + MAX_USERNAME_LEN];
   int n;
-  int acct_len;
   char* p;
 
   initialise_client();
@@ -824,13 +757,9 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
   ClearError;
   session[session_idx].is_local = FALSE;
 
-  if (host == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid host name");
-    goto exit_sdconnect;
-  }
-  n = (int)strlen(host);
-  if (n == 0 || n > SDCLI_HOST_MAX) {
-    sdcli_set_error_idx(session_idx, "Invalid host name");
+  n = strlen(host);
+  if (n == 0) {
+    strcpy(session[session_idx].sderror, "Invalid host name");
     goto exit_sdconnect;
   }
 
@@ -838,13 +767,9 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
 
   p = login_data;
 
-  if (username == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid user name");
-    goto exit_sdconnect;
-  }
-  n = (int)strlen(username);
-  if (n == 0 || n > MAX_USERNAME_LEN) {
-    sdcli_set_error_idx(session_idx, "Invalid user name");
+  n = strlen(username);
+  if (n > MAX_USERNAME_LEN) {
+    strcpy(session[session_idx].sderror, "Invalid user name");
     goto exit_sdconnect;
   }
 
@@ -856,13 +781,9 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
   if (n & 1)
     *(p++) = '\0';
 
-  if (password == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid password");
-    goto exit_sdconnect;
-  }
-  n = (int)strlen(password);
+  n = strlen(password);
   if (n > MAX_USERNAME_LEN) {
-    sdcli_set_error_idx(session_idx, "Invalid password");
+    strcpy(session[session_idx].sderror, "Invalid password");
     goto exit_sdconnect;
   }
 
@@ -888,27 +809,18 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
 
   if (session[session_idx].server_error != SV_OK) {
     if (session[session_idx].server_error == SV_ON_ERROR) {
-      n = buff_bytes - (int)offsetof(INBUFF, data.abort.message);
+      n = buff_bytes - offsetof(INBUFF, data.abort.message);
       if (n > 0) {
-        sdcli_copy_bounded(session[session_idx].sderror,
-                           sizeof session[session_idx].sderror,
-                           buff->data.abort.message, n);
+        memcpy(session[session_idx].sderror, buff->data.abort.message, n);
+        buff->data.abort.message[n] = '\0';
       }
     }
     goto exit_sdconnect;
   }
 
-  if (account == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnect;
-  }
-  acct_len = (int)strlen(account);
-  if (acct_len == 0 || acct_len > MAX_ACCOUNT_NAME_LEN) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnect;
-  }
+  /* Now attempt to attach to required account */
 
-  if (!message_pair(SrvrAccount, account, acct_len)) {
+  if (!message_pair(SrvrAccount, account, strlen(account))) {
     goto exit_sdconnect;
   }
 
@@ -935,8 +847,6 @@ SDConnectUDS(char* account) {
   char* p;
   
   initialise_client();
-
-  openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 
   if (!FindFreeSession())
     goto exit_sdconnectUDS;
@@ -973,46 +883,30 @@ SDConnectUDS(char* account) {
   /* Note systemd starts the  sd process as root, linuxio.c function start_connection will set process to user */
   /* Open connection to server */
 
-
-  syslog (LOG_INFO, "APISrvr UDS Connection, user:");
-  syslog (LOG_INFO, "%s", username);
-
-  if (!OpenUDSocket()) {
-    syslog (LOG_INFO, "OpenUDSocket Failed");
+  if (!OpenUDSocket())
     goto exit_sdconnectUDS;
-  }
+
   /* Check username and password */
 
   n = p - login_data;
   if (!message_pair(SrvrLogin, login_data, n)) {
-    syslog (LOG_INFO, "SDConnectUDS login failed");
     goto exit_sdconnectUDS;
   }
 
   if (session[session_idx].server_error != SV_OK) {
     if (session[session_idx].server_error == SV_ON_ERROR) {
-      n = buff_bytes - (int)offsetof(INBUFF, data.abort.message);
+      n = buff_bytes - offsetof(INBUFF, data.abort.message);
       if (n > 0) {
-        sdcli_copy_bounded(session[session_idx].sderror,
-                           sizeof session[session_idx].sderror,
-                           buff->data.abort.message, n);
+        memcpy(session[session_idx].sderror, buff->data.abort.message, n);
+        buff->data.abort.message[n] = '\0';
       }
     }
     goto exit_sdconnectUDS;
   }
 
-  if (account == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnectUDS;
-  }
-  n = (int)strlen(account);
-  if (n == 0 || n > MAX_ACCOUNT_NAME_LEN) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnectUDS;
-  }
+  /* Now attempt to attach to required account */
 
-  if (!message_pair(SrvrAccount, account, n)) {
-    syslog(LOG_INFO, "SDConnectUDS Account failed");
+  if (!message_pair(SrvrAccount, account, strlen(account))) {
     goto exit_sdconnectUDS;
   }
 
@@ -1020,7 +914,6 @@ SDConnectUDS(char* account) {
   status = TRUE;
 
 exit_sdconnectUDS:
-  closelog();
   if (!status)
     CloseSocket();
   return status;
@@ -1041,88 +934,82 @@ int DLLEntry SDConnected() {
 
 int DLLEntry SDConnectLocal(char* account) {
   int status = FALSE;
+  struct passwd *pwd;
   int cpid;
-  char option[32];
-  char path[MAX_PATHNAME_LEN + 20];
+  char option[20];
+  char path[MAX_PATHNAME_LEN + 1];
+/* rev 0.9.0 log local login */
   char username[MAX_USERNAME_LEN + 1];
   u_int32_t m;
   char* p;
-  int acct_len;
-  const char* sdir;
-
+  
   initialise_client();
 
   if (!FindFreeSession())
     goto exit_sdconnect_local;
   ClearError;
   session[session_idx].is_local = TRUE;
-  session[session_idx].pid = 0;
+
+  /* Create pipes */
 
   if (pipe(session[session_idx].RxPipe) || pipe(session[session_idx].TxPipe)) {
-    sdcli_set_error_idx(session_idx, "Error %d creating pipe", errno);
+    sprintf(session[session_idx].sderror, "Error %d creating pipe", errno);
     goto exit_sdconnect_local;
   }
+
+  /* Launch SD process */
 
   cpid = fork();
-  if (cpid == 0) {
-    close(session[session_idx].RxPipe[0]);
-    close(session[session_idx].TxPipe[1]);
-    sdir = sysdir();
-    if (sdir == NULL)
-      _exit(127);
-    if (snprintf(path, sizeof(path), "%s/bin/sd", sdir) >= (int)sizeof(path))
-      _exit(127);
-    if (snprintf(option, sizeof(option), "-C%d!%d",
-                 session[session_idx].RxPipe[1],
-                 session[session_idx].TxPipe[0]) >= (int)sizeof(option))
-      _exit(127);
-    execl(path, path, "-Q", option, (char*)NULL);
-    _exit(127);
-  }
-  if (cpid == -1) {
-    sdcli_set_error_idx(session_idx, "Error %d forking process", errno);
+  if (cpid == 0) /* Child process */
+  {
+    sprintf(path, "%s/bin/sd", sysdir());
+    sprintf(option, "-C%d!%d", session[session_idx].RxPipe[1],
+            session[session_idx].TxPipe[0]);
+    execl(path, path, "-Q", option, NULL);
+  } else if (cpid == -1) /* Error */
+  {
+    sprintf(session[session_idx].sderror, "Error %d forking process", errno);
     goto exit_sdconnect_local;
+  } else /* Parent process */
+  {
+    session[session_idx].pid = cpid; /* 0421 */
   }
-
-  session[session_idx].pid = cpid;
-  close(session[session_idx].RxPipe[1]);
-  close(session[session_idx].TxPipe[0]);
-  session[session_idx].RxPipe[1] = -1;
-  session[session_idx].TxPipe[0] = -1;
-
+  
+  /* rev 0.9.0 log username of process, set forked process to uid gid of user forking process */
+ 
   m = MAX_USERNAME_LEN + 1;
   p = username;
-  if (!GetUserName(p, &m)) {
-    sdcli_set_error_idx(session_idx, "Error Could Not Establish Username");
-    goto exit_sdconnect_local;
+  if (!GetUserName(p,&m)){
+    sprintf(session[session_idx].sderror, "Error Could Not Establish Username");
+    goto exit_sdconnect_local; 
   }
 
-  openlog("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-  syslog(LOG_INFO, "APISrvr Local Connection, user:");
-  syslog(LOG_INFO, "%s", username);
+  openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+  syslog (LOG_INFO, "APISrvr Local Connection, user:");
+  syslog (LOG_INFO, "%s", username);
+
+  if (((pwd = getpwnam(username)) != NULL) && (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
+            //         set_groups();
+    syslog (LOG_INFO, "sdApiSrvr login via Username: %s (%d) Group: %d",username,pwd->pw_uid, pwd->pw_gid);
+  } else {
+    syslog (LOG_INFO, "sdApiSrvr unable to set user and group for Username: %s",username);
+    closelog();
+    sprintf(session[session_idx].sderror, "Error Could Set User Group");
+    goto exit_sdconnect_local; 
+  }
+ 
   closelog();
 
   /* Send local login packet */
 
   if (!message_pair(SrvrLocalLogin, NULL, 0)) {
-    syslog (LOG_INFO, "SDConnectLocal Login failed");
     goto exit_sdconnect_local;
   }
 
   /* Now attempt to attach to required account */
 
-  if (account == NULL) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnect_local;
-  }
-  acct_len = (int)strlen(account);
-  if (acct_len == 0 || acct_len > MAX_ACCOUNT_NAME_LEN) {
-    sdcli_set_error_idx(session_idx, "Invalid account name");
-    goto exit_sdconnect_local;
-  }
-
-  if (!message_pair(SrvrAccount, account, acct_len)) {
-    syslog(LOG_INFO, "SDConnectLocal Account failed");
+  if (!message_pair(SrvrAccount, account, strlen(account))) {
+// rev 0.9.0
     disconnect();
     goto exit_sdconnect_local;
   }
@@ -1131,13 +1018,7 @@ int DLLEntry SDConnectLocal(char* account) {
   status = TRUE;
 
 exit_sdconnect_local:
-  closelog();
   if (!status) {
-    if (session[session_idx].pid > 0) {
-      kill(session[session_idx].pid, SIGTERM);
-      waitpid(session[session_idx].pid, NULL, 0);
-      session[session_idx].pid = 0;
-    }
     if (session[session_idx].RxPipe[0] >= 0) {
       close(session[session_idx].RxPipe[0]);
       session[session_idx].RxPipe[0] = -1;
@@ -1346,10 +1227,8 @@ null_result:
   return NullString();
 
 unchanged_result:
-  new_str = malloc((size_t)src_len + 1);
-  if (new_str == NULL)
-    return NullString();
-  memcpy(new_str, src, (size_t)src_len + 1);
+  new_str = malloc(src_len + 1);
+  strcpy(new_str, src);
   return new_str;
 }
 
@@ -1383,7 +1262,7 @@ void DLLEntry SDDisconnectAll() {
   int16_t i;
 
   for (i = 0; i < MAX_SESSIONS; i++) {
-    if (session[i].context != CX_DISCONNECTED) {
+    if (session[session_idx].context != CX_DISCONNECTED) {
       session_idx = i;
       disconnect();
     }
@@ -1509,9 +1388,14 @@ char* DLLEntry SDExecute(char* cmnd, int* err) {
   switch (session[session_idx].server_error) {
     case SV_PROMPT:
       session[session_idx].context = CX_EXECUTING;
-      /* fallthrough */
+      /* Modified by Composer AI - 2026/06/10.
+         Intentional fall-through: SV_PROMPT shares reply extraction. */
+      /* **** FALL THROUGH **** */
+      __attribute__((fallthrough));
+      /* -------------------- */
+
     case SV_OK:
-      reply_len = sdcli_payload_len(offsetof(INBUFF, data.execute.reply));
+      reply_len = buff_bytes - offsetof(INBUFF, data.execute.reply);
       break;
 
     case SV_ON_ERROR:
@@ -1520,14 +1404,15 @@ char* DLLEntry SDExecute(char* cmnd, int* err) {
   }
 
 exit_sdexecute:
-  reply = (char*)malloc((size_t)reply_len + 1);
+  reply = malloc(reply_len + 1);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; return empty string instead of strcpy through NULL. */
   if (reply == NULL) {
     *err = session[session_idx].server_error;
-    return NULL;
+    return NullString();
   }
-  if (reply_len > 0)
-    memcpy(reply, buff->data.execute.reply, (size_t)reply_len);
-  reply[reply_len] = '\0';
+  /* -------------------- */
+  strcpy(reply, buff->data.execute.reply);
   *err = session[session_idx].server_error;
 
   return reply;
@@ -2233,7 +2118,7 @@ char* DLLEntry SDReadList(int listno) {
 
   switch (session[session_idx].server_error) {
     case SV_OK:
-      data_len = sdcli_payload_len(offsetof(INBUFF, data.readlist.list));
+      data_len = buff_bytes - offsetof(INBUFF, data.readlist.list);
       break;
 
     case SV_ON_ERROR:
@@ -2244,12 +2129,13 @@ char* DLLEntry SDReadList(int listno) {
       return NULL;
   }
 
+  /* status = session[session_idx].server_error;
+   * variable set but never used. */
+
 exit_sdreadlist:
-  list = (char*)malloc((size_t)data_len + 1);
-  if (list == NULL)
-    return NULL;
-  if (data_len > 0)
-    memcpy(list, buff->data.readlist.list, (size_t)data_len);
+
+  list = malloc(data_len + 1);
+  memcpy(list, buff->data.readlist.list, data_len);
   list[data_len] = '\0';
   return list;
 }
@@ -2275,7 +2161,7 @@ char* DLLEntry SDReadNext(int16_t listno) {
 
   switch (session[session_idx].server_error) {
     case SV_OK:
-      id_len = sdcli_payload_len(offsetof(INBUFF, data.readnext.id));
+      id_len = buff_bytes - offsetof(INBUFF, data.readnext.id);
       break;
 
     case SV_ON_ERROR:
@@ -2287,11 +2173,8 @@ char* DLLEntry SDReadNext(int16_t listno) {
   }
 
 exit_sdreadnext:
-  id = (char*)malloc((size_t)id_len + 1);
-  if (id == NULL)
-    return NULL;
-  if (id_len > 0)
-    memcpy(id, buff->data.readnext.id, (size_t)id_len);
+  id = malloc(id_len + 1);
+  memcpy(id, buff->data.readnext.id, id_len);
   id[id_len] = '\0';
   return id;
 }
@@ -2599,9 +2482,14 @@ char* DLLEntry SDRespond(char* response, int* err) {
   switch (session[session_idx].server_error) {
     case SV_OK:
       session[session_idx].context = CX_CONNECTED;
-      /* fallthrough */
+      /* Modified by Composer AI - 2026/06/10.
+         Intentional fall-through: SV_OK shares reply extraction. */
+      /* **** FALL THROUGH **** */
+      __attribute__((fallthrough));
+      /* -------------------- */
+
     case SV_PROMPT:
-      reply_len = sdcli_payload_len(offsetof(INBUFF, data.execute.reply));
+      reply_len = buff_bytes - offsetof(INBUFF, data.execute.reply);
       break;
 
     case SV_ERROR: /* Probably SDRespond() used when not expected */
@@ -2609,18 +2497,20 @@ char* DLLEntry SDRespond(char* response, int* err) {
 
     case SV_ON_ERROR:
       session[session_idx].context = CX_CONNECTED;
-      Abort("RESPOND generated an abort event", TRUE);
+      Abort("EXECUTE generated an abort event", TRUE);
       break;
   }
 
 exit_sdrespond:
-  reply = (char*)malloc((size_t)reply_len + 1);
+  reply = malloc(reply_len + 1);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; return empty string instead of memcpy through NULL. */
   if (reply == NULL) {
     *err = session[session_idx].server_error;
-    return NULL;
+    return NullString();
   }
-  if (reply_len > 0)
-    memcpy(reply, buff->data.execute.reply, (size_t)reply_len);
+  /* -------------------- */
+  memcpy(reply, buff->data.execute.reply, reply_len);
   reply[reply_len] = '\0';
   *err = session[session_idx].server_error;
   return reply;
@@ -2684,11 +2574,7 @@ void DLLEntry SDSelectIndex(int16_t fno,
 
   /* Insert index name */
 
-  n = (int16_t)strlen(index_name);
-  if (n < 1 || n > 255) {
-    Abort("Illegal index name in select", FALSE);
-    goto exit_sdselectindex;
-  }
+  n = strlen(index_name);
   packet.name_len = ShortInt(n);
   p = packet.index_name;
   memcpy(p, index_name, n);
@@ -2696,11 +2582,9 @@ void DLLEntry SDSelectIndex(int16_t fno,
   if (n & 1)
     *(p++) = '\0';
 
-  n = (int16_t)strlen(index_value);
-  if (n < 0 || n > 255) {
-    Abort("Illegal index value in select", FALSE);
-    goto exit_sdselectindex;
-  }
+  /* Insert index value */
+
+  n = strlen(index_value); /* 0267 */
   *((int16_t*)p) = ShortInt(n);
   p += sizeof(int16_t);
   memcpy(p, index_value, n);
@@ -2759,9 +2643,7 @@ Private char* SelectLeftRight(int16_t fno,
 
     /* Insert index name */
 
-    n = (int16_t)strlen(index_name);
-    if (n < 1 || n > MAX_ID_LEN)
-      return NULL;
+    n = strlen(index_name);
     p = packet.index_name;
     memcpy(p, index_name, n);
     p += n;
@@ -2769,7 +2651,7 @@ Private char* SelectLeftRight(int16_t fno,
     if (message_pair(mode, (char*)&packet, p - (char*)&packet)) {
       switch (session[session_idx].server_error) {
         case SV_OK:
-          key_len = sdcli_payload_len(offsetof(INBUFF, data.selectleft.key));
+          key_len = buff_bytes - offsetof(INBUFF, data.selectleft.key);
           break;
 
         case SV_ON_ERROR:
@@ -2779,11 +2661,8 @@ Private char* SelectLeftRight(int16_t fno,
     }
   }
 
-  key = (char*)malloc((size_t)key_len + 1);
-  if (key == NULL)
-    return NULL;
-  if (key_len > 0)
-    memcpy(key, buff->data.selectleft.key, (size_t)key_len);
+  key = malloc(key_len + 1);
+  memcpy(key, buff->data.selectleft.key, key_len);
   key[key_len] = '\0';
   return key;
 }
@@ -2965,7 +2844,11 @@ exit_delete:
    read_record()  -  Common path for READ, READL and READU                */
 
 Private char* read_record(int fno, char* id, int* err, int mode) {
-  int32_t status;
+  /* Modified by Composer AI - 2026/06/10.
+     Default status for early exit paths that skip the server switch. */
+  /* int32_t status; */
+  int32_t status = SV_ERROR;
+  /* -------------------- */
   int32_t rec_len = 0;
   int id_len;
   char* rec;
@@ -2993,7 +2876,7 @@ Private char* read_record(int fno, char* id, int* err, int mode) {
 
   switch (session[session_idx].server_error) {
     case SV_OK:
-      rec_len = sdcli_payload_len(offsetof(INBUFF, data.read.rec));
+      rec_len = buff_bytes - offsetof(INBUFF, data.read.rec);
       break;
 
     case SV_ON_ERROR:
@@ -3009,13 +2892,15 @@ Private char* read_record(int fno, char* id, int* err, int mode) {
   status = session[session_idx].server_error;
 
 exit_read:
-  rec = (char*)malloc((size_t)rec_len + 1);
+  rec = malloc(rec_len + 1);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; return empty string instead of memcpy through NULL. */
   if (rec == NULL) {
     *err = status;
-    return NULL;
+    return NullString();
   }
-  if (rec_len > 0)
-    memcpy(rec, buff->data.read.rec, (size_t)rec_len);
+  /* -------------------- */
+  memcpy(rec, buff->data.read.rec, rec_len);
   rec[rec_len] = '\0';
   *err = status;
   return rec;
@@ -3066,8 +2951,7 @@ Private void write_record(int16_t mode, int16_t fno, char* id, char* data) {
       session[session_idx].sd_status = ER_SRVRMEM;
       goto exit_write;
     }
-    if (buff != NULL)
-      free(buff);
+    free(buff);
     buff = q;
     buff_size = bytes;
   }
@@ -3105,22 +2989,14 @@ exit_write:
 /* ====================================================================== */
 
 Private bool GetResponse() {
-  int n;
-
   if (!read_packet())
     return FALSE;
 
   if (session[session_idx].server_error == SV_ERROR) {
-    sdcli_set_error_idx(session_idx, "Unable to retrieve error text");
+    strcpy(session[session_idx].sderror, "Unable to retrieve error text");
     write_packet(SrvrGetError, NULL, 0);
-    if (read_packet()) {
-      n = buff_bytes - (int)offsetof(INBUFF, data.error.text);
-      if (n > 0) {
-        sdcli_copy_bounded(session[session_idx].sderror,
-                           sizeof session[session_idx].sderror,
-                           buff->data.error.text, n);
-      }
-    }
+    if (read_packet())
+      strcpy(session[session_idx].sderror, buff->data.error.text);
     return FALSE;
   }
 
@@ -3130,27 +3006,19 @@ Private bool GetResponse() {
 /* ====================================================================== */
 
 Private void Abort(char* msg, bool use_response) {
-  char abort_msg[SDCLI_ABORT_MSG_MAX + 1];
+  char abort_msg[1024 + 1];
   int n;
-  int msg_len;
   char* p;
-  size_t rem;
 
-  if (msg == NULL)
-    msg = "Abort";
-  snprintf(abort_msg, sizeof(abort_msg), "%s", msg);
-  msg_len = (int)strlen(abort_msg);
+  strcpy(abort_msg, msg);
 
   if (use_response) {
-    n = buff_bytes - (int)offsetof(INBUFF, data.abort.message);
-    if (n > 0 && msg_len < SDCLI_ABORT_MSG_MAX) {
-      p = abort_msg + msg_len;
-      rem = sizeof(abort_msg) - (size_t)msg_len;
-      if (rem > 2) {
-        *p++ = '\r';
-        rem--;
-        sdcli_copy_bounded(p, rem, buff->data.abort.message, n);
-      }
+    n = buff_bytes - offsetof(INBUFF, data.abort.message);
+    if (n > 0) {
+      p = abort_msg + strlen(msg);
+      *(p++) = '\r';
+      memcpy(p, buff->data.abort.message, n);
+      *(p + n) = '\0';
     }
   }
 
@@ -3540,10 +3408,19 @@ Private bool message_pair(int type, char* data, int32_t bytes) {
 
 Private char* NullString() {
   char* p;
+  static char empty[1] = {'\0'};
 
+  /* Modified by Composer AI - 2026/06/10.
+     malloc(1) can fail; return a static empty string instead. */
+  /* p = malloc(1);
+  *p = '\0';
+  return p; */
   p = malloc(1);
+  if (p == NULL)
+    return empty;
   *p = '\0';
   return p;
+  /* -------------------- */
 }
 
 /* ======================================================================
@@ -3732,13 +3609,7 @@ Private bool read_packet() {
 
   /* Calculate remaining bytes to read */
 
-  if (LongInt(in_packet_header.packet_length) < IN_PKT_HDR_BYTES)
-    return FALSE;
-
   packet_bytes = LongInt(in_packet_header.packet_length) - IN_PKT_HDR_BYTES;
-
-  if (packet_bytes < 0 || packet_bytes > SDCLI_MAX_PACKET_BYTES)
-    return FALSE;
 
   if (srvr_debug != NULL) {
     fprintf(srvr_debug, "IN (%d bytes)\n", packet_bytes);
@@ -3779,10 +3650,7 @@ Private bool read_packet() {
     p += rcvd_bytes;
   }
 
-  if (buff_bytes < buff_size)
-    ((char*)buff)[buff_bytes] = '\0';
-  else if (buff_size > 0)
-    ((char*)buff)[buff_size - 1] = '\0';
+  ((char*)buff)[buff_bytes] = '\0';
 
   if (srvr_debug != NULL)
     debug((unsigned char*)buff, buff_bytes);
@@ -3880,25 +3748,25 @@ Private void debug(unsigned char* p, int n) {
 Private char* sysdir() {
   static char sysdirpath[MAX_PATHNAME_LEN + 1] = "";
   char inipath[MAX_PATHNAME_LEN + 1];
-  char section[SDCLI_CONFIG_SECTION_MAX + 1];
-  char rec[SDCLI_CONFIG_LINE_MAX + 1];
+  char section[50];
+  char rec[200 + 1];
   FILE* fu;
   char* p;
-
-  if (!GetConfigPath(inipath)) {
-    sdcli_set_error_idx(session_idx, "Configuration path too long");
-    return NULL;
-  }
+ /* 20240219 mab correct env name */
+  p = getenv("SD_CONFIG");  /* was QMCONFIG */ /* Issue #29 */
+  if (p != NULL)
+    strcpy(inipath, p);
+  else
+    strcpy(inipath, "/etc/sd.conf"); // was sdconfig
 
   fu = fopen(inipath, FOPEN_READ_MODE);
   if (fu == NULL) {
-    sdcli_set_error_idx(session_idx, "%s not found", inipath);
+    sprintf(session[session_idx].sderror, "%s not found", inipath);
     return NULL;
   }
 
   section[0] = '\0';
-  sysdirpath[0] = '\0';
-  while (fgets(rec, sizeof rec, fu) != NULL) {
+  while (fgets(rec, 200, fu) != NULL) {
     if ((p = strchr(rec, '\n')) != NULL)
       *p = '\0';
 
@@ -3908,16 +3776,17 @@ Private char* sysdir() {
     if (rec[0] == '[') {
       if ((p = strchr(rec, ']')) != NULL)
         *p = '\0';
-      snprintf(section, sizeof(section), "%s", rec + 1);
+      strcpy(section, rec + 1);
 
       for (p = section; *p != '\0'; p++)
         *p = UpperCase(*p);
       continue;
     }
 
-    if (strcmp(section, "SD") == 0) {
+    if (strcmp(section, "SD") == 0) /* [sd] items */
+    {
       if (strncmp(rec, "SDSYS=", 6) == 0) {
-        snprintf(sysdirpath, sizeof(sysdirpath), "%s", rec + 6);
+        strcpy(sysdirpath, rec + 6);
         break;
       }
     }
@@ -3926,8 +3795,8 @@ Private char* sysdir() {
   fclose(fu);
 
   if (sysdirpath[0] == '\0') {
-    sdcli_set_error_idx(session_idx,
-                        "No SDSYS parameter in configuration file");
+    sprintf(session[session_idx].sderror,
+            "No SDSYS parameter in configuration file");
     return NULL;
   }
 
@@ -3943,9 +3812,7 @@ Private void initialise_client() {
     set_default_character_maps();
 
     buff_size = 2048;
-    buff = (INBUFF*)malloc((size_t)buff_size);
-    if (buff == NULL)
-      return;
+    buff = (INBUFF*)malloc(buff_size);
 
     for (i = 0; i < MAX_SESSIONS; i++) {
       session[i].context = CX_DISCONNECTED;
@@ -3956,12 +3823,12 @@ Private void initialise_client() {
       session[i].RxPipe[1] = -1;
       session[i].TxPipe[0] = -1;
       session[i].TxPipe[1] = -1;
-      session[i].pid = 0;
     }
-    for (i = 0; i < MAX_ARGS * MAX_SESSIONS; i++) {
-      CallArgArray[i] = NULL;
-      CallArgArraySz[i] = 0;
-    }
+    /* rev 0.9.0  initialize the arg pointer array for Callx */
+	  for (i = 0; i < MAX_ARGS; i++) {
+	    CallArgArray[i] = NULL;
+	    CallArgArraySz[i] = 0;
+	  }
   }
 }
 
@@ -3978,7 +3845,8 @@ Private bool FindFreeSession() {
   }
 
   if (i == MAX_SESSIONS) {
-    sdcli_set_error_idx(session_idx, "Too many sessions");
+    /* Must return error via a currently connected session */
+    strcpy(session[session_idx].sderror, "Too many sessions");
     return FALSE;
   }
 
@@ -4022,25 +3890,29 @@ Private void  disconnect() {
 	So look for connected session, if none, release buffer                */
 
   for (i = 0; i < MAX_SESSIONS; i++) {
-    if (session[i].context != CX_DISCONNECTED)
-      break;
+	  if (session[i].context == CX_CONNECTED)
+	    break;
   }
 
   if (i == MAX_SESSIONS) {
-    if (buff != NULL) {
-      free(buff);
-      buff = NULL;
-      buff_size = 0;
+	/* looked at all the sessions and none connected free buff */
+	  if (buff != NULL) {
+	    free(buff);
+	    buff = NULL;
+	  }
+
+   /* free the callx arg buffers if they are still around */
+   /* this needs modifing if we go with more than 1 session, see comments at top */
+	  for (i = 0; i < MAX_ARGS; i++) {
+	    if (CallArgArray[i] != NULL ){
+		    free(CallArgArray[i]);
+		    CallArgArray[i] = NULL;
+		    CallArgArraySz[i] = 0;
+	    }
     }
 
-    for (i = 0; i < MAX_ARGS * MAX_SESSIONS; i++) {
-      if (CallArgArray[i] != NULL) {
-        free(CallArgArray[i]);
-        CallArgArray[i] = NULL;
-        CallArgArraySz[i] = 0;
-      }
-    }
   }
+
 }
 
 #ifdef BIG_ENDIAN_SYSTEM

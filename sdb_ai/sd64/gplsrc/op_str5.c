@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -128,12 +127,19 @@ void op_compare() {
 
   STRING_CHUNK* str1_hdr;
   int32_t str1_len;
-  char* str1;
+  /* Modified by Composer AI - 2026/06/10.
+     Initialize str1/str2 so no comparison path can read indeterminate
+     pointers when a string header is NULL. */
+  /* char* str1; */
+  char* str1 = NULL;
+  /* -------------------- */
   int16_t str1_bytes_remaining;
 
   STRING_CHUNK* str2_hdr;
   int32_t str2_len;
-  char* str2;
+  /* char* str2; */
+  char* str2 = NULL;
+  /* -------------------- */
   int16_t str2_bytes_remaining;
   int16_t d = 0;
   int32_t n;
@@ -173,11 +179,21 @@ void op_compare() {
       n = str1_len - str2_len;
       str1_len -= n;
       while (n--) {
+        /* Modified by Composer AI - 2026/06/10.
+           NULL str1 implies implicit leading spaces (right-justify). */
+        if (str1 == NULL)
+          continue;
+        /* -------------------- */
         if ((d = (((int16_t)*(str1++)) - ' ')) != 0)
           goto mismatch;
 
         if (--str1_bytes_remaining == 0) {
           str1_hdr = str1_hdr->next;
+          /* Modified by Composer AI - 2026/06/10.
+             No further chunk; treat remainder as spaces. */
+          if (str1_hdr == NULL)
+            break;
+          /* -------------------- */
           str1 = str1_hdr->data;
           str1_bytes_remaining = str1_hdr->bytes;
         }
@@ -186,11 +202,19 @@ void op_compare() {
       n = str2_len - str1_len;
       str2_len -= n;
       while (n--) {
+        /* Modified by Composer AI - 2026/06/10. See str1 NULL guard above. */
+        if (str2 == NULL)
+          continue;
+        /* -------------------- */
         if ((d = (' ' - ((int16_t)*(str2++)))) != 0)
           goto mismatch;
 
         if (--str2_bytes_remaining == 0) {
           str2_hdr = str2_hdr->next;
+          /* Modified by Composer AI - 2026/06/10. See str1_hdr guard above. */
+          if (str2_hdr == NULL)
+            break;
+          /* -------------------- */
           str2 = str2_hdr->data;
           str2_bytes_remaining = str2_hdr->bytes;
         }
@@ -201,6 +225,11 @@ void op_compare() {
   /* Compare to end of shorter string */
 
   while (str1_len && str2_len) {
+    /* Modified by Composer AI - 2026/06/10.
+       NULL chunk data ends comparison (shorter effective string). */
+    if ((str1 == NULL) || (str2 == NULL))
+      break;
+    /* -------------------- */
     if ((d = (((int16_t)(*((u_char*)str1++))) - *((u_char*)str2++))) != 0)
       goto mismatch;
 

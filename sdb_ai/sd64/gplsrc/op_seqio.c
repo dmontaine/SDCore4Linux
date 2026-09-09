@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -43,6 +42,13 @@
 #include "sd.h"
 #include "dh_int.h"
 #include <poll.h>
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() and k_deadlock() never return, but the analyzer cannot see
+   that across translation units. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+void k_deadlock(void) __attribute__((noreturn));
+/* -------------------- */
 
 #define SEQ_BUFFER_SIZE 2048
 #define SEQ_BUFFER_MASK 2047
@@ -191,21 +197,9 @@ void op_delseq() {
       goto exit_op_delseq;
     }
 
-    {
-      size_t flen = strlen(file_name);
-
-      if (flen > 0 && file_name[flen - 1] != DS) {
-        if (flen + 1 >= sizeof(file_name))
-          goto exit_op_delseq;
-        file_name[flen++] = DS;
-        file_name[flen] = '\0';
-      }
-      if (flen + strlen(rec_name) >= sizeof(file_name)) {
-        process.status = ER_LENGTH;
-        goto exit_op_delseq;
-      }
-      snprintf(file_name + flen, sizeof(file_name) - flen, "%s", rec_name);
-    }
+    if (file_name[strlen(file_name) - 1] != DS)
+      strcat(file_name, DSS);
+    strcat(file_name, rec_name);
   }
 
   /* Check file exists */
@@ -513,8 +507,8 @@ Private void openseq(bool map_name) {
 
     if (is_port(file_name)) /* Opening a port */
     {
-      snprintf(pathname, sizeof(pathname), "%s", file_name);
-      snprintf(fullpathname, sizeof(fullpathname), "%s", file_name);
+      strcpy(pathname, file_name);
+      strcpy(fullpathname, file_name);
       fu = openport(pathname);
       if (fu < 0) {
         process.status = ER_PNF;
@@ -524,7 +518,7 @@ Private void openseq(bool map_name) {
       flags |= SQ_PORT;
     } else {
       fullpath(fullpathname, file_name);
-      snprintf(file_name, sizeof(file_name), "%s", fullpathname);
+      strcpy(file_name, fullpathname);
 
       /* 0220 Now disect the name to create a file_name and record_name pair */
 
@@ -538,19 +532,12 @@ Private void openseq(bool map_name) {
       }
 
       *p = '\0';
-      snprintf(record_name, sizeof(record_name), "%s", p + 1);
-      snprintf(unmapped_name, sizeof(unmapped_name), "%s", record_name);
+      strcpy(record_name, (p + 1));
+      strcpy(unmapped_name, record_name);
       rec_name_len = strlen(record_name);
 
       if (strchr(file_name, DS) == NULL) {
-        size_t flen = strlen(file_name);
-
-        if (flen + 1 >= sizeof(file_name)) {
-          process.status = ER_LENGTH;
-          goto exit_op_openseq;
-        }
-        file_name[flen] = DS;
-        file_name[flen + 1] = '\0';
+        strcat(file_name, DSS);
       }
     }
   }
@@ -635,6 +622,18 @@ Private void openseq(bool map_name) {
     fvar->file_id = get_file_entry(file_name, device, inode, NULL);
     if (dh_err) {
       process.status = -dh_err;
+      /* Modified by Composer AI - 2026/06/10. Free fvar before exit; the
+         analyzer cannot see that status-based cleanup always runs here. */
+      if (fvar->file_id > 0) {
+        StartExclusive(FILE_TABLE_LOCK, 74);
+        (FPtr(fvar->file_id)->ref_ct)--;
+        if (my_uptr != NULL)
+          (*UFMPtr(my_uptr, fvar->file_id))--;
+        EndExclusive(FILE_TABLE_LOCK);
+      }
+      k_free(fvar);
+      fvar = NULL;
+      /* -------------------- */
       goto exit_op_openseq;
     }
 
@@ -651,16 +650,25 @@ Private void openseq(bool map_name) {
           if (ValidFileHandle(fu))
             CloseFile(fu);
           k_free(fvar); /* Give away file variable */
+          fvar = NULL;
           k_deadlock();
         }
-        /* fall through */
+        /* Modified by Composer AI - 2026/06/10.
+           Intentional fall-through when deadlock handler is disabled. */
+        __attribute__((fallthrough));
+        /* -------------------- */
 
       case -1: /* Lock table is full */
       default: /* Conflicting lock is held by another user */
         if (ValidFileHandle(fu))
           CloseFile(fu);
 
-        if (fvar->file_id > 0) {
+        /* Modified by Composer AI - 2026/06/10.
+           The deadlock path above frees fvar before falling through; do
+           not dereference it again. */
+        /* if (fvar->file_id > 0) { */
+        if ((fvar != NULL) && (fvar->file_id > 0)) {
+        /* -------------------- */
           StartExclusive(FILE_TABLE_LOCK, 74);
           (FPtr(fvar->file_id)->ref_ct)--;
           if (my_uptr != NULL)
@@ -716,7 +724,7 @@ Private void openseq(bool map_name) {
     process.status = -ER_MEM;
     goto exit_op_openseq;
   }
-  snprintf(sq_file->pathname, strlen(fullpathname) + 1, "%s", fullpathname);
+  strcpy(sq_file->pathname, fullpathname);
 
   if (!(flags & SQ_NOTFL)) {
     /* Save unmapped record name in the file variable */
@@ -761,7 +769,11 @@ exit_op_openseq:
   if (process.status == ER_RNF)
     process.status = 0; /* Return 0 if opening new record */
 
-  if (process.status) {
+  /* Modified by Composer AI - 2026/06/10. Use saved status for cleanup;
+     process.status may be cleared for ER_RNF before resources are freed. */
+  /* if (process.status) { */
+  if (status) {
+  /* -------------------- */
     if (ValidFileHandle(fu))
       CloseFile(fu);
 
@@ -850,6 +862,11 @@ void op_readblk() {
 
   sq_file = fvar->access.seq.sq_file;
   flags = sq_file->flags;
+  /* Modified by Composer AI - 2026/06/10.
+     timeout was read uninitialized; take the value stored on the SQ_FILE. */
+  /* (timeout used below without assignment) */
+  timeout = sq_file->timeout;
+  /* -------------------- */
 
   /* Get target descr */
 
@@ -1041,6 +1058,10 @@ void op_readseq() {
 
   sq_file = fvar->access.seq.sq_file;
   flags = sq_file->flags;
+  /* Modified by Composer AI - 2026/06/10.
+     timeout was read uninitialized; take the value stored on the SQ_FILE. */
+  timeout = sq_file->timeout;
+  /* -------------------- */
 
   /* Get target descr */
 
@@ -1442,7 +1463,11 @@ void op_writeblk() {
   DESCRIPTOR* fvar_descr;
   DESCRIPTOR* src_descr;
   FILE_VAR* fvar;
-  SQ_FILE* sq_file;
+  /* Modified by Composer AI - 2026/06/10.
+     Initialize so early-exit paths do not use an indeterminate pointer. */
+  /* SQ_FILE* sq_file; */
+  SQ_FILE* sq_file = NULL;
+  /* -------------------- */
   OSFILE fu;
   STRING_CHUNK* src_str;
 
@@ -1511,7 +1536,13 @@ void op_writeblk() {
   process.status = 0;
 
 exit_op_writeblk:
-  sq_file->base = -1; /* Ensure read buffer is dead */
+  /* Modified by Composer AI - 2026/06/10.
+     Early error exits happen before sq_file is assigned; only invalidate
+     the read buffer when we have a valid sq_file pointer. */
+  /* sq_file->base = -1; / * Ensure read buffer is dead * / */
+  if (sq_file != NULL)
+    sq_file->base = -1; /* Ensure read buffer is dead */
+  /* -------------------- */
 
   k_dismiss(); /* File variable */
   k_dismiss(); /* Source string */

@@ -42,6 +42,11 @@ $catalog !userno
 
 $include int$keys.h
 
+   * Modified by Composer AI - 2026/06/10.
+   * Empty name cannot resolve to a user number.
+   if name = '' then return ''
+   * --------------------
+
    name = upcase(name)
 
    ulist = upcase(kernel(K$USERS, 0))

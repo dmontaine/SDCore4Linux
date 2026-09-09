@@ -99,10 +99,21 @@ $internal
 function set_passwd(username)
 $catalog !set_passwd
 
+deffun valid_os_name(name) calling '!valid_os_name'
+
 pass_set = @false
 set.status 0
 *
+* Modified by Composer AI - 2026/06/10.
+* Use shared !valid_os_name before OS.EXECUTE (phase 2).
+* os.name.chars = '...'
+* if username = '' or convert(os.name.chars, '', username) # '' or len(username) > 32 then
+if not(valid_os_name(username)) then
+   set.status 2
+   return pass_set
+end
 OS.EXECUTE "sudo passwd " : username
+* --------------------
 stat = OS.ERROR() 
 if stat = 0 then
   pass_set = @TRUE 

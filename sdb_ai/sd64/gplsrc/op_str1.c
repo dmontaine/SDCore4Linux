@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 02 Jul 24 mab max string size test in op_str, op_cat, op_append 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -759,7 +758,12 @@ void op_space() {
   int32_t n;
   int32_t total_len;
   int16_t len;
-  STRING_CHUNK* str;
+  /* Modified by Composer AI - 2026/06/10.
+     Initialize str so the analyzer can prove it is never NULL when the
+     else branch links a new chunk. */
+  /* STRING_CHUNK* str; */
+  STRING_CHUNK* str = NULL;
+  /* -------------------- */
   STRING_CHUNK* new_str;
 
   descr = e_stack - 1;
@@ -775,12 +779,28 @@ void op_space() {
     if (len > n)
       len = (int16_t)n;
 
-    if (descr->data.str.saddr == NULL) {
+    /* Modified by Composer AI - 2026/06/10.
+       Guard against string chunk allocation failure. */
+    if (new_str == NULL) {
+      k_error("Insufficient memory for string chunk");
+      return; /* Not reached - k_error() aborts */
+    }
+    /* -------------------- */
+
+    /* Modified by Composer AI - 2026/06/10. Use str == NULL for first chunk. */
+    /* if (descr->data.str.saddr == NULL) {
+      descr->data.str.saddr = new_str;
+      new_str->ref_ct = 1;
+      new_str->string_len = total_len;
+    } else
+      str->next = new_str; */
+    if (str == NULL) {
       descr->data.str.saddr = new_str;
       new_str->ref_ct = 1;
       new_str->string_len = total_len;
     } else
       str->next = new_str;
+    /* -------------------- */
 
     str = new_str;
 

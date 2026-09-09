@@ -20,7 +20,6 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  *           process_file was commented out??, sdfix didn't do anything.          
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -714,11 +713,28 @@ void W_command(char *cmnd) {
   int16_t bytes;
   char *p;
   char c;
+  /* Modified by Composer AI - 2026/06/10.
+     "%d" requires pointers to signed int, but w_addr/w_data are u_int32_t:
+     that is undefined behaviour, and it also allowed a negative address to
+     wrap to a huge unsigned value because the "w_addr < 0" guards below
+     could never fire. Parse into signed temporaries, reject negatives, then
+     assign to the unsigned working variables. */
+  int w_addr_in;
+  int w_data_in;
 
-  n = sscanf(cmnd, "%d=%d", &w_addr, &w_data); /* was %lx for both - 64bit fix -gwb*/
+  /* n = sscanf(cmnd, "%d=%d", &w_addr, &w_data); */ /* was %lx for both - 64bit fix -gwb*/
+  n = sscanf(cmnd, "%d=%d", &w_addr_in, &w_data_in);
 
   if (n < 1)
     goto w_format_error; /* Address component not present */
+
+  if (w_addr_in < 0) {
+    emit("Illegal address\n");
+    return;
+  }
+  w_addr = (u_int32_t)w_addr_in;
+  w_data = (n == 2) ? (u_int32_t)w_data_in : 0;
+  /* -------------------- */
 
   if (n == 2) /* Hex assignment */
   {
@@ -739,7 +755,13 @@ void W_command(char *cmnd) {
 
     bytes = n >> 1; /* Convert to bytes */
 
-    if ((w_addr < 0) || (w_addr + bytes > filelength64(fu[subfile]))) {
+    /* Modified by Composer AI - 2026/06/10.
+       w_addr is unsigned so "w_addr < 0" was always false (negative input is
+       now rejected at parse time above). Perform the range check in 64-bit
+       arithmetic so it cannot wrap. */
+    /* if ((w_addr < 0) || (w_addr + bytes > filelength64(fu[subfile]))) { */
+    if ((int64_t)w_addr + bytes > filelength64(fu[subfile])) {
+    /* -------------------- */
       emit("Illegal address\n");
       return;
     }
@@ -779,7 +801,12 @@ void W_command(char *cmnd) {
       }
     }
   } else if ((n == 1) && ((p = strchr(cmnd, '=')) != NULL) && (((c = *(++p)) == '"') || (c == '\'')) && ((n = strlen(p)) >= 2) && (p[n - 1] == c)) {
-    if ((w_addr < 0) || (w_addr + n - 2 > filelength64(fu[subfile]))) {
+    /* Modified by Composer AI - 2026/06/10.
+       Same as above: drop the always-false unsigned "< 0" test and do the
+       range check in 64-bit arithmetic so it cannot wrap. */
+    /* if ((w_addr < 0) || (w_addr + n - 2 > filelength64(fu[subfile]))) { */
+    if ((int64_t)w_addr + n - 2 > filelength64(fu[subfile])) {
+    /* -------------------- */
       emit("Illegal address\n");
       return;
     }
@@ -1687,6 +1714,11 @@ int32_t get_overflow() {
   int64 offset;
 
   buff = malloc(group_bytes);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; return zero offset instead of dereferencing NULL. */
+  if (buff == NULL)
+    return 0;
+  /* -------------------- */
 
   if ((offset = GetLink(header.params.free_chain)) != 0) {
     if (!read_block(OVERFLOW_SUBFILE, offset, BLOCK_HEADER_SIZE, (char *)buff)) {
@@ -2249,6 +2281,13 @@ void map_node(int16_t sf, int32_t node, char *ak_map, int32_t num_nodes, int32_t
   }
 
   buff = malloc(DH_AK_NODE_SIZE);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; abandon mapping this node. */
+  if (buff == NULL) {
+    emit("Out of memory mapping node %d\n", node);
+    goto exit_map_node;
+  }
+  /* -------------------- */
 
   offset = ((int64)(node - 1)) * DH_AK_NODE_SIZE + ak_header_size;
 
@@ -2278,8 +2317,11 @@ void map_node(int16_t sf, int32_t node, char *ak_map, int32_t num_nodes, int32_t
       for (i = 0; i < ((DH_INT_NODE *)buff)->child_count; i++) {
         child = GetAKNodeNum(((DH_INT_NODE *)buff)->child[i]);
         map_node(sf, child, ak_map, num_nodes, node);
+        /* Modified by Composer AI - 2026/06/10.
+           Free buff before aborting the AK map walk. */
         if (quit)
-          return;
+          goto exit_map_node;
+        /* -------------------- */
       }
       break;
 
@@ -2288,7 +2330,7 @@ void map_node(int16_t sf, int32_t node, char *ak_map, int32_t num_nodes, int32_t
       rec_offset = TERM_NODE_HEADER_SIZE;
       while (rec_offset < used_bytes) {
         if (quit)
-          return;
+          goto exit_map_node;
 
         rec_ptr = (DH_RECORD *)(buff + rec_offset);
         if (rec_ptr->flags & DH_BIG_REC) {
@@ -2433,6 +2475,13 @@ bool recover_space() {
 
   buff = (DH_BLOCK *)malloc(group_bytes);
   big_buff = (DH_BLOCK *)malloc(group_bytes);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() can fail; exit without dereferencing NULL buffers. */
+  if ((buff == NULL) || (big_buff == NULL)) {
+    emit("Out of memory recovering space\n");
+    goto exit_recover_space;
+  }
+  /* -------------------- */
 
   emit("Recovering space\n");
 

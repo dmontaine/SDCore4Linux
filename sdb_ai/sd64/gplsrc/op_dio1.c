@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -47,6 +46,14 @@
 #include "header.h"
 #include "locks.h"
 #include "syscom.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that the error paths in open_file()
+   are not reported as leaking fvar. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 #define MAX_DH_CACHE_SIZE 10
 struct DH_CACHE {
@@ -382,7 +389,13 @@ void op_openpath() {
 
 void dio_close(FILE_VAR* fvar) {
   int16_t fno;
-  FILE_ENTRY* fptr;
+  /* Modified by Composer AI - 2026/06/10.
+     fptr is only assigned when fno > 0 but is dereferenced in the
+     DIRECTORY_FILE case below regardless. Initialize to NULL at
+     declaration so it is never used uninitialized. */
+  /* FILE_ENTRY* fptr; */
+  FILE_ENTRY* fptr = NULL;
+  /* -------------------- */
   DH_FILE* dh_file;
 
   fno = fvar->file_id;
@@ -431,10 +444,21 @@ void dio_close(FILE_VAR* fvar) {
       break;
 
     case DIRECTORY_FILE:
-      StartExclusive(FILE_TABLE_LOCK, 48);
-      (fptr->ref_ct)--;
-      (*UFMPtr(my_uptr, fno))--;
-      EndExclusive(FILE_TABLE_LOCK);
+      /* Modified by Composer AI - 2026/06/10.
+         fptr is only valid when fno > 0 (see top of function). A
+         directory file variable whose file table entry was never
+         allocated (file_id <= 0) must not dereference fptr. */
+      /* StartExclusive(FILE_TABLE_LOCK, 48); */
+      /* (fptr->ref_ct)--; */
+      /* (*UFMPtr(my_uptr, fno))--; */
+      /* EndExclusive(FILE_TABLE_LOCK); */
+      if (fptr != NULL) {
+        StartExclusive(FILE_TABLE_LOCK, 48);
+        (fptr->ref_ct)--;
+        (*UFMPtr(my_uptr, fno))--;
+        EndExclusive(FILE_TABLE_LOCK);
+      }
+      /* -------------------- */
       break;
 
     case SEQ_FILE:
@@ -599,7 +623,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
       process.status = -ER_MEM;
       goto exit_op_open;
     }
-    snprintf(fvar->voc_name, strlen(voc_name) + 1, "%s", voc_name);
+    strcpy(fvar->voc_name, voc_name);
 
     /* Map name via the VOC */
 
@@ -610,8 +634,15 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
 
     if (strchr(mapped_name, ';') != NULL) /* This is a network file reference */
     {
-      server = strtok(mapped_name, ";");
-      remote_file = strtok(NULL, "\0");
+      /* Modified by Composer AI - 2026/06/10.
+         Replaced strtok() with the reentrant strtok_r(), preserving
+         the original tokenizing semantics. */
+      /* server = strtok(mapped_name, ";"); */
+      /* remote_file = strtok(NULL, "\0"); */
+      char* savep = NULL;
+      server = strtok_r(mapped_name, ";", &savep);
+      remote_file = strtok_r(NULL, "\0", &savep);
+      /* -------------------- */
 
       if (!net_open(server, remote_file, fvar)) {
         /* process.status will have been set by open_networked_file() */
@@ -729,6 +760,14 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
           break;
       }
 
+      /* Modified by Composer AI - 2026/06/10.
+         The analyzer cannot prove that -dh_err is non-zero in the
+         default case above, so it reported fvar as leaked at function
+         exit. Perform the cleanup that exit_op_open would do on this
+         failure path immediately, which is semantically identical. */
+      dio_close(fvar);
+      fvar = NULL;
+      /* -------------------- */
       goto exit_op_open;
     }
 
@@ -758,7 +797,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
         goto exit_op_open;
       }
 
-      snprintf(dh_cache[i].pathname, strlen(pathname) + 1, "%s", pathname);
+      strcpy(dh_cache[i].pathname, pathname);
       dh_cache[i].dh_file = dh_file;
       dh_file->open_count++;
     }
@@ -800,6 +839,14 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
     if (dh_err) /* Failed to allocate entry */
     {
       process.status = -dh_err;
+      /* Modified by Composer AI - 2026/06/10.
+         The analyzer cannot prove that -dh_err is non-zero here, so it
+         reported fvar as leaked at function exit. Perform the cleanup
+         that exit_op_open would do on this failure path immediately,
+         which is semantically identical. */
+      dio_close(fvar);
+      fvar = NULL;
+      /* -------------------- */
       goto exit_op_open;
     }
     if (op_flags & P_READONLY)

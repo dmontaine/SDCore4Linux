@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -40,23 +39,6 @@
 #include <stdint.h>
 
 #define MAX_DUMPED_STRING_LEN 10000
-#define PDUMP_LABEL_LEN (256 + 1)
-#define PDUMP_ELEMENT_LEN 32
-#define PDUMP_COM_NAME_LEN (100 + 1)
-
-static void pdump_line_label(char* s, size_t s_sz, int16_t indent, const char* symbol) {
-  size_t ind = (size_t)indent;
-  size_t max_ind;
-
-  if (s == NULL || s_sz == 0)
-    return;
-  max_ind = (s_sz > 32) ? s_sz - 32 : 0;
-  if (ind > max_ind)
-    ind = max_ind;
-  memset(s, ' ', ind);
-  s[ind] = '\0';
-  (void)snprintf(s + ind, s_sz - ind, "%s", (symbol != NULL) ? symbol : "");
-}
 
 /* Common block memory */
 
@@ -80,7 +62,7 @@ Private void dump_syscom_var(char* tag, int16_t offset);
 
 /* ====================================================================== */
 
-void pdump(void) {
+void pdump() {
   char path[MAX_PATHNAME_LEN + 1];
   struct PROGRAM* pgm;
   int32_t offset;
@@ -194,16 +176,14 @@ void pdump(void) {
 
   first = TRUE;
   for (i = 1, fptr = FPtr(1); i <= sysseg->used_files; i++, fptr++) {
-    if (fptr->file_lock != 0) {
-      lock_owner = abs(fptr->file_lock);
-      if (lock_owner == process.user_no) {
-        if (first) {
-          fprintf(fu, "\nFile locks\n");
-          first = FALSE;
-        }
-        fprintf(fu, "  %s (%s)\n", fptr->pathname,
-                (fptr->file_lock < 0) ? "SX" : "FX");
+    lock_owner = abs(fptr->file_lock);
+    if (lock_owner == process.user_no) {
+      if (first) {
+        fprintf(fu, "\nFile locks\n");
+        first = FALSE;
       }
+      fprintf(fu, "  %s (%s)\n", fptr->pathname,
+              (lock_owner < 0) ? "SX" : "FX");
     }
   }
 
@@ -304,7 +284,7 @@ void pdump(void) {
 
       if (sysseg->flags & SSF_INT_PDUMP) {
         for (i = 0; i < pgm->no_vars; i++) {
-          (void)snprintf(symbol, sizeof(symbol), "%d", i);
+          sprintf(symbol, "%d", i);
           dump_variable(pgm->vars + i, i, symbol, 4);
         }
       }
@@ -357,7 +337,7 @@ void pdump(void) {
 
           /* Make SYM structure */
 
-          (void)snprintf(sym_new->name, strlen(symbol) + 1, "%s", symbol);
+          strcpy(sym_new->name, symbol);
           sym_new->var_no = i;
 
           /* Find position for symbol insertion */
@@ -428,18 +408,17 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
   int16_t chnk;
   int16_t el;
   bool two_d;
-  char element[PDUMP_ELEMENT_LEN];
+  char element[16];
   char* com_name;
   struct COM* com_ptr;
   int16_t num_com_vars;
   int16_t com_var_no;
-  char com_var_name[PDUMP_COM_NAME_LEN];
-  const char* pathname;
+  char com_var_name[100];
   STRING_CHUNK* str;
   STRING_CHUNK* rmv_str;
   int32_t rmv_offset;
   int lsub_level;
-  char s[PDUMP_LABEL_LEN];
+  char s[80 + 1];
   int16_t n;
   char* p;
   char* q;
@@ -450,7 +429,8 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
 
   /* Emit indent */
 
-  pdump_line_label(s, sizeof(s), indent, symbol);
+  memset(s, ' ', indent);
+  sprintf(s + indent, "%s", symbol);
 
   /* ++ALLTYPES++ */
   switch (descr->type) {
@@ -494,14 +474,9 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
 
     case FILE_REF:
       fvar = descr->data.fvar;
-      if (fvar != NULL && fvar->file_id >= 1 &&
-          fvar->file_id <= sysseg->used_files)
-        pathname = (char*)(FPtr(fvar->file_id)->pathname);
-      else
-        pathname = "?";
       fprintf(fu, "%s: File: %s (%s)\n", s,
-              (fvar != NULL && fvar->voc_name != NULL) ? fvar->voc_name : "",
-              pathname);
+              (fvar->voc_name != NULL) ? (fvar->voc_name) : "",
+              FPtr(fvar->file_id)->pathname);
       break;
 
     case ARRAY:
@@ -520,14 +495,12 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
         for (el = (ahdr->flags & AH_PICK_STYLE) ? 1 : 0; el < achnk->num_descr;
              el++) {
           if (el == 0) {
-            (void)snprintf(element, sizeof(element), "%s",
-                           (two_d) ? "(0,0)" : "(0)");
+            strcpy(element, (two_d) ? "(0,0)" : "(0)");
           } else if (two_d) {
-            (void)snprintf(element, sizeof(element), "(%d,%d)",
-                           (el + base - 1) / ahdr->cols,
-                           ((el + base - 1) % ahdr->cols) + 1);
+            sprintf(element, "(%d,%d)", (el + base - 1) / ahdr->cols,
+                    ((el + base - 1) % ahdr->cols) + 1);
           } else {
-            (void)snprintf(element, sizeof(element), "(%d)", el);
+            sprintf(element, "(%d)", el);
           }
           dump_variable(&(achnk->descr[el]), -1, element, indent + 2);
         }
@@ -535,13 +508,7 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
       break;
 
     case COMMON:
-      if (descr->data.ahdr_addr != NULL &&
-          descr->data.ahdr_addr->chunk[0] != NULL &&
-          descr->data.ahdr_addr->chunk[0]->descr[0].data.str.saddr != NULL)
-        com_name =
-            descr->data.ahdr_addr->chunk[0]->descr[0].data.str.saddr->data;
-      else
-        com_name = "";
+      com_name = descr->data.ahdr_addr->chunk[0]->descr[0].data.str.saddr->data;
 
       /* Have we seen this common block already? */
 
@@ -578,12 +545,11 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
           q = com_var_name;
           if (p != NULL) {
             p++; /* Skip VM before name */
-            while ((!IsMark(*p)) && (*p != '\0') &&
-                   (size_t)(q - com_var_name) < sizeof(com_var_name) - 1)
+            while ((!IsMark(*p)) && (*p != '\0'))
               *(q++) = *(p++);
             *q = '\0';
           } else {
-            (void)snprintf(com_var_name, sizeof(com_var_name), "%d", com_var_no);
+            sprintf(com_var_name, "%d", com_var_no);
           }
 
           dump_variable(Element(descr->data.ahdr_addr, com_var_no), var_no,
@@ -594,7 +560,7 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
 
         com_ptr = (struct COM*)malloc(sizeof(struct COM) + strlen(com_name));
         if (com_ptr != NULL) {
-          (void)snprintf(com_ptr->name, strlen(com_name) + 1, "%s", com_name);
+          strcpy(com_ptr->name, com_name);
           com_ptr->prog_no = prog_no;
           com_ptr->next = com_head;
           com_head = com_ptr;
@@ -616,7 +582,6 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
       break;
 
     case PMATRIX:
-      fprintf(fu, "%s: PMatrix\n", s);
       break;
 
     case SOCK:
@@ -627,21 +592,12 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
       ahdr = descr->data.ahdr_addr;
       lsub_level = 0;
       do {
-        {
-          size_t ind = (size_t)indent;
-
-          if (ind > sizeof(s) - 40)
-            ind = sizeof(s) - 40;
-          memset(s, ' ', ind);
-          s[ind] = '\0';
-          if (lsub_level == 0)
-            (void)snprintf(s + ind, sizeof(s) - ind,
-                           "Local variables for LSUB %s (current invocation)",
-                           (symbol != NULL) ? symbol : "");
-          else
-            (void)snprintf(s + ind, sizeof(s) - ind,
-                           "Local variables for LSUB %s (previous invocation %d)",
-                           (symbol != NULL) ? symbol : "", lsub_level);
+        memset(s, ' ', indent); /* Discard pre-assembled line */
+        sprintf(s + indent, "Local variables for LSUB %s", symbol);
+        if (lsub_level == 0) {
+          strcat(s, " (current invocation)");
+        } else {
+          sprintf(s + strlen(s), " (previous invocation %d)", lsub_level);
         }
 
         fprintf(fu, "%s\n", s);
@@ -670,19 +626,16 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
           q = com_var_name;
           if (p != NULL) {
             p++; /* Skip VM before name */
-            while ((!IsMark(*p)) && (*p != '\0') &&
-                   (size_t)(q - com_var_name) < sizeof(com_var_name) - 1)
+            while ((!IsMark(*p)) && (*p != '\0'))
               *(q++) = *(p++);
             *q = '\0';
           } else {
-            (void)snprintf(com_var_name, sizeof(com_var_name), "%d", com_var_no);
+            sprintf(com_var_name, "%d", com_var_no);
           }
 
           q = strchr(com_var_name, ':');
-          if (q != NULL)
-            q++;
-          else
-            q = com_var_name;
+          if (q++ == NULL)
+            q = com_var_name; /* Should never happen */
           dump_variable(Element(ahdr, com_var_no), var_no, q, indent + 2);
         }
         lsub_level++;
@@ -720,12 +673,11 @@ Private void dump_variable(DESCRIPTOR* descr, /* Descriptor to dump */
         q = com_var_name;
         if (p != NULL) {
           p++; /* Skip VM before name */
-          while ((!IsMark(*p)) && (*p != '\0') &&
-                 (size_t)(q - com_var_name) < sizeof(com_var_name) - 1)
+          while ((!IsMark(*p)) && (*p != '\0'))
             *(q++) = *(p++);
           *q = '\0';
         } else {
-          (void)snprintf(com_var_name, sizeof(com_var_name), "%d", com_var_no);
+          sprintf(com_var_name, "%d", com_var_no);
         }
 
         dump_variable(Element(descr->data.ahdr_addr, com_var_no), var_no,
@@ -747,8 +699,6 @@ Private void print_string(STRING_CHUNK* str) {
   while ((str != NULL) && (total_bytes < MAX_DUMPED_STRING_LEN)) {
     p = str->data;
     n = str->bytes;
-    if (total_bytes + n > MAX_DUMPED_STRING_LEN)
-      n = MAX_DUMPED_STRING_LEN - total_bytes;
     total_bytes += n;
 
     q = p;

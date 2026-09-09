@@ -19,7 +19,6 @@
  * 
  * START-HISTORY:
  * rev 0.9-2 Apr 25 mab op_sd_pyobj
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -44,6 +43,11 @@
 #include "sd.h"
 #include "sdext_python_inc.h"  /* NOTE! this file is created by the install script !!! */
 #include "keys.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps and never returns; redeclare noreturn for analyzer. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 /* defined in sdext_py.c */
 extern int PyDictCrte(char* dictname);

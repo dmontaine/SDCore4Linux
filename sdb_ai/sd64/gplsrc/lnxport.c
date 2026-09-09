@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -28,8 +27,6 @@
  * openport()        Open a port
  * readport()        Read data from a port
  * writeport()       Write data to a port
- * op_getport()      GET.PORT.PARAMS()
- * op_setport()      SET.PORT.PARAMS()
  *
  * END-DESCRIPTION
  *
@@ -39,134 +36,11 @@
 #include "sd.h"
 #include "sdnet.h"
 
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-
-static bool set_port_baud(struct termios* tty, int baud) {
-  speed_t speed;
-
-  switch (baud) {
-    case 110:
-      speed = B110;
-      break;
-    case 300:
-      speed = B300;
-      break;
-    case 600:
-      speed = B600;
-      break;
-    case 1200:
-      speed = B1200;
-      break;
-    case 2400:
-      speed = B2400;
-      break;
-    case 4800:
-      speed = B4800;
-      break;
-    case 9600:
-      speed = B9600;
-      break;
-    case 19200:
-      speed = B19200;
-      break;
-    case 38400:
-      speed = B38400;
-      break;
-#ifdef TTY_50_75_134_150_200_1800
-    case 50:
-      speed = B50;
-      break;
-    case 75:
-      speed = B75;
-      break;
-    case 134:
-      speed = B134;
-      break;
-    case 150:
-      speed = B150;
-      break;
-    case 200:
-      speed = B200;
-      break;
-    case 1800:
-      speed = B1800;
-      break;
-#endif
-#ifdef TTY_57600_115200_230400
-    case 57600:
-      speed = B57600;
-      break;
-    case 115200:
-      speed = B115200;
-      break;
-    case 230400:
-      speed = B230400;
-      break;
-#endif
-    default:
-      return FALSE;
-  }
-
-  if (cfsetispeed(tty, speed) != 0 || cfsetospeed(tty, speed) != 0)
-    return FALSE;
-  return TRUE;
-}
-
-static int baud_from_speed(speed_t speed) {
-  switch (speed) {
-    case B110:
-      return 110;
-    case B300:
-      return 300;
-    case B600:
-      return 600;
-    case B1200:
-      return 1200;
-    case B2400:
-      return 2400;
-    case B4800:
-      return 4800;
-    case B9600:
-      return 9600;
-    case B19200:
-      return 19200;
-    case B38400:
-      return 38400;
-#ifdef TTY_50_75_134_150_200_1800
-    case B50:
-      return 50;
-    case B75:
-      return 75;
-    case B134:
-      return 134;
-    case B150:
-      return 150;
-    case B200:
-      return 200;
-    case B1800:
-      return 1800;
-#endif
-#ifdef TTY_57600_115200_230400
-    case B57600:
-      return 57600;
-    case B115200:
-      return 115200;
-    case B230400:
-      return 230400;
-#endif
-    default:
-      return 0;
-  }
-}
-
 /* ======================================================================
    closeport()  -  Close a port                                           */
 
 void closeport(int hPort) {
-  if (hPort >= 0)
-    (void)close(hPort);
+  close(hPort);
 }
 
 /* ======================================================================
@@ -176,14 +50,11 @@ bool is_port(char* name) {
   int fu;
   bool result = FALSE;
 
-  if (name == NULL)
-    return FALSE;
-
-  if (memcmp(name, "/dev/", 5) == 0) {
+  if (!memcmp(name, "/dev/", 5)) {
     fu = open(name, O_RDONLY | O_NONBLOCK);
     if (fu >= 0) {
       result = isatty(fu);
-      (void)close(fu);
+      close(fu);
     }
   }
 
@@ -196,10 +67,7 @@ bool is_port(char* name) {
 int openport(char* name) {
   int hPort;
 
-  if (name == NULL || name[0] == '\0') {
-    process.os_error = EINVAL;
-    return -1;
-  }
+  /* Open the port */
 
   hPort = open(name, O_RDWR | O_NONBLOCK, S_IREAD | S_IWRITE);
   if (hPort < 0)
@@ -211,30 +79,14 @@ int openport(char* name) {
    readport()  -  Read data from port                                     */
 
 int readport(int hPort, char* str, int16_t bytes) {
-  ssize_t n;
-
-  if (str == NULL || bytes <= 0 || hPort < 0)
-    return 0;
-
-  n = read(hPort, str, (size_t)bytes);
-  if (n < 0)
-    process.os_error = errno;
-  return (int)n;
+  return read(hPort, str, bytes);
 }
 
 /* ======================================================================
    writeport()  -  Write data to port                                     */
 
 bool writeport(int hPort, char* str, int16_t bytes) {
-  ssize_t n;
-
-  if (bytes <= 0)
-    return TRUE;
-  if (str == NULL || hPort < 0)
-    return FALSE;
-
-  n = write(hPort, str, (size_t)bytes);
-  return (n == (ssize_t)bytes);
+  return (write(hPort, str, bytes) == bytes);
 }
 
 /* ======================================================================
@@ -255,8 +107,13 @@ void op_getport() {
   FILE_VAR* fvar;
   SQ_FILE* sq_file;
   STRING_CHUNK* str = NULL;
-  int n1, n2, n3, n4, n5;
-  speed_t ospeed;
+  /* Modified by Composer AI - 2026/06/10.
+     n1 (baud rate) and n3 (bits per byte) are set in switch statements
+     with no default case; an unrecognized speed or character size left
+     them uninitialized when reported. Initialize all to 0. */
+  /* int n1, n2, n3, n4, n5; */
+  int n1 = 0, n2 = 0, n3 = 0, n4 = 0, n5 = 0;
+  /* -------------------- */
 
   struct termios tty_settings;
 
@@ -277,14 +134,70 @@ void op_getport() {
     goto exit_op_getport;
   }
 
-  if (tcgetattr(sq_file->fu, &tty_settings) != 0) {
-    process.status = ER_NPORT;
-    process.os_error = errno;
-    goto exit_op_getport;
-  }
+  tcgetattr(sq_file->fu, &tty_settings);
 
-  ospeed = cfgetospeed(&tty_settings);
-  n1 = baud_from_speed(ospeed);
+  /* Baud rate */
+
+  switch (cfgetospeed(&tty_settings)) {
+    case B110:
+      n1 = 110;
+      break;
+    case B300:
+      n1 = 300;
+      break;
+    case B600:
+      n1 = 600;
+      break;
+    case B1200:
+      n1 = 1200;
+      break;
+    case B2400:
+      n1 = 2400;
+      break;
+    case B4800:
+      n1 = 4800;
+      break;
+    case B9600:
+      n1 = 9600;
+      break;
+    case B19200:
+      n1 = 19200;
+      break;
+    case B38400:
+      n1 = 38400;
+      break;
+#ifdef TTY_50_75_134_150_200_1800
+    case B50:
+      n1 = 50;
+      break;
+    case B75:
+      n1 = 75;
+      break;
+    case B134:
+      n1 = 134;
+      break;
+    case B150:
+      n1 = 150;
+      break;
+    case B200:
+      n1 = 200;
+      break;
+    case B1800:
+      n1 = 1800;
+      break;
+#endif
+#ifdef TTY_57600_115200_230400
+    case B57600:
+      n1 = 57600;
+      break;
+    case B115200:
+      n1 = 115200;
+      break;
+    case B230400:
+      n1 = 230400;
+      break;
+#endif
+  }
 
   /* Parity */
 
@@ -295,7 +208,6 @@ void op_getport() {
 
   /* Byte size */
 
-  n3 = 8;
   switch (tty_settings.c_cflag & CSIZE) {
     case CS5:
       n3 = 5;
@@ -309,8 +221,6 @@ void op_getport() {
     case CS8:
       n3 = 8;
       break;
-    default:
-      break;
   }
 
   /* Stop bits */
@@ -319,21 +229,17 @@ void op_getport() {
 
   /* Status bits */
 
-  n5 = 0;
-  if (ioctl(sq_file->fu, TIOCMGET, &n5) < 0)
-    n5 = 0;
+  ioctl(sq_file->fu, TIOCMGET, &n5);
 
-  ts_printf(
-      "%s\xfe%d\xfe%d\xfe%d\xfe%d\xfe%d\xfe%d\xfe%d\xfe%d",
-      (sq_file->pathname != NULL) ? sq_file->pathname : "",
-      n1,
-      n2,
-      n3,
-      n4,
-      (n5 & TIOCM_CTS) != 0,
-      (n5 & TIOCM_DSR) != 0,
-      (n5 & TIOCM_RNG) != 0,
-      (n5 & TIOCM_CAR) != 0);
+  ts_printf("%s\xfe%d\xfe%d\xfe%d\xfe%d", sq_file->pathname, /* Port name */
+            n1,                                              /* Baud rate */
+            n2,                                              /* Parity type */
+            n3,                                              /* Bits per byte */
+            n4,                                              /* Stop bits */
+            (n5 & TIOCM_CTS) != 0,                           /* CTS */
+            (n5 & TIOCM_DSR) != 0,                           /* DSR */
+            (n5 & TIOCM_RNG) != 0,                           /* RING */
+            (n5 & TIOCM_CAR) != 0);                          /* DCD */
 
   process.status = 0;
 
@@ -398,32 +304,84 @@ void op_setport() {
     goto exit_op_setport;
   }
 
-  if (n2 < 0 || n2 > 2 || (n4 != 1 && n4 != 2)) {
-    process.status = ER_PARAMS;
-    goto exit_op_setport;
-  }
+  tcgetattr(sq_file->fu, &tty_settings);
 
-  if (tcgetattr(sq_file->fu, &tty_settings) != 0) {
-    process.status = ER_NPORT;
-    process.os_error = errno;
-    goto exit_op_setport;
-  }
+  /* Baud rate */
 
-  if (!set_port_baud(&tty_settings, n1)) {
-    process.status = ER_PARAMS;
-    goto exit_op_setport;
+#define SetSpeed(x)                 \
+  cfsetispeed(&tty_settings, B##x); \
+  cfsetispeed(&tty_settings, B##x);
+  switch (n1) {
+    case 110:
+      SetSpeed(110);
+      break;
+    case 300:
+      SetSpeed(300);
+      break;
+    case 600:
+      SetSpeed(600);
+      break;
+    case 1200:
+      SetSpeed(1200);
+      break;
+    case 2400:
+      SetSpeed(2400);
+      break;
+    case 4800:
+      SetSpeed(4800);
+      break;
+    case 9600:
+      SetSpeed(9600);
+      break;
+    case 19200:
+      SetSpeed(19200);
+      break;
+    case 38400:
+      SetSpeed(38400);
+      break;
+#ifdef TTY_50_75_134_150_200_1800
+    case 50:
+      SetSpeed(50);
+      break;
+    case 75:
+      SetSpeed(75);
+      break;
+    case 134:
+      SetSpeed(134);
+      break;
+    case 150:
+      SetSpeed(150);
+      break;
+    case 200:
+      SetSpeed(200);
+      break;
+    case 1800:
+      SetSpeed(1800);
+      break;
+#endif
+#ifdef TTY_57600_115200_230400
+    case 57600:
+      SetSpeed(57600);
+      break;
+    case 115200:
+      SetSpeed(115200);
+      break;
+    case 230400:
+      SetSpeed(230400);
+      break;
+#endif
   }
 
   /* Parity */
 
   if (n2) {
-    tty_settings.c_cflag |= PARENB;
+    tty_settings.c_cflag |= PARENB; /* Enabled */
     if (n2 == 1)
       tty_settings.c_cflag |= PARODD;
     else
       tty_settings.c_cflag &= ~PARODD;
   } else
-    tty_settings.c_cflag &= ~PARENB;
+    tty_settings.c_cflag &= ~PARENB; /* Disabled */
 
   /* Byte size */
 
@@ -441,9 +399,6 @@ void op_setport() {
     case 8:
       tty_settings.c_cflag |= CS8;
       break;
-    default:
-      process.status = ER_PARAMS;
-      goto exit_op_setport;
   }
 
   /* Stop bits */
@@ -453,11 +408,7 @@ void op_setport() {
   else
     tty_settings.c_cflag &= ~CSTOPB;
 
-  if (tcsetattr(sq_file->fu, TCSANOW, &tty_settings) != 0) {
-    process.os_error = errno;
-    process.status = ER_PARAMS;
-  } else
-    process.status = 0;
+  process.status = (tcsetattr(sq_file->fu, TCSANOW, &tty_settings) != 0);
 
 exit_op_setport:
   k_dismiss();

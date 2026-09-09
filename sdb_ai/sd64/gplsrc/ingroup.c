@@ -18,13 +18,9 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
- * in_group()  -  Return non-zero if the effective user is a member of the
- * named Unix group (primary or supplementary).  Results are cached for the
- * lifetime of the process; group membership changes are not detected.
  *
  * END-DESCRIPTION
  *
@@ -42,83 +38,10 @@ typedef struct GROUP_INFO GROUP_INFO;
 struct GROUP_INFO {
   GROUP_INFO* next;
   int16_t member;
-  char name[1]; /* Flexible trailing storage for group name + NUL */
+  char name[1];
 };
 
 static GROUP_INFO* gi_head = NULL;
-static gid_t* groups = NULL;
-static int num_groups = -1; /* -1 = not yet queried */
-
-/* ====================================================================== */
-
-static int load_supplementary_groups(void) {
-  int n;
-
-  if (num_groups >= 0)
-    return 1;
-
-  n = getgroups(0, NULL);
-  if (n < 0) {
-    num_groups = 0;
-    return 0;
-  }
-
-  if (n == 0) {
-    num_groups = 0;
-    return 1;
-  }
-
-  groups = (gid_t*)malloc((size_t)n * sizeof(gid_t));
-  if (groups == NULL) {
-    num_groups = 0;
-    return 0;
-  }
-
-  num_groups = getgroups(n, groups);
-  if (num_groups < 0) {
-    free(groups);
-    groups = NULL;
-    num_groups = 0;
-    return 0;
-  }
-
-  return 1;
-}
-
-/* ====================================================================== */
-
-static int supplementary_contains(gid_t group_id) {
-  int i;
-
-  if (!load_supplementary_groups())
-    return 0;
-
-  for (i = 0; i < num_groups; i++) {
-    if (groups[i] == group_id)
-      return 1;
-  }
-
-  return 0;
-}
-
-/* ====================================================================== */
-
-static void cache_result(char* group_name, int16_t member) {
-  GROUP_INFO* gi;
-  size_t name_len;
-  size_t alloc_size;
-
-  name_len = strlen(group_name);
-  alloc_size = sizeof(GROUP_INFO) + name_len;
-  gi = (GROUP_INFO*)malloc(alloc_size);
-  if (gi == NULL)
-    return;
-
-  memcpy(gi->name, group_name, name_len + 1);
-  gi->member = member;
-  gi->next = gi_head;
-  gi_head = gi;
-}
 
 /* ====================================================================== */
 
@@ -126,10 +49,16 @@ int16_t in_group(char* group_name) {
   int16_t status = 0;
   GROUP_INFO* gi;
   struct group* grp;
+  /* Modified by Composer AI - 2026/06/10.
+     group_id holds a gid_t and is compared with getegid() and gid_t array
+     elements; declare it with the correct (unsigned) type to avoid
+     signed/unsigned comparison issues. */
+  /* int group_id; */
   gid_t group_id;
-
-  if (group_name == NULL || group_name[0] == '\0')
-    return 0;
+  /* -------------------- */
+  static int num_groups = 0;
+  gid_t* groups = NULL;
+  int i;  /* Fix for Issue #16 */
 
   /* Have we already identified membership of this group? */
 
@@ -138,18 +67,72 @@ int16_t in_group(char* group_name) {
       return gi->member;
   }
 
+  /* We do not already know about this one */
+
   grp = getgrnam(group_name);
   if (grp != NULL) {
     group_id = grp->gr_gid;
 
     if (group_id == getegid()) {
       status = 1;
-    } else if (supplementary_contains(group_id) != 0) {
-      status = 1;
+    } else { /* Not primary group */
+      if (groups == NULL) {
+        num_groups = getgroups(0, NULL);
+        groups = (gid_t*)malloc(num_groups * sizeof(gid_t));
+        if (groups != NULL) {
+          num_groups = getgroups(num_groups, groups);
+        }
+      }
+
+      /* Modified by Composer AI - 2026/06/10.
+         If the malloc() above fails, groups is NULL while num_groups can be
+         non-zero (it is static), so the loop dereferenced a NULL pointer.
+         Only scan the list when the allocation succeeded. */
+      /* for (i = 0; i < num_groups; i++) {
+        if (groups[i] == group_id) {
+          status = 1;
+          break;
+        }
+      } */
+      if (groups != NULL) {
+        for (i = 0; i < num_groups; i++) {
+          if (groups[i] == group_id) {
+            status = 1;
+            break;
+          }
+        }
+      }
+      /* -------------------- */
     }
   }
 
-  cache_result(group_name, status);
+  /* Modified by Composer AI - 2026/06/10.
+     groups is allocated on every call but was never released - a memory
+     leak. Free it before returning. */
+  if (groups != NULL) {
+    free(groups);
+  }
+  /* -------------------- */
+
+  /* Add this group name to our list of checked names */
+
+  /* Modified by Composer AI - 2026/06/10.
+     malloc() result was used without a NULL check, crashing on allocation
+     failure. If the allocation fails, skip caching the result (only costs
+     a repeat lookup next time) and return the computed status. */
+  /* gi = (GROUP_INFO*)malloc(sizeof(GROUP_INFO) + strlen(group_name));
+  strcpy(gi->name, group_name);
+  gi->member = status;
+  gi->next = gi_head;
+  gi_head = gi; */
+  gi = (GROUP_INFO*)malloc(sizeof(GROUP_INFO) + strlen(group_name));
+  if (gi != NULL) {
+    strcpy(gi->name, group_name);
+    gi->member = status;
+    gi->next = gi_head;
+    gi_head = gi;
+  }
+  /* -------------------- */
 
   return status;
 }

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -146,7 +145,7 @@ Private bool write_packet(struct SESSION* session,
                           int type,
                           char* data,
                           int32_t bytes);
-Private void NetError(struct SESSION* session, char* prefix);
+Private void NetError(char* prefix);
 Private void debug(unsigned char* p, int n);
 Private struct SESSION* FindFreeSession(void);
 Private void disconnect(struct SESSION* session);
@@ -164,41 +163,6 @@ struct ARGDATA {
 
 /* Packet buffer */
 #define BUFF_INCR 4096
-#define SDCLI_LOGIN_DATA_MAX \
-  (2 + MAX_USERNAME_LEN + 1 + 2 + MAX_USERNAME_LEN + 1)
-#define SDCLI_SDERROR_MAX 512
-#define SDCLI_MAX_PACKET_BYTES (16 * 1024 * 1024)
-#define SDCLI_ABORT_MSG_MAX 1024
-#define SDCLI_HOST_MAX 255
-
-static void sdcli_copy_bounded(char* dst,
-                               size_t dst_sz,
-                               const char* src,
-                               int n) {
-  size_t copy;
-
-  if (dst == NULL || dst_sz == 0)
-    return;
-  if (src == NULL || n <= 0) {
-    dst[0] = '\0';
-    return;
-  }
-  copy = (size_t)n;
-  if (copy >= dst_sz)
-    copy = dst_sz - 1;
-  memcpy(dst, src, copy);
-  dst[copy] = '\0';
-}
-
-static void sdcli_set_error(struct SESSION* session, const char* fmt, ...) {
-  va_list ap;
-
-  if (session == NULL)
-    return;
-  va_start(ap, fmt);
-  vsnprintf(session->sderror, sizeof session->sderror, fmt, ap);
-  va_end(ap);
-}
 typedef struct INBUFF INBUFF;
 struct INBUFF {
   union {
@@ -285,7 +249,7 @@ bool message_pair(struct SESSION* session,
                   int type,
                   unsigned char* data,
                   int32_t bytes);
-char* sysdir(struct SESSION* session);
+char* sysdir(void);
 void ClientDebug(char* name);
 
 /* ======================================================================
@@ -587,11 +551,10 @@ BSTR password;
 BSTR account;
 {
   VBBool status = VBFalse;
-  char login_data[SDCLI_LOGIN_DATA_MAX];
-  char hostbuf[SDCLI_HOST_MAX + 1];
+  char login_data[2 + MAX_USERNAME_LEN + 2 + MAX_USERNAME_LEN];
   int n;
   char* p;
-  struct SESSION* session = NULL;
+  struct SESSION* session;
 
   if ((session = FindFreeSession()) == NULL)
     goto exit_sdconnect;
@@ -601,16 +564,14 @@ BSTR account;
   /* Set up login data */
 
   n = SysStringByteLen(host);
-  if (n == 0 || n >= (int)sizeof(hostbuf)) {
-    sdcli_set_error(session, "Invalid host name");
+  if (n == 0) {
+    strcpy(session->sderror, "Invalid host name");
     goto exit_sdconnect;
   }
-  memcpy(hostbuf, (char*)host, n);
-  hostbuf[n] = '\0';
 
   n = SysStringByteLen(username);
   if (n > MAX_USERNAME_LEN) {
-    sdcli_set_error(session, "Invalid user name");
+    strcpy(session->sderror, "Invalid user name");
     goto exit_sdconnect;
   }
 
@@ -625,7 +586,7 @@ BSTR account;
 
   n = SysStringByteLen(password);
   if (n > MAX_USERNAME_LEN) {
-    sdcli_set_error(session, "Invalid password");
+    strcpy(session->sderror, "Invalid password");
     goto exit_sdconnect;
   }
 
@@ -639,35 +600,32 @@ BSTR account;
 
   /* Open connection to server */
 
-  if (!OpenSocket(session, hostbuf, port))
+  if (!OpenSocket(session, (char*)host, port))
     goto exit_sdconnect;
 
   /* Check username and password */
 
   n = p - login_data;
   if (!message_pair(session, SrvrLogin, login_data, n)) {
-    sdcli_set_error(session, "Startup message returned an error");
+    sprintf(session->sderror, "Startup message returned an error");
     goto exit_sdconnect;
   }
 
   if (session->server_error != SV_OK) {
     if (session->server_error == SV_ON_ERROR) {
       n = session->buff_bytes - offsetof(INBUFF, data.abort.message);
-      sdcli_copy_bounded(session->sderror, sizeof session->sderror,
-                         session->buff->data.abort.message, n);
+      if (n > 0) {
+        memcpy(session->sderror, session->buff->data.abort.message, n);
+        session->buff->data.abort.message[n] = '\0';
+      }
     }
     goto exit_sdconnect;
   }
 
   /* Now attempt to attach to required account */
 
-  n = SysStringByteLen(account);
-  if (n > MAX_ACCOUNT_NAME_LEN) {
-    sdcli_set_error(session, "Invalid account name");
-    goto exit_sdconnect;
-  }
-
-  if (!message_pair(session, SrvrAccount, (char*)account, n)) {
+  if (!message_pair(session, SrvrAccount, (char*)account,
+                    SysStringByteLen(account))) {
     goto exit_sdconnect;
   }
 
@@ -681,7 +639,7 @@ BSTR account;
   status = VBTrue;
 
 exit_sdconnect:
-  if (!status && session != NULL)
+  if (!status)
     CloseSocket(session);
 
   return status;
@@ -708,12 +666,11 @@ VBBool _stdcall _export SDConnected() {
 VBBool _stdcall _export SDConnectLocal(account) BSTR account;
 {
   VBBool status = VBFalse;
-  char command[MAX_PATHNAME_LEN + 80];
+  char command[MAX_PATHNAME_LEN + 50];
   char pipe_name[40];
-  const char* sdir;
   struct _PROCESS_INFORMATION process_information;
   struct _STARTUPINFOA startupinfo;
-  struct SESSION* session = NULL;
+  struct SESSION* session;
 
   if ((session = FindFreeSession()) == NULL)
     goto exit_sdconnect_local;
@@ -722,8 +679,8 @@ VBBool _stdcall _export SDConnectLocal(account) BSTR account;
 
   /* Create pipe */
 
-  snprintf(pipe_name, sizeof pipe_name, "\\\\.\\pipe\\~SDPipe%d-%d",
-           (int)GetCurrentProcessId(), (int)session->idx);
+  sprintf(pipe_name, "\\\\.\\pipe\\~SDPipe%d-%d", GetCurrentProcessId(),
+          session->idx);
   session->hPipe = CreateNamedPipe(
       pipe_name, PIPE_ACCESS_DUPLEX,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, /* Max instances */
@@ -733,33 +690,22 @@ VBBool _stdcall _export SDConnectLocal(account) BSTR account;
       NULL); /* Security attributes */
 
   if (session->hPipe == INVALID_HANDLE_VALUE) {
-    sdcli_set_error(session, "Error %d creating pipe", (int)GetLastError());
+    sprintf(session->sderror, "Error %d creating pipe", GetLastError());
     goto exit_sdconnect_local;
   }
 
   /* Launch SD process */
 
-  sdir = sysdir(session);
-  if (sdir == NULL) {
-    goto exit_sdconnect_local;
-  }
-  if (snprintf(command, sizeof command, "%s\\BIN\\SD.EXE -Q -C %s", sdir,
-               pipe_name) >= (int)sizeof(command)) {
-    sdcli_set_error(session, "SD command path too long");
-    CloseHandle(session->hPipe);
-    session->hPipe = INVALID_HANDLE_VALUE;
-    goto exit_sdconnect_local;
-  }
+  sprintf(command, "%s\\BIN\\SD.EXE -Q -C %s", sysdir(), pipe_name);
 
   GetStartupInfo(&startupinfo);
 
   if (CreateProcess(NULL, command, NULL, NULL, FALSE, DETACHED_PROCESS, NULL,
                     NULL, &startupinfo, &process_information)) {
     CloseHandle(process_information.hThread);
-    CloseHandle(process_information.hProcess);
   } else {
-    sdcli_set_error(session, "Failed to create child process. Error %d",
-                    (int)GetLastError());
+    sprintf(session->sderror, "Failed to create child process. Error %d",
+            (int)GetLastError());
     CloseHandle(session->hPipe);
     session->hPipe = INVALID_HANDLE_VALUE;
     goto exit_sdconnect_local;
@@ -767,9 +713,8 @@ VBBool _stdcall _export SDConnectLocal(account) BSTR account;
 
   /* Wait for child to connect to pipe */
 
-  if (!ConnectNamedPipe(session->hPipe, NULL) &&
-      GetLastError() != ERROR_PIPE_CONNECTED) {
-    sdcli_set_error(session, "Error %d connecting pipe", (int)GetLastError());
+  if (!ConnectNamedPipe(session->hPipe, NULL)) {
+    sprintf(session->sderror, "Error %d connecting pipe", (int)GetLastError());
     CloseHandle(session->hPipe);
     session->hPipe = INVALID_HANDLE_VALUE;
     goto exit_sdconnect_local;
@@ -1196,14 +1141,10 @@ int16_t* err;
   switch (session->server_error) {
     case SV_PROMPT:
       session->context = CX_EXECUTING;
-      /* fall through */
+      /* **** FALL THROUGH **** */
 
     case SV_OK:
       reply_len = session->buff_bytes - offsetof(INBUFF, data.execute.reply);
-      if (reply_len < 0)
-        reply_len = 0;
-      else if (reply_len > (int32_t)MAX_STRING_SIZE)
-        reply_len = (int32_t)MAX_STRING_SIZE;
       break;
 
     case SV_ON_ERROR:
@@ -2350,14 +2291,10 @@ int16_t* err;
   switch (session->server_error) {
     case SV_OK:
       session->context = CX_CONNECTED;
-      /* fall through */
+      /* **** FALL THROUGH **** */
 
     case SV_PROMPT:
       reply_len = session->buff_bytes - offsetof(INBUFF, data.execute.reply);
-      if (reply_len < 0)
-        reply_len = 0;
-      else if (reply_len > (int32_t)MAX_STRING_SIZE)
-        reply_len = (int32_t)MAX_STRING_SIZE;
       break;
 
     case SV_ERROR: /* Probably SDRespond() used when not expected */
@@ -2449,10 +2386,6 @@ int16_t listno;
   /* Insert index name */
 
   n = SysStringByteLen(index_name);
-  if (n > 255) {
-    session->sd_status = ER_BAD_NAME;
-    goto exit_sdselectindex;
-  }
   packet.name_len = n;
   p = packet.index_name;
   memcpy(p, index_name, n);
@@ -2899,19 +2832,14 @@ exit_write:
 /* ====================================================================== */
 
 bool GetResponse(struct SESSION* session) {
-  int n;
-
   if (!read_packet(session))
     return FALSE;
 
   if (session->server_error == SV_ERROR) {
-    sdcli_set_error(session, "Unable to retrieve error text");
+    strcpy(session->sderror, "Unable to retrieve error text");
     write_packet(session, SrvrGetError, NULL, 0);
-    if (read_packet(session)) {
-      n = session->buff_bytes - offsetof(INBUFF, data.error.text);
-      sdcli_copy_bounded(session->sderror, sizeof session->sderror,
-                         session->buff->data.error.text, n);
-    }
+    if (read_packet(session))
+      strcpy(session->sderror, session->buff->data.error.text);
     return FALSE;
   }
 
@@ -2928,29 +2856,18 @@ bool use_response;
   char* p;
   struct SESSION* session;
 
-  snprintf(abort_msg, sizeof abort_msg, "%s", msg ? msg : "");
+  strcpy(abort_msg, msg);
 
   if (use_response) {
-    size_t used;
-    size_t rem;
-
     session = TlsGetValue(tls);
-    if (session == NULL)
-      goto show_abort;
     n = session->buff_bytes - offsetof(INBUFF, data.abort.message);
     if (n > 0) {
-      used = strlen(abort_msg);
-      rem = sizeof abort_msg - used;
-      if (rem > 3) {
-        p = abort_msg + used;
-        *(p++) = '\r';
-        rem--;
-        sdcli_copy_bounded(p, rem, session->buff->data.abort.message, n);
-      }
+      p = abort_msg + strlen(msg);
+      *(p++) = '\r';
+      memcpy(p, session->buff->data.abort.message, n);
+      *(p + n) = '\0';
     }
   }
-
-show_abort:
 
   MessageBox(NULL, abort_msg, NULL, MB_OK | MB_ICONEXCLAMATION | MB_APPLMODAL);
 }
@@ -3009,7 +2926,7 @@ void catcall(struct SESSION* session, BSTR subrname, int16_t argc, ...) {
     }
     free(session->buff);
     session->buff = q;
-    session->buff_size = n;
+    session->buff_size = bytes;
   }
 
   /* Set up outgoing packet */
@@ -3489,7 +3406,7 @@ Private bool OpenSocket(struct SESSION* session, char* host, int16_t port) {
   /* Start Winsock up */
 
   if (WSAStartup(MAKEWORD(1, 1), &wsadata) != 0) {
-    sdcli_set_error(session, "WSAStartup error");
+    sprintf(session->sderror, "WSAStartup error");
     goto exit_opensocket;
   }
 
@@ -3500,7 +3417,7 @@ Private bool OpenSocket(struct SESSION* session, char* host, int16_t port) {
   } else {
     hostdata = gethostbyname(host);
     if (hostdata == NULL) {
-      NetError(session, "gethostbyname()");
+      NetError("gethostbyname()");
       goto exit_opensocket;
     }
 
@@ -3511,7 +3428,7 @@ Private bool OpenSocket(struct SESSION* session, char* host, int16_t port) {
 
   session->sock = socket(AF_INET, SOCK_STREAM, 0);
   if (session->sock == INVALID_SOCKET) {
-    NetError(session, "socket()");
+    NetError("socket()");
     goto exit_opensocket;
   }
 
@@ -3520,7 +3437,7 @@ Private bool OpenSocket(struct SESSION* session, char* host, int16_t port) {
   sock_addr.sin_port = nPort;
 
   if (connect(session->sock, (struct sockaddr*)&sock_addr, sizeof(sock_addr))) {
-    NetError(session, "connect()");
+    NetError("connect()");
     goto exit_opensocket;
   }
 
@@ -3563,13 +3480,10 @@ exit_closesocket:
 /* ======================================================================
    NetError                                                               */
 
-static void NetError(struct SESSION* session, char* prefix) {
+static void NetError(char* prefix) {
   char msg[80];
 
-  snprintf(msg, sizeof msg, "Error %d from %s", (int)WSAGetLastError(),
-           prefix ? prefix : "");
-  if (session != NULL)
-    snprintf(session->sderror, sizeof session->sderror, "%s", msg);
+  sprintf(msg, "Error %d from %s", WSAGetLastError(), prefix);
   MessageBox(NULL, msg, "SDClient: Network error",
              MB_OK | MB_ICONEXCLAMATION | MB_APPLMODAL);
 }
@@ -3618,15 +3532,7 @@ Private bool read_packet(struct SESSION* session) {
 
   /* Calculate remaining bytes to read */
 
-  if (in_packet_header.packet_length < IN_PKT_HDR_BYTES) {
-    return FALSE;
-  }
-
   packet_bytes = in_packet_header.packet_length - IN_PKT_HDR_BYTES;
-
-  if (packet_bytes < 0 || packet_bytes > SDCLI_MAX_PACKET_BYTES) {
-    return FALSE;
-  }
 
   if (srvr_debug != NULL) {
     fprintf(srvr_debug, "IN (%ld bytes)\n", packet_bytes);
@@ -3666,9 +3572,7 @@ Private bool read_packet(struct SESSION* session) {
     p += rcvd_bytes;
   }
 
-  if (session->buff_bytes < session->buff_size) {
-    ((char*)(session->buff))[session->buff_bytes] = '\0';
-  }
+  ((char*)(session->buff))[session->buff_bytes] = '\0';
 
   if (srvr_debug != NULL)
     debug((char*)(session->buff), session->buff_bytes);
@@ -3770,34 +3674,28 @@ Private void debug(unsigned char* p, int n) {
 /* ======================================================================
    sysdir()  -  Return static SDSYS directory pointer                     */
 
-char* sysdir(struct SESSION* err_session) {
+char* sysdir() {
   static char sysdirpath[MAX_PATHNAME_LEN + 1];
   FILE* fu;
   char* p;
-  char windir[MAX_PATHNAME_LEN + 1];
   char path[MAX_PATHNAME_LEN + 1];
   char section[50];
   char rec[200 + 1];
+  struct SESSION* session;
 
-  sysdirpath[0] = '\0';
+  session = TlsGetValue(tls);
 
-  if (GetWindowsDirectory(windir, MAX_PATHNAME_LEN) == 0) {
-    sdcli_set_error(err_session, "Unable to determine Windows directory");
-    return NULL;
-  }
-  if (snprintf(path, sizeof path, "%s\\sd.ini", windir) >= (int)sizeof(path)) {
-    sdcli_set_error(err_session, "Configuration path too long");
-    return NULL;
-  }
+  GetWindowsDirectory(path, MAX_PATHNAME_LEN);
+  strcat(path, "\\sd.ini");
 
   fu = fopen(path, "rt");
   if (fu == NULL) {
-    sdcli_set_error(err_session, "%s not found", path);
+    sprintf(session->sderror, "%s not found", path);
     return NULL;
   }
 
   section[0] = '\0';
-  while (fgets(rec, sizeof rec, fu) != NULL) {
+  while (fgets(rec, 200, fu) != NULL) {
     if ((p = strchr(rec, '\n')) != NULL)
       *p = '\0';
 
@@ -3807,12 +3705,7 @@ char* sysdir(struct SESSION* err_session) {
     if (rec[0] == '[') {
       if ((p = strchr(rec, ']')) != NULL)
         *p = '\0';
-      if (snprintf(section, sizeof section, "%s", rec + 1) >=
-          (int)sizeof(section)) {
-        fclose(fu);
-        sdcli_set_error(err_session, "Configuration section name too long");
-        return NULL;
-      }
+      strcpy(section, rec + 1);
       strupr(section);
       continue;
     }
@@ -3820,12 +3713,7 @@ char* sysdir(struct SESSION* err_session) {
     if (strcmp(section, "SD") == 0) /* [sd] items */
     {
       if (strncmp(rec, "SDSYS=", 6) == 0) {
-        if (snprintf(sysdirpath, sizeof sysdirpath, "%s", rec + 6) >=
-            (int)sizeof(sysdirpath)) {
-          fclose(fu);
-          sdcli_set_error(err_session, "SDSYS path too long");
-          return NULL;
-        }
+        strcpy(sysdirpath, rec + 6);
         break;
       }
     }
@@ -3834,8 +3722,7 @@ char* sysdir(struct SESSION* err_session) {
   fclose(fu);
 
   if (sysdirpath[0] == '\0') {
-    sdcli_set_error(err_session,
-                    "No SDSYS parameter in configuration file");
+    sprintf(session->sderror, "No SDSYS parameter in configuration file");
     return NULL;
   }
 
@@ -3856,9 +3743,9 @@ Private struct SESSION* FindFreeSession() {
   }
 
   if (i == MAX_SESSIONS) {
+    /* Must return error via a currently connected session */
     session = TlsGetValue(tls);
-    if (session != NULL)
-      sdcli_set_error(session, "Too many sessions");
+    strcpy(session->sderror, "Too many sessions");
     return NULL;
   }
 

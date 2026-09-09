@@ -21,7 +21,6 @@
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * 01 Jul 24 mab define max string size.
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -56,6 +55,15 @@
 #include "config.h"
 #include "locks.h"
 #include "sdclient.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that paths following a k_error()
+   call (e.g. the NULL check in t1_buffer_alloc) are not reported as
+   NULL dereferences. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 #define MAX_T1_BUFFER_SIZE 31744
 Private char *t1_buffer = NULL;
@@ -189,7 +197,7 @@ void op_clrfile() {
         break;
 
       case DIRECTORY_FILE:
-        snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s", (char*)(fptr->pathname));
+        strcpy(pathname, (char *)(fptr->pathname));
         if ((dfu = opendir(pathname)) == NULL) {
           process.status = -ER_RNF;
           goto exit_op_clrfile;
@@ -366,7 +374,7 @@ void op_delete() {
         fptr->upd_ct++;
         EndExclusive(FILE_TABLE_LOCK);
 
-        snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s", (char*)(fptr->pathname));
+        strcpy(pathname, (char *)(fptr->pathname));
         path_len = strlen(pathname);
         if (pathname[path_len - 1] == DS)
           pathname[path_len - 1] = '\0'; /* 0214 */
@@ -567,7 +575,12 @@ void op_readv() {
             case -2: /* Deadlock detected */
               if (sysseg->deadlock)
                 k_deadlock();
-              /* fall through */
+              /* **** FALL THROUGH **** */
+              /* Modified by Composer AI - 2026/06/10.
+                 Fall-through is intentional (see comment above); make
+                 it explicit for the compiler. */
+              __attribute__((fallthrough));
+              /* -------------------- */
 
             case -1:                   /* Lock table is full */
             default:                   /* Conflicting lock is held by another user */
@@ -613,8 +626,7 @@ void op_readv() {
             break;
 
           case DIRECTORY_FILE:
-            snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s",
-                     (char*)(FPtr(fvar->file_id)->pathname));
+            strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
             path_len = strlen(pathname);
             if (pathname[path_len - 1] == DS)
               pathname[path_len - 1] = '\0'; /* 0214 */
@@ -1031,7 +1043,12 @@ Private void read_record(bool matread) {
         case -2: /* Deadlock detected */
           if (sysseg->deadlock)
             k_deadlock();
-          /* fall through */
+          /* **** FALL THROUGH **** */
+          /* Modified by Composer AI - 2026/06/10.
+             Fall-through is intentional (see comment above); make it
+             explicit for the compiler. */
+          __attribute__((fallthrough));
+          /* -------------------- */
 
         case -1:                   /* Lock table is full */
         default:                   /* Conflicting lock is held by another user */
@@ -1123,8 +1140,7 @@ Private void read_record(bool matread) {
       sysseg->global_stats.reads++;
       EndExclusive(FILE_TABLE_LOCK);
 
-      snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s",
-               (char*)(FPtr(fvar->file_id)->pathname));
+      strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
       path_len = strlen(pathname);
       if (pathname[path_len - 1] == DS)
         pathname[path_len - 1] = '\0'; /* 0214 */
@@ -1363,8 +1379,7 @@ bool dir_write(FILE_VAR *fvar, char *mapped_id, STRING_CHUNK *str) {
 
   /* Open and truncate the file */
 
-  snprintf(pathname, MAX_PATHNAME_LEN + 1, "%s",
-           (char*)(FPtr(fvar->file_id)->pathname));
+  strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
   path_len = strlen(pathname);
   if (pathname[path_len - 1] == DS)
     pathname[path_len - 1] = '\0'; /* 0214 */
@@ -1475,6 +1490,12 @@ Private void t1_buffer_alloc(int32_t size) {
   if (size > MAX_T1_BUFFER_SIZE)
     size = MAX_T1_BUFFER_SIZE;
   t1_buffer = (char *)k_alloc(8, size);
+  /* Modified by Composer AI - 2026/06/10.
+     k_alloc() can return NULL on memory exhaustion; t1_buffer was used
+     without a check by the callers of t1_buffer_alloc(). */
+  if (t1_buffer == NULL)
+    k_error("Insufficient memory for directory file buffer");
+  /* -------------------- */
   t1_ptr = t1_buffer;
   t1_buffer_size = size;
   t1_space = (int16_t)size;

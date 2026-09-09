@@ -25,6 +25,13 @@ $catalog !py_getattr
 $include KEYS.H
 $include ERR.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty object name before SDEXT call.
+if objname = '' then
+   set.status 1
+   return ''
+end
+* --------------------
 rtn_string = SDEXT(objname,@FALSE,SD_PyGetAtt)
 *
 return rtn_string

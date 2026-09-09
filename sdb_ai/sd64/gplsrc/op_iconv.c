@@ -18,14 +18,13 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
  *
  *    B         Boolean (Y or N to 1 or 0)
  *
- *    B64       Base64 decoding (RFC 4648 standard alphabet, not URL-safe)
+ *    B64       Base64 decoding
  *
  *    C;1;2;3   Concatenation
  *
@@ -85,6 +84,7 @@ extern char* month_names[];
 
 int32_t conv_dtx(char* p);
 int32_t conv_xtd(char* p);
+STRING_CHUNK* b64decode(STRING_CHUNK* str);
 
 /* OP_OCONV.C */
 int32_t concatenation_conversion(char* src_ptr);
@@ -332,9 +332,6 @@ Private int32_t base64_conversion() {
 
   str = b64decode(src_descr->data.str.saddr);
   k_dismiss();
-  if (str == NULL)
-    return 2;
-
   InitDescr(e_stack, STRING);
   (e_stack++)->data.str.saddr = str;
 
@@ -413,8 +410,7 @@ Private int32_t date_conversion(char* p) {
 
   /* Set default sequence */
 
-  snprintf(sequence, sizeof(sequence), "%s",
-           (european_dates) ? "DMY" : "MDY");
+  strcpy(sequence, (european_dates) ? "DMY" : "MDY");
 
   if (IsDigit(*p))
     p++;
@@ -447,8 +443,7 @@ Private int32_t date_conversion(char* p) {
       break;
 
     case 'E':
-      snprintf(sequence, sizeof(sequence), "%s",
-               (european_dates) ? "MDY" : "DMY");
+      strcpy(sequence, (european_dates) ? "MDY" : "DMY"); /* 0407 */
       break;
   }
 
@@ -607,7 +602,7 @@ Private int32_t date_conversion(char* p) {
 
   days += day - 1;
 
-  snprintf(s, sizeof(s), "%d", days);
+  sprintf(s, "%d", days);
   k_dismiss();
   k_put_c_string(s, e_stack++);
 
@@ -632,8 +627,16 @@ Private int32_t radix_conversion(char* src, int16_t radix) {
   char c;
   int16_t k;
   int16_t n;
-  int16_t digits;
-  int16_t shift;
+  /* Modified by Composer AI - 2026/06/10.
+     digits and shift were used uninitialized if radix was not 2, 8 or
+     16 (all callers pass one of these, but the analyzer cannot prove
+     it). digits is initialized to 1 rather than 0 because it is used
+     as a divisor below. */
+  /* int16_t digits; */
+  /* int16_t shift; */
+  int16_t digits = 1;
+  int16_t shift = 0;
+  /* -------------------- */
   static char HexChars[] = "0123456789ABCDEF";
 
   src_descr = e_stack - 1;
@@ -855,7 +858,7 @@ Private int32_t masked_decimal_conversion(char* p) {
   int16_t n;
   int64 value;
 
-  snprintf(prefix, sizeof(prefix), "%s", national.currency);
+  strcpy(prefix, national.currency);
   thousands = national.thousands;
   decimal = national.decimal;
 
@@ -1044,10 +1047,7 @@ Private int32_t masked_decimal_conversion(char* p) {
   /* Strip prefix string */
 
   if ((prefix[0] != '\0') && ((r = strstr(s, prefix)) != NULL)) {
-    size_t plen = strlen(prefix);
-    size_t tail = strlen(r + plen);
-
-    memmove(r, r + plen, tail + 1);
+    strcpy(r, r + strlen(prefix));
   }
 
   /* Copy string to z, removing any further padding characters, spaces and
@@ -1159,9 +1159,9 @@ Private int32_t masked_decimal_conversion(char* p) {
   if (neg)
     *(q++) = '-';
 #ifndef __LP64__
-  snprintf(q, sizeof(s) - (size_t)(q - s), "%lld", value);
+  sprintf(q, "%lld", value);
 #else
-  snprintf(q, sizeof(s) - (size_t)(q - s), "%ld", value);
+  sprintf(q, "%ld", value);
 #endif
   /* Strip leading zeros */
 
@@ -1245,7 +1245,7 @@ int32_t iconv_time_conversion() {
     status = 0;
   }
 
-  snprintf(s, sizeof(s), "%d", time_value);
+  sprintf(s, "%d", time_value);
   k_dismiss();
   k_put_c_string(s, e_stack++);
 

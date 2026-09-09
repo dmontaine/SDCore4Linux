@@ -3255,7 +3255,20 @@ os.command:
    call @parser(PARSER$GET.REST, token.type, s, keyword)
    os.command.text = trimf(voc.rec<3> : " " : s)
 
+   * Modified by Composer AI - 2026/06/10.
+   * Require administrator and reject shell metacharacters in OS commands.
+   * os.execute os.command.text
+   deffun valid_shell_cmd(cmd) calling '!valid_shell_cmd'
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      display sysmsg(2001) ;* Command requires administrator privileges
+      return
+   end
+   if not(valid_shell_cmd(os.command.text)) then
+      display sysmsg(5240, 2) ;* Error xx executing operating system command
+      return
+   end
    os.execute os.command.text
+   * --------------------
    if status() then
       display sysmsg(5240, status()) ;* Error xx executing operating system command
       return

@@ -44,19 +44,35 @@ END
 
 OPEN_FILE_NAME = ''
 FILES.PROCESSED.LIST = ''
+* Modified by Composer AI - 2026/06/10.
+* Track dictionary file handle open state for safe CLOSE.
+* (no flag previously)
+DICT.FILE.OPEN = @FALSE
+* --------------------
 
 FOR I = 1 TO ID_CNT
 
   REC_ID = IDS<I>
   NEW_FILE_NAME = FIELD(REC_ID,'^',1)
   FILE_REC_NAME = FIELD(REC_ID,'^',2)
+
+  * Modified by Composer AI - 2026/06/10.
+  * Skip malformed transfer records.
+  IF NEW_FILE_NAME = '' OR FILE_REC_NAME = '' THEN CONTINUE
+  * --------------------
   
   IF NEW_FILE_NAME # OPEN_FILE_NAME THEN
   
 * DICTIONARY ENTRIES FOR NEW FILE, OPEN IT
     
-    IF OPEN_FILE_NAME # '' THEN
+    * Modified by Composer AI - 2026/06/10.
+    * CLOSE only when a dictionary file is actually open.
+    * IF OPEN_FILE_NAME # '' THEN
+    *   CLOSE DICT.FILE.VAR
+    IF OPEN_FILE_NAME # '' AND DICT.FILE.OPEN THEN
       CLOSE DICT.FILE.VAR
+      DICT.FILE.OPEN = @FALSE
+      * --------------------
       *
       *
       FILES.PROCESSED.LIST<-1> = OPEN_FILE_NAME 
@@ -69,8 +85,10 @@ FOR I = 1 TO ID_CNT
        CRT 'ERROR CANNOT OPEN: ' :DESTINATION_PATH:@DS:OPEN_FILE_NAME:', THIS SHOULD NOT HAPPEN!'
        CRT 'Garbage in ':DESTINATION_PATH:'??'
        OPEN_FILE_NAME = ''
+       DICT.FILE.OPEN = @FALSE
        CONTINUE
-    END  
+    END
+    DICT.FILE.OPEN = @TRUE
   END   
     
   CRT 'DICTIONARY: ':NEW_FILE_NAME:' ':FILE_REC_NAME 
@@ -84,6 +102,14 @@ FOR I = 1 TO ID_CNT
   WRITE DICT.REC ON DICT.FILE.VAR, FILE_REC_NAME
 
 NEXT I
+
+* Modified by Composer AI - 2026/06/10.
+* Close the last open dictionary file on normal completion.
+IF DICT.FILE.OPEN THEN
+   CLOSE DICT.FILE.VAR
+   DICT.FILE.OPEN = @FALSE
+END
+* --------------------
 
 CRT 'COMPLETE'
 END

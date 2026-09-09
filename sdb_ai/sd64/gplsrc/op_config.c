@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR allow create.account to create os user
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -85,12 +84,11 @@ void op_config() {
     result.data.value = pcfg.filerule;
   else if (!strcmp(param, "FIXUSERS")) {
     if (sysseg->fixusers_base) {
-      snprintf(s, sizeof(s), "%d,%d", sysseg->fixusers_base,
-               sysseg->fixusers_range);
+      sprintf(s, "%d,%d", sysseg->fixusers_base, sysseg->fixusers_range);
     }
     k_put_c_string(s, &result);
   } else if (!strcmp(param, "FLTDIFF")) {
-    snprintf(s, sizeof(s), "%.14lf", pcfg.fltdiff);
+    sprintf(s, "%.14lf", pcfg.fltdiff);
     k_put_c_string(s, &result);
   } else if (!strcmp(param, "FSYNC"))
     result.data.value = pcfg.fsync;
@@ -133,8 +131,8 @@ void op_config() {
     result.data.value = sysseg->pdump;
   else if (!strcmp(param, "PORTMAP")) {
     if (sysseg->portmap_range) {
-      snprintf(s, sizeof(s), "%d,%d,%d", sysseg->portmap_base_port,
-               sysseg->portmap_base_user, sysseg->portmap_range);
+      sprintf(s, "%d,%d,%d", sysseg->portmap_base_port,
+              sysseg->portmap_base_user, sysseg->portmap_range);
     }
     k_put_c_string(s, &result);
   } 

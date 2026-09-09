@@ -138,13 +138,6 @@ void fatal(void);
 void dump(u_char * addr, int32_t bytes);
 void set_console_title(void);
 
-/* CLOPTS.C */
-bool recover_users(void);
-void show_users(void);
-void kill_user(char * user);
-void cleanup(void);
-void suspend_resume(bool suspend);
-
 /* ANALYSE.C */
 int64 dir_filesize(FILE_VAR * fvar);
 
@@ -172,7 +165,6 @@ void UpperCaseMem(char * str, int16_t len);
 char * UpperCaseString(char * s);
 /* 20240225  add misc dyn array functions for c strings */
 char* Extract(char* src, int fno, int vno, int svno);
-void free_extract_string(char* p);
 int Dcount(char* src, char* delim_str);
 
 /* DH_FILE.C */
@@ -435,10 +427,6 @@ bool start_connection(int sa);
 void shut_connection(void);
 bool read_socket(char * str, int bytes);
 bool flush_outbuf(void);
-
-/* B64.C */
-STRING_CHUNK * b64encode(STRING_CHUNK * str);
-STRING_CHUNK * b64decode(STRING_CHUNK * str);
 
 /* STRINGS.C */
 char * alloc_c_string(DESCRIPTOR * descr);

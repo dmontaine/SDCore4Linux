@@ -20,6 +20,14 @@ $internal
 $catalog !SD_KEY_FROM_PW
 $include KEYS.H
 $include ERR.H
+* Modified by Composer AI - 2026/06/10.
+* Reject empty password or salt before SDEXT call.
+* rtn_key = SDEXT(mypw:@FM:mysalt,@TRUE,SD_KEYFROMPW)
+if mypw = '' or mysalt = '' then
+   rtn_key = ''
+   return
+end
+* --------------------
 rtn_key = SDEXT(mypw:@FM:mysalt,@TRUE,SD_KEYFROMPW)
 *
 end

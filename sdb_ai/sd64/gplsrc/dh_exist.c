@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -53,23 +52,9 @@ bool dh_exists(DH_FILE* dh_file, /* File descriptor */
   dh_err = DHE_RECORD_NOT_FOUND;
   process.os_error = 0;
 
-  if (dh_file == NULL) {
-    dh_err = DHE_FILE_NOT_OPEN;
-    return FALSE;
-  }
-
   buff = (DH_BLOCK*)(&dh_buffer);
 
   fptr = FPtr(dh_file->file_id);
-  if (fptr == NULL) {
-    dh_err = DHE_NOT_A_FILE;
-    return FALSE;
-  }
-
-  if (id_len < 0 || id_len > MAX_KEY_LEN) {
-    dh_err = DHE_ID_LEN_ERR;
-    return FALSE;
-  }
   while (fptr->file_lock < 0)
     Sleep(1000); /* Clearfile in progress */
 
@@ -112,12 +97,7 @@ bool dh_exists(DH_FILE* dh_file, /* File descriptor */
 
     rec_offset = offsetof(DH_BLOCK, record);
     while (rec_offset < used_bytes) {
-      int16_t rec_size;
-
-      if (!dh_get_data_record(buff, group_bytes, rec_offset, &rec_ptr,
-                              &rec_size)) {
-        goto exit_dh_exist;
-      }
+      rec_ptr = (DH_RECORD*)(((char*)buff) + rec_offset);
 
       if (id_len == rec_ptr->id_len) {
         if (fptr->flags & DHF_NOCASE) {
@@ -129,7 +109,7 @@ bool dh_exists(DH_FILE* dh_file, /* File descriptor */
         }
       }
 
-      rec_offset += rec_size;
+      rec_offset += rec_ptr->next;
     }
 
     /* Move to next group buffer */

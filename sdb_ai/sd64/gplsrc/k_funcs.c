@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -77,14 +76,6 @@ double rounding[14] = {0.5,
 
 Private void k_non_numeric_zero(DESCRIPTOR* original, DESCRIPTOR* dereferenced);
 
-#define K_ADDR_DEREF_LIMIT 256
-
-static double int_round_delta(void) {
-  if (pcfg.intprec < 1 || pcfg.intprec > 14)
-    return 0.0;
-  return rounding[pcfg.intprec - 1];
-}
-
 /* ======================================================================
    k_blank_string()  -  Check for blank string                            */
 
@@ -133,10 +124,6 @@ STRING_CHUNK* k_copy_string(STRING_CHUNK* src_str) {
       while (src_bytes_remaining > 0) {
         if (tgt_bytes_remaining == 0) {
           next_tgt = s_alloc(total_src_bytes_remaining, &tgt_bytes_remaining);
-          if (next_tgt == NULL) {
-            s_free(tgt_head);
-            return NULL;
-          }
           if (tgt_head == NULL)
             tgt_head = next_tgt;
           else
@@ -178,21 +165,22 @@ DESCRIPTOR* k_dereference(DESCRIPTOR* p) /* Descriptor to be dereferenced */
   register u_char flags;
   DESCRIPTOR* q;
 
-  if (p == NULL)
-    return NULL;
-
   if (p->type != ADDR)
     return p;
 
   flags = p->flags & DF_REUSE;
   q = p->data.d_addr;
-  {
-    int depth = 0;
-    while (q->type == ADDR && ++depth < K_ADDR_DEREF_LIMIT)
-      q = q->data.d_addr;
-    if (q->type == ADDR)
-      k_error(sysmsg(1201));
+  /* Modified by Composer AI - 2026/06/10.
+     Defensive check: an ADDR descriptor must reference a descriptor. If
+     the chain contains a NULL pointer, raise a fatal error instead of
+     dereferencing it. */
+  if (q == NULL) {
+    k_error("Invalid ADDR descriptor (NULL) in k_dereference()");
+    return p; /* Not reached - k_error() aborts */
   }
+  /* -------------------- */
+  while (q->type == ADDR)
+    q = q->data.d_addr;
   *p = *q;
   p->flags |= flags;
 
@@ -362,49 +350,35 @@ int k_get_c_string(DESCRIPTOR* descr,
                    int max_bytes) /* Excludes terminator */
 {
   STRING_CHUNK* str;
-  int report_len = 0;
+  int bytes = 0;
   int n;
-  bool truncated = FALSE;
-
-  if (descr == NULL || s == NULL || max_bytes < 0)
-    return -1;
 
   if (descr->type != STRING)
     k_get_string(descr);
 
-  str = descr->data.str.saddr;
-  if (str == NULL) {
-    *s = '\0';
-    return 0;
-  }
+  if ((str = descr->data.str.saddr) != NULL) {
+    if ((bytes = str->string_len) > max_bytes)
+      bytes = -1;
 
-  report_len = str->string_len;
-  if (report_len > max_bytes) {
-    truncated = TRUE;
-    report_len = max_bytes;
-  }
-
-  do {
-    n = min(str->bytes, max_bytes);
-    if (n > 0) {
+    do {
+      n = min(str->bytes, max_bytes);
       memcpy(s, str->data, n);
       s += n;
       max_bytes -= n;
-    }
-    str = str->next;
-  } while (str != NULL && max_bytes > 0);
+      if ((str = str->next) == NULL)
+        break;
+    } while (max_bytes);
+  }
 
   *s = '\0';
 
-  return truncated ? -1 : report_len;
+  return bytes;
 }
 
 /* ======================================================================
    k_get_file()  -  Get item as a file variable                           */
 
 void k_get_file(DESCRIPTOR* p) {
-  if (p == NULL)
-    k_error(sysmsg(1200));
   if (p->type == ADDR)
     (void)k_dereference(p);
   if (p->type != FILE_REF)
@@ -476,12 +450,10 @@ void k_get_int(DESCRIPTOR* p) {
       }
 
       if (pcfg.intprec) {
-        double delta = int_round_delta();
-
         if (p->data.float_value < 0) {
-          p->data.float_value -= delta;
+          p->data.float_value -= rounding[pcfg.intprec - 1];
         } else {
-          p->data.float_value += delta;
+          p->data.float_value += rounding[pcfg.intprec - 1];
         }
       }
 
@@ -531,12 +503,10 @@ void k_get_int32(DESCRIPTOR* p) {
 
     case FLOATNUM:
       if (pcfg.intprec) {
-        double delta = int_round_delta();
-
         if (p->data.float_value < 0) {
-          p->data.float_value -= delta;
+          p->data.float_value -= rounding[pcfg.intprec - 1];
         } else {
-          p->data.float_value += delta;
+          p->data.float_value += rounding[pcfg.intprec - 1];
         }
       }
 
@@ -832,7 +802,6 @@ void k_num_array1(void op_func(void)) /* Opcode function */
   void op_cat(void);
 
   src_descr = e_stack - 1;
-  k_get_string(src_descr);
   src_str = src_descr->data.str.saddr;
 
   result_descr = e_stack++;
@@ -844,10 +813,7 @@ void k_num_array1(void op_func(void)) /* Opcode function */
 
     if (!first) {
       InitDescr(e_stack, STRING);
-      result_str = s_alloc(1, &n);
-      if (result_str == NULL)
-        k_error(sysmsg(ER_MEM));
-      e_stack->data.str.saddr = result_str;
+      result_str = e_stack->data.str.saddr = s_alloc(1, &n);
       result_str->ref_ct = 1;
       result_str->string_len = 1;
       result_str->bytes = 1;
@@ -1055,10 +1021,7 @@ void k_num_array2(
 
     if (!first) {
       InitDescr(e_stack, STRING);
-      result_str = s_alloc(1, &n);
-      if (result_str == NULL)
-        k_error(sysmsg(ER_MEM));
-      e_stack->data.str.saddr = result_str;
+      result_str = e_stack->data.str.saddr = s_alloc(1, &n);
       result_str->ref_ct = 1;
       result_str->string_len = 1;
       result_str->bytes = 1;
@@ -1149,9 +1112,7 @@ void k_num_to_str(DESCRIPTOR* p) {
    Create string from C string                                            */
 
 void k_put_c_string(char* s, DESCRIPTOR* descr) {
-  if (descr == NULL)
-    return;
-  k_put_string(s, (s) ? (int)strlen(s) : 0, descr);
+  k_put_string(s, (s) ? strlen(s) : 0, descr);
 }
 
 /* ======================================================================
@@ -1162,7 +1123,12 @@ void k_put_string(char* s, /* Data to copy. NULL returns blank string */
                   DESCRIPTOR* descr) /* Target descriptor */
 {
   char* src;
-  STRING_CHUNK* tgt_str;
+  /* Modified by Composer AI - 2026/06/10.
+     Initialize tgt_str so no code path can ever read an indeterminate
+     pointer (the first loop iteration always assigns it in practice). */
+  /* STRING_CHUNK* tgt_str; */
+  STRING_CHUNK* tgt_str = NULL;
+  /* -------------------- */
   STRING_CHUNK* next_tgt;
   int16_t n;
   int16_t actual_size;
@@ -1170,22 +1136,34 @@ void k_put_string(char* s, /* Data to copy. NULL returns blank string */
   InitDescr(descr, STRING);
   descr->data.str.saddr = NULL;
 
-  if (s != NULL && len > 0) {
+  if (s != NULL) {
     src = s;
 
     while (len) {
       next_tgt = s_alloc(len, &actual_size); /* 0279 */
+      /* Modified by Composer AI - 2026/06/10.
+         Guard against string chunk allocation failure instead of
+         dereferencing a NULL pointer below. */
       if (next_tgt == NULL) {
-        s_free(descr->data.str.saddr);
-        descr->data.str.saddr = NULL;
-        return;
+        k_error("Insufficient memory for string chunk");
+        return; /* Not reached - k_error() aborts */
       }
+      /* -------------------- */
       n = min(actual_size, len);
 
-      if (descr->data.str.saddr == NULL)
+      /* Modified by Composer AI - 2026/06/10.
+         Equivalent test expressed via tgt_str (NULL exactly on the first
+         iteration, when saddr has just been set to NULL above) so it is
+         provable that tgt_str is never dereferenced while NULL. */
+      /* if (descr->data.str.saddr == NULL)
+        descr->data.str.saddr = next_tgt;
+      else
+        tgt_str->next = next_tgt; */
+      if (tgt_str == NULL)
         descr->data.str.saddr = next_tgt;
       else
         tgt_str->next = next_tgt;
+      /* -------------------- */
       tgt_str = next_tgt;
 
       memcpy(tgt_str->data, src, n);
@@ -1499,8 +1477,6 @@ bool strdbl(               /* Returns FALSE if cannot convert */
     if (*p == '-') {
       negative = TRUE;
       p++;
-    } else if (*p == '+') {
-      p++;
     }
 
     /* Collect digits before decimal point */
@@ -1642,9 +1618,6 @@ u_int32_t GetUnsignedInt(DESCRIPTOR* descr) {
       }
 
       return ivalue;
-
-    default:
-      break;
   }
 
 non_numeric:

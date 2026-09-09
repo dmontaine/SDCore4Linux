@@ -19,7 +19,6 @@
  * START-HISTORY:
  * 20240219 mab move to only allow AF_UNIX socket types
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -96,8 +95,6 @@ bool negotiate_telnet_parameter(void);
 
 bool start_connection(int unused) {
   socklen_t n;
-
-  (void)unused;
   /* 20240219 mab move to only allow AF_UNIX socket types */
   /* 20240127 mab mods to handle IPv6 */
   /* mostly a copy of what was done in OP_SKT.C, op_accptskt() by gwb & gcb back in Apr of 09, thanks! */
@@ -109,9 +106,8 @@ bool start_connection(int unused) {
   peer_grp_id = peer_unassigned;
 
 /* 20240219 mab rebrand VBSRVR to APISRVR */ 
-  if (is_sdApiSrvr) {
-    snprintf(command_processor, sizeof(command_processor), "%s", "$APISRVR");
-  }
+  if (is_sdApiSrvr)
+    strcpy(command_processor, "$APISRVR");
     
 /* 20240219 mab rebrand VBSRVR to APISRVR */
   if (connection_type == CN_SOCKET) {
@@ -123,23 +119,16 @@ bool start_connection(int unused) {
          new process is up and running so Q_M_Client isn't going to talk until
          we go first. The Ack comes from Q_M_Svc on NT style systems.          */
 
-      if (send(0, "\x06", 1, 0) < 0) {
-        syslog(LOG_INFO, "start_connection: ACK send failed: %d", errno);
-        return FALSE;
-      }
-    }
+      send(0, "\x06", 1, 0);
+    } 
   /* 20240127 mab mods to handle IPv6 */
     n = sizeof(sa);
-    if (getsockname(0, (struct sockaddr *)&sa, &n) != 0) {
-      syslog(LOG_INFO, "getsockname error: %d", errno);
-      return FALSE;
-    }
-    switch (sa.ss_family) {
-      case PF_UNIX: {
-        struct sockaddr_un* sU = (struct sockaddr_un*)&sa;
+    getsockname(0, (struct sockaddr *)&sa, &n);
+    switch (sa.ss_family){
+      case PF_UNIX:
+        struct sockaddr_un* sU =  (struct sockaddr_un*)&sa;
         /* pull out UNIX Socket path */
-        strncpy(ip_addr, sU->sun_path, MAX_SOCKET_ADDR_STR_LEN - 1);
-        ip_addr[MAX_SOCKET_ADDR_STR_LEN - 1] = '\0';
+        strncpy(ip_addr,sU->sun_path,MAX_SOCKET_ADDR_STR_LEN-1);
         /* see who is connecting */
         if (getpeereid(0, &peer_usr_id, &peer_grp_id) == -1){
           // check errno
@@ -155,10 +144,9 @@ bool start_connection(int unused) {
             peer_usr_id = peer_unassigned; /* give garbage see UID_MAX in * /etc/login.defs */
             peer_grp_id = peer_unassigned;
             return FALSE; /* Error */ 
-          } else {
-            snprintf(peer_username, sizeof(peer_username), "%s", pwd->pw_name);
-            syslog(LOG_INFO, "Connecting to %s Peer User: %s (%d) Group: %d",
-                   ip_addr, peer_username, (int)peer_usr_id, (int)peer_grp_id);
+          }else{
+            strncpy(peer_username, pwd->pw_name, MAX_USERNAME_LEN);
+            syslog (LOG_INFO, "Connecting to %s Peer User: %s (%d) Group: %d",ip_addr,peer_username,peer_usr_id, peer_grp_id);
  /*         
             Ideally we would drop root privilages here with  ((setegid(grp_id))  (seteuid(usr_id)))
             But for some reason this will cause a broken pipe error with the UNIX domain socket????
@@ -166,8 +154,8 @@ bool start_connection(int unused) {
 */
           }
         }
+        
         break;
-      }
 
       case PF_INET:
 /*        struct sockaddr_in* s = (struct sockaddr_in*)&sa;
@@ -307,7 +295,7 @@ bool init_console() {
 /* ======================================================================
    set_term()  -  Set or reset terminal modes                             */
 
-void set_term(bool trap_break) /* Treat break char as a break? */
+void set_term(trap_break) bool trap_break; /* Treat break char as a break? */
 {
   trap_break_char = trap_break;
 
@@ -410,7 +398,7 @@ bool keyready() {
   return TRUE;
 }
 
-int16_t keyin(int timeout) /* Milliseconds */
+int16_t keyin(timeout) int timeout; /* Milliseconds */
 {
   char c;
   struct timeval tv;
@@ -528,8 +516,6 @@ exit_keyin:
 }
 
 void io_handler(int sig) {
-  (void)sig;
-
   /* Collect the input and re-enable the signal */
 
   if (input_handler_enabled && !in_sh)
@@ -621,8 +607,6 @@ STRING_CHUNK *inblk(int max_bytes) {
 
   if (n != 0) {
     str = s_alloc(n, &actual_size); /* Will never be smaller than n */
-    if (str == NULL)
-      return NULL;
     str->ref_ct = 1;
     str->string_len = n;
     str->bytes = n;
@@ -647,7 +631,12 @@ STRING_CHUNK *inblk(int max_bytes) {
 /* ======================================================================
    save_screen()  -  Save screen image                                    */
 
-bool save_screen(SCREEN_IMAGE* scrn, int16_t x, int16_t y, int16_t w, int16_t h) {
+bool save_screen(scrn, x, y, w, h) SCREEN_IMAGE *scrn;
+int16_t x;
+int16_t y;
+int16_t w;
+int16_t h;
+{
   char *p;
   char *q;
   static int32_t image_id = 0;
@@ -667,7 +656,9 @@ bool save_screen(SCREEN_IMAGE* scrn, int16_t x, int16_t y, int16_t w, int16_t h)
 
 /* ====================================================================== */
 
-void restore_screen(SCREEN_IMAGE* scrn, bool restore_cursor) {
+void restore_screen(scrn, restore_cursor) SCREEN_IMAGE *scrn;
+bool restore_cursor;
+{
   char *p;
   char *q;
   int n;
@@ -683,26 +674,20 @@ void restore_screen(SCREEN_IMAGE* scrn, bool restore_cursor) {
 
 /* Interludes to map onto Windows style interfaces */
 
-bool read_socket(char* str, int bytes) {
-  int c;
-
-  while (bytes-- > 0) {
-    c = keyin(0);
-    if (c < 0)
-      return FALSE;
-    *(str++) = (char)c;
-  }
-  return TRUE;
+bool read_socket(str, bytes) char *str;
+int bytes;
+{
+  while (bytes--)
+    *(str++) = (char)keyin(0);
+  return 1;
 }
 
 char socket_byte() {
   char c;
-  ssize_t n;
 
-  n = read(0, &c, 1);
-  if (n == 1)
-    return c;
-  return '\0';
+  read(0, &c, 1);
+
+  return c;
 }
 
 /* ======================================================================
@@ -726,29 +711,29 @@ char socket_byte() {
 /*       verification                                                                                             */
 /*     if config APILOGIN = 1 (require)                                                                           */
 /*       require valid username and password from api connection                                                  */
-bool login_user(char* username, char* password) {
-  FILE* fu;
-  struct passwd* pwd;
+bool login_user(char *username, char *password) {
+  FILE *fu;
+  struct passwd *pwd;
   char pw_rec[200 + 1];
   int16_t len;
-  char* p = NULL;
-  char* q;
-
-  if (username == NULL || password == NULL)
-    return FALSE;
-
-  if ((peer_usr_id == peer_unassigned) || (pcfg.api_login)) {
+  char *p = NULL;
+  char *q;
+  
+  if ((peer_usr_id == peer_unassigned) || (pcfg.api_login)){
     /* peer unassigned or require api login set,  go through normal login process */
     if ((fu = fopen(PASSWD_FILE_NAME, "r")) == NULL) {
       tio_printf("%s\n", sysmsg(1007));
       return FALSE;
     }
 
-    len = (int16_t)strlen(username);
-    if (len <= 0 || len >= (int16_t)sizeof(pw_rec))
-      return FALSE;
+    len = strlen(username);
 
+    /* Modified by Composer AI - 2026/06/10.
+       fgets() returns a pointer; ordered comparison with zero ("> 0") is
+       invalid and only worked by accident. Compare against NULL instead. */
+    /* while (fgets(pw_rec, sizeof(pw_rec), fu) > 0) { */
     while (fgets(pw_rec, sizeof(pw_rec), fu) != NULL) {
+    /* -------------------- */
       if ((pw_rec[len] == ':') && (memcmp(pw_rec, username, len) == 0)) {
         p = pw_rec + len + 1;
         break;
@@ -779,7 +764,7 @@ bool login_user(char* username, char* password) {
       syslog (LOG_INFO, "sdApiSrvr login via Peer User: %s (%d) Group: %d",peer_username,peer_usr_id, peer_grp_id);
       syslog (LOG_INFO, "sdApiSrvr process.username is: %s", process.username);     
   /* set process.username to reflect who we ended up logged in as */
-      snprintf(process.username, sizeof(process.username), "%s", peer_username);
+      strncpy(process.username, peer_username,MAX_USERNAME_LEN+1); 
       return TRUE;
     } 
   }
@@ -796,7 +781,8 @@ bool login_user(char* username, char* password) {
 /* ======================================================================
    Signal handler                                                         */
 
-void signal_handler(int signum) {
+void signal_handler(signum) int signum;
+{
   switch (signum) {
     case SIGINT:
       break_key();

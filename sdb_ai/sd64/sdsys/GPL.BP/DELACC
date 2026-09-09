@@ -43,6 +43,7 @@ $include parser.h
 $include err.h
 * REV 0.9.0
 deffun is_group(group) calling '!is_group'
+deffun valid_os_name(name) calling '!valid_os_name'
    prompt ''
 
    parser = "!PARSER"
@@ -185,7 +186,14 @@ deffun is_group(group) calling '!is_group'
    delete acc.f, acc.name
    
    * rev 0.9.0 remove group. os user?
-   if is_group(group_name) then 
+   if is_group(group_name) then
+      * Modified by Composer AI - 2026/06/10.
+      * Use shared !valid_os_name before OS.EXECUTE (phase 2).
+      * os.name.chars = '...'
+      * if convert(os.name.chars, '', group_name) # '' or len(group_name) > 32 then
+      if not(valid_os_name(group_name)) then
+         crt sysmsg(10026,group_name, 2) ;* Warning unable to delete group: %1 error: %2
+      end else
       OS.EXECUTE "sudo groupdel ": group_name 
       stat = OS.ERROR()
       if stat = 0 then
@@ -193,6 +201,8 @@ deffun is_group(group) calling '!is_group'
       end else
          crt sysmsg(10026,group_name, stat) ;* Warning unable to delete group: %1 error: %2
       end
+      end
+      * --------------------
    end
    
    * delete os user? (if configured to do so)
@@ -204,6 +214,12 @@ deffun is_group(group) calling '!is_group'
          crt sysmsg(10027,username): ;* Delete OS user %1 (Y/N)?
          input yn
          if upcase(yn) = 'Y' then
+            * Modified by Composer AI - 2026/06/10.
+            * Use shared !valid_os_name before OS.EXECUTE (phase 2).
+            * if username = '' or convert(os.name.chars, '', username) # '' ...
+            if not(valid_os_name(username)) then
+               crt sysmsg(10029,username, 2) ;* Warning unable to delete OS User: %1 error: %2
+            end else
             OS.EXECUTE "sudo userdel ":username 
             stat = OS.ERROR()
             if stat = 0 then
@@ -211,6 +227,8 @@ deffun is_group(group) calling '!is_group'
             end else
                crt sysmsg(10029,username, stat) ;* Warning unable to delete OS User: %1 error: %2
             end
+            end
+            * --------------------
          end
       end
    end

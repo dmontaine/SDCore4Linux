@@ -19,7 +19,6 @@
  * START-HISTORY:
  * rev 0.9.0 Jan 25 mab catch null key id in op_sortdata()
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -69,6 +68,12 @@
  *
  * START-CODE
  */
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() never returns, but the analyzer cannot see that across
+   translation units. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 #include "sd.h"
 #include "config.h"
@@ -143,8 +148,7 @@ void op_sortclr() {
       k_error(sysmsg(1480), pcfg.sortworkdir, errno);
     }
 
-    prefix_len = (int)snprintf(prefix, sizeof(prefix), "~SDS%d.",
-                               (int)process.user_no);
+    prefix_len = sprintf(prefix, "~SDS%d.", (int)process.user_no);
 
     while ((dp = readdir(dfu)) != NULL) {
       if (memcmp(dp->d_name, prefix, prefix_len) == 0) {
@@ -682,6 +686,8 @@ void op_sortnext() {
     } else /* Must use a temporary buffer */
     {
       buff = (char*)k_alloc(65, bytes);
+      if (buff == NULL)
+        k_error("Insufficient memory for sort record buffer");
       q = buff;
 
       while (bytes) {
@@ -856,6 +862,8 @@ Private bool flush_sort_tree() {
     k_error(sysmsg(1491), pathname, OSError);
 
   disk_buffer = (char*)k_alloc(63, DISK_BUFFER_SIZE);
+  if (disk_buffer == NULL)
+    k_error("Insufficient memory for sort disk buffer");
   used_bytes = 0;
 
   bte = sort_tree;
@@ -882,10 +890,16 @@ Private bool flush_sort_tree() {
         k_free(assembly_buffer);
       assembly_buffer_size = (bytes + 1023) & ~1023;
       assembly_buffer = (char*)k_alloc(62, assembly_buffer_size);
+      if (assembly_buffer == NULL)
+        k_error("Insufficient memory for sort assembly buffer");
     }
 
     /* Assemble record */
 
+    /* Modified by Composer AI - 2026/06/10. Guard before dereference. */
+    if (assembly_buffer == NULL)
+      k_error("Insufficient memory for sort assembly buffer");
+    /* -------------------- */
     q = assembly_buffer;
     *((int16_t*)q) = bytes; /* Record header: total byte count */
     q += 2;
@@ -994,6 +1008,20 @@ exit_flush_sort_tree:
 }
 
 /* ======================================================================
+   free_sort_merge_buffs()  -  Release merge buffer array                 */
+
+Private void free_sort_merge_buffs(char* buff[], int16_t count) {
+  int16_t j;
+
+  for (j = 0; j < count; j++) {
+    if (buff[j] != NULL) {
+      k_free(buff[j]);
+      buff[j] = NULL;
+    }
+  }
+}
+
+/* ======================================================================
    merge_sort_files()  -  Merge individual disk based sort files          */
 
 Private bool merge_sort_files() {
@@ -1003,7 +1031,10 @@ Private bool merge_sort_files() {
   int16_t nstream;
 
   OSFILE infu[MAX_SORTMRG];           /* File unit for first file... */
-  char* buff[MAX_SORTMRG];            /* ...disk buffer... */
+  /* Modified by Composer AI - 2026/06/10. Zero-init merge buffer pointers. */
+  /* char* buff[MAX_SORTMRG]; / * ...disk buffer... * / */
+  char* buff[MAX_SORTMRG] = {NULL};
+  /* -------------------- */
   int16_t buff_bytes[MAX_SORTMRG];  /* ...byte count... */
   int16_t buff_offset[MAX_SORTMRG]; /* ...and current offset */
   char* rec[MAX_SORTMRG];             /* Record pointer and... */
@@ -1038,9 +1069,20 @@ Private bool merge_sort_files() {
   num_files = sortwork--;
   lo_file = 0;
 
+  /* Modified by Composer AI - 2026/06/10. Zero merge arrays for analyzer. */
+  memset(buff, 0, sizeof(buff));
+  memset(rec, 0, sizeof(rec));
+  memset(temp, 0, sizeof(temp));
+  /* -------------------- */
+
   for (i = 0; i < pcfg.sortmrg; i++) {
     infu[i] = INVALID_FILE_HANDLE;
+    /* Modified by Composer AI - 2026/06/10. Init buff slots and check alloc. */
+    buff[i] = NULL;
     buff[i] = (char*)k_alloc(66, DISK_BUFFER_SIZE);
+    if (buff[i] == NULL)
+      k_error("Insufficient memory for sort merge buffer");
+    /* -------------------- */
   }
 
   while (num_files > 1) {
@@ -1057,10 +1099,20 @@ Private bool merge_sort_files() {
         goto exit_merge_sort_files;
       }
       infu[i] = dio_open(pathname, DIO_READ);
-      if (!ValidFileHandle(infu[i]))
+      if (!ValidFileHandle(infu[i])) {
+        /* Modified by Composer AI - 2026/06/10. Free merge buffers on open fail. */
+        status = FALSE;
+        free_sort_merge_buffs(buff, pcfg.sortmrg);
+        /* -------------------- */
         goto exit_merge_sort_files;
+      }
       buff_bytes[i] = 0;
       buff_offset[i] = 0;
+      /* Modified by Composer AI - 2026/06/10. Init rec; skip if buffer missing. */
+      rec[i] = NULL;
+      if (buff[i] == NULL)
+        goto exit_merge_sort_files;
+      /* -------------------- */
       rec[i] = read_merge_record(infu[i], buff[i], &(buff_bytes[i]),
                                  &(buff_offset[i]), &(temp[i]));
     }
@@ -1075,10 +1127,17 @@ Private bool merge_sort_files() {
       goto exit_merge_sort_files;
     }
     outfu = dio_open(pathname, DIO_REPLACE);
-    if (!ValidFileHandle(outfu))
+    if (!ValidFileHandle(outfu)) {
+      /* Modified by Composer AI - 2026/06/10. Free merge buffers on open fail. */
+      status = FALSE;
+      free_sort_merge_buffs(buff, pcfg.sortmrg);
+      /* -------------------- */
       goto exit_merge_sort_files;
+    }
 
     outbuff = (char*)k_alloc(66, DISK_BUFFER_SIZE);
+    if (outbuff == NULL)
+      k_error("Insufficient memory for sort merge output buffer");
     outbuff_bytes = 0;
 
     ndata = nstream;
@@ -1086,8 +1145,14 @@ Private bool merge_sort_files() {
       /* Compare records. We compare each of the parallel streams in turn,
           keeping track of the "best" one to use.                            */
 
-      for (best = 0; rec[best] == NULL; best++) {
+      /* Modified by Composer AI - 2026/06/10. Bound scan for first non-NULL rec. */
+      /* for (best = 0; rec[best] == NULL; best++) { */
+      /* } / * Find first stream * / */
+      for (best = 0; (best < nstream) && (rec[best] == NULL); best++) {
       } /* Find first stream */
+      if (best >= nstream)
+        break;
+      /* -------------------- */
 
       for (i = best + 1; i < nstream; i++) {
         if (rec[i] == NULL)
@@ -1237,11 +1302,20 @@ Private bool merge_sort_files() {
 
 exit_merge_sort_files:
   for (i = 0; i < pcfg.sortmrg; i++) {
+    /* Modified by Composer AI - 2026/06/10. Free unread temp merge records. */
+    if (temp[i] && (rec[i] != NULL))
+      k_free(rec[i]);
+    /* -------------------- */
     if (ValidFileHandle(infu[i]))
       CloseFile(infu[i]);
-    if (buff[i] != NULL)
-      k_free(buff[i]);
   }
+  /* Modified by Composer AI - 2026/06/10. Release all merge work buffers. */
+  free_sort_merge_buffs(buff, pcfg.sortmrg);
+  /* -------------------- */
+  /* Modified by Composer AI - 2026/06/10. Free merge output buffer on error. */
+  if (outbuff != NULL)
+    k_free(outbuff);
+  /* -------------------- */
 
   return status;
 }
@@ -1257,13 +1331,25 @@ Private char* read_merge_record(
     bool* temp)             /* Temporary buffer? (set on exit) */
 {
   char* rec = NULL;
-  int16_t buff_len;
-  int16_t offset;
+  /* Modified by Composer AI - 2026/06/10. Init for early-exit paths. */
+  /* int16_t buff_len; */
+  int16_t buff_len = 0;
+  /* -------------------- */
+  /* Modified by Composer AI - 2026/06/10. Init for early-exit paths. */
+  /* int16_t offset; */
+  int16_t offset = 0;
+  /* -------------------- */
   int16_t bytes;
   char* q;
   int16_t n;
 
   *temp = FALSE;
+
+  /* Modified by Composer AI - 2026/06/10. Caller must supply merge buffer. */
+  if (buff == NULL)
+    goto exit_read_merge_record;
+  /* -------------------- */
+
   buff_len = *buff_bytes;
   offset = *buff_offset;
 
@@ -1290,6 +1376,8 @@ Private char* read_merge_record(
   } else /* Must use a temporary buffer */
   {
     rec = (char*)k_alloc(67, bytes);
+    if (rec == NULL)
+      k_error("Insufficient memory for sort merge record");
     *temp = TRUE;
 
     q = rec;
@@ -1298,8 +1386,16 @@ Private char* read_merge_record(
       n = buff_len - offset;
       if (n == 0) {
         buff_len = (int16_t)Read(fu, buff, DISK_BUFFER_SIZE);
-        if (buff_len <= 0)
+        if (buff_len <= 0) {
+          /* Modified by Composer AI - 2026/06/10. Free partial temp record. */
+          if (*temp && (rec != NULL)) {
+            k_free(rec);
+            rec = NULL;
+            *temp = FALSE;
+          }
+          /* -------------------- */
           goto exit_read_merge_record;
+        }
         offset = 0;
         n = buff_len;
       }

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -175,38 +174,15 @@ void dh_complete_select(int16_t list_no) {
 
         if (!dh_read_group(dh_file, subfile, grp, (char*)buff, group_bytes)) {
           FreeGroupReadLock(lock_slot);
-          if (head != NULL) {
-            s_free(head);
-            head = NULL;
-          }
           goto exit_dh_complete_select;
         }
 
         /* Scan group buffer for records */
 
         used_bytes = buff->used_bytes;
-        if ((used_bytes == 0) || (used_bytes > group_bytes)) {
-          FreeGroupReadLock(lock_slot);
-          if (head != NULL) {
-            s_free(head);
-            head = NULL;
-          }
-          goto exit_dh_complete_select;
-        }
-
         rec_offset = offsetof(DH_BLOCK, record);
         while (rec_offset < used_bytes) {
-          int16_t rec_size;
-
-          if (!dh_get_data_record(buff, group_bytes, rec_offset, &rec_ptr,
-                                  &rec_size)) {
-            FreeGroupReadLock(lock_slot);
-            if (head != NULL) {
-              s_free(head);
-              head = NULL;
-            }
-            goto exit_dh_complete_select;
-          }
+          rec_ptr = (DH_RECORD*)(((char*)buff) + rec_offset);
 
           /* Add this record to the list */
 
@@ -229,8 +205,8 @@ void dh_complete_select(int16_t list_no) {
 
           record_count++;
           rec_ct[list_no]++;
-          load_bytes[list_no] += rec_size;
-          rec_offset += rec_size;
+          load_bytes[list_no] += rec_ptr->next;
+          rec_offset += rec_ptr->next;
         }
 
         /* Move to next group buffer */
@@ -371,38 +347,15 @@ bool dh_select_group(DH_FILE* dh_file, /* File descriptor */
 
       if (!dh_read_group(dh_file, subfile, grp, (char*)buff, group_bytes)) {
         FreeGroupReadLock(lock_slot);
-        if (head != NULL) {
-          s_free(head);
-          head = NULL;
-        }
         goto exit_dh_select_group;
       }
 
       /* Scan group buffer for records */
 
       used_bytes = buff->used_bytes;
-      if ((used_bytes == 0) || (used_bytes > group_bytes)) {
-        FreeGroupReadLock(lock_slot);
-        if (head != NULL) {
-          s_free(head);
-          head = NULL;
-        }
-        goto exit_dh_select_group;
-      }
-
       rec_offset = offsetof(DH_BLOCK, record);
       while (rec_offset < used_bytes) {
-        int16_t rec_size;
-
-        if (!dh_get_data_record(buff, group_bytes, rec_offset, &rec_ptr,
-                                &rec_size)) {
-          FreeGroupReadLock(lock_slot);
-          if (head != NULL) {
-            s_free(head);
-            head = NULL;
-          }
-          goto exit_dh_select_group;
-        }
+        rec_ptr = (DH_RECORD*)(((char*)buff) + rec_offset);
 
         /* Add this record to the list */
 
@@ -415,8 +368,8 @@ bool dh_select_group(DH_FILE* dh_file, /* File descriptor */
         record_count++;
         rec_ct[list_no]++;
 
-        rec_offset += rec_size;
-        load_bytes[list_no] += rec_size;
+        rec_offset += rec_ptr->next;
+        load_bytes[list_no] += rec_ptr->next;
       }
 
       /* Move to next group buffer */

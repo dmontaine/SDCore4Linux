@@ -29,9 +29,6 @@
  *   Py_Run_File.  Searching python forums seems to suggest only initialize and finalize once per SD session.
  *   Code already checks for python already initiailize, but how to handle Finalize?
  *   Could add test at SD close if Py_IsInitialized() then Py_FinalizeEx() ?? TBD
- * 24 May 26 - Code reviewed and updated by Claude AI
- * END-HISTORY
- *
  * START-DESCRIPTION:
  *
  *

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -51,6 +50,15 @@
 #include "sd.h"
 #include "header.h"
 #include "syscom.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps back to the kernel command loop and never returns,
+   but the analyzer cannot see this across translation units. Redeclare
+   it with the noreturn attribute so that paths following a k_error()
+   call (e.g. the NULL checks after k_alloc in a_dimension) are not
+   reported as NULL dereferences. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 Private bool creating_common; /* Most recent COMMON opcode created block? */
 Private bool initialise_zero;
@@ -110,7 +118,7 @@ void op_common() {
   creating_common = TRUE;
 
   if ((name_len == 1) && (*block_name == '$')) {
-    name_len = snprintf(block_name, sizeof(block_name), "$%d", (int)cproc_level);
+    name_len = sprintf(block_name, "$%d", (int)cproc_level);
   }
 
   /* Important - The is_persistent_vars and initialise_zero flags must
@@ -180,7 +188,7 @@ void op_common() {
       str_hdr->ref_ct = 1;
       str_hdr->string_len = name_len;
       str_hdr->bytes = name_len;
-      snprintf(str_hdr->data, (size_t)name_len + 1, "%s", block_name);
+      strcpy(str_hdr->data, block_name);
     }
     pc += 3;
   } else /* Common block already exists */
@@ -352,7 +360,13 @@ void op_indx1() {
   DESCRIPTOR* descr;
   DESCRIPTOR* com_descr;
   int32_t indx;
-  ARRAY_HEADER* a_hdr;
+  /* Modified by Composer AI - 2026/06/10.
+     a_hdr was used uninitialized on the path where the switch default
+     case is taken (analyzer cannot see that k_not_array_error never
+     returns). Initialize to NULL at declaration. */
+  /* ARRAY_HEADER* a_hdr; */
+  ARRAY_HEADER* a_hdr = NULL;
+  /* -------------------- */
   ARRAY_CHUNK* a_chunk;
   PMATRIX_HEADER* pm_hdr;
 
@@ -429,8 +443,15 @@ void op_indx2() {
   int32_t row;
   int32_t col;
   int32_t cols;
-  int32_t indx;
-  ARRAY_HEADER* a_hdr;
+  /* Modified by Composer AI - 2026/06/10.
+     indx and a_hdr were used uninitialized on the path where the switch
+     default case is taken (analyzer cannot see that k_not_array_error
+     never returns). Initialize to neutral values at declaration. */
+  /* int32_t indx; */
+  /* ARRAY_HEADER* a_hdr; */
+  int32_t indx = 0;
+  ARRAY_HEADER* a_hdr = NULL;
+  /* -------------------- */
   ARRAY_CHUNK* a_chunk;
   PMATRIX_HEADER* pm_hdr;
 
@@ -542,8 +563,15 @@ void op_inmata() {
   int16_t s_len;
   char s[30];
   int16_t actual_size;
-  int32_t rows;
-  int32_t cols;
+  /* Modified by Composer AI - 2026/06/10.
+     rows and cols were used uninitialized on the path where the switch
+     default case is taken (analyzer cannot see that k_not_array_error
+     never returns). Initialize to zero at declaration. */
+  /* int32_t rows; */
+  /* int32_t cols; */
+  int32_t rows = 0;
+  int32_t cols = 0;
+  /* -------------------- */
 
   descr = e_stack - 1;
   while (descr->type == ADDR)
@@ -574,8 +602,7 @@ void op_inmata() {
     (e_stack++)->data.value = rows;
   } else /* Two dimension */
   {
-    s_len = snprintf(s, sizeof(s), "%d%c%d", (int)rows, (char)VALUE_MARK,
-                     (int)cols);
+    s_len = sprintf(s, "%d%c%d", rows, (char)VALUE_MARK, cols);
 
     s_hdr = s_alloc((int32_t)s_len, &actual_size);
 
@@ -664,6 +691,12 @@ void op_local() {
   lv_count |= ((int)*(pc++)) << 8;
 
   a_hdr = a_alloc((int32_t)lv_count, 0L, FALSE);
+  /* Modified by Composer AI - 2026/06/10.
+     a_alloc() can return NULL on memory exhaustion; a_hdr was
+     dereferenced without a check. */
+  if (a_hdr == NULL)
+    k_error("Insufficient memory for local variable pool");
+  /* -------------------- */
   a_hdr->ref_ct = 1;
 
   /* If this is a recursive call, stack the previous incarnation of
@@ -732,14 +765,40 @@ void op_matcopy() {
   DESCRIPTOR* com_descr; /* Common descriptor for PMATRIX */
 
   DESCRIPTOR* src_descr;   /* Source array or element descriptor */
-  ARRAY_HEADER* src_a_hdr; /* Source array header */
-  int32_t src_elements;
-  int src_indx;
+  /* Modified by Composer AI - 2026/06/10.
+     src_a_hdr was used uninitialized on the path where the switch
+     default case is taken (analyzer cannot see that k_not_array_error
+     never returns). Initialize to NULL at declaration. */
+  /* ARRAY_HEADER* src_a_hdr; */ /* Source array header */
+  ARRAY_HEADER* src_a_hdr = NULL; /* Source array header */
+  /* -------------------- */
+  /* Modified by Composer AI - 2026/06/10.
+     src_elements and src_indx were used uninitialized on the path where
+     the switch default case is taken (analyzer cannot see that
+     k_not_array_error never returns). Initialize to zero. */
+  /* int32_t src_elements; */
+  /* int src_indx; */
+  int32_t src_elements = 0;
+  int src_indx = 0;
+  /* -------------------- */
 
   DESCRIPTOR* tgt_descr;   /* Target array or element descriptor */
-  ARRAY_HEADER* tgt_a_hdr; /* Target array header */
-  int32_t tgt_elements;
-  int tgt_indx;
+  /* Modified by Composer AI - 2026/06/10.
+     tgt_a_hdr was used uninitialized on the path where the switch
+     default case is taken (analyzer cannot see that k_not_array_error
+     never returns). Initialize to NULL at declaration. */
+  /* ARRAY_HEADER* tgt_a_hdr; */ /* Target array header */
+  ARRAY_HEADER* tgt_a_hdr = NULL; /* Target array header */
+  /* -------------------- */
+  /* Modified by Composer AI - 2026/06/10.
+     tgt_elements and tgt_indx were used uninitialized on the path where
+     the switch default case is taken (analyzer cannot see that
+     k_not_array_error never returns). Initialize to zero. */
+  /* int32_t tgt_elements; */
+  /* int tgt_indx; */
+  int32_t tgt_elements = 0;
+  int tgt_indx = 0;
+  /* -------------------- */
 
   int32_t elements; /* No of elements to copy */
 
@@ -1233,6 +1292,13 @@ Private void a_dimension(bool pick_style, bool set_zero) {
 
             j = (int16_t)((a_hdr->alloc_elements - 1) / MAX_ARRAY_CHUNK_SIZE);
             a_chnk = a_hdr->chunk[j];
+            /* Modified by Composer AI - 2026/06/10.
+               Guard against a missing chunk before dereferencing
+               a_chnk. The chunk table entry should always be non-NULL
+               here, but the analyzer cannot prove it. */
+            if (a_chnk == NULL)
+              k_error("Insufficient memory for array chunk");
+            /* -------------------- */
 
             /* Calculate the number of elements required in final chunk */
 
@@ -1310,7 +1376,6 @@ Private void a_dimension(bool pick_style, bool set_zero) {
 
     case PMATRIX:
       k_error(sysmsg(1136)); /* Cannot redimension a Pick style matrix */
-      break;
 
     default: /* Unassigned or converting some other type */
       if (pick_style && (rows == 0) && (cols == 0)) /* 0390 */

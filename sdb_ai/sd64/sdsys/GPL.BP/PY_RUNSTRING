@@ -24,6 +24,14 @@ $catalog !py_runstring
 
 $include KEYS.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty script before calling Python interpreter.
+* rtnstat = SDEXT(py_script,@FALSE,SD_PyRunStr)
+if py_script = '' then
+   set.status 1
+   return 1
+end
+* --------------------
 rtnstat = SDEXT(py_script,@FALSE,SD_PyRunStr)
 return rtnstat
 

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -61,24 +60,10 @@ STRING_CHUNK* dh_read(
   dh_err = DHE_RECORD_NOT_FOUND;
   process.os_error = 0;
 
-  if (dh_file == NULL) {
-    dh_err = DHE_FILE_NOT_OPEN;
-    return NULL;
-  }
-
-  if (id_len < 0 || id_len > MAX_KEY_LEN) {
-    dh_err = DHE_ID_LEN_ERR;
-    return NULL;
-  }
-
   buff = (DH_BLOCK*)(&dh_buffer);
 
   fno = dh_file->file_id;
   fptr = FPtr(fno);
-  if (fptr == NULL) {
-    dh_err = DHE_NOT_A_FILE;
-    return NULL;
-  }
   while (fptr->file_lock < 0)
     Sleep(1000); /* Clearfile in progress */
 
@@ -123,12 +108,7 @@ STRING_CHUNK* dh_read(
 
     rec_offset = offsetof(DH_BLOCK, record);
     while (rec_offset < used_bytes) {
-      int16_t rec_size;
-
-      if (!dh_get_data_record(buff, group_bytes, rec_offset, &rec_ptr,
-                              &rec_size)) {
-        goto exit_dh_read;
-      }
+      rec_ptr = (DH_RECORD*)(((char*)buff) + rec_offset);
 
       if (id_len == rec_ptr->id_len) {
         if (fptr->flags & DHF_NOCASE) {
@@ -140,7 +120,7 @@ STRING_CHUNK* dh_read(
         }
       }
 
-      rec_offset += rec_size;
+      rec_offset += rec_ptr->next;
     }
 
     /* Move to next group buffer */
@@ -190,22 +170,11 @@ STRING_CHUNK* dh_read_record(DH_FILE* dh_file, DH_RECORD* rec_ptr) {
 
   if (rec_ptr->flags & DH_BIG_REC) /* Found a large record */
   {
-    int chain_nodes = 0;
-
     group_bytes = (int16_t)(dh_file->group_size);
     buff = (char*)k_alloc(60, group_bytes);
-    if (buff == NULL) {
-      dh_err = DHE_NO_MEM;
-      goto exit_dh_read_record;
-    }
 
     grp = GetFwdLink(dh_file, rec_ptr->data.big_rec);
     while (grp != 0) {
-      if (++chain_nodes > DH_BIGREC_MAX_CHAIN_NODES) {
-        dh_err = DHE_BIG_CHAIN_END;
-        goto exit_dh_read_record;
-      }
-
       if (!dh_read_group(dh_file, OVERFLOW_SUBFILE, grp, buff, group_bytes)) {
         goto exit_dh_read_record;
       }
@@ -213,10 +182,6 @@ STRING_CHUNK* dh_read_record(DH_FILE* dh_file, DH_RECORD* rec_ptr) {
       if (str == NULL) /* First block */
       {
         data_len = ((DH_BIG_BLOCK*)buff)->data_len;
-        if (data_len < 0 || data_len > DH_BIGREC_MAX_DATA) {
-          dh_err = DHE_POINTER_ERROR;
-          goto exit_dh_read_record;
-        }
       }
 
       n = (int16_t)min(group_bytes - DH_BIG_BLOCK_SIZE, data_len);

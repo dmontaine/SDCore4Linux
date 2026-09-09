@@ -19,8 +19,7 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
- * 24 May 26 - Code reviewed and updated by Claude AI
- * END-HISTORY
+ * END-HISTORY      
  *
  * START-DESCRIPTION:
  *
@@ -600,6 +599,10 @@ bool make_path(char *tgt) {
   struct stat statbuf;
   char *p;
   char *q;
+  /* Modified by Composer AI - 2026/06/10.
+     Use re-entrant strtok_r() instead of strtok(). */
+  char* savep = NULL;
+  /* -------------------- */
 
   strcpy(path, tgt);
 
@@ -613,7 +616,10 @@ bool make_path(char *tgt) {
   }
   *q = '\0';
 
-  while ((q = strtok(p, DSS)) != NULL) {
+  /* Modified by Composer AI - 2026/06/10. See savep above. */
+  /* while ((q = strtok(p, DSS)) != NULL) { */
+  while ((q = strtok_r(p, DSS, &savep)) != NULL) {
+  /* -------------------- */
     strcat(new_path, q);
 
     if (stat(new_path, &statbuf)) /* Directory does not exist */

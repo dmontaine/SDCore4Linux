@@ -21,7 +21,6 @@
  * 02 Jul 24 mab add 9010 and 9011 
  * 31 Dec 23 SD launch - prior history suppressed
    
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:

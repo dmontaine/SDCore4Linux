@@ -19,7 +19,6 @@
  * START-HISTORY:
  * rev 0.9-3 SIGPIPE Error in op_writeskt() (WRITE.SOCKET)  issue #89 / ScarletDME 
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -77,6 +76,12 @@
  *
  * START-CODE
  */
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() never returns, but the analyzer cannot see that across
+   translation units. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 #include "sd.h"
 #include "keys.h"
@@ -160,7 +165,10 @@ void op_accptskt() {
   SOCKET skt;
   SOCKVAR* sockvar;
   DESCRIPTOR result_descr;
-  SOCKVAR* sock;
+  /* Modified by Composer AI - 2026/06/10. Init for early-exit cleanup paths. */
+  /* SOCKVAR* sock; */
+  SOCKVAR* sock = NULL;
+  /* -------------------- */
   socklen_t socklen;
   struct sockaddr_storage sinRemote;
 
@@ -201,6 +209,8 @@ void op_accptskt() {
   /* Create socket descriptor and SOCKVAR structure */
 
   sock = (SOCKVAR*)k_alloc(100, sizeof(SOCKVAR));
+  if (sock == NULL)
+    k_error("Insufficient memory for socket variable");
   sock->ref_ct = 1;
   sock->socket_handle = (int)skt;
   sock->flags = SKT_INCOMING;
@@ -234,6 +244,13 @@ void op_accptskt() {
   }
 
 exit_op_accptskt:
+  /* Modified by Composer AI - 2026/06/10. Release socket on error paths. */
+  if ((process.status != 0) && (sock != NULL)) {
+    close(sock->socket_handle);
+    k_free(sock);
+    sock = NULL;
+  }
+  /* -------------------- */
   k_pop(1);
   k_dismiss();
 
@@ -456,12 +473,11 @@ void op_openskt() {
         break;
 
       default:
-        snprintf(server_addr, sizeof(server_addr), "%s",
-                 "Unknown Address Family!");
+        strcpy(server_addr, "Unknown Address Family!");
     }
 
     if (process.status == 0) {
-      snprintf(sock->ip_addr, sizeof(sock->ip_addr), "%s", server_addr);
+      strcpy(sock->ip_addr, server_addr);
       sock->port = port;
       InitDescr(&result_descr, SOCK);
       result_descr.data.sock = sock;
@@ -824,7 +840,7 @@ void op_srvraddr() {
           }
           break;
         default:
-          snprintf(ip_addr, sizeof(ip_addr), "%s", "Unknown Address Family!");
+          strcpy(ip_addr, "Unknown Address Family!");
       }
     }
 
@@ -881,8 +897,11 @@ void op_srvrskt() {
  */
 
   DESCRIPTOR* descr;
-  SOCKVAR* sock;
-  SOCKET skt;
+  SOCKVAR* sock = NULL;
+  /* Modified by Composer AI - 2026/06/10. Init so error cleanup can test skt. */
+  /* SOCKET skt; */
+  SOCKET skt = INVALID_SOCKET;
+  /* -------------------- */
   int port;
   int flags;
   int optval;
@@ -893,7 +912,10 @@ void op_srvrskt() {
   DESCRIPTOR result_descr;
 
   /* for getaddrinfo() call... */
-  struct addrinfo hint, *res;
+  /* Modified by Composer AI - 2026/06/10. Init res for error-path cleanup. */
+  /* struct addrinfo hint, *res; */
+  struct addrinfo hint, *res = NULL;
+  /* -------------------- */
   char port_name[30];
   int err_info = 0;
 
@@ -1001,6 +1023,8 @@ void op_srvrskt() {
       /* Create socket descriptor and SOCKVAR structure */
 
       sock = (SOCKVAR*)k_alloc(99, sizeof(SOCKVAR));
+      if (sock == NULL)
+        k_error("Insufficient memory for server socket variable");
       sock->ref_ct = 1;
       sock->socket_handle = (int)skt;
       sock->family = res->ai_family;
@@ -1025,11 +1049,10 @@ void op_srvrskt() {
           }
           break;
         default:
-          snprintf(server_addr, sizeof(server_addr), "%s",
-                 "Unknown Address Family!");
+          strcpy(server_addr, "Unknown Address Family!");
       }
       if (process.status == 0) {
-        snprintf(sock->ip_addr, sizeof(sock->ip_addr), "%s", server_addr);
+        strcpy(sock->ip_addr, server_addr);
         sock->port = port;
         InitDescr(&result_descr, SOCK);
         result_descr.data.sock = sock;
@@ -1041,6 +1064,18 @@ void op_srvrskt() {
     freeaddrinfo(res);
 
 exit_srvrskt:
+  /* Modified by Composer AI - 2026/06/10. Close listening socket on error. */
+  if ((process.status != 0) && (skt != INVALID_SOCKET)) {
+    close(skt);
+    skt = INVALID_SOCKET;
+  }
+  if ((process.status != 0) && (sock != NULL)) {
+    k_free(sock);
+    sock = NULL;
+  }
+  if ((process.status != 0) && (res != NULL))
+    freeaddrinfo(res);
+  /* -------------------- */
 
   k_dismiss();
   k_pop(

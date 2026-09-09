@@ -246,10 +246,15 @@ public function connect(host, (port), username, password, account)
       return @false
    end
 
-   if len(username) = 0 or len(username) > MAX.USERNAME.LEN then
+   * Modified by Composer AI - 2026/06/10.
+   * Use shared !valid_os_name for remote login user names.
+   * if len(username) = 0 or len(username) > MAX.USERNAME.LEN then
+   deffun valid_os_name(name) calling '!valid_os_name'
+   if not(valid_os_name(username)) then
       error = 'Invalid user name'
       return @false
    end
+   * --------------------
 
    * Create outgoing packet
 

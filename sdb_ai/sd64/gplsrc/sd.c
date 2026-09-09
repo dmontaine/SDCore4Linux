@@ -22,42 +22,46 @@
  * 02 Jul 24 -i  typeo will hit bootstrap option
  * 08 Aug 24 mab add code to embedded python if EMBED_PYTHON defined 
  * rev 0.9.1 Mar 25 return to single rev track 
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
  *
- * Command line options (case-insensitive; only leading -options are parsed).
- * Non-option arguments are executed as a single SD command.
+ * Available single letter options: EFGHJORVWY
  *
- * Single-letter options (see sd_print_usage() for the full list):
- *    -A / -Aname   Query or force account name
- *    -Bn           Telnet binary mode (1=in, 2=out, 4=no negotiation)
- *    -C s!r        Local client pipe connection (Linux)
- *    -D            Diagnostic dump (config)
- *    -I            Bootstrap install (admin)
- *    -K n|ALL      Kill user (admin)
- *    -L            Apply new licence
- *    -M            Dump shared memory
- *    -N            Network connection
- *    -Pn           Phantom command processor
- *    -Q            SDClient / API server mode
- *    -U            List current users
+ * SD      -A            Query account name
+ *         -Aname        Force entry to named account unless set in $LOGINS
+ *         -Bn           Telnet binary mode? Additive: 1=input, 2=output,
+ *                                                     4 = suppress telnet
+ *         -D            Diagnostic dump
+ *         -I            Bootstrap Install
+ *         -K n          Kill user n
+ *         -K ALL        Kill all users
+ *         -L            Apply new licence
+ *         -M            Dump shared memory
+ *         -N            Network connection (SDClient or direct telnet)
+ *         -Pn           Execute phantom command (command in $IPC)
+ *         -Q            SDClient
+ *         -U            List current users
  *
- * Word options:
+ * "Word" options
  *    -CLEANUP      Clean up lost processes
  *    -INTERNAL     Run in internal mode
- *    -QUIET        Suppress entry displays
- *    -RESUME       Resume updates (admin)
- *    -RESTART      Restart SD (admin)
- *    -START        Start SD (admin)
- *    -STOP         Stop SD (admin)
- *    -SUSPEND      Suspend updates (admin)
- *    -TERM type    Set default terminal type (requires argument)
+ *    -QUIET        Suppress copyright/licence display on entry
+ *    -RESUME       Resume updates
+ *    -SUSPEND      Suspend updates
+ *    -TERM xx      Set default terminal type
  *
- * Long options:
+ * Doubly prefixed word options
  *    --HELP        Display usage help
  *    --VERSION     Display revision stamp
+ *
+ *
+ * Options applicable to Linux only:
+ *    -Cs.r         Local client connection (s = send pipe, r = receive pipe)
+ *    -N            Network connection
+ *    -RESTART      Restart system
+ *    -START        Start system
+ *    -STOP         Stop system
  *
  * END-DESCRIPTION
  *
@@ -86,19 +90,9 @@
 #include "locks.h"
 #include "keys.h"
 
-#define BUILD_TARGET (sizeof(void*) == 8 ? "64 Bit" : "32 Bit")
+#define BUILD_TARGET "64 Bit"
 
-/* Distinct exit codes for sd main (see main() return paths). */
-#define EXIT_GENERAL   1
-#define EXIT_CONFIG    2
-#define EXIT_COMLIN    3
-#define EXIT_BIND      4
-#define EXIT_SUSPENDED 5
-#define EXIT_PCODE     6
-#define EXIT_KERNEL    7
-#define EXIT_LANGUAGE  8
-#define EXIT_INIT      9
-#define EXIT_FATAL     10
+extern char *x_option; /* -x option */
 
 /* 20240808 mab embedding python? */
 #ifdef EMBED_PYTHON
@@ -108,61 +102,57 @@ extern void sdext_py(int key, char* Arg);
 bool bind_sysseg(bool create, char *errmsg);
 void unbind_sysseg(void);
 void dump_sysseg(bool dump_config);
+void show_users(void);
+void kill_user(char *user);
 
 Private jmp_buf sd_exit;
 
-Private bool sd_init(int argc, char * argv[]);
-Private void sd_print_usage(void);
+Private void sd_init(int argc, char *argv[]);
 Private void check_admin(void);
 Private bool comlin(int argc, char *argv[]);
 Private bool load_pcode(char *pname, u_char **ptr);
 
+void suspend_resume(bool suspend);
+void cleanup(void);
 void clean_stop(void);
 void dump_pcode_file(void);
 
 /* ====================================================================== */
 
-static void sd_close_syslog(void) { closelog(); }
-
 int main(int argc, char *argv[]) {
   /* 13Jan22 gwb Refactored to remove "goto" calls. */
 
-  int status = EXIT_GENERAL;
+  int status = 1;
   char errmsg[80 + 1];
-  int arg;
-#define msgsz 256
-  char msg[msgsz];
 
   tio.term_type[0] = '\0';
 
-  /* 20240126 mab add syslog */
-  openlog("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-  atexit(sd_close_syslog);
-  syslog(LOG_INFO, "String Database (sd) command line:");
-  {
-    int pos = snprintf(msg, msgsz, "sd");
-
-    for (arg = 1; arg < argc && pos > 0 && (size_t)pos < msgsz; arg++) {
-      int n = snprintf(msg + pos, (size_t)(msgsz - pos), " %s", argv[arg]);
-
-      if (n < 0 || (size_t)n >= (size_t)(msgsz - pos))
-        break;
-      pos += n;
+ /* 20240126 mab add syslog */
+ /* log startup and command line args */
+  int arg;
+  #define msgsz 256
+  char msg[msgsz];
+  openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
+  syslog (LOG_INFO, "String Database (sd) command line:");
+  strcpy(msg,"sd ");
+  for (arg = 1; (arg < argc); arg++) {
+    if ((strlen(msg)+ strlen(argv[arg]) + 2) < msgsz){
+      strcat(msg," "); 
+      strcat(msg,argv[arg]); 
+    } else {
+      break;
     }
-    syslog(LOG_INFO, "%s", msg);
   }
+  syslog (LOG_INFO, "%s",msg); 
 
   set_default_character_maps();
-  if (!sd_init(argc, argv)) {
-    clean_stop();
-    return EXIT_INIT;
-  }
+  sd_init(argc, argv);
 
   if (!(command_options & CMD_FLASH)) {
     /* Get config file path */
     if (!GetConfigPath(config_path)) {
       clean_stop();
-      return EXIT_CONFIG;
+      return status; /* TODO: add a custom return value for this failure. */
     }
 
     fullpath(config_path, config_path);
@@ -171,25 +161,25 @@ int main(int argc, char *argv[]) {
   /* Process the command line */
   if (!comlin(argc, argv)) {
     clean_stop();
-    return EXIT_COMLIN;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
   if (!bind_sysseg(FALSE, errmsg)) {
     fprintf(stderr, "%s\n", errmsg);
     clean_stop();
-    return EXIT_BIND;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
   if (sysseg->flags & SSF_SUSPEND) {
     fprintf(stderr, "SD is suspended\n");
     clean_stop();
-    return EXIT_SUSPENDED;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
   /* Disaster exit */
   if (setjmp(sd_exit)) {
     clean_stop();
-    return EXIT_FATAL;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
   /* Set pcode pointers */
@@ -221,10 +211,10 @@ int main(int argc, char *argv[]) {
  */
  
 #define Pcode(a)                       \
-  if (!load_pcode(#a, &pcode_##a)) {   \
-    clean_stop();                      \
-    return EXIT_PCODE;                 \
-  }
+     if (!load_pcode(#a, &pcode_##a)) { \
+      clean_stop();                    \
+      return status;                   \
+    }                                  \
  
 
 #include "pcode.h" /* this loads up all the pcode object code from the "pcode" file. */
@@ -232,13 +222,13 @@ int main(int argc, char *argv[]) {
   /* Go run the system */
   if (!init_kernel()) {
     clean_stop();
-    return EXIT_KERNEL;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
   /* Initialize English messages */
   if (!load_language("")) {
     clean_stop();
-    return EXIT_LANGUAGE;
+    return status; /* TODO: add a custom return value for this failure. */
   }
 
 #ifdef DEBUG
@@ -251,12 +241,16 @@ int main(int argc, char *argv[]) {
 
   status = exit_status;
 
-#ifdef EMBED_PYTHON
-  {
-    char py_shutdown[] = "shutdown";
-    sdext_py(SD_PyFinal, py_shutdown); /* if python was used, shut it down */
-  }
-#endif
+  // abort:
+  //   dh_shutdown();
+  //   unbind_sysseg();
+  //   shut_console();
+
+  /* 20240808 mab embedding python? */
+  #ifdef EMBED_PYTHON
+  char py_shutdown[] = "shutdown";
+  sdext_py(SD_PyFinal, py_shutdown);   /* if python was used, shut it down */
+  #endif
 
   clean_stop();
   return status;
@@ -274,71 +268,30 @@ void clean_stop(void) {
 }
 
 /* ======================================================================
-   Initialisation tasks that need to be done very early                   */
+   Initialialisation tasks that need to be done very early                */
 
-Private bool sd_init(int argc, char *argv[]) {
+Private void sd_init(int argc, char *argv[]) {
   char cwd[MAX_PATHNAME_LEN + 1];
-
-  (void)argc;
-  (void)argv;
 
   /* Save the current working directory for use by SYSTEM(1024) */
 
-  if (getcwd(cwd, sizeof(cwd)) == NULL) {
-    fprintf(stderr, "Unable to determine current directory (%s); using /\n",
-            strerror(errno));
-    snprintf(cwd, sizeof(cwd), "/");
-  }
-
-  entry_dir = k_alloc(MAX_PATHNAME_LEN, (int32_t)(strlen(cwd) + 1));
+  (void)getcwd(cwd, MAX_PATHNAME_LEN);
+  entry_dir = k_alloc(MAX_PATHNAME_LEN, strlen(cwd) + 1); /* was hard coded at 110 -gwb */
+  /* Modified by Composer AI - 2026/06/10.
+     k_alloc() can return NULL; abort startup rather than strcpy to NULL. */
   if (entry_dir == NULL) {
-    fprintf(stderr, "Out of memory saving startup directory\n");
-    return FALSE;
+    fprintf(stderr, "sd: insufficient memory for entry directory\n");
+    exit(1);
   }
-  snprintf(entry_dir, (size_t)(strlen(cwd) + 1), "%s", cwd);
-  return TRUE;
+  /* -------------------- */
+  strcpy(entry_dir, cwd);
 }
 
 /* ====================================================================== */
 
-Private void sd_print_usage(void) {
-  fprintf(stderr, "\nUsage:\n");
-  fprintf(stderr, "   sd command [args...]\n");
-  fprintf(stderr, "      Execute an SD command (non-option arguments)\n\n");
-  fprintf(stderr, "   sd {options}\n");
-  fprintf(stderr, "      -A            Query account name\n");
-  fprintf(stderr, "      -Aname        Force account name\n");
-  fprintf(stderr,
-          "      -Bn           Telnet binary mode (1=in, 2=out, 4=no "
-          "negotiation)\n");
-  fprintf(stderr, "      -CLEANUP      Clean up lost processes\n");
-  fprintf(stderr, "      -Cs!r         Local client pipe connection\n");
-  fprintf(stderr, "      -D            Diagnostic dump (config)\n");
-  fprintf(stderr, "      -I            Bootstrap install\n");
-  fprintf(stderr, "      -INTERNAL     Run in internal mode\n");
-  fprintf(stderr, "      -K n|ALL      Kill user (admin)\n");
-  fprintf(stderr, "      -L            Apply new licence\n");
-  fprintf(stderr, "      -M            Dump shared memory\n");
-  fprintf(stderr, "      -N            Network connection\n");
-  fprintf(stderr, "      -Pn           Phantom command processor\n");
-  fprintf(stderr, "      -Q            SDClient / API server mode\n");
-  fprintf(stderr, "      -QUIET        Suppress entry displays\n");
-  fprintf(stderr, "      -RESUME       Resume updates (admin)\n");
-  fprintf(stderr, "      -RESTART      Restart SD (admin)\n");
-  fprintf(stderr, "      -START        Start SD (admin)\n");
-  fprintf(stderr, "      -STOP         Stop SD (admin)\n");
-  fprintf(stderr, "      -SUSPEND      Suspend updates (admin)\n");
-  fprintf(stderr, "      -TERM type    Set default terminal type\n");
-  fprintf(stderr, "      -U            List current users\n");
-  fprintf(stderr, "      --HELP        Show this summary\n");
-  fprintf(stderr, "      --VERSION     Report version number\n");
-  fprintf(stderr,
-          "\nOptions are case-insensitive; only leading -options are "
-          "parsed.\n");
-}
-
 Private bool comlin(int argc, char *argv[]) {
   int arg;
+  int socket_handle = 0;
   char c;
   int16_t bytes;
   int n; /* Fix for Issue #15 - 11Jan22 gwb */
@@ -347,7 +300,10 @@ Private bool comlin(int argc, char *argv[]) {
 
   for (arg = 1; (arg < argc) && (argv[arg][0] == '-'); arg++) {
     if (IsDigit(*(argv[arg] + 1))) {
-      forced_user_no = atoi(argv[arg] + 1);
+      /* Modified by Composer AI - 2026/06/10. atoi -> strtol (no overflow UB). */
+      /* forced_user_no = atoi(argv[arg] + 1); */
+      forced_user_no = (int)strtol(argv[arg] + 1, NULL, 10);
+      /* -------------------- */
     } else if (!stricmp(argv[arg], "-CLEANUP")) {
       cleanup();
       exit(0);
@@ -356,18 +312,15 @@ Private bool comlin(int argc, char *argv[]) {
     } else if (!stricmp(argv[arg], "-QUIET")) {
       command_options |= CMD_QUIET;
     } else if (!stricmp(argv[arg], "-TERM")) {
-      if (++arg >= argc) {
-        fprintf(stderr, "-TERM requires a terminal type name\n");
-        return FALSE;
-      }
-      snprintf(tio.term_type, sizeof(tio.term_type), "%s", argv[arg]);
+      if (++arg < argc)
+        strcpy(tio.term_type, argv[arg]);
     } else if (!stricmp(argv[arg], "-I")) {    
 /* 20240702 mab Bootstrap build arg must be exactly "-I" */		  
         /* Bootstrap Install*/
         check_admin();
         is_bootstrap = TRUE;
         internal_mode = TRUE;
-        snprintf(command_processor, sizeof(command_processor), "%s", "$BBPROC");
+        strcpy(command_processor, "$BBPROC");
 
     } else {
       switch (UpperCase(argv[arg][1])) {
@@ -376,15 +329,14 @@ Private bool comlin(int argc, char *argv[]) {
           if (argv[arg][2] == '\0') {
             command_options |= CMD_QUERY_ACCOUNT;
           } else {
-            /* Points into argv; valid for lifetime of main() only. */
             forced_account = argv[arg] + 2;
           }
           break;
         
-        case 'B': /* Telnet binary mode: digit at argv[arg][2] (e.g. -B3) */
+        case 'B': /* Enable telnet binary mode */
           c = argv[arg][2];
-          telnet_binary_mode_in = (c & 1) != 0;
-          telnet_binary_mode_out = (c & 2) != 0;
+          telnet_binary_mode_in = c & 1;
+          telnet_binary_mode_out = c & 2;
           if (c & 4)
             telnet_negotiation = FALSE;
           break;
@@ -414,7 +366,10 @@ Private bool comlin(int argc, char *argv[]) {
           exit(0);
 
         case 'P': /* Execute phantom command */
-          phantom_user_index = atoi(argv[arg] + 2);
+          /* Modified by Composer AI - 2026/06/10. atoi -> strtol (no overflow UB). */
+          /* phantom_user_index = atoi(argv[arg] + 2); */
+          phantom_user_index = (int)strtol(argv[arg] + 2, NULL, 10);
+          /* -------------------- */
           is_phantom = TRUE;
           connection_type = CN_NONE;
           break;
@@ -483,7 +438,11 @@ Private bool comlin(int argc, char *argv[]) {
             }
             exit(1);
           }
-          break;
+          /* Modified by Composer AI - 2026/06/10.
+             Intentional fall-through: unrecognized -S... options are
+             handled as long options in case '-'. */
+          __attribute__((fallthrough));
+          /* -------------------- */
 
         case '-':
           if (!stricmp(argv[arg], "--HELP")) {
@@ -512,16 +471,17 @@ Private bool comlin(int argc, char *argv[]) {
     }
 
     single_command = k_alloc(109, bytes);
+    /* Modified by Composer AI - 2026/06/10.
+       k_alloc() can return NULL; skip single-command mode on failure. */
     if (single_command == NULL) {
-      fprintf(stderr, "Out of memory building command line\n");
-      return FALSE;
+      fprintf(stderr, "sd: insufficient memory for command line\n");
+      exit(1);
     }
+    /* -------------------- */
     n = 0;
     while (1) {
-      size_t arg_len = strlen(argv[arg]);
-
-      memcpy(single_command + n, argv[arg], arg_len + 1);
-      n += (int)arg_len;
+      strcpy(single_command + n, argv[arg]);
+      n += strlen(argv[arg]);
       if (++arg == argc)
         break;
       single_command[n++] = ' ';
@@ -532,6 +492,9 @@ Private bool comlin(int argc, char *argv[]) {
 
   switch (connection_type) {
     case CN_SOCKET:
+      if (!start_connection(socket_handle))
+        exit(1);
+      break;
     case CN_PIPE:
     case CN_PORT:
       if (!start_connection(0))
@@ -549,7 +512,24 @@ Private bool comlin(int argc, char *argv[]) {
 unrecognised:
   fprintf(stderr, "Unrecognised argument '%s'\n", argv[arg]);
 help:
-  sd_print_usage();
+  fprintf(stderr, "\nUsage:\n");
+  fprintf(stderr, "   sd xxx\n");
+  fprintf(stderr, "      Execute SD command xxx\n\n");
+  fprintf(stderr, "   sd {options}\n");
+  fprintf(stderr, "      -a          Prompt for account unless forced elsewhere\n");
+  fprintf(stderr,
+          "      -axxx       Enter SD in account xxx unless forced "
+          "elsewhere\n");
+  fprintf(stderr, "      -k n        Kill (logout) user n\n");
+  fprintf(stderr, "      -k all      Kill (logout) all users n\n");
+  fprintf(stderr, "      -l          Apply new licence\n");
+  fprintf(stderr, "      -u          List current users\n");
+  fprintf(stderr, "      -quiet      Suppress all displays on entry\n");
+  fprintf(stderr, "      --help      Show this summary\n");
+  fprintf(stderr, "      --version   Report version number\n");
+
+  fprintf(stderr, "      -start      Start system\n");
+  fprintf(stderr, "      -stop       Stop system\n");
   return FALSE;
 }
 
@@ -567,9 +547,6 @@ void dump(u_char *addr, int32_t bytes) {
   int32_t i;
   int16_t j;
   u_char c;
-
-  if (addr == NULL || bytes <= 0)
-    return;
 
   for (i = 0; i < bytes; i += 16) {
     /* Offset */
@@ -627,18 +604,11 @@ Private bool load_pcode(char *pname, u_char **ptr) {
 
   /* Take a local copy of the pcode name and force it to uppercase */
 
-  snprintf(u_pname, sizeof(u_pname), "%s", pname);
+  strcpy(u_pname, pname);
   UpperCaseString(u_pname);
 
   /* Search for this item in the pcode library */
-  for (i = 0; i < sysseg->pcode_len;) {
-    int32_t stride;
-
-    if (i + (int32_t)sizeof(OBJECT_HEADER) > sysseg->pcode_len) {
-      fprintf(stderr, "Pcode is corrupt (%s)\n", u_pname);
-      return FALSE;
-    }
-
+  for (i = 0; i < sysseg->pcode_len; i += (obj->object_size + 3) & ~3) {
     obj = (OBJECT_HEADER *)(pcode + i);
     if (obj->magic == HDR_MAGIC_INVERSE) {
       convert_object_header(obj);
@@ -647,22 +617,10 @@ Private bool load_pcode(char *pname, u_char **ptr) {
       return FALSE;
     }
 
-    if (obj->object_size <= 0 || obj->object_size > sysseg->pcode_len - i) {
-      fprintf(stderr, "Pcode is corrupt (%s)\n", u_pname);
-      return FALSE;
-    }
-
     if (!strcmp(obj->ext_hdr.prog.program_name, u_pname)) { /* Found it */
       *ptr = pcode + i;
       return TRUE;
     }
-
-    stride = (obj->object_size + 3) & ~3;
-    if (stride <= 0 || i + stride > sysseg->pcode_len) {
-      fprintf(stderr, "Pcode is corrupt (%s)\n", u_pname);
-      return FALSE;
-    }
-    i += stride;
   }
 
   fprintf(stderr, "Pcode item %s not found\n", u_pname);

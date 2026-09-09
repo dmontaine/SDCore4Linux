@@ -22,7 +22,6 @@
  * 08 Aug 2024 mab add embedded python
  * rev 0.9.0 Jan 25 mab add sdext_eguid_set set / restore euid egid of process
  * rev 0.9-2 Mar 25 mab mods for sdext_pyobj
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -48,6 +47,11 @@
 
 #include "sd.h"
 #include "keys.h"
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() longjmps and never returns; redeclare noreturn for analyzer. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 extern char* sd_salt();
 extern char* sd_KeyFromPW(char* mypassword, char* mysalt);
@@ -201,38 +205,38 @@ void op_sdext() {
       e_stack++;	
       break; 
 
-    case SD_SALT: {
+    case SD_SALT:
       char* mysalt = NULL;
-
-      mysalt = sd_salt();
-      if (mysalt != NULL) {
-        k_put_c_string(mysalt, e_stack);
+      mysalt = sd_salt();   /* Create unique salt and return base64 encoded  (caller mustr free!!!)   */                 
+      if (mysalt != NULL){
+        k_put_c_string(mysalt, e_stack);   /* sets as descr as type string and place the value in it */
+                                           /* this will then get transferred to RTNVAL */
         e_stack++;
         free(mysalt);
-      } else {
-        sdme_err_rsp(SD_Mem_Err);
+      }	else {
+        sdme_err_rsp(SD_Mem_Err);          /* only possible error in sd_salt ? */
       }
-      break;
-    }
+      break; 
 
-    case SD_KEYFROMPW: {
+
+    case SD_KEYFROMPW:  
       char* mykey = NULL;
-
-      if (argCnt != 2) {
-        sdme_err_rsp(SD_EXT_ARG_CNT);
+      if (argCnt != 2){
+        sdme_err_rsp(SD_EXT_ARG_CNT);     /* we need 2 args for this to work */
         break;
       }
-
-      mykey = sd_KeyFromPW(SDMEArgArray[0], SDMEArgArray[1]);
-      if (mykey != NULL) {
-        k_put_c_string(mykey, e_stack);
+      
+      mykey =  sd_KeyFromPW(SDMEArgArray[0], SDMEArgArray[1]);  /* create key from password in [0] and salt in [1] */
+                                                                /* sd_KeyFromPW(char* mypassword, char* mysalt)    */
+      if (mykey != NULL){
+        k_put_c_string(mykey, e_stack);   /* sets as descr as type string and place the value in it */
+                                           /* this will then get transferred to RTNVAL */
         e_stack++;
-        sodium_free(mykey);
-      } else {
-        sdme_err_rsp(process.status);
+        sodium_free(mykey);                /* key buffer was allocated via sodium_malloc, free via sodium_free*/
+      }	else {
+        sdme_err_rsp(process.status);      /* eror set in process.status */
       }
       break;
-    }
 
 /* rev 0.9.0 set restore process euid and egid */
     case SD_EUID_SET:
@@ -263,7 +267,7 @@ void op_sdext() {
   /* release our arg Buffers  */
   for (argIdx = 0; argIdx < SD_MAX_ARGS; argIdx++) {
 	  if (SDMEArgArray[argIdx] != NULL ){
-	    free_extract_string(SDMEArgArray[argIdx]);
+	    free(SDMEArgArray[argIdx]);
 	    SDMEArgArray[argIdx] = NULL;
 	  }
   }  
@@ -280,9 +284,22 @@ void op_sdext() {
 char* NullString() {
   char* p;
 
-  p = malloc(1);
+  /* Modified by Composer AI - 2026/06/10.
+     malloc(1) can fail; return a static empty string instead of
+     dereferencing NULL. */
+  /* p = malloc(1);
   *p = '\0';
-  return p;
+  return p; */
+  {
+    static char empty[1] = {'\0'};
+
+    p = malloc(1);
+    if (p == NULL)
+      return empty;
+    *p = '\0';
+    return p;
+  }
+  /* -------------------- */
 }
 
 /* generic error return with null response, setting process.status */

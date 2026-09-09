@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -968,7 +967,12 @@ Private void set_descr(DESCRIPTOR* p, u_char type) {
     case OBJCD:
     case OBJCDX:
       k_release(p);
-      /* fall through */
+      /* *** FALL THROUGH *** */
+      /* Modified by Composer AI - 2026/06/10.
+         Fall-through is intentional (see comment above); make it
+         explicit for the compiler. */
+      __attribute__((fallthrough));
+      /* -------------------- */
     case UNASSIGNED:
     case ADDR:
     case FLOATNUM:

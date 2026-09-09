@@ -41,6 +41,13 @@ $catalog !py_strset
 $include KEYS.H
 $include ERR.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if strname = '' then
+   set.status 1
+   return 1
+end
+* --------------------
 rtn_status = SDPYOBJ("",value,strname,SD_PyStrSet)
 *
 return rtn_status

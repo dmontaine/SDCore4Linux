@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -210,6 +209,11 @@ Private void start_file(PRINT_UNIT* pu) {
   /* Allocate buffer */
 
   pu->buff = (char*)k_alloc(41, FILE_BUFF_SIZE);
+  /* Modified by Composer AI - 2026/06/10.
+     k_alloc() can return NULL; abort rather than writing through NULL. */
+  if (pu->buff == NULL)
+    k_error("Insufficient memory for print buffer");
+  /* -------------------- */
   pu->bytes = 0;
   pu->flags |= PU_ACTIVE;
   pu->flags |= PU_HDR_NEXT;

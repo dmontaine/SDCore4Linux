@@ -18,14 +18,9 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
- * GetConfigPath()  -  Fill inipath with the configuration file pathname.
- *
- * Uses SD_CONFIG if set and non-empty, else "/etc/sd.conf".  Returns FALSE
- * if inipath is NULL or the path would exceed MAX_PATHNAME_LEN.
  *
  * END-DESCRIPTION
  *
@@ -34,27 +29,18 @@
 
 #include "sd.h"
 
-#define DEFAULT_CONFIG_PATH "/etc/sd.conf"
-
 /* ====================================================================== */
 
-bool GetConfigPath(char* inipath) {
-  const char* src;
-  const char* p;
-  int n;
+bool GetConfigPath(char *inipath) { 
 
-  if (inipath == NULL)
-    return FALSE;
+  char* p;
 
-  p = getenv("SD_CONFIG");
-  if (p != NULL && p[0] != '\0')
-    src = p;
-  else
-    src = DEFAULT_CONFIG_PATH;
-
-  n = snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", src);
-  if (n < 0 || n > MAX_PATHNAME_LEN)
-    return FALSE;
+  p = getenv("SCARLET_CONFIG");
+  if (p != NULL) {
+    strcpy(inipath, p);
+  } else {
+    strcpy(inipath, "/etc/sd.conf");
+  }
 
   return TRUE;
 }

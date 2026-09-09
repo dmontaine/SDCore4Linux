@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -36,6 +35,12 @@
 #include <signal.h>
 
 #include <sys/wait.h>
+
+/* Modified by Composer AI - 2026/06/10.
+   k_error() never returns, but the analyzer cannot see that across
+   translation units. */
+void k_error(char msg[], ...) __attribute__((noreturn));
+/* -------------------- */
 
 void set_term(bool trap_break);
 void set_old_tty_modes(void);
@@ -155,9 +160,15 @@ Private void sh_execute(char *command) {
   bool saved_trap_break_char;
   bool saved_pagination;
   bool use_output_pipe;
-  int ChildToSDPipe[2];
+  /* Modified by Composer AI - 2026/06/10.
+     Initialize pipe fd pairs so paths that skip pipe() do not read
+     indeterminate values; use -1 for unused slots. */
+  /* int ChildToSDPipe[2]; */
+  int ChildToSDPipe[2] = {-1, -1};
   bool use_input_pipe;
-  int SDToChildPipe[2];
+  /* int SDToChildPipe[2]; */
+  int SDToChildPipe[2] = {-1, -1};
+  /* -------------------- */
   char *argv[10];
   int cpid;
   int16_t i;
@@ -207,6 +218,13 @@ Private void sh_execute(char *command) {
   }
 
   if (use_input_pipe && pipe(SDToChildPipe)) {
+    /* Modified by Composer AI - 2026/06/10.
+       Close the output pipe if input pipe creation fails. */
+    if (use_output_pipe) {
+      close(ChildToSDPipe[0]);
+      close(ChildToSDPipe[1]);
+    }
+    /* -------------------- */
     k_error("Cannot create child input pipe");
   }
 
@@ -244,6 +262,17 @@ Private void sh_execute(char *command) {
     execv(argv[0], argv);
   } else if (cpid == -1) /* Error */
   {
+    /* Modified by Composer AI - 2026/06/10.
+       fork() failed; close any pipes that were opened. */
+    if (use_output_pipe) {
+      close(ChildToSDPipe[0]);
+      close(ChildToSDPipe[1]);
+    }
+    if (use_input_pipe) {
+      close(SDToChildPipe[0]);
+      close(SDToChildPipe[1]);
+    }
+    /* -------------------- */
     k_error("Failed to start");
   } else /* Parent process */
   {

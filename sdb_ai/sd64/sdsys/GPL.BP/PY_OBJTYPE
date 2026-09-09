@@ -25,6 +25,13 @@ $catalog !py_objtype
 $include KEYS.H
 $include ERR.H
 
+* Modified by Composer AI - 2026/06/10.
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call.
+if objname = '' then
+   set.status 1
+   return ''
+end
+* --------------------
 obj_type = SDPYOBJ("","",objname,SD_PyObjType)
 *
 return obj_type

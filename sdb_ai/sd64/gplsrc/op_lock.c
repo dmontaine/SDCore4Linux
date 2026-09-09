@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -504,7 +503,12 @@ void op_lockrec() {
     case -2: /* Deadlock detected */
       if (sysseg->deadlock)
         k_deadlock();
-      /* fall through */
+      /* **** FALL THROUGH **** */
+      /* Modified by Composer AI - 2026/06/10.
+         Fall-through is intentional (see comment above); make it
+         explicit for the compiler. */
+      __attribute__((fallthrough));
+      /* -------------------- */
 
     case -1:        /* Lock table is full */
     default:        /* Conflicting lock is already held by another user */
@@ -1064,7 +1068,14 @@ int16_t lock_record(
   int32_t hash_value;
   int16_t scan_idx; /* Scanning index */
   int16_t upgrade_idx = 0;
-  RLOCK_ENTRY* lptr;
+  /* Modified by Composer AI - 2026/06/10.
+     lptr was used uninitialized on the path where the file lock check
+     jumps to exit_lock_record before lptr is first assigned (the
+     blocking_idx >= 0 guard prevents this in practice, but the
+     analyzer cannot prove it). Initialize to NULL at declaration. */
+  /* RLOCK_ENTRY* lptr; */
+  RLOCK_ENTRY* lptr = NULL;
+  /* -------------------- */
   int16_t active_locks;
   int16_t free_cell = 0;
   int16_t lock_owner;
@@ -1072,6 +1083,11 @@ int16_t lock_record(
   bool table_full = FALSE;
   int16_t u;
   int16_t lwi;
+  /* Modified by Composer AI - 2026/06/10.
+     New local used to test the result of UserPtr() for NULL before
+     dereferencing it in the deadlock detection loops below. */
+  USER_ENTRY* wait_uptr;
+  /* -------------------- */
   FILE_ENTRY* d_fptr;
   RLOCK_ENTRY* d_lptr;
   LLT_ENTRY* llt;
@@ -1153,7 +1169,14 @@ int16_t lock_record(
               /* Check for a deadlock */
 
               u = lptr->owner;
-              while ((lwi = UserPtr(u)->lockwait_index) != 0) {
+              /* Modified by Composer AI - 2026/06/10.
+                 UserPtr() returns NULL if the user is no longer
+                 logged in; check before dereferencing. A NULL entry
+                 is treated as "not waiting", ending the scan. */
+              /* while ((lwi = UserPtr(u)->lockwait_index) != 0) { */
+              while (((wait_uptr = UserPtr(u)) != NULL) &&
+                     ((lwi = wait_uptr->lockwait_index) != 0)) {
+              /* -------------------- */
                 if (lwi > 0) /* Waiting for record lock */
                 {
                   u = RLPtr(lwi)->owner;
@@ -1167,7 +1190,15 @@ int16_t lock_record(
                   u = lptr->owner;
                   tio_printf("\n");
                   tio_printf(sysmsg(1450), u, file_id, id_len, id);
-                  while ((lwi = UserPtr(u)->lockwait_index) != 0) {
+                  /* Modified by Composer AI - 2026/06/10.
+                     UserPtr() returns NULL if the user is no longer
+                     logged in; check before dereferencing. A NULL
+                     entry is treated as "not waiting", ending the
+                     scan. */
+                  /* while ((lwi = UserPtr(u)->lockwait_index) != 0) { */
+                  while (((wait_uptr = UserPtr(u)) != NULL) &&
+                         ((lwi = wait_uptr->lockwait_index) != 0)) {
+                  /* -------------------- */
                     if (lwi > 0) /* Waiting for record lock */
                     {
                       d_lptr = RLPtr(lwi);
@@ -1283,7 +1314,12 @@ exit_lock_record:
     case -2: /* Deadlock detected */
       if (sysseg->deadlock && !no_wait)
         break; /* Let deadlock system handle */
-               /* fall through */
+               /* *** FALL THROUGH *** */
+      /* Modified by Composer AI - 2026/06/10.
+         Fall-through is intentional (see comment above); make it
+         explicit for the compiler. */
+      __attribute__((fallthrough));
+      /* -------------------- */
 
     default: /* Blocked by another user */
       if (!no_wait) {
@@ -1291,8 +1327,14 @@ exit_lock_record:
            already non-zero, it must be for a subsequent attempt to get
            this lock so we must not increment the waiters counter.      */
         if (my_uptr->lockwait_index == 0) {
-          if (blocking_idx >= 0)
+          /* Modified by Composer AI - 2026/06/10.
+             Also check lptr against NULL: it is NULL on the early
+             file-lock conflict path, which always produces a negative
+             blocking_idx, but the analyzer cannot prove that. */
+          /* if (blocking_idx >= 0) */
+          if ((blocking_idx >= 0) && (lptr != NULL))
             lptr->waiters++; /* 0193 */
+          /* -------------------- */
           my_uptr->lockwait_index = blocking_idx;
         }
       }
@@ -1318,7 +1360,13 @@ bool unlock_record(FILE_VAR* fvar, /* NULL if for all files */
                    int16_t id_len) {
   FILE_ENTRY* fptr;
   bool status = 0;
-  int16_t file_id;
+  /* Modified by Composer AI - 2026/06/10.
+     file_id was used uninitialized if this function was called with
+     fvar == NULL and a non-zero id_len (callers never do this, but
+     the analyzer cannot prove it). Initialize to zero. */
+  /* int16_t file_id; */
+  int16_t file_id = 0;
+  /* -------------------- */
   int16_t i;
   LLT_ENTRY* llt;
   LLT_ENTRY* next_llt;
@@ -1505,7 +1553,13 @@ void clear_waiters(int16_t idx) /* Lock cell index */
 {
   int16_t i;
   USER_ENTRY* uptr;
-  RLOCK_ENTRY* lptr;
+  /* Modified by Composer AI - 2026/06/10.
+     lptr is only assigned when idx > 0; although the dereference below
+     is guarded by the same condition, the analyzer cannot prove the
+     correlation. Initialize to NULL at declaration. */
+  /* RLOCK_ENTRY* lptr; */
+  RLOCK_ENTRY* lptr = NULL;
+  /* -------------------- */
 
   /* We must clear the user table lock wait entry for any users that are
     waiting for this lock.  If we do not do so, the deadlock detection
@@ -1543,11 +1597,17 @@ void clear_waiters(int16_t idx) /* Lock cell index */
         && (uptr->lockwait_index == idx)) /* This lock */
     {
       uptr->lockwait_index = 0;
-      if (idx > 0) /* Clearing wait on record lock */
+      /* Modified by Composer AI - 2026/06/10.
+         Also check lptr against NULL: lptr is non-NULL whenever
+         idx > 0 (see assignment above), but the analyzer cannot
+         prove the correlation. */
+      /* if (idx > 0) / * Clearing wait on record lock * / */
+      if ((idx > 0) && (lptr != NULL)) /* Clearing wait on record lock */
       {
         if (--(lptr->waiters) == 0)
           break;
       }
+      /* -------------------- */
     }
   }
 }

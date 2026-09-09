@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -84,35 +83,27 @@ void op_illegal2() {
 #define DescrError(msg_no, name) \
   void name(DESCRIPTOR* descr) { k_descr_error(msg_no, descr); }
 
-DescrError(1100, k_index_error)
-DescrError(1101, k_dh_error)
-DescrError(1102, k_not_array_error)
-DescrError(1103, k_value_error)
-DescrError(1104, k_non_numeric_error)
-DescrError(1105, k_unassigned)
-DescrError(1106, k_null_id)
-DescrError(1107, k_illegal_id)
-DescrError(1108, k_div_zero_error)
-DescrError(1109, k_unassigned_zero)
-DescrError(1110, k_unassigned_null)
-DescrError(1111, k_div_zero_warning)
-DescrError(1112, k_non_numeric_warning)
-DescrError(1113, k_data_type)
-DescrError(1137, k_strnum_len)
-DescrError(1138, k_not_socket)
+DescrError(1100, k_index_error) DescrError(1101, k_dh_error)
+    DescrError(1102, k_not_array_error) DescrError(1103, k_value_error)
+        DescrError(1104, k_non_numeric_error) DescrError(1105, k_unassigned)
+            DescrError(1106, k_null_id) DescrError(1107, k_illegal_id)
+                DescrError(1108, k_div_zero_error)
+                    DescrError(1109, k_unassigned_zero)
+                        DescrError(1110, k_unassigned_null)
+                            DescrError(1111, k_div_zero_warning)
+                                DescrError(1112, k_non_numeric_warning)
+                                    DescrError(1113, k_data_type)
+                                        DescrError(1137, k_strnum_len)
+                                            DescrError(1138, k_not_socket)
 
-Private void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {
+                                                Private
+    void k_descr_error(int16_t msg_no, DESCRIPTOR* descr) {
   char* var;
-  char message[MAX_EMSG_LEN + 1];
+  char message[80 + 1];
   char* p;
 
-  snprintf(message, sizeof(message), "%s", sysmsg(msg_no));
+  strcpy(message, sysmsg(msg_no));
   p = strchr(message, '|');
-  if (p == NULL) {
-    k_error(message);
-    return;
-  }
-
   if ((var = k_var_name(descr)) != NULL) {
     *p = ' ';
     k_error(message, var);
@@ -155,18 +146,24 @@ void k_illegal_call_name() {
 
 /* ====================================================================== */
 
-#define K_ERROR_BUF_SIZE ((MAX_ERROR_LINES * MAX_EMSG_LEN) + 1)
-
 void k_error(char* message, ...) {
-  int32_t failing_offset;
-  char s[K_ERROR_BUF_SIZE]; /* Max 3 lines */
+  /* Modified by Composer AI - 2026/06/10.
+     failing_offset and xcbase are only assigned when c_base != NULL. The
+     paths that use them cannot be reached otherwise, but initialize them
+     anyway so no path can ever read indeterminate values. */
+  /* int32_t failing_offset; */
+  int32_t failing_offset = 0;
+  /* -------------------- */
+  char s[(MAX_ERROR_LINES * MAX_EMSG_LEN) + 1]; /* Max 3 lines */
   va_list arg_ptr;
-  int n;
-  size_t rem;
+  int16_t n;
   int line;
   struct PROGRAM* pgm;
   int32_t xpc_offset;
-  u_char* xcbase;
+  /* Modified by Composer AI - 2026/06/10. See failing_offset above. */
+  /* u_char* xcbase; */
+  u_char* xcbase = NULL;
+  /* -------------------- */
   DESCRIPTOR* msg_descr;
   bool fatal;
 
@@ -209,17 +206,15 @@ void k_error(char* message, ...) {
     }
 
     failing_offset = xpc_offset - 1;
-    n = snprintf(s, K_ERROR_BUF_SIZE, "%08X: ", failing_offset);
+    n = sprintf(s, "%08X: ", failing_offset);
   } else {
     n = 0;
   }
 
   va_start(arg_ptr, message);
-  rem = K_ERROR_BUF_SIZE - (size_t)n;
-  if (rem > 0)
-    vsnprintf(&(s[n]), rem, message, arg_ptr);
+  /* Fix for Issue #13.  Converted a vsprintf() to vsnprintf(). -gwb */
+  vsnprintf(&(s[n]), (MAX_ERROR_LINES + MAX_EMSG_LEN) + 1,  message, arg_ptr);
   va_end(arg_ptr);
-  s[K_ERROR_BUF_SIZE - 1] = '\0';
 
   if (c_base == NULL) /* No object currently loaded */
   {
@@ -229,25 +224,21 @@ void k_error(char* message, ...) {
     longjmp(k_exit, k_exit_cause);
   }
 
-  n = (int)strlen(s);
-  rem = K_ERROR_BUF_SIZE - (size_t)n;
-  if (rem == 0)
-    rem = 1;
-
+  n = strlen(s);
   if (process.program.flags & HDR_ITYPE) {
-    snprintf(s + n, rem, "%s", sysmsg(1120));
+    // sprintf(s + n, sysmsg(1120)); /* in dictionary expression */
+    sprintf(s + n, "%s", sysmsg(1120)); /* 20Jun12 gwb #1 */
 
   } else {
     line = k_line_no(failing_offset, xcbase);
     if (line >= 0) {
-      snprintf(s + n, rem, sysmsg(1121), (int)line,
-               ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
+      sprintf(s + n, sysmsg(1121), (int)line,
+              ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
     } else {
-      snprintf(s + n, rem, sysmsg(1122),
-               ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
+      sprintf(s + n, sysmsg(1122),
+              ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
     }
   }
-  s[K_ERROR_BUF_SIZE - 1] = '\0';
   tio_write(s);
   tio_write("\n");
 
@@ -295,6 +286,13 @@ int k_line_no(int32_t offset, u_char* xcbase) {
   u_char* p;
 
   obj_header = (OBJECT_HEADER*)xcbase;
+
+  /* Modified by Composer AI - 2026/06/10.
+     Defensive check: return the documented "cannot locate" value instead
+     of dereferencing NULL if no object pointer was supplied. */
+  if (obj_header == NULL)
+    return -1;
+  /* -------------------- */
 
   line_table_offset = obj_header->line_tab_offset;
   if (line_table_offset) {
@@ -515,27 +513,22 @@ found:
       }
     }
 
-    {
-      size_t name_rem = sizeof(name) - (size_t)(q - (u_char*)name);
+    switch (element) {
+      case -1: /* Not an array */
+        *q = '\0';
+        break;
 
-      switch (element) {
-        case -1: /* Not an array */
-          *q = '\0';
-          break;
+      case 0: /* Zero element */
+        sprintf((char*)q, (cols == 0) ? "(0)" : "(0,0)");
+        break;
 
-        case 0: /* Zero element */
-          snprintf((char*)q, name_rem, (cols == 0) ? "(0)" : "(0,0)");
-          break;
-
-        default: /* Some other element */
-          if (cols == 0)
-            snprintf((char*)q, name_rem, "(%d)", element);
-          else
-            snprintf((char*)q, name_rem, "(%d,%d)",
-                     ((element - 1) / cols) + 1, ((element - 1) % cols) + 1);
-          break;
-      }
-      name[sizeof(name) - 1] = '\0';
+      default: /* Some other element */
+        if (cols == 0)
+          sprintf((char*)q, "(%d)", element);
+        else
+          sprintf((char*)q, "(%d,%d)", ((element - 1) / cols) + 1,
+                  ((element - 1) % cols) + 1);
+        break;
     }
   }
 
@@ -561,7 +554,7 @@ void log_message(char* msg) {
   if (sysseg->errlog) {
     StartExclusive(ERRLOG_SEM, 66);
 
-    snprintf(buff, BUFF_SIZE, "%s%cerrlog", sysseg->sysdir, DS);
+    sprintf(buff, "%s%cerrlog", sysseg->sysdir, DS);
     errlog = dio_open(buff, DIO_OVERWRITE);
 
     if (ValidFileHandle(errlog)) {
@@ -575,13 +568,10 @@ void log_message(char* msg) {
         bytes = Read(errlog, buff, BUFF_SIZE);
         src += bytes;
 
-        /* Find the first newline */
+        /* Find the first newline (there must be one) */
 
-        p = (char*)memchr(buff, '\n', (size_t)bytes);
-        if (p == NULL)
-          goto close_errlog;
-        p++;
-        bytes -= (int)(p - buff); /* Bytes to copy */
+        p = ((char*)memchr(buff, '\n', bytes)) + 1;
+        bytes -= (p - buff); /* Bytes to copy */
 
         do {
           Seek(errlog, dst, SEEK_SET);
@@ -599,7 +589,6 @@ void log_message(char* msg) {
         chsize64(errlog, dst);
       }
 
-close_errlog:
       Seek(errlog, 0, SEEK_END);
 
       timenow = time(NULL);
@@ -613,27 +602,21 @@ close_errlog:
         independent way, we use the Newline macro in the sprintf() below
         instead of the more obvious use of \n.                            */
 
-      if (ltime != NULL && ltime->tm_mon >= 0 && ltime->tm_mon <= 11) {
-        if (my_uptr != NULL) {
-          bytes = snprintf(
-              buff, BUFF_SIZE,
-              "%02d %.3s %02d %02d:%02d:%02d User %d (pid %d, %s):%s   %s%s",
-              ltime->tm_mday, month_names[ltime->tm_mon], ltime->tm_year % 100,
-              ltime->tm_hour, ltime->tm_min, ltime->tm_sec, my_uptr->uid,
-              my_uptr->pid, my_uptr->username, Newline, msg, Newline);
-        } else {
-          bytes = snprintf(buff, BUFF_SIZE,
-                           "%02d %.3s %02d %02d:%02d:%02d:%s   %s%s",
-                           ltime->tm_mday, month_names[ltime->tm_mon],
-                           ltime->tm_year % 100, ltime->tm_hour, ltime->tm_min,
-                           ltime->tm_sec, Newline, msg, Newline);
-        }
+      if (my_uptr != NULL) {
+        bytes = sprintf(
+            buff,
+            "%02d %.3s %02d %02d:%02d:%02d User %d (pid %d, %s):%s   %s%s",
+            ltime->tm_mday, month_names[ltime->tm_mon], ltime->tm_year % 100,
+            ltime->tm_hour, ltime->tm_min, ltime->tm_sec, my_uptr->uid,
+            my_uptr->pid, my_uptr->username, Newline, msg, Newline);
       } else {
-        bytes = snprintf(buff, BUFF_SIZE, "%s   %s%s", Newline, msg, Newline);
+        bytes = sprintf(buff, "%02d %.3s %02d %02d:%02d:%02d:%s   %s%s",
+                        ltime->tm_mday, month_names[ltime->tm_mon],
+                        ltime->tm_year % 100, ltime->tm_hour, ltime->tm_min,
+                        ltime->tm_sec, Newline, msg, Newline);
       }
 
-      if (bytes > 0)
-        Write(errlog, buff, bytes);
+      Write(errlog, buff, bytes);
 
       CloseFile(errlog); /* 0423 */
     }
@@ -679,10 +662,9 @@ int log_printf(char* template_string, ...) {
 
   va_start(arg_ptr, template_string);
 
-  n = vsnprintf(s, sizeof(s), template_string, arg_ptr);
-  s[sizeof(s) - 1] = '\0';
+  n = vsprintf(s, template_string, arg_ptr);
 
-  bytes = (int)strlen(s);
+  bytes = strlen(s);
 
   /* If this is a logged in user, display the message too */
 
@@ -691,7 +673,7 @@ int log_printf(char* template_string, ...) {
 
   /* Log message, removing possible trailing newline */
 
-  if (bytes > 0 && s[bytes - 1] == '\n')
+  if (s[bytes - 1] == '\n')
     s[bytes - 1] = '\0';
   log_message(s);
 
@@ -705,21 +687,13 @@ int log_printf(char* template_string, ...) {
 
 void log_permissions_error(FILE_VAR* fvar) {
   char msg[MAX_PATHNAME_LEN + 50];
-  FILE_ENTRY* fptr;
-
-  if (fvar == NULL)
-    return;
-
-  fptr = FPtr(fvar->file_id);
-  if (fptr == NULL)
-    return;
 
   if (abs(process.status) == ER_PERM) {
-    snprintf(msg, sizeof(msg), "Permissions error on %s",
-             (char*)(fptr->pathname));
+    sprintf(msg, "Permissions error on %s",
+            (char*)(FPtr(fvar->file_id)->pathname));
   } else {
-    snprintf(msg, sizeof(msg), "Update to read-only file %s",
-             (char*)(fptr->pathname));
+    sprintf(msg, "Update to read-only file %s",
+            (char*)(FPtr(fvar->file_id)->pathname));
   }
   log_message(msg);
 }

@@ -18,7 +18,6 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -85,16 +84,6 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   dh_err = 0;
   process.os_error = 0;
 
-  if (dh_file == NULL) {
-    dh_err = DHE_FILE_NOT_OPEN;
-    return FALSE;
-  }
-
-  if (id_len < 0 || id_len > MAX_KEY_LEN) {
-    dh_err = DHE_ID_LEN_ERR;
-    return FALSE;
-  }
-
   /* new_data is the data to be written. If we are using encryption, we may
     need access to the original plain text data and also to the encrypted
     form. At this stage, set rec as a pointer to the new data but this may
@@ -117,10 +106,6 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   }
 
   fptr = FPtr(dh_file->file_id);
-  if (fptr == NULL) {
-    dh_err = DHE_NOT_A_FILE;
-    goto exit_dh_write;
-  }
 
   while (fptr->file_lock < 0)
     Sleep(1000); /* Clearfile in progress */
@@ -194,11 +179,8 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
     rec_offset = offsetof(DH_BLOCK, record);
 
     while (rec_offset < used_bytes) {
-      found = FALSE;
-      if (!dh_get_data_record(buff, group_bytes, rec_offset, &rec_ptr,
-                              &rec_size)) {
-        goto exit_dh_write;
-      }
+      rec_ptr = (DH_RECORD*)(((char*)buff) + rec_offset);
+      rec_size = rec_ptr->next;
 
       if (id_len == rec_ptr->id_len) {
         if (fptr->flags & DHF_NOCASE) {
@@ -271,11 +253,8 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
         /* Perform buffer compaction if there is a further overflow block */
 
         if ((ogrp = GetFwdLink(dh_file, buff->next)) != 0) {
-          if ((obuff = (DH_BLOCK*)k_alloc(17, group_bytes)) == NULL) {
-            dh_err = DHE_NO_MEM;
-            goto exit_dh_write;
-          }
-          do {
+          if ((obuff = (DH_BLOCK*)k_alloc(17, group_bytes)) != NULL) {
+            do {
               if (!dh_read_group(dh_file, OVERFLOW_SUBFILE, ogrp, (char*)obuff,
                                  group_bytes)) {
                 goto exit_dh_write;
@@ -335,14 +314,13 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
                 grp = ogrp;
               }
             } while ((ogrp = GetFwdLink(dh_file, obuff->next)) != 0);
-          k_free(obuff);
-          obuff = NULL;
+          }
         }
 
         goto add_record;
       }
 
-      rec_offset += rec_size;
+      rec_offset += rec_ptr->next;
     }
 
     /* Move to next group buffer */
@@ -641,8 +619,7 @@ exit_write_big_rec:
   if (obuff != NULL)
     k_free(obuff);
 
-  if (head != 0)
-    dh_flush_header(dh_file);
+  dh_flush_header(dh_file);
 
   return head;
 }

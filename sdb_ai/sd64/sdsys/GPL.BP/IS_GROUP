@@ -40,6 +40,14 @@ $catalog !is_group
 
 group_found = @false
 set.status 0
+* Modified by Composer AI - 2026/06/10.
+* Empty group name cannot match /etc/group; avoid pointless file scan.
+* read the /etc/group file
+if group = '' then
+   set.status 1
+   return group_found
+end
+* --------------------
 * read the /etc/group file
 openpath "/etc" to etc then 
   read rec from etc, "group" then 

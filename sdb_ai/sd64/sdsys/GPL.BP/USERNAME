@@ -42,13 +42,15 @@ $catalog !username
 
 $include int$keys.h
 
-   if userno > 0 then
-      ulist = kernel(K$USERS, userno)
-      * uid VM pid VM ip_addr VM flags VM puid VM username FM...
-      return (ulist<1,K$USERS.UNAME>)
+   * Modified by Composer AI - 2026/06/10.
+   * Reject non-positive user numbers before kernel lookup.
+   if userno < 1 then
+      return ('')
    end
-
-   return ('')
+   * --------------------
+   ulist = kernel(K$USERS, userno)
+   * uid VM pid VM ip_addr VM flags VM puid VM username FM...
+   return (ulist<1,K$USERS.UNAME>)
 end
 
 * END-CODE

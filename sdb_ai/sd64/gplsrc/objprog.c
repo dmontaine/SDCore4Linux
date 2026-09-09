@@ -18,7 +18,6 @@
  *
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
- * 24 May 26 - Code reviewed and updated by Claude AI
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -39,6 +38,7 @@
 #include "sd.h"
 #include "keys.h"
 #include "header.h"
+#include "stdarg.h"
 
 
 Private bool find_name_map_entry(int16_t mode,
@@ -67,7 +67,6 @@ void op_disinh() {
   */
 
   DESCRIPTOR* descr;
-  OBJDATA* objdata;
   OBJDATA* inh_objdata; /* Inherited OBJ structure */
   OBJDATA* obj;
 
@@ -81,16 +80,16 @@ void op_disinh() {
     k_error(sysmsg(3460)); /* Object variable required */ /* TODO: Magic numbers are bad, mmkay? */
 
   inh_objdata = descr->data.objdata;
-  objdata = process.program.objdata;
 
-  if (objdata == NULL || inh_objdata == NULL)
-    k_error(sysmsg(3460));
+  /* Scan inheritance chain */
 
-  if (objdata->inherits == inh_objdata) {
-    objdata->inherits = inh_objdata->next_inherited;
-    free_object(inh_objdata);
-  } else if (objdata->inherits != NULL) {
-    for (obj = objdata->inherits; obj->next_inherited != NULL;
+  if (process.program.objdata->inherits == NULL) {
+    if (process.program.objdata->inherits == inh_objdata) {
+      process.program.objdata->inherits = inh_objdata->next_inherited;
+      free_object(inh_objdata);
+    }
+  } else {
+    for (obj = process.program.objdata->inherits; obj->next_inherited != NULL;
          obj = obj->next_inherited) {
       if (obj->next_inherited == inh_objdata) {
         obj->next_inherited = inh_objdata->next_inherited;
@@ -131,12 +130,10 @@ void op_inherit() {
     k_error(sysmsg(3460)); /* Object variable required */ /* TODO: Magic numbers are bad, mmkay? */
 
   inh_objdata = descr->data.objdata;
-  objdata = process.program.objdata;
-
-  if (objdata == NULL || inh_objdata == NULL)
-    k_error(sysmsg(3460));
 
   /* Add to inheritance chain */
+
+  objdata = process.program.objdata;
   if (objdata->inherits == NULL) {
     objdata->inherits = inh_objdata;
   } else {
@@ -195,8 +192,6 @@ void op_object() {
   /* Create OBJDATA structure */
 
   objdata = create_objdata(object_code);
-  if (objdata == NULL)
-    k_error(sysmsg(ER_MEM));
   ((OBJECT_HEADER*)object_code)->ext_hdr.prog.refs++;
 
   /* Replace the e-stack entry for the class catalogue call name with an
@@ -280,14 +275,9 @@ void op_objmap() {
   OBJDATA* objdata;
   u_int16_t name_map_len;
   objdata = process.program.objdata;
-  if (objdata == NULL)
-    k_error(sysmsg(3460));
 
   name_map_len = *pc | (((u_int16_t)*(pc + 1)) << 8);
   pc += 2;
-
-  if (name_map_len > 32768)
-    k_error("Object name map too large.");
 
   objdata->name_map = (name_map_len != 0) ? ((OBJECT_NAME_MAP*)pc) : NULL;
   pc += name_map_len;
@@ -330,8 +320,6 @@ void op_objref() {
   if (descr->type != OBJ)
     k_error("Invalid object reference");
   objdata = descr->data.objdata;
-  if (objdata == NULL)
-    k_error("Invalid object reference");
 
   /* Scan name table */
 
@@ -354,8 +342,13 @@ OBJDATA* create_objdata(u_char* obj) {
   OBJDATA* objdata;
 
   objdata = (OBJDATA*)k_alloc(112, sizeof(OBJDATA));
-  if (objdata == NULL)
-    return NULL;
+  /* Modified by Composer AI - 2026/06/10.
+     k_alloc() is malloc() and can return NULL; guard before writing. */
+  if (objdata == NULL) {
+    k_error("Insufficient memory for object data");
+    return NULL; /* Not reached - k_error() aborts */
+  }
+  /* -------------------- */
   objdata->ref_ct = 1;
   objdata->objprog = obj;
   objdata->name_map = NULL;
@@ -380,9 +373,6 @@ Private bool find_name_map_entry(int16_t mode,
   int16_t key;
   u_char arg_ct;
   DESCRIPTOR* var_descr;
-
-  if (objdata == NULL || name == NULL)
-    return FALSE;
 
   scanobj = objdata;
   nextobj = objdata->inherits;
@@ -463,9 +453,6 @@ Private bool find_undefined_name_handler(int16_t mode,
   int16_t key;
   /* u_char arg_ct; variable set but not used */
 
-  if (objdata == NULL || name == NULL)
-    return FALSE;
-
   scanobj = objdata;
   nextobj = objdata->inherits;
 
@@ -489,10 +476,7 @@ Private bool find_undefined_name_handler(int16_t mode,
           e_stack->data.objundef.objdata = scanobj;
           e_stack->data.objundef.undefined_name =
               (char*)k_alloc(113, strlen(name) + 1);
-          if (e_stack->data.objundef.undefined_name == NULL)
-            k_error(sysmsg(ER_MEM));
-          snprintf(e_stack->data.objundef.undefined_name, strlen(name) + 1,
-                   "%s", name);
+          strcpy(e_stack->data.objundef.undefined_name, name);
           e_stack++;
           return TRUE;
         }
@@ -587,9 +571,9 @@ void op_get() {
       e_stack++;
       k_put_c_string(descr->data.objundef.undefined_name, p);
 
-      k_call("", arg_ct + 1,
-             (u_char*)(descr->data.objundef.objdata->objprog), 1);
-      process.program.objdata = descr->data.objundef.objdata;
+      k_call("", arg_ct + 1, (u_char*)(descr->data.objcode.objdata->objprog),
+             1);
+      process.program.objdata = descr->data.objcode.objdata;
       k_dismiss();
       stack_depth = e_stack - e_stack_base; /* 0489 */
       k_run_program();                      /* Execute program */
@@ -696,9 +680,9 @@ void op_set() {
       e_stack++;
       k_put_c_string(descr->data.objundef.undefined_name, p);
 
-      k_call("", arg_ct + 1,
-             (u_char*)(descr->data.objundef.objdata->objprog), 1);
-      process.program.objdata = descr->data.objundef.objdata;
+      k_call("", arg_ct + 1, (u_char*)(descr->data.objcode.objdata->objprog),
+             1);
+      process.program.objdata = descr->data.objcode.objdata;
       k_dismiss();
       k_run_program(); /* Execute program */
 
@@ -744,9 +728,6 @@ void free_object(OBJDATA* objdata) {
   OBJDATA* inh;
   ARRAY_HEADER* ahdr;
 
-  if (objdata == NULL)
-    return;
-
   if (objdata->ref_ct == 1) {
     /* Free inherited objects
        Remove objects one by one from the head of the inheritance chain,
@@ -785,7 +766,7 @@ void free_object(OBJDATA* objdata) {
     --(((OBJECT_HEADER*)(objdata->objprog))->ext_hdr.prog.refs);
 
     ahdr = objdata->obj_vars;
-    if (ahdr != NULL && --(ahdr->ref_ct) == 0)
+    if (--(ahdr->ref_ct) == 0)
       free_array(ahdr);
 
     k_free(objdata);
@@ -801,8 +782,6 @@ Private DESCRIPTOR* resolve_index(
     int16_t dims)          /* Expected dimensionality */
 {
   ARRAY_HEADER* ahdr;
-
-  (void)dims;
   int32_t rows;
   int32_t cols;
   int32_t row;
