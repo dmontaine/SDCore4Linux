@@ -92,10 +92,20 @@ gate is already answered for `sdsys` rather than for whoever typed `sudo`.
 `@logname` keeps the real person, `USR_ADMIN` stays the session flag, and a
 separate key answers *"is the signed-in person an administrator"*. **Not
 built.** Three pieces, in `PRE_RELEASE` §20: **(1)** `CPROC:285` stops replacing
-`@logname` — the euid drop stays, only the identity substitution goes, and
-***the set of things that currently read `@logname` as `sdsys` after a sudo
-start has NOT been enumerated; do that first*** (`CPROC:2483`, `:2890`, `:3110`,
-`:3333` are four known readers); **(2)** a new kernel key, **57 is free**;
+`@logname` — the euid drop stays, only the identity substitution goes.
+***THE ENUMERATION IS DONE (9 Sep) — 14 sites, 8 files, in `PRE_RELEASE` §20,
+AND IT FOUND THE LOCK-OUT.*** `LOGIN:191-195` tests
+`is_grp_member(@logname,'sdusers')` and **terminates the connection**; it runs
+**before** the account is chosen at `:240`. The sudo path passes it today *only
+because* the identity is already `sdsys`, which is in `sdusers` (measured). Make
+`@logname` the real person and **an administrator who is a sudoer but not in
+`sdusers` is cut off with sysmsg 5009** — the port's exact failure, at a named
+line. **It must be handled in the same change.** Also: `@USER` is the *same
+slot* as `@logname` (both `SYSCOM.LOGNAME`, slot 14), `@WHO` is the account and
+is untouched, and ***the substitution is in C — `sdext_eguid.c:67` — not in
+`CPROC`***, so changing `CPROC:285` alone leaves `kernel(K$USERNAME,0)` still
+answering `sdsys`. `CPROC:2890`/`:3110` and `LOGIN:259` are safe, for reasons
+recorded there; **(2)** a new kernel key, **57 is free**;
 **(3)** the gates read it. ***DO NOT COPY THE PORT'S `IsAdmin()`*** — its
 `getgrouplist()` asks *"is this account an administrator"*, ours is
 `getuid() == 0` and asks the wrong question; the Linux test is the owner's own

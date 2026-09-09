@@ -560,6 +560,60 @@ have been refused at the door**. A login-path gate is the one change in this
 area that can lock everybody out of the machine, and it should be built with
 that failure in front of you.
 
+### The enumeration, 9 Sep 2026 — what reads the identity, and what breaks
+
+**Asked for by the owner before piece 1 is written.** Three things had to be
+established first, and two of them corrected the question.
+
+***(a) `@LOGNAME` AND `@USER` ARE THE SAME SLOT.*** `BCOMP:264,288` map both to
+`SYSCOM.LOGNAME`, which is `$syscom` slot **14** (`GPL.BP/SYSCOM.H:144`).
+**`@WHO` is slot 27** (`:157`) and holds the ACCOUNT, not the person — it is
+untouched by this. **An enumeration of `@logname` alone would have missed two
+sites**; `@user` is searched here too.
+
+***(b) THE SUBSTITUTION IS IN C, NOT IN `CPROC`.*** `K_USERNAME` only *returns*
+`process.username` (`op_kernel.c:232-234`) — it sets nothing. The rewrite is
+***`gplsrc/sdext_eguid.c:67`***, where `EUID_SET` does
+`strncpy(process.username, Arg, …)`, *"change sd process user name to match"*.
+`CPROC:285` then copies that into slot 14. **So there are two layers and the C
+one is the origin; changing `CPROC:285` alone leaves `kernel(K$USERNAME,0)`
+still answering `sdsys`.**
+
+**(c) The sites — 14, across 8 files:**
+
+| Site | What it decides | After the change |
+|---|---|---|
+| ***`LOGIN:191-195`*** | `is_grp_member(@logname,'sdusers')` → **terminates the connection** | ***THE LOCK-OUT. See below*** |
+| `CPROC:2483` | `is_grp_member(@logname, ACC$GROUP)` — account entry on `LOGTO` | asks about the person, not `sdsys` — **an administrator loses universal `LOGTO`** unless the gate gains an admin bypass |
+| `APISRVR:363` | the same gate on the API path | **probably unaffected**: `APISRVR:119` sets its own `logname` and does not go through `CPROC`'s drop. **Not verified** |
+| `CPROC:2890`, `:3110` | logout / PDUMP of other users' processes | ***no change*** — both sit inside `not(kernel(K$ADMINISTRATOR,-1))`, so admins skip them and non-admins already carry the real name |
+| `LOGIN:259` | `initial.account = upcase(@logname)` | ***no change*** — `LOGIN:240` hard-codes `"SDSYS"` for the admin case and wins first, so the sudo path never reaches `:259` |
+| `CPROC:3333` + `LOGIN:392` | command stack keyed by user | benign: history becomes per-person instead of shared under `sdsys` |
+| `ED:645`, `ED:2400` | *"Updated by …"* in edited records | improves — names the person |
+| `PDBG:52`, `PDEBUG:47` | debugger id `DR.<who>!<logname>` | cosmetic |
+| `ATVAR:64,84` · `WHOAMI:43` | expose `@LOGNAME`/`@USER` | user-visible, improves. ***`WHOAMI` IS THE WITNESS*** — it prints User, Account, uid, euid and the admin flag together |
+
+***THE LOCK-OUT IS REAL AND IT IS AT `LOGIN:191`, WHICH RUNS BEFORE THE ACCOUNT
+IS CHOSEN AT `:240` AND ENDS THE CONNECTION.*** Today the `sudo` path passes it
+**only because the identity has already been replaced**: `@logname` is `sdsys`,
+and `sdsys` is in `sdusers` — measured, `sdusers:x:979:root,sdsys,don`. **Make
+`@logname` the real person and the gate starts asking about that person**, so an
+administrator who is a sudoer but was never added to `sdusers` is refused with
+sysmsg 5009 and cut off. ***THIS IS THE PORT'S FAILURE ARRIVING HERE AT A NAMED
+LINE, and it must be handled in the same change, not after it.***
+
+**Two incidental findings, both leads rather than established:**
+
+- ***`sdu_don` IS `root,don` AND DOES NOT CONTAIN `sdsys`***, though
+  `CREATEA:681` creates account groups with `groupadd -U root,sdsys,<user>`.
+  **`-U` is supported on this box** (checked), so the likely explanation is that
+  `don`'s group was not made by `CREATEA` — **not verified**.
+- ***`ACCOUNTS/SDSYS` NAMES GROUP `sdsys`, AND NO SUCH GROUP EXISTS.*** So
+  `CPROC:2483`'s test could never pass for SDSYS. It is masked today by an
+  earlier gate: `LOGTO SDSYS` as uid 1000 answers *"SDSYS Account access is
+  restricted to privileged users"*, measured, with `LOGTO DON` as the control
+  that succeeds.
+
 ## 18. What "administrator" means — the owner's definition, and the gap to it
 
 ***OWNER, 9 Sep 2026:*** *"An administrator is a person who is a member of
