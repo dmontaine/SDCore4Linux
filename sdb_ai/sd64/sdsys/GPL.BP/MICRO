@@ -14,6 +14,15 @@
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
+* START-HISTORY:
+* 09 Sep 26 A BP record's working copy now ends ".sdbasic", so micro can pick
+*           the SD BASIC syntax file. micro matches on the file name it is
+*           given, which is this working copy's and not the record's, so
+*           without the suffix nothing could carry the language across and the
+*           highlighting silently did not happen. Same test the Windows port's
+*           gpl.bp/EDIT uses.
+* END-HISTORY
+*
 PROGRAM MICRO
 
 $internal
@@ -61,6 +70,21 @@ if DictText = "DICT" then
 	TempRecordName	= "DICT." : InRecordName : ".editing"
 end else
 	TempRecordName	= InRecordName : ".editing"
+end
+
+*  ***AND A BP RECORD GETS A ".sdbasic" ON THE END, WHICH IS WHAT MAKES THE
+*  HIGHLIGHTING WORK.***  micro chooses a syntax file by matching a regex
+*  against the FILE NAME, and the name it sees is this working copy's, not the
+*  record's - a record called MY.REPORT tells it nothing.  The suffix is the
+*  only thing that can carry the language across, and gplbld/microcfg/syntax/
+*  sdbasic.yaml detects exactly it.
+*
+*  ".editing" IS KEPT IN FRONT OF IT so a working copy left behind by a session
+*  that died is still recognisable as one, whichever kind it is.
+*
+*  Taken from the Windows port's gpl.bp/EDIT, which uses the same test.
+if DictText # "DICT" and upcase(InFileName[-2, 2]) = "BP" then
+	TempRecordName := ".sdbasic"
 end
 
 *************************************************************
