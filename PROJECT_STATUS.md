@@ -25,11 +25,12 @@ MODIFY · `I2` PROC. `I2` is the deep one — compiler + opcode `OP_PROCREAD`,
 report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
 lower-case migration here.
 
-***None of step 4 has run on an install.*** `G4` in particular is core file-I/O
-surgery (open/read/write/delete/lock/select/AK across 7 C files) verified only by
-a clean `-Wall -Wformat=2` build — the same instrument the port used, but an
-install + a file-I/O smoke test (open, read, write, delete, LOCK, SELECT, an AK
-query on a normal DYNAMIC and DIRECTORY file) is owed before trusting it.
+***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
+the tree), ***but the fixes' behaviour is unexercised.*** `G4` in particular is
+core file-I/O surgery (open/read/write/delete/lock/select/AK across 7 C files),
+and a generic command does not touch that dispatch — so a file-I/O smoke test
+(open, read, write, delete, LOCK, SELECT, an AK query on a normal DYNAMIC and
+DIRECTORY file) is still owed before trusting it.
 
 ***The plan says take §I as ONE release, not scattered commits*** (plan I intro):
 `I3`/`I4`/`I5` and PROC's `LISTPQ` all edit `VOC_TEMPLATE`/`NEWVOC`/`SD.VOCLIB`,
@@ -83,13 +84,18 @@ grep -n -i -E 'PROC|TAPE|SDNet|OPGEN|VFS' /home/don/Projects/SDCoreProject/sd4wi
 - Renamed from `sdscripts_ai` on 8 Sep 2026. Git identity is **repo-local**
   (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`, so other
   repositories will still ask.
-- ***STEPS 1–3 ARE COMMITTED AND NOTHING SINCE STEP 0/1 HAS BEEN EXERCISED.***
-  The owner ran an install (of step 0/1) and could log in, so that tree builds
-  and runs — all it establishes. Everything since (`A5`, `A6`, `A2`, `A3`, `A4`,
-  `A1`, and step 3's header regeneration) compiles and links from a clean
-  `rm -f gplobj/*.o` build, and `make` now runs `gen_includes.py --check` first;
-  the install predates all of it. Per-fix checks are under each step's section;
-  none has been run on a running system.
+- **9 Sep 2026: the owner reinstalled the WHOLE tree at `2b4d9f0` (through
+  step 4/G4), rebooted, started `sd` and ran a command — no problems.** ***What
+  that establishes: the tree builds, installs, boots and runs.*** The two-stage
+  bootstrap recompiled every edited `GPL.BP` program (DEBUG, ERRTEXT, APISRVR,
+  CPROC, the removed-verb VOC), so D6's commented `$execute`s, D5's regenerated
+  headers and the G4 removals all load; a syntax error in any would have aborted
+  the install. ***WHAT IT DOES NOT ESTABLISH: the fixes' own behaviour.*** A
+  generic command boots the VM but does not touch the open/read/write/delete/
+  lock/select dispatch G4 rewrote, D5's error-text display, or A1's undo (which
+  needs an induced commit failure). The per-step check tables still stand
+  unrun. ***The one most worth doing is a file-I/O smoke test for G4*** —
+  `SELECT`/`LIST`/`COUNT VOC` plus a create/write/read/delete on a scratch file.
 
 ## Verified — 8 Sep 2026
 
