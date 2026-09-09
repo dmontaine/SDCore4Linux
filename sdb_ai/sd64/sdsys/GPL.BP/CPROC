@@ -282,7 +282,36 @@ $ifndef IS_INSTALL
         if rstat > 0 then
           crt 'Warning: failed to resend root priviages, error: ':status()
         end else
-          logname = kernel(K$USERNAME, 0)    ;* set the username in syscom to sdsys
+* 09 Sep 26 dm - PRE_RELEASE 20.  KEEP THE PERSON, NOT THE ACCOUNT WE DROPPED
+*   TO.  This line used to read kernel(K$USERNAME, 0), which after the drop
+*   above answers "sdsys" - so @logname became sdsys and SD no longer knew who
+*   was at the keyboard.  Every administrator action was then attributed to a
+*   non-person, and the owner's definition of an administrator (sudoers member
+*   AND registered SD administrator) had nobody to look up.
+*
+*   THE EUID DROP ITSELF STAYS.  It is what makes files come out owned
+*   correctly; only the identity substitution goes.
+*
+*   NOT SIMPLY REMOVING THE LINE, and this is the trap.  On "sudo sd" the
+*   process really IS root, so K$USERNAME would answer "root" rather than the
+*   person - and root is a member of sdusers and of the account groups, so
+*   every gate would PASS and it would look as though it had worked.
+*   K$REAL.USER asks SUDO_USER then getlogin(); see op_kernel.c.
+          real.person = kernel(K$REAL.USER, 0)
+          if real.person # '' then
+            logname = real.person
+          end else
+* IT REFUSES TO GUESS, BUT IT DOES NOT REFUSE THE SESSION, and the objection
+*   is recorded rather than resolved.  With no source able to name the person
+*   this keeps the old behaviour - logname is sdsys - and SAYS SO, because
+*   turning an unidentifiable session away is a lock-out risk that belongs
+*   with a ruling, not with this line.  THE COST: an unidentified privileged
+*   session still calls itself sdsys.  ***WHOEVER BUILDS THE REGISTER GATE
+*   MUST NOT LET AN UNKNOWN IDENTITY SATISFY IT*** - sdsys is an account, not
+*   a person, and this arm is exactly where that would slip through.
+            logname = kernel(K$USERNAME, 0)  ;* sdsys - identity unknown
+            crt sysmsg(10032)  ;* Warning: SD cannot tell which person ...
+          end
         end
 $endif
         void kernel(K$ADMINISTRATOR, 1)   ;* set admin bit
@@ -2479,8 +2508,29 @@ int.logto:
    * acc.rec contains the pathname of the account (other fields removed)
    * acc.record contains the full ACCOUNT record 
 
-* rev 0.9.0 * is user member of account?   
-   if  not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
+* rev 0.9.0 * is user member of account?
+* 09 Sep 26 dm - PRE_RELEASE 20.  AN ADMINISTRATOR PASSES THIS GATE EXPLICITLY
+*   NOW, AND THAT IS NOT NEW PRIVILEGE - IT IS THE SAME PRIVILEGE, STATED.
+*
+*   Until today @logname was "sdsys" for any privileged session, and CREATEA
+*   builds every account group with "groupadd -U root,sdsys,<user>"
+*   (CREATEA:681) - so sdsys was a member of every account it created and an
+*   administrator already entered them all.  The membership test was passing
+*   on a side effect of how the groups are built.
+*
+*   Now that @logname is the real person (see the K$REAL.USER change above),
+*   that side effect is gone: an administrator is not in everybody else's
+*   sdu_ group, and LOGTO would start refusing accounts it has always allowed.
+*   Naming the administrator here keeps the behaviour and makes the reason
+*   legible.
+*
+*   OBJECTION, RECORDED RATHER THAN RESOLVED.  This converts an implicit grant
+*   into an explicit one, and the two are only equivalent for accounts CREATEA
+*   actually made.  ***MEASURED 9 Sep 26: `sdu_don` IS `root,don` AND HAS NO
+*   sdsys***, so that account did not get the -U treatment and an
+*   administrator could NOT enter it before - for that one case this is a
+*   widening, not a preservation.  Why sdu_don differs is an open lead.
+   if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account

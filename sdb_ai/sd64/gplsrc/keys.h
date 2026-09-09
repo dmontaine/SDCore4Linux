@@ -166,6 +166,9 @@
 #define K_SETUID             54
 #define K_SETGID             55
 #define K_RUNEXE             56
+/* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
+   which is not the same question as K_USERNAME.  See op_kernel.c.            */
+#define K_REAL_USER          57
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

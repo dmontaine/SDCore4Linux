@@ -664,6 +664,54 @@ than the trust case.
 identity must be recorded as unknown and say so, rather than falling back to
 `root` — because falling back to `root` is precisely the silent pass above.
 
+### Piece 1 built, 9 Sep 2026 — ***UNWITNESSED, AND AN INSTALL IS THE WITNESS***
+
+***RULED: `SUDO_USER`, THEN `getlogin()`, ELSE UNKNOWN*** (owner's selection).
+
+| Where | What |
+|---|---|
+| `gplsrc/keys.h:169` · `GPL.BP/INT$KEYS.H` | **`K_REAL_USER` / `K$REAL.USER` = 57**, free on both sides (checked) |
+| `gplsrc/op_kernel.c`, beside `K_USERNAME` | the key: `SUDO_USER` → `getlogin()` → `""`. **Returns empty rather than guessing** |
+| `GPL.BP/CPROC` (the drop) | `logname` now takes the **person**, not `kernel(K$USERNAME,0)`. The euid drop is untouched |
+| `GPL.BP/CPROC` (the `LOGTO` gate) | administrators pass explicitly: `not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(…))` |
+| `MESSAGES/10032` | the unknown-identity warning |
+
+***THE `LOGTO` BYPASS IS NOT NEW PRIVILEGE, IT IS THE SAME PRIVILEGE MADE
+LEGIBLE.*** `CREATEA:681` builds every account group with
+`groupadd -U root,sdsys,<user>`, so `sdsys` was in every account it created and
+a privileged session (`@logname` = `sdsys`) already entered them all — the
+membership test was passing on a **side effect of how the groups are built**.
+With `@logname` now the real person that side effect is gone, and without the
+bypass `LOGTO` would begin refusing accounts it has always allowed.
+
+***OBJECTION, RECORDED RATHER THAN RESOLVED*** (CLAUDE.md's rule): implicit and
+explicit grants are equivalent only for accounts `CREATEA` actually made.
+**Measured: `sdu_don` is `root,don` and has no `sdsys`**, so for *that* account
+an administrator could not enter before and now can — **a widening, not a
+preservation.** Why `sdu_don` differs remains an open lead.
+
+***AND THE UNKNOWN ARM DOES NOT REFUSE THE SESSION, WHICH IS A DELIBERATE
+UNDER-REACH.*** With no source able to name the person it keeps the old
+behaviour (`logname` = `sdsys`) and **says so** with 10032, because turning an
+unidentifiable privileged session away is a lock-out risk that belongs with a
+ruling rather than with this line. ***THE COST IS REAL: an unidentified
+privileged session still calls itself `sdsys`.*** **Whoever builds the register
+gate must not let an unknown identity satisfy it** — `sdsys` is an account, not
+a person, and that arm is exactly where it would slip through.
+
+**Checked:** clean `rm -f gplobj/op_kernel.o` rebuild, **0 warnings**, `bin/sd`
+boots exit 0 — and no implicit-declaration warning, so `getenv`/`getlogin` are
+declared through `sd.h`. Message 10032 is 68 bytes against a bound of 231.
+`CPROC` block counters **unchanged from HEAD** (`begin case` 31, `end case` 31,
+`loop` 34, `repeat` 36), and the controlled compile comparison gives
+**identical error classes AND counts**, so neither edit introduced one.
+
+***WHAT IS NOT ESTABLISHED: NONE OF IT HAS RUN.*** `CPROC` is compiled only by
+the install's two-stage bootstrap. ***THE WITNESS IS `WHOAMI` UNDER `sudo sd`***
+— it prints User, Account, uid, euid and the admin flag together, so `User`
+naming the **person** rather than `sdsys`, with `Process EUID` still showing
+sdsys's, is the whole change visible in one screen. **Today it prints `sdsys`.**
+
 **Two incidental findings, both leads rather than established:**
 
 - ***`sdu_don` IS `root,don` AND DOES NOT CONTAIN `sdsys`***, though
