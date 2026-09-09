@@ -70,7 +70,7 @@ the two files are not comparable by number.
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
 | 15 | **S** | ***AN INSTALL NOW TESTS `origin/main`, NOT THE WORKING TREE — SO COMMIT AND PUSH BEFORE TESTING, OR YOU ARE TESTING SOMETHING ELSE.*** Owner's decision, 9 Sep 2026: the installer always clones `main` from GitHub. That **reverses plan §F9**, which removed the download precisely so an install would build the bundled `sdb_ai/` tree, and it reverses CLAUDE.md's *"builds from the `sdb_ai/` tree bundled in this repository, not from a clone."* The decision is the owner's and stands; **the consequence is that uncommitted work is invisible to an install and nothing detects that.** The port's answer to the same class of problem is `assert-current` (entry 8), which refuses to test a tree source has moved past. **Until something checks, the discipline is manual.** CLAUDE.md's project-constraint wording needs correcting to match | `installsdai.sh`; plan §F9; CLAUDE.md "Project constraints" |
-| 14 | **B** | ***RULED 9 Sep 2026 — SD SHIPS A `sudoers.d` DROP-IN FOR A GROUP SD OWNS*** (owner's selection; §14 carries the ruling, the wrapping cost for `sudo passwd`/`usermod`, the three open sub-decisions and the `visudo -cf` trap). **Not built.** ***"ELEVATION DOES NOT APPLY HERE" IS WRONG — IT IS SPELLED `sudo`, AND IT IS ALREADY LOAD-BEARING IN THE SHIPPED BASIC.*** **8 `GPL.BP` programs shell out to `sudo`** from `OS.EXECUTE`: `useradd -m` (`CREATE_USER:64`), `passwd` (`SET_PASSWD:115`), `userdel`/`groupdel` (`DELACC:223,197`), `usermod -aG`/`groupadd`/`chmod g+s` (`CREATEA:331,634,306`), `usermod`/`deluser` (`MODIFYA:108,131`). ***AND NOTHING CONFIGURES sudoers*** — zero hits for `sudoers`/`NOPASSWD`/`visudo` across the installer, uninstaller and all of `GPL.BP`. So an SD ADMINISTRATOR's real privilege is whatever the machine's sudo rules already say, not what §L1 grants: with broad sudo they are root (`sudo passwd root`), without it account management silently fails or blocks on a password prompt inside an SD session. **The plan says `sudo` zero times in ~1,600 lines.** ***MEASURED 9 Sep 2026: THE HANG IS REAL*** — `sudo -n -v` as `don` answers *"a password is required"* (exit 1) and **0 of 10 call sites pass `-n`**, so `create.account` blocks on a password prompt inside the session. **And the membership test has three answers, not two**: `sudo -n -l` exits 1 both for "needs a password" and for "may not sudo", so a test on that exit code refuses a legitimate administrator. Three shapes and a recommendation in §14 — **the ruling gates entry 18** |  `GPL.BP/{CREATE_USER,SET_PASSWD,CREATEA,DELACC,MODIFYA}`; plan:17, §H:853, §L1, §L5:1164 |
+| 14 | **B** | ***RULED 9 Sep 2026, AND THE MECHANISM IS BUILT — BUT IT IS NOT WIRED UP AND THE HANG IS NOT YET FIXED.*** `gplbld/sd-elevate` (one validated helper), `gplbld/sdcore.sudoers` (`%sdadmin` → that one command, **not** the eight raw ones), installer/uninstaller wiring with `visudo -cf` and an `includedir` check, and `test-sd-elevate.py` **30 passed / 0 failed — 24 refusals, 6 controls — with the test watched FAILING (6/24) against a permissive stub.** ***THE TEN CALL SITES STILL CALL RAW `sudo` AND `sdadmin` HAS NO MEMBERS***, so migrating them now would deny account creation outright: **the migration belongs with entry 18**, which is what puts anybody in the group. Unrun — nothing installed. Also found: `MODIFYA:131`'s `deluser` is **Debian-only** and cannot work on the Arch/RHEL branches. ***"ELEVATION DOES NOT APPLY HERE" IS WRONG — IT IS SPELLED `sudo`, AND IT IS ALREADY LOAD-BEARING IN THE SHIPPED BASIC.*** **8 `GPL.BP` programs shell out to `sudo`** from `OS.EXECUTE`: `useradd -m` (`CREATE_USER:64`), `passwd` (`SET_PASSWD:115`), `userdel`/`groupdel` (`DELACC:223,197`), `usermod -aG`/`groupadd`/`chmod g+s` (`CREATEA:331,634,306`), `usermod`/`deluser` (`MODIFYA:108,131`). ***AND NOTHING CONFIGURES sudoers*** — zero hits for `sudoers`/`NOPASSWD`/`visudo` across the installer, uninstaller and all of `GPL.BP`. So an SD ADMINISTRATOR's real privilege is whatever the machine's sudo rules already say, not what §L1 grants: with broad sudo they are root (`sudo passwd root`), without it account management silently fails or blocks on a password prompt inside an SD session. **The plan says `sudo` zero times in ~1,600 lines.** ***MEASURED 9 Sep 2026: THE HANG IS REAL*** — `sudo -n -v` as `don` answers *"a password is required"* (exit 1) and **0 of 10 call sites pass `-n`**, so `create.account` blocks on a password prompt inside the session. **And the membership test has three answers, not two**: `sudo -n -l` exits 1 both for "needs a password" and for "may not sudo", so a test on that exit code refuses a legitimate administrator. Three shapes and a recommendation in §14 — **the ruling gates entry 18** |  `GPL.BP/{CREATE_USER,SET_PASSWD,CREATEA,DELACC,MODIFYA}`; plan:17, §H:853, §L1, §L5:1164 |
 | 13 | **B** | ***RULED 9 Sep 2026 — A STANDARD ACCOUNT DOES NOT GET A REAL LOGIN SHELL; THE TIER IS TO BE A BOUNDARY*** (owner's selection), ***WHICH COMMITS SD TO WRITING `sshd_config`*** — the port's fenced block + refusing preflight is the model. Mechanism (`ForceCommand` vs restricted shell vs `AllowGroups`) and PROGRAMMER's case are still open; see §13. **Not built.** ***ssh IS AN UNGUARDED WAY PAST THE TIER MODEL, AND THE INSTALLER TURNS IT ON.*** Every distro branch installs an ssh server (`installsdai.sh:254,272,285,295`) and the Arch branch starts and enables `sshd` (`:265-266`). SD users are **ordinary Unix users** — `CREATEA:331` does `usermod -aG sdusers` on an account that already exists, so it keeps its login shell. **Nothing in this project writes `AllowGroups` or `ForceCommand`** (grep: zero hits across the installer and `GPL.BP`). So a STANDARD account that §L1 denies `SH` and `!` **just ssh's in and gets a shell**, never touching SD. This is the exact failure the port measured on 21 Aug 2026 — *"a stock sshd_config: no AllowGroups and, worse, no ForceCommand, so an sdsshonly account got a PowerShell prompt"* — except here it is the **default state rather than a regression**. ***MEASURED 9 Sep 2026: every SD account has a real login shell*** (`don` `/bin/bash`, `sdsys` `/bin/sh`, none `nologin`), so §L1's verb withholding is **a convenience, not a boundary**. `sshd` is inactive on this box, which makes the exposure latent here but not absent. See §13 | `installsdai.sh:254-296`; `sdsys/GPL.BP/CREATEA:331`; plan §L5, §H:854, plan:17 |
 | 12 | **S** | ***`sdbasic.yaml` IS GENERATED AND VALIDATED BUT NOTHING PUTS IT WHERE micro LOOKS***, so entry 2's highlighting does not yet reach a user. **Measured on this box, 9 Sep:** micro **2.0.15**, config dir `~/.config/micro`, and **no `/usr/share/micro`** — micro has no system-wide syntax path, so placement must be per-user and an installer running as root cannot do it for everyone. Three shapes in §12; the port's answer to the same problem was a per-user config home. **Until this lands the feature is inert, and inert is indistinguishable from working** — micro reports an unusable syntax file by not highlighting | `installsdai.sh`; `gplbld/microcfg/syntax/sdbasic.yaml` |
 
@@ -281,6 +281,55 @@ mode **0440**, and given a name with no `.` or `~` (sudo ignores those silently
 — a file that is ignored looks exactly like one that grants nothing). **And
 `#includedir /etc/sudoers.d` must be confirmed present in `/etc/sudoers` rather
 than assumed**, or the drop-in is inert.
+
+### Built 9 Sep 2026 — the mechanism. ***IT IS NOT YET WIRED UP***
+
+| | |
+|---|---|
+| `gplbld/sd-elevate` | the helper. Verbs `useradd`/`userdel`/`passwd`/`groupadd`/`groupdel`/`addgroup`/`delgroup`/`setgid`. Installed `/usr/local/sbin/sd-elevate`, **root:root 0755** |
+| `gplbld/sdcore.sudoers` | `%sdadmin ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate` — **one command, not eight**. Installed `/etc/sudoers.d/sdcore` 0440 |
+| `gplbld/test-sd-elevate.py` | 30 rows: **24 refusals, 6 controls** |
+| `installsdai.sh` | creates `sdadmin`, installs the helper, `visudo -cf` **before** installing the drop-in, and refuses if `/etc/sudoers` has no `includedir` |
+| `deletesdai.sh` | removes drop-in, helper, group — **drop-in first**, so a sudoers rule never outlives the group it names |
+
+**Whitelists, not blacklists**: groups must be `sdusers`/`sdu_*`/`sdg_*`, so
+*"add me to `sudo`"* has no spelling; users must be ≥ `UID_MIN` and never
+`root`/`sdsys`; `setgid` is confined to the accounts root with `realpath` first,
+so a planted symlink cannot aim it out.
+
+***THE HELPER IS NOT UNDER `/usr/local/sdsys` AND THAT IS DELIBERATE.***
+`installsdai.sh` does `chown -R sdsys:sdusers "$sdsysdir"` and `chmod -R 755`.
+A helper living there would be **sdsys-writable**, so reaching the `sdsys`
+account would mean rewriting the one command sudoers grants — root. It lives in
+`/usr/local/sbin`, root-owned, outside that recursive chown.
+
+**Measured, not asserted:** self-test **30 passed / 0 failed** as uid 1000; and
+***the test was watched FAILING*** — pointed at a stub that permits everything
+it scores **6 passed / 24 failed, exit 1**, so the 30/0 is not a test that
+passes regardless. `visudo -cf` likewise **discriminates**: the drop-in parses
+OK, a deliberately malformed copy is rejected exit 1. All four scripts
+`bash -n`/`py_compile` clean, no BOM, 0 CR.
+
+***WHAT IS STILL INERT, AND THIS IS ENTRY 12's TRAP: THE TEN CALL SITES STILL
+CALL RAW `sudo`.*** `CREATE_USER:64`, `SET_PASSWD:115`, `DELACC:197,223`,
+`CREATEA:306,331,634,636`, `MODIFYA:108,131` are **unchanged**. So the helper
+ships and nothing invokes it — **the hang is not yet fixed.**
+
+***AND MIGRATING THEM NOW WOULD BREAK ACCOUNT CREATION, WHICH IS WHY THEY WERE
+LEFT.*** `sdadmin` has **no members**: nothing puts anybody in it, because who
+belongs there is the tier, which is §L2 / entry 18 and does not exist. Point the
+call sites at `sudo sd-elevate` before that lands and every one is **denied**
+rather than merely prompting. ***So the call-site migration and `CREATEA`
+writing the tier are one change, not two***, and they belong with entry 18.
+
+**Nothing here has been installed** — the installer edits are unrun
+(`PRE_RELEASE` 15: an install builds `origin/main`).
+
+**One latent bug found while writing it, worth having anyway:**
+`MODIFYA:131` shells out to **`deluser`, which is Debian-only** — it cannot work
+on the Arch and RHEL branches the installer serves. The helper uses portable
+`gpasswd -d`. Same for `groupadd -U`, recent shadow-utils only; the helper adds
+members with `gpasswd -a`.
 
 ***RAISED BY THE OWNER, 9 Sep 2026:*** *"I assume some scripts need to run as an
 administrator here as they did on windows."* Correct, and it is already true of

@@ -172,6 +172,23 @@ fi
 sudo rm -f /etc/sd.conf
 echo "Config file removed."
 
+# --------------------
+# PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
+#
+# ORDER MATTERS: the drop-in goes FIRST.  It names the sdadmin group, and a
+# sudoers file referring to a group that no longer exists is a dangling entry
+# in the file that decides who may become root.  Removing the rule before the
+# group it mentions means there is never a moment where one outlives the other.
+sudo rm -f /etc/sudoers.d/sdcore
+echo "Removed /etc/sudoers.d/sdcore."
+sudo rm -f /usr/local/sbin/sd-elevate
+echo "Removed /usr/local/sbin/sd-elevate."
+if getent group sdadmin &>/dev/null; then
+    sudo groupdel sdadmin || true
+    echo "Removed group sdadmin."
+fi
+# --------------------
+
 # Modified by Composer AI - 2026/06/10.
 # Remove unit files using full paths; do not cd into systemd directory.
 # cd /usr/lib/systemd/system

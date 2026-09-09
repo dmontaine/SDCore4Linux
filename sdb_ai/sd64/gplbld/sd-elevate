@@ -1,0 +1,263 @@
+#!/bin/bash
+#
+# sd-elevate - the single privileged helper for SD Core for Linux.
+#
+# START-HISTORY:
+# 09 Sep 26 dm  Written for PRE_RELEASE 14, the owner's ruling of 9 Sep 2026:
+#               SD ships a sudoers.d drop-in for a group SD owns.
+# END-HISTORY
+#
+# START-DESCRIPTION:
+#
+# WHY THIS EXISTS AT ALL, rather than eight commands in sudoers.
+#
+# Ten call sites in GPL.BP shell out to sudo (CREATE_USER, SET_PASSWD, DELACC,
+# CREATEA, MODIFYA).  Naming those commands directly in a sudoers drop-in would
+# hand the group root by another route, because none of them is restricted by
+# argument:
+#
+#   sudo passwd root                 - own the machine
+#   sudo usermod -aG sudo <me>       - add yourself to sudo
+#   sudo useradd -o -u 0 <name>      - make a second root
+#   sudo chmod g+s <any path>        - setgid anything
+#
+# So sudoers names ONE command - this script - and this script decides what may
+# actually happen.  That is the shape the Windows port uses too: os_group()
+# routes through a single elevated helper rather than elevating each verb.
+#
+# THE RULES IT ENFORCES, and they are whitelists wherever a whitelist is
+# possible, because a blacklist that forgets "docker" or "lxd" is root:
+#
+#   users   - must exist (except useradd), must have uid >= UID_MIN, and must
+#             never be root or sdsys.  System accounts are out of reach.
+#   groups  - must be one of SD's own: sdusers, sdu_*, sdg_*.  Nothing else is
+#             addressable, so "add me to sudo" has no spelling here.
+#   paths   - setgid only under the SD accounts root, and the path is resolved
+#             with realpath first so a symlink cannot point out of it.
+#
+# INSTRUMENT RULE.  It prints the command it actually resolved, not the one it
+# was asked for, and a refusal says which rule refused and why.  --dry-run
+# validates and prints without acting and without needing root, which is the
+# surface gplbld/test-sd-elevate.py drives.
+#
+# END-DESCRIPTION
+#
+
+set -uo pipefail
+
+PROG=${0##*/}
+
+# The SD accounts root.  installsdai.sh uses /home/sd; kept in one place here.
+SD_ACCT_ROOT=${SD_ACCT_ROOT:-/home/sd}
+
+# Below this, an account is a system account and out of reach.  Read from
+# /etc/login.defs when it is there rather than assumed, because distributions
+# differ (1000 on Debian/Ubuntu/Arch, 1000 on modern RHEL, 500 on old ones).
+uid_min() {
+  local v
+  v=$(awk '/^[[:space:]]*UID_MIN[[:space:]]/ {print $2; exit}' /etc/login.defs 2>/dev/null)
+  if [[ $v =~ ^[0-9]+$ ]]; then printf '%s' "$v"; else printf '1000'; fi
+}
+
+die() {
+  printf '%s: REFUSED - %s\n' "$PROG" "$1" >&2
+  exit 2
+}
+
+usage() {
+  cat >&2 <<'EOF'
+sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
+
+  sd-elevate [--dry-run] useradd  <user>
+  sd-elevate [--dry-run] userdel  <user>
+  sd-elevate [--dry-run] passwd   <user>
+  sd-elevate [--dry-run] groupadd <group> [member[,member...]]
+  sd-elevate [--dry-run] groupdel <group>
+  sd-elevate [--dry-run] addgroup <user> <group>
+  sd-elevate [--dry-run] delgroup <user> <group>
+  sd-elevate [--dry-run] setgid   <path>
+
+--dry-run validates and prints the command that would run, and acts on nothing.
+EOF
+  exit 2
+}
+
+# ---------------------------------------------------------------- validation
+
+# A login or group name we are willing to pass to shadow-utils.  Deliberately
+# tighter than POSIX allows: no leading dash (which would read as an option),
+# no dots, no spaces, no upper case.
+valid_name() {
+  [[ $1 =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+}
+
+require_name() {
+  local what=$1 name=$2
+  [[ -n $name ]] || die "$what is empty"
+  valid_name "$name" || die "$what '$name' is not a valid name (want ^[a-z_][a-z0-9_-]{0,31}\$)"
+}
+
+# A user SD is allowed to act on.  Must exist, must not be root or sdsys, and
+# must not be a system account.
+require_sd_user() {
+  local user=$1 uid min
+  require_name "user" "$user"
+  [[ $user != root  ]] || die "root is never a target"
+  [[ $user != sdsys ]] || die "sdsys is SD's own system account and is never a target"
+  uid=$(id -u "$user" 2>/dev/null) || die "user '$user' does not exist"
+  [[ $uid =~ ^[0-9]+$ ]] || die "could not read a uid for '$user'"
+  [[ $uid -ne 0 ]] || die "'$user' has uid 0; refusing"
+  min=$(uid_min)
+  [[ $uid -ge $min ]] || die "'$user' has uid $uid, below UID_MIN $min - a system account"
+}
+
+# A user we are about to CREATE.  The opposite test: it must not exist yet.
+require_new_user() {
+  local user=$1
+  require_name "user" "$user"
+  [[ $user != root  ]] || die "root is never a target"
+  [[ $user != sdsys ]] || die "sdsys is SD's own system account and is never a target"
+  ! id -u "$user" >/dev/null 2>&1 || die "user '$user' already exists"
+}
+
+# SD's own groups, and nothing else.  This is the whitelist that stops
+# "add me to sudo" from having a spelling.
+require_sd_group() {
+  local group=$1
+  require_name "group" "$group"
+  case $group in
+    sdusers)     : ;;
+    sdu_?*|sdg_?*) : ;;
+    *) die "'$group' is not an SD group (want sdusers, sdu_*, or sdg_*)" ;;
+  esac
+}
+
+# setgid is restricted to the accounts root.  realpath first, so a symlink
+# planted inside the tree cannot aim the chmod outside it.
+require_sd_path() {
+  local path=$1 real root
+  [[ -n $path ]] || die "path is empty"
+  [[ $path == /* ]] || die "path '$path' is not absolute"
+  real=$(realpath -e -- "$path" 2>/dev/null) || die "path '$path' does not exist"
+  root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
+  [[ -d $real ]] || die "path '$real' is not a directory"
+  [[ $real == "$root"/* ]] || die "path '$real' is outside the accounts root '$root'"
+}
+
+# ---------------------------------------------------------------------- main
+
+DRY=0
+if [[ ${1:-} == --dry-run ]]; then DRY=1; shift; fi
+
+verb=${1:-}
+[[ -n $verb ]] || usage
+shift || true
+
+# Build argv for the real command in cmd[], then run or print it once at the
+# bottom.  One exit path means the dry run and the real run cannot drift.
+declare -a cmd=()
+declare -a extra=()
+
+case $verb in
+  useradd)
+    [[ $# -eq 1 ]] || usage
+    require_new_user "$1"
+    cmd=(useradd -m -- "$1")
+    ;;
+
+  userdel)
+    [[ $# -eq 1 ]] || usage
+    require_sd_user "$1"
+    cmd=(userdel -- "$1")
+    ;;
+
+  passwd)
+    [[ $# -eq 1 ]] || usage
+    require_sd_user "$1"
+    cmd=(passwd -- "$1")
+    ;;
+
+  groupadd)
+    [[ $# -eq 1 || $# -eq 2 ]] || usage
+    require_sd_group "$1"
+    ! getent group "$1" >/dev/null 2>&1 || die "group '$1' already exists"
+    cmd=(groupadd -- "$1")
+    # Members are added with gpasswd rather than groupadd --users: --users is
+    # recent shadow-utils and is absent on distributions this installer serves.
+    if [[ $# -eq 2 && -n $2 ]]; then
+      local_members=$2
+      IFS=',' read -r -a members <<<"$local_members"
+      for m in "${members[@]}"; do
+        [[ -n $m ]] || continue
+        # root and sdsys are legitimate members of an SD account group - that
+        # is what CREATEA asks for - so they are allowed HERE and nowhere else.
+        if [[ $m == root || $m == sdsys ]]; then
+          require_name "member" "$m"
+        else
+          require_sd_user "$m"
+        fi
+        extra+=("$m")
+      done
+    fi
+    ;;
+
+  groupdel)
+    [[ $# -eq 1 ]] || usage
+    require_sd_group "$1"
+    getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"
+    cmd=(groupdel -- "$1")
+    ;;
+
+  addgroup)
+    [[ $# -eq 2 ]] || usage
+    require_sd_user "$1"
+    require_sd_group "$2"
+    getent group "$2" >/dev/null 2>&1 || die "group '$2' does not exist"
+    cmd=(usermod -aG "$2" -- "$1")
+    ;;
+
+  delgroup)
+    [[ $# -eq 2 ]] || usage
+    require_sd_user "$1"
+    require_sd_group "$2"
+    getent group "$2" >/dev/null 2>&1 || die "group '$2' does not exist"
+    # gpasswd -d, not deluser: deluser is Debian-only and the installer serves
+    # Arch and RHEL too, where the existing MODIFYA:131 call cannot work.
+    cmd=(gpasswd -d "$1" "$2")
+    ;;
+
+  setgid)
+    [[ $# -eq 1 ]] || usage
+    require_sd_path "$1"
+    cmd=(chmod g+s -- "$(realpath -e -- "$1")")
+    ;;
+
+  *)
+    die "unknown verb '$verb'"
+    ;;
+esac
+
+[[ ${#cmd[@]} -gt 0 ]] || die "internal: no command was built for '$verb'"
+
+# Instrument rule: say what was RESOLVED, not what was asked for.
+printf '%s: %s\n' "$PROG" "${cmd[*]}"
+for m in "${extra[@]:-}"; do
+  [[ -n $m ]] && printf '%s: gpasswd -a %s %s\n' "$PROG" "$m" "${cmd[-1]}"
+done
+
+if [[ $DRY -eq 1 ]]; then
+  exit 0
+fi
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  die "must run as root (it is invoked through sudo); use --dry-run to validate"
+fi
+
+"${cmd[@]}" || exit $?
+
+for m in "${extra[@]:-}"; do
+  [[ -n $m ]] || continue
+  gpasswd -a "$m" "${cmd[-1]}" || exit $?
+done
+
+exit 0

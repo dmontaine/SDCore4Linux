@@ -67,7 +67,7 @@ rather than as his words. **Neither is built.**
 
 | | Ruled | What it commits to |
 |---|---|---|
-| **14** | SD ships a **`sudoers.d` drop-in for a group SD owns** | **18's second gate reads SD's own group** — portable across distributions, and it sidesteps the three-answer problem. The 10 call sites stop hanging (`NOPASSWD`) |
+| **14** | SD ships a **`sudoers.d` drop-in for a group SD owns** | **18's second gate reads SD's own group** — portable across distributions, and it sidesteps the three-answer problem. ***MECHANISM BUILT 9 Sep, NOT WIRED UP*** — see below |
 | **13** | **A STANDARD account gets no real login shell**; the tier is to be a **boundary** | ***SD must write to `sshd_config`*** — there is no way to hold the boundary without it. The port's fenced block + refusing preflight is the model |
 
 ***THE MEASUREMENTS BEHIND THEM, BECAUSE THE FIXES WILL BE CHECKED AGAINST
@@ -77,6 +77,26 @@ sites pass `-n`, so the hang is real here; `sudo -n -l` exits **1** both for
 refuses a legitimate administrator**; and every SD account today has a real
 login shell (`don` `/bin/bash`, `sdsys` `/bin/sh`), which is the known-bad
 starting state a §13 verifier must prove the system moved away from.
+
+***`PRE_RELEASE` 14's MECHANISM IS BUILT (9 Sep) AND IS INERT UNTIL ENTRY 18
+LANDS. DO NOT READ IT AS DONE.*** `gplbld/sd-elevate` is one validated helper;
+`gplbld/sdcore.sudoers` grants `%sdadmin` **that one command and not the eight
+raw ones**, because `passwd`/`usermod`/`chmod g+s` are unrestricted by argument
+and naming them would be root by another route. Installer creates `sdadmin`,
+installs the helper **root-owned in `/usr/local/sbin`** (*not* under
+`/usr/local/sdsys`, which is `chown -R sdsys:sdusers`'d — a helper there would
+be sdsys-writable, and that is root), runs `visudo -cf` **before** installing,
+and refuses when `/etc/sudoers` has no `includedir`. Uninstaller removes the
+drop-in **before** the group it names. `test-sd-elevate.py`: **30 passed / 0
+failed, 24 refusals + 6 controls**, ***and the test was watched failing*** —
+6/24 against a stub that permits everything.
+
+***WHAT MAKES IT INERT: THE TEN CALL SITES STILL CALL RAW `sudo`, AND `sdadmin`
+HAS NO MEMBERS.*** Migrating them before entry 18 exists would **deny account
+creation outright** rather than merely prompting, because nothing puts anybody
+in the group — the tier is what does, and that is §L2. ***So the call-site
+migration and `CREATEA` writing the tier are ONE change and belong together.***
+Nothing installed; the installer edits are unrun.
 
 ***TWO COSTS THE RULINGS DO NOT REMOVE, AND §14/§13 CARRY THEM:*** `sudo passwd`
 and `usermod -aG` are **unrestricted by argument**, so a drop-in naming them
