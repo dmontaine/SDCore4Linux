@@ -19,6 +19,9 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
+ * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
+ *               port (PRE_RELEASE 19).  Only an $internal program may change
+ *               USR_ADMIN now.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -303,10 +306,29 @@ void op_kernel() {
       GetInt(descr);
       n = descr->data.value;
       if (n >= 0) { /* Setting / clearing */
-        if ((n > 0) || IsAdmin())
-          my_uptr->flags |= USR_ADMIN;
-        else
-          my_uptr->flags &= ~USR_ADMIN;
+        /* 09 Sep 26 dm - PRE_RELEASE 19, matching the Windows port.  This had
+           a hole at each end.  Any positive argument granted the flag, so a
+           $internal program could make itself an administrator and every test
+           of it was decorative; and the "|| IsAdmin()" meant an argument of
+           zero re-granted rather than cleared whenever the caller ran as root,
+           so an administrator could not be dropped - CPROC clears USR_ADMIN on
+           a LOGTO and that clear did nothing for a root OS user.
+
+           Only a program compiled $internal may change it now - which is LOGIN
+           and CPROC, the two that own entry to an account.  Ordinary BASIC
+           cannot reach KERNEL at all (BCOMP resolves it only in internal mode,
+           BCOMP:3758), and measured 09 Sep 26 a non-internal program calling
+           kernel(26,1) fails to compile with "Unrecognised statement".  A
+           refused attempt is not an error: the result below reports the flag
+           as it actually stands, so a caller that tried to grant itself rights
+           is simply told it has none. */
+
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_ADMIN;
+          else
+            my_uptr->flags &= ~USR_ADMIN;
+        }
       }
       result.data.value = (my_uptr->flags & USR_ADMIN) != 0;
       break;
