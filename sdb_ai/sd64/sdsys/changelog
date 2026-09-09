@@ -9,6 +9,58 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+08 Sep 26  A FAILURE WHILE EXTENDING AN INDEX NO LONGER DAMAGES THE INDEX.
+
+           When SD needed a new block for an alternate key index and could not
+           get one - a disk error, a full disk, a file held open by something
+           else - it carried on and used block zero.  Block zero is the index
+           header.  The write went over it, and the index was then permanently
+           damaged: every select, list or query on that key read from a header
+           that had a data block written on top of it.
+
+           The error was always reported, but only after the damage was done,
+           so the message named a temporary problem and left a permanent one.
+
+           SD now stops the operation and reports the error before writing
+           anything.  The index is left as it was.
+
+           THERE WAS A SECOND WAY IN, AND IT IS THE REASON THIS IS MORE THAN A
+           MISSING TEST.  One of the three ways the allocator can fail handed
+           back a real node number rather than zero - the head of the free
+           chain, which it had not removed from that chain.  Checking the
+           answer at each of the seven places that ask for a node could not
+           have caught that, because the answer looked valid.  The allocator
+           now reports failure the same way on all three paths.
+
+           A healthy disk never reached any of this, and nothing about normal
+           indexing changes.  If you have an index that has been behaving oddly
+           after a disk problem, rebuild it.
+
+08 Sep 26  WEOFSEQ AND OPENSEQ ... OVERWRITE NO LONGER REPORT SUCCESS WHEN THEY
+           FAILED TO SHORTEN THE FILE.
+
+           Both of these do their work by truncating a file, and neither looked
+           at whether the truncate had worked.
+
+           WEOFSEQ put 0 - success - on the stack whatever happened, so a
+           program had no way to find out.  What this costs is a stale tail:
+           the old content past the new end survives, so a file written by a
+           later and shorter run can still carry rows from an earlier, longer
+           one.  A file produced that way is the answer somebody takes away,
+           which is why this was worth fixing even though nobody has reported
+           it.
+
+           OPENSEQ ... OVERWRITE promises the previous content is gone.  If the
+           truncate failed the old file stayed as it was, and later writes
+           replaced only the front of it.
+
+           Both now report the failure the way the rest of these statements
+           already do: STATUS() gives the I/O error, an ON ERROR clause runs,
+           and a statement written without one stops rather than carrying on.
+           Nothing that used to work behaves differently - the change is only
+           visible when the truncate actually fails, which needs a read-only
+           file, a mandatory lock or a full disk.
+
 08 Sep 26  ERROR MESSAGES ARE NO LONGER CUT OFF AFTER THE FIRST LINE.
 
            Anything SD reported as a program error was truncated at about 84

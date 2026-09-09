@@ -829,8 +829,14 @@ int OpenFile(char* path, int mode, int rights) {
    SetFileSize()  -  Change file size                                     */
 
 bool SetFileSize(OSFILE fu, int64 bytes) {
-  chsize64(fu, bytes);
-  return TRUE;
+  /* 08 Sep 26  This was "chsize64(fu, bytes); return TRUE;" -- a function typed
+     to report a status whose entire body was the call and an unconditional
+     success.  It could not fail because it did not look, and its callers could
+     not check it even if they wanted to.  chsize64() returns non-zero on
+     failure (sdfix.c:2492 is the control).
+     Behaviour-neutral today: both callers, dh_clear.c:107 and :114, still
+     discard the result, so nothing changes until something tests it.  */
+  return chsize64(fu, bytes) == 0;
 }
 
 /* END-CODE */
