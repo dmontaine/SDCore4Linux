@@ -52,6 +52,25 @@ defined "administrator" on 9 Sep as **sudoers member AND registered SD
 administrator, with unregistered users refused entry**. The gap table and the
 port's `ACC$TIER 5` / `ACC$PRIOR.TIER 6` are in that entry.
 
+***THE OWNER'S DEFINITION IS THE PORT'S MODEL IN LINUX WORDS, WHICH IS WORTH
+KNOWING BEFORE IMPLEMENTING IT.*** The port's Administrator documentation opens
+with *"there are two gates, not one"* — **the tier** decides whether the
+account's VOC has the verb at all, **elevation** decides whether the verb does
+anything (`SDCoreWindowsDocs/Administrator/markdown/01-accounts-and-security.md`,
+which is local). "Registered SD administrator" is the first gate and "sudoers
+member" is the second. **The shipped docs are local and are the prose model for
+§L**; the port's code and record stay authoritative for `file:line`.
+
+***BUT `PRE_RELEASE` 14 MUST BE RULED FIRST — IT DECIDES WHAT 18's "MEMBER OF
+SUDOERS" TEST ACTUALLY READS.*** Groundwork done 9 Sep: the hang is **measured**
+(`sudo -n -v` answers *"a password is required"*, and **0 of 10** call sites pass
+`-n`), and **the membership test has three answers, not two** — `sudo -n -l`
+exits 1 both for "needs a password" and for "may not sudo", so a test on that
+exit code **refuses a legitimate administrator**. Three shapes and a
+recommendation are in `PRE_RELEASE` §14; **`PRE_RELEASE` 13's half is measured
+too** (every SD account has a real login shell, so §L1's verb withholding is a
+convenience rather than a boundary). ***BOTH ARE RULINGS, NOT WORK ITEMS.***
+
 **Your next task after those is step 5, the installer.** ***`F9` IS SUPERSEDED — DO NOT DO
 IT.*** The owner ruled on 9 Sep 2026 that the installer always clones `main`
 from GitHub, which is the opposite of §F9's "drop the clone and build the
