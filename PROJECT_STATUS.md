@@ -10,9 +10,11 @@ the work, nothing in "Verified" that was not observed that session.
 repository. It carries a verification table with `file:line` for every defect it
 claims. Next work is step 1 of its "Suggested order"; step 0 is done, below.
 
-***NOTHING HAS BEEN PUSHED TO GITHUB AND `origin` IS EMPTY.*** Confirmed with
-`git ls-remote` on 8 Sep 2026: no refs. `main` still tracks `codeberg/main`.
-**Pushing needs the owner's yes** — see CLAUDE.md, "Where this repository lives".
+**Pushed to GitHub 8 Sep 2026.** `main` tracks `origin/main`; local and remote
+both at `e5ceb16`, verified with `git ls-remote` and `git rev-parse` after the
+push. The canonical remote is `git@github.com:dmontaine/SDCore4Linux.git` —
+**capitalised**; the lower-case form works only via a redirect that prints
+"This repository moved" on every push.
 
 Renamed from `sdscripts_ai` to `sdcore4linux` on 8 Sep 2026. Git identity is set
 **repo-local** (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`

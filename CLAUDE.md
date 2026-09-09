@@ -259,14 +259,18 @@ home on GitHub. The directory is `/home/don/Projects/sdcore4linux`.
 
 | Remote | URL | What it is |
 |---|---|---|
-| `origin` | `git@github.com:dmontaine/sdcore4linux.git` | **The project's home.** ssh, key `~/.ssh/id_ed25519`, authenticates as `dmontaine` |
+| `origin` | `git@github.com:dmontaine/SDCore4Linux.git` | **The project's home.** ssh, key `~/.ssh/id_ed25519`, authenticates as `dmontaine` |
 | `codeberg` | `https://codeberg.org/stringdatabase/sdscripts_ai` | Where it came from. Kept so nothing is lost; not the place to push |
 
-***`main` STILL TRACKS `codeberg/main` AND GITHUB IS EMPTY.*** Nothing has been
-pushed to `origin` yet, deliberately — see the binaries and the mode-only noise
-under "Project constraints". **Do not push without the owner's yes**, and read
-§J1–J3 of the plan first: what is in the working tree is not what should become the
-first commit of a new repository.
+***MIND THE CAPITALISATION: THE GITHUB REPOSITORY IS `SDCore4Linux`, THE LOCAL
+DIRECTORY IS `sdcore4linux`.*** The lower-case URL works but only through a
+GitHub redirect, which prints *"This repository moved"* on every push. `origin`
+is set to the canonical spelling; leave it that way. The directory stays lower
+case to match the project's own lower-case-throughout stance.
+
+`main` tracks `origin/main`. The first push was 8 Sep 2026, at `e5ceb16`, after
+the four commits that made `git status` readable — see PROJECT_STATUS.md.
+**Codeberg is not the place to push.**
 
 Upstream `sdb64` is a **third** thing and is not a remote here — clone it
 separately when §K needs checking.
