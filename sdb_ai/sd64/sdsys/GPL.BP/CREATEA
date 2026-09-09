@@ -359,9 +359,38 @@ PW.TRY.AGAIN:
             stop sysmsg(10012,acc.uname,stat) ;* Unable to add user %1 to sdusers, status: %2
           end
           end
-        end 
-      
-       
+        end
+
+* 09 Sep 26 dm - PRE_RELEASE 18/14.  AN ADMINISTRATOR ALSO JOINS sdadmin, which
+*   is the group the sudoers drop-in grants SD's privileged helper to.  Nothing
+*   populated it before this, so the helper shipped and no one could invoke it.
+*
+*   sdusers ABOVE IS THE OTHER HALF AND IS NOT DUPLICATED HERE.  Every USER
+*   account joins sdusers whatever its tier - that is what LOGIN's
+*   "registered for SD use" test reads - and an administrator is a registered
+*   user first and a privileged one second, which is the owner's definition in
+*   the order he gave it.
+*
+*   THE GUARD IS THE TIER AND NOTHING ELSE.  Group and Other accounts have no
+*   person to privilege, and this arm is already inside case acc.type = USER.
+        if tier = 'ADMINISTRATOR' then
+          if not(is_grp_member(acc.uname,'sdadmin')) then
+            if not(valid_os_name(acc.uname)) then
+              crt sysmsg(10030,acc.uname,2) ;* Unable to add user %1 to sdadmin, status: %2
+            end else
+              os.execute "sudo usermod -aG sdadmin ":acc.uname
+              stat = OS.ERROR()
+              if stat = 0 then
+                crt sysmsg(10031,acc.uname)  ;* %1 added to sdadmin
+              end else
+                @system.return.code = -ER$FAILED
+                stop sysmsg(10030,acc.uname,stat) ;* Unable to add user %1 to sdadmin, status: %2
+              end
+            end
+          end
+        end
+
+
       *
       * create user's sd group      
         group_name = "sdu_":acc.uname      
