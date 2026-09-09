@@ -134,12 +134,18 @@ drop-in **before** the group it names. `test-sd-elevate.py`: **30 passed / 0
 failed, 24 refusals + 6 controls**, ***and the test was watched failing*** —
 6/24 against a stub that permits everything.
 
-***WHAT MAKES IT INERT: THE TEN CALL SITES STILL CALL RAW `sudo`, AND `sdadmin`
-HAS NO MEMBERS.*** Migrating them before entry 18 exists would **deny account
-creation outright** rather than merely prompting, because nothing puts anybody
-in the group — the tier is what does, and that is §L2. ***So the call-site
-migration and `CREATEA` writing the tier are ONE change and belong together.***
-Nothing installed; the installer edits are unrun.
+***WHAT MAKES IT INERT: THE CALL SITES STILL CALL RAW `sudo`.*** ***`sdadmin`
+NOW GETS MEMBERS THOUGH*** — owner's ruling, 9 Sep: `CREATEA` adds an
+ADMINISTRATOR-tier account's person to `sdadmin` (messages 10030/10031) beside
+the `sdusers` add that was already there, so the drop-in is reachable for the
+first time. **That add is an ELEVENTH raw `sudo` call and deliberately not the
+helper**: the first administrator is not in `sdadmin` when the call runs, so the
+helper would refuse the very call that creates them, and `sdadmin` is not in the
+helper's group whitelist. ***THE MIGRATION MUST THEREFORE ALSO DECIDE whether
+`sdadmin` joins that whitelist (an administrator creating administrators —
+intended, but worth naming) and how the FIRST one is bootstrapped, which is the
+installer's job rather than a verb's.*** Nothing installed; the installer edits
+are unrun.
 
 ***TWO COSTS THE RULINGS DO NOT REMOVE, AND §14/§13 CARRY THEM:*** `sudo passwd`
 and `usermod -aG` are **unrestricted by argument**, so a drop-in naming them

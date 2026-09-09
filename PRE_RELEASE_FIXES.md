@@ -378,17 +378,26 @@ passes regardless. `visudo -cf` likewise **discriminates**: the drop-in parses
 OK, a deliberately malformed copy is rejected exit 1. All four scripts
 `bash -n`/`py_compile` clean, no BOM, 0 CR.
 
-***WHAT IS STILL INERT, AND THIS IS ENTRY 12's TRAP: THE TEN CALL SITES STILL
-CALL RAW `sudo`.*** `CREATE_USER:64`, `SET_PASSWD:115`, `DELACC:197,223`,
+***WHAT IS STILL INERT, AND THIS IS ENTRY 12's TRAP: THE CALL SITES STILL CALL
+RAW `sudo`.*** `CREATE_USER:64`, `SET_PASSWD:115`, `DELACC:197,223`,
 `CREATEA:306,331,634,636`, `MODIFYA:108,131` are **unchanged**. So the helper
 ships and nothing invokes it — **the hang is not yet fixed.**
 
-***AND MIGRATING THEM NOW WOULD BREAK ACCOUNT CREATION, WHICH IS WHY THEY WERE
-LEFT.*** `sdadmin` has **no members**: nothing puts anybody in it, because who
-belongs there is the tier, which is §L2 / entry 18 and does not exist. Point the
-call sites at `sudo sd-elevate` before that lands and every one is **denied**
-rather than merely prompting. ***So the call-site migration and `CREATEA`
-writing the tier are one change, not two***, and they belong with entry 18.
+***`sdadmin` NOW GETS MEMBERS, 9 Sep 2026 — half the chicken-and-egg is gone.***
+The owner ruled that `CREATEA` adds administrators to the groups, and it now
+adds an ADMINISTRATOR-tier account's person to `sdadmin` (messages 10030/10031)
+beside the `sdusers` add that was already there. **That makes the drop-in
+reachable for the first time.**
+
+***BUT IT ADDS AN ELEVENTH RAW `sudo` CALL RATHER THAN USING THE HELPER, AND
+THAT IS DELIBERATE.*** It cannot use `sd-elevate` yet for two reasons: the
+**first** administrator is not in `sdadmin` at the moment the call runs, so the
+helper would refuse the very call that creates them; and the helper's group
+whitelist is `sdusers`/`sdu_*`/`sdg_*` and **does not include `sdadmin`**.
+***SO THE MIGRATION MUST ALSO DECIDE WHETHER `sdadmin` JOINS THAT WHITELIST***
+— which means an administrator may create administrators, intended but worth
+naming — **and how the first one is bootstrapped, which is the installer's job,
+not a verb's.**
 
 **Nothing here has been installed** — the installer edits are unrun
 (`PRE_RELEASE` 15: an install builds `origin/main`).
@@ -599,8 +608,21 @@ IS CHOSEN AT `:240` AND ENDS THE CONNECTION.*** Today the `sudo` path passes it
 and `sdsys` is in `sdusers` — measured, `sdusers:x:979:root,sdsys,don`. **Make
 `@logname` the real person and the gate starts asking about that person**, so an
 administrator who is a sudoer but was never added to `sdusers` is refused with
-sysmsg 5009 and cut off. ***THIS IS THE PORT'S FAILURE ARRIVING HERE AT A NAMED
-LINE, and it must be handled in the same change, not after it.***
+sysmsg 5009 and cut off.
+
+***AND THAT PARAGRAPH OVERSTATED IT. CORRECTED 9 Sep 2026, SAME SESSION, BY
+READING WHAT ALREADY POPULATES `sdusers`.*** Three paths already do:
+`CREATEA:344-352` adds **every USER account's** person to `sdusers` whatever its
+tier; `installsdai.sh:478` adds the installing user; `:404` adds `root`.
+Measured: `sdusers:x:979:root,sdsys,don`. **So a registered SD user passes the
+gate under the new identity too, and the people it would refuse are exactly the
+ones with no SD account — which is the owner's stated intent** (*"if they are
+not a registered user they should be refused entry"*). ***THE RESIDUAL RISK IS
+NARROW RATHER THAN GENERAL***: a person who is a sudoer, has no SD account, and
+today reaches a session only because the identity was masked as `sdsys`. **The
+gate becoming honest about that is the point of the change, not a regression.**
+The emphatic wording above is left standing, with this correction beneath it,
+because the overstatement is the thing worth seeing.
 
 **Two incidental findings, both leads rather than established:**
 
