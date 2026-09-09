@@ -10,8 +10,17 @@ the work, nothing in "Verified" that was not observed that session.
 neither exercised on a running system; §I built nothing and compiled nothing —
 the next install is what proves it.*
 
+**[PRE_RELEASE_FIXES.md](PRE_RELEASE_FIXES.md) is the release worklist** —
+started 9 Sep 2026 on the owner's ask. It is the tracker the port created for
+final testing; here it also carries **gaps testing will never find**, including
+two the plan is silent on: **the port's 31 relevant PowerShell helpers**
+(`PRE_RELEASE` 1) and **the editor story** (2). Read its table, not its section
+headings.
+
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
 repository, with a `file:line` verification table for every defect it claims.
+**Its detail has been wrong** — see the §I note — so confirm a claimed
+`file:line` before acting on it.
 Work follows its "Suggested order". **Steps 0–3 are done; nothing in steps 2–3
 has been exercised on an installed system.**
 
@@ -604,17 +613,22 @@ The survey is recorded so it is not repeated: the port has **1** Claude hook and
   fault here because `CPROC` shows it with BASIC `display sysmsg(...)` rather
   than raising it through `k_error()`; the port ships the same 4-line text.
 - **Examined and NOT ported, each for a stated reason** — do not redo this:
-  `check-stale-leads.py` ***would be valuable here and cannot be copied***: it
-  refuses at its line 637 unless `PRE_RELEASE_FIXES.md` sits beside
-  `PROJECT_STATUS.md`, and this project has no such file, so a verbatim copy is a
-  silent no-op. It needs adapting, and it looks for exactly the fault this file
-  produced on 9 Sep — an opening claim contradicted later in the same entry ·
   `stage.py` and `bootstrap.py` build a Windows *installer*; here
   `installsdai.sh` bootstraps on the target machine · `checksyntax.py` /
-  `mkbasicsyntax.py` are `micro`-editor syntax tooling, and `micro` is not part
-  of this port · `mkvocdoc.py` is coupled to `sd.iss` and the port's 26 Aug
-  CONFIG-display decision · the other 157 are `.ps1` — the `verify-`, `secure-`,
-  `probe-`, `ssh-` and `vm-` families, all Windows-specific.
+  `mkbasicsyntax.py` are `micro`-editor syntax tooling — **and whether `micro`
+  belongs in this port at all is now `PRE_RELEASE` 2, not settled** ·
+  `mkvocdoc.py` is coupled to `sd.iss` and the port's 26 Aug CONFIG-display
+  decision · the other 157 are `.ps1`, **of which only 51 are on subjects §H
+  excludes — the remaining 31 relevant ones are `PRE_RELEASE` 1.**
+- ***`check-stale-leads.py`: THE NOTE HERE OF 9 Sep WAS WRONG TWICE AND IS
+  CORRECTED.*** It said the script refuses at its line 637 for want of
+  `PRE_RELEASE_FIXES.md`, and that a verbatim copy would be *"a silent no-op"*.
+  **Both were read off the source rather than measured.** That file now exists,
+  and the script still cannot run: copied verbatim it exits **2 before any
+  phase** — *"could not bound section 7"* — because the entry-boundary machinery
+  every phase depends on is built from the port's headings. And it is **not
+  silent**: it refuses loudly, as the port designed it to. The unadapted copy was
+  removed rather than committed. Scope of the real work is `PRE_RELEASE` 9.
 
 **Standing gaps:**
 
