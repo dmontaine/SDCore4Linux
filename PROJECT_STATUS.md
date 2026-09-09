@@ -6,40 +6,45 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-*Handoff updated 9 Sep 2026. Step 2 complete (all thirds implemented, none
-exercised). Tree clean.*
+*Handoff updated 9 Sep 2026. Steps 2 and 3 implemented, neither exercised on a
+running system. Tree clean.*
 
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
 repository, with a `file:line` verification table for every defect it claims.
-Work follows its "Suggested order". **Steps 0, 1 and 2 are done; nothing in
-step 2 has been exercised.**
+Work follows its "Suggested order". **Steps 0–3 are done; nothing in steps 2–3
+has been exercised on an installed system.**
 
 ### Your next task
 
-**Step 3 — build correctness** (plan "Suggested order"): `D5` the `ERR.H`
-generator and error text · `J4` wire its `--check` into the build · `D6` stop
-running build tools during compilation. The plan puts this before the shrink
-(§4) because the error text is what makes everything else diagnosable, and it
-closes the "two generated headers drifted" standing gap below.
+**Step 4 — the shrink, as one release** (plan "Suggested order"): remove `I1`
+TAPE · `I3` SED · `I4` UPDATE.RECORD · `I5` MODIFY · `G1` BP test programs · `G2`
+VFS · `G3` OPGEN · `G4` SDNet · then `I2` PROC (the one with compiler and opcode
+reach). Large, and a good place to insist on the lower-case migration going in
+with it. Mind the near-miss names (`MODIFY` the record editor goes; `MODIFYA`
+= MODIFY.ACCOUNT stays).
 
-**Before that, the higher-value unpaid debt is to EXERCISE step 2.** Every one of
-`A1`–`A6` is committed and compiled and **not one has been run**, and step 2 is
-where a wrong fix is silent (a damaged index, a half-applied commit). The check
-tables are under each step's section. `A1` in particular needs an *induced commit
-failure* to exercise the undo — a read-only record file, or a record locked by a
-second session — which is the hard part and has not been staged.
+**Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
+run on an installed system.
+- Step 2 (`A1`–`A6`) is where a wrong fix is silent; `A1` needs an *induced
+  commit failure* (a read-only or externally-locked record) to reach at all.
+- Step 3 regenerated `SYSCOM/ERR.H`, `GPL.BP/ERRTEXT.H`, `REVSTAMP.H` and
+  reformatted every SDEXT/crypto/Python error `$define` from C spelling to SD
+  spelling. **No BASIC references the renamed defines** (checked: they flow as
+  numbers, ERRTEXT.H maps number→text), so the risk is low, but it has not been
+  seen on a running system. An install would confirm error text now displays.
 
 ### ***BEFORE YOU IMPLEMENT ANYTHING, GREP THE WINDOWS RECORD***
 
-Not a formality. It corrected the plan **twice** in the first third and shaped
-every fix in the second and third — the port is the reference implementation and
+Not a formality. It corrected the plan **twice** in step 2's first third and
+shaped every fix since — the port is the reference implementation and
 `UPSTREAM_FIXES.md` / `PRE_RELEASE_FIXES.md` carry the *why*.
 `/home/don/Projects/SDCoreProject/sd4windows` has those plus `HISTORY.md`; the
 entries are long, and the detail near the end of one is usually the correction.
-For step 3, the header generator is `D5`/`J4` in the plan and §D5 in the record:
+For step 4 the removals each have a §I/§G entry; grep the record for the one you
+start with, e.g.:
 
 ```sh
-grep -n -i -E 'ERR\.H|err\.h|revstamp|generated header' /home/don/Projects/SDCoreProject/sd4windows/*.md
+grep -n -i -E 'PROC|TAPE|SDNet|OPGEN|VFS' /home/don/Projects/SDCoreProject/sd4windows/*.md
 ```
 
 ### State of the tree
@@ -50,12 +55,13 @@ grep -n -i -E 'ERR\.H|err\.h|revstamp|generated header' /home/don/Projects/SDCor
 - Renamed from `sdscripts_ai` on 8 Sep 2026. Git identity is **repo-local**
   (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`, so other
   repositories will still ask.
-- ***ALL OF STEP 1 AND STEP 2 IS COMMITTED AND NOT ONE FIX HAS BEEN EXERCISED.***
+- ***STEPS 1–3 ARE COMMITTED AND NOTHING SINCE STEP 0/1 HAS BEEN EXERCISED.***
   The owner ran an install (of step 0/1) and could log in, so that tree builds
   and runs — all it establishes. Everything since (`A5`, `A6`, `A2`, `A3`, `A4`,
-  `A1`) compiles and links from a clean `rm -f gplobj/*.o` build; the install
-  predates all of it. Per-fix checks are listed under each step's section; none
-  has been run.
+  `A1`, and step 3's header regeneration) compiles and links from a clean
+  `rm -f gplobj/*.o` build, and `make` now runs `gen_includes.py --check` first;
+  the install predates all of it. Per-fix checks are under each step's section;
+  none has been run on a running system.
 
 ## Verified — 8 Sep 2026
 
@@ -300,6 +306,50 @@ records; the level/stack cleanup is a separate decision and was not taken.
 | locks | after such a failed commit, a second session must be able to lock/read the records — before A1 they stayed locked until the first session died |
 | dir_read | as groundwork, an ordinary `READ` from a directory file must still read back byte-for-byte (the shared `t1_unmap_chunk` must not have changed normal reads) |
 
+## Step 3 — build correctness (D5, J4, D6), 9 Sep 2026
+
+Ported the Windows port's header generator and switched off the in-compile
+build tools. **Not exercised on a running system** — an install would confirm
+error text now displays; the reasoning below is why the risk is low.
+
+| | Where | What |
+|---|---|---|
+| D5 | `gplbld/gen_includes.py` (new) | ports the Windows generator verbatim (only the header comment and a case-insensitive `sdsys` sub-dir resolver differ). Generates `SYSCOM/ERR.H`, `GPL.BP/ERRTEXT.H`, `GPL.BP/REVSTAMP.H`, `GPL.BP/OPCODES.H` from `gplsrc/{err,revstamp,opcodes}.h`; `--check` writes nothing and exits non-zero on drift |
+| D5 | the four generated headers | regenerated. Every SDEXT/crypto/Python/EUID error `$define` went from C spelling + wrong (positive) sign to SD spelling + correct negative sign (e.g. `SD_Mem_Err 10100` → `SD$Mem.Err -10100`); `ERRTEXT.H` gained message text for all the previously-textless codes |
+| J4 | `Makefile:70`, `:166` | `all: check-includes sd`; `check-includes` runs `gen_includes.py --check`. Drift is now a build failure |
+| D6 | `GPL.BP/ERRTEXT:33`, `GPL.BP/APISRVR:62-63` | the `$execute 'RUN … ERRGEN'` / `REVSTAMP` directives commented out, matching `CPROC:131-132`. They read `./gplsrc` (dev-tree only) and ERRGEN truncates `ERR.H` before regenerating — a compile on an installed tree could wipe the error definitions |
+
+**The instrument, and why it is trusted:** `--check` before regenerating
+reported `OPCODES.H` **byte-for-byte in sync** and the other three STALE. The
+in-sync `OPCODES.H` is the control — it proves the port reproduces the BASIC
+generators exactly (the same translation feeds all four), so the three STALE
+results are real drift, not a porting artefact. After regenerating, `--check`
+is clean (exit 0) and `make` runs it.
+
+**Why the rename is safe:** grep of `GPL.BP`/`SYSCOM` finds **no BASIC reference
+to any renamed error define** — the codes flow as numbers and `ERRTEXT.H` maps
+number→text; the only `SD_EUID_*` hits are the *key* names `SD_EUID_SET`/
+`_RESTORE` (102/103 in `KEYS.H`), which are a different thing and untouched.
+
+**Deliberately different from the port:** output dirs are upper-case here
+(`GPL.BP`, `SYSCOM`) pending the lower-case migration, so the generator resolves
+the `sdsys` sub-directory case-insensitively rather than hard-coding `gpl.bp`.
+`OPGEN`'s BASIC source still exists (its removal is step 4 §G3); the generator
+already covers `OPCODES.H`, so removing it later loses nothing.
+
+**Regenerating rewrites a timestamp line** in each output (`* Generated by … at`),
+which `--check` ignores but a write refreshes — so a manual regenerate always
+dirties the four files even when content is identical. The build only ever runs
+`--check`, which is timestamp-blind, so this does not dirty ordinary builds.
+
+**Cheap checks, none run:**
+
+| | Check |
+|---|---|
+| D5 | on an installed system, trigger a Python or crypto error and confirm the message text shows, not a bare number |
+| J4 | edit `gplsrc/err.h`, run `make` — it must fail at `check-includes` until `gen_includes.py` is run |
+| D6 | compile `ERRTEXT`/`APISRVR` in the bootstrap — must succeed without running ERRGEN/REVSTAMP (the tracked `.H` files are current) |
+
 ## Open
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
@@ -324,10 +374,13 @@ generator, which also closes the drifted-header gap below.
 - **No `assert-current` equivalent.** Nothing refuses to run a check against an
   install older than its source, so a green result can come from the previous
   build. This matters more from step 2 on, where a wrong answer is silent.
-- **Two generated headers are kept in step by hand and have drifted.**
-  `SYSCOM/ERR.H` from `gplsrc/err.h` (wrong sign, C spelling, missing codes), and
-  `GPL.BP/REVSTAMP.H` from `gplsrc/revstamp.h` — `revstamp.h:36-38` says so in a
-  comment. Plan §D5/§J4 is the generator that ends both, and §N needs it.
+- ~~**Two generated headers drifted.**~~ **CLOSED 9 Sep 2026** — see "Step 3"
+  below. `gplbld/gen_includes.py` regenerates `SYSCOM/ERR.H`,
+  `GPL.BP/ERRTEXT.H`, `GPL.BP/REVSTAMP.H`, `GPL.BP/OPCODES.H` from the C
+  headers; `make` runs its `--check` first, so drift is now a build failure.
+- **`sdsys/MESSAGES` still lacks records `4100`, `4101`, `-10303`** (plan §D5).
+  That is the runtime message file, not generated from `err.h`, so the generator
+  does not touch it; adding those three is a separate deliberate data edit.
 
 **Undecided:**
 

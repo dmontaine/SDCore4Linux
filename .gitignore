@@ -26,6 +26,12 @@ sdb_ai/sd64/gplsrc/sdext_python_inc.h
 # Build log.
 sdb_ai/sd64/pcode_bld.log
 
+# Python bytecode cache, created by `python3 -m py_compile` on gplbld/*.py (the
+# generators, e.g. gen_includes.py). Regenerable and never source; the Makefile
+# runs the generators as scripts, which create none, so a normal build adds
+# nothing here.
+sdb_ai/sd64/gplbld/__pycache__/
+
 # Editors.
 .vscode/
 

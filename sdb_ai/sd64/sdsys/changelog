@@ -9,6 +9,26 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  ENCRYPTION, SDEXT AND EMBEDDED-PYTHON ERRORS NOW SHOW THEIR MESSAGE
+           TEXT INSTEAD OF A BARE NUMBER.
+
+           The error codes added for the encryption, SDEXT and embedded-Python
+           features had no message text, so an error from any of them printed
+           just a number - and the number carried the wrong sign, positive where
+           every other SD error code is negative.  A program catching one by
+           value would not have matched it.
+
+           Both are fixed.  Those codes now read back the way the rest do: the
+           right (negative) number and a sentence of text.  Nothing that already
+           worked changes - these are the codes that showed nothing useful
+           before.
+
+           Behind this: the BASIC copies of the error, revision and opcode
+           tables (SYSCOM/ERR.H, GPL.BP/ERRTEXT.H, GPL.BP/REVSTAMP.H,
+           GPL.BP/OPCODES.H) are generated from the C sources rather than kept in
+           step by hand, which is how they had drifted.  A build now checks they
+           match and stops if they do not, so this cannot silently come back.
+
 09 Sep 26  A TRANSACTION THAT FAILS PART WAY NOW PUTS BACK WHAT IT HAD
            ALREADY WRITTEN.
 
