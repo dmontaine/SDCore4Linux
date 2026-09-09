@@ -35,7 +35,6 @@ Pcode(cconv)     /* CCONV(SRC, CONV) */
 Pcode(chain)     /* CHAIN() */
 Pcode(data)      /* DATA(STRING) */
 Pcode(dellist)   /* DELLIST(NAME) */
-Pcode(extendlist) /* EXTENDLIST(ITEMS, LIST.NO) */
 Pcode(fold)      /* FOLD(STRING, WIDTH) */
 Pcode(formcsv)   /* FORMCSV(STR) */
 Pcode(formlst)   /* FORMLIST(SRC, LIST.NO) */

@@ -7,7 +7,7 @@ the work, nothing in "Verified" that was not observed that session.
 ## START HERE
 
 *Handoff updated 9 Sep 2026. Steps 2 and 3 implemented, neither exercised on a
-running system. Tree clean.*
+running system. Step 4's §G is complete; `G2` is built but not installed.*
 
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
 repository, with a `file:line` verification table for every defect it claims.
@@ -17,13 +17,11 @@ has been exercised on an installed system.**
 ### Your next task
 
 **Step 4 — the shrink, IN PROGRESS.** See "Step 4" below. Done: `I1` TAPE, `G3`
-OPGEN, `G1` BP test programs (PY_* kept), `G4` SDNet. Remaining: `G2` VFS
-(touches `err.h`→regenerate `ERR.H`, `KEYS.H`, the name resolver, `_EXTENDLIST`,
-`VFS_FILE` type 5 in `descr.h` — the twin of the `NET_FILE` removal just done) ·
-then the VOC-coherence set as **one pass**: `I3` SED · `I4` UPDATE.RECORD · `I5`
-MODIFY · `I2` PROC. `I2` is the deep one — compiler + opcode `OP_PROCREAD`,
-report "PROC not supported" at `CPROC:1530`, RETIRE the opcode slot. Fold in the
-lower-case migration here.
+OPGEN, `G1` BP test programs (PY_* kept), `G4` SDNet, `G2` VFS. **All of §G is
+done.** Remaining is the VOC-coherence set as **one pass**: `I3` SED · `I4`
+UPDATE.RECORD · `I5` MODIFY · `I2` PROC. `I2` is the deep one — compiler +
+opcode `OP_PROCREAD`, report "PROC not supported" at `CPROC:1530`, RETIRE the
+opcode slot. Fold in the lower-case migration here.
 
 ***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
 the tree). **`G4` is CLOSED by the owner's decision, 9 Sep.** Its read side was
@@ -61,6 +59,9 @@ individually exercised and are collected here so the later pass has the list:
   should show message text, not a bare number. **No BASIC references the renamed
   defines** (checked: they flow as numbers, ERRTEXT.H maps number→text).
 - `G4` write/delete/record-lock (read/select observed; see the Step-4 note).
+- `G2`: `sd` has not started from a pcode library built without `_EXTENDLIST`.
+  Loud rather than silent if wrong — `load_pcode()` refuses to start — so the
+  next install witnesses it. See the Step-4 note.
 
 **Higher-value unpaid debt first: EXERCISE steps 2 and 3.** Nothing in either has
 run on an installed system.
@@ -407,13 +408,50 @@ so the VOC-touching ones go together; TAPE was independent and went first.
 | I5 | MODIFY — `GPL.BP/MODIFY`, `VOC_TEMPLATE/MODIFY`. **Keep `MODIFYA`, `MODIFY.PASSWORD`** | pending |
 | I2 | PROC — `GPL.BP/PROC`+`BBPROC`, `bbcmp.py` compile step + `installsdai.sh:500`, `LISTPQ`, `OP_PROCREAD`/`op_procread()` + BCOMP, `CPROC:1530` dispatch. Report "not supported" at dispatch; RETIRE the opcode | pending |
 | G1 | SDSYS `BP` test programs: removed 18 (`BIGSTR_TEST`, `MSGTEST`, `PCL`, `PCL.GRID`, `PCODE_LIST`, `SDTEST_V8`, `SD_ENCRYPT`/`_B64`/`_EXT`, `SD_EXT`, `TEST.THEN.ELSE`, `TESTSZ`, `U0032`, `U50BB`, `VFS.CLS`, `pref_t`, `sdTests`, `tilde_test`). **Kept `PY_JSON`/`PY_TERM`/`PY_TEST`/`PY_TEST2`** (owner decision 9 Sep — the documented examples for the kept Python feature). Verified no VOC verb dispatches to the `BP` dir and no bootstrap program names them; the `PCL` name-collision is with the `GPL.BP/PCL` printer subsystem (a different dir, stays) — `NEWVOC/PCL` is only a printer keyword. No changelog entry (SDSYS dev cleanup, no product function) | **done** |
-| G2 | VFS scaffolding | pending |
+| G2 | VFS scaffolding: the BASIC advertised a virtual file system the C never implemented. Removed `VFS_FILE` 5 (`descr.h`), `SEL_VFS` (`dh.h:154`), `FL_TYPE_VFS` (`keys.h:57`) and the three uses — `op_dio3.c:509` guard, `kernel.c:600` flag test, `pdump.c:227` print. **RETIRED, comments left in place: `DHF_VFS` 0x40 (`dh.h:105`, a file-header bit), `PF_IS_VFS` 0x00200000 (`kernel.h:101`, an object-header bit), errors 3038–3040 (`err.h:147`).** BASIC: `FTYPE`'s `VFS:` case, `_VOC_REF`'s branch that left a `VFS:` pathname relative, `FL$TYPE.VFS` (`SYSCOM/KEYS.H:29`); `ERR.H`/`ERRTEXT.H` regenerated. `GPL.BP/_EXTENDLIST` deleted with its four registrations (`pcode.h:38`, `gplbld/pcode_bld.py`, `gplbld/COMP_PCODE`, the record). **Left alone by ruling: `examples/windows.c/winsdclilib/err.h`** — the client library's public error header, so removing codes there is an API change. Clean `rm -f gplobj/*.o` build, 79 files, 0 warnings; 12 removal checks each against a control. **Not installed** | **done** |
 | G3 | OPGEN: deleted `GPL.BP/OPGEN` (no VOC, no `$execute`, nothing calls it — superseded by `gen_includes.py`, whose `OPCODES.H` output is byte-identical, proven in step 3). Updated the two "generated using OPGEN" comments (`bbcmp.py:138`, `BCOMP:58`) to name `gen_includes.py`. No changelog entry — no user-visible effect | **done** |
 | G4 | SDNet: deleted `gplsrc/netfiles.c` (removed from `gpl.src`), the `;` dispatch + `net_open` in `op_dio1.c`, and **every `NET_FILE` case / `net_*` call across `op_dio1/2/3/4.c`, `op_lock.c`, `dh_ak.c`** (~30 sites); removed the `NET_FILE` type (`descr.h`, `FVAR.NET` in `DEBUG.H` + the "(Networked)" DEBUG arm), the `net_*` prototypes (`sd.h`), and the 3 verbs (`GPL.BP/SETSRVR`/`DELSRVR`/`LISTSRVR`, `VOC_TEMPLATE/SET.SERVER`/`DELETE.SERVER`/`LIST.SERVERS`). `K$GET.SDNET.CONNECTIONS` now returns empty. **Kept (deliberate residue): `sdnet.h` (socket/termios portability header, NOT SDNet — build breaks without it), `NETFILES` config + sysseg field, `USR_SDNET`, `K$SDNET`, `SrvrOpenSDNet`.** Clean `rm -f gplobj/*.o` build; installs and runs at `2b4d9f0`; read side observed (`SELECT`/`LIST`/`COUNT VOC`). **CLOSED 9 Sep** (owner) — write/delete/lock accepted on conformity, not measured | **done** |
 
 **Not exercised.** I1 removed data records and an install prompt; nothing in the
 C build depends on them, so `make` is unaffected, but an install that used to
 offer the TAPE prompt has not been re-run.
+
+**G2's checks.** 12 removed/control pairs, every control fired: the four C
+`#define`s against `SEQ_FILE`/`DHF_NOCASE`/`SEL_DH`/`PF_IS_TRIGGER`, the two
+BASIC ones against `FL$TYPE.SEQ`/`ER$ENCRYPTED`, `'VFS:'` in `FTYPE` and
+`_VOC_REF`, and `_EXTENDLIST`'s four registrations against `_DELLIST`.
+**Anchored on `^ *\$define` / `^#define`, not the bare name** — Windows
+HISTORY.md ~611 records that version reading its own removal comments as hits.
+One check ran on the artefact rather than the source: `strings bin/sd` finds
+`VFS handler` 0 against `Is trigger` 1.
+
+***WHAT NONE OF THAT REACHES: `sd` HAS NOT STARTED FROM A PCODE LIBRARY BUILT
+WITHOUT `_EXTENDLIST`.*** That is G2's one failure mode with teeth, and it is
+loud rather than silent — `load_pcode()` (`sd.c:597`) prints *"Pcode item ... not
+found"* and refuses to start if a `Pcode()` entry has no library object. Read
+rather than assumed: it matches on `obj->ext_hdr.prog.program_name`
+(`sd.c:620`), so entries are found **by name and removing one shifts nothing**,
+and `bin/pcode` is concatenated strictly from the `pcode_fs` list
+(`pcode_bld.py:144`), so dropping the name drops the object. All four
+registrations went together. **An install is what would witness it.**
+
+**Two objections raised against G2 in-session and resolved, recorded per
+CLAUDE.md:**
+
+- **Why `SEL_VFS` and `FL_TYPE_VFS` were deleted outright while `DHF_VFS` and
+  `PF_IS_VFS` were retired.** The first two are in-memory only — a select-list
+  type index and a `FILEINFO` return value — so a future feature may have the
+  numbers. The second two occupy bits in a *persisted* header (`dh.h:98` says
+  the LS 16 bits come from the file header; `kernel.h`'s LS 16 come from the
+  object header), and a file or object written by another MultiValue
+  implementation could carry them. Same reasoning the port used.
+- **An in-place upgrade leaves stale copies behind.** `GPL.BP/_EXTENDLIST` and
+  `PCODE.OUT/_EXTENDLIST` are not deleted from an existing `/usr/local/sdsys` by
+  the installer, which copies over rather than clearing. Harmless — nothing
+  looks either up, and `bin/pcode` is rebuilt from the list — but **the
+  installed tree will not match the source tree** until a clean install. The
+  Windows port did not face this: its upgrade writes `Type: filesandordirs` and
+  deletes the whole directory first.
 
 ## Open
 

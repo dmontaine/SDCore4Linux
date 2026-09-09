@@ -224,8 +224,6 @@ void pdump() {
         fprintf(fu, "    Is trigger\n");
       if (pgm->flags & SORT_ACTIVE)
         fprintf(fu, "    Sort in progress\n");
-      if (pgm->flags & PF_IS_VFS)
-        fprintf(fu, "    VFS handler\n");
       if (pgm->flags & PF_CAPTURING)
         fprintf(fu, "    Capturing\n");
       if (pgm->flags & HDR_IS_CPROC)

@@ -9,6 +9,33 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  SD NO LONGER CLAIMS TO SUPPORT VIRTUAL FILE SYSTEMS.
+
+           SD advertised a "virtual file system": you could write a VOC file
+           pointer whose pathname began VFS:, and LISTF would report its type as
+           VFS.  Nothing behind that was ever built.  No part of SD has ever
+           looked at a pathname to see whether it begins with VFS:, no handler
+           was ever loaded, and the three error codes reserved for VFS problems
+           could not be raised by anything.  So the first thing you saw said the
+           pointer was a valid virtual file system, and then OPEN refused it
+           with an unrelated path error.
+
+           The claim is now gone rather than the feature, because there was no
+           feature.  FTYPE no longer returns VFS, the FL$TYPE.VFS file type is
+           withdrawn, and a VFS: pathname is turned into an absolute path like
+           any other - which is what SD always actually required.  The template
+           class module for writing a VFS handler is no longer shipped.
+
+           What this does not do: nothing that worked stops working.  A VFS:
+           pointer failed to open before this change and still fails, only now
+           it is described honestly from the start.  The three error numbers
+           (3038, 3039, 3040) are retired rather than handed to something else,
+           so a program that compares a status against one of those numbers
+           still never matches - which is what it already did.  The names
+           ER$VFS.NAME, ER$VFS.CLASS, ER$VFS.NGLBL and FL$TYPE.VFS are gone from
+           the include files, so a program that spells one out will no longer
+           compile cleanly; nothing shipped with SD used them.
+
 09 Sep 26  SDNET - REMOTE FILE ACCESS OVER THE NETWORK - HAS BEEN REMOVED.
 
            SD could open a file held on another SD server by naming it
