@@ -43,10 +43,11 @@ alongside this file.
   regenerates from the tracked `terminfo.src` with `sdtic`.
 - `Makefile:74` — `sd:` depends on `terminfo`, so a plain `make` rebuilds it.
 
-***THIS WAS READ FROM THE MAKEFILE, NOT OBSERVED BY RUNNING `make`.*** Per
-CLAUDE.md, compiling is not running and reading is not either. **The first
-session to run a build should confirm it and move this line to a stronger
-claim** — a fresh clone plus `make` producing a working `bin/sd` is the test.
+**Partly observed since.** `make sd` was run this session after deleting four
+`.o` files: it recompiled them, relinked `bin/sd`, and reported 0 errors and 0
+warnings. ***THAT IS AN INCREMENTAL BUILD, NOT A FROM-SCRATCH ONE.*** A fresh
+clone plus `make`, producing a working `bin/sd` and a repopulated `terminfo/`,
+is still the test that would close this.
 
 **Other observations this session:**
 
@@ -56,24 +57,55 @@ claim** — a fresh clone plus `make` producing a working `bin/sd` is the test.
 - No file in the mode set was a script; `installsdai.sh` and `deletesdai.sh` keep
   their executable bit.
 
+## Step 1 of the plan — all eight applied, 8 Sep 2026
+
+The release is now **`L1.0-0`** and `sdsys/changelog` carries its section.
+
+| | Where | Fix | State |
+|---|---|---|---|
+| D1 | `gplsrc/k_error.c:216` | size limit was `(LINES + LEN)+1` = 84 against a 241-byte buffer, and ignored the offset already written; now `sizeof(s) - n` | **compiles** |
+| D2 | `gplsrc/op_skt.c:673` | `n = TRUE;` removed — it discarded the caller's keep-alive value | **compiles** |
+| C1 | `gplsrc/clopts.c:300` | `process.user_no` → `user_no`; task locks were compared against the cleanup process, not the dead session | **compiles** |
+| B4 | `gplsrc/sysseg.c:413` | guard `uptr->pid > 0` (and `sdlnxd_pid > 0`); pid 0 made `kill()` signal the caller's process group | **compiles** |
+| B2 | `sdsys/GPL.BP/CATALOG` | one admin gate after the `end case`, covering the GLOBAL keyword *and* all three prefix routes | edited only |
+| B1 | `sdsys/GPL.BP/DELCAT` | admin gate inside the branch that touches `gcat`; it had no check at all | edited only |
+| D3 | `sdsys/GPL.BP/TERM` | `DEFAULT.WIDTH`/`DEFAULT.DEPTH` (120×36) instead of `MIN.WIDTH` and a literal 24 | edited only |
+| E1 | `sdsys/VOC_TEMPLATE/ENCRYPT.FIELD` | removed; `$CRYPTO` is not in the distribution | removed |
+
+**"compiles" means compiles.** `make sd` reported 0 errors and 0 warnings and
+relinked `bin/sd`. ***NONE OF THE EIGHT HAS BEEN RUN.*** No install cycle was
+done this session, so nothing here has been exercised against a live SD.
+
+***THE FOUR BASIC CHANGES HAVE NOT EVEN BEEN COMPILED.*** `GPL.BP` is compiled by
+the two-stage bootstrap during `installsdai.sh`, and there is no way to syntax
+check it outside a running SD. A typo in `CATALOG`, `DELCAT` or `TERM` would not
+show up until an install. **Run one before believing any of the bottom four
+rows.**
+
+Two judgement calls worth knowing, per CLAUDE.md's rule about recording the
+objection as well as the resolution:
+
+- **B1/B2 use one gate at a chokepoint rather than the check copied into each
+  route.** Copying it four times is what let the original drift — rev 0.9.0 added
+  it to the keyword route and not the three prefix routes. The keyword route keeps
+  its own early check for the better message; the chokepoint is what holds.
+- **D3 drops the `@term.type = 'sdterm'` special case** that set depth 25 instead
+  of 24, because `LOGIN:85,90` makes no such distinction when sizing a session.
+  **This was not measured on an sdterm terminal.** If sdterm really has 25 usable
+  lines, `GPL.BP/TERM` is the line to revisit.
+
 ## Open
 
-**Blocked on the owner:**
+**Next work — step 2 of the plan: data integrity.** `A5` `dh_ak.c:2750`
+`get_ak_node()` returns 0 on error and no caller checks, so a failed index
+extension writes over the index header; `A2`/`A3` the transaction directory-id
+encoding in `txn.c:148,180,187`; `A6` unchecked `chsize64()` in
+`op_seqio.c:752,1433`; `A4` nested commit; then `A1` commit rollback, the one
+real piece of work.
 
-- The first push to `origin`.
-
-**Next work — step 1 of the plan, all small and all with an exact location:**
-
-| | Where | What |
-|---|---|---|
-| C1 | `gplsrc/clopts.c:300` | `== process.user_no` should be `== user_no` — one word |
-| D2 | `gplsrc/op_skt.c:673` | `n = TRUE;` discards the caller's keep-alive value — delete the line |
-| D1 | `gplsrc/k_error.c:216` | `(MAX_ERROR_LINES + MAX_EMSG_LEN)` should be `*` — one character |
-| B2 | `sdsys/GPL.BP/CATALOG:143,156,170,180` | prefix routes set `CAT_GLOBAL` without the admin check at `:104-106` |
-| B1 | `sdsys/GPL.BP/DELCAT` | no privilege check anywhere in the program |
-| B4 | `gplsrc/sysseg.c:413` | `kill(uptr->pid, SIGTERM)` with pid unvalidated; pid 0 signals the process group |
-| D3 | `sdsys/GPL.BP/TERM:165` | `TERM DEFAULT` sets `MIN.WIDTH`, not the documented 120×36 |
-| E1 | `sdsys/VOC_TEMPLATE/ENCRYPT.FIELD` | verb points at `$CRYPTO`, which is not in the distribution |
+**Before that, or with it: run an install.** Eight fixes are sitting uncompiled
+or unexercised, and the plan's step 2 touches transactions and indexes, where
+"it compiled" is worth very little.
 
 **Standing gaps, from CLAUDE.md:**
 

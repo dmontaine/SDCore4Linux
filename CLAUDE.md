@@ -31,9 +31,9 @@ doing anything else in this repository.** It holds the current state, the
 decisions already made and why, the traps that have already cost time, and the
 ordered next steps.
 
-***IT IS CURRENTLY EMPTY.*** It was created on 8 Sep 2026 and nothing has been
-written into it yet. An empty handoff document is not permission to skip the
-handoff — it means you are the session that starts filling it in.
+It was created empty on 8 Sep 2026 and has been written to since. Add to it in
+the same commit as your work; do not let it go stale, because a wrong claim in
+it costs more than no claim at all.
 
 The parity plan the project is working from lives outside the repository at
 `/home/don/Documents/claude_plan.md` (and `.pdf`). Read it for what is being
@@ -281,9 +281,11 @@ separately when §K needs checking.
   branches to keep Windows building.
 - **The installer is a shell script and stays one** — `installsdai.sh`. It builds
   from the `sdb_ai/` tree bundled in this repository, not from a clone.
-- **Binaries should not be tracked.** They currently are — `sd64/bin/` and 93 `.o`
-  files under `sd64/gplobj/` — and there is no `.gitignore`. Fixing that is step 0
-  of the plan. Until it is fixed, be careful what you claim `git status` shows.
+- **Binaries are not tracked, and must stay that way.** `.gitignore` covers
+  `sd64/bin/` (except its README), `sd64/gplobj/`, `sd64/terminfo/`,
+  `pcode_bld.log` and the installer-generated `gplsrc/sdext_python_inc.h`. All of
+  it is rebuilt by `make` — the .gitignore cites the Makefile line for each. **A
+  clean `git status` is now a working instrument here; do not break it.**
 
 ## Building
 

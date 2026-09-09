@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 08 Sep 26 Deleting from the global catalogue required no privileges at all, by
+*           either the GLOBAL keyword or a prefix character.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -104,6 +106,19 @@ $include syscom.h
       end else
          begin case
             case global or index(prefix.chars, cat.name[1,1], 1)
+* 08 Sep 26  DELETE.CATALOG required no privileges at all, by either route -- the
+* GLOBAL keyword or a *, !, _ or $ prefix on the name.  Anyone could delete an
+* entry from the global catalogue, which holds the programs SD runs for everybody:
+* removing $LOGIN stops everybody signing in.  CATALOG has required administrator
+* rights for the global catalogue since rev 0.9.0; this had been left behind.
+*
+* The test is here, inside the branch that touches gcat, rather than before the
+* loop, because whether a name is global is decided per name: the GLOBAL keyword
+* makes all of them global, and a prefix character makes just that one.  Local
+* cataloguing is untouched and still needs nothing.
+               if system(27) # 0 then
+                  stop sysmsg(2001)  ;* Command requires administrator privileges
+               end
                readvu obj.rec from gcat.f, cat.name, 0 then
                   delete gcat.f, cat.name
                   unload.object

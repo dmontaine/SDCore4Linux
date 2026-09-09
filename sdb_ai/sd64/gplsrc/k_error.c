@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 08 Sep 26 Error text was truncated at 84 characters: the vsnprintf() size
+ *           limit used + where * was meant, and ignored the offset already
+ *           written into the buffer.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -213,7 +216,14 @@ void k_error(char* message, ...) {
 
   va_start(arg_ptr, message);
   /* Fix for Issue #13.  Converted a vsprintf() to vsnprintf(). -gwb */
-  vsnprintf(&(s[n]), (MAX_ERROR_LINES + MAX_EMSG_LEN) + 1,  message, arg_ptr);
+  /* 08 Sep 26  The size limit was (MAX_ERROR_LINES + MAX_EMSG_LEN) + 1, which
+     is 84, while s is (MAX_ERROR_LINES * MAX_EMSG_LEN) + 1, which is 241 -- a
+     + where a * was meant.  Every error message was truncated at about 84
+     characters, so a message written as three lines lost the last two, which
+     is usually the part saying what to do about it.  The space was always
+     there.  Use the space actually left in s: sprintf() above has already
+     written n bytes into it when an object is loaded.  */
+  vsnprintf(&(s[n]), sizeof(s) - n, message, arg_ptr);
   va_end(arg_ptr);
 
   if (c_base == NULL) /* No object currently loaded */
