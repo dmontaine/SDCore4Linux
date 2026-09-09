@@ -6,42 +6,40 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-*Handoff written 8 Sep 2026, end of session. Tree clean, everything pushed.*
+*Handoff updated 9 Sep 2026. Step 2 complete (all thirds implemented, none
+exercised). Tree clean.*
 
 **The plan is `/home/don/Documents/claude_plan.md`** (and `.pdf`), outside the
 repository, with a `file:line` verification table for every defect it claims.
-Work follows its "Suggested order". **Steps 0 and 1 are done; step 2 is being
-taken in thirds at the owner's request, and the first third is done.**
+Work follows its "Suggested order". **Steps 0, 1 and 2 are done; nothing in
+step 2 has been exercised.**
 
 ### Your next task
 
-**Step 2, final third — `A1`, commit rollback.** The second third (`A2`, `A3`,
-`A4`) is committed; see "Step 2, second third" below. `A1` is the one real piece
-of work in step 2: before-images for every record a commit overwrites, restored
-if the commit fails part way, with a summary line to `errlog`.
+**Step 3 — build correctness** (plan "Suggested order"): `D5` the `ERR.H`
+generator and error text · `J4` wire its `--check` into the build · `D6` stop
+running build tools during compilation. The plan puts this before the shrink
+(§4) because the error text is what makes everything else diagnosable, and it
+closes the "two generated headers drifted" standing gap below.
 
-The Windows port has it built — `txn.c` there carries `capture_undo()`,
-`replay_undo()`, `free_undo()`, the `TXN_UNDO` stack, and the `replay_undo()`
-call at the head of `txn_abort()` (the far side of the `k_error()` longjmp).
-UPSTREAM_FIXES 32 is the write-up; PRE_RELEASE_FIXES 102 the port. It also needs
-one piece of groundwork the directory-file code lacks: a `dir_read()` shaped
-like `dir_write()`, because the only current reader (`read_record()`) can only
-be reached by executing a READ opcode and a commit cannot. **The lock half of
-entry 32 travels with it** — `txn_abort()` releasing `commit_txn_id`, and
-`op_txncmt()` clearing `commit_txn_id` on the success path — so `commit_txn_id`
-becomes load-bearing (non-zero = "a commit is in flight") and gets an explicit
-`= 0` initialiser. None of that was touched this session.
+**Before that, the higher-value unpaid debt is to EXERCISE step 2.** Every one of
+`A1`–`A6` is committed and compiled and **not one has been run**, and step 2 is
+where a wrong fix is silent (a damaged index, a half-applied commit). The check
+tables are under each step's section. `A1` in particular needs an *induced commit
+failure* to exercise the undo — a read-only record file, or a record locked by a
+second session — which is the hard part and has not been staged.
 
 ### ***BEFORE YOU IMPLEMENT ANYTHING, GREP THE WINDOWS RECORD***
 
-Not a formality. It corrected the plan **twice in one session**, and both times
-the fix would otherwise have looked complete and been wrong — see "Step 2, first
-third" below for what it caught. `/home/don/Projects/SDCoreProject/sd4windows`
-has `PRE_RELEASE_FIXES.md`, `UPSTREAM_FIXES.md` and `HISTORY.md`; the entries are
-long, and the detail near the end of one is usually the correction.
+Not a formality. It corrected the plan **twice** in the first third and shaped
+every fix in the second and third — the port is the reference implementation and
+`UPSTREAM_FIXES.md` / `PRE_RELEASE_FIXES.md` carry the *why*.
+`/home/don/Projects/SDCoreProject/sd4windows` has those plus `HISTORY.md`; the
+entries are long, and the detail near the end of one is usually the correction.
+For step 3, the header generator is `D5`/`J4` in the plan and §D5 in the record:
 
 ```sh
-grep -n -i -E 'txn\.c|dir_write|txn_id' /home/don/Projects/SDCoreProject/sd4windows/*.md
+grep -n -i -E 'ERR\.H|err\.h|revstamp|generated header' /home/don/Projects/SDCoreProject/sd4windows/*.md
 ```
 
 ### State of the tree
@@ -52,11 +50,12 @@ grep -n -i -E 'txn\.c|dir_write|txn_id' /home/don/Projects/SDCoreProject/sd4wind
 - Renamed from `sdscripts_ai` on 8 Sep 2026. Git identity is **repo-local**
   (`.git/config`, `dmontaine@gmail.com`); there is no `~/.gitconfig`, so other
   repositories will still ask.
-- ***THIRTEEN FIXES ARE COMMITTED AND NOT ONE HAS BEEN EXERCISED.*** The owner
-  ran an install (of the first ten) and could log in, so that tree builds and
-  runs — all it establishes. The three added this session (`A2`, `A3`, `A4`)
-  compile and link; the install predates them. Per-fix checks are listed under
-  step 1 and the second-third section; none has been run.
+- ***ALL OF STEP 1 AND STEP 2 IS COMMITTED AND NOT ONE FIX HAS BEEN EXERCISED.***
+  The owner ran an install (of step 0/1) and could log in, so that tree builds
+  and runs — all it establishes. Everything since (`A5`, `A6`, `A2`, `A3`, `A4`,
+  `A1`) compiles and links from a clean `rm -f gplobj/*.o` build; the install
+  predates all of it. Per-fix checks are listed under each step's section; none
+  has been run.
 
 ## Verified — 8 Sep 2026
 
@@ -250,18 +249,75 @@ written, not a decrement.
 | A3 | make a directory-file record's on-disk file read-only, delete it inside a transaction — the commit must now report the error, not succeed silently |
 | A4 | outer txn writes `R2`, inner txn writes `R3` and commits, outer commits — both `R2` and `R3` must land; `SYSTEM(1008)` balanced across the pair; `SYSTEM(1007)` names the parent after the inner commit |
 
+## Step 2, final third — A1, commit rollback, 9 Sep 2026
+
+The one real piece of work in step 2. **Clean `rm -f gplobj/*.o` build: 0 errors,
+0 warnings; `txn.o` and `op_dio3.o` recompiled, `sd` linked. NOT exercised** —
+the undo only fires on a commit that fails part way, which needs an induced
+failure (a read-only record file, or a record a second session holds) and was
+not staged. Verified against UPSTREAM_FIXES 32.
+
+Two halves, both landing in `txn_abort()` (the far side of the `k_error()`
+longjmp, since `op_txncmt()`'s `goto exit_op_txncmt` paths are dead code):
+
+| | Where | Fix |
+|---|---|---|
+| A1 undo | `txn.c` `capture_undo`/`replay_undo`/`free_undo` + `TXN_UNDO` stack | `capture_undo()` reads each record's before-image in the commit loop, immediately before the action; `replay_undo()` writes them back in reverse from `txn_abort()` if the commit longjmps; `free_undo()` drops them on success. Summary line to `errlog` either way |
+| A1 locks | `txn.c:txn_abort` + `op_txncmt` | `txn_abort()` releases `commit_txn_id`'s locks (nothing did, so a failed commit held them for the life of the process); `op_txncmt()` clears `commit_txn_id` on success so a later unrelated abort cannot unlock a reissued id |
+| groundwork | `op_dio3.c` `dir_read()` + `t1_unmap_chunk()`; `sd.h` prototype | the directory code had a write API and no callable read API; `dir_read()` is shaped like `dir_write()`. The newline→field-mark conversion is lifted out of `read_record()` into shared `t1_unmap_chunk()` so a capture cannot reverse it differently from an ordinary read |
+
+**Deliberately different from the Windows port, and why:**
+
+- **`t1_unmap_chunk()` is LF-only here.** The port folds CR/CRLF (Windows text
+  files); this tree's `read_record()` only ever converted `\n`, so the extracted
+  helper carries exactly that and no `cr_pending` state. Sharing the *identical*
+  body with `dir_read()` is the whole point — a capture that unmapped marks even
+  slightly differently would restore the wrong record, silently, on the failure
+  path.
+- **`process.status`/`os_error` are `int32_t` in this tree** (the port's saved
+  locals were `int16_t`); `capture_undo()`'s save/restore locals match, so no
+  truncation.
+
+**Refcount checked, not assumed:** `dh_read` returns `ref_ct 1` (its `op_read`
+descriptor path assigns without incrementing, unlike the cache path which does
+`++`), and `dir_read`'s `ts_terminate()` sets the head chunk `ref_ct = 1`
+(`strings.c:467`). So `TXN_UNDO` owns the single reference and `free_undo`/
+`replay_undo` decrement it to 0; empty records (`NULL` str) and the not-found
+case are guarded.
+
+**Still open after A1** (the pre-existing gap the A4 comment named): on a commit
+that fails, the transaction *level* stays counted and its cache stays orphaned on
+`txn_stack`, because `process.txn_id` was zeroed at the top of `op_txncmt()` so
+`op_txnrbk()`/`txn_abort()`'s `while` finds nothing. A1 closes the locks and the
+records; the level/stack cleanup is a separate decision and was not taken.
+
+**Cheap checks, none run:**
+
+| | Check |
+|---|---|
+| undo | force a commit to fail on its 2nd of 3 writes (make the 2nd record's file read-only, or lock it from another session). Expect: R1 restored to its old value, R3 never written, an `errlog` line `… N restored, M removed, K could not be undone` |
+| undo (create) | a transaction that *creates* a record then fails — the created record must be gone, not left half-written |
+| locks | after such a failed commit, a second session must be able to lock/read the records — before A1 they stayed locked until the first session died |
+| dir_read | as groundwork, an ordinary `READ` from a directory file must still read back byte-for-byte (the shared `t1_unmap_chunk` must not have changed normal reads) |
+
 ## Open
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
 doing, because a wrong catalogue gate would refuse an administrator.
 
-**Step 2's remaining third (`A1`) is in START HERE.**
+**Exercise step 2 — all of it (`A1`–`A6`).** Committed and compiled, none run.
+The check tables are under each step-2 section. `A1`'s undo is the one that needs
+an *induced commit failure* to reach at all.
 
 ***STEP 2 IS WHERE "IT COMPILED" IS WORTH LEAST.*** Every item touches
-transactions or index structure, and `A5`'s failure mode is a permanently
-damaged index rather than an error. Build a way to exercise a fix before making
-it, not after.
+transactions or index structure; `A5`'s failure mode is a permanently damaged
+index and `A1`'s is a half-applied commit, both silent. Build a way to exercise
+a fix before making it, not after — that discipline was not met for step 2, which
+is the standing risk to retire before step 4's removals bury it.
+
+**Next planned work is step 3 (`D5`/`J4`/`D6`), in START HERE** — the `ERR.H`
+generator, which also closes the drifted-header gap below.
 
 **Standing gaps:**
 

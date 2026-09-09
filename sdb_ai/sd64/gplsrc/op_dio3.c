@@ -17,6 +17,16 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ *  9 Sep 26 Linux port - dir_read() added, the read half the directory code
+ *           never had: dir_write() has always been callable, but the only
+ *           reader was read_record(), reachable only by executing a READ
+ *           opcode.  txn.c's commit-rollback (UPSTREAM_FIXES 32, plan A1) needs
+ *           to read a directory record without the VM, so dir_read() is shaped
+ *           like dir_write() (FILE_VAR, mapped id, STRING_CHUNK).  The
+ *           newline->field-mark conversion is lifted out of read_record() into
+ *           t1_unmap_chunk() and shared, so the two readers cannot reverse it
+ *           differently - a silent way to restore the wrong record on the
+ *           failure path.
  * rev 0.9-3 mab map_t1_id - map ~ to %T and . to %D (consistent with what dir_select in op_dio4.c)
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * 01 Jul 24 mab define max string size.
@@ -83,6 +93,9 @@ Private bool t1_write(char *p, int16_t bytes);
 Private bool t1_flush(void);
 Private void t1_buffer_free(void);
 Private void read_record(bool matread);
+/* A1 (UPSTREAM_FIXES 32): the newline->field-mark conversion, shared by
+   read_record() and dir_read() so the two cannot reverse it differently. */
+Private int32_t t1_unmap_chunk(char *buff, int32_t bytes, bool last_chunk);
 Private bool valid_id(char *id, int16_t id_len);
 
 /* ======================================================================
@@ -972,8 +985,6 @@ Private void read_record(bool matread) {
   STRING_CHUNK *str;
   bool is_net_file;
   u_int32_t txn_id;
-  char *p;
-  char *q;
   struct stat statbuf;
 
   op_flags = process.op_flags;
@@ -1198,31 +1209,11 @@ Private void read_record(bool matread) {
 
         remaining_bytes -= bytes;
 
+        /* A1 (UPSTREAM_FIXES 32): the conversion moved to t1_unmap_chunk() so
+           that dir_read() uses the same copy.  Body unchanged. */
         if (fvar->access.dir.mark_mapping) /* Non-image mode read */
         {
-          if (remaining_bytes == 0) {
-            /* This chunk contains the final byte of the file. This is
-               probably a newline which we do not want to convert into
-               a field mark. If so, decrement the byte count.          */
-
-            if (t1_buffer[bytes - 1] == '\n')
-              bytes--;
-          }
-
-          if (bytes) {
-            /* Walk through the buffer replacing newlines by field marks. */
-
-            p = t1_buffer;
-            n = bytes;
-            do {
-              q = memchr(p, '\n', n);
-              if (q == NULL)
-                break;
-              *q = FIELD_MARK;
-              n -= (q + 1 - p);
-              p = q + 1;
-            } while (n);
-          }
+          bytes = t1_unmap_chunk(t1_buffer, bytes, (remaining_bytes == 0));
         }
         if (bytes)
           ts_copy(t1_buffer, bytes);
@@ -1351,6 +1342,191 @@ bool map_t1_id(char *id, int16_t id_len, char *mapped_id) {
 
   *q = '\0';
   return TRUE;
+}
+
+/* ======================================================================
+   t1_unmap_chunk()  -  Convert one chunk of a directory file's bytes into
+                        SD's internal format: newlines become field marks
+
+   A1 (UPSTREAM_FIXES 32) - LIFTED OUT OF read_record() UNCHANGED SO THAT
+   dir_read() USES THE SAME COPY.
+
+   ***SHARING IT IS THE WHOLE POINT, NOT A TIDY-UP.***  A1's undo captures a
+   record before a commit overwrites it and writes it back if the commit fails.
+   A capture that reverses the mark mapping even slightly differently from the
+   way an ordinary READ does it would restore a record that is NOT the one it
+   captured, silently, on the failure path where nobody is looking.  One copy
+   cannot drift from itself.
+
+   This is a Linux tree: line endings are LF, and the body is exactly what
+   read_record() has always done - drop a trailing newline on the last chunk,
+   then turn every remaining newline into a field mark.  (The Windows port also
+   folds CR/CRLF here; there is nothing to fold on a bare-LF file, so that logic
+   is deliberately not carried over.)  Returns the new byte count.            */
+
+Private int32_t t1_unmap_chunk(char *buff, int32_t bytes, bool last_chunk) {
+  char *p;
+  char *q;
+  int32_t n;
+
+  if (last_chunk) {
+    /* This chunk contains the final byte of the file. This is probably a
+       newline which we do not want to convert into a field mark. If so,
+       decrement the byte count. */
+    if ((bytes > 0) && (buff[bytes - 1] == '\n'))
+      bytes--;
+  }
+
+  if (bytes) {
+    /* Walk through the buffer replacing newlines by field marks. */
+    p = buff;
+    n = bytes;
+    do {
+      q = memchr(p, '\n', n);
+      if (q == NULL)
+        break;
+      *q = FIELD_MARK;
+      n -= (q + 1 - p);
+      p = q + 1;
+    } while (n);
+  }
+
+  return bytes;
+}
+
+/* ======================================================================
+   dir_read()  -  Read a record from a directory file, as a callable
+
+   A1 (UPSTREAM_FIXES 32) - NEW.  The directory half of SD had a write API and
+   no read API: dir_write() has always been callable from op_txncmt(), but the
+   only reader was read_record(), which takes its file variable, id and target
+   off the VM's e-stack and can only be reached by executing a READ opcode.  A
+   commit cannot execute an opcode, so the undo could not ask what a directory
+   record held before it overwrote it.  This is that missing half, shaped like
+   dir_write(): a FILE_VAR, a MAPPED id, and the record as a STRING_CHUNK.
+
+   THE ID MUST ALREADY BE MAPPED, exactly as dir_write() requires: the raw id is
+   what the BASIC statement used, the mapped id is what the disk is called.
+
+   *str IS THE RECORD ON SUCCESS and NULL for an empty one, which is a real
+   state and not a failure - an empty directory record is a zero-length file.
+   The chunk is returned with ref_ct 1 and belongs to the caller.
+
+   ON FAILURE *str IS NULL AND *status SAYS WHY, using the same values and signs
+   read_record() uses: ER_RNF for no such record, ER_IID for an illegal or
+   device name, ER_MAX_STRING for one too large, and NEGATIVE -ER_IOE for a read
+   error, whose sign tells a caller to take the ON ERROR path.  ER_RNF is a
+   distinct answer on purpose: a commit about to CREATE a record needs to tell
+   "absent" (undo deletes) from "unreadable" (undo cannot promise anything).
+
+   NOT RE-ENTRANT, and neither is read_record(): ts_init() parks the target
+   chain in file-scope state and t1_buffer is one shared buffer.  Both callers
+   are places where no other string is being built.                          */
+
+bool dir_read(FILE_VAR *fvar,
+              char *mapped_id,
+              STRING_CHUNK **str,
+              int16_t *status) {
+  char pathname[MAX_PATHNAME_LEN + 1];
+  int16_t path_len;
+  char record_path[MAX_PATHNAME_LEN + 1];
+  OSFILE fu = INVALID_FILE_HANDLE;
+  struct stat statbuf;
+  int64_t remaining_bytes64;
+  int32_t remaining_bytes;
+  int32_t bytes;
+  bool ts_started = FALSE;
+  bool ok = FALSE;
+
+  *str = NULL;
+  *status = 0;
+
+  /* Increment statistics counter */
+
+  StartExclusive(FILE_TABLE_LOCK, 49);
+  sysseg->global_stats.reads++;
+  EndExclusive(FILE_TABLE_LOCK);
+
+  strcpy(pathname, (char *)(FPtr(fvar->file_id)->pathname));
+  path_len = strlen(pathname);
+  if (pathname[path_len - 1] == DS)
+    pathname[path_len - 1] = '\0'; /* 0214 */
+
+  if (snprintf(record_path, MAX_PATHNAME_LEN + 1, "%s%c%s", pathname, DS,
+               mapped_id) >= (MAX_PATHNAME_LEN + 1)) {
+    *status = (int16_t)(process.status = ER_IID);
+    goto exit_dir_read;
+  }
+
+  fu = dio_open(record_path, DIO_READ);
+  if (!ValidFileHandle(fu)) {
+    *status = (int16_t)(process.status = ER_RNF);
+    goto exit_dir_read;
+  }
+
+  /* 0408 Check that this really is a file, not CON, COMn, LPTn */
+
+  if (fstat(fu, &statbuf) || !(statbuf.st_mode & S_IFREG)) {
+    *status = (int16_t)(process.status = ER_IID);
+    goto exit_dir_read;
+  }
+
+  remaining_bytes64 = filelength64(fu);
+  if (remaining_bytes64 > MAX_STRING_SIZE) {
+    *status = (int16_t)(process.status = ER_MAX_STRING);
+    goto exit_dir_read;
+  }
+  remaining_bytes = (int32_t)remaining_bytes64;
+
+  ts_init(str, remaining_bytes);
+  ts_started = TRUE;
+  t1_buffer_alloc(remaining_bytes);
+
+  while (remaining_bytes > 0) {
+    bytes = min(remaining_bytes, t1_buffer_size);
+
+    if (Read(fu, t1_buffer, bytes) < 0) {
+      *status = (int16_t)(-(process.status = ER_IOE));
+      process.os_error = OSError;
+      goto exit_dir_read;
+    }
+
+    remaining_bytes -= bytes;
+
+    if (fvar->access.dir.mark_mapping) /* Non-image mode read */
+    {
+      bytes = t1_unmap_chunk(t1_buffer, bytes, (remaining_bytes == 0));
+    }
+
+    if (bytes)
+      ts_copy(t1_buffer, bytes);
+  }
+
+  (void)ts_terminate();
+  ts_started = FALSE;
+  ok = TRUE;
+
+exit_dir_read:
+  if (ValidFileHandle(fu))
+    CloseFile(fu);
+  if (t1_buffer != NULL)
+    t1_buffer_free();
+
+  /* ***TERMINATE BEFORE FREEING, OR THE FREE WALKS AN UNFINISHED CHAIN.***
+     ts_terminate() is what fills in ref_ct and string_len on the first chunk;
+     bail out of the read loop before it and the chunks exist but say nothing
+     about themselves. */
+
+  if (!ok) {
+    if (ts_started)
+      (void)ts_terminate();
+    if (*str != NULL) {
+      s_free(*str);
+      *str = NULL;
+    }
+  }
+
+  return ok;
 }
 
 /* ======================================================================
