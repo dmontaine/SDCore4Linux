@@ -1,0 +1,433 @@
+#
+# gen_includes.py - regenerate the SD BASIC include files that are derived
+#                   from C headers in gplsrc.
+#
+# command line: python3 gplbld/gen_includes.py [--check] [--gplsrc DIR] [--sdsys DIR]
+# eg  cd sdb_ai/sd64 && python3 gplbld/gen_includes.py --check
+#
+# Four BASIC include records are generated from C headers rather than edited:
+#
+#   gplsrc/revstamp.h  ->  sdsys/GPL.BP/REVSTAMP.H      (was GPL.BP/REVSTAMP)
+#   gplsrc/err.h       ->  sdsys/SYSCOM/ERR.H           (was GPL.BP/ERRGEN)
+#   gplsrc/err.h       ->  sdsys/GPL.BP/ERRTEXT.H       (was GPL.BP/ERRGEN)
+#   gplsrc/opcodes.h   ->  sdsys/GPL.BP/OPCODES.H       (was GPL.BP/OPGEN)
+#
+# Ported from SD Core for Windows (its gplbld/gen_includes.py) on the owner's
+# conformity-with-the-port stance.  It replaces every one of those generators.
+# None of them can run on an installed system - each reads a C header at a path
+# that only exists in the development tree - and this port is the only way to
+# regenerate the outputs.  The $execute directives that ran them automatically
+# during compilation are commented out in GPL.BP/CPROC, GPL.BP/APISRVR and
+# GPL.BP/ERRTEXT (plan D6).
+#
+# ERRGEN was the dangerous one.  It truncates both of its outputs before it
+# opens its input, so with gplsrc absent it destroyed SYSCOM/ERR.H and left
+# every ER$ constant in the system undefined - which does not fail the compile,
+# it only produces "is not assigned a value" warnings, and then aborts at run
+# time in whatever program next touches one.  This script writes nothing until
+# it has read everything.
+#
+# OPGEN was pure developer tooling - end users never touched it, no $execute
+# ever ran it, and adding a VM opcode is the only reason to regenerate its
+# output.  Its BASIC source (GPL.BP/OPGEN) is slated for removal (plan G3); the
+# tracked OPCODES.H stays as data and this script is the way to regenerate it.
+# A byte-for-byte --check against the tracked OPCODES.H proves the port matches
+# the BASIC.
+#
+# The translations below reproduce what the BASIC programs did, character for
+# character, including the oddities: TRIM() collapses runs of embedded spaces,
+# which is what makes FIELD(rec, ' ', 3) find the error number in a #define
+# padded out with spaces; the first underscore of a #define name becomes '$'
+# while the rest become '.', which is why ER_ACC_EXISTS is ER$ACC.EXISTS; and
+# OCONV('MX') of zero renders as "00" while all other single-digit values
+# render as one character - kept because otherwise the port would rewrite
+# OP.STOP's hex comment and the byte-for-byte check would flag every line.
+#
+# This tree still uses upper-case account directories (GPL.BP, SYSCOM) pending
+# the lower-case migration in the project stance; the sdsys sub-directory is
+# resolved case-insensitively so this file needs no edit when that migration
+# lands.
+#
+
+import argparse
+import os
+import sys
+import time
+
+# ---------------------------------------------------------------------------
+# SD BASIC string primitives, as the original programs relied on them
+# ---------------------------------------------------------------------------
+
+
+def sd_trim(s):
+    """TRIM(s) - remove leading and trailing spaces and reduce each run of
+    embedded spaces to a single space."""
+    return ' '.join([w for w in s.split(' ') if w != ''])
+
+
+def sd_trimf(s):
+    """TRIMF(s) - remove leading spaces only."""
+    return s.lstrip(' ')
+
+
+def sd_trimb(s):
+    """TRIMB(s) - remove trailing spaces only."""
+    return s.rstrip(' ')
+
+
+def sd_field(s, delim, n):
+    """FIELD(s, delim, n) - 1 based, empty string if there are fewer than n."""
+    parts = s.split(delim)
+    if n < 1 or n > len(parts):
+        return ''
+    return parts[n - 1]
+
+
+def replace_first(s, old, new):
+    """CHANGE(s, old, new, 1) - replace the first occurrence only."""
+    return s.replace(old, new, 1)
+
+
+def read_header(path):
+    """Read a C header as lines with the line terminator removed.  The headers
+    are plain ASCII; read them as latin-1 so no byte can fail to decode."""
+    with open(path, 'r', encoding='latin-1', newline='') as f:
+        text = f.read()
+    lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+    if lines and lines[-1] == '':
+        lines.pop()             # trailing terminator, not a final empty record
+    return lines
+
+
+# ---------------------------------------------------------------------------
+# GPL.BP/REVSTAMP - gplsrc/revstamp.h -> GPL.BP/REVSTAMP.H
+# ---------------------------------------------------------------------------
+
+
+def gen_revstamp(src_lines):
+    out = []
+    for rec in src_lines:
+        rec = sd_trimf(rec)
+        if rec[:2] == '/*':
+            rec = rec[1:]
+        rec = rec.replace('*/', '')
+        if rec[:1] == '#':
+            rec = '$' + rec[1:]
+            rec = rec.replace('_', '.')
+        out.append(rec)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# GPL.BP/ERRGEN - gplsrc/err.h -> SYSCOM/ERR.H and GPL.BP/ERRTEXT.H
+# ---------------------------------------------------------------------------
+
+
+def gen_errgen(src_lines, stamp):
+    errtext = ['* ERRTEXT.H',
+               '* Generated by ERRGEN at ' + stamp,
+               '']
+    syscom = []
+
+    for rec in src_lines:
+        trec = sd_trim(rec)
+
+        if trec[:7] == '#define':
+            number = sd_field(trec, ' ', 3)
+            text = sd_field(trec, '*', 2).replace('(dos)', '')
+            text = sd_trim(text)
+            errtext.append('err<-1> = "' + number + '"; text<-1> = "' +
+                           text + '"')
+
+        if trec == '':
+            syscom.append('')
+        elif rec[:2] == '//':
+            pass                                    # ERRGEN drops these
+        elif rec[:7] == '#define':
+            rec = '$' + rec[1:]
+            rec = replace_first(rec, '_', '$')      # ER_ACC_EXISTS ->
+            rec = rec.replace('_', '.')             #   ER$ACC.EXISTS
+            rec = rec.replace('/*', ';*')
+            rec = rec.replace('*/', '')
+            syscom.append(sd_trimb(rec))
+        else:
+            rec = '* ' + rec[3:]                    # drops the " * " margin
+            rec = rec.replace('*/', '')
+            syscom.append(sd_trimb(rec))
+
+    return syscom, errtext
+
+
+# ---------------------------------------------------------------------------
+# GPL.BP/OPGEN - gplsrc/opcodes.h -> GPL.BP/OPCODES.H
+# ---------------------------------------------------------------------------
+
+
+VM = chr(0xFD)                          # SD @VM - the value mark byte
+
+
+def _fmt_hex(n):
+    """OCONV(n, 'MX').  Uppercase hex, no leading zeros - except 0 renders
+    as '00', a quirk of the BASIC that the port preserves so a byte-for-byte
+    --check against the tracked OPCODES.H stays clean."""
+    return '00' if n == 0 else format(n, 'X')
+
+
+def _emit_define(name, value):
+    """Emit `$define OP.<name>  <value>  ;* <hex>`, laid out to match the
+    fmt('...','24L') + fmt(value,'5R') widths OPGEN used."""
+    left = ('$define OP.' + name).ljust(24)
+    return sd_trimb(left + str(value).rjust(5) + '  ;* ' + _fmt_hex(value))
+
+
+def _insert_prefixed(prefixed, value, name):
+    """Ordered insert into a list of (value, name) tuples, sorted by value.
+    OPGEN's `locate ... by 'AR'` skips a value already present."""
+    lo, hi = 0, len(prefixed)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if prefixed[mid][0] < value:
+            lo = mid + 1
+        else:
+            hi = mid
+    if lo < len(prefixed) and prefixed[lo][0] == value:
+        return
+    prefixed.insert(lo, (value, name))
+
+
+def gen_opgen(src_lines, stamp):
+    out = ['* OPCODES.H',
+           '* Generated by OPGEN at ' + stamp,
+           '']
+
+    simple = [''] * 256                 # simple opcodes, indexed by byte value
+    prefixed = []                       # (value, name), kept sorted by value
+    last_prefix = 0                     # forces no header for the first (unprefixed) group
+
+    i = 0
+    n = len(src_lines)
+    while i < n:
+        rec = src_lines[i]
+
+        # Format-code block: MODE.* $defines, read until the next /* line.
+        if rec == '/* Format codes */':
+            i += 1
+            while i < n:
+                nrec = src_lines[i]
+                if nrec[:2] == '/*':
+                    break
+                trec = sd_trim(nrec)
+                if trec[:7] == '#define':
+                    mode_name = sd_field(trec, ' ', 2)
+                    mode_value = sd_field(trec, ' ', 3)
+                    dotted = mode_name.replace('_', '.')
+                    out.append(sd_trimb(
+                        '$define MODE.' + dotted.ljust(20) + mode_value))
+                i += 1
+            out.append('')
+            continue
+
+        # OPGEN's parse of the macro line: strip quotes, take the arg list
+        # between the first '(' and the next ')'.
+        rq = rec.replace('"', '')
+        op_args = sd_field(sd_field(rq, '(', 2), ')', 1)
+
+        if rec[:5] == '_opc_':
+            # SKip op_illegal and op_illegal2 - OPGEN's [1,10] test catches
+            # both because the second starts with "op_illegal" as its prefix.
+            if sd_trim(sd_field(op_args, ',', 4))[:10] == 'op_illegal':
+                i += 1
+                continue
+
+            # opcode value: chars 3.. of a "0xNN" or "0xNNNN" literal
+            hex_str = sd_field(op_args, ',', 1).strip()[2:]
+            value = int(hex_str, 16)
+            prefix = value >> 8
+            name = sd_trim(sd_field(op_args, ',', 3))
+
+            if prefix:
+                _insert_prefixed(prefixed, value, name)
+            else:
+                simple[value] = name
+
+        elif rec[:7] == '_extop_':
+            # _extop_(PREFIX_NAME, BASE_NAME, NEW_NAME) - build the two-byte
+            # opcode value from the positions of PREFIX_NAME and BASE_NAME in
+            # the simple opcode table.  Every _extop_ in the source comes
+            # after the _opc_ lines it depends on.
+            pref_op = sd_trim(sd_field(op_args, ',', 1))
+            if pref_op not in simple:
+                sys.exit('gen_opgen: prefix opcode not found: ' + pref_op)
+            prefix = simple.index(pref_op)
+
+            base_op = sd_trim(sd_field(op_args, ',', 2))
+            if base_op not in simple:
+                sys.exit('gen_opgen: base opcode not found: ' + base_op)
+            value = (prefix << 8) + simple.index(base_op)
+
+            name = sd_trim(sd_field(op_args, ',', 3))
+            _insert_prefixed(prefixed, value, name)
+
+        else:
+            i += 1
+            continue
+
+        if prefix != last_prefix:
+            out.append('')
+            out.append('* Secondary opcodes, prefix ' + _fmt_hex(prefix)
+                       + ' (' + simple[prefix] + ')')
+            last_prefix = prefix
+
+        out.append(_emit_define(name, value))
+        i += 1
+
+    # Simple opcode name table, 8 names per line, VM-delimited.  The first
+    # line opens with " = "; each subsequent line opens with ' := "' plus a
+    # leading VM so `opcodes` concatenates in place.
+    out.append('')
+    out.append('* Simple opcodes')
+    for j in range(0, 256, 8):
+        group = VM.join(simple[j:j + 8])
+        if j == 0:
+            out.append('opcodes = "' + group + '"')
+        else:
+            out.append('opcodes := "' + VM + group + '"')
+
+    # Prefixed opcode name and value tables, same 8-per-line shape but only
+    # as long as the actual entries.
+    out.append('')
+    out.append('* Secondary opcodes')
+    total = len(prefixed)
+    for j in range(0, total, 8):
+        names = VM.join(p[1] for p in prefixed[j:j + 8])
+        if j == 0:
+            out.append('prefixed.opcodes = "' + names + '"')
+        else:
+            out.append('prefixed.opcodes := "' + VM + names + '"')
+
+    for j in range(0, total, 8):
+        values = VM.join(str(p[0]) for p in prefixed[j:j + 8])
+        if j == 0:
+            out.append('prefixed.opcode.values = "' + values + '"')
+        else:
+            out.append('prefixed.opcode.values := "' + VM + values + '"')
+
+    return out
+
+
+# ---------------------------------------------------------------------------
+
+
+# Any line beginning with this prefix is a generation timestamp, and its date
+# is not information about the content.  compare() ignores it whether the
+# generator was ERRGEN, OPGEN or a later addition.
+GENERATED_AT = '* Generated by '
+
+
+def compare(path, wanted):
+    """Report whether the file on disk matches, ignoring the generation
+    timestamp, which is not information about the content."""
+    if not os.path.exists(path):
+        return 'missing'
+    have = read_header(path)
+    a = [ln for ln in have if not ln.startswith(GENERATED_AT)]
+    b = [ln for ln in wanted if not ln.startswith(GENERATED_AT)]
+    if a == b:
+        return None
+    for i in range(max(len(a), len(b))):
+        old = a[i] if i < len(a) else '<end of file>'
+        new = b[i] if i < len(b) else '<end of file>'
+        if old != new:
+            return ('differs from line %d\n       on disk: %s\n     generated: %s'
+                    % (i + 1, old, new))
+    return 'differs'
+
+
+def write_lines(path, lines):
+    with open(path, 'w', encoding='latin-1', newline='\n') as f:
+        for ln in lines:
+            f.write(ln + '\n')
+
+
+def resolve_subdir(base, name):
+    """Return base/<child> where <child> matches `name` case-insensitively if
+    such a directory exists (this tree still uses upper-case GPL.BP / SYSCOM
+    pending the lower-case migration), else base/name."""
+    target = name.lower()
+    try:
+        for child in os.listdir(base):
+            if child.lower() == target and os.path.isdir(os.path.join(base, child)):
+                return os.path.join(base, child)
+    except OSError:
+        pass
+    return os.path.join(base, name)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description='Regenerate the BASIC include records derived from gplsrc '
+                    'C headers.')
+    ap.add_argument('--gplsrc', default='gplsrc',
+                    help='C source directory (default: gplsrc)')
+    ap.add_argument('--sdsys', default='sdsys',
+                    help='SDSYS account directory (default: sdsys)')
+    ap.add_argument('--check', action='store_true',
+                    help='report what would change and exit non-zero if '
+                         'anything would, writing nothing')
+    args = ap.parse_args()
+
+    gpl_bp = resolve_subdir(args.sdsys, 'gpl.bp')
+    syscom = resolve_subdir(args.sdsys, 'syscom')
+
+    revstamp_h = os.path.join(args.gplsrc, 'revstamp.h')
+    err_h = os.path.join(args.gplsrc, 'err.h')
+    opcodes_h = os.path.join(args.gplsrc, 'opcodes.h')
+    out_revstamp = os.path.join(gpl_bp, 'REVSTAMP.H')
+    out_syscom = os.path.join(syscom, 'ERR.H')
+    out_errtext = os.path.join(gpl_bp, 'ERRTEXT.H')
+    out_opcodes = os.path.join(gpl_bp, 'OPCODES.H')
+
+    for path in (revstamp_h, err_h, opcodes_h):
+        if not os.path.isfile(path):
+            sys.exit('gen_includes: cannot read %s' % path)
+    for path in (out_revstamp, out_syscom, out_errtext, out_opcodes):
+        parent = os.path.dirname(path)
+        if not os.path.isdir(parent):
+            sys.exit('gen_includes: no such directory %s' % parent)
+
+    # Read everything before writing anything.  ERRGEN did the opposite.
+    now = time.localtime()
+    stamp = time.strftime('%H:%M:%S ', now) + \
+        ('%2d ' % now.tm_mday) + time.strftime('%b %Y', now).upper()
+    revstamp = gen_revstamp(read_header(revstamp_h))
+    err_lines = read_header(err_h)
+    syscom_lines, errtext = gen_errgen(err_lines, stamp)
+    opcodes = gen_opgen(read_header(opcodes_h), stamp)
+
+    outputs = ((out_revstamp, revstamp),
+               (out_syscom, syscom_lines),
+               (out_errtext, errtext),
+               (out_opcodes, opcodes))
+
+    if args.check:
+        stale = 0
+        for path, lines in outputs:
+            why = compare(path, lines)
+            if why is None:
+                print('  in sync  %s' % path)
+            else:
+                stale += 1
+                print('  STALE    %s %s' % (path, why))
+        if stale:
+            print('%d file(s) out of date - run without --check to '
+                  'regenerate' % stale)
+        return 1 if stale else 0
+
+    for path, lines in outputs:
+        write_lines(path, lines)
+        print('  wrote    %s (%d lines)' % (path, len(lines)))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

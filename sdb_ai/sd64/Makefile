@@ -67,7 +67,9 @@ BITSIZE := 64
 $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
 
 # Default target
-all: sd
+# check-includes first (plan J4): the BASIC include records derived from C
+# headers must match their sources, or the drift only shows at run time.
+all: check-includes sd
 
 sd: ARCH :=
 sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE
@@ -163,7 +165,14 @@ sysseg.o: sysseg.c sd.h locks.h config.h revstamp.h
 	@echo Compiling $@, $(BITSIZE) bit target.
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)$@
 
-.PHONY: all clean
+.PHONY: all clean check-includes
+
+# plan D5/J4 - the SD BASIC include records generated from C headers
+# (SYSCOM/ERR.H, GPL.BP/ERRTEXT.H, GPL.BP/REVSTAMP.H, GPL.BP/OPCODES.H) must
+# match their gplsrc sources.  --check writes nothing and exits non-zero on any
+# drift; regenerate with:  python3 gplbld/gen_includes.py
+check-includes:
+	@python3 gplbld/gen_includes.py --check
 
 clean:
 	@echo Cleaning build files
