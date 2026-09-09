@@ -28,12 +28,33 @@ until it is done an install does not test this tree, then `F1` upgrade split ·
 `F2` `UPDATE.ACCOUNTS` · `F3` `[locked]` · `F4` config parser · `F5` changelog
 location · `F7` self-check · `F6`, `F8`.
 
-***THE LOWER-CASE MIGRATION WAS NOT FOLDED INTO STEP 4, AND THE EARLIER
-SUGGESTION HERE THAT IT SHOULD BE IS WITHDRAWN.*** The plan puts §M at step **7**,
-after the installer and the security model, and §M2's migration is written as a
-rename step inside `installsdai.sh` and `update.accounts` — which is §F2, step 5,
-and does not exist yet. Folding it in here would have meant writing the migration
-before the thing it lives in.
+***THE LOWER-CASE CONVERSION IS NOT IN QUESTION AND NOTHING HAS BEEN DROPPED.***
+It is the owner's standing decision — CLAUDE.md Project stance, 8 Sep 2026,
+*"lower case throughout, matching the port"* — and it is **conformity with SD
+Core for Windows**, which outranks conformity with upstream. §M happens.
+
+**What was withdrawn is a SCHEDULING suggestion, and it was a prior session's,
+not the owner's.** The line *"a good place to insist on the lower-case migration
+going in with it"* entered this file in `3d61b3a` (step 3) and hardened by
+recopying into *"fold in the lower-case migration here"* — an emphatic
+imperative with no ruling or measurement behind it. **§M stays where the plan
+puts it, at step 7**, for two reasons that are dependencies rather than taste:
+
+- §M2's migration is *"a rename step for an existing tree, per account and for
+  `sdsys`"* **inside `installsdai.sh` and `update.accounts`**. `update.accounts`
+  does not exist here — only a singular `VOC_TEMPLATE/UPDATE.ACCOUNT` — and §F2
+  (step 5) opens by saying to check whether `GPL.BP` has an equivalent. The
+  container is unbuilt work.
+- §M1: *"The order is not optional: fold, then rename. Renaming first breaks
+  every existing name until the fold lands."* The rename is the half that looks
+  like it belongs with a bulk removal pass; it is precisely the half §M1 forbids
+  going first.
+
+***STEP 4 MOVED §M FORWARD RATHER THAN BACK.*** `I3`/`I4`/`I5`/`I2` deleted four
+programs and nine VOC records that would otherwise need renaming, and §M1's own
+text says `UPDATE.RECORD`'s keyword fold is *"moot — §I4 removes it"*. **`M1`'s
+fold has no dependency on `update.accounts` and can be started at any time** if
+the owner wants §M begun before step 5.
 
 ***Step 4 installs, boots and runs at `2b4d9f0`*** (owner, 9 Sep — see State of
 the tree). **`G4` is CLOSED by the owner's decision, 9 Sep.** Its read side was
