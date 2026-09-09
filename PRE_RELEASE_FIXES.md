@@ -536,10 +536,9 @@ one:**
 
 1. ***`CPROC:285` STOPS REPLACING `@logname`.*** The euid drop at `:281` is for
    file ownership and umask and **stays**; what goes is the identity
-   substitution. This is the change that makes the other two possible, and it
-   is also the one that can alter behaviour anywhere `@logname` is currently
-   `sdsys` after a `sudo` start. ***THAT SET HAS NOT BEEN ENUMERATED — DO IT
-   FIRST.*** `CPROC:2483`, `:2890`, `:3110` and `:3333` are four known readers.
+   substitution. ***THE ENUMERATION IS DONE — see below.*** ***AND PIECE 1 IS
+   BIGGER THAN THIS LINE. SEE "The person is not recoverable" below before
+   starting it.***
 2. **A new kernel key**, this tree's equivalent of the port's
    `K$OS.ADMINISTRATOR`. ***NEXT FREE NUMBER IS 57*** — `keys.h` runs to
    `K_RUNEXE 56`, checked 9 Sep.
@@ -623,6 +622,47 @@ today reaches a session only because the identity was masked as `sdsys`. **The
 gate becoming honest about that is the point of the change, not a regression.**
 The emphatic wording above is left standing, with this correction beneath it,
 because the overstatement is the thing worth seeing.
+
+### The person is not recoverable by removing the substitution — 9 Sep 2026
+
+***PIECE 1 WAS STARTED AND STOPPED HERE, FOR A REASON WORTH READING BEFORE
+TRYING AGAIN.*** *"Stop replacing `@logname`"* does **not** leave the real
+person behind. **On `sudo sd` the process genuinely is root**: `getuid()` is 0,
+and `process.username` is taken from `my_uptr->username` at `kernel.c:198`,
+which is the OS identity. ***SO REMOVING THE `sdsys` REWRITE SWAPS `sdsys` FOR
+`root`, NOT FOR THE PERSON.***
+
+***AND THAT FAILS SILENTLY IN THE WORST DIRECTION — IT LOOKS LIKE IT WORKED.***
+`root` is a member of `sdusers` **and** of the account groups: measured,
+`sdusers:x:979:root,sdsys,don` and `sdu_don:x:1001:root,don`. **So
+`LOGIN:191`'s test and `CPROC:2483`'s test would both PASS**, every gate would
+go green, and every administrator action would still be attributed to a
+non-person. **A verdict from an instrument that never reached the condition it
+claimed to measure** — the exact shape CLAUDE.md's instrument rule exists for.
+
+***THE REAL PERSON IS NOT IN THE PROCESS AT ALL, SO IT HAS TO BE FETCHED.***
+`sudo` exposes the invoker only in the environment, and ***NOTHING IN THIS TREE
+READS `SUDO_USER`*** — grep across `gplsrc/`, `sdsys/` and the installer:
+**zero hits.** There is also **no general set-session-username kernel key** to
+write it back with: `op_kernel.c:716` is `op_login()`, the API path only.
+
+**Three candidate sources, none free:**
+
+| | Works when | Fails when |
+|---|---|---|
+| `SUDO_USER` | the session came through `sudo` | `su`, a root login, or any non-sudo route — and it is an environment variable |
+| `getlogin()` | there is a utmp entry | cron, containers, some ssh configurations return empty |
+| owner of the controlling tty | interactive sessions | no tty at all — API, phantom, piped input |
+
+***THE ENVIRONMENT-VARIABLE OBJECTION IS WEAKER THAN IT LOOKS AND SHOULD BE
+SAID OUT LOUD:*** `SUDO_USER` can only be forged by somebody who is already
+root, and a person who is already root has nothing left to gain. **The real
+weakness is absence, not forgery** — which is why the null case matters more
+than the trust case.
+
+***WHATEVER IS CHOSEN MUST REFUSE TO GUESS.*** If no source answers, the
+identity must be recorded as unknown and say so, rather than falling back to
+`root` — because falling back to `root` is precisely the silent pass above.
 
 **Two incidental findings, both leads rather than established:**
 
