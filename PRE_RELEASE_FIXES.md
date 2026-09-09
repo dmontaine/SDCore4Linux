@@ -723,17 +723,42 @@ the **user number and the ACCOUNT** — the owner's run answered `65 SDSYS`. Tha
 `SDSYS` is `@who`, the account, and it is **correct and unchanged by this
 work**; it is not `@logname` and says nothing about the person.
 
-**`WHO.AM.I` witnesses two things at once** (`GPL.BP/WHOAMI:43-55`):
+***THE BASELINE IS BANKED. Owner ran `WHO.AM.I` under `sudo sd` on the 11:35
+install, 9 Sep 2026, BEFORE any of this work is installed:***
 
-| Line | Before an install of this work | After |
+```
+User        : sdsys      Process UID : 0      Admin?      : Yes
+Account     : SDSYS      Process EUID: 999    umask       : 2
+User Number : 65         Process GID : 0      Host Name   : gitorli
+                         Process EGID: 979    Sys Path    : /usr/local/sdsys
+```
+
+***`Process UID : 0` IS THE LINE THAT MATTERS, AND IT CONFIRMS BY MEASUREMENT
+WHAT THIS ENTRY ARGUED FROM SOURCE.*** On `sudo sd` the **real** uid is 0, so
+`process.username` would be `root` — **deleting the substitution would have
+produced `root`, not the person**, and every gate would have passed silently.
+The `K$REAL.USER` design is not belt-and-braces; it is the only thing that can
+answer the question.
+
+**And the drop is doing exactly its job:** `EUID 999` / `EGID 979` are `sdsys`
+and `sdusers` (`sdsys:999:979`, checked), against `UID 0` / `GID 0` underneath.
+***THE PRIVILEGE DROP AND THE IDENTITY ARE ALREADY SEPARATE THINGS ON THIS
+SCREEN***, which is the whole premise of piece 1.
+
+| Line | Baseline (measured) | After an install of this work |
 |---|---|---|
-| `User        :` | `sdsys` | ***the person*** |
+| `User        :` | **`sdsys`** | ***the person*** — `don`, uid 1000 |
 | `Account     :` | `SDSYS` | `SDSYS` — unchanged |
-| `Process EUID:` | sdsys's | sdsys's — unchanged, the drop stays |
-| `Admin?      :` | yes | **yes — this also re-checks the entry-19 fix** on the live `sudo sd` path |
+| `Process UID :` | `0` | `0` — unchanged |
+| `Process EUID:` | `999` | `999` — unchanged, **the drop stays** |
+| `Admin?      :` | `Yes` | `Yes` — **re-checks the entry-19 fix** on the live path |
 
-**Run it under `sudo sd` BEFORE installing to bank the baseline**, then again
-after.
+***IF `User` STILL READS `sdsys` AFTER AN INSTALL, THE THREE CAUSES ARE
+DISTINGUISHABLE, WHICH IS WHY THIS IS A USABLE INSTRUMENT.*** The install did
+not carry the commits (check `sd --version` date / the binary's mtime); or
+`SUDO_USER` never reached the process; or the unknown arm fired — **and that
+last one prints message 10032 at start-up**, so it announces itself rather than
+being inferred.
 
 **Two incidental findings, both leads rather than established:**
 
