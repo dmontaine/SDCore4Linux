@@ -9,6 +9,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  SDNET - REMOTE FILE ACCESS OVER THE NETWORK - HAS BEEN REMOVED.
+
+           SD could open a file held on another SD server by naming it
+           server;file in a VOC pointer, over a private protocol on port 4245.
+           That whole facility is gone, along with the verbs that configured it:
+           SET.SERVER, DELETE.SERVER and LIST.SERVERS.  A VOC pointer written in
+           the server;file form now fails to open like any other bad path.
+
+           Why: it was an unmaintained network path, its per-server passwords
+           were stored in sd.conf with a simple letter substitution that is not
+           encryption, and it could not be turned off - the NETFILES setting was
+           read at startup and then never consulted.  Removing it serves the
+           smaller-system goal and closes a weak spot at the same time.
+
+           The NETFILES line in sd.conf is still accepted and ignored, so an
+           existing configuration file still loads.  If you used SDNet, remote
+           access is no longer available; copy the data across instead.
+
 09 Sep 26  THE TAPE AND RESTORE SUBSYSTEM HAS BEEN REMOVED.
 
            SD no longer ships the tape verbs - ACCOUNT.SAVE, ACCOUNT.RESTORE,

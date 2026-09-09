@@ -110,6 +110,6 @@ $define BRK$GOTO.LINE       10    ;* Continue execution at given line
 $define FVAR.DIRECTORY      1
 $define FVAR.DYNAMIC        2
 $define FVAR.SEQ            3
-$define FVAR.NET            4
+* 4 was FVAR.NET - SDNet removed (plan G4)
 
 * END-CODE

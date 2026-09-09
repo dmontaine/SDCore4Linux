@@ -17,8 +17,15 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ *  9 Sep 26 Linux port - SDNet removed (plan G4, UPSTREAM_FIXES SDNet entry).
+ *           The ';' network-file dispatch and net_open() call are gone from
+ *           op_open(), so a mapped name containing ';' now falls through to
+ *           fullpath() and fails like any other bad pathname; the NET_FILE
+ *           close arm went too. gplsrc/netfiles.c and the NET_FILE type are
+ *           deleted; NETFILES, USR_SDNET, K$SDNET, SrvrOpenSDNet and sdnet.h
+ *           (the socket/termios portability header - NOT SDNet) stay.
  * 31 Dec 23 SD launch - prior history suppressed
- * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
+ * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -405,8 +412,7 @@ void dio_close(FILE_VAR* fvar) {
 
     /* 0323 Handle close in a transaction */
 
-    if ((process.txn_id != 0) && !(fvar->flags & FV_NON_TXN) &&
-        (fvar->type != NET_FILE)) {
+    if ((process.txn_id != 0) && !(fvar->flags & FV_NON_TXN)) {
       /* Do not really close in mid-transaction */
       (void)txn_close(fvar);
       return;
@@ -463,10 +469,6 @@ void dio_close(FILE_VAR* fvar) {
 
     case SEQ_FILE:
       close_seq(fvar);
-      break;
-
-    case NET_FILE:
-      net_close(fvar);
       break;
   }
 
@@ -553,8 +555,6 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   AK_CTRL* ak_ctrl;
   u_int32_t ak_map;
   struct stat statbuf;
-  char* server;
-  char* remote_file;
   u_int32_t device = 0;
   u_int32_t inode = 0;
 
@@ -632,24 +632,9 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
       goto exit_op_open;
     }
 
-    if (strchr(mapped_name, ';') != NULL) /* This is a network file reference */
-    {
-      /* Modified by Composer AI - 2026/06/10.
-         Replaced strtok() with the reentrant strtok_r(), preserving
-         the original tokenizing semantics. */
-      /* server = strtok(mapped_name, ";"); */
-      /* remote_file = strtok(NULL, "\0"); */
-      char* savep = NULL;
-      server = strtok_r(mapped_name, ";", &savep);
-      remote_file = strtok_r(NULL, "\0", &savep);
-      /* -------------------- */
-
-      if (!net_open(server, remote_file, fvar)) {
-        /* process.status will have been set by open_networked_file() */
-        goto exit_op_open;
-      }
-      goto opened_network_file;
-    }
+    /* SDNet removed (plan G4): a name containing ';' is no longer a network
+       file reference. It falls through to fullpath() and fails like any other
+       bad pathname. */
   }
 
   fullpath(pathname, mapped_name);
@@ -854,7 +839,6 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   }
 
 opened_via_txn_cache:
-opened_network_file:
 
   /* Set file variable */
 

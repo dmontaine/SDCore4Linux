@@ -266,31 +266,8 @@ u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 bool load_language(char * language_prefix);
 char * sysmsg(int msg_no);
 
-/* NETFILES.C */
-int net_clearfile(FILE_VAR * fvar);
-void net_close(FILE_VAR * fvar);
-int net_delete(FILE_VAR * fvar, char * id, int16_t id_len, bool keep_lock);
-STRING_CHUNK * net_fileinfo(FILE_VAR * fvar, int key);
-int net_filelock(FILE_VAR * fvar, bool wait);
-int net_fileunlock(FILE_VAR * fvar);
-STRING_CHUNK * net_indices1(FILE_VAR * fvar);
-STRING_CHUNK * net_indices2(FILE_VAR * fvar, char * index_name);
-int net_lock(FILE_VAR * fvar, char * id, int16_t id_len, bool update, bool no_wait);
-void net_mark_mapping(FILE_VAR * fvar, bool state);
-bool net_open(char * server, char * remote_file, FILE_VAR * fvar);
-int net_read(FILE_VAR * fvar, char * id, int16_t id_len, u_int16_t op_flags, STRING_CHUNK ** str);
-int net_readv(FILE_VAR * fvar, char * id, int16_t id_len, int field_no, u_int16_t op_flags, STRING_CHUNK ** str);
-int net_recordlocked(FILE_VAR * fvar, char * id, int16_t id_len);
-int net_scanindex(FILE_VAR * fvar, char * index_name, int16_t list_no,
-                  DESCRIPTOR * key_descr, bool right);
-int net_select(FILE_VAR * fvar, STRING_CHUNK ** list, int32_t * count);
-int net_selectindex(FILE_VAR * fvar, char * index_name, STRING_CHUNK ** str);
-int net_selectindexv(FILE_VAR * fvar, char * index_name, char * value, STRING_CHUNK ** str);
-int net_setindex(FILE_VAR * fvar, char * index_name, bool right);
-int net_unlock(FILE_VAR * fvar, char * id, int16_t id_len);
-int net_unlock_all(void);
-int net_write(FILE_VAR * fvar, char * id, int16_t id_len, STRING_CHUNK * str, bool keep_lock);
-STRING_CHUNK * get_sdnet_connections(void);
+/* NETFILES.C removed - SDNet (plan G4). sdnet.h is a different file (the
+   socket/termios portability header) and stays. */
 
 /* OBJECT.C */
 void * load_object(char * name, bool abort_on_error);
