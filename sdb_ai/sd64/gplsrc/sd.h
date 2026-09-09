@@ -331,6 +331,8 @@ bool make_path(char * tgt);
 
 /* OP_DIO3.C */
 bool dir_write(FILE_VAR * fvar, char * mapped_id, STRING_CHUNK * str);
+bool dir_read(FILE_VAR * fvar, char * mapped_id, STRING_CHUNK ** str,
+              int16_t * status);
 bool map_t1_id(char * id, int16_t id_len, char * mapped_id);
 bool call_trigger(DESCRIPTOR * fvar_descr, int16_t mode, DESCRIPTOR * id_descr,
                   DESCRIPTOR * data_descr, bool on_error, bool updatable);
