@@ -136,6 +136,11 @@
       $define K$SETUID          54       ;* NIX authorisation
       $define K$SETGID          55       ;* NIX authorisation
       $define K$RUNEXE          56       ;* Run executable
+* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
+*   NOT the same as K$USERNAME, which answers whoever the process is running
+*   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
+*   source can name the person; the caller must refuse rather than guess.
+      $define K$REAL.USER       57       ;* Real person behind the session
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

@@ -233,6 +233,49 @@ void op_kernel() {
       k_put_c_string(process.username, &result);
       break;
 
+    /* 09 Sep 26 dm - PRE_RELEASE 20.  WHO IS THE REAL PERSON?
+       K_USERNAME above answers "who is this process running as", which after
+       CPROC's drop is sdsys and before it is root.  Neither is a person, and
+       the owner's definition of an administrator - a sudoers member who is
+       ALSO a registered SD administrator - needs a person to look up.
+
+       ON "sudo sd" THE PROCESS GENUINELY IS root.  getuid() is 0 and
+       process.username comes from my_uptr->username (kernel.c:198), the OS
+       identity, so simply not overwriting it yields "root" rather than the
+       person.  That would fail SILENTLY IN THE WORST DIRECTION: root is a
+       member of sdusers and of the account groups, so LOGIN's registration
+       test and CPROC's account-entry test would both PASS and every
+       administrator action would still be attributed to a non-person.
+
+       SO THE PERSON IS FETCHED, IN THE ORDER THE OWNER RULED (9 Sep 26):
+       SUDO_USER, then getlogin(), then unknown.
+
+         SUDO_USER  sudo sets it to the invoker.  It is an environment
+                    variable, and that objection is weaker than it looks:
+                    forging it requires already being root, and somebody who
+                    is already root has nothing left to gain.  Its real
+                    weakness is ABSENCE - su, a root login, any non-sudo
+                    route - not forgery.
+         getlogin() the utmp answer, which survives sudo.  Empty under cron,
+                    in containers, and in some ssh configurations.
+
+       AND IT REFUSES TO GUESS.  With no source it returns "" rather than
+       falling back to root or sdsys, because that fallback is precisely the
+       silent pass described above.  The CALLER must treat "" as unknown and
+       decline to name anybody - see CPROC.                                  */
+
+    case K_REAL_USER: {
+      const char * person = getenv("SUDO_USER");
+
+      if ((person == NULL) || (*person == '\0'))
+        person = getlogin();
+
+      if ((person == NULL) || (*person == '\0'))
+        person = "";        /* unknown - say so, do not guess */
+
+      k_put_c_string((char *)person, &result);
+    } break;
+
     case K_DATE_CONV:
       if ((result.data.value = (k_get_c_string(descr, s, 32))) > 0) {
         strcpy(default_date_conversion, s);
