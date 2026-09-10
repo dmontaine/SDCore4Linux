@@ -35,20 +35,56 @@ install will meet.
 ***THE COMPILE RECIPE, WHICH IS REUSABLE AND WAS THE MISSING INSTRUMENT:***
 `sd -internal BASIC <file> <prog>`, arguments separate, **no pipe** — the port's
 recipe at its `HISTORY.md:18916`. Stage the program plus its twelve `$include`
-records **from the working tree** into an empty `BP` and compile as an ordinary
-user. `CPROC` **0 errors on both `IS_INSTALL` arms**, HEAD as the control also
+records **from the working tree** into an empty `BP`. ***AS OF `PRE_RELEASE` 21,
+FIXED LATER THE SAME DAY, THIS NEEDS EITHER `sudo` OR A DEVELOPER BUILD*** — see
+below; the runs recorded here predate the fix and ran as `don`. `CPROC` **0
+errors on both
+`IS_INSTALL` arms**, HEAD as the control also
 0, and **two red runs** (a truncated `CPROC` → 10 errors; the same file without
 `-internal` → the port's exact directive cascade). Fixtures removed;
 `COUNT VOC` 411 either way.
 
-***AND THE SESSION FOUND SOMETHING BIGGER THAN WHAT IT BUILT: `PRE_RELEASE` 21.***
-***AS `don`, uid 1000, NO `sudo`, A FIVE-LINE `$internal` PROGRAM SET ITS OWN
-ADMINISTRATOR FLAG*** — `PRE admin flag = 0` → `POST admin flag = 1`, null case
-refused. `-INTERNAL` at `sd.c:310` has **no privilege check**, while `-I` three
-lines below calls `check_admin()`. **So entry 18's gate — and any gate on that
-flag — is bypassable today.** The fix is one line and is a **ruling**, because
-it moves this project's only BASIC-compile instrument behind `sudo`. **Read §21
-before treating 18 as closed.**
+***AND THE SESSION FOUND SOMETHING BIGGER THAN WHAT IT BUILT: `PRE_RELEASE` 21 —
+NOW FOUND, RULED AND FIXED IN THE SAME SESSION.*** ***AS `don`, uid 1000, NO
+`sudo`, A FIVE-LINE `$internal` PROGRAM SET ITS OWN ADMINISTRATOR FLAG*** —
+`PRE admin flag = 0` → `POST admin flag = 1`, null case refused. `-INTERNAL` had
+**no privilege check**, while `-I` three lines below called `check_admin()`. So
+entry 18's gate — and any gate on that flag — was bypassable.
+
+***THE OWNER RULED IT, 9 Sep 2026, AND THE RULING IS WIDER THAN THE ENTRY:
+THIS SYSTEM SHIPS FOR PRODUCTION, NOT FOR DEVELOPERS.*** Source is available and
+forkable, issues and comments welcome, **but no other human commits and the
+installer is not a developer's tool.** ***THAT DISPOSES OF THE ONLY OBJECTION TO
+THE FIX*** — a shipped production system owes an ordinary user no compiler for
+its own internals, and the one person who needs the instrument has `sudo`.
+
+**Built:** `-INTERNAL` calls `check_admin()`, and ***`check_admin()`'s
+`in_group("admin")` arm is removed*** — not because it is dead here, which it
+is, but because on Ubuntu-family systems `admin` was the old sudo group, so the
+fix would have held on this machine and quietly not held elsewhere. `sdadmin`
+was considered and rejected: it honours the owner's first gate and skips the
+second. **Witnessed before/after/control as `don`, uid 1000**: installed binary
+took `-internal WHO` (`3 DON`, exit 0), built binary refuses (exit 1), built
+binary with no flag still works (`4 DON`, exit 0). **All three routes into
+internal mode enumerated**; the `op_kernel.c:140` setter is reachable only
+through the two gated flags, and all eleven `GPL.BP` uses of `K$INTERNAL` are
+enquiries. ***Lead, not built***: that setter has no `HDR_INTERNAL` guard, which
+is entry 19's shape.
+
+***AND THE DEVELOPER'S COST WAS BOUGHT BACK, ON THE OWNER'S QUESTION: `make
+EXTRA_C_FLAGS=-DSD_DEV_BUILD`.*** A build-time bypass of a privilege check is
+normally the worst kind of divergence — the binary you tested is not the one
+that ships. ***IT IS SAFE HERE FOR A REASON ALREADY IN CLAUDE.md AND NOWHERE
+ELSE: `installsdai.sh` CLONES `main` FROM GITHUB AND BUILDS THAT***, so an
+installed system is always built from a clean checkout with default flags and a
+developer binary has no route to a user. **It announces itself on `--version`
+and on every use of `-internal`**, plain `make` is untouched, and `bin/sd` in
+the tree was rebuilt default afterwards. **`check_admin()`'s own tightening is
+NOT conditional** — the `admin` arm is gone in both builds, because it was a
+distribution-dependent weakness rather than a convenience.
+
+***SO THE COMPILE RECIPE ABOVE STILL WORKS WITHOUT `sudo`, PROVIDED YOU BUILT
+DEV*** — and the stderr line in the transcript is how you know you did.
 
 ***COMMIT 2 STILL HAS NOT RUN, AND THAT WAS CHECKED RATHER THAN ASSUMED.*** The
 17:53 install carries `K$REAL.USER` **×3** and `grant.administrator` **×0** in

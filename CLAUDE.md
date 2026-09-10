@@ -251,6 +251,17 @@ of them reverse what an earlier analysis recommended.
 - **This system is maintained by AI.** An engineering constraint, not a note about
   process: it argues for machine-checkable invariants, generated headers, and a
   `git status` that can be read.
+- ***THIS VERSION SHIPS FOR PRODUCTION, NOT FOR DEVELOPERS*** (owner, 9 Sep 2026).
+  The source is public and forkable, comments and bug reports are welcome, and
+  **other humans will not be committing** — one human is involved. **The
+  installer is not a developer's tool.** *Use it when weighing a convenience for
+  whoever builds from source against a weakness in what is installed:* **the
+  shipped system owes an ordinary user nothing for development**, and the one
+  person who needs a developer's facility has `sudo` and the source tree.
+  `PRE_RELEASE` 21 is the worked example — `sd -internal` went behind
+  `check_admin()` on this ruling, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as
+  the opt-in hatch that **announces itself and cannot reach a user**, because
+  the installer builds from a fresh clone.
 
 ## Where this repository lives
 
@@ -300,6 +311,19 @@ cd /home/don/Projects/sdcore4linux/sdb_ai/sd64 && make
 `make` must run from `sdb_ai/sd64` — the Makefile uses `MAIN := $(shell pwd)/`.
 After a toolchain or header change, clear stale objects with `rm -f gplobj/*.o`;
 `make` relinks only what changed, which is not the same as "the tree is current".
+
+**A developer build is the one documented deviation, and it is opt-in:**
+
+```sh
+make EXTRA_C_FLAGS=-DSD_DEV_BUILD
+```
+
+It drops the privilege check on `sd -internal` so `GPL.BP` can be compiled
+without `sudo` — see "Testing" and `PRE_RELEASE` 21. ***REBUILD WITH PLAIN
+`make` WHEN YOU ARE DONE***: `bin/sd` is what a hand-over points at, and a
+developer binary differs from the shipping one in a privilege check. It says so
+on `--version` and on every use of the flag, which is how you check rather than
+remember.
 
 ## Testing: a test cycle begins with a fresh install
 

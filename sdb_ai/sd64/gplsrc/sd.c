@@ -308,6 +308,48 @@ Private bool comlin(int argc, char *argv[]) {
       cleanup();
       exit(0);
     } else if (!stricmp(argv[arg], "-INTERNAL")) {
+      /* 09 Sep 26 dm - PRE_RELEASE 21.  THIS FLAG WAS UNGUARDED AND IT WAS A
+         WAY FOR ANY USER TO BECOME AN ADMINISTRATOR.
+
+         Internal mode is what lets BCOMP accept the $INTERNAL directive
+         (BCOMP:2853, gated on kernel(K$INTERNAL,-1)), and $INTERNAL is what
+         makes the restricted intrinsics resolve (BCOMP:3759) - KERNEL among
+         them.  So without a check here, an ordinary user could compile a
+         $internal program and call kernel(K$ADMINISTRATOR, 1) on themselves.
+
+         MEASURED 09 Sep 26, NOT REASONED: as don, uid 1000, no sudo, a probe
+         went from "admin flag = 0" to "admin flag = 1".  That defeated
+         PRE_RELEASE 18's register gate and every other gate on that flag,
+         since all of them only READ what this could set.
+
+         check_admin() is what -I three lines below already does, and every
+         install runs both under sudo, so the installer is unaffected
+         (installsdai.sh:645, :672).  THE COST IS DELIBERATE AND RULED: it
+         puts compiling CPROC, CATALOG and LOGIN outside an install behind
+         sudo.  The owner ruled 09 Sep 26 that this system ships for
+         production rather than for developers, so the shipped install owes
+         an ordinary user no compiler for its own internals.
+
+         AND THE DEVELOPER'S COST IS BOUGHT BACK BY SD_DEV_BUILD, WHICH IS
+         SAFE HERE FOR A REASON THAT IS NOT GENERALLY TRUE.  A build-time
+         escape hatch normally means the binary you tested is not the binary
+         that ships, which is the worst place for a difference to hide.  It
+         does not mean that here: installsdai.sh CLONES main FROM GITHUB AND
+         BUILDS THAT (owner, 9 Sep 26), so an installed system is always
+         built from a clean checkout with default flags, and a developer
+         binary has no route to a user.
+
+         IT IS OFF UNLESS ASKED FOR, AND IT ANNOUNCES ITSELF WHEN ON.  A
+         silent bypass would be a binary that cannot be told from a shipped
+         one by looking at it - the line below and the --version line put it
+         in every transcript instead.  Build it with
+         "make EXTRA_C_FLAGS=-DSD_DEV_BUILD".                              */
+#ifdef SD_DEV_BUILD
+      fprintf(stderr,
+              "sd: DEVELOPER BUILD - -internal is not privilege checked\n");
+#else
+      check_admin();
+#endif
       internal_mode = TRUE;
     } else if (!stricmp(argv[arg], "-QUIET")) {
       command_options |= CMD_QUIET;
@@ -450,6 +492,14 @@ Private bool comlin(int argc, char *argv[]) {
           } else if (!stricmp(argv[arg], "--VERSION")) {
 /* rev 0.9.1 Mar 25 return to single rev track */            
             printf("String Database (sd) Version %s %s\n", SD_REV_STAMP, BUILD_TARGET);
+/* 09 Sep 26 dm - PRE_RELEASE 21.  A developer build must be identifiable
+   without running anything privileged, because the ONE thing it changes is a
+   privilege check.  Anything that reports a version - a bug report, a
+   verifier, the owner checking what is installed - gets told here.          */
+#ifdef SD_DEV_BUILD
+            printf("DEVELOPER BUILD - -internal is not privilege checked. "
+                   "Not for distribution.\n");
+#endif
             exit(0);
           } else
             goto unrecognised;
@@ -583,10 +633,30 @@ void dump(u_char *addr, int32_t bytes) {
 /* ======================================================================
    check_admin()  -  Check user has admin rights                          */
 
-void check_admin() {
-  int16_t in_group(char *group_name);
+/* 09 Sep 26 dm - PRE_RELEASE 21.  THE "admin" GROUP ARM IS GONE.  This read
+   (geteuid() != 0) && !in_group("admin"), and the arm is removed rather than
+   left because the caller above now relies on this function.
 
-  if ((geteuid() != 0) && !in_group("admin")) {
+   IT IS DEAD ON THIS MACHINE - measured 09 Sep 26, NO admin GROUP EXISTS;
+   don is in sudo and wheel is absent - SO IT WAS NEVER DOING ANY WORK HERE.
+   THAT IS THE WEAKER HALF OF THE ARGUMENT.  The stronger half is that it is
+   NOT dead everywhere: on Ubuntu-family systems "admin" was the old sudo
+   group, so on some machines this granted -internal, -i, -start, -stop, -k
+   and -restart to a group SD neither creates nor manages, and PRE_RELEASE
+   21's fix would have held here and quietly not held there.  A gate whose
+   strength depends on which distribution it was installed on is the kind of
+   thing this project's instrument rules exist to refuse.
+
+   AND SD OWNS A GROUP OF ITS OWN NOW, WHICH IS WHY "admin" IS NOT MERELY
+   RENAMED.  The owner's administrator is an sdadmin member who is ALSO
+   registered in ACCOUNTS (PRE_RELEASE 18), and naming sdadmin here would
+   honour the first half and skip the second - handing the register bypass
+   back in a narrower form.  These five call sites are operating-system
+   operations (start, stop, kill, restart, bootstrap install) rather than SD
+   ones, so root is the right question for them to ask.                     */
+
+void check_admin() {
+  if (geteuid() != 0) {
     fprintf(stderr, "Command requires administrator privileges\n");
     exit(1);
   }

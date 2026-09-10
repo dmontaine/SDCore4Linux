@@ -61,7 +61,7 @@ the two files are not comparable by number.
 
 | | SEV | What | Where |
 |---|---|---|---|
-| 21 | **B** | ***ANY ORDINARY USER CAN GRANT THEMSELVES ADMINISTRATOR RIGHTS WITH `sd -internal`, AND THIS DEFEATS EVERY GATE INCLUDING 18's. MEASURED 9 Sep 2026, NOT REASONED.*** As `don`, uid **1000**, no `sudo`: a five-line `$internal` program compiled with `/usr/local/sdsys/bin/sd -internal BASIC BP ADMPROBE` and run with `RUN BP ADMPROBE` printed `PRE admin flag = 0`, then `POST admin flag = 1` after `void kernel(K$ADMINISTRATOR, 1)`. **The probe refuses the null case** — it stops and prints VOID if the flag was already set — and it printed uid, user and account, so it cannot have measured a privileged session by accident. ***THIS REFUTES THE CONTAINMENT ARGUMENT IN ENTRY 19, WHICH IS SOUND ON ITS OWN TERMS AND ASKS THE WRONG QUESTION.*** 19 measured that a **non-internal** program cannot compile `kernel(26,1)` — true, `BCOMP:3759` gates the intrinsic on `internal`, and `BCOMP:2853` gates the `$INTERNAL` directive on `kernel(K$INTERNAL,-1)`. **But `internal_mode` is set by the `-INTERNAL` command-line flag at `sd.c:310` WITH NO PRIVILEGE CHECK AT ALL** — and `-I`, three lines below at `:320`, calls `check_admin()` first. So the containment rests on a flag anyone may pass. **The fix is one line and it is named, not built**: `-INTERNAL` should call `check_admin()` the way `-I` does. ***IT IS NOT BUILT BECAUSE IT IS A RULING, NOT A TYPO*** — it decides who may compile `$internal` programs, and the cost is real: it removes the only instrument this project has for compiling `CPROC`, `CATALOG` and `LOGIN` outside an install (see §18 commit 2), and `installsdai.sh:645,672` already run `-internal` under `sudo` so the installer is unaffected. **And `check_admin()` (`sd.c:589`) is itself worth a second look**: it is `geteuid() != 0 && !in_group("admin")`, and ***no `admin` group exists on this machine*** — `don` is in `sudo`, `wheel` is absent — so today it means "euid 0" and its group arm is dead. | `gplsrc/sd.c:310`, `:320`, `:586-593`; `sdsys/GPL.BP/BCOMP:2853`, `:3759`; entries 19, 18 |
+| ~~21~~ | **B** | ***FIXED 9 Sep 2026 ON THE OWNER'S RULING THAT THIS SYSTEM SHIPS FOR PRODUCTION, NOT FOR DEVELOPERS.*** `-INTERNAL` now calls `check_admin()` (`sd.c:332`), and ***`check_admin()`'s `in_group("admin")` ARM IS REMOVED*** (`sd.c:586`) — not because it is dead here, which it is, but because on Ubuntu-family systems `admin` was the old sudo group, so the fix would have held on this machine and quietly not held on others. **Witnessed as `don`, uid 1000, no sudo, before/after/control**: the installed binary took `-internal WHO` and printed `3 DON` exit 0; the built binary refuses with *"Command requires administrator privileges"* exit 1; the same built binary with **no** flag still prints `4 DON` exit 0, so ordinary use is unbroken. **The third route in was enumerated**: `internal_mode` is assigned in three places, two now gated, and `op_kernel.c:140`'s `kernel(K$INTERNAL,n>=0)` setter is reachable only through them — **all eleven `K$INTERNAL` uses in `GPL.BP` are enquiries**. *(Lead, not built: that setter has no `HDR_INTERNAL` guard, which is entry 19's shape.)* ***AND THE COST IS BOUGHT BACK, ON THE OWNER'S QUESTION THE SAME DAY***: `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` drops the check, and **that is safe here only because `installsdai.sh` clones and builds `main` from GitHub**, so a developer binary cannot reach a user. **It announces itself on `--version` and on every use of the flag**; plain `make` is untouched and `bin/sd` was rebuilt default afterwards. Without it, compiling `CPROC`/`CATALOG`/`LOGIN` outside an install needs `sudo`. *(The finding follows.)* ***ANY ORDINARY USER CAN GRANT THEMSELVES ADMINISTRATOR RIGHTS WITH `sd -internal`, AND THIS DEFEATS EVERY GATE INCLUDING 18's. MEASURED 9 Sep 2026, NOT REASONED.*** As `don`, uid **1000**, no `sudo`: a five-line `$internal` program compiled with `/usr/local/sdsys/bin/sd -internal BASIC BP ADMPROBE` and run with `RUN BP ADMPROBE` printed `PRE admin flag = 0`, then `POST admin flag = 1` after `void kernel(K$ADMINISTRATOR, 1)`. **The probe refuses the null case** — it stops and prints VOID if the flag was already set — and it printed uid, user and account, so it cannot have measured a privileged session by accident. ***THIS REFUTES THE CONTAINMENT ARGUMENT IN ENTRY 19, WHICH IS SOUND ON ITS OWN TERMS AND ASKS THE WRONG QUESTION.*** 19 measured that a **non-internal** program cannot compile `kernel(26,1)` — true, `BCOMP:3759` gates the intrinsic on `internal`, and `BCOMP:2853` gates the `$INTERNAL` directive on `kernel(K$INTERNAL,-1)`. **But `internal_mode` is set by the `-INTERNAL` command-line flag at `sd.c:310` WITH NO PRIVILEGE CHECK AT ALL** — and `-I`, three lines below at `:320`, calls `check_admin()` first. So the containment rests on a flag anyone may pass. **The fix is one line and it is named, not built**: `-INTERNAL` should call `check_admin()` the way `-I` does. ***IT IS NOT BUILT BECAUSE IT IS A RULING, NOT A TYPO*** — it decides who may compile `$internal` programs, and the cost is real: it removes the only instrument this project has for compiling `CPROC`, `CATALOG` and `LOGIN` outside an install (see §18 commit 2), and `installsdai.sh:645,672` already run `-internal` under `sudo` so the installer is unaffected. **And `check_admin()` (`sd.c:589`) is itself worth a second look**: it is `geteuid() != 0 && !in_group("admin")`, and ***no `admin` group exists on this machine*** — `don` is in `sudo`, `wheel` is absent — so today it means "euid 0" and its group arm is dead. | `gplsrc/sd.c:310`, `:320`, `:586-593`; `sdsys/GPL.BP/BCOMP:2853`, `:3759`; entries 19, 18 |
 | ~~20~~ | **B** | ***PIECE 1 IS DONE AND WITNESSED, 9 Sep 2026 — `WHO.AM.I` UNDER `sudo sd` ON THE 17:53 INSTALL SAYS `User : don`, AGAINST A BANKED BASELINE OF `sdsys`.*** `UID 0` / `EUID 999` unmoved, `Admin? Yes`, and ***message 10032 did not fire***, so `SUDO_USER` reached the process and the unknown arm was never taken. **Pieces 2 and 3 landed with entry 18 commit 2** (`K$REAL.USER` 57 and the gates that read it), so what remains open here is only the `CPROC:2483` `LOGTO` widening recorded below and the `APISRVR:363` case, which is **still not verified**. *(The original entry follows.)* ***SD DOES NOT KNOW WHICH PERSON IS THE ADMINISTRATOR, AND THAT BLOCKS ENTRY 18's SECOND HALF.*** Measured 9 Sep 2026 by reading `CPROC`, and it **corrects entry 18's premise**. On `sudo sd`, `CPROC:279` sees uid 0, `CPROC:281` drops the effective uid with `!EUID_SET('sdsys')`, and ***`CPROC:285` REPLACES THE SESSION IDENTITY — `logname = kernel(K$USERNAME, 0)` makes `@logname` `sdsys`*** — before `$LOGIN` is called at `:291`. So by the time any gate could read the register, **the real person's name is gone**. The owner's *"is also a registered user of SD as an administrator"* has no person to look up, and `CPROC:2483`'s own `is_grp_member(@logname, …)` entry test is answered for `sdsys` rather than for whoever typed `sudo`. ***THIS ALSO NARROWS ENTRY 18's OTHER CLAIM***: the OS half is *effectively* enforced already, since reaching uid 0 by `sudo sd` requires sudoers membership — what is missing is the register half, not the sudoers half. **The port hit this and answered it with a SEPARATE concept**, `K$OS.ADMINISTRATOR` — *"is the SIGNED-IN PERSON an administrator"* as distinct from the session flag — keeping `@logname` the signed-in user. ***A RULING IS NEEDED BEFORE 18's GATES CAN BE WRITTEN***: whether SD preserves the real identity across the drop, and if so where. See §20 | `GPL.BP/CPROC:279-291`, `:2483`; entry 18 |
 | 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** Classified 9 Sep from each script's own header: **113 testing, 38 admin, 6 build**. The testing half is 51 `verify-*`, **28 `test-*-units` that test the verifiers themselves**, 18 `probe-*` and 16 harness. Of the 38 admin, 19 are Windows mechanism with no counterpart here, **12 are the `secure-*` ACL family whose INTENT is §L's POSIX security posture**, and 7 have a direct Linux need the plan already schedules (`upgrade-voc`/`-dicts` §F1/F2, `check-install` §F7, `finish-install`, `clean-deadvoc`, `api-listener`, `restart-sd`). The plan mentions none of it: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in ~1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
 | ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
@@ -802,6 +802,108 @@ being inferred.
 
 ## 21. `sd -internal` is an unguarded route to the administrator flag
 
+### ***FIXED 9 Sep 2026, AND THE OWNER'S RULING IS WHAT MADE THE COST ACCEPTABLE***
+
+***OWNER, 9 Sep 2026:*** *"this version of SD will be for production, not
+development. The source code will be available, but the installer in this
+version is not for developers."* And: the project is AI-maintained with **one
+human involved**, others forking and filing issues rather than committing.
+***THAT DISPOSES OF THE OBJECTION THIS ENTRY RAISED AGAINST ITS OWN FIX.*** The
+cost named below is that `-internal` is the only way to compile `CPROC`,
+`CATALOG` or `LOGIN` outside an install. **A shipped production system owes an
+ordinary user no compiler for its own internals**, and the one person who needs
+that instrument has `sudo`.
+
+**Both halves built:**
+
+| | |
+|---|---|
+| `sd.c` `-INTERNAL` | calls `check_admin()` before setting `internal_mode`, exactly as `-I` does |
+| `sd.c` `check_admin()` | ***the `in_group("admin")` arm is REMOVED***; it is now `geteuid() != 0` alone |
+| `sd.c`, `Makefile` | ***`SD_DEV_BUILD`*** — the owner's question, below |
+
+### The developer build, on the owner's question of 9 Sep 2026
+
+***HE ASKED WHETHER THE ONE-LINE FIX COULD APPLY ONLY TO A DISTRIBUTION BUILD.
+IT CAN, AND THIS PROJECT IS AN UNUSUALLY SAFE PLACE TO DO IT.*** A build-time
+escape hatch normally means **the binary you tested is not the binary that
+ships**, which is the worst possible place for a difference to hide — and worse
+still when the one thing it changes is a privilege check. ***THAT OBJECTION DOES
+NOT APPLY HERE, AND THE REASON IS A RULING ALREADY IN CLAUDE.md***:
+`installsdai.sh` **clones `main` from GitHub and builds that**, so an installed
+system is always built from a clean checkout with default flags. **A developer
+binary has no route to a user.** (The same ruling is `PRE_RELEASE` 15's cost, so
+this is one place where it pays.)
+
+**Built:** `make EXTRA_C_FLAGS=-DSD_DEV_BUILD`. **`EXTRA_C_FLAGS` is empty
+unless passed**, so plain `make` — which is what the installer runs — is
+untouched.
+
+***AND IT ANNOUNCES ITSELF TWICE, WHICH IS THE PART THAT MAKES IT ACCEPTABLE
+RATHER THAN MERELY CONVENIENT.*** A silent bypass is a binary that cannot be
+told from a shipped one by looking at it. `--version` gains
+*"DEVELOPER BUILD - -internal is not privilege checked. Not for distribution."*,
+and **every use of `-internal` prints a line to stderr**, so it lands in every
+transcript rather than having to be remembered.
+
+***THE MATRIX, MEASURED, ALL SIX CELLS, AS `don` uid 1000:***
+
+| Build | `--version` | `-internal WHO` | `WHO`, no flag |
+|---|---|---|---|
+| default (`make`) | one line | ***refused, exit 1*** | `5 DON`, exit 0 |
+| dev (`make EXTRA_C_FLAGS=-DSD_DEV_BUILD`) | ***two lines*** | `DEVELOPER BUILD` on stderr, then `6 DON`, exit 0 | *(unchanged)* |
+
+**The no-flag column is the control**: a gate that refused everything would look
+identical in the middle column. ***`bin/sd` IN THE TREE WAS REBUILT DEFAULT
+AFTERWARDS***, so what is sitting there now is the shipping build — leaving a
+developer binary in `bin/` is exactly the confusion the announcement exists to
+prevent.
+
+***`check_admin()`'s OWN TIGHTENING IS NOT CONDITIONAL.*** The `admin` group arm
+is gone in both builds. It was never a developer convenience; it was a
+distribution-dependent weakness.
+
+***THE `admin` ARM WAS REMOVED FOR THE STRONGER OF TWO REASONS, AND THE WEAKER
+ONE IS NOT THE ARGUMENT.*** The weak reason is that it is dead here — measured,
+no `admin` group on this machine. **The real reason is that it is NOT dead
+everywhere**: on Ubuntu-family systems `admin` was the old sudo group, so this
+would have granted `-internal`, `-i`, `-start`, `-stop`, `-k` and `-restart` to
+a group SD neither creates nor manages — ***and the fix above would have held on
+this machine and quietly not held on those.*** **`sdadmin` was considered and
+rejected as the replacement**: naming it would honour the owner's first gate and
+skip the second, handing the register bypass back in a narrower form. These five
+call sites are operating-system operations, so root is the right question.
+
+***MEASURED, SAME USER, SAME COMMAND, ONE MINUTE APART. `don`, uid 1000, no
+`sudo`:***
+
+| Binary | Command | Result |
+|---|---|---|
+| `/usr/local/sdsys/bin/sd` — installed, **before** | `-internal WHO` | ***`3 DON`, exit 0*** — accepted |
+| `.../sdb_ai/sd64/bin/sd` — built, **after** | `-internal WHO` | ***`Command requires administrator privileges`, exit 1*** |
+| `.../sdb_ai/sd64/bin/sd` — built, **the control** | `WHO`, no flag | `4 DON`, **exit 0** — ordinary use unbroken |
+
+**The control matters**: a gate that refused everything would score identically
+on the first two rows.
+
+***AND THE THIRD ROUTE INTO INTERNAL MODE WAS ENUMERATED RATHER THAN ASSUMED
+AWAY.*** `internal_mode` is assigned in exactly three places: `sd.c:333`
+(`-INTERNAL`, now gated), `sd.c:344` (`-I`, already gated) and
+***`op_kernel.c:140` — `kernel(K$INTERNAL, n)` with `n >= 0` SETS IT***. That
+third one is reachable only from a program that already compiled `KERNEL`, which
+now requires the gate above; and **every one of the eleven `K$INTERNAL` uses in
+`GPL.BP` is an enquiry (`-1`)**, so no shipped verb sets it. ***LEAD, NOT
+BUILT***: `K_INTERNAL`'s setter has no `HDR_INTERNAL` guard, which is entry 19's
+shape exactly. It is contained today by the gate above rather than by a check of
+its own, and one line would make that belt-and-braces.
+
+**Build: `rm -f gplobj/sd.o` then `make`, 0 warnings, `bin/sd` relinked.
+`installsdai.sh:645` and `:672` are the only `-internal` invocations in the
+project and both already run under `sudo`, so the installer is unaffected —
+read, not run.**
+
+### The finding, as measured 9 Sep 2026
+
 ***FOUND 9 Sep 2026 WHILE BUILDING 18's GATES, BY TRYING THE THING THE GATE
 ASSUMES NOBODY CAN DO.*** Entry 19 argued the `K_ADMINISTRATOR` grant is
 contained because ordinary BASIC cannot reach `KERNEL`. **That is true and it is
@@ -941,6 +1043,12 @@ The recipe is the port's, at `HISTORY.md:18916`, and the missing piece was
 Fixtures — the edited program plus all twelve `$include` records, taken from the
 **working tree** so `ACC$TIER` and `K$REAL.USER` resolve — were staged in the
 `DON` account's empty `BP` and compiled as `don`, **unprivileged**.
+
+***THAT LAST WORD IS ALREADY OUT OF DATE AND THE RECIPE NOW NEEDS `sudo`.***
+Entry 21, fixed the same day, puts `-internal` behind `check_admin()`. **The
+recipe is otherwise unchanged**, and the runs recorded below were taken before
+that fix, on a binary that still accepted the flag — which is the same reason
+they are valid: they measured the compiler, not the gate.
 
 | Run | Result |
 |---|---|
