@@ -222,6 +222,7 @@ process_record:
 			end
 		end
 		
+		gosub place_syntax_file
 	   	execute "!" : editor : " '" : TempFileName : "/" :  TempRecordName : "'"
 	   		
 		Read TempRecord from TempFile,TempRecordName then
@@ -268,6 +269,49 @@ update_record:
 		ErrorText = "Write Error: Original Record " : DictText : " " : InFileName : " " : InRecordName : " Could Not Be Updated."
 		goto End_Program
 	end
+return
+
+*************************************************************
+* place_syntax_file                                         *
+*************************************************************
+*
+* 09 Sep 26 dm - PRE_RELEASE 12.  PUT sdbasic.yaml WHERE micro ACTUALLY LOOKS.
+*
+*  ENTRY 2 GENERATED AND VALIDATED THE FILE AND NOTHING PLACED IT, so the
+*  highlighting the owner asked to keep from the Windows port never reached
+*  anybody.  ***AND INERT LOOKS EXACTLY LIKE WORKING***: micro reports a syntax
+*  file it cannot use, or never found, by simply not highlighting.
+*
+*  IT HAS TO BE PER-USER, WHICH IS WHY THE INSTALLER CANNOT DO IT.  Measured on
+*  this machine, 9 Sep 26: micro 2.0.15, config directory ~/.config/micro, and
+*  ***there is no /usr/share/micro*** - stock micro has no system-wide syntax
+*  path.  installsdai.sh runs under sudo and cannot populate the home of every
+*  user who will ever run SD, and an account created next month would get
+*  nothing.  So the copy happens here, on first use, per caller, with no
+*  privilege - and it self-heals for accounts made later.
+*
+*  cp -u, NOT cp: it copies only when the master is NEWER, so a regenerated
+*  sdbasic.yaml reaches an existing user on their next edit, and a user who has
+*  edited their own copy keeps it until SD's genuinely moves on.
+*
+*  $HOME IS LEFT FOR THE SHELL TO EXPAND.  SD does not interpolate it, and the
+*  shell knows the caller's home whatever SD thinks the account is - which is
+*  the distinction that matters on the sudo path, where the account is SDSYS
+*  and the person is not.
+*
+*  IT IS DELIBERATELY SILENT AND DELIBERATELY IGNORED.  A failure here costs
+*  colour, not correctness, and the edit must go ahead regardless; the one
+*  thing it must never do is stop somebody editing a record.
+
+*  THE QUOTING IS THE FIDDLY PART AND IT IS ON PURPOSE.  The BASIC strings are
+*  SINGLE quoted so that DOUBLE quotes survive into the shell: $HOME has to
+*  reach the shell unexpanded, and it has to be quoted there, or a home
+*  directory with a space in it takes the mkdir apart.
+
+place_syntax_file:
+	SyntaxMaster = @sdsys : '/microcfg/syntax/sdbasic.yaml'
+	SyntaxHome   = '"$HOME/.config/micro/syntax"'
+	os.execute 'mkdir -p ' : SyntaxHome : ' && cp -u "' : SyntaxMaster : '" ' : SyntaxHome : ' 2>/dev/null'
 return
 
 end
