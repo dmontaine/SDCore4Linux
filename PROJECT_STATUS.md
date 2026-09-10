@@ -41,6 +41,8 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 | entry | |
 |---|---|
+| **26** | same review, same path: answering DELETE removes `/home/sd`, and `mv /etc/sd.conf /home/sd` then renamed the config to a **file** named `/home/sd`; the next install died at `mkdir -p /home/sd/user_accounts` (*"Not a directory"*). Fixed with `mkdir -p "$acct_path"` before the config save (`deletesdai.sh:140`). **Measured in a sandbox, unrun in the real script.** Detail in PRE_RELEASE 26 |
+| **25** | found while preparing 24's hand-over: `deletesdai.sh:186` deleted `sdadmin` unconditionally, so an upgrade that SAVES its accounts came back with an empty group and every administrator at **10037** — a lock-out with only an OS-root way back. Removal now conditional on `keep_accts = DELETE`, mirroring `sdsys`/`sdusers`. **Built, `bash -n` clean; unrun — the next saved-accounts upgrade is the witness.** Detail in PRE_RELEASE 25 |
 | **24** | the installer seeds the installing user as an SD ADMINISTRATOR (`installsdai.sh:767`, `ADMINISTRATOR` on `create-account`), and refuses a non-sudoer at the first `sudo -v` in words (`:236`). Both owner-ruled 10 Sep. **Built, `bash -n` clean, no BOM, 0 CR; UNRUN — the witness needs a fresh install with accounts deleted.** Detail in PRE_RELEASE 24 |
 | **23** | the OS-access tier gate, both commits. **Commit 1 (installed):** `op_sh` gates `OS.EXECUTE` to `$internal`/administrator (msg 10054). **Commit 2 (compiled, unrun):** `ACC$SH`(7)/`ACC$OS.EXEC`(8) grants, `MODIFY.ACCOUNT SH-ON\|SH-OFF\|OS-ON\|OS-OFF` (msgs 10039–10042), `SH` gate at `CPROC:3490`→admin-or-`K$SH` (msg 10053), flags loaded at account entry (LOGIN + CPROC logto). MODIFYA/CPROC/LOGIN each compiled **0 errors** with a red control (1 error); account restored to COUNT VOC 410; plain binary rebuilt. Detail in PRE_RELEASE 23 |
 | **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
@@ -69,8 +71,22 @@ implemented in `installsdai.sh`:
    a sentence, exit 1, before anything is changed — the old bare `sudo -v` let
    sudo's own error and a `set -e` abort speak part-way through.
 
-`bash -n` clean, no BOM, 0 CR. **Commit and push before installing** (the
-installer clones `main`); the witness expectations are in PRE_RELEASE 24.
+**AND PRE_RELEASE 25, FOUND WHILE PREPARING THIS HAND-OVER AND FIXED THE SAME
+DAY:** `deletesdai.sh:186` deleted `sdadmin` unconditionally, so an upgrade
+that saved its accounts came back with an empty group and every administrator
+at **10037** — no in-SD way back. The removal is now conditional on
+`keep_accts = DELETE`, mirroring `sdsys`/`sdusers`. The fresh install below is
+unaffected; 25's witness is the next saved-accounts upgrade.
+
+**PRE_RELEASE 26, SAME REVIEW:** on the DELETE path the config save renamed
+`/etc/sd.conf` to a **file** named `/home/sd`, and the next install aborted at
+`mkdir -p /home/sd/user_accounts`. `deletesdai.sh:140` now recreates the
+directory first. **This one is on the fresh-install path below** — it is the
+reason that path works at all now.
+
+`bash -n` clean, no BOM, 0 CR (both scripts). **Commit and push before
+installing** (the installer clones `main`); the witness expectations are in
+PRE_RELEASE 24 and 25.
 
 ***ENTRY 23 — finish the gate witness.*** Installed, and the grant WRITE is
 witnessed (field 8 = `yes`, msg 10041). Still open: the `op_sh`/`SH` gate

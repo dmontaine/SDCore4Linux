@@ -128,6 +128,16 @@ printf "%b\n" "$YELLOW"
 # read -p "Keep your existing configuration? (Y/n) " yn
 read -r -p "Keep your existing configuration? (Y/n) " yn
 # --------------------
+# 10 Sep 26  PRE_RELEASE 26 - /home/sd MUST BE A DIRECTORY FOR THE MOVE BELOW.
+#            Answering DELETE to the accounts question removes /home/sd, and
+#            "mv /etc/sd.conf /home/sd" then does not fail - it RENAMES the
+#            file to /home/sd, because the destination directory is gone.  The
+#            delete looks successful and the next install dies at
+#            "mkdir -p /home/sd/user_accounts" with "Not a directory".  Both
+#            were measured in a sandbox, 10 Sep 26.  Recreating the directory
+#            here makes the saved config land where the installer looks for it
+#            (/home/sd/sd.conf); when the accounts were kept, this is a no-op.
+sudo mkdir -p "$acct_path"
 case $yn in
     [yY] ) echo
            sudo mv /etc/sd.conf "$acct_path"
@@ -183,9 +193,25 @@ sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
 echo "Removed /usr/local/sbin/sd-elevate."
-if getent group sdadmin &>/dev/null; then
-    sudo groupdel sdadmin || true
-    echo "Removed group sdadmin."
+# 10 Sep 26  PRE_RELEASE 25 - THE GROUP GOES ONLY IF THE ACCOUNTS GO.
+#            This removal was unconditional, and it was a lock-out.  An upgrade
+#            that SAVES its accounts keeps /home/sd/user_accounts and the
+#            register records, but the recreated sdadmin group came back EMPTY
+#            and nothing re-adds an existing administrator: CREATEA adds on
+#            creation only, and the installer skips create-account when the
+#            account directory survives.  CPROC's grant wants the tier AND the
+#            group, so every administrator would fall to 10037 with "Admin? No"
+#            and no in-SD way back - CREATEA and MODIFYA both need the flag the
+#            group just failed to set.  The sdsys user and sdusers group below
+#            have followed the "only if deleting ACCOUNTS" rule since before
+#            this; sdadmin did not, because until 9 Sep it had no members.
+if [ "$keep_accts" = "DELETE" ]; then
+    if getent group sdadmin &>/dev/null; then
+        sudo groupdel sdadmin || true
+        echo "Removed group sdadmin."
+    fi
+else
+    echo "sd ACCOUNTS were saved, therefore group sdadmin not deleted."
 fi
 # --------------------
 

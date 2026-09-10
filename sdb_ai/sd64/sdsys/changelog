@@ -19,7 +19,8 @@ SD: what changed, why it mattered, and what it does not do.
            installing user as an ADMINISTRATOR, which is both the account tier
            and membership of the sdadmin group.  An upgrade that keeps its
            existing accounts does not change any of them, so reinstalling does
-           not promote anybody.
+           not promote anybody - and the sdadmin group survives that upgrade,
+           so existing administrators do not have to be promoted again.
 
            The installer also now says plainly, at the start, if the person
            running it cannot use sudo, instead of failing part-way through with
