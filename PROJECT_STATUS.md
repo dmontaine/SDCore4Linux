@@ -75,23 +75,19 @@ No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install 
 HEAD ahead again until the next install; that is the normal stale state, not a
 fault.
 
-### PRE_RELEASE 23 (OS-access tier gate + grant) — both gates witnessed biting
-Both commits pushed and installed. **Witnessed 10 Sep 2026 on the `242ae63`
-install, STANDARD account `pete`:** the system is healthy (`sd` starts, `LISTF`
-works); the grant WRITE (`MODIFY.ACCOUNT don OS-ON` wrote `ACCOUNTS/DON` field 8
-`ACC$OS.EXEC` = `yes`, msg 10041); the **`SH` gate end to end** — `SH ls` refused
-**10053** → `MODIFY.ACCOUNT pete SH-ON` (10041) + re-entry runs it → `SH-OFF`
-(10042) + re-entry refuses again → `MODIFY.ACCOUNT don SH-ON` refused **10039**
-(admin tier always reaches the OS); and the **`OS.EXECUTE` gate refusing
-(10054)** — `pete` compiled a one-line `BP/ostest` (`OS.EXECUTE 'ls'`) and
-`run bp ostest` gave `000000A9: pete is not permitted to use OS.EXECUTE at line
-1 of …/pete/BP.OUT/ostest`.
-- **The one step not run this session:** the `OS-ON`→allow→`OS-OFF`→refuse
-  round-trip for `OS.EXECUTE`. It shares the exact `os.set` write / entry-time
-  flag-load / `op_sh` `os_permitted` code the SH round-trip exercised end to
-  end, and the OS grant WRITE (field 8) was separately witnessed — so the
-  round-trip is inferred, not observed. Run it to nail it: `MODIFY.ACCOUNT pete
-  OS-ON` → `pete` re-enters → `run bp ostest` runs `ls` → `OS-OFF` → 10054 again.
+### PRE_RELEASE 23 (OS-access tier gate + grant) — CLOSED, both gates witnessed end to end
+Both commits pushed and installed. ***FULLY WITNESSED 10 Sep 2026 on the
+`242ae63` install, STANDARD account `pete` — both gates, refuse → grant → allow
+→ revoke → refuse:***
+- **`SH` gate (10053):** `SH ls` refused **10053** → `MODIFY.ACCOUNT pete SH-ON`
+  (10041) + re-entry runs it → `SH-OFF` (10042) + re-entry refuses again →
+  `MODIFY.ACCOUNT don SH-ON` refused **10039** (admin tier always reaches the OS).
+- **`OS.EXECUTE` gate (10054):** `pete` compiled a one-line `BP/ostest`
+  (`OS.EXECUTE 'ls'`); `run bp ostest` gave `000000A9: pete is not permitted to
+  use OS.EXECUTE` → `MODIFY.ACCOUNT pete OS-ON` (10041) + re-entry **ran `ls`** →
+  `OS-OFF` (10042) + re-entry refused **10054** again. The admin-tier guard was
+  not re-run for `OS-ON` (the identical `SH-ON` on `don` gave 10039; same shared
+  `os.set` check).
 - **Caveat on the 10054 witness (why a STANDARD account could compile):** it
   relied on `pete` compiling a program, which works ONLY because §L1's per-tier
   VOC is not built here yet — every account still gets the full VOC. Under
@@ -129,8 +125,8 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Next task
 
-***THE FRESH INSTALL, 24'S SEED, 13, AND 23'S SH GATE ARE DONE. What remains is
-24(2), the OS.EXECUTE half of 23, and confirming the 25/27 delete transcript.***
+***THE FRESH INSTALL, 24'S SEED, 13, AND ALL OF 23 ARE DONE. What remains is
+24(2) and confirming the 25/27 delete transcript.***
 
 - **25** — ***CLOSED BY OUTCOME 10 Sep 2026:*** after the 15:11 keep-accounts
   upgrade, `getent group sdadmin` = `sdadmin:x:965:don` — the group survived
@@ -141,11 +137,10 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
   `:631` abort did not recur. Same caveat: the keep-config precondition was
   inferred from the preserved trees, not watched.
 - **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
-- **23's gate** — ***BOTH GATES WITNESSED BITING 10 Sep 2026*** (see PRE_RELEASE
-  23 above): SH 10053 full cycle, and OS.EXECUTE 10054 refusing a `pete`-compiled
-  program. Only the `OS-ON`→allow→`OS-OFF` round-trip is un-run (shares the
-  SH-witnessed code). The 10054 repro is pre-§L1 (STANDARD can compile only until
-  per-tier VOC lands).
+- **23's gate** — ***CLOSED 10 Sep 2026*** (see PRE_RELEASE 23 above): both gates
+  witnessed end to end, refuse → grant → allow → revoke → refuse (SH 10053 and
+  OS.EXECUTE 10054). The 10054 repro is pre-§L1 (STANDARD can compile only until
+  per-tier VOC lands; re-witness with a PROGRAMMER account after §L1).
 - **13** — ***WITNESSED LIVE 10 Sep 2026***, re-confirmed on the `242ae63`
   install. `pete` (STANDARD) ssh → `sd`, no shell; `don` (admin) ssh → normal
   shell. Done.
