@@ -6,9 +6,11 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***SESSION ENDED 10 Sep 2026. TREE CLEAN, PUSHED (see `git log`).*** The
-installed system predates the message wrap (`d7cf3d9`) and the installer change
-below (PRE_RELEASE 24); **`assert-current` says STALE until the next install**.
+***10 Sep 2026: THE DOCUMENTED FRESH INSTALL RAN AND ABORTED AT PRE_RELEASE 27.
+THE FIX IS BUILT AND SANDBOX-WITNESSED; NO SYSTEM IS INSTALLED. `assert-current`
+answers 2 ("nothing installed"), and the next cycle is `deletesdai.sh` then
+`installsdai.sh` AFTER 27 IS COMMITTED AND PUSHED — the installer clones
+`main`. The aborted run is described in PRE_RELEASE 27; the retry is below.***
 
 ### The one thing that matters before you believe anything
 
@@ -18,8 +20,9 @@ Run this first, every session:
 python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
-No `sudo`. **0 current · 1 stale · 2 cannot answer.** At session end it said
-**0** — install == HEAD. Change any source and it goes stale until you reinstall.
+No `sudo`. **0 current · 1 stale · 2 cannot answer.** Right now it answers
+**2** — the aborted install left no `/usr/local/sdsys` to compare. It must
+answer **0** after the retry, naming the commit the installer stamped.
 
 ### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, part-witnessed
 Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
@@ -41,7 +44,8 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 | entry | |
 |---|---|
-| **26** | same review, same path: answering DELETE removes `/home/sd`, and `mv /etc/sd.conf /home/sd` then renamed the config to a **file** named `/home/sd`; the next install died at `mkdir -p /home/sd/user_accounts` (*"Not a directory"*). Fixed with `mkdir -p "$acct_path"` before the config save (`deletesdai.sh:140`). **Measured in a sandbox, unrun in the real script.** Detail in PRE_RELEASE 26 |
+| **27** | the fresh install aborted at `installsdai.sh:631` — `chown /home/sd/group_accounts` — because 26 leaves `/home/sd` existing but empty, so the old `if [ ! -d /home/sd ]` skipped both mkdirs. Found by running, 10 Sep. Fix: unconditional `mkdir -p` for both, and a `/home/sd`-as-file refusal by name. **Sandbox-witnessed 5/5, control = pre-fix block on the empty state (dirs missing). Unrun in the real script — the retry runs it.** Detail in PRE_RELEASE 27 |
+| **26** | same review, same path: answering DELETE removes `/home/sd`, and `mv /etc/sd.conf /home/sd` then renamed the config to a **file** named `/home/sd`; the next install died at `mkdir -p /home/sd/user_accounts` (*"Not a directory"*). Fixed with `mkdir -p "$acct_path"` before the config save (`deletesdai.sh:140`). **Ran for real in the 10 Sep delete: it completed, and `/home/sd` was a directory holding `sd.conf` — the install that followed then aborted on 27.** Detail in PRE_RELEASE 26 |
 | **25** | found while preparing 24's hand-over: `deletesdai.sh:186` deleted `sdadmin` unconditionally, so an upgrade that SAVES its accounts came back with an empty group and every administrator at **10037** — a lock-out with only an OS-root way back. Removal now conditional on `keep_accts = DELETE`, mirroring `sdsys`/`sdusers`. **Built, `bash -n` clean; unrun — the next saved-accounts upgrade is the witness.** Detail in PRE_RELEASE 25 |
 | **24** | the installer seeds the installing user as an SD ADMINISTRATOR (`installsdai.sh:767`, `ADMINISTRATOR` on `create-account`), and refuses a non-sudoer at the first `sudo -v` in words (`:236`). Both owner-ruled 10 Sep. **Built, `bash -n` clean, no BOM, 0 CR; UNRUN — the witness needs a fresh install with accounts deleted.** Detail in PRE_RELEASE 24 |
 | **23** | the OS-access tier gate, both commits. **Commit 1 (installed):** `op_sh` gates `OS.EXECUTE` to `$internal`/administrator (msg 10054). **Commit 2 (compiled, unrun):** `ACC$SH`(7)/`ACC$OS.EXEC`(8) grants, `MODIFY.ACCOUNT SH-ON\|SH-OFF\|OS-ON\|OS-OFF` (msgs 10039–10042), `SH` gate at `CPROC:3490`→admin-or-`K$SH` (msg 10053), flags loaded at account entry (LOGIN + CPROC logto). MODIFYA/CPROC/LOGIN each compiled **0 errors** with a red control (1 error); account restored to COUNT VOC 410; plain binary rebuilt. Detail in PRE_RELEASE 23 |
@@ -56,37 +60,30 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Next task
 
-***INSTALLER — THE OWNER'S QUESTION IS RULED AND BUILT, 10 Sep 2026. UNRUN
-UNTIL THE NEXT FRESH INSTALL (PRE_RELEASE 24).*** Both parts ruled yes and
-implemented in `installsdai.sh`:
+***RETRY THE FRESH INSTALL — PRE_RELEASE 24's WITNESS — WITH 27 IN PLACE.***
+The 01:48 attempt aborted at `installsdai.sh:631` after the tree copy and the
+stamp (27), leaving a half-install: `/usr/local/sdsys/bin/sd` present, so
+`installsdai.sh:125` now refuses to re-run, and no symlink, units, bootstrap or
+account. Order, as `don`, never `sudo`:
 
-1. **`create-account` now carries `ADMINISTRATOR`** (`:767`, was `no.query`
-   only), so a fresh install seeds the installing user as an SD administrator —
-   tier + `sdadmin`, CREATEA's own keyword path (`CREATEA:402-424`) — and
-   CPROC's bootstrap arm becomes a fallback. The port does the same through
-   ADOPT (`adopt-account.ps1:293`). **An upgrade that saves its accounts keeps
-   the tier it has** (`:765`'s directory test skips the create), so **the
-   witness needs the accounts deleted or the line is not exercised**.
-2. **A caller who cannot sudo is refused at the first `sudo -v`** (`:236`) with
-   a sentence, exit 1, before anything is changed — the old bare `sudo -v` let
-   sudo's own error and a `set -e` abort speak part-way through.
+1. **Commit and push 27 first** — the installer clones `main` (PRE_RELEASE 15).
+2. `/home/don/Projects/sdcore4linux/deletesdai.sh` — `y`, `n`, `DELETE`, `y`,
+   `y`. Required by the `:125` guard above; it also re-runs 26's line and
+   removes the half-install. A reboot follows.
+3. `/home/don/Projects/sdcore4linux/installsdai.sh` — `y`, password, `y` at the
+   reboot. **Watch `Installing commit <hash>`: it must be 27's commit**, or the
+   witness is against the wrong tree. One 10033 during the install is expected
+   and correct (it fires on the `create-account` session, before the tier is
+   written).
+4. Witness: `assert-current.py` exit 0 naming that commit; `getent group
+   sdadmin` holds `don`; `ACCOUNTS/DON` field 5 `ADMINISTRATOR`; `sudo sd` with
+   **no 10033** and `WHO.AM.I` → `Admin? : Yes`. Expectations in PRE_RELEASE 24.
 
-**AND PRE_RELEASE 25, FOUND WHILE PREPARING THIS HAND-OVER AND FIXED THE SAME
-DAY:** `deletesdai.sh:186` deleted `sdadmin` unconditionally, so an upgrade
-that saved its accounts came back with an empty group and every administrator
-at **10037** — no in-SD way back. The removal is now conditional on
-`keep_accts = DELETE`, mirroring `sdsys`/`sdusers`. The fresh install below is
-unaffected; 25's witness is the next saved-accounts upgrade.
+**ENTRY 25 remains unrun.** Its witness is the next upgrade that SAVES its
+accounts (`y` to the accounts question): expect `sdadmin` to survive with its
+members and no 10037.
 
-**PRE_RELEASE 26, SAME REVIEW:** on the DELETE path the config save renamed
-`/etc/sd.conf` to a **file** named `/home/sd`, and the next install aborted at
-`mkdir -p /home/sd/user_accounts`. `deletesdai.sh:140` now recreates the
-directory first. **This one is on the fresh-install path below** — it is the
-reason that path works at all now.
-
-`bash -n` clean, no BOM, 0 CR (both scripts). **Commit and push before
-installing** (the installer clones `main`); the witness expectations are in
-PRE_RELEASE 24 and 25.
+`bash -n` clean, no BOM, 0 CR (both scripts).
 
 ***ENTRY 23 — finish the gate witness.*** Installed, and the grant WRITE is
 witnessed (field 8 = `yes`, msg 10041). Still open: the `op_sh`/`SH` gate

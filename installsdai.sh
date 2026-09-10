@@ -600,10 +600,26 @@ sudo usermod -aG sdusers "$tuser"
 #
  # directories for sd accounts
 ACCT_PATH=/home/sd
-if [ ! -d "$ACCT_PATH" ]; then
-   sudo mkdir -p "$ACCT_PATH"/user_accounts
-   sudo mkdir "$ACCT_PATH"/group_accounts
-fi  
+# 10 Sep 26  PRE_RELEASE 27 - ENSURE BOTH SUBDIRECTORIES WHATEVER /home/sd IS.
+#            This was an "if [ ! -d "$ACCT_PATH" ]" around both mkdirs, so
+#            they were created only when /home/sd was ABSENT.  PRE_RELEASE 26
+#            makes deletesdai.sh recreate /home/sd to hold the saved sd.conf
+#            on the DELETE path, so /home/sd now EXISTS but empty; the guard
+#            skipped the mkdirs, the chown of /home/sd/group_accounts below
+#            died with "No such file or directory", and set -e aborted the
+#            install after the tree had been copied and stamped - measured
+#            10 Sep 26, on the first real run of 26.  mkdir -p is idempotent:
+#            absent, empty and populated /home/sd all end with both
+#            directories present.  A /home/sd that is a FILE is the pre-26
+#            wreck and is refused by name rather than failing below with
+#            "Not a directory".
+if [ -e "$ACCT_PATH" ] && [ ! -d "$ACCT_PATH" ]; then
+   printf "%b\n" "$RED"
+   echo "/home/sd exists but is not a directory. Remove it and re-run."
+   printf "%b\n" "$NC"
+   exit 1
+fi
+sudo mkdir -p "$ACCT_PATH"/user_accounts "$ACCT_PATH"/group_accounts
 #
 # Modified by Composer AI - 2026/06/10.
 # Reference deletesdai.sh by its actual script name.
