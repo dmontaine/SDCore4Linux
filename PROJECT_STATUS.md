@@ -6,12 +6,40 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***HEAD is `a6d96b1` (origin/main, pushed 10 Sep 2026): PRE_RELEASE 13, the ssh
-tier boundary, is BUILT + pushed, unit-tested 16/0, `sshd -t`-witnessed on this
-box — but BEHAVIOURALLY UNRUN. The next thing to do is witness it on a LIVE ssh
-login (see entry 13 below and the Next task list): reinstall so `origin/main` is
-the installed runtime, start `sshd`, then ssh in as a STANDARD account (should
-land in `sd`, no shell) and as an administrator (normal shell).***
+***HEAD is `728b542` (origin/main, pushed 10 Sep 2026); the ssh tier boundary,
+PRE_RELEASE 13, landed at `a6d96b1`: BUILT + pushed, unit-tested 16/0, `sshd
+-t`-witnessed on this box — but BEHAVIOURALLY UNRUN. The next thing to do is a
+delete→install cycle (steps below), which installs it and then witnesses it on a
+LIVE ssh login.***
+
+### Next: the delete→install cycle — witnesses 13, 25 and 27 at once
+
+**Two scripts.** There is no unified script, and install REFUSES over an
+existing install (`installsdai.sh:125`), so a cycle is delete then install. Run
+both as `don`, **not** sudo — they elevate internally.
+
+1. `/home/don/Projects/sdcore4linux/deletesdai.sh` — answer **Y** (keep
+   accounts) and **Y** (keep configuration); answer **N** to its closing reboot
+   prompt (`deletesdai.sh:297`) — a between-reboot is not needed for a keep
+   cycle (groups and units unchanged). This keep-accounts path IS the upgrade,
+   and it witnesses **25** (`sdadmin` survives holding `don`, no 10037 lock-out)
+   and **27** (the `/home/sd` + `sd.conf` save path).
+2. `/home/don/Projects/sdcore4linux/installsdai.sh` — builds `origin/main`, so
+   it installs `728b542` and APPLIES entry 13. Watch near the end for `Applying
+   the ssh tier boundary (PRE_RELEASE 13).` then either `ssh-forcecommand:
+   INSTALLED …` (+ the banner's `sshd_config.before-sd` note) or a yellow
+   WARNING if it refused. Take its closing reboot (the APIsrvr socket).
+3. After: `assert-current` should answer **0**. Then witness 13 biting —
+   `sudo systemctl start ssh` (sshd is inactive on this box), make a STANDARD
+   account (`create-account USER <name> no.query`, give it a Unix password),
+   then ssh as it → lands in `sd`, no shell; ssh as `don` (admin, excluded by
+   `!sdadmin`) → normal shell. That live login is the half `sshd -t`/`-T` could
+   not show offline (OpenSSH 10.3 takes no `groups=` on `-T -C`).
+
+**Latent, not blocking:** neither script runs `systemctl daemon-reload`, so the
+between-reboot has historically masked that; irrelevant to a keep cycle because
+the unit files do not change. Fixing it (reload after delete removes units and
+after install copies them) would retire the between-reboot by design.
 
 ***10 Sep 2026: THE FRESH INSTALL RAN AND SUCCEEDED FROM `dc36771` (origin/main
 at the time; 27 was still unpushed), stamped 01:56:55 — AND PRE_RELEASE 24'S
