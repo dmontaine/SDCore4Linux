@@ -193,6 +193,21 @@ sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
 echo "Removed /usr/local/sbin/sd-elevate."
+#
+# 10 Sep 26  PRE_RELEASE 13 - take SD's ssh-only block back out of sshd_config.
+#            ALWAYS, regardless of the accounts question: the block is system
+#            configuration, not account data.  --remove is run BEFORE the helper
+#            is deleted, because --remove IS the helper; it validates the result
+#            with sshd -t and reloads sshd, and leaves sshd_config untouched if
+#            no SD block is present.  Non-fatal: a stale block matching a group
+#            that is about to be removed is harmless (it just never matches), so
+#            a removal hiccup must not abort the uninstall.
+if [ -x /usr/local/sbin/ssh-forcecommand ]; then
+    sudo /usr/local/sbin/ssh-forcecommand --remove || \
+        echo "WARNING: could not remove the ssh block automatically; check /etc/ssh/sshd_config."
+    sudo rm -f /usr/local/sbin/ssh-forcecommand
+    echo "Removed /usr/local/sbin/ssh-forcecommand."
+fi
 # 10 Sep 26  PRE_RELEASE 25 - THE GROUP GOES ONLY IF THE ACCOUNTS GO.
 #            This removal was unconditional, and it was a lock-out.  An upgrade
 #            that SAVES its accounts keeps /home/sd/user_accounts and the

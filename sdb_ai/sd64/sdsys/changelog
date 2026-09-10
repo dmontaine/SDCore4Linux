@@ -9,6 +9,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  OVER SSH, NON-ADMINISTRATOR ACCOUNTS ARE NOW HELD INSIDE SD.
+
+           SD can decide that a STANDARD or PROGRAMMER account may not reach the
+           operating-system shell.  Until now that decision stopped at the door
+           of SD: the same account could connect over ssh and land at an
+           ordinary shell prompt, never entering SD, so the restriction did not
+           hold at the edge of the machine.  The installer now adds a block to
+           the ssh configuration that sends every non-administrator SD account
+           straight into SD on an ssh login.  An administrator keeps a normal
+           shell.  Someone SD has granted shell access (MODIFY.ACCOUNT SH-ON)
+           still reaches one, through SD, as themselves.
+
+           What it does not do: it does not change who may connect or log in -
+           only what a non-administrator gets once connected.  It leaves local
+           console logins alone.  Because the ssh session is handed straight to
+           SD, file-copy tools that run over ssh (scp, sftp) no longer work for
+           non-administrator accounts; that follows from the decision rather
+           than being a separate setting.  If you have already customised your
+           ssh configuration, the installer will NOT edit it - it tells you so
+           and leaves it to you, rather than changing a file you are managing.
+           Your original ssh configuration is kept as
+           /etc/ssh/sshd_config.before-sd, and uninstalling removes the block.
+
+
 10 Sep 26  A NEW INSTALL REGISTERS THE INSTALLING USER AS AN SD ADMINISTRATOR.
 
            Installing SD used to leave the person who ran the installer with an
