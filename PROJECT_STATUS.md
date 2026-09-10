@@ -75,18 +75,35 @@ No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install 
 HEAD ahead again until the next install; that is the normal stale state, not a
 fault.
 
-### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, SH gate witnessed
-Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
-starts, `LISTF` works — the login-path flag load in CPROC/LOGIN did not break
-startup); the grant WRITE — `MODIFY.ACCOUNT don OS-ON` wrote `ACCOUNTS/DON`
-field 8 `ACC$OS.EXEC` = `yes` on disk and printed msg 10041; and — **10 Sep 2026
-on the `242ae63` install, STANDARD account `pete`** — the **`SH` gate end to
-end**: `SH ls` refused **10053**, `MODIFY.ACCOUNT pete SH-ON` (10041) + re-entry
-runs it, `SH-OFF` (10042) + re-entry refuses again, and `MODIFY.ACCOUNT don
-SH-ON` refused **10039** (admin tier always reaches the OS). **Still not
-witnessed:** the `OS.EXECUTE` path (10054) via `OS-ON`/`OS-OFF` — it needs a
-program that calls `OS.EXECUTE`, and `pete` (STANDARD) cannot compile one, so
-the trigger is a shipped verb that reaches it (to identify).
+### PRE_RELEASE 23 (OS-access tier gate + grant) — both gates witnessed biting
+Both commits pushed and installed. **Witnessed 10 Sep 2026 on the `242ae63`
+install, STANDARD account `pete`:** the system is healthy (`sd` starts, `LISTF`
+works); the grant WRITE (`MODIFY.ACCOUNT don OS-ON` wrote `ACCOUNTS/DON` field 8
+`ACC$OS.EXEC` = `yes`, msg 10041); the **`SH` gate end to end** — `SH ls` refused
+**10053** → `MODIFY.ACCOUNT pete SH-ON` (10041) + re-entry runs it → `SH-OFF`
+(10042) + re-entry refuses again → `MODIFY.ACCOUNT don SH-ON` refused **10039**
+(admin tier always reaches the OS); and the **`OS.EXECUTE` gate refusing
+(10054)** — `pete` compiled a one-line `BP/ostest` (`OS.EXECUTE 'ls'`) and
+`run bp ostest` gave `000000A9: pete is not permitted to use OS.EXECUTE at line
+1 of …/pete/BP.OUT/ostest`.
+- **The one step not run this session:** the `OS-ON`→allow→`OS-OFF`→refuse
+  round-trip for `OS.EXECUTE`. It shares the exact `os.set` write / entry-time
+  flag-load / `op_sh` `os_permitted` code the SH round-trip exercised end to
+  end, and the OS grant WRITE (field 8) was separately witnessed — so the
+  round-trip is inferred, not observed. Run it to nail it: `MODIFY.ACCOUNT pete
+  OS-ON` → `pete` re-enters → `run bp ostest` runs `ls` → `OS-OFF` → 10054 again.
+- **Caveat on the 10054 witness (why a STANDARD account could compile):** it
+  relied on `pete` compiling a program, which works ONLY because §L1's per-tier
+  VOC is not built here yet — every account still gets the full VOC. Under
+  conformity a STANDARD account has no `BASIC`: the Windows port omits the
+  compiler/cataloguer/editors from STANDARD via `NEWVOC`'s `TIER.OMIT.STANDARD`
+  (port `CREATEA`, owner 17 Aug 2026 — STANDARD *"can run an application but not
+  build one"*). Once §L1 lands, re-witness 10054 with a PROGRAMMER account; the
+  gate follows the PERSON, the compiler follows the ACCOUNT.
+- **§L1 source (the port's model):** three VOC sources by tier — STANDARD =
+  `NEWVOC` less `TIER.OMIT.STANDARD`; PROGRAMMER = `NEWVOC` entire; ADMINISTRATOR
+  = `NEWVOC` entire plus `TIER.ADD.ADMINISTRATOR` (from `VOC_TEMPLATE`). Tier
+  written to `ACC$TIER` field 5.
 
 Also this session: the four admin-notice messages (10033/34/37/38) were wrapped
 to <=79 cols so they fit the notice box (they were 81-141) — multi-line message
@@ -124,8 +141,11 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
   `:631` abort did not recur. Same caveat: the keep-config precondition was
   inferred from the preserved trees, not watched.
 - **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
-- **23's gate** — ***SH half WITNESSED 10 Sep 2026*** (see PRE_RELEASE 23
-  above); the `OS.EXECUTE`/10054 half via `OS-ON` still open.
+- **23's gate** — ***BOTH GATES WITNESSED BITING 10 Sep 2026*** (see PRE_RELEASE
+  23 above): SH 10053 full cycle, and OS.EXECUTE 10054 refusing a `pete`-compiled
+  program. Only the `OS-ON`→allow→`OS-OFF` round-trip is un-run (shares the
+  SH-witnessed code). The 10054 repro is pre-§L1 (STANDARD can compile only until
+  per-tier VOC lands).
 - **13** — ***WITNESSED LIVE 10 Sep 2026***, re-confirmed on the `242ae63`
   install. `pete` (STANDARD) ssh → `sd`, no shell; `don` (admin) ssh → normal
   shell. Done.
