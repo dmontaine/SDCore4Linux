@@ -33,14 +33,49 @@
 
 
 * rev 0.9.1 Mar 25 return to single rev track 
-* N O T E:  Must manually edit REVSTAMP.H in GPL.BP 
-* OR run REVSTAMP in sd to sync this version with   
-* REVSTAMP.H found in GPL.BP                        
-* Also edit VOC and NEWVOC record $RELEASE          
+* N O T E:  This file is the SOURCE.  GPL.BP/REVSTAMP.H is GENERATED from it 
+* by gplbld/gen_includes.py, which "make check-includes" enforces - do not   
+* hand-edit the BASIC copy.  (The old note said to edit it manually or run   
+* the REVSTAMP verb; that verb reads ./gplsrc/revstamp.h and so cannot run   
+* on an installed system at all.)                                           
+* Also edit VOC_TEMPLATE and NEWVOC record $RELEASE                          
+
+* ONE-LINE COMMENTS ONLY IN THIS FILE, AND THAT IS NOT A STYLE PREFERENCE. 
+* gen_includes.py turns a line that OPENS a C comment into a BASIC "*"     
+* comment and passes every other line through UNCHANGED, so the            
+* continuation lines of a multi-line C block comment are emitted as BARE   
+* BASIC.  Measured 09 Sep 26: a block comment written here compiled clean  
+* in C, passed "make check-includes", and then gave 17 errors in BOTH      
+* LOGIN and CPROC - every program that includes this one.                  
+* Do not write a comment-opening sequence inside these comments either:    
+* that is -Wcomment, and this file is built with -Wall.                    
+
+* 09 Sep 26 dm - PRE_RELEASE 17.  THE STAMP IS THIS PROJECT'S NUMBER NOW.  
+* It read "1.0-2", which is UPSTREAM's build, so the shipped binary told   
+* the user it was a version of something else.                            
+*                                                                         
+* THE L IS THE POINT, AND IT IS THE PORT'S SHAPE.  Owner, 24 Aug 26, of    
+* the Windows port: "our numbering sequence is different than upstream,    
+* hence the W in front of the number."  So sdb64 at 1.0-2 and upstream dev 
+* at 1.0-3 are not numbers to catch up with - the trailing digit must NOT  
+* be advanced to track them, because that would imply a parity this port   
+* does not claim.                                                         
+*                                                                         
+* MAJOR_REV, MINOR_REV AND BUILD ARE DELIBERATELY LEFT AT UPSTREAM'S       
+* 1/0/2, exactly as the port leaves them.  sysseg.c:48 packs them into a   
+* shared-segment compatibility word, so they are a binary interface and    
+* not a name.  ONLY THE DISPLAY STRING IS OURS.                           
+*                                                                         
+* AND THE TWO STAMPS MUST MOVE TOGETHER OR ORDINARY LOGINS STOP.           
+* LOGIN:381 is "if compare(system(1012), SD.REV.STAMP)" - system(1012)     
+* returns the C value (op_sys.c:355-358) and SD.REV.STAMP is the BASIC one 
+* compiled into LOGIN - and on a mismatch it displays sysmsg 5029 and      
+* TERMINATES THE CONNECTION for any session that is not internal.  That is 
+* why the BASIC copy is generated rather than typed.                      
 $define MAJOR.REV      1
 $define MINOR.REV      0
 $define BUILD          2
-$define SD.REV.STAMP   "1.0-2"
+$define SD.REV.STAMP   "L1.0-0"
 
 $define SD.COPYRIGHT.YEAR "2007"
 
