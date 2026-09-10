@@ -34,6 +34,7 @@ registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
 
 | entry | |
 |---|---|
+| **23** | commit 1: `op_sh` now gates `OS.EXECUTE` — a `$internal` program or an administrator only, else message 10054. Closes a C-layer hole where any user program's `OS.EXECUTE` ran ungated. **Compiled clean, `bin/sd` relinked, NOT witnessed** (install is STALE). Commit 2 — the `ACC$SH`/`ACC$OS.EXEC` grant and `MODIFY.ACCOUNT OS-ON\|OS-OFF\|SH-ON\|SH-OFF` — is specified in PRE_RELEASE 23 and is the immediate next step |
 | **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
 | **21** | `sd -internal` was an unguarded route to the admin flag — **measured, uid 1000, no sudo**. Now behind `check_admin()`, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as the announced opt-out |
 | **22** | `!set_passwd` / `!create_user` were globally catalogued with **no gate** |
@@ -45,18 +46,29 @@ registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
 
 ### Next task
 
-***ENTRY 13 — THE ssh BOUNDARY — AND IT NEEDS A RULING BEFORE IT NEEDS CODE.***
-It is the last big piece of the tier model, it is already ruled in principle (a
-STANDARD account gets no real login shell), and it **commits SD to writing
-`sshd_config`**. §14 lists four open sub-decisions under it — the mechanism,
-PROGRAMMER's case, who gets which shell, and who writes the fenced block.
-***GETTING IT WRONG LOCKS THE OWNER OUT OF ssh ON HIS OWN MACHINE***, and unlike
-everything else this session there is no control that can be built without
-risking his access. **Put the decisions to him before building.**
+***ENTRY 23 COMMIT 2 — THE GRANT — IS THE IMMEDIATE NEXT STEP.*** Commit 1
+(above) default-denies `OS.EXECUTE` to non-admins at the C layer. Commit 2 adds
+`ACC$SH`=7 / `ACC$OS.EXEC`=8 in `ACCOUNTS`, `MODIFY.ACCOUNT
+OS-ON|OS-OFF|SH-ON|SH-OFF` (refusing an administrator, the port's 10106 shape),
+and the reads that WIDEN the two gates — the `SH` gate at `CPROC:3490` to
+admin-or-`ACC$SH`, and `op_sh` to admin-or-`ACC$OS.EXEC` via a new `USR_` flag
+loaded when the account is entered (login **and** `LOGTO`, the delicate path).
+Full spec in PRE_RELEASE 23.
 
-Cheaper things if that is blocked: `leave.sdadmin` has never run
-(`MODIFY.ACCOUNT DON PROGRAMMER` exercises it); entry 6 needs an install; §L1's
-per-tier VOC is undesigned; §M is release-blocking but scheduled at step 7.
+***ENTRY 13 — THE ssh BOUNDARY — IS NOW RULED AND READY TO BUILD*** (owner, 9
+Sep 2026, this session; it no longer needs a ruling before code). Mechanism:
+`ForceCommand` into `sd` for `Match Group sdusers,!sdadmin`; PROGRAMMER is
+treated as STANDARD over ssh; administrators (in `sdadmin`) keep a real shell —
+their full ssh access; the INSTALLER writes an explicit removable fenced block
+with a preflight that refuses a customised `sshd_config`. Admin-granted shell is
+reached THROUGH SD (ForceCommand → SH inside SD, `sd` not setuid), so there are
+no per-user `sshd_config` carve-outs. ***STILL LOCK-OUT SENSITIVE — verify the
+config with `sshd -t` before any install.*** Detail and the sshd Match-Group
+negation semantics in §13.
+
+Cheaper things: `leave.sdadmin` has never run (`MODIFY.ACCOUNT DON PROGRAMMER`
+exercises it); entry 6 needs an install; §L1's per-tier VOC is undesigned; §M is
+release-blocking, scheduled at step 7.
 
 ### The instruments this session built or paid for
 

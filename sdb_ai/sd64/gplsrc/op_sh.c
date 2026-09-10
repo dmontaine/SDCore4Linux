@@ -17,6 +17,11 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 09 Sep 26 dm PRE_RELEASE 23 commit 1: os_permitted() gates OS.EXECUTE to a
+ *           $internal program or an administrator (owner's model, 9 Sep 26:
+ *           "os.execute and shell are off for anyone but administrators").
+ *           op_sh() was previously ungated.  The per-account ACC$OS.EXEC grant
+ *           that widens this to named non-admins is commit 2.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -50,6 +55,7 @@ void op_capture(void);
 Private void sh(bool capture);
 Private void sh_execute(char *command);
 Private int clparse(char *p, char *argv[], int maxargs);
+Private bool os_permitted(void);
 
 int ChildPipe = -1;
 bool in_sh = FALSE; /* 0562 Doing SH command? */
@@ -100,12 +106,48 @@ void op_shcap() {
 }
 
 /* ======================================================================
+   os_permitted()  -  May this session reach the operating system shell?
+
+   09 Sep 26 dm - PRE_RELEASE 23, commit 1.  The OS-access half of the tier
+   model (owner, 9 Sep 2026): "os.execute and shell are off for anyone but
+   administrators".  Until this, op_sh() ran with NO permission check at all,
+   so any non-internal user program could OS.EXECUTE freely - the tier's in-SD
+   boundary did not exist at the C layer.
+
+   THREE ANSWERS, IN THE PORT'S ORDER (its op_sh.c os_permitted):
+     1. HDR_INTERNAL - a $internal system program (LOGIN, CPROC, CREATEA, the
+        editors) is trusted.  EVERY shipped OS.EXECUTE caller is $internal
+        (all 11, checked 9 Sep 26), so this is what keeps them working.  It is
+        also the SH-verb/"!" path: CPROC gates those at the prompt
+        (os.command, admin-only) and then reaches op_sh as an internal caller.
+     2. USR_ADMIN - an administrator has full OS access by tier, automatic and
+        unrevocable (owner, 9 Sep 2026).
+     3. Otherwise refused.  The per-ACCOUNT grant (ACC$OS.EXEC, settable with
+        MODIFY.ACCOUNT OS-ON) is PRE_RELEASE 23 commit 2 and is not read here
+        yet; until it lands a non-admin user program is a plain no, which is
+        the correct DEFAULT - the grant only ever widens it.                 */
+
+Private bool os_permitted(void) {
+  if (process.program.flags & HDR_INTERNAL)
+    return TRUE;
+  if (my_uptr->flags & USR_ADMIN)
+    return TRUE;
+  return FALSE;
+}
+
+/* ======================================================================
    sh()  -  Execute shell command                                         */
 
 Private void sh(bool capture) {
   DESCRIPTOR *descr;
   STRING_CHUNK *str;
   int bytes;
+
+  /* 09 Sep 26 dm - PRE_RELEASE 23, commit 1.  Refuse before the stack is
+     touched, so a refusal leaves it exactly as it was found - the port's
+     placement.  k_error() does not return.                                 */
+  if (!os_permitted())
+    k_error(sysmsg(10054), process.username);
 
   descr = e_stack - 1;
   k_get_string(descr);
