@@ -109,11 +109,32 @@ ADMINISTRATOR` (the port's grammar minus `SUSPENDED`, which needs `PRE_RELEASE`
 and the first red control PASSED and was void**, cutting inside the header and
 leaving a valid empty program; re-cut inside the body it gives 9.
 
-***COMMIT 3 HAS NOT RUN.*** The witness: install `origin/main`, then in the
-bootstrap-granted session `MODIFY.ACCOUNT DON ADMINISTRATOR`, then a fresh
-`sudo sd` which **must not** print 10033. ***WATCH THE `usermod` FOR ENTRY 14's
-HANG*** — `join.sdadmin` shells `sudo usermod -aG sdadmin`, no `-n`, the same
-shape as the ten call sites in that entry.
+***COMMIT 3 IS WITNESSED AND THE ARM CLOSED ITSELF, 9 Sep 2026.*** In one
+sitting: the arm fired, `MODIFY.ACCOUNT DON ADMINISTRATOR` printed *"don added
+to sdadmin"* and *"Account DON is now ADMINISTRATOR"*, and the next `sudo sd`
+printed **no 10033** while still reporting `Admin? : Yes`. ***THE ABSENCE OF
+10033 IS THE MEASUREMENT*** — it is the arm's only voice, so the rights came
+from the register and the group. Read off disk afterwards, independently: field
+5 `ADMINISTRATOR`, `sdadmin:x:965:don`, exactly one record holding the tier,
+and `MESSAGES/10033` present so its silence is real.
+
+***ENTRY 14's HANG DID NOT REACH IT, AND THE REASON MATTERS MORE THAN THE
+RESULT***: `sudo usermod` returned unchallenged **because the session is uid 0**.
+That says nothing about §14's ten call sites; it says this one runs where the
+question never arises.
+
+***THE GATE HAS ONLY EVER BEEN SEEN TO PASS, AND THAT IS THE NEXT THING TO
+FIX.*** The control is producible and tests the `AND`: remove `don` from
+`sdadmin`, **leave** the tier at `ADMINISTRATOR`, then `sudo sd`. **10034 and
+`Admin? No` is the pass; 10033 means the register scan asks the wrong question;
+`Admin? Yes` means the group half is not read at all.** Reversible with
+`sudo gpasswd -a don sdadmin`. **`leave.sdadmin` is also unrun** —
+`MODIFY.ACCOUNT DON PROGRAMMER` exercises it.
+
+***ENTRY 18 IS NOT CLOSED.*** Its third requirement — *"unregistered → refused
+entry"* — is still half there (`LOGIN:210-213` refuses a **forced** account
+only), and **§L1's per-tier VOC does not exist**: every account still gets the
+same verbs whatever its tier.
 
 *(The paragraph below was written before that install and is kept because its
 method is the reusable part.)* ***COMMIT 2 HAD NOT RUN, AND THAT WAS CHECKED
