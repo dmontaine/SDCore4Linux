@@ -6,11 +6,12 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***HEAD is `728b542` (origin/main, pushed 10 Sep 2026); the ssh tier boundary,
+***HEAD is `d791b4c` (origin/main, pushed 10 Sep 2026); the ssh tier boundary,
 PRE_RELEASE 13, landed at `a6d96b1`: BUILT + pushed, unit-tested 16/0, `sshd
--t`-witnessed on this box — but BEHAVIOURALLY UNRUN. The next thing to do is a
-delete→install cycle (steps below), which installs it and then witnesses it on a
-LIVE ssh login.***
+-t`-witnessed on this box — and now LIVE-ssh-WITNESSED 10 Sep 2026 (see step 3
+below): a STANDARD account is forced into `sd`, an administrator gets a shell.
+The delete→install cycle steps below remain the way to re-exercise it and to
+witness 25/27.***
 
 ### Next: the delete→install cycle — witnesses 13, 25 and 27 at once
 
@@ -31,10 +32,20 @@ both as `don`, **not** sudo — they elevate internally.
    WARNING if it refused. Take its closing reboot (the APIsrvr socket).
 3. After: `assert-current` should answer **0**. Then witness 13 biting —
    `sudo systemctl start ssh` (sshd is inactive on this box), make a STANDARD
-   account (`create-account USER <name> no.query`, give it a Unix password),
-   then ssh as it → lands in `sd`, no shell; ssh as `don` (admin, excluded by
-   `!sdadmin`) → normal shell. That live login is the half `sshd -t`/`-T` could
-   not show offline (OpenSSH 10.3 takes no `groups=` on `-T -C`).
+   account. **`no.query` needs the OS user to EXIST ALREADY** — `CREATUSR` is
+   off, so CREATEA will not auto-create one and stops 6074 "Invalid user name"
+   (`CREATEA:186`). So create the Unix user first from a shell —
+   `sudo useradd -m <name> && sudo passwd <name>` — THEN, inside `sd`,
+   `create-account user <name> no.query`. Then ssh as it → lands in `sd`, no
+   shell; ssh as `don` (admin, excluded by `!sdadmin`) → normal shell. That
+   live login is the half `sshd -t`/`-T` could not show offline (OpenSSH 10.3
+   takes no `groups=` on `-T -C`).
+
+***WITNESSED LIVE 10 Sep 2026 — ENTRY 13 IS NOW BEHAVIOURALLY RUN.*** OS user
+`pete` created with `useradd`, then `create-account user pete no.query`.
+`ssh pete@127.0.0.1` → SD banner, `:` prompt, `off` closed the connection: no
+shell. `ssh don@127.0.0.1` (ADMINISTRATOR, in `sdadmin`) → normal Ubuntu
+shell. That is the half `sshd -t`/`-T` could not show offline.
 
 **Latent, not blocking:** neither script runs `systemctl daemon-reload`, so the
 between-reboot has historically masked that; irrelevant to a keep cycle because
@@ -110,9 +121,8 @@ remains on the installer path is entry 25's witness and 27's real-script path.**
   prompt) followed by an install; the 01:56 run did not exercise it.
 - **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
 - **23's gate** — still open; needs a NON-ADMIN account (see above).
-- **13** — BUILT 10 Sep (the ssh boundary). Needs a LIVE ssh witness: a
-  STANDARD account forced into `sd` on ssh login, an administrator getting a
-  normal shell. Requires an install + running sshd + a non-admin account.
+- **13** — ***WITNESSED LIVE 10 Sep 2026.*** `pete` (STANDARD) ssh → `sd`, no
+  shell; `don` (admin) ssh → normal shell. Done.
 
 **`assert-current` will answer 1 until the next install** — the install is
 `dc36771` and HEAD is ahead (27 plus this record). That is honest: the installed
@@ -127,7 +137,8 @@ already an ADMINISTRATOR (promoted 9 Sep), so a separate STANDARD account is
 needed for the refusal either way.
 
 ***ENTRY 13 — THE ssh BOUNDARY — IS BUILT (10 Sep 2026), UNIT-TESTED 16/0,
-SYNTAX-WITNESSED, BEHAVIOURALLY UNRUN.*** Mechanism (ruled 9 Sep, owner):
+SYNTAX-WITNESSED, AND LIVE-ssh-WITNESSED 10 Sep 2026*** (`pete` STANDARD → `sd`
+no shell, `don` admin → shell; see START HERE step 3). Mechanism (ruled 9 Sep, owner):
 `ForceCommand` into `sd` for `Match Group sdusers,!sdadmin`; PROGRAMMER = STANDARD
 over ssh; administrators (in `sdadmin`) keep a real shell; admin-granted shell is
 reached THROUGH SD (`sd` not setuid), so no per-user carve-outs. New helper
@@ -140,9 +151,10 @@ feature; the drop-in dir is not universal, the main config is. `sshd -t -f`
 validates a candidate BEFORE the live file changes; refuses when no `sshd` is
 found. Test [test-ssh-forcecommand.py](sdb_ai/sd64/gplbld/test-ssh-forcecommand.py).
 ***WITNESSED:*** `sshd -t` exit 0 on the exact block (OpenSSH 10.3p1); `sshd -T
--C user=` proves `Match`-block ForceCommand activation. ***UNWITNESSED — needs a
-LIVE ssh login (owner):*** `sshd -T -C` won't take `groups=` on 10.3, so the
-non-admin-forced / admin-free behaviour cannot be shown offline. ***LOCK-OUT
+-C user=` proves `Match`-block ForceCommand activation. ***NOW ALSO WITNESSED
+LIVE 10 Sep 2026:*** the non-admin-forced / admin-free behaviour that `sshd -T
+-C` could not show offline (it won't take `groups=` on 10.3) — `pete` forced
+into `sd`, `don` free to a shell, over real ssh on 127.0.0.1. ***LOCK-OUT
 SENSITIVE; the install path runs `sshd -t` as root, which is required — `sshd -t`
 needs root to read host keys.*** Judgment call recorded in the helper header: the
 refusal predicate covers `ForceCommand`/`Match`-naming-our-groups, not unrelated
@@ -1297,6 +1309,35 @@ reads only field 4 of `/etc/group`, the supplementary member list, so a person
 whose **primary** group is the one being tested answers `false`. No shipped call
 depends on that today; it would bite the first time somebody's primary group is
 an SD group.
+
+**ADDED 10 Sep 2026 — RULING: the API port is 4243; two installer prompts
+planned.** Owner: SD Core conforms to the Windows port, which stays on **4243**.
+*Reconsidered twice this session and settled here: 4243, then 4245 (on a finding
+that the Windows port would switch), then back to 4243 — because changing the
+API port number across an upgrade is itself the problem, so the Windows port is
+staying put and Linux matches it for upgrade compatibility.* That
+upgrade-compatibility reason is the durable one; the coexist-with-commercial-QM
+rationale behind `changelog:1452`'s 4243→4245 move is declined. **Not started;
+left for its scheduled session, not jumping the queue (owner, 10 Sep).**
+- *Measured 10 Sep:* the Linux API listener is a **Unix domain socket**, not
+  TCP — `usr/lib/systemd/system/sdclient.socket`,
+  `ListenStream=/tmp/sdsys/sdclient.socket`, `Accept=true`, group `sdusers`. So
+  nothing listens on TCP 4243 *or* 4245 today; a remote client tunnels the
+  socket over ssh (the examples do `ssh -L 4245:/tmp/sdsys/sdclient.socket`).
+- **Non-conforming leftovers for that session:** `gplsrc/sdclilib.c:3485` and
+  `gplsrc/sdclient.c:3404` default `port = 4245` and would become **4243**;
+  `etc/xinetd.d/services` `sdclient 4245` likewise (xinetd unused here); and
+  `sdsys/changelog:1452`'s 4243→4245 line runs against this ruling. The BASIC
+  client `sdsys/GPL.BP/SDCLIENT:272` = 4243 is already correct.
+- **Two installer prompts, planned (conditional):** "Allow ssh access" = Y would
+  enable the ssh service at boot and open port 22 in the firewall; "Allow API
+  access" = Y would open port 4243. The installer does **no** firewall handling
+  today (no `ufw`/`iptables`) and no branch starts/enables sshd
+  (`installsdai.sh:302`). Because the API is a Unix socket today, "Allow API
+  access → open 4243" **presupposes a TCP 4243 listener that does not yet
+  exist** — that prompt is the work of adding it, not merely a firewall rule.
+  What would falsify the "just open a port" reading: no TCP listener is present
+  to open.
 
 **Guards ported from the Windows version — surveyed 9 Sep 2026, owner's ask.**
 The survey is recorded so it is not repeated: the port has **1** Claude hook and
