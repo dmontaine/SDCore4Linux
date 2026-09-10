@@ -49,11 +49,19 @@ int64 filelength64(fd) int fd;
 }
 
 /* ======================================================================
-   IsAdmin()  -  Is this user an administrator at the o/s level?          */
+   IsAdmin() is GONE - 09 Sep 26 dm, PRE_RELEASE 18 commit 2.
 
-bool IsAdmin(void) {
-  return (getuid() == 0);
-}
+   It was "return (getuid() == 0)", and PRE_RELEASE 18 listed it as one of the
+   two tests to replace.  Entry 19 had already removed its only call site (the
+   "|| IsAdmin()" in K_ADMINISTRATOR), so by 09 Sep 26 it was dead: the whole
+   tree held one definition and one declaration and no caller.
+
+   IT IS DELETED RATHER THAN LEFT because it answers the wrong question and
+   reads as though it answers the right one.  "Is this process root" is not
+   this system's definition of an administrator - that is sdadmin membership
+   AND a registered ADMINISTRATOR tier, decided in CPROC's grant.administrator
+   and read through kernel(K$ADMINISTRATOR,-1).  The port's IsAdmin() asks
+   getgrouplist(), which is a third question again; do not copy it in.        */
 
 /* ======================================================================
    itoa()  -  Convert integer to string                                   */

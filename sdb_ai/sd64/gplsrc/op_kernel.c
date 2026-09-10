@@ -47,7 +47,8 @@
 
 Public bool case_sensitive;
 
-bool IsAdmin(void);
+/* 09 Sep 26 dm - the IsAdmin() declaration went with the function.  See
+   linuxlb.c for why it is gone rather than merely unused.                    */
 bool recover_users(void);
 void set_date(int32_t);
 
