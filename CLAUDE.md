@@ -340,10 +340,23 @@ source change is void, not "probably still valid".
 **The two-stage bootstrap is where BASIC changes actually land.** `installsdai.sh`
 runs `sd -i` twice; a `GPL.BP` change that compiles is not thereby installed.
 
-***THIS PROJECT HAS NO EQUIVALENT OF THE WINDOWS `assert-current` GUARD, AND THAT
-IS A GAP RATHER THAN A DIFFERENCE.*** There, a script refuses to run any
-verification against a tree whose install is older than its source. Here nothing
-checks, so the discipline is yours. Writing that guard is worth a session.
+~~***THIS PROJECT HAS NO EQUIVALENT OF THE WINDOWS `assert-current` GUARD.***~~
+***IT HAS ONE NOW — 9 Sep 2026. RUN IT BEFORE BELIEVING ANY MEASUREMENT:***
+
+```sh
+python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
+```
+
+No `sudo`. **Exit 0 current, 1 stale, 2 the question cannot be answered** — and
+the third is a real answer, not a failure to produce one of the other two.
+
+**It is a rewrite of the port's, not a copy, because the question differs**: the
+installer here clones `main` from GitHub, so `bin/sd` is not what got installed
+even on a current tree. It checks that the working tree is committed, that HEAD
+is `origin/main`, that the install's own commit stamp matches HEAD, and that
+`bin/sd` is newer than `gplsrc`. ***AN INSTALL PREDATING THE STAMP ANSWERS `2`,
+NOT `0`*** — reinstall once and it becomes exact. Unit tests:
+`gplbld/test-assert-current.py`, 10 rows.
 
 ## Conventions
 

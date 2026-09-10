@@ -183,6 +183,18 @@ already holds it), ***AND THAT EXPOSED AN OLDER HOLE***: HEAD's helper builds
 `groupdel -- sdusers` **exit 0**, measured by running it. Both system groups
 are refused by name now. Self-test **36/0**, up from 30/0.
 
+***`PRE_RELEASE` 8 IS BUILT: THIS PROJECT HAS AN `assert-current` AT LAST.***
+`python3 gplbld/assert-current.py`, no `sudo`, **0 current / 1 stale / 2 cannot
+answer**. A rewrite rather than a port, because the installer clones `main` from
+GitHub so `bin/sd` is not what got installed: it checks the working tree is
+committed, HEAD is `origin/main`, the install's **commit stamp** matches HEAD,
+and `bin/sd` is newer than `gplsrc`. ***`installsdai.sh` NOW WRITES THAT STAMP***
+(`$sdsysdir/.sdcore-install`, root-owned 644, written after the recursive
+chown/chmod). **An install with no stamp answers 2, never 0.** Unit tests 10/10,
+and the `CURRENT` row was watched failing first. **Live here it says STALE,
+correctly** — the 18:39 install predates HEAD. ***USE IT BEFORE BELIEVING
+ANYTHING MEASURED AGAINST THE INSTALLED TREE.***
+
 ***ENTRY 18 IS CLOSED, AND ITS LAST REQUIREMENT WAS ALREADY MET.*** The entry
 claimed only a **forced** account is refused when unregistered. ***MEASURED 9
 Sep 26 WITH A CONTROL: ALL THREE OF `LOGIN`'s ACCOUNT CASES READ THE REGISTER

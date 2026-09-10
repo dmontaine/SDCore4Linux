@@ -313,6 +313,19 @@ echo "Installing the main branch from: ${REPO_URL}"
 repo_available
 git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
 
+# 09 Sep 26 dm - PRE_RELEASE 8.  RECORD WHICH COMMIT THIS INSTALL IS, so that
+# assert-current.py can answer exactly instead of guessing from timestamps.
+# Without it the only available comparison is "is the install older than the
+# commit", which is decisive in one direction and worthless in the other: a
+# newer mtime says nothing about WHICH commit was built.
+#
+# Read here, from the clone, rather than later from anywhere else - this is the
+# only moment the answer is known for certain, and --depth 1 means HEAD is the
+# one commit there is.  Written to the installed tree further down, once
+# $sdsysdir exists.
+sdcore_commit=$(git -C "$dflt_git_folder" rev-parse HEAD 2>/dev/null || echo unknown)
+echo "Installing commit ${sdcore_commit}"
+
 # The source tree is one level down in this repository - see repo_src_subdir.
 inst_folder="${dflt_git_folder}/${repo_src_subdir}"
 
@@ -526,6 +539,27 @@ sudo chmod 644 /etc/sd.conf
 sudo chmod -R 755 "$sdsysdir"
 sudo chmod 775 "$sdsysdir/errlog"
 sudo chmod -R 775 "$sdsysdir/prt"
+
+# 09 Sep 26 dm - PRE_RELEASE 8.  THE INSTALL STAMP, read from the clone above.
+# assert-current.py compares "commit" against the working tree's HEAD, which is
+# the only exact way to ask whether a measurement is being taken against the
+# source that produced it.  Without it the best available comparison is "is the
+# install older than the commit" - decisive in one direction and worthless in
+# the other, because a newer mtime says nothing about WHICH commit was built.
+#
+# ***WRITTEN HERE AND NOT EARLIER, DELIBERATELY.***  Both "chown -R
+# sdsys:sdusers" and "chmod -R 755" run above; a stamp written before them
+# would be swept into sdsys ownership and mode, and it must not be, because
+# anything that can rewrite this file can lie about what is installed.
+sudo tee "$sdsysdir/.sdcore-install" >/dev/null <<SDSTAMP
+# Written by installsdai.sh.  Read by gplbld/assert-current.py.
+commit=${sdcore_commit}
+branch=${REPO_BRANCH}
+origin=${REPO_URL}
+installed=$(date '+%Y-%m-%d %H:%M:%S')
+SDSTAMP
+sudo chown root:root "$sdsysdir/.sdcore-install"
+sudo chmod 644 "$sdsysdir/.sdcore-install"
 #
 #   Add $tuser to sdusers group
 sudo usermod -aG sdusers "$tuser"
