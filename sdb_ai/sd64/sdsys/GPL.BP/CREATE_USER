@@ -48,10 +48,29 @@
 $internal
 function create_user(username)
 $catalog !create_user
+$include int$keys.h
 
 deffun valid_os_name(name) calling '!valid_os_name'
 
 user_created = @false
+
+* 09 Sep 26 dm - PRE_RELEASE 22.  ***NO GATE, AND GLOBALLY CATALOGUED.***  Same
+*   shape as SET_PASSWD - read the reasoning there, it is not repeated.  The
+*   line below is OS.EXECUTE "sudo useradd -m " : username, and until now the
+*   only thing standing in front of it was CREATEA's administrator check on the
+*   VERB.  A "!" catalogued function is reachable from ordinary BASIC, measured.
+*
+*   STATUS 5, NOT 6, AND THE DIFFERENCE FROM SET_PASSWD IS DELIBERATE.  The
+*   header above is useradd's exit codes and 6 already means "specified group
+*   doesn't exist"; 5 is unused by useradd AND is the port's own "access
+*   denied" (its CREATE_USER:38).  SET_PASSWD documents PAM codes instead,
+*   where 6 is PAM_PERM_DENIED - so each file uses the code that is correct in
+*   ITS OWN table.  A number that is wrong in the table a reader will look it
+*   up in costs more than an asymmetry that is written down.
+if not(kernel(K$ADMINISTRATOR, -1)) then
+   set.status 5                   ;* access denied - not an administrator
+   return user_created
+end
 set.status 0
 * Modified by Composer AI - 2026/06/10.
 * Use shared !valid_os_name before OS.EXECUTE (phase 2).
