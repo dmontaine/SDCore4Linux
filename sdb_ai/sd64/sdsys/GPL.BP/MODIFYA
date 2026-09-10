@@ -19,11 +19,30 @@
 * 
 *
 * START-HISTORY:
+* 09 Sep 26 PRE_RELEASE 18. The tier is settable - ADMINISTRATOR, PROGRAMMER,
+*           STANDARD - which is the only way an EXISTING account can become an
+*           administrator. CREATE.ACCOUNT refuses a name already in the
+*           register (CREATEA:255, sysmsg 6002), so before this the advice
+*           "register one with CREATE.ACCOUNT" was unreachable for anybody who
+*           already had an account, and CPROC's bootstrap arm could never
+*           close. SUSPENDED is deliberately NOT here yet - see below.
 * rev 0.9.0 Jan 25 mab initial release
 * END-HISTORY
 *
 * START-DESCRIPTION:
 * MODIFY.ACCOUNT account <ADD/DELETE> user.name
+* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR
+*
+* THE TIER FORM IS THE PORT'S GRAMMAR MINUS ONE VALUE.  SD Core for Windows has
+* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED
+* (its gpl.bp/MODIFYA:121), and conformity with the port outranks conformity
+* with upstream.  SUSPENDED IS LEFT OUT ON PURPOSE rather than forgotten: it is
+* a denial of access, and the doors it has to close - LOGIN, CPROC's account
+* entry, ssh - are PRE_RELEASE 13's work and are not built here.  A SUSPENDED
+* that wrote a tier and shut no door would be a control that does not act.
+*
+* NO INTERMEDIATE STEP IS REQUIRED, matching the port: an account may go from
+* any of the three to any other in one command.
 *
 * END-DESCRIPTION
 *
@@ -65,6 +84,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username> '
+      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR'
       stop
    end
    *
@@ -78,10 +98,22 @@ deffun valid_os_name(name) calling '!valid_os_name'
    end
    
    group.name = acc.rec<ACC$GROUP>   ;* get associated group
-   
+
+* 09 Sep 26 dm - PRE_RELEASE 18.  THE TOKEN IS READ HERE NOW, NOT INSIDE THE
+*   is_group BRANCH BELOW, because a tier change must not depend on the
+*   account's Linux group being resolvable - a tier is a fact about the
+*   register.  The ADD/DELETE arm is unchanged apart from losing its own
+*   GET.TOKEN call; it still sees the same token in the same variable.
+   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
+   action = upcase(action)
+
+   begin case
+      case action = 'STANDARD' or action = 'PROGRAMMER' or action = 'ADMINISTRATOR'
+         gosub set.tier
+         stop
+   end case
+
    if is_group(group.name) then
-      * Get next token, ADD or DELETE
-      call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
       if (upcase(action) = 'ADD') or (upcase(action) = 'DELETE') then
       *  valid action
       *   Get next token, user name
@@ -145,10 +177,116 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add or Delete'
-      end 
-   
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, or a tier'
+         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR'
+      end
+
    end else
      crt sysmsg(10024,group.name) ;* %1 is not a valid Linux Group
    end
+   stop
+
+*****************************************************************************
+* SET.TIER  -  MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR
+*
+* 09 Sep 26 dm - PRE_RELEASE 18.  ***THIS IS THE EXIT FROM CPROC'S BOOTSTRAP
+*   ARM, AND WITHOUT IT THE ARM COULD NEVER CLOSE.***  Found by the owner, 9 Sep
+*   26, reading message 10033 on the first install that carried the gate: it
+*   told him to register an administrator with CREATE.ACCOUNT, and
+*   ***CREATEA:255 REFUSES A NAME ALREADY IN THE REGISTER*** with sysmsg 6002.
+*   Every person who already has an account - which is everyone who matters -
+*   was therefore given advice that could not be followed, with DELETE.ACCOUNT
+*   and its data loss as the only route.  His words: "kinda impossible".
+*
+* THE TIER IS WRITTEN AND THE GROUP FOLLOWS IT, IN THAT ORDER, because the
+*   register is the record and sdadmin is a consequence of it.  CPROC's gate
+*   requires BOTH, so a half-done promotion grants nothing - it fails closed.
+*
+* THE PERSON IS DERIVED FROM ACC$GROUP, NOT FROM THE ACCOUNT NAME.  CREATEA:439
+*   writes "sdu_" : <login> for a USER account, and that is the only place the
+*   account record carries the login.  An account whose group is not sdu_
+*   prefixed is a GROUP or OTHER account: it HAS no person, so it cannot be an
+*   administrator, and 10036 says so rather than writing a tier that nothing
+*   could act on.  STANDARD and PROGRAMMER are allowed on it - they take
+*   nothing away and CREATEA writes a tier for every account type.
+*
+* IT IS DELIBERATELY NOT IDEMPOTENT-BY-EARLY-RETURN.  Re-running with a tier the
+*   account already has still reconciles sdadmin, so a promotion whose usermod
+*   failed can be repaired by repeating the command.  is_grp_member guards the
+*   OS call, so the repeat costs nothing when there is nothing to do.
+*
+* NOBODY CAN LOCK THE MACHINE OUT WITH THIS, AND THAT IS THE BOOTSTRAP ARM
+*   EARNING ITS KEEP.  An administrator demoting the last administrator - even
+*   themselves - leaves the register with none, so CPROC's arm starts firing
+*   again on the next privileged session and the way back in is open.  That is
+*   worth knowing before anyone adds a "you may not demote yourself" rule.
+
+set.tier:
+   acc.user = ''
+   if group.name[1,4] = 'sdu_' then acc.user = group.name[5,999]
+
+   old.tier = upcase(trim(acc.rec<ACC$TIER>))
+   if old.tier = '' then old.tier = 'STANDARD'  ;* written before the field existed
+
+   if action = 'ADMINISTRATOR' and acc.user = '' then
+      @system.return.code = -ER$ARGS
+      crt sysmsg(10036, acc.name)  ;* %1 has no user, so it cannot be an administrator
+      return
+   end
+
+   acc.rec<ACC$TIER> = action
+   write acc.rec to acc.f, acc.name
+
+   begin case
+      case action = 'ADMINISTRATOR'
+         gosub join.sdadmin
+      case old.tier = 'ADMINISTRATOR'
+         gosub leave.sdadmin
+   end case
+
+   @system.return.code = 0
+   crt sysmsg(10035, acc.name, action)  ;* Account %1 is now %2
+   return
+
+*****************************************************************************
+* JOIN.SDADMIN / LEAVE.SDADMIN
+*
+* 09 Sep 26 dm - the OS half of the owner's definition.  These mirror
+* CREATEA:377-390 and the DELETE arm above rather than inventing a second way
+* to do the same thing; valid_os_name guards the shell in both, which is why
+* the account name is not interpolated raw.
+
+join.sdadmin:
+   if is_grp_member(acc.user, 'sdadmin') then return
+   if not(valid_os_name(acc.user)) then
+      crt sysmsg(10030, acc.user, 2) ;* Unable to add user %1 to sdadmin, status: %2
+      return
+   end
+   os.execute "sudo usermod -aG sdadmin ":acc.user
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(10031, acc.user)    ;* %1 added to sdadmin
+   end else
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10030, acc.user, stat)
+   end
+   return
+
+leave.sdadmin:
+   if acc.user = '' then return
+   if not(is_grp_member(acc.user, 'sdadmin')) then return
+   if not(valid_os_name(acc.user)) then
+      crt sysmsg(10022, acc.user, 'sdadmin', 2) ;* Unable to remove %1 from %2
+      return
+   end
+   os.execute "sudo deluser ":acc.user:" sdadmin"
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(10021, acc.user, 'sdadmin')    ;* %1 removed from group %2
+   end else
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10022, acc.user, 'sdadmin', stat)
+   end
+   return
+
    END
