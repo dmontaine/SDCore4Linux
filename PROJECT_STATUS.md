@@ -6,6 +6,38 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***LAST SESSION ENDED 9 Sep 2026 (out of credits) AT `51b5880`. Tree clean,
+pushed. This is the fresh-start note; the older lines below still stand.***
+
+**Done this session (all pushed, all on `origin/main`):** entry 19 closed
+(`op_kernel.c` admin-flag hole, `HDR_INTERNAL` gate); 14 & 13 measured and
+ruled; **14's mechanism built** (`gplbld/sd-elevate` + `sdcore.sudoers` +
+installer wiring + `test-sd-elevate.py` 30/0) — **installed and verified
+present** (16:25 install: `sdadmin` group, `/usr/local/sbin/sd-elevate`
+root:root 0755, `/etc/sudoers.d/sdcore` 0440); entry 18 **commit 1** (register
+records a tier, `ACC$TIER`/`ACC$PRIOR.TIER`, `CREATEA` writes it + adds admins
+to `sdadmin`); **`PRE_RELEASE` 20** filed and **piece 1 built** (`K$REAL.USER`
+57 keeps the real person across the `sudo sd` drop). Adopted the port's
+`test-fixlist-units.ps1` (pwsh, dev-only) — run it against `PRE_RELEASE_FIXES.md`.
+
+***THE ONE THING BUILT BUT NOT YET WITNESSED: `PRE_RELEASE` 20 piece 1.*** The
+16:25 install predates those commits. Baseline banked (`WHO.AM.I` under
+`sudo sd` → `User: sdsys`); ***a fresh install of `origin/main` should show
+`User:` = the person, EUID still 999.*** That is the witness.
+
+***NEXT TASK: ENTRY 18 COMMIT 2 — THE GATES.*** Replace `system(27) # 0` /
+`IsAdmin()` in `CATALOG`/`DELCAT` and the `kernel(K$ADMINISTRATOR,-1)` sites
+with the owner's definition: **sudoers member AND `ACC$TIER`=ADMINISTRATOR in
+the register**, keyed on the now-preserved `@logname`. Two traps in `PRE_RELEASE`
+§18/§20: **do NOT copy the port's `getgrouplist`-based `IsAdmin`** (ours is
+`getuid()==0`, wrong question) and **carry the `CN_SOCKET` guard** or every API
+session reads as admin. `sd-elevate`/`sdadmin` are still inert until the call
+sites migrate (entry 14 tail) — belongs with this.
+
+**Step 5 (installer) is later, in planned order.** Owner's shape recorded above
+(line ~164): ONE script for install/upgrade/delete; the in-place upgrade is
+plan `F1`+`F2`.
+
 *Handoff updated 9 Sep 2026. **Step 4 is complete.** Steps 2 and 3 implemented,
 neither exercised on a running system; §I built nothing and compiled nothing —
 the next install is what proves it.*
