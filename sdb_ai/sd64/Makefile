@@ -71,8 +71,19 @@ $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
 # headers must match their sources, or the drift only shows at run time.
 all: check-includes sd
 
+# EXTRA_C_FLAGS is the opt-in hatch and it is EMPTY unless you pass it on the
+# command line (plain "make" is unaffected, which is what installsdai.sh runs).
+# The only flag it is meant for today is the developer build:
+#
+#   make EXTRA_C_FLAGS=-DSD_DEV_BUILD
+#
+# which drops the privilege check on "sd -internal" so SD's own internals can
+# be compiled without sudo.  That binary announces itself on --version and on
+# every use of the flag; do not install one.  See gplsrc/sd.c, PRE_RELEASE 21.
+EXTRA_C_FLAGS ?=
+
 sd: ARCH :=
-sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE
+sd: C_FLAGS  :=  -std=gnu17 -Wall -Wformat=2 -Wno-format-nonliteral -DLINUX -D_FILE_OFFSET_BITS=64 -I$(GPLSRC) $(PY_HDRS) -DEMBED_PYTHON -DGPL -g $(ARCH) -fPIE $(EXTRA_C_FLAGS)
 sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
 	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd

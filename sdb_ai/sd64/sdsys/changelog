@@ -9,6 +9,44 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  sd -internal NOW REQUIRES root, AND SO DOES EVERY OTHER PRIVILEGED
+           sd OPTION ON EVERY SYSTEM.
+
+           -internal puts SD's compiler into the mode that accepts $INTERNAL
+           programs, which are the ones allowed to call KERNEL.  It had no
+           privilege check, so any user could compile a short program that
+           granted itself SD administrator rights - which made the check
+           described in the entry below, and every other check of those
+           rights, something a user could simply step around.  It now asks the
+           same question -i has always asked.
+
+           If you compile SD's own internals - the programs in GPL.BP - you
+           now need sudo to do it.  Installing SD is unaffected: the installer
+           already ran these steps as root.  Nothing about compiling your own
+           programs changes; ordinary BASIC never used this option.
+
+           If you build SD from source and want that check out of your way
+           while you work, build with
+
+               make EXTRA_C_FLAGS=-DSD_DEV_BUILD
+
+           A binary built that way says so - "sd --version" reports DEVELOPER
+           BUILD and every use of -internal prints a line saying the check was
+           skipped.  Do not install one, and if you are reporting a bug please
+           include the "sd --version" output so we can see which you are on.
+           A plain "make" is unaffected, and the installer always builds from
+           a fresh checkout, so what you install is never a developer build.
+
+           IN THE SAME CHANGE, "administrator" for these options means root and
+           only root.  SD used to also accept membership of a group called
+           admin.  SD does not create or manage a group of that name, and on
+           some Linux distributions admin is an old name for the sudo group -
+           so on those systems the option checks above were weaker than on
+           others, with nothing to tell you which kind of system you were on.
+           SD's own group, sdadmin, is deliberately not used here: these are
+           operating system operations - start, stop, kill a user, restart,
+           bootstrap install - rather than SD ones.
+
 09 Sep 26  WHO COUNTS AS AN ADMINISTRATOR HAS CHANGED.  STARTING SD WITH sudo
            IS NO LONGER ENOUGH ON ITS OWN.
 
