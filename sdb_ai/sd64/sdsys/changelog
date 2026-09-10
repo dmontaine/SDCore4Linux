@@ -26,6 +26,12 @@ SD: what changed, why it mattered, and what it does not do.
            running it cannot use sudo, instead of failing part-way through with
            a system error.
 
+           A fresh install no longer stops part-way through when /home/sd
+           already exists - which it does when an uninstall kept your SD
+           configuration.  The installer now makes the account directories
+           whatever state /home/sd is in, instead of only when /home/sd is
+           missing.
+
 09 Sep 26  OPERATING-SYSTEM ACCESS IS NOW A PER-ACCOUNT PRIVILEGE.
 
            OS.EXECUTE - the SD BASIC statement that runs an operating-system
