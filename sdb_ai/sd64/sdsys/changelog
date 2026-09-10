@@ -9,6 +9,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  A NEW INSTALL REGISTERS THE INSTALLING USER AS AN SD ADMINISTRATOR.
+
+           Installing SD used to leave the person who ran the installer with an
+           ordinary STANDARD account and no administrator registered at all.
+           SD coped by granting administrator rights for the first session and
+           saying that no administrator was registered.  That fallback still
+           exists, but it is now a fallback: an install registers the
+           installing user as an ADMINISTRATOR, which is both the account tier
+           and membership of the sdadmin group.  An upgrade that keeps its
+           existing accounts does not change any of them, so reinstalling does
+           not promote anybody.
+
+           The installer also now says plainly, at the start, if the person
+           running it cannot use sudo, instead of failing part-way through with
+           a system error.
+
 09 Sep 26  OPERATING-SYSTEM ACCESS IS NOW A PER-ACCOUNT PRIVILEGE.
 
            OS.EXECUTE - the SD BASIC statement that runs an operating-system
