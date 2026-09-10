@@ -21,6 +21,14 @@
 #   rather than silently taking a branch that installs nothing; Arch, Fedora and
 #   openSUSE are served by the upstream sdb64 installer until this one is
 #   stable.
+#
+#   10 Sep 2026 - two changes on the owner's ruling of that day.  The
+#   installing user is registered as an SD ADMINISTRATOR (the ADMINISTRATOR
+#   keyword on create-account) instead of a STANDARD account, so a fresh
+#   install has a registered administrator and CPROC's bootstrap arm is a
+#   fallback rather than the way in.  And a caller who cannot sudo is refused
+#   at the first sudo, in words, instead of failing part-way with sudo's own
+#   error.  Both are PRE_RELEASE 24.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -218,7 +226,20 @@ printf "%b\n" "$YELLOW"
 # Modified by Composer AI - 2026/06/10.
 # Refresh sudo credentials with sudo -v instead of sudo date.
 # sudo date &>/dev/null
-sudo -v
+# 10 Sep 26  A CALLER WHO CANNOT SUDO IS REFUSED HERE, IN WORDS, BEFORE
+#            ANYTHING IS CHANGED.  This was a bare "sudo -v": the credential
+#            check was already the right test, but the failure was sudo's own
+#            error and a set -e abort - true, and it names nothing the person
+#            can act on.  Owner's ruling, 10 Sep 26.  Every privileged step in
+#            this script shells to sudo, so without this the install fails
+#            part-way through, after it has begun changing the machine.
+if ! sudo -v; then
+    printf "%b\n" "$RED"
+    echo "This installer needs sudo, and ${USER} cannot use it."
+    echo "sudo is not installed, or ${USER} is not in the sudo group."
+    printf "%b\n" "$NC"
+    exit 1
+fi
 # --------------------
 clear
 echo
@@ -727,9 +748,23 @@ sudo chmod -R 755 "$sdsysdir/gcat"
 #  create a user account for the current user
 echo
 echo
+# 10 Sep 26  THE INSTALLING USER IS REGISTERED AS AN SD ADMINISTRATOR.
+#            This was "create-account USER $tuser no.query", which made a
+#            STANDARD account with no tier and no sdadmin membership, so a
+#            fresh install had NO registered administrator and CPROC's
+#            bootstrap arm was the only way in.  Owner's ruling, 10 Sep 26:
+#            the arm is a fallback, not the norm.  The ADMINISTRATOR keyword
+#            is CREATEA's own path (PRE_RELEASE 18) - it writes ACC$TIER and
+#            adds the person to sdadmin - so the installer duplicates neither
+#            half.  The port seeds its first administrator the same way, by
+#            ADOPT, which CREATEA also forces to ADMINISTRATOR.
+#
+#            AN EXISTING ACCOUNT IS NOT TOUCHED.  The directory test above
+#            means an upgrade that saved its accounts keeps the tier it has,
+#            so this seeds a fresh install rather than promoting anybody.
 if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
-    echo "Creating a user account for ${tuser}."
-    sudo bin/sd create-account USER "$tuser" no.query
+    echo "Creating a user account for ${tuser} as an SD administrator."
+    sudo bin/sd create-account USER "$tuser" ADMINISTRATOR no.query
 fi
 #
 echo

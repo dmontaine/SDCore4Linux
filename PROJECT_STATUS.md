@@ -7,7 +7,8 @@ the work, nothing in "Verified" that was not observed that session.
 ## START HERE
 
 ***SESSION ENDED 10 Sep 2026. TREE CLEAN, PUSHED (see `git log`).*** The
-installed system is `origin/main` and CURRENT.
+installed system predates the message wrap (`d7cf3d9`) and the installer change
+below (PRE_RELEASE 24); **`assert-current` says STALE until the next install**.
 
 ### The one thing that matters before you believe anything
 
@@ -40,6 +41,7 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 | entry | |
 |---|---|
+| **24** | the installer seeds the installing user as an SD ADMINISTRATOR (`installsdai.sh:767`, `ADMINISTRATOR` on `create-account`), and refuses a non-sudoer at the first `sudo -v` in words (`:236`). Both owner-ruled 10 Sep. **Built, `bash -n` clean, no BOM, 0 CR; UNRUN — the witness needs a fresh install with accounts deleted.** Detail in PRE_RELEASE 24 |
 | **23** | the OS-access tier gate, both commits. **Commit 1 (installed):** `op_sh` gates `OS.EXECUTE` to `$internal`/administrator (msg 10054). **Commit 2 (compiled, unrun):** `ACC$SH`(7)/`ACC$OS.EXEC`(8) grants, `MODIFY.ACCOUNT SH-ON\|SH-OFF\|OS-ON\|OS-OFF` (msgs 10039–10042), `SH` gate at `CPROC:3490`→admin-or-`K$SH` (msg 10053), flags loaded at account entry (LOGIN + CPROC logto). MODIFYA/CPROC/LOGIN each compiled **0 errors** with a red control (1 error); account restored to COUNT VOC 410; plain binary rebuilt. Detail in PRE_RELEASE 23 |
 | **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
 | **21** | `sd -internal` was an unguarded route to the admin flag — **measured, uid 1000, no sudo**. Now behind `check_admin()`, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as the announced opt-out |
@@ -52,34 +54,29 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Next task
 
-***OWNER'S OPEN DESIGN QUESTION, 10 Sep 2026 — DECIDE BEFORE BUILDING (§F,
-installer). Raised, not yet ruled.*** Two parts:
+***INSTALLER — THE OWNER'S QUESTION IS RULED AND BUILT, 10 Sep 2026. UNRUN
+UNTIL THE NEXT FRESH INSTALL (PRE_RELEASE 24).*** Both parts ruled yes and
+implemented in `installsdai.sh`:
 
-1. **Should the installer automatically register the installing user as an SD
-   ADMINISTRATOR** (tier + `sdadmin`), not just a STANDARD account? Today
-   `installsdai.sh:732` runs `create-account USER "$tuser" no.query`, which makes
-   a STANDARD account with no tier and no `sdadmin` — so after every install NO
-   SD admin is registered and CPROC's bootstrap arm fires (exactly the "No SD
-   administrator is registered" notice, measured 10 Sep: `ACCOUNTS/DON` field 5
-   = STANDARD, `sdadmin` empty). Registering `$tuser` as ADMINISTRATOR there
-   (mirror `MODIFY.ACCOUNT <u> ADMINISTRATOR`: write `ACC$TIER` + `gpasswd -a
-   sdadmin`) would seed the first admin and make the bootstrap arm a fallback,
-   not the norm. **Feasible** — `installsdai.sh:125` already has `tuser=$USER`.
-2. **Should a non-sudoer be able to install at all?** Effectively NO already:
-   the script runs unprivileged but every step shells to `sudo`, so a user
-   without sudo fails at the first one. `:112` refuses running AS root, but
-   nothing checks UPFRONT that the invoker HAS sudo — it just fails part-way. A
-   clean early "you need sudo to install" check is the improvement.
+1. **`create-account` now carries `ADMINISTRATOR`** (`:767`, was `no.query`
+   only), so a fresh install seeds the installing user as an SD administrator —
+   tier + `sdadmin`, CREATEA's own keyword path (`CREATEA:402-424`) — and
+   CPROC's bootstrap arm becomes a fallback. The port does the same through
+   ADOPT (`adopt-account.ps1:293`). **An upgrade that saves its accounts keeps
+   the tier it has** (`:765`'s directory test skips the create), so **the
+   witness needs the accounts deleted or the line is not exercised**.
+2. **A caller who cannot sudo is refused at the first `sudo -v`** (`:236`) with
+   a sentence, exit 1, before anything is changed — the old bare `sudo -v` let
+   sudo's own error and a `set -e` abort speak part-way through.
 
-OS admin is a precondition either way (the installer needs sudo), so "give the
-installer OS admin" = they already have it; the real lever is the SD side
-(part 1). Put both to the owner, then build in §F.
+`bash -n` clean, no BOM, 0 CR. **Commit and push before installing** (the
+installer clones `main`); the witness expectations are in PRE_RELEASE 24.
 
 ***ENTRY 23 — finish the gate witness.*** Installed, and the grant WRITE is
 witnessed (field 8 = `yes`, msg 10041). Still open: the `op_sh`/`SH` gate
-actually biting — needs a NON-ADMIN account (steps in START HERE). Note: if
-part 1 above lands, `don` becomes a real admin and a separate STANDARD account
-is then needed to witness a refusal.
+actually biting — needs a NON-ADMIN account (steps in START HERE). `don` is
+already an ADMINISTRATOR (promoted 9 Sep), so a separate STANDARD account is
+needed for the refusal either way.
 
 ***ENTRY 13 — THE ssh BOUNDARY — IS NOW RULED AND READY TO BUILD*** (owner, 9
 Sep 2026, this session; it no longer needs a ruling before code). Mechanism:
