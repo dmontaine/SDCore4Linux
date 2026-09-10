@@ -6,6 +6,47 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***9 Sep 2026, LATER SESSION — ENTRY 18 COMMIT 2 IS BUILT AND THE BASIC WAS
+COMPILED FOR REAL, WHICH THIS PROJECT HAD NOT MANAGED BEFORE.*** Opened on
+`pull`, already up to date at `ef75eb2`.
+
+**Built:** `CPROC` `grant.administrator` applies the owner's definition —
+`sdadmin` membership **AND** `ACC$TIER`=`ADMINISTRATOR` for the real person — at
+the **one** place `USR_ADMIN` is set, so the fourteen readers keep asking the
+flag. `LOGTO SDSYS`, `CATALOG` ×2 and `DELCAT` swapped `system(27)` for the
+flag. Messages 10033/10034. **`IsAdmin()` deleted** — it was already dead, entry
+19 having removed its only caller, and it answers the wrong question.
+
+***THE BOOTSTRAP ARM IS THE OWNER'S RULING AND IT WAS NEEDED, NOT PRECAUTIONARY.***
+Measured first: `ACCOUNTS/DON` has **three fields** (no tier) and
+`sdadmin:x:965:` has **no members**, so a strict gate refuses everybody and
+`CREATEA:95` needs admin to register the first admin. With **no**
+`ADMINISTRATOR` in the register the grant stands and prints 10033; the arm
+closes itself once one exists.
+
+***THE COMPILE RECIPE, WHICH IS REUSABLE AND WAS THE MISSING INSTRUMENT:***
+`sd -internal BASIC <file> <prog>`, arguments separate, **no pipe** — the port's
+recipe at its `HISTORY.md:18916`. Stage the program plus its twelve `$include`
+records **from the working tree** into an empty `BP` and compile as an ordinary
+user. `CPROC` **0 errors on both `IS_INSTALL` arms**, HEAD as the control also
+0, and **two red runs** (a truncated `CPROC` → 10 errors; the same file without
+`-internal` → the port's exact directive cascade). Fixtures removed;
+`COUNT VOC` 411 either way.
+
+***AND THE SESSION FOUND SOMETHING BIGGER THAN WHAT IT BUILT: `PRE_RELEASE` 21.***
+***AS `don`, uid 1000, NO `sudo`, A FIVE-LINE `$internal` PROGRAM SET ITS OWN
+ADMINISTRATOR FLAG*** — `PRE admin flag = 0` → `POST admin flag = 1`, null case
+refused. `-INTERNAL` at `sd.c:310` has **no privilege check**, while `-I` three
+lines below calls `check_admin()`. **So entry 18's gate — and any gate on that
+flag — is bypassable today.** The fix is one line and is a **ruling**, because
+it moves this project's only BASIC-compile instrument behind `sudo`. **Read §21
+before treating 18 as closed.**
+
+***NOTHING FROM THIS SESSION HAS RUN. A COMPILE IS NOT AN INSTALL.*** The
+witness for both 18 commit 2 and 20 piece 1 is one install of `origin/main`
+followed by `sudo sd` — expect message **10033** naming `don`, and `WHO.AM.I`
+showing `User: don`, `Process UID: 0`, `EUID: 999`, `Admin? Yes`.
+
 ***LAST SESSION ENDED 9 Sep 2026 (out of credits) AT `51b5880`. Tree clean,
 pushed. This is the fresh-start note; the older lines below still stand.***
 
@@ -25,14 +66,15 @@ to `sdadmin`); **`PRE_RELEASE` 20** filed and **piece 1 built** (`K$REAL.USER`
 `sudo sd` → `User: sdsys`); ***a fresh install of `origin/main` should show
 `User:` = the person, EUID still 999.*** That is the witness.
 
-***NEXT TASK: ENTRY 18 COMMIT 2 — THE GATES.*** Replace `system(27) # 0` /
-`IsAdmin()` in `CATALOG`/`DELCAT` and the `kernel(K$ADMINISTRATOR,-1)` sites
-with the owner's definition: **sudoers member AND `ACC$TIER`=ADMINISTRATOR in
-the register**, keyed on the now-preserved `@logname`. Two traps in `PRE_RELEASE`
-§18/§20: **do NOT copy the port's `getgrouplist`-based `IsAdmin`** (ours is
-`getuid()==0`, wrong question) and **carry the `CN_SOCKET` guard** or every API
-session reads as admin. `sd-elevate`/`sdadmin` are still inert until the call
-sites migrate (entry 14 tail) — belongs with this.
+~~***NEXT TASK: ENTRY 18 COMMIT 2 — THE GATES.***~~ ***DONE, above.*** Two
+things this paragraph said turned out to be wrong and the corrections are worth
+keeping. **`IsAdmin()` needed no replacing — it was already dead**, entry 19
+having removed its only caller; it is deleted rather than rewritten. **And the
+`CN_SOCKET` guard does not arise**: `linuxio.c:110` sets
+`command_processor = "$APISRVR"` for an API session, so `$CPROC`'s root-entry
+block is not on that path at all and the port's every-API-session-is-admin hole
+has no route here. `sd-elevate`/`sdadmin` are still inert until the ten raw
+`sudo` call sites migrate (entry 14 tail).
 
 **Step 5 (installer) is later, in planned order.** Owner's shape recorded above
 (line ~164): ONE script for install/upgrade/delete; the in-place upgrade is

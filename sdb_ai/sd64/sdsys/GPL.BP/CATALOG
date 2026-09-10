@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 PRE_RELEASE 18 commit 2. Both global-catalogue checks ask the
+*           administrator flag rather than "is this process root".
 * 08 Sep 26 The rev 0.9.0 administrator check covered the GLOBAL keyword only,
 *           not the *, !, _ and $ prefix routes, which are the common form.
 *           One check now gates every route that reaches the global catalogue.
@@ -105,9 +107,13 @@ $define CAT_PCODE  3
             option.seen = @true
             mode = CAT_GLOBAL
             * rev 0.9.0 must be admin for Global
-            if system(27) # 0 then
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  system(27) # 0 asked "is this
+*   process not root", which is not what "must be admin" means under the
+*   owner's definition.  CPROC's grant.administrator now decides that once,
+*   and this reads the answer.
+            if not(kernel(K$ADMINISTRATOR,-1)) then
               stop sysmsg(2001)  ;* Command requires administrator privileges
-            end 
+            end
 
          case keyword = KW$PCODE
             if mode and mode # CAT_PCODE then stop sysmsg(3021) ;* Incompatible cataloguing modes specified
@@ -199,7 +205,9 @@ $define CAT_PCODE  3
 * catalogue, so one test cannot fall out of step with another.  The KW$GLOBAL
 * case keeps its own check as well, because refusing at the moment the keyword is
 * read gives the better message; this one is what actually holds.
-   if mode = CAT_GLOBAL and system(27) # 0 then
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  The flag, not the uid.  See the
+* KW$GLOBAL case above.
+   if mode = CAT_GLOBAL and not(kernel(K$ADMINISTRATOR,-1)) then
       stop sysmsg(2001)  ;* Command requires administrator privileges
    end
 

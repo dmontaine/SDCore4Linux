@@ -52,7 +52,7 @@ makes the table findable. **It said `| ID |` until 9 Sep 2026 and the checker
 refused the whole file** — *"no index table found"*, exit 2. Changed on the
 owner's ruling that day, for conformity with the port and to adopt the checker.
 
-***NEXT FREE ID: 21.*** Take it from here and increment it; **do not derive it by
+***NEXT FREE ID: 22.*** Take it from here and increment it; **do not derive it by
 scanning.**
 
 **Ported from SD Core for Windows**, whose `PRE_RELEASE_FIXES.md` is the model
@@ -61,6 +61,7 @@ the two files are not comparable by number.
 
 | | SEV | What | Where |
 |---|---|---|---|
+| 21 | **B** | ***ANY ORDINARY USER CAN GRANT THEMSELVES ADMINISTRATOR RIGHTS WITH `sd -internal`, AND THIS DEFEATS EVERY GATE INCLUDING 18's. MEASURED 9 Sep 2026, NOT REASONED.*** As `don`, uid **1000**, no `sudo`: a five-line `$internal` program compiled with `/usr/local/sdsys/bin/sd -internal BASIC BP ADMPROBE` and run with `RUN BP ADMPROBE` printed `PRE admin flag = 0`, then `POST admin flag = 1` after `void kernel(K$ADMINISTRATOR, 1)`. **The probe refuses the null case** — it stops and prints VOID if the flag was already set — and it printed uid, user and account, so it cannot have measured a privileged session by accident. ***THIS REFUTES THE CONTAINMENT ARGUMENT IN ENTRY 19, WHICH IS SOUND ON ITS OWN TERMS AND ASKS THE WRONG QUESTION.*** 19 measured that a **non-internal** program cannot compile `kernel(26,1)` — true, `BCOMP:3759` gates the intrinsic on `internal`, and `BCOMP:2853` gates the `$INTERNAL` directive on `kernel(K$INTERNAL,-1)`. **But `internal_mode` is set by the `-INTERNAL` command-line flag at `sd.c:310` WITH NO PRIVILEGE CHECK AT ALL** — and `-I`, three lines below at `:320`, calls `check_admin()` first. So the containment rests on a flag anyone may pass. **The fix is one line and it is named, not built**: `-INTERNAL` should call `check_admin()` the way `-I` does. ***IT IS NOT BUILT BECAUSE IT IS A RULING, NOT A TYPO*** — it decides who may compile `$internal` programs, and the cost is real: it removes the only instrument this project has for compiling `CPROC`, `CATALOG` and `LOGIN` outside an install (see §18 commit 2), and `installsdai.sh:645,672` already run `-internal` under `sudo` so the installer is unaffected. **And `check_admin()` (`sd.c:589`) is itself worth a second look**: it is `geteuid() != 0 && !in_group("admin")`, and ***no `admin` group exists on this machine*** — `don` is in `sudo`, `wheel` is absent — so today it means "euid 0" and its group arm is dead. | `gplsrc/sd.c:310`, `:320`, `:586-593`; `sdsys/GPL.BP/BCOMP:2853`, `:3759`; entries 19, 18 |
 | 20 | **B** | ***SD DOES NOT KNOW WHICH PERSON IS THE ADMINISTRATOR, AND THAT BLOCKS ENTRY 18's SECOND HALF.*** Measured 9 Sep 2026 by reading `CPROC`, and it **corrects entry 18's premise**. On `sudo sd`, `CPROC:279` sees uid 0, `CPROC:281` drops the effective uid with `!EUID_SET('sdsys')`, and ***`CPROC:285` REPLACES THE SESSION IDENTITY — `logname = kernel(K$USERNAME, 0)` makes `@logname` `sdsys`*** — before `$LOGIN` is called at `:291`. So by the time any gate could read the register, **the real person's name is gone**. The owner's *"is also a registered user of SD as an administrator"* has no person to look up, and `CPROC:2483`'s own `is_grp_member(@logname, …)` entry test is answered for `sdsys` rather than for whoever typed `sudo`. ***THIS ALSO NARROWS ENTRY 18's OTHER CLAIM***: the OS half is *effectively* enforced already, since reaching uid 0 by `sudo sd` requires sudoers membership — what is missing is the register half, not the sudoers half. **The port hit this and answered it with a SEPARATE concept**, `K$OS.ADMINISTRATOR` — *"is the SIGNED-IN PERSON an administrator"* as distinct from the session flag — keeping `@logname` the signed-in user. ***A RULING IS NEEDED BEFORE 18's GATES CAN BE WRITTEN***: whether SD preserves the real identity across the drop, and if so where. See §20 | `GPL.BP/CPROC:279-291`, `:2483`; entry 18 |
 | 1 | **B** | ***THE PLAN HAS NO ANSWER FOR THE PORT'S 157 POWERSHELL HELPERS, AND §L IS SCHEDULED WITHOUT THE VERIFIERS THAT PROVED IT THERE.*** Classified 9 Sep from each script's own header: **113 testing, 38 admin, 6 build**. The testing half is 51 `verify-*`, **28 `test-*-units` that test the verifiers themselves**, 18 `probe-*` and 16 harness. Of the 38 admin, 19 are Windows mechanism with no counterpart here, **12 are the `secure-*` ACL family whose INTENT is §L's POSIX security posture**, and 7 have a direct Linux need the plan already schedules (`upgrade-voc`/`-dicts` §F1/F2, `check-install` §F7, `finish-install`, `clean-deadvoc`, `api-listener`, `restart-sd`). The plan mentions none of it: `verify-`, "the suite", "harness" and "verifier" return **two incidental hits in ~1,600 lines**. See §1 | plan §H "Windows-only work"; `sd4windows/sdb_ai/sd64/gplbld/*.ps1` |
 | ~~2~~ | **S** | ***RULED AND IMPLEMENTED 9 Sep 2026.*** The plan did not mention the `MICRO` verb or the editors at all. **Owner's ruling:** *"for the linux version we just drop microsoft edit and maintain our practice of using whatever version of micro the distribution ships. The one thing we do want to retain from the windows version is the sdbasic syntax highlighting."* Done in `c8…` — `mkbasicsyntax.py` and `checksyntax.py` ported, `microcfg/syntax/sdbasic.yaml` generated from this tree's `BCOMP`, and `MICRO` now suffixes a BP working copy `.sdbasic` so detection fires. **Placement is entry 12.** See §2 | `sdb_ai/sd64/gplbld/mkbasicsyntax.py`, `microcfg/syntax/sdbasic.yaml`, `sdsys/GPL.BP/MICRO` |
@@ -74,7 +75,7 @@ the two files are not comparable by number.
 | 10 | **M** | **`sdsys/MESSAGES` lacks records `4100`, `4101`, `-10303`** (plan §D5). That is the runtime message file, not generated from `err.h`, so `gen_includes.py` does not touch it; adding the three is a deliberate data edit | `sdsys/MESSAGES/` |
 | 11 | **M** | **`gplbld/check-msglen.py` hard-codes the bound 231 and will not say so if the constants move.** All four were verified against this tree when it was ported on 9 Sep, but nothing re-checks them; a change to `MAX_ERROR_LINES`, `MAX_EMSG_LEN`, the `"%08X: "` prefix or the D1 fix leaves a confident instrument answering from a stale premise | `sdb_ai/sd64/gplbld/check-msglen.py` |
 | ~~19~~ | **B** | ***DONE 9 Sep 2026 — MEASURED, THEN FIXED TO MATCH THE PORT.*** The C hole was real at **both** ends (`op_kernel.c:302-312`): any positive argument set `USR_ADMIN` without calling `IsAdmin()`, and the `\|\| IsAdmin()` made `kernel(26,0)` *re-grant* rather than clear whenever the caller ran as root, so `CPROC:2713`'s admin-drop on `LOGTO` did nothing for a root OS user. ***BUT THE READING "bypassable from any BASIC program" IS REFUTED:*** `KERNEL` is an `int.intrinsics` entry resolved only in internal mode (`BCOMP:3758`), and a non-internal probe (`kernel(26,1)`) compiled from the non-root `don` account **fails with "Unrecognised statement", 2 errors** — KERNEL is unreachable from ordinary BASIC. So the opcode can only be emitted by an `$internal` program (LOGIN, CPROC). **Fixed by gating the flag change on `HDR_INTERNAL`**, the port's exact fix (its entry 170 / 13 Aug 26). Build clean, 0 warnings; `bin/sd` boots. The `$internal`-path effect is reasoned + conformity, not witnessed (an ordinary user cannot compile `$internal`). Unblocks entry 18 | `gplsrc/op_kernel.c:302-312` |
-| 18 | **B** | ***HALF BUILT 9 Sep 2026 (commit 1 of 2): THE REGISTER RECORDS A TIER, AND NOTHING READS IT YET.*** `SYSCOM/KEYS.H` gains `ACC$TIER` 5 / `ACC$PRIOR.TIER` 6; `CREATEA` takes `ADMINISTRATOR`/`PROGRAMMER` (token text, not `KW$`, so **no abbreviation**) and writes field 5, `STANDARD` being the default. **Field 4 is free in this tree — unlike the port — and is left free for conformity anyway.** ***Commit 2 is the gates, `sdadmin` membership and the ten call sites.*** Every account still gets the same VOC (§L1, undesigned). Compile check was **bounded**: `$internal`, so error classes were compared against HEAD and are identical, none on an added line. ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
+| 18 | **B** | ***BOTH COMMITS BUILT 9 Sep 2026, AND FOR THE FIRST TIME IN THIS PROJECT THE BASIC WAS REALLY COMPILED — `CPROC` 0 errors, both `IS_INSTALL` arms, with HEAD as the control and a red run to prove the check discriminates. See "Commit 2" below.*** ***IT IS NOT CLOSED, AND THE REASON IS ENTRY 21***: a gate is worth only as much as the flag it sets, and `sd -internal` lets any user set that flag directly. **Nothing here has run on an installed system.** *(Commit 1, below, stands as written.)* ***HALF BUILT 9 Sep 2026 (commit 1 of 2): THE REGISTER RECORDS A TIER, AND NOTHING READS IT YET.*** `SYSCOM/KEYS.H` gains `ACC$TIER` 5 / `ACC$PRIOR.TIER` 6; `CREATEA` takes `ADMINISTRATOR`/`PROGRAMMER` (token text, not `KW$`, so **no abbreviation**) and writes field 5, `STANDARD` being the default. **Field 4 is free in this tree — unlike the port — and is left free for conformity anyway.** ***Commit 2 is the gates, `sdadmin` membership and the ten call sites.*** Every account still gets the same VOC (§L1, undesigned). Compile check was **bounded**: `$internal`, so error classes were compared against HEAD and are identical, none on an added line. ***"ADMINISTRATOR" IN THE CATALOGUE GATES MEANS UID 0 — LITERAL root — AND §L'S ADMINISTRATOR TIER WILL NOT SATISFY IT.*** `CATALOG` (`:108`, `:202`) and `DELCAT` (`:119`) all gate on `system(27) # 0`, and `system(27)` is **`getuid()`** (`gplsrc/op_sys.c:222-223`). `sd` is not setuid, so a session runs as the invoking Unix user: **an SD ADMINISTRATOR who is not root is refused, and any ordinary user who is root is admitted.** The tier has no bearing on it. **Measured 9 Sep 2026 on the 11:35 install**, as uid 1000: `CATALOG BP $X`, `CATALOG GLOBAL BP X` and `DELETE.CATALOG $X` each refuse with sysmsg 2001, and a *local* `CATALOG BP X` does not — so the gate discriminates and works. **The defect is not the gate, it is what "administrator" is defined as.** ***OWNER'S DEFINITION, 9 Sep 2026, WHICH SETTLES IT:*** *"an administrator is a person who is a member of sudoers and is also a registered user of SD as an administrator. If they are not a registered user they should be refused entry."* And on the model: *"that is the current path in the windows version — you can be a windows administrator and still not have access to sd."* **Two conditions, ANDed, and neither is `getuid() == 0`.** See §18 for the measured gap | `GPL.BP/CATALOG:108,202`; `GPL.BP/DELCAT:119`; `gplsrc/op_sys.c:222` |
 | 17 | **S** | ***THE SHIPPED BINARY TELLS THE USER IT IS VERSION 1.0-2, WHICH IS UPSTREAM'S NUMBER, NOT THIS PROJECT'S.*** Measured on the 11:35 install of 9 Sep 2026: `sd --version` answers *"String Database (sd) Version 1.0-2 64 Bit"* and every session banner says *"version 1.0-2 (AI modified)"*, while `sdsys/changelog` opens **`L1.0-0 - in progress`** and the project stance says release numbering follows SD Core for Windows rather than upstream. Source is `gplsrc/revstamp.h:43`, `#define SD_REV_STAMP "1.0-2"`. **`revstamp.h` also feeds `GPL.BP/REVSTAMP.H` through `gen_includes.py`**, so one edit carries to both — but the banner text and `MAJOR_REV`/`MINOR_REV` need checking with it. Plan §N | `gplsrc/revstamp.h:40-43`; `sdsys/changelog:1` |
 | 16 | **S** | ***THE BUILD RUNS AS ROOT AND DOES NOT NEED TO*** — `installsdai.sh:359` is `sudo make -B`, so `gplobj/` and `terminfo/` inside the download come out owned by `root`. That is what made the 9 Sep install "fail" after it had succeeded: the ordinary-user `rm -fr` at the end could not remove them, returned 1, and `set -euo pipefail` aborted with no message. **Fixed by making the two cleanups `sudo rm -fr`, which treats the symptom.** The cause is that compiling needs no privilege at all — only *installing* does. Building as the calling user and `sudo`-ing just the copy into `/usr/local/sdsys` would remove a whole class of this | `installsdai.sh:359` |
 | 15 | **S** | ***AN INSTALL NOW TESTS `origin/main`, NOT THE WORKING TREE — SO COMMIT AND PUSH BEFORE TESTING, OR YOU ARE TESTING SOMETHING ELSE.*** Owner's decision, 9 Sep 2026: the installer always clones `main` from GitHub. That **reverses plan §F9**, which removed the download precisely so an install would build the bundled `sdb_ai/` tree, and it reverses CLAUDE.md's *"builds from the `sdb_ai/` tree bundled in this repository, not from a clone."* The decision is the owner's and stands; **the consequence is that uncommitted work is invisible to an install and nothing detects that.** The port's answer to the same class of problem is `assert-current` (entry 8), which refuses to test a tree source has moved past. **Until something checks, the discipline is manual.** CLAUDE.md's project-constraint wording needs correcting to match | `installsdai.sh`; plan §F9; CLAUDE.md "Project constraints" |
@@ -772,6 +773,54 @@ being inferred.
   restricted to privileged users"*, measured, with `LOGTO DON` as the control
   that succeeds.
 
+## 21. `sd -internal` is an unguarded route to the administrator flag
+
+***FOUND 9 Sep 2026 WHILE BUILDING 18's GATES, BY TRYING THE THING THE GATE
+ASSUMES NOBODY CAN DO.*** Entry 19 argued the `K_ADMINISTRATOR` grant is
+contained because ordinary BASIC cannot reach `KERNEL`. **That is true and it is
+not the question.**
+
+The chain, each link read in this tree:
+
+| | |
+|---|---|
+| `BCOMP:3759` | the restricted intrinsics, `KERNEL` among them, resolve only `if internal` |
+| `BCOMP:2853` | the `$INTERNAL` **directive** sets `internal`, gated on `kernel(K$INTERNAL,-1)` |
+| `op_kernel.c:135` | `K_INTERNAL` just reports `internal_mode` |
+| ***`sd.c:310`*** | ***`-INTERNAL` sets `internal_mode = TRUE` with no check of any kind*** |
+| `sd.c:320` | `-I`, three lines below, calls `check_admin()` **first** |
+
+**Measured, as `don`, uid 1000, no `sudo`, on the 16:22 install:**
+
+```
+ADMPROBE uid = 1000
+ADMPROBE user = don
+ADMPROBE account = DON
+ADMPROBE PRE admin flag = 0
+ADMPROBE POST admin flag = 1
+ADMPROBE RESULT: ESCALATED - a non-root user granted itself admin
+```
+
+The probe was `$internal`, four statements, compiled with
+`/usr/local/sdsys/bin/sd -internal BASIC BP ADMPROBE` and run with
+`RUN BP ADMPROBE`. ***IT REFUSES THE NULL CASE***: it prints VOID and stops if
+the flag is already set, so a privileged session cannot produce a false
+ESCALATED. **It prints uid, user and account**, so what it ran as is on the
+transcript rather than assumed. Fixture removed afterwards.
+
+***THE FIX IS ONE LINE AND IT IS A RULING, NOT A TYPO.*** `-INTERNAL` should
+call `check_admin()` as `-I` does. **What it costs, said out loud:** `-internal`
+is the only way this project can compile `CPROC`, `CATALOG` or `LOGIN` outside
+an install — §18's commit-2 evidence depends on it — and gating it moves that
+instrument behind `sudo`. **The installer is unaffected**: `installsdai.sh:645`
+and `:672` already run it under `sudo`.
+
+***AND `check_admin()` ITSELF IS WORTH A SECOND LOOK BEFORE IT IS RELIED ON.***
+`sd.c:589` is `geteuid() != 0 && !in_group("admin")`. ***NO `admin` GROUP EXISTS
+ON THIS MACHINE*** — `don` is in `sudo`, `wheel` is absent, measured — so the
+group arm is dead and the test means "euid 0". Under the owner's definition the
+right group to name is `sdadmin`, which is the same answer §18's gate reaches.
+
 ## 18. What "administrator" means — the owner's definition, and the gap to it
 
 ***OWNER, 9 Sep 2026:*** *"An administrator is a person who is a member of
@@ -801,6 +850,87 @@ register **and** checks sudoers membership, and make the login path refuse an
 unregistered user rather than only a forced one. **Entry 19 has to be settled
 first** — if `kernel(K$ADMINISTRATOR, 1)` grants the flag to any caller, none of
 this holds. ***ENTRY 19 IS SETTLED (9 Sep) — it does not.***
+
+### Commit 2, 9 Sep 2026 — the gates
+
+***THE GRANT IS GATED, NOT THE FOURTEEN READERS, AND THAT IS THE WHOLE DESIGN.***
+`CPROC` is the **only** place `USR_ADMIN` is ever set — every other
+`K$ADMINISTRATOR` site in `GPL.BP` reads it with `-1`, checked. So the owner's
+definition is applied once, at the grant, and the readers keep asking the flag.
+One test cannot then fall out of step with another.
+
+| Where | What |
+|---|---|
+| `CPROC` `grant.administrator` | the test: `sdadmin` membership **and** `ACC$TIER`=`ADMINISTRATOR` on the person's own record, keyed on the `K$REAL.USER` `@logname` from piece 1 |
+| `CPROC` (root entry) | `void kernel(K$ADMINISTRATOR,1)` → `gosub grant.administrator`, with the `IS_INSTALL` arm keeping the old unconditional grant |
+| `CPROC` (`LOGTO SDSYS`) | `system(27) > 0` → `not(kernel(K$ADMINISTRATOR,-1))` |
+| `CATALOG` (2 sites), `DELCAT` (1) | `system(27) # 0` → the flag. `DELCAT` gains `$include int$keys.h` |
+| `MESSAGES/10033`, `10034` | the bootstrap notice and the refusal. 131 and 81 bytes against 231 |
+| `gplsrc/linuxlb.c`, `op_kernel.c` | **`IsAdmin()` deleted** |
+
+***THE RECORD MUST BE THE PERSON'S OWN, AND THAT IS A REAL CHECK RATHER THAN
+BELT AND BRACES.*** The register is keyed by ACCOUNT name, so `ACC$GROUP` is
+required to equal `sdu_<person>` (`CREATEA:439` is what writes it) — otherwise a
+GROUP or OTHER account carrying a person's name would satisfy the gate.
+**`ROOT` needs no special case**: `CREATEA:144` refuses it as an account name, so
+no `ROOT` record can exist and the lookup simply fails. **`SDSYS` DOES need
+one**, and it is the arm §20 named: with no source able to name the person,
+`logname` stays `sdsys`, and `sdsys` is an account, not a person.
+
+***THE BOOTSTRAP ARM IS THE OWNER'S RULING OF 9 Sep 2026, AND IT WAS ASKED FOR
+BECAUSE THE STRICT GATE LOCKS THE MACHINE.*** ***MEASURED ON THE 16:22 INSTALL
+BEFORE ANY OF THIS WAS WRITTEN***: `ACCOUNTS/DON` is
+`/home/sd/user_accounts/don`, blank, `sdu_don` — **three fields, so no tier** —
+and `sdadmin:x:965:` has **no members**. A strict gate refuses on both halves,
+and `CREATEA:95` needs administrator rights to register the first
+administrator: a lock-out with no exit. So when the register holds **no**
+`ADMINISTRATOR`-tier account at all, the grant stands and prints 10033. **The
+arm closes itself the moment one is registered**, and it is not a widening — it
+is exactly the behaviour that stood before this change, kept only while there is
+nobody to gate on. **A register that will not open is refused rather than read
+as "nobody is registered", because that answer grants.**
+
+***OBJECTION, RECORDED RATHER THAN RESOLVED***: the bootstrap arm grants to an
+**unknown** identity too, which §20 said a gate must never do. Refusing there is
+the tidier rule and is also the one arm that could leave a box with no
+`SUDO_USER` and no utmp entry unadministerable. **The lock-out risk decided it.
+It is a deliberate under-reach, not an oversight.**
+
+***AND THE BASIC WAS COMPILED FOR REAL, WHICH THIS PROJECT HAD NOT MANAGED
+BEFORE.*** Commit 1 could only do a "controlled comparison" of error classes.
+The recipe is the port's, at `HISTORY.md:18916`, and the missing piece was
+`-internal`: **`sd -internal BASIC <file> <prog>`, arguments separate, no pipe.**
+Fixtures — the edited program plus all twelve `$include` records, taken from the
+**working tree** so `ACC$TIER` and `K$REAL.USER` resolve — were staged in the
+`DON` account's empty `BP` and compiled as `don`, **unprivileged**.
+
+| Run | Result |
+|---|---|
+| `CPROCT`, `IS_INSTALL` **off** (the `grant.administrator` arm) | **0 error(s)**, *"Compiled 1 program(s) with no errors"* |
+| `CPROCT`, `IS_INSTALL` **on** | **0 error(s)** |
+| `CPROCH` (HEAD's `CPROC`), same way — the control | **0 error(s)** |
+| `CATALOGT` / `CATALOGH`, `DELCATT` / `DELCATH` | **0 error(s)** each |
+| ***`CPROCX`, deliberately truncated at line 400 — THE RED CONTROL*** | ***10 error(s)***, *"Compiled 1 program(s) with errors in:"* |
+| the same `CPROCT` **without** `-internal` | ***the port's exact cascade***, `Unrecognised compiler directive` on `$internal` then ~30 errors downstream |
+
+***SO THE INSTRUMENT HAS BEEN WATCHED FAILING TWICE AS WELL AS PASSING, AND IT
+ANCHORS ON THE POSITIVE WORDING*** — `0 error(s)` and *"with no errors"* are
+`BCOMP:1540` / `BASIC` on the success path; the failure path prints `N error(s)`
+and *"with errors in:"*. **Fixtures removed by name**; the `DON` account is back
+to its seven entries with `BP` empty and no `BP.OUT`, and `COUNT VOC` is **411**
+with the fixtures gone as it was with them there, so nothing reached the VOC.
+
+***WHAT IS STILL NOT ESTABLISHED: NONE OF IT HAS RUN.*** A compile is not an
+install. The witness is an install of `origin/main` followed by `sudo sd` — it
+should print **10033** and name `don`, because no `ADMINISTRATOR` account exists
+yet, and `WHO.AM.I` should still say `Admin? : Yes`. **If it prints 10034
+instead, the register lookup failed and the account is unadministerable until
+the record is hand-edited.**
+
+***AND ONE THING FOUND WHILE BUILDING IT THAT IS BIGGER THAN IT: ENTRY 21.***
+The gate decides who gets `USR_ADMIN`, and `sd -internal` lets any user set that
+flag directly — **measured, uid 1000, no sudo**. Read 21 before believing this
+entry closes anything.
 
 ### Half built, 9 Sep 2026 — the register records a tier; nothing reads it
 

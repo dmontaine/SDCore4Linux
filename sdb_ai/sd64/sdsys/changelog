@@ -9,6 +9,46 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  WHO COUNTS AS AN ADMINISTRATOR HAS CHANGED.  STARTING SD WITH sudo
+           IS NO LONGER ENOUGH ON ITS OWN.
+
+           Until now, any session that reached SD as root was an administrator.
+           That is no longer the test.  An administrator is a person who is
+           BOTH a member of the sdadmin group - the group SD's own sudoers rule
+           names - AND recorded in SD's account register as an ADMINISTRATOR.
+           Root is still necessary; it is no longer sufficient.  This is how SD
+           Core for Windows has always worked: you can hold the operating
+           system's administrator rights and still have no rights inside SD.
+
+           You register an account as an administrator when you create it:
+
+               CREATE.ACCOUNT name path ADMINISTRATOR
+
+           which records the tier in the register and adds that person to the
+           sdadmin group.
+
+           THE FIRST ADMINISTRATOR IS HANDLED FOR YOU, SO NOTHING TO DO BEFORE
+           UPGRADING.  On a system where no account is registered as an
+           administrator yet - which is every system installed before this
+           update - starting SD with sudo still grants the rights, and SD
+           prints a line saying that it has done so and how to register a real
+           administrator.  That arm switches itself off the moment the first
+           ADMINISTRATOR account exists.  You cannot be locked out by it.
+
+           If your session is refused administrator rights, SD says so as it
+           starts rather than leaving you to find out when a command fails.
+
+           Three checks now read the new test instead of asking whether the
+           process is root, which was never the same question: CATALOG and
+           DELETE.CATALOG on the global catalogue, and LOGTO SDSYS.
+
+           WHAT THIS DOES NOT DO.  It does not change what is in an account's
+           VOC - every account still gets the same verbs whatever its tier -
+           and it does not yet refuse a session to somebody who is not a
+           registered SD user.  Accounts created before this update carry no
+           tier, which is exactly the case the first-administrator arm above
+           covers.
+
 09 Sep 26  PROC, SED, UPDATE.RECORD AND MODIFY HAVE BEEN REMOVED.
 
            SED was the full-screen editor, and UPDATE.RECORD and MODIFY were

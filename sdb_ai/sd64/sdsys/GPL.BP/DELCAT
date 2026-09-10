@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 PRE_RELEASE 18 commit 2. The global-catalogue check asks the
+*           administrator flag rather than "is this process root".
 * 08 Sep 26 Deleting from the global catalogue required no privileges at all, by
 *           either the GLOBAL keyword or a prefix character.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -38,6 +40,7 @@ $catalog $delcat
 $include err.h
 $include parser.h
 $include syscom.h
+$include int$keys.h
 
    parser = "!PARSER"
 
@@ -116,7 +119,12 @@ $include syscom.h
 * loop, because whether a name is global is decided per name: the GLOBAL keyword
 * makes all of them global, and a prefix character makes just that one.  Local
 * cataloguing is untouched and still needs nothing.
-               if system(27) # 0 then
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  system(27) # 0 asked whether the
+* process was root; the owner's definition of an administrator is a registered
+* person in sdadmin, which root on its own is not.  CPROC's grant.administrator
+* decides that once and this reads the answer.  int$keys.h is included above
+* for K$ADMINISTRATOR; this program is already $internal, so KERNEL resolves.
+               if not(kernel(K$ADMINISTRATOR,-1)) then
                   stop sysmsg(2001)  ;* Command requires administrator privileges
                end
                readvu obj.rec from gcat.f, cat.name, 0 then

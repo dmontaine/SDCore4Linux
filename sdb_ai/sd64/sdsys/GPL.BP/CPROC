@@ -18,6 +18,15 @@
 * 
 * 
 * START-HISTORY:
+* 09 Sep 26 PRE_RELEASE 18 commit 2. Reaching uid 0 no longer grants
+*           administrator rights on its own. grant.administrator applies the
+*           owner's definition - sdadmin membership AND ACC$TIER=ADMINISTRATOR
+*           for the real person - at the one place USR_ADMIN is set, with a
+*           self-closing bootstrap arm for a register that has no administrator
+*           in it yet. LOGTO SDSYS asks the flag instead of asking for uid 0.
+* 09 Sep 26 PRE_RELEASE 20 piece 1. logname keeps the real person across the
+*           euid drop (K$REAL.USER); an administrator passes the LOGTO group
+*           gate explicitly, which the sdsys identity used to do implicitly.
 * 09 Sep 26 PROC is removed (plan I2). The PQ dispatch case now refuses by name
 *           with sysmsg 10099 instead of calling $PROC. It is kept rather than
 *           deleted because deleting it would drop a PQ record into the
@@ -314,7 +323,24 @@ $ifndef IS_INSTALL
           end
         end
 $endif
-        void kernel(K$ADMINISTRATOR, 1)   ;* set admin bit
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  REACHING uid 0 IS NO LONGER ENOUGH.
+*   This line used to grant administrator rights to anything that got here.
+*   The owner's definition needs two things and this had neither; the test is
+*   in grant.administrator below, with its reasoning.
+*
+*   THE GRANT IS GATED HERE RATHER THAN IN THE FOURTEEN READERS because this
+*   is the ONLY place USR_ADMIN is ever set - every other K$ADMINISTRATOR site
+*   in GPL.BP reads it with -1.  One test cannot then fall out of step with
+*   another, which is the same reason CATALOG:202 keeps its check in one place.
+*
+*   THE INSTALL BOOTSTRAP IS EXEMPT AND HAS TO BE: under IS_INSTALL sd -i is
+*   still building the register, so there is nothing to read.  That is the
+*   same reason the euid drop above is skipped.
+$ifndef IS_INSTALL
+        gosub grant.administrator
+$else
+        void kernel(K$ADMINISTRATOR, 1)   ;* bootstrap: no register to read yet
+$endif
       end
       
       i = '$LOGIN'
@@ -737,6 +763,106 @@ para.reset.environment:
    i = kernel(K$CPROC.LEVEL,0)
    delete.common '$':i   ;* Delete unnamed common
 ! 0385   i = kernel(K$CPROC.LEVEL, i - 1)
+
+   return
+
+*****************************************************************************
+* GRANT.ADMINISTRATOR  -  Is this privileged session an administrator?
+*
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  Owner, 9 Sep 26: "An administrator
+*   is a person who is a member of sudoers and is also a registered user of SD
+*   as an administrator.  If they are not a registered user they should be
+*   refused entry."  OS privilege is NECESSARY AND NOT SUFFICIENT.  Called from
+*   the root-entry block above, which is the only place USR_ADMIN is set.
+*
+* THE TWO HALVES, AND HOW EACH IS READ:
+*   sudoers  - membership of sdadmin, SD's OWN group.  PRE_RELEASE 14's ruling,
+*              and not a shortcut: the drop-in this system ships grants
+*              sd-elevate to %sdadmin and to nothing else, so sdadmin is this
+*              system's sudoers list for SD's purposes.  Asking sudo directly
+*              was measured and rejected - "sudo -n -l" exits 1 both for "needs
+*              a password" and for "may not sudo", so a membership test on that
+*              exit code REFUSES A LEGITIMATE ADMINISTRATOR.
+*   register - the person's ACCOUNTS record, field ACC$TIER.
+*
+* THE RECORD MUST BE THAT PERSON'S.  The register is keyed by ACCOUNT name, and
+*   a GROUP or OTHER account may carry a person's name without being their
+*   account, so ACC$GROUP is required to be their own sdu_ group.  CREATEA:439
+*   is what writes it.
+*
+* AN UNKNOWN IDENTITY CANNOT SATISFY THE REGISTER HALF.  When no source could
+*   name the person, the block above leaves logname as "sdsys" and prints
+*   10032.  sdsys is an ACCOUNT, not a person; PRE_RELEASE 20 named this as the
+*   arm a gate would slip through, so it is refused BY NAME here rather than by
+*   trusting the register not to hold an SDSYS tier.
+*
+* THE BOOTSTRAP ARM IS THE OWNER'S RULING OF 9 Sep 26, AND IT CLOSES ITSELF.
+*   Measured that day on the 16:22 install: ACCOUNTS/DON has three fields, so
+*   its tier is blank, and sdadmin has no members.  A strict gate would refuse
+*   EVERYBODY - and CREATE.ACCOUNT needs administrator rights to register the
+*   first administrator, so that is a lock-out with no exit.  When the register
+*   holds no ADMINISTRATOR-tier account at all this grants the rights and SAYS
+*   SO with 10033; the moment one is registered the arm stops firing.  It is
+*   not a widening.  It is exactly the behaviour that stood before this change,
+*   kept only for as long as there is nobody to gate on.
+*
+* OBJECTION, RECORDED RATHER THAN RESOLVED: the bootstrap arm grants to an
+*   unknown identity too.  Refusing there is the tidier rule, and it is also
+*   the one arm that could leave a machine with no way in at all - a box with
+*   no SUDO_USER and no utmp entry would be unadministerable.  The lock-out
+*   risk decided it.  Read it as a deliberate under-reach, not an oversight.
+*
+* AND THE NULL CASE IS REFUSED OUT LOUD.  A register that will not open must
+*   not read as "nobody is registered", because that answer GRANTS.  Nothing
+*   measured, nothing granted.
+
+grant.administrator:
+   admin.person = logname
+   admin.tier = ''
+   admin.any = @false
+
+   openpath @sdsys:@ds:'ACCOUNTS' to admin.f else
+      crt sysmsg(10034, admin.person)  ;* register unreadable - grant nothing
+      return
+   end
+
+   if admin.person # '' and upcase(admin.person) # 'SDSYS' then
+      read admin.rec from admin.f, upcase(admin.person) then
+         if admin.rec<ACC$GROUP> = 'sdu_' : admin.person then
+            admin.tier = upcase(trim(admin.rec<ACC$TIER>))
+         end
+      end
+   end
+
+   if admin.tier = 'ADMINISTRATOR' and is_grp_member(admin.person, 'sdadmin') then
+      close admin.f
+      void kernel(K$ADMINISTRATOR, 1)
+      return
+   end
+
+   * Not an administrator.  Is there one at all?
+
+   select admin.f to 11
+   readnext admin.id from 11 then
+      loop
+         read admin.rec from admin.f, admin.id then
+            if upcase(trim(admin.rec<ACC$TIER>)) = 'ADMINISTRATOR' then
+               admin.any = @true
+               exit
+            end
+         end
+         readnext admin.id from 11 else exit
+      repeat
+   end
+   clearselect 11
+   close admin.f
+
+   if admin.any then
+      crt sysmsg(10034, admin.person)
+   end else
+      crt sysmsg(10033, admin.person)
+      void kernel(K$ADMINISTRATOR, 1)
+   end
 
    return
 
@@ -2463,7 +2589,15 @@ int.logto:
       return
    end
 * 20240330 mab only root can logto sdsys
-   if (upcase(new.account) = "SDSYS") and (system(27) > 0) then
+* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  ASK THE FLAG, NOT THE uid.
+*   system(27) > 0 is "this process is not root", which is not the question.
+*   Under the owner's definition an administrator is a registered person who is
+*   in sdadmin, and root on its own is neither - so this test now reads what
+*   grant.administrator decided.  Nothing else moves: the flag is set exactly
+*   when the session came in through the root-entry block above, so a session
+*   that could reach SDSYS before still can unless the gate deliberately
+*   refused it, which is the point of the change.
+   if (upcase(new.account) = "SDSYS") and not(kernel(K$ADMINISTRATOR,-1)) then
       display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
       unwinding = 2
       return    
