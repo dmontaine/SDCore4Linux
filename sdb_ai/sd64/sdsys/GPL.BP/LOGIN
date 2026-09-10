@@ -279,6 +279,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    end case
 
 
+* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Load the initial account's OS-access
+*   grants into the session; CPROC's logto does the same on a later account
+*   change.  Blank = denied (the safe default); an administrator bypasses these
+*   via USR_ADMIN, so they matter only for a non-admin account.
+   void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+
    * Set @PATH
 
    account.path = ospath("", OS$CWD)

@@ -292,6 +292,17 @@
       *   commit of PRE_RELEASE 18, and the VOC delta per tier is SL1 and is
       *   not designed.  A tier recorded here does not yet change what an
       *   account may do.
+      $define ACC$SH           7     ;* may use the SH verb and "!" (yes/no)
+      $define ACC$OS.EXEC      8     ;* may use OS.EXECUTE (yes/no)
+      * 09 Sep 26 dm - PRE_RELEASE 23.  The OS-access grants, owner's model 9 Sep
+      *   2026: os.execute and shell are off for anyone but administrators, and an
+      *   administrator may turn either ON for a named non-admin account with
+      *   MODIFY.ACCOUNT SH-ON | SH-OFF | OS-ON | OS-OFF.  BLANK MEANS DENIED, the
+      *   safe default and what every account written before today carries.  An
+      *   ADMINISTRATOR-tier account holds both by tier and MODIFYA refuses to set
+      *   these on one (10039); the session gates read the tier first anyway.
+      *   Two independent fields, so SH-OFF says nothing about OS.EXECUTE.  Loaded
+      *   into the session at account entry as K$SH / K$OS.EXEC (LOGIN, CPROC).
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

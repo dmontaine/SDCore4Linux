@@ -141,6 +141,12 @@
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
 *   source can name the person; the caller must refuse rather than guess.
       $define K$REAL.USER       57       ;* Real person behind the session
+* 09 Sep 26 dm - PRE_RELEASE 23.  Per-account OS-access grants, loaded into the
+*   session at account entry from ACC$SH / ACC$OS.EXEC and read by the SH gate
+*   (CPROC) and op_sh (OS.EXECUTE).  Settable only from $internal, like
+*   K$ADMINISTRATOR.
+      $define K$SH              58       ;* may use SH and "!"
+      $define K$OS.EXEC         59       ;* may use OS.EXECUTE
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

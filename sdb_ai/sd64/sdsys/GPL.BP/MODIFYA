@@ -19,6 +19,11 @@
 * 
 *
 * START-HISTORY:
+* 09 Sep 26 PRE_RELEASE 23 commit 2. SH-ON/SH-OFF/OS-ON/OS-OFF set the
+*           per-account OS-access grants (ACC$SH, ACC$OS.EXEC) - the owner's
+*           model: os.execute and shell off for anyone but administrators
+*           unless given specifically. An administrator is refused (10039); the
+*           grant takes effect at the account's next entry. See os.set.
 * 09 Sep 26 PRE_RELEASE 18. The tier is settable - ADMINISTRATOR, PROGRAMMER,
 *           STANDARD - which is the only way an EXISTING account can become an
 *           administrator. CREATE.ACCOUNT refuses a name already in the
@@ -32,6 +37,7 @@
 * START-DESCRIPTION:
 * MODIFY.ACCOUNT account <ADD/DELETE> user.name
 * MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR
+* MODIFY.ACCOUNT account SH-ON | SH-OFF | OS-ON | OS-OFF
 *
 * THE TIER FORM IS THE PORT'S GRAMMAR MINUS ONE VALUE.  SD Core for Windows has
 * MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED
@@ -85,6 +91,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username> '
       crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR'
+      crt '                 MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF'
       stop
    end
    *
@@ -110,6 +117,25 @@ deffun valid_os_name(name) calling '!valid_os_name'
    begin case
       case action = 'STANDARD' or action = 'PROGRAMMER' or action = 'ADMINISTRATOR'
          gosub set.tier
+         stop
+* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The OS-access grants.  Four keywords
+*   over two independent fields (the port's grammar), so SH-OFF says nothing
+*   about OS.EXECUTE.  os.set does the work; os.field/os.want/os.label carry it.
+      case action = 'SH-ON'
+         os.field = ACC$SH ; os.want = @true ; os.label = 'the shell'
+         gosub os.set
+         stop
+      case action = 'SH-OFF'
+         os.field = ACC$SH ; os.want = @false ; os.label = 'the shell'
+         gosub os.set
+         stop
+      case action = 'OS-ON'
+         os.field = ACC$OS.EXEC ; os.want = @true ; os.label = 'OS.EXECUTE'
+         gosub os.set
+         stop
+      case action = 'OS-OFF'
+         os.field = ACC$OS.EXEC ; os.want = @false ; os.label = 'OS.EXECUTE'
+         gosub os.set
          stop
    end case
 
@@ -185,8 +211,8 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, or a tier'
-         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR'
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, a tier, or an OS-access grant'
+         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SH-ON | SH-OFF | OS-ON | OS-OFF'
       end
 
    end else
@@ -300,6 +326,49 @@ leave.sdadmin:
    end else
       @system.return.code = -ER$FAILED
       crt sysmsg(10022, acc.user, 'sdadmin', stat)
+   end
+   return
+
+*****************************************************************************
+* OS.SET  -  MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF
+*
+* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The owner's OS-access model, 9 Sep
+*   2026 (= the port's, entry 157/80): os.execute and shell are off for anyone
+*   but administrators, and an administrator may grant either to a NAMED
+*   non-admin account.  os.field is ACC$SH or ACC$OS.EXEC; os.want is the wanted
+*   state; os.label names it for the message.  The fields are 'yes'/'no', blank
+*   = denied.
+*
+* AN ADMINISTRATOR-TIER ACCOUNT IS REFUSED (10039).  It holds both by tier and
+*   the session gates read the tier first (USR_ADMIN), so a field written on one
+*   would be ignored; refusing says so rather than doing nothing.  SDSYS was
+*   already refused at the top of the verb (2202).
+*
+* THE GRANT TAKES EFFECT AT THE NEXT ACCOUNT ENTRY, not at once: LOGIN and
+*   CPROC's logto load the field into the session (K$SH / K$OS.EXEC), so a
+*   session already in the account keeps what it had until it re-enters.
+
+os.set:
+   if upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10039, acc.name)  ;* %1 is an administrator and always reaches the operating system
+      return
+   end
+
+   os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
+   if os.was = os.want then
+      crt sysmsg(10040, acc.name, os.label)  ;* Account %1: no change to %2 access
+      return
+   end
+
+   if os.want then acc.rec<os.field> = 'yes' else acc.rec<os.field> = 'no'
+   write acc.rec to acc.f, acc.name
+
+   @system.return.code = 0
+   if os.want then
+      crt sysmsg(10041, acc.name, os.label)  ;* Account %1 may now use %2
+   end else
+      crt sysmsg(10042, acc.name, os.label)  ;* Account %1 may no longer use %2
    end
    return
 
