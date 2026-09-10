@@ -6,29 +6,35 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***SESSION ENDED 9 Sep 2026 AT `94085ac`. TREE CLEAN, PUSHED, 14 COMMITS.***
+***SESSION ENDED 10 Sep 2026. TREE CLEAN, PUSHED (see `git log`).*** The
+installed system is `origin/main` and CURRENT.
 
 ### The one thing that matters before you believe anything
 
-***NOTHING FROM THIS SESSION HAS RUN. THE INSTALLED SYSTEM IS FROM 18:39 AND
-PREDATES ALL 14 COMMITS.*** Run this first, every session, before trusting any
-measurement taken against the installed tree:
+Run this first, every session:
 
 ```sh
 python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
-No `sudo`. **0 current · 1 stale · 2 cannot answer.** It said **1** all session,
-correctly. ***AFTER THE NEXT INSTALL IT SHOULD SAY 0, AND THAT IS ITSELF THE
-TEST THAT THE NEW INSTALL STAMP WORKS*** — before that install there is no
-`.sdcore-install` file, so it can only answer **2**.
+No `sudo`. **0 current · 1 stale · 2 cannot answer.** At session end it said
+**0** — install == HEAD. Change any source and it goes stale until you reinstall.
 
-***THE NEXT INSTALL IS THE WITNESS FOR NINE ENTRIES AT ONCE.*** Expect, in one
-`sudo /usr/local/sdsys/bin/sd`: the banner reading **`SD Core, the Essential
-Multivalue String Database, version L1.0-0`**; **no** message 10033 (`don` is a
-registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
-`EUID 999`, `Admin? Yes`. Then `CREATE.ACCOUNT USER <name>` exercises **five**
-`sd-elevate` verbs in one go, which is the sharpest single test of entry 14.
+### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, part-witnessed
+Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
+starts, `LISTF` works — the login-path flag load in CPROC/LOGIN did not break
+startup); the grant WRITE — `MODIFY.ACCOUNT don OS-ON` wrote `ACCOUNTS/DON`
+field 8 `ACC$OS.EXEC` = `yes` on disk and printed msg 10041. **Not yet
+witnessed:** the `op_sh` / `SH` gate actually biting. That needs a NON-ADMIN
+account — `don`'s `sudo sd` session is admin (currently only via the bootstrap
+arm, since `don` is STANDARD and `sdadmin` is empty). Sharpest witness: a
+STANDARD account has `OS.EXECUTE` refused (10054), then `OS-ON` + re-entry lets
+it run; `SH-ON`/`SH-OFF` + re-entry flips the prompt `SH` (10053);
+`MODIFY.ACCOUNT <admin-tier-acct> OS-ON` refuses with 10039.
+
+Also this session: the four admin-notice messages (10033/34/37/38) were wrapped
+to <=79 cols so they fit the notice box (they were 81-141) — multi-line message
+records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Done this session — detail in PRE_RELEASE_FIXES.md, not repeated here
 
@@ -46,15 +52,34 @@ registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
 
 ### Next task
 
-***ENTRY 23 IS BUILT (BOTH COMMITS) AND NEEDS WITNESSING AFTER A REINSTALL.***
-Commit 1 is installed. Commit 2 (the grant) is compiled (0 errors, red control)
-but UNRUN. After the next reinstall of `origin/main`, witness: `MODIFY.ACCOUNT
-<non-admin> OS-ON` → *"may now use OS.EXECUTE"*, then that account **re-entered**
-runs `OS.EXECUTE` from a user program; `OS-OFF` refuses it again (msg 10054);
-`SH-ON`/`SH-OFF` likewise flip the prompt `SH` (msg 10053); `MODIFY.ACCOUNT
-<admin> OS-ON` → refused 10039. ***THE GRANT TAKES EFFECT AT NEXT ACCOUNT ENTRY,
-not for a session already in the account*** — a re-login is part of the witness.
-Full spec in PRE_RELEASE 23.
+***OWNER'S OPEN DESIGN QUESTION, 10 Sep 2026 — DECIDE BEFORE BUILDING (§F,
+installer). Raised, not yet ruled.*** Two parts:
+
+1. **Should the installer automatically register the installing user as an SD
+   ADMINISTRATOR** (tier + `sdadmin`), not just a STANDARD account? Today
+   `installsdai.sh:732` runs `create-account USER "$tuser" no.query`, which makes
+   a STANDARD account with no tier and no `sdadmin` — so after every install NO
+   SD admin is registered and CPROC's bootstrap arm fires (exactly the "No SD
+   administrator is registered" notice, measured 10 Sep: `ACCOUNTS/DON` field 5
+   = STANDARD, `sdadmin` empty). Registering `$tuser` as ADMINISTRATOR there
+   (mirror `MODIFY.ACCOUNT <u> ADMINISTRATOR`: write `ACC$TIER` + `gpasswd -a
+   sdadmin`) would seed the first admin and make the bootstrap arm a fallback,
+   not the norm. **Feasible** — `installsdai.sh:125` already has `tuser=$USER`.
+2. **Should a non-sudoer be able to install at all?** Effectively NO already:
+   the script runs unprivileged but every step shells to `sudo`, so a user
+   without sudo fails at the first one. `:112` refuses running AS root, but
+   nothing checks UPFRONT that the invoker HAS sudo — it just fails part-way. A
+   clean early "you need sudo to install" check is the improvement.
+
+OS admin is a precondition either way (the installer needs sudo), so "give the
+installer OS admin" = they already have it; the real lever is the SD side
+(part 1). Put both to the owner, then build in §F.
+
+***ENTRY 23 — finish the gate witness.*** Installed, and the grant WRITE is
+witnessed (field 8 = `yes`, msg 10041). Still open: the `op_sh`/`SH` gate
+actually biting — needs a NON-ADMIN account (steps in START HERE). Note: if
+part 1 above lands, `don` becomes a real admin and a separate STANDARD account
+is then needed to witness a refusal.
 
 ***ENTRY 13 — THE ssh BOUNDARY — IS NOW RULED AND READY TO BUILD*** (owner, 9
 Sep 2026, this session; it no longer needs a ruling before code). Mechanism:
