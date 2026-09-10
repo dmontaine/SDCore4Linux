@@ -9,6 +9,25 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  SD BASIC IS SYNTAX HIGHLIGHTED IN THE EDITOR.
+
+           MICRO now colours SD BASIC: keywords, strings, numbers and comments.
+           The colours come from a file generated out of the compiler's own
+           tables, so what is highlighted is what the compiler actually
+           accepts, rather than a list somebody typed and then let drift.
+
+           It only applies to records edited from a BP file - a program - which
+           is how SD knows the record is BASIC.  A VOC or data record gets no
+           colouring, which is the honest answer for something that is not a
+           program.
+
+           You do not have to do anything.  The first time you edit a program
+           with MICRO, SD copies the colour file into your own micro
+           configuration.  It is per-user because that is the only place micro
+           reads them from, and it is copied rather than forced, so if you
+           later edit that file yourself your version is kept until SD's own
+           genuinely changes.
+
 09 Sep 26  ACCOUNT MAINTENANCE NO LONGER CALLS sudo DIRECTLY, AND TWO THINGS
            THAT ONLY WORKED ON DEBIAN NOW WORK EVERYWHERE.
 

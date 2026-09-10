@@ -528,6 +528,19 @@ sudo python3 gplbld/pcode_bld.py
 sudo cp Makefile "$sdsysdir"
 sudo cp gpl.src "$sdsysdir"
 sudo cp terminfo.src "$sdsysdir"
+
+# 09 Sep 26 dm - PRE_RELEASE 12.  SHIP THE micro SYNTAX FILE.  It was generated
+# and validated by entry 2 and then went nowhere, so the highlighting the owner
+# asked to keep from the Windows port never reached a user.
+#
+# THIS ONLY PUTS IT IN THE INSTALLED TREE.  micro reads syntax files from a
+# PER-USER directory (~/.config/micro/syntax) and stock micro has no
+# system-wide path - measured, there is no /usr/share/micro - so an installer
+# running as root cannot place it for everyone who will ever run SD.  GPL.BP's
+# MICRO copies it into the caller's own config on first use; this is the master
+# it copies FROM.  Before the chown below, so it lands sdsys:sdusers like the
+# rest of the tree.
+sudo cp -r gplbld/microcfg "$sdsysdir"
 #
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown root:root "$sdsysdir/ACCOUNTS/SDSYS"
