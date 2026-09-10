@@ -183,10 +183,18 @@ already holds it), ***AND THAT EXPOSED AN OLDER HOLE***: HEAD's helper builds
 `groupdel -- sdusers` **exit 0**, measured by running it. Both system groups
 are refused by name now. Self-test **36/0**, up from 30/0.
 
-***ENTRY 18 IS NOT CLOSED.*** Its third requirement — *"unregistered → refused
-entry"* — is still half there (`LOGIN:210-213` refuses a **forced** account
-only), and **§L1's per-tier VOC does not exist**: every account still gets the
-same verbs whatever its tier.
+***ENTRY 18 IS CLOSED, AND ITS LAST REQUIREMENT WAS ALREADY MET.*** The entry
+claimed only a **forced** account is refused when unregistered. ***MEASURED 9
+Sep 26 WITH A CONTROL: ALL THREE OF `LOGIN`'s ACCOUNT CASES READ THE REGISTER
+AND TERMINATE ON A MISS*** — forced `:213`, administrator `:250`, and the
+default `upcase(@logname)` at `:265`. `sd -ANOSUCHACCT` → *"not in register /
+Connection terminated"*; `sd -ADON` → the session runs. **Nothing needed
+building.**
+
+***WHAT REMAINS IS §L1 AND IT IS NOT ENTRY 18.*** The per-tier VOC does not
+exist, so a tier decides whether a verb **acts** but not whether an account
+**has** it — the port's *"two gates, not one"* with only the second built. **Not
+designed.**
 
 *(The paragraph below was written before that install and is kept because its
 method is the reusable part.)* ***COMMIT 2 HAD NOT RUN, AND THAT WAS CHECKED
