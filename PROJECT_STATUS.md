@@ -6,6 +6,13 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***HEAD is `a6d96b1` (origin/main, pushed 10 Sep 2026): PRE_RELEASE 13, the ssh
+tier boundary, is BUILT + pushed, unit-tested 16/0, `sshd -t`-witnessed on this
+box — but BEHAVIOURALLY UNRUN. The next thing to do is witness it on a LIVE ssh
+login (see entry 13 below and the Next task list): reinstall so `origin/main` is
+the installed runtime, start `sshd`, then ssh in as a STANDARD account (should
+land in `sd`, no shell) and as an administrator (normal shell).***
+
 ***10 Sep 2026: THE FRESH INSTALL RAN AND SUCCEEDED FROM `dc36771` (origin/main
 at the time; 27 was still unpushed), stamped 01:56:55 — AND PRE_RELEASE 24'S
 SEED IS WITNESSED. The owner ran `sudo sd`: NO 10033 (the arm's silence is the
@@ -24,9 +31,14 @@ python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
 No `sudo`. **0 current · 1 stale · 2 cannot answer.** Right now it answers
-**1**, correctly: the install stamped `dc36771` and HEAD is ahead of it (27 and
-this record). The installed runtime differs by `changelog` only; the next
-install should answer **0**.
+**1**, correctly, for two reasons: the install stamped `dc36771` and HEAD is
+ahead of it (`6d815e5` the 24-seed record, `a6d96b1` the ssh boundary); and the
+working tree has two UNTRACKED files under
+`sdb_ai/sd64/examples/python/python_api_test/` (`sdclilib_bind.py` + its
+`__pycache__`) that are not this project's work — stray Python-API experiments,
+dated 10 Sep 02:10. Remove or commit those to clear the first staleness line.
+The next install no longer differs by `changelog` only — `a6d96b1` adds the ssh
+boundary, so the next install both answers **0** and applies it.
 
 ### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, part-witnessed
 Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
