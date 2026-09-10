@@ -65,7 +65,27 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT account.name  path.name [NO.QUERY]
+* CREATE.ACCOUNT USER  <name> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+* CREATE.ACCOUNT GROUP <name> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+* CREATE.ACCOUNT OTHER <name> <pathname> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+*
+* 09 Sep 26 dm - THIS BLOCK WAS STALE AND IT COST SOMETHING, WHICH IS WHY IT IS
+*   CORRECTED RATHER THAN JUST EXTENDED.  It read
+*   "CREATE.ACCOUNT account.name path.name [NO.QUERY]", the pre-0.9.0 form:
+*   USER/GROUP/OTHER has been required since rev 0.9.0 and only OTHER takes a
+*   pathname.  A session writing message 10033 copied this line, shipped
+*   "CREATE.ACCOUNT name path ADMINISTRATOR" as advice to an administrator, and
+*   the owner caught it - the command would have failed if typed.  ***THE
+*   SYNTAX THE VERB PRINTS AT :246 IS THE TRUTH; THIS BLOCK IS COMMENTARY AND
+*   HAD DRIFTED.***  The port's copy of this same block is stale in the same
+*   way - do not take it from there either.
+*
+*   NOTE THE PORT HAS A KEYWORD THIS TREE DOES NOT: its documented grammar is
+*   "create.account user <name> {administrator | programmer}
+*   <ssh | api | both | none> {no.query}", with the remote-access keyword
+*   REQUIRED for a user account.  That is PRE_RELEASE 13's work and is not
+*   built here, so it is absent rather than optional - a conformity gap, named
+*   so it is not mistaken for a difference of opinion.
 *
 * END-DESCRIPTION
 *

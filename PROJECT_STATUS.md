@@ -86,7 +86,38 @@ distribution-dependent weakness rather than a convenience.
 ***SO THE COMPILE RECIPE ABOVE STILL WORKS WITHOUT `sudo`, PROVIDED YOU BUILT
 DEV*** — and the stderr line in the transcript is how you know you did.
 
-***COMMIT 2 STILL HAS NOT RUN, AND THAT WAS CHECKED RATHER THAN ASSUMED.*** The
+***COMMIT 2 RAN ON THE 18:20 INSTALL AND THE ARM FIRED: `No SD administrator is
+registered: granting rights to don for this session`, then `Admin? : Yes`.***
+Message 10033 by number, naming the person, on exactly the predicted state.
+Entry 21's `-internal` gate is on the same install, measured refusing `don`.
+
+***THEN THE OWNER READ THE MESSAGE AND FOUND THAT ITS ADVICE COULD NOT BE
+FOLLOWED — "kinda impossible" — AND HE WAS RIGHT TWICE OVER.*** `CREATEA:255`
+refuses a name already in the register (6002) and `MODIFYA` had **zero**
+references to `ACC$TIER`, so no existing account could ever become an
+administrator and the arm could never close. ***AND THE COMMAND STRING IN THE
+MESSAGE WAS ITSELF WRONG*** — `USER`/`GROUP`/`OTHER` has been required since rev
+0.9.0 and only `OTHER` takes a pathname. **It was copied from `CREATEA`'s
+`START-DESCRIPTION`, which is stale — and the port's copy is stale identically.**
+***A COMMENT BLOCK IS NOT AN INSTRUMENT; THE SYNTAX THE VERB PRINTS AT
+`CREATEA:246` IS.***
+
+**Commit 3 fixes both:** `MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER |
+ADMINISTRATOR` (the port's grammar minus `SUSPENDED`, which needs `PRE_RELEASE`
+13's doors), messages 10035/10036, 10033 rewritten to name the reachable route,
+`CREATEA`'s description corrected. **Compiled 0 errors with a HEAD control —
+and the first red control PASSED and was void**, cutting inside the header and
+leaving a valid empty program; re-cut inside the body it gives 9.
+
+***COMMIT 3 HAS NOT RUN.*** The witness: install `origin/main`, then in the
+bootstrap-granted session `MODIFY.ACCOUNT DON ADMINISTRATOR`, then a fresh
+`sudo sd` which **must not** print 10033. ***WATCH THE `usermod` FOR ENTRY 14's
+HANG*** — `join.sdadmin` shells `sudo usermod -aG sdadmin`, no `-n`, the same
+shape as the ten call sites in that entry.
+
+*(The paragraph below was written before that install and is kept because its
+method is the reusable part.)* ***COMMIT 2 HAD NOT RUN, AND THAT WAS CHECKED
+RATHER THAN ASSUMED.*** The
 17:53 install carries `K$REAL.USER` **×3** and `grant.administrator` **×0** in
 `/usr/local/sdsys/GPL.BP/CPROC`, with `MESSAGES/10033` and `10034` **absent** —
 so it is `origin/main` at `ef75eb2`, and the `Admin? Yes` above came from the

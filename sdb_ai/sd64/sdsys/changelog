@@ -58,12 +58,22 @@ SD: what changed, why it mattered, and what it does not do.
            Core for Windows has always worked: you can hold the operating
            system's administrator rights and still have no rights inside SD.
 
-           You register an account as an administrator when you create it:
+           You register an account as an administrator either when you create
+           it or afterwards:
 
-               CREATE.ACCOUNT name path ADMINISTRATOR
+               CREATE.ACCOUNT USER <name> ADMINISTRATOR
+               MODIFY.ACCOUNT <account> ADMINISTRATOR
 
-           which records the tier in the register and adds that person to the
-           sdadmin group.
+           Either records the tier in the register and adds that person to the
+           sdadmin group.  MODIFY.ACCOUNT also takes PROGRAMMER and STANDARD,
+           and an account can move between the three in one command with no
+           intermediate step.  Going down from ADMINISTRATOR removes the person
+           from sdadmin again.
+
+           MODIFY.ACCOUNT is the one that matters on a system you already have,
+           because CREATE.ACCOUNT refuses a name that is already in the account
+           register - it will tell you the account exists.  You do not have to
+           delete an account to change what it is.
 
            THE FIRST ADMINISTRATOR IS HANDLED FOR YOU, SO NOTHING TO DO BEFORE
            UPGRADING.  On a system where no account is registered as an
@@ -86,6 +96,13 @@ SD: what changed, why it mattered, and what it does not do.
            registered SD user.  Accounts created before this update carry no
            tier, which is exactly the case the first-administrator arm above
            covers.
+
+           SUSPENDED is not here yet.  SD Core for Windows has a fourth level
+           that denies access while leaving the account intact, and this
+           version does not: it would need the doors it is meant to close, and
+           on Linux one of those is ssh, which is still being worked out.  A
+           SUSPENDED that recorded a level and shut no door would be worse than
+           not having it.
 
 09 Sep 26  PROC, SED, UPDATE.RECORD AND MODIFY HAVE BEEN REMOVED.
 

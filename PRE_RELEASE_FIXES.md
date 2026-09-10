@@ -980,6 +980,92 @@ unregistered user rather than only a forced one. **Entry 19 has to be settled
 first** — if `kernel(K$ADMINISTRATOR, 1)` grants the flag to any caller, none of
 this holds. ***ENTRY 19 IS SETTLED (9 Sep) — it does not.***
 
+### Commit 3, 9 Sep 2026 — the exit from the bootstrap arm
+
+***WITNESSED FIRST: THE 18:20 INSTALL RAN COMMIT 2 AND THE ARM FIRED.*** The
+owner's transcript, `sudo /usr/local/sdsys/bin/sd`:
+
+```
+No SD administrator is registered: granting rights to don for this session. ...
+:who.am.i
+User : don   Account : SDSYS   Process UID : 0   Process EUID: 999   Admin? : Yes
+```
+
+**Message 10033 by number, naming the person, on exactly the state predicted**:
+`ACCOUNTS/DON` tier `STANDARD`, `sdadmin` empty, no `ADMINISTRATOR` anywhere.
+`WHO.AM.I` otherwise unchanged. **The `-internal` gate from entry 21 is on the
+same install** — measured refusing `don` with exit 1.
+
+***AND THE OWNER READ THE MESSAGE AND FOUND THE DEFECT IN IT. HIS WORDS: "ONLY
+ADMINISTRATORS CAN CREATE ACCOUNTS SO KINDA IMPOSSIBLE."*** It is worse than the
+circularity he names, and the sharper half is not visible from the message:
+***`CREATEA:255` REFUSES A NAME ALREADY IN THE REGISTER*** with sysmsg 6002, and
+***`MODIFYA` HAD ZERO REFERENCES TO `ACC$TIER`*** — checked, not assumed. So for
+**anyone who already had an account**, which is everyone who matters, the only
+route to ADMINISTRATOR was `DELETE.ACCOUNT` and its data loss. **The arm could
+never close, and nothing in the gate itself would have shown that.**
+
+**Built — `MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR`:**
+
+| | |
+|---|---|
+| `MODIFYA` `set.tier` | writes `ACC$TIER`, then reconciles `sdadmin` — register first, group second, because the register is the record and the group is a consequence of it |
+| `MODIFYA` `join`/`leave.sdadmin` | mirror `CREATEA:377-390` and the existing DELETE arm rather than inventing a second way; `valid_os_name` guards the shell in both |
+| `MESSAGES/10035`, `10036` | the result, and the refusal for an account with no person |
+
+***THE GRAMMAR IS THE PORT'S MINUS `SUSPENDED`, AND THAT OMISSION IS DELIBERATE.***
+The port has `STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED`
+(`sd4windows` `gpl.bp/MODIFYA:121`). **SUSPENDED denies access**, and the doors
+it must close — `LOGIN`, `CPROC`'s account entry, ssh — are `PRE_RELEASE` 13 and
+are not built here. **A SUSPENDED that wrote a tier and shut no door is a
+control that does not act**, which the port's own record rules against.
+
+***THE PERSON IS DERIVED FROM `ACC$GROUP`, NOT FROM THE ACCOUNT NAME***, because
+`CREATEA:439` writes `sdu_<login>` and that is the only place the record carries
+the login. **A GROUP or OTHER account has no person, so ADMINISTRATOR is refused
+with 10036** rather than writing a tier nothing could act on; STANDARD and
+PROGRAMMER are allowed, since `CREATEA` writes a tier for every account type.
+
+***NOBODY CAN LOCK THE MACHINE OUT WITH IT, AND THAT IS THE BOOTSTRAP ARM
+EARNING ITS KEEP.*** Demoting the last administrator — yourself included —
+leaves the register with none, so the arm starts firing again on the next
+privileged session. **Worth knowing before anyone adds a "you may not demote
+yourself" rule.**
+
+***A SECOND DEFECT THE OWNER CAUGHT IN THE SAME BREATH, AND IT IS THE MORE
+INSTRUCTIVE ONE: THE COMMAND STRING IN 10033 WAS WRONG.*** It read
+`CREATE.ACCOUNT name path ADMINISTRATOR`. ***THE VERB HAS REQUIRED
+`USER`/`GROUP`/`OTHER` SINCE rev 0.9.0 AND ONLY `OTHER` TAKES A PATHNAME*** —
+the syntax it prints at `CREATEA:246` says so. **The wrong string was copied
+from `CREATEA`'s own `START-DESCRIPTION`, which still carried the pre-0.9.0
+form — and the port's copy of that block is stale in exactly the same way.**
+Corrected in this tree with the reason attached. ***THE LESSON IS NOT "CHECK THE
+SYNTAX": IT IS THAT A COMMENT BLOCK IS NOT AN INSTRUMENT.*** The verb prints its
+own grammar and that is what was true; the block was commentary and had drifted,
+in both trees, unnoticed. **10033 now names `MODIFY.ACCOUNT`, which is the
+reachable route, and says the rights are already granted for this session.**
+
+***A CONFORMITY GAP NAMED WHILE CHECKING***: the port's documented grammar is
+`create.account user <name> {administrator | programmer}
+<ssh | api | both | none> {no.query}`, with the remote-access keyword
+**required** for a user account
+(`SDCoreWindowsDocs/Administrator/markdown/01-accounts-and-security.md:55`).
+**This tree has no such keyword** — that is `PRE_RELEASE` 13, unbuilt. Absent
+rather than optional, and recorded so it is not mistaken for a difference of
+opinion.
+
+***COMPILED, WITH A CONTROL AND A RED THAT HAD TO BE FIXED TO BE RED.***
+`MODIFYA` edited **0 errors**, `MODIFYA` at HEAD **0 errors**, `CREATEA` edited
+**0 errors**. ***THE FIRST RED CONTROL PASSED AND WAS THEREFORE VOID***: cutting
+`MODIFYA` at line 70 landed inside the header, leaving a valid empty program
+that compiled clean — **the null case, caught by its own control**. Re-cut at
+line 152 of 292, inside the ADD/DELETE nest: ***9 errors***. Fixtures removed,
+`COUNT VOC` 411 either way.
+
+**Nothing has run.** The witness is an install of `origin/main`, then
+`MODIFY.ACCOUNT DON ADMINISTRATOR` in a bootstrap-granted session, then a fresh
+`sudo sd` that **must not** print 10033.
+
 ### Commit 2, 9 Sep 2026 — the gates
 
 ***THE GRANT IS GATED, NOT THE FOURTEEN READERS, AND THAT IS THE WHOLE DESIGN.***
