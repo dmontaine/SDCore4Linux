@@ -9,6 +9,31 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  THIS IS SD CORE, VERSION L1.0-0.
+
+           The sign-on line now reads
+
+               SD Core, the Essential Multivalue String Database, version L1.0-0
+
+           and "sd --version" answers L1.0-0 to match.  It used to say 1.0-2,
+           which is not this project's number at all - it is the release of the
+           SD this work was built from.  The binary was telling you the version
+           of something else.
+
+           THE L IS DELIBERATE AND IT IS NOT GOING TO CATCH UP.  Our numbering
+           is a separate sequence from upstream's, which is what the letter
+           marks - exactly as SD Core for Windows uses W.  So upstream reaching
+           1.0-3, or any later number, is not a version this system is behind.
+
+           The "(AI modified)" that used to follow the version is gone.  It
+           distinguished this from stock SD; the L does that now.
+
+           If you have accounts created before this update, the first time you
+           log in to one SD will tell you the account is at release level 1.0-2
+           and ask whether to update it.  Answer Y.  That is the normal way an
+           existing account takes on new VOC entries, and it is not a sign that
+           anything is wrong.
+
 09 Sep 26  sd -internal NOW REQUIRES root, AND SO DOES EVERY OTHER PRIVILEGED
            sd OPTION ON EVERY SYSTEM.
 

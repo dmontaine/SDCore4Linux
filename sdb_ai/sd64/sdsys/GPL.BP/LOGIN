@@ -159,7 +159,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       * Modified by Composer AI - 2026/06/10.
       * Close version banner string; unclosed quote caused "Unrecognised statement".
       * display "SD, the Multivalue String Database, version " : SD.REV.STAMP : "(AI modified)
-      display "SD, the Multivalue String Database, version " : SD.REV.STAMP : " (AI modified)"
+* 09 Sep 26 dm - PRE_RELEASE 17.  The owner's wording, 9 Sep 26.  The port has
+*   the same line reading "SD Core for Windows, the Essential Multivalue String
+*   Database" (its gpl.bp/LOGIN:432); here the platform is carried by the L in
+*   the stamp rather than by the name.  "(AI modified)" is gone with it - the
+*   stamp is this project's own number now, so there is nothing left to
+*   distinguish it FROM.
+      display "SD Core, the Essential Multivalue String Database, version " : SD.REV.STAMP
       * --------------------
       display "(c) 2000-2026 by Ladybridge Systems and Other Contributors"
       display
