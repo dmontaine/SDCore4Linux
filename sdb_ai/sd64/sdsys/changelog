@@ -93,6 +93,11 @@ SD: what changed, why it mattered, and what it does not do.
            in the sdadmin group; or the account register could not be read at
            all, which is not the same as it saying no.
 
+           Whichever it is, it appears BELOW the sign-on banner, between two
+           rule lines and with a blank line either side.  It used to print
+           above the banner, where it read as one more line of the boilerplate
+           everybody skips.
+
            Three checks now read the new test instead of asking whether the
            process is root, which was never the same question: CATALOG and
            DELETE.CATALOG on the global catalogue, and LOGTO SDSYS.

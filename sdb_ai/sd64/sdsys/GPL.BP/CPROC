@@ -284,7 +284,18 @@ restart.cproc:
    
       if umask(002) then null
  
-*           drop to sdsys, and set K$ADMINISTRATOR)       
+* 09 Sep 26 dm - THE PRIVILEGE NOTICES ARE COLLECTED, NOT PRINTED, and they are
+*   displayed after $LOGIN has drawn the banner.  Owner, 9 Sep 26: printed here
+*   they land ABOVE the sign-on banner, "so it just looks like part of the
+*   banner that people are used to ignoring".  He is describing the failure
+*   mode these messages exist to avoid - a warning nobody reads is not a
+*   warning - so the box below is part of the mechanism, not decoration.
+*
+*   MUST BE SET ON EVERY PATH.  An ordinary user never enters the block below,
+*   and the test after $LOGIN reads this either way.
+      admin.notice = ''
+
+*           drop to sdsys, and set K$ADMINISTRATOR)
       if system(27) = 0 then           ;* entered as root?
 $ifndef IS_INSTALL
         call !EUID_SET('sdsys',rstat)  ;* yes, drop to sdsys
@@ -319,7 +330,7 @@ $ifndef IS_INSTALL
 *   MUST NOT LET AN UNKNOWN IDENTITY SATISFY IT*** - sdsys is an account, not
 *   a person, and this arm is exactly where that would slip through.
             logname = kernel(K$USERNAME, 0)  ;* sdsys - identity unknown
-            crt sysmsg(10032)  ;* Warning: SD cannot tell which person ...
+            admin.notice<-1> = sysmsg(10032)  ;* SD cannot tell which person ...
           end
         end
 $endif
@@ -346,6 +357,11 @@ $endif
       i = '$LOGIN'
       call @i(j,0)
       if not(j) then goto abort.cproc
+
+* 09 Sep 26 dm - HERE, not up in the privilege block, because $LOGIN has just
+*   drawn the sign-on banner.  See display.admin.notice for the owner's shape
+*   and why a notice above the banner is a notice nobody reads.
+      if admin.notice # '' then gosub display.admin.notice
 
 
       
@@ -829,7 +845,7 @@ grant.administrator:
 *   PRE_RELEASE 20 warns about and the port paid for in its entry 93.
 *   The verdict is unchanged - nothing measured, nothing granted - and only the
 *   wording is honest about why.
-      crt sysmsg(10038)  ;* the register could not be read
+      admin.notice<-1> = sysmsg(10038)  ;* the register could not be read
       return
    end
 
@@ -876,15 +892,46 @@ grant.administrator:
 *   exactly two halves, so there are exactly two things to say.
    if admin.any then
       if admin.tier = 'ADMINISTRATOR' then
-         crt sysmsg(10037, admin.person)  ;* registered, but not in sdadmin
+         admin.notice<-1> = sysmsg(10037, admin.person) ;* registered, not in sdadmin
       end else
-         crt sysmsg(10034, admin.person)  ;* not registered as an administrator
+         admin.notice<-1> = sysmsg(10034, admin.person) ;* not registered
       end
    end else
-      crt sysmsg(10033, admin.person)
+      admin.notice<-1> = sysmsg(10033, admin.person)
       void kernel(K$ADMINISTRATOR, 1)
    end
 
+   return
+
+*****************************************************************************
+* DISPLAY.ADMIN.NOTICE  -  the privilege notices, after the sign-on banner
+*
+* 09 Sep 26 dm - OWNER'S SHAPE, 9 Sep 26.  A notice printed before the banner
+*   "just looks like part of the banner that people are used to ignoring", so
+*   it is set off instead: blank line, rule, the notice, rule, blank line.
+*
+* $LOGIN's banner ALREADY ENDS WITH A BLANK LINE (LOGIN:170), so the gap above
+*   the rule is the banner's own and is not doubled here.  The leading crt is
+*   for the CMD.QUIET case, where LOGIN:157 suppresses the whole banner and
+*   there would otherwise be nothing between this and the shell.
+*
+* THE RULE IS 79 BECAUSE THE BANNER'S WIDEST LINE IS 79 (LOGIN:169, measured),
+*   so the box reads as belonging to the same block and still fits 80 columns.
+*
+* IT IS NOT SUPPRESSED BY CMD.QUIET, AND THAT IS DELIBERATE.  The banner is a
+*   courtesy and these are the session telling you what rights it does or does
+*   not have; a quiet flag should not be able to silence that.
+
+display.admin.notice:
+   admin.rule = str('-', 79)
+   crt
+   crt admin.rule
+   admin.n = dcount(admin.notice, @fm)
+   for admin.i = 1 to admin.n
+      crt admin.notice<admin.i>
+   next admin.i
+   crt admin.rule
+   crt
    return
 
 *****************************************************************************
