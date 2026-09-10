@@ -142,7 +142,15 @@ if not(valid_os_name(username)) then
    set.status 2
    return pass_set
 end
-OS.EXECUTE "sudo passwd " : username
+* 09 Sep 26 dm - PRE_RELEASE 14.  THROUGH THE HELPER, NOT RAW sudo.  It was
+*   OS.EXECUTE "sudo passwd " : username, and "sudo passwd" is unrestricted by
+*   argument - "sudo passwd root" owns the machine - which is exactly why the
+*   drop-in grants ONE command rather than eight.  sd-elevate refuses root,
+*   sdsys and every account below UID_MIN.  THE ABSOLUTE PATH IS REQUIRED: it
+*   is what /etc/sudoers.d/sdcore names, and a bare name would depend on
+*   sudo's secure_path.  Exit status still means what it did - the helper
+*   propagates the command's status and exits 2 on a refusal.
+OS.EXECUTE "sudo /usr/local/sbin/sd-elevate passwd " : username
 * --------------------
 stat = OS.ERROR() 
 if stat = 0 then

@@ -169,6 +169,20 @@ control 8 errors. **Unrun.**
 **`leave.sdadmin` is still unrun** — `MODIFY.ACCOUNT DON PROGRAMMER` exercises
 it.
 
+***ENTRY 14 IS WIRED UP AND ENTRY 22 IS NEW.*** All **13** raw `sudo` calls in
+`GPL.BP` now go through `sd-elevate`; the only grep hit left is a comment.
+**Every mapping was validated with the helper's `--dry-run` before a line of
+BASIC moved** — 13 of 13 resolved to the same command. ***THE JUSTIFICATION
+CHANGED WHEN IT WAS CHECKED***: entry 14's hang is mostly unreachable (every
+caller's real uid is 0, so `sudo` never challenges) — **except through entry
+22**, `!set_passwd` / `!create_user`, which had no gate. The live bug is
+**portability**: `sudo deluser` is Debian-only and `groupadd -U` is recent
+shadow-utils, so demotion and group creation were broken on Arch and RHEL.
+***`sdadmin` JOINS THE WHITELIST*** (delegation, not escalation — the caller
+already holds it), ***AND THAT EXPOSED AN OLDER HOLE***: HEAD's helper builds
+`groupdel -- sdusers` **exit 0**, measured by running it. Both system groups
+are refused by name now. Self-test **36/0**, up from 30/0.
+
 ***ENTRY 18 IS NOT CLOSED.*** Its third requirement — *"unregistered → refused
 entry"* — is still half there (`LOGIN:210-213` refuses a **forced** account
 only), and **§L1's per-tier VOC does not exist**: every account still gets the
