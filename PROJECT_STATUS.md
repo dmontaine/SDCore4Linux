@@ -69,24 +69,24 @@ Run this first, every session:
 python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
-No `sudo`. **0 current · 1 stale · 2 cannot answer.** Right now it answers
-**1**, correctly and for one reason: the install is stamped `dc36771` and HEAD is
-ahead of it (`a6d96b1` the ssh boundary, plus the handoff records). The working
-tree itself is clean. The next install no longer differs by `changelog` only —
-`a6d96b1` adds the ssh boundary, so the next install both answers **0** and
-applies it.
+No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install on
+10 Sep it answers **0** — the install is stamped `242ae63`, which is HEAD and
+`origin/main`, and `bin/sd` is newer than `gplsrc`. A later handoff commit puts
+HEAD ahead again until the next install; that is the normal stale state, not a
+fault.
 
-### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, part-witnessed
+### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, SH gate witnessed
 Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
 starts, `LISTF` works — the login-path flag load in CPROC/LOGIN did not break
 startup); the grant WRITE — `MODIFY.ACCOUNT don OS-ON` wrote `ACCOUNTS/DON`
-field 8 `ACC$OS.EXEC` = `yes` on disk and printed msg 10041. **Not yet
-witnessed:** the `op_sh` / `SH` gate actually biting. That needs a NON-ADMIN
-account — `don`'s `sudo sd` session is admin (currently only via the bootstrap
-arm, since `don` is STANDARD and `sdadmin` is empty). Sharpest witness: a
-STANDARD account has `OS.EXECUTE` refused (10054), then `OS-ON` + re-entry lets
-it run; `SH-ON`/`SH-OFF` + re-entry flips the prompt `SH` (10053);
-`MODIFY.ACCOUNT <admin-tier-acct> OS-ON` refuses with 10039.
+field 8 `ACC$OS.EXEC` = `yes` on disk and printed msg 10041; and — **10 Sep 2026
+on the `242ae63` install, STANDARD account `pete`** — the **`SH` gate end to
+end**: `SH ls` refused **10053**, `MODIFY.ACCOUNT pete SH-ON` (10041) + re-entry
+runs it, `SH-OFF` (10042) + re-entry refuses again, and `MODIFY.ACCOUNT don
+SH-ON` refused **10039** (admin tier always reaches the OS). **Still not
+witnessed:** the `OS.EXECUTE` path (10054) via `OS-ON`/`OS-OFF` — it needs a
+program that calls `OS.EXECUTE`, and `pete` (STANDARD) cannot compile one, so
+the trigger is a shipped verb that reaches it (to identify).
 
 Also this session: the four admin-notice messages (10033/34/37/38) were wrapped
 to <=79 cols so they fit the notice box (they were 81-141) — multi-line message
@@ -112,29 +112,25 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Next task
 
-***THE FRESH INSTALL AND PRE_RELEASE 24'S SEED ARE DONE (START HERE). What
-remains on the installer path is entry 25's witness and 27's real-script path.***
+***THE FRESH INSTALL, 24'S SEED, 13, AND 23'S SH GATE ARE DONE. What remains is
+24(2), the OS.EXECUTE half of 23, and confirming the 25/27 delete transcript.***
 
-- **25** — the next upgrade that SAVES its accounts (`y` to the accounts
-  question): expect `sdadmin` to survive with its members and no 10037.
-- **27** — the next delete that KEEPS `sd.conf` (Enter at the configuration
-  prompt) followed by an install; the 01:56 run did not exercise it.
+- **25** — ***CLOSED BY OUTCOME 10 Sep 2026:*** after the 15:11 keep-accounts
+  upgrade, `getent group sdadmin` = `sdadmin:x:965:don` — the group survived
+  holding `don`, no 10037. The delete transcript was not captured this session,
+  so this is the measured end state, not the run observed.
+- **27** — the 15:11 install **completed** (`assert-current` current) and
+  `/home/sd` is a directory holding `user_accounts`+`group_accounts`, so the
+  `:631` abort did not recur. Same caveat: the keep-config precondition was
+  inferred from the preserved trees, not watched.
 - **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
-- **23's gate** — still open; needs a NON-ADMIN account (see above).
-- **13** — ***WITNESSED LIVE 10 Sep 2026.*** `pete` (STANDARD) ssh → `sd`, no
-  shell; `don` (admin) ssh → normal shell. Done.
-
-**`assert-current` will answer 1 until the next install** — the install is
-`dc36771` and HEAD is ahead (27 plus this record). That is honest: the installed
-runtime differs by `changelog` only.
+- **23's gate** — ***SH half WITNESSED 10 Sep 2026*** (see PRE_RELEASE 23
+  above); the `OS.EXECUTE`/10054 half via `OS-ON` still open.
+- **13** — ***WITNESSED LIVE 10 Sep 2026***, re-confirmed on the `242ae63`
+  install. `pete` (STANDARD) ssh → `sd`, no shell; `don` (admin) ssh → normal
+  shell. Done.
 
 `bash -n` clean, no BOM, 0 CR (both scripts).
-
-***ENTRY 23 — finish the gate witness.*** Installed, and the grant WRITE is
-witnessed (field 8 = `yes`, msg 10041). Still open: the `op_sh`/`SH` gate
-actually biting — needs a NON-ADMIN account (steps in START HERE). `don` is
-already an ADMINISTRATOR (promoted 9 Sep), so a separate STANDARD account is
-needed for the refusal either way.
 
 ***ENTRY 13 — THE ssh BOUNDARY — IS BUILT (10 Sep 2026), UNIT-TESTED 16/0,
 SYNTAX-WITNESSED, AND LIVE-ssh-WITNESSED 10 Sep 2026*** (`pete` STANDARD → `sd`
