@@ -2764,6 +2764,14 @@ int.logto:
    who = new.account
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 
+* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Reload the OS-access grants for the
+*   account just entered; LOGIN does the initial load at sign-on.  acc.record is
+*   the register record for a named account; a path-attached account has none,
+*   so the fields read blank = denied, the safe default.  An administrator
+*   bypasses these via USR_ADMIN regardless of the account's fields.
+   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
+
    gosub find.private.catalogue
 
    if logto.reset then
@@ -3487,8 +3495,12 @@ os.command:
    * Require administrator and reject shell metacharacters in OS commands.
    * os.execute os.command.text
    deffun valid_shell_cmd(cmd) calling '!valid_shell_cmd'
-   if not(kernel(K$ADMINISTRATOR, -1)) then
-      display sysmsg(2001) ;* Command requires administrator privileges
+* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Was admin-only; now admin OR the
+*   account holds the SH grant (K$SH, loaded from ACC$SH at account entry).
+*   The owner's model, 9 Sep 2026: shell off for anyone but administrators
+*   unless given specifically with MODIFY.ACCOUNT SH-ON.
+   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then
+      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell
       return
    end
    if not(valid_shell_cmd(os.command.text)) then

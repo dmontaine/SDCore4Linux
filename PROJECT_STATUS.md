@@ -34,7 +34,7 @@ registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
 
 | entry | |
 |---|---|
-| **23** | commit 1: `op_sh` now gates `OS.EXECUTE` — a `$internal` program or an administrator only, else message 10054. Closes a C-layer hole where any user program's `OS.EXECUTE` ran ungated. **Compiled clean, `bin/sd` relinked, NOT witnessed** (install is STALE). Commit 2 — the `ACC$SH`/`ACC$OS.EXEC` grant and `MODIFY.ACCOUNT OS-ON\|OS-OFF\|SH-ON\|SH-OFF` — is specified in PRE_RELEASE 23 and is the immediate next step |
+| **23** | the OS-access tier gate, both commits. **Commit 1 (installed):** `op_sh` gates `OS.EXECUTE` to `$internal`/administrator (msg 10054). **Commit 2 (compiled, unrun):** `ACC$SH`(7)/`ACC$OS.EXEC`(8) grants, `MODIFY.ACCOUNT SH-ON\|SH-OFF\|OS-ON\|OS-OFF` (msgs 10039–10042), `SH` gate at `CPROC:3490`→admin-or-`K$SH` (msg 10053), flags loaded at account entry (LOGIN + CPROC logto). MODIFYA/CPROC/LOGIN each compiled **0 errors** with a red control (1 error); account restored to COUNT VOC 410; plain binary rebuilt. Detail in PRE_RELEASE 23 |
 | **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
 | **21** | `sd -internal` was an unguarded route to the admin flag — **measured, uid 1000, no sudo**. Now behind `check_admin()`, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as the announced opt-out |
 | **22** | `!set_passwd` / `!create_user` were globally catalogued with **no gate** |
@@ -46,13 +46,14 @@ registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
 
 ### Next task
 
-***ENTRY 23 COMMIT 2 — THE GRANT — IS THE IMMEDIATE NEXT STEP.*** Commit 1
-(above) default-denies `OS.EXECUTE` to non-admins at the C layer. Commit 2 adds
-`ACC$SH`=7 / `ACC$OS.EXEC`=8 in `ACCOUNTS`, `MODIFY.ACCOUNT
-OS-ON|OS-OFF|SH-ON|SH-OFF` (refusing an administrator, the port's 10106 shape),
-and the reads that WIDEN the two gates — the `SH` gate at `CPROC:3490` to
-admin-or-`ACC$SH`, and `op_sh` to admin-or-`ACC$OS.EXEC` via a new `USR_` flag
-loaded when the account is entered (login **and** `LOGTO`, the delicate path).
+***ENTRY 23 IS BUILT (BOTH COMMITS) AND NEEDS WITNESSING AFTER A REINSTALL.***
+Commit 1 is installed. Commit 2 (the grant) is compiled (0 errors, red control)
+but UNRUN. After the next reinstall of `origin/main`, witness: `MODIFY.ACCOUNT
+<non-admin> OS-ON` → *"may now use OS.EXECUTE"*, then that account **re-entered**
+runs `OS.EXECUTE` from a user program; `OS-OFF` refuses it again (msg 10054);
+`SH-ON`/`SH-OFF` likewise flip the prompt `SH` (msg 10053); `MODIFY.ACCOUNT
+<admin> OS-ON` → refused 10039. ***THE GRANT TAKES EFFECT AT NEXT ACCOUNT ENTRY,
+not for a session already in the account*** — a re-login is part of the witness.
 Full spec in PRE_RELEASE 23.
 
 ***ENTRY 13 — THE ssh BOUNDARY — IS NOW RULED AND READY TO BUILD*** (owner, 9

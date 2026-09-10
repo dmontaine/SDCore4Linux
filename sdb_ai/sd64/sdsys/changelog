@@ -9,25 +9,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
-09 Sep 26  ONLY ADMINISTRATORS CAN NOW REACH THE OPERATING SYSTEM FROM A
-           PROGRAM.
+09 Sep 26  OPERATING-SYSTEM ACCESS IS NOW A PER-ACCOUNT PRIVILEGE.
 
            OS.EXECUTE - the SD BASIC statement that runs an operating-system
-           command - now works only for administrators and for SD's own system
-           programs.  Before this, any program could run OS.EXECUTE, so the
-           boundary the account tiers are meant to draw did not hold: a standard
-           or programmer account could reach a shell from a program it wrote,
-           whatever its tier allowed inside SD.
+           command - and the SH verb and "!" at the command prompt are now off
+           for everyone except administrators and SD's own system programs.
+           Before this, any program could run OS.EXECUTE, so the boundary the
+           account tiers are meant to draw did not hold: a standard or programmer
+           account could reach a shell from a program it wrote, whatever its tier
+           allowed inside SD.  A program that is neither an administrator's nor
+           part of SD is now refused with "not permitted to use OS.EXECUTE", and
+           a non-administrator using SH at the prompt is told they are "not
+           permitted to use the operating system shell".
 
-           If a program is neither an administrator's nor part of SD, an
-           OS.EXECUTE in it is now refused with "not permitted to use
-           OS.EXECUTE".  The SH verb and "!" at the command prompt were already
-           restricted to administrators and are unchanged.
+           An administrator can give either privilege to a named account:
 
-           WHAT THIS DOES NOT DO YET: there is not yet a way to give a single
-           non-administrator account operating-system access.  That is coming -
-           MODIFY.ACCOUNT will take OS-ON and OS-OFF - so for now it is every
-           administrator, or nobody.
+               MODIFY.ACCOUNT <account> OS-ON      allow OS.EXECUTE
+               MODIFY.ACCOUNT <account> OS-OFF     take it away
+               MODIFY.ACCOUNT <account> SH-ON      allow SH and "!"
+               MODIFY.ACCOUNT <account> SH-OFF     take it away
+
+           The two are independent, so SH-OFF says nothing about OS.EXECUTE.
+           Administrators always have both, so the four forms refuse an
+           administrator account and say so.  A grant takes effect the next time
+           the account is entered, not for a session already running in it.
 
 09 Sep 26  SD BASIC IS SYNTAX HIGHLIGHTED IN THE EDITOR.
 

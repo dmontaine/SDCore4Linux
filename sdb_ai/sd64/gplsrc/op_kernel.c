@@ -377,6 +377,42 @@ void op_kernel() {
       result.data.value = (my_uptr->flags & USR_ADMIN) != 0;
       break;
 
+    /* 09 Sep 26 dm - PRE_RELEASE 23.  The per-account OS-access grants, gated
+       for setting exactly like K_ADMINISTRATOR above: only a $internal program
+       (LOGIN, CPROC - the two that own entry to an account) may change them,
+       and they are loaded there from ACC$SH / ACC$OS.EXEC.  A non-internal
+       caller reads the flag but cannot move it, so a program cannot grant
+       itself OS access.  USR_OS_EXEC is what op_sh() reads; USR_SH is read by
+       CPROC's SH gate through kernel(K$SH, -1).                              */
+
+    case K_SH:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_SH;
+          else
+            my_uptr->flags &= ~USR_SH;
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_SH) != 0;
+      break;
+
+    case K_OS_EXEC:
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->flags |= USR_OS_EXEC;
+          else
+            my_uptr->flags &= ~USR_OS_EXEC;
+        }
+      }
+      result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
+      break;
+
     case K_FILESTATS:
       GetInt(descr);
       if (descr->data.value) { /* Reset counters */

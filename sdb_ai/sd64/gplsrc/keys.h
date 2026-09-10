@@ -169,6 +169,12 @@
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 #define K_REAL_USER          57
+/* 09 Sep 26 dm - PRE_RELEASE 23.  Per-account OS-access grants, loaded into the
+   session at account entry (LOGIN and CPROC logto) from ACC$SH / ACC$OS.EXEC,
+   and read by the SH gate (CPROC) and op_sh() (OS.EXECUTE).  Set only from a
+   $internal program, exactly like K_ADMINISTRATOR - see op_kernel.c.         */
+#define K_SH                 58
+#define K_OS_EXEC            59
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 09 Sep 26 dm PRE_RELEASE 23 commit 2: os_permitted() also honours USR_OS_EXEC,
+ *           the per-account ACC$OS.EXEC grant loaded at account entry, so an
+ *           administrator can give a named non-admin account OS.EXECUTE.
  * 09 Sep 26 dm PRE_RELEASE 23 commit 1: os_permitted() gates OS.EXECUTE to a
  *           $internal program or an administrator (owner's model, 9 Sep 26:
  *           "os.execute and shell are off for anyone but administrators").
@@ -122,15 +125,18 @@ void op_shcap() {
         (os.command, admin-only) and then reaches op_sh as an internal caller.
      2. USR_ADMIN - an administrator has full OS access by tier, automatic and
         unrevocable (owner, 9 Sep 2026).
-     3. Otherwise refused.  The per-ACCOUNT grant (ACC$OS.EXEC, settable with
-        MODIFY.ACCOUNT OS-ON) is PRE_RELEASE 23 commit 2 and is not read here
-        yet; until it lands a non-admin user program is a plain no, which is
-        the correct DEFAULT - the grant only ever widens it.                 */
+     3. USR_OS_EXEC - the per-ACCOUNT grant (ACC$OS.EXEC, set with
+        MODIFY.ACCOUNT OS-ON), loaded into the session at account entry (LOGIN,
+        CPROC logto).  Commit 2.  This is what widens the default beyond
+        administrators to a named non-admin.
+     Otherwise refused - a non-admin user program with no grant is a plain no. */
 
 Private bool os_permitted(void) {
   if (process.program.flags & HDR_INTERNAL)
     return TRUE;
   if (my_uptr->flags & USR_ADMIN)
+    return TRUE;
+  if (my_uptr->flags & USR_OS_EXEC) /* PRE_RELEASE 23 commit 2 - per-account grant */
     return TRUE;
   return FALSE;
 }
