@@ -1152,6 +1152,37 @@ about why.
 **Compiled**: edited `CPROC` **0 errors on both `IS_INSTALL` arms**; red control
 cut at line 903 of 3618, inside an open `loop`, **8 errors**.
 
+### Where the notice appears — the owner's shape, 9 Sep 2026
+
+***HE READ HIS OWN TRANSCRIPT AND SAW THAT THE MESSAGE LANDED ABOVE THE SIGN-ON
+BANNER, "SO IT JUST LOOKS LIKE PART OF THE BANNER THAT PEOPLE ARE USED TO
+IGNORING".*** That is the failure mode these messages exist to avoid — **a
+warning nobody reads is not a warning** — so the presentation is part of the
+mechanism, not decoration.
+
+The notices are now **collected rather than printed** (`admin.notice`, one per
+field) and displayed after `$LOGIN` returns, which is after the banner:
+
+```
+<banner>
+<blank line>
+------------------------------------------------------------------------------- (79)
+don is not registered ...
+-------------------------------------------------------------------------------
+<blank line>
+```
+
+| | |
+|---|---|
+| the gap above | **the banner's own** — `LOGIN:170` already ends with a blank `display`, so it is not doubled |
+| the rule width | **79, because the banner's widest line is 79** (`LOGIN:169`, measured) — the box reads as part of the same block and still fits 80 columns |
+| `CMD.QUIET` | ***does NOT suppress it***, unlike the banner. The banner is a courtesy; this is the session saying what rights it has. A quiet flag should not be able to silence that |
+| 10032 | **moved too.** It is the same class — a start-up notice about privilege — and it had the same defect |
+
+**Compiled again after the move: 0 errors on both arms, red control at line 903
+of 3665 gives 10.** ***CLEANED UP PROPERLY THIS TIME***: fixtures, `BP.OUT`, and
+`DELETE VOC BP.OUT` — `COUNT VOC` back to **410**, the true baseline.
+
 ### Commit 2, 9 Sep 2026 — the gates
 
 ***THE GRANT IS GATED, NOT THE FOURTEEN READERS, AND THAT IS THE WHOLE DESIGN.***
