@@ -73,7 +73,9 @@ remains on the installer path is entry 25's witness and 27's real-script path.**
   prompt) followed by an install; the 01:56 run did not exercise it.
 - **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
 - **23's gate** — still open; needs a NON-ADMIN account (see above).
-- **13** — ruled and ready to build (the ssh boundary).
+- **13** — BUILT 10 Sep (the ssh boundary). Needs a LIVE ssh witness: a
+  STANDARD account forced into `sd` on ssh login, an administrator getting a
+  normal shell. Requires an install + running sshd + a non-admin account.
 
 **`assert-current` will answer 1 until the next install** — the install is
 `dc36771` and HEAD is ahead (27 plus this record). That is honest: the installed
@@ -87,16 +89,28 @@ actually biting — needs a NON-ADMIN account (steps in START HERE). `don` is
 already an ADMINISTRATOR (promoted 9 Sep), so a separate STANDARD account is
 needed for the refusal either way.
 
-***ENTRY 13 — THE ssh BOUNDARY — IS NOW RULED AND READY TO BUILD*** (owner, 9
-Sep 2026, this session; it no longer needs a ruling before code). Mechanism:
-`ForceCommand` into `sd` for `Match Group sdusers,!sdadmin`; PROGRAMMER is
-treated as STANDARD over ssh; administrators (in `sdadmin`) keep a real shell —
-their full ssh access; the INSTALLER writes an explicit removable fenced block
-with a preflight that refuses a customised `sshd_config`. Admin-granted shell is
-reached THROUGH SD (ForceCommand → SH inside SD, `sd` not setuid), so there are
-no per-user `sshd_config` carve-outs. ***STILL LOCK-OUT SENSITIVE — verify the
-config with `sshd -t` before any install.*** Detail and the sshd Match-Group
-negation semantics in §13.
+***ENTRY 13 — THE ssh BOUNDARY — IS BUILT (10 Sep 2026), UNIT-TESTED 16/0,
+SYNTAX-WITNESSED, BEHAVIOURALLY UNRUN.*** Mechanism (ruled 9 Sep, owner):
+`ForceCommand` into `sd` for `Match Group sdusers,!sdadmin`; PROGRAMMER = STANDARD
+over ssh; administrators (in `sdadmin`) keep a real shell; admin-granted shell is
+reached THROUGH SD (`sd` not setuid), so no per-user carve-outs. New helper
+[ssh-forcecommand.sh](sdb_ai/sd64/gplbld/ssh-forcecommand.sh) (`--check`/`--install`/`--remove`),
+installed root-owned to `/usr/local/sbin/ssh-forcecommand`; installer calls
+`--install` non-fatally near the end, uninstaller `--remove` first. **Fenced
+block in the main `/etc/ssh/sshd_config`, NOT a `sshd_config.d` drop-in** — owner
+10 Sep: the other three distro families are being regained, so no Debian-specific
+feature; the drop-in dir is not universal, the main config is. `sshd -t -f`
+validates a candidate BEFORE the live file changes; refuses when no `sshd` is
+found. Test [test-ssh-forcecommand.py](sdb_ai/sd64/gplbld/test-ssh-forcecommand.py).
+***WITNESSED:*** `sshd -t` exit 0 on the exact block (OpenSSH 10.3p1); `sshd -T
+-C user=` proves `Match`-block ForceCommand activation. ***UNWITNESSED — needs a
+LIVE ssh login (owner):*** `sshd -T -C` won't take `groups=` on 10.3, so the
+non-admin-forced / admin-free behaviour cannot be shown offline. ***LOCK-OUT
+SENSITIVE; the install path runs `sshd -t` as root, which is required — `sshd -t`
+needs root to read host keys.*** Judgment call recorded in the helper header: the
+refusal predicate covers `ForceCommand`/`Match`-naming-our-groups, not unrelated
+`AllowGroups`. Detail in PRE_RELEASE_FIXES §13 / entry 13. ***Doc line-refs
+`installsdai.sh:254-296` were stale (Debian-only now, one apt branch at `:307`).***
 
 Cheaper things: `leave.sdadmin` has never run (`MODIFY.ACCOUNT DON PROGRAMMER`
 exercises it); entry 6 needs an install; §L1's per-tier VOC is undesigned; §M is

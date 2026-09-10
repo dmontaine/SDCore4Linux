@@ -492,6 +492,13 @@ echo "Installing privileged helper: /usr/local/sbin/sd-elevate."
 sudo mkdir -p /usr/local/sbin
 sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevate
 
+# 10 Sep 26  PRE_RELEASE 13's ssh-boundary helper is installed alongside it, and
+#            for the same root-owned reason.  The uninstaller calls it with
+#            --remove, so it has to outlive the source tree - it cannot be run
+#            from the clone, which is deleted at the end of this script.
+echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
+sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
+
 # Validate BEFORE installing.  A malformed sudoers file can lock sudo out of
 # the machine, so this is checked rather than trusted.
 echo "Validating sudoers drop-in."
@@ -832,6 +839,35 @@ if [ -d "${dflt_git_folder}" ]; then
 fi
 cd "$cwd"
 #
+# 10 Sep 26  PRE_RELEASE 13 - hold the tier boundary at the edge of the machine.
+#            Without this a STANDARD account that SD denies SH and ! just ssh's
+#            in and gets a shell, never entering SD.  The helper appends a fenced
+#            "Match Group sdusers,!sdadmin -> ForceCommand sd" block to
+#            sshd_config, validates it with sshd -t before the live file changes,
+#            and reloads sshd.  Administrators (in sdadmin) keep a real shell.
+#
+#            NON-FATAL ON PURPOSE.  By here SD is installed and working; a
+#            refusal (the administrator has customised sshd_config) or a failure
+#            must WARN, not discard the install.  The boundary can then be
+#            applied by hand, which the message says how to do.  The absolute
+#            installed path is used so this does not depend on the clone, which
+#            was just deleted.
+echo
+echo "Applying the ssh tier boundary (PRE_RELEASE 13)."
+if sudo /usr/local/sbin/ssh-forcecommand --install; then
+    ssh_boundary_ok=1
+else
+    ssh_boundary_ok=0
+    printf "%b\n" "$YELLOW"
+    echo "WARNING: the ssh tier boundary was NOT applied (see the message above)."
+    echo "SD is installed and working, but until this is in place a STANDARD"
+    echo "account can reach a shell over ssh without entering SD.  To apply it"
+    echo "by hand once any conflicting sshd_config setting is resolved, run:"
+    echo
+    echo "      sudo /usr/local/sbin/ssh-forcecommand --install"
+    printf "%b\n" "$NC"
+fi
+#
 # display end of script message
 echo
 echo ---------------------------------------------------------------
@@ -851,6 +887,12 @@ echo "User directories are created under /home/sd/user_accounts."
 echo "Group directories are created under /home/sd/group_accounts."
 echo "Accounts are only created using CREATE-ACCOUNT in SD."
 echo
+if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
+    echo "Over ssh, non-administrator accounts are forced into SD (the tier"
+    echo "boundary); administrators keep a normal shell.  /etc/ssh/sshd_config"
+    echo "was backed up to /etc/ssh/sshd_config.before-sd."
+    echo
+fi
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
 #
