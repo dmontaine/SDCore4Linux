@@ -18,11 +18,19 @@ flag. Messages 10033/10034. **`IsAdmin()` deleted** — it was already dead, ent
 19 having removed its only caller, and it answers the wrong question.
 
 ***THE BOOTSTRAP ARM IS THE OWNER'S RULING AND IT WAS NEEDED, NOT PRECAUTIONARY.***
-Measured first: `ACCOUNTS/DON` has **three fields** (no tier) and
-`sdadmin:x:965:` has **no members**, so a strict gate refuses everybody and
+Measured on the 16:22 install: `ACCOUNTS/DON` had **three fields** (no tier) and
+`sdadmin:x:965:` **no members**, so a strict gate refuses everybody and
 `CREATEA:95` needs admin to register the first admin. With **no**
 `ADMINISTRATOR` in the register the grant stands and prints 10033; the arm
 closes itself once one exists.
+
+***THAT MEASUREMENT MOVED THE SAME DAY AND THE CONCLUSION DID NOT — RE-READ ON
+THE 17:53 INSTALL.*** `ACCOUNTS/DON` now has **five fields with `ACC$TIER` =
+`STANDARD`**, up from three, so ***`PRE_RELEASE` 18 COMMIT 1's WRITE PATH HAS
+RUN ON A LIVE SYSTEM***. `sdadmin` is still empty and **no account holds
+`ADMINISTRATOR`**, so a strict gate would still refuse everybody — this is
+exactly the state the bootstrap arm is for, and it is now the state the next
+install will meet.
 
 ***THE COMPILE RECIPE, WHICH IS REUSABLE AND WAS THE MISSING INSTRUMENT:***
 `sd -internal BASIC <file> <prog>`, arguments separate, **no pipe** — the port's
@@ -42,10 +50,13 @@ flag — is bypassable today.** The fix is one line and is a **ruling**, because
 it moves this project's only BASIC-compile instrument behind `sudo`. **Read §21
 before treating 18 as closed.**
 
-***NOTHING FROM THIS SESSION HAS RUN. A COMPILE IS NOT AN INSTALL.*** The
-witness for both 18 commit 2 and 20 piece 1 is one install of `origin/main`
-followed by `sudo sd` — expect message **10033** naming `don`, and `WHO.AM.I`
-showing `User: don`, `Process UID: 0`, `EUID: 999`, `Admin? Yes`.
+***COMMIT 2 STILL HAS NOT RUN, AND THAT WAS CHECKED RATHER THAN ASSUMED.*** The
+17:53 install carries `K$REAL.USER` **×3** and `grant.administrator` **×0** in
+`/usr/local/sdsys/GPL.BP/CPROC`, with `MESSAGES/10033` and `10034` **absent** —
+so it is `origin/main` at `ef75eb2`, and the `Admin? Yes` above came from the
+**old unconditional grant**. `8ef24bb` is committed and **not pushed**.
+**Its witness is a further install of `origin/main` then `sudo sd`: expect
+message 10033 naming `don` at start-up, and `WHO.AM.I` otherwise unchanged.**
 
 ***LAST SESSION ENDED 9 Sep 2026 (out of credits) AT `51b5880`. Tree clean,
 pushed. This is the fresh-start note; the older lines below still stand.***
@@ -61,10 +72,12 @@ to `sdadmin`); **`PRE_RELEASE` 20** filed and **piece 1 built** (`K$REAL.USER`
 57 keeps the real person across the `sudo sd` drop). Adopted the port's
 `test-fixlist-units.ps1` (pwsh, dev-only) — run it against `PRE_RELEASE_FIXES.md`.
 
-***THE ONE THING BUILT BUT NOT YET WITNESSED: `PRE_RELEASE` 20 piece 1.*** The
-16:25 install predates those commits. Baseline banked (`WHO.AM.I` under
-`sudo sd` → `User: sdsys`); ***a fresh install of `origin/main` should show
-`User:` = the person, EUID still 999.*** That is the witness.
+~~***THE ONE THING BUILT BUT NOT YET WITNESSED: `PRE_RELEASE` 20 piece 1.***~~
+***WITNESSED 9 Sep 2026 ON THE 17:53 INSTALL. The owner ran `WHO.AM.I` under
+`sudo sd` and it said `User : don`.*** Baseline had been `User : sdsys`.
+`Process UID 0` / `EUID 999` unmoved, `Admin? Yes`. **Message 10032 did not
+fire**, so `SUDO_USER` reached the process and the unknown arm was never taken.
+See `PRE_RELEASE` §20.
 
 ~~***NEXT TASK: ENTRY 18 COMMIT 2 — THE GATES.***~~ ***DONE, above.*** Two
 things this paragraph said turned out to be wrong and the corrections are worth
