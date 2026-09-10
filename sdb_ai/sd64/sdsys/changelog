@@ -9,6 +9,26 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  SETTING A PASSWORD AND CREATING AN OPERATING SYSTEM USER NOW REQUIRE
+           ADMINISTRATOR RIGHTS IN THEIR OWN RIGHT.
+
+           Two of SD's internal functions - the ones behind CREATE.ACCOUNT that
+           add a Linux user and set its password - are in the global catalogue,
+           which means any account can call them from a BASIC program.  Neither
+           checked who was calling.  The only thing protecting them was that
+           CREATE.ACCOUNT, the verb, checks - so the check was on the door and
+           not on the room.
+
+           A program written in an ordinary account could therefore make SD run
+           "sudo passwd someone" or "sudo useradd".  On a machine where the
+           caller can use sudo that succeeded; where they cannot, sudo stopped
+           and asked for a password inside an SD session, which is not a place
+           that can answer one.
+
+           Both now refuse unless the caller is an SD administrator, and they
+           report it the way they report every other failure - by returning
+           false and setting STATUS().
+
 09 Sep 26  THIS IS SD CORE, VERSION L1.0-0.
 
            The sign-on line now reads

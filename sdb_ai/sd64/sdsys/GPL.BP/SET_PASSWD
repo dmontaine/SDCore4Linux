@@ -98,11 +98,41 @@
 $internal
 function set_passwd(username)
 $catalog !set_passwd
+$include int$keys.h
 
 deffun valid_os_name(name) calling '!valid_os_name'
 
 pass_set = @false
 set.status 0
+
+* 09 Sep 26 dm - PRE_RELEASE 22.  ***THIS FUNCTION HAD NO GATE AND ANY USER
+*   COULD CALL IT.***  It is $catalog !set_passwd - a GLOBAL catalogue entry -
+*   and its only shipped caller is CREATEA, which IS administrator-gated.  That
+*   gate was doing all the work, and it protects the verb rather than the
+*   function.
+*
+*   MEASURED 09 Sep 26, NOT REASONED.  An ordinary program with no $internal,
+*   compiled and run as don (uid 1000, no sudo, against the gated binary),
+*   called a "!" catalogued function and got a discriminating answer.  So a
+*   four-line program reaches THIS one, and the line below is
+*   OS.EXECUTE "sudo passwd " : username.
+*
+*   TWO CONSEQUENCES, AND THE SECOND IS THE ONE PRE_RELEASE 14 IS ABOUT.  For a
+*   sudoer it runs, so SD changes another person's password on the say-so of an
+*   unprivileged account.  For a NON-sudoer, sudo challenges for a password
+*   inside an SD session that is not expecting to answer one - which is entry
+*   14's hang, arriving from a direction that entry does not consider.
+*
+*   STATUS 6 IS THIS FILE'S OWN NUMBERING, AND IT DIVERGES FROM THE PORT ON
+*   PURPOSE.  The header above documents PAM codes, where 6 is PAM_PERM_DENIED
+*   and 5 is PAM_BUF_ERR.  The port uses 5 for "access denied" (its SET_PASSWD:62)
+*   but that is a different scheme; copying the digit would contradict the table
+*   in this file.  Conformity on an integer whose meaning differs is a
+*   coincidence, not conformity.
+if not(kernel(K$ADMINISTRATOR, -1)) then
+   set.status 6                   ;* PAM_PERM_DENIED - not an administrator
+   return pass_set
+end
 *
 * Modified by Composer AI - 2026/06/10.
 * Use shared !valid_os_name before OS.EXECUTE (phase 2).

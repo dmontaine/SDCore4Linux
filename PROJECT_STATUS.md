@@ -43,8 +43,16 @@ errors on both
 0, and **two red runs** (a truncated `CPROC` → 10 errors; the same file without
 `-internal` → the port's exact directive cascade). Fixtures removed.
 
-***TWO TRAPS IN THIS RECIPE, BOTH PAID FOR ON 9 Sep 26, AND NEITHER IS ABOUT THE
+***THREE TRAPS IN THIS RECIPE, ALL PAID FOR ON 9 Sep 26, AND NONE IS ABOUT THE
 COMPILER.***
+
+0. ***DO NOT USE TRUNCATION AS THE RED CONTROL. IT PASSED THREE TIMES OUT OF
+   FIVE.*** Cutting a file short very often leaves a **valid** program — cut
+   `MODIFYA` at 70 and you get a valid empty one; cut `SET_PASSWD` at 125 of 155
+   and it compiles clean. **A red control that goes green is not a pass, it is a
+   void run**, and it took three of them to learn it. ***INJECT A SYNTAX ERROR
+   INSTEAD***: append one line with an unbalanced bracket — `if not(kernel(...)
+   then` — which gives **1 error** reliably and changes nothing else.
 
 1. ***DO NOT GREP THE OUTPUT FOR `Compiled`. READ THE TAIL.*** Twice in one
    session a run printed **neither** `0 error(s)` **nor** `N error(s)` — once
