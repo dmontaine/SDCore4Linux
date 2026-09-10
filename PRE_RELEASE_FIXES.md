@@ -1059,8 +1059,9 @@ opinion.
 **0 errors**. ***THE FIRST RED CONTROL PASSED AND WAS THEREFORE VOID***: cutting
 `MODIFYA` at line 70 landed inside the header, leaving a valid empty program
 that compiled clean — **the null case, caught by its own control**. Re-cut at
-line 152 of 292, inside the ADD/DELETE nest: ***9 errors***. Fixtures removed,
-`COUNT VOC` 411 either way.
+line 152 of 292, inside the ADD/DELETE nest: ***9 errors***. Fixtures removed.
+*(The `COUNT VOC` 411 this line used to cite was not a clean baseline — see the
+withdrawal in commit 2 above. The account's true empty count is **410**.)*
 
 ***WITNESSED END TO END 9 Sep 2026 — THE ARM CLOSED ITSELF.*** The owner's
 transcript, in one sitting:
@@ -1096,15 +1097,60 @@ it is evidence this one runs on a path where the question never arises.
 
 - **`leave.sdadmin` has never run.** `MODIFY.ACCOUNT DON PROGRAMMER` would
   exercise it and is reversible.
-- ***THE GATE HAS ONLY EVER BEEN SEEN TO PASS.*** Everything above is the
-  positive path, and a check that is never seen refusing is not yet a check.
-  ***THE CONTROL IS PRODUCIBLE AND IT TESTS THE `AND`***: remove `don` from
-  `sdadmin` while **leaving** the tier at `ADMINISTRATOR`, then `sudo sd`.
-  **Message 10034 must appear and `Admin?` must read `No`** — and 10033 must
-  **not**, because an `ADMINISTRATOR` is still registered. If 10033 appears
-  instead, the register scan is answering the wrong question; if `Admin? Yes`
-  appears, the group half is not being read at all. **Reversible**:
-  `sudo gpasswd -a don sdadmin` puts it back, and the tier was never touched.
+- **`leave.sdadmin` has still never run.** `MODIFY.ACCOUNT DON PROGRAMMER`
+  would exercise it.
+
+### The refusal control — run by the owner 9 Sep 2026, and it passed both ways
+
+***THE GATE HAS NOW BEEN WATCHED REFUSING, WHICH IS THE HALF THAT MAKES IT A
+CHECK.*** He dropped himself from `sdadmin` and **left the tier at
+`ADMINISTRATOR`**, so only one half of the owner's definition changed.
+
+| | 10033 | 10034 | `Admin?` | `Account` |
+|---|---|---|---|---|
+| bootstrap arm | ✓ | — | Yes | `SDSYS` |
+| ***dropped from `sdadmin`, tier untouched*** | ***—*** | ***✓*** | ***No*** | ***`DON`*** |
+| restored with `gpasswd -a` | — | — | Yes | `SDSYS` |
+
+***10033 CORRECTLY STAYED SILENT***, which is the discriminating observation: an
+`ADMINISTRATOR` was still registered, so the bootstrap arm had no business
+firing, and it did not. **The gate refused on the group half alone with the
+register half held constant** — that is the `AND`, tested rather than argued.
+
+***AND `Account : DON` IS A FOURTH CONFIRMATION NOBODY PREDICTED IN ADVANCE.***
+With `USR_ADMIN` clear, `LOGIN:240`'s `case kernel(K$ADMINISTRATOR,-1)` stops
+matching and `:259` sends the session to `upcase(@logname)` instead of `SDSYS`.
+**The account name on the screen is an independent readout of the same flag**,
+and it moved in step with it.
+
+### The refusal named the wrong half — fixed 9 Sep 2026
+
+***THE MESSAGE SAID "don is not a registered SD administrator" AND HE WAS
+REGISTERED.*** Field 5 still read `ADMINISTRATOR`; what he lacked was the group.
+**A refusal that names the wrong half sends the reader to the wrong place** — an
+administrator dropped from `sdadmin` would inspect the register, find it
+correct, and have nothing left to look at. ***THIS IS THE SAME CLASS THE OWNER
+CAUGHT IN 10033's COMMAND STRING, FOUND THE SAME WAY: BY READING WHAT THE THING
+ACTUALLY PRINTED.***
+
+The definition has two halves, so there are now three refusals rather than one:
+
+| | |
+|---|---|
+| `10034` | not registered as an administrator |
+| ***`10037`*** | **registered, but not in `sdadmin`** — the case above |
+| ***`10038`*** | ***the register could not be READ*** |
+
+***10038 IS THE THREE-ANSWER PROBLEM AND IT WAS THE SAME BUG WEARING A DIFFERENT
+HAT.*** The unreadable-register arm also printed 10034 — *"is not a registered
+administrator"* — which is a claim about what the register **says** when nothing
+had been read. **Conflating "measured false" with "could not measure"** is what
+§20 warns about and what the port paid for in its entry 93. The verdict is
+unchanged (nothing measured, nothing granted); only the wording is now honest
+about why.
+
+**Compiled**: edited `CPROC` **0 errors on both `IS_INSTALL` arms**; red control
+cut at line 903 of 3618, inside an open `loop`, **8 errors**.
 
 ### Commit 2, 9 Sep 2026 — the gates
 
@@ -1189,8 +1235,21 @@ they are valid: they measured the compiler, not the gate.
 ANCHORS ON THE POSITIVE WORDING*** — `0 error(s)` and *"with no errors"* are
 `BCOMP:1540` / `BASIC` on the success path; the failure path prints `N error(s)`
 and *"with errors in:"*. **Fixtures removed by name**; the `DON` account is back
-to its seven entries with `BP` empty and no `BP.OUT`, and `COUNT VOC` is **411**
-with the fixtures gone as it was with them there, so nothing reached the VOC.
+to its seven entries with `BP` empty and no `BP.OUT`.
+
+***THE `COUNT VOC` CLAIM THAT USED TO END THIS PARAGRAPH WAS WRONG AND IS
+WITHDRAWN.*** It read *"`COUNT VOC` is 411 with the fixtures gone as it was with
+them there, so nothing reached the VOC."* ***THE FIRST COMPILE HAD ALREADY
+CREATED A `BP.OUT` VOC RECORD BEFORE THAT "BASELINE" WAS TAKEN***, so 411
+included the litter and the two readings agreed on a number that was already
+wrong. **The unchanged count was real; the conclusion drawn from it was not** —
+a before-and-after taken entirely after the event measures nothing. Found
+9 Sep 26 when a later compile failed with *"DATA part of file already exists /
+Unable to open newly created output file"*: the directory had been removed and
+the VOC record had not. ***CLEANED FOR REAL***: `DELETE VOC BP.OUT`,
+**1 record deleted**, and `COUNT VOC` is now **410**. **That is the true
+baseline for this account, and it is one BELOW the number two entries in this
+file were quoting.**
 
 ***WHAT IS STILL NOT ESTABLISHED: NONE OF IT HAS RUN.*** A compile is not an
 install. The witness is an install of `origin/main` followed by `sudo sd` — it

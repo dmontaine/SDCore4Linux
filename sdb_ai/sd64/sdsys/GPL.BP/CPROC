@@ -822,7 +822,14 @@ grant.administrator:
    admin.any = @false
 
    openpath @sdsys:@ds:'ACCOUNTS' to admin.f else
-      crt sysmsg(10034, admin.person)  ;* register unreadable - grant nothing
+* 09 Sep 26 dm - THE LOOKUP HAS THREE ANSWERS, NOT TWO, AND THIS ARM IS THE
+*   THIRD.  It used to print 10034, "is not a registered SD administrator",
+*   which is a claim about what the register SAYS - and nothing had been read.
+*   Conflating "measured false" with "could not measure" is the shape
+*   PRE_RELEASE 20 warns about and the port paid for in its entry 93.
+*   The verdict is unchanged - nothing measured, nothing granted - and only the
+*   wording is honest about why.
+      crt sysmsg(10038)  ;* the register could not be read
       return
    end
 
@@ -857,8 +864,22 @@ grant.administrator:
    clearselect 11
    close admin.f
 
+* 09 Sep 26 dm - PRE_RELEASE 18.  ***SAY WHICH HALF FAILED.***  Found by the
+*   owner's own control run, 9 Sep 26: he dropped himself from sdadmin with the
+*   tier left at ADMINISTRATOR, and the refusal said "don is not a registered
+*   SD administrator" - ***WHICH WAS FALSE.***  He WAS registered; field 5 still
+*   read ADMINISTRATOR.  What he lacked was the group.
+*
+*   A REFUSAL THAT NAMES THE WRONG HALF SENDS THE READER TO THE WRONG PLACE.
+*   An administrator dropped from sdadmin would go and inspect the register,
+*   find it correct, and have nothing left to look at.  The definition has
+*   exactly two halves, so there are exactly two things to say.
    if admin.any then
-      crt sysmsg(10034, admin.person)
+      if admin.tier = 'ADMINISTRATOR' then
+         crt sysmsg(10037, admin.person)  ;* registered, but not in sdadmin
+      end else
+         crt sysmsg(10034, admin.person)  ;* not registered as an administrator
+      end
    end else
       crt sysmsg(10033, admin.person)
       void kernel(K$ADMINISTRATOR, 1)

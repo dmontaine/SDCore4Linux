@@ -41,8 +41,24 @@ below; the runs recorded here predate the fix and ran as `don`. `CPROC` **0
 errors on both
 `IS_INSTALL` arms**, HEAD as the control also
 0, and **two red runs** (a truncated `CPROC` → 10 errors; the same file without
-`-internal` → the port's exact directive cascade). Fixtures removed;
-`COUNT VOC` 411 either way.
+`-internal` → the port's exact directive cascade). Fixtures removed.
+
+***TWO TRAPS IN THIS RECIPE, BOTH PAID FOR ON 9 Sep 26, AND NEITHER IS ABOUT THE
+COMPILER.***
+
+1. ***DO NOT GREP THE OUTPUT FOR `Compiled`. READ THE TAIL.*** Twice in one
+   session a run printed **neither** `0 error(s)` **nor** `N error(s)` — once
+   because `-internal` was missing, once because `BASIC` could not open
+   `BP.OUT` — and a grep for the success/failure words returned **nothing at
+   all**, which reads exactly like a clean pass if you are only looking at the
+   lines that matched. **A filter that can return empty is not a verdict.**
+2. ***THE COMPILE CREATES A `BP.OUT` VOC RECORD, AND `rmdir` DOES NOT REMOVE
+   IT.*** Delete the directory alone and the next compile dies with *"DATA part
+   of file already exists / Unable to open newly created output file"*. Clean
+   up with `DELETE VOC BP.OUT` as well. ***AND A `COUNT VOC` TAKEN AFTER THE
+   FIRST COMPILE IS NOT A BASELINE*** — an earlier entry in this file claimed
+   "411 either way, so nothing reached the VOC" when 411 already **included**
+   the litter. **The account's true empty count is 410.**
 
 ***AND THE SESSION FOUND SOMETHING BIGGER THAN WHAT IT BUILT: `PRE_RELEASE` 21 —
 NOW FOUND, RULED AND FIXED IN THE SAME SESSION.*** ***AS `don`, uid 1000, NO
@@ -123,13 +139,27 @@ RESULT***: `sudo usermod` returned unchallenged **because the session is uid 0**
 That says nothing about §14's ten call sites; it says this one runs where the
 question never arises.
 
-***THE GATE HAS ONLY EVER BEEN SEEN TO PASS, AND THAT IS THE NEXT THING TO
-FIX.*** The control is producible and tests the `AND`: remove `don` from
-`sdadmin`, **leave** the tier at `ADMINISTRATOR`, then `sudo sd`. **10034 and
-`Admin? No` is the pass; 10033 means the register scan asks the wrong question;
-`Admin? Yes` means the group half is not read at all.** Reversible with
-`sudo gpasswd -a don sdadmin`. **`leave.sdadmin` is also unrun** —
-`MODIFY.ACCOUNT DON PROGRAMMER` exercises it.
+***THE REFUSAL CONTROL WAS RUN BY THE OWNER AND PASSED BOTH WAYS.*** He dropped
+himself from `sdadmin` with the tier left at `ADMINISTRATOR`: **10034, `Admin?
+No`, and 10033 correctly SILENT** — an administrator was still registered, so
+the arm had no business firing. Restored with `gpasswd -a`, back to `Admin?
+Yes` and no message. **The gate refused on the group half alone with the
+register half held constant, which is the `AND` tested rather than argued.**
+***AND `Account : DON` IS AN INDEPENDENT READOUT OF THE SAME FLAG***: with
+`USR_ADMIN` clear, `LOGIN:240` stops matching and `:259` sends the session to
+the person's own account. Nobody predicted that in advance; it moved in step.
+
+***THAT RUN ALSO EXPOSED A DEFECT IN THE REFUSAL ITSELF, NOW FIXED.*** 10034
+said *"not a registered SD administrator"* to a man who **was** registered,
+sending the reader to the wrong half. There are three refusals now: **10034**
+not registered, **10037** registered but not in `sdadmin`, **10038** the
+register could not be READ. ***10038 IS THE THREE-ANSWER PROBLEM*** — the
+unreadable arm was also printing 10034, a claim about what the register says
+when nothing had been read. Compiled 0 errors on both `IS_INSTALL` arms, red
+control 8 errors. **Unrun.**
+
+**`leave.sdadmin` is still unrun** — `MODIFY.ACCOUNT DON PROGRAMMER` exercises
+it.
 
 ***ENTRY 18 IS NOT CLOSED.*** Its third requirement — *"unregistered → refused
 entry"* — is still half there (`LOGIN:210-213` refuses a **forced** account
