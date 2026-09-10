@@ -84,7 +84,14 @@ SD: what changed, why it mattered, and what it does not do.
            ADMINISTRATOR account exists.  You cannot be locked out by it.
 
            If your session is refused administrator rights, SD says so as it
-           starts rather than leaving you to find out when a command fails.
+           starts rather than leaving you to find out when a command fails -
+           and it says WHICH of the two requirements you did not meet, because
+           being told "you are not a registered administrator" when you are
+           registered and merely missing from the group sends you to look in
+           the wrong place.  There are three things it can tell you: you are
+           not registered as an administrator; you are registered but are not
+           in the sdadmin group; or the account register could not be read at
+           all, which is not the same as it saying no.
 
            Three checks now read the new test instead of asking whether the
            process is root, which was never the same question: CATALOG and
