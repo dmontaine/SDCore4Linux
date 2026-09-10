@@ -55,6 +55,19 @@ CASES = [
     (REFUSE, ["groupadd", "sudo"],          "not an SD group"),
     (REFUSE, ["groupdel", "sudo"],          "not an SD group"),
     (REFUSE, ["delgroup", "don", "sudo"],   "not an SD group"),
+
+    # ---- sdadmin, added to the whitelist 09 Sep 26.  It is the OS half of an
+    # ---- SD administrator, so it is the one group whose entry has to be
+    # ---- deliberate.  These four rows are what make it deliberate: the
+    # ---- operation is allowed for a real SD user and for nobody else, and
+    # ---- REMOVING the group from the whitelist would fail two of them, which
+    # ---- is the drift this guards against.
+    (REFUSE, ["addgroup", "root", "sdadmin"],  "root can never be made an SD administrator"),
+    (REFUSE, ["addgroup", "sdsys", "sdadmin"], "sdsys is an account, not a person"),
+    (REFUSE, ["groupdel", "sdadmin"],          "the group SD's own sudoers rule names must not be deletable"),
+    (REFUSE, ["groupdel", "sdusers"],          "deleting it unregisters every SD user at once - exposed BEFORE sdadmin joined"),
+    (ALLOW,  ["addgroup", "don", "sdadmin"],   "the point of the whitelist entry: an administrator may make one"),
+    (ALLOW,  ["delgroup", "don", "sdadmin"],   "and unmake one - MODIFY.ACCOUNT's demotion path"),
     (REFUSE, ["setgid", "/etc"],            "outside the accounts root"),
     (REFUSE, ["setgid", "/"],               "outside the accounts root"),
     (REFUSE, ["setgid", "/usr/local/sdsys"], "SD's own tree is still not the accounts root"),

@@ -344,8 +344,12 @@ PW.TRY.AGAIN:
         if not(valid_os_path(pathname)) then
           crt sysmsg(10011,2) ;* 'Warning unable to setgid bit on Group Folder, status: %1
         end else
-        OS.EXECUTE "sudo chmod g+s ":pathname
-        * -------------------- 
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   "sudo chmod g+s" on an arbitrary path is root by another route.  sd-elevate
+*   resolves the path with realpath FIRST and refuses anything outside the
+*   accounts root, so a planted symlink cannot aim it at /usr or /etc.
+        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate setgid ":pathname
+        * --------------------
         stat = OS.ERROR()
         if stat = 0 then
           crt sysmsg(10010,pathname)  ;* setgid bit set on: %1 
@@ -369,7 +373,9 @@ PW.TRY.AGAIN:
           if not(valid_os_name(acc.uname)) then
              crt sysmsg(10012,acc.uname,2) ;* Warning unable to add user to sdusers, user: %1 status: %2
           end else
-          os.execute "sudo usermod -aG sdusers ":acc.uname
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  Argument order reverses:
+*   "addgroup <user> <group>", not "-aG <group> <user>".
+          os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdusers"
           * --------------------
           stat = OS.ERROR()
           if stat = 0 then
@@ -398,7 +404,14 @@ PW.TRY.AGAIN:
             if not(valid_os_name(acc.uname)) then
               crt sysmsg(10030,acc.uname,2) ;* Unable to add user %1 to sdadmin, status: %2
             end else
-              os.execute "sudo usermod -aG sdadmin ":acc.uname
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  This was called out as
+*   the one call that could not use it, because the first administrator is not
+*   in sdadmin when it runs and the helper would refuse them.  ***THAT IS NO
+*   LONGER TRUE AND THE REASON IS WORTH KEEPING***: this code only ever runs in
+*   a session that reached CPROC's root-entry block, so its REAL uid is 0, and
+*   sudo permits root whatever the drop-in says.  The drop-in's %sdadmin rule
+*   is what a non-root administrator would need, and there is no such caller.
+              os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdadmin"
               stat = OS.ERROR()
               if stat = 0 then
                 crt sysmsg(10031,acc.uname)  ;* %1 added to sdadmin
@@ -726,10 +739,18 @@ end
 *
 * no, attempt to create it
 *
+* 09 Sep 26 dm - PRE_RELEASE 14, AND THIS PAIR IS A PORTABILITY FIX TOO.
+*   ***THE ARGUMENT ORDER REVERSES***: raw groupadd is "-U <members> <group>",
+*   sd-elevate is "groupadd <group> [members]".  And ***groupadd -U IS RECENT
+*   shadow-utils*** - absent on distributions this installer serves - so the
+*   helper creates the group and then adds each member with gpasswd -a, which
+*   is everywhere.  root and sdsys are legitimate members of an account group,
+*   which is why the helper permits them HERE and refuses them as targets
+*   everywhere else.
       if upcase(acc.type) = 'USER' then
-        OS.EXECUTE "sudo groupadd -U root,sdsys,":acc.uname :" ": group_name
+        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys,":acc.uname
       end else
-        OS.EXECUTE "sudo groupadd -U root,sdsys ": group_name
+        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys"
       end
       group_stat = OS.ERROR()
       if group_stat = 0 then

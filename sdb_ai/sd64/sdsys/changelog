@@ -9,6 +9,31 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+09 Sep 26  ACCOUNT MAINTENANCE NO LONGER CALLS sudo DIRECTLY, AND TWO THINGS
+           THAT ONLY WORKED ON DEBIAN NOW WORK EVERYWHERE.
+
+           CREATE.ACCOUNT, MODIFY.ACCOUNT and DELETE.ACCOUNT used to run eight
+           different privileged commands through sudo - useradd, userdel,
+           passwd, groupadd, groupdel, usermod, deluser and chmod.  None of
+           those is restricted by its arguments, so a system that let SD run
+           them let SD run them on anything: "sudo passwd root" is the whole
+           machine.
+
+           They now go through one command that SD owns and that checks what it
+           is being asked to do.  It refuses root, SD's own sdsys account and
+           every system account as a target; it will only touch groups that
+           belong to SD, and never SD's own sdusers and sdadmin groups; and it
+           resolves a path before setting the group bit on it, so a symlink
+           cannot point it somewhere else.  If you administer SD you will see
+           it name the command it resolved before it runs.
+
+           TWO REAL BUGS GO WITH IT.  Removing a user from a group used the
+           deluser command, which exists on Debian and Ubuntu and not on Arch,
+           Fedora or RHEL - so MODIFY.ACCOUNT's DELETE, and demoting an
+           administrator, simply failed there.  And creating an account group
+           used "groupadd -U", which needs a recent shadow-utils.  Both now use
+           gpasswd, which is present everywhere.
+
 09 Sep 26  SETTING A PASSWORD AND CREATING AN OPERATING SYSTEM USER NOW REQUIRE
            ADMINISTRATOR RIGHTS IN THEIR OWN RIGHT.
 

@@ -80,7 +80,11 @@ if not(valid_os_name(username)) then
    set.status 2
    return user_created
 end
-OS.EXECUTE "sudo useradd -m " : username
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; the reasoning is in
+*   SET_PASSWD and is not repeated.  sd-elevate supplies -m itself and refuses
+*   a name that already exists, so "sudo useradd -o -u 0 <name>" - a second
+*   root - has no spelling here.
+OS.EXECUTE "sudo /usr/local/sbin/sd-elevate useradd " : username
 * --------------------
 stat = OS.ERROR()
 if stat = 0 then

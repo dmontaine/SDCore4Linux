@@ -137,7 +137,10 @@ deffun valid_os_name(name) calling '!valid_os_name'
                   if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
                      crt sysmsg(10019,user.name,group.name,2) ;* Unable to add user %1 to group %s status: %2
                   end else
-                  os.execute "sudo usermod -aG ":group.name:" ":user.name
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   NOTE THE ARGUMENT ORDER REVERSES: raw usermod is "-aG <group> <user>",
+*   sd-elevate is "addgroup <user> <group>".
+                  os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":user.name:" ":group.name
                   * --------------------
                   stat = OS.ERROR()
                   if stat = 0 then
@@ -160,7 +163,12 @@ deffun valid_os_name(name) calling '!valid_os_name'
                if not(valid_os_name(user.name)) or not(valid_os_name(group.name)) then
                   crt sysmsg(10022,user.name,group.name,2) ;* Unable to remove user %1 from group %s status: %2
                end else
-               os.execute "sudo deluser ":user.name:" ":group.name
+* 09 Sep 26 dm - PRE_RELEASE 14, AND THIS ONE IS A BUG FIX AS WELL AS A
+*   HARDENING.  It was "sudo deluser <user> <group>", and ***deluser IS
+*   DEBIAN-ONLY*** - this installer serves Arch and RHEL too, where the command
+*   does not exist and removing a user from a group simply failed.  sd-elevate
+*   uses gpasswd -d, which is in shadow-utils everywhere.
+               os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":user.name:" ":group.name
                * --------------------
                stat = OS.ERROR()
                   if stat = 0 then
@@ -262,7 +270,11 @@ join.sdadmin:
       crt sysmsg(10030, acc.user, 2) ;* Unable to add user %1 to sdadmin, status: %2
       return
    end
-   os.execute "sudo usermod -aG sdadmin ":acc.user
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  sdadmin is in
+*   sd-elevate's group whitelist deliberately - an administrator may make
+*   another one - and the helper still refuses root and sdsys as targets, so
+*   this cannot put a non-person in the group the sudoers rule names.
+   os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.user:" sdadmin"
    stat = OS.ERROR()
    if stat = 0 then
       crt sysmsg(10031, acc.user)    ;* %1 added to sdadmin
@@ -279,7 +291,9 @@ leave.sdadmin:
       crt sysmsg(10022, acc.user, 'sdadmin', 2) ;* Unable to remove %1 from %2
       return
    end
-   os.execute "sudo deluser ":acc.user:" sdadmin"
+* 09 Sep 26 dm - PRE_RELEASE 14, and the deluser portability fix again - this
+*   demotion path could never have worked on Arch or RHEL.
+   os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":acc.user:" sdadmin"
    stat = OS.ERROR()
    if stat = 0 then
       crt sysmsg(10021, acc.user, 'sdadmin')    ;* %1 removed from group %2

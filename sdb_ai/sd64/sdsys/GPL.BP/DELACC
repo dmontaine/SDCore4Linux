@@ -194,7 +194,11 @@ deffun valid_os_name(name) calling '!valid_os_name'
       if not(valid_os_name(group_name)) then
          crt sysmsg(10026,group_name, 2) ;* Warning unable to delete group: %1 error: %2
       end else
-      OS.EXECUTE "sudo groupdel ": group_name 
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   sd-elevate accepts only sdu_* and sdg_* here - SD's own sdusers and sdadmin
+*   are refused by name, because deleting either takes the system apart rather
+*   than an account, and this call only ever passes the account's own group.
+      OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupdel ": group_name
       stat = OS.ERROR()
       if stat = 0 then
          crt sysmsg(10025,group_name) ;* group: %1 Deleted
@@ -220,7 +224,10 @@ deffun valid_os_name(name) calling '!valid_os_name'
             if not(valid_os_name(username)) then
                crt sysmsg(10029,username, 2) ;* Warning unable to delete OS User: %1 error: %2
             end else
-            OS.EXECUTE "sudo userdel ":username 
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   sd-elevate refuses root, sdsys and anything below UID_MIN as a target, so
+*   "delete root" has no spelling on this path.
+            OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel ":username
             stat = OS.ERROR()
             if stat = 0 then
                crt sysmsg(10028,username) ;* OS User: %1 Deleted
