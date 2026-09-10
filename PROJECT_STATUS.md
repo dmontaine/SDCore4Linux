@@ -6,6 +6,81 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***SESSION ENDED 9 Sep 2026 AT `94085ac`. TREE CLEAN, PUSHED, 14 COMMITS.***
+
+### The one thing that matters before you believe anything
+
+***NOTHING FROM THIS SESSION HAS RUN. THE INSTALLED SYSTEM IS FROM 18:39 AND
+PREDATES ALL 14 COMMITS.*** Run this first, every session, before trusting any
+measurement taken against the installed tree:
+
+```sh
+python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
+```
+
+No `sudo`. **0 current · 1 stale · 2 cannot answer.** It said **1** all session,
+correctly. ***AFTER THE NEXT INSTALL IT SHOULD SAY 0, AND THAT IS ITSELF THE
+TEST THAT THE NEW INSTALL STAMP WORKS*** — before that install there is no
+`.sdcore-install` file, so it can only answer **2**.
+
+***THE NEXT INSTALL IS THE WITNESS FOR NINE ENTRIES AT ONCE.*** Expect, in one
+`sudo /usr/local/sdsys/bin/sd`: the banner reading **`SD Core, the Essential
+Multivalue String Database, version L1.0-0`**; **no** message 10033 (`don` is a
+registered administrator now); `WHO.AM.I` giving `User : don`, `UID 0`,
+`EUID 999`, `Admin? Yes`. Then `CREATE.ACCOUNT USER <name>` exercises **five**
+`sd-elevate` verbs in one go, which is the sharpest single test of entry 14.
+
+### Done this session — detail in PRE_RELEASE_FIXES.md, not repeated here
+
+| entry | |
+|---|---|
+| **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
+| **21** | `sd -internal` was an unguarded route to the admin flag — **measured, uid 1000, no sudo**. Now behind `check_admin()`, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as the announced opt-out |
+| **22** | `!set_passwd` / `!create_user` were globally catalogued with **no gate** |
+| **14** | all 13 raw `sudo` calls now go through `sd-elevate`; `sdadmin` whitelisted; **`groupdel sdusers` was open and is now shut** |
+| **17** | `L1.0-0`, and the banner is the owner's wording |
+| **8** | `assert-current.py` + `test-assert-current.py` (10/10) + an install stamp |
+| **12** | syntax highlighting reaches a user at last; **measured with two controls** |
+| **20** | piece 1 witnessed — `WHO.AM.I` says `User : don` |
+
+### Next task
+
+***ENTRY 13 — THE ssh BOUNDARY — AND IT NEEDS A RULING BEFORE IT NEEDS CODE.***
+It is the last big piece of the tier model, it is already ruled in principle (a
+STANDARD account gets no real login shell), and it **commits SD to writing
+`sshd_config`**. §14 lists four open sub-decisions under it — the mechanism,
+PROGRAMMER's case, who gets which shell, and who writes the fenced block.
+***GETTING IT WRONG LOCKS THE OWNER OUT OF ssh ON HIS OWN MACHINE***, and unlike
+everything else this session there is no control that can be built without
+risking his access. **Put the decisions to him before building.**
+
+Cheaper things if that is blocked: `leave.sdadmin` has never run
+(`MODIFY.ACCOUNT DON PROGRAMMER` exercises it); entry 6 needs an install; §L1's
+per-tier VOC is undesigned; §M is release-blocking but scheduled at step 7.
+
+### The instruments this session built or paid for
+
+***COMPILING `GPL.BP` OUTSIDE AN INSTALL — the recipe, which this project did
+not have before today:***
+
+```sh
+sudo sd -internal BASIC BP <prog>      # or build dev and drop the sudo
+```
+
+Arguments separate, **no pipe**. Stage the program plus its `$include` records
+**from the working tree** into an empty `BP`. **Three traps, all paid for, all
+in the session log below**: truncation is a *bad red control* (it passed three
+times in five — inject an unbalanced bracket instead); **never grep the output
+for `Compiled`** (a run that prints neither answer returns an empty match that
+reads like a pass); and the compile creates a **`BP.OUT` VOC record** that
+`rmdir` does not remove — clean up with `DELETE VOC BP.OUT` too. The `DON`
+account's true empty `COUNT VOC` is **410**.
+
+## Session log — 9 Sep 2026
+
+*Detail behind the table above. The actionable handoff is the section before
+this one; this is kept for the reasoning, not to be read first.*
+
 ***9 Sep 2026, LATER SESSION — ENTRY 18 COMMIT 2 IS BUILT AND THE BASIC WAS
 COMPILED FOR REAL, WHICH THIS PROJECT HAD NOT MANAGED BEFORE.*** Opened on
 `pull`, already up to date at `ef75eb2`.
@@ -218,6 +293,9 @@ so it is `origin/main` at `ef75eb2`, and the `Admin? Yes` above came from the
 **Its witness is a further install of `origin/main` then `sudo sd`: expect
 message 10033 naming `don` at start-up, and `WHO.AM.I` otherwise unchanged.**
 
+*(Superseded — this was the note that opened the session logged above. The
+session it describes ended at `51b5880`; the current head is `94085ac`.)*
+
 ***LAST SESSION ENDED 9 Sep 2026 (out of credits) AT `51b5880`. Tree clean,
 pushed. This is the fresh-start note; the older lines below still stand.***
 
@@ -271,7 +349,8 @@ repository, with a `file:line` verification table for every defect it claims.
 Work follows its "Suggested order". **Steps 0–3 are done; nothing in steps 2–3
 has been exercised on an installed system.**
 
-### Your next task
+### ~~Your next task~~ — *superseded 9 Sep 2026; the current one is under
+"Next task" at the top of this file. The step-4 record below still stands.*
 
 ***STEP 4 IS COMPLETE.*** All of §G and all of §I are done — `I1` TAPE, `I3` SED,
 `I4` UPDATE.RECORD, `I5` MODIFY, `I2` PROC, `G1` BP test programs (PY_* kept),
@@ -1111,8 +1190,18 @@ index and `A1`'s is a half-applied commit, both silent. Build a way to exercise
 a fix before making it, not after — that discipline was not met for step 2, which
 is the standing risk to retire before step 4's removals bury it.
 
-**Next planned work is step 3 (`D5`/`J4`/`D6`), in START HERE** — the `ERR.H`
-generator, which also closes the drifted-header gap below.
+~~**Next planned work is step 3 (`D5`/`J4`/`D6`), in START HERE**~~ — *stale:
+steps 3 and 4 are both done. The current next task is at the top of this file.*
+
+***ADDED 9 Sep 2026 — TWO LEADS THAT ARE WRITTEN DOWN AND NOT BUILT.***
+`op_kernel.c:140`'s `kernel(K$INTERNAL, n>=0)` **sets** internal mode and has no
+`HDR_INTERNAL` guard — entry 19's shape exactly. It is contained today only
+because both command-line routes in are now gated (`PRE_RELEASE` 21), and one
+line would make that belt-and-braces. And `is_grp_member` (`GPL.BP/IS_GRP_MEMBER`)
+reads only field 4 of `/etc/group`, the supplementary member list, so a person
+whose **primary** group is the one being tested answers `false`. No shipped call
+depends on that today; it would bite the first time somebody's primary group is
+an SD group.
 
 **Guards ported from the Windows version — surveyed 9 Sep 2026, owner's ask.**
 The survey is recorded so it is not repeated: the port has **1** Claude hook and
