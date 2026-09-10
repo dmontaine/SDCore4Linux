@@ -6,11 +6,14 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***10 Sep 2026: THE DOCUMENTED FRESH INSTALL RAN AND ABORTED AT PRE_RELEASE 27.
-THE FIX IS BUILT AND SANDBOX-WITNESSED; NO SYSTEM IS INSTALLED. `assert-current`
-answers 2 ("nothing installed"), and the next cycle is `deletesdai.sh` then
-`installsdai.sh` AFTER 27 IS COMMITTED AND PUSHED — the installer clones
-`main`. The aborted run is described in PRE_RELEASE 27; the retry is below.***
+***10 Sep 2026: THE FRESH INSTALL RAN AND SUCCEEDED FROM `dc36771` (origin/main
+at the time; 27 was still unpushed), stamped 01:56:55 — AND PRE_RELEASE 24'S
+SEED IS WITNESSED. The owner ran `sudo sd`: NO 10033 (the arm's silence is the
+measurement — a registered ADMINISTRATOR exists), `User : don`, `Account :
+SDSYS`, `Admin? : Yes`; `ACCOUNTS/DON` field 5 `ADMINISTRATOR` and `sdadmin`
+holds `don`, read off disk. Plain `sd` stays non-admin by design: CPROC's grant
+runs only inside `if system(27) = 0` (`CPROC:299`), so `logto sdsys` refusing in
+an ordinary session is the two gates working, not a defect.***
 
 ### The one thing that matters before you believe anything
 
@@ -21,8 +24,9 @@ python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
 No `sudo`. **0 current · 1 stale · 2 cannot answer.** Right now it answers
-**2** — the aborted install left no `/usr/local/sdsys` to compare. It must
-answer **0** after the retry, naming the commit the installer stamped.
+**1**, correctly: the install stamped `dc36771` and HEAD is ahead of it (27 and
+this record). The installed runtime differs by `changelog` only; the next
+install should answer **0**.
 
 ### PRE_RELEASE 23 (OS-access tier gate + grant) — built, installed, part-witnessed
 Both commits pushed and installed. **Witnessed:** the system is healthy (`sd`
@@ -44,10 +48,10 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 | entry | |
 |---|---|
-| **27** | the fresh install aborted at `installsdai.sh:631` — `chown /home/sd/group_accounts` — because 26 leaves `/home/sd` existing but empty, so the old `if [ ! -d /home/sd ]` skipped both mkdirs. Found by running, 10 Sep. Fix: unconditional `mkdir -p` for both, and a `/home/sd`-as-file refusal by name. **Sandbox-witnessed 5/5, control = pre-fix block on the empty state (dirs missing). Unrun in the real script — the retry runs it.** Detail in PRE_RELEASE 27 |
+| **27** | the fresh install aborted at `installsdai.sh:631` — `chown /home/sd/group_accounts` — because 26 leaves `/home/sd` existing but empty, so the old `if [ ! -d /home/sd ]` skipped both mkdirs. Found by running, 10 Sep. Fix: unconditional `mkdir -p` for both, and a `/home/sd`-as-file refusal by name. **Sandbox-witnessed 5/5, control = pre-fix block on the empty state (dirs missing). Still unrun in the real script: the 01:56 retry installed from `dc36771`, before 27, and succeeded because `/home/sd` was absent (no `sd.conf` was saved), so the old guard was never hit.** Detail in PRE_RELEASE 27 |
 | **26** | same review, same path: answering DELETE removes `/home/sd`, and `mv /etc/sd.conf /home/sd` then renamed the config to a **file** named `/home/sd`; the next install died at `mkdir -p /home/sd/user_accounts` (*"Not a directory"*). Fixed with `mkdir -p "$acct_path"` before the config save (`deletesdai.sh:140`). **Ran for real in the 10 Sep delete: it completed, and `/home/sd` was a directory holding `sd.conf` — the install that followed then aborted on 27.** Detail in PRE_RELEASE 26 |
 | **25** | found while preparing 24's hand-over: `deletesdai.sh:186` deleted `sdadmin` unconditionally, so an upgrade that SAVES its accounts came back with an empty group and every administrator at **10037** — a lock-out with only an OS-root way back. Removal now conditional on `keep_accts = DELETE`, mirroring `sdsys`/`sdusers`. **Built, `bash -n` clean; unrun — the next saved-accounts upgrade is the witness.** Detail in PRE_RELEASE 25 |
-| **24** | the installer seeds the installing user as an SD ADMINISTRATOR (`installsdai.sh:767`, `ADMINISTRATOR` on `create-account`), and refuses a non-sudoer at the first `sudo -v` in words (`:236`). Both owner-ruled 10 Sep. **Built, `bash -n` clean, no BOM, 0 CR; UNRUN — the witness needs a fresh install with accounts deleted.** Detail in PRE_RELEASE 24 |
+| **24** | **Seeding witnessed 10 Sep 2026 on the 01:56 install (`dc36771`)**: `sudo sd` → no 10033, `User : don`, `Account : SDSYS`, `Admin? : Yes`; `ACCOUNTS/DON` field 5 `ADMINISTRATOR`; `sdadmin` holds `don`. The installer seeds the installing user as an SD ADMINISTRATOR (`installsdai.sh:783`, `ADMINISTRATOR` on `create-account`), and refuses a non-sudoer at the first `sudo -v` in words (`:236`) — **that refusal is still unrun**. Detail in PRE_RELEASE 24 |
 | **23** | the OS-access tier gate, both commits. **Commit 1 (installed):** `op_sh` gates `OS.EXECUTE` to `$internal`/administrator (msg 10054). **Commit 2 (compiled, unrun):** `ACC$SH`(7)/`ACC$OS.EXEC`(8) grants, `MODIFY.ACCOUNT SH-ON\|SH-OFF\|OS-ON\|OS-OFF` (msgs 10039–10042), `SH` gate at `CPROC:3490`→admin-or-`K$SH` (msg 10053), flags loaded at account entry (LOGIN + CPROC logto). MODIFYA/CPROC/LOGIN each compiled **0 errors** with a red control (1 error); account restored to COUNT VOC 410; plain binary rebuilt. Detail in PRE_RELEASE 23 |
 | **18** | closed. The tier gates: `CPROC` `grant.administrator`, a self-closing bootstrap arm, `MODIFY.ACCOUNT <acc> STANDARD\|PROGRAMMER\|ADMINISTRATOR`. **Witnessed end to end — the arm closed itself.** Its third requirement turned out already met |
 | **21** | `sd -internal` was an unguarded route to the admin flag — **measured, uid 1000, no sudo**. Now behind `check_admin()`, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as the announced opt-out |
@@ -60,28 +64,20 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 
 ### Next task
 
-***RETRY THE FRESH INSTALL — PRE_RELEASE 24's WITNESS — WITH 27 IN PLACE.***
-The 01:48 attempt aborted at `installsdai.sh:631` after the tree copy and the
-stamp (27), leaving a half-install: `/usr/local/sdsys/bin/sd` present, so
-`installsdai.sh:125` now refuses to re-run, and no symlink, units, bootstrap or
-account. Order, as `don`, never `sudo`:
+***THE FRESH INSTALL AND PRE_RELEASE 24'S SEED ARE DONE (START HERE). What
+remains on the installer path is entry 25's witness and 27's real-script path.***
 
-1. **Commit and push 27 first** — the installer clones `main` (PRE_RELEASE 15).
-2. `/home/don/Projects/sdcore4linux/deletesdai.sh` — `y`, `n`, `DELETE`, `y`,
-   `y`. Required by the `:125` guard above; it also re-runs 26's line and
-   removes the half-install. A reboot follows.
-3. `/home/don/Projects/sdcore4linux/installsdai.sh` — `y`, password, `y` at the
-   reboot. **Watch `Installing commit <hash>`: it must be 27's commit**, or the
-   witness is against the wrong tree. One 10033 during the install is expected
-   and correct (it fires on the `create-account` session, before the tier is
-   written).
-4. Witness: `assert-current.py` exit 0 naming that commit; `getent group
-   sdadmin` holds `don`; `ACCOUNTS/DON` field 5 `ADMINISTRATOR`; `sudo sd` with
-   **no 10033** and `WHO.AM.I` → `Admin? : Yes`. Expectations in PRE_RELEASE 24.
+- **25** — the next upgrade that SAVES its accounts (`y` to the accounts
+  question): expect `sdadmin` to survive with its members and no 10037.
+- **27** — the next delete that KEEPS `sd.conf` (Enter at the configuration
+  prompt) followed by an install; the 01:56 run did not exercise it.
+- **24 (2)** — the non-sudoer refusal at `installsdai.sh:236` is still unrun.
+- **23's gate** — still open; needs a NON-ADMIN account (see above).
+- **13** — ruled and ready to build (the ssh boundary).
 
-**ENTRY 25 remains unrun.** Its witness is the next upgrade that SAVES its
-accounts (`y` to the accounts question): expect `sdadmin` to survive with its
-members and no 10037.
+**`assert-current` will answer 1 until the next install** — the install is
+`dc36771` and HEAD is ahead (27 plus this record). That is honest: the installed
+runtime differs by `changelog` only.
 
 `bash -n` clean, no BOM, 0 CR (both scripts).
 
