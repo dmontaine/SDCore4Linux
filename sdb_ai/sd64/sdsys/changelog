@@ -9,6 +9,26 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  A SESSION THAT DIED NO LONGER LOCKS A FILE FOR EVER.
+
+           When a command needs a file to itself - BUILD.INDEX, DELETE.INDEX,
+           CNAME, CONFIGURE.FILE, SET.TRIGGER - and cannot get it, it now names
+           the file and the session holding it ("Holding it: 12 (don)"), and
+           says what to do.  If nothing else has it open, it says the file is
+           still referenced inside your own session instead.  LOGOUT n on a
+           session whose process has already gone - a dropped ssh connection, a
+           closed window - now reclaims its slot and releases every lock it
+           held, and says so, instead of leaving it "(logout pending)" for ever.
+
+           LIST.READU no longer crashes on a lock whose session has gone; it
+           shows the owner as "(gone)".  The crash left SD's internal locks
+           held, which stopped every other session.
+
+           What it does not do: LOGOUT n on a session that is still running
+           asks it to log out, as before; you can log out only your own
+           sessions unless you are an administrator.
+
+
 11 Sep 26  PROTECTING A VOC RECORD YOU HAVE CHANGED.
 
            If you have customised a record in your account's VOC - a sentence,

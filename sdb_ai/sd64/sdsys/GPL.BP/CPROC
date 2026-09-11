@@ -23,6 +23,8 @@
 *           the lock each failed readu took (port PRE_RELEASE_FIXES 5).  Its
 *           "Delete VOC record" prompt (5040) shows its default; Enter is N.
 *           F1 at an empty prompt prints 10149 instead of nothing (port 8).
+*           LOGOUT n on a session whose process is gone reclaims the slot and
+*           says so (10167) instead of leaving "(logout pending)" (port 16).
 * 10 Sep 26 PARITY AUDIT. UPDATE.ACCOUNT is UPDATE.ACCOUNTS and takes ALL, as
 *           the port's (its PRE_RELEASE_FIXES 70); its heading's "verb 30" is
 *           corrected to 15. The five start-up privilege notices move from
@@ -3210,7 +3212,17 @@ int.logout:
                 end
             end
 
-            if not(logout(i, @false)) then
+* 11 Sep 26 Windows port - THREE OUTCOMES, NOT TWO (port PRE_RELEASE_FIXES 16).
+*           logout() answers 2 when the target's process was already gone and
+*           its slot has been REAPED rather than signalled - a different thing
+*           from a logout, and it has to say so.  Before this, that case set
+*           USR$LOGOUT on a slot nobody would ever clear, LISTU read "(logout
+*           pending)" for ever, and the files it held stayed locked.
+            lo.rc = logout(i, @false)
+            if lo.rc = 2 then
+               display sysmsg(10167, i) ;* was not running - slot reclaimed
+            end
+            if not(lo.rc) then
                display sysmsg(2100) ;* Invalid user number
                return
             end

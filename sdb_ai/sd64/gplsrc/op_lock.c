@@ -18,6 +18,10 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 12 Sep 26 dm  GETLOCKS() / LIST.READU no longer dereferences a NULL user
+ *               pointer for a lock whose owner's session is gone; the owner
+ *               is reported as "(gone)".  It faulted inside a semaphore
+ *               section and wedged the running system (measured).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -211,6 +215,26 @@ void op_flunlock() {
 }
 
 /* ======================================================================
+   lock_owner_name()  -  Name of a lock's owner, or "(gone)"
+
+   12 Sep 26 dm - op_getlocks() printed UserPtr(owner)->username, and
+   UserPtr() is NULL when the owner's user number is no longer mapped
+   (sysseg.h:192).  MEASURED 12 Sep 2026: with a record lock left behind by a
+   session that had gone, LIST.READU died with "Fault type 11" inside
+   $LISTRDU - and it died holding FILE_TABLE_LOCK and REC_LOCK_SEM, which
+   sdsem.c takes without SEM_UNDO, so both stayed held and every session that
+   next opened a file span on them.  A report must never be what takes the
+   system down; an orphaned lock is exactly the thing an administrator runs
+   LIST.READU to find, so it is shown, owner "(gone)".                      */
+
+Private char* lock_owner_name(int16_t owner) {
+  USER_ENTRY* optr;
+
+  optr = UserPtr(owner);
+  return (optr != NULL) ? (char*)(optr->username) : "(gone)";
+}
+
+/* ======================================================================
    op_getlocks()  -  GETLOCKS() function                                  */
 
 void op_getlocks() {
@@ -289,7 +313,7 @@ void op_getlocks() {
         ts_copy_byte(FIELD_MARK);
         ts_printf("%d\xfd%s\xfd%d\xfd%s\xfd\xfd%s", (int)i, fptr->pathname,
                   (int)abs(lock_owner), (lock_owner < 0) ? "SX" : "FX",
-                  UserPtr(abs(lock_owner))->username);
+                  lock_owner_name(abs(lock_owner)));
       }
     }
   }
@@ -309,7 +333,7 @@ void op_getlocks() {
         ts_printf("%d\xfd%s\xfd%d\xfd%s\xfd%.*s\xfd%s", (int)(rlptr->file_id),
                   fptr->pathname, (int)lock_owner,
                   (rlptr->lock_type == L_UPDATE) ? "RU" : "RL", rlptr->id_len,
-                  rlptr->id, UserPtr(abs(lock_owner))->username);
+                  rlptr->id, lock_owner_name(abs(lock_owner)));
       }
     }
   }

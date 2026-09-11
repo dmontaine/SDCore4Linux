@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Sep 26 reap_lost_user(), so LOGOUT n can reclaim a slot whose process is
+ *           gone instead of marking it "(logout pending)" for ever (the
+ *           Windows port's PRE_RELEASE_FIXES 16).
  * 08 Sep 26 remove_user() compared task locks against the cleanup process's own
  *           user number instead of the dead session's, so "sd -cleanup" never
  *           released them.
@@ -210,6 +213,72 @@ Private void kill_process(USER_ENTRY* uptr) {
     remove_user(uptr);
     printf("Removed user %d (pid %d).\n", (int)user_no, pid);
   }
+}
+
+/* ======================================================================
+   reap_lost_user()  -  Reclaim ONE user table slot whose process is gone  */
+
+bool reap_lost_user(int16_t user) {
+  /* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.
+
+     WHY THIS EXISTS.  A session that dies without logging out leaves its user
+     table slot behind, still holding the file it had open.  LOGOUT n then
+     raise_event()s EVT_TERMINATE at a process that is not there to receive
+     it, so USR_LOGOUT is set and nothing ever clears it: LISTU shows
+     "(logout pending)" for ever and the file stays locked.
+
+     IT IS cleanup()'s PER-USER HALF AND SHARES ITS CODE: process_exists() is
+     the same liveness test and remove_user() the same release, so a slot
+     reaped here and one reaped by "sd -cleanup" are reclaimed identically.
+
+     ON LINUX, process_exists() COUNTS EPERM AS ALIVE, and that matters more
+     here than in cleanup(): cleanup() normally runs as root, but this runs
+     inside an ordinary session as its own Unix user, and kill(pid, 0) on a
+     LIVE session owned by someone else fails with EPERM.  Treating that as
+     "gone" would reap a live session.  remove_user() touches only the shared
+     segment, never the dead session's own files, so an ordinary uid can do
+     all of it.
+
+     IT DOES NOT ATTACH OR UNBIND SHARED MEMORY - the one real difference from
+     cleanup(), which runs standalone.  This runs in a live session that
+     already holds the segment.  THE LOCK ORDER IS cleanup()'s: two routines
+     taking the same four semaphores in different orders is how two live
+     sessions deadlock.  IT REFUSES TO REAP THE CALLER.                       */
+  USER_ENTRY* uptr;
+  int16_t u;
+  int pid;
+  char username[MAX_USERNAME_LEN + 1];
+  bool reaped = FALSE;
+
+  if (user == process.user_no)
+    return FALSE; /* Never ourselves - see above */
+
+  StartExclusive(FILE_TABLE_LOCK, 59);
+  StartExclusive(REC_LOCK_SEM, 59);
+  StartExclusive(GROUP_LOCK_SEM, 59);
+  StartExclusive(SHORT_CODE, 59);
+
+  for (u = 1; u <= sysseg->max_users; u++) {
+    uptr = UPtr(u);
+    if ((uptr->uid != 0) && (uptr->uid == user)) {
+      pid = uptr->pid;
+      if (!process_exists(pid)) {
+        strcpy(username, (char*)(uptr->username));
+        remove_user(uptr);
+        log_printf("LOGOUT reaped user %d (pid %d, %s) - process was gone.\n",
+                   (int)user, pid, username);
+        reaped = TRUE;
+      }
+      break; /* uid is unique; alive or dead, this was the entry */
+    }
+  }
+
+  EndExclusive(SHORT_CODE);
+  EndExclusive(GROUP_LOCK_SEM);
+  EndExclusive(REC_LOCK_SEM);
+  EndExclusive(FILE_TABLE_LOCK);
+
+  return reaped;
 }
 
 /* ======================================================================
