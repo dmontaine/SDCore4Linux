@@ -38,6 +38,15 @@ the work, nothing in "Verified" that was not observed that session.
 ## START HERE
 
 ***11 Sep 2026, day session — READ THIS BLOCK FIRST; the blocks below are older.***
+- ***14:43 INSTALL `c2b375d` (`assert-current` 0): QUEUES 12, 13, 26 AND 27 ARE
+  WITNESSED ON IT*** — evidence and the parts still unwitnessed in their
+  PORT_ADOPTION rows (12: ssh/API doors; 13: rotation, carry-over across a
+  delete→install, four record kinds). DON clean, `COUNT VOC` 411.
+- ***A `sudo` WITNESS IS ONE OWNER-RUN SCRIPT.*** The agent cannot use sudo
+  (`sudo -n` → "interactive authentication is required"). Write the steps into a
+  script that backs up what it changes, checks each step PASS/FAIL on the
+  success wording, restores on failure and tees to a log; hand over `sudo bash
+  <absolute path>`. `witness-sudo.sh` (scratchpad, 11 Sep) is the model.
 - Rebooted 05:05; install `3bd4421` (05:04:46) is the overnight work. HEAD
   differs by comments and docs only, which is the whole of `assert-current`'s 1.
 - ***THE OVERNIGHT BUILDS ARE WITNESSED except 8*** — the reap live and in the
@@ -54,8 +63,9 @@ the work, nothing in "Verified" that was not observed that session.
   DELETEF prompts are no longer part of it (each printed once at EOF). SIGTERM
   ends it cleanly: no dead slot, semaphores back to 1. The port's `linuxio.c:508`
   is the same code; not measured there. ***END EVERY PIPED SESSION WITH `OFF`.***
-  **Fix BUILT and compiled 11 Sep, not installed** (CPROC `:1006`, PORT_ADOPTION
-  26); until an install carries it, the rule above stands.
+  **Fix installed and WITNESSED 11 Sep on `c2b375d`** (CPROC `:1006`,
+  PORT_ADOPTION 26): no `OFF` now exits 0 in 0.01 s. Still end instruments with
+  `OFF` - an older install spins.
 - **DON (ADMINISTRATOR) has no `UPDATE.ACCOUNTS`**: its VOC predates §L1's
   `TIER.ADD.ADMINISTRATOR`, and `update.voc` never adds VOC_TEMPLATE verbs
   (`LOGIN:544-547`). Whether MODIFYA's tier re-derivation (unrun) adds them is
@@ -82,12 +92,13 @@ the work, nothing in "Verified" that was not observed that session.
   before vs after***: on the installed code `OPENSEQ … ELSE` + `WRITESEQ`
   cannot create a file at all (`WRITESEQ` → 3013 `ER_NSEQ`, nothing written)
   and strands a lock even through `CLOSESEQ`; reverted, the file is written and
-  no lock remains. Not installed. Live had no stranded locks at 12:22. The
+  no lock remains. ***Installed and witnessed live on `c2b375d`*** (file
+  created, no locks). Live had no stranded locks at 12:22. The
   port's generation-2 C findings are all accounted for here (PORT_ADOPTION 27).
-- **QUEUE 12 (SUSPENDED) BUILT AND COMPILED, 11 Sep, not run** — MODIFYA, the
-  three doors, five messages, two dictionary items; PORT_ADOPTION 12 has the
-  witness steps, which need `sudo sd`.
-- **QUEUE 13 (AUDIT TRAIL) BUILT AND COMPILED, 11 Sep, not run** — `K$AUDIT`
+- **QUEUE 12 (SUSPENDED) WITNESSED on `c2b375d`**, 33/0 — MODIFYA, the three
+  doors, five messages, two dictionary items; ssh and API doors not exercised.
+- **QUEUE 13 (AUDIT TRAIL) WITNESSED on `c2b375d`** (append-only proven by
+  `EPERM`, identity right on 20 records; rotation and carry-over not) — `K$AUDIT`
   57 (the port's number; the queue row's "93" was wrong), `@SDSYS/audit`
   `sdsys:sdusers 0620` + `chattr +a`, rotated at `sd -start`, kept across a
   keep-accounts delete→install. ***THE INSTALLER AND DELETER CHANGED***
@@ -95,8 +106,9 @@ the work, nothing in "Verified" that was not observed that session.
   `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
   would stop part way. Known limit, as the port's: a shell user can append a
   line of their own. PORT_ADOPTION 13 has the witness steps.
-- **NEXT:** the owner's delete→install cycle — one install witnesses queues 12,
-  13, 26 and 27 (PORT_ADOPTION rows); then queue 14 (TIERGATE) onward.
+- **NEXT:** queue 14 (TIERGATE, GRANT/REVOKE/LIST.GRANTS) onward. The next
+  keep-accounts delete→install is also the witness for the audit trail's
+  carry-over (PORT_ADOPTION 13).
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
