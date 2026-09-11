@@ -9,6 +9,26 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  TWO MORE FIXES TAKEN FROM SD CORE FOR WINDOWS.
+
+           QSELECT now names the select list it filled.  A successful QSELECT
+           ended its message with a dangling "...to select list " and no number,
+           although QSELECT takes TO n and the result can be in any list from 0
+           to 10, so the one thing you need next was missing.  It now reads
+           "14 record(s) selected to select list 3", as SELECT and NSELECT
+           already did.
+
+           DELETE.INDEX now accepts an index name typed in any case.  Index
+           names are held in upper case, and LIST.INDEX folds case before it
+           looks, but DELETE.INDEX did not: "delete.index zzak f1" answered
+           "Unrecognised index name (f1)" for an index that LIST.INDEX showed as
+           F1.  The two commands now agree.  A name that still matches nothing is
+           reported exactly as you typed it.
+
+           What it does not do: neither changes anything else about how the two
+           commands select or delete; each was a wrong or missing answer.
+
+
 10 Sep 26  SMALLER FIXES TAKEN FROM SD CORE FOR WINDOWS.
 
            CONFIG() given a name longer than eight characters returns an empty
