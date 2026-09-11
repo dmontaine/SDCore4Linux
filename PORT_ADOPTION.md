@@ -40,6 +40,8 @@ witness is the next delete→install cycle. **Not pushed.**
 | Queue | What | Witness after install |
 |---|---|---|
 | 3, 4 | DELETEF: port 14, 26, 104, 113 + Enter = N on 6135/6140 (Linux; port bug 6). Msg 10117 new, 6135/6140 reworded. `open 'voc'` NOT taken (§M) | fixture as in "Adopted" above with a lower-case name: `delete.file zzak no.query` deletes with NO prompt; a file whose dict is `@SDSYS/...` + `no.query` → 6145 + 10117, file kept; `printf 'delete.file x\n' \| timeout 10 sd` on a path-differs file ends (N) instead of spinning |
+| 23 | CPROC `.D name`: as typed → down → up, 5043 on a miss, each failed `readu` releases its own id (port 5) | `.D nosuch` → `nosuch not found in VOC`, no prompt; save a sentence, `.D` it in the other case → deleted |
+| 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
 
 ## UPSTREAM_FIXES reconciliation — all 37, 11 Sep 2026
 
@@ -108,7 +110,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 |---|---|---|---|
 | ~~3~~ | ~~DELETE.FILE NO.QUERY~~ — **BUILT 11 Sep**, see "Built … while the owner slept" | `DELETEF` | |
 | ~~4~~ | ~~DELETEF takes the ospath result~~ — **BUILT 11 Sep**, with port 113 | `DELETEF` | |
-| 3b | Every Y/N loop maps Enter to its default (port 79's rule; the rest of the undefaulted loops) | `CATALOG` ×3, `SPVIEW`, `DELETEF` 2050/6131/6133 | direct; shared message 2050 needs care |
+| 3b | Every Y/N loop maps Enter to its default (port 79's rule; the rest of the undefaulted loops) | `CATALOG` ×3, `SPVIEW`, `DELETEF` 2050/6131/6133, `CPROC` `.D` 5040 | direct; shared message 2050 needs care |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
 | 7 | HELP / F1 say something, msg 10149 (port 8) | `CPROC` | direct |
@@ -127,8 +129,8 @@ count was wrong in six of eight classes — which is why it was checked.*
 | 20 | UPSTREAM 4, 6, 13, 34 — read each entry and verify against this tree | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) | `gplbld` | adapt to this tree's docs |
 | 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
-| 23 | `.D name` folds case, reports 5043 instead of falling through with a stale `voc.rec`, and releases the lock it took (port PRE_RELEASE 5) | `CPROC` `.D` | direct; also a lock leak here — the miss path releases `at.command` after a failed `readu` on `upcase(at.command)` |
-| 24 | BCOMP hangs on an unterminated TRANSACTION construct (port 114) | `BCOMP` inner loop, `until end.source` | direct |
+| ~~23~~ | ~~`.D name`~~ — **BUILT 11 Sep** | `CPROC` | |
+| ~~24~~ | ~~BCOMP unterminated TRANSACTION~~ — **BUILT 11 Sep** | `BCOMP` | |
 | 25 | Process dumps in their own directory, writable but not readable by SD users (port 28) | `sd.conf DUMPDIR`, installer | mode/group bits instead of the port's ACL; `pdump.c` already honours `DUMPDIR` |
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short

@@ -32,7 +32,9 @@
 * rev 0.9.0  Jan 25 mab @FILE.NAME should be allowed as a lvalues per doc
 * rev 0.9-2  Mar 25 mab add SDPYOBJ python object function
 * rev 1.0-1  mab add back PROCREAD AND PROCWRITE
-* rev 1.0-1  3/17/2026 mab hot fix compiler mode bug 
+* rev 1.0-1  3/17/2026 mab hot fix compiler mode bug
+* 11 Sep 26  An unterminated BEGIN TRANSACTION reports 2878 instead of
+*            hanging the compiler (port PRE_RELEASE_FIXES 114).
 * END-HISTORY
 *
 *
@@ -5651,8 +5653,19 @@ exit.case:
 
             gosub get.token
 
+            * 11 Sep 26 Windows port - "until end.source" ADDED (port
+            * PRE_RELEASE_FIXES 114).  Without it this loop never ends at
+            * EOF: an unterminated BEGIN TRANSACTION spun for ever (the port
+            * measured it, killed at 41s) while the same source with a plain
+            * END reported in half a second.  BEGIN CASE's identical inner loop
+            * above carries this very clause; only this one was missing it, and
+            * the 2878 below was already written and simply unreachable.  A
+            * compile driven from a pipe cannot answer the loop it is stuck in,
+            * so it is killed from outside and leaves its user-table slot.
+
             loop
             until u.look.ahead.token.string = "END"
+            until end.source
                gosub proc.line
                if look.ahead.token = TKN.END then gosub get.token
             repeat
