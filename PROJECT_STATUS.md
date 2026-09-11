@@ -1332,6 +1332,37 @@ fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
 Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
 reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
 
+### ADOPT — the installer's pre-existing-user exception (TO BUILD, conditional)
+
+***Owner's rule (10 Sep 2026): all SD users are created WITHIN SD (CREATE.ACCOUNT
+makes the OS user — see the conformity fix above); the ONE exception is the
+original installer, whose OS user already exists and is ADOPTED.*** The port does
+this with an **ADOPT keyword** to CREATE.ACCOUNT — `CREATE.ACCOUNT USER <name>
+ADOPT` uses a pre-existing OS user without creating it and defaults to the
+ADMINISTRATOR tier (port `CREATEA:1617`: `if adopt and tier='STANDARD' then
+tier='ADMINISTRATOR'`); the installer runs `sd -internal CREATE.ACCOUNT USER
+<name> ADOPT`, the one path exempt from the install-time tier gates.
+
+***Gap here:*** CREATEA has no ADOPT keyword; its `case is_user` SILENTLY adopts
+ANY existing OS user, and the installer leans on that (`installsdai.sh:822`,
+`create-account USER $tuser ADMINISTRATOR no.query`). That lets any pre-existing
+OS user be taken in by plain create.account — against the rule.
+
+***To build — one COUPLED, install-critical commit (CREATEA + installer together,
+or the installer's own seeding breaks):***
+- CREATEA: parse an `ADOPT` keyword (`more.args`); `case is_user` → if ADOPT, use
+  the existing OS user and default the tier to ADMINISTRATOR (mirror port
+  `:1617`); else **refuse** (a pre-existing OS user must be ADOPTed).
+- `installsdai.sh:822`: seed the installer with `... USER $tuser ADOPT no.query`
+  (ADOPT forces admin; no OS user is created, so `no.query` is fine).
+- ***Install-critical:*** if refuse-unless-ADOPT lands without the installer
+  switching to ADOPT, the install aborts at its own account step. Build atomic,
+  let the bootstrap compile it, and witness with a clean install (the installer
+  seeding itself is the witness) + a plain `create.account USER <existing-os-user>`
+  being refused.
+- ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
+  reinstall — do not stack three unverified install-critical CREATEA changes.
+
 ### §L1 — per-tier VOC (CORE BUILT 10 Sep 2026; LOGIN/MODIFYA pending)
 
 ***BUILD STATUS 10 Sep 2026 — the creation path is built, syntax-reviewed, NOT
