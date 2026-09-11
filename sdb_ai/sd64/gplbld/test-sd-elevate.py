@@ -47,6 +47,19 @@ CASES = [
     (REFUSE, ["userdel", "root"],           "delete root"),
     (REFUSE, ["userdel", "sdsys"],          "delete SD's system account"),
     (REFUSE, ["useradd", "root"],           "root already exists"),
+
+    # ---- userdel-home, 10 Sep 26 (DELETE.ACCOUNT REMOVE.HOME).  userdel -r
+    # ---- removes a home directory, so the helper wants SD's stamp AND a home
+    # ---- of exactly <HOME base>/<user>.  NO ALLOW ROW IS POSSIBLE HERE: a dev
+    # ---- box has no stamped user, so the allowed half is witnessed at install
+    # ---- by DELETE.ACCOUNT on a user SD created.  The "don" row is the one that
+    # ---- discriminates - don exists, is an ordinary SD user, and is refused
+    # ---- ONLY for lacking the stamp; its printed reason must say so.
+    (REFUSE, ["userdel-home", "root"],      "root is never a target, home or not"),
+    (REFUSE, ["userdel-home", "sdsys"],     "SD's own system account"),
+    (REFUSE, ["userdel-home", "bin"],       "uid < UID_MIN"),
+    (REFUSE, ["userdel-home", "don"],       "an existing SD user without the stamp: its home is never removed"),
+    (REFUSE, ["userdel-home", "sdprobe_nonexistent"], "no such user"),
     (REFUSE, ["addgroup", "don", "sudo"],   "add yourself to sudo - the classic"),
     (REFUSE, ["addgroup", "don", "wheel"],  "the RHEL/Arch spelling of the same"),
     (REFUSE, ["addgroup", "don", "docker"], "docker group is root-equivalent"),
