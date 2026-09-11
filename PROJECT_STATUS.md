@@ -4,6 +4,25 @@ Handoff document for SD Core for Linux. See [CLAUDE.md](CLAUDE.md) for how to
 maintain it: terse, `file:line` over description, updated in the same commit as
 the work, nothing in "Verified" that was not observed that session.
 
+## Status roll-up (10 Sep 2026)
+
+**Keep this current when an entry closes; it is a scorecard, detail lives in
+`PRE_RELEASE_FIXES.md` and below.**
+
+- **PRE_RELEASE entries — 27 total: 15 done · 1 partial · 11 open.**
+  - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
+  - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
+    refusal at `installsdai.sh:236` (**24(2)**) is unrun.
+  - Open: `1, 3, 4, 5, 6, 7, 9, 10, 11, 15, 16` — a mix of real work and notes.
+    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
+- **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
+  block.
+- **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
+  **not started**; ***§L1*** — the per-tier VOC, **designed 10 Sep, not built**
+  (design in the Open section).
+- **Runtime:** install stamped `242ae63`; HEAD ahead by documentation-only
+  commits, so `assert-current` reads STALE but the shipped behaviour is current.
+
 ## START HERE
 
 ***HEAD is `d791b4c` (origin/main, pushed 10 Sep 2026); the ssh tier boundary,
