@@ -9,6 +9,29 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  PROTECTING A VOC RECORD YOU HAVE CHANGED.
+
+           If you have customised a record in your account's VOC - a sentence,
+           a paragraph, a keyword, a file pointer - you can now keep it through
+           a VOC update by putting [locked] in its first field, after the type
+           code (for example "PA [locked] my nightly run").  The update leaves
+           it as it is and then lists every record it left alone, so you know
+           which corrections you have not received.
+
+           What it does not do: it does not protect a verb.  A verb is what SD
+           runs, and holding one back would leave your account calling a
+           program this release has changed; a verb marked [locked] is updated
+           anyway and listed separately.  To change what a command does, add
+           your own verb under a name SD does not ship - updates never touch
+           those.
+
+           Also: when CREATE.ACCOUNT cannot set a new user's password it now
+           says why - the two entries did not match or the system's password
+           rules refused it, the name is one SD may not set, or the system's
+           own status number - and it no longer offers a retry that cannot
+           succeed.
+
+
 11 Sep 26  LISTF SAYS WHAT THE SYSTEM FILES ARE.
 
            Ten of the file entries in the system account's VOC - ACCOUNTS, BP,

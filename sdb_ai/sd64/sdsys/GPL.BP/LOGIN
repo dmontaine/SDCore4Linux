@@ -20,7 +20,9 @@
 * START-HISTORY:
 * 11 Sep 26 dm  A TERM with no shipped terminfo entry falls back to linux
 *               instead of leaving the login with no capabilities (UPSTREAM
-*               12, as the port).
+*               12, as the port).  update.voc leaves a record marked
+*               [locked] alone, except a verb, and names both kinds (10165,
+*               10166; port PRE_RELEASE_FIXES 70).
 * 10 Sep 26 dm  Parity audit: mode 4 is UPDATE.ACCOUNTS ALL (port PRE_RELEASE_FIXES
 *               70), and update.voc writes records whole (port 136).
 * 10 Sep 26 dm  SL1 - update.voc applies the account's tier, so a VOC update
@@ -513,6 +515,18 @@ abort.login:
 update.voc:
    yn = ''
 
+* 11 Sep 26 Windows port - [locked] RECORDS (port PRE_RELEASE_FIXES 70, the
+*   owner's design of 2 Sep 2026).  A site marks a VOC record it has customised
+*   by putting [locked] in field 1 after the type code, and an update leaves it
+*   alone - EXCEPT a verb (see the test below).  Both tallies are reported by
+*   name after the loop: a silent skip turns "I protected my customisation"
+*   into "I never received the fix" with nothing to connect the two.  Kept
+*   apart on purpose: they are opposite outcomes.
+   locked.count = 0
+   locked.ids = ''
+   overridden.count = 0
+   overridden.ids = ''
+
    openpath @sdsys:@ds:"NEWVOC" to sdsys.file else
       display sysmsg(2210) ;* Cannot open SDSYS NEWVOC
       goto abort.login
@@ -571,12 +585,40 @@ update.voc:
 *   fix; upstream has the same defect.
          old.rec = ''
          readu old.rec from update.voc.f, id then
+* 11 Sep 26 Windows port - THE LOCK IS TESTED ON old.rec, NOT rec: rec is what
+*   NEWVOC ships and can never carry the marker; old.rec is this account's own
+*   record, the only thing that knows whether a person changed it.  AFTER THE
+*   TYPE CODE: the first character (two for a P) IS the type, so INDEX, which
+*   finds it anywhere, is right.  UPCASE BOTH SIDES - a lock that fails open
+*   because somebody typed [LOCKED] would be worse than no lock.  RELEASE
+*   BEFORE CONTINUE, as the declined type change below does.
+*
+*   A VERB DOES NOT HONOUR THE LOCK - the owner's ruling for the port, 2 Sep
+*   2026: users should not be modifying verbs, and one who needs different
+*   behaviour adds a verb under a name SD does not ship, which this loop never
+*   visits.  A verb is what SD RUNS: a held-back V|IN record's field 3 is a
+*   NUMBER, so a renumbering would dispatch it to a different function
+*   silently.  Overruled locks are reported separately (10166).
+            if index(upcase(old.rec<1>), '[LOCKED]', 1) then
+               if new.type = 'V' then
+                  overridden.count += 1
+                  overridden.ids<-1> = id
+               end else
+                  locked.count += 1
+                  locked.ids<-1> = id
+                  release update.voc.f, id
+                  continue
+               end
+            end
+
             old.type = upcase(old.rec[1,1])
             if old.type = 'P' then old.type = upcase(old.rec[1,2])
 
             * Special case to avoid prompt for 2.4-15 change to MD item
+* 11 Sep 26 Windows port - upcase(id), so this survives section M's rename of
+*   the record to 'md' (port 5.12 (b)).  Identical today: every id is upper.
 
-            if id = 'MD' and (old.type = 'Q' or old.type = 'F') then
+            if upcase(id) = 'MD' and (old.type = 'Q' or old.type = 'F') then
                goto accept.without.query
             end
 
@@ -620,7 +662,20 @@ accept.without.query:
          end
       end
    repeat
-   display 
+   display
+
+* 11 Sep 26 Windows port - NAME THEM, do not just count them: "3 records were
+*   locked" leaves the reader no way to find out which fix they have not
+*   received.  Field marks become spaces - one line of prose, not a list.
+   if locked.count then
+      display sysmsg(10165, locked.count, convert(@fm, ' ', locked.ids))
+   end
+
+*  And the overruled ones, separately, though nothing was withheld: the site
+*  asked for something it did not get, and is told where to put the behaviour.
+   if overridden.count then
+      display sysmsg(10166, overridden.count, convert(@fm, ' ', overridden.ids))
+   end
 
    close sdsys.file
 
