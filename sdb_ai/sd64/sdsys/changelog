@@ -9,6 +9,28 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  DELETE.FILE CAN RUN UNATTENDED.
+
+           DELETE.FILE ... NO.QUERY no longer stops to ask a question.  When
+           part of the file is in the system account it now deletes the VOC
+           reference, leaves the file itself where it is, and says so (message
+           10117) - it no longer assumes you meant yes to a question about other
+           accounts' data.  Deleting a file whose name you typed in lower case
+           no longer asks "OK to delete DATA portion" and then the same about
+           the dictionary: those questions were caused only by the difference in
+           case.  When the question is asked, it now shows that Enter means No,
+           and it no longer asks again for ever when there is nobody to answer
+           it - run from a script it used to print the question millions of
+           times.  An index held in a separate directory is now reported if it
+           cannot be deleted (message 2636) instead of being left behind
+           without a word.  And DELETE.FILE refuses to delete VOC itself however
+           you type the name.
+
+           What it does not do: NO.QUERY still does not delete a file whose data
+           is somewhere other than its usual place without asking; FORCE is the
+           way to say yes to that.
+
+
 11 Sep 26  TWO MORE FIXES TAKEN FROM SD CORE FOR WINDOWS.
 
            QSELECT now names the select list it filled.  A successful QSELECT

@@ -18,6 +18,17 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  Adopted from the Windows port: NO.QUERY takes the safe branch
+*               in check.sdsys.file (msg 10117, port PRE_RELEASE 14, UPSTREAM
+*               23); the DATA/DICT path comparisons ignore case (port 26,
+*               UPSTREAM 27); the banned-file guard upcases the name; both
+*               relocated-index deletes are checked, and only when the
+*               directory exists (msg 2636, port 104 and 113, UPSTREAM 34).
+*               NOT taken: the port's open 'voc' - lower case is section M.
+*               Linux addition: the DATA/DICT prompts show their default and
+*               Enter is N, as port 79 requires of every prompt - these two
+*               were missed there, and at end of input they re-asked for ever
+*               (98.9 MB in 40 s, measured 11 Sep 2026 down a pipe).
 * 10 Sep 26 dm  Parity audit: Enter is N at the system-account prompt (port
 *               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -171,7 +182,12 @@ delete.file:
 
 delete.upcased.file:
 
-   locate file.name in banned.files<1,1> setting pos then
+* 11 Sep 26 Windows port - UPCASE BOTH SIDES (port PROJECT_STATUS 5.12 (b)).
+*   file.name arrives here as the user TYPED it whenever the exact read at the
+*   top of delete.file succeeded - the upcase() above is only in the else
+*   branch.  banned.files is upper case, so a lower-case VOC id would walk
+*   straight past this guard and take the account's VOC with it.
+   locate upcase(file.name) in banned.files<1,1> setting pos then
       @system.return.code = -ER$VNF
       stop sysmsg(6132, file.name) ;* Cannot delete system file xx
    end
@@ -218,12 +234,28 @@ delete.upcased.file:
 
             default.path = file.name
 
-            if data.path # default.path then
+* 11 Sep 26 Windows port - COMPARE THE TWO PATHS WITHOUT CASE.  CREATEF
+* upper-cases the name before storing it in the VOC; file.name is whatever the
+* caller typed, and is only upcased on the fallback path where the record was
+* NOT found as typed.  So on the ordinary path the two differ whenever the verb
+* was typed in lower case, and the "OK to delete DATA portion" prompt fired for
+* a file that is exactly where it should be.  Port PRE_RELEASE_FIXES 26,
+* UPSTREAM_FIXES 27.
+*
+* 11 Sep 26 dm - AND ENTER IS N.  The port's rule (its PRE_RELEASE 79) is that
+* every prompt says which answer Enter gives; 6135 was missed because it has no
+* "Y/N" in it to find.  At end of input "input" yields '', which is neither Y
+* nor N, so this loop re-asked for ever - measured 11 Sep 2026: a piped
+* "delete.file zzak no.query" printed 98.9 MB in 40 s before a timeout killed
+* it.  N is the answer that deletes nothing.
+
+            if upcase(data.path) # upcase(default.path) then
                if not(force) then
                   loop
-                     display sysmsg(6135, data.path) :  ;* OK to delete DATA portion 'xx'?
+                     display sysmsg(6135, data.path) :  ;* OK to delete DATA portion 'xx' (y/<n>)?
                      input yn
                      yn = upcase(yn[1,1])
+                     if yn = '' then yn = 'N'
                   until yn = 'Y' or yn = 'N'
                   repeat
 * 20240121 mab using continue here will create endless loop "while more" is not tested. I know an ugly goto                 
@@ -244,7 +276,20 @@ delete.upcased.file:
             end
 
             if ospath(data.path, OS$DELETE) then
-               if akpath # '' then dummy = ospath(akpath, OS$DELETE)
+* 11 Sep 26 Windows port - a relocated index directory is no longer orphaned
+* in silence: the answer is taken and a failure reported with 2636, the message
+* MKINDX already uses for the same call (port PRE_RELEASE 104, UPSTREAM 34) -
+* but only when the directory IS there.  FL$AKPATH comes back non-empty for a
+* file that never had an index, and "nothing to delete" must not read as
+* "could not delete" (port 113).
+               if akpath # '' then
+                  if ospath(akpath, OS$EXISTS) then
+                     if not(ospath(akpath, OS$DELETE)) then
+                        display sysmsg(2636) ;* Failed to delete index directory
+                        @system.return.code = -status()
+                     end
+                  end
+               end
 
                display sysmsg(6136, data.path) ;* DATA portion 'xx' deleted
 
@@ -292,12 +337,17 @@ delete.dict:
 
          default.path = file.name : ".DIC"
 
-         if dict.path # default.path then
+* 11 Sep 26 Windows port - and the DICT half of the same comparison, for the
+* reason given at the DATA one above (port PRE_RELEASE_FIXES 26).  Enter is N
+* here too, for the reason given there.
+
+         if upcase(dict.path) # upcase(default.path) then
             if not(force) then
                loop
-                  display sysmsg(6140, dict.path) : ;* OK to delete DICT portion 'xx'?
+                  display sysmsg(6140, dict.path) : ;* OK to delete DICT portion 'xx' (y/<n>)?
                   input yn
                   yn = upcase(yn[1,1])
+                  if yn = '' then yn = 'N'
                until yn = 'Y' or yn = 'N'
                repeat
                if yn = "N" then goto write.voc
@@ -316,7 +366,15 @@ delete.dict:
          end
 
          if ospath(dict.path, OS$DELETE) then
-            if akpath # '' then dummy = ospath(akpath, OS$DELETE)
+* 11 Sep 26 Windows port - checked, and only when present; see the DATA half.
+            if akpath # '' then
+               if ospath(akpath, OS$EXISTS) then
+                  if not(ospath(akpath, OS$DELETE)) then
+                     display sysmsg(2636) ;* Failed to delete index directory
+                     @system.return.code = -status()
+                  end
+               end
+            end
 
             voc.rec<3> = ""
             display sysmsg(6141, dict.path) ;* DICT portion 'xx' deleted
@@ -344,6 +402,23 @@ write.voc:
 * ======================================================================
 
 check.sdsys.file:
+
+* 11 Sep 26 Windows port - NO.QUERY TAKES THE SAFE BRANCH INSTEAD OF ASKING.
+* This routine prompted unconditionally, so "delete.file zzak force no.query"
+* stopped on a question nobody was there to answer.  THE BRANCH TAKEN IS THE
+* CONSERVATIVE ONE, 'N' AND NOT 'Y': it deletes the VOC reference and leaves
+* the file in the system account alone, because NO.QUERY says "do not ask me",
+* not "assume yes to a question about other accounts' data" - and it says so,
+* because a caller who wanted the file gone needs to know it is still there.
+* Port PRE_RELEASE_FIXES 14, UPSTREAM_FIXES 23.
+
+   if no.query then
+      display sysmsg(6145, part) ;* Warning re part in SDSYS account
+      display sysmsg(10117, part) ;* NO.QUERY: VOC reference deleted, file kept
+      skip.part = @true
+      return
+   end
+
    display sysmsg(6145, part) ;* Warning re part in SDSYS account
    loop
       display sysmsg(6146) :  ;* Delete the file from the system account (y/<n>)?
