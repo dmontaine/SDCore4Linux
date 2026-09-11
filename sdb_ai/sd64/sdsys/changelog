@@ -9,6 +9,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  SIGNING ON FROM A MODERN TERMINAL.
+
+           Most graphical terminals and ssh clients set TERM to a type such as
+           xterm-256color, which SD does not ship a definition for.  Until now
+           that left the sign-on sequence with no terminal capabilities at all:
+           the screen was not cleared, and backspace at a prompt during sign-on
+           erased nothing.  It looked fine once you reached the colon prompt,
+           because your account's LOGIN paragraph sets the type again - but that
+           runs too late for sign-on itself.  A type SD has no definition for now
+           falls back to linux, the same type the LOGIN paragraph uses.
+
+           What it does not do: it does not add definitions for more terminal
+           types, and a TERM that SD does know is used exactly as before.
+
+
 11 Sep 26  F1 SAYS SOMETHING.
 
            Pressing F1 at an empty command prompt used to do nothing at all,

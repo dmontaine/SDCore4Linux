@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  A TERM with no shipped terminfo entry falls back to linux
+*               instead of leaving the login with no capabilities (UPSTREAM
+*               12, as the port).
 * 10 Sep 26 dm  Parity audit: mode 4 is UPDATE.ACCOUNTS ALL (port PRE_RELEASE_FIXES
 *               70), and update.voc writes records whole (port 136).
 * 10 Sep 26 dm  SL1 - update.voc applies the account's tier, so a VOC update
@@ -91,7 +94,31 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
             if s = '' then s = 'vt100'
       end
 
-      void kernel(K$TERM.TYPE, s)
+* 11 Sep 26 Windows port - A TERM WITH NO SHIPPED TERMINFO ENTRY FALLS BACK
+*   (UPSTREAM_FIXES 12; the port's LOGIN).  This call used to be "void", so a
+*   TERM that sdsys/terminfo does not have - xterm-256color, screen-256color,
+*   tmux-256color: what nearly every graphical terminal and ssh client sets,
+*   while only linux, ansi, vt100, xterm and older types ship - loaded NOTHING,
+*   and on the first call of a session every capability then reads empty.
+*   Everything this program does after here ran without cursor control: the
+*   clear screen at sign-on emits nothing, and backspace at a prompt erases
+*   nothing.
+*
+*   IT CANNOT BE LEFT TO THE PARAGRAPH.  The account's login paragraph sets
+*   TERM LINUX and that succeeds, but it runs after $LOGIN, so the repair
+*   always arrives too late - which is why every check taken at the ':' prompt
+*   said the capabilities were fine.
+*
+*   kernel(K$TERM.TYPE) RETURNS THE TYPE IN FORCE AFTER THE ATTEMPT and leaves
+*   it unchanged on failure, so a mismatch is the failure.  downcase first:
+*   the type is stored lower case, so an upper-case TERM would not compare
+*   equal to itself.  The fallback is linux, the type VOC_TEMPLATE/LOGIN names,
+*   so the two defaults agree (the port's is 'windows').
+      s = downcase(s)
+      if (kernel(K$TERM.TYPE, s) # s) and (s # 'linux') then
+         s = 'linux'
+         void kernel(K$TERM.TYPE, s)
+      end
 
       * Set terminal depth and width
 
