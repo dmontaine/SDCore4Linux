@@ -9,6 +9,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  ACCOUNTS NOW GET A VERB SET THAT MATCHES THEIR TIER.
+
+           The verbs a new account receives now depend on its tier.  A STANDARD
+           account gets the everyday verbs but not the ones for building or
+           administering a system - no BASIC, CATALOG, RUN, the file and index
+           commands, the editors, and so on: it can run an application, not build
+           one.  A PROGRAMMER account gets the full set, and an ADMINISTRATOR
+           account gets that plus the account-management verbs (CREATE.ACCOUNT,
+           DELETE.ACCOUNT, MODIFY.ACCOUNT, UPDATE.ACCOUNT, UNLOCK).
+
+           What it does not do yet: this applies when an account is CREATED.
+           Changing an existing account's tier with MODIFY.ACCOUNT does not yet
+           re-derive its verb set, and a release VOC update does not yet respect
+           the tier - both are still to come.
+
+
 10 Sep 26  CREATE.ACCOUNT NOW CREATES THE OPERATING-SYSTEM USER TOO.
 
            In SD a user account and its operating-system login are the same
