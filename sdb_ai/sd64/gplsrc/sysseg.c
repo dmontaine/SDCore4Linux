@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Sep 26 dm  start_sd() rotates the audit trail, as the port's does
+ *               (PORT_ADOPTION 13).
  * 10 Sep 26 dm  Parity audit: start_sd() reports a failed fork() instead of
  *               claiming SD started (the Windows port's fix; UPSTREAM_FIXES 3).
  * 08 Sep 26 "sd -stop" signalled unvalidated pids, so a stale entry with pid 0
@@ -348,6 +350,14 @@ bool start_sd() {
     fprintf(stderr, "%s\n", errmsg);
     return FALSE;
   }
+
+  /* 11 Sep 26 dm - PORT_ADOPTION 13, as the port's start_sd().  Here because
+     this is the one moment that is both root (the service runs sd -start) and
+     has no session running: only root can lift the trail's append-only
+     attribute to rename it, and rotating while somebody appends is the other
+     thing to avoid.  After bind_sysseg(), which makes sysseg->sysdir readable. */
+
+  audit_rotate();
 
   /* Start sdlnxd dameon */
 

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  Every sign-on and every refused sign-on, with its reason, is
+*               written to the audit trail (PORT_ADOPTION 13, the port's).
 * 11 Sep 26 dm  A suspended account is refused at sign-on, console and ssh
 *               alike (10107; PORT_ADOPTION 12, the port's LOGIN).
 * 11 Sep 26 dm  A TERM with no shipped terminfo entry falls back to linux
@@ -87,6 +89,16 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   site added later that forgets gets the pre-tier behaviour, not a crash.
    update.voc.tier = ''
    tier.acc.name = ''
+
+* 11 Sep 26 dm - PORT_ADOPTION 13, the port's LOGIN.  The audit trail gets one
+*   record at the success exit and one at terminate.connection, not one per
+*   gate.  audit.reason is set at each refusal and DEFAULTS TO 'unspecified', so
+*   a refusal added later still leaves a line - a vague record is recoverable,
+*   a missing one is not.  initial.account gets its empty value here, above
+*   every refusal, because three refusals come before the case that sets it and
+*   terminate.connection names it.
+   audit.reason = 'unspecified'
+   initial.account = ''
 
    * If the terminal type has not yet been set, work out what it is
 
@@ -256,6 +268,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
       display sysmsg(2200) ;* Cannot open accounts register
+      audit.reason = 'the accounts register could not be opened'
       goto terminate.connection
    end
 
@@ -267,6 +280,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
   if system(42) or system(1027) then   ;* Network/serial connection
     logmsg sysmsg(5063, 'security test')  ;* Failed login authentication from %1
+    audit.reason = 'network or serial connection'
     goto terminate.connection
   end else
      * This user has come in from a command prompt.
@@ -274,6 +288,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
      * 20240219 mab user must be member of sdusers     
      if  not(is_grp_member(lgn.id,'sdusers')) then
         display sysmsg(5009) ;* This user is not registered for SD use
+        audit.reason = 'not a member of sdusers'
         goto terminate.connection
      end
   end
@@ -291,6 +306,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
+            audit.reason = 'not in the register'
             goto terminate.connection
          end
 
@@ -298,6 +314,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          * 20240330 mab must be privilaged to enter sdsys
          IF (upcase(initial.account) = "SDSYS") and not(kernel(K$ADMINISTRATOR,-1)) then            
             display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
+            audit.reason = 'SDSYS is restricted to administrators'
             goto terminate.connection
          end
 
@@ -305,6 +322,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *
          if  not(is_grp_member(lgn.id,acc.rec<ACC$GROUP>)) then  
             display sysmsg(10003) ;* User not allowed in requested account
+            audit.reason = 'not a member of the account group'
             goto terminate.connection
          end
 
@@ -312,6 +330,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          if not(ospath(acc.path, OS$CD)) then
             display sysmsg(5019, acc.path) ;* Unable to change to directory xx
+            audit.reason = 'the account directory could not be entered'
             goto terminate.connection
          end
 
@@ -324,6 +343,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
+            audit.reason = 'not in the register'
             goto terminate.connection
          end
 
@@ -331,6 +351,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          if not(ospath(acc.path, OS$CD)) then
             display sysmsg(5019, acc.path) ;* Unable to change to directory xx
+            audit.reason = 'the account directory could not be entered'
             goto terminate.connection
          end
 
@@ -342,6 +363,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
+            audit.reason = 'not in the register'
             goto terminate.connection
          end
 
@@ -349,6 +371,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          if not(ospath(acc.path, OS$CD)) then
             display sysmsg(5019, acc.path) ;* Unable to change to directory xx
+            audit.reason = 'the account directory could not be entered'
             goto terminate.connection
          end
 
@@ -366,6 +389,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   ADMINISTRATOR, and SDSYS itself cannot be suspended (MODIFYA, 2202).
    if upcase(trim(acc.rec<ACC$TIER>)) = 'SUSPENDED' then
       display sysmsg(10107, initial.account) ;* Account %1 is suspended
+      audit.reason = 'the account is suspended'
       goto terminate.connection
    end
 
@@ -434,11 +458,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    openpath "VOC" to voc on error
       display 'Error ' : status() : ' opening VOC file. Check access rights.'
+      audit.reason = 'the VOC could not be opened'
       goto terminate.connection
    end else
    * 20240219 mab as part of the security changes, do not allow auto creation of account !
    *   gosub create.account
        display sysmsg(5163)    ;* Directory is not a  sd account
+       audit.reason = 'not an SD account'
        goto terminate.connection 
    end
 
@@ -492,6 +518,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          clear.on.data = not(index(s, 'X', 1)) and not(cursor.at.end)
       end else
          display sysmsg(5028) ;* $RELEASE VOC record not found
+         audit.reason = 'the $RELEASE VOC record is missing'
          goto terminate.connection
       end
 
@@ -499,6 +526,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
       if compare(system(1012), SD.REV.STAMP) then
          display sysmsg(5029) ;* Revision level cross-check error
+         audit.reason = 'revision level cross-check error'
          if not(kernel(K$INTERNAL,-1)) then goto terminate.connection
       end
 
@@ -516,10 +544,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       end
    end
 
+* 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
+*   too and are not sign-ons.
+   if mode = 0 then void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
    ok = @true
    return
 
 terminate.connection:
+   void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' reason=' : audit.reason)
    display sysmsg(5024) ;* Connection terminated
    sleep 2
 abort.login:

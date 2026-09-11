@@ -24,6 +24,9 @@
  * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
  *               port (PRE_RELEASE 19).  Only an $internal program may change
  *               USR_ADMIN now.
+ * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
+ *               audit trail; the identity is stamped in k_error.c
+ *               (PORT_ADOPTION 13).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -595,6 +598,17 @@ void op_kernel() {
         *(p++) = '\0';
       }
       result.data.value = run_exe(s, p);
+      break;
+
+    /* 11 Sep 26 dm - PORT_ADOPTION 13, the Windows port's K_AUDIT.  The caller
+       passes what happened and NOT who did it: audit_message() stamps the
+       identity itself, from my_uptr and (under sudo) SUDO_USER, which no BASIC
+       program can supply.  Returns 0 always - there is no failure a caller
+       could act on, and the login path must not be stopped by an unwritable
+       audit file.                                                          */
+    case K_AUDIT:
+      k_get_c_string(descr, s, sizeof(s) - 1);
+      audit_message(s);
       break;
 
     default:

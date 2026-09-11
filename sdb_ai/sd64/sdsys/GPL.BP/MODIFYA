@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 11 Sep 26 K$AUDIT records: ADD and DELETE (the port's PRE_RELEASE 27) and, as
+*           Linux additions offered to the port, tier changes and SH / OS grants
+*           (PORT_ADOPTION 13).
 * 11 Sep 26 SUSPENDED, the fourth tier (PORT_ADOPTION 12, the port's tier.set of
 *           27 Aug 2026): ACC$PRIOR.TIER is written on the way in, the VOC is
 *           left as it is while suspended, nothing changes in Linux; 10108,
@@ -189,6 +192,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
                   * --------------------
                   stat = OS.ERROR()
                   if stat = 0 then
+                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT ADD account=' : acc.name : ' to=' : user.name)
                      crt sysmsg(10018,user.name,group.name)  ;* %1 added to group %2
                   end else
                      crt sysmsg(10019,user.name,group.name,stat) ;* Unable to add user %1 to group %s status: %2
@@ -217,6 +221,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
                * --------------------
                stat = OS.ERROR()
                   if stat = 0 then
+                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT DELETE account=' : acc.name : ' from=' : user.name)
                      crt sysmsg(10021,user.name,group.name) ;*  %1 removed from group %2
                   end else
                      crt sysmsg(10022,user.name,group.name,stat) ;* Unable to remove user %1 from group %s status: %2
@@ -384,6 +389,9 @@ set.tier:
    end case
 
    @system.return.code = 0
+* 11 Sep 26 dm - A LINUX ADDITION, NOT THE PORT'S: a tier change is a grant or
+*   a withdrawal of privilege - ADMINISTRATOR, a suspension - so it is recorded.
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT TIER account=' : acc.name : ' from=' : raw.tier : ' to=' : action)
    crt sysmsg(10109, acc.name, action)  ;* Account %1 is now %2
    if voc.skipped then
       crt sysmsg(10108, acc.name)  ;* %1 has no record of the tier it held, so its VOC was left alone
@@ -520,6 +528,7 @@ os.set:
    if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then os.sh.now = 'yes'
    os.ex.now = 'no'
    if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)  ;* 11 Sep 26 - a Linux addition, as TIER above
    crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
    return
 

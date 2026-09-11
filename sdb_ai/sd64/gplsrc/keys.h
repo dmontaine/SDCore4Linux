@@ -171,6 +171,10 @@
 #define K_SETUID             54
 #define K_SETGID             55
 #define K_RUNEXE             56
+/* 11 Sep 26 dm - PORT_ADOPTION 13.  The Windows port's K_AUDIT, at the port's
+   number: append a record to the audit trail.  57 is free here because the
+   parity audit moved this tree's own 57-59 to 90-92 for exactly this key.    */
+#define K_AUDIT              57
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH

@@ -162,6 +162,22 @@ sudo systemctl stop sd.service sdclient.socket 2>/dev/null || true
 sudo systemctl disable sd.service sdclient.socket 2>/dev/null || true
 # --------------------
 
+# 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL IS APPEND-ONLY (chattr +a),
+# and "rm -fr" cannot remove such a file: the removal below would stop part way
+# and leave half an install.  So the attribute comes off first, after the
+# services are stopped above so nothing is appending.  When the accounts are
+# kept the trail is kept with them, in $acct_path, and installsdai.sh puts it
+# back - the Windows port's uninstaller keeps the trail with the database.
+# Answering DELETE removes it with everything else.
+for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
+    [ -f "$f" ] || continue
+    sudo chattr -a "$f" 2>/dev/null || true
+    if [ "$keep_accts" != "DELETE" ]; then
+        sudo mv "$f" "$acct_path/"
+        echo "Saved audit trail $(basename "$f")"
+    fi
+done
+
 # remove the /usr/sdsys directory
 sudo rm -fr "$sdsysdir"
 echo

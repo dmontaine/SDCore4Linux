@@ -231,6 +231,8 @@ void k_err_pu(void);
 int k_line_no(int32_t offset, u_char * xcbase);
 char * k_var_name(DESCRIPTOR * descr);
 void log_message(char * msg);
+void audit_message(char * msg);
+void audit_rotate(void);
 int log_printf(char * str, ...);
 void log_permissions_error(FILE_VAR * fvar);
 

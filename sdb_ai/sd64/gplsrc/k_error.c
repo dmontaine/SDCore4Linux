@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Sep 26 dm  audit_message() and audit_rotate(), the audit trail - the
+ *               Windows port's (16 Aug 2026), with an append-only file
+ *               attribute where the port uses an append-only ACL
+ *               (PORT_ADOPTION 13).
  * 08 Sep 26 Error text was truncated at 84 characters: the vsnprintf() size
  *           limit used + where * was meant, and ignored the offset already
  *           written into the buffer.
@@ -57,6 +61,11 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <time.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 
 extern jmp_buf k_exit;
 extern char* month_names[];
@@ -633,6 +642,210 @@ void log_message(char* msg) {
 
     EndExclusive(ERRLOG_SEM);
   }
+}
+
+/* ======================================================================
+   audit_message()  -  Append a record to the audit trail
+
+   11 Sep 26 dm - PORT_ADOPTION 13.  The Windows port's audit_message() (its
+   k_error.c, 16 Aug 2026), with its Win32 append-only write replaced by the
+   Linux mechanism that gives the same guarantee.
+
+   WHY NOT log_message().  errlog TRIMS ITS OLDEST HALF at the ERRLOG size -
+   right for diagnostics, disqualifying for an audit trail, where the record an
+   investigator wants is the old one somebody would like gone.  This file
+   ROTATES instead (audit_rotate, at start) and SD deletes nothing.
+
+   THE CALLER DOES NOT SUPPLY THE IDENTITY.  Time, user number, pid and user
+   name are stamped here.  my_uptr->username is getpwuid(getuid()) (kernel.c,
+   GetUserName), so under "sudo sd" it is root, and the person is SUDO_USER -
+   stamped as sudo=<name>, BUT ONLY WHEN THE REAL UID IS 0: any user can export
+   SUDO_USER before running sd, and root could write anything it liked anyway.
+
+   APPEND ONLY, BY THE FILE AND NOT BY TRUST.  Sessions run as the user who
+   started them, so every SD user must be able to write this file - and a
+   writable file can be truncated or overwritten in place, the failure the port
+   measured and rejected.  installsdai.sh creates it sdsys:sdusers 0620 (write
+   without read for SD users) with chattr +a, so the kernel accepts only
+   O_APPEND writes and refuses truncation, overwriting, renaming and unlinking
+   to everyone until root lifts the attribute.
+
+   NOT O_CREAT.  A session creating a missing trail would own it, with its own
+   umask and no attribute - a trail its creator could rewrite.  A missing file
+   loses records silently instead; the gap is the evidence, and the installer
+   and audit_rotate() are what create it.
+
+   THE TEXT IS KEPT TO ONE LINE.  A control character or mark in msg would let
+   a BASIC caller start a second, forged record, so each becomes '?'.
+
+   ERRLOG_SEM, as the port: it stops a record interleaving with a log_message()
+   and is what audit_rotate() locks against.  Silent on failure, like
+   log_message(): an audit file that cannot be written must not be what stops
+   somebody signing on.                                                      */
+
+#define AUDIT_ROTATE_BYTES 1048576L /* 1MB, then rename and start a new one */
+#define AUDIT_BUFF_SIZE    2048     /* One record.  op_kernel caps msg well
+                                       below this; the stamp adds ~90.      */
+
+Private void audit_pathname(char* path, int len) {
+  if (snprintf(path, len, "%s%caudit", sysseg->sysdir, DS) >= len)
+    *path = '\0';
+}
+
+void audit_message(char* msg) {
+  time_t timenow;
+  struct tm* ltime;
+  int bytes;
+  int fd;
+  char* p;
+  const char* sudo_user = NULL;
+  char path[MAX_PATHNAME_LEN + 1];
+  char buff[AUDIT_BUFF_SIZE];
+
+  if (sysseg == NULL)
+    return;
+
+  for (p = msg; *p != '\0'; p++) {
+    if (((u_char)*p < 32) || ((u_char)*p == 127) || ((u_char)*p >= 248))
+      *p = '?';
+  }
+
+  if (getuid() == 0) {
+    sudo_user = getenv("SUDO_USER");
+    if ((sudo_user != NULL) && (*sudo_user == '\0'))
+      sudo_user = NULL;
+  }
+
+  timenow = time(NULL);
+  ltime = localtime(&timenow);
+
+  if (my_uptr != NULL) {
+    bytes = snprintf(buff, sizeof(buff),
+                     "%04d-%02d-%02d %02d:%02d:%02d user=%s%s%s uid=%d pid=%d %s\n",
+                     ltime->tm_year + 1900, ltime->tm_mon + 1, ltime->tm_mday,
+                     ltime->tm_hour, ltime->tm_min, ltime->tm_sec,
+                     (char*)(my_uptr->username),
+                     (sudo_user != NULL) ? " sudo=" : "",
+                     (sudo_user != NULL) ? sudo_user : "",
+                     (int)(my_uptr->uid), (int)(my_uptr->pid), msg);
+  } else {
+    bytes = snprintf(buff, sizeof(buff),
+                     "%04d-%02d-%02d %02d:%02d:%02d user=? uid=? pid=? %s\n",
+                     ltime->tm_year + 1900, ltime->tm_mon + 1, ltime->tm_mday,
+                     ltime->tm_hour, ltime->tm_min, ltime->tm_sec, msg);
+  }
+
+  /* snprintf reports the length it WANTED.  A record that did not fit is cut
+     and still ends in a newline, so the next record starts its own line.    */
+
+  if (bytes > (int)sizeof(buff) - 1) {
+    bytes = (int)sizeof(buff) - 1;
+    buff[bytes - 1] = '\n';
+  }
+
+  StartExclusive(ERRLOG_SEM, 67);
+
+  audit_pathname(path, sizeof(path));
+
+  if ((*path != '\0') && (bytes > 0)) {
+    fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+    if (fd >= 0) {
+      if (write(fd, buff, bytes) != bytes) {
+        /* silent - see the banner */
+      }
+      close(fd);
+    }
+  }
+
+  EndExclusive(ERRLOG_SEM);
+}
+
+/* ======================================================================
+   audit_rotate()  -  Start a new audit file if the current one is large
+
+   11 Sep 26 dm - PORT_ADOPTION 13, the port's audit_rotate().  Called from
+   start_sd() only, which is root (the service runs sd -start) with no session
+   running: only root can lift the append-only attribute a rename needs, and
+   rotating under an append is the other thing to avoid.  A machine that never
+   restarts SD never rotates - the port's accepted cost, and the same here.
+
+   THE NEW FILE CARRIES THE OLD ONE'S OWNER, MODE AND ATTRIBUTE - the Linux form
+   of the port copying the ACL.  A plain rename would leave the next writer to
+   create it, and a trail a session creates is one it can rewrite (and
+   audit_message() does not create).  THE ROTATED FILE GETS ITS ATTRIBUTE BACK
+   TOO, so an old trail is as hard to alter as the live one; pruning one is the
+   site's decision and starts with "chattr -a".
+
+   If the attribute is set and cannot be lifted, nothing is renamed - the trail
+   stays whole and keeps growing.  On a filesystem without the attribute the
+   rename still happens and nothing is set; the installer is what said so.     */
+
+void audit_rotate(void) {
+  time_t timenow;
+  struct tm* ltime;
+  struct stat statbuf;
+  int fd;
+  int newfd;
+  int flags = 0;
+  int newflags = 0;
+  bool had_append = FALSE;
+  char path[MAX_PATHNAME_LEN + 1];
+  char rotated[MAX_PATHNAME_LEN + 1];
+
+  if (sysseg == NULL)
+    return;
+
+  StartExclusive(ERRLOG_SEM, 68);
+
+  audit_pathname(path, sizeof(path));
+
+  if ((*path != '\0') && (lstat(path, &statbuf) == 0) &&
+      S_ISREG(statbuf.st_mode) && (statbuf.st_size >= AUDIT_ROTATE_BYTES)) {
+    timenow = time(NULL);
+    ltime = localtime(&timenow);
+
+    if (snprintf(rotated, sizeof(rotated), "%s.%04d%02d%02d-%02d%02d%02d", path,
+                 ltime->tm_year + 1900, ltime->tm_mon + 1, ltime->tm_mday,
+                 ltime->tm_hour, ltime->tm_min, ltime->tm_sec) <
+        (int)sizeof(rotated)) {
+      fd = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+      if (fd >= 0) {
+        if ((ioctl(fd, FS_IOC_GETFLAGS, &flags) == 0) && (flags & FS_APPEND_FL)) {
+          had_append = TRUE;
+          flags &= ~FS_APPEND_FL;
+          if (ioctl(fd, FS_IOC_SETFLAGS, &flags) != 0) {
+            close(fd); /* cannot lift it: leave the trail whole */
+            goto exit_audit_rotate;
+          }
+        }
+
+        if (rename(path, rotated) == 0) {
+          newfd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+                       statbuf.st_mode & 07777);
+          if (newfd >= 0) {
+            if (fchown(newfd, statbuf.st_uid, statbuf.st_gid) == 0)
+              (void)fchmod(newfd, statbuf.st_mode & 07777);
+            if (had_append && (ioctl(newfd, FS_IOC_GETFLAGS, &newflags) == 0)) {
+              newflags |= FS_APPEND_FL;
+              (void)ioctl(newfd, FS_IOC_SETFLAGS, &newflags);
+            }
+            close(newfd);
+          }
+        }
+
+        /* Back on: the rotated file if the rename worked, the unrenamed trail
+           if it did not - fd is the same inode either way.                  */
+        if (had_append) {
+          flags |= FS_APPEND_FL;
+          (void)ioctl(fd, FS_IOC_SETFLAGS, &flags);
+        }
+        close(fd);
+      }
+    }
+  }
+
+exit_audit_rotate:
+  EndExclusive(ERRLOG_SEM);
 }
 
 /* ======================================================================

@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 LOGTO, a refused LOGTO, and the administrator grant under sudo sd -
+*           given or refused - are written to the audit trail (PORT_ADOPTION
+*           13, the port's).
 * 11 Sep 26 LOGTO refuses a suspended account (10107) unless the session holds
 *           the administrator flag (PORT_ADOPTION 12, the port's logto).
 * 11 Sep 26 .D name folds case (as typed, down, up), reports 5043 when
@@ -864,6 +867,7 @@ grant.administrator:
 *   The verdict is unchanged - nothing measured, nothing granted - and only the
 *   wording is honest about why.
       admin.notice<-1> = sysmsg(10904)  ;* the register could not be read
+      void kernel(K$AUDIT, 'ELEVATION REFUSED reason=the register could not be read')
       return
    end
 
@@ -878,6 +882,9 @@ grant.administrator:
    if admin.tier = 'ADMINISTRATOR' and is_grp_member(admin.person, 'sdadmin') then
       close admin.f
       void kernel(K$ADMINISTRATOR, 1)
+* 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
+*   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
+      void kernel(K$AUDIT, 'ELEVATION GRANTED')
       return
    end
 
@@ -911,12 +918,15 @@ grant.administrator:
    if admin.any then
       if admin.tier = 'ADMINISTRATOR' then
          admin.notice<-1> = sysmsg(10903, admin.person) ;* registered, not in sdadmin
+         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=registered administrator is not in sdadmin')
       end else
          admin.notice<-1> = sysmsg(10902, admin.person) ;* not registered
+         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=not a registered administrator')
       end
    end else
       admin.notice<-1> = sysmsg(10901, admin.person)
       void kernel(K$ADMINISTRATOR, 1)
+      void kernel(K$AUDIT, 'ELEVATION GRANTED reason=no administrator is registered')
    end
 
    return
@@ -2732,6 +2742,7 @@ int.logto:
 *   refused it, which is the point of the change.
    if (upcase(new.account) = "SDSYS") and not(kernel(K$ADMINISTRATOR,-1)) then
       display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=SDSYS reason=not an administrator')
       unwinding = 2
       return    
    end 
@@ -2808,6 +2819,7 @@ int.logto:
 *   second test.  The way out mirrors the 10003 refusal below.
    if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$TIER>)) = 'SUSPENDED' then
       display sysmsg(10107, new.account) ;* Account %1 is suspended
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=suspended')
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2815,6 +2827,7 @@ int.logto:
 
    if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : upcase(new.account) : ' reason=not granted')
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2859,6 +2872,8 @@ int.logto:
    if logto.os.admin then logto.os.admin = is_grp_member(@logname, 'sdadmin')
    void kernel(K$SH,      logto.os.admin or (upcase(trim(acc.record<ACC$SH>)) = 'YES'))
    void kernel(K$OS.EXEC, logto.os.admin or (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))
+
+   void kernel(K$AUDIT, 'LOGTO account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13
 
    gosub find.private.catalogue
 
