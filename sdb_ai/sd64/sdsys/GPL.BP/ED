@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  The command-error preset is -ER$ARGS, not +ER$ARGS (UPSTREAM
+*               11, as the port).
 * 10 Sep 26 dm  Parity audit: Y/N prompts say which answer Enter gives, and
 *               Enter gives it - N at both 6521 sites and in yes.no (port
 *               PRE_RELEASE_FIXES 79).
@@ -57,7 +59,15 @@ $define COMMAND.STACK.DEPTH 99
    parser = "!PARSER"
    source.control = "SOURCE.CONTROL"
 
-   @system.return.code = ER$ARGS   ;* Preset for command errors
+* 11 Sep 26 Windows port - THE MINUS WAS MISSING (UPSTREAM_FIXES 11).  err.h:
+*   commands set the arithmetic INVERSE of the err.h value into
+*   @SYSTEM.RETURN.CODE, and CREATEA and DELACC write this identical preset as
+*   -ER$ARGS.  Left positive it put 1 where a caller testing "< 0" reads no
+*   error at all, and 1 is also a good "one thing was done" in the range COPY,
+*   DELETE and GETLIST use.  It is cleared to 0 once the file is open, so it
+*   really is an error preset.  The only reader here, "< 1" after
+*   "execute 'BASIC'", reads the COMPILER's count, not this.
+   @system.return.code = -ER$ARGS   ;* Preset for command errors
 
    dict.flag = ""
    no.query = @false
