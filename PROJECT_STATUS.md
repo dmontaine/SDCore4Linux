@@ -37,6 +37,37 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***END OF SESSION 10 Sep 2026 (credits ran low) — READ THIS BLOCK FIRST; what
+follows it is older.***
+- **Commits, all pushed to `origin/main`:** `8a1b343` per-tier VOC (LOGIN,
+  MODIFYA), MICRO fix, parity audit · `6f5bff8` DELETE.ACCOUNT REMOVE.HOME,
+  Codeberg remote removed · `2d759f7` NANO/MICRO via the port's EDIT, nano
+  highlighting · the session's last commit: port upstream C fixes + `PORT_ADOPTION.md`.
+- ***NOTHING SINCE THE `1fa0e57` INSTALL HAS RUN ON AN INSTALL.*** Next: the
+  delete → install cycle as `don`, no sudo (`deletesdai.sh`, then
+  `installsdai.sh`), then the witness plans in Open: "Parity audit", "NANO and
+  MICRO", REMOVE.HOME, §L1 LOGIN/MODIFYA.
+- ***KERNEL KEYS 57–59 → 90–92: THE TREE `bin/sd` ABORTS AGAINST THE CURRENT
+  INSTALL*** (`Illegal KERNEL() action key (58)`, measured). Until reinstall,
+  compile GPL.BP with a harness: copy `sd64` minus `sdsys gplobj bin terminfo`
+  to the scratchpad, copy `sdsys/GPL.BP` and `SYSCOM` in, overwrite
+  `gplsrc/keys.h` with `git show dc05b88:sdb_ai/sd64/gplsrc/keys.h`, `make
+  EXTRA_C_FLAGS=-DSD_DEV_BUILD` (log to an ABSOLUTE scratchpad path — the hook
+  refuses a relative `.txt`), then `<harness>/bin/sd -internal BASIC BP <prog>`
+  in DON's `BP`. Clean up `BP`, `BP.OUT`, `DELETE VOC BP.OUT` (`COUNT VOC` 410).
+- **NEXT TASK: `PORT_ADOPTION.md`'s queue, top down.** Its "Not adoptable" table
+  is the owner-requested list. Port defects are in the Windows port's
+  `BUGS_FROM_LINUX_PORT.md` (written, not committed there).
+- **Last commit's C fixes** (UPSTREAM 1, 3, 8, 9, 10, 14, 18, 20, 29, 35; port
+  PRE_RELEASE 174; plus sdtic's end-of-file path, a port defect): built clean.
+  ***Witnessed pre-fix vs post-fix harness binaries:*** `CONFIG('NOSUCHKEY')`
+  abort → `""`/1004; ids `draft%1`/`draft%` → both `draft` → whole (`%E`→`=`
+  control unchanged); unlocked transaction WRITE `3023 (Possible full disk?)` →
+  10151 branch (reads "Message not found" until an install ships 10151); sdtic
+  bad fixture old 1 file exit 0 → new 2 files exit 1. **Compile-only:** 1, 3, 8,
+  10, 14, 29, 174 — the sdrealpath probe did not compile (`OSPATH` is not a
+  BASIC function here; find the right intrinsic).
+
 ***HEAD is `d791b4c` (origin/main, pushed 10 Sep 2026); the ssh tier boundary,
 PRE_RELEASE 13, landed at `a6d96b1`: BUILT + pushed, unit-tested 16/0, `sshd
 -t`-witnessed on this box — and now LIVE-ssh-WITNESSED 10 Sep 2026 (see step 3

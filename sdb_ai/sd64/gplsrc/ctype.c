@@ -16,7 +16,9 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
- * START-HISTORY 
+ * START-HISTORY
+ * 10 Sep 26 dm  Parity audit: CNullString() returns NULL on a failed malloc,
+ *               not static storage (the Windows port's fix; UPSTREAM_FIXES 1).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -283,19 +285,16 @@ null_result:
 
 Private char* CNullString() {
   char* p;
-  static char empty[1] = {'\0'};
 
-  /* Modified by Composer AI - 2026/06/10.
-     malloc(1) can fail; return a static empty string instead. */
-  /* p = malloc(1);
-  *p = '\0';
-  return p; */
+  /* 10 Sep 26 dm - Parity audit: NULL when malloc fails, not a static empty
+     string (the Windows port's fix; UPSTREAM_FIXES 1).  Extract() returns this
+     and its caller frees the result, so static storage would be free()d - the
+     "Composer AI" version of 10 Jun traded a crash for undefined behaviour. */
   p = malloc(1);
   if (p == NULL)
-    return empty;
+    return NULL;
   *p = '\0';
   return p;
-  /* -------------------- */
 }
 
 /* END-CODE */

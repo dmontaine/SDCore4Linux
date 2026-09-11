@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: dh_flush_header() clears FILE_UPDATED only after
+ *               the header is written, and logs the two silent failures (the
+ *               Windows port's fix; UPSTREAM_FIXES 29).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
  * END-HISTORY
@@ -498,7 +501,15 @@ bool dh_flush_header(DH_FILE* dh_file) {
   fptr = FPtr(dh_file->file_id);
   if (((dh_file->flags & FILE_UPDATED) || fptr->stats.reset) &&
       !(dh_file->flags & DHF_RDONLY)) {
-    dh_file->flags &= ~FILE_UPDATED;
+    /* 10 Sep 26 dm - Parity audit: THE FLAG IS CLEARED WHEN THE FLUSH SUCCEEDS,
+       NOT BEFORE IT IS ATTEMPTED - the Windows port's fix (its dh_file.c,
+       PRE_RELEASE 95; UPSTREAM_FIXES 29).  It was cleared here, and the three
+       "return FALSE" paths below sit above the "flags |= FILE_UPDATED" at the
+       end, so the outcomes were inverted: a flush that FAILED left the file
+       marked clean and was never retried, and one that SUCCEEDED left it marked
+       dirty.  What rides on it is free_chain and record_count in the on-disk
+       header.  It self-heals wherever another write follows, but not at
+       dh_close(), where there is no next write. */
 
     if (!ValidFileHandle(dh_file->sf[PRIMARY_SUBFILE].fu)) {
       if (!FDS_open(dh_file, PRIMARY_SUBFILE)) {
@@ -514,6 +525,11 @@ bool dh_flush_header(DH_FILE* dh_file) {
 
     if (!read_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)0, (char*)(&header),
                  DH_HEADER_SIZE)) {
+      /* 10 Sep 26 dm - said out loud, as the port's.  This and the write_at
+         path below returned silently while the FDS-open path logged, and six
+         of the seven callers discard the result. */
+      log_printf("DH_FLUSH_HEADER: header read failure %d (dh_err %d) on %s.\n",
+                 process.os_error, (int)dh_err, fptr->pathname);
       return FALSE;
     }
 
@@ -535,6 +551,9 @@ bool dh_flush_header(DH_FILE* dh_file) {
 
     if (!write_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)0, (char*)(&header),
                   DH_HEADER_SIZE)) {
+      /* 10 Sep 26 dm - see the read_at path above. */
+      log_printf("DH_FLUSH_HEADER: header write failure %d (dh_err %d) on %s.\n",
+                 process.os_error, (int)dh_err, fptr->pathname);
       return FALSE;
     }
 
@@ -542,9 +561,12 @@ bool dh_flush_header(DH_FILE* dh_file) {
       dh_fsync(dh_file, PRIMARY_SUBFILE);
       dh_fsync(dh_file, OVERFLOW_SUBFILE);
     }
-  }
 
-  dh_file->flags |= FILE_UPDATED;
+    /* 10 Sep 26 dm - THE HEADER IS NOW ON DISK, so the file no longer needs
+       flushing.  The port's shape: the clear moves here, and the unconditional
+       "flags |= FILE_UPDATED" that stood after this block is gone. */
+    dh_file->flags &= ~FILE_UPDATED;
+  }
 
   return TRUE;
 }

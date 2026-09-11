@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: WRITESEQ to a port sends CRLF, not a bare CR
+ *               (the Windows port's fix; UPSTREAM_FIXES 14); WEOFSEQ keeps
+ *               "base = -1" on a failed truncate.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to % 
  * END-HISTORY
@@ -1667,7 +1670,12 @@ Private void writeseq(bool flush_to_disk) {
         goto exit_op_writeseq;
       src_str = src_str->next;
     }
-    if (!writeport(fu, "\r\n", 1))
+    /* 10 Sep 26 dm - Parity audit: 2, not 1 (the Windows port's fix; its
+       UPSTREAM_FIXES 14).  writeport()'s third argument is a byte count, so
+       the two-character literal was cut to one and every WRITESEQ to a port
+       ended its line with a bare CR.  WRITEBLK's port branch appends nothing
+       and is right as it is. */
+    if (!writeport(fu, "\r\n", 2))
       goto exit_op_writeseq;
   } else if (sq_file->flags & SQ_NOBUF) {
     while (src_str != NULL) {

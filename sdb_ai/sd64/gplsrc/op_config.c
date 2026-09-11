@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: CONFIG() with a name over eight characters
+ *               returns "" with ER_NOT_FOUND instead of an uninitialised
+ *               descriptor (the Windows port's fix; UPSTREAM_FIXES 18).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR allow create.account to create os user
  * END-HISTORY
@@ -52,14 +55,27 @@ void op_config() {
 
   process.status = 0;
 
+  /* 10 Sep 26 dm - Parity audit: INITIALISE BEFORE THE EARLY EXIT, the Windows
+     port's fix (its op_config.c, 26 Aug 2026; UPSTREAM_FIXES 18).  These two
+     lines were below the k_get_c_string() test, whose goto jumped over them to
+     a tail that pushes result - an automatic never written.  A name longer than
+     the eight-character buffer took that path, so CONFIG('NOSUCHKEY') pushed
+     whatever the previous e-stack user left and the caller aborted with "Data
+     cannot be converted to a string".  The early exit now returns the SAME
+     shape as an unknown eight-character name: an empty string with
+     ER_NOT_FOUND.  A name too long to exist is a name that does not exist. */
+  InitDescr(&result, INTEGER);
+  result.data.value = 0;
+
   /* Get parameter name */
 
   descr = e_stack - 1;
-  if (k_get_c_string(descr, param, 8) < 1)
+  if (k_get_c_string(descr, param, 8) < 1) {
+    InitDescr(&result, STRING);
+    result.data.str.saddr = NULL;
+    process.status = ER_NOT_FOUND;
     goto exit_op_config;
-
-  InitDescr(&result, INTEGER);
-  result.data.value = 0;
+  }
 
   /* !!CONFIG!! */
   if (!strcmp(param, "CMDSTACK"))

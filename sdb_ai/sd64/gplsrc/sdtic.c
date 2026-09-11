@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: buffers reset for every entry, and sdtic exits 1
+ *               when any entry failed (the Windows port's fix; UPSTREAM_FIXES 9).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -170,6 +172,11 @@ int16_t string_offsets[NumStrNames];
 char strings[4096];
 
 int errors;
+/* 10 Sep 26 dm - Parity audit (the Windows port's sdtic.c; UPSTREAM_FIXES 9).
+ * errors is reset for EVERY entry, so it cannot say whether the run as a whole
+ * succeeded.  This one is never reset, and it is what gives sdtic a non-zero
+ * exit status.                                                              */
+int failed_entries;
 
 struct NAME {
   struct NAME* next;
@@ -366,6 +373,17 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  /* 10 Sep 26 dm - AN ENTRY THAT DID NOT COMPILE NOW FAILS THE RUN, as the
+   * port's.  sdtic returned 0 whatever happened, so "make terminfo" reported
+   * success while writing a database with entries missing, and the first
+   * anyone heard of it was a user whose terminal did not work.              */
+  if (failed_entries != 0) {
+    printf("sdtic: %d terminal definition(s) did not compile - see above.\n",
+           failed_entries);
+    status = 1;
+    goto abort;
+  }
+
   status = 0;
 
 abort:
@@ -507,6 +525,13 @@ void process_file() {
     while (more) {
       if ((p = get_token()) == NULL) {
         err("Unexpected end of source file\n");
+        /* 10 Sep 26 dm - THIS PATH LEAVES THE LOOP WITHOUT REACHING THE COUNT
+           BELOW, so a source whose last entry is cut short - the most likely
+           shape of a hand-edited terminfo.mods - still exited 0.  Found by the
+           witness for UPSTREAM_FIXES 9, whose first fixture ended its entries
+           in commas and was reported as a clean run with no files written.
+           Counted here as a failed entry. */
+        failed_entries++;
         goto exit_process_file;
       }
 
@@ -632,8 +657,21 @@ void process_file() {
       /* -------------------- */
 
       errors = 0;
-      reset_buffers();
     }
+
+    if (errors != 0)
+      failed_entries++;
+
+/* 10 Sep 26 dm - RESET THE BUFFERS FOR EVERY ENTRY, NOT ONLY FOR ONE THAT
+ * COMPILED - the Windows port's fix (UPSTREAM_FIXES 9).  reset_buffers() sat
+ * inside the "if" above, so an entry that produced an error, or one skipped by
+ * selective compilation, left strings[], string_offsets[] and str_count holding
+ * its half-built data and the NEXT entry accumulated on top of it.  With one bad
+ * entry the port's full database overran strings[4096] and segfaulted part way,
+ * leaving 24 of 100 files and, because stdout was block buffered, none of the
+ * diagnostics already printed.                                               */
+    errors = 0;
+    reset_buffers();
   }
 
 exit_process_file:

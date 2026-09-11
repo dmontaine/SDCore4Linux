@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: a semaphore failure prints its reason before
+ *               exit(2) (UPSTREAM_FIXES 3, the Windows port's proposal).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -65,8 +67,15 @@ int main() {
 
   /* Get access to semaphores */
 
-  if (!get_semaphores(FALSE, errmsg))
+  /* 10 Sep 26 dm - Parity audit (UPSTREAM_FIXES 3, the port's proposal):
+     errmsg has just been filled in with the reason and was discarded, so a
+     daemon that would not start left nothing anywhere to read.  log_message()
+     cannot be used this early - it takes ERRLOG_SEM, and the semaphores are
+     precisely what failed - so stderr it is. */
+  if (!get_semaphores(FALSE, errmsg)) {
+    fprintf(stderr, "sdlnxd: %s\n", errmsg);
     exit(2);
+  }
 
   /* Set process id into shared memory */
 

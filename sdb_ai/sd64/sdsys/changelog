@@ -9,6 +9,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  SMALLER FIXES TAKEN FROM SD CORE FOR WINDOWS.
+
+           CONFIG() given a name longer than eight characters returns an empty
+           string with status 1004, as for any unknown name, instead of stopping
+           the program.  A file in a directory file whose name holds a % that is
+           not one of SD's own escapes is listed under its real name ("draft%1"
+           rather than "draft"), and a name ending in % no longer makes SELECT
+           read past the end of its buffer.  A WRITE inside a transaction with no
+           lock held now says so (message 10151) instead of suggesting the disk
+           may be full.  WRITESEQ to a port ends a line with CR and LF, not CR
+           alone.  sdtic reports every terminal definition that fails to compile
+           and exits with an error, and a bad definition no longer spoils the
+           ones after it.  sd -start says so when it cannot start its daemon.
+
+           What it does not do: none of this changes how SD is used or
+           configured; each was a fault that either stopped a program or gave a
+           wrong answer.
+
 10 Sep 26  NANO JOINS MICRO, AND BOTH FULL-SCREEN EDITORS WORK THE SAME WAY.
 
            NANO <file> <record> edits a record in nano, as MICRO does in micro,

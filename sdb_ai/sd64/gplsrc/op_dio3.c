@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: a WRITE with no lock held reports 10151, not
+ *               1407's "disk may be full" (the port's fix; UPSTREAM_FIXES 20).
  *  9 Sep 26 Linux port - dir_read() added, the read half the directory code
  *           never had: dir_write() has always been callable, but the only
  *           reader was read_record(), reachable only by executing a READ
@@ -851,7 +853,15 @@ exit_op_write:
       unlock_record(fvar, lock_id, id_len);
     }
   } else if (!(op_flags & P_ON_ERROR)) {
-    k_error(sysmsg(1407), -process.status, process.os_error);
+    /* 10 Sep 26 dm - Parity audit: A MISSING LOCK IS SAID AS ONE (the Windows
+       port's fix; UPSTREAM_FIXES 20).  1407 reads "Error %d writing record -
+       disk may be full or file may be corrupt", which sent a user looking at
+       the disk when a transaction or MUSTLOCK=1 write simply had no lock.
+       1407 stays for the case it was written for; 10151 names the lock. */
+    if (process.status == -ER_NOLOCK)
+      k_error(sysmsg(10151), -process.status);
+    else
+      k_error(sysmsg(1407), -process.status, process.os_error);
   }
 }
 
