@@ -31,6 +31,16 @@ in the same commit as the work.
     control also confirms an unmatched name is echoed AS TYPED.
   - Fixtures removed; DON back to `COUNT VOC` 410.
 
+### Built 11–12 Sep 2026 while the owner slept — COMPILED, NOT YET INSTALLED OR RUN
+
+Each compiled 0 errors with `scratchpad/cbp.sh` (dev binary, DON/BP, red
+control = 1 error, `COUNT VOC` 410 afterwards). **None is witnessed**; the
+witness is the next delete→install cycle. **Not pushed.**
+
+| Queue | What | Witness after install |
+|---|---|---|
+| 3, 4 | DELETEF: port 14, 26, 104, 113 + Enter = N on 6135/6140 (Linux; port bug 6). Msg 10117 new, 6135/6140 reworded. `open 'voc'` NOT taken (§M) | fixture as in "Adopted" above with a lower-case name: `delete.file zzak no.query` deletes with NO prompt; a file whose dict is `@SDSYS/...` + `no.query` → 6145 + 10117, file kept; `printf 'delete.file x\n' \| timeout 10 sd` on a path-differs file ends (N) instead of spinning |
+
 ## UPSTREAM_FIXES reconciliation — all 37, 11 Sep 2026
 
 Measured against this tree's source, because this file named only 19 of the 37
@@ -96,8 +106,9 @@ count was wrong in six of eight classes — which is why it was checked.*
 
 | # | Feature | Port code | Linux adaptation |
 |---|---|---|---|
-| 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23 **and 27**) + prompt loops need an EOF exit (no UPSTREAM entry) — ***REPRODUCED HERE 11 Sep, see below*** | `DELETEF` | direct |
-| 4 | DELETEF takes the ospath result, msg 2636 (port PRE_RELEASE 104) | `DELETEF` | direct |
+| ~~3~~ | ~~DELETE.FILE NO.QUERY~~ — **BUILT 11 Sep**, see "Built … while the owner slept" | `DELETEF` | |
+| ~~4~~ | ~~DELETEF takes the ospath result~~ — **BUILT 11 Sep**, with port 113 | `DELETEF` | |
+| 3b | Every Y/N loop maps Enter to its default (port 79's rule; the rest of the undefaulted loops) | `CATALOG` ×3, `SPVIEW`, `DELETEF` 2050/6131/6133 | direct; shared message 2050 needs care |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
 | 7 | HELP / F1 say something, msg 10149 (port 8) | `CPROC` | direct |
