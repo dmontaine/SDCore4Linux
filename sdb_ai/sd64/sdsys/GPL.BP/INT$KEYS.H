@@ -136,6 +136,9 @@
       $define K$SETUID          54       ;* NIX authorisation
       $define K$SETGID          55       ;* NIX authorisation
       $define K$RUNEXE          56       ;* Run executable
+* 11 Sep 26 dm - PORT_ADOPTION 13.  The port's K$AUDIT, at the port's number.
+*   The caller passes what happened; C stamps who.  Must match gplsrc/keys.h.
+      $define K$AUDIT           57       ;* Append a record to the audit trail
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

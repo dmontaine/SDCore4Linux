@@ -9,6 +9,46 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  SD NOW KEEPS AN AUDIT TRAIL.
+
+           The file "audit" in /usr/local/sdsys records every sign-on, every
+           sign-on that was refused and why, every LOGTO and every refused
+           LOGTO, the administrator rights sudo sd gives or refuses, refused
+           API logins, and account changes made with MODIFY.ACCOUNT: members
+           added and removed, tier changes (suspensions included) and SH /
+           OS.EXECUTE grants.  Each line has the date, the time, the Linux
+           user, the SD user number and the process:
+
+              2026-09-11 14:02:07 user=don uid=3 pid=8624 LOGTO account=TSTD
+
+           Under sudo sd the process belongs to root, so the line also names
+           who ran sudo: "user=root sudo=don".
+
+           The refusals are the interesting half - somebody who is not an
+           administrator asking for SDSYS, or for an account they are not a
+           member of.
+
+           THIS IS NOT THE ERROR LOG.  The error log throws away its oldest
+           half when it fills; the audit file is renamed with the date and time
+           when SD starts and finds it over 1MB, and a new one begun, so nothing
+           is discarded.  Removing old ones is your decision.
+
+           SD USERS CAN ADD TO IT AND DO NOTHING ELSE.  They cannot read it,
+           change or empty it, or rename or delete it - Linux itself refuses,
+           because the file gives them write without read and is append-only
+           (chattr +a).  Administrators read it with sudo.  To remove an old
+           one: sudo chattr -a <file>, then delete it.  If the installer says
+           it could not make the file append-only, your filesystem does not
+           support it, and SD users could empty the file.
+
+           Uninstalling with your accounts kept keeps the audit trail too, and
+           reinstalling puts it back.
+
+           What it does not do: Linux keeps its own record of logins and sudo
+           use (the journal, or /var/log/auth.log), separate from this one and
+           more complete; read the two together.
+
+
 11 Sep 26  AN ACCOUNT CAN BE SUSPENDED.
 
            MODIFY.ACCOUNT takes a fourth tier:

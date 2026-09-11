@@ -26,6 +26,9 @@
 * rev 0.9.0 Jan 25 mab test for user member of account on logto
 * 11 Sep 26 dm  vb.account refuses a suspended account with 10003, the same
 *               text as every other refusal (PORT_ADOPTION 12, the port's).
+* 11 Sep 26 dm  vb.login writes an API REFUSED audit record at every refusal;
+*               a name reaches the record only after valid_os_name passed it
+*               (PORT_ADOPTION 13, the port's).
 * END-HISTORY
 *
 *
@@ -885,6 +888,7 @@ vb.login:
 
                n = oconv(cmnd[1,2], 'ISL')
                if n < 1 or n > MAX.USERNAME.LEN or cmnd[3,1] = '$' then
+                  void kernel(K$AUDIT, 'API REFUSED user=(invalid) reason=bad user name')
                   abort.message = sysmsg(5017) ;* Invalid user name or password
                   server.error = SV$ON.ERROR
                   goto exit.vb.login
@@ -895,6 +899,7 @@ vb.login:
                * Reject shell-unsafe login names before authentication.
                deffun valid_os_name(name) calling '!valid_os_name'
                if not(valid_os_name(username)) then
+                  void kernel(K$AUDIT, 'API REFUSED user=(invalid) reason=user name has characters SD does not allow')
                   abort.message = sysmsg(5017) ;* Invalid user name or password
                   server.error = SV$ON.ERROR
                   goto exit.vb.login
@@ -906,6 +911,7 @@ vb.login:
 
                n = oconv(cmnd[pos,2], 'ISL')
                if n > MAX.USERNAME.LEN then
+                  void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=bad password')
                   abort.message = sysmsg(5017) ;* Invalid user name or password
                   server.error = SV$ON.ERROR
                   goto exit.vb.login
@@ -936,6 +942,7 @@ vb.login:
                   * end        
                   if  not(is_grp_member(username,'sdusers')) then
                      server.error = SV$ON.ERROR
+                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=not a member of sdusers')
                      abort.message = sysmsg(5009) ;* This user is not registered for SD use
                      goto exit.vb.login
                   end
@@ -948,6 +955,7 @@ vb.login:
                   * dsm 20240612i = kernel(K$ADMINISTRATOR,lgn.rec<LGN$ADMIN>)
                end else
                   server.error = SV$ON.ERROR
+                  void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=authentication failed')
                   abort.message = sysmsg(5017) ;* Invalid user name or password
                   sleep 3
                end
@@ -983,6 +991,7 @@ vb.local.login:
                * 20240219 mab user must be member of sdusers           
                if  not(is_grp_member(username,'sdusers')) then
                      server.error = SV$ON.ERROR
+                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=not a member of sdusers (local login)')
                      abort.message = sysmsg(5009) ;* This user is not registered for SD use
                      goto exit.vb.local.login
                end

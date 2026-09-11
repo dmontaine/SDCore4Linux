@@ -87,8 +87,16 @@ the work, nothing in "Verified" that was not observed that session.
 - **QUEUE 12 (SUSPENDED) BUILT AND COMPILED, 11 Sep, not run** — MODIFYA, the
   three doors, five messages, two dictionary items; PORT_ADOPTION 12 has the
   witness steps, which need `sudo sd`.
+- **QUEUE 13 (AUDIT TRAIL) BUILT AND COMPILED, 11 Sep, not run** — `K$AUDIT`
+  57 (the port's number; the queue row's "93" was wrong), `@SDSYS/audit`
+  `sdsys:sdusers 0620` + `chattr +a`, rotated at `sd -start`, kept across a
+  keep-accounts delete→install. ***THE INSTALLER AND DELETER CHANGED***
+  (`installsdai.sh` restore block, `deletesdai.sh` before `rm -fr`): a
+  `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
+  would stop part way. Known limit, as the port's: a shell user can append a
+  line of their own. PORT_ADOPTION 13 has the witness steps.
 - **NEXT:** the owner's delete→install cycle — one install witnesses queues 12,
-  26 and 27 (PORT_ADOPTION rows); then queue 13 (K$AUDIT) onward.
+  13, 26 and 27 (PORT_ADOPTION rows); then queue 14 (TIERGATE) onward.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
