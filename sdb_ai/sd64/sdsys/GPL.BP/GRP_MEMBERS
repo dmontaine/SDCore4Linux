@@ -1,0 +1,99 @@
+* GRP_MEMBERS(group)
+* The members of a Linux group, as a field-marked list
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 11 Sep 26 dm  written.  PORT_ADOPTION 14: the Linux answer to the Windows
+*               port's "!os_group LISTMEM", which LIST.GRANTS and the promotion
+*               report in MODIFY.ACCOUNT both need.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    members = !grp_members(group)
+*
+*    Returns the group's supplementary members, one per field, in the order
+*    /etc/group holds them.  An empty answer means the group has none.
+*
+*    status()  0  read
+*              1  no such group, or /etc/group could not be read
+*
+*    IT READS /etc/group DIRECTLY, exactly as !is_grp_member, !is_group and
+*    !is_user do - the same openpath "/etc" and read.  No shell, no helper:
+*    this is a question about a file SD can already read, and sd-elevate exists
+*    for the writes, which are what need privilege.
+*
+*    THE PRIMARY-GROUP MEMBER IS NOT LISTED, AND THAT IS SAID RATHER THAN
+*    HIDDEN.  A user whose PRIMARY group is this one does not appear in field 4
+*    of /etc/group, so this cannot see them; answering that question needs a
+*    /etc/passwd scan per user.  On this system nobody has an sdu_ or sdg_
+*    group as their primary (measured 11 Sep 2026), and CREATE.ACCOUNT gives
+*    every account a group of its own that is nobody's primary.  If that ever
+*    changes, LIST.GRANTS would under-report, so the caller says where its
+*    answer comes from.
+*
+*    dcount('') IS 1, NOT 0 - the correction GRANTA's do.list carries in the
+*    port for the same reason.  An empty member field must count as no members,
+*    not as one member whose name is empty.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+function grp_members(group)
+$catalog !grp_members
+
+   members.out = ''
+   set.status 0
+
+   if group = '' then
+      set.status 1
+      return members.out
+   end
+
+   grp.found = @false
+
+   openpath "/etc" to gm.etc then
+      read gm.rec from gm.etc, "group" then
+         gm.lns = dcount(gm.rec, @fm)
+         for gm.i = 1 to gm.lns
+            if field(gm.rec<gm.i>, ':', 1) = group then
+               grp.found = @true
+               gm.members = field(gm.rec<gm.i>, ':', 4)
+               if gm.members # '' then
+                  gm.ct = dcount(gm.members, ',')
+                  for gm.u = 1 to gm.ct
+                     gm.one = trim(field(gm.members, ',', gm.u))
+                     if gm.one # '' then members.out<-1> = gm.one
+                  next gm.u
+               end
+               gm.i = gm.lns    ;* stop looking
+            end
+         next gm.i
+      end else
+         set.status 1           ;* cannot read /etc/group
+      end
+   end else
+      set.status 1              ;* cannot open /etc
+   end
+
+   if not(grp.found) then set.status 1
+
+   return members.out
+
+* END-CODE
