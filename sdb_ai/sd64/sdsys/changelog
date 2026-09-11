@@ -9,7 +9,7 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
-12 Sep 26  A SESSION THAT DIED NO LONGER LOCKS A FILE FOR EVER.
+11 Sep 26  A SESSION THAT DIED NO LONGER LOCKS A FILE FOR EVER.
 
            When a command needs a file to itself - BUILD.INDEX, DELETE.INDEX,
            CNAME, CONFIGURE.FILE, SET.TRIGGER - and cannot get it, it now names

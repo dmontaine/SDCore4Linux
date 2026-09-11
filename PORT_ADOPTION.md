@@ -31,7 +31,7 @@ in the same commit as the work.
     control also confirms an unmatched name is echoed AS TYPED.
   - Fixtures removed; DON back to `COUNT VOC` 410.
 
-### Built 11–12 Sep 2026 while the owner slept — COMPILED, NOT YET INSTALLED OR RUN
+### Built 10–11 Sep 2026 while the owner slept — COMPILED, NOT YET INSTALLED OR RUN
 
 Each compiled 0 errors with `scratchpad/cbp.sh` (dev binary, DON/BP, red
 control = 1 error, `COUNT VOC` 410 afterwards). **None is witnessed**; the
@@ -53,7 +53,7 @@ witness is the next delete→install cycle. **Not pushed.**
 | 3b | Enter = N at 3033–3035, 6131, 5040 | `catalog bp x` with x also local → prompt shows `(y/<n>)`, Enter keeps both |
 | 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
 
-## Waiting for the owner — skipped overnight 11–12 Sep because they need a ruling
+## Waiting for the owner — skipped overnight 10–11 Sep because they need a ruling
 
 0. ***REBOOT FIRST — the running SD is wedged*** (PROJECT_STATUS START HERE).
    And two decisions it raised: should `sdsem.c` take its semaphores with
@@ -154,7 +154,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | ~~7~~ | ~~HELP / F1 say something, msg 10149~~ — **BUILT 11 Sep** | `CPROC` | |
 | ~~8~~ | ~~CREATE.ACCOUNT names why a password failed~~ — **BUILT 11 Sep** | `CREATEA`, `SET_PASSWD` | |
 | ~~9~~ | ~~File-record descriptions (port 63, 136, 142)~~ — **BUILT 11 Sep** | data | |
-| ~~10~~ | ~~LOGOUT reaps a dead user; the holder is named~~ — **BUILT 12 Sep** | `CPROC` + C | |
+| ~~10~~ | ~~LOGOUT reaps a dead user; the holder is named~~ — **BUILT 11 Sep** | `CPROC` + C | |
 | ~~11~~ | ~~`[locked]` VOC records~~ — **BUILT 11 Sep** | `LOGIN update.voc` | |
 | 12 | SUSPENDED tier, 10110/10112/10159 | `MODIFYA tier.set`, `LOGIN`, `CPROC logto`, `APISRVR` | SD doors only |
 | 13 | K$AUDIT trail + records (MODIFYA ADD/DELETE, grants, elevation) | `op_kernel` `K_AUDIT`, `k_error.c` `audit_message`/`audit_rotate`, callers | key from the Linux block (93); O_APPEND + file mode instead of `win32audit.c` |

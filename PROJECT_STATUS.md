@@ -37,7 +37,7 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***⚠ 12 Sep 2026, ~03:45 — THE RUNNING SD IS WEDGED. REBOOT BEFORE RUNNING
+***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD IS WEDGED. REBOOT BEFORE RUNNING
 ANYTHING, including `deletesdai.sh`. Caused by my overnight testing; measured,
 not inferred.***
 - `ipcs -s -i 0` (SD_SEM_KEY 0x716d0302): `ERRLOG_SEM`(1)=0 last op pid 36587,
@@ -65,7 +65,7 @@ not inferred.***
 - **Not done, deliberately:** resetting the semaphores myself. They are 0666 and
   both holders are dead, but a reboot is certain and complete, and a reset
   would leave the orphaned lock for the next LIST.READU to trip over.
-- ***OVERNIGHT 11–12 Sep, END OF SESSION (credits).*** All commits LOCAL, none
+- ***OVERNIGHT 10–11 Sep, END OF SESSION (credits).*** All commits LOCAL, none
   pushed. Built: PORT_ADOPTION queue 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 20, 23,
   24, plus the `op_getlocks` NULL fix; the audit (186 + 37 entries) is done.
   Every BASIC change compiled 0 errors with a red control before the wedge.
