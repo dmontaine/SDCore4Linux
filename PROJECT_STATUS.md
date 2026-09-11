@@ -18,9 +18,10 @@ the work, nothing in "Verified" that was not observed that session.
 - **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
   block.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
-  **not started**; ***§L1*** — the per-tier VOC, **core built 10 Sep** (CREATEA
-  copy loop + the two NEWVOC control records); `LOGIN update.voc` + `MODIFYA`
-  tier re-derivation still to build, then compile-on-reinstall (Open section).
+  **not started**; ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
+  (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 = the omit
+  list; CREATUSR fix also witnessed); `LOGIN update.voc` + `MODIFYA` tier
+  re-derivation + ADOPT still to build (Open section).
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
@@ -1363,10 +1364,19 @@ or the installer's own seeding breaks):***
 - ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
   reinstall — do not stack three unverified install-critical CREATEA changes.
 
-### §L1 — per-tier VOC (CORE BUILT 10 Sep 2026; LOGIN/MODIFYA pending)
+### §L1 — per-tier VOC (CORE WITNESSED 10 Sep 2026; LOGIN/MODIFYA pending)
 
-***BUILD STATUS 10 Sep 2026 — the creation path is built, syntax-reviewed, NOT
-yet compiled or run.*** Done: the two control records
+***WITNESSED 10 Sep 2026 on a reinstall.*** CREATEA compiled (the install
+completed). New accounts created on that install, counts read in-SD via `COUNT
+VOC` / `LIST VOC 'BASIC'`: **STANDARD `tstd` = 368 records, BASIC NOT FOUND;
+PROGRAMMER `tprog` = 410, BASIC present.** The gap is **exactly 42** — the 42
+verbs in `TIER.OMIT.STANDARD`. So STANDARD gets NEWVOC less the omit list (cannot
+build) and PROGRAMMER gets it entire — the tier VOC works at creation. Also
+witnessed: the CREATUSR fix — `create-account user tprog programmer` (no
+`no.query`) had SD create the OS user (`useradd`) and prompt for the password.
+***Still pending (same filter): `LOGIN` `update.voc` and `MODIFYA` tier-change
+re-derivation*** (see below), and the ADOPT work (above). Build details: the two
+control records
 `sdsys/NEWVOC/TIER.OMIT.STANDARD` (42 dev verbs) and
 `sdsys/NEWVOC/TIER.ADD.ADMINISTRATOR` (5 admin verbs: CREATE/DELETE/MODIFY/
 UPDATE.ACCOUNT, UNLOCK), and the **tier-aware copy loop in `CREATEA`**
