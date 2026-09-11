@@ -42,6 +42,8 @@ witness is the next delete→install cycle. **Not pushed.**
 | 3, 4 | DELETEF: port 14, 26, 104, 113 + Enter = N on 6135/6140 (Linux; port bug 6). Msg 10117 new, 6135/6140 reworded. `open 'voc'` NOT taken (§M) | fixture as in "Adopted" above with a lower-case name: `delete.file zzak no.query` deletes with NO prompt; a file whose dict is `@SDSYS/...` + `no.query` → 6145 + 10117, file kept; `printf 'delete.file x\n' \| timeout 10 sd` on a path-differs file ends (N) instead of spinning |
 | 23 | CPROC `.D name`: as typed → down → up, 5043 on a miss, each failed `readu` releases its own id (port 5) | `.D nosuch` → `nosuch not found in VOC`, no prompt; save a sentence, `.D` it in the other case → deleted |
 | 5 | LOGIN: `TERM` with no shipped terminfo falls back to `linux` (UPSTREAM 12; port falls back to `windows`). ***PREMISE WITNESSED 11 Sep*** on the tree dev `bin/sd` (same C as the `af879d3` install) with a `$internal` probe: `xterm-256color` → in force stays `linux`; control `vt100` → `vt100`; `xterm-256color` again → stays `vt100`; `LINUX` → `linux` (so the downcase is needed). Shipped types: no `*-256color` at all | `TERM=xterm-256color sd`: the screen is cleared at sign-on (with the old LOGIN it is not); control `TERM=linux sd` unchanged |
+| 6 | ED preset `-ER$ARGS` (UPSTREAM 11) | an ED command error leaves `@SYSTEM.RETURN.CODE` < 0 |
+| 20 | READSEQ CRLF (UPSTREAM 13), C. ***WITNESSED pre/post on the tree dev binary*** vs the installed one, same probe and fixtures: CRLF len 6+CR → 5; boundary-split CRLF 2048+CR → 2047; lone CR and CR-at-EOF kept; LF control identical; READCSV last field `B1`+CR → `B1` | repeat with `/usr/local/sdsys/bin/sd` after install: the installed binary must now give the "after" column |
 | 7 | CPROC F1 prints 10149 (port 8). Text adapted: the port names its Start Menu check; here `@SDSYS/changelog`, which ships world-readable. Same number and meaning | F1 at an empty `:` prompt → the three-part message with `/usr/local/sdsys/changelog` |
 | 3b | Enter = N at 3033–3035, 6131, 5040 | `catalog bp x` with x also local → prompt shows `(y/<n>)`, Enter keeps both |
 | 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
@@ -77,8 +79,12 @@ and most of the rest had been fixed on 8–9 Sep under the parity plan's own ids
   37 (`CPROC:3185` already says verb 15) · 15 (VFS removed, plan G2) · 16
   (MICRO superseded by the port's EDIT).
 - **Not applicable (1):** 2 — resolved in the port as *not* upstream's bug.
-- **Open (8):** 23, 27 → queue 3 · 12 → queue 5 · 11 → queue 6 · 4, 6, 13, 34
-  → queue 20.
+- **Open (8) — as of 11 Sep night, 6 of them BUILT:** 23, 27, 34 (DELETEF),
+  12 (LOGIN), 11 (ED), 13 (READSEQ — witnessed on the tree binary) · 4 **does
+  not apply**: the Linux client forks and passes the descriptor form `-C%d!%d`
+  as one argument, which `sd.c:432` parses, and runs `<sysdir>/bin/sd`, which
+  is where the binary is · 6 (CREATE.FILE's on-disk case) → queue 18, decided
+  by the owner's lower-case ruling.
 
 ## PRE_RELEASE_FIXES reconciliation — all 186 of the port's entries, 11 Sep 2026
 
@@ -133,7 +139,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | ~~4~~ | ~~DELETEF takes the ospath result~~ — **BUILT 11 Sep**, with port 113 | `DELETEF` | |
 | 3b | Every Y/N loop maps Enter to its default — **BUILT 11 Sep** for `CATALOG` ×3 (3033–3035), `DELETEF` 6131, `CPROC` 5040, all Enter = N. `SPVIEW` needs nothing (presets `yn = 'Y'` in a formatted field). **Left for the owner:** `DELETEF` 2050 and 6133 — see "Waiting for the owner" | | |
 | ~~5~~ | ~~LOGIN falls back when TERM has no terminfo~~ — **BUILT 11 Sep** | `LOGIN` | |
-| 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
+| ~~6~~ | ~~ED return-code preset sign~~ — **BUILT 11 Sep** (`ED:60` was `+ER$ARGS`; CREATEA's twin already fixed) | `ED` | |
 | ~~7~~ | ~~HELP / F1 say something, msg 10149~~ — **BUILT 11 Sep** | `CPROC` | |
 | 8 | CREATE.ACCOUNT names why a password failed, 10118–10121 (port 22) | `CREATEA`, `SET_PASSWD` | map PAM/passwd status |
 | 9 | `NEWVOC/NEWVOC` description (port 142), and every file record's field 1 a description rather than a bare `F` (port 63, 136) | data, `VOC_TEMPLATE`/`NEWVOC` | direct |
@@ -147,7 +153,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | 17 | MODIFY.PASSWORD | `SET_ACC_PASSWORD` | `sd-elevate passwd`; no `$cred` |
 | 18 | Lower-case conversion §M — ***COMPLETE, NOT THE PORT'S PARTIAL RESULT*** (owner, 11 Sep; see below) | port 5.12 | release-blocking; goes past the port |
 | 19 | Register/OS reconciliation at start (port 93) | `reconcile-accounts.ps1` | systemd `ExecStartPre` script — review |
-| 20 | UPSTREAM 4, 6, 13, 34 — read each entry and verify against this tree | — | — |
+| ~~20~~ | ~~UPSTREAM 4, 6, 13, 34~~ — **DONE 11 Sep**: 13 built + witnessed on the tree binary, 34 built (DELETEF), 4 does not apply, 6 → queue 18 | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) | `gplbld` | adapt to this tree's docs |
 | 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
 | ~~23~~ | ~~`.D name`~~ — **BUILT 11 Sep** | `CPROC` | |
