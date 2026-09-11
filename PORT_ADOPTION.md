@@ -43,6 +43,24 @@ witness is the next delete→install cycle. **Not pushed.**
 | 23 | CPROC `.D name`: as typed → down → up, 5043 on a miss, each failed `readu` releases its own id (port 5) | `.D nosuch` → `nosuch not found in VOC`, no prompt; save a sentence, `.D` it in the other case → deleted |
 | 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
 
+## Waiting for the owner — skipped overnight 11–12 Sep because they need a ruling
+
+1. **Push and install.** Everything after `c8409e2` is local. The builds below
+   are compiled, not run; the next delete→install cycle is their witness.
+2. **`DELETE.FILE` with an active select list (message 2050), what Enter
+   means.** 2050 is shared by six verbs; `DELETE`, `CD`, `COPY`, `CT` and `ED`
+   treat anything but N as yes, so its de-facto default is **Y**. In `DELETEF`
+   only, Enter re-asks for ever. Y keeps one message meaning one thing, but here
+   it means "delete the file the list names"; N follows port 79's
+   destructive-means-N pattern and makes 2050 mean different things in
+   different verbs.
+3. **`DELETE.FILE` on a multifile (6133 "Delete all data components?").**
+   Answering N does not mean "change nothing" — it jumps to `delete.dict` and
+   deletes the dictionary anyway. So there is no safe answer for Enter to take
+   until someone says what N should do.
+4. **§M scope:** whether "no two casings" reaches record ids in a user's own
+   data files, and account names (PORT_ADOPTION "Queue 18").
+
 ## UPSTREAM_FIXES reconciliation — all 37, 11 Sep 2026
 
 Measured against this tree's source, because this file named only 19 of the 37
@@ -110,7 +128,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 |---|---|---|---|
 | ~~3~~ | ~~DELETE.FILE NO.QUERY~~ — **BUILT 11 Sep**, see "Built … while the owner slept" | `DELETEF` | |
 | ~~4~~ | ~~DELETEF takes the ospath result~~ — **BUILT 11 Sep**, with port 113 | `DELETEF` | |
-| 3b | Every Y/N loop maps Enter to its default (port 79's rule; the rest of the undefaulted loops) | `CATALOG` ×3, `SPVIEW`, `DELETEF` 2050/6131/6133, `CPROC` `.D` 5040 | direct; shared message 2050 needs care |
+| 3b | Every Y/N loop maps Enter to its default — **BUILT 11 Sep** for `CATALOG` ×3 (3033–3035), `DELETEF` 6131, `CPROC` 5040, all Enter = N. `SPVIEW` needs nothing (presets `yn = 'Y'` in a formatted field). **Left for the owner:** `DELETEF` 2050 and 6133 — see "Waiting for the owner" | | |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
 | 7 | HELP / F1 say something, msg 10149 (port 8) | `CPROC` | direct |

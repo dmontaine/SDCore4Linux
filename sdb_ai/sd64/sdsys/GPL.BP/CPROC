@@ -20,7 +20,8 @@
 * START-HISTORY:
 * 11 Sep 26 .D name folds case (as typed, down, up), reports 5043 when
 *           nothing matches instead of acting on a stale voc.rec, and releases
-*           the lock each failed readu took (port PRE_RELEASE_FIXES 5).
+*           the lock each failed readu took (port PRE_RELEASE_FIXES 5).  Its
+*           "Delete VOC record" prompt (5040) shows its default; Enter is N.
 * 10 Sep 26 PARITY AUDIT. UPDATE.ACCOUNT is UPDATE.ACCOUNTS and takes ALL, as
 *           the port's (its PRE_RELEASE_FIXES 70); its heading's "verb 30" is
 *           corrected to 15. The five start-up privilege notices move from
@@ -1336,9 +1337,10 @@ stack.manipulation:
 
             if upcase(voc.rec[1,1]) = "S" or upcase(voc.rec[1,2]) = "PA" then
                loop
-                  display sysmsg(5040, at.command) :  ;* Delete VOC record '%1'?
+                  display sysmsg(5040, at.command) :  ;* Delete VOC record '%1' (y/<n>)?
                   prompt ""
                   input s
+                  if s = '' then s = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
 
                   if upcase(s[1,1]) = "N" then
                      release voc, at.command

@@ -37,7 +37,9 @@ SD: what changed, why it mattered, and what it does not do.
            case.  When the question is asked, it now shows that Enter means No,
            and it no longer asks again for ever when there is nobody to answer
            it - run from a script it used to print the question millions of
-           times.  An index held in a separate directory is now reported if it
+           times.  The same holds for "Use file" in DELETE.FILE, for the three
+           "Program is also in ... catalogue. Remove?" questions in CATALOG, and
+           for .D's "Delete VOC record?": each shows (y/<n>), and Enter means No.  An index held in a separate directory is now reported if it
            cannot be deleted (message 2636) instead of being left behind
            without a word.  And DELETE.FILE refuses to delete VOC itself however
            you type the name.
