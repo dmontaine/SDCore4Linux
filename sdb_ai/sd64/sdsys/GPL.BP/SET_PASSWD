@@ -19,6 +19,7 @@
 *
 * START-HISTORY:
 * rev 0.9.0 Jan 25 mab initial commit
+* 11 Sep 26 dm  Header: what STATUS() actually holds (passwd's exit code).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -29,6 +30,16 @@
 *
 *    This function sets the STATUS() value to 0 if successful and returns true
 *    Otherwise sets status to the os status and returns false
+*
+*    11 Sep 26 dm - THE TABLE BELOW IS NOT WHAT STATUS() HOLDS.  The status
+*    is OS.ERROR() after "sudo sd-elevate passwd", i.e. passwd(1)'s EXIT code
+*    (man 1 passwd: 0 success, 1 permission denied, 2 invalid combination of
+*    options, 3/4 unexpected failure, 5 passwd file busy, 6 invalid argument,
+*    10 an error was returned by pam), or sd-elevate's 2 for a refusal - plus
+*    this function's own 6 (not an administrator) and 2 (invalid name), set
+*    before anything runs.  The PAM codes below are what pam(3) returns to
+*    passwd, one level further in; passwd folds them all into its 10.  So a
+*    mismatch and a policy refusal both arrive here as 10.  CREATEA reads it.
 *
 * os error numbers for passwd found in linux source include/security/_pam_types.h
 * ----------------- The Linux-PAM return values ------------------ */
