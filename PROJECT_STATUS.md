@@ -1417,7 +1417,7 @@ depends on that today; it would bite the first time somebody's primary group is
 an SD group.
 
 **ADDED 10 Sep 2026 — API port 4243; the two installer prompts + a TCP listener
-BUILT 10 Sep, UNWITNESSED.** Owner: SD Core conforms to the Windows port, which
+BUILT + WITNESSED 10 Sep.** Owner: SD Core conforms to the Windows port, which
 stays on **4243** (reconsidered 4243→4245→4243 this session; the durable reason
 is that changing the API port across an upgrade is itself the problem, so the
 port stays put and Linux matches it for upgrade compatibility). Built this
@@ -1438,14 +1438,16 @@ force-enabled:
   = Y → `systemctl enable --now ssh` + `ufw allow 22/tcp`; "Allow API access" = Y
   → the 0.0.0.0 rebind + `ufw allow 4243/tcp`. ufw is not force-enabled — the
   gate is the bind address; the ufw rule is belt-and-braces for when ufw is on.
-- ***UNWITNESSED — needs commit+push+reinstall (an install tests `origin/main`).***
-  Witness: (1) default install → API on 127.0.0.1:4243, a **local** TCP client
-  connects and authenticates, a remote one cannot; (2) install answering API=Y →
-  listener on 0.0.0.0:4243, a **remote** client connects and authenticates; (3)
-  ssh=Y → sshd enabled at boot, port 22 reachable. ***The least-tested claim: that
-  `sd -n -q` completes the client handshake + login on a TCP fd exactly as on the
-  Unix socket*** — plausible (the post-switch code is fd-0/transport-agnostic) but
-  unrun.
+- ***WITNESSED 10 Sep 2026 on the `11571a7` install (API=Y, listener
+  `0.0.0.0:4243`).*** The owner ran the headless client
+  `scratchpad/apitest/apitest.py` (`sdclilibwrap.sdmeConnect` → a real TCP
+  connect, not the Unix socket): `--user pete --account PETE` → `SDConnect`
+  returned **1**, `SDConnected()=1`, and `WHO` over the connection returned
+  `2 PETE` (SDExecute err 0). ***So the least-tested claim is confirmed: `sd -n
+  -q` completes the SDConnect handshake + `login()` + `sdusers` check on a TCP fd
+  exactly as on the Unix socket.*** Both installer prompts appeared on the run.
+  Still to exercise if wanted: a **remote** host (`--host <ip>`), and a **default
+  (API=N)** install to confirm the listener is then 127.0.0.1-only.
 - **Still open, separate:** the C **client** defaults `gplsrc/sdclilib.c:3485` /
   `sdclient.c:3404` = 4245 should become 4243; `changelog`'s 4243→4245 line runs
   against the ruling. Client-side, not the listener.
