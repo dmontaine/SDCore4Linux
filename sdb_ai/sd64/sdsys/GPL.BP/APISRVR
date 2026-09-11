@@ -24,6 +24,8 @@
 *               always run in secure mode
 * 28 Jul 24 mab remove enter.package / exit.package (commands not supported)
 * rev 0.9.0 Jan 25 mab test for user member of account on logto
+* 11 Sep 26 dm  vb.account refuses a suspended account with 10003, the same
+*               text as every other refusal (PORT_ADOPTION 12, the port's).
 * END-HISTORY
 *
 *
@@ -350,13 +352,30 @@ if len(new.account) < 1 or len(new.account) > MAX.ACCOUNT.NAME.LEN then
 end
 
 account.path = new.account
+acc.suspended = @false
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
       read acc.rec from acc.f, new.account then
          account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
+         acc.suspended = (upcase(trim(acc.rec<ACC$TIER>)) = 'SUSPENDED')
       end
       close acc.f
    end
+end
+
+* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
+*   port's APISRVR of 27 Aug 2026).  The third door, after LOGIN and CPROC's
+*   LOGTO; an API caller reaches an account through neither.
+*
+*   IT REUSES 10003, AND THAT IS THE RULE HERE.  Every refusal in this routine
+*   gives the same text, so a caller cannot tell "no such account" from "not a
+*   member" from "suspended", and the API does not enumerate the register for
+*   anyone probing it.  No administrator exemption: an API session carries none.
+if acc.suspended then
+    server.error = SV$ERROR
+    error.msg = sysmsg(10003) ;* User not allowed in requested account
+    abort.message = error.msg
+    goto revert.to.old.account
 end
 
 * rev 0.9.0 * is user member of account?   

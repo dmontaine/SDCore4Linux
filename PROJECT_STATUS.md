@@ -84,8 +84,11 @@ the work, nothing in "Verified" that was not observed that session.
   and strands a lock even through `CLOSESEQ`; reverted, the file is written and
   no lock remains. Not installed. Live had no stranded locks at 12:22. The
   port's generation-2 C findings are all accounted for here (PORT_ADOPTION 27).
-- **NEXT:** the owner's delete→install cycle, which witnesses queue 26
-  (PORT_ADOPTION 26); queue 27's cause; then queue 12 onward.
+- **QUEUE 12 (SUSPENDED) BUILT AND COMPILED, 11 Sep, not run** — MODIFYA, the
+  three doors, five messages, two dictionary items; PORT_ADOPTION 12 has the
+  witness steps, which need `sudo sd`.
+- **NEXT:** the owner's delete→install cycle — one install witnesses queues 12,
+  26 and 27 (PORT_ADOPTION rows); then queue 13 (K$AUDIT) onward.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
@@ -1871,7 +1874,9 @@ already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
   after §M lower-cases NEWVOC. §L1 and §M's fold interact — neither should assume
   the other's casing.
 - ***SUSPENDED*** tier VOC is undecided; LOGIN already refuses a suspended login,
-  so content may be moot — confirm.
+  so content may be moot — confirm. ***[11 Sep 2026: "LOGIN ALREADY REFUSES" WAS
+  FALSE — no door in LOGIN, CPROC or APISRVR tested SUSPENDED (grep, 11 Sep).
+  Settled by queue 12: the VOC is left as it is while suspended, as the port's.]***
 - ***OBJECTION RAISED AND RESOLVED 10 Sep 2026 (owner) — the omit list stands as
   the port's, INCLUDING `run`, `phantom`, `logout`.*** The principle: **a STANDARD
   account only runs CATALOGUED programs.** The three are omitted on purpose —

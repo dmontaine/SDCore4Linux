@@ -19,6 +19,10 @@
 * 
 *
 * START-HISTORY:
+* 11 Sep 26 SUSPENDED, the fourth tier (PORT_ADOPTION 12, the port's tier.set of
+*           27 Aug 2026): ACC$PRIOR.TIER is written on the way in, the VOC is
+*           left as it is while suspended, nothing changes in Linux; 10108,
+*           10110, 10112 and 10159 as the port's.
 * 10 Sep 26 SL1. A tier change re-derives the account's VOC at once, before the
 *           register write - the port's voc.delta (27 Aug 2026). Up copies the
 *           tier's layer in; down removes only records still exactly as a tier
@@ -105,7 +109,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username> '
-      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR'
+      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED'
       crt '                 MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF'
       stop
    end
@@ -130,7 +134,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    action = upcase(action)
 
    begin case
-      case action = 'STANDARD' or action = 'PROGRAMMER' or action = 'ADMINISTRATOR'
+      case action = 'STANDARD' or action = 'PROGRAMMER' or action = 'ADMINISTRATOR' or action = 'SUSPENDED'
          gosub set.tier
          stop
 * 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The OS-access grants.  Four keywords
@@ -227,7 +231,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
       end else
          crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, a tier, or an OS-access grant'
-         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SH-ON | SH-OFF | OS-ON | OS-OFF'
+         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED | SH-ON | SH-OFF | OS-ON | OS-OFF'
       end
 
    end else
@@ -237,6 +241,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
 
 *****************************************************************************
 * SET.TIER  -  MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR
+*                                        | SUSPENDED
 *
 * 09 Sep 26 dm - PRE_RELEASE 18.  ***THIS IS THE EXIT FROM CPROC'S BOOTSTRAP
 *   ARM, AND WITHOUT IT THE ARM COULD NEVER CLOSE.***  Found by the owner, 9 Sep
@@ -269,13 +274,54 @@ deffun valid_os_name(name) calling '!valid_os_name'
 *   themselves - leaves the register with none, so CPROC's arm starts firing
 *   again on the next privileged session and the way back in is open.  That is
 *   worth knowing before anyone adds a "you may not demote yourself" rule.
+*
+* 11 Sep 26 dm - SUSPENDED, THE FOURTH TIER (PORT_ADOPTION 12).  The port's
+*   tier.set of 27 Aug 2026 and its owner's rulings: a suspension is a value of
+*   ACC$TIER with the tier it displaced in ACC$PRIOR.TIER; SD's own doors refuse
+*   it (LOGIN, CPROC's LOGTO, APISRVR's vb.account); and NOTHING CHANGES IN
+*   LINUX - sdadmin and every other group stay as they are, which is what makes
+*   lifting it free (the port's PRE_RELEASE 20).  There is no resume keyword:
+*   coming back names the tier.  The VOC is left exactly as it is while the
+*   account is suspended, and the way back is a delta from ACC$PRIOR.TIER to
+*   the tier named.
+*
+*   FIELD 6 IS WRITTEN ONLY ON THE WAY IN.  The SUSPENDED-to-SUSPENDED guard
+*   (10110) is what stops a second suspend overwriting it with SUSPENDED.
+*
+*   OBJECTION, RESOLVED HERE: THAT GUARD IS SUSPENDED-ONLY, WHERE THE PORT'S
+*   RETURNS ON ANY EQUAL TIER.  Repeating STANDARD, PROGRAMMER or ADMINISTRATOR
+*   still reconciles sdadmin (the paragraph above), which is how a failed
+*   usermod is repaired on Linux; a general early return would take that away.
+*   So 10110 answers only the case that could lose data.
+*
+*   NOBODY SUSPENDS THE ACCOUNT THEY LOGGED IN TO OR STAND IN (10112): the
+*   session would work until it ended and could not be re-established.
 
 set.tier:
    acc.user = ''
    if group.name[1,4] = 'sdu_' then acc.user = group.name[5,999]
 
-   old.tier = upcase(trim(acc.rec<ACC$TIER>))
+   raw.tier = upcase(trim(acc.rec<ACC$TIER>))
+   prior.tier = upcase(trim(acc.rec<ACC$PRIOR.TIER>))
+   old.tier = raw.tier
    if old.tier = '' then old.tier = 'STANDARD'  ;* written before the field existed
+
+   if action = 'SUSPENDED' then
+      if raw.tier = 'SUSPENDED' then
+         crt sysmsg(10110, acc.name, action)  ;* %1 is already %2; nothing changed
+         return
+      end
+      if (acc.name = upcase(@logname)) or (acc.name = upcase(@who)) then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10112)  ;* You cannot suspend your own account or the one you are standing in
+         return
+      end
+   end
+
+* The tier this account is LEAVING, for sdadmin.  A suspended administrator kept
+*   sdadmin, so lifting the suspension to a lower tier is the demotion.
+   from.tier = old.tier
+   if raw.tier = 'SUSPENDED' then from.tier = prior.tier
 
    if action = 'ADMINISTRATOR' and acc.user = '' then
       @system.return.code = -ER$ARGS
@@ -295,14 +341,25 @@ set.tier:
 *   account created before tiers, holding the full NEWVOC, so it ranks as
 *   PROGRAMMER (tier.rank) - read as STANDARD, the first tier change such an
 *   account saw would delete 42 verbs it has always had.
-   voc.from = upcase(trim(acc.rec<ACC$TIER>))
+*   SUSPENDED IS RESOLVED ON BOTH ENDS, as the port does.  From a suspension
+*   the VOC is at the tier in field 6; to one, it stays where it is.  Field 6
+*   empty on a suspended account (hand-edited, or suspended before it had a
+*   tier) leaves no honest "from", so the VOC is left alone and 10108 says so.
+   voc.from = raw.tier
+   if voc.from = 'SUSPENDED' then voc.from = prior.tier
    voc.to = action
+   if voc.to = 'SUSPENDED' then voc.to = voc.from
    voc.ok = @true
    voc.added = 0
    voc.removed = 0
    voc.kept = 0
    voc.failed = 0
-   gosub voc.delta
+   voc.skipped = @false
+   if raw.tier = 'SUSPENDED' and prior.tier = '' then
+      voc.skipped = @true
+   end else
+      gosub voc.delta
+   end
    if not(voc.ok) then
       @system.return.code = -ER$FAILED
       crt sysmsg(10114, acc.name)  ;* Unable to change the tier of %1; nothing has changed
@@ -310,18 +367,29 @@ set.tier:
    end
 
    acc.rec<ACC$TIER> = action
+   if action = 'SUSPENDED' then
+      acc.rec<ACC$PRIOR.TIER> = raw.tier  ;* only on the way in - the guard above returned otherwise
+   end else
+      acc.rec<ACC$PRIOR.TIER> = ''
+   end
    write acc.rec to acc.f, acc.name
 
    begin case
       case action = 'ADMINISTRATOR'
          gosub join.sdadmin
-      case old.tier = 'ADMINISTRATOR'
+      case action = 'SUSPENDED'
+         null  ;* nothing changes in Linux - the port's PRE_RELEASE 20
+      case from.tier = 'ADMINISTRATOR'
          gosub leave.sdadmin
    end case
 
    @system.return.code = 0
    crt sysmsg(10109, acc.name, action)  ;* Account %1 is now %2
-   crt sysmsg(10113, voc.added, voc.removed, voc.kept)  ;* VOC: %1 records added, %2 removed, %3 left alone
+   if voc.skipped then
+      crt sysmsg(10108, acc.name)  ;* %1 has no record of the tier it held, so its VOC was left alone
+   end else
+      crt sysmsg(10113, voc.added, voc.removed, voc.kept)  ;* VOC: %1 records added, %2 removed, %3 left alone
+   end
 
 * A failed delete is reported on its own line and is not "left alone" - that
 *   count means deliberately kept because it differs from the tier build.  The
@@ -329,6 +397,16 @@ set.tier:
    if voc.failed then
       @system.return.code = -ER$FAILED
       crt sysmsg(10157, voc.failed, acc.name)  ;* VOC: %1 record(s) could not be removed, so %2 still has them
+   end
+
+* SUSPENDED SAYS WHAT IT DID AND WHAT IT DID NOT DO - the port's PRE_RELEASE
+*   111 and its owner's ruling of 1 Sep 2026.  Every claim in 10159 is from the
+*   code: the three doors refuse; Linux is untouched (the case above); and under
+*   sudo sd grant.administrator requires ACC$TIER to be exactly ADMINISTRATOR
+*   (CPROC:888), so a suspended administrator is not granted it while any other
+*   administrator is registered.
+   if action = 'SUSPENDED' then
+      crt sysmsg(10159, acc.name)  ;* what suspending took, what it left alone, and what lifts it
    end
    return
 

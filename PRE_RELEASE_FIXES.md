@@ -1134,6 +1134,10 @@ never close, and nothing in the gate itself would have shown that.**
 | `MODIFYA` `join`/`leave.sdadmin` | mirror `CREATEA:377-390` and the existing DELETE arm rather than inventing a second way; `valid_os_name` guards the shell in both |
 | `MESSAGES/10035`, `10036` | the result, and the refusal for an account with no person |
 
+***[11 Sep 2026: REVERSED — SUSPENDED IS BUILT WITH ITS DOORS (LOGIN, CPROC's
+LOGTO, APISRVR), so the reason below no longer holds. PORT_ADOPTION 12; compiled,
+not yet run.]***
+
 ***THE GRAMMAR IS THE PORT'S MINUS `SUSPENDED`, AND THAT OMISSION IS DELIBERATE.***
 The port has `STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED`
 (`sd4windows` `gpl.bp/MODIFYA:121`). **SUSPENDED denies access**, and the doors

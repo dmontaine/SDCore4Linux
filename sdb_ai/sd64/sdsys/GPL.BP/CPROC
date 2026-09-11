@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 LOGTO refuses a suspended account (10107) unless the session holds
+*           the administrator flag (PORT_ADOPTION 12, the port's logto).
 * 11 Sep 26 .D name folds case (as typed, down, up), reports 5043 when
 *           nothing matches instead of acting on a stale voc.rec, and releases
 *           the lock each failed readu took (port PRE_RELEASE_FIXES 5).  Its
@@ -2795,6 +2797,22 @@ int.logto:
 *   sdsys***, so that account did not get the -U treatment and an
 *   administrator could NOT enter it before - for that one case this is a
 *   widening, not a preservation.  Why sdu_don differs is an open lead.
+* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED BY LOGTO (PORT_ADOPTION 12;
+*   the port's logto.authorised, 27 Aug 2026).  LOGIN shuts the front door; an
+*   account reached with LOGTO never goes through LOGIN.
+*
+*   AN ADMINISTRATOR STILL ENTERS ONE - the port's judgement call, kept rather
+*   than the owner's ruling: looking at a suspended account is the ordinary
+*   reason to have one, and an administrator can lift the suspension anyway.
+*   If that is wrong, drop the K$ADMINISTRATOR half of this test; do not add a
+*   second test.  The way out mirrors the 10003 refusal below.
+   if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$TIER>)) = 'SUSPENDED' then
+      display sysmsg(10107, new.account) ;* Account %1 is suspended
+      if ospath(account.path, OS$CD) then return
+      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
+      return to abort.cproc
+   end
+
    if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
       if ospath(account.path, OS$CD) then return
