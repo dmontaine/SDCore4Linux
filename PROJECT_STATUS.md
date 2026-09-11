@@ -106,13 +106,26 @@ the work, nothing in "Verified" that was not observed that session.
   `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
   would stop part way. Known limit, as the port's: a shell user can append a
   line of their own. PORT_ADOPTION 13 has the witness steps.
-- ***QUEUE 14 STARTED AND HANDED OVER MID-BUILD, 11 Sep (credits).*** Written,
-  ***NOT COMPILED, NOT WIRED, NO VOC RECORDS***: `GPL.BP/TIERGATE`
-  (`!tier_allows`) and `GPL.BP/GRP_MEMBERS` (`!grp_members`). The rest of the
-  work, in order, is listed in PORT_ADOPTION 14. Read the port's `GRANTA` and
-  its `MODIFYA` `promo.snapshot`/`promo.report` before writing them; the rule is
-  the owner's to the port, 29 Aug 2026 — ***a grant may go down or sideways,
-  never up, and SDSYS is never granted***.
+- ***QUEUE 14 BUILT AND COMPILED 11 Sep — NOT INSTALLED, NOT RUN, SO NOTHING
+  OF IT IS WITNESSED.*** `GPL.BP/GRANTA` (`$GRANTA`: GRANT / REVOKE /
+  LIST.GRANTS), the gate at `CPROC:2865`, the ADD-arm gate and the promotion
+  report in `MODIFYA` (`:201`, `:419`/`:469`), three `VOC_TEMPLATE` records,
+  three names in `NEWVOC/TIER.ADD.ADMINISTRATOR`, messages 10041-10050 +
+  10126-10129 + 10911, changelog. All five programs 0 errors, no warning; red
+  control `QBAD` 3 errors. Tree rebuilt PLAIN, DON `COUNT VOC` 411. Detail,
+  the witness plan and ***the three deliberate divergences from the port*** are
+  in PORT_ADOPTION 14 and not repeated here. ***THE ONE TO CHECK FIRST WHEN IT
+  IS RUN: `$GRANTA` is deliberately NOT in `CPROC`'s `privileged_commands`
+  (`:197-201`)*** — its four premises are each measured, but the conclusion
+  drawn from them is not, and a GRANT that fails at run time is what a wrong
+  premise would look like.
+- ***UNWITNESSED PREMISE WORTH ITS OWN LINE, because it is the claim 10043
+  makes to the user:*** on Linux a grant reaches SD at once (`!is_grp_member`
+  reads `/etc/group` per call) but reaches the FILESYSTEM only at the person's
+  next Linux login (account dirs are `drwxrwsr-x <user> sdu_<name>`, measured
+  on all five; a session carries the groups it started with). Read off the
+  modes and the code, ***not measured end to end***. Falsified by a granted,
+  still-logged-in person who can write a record in the account.
 - ***MEASURED 11 Sep, AND IT ANSWERS AN OPEN LEAD WITH A CORRECTION:
   NO `sdu_` GROUP ON THIS MACHINE CONTAINS `sdsys`*** — 0 of 5
   (`sdu_don|pete|tstd|tprog|tadm`, all `root,<user>`), on the fresh `c2b375d`
@@ -123,9 +136,11 @@ the work, nothing in "Verified" that was not observed that session.
   non-zero on failure, so why `sdsys` is absent is not yet explained. It matters
   for queue 14: `LIST.GRANTS` reports what the group holds, and CPROC:2807's
   "open lead" about `sdu_don` is now known to be general, not one account.
-- **NEXT:** queue 14 (TIERGATE, GRANT/REVOKE/LIST.GRANTS) onward. The next
-  keep-accounts delete→install is also the witness for the audit trail's
-  carry-over (PORT_ADOPTION 13).
+- **NEXT:** the delete→install cycle, which witnesses queue 14 (the plan is in
+  its PORT_ADOPTION row), the audit trail's carry-over and rotation
+  (PORT_ADOPTION 13), and queue 12's ssh and API doors. Then the queue
+  continues at 15 (ADOPT), 16, 17, 19, 21, 22, 25, and §M / queue 18 under the
+  11 Sep ruling.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***

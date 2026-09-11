@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 LOGTO refuses a grant that goes UPWARD - a person whose own tier is
+*           below the account's (10126, audit reason=tier).  PORT_ADOPTION 14,
+*           the port's logto.authorised of 29 Aug 2026.  ***THIS IS THE GATE***;
+*           GRANTA's and MODIFYA's copies are courtesy, because the grant is
+*           Linux group membership and usermod makes one without SD.
 * 11 Sep 26 LOGTO, a refused LOGTO, and the administrator grant under sudo sd -
 *           given or refused - are written to the audit trail (PORT_ADOPTION
 *           13, the port's).
@@ -191,6 +196,9 @@ $include define_install.h
 deffun errtext(err) calling '!errtext'
 * rev 0.9.0 *
 deffun is_grp_member(user,group) calling '!is_grp_member'
+* 11 Sep 26 dm - PORT_ADOPTION 14.  The tier ordering, at int.logto below.
+*   ***THIS IS THE LOAD-BEARING CALLER***; GRANTA's and MODIFYA's are courtesy.
+deffun tier_allows(user,account) calling '!tier_allows'
 
 $define max.elements 500
 
@@ -2828,6 +2836,36 @@ int.logto:
    if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
       void kernel(K$AUDIT, 'LOGTO REFUSED account=' : upcase(new.account) : ' reason=not granted')
+      if ospath(account.path, OS$CD) then return
+      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
+      return to abort.cproc
+   end
+
+* 11 Sep 26 dm - AND THE GRANT MUST NOT GO UPWARD.  PORT_ADOPTION 14, the
+*   port's logto.authorised of 29 Aug 2026 and the owner's rule to it: a grant
+*   may go down or sideways, never up.
+*
+*   ***THIS IS THE GATE.  GRANTA'S COPY AND MODIFYA'S ARE COURTESY AND THIS ONE
+*   IS LOAD BEARING.***  The grant IS Linux group membership, so an
+*   administrator can "usermod -aG sdu_<name> <person>" without going near SD;
+*   and MODIFY.ACCOUNT can promote an account long after a legal grant was
+*   made, with nothing revisiting the group afterwards.  Neither of those
+*   reaches a check at grant time.  Both reach this one.
+*
+*   AFTER THE GROUP TEST, NOT BEFORE, so only somebody who was actually granted
+*   learns anything from the refusal.  A caller who was never granted still
+*   gets the undifferentiated 10003 above and cannot use this message to probe
+*   other accounts' tiers.
+*
+*   THE ADMINISTRATOR BYPASS IS THE SAME HALF THE TWO TESTS ABOVE CARRY, and
+*   must be: an administrator never reaches here, so "only an administrator
+*   enters SDSYS" is not this test's job - the SDSYS block at :2745 refuses a
+*   non-administrator before the register is read.  !tier_allows refuses SDSYS
+*   by name as well, which is belt and braces rather than the mechanism.
+   if not(kernel(K$ADMINISTRATOR,-1)) and not(tier_allows(@logname, new.account)) then
+      display sysmsg(10126, new.account, ~
+                     upcase(trim(acc.record<ACC$TIER>, ' ', 'B')), @logname)
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : upcase(new.account) : ' reason=tier')
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc

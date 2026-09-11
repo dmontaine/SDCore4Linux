@@ -9,6 +9,70 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  GIVING SOMEBODY ELSE ONE OF YOUR ACCOUNTS: GRANT AND REVOKE.
+
+           An administrator can let a second person into an account, take that
+           access away again, and see who has it:
+
+               grant payroll to bob
+               revoke payroll from bob
+               list.grants payroll
+
+           Entry to an account has always been membership of the Linux group
+           CREATE.ACCOUNT makes for it - sdu_payroll for account payroll - so
+           these verbs edit that group and change nothing in the account's
+           record.  Until now there was no verb for it at all: you added and
+           removed members with MODIFY.ACCOUNT, and there was no way to ask who
+           was in the group without leaving SD.
+
+           A GRANT MAY GO DOWN OR SIDEWAYS, AND NEVER UP.  A programmer can be
+           given a standard account; a standard user cannot be given a
+           programmer account.  Your own tier has to be at least the tier of
+           the account you are being let into.  Somebody with no SD account of
+           their own has no tier to compare, so they cannot be granted one.
+
+           NOBODY IS EVER GRANTED SDSYS.  It belongs to administrators, who
+           reach it by logging in or with LOGTO.  It is not something a tier
+           can be raised to obtain, and the refusal says so.
+
+           MODIFY.ACCOUNT ADD OBEYS THE SAME RULE, because it makes the same
+           group change and would otherwise be the way round it.  DELETE does
+           not: taking access away is always allowed.
+
+           AND A PROMOTION NOW SAYS WHAT IT BROKE.  Raising an account's tier
+           can turn people who were legitimately granted it into people SD will
+           now refuse - the membership still looks perfectly normal from the
+           outside.  MODIFY.ACCOUNT compares who could get in before and after
+           the change and lists anybody the change stopped, with what to do
+           about it.  Lowering a tier cannot break a grant, so it prints
+           nothing.  If the group cannot be read at all it says THAT, rather
+           than leaving a silence that looks like good news.
+
+           What it does not do:
+
+           The person must log out of Linux and back in before they can write
+           in the account.  SD sees the grant at once and will let them in; the
+           account's directory belongs to the group, and Linux gives a session
+           the groups it had when it started.  Until they log in again they can
+           be let in and then refused by the filesystem.  Revoking has the same
+           delay in reverse - SD stops admitting them immediately, but their
+           access to the files lasts until their next login.
+
+           It does not stop an administrator making the same group change with
+           usermod outside SD, and no rule here can.  SD applies the tier rule
+           again at LOGTO, which is what actually holds.
+
+           LIST.GRANTS reports the members of the group, which includes the
+           account's own user and root.  Neither is a grant somebody made -
+           CREATE.ACCOUNT puts them there - but hiding them would make the
+           listing disagree with the group it is describing.
+
+           The three verbs are new, so an administrator account created before
+           this release does not have them.  MODIFY.ACCOUNT re-deriving the
+           account's tier adds them; a new administrator account has them from
+           the start.
+
+
 11 Sep 26  SD NOW KEEPS AN AUDIT TRAIL.
 
            The file "audit" in /usr/local/sdsys records every sign-on, every

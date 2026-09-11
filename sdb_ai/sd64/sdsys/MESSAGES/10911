@@ -1,0 +1,1 @@
+Read from the supplementary members of group %1 in /etc/group. Anybody whose\nprimary group is %1 would not appear above; SD makes no account's group the\nprimary group of its user, so on a system SD built there is nobody that\napplies to.

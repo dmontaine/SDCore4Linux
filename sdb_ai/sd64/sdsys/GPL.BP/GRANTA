@@ -1,0 +1,395 @@
+* GRANTA
+* GRANT, REVOKE and LIST.GRANTS verbs
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 11 Sep 26 dm  written, from the Windows port's GRANTA of 15-29 Aug 2026
+*               (its PROJECT_STATUS step 5, PRE_RELEASE_FIXES 57).
+*               PORT_ADOPTION 14.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+* GRANT <account> TO <user>
+* REVOKE <account> FROM <user>
+* LIST.GRANTS <account>
+*
+* THE GRANT IS LINUX GROUP MEMBERSHIP, NOT A FIELD IN THE RECORD.  The port's
+* model and the owner's decision of 14 Aug 2026.  Entry to an account is
+* membership of the group named in its ACC$GROUP, which CREATE.ACCOUNT writes
+* as sdu_<name>, and which LOGIN:323 and CPROC's int.logto both test.  So these
+* verbs edit that group and write NOTHING to the ACCOUNTS record.
+*
+* THREE VERBS, ONE PROGRAM, distinguished by the verb token.  "GRANT <account>"
+* with no TO clause lists, because it is the natural thing to try and answering
+* it costs nothing.
+*
+* WHY LISTING NEEDED BUILDING AT ALL.  The grant is not a field, so "who may
+* enter this account" is not a question the dictionary can answer, and an
+* account whose grants cannot be listed cannot be audited by eye.  !grp_members
+* is this tree's answer to the port's !os_group LISTMEM.
+*
+* ***$GRANTA IS DELIBERATELY NOT IN CPROC's privileged_commands, WHICH IS THE
+* ONE PLACE THIS DIVERGES FROM ITS NEIGHBOURS.***  $CREATEA, $DELACC and
+* $MODIFYA are on that list (CPROC:197-201) and run with euid 0 restored around
+* the call.  This verb needs none of it, measured 11 Sep 2026:
+*
+*   - it only READS the register.  /usr/local/sdsys/ACCOUNTS records are
+*     -rw-r--r-- root:root, so any session can read them; MODIFY.ACCOUNT is on
+*     the list because it WRITES the register and another account's VOC.
+*   - the audit trail is sdsys:sdusers 0620, so an sdusers member appends to it
+*     without privilege - which is the whole design of PORT_ADOPTION 13.
+*   - the group edits go through "sudo sd-elevate", and sudo decides on the
+*     REAL uid, which is the person and not the euid this would have changed.
+*     /etc/sudoers.d/sdcore is "%sdadmin ALL=(root) NOPASSWD: sd-elevate", and
+*     kernel(K$ADMINISTRATOR) below is already true only for somebody in
+*     sdadmin (CPROC's grant.administrator).
+*   - OS.EXECUTE is permitted because this program is $internal, which is
+*     os_permitted()'s FIRST answer (op_sh.c:136-144) and does not depend on
+*     the session's privilege at all.
+*
+* So putting it on the list would run the whole verb as root to gain nothing.
+* ***IF A LATER CHANGE MAKES THIS VERB WRITE THE REGISTER, IT GOES ON THE LIST
+* AND THIS PARAGRAPH COMES OFF.***
+*
+* THE ACCOUNT'S OWN USER IS IN THE GROUP, AND SO IS root, and both are listed
+* like any other member.  CREATE.ACCOUNT builds the group as
+* "groupadd <group> root,sdsys,<user>" (CREATEA:876), so neither is a grant
+* somebody made.  Hiding them would make this disagree with the group it is
+* reporting, and quietly disagreeing with the operating system is worse than a
+* line that needs a moment's thought.  ***MEASURED 11 Sep 2026: the five
+* sdu_ groups on this machine are root,<user> - sdsys is NOT in any of them,
+* though CREATEA passes it.  Why is an open lead (PROJECT_STATUS START HERE);
+* it changes nothing here, because this reports what the group holds.***
+*
+* THE AUDIT RECORD IS WRITTEN AFTER EACH SUCCESSFUL GROUP EDIT, the port's
+* step 5f and its PRE_RELEASE 98 ordering: a trail must not record a right that
+* was not given.  The identity is stamped by audit_message() in k_error.c and
+* is not passed from here, so a caller cannot get it wrong or forge it.
+*
+* THERE IS NO EQUIVALENT OF THE PORT'S "rc = 5 MEANS NOT ELEVATED", so
+* group.failed does not pretend to one.  !os_group returned a small set of
+* documented codes; here OS.ERROR() is the child's exit status
+* (op_sh.c:351), and 1 is sudo refusing the command AND usermod failing AND
+* gpasswd failing.  Guessing between them would be the false-precision the
+* instrument rule warns about.  sd-elevate prints its own refusal to stderr -
+* "sd-elevate: REFUSED - ..." - and OS.EXECUTE passes that through to the
+* terminal, so the precise reason is already on screen; 10050 adds the status.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $grant.account
+$catalog $GRANTA
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+
+deffun is_grp_member(user,group) calling '!is_grp_member'
+deffun is_user(uname) calling '!is_user'
+deffun valid_os_name(name) calling '!valid_os_name'
+deffun grp_members(group) calling '!grp_members'
+* 11 Sep 26 dm - the tier ordering, PORT_ADOPTION 14.  The COURTESY caller;
+*   CPROC's int.logto is the one that holds.
+deffun tier_allows(user,account) calling '!tier_allows'
+
+   prompt ''
+
+   parser = "!PARSER"
+
+* IT SAYS SO BEFORE IT TRIES.  sd-elevate would refuse a caller sudo does not
+* permit, but the refusal a person sees should be SD's, in SD's words, and not
+* a line of shell diagnostics.  CREATEA:127 gates the same way.
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+   @system.return.code = -ER$ARGS     ;* Preset for argument errors
+
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, verb, keyword)
+
+   verb = upcase(verb)
+   listing = (verb = 'LIST.GRANTS')
+   granting = (verb = 'GRANT')
+
+   * Account name, prompted for if it was left off
+
+   call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
+   if token.type = PARSER$END then
+      display sysmsg(6001) :  ;* Account name:
+      input acc.name
+      acc.name = trim(acc.name)
+      if acc.name = '' then stop
+   end
+   acc.name = upcase(acc.name)
+
+   * TO / FROM clause.  Absent means "list", which is what LIST.GRANTS is.
+
+   user = ''
+   if not(listing) then
+      call @parser(PARSER$GET.TOKEN, token.type, kw, keyword)
+      begin case
+         case token.type = PARSER$END
+            listing = @true
+         case granting and upcase(kw) = 'TO'
+            gosub get.user
+         case (not(granting)) and upcase(kw) = 'FROM'
+            gosub get.user
+         case 1
+            stop sysmsg(2018, kw) ;* Unexpected token (xx)
+      end case
+   end else
+      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+      if token.type # PARSER$END then
+         stop sysmsg(2018, token) ;* Unexpected token (xx)
+      end
+   end
+
+   gosub resolve.account
+
+   begin case
+      case listing
+         gosub do.list
+      case granting
+         gosub do.grant
+      case 1
+         gosub do.revoke
+   end case
+
+   stop
+
+* ======================================================================
+* Read the account and find the Linux group that IS the grant.
+
+resolve.account:
+   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+      @system.return.code = -status()
+      stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
+   end
+
+   read acc.rec from acc.f, acc.name else
+      @system.return.code = -status()
+      stop sysmsg(6027) ;* Account not registered in ACCOUNTS file
+   end
+
+*  REFUSED RATHER THAN GUESSED, which is TIERGATE's rule on an unknown tier and
+*  the same reasoning.  An empty ACC$GROUP means a record older than
+*  CREATE.ACCOUNT's group work.  Inventing "sdu_":acc.name here would create a
+*  Linux group nothing else consults and report success, which is a worse
+*  outcome than saying the record needs attention.
+   grp = trim(acc.rec<ACC$GROUP>)
+   if grp = '' then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10044, acc.name) ;* Account %1 has no Linux group recorded
+   end
+
+   return
+
+* ======================================================================
+
+get.user:
+   call @parser(PARSER$GET.TOKEN, token.type, user, keyword)
+   if token.type = PARSER$END then
+      stop sysmsg(6074) ;* Invalid user name
+   end
+
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+   if token.type # PARSER$END then
+      stop sysmsg(2018, token) ;* Unexpected token (xx)
+   end
+
+   return
+
+* ======================================================================
+
+do.grant:
+   if not(is_user(user)) then
+      stop sysmsg(10045, user) ;* There is no Linux user named %1
+   end
+
+* 11 Sep 26 dm - A GRANT MAY GO DOWN OR SIDEWAYS, NEVER UP.  Owner's rule to
+*   the port, 29 Aug 2026: "standard accounts can not be given access to
+*   programmer accounts, programmer accounts can be given access to standard
+*   accounts.  Only windows administrators can enter SDSYS, rights to SDSYS can
+*   not be granted to programmers or standard accounts."
+*
+*   THIS IS THE COURTESY REFUSAL AND CPROC's IS THE GATE.  Refusing here is
+*   what lets the administrator making the grant find out immediately, instead
+*   of the user discovering it at LOGTO; but it CANNOT be the whole of the
+*   rule, because the grant is Linux group membership and "usermod -aG" makes
+*   one without SD's knowledge.  int.logto carries the load.
+*
+*   BEFORE THE "already a member" TEST, deliberately.  A membership that should
+*   not exist - made outside SD, or left behind by a promotion - must not be
+*   reported as a cheerful "already", which is the one answer that would stop
+*   anybody looking at it.
+   if not(tier_allows(user, acc.name)) then
+      tg.why = status()
+      @system.return.code = -ER$FAILED
+      begin case
+         case tg.why = 4
+            stop sysmsg(10126, acc.name, 'SDSYS', user)
+         case tg.why = 2
+            stop sysmsg(10127, user)  ;* %1 has no SD account, so no tier
+         case 1
+            stop sysmsg(10126, acc.name, ~
+                        upcase(trim(acc.rec<ACC$TIER>, ' ', 'B')), user)
+      end case
+   end
+
+*  "usermod -aG" is idempotent and sd-elevate would report success either way.
+*  Asking first is what lets this say "already" rather than implying it did
+*  something.
+   if is_grp_member(user, grp) then
+      crt sysmsg(10017, user, grp) ;* %1 is already a member of group %2
+      @system.return.code = 0
+      return
+   end
+
+   if not(valid_os_name(user)) or not(valid_os_name(grp)) then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10050, grp, 2) ;* Cannot change the members of group %1
+   end
+
+* 11 Sep 26 dm - NOTE THE ARGUMENT ORDER REVERSES: raw usermod is
+*   "-aG <group> <user>", sd-elevate is "addgroup <user> <group>".  The same
+*   note stands at MODIFYA:189 and CREATEA:424.
+   os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":user:" ":grp
+   rc = OS.ERROR()
+   if rc # 0 then gosub group.failed
+
+*  After the group edit, so this records what happened and not what was
+*  attempted; a failed addgroup leaves through group.failed and never gets here.
+   void kernel(K$AUDIT, 'GRANT account=' : acc.name : ' to=' : user)
+
+   crt sysmsg(10041, user, acc.name) ;* %1 may now use account %2
+   gosub say.sign.out
+
+   @system.return.code = 0
+   return
+
+* ======================================================================
+
+do.revoke:
+*  No is_user test.  Revoking somebody whose Linux user has been deleted is a
+*  reasonable thing to want, and is_grp_member answers the question that
+*  actually matters here.
+   if not(is_grp_member(user, grp)) then
+      crt sysmsg(10049, user, acc.name) ;* %1 has not been granted account %2
+      @system.return.code = 0
+      return
+   end
+
+   if not(valid_os_name(user)) or not(valid_os_name(grp)) then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10050, grp, 2) ;* Cannot change the members of group %1
+   end
+
+   os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":user:" ":grp
+   rc = OS.ERROR()
+   if rc # 0 then gosub group.failed
+
+   void kernel(K$AUDIT, 'REVOKE account=' : acc.name : ' from=' : user)
+
+   crt sysmsg(10042, user, acc.name) ;* %1 no longer has account %2
+   gosub say.sign.out
+
+   @system.return.code = 0
+   return
+
+* ======================================================================
+
+do.list:
+*  status() IS READ ONCE, INTO A VARIABLE.  It is the last call's status, so
+*  asking it twice - once in the test, once in the message - is asking two
+*  different questions that happen to agree today.
+   members = grp_members(grp)
+   gm.rc = status()
+   if gm.rc # 0 then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10048, grp, gm.rc) ;* Cannot read the members of group %1
+   end
+
+*  dcount('') IS 1, NOT 0.  Without this an empty group reports one member
+*  whose name is the empty string.  !grp_members carries the same two lines.
+   count.members = dcount(members, @fm)
+   if members = '' then count.members = 0
+
+   if count.members = 0 then
+      crt sysmsg(10046, acc.name) ;* Nobody has been granted account %1
+      @system.return.code = 0
+      return
+   end
+
+   crt sysmsg(10047, acc.name) ;* Linux users granted %1:
+   for m = 1 to count.members
+      crt '   ' : members<m>
+   next m
+
+*  THE INSTRUMENT SAYS WHERE ITS ANSWER CAME FROM, which !grp_members' banner
+*  asks of its caller: this is the supplementary member list out of /etc/group,
+*  and somebody whose PRIMARY group is grp would not be in it.  Nobody on a
+*  system SD built is in that position (CREATE.ACCOUNT gives each user a
+*  primary group of their own; measured 11 Sep 2026 on all five accounts here),
+*  so the line reports a limit rather than a defect - and a reader who has
+*  changed a primary group by hand needs to know it.
+   crt sysmsg(10911, grp)
+
+   @system.return.code = 0
+   return
+
+* ======================================================================
+* THE SIGN-OUT LINE IS NOT A PLEASANTRY, and on Linux it says something
+* different from the port's, which is why 10043 is reworded rather than copied.
+*
+* ON WINDOWS THE WHOLE GRANT WAITS FOR THE NEXT LOGON, because group membership
+* is fixed in the access token.  ***HERE THE TWO HALVES SEPARATE.***  SD's own
+* gates call !is_grp_member, which openpaths /etc and reads "group" on every
+* call (IS_GRP_MEMBER, measured by reading it), so LOGIN and LOGTO admit the
+* person AT ONCE.  What does not move is the filesystem: the account directory
+* is drwxrwsr-x <user> sdu_<name> (measured 11 Sep 2026 on all five accounts
+* here) and a Linux session carries the supplementary groups it was given at
+* login, so an already-logged-in person is admitted by SD and then meets the
+* directory with "other" permission only.
+*
+* IT APPLIES TO REVOKE JUST AS MUCH, and there it matters more: somebody whose
+* grant has been taken away keeps the DIRECTORY access until their next login,
+* even though SD has already stopped admitting them.
+*
+* ***UNWITNESSED, 11 Sep 2026: the split above is read off the modes and the
+* code, not measured end to end.***  A witness needs a real grant, so it waits
+* for the install cycle - PORT_ADOPTION 14's witness list.  What would falsify
+* it: a granted person, still logged in, who can write a record in the account.
+
+say.sign.out:
+   crt sysmsg(10043, user) ;* %1 must log out of Linux and back in
+   return
+
+* ======================================================================
+
+group.failed:
+   @system.return.code = -ER$FAILED
+   stop sysmsg(10050, grp, rc) ;* Cannot change the members of group %1
+
+end
+
+* END-CODE
