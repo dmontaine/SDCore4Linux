@@ -72,11 +72,44 @@ has and this tree lacks.
 | 15 | ADOPT keyword + installer seed | `CREATEA` | PROJECT_STATUS "ADOPT" |
 | 16 | Upgrade runs UPDATE.ACCOUNTS ALL (port 70) | `upgrade-voc.ps1` | `installsdai.sh` when accounts are kept |
 | 17 | MODIFY.PASSWORD | `SET_ACC_PASSWORD` | `sd-elevate passwd`; no `$cred` |
-| 18 | Lower-case conversion §M | port 5.12 | release-blocking |
+| 18 | Lower-case conversion §M — ***COMPLETE, NOT THE PORT'S PARTIAL RESULT*** (owner, 11 Sep; see below) | port 5.12 | release-blocking; goes past the port |
 | 19 | Register/OS reconciliation at start (port 93) | `reconcile-accounts.ps1` | systemd `ExecStartPre` script — review |
 | 20 | UPSTREAM 4, 6, 13, 34 — read each entry and verify against this tree | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) | `gplbld` | adapt to this tree's docs |
 | 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
+
+## Queue 18 — lower case: the owner's ruling and where the port stopped short
+
+***OWNER, 11 Sep 2026: "here everything needs to be lowercase so that we don't
+have the situation of multiple commands, files or record ids that have the same
+name but multiple casing."*** The port's §5.12 set that goal and did not reach it
+— NTFS matches names regardless of case, so what was missed never failed there.
+Filed to the port as a bug for its next version (`BUGS_FROM_LINUX_PORT.md` 5).
+
+**Nothing of §M exists here yet** — measured 11 Sep: sdsys directories 12 of 18
+upper, `NEWVOC` 395 upper / 1 lower, `VOC_TEMPLATE` 418 upper, and 0 lookups in
+`GPL.BP` with a lower-case tier (the port has 76 in 38 files).
+
+**What the port left upper case — do each of these here, rather than copy the
+port's result** (measured on the port tree 11 Sep):
+
+| Left upper in the port | Where | Plan §M covers it? |
+|---|---|---|
+| Files `CREATE.FILE` makes: OS name upper-cased unless `CREATE.FILE.CASE` is set, and nothing sets it | port `CREATEF:309-311` (here `:304-306`) — `create.file zzak` made `ZZAK` on this box | **no** |
+| All 203 `gpl.bp` program sources, 12 of 15 `syscom` includes | `CPROC`, `QSELECT`, `ERR.H`, `KEYS.H` … | **no** |
+| Case inversion at sign-on | port `LOGIN:624` / here `:250`, `pterm(PT$INVERT, @true)` | **no** |
+| Account names, "forced to uppercase" | port `syscom/KEYS.H:269` | kept deliberately by the plan (§M3) — ***RE-RULE*** |
+| VOC ids `$ACC`, `$MAP`, `$RELEASE`, `SD.VOCLIB`, `TIER.ADD.ADMINISTRATOR`, `TIER.OMIT.STANDARD` | port `newvoc`, `voc_template` | partly — §M3 renames "the `$` records" without naming these |
+| Lookup sites the first pass missed | `.D` (port entry 5, open here — audit below), `_VOC_REF`, the `$SAVEDLISTS` literals | yes for the last two |
+
+Not names, so correctly left alone: `%E` `%G` `%L` (and pairs) are the escaped
+filenames of records `=` `>` `<`; `#` `&` `!` are symbols.
+
+***OPEN FOR THE OWNER, NOT RULED:*** does "record ids" reach **record ids in a
+user's own data files**? Plan §M3 keeps directory-file record ids case-sensitive
+on ext4 because `SUE` and `sue` are two files there. Forcing an application's
+data ids to lower case would change its data, so this was not assumed either way.
+Likewise account names (row 4 above).
 
 ## Queue 3 — measured here, 11 Sep 2026, not read
 

@@ -69,6 +69,15 @@ against the install).***
   named it. Only the EOF loop is in no UPSTREAM entry. Full note in
   PORT_ADOPTION, "Queue 3 — measured here". ***NOT FIXED — this is the next
   task.***
+- ***§M RULED WIDER, 11 Sep 2026 (owner): LOWER CASE MUST BE COMPLETE, NOT THE
+  PORT'S PARTIAL RESULT.*** Everything lower case — including the files
+  `CREATE.FILE` makes and program/include names — with upper-case input converted
+  on the fly, so no command, file or record id can exist in two casings. The port
+  left `CREATEF:311`'s upcase, all of `gpl.bp`/`syscom`, `PT$INVERT`, and six VOC
+  ids upper; NTFS hid it. Filed to the port as `BUGS_FROM_LINUX_PORT.md` 5
+  (uncommitted there, like 1–4). Gap table and two UNRULED questions (users' own
+  data record ids; account names) in PORT_ADOPTION "Queue 18". CLAUDE.md stance
+  updated. **Nothing of §M is built.**
 - ***IS THE PORT-ADOPTION AUDIT COMPLETE? NO — answered for the owner 11 Sep.***
   UPSTREAM_FIXES is now reconciled all 37 (28 done, 1 n/a, 8 open) — see
   PORT_ADOPTION "UPSTREAM_FIXES reconciliation"; 18 of them had been fixed on

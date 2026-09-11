@@ -267,6 +267,13 @@ of them reverse what an earlier analysis recommended.
   The largest single piece of conformity work.
 - **Lower case throughout**, matching the port. On a case-sensitive filesystem this
   needs real migration rather than the port's "both spellings work anyway".
+  ***AND COMPLETE, WHICH THE PORT IS NOT*** (owner, 11 Sep 2026). The standard is
+  **everything lower case** — names on disk, VOC entries, program and include
+  names, and the files `CREATE.FILE` makes — with upper-case input converted on
+  the fly, ***so no command, file or record id can exist in two casings.*** The
+  port meant this and did not finish it; NTFS hid the gaps (measured list in
+  PORT_ADOPTION queue 18, filed to the port as a bug). **Where the port stopped
+  short, go past it: this outranks "the port wins" for §M.**
 - **Kept, and deliberately different from the port:** embedded Python, and UMASK,
   which has no security effect on Windows and is a real mechanism here.
 - **This system is maintained by AI.** An engineering constraint, not a note about
