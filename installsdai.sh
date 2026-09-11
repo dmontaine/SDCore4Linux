@@ -217,6 +217,22 @@ case $yn in
     * ) exit 0 ;;
 esac
 #
+# --------------------
+# Remote-access prompts (owner, 10 Sep 2026, approach B).  Asked up front so the
+# rest of the install runs unattended.  Both default to NO: without them, sshd
+# stays as the box has it and the API listens on 127.0.0.1:4243 (local only).
+# "Allow ssh access"  y -> enable sshd at boot + ufw allow 22/tcp.
+# "Allow API access"  y -> rebind the API listener to 0.0.0.0:4243 + ufw allow 4243/tcp.
+allow_ssh=n
+allow_api=n
+printf "%b\n" "$YELLOW"
+read -r -p "Allow ssh access from other computers? enables sshd at boot, opens port 22 (y/N) " yn_ssh
+case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
+read -r -p "Allow API access from other computers? opens TCP port 4243 (y/N) " yn_api
+case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
+printf "%b\n" "$NC"
+# --------------------
+#
 # 09 Sep 26  The local-repository probe is gone with the <L> menu option it fed.
 #
 printf "%b\n" "$GREEN"
@@ -663,6 +679,22 @@ if [ -d  "$SYSTEMDPATH" ]; then
     fi
 fi
 #
+# Remote-access prompts (owner, 10 Sep 2026, approach B) - API listener bind.
+# The shipped sdclient.socket listens on the Unix socket plus 127.0.0.1:4243
+# (local only).  If API access was requested, rebind the TCP listener to all
+# interfaces and open the firewall; otherwise leave it local and add no rule.
+# daemon-reload so the started socket below picks up the deployed/edited unit.
+if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
+    if [ "$allow_api" = "y" ]; then
+        echo "Allowing API access from other computers (TCP 4243)."
+        sudo sed -i 's#^ListenStream=127\.0\.0\.1:4243#ListenStream=0.0.0.0:4243#' "$SYSTEMDPATH/sdclient.socket"
+        if command -v ufw >/dev/null 2>&1; then sudo ufw allow 4243/tcp || true; fi
+    else
+        echo "API access is local-only (listener bound to 127.0.0.1:4243)."
+    fi
+    sudo systemctl daemon-reload
+fi
+#
 # Copy saved directories if they exist
 if [ -d /home/sd/ACCOUNTS ]; then
     sudo rm -fr "$sdsysdir/ACCOUNTS"
@@ -868,6 +900,18 @@ else
     printf "%b\n" "$NC"
 fi
 #
+# Remote-access prompts (owner, 10 Sep 2026, approach B) - enable ssh if asked.
+# The tier boundary above is applied to sshd_config regardless; this only turns
+# the ssh SERVICE on (at boot) and opens port 22, when the operator asked for it.
+if [ "$allow_ssh" = "y" ]; then
+    echo "Enabling ssh access from other computers (sshd at boot, port 22)."
+    sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
+    if command -v ufw >/dev/null 2>&1; then sudo ufw allow 22/tcp || true; fi
+else
+    echo "ssh access was not enabled (sshd left as the box had it; the tier"
+    echo "boundary is in sshd_config for whenever ssh is turned on)."
+fi
+#
 # display end of script message
 echo
 echo ---------------------------------------------------------------
@@ -893,6 +937,19 @@ if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
     echo "was backed up to /etc/ssh/sshd_config.before-sd."
     echo
 fi
+if [ "$allow_ssh" = "y" ]; then
+    echo "ssh access: ENABLED - sshd runs at boot; a ufw allow rule for 22 was added."
+else
+    echo "ssh access: not enabled - sshd left as the box had it."
+fi
+if [ "$allow_api" = "y" ]; then
+    echo "API access: OPEN - the network API listens on 0.0.0.0:4243 and a ufw"
+    echo "  allow rule for 4243 was added.  Clients still enter an SD user/password."
+else
+    echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
+    echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."
+fi
+echo
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
 #

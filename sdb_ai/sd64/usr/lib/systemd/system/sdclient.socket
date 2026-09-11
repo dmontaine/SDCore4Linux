@@ -4,6 +4,10 @@ Description=String Database (SD)  Per-Connection client Server
 [Socket]
 SocketGroup=sdusers
 ListenStream=/tmp/sdsys/sdclient.socket
+# PRE_RELEASE API listener (owner, 10 Sep 2026): localhost by default (the port's
+# "LOCAL" state). installsdai.sh rewrites this to 0.0.0.0:4243 if the installer's
+# "Allow API access" prompt is answered yes.
+ListenStream=127.0.0.1:4243
 Accept=true
 
 [Install]
