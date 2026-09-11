@@ -76,6 +76,27 @@ something is harmless enough to skip, that is the moment the rule is for.
 legitimate — say which warning, and why it does not apply, before you run.
 Overriding one you never saw is what this rule exists to stop.
 
+## Check the Windows port history before you ask
+
+Owner, 10 Sep 2026, after a session asked which verbs a STANDARD account should
+lose when the decision and its rationale were already in the port's `HISTORY.md`
+(*"17 Aug 2026 — Section 8"*). **Before asking the owner any question, search the
+Windows port history for the answer first.**
+
+The port is the reference implementation (see "Project stance"), and its record
+carries decisions already made and paid for — `HISTORY.md`, `PROJECT_STATUS.md`
+and `PRE_RELEASE_FIXES.md` under `/home/don/Projects/SDCoreProject/sd4windows`.
+Its `.md` files have very long lines; extract a window around the match rather
+than printing the whole line.
+
+**Forward the question to the owner only when** the port history has **no
+definitive answer**, or its answer **cannot be implemented on Linux** — the
+privilege model differs, so some of the port's security answers do not transfer
+(the memory file's privilege-model note has the shape of this). A genuinely local
+decision the record cannot settle — whether to push a commit now, say — is not a
+port-history question and is asked normally. **When the record does answer and
+the answer ports, act on it and cite where it came from, instead of asking.**
+
 ## Run standing procedures exactly as written
 
 Owner, 23 Aug 2026, after a session ran a documented script with an undocumented
