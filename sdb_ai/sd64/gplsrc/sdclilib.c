@@ -27,8 +27,14 @@
  *    Then use session_idx*MAX_ARGS as the offset into CallArgArray for the sessions SDCall arguments
  *  I cannot find where the transfer buffer "buff" is freed, need to test for memory leak to see if this is really the case.
  *     For now I have added code to disconnect() to free buff if there are no more remainging active connections.
+ * 20260805 port platform-neutral bounds, allocation, transport, and response
+ *     handling fixes from the MinGW Windows client.
+ * 10 Sep 26 dm adopted into sdcore4linux from the standalone hardened
+ *     linuxsdclilib repo (validated bounds/lengths, partial-I/O handling,
+ *     desync abandonment, max-record enforcement, SV_EMSG_PAIR/SV_ECONTXT);
+ *     SDConnect default port set to 4243 to conform to SD Core for Windows.
  *
- * 
+ *
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -153,6 +159,14 @@ void set_default_character_maps(void);
 #include "err.h"
 #include "revstamp.h"
 #include "sdclient.h"
+#include "sdclilib.h"
+
+#ifndef SV_ECONTXT
+#define SV_ECONTXT 7
+#endif
+#ifndef SV_EMSG_PAIR
+#define SV_EMSG_PAIR 6
+#endif
 
 /* Network data */
 Private bool OpenSocket(char* host, int16_t port);
@@ -160,11 +174,21 @@ Private bool OpenUDSocket(void);
 Private bool CloseSocket(void);
 Private bool read_packet(void);
 Private bool write_packet(int type, char* data, int32_t bytes);
+Private bool send_all(SOCKET sock, const char* data, int32_t bytes);
+Private bool write_all(int fd, const char* data, int32_t bytes);
+Private void abandon_connection(void);
 Private void net_error(char* prefix, int err);
 Private void debug(unsigned char* p, int n);
 Private void initialise_client(void);
 Private bool FindFreeSession(void);
 Private void disconnect(void);
+Private int32_t grow_buffer_size(int32_t needed);
+Private bool valid_packet_length(int32_t packet_length);
+Private bool valid_record_size(size_t bytes);
+Private inline bool read_arg_record(const char* data, int32_t data_bytes,
+                                    int offset, int16_t* argno,
+                                    const char** text, int32_t* text_len,
+                                    int* next_offset);
 
 typedef struct ARGDATA ARGDATA;
 struct ARGDATA {
@@ -175,6 +199,8 @@ struct ARGDATA {
 
 /* Packet buffer */
 #define BUFF_INCR 4096
+#define SD_MAX_PACKET_BYTES (MAX_STRING_SIZE + 10)
+#define IN_PKT_HDR_BYTES 10
 typedef struct INBUFF INBUFF;
 struct INBUFF {
   union {
@@ -268,6 +294,43 @@ Private char* sysdir(void);
 
 #define ClearError session[session_idx].sderror[0] = '\0'
 
+Private int32_t grow_buffer_size(int32_t needed) {
+  return (needed + BUFF_INCR) & ~(BUFF_INCR - 1);
+}
+
+Private bool valid_packet_length(int32_t packet_length) {
+  return (packet_length >= IN_PKT_HDR_BYTES) &&
+         (packet_length <= SD_MAX_PACKET_BYTES);
+}
+
+Private bool valid_record_size(size_t bytes) {
+  return bytes <= MAX_STRING_SIZE;
+}
+
+Private inline bool read_arg_record(const char* data, int32_t data_bytes,
+                                    int offset, int16_t* argno,
+                                    const char** text, int32_t* text_len,
+                                    int* next_offset) {
+  const ARGDATA* record;
+  int header_bytes = (int)offsetof(ARGDATA, text);
+  int32_t length;
+
+  if ((offset < 0) || (offset > data_bytes - header_bytes))
+    return FALSE;
+  record = (const ARGDATA*)(data + offset);
+  length = LongInt(record->arglen);
+  if ((length < 0) || (length > data_bytes - offset - header_bytes))
+    return FALSE;
+
+  *argno = ShortInt(record->argno);
+  *text = record->text;
+  *text_len = length;
+  *next_offset = offset + header_bytes + ((length + 1) & ~1);
+  if (*next_offset > data_bytes)
+    *next_offset = data_bytes;
+  return TRUE;
+}
+
 /* rev 0.9.0 */
 /* ======================================================================
    SDCall()  - Callx catalogued subroutine
@@ -291,9 +354,11 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
   subrname_len = strlen(subrname);
   if ((subrname_len < 1) || (subrname_len > MAX_CALL_NAME_LEN)) {
     Abort("Illegal subroutine name in call", FALSE);
+    return;
   }
   if ((argc < 0) || (argc > MAX_ARGS)) {
     Abort("Illegal argument count in call", FALSE);
+    return;
   }
  /* free up any memory allocated for prev callx arg strorage */
   for (i = 0; i < MAX_ARGS; i++) {
@@ -318,13 +383,15 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
   /* Ensure buffer is big enough */
   if (bytes >= buff_size) /* Must reallocate larger buffer */
   {
-    n = (bytes + BUFF_INCR - 1) & ~BUFF_INCR;
+    n = grow_buffer_size(bytes);
     q = (INBUFF*)malloc(n);
     if (q == NULL) {
       Abort("Unable to allocate network buffer", FALSE);
+      return;
     }
     free(buff);
     buff = q;
+    buff_size = n;
   }
   /* Set up outgoing packet */
   p = (char*)buff;
@@ -372,10 +439,16 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
   if (offset < buff_bytes) {
     va_start(ap, argc);
 	for (i = 1; i <= argc; i++) {
+      if (offset < 0 ||
+          offset > buff_bytes - (int)offsetof(ARGDATA, text))
+        break;
       argptr = (ARGDATA*)(((char*)buff) + offset);
       arg = va_arg(ap, char*);
 	  if (i == argptr->argno) {
 		arg_len = LongInt(argptr->arglen);
+		if (arg_len < 0 ||
+		    arg_len > buff_bytes - offset - (int)offsetof(ARGDATA, text))
+		  break;
 	   /*  memcpy(arg, argptr->text, arg_len);  */
 	   /*  arg[arg_len] = '\0';                 */
 	   /* check CallArgArray buffer is large enough for returned value */
@@ -398,7 +471,9 @@ void DLLEntry SDCallx(char* subrname, int16_t argc, ...) {
 		}
 
 		offset +=
-            offsetof(ARGDATA, text) + ((LongInt(argptr->arglen) + 1) & ~1);
+            offsetof(ARGDATA, text) + ((arg_len + 1) & ~1);
+        if (offset > buff_bytes)
+          offset = buff_bytes;
         if (offset >= buff_bytes)
           break;
 	  }
@@ -470,10 +545,12 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
   subrname_len = strlen(subrname);
   if ((subrname_len < 1) || (subrname_len > MAX_CALL_NAME_LEN)) {
     Abort("Illegal subroutine name in call", FALSE);
+    return;
   }
 
   if ((argc < 0) || (argc > MAX_ARGS)) {
     Abort("Illegal argument count in call", FALSE);
+    return;
   }
 
   /* Accumulate outgoing packet size */
@@ -495,13 +572,15 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
 
   if (bytes >= buff_size) /* Must reallocate larger buffer */
   {
-    n = (bytes + BUFF_INCR - 1) & ~BUFF_INCR;
+    n = grow_buffer_size(bytes);
     q = (INBUFF*)malloc(n);
     if (q == NULL) {
       Abort("Unable to allocate network buffer", FALSE);
+      return;
     }
     free(buff);
     buff = q;
+    buff_size = n;
   }
 
   /* Set up outgoing packet */
@@ -539,16 +618,26 @@ void DLLEntry SDCall(char* subrname, int16_t argc, ...) {
   if (offset < buff_bytes) {
     va_start(ap, argc);
     for (i = 1; i <= argc; i++) {
+      if (offset < 0 ||
+          offset > buff_bytes - (int)offsetof(ARGDATA, text))
+        break;
       argptr = (ARGDATA*)(((char*)buff) + offset);
 
       arg = va_arg(ap, char*);
       if (i == argptr->argno) {
         arg_len = LongInt(argptr->arglen);
-        memcpy(arg, argptr->text, arg_len);
-        arg[arg_len] = '\0';
+        if (arg_len < 0 ||
+            arg_len > buff_bytes - offset - (int)offsetof(ARGDATA, text))
+          break;
+        if (arg != NULL) {
+          memcpy(arg, argptr->text, arg_len);
+          arg[arg_len] = '\0';
+        }
 
         offset +=
-            offsetof(ARGDATA, text) + ((LongInt(argptr->arglen) + 1) & ~1);
+            offsetof(ARGDATA, text) + ((arg_len + 1) & ~1);
+        if (offset > buff_bytes)
+          offset = buff_bytes;
         if (offset >= buff_bytes)
           break;
       }
@@ -614,6 +703,7 @@ SDChange(char* src, char* old, char* new, int occurrences, int start) {
   changes = 0;
   bytes = src_len;
   pos = src;
+  start_pos = pos;
   while (bytes > 0) {
     p = memstr(pos, old, bytes, old_len);
     if (p == NULL)
@@ -811,8 +901,10 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
     if (session[session_idx].server_error == SV_ON_ERROR) {
       n = buff_bytes - offsetof(INBUFF, data.abort.message);
       if (n > 0) {
+        if (n >= (int)sizeof(session[session_idx].sderror))
+          n = sizeof(session[session_idx].sderror) - 1;
         memcpy(session[session_idx].sderror, buff->data.abort.message, n);
-        buff->data.abort.message[n] = '\0';
+        session[session_idx].sderror[n] = '\0';
       }
     }
     goto exit_sdconnect;
@@ -823,6 +915,8 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
   if (!message_pair(SrvrAccount, account, strlen(account))) {
     goto exit_sdconnect;
   }
+  if (session[session_idx].server_error != SV_OK)
+    goto exit_sdconnect;
 
   session[session_idx].context = CX_CONNECTED;
   status = TRUE;
@@ -897,8 +991,10 @@ SDConnectUDS(char* account) {
     if (session[session_idx].server_error == SV_ON_ERROR) {
       n = buff_bytes - offsetof(INBUFF, data.abort.message);
       if (n > 0) {
+        if (n >= (int)sizeof(session[session_idx].sderror))
+          n = sizeof(session[session_idx].sderror) - 1;
         memcpy(session[session_idx].sderror, buff->data.abort.message, n);
-        buff->data.abort.message[n] = '\0';
+        session[session_idx].sderror[n] = '\0';
       }
     }
     goto exit_sdconnectUDS;
@@ -909,6 +1005,8 @@ SDConnectUDS(char* account) {
   if (!message_pair(SrvrAccount, account, strlen(account))) {
     goto exit_sdconnectUDS;
   }
+  if (session[session_idx].server_error != SV_OK)
+    goto exit_sdconnectUDS;
 
   session[session_idx].context = CX_CONNECTED;
   status = TRUE;
@@ -1005,11 +1103,17 @@ int DLLEntry SDConnectLocal(char* account) {
   if (!message_pair(SrvrLocalLogin, NULL, 0)) {
     goto exit_sdconnect_local;
   }
+  if (session[session_idx].server_error != SV_OK)
+    goto exit_sdconnect_local;
 
   /* Now attempt to attach to required account */
 
   if (!message_pair(SrvrAccount, account, strlen(account))) {
 // rev 0.9.0
+    disconnect();
+    goto exit_sdconnect_local;
+  }
+  if (session[session_idx].server_error != SV_OK) {
     disconnect();
     goto exit_sdconnect_local;
   }
@@ -1262,7 +1366,7 @@ void DLLEntry SDDisconnectAll() {
   int16_t i;
 
   for (i = 0; i < MAX_SESSIONS; i++) {
-    if (session[session_idx].context != CX_DISCONNECTED) {
+    if (session[i].context != CX_DISCONNECTED) {
       session_idx = i;
       disconnect();
     }
@@ -1388,11 +1492,7 @@ char* DLLEntry SDExecute(char* cmnd, int* err) {
   switch (session[session_idx].server_error) {
     case SV_PROMPT:
       session[session_idx].context = CX_EXECUTING;
-      /* Modified by Composer AI - 2026/06/10.
-         Intentional fall-through: SV_PROMPT shares reply extraction. */
-      /* **** FALL THROUGH **** */
-      __attribute__((fallthrough));
-      /* -------------------- */
+      /* fall through */
 
     case SV_OK:
       reply_len = buff_bytes - offsetof(INBUFF, data.execute.reply);
@@ -1405,13 +1505,6 @@ char* DLLEntry SDExecute(char* cmnd, int* err) {
 
 exit_sdexecute:
   reply = malloc(reply_len + 1);
-  /* Modified by Composer AI - 2026/06/10.
-     malloc() can fail; return empty string instead of strcpy through NULL. */
-  if (reply == NULL) {
-    *err = session[session_idx].server_error;
-    return NullString();
-  }
-  /* -------------------- */
   strcpy(reply, buff->data.execute.reply);
   *err = session[session_idx].server_error;
 
@@ -2135,7 +2228,8 @@ char* DLLEntry SDReadList(int listno) {
 exit_sdreadlist:
 
   list = malloc(data_len + 1);
-  memcpy(list, buff->data.readlist.list, data_len);
+  if (data_len > 0)
+    memcpy(list, buff->data.readlist.list, data_len);
   list[data_len] = '\0';
   return list;
 }
@@ -2174,7 +2268,8 @@ char* DLLEntry SDReadNext(int16_t listno) {
 
 exit_sdreadnext:
   id = malloc(id_len + 1);
-  memcpy(id, buff->data.readnext.id, id_len);
+  if (id_len > 0)
+    memcpy(id, buff->data.readnext.id, id_len);
   id[id_len] = '\0';
   return id;
 }
@@ -2482,11 +2577,7 @@ char* DLLEntry SDRespond(char* response, int* err) {
   switch (session[session_idx].server_error) {
     case SV_OK:
       session[session_idx].context = CX_CONNECTED;
-      /* Modified by Composer AI - 2026/06/10.
-         Intentional fall-through: SV_OK shares reply extraction. */
-      /* **** FALL THROUGH **** */
-      __attribute__((fallthrough));
-      /* -------------------- */
+      /* fall through */
 
     case SV_PROMPT:
       reply_len = buff_bytes - offsetof(INBUFF, data.execute.reply);
@@ -2503,14 +2594,8 @@ char* DLLEntry SDRespond(char* response, int* err) {
 
 exit_sdrespond:
   reply = malloc(reply_len + 1);
-  /* Modified by Composer AI - 2026/06/10.
-     malloc() can fail; return empty string instead of memcpy through NULL. */
-  if (reply == NULL) {
-    *err = session[session_idx].server_error;
-    return NullString();
-  }
-  /* -------------------- */
-  memcpy(reply, buff->data.execute.reply, reply_len);
+  if (reply_len > 0)
+    memcpy(reply, buff->data.execute.reply, reply_len);
   reply[reply_len] = '\0';
   *err = session[session_idx].server_error;
   return reply;
@@ -2568,6 +2653,13 @@ void DLLEntry SDSelectIndex(int16_t fno,
 
   if (context_error(CX_CONNECTED))
     goto exit_sdselectindex;
+
+  if ((strlen(index_name) > sizeof(packet.index_name) - 1) ||
+      (strlen(index_value) > sizeof(packet.index_data_place_holder) - 1)) {
+    session[session_idx].server_error = SV_ELSE;
+    session[session_idx].sd_status = ER_BAD_NAME;
+    goto exit_sdselectindex;
+  }
 
   packet.fno = ShortInt(fno);
   packet.listno = ShortInt(listno);
@@ -2637,6 +2729,12 @@ Private char* SelectLeftRight(int16_t fno,
   int16_t n;
   char* p;
 
+  if (strlen(index_name) > sizeof(packet.index_name) - 1) {
+    session[session_idx].server_error = SV_ELSE;
+    session[session_idx].sd_status = ER_BAD_NAME;
+    return NullString();
+  }
+
   if (!context_error(CX_CONNECTED)) {
     packet.fno = ShortInt(fno);
     packet.listno = ShortInt(listno);
@@ -2662,7 +2760,8 @@ Private char* SelectLeftRight(int16_t fno,
   }
 
   key = malloc(key_len + 1);
-  memcpy(key, buff->data.selectleft.key, key_len);
+  if (key_len > 0)
+    memcpy(key, buff->data.selectleft.key, key_len);
   key[key_len] = '\0';
   return key;
 }
@@ -2686,6 +2785,12 @@ Private void SetLeftRight(int16_t fno, char* index_name, int16_t mode) {
   } packet;
   int16_t n;
   char* p;
+
+  if (strlen(index_name) > sizeof(packet.index_name) - 1) {
+    session[session_idx].server_error = SV_ELSE;
+    session[session_idx].sd_status = ER_BAD_NAME;
+    return;
+  }
 
   if (!context_error(CX_CONNECTED)) {
     packet.fno = ShortInt(fno);
@@ -2759,7 +2864,8 @@ Private bool context_error(int16_t expected) {
  */
   // char* p; triggers a variable set but never used warning.
 
-  if (session[session_idx].context != expected) {
+    if (session[session_idx].context != expected) {
+        session[session_idx].server_error = SV_ECONTXT;
     switch (session[session_idx].context) {
       case CX_DISCONNECTED:
         //   p = "A server function has been attempted when no connection has been "
@@ -2844,11 +2950,7 @@ exit_delete:
    read_record()  -  Common path for READ, READL and READU                */
 
 Private char* read_record(int fno, char* id, int* err, int mode) {
-  /* Modified by Composer AI - 2026/06/10.
-     Default status for early exit paths that skip the server switch. */
-  /* int32_t status; */
-  int32_t status = SV_ERROR;
-  /* -------------------- */
+  int32_t status = SV_OK;
   int32_t rec_len = 0;
   int id_len;
   char* rec;
@@ -2863,7 +2965,7 @@ Private char* read_record(int fno, char* id, int* err, int mode) {
   id_len = strlen(id);
   if ((id_len < 1) || (id_len > MAX_ID_LEN)) {
     session[session_idx].sd_status = ER_IID;
-    status = SV_ON_ERROR;
+    session[session_idx].server_error = SV_ON_ERROR;
     goto exit_read;
   }
 
@@ -2889,18 +2991,11 @@ Private char* read_record(int fno, char* id, int* err, int mode) {
       break;
   }
 
-  status = session[session_idx].server_error;
-
 exit_read:
+  status = session[session_idx].server_error;
   rec = malloc(rec_len + 1);
-  /* Modified by Composer AI - 2026/06/10.
-     malloc() can fail; return empty string instead of memcpy through NULL. */
-  if (rec == NULL) {
-    *err = status;
-    return NullString();
-  }
-  /* -------------------- */
-  memcpy(rec, buff->data.read.rec, rec_len);
+  if (rec_len > 0)
+    memcpy(rec, buff->data.read.rec, rec_len);
   rec[rec_len] = '\0';
   *err = status;
   return rec;
@@ -2933,7 +3028,7 @@ Private void write_record(int16_t mode, int16_t fno, char* id, char* data) {
   data_len = strlen(data);
 
   /* 20240702 mab do not allow write > MAX_STRING_SIZE */
-  if (data_len > MAX_STRING_SIZE) {
+  if (!valid_record_size(data_len)) {
     Abort("Illegal record size", FALSE);
     session[session_idx].sd_status = ER_MAX_STRING;
     goto exit_write;
@@ -2944,7 +3039,7 @@ Private void write_record(int16_t mode, int16_t fno, char* id, char* data) {
   bytes = sizeof(struct PACKET) + id_len + data_len;
   if (bytes >= buff_size) /* Must reallocate larger buffer */
   {
-    bytes = (bytes + BUFF_INCR - 1) & ~BUFF_INCR;
+    bytes = grow_buffer_size(bytes);
     q = (INBUFF*)malloc(bytes);
     if (q == NULL) {
       Abort("Insufficient memory", FALSE);
@@ -2993,11 +3088,19 @@ Private bool GetResponse() {
     return FALSE;
 
   if (session[session_idx].server_error == SV_ERROR) {
+    int n;
     strcpy(session[session_idx].sderror, "Unable to retrieve error text");
-    write_packet(SrvrGetError, NULL, 0);
-    if (read_packet())
-      strcpy(session[session_idx].sderror, buff->data.error.text);
-    return FALSE;
+    if (!write_packet(SrvrGetError, NULL, 0) || !read_packet())
+      return FALSE;
+    session[session_idx].server_error = SV_ERROR;
+    n = buff_bytes - offsetof(INBUFF, data.error.text);
+    if (n < 0)
+      n = 0;
+    if (n >= (int)sizeof(session[session_idx].sderror))
+      n = sizeof(session[session_idx].sderror) - 1;
+    memcpy(session[session_idx].sderror, buff->data.error.text, n);
+    session[session_idx].sderror[n] = '\0';
+    return TRUE;
   }
 
   return TRUE;
@@ -3017,6 +3120,8 @@ Private void Abort(char* msg, bool use_response) {
     if (n > 0) {
       p = abort_msg + strlen(msg);
       *(p++) = '\r';
+      if (n > (int)(sizeof(abort_msg) - (p - abort_msg) - 1))
+        n = sizeof(abort_msg) - (p - abort_msg) - 1;
       memcpy(p, buff->data.abort.message, n);
       *(p + n) = '\0';
     }
@@ -3397,10 +3502,9 @@ match_found:
    message_pair()  -  Send packet and receive response                    */
 
 Private bool message_pair(int type, char* data, int32_t bytes) {
-  if (write_packet(type, data, bytes)) {
-    return GetResponse();
-  }
-
+  if (write_packet(type, data, bytes) && GetResponse())
+    return TRUE;
+  session[session_idx].server_error = SV_EMSG_PAIR;
   return FALSE;
 }
 
@@ -3408,19 +3512,10 @@ Private bool message_pair(int type, char* data, int32_t bytes) {
 
 Private char* NullString() {
   char* p;
-  static char empty[1] = {'\0'};
 
-  /* Modified by Composer AI - 2026/06/10.
-     malloc(1) can fail; return a static empty string instead. */
-  /* p = malloc(1);
-  *p = '\0';
-  return p; */
   p = malloc(1);
-  if (p == NULL)
-    return empty;
   *p = '\0';
   return p;
-  /* -------------------- */
 }
 
 /* ======================================================================
@@ -3429,6 +3524,7 @@ Private char* NullString() {
 Private bool OpenUDSocket() {
   bool status = FALSE;
   char ack_buff;
+  int n;
  
   struct sockaddr_un serveraddr;
 
@@ -3458,8 +3554,17 @@ Private bool OpenUDSocket() {
     we send before the SD process is up and running.                       */
 
   do {
-    if (recv(session[session_idx].sock, &ack_buff, 1, 0) < 1)
+    n = recv(session[session_idx].sock, &ack_buff, 1, 0);
+    if (n == 0) {
+      strcpy(session[session_idx].sderror, "Connection closed by server");
       goto exit_openUDsocket;
+    }
+    if (n < 0) {
+      if (errno == EINTR)
+        continue;
+      net_error("recv()", errno);
+      goto exit_openUDsocket;
+    }
   } while (ack_buff != '\x06');
 
   status = 1;
@@ -3482,7 +3587,7 @@ Private bool OpenSocket(char* host, int16_t port) {
   unsigned int n1, n2, n3, n4;
 
   if (port < 0)
-    port = 4245;
+    port = 4243;   /* 10 Sep 26 dm - SD Core API port, conforming to the Windows port (was 4245) */
 
   if ((sscanf(host, "%u.%u.%u.%u", &n1, &n2, &n3, &n4) == 4) && (n1 <= 255) &&
       (n2 <= 255) && (n3 <= 255) && (n4 <= 255)) {
@@ -3528,8 +3633,17 @@ Private bool OpenSocket(char* host, int16_t port) {
     we send before the SD process is up and running.                       */
 
   do {
-    if (recv(session[session_idx].sock, &ack_buff, 1, 0) < 1)
+    n = recv(session[session_idx].sock, &ack_buff, 1, 0);
+    if (n == 0) {
+      strcpy(session[session_idx].sderror, "Connection closed by server");
       goto exit_opensocket;
+    }
+    if (n < 0) {
+      if (errno == EINTR)
+        continue;
+      net_error("recv()", errno);
+      goto exit_opensocket;
+    }
   } while (ack_buff != '\x06');
 
   status = 1;
@@ -3557,10 +3671,35 @@ exit_closesocket:
   return status;
 }
 
+/* ====================================================================== */
+Private void abandon_connection() {
+  if (session[session_idx].is_local) {
+    int* fds[] = {session[session_idx].RxPipe, session[session_idx].TxPipe};
+    int i;
+    int j;
+    for (i = 0; i < 2; i++) {
+      for (j = 0; j < 2; j++) {
+        if (fds[i][j] >= 0) {
+          close(fds[i][j]);
+          fds[i][j] = -1;
+        }
+      }
+    }
+    if (session[session_idx].pid > 0)
+      (void)waitpid(session[session_idx].pid, NULL, WNOHANG);
+  } else {
+    (void)CloseSocket();
+  }
+  session[session_idx].context = CX_DISCONNECTED;
+}
+
 /* ======================================================================
    NetErr                                                               */
 
 static void net_error(char* prefix, int err) {
+  snprintf(session[session_idx].sderror,
+           sizeof(session[session_idx].sderror),
+           "Error %d from %s", err, prefix);
   fprintf(stderr, "Error %d from %s\n", err, prefix);
 }
 
@@ -3580,11 +3719,10 @@ Private bool read_packet() {
     int16_t server_error ALIGN2;
     int32_t status ALIGN2;
   } in_packet_header;
-#define IN_PKT_HDR_BYTES 10
 
   if ((!session[session_idx].is_local) &&
       (session[session_idx].sock == INVALID_SOCKET))
-    return FALSE;
+    return FALSE; /* no live transport to abandon */
 
   /* Read packet header */
 
@@ -3594,14 +3732,27 @@ Private bool read_packet() {
     rcv_len = IN_PKT_HDR_BYTES - buff_bytes;
 
     if (session[session_idx].is_local) {
-      if ((rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len)) < 0)
-        return FALSE;
+      rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len);
+      if ((rcvd_bytes < 0) && (errno == EINTR))
+        continue;
+      if (rcvd_bytes <= 0) {
+        snprintf(session[session_idx].sderror,
+                 sizeof(session[session_idx].sderror), "Pipe read failed");
+        goto fail;
+      }
     } else {
-      if ((rcvd_bytes = recv(session[session_idx].sock, p, rcv_len, 0)) <= 0)
-        return FALSE;
+      rcvd_bytes = recv(session[session_idx].sock, p, rcv_len, 0);
+      if ((rcvd_bytes < 0) && (errno == EINTR))
+        continue;
+      if (rcvd_bytes == 0) {
+        strcpy(session[session_idx].sderror, "Connection closed by server");
+        goto fail;
+      }
+      if (rcvd_bytes < 0) {
+        net_error("recv()", errno);
+        goto fail;
+      }
     }
-    if (rcvd_bytes <= 0)
-      return FALSE;
 
     buff_bytes += rcvd_bytes;
     p += rcvd_bytes;
@@ -3609,7 +3760,15 @@ Private bool read_packet() {
 
   /* Calculate remaining bytes to read */
 
-  packet_bytes = LongInt(in_packet_header.packet_length) - IN_PKT_HDR_BYTES;
+  in_packet_header.packet_length = LongInt(in_packet_header.packet_length);
+  if (!valid_packet_length(in_packet_header.packet_length)) {
+    snprintf(session[session_idx].sderror,
+             sizeof(session[session_idx].sderror),
+             "Invalid response packet length (%ld)",
+             (long)in_packet_header.packet_length);
+    goto fail;
+  }
+  packet_bytes = in_packet_header.packet_length - IN_PKT_HDR_BYTES;
 
   if (srvr_debug != NULL) {
     fprintf(srvr_debug, "IN (%d bytes)\n", packet_bytes);
@@ -3617,11 +3776,16 @@ Private bool read_packet() {
 
   if (packet_bytes >= buff_size) /* Must reallocate larger buffer */
   {
+    INBUFF* newbuff;
+    n = grow_buffer_size(packet_bytes);
+    newbuff = (INBUFF*)malloc(n);
+    if (newbuff == NULL) {
+      strcpy(session[session_idx].sderror,
+             "Insufficient memory for response buffer");
+      goto fail;
+    }
     free(buff);
-    n = (packet_bytes + BUFF_INCR) & ~(BUFF_INCR - 1);
-    buff = (INBUFF*)malloc(n);
-    if (buff == NULL)
-      return FALSE;
+    buff = newbuff;
     buff_size = n;
 
     if (srvr_debug != NULL) {
@@ -3636,15 +3800,27 @@ Private bool read_packet() {
   while (buff_bytes < packet_bytes) {
     rcv_len = min(buff_size - buff_bytes, 16384);
     if (session[session_idx].is_local) {
-      if ((rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len)) < 0)
-        return FALSE;
+      rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len);
+      if ((rcvd_bytes < 0) && (errno == EINTR))
+        continue;
+      if (rcvd_bytes <= 0) {
+        snprintf(session[session_idx].sderror,
+                 sizeof(session[session_idx].sderror), "Pipe read failed");
+        goto fail;
+      }
     } else {
-      if ((rcvd_bytes = recv(session[session_idx].sock, p, rcv_len, 0)) <= 0)
-        return FALSE;
+      rcvd_bytes = recv(session[session_idx].sock, p, rcv_len, 0);
+      if ((rcvd_bytes < 0) && (errno == EINTR))
+        continue;
+      if (rcvd_bytes == 0) {
+        strcpy(session[session_idx].sderror, "Connection closed by server");
+        goto fail;
+      }
+      if (rcvd_bytes < 0) {
+        net_error("recv()", errno);
+        goto fail;
+      }
     }
-
-    if (rcvd_bytes <= 0)
-      return FALSE;
 
     buff_bytes += rcvd_bytes;
     p += rcvd_bytes;
@@ -3658,6 +3834,48 @@ Private bool read_packet() {
   session[session_idx].server_error = ShortInt(in_packet_header.server_error);
   session[session_idx].sd_status = LongInt(in_packet_header.status);
 
+  return TRUE;
+fail:
+  abandon_connection();
+  return FALSE;
+}
+
+/* ======================================================================
+   send_all()/write_all() - Complete a blocking transport write, handling
+   short writes and EINTR without leaving a partial protocol packet.       */
+Private bool send_all(SOCKET sock, const char* data, int32_t bytes) {
+  int32_t sent = 0;
+  while (sent < bytes) {
+    int n = send(sock, data + sent, bytes - sent, 0);
+    if ((n < 0) && (errno == EINTR))
+      continue;
+    if (n < 0) {
+      net_error("send()", errno);
+      return FALSE;
+    }
+    if (n == 0) {
+      strcpy(session[session_idx].sderror, "Send made no progress");
+      return FALSE;
+    }
+    sent += n;
+  }
+  return TRUE;
+}
+
+Private bool write_all(int fd, const char* data, int32_t bytes) {
+  int32_t written = 0;
+  while (written < bytes) {
+    ssize_t n = write(fd, data + written, bytes - written);
+    if ((n < 0) && (errno == EINTR))
+      continue;
+    if (n <= 0) {
+      snprintf(session[session_idx].sderror,
+               sizeof(session[session_idx].sderror),
+               "Pipe write failed: %s", n < 0 ? strerror(errno) : "no progress");
+      return FALSE;
+    }
+    written += (int32_t)n;
+  }
   return TRUE;
 }
 
@@ -3679,13 +3897,13 @@ Private bool write_packet(int type, char* data, int32_t bytes) {
   packet_header.type = ShortInt(type);
 
   if (session[session_idx].is_local) {
-    if (write(session[session_idx].TxPipe[1], (char*)&packet_header,
-              PKT_HDR_BYTES) != PKT_HDR_BYTES)
-      return FALSE;
+    if (!write_all(session[session_idx].TxPipe[1],
+                   (char*)&packet_header, PKT_HDR_BYTES))
+      goto fail;
   } else {
-    if (send(session[session_idx].sock, (unsigned char*)&packet_header,
-             PKT_HDR_BYTES, 0) != PKT_HDR_BYTES)
-      return FALSE;
+    if (!send_all(session[session_idx].sock,
+                  (char*)&packet_header, PKT_HDR_BYTES))
+      goto fail;
   }
 
   if (srvr_debug != NULL) {
@@ -3695,11 +3913,11 @@ Private bool write_packet(int type, char* data, int32_t bytes) {
 
   if ((data != NULL) && (bytes > 0)) {
     if (session[session_idx].is_local) {
-      if (write(session[session_idx].TxPipe[1], data, bytes) != bytes)
-        return FALSE;
+      if (!write_all(session[session_idx].TxPipe[1], data, bytes))
+        goto fail;
     } else {
-      if (send(session[session_idx].sock, data, bytes, 0) != bytes)
-        return FALSE;
+      if (!send_all(session[session_idx].sock, data, bytes))
+        goto fail;
     }
 
     if (srvr_debug != NULL)
@@ -3707,6 +3925,9 @@ Private bool write_packet(int type, char* data, int32_t bytes) {
   }
 
   return TRUE;
+fail:
+  abandon_connection();
+  return FALSE;
 }
 
 /* ======================================================================
@@ -3953,6 +4174,6 @@ int32_t swap4(int32_t data) {
 /* When building a simply .o file instead of a DLL, we need to import
       the routines from ctype.c into this module.                        */
 
-#include "ctype.c"
+#include "client_ctype.c"
 
 /* END-CODE */
