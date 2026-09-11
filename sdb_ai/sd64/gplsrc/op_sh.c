@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: the SH1 clparse bound is 8, so a long configured
+ *               SH1 cannot write past argv (the Windows port's PRE_RELEASE 174).
  * 09 Sep 26 dm PRE_RELEASE 23 commit 2: os_permitted() also honours USR_OS_EXEC,
  *           the per-account ACC$OS.EXEC grant loaded at account entry, so an
  *           administrator can give a named non-admin account OS.EXECUTE.
@@ -302,7 +304,13 @@ Private void sh_execute(char *command) {
       clparse((pcfg.sh[0] != '\0') ? pcfg.sh : dflt_sh, argv, 10);
     } else /* Single command */
     {
-      i = clparse((pcfg.sh1[0] != '\0') ? pcfg.sh1 : dflt_sh1, argv, 9);
+      /* 10 Sep 26 dm - Parity audit: 8, NOT 9 (the Windows port's fix, its
+         PRE_RELEASE_FIXES 174).  clparse returns AT MOST maxargs, and the two
+         lines below write argv[i] and argv[i + 1]; argv holds 10 pointers, so a
+         maxargs of 9 could write argv[10], one past the end, for any configured
+         SH1 of nine or more space-separated tokens.  Reachable from the config
+         file.  The interactive branch above keeps 10: it appends nothing. */
+      i = clparse((pcfg.sh1[0] != '\0') ? pcfg.sh1 : dflt_sh1, argv, 8);
       argv[i] = command;
       argv[i + 1] = NULL;
     }

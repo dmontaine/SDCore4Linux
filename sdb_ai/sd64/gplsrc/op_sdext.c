@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: NullString() returns NULL on a failed malloc,
+ *               not static storage the caller frees (the Windows port's fix;
+ *               UPSTREAM_FIXES 1).
  * 06 Aug 2024 MAB add SDEXT
  * 08 Aug 2024 mab add embedded python
  * rev 0.9.0 Jan 25 mab add sdext_eguid_set set / restore euid egid of process
@@ -290,15 +293,18 @@ char* NullString() {
   /* p = malloc(1);
   *p = '\0';
   return p; */
-  {
-    static char empty[1] = {'\0'};
-
-    p = malloc(1);
-    if (p == NULL)
-      return empty;
-    *p = '\0';
-    return p;
-  }
+  /* 10 Sep 26 dm - Parity audit: NULL, NOT STATIC STORAGE, when malloc fails -
+     the Windows port's fix (its op_sdext.c; UPSTREAM_FIXES 1).  The block this
+     replaces returned a static empty string, but the result goes into
+     SDMEArgArray and the release loop frees every non-NULL entry, so an
+     out-of-memory made SD free() storage it never allocated: silent, delayed
+     undefined behaviour in place of an immediate crash.  That loop already
+     skips NULL. */
+  p = malloc(1);
+  if (p == NULL)
+    return NULL;
+  *p = '\0';
+  return p;
   /* -------------------- */
 }
 

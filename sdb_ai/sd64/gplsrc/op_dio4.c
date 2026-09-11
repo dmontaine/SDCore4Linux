@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: dir_select() tests the character after '%'
+ *               before consuming it, so a trailing '%' cannot walk the stack
+ *               (the Windows port's fix; UPSTREAM_FIXES 35).
  * rev 0.9-3 mab in dir_select if we end up with an empty name, don't add to list
  * rev 0.9.0 Jan 25 mab fix period or tilde character mapping (%t / %d) 
  *                      to match either case
@@ -1139,9 +1142,24 @@ Private bool dir_select(FILE_VAR* fvar, int16_t list_no) {
 
           while ((c = *(p++)) != '\0') {
             if (c == '%') {
-              r = strchr(df_substitute_chars, *(p++));
-              if (r != NULL) {
+              /* 10 Sep 26 dm - Parity audit: TEST THE CHARACTER BEFORE CONSUMING
+                 IT, the Windows port's fix (its op_dio4.c, PRE_RELEASE 128;
+                 UPSTREAM_FIXES 35).  An unknown escape wrote nothing but had
+                 already stepped over the letter, so "draft%1" decoded to
+                 "draft"; and a TRAILING '%' consumed the terminator, where
+                 strchr(s, '\0') returns the table's NUL rather than NULL, so the
+                 guard passed and this loop walked adjacent stack memory into
+                 name[] - a stack overflow reachable from any file named
+                 "draft%" in a user's own BP.  An unknown escape is now kept
+                 literal, so every input decodes and none runs off the end.  A
+                 literal '%' still does not round-trip through map_t1_id(); SD
+                 never creates such a name. */
+              if ((*p != '\0') &&
+                  ((r = strchr(df_substitute_chars, *p)) != NULL)) {
                 *(q++) = df_restricted_chars[r - df_substitute_chars];
+                p++;
+              } else {
+                *(q++) = c;
               }
             } else {
               *(q++) = c;

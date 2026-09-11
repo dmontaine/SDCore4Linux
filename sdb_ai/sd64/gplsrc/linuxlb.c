@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: sdrealpath() keeps resolving . and .. after a
+ *               component that does not exist (UPSTREAM_FIXES 10).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -192,23 +194,23 @@ char* sdrealpath(char* inpath,  /* Supplied path */
         if (errno != ENOENT)
           return NULL;
 
-        /* Simply glue unrecognised component(s) on the end so that we
-          return a fully resolved path of what we might be trying to
-          create.                                                      */
+        /* 10 Sep 26 dm - Parity audit: KEEP RESOLVING, the Windows port's
+           proposal (UPSTREAM_FIXES 10).  This glued the rest of the input on
+           the end UNPROCESSED and returned, so any "." or ".." after the first
+           component that does not exist survived:
+             /data/live/nofile/../../../sdsys  came back unchanged,
+           while the same path with every component present resolved.  Two
+           spellings of one file compared unequal, and a "resolve, then check
+           it is under the root" test was defeated by one made-up name.
 
-        /* Modified by Composer AI - 2026/06/10.
-           Cast the (always non-negative) pointer difference so the
-           comparison is not done between signed and unsigned types. */
-        /* if ((p - inpath) <= strlen(inpath)) { */
-        if ((size_t)(p - inpath) <= strlen(inpath)) {
-        /* -------------------- */
-          if (tgt + strlen(p) + 1 >= outpath + PATH_MAX)
-            return NULL; /* Too long */
-
-          *(tgt++) = '/';
-          strcpy(tgt, p);
-        }
-        return outpath;
+           The component does not exist, so there is no symlink to follow;
+           carry on with the next one.  p IS RESET TO q FIRST, and that is the
+           part the proposal's "move the advance" means: p was set to q + 1
+           above, which for the LAST component is one past the terminator, and
+           continue would skip the "p = q" at the bottom of the loop.  A caller
+           creating a file still gets a path back - now a resolved one. */
+        p = q;
+        continue;
       }
 
       if (S_ISLNK(st.st_mode)) {

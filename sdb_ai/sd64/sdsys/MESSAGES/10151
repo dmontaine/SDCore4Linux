@@ -1,0 +1,1 @@
+Error %d writing record: no lock is held on it. Nothing was written.\nA WRITE inside a transaction, or under MUSTLOCK=1, needs the lock already.\nTake it with READU (READVU for one field), then WRITE.

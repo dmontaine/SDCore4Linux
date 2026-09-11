@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: start_sd() reports a failed fork() instead of
+ *               claiming SD started (the Windows port's fix; UPSTREAM_FIXES 3).
  * 08 Sep 26 "sd -stop" signalled unvalidated pids, so a stale entry with pid 0
  *           made kill(0, SIGTERM) terminate the caller's whole process group.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -351,6 +353,20 @@ bool start_sd() {
 
   sysseg->sdlnxd_pid = -1; /* Stays -ve if fails to start */
   cpid = fork();
+
+  /* 10 Sep 26 dm - Parity audit: A FAILED fork() USED TO LOOK LIKE SUCCESS, the
+     Windows port's fix (its sysseg.c, 16 Aug 2026; UPSTREAM_FIXES 3).  fork()
+     returns -1, which is not 0, so it fell into the parent branch: sdlnxd was
+     never started, nothing said so, and "sd -start" reported that SD had
+     started - with the segment and semaphores bind_sysseg() had just made left
+     behind to break every later session.  The segment is deliberately not torn
+     down here; clearing it is sd -stop's job, and the message says so. */
+  if (cpid < 0) {
+    fprintf(stderr, "Cannot start sdlnxd - fork() failed: %s\n", strerror(errno));
+    fprintf(stderr, "Run sd -stop to clear what this left behind.\n");
+    return FALSE;
+  }
+
   if (cpid == 0) { /* Child process */
     for (i = 3; i < 1024; i++)
       close(i);

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 10 Sep 26 dm  Parity audit: strncmp for the "$HOLD " prefix, so a short
+ *               print file name is not overread (UPSTREAM_FIXES 8).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -183,7 +185,14 @@ Private void start_file(PRINT_UNIT* pu) {
     if (pu->file_name == NULL) /* Use default name */
     {
       sprintf(fn, "$HOLD%cP%d", DS, (int)(pu->unit));
-    } else if (memcmp(pu->file_name, "$HOLD ", 6) == 0) {
+    /* 10 Sep 26 dm - Parity audit: strncmp, not memcmp (UPSTREAM_FIXES 8; the
+       Windows port removed the same overread).  file_name is allocated at
+       exactly its length + 1, and "SETPTR ... AS PATHNAME /tmp" stores a
+       five-byte name, so memcmp - which may read all six bytes - read past the
+       allocation.  strncmp stops at the NUL; every name long enough to match
+       compares the same.  Case-sensitive here: the hold file is $HOLD on this
+       filesystem until the lower-case conversion. */
+    } else if (strncmp(pu->file_name, "$HOLD ", 6) == 0) {
       sprintf(fn, "$HOLD%c%s", DS, pu->file_name + 6);
     } else {
       strcpy(fn, pu->file_name);
