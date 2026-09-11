@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  PARITY AUDIT: SH-ON / OS-ON at creation (port, 27 Aug 2026),
+*               recorded for a USER account below ADMINISTRATOR; messages
+*               10030/10031 renumbered to the port's 10033/10032; VOC records
+*               copied whole (port PRE_RELEASE_FIXES 136).
 * 09 Sep 26 dm  ADMINISTRATOR and PROGRAMMER keywords; the tier is written to
 *               ACCOUNTS field 5 (ACC$TIER).  PRE_RELEASE 18.  Nothing reads it
 *               yet - the gates are a separate change, and the per-tier VOC is
@@ -65,9 +69,13 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {ADMINISTRATOR | PROGRAMMER} {SH-ON} {OS-ON} {NO.QUERY}
 * CREATE.ACCOUNT GROUP <name> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
 * CREATE.ACCOUNT OTHER <name> <pathname> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+*
+* SH-ON and OS-ON (10 Sep 26, the port's) grant a USER account the SH verb's
+* shell and OS.EXECUTE; they are accepted on any type and recorded only for a
+* USER account below ADMINISTRATOR, as the port's grant.os.access.
 *
 * 09 Sep 26 dm - THIS BLOCK WAS STALE AND IT COST SOMETHING, WHICH IS WHY IT IS
 *   CORRECTED RATHER THAN JUST EXTENDED.  It read
@@ -144,8 +152,11 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   by somebody who has read none of this is the least privileged one.  The
 *   keyword GRANTS rather than restricts.
    tier = 'STANDARD'
+* 10 Sep 26 dm - Parity audit: SH-ON / OS-ON at creation.  Off unless typed.
+   os.sh = @false
+   os.exec = @false
    begin case
-   case upcase(acc.type) = 'USER' 
+   case upcase(acc.type) = 'USER'
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
      pathname = CONFIG('USRDIR')
      if pathname = '' then pathname = '/home/sd/user_accounts'
@@ -263,7 +274,7 @@ PW.TRY.AGAIN:
    case 1
 *   invalid command arg
 * rev 0.9.0 
-    crt 'Command Syntax: CREATE.ACCOUNT USER | GROUP <user name | group name>  {NO.QUERY}'
+    crt 'Command Syntax: CREATE.ACCOUNT USER | GROUP <user name | group name> {ADMINISTRATOR | PROGRAMMER} {SH-ON} {OS-ON} {NO.QUERY}'
     @system.return.code = -ER$ARGS
     stop 
    end case
@@ -402,7 +413,7 @@ PW.TRY.AGAIN:
         if tier = 'ADMINISTRATOR' then
           if not(is_grp_member(acc.uname,'sdadmin')) then
             if not(valid_os_name(acc.uname)) then
-              crt sysmsg(10030,acc.uname,2) ;* Unable to add user %1 to sdadmin, status: %2
+              crt sysmsg(10033,acc.uname,2) ;* Unable to add user %1 to sdadmin, status: %2
             end else
 * 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  This was called out as
 *   the one call that could not use it, because the first administrator is not
@@ -414,10 +425,10 @@ PW.TRY.AGAIN:
               os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdadmin"
               stat = OS.ERROR()
               if stat = 0 then
-                crt sysmsg(10031,acc.uname)  ;* %1 added to sdadmin
+                crt sysmsg(10032,acc.uname)  ;* %1 added to sdadmin
               end else
                 @system.return.code = -ER$FAILED
-                stop sysmsg(10030,acc.uname,stat) ;* Unable to add user %1 to sdadmin, status: %2
+                stop sysmsg(10033,acc.uname,stat) ;* Unable to add user %1 to sdadmin, status: %2
               end
             end
           end
@@ -480,8 +491,31 @@ PW.TRY.AGAIN:
 *   ACC$PRIOR.TIER (6) is left blank, which is what "not suspended" reads as.
 *   NOTHING CONSULTS THIS YET - the gates are the second commit.
    acc.rec<ACC$TIER> = tier
+
+* 10 Sep 26 dm - PARITY AUDIT: THE OS-ACCESS GRANTS AT CREATION.  The port's
+*   grant.os.access writes them for a USER account only and returns for any
+*   other type - a GROUP or OTHER account has no person to grant a shell to,
+*   and MODIFY.ACCOUNT's os.set refuses one (10105).  An ADMINISTRATOR holds
+*   both by tier (LOGIN / CPROC logto), so nothing is written for one and
+*   MODIFY.ACCOUNT refuses to change them (10106).  10102 reports the result.
+   os.written = @false
+   if upcase(acc.type) = 'USER' and tier # 'ADMINISTRATOR' then
+      if os.sh or os.exec then
+         acc.rec<ACC$SH> = 'no'
+         if os.sh then acc.rec<ACC$SH> = 'yes'
+         acc.rec<ACC$OS.EXEC> = 'no'
+         if os.exec then acc.rec<ACC$OS.EXEC> = 'yes'
+         os.written = @true
+      end
+   end
+
    write acc.rec to acc.f, acc.name
    close acc.f
+
+   if os.written then
+      display sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)
+      * Account %1 has SH %2, OS.EXECUTE %3
+   end
 
    @system.return.code = 0
    return
@@ -549,13 +583,14 @@ make.account:
 
       if copy.it then
          read rec from newvoc.f, id then
-            rec<1> = if upcase(rec[1,1]) = 'P' then rec<1>[1,2] else rec[1,1]
-
-            if upcase(rec<1>) = 'K' and rec<3> # '' then   ;* Keyword with other use
-               s = rec<3>
-               rec<3> = if upcase(s[1,1]) = 'P' then s<1>[1,2] else s[1,1]
-            end
-
+* 10 Sep 26 dm - THE RECORD IS COPIED WHOLE, the port's PRE_RELEASE_FIXES 136
+*   (2 Sep 2026).  Two lines here reduced field 1 - the DESCRIPTION whose first
+*   character is the type code - to that one character, and did the same to
+*   field 3 of a K record, so every created account listed a bare "F" where
+*   SDSYS shows a sentence.  CPROC reads only voc.rec[1,1] and [1,2], so
+*   nothing needed the bare form.  LOGIN's update.voc and MODIFYA's
+*   tier.build.rec changed with it: all three must agree, or an update or a
+*   tier change undoes what creation wrote.
             write rec to voc.f, id
 
          end
@@ -661,6 +696,14 @@ more.args:
 *   otherwise silently take the higher tier away again.
          case upcase(token) = 'PROGRAMMER'
             if tier # 'ADMINISTRATOR' then tier = 'PROGRAMMER'
+
+* 10 Sep 26 dm - PARITY AUDIT: "SH-ON" AND "OS-ON", the port's grammar (its
+*   CREATEA, 27 Aug 2026).  Two independent switches, so "SH-ON OS-ON" is both
+*   and neither cancels the other.  Written at the register write below.
+         case upcase(token) = 'SH-ON'
+            os.sh = @true
+         case upcase(token) = 'OS-ON'
+            os.exec = @true
 
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)

@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 PARITY AUDIT. UPDATE.ACCOUNT is UPDATE.ACCOUNTS and takes ALL, as
+*           the port's (its PRE_RELEASE_FIXES 70); its heading's "verb 30" is
+*           corrected to 15. The five start-up privilege notices move from
+*           10032-10034/10037/10038, which the port assigns to other meanings,
+*           to 10900-10904 - a block the port does not use, for messages with
+*           no port equivalent. An ADMINISTRATOR-tier account whose person is in
+*           sdadmin gets SH and OS.EXECUTE at LOGTO without sudo.
 * 09 Sep 26 PRE_RELEASE 18 commit 2. Reaching uid 0 no longer grants
 *           administrator rights on its own. grant.administrator applies the
 *           owner's definition - sdadmin membership AND ACC$TIER=ADMINISTRATOR
@@ -330,7 +337,7 @@ $ifndef IS_INSTALL
 *   MUST NOT LET AN UNKNOWN IDENTITY SATISFY IT*** - sdsys is an account, not
 *   a person, and this arm is exactly where that would slip through.
             logname = kernel(K$USERNAME, 0)  ;* sdsys - identity unknown
-            admin.notice<-1> = sysmsg(10032)  ;* SD cannot tell which person ...
+            admin.notice<-1> = sysmsg(10900)  ;* SD cannot tell which person ...
           end
         end
 $endif
@@ -845,7 +852,7 @@ grant.administrator:
 *   PRE_RELEASE 20 warns about and the port paid for in its entry 93.
 *   The verdict is unchanged - nothing measured, nothing granted - and only the
 *   wording is honest about why.
-      admin.notice<-1> = sysmsg(10038)  ;* the register could not be read
+      admin.notice<-1> = sysmsg(10904)  ;* the register could not be read
       return
    end
 
@@ -892,12 +899,12 @@ grant.administrator:
 *   exactly two halves, so there are exactly two things to say.
    if admin.any then
       if admin.tier = 'ADMINISTRATOR' then
-         admin.notice<-1> = sysmsg(10037, admin.person) ;* registered, not in sdadmin
+         admin.notice<-1> = sysmsg(10903, admin.person) ;* registered, not in sdadmin
       end else
-         admin.notice<-1> = sysmsg(10034, admin.person) ;* not registered
+         admin.notice<-1> = sysmsg(10902, admin.person) ;* not registered
       end
    end else
-      admin.notice<-1> = sysmsg(10033, admin.person)
+      admin.notice<-1> = sysmsg(10901, admin.person)
       void kernel(K$ADMINISTRATOR, 1)
    end
 
@@ -1718,7 +1725,7 @@ $endif
                      int.status,                 ;* 12  STATUS
                      int.set.date,               ;* 13  SET.DATE
                      int.help,                   ;* 14  HELP
-                     int.update.account,         ;* 15  UPDATE.ACCOUNT
+                     int.update.accounts,        ;* 15  UPDATE.ACCOUNTS
                      int.who,                    ;* 16  WHO
                      int.logto,                  ;* 17  LOGTO
                      int.if,                     ;* 18  IF
@@ -2769,8 +2776,15 @@ int.logto:
 *   the register record for a named account; a path-attached account has none,
 *   so the fields read blank = denied, the safe default.  An administrator
 *   bypasses these via USR_ADMIN regardless of the account's fields.
-   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
-   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
+* 10 Sep 26 dm - USR_ADMIN IS ONLY SET UNDER sudo sd, so a plain-sd
+*   administrator had none of this.  An ADMINISTRATOR-tier account whose person
+*   is in sdadmin now grants both, as at LOGIN - see LOGIN's note for the
+*   rulings.  Account-scoped: a LOGTO to any other account reloads from that
+*   account's own record.
+   logto.os.admin = (upcase(trim(acc.record<ACC$TIER>)) = 'ADMINISTRATOR')
+   if logto.os.admin then logto.os.admin = is_grp_member(@logname, 'sdadmin')
+   void kernel(K$SH,      logto.os.admin or (upcase(trim(acc.record<ACC$SH>)) = 'YES'))
+   void kernel(K$OS.EXEC, logto.os.admin or (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))
 
    gosub find.private.catalogue
 
@@ -3168,12 +3182,31 @@ int.logout:
    return
 
 *****************************************************************************
-* INT.UPDATE.ACCOUNT    -  UPDATE.ACCOUNT (Internal verb 30)
+* INT.UPDATE.ACCOUNTS    -  UPDATE.ACCOUNTS (Internal verb 15)
+*
+* 10 Sep 26 dm - RENAMED FROM UPDATE.ACCOUNT, AND "ALL" ADDED, to match the port
+*   (its CPROC, 4 Sep 2026; PRE_RELEASE_FIXES 70).  The heading said "Internal
+*   verb 30", a copy of INT.STOP's; the dispatch table says 15 (the port's
+*   UPSTREAM_FIXES 37).  ALL is an explicit keyword rather than an inference
+*   from how SD was started, and any other trailing word is refused by name
+*   (10173) rather than ignored - quietly ignoring it would run the
+*   interactive form while the caller believed they had asked for the other.
 
-int.update.account:
+int.update.accounts:
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+   upd.mode = 2
+   begin case
+      case keyword = KW$ALL
+         upd.mode = 4
+      case token # ''
+         display sysmsg(10173, token) ;* UPDATE.ACCOUNTS does not take xx
+         @system.return.code = -ER$ARGS
+         return
+   end case
+
    display sysmsg(5200) ;* Copying records from NEWVOC to VOC...
    i = '$LOGIN'
-   call @i(j,2)
+   call @i(j,upd.mode)
    i = ''
    display 
    return

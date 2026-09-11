@@ -6,28 +6,51 @@
 * it under the terms of the GNU General Public License as published by
 * the Free Software Foundation; either version 3, or (at your option)
 * any later version.
-* 
+*
 * This program is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 * GNU General Public License for more details.
-* 
+*
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software Foundation,
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-* 
-* 
+*
+*
 * START-HISTORY:
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 delete-account requires admin priv, are we admin?
 *           on user account, delete os user if configured
 * rev 1.0-1 use userdel not deluser (deluser not on all Linux version)
+* 10 Sep 26 dm  PARITY AUDIT - the port's DELACC (14-30 Aug 2026).  ONE
+*               confirmation, naming what will go (10084/10085), Enter = N,
+*               after a warning that the data goes with it (10158).  The
+*               cross-reference question (6029) is a statement now, and the
+*               separate directory (6031) and OS-user (10027) questions are
+*               gone.  The config('CREATUSR') gate is gone, as it is from
+*               CREATEA.  The Linux user is deleted only when SD created it -
+*               !is_sd_user reads the "SD account" GECOS stamp CREATE_USER
+*               writes - and the ACCOUNTS record is deleted LAST, so a failure
+*               part way leaves the account registered and this verb runnable.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
 * DELETE.ACCOUNT account.name
 *
+* Removes the account directory, the sdu_ or sdg_ group, the ACCOUNTS record
+* and - for a USER account whose Linux user SD created - that Linux user.  One
+* confirmation covers all of it.
+*
+* WHAT IT WILL NOT DO IS DELETE A LINUX USER SD DID NOT CREATE.  !is_sd_user
+* reads back the GECOS comment CREATE_USER stamps; any other user - the person
+* who installed SD, or an account made before the stamp existed - is left in
+* place and message 10036 says so, and the confirmation uses the shorter
+* wording, so it never promises what it will not do.
+*
+* THE LINUX USER'S HOME DIRECTORY IS NOT REMOVED (userdel without -r).  The
+* port removes the Windows profile; on Linux the home holds the person's own
+* files and ssh keys, so taking it too is left for the owner to rule on.
 *
 * END-DESCRIPTION
 *
@@ -44,6 +67,8 @@ $include err.h
 * REV 0.9.0
 deffun is_group(group) calling '!is_group'
 deffun valid_os_name(name) calling '!valid_os_name'
+* 10 Sep 26 dm - did SD create the Linux user behind this account?  (the port's)
+deffun is_sd_user(username) calling '!is_sd_user'
    prompt ''
 
    parser = "!PARSER"
@@ -51,7 +76,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
 * rev 0.9.0 delete-account requires admin priv, are we admin?
    if not(kernel(K$ADMINISTRATOR, -1)) then
      stop sysmsg(2001)  ;* Command requires administrator privileges
-   end   
+   end
 
    @system.return.code = -ER$ARGS            ;* Preset for argument errors
 
@@ -100,14 +125,34 @@ deffun valid_os_name(name) calling '!valid_os_name'
       @system.return.code = -status()
       stop sysmsg(6027) ;* Account not registered in ACCOUNTS file
    end
-* rev 0.9.0   
+* rev 0.9.0
    group_name = acc.rec<ACC$GROUP>
 
    pathname = parse.pathname.tokens(acc.rec<ACC$PATH>)
 
+* 10 Sep 26 dm - WORK OUT WHAT WILL GO BEFORE ASKING ABOUT IT (the port's, 21 Aug
+*   2026).  del.user is set only for a USER account whose Linux user exists and
+*   carries SD's stamp, and the confirmation names a Linux user only then.
+   del.user = ''
+   os.user = ''
+   sd.made.it = @false
+   lookup.stat = 0
+
+   findstr 'sdu_' in group_name setting yn then
+      os.user = change(group_name, 'sdu_', '')
+      if valid_os_name(os.user) then
+         sd.made.it = is_sd_user(os.user)
+         lookup.stat = status()
+         if lookup.stat = 0 and sd.made.it then
+            del.user = os.user
+         end
+      end
+   end
+
    * Check  account directory exists
 
-   if not(ospath(pathname, OS$EXISTS)) then
+   dir.exists = ospath(pathname, OS$EXISTS)
+   if not(dir.exists) then
       display sysmsg(6028) ;* WARNING: Account directory does not exist
    end else
       * Check for cross-references from other accounts
@@ -154,43 +199,48 @@ deffun valid_os_name(name) calling '!valid_os_name'
          end
       repeat
 
-      if xref.found then
-         loop
-            display sysmsg(6029) : ;* Continue with account deletion (Y/N)?
-            input yn
-            yn = upcase(yn)
-            if yn = 'N' then
-               @system.return.code = -ER$STOPPED
-               stop sysmsg(6030) ;* Account deletion abandoned
-            end
-         until yn = 'Y'
-         repeat
+* 10 Sep 26 dm - THE CROSS-REFERENCE QUESTION IS NOW A STATEMENT (the port's;
+*   owner's decision there, 21 Aug 2026: ONE confirmation before deleting).  It
+*   was its own Y/N (6029), which made two prompts on the one path where it
+*   fired.  report.xref has already printed them above, so they are read before
+*   the single question rather than answered twice.  The separate "delete
+*   directory" question (6031) went the same way: the confirmation below names
+*   the directory.
+   end                                  ;* account directory exists
+
+* 10 Sep 26 dm - ONE CONFIRMATION, AND IT NAMES WHAT WILL ACTUALLY GO (the
+*   port's).  10158 first, because deleting takes the account's data with it.
+*   Enter takes the default the prompt shows, N (port PRE_RELEASE_FIXES 79).
+   crt sysmsg(10158, acc.name)
+
+   loop
+      if del.user # '' then
+         display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
+      end else
+         display sysmsg(10085, acc.name) :           ;* account and its directory
       end
+      input yn
+      yn = upcase(yn)
+      if yn = '' then yn = 'N'
+   until yn = 'Y' or yn = 'N'
+   repeat
 
-      * Ask if to delete directory
-
-      loop
-         display sysmsg(6031, pathname) :  ;* Delete directory xx (Y/N)?
-         input yn
-         yn = upcase(yn)
-         until yn = 'Y' or yn = 'N'
-      repeat
-
-      if yn = 'Y' then
-         yn = ospath(pathname, OS$DELETE)
-      end
+   if yn = 'N' then
+      @system.return.code = -ER$STOPPED
+      stop sysmsg(6030) ;* Account deletion abandoned
    end
 
-   * Delete ACCOUNTS entry
+   if dir.exists then
+      yn = ospath(pathname, OS$DELETE)
+   end
 
-   delete acc.f, acc.name
-   
-   * rev 0.9.0 remove group. os user?
+* 10 Sep 26 dm - THE ACCOUNTS RECORD IS DELETED LAST, NOT HERE (the port's, 14
+*   Aug 2026) - see the end of the program.
+
+   * rev 0.9.0 remove group.
    if is_group(group_name) then
       * Modified by Composer AI - 2026/06/10.
       * Use shared !valid_os_name before OS.EXECUTE (phase 2).
-      * os.name.chars = '...'
-      * if convert(os.name.chars, '', group_name) # '' or len(group_name) > 32 then
       if not(valid_os_name(group_name)) then
          crt sysmsg(10026,group_name, 2) ;* Warning unable to delete group: %1 error: %2
       end else
@@ -198,48 +248,59 @@ deffun valid_os_name(name) calling '!valid_os_name'
 *   sd-elevate accepts only sdu_* and sdg_* here - SD's own sdusers and sdadmin
 *   are refused by name, because deleting either takes the system apart rather
 *   than an account, and this call only ever passes the account's own group.
-      OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupdel ": group_name
-      stat = OS.ERROR()
-      if stat = 0 then
-         crt sysmsg(10025,group_name) ;* group: %1 Deleted
-      end else
-         crt sysmsg(10026,group_name, stat) ;* Warning unable to delete group: %1 error: %2
-      end
-      end
-      * --------------------
-   end
-   
-   * delete os user? (if configured to do so)
-   If config('CREATUSR') then
-      * is this a user account ?
-      FINDSTR 'sdu_' in group_name setting yn then
-         * remove sdu_ prefix
-         username = change(group_name,'sdu_','')
-         crt sysmsg(10027,username): ;* Delete OS user %1 (Y/N)?
-         input yn
-         if upcase(yn) = 'Y' then
-            * Modified by Composer AI - 2026/06/10.
-            * Use shared !valid_os_name before OS.EXECUTE (phase 2).
-            * if username = '' or convert(os.name.chars, '', username) # '' ...
-            if not(valid_os_name(username)) then
-               crt sysmsg(10029,username, 2) ;* Warning unable to delete OS User: %1 error: %2
-            end else
-* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
-*   sd-elevate refuses root, sdsys and anything below UID_MIN as a target, so
-*   "delete root" has no spelling on this path.
-            OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel ":username
-            stat = OS.ERROR()
-            if stat = 0 then
-               crt sysmsg(10028,username) ;* OS User: %1 Deleted
-            end else
-               crt sysmsg(10029,username, stat) ;* Warning unable to delete OS User: %1 error: %2
-            end
-            end
-            * --------------------
+         OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupdel ": group_name
+         stat = OS.ERROR()
+         if stat = 0 then
+            crt sysmsg(10025,group_name) ;* group: %1 Deleted
+         end else
+            crt sysmsg(10026,group_name, stat) ;* Warning unable to delete group: %1 error: %2
          end
       end
    end
-   
+
+* 10 Sep 26 dm - THE LINUX USER, AND THIS BLOCK NO LONGER ASKS, IT ACTS ON WHAT
+*   THE CONFIRMATION NAMED (the port's, owner's decision there 21 Aug 2026).
+*   The config('CREATUSR') gate is gone: CREATEA always creates the user now,
+*   so leaving deletion to a setting nothing else reads would make the two
+*   verbs disagree.  Three cases, as the port's.
+   if os.user # '' then
+      if not(valid_os_name(os.user)) then
+         crt sysmsg(10029, os.user, 2) ;* Warning unable to delete OS User: %1 error: %2
+      end else
+         begin case
+            case lookup.stat # 0
+               * No such Linux user - the SD side outliving the OS side, which
+               * a failed creation also leaves.  Reported, not warned about:
+               * there is nothing wrong and nothing to do.
+               crt sysmsg(10037, os.user) ;* Linux user %1 does not exist
+
+            case sd.made.it
+* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
+*   sd-elevate refuses root, sdsys and anything below UID_MIN as a target, so
+*   "delete root" has no spelling on this path.
+               OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel " : os.user
+               stat = OS.ERROR()
+               if stat = 0 then
+                  crt sysmsg(10028, os.user) ;* OS User: %1 Deleted
+               end else
+                  crt sysmsg(10029, os.user, stat) ;* Warning unable to delete OS User: %1 error: %2
+               end
+
+            case 1
+               * It exists and does not carry SD's stamp - the person who
+               * installed SD, or a user made before the stamp existed.  Not
+               * offered, not asked about: said plainly, and the confirmation
+               * above did not promise it either.
+               crt sysmsg(10036, os.user) ;* %1 was not created by SD
+         end case
+      end
+   end
+
+   * Delete ACCOUNTS entry.  LAST, so that anything failing above leaves the
+   * account registered and this verb able to be run again.
+
+   delete acc.f, acc.name
+
    @system.return.code = 0
    return
 

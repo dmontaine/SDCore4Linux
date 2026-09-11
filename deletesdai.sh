@@ -215,7 +215,7 @@ fi
 #            and nothing re-adds an existing administrator: CREATEA adds on
 #            creation only, and the installer skips create-account when the
 #            account directory survives.  CPROC's grant wants the tier AND the
-#            group, so every administrator would fall to 10037 with "Admin? No"
+#            group, so every administrator would fall to 10903 with "Admin? No"
 #            and no in-SD way back - CREATEA and MODIFYA both need the flag the
 #            group just failed to set.  The sdsys user and sdusers group below
 #            have followed the "only if deleting ACCOUNTS" rule since before

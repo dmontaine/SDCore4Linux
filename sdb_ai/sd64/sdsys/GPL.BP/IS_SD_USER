@@ -1,0 +1,83 @@
+* IS_SD_USER
+* Did SD create this Linux user?
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 10 Sep 26 dm  New, the port's !is_sd_user (14 Aug 2026) for Linux.  The port
+*               reads back the Windows account description CREATE_USER stamps;
+*               here CREATE_USER's useradd (through sd-elevate) stamps the GECOS
+*               comment "SD account", and this reads it with getent, which
+*               needs no privilege.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+* is_sd_user(username) - true when the Linux user exists and its GECOS comment
+* is exactly "SD account".
+*
+* status() 0 - the user exists; the result says whether SD made it.
+* status() 1 - no such user, a name that is not valid, or getent gave nothing
+*              back.  The caller must not go on to delete anything.
+*
+* EXACT MATCH, AND THAT IS DELIBERATE.  A comment somebody typed that merely
+* contains the words is not SD's stamp, and the one caller deletes on true.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+function is_sd_user(username)
+$catalog !is_sd_user
+
+deffun valid_os_name(name) calling '!valid_os_name'
+
+sd_created = @false
+set.status 0
+
+if username = '' then
+   set.status 1
+   return sd_created
+end
+
+if not(valid_os_name(username)) then
+   set.status 1
+   return sd_created
+end
+
+gent.out = ''
+os.execute 'getent passwd ' : username capturing gent.out
+
+* getent prints one line, name:x:uid:gid:gecos:home:shell, and nothing at all
+* (exit 2) for a user that does not exist.  The captured output arrives with
+* its line break as a field mark, so the line is field 1.
+gent.line = gent.out<1>
+if gent.line = '' then
+   set.status 1
+   return sd_created
+end
+
+if field(gent.line, ':', 1) # username then
+   set.status 1
+   return sd_created
+end
+
+if field(gent.line, ':', 5) = 'SD account' then sd_created = @true
+
+return sd_created
+end
+
+* END-CODE

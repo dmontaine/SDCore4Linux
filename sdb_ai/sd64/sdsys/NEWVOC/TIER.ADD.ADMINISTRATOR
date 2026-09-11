@@ -1,6 +1,16 @@
-This record is not a VOC entry - it lists the admin verbs an ADMINISTRATOR account gets on top of NEWVOC, copied from VOC_TEMPLATE
+This record is not a VOC entry - it lists what an ADMINISTRATOR account gets on top of NEWVOC, copied from VOC_TEMPLATE
 CREATE.ACCOUNT
 DELETE.ACCOUNT
 MODIFY.ACCOUNT
-UPDATE.ACCOUNT
+UPDATE.ACCOUNTS
+CLEAN.ACCOUNT
 UNLOCK
+CONFIG
+LISTU
+LIST.READU
+LIST.LOCKS
+CLEAR.LOCKS
+LOCK
+SET.DATE
+SH
+!

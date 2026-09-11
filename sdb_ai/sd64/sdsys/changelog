@@ -9,6 +9,124 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  A ROUND OF CHANGES TO MATCH SD CORE FOR WINDOWS.
+
+           SD Core for Linux follows SD Core for Windows wherever the two do the
+           same job.  An audit found places where they had drifted apart, and
+           these are the ones a user will notice.
+
+           Administration verbs are for administrators only.  SH, "!", CONFIG,
+           LISTU, LIST.READU, LIST.LOCKS, CLEAR.LOCKS, LOCK, SET.DATE and
+           CLEAN.ACCOUNT are no longer given to STANDARD or PROGRAMMER accounts;
+           an ADMINISTRATOR account gets them.  An administrator who wants one
+           person to have one of these can copy that verb into the person's VOC.
+
+           UPDATE.ACCOUNT is now UPDATE.ACCOUNTS, the name SD Core for Windows
+           uses.  UPDATE.ACCOUNTS ALL, typed in SDSYS by an administrator, updates
+           every registered account without asking first and says how many it
+           updated.  Any other word after the verb is refused.
+
+           NLS, SET.LANGUAGE and LOAD.LANGUAGE are gone: SD is English only.
+
+           Every yes/no question now shows which answer pressing Enter gives -
+           "(y/<n>)" - and Enter gives it.  Several questions used to ask again
+           for ever on an empty answer.  The default is always the answer that
+           changes nothing.
+
+           Accounts created from now on keep the descriptions on their VOC
+           records ("File - Account register" rather than a bare "F"), and a VOC
+           update no longer strips them.
+
+           DELETE.ACCOUNT asks one question instead of up to three, and the
+           question names what will be deleted.  It deletes the account's Linux
+           user too, but only a user SD itself created: CREATE.ACCOUNT now marks
+           the users it makes, and any other user - including the person who
+           installed SD - is left in place, with a message saying so.
+
+           CREATE.ACCOUNT takes SH-ON and OS-ON, so a new account can be given
+           the shell or OS.EXECUTE when it is made.  MODIFY.ACCOUNT's SH-ON and
+           OS-ON now report where both settings stand, and refuse a group
+           account, which has no person of its own to grant them to.
+
+           DELETE.CATALOG checks every name before deleting any, so a list that
+           mixes your own entries with global ones deletes nothing instead of
+           stopping half way.
+
+           Several messages have new numbers, so that a message number means the
+           same thing in SD Core for Linux as in SD Core for Windows.
+
+           What it does not do: existing accounts keep the verbs and VOC records
+           they already have - an update adds and replaces but never removes, and
+           changing an account's tier is what brings its verbs into line.  Linux
+           users created before this change carry no mark, so DELETE.ACCOUNT
+           leaves them in place; remove one with userdel if it should go.
+           DELETE.ACCOUNT does not remove the Linux user's home directory.
+
+
+10 Sep 26  MICRO WORKS AGAIN, AND ADMINISTRATORS REACH THE SYSTEM WITHOUT SUDO.
+
+           MICRO started the editor through SD's shell command, which is closed
+           to anyone who has not been given shell access.  In an ordinary
+           session it printed "not permitted to use the operating system shell"
+           and then "Record was not saved" without ever opening the editor.  It
+           now starts the editor itself, and says plainly when it cannot: the
+           session has no terminal, the account may not run programs outside SD
+           (MODIFY.ACCOUNT <account> OS-ON grants that), or micro is not
+           installed.  It also finds the file however its name is typed, so
+           "micro bp test" edits BP.
+
+           An administrator working in their own account without sudo now has
+           the shell (SH and "!"), OS.EXECUTE and MICRO.  The rules already said
+           an administrator's operating-system access comes with the tier and
+           cannot be switched off, but in practice it was only there under
+           "sudo sd".
+
+           What it does not do: this access belongs to the administrator's own
+           account.  After LOGTO into an account that is not an administrator's,
+           the shell and MICRO follow that account's own settings.  A STANDARD
+           account still has no MICRO verb.  MICRO will not edit a record whose
+           name contains a single quote; use ED for that.
+
+
+10 Sep 26  CHANGING AN ACCOUNT'S TIER NOW CHANGES ITS VERBS AT ONCE.
+
+           MODIFY.ACCOUNT <account> STANDARD, PROGRAMMER or ADMINISTRATOR now
+           brings the account's verbs into line with the new tier straight away.
+           Before, the tier changed but the account kept exactly the verbs it
+           had, so a STANDARD account raised to PROGRAMMER still could not
+           compile, and a PROGRAMMER lowered to STANDARD still could.  Raising a
+           tier copies in the verbs it adds; lowering one removes them.  The
+           command reports how many VOC records it added, removed and left
+           alone.
+
+           What it does not do: when lowering a tier it removes a verb only if
+           the account's record is still exactly as SD wrote it.  A record
+           someone has edited or replaced under that name is left in place and
+           counted as "left alone" - it is never silently destroyed, but it does
+           stay usable.  File pointers and anything else the account has added
+           are not touched.  If the account's VOC cannot be opened, the tier is
+           not changed.
+
+
+10 Sep 26  A VOC UPDATE NO LONGER UNDOES AN ACCOUNT'S TIER.
+
+           After an upgrade, logging in to an account whose VOC is at an older
+           release asks "Update VOC to new release?", and UPDATE.ACCOUNTS does the
+           same thing on request.  Both copied the whole of the shipped VOC into
+           the account, so a STANDARD account that answered Y got back every verb
+           it had been created without - BASIC, CATALOG, RUN, the editors - and no
+           privilege was needed to do it.  The update now applies the account's
+           tier exactly as CREATE.ACCOUNT does.
+
+           It also fixes an old fault in the same update: a verb whose record was
+           identical to the one before it (CATALOGUE after CATALOG, for example)
+           could be skipped, leaving the account without it.
+
+           What it does not do: an update adds and replaces, it never removes, so
+           an account already holding verbs its tier would not give it keeps them.
+           An account created before tiers existed is updated with the full set.
+
+
 10 Sep 26  ACCOUNTS NOW GET A VERB SET THAT MATCHES THEIR TIER.
 
            The verbs a new account receives now depend on its tier.  A STANDARD
@@ -17,12 +135,12 @@ SD: what changed, why it mattered, and what it does not do.
            commands, the editors, and so on: it can run an application, not build
            one.  A PROGRAMMER account gets the full set, and an ADMINISTRATOR
            account gets that plus the account-management verbs (CREATE.ACCOUNT,
-           DELETE.ACCOUNT, MODIFY.ACCOUNT, UPDATE.ACCOUNT, UNLOCK).
+           DELETE.ACCOUNT, MODIFY.ACCOUNT, UPDATE.ACCOUNTS, UNLOCK, and the other
+           administration verbs listed in the entry above).
 
-           What it does not do yet: this applies when an account is CREATED.
-           Changing an existing account's tier with MODIFY.ACCOUNT does not yet
-           re-derive its verb set, and a release VOC update does not yet respect
-           the tier - both are still to come.
+           What it does not do: an account created before this change keeps the
+           verbs it was created with.  Changing its tier with MODIFY.ACCOUNT
+           brings them into line (see the entries above).
 
 
 10 Sep 26  CREATE.ACCOUNT NOW CREATES THE OPERATING-SYSTEM USER TOO.

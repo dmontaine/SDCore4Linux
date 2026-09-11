@@ -1451,10 +1451,14 @@ void op_weofseq() {
      The status must be NEGATIVE: positive values here are handed back to the
      program, and the guard below tests for < 0.  chsize64() returns non-zero on
      failure (sdfix.c:2492 is the control).  */
-  if (chsize64(fu, sq_file->posn)) {
+  /* 10 Sep 26  Parity audit: no goto here, as the port's (its op_seqio.c,
+     PRE_RELEASE_FIXES 103).  The goto skipped "sq_file->base = -1" on a failed
+     truncate, leaving the buffer base describing a file position the truncate
+     may have partly changed.  The status is set either way and the exit below
+     reports it.  */
+  if (chsize64(fu, sq_file->posn) != 0) {
     process.status = -ER_IOE;
     process.os_error = OSError;
-    goto exit_op_weofseq;
   }
   sq_file->base = -1;
 

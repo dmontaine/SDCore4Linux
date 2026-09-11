@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: mode 4 is UPDATE.ACCOUNTS ALL (port PRE_RELEASE_FIXES
+*               70), and update.voc writes records whole (port 136).
+* 10 Sep 26 dm  SL1 - update.voc applies the account's tier, so a VOC update
+*               (the $RELEASE prompt, UPDATE.ACCOUNTS, or the all-accounts walk)
+*               no longer hands a STANDARD account back the verbs CREATEA left
+*               out.  The port's 17 Aug 2026 fix.  old.rec is also cleared
+*               before each READU (the port's fix of the same day).
 * rev 0.9.1 Mar 25 mab return to single rev tracking
 * rev 0.9.0 Jan 25 mab change permission required for account login, must now either be;
 *                      1) users ACCOUNT
@@ -36,6 +43,7 @@
 *   1   SDApiSrvr session
 *   2   Updating VOC only
 *   3   End of install - offer to upgrade all VOCs (non-GPL version only)
+*   4   UPDATE.ACCOUNTS ALL - this VOC, then every registered account, unasked
 *
 * END-DESCRIPTION
 *
@@ -65,6 +73,13 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    ok = @false
    is.phantom = kernel(K$IS.PHANTOM, 0)
+
+* 10 Sep 26 dm - SL1.  Each update.voc caller sets update.voc.tier, directly or
+*   through get.acc.tier.  Assigned here, above every call site, because both
+*   routines stand at the bottom of the file.  '' means the full VOC, so a call
+*   site added later that forgets gets the pre-tier behaviour, not a crash.
+   update.voc.tier = ''
+   tier.acc.name = ''
 
    * If the terminal type has not yet been set, work out what it is
 
@@ -105,22 +120,42 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       end
    end
 
-   if mode = 2 or mode = 3 then     ;* Just doing a VOC upgrade or install
-      if mode = 2 then              ;* VOC update
+   if mode = 2 or mode = 3 or mode = 4 then  ;* Just doing a VOC upgrade or install
+      if mode = 2 or mode = 4 then           ;* VOC update (4 = UPDATE.ACCOUNTS ALL)
+         tier.acc.name = @who
+         gosub get.acc.tier
          update.voc.f = voc
          gosub update.voc
          close update.voc.f
       end
 
+* 10 Sep 26 dm - MODE 4 IS "UPDATE.ACCOUNTS ALL", the port's unattended form (its
+*   PRE_RELEASE_FIXES 70): the walk runs without the question, says so first
+*   (10170) and reports the count (10171).  Anywhere but SDSYS under an
+*   administrator it refuses in words (10172) rather than updating one account
+*   and staying silent about the rest.
+      if mode = 4 and not(@who = 'SDSYS' and kernel(K$ADMINISTRATOR,-1)) then
+         display sysmsg(10172) ;* Cannot update every account from here
+      end
+
       if @who = 'SDSYS' and kernel(K$ADMINISTRATOR,-1) then
-         loop
-            display sysmsg(5003) :  ;* Update VOC in all registered accounts (Y/N)?
-            input yn
-            yn = upcase(yn)
-         until yn = 'Y' or yn = 'N'
-         repeat
+         if mode = 4 then
+            yn = 'Y'
+            display sysmsg(10170) ;* Every registered account will have its VOC updated
+         end else
+            loop
+               display sysmsg(5003) :  ;* Update VOC in all registered accounts (y/<n>)?
+               input yn
+               yn = upcase(yn)
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N (port
+*   PRE_RELEASE_FIXES 79).  An empty answer used to re-ask for ever.
+               if yn = '' then yn = 'N'
+            until yn = 'Y' or yn = 'N'
+            repeat
+         end
 
          if yn = 'Y' then
+            acc.updated = 0
             voc.paths = @path
             openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
                select acc.f to 12
@@ -133,14 +168,24 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                         s = acc.path:@ds:'VOC'
                         openpath s to update.voc.f then
                            display sysmsg(5004, s) ;* Updating xx
+* 10 Sep 26 dm - SL1.  The register record is already in hand, so the tier
+*   comes straight off it.  SUSPENDED is not a VOC tier; resolve it to the
+*   tier it displaced (the port's 27 Aug 2026 fix - without it a suspended
+*   PROGRAMMER would be updated as STANDARD and lose its verbs).
+                           update.voc.tier = acc.rec<ACC$TIER>
+                           if upcase(trim(update.voc.tier)) = 'SUSPENDED' then
+                              update.voc.tier = acc.rec<ACC$PRIOR.TIER>
+                           end
                            gosub update.voc
                            close update.voc.f
                            voc.paths<-1> = acc.path
+                           acc.updated += 1
                         end
                      end
                   end
                repeat
                close acc.f
+               display sysmsg(10171, acc.updated) ;* xx account(s) had their VOC updated
             end else
                display sysmsg(2200) ;* Cannot open accounts register
             end
@@ -283,8 +328,21 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   grants into the session; CPROC's logto does the same on a later account
 *   change.  Blank = denied (the safe default); an administrator bypasses these
 *   via USR_ADMIN, so they matter only for a non-admin account.
-   void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
-   void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+* 10 Sep 26 dm - ***THAT LAST SENTENCE WAS TRUE ONLY UNDER sudo sd.***  USR_ADMIN
+*   is set only in CPROC's root-entry block, so an ADMINISTRATOR in a plain sd
+*   session had no SH, no "!", no OS.EXECUTE - and so no MICRO - and
+*   MODIFY.ACCOUNT refused to grant them (10106).  Found by the owner, 10 Sep:
+*   "MICRO BP TEST" gave 10053.  Owner, 9 Sep 2026: an administrator has full OS
+*   access "by tier, automatic and unrevocable"; the port ruled the same on 29
+*   Aug 2026 ("by default without escalating") after hitting this exact case
+*   (its HISTORY.md, "AN UNELEVATED ADMINISTRATOR HAS NO sh").  So an
+*   administrator's own account now grants both.  BOTH HALVES of the owner's
+*   definition are asked - the account's tier AND the person in sdadmin - so
+*   somebody added to an administrator's account group does not inherit it.
+   os.admin = (upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR')
+   if os.admin then os.admin = is_grp_member(@logname, 'sdadmin')
+   void kernel(K$SH,      os.admin or (upcase(trim(acc.rec<ACC$SH>)) = 'YES'))
+   void kernel(K$OS.EXEC, os.admin or (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES'))
 
    * Set @PATH
 
@@ -369,6 +427,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                   case s = "N"
                      exit
                   case s = "Y"
+                     tier.acc.name = @who
+                     gosub get.acc.tier
                      update.voc.f = voc
                      gosub update.voc
                      close update.voc.f
@@ -431,14 +491,58 @@ update.voc:
       goto abort.login
    end
 
+* 10 Sep 26 dm - SL1, THE TIER FILTER.  CREATEA gives a STANDARD account NEWVOC
+*   less the verbs in TIER.OMIT.STANDARD; this routine re-copied all of NEWVOC
+*   and handed them straight back - BASIC, CATALOG, RUN, ED, COPY.  ***AND IT
+*   NEEDS NO PRIVILEGE***: the $RELEASE test in the main line asks any user
+*   "Update VOC to new release?" when the account's release level differs from
+*   SD.REV.STAMP, so one Y undid the tier at the next release.  Paid for in the
+*   port, 17 Aug 2026 (its HISTORY.md, "THE HOLE THAT MADE THE TIERS TEMPORARY").
+*
+*   The same filter as CREATEA's copy loop.  BLANK OR PROGRAMMER OR
+*   ADMINISTRATOR MEANS THE FULL NEWVOC: blank is an account written before the
+*   tier existed, which already holds a full VOC, and an update only writes - it
+*   never deletes.  Anything else is filtered as STANDARD.  The admin verbs come
+*   from VOC_TEMPLATE, not NEWVOC, so this routine neither adds nor removes them.
+   omit.rec = ''
+   omit.tier = upcase(trim(update.voc.tier))
+   if omit.tier # '' and omit.tier # 'PROGRAMMER' and omit.tier # 'ADMINISTRATOR' then
+      read omit.rec from sdsys.file, 'TIER.OMIT.STANDARD' else omit.rec = ''
+   end
+   omit.count = dcount(omit.rec, @fm)
+
    select sdsys.file to 11
    loop
       readnext id from 11 else exit
+
+*     The two control records are never VOC entries, whatever the tier.  Case
+*     insensitive, as CREATEA, so it survives the lower-case conversion (SL M).
+      copy.it = @true
+      if upcase(id) = 'TIER.OMIT.STANDARD' then copy.it = @false
+      if upcase(id) = 'TIER.ADD.ADMINISTRATOR' then copy.it = @false
+      if copy.it and omit.count > 1 then
+         for omit.i = 2 to omit.count       ;* field 1 is the description
+            if upcase(trim(omit.rec<omit.i>)) = upcase(id) then
+               copy.it = @false
+               omit.i = omit.count          ;* stop looking
+            end
+         next omit.i
+      end
+
+*     CONTINUE is already used in this loop (the declined type change below).
+      if not(copy.it) then continue
 
       read rec from sdsys.file,id then
          new.type = upcase(rec[1,1])
          if new.type = 'P' then new.type = upcase(rec[1,2])
 
+* 10 Sep 26 dm - old.rec IS CLEARED FIRST.  A failed READU leaves its variable
+*   untouched, so for an id this VOC lacks, old.rec still held the PREVIOUS id's
+*   record and the compare() below could decide not to write.  NEWVOC has
+*   byte-identical pairs (CATALOG/CATALOGUE, CD/COMPILE.DICT), so an account
+*   holding one and lacking the other never got it.  The port's 17 Aug 2026
+*   fix; upstream has the same defect.
+         old.rec = ''
          readu old.rec from update.voc.f, id then
             old.type = upcase(old.rec[1,1])
             if old.type = 'P' then old.type = upcase(old.rec[1,2])
@@ -457,6 +561,10 @@ update.voc:
                   loop
                      input yn
                      yn = upcase(yn)
+* 10 Sep 26 dm - ENTER TAKES N, which keeps the record this account already has
+*   (port PRE_RELEASE_FIXES 79).  A is "yes to this and every one after it", so
+*   it is further from the conservative answer than Y, not nearer.
+                     if yn = '' then yn = 'N'
                   until yn = 'Y' or yn = 'N' or yn = 'A'
                     display sysmsg(5058) : ;* Replace record (Yes/No/All)?
                   repeat
@@ -469,11 +577,13 @@ update.voc:
          end
 
 accept.without.query:
-         rec<1> = new.type   ;* Remove comment text
-         if new.type = 'K' and rec<3> # '' then   ;* Keyword with other use
-            s = upcase(rec<3>)
-            rec<3> = if s[1,1] = 'P' then s<1>[1,2] else s[1,1]
-         end
+* 10 Sep 26 dm - THE RECORD IS WRITTEN WHOLE, the port's PRE_RELEASE_FIXES 136
+*   (2 Sep 2026).  Two lines here reduced field 1 - the description whose first
+*   character is the type code - and a K record's field 3 to their type
+*   letters.  CREATEA no longer does, and this runs on every update, so keeping
+*   them would strip the descriptions CREATEA writes the first time an account
+*   is updated.  CPROC reads only voc.rec[1,1] and [1,2]; new.type above is
+*   still derived that way.
 
          if compare(old.rec, rec) then
             write rec to update.voc.f, id
@@ -486,6 +596,31 @@ accept.without.query:
    display 
 
    close sdsys.file
+
+   return
+
+*
+* ======================================================================
+* GET.ACC.TIER  -  set update.voc.tier from the register record of
+*                  tier.acc.name.  Unreadable or absent leaves '' (full VOC),
+*                  the pre-tier behaviour.
+*
+* 10 Sep 26 dm - SL1.  Its own file variable, because the main line has closed
+*   acc.f before the $RELEASE call site.  SUSPENDED resolves to the tier it
+*   displaced, as in the all-accounts walk; the two are independent call sites.
+
+get.acc.tier:
+   update.voc.tier = ''
+
+   openpath @sdsys:@ds:'ACCOUNTS' to tier.acc.f then
+      read tier.acc.rec from tier.acc.f, upcase(tier.acc.name) then
+         update.voc.tier = tier.acc.rec<ACC$TIER>
+         if upcase(trim(update.voc.tier)) = 'SUSPENDED' then
+            update.voc.tier = tier.acc.rec<ACC$PRIOR.TIER>
+         end
+      end
+      close tier.acc.f
+   end
 
    return
 end

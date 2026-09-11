@@ -19,6 +19,16 @@
 * 
 *
 * START-HISTORY:
+* 10 Sep 26 SL1. A tier change re-derives the account's VOC at once, before the
+*           register write - the port's voc.delta (27 Aug 2026). Up copies the
+*           tier's layer in; down removes only records still exactly as a tier
+*           build wrote them. Messages 10113, 10114, 10157.
+* 10 Sep 26 PARITY AUDIT. Messages renumbered to the port's ids - this tree
+*           had reused 10030-10045, which the port assigns to other meanings:
+*           10030/10031 -> 10033/10032, 10035 -> 10109, 10036 -> 10105,
+*           10039 -> 10106, 10040 -> 10080, 10041/10042 -> 10102 (os.set now
+*           reports both fields, as the port's does). tier.build.rec copies
+*           records whole (port PRE_RELEASE_FIXES 136).
 * 09 Sep 26 PRE_RELEASE 23 commit 2. SH-ON/SH-OFF/OS-ON/OS-OFF set the
 *           per-account OS-access grants (ACC$SH, ACC$OS.EXEC) - the owner's
 *           model: os.execute and shell off for anyone but administrators
@@ -49,6 +59,11 @@
 *
 * NO INTERMEDIATE STEP IS REQUIRED, matching the port: an account may go from
 * any of the three to any other in one command.
+*
+* THE VOC FOLLOWS THE TIER AT ONCE (SL1, 10 Sep 26): STANDARD = NEWVOC less
+* TIER.OMIT.STANDARD, PROGRAMMER = NEWVOC, ADMINISTRATOR = that plus
+* TIER.ADD.ADMINISTRATOR from VOC_TEMPLATE - the sets CREATE.ACCOUNT builds.
+* See voc.delta.
 *
 * END-DESCRIPTION
 *
@@ -120,21 +135,21 @@ deffun valid_os_name(name) calling '!valid_os_name'
          stop
 * 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The OS-access grants.  Four keywords
 *   over two independent fields (the port's grammar), so SH-OFF says nothing
-*   about OS.EXECUTE.  os.set does the work; os.field/os.want/os.label carry it.
+*   about OS.EXECUTE.  os.set does the work; os.field/os.want carry it.
       case action = 'SH-ON'
-         os.field = ACC$SH ; os.want = @true ; os.label = 'the shell'
+         os.field = ACC$SH ; os.want = @true
          gosub os.set
          stop
       case action = 'SH-OFF'
-         os.field = ACC$SH ; os.want = @false ; os.label = 'the shell'
+         os.field = ACC$SH ; os.want = @false
          gosub os.set
          stop
       case action = 'OS-ON'
-         os.field = ACC$OS.EXEC ; os.want = @true ; os.label = 'OS.EXECUTE'
+         os.field = ACC$OS.EXEC ; os.want = @true
          gosub os.set
          stop
       case action = 'OS-OFF'
-         os.field = ACC$OS.EXEC ; os.want = @false ; os.label = 'OS.EXECUTE'
+         os.field = ACC$OS.EXEC ; os.want = @false
          gosub os.set
          stop
    end case
@@ -264,7 +279,33 @@ set.tier:
 
    if action = 'ADMINISTRATOR' and acc.user = '' then
       @system.return.code = -ER$ARGS
-      crt sysmsg(10036, acc.name)  ;* %1 has no user, so it cannot be an administrator
+      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+      return
+   end
+
+* 10 Sep 26 dm - SL1.  THE VOC FOLLOWS THE TIER, AT ONCE, AND BEFORE THE
+*   REGISTER WRITE - the port's order, and its owner's ruling of 27 Aug 2026
+*   ("at once, not at the next login").  Every step of voc.delta is idempotent,
+*   so a run that stops part way leaves the register at the OLD tier and
+*   repeating the command recomputes the same delta; the register first would
+*   leave a tier the VOC does not have.
+*
+*   voc.from IS THE RAW FIELD, NOT old.tier.  old.tier reads blank as STANDARD,
+*   which only the sdadmin test below uses.  For the VOC a blank tier is an
+*   account created before tiers, holding the full NEWVOC, so it ranks as
+*   PROGRAMMER (tier.rank) - read as STANDARD, the first tier change such an
+*   account saw would delete 42 verbs it has always had.
+   voc.from = upcase(trim(acc.rec<ACC$TIER>))
+   voc.to = action
+   voc.ok = @true
+   voc.added = 0
+   voc.removed = 0
+   voc.kept = 0
+   voc.failed = 0
+   gosub voc.delta
+   if not(voc.ok) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10114, acc.name)  ;* Unable to change the tier of %1; nothing has changed
       return
    end
 
@@ -279,7 +320,16 @@ set.tier:
    end case
 
    @system.return.code = 0
-   crt sysmsg(10035, acc.name, action)  ;* Account %1 is now %2
+   crt sysmsg(10109, acc.name, action)  ;* Account %1 is now %2
+   crt sysmsg(10113, voc.added, voc.removed, voc.kept)  ;* VOC: %1 records added, %2 removed, %3 left alone
+
+* A failed delete is reported on its own line and is not "left alone" - that
+*   count means deliberately kept because it differs from the tier build.  The
+*   port's PRE_RELEASE_FIXES 97.
+   if voc.failed then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10157, voc.failed, acc.name)  ;* VOC: %1 record(s) could not be removed, so %2 still has them
+   end
    return
 
 *****************************************************************************
@@ -293,7 +343,7 @@ set.tier:
 join.sdadmin:
    if is_grp_member(acc.user, 'sdadmin') then return
    if not(valid_os_name(acc.user)) then
-      crt sysmsg(10030, acc.user, 2) ;* Unable to add user %1 to sdadmin, status: %2
+      crt sysmsg(10033, acc.user, 2) ;* Unable to add user %1 to sdadmin, status: %2
       return
    end
 * 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  sdadmin is in
@@ -303,10 +353,10 @@ join.sdadmin:
    os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.user:" sdadmin"
    stat = OS.ERROR()
    if stat = 0 then
-      crt sysmsg(10031, acc.user)    ;* %1 added to sdadmin
+      crt sysmsg(10032, acc.user)    ;* %1 added to sdadmin
    end else
       @system.return.code = -ER$FAILED
-      crt sysmsg(10030, acc.user, stat)
+      crt sysmsg(10033, acc.user, stat)
    end
    return
 
@@ -336,39 +386,277 @@ leave.sdadmin:
 *   2026 (= the port's, entry 157/80): os.execute and shell are off for anyone
 *   but administrators, and an administrator may grant either to a NAMED
 *   non-admin account.  os.field is ACC$SH or ACC$OS.EXEC; os.want is the wanted
-*   state; os.label names it for the message.  The fields are 'yes'/'no', blank
+*   state.  The fields are 'yes'/'no', blank
 *   = denied.
 *
-* AN ADMINISTRATOR-TIER ACCOUNT IS REFUSED (10039).  It holds both by tier and
-*   the session gates read the tier first (USR_ADMIN), so a field written on one
-*   would be ignored; refusing says so rather than doing nothing.  SDSYS was
-*   already refused at the top of the verb (2202).
+* AN ADMINISTRATOR-TIER ACCOUNT IS REFUSED (10106).  It holds both by tier, so a
+*   field written on one would be ignored; refusing says so rather than doing
+*   nothing.  SDSYS was already refused at the top of the verb (2202).
+* 10 Sep 26 dm - "BY TIER" WAS NOT TRUE UNTIL TODAY.  This note said the session
+*   gates read the tier first through USR_ADMIN, which is set only under sudo
+*   sd, so a plain-sd administrator held neither and could not be granted them.
+*   LOGIN and CPROC's logto now load both as granted for an ADMINISTRATOR-tier
+*   account whose person is in sdadmin, which is what makes 10106 true.
+*
+* OS-ON ALSO GOVERNS MICRO, as the port's OS-ON governs its screen editors: an
+*   editor outside SD is reaching the operating system (MICRO's check.permitted).
 *
 * THE GRANT TAKES EFFECT AT THE NEXT ACCOUNT ENTRY, not at once: LOGIN and
 *   CPROC's logto load the field into the session (K$SH / K$OS.EXEC), so a
 *   session already in the account keeps what it had until it re-enters.
 
 os.set:
+* 10 Sep 26 dm - PARITY AUDIT: AN ACCOUNT WITH NO PERSON OF ITS OWN IS REFUSED
+*   (10105), as the port's os.set refuses one.  A GROUP or OTHER account is
+*   entered by whoever its Linux group admits, so a shell granted to it is a
+*   shell granted to all of them, decided by group membership rather than by
+*   the administrator who typed SH-ON.  The person is found the way set.tier
+*   finds it: sdu_ is the only group that names one.
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+      return
+   end
+
    if upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR' then
       @system.return.code = -ER$FAILED
-      crt sysmsg(10039, acc.name)  ;* %1 is an administrator and always reaches the operating system
+      crt sysmsg(10106, acc.name)  ;* %1 is an administrator and always reaches the operating system
       return
    end
 
    os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
    if os.was = os.want then
-      crt sysmsg(10040, acc.name, os.label)  ;* Account %1: no change to %2 access
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
       return
    end
 
    if os.want then acc.rec<os.field> = 'yes' else acc.rec<os.field> = 'no'
    write acc.rec to acc.f, acc.name
 
+* 10 Sep 26 dm - THE RESULTING STATE OF BOTH FIELDS, NOT A SENTENCE ABOUT ONE -
+*   the port's os.set reports with 10102 after its write.  SH-OFF says nothing
+*   about OS.EXECUTE, so saying where both now stand is what tells an
+*   administrator the command did only what it named.
    @system.return.code = 0
-   if os.want then
-      crt sysmsg(10041, acc.name, os.label)  ;* Account %1 may now use %2
+   os.sh.now = 'no'
+   if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then os.sh.now = 'yes'
+   os.ex.now = 'no'
+   if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
+   crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+   return
+
+*****************************************************************************
+* VOC.DELTA  -  bring the account's VOC from tier voc.from to tier voc.to.
+*
+* 10 Sep 26 dm - SL1.  The port's voc.delta and the routines under it (its
+*   gpl.bp/MODIFYA, 27 Aug 2026), with upper-case SDSYS file names.
+*
+* A DELTA, NOT A REBUILD.  Re-running CREATEA's copy on a live account would
+*   copy NEWVOC over every F pointer the account has since acquired.  The three
+*   tiers nest, so the difference between any two is one or both of the two
+*   list records: going up copies a layer in, going down takes it out.  The
+*   lists are READ from NEWVOC - the same records CREATEA and LOGIN read - so a
+*   verb added to either reaches all three at once.
+*
+* A DOWNGRADE DELETES ONLY WHAT A TIER BUILD WOULD HAVE WRITTEN.  Each id is
+*   rebuilt from its source exactly as CREATEA builds it and compared with the
+*   account's record; one that differs has been edited or replaced by somebody,
+*   and is counted as left alone rather than deleted.
+*
+* IT CAN WRITE ANOTHER USER'S VOC ONLY BECAUSE $MODIFYA IS IN CPROC's
+*   privileged_commands (CPROC:180), so CPROC:1682 restores euid 0 around the
+*   verb.  Otherwise the session is euid sdsys, and sdext_eguid sets no
+*   supplementary groups, so the account's sdu_ group would not apply.  Taking
+*   $MODIFYA off that list would break this routine.
+
+voc.delta:
+   if voc.from = voc.to then return
+
+   rank.in = voc.from
+   gosub tier.rank
+   from.rank = rank.out
+
+   rank.in = voc.to
+   gosub tier.rank
+   to.rank = rank.out
+
+   if from.rank = to.rank then return
+
+   tier.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
+
+   openpath tier.path:@ds:'VOC' to tvoc.f else
+      voc.ok = @false
+      return
+   end
+
+   openpath @sdsys:@ds:'NEWVOC' to tnewvoc.f else
+      close tvoc.f
+      voc.ok = @false
+      return
+   end
+
+   tmpl.open = @false
+
+   if to.rank > from.rank then
+      tier.dir = 'ADD'
+
+      if from.rank < 2 then
+         read tier.layer.rec from tnewvoc.f, 'TIER.OMIT.STANDARD' else tier.layer.rec = ''
+         tier.from.template = @false
+         gosub tier.layer
+      end
+
+      if to.rank = 3 then
+         read tier.layer.rec from tnewvoc.f, 'TIER.ADD.ADMINISTRATOR' else tier.layer.rec = ''
+         gosub tier.open.template
+         if tmpl.open then
+            tier.from.template = @true
+            gosub tier.layer
+         end
+      end
    end else
-      crt sysmsg(10042, acc.name, os.label)  ;* Account %1 may no longer use %2
+      tier.dir = 'DEL'
+
+      if from.rank = 3 then
+         read tier.layer.rec from tnewvoc.f, 'TIER.ADD.ADMINISTRATOR' else tier.layer.rec = ''
+         gosub tier.open.template
+         if tmpl.open then
+            tier.from.template = @true
+            gosub tier.layer
+         end
+      end
+
+      if to.rank < 2 then
+         read tier.layer.rec from tnewvoc.f, 'TIER.OMIT.STANDARD' else tier.layer.rec = ''
+         tier.from.template = @false
+         gosub tier.layer
+      end
+   end
+
+*  A GOSUB, NOT "close tvoctmpl.f": the port's note - tvoctmpl.f is opened in
+*  tier.open.template, below, so naming it here would be its first textual
+*  appearance.  A gosub to a label below costs nothing.
+   if tmpl.open then gosub tier.close.template
+   close tnewvoc.f
+   close tvoc.f
+   return
+
+*****************************************************************************
+* TIER.RANK  -  1 STANDARD, 2 PROGRAMMER, 3 ADMINISTRATOR.
+*
+* BLANK IS 2, DELIBERATELY, matching LOGIN's update.voc: a blank ACC$TIER is
+*   the pre-tier full VOC, which is a programmer's set.
+
+tier.rank:
+   rank.out = 2
+   begin case
+      case rank.in = 'STANDARD'      ; rank.out = 1
+      case rank.in = 'ADMINISTRATOR' ; rank.out = 3
+   end case
+   return
+
+*****************************************************************************
+* TIER.OPEN.TEMPLATE / TIER.CLOSE.TEMPLATE  -  SDSYS VOC_TEMPLATE, for the
+*   administrator layer.  An open failure is not undone: the standard layer may
+*   already be applied, and voc.ok = false stops the register write, so a
+*   repeat of the command converges.
+
+tier.open.template:
+   if tmpl.open then return
+   openpath @sdsys:@ds:'VOC_TEMPLATE' to tvoctmpl.f then
+      tmpl.open = @true
+   end else
+      voc.ok = @false
+   end
+   return
+
+tier.close.template:
+   close tvoctmpl.f
+   tmpl.open = @false
+   return
+
+*****************************************************************************
+* TIER.LAYER  -  walk one list record and add or delete each id it names.
+*   Field 1 of both list records is a description, so the walk starts at 2 -
+*   the bound CREATEA and LOGIN use.  Trimmed and matched as CREATEA does.
+
+tier.layer:
+   layer.count = dcount(tier.layer.rec, @fm)
+   if layer.count > 1 then
+      for layer.i = 2 to layer.count
+         tier.id = trim(tier.layer.rec<layer.i>)
+         if tier.id # '' then
+            if tier.dir = 'ADD' then
+               gosub tier.add.one
+            end else
+               gosub tier.del.one
+            end
+         end
+      next layer.i
+   end
+   return
+
+*****************************************************************************
+* TIER.BUILD.REC  -  read tier.id from the layer's source exactly as CREATEA
+*   writes it into a VOC: whole, since PRE_RELEASE_FIXES 136.
+*
+* THIS MUST MATCH CREATEA's TWO COPY LOOPS, because it is what makes a rebuilt
+*   record byte-comparable with one CREATEA wrote - the basis of "delete only
+*   what we would have written".
+* 10 Sep 26 dm - ***THE PORT'S COPY STILL STRIPS FIELD 1 HERE, AND THAT IS A
+*   DEFECT IN THE PORT, NOT A DIFFERENCE TO KEEP.***  Its voc.delta (27 Aug) was
+*   written before its PRE_RELEASE_FIXES 136 (2 Sep) stopped CREATEA and LOGIN
+*   stripping, and this routine was not changed with them.  There, a rebuilt
+*   NEWVOC record is the bare form while the account holds the whole one, so
+*   every downgrade compares unequal and counts the verbs "left alone" instead
+*   of removing them.  Here it follows 136.
+
+tier.build.rec:
+   tier.got = @false
+
+   if tier.from.template then
+      read tier.rec from tvoctmpl.f, tier.id then tier.got = @true
+   end else
+      read tier.rec from tnewvoc.f, tier.id then tier.got = @true
+   end
+
+   return
+
+*****************************************************************************
+* TIER.ADD.ONE  -  copy one id into the account's VOC.  An id its source does
+*   not hold counts as nothing: the lists and files ship together.
+
+tier.add.one:
+   gosub tier.build.rec
+   if tier.got then
+      write tier.rec to tvoc.f, tier.id
+      voc.added = voc.added + 1
+   end
+   return
+
+*****************************************************************************
+* TIER.DEL.ONE  -  remove one id from the account's VOC, but only if what is
+*   there is what a tier build would have put there.  A failed delete is
+*   voc.failed, not voc.kept, and is not counted as removed (the port's
+*   PRE_RELEASE_FIXES 97: an unconditional count reported removals that had not
+*   happened).
+
+tier.del.one:
+   gosub tier.build.rec
+   if tier.got then
+      read tier.old.rec from tvoc.f, tier.id then
+         if tier.old.rec = tier.rec then
+            tier.del.ok = @true
+            delete tvoc.f, tier.id on error tier.del.ok = @false
+            if tier.del.ok then
+               voc.removed = voc.removed + 1
+            end else
+               voc.failed = voc.failed + 1
+            end
+         end else
+            voc.kept = voc.kept + 1
+         end
+      end
    end
    return
 

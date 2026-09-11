@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: Enter is N at the system-account prompt (port
+*               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -344,9 +346,12 @@ write.voc:
 check.sdsys.file:
    display sysmsg(6145, part) ;* Warning re part in SDSYS account
    loop
-      display sysmsg(6146) :  ;* Delete the file from the system account (Y/N)?
+      display sysmsg(6146) :  ;* Delete the file from the system account (y/<n>)?
       input yn
       yn = upcase(yn[1,1])
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N (port
+*   PRE_RELEASE_FIXES 79).  An empty answer used to re-ask for ever.
+      if yn = '' then yn = 'N'
    until yn = 'Y' or yn = 'N'
    repeat
    

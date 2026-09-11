@@ -183,7 +183,11 @@ case $verb in
   useradd)
     [[ $# -eq 1 ]] || usage
     require_new_user "$1"
-    cmd=(useradd -m -- "$1")
+    # 10 Sep 26 - the GECOS comment is SD's stamp.  DELETE.ACCOUNT removes a
+    # Linux user only when it reads exactly this back (GPL.BP/IS_SD_USER), as
+    # the Windows port stamps the account description.  A fixed string, never
+    # caller-supplied, so it adds nothing a caller can steer.
+    cmd=(useradd -m -c "SD account" -- "$1")
     ;;
 
   userdel)
