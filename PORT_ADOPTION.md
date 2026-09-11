@@ -31,11 +31,11 @@ in the same commit as the work.
     control also confirms an unmatched name is echoed AS TYPED.
   - Fixtures removed; DON back to `COUNT VOC` 410.
 
-### Built 10–11 Sep 2026 while the owner slept — COMPILED, NOT YET INSTALLED OR RUN
+### Built 10–11 Sep 2026 while the owner slept — INSTALLED (`3bd4421`), WITNESSED 11 Sep except 8, 10's reap, `op_getlocks`
 
 Each compiled 0 errors with `scratchpad/cbp.sh` (dev binary, DON/BP, red
-control = 1 error, `COUNT VOC` 410 afterwards). **None is witnessed**; the
-witness is the next delete→install cycle. **Not pushed.**
+control = 1 error, `COUNT VOC` 410 afterwards). Pushed and installed 11 Sep;
+results in "Witnessed on the install" below the table.
 
 | Queue | What | Witness after install |
 |---|---|---|
@@ -53,10 +53,33 @@ witness is the next delete→install cycle. **Not pushed.**
 | 3b | Enter = N at 3033–3035, 6131, 5040 | `catalog bp x` with x also local → prompt shows `(y/<n>)`, Enter keeps both |
 | 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
 
+### Witnessed on the install, 11 Sep 2026
+
+Install `3bd4421`, stamped 05:04:46; the 05:05 reboot cleared the wedge (six
+semaphores at 1). HEAD `36fceba` differs by comments and docs only (`op_lock.c`
+3 comment lines, 1681 lines both sides), so `assert-current`'s 1 was overridden
+for this. Driven as `don`, no sudo: `/usr/local/sdsys/bin/sd` down a pipe under
+`timeout`, DON account, probe programs in `DON/BP`, each run guarded on no `sd`
+process and semaphores `111111`.
+
+| Queue | Result |
+|---|---|
+| 3, 4 | `DELETE.FILE zzq NO.QUERY`: no prompt; 6136, 6141, 6144; VOC 413→412, both dirs gone. Path differs (`zzp2` = copy of `zzp`'s record): 6135 and 6140 show `(y/<n>)`, Enter = N, `ZZP` kept, VOC unchanged — at end of input too (each prompt printed once). Dict `@SDSYS/VOC.DIC` + `NO.QUERY`: 6136, 6145, 10117, 6144; `/usr/local/sdsys/VOC.DIC` kept |
+| 3b | 6131 (`CREATE.FILE ZZU`, `DELETE.FILE zzu`), 5040 (`.D zzsent`), 3033 (`CATALOG BP TXNOK LOCAL`, then private): each shows `(y/<n>)`, Enter keeps the file / record / entry, counts unchanged |
+| 23 | `.D nosuch` → `'nosuch' not found in VOC`, no prompt, VOC 412 both sides. `.D ZZSENT` on record `zzsent` → prompt names `zzsent`, Y deletes (416→415) |
+| 5 | `TERM=xterm-256color`: `env('TERM')` reaches the session; sign-on starts `\e[H\e[J`. Control `TERM=dumb` (SD's `dumb` has no `clear`): sign-on starts `SD Core`. ***The planned witness could not discriminate:*** at `:` the type is always `linux` (the account's LOGIN paragraph, `LOGIN:109-112`), and the Bash tool does not export `TERM`, so a bare pipe gets `vt100` |
+| 6 | `execute 'ED NOSUCH.ZZFILE X'` → `File not found`, `@SYSTEM.RETURN.CODE` -1; control `COUNT VOC` just before → 414 |
+| 7 | `TERM=linux`, `ESC [ [ A` at an empty prompt → 10149 once, naming `/usr/local/sdsys/changelog` |
+| 9 | Field 1 of the 9 `VOC_TEMPLATE` records and `NEWVOC/NEWVOC` on the install byte-identical to the port's. `LISTF` in SDSYS not run (`sudo sd`) |
+| 11 | `UPDATE.ACCOUNTS`, own account: 10165 names `NO.QUERY` ([locked] keyword; kept, still differs from NEWVOC); 10166 names `WHO` ([locked] verb; replaced); control `FORCE` (plain change) replaced. 396 written. DON lacked the verb (START HERE) — added from `VOC_TEMPLATE` for the run, removed after |
+| 20 | Installed binary gives the "after" column: CRLF 5, split 2047, lone CR kept (5), CR at EOF kept (4, last 13), LF 5 |
+| 24 | Control `TXNOK` 0 errors; `TXNX` → `4: Unterminated transaction construct`, 1 error, inside 30 s |
+| **not run** | 8 (needs CREATUSR on); 10's reap and `op_getlocks` "(gone)" — a failure there wedges the live SD ("Waiting for the owner" 5) |
+
 ## Waiting for the owner — skipped overnight 10–11 Sep because they need a ruling
 
-0. ***REBOOT FIRST — the running SD is wedged*** (PROJECT_STATUS START HERE).
-   And two decisions it raised: should `sdsem.c` take its semaphores with
+0. ~~Reboot first~~ — done 05:05 11 Sep. Still open, the two decisions the
+   wedge raised: should `sdsem.c` take its semaphores with
    `SEM_UNDO` (the kernel then releases a dead holder's semaphore — no more
    system-wide hang, at the risk of exposing a half-updated structure), and
    should SD's fault path release the semaphores its own process holds?
@@ -76,6 +99,12 @@ witness is the next delete→install cycle. **Not pushed.**
    until someone says what N should do.
 4. **§M scope:** whether "no two casings" reaches record ids in a user's own
    data files, and account names (PORT_ADOPTION "Queue 18").
+5. **Queue 10's reap and `op_getlocks` "(gone)": witness on the live install,
+   or in the sandbox first?** Both reproduce the overnight chain on purpose (a
+   SIGKILLed session holding `ZZ16`, then `LOGOUT n`; an orphaned lock, then
+   `LIST.READU`). If either fix is wrong the live SD wedges again and needs a
+   reboot. The sandbox (older START HERE block in PROJECT_STATUS) has its own IPC
+   keys but runs a scratch build, not the install.
 
 ## UPSTREAM_FIXES reconciliation — all 37, 11 Sep 2026
 
@@ -170,6 +199,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | ~~23~~ | ~~`.D name`~~ — **BUILT 11 Sep** | `CPROC` | |
 | ~~24~~ | ~~BCOMP unterminated TRANSACTION~~ — **BUILT 11 Sep** | `BCOMP` | |
 | 25 | Process dumps in their own directory, writable but not readable by SD users (port 28) | `sd.conf DUMPDIR`, installer | mode/group bits instead of the port's ACL; `pdump.c` already honours `DUMPDIR` |
+| 26 | ***The `:` prompt busy-loops at end of input*** (Linux-found 11 Sep, measured; PROJECT_STATUS START HERE). Proposed: at EOF the command processor ends the session as `OFF` does, the shell convention; `INPUT` in programs keeps returning `''` | none — port not measured | CPROC `get.command.line` (`:954`): `keycode()` = `''` with `status()` = ER$EOF (3030) → log out. ***Premise measured 11 Sep*** (probe `KCEOF`, last line of piped input, installed binary): `KEYCODE()` → len 0, `STATUS()` 3030; `KEYIN()` → len 0, 3030 |
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short
 

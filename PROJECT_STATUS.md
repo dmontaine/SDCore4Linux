@@ -37,9 +37,37 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD IS WEDGED. REBOOT BEFORE RUNNING
-ANYTHING, including `deletesdai.sh`. Caused by my overnight testing; measured,
-not inferred.***
+***11 Sep 2026, day session — READ THIS BLOCK FIRST; the blocks below are older.***
+- Rebooted 05:05; install `3bd4421` (05:04:46) is the overnight work. HEAD
+  differs by comments and docs only, which is the whole of `assert-current`'s 1.
+- ***THE OVERNIGHT BUILDS ARE WITNESSED ON THE INSTALL except 8, 10's reap and
+  `op_getlocks`*** — per queue in PORT_ADOPTION "Witnessed on the install".
+  Instrument: `printf 'cmds\nOFF\n' | timeout N sd` as `don` from
+  `/home/sd/user_accounts/don`, guarded on `ps -C sd` empty and `ipcs -s -i 0`
+  values `111111`. ***`pgrep -f` matches its own command line*** — it
+  reported "not clean" on a clean system; do not use it for the guard.
+- ***QUEUE 26, NEW: THE `:` PROMPT BUSY-LOOPS AT END OF INPUT.***
+  `printf 'WHO\n' | timeout 10 sd` (no `OFF`) → exit 124, 369 207 BEL bytes in
+  10 s. `linuxio.c:439-443` returns -1 with `ER_EOF` on a pipe, `_KEYCODE:87-88`
+  returns `''`, and the CPROC line editor (`:1006`) asks again for ever. The
+  DELETEF prompts are no longer part of it (each printed once at EOF). SIGTERM
+  ends it cleanly: no dead slot, semaphores back to 1. The port's `linuxio.c:508`
+  is the same code; not measured there. ***END EVERY PIPED SESSION WITH `OFF`.***
+- **DON (ADMINISTRATOR) has no `UPDATE.ACCOUNTS`**: its VOC predates §L1's
+  `TIER.ADD.ADMINISTRATOR`, and `update.voc` never adds VOC_TEMPLATE verbs
+  (`LOGIN:544-547`). Whether MODIFYA's tier re-derivation (unrun) adds them is
+  unchecked — check before calling it a defect.
+- **`UPDATE.ACCOUNTS` rewrote DON's VOC to the installed NEWVOC** (396 written,
+  1 added): DON's empty `COUNT VOC` is now **411**, not 410.
+- **Fixtures kept in DON for queue 10:** `ZZ16`, `ZZ16.DIC`, VOC `ZZ16`; `BP`
+  (`ASK16`, `HOLD16`, `LO16` — its user argument is now field 4 — `KEYS.H`,
+  `INT$KEYS.H`); `BP.OUT` + VOC `BP.OUT`. `COUNT VOC` 413. Remove: `rm -rf ZZ16
+  ZZ16.DIC BP/* BP.OUT`, then `DELETE VOC ZZ16 BP.OUT` → 411.
+- **NEXT:** the owner's call on the live reap / orphaned-lock witness
+  (PORT_ADOPTION "Waiting for the owner" 5); queue 26; then queue 12 onward.
+
+***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
+REBOOT; the chain and the untested hypothesis below still stand.***
 - `ipcs -s -i 0` (SD_SEM_KEY 0x716d0302): `ERRLOG_SEM`(1)=0 last op pid 36587,
   `REC_LOCK_SEM`(3)=0 pid 36509, `FILE_TABLE_LOCK`(4)=0 pid 36920. **36509 and
   36587 are dead** (processes I started; 36587 killed by me). 36920 is
