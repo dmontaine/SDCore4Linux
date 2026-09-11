@@ -18,8 +18,9 @@ the work, nothing in "Verified" that was not observed that session.
 - **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
   block.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
-  **not started**; ***§L1*** — the per-tier VOC, **designed 10 Sep, not built**
-  (design in the Open section).
+  **not started**; ***§L1*** — the per-tier VOC, **core built 10 Sep** (CREATEA
+  copy loop + the two NEWVOC control records); `LOGIN update.voc` + `MODIFYA`
+  tier re-derivation still to build, then compile-on-reinstall (Open section).
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
@@ -1317,7 +1318,25 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
-### §L1 design — per-tier VOC (PROPOSED 10 Sep 2026, conditional; not built)
+### §L1 — per-tier VOC (CORE BUILT 10 Sep 2026; LOGIN/MODIFYA pending)
+
+***BUILD STATUS 10 Sep 2026 — the creation path is built, syntax-reviewed, NOT
+yet compiled or run.*** Done: the two control records
+`sdsys/NEWVOC/TIER.OMIT.STANDARD` (42 dev verbs) and
+`sdsys/NEWVOC/TIER.ADD.ADMINISTRATOR` (5 admin verbs: CREATE/DELETE/MODIFY/
+UPDATE.ACCOUNT, UNLOCK), and the **tier-aware copy loop in `CREATEA`**
+(`:517-580`) — STANDARD = NEWVOC less the omit list, PROGRAMMER = NEWVOC entire,
+ADMINISTRATOR = that plus the add list from `VOC_TEMPLATE`; the two control
+records are never copied; matching is case-insensitive. Block structure reviewed
+by hand; ***the authoritative compile is the install's two-stage bootstrap***
+(it aborts on a syntax error), so the witness is a reinstall + inspecting a new
+account's VOC per tier. ***STILL TO BUILD (the other two NEWVOC-copy sites, same
+filter): `LOGIN` `update.voc` (or a release update re-adds omitted verbs to a
+STANDARD account — the port's paid-for trap) and `MODIFYA` tier-change
+re-derivation.*** CREATEA is now the reference pattern for both. *(Design
+follows.)*
+
+### §L1 design — per-tier VOC (proposed 10 Sep 2026, conditional)
 
 ***The gates exist (entry 23); what is missing is that every tier still gets the
 SAME verb set.*** §L1 would make the account's VOC depend on `ACC$TIER` (field 5,

@@ -514,24 +514,70 @@ make.account:
       stop sysmsg(6018) ;* Cannot open SDSYS NEWVOC
    end
 
+* 10 Sep 26 dm - SL1, the per-tier VOC.  The VOC an account gets now depends on
+*   its tier (the `tier` variable set above, written to ACC$TIER).  STANDARD gets
+*   NEWVOC less the verbs named in NEWVOC's TIER.OMIT.STANDARD ("run an
+*   application, not build one"); PROGRAMMER gets NEWVOC entire; ADMINISTRATOR
+*   gets that plus the admin verbs named in TIER.ADD.ADMINISTRATOR, copied from
+*   VOC_TEMPLATE.  The two control records are never copied into an account VOC.
+*   Matching is case-insensitive so it survives the lower-case conversion (SL M).
+   omit.rec = ''
+   add.rec = ''
+   if tier = 'STANDARD' then
+      read omit.rec from newvoc.f, 'TIER.OMIT.STANDARD' else omit.rec = ''
+   end
+   if tier = 'ADMINISTRATOR' then
+      read add.rec from newvoc.f, 'TIER.ADD.ADMINISTRATOR' else add.rec = ''
+   end
+   omit.count = dcount(omit.rec, @fm)
+
    select newvoc.f to 11
    loop
       readnext id from 11 else exit
 
-      read rec from newvoc.f, id then
-         rec<1> = if upcase(rec[1,1]) = 'P' then rec<1>[1,2] else rec[1,1]
+      copy.it = @true
+      if upcase(id) = 'TIER.OMIT.STANDARD' then copy.it = @false
+      if upcase(id) = 'TIER.ADD.ADMINISTRATOR' then copy.it = @false
+      if copy.it and omit.count > 1 then
+         for omit.i = 2 to omit.count
+            if upcase(trim(omit.rec<omit.i>)) = upcase(id) then
+               copy.it = @false
+               omit.i = omit.count         ;* stop looking
+            end
+         next omit.i
+      end
 
-         if upcase(rec<1>) = 'K' and rec<3> # '' then   ;* Keyword with other use
-            s = rec<3>
-            rec<3> = if upcase(s[1,1]) = 'P' then s<1>[1,2] else s[1,1]
+      if copy.it then
+         read rec from newvoc.f, id then
+            rec<1> = if upcase(rec[1,1]) = 'P' then rec<1>[1,2] else rec[1,1]
+
+            if upcase(rec<1>) = 'K' and rec<3> # '' then   ;* Keyword with other use
+               s = rec<3>
+               rec<3> = if upcase(s[1,1]) = 'P' then s<1>[1,2] else s[1,1]
+            end
+
+            write rec to voc.f, id
+
          end
-
-         write rec to voc.f, id
-       
       end
    repeat
 
    close newvoc.f
+
+   if tier = 'ADMINISTRATOR' then
+      add.count = dcount(add.rec, @fm)
+      if add.count > 1 then
+         openpath @sdsys:@ds:"VOC_TEMPLATE" to voctmpl.f then
+            for add.i = 2 to add.count
+               add.id = trim(add.rec<add.i>)
+               read rec from voctmpl.f, add.id then
+                  write rec to voc.f, add.id
+               end
+            next add.i
+            close voctmpl.f
+         end
+      end
+   end
 
    * Set up $COMMAND,STACK VOC entry
 
