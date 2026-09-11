@@ -182,6 +182,11 @@ fi
 sudo rm -f /etc/sd.conf
 echo "Config file removed."
 
+# 10 Sep 26 - nano's SD BASIC syntax file, which the installer places outside the
+# SD tree (beside its microcfg copy) because nano reads /usr/share/nano/*.nanorc.
+sudo rm -f /usr/share/nano/sdbasic.nanorc
+echo "Removed /usr/share/nano/sdbasic.nanorc."
+
 # --------------------
 # PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
 #

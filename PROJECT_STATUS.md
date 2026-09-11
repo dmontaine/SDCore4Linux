@@ -14,8 +14,9 @@ the work, nothing in "Verified" that was not observed that session.
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal at `installsdai.sh:236` (**24(2)**) is unrun.
   - Open: `1, 3, 4, 5, 6, 7, 9, 10, 11, 15, 16` — a mix of real work and notes.
-    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised;
-    `4` = MICRO fix built + compiled 10 Sep, unrun.
+    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
+    **10 Sep: `3` ruled (EDIT = ED alias) and `4` superseded (port EDIT adopted)
+    — both struck; the counts above predate that.**
 - **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
   block.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
@@ -1422,7 +1423,33 @@ a count; `listf` in a new account shows descriptions; `CREATE.ACCOUNT USER x SH-
 → 10102; `DELETE.ACCOUNT X` → one `(y/<n>)` naming the Linux user, user gone;
 `DELETE.ACCOUNT PETE` → 10036, `pete` kept. Falsified by any of those not holding.
 
-### MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN)
+### NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — COMPILED, NOT RUN
+
+Owner, 10 Sep: Microsoft Edit is not packaged for Linux; nano replaces it and
+gets SD BASIC highlighting; the verb is `NANO`; `EDIT` stays an alias for `ED`.
+`GPL.BP/MICRO` is **deleted**; new `GPL.BP/EDIT` (the port's, `$EDIT`) serves
+`NANO` and `MICRO` (both templates `CA $EDIT`; `NANO` added to
+`TIER.OMIT.STANDARD`, now 43). **Kept from the port:** lossless mark tokens
+(`~~ ~\` ~! ~- ~,`), round-trip check, both gates before anything is written,
+working copy removed on every exit, one `crt` per message line. **Adapted:**
+`find.editor` = `command -v` (absolute path required); no `micro.home` (a Linux
+user's `~/.config/micro` is already writable); micro syntax still copied per user
+(`place.syntax`); `check.permitted` asks `K$OS.EXEC`; POSIX path from
+`fileinfo(FL$PATH)` used as is; open folds case; single-quote names refused.
+**nano highlighting:** new `gplbld/mknanosyntax.py` (the port's extraction, nanorc
+writer, refuses a regex `grep -E` cannot compile) → `gplbld/nanocfg/sdbasic.nanorc`;
+the installer places it in `/usr/share/nano` (Debian `/etc/nanorc:257` includes
+`*.nanorc`), `deletesdai.sh` removes it.
+**Evidence:** EDIT **0 error(s)** (harness, as `don`), gcat unchanged;
+`test-edittokens-units.py` (adopted, path `GPL.BP`) **23/0 cases, 597 871
+strings, 209 records (19 with specials), 0 lost**; nano measured in a pty (scratch
+script, entry 12's method): `.sdbasic`+nanorc **11** distinct SGR vs `.plain`+nanorc
+**3** and `.sdbasic`+empty rc **3**; `checksyntax` on the regenerated YAML 24/0;
+both shell scripts `bash -n` clean. ***Witness after install (conditional):***
+`nano bp x` and `micro bp x` open with colour; `~~` in the editor saves as a value
+mark; a PROGRAMMER account without OS-ON is refused before `$HOLD` is touched.
+
+### MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN — the MICRO program half is SUPERSEDED by the section above)
 
 ***Found by the owner, 10 Sep:*** `micro bp test` → *"File Error: bp could not be
 opened"*; `MICRO BP TEST` → 10053, then *"Record was not saved"*. Entry 12's

@@ -586,6 +586,20 @@ sudo cp terminfo.src "$sdsysdir"
 # rest of the tree.
 sudo cp -r gplbld/microcfg "$sdsysdir"
 #
+# 10 Sep 26 dm - AND nano's, SYSTEM-WIDE.  The NANO verb (GPL.BP/EDIT) runs nano
+# (owner, 10 Sep 2026: Microsoft Edit is not packaged for Linux).  Unlike micro,
+# nano HAS a system-wide syntax directory - Debian's /etc/nanorc includes
+# /usr/share/nano/*.nanorc (measured: nano 9.2, /etc/nanorc:257) - so one copy
+# here serves every user and GPL.BP/EDIT copies nothing for it.  If the directory
+# is missing nano is not installed; say so rather than create a directory
+# nothing would read.  deletesdai.sh removes the file.
+if [ -d /usr/share/nano ]; then
+    sudo install -m 644 gplbld/nanocfg/sdbasic.nanorc /usr/share/nano/sdbasic.nanorc
+    echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+else
+    echo "Note: /usr/share/nano not found, so nano's SD BASIC highlighting was not installed (the NANO verb needs nano)."
+fi
+#
 sudo chown -R sdsys:sdusers "$sdsysdir"
 sudo chown root:root "$sdsysdir/ACCOUNTS/SDSYS"
 sudo chmod 654 "$sdsysdir/ACCOUNTS/SDSYS"
