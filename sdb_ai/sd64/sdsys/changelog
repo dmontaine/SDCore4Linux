@@ -9,6 +9,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  CSV FILES FROM WINDOWS READ CORRECTLY.
+
+           READSEQ now treats a CR LF pair as the end of a line, as it already
+           treated LF alone.  A file written on Windows, or any CSV file that
+           follows the CSV standard (which uses CR LF even on Linux), used to
+           come back with a stray carriage return on the end of every line - and
+           READCSV, which reads through READSEQ, put it on the last field of
+           every row, so "B1" compared unequal to "B1".  A carriage return that
+           is not followed by a line feed is still returned as data.
+
+           What it does not do: files with ordinary Linux line endings read
+           exactly as before, and WRITESEQ still writes LF alone.
+
+           ED's return code for a command error is now negative, as every other
+           command's is, so a program or paragraph that tests for a failed ED
+           command sees one.
+
+
 11 Sep 26  SIGNING ON FROM A MODERN TERMINAL.
 
            Most graphical terminals and ssh clients set TERM to a type such as
