@@ -59,8 +59,13 @@ against the install).***
 - ***QUEUE 3 (UPSTREAM 23) WAS REPRODUCED BY ACCIDENT AND IS WIDER THAN THE
   ENTRY SAYS*** — `delete.file zzak no.query` prompted on a PLAIN file (not the
   system-account path UPSTREAM 23 describes) and then BUSY-LOOPED on pipe EOF,
-  98.9 MB in 40 s. Whether `no.query` parsed at all is unestablished and would
-  change the fix. Full note in PORT_ADOPTION, "Queue 3 — measured here".
+  98.9 MB in 40 s, process in state `R`. **Diagnosed on the source afterwards:**
+  `no.query` IS parsed (`DELETEF:84`, honoured `:109`) but the DATA and DICT
+  prompts (`DELETEF:221-232`, `:295-304`) are guarded by ***`not(force)`
+  ALONE***, and each `loop … input yn … until yn='Y' or yn='N'` has no EOF
+  escape (same shape `:112 :155 :187 :350`). So queue 3 is two fixes, not one,
+  and UPSTREAM 23 names neither. Full note in PORT_ADOPTION, "Queue 3 — measured
+  here". ***NOT FIXED — this is the next task.***
 - **Instrument lesson, paid for twice this session:** ***DRIVING `sd` DOWN A
   PIPE IS ONLY SAFE FOR VERBS THAT DO NOT PROMPT, AND ALWAYS UNDER `timeout`.***
   `list.index` and `delete.file` each spun. A pty driver was tried and was worse

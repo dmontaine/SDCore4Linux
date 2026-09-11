@@ -67,18 +67,29 @@ DELETE.INDEX fixture, not while looking for it:
 OK to delete DATA portion 'ZZAK'? OK to delete DATA portion 'ZZAK'? ...
 ```
 
-**Two separate faults, and UPSTREAM 23 names only the first.**
+**Two separate faults, and UPSTREAM 23 names neither.** Both read off the source
+after the measurement:
 
-1. `NO.QUERY` did not suppress the **DATA-portion** prompt. UPSTREAM 23 is about
-   the unguarded `check.sdsys.file` calls; ***this prompt is a different one and
-   is reached by a plain file***, so the entry's scope is narrower than the
-   defect. Whether `no.query` was parsed at all is NOT yet established — that is
-   the first thing to check, and it would change the fix.
-2. ***THE PROMPT BUSY-LOOPS ON EOF.*** With stdin a pipe, the re-ask spun and
-   emitted **98.9 MB** before a 40 s timeout killed it; pid was in state `R`, not
-   blocked. Any prompt reached down a pipe looks able to do this, so it is
-   probably not DELETEF's alone. A prompt that cannot be answered must fail, not
-   spin.
+1. ***`NO.QUERY` IS PARSED AND SIMPLY DOES NOT REACH THESE TWO PROMPTS.***
+   `DELETEF:84` sets `no.query` and `:109` honours it for the select-list query,
+   but the DATA-portion prompt at `DELETEF:221-232` and the DICT-portion prompt
+   at `:295-304` are each guarded by ***`if not(force)` ALONE***. So `FORCE`
+   suppresses them and `NO.QUERY` never could. UPSTREAM 23 is about the
+   unguarded `check.sdsys.file` calls — ***a different prompt, on a different
+   path***; the entry's scope is narrower than the defect, and a fix that only
+   does what 23 says would leave this live.
+2. ***BOTH PROMPTS BUSY-LOOP ON EOF, BY CONSTRUCTION.*** Each is
+   `loop … input yn … until yn = 'Y' or yn = 'N' repeat`. At EOF `input` yields
+   empty, `yn[1,1]` is neither `Y` nor `N`, and the loop has no escape — it spins
+   rather than blocking (pid observed in state `R`, 98.9 MB in 40 s). The same
+   `loop/until` shape is at `:112`, `:155`, `:187` and `:350`, so this is a
+   pattern in the verb, not one bad site.
+
+**The prompt fires for ordinary files, which is why a plain `zzak` hit it.** The
+test is `data.path # default.path` (`:221`) where `default.path = file.name`
+(`:219`) — a bare name — so a file whose stored path is anything fuller than its
+VOC name compares unequal and asks. Confirm that reading before fixing; if it
+holds, `DELETE.FILE` without `FORCE` prompts for very nearly every file.
 
 **Consequence for instruments:** drive `sd` down a pipe only with verbs known not
 to prompt, and always under `timeout`. `list.index` hung the same way earlier in
