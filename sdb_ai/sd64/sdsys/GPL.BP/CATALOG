@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 The three "also in ... catalogue. Remove?" prompts show their
+*           default and Enter is N (port PRE_RELEASE_FIXES 79's rule; the
+*           port missed these).  At end of input they re-asked for ever.
 * 09 Sep 26 PRE_RELEASE 18 commit 2. Both global-catalogue checks ask the
 *           administrator flag rather than "is this process root".
 * 08 Sep 26 The rev 0.9.0 administrator check covered the GLOBAL keyword only,
@@ -444,9 +447,10 @@ check.local:
             delete @voc, call.name
          end else
             loop
-               display sysmsg(3033) : ;* Program is also in local catalogue. Remove?
+               display sysmsg(3033) : ;* Program is also in local catalogue. Remove (y/<n>)?
                input yn
                yn = upcase(yn)
+               if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
             until yn = 'Y' or yn = 'N'
             repeat
 
@@ -467,9 +471,10 @@ check.private:
          delete cat.f, call.name
       end else
          loop
-            display sysmsg(3034) : ;* Program is also in private catalogue. Remove?
+            display sysmsg(3034) : ;* Program is also in private catalogue. Remove (y/<n>)?
             input yn
             yn = upcase(yn)
+            if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
          until yn = 'Y' or yn = 'N'
          repeat
    
@@ -489,9 +494,10 @@ check.global:
          delete gcat.f, call.name
       end else
          loop
-            display sysmsg(3035) : ;* Program is also in global catalogue. Remove?
+            display sysmsg(3035) : ;* Program is also in global catalogue. Remove (y/<n>)?
             input yn
             yn = upcase(yn)
+            if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
          until yn = 'Y' or yn = 'N'
          repeat
    

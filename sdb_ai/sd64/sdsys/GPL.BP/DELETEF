@@ -25,8 +25,9 @@
 *               relocated-index deletes are checked, and only when the
 *               directory exists (msg 2636, port 104 and 113, UPSTREAM 34).
 *               NOT taken: the port's open 'voc' - lower case is section M.
-*               Linux addition: the DATA/DICT prompts show their default and
-*               Enter is N, as port 79 requires of every prompt - these two
+*               Linux addition: the DATA/DICT prompts and 6131 "Use file"
+*               show their default and Enter is N, as port 79 requires of
+*               every prompt - these
 *               were missed there, and at end of input they re-asked for ever
 *               (98.9 MB in 40 s, measured 11 Sep 2026 down a pipe).
 * 10 Sep 26 dm  Parity audit: Enter is N at the system-account prompt (port
@@ -162,9 +163,10 @@ delete.file:
       readu voc.rec from voc.f, file.name then
          if upcase(voc.rec[1,1]) = "F" then
             loop
-               display sysmsg(6131, file.name) :  ;* Use file 'xx'?
+               display sysmsg(6131, file.name) :  ;* Use file 'xx' (y/<n>)?
                input yn
                yn = upcase(yn[1,1])
+               if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
             until yn = 'Y' or yn = 'N'
             repeat
             if yn = "Y" then goto delete.upcased.file
