@@ -15,17 +15,27 @@ in the same commit as the work.
   (C). Witnessed pre/post: 9, 18, 20 (branch), 35. Compile-only: 1, 3, 8, 10,
   14, 29, 174.
 - QSELECT list-number (UPSTREAM 21) + DELETE.INDEX case-fold (UPSTREAM 22),
-  11 Sep 2026. Both compiled 0 errors (dev binary, DON/BP, red control QBAD =
-  1 error); **not yet witnessed on an install** — needs the delete→install
-  cycle. Witness: `qselect voc saving 3` ends in a list number; on a file with
-  index F1, `delete.index <f> f1` deletes it instead of "Unrecognised index
-  name (f1)".
+  11 Sep 2026 (`af879d3`). ***BOTH WITNESSED ON THE `af879d3` INSTALL*** (stamp
+  02:19:18, `assert-current` 0):
+  - **QSELECT** — `qselect voc * saving 3` → `410 record(s) selected to select
+    list 0`; `... to 2` → `... select list 2`. The number is present and TRACKS
+    the TO argument, so %2 is the real target list, not a constant. 410 > 0, so
+    not the null case. ***NOTE THE GRAMMAR: a record specifier is required***
+    (`qselect voc saving 3` answers "No records specified to process" — the
+    `qselect voc saving 3` in UPSTREAM 21's write-up does not run here).
+  - **DELETE.INDEX** — fixture: dict entry `F1` written by a scratch BASIC
+    program, `create.index zzak F1` → `Added index for F1`. Then
+    `delete.index zzak f1` (LOWER) → ***`Deleted index F1`***. Control
+    `delete.index zzak nosuchidx` → `Unrecognised index name (nosuchidx)`, so
+    the refusal path still works and the success is not blind acceptance; the
+    control also confirms an unmatched name is echoed AS TYPED.
+  - Fixtures removed; DON back to `COUNT VOC` 410.
 
 ## Queue — adoptable, not yet done (suggested order)
 
 | # | Feature | Port code | Linux adaptation |
 |---|---|---|---|
-| 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23) | `DELETEF` | direct |
+| 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23) — ***REPRODUCED HERE 11 Sep, see below*** | `DELETEF` | direct |
 | 4 | DELETEF takes the ospath result, msg 2636 (port PRE_RELEASE 104) | `DELETEF` | direct |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
@@ -45,6 +55,35 @@ in the same commit as the work.
 | 20 | UPSTREAM 4, 6, 13, 34 — read each entry and verify against this tree | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) | `gplbld` | adapt to this tree's docs |
 | 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
+
+## Queue 3 — measured here, 11 Sep 2026, not read
+
+***`delete.file zzak no.query` PROMPTED ANYWAY***, on an ordinary account file
+with no system-account part, on the `af879d3` install. Measured while clearing a
+DELETE.INDEX fixture, not while looking for it:
+
+```
+:delete.file zzak no.query
+OK to delete DATA portion 'ZZAK'? OK to delete DATA portion 'ZZAK'? ...
+```
+
+**Two separate faults, and UPSTREAM 23 names only the first.**
+
+1. `NO.QUERY` did not suppress the **DATA-portion** prompt. UPSTREAM 23 is about
+   the unguarded `check.sdsys.file` calls; ***this prompt is a different one and
+   is reached by a plain file***, so the entry's scope is narrower than the
+   defect. Whether `no.query` was parsed at all is NOT yet established — that is
+   the first thing to check, and it would change the fix.
+2. ***THE PROMPT BUSY-LOOPS ON EOF.*** With stdin a pipe, the re-ask spun and
+   emitted **98.9 MB** before a 40 s timeout killed it; pid was in state `R`, not
+   blocked. Any prompt reached down a pipe looks able to do this, so it is
+   probably not DELETEF's alone. A prompt that cannot be answered must fail, not
+   spin.
+
+**Consequence for instruments:** drive `sd` down a pipe only with verbs known not
+to prompt, and always under `timeout`. `list.index` hung the same way earlier in
+the session. The clean-up that avoids the verb entirely is `rm -rf` the file's
+two directories plus `DELETE VOC <name>`.
 
 ## Not adoptable — code, feature, reason
 

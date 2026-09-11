@@ -48,9 +48,32 @@ against the install).***
   `tgt.list` as %2; `DELETEI` gained the LISTI-style case-fold block. **Both
   compiled 0 errors** (dev binary, staged in DON/BP, red control `QBAD` = 1
   error), DON restored to `COUNT VOC` 410, tree rebuilt PLAIN. Changelog + doc
-  entries in the same commit. ***NOT WITNESSED — needs the delete→install
-  cycle*** (compiling is not running); witness commands are in PORT_ADOPTION's
-  "Adopted so far".
+  entries in the same commit.
+- ***BOTH ARE NOW WITNESSED.*** The owner ran the delete→install cycle;
+  `assert-current` = 0, install stamped `af879d3` 02:19:18. **QSELECT:**
+  `qselect voc * saving 3` → `...select list 0`, `... to 2` → `...select list 2`
+  (the number tracks the argument, 410 > 0 so not the null case). **DELETE.INDEX:**
+  `delete.index zzak f1` (LOWER) → `Deleted index F1`, with control
+  `delete.index zzak nosuchidx` → `Unrecognised index name (nosuchidx)`.
+  Fixtures removed, `COUNT VOC` 410. Detail in PORT_ADOPTION "Adopted so far".
+- ***QUEUE 3 (UPSTREAM 23) WAS REPRODUCED BY ACCIDENT AND IS WIDER THAN THE
+  ENTRY SAYS*** — `delete.file zzak no.query` prompted on a PLAIN file (not the
+  system-account path UPSTREAM 23 describes) and then BUSY-LOOPED on pipe EOF,
+  98.9 MB in 40 s. Whether `no.query` parsed at all is unestablished and would
+  change the fix. Full note in PORT_ADOPTION, "Queue 3 — measured here".
+- **Instrument lesson, paid for twice this session:** ***DRIVING `sd` DOWN A
+  PIPE IS ONLY SAFE FOR VERBS THAT DO NOT PROMPT, AND ALWAYS UNDER `timeout`.***
+  `list.index` and `delete.file` each spun. A pty driver was tried and was worse
+  (it captured the echo but not the results) — the plain pipe is the better
+  instrument for non-prompting verbs. To remove a test file without the verb:
+  `rm -rf <ACCT>/NAME <ACCT>/NAME.DIC` then `DELETE VOC name`.
+- **Fixture recipe for an index witness** (there is no one-liner): a new file's
+  dict has no field entries, so `create.index f f1` answers *"f1 is not defined
+  in the dictionary"*. Write a D-type record — `1:'D' 2:<field no> 4:name
+  5:'10L' 6:'S'` (`SYSCOM/DICTDICT.H`) — with a scratch BASIC program using
+  `open 'DICT','<file>' to f`; an ordinary (non-`$internal`) program compiles as
+  `don` with no dev build. ***`RUN BP <prog>` IS CASE-SENSITIVE*** — `run bp
+  mkf1` answers "Program BP.OUT mkf1 not found" for an object filed as `MKF1`.
 - **Compile recipe, simplified for the aligned-keys state:** `make
   EXTRA_C_FLAGS=-DSD_DEV_BUILD`; stage `<prog>` + the GPL.BP-LOCAL includes
   (`SYSCOM.H`, `INT$KEYS.H`, `AK_INFO.H` — the SYSCOM-resolved ones like `ERR.H`
