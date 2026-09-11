@@ -63,9 +63,18 @@ against the install).***
   `no.query` IS parsed (`DELETEF:84`, honoured `:109`) but the DATA and DICT
   prompts (`DELETEF:221-232`, `:295-304`) are guarded by ***`not(force)`
   ALONE***, and each `loop … input yn … until yn='Y' or yn='N'` has no EOF
-  escape (same shape `:112 :155 :187 :350`). So queue 3 is two fixes, not one,
-  and UPSTREAM 23 names neither. Full note in PORT_ADOPTION, "Queue 3 — measured
-  here". ***NOT FIXED — this is the next task.***
+  escape (same shape `:112 :155 :187 :350`). So queue 3 is two fixes, not one.
+  ***CORRECTED LATER THE SAME DAY: the first fault is the port's UPSTREAM 27,
+  which PORT_ADOPTION had failed to list*** — an earlier line here said no entry
+  named it. Only the EOF loop is in no UPSTREAM entry. Full note in
+  PORT_ADOPTION, "Queue 3 — measured here". ***NOT FIXED — this is the next
+  task.***
+- ***IS THE PORT-ADOPTION AUDIT COMPLETE? NO — answered for the owner 11 Sep.***
+  UPSTREAM_FIXES is now reconciled all 37 (28 done, 1 n/a, 8 open) — see
+  PORT_ADOPTION "UPSTREAM_FIXES reconciliation"; 18 of them had been fixed on
+  8–9 Sep under plan ids and never cross-referenced. ***The port's
+  PRE_RELEASE_FIXES (186 rows) has NOT been walked entry by entry***, and this
+  project's own open PRE_RELEASE entries are not in PORT_ADOPTION at all.
 - **Instrument lesson, paid for twice this session:** ***DRIVING `sd` DOWN A
   PIPE IS ONLY SAFE FOR VERBS THAT DO NOT PROMPT, AND ALWAYS UNDER `timeout`.***
   `list.index` and `delete.file` each spun. A pty driver was tried and was worse

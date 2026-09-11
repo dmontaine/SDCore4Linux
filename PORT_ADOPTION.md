@@ -31,11 +31,33 @@ in the same commit as the work.
     control also confirms an unmatched name is echoed AS TYPED.
   - Fixtures removed; DON back to `COUNT VOC` 410.
 
+## UPSTREAM_FIXES reconciliation — all 37, 11 Sep 2026
+
+Measured against this tree's source, because this file named only 19 of the 37
+and most of the rest had been fixed on 8–9 Sep under the parity plan's own ids
+(`PROJECT_STATUS` "Step 1" / "Step 2") without being cross-referenced here.
+
+- **Done here (28):** 1, 3, 8, 9, 10, 14, 18, 20, 29, 35 (10 Sep C batch) ·
+  21, 22 (11 Sep, witnessed) · 7 = B1/B2 · 19 = D2 · 24 = D3 · 25 = C1 ·
+  26 = E1 · 28 = D1 · 30 = A5 · 33 = A6 · 32 = A1 (`txn.c:20`) · 36 = A2
+  (`txn.c:257`) · 17 (`txn.c:831`) · 31 (`txn.c:338`) · 5 (`LOGIN:545`) ·
+  37 (`CPROC:3185` already says verb 15) · 15 (VFS removed, plan G2) · 16
+  (MICRO superseded by the port's EDIT).
+- **Not applicable (1):** 2 — resolved in the port as *not* upstream's bug.
+- **Open (8):** 23, 27 → queue 3 · 12 → queue 5 · 11 → queue 6 · 4, 6, 13, 34
+  → queue 20.
+
+***NOT DONE: the same reconciliation for the port's `PRE_RELEASE_FIXES.md`
+(186 table rows).*** This file names about ten of them; the "Not adoptable"
+table below disposes of Windows-only code by category, not by entry. Until the
+186 are walked, this file cannot claim to be a complete list of what the port
+has and this tree lacks.
+
 ## Queue — adoptable, not yet done (suggested order)
 
 | # | Feature | Port code | Linux adaptation |
 |---|---|---|---|
-| 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23) — ***REPRODUCED HERE 11 Sep, see below*** | `DELETEF` | direct |
+| 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23 **and 27**) + prompt loops need an EOF exit (no UPSTREAM entry) — ***REPRODUCED HERE 11 Sep, see below*** | `DELETEF` | direct |
 | 4 | DELETEF takes the ospath result, msg 2636 (port PRE_RELEASE 104) | `DELETEF` | direct |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
@@ -67,17 +89,17 @@ DELETE.INDEX fixture, not while looking for it:
 OK to delete DATA portion 'ZZAK'? OK to delete DATA portion 'ZZAK'? ...
 ```
 
-**Two separate faults, and UPSTREAM 23 names neither.** Both read off the source
-after the measurement:
+**Two separate faults. The first is the port's UPSTREAM 27, which this file
+failed to list; the second is in no UPSTREAM entry.** *(Corrected 11 Sep: an
+earlier version of this note said UPSTREAM 23 named neither and presented fault
+1 as new. The port had already written it up as #27 — "Separate from #23".)*
 
-1. ***`NO.QUERY` IS PARSED AND SIMPLY DOES NOT REACH THESE TWO PROMPTS.***
-   `DELETEF:84` sets `no.query` and `:109` honours it for the select-list query,
-   but the DATA-portion prompt at `DELETEF:221-232` and the DICT-portion prompt
-   at `:295-304` are each guarded by ***`if not(force)` ALONE***. So `FORCE`
-   suppresses them and `NO.QUERY` never could. UPSTREAM 23 is about the
-   unguarded `check.sdsys.file` calls — ***a different prompt, on a different
-   path***; the entry's scope is narrower than the defect, and a fix that only
-   does what 23 says would leave this live.
+1. ***`NO.QUERY` IS PARSED AND SIMPLY DOES NOT REACH THESE TWO PROMPTS***
+   (= UPSTREAM 27). `DELETEF:84` sets `no.query` and `:109` honours it for the
+   select-list query, but the DATA-portion prompt at `DELETEF:221-232` and the
+   DICT-portion prompt at `:295-304` are each guarded by ***`if not(force)`
+   ALONE***. UPSTREAM 23 is the separate `check.sdsys.file` prompt; queue 3
+   must take both 23 and 27.
 2. ***BOTH PROMPTS BUSY-LOOP ON EOF, BY CONSTRUCTION.*** Each is
    `loop … input yn … until yn = 'Y' or yn = 'N' repeat`. At EOF `input` yields
    empty, `yn[1,1]` is neither `Y` nor `N`, and the loop has no escape — it spins
@@ -85,11 +107,12 @@ after the measurement:
    `loop/until` shape is at `:112`, `:155`, `:187` and `:350`, so this is a
    pattern in the verb, not one bad site.
 
-**The prompt fires for ordinary files, which is why a plain `zzak` hit it.** The
-test is `data.path # default.path` (`:221`) where `default.path = file.name`
-(`:219`) — a bare name — so a file whose stored path is anything fuller than its
-VOC name compares unequal and asks. Confirm that reading before fixing; if it
-holds, `DELETE.FILE` without `FORCE` prompts for very nearly every file.
+**Why a plain `zzak` hit it — settled by UPSTREAM 27, and consistent with what
+was measured:** the test is `data.path # default.path` (`:221`) with
+`default.path = file.name` (`:219`), and `CREATE.FILE` upper-cases the OS name
+unless `CREATE.FILE.CASE` is set, so `zzak` is stored as `ZZAK` (seen on disk:
+`/home/sd/user_accounts/don/ZZAK`) and the two always differ for a lower-case
+name.
 
 **Consequence for instruments:** drive `sd` down a pipe only with verbs known not
 to prompt, and always under `timeout`. `list.index` hung the same way earlier in
