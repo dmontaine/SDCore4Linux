@@ -20,8 +20,12 @@ the work, nothing in "Verified" that was not observed that session.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
   **not started**; ***§L1*** — the per-tier VOC, **designed 10 Sep, not built**
   (design in the Open section).
-- **Runtime:** install stamped `242ae63`; HEAD ahead by documentation-only
-  commits, so `assert-current` reads STALE but the shipped behaviour is current.
+- **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
+  admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
+  (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
+- **Runtime:** install built from `98b0c77` (hardened client lib witnessed over
+  TCP 4243); HEAD then advances by documentation-only commits, so
+  `assert-current` reads STALE while the shipped behaviour is current.
 
 ## START HERE
 
@@ -1388,6 +1392,69 @@ already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
   10054 witness moves to a PROGRAMMER account — already noted in PRE_RELEASE 23);
   PROGRAMMER = full VOC; ADMINISTRATOR = +admin verbs; a `MODIFY.ACCOUNT` tier
   change re-derives the VOC; a release `update.voc` preserves the tier's VOC.
+
+### BASIC screen/widget library — design note (PROPOSED 10 Sep 2026, conditional; not started)
+
+***Goal (owner, 10 Sep 2026):*** extend SD BASIC so a programmer builds rich
+terminal screens — administrative apps rivalling the best TUI frameworks, up to
+a traditional terminal-based IDE — WITHOUT leaving BASIC and WITHOUT any
+commercial or client-side dependency. GPL-clean: standard ANSI/terminfo escape
+sequences only, shipped as catalogued SD BASIC (thin C only where BASIC cannot
+reach). AccuTerm is ruled out (commercial, needs a server-side API,
+GPL-incompatible). Target terminal up to 160x48.
+
+***What SD already provides:*** `KEYIN()` (raw key, timeout) + `KEYREADY()` (byte
+pending) for input; the `@(...)` cursor/attribute set (`gplsrc/op_tio.c`) for
+output; terminfo for portability. ***Missing:*** any widget layer, logical key
+decoding (KEYIN returns raw bytes), and mouse.
+
+***Architecture — a BASIC-facing API over layered catalogued subroutines:***
+- **Event/key layer** — wrap KEYIN/KEYREADY into one `get.event()` decoding
+  arrows, Tab, Enter, Esc, function keys (and mouse, below) into logical codes.
+- **Screen/draw layer** — box-drawing, attributes, regions; ***double-buffered
+  with minimal-diff redraw*** (write only changed cells) — the key to interactive
+  speed in interpreted BASIC at large sizes.
+- **Geometry/layout** — absolute plus simple layout managers (row/column/grid,
+  anchoring, min/preferred size) so a screen reflows between 80x24 and 160x48.
+- **Widgets** — label, button, text field (single/multi-line/masked), list box,
+  table/grid (scroll/sort), tree, radio group, checkbox, dropdown/combo, menu +
+  menu bar, tabs/notebook, scrollbar, progress bar, status bar, panel/frame,
+  split pane, modal dialog, message/confirm box, and a text editor/viewer widget.
+- **Form/focus manager** — owns a widget set, Tab/focus order, key dispatch,
+  redraw, returns collected values; binds to MV dynamic arrays (field/value marks).
+- **Theming** — colour via SGR (16/256/truecolor) / terminfo `setaf`/`setab`.
+
+***Rendering:*** box-drawing via VT line-drawing (`acsc`/`smacs`) so it works in
+the **default 8-bit build**; Unicode box-drawing is an **ECS-mode** enhancement
+(SD's 8-bit-vs-ECS mode interacts here). Alternate screen + inhibit-cursor for a
+clean full-screen app.
+
+***Mouse:*** xterm SGR 1006. ***Likely pure BASIC*** — read the report sequence
+(`ESC [ < … M/m`) via KEYIN/KEYREADY like any escape sequence — **IF** SD's input
+path passes those bytes through KEYIN untouched. ***Verify that first;*** a small
+`op_tio.c` addition only if it does not.
+
+***THE MAIN TECHNICAL RISK — what would falsify the pure-BASIC engine: redraw
+speed.*** 160x48 is ~7,680 cells; a full repaint or a fast scroll in interpreted
+BASIC may be too slow to feel interactive. ***The FIRST task is to prototype the
+diff-renderer and MEASURE a full redraw + a scroll at 160x48*** — if BASIC cannot
+hit interactive latency, the draw/diff layer (and possibly key-decode / mouse)
+moves to thin C behind the same BASIC API. The widgets come after that number is
+known, not before it.
+
+***North-star (owner): a terminal IDE*** — editor widget (SD-BASIC-aware), VOC/file
+browser tree, multiple panes, menu + status bar, assembled from the widget set.
+It is the validation that the toolkit is "rich enough", not the MVP.
+
+***Staged (conditional):*** (1) prove the diff-renderer fast enough at 160x48;
+(2) event/key-decode + draw + core widgets (field, button, listbox, menu,
+checkbox, radio) + form manager, keyboard-only; (3) mouse; (4) advanced widgets
+(table, tree, tabs, editor); (5) the IDE.
+
+***Fits the port:*** GPL-clean, no dependency, AI-maintainable BASIC; rides the
+ssh boundary + tiers — a STANDARD account ssh'd into SD lands in a catalogued
+rich-screen app, which is the §L1 "launch into an application" note's natural
+payload.
 
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth

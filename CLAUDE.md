@@ -283,6 +283,14 @@ of them reverse what an earlier analysis recommended.
   `check_admin()` on this ruling, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as
   the opt-in hatch that **announces itself and cannot reach a user**, because
   the installer builds from a fresh clone.
+- ***A RICH BASIC SCREEN/WIDGET LIBRARY IS A GOAL*** (owner, 10 Sep 2026). Extend
+  SD BASIC so a programmer builds rich terminal screens — administrative apps
+  rivalling the best TUI frameworks, up to a traditional terminal-based IDE —
+  **without leaving BASIC and without any commercial or client-side dependency.**
+  GPL-clean: standard ANSI/terminfo escape sequences only, shipped as catalogued
+  SD BASIC (thin C only where BASIC cannot reach). AccuTerm is ruled out
+  (commercial, needs a server-side API, GPL-incompatible). Design note in
+  PROJECT_STATUS.md's Open section.
 
 ## Where this repository lives
 
