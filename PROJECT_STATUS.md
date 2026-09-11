@@ -53,6 +53,8 @@ the work, nothing in "Verified" that was not observed that session.
   DELETEF prompts are no longer part of it (each printed once at EOF). SIGTERM
   ends it cleanly: no dead slot, semaphores back to 1. The port's `linuxio.c:508`
   is the same code; not measured there. ***END EVERY PIPED SESSION WITH `OFF`.***
+  **Fix BUILT and compiled 11 Sep, not installed** (CPROC `:1006`, PORT_ADOPTION
+  26); until an install carries it, the rule above stands.
 - **DON (ADMINISTRATOR) has no `UPDATE.ACCOUNTS`**: its VOC predates §L1's
   `TIER.ADD.ADMINISTRATOR`, and `update.voc` never adds VOC_TEMPLATE verbs
   (`LOGIN:544-547`). Whether MODIFYA's tier re-derivation (unrun) adds them is

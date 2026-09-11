@@ -25,6 +25,8 @@
 *           F1 at an empty prompt prints 10149 instead of nothing (port 8).
 *           LOGOUT n on a session whose process is gone reclaims the slot and
 *           says so (10167) instead of leaving "(logout pending)" (port 16).
+*           End of piped input ends the session as OFF does, instead of the
+*           command line asking again for ever (Linux, PORT_ADOPTION 26).
 * 10 Sep 26 PARITY AUDIT. UPDATE.ACCOUNT is UPDATE.ACCOUNTS and takes ALL, as
 *           the port's (its PRE_RELEASE_FIXES 70); its heading's "verb 30" is
 *           corrected to 15. The five start-up privilege notices move from
@@ -1004,6 +1006,15 @@ get.command.line:
          end
 
          c = keycode()
+* 11 Sep 26 dm - END OF INPUT ENDS THE SESSION (PORT_ADOPTION queue 26).  On a
+*   pipe keyin() returns at once at end of input, and KEYCODE() gives '' with
+*   STATUS() = ER$EOF - measured 11 Sep 2026 on the installed binary.  This
+*   loop then asked again for ever: "printf 'WHO\n' | sd" with no OFF wrote
+*   369207 BEL bytes in 10 s until a timeout killed it.  A shell exits at end
+*   of input, and so does this, by OFF's own path.  A terminal does not come
+*   here: keyin() waits for a key, and this call passes no timeout.  Only the
+*   command line changes; INPUT in a program still gets '' and decides.
+         if c = '' and status() = ER$EOF then goto int.quit
          n = seq(c)
 
          if first and n >= 32 and n < 128 and clear.on.data then
