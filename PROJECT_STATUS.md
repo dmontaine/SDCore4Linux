@@ -1455,9 +1455,11 @@ force-enabled:
   new headers `gplsrc/sdclilib.h` + `gplsrc/client_ctype.c`. Its `SDConnect`
   default is now **4243** (was 4245). Repo's shared headers left untouched;
   `make` 0 errors, both `sdclilib.so`/`libsdcli.so` linked; the standalone repo's
-  `make check` (smoke + internal) passed. ***UNWITNESSED on the installed
-  runtime*** — re-run `apitest.py` after the next reinstall to confirm the
-  hardened lib connects over TCP (the Aug-15 `linuxsdclilib` repo is the source).
+  `make check` (smoke + internal) passed. ***WITNESSED on the installed runtime
+  10 Sep 2026*** — after a reinstall from `origin/main`, `apitest.py` (loading
+  the installed hardened `sdclilib.so`) connected TCP `127.0.0.1:4243` as `pete`:
+  `SDConnect`=1, `SDConnected()`=1, `WHO`→`2 PETE`, err 0. Source published at
+  `github.com/dmontaine/linuxsdclilib` (the Aug-15 hardened repo).
 - **Still open, separate:** `gplsrc/sdclient.c:3404` (a different client, not the
   lib) still defaults `port = 4245`; and `changelog`'s historical 4243→4245 line
   runs against the ruling. Both minor, client-side.
