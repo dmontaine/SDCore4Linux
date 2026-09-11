@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: Enter is N at the convert-to-multifile prompt (port
+*               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 Jan 25 mab change dyn file prefix to %
 * END-HISTORY
@@ -281,9 +283,12 @@ $define default.split.load 80
                   display sysmsg(6103, file.name) ;* %1 already exists but not as a multifile
                   loop
                      display sysmsg(6195, file.name, file.name) :
-                        * Convert to multifile named "%1,%1" (Y/N)?
+                        * Convert to multifile named "%1,%1" (y/<n>)?
                      input yn
                      yn = upcase(yn)
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N (port
+*   PRE_RELEASE_FIXES 79).  An empty answer used to re-ask for ever.
+                     if yn = '' then yn = 'N'
                   until yn = 'Y' or yn = 'N'
                   repeat
                   if yn = 'N' then stop

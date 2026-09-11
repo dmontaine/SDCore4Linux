@@ -1,2 +1,1 @@
-No SD administrator is registered. Rights granted to %1 for this session
-so one can be registered now: MODIFY.ACCOUNT <account> ADMINISTRATOR
+Unable to make %1 an administrator, status: %2

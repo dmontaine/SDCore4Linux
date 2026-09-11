@@ -168,13 +168,19 @@
 #define K_RUNEXE             56
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
-#define K_REAL_USER          57
+/* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
+   AND K_WINPID (its keys.h), so these three - which the port does not have -
+   move to 90-92, a block clear of the port's 0-64.  A key number is compiled
+   into every BASIC program that calls KERNEL, so the same number meaning two
+   things in the two systems is drift of the same kind as a message number.
+   GPL.BP/INT$KEYS.H must carry the same three numbers.                        */
+#define K_REAL_USER          90
 /* 09 Sep 26 dm - PRE_RELEASE 23.  Per-account OS-access grants, loaded into the
    session at account entry (LOGIN and CPROC logto) from ACC$SH / ACC$OS.EXEC,
    and read by the SH gate (CPROC) and op_sh() (OS.EXECUTE).  Set only from a
    $internal program, exactly like K_ADMINISTRATOR - see op_kernel.c.         */
-#define K_SH                 58
-#define K_OS_EXEC            59
+#define K_SH                 91
+#define K_OS_EXEC            92
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

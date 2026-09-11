@@ -14,14 +14,19 @@ the work, nothing in "Verified" that was not observed that session.
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal at `installsdai.sh:236` (**24(2)**) is unrun.
   - Open: `1, 3, 4, 5, 6, 7, 9, 10, 11, 15, 16` — a mix of real work and notes.
-    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
+    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised;
+    `4` = MICRO fix built + compiled 10 Sep, unrun.
 - **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
   block.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
   **not started**; ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
   (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 = the omit
-  list; CREATUSR fix also witnessed); `LOGIN update.voc` + `MODIFYA` tier
-  re-derivation + ADOPT still to build (Open section).
+  list; CREATUSR fix also witnessed); `LOGIN update.voc` tier filter and
+  `MODIFYA` tier re-derivation **built + compiled 10 Sep (0 / red 3; 0 / red 9),
+  unrun**; ADOPT still to build (Open section).
+- **Parity audit vs the Windows port, 10 Sep:** 12 drifts corrected + compiled,
+  **unrun**; key numbers renumbered so ***the tree `bin/sd` and GPL.BP must be
+  installed together*** (Open, "Parity audit").
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
@@ -1333,6 +1338,122 @@ fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
 Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
 reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
 
+### Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED + COMPILED, NOT RUN
+
+Owner's instruction: audit every implemented feature against the port (the
+reference) and correct drift except OS differences. **Scope: this project's own
+work since 8 Sep** (plan steps 1–4, PRE_RELEASE entries, §L1, CREATUSR, MICRO);
+the inherited AI layer (`9f82a52`) was not audited.
+
+| # | Drift found | Correction |
+|---|---|---|
+| 1 | `SH ! CONFIG LISTU LIST.READU LIST.LOCKS CLEAR.LOCKS LOCK SET.DATE CLEAN.ACCOUNT` in NEWVOC = every tier | removed from NEWVOC, added to `TIER.ADD.ADMINISTRATOR` (port's 24 Aug split). UMASK stays (stance) |
+| 2 | `NLS SET.LANGUAGE LOAD.LANGUAGE` in the VOCs | removed; programs kept (port 16 Aug, "English only") |
+| 3 | `UPDATE.ACCOUNT` | `UPDATE.ACCOUNTS` + `ALL` (LOGIN mode 4; msgs 10170–10173, 10170/10172 adapted); heading verb 30→15 (port UPSTREAM 37) |
+| 4 | messages 10030–10045 reused port ids with other meanings | port-equivalent → port id (10032 10033 10080 10102 10105 10106 10109 10113 10114 10157); Linux-only CPROC notices → **10900–10904**, a block the port does not use |
+| 5 | kernel keys 57–59 = the port's `K$AUDIT/K$WINPATH/K$WINPID` | `K$REAL.USER/K$SH/K$OS.EXEC` → **90–92** in `gplsrc/keys.h` and `INT$KEYS.H`, agreement checked |
+| 6 | Y/N prompts (port PRE_RELEASE 79) | 19 message records byte-copied from the port (trailing spaces); Enter = N at SETFILE, DELETEF, CREATEF, SETPTR, QPROC ×2, ED ×3 (incl. `yes.no`), LOGIN ×2 |
+| 7 | VOC copy stripped field 1 (port PRE_RELEASE 136) | copied whole at CREATEA, LOGIN `update.voc`, MODIFYA `tier.build.rec` |
+| 8 | DELACC: three prompts, `CREATUSR` gate, deletes any `sdu_` user | port flow: 10158 + one confirmation 10084/10085 (Enter = N), xref is a statement, ACCOUNTS deleted last; OS user deleted only if new `!is_sd_user` finds GECOS `SD account`, stamped by `sd-elevate useradd -c`. 6029/6031/10027 retired |
+| 9 | CREATEA lacked `SH-ON`/`OS-ON` | added: USER account below ADMINISTRATOR, reported with 10102 |
+| 10 | MODIFYA `os.set` accepted group accounts, reported one field | refuses non-`sdu_` (10105); reports both fields (10102) |
+| 11 | DELCAT's admin test inside the loop | before the loop (port 18 Aug) |
+| 12 | WEOFSEQ failure `goto` skipped `sq_file->base = -1` | the port's shape |
+
+**Already equal to the port:** step 1–2 C fixes (`k_error`, keep-alive,
+`get_ak_node` zero tests, `dh_file` chsize, `txn.c` `map_t1_id`/remove/`end_txn_level`,
+commit rollback); PRE_RELEASE 19 `K_ADMINISTRATOR`; 21 `-internal` `check_admin()`;
+TERM; `TIER.OMIT.STANDARD` (identical); WHOAMI; `check-msglen`, `checksyntax`,
+`mkbasicsyntax`, `sdbasic.yaml`, `gen_includes` (header comments only).
+
+**OS/model differences, kept:** per-account `ACC$SH`/`ACC$OS.EXEC` vs the port's
+`os.users`; `sd-elevate`/sudoers vs elevation; the `SET_PASSWD`/`CREATE_USER` admin
+gates; ssh ForceCommand vs `sdssh`/`sdapi` groups (no `ssh|api|both|none` keyword);
+CATALOG's gcat chown; `clopts.c` `kill()` pid guard; UMASK; "Linux" in 2004/10024/6075;
+lower-case names (§M, scheduled).
+
+***PORT DEFECT FOUND:*** the port's `MODIFYA tier.build.rec` still strips field 1
+after its own PRE_RELEASE 136, so every downgrade there compares unequal and counts
+the verbs "left alone". Fixed here; the port needs the same one-routine change.
+
+**Compile evidence** (dev build, recipe, as `don`, staged sha = tree sha each):
+CPROC both `IS_INSTALL` arms, LOGIN, MODIFYA, CREATEA, DELCAT, SETFILE, DELETEF,
+CREATEF, SETPTR, QPROC, ED, MICRO, DELACC, IS_SD_USER, CREATE_USER — **0 error(s)**.
+Reds: `DELCATX` 7, `ISX` 2, `LOGINX` 1, none written to `BP.OUT`. sha256 of all 137
+`gcat` entries identical before/after every run. **The first pass's verdicts were
+lost** to a ugrep regex error and the pass was re-run. `test-sd-elevate.py`
+**37/0** with a new STAMP row; red = the HEAD helper's dry run shows no stamp.
+`op_seqio.c` and a full `rm gplobj/*.o` rebuild clean; fixtures removed,
+`COUNT VOC` 410, plain `bin/sd` rebuilt.
+***THE KEY RENUMBERING MAKES THE BINARY AND GPL.BP ONE UNIT — MEASURED:*** the
+renumbered tree `bin/sd` against the installed `$LOGIN` aborts every session,
+`Illegal KERNEL() action key (58) at line 286 of $LOGIN`. CPROC/LOGIN/MICRO were
+compiled with a scratchpad harness built from HEAD's `keys.h` (deleted after).
+**Do not run the tree `bin/sd` against the current install; install the commit.**
+
+**Objections and gaps, not done:**
+- DELACC does not `userdel -r`: the port removes the Windows profile, but a Linux
+  home holds personal files and ssh keys — owner to rule.
+- Users created before the stamp (`don`, `pete`, `tstd`, `tprog`, `tadm`) are left
+  in place by DELETE.ACCOUNT (10036).
+- Existing accounts keep the admin and language verbs already in their VOCs (an
+  update never deletes); a tier change does not remove them either (not in a layer).
+- A non-admin's SH-ON now needs the SH verb copied into that VOC (the port's
+  model); entry 23's `pete` witness relied on SH being in NEWVOC.
+- 10114's port text "nothing has changed" is false when VOC_TEMPLATE fails after
+  the standard layer (the port's too).
+- MICRO vs the port's `EDIT` (1002 lines: mark tokens, working copy removed on
+  every exit — UPSTREAM 16's second half) is not converged.
+- Port features not built here: SUSPENDED, TIERGATE, GRANT/REVOKE/LIST.GRANTS,
+  `[locked]`, ADOPT, an upgrade running `UPDATE.ACCOUNTS ALL` (F2), MODIFY.PASSWORD,
+  `K$AUDIT`, §M.
+
+***Witness, after an install of the commit (conditional):*** a new PROGRAMMER
+account has no `SH`/`CONFIG`/`LISTU`, an ADMINISTRATOR one has them;
+`UPDATE.ACCOUNTS FOO` → 10173; `UPDATE.ACCOUNTS ALL` in SDSYS → 10170 then 10171 with
+a count; `listf` in a new account shows descriptions; `CREATE.ACCOUNT USER x SH-ON`
+→ 10102; `DELETE.ACCOUNT X` → one `(y/<n>)` naming the Linux user, user gone;
+`DELETE.ACCOUNT PETE` → 10036, `pete` kept. Falsified by any of those not holding.
+
+### MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN)
+
+***Found by the owner, 10 Sep:*** `micro bp test` → *"File Error: bp could not be
+opened"*; `MICRO BP TEST` → 10053, then *"Record was not saved"*. Entry 12's
+witness drove micro in a pty and only compiled `MICRO`, so the verb had never run
+through SD.
+- **Cause 1:** `MICRO:226` launched with `execute "!"` = CPROC `os.command`, gated
+  admin-or-`K$SH` (`CPROC:3502`). **Cause 2, entry 23's gap:** `USR_ADMIN` is set
+  only under `sudo sd` (`CPROC:299`), so an ADMINISTRATOR in plain `sd` had no
+  SH/`!`/OS.EXECUTE, and `MODIFYA` refused to grant (10039) on the false premise
+  that the gates read the tier via `USR_ADMIN`. The port hit the same case (its
+  `HISTORY.md` 29 Aug, *"AN UNELEVATED ADMINISTRATOR HAS NO sh"*; owner there:
+  *"by default without escalating"*); ours, 9 Sep: *"by tier, automatic and
+  unrevocable"*. **Cause 3:** `open` is case-sensitive and only `BP` exists (§M).
+- **Fix:** `LOGIN:319` and CPROC logto (`:2777`) load `K$SH`/`K$OS.EXEC` true when
+  the account's `ACC$TIER` is ADMINISTRATOR **and** `is_grp_member(@logname,
+  'sdadmin')` — both halves of the owner's definition. Account-scoped: a LOGTO
+  reloads from the target's record, so the port's LOGTO leak does not arise.
+  `MICRO` takes the port `EDIT`'s shape: `check_permitted` first (blank `K$TTY` →
+  refuse; `K$ADMINISTRATOR` or `K$OS.EXEC` → allow; else refuse naming OS-ON),
+  `find_editor` via `os.execute "command -v micro" capturing` (entry 4), launch
+  with `os.execute` (admitted on `HDR_INTERNAL`) + exit code in the failure text,
+  file name as typed → lower → upper (§M1's order), single-quote record names
+  refused. `$include int$keys.h` added.
+- **Compile** (dev build, recipe, as `don`): LOGIN **0** / red **1**; MICRO **0** /
+  red **2**; CPROC **0 on both `IS_INSTALL` arms** (tree `define_install.h` is the
+  install arm; the runtime arm was staged as the installer's `*comment out *` line,
+  `installsdai.sh:794`) / red **1**. `gcat/$LOGIN`, `$MICRO`, `$CPROC` sha unchanged;
+  fixtures + `BP.OUT` removed, `COUNT VOC` 410; plain `bin/sd` rebuilt.
+- **Not verified:** `os.execute … capturing` has no other caller in this `GPL.BP`
+  (BCOMP parses it; runtime unwitnessed). `K$TTY` blank when stdin is not a tty is
+  read from `kernel.c:177`, not measured.
+- ***Witness, after an install (conditional):*** plain `sd` as `don` — `micro bp
+  test` and `MICRO BP TEST` open micro; `SH ls` runs. PROGRAMMER `tprog` without
+  OS-ON — `MICRO BP X` gives the OS-ON refusal and leaves no `$HOLD` working copy;
+  after `MODIFY.ACCOUNT TPROG OS-ON` + re-entry, micro opens. From DON, `LOGTO` a
+  non-admin account → `SH ls` refused 10053. Falsified by 10053 in DON, or by micro
+  opening for `tprog` before OS-ON.
+
 ### ADOPT — the installer's pre-existing-user exception (TO BUILD, conditional)
 
 ***Owner's rule (10 Sep 2026): all SD users are created WITHIN SD (CREATE.ACCOUNT
@@ -1364,7 +1485,72 @@ or the installer's own seeding breaks):***
 - ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
   reinstall — do not stack three unverified install-critical CREATEA changes.
 
-### §L1 — per-tier VOC (CORE WITNESSED 10 Sep 2026; LOGIN/MODIFYA pending)
+### §L1 — per-tier VOC (CORE WITNESSED 10 Sep 2026; LOGIN filter + MODIFYA re-derivation COMPILED, unrun)
+
+***`LOGIN` `update.voc` tier filter — BUILT AND COMPILED 10 Sep 2026, NOT RUN.***
+The port's 17 Aug 2026 fix. All three call sites set `update.voc.tier`: mode 2
+(`UPDATE.ACCOUNT`) and the `$RELEASE` prompt through new `get.acc.tier`
+(`ACCOUNTS` by `@who`, own file variable — `acc.f` is closed by then); the
+all-accounts walk off `acc.rec`. `update.voc` never copies the two control records
+and skips `TIER.OMIT.STANDARD` ids unless the tier is blank/PROGRAMMER/ADMINISTRATOR
+(blank = full, as the port). `SUSPENDED` → `ACC$PRIOR.TIER` at both resolvers
+(nothing writes SUSPENDED here yet; carried for conformity). Also the port's
+`old.rec = ''` before `READU` (upstream defect: a failed READU left the previous
+id's record, so byte-identical adjacent ids like CATALOG/CATALOGUE were skipped).
+**Not taken from the port's `update.voc`:** `[locked]` (= F3), Enter-defaults-N,
+`upcase(id)='MD'` (§M), and its PRE_RELEASE 136 field-1 keep — `CREATEA:552` strips
+field 1 too, so both sites must change together or the update undoes the create.
+**Compile** (dev build, recipe, DON `BP`, as `don`): **0 error(s)**, *"with no
+errors"*, staged sha = tree sha; red control = unbalanced bracket at the new
+`get.acc.tier` line → **3 error(s)**, first `576: Right bracket not found`.
+`BASIC:301` auto-runs `CATALOGUE BP $LOGIN` after a clean compile: refused
+*"Command requires administrator privileges"*, and `gcat/$LOGIN` sha256 was
+identical before and after (`gcat` is `sdsys` 0755). Fixtures + `BP.OUT` removed,
+`COUNT VOC` **410**; plain `bin/sd` rebuilt (no DEVELOPER line).
+***Witness, after an install of the commit (conditional):*** in STANDARD `tstd`
+(368, no BASIC) set `$RELEASE` field 2 to an older stamp, log in as `tstd`, answer
+`Y` → expect `COUNT VOC` 368 and `BASIC` not found. It would be falsified by 410.
+The pre-fix control would be the same steps on the current install (expect 410 +
+BASIC), which alters `tstd`.
+
+***`MODIFYA` tier-change re-derivation — BUILT AND COMPILED 10 Sep 2026, NOT
+RUN.*** The port's `voc.delta` + `tier.rank`/`tier.layer`/`tier.build.rec`/
+`tier.add.one`/`tier.del.one` (port `gpl.bp/MODIFYA:1227-1440`), called in
+`set.tier` **before** the register write (port order: a stopped run leaves the old
+tier and a repeat converges); `voc.ok` false → **10044**, tier not written. Up
+copies a layer in; down deletes only records equal to a tier build, else counts
+them kept. `voc.from` is the raw field, so blank ranks PROGRAMMER; `old.tier`'s
+blank-as-STANDARD stays, used only by the sdadmin test. Messages **10043** counts,
+**10044** refusal (port 10114 says *"nothing has changed"*, false when the template
+open fails after the standard layer — reworded to the register), **10045** failed
+deletes. ***Adapted, not copied:*** `tier.build.rec` transforms NEWVOC records
+only — `CREATEA:573-574` writes VOC_TEMPLATE records raw (`UNLOCK` keeps *"Verb to
+unlock records"*), so transforming them would make every downgrade keep `UNLOCK`.
+No SUSPENDED/route/promo/Windows-group parts (none exist here).
+***Privilege — read from code, not measured:*** `sudo sd` drops to euid `sdsys`
+(`CPROC:301`) and `sdext_eguid.c:66` sets no supplementary groups. `$MODIFYA` is
+in `privileged_commands` (`CPROC:180`), so `CPROC:1682` restores euid 0 around it;
+that is what would let it write `pete`/`don` VOCs, whose groups lack `sdsys`
+(`sdu_pete:root,pete`; newer `sdu_tstd:root,sdsys,tstd`). ***Lead, unmeasured:***
+`UPDATE.ACCOUNT` is `V|IN|15`, never raised, so its SDSYS all-accounts walk
+probably cannot write user VOCs — hence the `$RELEASE` route for LOGIN's witness.
+**Objections kept, not resolved:** (1) as the port, the register is written even
+when deletes failed (10045), so the tier reads lower while verbs remain and a
+repeat is a no-op (`from = to`); (2) `tier.layer` reads NEWVOC by the lists'
+UPPER-CASE ids, so on ext4 §M must lower-case the lists and NEWVOC together or
+every layer silently moves nothing.
+**Compile** (dev build, recipe, as `don`): **0 error(s)**, staged sha = tree sha;
+red = `(` injected in `tier.layer` → **9 error(s)**. Auto-`CATALOGUE $MODIFYA`
+refused; `gcat/$MODIFYA` sha unchanged. Fixtures + `BP.OUT` removed, `COUNT VOC`
+410. `check-msglen.py` REFUSED 10043 (exit 2, no `\n` escapes, so it measured
+nothing); all three are one line, ≤69 chars, against a bound of 231.
+***Witness, after an install of the commit (conditional)***, under `sudo sd`:
+`MODIFY.ACCOUNT TSTD PROGRAMMER` → expect *"VOC: 42 records added, 0 removed, 0
+left alone"* and tstd's `COUNT VOC` 410; back to `STANDARD` → *"0 … 42 removed"*,
+368. `MODIFY.ACCOUNT TADM PROGRAMMER` → 5 removed (expect 410; also
+`leave.sdadmin`'s first run), then `ADMINISTRATOR` → 5 added. Repeating a tier
+should print 0/0/0. Any other count falsifies it. How to count another account's
+VOC from SDSYS is untested (admin `LOGTO` gate, PRE_RELEASE 20 table).
 
 ***WITNESSED 10 Sep 2026 on a reinstall.*** CREATEA compiled (the install
 completed). New accounts created on that install, counts read in-SD via `COUNT
@@ -1374,8 +1560,7 @@ verbs in `TIER.OMIT.STANDARD`. So STANDARD gets NEWVOC less the omit list (canno
 build) and PROGRAMMER gets it entire — the tier VOC works at creation. Also
 witnessed: the CREATUSR fix — `create-account user tprog programmer` (no
 `no.query`) had SD create the OS user (`useradd`) and prompt for the password.
-***Still pending (same filter): `LOGIN` `update.voc` and `MODIFYA` tier-change
-re-derivation*** (see below), and the ADOPT work (above). Build details: the two
+***Still pending: running the two builds above, and the ADOPT work (above).*** Build details: the two
 control records
 `sdsys/NEWVOC/TIER.OMIT.STANDARD` (42 dev verbs) and
 `sdsys/NEWVOC/TIER.ADD.ADMINISTRATOR` (5 admin verbs: CREATE/DELETE/MODIFY/
@@ -1385,10 +1570,8 @@ ADMINISTRATOR = that plus the add list from `VOC_TEMPLATE`; the two control
 records are never copied; matching is case-insensitive. Block structure reviewed
 by hand; ***the authoritative compile is the install's two-stage bootstrap***
 (it aborts on a syntax error), so the witness is a reinstall + inspecting a new
-account's VOC per tier. ***STILL TO BUILD (the other two NEWVOC-copy sites, same
-filter): `LOGIN` `update.voc` (or a release update re-adds omitted verbs to a
-STANDARD account — the port's paid-for trap) and `MODIFYA` tier-change
-re-derivation.*** CREATEA is now the reference pattern for both. *(Design
+account's VOC per tier. (`LOGIN` `update.voc` and the `MODIFYA` re-derivation are
+built, above.) *(Design
 follows.)*
 
 ### §L1 design — per-tier VOC (proposed 10 Sep 2026, conditional)
@@ -1635,8 +1818,8 @@ The survey is recorded so it is not repeated: the port has **1** Claude hook and
 - **Examined and NOT ported, each for a stated reason** — do not redo this:
   `stage.py` and `bootstrap.py` build a Windows *installer*; here
   `installsdai.sh` bootstraps on the target machine · `checksyntax.py` /
-  `mkbasicsyntax.py` are `micro`-editor syntax tooling — **and whether `micro`
-  belongs in this port at all is now `PRE_RELEASE` 2, not settled** ·
+  `mkbasicsyntax.py` are `micro`-editor syntax tooling — *(superseded: both were
+  ported under `PRE_RELEASE` 2, ruled 9 Sep — micro stays, highlighting kept)* ·
   `mkvocdoc.py` is coupled to `sd.iss` and the port's 26 Aug CONFIG-display
   decision · the other 157 are `.ps1`, **of which only 51 are on subjects §H
   excludes — the remaining 31 relevant ones are `PRE_RELEASE` 1.**

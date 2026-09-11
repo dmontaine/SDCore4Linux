@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 Parity audit: the administrator test is made for every name before
+*           the loop, as the port's, so a mixed list deletes nothing when any
+*           name would be refused.
 * 09 Sep 26 PRE_RELEASE 18 commit 2. The global-catalogue check asks the
 *           administrator flag rather than "is this process root".
 * 08 Sep 26 Deleting from the global catalogue required no privileges at all, by
@@ -88,6 +91,22 @@ $include int$keys.h
       stop sysmsg(3021) ;* Incompatible cataloguing modes specified
    end
 
+* 10 Sep 26 dm - PARITY AUDIT: THE GATE IS BEFORE THE LOOP, as the port's is (its
+*   DELCAT, 18 Aug 2026).  It was inside the loop's global branch, so a list
+*   mixing private and global names deleted the private ones and then stopped
+*   part way through.  Here a non-administrator naming ANY global entry - by
+*   the GLOBAL keyword or a "*!_$" prefix - deletes nothing at all.  dcount/for
+*   because the loop below consumes name.list with remove().
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      gbl.count = dcount(name.list, @fm)
+      for gbl.i = 1 to gbl.count
+         gbl.name = name.list<gbl.i>
+         if global or index(prefix.chars, gbl.name[1,1], 1) then
+            stop sysmsg(2001) ;* Command requires administrator privileges
+         end
+      next gbl.i
+   end
+
 
    * Open global and private catalogues
 
@@ -115,18 +134,12 @@ $include int$keys.h
 * removing $LOGIN stops everybody signing in.  CATALOG has required administrator
 * rights for the global catalogue since rev 0.9.0; this had been left behind.
 *
-* The test is here, inside the branch that touches gcat, rather than before the
-* loop, because whether a name is global is decided per name: the GLOBAL keyword
-* makes all of them global, and a prefix character makes just that one.  Local
-* cataloguing is untouched and still needs nothing.
 * 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  system(27) # 0 asked whether the
 * process was root; the owner's definition of an administrator is a registered
 * person in sdadmin, which root on its own is not.  CPROC's grant.administrator
-* decides that once and this reads the answer.  int$keys.h is included above
-* for K$ADMINISTRATOR; this program is already $internal, so KERNEL resolves.
-               if not(kernel(K$ADMINISTRATOR,-1)) then
-                  stop sysmsg(2001)  ;* Command requires administrator privileges
-               end
+* decides that once and this reads the answer.
+* 10 Sep 26 dm - The test that stood here moved above the loop (parity audit),
+* so no name in the list is deleted when any of them would be refused.
                readvu obj.rec from gcat.f, cat.name, 0 then
                   delete gcat.f, cat.name
                   unload.object

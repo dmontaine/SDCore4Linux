@@ -1,2 +1,1 @@
-%1 is a registered SD administrator but is not in the sdadmin group:
-this session has no administrator rights
+Linux user %1 does not exist, nothing to delete

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: Enter is N at the set-parameters prompt (port
+*               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -545,10 +547,13 @@ reparse:
          end
 
          loop
-            crt sysmsg(7109) :  ;* OK to set new parameters (Y/N)?
+            crt sysmsg(7109) :  ;* OK to set new parameters (y/<n>)?
             prompt ''
             input yn
             yn = upcase(yn)
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N (port
+*   PRE_RELEASE_FIXES 79).  An empty answer used to re-ask for ever.
+            if yn = '' then yn = 'N'
             if yn = 'N' then stop
          until yn = 'Y'
          repeat

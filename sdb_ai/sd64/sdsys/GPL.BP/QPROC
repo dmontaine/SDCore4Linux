@@ -18,6 +18,8 @@
 * 
 *  
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: Enter is N at the CSV overwrite prompt (7305) and
+*               in get.label.yn (port PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -632,8 +634,11 @@ parse.default.phrase:
       openseq csv.pathname to csv.f then
          if not(csv.append) and not(csv.no.query) then
             loop
-               display sysmsg(7305, csv.pathname) : ;* %1 already exists. Overwrite(Y/N)?
+               display sysmsg(7305, csv.pathname) : ;* %1 already exists. Overwrite(y/<n>)?
                input yn upcase
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N: the existing
+*   file is kept (port PRE_RELEASE_FIXES 79).
+               if yn = '' then yn = 'N'
                if yn = 'N' then goto exit.qproc
             until yn = 'Y'
                display sysmsg(7279) ;* Y or N required
@@ -6419,6 +6424,9 @@ get.label.yn:
       display txt : ':  ' :
       input n
       n = upcase(n)
+* 10 Sep 26 dm - Enter is N (port PRE_RELEASE_FIXES 79): the one caller asks
+*   whether to omit blank data lines, and N shows the data as it is.
+      if n = '' then n = 'N'
    until n = 'Y' or n = 'N'
       display sysmsg(7279) ;* Y or N required
    repeat

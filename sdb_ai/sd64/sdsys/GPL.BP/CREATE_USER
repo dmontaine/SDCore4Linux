@@ -18,6 +18,11 @@
 * 
 *
 * START-HISTORY:
+* 10 Sep 26 dm  The user is created with the GECOS comment "SD account" (by
+*               sd-elevate's useradd), SD's stamp - the port's CREATE_USER
+*               stamps the Windows account description the same way.
+*               DELETE.ACCOUNT removes a Linux user only when !is_sd_user reads
+*               it back, so it never deletes a user SD did not create.
 * rev 0.9.0 Jan 25 mab initial commit
 * END-HISTORY
 *

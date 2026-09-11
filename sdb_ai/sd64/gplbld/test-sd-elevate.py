@@ -130,6 +130,22 @@ def main():
         if not ok:
             print(f"         ^ {note}")
 
+    # ---- 10 Sep 26: THE STAMP.  DELETE.ACCOUNT removes a Linux user only when
+    # ---- its GECOS reads exactly "SD account" (GPL.BP/IS_SD_USER), so a useradd
+    # ---- that stopped writing it would make every later account's user
+    # ---- undeletable without a word.  Asserted on the dry run's printed
+    # ---- command, which is the command the real run executes.
+    stamp_argv = ["useradd", "sdprobe_nonexistent"]
+    code, out = run(stamp_argv)
+    stamp_ok = code == 0 and "SD account" in out
+    first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+    print(f"  [{'PASS' if stamp_ok else 'FAIL'}] STAMP  sd-elevate {shlex.join(stamp_argv):46} | {first}")
+    if stamp_ok:
+        passed += 1
+    else:
+        failed += 1
+        failures.append((stamp_argv, "STAMP 'SD account'", "absent", out.strip()))
+
     print()
 
     # ---- refuse the null case, out loud.  A run that established nothing must

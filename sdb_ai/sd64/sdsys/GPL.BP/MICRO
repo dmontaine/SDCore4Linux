@@ -15,6 +15,15 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 10 Sep 26 MICRO RAN NOTHING OUTSIDE A sudo SESSION.  It launched micro with
+*           execute "!", which CPROC's SH gate (10053) refuses to anyone without
+*           the SH grant - found by the owner, 10 Sep.  Now, as the port's
+*           gpl.bp/EDIT: check_permitted refuses in words BEFORE a working copy
+*           exists (no terminal; neither administrator nor OS.EXECUTE grant),
+*           find_editor says so when micro is not installed (PRE_RELEASE 4),
+*           and the editor is launched with os.execute, which this $internal
+*           program may use.  The file name is also tried as typed, then lower,
+*           then upper case, so "micro bp test" finds BP.
 * 09 Sep 26 A BP record's working copy now ends ".sdbasic", so micro can pick
 *           the SD BASIC syntax file. micro matches on the file name it is
 *           given, which is this working copy's and not the record's, so
@@ -27,6 +36,8 @@ PROGRAM MICRO
 
 $internal
 $catalog $MICRO
+
+$include int$keys.h
 
 *************************************************************
 * Main Program                                              *
@@ -63,7 +74,22 @@ if trim(InFileName) = "" then
 	ErrorText = "No File Name Specified"
 	goto End_Program
 end
-	
+
+* 10 Sep 26 dm - THE TWO REFUSALS COME FIRST, BEFORE THE SCREEN IS CLEARED OR A
+*   WORKING COPY IS WRITTEN, so a refusal leaves nothing behind and says why.
+gosub check_permitted
+if ErrorText # "" then goto End_Program
+gosub find_editor
+if ErrorText # "" then goto End_Program
+
+* 10 Sep 26 dm - THE RECORD NAME REACHES THE SHELL inside single quotes, so a
+*   name containing one would break the command.  Refused rather than escaped:
+*   ED edits such a record without any shell.
+if index(InRecordName, "'", 1) then
+	ErrorText = "MICRO cannot edit a record whose name contains a single quote; use ED."
+	goto End_Program
+end
+
 TempFileName	= "$HOLD"
 
 if DictText = "DICT" then
@@ -153,7 +179,7 @@ compile_record_query:
         if DictText <> "DICT" then
 		    prompt ""
 		    response = ""
-		    if InfileName[-2,2] = "BP" then
+		    if upcase(InfileName[-2,2]) = "BP" then
  		       loop
  			       crt @(0,8) : @(-3) : "Compile " : InfileName : " " : InRecordName
 			       crt @(3,9) : "<Y>es, <N>o : " :
@@ -188,7 +214,24 @@ compile_record_query:
 return
 
 open_files:
-	open DictText,InFileName to InputFile THEN
+* 10 Sep 26 dm - AS TYPED, THEN LOWER CASE, THEN UPPER CASE - the order SL M1
+*   sets for the lower-case conversion.  "micro bp test" found nothing because
+*   only BP exists on a case-sensitive filesystem.  The name that opened
+*   replaces InFileName, so the compile and catalogue prompts use it too.
+*   SL M's fold will make this redundant; it is harmless after it.
+	OpenOk = False
+	OpenName = InFileName
+	open DictText, OpenName to InputFile then OpenOk = True
+	if not(OpenOk) and downcase(InFileName) # InFileName then
+		OpenName = downcase(InFileName)
+		open DictText, OpenName to InputFile then OpenOk = True
+	end
+	if not(OpenOk) and upcase(InFileName) # InFileName then
+		OpenName = upcase(InFileName)
+		open DictText, OpenName to InputFile then OpenOk = True
+	end
+	if OpenOk then
+		InFileName = OpenName
 		open TempFileName to TempFile then	
 			FilesOpened = True
 		end else
@@ -223,12 +266,19 @@ process_record:
 		end
 		
 		gosub place_syntax_file
-	   	execute "!" : editor : " '" : TempFileName : "/" :  TempRecordName : "'"
-	   		
+* 10 Sep 26 dm - os.execute, NOT execute "!".  The "!" verb is CPROC's
+*   os.command, which applies the SH gate (10053) to the PERSON, so MICRO failed
+*   for everyone without the SH grant even when check_permitted would have
+*   allowed it.  This program is $internal, so op_sh admits the call; the
+*   permission question has already been asked, in check_permitted.
+	   	os.execute "'" : EditorPath : "' '" : TempFileName : "/" :  TempRecordName : "'"
+		EditorRc = os.error()
+
 		Read TempRecord from TempFile,TempRecordName then
 			*null
 		end else
 			ErrorText =  "Record was not saved: Micro =  <Ctrl+s>"
+			if EditorRc # 0 then ErrorText := "  (the editor exited " : EditorRc : ")"
 			goto End_Program
 		end
 	end else
@@ -312,6 +362,61 @@ place_syntax_file:
 	SyntaxMaster = @sdsys : '/microcfg/syntax/sdbasic.yaml'
 	SyntaxHome   = '"$HOME/.config/micro/syntax"'
 	os.execute 'mkdir -p ' : SyntaxHome : ' && cp -u "' : SyntaxMaster : '" ' : SyntaxHome : ' 2>/dev/null'
+return
+
+*************************************************************
+* check_permitted                                           *
+*************************************************************
+*
+* 10 Sep 26 dm - THE SECOND GATE, the port's gpl.bp/EDIT check.permitted.  Owner
+*  (port, 26 Aug 2026): "these commands will only work if the user has
+*  OS.EXECUTE privileges.  If not, they should get a message that the command
+*  is not available."  The VOC tier decides who HAS the verb (STANDARD does not);
+*  this decides whether it runs, because an editor outside SD is reaching the
+*  operating system.
+*
+*  WHY HERE AND NOT LEFT TO op_sh.  This program is $internal, so op_sh admits
+*  its os.execute on HDR_INTERNAL and never asks.  The test must be made here,
+*  and making it here refuses before anything is created, in words that name
+*  the verb and what to ask for.
+*
+*  THE TERMINAL TEST IS FIRST.  K$TTY is ttyname(stdin) (kernel.c:177), blank
+*  when stdin is not a terminal - an API session or a piped script, which has
+*  nowhere to draw micro.
+*
+*  K$OS.EXEC is the account's OS-ON grant, and LOGIN / CPROC's logto load it as
+*  granted for an administrator's own account (10 Sep 26); K$ADMINISTRATOR covers
+*  a sudo session in any account.
+
+check_permitted:
+	if kernel(K$TTY, 0) = "" then
+		ErrorText = "MICRO needs a terminal to draw on, and this session has none. ED, the line editor, works anywhere."
+		return
+	end
+	if kernel(K$ADMINISTRATOR, -1) then return
+	if kernel(K$OS.EXEC, -1) then return
+	ErrorText = "MICRO is not available to " : @logname : ". It runs an editor outside SD, so it needs OS.EXECUTE permission "
+	ErrorText := "(MODIFY.ACCOUNT <account> OS-ON, by an administrator). ED, the line editor, needs none of this."
+return
+
+*************************************************************
+* find_editor                                               *
+*************************************************************
+*
+* 10 Sep 26 dm - PRE_RELEASE 4.  MICRO shelled out to "micro" with no check it
+*  exists, and a missing editor then read back no working copy and blamed the
+*  user ("Record was not saved").  Ask the shell once, keep the resolved path,
+*  and say what is missing.  The port's find.editor, without the bundled copy:
+*  this port uses the distribution's micro (PRE_RELEASE 2).
+
+find_editor:
+	EditorPath = ""
+	os.execute "command -v " : Editor capturing EditorPath
+	EditorPath = trim(convert(@FM, " ", EditorPath), " ", "B")
+	if EditorPath = "" then
+		ErrorText = Editor : " is not installed, so MICRO has nothing to edit with. "
+		ErrorText := "Install it with the distribution's package manager, or use ED, the line editor."
+	end
 return
 
 end

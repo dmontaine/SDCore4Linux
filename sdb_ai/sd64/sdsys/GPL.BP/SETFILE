@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 10 Sep 26 dm  Parity audit: Enter is N at the overwrite prompt (port
+*               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -136,8 +138,11 @@ $include int$keys.h
       if pointer # 'QFILE' and voc.rec[1,1] = 'Q' then
 prompting = @true
          loop
-            display sysmsg(2060) :  ;* Overwrite (Y/N/Q)?
+            display sysmsg(2060) :  ;* Overwrite (y/<n>/q)?
             input yn upcase
+* 10 Sep 26 dm - Enter takes the default the prompt shows, N: the Q-pointer is
+*   left alone and Q still has to be typed.  Port PRE_RELEASE_FIXES 79.
+            if yn = '' then yn = 'N'
          until yn = 'Y' or yn = 'N'
             if yn = 'Q' then
                @system.return.code = -ER$STOPPED
