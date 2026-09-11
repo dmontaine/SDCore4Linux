@@ -22,6 +22,7 @@
 *           nothing matches instead of acting on a stale voc.rec, and releases
 *           the lock each failed readu took (port PRE_RELEASE_FIXES 5).  Its
 *           "Delete VOC record" prompt (5040) shows its default; Enter is N.
+*           F1 at an empty prompt prints 10149 instead of nothing (port 8).
 * 10 Sep 26 PARITY AUDIT. UPDATE.ACCOUNT is UPDATE.ACCOUNTS and takes ALL, as
 *           the port's (its PRE_RELEASE_FIXES 70); its heading's "verb 30" is
 *           corrected to 15. The five start-up privilege notices move from
@@ -2657,10 +2658,27 @@ int.status:
 *****************************************************************************
 * INT.HELP  -  HELP (Internal verb 14)
 
+* 11 Sep 26 Windows port - F1 SAYS SOMETHING NOW (port PRE_RELEASE_FIXES 8).
+*   Both labels fell through to "return", so F1 at the command prompt did
+*   nothing at all - and a key that silently does nothing reads as a broken
+*   keyboard rather than a missing feature.
+*
+*   IT NAMES ONLY THINGS THAT EXIST ON THE MACHINE, the port's rule for this
+*   message: the account's own VOC, and the changelog, which the installer
+*   ships world-readable at @SDSYS/changelog (measured on the af879d3 install).
+*   The port's text names its Start Menu installation check instead; there is
+*   no such thing here, so that line is the Linux adaptation.
+*
+*   int.help IS STILL UNREACHABLE AS A VERB and is wired to the same message
+*   deliberately: no VOC record points at internal verb 14, so "help" answers
+*   "help is not in your VOC"; if one is ever added, the verb and the key say
+*   the same thing.
   int.help:
 *   call @parser(PARSER$GET.REST, token.type, s, keyword)
   f1.help:
 *   if kernel(K$HELP, s) then display sysmsg(5130) ;* Unable to access the help system
+
+   crt sysmsg(10149, @sdsys:@ds:'changelog') ;* SD has no built-in help system - list voc, and the changelog
 
    return
 
