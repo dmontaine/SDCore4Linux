@@ -68,9 +68,18 @@ SD: what changed, why it mattered, and what it does not do.
            listing disagree with the group it is describing.
 
            The three verbs are new, so an administrator account created before
-           this release does not have them.  MODIFY.ACCOUNT re-deriving the
-           account's tier adds them; a new administrator account has them from
-           the start.
+           this release does not have them, and neither UPDATE.ACCOUNTS nor
+           re-typing the tier it already has will add them: a tier change only
+           rewrites the VOC when the tier actually moves.  An administrator
+           account created after this release has them from the start.  For an
+           older one, move the tier down and back up:
+
+               modify.account bob programmer
+               modify.account bob administrator
+
+           Do that to the account you are signed in as only if another
+           administrator is registered, because the first command takes your
+           own administrator rights away.
 
 
 11 Sep 26  SD NOW KEEPS AN AUDIT TRAIL.
