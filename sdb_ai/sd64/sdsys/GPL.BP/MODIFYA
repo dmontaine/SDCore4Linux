@@ -19,6 +19,12 @@
 * 
 *
 * START-HISTORY:
+* 11 Sep 26 The ADD arm refuses a grant that goes upward (10126/10127), because
+*           it makes the same group change GRANT does and would otherwise be
+*           the way round the rule; DELETE is deliberately not guarded.  And a
+*           tier change now reports the grants it voided (10128) or says the
+*           group could not be read (10129), measured across the register write
+*           rather than predicted.  PORT_ADOPTION 14, the port's of 29 Aug 2026.
 * 11 Sep 26 K$AUDIT records: ADD and DELETE (the port's PRE_RELEASE 27) and, as
 *           Linux additions offered to the port, tier changes and SH / OS grants
 *           (PORT_ADOPTION 13).
@@ -88,6 +94,11 @@ $include err.h
 deffun is_grp_member(user,group) calling '!is_grp_member'
 deffun is_group(group) calling '!is_group'
 deffun valid_os_name(name) calling '!valid_os_name'
+* 11 Sep 26 dm - PORT_ADOPTION 14.  tier_allows gates the ADD arm and measures
+*   the promotion report either side of the register write; grp_members is who
+*   that report is about.  Both COURTESY callers - CPROC's int.logto is the gate.
+deffun tier_allows(user,account) calling '!tier_allows'
+deffun grp_members(group) calling '!grp_members'
 
    prompt ''
 
@@ -171,7 +182,38 @@ deffun valid_os_name(name) calling '!valid_os_name'
          end
          
          if (upcase(action) = 'ADD') then
-            * Add user to group        
+
+* 11 Sep 26 dm - THE TIER ORDERING APPLIES HERE TOO, AND LEAVING IT OUT WOULD
+*   HAVE MADE THIS VERB THE WAY ROUND IT.  PORT_ADOPTION 14; the owner's rule
+*   to the port, 29 Aug 2026: a grant may go down or sideways, never up.  This
+*   arm makes the identical "sd-elevate addgroup" call GRANT makes - which is
+*   why it already writes the same audit record - so it needs the same refusal
+*   for the same reason.  Two verbs that change who may enter an account must
+*   not disagree about who may.
+*
+*   BEFORE THE sdusers AND "already a member" TESTS.  A membership that should
+*   not exist must not be reported as a cheerful "already", which is the one
+*   answer that stops anybody looking at it.
+*
+*   DELETE IS DELIBERATELY NOT GUARDED: taking access away is always allowed,
+*   and refusing a revoke would strand exactly the memberships this rule wants
+*   removed.
+            if not(tier_allows(user.name, acc.name)) then
+               ma.why = status()
+               @system.return.code = -ER$FAILED
+               begin case
+                  case ma.why = 4
+                     stop sysmsg(10126, acc.name, 'SDSYS', user.name)
+                  case ma.why = 2
+                     stop sysmsg(10127, user.name)
+                  case 1
+                     stop sysmsg(10126, acc.name, ~
+                                 upcase(trim(acc.rec<ACC$TIER>, ' ', 'B')), ~
+                                 user.name)
+               end case
+            end
+
+            * Add user to group
             * does user belong to sdusers?
             if is_grp_member(user.name,'sdusers') then
             * this user looks legit, add to group
@@ -371,6 +413,11 @@ set.tier:
       return
    end
 
+* 11 Sep 26 dm - WHO CAN ENTER THIS ACCOUNT TODAY?  The BEFORE half of the
+*   promotion report, taken while the register still says the OLD tier.  It
+*   must be the last thing before the write and it changes nothing.
+   gosub promo.snapshot
+
    acc.rec<ACC$TIER> = action
    if action = 'SUSPENDED' then
       acc.rec<ACC$PRIOR.TIER> = raw.tier  ;* only on the way in - the guard above returned otherwise
@@ -416,6 +463,117 @@ set.tier:
    if action = 'SUSPENDED' then
       crt sysmsg(10159, acc.name)  ;* what suspending took, what it left alone, and what lifts it
    end
+
+* 11 Sep 26 dm - THE AFTER HALF.  Last, because it is a consequence of the
+*   change and the change should be reported before its consequences.
+   gosub promo.report
+   return
+
+*****************************************************************************
+* PROMO.SNAPSHOT / PROMO.REPORT  -  name the grants this tier change voided.
+*
+* 11 Sep 26 dm - PORT_ADOPTION 14, the port's routines of 29 Aug 2026.  Put to
+*   its owner as two options - refuse the promotion while lower-tier members
+*   remain, or let it proceed and say what it broke - and answered in five
+*   words: "Proceed, and print what it voided."
+*
+* WHAT IT IS FOR.  "modify.account b programmer" raises the account's rank, and
+*   every standard-tier member of sdu_b is then somebody LOGTO will refuse.
+*   The gate holds - that is what TIERGATE is for - but the membership sits in
+*   /etc/group looking perfectly valid and simply stops working, with nothing
+*   said at the moment it stopped.
+*
+* ***IT IS MEASURED ACROSS THE WRITE, NOT PREDICTED FROM THE RANKS.***
+*   tier_allows reads ACC$TIER out of the register, so the SAME call answers
+*   differently either side of the register write above.  That makes "what did
+*   this command void" a genuine before-and-after comparison instead of rank
+*   arithmetic duplicated out of TIERGATE - which is the copy that would go
+*   stale, and TIERGATE's own note says why one place has to decide.
+*
+* SO IT CLAIMS ONLY WHAT THIS COMMAND CHANGED.  A membership that was ALREADY
+*   refused before the command ran - made with usermod, or left behind by an
+*   earlier promotion - is not this command's doing and is not listed as though
+*   it were.
+*
+* A DEMOTION VOIDS NOTHING AND PRINTS NOTHING, and that falls out rather than
+*   being special-cased: lowering the account's rank cannot turn an allowed
+*   member into a refused one, so the comparison is empty.  Nothing here tests
+*   the direction of the move, which is one fewer thing to get wrong.
+*
+* ***AND THE NULL CASE IS REFUSED OUT LOUD.***  "No grant was voided" and "the
+*   group could not be read" are the same silence otherwise, and the second is
+*   the one somebody needs to hear, because it means the quiet is not evidence.
+*   promo.readable is tested before promo.n for exactly that reason.
+*
+* IT CANNOT SEE A PRIMARY-GROUP MEMBER, because !grp_members cannot - its
+*   banner says so and LIST.GRANTS prints 10911 about it.  Nobody on a system
+*   SD built is in that position, so this is a stated limit of the instrument
+*   and not a silence: an under-report here would look exactly like "nothing
+*   was voided".
+
+promo.snapshot:
+   promo.was      = ''
+   promo.lost     = ''
+   promo.n        = 0
+   promo.checked  = 0
+   promo.readable = @false
+
+*  An account with no group has no grants to void.  Not an error, and not a
+*  "could not read" either - there is nothing to read.  Reported as readable
+*  with an empty list, which is the truth.
+   if group.name = '' then
+      promo.readable = @true
+      return
+   end
+
+   promo.mem = grp_members(group.name)
+   if status() # 0 then return
+
+   promo.readable = @true
+
+*  dcount('') IS 1, NOT 0.  Without the correction an empty group reports one
+*  member whose name is the empty string.
+   promo.count = dcount(promo.mem, @fm)
+   if promo.mem = '' then promo.count = 0
+
+   for promo.i = 1 to promo.count
+      promo.who = trim(promo.mem<promo.i>, ' ', 'B')
+      if promo.who # '' then
+         if tier_allows(promo.who, acc.name) then
+            promo.was<-1> = promo.who
+         end
+      end
+   next promo.i
+
+   return
+
+promo.report:
+   if not(promo.readable) then
+      crt sysmsg(10129, group.name, acc.name)
+      * The members of %1 could not be read, so grants on %2 are unchecked
+      return
+   end
+
+   promo.checked = dcount(promo.was, @fm)
+   if promo.was = '' then promo.checked = 0
+
+   for promo.i = 1 to promo.checked
+      promo.who = promo.was<promo.i>
+      if not(tier_allows(promo.who, acc.name)) then
+         promo.lost<-1> = promo.who
+      end
+   next promo.i
+
+   promo.n = dcount(promo.lost, @fm)
+   if promo.lost = '' then promo.n = 0
+
+   if promo.n = 0 then return
+
+   crt sysmsg(10128, promo.n, acc.name, action)
+   for promo.i = 1 to promo.n
+      crt '   ' : promo.lost<promo.i>
+   next promo.i
+
    return
 
 *****************************************************************************

@@ -96,4 +96,6 @@ $catalog !grp_members
 
    return members.out
 
+end
+
 * END-CODE
