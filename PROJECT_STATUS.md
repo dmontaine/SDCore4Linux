@@ -37,6 +37,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***⚠ 12 Sep 2026, ~03:45 — THE RUNNING SD IS WEDGED. REBOOT BEFORE RUNNING
+ANYTHING, including `deletesdai.sh`. Caused by my overnight testing; measured,
+not inferred.***
+- `ipcs -s -i 0` (SD_SEM_KEY 0x716d0302): `ERRLOG_SEM`(1)=0 last op pid 36587,
+  `REC_LOCK_SEM`(3)=0 pid 36509, `FILE_TABLE_LOCK`(4)=0 pid 36920. **36509 and
+  36587 are dead** (processes I started; 36587 killed by me). 36920 is
+  `/usr/local/sdsys/bin/sd -cleanup` as ROOT, launched by `sdlnxd` at
+  03:44:06, holding FILE_TABLE_LOCK and spinning (state R) on REC_LOCK_SEM. Any
+  new `sd` that opens a file spins the same way.
+- **Chain, as observed:** (1) a record lock whose owner's slot is gone; (2)
+  `LIST.READU` → `op_getlocks()` does `UserPtr(owner)->username` and
+  `UserPtr()` is NULL for an unmapped user (`sysseg.h:192`) → **"Fault type 11"
+  inside `$LISTRDU`**, while holding FILE_TABLE_LOCK + REC_LOCK_SEM; (3)
+  `sdsem.c` takes semaphores with `IPC_NOWAIT` and **no `SEM_UNDO`** and the
+  fault path does not release them, so they stay held for ever and every
+  waiter busy-spins.
+- **(1)'s cause is a HYPOTHESIS, untested:** my probe `OPENSEQ`'d a path that
+  did not exist (`/proc/<dead pid>/status`), took the ELSE branch, and ended
+  without `CLOSESEQ`; the next `OPENSEQ` of the same path (a later session)
+  waited for ever. If an ELSE-branch OPENSEQ lock survives logout, its owner
+  becomes unmapped. **Falsify after reboot:** run that sequence twice with a
+  `timeout 10`, then `LIST.READU` under `timeout 10` — a second-run hang and a
+  fault confirm it.
+- **Not tonight's code:** `FL_HOLDERS` only reads; `reap_lost_user()` never ran
+  (my LO16 probe exited on its own usage check before calling `logout()`).
+- **Not done, deliberately:** resetting the semaphores myself. They are 0666 and
+  both holders are dead, but a reboot is certain and complete, and a reset
+  would leave the orphaned lock for the next LIST.READU to trip over.
+- **After the reboot, clean my fixtures** (DON account): `rm -rf
+  /home/sd/user_accounts/don/ZZ16 /home/sd/user_accounts/don/ZZ16.DIC
+  /home/sd/user_accounts/don/BP/* /home/sd/user_accounts/don/BP.OUT`, then in
+  `sd`: `DELETE VOC ZZ16`, `DELETE VOC BP.OUT`, `COUNT VOC` → 410.
+
 ***11 Sep 2026 — READ THIS BLOCK FIRST; what follows it is older. Opened on
 `pull`; tree clean at `b0d4554`, `assert-current` = 0 (install built from HEAD
 01:09, so kernel keys are ALIGNED again — the 10-Sep scratchpad harness for the
