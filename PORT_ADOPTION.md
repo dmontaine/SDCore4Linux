@@ -268,6 +268,9 @@ two directories plus `DELETE VOC <name>`.
 
 ## Port defects found while adopting
 
-Written to the port as `BUGS_FROM_LINUX_PORT.md` (10 Sep 2026, uncommitted
-there): MODIFYA `tier.build.rec` strips field 1; sdtic end-of-file skips the
-failure count; 10114 can be false; CREATEA stale description.
+Written to the port as `BUGS_FROM_LINUX_PORT.md` (10–11 Sep 2026; committed
+and pushed to `github.com/dmontaine/sd4windows` 11 Sep, `d746963`, from a fresh
+clone — the local `sd4windows` is frozen and never pushed): MODIFYA
+`tier.build.rec` strips field 1; sdtic end-of-file skips the failure count;
+10114 can be false; CREATEA stale description; plus 5 lower case, 6 DELETEF
+prompts, 7 `op_getlocks` NULL. New entries go in through a fresh clone.

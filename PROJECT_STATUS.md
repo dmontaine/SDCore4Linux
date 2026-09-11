@@ -186,7 +186,8 @@ against the install).***
   in DON's `BP`. Clean up `BP`, `BP.OUT`, `DELETE VOC BP.OUT` (`COUNT VOC` 410).
 - **NEXT TASK: `PORT_ADOPTION.md`'s queue, top down.** Its "Not adoptable" table
   is the owner-requested list. Port defects are in the Windows port's
-  `BUGS_FROM_LINUX_PORT.md` (written, not committed there).
+  `BUGS_FROM_LINUX_PORT.md` — pushed to GitHub `sd4windows` 11 Sep (`d746963`)
+  from a fresh clone; the local `sd4windows` is a frozen comparison copy.
 - **Last commit's C fixes** (UPSTREAM 1, 3, 8, 9, 10, 14, 18, 20, 29, 35; port
   PRE_RELEASE 174; plus sdtic's end-of-file path, a port defect): built clean.
   ***Witnessed pre-fix vs post-fix harness binaries:*** `CONFIG('NOSUCHKEY')`
