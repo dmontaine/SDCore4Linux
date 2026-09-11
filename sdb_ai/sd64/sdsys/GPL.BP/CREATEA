@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  A password that could not be set says why - 10120, 10909,
+*               10910, 10121 - and a refusal that a retry cannot fix offers
+*               no retry (port PRE_RELEASE_FIXES 22, adapted: passwd's 10
+*               covers both a mismatch and a policy refusal).
 * 10 Sep 26 dm  PARITY AUDIT: SH-ON / OS-ON at creation (port, 27 Aug 2026),
 *               recorded for a USER account below ADMINISTRATOR; messages
 *               10030/10031 renumbered to the port's 10033/10032; VOC records
@@ -220,12 +224,44 @@ deffun valid_os_path(path) calling '!valid_os_path'
          end else
            crt sysmsg(10007,acc.uname)  ;* 'User ':acc.uname:' Created' 
            * user created set passowrd
-PW.TRY.AGAIN:           
+PW.TRY.AGAIN:
            if not(set_passwd(acc.uname)) then
-           *  password failed
-              crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (Y/N)'
-              input yn
-              if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
+* 11 Sep 26 dm - SAY WHY (port PRE_RELEASE_FIXES 22).  !set_passwd already
+*   left the reason in status() and this discarded it, so every failure read
+*   the same.  status() is read IMMEDIATELY, before anything can reset it.
+*   The Linux cases, and why they are these and not the port's four:
+*     6  - !set_passwd's own refusal, the session is not an administrator.
+*          Unreachable from here (this verb is gated at the top) and mapped
+*          anyway so 10120 keeps the port's meaning.
+*     2  - the name was refused: !set_passwd's valid_os_name check, or
+*          sd-elevate's refusal (it exits 2 for root, sdsys and every account
+*          below UID_MIN).  passwd's own 2, "invalid combination of options",
+*          cannot arise from the fixed argument list.
+*     10 - passwd(1): "an error was returned by pam" (man 1 passwd).  That one
+*          code covers both "the two entries did not match" and "the policy
+*          refused it", so the port's 10118/10119 cannot be told apart here and
+*          10910 says both.
+*     any other - the number, verbatim (10121).
+*   2 and 6 cannot succeed on a retry, so no retry is offered for them.
+              pw.stat = status()
+              pw.retry = @true
+              begin case
+                 case pw.stat = 6
+                    crt sysmsg(10120) ;* Not an SD administrator - retrying will not help
+                    pw.retry = @false
+                 case pw.stat = 2
+                    crt sysmsg(10909, acc.uname) ;* SD may not set this user's password
+                    pw.retry = @false
+                 case pw.stat = 10
+                    crt sysmsg(10910) ;* Not accepted: mismatch, or the password rules
+                 case 1
+                    crt sysmsg(10121, pw.stat) ;* The password could not be set (status %1)
+              end case
+              if pw.retry then
+                 crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (Y/N)'
+                 input yn
+                 if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
+              end
            end
          end
      end case
