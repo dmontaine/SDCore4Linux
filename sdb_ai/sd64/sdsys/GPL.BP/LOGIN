@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  A suspended account is refused at sign-on, console and ssh
+*               alike (10107; PORT_ADOPTION 12, the port's LOGIN).
 * 11 Sep 26 dm  A TERM with no shipped terminfo entry falls back to linux
 *               instead of leaving the login with no capabilities (UPSTREAM
 *               12, as the port).  update.voc leaves a record marked
@@ -349,8 +351,23 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
             display sysmsg(5019, acc.path) ;* Unable to change to directory xx
             goto terminate.connection
          end
-         
+
    end case
+
+* 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
+*   port's LOGIN of 27 Aug 2026).  After the case and not in each arm, so a
+*   fourth arm cannot forget it.  Console and ssh both arrive here - an ssh
+*   login the ForceCommand sends to sd (PRE_RELEASE 13) is an ordinary sign-on
+*   - and NOTHING IS WITHDRAWN IN LINUX, so the connection is still accepted
+*   and the person is refused here rather than by sshd.
+*
+*   UNCONDITIONAL, sudo sd included.  The sudo arm lands in SDSYS only when
+*   CPROC granted the administrator flag, which needs ACC$TIER exactly
+*   ADMINISTRATOR, and SDSYS itself cannot be suspended (MODIFYA, 2202).
+   if upcase(trim(acc.rec<ACC$TIER>)) = 'SUSPENDED' then
+      display sysmsg(10107, initial.account) ;* Account %1 is suspended
+      goto terminate.connection
+   end
 
 
 * 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Load the initial account's OS-access

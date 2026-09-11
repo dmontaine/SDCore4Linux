@@ -9,6 +9,37 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  AN ACCOUNT CAN BE SUSPENDED.
+
+           MODIFY.ACCOUNT takes a fourth tier:
+
+               modify.account bob suspended
+
+           A suspended account loses all access to SD: the console, ssh, LOGTO
+           from another account and the API all refuse it.  It is for an
+           account that should stop working for a while - somebody on leave,
+           a login being investigated - without deleting anything.  If you
+           only want to stop somebody using SD, suspend the account rather
+           than deleting it; DELETE.ACCOUNT now says so before it deletes.
+
+           NOTHING IN LINUX CHANGES.  The Linux user, its password and its
+           groups - sdadmin included - are left exactly as they are, and so is
+           the account's VOC.  SD keeps the tier the account had, LIST
+           SD.ACCOUNTS shows it, and suspending says all of this at the time.
+
+           THERE IS NO "RESUME" KEYWORD.  Coming back names the tier:
+
+               modify.account bob programmer
+
+           and the VOC is brought from the tier it had to the one named.  An
+           account can go from any tier to any other directly.
+
+           What it does not do: an administrator can still LOGTO a suspended
+           account, to look at it.  You cannot suspend the account you logged
+           in to or the one you are standing in.  A session already inside the
+           account when it is suspended carries on until it ends.
+
+
 11 Sep 26  A PROGRAM CAN CREATE A SEQUENTIAL FILE AGAIN.
 
            The normal way for a program to create a file is OPENSEQ, which
