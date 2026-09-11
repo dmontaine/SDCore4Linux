@@ -75,7 +75,15 @@ the work, nothing in "Verified" that was not observed that session.
 - ***QUEUE 27, NEW: AN ELSE-BRANCH `OPENSEQ` LEAVES A LOCK THAT SURVIVES `OFF`***
   and blocks the same `OPENSEQ` for ever; only an SD restart clears it.
   Measured in the sandbox — ***do not recreate it on the live system.***
-  PORT_ADOPTION 27.
+  PORT_ADOPTION 27. ***CAUSE: a 2026/06/10 AI cleaning-cycle change
+  (`op_seqio.c` `exit_op_openseq`, `if (status)`) that freed the file variable
+  on the new-record ELSE — the port reverted it 15 Aug and this tree never
+  took the revert.*** Reverted 11 Sep, built, ***WITNESSED IN THE SANDBOX,
+  before vs after***: on the installed code `OPENSEQ … ELSE` + `WRITESEQ`
+  cannot create a file at all (`WRITESEQ` → 3013 `ER_NSEQ`, nothing written)
+  and strands a lock even through `CLOSESEQ`; reverted, the file is written and
+  no lock remains. Not installed. Live had no stranded locks at 12:22. The
+  port's generation-2 C findings are all accounted for here (PORT_ADOPTION 27).
 - **NEXT:** the owner's delete→install cycle, which witnesses queue 26
   (PORT_ADOPTION 26); queue 27's cause; then queue 12 onward.
 
