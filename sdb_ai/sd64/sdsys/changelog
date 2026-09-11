@@ -9,6 +9,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  THE LINUX CLIENT LIBRARY HAS BEEN HARDENED.
+
+           The library that programs use to reach SD over the network
+           (sdclilib.so) has been replaced with a hardened version.  It now
+           checks the length of what the server sends before trusting it,
+           prevents a class of buffer overflows, copes with network reads that
+           arrive in pieces or are interrupted, drops a connection cleanly if it
+           loses sync instead of carrying on, enforces the server's maximum
+           record size, and tells a server-side failure apart from a client-side
+           one.  The default connection port is 4243.
+
+           What it does not do: it does not change how you call the library -
+           existing programs keep working unchanged.  It is the same library
+           with sturdier handling of bad or partial input.
+
+
 10 Sep 26  THE INSTALLER CAN NOW OPEN SSH AND THE NETWORK API TO OTHER COMPUTERS.
 
            The installer asks two questions.  "Allow ssh access from other

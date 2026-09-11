@@ -1448,9 +1448,19 @@ force-enabled:
   exactly as on the Unix socket.*** Both installer prompts appeared on the run.
   Still to exercise if wanted: a **remote** host (`--host <ip>`), and a **default
   (API=N)** install to confirm the listener is then 127.0.0.1-only.
-- **Still open, separate:** the C **client** defaults `gplsrc/sdclilib.c:3485` /
-  `sdclient.c:3404` = 4245 should become 4243; `changelog`'s 4243→4245 line runs
-  against the ruling. Client-side, not the listener.
+- **Client library HARDENED + default 4243, 10 Sep 2026.** `gplsrc/sdclilib.c`
+  was replaced with the owner's standalone hardened `linuxsdclilib` (validated
+  packet/arg lengths, index-packet overflow prevention, partial/interrupted I/O,
+  desync abandonment, max-record enforcement, `SV_EMSG_PAIR`/`SV_ECONTXT`), plus
+  new headers `gplsrc/sdclilib.h` + `gplsrc/client_ctype.c`. Its `SDConnect`
+  default is now **4243** (was 4245). Repo's shared headers left untouched;
+  `make` 0 errors, both `sdclilib.so`/`libsdcli.so` linked; the standalone repo's
+  `make check` (smoke + internal) passed. ***UNWITNESSED on the installed
+  runtime*** — re-run `apitest.py` after the next reinstall to confirm the
+  hardened lib connects over TCP (the Aug-15 `linuxsdclilib` repo is the source).
+- **Still open, separate:** `gplsrc/sdclient.c:3404` (a different client, not the
+  lib) still defaults `port = 4245`; and `changelog`'s historical 4243→4245 line
+  runs against the ruling. Both minor, client-side.
 
 **Guards ported from the Windows version — surveyed 9 Sep 2026, owner's ask.**
 The survey is recorded so it is not repeated: the port has **1** Claude hook and
