@@ -9,6 +9,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  .D AND AN UNFINISHED TRANSACTION.
+
+           .D name, which deletes a saved sentence or paragraph from the VOC,
+           now says "not found in VOC" when there is no such record.  It used to
+           say nothing and act on whatever record had last been read, so .D with
+           a mistyped name could offer to delete a different record.  It also no
+           longer leaves a lock behind when the name is not found.
+
+           A BASIC program with a BEGIN TRANSACTION that is never closed now
+           fails to compile with "Unterminated transaction construct" instead
+           of making the compiler run for ever.
+
+           What it does not do: neither changes a program or paragraph that was
+           already correct.
+
+
 11 Sep 26  DELETE.FILE CAN RUN UNATTENDED.
 
            DELETE.FILE ... NO.QUERY no longer stops to ask a question.  When
