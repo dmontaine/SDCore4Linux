@@ -9,6 +9,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  SD ENDS A SESSION WHEN ITS INPUT RUNS OUT, INSTEAD OF SPINNING.
+
+           When SD reads its commands from a pipe or a file - for example
+           printf 'LISTU\n' | sd, or sd < commands - and the input ran out
+           without an OFF, the command prompt did not stop.  It asked for the
+           next command again and again, as fast as the machine could go,
+           sending a bell character each time, until something killed the
+           process.  It now logs the session out, exactly as OFF would.
+
+           What it does not do: a session at a real terminal is unchanged -
+           SD still waits for you to type.  A program that uses INPUT still
+           receives an empty answer at the end of its input and decides for
+           itself what that means.
+
+
 11 Sep 26  A SESSION THAT DIED NO LONGER LOCKS A FILE FOR EVER.
 
            When a command needs a file to itself - BUILD.INDEX, DELETE.INDEX,
