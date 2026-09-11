@@ -14,13 +14,17 @@ in the same commit as the work.
 - UPSTREAM_FIXES 1, 3, 8, 9, 10, 14, 18, 20, 29, 35 and port PRE_RELEASE 174
   (C). Witnessed pre/post: 9, 18, 20 (branch), 35. Compile-only: 1, 3, 8, 10,
   14, 29, 174.
+- QSELECT list-number (UPSTREAM 21) + DELETE.INDEX case-fold (UPSTREAM 22),
+  11 Sep 2026. Both compiled 0 errors (dev binary, DON/BP, red control QBAD =
+  1 error); **not yet witnessed on an install** — needs the delete→install
+  cycle. Witness: `qselect voc saving 3` ends in a list number; on a file with
+  index F1, `delete.index <f> f1` deletes it instead of "Unrecognised index
+  name (f1)".
 
 ## Queue — adoptable, not yet done (suggested order)
 
 | # | Feature | Port code | Linux adaptation |
 |---|---|---|---|
-| 1 | QSELECT prints list number (UPSTREAM 21) | `gpl.bp/QSELECT` | direct |
-| 2 | DELETE.INDEX folds case (UPSTREAM 22) | `DELETEI` | direct |
 | 3 | DELETE.FILE NO.QUERY never prompts, msg 10117 (UPSTREAM 23) | `DELETEF` | direct |
 | 4 | DELETEF takes the ospath result, msg 2636 (port PRE_RELEASE 104) | `DELETEF` | direct |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |

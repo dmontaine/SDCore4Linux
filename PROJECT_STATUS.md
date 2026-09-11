@@ -37,8 +37,32 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***END OF SESSION 10 Sep 2026 (credits ran low) — READ THIS BLOCK FIRST; what
-follows it is older.***
+***11 Sep 2026 — READ THIS BLOCK FIRST; what follows it is older. Opened on
+`pull`; tree clean at `b0d4554`, `assert-current` = 0 (install built from HEAD
+01:09, so kernel keys are ALIGNED again — the 10-Sep scratchpad harness for the
+57–59→90–92 mismatch is no longer needed; a dev binary compiles GPL.BP straight
+against the install).***
+- **NEXT TASK is still `PORT_ADOPTION.md`'s queue, top down.** Its top two are
+  now done in source: **queue 1** (QSELECT list-number, UPSTREAM 21) and
+  **queue 2** (DELETE.INDEX case-fold, UPSTREAM 22). `QSELECT:231` now passes
+  `tgt.list` as %2; `DELETEI` gained the LISTI-style case-fold block. **Both
+  compiled 0 errors** (dev binary, staged in DON/BP, red control `QBAD` = 1
+  error), DON restored to `COUNT VOC` 410, tree rebuilt PLAIN. Changelog + doc
+  entries in the same commit. ***NOT WITNESSED — needs the delete→install
+  cycle*** (compiling is not running); witness commands are in PORT_ADOPTION's
+  "Adopted so far".
+- **Compile recipe, simplified for the aligned-keys state:** `make
+  EXTRA_C_FLAGS=-DSD_DEV_BUILD`; stage `<prog>` + the GPL.BP-LOCAL includes
+  (`SYSCOM.H`, `INT$KEYS.H`, `AK_INFO.H` — the SYSCOM-resolved ones like `ERR.H`
+  come via the account's VOC `SYSCOM` pointer) into `/home/sd/user_accounts/don/BP`;
+  `bin/sd -internal BASIC BP <prog>`; read the TAIL (never grep `Compiled`);
+  clean up `BP/*`, `DELETE VOC BP.OUT`; `rm -f gplobj/*.o && make` to rebuild
+  plain. Red control = append an unbalanced bracket, NOT truncation.
+- Next queue items (3 DELETE.FILE NO.QUERY, 5 LOGIN terminfo, 7 CPROC HELP) add
+  new message records (10117/10149) and touch login/command paths — bigger than
+  1/2, do them singly.
+
+***END OF SESSION 10 Sep 2026 (credits ran low) — what follows is older.***
 - **Commits, all pushed to `origin/main`:** `8a1b343` per-tier VOC (LOGIN,
   MODIFYA), MICRO fix, parity audit · `6f5bff8` DELETE.ACCOUNT REMOVE.HOME,
   Codeberg remote removed · `2d759f7` NANO/MICRO via the port's EDIT, nano

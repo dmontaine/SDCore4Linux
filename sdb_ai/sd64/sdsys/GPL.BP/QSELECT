@@ -19,6 +19,9 @@
 * 
 * START-HISTORY:
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* 11 Sep 26        Completion message 3261 was missing its list-number %2
+*                  (UPSTREAM #21 / port PRE_RELEASE 13). Pass tgt.list, as
+*                  NSELECT does.
 * END-HISTORY
 *
 *
@@ -228,7 +231,7 @@ $include int$keys.h
    formlist list to tgt.list
    
    @system.return.code = selectinfo(tgt.list, SL$COUNT)
-   display sysmsg(3261, @system.return.code) ; * xx records selected to select list xx
+   display sysmsg(3261, @system.return.code, tgt.list) ; * xx records selected to select list xx
 
    return
 end
