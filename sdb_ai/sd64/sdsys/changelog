@@ -9,6 +9,17 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  F1 SAYS SOMETHING.
+
+           Pressing F1 at an empty command prompt used to do nothing at all,
+           which looks like a broken keyboard.  It now says that SD has no
+           built-in help system, that LIST VOC shows the commands your account
+           has, and where this changelog is.
+
+           What it does not do: it is not a help system, and HELP is still not a
+           command; the message names only things that are on the machine.
+
+
 11 Sep 26  .D AND AN UNFINISHED TRANSACTION.
 
            .D name, which deletes a saved sentence or paragraph from the VOC,

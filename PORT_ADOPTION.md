@@ -41,6 +41,8 @@ witness is the next delete→install cycle. **Not pushed.**
 |---|---|---|
 | 3, 4 | DELETEF: port 14, 26, 104, 113 + Enter = N on 6135/6140 (Linux; port bug 6). Msg 10117 new, 6135/6140 reworded. `open 'voc'` NOT taken (§M) | fixture as in "Adopted" above with a lower-case name: `delete.file zzak no.query` deletes with NO prompt; a file whose dict is `@SDSYS/...` + `no.query` → 6145 + 10117, file kept; `printf 'delete.file x\n' \| timeout 10 sd` on a path-differs file ends (N) instead of spinning |
 | 23 | CPROC `.D name`: as typed → down → up, 5043 on a miss, each failed `readu` releases its own id (port 5) | `.D nosuch` → `nosuch not found in VOC`, no prompt; save a sentence, `.D` it in the other case → deleted |
+| 7 | CPROC F1 prints 10149 (port 8). Text adapted: the port names its Start Menu check; here `@SDSYS/changelog`, which ships world-readable. Same number and meaning | F1 at an empty `:` prompt → the three-part message with `/usr/local/sdsys/changelog` |
+| 3b | Enter = N at 3033–3035, 6131, 5040 | `catalog bp x` with x also local → prompt shows `(y/<n>)`, Enter keeps both |
 | 24 | BCOMP: `until end.source` in the TRANSACTION inner loop (port 114). Also compiled by `bbcmp.py` (the installer's bootstrap compiler): HEAD 70722 bytes, new 70728 | a BP program with `BEGIN TRANSACTION` and no `END TRANSACTION`: `timeout 20 sd -internal BASIC BP x` ends with 2878, not a timeout |
 
 ## Waiting for the owner — skipped overnight 11–12 Sep because they need a ruling
@@ -131,7 +133,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | 3b | Every Y/N loop maps Enter to its default — **BUILT 11 Sep** for `CATALOG` ×3 (3033–3035), `DELETEF` 6131, `CPROC` 5040, all Enter = N. `SPVIEW` needs nothing (presets `yn = 'Y'` in a formatted field). **Left for the owner:** `DELETEF` 2050 and 6133 — see "Waiting for the owner" | | |
 | 5 | LOGIN falls back when TERM has no terminfo (UPSTREAM 12) | `LOGIN` | direct |
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
-| 7 | HELP / F1 say something, msg 10149 (port 8) | `CPROC` | direct |
+| ~~7~~ | ~~HELP / F1 say something, msg 10149~~ — **BUILT 11 Sep** | `CPROC` | |
 | 8 | CREATE.ACCOUNT names why a password failed, 10118–10121 (port 22) | `CREATEA`, `SET_PASSWD` | map PAM/passwd status |
 | 9 | `NEWVOC/NEWVOC` description (port 142), and every file record's field 1 a description rather than a bare `F` (port 63, 136) | data, `VOC_TEMPLATE`/`NEWVOC` | direct |
 | 10 | LOGOUT reaps a dead user 10167; CNAME names the holder (port 16) | `CPROC` + C | review |
