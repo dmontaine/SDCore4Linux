@@ -9,6 +9,20 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  CREATE.ACCOUNT NOW CREATES THE OPERATING-SYSTEM USER TOO.
+
+           In SD a user account and its operating-system login are the same
+           thing, so CREATE.ACCOUNT now creates the OS user as part of creating
+           the account.  The OS user no longer has to exist first, and there is
+           no longer a setting (CREATUSR) to turn this on - it just happens.  You
+           are prompted for the new user's password.
+
+           What it does not do: CREATE.ACCOUNT with NO.QUERY still will not create
+           an OS user, because creating one needs the password prompt that
+           NO.QUERY suppresses.  For an unattended CREATE.ACCOUNT ... NO.QUERY,
+           pre-create the OS user; otherwise leave NO.QUERY off.
+
+
 10 Sep 26  THE LINUX CLIENT LIBRARY HAS BEEN HARDENED.
 
            The library that programs use to reach SD over the network

@@ -1318,6 +1318,20 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
+### Conformity fix 10 Sep 2026 — CREATE.ACCOUNT always creates the OS user
+
+***The `config('CREATUSR')` gate is removed from `CREATEA` `case 1`*** so
+`create.account` ALWAYS creates the OS user — conforming to the port, whose
+CREATEA removed the same gate 14 Aug 2026 on the owner's rule (*"SD has accounts,
+not accounts-and-users; creating an account IS creating the OS account, nothing
+to opt in to"*). Was: this tree required `CREATUSR=1` (off by default) **and** no
+`no.query`, else 6074. Now: `create-account user <name>` creates the OS user +
+prompts for its password + the SD account. `no.query` with no OS user is still
+refused (creating needs the interactive password). Also applied the port's 21 Aug
+fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
+Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
+reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
+
 ### §L1 — per-tier VOC (CORE BUILT 10 Sep 2026; LOGIN/MODIFYA pending)
 
 ***BUILD STATUS 10 Sep 2026 — the creation path is built, syntax-reviewed, NOT

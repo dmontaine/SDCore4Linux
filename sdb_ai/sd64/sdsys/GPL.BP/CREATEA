@@ -187,8 +187,12 @@ deffun valid_os_path(path) calling '!valid_os_path'
        
      case 1
        * not a valid os user, are we configured to auto create os user?
-       If config('CREATUSR') then
-       * yes, attempt to create os user
+* 10 Sep 26 dm - CONFORM TO THE PORT (its CREATEA, 14 Aug 2026): the
+*   config('CREATUSR') gate is gone.  SD has accounts, not accounts-and-users as
+*   QM/ScarletDME do - creating an account IS creating the OS account, so there is
+*   nothing to opt in to.  CREATUSR still parses (config.c) and CONFIG still
+*   prints it; nothing consults it here any more.  (no.query with no OS user is
+*   still refused above - creating one needs the interactive password prompt.)
        * sd convention is os user names are lowercase, if you don't want this, pre create the os user
          acc.uname = downcase(acc.uname)
 		 * Check INVERT/NOINVERT STATUS (1=INVERT on)
@@ -198,7 +202,9 @@ deffun valid_os_path(path) calling '!valid_os_path'
          END
          if not(create_user(acc.uname)) then
            * create user failed
-           @system.return.code = ER$NOT.CREATED
+           * 10 Sep 26 dm - the minus was missing (port's 21 Aug fix): a refused
+           *   create left +6, indistinguishable from "6 things done".
+           @system.return.code = -ER$NOT.CREATED
            stop sysmsg(10006,STATUS()) ;* Create User Failed, OS Error: %1
          end else
            crt sysmsg(10007,acc.uname)  ;* 'User ':acc.uname:' Created' 
@@ -211,12 +217,6 @@ PW.TRY.AGAIN:
               if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
            end
          end
-         
-       end else
-       * not configured to create user, error out
-         @system.return.code = -ER$ARGS
-         stop sysmsg(6074)  ;*    Invalid user name 
-       end
      end case
      
      
