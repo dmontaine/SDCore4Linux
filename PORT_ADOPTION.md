@@ -43,6 +43,8 @@ witness is the next delete→install cycle. **Not pushed.**
 | 23 | CPROC `.D name`: as typed → down → up, 5043 on a miss, each failed `readu` releases its own id (port 5) | `.D nosuch` → `nosuch not found in VOC`, no prompt; save a sentence, `.D` it in the other case → deleted |
 | 5 | LOGIN: `TERM` with no shipped terminfo falls back to `linux` (UPSTREAM 12; port falls back to `windows`). ***PREMISE WITNESSED 11 Sep*** on the tree dev `bin/sd` (same C as the `af879d3` install) with a `$internal` probe: `xterm-256color` → in force stays `linux`; control `vt100` → `vt100`; `xterm-256color` again → stays `vt100`; `LINUX` → `linux` (so the downcase is needed). Shipped types: no `*-256color` at all | `TERM=xterm-256color sd`: the screen is cleared at sign-on (with the old LOGIN it is not); control `TERM=linux sd` unchanged |
 | 8 | CREATEA reads `status()` after `!set_passwd` fails: 6 → 10120, 2 → 10909 (new, Linux), 10 → 10910 (new, Linux: passwd's "pam error" covers mismatch AND policy, so the port's 10118/10119 cannot be split), else 10121; no retry for 2/6. `SET_PASSWD` header corrected: status is passwd's exit code, not a PAM code. ***PREMISE WITNESSED***: installed `!set_passwd` called from a non-admin session (`Admin? : No`) → returned 0, caller's `status()` = 6. Only reachable when CREATUSR is on | with CREATUSR on, `create.account user x` and mistype the second password → 10910 then the retry prompt |
+| 10 | Port 16: `FL$HOLDERS` (1021, C `op_dio2.c` + both KEYS.H), `reap_lost_user()` (`clopts.c`, cleanup()'s lock order; Linux `process_exists` counts EPERM as alive, so a live session of another user is never reaped), `op_logout` returns 2, CPROC prints 10167; six 2602 sites → 10168/10169; messages byte-identical to the port. LOGOUT was already PROGRAMMER here. ***FL$HOLDERS WITNESSED on the tree dev binary:*** nobody else → `[]`; session A holding ZZ16 → `[95 (don)]`; A SIGKILLed → slot 95 "process GONE" and still `[95 (don)]`. ***REAP NOT WITNESSED*** — the LO16 probe exited on its own usage check (`@sentence` field 4, not 3), then the live system wedged (START HERE) | `LOGOUT n` on a killed session → 10167, slot gone from LISTU, the blocked `cname`/`build.index` then succeeds |
+| — | `op_getlocks()`: `lock_owner_name()` returns "(gone)" for an unmapped owner instead of dereferencing NULL (Linux-found; also in the port — bug 7). Built clean; not run | after the reboot, reproduce the orphaned lock (START HERE), then `LIST.READU` shows "(gone)" and does not fault |
 | 11 | LOGIN `update.voc`: `[locked]` (upcased, anywhere after the type) on the ACCOUNT's record skips it (10165), except a verb, which is updated and reported (10166); both messages byte-identical to the port. Also `upcase(id) = 'MD'` (§M-safe) | in an account: `ED VOC LISTV` style — make a PA record `PA [locked] test`, change NEWVOC's copy, `UPDATE.ACCOUNTS` → 10165 names it, record unchanged; same on a V record → 10166 and replaced |
 | 9 | Field 1 of 9 `VOC_TEMPLATE` F records and `NEWVOC/NEWVOC` = the port's description, byte-identical to it; the 8 the port leaves bare stay bare. Safe: `_VOC_REF:109` and every GPL.BP test read only `[1,1]`; no whole-field comparison exists (searched). CREATEA's own file descriptions already matched the port | `LISTF` in SDSYS: ten rows read `File - …`, none a bare `F` except the eight the port also leaves |
 | 6 | ED preset `-ER$ARGS` (UPSTREAM 11) | an ED command error leaves `@SYSTEM.RETURN.CODE` < 0 |
@@ -53,6 +55,12 @@ witness is the next delete→install cycle. **Not pushed.**
 
 ## Waiting for the owner — skipped overnight 11–12 Sep because they need a ruling
 
+0. ***REBOOT FIRST — the running SD is wedged*** (PROJECT_STATUS START HERE).
+   And two decisions it raised: should `sdsem.c` take its semaphores with
+   `SEM_UNDO` (the kernel then releases a dead holder's semaphore — no more
+   system-wide hang, at the risk of exposing a half-updated structure), and
+   should SD's fault path release the semaphores its own process holds?
+   Neither is built.
 1. **Push and install.** Everything after `c8409e2` is local. The builds below
    are compiled, not run; the next delete→install cycle is their witness.
 2. **`DELETE.FILE` with an active select list (message 2050), what Enter
@@ -146,7 +154,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 | ~~7~~ | ~~HELP / F1 say something, msg 10149~~ — **BUILT 11 Sep** | `CPROC` | |
 | ~~8~~ | ~~CREATE.ACCOUNT names why a password failed~~ — **BUILT 11 Sep** | `CREATEA`, `SET_PASSWD` | |
 | ~~9~~ | ~~File-record descriptions (port 63, 136, 142)~~ — **BUILT 11 Sep** | data | |
-| 10 | LOGOUT reaps a dead user 10167; CNAME names the holder (port 16) | `CPROC` + C | review |
+| ~~10~~ | ~~LOGOUT reaps a dead user; the holder is named~~ — **BUILT 12 Sep** | `CPROC` + C | |
 | ~~11~~ | ~~`[locked]` VOC records~~ — **BUILT 11 Sep** | `LOGIN update.voc` | |
 | 12 | SUSPENDED tier, 10110/10112/10159 | `MODIFYA tier.set`, `LOGIN`, `CPROC logto`, `APISRVR` | SD doors only |
 | 13 | K$AUDIT trail + records (MODIFYA ADD/DELETE, grants, elevation) | `op_kernel` `K_AUDIT`, `k_error.c` `audit_message`/`audit_rotate`, callers | key from the Linux block (93); O_APPEND + file mode instead of `win32audit.c` |

@@ -19,6 +19,8 @@
 * 
 * START-HISTORY:
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* 11 Sep 26        Exclusive-access refusal names the file and the sessions
+*                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
 * END-HISTORY
 *
 *
@@ -163,7 +165,15 @@ set.trigger:
    * Set exclusive access to file
 
    if not(fileinfo(fu, FL$EXCLUSIVE)) then
-      stop sysmsg(2602) ;* Cannot gain exclusive access to file
+*     11 Sep 26 Windows port - name the file and whoever holds it (port
+*     PRE_RELEASE_FIXES 16).
+      excl.holders = fileinfo(fu, FL$HOLDERS)
+      excl.name    = fileinfo(fu, FL$VOCNAME)
+      if excl.holders = '' then
+         stop sysmsg(10169, excl.name)
+      end else
+         stop sysmsg(10168, excl.name, excl.holders)
+      end
    end
 
    * Set/remove trigger

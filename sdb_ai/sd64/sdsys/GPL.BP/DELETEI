@@ -21,7 +21,8 @@
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Fold case of caller-supplied index names, as LISTI does,
 *                  so "delete.index zzak f1" matches an index stored as F1
-*                  (UPSTREAM #22 / port PRE_RELEASE 15).
+*                  (UPSTREAM #22 / port PRE_RELEASE 15).  Exclusive-access
+*                  refusal names the file and its holders (port 16).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -164,7 +165,15 @@ not.all.keyword:
 
 
    if not(fileinfo(fu, FL$EXCLUSIVE)) then    ;* Set exclusive access to file
-      stop sysmsg(2602) ;* Cannot gain exclusive access to file
+*     11 Sep 26 Windows port - name the file and whoever holds it (port
+*     PRE_RELEASE_FIXES 16).
+      excl.holders = fileinfo(fu, FL$HOLDERS)
+      excl.name    = fileinfo(fu, FL$VOCNAME)
+      if excl.holders = '' then
+         stop sysmsg(10169, excl.name)
+      end else
+         stop sysmsg(10168, excl.name, excl.holders)
+      end
    end
    close fu                                   ;* Close it again
    i = ospath("", os$flush.cache)             ;* Wipe out the DH cache

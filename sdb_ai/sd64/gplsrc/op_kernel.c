@@ -19,6 +19,8 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
+ * 11 Sep 26 dm  LOGOUT() reaps a slot whose process is gone and returns 2
+ *               (the Windows port's PRE_RELEASE_FIXES 16).
  * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
  *               port (PRE_RELEASE 19).  Only an $internal program may change
  *               USR_ADMIN now.
@@ -814,10 +816,20 @@ void op_logout() {
      |================================|=============================|
      |            BEFORE              |           AFTER             |
      |================================|=============================|
- top |  Immediate flag                |  1 = ok, 0 = error          |
+ top |  Immediate flag                |  1 = ok, 2 = reaped,        |
+     |                                |  0 = error                  |
      |--------------------------------|-----------------------------|
      |  User number                   |                             |
      |================================|=============================|
+
+ 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.  2 IS A DIFFERENT OUTCOME, NOT
+ A WARMER 1.  Raising EVT_TERMINATE at a process that no longer exists sets
+ USR_LOGOUT and nothing ever clears it, so LISTU reads "(logout pending)" for
+ ever and the file the dead session held stays locked.  When the process is
+ gone the slot is REAPED instead, and the caller must be able to tell the two
+ apart: "asked it to go" against "it was already gone and has been cleared".
+ 2 IS TRUTHY, WHICH IS WHY IT IS SAFE: every existing caller writes
+ "if not(logout(...))" or takes the value as a flag.
  */
 
   DESCRIPTOR *descr;
@@ -841,6 +853,13 @@ void op_logout() {
   if (user == 0) {
     k_exit_cause = (immediate) ? K_LOGOUT : K_TERMINATE;
     status = 1;
+  } else if (reap_lost_user((int16_t)user)) {
+    /* THE PROCESS WAS ALREADY GONE.  Its slot, and every file, record, group
+       and task lock it still held, have been released.  Tried BEFORE
+       raise_event() deliberately: raising an event at a process that cannot
+       receive it is what sets USR_LOGOUT, so asking in the other order would
+       still leave "(logout pending)" behind on the way past. */
+    status = 2;
   } else {
     log_printf(sysmsg(1027), user); /* Force logout initiated for user %d */
     status = raise_event((immediate) ? EVT_LOGOUT : EVT_TERMINATE, user);

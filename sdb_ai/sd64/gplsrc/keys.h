@@ -87,6 +87,11 @@
 #define FL_NO_RESIZE    1018
 #define FL_UPDATE       1019
 #define FL_ENCRYPTED    1020
+/* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.  Which sessions hold this
+   file open, as printable text.  READ-ONLY, so it belongs in the 1000 block
+   with the other queries and not with the 10000 actions.  The port's number,
+   so FILEINFO keys mean the same in both systems.                          */
+#define FL_HOLDERS      1021
 
 /* Values over 10000 are restricted */
 #define FL_EXCLUSIVE   10000

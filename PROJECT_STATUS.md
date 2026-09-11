@@ -65,6 +65,32 @@ not inferred.***
 - **Not done, deliberately:** resetting the semaphores myself. They are 0666 and
   both holders are dead, but a reboot is certain and complete, and a reset
   would leave the orphaned lock for the next LIST.READU to trip over.
+- ***OVERNIGHT 11–12 Sep, END OF SESSION (credits).*** All commits LOCAL, none
+  pushed. Built: PORT_ADOPTION queue 3, 3b, 4, 5, 6, 7, 8, 9, 10, 11, 20, 23,
+  24, plus the `op_getlocks` NULL fix; the audit (186 + 37 entries) is done.
+  Every BASIC change compiled 0 errors with a red control before the wedge.
+  Witnessed on the tree binary: READSEQ CRLF (pre/post), the LOGIN
+  terminal-type premise, the `!set_passwd` status premise, FL$HOLDERS. Status
+  per item, with its witness command: PORT_ADOPTION "Built … while the owner
+  slept". Decisions waiting: PORT_ADOPTION "Waiting for the owner" (0–4).
+- **NEXT, in order:** reboot → `assert-current` → push → delete→install cycle →
+  the witness column of that table → the reap witness (queue 10) and the
+  orphaned-lock falsification above. Then the queue continues at 12
+  (SUSPENDED), 13 (K$AUDIT), 14 (TIERGATE), 15–19, 21, 22, 25, and §M under
+  the 11 Sep ruling.
+- **A SANDBOX SD NOW EXISTS AS A RECIPE, and it is how to test without the live
+  system:** a scratchpad copy of the build with `sddefs.h` keys changed to
+  0x716d0901/0902 and `check_admin()` stubbed (scratch copy ONLY), a copy of
+  `/usr/local/sdsys` and of the account, `ACCOUNTS/*` paths pointed at the
+  copies, the other register records removed, and `SCARLET_CONFIG` (read by
+  `inipath.c`) naming a private `sd.conf`. Witnessed: separate IPC keys, and
+  the live semaphores unchanged by it; `WHO` `1 DON`, QSELECT runs. `-start`
+  leaves stdout held by the daemon, so redirect it rather than pipe. The
+  scratchpad does not survive the session; rebuild it from this note.
+- ***TRAP, FOUND WHILE BUILDING IT: `gplbld/pcode_bld.py:15` HARD-CODES
+  `/usr/local/sdsys` and WRITES `bin/pcode` THERE.*** Run outside the installer
+  it overwrites the live pcode. Copy it and change the path for any other
+  target.
 - **After the reboot, clean my fixtures** (DON account): `rm -rf
   /home/sd/user_accounts/don/ZZ16 /home/sd/user_accounts/don/ZZ16.DIC
   /home/sd/user_accounts/don/BP/* /home/sd/user_accounts/don/BP.OUT`, then in
