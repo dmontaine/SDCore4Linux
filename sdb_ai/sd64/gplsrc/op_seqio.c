@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 11 Sep 26 dm  op_openseq() freed the file variable it had just returned,
+ *               and kept its record lock, whenever the record did not yet
+ *               exist - a 2026/06/10 cleaning-cycle change the Windows port
+ *               reverted on 15 Aug.  Reverted here.  See exit_op_openseq.
  * 11 Sep 26 dm  READSEQ accepts CRLF as a line terminator and strips it,
  *               leaving a LONE CR alone because that is data (the Windows
  *               port's fix; UPSTREAM_FIXES 13).  READCSV compiles to
@@ -790,11 +794,24 @@ exit_op_openseq:
   if (process.status == ER_RNF)
     process.status = 0; /* Return 0 if opening new record */
 
-  /* Modified by Composer AI - 2026/06/10. Use saved status for cleanup;
-     process.status may be cleared for ER_RNF before resources are freed. */
-  /* if (process.status) { */
-  if (status) {
-  /* -------------------- */
+  /* 11 Sep 26 dm - REVERTED a 2026/06/10 cleaning-cycle change that freed the
+     file variable on a SUCCESS path, as the Windows port did on 15 Aug 2026
+     (its op_seqio.c).  It read "if (status)", on the reasoning that
+     process.status "may be cleared for ER_RNF before resources are freed".  It
+     is cleared deliberately, and the two variables mean different things:
+     status goes on the e-stack and is the ELSE indicator - ER_RNF means "the
+     record does not exist, take ELSE", which is how OPENSEQ creates a file;
+     process.status is what STATUS() returns, and 0 is right for that case.
+
+     So every OPENSEQ of a not-yet-existing record ran this cleanup on a
+     successful open: k_free(fvar) while fvar_descr already pointed at it,
+     k_free(sq_file), a decremented ref_ct - and the record lock taken above
+     was never released.  MEASURED 11 Sep 2026 in a sandbox (PORT_ADOPTION
+     27): the lock outlived OFF, was listed against whatever file later reused
+     the freed file-table slot, and blocked the same OPENSEQ until SD was
+     restarted; LIST.READU on it then faulted (the op_getlocks NULL) and
+     wedged the system.  Upstream sdb64 always had it right. */
+  if (process.status) {
     if (ValidFileHandle(fu))
       CloseFile(fu);
 

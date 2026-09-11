@@ -9,6 +9,27 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  A PROGRAM CAN CREATE A SEQUENTIAL FILE AGAIN.
+
+           The normal way for a program to create a file is OPENSEQ, which
+           takes its ELSE branch because the file does not exist yet, then
+           WRITESEQ, then CLOSESEQ.  Since a code clean-up earlier this year,
+           that did not work: OPENSEQ threw away the file variable the moment
+           it handed it to the program, so every WRITESEQ was refused with
+           "not a sequential file", nothing was written, and the file was
+           never created.  Worse, the lock OPENSEQ had taken on the file's
+           name was kept, even through CLOSESEQ and logging out, with no
+           session to own it: the next OPENSEQ of the same file waited for
+           ever, only restarting SD cleared it, and listing the locks at that
+           point could stop SD for every user.  OPENSEQ now keeps the file
+           variable, as SD always did before the clean-up and as SD Core for
+           Windows does, so the file is written and the lock is released when
+           it is closed or the program ends.
+
+           What it does not do: a lock already stranded this way is not
+           cleared by installing this version; restart SD once.
+
+
 11 Sep 26  SD ENDS A SESSION WHEN ITS INPUT RUNS OUT, INSTEAD OF SPINNING.
 
            When SD reads its commands from a pipe or a file - for example
