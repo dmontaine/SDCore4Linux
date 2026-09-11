@@ -1294,6 +1294,82 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
+### §L1 design — per-tier VOC (PROPOSED 10 Sep 2026, conditional; not built)
+
+***The gates exist (entry 23); what is missing is that every tier still gets the
+SAME verb set.*** §L1 would make the account's VOC depend on `ACC$TIER` (field 5,
+already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
+(port `gpl.bp/CREATEA:1224-1440`, `newvoc/TIER.OMIT.STANDARD`,
+`newvoc/TIER.ADD.ADMINISTRATOR`):
+
+- **STANDARD** = NEWVOC less the verbs named in a new `NEWVOC` record
+  `TIER.OMIT.STANDARD` — *"can run an application but not build one."*
+- **PROGRAMMER** = NEWVOC entire (today's behaviour for everyone).
+- **ADMINISTRATOR** = NEWVOC entire plus the verbs named in `TIER.ADD.ADMINISTRATOR`,
+  copied from `VOC_TEMPLATE`.
+
+**Two control records to add to `sdsys/NEWVOC`** (field 1 = description, fields 2+
+= verb ids; the copy loop skips both records themselves):
+- `TIER.OMIT.STANDARD` — the port's list transfers almost verbatim: **all 40 of
+  its entries exist in this tree's NEWVOC** (checked 10 Sep, case-insensitively):
+  `basic catalog(ue) delete.catalog(ue) compile.dict cd generate phantom run map
+  debug ed edit micro create.file delete.file clear.file configure.file
+  analyse/analyze.file fstat hsm set.trigger create/delete/build/make/list.index
+  copy copyp delete rename reformat sreformat delete.common cname logout pstat
+  pdebug pdump dump`.
+- `TIER.ADD.ADMINISTRATOR` — ***must be curated for SD Core, NOT copied from the
+  port.*** This tree's `VOC_TEMPLATE`−`NEWVOC` delta (17 ids) is mostly file /
+  bootstrap entries; the actual admin VERBS in it are `create.account
+  delete.account modify.account update.account unlock`. (The port also lists
+  `grant revoke config listu sh !` etc.; here `sh`/`!` stay in every VOC and are
+  gated at the C layer by entry 23, and the others are absent — so do not name
+  them.)
+
+**Three code sites (all must share one tier-filter, or the VOC drifts):**
+1. `CREATEA` copy loop (`GPL.BP/CREATEA:517-534`) — read tier; skip the two
+   control records; for STANDARD skip omit-list ids; for ADMINISTRATOR also copy
+   the add-list records from `VOC_TEMPLATE`.
+2. ***`LOGIN` `update.voc` (`GPL.BP/LOGIN:110-137,364-373`) re-copies NEWVOC on a
+   release update*** — it must apply the SAME filter, or a VOC update silently
+   restores a full VOC to a STANDARD account. ***THE PORT ALREADY HIT AND FIXED
+   THIS (17 Aug 2026):*** its `update.voc` re-copied all of NEWVOC with no tier
+   filter, handing a STANDARD account back `BASIC`, `CATALOG`, `RUN`, `ED`,
+   `COPY`, `DELETE.CATALOG`, and was reachable from an ordinary login. Paid for
+   next door — not a hypothesis. See the port's `HISTORY.md`.
+3. `MODIFYA` on a tier change ***has NO VOC re-derivation today*** (checked 10
+   Sep) — §L1 must add it so `MODIFY.ACCOUNT <a> STANDARD|PROGRAMMER|ADMINISTRATOR`
+   re-derives the VOC; the port's `voc.delta`/`tier.set` is the model, and its
+   PRE_RELEASE 57 rule (*a grant may go down or sideways, never up*) governs it.
+
+**SD-Core adaptations / risks (what would falsify the plan):**
+- ***Case.*** NEWVOC ids are still UPPER-CASE here (§M not applied), so the match
+  must be case-insensitive (`upcase()=upcase()`, as the port) and must still work
+  after §M lower-cases NEWVOC. §L1 and §M's fold interact — neither should assume
+  the other's casing.
+- ***SUSPENDED*** tier VOC is undecided; LOGIN already refuses a suspended login,
+  so content may be moot — confirm.
+- ***OBJECTION RAISED AND RESOLVED 10 Sep 2026 (owner) — the omit list stands as
+  the port's, INCLUDING `run`, `phantom`, `logout`.*** The principle: **a STANDARD
+  account only runs CATALOGUED programs.** The three are omitted on purpose —
+  `run` (no uncatalogued programs), `phantom` (no background tasks), `logout` (no
+  control of other users). A STANDARD user *"will probably never even see the
+  command line."* The sanctioned way to give one account one extra feature is for
+  an admin to **copy that VOC item into the user's VOC** — no tier change — so the
+  omit list can be broad without being a trap. ***This decision and its rationale
+  are the port's, recorded in its `HISTORY.md` ("17 Aug 2026 — Section 8"), the
+  reference implementation; the owner confirmed it here.*** `PHANTOM` is omitted
+  precisely because it runs a catalogued program in the *background* — the tier's
+  "only run catalogued programs" is about foreground, attended use.
+- ***RELATED INTENT, beyond §L1's VOC scope (note for later):*** because a STANDARD
+  user is not expected to see the `:` prompt, such accounts likely want to be
+  launched straight into an application (a forced `LOGIN`/menu entry) rather than
+  dropped at the command line. That is a LOGIN-path decision, not a VOC one — flag
+  it when §L1 lands, do not fold it in here.
+- **Test after building:** a STANDARD account must have no `BASIC` (so the entry-23
+  10054 witness moves to a PROGRAMMER account — already noted in PRE_RELEASE 23);
+  PROGRAMMER = full VOC; ADMINISTRATOR = +admin verbs; a `MODIFY.ACCOUNT` tier
+  change re-derives the VOC; a release `update.voc` preserves the tier's VOC.
+
 **Exercise the step 1 fixes.** The table above lists the check for each. `D3` and
 `B1`/`B2` are minutes of work on the installed system and are the two most worth
 doing, because a wrong catalogue gate would refuse an administrator.
