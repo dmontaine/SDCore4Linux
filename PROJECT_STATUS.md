@@ -1416,34 +1416,39 @@ whose **primary** group is the one being tested answers `false`. No shipped call
 depends on that today; it would bite the first time somebody's primary group is
 an SD group.
 
-**ADDED 10 Sep 2026 — RULING: the API port is 4243; two installer prompts
-planned.** Owner: SD Core conforms to the Windows port, which stays on **4243**.
-*Reconsidered twice this session and settled here: 4243, then 4245 (on a finding
-that the Windows port would switch), then back to 4243 — because changing the
-API port number across an upgrade is itself the problem, so the Windows port is
-staying put and Linux matches it for upgrade compatibility.* That
-upgrade-compatibility reason is the durable one; the coexist-with-commercial-QM
-rationale behind `changelog:1452`'s 4243→4245 move is declined. **Not started;
-left for its scheduled session, not jumping the queue (owner, 10 Sep).**
-- *Measured 10 Sep:* the Linux API listener is a **Unix domain socket**, not
-  TCP — `usr/lib/systemd/system/sdclient.socket`,
-  `ListenStream=/tmp/sdsys/sdclient.socket`, `Accept=true`, group `sdusers`. So
-  nothing listens on TCP 4243 *or* 4245 today; a remote client tunnels the
-  socket over ssh (the examples do `ssh -L 4245:/tmp/sdsys/sdclient.socket`).
-- **Non-conforming leftovers for that session:** `gplsrc/sdclilib.c:3485` and
-  `gplsrc/sdclient.c:3404` default `port = 4245` and would become **4243**;
-  `etc/xinetd.d/services` `sdclient 4245` likewise (xinetd unused here); and
-  `sdsys/changelog:1452`'s 4243→4245 line runs against this ruling. The BASIC
-  client `sdsys/GPL.BP/SDCLIENT:272` = 4243 is already correct.
-- **Two installer prompts, planned (conditional):** "Allow ssh access" = Y would
-  enable the ssh service at boot and open port 22 in the firewall; "Allow API
-  access" = Y would open port 4243. The installer does **no** firewall handling
-  today (no `ufw`/`iptables`) and no branch starts/enables sshd
-  (`installsdai.sh:302`). Because the API is a Unix socket today, "Allow API
-  access → open 4243" **presupposes a TCP 4243 listener that does not yet
-  exist** — that prompt is the work of adding it, not merely a firewall rule.
-  What would falsify the "just open a port" reading: no TCP listener is present
-  to open.
+**ADDED 10 Sep 2026 — API port 4243; the two installer prompts + a TCP listener
+BUILT 10 Sep, UNWITNESSED.** Owner: SD Core conforms to the Windows port, which
+stays on **4243** (reconsidered 4243→4245→4243 this session; the durable reason
+is that changing the API port across an upgrade is itself the problem, so the
+port stays put and Linux matches it for upgrade compatibility). Built this
+session on the owner's direction, approach **B** — bind-address gating, ufw NOT
+force-enabled:
+- **TCP listener, localhost by default.** `usr/lib/systemd/system/sdclient.socket`
+  gains `ListenStream=127.0.0.1:4243` beside the Unix socket (the port's "LOCAL"
+  state). `installsdai.sh` rewrites it to `0.0.0.0:4243` + `ufw allow 4243/tcp`
+  only when **"Allow API access"** is yes; else it stays local and no rule added.
+- ***C CHANGE, REVERSING A DELIBERATE DECISION — `gplsrc/linuxio.c`
+  `start_connection()`*** accepted only `PF_UNIX` (mab, 2024-02-19). `PF_INET` is
+  now accepted **for the API server only** (`is_sdApiSrvr`, i.e. `sd -n -q`); no
+  `getpeereid` on a TCP peer, so the connection is gated by SD user/password
+  (APISRVR SDConnect) plus the bind/firewall choice. `PF_INET6` still refused
+  (listener is IPv4). Built: `make` **0 errors**, `linuxio.o` recompiled, `sd`
+  linked.
+- **Two installer prompts** (asked up front, both default NO): "Allow ssh access"
+  = Y → `systemctl enable --now ssh` + `ufw allow 22/tcp`; "Allow API access" = Y
+  → the 0.0.0.0 rebind + `ufw allow 4243/tcp`. ufw is not force-enabled — the
+  gate is the bind address; the ufw rule is belt-and-braces for when ufw is on.
+- ***UNWITNESSED — needs commit+push+reinstall (an install tests `origin/main`).***
+  Witness: (1) default install → API on 127.0.0.1:4243, a **local** TCP client
+  connects and authenticates, a remote one cannot; (2) install answering API=Y →
+  listener on 0.0.0.0:4243, a **remote** client connects and authenticates; (3)
+  ssh=Y → sshd enabled at boot, port 22 reachable. ***The least-tested claim: that
+  `sd -n -q` completes the client handshake + login on a TCP fd exactly as on the
+  Unix socket*** — plausible (the post-switch code is fd-0/transport-agnostic) but
+  unrun.
+- **Still open, separate:** the C **client** defaults `gplsrc/sdclilib.c:3485` /
+  `sdclient.c:3404` = 4245 should become 4243; `changelog`'s 4243→4245 line runs
+  against the ruling. Client-side, not the listener.
 
 **Guards ported from the Windows version — surveyed 9 Sep 2026, owner's ask.**
 The survey is recorded so it is not repeated: the port has **1** Claude hook and

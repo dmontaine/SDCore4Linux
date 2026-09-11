@@ -9,6 +9,27 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  THE INSTALLER CAN NOW OPEN SSH AND THE NETWORK API TO OTHER COMPUTERS.
+
+           The installer asks two questions.  "Allow ssh access from other
+           computers?" - yes turns the ssh service on at every boot and opens
+           port 22 in the firewall.  "Allow API access from other computers?" -
+           yes opens the SD network API (the interface SD client programs use)
+           on TCP port 4243 to the network.  Both default to no.
+
+           Left at the defaults, ssh is untouched and the API listens only on
+           this machine (127.0.0.1 port 4243): programs on the same computer can
+           use it, nothing on the network can.  A remote program can still reach
+           it by tunnelling over ssh.
+
+           A connection to the API always has to log in with an SD user name and
+           password, whether it arrives locally or over the network.
+
+           What it does not do: it does not switch your firewall on.  If ufw is
+           not running the "allow" rules are simply recorded for when it is.  It
+           exposes nothing by default - you have to answer yes.
+
+
 10 Sep 26  OVER SSH, NON-ADMINISTRATOR ACCOUNTS ARE NOW HELD INSIDE SD.
 
            SD can decide that a STANDARD or PROGRAMMER account may not reach the
