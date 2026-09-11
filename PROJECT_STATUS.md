@@ -40,8 +40,9 @@ the work, nothing in "Verified" that was not observed that session.
 ***11 Sep 2026, day session — READ THIS BLOCK FIRST; the blocks below are older.***
 - Rebooted 05:05; install `3bd4421` (05:04:46) is the overnight work. HEAD
   differs by comments and docs only, which is the whole of `assert-current`'s 1.
-- ***THE OVERNIGHT BUILDS ARE WITNESSED ON THE INSTALL except 8, 10's reap and
-  `op_getlocks`*** — per queue in PORT_ADOPTION "Witnessed on the install".
+- ***THE OVERNIGHT BUILDS ARE WITNESSED except 8*** — the reap live and in the
+  sandbox, `op_getlocks` in the sandbox against a pre-fix binary that faulted;
+  per queue in PORT_ADOPTION "Witnessed on the install".
   Instrument: `printf 'cmds\nOFF\n' | timeout N sd` as `don` from
   `/home/sd/user_accounts/don`, guarded on `ps -C sd` empty and `ipcs -s -i 0`
   values `111111`. ***`pgrep -f` matches its own command line*** — it
@@ -61,12 +62,22 @@ the work, nothing in "Verified" that was not observed that session.
   unchecked — check before calling it a defect.
 - **`UPDATE.ACCOUNTS` rewrote DON's VOC to the installed NEWVOC** (396 written,
   1 added): DON's empty `COUNT VOC` is now **411**, not 410.
-- **Fixtures kept in DON for queue 10:** `ZZ16`, `ZZ16.DIC`, VOC `ZZ16`; `BP`
-  (`ASK16`, `HOLD16`, `LO16` — its user argument is now field 4 — `KEYS.H`,
-  `INT$KEYS.H`); `BP.OUT` + VOC `BP.OUT`. `COUNT VOC` 413. Remove: `rm -rf ZZ16
-  ZZ16.DIC BP/* BP.OUT`, then `DELETE VOC ZZ16 BP.OUT` → 411.
-- **NEXT:** the owner's call on the live reap / orphaned-lock witness
-  (PORT_ADOPTION "Waiting for the owner" 5); queue 26; then queue 12 onward.
+- **DON is clean**: seven entries, `BP` empty, no `BP.OUT`, `COUNT VOC` 411.
+- ***THE SANDBOX, REBUILT 11 SEP — what the recipe in the older block below does
+  not say:*** `-start` forks the sandbox's own `sdlnxd`; stop it (pick the pid
+  by `readlink /proc/<pid>/exe` under the scratchpad) or its 5-minute check runs
+  `sd -cleanup` mid-witness. `RUN BP x` fails 1135 when the account path makes
+  `BP.OUT/x` longer than 128 characters (queue 28): `CATALOG BP x LOCAL`, then
+  call `x`. `GETLOCKS()` needs `$internal` (compile with the sandbox's
+  `-internal`). A before/after: copy the build, `git show <commit>:<file>` into
+  it, `make` — both binaries attach the same segment. Teardown: kill sandbox
+  pids by exe path, then `ipcrm -M 0x716d0901 -S 0x716d0902` and nothing else.
+- ***QUEUE 27, NEW: AN ELSE-BRANCH `OPENSEQ` LEAVES A LOCK THAT SURVIVES `OFF`***
+  and blocks the same `OPENSEQ` for ever; only an SD restart clears it.
+  Measured in the sandbox — ***do not recreate it on the live system.***
+  PORT_ADOPTION 27.
+- **NEXT:** the owner's delete→install cycle, which witnesses queue 26
+  (PORT_ADOPTION 26); queue 27's cause; then queue 12 onward.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***

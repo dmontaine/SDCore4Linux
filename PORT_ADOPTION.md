@@ -31,7 +31,7 @@ in the same commit as the work.
     control also confirms an unmatched name is echoed AS TYPED.
   - Fixtures removed; DON back to `COUNT VOC` 410.
 
-### Built 10–11 Sep 2026 while the owner slept — INSTALLED (`3bd4421`), WITNESSED 11 Sep except 8, 10's reap, `op_getlocks`
+### Built 10–11 Sep 2026 while the owner slept — INSTALLED (`3bd4421`), WITNESSED 11 Sep except 8 (`op_getlocks` in the sandbox only)
 
 Each compiled 0 errors with `scratchpad/cbp.sh` (dev binary, DON/BP, red
 control = 1 error, `COUNT VOC` 410 afterwards). Pushed and installed 11 Sep;
@@ -74,7 +74,9 @@ process and semaphores `111111`.
 | 11 | `UPDATE.ACCOUNTS`, own account: 10165 names `NO.QUERY` ([locked] keyword; kept, still differs from NEWVOC); 10166 names `WHO` ([locked] verb; replaced); control `FORCE` (plain change) replaced. 396 written. DON lacked the verb (START HERE) — added from `VOC_TEMPLATE` for the run, removed after |
 | 20 | Installed binary gives the "after" column: CRLF 5, split 2047, lone CR kept (5), CR at EOF kept (4, last 13), LF 5 |
 | 24 | Control `TXNOK` 0 errors; `TXNX` → `4: Unterminated transaction construct`, 1 error, inside 30 s |
-| **not run** | 8 (needs CREATUSR on); 10's reap and `op_getlocks` "(gone)" — a failure there wedges the live SD ("Waiting for the owner" 5) |
+| 10 | ***Reap WITNESSED LIVE*** (11:53): `RUN BP HOLD16` holds `ZZ16` as user 49 → `CNAME ZZ16, ZZ16B` refused, 10168 `Holding it: 49 (don)`; `FL$HOLDERS` `[49 (don)]`. SIGKILL pid 27335 → slot 49 still in LISTU, still the holder, CNAME still refused → `LOGOUT 49` → `LOGOUT reaped user 49 (pid 27335, don) - process was gone.` + 10167 → slot gone, holders `[]`, CNAME renames and back. Semaphores 111111 throughout. Same sequence first in the sandbox (user 12), same result |
+| — | ***`op_getlocks` WITNESSED IN THE SANDBOX, pre-fix binary as the control, on one lock state*** — an RU lock owned by gone user 25 (queue 27). Fixed: raw `GETLOCKS()` owner field `(gone)`; `LIST.READU` lists it, no fault. Pre-fix (`3bd4421^` `op_lock.c`): `Fault type 11. PC = 000001B8 (DE 16) in $LISTRDU`, exit 139, semaphores 111111 → 111001 (REC_LOCK_SEM, FILE_TABLE_LOCK held), next session hung — last night's wedge, reproduced. `LIST.READU` prints only the number; `(gone)` shows only through `GETLOCKS()`, an `$internal` function |
+| **not run** | 8 (needs CREATUSR on) |
 
 ## Waiting for the owner — skipped overnight 10–11 Sep because they need a ruling
 
@@ -99,7 +101,11 @@ process and semaphores `111111`.
    until someone says what N should do.
 4. **§M scope:** whether "no two casings" reaches record ids in a user's own
    data files, and account names (PORT_ADOPTION "Queue 18").
-5. **Queue 10's reap and `op_getlocks` "(gone)": witness on the live install,
+5. ~~Queue 10: live or sandbox?~~ — **owner: sandbox first. Done 11 Sep: reap
+   witnessed in both, `op_getlocks` in the sandbox** ("Witnessed on the install",
+   row 10). The orphaned lock was NOT recreated live: nothing clears it before
+   an SD restart (queue 27). Original question:
+   **Queue 10's reap and `op_getlocks` "(gone)": witness on the live install,
    or in the sandbox first?** Both reproduce the overnight chain on purpose (a
    SIGKILLed session holding `ZZ16`, then `LOGOUT n`; an orphaned lock, then
    `LIST.READU`). If either fix is wrong the live SD wedges again and needs a
@@ -200,6 +206,8 @@ count was wrong in six of eight classes — which is why it was checked.*
 | ~~24~~ | ~~BCOMP unterminated TRANSACTION~~ — **BUILT 11 Sep** | `BCOMP` | |
 | 25 | Process dumps in their own directory, writable but not readable by SD users (port 28) | `sd.conf DUMPDIR`, installer | mode/group bits instead of the port's ACL; `pdump.c` already honours `DUMPDIR` |
 | 26 | ***The `:` prompt busy-loops at end of input*** (Linux-found 11 Sep, measured; PROJECT_STATUS START HERE). ***BUILT 11 Sep, COMPILED, NOT INSTALLED:*** CPROC `:1006` `if c = '' and status() = ER$EOF then goto int.quit`; dev binary `-internal BASIC BP CPROC` 0 errors, red control (CPROC + trailing text) 1 error; changelog entry. Witness after install: `printf 'WHO\n' \| timeout 10 sd` ends exit 0 with no BEL, no dead slot in LISTU; control: the same with `OFF` unchanged. At EOF the command processor ends the session as `OFF` does, the shell convention; `INPUT` in programs keeps returning `''` | none — port not measured | CPROC `get.command.line` (`:954`): `keycode()` = `''` with `status()` = ER$EOF (3030) → log out. ***Premise measured 11 Sep*** (probe `KCEOF`, last line of piped input, installed binary): `KEYCODE()` → len 0, `STATUS()` 3030; `KEYIN()` → len 0, 3030 |
+| 27 | ***An `OPENSEQ` that takes the ELSE branch leaves an update lock that outlives `OFF`*** (Linux-found 11 Sep, measured in the sandbox; the overnight hypothesis (1), confirmed). Probe `ORPH`: `OPENSEQ '/proc/999999999/status'` → ELSE with `STATUS()` **0** even though the directory does not exist; ends without `CLOSESEQ`; `OFF`. Then `LIST.READU` shows user 25 holding `RU` on id `status` in **file 3, the account system's VOC entry** — not the path opened; 25 is not in LISTU; a second session's same `OPENSEQ` waits until killed. Nothing clears it short of an SD restart: cleanup's `remove_user()` (`clopts.c:399`) acts only on registered dead slots. Leads, unverified: `get_file_entry()` matches by name when device and inode are 0 (`dh_open.c:455`), and `op_openseq` leaves them 0 for a path that does not stat (`op_seqio.c:420-421`); `unlock_record()` frees through the process's LLT list by `fno` + `fvar_index` (`op_lock.c:1387-1394`) | none — port not measured | find why the lock lands on file 3 and why neither the variable's release (`op_dio1.c:432`) nor logout frees it; do not recreate it on a live system |
+| 28 | `RUN` of a runfile path over 128 characters fails `1135 Invalid runfile pathname` (`op_jumps.c:811-813`, `MAX_PROGRAM_NAME_LEN`) — measured on a sandbox account whose `BP.OUT/HOLD16` was 135. Low: accounts under `/home/sd/user_accounts` are far shorter, and a catalogued verb is found by path (limit 255) | — | lift the limit, or have 1135 say what the limit is |
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short
 
