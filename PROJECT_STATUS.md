@@ -106,6 +106,23 @@ the work, nothing in "Verified" that was not observed that session.
   `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
   would stop part way. Known limit, as the port's: a shell user can append a
   line of their own. PORT_ADOPTION 13 has the witness steps.
+- ***QUEUE 14 STARTED AND HANDED OVER MID-BUILD, 11 Sep (credits).*** Written,
+  ***NOT COMPILED, NOT WIRED, NO VOC RECORDS***: `GPL.BP/TIERGATE`
+  (`!tier_allows`) and `GPL.BP/GRP_MEMBERS` (`!grp_members`). The rest of the
+  work, in order, is listed in PORT_ADOPTION 14. Read the port's `GRANTA` and
+  its `MODIFYA` `promo.snapshot`/`promo.report` before writing them; the rule is
+  the owner's to the port, 29 Aug 2026 — ***a grant may go down or sideways,
+  never up, and SDSYS is never granted***.
+- ***MEASURED 11 Sep, AND IT ANSWERS AN OPEN LEAD WITH A CORRECTION:
+  NO `sdu_` GROUP ON THIS MACHINE CONTAINS `sdsys`*** — 0 of 5
+  (`sdu_don|pete|tstd|tprog|tadm`, all `root,<user>`), on the fresh `c2b375d`
+  install whose accounts `CREATE.ACCOUNT` made. ***So this file's line 1801 is
+  WRONG***: it says "newer `sdu_tstd:root,sdsys,tstd`" and calls it an unmeasured
+  lead; `sdu_tstd` is `root,tstd`. `CREATEA:876` passes `root,sdsys,<user>` to
+  `sd-elevate groupadd`, which adds each member with `gpasswd -a` and exits
+  non-zero on failure, so why `sdsys` is absent is not yet explained. It matters
+  for queue 14: `LIST.GRANTS` reports what the group holds, and CPROC:2807's
+  "open lead" about `sdu_don` is now known to be general, not one account.
 - **NEXT:** queue 14 (TIERGATE, GRANT/REVOKE/LIST.GRANTS) onward. The next
   keep-accounts delete→install is also the witness for the audit trail's
   carry-over (PORT_ADOPTION 13).
