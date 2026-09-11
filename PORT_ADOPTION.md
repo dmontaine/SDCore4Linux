@@ -47,11 +47,50 @@ and most of the rest had been fixed on 8–9 Sep under the parity plan's own ids
 - **Open (8):** 23, 27 → queue 3 · 12 → queue 5 · 11 → queue 6 · 4, 6, 13, 34
   → queue 20.
 
-***NOT DONE: the same reconciliation for the port's `PRE_RELEASE_FIXES.md`
-(186 table rows).*** This file names about ten of them; the "Not adoptable"
-table below disposes of Windows-only code by category, not by entry. Until the
-186 are walked, this file cannot claim to be a complete list of what the port
-has and this tree lacks.
+## PRE_RELEASE_FIXES reconciliation — all 186 of the port's entries, 11 Sep 2026
+
+Each entry read from the port's index row, and every product-code entry checked
+against this tree's source (not against this file's earlier claims). Classes:
+
+- **Done here (25):** 1, 17, 18 (EDIT adopted, `2d759f7`) · 7 (`sort.item` not
+  in `TIER.OMIT.STANDARD`) · 11, 12, 13, 15, 23, 24, 25, 87, 100, 101, 102,
+  103, 154 (UPSTREAM fixes, see above) · 21 (no `ACC$PRIOR.TIER` test exists
+  here to delete) · 79 (every Y/N message shows its default) · 94 (group calls
+  test `OS.ERROR()`) · 95, 97, 110, 128 (parity audit / 10 Sep) · 174 (SH1 argv).
+- **Open, already queued:** 8 → 7 · 14, 26 → 3 · 16 → 10 · 19, 111 → 12 ·
+  22 → 8 · 27, 98 → 13 · 57, 91, 92 → 14 · 65, 93 → 19 · 70 → 16 ·
+  104, 113 → 4 · 142 → 9 · 144 → 21.
+- **Open, NEW — added to the queue as 23–25, and 63/136 folded into 9:** 5
+  (`.D name`), 114 (BCOMP hang), 28 (dump directory), 63 + 136 (file-record
+  descriptions).
+- **Does not transfer — Linux privilege/access model (15, with 168):** 2, 37, 42, 56, 64,
+  68, 69, 72 (CREATUSR is off, so CREATE.ACCOUNT makes no OS user to strand),
+  96, 99, 125, 130, 167, 169 — `os.users`, `$cred`, S4U, routes and logon
+  rights; Linux has entries 13/18/20/23 instead. ***And 168: the port deleted
+  `EUID_SET`/`EUID_RESTORE` and `sdext_eguid.c` as dead code; HERE THEY ARE LIVE
+  (`sudo sd` drops to `sdsys` through `sdext_eguid.c`). DO NOT ADOPT.*** Nor
+  anything else that removes from the extension layer: embedded Python is kept
+  and improved (owner, 11 Sep).
+- **Ruled not a defect / no change in the port (8):** 3, 9 (UMASK kept both
+  sides), 20, 44 (5161 left unchanged there too — but its Linux analog is real:
+  a group added by CREATE.ACCOUNT reaches the person only at their next login),
+  61, 62, 157, 163.
+- **Windows mechanism — installer, service, firewall, ssh capability,
+  profiles, registry (55):** 6, 29, 32, 33, 35, 36, 39, 49, 50, 66, 67, 74,
+  75, 76, 77, 78, 81, 83, 85, 88, 89, 90, 115–124, 126, 127, 129, 132, 133,
+  135, 138, 139, 140, 141, 145, 146, 147, 148, 150, 153, 155, 161, 171, 172,
+  173, 176, 184.
+- **Port's PowerShell verify/test harness (46) — intent is queue 22:** 10, 30,
+  31, 38, 40, 41, 43, 45, 46, 47, 48, 51, 54, 59, 60, 73, 82, 84, 86, 105–109,
+  112, 131, 134, 137, 143, 149, 151, 152, 156, 158, 159, 160, 162, 164, 165,
+  166, 170, 177, 178, 182, 183, 185. (178 and 185 are still open in the port.)
+- **Port's documentation set (13):** 4, 34, 52, 53, 55, 58, 71, 80, 175, 179,
+  180, 181, 186, and 163's documentation half.
+
+Counts **measured, not typed**: 25 + 19 + 5 + 15 + 8 + 55 + 46 + 13 = 186, no
+number missing or in two classes (163 counted under "ruled"). The checker is a
+throwaway script; re-derive by expanding the lists above. *A first hand-typed
+count was wrong in six of eight classes — which is why it was checked.*
 
 ## Queue — adoptable, not yet done (suggested order)
 
@@ -63,7 +102,7 @@ has and this tree lacks.
 | 6 | ED return-code preset sign (UPSTREAM 11 note) | `ED` | verify first |
 | 7 | HELP / F1 say something, msg 10149 (port 8) | `CPROC` | direct |
 | 8 | CREATE.ACCOUNT names why a password failed, 10118–10121 (port 22) | `CREATEA`, `SET_PASSWD` | map PAM/passwd status |
-| 9 | `NEWVOC/NEWVOC` description (port 142) | data | direct |
+| 9 | `NEWVOC/NEWVOC` description (port 142), and every file record's field 1 a description rather than a bare `F` (port 63, 136) | data, `VOC_TEMPLATE`/`NEWVOC` | direct |
 | 10 | LOGOUT reaps a dead user 10167; CNAME names the holder (port 16) | `CPROC` + C | review |
 | 11 | `[locked]` VOC records, 10165/10166 (port 70) | `LOGIN update.voc` | direct |
 | 12 | SUSPENDED tier, 10110/10112/10159 | `MODIFYA tier.set`, `LOGIN`, `CPROC logto`, `APISRVR` | SD doors only |
@@ -77,6 +116,9 @@ has and this tree lacks.
 | 20 | UPSTREAM 4, 6, 13, 34 — read each entry and verify against this tree | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) | `gplbld` | adapt to this tree's docs |
 | 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
+| 23 | `.D name` folds case, reports 5043 instead of falling through with a stale `voc.rec`, and releases the lock it took (port PRE_RELEASE 5) | `CPROC` `.D` | direct; also a lock leak here — the miss path releases `at.command` after a failed `readu` on `upcase(at.command)` |
+| 24 | BCOMP hangs on an unterminated TRANSACTION construct (port 114) | `BCOMP` inner loop, `until end.source` | direct |
+| 25 | Process dumps in their own directory, writable but not readable by SD users (port 28) | `sd.conf DUMPDIR`, installer | mode/group bits instead of the port's ACL; `pdump.c` already honours `DUMPDIR` |
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short
 
