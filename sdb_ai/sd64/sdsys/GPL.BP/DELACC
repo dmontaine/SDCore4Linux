@@ -32,11 +32,15 @@
 *               !is_sd_user reads the "SD account" GECOS stamp CREATE_USER
 *               writes - and the ACCOUNTS record is deleted LAST, so a failure
 *               part way leaves the account registered and this verb runnable.
+* 10 Sep 26 dm  REMOVE.HOME (owner): also remove the SD-created Linux user's home
+*               directory, named in the one confirmation (10905); refused in
+*               words when there is no such user (10906); the result is read
+*               off disk (10907/10908).  sd-elevate userdel-home re-checks.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
-* DELETE.ACCOUNT account.name
+* DELETE.ACCOUNT account.name {REMOVE.HOME}
 *
 * Removes the account directory, the sdu_ or sdg_ group, the ACCOUNTS record
 * and - for a USER account whose Linux user SD created - that Linux user.  One
@@ -48,9 +52,10 @@
 * place and message 10036 says so, and the confirmation uses the shorter
 * wording, so it never promises what it will not do.
 *
-* THE LINUX USER'S HOME DIRECTORY IS NOT REMOVED (userdel without -r).  The
-* port removes the Windows profile; on Linux the home holds the person's own
-* files and ssh keys, so taking it too is left for the owner to rule on.
+* THE LINUX USER'S HOME DIRECTORY GOES ONLY WITH REMOVE.HOME (owner, 10 Sep
+* 2026).  The port always removes the Windows profile; on Linux the home holds
+* the person's own files and ssh keys, so it is removed only when asked, only
+* for a user SD created, and only when it is exactly <HOME base>/<user>.
 *
 * END-DESCRIPTION
 *
@@ -98,12 +103,22 @@ deffun is_sd_user(username) calling '!is_sd_user'
 
    acc.name = upcase(acc.name)
 
-   * Check no further command arguments
-
-   call @parser(parser$get.token, token.type, token, keyword)
-   if token.type # PARSER$END then
-      stop sysmsg(2018, token) ;* Unexpected token (xx)
-   end
+* 10 Sep 26 dm - REMOVE.HOME, THE OWNER'S OPTION (10 Sep 2026): also remove the
+*   Linux user's home directory.  A PARAMETER RATHER THAN A SECOND PROMPT,
+*   because the port's ruling for this verb is ONE confirmation - the keyword
+*   changes what that confirmation names (10905) instead of adding a question.
+*   Matched on the token text, as CREATEA matches its tier keywords, so the
+*   shared KW$ table is not extended for one verb.  Anything else is refused.
+   remove.home = @false
+   loop
+      call @parser(parser$get.token, token.type, token, keyword)
+   until token.type = PARSER$END
+      if upcase(token) = 'REMOVE.HOME' then
+         remove.home = @true
+      end else
+         stop sysmsg(2018, token) ;* Unexpected token (xx)
+      end
+   repeat
 
    if acc.name = 'SDSYS' then
       stop sysmsg(6025) ;* Cannot delete SDSYS account
@@ -146,6 +161,23 @@ deffun is_sd_user(username) calling '!is_sd_user'
          if lookup.stat = 0 and sd.made.it then
             del.user = os.user
          end
+      end
+   end
+
+* 10 Sep 26 dm - REMOVE.HOME APPLIES ONLY TO A USER SD CREATED, because only that
+*   user is deleted at all.  Said before the confirmation rather than silently
+*   ignored, so nobody answers Y believing a home will go that will not.  The
+*   home is read back from the password database, not assumed, and sd-elevate
+*   checks it again (exactly <HOME base>/<user>) before it runs userdel -r.
+   home.dir = ''
+   if remove.home then
+      if del.user = '' then
+         crt sysmsg(10906, acc.name) ;* REMOVE.HOME given, but no SD-created Linux user
+         remove.home = @false
+      end else
+         gent.out = ''
+         os.execute 'getent passwd ' : del.user capturing gent.out
+         home.dir = field(gent.out<1>, ':', 6)
       end
    end
 
@@ -214,11 +246,14 @@ deffun is_sd_user(username) calling '!is_sd_user'
    crt sysmsg(10158, acc.name)
 
    loop
-      if del.user # '' then
-         display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
-      end else
-         display sysmsg(10085, acc.name) :           ;* account and its directory
-      end
+      begin case
+         case del.user # '' and remove.home
+            display sysmsg(10905, acc.name, del.user, home.dir) : ;* ... and the home directory
+         case del.user # ''
+            display sysmsg(10084, acc.name, del.user) : ;* account, directory and Linux user
+         case 1
+            display sysmsg(10085, acc.name) :           ;* account and its directory
+      end case
       input yn
       yn = upcase(yn)
       if yn = '' then yn = 'N'
@@ -278,10 +313,24 @@ deffun is_sd_user(username) calling '!is_sd_user'
 * 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
 *   sd-elevate refuses root, sdsys and anything below UID_MIN as a target, so
 *   "delete root" has no spelling on this path.
-               OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel " : os.user
+               if remove.home then
+                  OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel-home " : os.user
+               end else
+                  OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel " : os.user
+               end
                stat = OS.ERROR()
-               if stat = 0 then
+* 10 Sep 26 dm - userdel exits 12 when it deleted the user but could not remove
+*   the home, so 12 under REMOVE.HOME is a deletion, not a failure.  WHETHER THE
+*   HOME WENT IS READ OFF DISK, not inferred from the exit code.
+               if stat = 0 or (stat = 12 and remove.home) then
                   crt sysmsg(10028, os.user) ;* OS User: %1 Deleted
+                  if remove.home and home.dir # '' then
+                     if ospath(home.dir, OS$EXISTS) then
+                        crt sysmsg(10908, home.dir) ;* Home directory %1 was not removed
+                     end else
+                        crt sysmsg(10907, home.dir) ;* Home directory %1 removed
+                     end
+                  end
                end else
                   crt sysmsg(10029, os.user, stat) ;* Warning unable to delete OS User: %1 error: %2
                end

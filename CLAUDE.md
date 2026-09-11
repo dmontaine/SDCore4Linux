@@ -299,8 +299,11 @@ home on GitHub. The directory is `/home/don/Projects/sdcore4linux`.
 
 | Remote | URL | What it is |
 |---|---|---|
-| `origin` | `git@github.com:dmontaine/SDCore4Linux.git` | **The project's home.** ssh, key `~/.ssh/id_ed25519`, authenticates as `dmontaine` |
-| `codeberg` | `https://codeberg.org/stringdatabase/sdscripts_ai` | Where it came from. Kept so nothing is lost; not the place to push |
+| `origin` | `git@github.com:dmontaine/SDCore4Linux.git` | **The project's home, and the only remote.** ssh, key `~/.ssh/id_ed25519`, authenticates as `dmontaine` |
+
+**Codeberg is no longer this project's repository** (owner, 10 Sep 2026). The
+`codeberg` remote (`codeberg.org/stringdatabase/sdscripts_ai`, where the tree
+came from) was removed that day; do not re-add it.
 
 ***MIND THE CAPITALISATION: THE GITHUB REPOSITORY IS `SDCore4Linux`, THE LOCAL
 DIRECTORY IS `sdcore4linux`.*** The lower-case URL works but only through a
@@ -310,7 +313,6 @@ case to match the project's own lower-case-throughout stance.
 
 `main` tracks `origin/main`. The first push was 8 Sep 2026, at `e5ceb16`, after
 the four commits that made `git status` readable — see PROJECT_STATUS.md.
-**Codeberg is not the place to push.**
 
 Upstream `sdb64` is a **third** thing and is not a remote here — clone it
 separately when §K needs checking.

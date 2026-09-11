@@ -9,6 +9,19 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  DELETE.ACCOUNT CAN REMOVE THE USER'S HOME DIRECTORY.
+
+           DELETE.ACCOUNT <account> REMOVE.HOME also removes the home directory
+           of the account's Linux user.  The one confirmation names the home
+           directory, and afterwards SD says whether it really is gone.  Without
+           REMOVE.HOME the home directory is left alone, as before.
+
+           What it does not do: it removes a home directory only for a Linux user
+           that SD itself created, and only when that home is the ordinary
+           /home/<user>.  For any other user REMOVE.HOME is refused before the
+           question is asked, and nothing of the user is removed.
+
+
 10 Sep 26  A ROUND OF CHANGES TO MATCH SD CORE FOR WINDOWS.
 
            SD Core for Linux follows SD Core for Windows wherever the two do the

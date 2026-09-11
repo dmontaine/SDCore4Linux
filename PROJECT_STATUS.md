@@ -1391,9 +1391,16 @@ renumbered tree `bin/sd` against the installed `$LOGIN` aborts every session,
 compiled with a scratchpad harness built from HEAD's `keys.h` (deleted after).
 **Do not run the tree `bin/sd` against the current install; install the commit.**
 
+**Owner's ruling on the home directory, 10 Sep, BUILT + COMPILED, UNRUN:**
+`DELETE.ACCOUNT <acc> REMOVE.HOME` (a parameter, so the port's one-confirmation
+rule holds; 10905 names the home). Only for an SD-stamped user (else 10906, before
+the question); home read from `getent`, result read off disk (10907/10908);
+`userdel` exit 12 = user gone, home not. New `sd-elevate userdel-home` re-checks the
+stamp and that home is exactly `<useradd -D HOME>/<user>`; `test-sd-elevate.py`
+**42/0**, the `don` row refused *for the stamp* (reason printed). No ALLOW row is
+possible on a box with no stamped user — the allowed half is an install witness.
+
 **Objections and gaps, not done:**
-- DELACC does not `userdel -r`: the port removes the Windows profile, but a Linux
-  home holds personal files and ssh keys — owner to rule.
 - Users created before the stamp (`don`, `pete`, `tstd`, `tprog`, `tadm`) are left
   in place by DELETE.ACCOUNT (10036).
 - Existing accounts keep the admin and language verbs already in their VOCs (an

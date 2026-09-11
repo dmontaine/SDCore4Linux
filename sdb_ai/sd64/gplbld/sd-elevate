@@ -70,6 +70,7 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
 
   sd-elevate [--dry-run] useradd  <user>
   sd-elevate [--dry-run] userdel  <user>
+  sd-elevate [--dry-run] userdel-home <user>   (SD-created user; also its home)
   sd-elevate [--dry-run] passwd   <user>
   sd-elevate [--dry-run] groupadd <group> [member[,member...]]
   sd-elevate [--dry-run] groupdel <group>
@@ -109,6 +110,24 @@ require_sd_user() {
   [[ $uid -ne 0 ]] || die "'$user' has uid 0; refusing"
   min=$(uid_min)
   [[ $uid -ge $min ]] || die "'$user' has uid $uid, below UID_MIN $min - a system account"
+}
+
+# 10 Sep 26 - userdel -r deletes a user's home directory and mail spool, so the
+# helper re-checks here what DELETE.ACCOUNT REMOVE.HOME checked in BASIC, rather
+# than trusting the caller: the user carries SD's "SD account" GECOS stamp (SD
+# created it - useradd above), and its home is exactly <useradd's HOME base>/<user>.
+# A home that is /, a shared directory, a system path, or one somebody re-pointed
+# elsewhere is never removed here.  Call after require_sd_user.
+require_sd_home() {
+  local user=$1 ent gecos home base
+  ent=$(getent passwd "$user") || die "user '$user' does not exist"
+  gecos=$(printf '%s\n' "$ent" | cut -d: -f5)
+  home=$(printf '%s\n' "$ent" | cut -d: -f6)
+  [[ $gecos == "SD account" ]] || die "'$user' was not created by SD (no \"SD account\" stamp), so its home is never removed here"
+  base=$(useradd -D 2>/dev/null | sed -n 's/^HOME=//p')
+  [[ -n $base ]] || die "could not read useradd's HOME base"
+  [[ $base == /* && $base != / ]] || die "useradd's HOME base '$base' is not an absolute directory below /"
+  [[ $home == "$base/$user" ]] || die "home '$home' of '$user' is not $base/$user, so it is never removed here"
 }
 
 # A user we are about to CREATE.  The opposite test: it must not exist yet.
@@ -194,6 +213,14 @@ case $verb in
     [[ $# -eq 1 ]] || usage
     require_sd_user "$1"
     cmd=(userdel -- "$1")
+    ;;
+
+  userdel-home)
+    # 10 Sep 26 - DELETE.ACCOUNT <name> REMOVE.HOME (owner, 10 Sep 2026).
+    [[ $# -eq 1 ]] || usage
+    require_sd_user "$1"
+    require_sd_home "$1"
+    cmd=(userdel -r -- "$1")
     ;;
 
   passwd)
