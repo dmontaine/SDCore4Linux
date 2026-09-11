@@ -9,6 +9,25 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+10 Sep 26  NANO JOINS MICRO, AND BOTH FULL-SCREEN EDITORS WORK THE SAME WAY.
+
+           NANO <file> <record> edits a record in nano, as MICRO does in micro,
+           and both highlight SD BASIC in a BP file.  They are now one program,
+           taken from SD Core for Windows, and it brings three things MICRO did
+           not have.  Value, subvalue and text marks show in the editor as ~~,
+           ~` and ~! and turn back into marks when the record is saved, so a
+           record holding marks is safe to edit.  The working copy in $HOLD is
+           removed however the editor is left.  And a missing editor, a session
+           with no terminal, or an account without OS-ON is told so before
+           anything is written.  EDIT is still the line editor ED.
+
+           What it does not do: nano's highlighting is installed for everyone
+           only where /usr/share/nano exists; micro's is copied into each user's
+           own configuration the first time they use MICRO.  A STANDARD account
+           has neither verb.  A record whose name contains a single quote has to
+           be edited with ED.
+
+
 10 Sep 26  DELETE.ACCOUNT CAN REMOVE THE USER'S HOME DIRECTORY.
 
            DELETE.ACCOUNT <account> REMOVE.HOME also removes the home directory
