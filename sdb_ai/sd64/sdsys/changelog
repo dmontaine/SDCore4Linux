@@ -9,6 +9,19 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  LISTF SAYS WHAT THE SYSTEM FILES ARE.
+
+           Ten of the file entries in the system account's VOC - ACCOUNTS, BP,
+           BP.OUT, GPL.BP, GPL.BP.OUT, MESSAGES, NEWVOC, QFILE, $HOLD and the
+           NEWVOC entry given to every account - now carry a description, so
+           LISTF reads "File - Account register" or "File - BASIC program
+           source" instead of a bare F.
+
+           What it does not do: nothing about how these files are found or
+           opened changes; SD reads only the first letter of that field as the
+           type, as before.
+
+
 11 Sep 26  CSV FILES FROM WINDOWS READ CORRECTLY.
 
            READSEQ now treats a CR LF pair as the end of a line, as it already
