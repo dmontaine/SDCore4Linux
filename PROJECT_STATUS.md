@@ -106,8 +106,10 @@ the work, nothing in "Verified" that was not observed that session.
   `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
   would stop part way. Known limit, as the port's: a shell user can append a
   line of their own. PORT_ADOPTION 13 has the witness steps.
-- ***QUEUE 14 BUILT AND COMPILED 11 Sep — NOT INSTALLED, NOT RUN, SO NOTHING
-  OF IT IS WITNESSED.*** `GPL.BP/GRANTA` (`$GRANTA`: GRANT / REVOKE /
+- ***QUEUE 14 BUILT AND COMPILED 11 Sep, PUSHED AT `7bdfc89` — NOT INSTALLED,
+  NOT RUN, SO NOTHING OF IT IS WITNESSED.*** (`origin/main` carries it, so a
+  delete→install cycle now tests it; the install on the box is still
+  `c2b375d`.) `GPL.BP/GRANTA` (`$GRANTA`: GRANT / REVOKE /
   LIST.GRANTS), the gate at `CPROC:2865`, the ADD-arm gate and the promotion
   report in `MODIFYA` (`:201`, `:419`/`:469`), three `VOC_TEMPLATE` records,
   three names in `NEWVOC/TIER.ADD.ADMINISTRATOR`, messages 10041-10050 +
