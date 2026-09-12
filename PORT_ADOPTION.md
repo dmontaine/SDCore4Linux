@@ -271,6 +271,18 @@ earlier version of this note said UPSTREAM 23 named neither and presented fault
    `loop/until` shape is at `:112`, `:155`, `:187` and `:350`, so this is a
    pattern in the verb, not one bad site.
 
+***AND IT IS NOT ONLY `DELETEF` — `LOGIN:492-511` HAS THE SAME SHAPE IN THE
+SIGN-ON PATH*** (found 11 Sep while diagnosing something else, and it was NOT
+the cause of that). The `$RELEASE` check compares field 2 of the account's VOC
+`$RELEASE` record with `SD.REV.STAMP` and, when they differ, enters
+`loop … display 5026 … input s …` with cases for `Y` and `N` only, a `display
+char(7)` per turn and ***no EOF escape***: a terminal waits for ever, a pipe
+spins on 5027 with a BEL each time. ***QUIET TODAY BECAUSE NOTHING DIFFERS —
+measured 11 Sep, probe `RELPROBE`, all 6 accounts and the binary at `L1.0-0`***
+— so it fires only on the first sign-on after a release change, which is
+precisely when an installer or a script is driving `sd`. Fix it with queue 3's
+fix, not separately.
+
 **Why a plain `zzak` hit it — settled by UPSTREAM 27, and consistent with what
 was measured:** the test is `data.path # default.path` (`:221`) with
 `default.path = file.name` (`:219`), and `CREATE.FILE` upper-cases the OS name

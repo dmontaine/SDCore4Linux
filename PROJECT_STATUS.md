@@ -200,6 +200,27 @@ the work, nothing in "Verified" that was not observed that session.
   marker left behind (none was written) and DON still ADMINISTRATOR (it already
   was).*** Anything whose only caller is that block needs a FULL delete→install,
   or a fixture that calls it directly.
+- ***THE FIRST ADOPT WITNESS FROZE AT 22:27 AND THE CAUSE IS NOT FOUND.***
+  `witness-adopt.sh` stopped at its first `sd` call — `sd create-account USER
+  zzadopt1` as root, ***with the terminal still attached to stdin*** — and
+  produced no further output; Ctrl-C skipped the EXIT trap, so two throwaway
+  Linux users were left behind (nothing else: no SD account, no group change,
+  no marker). ***FOUR THEORIES WERE ELIMINATED BY MEASUREMENT, NOT BY
+  ARGUMENT***, and each is worth not re-testing: a one-shot verb DOES exit
+  (`sd WHO` exit 0); `create-account` resolves (as `don` it answers "not in
+  your VOC" and exits 0); ***every account's VOC `$RELEASE` is `L1.0-0`, equal
+  to the stamp***, so LOGIN's update prompt is not it (probe `RELPROBE`, 6 of
+  6); and `!is_user('zzadopt1')` is ***TRUE*** (probe `IUPROBE`), so CREATEA
+  takes the 10038 branch and never reaches the password prompt. ***THE SCRIPT
+  IS NOW IMMUNE RATHER THAN DIAGNOSED*** — every `sd` call takes `</dev/null`
+  and a 25s timeout, and each echoes its command line first, so a recurrence
+  names the step instead of hanging. Re-run needs `--clean` first.
+- ***AND A LATENT TRAP FOUND WHILE LOOKING, WHICH IS NOT THE CAUSE HERE:
+  `LOGIN:492-511` IS A `loop … input … until Y or N` WITH NO EOF ESCAPE*** —
+  the queue 3 shape, in the sign-on path. It only fires when an account's VOC
+  `$RELEASE` differs from `SD.REV.STAMP`, which is why it is quiet today; when
+  it does fire it will hang a terminal and busy-loop a pipe on 5027 with a BEL
+  per turn. Queue 3 lists `DELETEF`'s four loops and does not list this one.
 - ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep — NOT RUN.***
   `CREATEA` + `installsdai.sh`, ***coupled and install-critical: they must ship
   together***, because refuse-unless-ADOPT without the installer's ADOPT aborts
