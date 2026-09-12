@@ -257,9 +257,19 @@ rather than by how hard it is:
    treatment with a control: rows T1-T3 are refusals, and ***a verb that
    refused everything would have scored all three*** — C1-C5 are what stop
    that, by reaching `passwd(1)` and proving nothing changed.
-2. `verify-txn` — step 2's transaction work is `PRE_RELEASE 6`, "compiled but
-   unexercised". The port's question is the sharp one: *does COMMIT end the
-   transaction it commits?*
+2. ~~`verify-txn`~~ — ***DONE AND WITNESSED 12 Sep, `gplbld/verify-txn.py` +
+   `verify-txn.bp`, 29/29; RED CONTROL `--probe` with the lock removed → 11 of
+   29 fail, exit 1.*** Step 2's A2 write and A2 delete "cheap checks, none run"
+   are now RUN. ***BOTH OF THE PORT'S HEADLINE DEFECTS ARE ABSENT HERE:***
+   `SYSTEM(1008)` returns to 0 after COMMIT (L0 0 → L1 1 → L2 0), and a nested
+   commit does NOT orphan the outer cache — the outer's `S2` written *before*
+   the inner transaction still lands. ***SECTION 3 USES TWO INSTRUMENTS AND
+   THEY AGREE:*** SD reads `,` and `=` back, and on disk the names are `%C` and
+   `%E` with `%Y` gone and ***no raw-id file of any of the three***.
+   ***STILL NOT COVERED, AND DELIBERATELY NOT ATTEMPTED ON THE LIVE SYSTEM:***
+   A3 and A1's undo/locks need an INDUCED commit failure (a read-only record
+   file, or one a second session holds). Given the 11 Sep wedge and queue 27's
+   stranded lock, that belongs in the sandbox recipe, not in DON.
 3. `verify-editors` — NANO/MICRO adopted 10 Sep, **COMPILED, NOT RUN**.
 4. `verify-lineendings`, `verify-nonet` — pure tree checks, no `sd`, no sudo;
    `nonet`'s intent guards a project **stance** (the shrink), so it stays

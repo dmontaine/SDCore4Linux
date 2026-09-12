@@ -424,16 +424,58 @@ the work, nothing in "Verified" that was not observed that session.
   administrator arm (`!set_passwd` → `sd-elevate passwd`). Owed to an
   owner-run half.
 - ***BOTH 12 Sep VERIFIER RUNS USED `--allow-stale`, AND THE REASON IS
-  CHECKABLE RATHER THAN ASSERTED:*** HEAD is ahead of the install by
-  documentation only — `git diff --name-only 0095937..HEAD | grep -v '\.md$'`
-  returns ***nothing***, so no code or data that runs differs. State that when
-  quoting either result; do not generalise it to a later delta without
-  re-running the command.
-- **NEXT:** finish queue **22**'s ranked worklist — `verify-txn` next
-  (PRE_RELEASE 6, "compiled but unexercised"), then `verify-editors` (NANO and
+  CHECKABLE RATHER THAN ASSERTED.*** At the time of the runs the whole delta
+  `0095937..HEAD` was two `.md` files. ***THE `grep -v '\.md$'` FORM OF THIS
+  CHECK WAS WRONG AS A STANDING RECIPE AND IS CORRECTED HERE***: it was true
+  when written and stopped being true one commit later, when
+  `gplbld/verify-setpw.py` landed — a file the installer never ships. **The
+  question is not "is the delta documentation", it is "does the delta contain
+  anything the install CONTAINS":**
+
+  ```sh
+  git diff --name-only <install-commit>..HEAD |
+    grep -v -E '\.md$|^sdb_ai/sd64/gplbld/(verify|test)-'
+  ```
+
+  ***THE EXCLUSIONS ARE DELIBERATELY NARROW, BECAUSE A FALSE ALARM IS SAFE AND
+  A FALSE ALL-CLEAR IS NOT.*** `gplbld` is NOT wholly uninstalled — the
+  installer ships `sd-elevate`, `ssh-forcecommand.sh`, `reconcile-accounts.sh`,
+  `sdcore.sudoers`, `bbcmp.py`, `pcode_bld.py`, `FILES_DICTS`, `microcfg` and
+  `nanocfg` from it (`installsdai.sh:509-606`), so a blanket `gplbld` exclusion
+  would hide a real change. Anything the command prints is to be read, not
+  waved through.
+- ***STEP 2's TRANSACTION WORK IS EXERCISED AT LAST — `gplbld/verify-txn.py`
+  + `verify-txn.bp`, 29/29, 12 Sep, as `don`, no sudo.*** The A2 write and A2
+  delete rows of "Step 2, second third"'s ***"Cheap checks, none run"*** table
+  are now RUN. ***RED CONTROL: `--probe` pointed at a copy with one `READU`
+  removed → 11 of 29 fail, exit 1***, and row P2 ("the probe RAN TO THE END")
+  names the cause instead of leaving nine unexplained failures.
+- ***BOTH OF THE PORT'S HEADLINE TRANSACTION DEFECTS ARE ABSENT ON THIS TREE,
+  MEASURED:*** `SYSTEM(1008)` goes 0 → 1 → **0** across a COMMIT (so a program
+  can ask "am I in a transaction"), and ***a nested commit does not lose the
+  outer transaction's writes*** — `S2`, written by the outer transaction
+  BEFORE the inner one ran, reads back. That second one is the row the port
+  says its verifier exists for: part of a transaction landing and part not,
+  with no error, no status and no log line.
+- ***AND THE DIRECTORY-ID SECTION NEEDED TWO INSTRUMENTS, WHICH AGREED:*** SD
+  reads `,` and `=` back, and the filesystem shows `%C` and `%E` with `%Y`
+  gone and ***no raw-id file for any of the three***. ***ON LINUX THAT LAST
+  ROW IS THE ONLY SIGN THE BUG WOULD LEAVE***, because all thirteen of
+  `*,=><%/+:;?\"` are legal filename characters here — the port could rely on
+  some of them failing loudly on NTFS and this tree cannot.
+- ***MEASURED IN PASSING, AND IT IS A FIX WORKING:*** a WRITE inside a
+  transaction without the lock answers 3023 *"no lock is held on it. Nothing
+  was written."* with the READU/READVU advice — the improved wording, live.
+  The first draft of the probe hit it, which is how it was seen.
+- ***WHAT verify-txn DELIBERATELY DOES NOT DO, AND THE REASON IS THE 11 SEP
+  WEDGE:*** A3 and A1's undo/locks need an INDUCED commit failure (a read-only
+  record file, or a record a second session holds). ***THAT IS SANDBOX WORK,
+  NOT DON WORK*** — queue 27's stranded lock and the ~03:45 wedge are both
+  what an induced failure on the live system looks like when it goes wrong.
+- **NEXT:** finish queue **22**'s ranked worklist — `verify-editors` (NANO and
   MICRO, compiled and never run), then `verify-lineendings` / `verify-nonet`.
   Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
-  unrun pieces.
+  unrun pieces. ***A1's undo wants the sandbox rebuilt first.***
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
   cycle:*** queue 15's installer block, queue 13's carry-over and rotation,
   queue 12's ssh and API doors, queue 17 (never installed), and queue 19's

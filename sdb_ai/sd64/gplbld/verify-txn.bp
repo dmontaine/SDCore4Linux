@@ -1,0 +1,124 @@
+* verify-txn.bp - the BASIC half of gplbld/verify-txn.py.  PORT_ADOPTION
+* queue 22; the intent is the port's gplbld/verify-txn.ps1.
+*
+* IT IS STAGED, COMPILED AND RUN BY verify-txn.py IN THE CALLER'S OWN ACCOUNT.
+* It is an ordinary program - NOT $internal - so it compiles as an unprivileged
+* user with no developer build.
+*
+* ***EVERY ANSWER IS PRINTED AS "TAG=value" ON ITS OWN LINE, AND EACH TAG IS
+* PRINTED ON EXACTLY ONE PATH.***  The Python half anchors on the tag, so a
+* refusal, a missing file or a fault cannot be mistaken for an answer: the tag
+* simply never appears, and the row fails.  Nothing here prints a bare "OK".
+*
+* ***IT LEAVES ITS FIXTURES BEHIND ON PURPOSE.***  The second instrument is the
+* Python half looking at what is actually ON DISK, and a probe that tidied up
+* would destroy the evidence before it could be read.  verify-txn.py removes
+* them after it has looked.
+*
+program zztxn
+
+$include syscom keys.h
+
+   open 'zztxnd' to dirf else
+      crt 'ZZTXN.FATAL=cannot open zztxnd'
+      stop
+   end
+
+   crt 'ZZTXN.BEGIN=1'
+
+* ------------------------------------------------------------------ section 1
+* DOES COMMIT END THE TRANSACTION IT COMMITS?  The port's headline defect:
+* op_txnbgn() incremented the level and op_txncmt() never decremented it, so
+* SYSTEM(1008) climbed for ever and a program could not ask "am I in a
+* transaction".  L2 is the whole check; L0 and L1 are what make L2 mean
+* something rather than being a zero that was never anything else.
+
+* ***A WRITE INSIDE A TRANSACTION NEEDS THE LOCK ALREADY HELD, AND READU TAKES
+* IT EVEN FOR A RECORD THAT DOES NOT EXIST YET.***  Measured 12 Sep 2026, not
+* read: the first version of this probe wrote without locking and got 3023,
+* "no lock is held on it.  Nothing was written." - which is the improved
+* wording this tree ships, doing its job.  Every write and the delete below
+* therefore take READU first.
+
+   crt 'L0=':system(SYS$TRANS_LEVEL)
+
+   begin transaction
+      crt 'L1=':system(SYS$TRANS_LEVEL)
+      readu junk from dirf, 'S1' else junk = ''
+      write 'one' to dirf, 'S1'
+      commit
+   end transaction
+
+   crt 'L2=':system(SYS$TRANS_LEVEL)
+
+   read r from dirf, 'S1' then crt 'S1=':r else crt 'S1=NOTFOUND'
+
+* ------------------------------------------------------------------ section 2
+* A NESTED COMMIT MUST NOT LOSE THE OUTER TRANSACTION'S WRITES.  This is the
+* one the port says the verifier exists for: a nested commit zeroed
+* process.txn_id while leaving the OUTER transaction's cache orphaned, so the
+* outer COMMIT committed an EMPTY cache and its writes vanished WITH NO
+* MESSAGE.  Part of a transaction landing and part not is the single outcome a
+* transaction exists to prevent, and nothing reported it.
+*
+* S2 is written by the OUTER transaction BEFORE the inner one runs, so it is
+* exactly the write that went missing.
+
+   begin transaction
+      readu junk from dirf, 'S2' else junk = ''
+      write 'two' to dirf, 'S2'
+
+      begin transaction
+         readu junk from dirf, 'S3' else junk = ''
+         write 'three' to dirf, 'S3'
+         commit
+      end transaction
+
+      crt 'L3=':system(SYS$TRANS_LEVEL)
+      commit
+   end transaction
+
+   crt 'L4=':system(SYS$TRANS_LEVEL)
+
+   read r from dirf, 'S2' then crt 'S2=':r else crt 'S2=NOTFOUND'
+   read r from dirf, 'S3' then crt 'S3=':r else crt 'S3=NOTFOUND'
+
+* ------------------------------------------------------------------ section 3
+* A DIRECTORY FILE'S RECORD ID BECOMES A FILENAME, AND HAS TO BE MAPPED.
+* map_dir_ids turns each of "*,=><%/+:;?\" into "%" plus a letter
+* (sd.h:113-114), so the id "," is the file "%C".  op_txncmt() handed
+* dir_write() and the delete path the RAW id, so a WRITE inside a transaction
+* created a file the matching READ could never find, and a DELETE removed a
+* path that had never existed, tolerated the ENOENT and reported success.
+*
+* ***ON LINUX EVERY ONE OF THOSE THIRTEEN CHARACTERS IS A LEGAL FILENAME
+* CHARACTER, WHICH MAKES THIS WORSE HERE THAN IN THE PORT.***  The port chose
+* ids that are legal Windows filenames in BOTH forms so that the failure would
+* be silent rather than loud; here there is no other kind - an unmapped write
+* always succeeds, under the wrong name.
+*
+* CTL is written OUTSIDE a transaction and is the control: if it were absent
+* too, the section would be measuring directory files in general rather than
+* transactions.  DEL is created outside and removed inside, because a delete
+* can only be tested on something that was there.
+
+   write 'ctl' to dirf, '='
+   write 'del' to dirf, ';'
+
+   begin transaction
+      readu junk from dirf, ',' else junk = ''
+      write 'wrt' to dirf, ','
+      readu junk from dirf, ';' else junk = ''
+      delete dirf, ';'
+      commit
+   end transaction
+
+   crt 'L5=':system(SYS$TRANS_LEVEL)
+
+   read r from dirf, '=' then crt 'CTL=':r else crt 'CTL=NOTFOUND'
+   read r from dirf, ',' then crt 'WRT=':r else crt 'WRT=NOTFOUND'
+   read r from dirf, ';' then crt 'DEL=':r else crt 'DEL=NOTFOUND'
+
+   crt 'ZZTXN.END=1'
+
+end
