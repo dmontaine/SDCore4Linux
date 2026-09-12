@@ -3,22 +3,29 @@ Description=SD service start
 
 [Service]
 Type=forking
-# 12 Sep 26  PORT_ADOPTION 19.  Report, at every start, which register records
-#            name a Linux user that has gone - the port sweeps here instead
-#            (its reconcile-accounts.ps1 at service start), and the REPORT half
-#            is the part that is safe to run unattended on Linux.
+# 12 Sep 26  PORT_ADOPTION 19, owner's ruling of 12 Sep: SWEEP, as the port
+#            does at its own service start.  The register is the inventory and
+#            must hold no record whose Linux user has gone; the stale account's
+#            directory goes with it, and an administrator who wants the data
+#            kept suspends the account instead of deleting the user.
 #
 #            THE LEADING "-" IS LOAD BEARING: it tells systemd to ignore the
-#            exit status, and the script exits 1 when it finds something.
-#            Without it a stale record would refuse to start SD, which is a
-#            far worse outcome than a stale record.
+#            exit status, and the script exits 1 whenever anything was left
+#            behind - a refused row, or a directory that would not go.  Without
+#            it a stale record would refuse to start SD, which is a far worse
+#            outcome than a stale record.
 #
-#            Removal is NOT wired here.  "--sweep" deletes account directories,
-#            and on Linux SD's own !is_user reads /etc/passwd and never NSS, so
-#            a directory-backed install has users SD cannot see; the script
-#            refuses those rather than deleting them, but the administrator
-#            still runs the removal deliberately.  See PORT_ADOPTION 19.
-ExecStartPre=-/usr/local/sbin/sd-reconcile-accounts --list
+#            IT RUNS BEFORE "sd -start" SO THE REGISTER IS NOT OPEN when its
+#            records are removed - the port's ordering and its reason.
+#
+#            ***THE SCRIPT WILL REFUSE TO SWEEP ON A MACHINE WHOSE nsswitch.conf
+#            NAMES A REMOTE NAME SOURCE***, and will report instead.  That is
+#            deliberate and it is a boot-time problem, not a general one: this
+#            can run before sssd or nslcd is up, and a directory user is then
+#            absent from NSS *and* from /etc/passwd, which is the one signature
+#            the sweep treats as "gone".  --allow-remote-nss overrides it for an
+#            administrator who knows the directory is up.
+ExecStartPre=-/usr/local/sbin/sd-reconcile-accounts --sweep
 ExecStart=/usr/local/sdsys/bin/sd -start
 # This should be here but currently seems to crash things ...
 ExecStop=/usr/local/sdsys/bin/sd -stop
