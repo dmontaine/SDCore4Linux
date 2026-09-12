@@ -515,6 +515,15 @@ sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevat
 echo "Installing ssh-boundary helper: /usr/local/sbin/ssh-forcecommand."
 sudo install -o root -g root -m 0755 gplbld/ssh-forcecommand.sh /usr/local/sbin/ssh-forcecommand
 
+# 12 Sep 26  PORT_ADOPTION 19.  The register reconciler, beside the other two
+#            and for the same reasons: it must outlive the clone (sd.service
+#            runs it at every start), and it removes account directories under
+#            --sweep, so it is root-owned and not writable by sdsys or sdusers.
+#            sd.service runs only its REPORT mode; --sweep is the
+#            administrator's deliberate act.
+echo "Installing register reconciler: /usr/local/sbin/sd-reconcile-accounts."
+sudo install -o root -g root -m 0755 gplbld/reconcile-accounts.sh /usr/local/sbin/sd-reconcile-accounts
+
 # Validate BEFORE installing.  A malformed sudoers file can lock sudo out of
 # the machine, so this is checked rather than trusted.
 echo "Validating sudoers drop-in."

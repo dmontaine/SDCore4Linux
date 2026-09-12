@@ -3,6 +3,22 @@ Description=SD service start
 
 [Service]
 Type=forking
+# 12 Sep 26  PORT_ADOPTION 19.  Report, at every start, which register records
+#            name a Linux user that has gone - the port sweeps here instead
+#            (its reconcile-accounts.ps1 at service start), and the REPORT half
+#            is the part that is safe to run unattended on Linux.
+#
+#            THE LEADING "-" IS LOAD BEARING: it tells systemd to ignore the
+#            exit status, and the script exits 1 when it finds something.
+#            Without it a stale record would refuse to start SD, which is a
+#            far worse outcome than a stale record.
+#
+#            Removal is NOT wired here.  "--sweep" deletes account directories,
+#            and on Linux SD's own !is_user reads /etc/passwd and never NSS, so
+#            a directory-backed install has users SD cannot see; the script
+#            refuses those rather than deleting them, but the administrator
+#            still runs the removal deliberately.  See PORT_ADOPTION 19.
+ExecStartPre=-/usr/local/sbin/sd-reconcile-accounts --list
 ExecStart=/usr/local/sdsys/bin/sd -start
 # This should be here but currently seems to crash things ...
 ExecStop=/usr/local/sdsys/bin/sd -stop

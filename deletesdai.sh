@@ -214,6 +214,12 @@ sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
 echo "Removed /usr/local/sbin/sd-elevate."
+# 12 Sep 26  PORT_ADOPTION 19.  The reconciler goes with the other helpers.
+#            It removes account directories under --sweep, so leaving a
+#            root-owned copy behind after an uninstall would leave a tool
+#            pointed at a register that is no longer there.
+sudo rm -f /usr/local/sbin/sd-reconcile-accounts
+echo "Removed /usr/local/sbin/sd-reconcile-accounts."
 #
 # 10 Sep 26  PRE_RELEASE 13 - take SD's ssh-only block back out of sshd_config.
 #            ALWAYS, regardless of the accounts question: the block is system
