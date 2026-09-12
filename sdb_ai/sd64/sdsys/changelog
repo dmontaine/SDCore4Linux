@@ -9,6 +9,46 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  CREATE.ACCOUNT NO LONGER TAKES OVER AN EXISTING LINUX USER.
+
+           SD accounts create their own Linux user.  That has been the model
+           for a while, but the verb did not enforce it: if you typed
+
+               create.account user bob
+
+           and a Linux user called bob already existed, SD quietly attached an
+           SD account to that person's existing login - no password set, no
+           account created, nothing said.  It now refuses:
+
+               Linux user bob already exists.  SD accounts create their own
+               Linux user
+
+           Pick a name SD will create, and SD will make the Linux user, set its
+           password and build the account together.
+
+           THE ONE EXCEPTION IS THE PERSON WHO INSTALLS SD, whose Linux login
+           obviously already exists.  The installer adopts it, and that is the
+           only adoption the system performs.
+
+           AND A REFUSAL THAT NAMED THE WRONG THING IS FIXED.  Asking for
+           no.query when the Linux user does not exist used to answer "Invalid
+           user name", which sent you off to check a name that was perfectly
+           good.  The real reason is that creating a Linux user means setting
+           its password, and that needs a prompt, so no.query cannot work.  It
+           now says so.
+
+           What it does not do:
+
+           There is no way to give an existing Linux user an SD account.  That
+           is deliberate, not an oversight - it is what "SD accounts create
+           their own Linux user" means.  The installer's adoption is gated on
+           being run from inside the installer and cannot be reached from a
+           command line, so typing ADOPT yourself answers "Unexpected token".
+
+           Existing accounts are untouched.  This changes what CREATE.ACCOUNT
+           will do next time, not anything already created.
+
+
 11 Sep 26  GIVING SOMEBODY ELSE ONE OF YOUR ACCOUNTS: GRANT AND REVOKE.
 
            An administrator can let a second person into an account, take that
