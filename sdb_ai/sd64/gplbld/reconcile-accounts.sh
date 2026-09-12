@@ -26,6 +26,17 @@
 # truer message at one caller: the register is the inventory, and an inventory
 # with invalid rows is wrong however it is read.
 #
+# ***AND REMOVING THE DIRECTORY IS NOT A HARD CALL, BECAUSE THE MODEL ALREADY
+# HAS A PLACE FOR "KEEP THE DATA".***  Owner, 12 Sep 2026: "this is why
+# suspended accounts exist - you want to retain data, suspend the account; you
+# want everything deleted, delete the account."  A stale record means somebody
+# DELETED the Linux user, which is the second of those, so taking the directory
+# with it is carrying out the intent rather than destroying something a person
+# meant to keep.  ***SO THE ONLY QUESTION THIS FILE HAS TO GET RIGHT IS "IS THE
+# USER REALLY GONE", NOT "SHOULD A GONE USER'S DIRECTORY GO"*** - which is why
+# every guard below is about the reliability of that one lookup, and none of
+# them is about second-guessing the removal.
+#
 # ======================================================================
 #   THE LINUX HAZARD THE PORT DOES NOT HAVE - READ THIS BEFORE --sweep
 # ======================================================================
@@ -100,14 +111,16 @@ set -u
 SDSYS=/usr/local/sdsys
 ACCROOT=/home/sd/user_accounts
 MODE=list
+ALLOW_REMOTE=no
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --sweep)          MODE=sweep ;;
-    --list)           MODE=list ;;
-    --sdsys)          shift; SDSYS=${1:-} ;;
-    --accounts-root)  shift; ACCROOT=${1:-} ;;
-    *) echo "usage: reconcile-accounts.sh [--list|--sweep] [--sdsys DIR] [--accounts-root DIR]" >&2; exit 2 ;;
+    --sweep)             MODE=sweep ;;
+    --list)              MODE=list ;;
+    --allow-remote-nss)  ALLOW_REMOTE=yes ;;
+    --sdsys)             shift; SDSYS=${1:-} ;;
+    --accounts-root)     shift; ACCROOT=${1:-} ;;
+    *) echo "usage: reconcile-accounts.sh [--list|--sweep] [--allow-remote-nss] [--sdsys DIR] [--accounts-root DIR]" >&2; exit 2 ;;
   esac
   shift
 done
@@ -146,6 +159,50 @@ if [[ $ENUM -lt 10 ]]; then
   exit 2
 fi
 echo "control       : getent passwd returned $ENUM entries"
+
+# ======================================================================
+#   THE BOOT-TIME GUARD.  READ THIS BEFORE REMOVING IT.
+# ======================================================================
+#
+# ***THE PER-RECORD TWO-SOURCE TEST IS NOT ENOUGH WHEN THIS RUNS AT BOOT.***
+# sd.service calls this from ExecStartPre, which can run BEFORE a directory
+# service is up.  A user who lives only in LDAP is then absent from NSS *and*
+# absent from /etc/passwd - which is exactly the signature this file treats as
+# "definitely gone" - so the sweep would delete their account directory because
+# sssd had not started yet.  No per-record test can tell that apart from a real
+# removal, because the two states are byte-for-byte identical.
+#
+# So the question is asked one level up: is a REMOTE name source configured at
+# all?  If it is, "both sources say absent" stops being conclusive and this
+# reports instead of removing.  On a files-only machine - which is what the
+# installer targets - nothing changes and the sweep runs as ruled.
+#
+# --allow-remote-nss overrides it, for an administrator who knows the directory
+# is up and wants the sweep anyway.
+NSSLINE=$(grep -E '^[[:space:]]*passwd:' /etc/nsswitch.conf 2>/dev/null | head -1)
+NSSREMOTE=""
+for src in $(printf '%s' "${NSSLINE#*:}"); do
+  case $src in
+    files|systemd|compat|db|cache|[\[]*|*[\]]) : ;;
+    *) NSSREMOTE="$NSSREMOTE $src" ;;
+  esac
+done
+
+if [[ -n $NSSREMOTE ]]; then
+  echo "name sources  :${NSSREMOTE} (remote) as well as files"
+  if [[ $MODE == sweep && $ALLOW_REMOTE == no ]]; then
+    echo ""
+    echo "REFUSING TO SWEEP:${NSSREMOTE} can serve users that are in no local"
+    echo "file, and this may be running before that service is up - at boot it"
+    echo "usually is.  A directory user would then look absent in BOTH sources,"
+    echo "which is the one signature this treats as gone, and their account"
+    echo "directory would be deleted because a name service was slow."
+    echo "Reporting instead.  Pass --allow-remote-nss to sweep anyway."
+    MODE=list
+  fi
+else
+  echo "name sources  : local files only"
+fi
 echo ""
 
 stale=0; refused=0; live=0; removed=0; kept=0

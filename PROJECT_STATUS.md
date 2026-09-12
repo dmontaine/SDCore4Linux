@@ -300,12 +300,29 @@ the work, nothing in "Verified" that was not observed that session.
   `sd` session has no `K$ADMINISTRATOR` (that needs `sudo sd`, `CPROC:328`), so
   an administrator changing their own password without sudo takes the
   `passwd -- <user>` path and PAM asks for the current one. Common case.
-- ***QUEUE 19 — REPORT HALF BUILT AND WITNESSED 12 Sep, SWEEP BUILT AND NOT
-  WIRED.*** `gplbld/reconcile-accounts.sh` → `/usr/local/sbin/sd-reconcile-accounts`,
+- ***OWNER, 12 Sep 2026, AND IT SETTLES MORE THAN QUEUE 19: "this is why
+  suspended accounts exist - you want to retain data, suspend the account; you
+  want everything deleted, delete the account."*** So deleting a Linux user IS
+  the "remove everything" path and a sweep taking the directory carries out
+  that intent. ***THE ONLY THING THE RECONCILER HAS TO GET RIGHT IS "IS THE
+  USER REALLY GONE"*** — every guard in it is about that one lookup, and a
+  later session should not add one that second-guesses the removal.
+- ***QUEUE 19 — BUILT AND WITNESSED 12 Sep; `sd.service` RUNS `--sweep` per the
+  owner's ruling.*** `gplbld/reconcile-accounts.sh` → `/usr/local/sbin/sd-reconcile-accounts`,
   `sd.service` gains `ExecStartPre=-… --list`. Witnessed against a fixture:
   a stale record's directory ***and*** record removed under `--sweep`, while a
   stale record whose field 1 was `/etc` was ***KEPT*** and `/etc` verified
   intact. Detail in PORT_ADOPTION 19.
+- ***AND A SECOND GUARD THAT WIRING `--sweep` AT BOOT MADE NECESSARY:***
+  `ExecStartPre` can run ***before*** sssd or nslcd is up, and a directory user
+  is then absent from NSS ***and*** `/etc/passwd` — byte-for-byte the signature
+  the sweep treats as "gone". No per-record test can separate those. So if
+  `nsswitch.conf`'s `passwd` line names a source outside
+  `files/systemd/compat/db/cache`, `--sweep` refuses and reports;
+  `--allow-remote-nss` overrides. ***CONSEQUENCE HERE, MEASURED: this box reads
+  `passwd: files systemd sss`, so it will REPORT, not sweep*** — drop `sss`
+  from `nsswitch.conf` or pass the override to make it sweep. Both halves
+  witnessed against a fixture.
 - ***A FINDING BIGGER THAN QUEUE 19, AND IT IS WHY THE SWEEP IS NOT WIRED:
   `!is_user` (`IS_USER:52`) READS `/etc/passwd` DIRECTLY AND NEVER NSS.***
   `/etc/nsswitch.conf` here is `passwd: files systemd sss` with sssd ***enabled***
