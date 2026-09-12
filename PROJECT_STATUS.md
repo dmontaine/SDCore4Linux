@@ -94,6 +94,15 @@ THE NEXT INSTALL ANYWAY*** — the value rows measure the INSTALL.
 **DON was clean before and after:** `COUNT VOC` **420**, `BP` empty, no
 `BP.OUT` — measured both ends, not assumed.
 
+**Queue 22 ranked item 6, the account family, is split and half done.**
+`gplbld/verify-accounts.py` **35/35** (units 17/17) is the no-sudo half;
+`gplbld/witness-accounts.sh` is the privileged half and ***HAS NEVER BEEN
+RUN*** — dry run only, which is why the dry run is its default. The reason for
+the split is a measurement: ***`CREATE.ACCOUNT`, `DELETE.ACCOUNT` and
+`MODIFY.ACCOUNT` each answer 2001 to a plain `sd` session even as an
+ADMINISTRATOR***, and not because they are missing from the VOC — `CT VOC
+CREATE.ACCOUNT` returns `V / CA / $CREATEA`. Detail in PORT_ADOPTION item 6.
+
 ***END OF SESSION, 12 Sep 2026 (evening) — THE BLOCK BELOW IS OLDER, INCLUDING
 THE 11 Sep BLOCK THAT SAYS THE SAME THING.***
 
@@ -134,8 +143,8 @@ WITH THE PROMPT PRINTED ONCE.*** The killed session left ***no dead slot***
 ***No verifier covers 2050*** — this is a hand witness, and it is the obvious
 next row for `verify-vocverbs`.
 
-**Queue 22 is most of the way done.** Seven verifiers, all green on install
-`0095937`, ***419 decisive rows between them***, plus five unit suites:
+**Queue 22 is most of the way done.** Eight verifiers, all green on install
+`0095937`, ***454 decisive rows between them***, plus six unit suites:
 
 | Instrument | Rows | Red control |
 |---|---|---|
@@ -146,15 +155,34 @@ next row for `verify-vocverbs`.
 | `verify-nonet.py` | 59/59 | logic only — and it failed its own first run |
 | `verify-lineendings.py` + `.bp` | 42/42 | ***null-case only, NOT behaviour*** |
 | `verify-basicfuncs.py` + `.bp` | 199/199 | real — three, one row each; and it failed its own first run |
-| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25 | |
+| `verify-accounts.py` | 35/35 | real — three doctored registers via `--register`, one row each |
+| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25, `accounts` 17 | |
 
 ***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***, and the reason is
 checkable with the command above rather than asserted.
 
-**What queue 22 has left:** the account family and the POSIX-mode family —
-***both want the FULL delete→install that is already owed***, and the
-POSIX-mode one needs an owner-run half because the writes it must attempt need
-privilege.
+***AND ONE OWNER-RUN SCRIPT THAT HAS NEVER BEEN RUN:***
+`gplbld/witness-accounts.sh`, the privileged half of the account family. ***ITS
+DRY RUN IS THE DEFAULT; `--commit` IS THE OPT-IN AND NEEDS root.*** Read what
+it intends to do first:
+
+```sh
+bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
+```
+
+then, and only then:
+
+```sh
+sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh --commit
+```
+
+It refuses unless the throwaway names are absent as user, group, directory AND
+register record, and removes only what it made. Detail in PORT_ADOPTION item 6.
+
+**What queue 22 has left:** the POSIX-mode family, and the privileged half of
+the account family above — ***both want the FULL delete→install that is already
+owed***, and the POSIX-mode one needs an owner-run half too, because the writes
+it must attempt need privilege.
 
 ***THE OWED FULL delete→install HAS NOT MOVED, AND IT IS NOW FOUR QUEUES DEEP:***
 15's installer block, 13's rotation and carry-over, 12's ssh and API doors, 19's

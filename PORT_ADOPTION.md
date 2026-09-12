@@ -418,8 +418,65 @@ rather than by how hard it is:
    — reading the installed BCOMP — would describe whatever that install happens
    to be, which is `gplbld/mkbasicsyntax.py`'s own stated warning.
 6. The account family (`createaccount`, `delaccount`, `acctmsgs`,
-   `accountrules`) — one cycle's worth, and it wants the FULL delete→install
-   this file already owes.
+   `accountrules`) — ***SPLIT IN TWO, AND THE SPLIT WAS MEASURED RATHER THAN
+   ASSUMED.*** 12 Sep 2026, as `don`, an ADMINISTRATOR, in a plain `sd`
+   session: `CREATE.ACCOUNT`, `DELETE.ACCOUNT` and `MODIFY.ACCOUNT` each answer
+   ***2001 "Command requires administrator privileges"*** and do nothing, so
+   the port's create-and-delete scripts cannot be a verifier here at all.
+   ***AND THE REFUSAL IS NOT A VOC MISS***, which is what makes it a decisive
+   row rather than an excuse: `CT VOC CREATE.ACCOUNT` returns `V / CA /
+   $CREATEA`, so the verb resolved and ran and stopped at CREATEA's own check;
+   the control is an invented verb, which answers *"is not in your VOC"*.
+   - ***DONE — `gplbld/verify-accounts.py`, 35/35***, no sudo, units
+     `test-accounts-units.py` 17/17. The register `@SDSYS/ACCOUNTS` is a
+     DIRECTORY file and world-readable, so every claim it makes about the
+     operating system is checkable by an ordinary user with no session at all.
+     ***THREE OF ITS ROWS ARE INVARIANTS NOTHING ELSE ENFORCES:*** `F2` (an
+     account DIRECTORY with no register record — `reconcile-accounts.sh` looks
+     only the other way, and this is the direction a keep-accounts
+     delete→install could produce); `R4` (field 4, the retired `ACC$USERS`, is
+     never written — `SYSCOM/KEYS.H:277-278` says so in a comment that cannot
+     enforce itself); and `U5` (`sdadmin` membership matches `ACC$TIER`, the
+     pair `MODIFYA set.tier` writes in two steps with nothing re-checking them
+     afterwards). ***RED CONTROLS: three doctored registers via `--register`,
+     one row each*** — field 4 written → `R4`; `TSTD`'s record removed → `F2`
+     names `tstd`; `TPROG` promoted to ADMINISTRATOR → `U5`. Green on install
+     `0095937` with `--allow-stale`.
+   - ***WRITTEN AND NEVER RUN — `gplbld/witness-accounts.sh`***, the privileged
+     half, on queues 12 and 14's owner-run model. ***ITS DRY RUN IS THE
+     DEFAULT AND `--commit` IS THE OPT-IN***, precisely because the session
+     that wrote it cannot `sudo` and so could not watch it work: read what it
+     intends to do on a run that cannot do it, then commit. What the dry run
+     DID exercise: argument parsing, the ground-clear guard in both directions
+     (`--name=don` refuses, naming all four reasons; the throwaway name
+     passes), the before-state reads and every printed session. `bash -n` 0
+     errors, no BOM, no CRLF. ***A DRY RUN EXITS 2 AND SAYS IT IS NOT A PASS.***
+     ***AND THE DRY RUN FOUND TWO REAL DEFECTS IN IT BEFORE ANY OWNER SAW IT:***
+     `run_sd` said everything on stdout, so `OUT=$(run_sd …)` captured its own
+     narration — including the command lines it echoes — into the text the
+     checks search, which is the instrument rule's own example of a false
+     positive, and `ck_silent` was the arm exposed to it; and the re-run
+     command it printed used a bare `$0`, so it named a RELATIVE path, which is
+     exactly what CLAUDE.md's hand-over rule forbids. Both fixed, both
+     re-checked on a second dry run.
+   - ***WHAT IS STILL NOT COVERED, SAID PLAINLY.*** (a) `accountrules` — the
+     name-validation rules sit BEHIND the privilege check, so no unprivileged
+     session can reach them; they belong in the witness script and are not
+     there yet. (b) `acctmsgs` is covered only as far as *every `sysmsg()` id
+     the three verbs ask for resolves in `sdsys/MESSAGES`* (a missing id prints
+     nothing, so a verb would refuse or confirm in silence) — the port also
+     checks the TEXT each verb shows, which needs the privileged half.
+     (c) ***THE SD-CREATED LINUX USER***: `CREATE.ACCOUNT USER <name>` without
+     `NO.QUERY` prompts for the new user's password, and `NO.QUERY` without an
+     existing user is refused outright (10039, which the script's phase 1
+     witnesses), so driving it unattended means putting a password in a script.
+     Phase 3 therefore exercises the BORROWED-user branch — SD must leave a
+     user it did not create and say so (10036), with the SHORTER confirmation
+     (10085) so it never promises what it will not do — and phase 5 prints the
+     hand recipe for the SD-made branch and its 10084/10028 pair.
+   - Still true, and it is the reason the witness script is not the end of
+     this: the family wants the FULL delete→install this file already owes,
+     because a keep-accounts cycle never runs `installsdai.sh`'s seeding block.
 7. The POSIX-mode family (`sysdiracl`, `pcodeacl`, `accountacl`, `sdsyswrite`,
    `sdsysgate`, `catgate`) — the port's ACL checks re-expressed as mode,
    ownership and group. Readable without sudo; **the writes they must attempt
