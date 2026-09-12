@@ -31,6 +31,21 @@ SD: what changed, why it mattered, and what it does not do.
            for the old one, because an administrator resetting a forgotten
            password does not know it.
 
+           ONLY ADMINISTRATOR ACCOUNTS HAVE THIS VERB, and that is a starting
+           position rather than a rule about who deserves it.  SD ships its
+           security tight and leaves you to loosen it deliberately: if you want
+           one particular person to set their own password, copy the
+           MODIFY.PASSWORD entry from VOC_TEMPLATE into that account's VOC.
+
+           They can then change their own password and nothing else - asking
+           for somebody else's is still refused, because that needs
+           administrator rights and copying a verb does not confer any.  Remove
+           the entry again and they are back where they were.
+
+           Worth knowing if you do: an upgrade will not take the entry away
+           again, but changing that account's tier will, because a tier change
+           rebuilds the account's administrative verbs from scratch.
+
            What it does not do:
 
            It will not set a password for a group account, which has no Linux
