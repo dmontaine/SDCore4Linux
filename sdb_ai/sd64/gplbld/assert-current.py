@@ -48,6 +48,26 @@
 # install; a false "current" costs an investigation into a bug that was fixed
 # hours ago.  So anything that cannot be shown to be current is not current.
 #
+# ***OWNER'S RULING, 12 SEP 2026: CHECK C STAYS STRICT COMMIT IDENTITY. DO NOT
+# MAKE IT CLEVERER.***  The question had been put: C compares the install's
+# stamp with HEAD, so ANY commit makes it STALE - including a
+# documentation-only one - and every verifier then needs its --allow-stale
+# flag.  The proposal was to have C ask instead whether the delta touches
+# anything the install actually CONTAINS.  ***THE RULING WAS FOR THE MOST
+# TRUSTED OPTION, WHICH IS THIS ONE***, and the reason is the paragraph above:
+# a cleverer C would have to decide, per commit, which files reach an install,
+# and every wrong answer in that decision is a FALSE "current" - the expensive
+# direction.  A blunt check that is sometimes pessimistic cannot lie in the
+# direction that costs.
+#
+# SO THE FRICTION IS PAID WHERE IT IS VISIBLE INSTEAD.  A caller who has
+# reasoned about the delta says so out loud with its own --allow-stale, which
+# prints a banner, and states the commit and the reason when quoting the
+# result.  ***THE REASONING IS THEN IN THE TRANSCRIPT RATHER THAN INSIDE THIS
+# FILE***, where nobody would see it.  The port's $neverShipped list is NOT
+# the same mechanism and does not answer this: it is about a FILE existing,
+# not about a COMMIT differing.
+#
 import argparse
 import os
 import subprocess
