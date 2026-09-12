@@ -318,9 +318,39 @@ rather than by how hard it is:
    terminal to draw on, and this session has none. ed, the line editor, works
    anywhere"* — and that gate is what makes the verb safe to drive down a pipe
    at all.
-4. `verify-lineendings`, `verify-nonet` — pure tree checks, no `sd`, no sudo;
-   `nonet`'s intent guards a project **stance** (the shrink), so it stays
-   useful after the queue is empty.
+4. `verify-nonet` — ***DONE AND WITNESSED 12 Sep, `gplbld/verify-nonet.py`
+   59/59 (60 rows), plus `test-nonet-units.py` 12/12.*** It guards a project
+   **stance**, so it stays useful after the queue is empty. ***THE CONTROLS ARE
+   THE POINT, AND THIS PROJECT HAS A SHARPER ONE THAN THE PORT:*** CLAUDE.md's
+   near-miss trap — `MODIFY` goes, `MODIFYA` and `MODIFY.PASSWORD` stay — is
+   now asserted rather than remembered, because a removal keyed on the string
+   "MODIFY" takes all three. ***AND IT FAILED ITS OWN FIRST RUN, ON PROSE:***
+   4 decisive rows red, every one a comment — `op_dio1.c`'s history block says
+   *"net_open() call are gone"* and *"the NET_FILE type are deleted"*, so the
+   search found the sentence announcing the removal and called the removal
+   incomplete. ***THE CORPSE AND THE TOMBSTONE LIVE IN THE SAME FILE***, which
+   is the shape of the problem rather than an accident; `strip_c_comments` now
+   blanks comments while keeping line numbers, and the units file drives both
+   directions — including the dangerous one, where stripping too much would
+   hide a LIVE `net_open()` and report it as removed.
+   ***`verify-lineendings` IS NOT A TREE CHECK AND THIS ENTRY WAS WRONG TO CALL
+   IT ONE*** — see the row below.
+4b. ***`verify-lineendings` — RECLASSIFIED 12 Sep, and it is HALF NOT
+   APPLICABLE.*** The port's script is not about CRLF in shipped files at all:
+   it asks whether SD's READERS handle CRLF, in six parts — a directory record
+   written CRLF, one written LF, `READSEQ`, `READCSV` (RFC 4180), ***a CRLF
+   straddling a 2048-byte buffer boundary***, and ***a lone CR surviving,
+   because it is data and not a terminator.*** Here the `READSEQ` half IS
+   implemented, straddle and lone-CR included (`op_seqio.c:1237-1249`,
+   `cr_held`), and was witnessed on the tree binary 11 Sep but never on an
+   install. ***The DIRECTORY-FILE half is deliberately NOT carried over***
+   (`op_dio3.c:1309`): *"there is nothing to fold on a bare-LF file"*.
+   ***THAT ASSUMPTION IS WORTH A RULING RATHER THAN AN INHERITANCE***, because
+   the port's reason for folding was that directory files exist so EXTERNAL
+   EDITORS can edit them — and a Linux user can still hand a record CRLF, by
+   editor setting or by copying a file in from Windows. Not a defect claim: the
+   code does what it says. **To build: the applicable four parts. To rule:
+   whether a directory-file record should tolerate CRLF here.**
 5. `verify-basicfuncs` — the widest coverage per line of any of them.
 6. The account family (`createaccount`, `delaccount`, `acctmsgs`,
    `accountrules`) — one cycle's worth, and it wants the FULL delete→install

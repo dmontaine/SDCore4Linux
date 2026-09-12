@@ -632,9 +632,49 @@ the work, nothing in "Verified" that was not observed that session.
     (expected 29, got 1), T9/T10/T12 still pass.*** So `PRE_RELEASE 6` now
     stands at **`A2` and `A4` complete; `A1`, `A3`, `A5`, `A6` unexercised**,
     and all four need an induced failure — sandbox work.
-- **NEXT:** finish queue **22**'s ranked worklist — `verify-lineendings` and
-  `verify-nonet` (pure tree checks; `nonet`'s intent guards the shrink stance,
-  so it stays useful after the queue empties), then `verify-basicfuncs`.
+- ***`verify-nonet.py` DONE AND WITNESSED 12 Sep — 59/59, plus
+  `test-nonet-units.py` 12/12.*** It guards the shrink **stance**, so unlike
+  the rest of the queue it keeps earning its place afterwards. ***THE CONTROLS
+  ARE THE POINT*** (the port's own sentence: proving three verbs are absent
+  "would pass every 'is it gone?' check ever written" even if the removal had
+  taken APISRVR with it), ***and this project has a sharper control than the
+  port does***: CLAUDE.md's near-miss trap — `MODIFY` goes, `MODIFYA` and
+  `MODIFY.PASSWORD` stay — is now asserted rather than remembered.
+- ***AND IT FAILED ITS OWN FIRST RUN, ON PROSE — 4 DECISIVE ROWS RED, EVERY ONE
+  A COMMENT.*** `op_dio1.c`'s history block says *"net_open() call are gone"*
+  and *"the NET_FILE type are deleted"*, so searching for `net_open(` found the
+  sentence ANNOUNCING the removal and reported the removal as incomplete.
+  ***THE CORPSE AND THE TOMBSTONE LIVE IN THE SAME FILE, AND THAT IS THE SHAPE
+  OF THE PROBLEM RATHER THAN AN ACCIDENT*** — a removal is most likely to be
+  described at the top of the file it was removed from. `strip_c_comments`
+  blanks comments while KEEPING line numbers, and the units file drives the
+  dangerous direction too: stripping too much would hide a LIVE `net_open()`
+  and report it as removed.
+- ***MEASURED WHILE DOING IT, AND IT IS CONFORMANT SO IT STAYS:*** `NETFILES`
+  survived the mechanism in BOTH trees — still parsed (`config.c:219-220`),
+  still in shared memory (`sysseg.c:217`), still reportable by
+  `CONFIG('NETFILES')` (`op_config.c:135`), and ***consulted by nothing.***
+  `op_dio1.c`'s history says so deliberately. The verifier records it as
+  context rather than failing it, and proves the part that matters: ***the knob
+  is inert*** — no `net_open`, no `netfiles.c`, no `NET_FILE` type, no remote
+  dispatch. A dead parameter is untidy; a live one nobody noticed would be a
+  hole.
+- ***`verify-lineendings` RECLASSIFIED — THE QUEUE 22 TABLE CALLED IT A "pure
+  tree check" AND THAT WAS WRONG.*** It is not about CRLF in shipped files: it
+  asks whether SD's READERS handle CRLF, including ***a CRLF straddling a
+  2048-byte buffer boundary*** (a fix that inspects "the byte before the LF" is
+  right on every small fixture and wrong about once per 2 KB of real data) and
+  ***a lone CR surviving, because it is data and not a terminator.*** Here the
+  `READSEQ` half IS implemented, straddle and lone-CR included
+  (`op_seqio.c:1237-1249`), witnessed on the tree binary 11 Sep but ***never on
+  an install***. ***The directory-file half is deliberately NOT carried over***
+  (`op_dio3.c:1309`, *"nothing to fold on a bare-LF file"*) — ***AND THAT
+  ASSUMPTION IS WORTH A RULING RATHER THAN AN INHERITANCE***, since the port's
+  reason for folding was that directory files exist so external editors can
+  edit them, and a Linux user can still hand a record CRLF. Not a defect claim.
+- **NEXT:** queue **22** — `verify-lineendings`'s applicable four parts (it
+  needs a BASIC probe with a 2048-boundary fixture, like `verify-txn`), then
+  `verify-basicfuncs`.
   Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
   unrun pieces. ***A1's undo wants the sandbox rebuilt first.***
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
