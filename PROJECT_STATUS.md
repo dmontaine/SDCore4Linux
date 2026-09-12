@@ -87,9 +87,14 @@ THE NEXT INSTALL ANYWAY*** — the value rows measure the INSTALL.
   exists only because the probe's tally and Python's verdict are kept separate.
   Fixed with a `|END` terminator; the parser now refuses a line without one.
 - ***THE PORT'S `basicfuncs.sb` OVERSTATES ITS COVERAGE BY FIVE NAMES***, and
-  the arithmetic that found it is now a decisive row here. Owed to the port as
-  `BUGS_FROM_LINUX_PORT.md` **9**, NOT filed (a fresh clone and a push, so the
-  owner's). Detail in PORT_ADOPTION item 5.
+  the arithmetic that found it is now a decisive row here. ***FILED WITH THE
+  PORT 12 Sep 2026 ON THE OWNER'S INSTRUCTION — `BUGS_FROM_LINUX_PORT.md` 8,
+  commit `8e8e7de`, pushed to `github.com/dmontaine/sd4windows` and confirmed
+  with `git ls-remote`.*** It is **8**, not the 9 this file first said: 8 was
+  being held for the DELETEF `continue` defect, which the port has already
+  fixed itself (below). The published count is **173 of 176 accounted for** —
+  ***THIS FILE FIRST SAID 175, WHICH WAS WRONG***: 175 is 176 less `DELETE` and
+  forgets the three names on no list at all. Detail in PORT_ADOPTION item 5.
 
 **DON was clean before and after:** `COUNT VOC` **420**, `BP` empty, no
 `BP.OUT` — measured both ends, not assumed.
@@ -201,9 +206,17 @@ which is an assumption about USERS rather than about the platform — a Linux
 user can still hand a record CRLF from an editor setting or a Windows copy.
 Not a defect claim; the code does what it says.
 
-**Also owed, not blocking:** the DELETEF `continue` defect is owed to the port
-as `BUGS_FROM_LINUX_PORT.md` **8** and is NOT filed — it needs a fresh clone
-and a push, so it is the owner's to authorise.
+~~**Also owed, not blocking:** the DELETEF `continue` defect is owed to the port
+as `BUGS_FROM_LINUX_PORT.md` **8** and is NOT filed.~~ ***NOT OWED AFTER ALL,
+AND THE CLAIM UNDER IT WAS WRONG — MEASURED 12 Sep 2026 ON THE PORT'S CURRENT
+TREE.*** The port found and fixed the same defect INDEPENDENTLY on 11 Sep as
+its own `RELEASE_1.1_FIXES.md` **15**, and `gpl.bp/DELETEF:296` now reads
+`goto more_test`. ***IT WAS ITS OWN `verify-vocverbs.ps1` THAT CAUGHT IT***
+(entry 14 on run `b136`, the symptom being the test's second `N` reaching the
+VOC as *"N is not in your VOC"*) — so this project's note that the port's
+verifier *"WOULD PASS ON IT"* is false, and is corrected in PORT_ADOPTION.
+Nothing is filed for it, and nothing should be. **Number 8 went to the
+`basicfuncs.sb` coverage entry instead.**
 
 ***11 Sep 2026, day session — the blocks below are older still.***
 - ***14:43 INSTALL `c2b375d` (`assert-current` 0): QUEUES 12, 13, 26 AND 27 ARE

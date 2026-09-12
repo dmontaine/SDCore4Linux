@@ -401,16 +401,25 @@ rather than by how hard it is:
    reads the intrinsics table out of `sdsys/GPL.BP/BCOMP` itself, so an
    intrinsic neither exercised nor declared turns the run red (`V2`). Here:
    **176 known, 116 exercised, 60 declared, 0 unaccounted.**
-   ***AND RUN AGAINST THE PORT IT IS A BUG REPORT THE PORT IS OWED*** —
-   `BUGS_FROM_LINUX_PORT.md` **9**, ***NOT FILED***: it needs a fresh clone and
-   a push, so it is the owner's to authorise. Both trees' BCOMP carry the same
-   **176** intrinsics and `basicfuncs.sb`'s header claims *"Everything else in
-   BCOMP's intrinsics table is exercised below"*; it accounts for **175**.
+   ***AND RUN AGAINST THE PORT IT WAS A BUG REPORT — NOW FILED.***
+   `BUGS_FROM_LINUX_PORT.md` **8**, pushed to `github.com/dmontaine/sd4windows`
+   12 Sep 2026 as `8e8e7de`, on the owner's instruction. Both trees' BCOMP
+   carry the same **176** intrinsics and `basicfuncs.sb:40` claims *"Everything
+   else in BCOMP's intrinsics table is exercised below"*; it accounts for
+   **173** — 112 exercised plus 62 declared, less `DELETE`, which is on both
+   lists. ***THIS FILE SAID 175 AND THAT WAS WRONG***: 175 is 176 less `DELETE`
+   and forgets the three names on no list at all. The published entry says 173.
+   ***AND THE ENTRY IS 8, NOT 9, BECAUSE 8 CAME FREE*** — see the DELETEF row
+   below.
    `DELETE` is both tested and named excluded; `CHANGE` is excluded under
-   *"change the process"* beside `CHGPHANT` and `CONFIG` when `op_chnge.c` is a
-   substring replace satisfiable with literals; `SWAP` (a `CHANGE` synonym,
-   `BCOMP:581`), `ASSIGNED` and `UNASSIGNED` are on neither list. All five are
-   tested here.
+   *"change the process"* beside `CHGPHANT` and `CONFIG` when `op_chnge.c:35`
+   is *"op_change() - Change substrings"*; `SWAP` (a `CHANGE` synonym — both
+   emit `OP.CHANGE`), `ASSIGNED` and `UNASSIGNED` are on neither list. All five
+   are tested here. ***MIND WHOSE LINE NUMBERS THESE ARE:*** the entry filed
+   with the port cites the PORT's tree (`BCOMP:449` ASSIGNED, `:462` CHANGE,
+   `:592` SWAP, `:608` UNASSIGNED, exclusion list `basicfuncs.sb:23-40`); the
+   same names sit at `BCOMP:438/451/581/597` in this tree, and an earlier
+   draft of this row published the Linux number for a Windows claim.
    ***OBJECTION, RECORDED NOT RESOLVED:*** the coverage rows read the SOURCE
    tree's BCOMP while the value rows measure the INSTALL, so under
    `--allow-stale` the two halves describe different trees. The section prints
@@ -528,11 +537,27 @@ followed. Fixture was a copy of the account's own `SYSCOM` pointer.
 - ***THE OUTCOME WAS RIGHT AND ONLY THE ROUTE WAS WRONG*** — the VOC entry went,
   the system file stayed. That is why it survived: an outcome check cannot see
   it. B4 checks the ABSENCE of the prompt.
-- ***THE PORT HAS THE SAME CODE at `gpl.bp/DELETEF:246`, AND ITS OWN
+- ~~***THE PORT HAS THE SAME CODE at `gpl.bp/DELETEF:246`, AND ITS OWN
   verify-vocverbs.ps1 WOULD PASS ON IT*** — that script checks 10117 and the
   absence of 6146 on this fixture, and both were true here while the verb
   prompted three times. **Not measured on Windows.** Owed to the port as
-  `BUGS_FROM_LINUX_PORT.md` 8, through a fresh clone; not yet filed.
+  `BUGS_FROM_LINUX_PORT.md` 8, through a fresh clone; not yet filed.~~
+- ***BOTH HALVES OF THAT WERE WRONG, AND MEASURING THE PORT'S CURRENT TREE IS
+  WHAT SHOWED IT (12 Sep 2026, before filing anything).*** The port fixed this
+  INDEPENDENTLY on 11 Sep as its own `RELEASE_1.1_FIXES.md` **15**:
+  `gpl.bp/DELETEF:296` is `goto more_test`, and `:273-295` is a history block
+  reasoning it out in the same terms this project did. ***AND IT WAS ITS OWN
+  `verify-vocverbs.ps1` THAT CAUGHT IT*** — entry 14 on run `b136`, the symptom
+  being the test's second `N` reaching the VOC as *"N is not in your VOC"*,
+  which is the prompt eating the following command. So "would pass on it" was
+  false; the assertion this project inferred from reading the script was not
+  the one that caught it. **Nothing is filed for this and nothing should be.**
+  Number 8 went to the `basicfuncs.sb` coverage entry (item 5 above).
+  ***THE LESSON IS THE ONE THE MEMORY FILE ALREADY CARRIES:*** check the port's
+  current `main` before publishing a `file:line` claim taken from a local copy.
+  Both citations in the struck text (`:246`, and the claim about the verifier)
+  were true of the tree this project last compared against and false of the
+  port today.
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short
 
