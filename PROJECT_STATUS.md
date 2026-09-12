@@ -125,20 +125,26 @@ the work, nothing in "Verified" that was not observed that session.
   lands in SDSYS; ***measured 11 Sep: SDSYS's own VOC DOES carry
   LIST.GRANTS***, the bootstrap having built it from the whole of
   VOC_TEMPLATE. This is the port's model and no code changed.
-- ***WITNESSED 11 Sep 22:04 despite that run being misrouted:*** MODIFYA's ADD
-  arm refuses an upward grant (10126) with DELETE ungated as the control; and
-  the changelog's upgrade instruction works — TADM's refusal MOVED from
-  `is not in your VOC` to `Command requires administrator privileges`, which
-  only GRANTA can print, so the tier move put the verb in its VOC.
-- ***THE VERBS THEMSELVES ARE STILL UNWITNESSED*** — they change group
-  membership, so they need sudo. One owner-run script, the `witness-sudo.sh`
-  model: `sudo bash <scratchpad>/witness-grants.sh`, 29 checks in 8 phases,
-  snapshot/restore of TADM's tier, TSTD's tier and `sdu_tstd`, `bash -n` clean,
-  regexes proven against real stripped `sd` output. ***IT LIVES IN THE SESSION
-  SCRATCHPAD AND DIES WITH THE SESSION*** — if it has not been run, rewrite it
-  from PORT_ADOPTION 14's witness list rather than hunting for it. Its phase 2
-  is the changelog's own instruction run as written (TADM down to PROGRAMMER
-  and back, to take the three verbs).
+- ***QUEUE 14 IS WITNESSED END TO END — 11 Sep 22:08, owner-run
+  `witness-grants.sh`, 28 PASS / 1 / 0 FAIL, restore COMPLETE.*** The 1 is a
+  consumed one-shot, not a defect: phase 2's "before" (`is not in your VOC`)
+  can be read once per account and the 22:04 run read it. Evidence per check
+  in PORT_ADOPTION 14 and not repeated here. ***THE GATE IS THE ONE TO
+  REMEMBER:*** `pete`, still a member of `sdu_tstd` with the membership
+  looking perfectly normal from outside, refused at LOGTO with 10126 — with
+  the control that `pete` DOES enter once the tiers are level again.
+- ***DIVERGENCE (1) IS VALIDATED BY A RUN, NOT BY THE ARGUMENT FOR IT:***
+  `$GRANTA` is not in `privileged_commands`, the session was euid `sdsys` with
+  real uid 0, and every group edit went through — sudo decides on the real uid.
+- ***STILL UNWITNESSED, AND IT IS 10043's OWN CLAIM TO THE USER:*** every
+  session in the witness was started fresh by `sudo -u`, so the half that
+  matters — an ALREADY-logged-in person being admitted by SD and refused by the
+  filesystem — is untested. It needs somebody holding a live session at the
+  moment of the grant.
+- ***A WITNESS THAT CHANGES STATE CAN CONSUME ITS OWN PRECONDITION.*** Phase 2
+  is the example: restoring TADM's TIER does not remove the VOC records the
+  tier move wrote. Snapshot/restore restored all four values and the "before"
+  was still gone. Worth remembering when writing the next one.
 - ***TYPE USER NAMES IN THEIR UNIX CASE.*** Measured 11 Sep: the parser does
   not upcase a token and `!is_grp_member` compares exactly, so
   `GRANT TSTD TO PETE` ≠ `GRANT TSTD TO pete`. GRANTA upcases the ACCOUNT
@@ -183,11 +189,11 @@ the work, nothing in "Verified" that was not observed that session.
   non-zero on failure, so why `sdsys` is absent is not yet explained. It matters
   for queue 14: `LIST.GRANTS` reports what the group holds, and CPROC:2807's
   "open lead" about `sdu_don` is now known to be general, not one account.
-- **NEXT:** the delete→install cycle, which witnesses queue 14 (the plan is in
-  its PORT_ADOPTION row), the audit trail's carry-over and rotation
-  (PORT_ADOPTION 13), and queue 12's ssh and API doors. Then the queue
-  continues at 15 (ADOPT), 16, 17, 19, 21, 22, 25, and §M / queue 18 under the
-  11 Sep ruling.
+- **NEXT:** the queue continues at **15 (ADOPT)**, then 16 — which is ***two***
+  pieces here, not the port's one (see its row) — 17, 19, 21, 22, 25, and §M /
+  queue 18 under the 11 Sep ruling. Still owed a witness from an install
+  cycle, none of them blocking: queue 13's carry-over and rotation, and queue
+  12's ssh and API doors.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
