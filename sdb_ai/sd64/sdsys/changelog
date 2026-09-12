@@ -9,6 +9,31 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  DELETE.FILE: PRESSING ENTER AT "USE ACTIVE SELECT LIST?" NOW MEANS
+           NO.
+
+           If you have a select list active and type DELETE.FILE with no file
+           name, it offers to use the list:
+
+               Use active select list (First item 'PAYROLL')?
+
+           Pressing Enter used to do nothing at all - the question simply came
+           back, for ever, until you typed Y or N.  In a script or a piped
+           session there is nothing to type, so it never stopped: the same
+           question scrolled past until something killed it.
+
+           Enter now means N, which clears the list and deletes nothing.  That
+           is the safe answer, and it matches the rest of this verb - every
+           other question DELETE.FILE asks already takes N when you press
+           Enter.
+
+           THE QUESTION ITSELF STILL DOES NOT SAY SO, and that is deliberate
+           rather than an oversight: the same wording is used by DELETE, CD,
+           COPY, CT and ED, none of which takes a default yet, so adding
+           "(y/<n>)" to it would be wrong in five places to be right in one.
+           Those verbs are unchanged - in them, Enter still re-asks.
+
+
 12 Sep 26  DELETE.FILE NO.QUERY NO LONGER ASKS A QUESTION AFTER PROMISING NOT
            TO.
 
