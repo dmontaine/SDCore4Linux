@@ -335,7 +335,25 @@ rather than by how hard it is:
    hide a LIVE `net_open()` and report it as removed.
    ***`verify-lineendings` IS NOT A TREE CHECK AND THIS ENTRY WAS WRONG TO CALL
    IT ONE*** — see the row below.
-4b. ***`verify-lineendings` — RECLASSIFIED 12 Sep, and it is HALF NOT
+4b. ***`verify-lineendings` — BUILT AND WITNESSED 12 Sep, 42/42***
+   (`gplbld/verify-lineendings.py` + `.bp`). ***THE STRADDLE HOLDS:*** with the
+   CR as byte 2047 and the LF as byte 2048, line 1 comes back **2047**
+   characters ending in `A`, not 2048 ending in CR. ***AND THE LONE CR SURVIVES
+   AT THE BOUNDARY*** — f5's held CR, not followed by LF, is emitted as data
+   (2049 characters ending in `B`), which is the subtlest case in the file and
+   the one the two fixes could break together. `READCSV` inherits it: row 1's
+   LAST field is 2 characters, not 3. ***RED CONTROL: `--probe` with f3 dropped
+   → exactly the 5 straddle rows fail on `None`, nothing else***, so they
+   cannot pass on absent data. ***THAT IS A NULL-CASE RED, NOT A BEHAVIOUR
+   RED***, and the difference is worth stating: a behaviour red needs a
+   pre-fix binary built by the documented before/after harness method, which
+   is the honest way to prove the rows would catch a regression in the C.
+   ***AND THE FIXTURES ARE CHECKED BEFORE THEY ARE TRUSTED*** — rows F3a/F3b/F5a
+   read the bytes back and assert the CR really is the 2048th, because an
+   off-by-one fixture would make the straddle rows pass without testing a
+   straddle. *(Reclassified the same day — see below for what the entry got
+   wrong.)*
+4c. ***`verify-lineendings` — RECLASSIFIED 12 Sep, and it is HALF NOT
    APPLICABLE.*** The port's script is not about CRLF in shipped files at all:
    it asks whether SD's READERS handle CRLF, in six parts — a directory record
    written CRLF, one written LF, `READSEQ`, `READCSV` (RFC 4180), ***a CRLF

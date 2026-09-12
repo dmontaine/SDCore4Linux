@@ -672,9 +672,40 @@ the work, nothing in "Verified" that was not observed that session.
   ASSUMPTION IS WORTH A RULING RATHER THAN AN INHERITANCE***, since the port's
   reason for folding was that directory files exist so external editors can
   edit them, and a Linux user can still hand a record CRLF. Not a defect claim.
-- **NEXT:** queue **22** — `verify-lineendings`'s applicable four parts (it
-  needs a BASIC probe with a 2048-boundary fixture, like `verify-txn`), then
-  `verify-basicfuncs`.
+- ***`verify-lineendings.py` BUILT AND WITNESSED 12 Sep — 42/42, no sudo.***
+  ***THE STRADDLE HOLDS, AND IT IS THE ROW THAT NEEDED A REAL FIXTURE:*** with
+  the CR as byte 2047 and the LF as byte 2048, line 1 comes back **2047**
+  characters ending in `A` — not 2048 ending in CR. A fix that inspected "the
+  byte before the LF" would be right on every small fixture and wrong about
+  once per 2 KB of real data.
+- ***AND THE LONE CR SURVIVES AT THE BOUNDARY, WHICH IS THE SUBTLEST CASE:***
+  f5's CR is the last byte of the first buffer and is NOT followed by a LF, so
+  the reader — which is holding it back precisely because it might have been
+  half a CRLF — has to emit it as data. It does: 2049 characters ending in `B`,
+  one CR. ***A FIX THAT STRIPPED EVERY CR WOULD PASS EVERY OTHER ROW IN THE
+  FILE.*** `READCSV` inherits the behaviour (it compiles to `OP.READSEQ`,
+  `BCOMP:10225`) and row 1's LAST field is 2 characters, not 3.
+- ***THE FIXTURES ARE CHECKED BEFORE THEY ARE TRUSTED*** — rows F3a/F3b/F5a read
+  the bytes back off the disk and assert the CR really is the 2048th byte.
+  ***AN OFF-BY-ONE FIXTURE WOULD MAKE THE STRADDLE ROWS PASS WITHOUT TESTING A
+  STRADDLE***, which is the null case this file is most exposed to.
+- ***RED CONTROL, AND ITS LIMIT SAID OUT LOUD:*** `--probe` with f3 dropped →
+  exactly the 5 straddle rows fail on `None`, nothing else, so they cannot pass
+  on absent data. ***THAT IS A NULL-CASE RED, NOT A BEHAVIOUR RED.*** Proving
+  the rows would catch a regression in the C needs a PRE-FIX BINARY built by
+  the documented before/after harness method; that has not been done, and the
+  distinction is recorded rather than blurred.
+- ***MEASURED IN PASSING, WORTH KNOWING BEFORE THE NEXT PROBE:*** `READCSV`'s
+  grammar is `READCSV FROM <fvar> TO <var>, <var>…` — ***one variable per
+  column***, and NOT `READCSV <var> FROM <fvar>` like `READSEQ`
+  (`BCOMP:10218-10237`). The compiler's complaint for the wrong order is
+  *"FROM not found where expected"*, which points at the word that IS there.
+  A first attempt passed one variable and silently measured field 1 only —
+  ***which cannot see this defect at all***, because an unstripped CR lands on
+  the LAST field.
+- **NEXT:** queue **22** — `verify-basicfuncs` (the widest coverage per line),
+  then the account family and the POSIX-mode family, both of which want the
+  full delete→install that is already owed.
   Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
   unrun pieces. ***A1's undo wants the sandbox rebuilt first.***
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
