@@ -64,21 +64,38 @@ $include syscom keys.h
 * S2 is written by the OUTER transaction BEFORE the inner one runs, so it is
 * exactly the write that went missing.
 
+* ***AND THE TRANSACTION NUMBER, WHICH IS THE THIRD OF A4's THREE PARTS AND THE
+* LAST TO BE MEASURED (12 Sep 2026).***  SYSTEM(1007) is the transaction NUMBER,
+* zero if none - a different question from the LEVEL.  After the inner COMMIT
+* the session is back inside the OUTER transaction, so 1007 must name the OUTER
+* one again: N3 must equal N1.  A level that came back to 1 while the number
+* was left on the inner transaction (or on zero) would mean end_txn_level()
+* decremented the counter without reinstating the parent, which is precisely
+* what A4 lifted out of rollback() and into end_txn_level().
+*
+* ***THE NUMBERS ARE NOT LITERALS AND MUST NOT BE ASSERTED AS ANY.***  They are
+* allocated per transaction and differ every run, so the checks are
+* RELATIONSHIPS - N1 non-zero, N3 = N1, N5 = 0.  N2 is printed as context.
+
    begin transaction
+      crt 'N1=':system(SYS$TRANS_NBR)
       readu junk from dirf, 'S2' else junk = ''
       write 'two' to dirf, 'S2'
 
       begin transaction
+         crt 'N2=':system(SYS$TRANS_NBR)
          readu junk from dirf, 'S3' else junk = ''
          write 'three' to dirf, 'S3'
          commit
       end transaction
 
       crt 'L3=':system(SYS$TRANS_LEVEL)
+      crt 'N3=':system(SYS$TRANS_NBR)
       commit
    end transaction
 
    crt 'L4=':system(SYS$TRANS_LEVEL)
+   crt 'N5=':system(SYS$TRANS_NBR)
 
    read r from dirf, 'S2' then crt 'S2=':r else crt 'S2=NOTFOUND'
    read r from dirf, 'S3' then crt 'S3=':r else crt 'S3=NOTFOUND'

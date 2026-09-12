@@ -200,6 +200,31 @@ def main():
     run.note("T8 the inner transaction's write landed too",
              "three", tag(t, "S3"))
 
+    # ---- A4's THIRD PART: the transaction NUMBER, not the level -----------
+    #
+    # SYSTEM(1007) is a different question from SYSTEM(1008): after the inner
+    # COMMIT the session is back inside the OUTER transaction, so 1007 must
+    # name the OUTER one again.  A level that returned to 1 while the number
+    # stayed on the inner transaction (or on zero) would mean end_txn_level()
+    # decremented the counter without reinstating the parent - exactly what A4
+    # lifted out of rollback() and into end_txn_level().
+    #
+    # THE NUMBERS ARE ALLOCATED PER TRANSACTION AND DIFFER EVERY RUN (17 and 18
+    # when this was first measured), so every check here is a RELATIONSHIP.
+    n1, n2, n3, n5 = (tag(t, "N1"), tag(t, "N2"), tag(t, "N3"), tag(t, "N5"))
+    run.say("      transaction numbers: outer %s, inner %s, after inner commit"
+            " %s, after outer commit %s" % (n1, n2, n3, n5))
+    run.note("T9 the outer transaction HAS a number", True,
+             n1 is not None and n1 != "0")
+    # ***T10 IS WHAT MAKES T11 MEAN ANYTHING.***  If the inner transaction
+    # reused the outer's number, "the number came back to the outer's" would be
+    # true however badly end_txn_level() behaved - it would never have changed.
+    run.note("T10 the inner transaction has a DIFFERENT number", True,
+             n2 is not None and n1 is not None and n2 != n1)
+    run.note("T11 after the inner COMMIT the number names the PARENT again",
+             n1, n3)
+    run.note("T12 and it is cleared when the last transaction ends", "0", n5)
+
     run.heading("5. directory-file ids inside a transaction - SD's answer")
     run.note("D0 level is 0 after section 3's commit", "0", tag(t, "L5"))
     run.note("D1 control: the id written OUTSIDE a transaction reads back",
