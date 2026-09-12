@@ -283,16 +283,19 @@ the work, nothing in "Verified" that was not observed that session.
   sees a password; both arms hand off to `passwd(1)`, and "you must know your
   current one" is enforced by PAM rather than by SD code. Detail in
   PORT_ADOPTION 17.
-- ***WAITING FOR THE OWNER — SHOULD A STANDARD ACCOUNT HAVE MODIFY.PASSWORD?***
-  The port says administrators only, and on Windows that is right because an
-  ordinary user changes their password through Windows. ***Here PRE_RELEASE 13
-  forces a STANDARD account into `sd` over ssh, so administrators-only leaves a
-  remote standard user with no way to change their own password at all.*** The
-  code already handles the non-admin case (it runs `passwd -- <user>` as the
-  person, PAM demands the current password); ***widening it is one record added
-  to `NEWVOC` and nothing else***. Built to the port's placement pending a
-  ruling, so today the answer is "administrators only".
-- **NEXT:** the ruling above, then 19, 21, 22, 25, and §M /
+- ***OWNER'S RULING, 12 Sep 2026: MODIFY.PASSWORD IS ADMINISTRATORS ONLY***, as
+  the port files it. He was asked because PRE_RELEASE 13 forces a STANDARD
+  account into `sd` over ssh, so the ruling has a consequence worth stating
+  plainly: ***a remote standard user cannot change their own password at all***
+  — an administrator resets it and tells them. ***THIS IS A DECISION, NOT A
+  GAP:*** `MODIFY.PASSWORD` stays out of `NEWVOC`, and a later session that
+  finds a standard user stuck is looking at the ruling, not a defect.
+- ***AND THE NON-ADMIN ARM IS NOT DEAD CODE, which is easy to get wrong:*** only
+  an ADMINISTRATOR-tier account holds the verb, but such an account in a PLAIN
+  `sd` session has no `K$ADMINISTRATOR` (that needs `sudo sd`, `CPROC:328`), so
+  an administrator changing their own password without sudo takes the
+  `passwd -- <user>` path and PAM asks for the current one. Common case.
+- **NEXT:** 19, 21, 22, 25, and §M /
   queue 18 under the 11 Sep ruling. ***Owed a witness from a FULL
   delete→install, none of them blocking:*** queue 15's installer block, queue
   13's carry-over and rotation, and queue 12's ssh and API doors — all three
