@@ -117,9 +117,22 @@ the work, nothing in "Verified" that was not observed that session.
   decision function could be witnessed as plain `don` without touching a group
   or building a dev binary. DON restored, `COUNT VOC` 411. Detail in
   PORT_ADOPTION 14.
+- ***THERE IS NO SUCH THING AS A PLAIN-`sd` ADMINISTRATOR SESSION, AND A
+  WITNESS RUN HAD TO PROVE IT BEFORE THIS FILE BELIEVED ITS OWN NOTE.***
+  `CPROC:328` calls `grant.administrator` only inside `if system(27) = 0`
+  (real uid 0), so `kernel(K$ADMINISTRATOR,-1)` is false outside `sudo sd` for
+  everybody. The account verbs — GRANT included — run from `sudo sd`, which
+  lands in SDSYS; ***measured 11 Sep: SDSYS's own VOC DOES carry
+  LIST.GRANTS***, the bootstrap having built it from the whole of
+  VOC_TEMPLATE. This is the port's model and no code changed.
+- ***WITNESSED 11 Sep 22:04 despite that run being misrouted:*** MODIFYA's ADD
+  arm refuses an upward grant (10126) with DELETE ungated as the control; and
+  the changelog's upgrade instruction works — TADM's refusal MOVED from
+  `is not in your VOC` to `Command requires administrator privileges`, which
+  only GRANTA can print, so the tier move put the verb in its VOC.
 - ***THE VERBS THEMSELVES ARE STILL UNWITNESSED*** — they change group
   membership, so they need sudo. One owner-run script, the `witness-sudo.sh`
-  model: `sudo bash <scratchpad>/witness-grants.sh`, 25 checks in 8 phases,
+  model: `sudo bash <scratchpad>/witness-grants.sh`, 29 checks in 8 phases,
   snapshot/restore of TADM's tier, TSTD's tier and `sdu_tstd`, `bash -n` clean,
   regexes proven against real stripped `sd` output. ***IT LIVES IN THE SESSION
   SCRATCHPAD AND DIES WITH THE SESSION*** — if it has not been run, rewrite it
