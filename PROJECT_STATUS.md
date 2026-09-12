@@ -99,6 +99,15 @@ THE NEXT INSTALL ANYWAY*** — the value rows measure the INSTALL.
 **DON was clean before and after:** `COUNT VOC` **420**, `BP` empty, no
 `BP.OUT` — measured both ends, not assumed.
 
+**Queue 22 ranked item 7, the POSIX-mode family, is DONE — `verify-sysperms.py`
+18/18, units 20/20, no sudo.** ***THE ENTRY THAT SAID IT NEEDED AN OWNER-RUN
+HALF WAS WRONG, AND WRONG IN THE DIRECTION THAT POSTPONES WORK***: the writes
+these ask about are writes that must FAIL, which is precisely what an ordinary
+user can measure. Five of the port's six are answered with no privilege; only
+`sdsyswrite` needs root. ***THE CONTROL'S REASON IS MEASURED, NOT INHERITED***
+— `$IPC` must stay writable because every session writes `$IPC/%0`, and row W2
+stats it, runs a session, and stats it again. Detail in PORT_ADOPTION item 7.
+
 **Queue 22 ranked item 6, the account family, is split and half done.**
 `gplbld/verify-accounts.py` **35/35** (units 17/17) is the no-sudo half;
 `gplbld/witness-accounts.sh` is the privileged half and ***HAS NEVER BEEN
@@ -148,8 +157,9 @@ WITH THE PROMPT PRINTED ONCE.*** The killed session left ***no dead slot***
 ***No verifier covers 2050*** — this is a hand witness, and it is the obvious
 next row for `verify-vocverbs`.
 
-**Queue 22 is most of the way done.** Eight verifiers, all green on install
-`0095937`, ***454 decisive rows between them***, plus six unit suites:
+**Queue 22's unprivileged work is DONE — ranked items 1-7.** Nine verifiers,
+all green on install `0095937`, ***472 decisive rows between them***, plus
+seven unit suites:
 
 | Instrument | Rows | Red control |
 |---|---|---|
@@ -161,7 +171,8 @@ next row for `verify-vocverbs`.
 | `verify-lineendings.py` + `.bp` | 42/42 | ***null-case only, NOT behaviour*** |
 | `verify-basicfuncs.py` + `.bp` | 199/199 | real — three, one row each; and it failed its own first run |
 | `verify-accounts.py` | 35/35 | real — three doctored registers via `--register`, one row each |
-| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25, `accounts` 17 | |
+| `verify-sysperms.py` | 18/18 | real — four, via a `--sdsys` fixture tree; the two gate sections have none |
+| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25, `accounts` 17, `sysperms` 20 | |
 
 ***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***, and the reason is
 checkable with the command above rather than asserted.
@@ -184,10 +195,14 @@ sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
 It refuses unless the throwaway names are absent as user, group, directory AND
 register record, and removes only what it made. Detail in PORT_ADOPTION item 6.
 
-**What queue 22 has left:** the POSIX-mode family, and the privileged half of
-the account family above — ***both want the FULL delete→install that is already
-owed***, and the POSIX-mode one needs an owner-run half too, because the writes
-it must attempt need privilege.
+**What queue 22 has left, and all of it needs root or an install:**
+- ***`sdsyswrite`, the one POSIX-mode check that genuinely cannot be done
+  unprivileged*** — it asks what SDSYS *reached by LOGTO* can write, and
+  reaching SDSYS needs real uid 0. Everything else in that family is done; the
+  old claim that the whole family needed an owner-run half was wrong, and
+  wrong in the direction that postpones work (PORT_ADOPTION item 7).
+- the privileged half of the account family — `witness-accounts.sh --commit`.
+- ***the FULL delete→install, still owed and now five queues deep.***
 
 ***THE OWED FULL delete→install HAS NOT MOVED, AND IT IS NOW FOUR QUEUES DEEP:***
 15's installer block, 13's rotation and carry-over, 12's ssh and API doors, 19's

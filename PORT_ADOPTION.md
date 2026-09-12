@@ -487,9 +487,62 @@ rather than by how hard it is:
      this: the family wants the FULL delete→install this file already owes,
      because a keep-accounts cycle never runs `installsdai.sh`'s seeding block.
 7. The POSIX-mode family (`sysdiracl`, `pcodeacl`, `accountacl`, `sdsyswrite`,
-   `sdsysgate`, `catgate`) — the port's ACL checks re-expressed as mode,
-   ownership and group. Readable without sudo; **the writes they must attempt
-   are not**, so each needs an owner-run half.
+   `sdsysgate`, `catgate`) — ***DONE, 18/18, `gplbld/verify-sysperms.py`***,
+   units `test-sysperms-units.py` 20/20, green on install `0095937` with
+   `--allow-stale`.
+   ~~Readable without sudo; **the writes they must attempt are not**, so each
+   needs an owner-run half.~~ ***THAT WAS WRONG AND IT WAS WRONG IN THE
+   EXPENSIVE DIRECTION — IT WOULD HAVE POSTPONED THE WHOLE FAMILY BEHIND AN
+   OWNER-RUN SCRIPT IT DOES NOT NEED.*** The writes these ask about are writes
+   that must FAIL, and a write failing is exactly what an ordinary user can
+   measure: five of the six are answered with no privilege at all. Only
+   `sdsyswrite` genuinely needs root, because it asks what SDSYS *reached by
+   LOGTO* can write, and reaching SDSYS needs real uid 0.
+   ***THE PORT'S TWO RULES BOTH TRANSFER, AND THEY ARE THE DESIGN.***
+   (a) *"THE DECISIVE CHECK IS THE WRITE, NOT THE ACL LISTING"* — on Linux,
+   not the mode bits, because supplementary groups, a `setfacl` ACL, the
+   setgid bit and an immutable attribute all change the answer without
+   changing the four digits. Every row asks the filesystem; owner:group and
+   mode are printed as diagnosis beside it. (b) ***THE WRITABLE CONTROL IS NOT
+   OPTIONAL*** — without a row that must come back WRITABLE the file passes
+   both when the tree is correctly locked and when something locked
+   EVERYTHING and every session is broken.
+   ***AND THE CONTROL'S REASON IS MEASURED RATHER THAN INHERITED.*** The port
+   keeps `$ipc` writable because every session writes `$ipc/%0`; row W2 stats
+   `$IPC/%0`, runs a session, and stats it again — **the mtime advanced**, so
+   the reason holds here and is not a borrowed assertion.
+   ***THE READ-ONLY SET IS DERIVED, NOT LISTED***: everything in the system
+   directory must refuse a write except a named set that each carry a reason
+   and a citation (`$IPC`; `prt` — `to_file.c:169` writes `<sysdir>/prt/p<n>`,
+   `installsdai.sh:621`; `errlog` — `installsdai.sh:620`; `audit` — queue 13).
+   35 entries swept and refused on this install. ***THE SWEEP EARNED ITS KEEP
+   ON ITS FIRST RUN***: it flagged `audit` as an unexpected writable, which is
+   correct — 0620 gives the group write and not read, and a session runs as
+   the Unix user, so group write is how a record is appended at all. The fix
+   was to state that reason, which is the point of the sweep.
+   **Covered, per the port's names:** `sysdiracl` (section 1-2), `pcodeacl`
+   (section 3, `bin/pcode`/`sd`/`libsdcli.so`), `sdsysgate` (section 5:
+   `LOGTO SDSYS` refused with message 10002, ***and `WHO` proving the session
+   stayed in DON — a printed refusal is not proof the refusal held***),
+   `catgate` (section 7: `CATALOG ... GLOBAL` refused 2001, with `... LOCAL`
+   as the control failing for its own ordinary reason, *"File BP.OUT not
+   found"*), and `accountacl` — which is `verify-accounts.py`'s U rows, not
+   repeated here.
+   ***NOT COVERED, AND IT IS THE ONE THAT NEEDS root: `sdsyswrite`.*** It asks
+   whether SDSYS reached by LOGTO can write the protected stores, and no
+   unprivileged session can be in SDSYS to ask.
+   **Red controls:** a fixture system tree via `--sdsys`, four of them, each
+   firing its own row — a group-writable directory (`S1` names it), `$IPC`
+   made unwritable (`W1:$IPC`), a readable audit file (`A1`), a writable
+   `bin/pcode` (`B1` names it, and `S1` independently catches `bin`).
+   ***THE TWO GATE SECTIONS HAVE NO RUNNABLE RED AND THAT IS SAID RATHER THAN
+   BLURRED***: `K1`/`K2` and the `G` rows discriminate each other by
+   construction, but neither can be driven red without root.
+   **Units:** the property that would be catastrophic rather than merely
+   wrong — these probes are pointed at `bin/sd`. `file_writable()` opens in
+   APPEND mode and writes nothing; cases 1-6 prove content, length ***and
+   mtime*** are untouched on a file it CAN write, and 7-10 that `dir_writable`
+   leaves nothing behind beside `$IPC`'s live `%0`.
 
 **The 28 `test-*-units.ps1` are not ported one for one, and the reason is the
 one above.** They exist because the port has 51 independent verifiers whose
