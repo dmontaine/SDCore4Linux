@@ -249,7 +249,15 @@ the work, nothing in "Verified" that was not observed that session.
   the witness list in PORT_ADOPTION 15. The installer now reads the register
   back and warns in red if the seeded tier is not ADMINISTRATOR, because the
   install is the only witness for ADOPT's tier default.
-- ***QUEUE 16 BUILT AND COMPILED 11 Sep — NOT RUN.*** Both halves:
+- ***QUEUE 16 IS WITNESSED — 11 Sep 23:55 on install `06d3a4a` (upgrade cycle,
+  accounts KEPT, `assert-current` 0). `verify-tier-layer.sh` went from exit 1
+  to EXIT 0: DON 10/18 → 18/18***, `COUNT VOC` 411 → 419 (exactly +8), and the
+  8 ids are VOC_TEMPLATE-only with none in NEWVOC, so the pre-existing walk
+  could not have written them. A second `UPDATE.ACCOUNTS` added nothing and
+  left the count at 419. ***Unconfirmed: the install's own output was not seen,
+  so whether 10912 displayed during the walk is unwitnessed*** — the mechanism
+  is proven by the before/after and the count, not by the message.
+- ***QUEUE 16 BUILT AND COMPILED 11 Sep.*** Both halves:
   `installsdai.sh` runs `UPDATE.ACCOUNTS ALL` on an upgrade (the verb half
   already existed, `CPROC:3336`; only the installer call was missing), and
   `LOGIN` `update.voc` now copies the `TIER.ADD.ADMINISTRATOR` layer from
@@ -267,13 +275,12 @@ the work, nothing in "Verified" that was not observed that session.
   the port's own walk close the gap instead of half of it. Add-only, never
   overwrite, never remove, ADMINISTRATOR only; the objection (it never removes)
   is kept in PORT_ADOPTION 16.
-- **NEXT:** witness queue 16, then **17**, 19, 21, 22, 25, and §M / queue 18
-  under the 11 Sep ruling. ***Owed a witness from a FULL delete→install, none
-  of them blocking:*** queue 15's installer block, queue 13's carry-over and
-  rotation, and queue 12's ssh and API doors. ***Queue 16's own witness wants
-  an UPGRADE cycle (accounts KEPT), which is the opposite***, so the two
-  cannot be taken in one run — do the upgrade first, while DON is still 10/18
-  and there is something to measure.
+- **NEXT:** queue **17** (MODIFY.PASSWORD), then 19, 21, 22, 25, and §M /
+  queue 18 under the 11 Sep ruling. ***Owed a witness from a FULL
+  delete→install, none of them blocking:*** queue 15's installer block, queue
+  13's carry-over and rotation, and queue 12's ssh and API doors — all three
+  want the same cycle, and it is now safe to take: ***queue 16's evidence is
+  banked, so nothing is lost by rebuilding DON.***
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
