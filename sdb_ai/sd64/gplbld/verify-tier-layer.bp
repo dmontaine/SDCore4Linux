@@ -1,0 +1,123 @@
+* TLPROBE - does every ADMINISTRATOR account hold its tier's whole VOC layer?
+*
+* PORT_ADOPTION 16.  Staged and run by gplbld/verify-tier-layer.sh, which is
+* how to invoke it; it is filed here as source, not as something to run by hand.
+*
+* THE INVARIANT.  CREATE.ACCOUNT copies TIER.ADD.ADMINISTRATOR into a new
+* ADMINISTRATOR account's VOC, and MODIFY.ACCOUNT re-derives it when a tier
+* MOVES.  Until 11 Sep 2026 nothing else did, so an account silently
+* accumulated a shortfall of every verb added to the layer after it was made -
+* measured that day as DON holding 10 of 18.  LOGIN's update.voc now closes it
+* on an upgrade; this is what says whether it did.
+*
+* Run it BEFORE an upgrade cycle and AFTER, and compare: same command, same
+* output shape.
+*
+* It walks the REGISTER rather than a list of names typed into it, so it keeps
+* working as accounts come and go, and reads each account's own VOC through the
+* path the register records.  No sudo: it only reads.
+*
+* An account is in scope only when ACC$TIER is exactly ADMINISTRATOR.  A blank
+* tier is NOT treated as one - guessing upward is the opposite of TIERGATE's
+* rule - and every other tier is reported as out of scope rather than skipped
+* in silence, so the reader can see the whole register was visited.
+
+      program tlprobe
+
+$include keys.h
+
+      crt 'TLPROBE  -  TIER.ADD.ADMINISTRATOR layer, per registered account'
+      crt ''
+
+      openpath @sdsys:@ds:'NEWVOC' to nv else
+         crt 'REFUSED: cannot open NEWVOC - this measured nothing.'
+         stop
+      end
+      read layer from nv, 'TIER.ADD.ADMINISTRATOR' else
+         crt 'REFUSED: no TIER.ADD.ADMINISTRATOR record - measured nothing.'
+         stop
+      end
+      close nv
+
+*     Field 1 is the description, never a VOC id.
+      nlayer = dcount(layer, @fm)
+      crt 'the layer lists ' : nlayer - 1 : ' verbs'
+      crt ''
+
+      openpath @sdsys:@ds:'ACCOUNTS' to accf else
+         crt 'REFUSED: cannot open the register - this measured nothing.'
+         stop
+      end
+
+      nseen = 0
+      nadmin = 0
+      nshort = 0
+
+*     THE DEFAULT SELECT LIST, NOT LIST 11.  Numbered lists above
+*     HIGH_USER_SELECT are refused to a program that is not $internal
+*     (sd.h:48) - LOGIN and CPROC use 11 because they are.  This is an
+*     ordinary program on purpose, so that it needs no privilege to run.
+*     Paid for: the first version compiled cleanly and aborted here at run time.
+      select accf
+      loop
+         readnext accid else exit
+         read accrec from accf, accid else continue
+         nseen = nseen + 1
+
+         apath = trim(accrec<1>)
+         atier = upcase(trim(accrec<ACC$TIER>))
+
+         if atier # 'ADMINISTRATOR' then
+            if atier = '' then atier = '(none)'
+            crt accid : ': tier ' : atier : ' - out of scope'
+            continue
+         end
+
+         nadmin = nadmin + 1
+
+         openpath apath : @ds : 'VOC' to vf else
+            crt accid : ': ADMINISTRATOR - VOC COULD NOT BE OPENED at ' : apath
+            continue
+         end
+
+         miss = ''
+         have = 0
+         for j = 2 to nlayer
+            id = trim(layer<j>)
+            if id # '' then
+               read junk from vf, id then
+                  have = have + 1
+               end else
+                  miss<-1> = id
+               end
+            end
+         next j
+         close vf
+
+         nmiss = dcount(miss, @fm)
+         if miss = '' then nmiss = 0
+         if nmiss then nshort = nshort + 1
+
+         crt accid : ': ADMINISTRATOR - has ' : have : ', MISSING ' : nmiss
+         if nmiss then
+            for k = 1 to nmiss
+               crt '     ' : miss<k>
+            next k
+         end
+      repeat
+      clearselect
+      close accf
+
+      crt ''
+*     THE NULL CASE, REFUSED OUT LOUD.  Visiting no account is not "all well",
+*     and neither is finding no administrator to test.
+      if nseen = 0 then
+         crt 'REFUSED: the register held no account, so this measured nothing.'
+      end else
+         crt nseen : ' account(s) in the register, ' : nadmin : ' ADMINISTRATOR, ' : nshort : ' short of the layer.'
+         if nadmin = 0 then
+            crt 'NOTE: no ADMINISTRATOR account was found, so the layer was never tested.'
+         end
+      end
+
+      end
