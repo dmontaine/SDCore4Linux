@@ -333,7 +333,26 @@ the work, nothing in "Verified" that was not observed that session.
   directory-backed account stale. The reconciler asks two sources and refuses
   on disagreement; ***nothing else in the tree does.*** Worth its own queue
   entry.
-- **NEXT:** the `--sweep` ruling below, then 21, 22, 25, and §M /
+- ***QUEUE 21 BUILT AND RUN 12 Sep — `gplbld/check-stale-leads.py`, no sudo,
+  exit 0 clean / 1 worklist / 2 cannot answer.*** ***RUN IT AFTER EDITING THESE
+  DOCUMENTS***: it finds entries whose OPENING status claim is contradicted
+  later in the same entry, which is what happens when a correction is appended
+  and the lead is left standing. ***ON ITS FIRST RUN IT FOUND THREE, AND TWO
+  WERE AN HOUR OLD*** — PORT_ADOPTION rows 15, 17 and 19, all written by that
+  session. Openings rewritten; the re-run leaves ***1, row 19, READ AND
+  ACCEPTED*** (both its claims are true), so ***exit 0 is not the goal*** — it
+  ranks entries for reading and every hit is read by hand.
+- **NEXT:** queue **22** (verifier intent), then 25, and §M / queue 18 under
+  the 11 Sep ruling. Then §L1's remaining unrun pieces.
+- ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
+  cycle:*** queue 15's installer block, queue 13's carry-over and rotation,
+  queue 12's ssh and API doors, queue 17 (never installed), and queue 19's
+  sweep on a real start. ***That cycle rebuilds DON, which is safe now:
+  queue 16's evidence is banked.***
+- ***AND ON THIS BOX THE SWEEP WILL REPORT, NOT SWEEP*** — `nsswitch.conf`
+  reads `passwd: files systemd sss`, so the remote-name-source guard fires.
+  Drop `sss` or pass `--allow-remote-nss` to see it sweep. Not a defect.
+- **OLDER NEXT (superseded by the two lines above):** the `--sweep` ruling, then 21, 22, 25, and §M /
   queue 18 under the 11 Sep ruling. ***Owed a witness from a FULL
   delete→install, none of them blocking:*** queue 15's installer block, queue
   13's carry-over and rotation, and queue 12's ssh and API doors — all three
