@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  update.voc now also adds the ADMINISTRATOR tier layer from
+*               VOC_TEMPLATE, which it never read before, so an upgrade brings
+*               an existing administrator the verbs added since its account was
+*               made (PORT_ADOPTION 16; measured gap: DON was missing 8 of 18).
+*               Adds only what is absent, never overwrites, never removes, and
+*               only for an explicit ADMINISTRATOR tier.  Message 10912.
 * 11 Sep 26 dm  Every sign-on and every refused sign-on, with its reason, is
 *               written to the audit trail (PORT_ADOPTION 13, the port's).
 * 11 Sep 26 dm  A suspended account is refused at sign-on, console and ssh
@@ -712,6 +718,81 @@ accept.without.query:
       end
    repeat
    display
+
+* 11 Sep 26 dm - PORT_ADOPTION 16, THE HALF THE PORT'S ENTRY 70 DOES NOT COVER.
+*   70 is "an upgrade replaces NEWVOC and VOC_TEMPLATE but cannot reach a live
+*   VOC".  The loop above reaches a live VOC for NEWVOC records and ***cannot
+*   reach a tier verb at all***, because the tier layer lives in VOC_TEMPLATE
+*   and this routine only ever selects NEWVOC.  The note at the filter above
+*   states the same property from the not-removing side.
+*
+*   ***SO THE GAP IS REAL AND IT IS MEASURED, NOT PREDICTED.***  11 Sep 2026,
+*   probe TLPROBE against the live install: DON - the only registered
+*   administrator - held 10 of the 18 verbs in TIER.ADD.ADMINISTRATOR and was
+*   missing 8, CREATE.ACCOUNT, DELETE.ACCOUNT, MODIFY.ACCOUNT and
+*   UPDATE.ACCOUNTS among them.  TADM held all 18 only because queue 14's
+*   witness had moved its tier and MODIFYA re-derived the layer.  Nothing else
+*   in the system adds one after CREATE.ACCOUNT.
+*
+*   IT WAS INVISIBLE BECAUSE ADMINISTRATION HAPPENS IN SDSYS.  "sudo sd" lands
+*   in SDSYS, whose VOC is built from the whole of VOC_TEMPLATE and has all 18,
+*   so the missing verbs are only met by somebody who signs on as themselves
+*   and types one - and gets "not in your VOC" while being an administrator.
+*
+*   ***ADD ONLY, NEVER OVERWRITE, AND THAT IS THE WHOLE DESIGN.***  An id the
+*   account already has is left exactly as it is.  The loop above does
+*   compare-and-write with type-change questions and [LOCKED] handling; a
+*   second copy of that logic for the layer is a second thing to drift.  The
+*   measured gap is verbs that are ABSENT, not verbs that are stale, so adding
+*   what is missing closes it and touches nothing a person has edited.  It
+*   follows that no [LOCKED] test is needed here: nothing is overwritten, so
+*   there is nothing to lock against.
+*
+*   ADMINISTRATOR ONLY, AND EXPLICITLY.  A blank tier means an account written
+*   before tiers, which the filter above treats as the full NEWVOC - but the
+*   full NEWVOC is not the admin layer, and guessing upward is the opposite of
+*   TIERGATE's rule.  PROGRAMMER and STANDARD must never receive these.
+*
+*   WHAT IT DOES NOT DO: it never removes.  An account demoted outside
+*   MODIFY.ACCOUNT keeps verbs its tier no longer earns.  That is update.voc's
+*   existing property, not a new one, and MODIFYA's voc.delta is what deletes
+*   on the way down.
+   if upcase(trim(update.voc.tier)) = 'ADMINISTRATOR' then
+      layer.added = 0
+      read layer.rec from sdsys.file, 'TIER.ADD.ADMINISTRATOR' then
+         layer.n = dcount(layer.rec, @fm)
+         if layer.n > 1 then
+            openpath @sdsys:@ds:'VOC_TEMPLATE' to layer.f then
+*              Field 1 is the description, never a VOC id - the same skip
+*              CREATEA and the loop above both make.
+               for layer.i = 2 to layer.n
+                  layer.id = trim(layer.rec<layer.i>)
+                  if layer.id # '' then
+*                    A PLAIN read, NOT readu: this never overwrites, so it has
+*                    nothing to lock and taking a lock it must then remember to
+*                    release would be a way to strand one.  The record's own
+*                    content is the test - every real VOC record carries at
+*                    least a type code, so empty means absent.
+                     read layer.new from layer.f, layer.id then
+                        layer.old = ''
+                        read layer.old from update.voc.f, layer.id else layer.old = ''
+                        if layer.old = '' then
+                           write layer.new to update.voc.f, layer.id
+                           layer.added += 1
+                           display '+' :
+                        end
+                     end
+                  end
+               next layer.i
+               close layer.f
+            end
+         end
+      end
+      if layer.added then
+         display
+         display sysmsg(10912, layer.added)
+      end
+   end
 
 * 11 Sep 26 Windows port - NAME THEM, do not just count them: "3 records were
 *   locked" leaves the reader no way to find out which fix they have not

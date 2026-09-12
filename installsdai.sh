@@ -877,6 +877,18 @@ echo
 #            makes the install the witness for that default, so the result is
 #            CHECKED below rather than assumed - a silent STANDARD here is the
 #            exact regression the note above describes.
+# 11 Sep 26  PORT_ADOPTION 16 (port PRE_RELEASE_FIXES 70).  Captured BEFORE the
+#            seeding block, because that block creates the very directory this
+#            asks about.  "The accounts were kept" is what makes this install an
+#            UPGRADE rather than a first one, and the walk below is for upgrades:
+#            on a first install every account is built from the current NEWVOC
+#            and VOC_TEMPLATE already, so there is nothing to bring forward.
+if [ -d "/home/sd/user_accounts/${tuser}" ]; then
+    accounts_kept=yes
+else
+    accounts_kept=no
+fi
+
 if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
     echo "Creating a user account for ${tuser} as an SD administrator."
     adopt_marker="${sdsysdir}/\$adopt.$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
@@ -898,6 +910,29 @@ if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
       echo "    sudo ${sdsysdir}/bin/sd modify.account ${tuser} administrator"
       printf "%b\n" "$NC"
     fi
+fi
+
+# 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
+#            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on
+#            disk does not touch a live account's VOC, so verbs added since an
+#            account was created are simply not typeable in it - the port found
+#            this when four verbs it had just added were missing from every
+#            upgraded account.
+#
+#            ALL is the unattended form: it does the walk without asking the
+#            "update all accounts?" question, which is the point of running it
+#            from a script.  It must run from SDSYS as an administrator, which
+#            is what sudo gives it here.
+#
+#            ***IT MAY STILL ASK ABOUT A RECORD TYPE CHANGE***, one account at a
+#            time, when NEWVOC's type for an id differs from the account's.
+#            Stdin is deliberately left attached so a person can answer; the
+#            alternative is a script that cannot be answered and hangs.
+if [ "$accounts_kept" = yes ]; then
+    echo
+    echo "Bringing every registered account's VOC up to this release."
+    echo "(If it asks about a record type change, answer for each account.)"
+    sudo bin/sd UPDATE.ACCOUNTS ALL
 fi
 #
 echo
