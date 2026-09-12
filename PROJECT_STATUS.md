@@ -63,7 +63,89 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***11 Sep 2026, day session — READ THIS BLOCK FIRST; the blocks below are older.***
+***END OF SESSION, 12 Sep 2026 (evening) — READ THIS BLOCK FIRST. EVERYTHING
+BELOW IT IS OLDER, INCLUDING THE 11 Sep BLOCK THAT SAYS THE SAME THING.***
+
+**State at hand-over.** Tree **clean**, `main` == `origin/main` at `23e8dad`,
+`bin/sd` rebuilt **PLAIN** (no `DEVELOPER BUILD` banner), DON clean with
+`COUNT VOC` **420**, nothing left in `BP`/`BP.OUT`, no fixtures anywhere.
+
+***THE ONE THING THAT IS BUILT AND NOT INSTALLED, AND IT IS THE FIRST JOB NEXT
+SESSION.*** `assert-current` reads **STALE**: the install is `0095937`, HEAD is
+`23e8dad`. Run the corrected recipe and it comes to three files —
+
+```sh
+git diff --name-only 0095937..HEAD | grep -v -E '\.md$|^sdb_ai/sd64/gplbld/(verify|test)-'
+```
+
+`gplbld/assert-current.py` (comment only — the owner's ruling, and not an
+installed file), `sdsys/changelog` (ships, cosmetic), and ***`sdsys/GPL.BP/DELETEF`,
+WHICH IS A REAL BEHAVIOUR CHANGE*** — Enter is now N at the 2050 select-list
+prompt. Compiled 0 errors with a red control of 1 error at line 169; **never
+installed, never run.**
+
+***ITS WITNESS, AFTER THE NEXT INSTALL*** (as `don`, no sudo). With a list
+active and no file name, the prompt must appear ONCE and the session must END,
+because at end of input `input` yields `''` which is now N:
+
+```sh
+cd /home/sd/user_accounts/don && printf '\nTERM 200,9999\nSELECT VOC\nDELETE.FILE\nOFF\n' | timeout 20 /usr/local/sdsys/bin/sd
+```
+
+***THE "BEFORE" IS BANKED, SO THE WITNESS HAS SOMETHING TO BEAT — MEASURED
+12 Sep ON THE RUNNING `0095937` INSTALL, WHICH STILL HAS THE OLD DELETEF:***
+that exact command gives ***exit 124, 51 139 053 bytes in 15 seconds***, the
+2050 prompt repeating with no newline between repeats (the same class as the
+98.9 MB in 40 s of 11 Sep). ***AFTER THE FIX IT MUST EXIT 0 IN UNDER A SECOND
+WITH THE PROMPT PRINTED ONCE.*** The killed session left ***no dead slot***
+(`LISTU` clean afterwards) and DON stayed at `COUNT VOC` 420, so running the
+"before" again costs nothing — SIGTERM ends it cleanly, as queue 26 records.
+***No verifier covers 2050*** — this is a hand witness, and it is the obvious
+next row for `verify-vocverbs`.
+
+**Queue 22 is most of the way done.** Six verifiers, all green on install
+`0095937`, ***220 decisive rows between them***, plus four unit suites:
+
+| Instrument | Rows | Red control |
+|---|---|---|
+| `verify-vocverbs.py` | 34/34 | real — B4 was FAIL on the older install |
+| `verify-setpw.py` | 24/24 | built in: C1-C5 reach `passwd(1)` |
+| `verify-txn.py` + `.bp` | 33/33 | real — `--probe` minus a READU → 11 fail |
+| `verify-editors.py` | 28/28 | logic only (every row is a root-owned file) |
+| `verify-nonet.py` | 59/59 | logic only — and it failed its own first run |
+| `verify-lineendings.py` + `.bp` | 42/42 | ***null-case only, NOT behaviour*** |
+| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10 | |
+
+***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***, and the reason is
+checkable with the command above rather than asserted.
+
+**What queue 22 has left:** `verify-basicfuncs` (widest coverage per line),
+then the account family and the POSIX-mode family — ***both want the FULL
+delete→install that is already owed***, and the POSIX-mode one needs an
+owner-run half because the writes it must attempt need privilege.
+
+***THE OWED FULL delete→install HAS NOT MOVED, AND IT IS NOW FOUR QUEUES DEEP:***
+15's installer block, 13's rotation and carry-over, 12's ssh and API doors, 19's
+sweep on a real start. Answer `n` then type `DELETE`. The 12 Sep cycle KEPT
+accounts — measured, not assumed, from the 10–11 Sep directory mtimes on `pete`,
+`tprog`, `tstd` and `tadm` — so the seeding block never ran.
+
+***WAITING FOR THE OWNER, AND THE CONFORMANCE RULING HAS ALREADY BEEN APPLIED
+TO ALL FOUR, SO DO NOT RE-ASK THE PORT:*** `SEM_UNDO` (the port abandoned POSIX
+semaphores for a Windows-only reason and has no answer), 6133 (byte-identical
+there, N deletes the dictionary anyway — the question is what N should DO),
+§M scope (conformity is explicitly not the test, by his own earlier ruling),
+and ***a new one from this session: should a directory-file record tolerate
+CRLF here?*** `op_dio3.c:1309` says *"nothing to fold on a bare-LF file"*,
+which is an assumption about USERS rather than about the platform — a Linux
+user can still hand a record CRLF from an editor setting or a Windows copy.
+Not a defect claim; the code does what it says.
+
+**Also owed, not blocking:** the DELETEF `continue` defect is owed to the port
+as `BUGS_FROM_LINUX_PORT.md` **8** and is NOT filed — it needs a fresh clone
+and a push, so it is the owner's to authorise.
+
+***11 Sep 2026, day session — the blocks below are older still.***
 - ***14:43 INSTALL `c2b375d` (`assert-current` 0): QUEUES 12, 13, 26 AND 27 ARE
   WITNESSED ON IT*** — evidence and the parts still unwitnessed in their
   PORT_ADOPTION rows (12: ssh/API doors; 13: rotation, carry-over across a
