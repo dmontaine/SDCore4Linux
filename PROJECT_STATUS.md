@@ -249,12 +249,31 @@ the work, nothing in "Verified" that was not observed that session.
   the witness list in PORT_ADOPTION 15. The installer now reads the register
   back and warns in red if the seeded tier is not ADMINISTRATOR, because the
   install is the only witness for ADOPT's tier default.
-- **NEXT:** queue **16** — which is ***two*** pieces here, not the port's one
-  (see its row) — then 17, 19, 21, 22, 25, and §M / queue 18 under the 11 Sep
-  ruling. ***Owed a witness from a FULL delete→install, none of them
-  blocking:*** queue 15's installer block, queue 13's carry-over and rotation,
-  and queue 12's ssh and API doors. Worth doing in one cycle when the test
-  accounts are expendable.
+- ***QUEUE 16 BUILT AND COMPILED 11 Sep — NOT RUN.*** Both halves:
+  `installsdai.sh` runs `UPDATE.ACCOUNTS ALL` on an upgrade (the verb half
+  already existed, `CPROC:3336`; only the installer call was missing), and
+  `LOGIN` `update.voc` now copies the `TIER.ADD.ADMINISTRATOR` layer from
+  VOC_TEMPLATE, which it had never opened.
+- ***THE GAP WAS MEASURED BEFORE IT WAS DESIGNED FOR, AND IT IS WORSE THAN THE
+  ROW ASSUMED: `DON` — the only registered administrator — HELD 10 OF 18 TIER
+  VERBS AND WAS MISSING 8***, `CREATE.ACCOUNT`, `DELETE.ACCOUNT`,
+  `MODIFY.ACCOUNT` and `UPDATE.ACCOUNTS` among them (probe `TLPROBE`, 11 Sep).
+  `TADM` held all 18 only because queue 14's witness moved its tier. ***It went
+  unnoticed because administration happens under `sudo sd`, which lands in
+  SDSYS, and SDSYS holds all 18.***
+- ***A DECISION TAKEN RATHER THAN FORWARDED, AND CHEAP TO REVERSE:*** the row
+  left "re-derive inside `update.voc`, or a separate verb" UNRULED. Chose
+  `update.voc` — the stance is a smaller system with less cruft, and it makes
+  the port's own walk close the gap instead of half of it. Add-only, never
+  overwrite, never remove, ADMINISTRATOR only; the objection (it never removes)
+  is kept in PORT_ADOPTION 16.
+- **NEXT:** witness queue 16, then **17**, 19, 21, 22, 25, and §M / queue 18
+  under the 11 Sep ruling. ***Owed a witness from a FULL delete→install, none
+  of them blocking:*** queue 15's installer block, queue 13's carry-over and
+  rotation, and queue 12's ssh and API doors. ***Queue 16's own witness wants
+  an UPGRADE cycle (accounts KEPT), which is the opposite***, so the two
+  cannot be taken in one run — do the upgrade first, while DON is still 10/18
+  and there is something to measure.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***

@@ -9,6 +9,46 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+11 Sep 26  UPGRADING NOW BRINGS YOUR ACCOUNTS' VOCs WITH IT.
+
+           Installing a new release replaces the master lists SD builds new
+           accounts from, but it never touched the accounts you already had.
+           So every verb added since an account was created was simply not
+           typeable in it, and there was no way to find out except by typing
+           one and being told it was not in your VOC.
+
+           An upgrade - a reinstall that keeps your accounts - now walks every
+           registered account and brings its VOC up to the new release.
+
+           ADMINISTRATOR ACCOUNTS GET THE ADMINISTRATOR VERBS THEY WERE
+           MISSING, which is the half that had never worked at all.  Those
+           verbs come from a different list, and nothing except creating the
+           account or changing its tier had ever copied them.  On this very
+           system the only registered administrator was missing eight of the
+           eighteen - including create.account, delete.account, modify.account
+           and update.accounts.
+
+           It had gone unnoticed because administration is normally done with
+           "sudo sd", which puts you in SDSYS, and SDSYS has every verb.  Sign
+           on as yourself and the gaps appear.
+
+           You can run the walk yourself at any time, from SDSYS:
+
+               update.accounts all
+
+           What it does not do:
+
+           It never removes anything.  A VOC gains what the new release added
+           and keeps everything it had, including records you have edited.
+           Only accounts whose tier is ADMINISTRATOR receive administrator
+           verbs; programmer and standard accounts are untouched by that part.
+
+           It may ask, once per account, about a record whose type has changed
+           between releases.  That question is unavoidable - SD will not
+           silently replace a record of one kind with another - so an upgrade
+           is worth watching rather than walking away from.
+
+
 11 Sep 26  CREATE.ACCOUNT NO LONGER TAKES OVER AN EXISTING LINUX USER.
 
            SD accounts create their own Linux user.  That has been the model
