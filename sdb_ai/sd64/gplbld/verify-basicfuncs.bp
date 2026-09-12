@@ -83,9 +83,14 @@
 *   SWAP    - a synonym for CHANGE (BCOMP:581, both emit OP.CHANGE).  Named in
 *             neither of the port's lists.  Tested.
 *   ASSIGNED, UNASSIGNED - named in neither of the port's lists.  Tested.
-* So the port's probe reaches 112 of its 176 intrinsics and accounts for 175;
-* this one reaches 116 and accounts for all 176.  Owed to the port as a bug
-* report, which is the owner's to authorise.
+* So the port's probe reaches 112 of its 176 intrinsics and accounts for 173 -
+* 112 exercised plus 62 declared, less DELETE, which is on both lists.  This
+* one reaches 116 and accounts for all 176.
+*
+* ***FILED WITH THE PORT 12 Sep 2026 AS `BUGS_FROM_LINUX_PORT.md` 8***, commit
+* `8e8e7de` on `github.com/dmontaine/sd4windows`.  The count published there is
+* 173; an earlier draft of this comment said 175, which was 176 less DELETE and
+* forgot the three names that are on no list at all.
 *
 program zzbf
 
