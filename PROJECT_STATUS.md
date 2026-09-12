@@ -31,9 +31,12 @@ the work, nothing in "Verified" that was not observed that session.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from `98b0c77` (hardened client lib witnessed over
-  TCP 4243); HEAD then advances by documentation-only commits, so
-  `assert-current` reads STALE while the shipped behaviour is current.
+- **Runtime:** install built from **`0095937`**, 12 Sep 2026 01:50:36, by an
+  owner-run KEEP-accounts cycle; `assert-current` **0** at that point. It
+  carries queue 17 (`MODIFY.PASSWORD`, installed but never run) and queue 22's
+  `DELETEF` fix (witnessed). *Earlier note, kept because it names the trap:
+  after `98b0c77` HEAD advanced by documentation-only commits, so
+  `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
 
@@ -365,12 +368,36 @@ the work, nothing in "Verified" that was not observed that session.
   `verify-vocverbs.ps1`, which checks 10117 and the absence of 6146, would pass
   on it. **Same code at the port's `DELETEF:246`, not measured there; owed to
   `BUGS_FROM_LINUX_PORT.md` as 8, through a fresh clone, NOT YET FILED.**
-- ***THE BEFORE-MEASUREMENT IS BANKED AND THE AFTER-WITNESS IS OWED:***
-  `verify-vocverbs.py --allow-stale` on install `06d3a4a` = **33 of 34 decisive
-  rows PASS, row B4 FAILS** — B4 being the row the port does not have. After
-  the next install, run it ***without*** `--allow-stale` and expect 34/34:
-  `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-vocverbs.py`
-  (no sudo; 0 pass, 1 a decisive row failed, 2 could not run).
+- ***BOTH HALVES ARE NOW BANKED. BEFORE: install `06d3a4a`,
+  `verify-vocverbs.py --allow-stale` = 33 of 34, row B4 FAILS. AFTER: install
+  `0095937` (12 Sep 01:50:36), owner-run upgrade cycle, `assert-current` 0,
+  `verify-vocverbs.py` with NO override = 34 of 34, B4 PASS.*** The transcript
+  is the evidence: `DELETE.FILE ZZVVF NO.QUERY` prints 6145, 10117, then goes
+  straight to the delete — no 6135, 0 BEL, 0.01 s, nothing eaten. Queue 1 and
+  queue 3b are witnessed on the same run (rows C and D).
+- **`verify-grants.py` on the same install: 16 passed, 0 failed, both controls
+  PASS.** Queue 14 is still PRESENT-not-RUN; that is all the row says.
+- ***AND THE CYCLE BANKED TWO THINGS NOBODY ASKED IT FOR.*** (1) ***QUEUE 17 IS
+  INSTALLED*** — it was BUILT + COMPILED, NOT RUN; DON's VOC gained
+  `MODIFY.PASSWORD` (`V / CA / $MODIFY.PASSWORD`) and `COUNT VOC` went
+  **419 → 420, exactly +1**, which accounts for the whole delta. ***THE VERB
+  HAS STILL NOT BEEN RUN.*** (2) That +1 is ***a second, independent witness of
+  QUEUE 16's mechanism***: `update.voc`'s tier-layer copy carried a
+  newly-shipped ADMINISTRATOR verb into a PRE-EXISTING account, which is the
+  case the queue was built for and not the one it was first measured on.
+- ***BUT IT WAS A KEEP-ACCOUNTS CYCLE, SO THE OWED LIST IS UNCHANGED.***
+  Measured, not assumed: `pete`, `tprog`, `tstd` and `tadm` still carry their
+  10–11 Sep directory mtimes. So `installsdai.sh`'s seeding block did not run
+  (it is guarded by `if [ ! -d /home/sd/user_accounts/<user> ]`), and
+  ***queue 15's installer block, queue 13's rotation and carry-over, and queue
+  12's ssh and API doors ALL STILL WANT A FULL delete→install*** — answer `n`,
+  then type `DELETE`.
+- **Audit file after the cycle, as far as an unprivileged shell can see it:**
+  `/usr/local/sdsys/audit`, `sdsys:sdusers`, mode `0620`, 17534 bytes.
+  ***`don` is in `sdusers` and can neither read it nor read its attributes***
+  (`lsattr` → Permission denied), which is queue 13's write-only property
+  holding. ***Its `chattr +a` flag and whether the content carried across the
+  cycle CANNOT be checked without sudo*** — still owed, and it needs the owner.
 - ***AND A TRAP RE-PAID, WITH THE INSTRUMENT THAT CAUGHT IT:***
   `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` ***DID NOT PRODUCE A DEV BINARY*** —
   `make` tracks timestamps, `sd.c` had not changed, so nothing recompiled and
