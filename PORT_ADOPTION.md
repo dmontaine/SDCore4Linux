@@ -85,22 +85,51 @@ process and semaphores `111111`.
    `SEM_UNDO` (the kernel then releases a dead holder's semaphore — no more
    system-wide hang, at the risk of exposing a half-updated structure), and
    should SD's fault path release the semaphores its own process holds?
-   Neither is built.
+   Neither is built. ***CHECKED AGAINST THE PORT 12 Sep UNDER THE CONFORMANCE
+   RULING AND IT HAS NO ANSWER TO GIVE: the port ABANDONED POSIX SEMAPHORES
+   ALTOGETHER on 16 Aug 2026***, for a Windows-only reason — `sem_open` blocked
+   ten seconds under LocalSystem in session 0 (its PROJECT_STATUS:2814, kept
+   there expressly as *"why the Win32 semaphore change exists"*) — and now uses
+   Win32 named semaphores in `win32sem.c`. ***`SEM_UNDO` IS A System V CONCEPT
+   WITH NO Win32 COUNTERPART***; `grep -rln SEM_UNDO` over the port's `gplsrc`
+   returns nothing. Conformity is silent here, and the Linux mechanism is the
+   native one. Still the owner's.
 1. **Push and install.** Everything after `c8409e2` is local. The builds below
    are compiled, not run; the next delete→install cycle is their witness.
-2. **`DELETE.FILE` with an active select list (message 2050), what Enter
-   means.** 2050 is shared by six verbs; `DELETE`, `CD`, `COPY`, `CT` and `ED`
-   treat anything but N as yes, so its de-facto default is **Y**. In `DELETEF`
-   only, Enter re-asks for ever. Y keeps one message meaning one thing, but here
-   it means "delete the file the list names"; N follows port 79's
-   destructive-means-N pattern and makes 2050 mean different things in
-   different verbs.
+2. ~~**`DELETE.FILE` with an active select list (message 2050), what Enter
+   means.**~~ ***RULED AND BUILT 12 Sep 2026 under the owner's conformance
+   ruling: ENTER IS N.*** ***AND THE QUESTION ONLY LOOKED HARD BECAUSE THIS
+   ENTRY WAS WRONG.*** It said: *"2050 is shared by six verbs; `DELETE`, `CD`,
+   `COPY`, `CT` and `ED` treat anything but N as yes, so its de-facto default
+   is **Y**"* — and concluded that N would make 2050 mean different things in
+   different verbs. ***MEASURED 12 Sep IN BOTH TREES: ALL SIX CARRY THE
+   IDENTICAL SHAPE***, `loop … input … if N then stop … until reply = "Y" …
+   repeat`, so anything that is neither Y nor N ***re-asks***. **No verb gives
+   2050 an Enter meaning at all**, so there is no de-facto Y and nothing to be
+   inconsistent with; port PRE_RELEASE 79 (destructive → N) then decides it
+   unopposed. `DELETEF:126-175`. ***2050's shared TEXT still says no default
+   and cannot until the other five are ruled*** — and they are not one
+   decision, because Y is destructive in `DELETE` and `COPY` and merely
+   proceeds in `CD`, `CT` and `ED`. All five still busy-loop at end of input.
 3. **`DELETE.FILE` on a multifile (6133 "Delete all data components?").**
    Answering N does not mean "change nothing" — it jumps to `delete.dict` and
    deletes the dictionary anyway. So there is no safe answer for Enter to take
-   until someone says what N should do.
+   until someone says what N should do. ***CHECKED AGAINST THE PORT 12 Sep
+   UNDER THE CONFORMANCE RULING AND IT CANNOT SETTLE THIS: the port's block is
+   BYTE-IDENTICAL***, `until yn = 'Y'` with `if yn = 'N' then goto delete.dict`,
+   so conformity would keep a prompt that has no safe default. ***The open
+   question is what N should DO, not what Enter should take***, and the port
+   does not answer it. Still the owner's.
 4. **§M scope:** whether "no two casings" reaches record ids in a user's own
-   data files, and account names (PORT_ADOPTION "Queue 18").
+   data files, and account names (PORT_ADOPTION "Queue 18"). ***THE
+   CONFORMANCE RULING DOES NOT REACH THIS ONE, BY AN EARLIER RULING OF THE
+   OWNER'S OWN:*** lower case must be COMPLETE and *"where the port stopped
+   short, go past it — this outranks 'the port wins' for §M"* (11 Sep). The
+   port's answer is the partial one already rejected, so there is nothing to
+   conform to. Still the owner's. ***Worth putting to him as a confirmation
+   rather than an open question***: his 11 Sep wording, *"no command, file or
+   record id can exist in two casings"*, reads as already answering the
+   record-ids half.
 5. ~~Queue 10: live or sandbox?~~ — **owner: sandbox first. Done 11 Sep: reap
    witnessed in both, `op_getlocks` in the sandbox** ("Witnessed on the install",
    row 10). The orphaned lock was NOT recreated live: nothing clears it before

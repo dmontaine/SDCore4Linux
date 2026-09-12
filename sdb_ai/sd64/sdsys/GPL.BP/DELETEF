@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Enter is N at the select-list prompt (2050) as well, on the
+*               owner's conformance ruling.  The argument for Y rested on a
+*               misreading: measured in BOTH trees, all six verbs sharing 2050
+*               re-ask on anything but Y or N, so no verb gave it an Enter
+*               meaning and there was nothing to be inconsistent with.  2050's
+*               shared TEXT still says no default and cannot until the other
+*               five are decided.
 * 12 Sep 26 dm  The NO.QUERY @SDSYS skip leaves the DATA loop by "goto
 *               more_test" rather than "continue", which re-ran "remove" on an
 *               exhausted list and raised the 6135 prompt on an empty path
@@ -124,10 +131,45 @@ $define max.name.len 12
 
       readnext file.name then
          if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+* 12 Sep 26 dm - ENTER IS N HERE TOO, AND THE ARGUMENT AGAINST IT TURNED OUT TO
+*   REST ON A MISREADING.  This prompt was left for the owner on 11 Sep because
+*   2050 is shared by six verbs and PORT_ADOPTION recorded that "DELETE, CD,
+*   COPY, CT and ED treat anything but N as yes, so its de-facto default is Y" -
+*   which would have made N here mean something different from N everywhere
+*   else.
+*
+*   ***MEASURED 12 Sep 2026 IN BOTH TREES, AND THAT CLAIM IS WRONG.***  All six
+*   verbs - here and in SD Core for Windows - carry the identical shape:
+*
+*       loop ... input reply ... if N then stop ... until reply = "Y" ... repeat
+*
+*   So anything that is neither Y nor N RE-ASKS.  ***NO VERB GIVES 2050 AN
+*   ENTER MEANING AT ALL***, so there is no de-facto Y to be inconsistent with,
+*   and the one argument for choosing Y over N does not exist.
+*
+*   WITH THAT GONE, port PRE_RELEASE 79 decides it unopposed: every prompt says
+*   which answer Enter gives, and for a destructive one that answer is N.  Y
+*   here proceeds to delete the file the list names; N clears the list and
+*   changes nothing.
+*
+*   ***AND ON LINUX THE OLD SHAPE IS NOT MERELY UNTIDY.***  At end of input
+*   "input" yields '', which is neither Y nor N, so the loop re-asked for ever -
+*   the same class as the 98.9 MB in 40 s measured on 11 Sep.  Conformity with
+*   the port would have kept that, which is the case the owner's rule excepts.
+*
+*   ***WHAT IS DELIBERATELY HALF-DONE, AND IT IS THE HALF 79 CARES MOST ABOUT:
+*   MESSAGE 2050 STILL DOES NOT SAY "(y/<n>)".***  It cannot: the SAME record is
+*   displayed by DELETE, CD, COPY, CT and ED, and none of those honours a
+*   default, so wording it here would make it LIE in five places to be honest in
+*   one.  6135 and 6131 could be worded because each belongs to this program
+*   alone.  Fixing 2050's text needs the other five decided first - they are not
+*   one decision, because Y is destructive in DELETE and COPY and merely
+*   proceeds in CD, CT and ED.  Recorded, measured, in PROJECT_STATUS.
             loop
                display sysmsg(2050, file.name) :  ;* Use active select list (First item 'xx')?
                input yn
                yn = upcase(yn[1,1])
+               if yn = '' then yn = 'N'
             until yn = 'Y' or yn = 'N'
             repeat
             if yn = "N" then

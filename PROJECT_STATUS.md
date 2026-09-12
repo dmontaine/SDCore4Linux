@@ -515,6 +515,60 @@ the work, nothing in "Verified" that was not observed that session.
   against the system without editing the machine's own configuration. The red
   is demonstrated against the LOGIC instead, with the inputs the real files
   would have if they regressed.
+- ***OWNER'S RULING, 12 Sep 2026, AND IT IS A STANDING ONE FOR THE WHOLE
+  "WAITING FOR THE OWNER" LIST: where conformity with SD Core for Windows
+  answers an open question, and the answer does not cause problems on Linux,
+  IMPLEMENT THE CONFORMANT ANSWER AS THE DECISION*** rather than forwarding it.
+  Applied to all four open rulings the same day; ***it answered exactly one***,
+  and the other three are named below with WHY the port cannot settle them, so
+  nobody re-asks the port about them.
+- ***"WAITING FOR THE OWNER" 2 IS RULED AND BUILT: ENTER IS N AT DELETEF's 2050
+  — AND THE ARGUMENT THAT MADE IT HARD RESTED ON A MISREADING OF THE RECORD.***
+  PORT_ADOPTION said *"DELETE, CD, COPY, CT and ED treat anything but N as yes,
+  so its de-facto default is Y"*, so N here would have meant something
+  different from N everywhere else. ***MEASURED 12 Sep IN BOTH TREES AND THAT
+  IS WRONG.*** All six verbs carry the identical shape —
+  `loop … input … if N then stop … until reply = "Y" … repeat` — so anything
+  that is neither Y nor N ***re-asks***. ***NO VERB GIVES 2050 AN ENTER MEANING
+  AT ALL***, so there was nothing to be inconsistent with and the only argument
+  for Y does not exist. Port PRE_RELEASE 79 then decides it unopposed:
+  destructive prompts take N. `DELETEF:126-175`, compiled 0 errors, ***red
+  control an unbalanced bracket → 1 error naming line 169***, tree rebuilt
+  PLAIN, DON `COUNT VOC` 420, changelog entry. **NOT INSTALLED.**
+- ***AND CONFORMITY ALONE WOULD HAVE KEPT THE DEFECT, WHICH IS WHY THE RULING'S
+  SECOND CLAUSE MATTERS:*** the port's `DELETEF` is byte-identical here, so
+  "do what Windows does" means "keep looping" — and at end of input `input`
+  yields `''`, so it re-asked for ever, the 98.9 MB-in-40 s class. Both
+  readings of the ruling converge on N, which is why it was safe to take.
+- ***WHAT IS DELIBERATELY HALF-DONE: MESSAGE 2050's TEXT STILL DOES NOT SAY
+  `(y/<n>)`, AND IT CANNOT YET.*** The same record is displayed by DELETE, CD,
+  COPY, CT and ED, none of which honours a default, so wording it would make it
+  ***lie in five places to be honest in one***. 6135 and 6131 could be worded
+  because each belongs to DELETEF alone. ***AND THE OTHER FIVE ARE NOT ONE
+  DECISION***: Y is destructive in DELETE and COPY and merely proceeds in CD,
+  CT and ED, so they need ruling as a group before 2050's wording can follow.
+  All five still have the old shape and still busy-loop at end of input.
+- ***THE THREE THE PORT CANNOT SETTLE, WITH THE EVIDENCE, SO THEY ARE NOT
+  RE-ASKED OF IT:***
+  - **`sdsem.c` / `SEM_UNDO` (item 0).** ***The port has no answer and cannot
+    have one:*** it ABANDONED POSIX semaphores on 16 Aug 2026 for a
+    Windows-only reason — `sem_open` blocked ten seconds under LocalSystem in
+    session 0 (port PROJECT_STATUS:2814) — and now uses Win32 named semaphores
+    in `win32sem.c`. ***`SEM_UNDO` has no Win32 counterpart***; `grep -rln
+    SEM_UNDO` over the port's `gplsrc` returns nothing. Still the owner's.
+  - **6133, the multifile prompt (item 3).** The port's code is
+    ***byte-identical***, including the part that makes Enter unanswerable:
+    N does not mean "change nothing", it jumps to `delete.dict` and deletes the
+    dictionary anyway. Conformity would keep a prompt with no safe default.
+    ***The question is what N should DO, and the port does not say.*** Still the
+    owner's.
+  - **§M scope (item 4).** ***Conformity is explicitly NOT the test here***, by
+    the owner's own earlier ruling: lower case must be COMPLETE and *"where the
+    port stopped short, go past it: this outranks 'the port wins' for §M"*.
+    The port's answer is the partial one already rejected. Still the owner's —
+    though note his 11 Sep wording, *"no command, file or record id can exist
+    in two casings"*, reads as already answering the record-ids half; worth
+    confirming rather than assuming, because §M is release-blocking.
 - **NEXT:** finish queue **22**'s ranked worklist — `verify-lineendings` and
   `verify-nonet` (pure tree checks; `nonet`'s intent guards the shrink stance,
   so it stays useful after the queue empties), then `verify-basicfuncs`.
