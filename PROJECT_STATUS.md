@@ -275,7 +275,24 @@ the work, nothing in "Verified" that was not observed that session.
   the port's own walk close the gap instead of half of it. Add-only, never
   overwrite, never remove, ADMINISTRATOR only; the objection (it never removes)
   is kept in PORT_ADOPTION 16.
-- **NEXT:** queue **17** (MODIFY.PASSWORD), then 19, 21, 22, 25, and §M /
+- ***QUEUE 17 (MODIFY.PASSWORD) BUILT AND COMPILED 12 Sep — NOT RUN.***
+  `SET_ACC_PASSWORD`, the port's grammar and refusals, filed where the port
+  files it (VOC_TEMPLATE + `TIER.ADD.ADMINISTRATOR`). ***The `$cred` half is
+  deliberately absent:*** an SD account here IS a Linux user, so its password
+  is the Linux password and a second one could only disagree with it. SD never
+  sees a password; both arms hand off to `passwd(1)`, and "you must know your
+  current one" is enforced by PAM rather than by SD code. Detail in
+  PORT_ADOPTION 17.
+- ***WAITING FOR THE OWNER — SHOULD A STANDARD ACCOUNT HAVE MODIFY.PASSWORD?***
+  The port says administrators only, and on Windows that is right because an
+  ordinary user changes their password through Windows. ***Here PRE_RELEASE 13
+  forces a STANDARD account into `sd` over ssh, so administrators-only leaves a
+  remote standard user with no way to change their own password at all.*** The
+  code already handles the non-admin case (it runs `passwd -- <user>` as the
+  person, PAM demands the current password); ***widening it is one record added
+  to `NEWVOC` and nothing else***. Built to the port's placement pending a
+  ruling, so today the answer is "administrators only".
+- **NEXT:** the ruling above, then 19, 21, 22, 25, and §M /
   queue 18 under the 11 Sep ruling. ***Owed a witness from a FULL
   delete→install, none of them blocking:*** queue 15's installer block, queue
   13's carry-over and rotation, and queue 12's ssh and API doors — all three

@@ -9,6 +9,38 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  MODIFY.PASSWORD SETS AN ACCOUNT'S PASSWORD FROM INSIDE SD.
+
+               modify.password           - your own
+               modify.password bob       - somebody else's (administrators)
+
+           An SD account is a Linux user here, so its password is that user's
+           Linux password: there is no second password to get out of step with
+           the real one.
+
+           SD NEVER SEES THE PASSWORD.  It does not prompt for one, hold one,
+           or pass one to anything - it hands over to passwd, which does its
+           own prompting.  And a password is never accepted on the command
+           line: "modify.password bob hunter2" is refused rather than quietly
+           ignoring the second word, because by the time you saw a prompt the
+           password would already be in SD's command stack.
+
+           Setting your own asks for your current one - Linux asks, not SD, so
+           it follows whatever password rules this machine already has.
+           Setting somebody else's needs administrator rights and does not ask
+           for the old one, because an administrator resetting a forgotten
+           password does not know it.
+
+           What it does not do:
+
+           It will not set a password for a group account, which has no Linux
+           user of its own and so has nothing to set.
+
+           It never touches the root account.  The user is always named
+           explicitly, so the verb cannot be pointed at whoever happens to be
+           running it.
+
+
 11 Sep 26  UPGRADING NOW BRINGS YOUR ACCOUNTS' VOCs WITH IT.
 
            Installing a new release replaces the master lists SD builds new
