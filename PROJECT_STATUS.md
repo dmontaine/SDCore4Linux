@@ -619,9 +619,19 @@ the work, nothing in "Verified" that was not observed that session.
     `pete`, `tprog`, `tstd` and `tadm` still carry their 10-11 Sep directory
     mtimes, so the 12 Sep cycle kept accounts and `installsdai.sh`'s seeding
     block did not run. Queues 15, 13, 12 and 19 are unmoved.
-  - **`A4` is ONE ROW FROM COMPLETE** and the row is cheap: `SYSTEM(1007)` must
-    name the parent transaction after the inner commit. `SYS$TRANS_NBR` is
-    `SYSCOM/KEYS.H:393`; `verify-txn.bp` already has the nesting fixture.
+  - ~~**`A4` is ONE ROW FROM COMPLETE**~~ — ***DONE THE SAME DAY.
+    `verify-txn.py` IS NOW 33/33 AND `A4` IS COMPLETE:*** `SYSTEM(1007)` names
+    the PARENT again after the inner commit, measured 29 → 30 → **29** → 0.
+    ***THE NUMBERS ARE ALLOCATED PER TRANSACTION AND DIFFER EVERY RUN*** (17/18
+    on the first measurement, 25/26 on the next), so every row asserts a
+    RELATIONSHIP and none asserts a literal. ***THE ROW THAT MAKES IT MEAN
+    ANYTHING IS T10, "the inner has a DIFFERENT number"*** — had the inner
+    reused the outer's, "the number came back to the parent" would be true
+    however badly `end_txn_level()` behaved, because it would never have
+    changed. ***RED CONTROL: `N3` made to report the LEVEL → T11 alone fails
+    (expected 29, got 1), T9/T10/T12 still pass.*** So `PRE_RELEASE 6` now
+    stands at **`A2` and `A4` complete; `A1`, `A3`, `A5`, `A6` unexercised**,
+    and all four need an induced failure — sandbox work.
 - **NEXT:** finish queue **22**'s ranked worklist — `verify-lineendings` and
   `verify-nonet` (pure tree checks; `nonet`'s intent guards the shrink stance,
   so it stays useful after the queue empties), then `verify-basicfuncs`.
