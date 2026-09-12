@@ -106,10 +106,31 @@ the work, nothing in "Verified" that was not observed that session.
   `chattr +a` file makes `rm -fr` fail, so a deleter without the new block
   would stop part way. Known limit, as the port's: a shell user can append a
   line of their own. PORT_ADOPTION 13 has the witness steps.
-- ***QUEUE 14 BUILT AND COMPILED 11 Sep, PUSHED AT `7bdfc89` — NOT INSTALLED,
-  NOT RUN, SO NOTHING OF IT IS WITNESSED.*** (`origin/main` carries it, so a
-  delete→install cycle now tests it; the install on the box is still
-  `c2b375d`.) `GPL.BP/GRANTA` (`$GRANTA`: GRANT / REVOKE /
+- ***QUEUE 14 IS INSTALLED — `f3fbb1f`, 11 Sep 21:32, `assert-current` 0,
+  `verify-grants.py` 16/0 with both controls PASS.*** The owner ran the
+  keep-accounts delete→install cycle.
+- ***AND ITS TWO NEW FUNCTIONS ARE WITNESSED ON THAT INSTALL, WITH NO SUDO:***
+  `!tier_allows` 11/11 (both directions, equal rank, own account, all four
+  refusal statuses, lower-case input) and `!grp_members` 6/6 (compared against
+  an independent read of `/etc/group`, both refusals). ***A NON-`$internal`
+  PROGRAM MAY CALL THESE `$internal` FUNCTIONS*** — measured, and it is why the
+  decision function could be witnessed as plain `don` without touching a group
+  or building a dev binary. DON restored, `COUNT VOC` 411. Detail in
+  PORT_ADOPTION 14.
+- ***THE VERBS THEMSELVES ARE STILL UNWITNESSED*** — they change group
+  membership, so they need sudo. One owner-run script, the `witness-sudo.sh`
+  model: `sudo bash <scratchpad>/witness-grants.sh`, 25 checks in 8 phases,
+  snapshot/restore of TADM's tier, TSTD's tier and `sdu_tstd`, `bash -n` clean,
+  regexes proven against real stripped `sd` output. ***IT LIVES IN THE SESSION
+  SCRATCHPAD AND DIES WITH THE SESSION*** — if it has not been run, rewrite it
+  from PORT_ADOPTION 14's witness list rather than hunting for it. Its phase 2
+  is the changelog's own instruction run as written (TADM down to PROGRAMMER
+  and back, to take the three verbs).
+- ***TYPE USER NAMES IN THEIR UNIX CASE.*** Measured 11 Sep: the parser does
+  not upcase a token and `!is_grp_member` compares exactly, so
+  `GRANT TSTD TO PETE` ≠ `GRANT TSTD TO pete`. GRANTA upcases the ACCOUNT
+  (register keys are upper) and leaves the USER alone on purpose. The wrong
+  case is caught by `is_user` and answered 10045, so it fails loudly. `GPL.BP/GRANTA` (`$GRANTA`: GRANT / REVOKE /
   LIST.GRANTS), the gate at `CPROC:2865`, the ADD-arm gate and the promotion
   report in `MODIFYA` (`:201`, `:419`/`:469`), three `VOC_TEMPLATE` records,
   three names in `NEWVOC/TIER.ADD.ADMINISTRATOR`, messages 10041-10050 +
