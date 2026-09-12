@@ -63,8 +63,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***END OF SESSION, 12 Sep 2026 (evening) — READ THIS BLOCK FIRST. EVERYTHING
-BELOW IT IS OLDER, INCLUDING THE 11 Sep BLOCK THAT SAYS THE SAME THING.***
+***12 Sep 2026, LATE — READ THIS BLOCK FIRST; EVERYTHING BELOW IT IS OLDER.***
+
+**Queue 22 ranked item 5 is done: `verify-basicfuncs`.** `gplbld/verify-basicfuncs.py`
++ `.bp`, **199 of 199** decisive rows on install `0095937` with `--allow-stale`;
+units `gplbld/test-basicfuncs-units.py` **25/25**. 179 value cases over 116
+intrinsics and the operators. Detail in PORT_ADOPTION's worklist, not repeated.
+
+***THE STALE INSTALL IS UNCHANGED AND IS STILL THE FIRST JOB*** — the block
+below is correct: `assert-current` **1**, install `0095937`, `sdsys/GPL.BP/DELETEF`
+built and never installed. `--allow-stale` is sound for `verify-basicfuncs`
+specifically, and that is a stated reason rather than a habit: the whole delta
+`0095937..HEAD` is `assert-current.py` (comment), `sdsys/changelog` and
+`DELETEF`, none of which is an intrinsic. ***RE-RUN IT WITHOUT THE FLAG AFTER
+THE NEXT INSTALL ANYWAY*** — the value rows measure the INSTALL.
+
+***TWO THINGS THIS VERIFIER FOUND, AND ONE OF THEM WAS IN ITSELF.***
+- ***ITS OWN FIRST RUN REPORTED TWO DEFECTS SD DOES NOT HAVE.*** `cases_from`'s
+  `rstrip()` trimmed the trailing spaces off the `TRIMF` and `FMT.L`
+  expectations, which are the last field on the line; `TRIMB` passed in the
+  same run because its spaces are LEADING, and that asymmetry is what pinned
+  the fault to the instrument. ***THE ROW THAT CAUGHT IT WAS `Q1`***, which
+  exists only because the probe's tally and Python's verdict are kept separate.
+  Fixed with a `|END` terminator; the parser now refuses a line without one.
+- ***THE PORT'S `basicfuncs.sb` OVERSTATES ITS COVERAGE BY FIVE NAMES***, and
+  the arithmetic that found it is now a decisive row here. Owed to the port as
+  `BUGS_FROM_LINUX_PORT.md` **9**, NOT filed (a fresh clone and a push, so the
+  owner's). Detail in PORT_ADOPTION item 5.
+
+**DON was clean before and after:** `COUNT VOC` **420**, `BP` empty, no
+`BP.OUT` — measured both ends, not assumed.
+
+***END OF SESSION, 12 Sep 2026 (evening) — THE BLOCK BELOW IS OLDER, INCLUDING
+THE 11 Sep BLOCK THAT SAYS THE SAME THING.***
 
 **State at hand-over.** Tree **clean**, `main` == `origin/main` at `23e8dad`,
 `bin/sd` rebuilt **PLAIN** (no `DEVELOPER BUILD` banner), DON clean with
@@ -103,8 +134,8 @@ WITH THE PROMPT PRINTED ONCE.*** The killed session left ***no dead slot***
 ***No verifier covers 2050*** — this is a hand witness, and it is the obvious
 next row for `verify-vocverbs`.
 
-**Queue 22 is most of the way done.** Six verifiers, all green on install
-`0095937`, ***220 decisive rows between them***, plus four unit suites:
+**Queue 22 is most of the way done.** Seven verifiers, all green on install
+`0095937`, ***419 decisive rows between them***, plus five unit suites:
 
 | Instrument | Rows | Red control |
 |---|---|---|
@@ -114,15 +145,16 @@ next row for `verify-vocverbs`.
 | `verify-editors.py` | 28/28 | logic only (every row is a root-owned file) |
 | `verify-nonet.py` | 59/59 | logic only — and it failed its own first run |
 | `verify-lineendings.py` + `.bp` | 42/42 | ***null-case only, NOT behaviour*** |
-| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10 | |
+| `verify-basicfuncs.py` + `.bp` | 199/199 | real — three, one row each; and it failed its own first run |
+| units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25 | |
 
 ***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***, and the reason is
 checkable with the command above rather than asserted.
 
-**What queue 22 has left:** `verify-basicfuncs` (widest coverage per line),
-then the account family and the POSIX-mode family — ***both want the FULL
-delete→install that is already owed***, and the POSIX-mode one needs an
-owner-run half because the writes it must attempt need privilege.
+**What queue 22 has left:** the account family and the POSIX-mode family —
+***both want the FULL delete→install that is already owed***, and the
+POSIX-mode one needs an owner-run half because the writes it must attempt need
+privilege.
 
 ***THE OWED FULL delete→install HAS NOT MOVED, AND IT IS NOW FOUR QUEUES DEEP:***
 15's installer block, 13's rotation and carry-over, 12's ssh and API doors, 19's

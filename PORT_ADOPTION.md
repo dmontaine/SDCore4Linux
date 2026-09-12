@@ -369,7 +369,54 @@ rather than by how hard it is:
    editor setting or by copying a file in from Windows. Not a defect claim: the
    code does what it says. **To build: the applicable four parts. To rule:
    whether a directory-file record should tolerate CRLF here.**
-5. `verify-basicfuncs` — the widest coverage per line of any of them.
+5. ~~`verify-basicfuncs`~~ — ***BUILT AND WITNESSED 12 Sep, 199/199***
+   (`gplbld/verify-basicfuncs.py` + `.bp`, units `test-basicfuncs-units.py`
+   25/25). **179 value cases over 116 intrinsics and the operators**, on
+   install `0095937` with `--allow-stale`; no sudo, the caller's own account,
+   DON `COUNT VOC` 420 both ends.
+   ***THREE RED CONTROLS, ONE ROW EACH, ALL RUN:*** a wrong expectation (`ABS`
+   want 4 → that case row and nothing else); a probe that stops after 19 cases
+   but prints a WELL-FORMED tally (`P5` 179 vs 19 — ***and `Q1` stays green,
+   which is the point: the probe's own arithmetic cannot see this one***); and
+   a name dropped from the exclusion list (`V2` names `SET.SOCKET.MODE`). The
+   units file has its own: `--module` at a copy whose `cases_from` takes the
+   pre-fix branch → 3 of 25.
+   ***ADAPTATION 1 — PYTHON DERIVES THE VERDICT, THE PROBE ONLY REPORTS.*** The
+   port's probe prints `OK|`/`FAIL|` from its own `if sg = sw`, which makes a
+   BASIC program the judge of a language whose ***equality operator is one of
+   the things under test***; a broken `=` would print OK for every case. Here
+   each case prints `CASE|name|got|want|END` on ONE path, every case is its own
+   decisive row, and `Q1` reports any disagreement between the probe's tally
+   and Python's.
+   ***`Q1` FIRED ON THE FIRST RUN AND WHAT IT CAUGHT WAS IN THE PYTHON HALF.***
+   `cases_from`'s `rstrip()` ate the trailing spaces off the `TRIMF` and
+   `FMT.L` expectations — the only two that end in spaces, and `want` was the
+   last field on the line. `TRIMB` passed in the same run because ITS spaces
+   are leading, and that asymmetry is what pinned the fault to the instrument
+   rather than to SD. A verifier trusting the probe would have gone green; one
+   trusting only itself would have reported two defects that do not exist.
+   `|END` is the fix and a line without it is now refused.
+   ***ADAPTATION 2 — THE COVERAGE CLAIM IS MEASURED, NOT ASSERTED.*** The
+   probe's `NOT.TESTED:` comment lines are machine-readable and the verifier
+   reads the intrinsics table out of `sdsys/GPL.BP/BCOMP` itself, so an
+   intrinsic neither exercised nor declared turns the run red (`V2`). Here:
+   **176 known, 116 exercised, 60 declared, 0 unaccounted.**
+   ***AND RUN AGAINST THE PORT IT IS A BUG REPORT THE PORT IS OWED*** —
+   `BUGS_FROM_LINUX_PORT.md` **9**, ***NOT FILED***: it needs a fresh clone and
+   a push, so it is the owner's to authorise. Both trees' BCOMP carry the same
+   **176** intrinsics and `basicfuncs.sb`'s header claims *"Everything else in
+   BCOMP's intrinsics table is exercised below"*; it accounts for **175**.
+   `DELETE` is both tested and named excluded; `CHANGE` is excluded under
+   *"change the process"* beside `CHGPHANT` and `CONFIG` when `op_chnge.c` is a
+   substring replace satisfiable with literals; `SWAP` (a `CHANGE` synonym,
+   `BCOMP:581`), `ASSIGNED` and `UNASSIGNED` are on neither list. All five are
+   tested here.
+   ***OBJECTION, RECORDED NOT RESOLVED:*** the coverage rows read the SOURCE
+   tree's BCOMP while the value rows measure the INSTALL, so under
+   `--allow-stale` the two halves describe different trees. The section prints
+   that in its own output. It is not weakened to match, because the alternative
+   — reading the installed BCOMP — would describe whatever that install happens
+   to be, which is `gplbld/mkbasicsyntax.py`'s own stated warning.
 6. The account family (`createaccount`, `delaccount`, `acctmsgs`,
    `accountrules`) — one cycle's worth, and it wants the FULL delete→install
    this file already owes.
