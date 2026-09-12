@@ -335,7 +335,10 @@ both as `don`, **not** sudo — they elevate internally.
    and it witnesses **25** (`sdadmin` survives holding `don`, no 10037 lock-out)
    and **27** (the `/home/sd` + `sd.conf` save path).
 2. `/home/don/Projects/sdcore4linux/installsdai.sh` — builds `origin/main`, so
-   it installs `728b542` and APPLIES entry 13. Watch near the end for `Applying
+   it installs whatever `origin/main` is at the time — ***`728b542` when this
+   step was written, `30b9c86` as of 11 Sep;*** check rather than trust the
+   number, and `.sdcore-install` records what it actually took. APPLIES entry
+   13. Watch near the end for `Applying
    the ssh tier boundary (PRE_RELEASE 13).` then either `ssh-forcecommand:
    INSTALLED …` (+ the banner's `sshd_config.before-sd` note) or a yellow
    WARNING if it refused. Take its closing reboot (the APIsrvr socket).
