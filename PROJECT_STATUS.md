@@ -189,7 +189,18 @@ the work, nothing in "Verified" that was not observed that session.
   non-zero on failure, so why `sdsys` is absent is not yet explained. It matters
   for queue 14: `LIST.GRANTS` reports what the group holds, and CPROC:2807's
   "open lead" about `sdu_don` is now known to be general, not one account.
-- ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep — NOT INSTALLED, NOT RUN.***
+- ***INSTALL `3650118`, 11 Sep 22:19:50, `assert-current` 0; queue 14 re-checked
+  16/0 after the cycle.***
+- ***AND A WARNING ABOUT WHAT A KEEP-ACCOUNTS CYCLE CANNOT WITNESS, PAID FOR
+  HERE: `installsdai.sh`'s seeding block is guarded by
+  `if [ ! -d /home/sd/user_accounts/<user> ]`, so on a keep cycle it does not
+  run.*** It is the only caller of ADOPT, so queue 15's main path was NOT
+  exercised by the 22:19 install even though the install succeeded. ***The two
+  readings that look like proof afterwards are the null case: no `$adopt.*`
+  marker left behind (none was written) and DON still ADMINISTRATOR (it already
+  was).*** Anything whose only caller is that block needs a FULL delete→install,
+  or a fixture that calls it directly.
+- ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep — NOT RUN.***
   `CREATEA` + `installsdai.sh`, ***coupled and install-critical: they must ship
   together***, because refuse-unless-ADOPT without the installer's ADOPT aborts
   the install at its own account step. ***THE PLAN IN THIS FILE'S "ADOPT"
