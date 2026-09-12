@@ -27,13 +27,14 @@ the work, nothing in "Verified" that was not observed that session.
   corrected in place: §L1's tier-layer half (below), `PRE_RELEASE 6` (no longer
   "not one item exercised"), and `24(2)`'s `file:line`. Everything else was
   confirmed genuinely outstanding, with the measurement in the entry.
-- **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
+- **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`),
   ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
   to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
   `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
   `upcase(file.name)` (and `create.file zzvvw` really made `ZZVVW` on this box,
   measured), `LOGIN:302` still `pterm(PT$INVERT, @true)`, and all six named VOC
-  ids still upper. ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
+  ids still upper.
+- **Release blocker 2 of 2:** ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
   (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 = the omit
   list; CREATUSR fix also witnessed). ***THE "unrun" HALF OF THIS LINE WAS
   STALE AND IS CORRECTED, 12 Sep:*** `LOGIN update.voc`'s tier layer is ***RUN
