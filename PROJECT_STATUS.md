@@ -189,7 +189,17 @@ the work, nothing in "Verified" that was not observed that session.
   non-zero on failure, so why `sdsys` is absent is not yet explained. It matters
   for queue 14: `LIST.GRANTS` reports what the group holds, and CPROC:2807's
   "open lead" about `sdu_don` is now known to be general, not one account.
-- **NEXT:** the queue continues at **15 (ADOPT)**, then 16 — which is ***two***
+- ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep — NOT INSTALLED, NOT RUN.***
+  `CREATEA` + `installsdai.sh`, ***coupled and install-critical: they must ship
+  together***, because refuse-unless-ADOPT without the installer's ADOPT aborts
+  the install at its own account step. ***THE PLAN IN THIS FILE'S "ADOPT"
+  SECTION UNDERSTATED THE WORK*** — it describes the port's 14 Aug design (a
+  keyword, else refuse); the port found on 21 Aug that `K$INTERNAL` alone is
+  not enough and added a one-shot marker, which is what was built. Detail and
+  the witness list in PORT_ADOPTION 15. The installer now reads the register
+  back and warns in red if the seeded tier is not ADMINISTRATOR, because the
+  install is the only witness for ADOPT's tier default.
+- **NEXT:** witness queue 15 on the next install, then 16 — which is ***two***
   pieces here, not the port's one (see its row) — 17, 19, 21, 22, 25, and §M /
   queue 18 under the 11 Sep ruling. Still owed a witness from an install
   cycle, none of them blocking: queue 13's carry-over and rotation, and queue

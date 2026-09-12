@@ -18,6 +18,13 @@
 * 
 * 
 * START-HISTORY:
+* 11 Sep 26 dm  ADOPT, and the refusal that makes it necessary (PORT_ADOPTION
+*               15, the port's of 14 and 21 Aug 2026).  A pre-existing Linux
+*               user is now REFUSED (10038) instead of silently taken over;
+*               ADOPT is the one sanctioned exception, needs -internal AND a
+*               one-shot marker written by installsdai.sh, consumes the marker,
+*               and defaults the tier to ADMINISTRATOR.  NO.QUERY without a
+*               Linux user now says why (10039) instead of "Invalid user name".
 * 11 Sep 26 dm  A password that could not be set says why - 10120, 10909,
 *               10910, 10121 - and a refusal that a retry cannot fix offers
 *               no retry (port PRE_RELEASE_FIXES 22, adapted: passwd's 10
@@ -159,6 +166,33 @@ deffun valid_os_path(path) calling '!valid_os_path'
 * 10 Sep 26 dm - Parity audit: SH-ON / OS-ON at creation.  Off unless typed.
    os.sh = @false
    os.exec = @false
+* 11 Sep 26 dm - ADOPT attaches an SD account to a Linux user that ALREADY
+*   EXISTS instead of creating one.  PORT_ADOPTION 15, the port's CREATEA of
+*   14 and 21 Aug 2026.  See more.args for what gates it.
+   adopt = @false
+* 11 Sep 26 dm - THE ONE-SHOT MARKER THAT MAKES ADOPT INSTALL-ONLY, the port's
+*   of 21 Aug 2026.  installsdai.sh writes this file immediately before running
+*   the verb and removes it again afterwards; more.args accepts ADOPT only
+*   while it is there, and deletes it on acceptance.
+*
+*   ***K$INTERNAL IS NOT ENOUGH ON ITS OWN AND THE PORT LEARNED THAT THE HARD
+*   WAY.***  Here -internal is behind check_admin() (sd.c:351), so it already
+*   means root - but root is exactly who an administrator becomes with sudo,
+*   and the owner's rule is that the system AS DELIVERED enforces that SD
+*   account setup happens in SD.  A marker makes the door open for one account
+*   for one command instead of standing open for anybody who reaches -internal.
+*
+*   ***IT IS NOT SHIPPED AND MUST NEVER BE.***  A marker in the source tree
+*   would be staged into every install and leave the door open permanently,
+*   which is the state this replaces.
+*
+*   ASSIGNED HERE rather than in more.args because BCOMP's "is not assigned a
+*   value" is what the bootstrap fails on, and more.args is shared by the GROUP
+*   and OTHER arms, which never set acc.uname.  The USER arm overwrites it with
+*   '$adopt.<name>' as soon as the name is parsed, so one marker authorises one
+*   account rather than the verb in general; nothing writes this bare name, so
+*   it cannot exist on a delivered system.
+   adopt.marker = @sdsys:@ds:'$adopt'
    begin case
    case upcase(acc.type) = 'USER'
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
@@ -166,10 +200,28 @@ deffun valid_os_path(path) calling '!valid_os_path'
      if pathname = '' then pathname = '/home/sd/user_accounts'
      call @parser(PARSER$GET.TOKEN, token.type, acc.uname, keyword)
      if token.type = PARSER$END then stop
+* 11 Sep 26 dm - PORT_ADOPTION 15.  The marker names the account it authorises,
+*   and it is DOWNCASED because that is the Linux user name SD would settle on
+*   (the is_user cases below do the same) and because §M makes lower case the
+*   standard.  It has to be set here: after the name is known and before
+*   more.args, which is where ADOPT is read.
+     adopt.marker = @sdsys:@ds:'$adopt.':downcase(acc.uname)
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
-     
+* 11 Sep 26 dm - AN ADOPTED ACCOUNT IS AN ADMINISTRATOR'S, the port's :1704.
+*   ADOPT is reachable only from the installer, whose user is the person
+*   installing SD, and this project's model says that person is its first
+*   administrator - the installer used to pass ADMINISTRATOR by hand to get
+*   the same result.  ***WITHOUT THIS A FRESH INSTALL LANDS ITS OWN USER
+*   STANDARD, with no BASIC, no ED and no CATALOG, and with no registered
+*   administrator at all*** - the regression installsdai.sh's note of 10 Sep
+*   describes, reintroduced by the very change meant to tidy it up.
+*
+*   A DEFAULT, NOT AN OVERRIDE.  It applies only when no tier keyword was
+*   given, so an explicit PROGRAMMER on the same line still wins.
+     if adopt and tier = 'STANDARD' then tier = 'ADMINISTRATOR'
+
      * Is the user a valid os user?
      * Check reserved names then
      * Check user name as entered, then force to lower case and re check
@@ -188,18 +240,46 @@ deffun valid_os_path(path) calling '!valid_os_path'
        @system.return.code = -ER$ARGS
        stop sysmsg(6052) ;* User name is invalid
           
-     case is_user(acc.uname)
-       null ;* user name as entered is valid
-  
-     case is_user(downcase(acc.uname))
-       * lower is a valid user, use it
-       acc.uname = downcase(acc.uname)
- 
-     case no.query
-       * we don't have a valid user name and option no query specified, this will not work!
+* 11 Sep 26 dm - PORT_ADOPTION 15.  ***A PRE-EXISTING LINUX USER IS ADOPTED OR
+*   REFUSED, NEVER TAKEN SILENTLY.***  Owner's rule, 10 Sep 2026: all SD users
+*   are created WITHIN SD, and the ONE exception is the installer's own user,
+*   adopted at install time.  These two branches used to say `null` and take
+*   the account - so "create.account user <anybody-with-a-login>" quietly
+*   attached an SD account to somebody else's existing Linux login.  The port
+*   removed the same two branches on 14 Aug 2026 (its CREATEA:483) and its note
+*   is worth carrying: there the verb refused only BY ACCIDENT, because
+*   !is_user was broken on MSYS2, so repairing the lookup alone would have
+*   turned an accidental refusal into a silent adoption.
+*
+*   MERGED INTO ONE BRANCH, as the port's, because the answer is now the same
+*   either way and the downcase only decides which spelling is used.
+     case is_user(acc.uname) or is_user(downcase(acc.uname))
+       if adopt then
+         * The one sanctioned exception, and it is not reachable from a
+         * console: ADOPT needs -internal AND a one-shot marker, which means
+         * the install path.  No Linux user is created and no password is set -
+         * the account is already the person's.
+         if is_user(acc.uname) else acc.uname = downcase(acc.uname)
+       end else
          @system.return.code = -ER$ARGS
-         stop sysmsg(6074)  ;*    Invalid user name 
-       
+         stop sysmsg(10038, acc.uname) ;* Linux user %1 already exists
+       end
+
+* 11 Sep 26 dm - ADOPT NAMED A LINUX USER THAT IS NOT THERE, so there is
+*   nothing to adopt.  Creating one instead would be the opposite of what was
+*   asked, and it is the branch below that would otherwise do it.
+     case adopt
+       @system.return.code = -ER$ARGS
+       stop sysmsg(6074)  ;*    Invalid user name
+
+     case no.query
+* 11 Sep 26 dm - THE REASON WAS WRONG, the port's fix of 14 Aug 2026.  This
+*   said "Invalid user name" (6074), but by this point the name is fine - what
+*   cannot work is NO.QUERY, because creating a Linux user means setting its
+*   password and SET_PASSWD prompts.  10039 is the port's number and meaning.
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10039, acc.uname)  ;* Cannot create user %1 with NO.QUERY
+
      case 1
        * not a valid os user, are we configured to auto create os user?
 * 10 Sep 26 dm - CONFORM TO THE PORT (its CREATEA, 14 Aug 2026): the
@@ -740,6 +820,21 @@ more.args:
             os.sh = @true
          case upcase(token) = 'OS-ON'
             os.exec = @true
+
+* 11 Sep 26 dm - ADOPT, PORT_ADOPTION 15 and the port's :1678 byte for byte in
+*   shape.  Two gates, both required: the session must be -internal (which
+*   check_admin() already makes root-only here), and the one-shot marker for
+*   THIS account name must exist.  Accepting it consumes the marker, so a
+*   second CREATE.ACCOUNT in the same install cannot ride on the first.
+*
+*   ***THE TESTS ARE IN THE CASE CONDITION RATHER THAN INSIDE THE BRANCH, AND
+*   THAT IS THE POINT, NOT AN ACCIDENT OF LAYOUT.***  When either gate is shut
+*   the case does not match and ADOPT falls through to "Unexpected token
+*   (ADOPT)" below - the answer an invented word gets.  A refusal naming the
+*   keyword would confirm to somebody who guessed it that it exists.
+         case upcase(token) = 'ADOPT' and kernel(K$INTERNAL, -1) and ospath(adopt.marker, OS$EXISTS)
+            adopt = @true
+            void ospath(adopt.marker, OS$DELETE)
 
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)

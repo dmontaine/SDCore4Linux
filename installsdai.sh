@@ -860,9 +860,44 @@ echo
 #            AN EXISTING ACCOUNT IS NOT TOUCHED.  The directory test above
 #            means an upgrade that saved its accounts keeps the tier it has,
 #            so this seeds a fresh install rather than promoting anybody.
+# 11 Sep 26  ADOPT, AND THE MARKER THAT MAKES IT INSTALL-ONLY (PORT_ADOPTION 15).
+#            CREATE.ACCOUNT now REFUSES a pre-existing Linux user (10038) - the
+#            owner's rule is that SD accounts create their own Linux user, and
+#            the installer's own user is the single exception.  ADOPT is that
+#            exception and it needs BOTH -internal and this one-shot marker,
+#            which CREATEA deletes as it accepts the keyword.
+#
+#            ***THE MARKER IS WRITTEN HERE AND NEVER SHIPPED.***  One in the
+#            source tree would be copied into every install and leave the door
+#            open permanently, which is the state this replaces.  It is removed
+#            again below whatever happens, so a failed create cannot leave it.
+#
+#            ***NO ADMINISTRATOR KEYWORD ANY MORE***: ADOPT defaults the tier to
+#            ADMINISTRATOR (CREATEA), which is the port's arrangement.  That
+#            makes the install the witness for that default, so the result is
+#            CHECKED below rather than assumed - a silent STANDARD here is the
+#            exact regression the note above describes.
 if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
     echo "Creating a user account for ${tuser} as an SD administrator."
-    sudo bin/sd create-account USER "$tuser" ADMINISTRATOR no.query
+    adopt_marker="${sdsysdir}/\$adopt.$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
+    sudo touch "$adopt_marker"
+    sudo bin/sd -internal create-account USER "$tuser" ADOPT no.query
+    sudo rm -f "$adopt_marker"
+
+    # The instrument rule: say what the register ACTUALLY holds, not what the
+    # command was asked for.  Field 5 is ACC$TIER.
+    acct_reg="${sdsysdir}/ACCOUNTS/$(printf '%s' "$tuser" | tr '[:lower:]' '[:upper:]')"
+    seeded_tier=$(sudo sed -n '5p' "$acct_reg" 2>/dev/null)
+    if [ "$seeded_tier" = "ADMINISTRATOR" ]; then
+      echo "Registered ${tuser} as an SD administrator (tier: ${seeded_tier})."
+    else
+      printf "%b\n" "$RED"
+      echo "WARNING: ${tuser} was registered with tier '${seeded_tier:-<none>}',"
+      echo "not ADMINISTRATOR. This install has no registered administrator, so"
+      echo "'sudo sd' will fall back to its bootstrap arm. Fix with:"
+      echo "    sudo ${sdsysdir}/bin/sd modify.account ${tuser} administrator"
+      printf "%b\n" "$NC"
+    fi
 fi
 #
 echo
