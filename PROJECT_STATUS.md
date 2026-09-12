@@ -12,19 +12,41 @@ the work, nothing in "Verified" that was not observed that session.
 - **PRE_RELEASE entries — 27 total: 15 done · 1 partial · 11 open.**
   - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
-    refusal at `installsdai.sh:236` (**24(2)**) is unrun.
+    refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS
+    CORRECTED: the refusal is `installsdai.sh:252-255`, not `:236`*** (audited
+    12 Sep; `:236` is now the API-port prompt). Still unrun because `don` IS a
+    sudoer, so the arm cannot fire on this box.
   - Open: `1, 3, 4, 5, 6, 7, 9, 10, 11, 15, 16` — a mix of real work and notes.
     `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
     **10 Sep: `3` ruled (EDIT = ED alias) and `4` superseded (port EDIT adopted)
     — both struck; the counts above predate that.**
 - **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
   block.
+- ***AUDITED 12 Sep 2026 — EVERY REMAINING TASK RE-MEASURED AGAINST THE TREE
+  AND THE INSTALL RATHER THAN READ. THREE CLAIMS WERE STALE*** and are
+  corrected in place: §L1's tier-layer half (below), `PRE_RELEASE 6` (no longer
+  "not one item exercised"), and `24(2)`'s `file:line`. Everything else was
+  confirmed genuinely outstanding, with the measurement in the entry.
 - **Release blockers:** ***§M*** — the lower-case conversion (= entry `7`),
-  **not started**; ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
+  ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
+  to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
+  `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
+  `upcase(file.name)` (and `create.file zzvvw` really made `ZZVVW` on this box,
+  measured), `LOGIN:302` still `pterm(PT$INVERT, @true)`, and all six named VOC
+  ids still upper. ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
   (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 = the omit
-  list; CREATUSR fix also witnessed); `LOGIN update.voc` tier filter and
-  `MODIFYA` tier re-derivation **built + compiled 10 Sep (0 / red 3; 0 / red 9),
-  unrun**; ADOPT still to build (Open section).
+  list; CREATUSR fix also witnessed). ***THE "unrun" HALF OF THIS LINE WAS
+  STALE AND IS CORRECTED, 12 Sep:*** `LOGIN update.voc`'s tier layer is ***RUN
+  AND RE-WITNESSED TODAY*** — `bash gplbld/verify-tier-layer.sh` exits 0 with
+  ***the layer at 19 verbs and both ADMINISTRATOR accounts (DON, TADM) holding
+  all 19, 0 short***. That is stronger than queue 16's original 18/18: the
+  layer grew by `MODIFY.PASSWORD` and the walk carried the NEW verb into
+  PRE-EXISTING accounts. ***WHAT REMAINS GENUINELY UNATTRIBUTED IS `MODIFYA`'s
+  tier RE-DERIVATION***: `UPDATE.ACCOUNTS ALL` has since run for every account,
+  so TADM holding the layer no longer proves the re-derivation did it. **It
+  needs a fresh tier move to attribute** — measure the account's VOC before and
+  after `MODIFY.ACCOUNT`, with no `UPDATE.ACCOUNTS` in between. ADOPT still to
+  build (Open section).
 - **Parity audit vs the Windows port, 10 Sep:** 12 drifts corrected + compiled,
   **unrun**; key numbers renumbered so ***the tree `bin/sd` and GPL.BP must be
   installed together*** (Open, "Parity audit").
@@ -569,6 +591,36 @@ the work, nothing in "Verified" that was not observed that session.
     though note his 11 Sep wording, *"no command, file or record id can exist
     in two casings"*, reads as already answering the record-ids half; worth
     confirming rather than assuming, because §M is release-blocking.
+- ***THE 12 Sep AUDIT, ITEM BY ITEM — what was measured, not what was read.***
+  Three stale claims are corrected above. The rest are confirmed outstanding:
+  - **Queue 22 items 4-7** — `ls gplbld/verify-*` shows no `lineendings`,
+    `nonet`, `basicfuncs`, account-family or POSIX-mode-family file. Genuinely
+    to build. ***BUT NOTE WHAT IS ALREADY TRUE FOR `nonet`: THE SHRINK ITSELF IS
+    COMPLETE*** — `SDNET`, `NETWORK`, `TAPE`, `PROC`, `SED`, `UPDATE.RECORD`,
+    `MODIFY` and `OPGEN` are all absent from `GPL.BP` **and** `VOC_TEMPLATE`,
+    measured. ***THE TASK IS THE STANDING GUARD, NOT THE REMOVAL***, and that
+    distinction is worth keeping: the verifier exists to stop the shrink
+    quietly coming undone, so it earns its keep after the queue empties.
+  - **Queue 25 (DUMPDIR)** — ***THE C HALF ALREADY EXISTS***: `config.c:99`
+    and `:179-180` read `DUMPDIR=`, `op_config.c:91` and `:242` expose it. What
+    is missing is everything else — nothing SETS it (no `DUMPDIR` line in a
+    shipped `sd.conf`) and the installer creates no dump directory with the
+    mode/group bits the row calls for. Outstanding, and smaller than it looks.
+  - **Queue 28** — `sddefs.h:111` is still `#define MAX_PROGRAM_NAME_LEN 128`.
+    Outstanding, still low.
+  - **Queue 3b** — 2050 is ruled and built today. ***6133 remains the owner's
+    and the port cannot settle it*** (byte-identical, N deletes the dictionary
+    anyway). The other five verbs sharing 2050 still busy-loop at end of input.
+  - **The port bug (`BUGS_FROM_LINUX_PORT.md` 8)** — not filed; the local
+    frozen copy still ends at 7 plus the number-space note. Needs a fresh clone
+    and a push, so it is the owner's to authorise.
+  - **The owed full delete→install** — still owed. ***MEASURED, NOT ASSUMED:***
+    `pete`, `tprog`, `tstd` and `tadm` still carry their 10-11 Sep directory
+    mtimes, so the 12 Sep cycle kept accounts and `installsdai.sh`'s seeding
+    block did not run. Queues 15, 13, 12 and 19 are unmoved.
+  - **`A4` is ONE ROW FROM COMPLETE** and the row is cheap: `SYSTEM(1007)` must
+    name the parent transaction after the inner commit. `SYS$TRANS_NBR` is
+    `SYSCOM/KEYS.H:393`; `verify-txn.bp` already has the nesting fixture.
 - **NEXT:** finish queue **22**'s ranked worklist — `verify-lineendings` and
   `verify-nonet` (pure tree checks; `nonet`'s intent guards the shrink stance,
   so it stays useful after the queue empties), then `verify-basicfuncs`.
