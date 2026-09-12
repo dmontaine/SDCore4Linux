@@ -404,10 +404,36 @@ the work, nothing in "Verified" that was not observed that session.
   `bin/sd --version` printed no `DEVELOPER BUILD` line. `rm -f gplobj/*.o`
   first. CLAUDE.md says this; the reason it was caught anyway is that the
   version banner is checked rather than assumed.
-- **NEXT:** finish queue **22**'s ranked worklist — `verify-setpw` first
-  (queue 17 is built and has never run), then `verify-txn` (PRE_RELEASE 6),
-  then `verify-editors`. Then 25, and §M / queue 18 under the 11 Sep ruling.
-  Then §L1's remaining unrun pieces.
+- ***QUEUE 17 IS RUN, NOT JUST INSTALLED — 12 Sep, `gplbld/verify-setpw.py`,
+  24 of 24, as `don`, no sudo, and NOTHING CHANGED.*** All three refusals
+  reachable without sudo fire; ***the ordering is proven*** — `MODIFY.PASSWORD
+  PETE somethingextra` answers 5276 and NOT 2001, so the trailing-token refusal
+  is about GRAMMAR and not about privilege, which is what makes the refusal
+  mean anything for somebody who does hold the privilege. ***AND THE CONTROL IS
+  THE POINT:*** `MODIFY.PASSWORD DON` alone got past the syntax check into
+  `passwd(1)`, was refused a deliberately wrong current password (10915, no
+  10914), and left `passwd -S don`'s last-change date at `2026-09-08`,
+  ***read before AND after***. A verb that refused everything would have passed
+  the three treatment rows.
+- ***AND IT SETTLES AN UNWITNESSED PREMISE OF PORT_ADOPTION 17: "you must know
+  your current password" IS ENFORCED BY PAM, NOT BY SD CODE.*** Row C4 saw
+  `Current password:` come from `passwd`, not from SD — SD never prompted.
+- ***NOT REACHABLE WITHOUT sudo, AND `verify-setpw.py` PRINTS THIS RATHER THAN
+  SCORING IT:*** 5018 and 10913 (the privilege test fires second, so any
+  account but your own is refused 2001 before either is reached) and the whole
+  administrator arm (`!set_passwd` → `sd-elevate passwd`). Owed to an
+  owner-run half.
+- ***BOTH 12 Sep VERIFIER RUNS USED `--allow-stale`, AND THE REASON IS
+  CHECKABLE RATHER THAN ASSERTED:*** HEAD is ahead of the install by
+  documentation only — `git diff --name-only 0095937..HEAD | grep -v '\.md$'`
+  returns ***nothing***, so no code or data that runs differs. State that when
+  quoting either result; do not generalise it to a later delta without
+  re-running the command.
+- **NEXT:** finish queue **22**'s ranked worklist — `verify-txn` next
+  (PRE_RELEASE 6, "compiled but unexercised"), then `verify-editors` (NANO and
+  MICRO, compiled and never run), then `verify-lineendings` / `verify-nonet`.
+  Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
+  unrun pieces.
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
   cycle:*** queue 15's installer block, queue 13's carry-over and rotation,
   queue 12's ssh and API doors, queue 17 (never installed), and queue 19's
