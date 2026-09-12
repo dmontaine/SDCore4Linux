@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  The NO.QUERY @SDSYS skip leaves the DATA loop by "goto
+*               more_test" rather than "continue", which re-ran "remove" on an
+*               exhausted list and raised the 6135 prompt on an empty path
+*               after NO.QUERY had already been honoured.  Measured, not read
+*               (PORT_ADOPTION queue 22).  Same code at the port's DELETEF:246.
 * 11 Sep 26 dm  Adopted from the Windows port: NO.QUERY takes the safe branch
 *               in check.sdsys.file (msg 10117, port PRE_RELEASE 14, UPSTREAM
 *               23); the DATA/DICT path comparisons ignore case (port 26,
@@ -226,10 +231,27 @@ delete.upcased.file:
             if upcase(data.path[1,6]) = '@SDSYS' then
                part = 'data'
                gosub check.sdsys.file
+* 12 Sep 26 dm - AND THE SKIP TAKES THE SAME UGLY GOTO THE 2024 COMMENT BELOW
+* PRESCRIBES, FOR THE SAME REASON.  "continue" here re-entered the loop at its
+* FIRST statement rather than at "while more", so "remove" ran a second time on
+* an exhausted list, handed back an EMPTY data.path, and the empty path then
+* failed the "data.path # default.path" test further down and raised the 6135
+* prompt - under NO.QUERY, which had just been honoured five lines earlier.
+* MEASURED 12 Sep 2026 on install 06d3a4a, as don, no sudo: a piped
+* "DELETE.FILE ZZVVF NO.QUERY" against a copy of the SYSCOM pointer printed
+* 6145 and 10117 correctly, then printed "OK to delete DATA portion '' (y/<n>)?"
+* THREE TIMES, eating the two commands that followed it - the transcript's tell
+* is that "CT VOC ZZVVF" and "OFF" appear as ANSWERS to the prompt.  It is not
+* the endless loop the 2024 note feared only because the Enter=N fix below now
+* turns end-of-input into N.  The VOC entry did go, and the system file was
+* left alone, so the OUTCOME was right and only the route was wrong: this is a
+* defect an outcome check cannot see.
+* SAME CODE IN SD CORE FOR WINDOWS at its gpl.bp/DELETEF:246, NOT MEASURED
+* THERE - filed to the port as a Linux-found bug.
                if skip.part then
                   del voc.rec<2,pos>
                   del voc.rec<4,pos>
-                  continue
+                  goto more_test
                end
                data.path = @sdsys:data.path[7,9999]
             end
