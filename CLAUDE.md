@@ -290,6 +290,19 @@ of them reverse what an earlier analysis recommended.
   `check_admin()` on this ruling, with `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` as
   the opt-in hatch that **announces itself and cannot reach a user**, because
   the installer builds from a fresh clone.
+- ***SECURITY SHIPS TIGHT AND THE ADMINISTRATOR RELAXES IT BY CHOICE*** (owner,
+  12 Sep 2026). *"Security starts tighter but can be relaxed by choice."* Where
+  a capability could reasonably default either way, **ship it off** and leave
+  the administrator a deliberate act to turn it on — and make that act possible,
+  documented and reversible. **The restrictive default is not a judgement that
+  nobody should have the capability; it is a decision about who decides.**
+  `MODIFY.PASSWORD` is the worked example: it is administrators-only in
+  `TIER.ADD.ADMINISTRATOR`, and an administrator who wants a particular user to
+  set their own password copies the VOC record into that account, which works
+  and grants nothing else (PORT_ADOPTION 17). ***SO A RESTRICTIVE DEFAULT WITH
+  NO WAY TO RELAX IT IS THE THING TO AVOID***, and "a user cannot do X" is not
+  by itself a defect to fix — check whether the administrator can grant it
+  before treating it as one.
 - ***A RICH BASIC SCREEN/WIDGET LIBRARY IS A GOAL*** (owner, 10 Sep 2026). Extend
   SD BASIC so a programmer builds rich terminal screens — administrative apps
   rivalling the best TUI frameworks, up to a traditional terminal-based IDE —

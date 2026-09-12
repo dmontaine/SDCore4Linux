@@ -284,12 +284,17 @@ the work, nothing in "Verified" that was not observed that session.
   current one" is enforced by PAM rather than by SD code. Detail in
   PORT_ADOPTION 17.
 - ***OWNER'S RULING, 12 Sep 2026: MODIFY.PASSWORD IS ADMINISTRATORS ONLY***, as
-  the port files it. He was asked because PRE_RELEASE 13 forces a STANDARD
-  account into `sd` over ssh, so the ruling has a consequence worth stating
-  plainly: ***a remote standard user cannot change their own password at all***
-  — an administrator resets it and tells them. ***THIS IS A DECISION, NOT A
-  GAP:*** `MODIFY.PASSWORD` stays out of `NEWVOC`, and a later session that
-  finds a standard user stuck is looking at the ruling, not a defect.
+  the port files it — ***and his reason generalises, so it is now a stance in
+  CLAUDE.md: "Security starts tighter but can be relaxed by choice."*** The
+  default is off and ***the administrator holds the dial***: one who wants a
+  particular user to set their own password copies the VOC record into that
+  account, which works and grants nothing else (PORT_ADOPTION 17).
+  ***SO THE RULING IS NOT "STANDARD USERS ARE DENIED", IT IS "THE DEFAULT IS
+  DENIED AND THE ADMINISTRATOR DECIDES"*** — an earlier version of this entry
+  wrote the consequence up as a cost he had absorbed, which had it backwards.
+  `MODIFY.PASSWORD` stays out of `NEWVOC`, and a later session that finds a
+  standard user unable to change a password is looking at a default with a
+  documented release valve, not a defect.
 - ***AND THE NON-ADMIN ARM IS NOT DEAD CODE, which is easy to get wrong:*** only
   an ADMINISTRATOR-tier account holds the verb, but such an account in a PLAIN
   `sd` session has no `K$ADMINISTRATOR` (that needs `sudo sd`, `CPROC:328`), so
