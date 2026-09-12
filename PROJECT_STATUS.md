@@ -214,14 +214,32 @@ the work, nothing in "Verified" that was not observed that session.
   takes the 10038 branch and never reaches the password prompt. ***THE SCRIPT
   IS NOW IMMUNE RATHER THAN DIAGNOSED*** — every `sd` call takes `</dev/null`
   and a 25s timeout, and each echoes its command line first, so a recurrence
-  names the step instead of hanging. Re-run needs `--clean` first.
+  names the step instead of hanging. ***IT DID NOT RECUR: the identical command
+  passed in under a second at 22:38.*** A fifth theory died afterwards — an
+  unknown TERM and an unset TERM both sign on cleanly, so LOGIN's terminal-type
+  question is not it either (and that is a free confirmation of queue 5's
+  fallback). ***CAUSE STILL UNKNOWN. The best remaining hypothesis, and it is
+  written as one:*** the prompts in this codebase end in `display … :` with no
+  newline, and the run's stdout was a pipe into `tee`, so a question COULD have
+  been written and left sitting in the buffer — which would explain a stall with
+  no visible prompt. Untested; it would be falsified by a tty run that shows the
+  question. Re-run needs `--clean` first.
 - ***AND A LATENT TRAP FOUND WHILE LOOKING, WHICH IS NOT THE CAUSE HERE:
   `LOGIN:492-511` IS A `loop … input … until Y or N` WITH NO EOF ESCAPE*** —
   the queue 3 shape, in the sign-on path. It only fires when an account's VOC
   `$RELEASE` differs from `SD.REV.STAMP`, which is why it is quiet today; when
   it does fire it will hang a terminal and busy-loop a pipe on 5027 with a BEL
   per turn. Queue 3 lists `DELETEF`'s four loops and does not list this one.
-- ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep — NOT RUN.***
+- ***QUEUE 15 (ADOPT) IS WITNESSED — 11 Sep 22:38, owner-run
+  `witness-adopt.sh`, 14 PASS / 0 FAIL, cleanup COMPLETE.*** The silent
+  take-over of an existing Linux user is closed (10038, and no account
+  directory created); ADOPT with the marker adopts and defaults the tier to
+  ADMINISTRATOR with no keyword given; the marker is CONSUMED; and a marker
+  naming one account does not authorise another. Evidence per check in
+  PORT_ADOPTION 15. ***The remaining gap is small and named there:***
+  `installsdai.sh`'s own block has not run, because only a FULL delete→install
+  reaches it.
+- ***QUEUE 15 (ADOPT) BUILT AND COMPILED 11 Sep.***
   `CREATEA` + `installsdai.sh`, ***coupled and install-critical: they must ship
   together***, because refuse-unless-ADOPT without the installer's ADOPT aborts
   the install at its own account step. ***THE PLAN IN THIS FILE'S "ADOPT"
@@ -231,11 +249,12 @@ the work, nothing in "Verified" that was not observed that session.
   the witness list in PORT_ADOPTION 15. The installer now reads the register
   back and warns in red if the seeded tier is not ADMINISTRATOR, because the
   install is the only witness for ADOPT's tier default.
-- **NEXT:** witness queue 15 on the next install, then 16 — which is ***two***
-  pieces here, not the port's one (see its row) — 17, 19, 21, 22, 25, and §M /
-  queue 18 under the 11 Sep ruling. Still owed a witness from an install
-  cycle, none of them blocking: queue 13's carry-over and rotation, and queue
-  12's ssh and API doors.
+- **NEXT:** queue **16** — which is ***two*** pieces here, not the port's one
+  (see its row) — then 17, 19, 21, 22, 25, and §M / queue 18 under the 11 Sep
+  ruling. ***Owed a witness from a FULL delete→install, none of them
+  blocking:*** queue 15's installer block, queue 13's carry-over and rotation,
+  and queue 12's ssh and API doors. Worth doing in one cycle when the test
+  accounts are expendable.
 
 ***⚠ 11 Sep 2026, ~03:45 — THE RUNNING SD WAS WEDGED. RESOLVED BY THE 05:05
 REBOOT; the chain and the untested hypothesis below still stand.***
