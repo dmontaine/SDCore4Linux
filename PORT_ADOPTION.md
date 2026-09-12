@@ -111,6 +111,14 @@ process and semaphores `111111`.
    and cannot until the other five are ruled*** — and they are not one
    decision, because Y is destructive in `DELETE` and `COPY` and merely
    proceeds in `CD`, `CT` and `ED`. All five still busy-loop at end of input.
+   ***WITNESSED ON INSTALL `f446ac1`, 12 Sep 2026***: exit 0, 0.047 s, 635
+   bytes, against the before of exit 124, 51 139 053 bytes in 15 s. ***THE
+   PROMPT PRINTS TWICE, AND THE SENTENCE ABOVE IS WHY*** — the witness feeds
+   `OFF`, `yn[1,1]` is `O`, and "anything that is neither Y nor N re-asks";
+   only end of input gives N. PROJECT_STATUS's criterion said *once* and was
+   wrong: it forgot this entry's own measurement. The owner's terminal showed
+   one because SD's `\r ESC[K` at end of input erased the second — the byte
+   count is the instrument, not the rendering.
 3. **`DELETE.FILE` on a multifile (6133 "Delete all data components?").**
    Answering N does not mean "change nothing" — it jumps to `delete.dict` and
    deletes the dictionary anyway. So there is no safe answer for Enter to take

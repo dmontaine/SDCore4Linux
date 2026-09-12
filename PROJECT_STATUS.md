@@ -54,16 +54,79 @@ the work, nothing in "Verified" that was not observed that session.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`0095937`**, 12 Sep 2026 01:50:36, by an
-  owner-run KEEP-accounts cycle; `assert-current` **0** at that point. It
-  carries queue 17 (`MODIFY.PASSWORD`, installed but never run) and queue 22's
-  `DELETEF` fix (witnessed). *Earlier note, kept because it names the trap:
+- **Runtime:** install built from **`f446ac1`**, 12 Sep 2026 11:56:05, by an
+  owner-run ***FULL*** delete→install — `assert-current` **0**, measured
+  after the install, not inferred from the stamp. Previous: `0095937`, 01:50:36,
+  a KEEP cycle. *Earlier note, kept because it names the trap:
   after `98b0c77` HEAD advanced by documentation-only commits, so
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
 
-***12 Sep 2026, LATE — READ THIS BLOCK FIRST; EVERYTHING BELOW IT IS OLDER.***
+***12 Sep 2026, AFTER THE FULL CYCLE — READ THIS BLOCK FIRST; EVERYTHING BELOW
+IT IS OLDER.***
+
+**The install is current.** `f446ac1`, 11:56:05, `assert-current` **0**. ***IT
+WAS A GENUINE FULL CYCLE, MEASURED, BECAUSE THE LAST ONE WAS A KEEP CYCLE THAT
+NOBODY NOTICED***: `/home/sd/user_accounts` holds only `don` (11:57); the
+register holds only `DON` and `SDSYS` (11:56); `sdusers` is `root,sdsys,don` and
+`sdadmin` is `don`, both recreated; the audit trail is a fresh 542 bytes, not
+28 400. `pete`/`tadm`/`tprog`/`tstd` are gone as SD accounts — ***their Linux
+users and `sdu_*` groups SURVIVE***, as `deletesdai.sh:304` warns. New
+baseline: DON `COUNT VOC` **418** (was 420), `LISTU` clean.
+
+***DELETEF 2050 IS WITNESSED — AND THE CRITERION THIS FILE SET FOR IT WAS
+WRONG.*** The witness command gives exit **0** in **0.047 s**, **635 bytes**,
+0 BEL — against the banked before of exit 124, 51 139 053 bytes in 15 s. But
+this file said *"the prompt must appear ONCE"*, and ***the raw bytes carry it
+TWICE, which is correct***: the command feeds `OFF` to the prompt, and
+`DELETEF:169-173` reads `upcase(yn[1,1])`, so `OFF` is `O` — neither Y nor N —
+and the loop rightly asks again; only end of input gives `''` → N. ***THE
+OWNER'S TERMINAL SHOWED ONE***, because at end of input SD emits `\r ESC[K`,
+which erased the second prompt before it could be seen (`od -c` of the capture).
+***A RENDERED TERMINAL IS NOT AN INSTRUMENT FOR COUNTING PROMPTS*** — the port's
+lesson in `sdverify.py`'s header, now with a local byte-level example. The
+decisive property was always "finite and fast", and it holds.
+
+**Every verifier re-run on the current install, WITHOUT `--allow-stale`, all
+exit 0:** vocverbs 34, setpw 24, txn 33, editors 28, nonet 59, lineendings 42,
+basicfuncs 199, accounts 35, sysperms 18 (= 472 decisive rows), grants 16 with
+both controls, tier-layer (DON 19 of 19, 0 short); units sdverify 34, editors
+19, nonet 12, assert-current 10, basicfuncs 25, accounts 17, sysperms 20,
+selftest 26; `reconcile-accounts.sh` report: 1 live, 0 stale. ***`setpw`'s peer
+row was checked, not trusted***: PETE's account is gone, and `MODIFY.PASSWORD
+PETE` still answers 2001 because the privilege check precedes the target lookup
+— so the row passes for the right reason, and would go red on a broken gate
+either way.
+
+***WHAT THE FULL CYCLE DID AND DID NOT WITNESS — the difference matters more
+than the green:***
+- **Queue 15 (installer seeding / ADOPT): the END STATE is what its main path
+  should produce, and a keep cycle cannot produce it** — DON's directory was
+  absent, so `installsdai.sh:901`'s guard was satisfied; the Linux user `don`
+  pre-existed (uid 1000), so it was necessarily the pre-existing-user case; no
+  `$adopt.don` marker was left (`:906` removes it on success); DON is
+  ADMINISTRATOR with the full layer. ***THE INSTALL TRANSCRIPT ITSELF WAS NOT
+  SEEN BY THIS SESSION***, so this is inference from end state, not a witness of
+  the path taken.
+- **Queue 19 (the sweep at start): NULL CASE.** 0 stale records existed, so a
+  sweep that removed nothing proves nothing. It needs a stale record to remove.
+- **Queue 13: carry-over is NOT witnessable on a full cycle** — the trail is
+  deleted by design. Rotation at `sd -start` is unread: 0620 refuses `don`.
+- **Queue 12 (ssh / API doors): not measured.**
+
+**Observation, not a defect claim:** the register's `DON` record is now `0664
+root:root`; before this cycle it was `0644`. Not a leak (the group is `root`),
+but it differs from what `CREATE.ACCOUNT` wrote before, and the installer's
+seeding path is the new variable. Unexplained.
+
+**Owed, and now runnable:** `witness-accounts.sh --commit` (sudo; its ground is
+clear on a fresh install). **Owed and blocked:** `sdsyswrite` (needs a session
+in SDSYS). ***The test accounts are gone***, so anything wanting a second
+ADMINISTRATOR or a STANDARD peer must recreate them first — and `CREATE.ACCOUNT`
+for those names will meet a pre-existing Linux user and `sdu_*` group.
+
+***12 Sep 2026, LATE — THE BLOCK BELOW IS OLDER.***
 
 **Queue 22 ranked item 5 is done: `verify-basicfuncs`.** `gplbld/verify-basicfuncs.py`
 + `.bp`, **199 of 199** decisive rows on install `0095937` with `--allow-stale`;
@@ -124,8 +187,10 @@ THE 11 Sep BLOCK THAT SAYS THE SAME THING.***
 `bin/sd` rebuilt **PLAIN** (no `DEVELOPER BUILD` banner), DON clean with
 `COUNT VOC` **420**, nothing left in `BP`/`BP.OUT`, no fixtures anywhere.
 
-***THE ONE THING THAT IS BUILT AND NOT INSTALLED, AND IT IS THE FIRST JOB NEXT
-SESSION.*** `assert-current` reads **STALE**: the install is `0095937`, HEAD is
+~~***THE ONE THING THAT IS BUILT AND NOT INSTALLED, AND IT IS THE FIRST JOB NEXT
+SESSION.***~~ ***RESOLVED 12 Sep 11:56 — installed in `f446ac1` and witnessed;
+see the top block, which also corrects the "ONCE" criterion below.***
+`assert-current` read **STALE**: the install was `0095937`, HEAD was
 `23e8dad`. Run the corrected recipe and it comes to three files —
 
 ```sh
@@ -174,8 +239,9 @@ seven unit suites:
 | `verify-sysperms.py` | 18/18 | real — four, via a `--sdsys` fixture tree; the two gate sections have none |
 | units | `sdverify` 34, `editors` 19, `nonet` 12, `assert-current` 10, `basicfuncs` 25, `accounts` 17, `sysperms` 20 | |
 
-***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***, and the reason is
-checkable with the command above rather than asserted.
+~~***EVERY ONE NEEDS `--allow-stale` UNTIL THE NEXT INSTALL***~~ ***NO LONGER —
+all nine re-run WITHOUT it on install `f446ac1`, 12 Sep, every one green with
+the same row counts. See the top block.***
 
 ***AND ONE OWNER-RUN SCRIPT THAT HAS NEVER BEEN RUN:***
 `gplbld/witness-accounts.sh`, the privileged half of the account family. ***ITS
