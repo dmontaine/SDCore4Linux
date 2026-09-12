@@ -9,6 +9,33 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  DELETE.FILE NO.QUERY NO LONGER ASKS A QUESTION AFTER PROMISING NOT
+           TO.
+
+           Deleting a file whose data lives in the system account - a VOC entry
+           pointing at @SDSYS/something - does the safe thing under NO.QUERY:
+           the VOC reference goes and the shared file is left alone, and it
+           tells you so.  That part was right.  What followed it was not.  The
+           verb then went on to ask
+
+               OK to delete DATA portion '' (y/<n>)?
+
+           three times, about a file with no name, after NO.QUERY had already
+           been honoured.  Typed at a terminal it was a puzzling question you
+           could answer with Enter.  In a script or a piped session it was
+           worse: the prompt swallowed the next lines of input as its answers,
+           so the commands after DELETE.FILE never ran and nothing said why.
+
+           The right thing still happened underneath - the VOC entry went, the
+           shared file stayed - which is exactly why this went unnoticed.  Only
+           the route was wrong.
+
+           IT DOES NOT CHANGE WHAT GETS DELETED.  NO.QUERY still declines to
+           remove a file out of the system account, and still tells you the
+           file is still there; delete it without NO.QUERY to be asked about
+           the file itself.
+
+
 12 Sep 26  MODIFY.PASSWORD SETS AN ACCOUNT'S PASSWORD FROM INSIDE SD.
 
                modify.password           - your own

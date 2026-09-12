@@ -342,8 +342,45 @@ the work, nothing in "Verified" that was not observed that session.
   session. Openings rewritten; the re-run leaves ***1, row 19, READ AND
   ACCEPTED*** (both its claims are true), so ***exit 0 is not the goal*** — it
   ranks entries for reading and every hit is read by hand.
-- **NEXT:** queue **22** (verifier intent), then 25, and §M / queue 18 under
-  the 11 Sep ruling. Then §L1's remaining unrun pieces.
+- ***QUEUE 22 — THE HARNESS IS BUILT, UNIT-TESTED AND HAS ALREADY EARNED ITS
+  KEEP, 12 Sep.*** `gplbld/sdverify.py` (one module, not the port's 51 copies
+  of the same block; `--selftest` 26/0), `gplbld/test-sdverify-units.py` (34/0,
+  ***with a red control: `verdict()` mutated to pass the null case → 3
+  failures, exit 1***), and the first verifier, `gplbld/verify-vocverbs.py`.
+  All 79 of the port's test instruments are now classified — PORT_ADOPTION
+  "Queue 22", which is PRE_RELEASE 1's missing answer for the testing half —
+  with a ranked worklist. ***THE ONE TO READ THERE IS `verify-sshadmin`: the
+  port's assertion is INVERTED here***, so adopting its wording would have
+  written a passing check for behaviour this project deliberately does not
+  have.
+- ***AND THE FIRST VERIFIER FOUND A DEFECT ON ITS FIRST RUN, WHICH IS THE WHOLE
+  ARGUMENT FOR QUEUE 22.*** `DELETE.FILE <ptr> NO.QUERY` honoured NO.QUERY,
+  said so with 10117 — and then printed `OK to delete DATA portion '' (y/<n>)?`
+  ***three times and ate the two commands that followed***, the transcript's
+  tell being that `CT VOC ZZVVF` and `OFF` appear as ANSWERS to the prompt.
+  Cause `DELETEF:232`'s `continue`, which the file's own 2024 comment predicts;
+  fixed with the `goto more_test` the sibling site already uses.
+  ***THE OUTCOME WAS RIGHT AND ONLY THE ROUTE WAS WRONG*** (the VOC entry went,
+  the system file stayed), which is why it survived — and why the port's own
+  `verify-vocverbs.ps1`, which checks 10117 and the absence of 6146, would pass
+  on it. **Same code at the port's `DELETEF:246`, not measured there; owed to
+  `BUGS_FROM_LINUX_PORT.md` as 8, through a fresh clone, NOT YET FILED.**
+- ***THE BEFORE-MEASUREMENT IS BANKED AND THE AFTER-WITNESS IS OWED:***
+  `verify-vocverbs.py --allow-stale` on install `06d3a4a` = **33 of 34 decisive
+  rows PASS, row B4 FAILS** — B4 being the row the port does not have. After
+  the next install, run it ***without*** `--allow-stale` and expect 34/34:
+  `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-vocverbs.py`
+  (no sudo; 0 pass, 1 a decisive row failed, 2 could not run).
+- ***AND A TRAP RE-PAID, WITH THE INSTRUMENT THAT CAUGHT IT:***
+  `make EXTRA_C_FLAGS=-DSD_DEV_BUILD` ***DID NOT PRODUCE A DEV BINARY*** —
+  `make` tracks timestamps, `sd.c` had not changed, so nothing recompiled and
+  `bin/sd --version` printed no `DEVELOPER BUILD` line. `rm -f gplobj/*.o`
+  first. CLAUDE.md says this; the reason it was caught anyway is that the
+  version banner is checked rather than assumed.
+- **NEXT:** finish queue **22**'s ranked worklist — `verify-setpw` first
+  (queue 17 is built and has never run), then `verify-txn` (PRE_RELEASE 6),
+  then `verify-editors`. Then 25, and §M / queue 18 under the 11 Sep ruling.
+  Then §L1's remaining unrun pieces.
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
   cycle:*** queue 15's installer block, queue 13's carry-over and rotation,
   queue 12's ssh and API doors, queue 17 (never installed), and queue 19's

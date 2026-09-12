@@ -201,13 +201,115 @@ count was wrong in six of eight classes — which is why it was checked.*
 | 19 | Register/OS reconciliation at start (port 93 and 65). ***BUILT AND WITNESSED 12 Sep against a fixture; `sd.service` RUNS `--sweep`, RULED BY THE OWNER 12 Sep. NOT YET RUN ON A REAL START.*** `gplbld/reconcile-accounts.sh`, installed as `/usr/local/sbin/sd-reconcile-accounts` beside `sd-elevate` and `ssh-forcecommand` (root-owned, removed by `deletesdai.sh`); `sd.service` gains `ExecStartPre=-… --list`, ***the leading `-` load-bearing*** because the script exits 1 on a finding and a stale record must never refuse to start SD. ***THE REVIEW THE ROW ASKED FOR FOUND A LINUX HAZARD THE PORT DOES NOT HAVE, AND IT IS THE REASON THE SWEEP IS NOT WIRED:*** `!is_user` (`IS_USER:52`) does `openpath "/etc"` and reads `passwd` ***DIRECTLY, never NSS***, while this machine's `/etc/nsswitch.conf` reads `passwd: files systemd sss` with sssd ***enabled*** though inactive (measured 12 Sep). So on a domain-joined install the system resolves users SD cannot see at all, and a sweep keyed on SD's view would mark ***every*** directory-backed account stale and delete its directory. The script therefore asks ***two*** sources and acts only when both say absent; `NSS yes / files no` is refused by name and reported, because it is a real defect of its own (SD blind to directory users) rather than a stale record. The port's three rules are carried: type read from `ACC$GROUP` not guessed (SDSYS exempt by rule and again by name — the port's own first attempt marked it dead); "could not tell" is never "no", with a control that `getent passwd` return a plausible count before any verdict; directory first, then record, since the record is the only handle on the directory. ***WITNESSED 12 Sep against a fixture tree*** (`--sdsys`/`--accounts-root` exist for this): clean register → `5 live, 0 stale`, exit 0; fixture → `STALE ZZGONE` removed directory ***and*** record under `--sweep`, `STALE ZZELSEWHERE` ***KEPT because field 1 was `/etc`*** and `/etc` verified intact afterwards, `ZZGROUP` skipped as not `sdu_`, `ZZLIVE` live; exit 1. Control: `--sweep` against the real register as `don` refuses. ***The root test is "can I write the register", not "am I uid 0"*** — a caller who can write it could `rm` the records anyway, and the writability form is what let the REMOVAL path be exercised at all before being pointed at real accounts. ***RULED BY THE OWNER, 12 Sep 2026: SWEEP, full port parity*** — `sd.service` runs `--sweep`, the register self-cleans at every start and the stale account's directory goes with the record. ***AND THE DIRECTORY HALF IS NOT A HARD CALL, BECAUSE THE TIER MODEL ALREADY HAS A PLACE FOR "KEEP THE DATA"*** (owner, 12 Sep): *"this is why suspended accounts exist - you want to retain data, suspend the account; you want everything deleted, delete the account."* A stale record means somebody DELETED the Linux user, which is the second of those, so taking the directory with it carries out the intent rather than destroying something meant to be kept. ***SO THE ONLY THING THIS SCRIPT HAS TO GET RIGHT IS "IS THE USER REALLY GONE", NOT "SHOULD A GONE USER'S DIRECTORY GO"*** — every guard in it is about the reliability of that one lookup, and a future session should not add one that second-guesses the removal. ***AND WIRING IT SURFACED A BOOT-TIME HAZARD THE PER-RECORD TEST CANNOT SEE, SO THE SWEEP CARRIES A SECOND GUARD:*** `ExecStartPre` can run ***before*** sssd or nslcd is up, and a directory user is then absent from NSS ***and*** from `/etc/passwd` — byte-for-byte the signature the sweep treats as "gone" — so their directory would be deleted because a name service was slow. No per-record test can separate those two states. ***So the question is asked one level up:*** if `nsswitch.conf`'s `passwd` line names any source outside `files/systemd/compat/db/cache`, `--sweep` refuses and reports instead; `--allow-remote-nss` overrides. On a files-only machine, which is what the installer targets, nothing changes and the sweep runs as ruled. ***CONSEQUENCE ON THIS BOX, MEASURED: it will REPORT, not sweep*** — `passwd: files systemd sss`, so the guard fires; removing `sss` from `nsswitch.conf` or passing the override is what makes it sweep here. Both halves witnessed 12 Sep against a fixture: with the guard the directory survived and the row read "would remove"; with `--allow-remote-nss` the directory and record were removed and the register left empty | `reconcile-accounts.ps1` | two-source lookup; `/usr/local/sbin`; no `os.users` half here |
 | ~~20~~ | ~~UPSTREAM 4, 6, 13, 34~~ — **DONE 11 Sep**: 13 built + witnessed on the tree binary, 34 built (DELETEF), 4 does not apply, 6 → queue 18 | — | — |
 | 21 | `check-stale-leads.py` (PRE_RELEASE 9 here) — ***BUILT AND RUN 12 Sep; IT FOUND THREE REAL LEADS ON ITS FIRST RUN AND TWO WERE AN HOUR OLD.*** Not the port's script and could not be: PRE_RELEASE 9 records the verbatim copy exiting 2 before any phase (*"REFUSING - could not bound section 7"*) because it is keyed to the port's structure, and it was removed rather than committed since a tool that always exits 2 reads like a guard the project has. This one is keyed to the shapes here — numbered table rows in PORT_ADOPTION / PRE_RELEASE_FIXES, and top-level bullets with their indented continuations in PROJECT_STATUS. ***ONE PHASE ONLY, AND IT SAYS SO*** — the port's other two need a task table this tree lacks and judgements a word-matcher cannot make; PRE_RELEASE 9's lesson is that one phase that runs beats three that half-run. ***TWO THINGS MAKE IT PRECISE RATHER THAN NOISY, AND BOTH WERE PAID FOR IN THE WRITING.*** (1) ***The LAST status word in the opening decides, not the first*** — queue 19's row opened "REPORT HALF BUILT AND WITNESSED …; THE SWEEP IS BUILT AND NOT WIRED, PENDING A RULING", and taking the first scored it closed and missed it. (2) ***Only UPPER CASE counts***, which is CLAUDE.md's own convention ("ALL-CAPS and bold mean this was paid for") — case-insensitive matching read "installed as `/usr/local/sbin/…`" as a status claim and scored row 19 clean again. Cost accepted: a lower-case "unrun" is missed; precision beats recall in a tool nobody will keep running if it cries wolf. Two tiers: ***opens OPEN → later CLOSED is a LEAD and sets exit 1***; opens CLOSED → later OPEN is the house style ("WITNESSED … NOT WITNESSED: which part", which CLAUDE.md asks for) and is listed without affecting the exit. Null case refused out loud: a document yielding no entries exits 2, because the shapes would have drifted and every clean verdict be worthless. ***FIRST RUN: 288 entries, 3 LEADS — rows 15, 17 and 19, all written by this session, all appended-correction-without-striking-the-lead.*** All three openings rewritten; ***the re-run leaves 1, row 19, READ AND ACCEPTED***: "NOT YET RUN ON A REAL START" and "WITNESSED against a fixture" are both true, and the entry was not distorted to force a green. Exit 0 is therefore NOT the goal — this ranks entries for reading | `check-stale-leads.py` | this tree's row and bullet shapes; upper-case-only matching |
-| 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) | `gplbld` | Python, per PRE_RELEASE 1 |
+| 22 | Verifier intent (the port's `verify-*`/`test-*` .ps1) — ***HARNESS BUILT AND UNIT-TESTED 12 Sep; the 79 instruments are classified below; the first verifier is built and it FOUND A DEFECT.*** See "Queue 22" | `gplbld` | Python, per PRE_RELEASE 1 |
 | ~~23~~ | ~~`.D name`~~ — **BUILT 11 Sep** | `CPROC` | |
 | ~~24~~ | ~~BCOMP unterminated TRANSACTION~~ — **BUILT 11 Sep** | `BCOMP` | |
 | 25 | Process dumps in their own directory, writable but not readable by SD users (port 28) | `sd.conf DUMPDIR`, installer | mode/group bits instead of the port's ACL; `pdump.c` already honours `DUMPDIR` |
 | 26 | ***WITNESSED 11 Sep 14:48 on install `c2b375d`:*** `printf 'WHO\n' \| timeout 10 sd` → `4 DON`, exit 0, 0.01 s, 0 BEL (was exit 124, 369 207 BEL); control with `OFF` exit 0, 0 BEL; no dead slot in LISTU; the session still wrote its `LOGIN` audit record. ***The `:` prompt busy-loops at end of input*** (Linux-found 11 Sep, measured; PROJECT_STATUS START HERE). ***BUILT 11 Sep, COMPILED, NOT INSTALLED:*** CPROC `:1006` `if c = '' and status() = ER$EOF then goto int.quit`; dev binary `-internal BASIC BP CPROC` 0 errors, red control (CPROC + trailing text) 1 error; changelog entry. Witness after install: `printf 'WHO\n' \| timeout 10 sd` ends exit 0 with no BEL, no dead slot in LISTU; control: the same with `OFF` unchanged. At EOF the command processor ends the session as `OFF` does, the shell convention; `INPUT` in programs keeps returning `''` | none — port not measured | CPROC `get.command.line` (`:954`): `keycode()` = `''` with `status()` = ER$EOF (3030) → log out. ***Premise measured 11 Sep*** (probe `KCEOF`, last line of piped input, installed binary): `KEYCODE()` → len 0, `STATUS()` 3030; `KEYIN()` → len 0, 3030 |
 | 27 | ***WITNESSED 11 Sep 14:49 ON INSTALL `c2b375d`:*** `MKSEQ` (`OPENSEQ` new file ELSE, `WRITESEQ` ×2, `CLOSESEQ`, reopen, `READSEQ`) → file 18 bytes, both lines read back; `LIST.READU` no locks before, after, and from a second session. (The orphan probe was not run live.) ***CAUSE FOUND, AND IT IS A PORT FIX NOT YET ADOPTED — BUILT 11 Sep.*** `op_seqio.c` `exit_op_openseq` tested the saved `status` (a 2026/06/10 cleaning-cycle change, `AI_Modification_Notes/C_Code/ChangesApplied.txt:132`, committed `9f82a52`) instead of `process.status`, so on `ER_RNF` — the new-record ELSE, a success — it freed `fvar` and `sq_file` that `fvar_descr` already pointed at and kept the record lock taken at `:652`. The port reverted it 15 Aug 2026 (port `op_seqio.c:835`, its PROJECT_STATUS §2 generation-2 audit); `9f82a52^` had `if (process.status)`. Reverted here to match, with the port's reasoning. ***WITNESSED 11 Sep in the sandbox, HEAD-`op_seqio.c` binary vs reverted binary, same account copy:*** probe `MKSEQ` (`OPENSEQ` new file ELSE, `WRITESEQ` ×2, `CLOSESEQ`, reopen, `READSEQ`) — **before: both `WRITESEQ` fail `3013` (`ER_NSEQ`), nothing written, reopen takes ELSE, and an `RU` lock on `mkseq.out` is stranded despite the `CLOSESEQ`** (owner `(gone)`); `ORPH` strands a second. **After: file created (18 bytes), both lines read back, `GETLOCKS()` empty; `ORPH` + `OFF` leaves no lock, `LIST.READU` "no active … locks", a second `ORPH` completes.** So every install since `9f82a52` could not create a sequential file this way. Live at 12:22: no stranded locks (the 05:05 reboot cleared any). Sweep of the port's generation-2 C findings (its HISTORY "ARCHIVE 21 Aug 2026", C side): `ctype.c` and `op_sdext.c` `malloc(1)` → NULL already here (10 Sep); this revert; `dh_open.c:257` trigger-on-OOM identical in both, flagged-not-fixed in the port too. Original measurement follows. ***An `OPENSEQ` that takes the ELSE branch leaves an update lock that outlives `OFF`*** (Linux-found 11 Sep, measured in the sandbox; the overnight hypothesis (1), confirmed). Probe `ORPH`: `OPENSEQ '/proc/999999999/status'` → ELSE with `STATUS()` **0** even though the directory does not exist; ends without `CLOSESEQ`; `OFF`. Then `LIST.READU` shows user 25 holding `RU` on id `status` in **file 3, the account system's VOC entry** — not the path opened; 25 is not in LISTU; a second session's same `OPENSEQ` waits until killed. Nothing clears it short of an SD restart: cleanup's `remove_user()` (`clopts.c:399`) acts only on registered dead slots. Leads, unverified: `get_file_entry()` matches by name when device and inode are 0 (`dh_open.c:455`), and `op_openseq` leaves them 0 for a path that does not stat (`op_seqio.c:420-421`); `unlock_record()` frees through the process's LLT list by `fno` + `fvar_index` (`op_lock.c:1387-1394`) | none — port not measured | find why the lock lands on file 3 and why neither the variable's release (`op_dio1.c:432`) nor logout frees it; do not recreate it on a live system |
 | 28 | `RUN` of a runfile path over 128 characters fails `1135 Invalid runfile pathname` (`op_jumps.c:811-813`, `MAX_PROGRAM_NAME_LEN`) — measured on a sandbox account whose `BP.OUT/HOLD16` was 135. Low: accounts under `/home/sd/user_accounts` are far shorter, and a catalogued verb is found by path (limit 255) | — | lift the limit, or have 1135 say what the limit is |
+
+## Queue 22 — the port's 79 test instruments, classified (12 Sep 2026)
+
+PRE_RELEASE 1's complaint was that the plan has **no answer** for the port's
+PowerShell helpers. This is the answer for the testing half: 51 `verify-*.ps1`
+and 28 `test-*-units.ps1`, each read for its own stated intent (every one
+carries it in its first comment or `.SYNOPSIS`), then classified against what
+exists on Linux.
+
+**Built this session.**
+
+| File | What it is |
+|---|---|
+| `gplbld/sdverify.py` | The shared harness: result rows with a DECISIVE flag, the verdict (***no decisive row = FAILED***), case-sensitive regex helpers, the `sd` pipe driver, and the exit-2 preconditions. `--selftest` 26 cases, 0 failed |
+| `gplbld/test-sdverify-units.py` | 34 cases, 0 failed. Drives the DRIVER against stub `sd`s — timeout, non-zero exit, ANSI, BEL — including the arms that must FAIL. Red control: `verdict()` mutated to pass the null case → 3 failures, exit 1 |
+| `gplbld/verify-vocverbs.py` | The first verifier on it. Queue 1, 3 and 3b. No sudo |
+
+***ONE MODULE, NOT 51 COPIES, AND THAT IS THE ADAPTATION.*** The port copies
+the table, the verdict line and the driver into every verifier, and needs
+`test-verdict-units.ps1` to assert the verdict line has stayed byte-identical
+across four of them. That is a check on a smell. Importing it makes the drift
+impossible and leaves one implementation to test.
+
+**`verify-vocverbs.py` against install `06d3a4a`, 12 Sep, as `don`, no sudo:
+33 of 34 decisive rows pass; row B4 FAILS, and B4 is the row the port's own
+verifier does not have.** Detail under "Queue 22 — the defect the first
+verifier found" below. The before-measurement is banked; the after-witness is
+owed from the next install.
+
+**The 51 verifiers, by what Linux does with the intent.**
+
+| Class | Port files | Disposition |
+|---|---|---|
+| **Done here** | `vocverbs` | `verify-vocverbs.py`, this session |
+| **Partly covered — an instrument exists, the port asserts more** | `tiers`, `registersweep`, `register`, `upgrade`, `doors`/`doors-admin`/`doors-suite`, `sshonly`, `allowgroups`, `accountrules` | `verify-tier-layer.sh` (queue 16), `reconcile-accounts.sh` (19), queue 12's SUSPENDED witness, `test-ssh-forcecommand.py` (PRE_RELEASE 13), `witness-adopt.sh` (15). The gap in each is the port's extra rows, not the mechanism |
+| **To build — mechanism exists here, NOTHING measures it** | `setpw`, `txn`, `basicfuncs`, `parsertokens`, `keys`, `lineendings`, `nonet`, `nocase`, `editors`, `createaccount`, `delaccount`, `acctmsgs`, `catgate`, `cmdaudit`, `batchjob`, `logtoaccess`, `sdsysgate`, `sdsyswrite`, `sysdiracl`, `pcodeacl`, `accountacl`, `tierchange`, `notyet` | The worklist. Ranked below |
+| **Routed to §M / queue 18** | `fold`, `lcnames` | Their intent IS the lower-case ruling; building them separately would fork it |
+| **Unruled — depends on the API's state here** | `apiadmin`, `apiidentity`, `apiname`, `apiport`, `apiremote`, `tierapi`, `scramlogin`, `localconnect`, `peerlog`, `routes` | The `$cred`/SCRAM half is already "Not adoptable"; what remains of the API surface has not been walked. ***Do not build these until that walk happens*** |
+| **No counterpart** | `osusers` (privilege model), `credacl` (SD never sees a password — queue 17), `profiledir` (Windows profile dir; the Linux analog is queues 15 and 19), `privundetermined` (Windows token) | Already in "Not adoptable" |
+| ***Divergent — the port's assertion is INVERTED here*** | `sshadmin` | It proves an SD ADMINISTRATOR gets **no** ssh session. Here PRE_RELEASE 13 ruled the opposite and it is live-witnessed: ***a STANDARD account is forced into `sd`, an administrator gets a shell.*** A Linux `verify-sshadmin` must assert the Linux ruling. **Adopting the port's wording here would have written a passing check for behaviour this project deliberately does not have** |
+
+**Ranked worklist for the "to build" class**, by what is unwitnessed today
+rather than by how hard it is:
+
+1. `verify-setpw` — queue 17 is BUILT, COMPILED, **never run**.
+2. `verify-txn` — step 2's transaction work is `PRE_RELEASE 6`, "compiled but
+   unexercised". The port's question is the sharp one: *does COMMIT end the
+   transaction it commits?*
+3. `verify-editors` — NANO/MICRO adopted 10 Sep, **COMPILED, NOT RUN**.
+4. `verify-lineendings`, `verify-nonet` — pure tree checks, no `sd`, no sudo;
+   `nonet`'s intent guards a project **stance** (the shrink), so it stays
+   useful after the queue is empty.
+5. `verify-basicfuncs` — the widest coverage per line of any of them.
+6. The account family (`createaccount`, `delaccount`, `acctmsgs`,
+   `accountrules`) — one cycle's worth, and it wants the FULL delete→install
+   this file already owes.
+7. The POSIX-mode family (`sysdiracl`, `pcodeacl`, `accountacl`, `sdsyswrite`,
+   `sdsysgate`, `catgate`) — the port's ACL checks re-expressed as mode,
+   ownership and group. Readable without sudo; **the writes they must attempt
+   are not**, so each needs an owner-run half.
+
+**The 28 `test-*-units.ps1` are not ported one for one, and the reason is the
+one above.** They exist because the port has 51 independent verifiers whose
+shared parts drift; two thirds of them test a helper this project either does
+not have (`sdpath`, `elevonce`, `reclaim`, `stripcomments`, `upgradevoc`,
+`dirscoverage`, `stemcoverage`, `suiteonly`, `diffcapture`, `transcriptwhole`)
+or has already unit-tested under its own name (`test-sd-elevate.py`,
+`test-ssh-forcecommand.py`, `test-assert-current.py`,
+`test-edittokens-units.py`, `test-reconcile-units` → `reconcile-accounts.sh`'s
+fixture run). **The intent that DOES transfer is "unit-test the instrument
+before trusting it", and `test-sdverify-units.py` is where it now lives** —
+one file for the shared half, and a per-verifier units file only where a
+verifier grows logic of its own.
+
+## Queue 22 — the defect the first verifier found (12 Sep 2026)
+
+***`DELETE.FILE <ptr> NO.QUERY` HONOURED NO.QUERY AND THEN ASKED A QUESTION
+ANYWAY, THREE TIMES, ON AN EMPTY PATH — AND ATE THE TWO COMMANDS THAT
+FOLLOWED.*** Measured on install `06d3a4a`, as `don`, no sudo; fixture was a
+copy of the account's own `SYSCOM` pointer.
+
+- **Cause**, read after the measurement, not before: `DELETEF:232`'s `continue`
+  re-entered the DATA loop at its FIRST statement rather than at `while more`,
+  so `remove` ran again on an exhausted list and handed back an empty
+  `data.path`; the empty path then failed the `data.path # default.path` test
+  and raised 6135. ***The file's own 2024 comment predicts exactly this*** —
+  *"using continue here will create endless loop"* — and the sibling site at
+  `:265` already used `goto more_test` for it.
+- **Fix**: `goto more_test`, the idiom the file already uses. `DELETEF:229-246`.
+  Compiled 0 errors (dev binary, staged in DON/BP); ***red control: an
+  unbalanced `<` in the same block → 1 error naming line 252.*** Tree rebuilt
+  PLAIN, DON `COUNT VOC` 419. **NOT INSTALLED.**
+- **It is not the endless loop the 2024 note feared** only because the 11 Sep
+  Enter=N fix turns end-of-input into N.
+- ***THE OUTCOME WAS RIGHT AND ONLY THE ROUTE WAS WRONG*** — the VOC entry went,
+  the system file stayed. That is why it survived: an outcome check cannot see
+  it. B4 checks the ABSENCE of the prompt.
+- ***THE PORT HAS THE SAME CODE at `gpl.bp/DELETEF:246`, AND ITS OWN
+  verify-vocverbs.ps1 WOULD PASS ON IT*** — that script checks 10117 and the
+  absence of 6146 on this fixture, and both were true here while the verb
+  prompted three times. **Not measured on Windows.** Owed to the port as
+  `BUGS_FROM_LINUX_PORT.md` 8, through a fresh clone; not yet filed.
 
 ## Queue 18 — lower case: the owner's ruling and where the port stopped short
 
