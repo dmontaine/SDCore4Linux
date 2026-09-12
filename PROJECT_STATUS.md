@@ -472,6 +472,20 @@ the work, nothing in "Verified" that was not observed that session.
   record file, or a record a second session holds). ***THAT IS SANDBOX WORK,
   NOT DON WORK*** — queue 27's stranded lock and the ~03:45 wedge are both
   what an induced failure on the live system looks like when it goes wrong.
+- ***OWNER'S RULING, 12 Sep 2026: `assert-current`'s CHECK C STAYS STRICT
+  COMMIT IDENTITY — "use the most trusted option".*** The question put was that
+  C compares the install's stamp with HEAD, so ***any*** commit makes it STALE
+  (a documentation-only one included) and every verifier then needs
+  `--allow-stale`; the alternative was to have C ask whether the delta touches
+  anything the install CONTAINS. ***THE REASON THE BLUNT CHECK WINS IS THE
+  DIRECTION OF ITS ERRORS:*** a cleverer C would have to decide, per commit,
+  which files reach an install, and every wrong answer there is a FALSE
+  "current" — the expensive direction, per the tool's own bias paragraph.
+  ***SO THE FRICTION IS PAID IN THE TRANSCRIPT INSTEAD:*** a caller who has
+  reasoned about the delta says so with `--allow-stale`, which prints a banner,
+  and names the commit and the reason when quoting the result. Ruling written
+  into `gplbld/assert-current.py`'s header, which is where anyone minded to
+  loosen it would look. **No code changed; `test-assert-current.py` 10/10.**
 - **NEXT:** finish queue **22**'s ranked worklist — `verify-editors` (NANO and
   MICRO, compiled and never run), then `verify-lineendings` / `verify-nonet`.
   Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
