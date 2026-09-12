@@ -121,6 +121,17 @@ the work, nothing in "Verified" that was not observed that session.
   (`:197-201`)*** — its four premises are each measured, but the conclusion
   drawn from them is not, and a GRANT that fails at run time is what a wrong
   premise would look like.
+- ***AFTER THE NEXT INSTALL, RUN THIS BEFORE BELIEVING ANY QUEUE 14 RESULT***
+  (no sudo; exit 0 present, 1 missing, 2 no install to ask about):
+  `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-grants.py`.
+  ***THE LOAD-BEARING ROW IS A, THE `gcat` CATALOGUE*** — files copied into
+  `/usr/local/sdsys` prove nothing about the two-stage bootstrap, and a name in
+  `gcat` is there only because SD compiled the program and ran its `$catalog`.
+  Row F checks an invariant that is not queue 14's: every
+  `TIER.ADD.ADMINISTRATOR` name must resolve in `VOC_TEMPLATE`, because
+  `CREATEA:644` skips one that does not without a word. ***Run against the
+  `c2b375d` install 11 Sep: 3 passed, 13 failed, both controls PASS*** — the
+  expected red, and the before-measurement for the next install's green.
 - ***UNWITNESSED PREMISE WORTH ITS OWN LINE, because it is the claim 10043
   makes to the user:*** on Linux a grant reaches SD at once (`!is_grp_member`
   reads `/etc/group` per call) but reaches the FILESYSTEM only at the person's
