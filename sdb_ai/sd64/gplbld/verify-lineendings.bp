@@ -1,0 +1,106 @@
+* verify-lineendings.bp - the BASIC half of gplbld/verify-lineendings.py.
+* PORT_ADOPTION queue 22; intent from the port's gplbld/verify-lineendings.ps1.
+*
+* IT READS FIXTURES IT DID NOT WRITE, AND THAT IS THE WHOLE DESIGN.  The Python
+* half writes them BYTE BY BYTE, because the cases that matter are about exact
+* byte positions - a CR as the 2048th byte of a file - and no BASIC statement
+* can place a byte that precisely.  This half only exercises the READER.
+*
+* Every answer is "TAG=value" on its own line and each tag is printed on
+* exactly one path, so an absent tag is a probe that never got there rather
+* than an answer.
+*
+program zzle
+
+$include syscom keys.h
+
+   dir = 'ZZLE'
+
+* ------------------------------------------------------------------ helpers
+*
+* REPORTED PER LINE: the LENGTH, the code of the LAST character, and how many
+* CR bytes the line contains.  Length alone cannot tell a stripped CRLF from a
+* kept one on a file whose last character happens to be a letter either way;
+* the last-character code is what the port's "before" column recorded
+* (LEN=6 LASTCHAR=13 for a CRLF line that should have been LEN=5).
+
+   crt 'ZZLE.BEGIN=1'
+
+* --------------------------------------------------------------- the files
+*
+* f1  CRLF, small                      f4  a lone CR mid-line: DATA, not a
+* f2  LF, small (the control)              terminator
+* f3  CRLF straddling the 2048-byte    f5  a lone CR AS the 2048th byte: the
+*     buffer boundary                      same rule, at the boundary
+* f6  CSV with CRLF rows
+
+   names = 'f1':@fm:'f2':@fm:'f3':@fm:'f4':@fm:'f5'
+   n = dcount(names, @fm)
+
+   for i = 1 to n
+      fn = names<i>
+      path = dir : '/' : fn
+      openseq path to f then
+         ln = 0
+         loop
+            readseq line from f else exit
+            ln += 1
+            if ln <= 2 then
+               crt fn : '.L' : ln : '.LEN=' : len(line)
+               if len(line) then
+                  crt fn : '.L' : ln : '.LAST=' : seq(line[len(line), 1])
+               end else
+                  crt fn : '.L' : ln : '.LAST=-1'
+               end
+               crt fn : '.L' : ln : '.CRS=' : dcount(line, char(13)) - 1
+            end
+         repeat
+         crt fn : '.LINES=' : ln
+         closeseq f
+      end else
+         crt fn : '.OPENFAIL=1'
+      end
+   next i
+
+* ------------------------------------------------------------------- READCSV
+*
+* READCSV COMPILES TO OP.READSEQ (BCOMP:10225), so it inherits whatever READSEQ
+* does with a CRLF.  That is exactly why the port tests it: a conformant
+* RFC 4180 file has CRLF row terminators, so if READSEQ leaves the CR the LAST
+* FIELD OF EVERY ROW picks it up and nothing reports a thing.
+
+   path = dir : '/f6'
+   openseq path to f then
+      ln = 0
+      loop
+* READCSV's grammar is "FROM <fvar> TO <var>" (BCOMP:10218-10237), not the
+* "<var> FROM <fvar>" of READSEQ - worth writing down, because the compiler's
+* complaint for the wrong order is "FROM not found where expected", which
+* points at the word that IS there.
+* ***THE TO CLAUSE TAKES ONE VARIABLE PER COLUMN, AND THE LAST ONE IS THE
+* CHECK.***  A first attempt passed a single variable and got field 1 only,
+* which cannot see this defect at all: an unstripped CR lands on the LAST
+* field of the row, because that is the field the row terminator touches.  The
+* port's "before" column recorded exactly that - row 1's last field LEN=3
+* LAST=13, "b1" with a CR stuck to it.
+         readcsv from f to c1, c2 else exit
+         ln += 1
+         if ln <= 2 then
+            crt 'f6.R' : ln : '.F1.LEN=' : len(c1)
+            crt 'f6.R' : ln : '.LASTFIELD.LEN=' : len(c2)
+            if len(c2) then
+               crt 'f6.R' : ln : '.LASTFIELD.LAST=' : seq(c2[len(c2), 1])
+            end else
+               crt 'f6.R' : ln : '.LASTFIELD.LAST=-1'
+            end
+         end
+      repeat
+      crt 'f6.ROWS=' : ln
+      closeseq f
+   end else
+      crt 'f6.OPENFAIL=1'
+   end
+
+   crt 'ZZLE.END=1'
+
+end
