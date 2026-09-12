@@ -270,7 +270,25 @@ rather than by how hard it is:
    A3 and A1's undo/locks need an INDUCED commit failure (a read-only record
    file, or one a second session holds). Given the 11 Sep wedge and queue 27's
    stranded lock, that belongs in the sandbox recipe, not in DON.
-3. `verify-editors` — NANO/MICRO adopted 10 Sep, **COMPILED, NOT RUN**.
+3. ~~`verify-editors`~~ — ***DONE AND WITNESSED 12 Sep, `gplbld/verify-editors.py`
+   28/28, plus `test-editors-units.py` 19/19.*** The NANO/MICRO work of 10 Sep
+   is no longer "COMPILED, NOT RUN" for everything except what a person must
+   see. ***THE PORT'S QUESTION DID NOT TRANSFER WHOLE:*** it bundles the
+   editors SHA-pinned and asks "is the bundled copy the one EDIT resolves";
+   here they are deliberately NOT bundled (Microsoft Edit is not packaged for
+   Linux; `find.editor` is `command -v` with an absolute path required,
+   `EDIT:394-397`), so the Linux question is whether the SYNTAX CONFIGURATION —
+   the part this project actually ships — is placed where the editor reads it.
+   ***ROW A2 IS A GAP THE PORT DOES NOT HAVE:*** shipping
+   `/usr/share/nano/sdbasic.nanorc` achieves nothing unless `/etc/nanorc`
+   ***includes*** it, and that file is Debian's, not this project's.
+   ***MEASURED: `/etc/nanorc:257` is live and globs the directory*** — and the
+   three commented includes sitting directly below it are exactly why A2 parses
+   the line instead of searching for the filename. ***ALSO WITNESSED: EDIT's
+   TERMINAL GATE***, which refuses before opening anything — *"nano needs a
+   terminal to draw on, and this session has none. ed, the line editor, works
+   anywhere"* — and that gate is what makes the verb safe to drive down a pipe
+   at all.
 4. `verify-lineendings`, `verify-nonet` — pure tree checks, no `sd`, no sudo;
    `nonet`'s intent guards a project **stance** (the shrink), so it stays
    useful after the queue is empty.

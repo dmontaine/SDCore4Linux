@@ -486,8 +486,38 @@ the work, nothing in "Verified" that was not observed that session.
   and names the commit and the reason when quoting the result. Ruling written
   into `gplbld/assert-current.py`'s header, which is where anyone minded to
   loosen it would look. **No code changed; `test-assert-current.py` 10/10.**
-- **NEXT:** finish queue **22**'s ranked worklist — `verify-editors` (NANO and
-  MICRO, compiled and never run), then `verify-lineendings` / `verify-nonet`.
+- ***NANO AND MICRO ARE NO LONGER "COMPILED, NOT RUN" — `verify-editors.py`
+  28/28 and `test-editors-units.py` 19/19, 12 Sep, no sudo.*** Everything short
+  of what a person must SEE is now measured: the syntax files are placed, the
+  verbs are wired, `find.editor`'s premise holds, and both verbs answer.
+- ***THE PORT'S QUESTION DID NOT TRANSFER WHOLE, AND THE DIFFERENCE IS THE
+  USEFUL PART.*** The port BUNDLES its editors SHA-pinned and asks "is the
+  bundled copy the one EDIT resolves, rather than whatever winget left on
+  PATH". Here they are deliberately not bundled, so the Linux question is
+  whether the ***syntax configuration*** — the part this project ships — is
+  placed where the editor will read it.
+- ***ROW A2 IS A GAP THE PORT DOES NOT HAVE, AND IT IS THE ONE WORTH
+  REMEMBERING: shipping `/usr/share/nano/sdbasic.nanorc` ACHIEVES NOTHING
+  UNLESS `/etc/nanorc` INCLUDES IT, AND THAT FILE IS DEBIAN'S, NOT OURS.***
+  Measured: `/etc/nanorc:257` is live and globs the directory. ***THREE
+  COMMENTED-OUT includes SIT DIRECTLY BELOW IT***, which is why A2 parses the
+  line rather than searching for the filename — a substring search would find a
+  commented line and call the highlighting reachable when nano never reads it.
+  `test-editors-units.py` drives that case both ways.
+- ***AND EDIT HAS A TERMINAL GATE, WITNESSED, WHICH IS WHY THE VERB IS SAFE TO
+  DRIVE DOWN A PIPE AT ALL:*** given a file from a session with no terminal it
+  refuses BEFORE opening anything — *"nano needs a terminal to draw on, and
+  this session has none. ed, the line editor, works anywhere"* — and the
+  non-existent file in the test is never reported, so the ordering is the gate
+  and not luck.
+- ***WHY THIS ONE GOT A units FILE WHEN THE OTHERS DID NOT:*** every row
+  `verify-editors` checks is a ROOT-OWNED file, so it cannot be shown to go red
+  against the system without editing the machine's own configuration. The red
+  is demonstrated against the LOGIC instead, with the inputs the real files
+  would have if they regressed.
+- **NEXT:** finish queue **22**'s ranked worklist — `verify-lineendings` and
+  `verify-nonet` (pure tree checks; `nonet`'s intent guards the shrink stance,
+  so it stays useful after the queue empties), then `verify-basicfuncs`.
   Then 25, and §M / queue 18 under the 11 Sep ruling. Then §L1's remaining
   unrun pieces. ***A1's undo wants the sandbox rebuilt first.***
 - ***OWED A WITNESS FROM A FULL delete→install, none blocking, all in one
