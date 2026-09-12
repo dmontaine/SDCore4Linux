@@ -300,7 +300,23 @@ the work, nothing in "Verified" that was not observed that session.
   `sd` session has no `K$ADMINISTRATOR` (that needs `sudo sd`, `CPROC:328`), so
   an administrator changing their own password without sudo takes the
   `passwd -- <user>` path and PAM asks for the current one. Common case.
-- **NEXT:** 19, 21, 22, 25, and §M /
+- ***QUEUE 19 — REPORT HALF BUILT AND WITNESSED 12 Sep, SWEEP BUILT AND NOT
+  WIRED.*** `gplbld/reconcile-accounts.sh` → `/usr/local/sbin/sd-reconcile-accounts`,
+  `sd.service` gains `ExecStartPre=-… --list`. Witnessed against a fixture:
+  a stale record's directory ***and*** record removed under `--sweep`, while a
+  stale record whose field 1 was `/etc` was ***KEPT*** and `/etc` verified
+  intact. Detail in PORT_ADOPTION 19.
+- ***A FINDING BIGGER THAN QUEUE 19, AND IT IS WHY THE SWEEP IS NOT WIRED:
+  `!is_user` (`IS_USER:52`) READS `/etc/passwd` DIRECTLY AND NEVER NSS.***
+  `/etc/nsswitch.conf` here is `passwd: files systemd sss` with sssd ***enabled***
+  (inactive today, so the gap is invisible — measured 12 Sep). ***On a
+  domain-joined install SD cannot see users the system resolves***, which
+  affects more than the reconciler: `CREATE.ACCOUNT` would try to create a user
+  NSS already has, and any sweep keyed on SD's view would call every
+  directory-backed account stale. The reconciler asks two sources and refuses
+  on disagreement; ***nothing else in the tree does.*** Worth its own queue
+  entry.
+- **NEXT:** the `--sweep` ruling below, then 21, 22, 25, and §M /
   queue 18 under the 11 Sep ruling. ***Owed a witness from a FULL
   delete→install, none of them blocking:*** queue 15's installer block, queue
   13's carry-over and rotation, and queue 12's ssh and API doors — all three
