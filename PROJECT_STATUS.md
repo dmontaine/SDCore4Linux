@@ -79,9 +79,22 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***§M3 D3 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner FULL delete→install
-(N, DELETE) + reboot — kept accounts hold `VOC`/`$HOLD`/`BP` and the new code
-opens `voc`; test accounts are disposable (owner) — then the suite.*** Names are
+***§M3 D3 INSTALLED AND WITNESSED on `0cf86ee`*** (owner FULL delete→install,
+`.sdcore-install` 11:34:41, boot 11:35:27, `assert-current` 0 at 11:37). Installed
+sdsys has NO upper-case directory; fresh account `don`: `$hold $hold.dic
+$svlists bp cat voc`; register `DON SDSYS`; `gpl.bp.out` 201, `gcat` 142. Suite
+as the installing user, no sudo, no workaround: all exit 0, no `[FAIL]`, 0 not-OFF
+— ***lcnames 72/72*** (S15–S18, ***F0–F5 all PASS*** — create branch reached,
+`bp.out` Y / `BP.OUT` N / `bp.OUT` N, then `BASIC BP` 0 errors; H5a print in
+`$hold/zzlch`), vocverbs 34, fold 35, setpw 24, txn 33, editors 28, nonet 59,
+lineendings 42, basicfuncs 199, accounts 35, sysperms 18, grants 16/0, tier-layer
+0 with `COUNT VOC` 418. After the suite the account holds a `stacks` directory
+too (lower case; made at runtime, not investigated). ***`PRE_RELEASE` 29 boot 3
+held*** (11:35:35, 0 `-stop`). ***NEXT: §M3 D4*** — CREATE.FILE makes lower-case
+names (CREATEF:310-312, :383-385, :409-411), which ends the `bp.out` → `BP.OUT`
+interim; verifiers' `BP.OUT` paths then become `bp.out`.
+
+*Pre-install, 13 Sep:* Names are
 the port's (its CREATEA:1247/1500-1519, SAVELST/SAVESTK/COPYLST `$svlists`,
 to_file.c `$hold`).
 - ***On disk:*** CREATEA `voc`, `$hold`+`$hold.dic` (create.dir.file's literal
