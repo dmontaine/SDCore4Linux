@@ -125,7 +125,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-REG=$SDSYS/ACCOUNTS
+REG=$SDSYS/accounts                  # 13 Sep 26: lower case on disk (plan M3 D1)
 
 echo "reconcile-accounts.sh - PORT_ADOPTION 19"
 echo "date          : $(date '+%Y-%m-%d %H:%M:%S')"

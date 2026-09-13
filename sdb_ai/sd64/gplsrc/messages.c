@@ -19,6 +19,7 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.1 Mar 25 mab correct output of messages with embedded newline
+ * 13 Sep 26 dm  the SDSYS message file is sdsys/messages on disk (plan M3 D1)
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -180,7 +181,7 @@ char* sysmsg(int msg_no) {
     }
     /* -------------------- */
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cMESSAGES", sysseg->sysdir, 
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages", sysseg->sysdir,
                DS) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should be sent to the system log. */
       k_error("Overflowed directory/filename path length in sysmsg()!");
@@ -208,7 +209,7 @@ char* sysmsg(int msg_no) {
   if (prefix[0] != '\0') {
     n = sprintf(id, "%s%d", prefix, msg_no);
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cMESSAGES%c%s", sysseg->sysdir, 
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages%c%s", sysseg->sysdir,
             DS, DS, id) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should be sent to the system log. */
       k_error("Overflowed directory/filename path length in sysmsg()!");
@@ -230,7 +231,7 @@ char* sysmsg(int msg_no) {
   if (msg_rec < 0) {
     n = sprintf(id, "%d", msg_no);
     /* converted to snprintf() -gwb 22Feb20 */
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cMESSAGES%c%s", sysseg->sysdir, 
+    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%cmessages%c%s", sysseg->sysdir,
             DS, DS, id) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should be sent to the system log. */
       k_error("Overflowed directory/filename path length in sysmsg()!");

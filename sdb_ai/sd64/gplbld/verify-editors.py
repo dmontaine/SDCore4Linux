@@ -66,8 +66,8 @@ MICRO_YAML = os.path.join(V.SDSYS, "microcfg", "syntax", "sdbasic.yaml")
 GCAT_EDIT = os.path.join(V.SDSYS, "gcat", "$EDIT")
 SRC_EDIT = os.path.join(V.SDSYS, "GPL.BP", "EDIT")
 SRC_MICRO = os.path.join(V.SDSYS, "GPL.BP", "MICRO")
-VOCT = os.path.join(V.SDSYS, "VOC_TEMPLATE")
-OMIT = os.path.join(V.SDSYS, "NEWVOC", "TIER.OMIT.STANDARD")
+VOCT = os.path.join(V.SDSYS, "voc_template")
+OMIT = os.path.join(V.SDSYS, "newvoc", "TIER.OMIT.STANDARD")
 
 # The suffix GPL.BP/EDIT gives the working copy so the editor can detect the
 # language (EDIT:41-43, :190-191).  The nanorc's own syntax regex has to match

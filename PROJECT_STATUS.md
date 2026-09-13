@@ -79,6 +79,41 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 D1 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: FULL delete→install (answer
+N, type DELETE — owner: test accounts are disposable, no keep cycle across the
+rename), then the suite.*** The sdsys data directories are lower case on disk,
+names as the port's `e1095ab`.
+- ***Renames (script, 2839 files `R`, 0 lines):*** `git mv` sdsys `NEWVOC
+  VOC_TEMPLATE MESSAGES SYSCOM SD.VOCLIB ACCOUNTS` → lower; `gplbld/FILES_DICTS`
+  id prefixes `$MAP.DIC VOC.DIC ACCOUNTS.DIC DICT.DIC DIR_DICT` → lower (69). Ids
+  after `^`, and every record id inside the directories, unchanged (12 Sep
+  ruling). NOT in D1: `$HOLD $HOLD.DIC VOC` (D3), `GPL.BP GPL.BP.OUT BP BP.OUT
+  PCODE.OUT` (D2).
+- ***Content (script, 72 lines exact-literal):*** 28 `@sdsys:@ds:'X'` in 13
+  GPL.BP programs + `verify-tier-layer.bp`; 22 `@SDSYS/X` F-record paths in
+  newvoc/voc_template; voc_template/accounts fields 2–3; 20 R records' field 2
+  `sd.voclib`.
+- ***By hand:*** BBPROC FILES_LIST (third column now the dictionary's own name, so
+  `$HOLD.DIC` keeps upper beside `$map.dic`); `messages.c:183/211/233`;
+  `installsdai.sh` `:618-619 :727-733 :809-825 :921` (the bootstrap chmod loop
+  now WARNS on a missing name instead of skipping silently); `deletesdai.sh` saves
+  `/home/sd/accounts` (no old-name fallback — owner); `bbcmp.py` `syscom` +
+  `include_dir()` (D2 makes it `.lower()`); `CREATE_INSTALL_DICT_FILE` /
+  `INSTALL_FILE_INFO`; `reconcile-accounts.sh`, `witness-accounts.sh`; verifiers
+  accounts, editors, grants, lcnames, nocase, nonet, sysperms (`$ipc`), vocverbs;
+  START-HISTORY in all 14 BASIC programs; changelog.
+- ***New row `verify-lcnames` S15:*** the 13 D1 directories exist lower in the
+  INSTALLED sdsys AND their upper spelling is absent (ext4 allows both).
+- ***Checked 13 Sep, no install:*** `bbcmp.py` compiles BBPROC in a scratch
+  sdsys copy, exit 0, includes read from `syscom`; red control (dir back to
+  `SYSCOM`) aborts `not found: err.h`. Every gplbld `.py` py_compiles; unit suites
+  accounts 17, basicfuncs 25, editors 19, edittokens, nonet 12, sdverify 41,
+  sysperms 20 — all 0 failed; nocase selftest 19/0; `gen_includes --check` in sync
+  reading `sdsys/syscom/ERR.H`; plain `make` exit 0, `gplobj/messages.o` carries
+  `%s%cmessages`. ***GPL.BP NOT compiled*** — the bootstrap does that as SDSYS.
+  ***Would falsify:*** a bootstrap WARNING from the chmod loop; any 1xxx
+  "[n] Message file not found"; `verify-lcnames` S15 or S2/S7–S12 red.
+
 ***CASE MIGRATION REMOVED — INSTALLED AND WITNESSED on `101ad30`*** (owner
 keep-cycle, `.sdcore-install` 2026-09-13 09:45:38, `assert-current` 0 at
 10:02). Suite run by the agent as `don`, no sudo, no `--allow-stale`, all exit 0,

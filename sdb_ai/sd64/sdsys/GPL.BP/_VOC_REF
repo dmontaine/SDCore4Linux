@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 The VOC name folds - as typed, then lower, then upper - for OPEN,
 *           OPENSEQ, DELETESEQ and a Q-pointer's target (plan M1, the port's d815df5).
 * 09 Sep 26 Every pathname is now absolutised. The branch that left a VFS:
@@ -218,7 +219,7 @@ parse.as.q.pointer:
             end else
                if index(qpath, @ds, 1) = 0 then  ;* Try lookup in ACCOUNTS file
                   if len(qpath) < 64 then
-                     openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
+                     openpath @sdsys:@ds:'accounts' to acc.f then
                         read acc.rec from acc.f, qpath then
                            qpath = acc.rec<ACC$PATH>
                         end

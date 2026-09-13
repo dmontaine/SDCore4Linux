@@ -144,7 +144,7 @@ def main():
 
     # ---- C. the VOC_TEMPLATE records, contents and all
     for name in VERBS:
-        path = os.path.join(sdsys, "VOC_TEMPLATE", name)
+        path = os.path.join(sdsys, "voc_template", name)
         body = read_text(path)
         if body is None:
             rep.row(False, "C VOC_TEMPLATE/%s" % name, "%s - absent" % path)
@@ -153,7 +153,7 @@ def main():
                     "%r" % body)
 
     # ---- D. the tier list names them
-    tier_path = os.path.join(sdsys, "NEWVOC", TIER_LIST)
+    tier_path = os.path.join(sdsys, "newvoc", TIER_LIST)
     tier_body = read_text(tier_path)
     if tier_body is None:
         rep.row(False, "D %s" % TIER_LIST, "%s - absent" % tier_path)
@@ -170,7 +170,7 @@ def main():
     # ---- E. the messages
     missing = []
     for num in MESSAGES:
-        path = os.path.join(sdsys, "MESSAGES", num)
+        path = os.path.join(sdsys, "messages", num)
         body = read_text(path)
         if not body or not body.strip():
             missing.append(num)
@@ -182,7 +182,7 @@ def main():
     # ---- F. EVERY tier-list name resolves, not only the three added.
     #         CREATEA:644 skips a name with no record and says nothing.
     unresolved = [n for n in tier_names
-                  if not os.path.exists(os.path.join(sdsys, "VOC_TEMPLATE", n))]
+                  if not os.path.exists(os.path.join(sdsys, "voc_template", n))]
     rep.row(not unresolved, "F every %s name resolves" % TIER_LIST,
             "%d names, unresolved: %s"
             % (len(tier_names),

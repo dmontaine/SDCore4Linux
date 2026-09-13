@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys $ipc and accounts by their lower-case names on disk
+*               (plan M3 D1).
 * 12 Sep 26 dm  The LOGIN paragraph read folds as typed, then lower (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 20240219x mab rebrand as APISRVR
@@ -150,7 +152,7 @@ if not(kernel(K$CPROC.LEVEL,0)) then
 
    * Open IPC file and delete any items for old versions of this process id
 
-   openpath @sdsys:@ds:'$IPC' to ipc.f then
+   openpath @sdsys:@ds:'$ipc' to ipc.f then
       recordlocku ipc.f,'M':@userno     ;* Message queue
       delete ipc.f, 'M':@userno
 
@@ -358,7 +360,7 @@ end
 account.path = new.account
 acc.suspended = @false
 if index(new.account, @ds, 1) = 0 then
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
+   openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, new.account then
          account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
          acc.suspended = (upcase(trim(acc.rec<ACC$TIER>)) = 'SUSPENDED')
@@ -1099,7 +1101,7 @@ vb.open.sdnet.continue:
                         acc = field(cmnd, ';', 1)   ;* Account name or path
                         file = field(cmnd, ';', 1)  ;* File name
 
-                        openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
+                        openpath @sdsys:@ds:'accounts' to acc.f then
                            read acc.rec from acc.f, acc then
                               acc = parse.pathname.tokens(acc.rec<ACC$PATH>)
                            end

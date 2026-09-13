@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 11 Sep 26 dm  written, from the Windows port's GRANTA of 15-29 Aug 2026
 *               (its PROJECT_STATUS step 5, PRE_RELEASE_FIXES 57).
 *               PORT_ADOPTION 14.
@@ -181,7 +182,7 @@ deffun tier_allows(user,account) calling '!tier_allows'
 * Read the account and find the Linux group that IS the grant.
 
 resolve.account:
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+   openpath @sdsys:@ds:'accounts' to acc.f else
       @system.return.code = -status()
       stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
    end

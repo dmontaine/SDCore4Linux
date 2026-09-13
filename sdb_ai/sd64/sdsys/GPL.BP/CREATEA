@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys accounts, newvoc and voc_template by their lower-case
+*               names on disk (plan M3 D1).
 * 12 Sep 26 dm  A new account's hold-file VOC id is $hold (plan M3); the
 *               directory on disk is still $HOLD.
 * 12 Sep 26 dm  A new account's saved-list VOC id is $savedlists (plan M3,
@@ -148,7 +150,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
    @system.return.code = -ER$ARGS     ;* Preset for argument errors
 
 
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+   openpath @sdsys:@ds:'accounts' to acc.f else
       @system.return.code = -status()
       stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
    end
@@ -663,7 +665,7 @@ make.account:
       stop sysmsg(6017) ;* Unable to open new VOC
    end
 
-   openpath @sdsys:@ds:"NEWVOC" to newvoc.f else
+   openpath @sdsys:@ds:"newvoc" to newvoc.f else
       @system.return.code = -status()
       stop sysmsg(6018) ;* Cannot open SDSYS NEWVOC
    end
@@ -722,7 +724,7 @@ make.account:
    if tier = 'ADMINISTRATOR' then
       add.count = dcount(add.rec, @fm)
       if add.count > 1 then
-         openpath @sdsys:@ds:"VOC_TEMPLATE" to voctmpl.f then
+         openpath @sdsys:@ds:"voc_template" to voctmpl.f then
             for add.i = 2 to add.count
                add.id = trim(add.rec<add.i>)
                read rec from voctmpl.f, add.id then

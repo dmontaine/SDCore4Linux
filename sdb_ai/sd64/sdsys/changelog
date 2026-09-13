@@ -9,6 +9,36 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  THE SYSTEM'S DATA DIRECTORIES ARE NOW LOWER CASE ON DISK.
+
+           Under /usr/local/sdsys, the directories that hold SD's own data now
+           have lower-case names: accounts, newvoc, voc_template, messages,
+           syscom and sd.voclib, and the files the install creates - $ipc,
+           $map, $map.dic, voc.dic, accounts.dic, dict.dic and dir_dict.  The
+           VOC entries that point at them name the new paths, so
+           CT VOC syscom now shows "2: @SDSYS/syscom".  These are the names SD
+           Core for Windows uses.
+
+           Why it matters: on Linux a file name's case is part of the name, so
+           SYSCOM and syscom could otherwise both exist.  Giving each system
+           directory one spelling, and the same spelling as the VOC entry, is
+           a step towards SD having no name in two casings.
+
+           WHAT YOU TYPE DOES NOT CHANGE: COUNT SYSCOM and $INCLUDE SYSCOM
+           KEYS.H work as before, because the VOC entry is found in either
+           case.
+
+           WHAT IS NOT RENAMED YET: GPL.BP, BP and PCODE.OUT, and the system
+           account's own VOC and $HOLD, move separately.  The records inside
+           these directories keep their names: the register still holds
+           SDSYS, and syscom still holds KEYS.H.
+
+           ONE THING TO KNOW: a script or program of your own that reaches one
+           of these directories by its path - /usr/local/sdsys/ACCOUNTS, say -
+           needs the lower-case name.  Anything that goes through the VOC is
+           unaffected.
+
+
 12 Sep 26  THE SYSTEM FILE POINTERS ARE NOW LOWER CASE IN THE VOC: voc, syscom,
            newvoc, dict.dict, md, sd.accounts, sd.voclib, and in the system
            account accounts, messages and qfile.

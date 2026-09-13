@@ -113,6 +113,8 @@
 # 
 # START-HISTORY:
 # 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+# 13 Sep 26 dm  $include finds the sdsys syscom directory in lower case (plan
+#               M3 D1); see include_dir().
 # END-HISTORY
 #
 #
@@ -1605,6 +1607,13 @@ name_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.$%_"
 #
 # Below we define a bunch of field separated lists
 # Used in locates as indexes, case statement to output correct pcode ....
+
+
+def include_dir(name):
+    """The sdsys directory a three-token $include names, as spelled on disk.
+    13 Sep 26 dm - plan M3 D1 renamed syscom to lower case; GPL.BP is still
+    upper case until D2, which should make this a plain name.lower()."""
+    return 'syscom' if name.upper() == 'SYSCOM' else name.upper()
 
 
 ###################################################################################################
@@ -7139,7 +7148,7 @@ def pass1(sfn):
                             insert_inc(incfn,pss1src)
                         else:
                             # look in syscom
-                            incfn = os.path.dirname(sdir) + os.sep + 'SYSCOM' + os.sep + tokens[1].upper()
+                            incfn = os.path.dirname(sdir) + os.sep + 'syscom' + os.sep + tokens[1].upper()
                             if os.path.isfile(incfn):
                                 insert_inc(incfn,pss1src)
                             else:   
@@ -7147,7 +7156,7 @@ def pass1(sfn):
                                 sys.exit('abort!')
                     # there is the third case include file_name rec_name 
                     case 3:
-                            incfn = os.path.dirname(sdir) + os.sep + tokens[1].upper()+ os.sep + tokens[2].upper()
+                            incfn = os.path.dirname(sdir) + os.sep + include_dir(tokens[1]) + os.sep + tokens[2].upper()
                             if os.path.isfile(incfn):
                                 insert_inc(incfn,pss1src)
                             else:   

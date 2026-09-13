@@ -29,6 +29,11 @@
 #   fallback rather than the way in.  And a caller who cannot sudo is refused
 #   at the first sudo, in words, instead of failing part-way with sudo's own
 #   error.  Both are PRE_RELEASE 24.
+#
+#   13 Sep 2026 - the sdsys data directories are lower case on disk (plan M3
+#   D1): accounts, newvoc, voc_template, messages, syscom, sd.voclib, and the
+#   bootstrap's $ipc, $map, $map.dic, voc.dic, accounts.dic, dict.dic, dir_dict.
+#   A saved register is looked for as /home/sd/accounts only.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -610,8 +615,8 @@ else
 fi
 #
 sudo chown -R sdsys:sdusers "$sdsysdir"
-sudo chown root:root "$sdsysdir/ACCOUNTS/SDSYS"
-sudo chmod 654 "$sdsysdir/ACCOUNTS/SDSYS"
+sudo chown root:root "$sdsysdir/accounts/SDSYS"
+sudo chmod 654 "$sdsysdir/accounts/SDSYS"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 
 sudo cp sd.conf /etc/sd.conf
@@ -719,12 +724,12 @@ if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
 fi
 #
 # Copy saved directories if they exist
-if [ -d /home/sd/ACCOUNTS ]; then
-    sudo rm -fr "$sdsysdir/ACCOUNTS"
-    sudo mv /home/sd/ACCOUNTS "$sdsysdir"
-    echo Restored ACCOUNTS directory
+if [ -d /home/sd/accounts ]; then
+    sudo rm -fr "$sdsysdir/accounts"
+    sudo mv /home/sd/accounts "$sdsysdir"
+    echo Restored accounts directory
 else
-    echo No ACCOUNTS backup directory exists
+    echo No accounts backup directory exists
 fi
 #
 # Copy saved sd.conf file if it exists
@@ -801,14 +806,20 @@ fi
 # Modified by Composer AI - 2026/06/10.
 # Skip chmod/chown when bootstrap did not create expected directories.
 # sudo chmod -R 755 "$sdsysdir/\$HOLD.DIC"
-for bootstrap_dir in '$HOLD.DIC' '$IPC' '$MAP' '$MAP.DIC' VOC ACCOUNTS.DIC DICT.DIC DIR_DICT VOC.DIC; do
+# 13 Sep 26  Plan M3 D1: the names BBPROC's FILES_LIST creates, lower case except
+#            $HOLD.DIC and VOC (the SDSYS account's own, until D3).  A name that
+#            no longer matches used to be skipped in silence, leaving that file
+#            owned by root - so a missing one is now said out loud.
+for bootstrap_dir in '$HOLD.DIC' '$ipc' '$map' '$map.dic' VOC accounts.dic dict.dic dir_dict voc.dic; do
     if [ -d "${sdsysdir}/${bootstrap_dir}" ]; then
-        if [ "${bootstrap_dir}" = '$IPC' ]; then
+        if [ "${bootstrap_dir}" = '$ipc' ]; then
             sudo chmod -R 775 "${sdsysdir}/${bootstrap_dir}"
         else
             sudo chmod -R 755 "${sdsysdir}/${bootstrap_dir}"
         fi
         sudo chown -R sdsys:sdusers "${sdsysdir}/${bootstrap_dir}"
+    else
+        printf "%bWARNING: bootstrap did not create %s - its owner and mode were not set.%b\n" "$YELLOW" "${sdsysdir}/${bootstrap_dir}" "$NC"
     fi
 done
 # --------------------
@@ -907,7 +918,7 @@ if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
 
     # The instrument rule: say what the register ACTUALLY holds, not what the
     # command was asked for.  Field 5 is ACC$TIER.
-    acct_reg="${sdsysdir}/ACCOUNTS/$(printf '%s' "$tuser" | tr '[:lower:]' '[:upper:]')"
+    acct_reg="${sdsysdir}/accounts/$(printf '%s' "$tuser" | tr '[:lower:]' '[:upper:]')"
     seeded_tier=$(sudo sed -n '5p' "$acct_reg" 2>/dev/null)
     if [ "$seeded_tier" = "ADMINISTRATOR" ]; then
       echo "Registered ${tuser} as an SD administrator (tier: ${seeded_tier})."

@@ -6,7 +6,13 @@
 #   a copy can be found on the web here: https://blueoakcouncil.org/license/1.0.0
 #
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
-#   - prior history suppressed 
+#   - prior history suppressed
+#
+#   13 Sep 2026 - the account register is sdsys/accounts on disk (plan M3 D1),
+#   so a kept register is saved as /home/sd/accounts, the name installsdai.sh
+#   restores.  An install from before the rename has sdsys/ACCOUNTS, which this
+#   does not look for: no install needs carrying across (owner, 12-13 Sep) -
+#   take the delete-accounts path instead.
 #
 
 # Modified by Composer AI - 2026/06/10.
@@ -95,8 +101,8 @@ case $yn in
            # Modified by Composer AI - 2026/06/10.
            # sudo cp -r /usr/local/sdsys/ACCOUNTS /home/sd
            # ls /home/sd/ACCOUNTS;;
-           sudo cp -r "${sdsysdir}/ACCOUNTS" "$acct_path"
-           ls "$acct_path/ACCOUNTS";;
+           sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+           ls "$acct_path/accounts";;
     [nN] ) echo
            # Modified by Composer AI - 2026/06/10.
            # read -p 'Enter "DELETE" to confirm deletion of Accounts ' keep_accts
@@ -107,14 +113,14 @@ case $yn in
                sudo rm -fr "$acct_path"
            else
                echo Accounts Directory Saved
-               sudo cp -r "${sdsysdir}/ACCOUNTS" "$acct_path"
-               ls "$acct_path/ACCOUNTS"
+               sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+               ls "$acct_path/accounts"
            fi
            ;;
     *)     echo
            echo Accounts Directory Saved
-           sudo cp -r "${sdsysdir}/ACCOUNTS" "$acct_path"
-           ls "$acct_path/ACCOUNTS";;
+           sudo cp -r "${sdsysdir}/accounts" "$acct_path"
+           ls "$acct_path/accounts";;
 esac
 
 echo

@@ -25,6 +25,8 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  The bootstrap creates the sdsys data files in lower case and
+*               reads voc_template (plan M3 D1).  $HOLD and VOC stay until D3.
 * rev 0.9-3 Nov 25 move voc back to dynamic file
 * 06 Aug 24 comment out "<cr> to install" prompt 
 * 02 Jul 24 add check for install already complete
@@ -164,7 +166,7 @@ crt 'populate VOC'
 * move items in voc_template to voc
 *
 crt 'populating VOC from VOC_TEMPLATE'
-openpath @sdsys:@ds:'VOC_TEMPLATE' to voc_t.f else
+openpath @sdsys:@ds:'voc_template' to voc_t.f else
   crt 'Cannot open VOC_TEMPLATE directory! ABORT'
   if logging then writeseq 'Cannot open VOC_TEMPLATE directory! ABORT' to log.f else null
   goto abort.bbproc
@@ -282,27 +284,33 @@ FILES_LIST = ''
 *         (3) - Dynamic file, including data collections
 *         (4) - Directory file
 *
-*                  file      create file  create dict
-FILES_LIST<-1> = "ACCOUNTS"  :@VM:'N'      :@VM:'Y'
-FILES_LIST<-1> = "$HOLD"     :@VM:'N'      :@VM:'Y' 
-FILES_LIST<-1> = "$MAP"      :@VM:'Y'      :@VM:'Y' 
-FILES_LIST<-1> = "$IPC"      :@VM:'Y'      :@VM:'N' 
-FILES_LIST<-1> = "DICT.DIC"  :@VM:'Y'      :@VM:'N'  
-FILES_LIST<-1> = "DIR_DICT"  :@VM:'Y'      :@VM:'N'
-FILES_LIST<-1> = "VOC.DIC"   :@VM:'Y'      :@VM:'N'
+* 13 Sep 26 dm - plan M3 D1: these names ARE the names on disk, because the
+*   create.file STATEMENT takes a path exactly as given (the port's e1095ab).
+*   The third column now names the dictionary rather than saying Y, so a
+*   lower-case file gets a lower-case .dic; $HOLD and its $HOLD.DIC are the
+*   SDSYS account's own hold file and stay upper case until D3, with VOC.
+*
+*                  file      create file  dictionary to create
+FILES_LIST<-1> = "accounts"  :@VM:'N'      :@VM:'accounts.dic'
+FILES_LIST<-1> = "$HOLD"     :@VM:'N'      :@VM:'$HOLD.DIC'
+FILES_LIST<-1> = "$map"      :@VM:'Y'      :@VM:'$map.dic'
+FILES_LIST<-1> = "$ipc"      :@VM:'Y'      :@VM:''
+FILES_LIST<-1> = "dict.dic"  :@VM:'Y'      :@VM:''
+FILES_LIST<-1> = "dir_dict"  :@VM:'Y'      :@VM:''
+FILES_LIST<-1> = "voc.dic"   :@VM:'Y'      :@VM:''
 *
 files.cnt = dcount(FILES_LIST,@FM)
 
 for i = 1 to files.cnt
-  * create file? 
+  * create file?
   if FILES_LIST<i,2> = "Y" then
-     filename = @sdsys:@ds:FILES_LIST<i,1> 
+     filename = @sdsys:@ds:FILES_LIST<i,1>
      crt 'creating: ':filename
      create.file filename  DYNAMIC
   end
-  * create dictionary? 
-  if FILES_LIST<i,3> = "Y" then
-     filename = @sdsys:@ds:FILES_LIST<i,1>:'.DIC' 
+  * create dictionary?
+  if FILES_LIST<i,3> # "" then
+     filename = @sdsys:@ds:FILES_LIST<i,3>
      crt 'creating: ':filename
      create.file filename  DYNAMIC
   end

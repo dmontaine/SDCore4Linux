@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 13 Sep 26 Opens sdsys accounts, newvoc and voc_template by their lower-case
+*           names on disk (plan M3 D1).
 * 12 Sep 26 The case migration added to voc.delta earlier today is removed:
 *           no install holds an upper-case id to migrate (owner).
 * 11 Sep 26 The ADD arm refuses a grant that goes upward (10126/10127), because
@@ -112,7 +114,7 @@ deffun grp_members(group) calling '!grp_members'
 
    @system.return.code = -ER$ARGS     ;* Preset for argument errors
    
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+   openpath @sdsys:@ds:'accounts' to acc.f else
       @system.return.code = -status()
       stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
    end
@@ -736,7 +738,7 @@ voc.delta:
       return
    end
 
-   openpath @sdsys:@ds:'NEWVOC' to tnewvoc.f else
+   openpath @sdsys:@ds:'newvoc' to tnewvoc.f else
       close tvoc.f
       voc.ok = @false
       return
@@ -810,7 +812,7 @@ tier.rank:
 
 tier.open.template:
    if tmpl.open then return
-   openpath @sdsys:@ds:'VOC_TEMPLATE' to tvoctmpl.f then
+   openpath @sdsys:@ds:'voc_template' to tvoctmpl.f then
       tmpl.open = @true
    end else
       voc.ok = @false
