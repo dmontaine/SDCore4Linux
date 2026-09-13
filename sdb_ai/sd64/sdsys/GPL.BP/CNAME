@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
 *                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
@@ -229,11 +230,15 @@ rename.file:
 
 rename.records:
    open dict.flag, old.file.name to file else
-      open dict.flag, upcase(old.file.name) to file else
-         @system.return.code = -ER$FNF
-         stop sysmsg(2019) ;* File not found
+      open dict.flag, downcase(old.file.name) to file then
+         old.file.name = downcase(old.file.name)
+      end else
+         open dict.flag, upcase(old.file.name) to file else
+            @system.return.code = -ER$FNF
+            stop sysmsg(2019) ;* File not found
+         end
+         old.file.name = upcase(old.file.name)
       end
-      old.file.name = upcase(old.file.name)
       full.name = upcase(full.name)
    end
 

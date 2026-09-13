@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
 *                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
@@ -68,10 +69,14 @@ $include err.h
    * Check file exists and is a dynamic file
 
    open dict.flag, filename to fu else
-      open dict.flag, upcase(filename) to fu else
-         stop sysmsg(2019)  ;* File not found
+      open dict.flag, downcase(filename) to fu then
+         filename = downcase(filename)
+      end else
+         open dict.flag, upcase(filename) to fu else
+            stop sysmsg(2019)  ;* File not found
+         end
+         filename = upcase(filename)
       end
-      filename = upcase(filename)
    end
 
    if fileinfo(fu, FL$TYPE) # FL$TYPE.DH then

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
 *                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
@@ -103,11 +104,15 @@ $include err.h
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
 
    open dict.flag, file.name to old.fu else
-      open dict.flag, upcase(file.name) to old.fu else
-         @system.return.code = -status()
-         stop sysmsg(1427, trimf(dict.flag : ' ' : file.name)) ;* Cannot open xx
+      open dict.flag, downcase(file.name) to old.fu then
+         file.name = downcase(file.name)
+      end else
+         open dict.flag, upcase(file.name) to old.fu else
+            @system.return.code = -status()
+            stop sysmsg(1427, trimf(dict.flag : ' ' : file.name)) ;* Cannot open xx
+         end
+         file.name = upcase(file.name)
       end
-      file.name = upcase(file.name)
    end
 
    if fileinfo(old.fu, FL$READONLY) then

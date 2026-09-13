@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -1903,9 +1904,11 @@ parse.as.dictionary.name:
                end
 
                read trans.dict.rec from trans.file.dict, token.string else
-                  read trans.dict.rec from trans.file.dict, upcase(token.string) else
-                     err.msg = sysmsg(2024, token.string)  ;* 'xx' not found in dictionary
-                     goto error
+                  read trans.dict.rec from trans.file.dict, downcase(token.string) else
+                     read trans.dict.rec from trans.file.dict, upcase(token.string) else
+                        err.msg = sysmsg(2024, token.string)  ;* 'xx' not found in dictionary
+                        goto error
+                     end
                   end
                end
 

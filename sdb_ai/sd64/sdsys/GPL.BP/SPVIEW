@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -115,11 +116,15 @@ $include keyin.h
    end
 
    open file.name to data.f else
-      open upcase(file.name) to data.f else
-         @system.return.code = status()
-         stop sysmsg(2019) ;* File not found
+      open downcase(file.name) to data.f then
+         file.name = downcase(file.name)
+      end else
+         open upcase(file.name) to data.f else
+            @system.return.code = status()
+            stop sysmsg(2019) ;* File not found
+         end
+         file.name = upcase(file.name)
       end
-      file.name = upcase(file.name)
    end
 
    saved.key.bindings = bindkey('', -3)

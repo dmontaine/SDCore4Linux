@@ -18,6 +18,8 @@
 * 
 *  
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups and the VOC token read fold as typed, then lower,
+*               then upper (plan M1).  check.record is deliberately NOT folded.
 * 10 Sep 26 dm  Parity audit: Enter is N at the CSV overwrite prompt (7305) and
 *               in get.label.yn (port PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -488,12 +490,16 @@ $define MAX.STRINGS     20          ;* For SEARCH command
    end
 
    open dict.flag, qproc.file.name to data.f else
-      open dict.flag, upcase(qproc.file.name) to data.f else
-         display sysmsg(2019) ;* File not found
-         goto exit.qproc
-      end
+      open dict.flag, downcase(qproc.file.name) to data.f then
+         qproc.file.name = downcase(qproc.file.name)
+      end else
+         open dict.flag, upcase(qproc.file.name) to data.f else
+            display sysmsg(2019) ;* File not found
+            goto exit.qproc
+         end
 
-      qproc.file.name = upcase(qproc.file.name)
+         qproc.file.name = upcase(qproc.file.name)
+      end
    end
 
    is.dir = (fileinfo(data.f, FL$TYPE) = FL$TYPE.DIR)
@@ -2625,9 +2631,11 @@ parse.command.options:
                end
 
                read label.template from @voc, token else
-                  read label.template from @voc, upcase(token) else
-                     display sysmsg(7236) ;* Label template record not found
-                     goto exit.qproc
+                  read label.template from @voc, downcase(token) else
+                     read label.template from @voc, upcase(token) else
+                        display sysmsg(7236) ;* Label template record not found
+                        goto exit.qproc
+                     end
                   end
                end
 label.template.found:
@@ -2763,9 +2771,11 @@ label.template.found:
                goto exit.qproc
             end
             open token to pageseq.f else
-               open upcase(token) to pageseq.f else
-                  display sysmsg(7310) ;* Page sequence control file not found
-                  goto exit.qproc
+               open downcase(token) to pageseq.f else
+                  open upcase(token) to pageseq.f else
+                     display sysmsg(7310) ;* Page sequence control file not found
+                     goto exit.qproc
+                  end
                end
             end
 
@@ -2965,11 +2975,15 @@ label.template.found:
 
             reformat.filename = token
             open reformat.filename to reformat.f else
-               open upcase(reformat.filename) to reformat.f else
-                  display sysmsg(1427, reformat.filename)  ;* Cannot open %1
-                  goto exit.qproc
+               open downcase(reformat.filename) to reformat.f then
+                  reformat.filename = downcase(reformat.filename)
+               end else
+                  open upcase(reformat.filename) to reformat.f else
+                     display sysmsg(1427, reformat.filename)  ;* Cannot open %1
+                     goto exit.qproc
+                  end
+                  reformat.filename = upcase(reformat.filename)
                end
-               reformat.filename = upcase(reformat.filename)
             end
 
 * --- TOTAL
@@ -2999,9 +3013,11 @@ label.template.found:
             end
 
             open using.dict, token to dict.file else
-               open using.dict, upcase(token) to dict.file else
-                  display sysmsg(1427, trimf(using.dict : ' ' : token)) ;* Cannot open xx
-                  goto exit.qproc
+               open using.dict, downcase(token) to dict.file else
+                  open using.dict, upcase(token) to dict.file else
+                     display sysmsg(1427, trimf(using.dict : ' ' : token)) ;* Cannot open xx
+                     goto exit.qproc
+                  end
                end
             end
 
@@ -3638,9 +3654,11 @@ check.field.modifiers:
                end
 
                read s from dict.file, token else
-                  read s from dict.file, upcase(token) else
-                     display sysmsg(7259, token) ;* Associated field xx not found in dictionary
-                     goto exit.qproc
+                  read s from dict.file, downcase(token) else
+                     read s from dict.file, upcase(token) else
+                        display sysmsg(7259, token) ;* Associated field xx not found in dictionary
+                        goto exit.qproc
+                     end
                   end
                end
 
@@ -3821,7 +3839,25 @@ get.token:
       end
    end
 
+* 12 Sep 26 dm - AS TYPED, THEN LOWER, THEN UPPER (plan M1, the port's
+*   f9ab089).  @voc is a DYNAMIC file, so this is an exact byte match, and every
+*   query keyword - WITH, BY, FMT, COL.HDG - is resolved through it.  A flag
+*   rather than three copies of the body, because the body carries RETURN and
+*   GOTO.  The DICTIONARY reads above are deliberately untouched.
+   voc.fold.found = @false
    read dict.rec from @voc, token then
+      voc.fold.found = @true
+   end else
+      read dict.rec from @voc, downcase(token) then
+         voc.fold.found = @true
+      end else
+         read dict.rec from @voc, upcase(token) then
+            voc.fold.found = @true
+         end
+      end
+   end
+
+   if voc.fold.found then
       from.voc = @true    ;* 0316
       type = upcase(dict.rec[1,1])
       if listindex('A,C,D,I,S', ',', type) then return
@@ -3960,6 +3996,12 @@ read.record:
 *   new.record is unchanged
 
 check.record:
+* 12 Sep 26 dm - DELIBERATELY NOT FOLDED, where the port (f9ab089) folds it.
+*   This is the record id of WHATEVER file the query names, and upstream never
+*   folded it, so a fold here is not an extra step in an existing chain but a
+*   new case-insensitive match on user data - which the owner ruled out of plan
+*   M on 12 Sep (SUE and sue are two records).  The cost, once the VOC ids are
+*   renamed in M3: LIST VOC LIST will not find list.  Decide it there.
    record.found = @true
    readv s from data.f, id, 0 else
       if not(absent.null) then
@@ -5120,9 +5162,11 @@ add.field:
             end
 
             read link.dict.rec from link.dict.f, link.item else
-               read link.dict.rec from link.dict.f, upcase(link.item) else
-                  display sysmsg(7272, link.name) ;* Link item xx not found
-                  goto exit.qproc
+               read link.dict.rec from link.dict.f, downcase(link.item) else
+                  read link.dict.rec from link.dict.f, upcase(link.item) else
+                     display sysmsg(7272, link.name) ;* Link item xx not found
+                     goto exit.qproc
+                  end
                end
             end
 
