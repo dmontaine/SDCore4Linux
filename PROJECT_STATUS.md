@@ -79,10 +79,22 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***§M3 FOURTH CATEGORY BUILT AND PUSHED, NOT INSTALLED: THE F/Q FILE-POINTER
-VOC IDS ARE LOWER CASE*** (the port's `0394af4`). ***NEXT: owner reinstall →
-`verify-lcnames` 10 failed → 141/141; `verify-vocverbs` 34/34 must still read
-"source pointer id syscom"; standing suite.***
+***§M3 FOURTH CATEGORY (F/Q POINTER IDS) INSTALLED AND WITNESSED on `8c14634`***
+(23:03:08, `assert-current` 0). ***The owner ran the suite and pasted the
+verdicts***; the agent re-ran the two missing from the paste. `verify-lcnames`
+***140/140*** (red 10/141 — P9 is the failure-only guard row; ***do not predict
+totals that include guard rows***, same mistake as the `$savedlists` round);
+`verify-vocverbs` 34/34 reading `source pointer id syscom`, raw `2 record(s)
+selected to select list 2`; voccase 38, fold 35, setpw 24, txn 33, editors 28,
+nonet 59, lineendings 42, basicfuncs 199, accounts 35, sysperms 18, grants 16/0,
+tier-layer 0 short with `COUNT VOC` 418.
+***NEXT — NEEDS AN OWNER DECISION BEFORE BUILDING:*** the on-disk directory
+rename (below: 483 lines, per-account migration of user-owned directories on
+keep cycles, no port precedent). Id-only categories still available without
+one: `$COMMAND.STACK` (the port's `69015c3`), `BP`/`GPL.BP` ids, `$ACC`/`$MAP`/
+`$RELEASE`.
+
+*Pre-install:* §M3 fourth category built and pushed (the port's `0394af4`).
 - Ids `voc newvoc syscom dict.dict md sd.accounts sd.voclib` (NEWVOC +
   VOC_TEMPLATE) and `accounts messages qfile` (VOC_TEMPLATE): 17 `git mv`, one
   step each. Q field 3: `md`→`voc`, `sd.accounts`→`accounts`. `third.compile` CD
