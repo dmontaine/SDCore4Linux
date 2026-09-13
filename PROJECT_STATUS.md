@@ -9,17 +9,17 @@ the work, nothing in "Verified" that was not observed that session.
 **Keep this current when an entry closes; it is a scorecard, detail lives in
 `PRE_RELEASE_FIXES.md` and below.**
 
-- **PRE_RELEASE entries — 28 total: 15 done · 1 partial · 12 open.**
-  - ***`28` (SEV A): `DELETE.ACCOUNT` of an adopted administrator left its
-    Linux user in `sdadmin`/`sdusers`, and `sdadmin` is effective root via
-    `sd-elevate passwd` → a Linux sudoer → `sudo -i`.*** Measured 12 Sep by
-    `witness-accounts.sh` D12/D13. ***FIX BUILT (source) on the owner's ruling
-    "a true deletion strips everything about the account"*** — `DELACC`'s 10036
-    branch now strips `sdadmin` then `sdusers` (mirrors `MODIFYA` `leave.sdadmin`);
-    the borrowed user itself is still left in place, and an SD-*created* user is
-    still `userdel`'d whole. ***UNWITNESSED: needs reinstall (SDSYS compiles it)
-    then re-run the witness — D12/D13 must flip to PASS.*** Not filed to the
-    port (owner's call). Still counted "open" until witnessed.
+- **PRE_RELEASE entries — 28 total: 16 done · 1 partial · 11 open.**
+  - ***`28` (SEV A) CLOSED — fixed and WITNESSED 12 Sep 19:35 on install
+    `f14919c`, `witness-accounts.sh --commit` 33/0.*** `DELETE.ACCOUNT` of an
+    adopted administrator had left its Linux user in `sdadmin`/`sdusers`, and
+    `sdadmin` is effective root via passwordless `sd-elevate passwd` → a Linux
+    sudoer → `sudo -i`. `DELACC`'s 10036 branch now strips `sdadmin` then
+    `sdusers` (mirrors `MODIFYA` `leave.sdadmin`); the transcript shows the
+    `gpasswd -d` calls and the survivor left with `groups='zzacct2'` — zero SD
+    groups, so the strip is complete. The borrowed login and home survive; an
+    SD-*created* user is still `userdel`'d whole. Not filed to the port
+    (owner's call).
   - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS
@@ -64,10 +64,12 @@ the work, nothing in "Verified" that was not observed that session.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`f446ac1`**, 12 Sep 2026 11:56:05, by an
-  owner-run ***FULL*** delete→install — `assert-current` **0**, measured
-  after the install, not inferred from the stamp. Previous: `0095937`, 01:50:36,
-  a KEEP cycle. *Earlier note, kept because it names the trap:
+- **Runtime:** install built from **`f14919c`**, 12 Sep 2026 19:33:26, by an
+  owner-run ***FULL*** delete→install — `assert-current` **current**, measured
+  after the install. It carries the PRE_RELEASE 28 fix (`DELACC` group strip),
+  witnessed on it at 19:35. Prior installs: `f446ac1` 11:56 (the full cycle
+  that reset the test accounts), `0095937` 01:50 (a KEEP cycle). *Earlier note,
+  kept because it names the trap:
   after `98b0c77` HEAD advanced by documentation-only commits, so
   `assert-current` read STALE while the shipped behaviour was current.*
 
@@ -162,26 +164,25 @@ reached*** (10085, 10158, 10036, the user and home surviving). Dry run and guard
 exercised; the gate itself cannot be made to fire without root, so it is
 parse-checked, not seen working.
 
-***THE REWRITE RAN 18:12 AND ITS PREDICTED FINDING IS NOW MEASURED — 31 PASS,
-0 NOT REACHED, D12/D13 FAIL. THIS IS PRE_RELEASE 28, SEV A.*** `DELETE.ACCOUNT`
-of an adopted administrator (`zzacct2`) deleted the SD side correctly and left
-the Linux user — rightly — in place, ***but still in `sdusers` AND `sdadmin`***.
-Measured, not read: `groups='zzacct2 sdusers sdadmin'` after the delete.
-***`sdadmin` IS EFFECTIVE ROOT***: `sdcore.sudoers` gives it passwordless
-`sd-elevate`, `sd-elevate` gates on the group and **not the caller**, and
-`sd-elevate passwd don` is permitted (`test-sd-elevate.py:104`), so a leftover
-member sets `don`'s password, logs in as `don` (a Linux `sudo` member), and
-`sudo -i`. So "I deleted that administrator" leaves a path back to root.
-Reachable with two administrators — a second admin deleting the adopted
-installer's account — because only an adopted (unstamped) user survives
-`DELETE`; an SD-created one is `userdel`'d whole and its memberships go with it.
-***THE BORROWED-USER DELETE BRANCH ITSELF, WHICH NOTHING HAD REACHED BEFORE,
-PASSED CLEAN*** (10085 short confirmation, 10158 warning, 10036, user + home
-survive). Fix, port status and the full reasoning: PRE_RELEASE 28. ***NOT BUILT
-— it changes a destructive verb and the admin model, so it is the owner's
-ruling*** (the question is below).
+***PRE_RELEASE 28 (SEV A) IS FOUND, FIXED AND WITNESSED — the arc across three
+installs.*** The rewritten witness first ran 18:12 on `f446ac1` and measured the
+finding: after `DELETE.ACCOUNT` of an adopted administrator the Linux user was
+left — rightly — in place but ***still in `sdusers` AND `sdadmin`***
+(`groups='zzacct2 sdusers sdadmin'`), and `sdadmin` is effective root
+(passwordless `sd-elevate passwd` of any SD user who is a Linux sudoer → become
+them → `sudo -i`; `don` the transitory example, SDSYS the constant). The fix —
+`DELACC`'s 10036 branch strips `sdadmin` then `sdusers` — was compiled by SDSYS
+at reinstall (not in an account), and ***re-run 19:35 on `f14919c`: 33/0, D12/D13
+PASS***, the transcript showing `gpasswd -d … sdadmin`/`… sdusers` and the
+survivor left with `groups='zzacct2'` alone. The borrowed-user delete branch
+that nothing had reached before also passed clean (10085, 10158, 10036, user +
+home survive). Full account: PRE_RELEASE 28.
 
-**Owed and blocked:** `sdsyswrite` (needs a session in SDSYS).
+**Owed and blocked:** `sdsyswrite` (needs a session in SDSYS). ***And still by
+hand: the SD-CREATED delete path*** — `CREATE.ACCOUNT USER <new> PROGRAMMER`
+(password typed), then `DELETE.ACCOUNT`, expecting the LONGER confirmation
+(10084) and 10028 "OS User Deleted"; the witness prints the recipe (phase 5) but
+cannot drive the password prompt.
 
 **The port acted on bug 8 within the day** — `8b78bad`, "Fix 17 (Linux #8)",
 and found SEVEN faults where Linux reported five: `NOT` hidden by its own header
