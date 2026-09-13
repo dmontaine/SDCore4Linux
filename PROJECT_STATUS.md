@@ -79,8 +79,17 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***CASE MIGRATION REMOVED — 13 Sep 2026, COMPILED, NOT INSTALLED. NEXT: OWNER
-REINSTALL + SUITE, THEN §M3 D1.*** Owner ruled: no existing installs, no
+***CASE MIGRATION REMOVED — INSTALLED AND WITNESSED on `101ad30`*** (owner
+keep-cycle, `.sdcore-install` 2026-09-13 09:45:38, `assert-current` 0 at
+10:02). Suite run by the agent as `don`, no sudo, no `--allow-stale`, all exit 0,
+no `[FAIL]`, every session "ran to OFF": ***`verify-lcnames` 61/61*** (the new
+total — sections 3L/3H/3C/3P each K1–K5 incl. session rows, S14 still pins
+`'QFILE'`); vocverbs 34, fold 35, setpw 24, txn 33, editors 28, nonet 59,
+lineendings 42, basicfuncs 199, accounts 35, sysperms 18, grants 16/0,
+tier-layer exit 0 with `COUNT VOC` 418. Installed tree has no `GPL.BP/voccase`
+and no MESSAGES 10916/10917/10052. ***NEXT: §M3 D1.***
+
+*Pre-install notes, 13 Sep:* Owner ruled: no existing installs, no
 migration ever needed for §M (memory `sdcore4linux-no-migration`), "remove now,
 before D1".
 - `313c55b` (WIP) took the `!voccase` calls and 10916/10917 displays out of LOGIN
