@@ -2,7 +2,7 @@
 # mkbasicsyntax.py - build micro's SD BASIC syntax file FROM BCOMP.
 #
 #   cd sdb_ai/sd64 && python3 gplbld/mkbasicsyntax.py \
-#       sdsys/GPL.BP/BCOMP gplbld/microcfg/syntax/sdbasic.yaml
+#       sdsys/gpl.bp/BCOMP gplbld/microcfg/syntax/sdbasic.yaml
 #
 # THE WORD LISTS ARE NOT TYPED OUT.  BCOMP is the compiler: its own tables say
 # what a statement is, what a reserved word is and what an intrinsic function
@@ -20,7 +20,7 @@
 # embedded YAML header changed - the extraction is the port's.
 #
 # ***RUN AT BUILD TIME, NEVER AT INSTALL TIME, AND THE REASON IS NOT STYLE.***
-# It reads sdsys/GPL.BP/BCOMP, which is the SOURCE tree's compiler.  An
+# It reads sdsys/gpl.bp/BCOMP, which is the SOURCE tree's compiler.  An
 # installed system has one too, so the command would appear to work there and
 # would silently describe whatever that install happens to be.  Regenerate when
 # BCOMP's tables change; the counts it prints are how you tell that they did.
@@ -87,11 +87,11 @@ YAML = '''filetype: sdbasic
 # SD BASIC, for the MICRO verb of SD Core for Linux.
 #
 # GENERATED FROM THE COMPILER'S OWN TABLES by gplbld/mkbasicsyntax.py, which
-# reads sdsys/GPL.BP/BCOMP.  Do not hand-edit: regenerate it, or the
+# reads sdsys/gpl.bp/BCOMP.  Do not hand-edit: regenerate it, or the
 # highlighting and the language drift apart.  Counts at generation time are in
 # the comment above each rule.
 #
-# DETECTION IS ON THE WORKING COPY'S NAME, not on the record's.  GPL.BP/EDIT
+# DETECTION IS ON THE WORKING COPY'S NAME, not on the record's.  gpl.bp/EDIT
 # writes a BP record to $HOLD as "<record>.editing.sdbasic" precisely so that
 # this can match; a record edited from any other file gets ".editing" and no
 # highlighting, which is the honest answer for a VOC or data record.

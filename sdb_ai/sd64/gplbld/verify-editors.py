@@ -64,8 +64,8 @@ NANORC = "/usr/share/nano/sdbasic.nanorc"
 ETC_NANORC = "/etc/nanorc"
 MICRO_YAML = os.path.join(V.SDSYS, "microcfg", "syntax", "sdbasic.yaml")
 GCAT_EDIT = os.path.join(V.SDSYS, "gcat", "$EDIT")
-SRC_EDIT = os.path.join(V.SDSYS, "GPL.BP", "EDIT")
-SRC_MICRO = os.path.join(V.SDSYS, "GPL.BP", "MICRO")
+SRC_EDIT = os.path.join(V.SDSYS, "gpl.bp", "EDIT")
+SRC_MICRO = os.path.join(V.SDSYS, "gpl.bp", "MICRO")
 VOCT = os.path.join(V.SDSYS, "voc_template")
 OMIT = os.path.join(V.SDSYS, "newvoc", "TIER.OMIT.STANDARD")
 

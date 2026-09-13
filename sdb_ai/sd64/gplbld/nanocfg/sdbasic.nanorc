@@ -1,10 +1,10 @@
 ## SD BASIC, for the NANO verb of SD Core for Linux.
 ##
 ## GENERATED FROM THE COMPILER'S OWN TABLES by gplbld/mknanosyntax.py, which
-## reads sdsys/GPL.BP/BCOMP.  Do not hand-edit: regenerate it, or the
+## reads sdsys/gpl.bp/BCOMP.  Do not hand-edit: regenerate it, or the
 ## highlighting and the language drift apart.
 ##
-## DETECTION IS ON THE WORKING COPY'S NAME, not on the record's.  GPL.BP/EDIT
+## DETECTION IS ON THE WORKING COPY'S NAME, not on the record's.  gpl.bp/EDIT
 ## writes a BP record to $HOLD as "<record>.editing.sdbasic" precisely so
 ## that this can match.  The installer places this file in /usr/share/nano,
 ## which /etc/nanorc includes.

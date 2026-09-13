@@ -76,7 +76,7 @@ def scan_dir(path):
 
 # The name categories, all ruled in scope.  (label, path, what it holds)
 NAME_CATEGORIES = [
-    ("GPL.BP source records", "GPL.BP", "program and include records"),
+    ("GPL.BP source records", "gpl.bp", "program and include records"),
     ("SYSCOM include records", "syscom", "include records"),
     ("NEWVOC record ids", "newvoc", "the shipped VOC"),
     ("VOC_TEMPLATE record ids", "voc_template", "the per-account VOC template"),

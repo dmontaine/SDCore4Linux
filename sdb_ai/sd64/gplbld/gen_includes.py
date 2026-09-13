@@ -43,10 +43,9 @@
 # render as one character - kept because otherwise the port would rewrite
 # OP.STOP's hex comment and the byte-for-byte check would flag every line.
 #
-# This tree still uses upper-case account directories (GPL.BP, SYSCOM) pending
-# the lower-case migration in the project stance; the sdsys sub-directory is
-# resolved case-insensitively so this file needs no edit when that migration
-# lands.
+# The sdsys sub-directory is resolved case-insensitively.  It was written while
+# GPL.BP and SYSCOM were upper case; plan M3 D1/D2 (13 Sep 2026) made them
+# gpl.bp and syscom, and this file needed no edit, as intended.
 #
 
 import argparse
@@ -351,8 +350,8 @@ def write_lines(path, lines):
 
 def resolve_subdir(base, name):
     """Return base/<child> where <child> matches `name` case-insensitively if
-    such a directory exists (this tree still uses upper-case GPL.BP / SYSCOM
-    pending the lower-case migration), else base/name."""
+    such a directory exists (gpl.bp and syscom are lower case since plan M3
+    D1/D2), else base/name."""
     target = name.lower()
     try:
         for child in os.listdir(base):

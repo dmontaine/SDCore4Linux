@@ -77,7 +77,7 @@ import sdverify as V                                    # noqa: E402
 NAME = "verify-basicfuncs"
 PROBE_SRC = os.path.join(HERE, "verify-basicfuncs.bp")
 PROBE = "ZZBF"
-BCOMP = os.path.join(HERE, os.pardir, "sdsys", "GPL.BP", "BCOMP")
+BCOMP = os.path.join(HERE, os.pardir, "sdsys", "gpl.bp", "BCOMP")
 
 # The variable the probe deliberately never assigns.  BCOMP warns about it
 # (message 2825), and that warning is the null-case guard for the three cases

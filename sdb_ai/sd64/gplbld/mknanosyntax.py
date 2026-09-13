@@ -2,7 +2,7 @@
 # mknanosyntax.py - generate nano's SD BASIC syntax file from the compiler.
 #
 #   cd sdb_ai/sd64 && python3 gplbld/mknanosyntax.py \
-#       sdsys/GPL.BP/BCOMP gplbld/nanocfg/sdbasic.nanorc
+#       sdsys/gpl.bp/BCOMP gplbld/nanocfg/sdbasic.nanorc
 #
 # 10 Sep 26 - Owner, 10 Sep 2026: Microsoft Edit is not packaged for Linux, so
 # the NANO verb runs nano here, and nano is to have SD BASIC highlighting as
@@ -26,7 +26,7 @@ import subprocess
 import sys
 
 if len(sys.argv) != 3:
-    sys.exit('usage: mknanosyntax.py <GPL.BP/BCOMP> <out.nanorc>')
+    sys.exit('usage: mknanosyntax.py <gpl.bp/BCOMP> <out.nanorc>')
 
 BCOMP = sys.argv[1]
 OUT = sys.argv[2]
@@ -116,10 +116,10 @@ lines = [
     '## SD BASIC, for the NANO verb of SD Core for Linux.',
     '##',
     '## GENERATED FROM THE COMPILER\'S OWN TABLES by gplbld/mknanosyntax.py, which',
-    '## reads sdsys/GPL.BP/BCOMP.  Do not hand-edit: regenerate it, or the',
+    '## reads sdsys/gpl.bp/BCOMP.  Do not hand-edit: regenerate it, or the',
     '## highlighting and the language drift apart.',
     '##',
-    '## DETECTION IS ON THE WORKING COPY\'S NAME, not on the record\'s.  GPL.BP/EDIT',
+    '## DETECTION IS ON THE WORKING COPY\'S NAME, not on the record\'s.  gpl.bp/EDIT',
     '## writes a BP record to $HOLD as "<record>.editing.sdbasic" precisely so',
     '## that this can match.  The installer places this file in /usr/share/nano,',
     '## which /etc/nanorc includes.',

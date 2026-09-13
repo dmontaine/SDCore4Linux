@@ -139,7 +139,7 @@ def main():
 
     # ---- B. the sources shipped
     for name in SOURCES:
-        path = os.path.join(sdsys, "GPL.BP", name)
+        path = os.path.join(sdsys, "gpl.bp", name)
         rep.row(os.path.exists(path), "B source GPL.BP/%s" % name, path)
 
     # ---- C. the VOC_TEMPLATE records, contents and all

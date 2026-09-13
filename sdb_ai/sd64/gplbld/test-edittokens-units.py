@@ -4,8 +4,8 @@
 #
 # 10 Sep 26 - ADOPTED FROM SD CORE FOR WINDOWS (its gplbld/test-edittokens-
 # units.py) together with GPL.BP/EDIT.  The only change is the corpus path:
-# this tree's BASIC source is sdsys/GPL.BP, upper case until the lower-case
-# conversion.  Run with no arguments:  python3 gplbld/test-edittokens-units.py
+# this tree's BASIC source is sdsys/gpl.bp (lower case since plan M3 D2, 13 Sep
+# 2026).  Run with no arguments:  python3 gplbld/test-edittokens-units.py
 #
 # THE GRAMMAR.  Every token is "~" plus one character, and "~" is the only
 # escape character, so a scan only ever has to look at a tilde:
@@ -196,7 +196,7 @@ if tried < 100000:
 # files would sail through, so the counts are asserted.
 # ---------------------------------------------------------------------------
 here = os.path.dirname(os.path.abspath(__file__))
-bp = os.path.join(os.path.dirname(here), 'sdsys', 'GPL.BP')
+bp = os.path.join(os.path.dirname(here), 'sdsys', 'gpl.bp')
 
 corpus = 0
 with_special = 0

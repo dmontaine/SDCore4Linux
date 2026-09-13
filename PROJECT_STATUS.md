@@ -79,6 +79,37 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 D2 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner keep-cycle install +
+reboot (the reboot is also `PRE_RELEASE` 29's second boot), then the suite.***
+Keep cycle is safe: no kept account's VOC names a D2 path (voc_template's four
+records reach only SDSYS, whose VOC the bootstrap rebuilds; TIER.ADD lists none).
+- ***Renames (script, 224 files `R`):*** sdsys `GPL.BP GPL.BP.OUT BP BP.OUT
+  PCODE.OUT` → lower; voc_template ids `GPL.BP GPL.BP.OUT BP BP.OUT` → lower.
+- ***By hand:*** those four records' field 2 → lower; `first.compile`/
+  `second.compile` `BASIC gpl.bp`; BBPROC (`gpl.bp.out/LOGIN` guard, both
+  source/output name pairs, `$include gpl.bp`); COMP_PCODE; ERRGEN/REVSTAMP
+  `openseq 'gpl.bp'`; PROG_INFO/CREATE_INSTALL_DICT_FILE `$INCLUDE gpl.bp`;
+  `bbcmp.py include_dir()` → `name.lower()`; `pcode_bld.py` paths; installer
+  `:581-583 :841 :857-858`; syntax generators' header text, outputs REGENERATED
+  (4 comment lines differ); verifiers accounts, basicfuncs, editors, grants,
+  lcnames, nocase, nonet, test-edittokens; gen_includes comments; CLAUDE.md
+  `sdsys/gpl.bp/<VERB>`; changelog.
+- ***NOT in D2, and why:*** BASIC's `bp.OUT` fix from the port's `1943704` —
+  its create branch runs only when the `.OUT` file is absent, and SDSYS ships
+  `bp.out`/`gpl.bp.out`; `BASIC gpl.bp *` builds `gpl.bp.OUT`, which the M1 fold
+  reaches as `gpl.bp.out`. It bites when a per-account `bp` id exists without
+  `bp.out`: ***take it WITH D3.*** Per-account `BP`/`BP.OUT` (CREATEA:763) and
+  CATALOG/FORMAT/GENERATE/CPROC `"BP"` defaults (VOC opens, folded) are D3.
+- ***New rows `verify-lcnames` S16*** (5 D2 dirs lower, no upper) ***and S17***
+  (the four voc_template records: id and field 2 lower, no upper id).
+- ***Checked, no install:*** bbcmp on a scratch copy of the tree — BBPROC,
+  BCOMP, PATHTKN into `gpl.bp.out` and all 55 pcode programs into `pcode.out`,
+  58 compiled 0 failed; red control (`gpl.bp` back to `GPL.BP`) → exit 1
+  `No such file ... gpl.bp/BBPROC`. All gplbld `.py` compile; unit suites 0
+  failed; nocase selftest 19/0; `gen_includes --check` in sync on
+  `sdsys/gpl.bp/*`. ***Would falsify:*** a bootstrap pass failing, `RUN gpl.bp
+  WRITE_INSTALL_DICTS` failing, or S16/S17 red.
+
 ***`PRE_RELEASE` 29 INSTALLED on `6214b0f`; FIRST BOOT HELD*** (owner keep-cycle,
 `.sdcore-install` 10:48:18, boot 10:48:54, `assert-current` 0 at 11:01). Measured
 as the installing user, no sudo: `systemctl status sd.service` → `active (exited)

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Writes to gpl.bp, the file's VOC id and name on disk (plan M3 D2).
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -36,7 +37,7 @@
 program errgen
 $include err.h
 
-   openseq 'GPL.BP', 'ERRTEXT.H' to out.f else
+   openseq 'gpl.bp', 'ERRTEXT.H' to out.f else
       if status() then abort 'Cannot open BP errtext.h'
    end
    weofseq out.f

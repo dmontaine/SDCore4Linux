@@ -209,7 +209,7 @@ name on it.** In the Windows record a step matched on the record id it had passe
 in, which appeared in the echoed command, the refusal *and* the error — three
 places on the failure path — and three runs were voided before anyone read the raw
 output. Two fixes: match the wording the tool prints **on the positive path**
-(for SD verbs, `sdsys/GPL.BP/<VERB>` names the `display sysmsg(...)` calls), and
+(for SD verbs, `sdsys/gpl.bp/<VERB>` names the `display sysmsg(...)` calls), and
 **match the failure wording too and refuse if it appears** — `not in register`,
 `not found`, `syntax error`.
 
