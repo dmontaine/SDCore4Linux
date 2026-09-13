@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  A new account's command-stack VOC record is $command.stack (plan
+*               M3, the $ records; the port's 69015c3).
 * 13 Sep 26 dm  A new account is made lower case on disk: voc, $hold, $hold.dic,
 *               $svlists, bp - the port's names - and its BASIC file's VOC id
 *               is bp (plan M3 D3).
@@ -741,7 +743,7 @@ make.account:
 
    * Set up $COMMAND,STACK VOC entry
 
-   write 'X' to voc.f, '$COMMAND.STACK'
+   write 'X' to voc.f, '$command.stack'
 
    * Create $HOLD
 

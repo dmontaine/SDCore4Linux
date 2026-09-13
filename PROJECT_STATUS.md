@@ -79,6 +79,35 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 THE $ RECORDS + `PRE_RELEASE` 30 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT:
+owner FULL delete→install (N, DELETE) + reboot, then the suite.*** Full cycle is
+REQUIRED: LOGIN:498 reads `$release` by exact id and TERMINATES the session if it
+is missing, and a kept account holds `$RELEASE`.
+- ***Renames (`git mv`):*** newvoc + voc_template `$ACC $MAP $RELEASE` → lower.
+- ***Exact-id readers:*** LOGIN `"$release"` (:498, + 5028 text and audit
+  reason) and `"$command.stack"` (:546); CPROC `readu`/`release` of
+  `$command.stack` (:3832/:3844 — same id both, or the lock outlives the
+  session, the port's 69015c3 point); CREATEA writes `'$command.stack'`; MAPCAT
+  default `$map` and its no-prompt test `downcase(file.name) # '$map'`. DELETEF's
+  banned `'$ACC'` UNCHANGED — compared against `upcase(file.name)` (S13).
+  `gplsrc/revstamp.h:41` comment still says `$RELEASE` — left, to avoid a C
+  rebuild for a comment.
+- ***`PRE_RELEASE` 30:*** installer sets `accounts/SDSYS` root:root ***644*** after
+  the keep-cycle register restore (a second thing that undid it) and prints the
+  mode; `verify-accounts` R8.
+- ***`verify-lcnames`:*** S19 (shipped `$acc $map $release` lower, not upper),
+  S20/S21 (LOGIN/CPROC/CREATEA lower literals present, no upper literal in code —
+  red control against HEAD's three programs: all flagged "stale"); categories
+  3R (`$release`, 5028 absent + a command ran), 3A (`COUNT $ACC`/`$acc`), 3M
+  (`COUNT $MAP`/`$map`), 3K (`$command.stack`: a marker command absent from
+  `stacks/<user>` before a session, present after — the port's instrument).
+- ***Owed from the D4 install:*** a clean `verify-vocverbs` 34/34 (fixed, rerun
+  was `--allow-stale`) and lcnames with the N1–N6 names — both ride this install.
+- ***Checked, no install:*** verifiers py_compile; installer `bash -n`; static
+  rows dry-run clean on the tree. LOGIN/CPROC/CREATEA/MAPCAT compile only in the
+  bootstrap. ***Would falsify:*** sign-in refused with 5028; 3K marker absent
+  after the session; R8 not root:root 644.
+
 ***§M3 D4 INSTALLED on `c759c7a`; WITNESSED EXCEPT ONE VERIFIER*** (owner
 keep-cycle, `.sdcore-install` 14:40:47, boot 14:41:28, `assert-current` 0 at
 14:45). Suite as the installing user, no sudo: ***lcnames 83/83*** (F6 `bp.out`

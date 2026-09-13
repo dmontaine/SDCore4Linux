@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The command stack is saved through the $command.stack VOC
+*               record, its lower-case id (plan M3, the $ records).
 * 13 Sep 26 dm  An account's VOC file is voc on disk, and RUN's default source
 *               file is bp (plan M3 D3; the port's 1943704).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
@@ -3829,7 +3831,7 @@ exit.actions:
          * an X type record.
 
          if not(fileinfo(voc, FL$READONLY)) then
-            readu voc.rec from voc,"$COMMAND.STACK" then
+            readu voc.rec from voc,"$command.stack" then
                if voc.rec[1,1] = "X" then
 						s = initial.account.path:@ds:'stacks'
 						openpath s to stk.f else
@@ -3841,7 +3843,7 @@ exit.actions:
 						end
                end
             end
-            release voc, '$COMMAND.STACK'   ;* Catch all exit paths
+            release voc, '$command.stack'   ;* Catch all exit paths - the id the readu locked
          end
 
          if not(ospath(initial.account.path, OS$CD)) then

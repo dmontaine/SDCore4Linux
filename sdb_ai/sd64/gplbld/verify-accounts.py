@@ -243,6 +243,18 @@ def main():
              sorted(i for i in users
                     if field(reg[i], ACC_PRIOR_TIER)
                     and field(reg[i], ACC_TIER) != "SUSPENDED"))
+    # PRE_RELEASE 30: the installer sets the SDSYS record root:root 0644 after
+    # everything that used to undo it.  stat() needs only read on the directory.
+    sp = os.path.join(a.register, "SDSYS")
+    try:
+        st = os.stat(sp)
+        got = (pwd.getpwuid(st.st_uid).pw_name, grp.getgrgid(st.st_gid).gr_name,
+               "%o" % (st.st_mode & 0o7777))
+    except OSError as e:
+        got = ("stat failed: %s" % e,)
+    run.say("  %s: %s" % (sp, got))
+    run.note("R8 the SDSYS register record is root:root 644", ("root", "root", "644"),
+             got)
 
     # --------------------------------------- 2. register <-> the filesystem
     run.heading("2. the register against the filesystem, BOTH directions")

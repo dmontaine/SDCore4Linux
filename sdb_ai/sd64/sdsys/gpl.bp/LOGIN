@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Reads the $release and $command.stack VOC records by their
+*               lower-case ids (plan M3, the $ records).  Exact reads, and
+*               there are no accounts from before the rename (owner).
 * 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts, $ipc, newvoc and voc_template by their
 *               lower-case names on disk (plan M3 D1).
@@ -495,7 +498,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    end
 
    if not(is.phantom) and not(fileinfo(voc, FL$READONLY)) then
-      read voc.rec from voc, "$RELEASE" then
+      read voc.rec from voc, "$release" then     ;* 13 Sep 26 - plan M3, the $ records
          * ----- Field 2 - Release level
          s = matchfield(voc.rec<2>, "0X0A", 1)
          if s # SD.REV.STAMP then
@@ -528,8 +531,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          show.stack = (index(s, 'S', 1) # 0)
          clear.on.data = not(index(s, 'X', 1)) and not(cursor.at.end)
       end else
-         display sysmsg(5028) ;* $RELEASE VOC record not found
-         audit.reason = 'the $RELEASE VOC record is missing'
+         display sysmsg(5028) ;* $release VOC record not found
+         audit.reason = 'the $release VOC record is missing'
          goto terminate.connection
       end
 
@@ -543,7 +546,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
       * Look for a saved command stack
 
-      read voc.rec from voc,"$COMMAND.STACK" then
+      read voc.rec from voc,"$command.stack" then
          if upcase(voc.rec[1,1]) = "X" THEN
 
            openpath initial.account.path:@ds:'stacks' to stk.f then

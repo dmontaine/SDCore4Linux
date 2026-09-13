@@ -9,6 +9,35 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  THE LAST UPPER-CASE VOC ENTRIES SD SHIPS ARE LOWER CASE: $acc, $map,
+           $release, and $command.stack in every new account.
+
+           $release records the release your VOC is at, $acc points at the
+           account's own directory, $map is where MAP.CAT writes, and
+           $command.stack is the marker that tells SD to keep your command
+           history between sessions.  With these, every VOC entry SD ships or
+           creates is lower case.
+
+           WHAT YOU TYPE DOES NOT CHANGE: COUNT $ACC, LIST $MAP and
+           MAP.CAT FILE $MAP work as before.
+
+           ONE THING TO KNOW: SD looks for $release and $command.stack by their
+           exact names when you sign in and sign off.  An account made before
+           this release has them in upper case and would be refused at sign-in
+           with "$release VOC record not found" - there are no such accounts
+           outside development, so delete and re-create any test account.
+
+
+13 Sep 26  THE SDSYS REGISTER RECORD IS INSTALLED WITH THE PERMISSIONS INTENDED.
+
+           The installer meant the system account's register record to be
+           readable but not writable by anyone but root, and set that - and
+           then two later steps undid it, so it was installed with execute
+           permission as well.  It is now set last, to read/write for root and
+           read for everyone else, like every other account's record, and the
+           installer prints what it set.
+
+
 13 Sep 26  CREATE.FILE NOW NAMES A NEW FILE IN LOWER CASE, WHATEVER CASE YOU TYPE.
 
            CREATE.FILE ORDERS makes a file called orders: the VOC entry is
