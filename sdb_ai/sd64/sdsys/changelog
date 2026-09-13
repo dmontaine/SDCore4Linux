@@ -9,6 +9,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  SD NOW STAYS RUNNING WHEN THE COMPUTER STARTS IT.
+
+           Some of the time SD would start at boot and then be shut down again
+           a second later, so the first person to type sd was told "SD has not
+           been started".  The system service manager was watching the wrong
+           process: when SD's background process set itself up, the service
+           manager saw a short-lived helper finish, decided SD had stopped, and
+           stopped it.  The service now counts SD as running once
+           "sd -start" says it has started, and leaves it running until it is
+           asked to stop.
+
+           WHAT DOES NOT CHANGE: how SD is started and stopped by hand
+           (sudo /usr/local/sdsys/bin/sd -start and -stop), and what it does
+           once running.  systemctl status sd now shows "active (exited)"
+           while SD is up; that is expected, and means the service is
+           running, not that it has ended.
+
+
 13 Sep 26  THE SYSTEM'S DATA DIRECTORIES ARE NOW LOWER CASE ON DISK.
 
            Under /usr/local/sdsys, the directories that hold SD's own data now

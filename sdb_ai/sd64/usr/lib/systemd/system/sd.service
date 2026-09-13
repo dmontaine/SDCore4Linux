@@ -2,7 +2,21 @@
 Description=SD service start
 
 [Service]
-Type=forking
+# 13 Sep 26  PRE_RELEASE 29.  WAS Type=forking, WHICH LEFT SD STOPPED - measured
+#            on boot after boot, and on every installer start.  "sd -start" forks
+#            sdlnxd, and that child calls daemon(), which forks again and exits
+#            (gplsrc/sysseg.c:365/:383).  With no PIDFile systemd GUESSES the
+#            main PID, sometimes picks that short-lived intermediate child, sees
+#            it exit, declares the service dead and runs ExecStop - "has been
+#            started" and "has been shut down" a second apart in the journal.
+#            sd writes no PID file, so there is nothing to point PIDFile at.
+#            ONESHOT DOES NOT GUESS: the unit is up when "sd -start" exits 0 and
+#            stays up (RemainAfterExit) until it is stopped.  sdlnxd stays in the
+#            unit's cgroup, so a stop still ends it after ExecStop.
+#            ***WOULD FALSIFY:*** a journal still showing "sd -stop" within a
+#            second of "sd -start" with no stop requested.
+Type=oneshot
+RemainAfterExit=yes
 # 12 Sep 26  PORT_ADOPTION 19, owner's ruling of 12 Sep: SWEEP, as the port
 #            does at its own service start.  The register is the inventory and
 #            must hold no record whose Linux user has gone; the stale account's
