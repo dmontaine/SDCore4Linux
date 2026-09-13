@@ -79,13 +79,17 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***`PRE_RELEASE` 29 BUILT 13 Sep 2026, NOT INSTALLED.*** `sd.service` is
-`Type=oneshot` + `RemainAfterExit=yes` (reason and falsifier in the unit's own
-comment; `systemd-analyze verify` silent for it). Changelog entry added. ***NEXT:
-owner keep-cycle install + reboot (no rename in flight, so keeping accounts is
-fine); then, no sudo: `systemctl is-active sd.service`, `journalctl -b -u
-sd.service` (no `sd -stop` after the start), and the suite — which must run
-WITHOUT the `sd -start` workaround.*** Then §M3 D2.
+***`PRE_RELEASE` 29 INSTALLED on `6214b0f`; FIRST BOOT HELD*** (owner keep-cycle,
+`.sdcore-install` 10:48:18, boot 10:48:54, `assert-current` 0 at 11:01). Measured
+as the installing user, no sudo: `systemctl status sd.service` → `active (exited)
+since 10:49:03`, `Main PID: 1681 (sd -start) exited 0`, CGroup holds `1699
+sdlnxd`; `journalctl -b -u sd.service` → `sd -start`, "has been started",
+"Finished", ***and 0 `-stop` lines*** (re-counted after the suite: still 0,
+still active). Suite with NO workaround: all exit 0, no `[FAIL]`, 0 not-OFF —
+lcnames 62, vocverbs 34, fold 35, setpw 24, txn 33, editors 28, nonet 59,
+lineendings 42, basicfuncs 199, accounts 35, sysperms 18, grants 16/0, tier-layer
+0 with `COUNT VOC` 418. ***One boot — keep 29 open until more boot starts hold***
+(the old unit also passed most boots). Next: §M3 D2.
 
 ***§M3 D1 INSTALLED AND WITNESSED on `58365cc`*** (owner FULL delete→install,
 `.sdcore-install` 2026-09-13 10:29:13, `assert-current` 0 at 10:44). ***SD was
