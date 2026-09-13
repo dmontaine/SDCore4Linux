@@ -339,23 +339,24 @@ def main():
             run.refuse("%s already exists in %s" % (n, acct))
             return run.verdict()
     s = sd("CREATE.FILE typed upper", ["CREATE.FILE %s" % cfu])
-    run.note("C1 it created the data part as %s" % cf, True,
+    # N, not C: section 3C's command rows are already C1-C5.
+    run.note("N1 it created the data part as %s" % cf, True,
              V.says(s.text, r"^Created DATA part as %s$" % re.escape(cf)))
-    run.note("C2 and the dictionary part as %s.dic" % cf, True,
+    run.note("N2 and the dictionary part as %s.dic" % cf, True,
              V.says(s.text, r"^Created DICT part as %s\.dic$" % re.escape(cf)))
     have = set(os.listdir(acct))
-    run.note("C3 on disk: %s and %s.dic, no upper spelling of either" % (cf, cf),
+    run.note("N3 on disk: %s and %s.dic, no upper spelling of either" % (cf, cf),
              (True, True, False, False),
              (cf in have, cf + ".dic" in have, cfu in have, cfu + ".DIC" in have))
     t = sd("exact VOC reads of the new file's id", ["RUN BP %s %s" % (PROBE, cf)]).text
-    run.note("C4 VOC holds %s exactly, and not %s" % (cf, cfu), ("Y", "N"),
+    run.note("N4 VOC holds %s exactly, and not %s" % (cf, cfu), ("Y", "N"),
              (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
     s = sd("CREATE.FILE typed lower, the same name", ["CREATE.FILE %s" % cf])
-    run.note("C5 the second CREATE.FILE found the file instead of making another",
+    run.note("N5 the second CREATE.FILE found the file instead of making another",
              False, V.says(s.text, r"^Created (DATA|DICT) part"))
     s = sd("DELETE.FILE typed upper", ["DELETE.FILE %s FORCE NO.QUERY" % cfu])
     after = set(os.listdir(acct))
-    run.note("C6 DELETE.FILE %s removed %s and %s.dic without asking" % (cfu, cf, cf),
+    run.note("N6 DELETE.FILE %s removed %s and %s.dic without asking" % (cfu, cf, cf),
              (False, False, False),
              (cf in after, cf + ".dic" in after, V.says(s.text, r"\(y/<n>\)")))
 

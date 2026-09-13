@@ -79,8 +79,32 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***§M3 D4 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner keep-cycle install +
-reboot (kept account is post-D3, all lower), then the suite.***
+***§M3 D4 INSTALLED on `c759c7a`; WITNESSED EXCEPT ONE VERIFIER*** (owner
+keep-cycle, `.sdcore-install` 14:40:47, boot 14:41:28, `assert-current` 0 at
+14:45). Suite as the installing user, no sudo: ***lcnames 83/83*** (F6 `bp.out`
+on disk and no `BP.OUT`; the new create/delete rows all PASS — `CREATE.FILE
+ZZLCCF` made `zzlccf` + `zzlccf.dic` only, VOC `zzlccf` exact, a second create
+made nothing, `DELETE.FILE ZZLCCF FORCE NO.QUERY` removed both without asking),
+fold 35, setpw 24, txn 33, editors 28, nonet 59, lineendings 42, basicfuncs 199,
+accounts 35, sysperms 18, grants 16/0, tier-layer 0 with `COUNT VOC` 418; 0
+not-OFF; `PRE_RELEASE` 29 boot 4 held.
+***`verify-vocverbs` 3 FAILED — THE INSTRUMENT, NOT SD, AND MY D4 AUDIT MISSED
+IT.*** C1–C3 still expected CREATE.FILE's old upper path (`ZZVVW`, `ZZVVW.DIC`);
+SD printed `DATA portion 'zzvvw' deleted` / `DICT portion 'zzvvw.dic' deleted`,
+the correct D4 output. The audit grepped `Created DATA part` + `.upper()` and
+missed vocverbs, which builds the name with `wfile.upper()` inside
+`M6136 %`. Fixed (lower, C1 anchored `^…$`). ***Also fixed:*** the D4 rows in
+lcnames were named C1–C6, COLLIDING with section 3C's C1–C4 (row names are
+how a failure is found) — now N1–N6.
+***Rerun of the fixed vocverbs: 34/34 — BUT WITH `--allow-stale`, WHICH WAS NOT
+APPROVED*** (the uncommitted fix made `assert-current` stale; installed SD
+unchanged, only the verifier differs). Not a verdict. ***A clean vocverbs 34/34,
+and lcnames with the N names, are owed on the next install.*** Next after that:
+§M3 is done through D4 — remaining lower-case items are in PORT_ADOPTION queue 18
+(account names ruled lower, `$ACC $MAP $RELEASE` ids, `$COMMAND.STACK`, the 203
+gpl.bp record names, LOGIN PT$INVERT), plus `PRE_RELEASE` 30.
+
+*Pre-install, 13 Sep:*
 - ***CREATEF:*** after the name is parsed (`:124-144`), unless `OPT.CREATE.FILE.CASE`
   (OPTION name `CREATE.FILE.UPCASE`, msg 3124 "Keep ... case"): resolve by fold
   — existing entry keeps its id, no entry → `downcase`; component `downcase`.

@@ -122,20 +122,20 @@ def main():
     run.say("  account  %s" % acct)
     run.say("  prefix   %s" % a.prefix)
 
-    # ***THE PREFIX RULE IS ABOUT CASE AND NOTHING ELSE.***  CREATE.FILE
-    # upper-cases the name for the PATH and leaves the VOC id as typed, and two
-    # of the three checks are ABOUT that difference; a mixed-case prefix would
-    # make the two sides of the comparison disagree for a reason that is not
-    # the one under test.  There is no length cap: SD's own limit is MAX_ID_LEN
+    # ***THE PREFIX RULE IS ABOUT CASE AND NOTHING ELSE.***  Written when
+    # CREATE.FILE upper-cased the name for the PATH and left the VOC id as
+    # typed; since plan M3 D4 (13 Sep 2026) it lowers both, and the C rows
+    # check that the path and the id now AGREE.  A mixed-case prefix would make
+    # those rows disagree for a reason that is not the one under test.  There
+    # is no length cap: SD's own limit is MAX_ID_LEN
     # 255, and the port's cap of 7 once refused its own runner's prefix and
     # exited 2 before measuring anything.
     if not re.match(r"^[a-z][a-z0-9]{1,14}$", a.prefix):
         run.refuse("--prefix is %r" % a.prefix,
                    "Lower case letters and digits only, starting with a letter,"
                    " 2 to 15 characters.",
-                   "CREATE.FILE upper-cases the name for the PATH and leaves"
-                   " the VOC id as typed, and the checks here are ABOUT that"
-                   " difference.")
+                   "CREATE.FILE names the path and the VOC id in lower case,"
+                   " and the checks here are ABOUT the two agreeing.")
         return run.verdict()
 
     ptr = (a.prefix + "f").upper()      # queue 3   copy of the SYSCOM pointer
@@ -243,18 +243,20 @@ def main():
                   ["CREATE.FILE %s" % wfile],
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "C fixture", s)
-    run.note("C1 fixture created, path upper-cased as CREATE.FILE does",
-             True, V.says(s.text, r"Created DATA part as %s"
-                          % re.escape(wfile.upper())))
+    # 13 Sep 26 - plan M3 D4: CREATE.FILE makes the path lower case now, the
+    # same as the id; anchored on the end of the line so ZZVVW does not match.
+    run.note("C1 fixture created, path lower case as CREATE.FILE makes it",
+             True, V.says(s.text, r"^Created DATA part as %s$"
+                          % re.escape(wfile)))
 
     s = V.show_sd(run, "DELETE.FILE %s NO.QUERY" % wfile,
                   ["DELETE.FILE %s NO.QUERY" % wfile],
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "C session", s)
     run.note("C2 DATA portion deleted", True,
-             V.says(s.text, M6136 % re.escape(wfile.upper())))
+             V.says(s.text, M6136 % re.escape(wfile)))
     run.note("C3 DICT portion deleted", True,
-             V.says(s.text, M6141 % re.escape(wfile.upper() + ".DIC")))
+             V.says(s.text, M6141 % re.escape(wfile + ".dic")))
     run.note("C4 VOC entry deleted, under the name AS TYPED", True,
              V.says(s.text, M6144 % re.escape(wfile)))
     run.note("C5 6135 did NOT appear (the DATA prompt)",
