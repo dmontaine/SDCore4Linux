@@ -9,6 +9,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  THE HOLD FILE IS NOW CALLED $hold.
+
+           The second system name to move to lower case.  The VOC entry for the
+           file that holds deferred prints - where SETPTR mode 3 sends output,
+           and what SP.VIEW reads - is now $hold, and SD prints that spelling:
+           SETPTR 5 now shows "Hold file: $hold P5" rather than "$HOLD P5".
+
+           An existing account's entry is renamed by its next VOC update, the
+           same way as $savedlists below, and SD names it when it does.  Until
+           then everything goes on working: SD finds the entry in either case,
+           and a print unit you set up before the change still reaches the same
+           hold file.
+
+           WHAT DOES NOT CHANGE: your held prints.  Only the VOC entry's name
+           moved; the directory on disk that holds them is still $HOLD.
+
+
 12 Sep 26  THE SAVED-LIST FILE IS NOW CALLED $savedlists, THE FIRST SYSTEM NAME
            TO MOVE TO LOWER CASE.
 

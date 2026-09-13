@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 12 Sep 26 dm  The "$hold " marker compares case-insensitively (plan M3).
  * 10 Sep 26 dm  Parity audit: strncmp for the "$HOLD " prefix, so a short
  *               print file name is not overread (UPSTREAM_FIXES 8).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -190,9 +191,16 @@ Private void start_file(PRINT_UNIT* pu) {
        exactly its length + 1, and "SETPTR ... AS PATHNAME /tmp" stores a
        five-byte name, so memcmp - which may read all six bytes - read past the
        allocation.  strncmp stops at the NUL; every name long enough to match
-       compares the same.  Case-sensitive here: the hold file is $HOLD on this
-       filesystem until the lower-case conversion. */
-    } else if (strncmp(pu->file_name, "$HOLD ", 6) == 0) {
+       compares the same.
+       12 Sep 26 dm - CASE INSENSITIVE NOW, NOT FLIPPED (plan M3, the port's
+       134d0a4).  This is not a path: it is the "$hold recname" marker SETPTR
+       puts in front of an AS name, and SETPTR now writes it lower case.  The
+       BASIC half is built by the bootstrap and this by make, so neither may
+       assume the other has moved.  MemCompareNoCase uses SD's own case table
+       and stops at the first difference, so a short name is still not read
+       past its NUL.  The PATHS built here stay "$HOLD": that is the directory
+       on disk, which has not been renamed. */
+    } else if (MemCompareNoCase(pu->file_name, "$hold ", 6) == 0) {
       sprintf(fn, "$HOLD%c%s", DS, pu->file_name + 6);
     } else {
       strcpy(fn, pu->file_name);

@@ -25,6 +25,7 @@
 *               the flag the select faulted (verify-voccase, install 4288380).
 * 12 Sep 26 dm  Names CREATEA writes (not shipped) migrate too, once renamed:
 *               $savedlists, the first M3 rename.
+* 12 Sep 26 dm  $hold joins created.ids (the second M3 rename).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -92,7 +93,7 @@ $catalogue !voccase
 *  WRITES*** - verify-voccase.py compares the two in the installed source.
 *  An @VM list searched with <1,1>, the form DELETEF:74/:239 uses and has been
 *  seen working ("Cannot delete system file VOC").
-   created.ids = '$savedlists'
+   created.ids = '$savedlists':@vm:'$hold'
 
 *  Collect first, act second: the loop below writes and deletes records in
 *  the very file being selected.

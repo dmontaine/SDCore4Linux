@@ -79,6 +79,32 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***12 Sep 2026, ~23:25 — §M3 SECOND CATEGORY BUILT AND PUSHED, NOT INSTALLED:
+THE `$HOLD` VOC ID IS `$hold`*** (the port's `134d0a4`). ***NEXT: owner reinstall
+→ `verify-lcnames.py` 12 failed → 74/74***, `verify-voccase` 38/38, standing suite.
+- GPL.BP: SETPTR (`'$hold '` marker written lower, 3 tests `downcase(...)`),
+  SPVIEW, `_NEXTPTR`, `_PRFILE` (`downcase(file)`), CLEANAC, CREATEA `fn`, EDIT
+  (working copy), `voccase` `created.ids` += `$hold`. MESSAGES 7119/7131/7170;
+  `NEWVOC/SP.VIEW`. ***`VOC_TEMPLATE/$HOLD` → `$hold` by `git mv`*** (one step,
+  `core.ignorecase` unset; `git ls-files` shows only `$hold`); its fields 2/3
+  still `$HOLD`/`$HOLD.DIC` — the directory.
+- ***C: `to_file.c:195` `strncmp("$HOLD ")` → `MemCompareNoCase("$hold ")`*** —
+  the marker, not a path; case-insensitive so the bootstrap-built BASIC and the
+  make-built C need not move together. Paths at `:178/:187/:196` stay `$HOLD`
+  (disk). ***Built locally with plain `make`: `to_file.o` compiled, no warning.***
+- ***DELIBERATELY UNCHANGED, disk names:*** `BBPROC:287` FILES_LIST,
+  `installsdai.sh:804`, `gplbld` INSTALL_FILE_INFO / CREATE_INSTALL_DICT_FILE /
+  FILES_DICTS, CREATEA `os.name`.
+- `verify-lcnames` generalized: probe takes the id (`RUN BP ZZLCN READ $hold`);
+  each category runs new-account → moved-back → real `UPDATE.ACCOUNTS` → restore.
+  `$hold`'s function row prints via `SETPTR 5,...,3,AS zzlch` and checks DISK:
+  `$HOLD/zzlch` present AND no stray `"$hold zzlch"` file — ***which is what a
+  BASIC/C marker mismatch would produce*** (measured baseline first: 176 bytes
+  in `$HOLD/zzlch`, SETPTR showed `Hold file: $HOLD zzlch`). S1 exempts
+  disk-name lines (`os.name`, `FILES_LIST`) by content, and lists them.
+  ***RED on `3da9b8b`: 12/74, every one a `$hold` row; all `$savedlists` rows
+  PASS (first category re-witnessed); DON left as found.***
+
 ***12 Sep 2026, ~22:55 — §M3 FIRST CATEGORY (`$savedlists`) INSTALLED AND
 WITNESSED on `3da9b8b`*** (22:13:42, `assert-current` 0; SD came up at boot this
 time). `verify-lcnames` ***36/36*** (red was 10/36; "37" was a miscount — U0
