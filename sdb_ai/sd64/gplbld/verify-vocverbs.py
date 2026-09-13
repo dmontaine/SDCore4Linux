@@ -140,7 +140,16 @@ def main():
 
     ptr = (a.prefix + "f").upper()      # queue 3   copy of the SYSCOM pointer
     wfile = a.prefix + "w"              # queue 3b  lower: the fold IS the test
-    run.say("  names    %s, %s" % (ptr, wfile))
+    # ***THE SYSCOM POINTER'S ID, AS THE INSTALL SHIPS IT.***  COPY and QSELECT
+    # read a record id EXACTLY, and plan M3 renamed it syscom (12 Sep 2026).
+    # Taken from the installed NEWVOC rather than tried both ways, because
+    # QSELECT on an absent id prints "0 record(s) selected to select list 2",
+    # which D2's anchor would accept.  Assumes the account's VOC was built from
+    # this NEWVOC - true after a fresh install; printed so it can be doubted.
+    newvoc = os.listdir(os.path.join(V.SDSYS, "NEWVOC"))
+    syscom = "syscom" if "syscom" in newvoc else "SYSCOM"
+    run.say("  names    %s, %s; source pointer id %s (from installed NEWVOC)"
+            % (ptr, wfile, syscom))
     run.say("")
 
     # -------------------------------------------------------- preconditions
@@ -191,7 +200,7 @@ def main():
     # ------------------------------------------- 2. queue 3 - the @SDSYS part
     run.heading("2. queue 3 - NO.QUERY on a part in the system account")
     s = V.show_sd(run, "build the @SDSYS fixture",
-                  ["COPY FROM VOC SYSCOM,%s" % ptr,
+                  ["COPY FROM VOC %s,%s" % (syscom, ptr),
                    "CT VOC %s" % ptr],
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "fixture build", s)
@@ -262,7 +271,7 @@ def main():
     # left off is a prompt waiting to eat the next line.
     run.heading("4. queue 1 - QSELECT names the list it saved to")
     s = V.show_sd(run, "QSELECT VOC ... TO 2",
-                  ["QSELECT VOC SYSCOM TO 2"],
+                  ["QSELECT VOC %s TO 2" % syscom],
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "D session", s)
     run.note("D1 3261 was printed at all", True, V.says(s.text, M3261))

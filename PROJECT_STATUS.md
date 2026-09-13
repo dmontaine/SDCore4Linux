@@ -79,6 +79,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 FOURTH CATEGORY BUILT AND PUSHED, NOT INSTALLED: THE F/Q FILE-POINTER
+VOC IDS ARE LOWER CASE*** (the port's `0394af4`). ***NEXT: owner reinstall →
+`verify-lcnames` 10 failed → 141/141; `verify-vocverbs` 34/34 must still read
+"source pointer id syscom"; standing suite.***
+- Ids `voc newvoc syscom dict.dict md sd.accounts sd.voclib` (NEWVOC +
+  VOC_TEMPLATE) and `accounts messages qfile` (VOC_TEMPLATE): 17 `git mv`, one
+  step each. Q field 3: `md`→`voc`, `sd.accounts`→`accounts`. `third.compile` CD
+  targets, MESSAGES/2022. ***Fields 2/3 — the paths — unchanged.***
+- ***ORDER DIFFERS FROM THE PORT ON PURPOSE:*** it renamed the directories on
+  disk first (`e1095ab`), then the ids. Here the id rename goes first because
+  the fold makes it disk-independent. ***The disk rename is NOT scheduled as the
+  next commit without a decision:*** measured reach 483 lines, and unlike NTFS
+  it needs a real migration of user-owned account directories (`VOC`, `$HOLD`,
+  `$HOLD.DIC`, `$SVLISTS`, `BP`) on keep cycles. The sdsys half alone needs none
+  (deletesdai removes sdsys; only the register is carried, by the installer's
+  own `mv`, `installsdai.sh:722-724`). C names only `messages.c` MESSAGES ×3 and
+  `to_file.c` `$HOLD` ×3.
+- GPL.BP id opens lowered (`open 'voc'` CNAME CREATEF DELETEF SHOW; `'dict.dict'`
+  CREATEI LISTI QPROC QSELECT SHOW ICOMP; `'syscom'` FMTSUB PCL SETPTR ERRGEN;
+  BCOMP include default). ***Paths untouched*** (`openpath "VOC"`,
+  `@sdsys:'ACCOUNTS'`, `pathname:'VOC'`). ***KEPT UPPER, annotated in place, and
+  verified present by S13/S14:*** DELETEF's banned `'VOC'` (guard upcases the
+  left side only — lowering it lets `DELETE.FILE voc` through) and SETFILE's
+  `'QFILE'` default (exact-then-downcase covers old and new accounts).
+- ***Verifiers audited BEFORE install (the last category's lesson):***
+  `verify-vocverbs` read `SYSCOM` by exact id twice (COPY, QSELECT). Fixed by
+  taking the id from installed NEWVOC and printing it — ***not*** by trying both,
+  because QSELECT on an absent id prints "0 record(s) selected to select list 2",
+  which D2's anchor accepts (measured). `verify-lcnames` S10–S14 + a `syscom`
+  category; ***it crashed on the red run (unguarded open of a renamed file)***,
+  now `readtxt()` so an absent file fails its row. Red on `f610ae3` after the
+  fix: 10/141, all this category.
+
 ***§M3 THIRD CATEGORY (THE COMMAND IDS) INSTALLED AND WITNESSED on `f610ae3`***
 (22:47:44, `assert-current` 0, SD up at boot). ***The install itself passed with
 upper-case `SECOND.COMPILE`/`THIRD.COMPILE` against lower ids*** — the fold's

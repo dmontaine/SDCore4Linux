@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -601,7 +602,7 @@ process.include:
       end
 
       if not(include.found) then
-         open 'SYSCOM' to include.f(include.depth) then
+         open 'syscom' to include.f(include.depth) then
             read include.rec(include.depth) from include.f(include.depth), include.id then
                include.found = @true
             end

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  The QFILE default stays upper case after the id rename, and why.
 * 12 Sep 26 dm  The default QFILE pointer read folds, as typed then lower (plan
 *               M1), and the QFILE test compares case-insensitively.
 * 10 Sep 26 dm  Parity audit: Enter is N at the overwrite prompt (port
@@ -130,6 +131,9 @@ $include int$keys.h
 *        shipped record once that id is lower case, and SET.FILE would then
 *        create a second upper-case QFILE beside it.  pointer keeps the id
 *        that matched.
+*        STAYS 'QFILE' now that the id IS qfile (plan M3): exact then
+*        downcase() covers an account from before the rename AND a renamed
+*        one; a lower-case default would lose the older half.
          pointer = 'QFILE'
          read voc.rec from @voc, pointer else
             read voc.rec from @voc, downcase(pointer) then

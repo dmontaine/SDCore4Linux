@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  The hold-file VOC id is $hold (plan M3): the "$hold " marker is
 *               written lower case and tested case-insensitively.
 * 10 Sep 26 dm  Parity audit: Enter is N at the set-parameters prompt (port
@@ -133,7 +134,7 @@ $define TEMPLATE.PRINT.UNIT -3
    overlay.warning = @false
 
    if not(pcldata) then
-      open 'SYSCOM' to syscom.f then
+      open 'syscom' to syscom.f then
          read pcldata from syscom.f, '$PCLDATA' else null
          close syscom.f
       end

@@ -22,6 +22,9 @@
 #   commands     every K/PA/PH/R/S/V id in NEWVOC, VOC_TEMPLATE, SD.VOCLIB
 #                (the port's 1a88360, 777 here); static rows S6-S9, and count
 #                as the one run through the account migration.
+#   pointers     the ten F/Q file-pointer ids (the port's 0394af4); static
+#                rows S10-S14, and syscom through the migration.  Fields 2/3
+#                (the paths on disk) are a later category.
 #
 # ***"NOT FOUND" CANNOT TEST A RENAME*** - the port's lesson (its 65c681f):
 # CT folds the record id, so CT VOC $SAVEDLISTS finds $savedlists either way.
@@ -55,6 +58,16 @@ M10917 = r"under BOTH an upper-case and a lower-case name"
 FAULT = r"^[0-9A-F]{8}: "
 SAVED = r"^2 records saved to select list 'zzlcl'$"
 GOT = r"^2 record\(s\) selected to select list 0$"
+
+
+def readtxt(path):
+    """A file's text, or '' if it is absent - so a rename that moved a file
+    fails the row that reads it instead of killing the run before a verdict."""
+    try:
+        with open(path, errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
 
 
 def tag(text, name):
@@ -186,7 +199,9 @@ def main():
     unresolved = []
     for lst, src in (("TIER.OMIT.STANDARD", "NEWVOC"),
                      ("TIER.ADD.ADMINISTRATOR", "VOC_TEMPLATE")):
-        body = open(os.path.join(V.SDSYS, "NEWVOC", lst), errors="replace").read()
+        body = readtxt(os.path.join(V.SDSYS, "NEWVOC", lst))
+        if not body:
+            unresolved.append("%s: absent or empty" % lst)
         for n in [l.strip() for l in body.splitlines()[1:] if l.strip()]:
             if n != n.lower() or not os.path.exists(os.path.join(V.SDSYS, src, n)):
                 unresolved.append("%s:%s" % (lst, n))
@@ -203,6 +218,46 @@ def main():
                 if not os.path.exists(os.path.join(V.SDSYS, f[1] if len(f) > 1 else "", tgt)):
                     bad_r.append("%s/%s -> %s" % (d, n, tgt))
     run.note("S9 every R record's field 3 names a record that exists", [], bad_r)
+
+    # THE F/Q FILE-POINTER IDS (the port's 0394af4).  Ids only: fields 2 and 3
+    # are paths on disk and are NOT renamed by this category.
+    PTRS = {"NEWVOC": ["voc", "newvoc", "syscom", "dict.dict", "md",
+                       "sd.accounts", "sd.voclib"],
+            "VOC_TEMPLATE": ["voc", "newvoc", "syscom", "dict.dict", "md",
+                             "sd.accounts", "sd.voclib", "accounts",
+                             "messages", "qfile"]}
+    wrong = []
+    for d, ids in PTRS.items():
+        have = os.listdir(os.path.join(V.SDSYS, d))
+        for i in ids:
+            if i not in have or i.upper() in have:
+                wrong.append("%s/%s" % (d, i))
+    run.note("S10 the F/Q pointer ids are shipped lower case, and not upper", [], wrong)
+    qt = []
+    for d in PTRS:
+        for i, tgt in (("md", "voc"), ("sd.accounts", "accounts")):
+            # A MISSING RECORD IS A FAILED ROW, NOT A TRACEBACK - watched
+            # crashing here on the pre-rename install, where md is MD.
+            p = os.path.join(V.SDSYS, d, i)
+            if not os.path.exists(p):
+                qt.append("%s/%s absent" % (d, i))
+                continue
+            f = open(p, errors="replace").read().split("\n")
+            if len(f) < 3 or f[2] != tgt:
+                qt.append("%s/%s field 3 = %r" % (d, i, f[2] if len(f) > 2 else None))
+    run.note("S11 the Q pointers name their targets lower case", [], qt)
+    tc = readtxt(os.path.join(V.SDSYS, "VOC_TEMPLATE", "third.compile"))
+    run.note("S12 third.compile's CD targets are lower case", True,
+             all(("CD %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
+    # ***THE TWO THAT MUST STAY UPPER.*** A future sweep lowering either is a
+    # defect: DELETEF's guard upcases only its left side, and SETFILE's default
+    # covers accounts from before the rename through exact-then-downcase.
+    deletef = readtxt(os.path.join(gplbp, "DELETEF"))
+    setfile = readtxt(os.path.join(gplbp, "SETFILE"))
+    run.note("S13 DELETEF's banned list is still 'VOC' (the guard upcases one side)",
+             True, "banned.files = 'VOC':@VM:'$ACC'" in deletef)
+    run.note("S14 SETFILE's default pointer is still 'QFILE'", True,
+             "pointer = 'QFILE'" in setfile)
 
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")
@@ -256,10 +311,20 @@ def main():
                  V.says(s.text, r"is not in your VOC"))
         run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
 
+    def pointer_works(prefix, first):
+        s = sd("the pointer opened by both spellings",
+               ["COUNT SYSCOM", "COUNT syscom"])
+        run.note(prefix + "a it counted SYSCOM's records, typed both ways", 2,
+                 V.say_count(s.text, r"^[1-9][0-9]* record\(s\) counted$"))
+        run.note(prefix + "b neither said 'File not found'", False,
+                 V.says(s.text, r"^File not found$"))
+        run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
+
     CATS = [
         ("$savedlists", "L", savedlists_works),
         ("$hold", "H", hold_works),
         ("count", "C", command_works),
+        ("syscom", "P", pointer_works),
     ]
 
     try:

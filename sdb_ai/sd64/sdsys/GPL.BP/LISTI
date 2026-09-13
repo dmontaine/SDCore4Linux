@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -83,7 +84,7 @@ $include ak_info.h
    if dict.flag = '' then
       open 'DICT', filename to dict.f then dict.open = @true
    end else
-      open 'DICT.DICT' to dict.f then dict.open = @true
+      open 'dict.dict' to dict.f then dict.open = @true
    end
 
    * Collect field names and options

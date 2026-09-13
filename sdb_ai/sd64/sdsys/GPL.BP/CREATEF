@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 10 Sep 26 dm  Parity audit: Enter is N at the convert-to-multifile prompt (port
 *               PRE_RELEASE_FIXES 79).
@@ -67,7 +68,7 @@ $define default.split.load 80
    * Open VOC here rather than using @VOC so that it will be closed on
    * exit avoiding the need for explicit releases on locks.
 
-   open 'VOC' to voc.f else stop 'Cannot open VOC'
+   open 'voc' to voc.f else stop 'Cannot open VOC'
 
    create.dict = @true
    create.data = @true
