@@ -459,7 +459,16 @@ rather than by how hard it is:
      one row each*** — field 4 written → `R4`; `TSTD`'s record removed → `F2`
      names `tstd`; `TPROG` promoted to ADMINISTRATOR → `U5`. Green on install
      `0095937` with `--allow-stale`.
-   - ***WRITTEN AND NEVER RUN — `gplbld/witness-accounts.sh`***, the privileged
+   - ***RUN ONCE 12 Sep 17:57 AND REWRITTEN — its first verdict, "13 passed, 7
+     failed", measured 5 things.*** Phase 2 assumed `useradd` + `NO.QUERY` makes
+     an account; since 11 Sep SD refuses that with 10038, correctly, and the
+     11 Sep queue 15 witness already said so. 8 passes were the null case, and
+     the ungated delete leaked its `Y` to the `:` prompt. ***The rewrite GATES
+     every phase*** (an unreached row is a failure), ADOPTs the throwaway with
+     the installer's own invocation, and so finally reaches the borrowed-user
+     delete branch — plus D12/D13, the predicted `sdadmin`-survivor finding.
+     Full account in PROJECT_STATUS's top block. *(The original entry follows.)*
+   - ~~***WRITTEN AND NEVER RUN — `gplbld/witness-accounts.sh`***~~, the privileged
      half, on queues 12 and 14's owner-run model. ***ITS DRY RUN IS THE
      DEFAULT AND `--commit` IS THE OPT-IN***, precisely because the session
      that wrote it cannot `sudo` and so could not watch it work: read what it

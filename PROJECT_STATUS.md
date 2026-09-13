@@ -108,7 +108,15 @@ than the green:***
   `$adopt.don` marker was left (`:906` removes it on success); DON is
   ADMINISTRATOR with the full layer. ***THE INSTALL TRANSCRIPT ITSELF WAS NOT
   SEEN BY THIS SESSION***, so this is inference from end state, not a witness of
-  the path taken.
+  the path taken. ***CORRECTION, same day: the line above undersold the
+  record.*** ADOPT ITSELF was already witnessed on 11 Sep 22:38 by the owner-run
+  `witness-adopt.sh` (14 PASS, including 10038 and 10039); what that entry named
+  as its ONE remaining gap was `installsdai.sh`'s own block — and 11:56 is the
+  first run of that block. ***And a safety property, measured with no sudo***:
+  `don`'s GECOS is still `Donald Montaine`, so ADOPT did not stamp it, and
+  `DELETE.ACCOUNT DON` could never delete the installer's own Linux login —
+  `DELACC` keys the user deletion on the `SD account` stamp, and
+  `sd-elevate:126` refuses an unstamped user independently.
 - **Queue 19 (the sweep at start): NULL CASE.** 0 stale records existed, so a
   sweep that removed nothing proves nothing. It needs a stale record to remove.
 - **Queue 13: carry-over is NOT witnessable on a full cycle** — the trail is
@@ -120,9 +128,52 @@ root:root`; before this cycle it was `0644`. Not a leak (the group is `root`),
 but it differs from what `CREATE.ACCOUNT` wrote before, and the installer's
 seeding path is the new variable. Unexplained.
 
-**Owed, and now runnable:** `witness-accounts.sh --commit` (sudo; its ground is
-clear on a fresh install). **Owed and blocked:** `sdsyswrite` (needs a session
-in SDSYS). ***The test accounts are gone***, so anything wanting a second
+***`witness-accounts.sh --commit` RAN 17:57 AND ITS VERDICT WAS WRONG ABOUT
+ITSELF — "13 passed, 7 failed", of which 5 passes measured anything.*** The 7
+failures were one premise, and it was the script's: phase 2 ran `useradd` then
+`CREATE.ACCOUNT USER zzacct2 NO.QUERY`, and SD refused it with **10038**,
+correctly — the recipe came from this file's STALE 10 Sep instructions (now
+corrected in place, step 3 of the cycle section) and ignored the 11 Sep queue 15
+witness that already covered 10038. ***8 of the 13 passes were the null case***:
+nothing had been created, so "the record is gone", "the Linux user survives" and
+the rest were true of an account that never existed. And the ungated phase 3
+leaked its confirmation: `DELETE.ACCOUNT` refused the unregistered name without
+asking, so the `Y` reached the `:` prompt — *"Y is not in your VOC"*. Genuinely
+witnessed on `f446ac1`: phase 1 (10039, nothing created — a RE-witness of
+11 Sep) and 10038 creating nothing. Cleanup complete, nothing left behind.
+
+***REWRITTEN, NOT PATCHED — THE FIX WAS NEVER THE PREMISE ALONE.*** What would
+have caught it is GATING: every phase now runs only if its precondition was
+established, and an unreached row counts as a FAILURE. Phase 2 now ADOPTs the
+throwaway user with the installer's own invocation (`installsdai.sh:903-906`,
+`</dev/null`, 25 s), with 10038-without-the-marker as its control; phase 3 then
+reaches `DELETE.ACCOUNT`'s borrowed-user branch, which ***nothing has ever
+reached*** (10085, 10158, 10036, the user and home surviving). Dry run and guard
+exercised; the gate itself cannot be made to fire without root, so it is
+parse-checked, not seen working.
+
+***AND A NEW LEAD, FROM READING, WHICH THE REWRITE MEASURES RATHER THAN
+ASSERTS:*** deleting an account whose Linux user SD did not create may leave that
+user in `sdusers` and — as an ADMINISTRATOR — in `sdadmin`, which grants
+passwordless root `sd-elevate` (`sdcore.sudoers`) and the ssh force-command
+exemption. `DELACC`'s only privileged calls are `groupdel` of its own `sdu_`
+group and `userdel` (`:286`, `:317`, `:319`); it never calls `sd-elevate
+delgroup`, which `MODIFYA:616` and `GRANTA:307` both use. Rows D12/D13 assert
+the tight answer and are ***predicted to FAIL — a fail is the finding, a pass
+means the reading was wrong.*** On Linux the tight answer is unambiguous because
+both are SD's own groups; the port's `DELACC:315` has the same shape, but its
+admin group is BUILTIN\Administrators, which predates SD. **Not a defect claim
+until measured.**
+
+**Owed, and now runnable:** the rewritten `witness-accounts.sh --commit`.
+**Owed and blocked:** `sdsyswrite` (needs a session in SDSYS).
+
+**The port acted on bug 8 within the day** — `8b78bad`, "Fix 17 (Linux #8)",
+and found SEVEN faults where Linux reported five: `NOT` hidden by its own header
+prose, a case labelled `INMAT.reuse` calling `reuse()`, and `ADDS.via.SUM`
+naming no function. Checked against this tree's probe rather than assumed: `NOT`
+and `REUSE` exercised, `INMAT` correctly declared — this probe renamed that case
+and dropped `ADDS` when it was written. ***The test accounts are gone***, so anything wanting a second
 ADMINISTRATOR or a STANDARD peer must recreate them first — and `CREATE.ACCOUNT`
 for those names will meet a pre-existing Linux user and `sdu_*` group.
 
@@ -1148,11 +1199,17 @@ both as `don`, **not** sudo — they elevate internally.
    WARNING if it refused. Take its closing reboot (the APIsrvr socket).
 3. After: `assert-current` should answer **0**. Then witness 13 biting —
    `sudo systemctl start ssh` (sshd is inactive on this box), make a STANDARD
-   account. **`no.query` needs the OS user to EXIST ALREADY** — `CREATUSR` is
+   account. ~~**`no.query` needs the OS user to EXIST ALREADY** — `CREATUSR` is
    off, so CREATEA will not auto-create one and stops 6074 "Invalid user name"
    (`CREATEA:186`). So create the Unix user first from a shell —
    `sudo useradd -m <name> && sudo passwd <name>` — THEN, inside `sd`,
-   `create-account user <name> no.query`. Then ssh as it → lands in `sd`, no
+   `create-account user <name> no.query`.~~ ***STALE SINCE 11 Sep AND IT COST A
+   WITNESS RUN, 12 Sep 17:57.*** A pre-existing Linux user is now REFUSED with
+   **10038** (`CREATEA:21-27`), and `no.query` without one is refused with
+   10039. ***MAKE A TEST ACCOUNT WITH `CREATE.ACCOUNT USER <name>` AND NO
+   `NO.QUERY`***, typing its password at the prompt — SD creates the Linux user
+   itself. The only way onto an existing Linux user is ADOPT, which is
+   install-only by design. Then ssh as it → lands in `sd`, no
    shell; ssh as `don` (admin, excluded by `!sdadmin`) → normal shell. That
    live login is the half `sshd -t`/`-T` could not show offline (OpenSSH 10.3
    takes no `groups=` on `-T -C`).
