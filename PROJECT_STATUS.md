@@ -124,9 +124,39 @@ cleanup rows passed.
 
 ***NOT WITNESSED BY IT, AND WHY:*** `update.voc`'s call and messages
 10916/10917 — they need a shipped lower-case id and an account that predates it,
-i.e. the first M3 rename on a KEEP-accounts cycle. Until then the "standing
-verifiers unchanged" run is what shows the inert call breaks nothing (tier-layer
-and accounts exercise `update.voc`).
+i.e. the first M3 rename on a KEEP-accounts cycle. ***CORRECTION, same night:
+the line here said tier-layer and accounts exercise `update.voc`. THEY DO NOT —
+tier-layer only reads. NOTHING IN THE STANDING SUITE REACHES `update.voc`***, and
+that is why the fault below was invisible to it.
+
+***INSTALL `4288380` SHIPPED A BROKEN `update.voc` — FOUND BY `verify-voccase`,
+FIXED IN SOURCE, NOT YET REINSTALLED.*** With SD started, the probe loaded
+`!VOCCASE` (so the lower-case record compiled and catalogued) and faulted:
+`Select list number out of range at line 77 of !VOCCASE`. Lists 11–12 need
+`HDR_INTERNAL` (`sd.h:43-48`) and `voccase` lacked `$internal`. LOGIN calls it
+unconditionally, so ***on that install any account update — the release prompt,
+`UPDATE.ACCOUNTS` — would stop at that error*** (inferred from the call site;
+not run on a real account). Fix: `$internal` in `voccase`. 20/34 again, all
+downstream of the fault; compile, fixture, cleanup and the new `session_ok`
+rows passed.
+
+***The stricter `session_ok` re-run across the whole suite, same night, SD
+kick-started, install `4288380` + unshipped gplbld/doc delta, `--allow-stale`:***
+every verifier exit 0 at its prior count (fold 35, vocverbs 34, setpw 24, txn 33,
+editors 28, nonet 59, lineendings 42, basicfuncs 199, accounts 35, sysperms 18,
+grants 16/0, tier-layer 0 short + `COUNT VOC` 418), ***0 sessions "never reached
+OFF"***; units sdverify 40, editors 19, nonet 12, basicfuncs 25, accounts 17,
+sysperms 20, assert-current 10. So the new row refuses a stopped SD without
+false-failing a real one.
+
+***GAP TO CLOSE — conditional plan:*** a no-sudo witness that drives the REAL
+`update.voc` on a throwaway account VOC. Would have caught this at build time
+instead of by the fixture probe. Falsified as feasible if every route into
+`update.voc` needs root or a release mismatch the agent cannot create.
+
+***NEXT:*** commit + push the `$internal` fix → owner reinstall →
+***check SD is running (PRE_RELEASE 29 may leave it stopped)*** →
+`verify-voccase.py` 34/34 → then M3's first category.
 
 ***M2 IS NOT FINISHED BY THIS — STILL TO BUILD, per M3 category:*** the ON-DISK
 renames the VOC move cannot do (per-account `$HOLD`, `$HOLD.DIC`, `$SVLISTS`,
