@@ -132,7 +132,9 @@ def main():
     run.note("S1 no quoted $SAVEDLISTS / $HOLD VOC-id literal left in installed"
              " GPL.BP code", [], hits)
     for d in ("NEWVOC", "VOC_TEMPLATE"):
-        p = os.path.join(V.SDSYS, d, "EDIT.LIST")
+        # edit.list since the command rename; a missing file fails S2, so
+        # reading the old spelling would report the rename as a regression.
+        p = os.path.join(V.SDSYS, d, "edit.list")
         txt = open(p, errors="replace").read() if os.path.exists(p) else ""
         run.note("S2 %s/EDIT.LIST edits $savedlists" % d, True,
                  "ED $savedlists" in txt)

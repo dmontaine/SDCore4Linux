@@ -223,9 +223,12 @@ def main():
     run.note("B3 GPL.BP/MICRO is GONE (EDIT replaced it)",
              False, os.path.exists(SRC_MICRO))
 
+    # The VOC ids (file names here, entries in the omit list) are lower case
+    # since plan M3, 12 Sep 2026; field 3, the CATALOGUE name, is not a VOC id
+    # and stays as it was.
     for verb, target in (("NANO", "$EDIT"), ("MICRO", "$EDIT"),
                          ("EDIT", "$ED"), ("ED", "$ED")):
-        rec = voc_template(verb)
+        rec = voc_template(verb.lower())
         ok = (rec is not None and len(rec) >= 3
               and rec[0][:1] == "V" and rec[1] == "CA" and rec[2] == target)
         run.note("B4 VOC_TEMPLATE/%-5s is a V/CA verb calling %s"
@@ -238,8 +241,8 @@ def main():
     # MEMBERSHIP, NOT THE COUNT.  PROJECT_STATUS recorded 43 names when NANO
     # was added and the file holds 44 today; a count drifts as the tier list
     # grows and would fail this file for someone else's correct change.
-    run.note("B5 NANO is withheld from STANDARD", True, "NANO" in omit_names)
-    run.note("B6 MICRO is withheld from STANDARD", True, "MICRO" in omit_names)
+    run.note("B5 NANO is withheld from STANDARD", True, "nano" in omit_names)
+    run.note("B6 MICRO is withheld from STANDARD", True, "micro" in omit_names)
 
     # ------------------------------------------- 3. find.editor's premise
     run.heading("3. find.editor's premise - an ABSOLUTE path from command -v")

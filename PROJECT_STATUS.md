@@ -79,8 +79,26 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, 22:35 (measured) — §M3 THIRD CATEGORY BUILT AND PUSHED, NOT
-INSTALLED: THE COMMAND IDS ARE LOWER CASE*** (the port's `1a88360`). *The
+***§M3 THIRD CATEGORY (THE COMMAND IDS) INSTALLED AND WITNESSED on `f610ae3`***
+(22:47:44, `assert-current` 0, SD up at boot). ***The install itself passed with
+upper-case `SECOND.COMPILE`/`THIRD.COMPILE` against lower ids*** — the fold's
+first real use; 202 GPL.BP.OUT objects, 143 gcat. `verify-grants` 16/0 (was 6
+failed). `verify-lcnames` 106/106 — raw: 10916 for `$savedlists`, `$hold` and
+`count`; `CT VOC COUNT` → `VOC count`. Standing suite at its counts, 0 not-OFF;
+DON `COUNT VOC` 418.
+- ***THREE VERIFIERS WENT RED ON THE RENAME AND ALL THREE WERE THE INSTRUMENT***,
+  static rows reading an upper-case FILENAME the rename moved (every session row
+  passed): `verify-lcnames` S2 (`EDIT.LIST`), `verify-editors` B4–B6 (6 rows),
+  `verify-nonet` B (4 rows). Fixed to the shipped lower name. ***AND ONE WAS WORSE
+  THAN RED:*** `verify-nonet`'s A rows ("removed verb `MODIFY` is gone") had
+  become ***vacuously true*** — they would pass on a tree that ships `modify`.
+  Now "gone in either case". ***LESSON FOR THE NEXT CATEGORY (F/Q pointers, BP,
+  directories):*** grep `gplbld/*.py` for every renamed name as a FILENAME and
+  as an ABSENCE check before installing, not after.
+- Still unwitnessed: MODIFYA migrate-first; §N release prompt.
+
+*Pre-install, 22:35 (measured):* §M3 third category built and pushed: the
+command ids are lower case (the port's `1a88360`). *The
 "~HH:MM" times on tonight's earlier §M blocks were estimates and run late;
 the install stamps quoted in them are the measured times.* ***NEXT:
 owner reinstall → `verify-lcnames` 9 failed → all pass, `verify-grants` 6 failed

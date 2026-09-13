@@ -167,9 +167,14 @@ def main():
                  False, os.path.exists(os.path.join(SRC_BP, n)))
         run.note("A install GPL.BP/%-12s is gone" % n,
                  False, os.path.exists(os.path.join(inst_bp, n)))
+    # ***GONE IN ANY CASE.***  The VOC ids are lower case since plan M3 (12 Sep
+    # 2026), so an exact test of "MODIFY" became true of a tree that ships
+    # "modify" - a check that passes whatever happens.  Both spellings must be
+    # absent.
     for n in REMOVED_VERBS:
-        run.note("A VOC_TEMPLATE/%-13s is gone" % n,
-                 False, os.path.exists(os.path.join(SRC_VOCT, n)))
+        run.note("A VOC_TEMPLATE/%-13s is gone (either case)" % n, False,
+                 os.path.exists(os.path.join(SRC_VOCT, n))
+                 or os.path.exists(os.path.join(SRC_VOCT, n.lower())))
 
     run.heading("1b. SDNet's own machinery")
     # ***CODE ONLY - COMMENTS ARE BLANKED FIRST.***  descr.h keeps "4 was
@@ -195,8 +200,8 @@ def main():
         run.note("B install GPL.BP/%-16s survived" % n,
                  True, os.path.exists(os.path.join(inst_bp, n)))
     for n in SURVIVING_VERBS:
-        run.note("B VOC_TEMPLATE/%-17s survived" % n,
-                 True, os.path.exists(os.path.join(SRC_VOCT, n)))
+        run.note("B VOC_TEMPLATE/%-17s survived (as shipped, lower case)" % n,
+                 True, os.path.exists(os.path.join(SRC_VOCT, n.lower())))
     # A NAME IN gcat IS THERE ONLY BECAUSE SD COMPILED THE PROGRAM AND RAN ITS
     # $catalog, so this is a stronger statement than "the file is present".
     for c in SURVIVING_CATALOGUE:
