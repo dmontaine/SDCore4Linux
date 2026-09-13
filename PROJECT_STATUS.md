@@ -38,8 +38,9 @@ the work, nothing in "Verified" that was not observed that session.
   "not one item exercised"), and `24(2)`'s `file:line`. Everything else was
   confirmed genuinely outstanding, with the measurement in the entry.
 - **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`).
-  ***M1 (the fold) BUILT + COMMITTED 12 Sep, NOT INSTALLED*** — `verify-fold.py`
-  red 7/35 on the pre-fold install as designed; see START HERE. The rename
+  ***M1 (the fold) INSTALLED + WITNESSED 12 Sep 20:55 on `76938f1`*** —
+  `verify-fold.py` 7 failed before → 35/35 after, all standing verifiers
+  unchanged; see START HERE. The rename
   (M2/M3) is ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
   to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
   `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
@@ -66,10 +67,10 @@ the work, nothing in "Verified" that was not observed that session.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`f14919c`**, 12 Sep 2026 19:33:26, by an
-  owner-run ***FULL*** delete→install — `assert-current` **current**, measured
-  after the install. It carries the PRE_RELEASE 28 fix (`DELACC` group strip),
-  witnessed on it at 19:35. Prior installs: `f446ac1` 11:56 (the full cycle
+- **Runtime:** install built from **`76938f1`**, 12 Sep 2026 20:55:16, owner-run
+  delete→install, `assert-current` **0** — carries §M1's fold. Prior:
+  **`f14919c`** 19:33:26, the PRE_RELEASE 28 fix, witnessed on it at 19:35.
+  Earlier installs: `f446ac1` 11:56 (the full cycle
   that reset the test accounts), `0095937` 01:50 (a KEEP cycle). *Earlier note,
   kept because it names the trap:
   after `98b0c77` HEAD advanced by documentation-only commits, so
@@ -77,10 +78,25 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, 21:00 HAND-OFF — READ THIS FIRST. §M1 (THE CASE FOLD) IS
-BUILT AND COMMITTED, NOT INSTALLED. THE NEXT STEP IS AN OWNER REINSTALL, THEN
-`verify-fold.py` MUST GO FROM 7 FAILED TO 35/35.*** (The block this replaces was
-headed "13 Sep"; it was written 12 Sep ~20:15 — the date was wrong.)
+***12 Sep 2026, ~21:05 — §M1 (THE CASE FOLD) IS INSTALLED AND WITNESSED. NEXT
+TASK IS M2.*** Install `76938f1`, 20:55:16, owner-run delete→install,
+`assert-current` **0**. All 37 changed programs have `GPL.BP.OUT` objects dated
+20:55:18–21 (none missing), so the bootstrap compiled every one.
+`verify-fold.py` ***35/35*** (was 7 failed on `f14919c`) — raw output checked,
+not just the verdict: `ZZFOLDV` → `4 DON`, `COUNT ZZFOLDF` → `0 record(s)
+counted`, `OPEN.UPPER=Y OPEN.VOCLOWER=Y OPEN.QTARGET=Y OPEN.ABSENT=N`.
+***"Nothing that works changes" MEASURED, not assumed*** — every standing
+verifier re-run on this install, default arguments, all exit 0 at exactly the
+pre-fold counts: vocverbs 34, setpw 24, txn 33, editors 28, nonet 59,
+lineendings 42, basicfuncs 199, accounts 35, sysperms 18, grants 16 (both
+controls PASS), tier-layer 0 short with DON `COUNT VOC` 418 after; units
+sdverify 34, editors 19, nonet 12, assert-current 10, basicfuncs 25, accounts
+17, sysperms 20, selftest 26. ***Not exercised by any of those:*** SETFILE's
+QFILE path, CPROC `.L`/`.R`/`.D`, RUN's fold, `$INCLUDE` fold, LOGIN-paragraph
+read — compiled and installed, unrun.
+
+*The block below is the 20:40 pre-install hand-off; its "next" steps 1–2 are
+done.* (It replaced one headed "13 Sep" that was written 12 Sep ~20:15.)
 
 **Where §M is.** Rulings in (account names → lower, in scope at `CREATEA:409`;
 user data-file record ids → OUT). Meter `gplbld/verify-nocase.py` unchanged at
