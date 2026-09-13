@@ -75,8 +75,8 @@ AUDIT = "audit"
 # run FAILS if it is not writable - that is the control.  The others are merely
 # permitted: they are group-writable on purpose and must not turn the run red.
 EXPECT_WRITABLE = {
-    "$IPC": (True,
-             "every session writes $IPC/%0 - row W2 measures that rather than "
+    "$ipc": (True,
+             "every session writes $ipc/%0 - row W2 measures that rather than "
              "asserting it; the port's sd.c:55 hands a phantom its command here"),
     "prt": (False,
             "the print spool: gplsrc/to_file.c:169 writes <sysdir>/prt/p<n>; "
@@ -304,25 +304,25 @@ def main():
             run.note("W:%s writable as expected" % name, True, ok,
                      decisive=False)
 
-    # ***W2: THE CONTROL'S REASON, MEASURED.***  "$IPC must stay writable
+    # ***W2: THE CONTROL'S REASON, MEASURED.***  "$ipc must stay writable
     # because sessions write it" is the port's claim; this checks it here.
-    ipc0 = os.path.join(a.sdsys, "$IPC", "%0")
+    ipc0 = os.path.join(a.sdsys, "$ipc", "%0")
     if os.path.exists(ipc0):
         try:
             before = os.stat(ipc0).st_mtime
         except OSError:
             before = None
-        V.show_sd(run, "a session, to see whether it touches $IPC/%0",
+        V.show_sd(run, "a session, to see whether it touches $ipc/%0",
                   ["WHO"], cwd=acct, timeout=a.timeout)
         try:
             after = os.stat(ipc0).st_mtime
         except OSError:
             after = None
-        run.say("      $IPC/%%0 mtime before %s, after %s" % (before, after))
-        run.note("W2 a session really does write $IPC/%0", True,
+        run.say("      $ipc/%%0 mtime before %s, after %s" % (before, after))
+        run.note("W2 a session really does write $ipc/%0", True,
                  before is not None and after is not None and after > before)
     else:
-        run.note("W2 $IPC/%0 exists to measure", True, False)
+        run.note("W2 $ipc/%0 exists to measure", True, False)
 
     # ------------------------------------------------- 3. the pcode library
     run.heading("3. the interpreter and the pcode library (the port's pcodeacl)")

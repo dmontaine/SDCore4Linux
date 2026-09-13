@@ -29,7 +29,7 @@ $include keys.h
       crt 'TLPROBE  -  TIER.ADD.ADMINISTRATOR layer, per registered account'
       crt ''
 
-      openpath @sdsys:@ds:'NEWVOC' to nv else
+      openpath @sdsys:@ds:'newvoc' to nv else
          crt 'REFUSED: cannot open NEWVOC - this measured nothing.'
          stop
       end
@@ -44,7 +44,7 @@ $include keys.h
       crt 'the layer lists ' : nlayer - 1 : ' verbs'
       crt ''
 
-      openpath @sdsys:@ds:'ACCOUNTS' to accf else
+      openpath @sdsys:@ds:'accounts' to accf else
          crt 'REFUSED: cannot open the register - this measured nothing.'
          stop
       end

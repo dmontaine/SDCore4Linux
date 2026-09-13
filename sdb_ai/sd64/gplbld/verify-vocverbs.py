@@ -25,7 +25,7 @@
 # ***WHAT IT TOUCHES, AND IT IS ALL ITS OWN.***  Two file names and one VOC
 # pointer, all under --prefix, all created and removed by this run.  The
 # @SDSYS fixture is a COPY of the account's own SYSCOM pointer rather than a
-# real system file, and the run asserts /usr/local/sdsys/SYSCOM is still on
+# real system file, and the run asserts /usr/local/sdsys/syscom is still on
 # disk afterwards - before and after, so "it was already gone" cannot pass.
 #
 # ***EVERY CHECK ANCHORS ON WORDING THE VERB PRINTS ONLY ON THE PATH UNDER
@@ -80,7 +80,7 @@ NAME = "verify-vocverbs"
 
 # The system file the @SDSYS fixture points at.  It is never deleted by this
 # run; it is asserted present before and after.
-SYSFILE = os.path.join(V.SDSYS, "SYSCOM")
+SYSFILE = os.path.join(V.SDSYS, "syscom")
 
 # Message wording, quoted from sdsys/MESSAGES so a change there fails this file
 # rather than silently weakening it.  %n stand-ins are replaced per check.
@@ -146,7 +146,7 @@ def main():
     # QSELECT on an absent id prints "0 record(s) selected to select list 2",
     # which D2's anchor would accept.  Assumes the account's VOC was built from
     # this NEWVOC - true after a fresh install; printed so it can be doubted.
-    newvoc = os.listdir(os.path.join(V.SDSYS, "NEWVOC"))
+    newvoc = os.listdir(os.path.join(V.SDSYS, "newvoc"))
     syscom = "syscom" if "syscom" in newvoc else "SYSCOM"
     run.say("  names    %s, %s; source pointer id %s (from installed NEWVOC)"
             % (ptr, wfile, syscom))
@@ -210,7 +210,7 @@ def main():
     # path starts @SDSYS, DELETE.FILE never reaches check.sdsys.file at all and
     # every row below would pass by not being tested.
     run.note("A2 fixture's data path is in the system account", True,
-             V.says(s.text, r"^2: @SDSYS/SYSCOM"))
+             V.says(s.text, r"^2: @SDSYS/syscom"))
 
     s = V.show_sd(run, "DELETE.FILE %s NO.QUERY" % ptr,
                   ["DELETE.FILE %s NO.QUERY" % ptr],

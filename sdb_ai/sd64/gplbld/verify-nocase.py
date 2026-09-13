@@ -77,9 +77,9 @@ def scan_dir(path):
 # The name categories, all ruled in scope.  (label, path, what it holds)
 NAME_CATEGORIES = [
     ("GPL.BP source records", "GPL.BP", "program and include records"),
-    ("SYSCOM include records", "SYSCOM", "include records"),
-    ("NEWVOC record ids", "NEWVOC", "the shipped VOC"),
-    ("VOC_TEMPLATE record ids", "VOC_TEMPLATE", "the per-account VOC template"),
+    ("SYSCOM include records", "syscom", "include records"),
+    ("NEWVOC record ids", "newvoc", "the shipped VOC"),
+    ("VOC_TEMPLATE record ids", "voc_template", "the per-account VOC template"),
 ]
 
 # The behavioural sites §M must also change - a checklist, not a name scan.

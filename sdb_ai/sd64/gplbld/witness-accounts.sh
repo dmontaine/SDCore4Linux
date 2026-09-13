@@ -107,7 +107,7 @@ SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
 
 SD=/usr/local/sdsys/bin/sd
 SDSYS=/usr/local/sdsys
-REGISTER="$SDSYS/ACCOUNTS"
+REGISTER="$SDSYS/accounts"           # 13 Sep 26: lower case on disk (plan M3 D1)
 ACCOUNTS_ROOT=/home/sd/user_accounts
 
 ACC=zzacct2                 # adopted in phase 2, deleted in phase 3

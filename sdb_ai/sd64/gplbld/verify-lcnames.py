@@ -137,15 +137,15 @@ def main():
             % (len(records), exempt))
     run.note("S1 no quoted $SAVEDLISTS / $HOLD VOC-id literal left in installed"
              " GPL.BP code", [], hits)
-    for d in ("NEWVOC", "VOC_TEMPLATE"):
+    for d in ("newvoc", "voc_template"):
         # edit.list since the command rename; a missing file fails S2, so
         # reading the old spelling would report the rename as a regression.
         p = os.path.join(V.SDSYS, d, "edit.list")
         txt = open(p, errors="replace").read() if os.path.exists(p) else ""
         run.note("S2 %s/EDIT.LIST edits $savedlists" % d, True,
                  "ED $savedlists" in txt)
-    tdir = os.listdir(os.path.join(V.SDSYS, "VOC_TEMPLATE"))
-    run.note("S2b VOC_TEMPLATE ships $hold and not $HOLD", (True, False),
+    tdir = os.listdir(os.path.join(V.SDSYS, "voc_template"))
+    run.note("S2b voc_template ships $hold and not $HOLD", (True, False),
              ("$hold" in tdir, "$HOLD" in tdir))
 
     # THE COMMAND IDS (the port's 1a88360).  Which ids keep upper case, and why:
@@ -157,7 +157,7 @@ def main():
         t = l1[:1].upper()
         return l1[:2].upper() if t == "P" else t
     upper_cmds, counted = [], 0
-    for d in ("NEWVOC", "VOC_TEMPLATE", "SD.VOCLIB"):
+    for d in ("newvoc", "voc_template", "sd.voclib"):
         dp = os.path.join(V.SDSYS, d)
         for n in sorted(os.listdir(dp)):
             p = os.path.join(dp, n)
@@ -172,9 +172,9 @@ def main():
     run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
              " letter", [], upper_cmds[:10])
     unresolved = []
-    for lst, src in (("TIER.OMIT.STANDARD", "NEWVOC"),
-                     ("TIER.ADD.ADMINISTRATOR", "VOC_TEMPLATE")):
-        body = readtxt(os.path.join(V.SDSYS, "NEWVOC", lst))
+    for lst, src in (("TIER.OMIT.STANDARD", "newvoc"),
+                     ("TIER.ADD.ADMINISTRATOR", "voc_template")):
+        body = readtxt(os.path.join(V.SDSYS, "newvoc", lst))
         if not body:
             unresolved.append("%s: absent or empty" % lst)
         for n in [l.strip() for l in body.splitlines()[1:] if l.strip()]:
@@ -183,7 +183,7 @@ def main():
     run.note("S8 every tier-list entry is lower case and names a shipped record",
              [], unresolved)
     bad_r = []
-    for d in ("NEWVOC", "VOC_TEMPLATE"):
+    for d in ("newvoc", "voc_template"):
         dp = os.path.join(V.SDSYS, d)
         for n in sorted(os.listdir(dp)):
             p = os.path.join(dp, n)
@@ -196,9 +196,9 @@ def main():
 
     # THE F/Q FILE-POINTER IDS (the port's 0394af4).  Ids only: fields 2 and 3
     # are paths on disk and are NOT renamed by this category.
-    PTRS = {"NEWVOC": ["voc", "newvoc", "syscom", "dict.dict", "md",
+    PTRS = {"newvoc": ["voc", "newvoc", "syscom", "dict.dict", "md",
                        "sd.accounts", "sd.voclib"],
-            "VOC_TEMPLATE": ["voc", "newvoc", "syscom", "dict.dict", "md",
+            "voc_template": ["voc", "newvoc", "syscom", "dict.dict", "md",
                              "sd.accounts", "sd.voclib", "accounts",
                              "messages", "qfile"]}
     wrong = []
@@ -221,7 +221,7 @@ def main():
             if len(f) < 3 or f[2] != tgt:
                 qt.append("%s/%s field 3 = %r" % (d, i, f[2] if len(f) > 2 else None))
     run.note("S11 the Q pointers name their targets lower case", [], qt)
-    tc = readtxt(os.path.join(V.SDSYS, "VOC_TEMPLATE", "third.compile"))
+    tc = readtxt(os.path.join(V.SDSYS, "voc_template", "third.compile"))
     run.note("S12 third.compile's CD targets are lower case", True,
              all(("CD %s" % t) in tc for t in ("accounts", "dict.dict", "voc")))
     # ***THE TWO THAT MUST STAY UPPER.*** A future sweep lowering either is a
@@ -233,6 +233,21 @@ def main():
              True, "banned.files = 'VOC':@VM:'$ACC'" in deletef)
     run.note("S14 SETFILE's default pointer is still 'QFILE'", True,
              "pointer = 'QFILE'" in setfile)
+
+    # THE sdsys DATA DIRECTORIES ON DISK (plan M3 D1, the port's e1095ab).  On
+    # ext4 both spellings could exist side by side, so "lower present" alone is
+    # not the rename: the upper spelling must be ABSENT too.  $HOLD, $HOLD.DIC
+    # and VOC are the SDSYS account's own (D3); GPL.BP and friends are D2.
+    D1 = ["newvoc", "voc_template", "messages", "syscom", "sd.voclib",
+          "accounts", "$ipc", "$map", "$map.dic", "voc.dic", "accounts.dic",
+          "dict.dic", "dir_dict"]
+    top = set(os.listdir(V.SDSYS))
+    run.say("  sdsys top level: %s" % sorted(top))
+    d1_wrong = ["%s (lower %s, upper %s)" % (n, n in top, n.upper() in top)
+                for n in D1
+                if not os.path.isdir(os.path.join(V.SDSYS, n)) or n.upper() in top]
+    run.note("S15 the %d D1 sdsys directories exist lower case and not upper"
+             % len(D1), [], d1_wrong)
 
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")

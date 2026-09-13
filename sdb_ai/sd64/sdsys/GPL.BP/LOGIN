@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys accounts, $ipc, newvoc and voc_template by their
+*               lower-case names on disk (plan M3 D1).
 * 12 Sep 26 dm  The case migration added to update.voc earlier today is
 *               removed: there are no existing installs to migrate (owner).
 * 11 Sep 26 dm  update.voc now also adds the ADMINISTRATOR tier layer from
@@ -208,7 +210,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          if yn = 'Y' then
             acc.updated = 0
             voc.paths = @path
-            openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
+            openpath @sdsys:@ds:'accounts' to acc.f then
                select acc.f to 12
                loop
                   readnext acc.name from 12 else exit
@@ -274,7 +276,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    * Open the ACCOUNTS register
 
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+   openpath @sdsys:@ds:'accounts' to acc.f else
       display sysmsg(2200) ;* Cannot open accounts register
       audit.reason = 'the accounts register could not be opened'
       goto terminate.connection
@@ -481,7 +483,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    * Open IPC file and delete any items for old versions of this process id
 
-   openpath @sdsys:@ds:'$IPC' to ipc.f then
+   openpath @sdsys:@ds:'$ipc' to ipc.f then
       recordlocku ipc.f,'M':@userno     ;* Message queue
       delete ipc.f, 'M':@userno
 
@@ -584,7 +586,7 @@ update.voc:
    overridden.count = 0
    overridden.ids = ''
 
-   openpath @sdsys:@ds:"NEWVOC" to sdsys.file else
+   openpath @sdsys:@ds:"newvoc" to sdsys.file else
       display sysmsg(2210) ;* Cannot open SDSYS NEWVOC
       goto abort.login
    end
@@ -764,7 +766,7 @@ accept.without.query:
       read layer.rec from sdsys.file, 'TIER.ADD.ADMINISTRATOR' then
          layer.n = dcount(layer.rec, @fm)
          if layer.n > 1 then
-            openpath @sdsys:@ds:'VOC_TEMPLATE' to layer.f then
+            openpath @sdsys:@ds:'voc_template' to layer.f then
 *              Field 1 is the description, never a VOC id - the same skip
 *              CREATEA and the loop above both make.
                for layer.i = 2 to layer.n
@@ -826,7 +828,7 @@ accept.without.query:
 get.acc.tier:
    update.voc.tier = ''
 
-   openpath @sdsys:@ds:'ACCOUNTS' to tier.acc.f then
+   openpath @sdsys:@ds:'accounts' to tier.acc.f then
       read tier.acc.rec from tier.acc.f, upcase(tier.acc.name) then
          update.voc.tier = tier.acc.rec<ACC$TIER>
          if upcase(trim(update.voc.tier)) = 'SUSPENDED' then

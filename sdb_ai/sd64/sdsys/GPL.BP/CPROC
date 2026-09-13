@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 dm  An R record's target id is read exactly again: the fold added
 *               earlier today served only accounts needing case migration, and
 *               there are none (owner).
@@ -883,7 +884,7 @@ grant.administrator:
    admin.tier = ''
    admin.any = @false
 
-   openpath @sdsys:@ds:'ACCOUNTS' to admin.f else
+   openpath @sdsys:@ds:'accounts' to admin.f else
 * 09 Sep 26 dm - THE LOOKUP HAS THREE ANSWERS, NOT TWO, AND THIS ARM IS THE
 *   THIRD.  It used to print 10034, "is not a registered SD administrator",
 *   which is a claim about what the register SAYS - and nothing had been read.
@@ -2840,7 +2841,7 @@ int.logto:
 
    @system.return.code = -ER$ARGS
 
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f then
+   openpath @sdsys:@ds:'accounts' to acc.f then
 *      readv acc.rec from acc.f, upcase(new.account), ACC$PATH then
       read acc.record from acc.f, upcase(new.account) then
          acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)

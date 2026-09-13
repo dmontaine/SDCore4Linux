@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 delete-account requires admin priv, are we admin?
 *           on user account, delete os user if configured
@@ -139,7 +140,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    * Check account exists in ACCOUNTS file
 
-   openpath @sdsys:@ds:'ACCOUNTS' to acc.f else
+   openpath @sdsys:@ds:'accounts' to acc.f else
       stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
    end
 

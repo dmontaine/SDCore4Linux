@@ -67,9 +67,9 @@ sys.path.insert(0, HERE)
 import sdverify as V                                    # noqa: E402
 
 NAME = "verify-accounts"
-REGISTER = os.path.join(V.SDSYS, "ACCOUNTS")
+REGISTER = os.path.join(V.SDSYS, "accounts")
 GPLBP = os.path.join(HERE, os.pardir, "sdsys", "GPL.BP")
-MESSAGES = os.path.join(HERE, os.pardir, "sdsys", "MESSAGES")
+MESSAGES = os.path.join(HERE, os.pardir, "sdsys", "messages")
 
 # SYSCOM/KEYS.H:264-301.  One-based, as the BASIC is.
 ACC_PATH, ACC_DESCR, ACC_GROUP = 1, 2, 3

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Loads from sdsys messages, its lower-case name on disk (plan M3 D1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -57,7 +58,7 @@ $include int$keys.h
 
    openseq path to seq.f else stop sysmsg(1427, path) ;* Cannot open %1
 
-   msg.path = @sdsys:@ds:'MESSAGES'
+   msg.path = @sdsys:@ds:'messages'
    openpath msg.path to msg.f else stop sysmsg(1427, msg.path) ;* Cannot open %1
 
    * Process file header
