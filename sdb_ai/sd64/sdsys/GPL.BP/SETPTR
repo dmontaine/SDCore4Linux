@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  The hold-file VOC id is $hold (plan M3): the "$hold " marker is
+*               written lower case and tested case-insensitively.
 * 10 Sep 26 dm  Parity audit: Enter is N at the set-parameters prompt (port
 *               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -328,7 +330,7 @@ reparse:
                      end
                   end
 
-                  file.name = '$HOLD ' : file.name
+                  file.name = '$hold ' : file.name
                end
 
             case keyword = KW$AT and (mode = 1 or mode = 6)
@@ -606,10 +608,10 @@ report.settings:
       case mode = 3
          begin case
             case file.name = '' and unit = TEMPLATE.PRINT.UNIT
-               crt '   ':sysmsg(7119, 'n')  ;* Mode : 3 (Hold file: $HOLD P%1)
+               crt '   ':sysmsg(7119, 'n')  ;* Mode : 3 (Hold file: $hold P%1)
             case file.name = ''
-               crt '   ':sysmsg(7119, unit)  ;* Mode : 3 (Hold file: $HOLD P%1)
-            case file.name[1,6] = '$HOLD '
+               crt '   ':sysmsg(7119, unit)  ;* Mode : 3 (Hold file: $hold P%1)
+            case downcase(file.name[1,6]) = '$hold '
                crt '   ':sysmsg(7120, file.name)  ;* Mode : 3 (Hold file: %1)
             case 1
                crt '   ':sysmsg(7121, file.name)   ;* Mode : 3 (File pathname %1)
@@ -633,10 +635,10 @@ report.settings:
          end
          begin case
             case file.name = '' and unit = TEMPLATE.PRINT.UNIT
-               crt space(22):sysmsg(7170, 'n')  ;* (Hold file: $HOLD P%1)
+               crt space(22):sysmsg(7170, 'n')  ;* (Hold file: $hold P%1)
             case file.name = ''
-               crt space(22):sysmsg(7170, unit)  ;* (Hold file: $HOLD P%1)
-            case file.name[1,6] = '$HOLD '
+               crt space(22):sysmsg(7170, unit)  ;* (Hold file: $hold P%1)
+            case downcase(file.name[1,6]) = '$hold '
                crt space(22):sysmsg(7171, file.name)  ;* (Hold file: %1)
             case 1
                crt space(22):sysmsg(7172, file.name)   ;* (File pathname %1)
@@ -808,7 +810,7 @@ report.unit:
       end
 
       if mode = 3 or mode = 6 then
-         if file.name[1,6] = '$HOLD ' then
+         if downcase(file.name[1,6]) = '$hold ' then
             file.name = file.name[7,9999]
             if index(file.name, ' ', 1) then file.name = dquote(file.name)
             if bitand(flags, PU$FLG.NEXT) then args = 'AS NEXT ' : file.name

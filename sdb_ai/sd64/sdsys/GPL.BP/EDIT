@@ -15,6 +15,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 12 Sep 26 dm  The working copy goes to $hold, the renamed VOC id (plan M3).
 * 10 Sep 26 dm  ADOPTED FROM SD CORE FOR WINDOWS' gpl.bp/EDIT, REPLACING
 *               GPL.BP/MICRO.  Owner, 10 Sep 2026: Microsoft Edit is not in the
 *               Linux distributions' repositories and is dropped; on Linux the
@@ -176,7 +177,7 @@ $include int$keys.h
       goto end.program
    end
 
-   temp.file.name = '$HOLD'
+   temp.file.name = '$hold'
    if dict.text = 'DICT' then
       temp.record.name = 'dict.' : in.record.name : '.editing'
    end else

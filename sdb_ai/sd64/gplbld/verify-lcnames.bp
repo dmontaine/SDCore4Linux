@@ -1,5 +1,5 @@
 * verify-lcnames.bp - the BASIC half of gplbld/verify-lcnames.py.  Plan
-* section M3, one category at a time; this release: the $savedlists VOC id.
+* section M3, one category at a time.
 *
 * STAGED, COMPILED AND RUN BY verify-lcnames.py IN THE CALLER'S OWN ACCOUNT.
 *
@@ -8,17 +8,26 @@
 * on disk.  A READ of a DYNAMIC file is an exact match, and that is the
 * instrument.
 *
-*    RUN BP ZZLCN READ    report which spellings exist
-*    RUN BP ZZLCN DOWN    move $savedlists to $SAVEDLISTS (an account from
-*                         before the rename)
-*    RUN BP ZZLCN UP      move it back, if it is still upper case
+*    RUN BP ZZLCN READ id    report which spellings of id exist
+*    RUN BP ZZLCN DOWN id    move id to UPCASE(id) (an account from before the
+*                            rename)
+*    RUN BP ZZLCN UP id      move it back, if it is still upper case
 *
-* Every answer is TAG=value on its own line, each printed on one path only.
+* id is the lower-case name, e.g. $savedlists.  Every answer is TAG=value on its
+* own line, each printed on one path only.
 *
 program zzlcn
 
    mode = upcase(field(trim(@sentence), ' ', 4))
+   lid = field(trim(@sentence), ' ', 5)
+   uid = upcase(lid)
    crt 'ZZLCN.MODE=':mode
+   crt 'ZZLCN.ID=':lid
+
+   if lid = '' or lid # downcase(lid) then
+      crt 'ZZLCN.FATAL=id must be given in lower case'
+      stop
+   end
 
    open 'VOC' to v.f else
       crt 'ZZLCN.FATAL=cannot open VOC'
@@ -30,25 +39,25 @@ program zzlcn
          null
 
       case mode = 'DOWN'
-         readu rec from v.f, '$savedlists' then
-            write rec to v.f, '$SAVEDLISTS'
-            delete v.f, '$savedlists'
+         readu rec from v.f, lid then
+            write rec to v.f, uid
+            delete v.f, lid
             crt 'DOWN=1'
          end else
-            release v.f, '$savedlists'
+            release v.f, lid
             crt 'DOWN=0'
          end
 
       case mode = 'UP'
-         read lrec from v.f, '$savedlists' then
+         read lrec from v.f, lid then
             crt 'UP=nothing'
          end else
-            readu rec from v.f, '$SAVEDLISTS' then
-               write rec to v.f, '$savedlists'
-               delete v.f, '$SAVEDLISTS'
+            readu rec from v.f, uid then
+               write rec to v.f, lid
+               delete v.f, uid
                crt 'UP=moved'
             end else
-               release v.f, '$SAVEDLISTS'
+               release v.f, uid
                crt 'UP=neither'
             end
          end
@@ -58,7 +67,7 @@ program zzlcn
          stop
    end case
 
-   read x from v.f, '$savedlists' then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
-   read x from v.f, '$SAVEDLISTS' then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'
+   read x from v.f, lid then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
+   read x from v.f, uid then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'
    crt 'ZZLCN.END=1'
 end

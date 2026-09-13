@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  A new account's hold-file VOC id is $hold (plan M3); the
+*               directory on disk is still $HOLD.
 * 12 Sep 26 dm  A new account's saved-list VOC id is $savedlists (plan M3,
 *               first rename); the directory on disk is still $SVLISTS.  An
 *               existing account is moved by update.voc (!voccase created.ids).
@@ -739,7 +741,7 @@ make.account:
 
    * Create $HOLD
 
-   fn = '$HOLD'
+   fn = '$hold'
    os.name = '$HOLD'
    descr = 'File for deferred prints'
    dict = @true
