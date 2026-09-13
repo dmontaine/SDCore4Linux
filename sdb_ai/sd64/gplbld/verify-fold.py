@@ -146,7 +146,11 @@ def main():
     shutil.copyfile(PROBE_SRC, os.path.join(bp, PROBE))
     run.say("  staged %s" % os.path.join(bp, PROBE))
     s = V.show_sd(run, "make the fixtures and compile the probe",
-                  ["COPY FROM VOC WHO,%s" % VERB,
+                  # COPY reads the SOURCE record id exactly, and plan M3
+                  # renamed WHO to who: try both spellings.  Exactly one
+                  # copies, so F1's "1 record(s) copied." still means one.
+                  ["COPY FROM VOC who,%s" % VERB,
+                   "COPY FROM VOC WHO,%s" % VERB,
                    "CREATE.FILE %s" % FILE,
                    "BASIC BP %s" % PROBE],
                   cwd=acct, timeout=a.timeout)

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  An R record's target id folds (plan M3, the command renames).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1):
 *               .L, .R, the private-file verb, RUN, both LOGIN paragraph reads,
 *               and the verb dispatch itself, which had no lower tier at all.
@@ -1888,7 +1889,17 @@ $endif
 
          case voc.entry.type[1,1] = 'R'                       ;* **** Remote
             open voc.rec<2> to rem.f then
-               read s from rem.f, voc.rec<3> else null
+* 12 Sep 26 dm - THE TARGET ID FOLDS TOO, as typed then lower then upper (plan
+*   M3).  Field 3 names a record in SD.VOCLIB, whose ids are now lower case; an
+*   account not yet brought forward still holds an R record naming LISTF, and
+*   an exact read turned every such command into 5054 until its next VOC update
+*   rewrote field 3.  It was a record read rather than a name lookup, so M1's
+*   fold did not reach it.
+               read s from rem.f, voc.rec<3> else
+                  read s from rem.f, downcase(voc.rec<3>) else
+                     read s from rem.f, upcase(voc.rec<3>) else null
+                  end
+               end
                close rem.f
 
                if s = '' then

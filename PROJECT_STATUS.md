@@ -79,6 +79,45 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***12 Sep 2026, 22:35 (measured) — §M3 THIRD CATEGORY BUILT AND PUSHED, NOT
+INSTALLED: THE COMMAND IDS ARE LOWER CASE*** (the port's `1a88360`). *The
+"~HH:MM" times on tonight's earlier §M blocks were estimates and run late;
+the install stamps quoted in them are the measured times.* ***NEXT:
+owner reinstall → `verify-lcnames` 9 failed → all pass, `verify-grants` 6 failed
+→ 16/0, `verify-fold` and the standing suite unchanged.*** ***THE INSTALL ITSELF
+IS THE FIRST TEST***: the installer types `SECOND.COMPILE` / `THIRD.COMPILE` in
+upper case against ids now lower — pass 1 compiles CPROC (with M1's fold) from
+this tree first, so a broken fold fails the install visibly there.
+- ***777 renames by script file*** (`scratchpad/rename_commands.py`, `git mv`
+  per id, no content written; dry run first; refuses on collision/dirty tree):
+  NEWVOC 373, VOC_TEMPLATE 394, SD.VOCLIB 10 — types K PA PH R S V. Excluded:
+  F/Q pointers, T tier lists, X, `$ % @` ids. `git status`: 777 R, 0 lines
+  changed; remaining upper ids are exactly the exclusions.
+- By Edit: field 3 of the 20 R records (→ SD.VOCLIB lower ids); both tier lists'
+  entries lower (every entry resolves to a shipped record).
+- ***TWO DEFECTS THE RENAME WOULD HAVE CAUSED, FIXED BEFORE SHIPPING:***
+  (1) ***MODIFYA `voc.delta` matched tier ids EXACTLY*** — on an account not yet
+  migrated a promotion would write `basic` beside `BASIC`, and ***a demotion to
+  STANDARD would delete nothing and leave the compiler verbs***. It now calls
+  `!voccase` first and names moves/refusals (10916/10917). ***UNWITNESSED:***
+  needs a second account and a tier move (sudo). (2) ***`CPROC:1891` R-record
+  target read was exact*** — an unmigrated account's `LISTF` R record would give
+  5054. Now folds.
+- ***Audited and left:*** ~400 literal hits of command-shaped strings in GPL.BP
+  — compiler/editor/debugger keywords (BCOMP 213, ED 29, ICOMP 21, DEBUG 9),
+  `'DICT'` portions, BBPROC's compile list (program names), user paragraph
+  names (`ON.LOGTO`, `ON.ABORT`, `ON.EXIT`, `MASTER.LOGIN` — not shipped).
+  C: only `op_config.c "SH"` (a config key). BBPROC copies VOC_TEMPLATE by
+  generic select. Installer `create-account` resolves via the lower hyphen form.
+- ***User-visible cost, in the changelog:*** COPY reads a source record id
+  exactly, so `COPY FROM VOC LIST,x` needs `list`. `verify-fold` now tries both.
+  `verify-grants` VERBS → lower (it reads files by name).
+- `verify-lcnames` gained S6–S9 (no upper command id; tier lists lower and
+  resolving; R field 3 resolves) and a `count` category through the migration.
+- ***§N STILL OPEN AND NOW MATTERS:*** `$RELEASE` is `L1.0-0` before and after,
+  so an account is prompted to update only through the installer's keep-cycle
+  `UPDATE.ACCOUNTS ALL` or by hand — decide with §N before a real release.
+
 ***12 Sep 2026, ~23:40 — §M3 SECOND CATEGORY (`$hold`) INSTALLED AND WITNESSED
 on `dcde7bf`*** (22:24:58, `assert-current` 0, SD up at boot). `verify-lcnames`
 ***73/73*** (red 12/74 — the H9 guard row is recorded only on failure; do not
