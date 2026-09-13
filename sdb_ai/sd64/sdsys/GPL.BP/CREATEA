@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  A new account's saved-list VOC id is $savedlists (plan M3,
+*               first rename); the directory on disk is still $SVLISTS.  An
+*               existing account is moved by update.voc (!voccase created.ids).
 * 11 Sep 26 dm  ADOPT, and the refusal that makes it necessary (PORT_ADOPTION
 *               15, the port's of 14 and 21 Aug 2026).  A pre-existing Linux
 *               user is now REFUSED (10038) instead of silently taken over;
@@ -743,9 +746,9 @@ make.account:
    gosub create.dir.file
 
 
-   * Create $SAVEDLISTS
+   * Create $savedlists
 
-   fn = '$SAVEDLISTS'
+   fn = '$savedlists'
    os.name = '$SVLISTS'
    descr = 'File for saved select lists'
    dict = @false

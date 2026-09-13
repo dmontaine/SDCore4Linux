@@ -44,6 +44,11 @@ program zzvcase
    write 'X':@fm:'same' to v.f, 'SELECT'                   ;* identical twin: resolved
    write 'X':@fm:'same' to v.f, 'select'
    write 'PA':@fm:'already' to v.f, 'lower'                ;* already lower: untouched
+* Names CREATEA writes rather than ships.  $savedlists is renamed (voccase's
+* created.ids) and moves although the fake NEWVOC does not hold it;
+* $COMMAND.STACK is not renamed yet and must stay.
+   write 'F':@fm:'$SVLISTS' to v.f, '$SAVEDLISTS'          ;* moves via created.ids
+   write 'X' to v.f, '$COMMAND.STACK'                      ;* not renamed: untouched
    crt 'FIXTURES=1'
 
    moved = ''
@@ -53,7 +58,7 @@ program zzvcase
    crt 'COLLIDED=':convert(@fm, ' ', collided)
 
 * What is in the fake account VOC now, record by record.
-   ids = 'LIST list $HOLD $hold ADMIN.VERB admin.verb MYPARA mypara COUNT count SORT sort SELECT select lower'
+   ids = 'LIST list $HOLD $hold ADMIN.VERB admin.verb MYPARA mypara COUNT count SORT sort SELECT select lower $SAVEDLISTS $savedlists $COMMAND.STACK $command.stack'
    for i = 1 to dcount(ids, ' ')
       id = field(ids, ' ', i)
       read rec from v.f, id then
