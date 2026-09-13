@@ -79,9 +79,19 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, ~23:25 — §M3 SECOND CATEGORY BUILT AND PUSHED, NOT INSTALLED:
-THE `$HOLD` VOC ID IS `$hold`*** (the port's `134d0a4`). ***NEXT: owner reinstall
-→ `verify-lcnames.py` 12 failed → 74/74***, `verify-voccase` 38/38, standing suite.
+***12 Sep 2026, ~23:40 — §M3 SECOND CATEGORY (`$hold`) INSTALLED AND WITNESSED
+on `dcde7bf`*** (22:24:58, `assert-current` 0, SD up at boot). `verify-lcnames`
+***73/73*** (red 12/74 — the H9 guard row is recorded only on failure; do not
+quote totals that include guard rows). Raw: both 10916 lines (`$savedlists`,
+`$hold`), `CT VOC $HOLD` → `VOC $hold`, SETPTR `Hold file: $hold zzlch` ×3, print
+in `$HOLD/zzlch`, no stray `"$hold zzlch"` — so the installed C and BASIC agree.
+`verify-voccase` 38/38; standing suite at its counts, 0 not-OFF. ***Unrun:***
+EDIT's working copy in `$hold` (`verify-editors` does not open it). ***NEXT
+CATEGORY, per the port: the TCL command ids (its `1a88360`, 792 ids)*** — the
+bulk transform the script-file hatch is for; size it before starting.
+
+*Pre-install, 23:25:* §M3 second category built and pushed: the `$HOLD` VOC id is
+`$hold` (the port's `134d0a4`).
 - GPL.BP: SETPTR (`'$hold '` marker written lower, 3 tests `downcase(...)`),
   SPVIEW, `_NEXTPTR`, `_PRFILE` (`downcase(file)`), CLEANAC, CREATEA `fn`, EDIT
   (working copy), `voccase` `created.ids` += `$hold`. MESSAGES 7119/7131/7170;
