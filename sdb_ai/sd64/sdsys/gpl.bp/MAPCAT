@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The default map file is $map, its lower-case VOC id (plan M3).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -85,7 +86,7 @@ $include err.h
 
          case keyword = KW$FILE
             call @parser(parser$get.token, token.type, file.name, keyword)
-            if token.type = parser$end then file.name = '$MAP'
+            if token.type = parser$end then file.name = '$map'
 
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)
@@ -114,7 +115,9 @@ $include err.h
    if file.name # '' then
       open file.name to map.f else stop 'Cannot open ' : file.name
 
-      if file.name # '$MAP' then
+* 13 Sep 26 dm - plan M3: $map is the default and asks nothing, however it is
+*   typed - the open above folds, so MAP.CAT FILE $MAP reaches the same file.
+      if downcase(file.name) # '$map' then
          display sysmsg(3044, file.name) :  ;* File xx will be cleared and overwritten. Continue (Y/N)?
          input yn
          if upcase(yn) # 'Y' then stop sysmsg(3045) ;* Mapping aborted

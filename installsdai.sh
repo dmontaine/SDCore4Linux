@@ -619,8 +619,6 @@ else
 fi
 #
 sudo chown -R sdsys:sdusers "$sdsysdir"
-sudo chown root:root "$sdsysdir/accounts/SDSYS"
-sudo chmod 654 "$sdsysdir/accounts/SDSYS"
 sudo chown -R sdsys:sdusers "$sdsysdir/terminfo"
 
 sudo cp sd.conf /etc/sd.conf
@@ -735,6 +733,18 @@ if [ -d /home/sd/accounts ]; then
 else
     echo No accounts backup directory exists
 fi
+#
+# 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
+#            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
+#            sdsys (the old "chmod 654" sat four lines before it, and the record
+#            was measured 755 on install 58365cc), and the restore just above,
+#            which on a keep cycle replaces the whole register with the saved
+#            copy.  644, not 654: it is a data record, execute on it grants
+#            nothing, and 644 is what every other register record is
+#            (accounts/DON, written by SD as root).  Printed, not assumed.
+sudo chown root:root "$sdsysdir/accounts/SDSYS"
+sudo chmod 644 "$sdsysdir/accounts/SDSYS"
+echo "SDSYS register record: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts/SDSYS")"
 #
 # Copy saved sd.conf file if it exists
 if [ -f /home/sd/sd.conf ]; then

@@ -286,6 +286,31 @@ def main():
     run.note("S18 the D3 account directories exist lower case and not upper",
              [], d3_wrong)
 
+    # THE $ RECORDS (plan M3), statically: shipped lower and not upper, and the
+    # three programs that read or write them by EXACT id name the lower one.
+    dollar_wrong = []
+    for d in ("newvoc", "voc_template"):
+        have = set(os.listdir(os.path.join(V.SDSYS, d)))
+        for n in ("$acc", "$map", "$release"):
+            if n not in have or n.upper() in have:
+                dollar_wrong.append("%s/%s (lower %s, upper %s)"
+                                    % (d, n, n in have, n.upper() in have))
+    run.note("S19 newvoc and voc_template ship $acc $map $release lower, not upper",
+             [], dollar_wrong)
+    lits = {"LOGIN": ['"$release"', '"$command.stack"'],
+            "CPROC": ['"$command.stack"', "'$command.stack'"],
+            "CREATEA": ["'$command.stack'"]}
+    missing = ["%s %s" % (p, l) for p, ls in sorted(lits.items())
+               for l in ls if l not in readtxt(os.path.join(gplbp, p))]
+    stale = [p for p in lits
+             if re.search(r"""["']\$(RELEASE|COMMAND\.STACK)["']""",
+                          "\n".join(ln.split(";*")[0] for ln in
+                                    readtxt(os.path.join(gplbp, p)).splitlines()
+                                    if not ln.lstrip().startswith("*")))]
+    run.note("S20 LOGIN/CPROC/CREATEA name $release and $command.stack lower", [],
+             missing)
+    run.note("S21 and no upper-case literal of either is left in their code", [], stale)
+
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")
     for p in (os.path.join(bp, PROBE), os.path.join(holddir, HOLDREC), stray):
@@ -401,11 +426,56 @@ def main():
                  V.says(s.text, r"^File not found$"))
         run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
 
+    # THE $ RECORDS (plan M3, 13 Sep 2026; $command.stack is the port's 69015c3).
+    # LOGIN and CPROC read $release and $command.stack by EXACT record id, so
+    # these rows are about what those reads reach, not about the fold.
+    def release_works(prefix, first):
+        s = sd("a session reaches the prompt through LOGIN's $release read", ["WHO"])
+        run.note(prefix + "a LOGIN did not refuse for a missing $release (5028)",
+                 False, V.says(s.text, r"release VOC record not found"))
+        run.note(prefix + "b the session ran a command", True,
+                 V.says(s.text, r"^[0-9]+ \S+"))
+
+    def acc_works(prefix, first):
+        s = sd("the account-directory pointer, typed both ways",
+               ["COUNT $ACC", "COUNT $acc"])
+        run.note(prefix + "a it counted the account directory, typed both ways", 2,
+                 V.say_count(s.text, r"^[1-9][0-9]* record\(s\) counted$"))
+        run.note(prefix + "b no runtime fault", False, V.says(s.text, FAULT))
+
+    def map_works(prefix, first):
+        s = sd("the map file, typed both ways", ["COUNT $MAP", "COUNT $map"])
+        run.note(prefix + "a it counted the map file, typed both ways", 2,
+                 V.say_count(s.text, r"^[0-9]+ record\(s\) counted$"))
+        run.note(prefix + "b neither said 'File not found'", False,
+                 V.says(s.text, r"^File not found$"))
+
+    # THE INSTRUMENT FOR $command.stack IS THE stacks FILE, NOT THE VOC (the
+    # port's lesson): CPROC writes it at session end only when its exact read of
+    # the record succeeded, so a marker command turning up in it IS the read.
+    stackfile = os.path.join(acct, "stacks", user)
+    marker = "COUNT VOC WITH F1 = ZZLCNSTACK%d" % os.getpid()
+
+    def stack_works(prefix, first):
+        before = readtxt(stackfile)
+        run.say("  stack file %s: marker present before = %s"
+                % (stackfile, marker in before))
+        run.note(prefix + "a the marker is not in the saved stack before", False,
+                 marker in before)
+        sd("a session that ends with the marker on its stack", [marker])
+        after = readtxt(stackfile)
+        run.note(prefix + "b the session's stack was saved through $command.stack",
+                 True, marker in after)
+
     CATS = [
         ("$savedlists", "L", savedlists_works),
         ("$hold", "H", hold_works),
         ("count", "C", command_works),
         ("syscom", "P", pointer_works),
+        ("$release", "R", release_works),
+        ("$acc", "A", acc_works),
+        ("$map", "M", map_works),
+        ("$command.stack", "K", stack_works),
     ]
 
     try:
