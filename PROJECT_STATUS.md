@@ -100,11 +100,11 @@ before D1".
   S6–S14 and per-category section 3 (+ tidy) — S3–S5, sections 4–6, the probe's
   DOWN/UP modes gone, so it no longer runs `UPDATE.ACCOUNTS` or changes any VOC
   id; changelog's four "existing account is renamed" paragraphs cut.
-- ***Compiled 13 Sep, dev binary, as `don`:*** `BASIC BP LOGIN MODIFYA CPROC` →
-  `0 error(s)` ×3 (CPROC's `PRIVILEGED_COMMANDS` unused-variable warning is not
-  from this change). Red control: MODIFYA + trailing `x = (1` → `1 error(s)`.
-  `BP` emptied, `DELETE VOC BP.OUT` (COUNT VOC 418), plain `make` rebuilt (no
-  DEVELOPER line). `verify-lcnames.py` py_compile only — ***NOT RUN***; ***its
+- ~~Compiled 13 Sep, dev binary, in `don`'s `BP`~~ — ***WRONG ACCOUNT, and not
+  evidence.*** System programs compile as SDSYS, never staged in a personal
+  account (owner 12 Sep, repeated 13 Sep: ***don is transitory, SDSYS is the
+  permanent super account***). The compile that counts is the install bootstrap's,
+  which built all three as SDSYS on `101ad30` and the suite passed (above). `verify-lcnames.py` py_compile only — ***NOT RUN***; ***its
   total drops from 140 — do not predict it, read it.***
 - ***Follow-up to weigh, not done:*** `verify-lcnames` S14 pins SETFILE's
   default pointer at `'QFILE'` on the ground that it "covers accounts from before
@@ -1600,7 +1600,12 @@ against the install).***
   `open 'DICT','<file>' to f`; an ordinary (non-`$internal`) program compiles as
   `don` with no dev build. ***`RUN BP <prog>` IS CASE-SENSITIVE*** — `run bp
   mkf1` answers "Program BP.OUT mkf1 not found" for an object filed as `MKF1`.
-- **Compile recipe, simplified for the aligned-keys state:** `make
+- ***SUPERSEDED — DO NOT USE FOR GPL.BP (owner 12 and 13 Sep 2026).*** System
+  compilation is SDSYS's; a GPL.BP change is proven by commit → push → reinstall,
+  where the bootstrap compiles it as SDSYS. `don` is a transitory user, not a
+  compile site; copying `INT$KEYS.H` into a personal `BP` is the sign of the wrong
+  account. Kept only as history:
+  **Compile recipe, simplified for the aligned-keys state:** `make
   EXTRA_C_FLAGS=-DSD_DEV_BUILD`; stage `<prog>` + the GPL.BP-LOCAL includes
   (`SYSCOM.H`, `INT$KEYS.H`, `AK_INFO.H` — the SYSCOM-resolved ones like `ERR.H`
   come via the account's VOC `SYSCOM` pointer) into `/home/sd/user_accounts/don/BP`;
