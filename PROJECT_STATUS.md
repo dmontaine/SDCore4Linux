@@ -10,12 +10,16 @@ the work, nothing in "Verified" that was not observed that session.
 `PRE_RELEASE_FIXES.md` and below.**
 
 - **PRE_RELEASE entries — 28 total: 15 done · 1 partial · 12 open.**
-  - ***NEW `28` (SEV A, OPEN): `DELETE.ACCOUNT` of an adopted administrator
-    leaves its Linux user in `sdadmin`/`sdusers`, and `sdadmin` is effective
-    root via `sd-elevate passwd` → a Linux sudoer → `sudo -i`.*** Measured
-    12 Sep by `witness-accounts.sh` D12/D13. Fix is bounded (mirror `MODIFYA`'s
-    `leave.sdadmin` in `DELACC`'s 10036 branch) but is a destructive-verb +
-    admin-model ruling — NOT built, awaiting the owner.
+  - ***`28` (SEV A): `DELETE.ACCOUNT` of an adopted administrator left its
+    Linux user in `sdadmin`/`sdusers`, and `sdadmin` is effective root via
+    `sd-elevate passwd` → a Linux sudoer → `sudo -i`.*** Measured 12 Sep by
+    `witness-accounts.sh` D12/D13. ***FIX BUILT (source) on the owner's ruling
+    "a true deletion strips everything about the account"*** — `DELACC`'s 10036
+    branch now strips `sdadmin` then `sdusers` (mirrors `MODIFYA` `leave.sdadmin`);
+    the borrowed user itself is still left in place, and an SD-*created* user is
+    still `userdel`'d whole. ***UNWITNESSED: needs reinstall (SDSYS compiles it)
+    then re-run the witness — D12/D13 must flip to PASS.*** Not filed to the
+    port (owner's call). Still counted "open" until witnessed.
   - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS

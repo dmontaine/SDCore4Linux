@@ -36,6 +36,12 @@
 *               directory, named in the one confirmation (10905); refused in
 *               words when there is no such user (10906); the result is read
 *               off disk (10907/10908).  sd-elevate userdel-home re-checks.
+* 12 Sep 26 dm  PRE_RELEASE 28.  A deleted account no longer leaves its
+*               borrowed Linux user in sdadmin/sdusers.  The user is still
+*               left in place (SD did not make it); the SD group memberships
+*               it added are stripped, so a deleted administrator does not
+*               keep passwordless sd-elevate.  A true deletion, the owner's
+*               ruling 12 Sep 2026.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -74,6 +80,9 @@ deffun is_group(group) calling '!is_group'
 deffun valid_os_name(name) calling '!valid_os_name'
 * 10 Sep 26 dm - did SD create the Linux user behind this account?  (the port's)
 deffun is_sd_user(username) calling '!is_sd_user'
+* 12 Sep 26 dm - PRE_RELEASE 28: strip SD's group memberships from a surviving
+*   borrowed Linux user.  Same function MODIFYA and GRANTA use.
+deffun is_grp_member(user,group) calling '!is_grp_member'
    prompt ''
 
    parser = "!PARSER"
@@ -341,6 +350,15 @@ deffun is_sd_user(username) calling '!is_sd_user'
                * offered, not asked about: said plainly, and the confirmation
                * above did not promise it either.
                crt sysmsg(10036, os.user) ;* %1 was not created by SD
+* 12 Sep 26 dm - PRE_RELEASE 28.  The user stays; its SD memberships do not.
+*   Only this branch needs it: a user SD created (sd.made.it above) is
+*   userdel'd whole and its groups go with it, and lookup.stat # 0 has no
+*   user.  sdadmin FIRST, sdusers SECOND, so an interrupted strip leaves the
+*   weaker state (an SD user who is no longer an administrator) rather than
+*   the stronger one.
+               strip.user = os.user
+               strip.group = 'sdadmin' ; gosub strip.membership
+               strip.group = 'sdusers' ; gosub strip.membership
          end case
       end
    end
@@ -351,6 +369,30 @@ deffun is_sd_user(username) calling '!is_sd_user'
    delete acc.f, acc.name
 
    @system.return.code = 0
+   return
+
+* ======================================================================
+* strip.membership - remove strip.user from strip.group, if it is a member.
+* PRE_RELEASE 28.  The same shape as MODIFYA's leave.sdadmin (:616) and
+* GRANTA (:307): guard on is_grp_member so a non-member is a no-op rather than
+* an error, go through sd-elevate delgroup, and report on the success wording.
+* sd-elevate refuses anything but SD's own groups and any non-SD-user target,
+* so this cannot reach a group or a user outside SD's control.
+
+strip.membership:
+   if strip.user = '' then return
+   if not(is_grp_member(strip.user, strip.group)) then return
+   if not(valid_os_name(strip.user)) then
+      crt sysmsg(10022, strip.user, strip.group, 2) ;* Unable to remove %1 from %2
+      return
+   end
+   OS.EXECUTE "sudo /usr/local/sbin/sd-elevate delgroup " : strip.user : " " : strip.group
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(10021, strip.user, strip.group)    ;* %1 removed from group %2
+   end else
+      crt sysmsg(10022, strip.user, strip.group, stat)
+   end
    return
 
 * ======================================================================

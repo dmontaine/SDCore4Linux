@@ -62,25 +62,24 @@
 #       marker removed.  Re-witness of 11 Sep, and here it is chiefly the
 #       PRECONDITION for phase 3.  One row is new: A8, that ADOPT leaves the
 #       Linux user's GECOS UNSTAMPED - the property that stops DELETE.ACCOUNT
-#       from ever deleting the installer's own login (measured on don at
-#       11:56: "Donald Montaine").
+#       from ever deleting a login SD did not create (the adopted admin's own -
+#       "don" here is the transitory human; SDSYS is the constant user).
 #   3   DELETE.ACCOUNT on that adopted account.  ***NEVER WITNESSED BY
 #       ANYTHING***: the borrowed-user branch - the SHORTER confirmation
 #       (10085), the data warning (10158), "not created by SD" (10036), and
 #       the Linux user and its home surviving.
-#   3k  ***THE NEW QUESTION, AND BOTH ROWS ARE PREDICTED TO FAIL.***  The
-#       survivor was in sdusers and - as an ADMINISTRATOR - in sdadmin, and
-#       sdadmin grants passwordless root sd-elevate (sdcore.sudoers) and
-#       exemption from the ssh force-command.  DELACC's only privileged calls
-#       are groupdel of the account's own sdu_ group and userdel (DELACC:286,
-#       :317, :319); it never calls "sd-elevate delgroup", which MODIFYA:616
-#       and GRANTA:307 both use to take a membership away.  So by reading, the
-#       survivor keeps both groups.  D12 and D13 assert the tight default -
-#       ***A FAIL THERE IS THE FINDING; A PASS MEANS THE READING WAS WRONG.***
-#       On Linux the tight answer is also the unambiguous one: sdusers and
-#       sdadmin are SD's own groups, created by the installer, so every
-#       membership in them was granted by SD and removing it cannot strip a
-#       privilege that predates SD.  (The port cannot reason that way: its
+#   3k  ***PRE_RELEASE 28 (SEV A), NOW FIXED IN SOURCE - THESE MUST PASS.***
+#       The survivor was in sdusers and - as an ADMINISTRATOR - in sdadmin, and
+#       sdadmin grants passwordless sd-elevate (sdcore.sudoers).  sd-elevate
+#       passwd retargets any SD user who is also a Linux sudoer - the admin who
+#       "becomes SDSYS" to run administrative commands - so a leftover member
+#       reaches root; the ssh force-command exemption comes with it.  DELACC's
+#       10036 branch now removes the survivor from sdadmin then sdusers, the
+#       shape MODIFYA:616 / GRANTA:307 use.  D12/D13 assert the survivor holds
+#       NEITHER: ***A PASS IS THE FIX; A FAIL MEANS PRE_RELEASE 28 IS NOT ON
+#       THE INSTALL UNDER TEST.***  On Linux this is safe and unambiguous:
+#       sdusers and sdadmin are SD's own groups, so every membership was SD's
+#       to remove and none predates SD.  (The port cannot reason that way: its
 #       admin group is BUILTIN\Administrators.)
 #
 # NOT HERE: the SD-CREATED Linux user.  CREATE.ACCOUNT USER <new> without
@@ -120,7 +119,6 @@ LOG=""
 PASS=0
 FAIL=0
 NOT_REACHED=0
-PREDICTED=0                 # failures on rows this script predicts will fail
 MADE_USER=0
 MADE_ACCOUNT=0
 
@@ -181,19 +179,6 @@ ck_silent() {
         FAIL=$((FAIL + 1)); say "  [FAIL] $name: found \"$needle\" and must not have"
     else
         PASS=$((PASS + 1)); say "  [PASS] $name: \"$needle\" absent, as required"
-    fi
-}
-
-# A row whose failure this script PREDICTS, so the verdict can say so rather
-# than let a predicted finding read like a broken run.
-ck_finding() {
-    local name="$1" want="$2" got="$3"
-    if [ "$want" = "$got" ]; then
-        PASS=$((PASS + 1)); say "  [PASS] $name: expected '$want', got '$got'"
-        say "         ^ PREDICTED TO FAIL, AND DID NOT - the reading of DELACC was wrong."
-    else
-        FAIL=$((FAIL + 1)); PREDICTED=$((PREDICTED + 1))
-        say "  [FAIL] $name: expected '$want', got '$got'   <- THE PREDICTED FINDING"
     fi
 }
 
@@ -463,15 +448,19 @@ else
         [ -e "$REGISTER/$ACC_UC" ] || MADE_ACCOUNT=0
 
         say ""
-        say "  3k. ***D12 AND D13 ARE PREDICTED TO FAIL - A FAIL IS THE FINDING.***"
-        say "  sdadmin grants passwordless root sd-elevate (sdcore.sudoers) and the"
-        say "  ssh force-command exemption.  DELACC never calls sd-elevate delgroup;"
-        say "  MODIFYA:616 and GRANTA:307 do.  sdusers and sdadmin are SD's own"
-        say "  groups, so every membership in them was granted by SD."
+        say "  3k. PRE_RELEASE 28: a true deletion strips the SD groups too."
+        say "  sdadmin grants passwordless sd-elevate (sdcore.sudoers), and"
+        say "  sd-elevate passwd retargets any SD user who is also a Linux"
+        say "  sudoer - the admin who 'becomes SDSYS' - so a leftover member"
+        say "  reaches root.  DELACC's 10036 branch now removes the survivor"
+        say "  from sdadmin then sdusers (MODIFYA:616 / GRANTA:307 shape); both"
+        say "  are SD's own groups, so every membership was SD's to remove."
+        say "  ***THESE MUST PASS ON A FIXED INSTALL. A FAIL MEANS PRE_RELEASE"
+        say "  28 IS NOT INSTALLED ON THE TREE UNDER TEST (reinstall, re-run).***"
         say "  after : sdusers=$(in_group "$ACC" sdusers) sdadmin=$(in_group "$ACC" sdadmin)" \
             "groups='$(id -nG "$ACC" 2>/dev/null)'"
-        ck_finding "D12 the survivor no longer holds sdadmin" no "$(in_group "$ACC" sdadmin)"
-        ck_finding "D13 the survivor no longer holds sdusers" no "$(in_group "$ACC" sdusers)"
+        ck "D12 the survivor no longer holds sdadmin" no "$(in_group "$ACC" sdadmin)"
+        ck "D13 the survivor no longer holds sdusers" no "$(in_group "$ACC" sdusers)"
     fi
 fi
 
@@ -489,7 +478,6 @@ fi
 say "  passed      : $PASS"
 say "  failed      : $FAIL"
 say "  not reached : $NOT_REACHED   (counted in failed - a row that measured nothing)"
-say "  predicted   : $PREDICTED   (counted in failed - the finding D12/D13 measure)"
 
 if [ "$((PASS + FAIL))" -eq 0 ]; then
     say "witness-accounts: FAILED - no check ran, so this proves nothing."
@@ -497,6 +485,7 @@ if [ "$((PASS + FAIL))" -eq 0 ]; then
 fi
 
 head2 "5. still owed: the SD-CREATED Linux user, by hand"
+say "  As SDSYS (a human admin becomes SDSYS to run this):"
 say "  sudo $SD"
 say "  CREATE.ACCOUNT USER zzacct3 PROGRAMMER      (type a throwaway password)"
 say "  DELETE.ACCOUNT zzacct3                      (answer y)"
@@ -507,12 +496,20 @@ if [ "$FAIL" -eq 0 ]; then
     say "witness-accounts: PASSED - $PASS of $PASS checks passed."
     exit 0
 fi
-if [ "$FAIL" -eq "$PREDICTED" ]; then
-    say "witness-accounts: FAILED ONLY ON THE PREDICTED FINDING - every other check"
-    say "  passed ($PASS), and D12/D13 show the deleted account's surviving Linux user"
-    say "  still holding SD's own groups.  That is the result this run was for."
+# ***IF THE ONLY FAILURES ARE D12/D13, THE INSTALL PREDATES THE PRE_RELEASE 28
+# FIX*** - the finding is real and present, and the fix is in source at DELACC's
+# 10036 branch.  Reinstall (SDSYS recompiles GPL.BP) and re-run; they must pass.
+d_fail=0
+for r in D12 D13; do
+    grep -qE "^\s*\[FAIL\] $r " "$LOG" && d_fail=$((d_fail + 1))
+done
+if [ "$FAIL" -eq "$d_fail" ] && [ "$d_fail" -gt 0 ]; then
+    say "witness-accounts: FAILED - PRE_RELEASE 28 is NOT installed on the tree under"
+    say "  test: the deleted account's Linux user still holds SD's groups (D12/D13)."
+    say "  Everything else passed ($PASS).  The fix is in source (DELACC 10036 branch);"
+    say "  reinstall so SDSYS recompiles it, then re-run - D12/D13 must then pass."
     exit 1
 fi
 say "witness-accounts: FAILED - $FAIL of $((PASS + FAIL)) checks failed" \
-    "($NOT_REACHED not reached, $PREDICTED predicted)."
+    "($NOT_REACHED not reached)."
 exit 1

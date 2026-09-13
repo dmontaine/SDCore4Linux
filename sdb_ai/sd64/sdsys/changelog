@@ -9,6 +9,31 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  DELETE.ACCOUNT NOW FULLY REMOVES AN ADMINISTRATOR IT DELETES, EVEN
+           WHEN THE LINUX USER STAYS.
+
+           Most SD accounts own the Linux user behind them - SD created it, and
+           DELETE.ACCOUNT removes it along with everything else.  But an account
+           that was ADOPTED onto a Linux user SD did not create (the person who
+           installed SD is the usual one) leaves that Linux user in place when
+           the account is deleted, because the login and its files are not SD's
+           to destroy.
+
+           Until now, deleting such an account left that Linux user in SD's
+           administrator group.  On Linux that group grants real power - a
+           member can run SD's privileged helper without a password - so an
+           administrator whose account you had deleted could still act as one,
+           and from there reach the root account.  "I deleted that
+           administrator" did not fully mean it.
+
+           DELETE.ACCOUNT now strips the SD groups it granted - administrator
+           first, then the general SD-user group - from a surviving Linux user,
+           so a deleted account confers nothing afterwards.  The Linux user and
+           its home are still left untouched; only the memberships SD itself
+           added are removed.  Deleting an account whose Linux user SD created
+           is unchanged: that user, and everything with it, still goes.
+
+
 12 Sep 26  DELETE.FILE: PRESSING ENTER AT "USE ACTIVE SELECT LIST?" NOW MEANS
            NO.
 
