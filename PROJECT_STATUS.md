@@ -9,7 +9,13 @@ the work, nothing in "Verified" that was not observed that session.
 **Keep this current when an entry closes; it is a scorecard, detail lives in
 `PRE_RELEASE_FIXES.md` and below.**
 
-- **PRE_RELEASE entries — 27 total: 15 done · 1 partial · 11 open.**
+- **PRE_RELEASE entries — 28 total: 15 done · 1 partial · 12 open.**
+  - ***NEW `28` (SEV A, OPEN): `DELETE.ACCOUNT` of an adopted administrator
+    leaves its Linux user in `sdadmin`/`sdusers`, and `sdadmin` is effective
+    root via `sd-elevate passwd` → a Linux sudoer → `sudo -i`.*** Measured
+    12 Sep by `witness-accounts.sh` D12/D13. Fix is bounded (mirror `MODIFYA`'s
+    `leave.sdadmin` in `DELACC`'s 10036 branch) but is a destructive-verb +
+    admin-model ruling — NOT built, awaiting the owner.
   - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS
@@ -152,20 +158,25 @@ reached*** (10085, 10158, 10036, the user and home surviving). Dry run and guard
 exercised; the gate itself cannot be made to fire without root, so it is
 parse-checked, not seen working.
 
-***AND A NEW LEAD, FROM READING, WHICH THE REWRITE MEASURES RATHER THAN
-ASSERTS:*** deleting an account whose Linux user SD did not create may leave that
-user in `sdusers` and — as an ADMINISTRATOR — in `sdadmin`, which grants
-passwordless root `sd-elevate` (`sdcore.sudoers`) and the ssh force-command
-exemption. `DELACC`'s only privileged calls are `groupdel` of its own `sdu_`
-group and `userdel` (`:286`, `:317`, `:319`); it never calls `sd-elevate
-delgroup`, which `MODIFYA:616` and `GRANTA:307` both use. Rows D12/D13 assert
-the tight answer and are ***predicted to FAIL — a fail is the finding, a pass
-means the reading was wrong.*** On Linux the tight answer is unambiguous because
-both are SD's own groups; the port's `DELACC:315` has the same shape, but its
-admin group is BUILTIN\Administrators, which predates SD. **Not a defect claim
-until measured.**
+***THE REWRITE RAN 18:12 AND ITS PREDICTED FINDING IS NOW MEASURED — 31 PASS,
+0 NOT REACHED, D12/D13 FAIL. THIS IS PRE_RELEASE 28, SEV A.*** `DELETE.ACCOUNT`
+of an adopted administrator (`zzacct2`) deleted the SD side correctly and left
+the Linux user — rightly — in place, ***but still in `sdusers` AND `sdadmin`***.
+Measured, not read: `groups='zzacct2 sdusers sdadmin'` after the delete.
+***`sdadmin` IS EFFECTIVE ROOT***: `sdcore.sudoers` gives it passwordless
+`sd-elevate`, `sd-elevate` gates on the group and **not the caller**, and
+`sd-elevate passwd don` is permitted (`test-sd-elevate.py:104`), so a leftover
+member sets `don`'s password, logs in as `don` (a Linux `sudo` member), and
+`sudo -i`. So "I deleted that administrator" leaves a path back to root.
+Reachable with two administrators — a second admin deleting the adopted
+installer's account — because only an adopted (unstamped) user survives
+`DELETE`; an SD-created one is `userdel`'d whole and its memberships go with it.
+***THE BORROWED-USER DELETE BRANCH ITSELF, WHICH NOTHING HAD REACHED BEFORE,
+PASSED CLEAN*** (10085 short confirmation, 10158 warning, 10036, user + home
+survive). Fix, port status and the full reasoning: PRE_RELEASE 28. ***NOT BUILT
+— it changes a destructive verb and the admin model, so it is the owner's
+ruling*** (the question is below).
 
-**Owed, and now runnable:** the rewritten `witness-accounts.sh --commit`.
 **Owed and blocked:** `sdsyswrite` (needs a session in SDSYS).
 
 **The port acted on bug 8 within the day** — `8b78bad`, "Fix 17 (Linux #8)",
