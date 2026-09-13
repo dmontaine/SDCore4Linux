@@ -211,8 +211,8 @@ def main():
     probe_src = a.probe or PROBE_SRC
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
-    bpout = os.path.join(acct, "BP.OUT")
+    bp = os.path.join(acct, "bp")           # plan M3 D3
+    bpout = os.path.join(acct, "bp.out")    # plan M3 D4: CREATE.FILE makes it lower
     staged = os.path.join(bp, PROBE)
 
     run.say("%s: as %s (uid %d), NOT elevated" % (NAME, user, os.geteuid()))

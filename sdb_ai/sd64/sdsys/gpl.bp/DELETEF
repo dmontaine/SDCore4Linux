@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The file name tries lower case, silently, before the upper-case
+*               guess and its prompt (plan M3 D4).
 * 12 Sep 26 dm  Opens voc in lower case; the banned list stays upper, and why
 *               (plan M3).
 * 12 Sep 26 dm  Enter is N at the select-list prompt (2050) as well, on the
@@ -211,23 +213,32 @@ delete.file:
 
     readu voc.rec from voc.f, file.name else
       release voc.f, file.name
-      display sysmsg(6130, file.name) ;* No VOC record found for xx
-      file.name = upcase(file.name)
-      readu voc.rec from voc.f, file.name then
-         if upcase(voc.rec[1,1]) = "F" then
-            loop
-               display sysmsg(6131, file.name) :  ;* Use file 'xx' (y/<n>)?
-               input yn
-               yn = upcase(yn[1,1])
-               if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
-            until yn = 'Y' or yn = 'N'
-            repeat
-            if yn = "Y" then goto delete.upcased.file
+* 13 Sep 26 dm - plan M3 D4: THEN LOWER, SILENTLY, BEFORE THE UPPER-CASE GUESS.
+*   CREATE.FILE now writes a lower-case VOC id, so DELETE.FILE MYDATA means the
+*   file mydata - the one name it can have, as every other lookup's fold says.
+*   The prompt below stays for the upper-case guess it was written for.
+      readu voc.rec from voc.f, downcase(file.name) then
+         file.name = downcase(file.name)
+      end else
+         release voc.f, downcase(file.name)
+         display sysmsg(6130, file.name) ;* No VOC record found for xx
+         file.name = upcase(file.name)
+         readu voc.rec from voc.f, file.name then
+            if upcase(voc.rec[1,1]) = "F" then
+               loop
+                  display sysmsg(6131, file.name) :  ;* Use file 'xx' (y/<n>)?
+                  input yn
+                  yn = upcase(yn[1,1])
+                  if yn = '' then yn = 'N'  ;* 11 Sep 26 - Enter is the default the prompt shows
+               until yn = 'Y' or yn = 'N'
+               repeat
+               if yn = "Y" then goto delete.upcased.file
+            end
          end
-      end
 
-      @system.return.code = -ER$STOPPED
-      return
+         @system.return.code = -ER$STOPPED
+         return
+      end
    end
 
    if upcase(voc.rec[1,1]) # "F" then

@@ -79,6 +79,34 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 D4 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner keep-cycle install +
+reboot (kept account is post-D3, all lower), then the suite.***
+- ***CREATEF:*** after the name is parsed (`:124-144`), unless `OPT.CREATE.FILE.CASE`
+  (OPTION name `CREATE.FILE.UPCASE`, msg 3124 "Keep ... case"): resolve by fold
+  — existing entry keeps its id, no entry → `downcase`; component `downcase`.
+  The three os.name sites `upcase` → `downcase`; `.DIC` → `dict.suffix`, chosen
+  by the OPTION not by testing os.name (OS$MAPPED.NAME escapes with an upper
+  letter, `%E`). ***Decision taken without a specific ruling***, from the stance
+  sentence "everything lower case — names on disk, VOC entries … the files
+  CREATE.FILE makes": the VOC id is lowered as well as the directory.
+- ***Lookups that had no lower step and would now miss:*** DELETEF `delete.file`
+  (as typed → lower silently → the old upper guess + 6131 prompt) and SETFILE's
+  target-VOC read. ***Checked and NOT changed:*** ANALYSE, CONFIGF, BUILDI,
+  CREATEI, DELETEI, LISTI, SETTRIG, CD already try lower; CLEARFL/CT/etc go
+  through `open`, which folds (M1). ED's `CREATE.FILE DATA $ED` now makes `$ed`.
+- ***Verifiers:*** `bp.out` on disk (fold, lcnames, basicfuncs, lineendings, txn,
+  tier-layer.sh); fold/txn "Created DATA part as" lower and fixture dir lower
+  (fold refuses either spelling present); sysperms K4 checks both spellings.
+- ***`verify-lcnames` new rows:*** F6 object dir `bp.out`, no `BP.OUT`; C1–C6 —
+  `CREATE.FILE ZZLCCF` → "Created DATA part as zzlccf" / "DICT part as
+  zzlccf.dic", disk lower only, VOC `zzlccf` Y / `ZZLCCF` N, `CREATE.FILE
+  zzlccf` again creates nothing, `DELETE.FILE ZZLCCF FORCE NO.QUERY` removes both
+  with no `(y/<n>)`. Refuses if any spelling of the fixture is present.
+- ***Checked, no install:*** verifiers py_compile, tier-layer `bash -n`.
+  ***CREATEF/DELETEF/SETFILE not compiled here*** (bbcmp cannot; the bootstrap
+  does). ***Would falsify:*** bootstrap failure; C1–C6 or F6 red; DELETE.FILE
+  typed upper prompting.
+
 ***§M3 D3 INSTALLED AND WITNESSED on `0cf86ee`*** (owner FULL delete→install,
 `.sdcore-install` 11:34:41, boot 11:35:27, `assert-current` 0 at 11:37). Installed
 sdsys has NO upper-case directory; fresh account `don`: `$hold $hold.dic

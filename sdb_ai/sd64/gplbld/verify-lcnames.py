@@ -82,8 +82,9 @@ def main():
     run = V.Run(NAME)
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
-    bpout = os.path.join(acct, "BP.OUT")
+    bp = os.path.join(acct, "bp")           # plan M3 D3
+    bpout = os.path.join(acct, "bp.out")    # plan M3 D4: CREATE.FILE makes it lower
+    bpout_upper = os.path.join(acct, "BP.OUT")
     holddir = os.path.join(acct, "$hold")
     stray = os.path.join(acct, "$hold " + HOLDREC)
 
@@ -299,7 +300,7 @@ def main():
     if not V.says(s.text, r"^Saved select list '%s' not found$" % LIST):
         run.refuse("saved list %s already exists" % LIST)
         return run.verdict()
-    bpout_before = os.path.exists(bpout)
+    bpout_before = os.path.exists(bpout) or os.path.exists(bpout_upper)
     os.makedirs(bp, exist_ok=True)
     shutil.copyfile(PROBE_SRC, os.path.join(bp, PROBE))
     # ***THE OBJECT-FILE NAME (plan M3 D3, the port's 1943704).***  BASIC builds
@@ -307,8 +308,8 @@ def main():
     # there this measures nothing - F0 is decisive for that reason, not context.
     # The old failure was never in the compile that made the file: it was the
     # NEXT one, typed the other way.  So: lower first, then upper.
-    run.note("F0 no BP.OUT before this run, so BASIC's create branch is reached",
-             False, bpout_before)
+    run.note("F0 no bp.out or BP.OUT before this run, so BASIC's create branch"
+             " is reached", False, bpout_before)
     s = sd("compile, file typed lower", ["BASIC bp %s" % PROBE])
     run.note("F1 the probe compiled with 0 errors", True, V.says(s.text, r"^0 error\(s\)"))
     t = sd("exact VOC reads of the object file id",
@@ -322,6 +323,41 @@ def main():
              True, V.says(s.text, r"^0 error\(s\)"))
     run.note("F5 and did not hit 'already exists'", False,
              V.says(s.text, r"already exists"))
+    # D4: the directory CREATE.FILE made behind that id is lower case too.
+    top_acct = set(os.listdir(acct))
+    run.note("F6 the object directory on disk is bp.out, and there is no BP.OUT",
+             (True, False), ("bp.out" in top_acct, "BP.OUT" in top_acct))
+
+    # ***CREATE.FILE ITSELF (plan M3 D4).***  Typed in UPPER case, a new file must
+    # get a lower-case VOC id, directory and .dic; the same name typed lower must
+    # then find it rather than make a second casing; and DELETE.FILE typed upper
+    # must remove it.  The name is this run's own and is refused if present.
+    cf = "zzlccf"
+    cfu = cf.upper()
+    for n in (cf, cfu, cf + ".dic", cfu + ".DIC"):
+        if n in top_acct:
+            run.refuse("%s already exists in %s" % (n, acct))
+            return run.verdict()
+    s = sd("CREATE.FILE typed upper", ["CREATE.FILE %s" % cfu])
+    run.note("C1 it created the data part as %s" % cf, True,
+             V.says(s.text, r"^Created DATA part as %s$" % re.escape(cf)))
+    run.note("C2 and the dictionary part as %s.dic" % cf, True,
+             V.says(s.text, r"^Created DICT part as %s\.dic$" % re.escape(cf)))
+    have = set(os.listdir(acct))
+    run.note("C3 on disk: %s and %s.dic, no upper spelling of either" % (cf, cf),
+             (True, True, False, False),
+             (cf in have, cf + ".dic" in have, cfu in have, cfu + ".DIC" in have))
+    t = sd("exact VOC reads of the new file's id", ["RUN BP %s %s" % (PROBE, cf)]).text
+    run.note("C4 VOC holds %s exactly, and not %s" % (cf, cfu), ("Y", "N"),
+             (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
+    s = sd("CREATE.FILE typed lower, the same name", ["CREATE.FILE %s" % cf])
+    run.note("C5 the second CREATE.FILE found the file instead of making another",
+             False, V.says(s.text, r"^Created (DATA|DICT) part"))
+    s = sd("DELETE.FILE typed upper", ["DELETE.FILE %s FORCE NO.QUERY" % cfu])
+    after = set(os.listdir(acct))
+    run.note("C6 DELETE.FILE %s removed %s and %s.dic without asking" % (cfu, cf, cf),
+             (False, False, False),
+             (cf in after, cf + ".dic" in after, V.says(s.text, r"\(y/<n>\)")))
 
     # ------------------------------------------------ per-category function
     def savedlists_works(prefix, first):
