@@ -8,20 +8,17 @@
 * on disk.  A READ of a DYNAMIC file is an exact match, and that is the
 * instrument.
 *
-*    RUN BP ZZLCN READ id    report which spellings of id exist
-*    RUN BP ZZLCN DOWN id    move id to UPCASE(id) (an account from before the
-*                            rename)
-*    RUN BP ZZLCN UP id      move it back, if it is still upper case
+*    RUN BP ZZLCN id    report which spellings of id exist
 *
 * id is the lower-case name, e.g. $savedlists.  Every answer is TAG=value on its
-* own line, each printed on one path only.
+* own line, each printed on one path only.  The DOWN and UP modes, which moved
+* an id to upper case and back for the case migration, went with it (13 Sep
+* 2026): there are no existing installs to migrate.
 *
 program zzlcn
 
-   mode = upcase(field(trim(@sentence), ' ', 4))
-   lid = field(trim(@sentence), ' ', 5)
+   lid = field(trim(@sentence), ' ', 4)
    uid = upcase(lid)
-   crt 'ZZLCN.MODE=':mode
    crt 'ZZLCN.ID=':lid
 
    if lid = '' or lid # downcase(lid) then
@@ -33,39 +30,6 @@ program zzlcn
       crt 'ZZLCN.FATAL=cannot open VOC'
       stop
    end
-
-   begin case
-      case mode = 'READ'
-         null
-
-      case mode = 'DOWN'
-         readu rec from v.f, lid then
-            write rec to v.f, uid
-            delete v.f, lid
-            crt 'DOWN=1'
-         end else
-            release v.f, lid
-            crt 'DOWN=0'
-         end
-
-      case mode = 'UP'
-         read lrec from v.f, lid then
-            crt 'UP=nothing'
-         end else
-            readu rec from v.f, uid then
-               write rec to v.f, lid
-               delete v.f, uid
-               crt 'UP=moved'
-            end else
-               release v.f, uid
-               crt 'UP=neither'
-            end
-         end
-
-      case 1
-         crt 'ZZLCN.FATAL=unknown mode'
-         stop
-   end case
 
    read x from v.f, lid then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
    read x from v.f, uid then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'

@@ -18,7 +18,9 @@
 * 
 * 
 * START-HISTORY:
-* 12 Sep 26 dm  An R record's target id folds (plan M3, the command renames).
+* 12 Sep 26 dm  An R record's target id is read exactly again: the fold added
+*               earlier today served only accounts needing case migration, and
+*               there are none (owner).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1):
 *               .L, .R, the private-file verb, RUN, both LOGIN paragraph reads,
 *               and the verb dispatch itself, which had no lower tier at all.

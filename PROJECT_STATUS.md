@@ -79,24 +79,28 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***HAND-OFF 12 Sep 2026, ~23:45 — STOPPED MID-TASK ON THE OWNER'S INSTRUCTION
-(credits). TASK: REMOVE THE CASE MIGRATION, THEN §M3 D1.*** Owner ruled: no
-existing installs, no migration ever needed for §M (memory
-`sdcore4linux-no-migration`), and "remove now, before D1".
-- ***DONE in this commit, NOT compiled or installed:*** removed the `!voccase`
-  call + 10916/10917 display blocks from LOGIN `update.voc` and MODIFYA
-  `voc.delta`; removed CPROC's R-record target fold (~:1891, now a plain exact
-  read again — ***its START-HISTORY line still describes the fold: fix it***);
-  CREATEA history line trimmed.
-- ***STILL TO DO for the removal:*** `git rm` `sdsys/GPL.BP/voccase`,
-  `sdsys/MESSAGES/10916 10917 10052` (10052 was only used by the removed block —
-  re-grep first), `gplbld/verify-voccase.py/.bp`; strip `verify-lcnames.py`
-  migration rows (S3–S5 read `voccase`; the DOWN / UPDATE.ACCOUNTS / restore
-  sections and `M10917`; the probe's DOWN/UP modes) — ***until then
-  verify-lcnames WILL FAIL/CRASH***; remove the changelog paragraphs promising
-  existing accounts get renamed (the `$savedlists`, `$hold`, commands and file
-  pointer entries, and MODIFY.ACCOUNT's sentence). Then reinstall and run the
-  suite (owner's command list: previous session transcript / list below).
+***CASE MIGRATION REMOVED — 13 Sep 2026, COMPILED, NOT INSTALLED. NEXT: OWNER
+REINSTALL + SUITE, THEN §M3 D1.*** Owner ruled: no existing installs, no
+migration ever needed for §M (memory `sdcore4linux-no-migration`), "remove now,
+before D1".
+- `313c55b` (WIP) took the `!voccase` calls and 10916/10917 displays out of LOGIN
+  `update.voc` and MODIFYA `voc.delta`, and CPROC's R-record target fold (:1889,
+  exact read again). This commit: CPROC history line; `git rm` `GPL.BP/voccase`,
+  `MESSAGES/10916 10917 10052` (10052 had no other user — `git grep` 13 Sep),
+  `gplbld/verify-voccase.py/.bp`; `verify-lcnames` reduced to S1, S2, S2b,
+  S6–S14 and per-category section 3 (+ tidy) — S3–S5, sections 4–6, the probe's
+  DOWN/UP modes gone, so it no longer runs `UPDATE.ACCOUNTS` or changes any VOC
+  id; changelog's four "existing account is renamed" paragraphs cut.
+- ***Compiled 13 Sep, dev binary, as `don`:*** `BASIC BP LOGIN MODIFYA CPROC` →
+  `0 error(s)` ×3 (CPROC's `PRIVILEGED_COMMANDS` unused-variable warning is not
+  from this change). Red control: MODIFYA + trailing `x = (1` → `1 error(s)`.
+  `BP` emptied, `DELETE VOC BP.OUT` (COUNT VOC 418), plain `make` rebuilt (no
+  DEVELOPER line). `verify-lcnames.py` py_compile only — ***NOT RUN***; ***its
+  total drops from 140 — do not predict it, read it.***
+- ***Follow-up to weigh, not done:*** `verify-lcnames` S14 pins SETFILE's
+  default pointer at `'QFILE'` on the ground that it "covers accounts from before
+  the rename" — that ground is gone with the migration; lowering it may now be
+  correct (§M "complete lower case").
 - ***THEN D1*** (design in Open, "on-disk directory rename"): sdsys dirs
   `NEWVOC VOC_TEMPLATE MESSAGES SYSCOM SD.VOCLIB ACCOUNTS $IPC $MAP $MAP.DIC
   VOC.DIC ACCOUNTS.DIC DICT.DIC DIR_DICT` → lower, no migration. NOT in D1:
@@ -2938,7 +2942,7 @@ two-name register restore are ***DROPPED***; rulings 2 and 3 below are moot, and
 ruling 4 reduces to "CREATE.FILE makes lower-case names" (D4). The already-built
 case migration (`GPL.BP/voccase`, its calls in LOGIN `update.voc` and MODIFYA
 `voc.delta`, messages 10916/10917, `verify-voccase`, `verify-lcnames` sections
-4–5) serves no install — removal is proposed to the owner, not done.
+4–5) serves no install — ***removed 13 Sep on the owner's instruction*** (START HERE).
 ***Also found while auditing D1:*** the SDSYS account's own directories (`VOC`,
 `$HOLD`, `$HOLD.DIC` in sdsys) are account directories, reached by the same
 generic `pathname:'VOC'` code as every account — they move with D3, not D1.

@@ -122,7 +122,7 @@ def main():
     names = [VERB, FILE, QPTR, VERB.upper(), FILE.upper(), QPTR.upper()]
     s = V.show_sd(run, "readback", ["CT VOC %s" % " ".join(names)],
                   cwd=acct, timeout=a.timeout)
-    # GATED: the check below reads an ABSENCE as "exists" (see verify-voccase).
+    # GATED: the check below reads an ABSENCE as "exists" (see sdverify.reached_off).
     if not V.session_ok(run, "G session", s):
         run.refuse("the ground-check session did not run, so nothing is known"
                    " about the fixtures")

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 #
 # verify-lcnames.py - the lower-case renames, category by category (plan
-#                     section M3), and the migration that carries an existing
-#                     account across each one (section M2).  Intent from the
-#                     port's verify-lcnames.ps1; the migration half is Linux's
-#                     own, because on NTFS the port had nothing to migrate.
+#                     section M3).  Intent from the port's verify-lcnames.ps1.
+#                     No migration half: there are no existing installs to
+#                     carry across a rename (owner, 12 Sep 2026), so the case
+#                     migration and the sections that ran it were removed.
 #
 #   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-lcnames.py
 #   python3 .../verify-lcnames.py --allow-stale       measure a stale install
@@ -21,22 +21,16 @@
 #                directory instead of $HOLD/zzlch, and row H5b looks for it.
 #   commands     every K/PA/PH/R/S/V id in NEWVOC, VOC_TEMPLATE, SD.VOCLIB
 #                (the port's 1a88360, 777 here); static rows S6-S9, and count
-#                as the one run through the account migration.
+#                as the one exercised in a session.
 #   pointers     the ten F/Q file-pointer ids (the port's 0394af4); static
-#                rows S10-S14, and syscom through the migration.  Fields 2/3
+#                rows S10-S14, and syscom exercised in a session.  Fields 2/3
 #                (the paths on disk) are a later category.
 #
 # ***"NOT FOUND" CANNOT TEST A RENAME*** - the port's lesson (its 65c681f):
 # CT folds the record id, so CT VOC $SAVEDLISTS finds $savedlists either way.
 # Two instruments instead: CT's heading echoes the id it MATCHED, and the
-# probe's exact READ says which spelling is on disk.
-#
-# THE MIGRATION IS RUN FOR REAL, ON THE CALLER'S OWN VOC, ONE CATEGORY AT A
-# TIME.  The probe moves the id back to upper case - an account from before the
-# rename - the category's function must still work through the fold, and the
-# real UPDATE.ACCOUNTS (mode 2, own account, no sudo) must move it forward and
-# name exactly that id (10916).  THE RESTORE UNDOES ONLY WHAT THE RUN DID, and
-# each category's last row is "the account ends as it started".
+# probe's exact READ says which spelling is on disk.  The run does not change
+# any VOC id; it saves one list and prints one hold record, both tidied.
 #
 import argparse
 import os
@@ -54,7 +48,6 @@ PROBE = "ZZLCN"
 LIST = "zzlcl"
 HOLDREC = "zzlch"
 
-M10917 = r"under BOTH an upper-case and a lower-case name"
 FAULT = r"^[0-9A-F]{8}: "
 SAVED = r"^2 records saved to select list 'zzlcl'$"
 GOT = r"^2 record\(s\) selected to select list 0$"
@@ -76,7 +69,7 @@ def tag(text, name):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="plan M3 renames and their migration")
+    ap = argparse.ArgumentParser(description="plan M3 lower-case renames")
     ap.add_argument("--account", default=None, help="account directory")
     ap.add_argument("--allow-stale", action="store_true",
                     help="measure an install assert-current calls stale")
@@ -118,9 +111,9 @@ def main():
         V.session_ok(run, title, s)
         return s
 
-    def probe(mode, lid):
-        return sd("RUN BP %s %s %s" % (PROBE, mode, lid),
-                  ["RUN BP %s %s %s" % (PROBE, mode, lid)]).text
+    def probe(lid):
+        return sd("RUN BP %s %s" % (PROBE, lid),
+                  ["RUN BP %s %s" % (PROBE, lid)]).text
 
     # ---------------------------------------------------- 1. the installed source
     run.heading("1. what was installed (static, the installed tree)")
@@ -154,24 +147,6 @@ def main():
     tdir = os.listdir(os.path.join(V.SDSYS, "VOC_TEMPLATE"))
     run.note("S2b VOC_TEMPLATE ships $hold and not $HOLD", (True, False),
              ("$hold" in tdir, "$HOLD" in tdir))
-
-    def quoted(path, pattern):
-        src = open(path, errors="replace").read()
-        out = set()
-        for m in re.finditer(pattern, src, re.MULTILINE):
-            out.update(re.findall(r"'([^']*)'", m.group(0)))
-        return out
-    createa = quoted(os.path.join(gplbp, "CREATEA"),
-                     r"^\s*fn = '[^']*'|^\s*write 'X' to voc\.f, '[^']*'")
-    created_lower = sorted(i for i in createa if i == i.lower())
-    voc_ids = sorted(quoted(os.path.join(gplbp, "voccase"),
-                            r"^\s*created\.ids = .*$"))
-    run.say("  CREATEA writes: %s" % sorted(createa))
-    run.note("S3 CREATEA's ids were read (not the null case)", True, len(createa) >= 4)
-    run.note("S4 voccase's created.ids == the lower-case ids CREATEA writes",
-             created_lower, voc_ids)
-    run.note("S5 and that list is not empty (S4 compared something)",
-             True, len(created_lower) > 0)
 
     # THE COMMAND IDS (the port's 1a88360).  Which ids keep upper case, and why:
     # F/Q file pointers (file names, a later category), T tier lists (data),
@@ -330,57 +305,20 @@ def main():
     try:
         for lid, k, works in CATS:
             uid = lid.upper()
-            down = False
-            baseline = (None, None)
-            try:
-                run.heading("3%s. %s - a new account holds the NEW id" % (k, lid))
-                t = probe("READ", lid)
-                baseline = (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER"))
-                run.say("  baseline (lower, upper) = %s" % (baseline,))
-                run.note(k + "1 probe ran for " + lid, "1", tag(t, "ZZLCN.END"))
-                run.note(k + "2 %s exists, exactly" % lid, "Y", tag(t, "EXACT.LOWER"))
-                run.note(k + "3 %s does not" % uid, "N", tag(t, "EXACT.UPPER"))
-                s = sd("CT names the id it matched", ["CT VOC %s" % uid])
-                run.note(k + "4 CT VOC %s answers with the id it matched, %s"
-                         % (uid, lid), True,
-                         V.says(s.text, r"^VOC %s$" % re.escape(lid)))
-                works(k + "5", True)
-
-                run.heading("4%s. %s - an account from BEFORE the rename" % (k, lid))
-                t = probe("DOWN", lid)
-                down = tag(t, "DOWN") == "1"
-                run.note(k + "6 the id was moved back to " + uid, "1", tag(t, "DOWN"))
-                run.note(k + "7 exactly %s now" % uid, ("N", "Y"),
-                         (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
-                works(k + "8", False)
-
-                run.heading("5%s. %s - the real update.voc carries it across" % (k, lid))
-                if not down:
-                    run.note(k + "9 section 4 moved the id back (else this measures"
-                             " nothing)", True, False)
-                s = sd("UPDATE.ACCOUNTS (own account)", ["UPDATE.ACCOUNTS"], timeout=180)
-                run.note(k + "10 10916 names exactly " + lid, True, V.says(
-                    s.text, r"^1 VOC record\(s\) were renamed to the lower-case name"
-                            r" SD now uses: %s$" % re.escape(lid)))
-                run.note(k + "11 no both-spellings refusal (10917)", False,
-                         V.says(s.text, M10917))
-                run.note(k + "12 no runtime fault", False, V.says(s.text, FAULT))
-                t = probe("READ", lid)
-                run.note(k + "13 exactly %s again" % lid, ("Y", "N"),
-                         (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
-                works(k + "14", False)
-            finally:
-                run.heading("6%s. %s - restore (always runs)" % (k, lid))
-                if down:
-                    t = probe("UP", lid)
-                    run.say("  UP=%s" % tag(t, "UP"))
-                else:
-                    run.say("  this run did not move the id, so it does not move it back")
-                    t = probe("READ", lid)
-                run.note(k + "Z the account ends exactly as it started (lower, upper)",
-                         baseline, (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
+            run.heading("3%s. %s - the account holds the NEW id" % (k, lid))
+            t = probe(lid)
+            run.say("  (lower, upper) = %s"
+                    % ((tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")),))
+            run.note(k + "1 probe ran for " + lid, "1", tag(t, "ZZLCN.END"))
+            run.note(k + "2 %s exists, exactly" % lid, "Y", tag(t, "EXACT.LOWER"))
+            run.note(k + "3 %s does not" % uid, "N", tag(t, "EXACT.UPPER"))
+            s = sd("CT names the id it matched", ["CT VOC %s" % uid])
+            run.note(k + "4 CT VOC %s answers with the id it matched, %s"
+                     % (uid, lid), True,
+                     V.says(s.text, r"^VOC %s$" % re.escape(lid)))
+            works(k + "5", True)
     finally:
-        run.heading("7. tidy (always runs)")
+        run.heading("4. tidy (always runs)")
         s = sd("delete the list", ["DELETE.LIST %s" % LIST])
         run.note("Z1 the saved list is gone", True,
                  V.says(s.text, r"^Deleted saved select list '%s'$" % LIST))
