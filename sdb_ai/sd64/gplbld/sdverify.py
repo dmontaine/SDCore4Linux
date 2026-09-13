@@ -333,11 +333,53 @@ def show_sd(run, title, commands, cwd, timeout=60, logto=None, sd=SD):
     return s
 
 
+def reached_off(s):
+    """True if the session got as far as the ":" prompt that took OFF.
+
+    ***FINISHING IS NOT THE SAME AS RUNNING.***  Measured 12 Sep 2026: with the
+    SD service stopped, sd prints "SD has not been started" and exits 1 at
+    once - no timeout - and verify-voccase then read the ABSENCE of "not
+    found" in that text as "the fixture already exists" and refused for a
+    reason that was not true.  OFF is the last line build_session() feeds, and
+    sd echoes it at its own prompt, so ":OFF" on a line of its own appears only
+    when every command before it was read at the prompt.  A verb prompt that
+    swallows OFF shows up as a timeout instead, which is the other half of
+    session_ok."""
+    return says(s.text, r"^:OFF$")
+
+
 def session_ok(run, step, s, decisive=True):
-    """One decisive row per session: it finished.  Every later row reads text
-    that only means anything if this one passed."""
-    return run.note(step + ": session ended (not a timeout)",
-                    True, not s.timed_out, decisive)
+    """One decisive row per session: it RAN TO THE END - reached OFF, not a
+    timeout.  Every later row reads text that only means anything if this one
+    passed."""
+    if s.timed_out:
+        observed = "TIMEOUT"
+    elif not reached_off(s):
+        observed = "never reached OFF (exit %s)" % s.rc
+    else:
+        observed = "ran to OFF"
+    return run.note(step + ": session ran to OFF", "ran to OFF", observed,
+                    decisive)
+
+
+def require_running(run, cwd, sd=SD, timeout=30):
+    """Refuse (exit 2) unless a trivial session runs to OFF.
+
+    A verifier run against a stopped SD measures nothing, and every check that
+    reads "not found" or looks for an absence can then produce a confident,
+    wrong answer.  This says what sd actually said instead."""
+    s = run_sd(["WHO"], cwd, timeout=timeout, sd=sd)
+    if s.timed_out or not reached_off(s):
+        said = [l for l in s.text.strip("\n").split("\n") if l.strip()][:3]
+        return run.refuse(
+            "a trivial sd session did not run (%s)"
+            % ("timeout" if s.timed_out else "exit %s" % s.rc),
+            *(["sd said: " + l for l in said] +
+              ["If that is 'SD has not been started', start it with",
+               "  sudo /usr/local/sdsys/bin/sd -start",
+               "and run this again."]))
+    run.say("  sd is running (a WHO session ran to OFF)")
+    return 0
 
 
 # ------------------------------------------------------------------ selftest

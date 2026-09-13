@@ -111,9 +111,34 @@ def driver_cases(tmp):
     V.session_ok(r, "hung", s)
     ck("session_ok fails a timeout", r.verdict(), 1)
 
+    # A stand-in that behaves like sd at its prompt: ":" before each line read.
+    prompt = stub(tmp, "sd-prompt",
+                  'while IFS= read -r l; do printf ":%s\\n" "$l"; done\n')
     r = quiet_run()
-    V.session_ok(r, "fine", V.run_sd(["WHO"], cwd=tmp, sd=echo, timeout=10))
-    ck("session_ok passes a finished run", r.verdict(), 0)
+    V.session_ok(r, "fine", V.run_sd(["WHO"], cwd=tmp, sd=prompt, timeout=10))
+    ck("session_ok passes a run that reached OFF", r.verdict(), 0)
+
+    # 4b. ***FINISHED IS NOT RAN.***  Measured 12 Sep 2026: a stopped SD prints
+    #     one line and exits 1 at once, and a check that only asked "did it time
+    #     out" passed it.  The plain echo stub finishes too, with no prompt.
+    stopped = stub(tmp, "sd-stopped",
+                   "printf 'SD has not been started\\n'; exit 1\n")
+    r = quiet_run()
+    V.session_ok(r, "stopped", V.run_sd(["WHO"], cwd=tmp, sd=stopped, timeout=10))
+    ck("session_ok FAILS a stopped SD (finished, never ran)", r.verdict(), 1)
+    r = quiet_run()
+    V.session_ok(r, "no prompt", V.run_sd(["WHO"], cwd=tmp, sd=echo, timeout=10))
+    ck("session_ok FAILS output with no ':OFF' prompt line", r.verdict(), 1)
+
+    r = quiet_run()
+    ck("require_running refuses a stopped SD with exit 2",
+       V.require_running(r, tmp, sd=stopped, timeout=10), 2)
+    ck("  and says what sd said",
+       V.says(r._out.getvalue(), r"sd said: SD has not been started"), True)
+    r = quiet_run()
+    ck("require_running passes a prompt that reaches OFF",
+       V.require_running(r, tmp, sd=prompt, timeout=10), 0)
+    ck("  and leaves the run unblocked", r.blocked, None)
 
     # 5. A NON-ZERO EXIT IS NOT A TIMEOUT.  Conflating them would report a
     #    refusal as a hang and send the next session chasing locks.
