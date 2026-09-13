@@ -328,14 +328,25 @@ sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
 It refuses unless the throwaway names are absent as user, group, directory AND
 register record, and removes only what it made. Detail in PORT_ADOPTION item 6.
 
-**What queue 22 has left, and all of it needs root or an install:**
-- ***`sdsyswrite`, the one POSIX-mode check that genuinely cannot be done
-  unprivileged*** — it asks what SDSYS *reached by LOGTO* can write, and
-  reaching SDSYS needs real uid 0. Everything else in that family is done; the
-  old claim that the whole family needed an owner-run half was wrong, and
-  wrong in the direction that postpones work (PORT_ADOPTION item 7).
-- the privileged half of the account family — `witness-accounts.sh --commit`.
-- ***the FULL delete→install, still owed and now five queues deep.***
+***THE UNPRIVILEGED QUEUE-22 WORKLIST IS EXHAUSTED (12 Sep).*** Items 1-7 done
+and witnessed; `witness-accounts.sh --commit` done (PRE_RELEASE 28 closed).
+`parsertokens` measured NOT to apply here and routed (PORT_ADOPTION disposition
+table): a forward-slash path is whole, a comma splits, `\` is a quote char in
+`GPL.BP/PARSER:78` — the port's backslash-TRUNCATION bug is Windows-path-
+specific. **What is left all needs privilege OR a second account the full cycle
+removed:**
+- ***`sdsyswrite`*** — a session IN SDSYS (real uid 0). Owner-run.
+- ***`tierchange`*** — a fresh `MODIFY.ACCOUNT` tier move (MODIFYA's VOC
+  re-derivation is still unattributed), needing an admin session and a second
+  account.
+- ***`cmdaudit`*** — reads the 0620 audit trail; sudo.
+- ***the SD-CREATED delete path*** — `CREATE.ACCOUNT USER <n> PROGRAMMER`
+  (password typed) then `DELETE.ACCOUNT`, expecting 10084 + 10028; the witness
+  prints the recipe (phase 5) but cannot drive the prompt.
+- Lower value, unbuilt: `batchjob`, `logtoaccess`, `notyet`, `keys` (backspace).
+- ***The release blockers are elsewhere: §M (lower case) and §L1.*** With the
+  verifier infrastructure now in place, these are the next real work; §M is
+  sudo-free to advance (a source migration + static audit).
 
 ***THE OWED FULL delete→install HAS NOT MOVED, AND IT IS NOW FOUR QUEUES DEEP:***
 15's installer block, 13's rotation and carry-over, 12's ssh and API doors, 19's
