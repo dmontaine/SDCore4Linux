@@ -79,8 +79,30 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, ~21:45 — §M2's VOC MIGRATION IS BUILT AND PUSHED, NOT
-INSTALLED. NEXT: OWNER REINSTALL, THEN `verify-voccase.py` MUST GO FROM 20
+***12 Sep 2026, ~22:00 — §M2's VOC MIGRATION IS INSTALLED AND WITNESSED on
+`d79ae15`*** (21:45:13, `assert-current` 0; SD kick-started by the owner after
+install, PRE_RELEASE 29). `gcat/!VOCCASE` and `GPL.BP.OUT/voccase` 21:45:16,
+installed source carries `$internal`.
+- `verify-voccase.py` ***34/34***, raw tags checked
+  (`MOVED=list $hold admin.verb select`, `COLLIDED=SORT`, `MOVED2=` empty).
+- ***THE REAL `update.voc` RAN, which nothing in the suite does*** — DON,
+  `UPDATE.ACCOUNTS` (mode 2, own account, no sudo), one-off script
+  `scratchpad/updvoc.py`: 5200 printed, no runtime fault, no 10916/10917,
+  `COUNT VOC` 418 → 418. ***ITS "every record unchanged" ROW WAS VACUOUS*** — the
+  dump used non-existent keywords (`COL.HDR.SUPP`, `HDR.SUPP`) so it compared an
+  error with itself — ***replaced by a byte comparison*** against a pre-run copy
+  of `VOC/%0`: 4 bytes differ, offsets 84/88/89/104 = `FILESTATS` (`dh_fmt.h`,
+  packed; stats at 80) `opens` 4→7, `reads` 212→779, `selects` 0→3 —
+  ***`writes` and `deletes` UNCHANGED***, so update.voc + voccase read everything
+  and changed nothing, as a fresh install should. Not yet a standing verifier.
+- Standing suite on `d79ae15`, no `--allow-stale`, all exit 0 at prior counts
+  (fold 35, vocverbs 34, setpw 24, txn 33, editors 28, nonet 59, lineendings 42,
+  basicfuncs 199, accounts 35, sysperms 18, grants 16/0, tier-layer 0 short,
+  `COUNT VOC` 418).
+***NEXT: M3, first category*** (still conditional on re-checking the meter).
+
+*Older, 21:45 — the pre-install block:* ***§M2's VOC MIGRATION IS BUILT AND
+PUSHED, NOT INSTALLED. NEXT: OWNER REINSTALL, THEN `verify-voccase.py` MUST GO FROM 20
 FAILED TO 34/34, AND THE STANDING VERIFIERS MUST STAY AT THEIR COUNTS.***
 
 ***21:12 install `4288380`: SD WAS LEFT STOPPED*** — `PRE_RELEASE` 29 (`sd.service`
