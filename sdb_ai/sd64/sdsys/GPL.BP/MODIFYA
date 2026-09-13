@@ -19,9 +19,8 @@
 * 
 *
 * START-HISTORY:
-* 12 Sep 26 voc.delta migrates the account VOC's case (!voccase) before a tier
-*           change matches ids exactly, so a demotion of an account not yet
-*           brought forward still removes its verbs (plan M2/M3).
+* 12 Sep 26 The case migration added to voc.delta earlier today is removed:
+*           no install holds an upper-case id to migrate (owner).
 * 11 Sep 26 The ADD arm refuses a grant that goes upward (10126/10127), because
 *           it makes the same group change GRANT does and would otherwise be
 *           the way round the rule; DELETE is deliberately not guarded.  And a
@@ -741,33 +740,6 @@ voc.delta:
       close tvoc.f
       voc.ok = @false
       return
-   end
-
-* 12 Sep 26 dm - PLAN M2: MIGRATE THE ACCOUNT'S VOC CASE BEFORE THE DELTA.  The
-*   tier lists and NEWVOC hold the command ids in lower case once M3 renames
-*   them, and every step below matches by EXACT id.  On an account not yet
-*   brought forward - it still holds BASIC, not basic - the add would write
-*   basic BESIDE BASIC, and ***a demotion would delete nothing and leave the
-*   compiler verbs in a STANDARD account***.  !voccase moves the ids SD ships
-*   in lower case first, as update.voc does, and says so (10916); both
-*   spellings present and different is left and named (10917), because a
-*   customised upper-case verb is not this routine's to delete.  No select
-*   list is held here, so the list 11 it uses is free.
-   openpath @sdsys:@ds:'VOC_TEMPLATE' to case.tmpl.f else
-      close tnewvoc.f
-      close tvoc.f
-      voc.ok = @false
-      return
-   end
-   case.moved = ''
-   case.collided = ''
-   call !voccase(tvoc.f, tnewvoc.f, case.tmpl.f, case.moved, case.collided)
-   close case.tmpl.f
-   if case.moved # '' then
-      display sysmsg(10916, dcount(case.moved, @fm), convert(@fm, ' ', case.moved))
-   end
-   if case.collided # '' then
-      display sysmsg(10917, dcount(case.collided, @fm), convert(@fm, ' ', case.collided))
    end
 
    tmpl.open = @false
