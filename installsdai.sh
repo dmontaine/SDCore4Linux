@@ -34,6 +34,10 @@
 #   D1): accounts, newvoc, voc_template, messages, syscom, sd.voclib, and the
 #   bootstrap's $ipc, $map, $map.dic, voc.dic, accounts.dic, dict.dic, dir_dict.
 #   A saved register is looked for as /home/sd/accounts only.
+#
+#   13 Sep 2026 - and the program directories (plan M3 D2): gpl.bp,
+#   gpl.bp.out, bp, bp.out and pcode.out.  sd.service is Type=oneshot
+#   (PRE_RELEASE 29).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -578,9 +582,9 @@ sudo cp -R gplbld/FILES_DICTS "$sdsysdir/gplbld/FILES_DICTS"
 sudo cp -R terminfo "$sdsysdir"
 #
 # build program objects for bootstrap install
-sudo python3 gplbld/bbcmp.py "$sdsysdir" GPL.BP/BBPROC GPL.BP.OUT/BBPROC
-sudo python3 gplbld/bbcmp.py "$sdsysdir" GPL.BP/BCOMP GPL.BP.OUT/BCOMP
-sudo python3 gplbld/bbcmp.py "$sdsysdir" GPL.BP/PATHTKN GPL.BP.OUT/PATHTKN
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/BBPROC gpl.bp.out/BBPROC
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/BCOMP gpl.bp.out/BCOMP
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/PATHTKN gpl.bp.out/PATHTKN
 sudo python3 gplbld/pcode_bld.py
 
 sudo cp Makefile "$sdsysdir"
@@ -838,7 +842,7 @@ fi
 #
 # echo "Bootstap pass 3."
 echo "Bootstrap pass 3."
-if ! sudo "$sdsysdir/bin/sd" RUN GPL.BP WRITE_INSTALL_DICTS NO.PAGE; then
+if ! sudo "$sdsysdir/bin/sd" RUN gpl.bp WRITE_INSTALL_DICTS NO.PAGE; then
     printf "%b\n" "$RED"
     echo "Bootstrap pass 3 failed. Install terminated!"
     printf "%b\n" "$NC"
@@ -854,8 +858,8 @@ if ! sudo "$sdsysdir/bin/sd" THIRD.COMPILE; then
 fi
 #
 echo "Compiling CPROC without IS_INSTALL defined."
-sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/GPL.BP/define_install.h'
-if ! sudo bin/sd -internal BASIC GPL.BP CPROC; then
+sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
+if ! sudo bin/sd -internal BASIC gpl.bp CPROC; then
     printf "%b\n" "$RED"
     echo "CPROC recompile failed. Install terminated!"
     printf "%b\n" "$NC"

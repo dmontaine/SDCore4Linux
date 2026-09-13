@@ -62,7 +62,7 @@ import sdverify as V                                    # noqa: E402
 NAME = "verify-nonet"
 TREE = os.path.dirname(HERE)                 # .../sdb_ai/sd64
 GPLSRC = os.path.join(TREE, "gplsrc")
-SRC_BP = os.path.join(TREE, "sdsys", "GPL.BP")
+SRC_BP = os.path.join(TREE, "sdsys", "gpl.bp")
 SRC_VOCT = os.path.join(TREE, "sdsys", "voc_template")
 
 # The owner's stance list, 8 Sep 2026.  Each name is checked in the SOURCE tree
@@ -136,7 +136,7 @@ def main():
     run = V.Run(NAME)
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    inst_bp = os.path.join(V.SDSYS, "GPL.BP")
+    inst_bp = os.path.join(V.SDSYS, "gpl.bp")
     inst_voct = os.path.join(V.SDSYS, "voc_template")
     inst_gcat = os.path.join(V.SDSYS, "gcat")
 

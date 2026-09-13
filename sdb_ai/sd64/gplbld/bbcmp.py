@@ -113,8 +113,8 @@
 # 
 # START-HISTORY:
 # 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
-# 13 Sep 26 dm  $include finds the sdsys syscom directory in lower case (plan
-#               M3 D1); see include_dir().
+# 13 Sep 26 dm  $include finds the sdsys syscom and gpl.bp directories in lower
+#               case (plan M3 D1, D2); see include_dir().
 # END-HISTORY
 #
 #
@@ -1611,9 +1611,11 @@ name_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.$%_"
 
 def include_dir(name):
     """The sdsys directory a three-token $include names, as spelled on disk.
-    13 Sep 26 dm - plan M3 D1 renamed syscom to lower case; GPL.BP is still
-    upper case until D2, which should make this a plain name.lower()."""
-    return 'syscom' if name.upper() == 'SYSCOM' else name.upper()
+    13 Sep 26 dm - plan M3 D1 and D2: every sdsys directory an $include can
+    name (syscom, gpl.bp) is lower case, so the name is lowered whatever case
+    the source typed.  The RECORD name is still upper-cased by the caller:
+    record ids inside the directories did not change."""
+    return name.lower()
 
 
 ###################################################################################################

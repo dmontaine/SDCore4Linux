@@ -19,7 +19,7 @@ subroutine prog_info(obj_dir_path,obj_name,prog_name,prog_obj_sz,prog_comp_time,
 $catalog !prog_info
 *
 *
-$INCLUDE GPL.BP HEADER.H
+$INCLUDE gpl.bp HEADER.H    ;* 13 Sep 26 dm - the file's name is lower case (plan M3 D2)
 *
 * Header field offsets (from 1)
 * hdr.magic             =     1

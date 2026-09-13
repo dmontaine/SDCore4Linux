@@ -9,6 +9,28 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  THE SYSTEM'S PROGRAM DIRECTORIES ARE NOW LOWER CASE TOO: gpl.bp,
+           gpl.bp.out, bp, bp.out and pcode.out.
+
+           The second half of the move that renamed the data directories
+           earlier today.  gpl.bp holds SD's own BASIC source and gpl.bp.out
+           its compiled programs; bp and bp.out are the system account's own
+           program files.  The system account's VOC entries now name them in
+           lower case, which is also how SD Core for Windows names them.
+
+           WHAT YOU TYPE DOES NOT CHANGE: BASIC GPL.BP CPROC and
+           $INCLUDE GPL.BP HEADER.H still work, because the file is found
+           through the VOC in either case.  The programs inside keep their
+           names - CPROC is still CPROC.
+
+           WHAT IS NOT RENAMED YET: the BP file in YOUR account, which
+           CREATE.ACCOUNT still makes as BP, and every account's own VOC and
+           $HOLD.  Those move together, separately.
+
+           ONE THING TO KNOW: a script that reaches SD's source by its path -
+           /usr/local/sdsys/GPL.BP/CPROC, say - needs the lower-case name.
+
+
 13 Sep 26  SD NOW STAYS RUNNING WHEN THE COMPUTER STARTS IT.
 
            Some of the time SD would start at boot and then be shut down again

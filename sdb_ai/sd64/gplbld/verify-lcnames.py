@@ -117,7 +117,7 @@ def main():
 
     # ---------------------------------------------------- 1. the installed source
     run.heading("1. what was installed (static, the installed tree)")
-    gplbp = os.path.join(V.SDSYS, "GPL.BP")
+    gplbp = os.path.join(V.SDSYS, "gpl.bp")
     literal = re.compile(r"""["']\$(SAVEDLISTS|HOLD)[ "']""")
     # A DIRECTORY NAME ON DISK is not a VOC id and is expected to stay upper case
     # until the on-disk half moves: CREATEA's os.name, and BBPROC's FILES_LIST
@@ -248,6 +248,26 @@ def main():
                 if not os.path.isdir(os.path.join(V.SDSYS, n)) or n.upper() in top]
     run.note("S15 the %d D1 sdsys directories exist lower case and not upper"
              % len(D1), [], d1_wrong)
+
+    # THE sdsys PROGRAM DIRECTORIES (plan M3 D2) - the same both-halves rule -
+    # and the SDSYS account's F records that name them, which must be lower
+    # case in id AND path, or BASIC's "<file>.OUT" would reach a mixed name.
+    D2 = ["gpl.bp", "gpl.bp.out", "bp", "bp.out", "pcode.out"]
+    d2_wrong = ["%s (lower %s, upper %s)" % (n, n in top, n.upper() in top)
+                for n in D2
+                if not os.path.isdir(os.path.join(V.SDSYS, n)) or n.upper() in top]
+    run.note("S16 the %d D2 sdsys directories exist lower case and not upper"
+             % len(D2), [], d2_wrong)
+    vt = os.path.join(V.SDSYS, "voc_template")
+    vt_names = set(os.listdir(vt))
+    rec_wrong = []
+    for n in D2[:4]:
+        f = readtxt(os.path.join(vt, n)).split("\n")
+        if n.upper() in vt_names or len(f) < 2 or f[1] != n:
+            rec_wrong.append("%s (upper id %s, field 2 %r)"
+                             % (n, n.upper() in vt_names, f[1] if len(f) > 1 else None))
+    run.note("S17 voc_template's gpl.bp/gpl.bp.out/bp/bp.out: id and path lower,"
+             " no upper id", [], rec_wrong)
 
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")
