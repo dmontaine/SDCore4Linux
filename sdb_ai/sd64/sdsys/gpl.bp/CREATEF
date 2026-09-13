@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  A new file is named in lower case - VOC id, directory, component
+*               and .dic - unless CREATE.FILE.CASE is set; an existing entry is
+*               found by the fold and keeps its id (plan M3 D4).
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 10 Sep 26 dm  Parity audit: Enter is N at the convert-to-multifile prompt (port
@@ -119,6 +122,29 @@ $define default.split.load 80
    end
 
    if file.name = '' then stop sysmsg(6100) ;* Illegal file name
+
+* 13 Sep 26 dm - plan M3 D4: A NEW FILE IS NAMED IN LOWER CASE - VOC id,
+*   directory and dictionary - WHATEVER CASE IS TYPED.  The project standard is
+*   that no file can exist in two casings, and on ext4 CREATE.FILE MYDATA
+*   followed by CREATE.FILE mydata used to make two.  So the name is first
+*   resolved the way every lookup folds it (as typed, lower, upper): an entry
+*   that already exists keeps its id, and only a name with no entry at all
+*   becomes lower case.  The CREATE.FILE.CASE option still means "exactly as
+*   typed", which is the administrator's deliberate way back.
+   if not(option(OPT.CREATE.FILE.CASE)) then
+      read voc.rec from voc.f, file.name else
+         read voc.rec from voc.f, downcase(file.name) then
+            file.name = downcase(file.name)
+         end else
+            read voc.rec from voc.f, upcase(file.name) then
+               file.name = upcase(file.name)
+            end else
+               file.name = downcase(file.name)
+            end
+         end
+      end
+      component = downcase(component)
+   end
 
    * Check for file type keyword. We default to DYNAMIC
 
@@ -309,7 +335,7 @@ $define default.split.load 80
                if option(OPT.CREATE.FILE.CASE) then
                   os.name = ospath(file.name, OS$MAPPED.NAME)
                end else
-                  os.name = ospath(upcase(file.name), OS$MAPPED.NAME)
+                  os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
                end
                new.path = old.path : @ds : os.name
 
@@ -382,13 +408,19 @@ $define default.split.load 80
    if option(OPT.CREATE.FILE.CASE) then
       os.name = ospath(file.name, OS$MAPPED.NAME)
    end else
-      os.name = ospath(upcase(file.name), OS$MAPPED.NAME)
+      os.name = ospath(downcase(file.name), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
    end
 
    * Check if operating system components already exist
 
+* 13 Sep 26 dm - plan M3 D4: the suffix goes with the naming rule - a literal
+*   ".DIC" on a lower-case name is a mixed name.  Decided by the option, not by
+*   testing os.name, because OS$MAPPED.NAME escapes a restricted character with
+*   an UPPER-case letter (%E), and that must not flip the suffix.
+   if option(OPT.CREATE.FILE.CASE) then dict.suffix = '.DIC' else dict.suffix = '.dic'
+
    if create.dict and not(using.dict) then
-      dict.path = dir.name.with.delimiter : os.name : ".DIC"
+      dict.path = dir.name.with.delimiter : os.name : dict.suffix
       if ospath(dict.path, OS$EXISTS) then        ;* Already exists
          stop sysmsg(6121, dict.path) ;* Dictionary pathname 'xx' already exists
       end
@@ -408,7 +440,7 @@ $define default.split.load 80
          if option(OPT.CREATE.FILE.CASE) then
             os.name = ospath(component, OS$MAPPED.NAME)
          end else
-            os.name = ospath(upcase(component), OS$MAPPED.NAME)
+            os.name = ospath(downcase(component), OS$MAPPED.NAME)   ;* 13 Sep 26 D4
          end
       end
 

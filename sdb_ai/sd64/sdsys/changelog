@@ -9,6 +9,38 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  CREATE.FILE NOW NAMES A NEW FILE IN LOWER CASE, WHATEVER CASE YOU TYPE.
+
+           CREATE.FILE ORDERS makes a file called orders: the VOC entry is
+           orders, the directory on disk is orders and its dictionary is
+           orders.dic.  Before this, the VOC entry kept the case you typed and
+           the directory was always made in upper case, so on Linux, where a
+           name's case is part of the name, CREATE.FILE ORDERS and
+           CREATE.FILE orders could leave two different files.  A file now has
+           one name.
+
+           If a file of that name already exists in any case, CREATE.FILE
+           finds it rather than making a second one.  DELETE.FILE ORDERS now
+           finds orders without asking, and so does SET.FILE when it looks in
+           another account.
+
+           WHAT YOU TYPE DOES NOT CHANGE: LIST ORDERS, COUNT ORDERS and
+           OPEN "ORDERS" in a program all find orders, as they already found
+           names in either case.  The compiled-program file BASIC makes is
+           now bp.out on disk as well.
+
+           TO USE THE NAME EXACTLY AS TYPED instead, set the option whose
+           description is "Keep operating system file name case in
+           CREATE.FILE" - it is listed by OPTION under the historical name
+           CREATE.FILE.UPCASE, which is misleading: it keeps case, it does not
+           upper-case.  With it set, CREATE.FILE uses the name you typed for
+           the VOC entry and on disk.
+
+           WHAT DOES NOT CHANGE: files that already exist keep their names, and
+           the records inside a file keep theirs - SUE and sue are still two
+           records.
+
+
 13 Sep 26  EVERY ACCOUNT'S OWN FILES ARE NOW LOWER CASE ON DISK: voc, $hold,
            $hold.dic, $svlists and bp.
 

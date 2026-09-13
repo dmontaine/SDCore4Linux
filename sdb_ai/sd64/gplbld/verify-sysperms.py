@@ -414,8 +414,11 @@ def main():
     run.note("K3 and it failed for its own ordinary reason instead", True,
              V.says(s.text, re.escape("File BP.OUT not found")))
     # Neither attempt may leave anything behind in the caller's account.
-    run.note("K4 no BP.OUT was created by either attempt", False,
-             os.path.exists(os.path.join(acct, "BP.OUT")))
+    # 13 Sep 26 - plan M3 D4: CREATE.FILE makes lower-case directories, so a
+    # file made here would be bp.out; both spellings are looked for.
+    run.note("K4 no BP.OUT / bp.out was created by either attempt", False,
+             os.path.exists(os.path.join(acct, "BP.OUT"))
+             or os.path.exists(os.path.join(acct, "bp.out")))
 
     return run.verdict()
 

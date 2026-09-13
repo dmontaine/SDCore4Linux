@@ -95,7 +95,7 @@ def main():
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
     fixdir = os.path.join(acct, FIXDIR)
-    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
+    bp = os.path.join(acct, "bp")           # plan M3 D3
 
     run.say("%s: as %s (uid %d)" % (NAME, user, os.geteuid()))
     run.say("  account    %s" % acct)
@@ -235,7 +235,7 @@ def main():
         V.show_sd(run, "post-clean", ["DELETE VOC bp.out"],
                   cwd=acct, timeout=a.timeout)
         shutil.rmtree(fixdir, ignore_errors=True)
-        for p in (os.path.join(bp, PROBE), os.path.join(acct, "BP.OUT")):
+        for p in (os.path.join(bp, PROBE), os.path.join(acct, "bp.out")):   # plan M3 D4
             if os.path.isdir(p):
                 shutil.rmtree(p, ignore_errors=True)
             elif os.path.exists(p):

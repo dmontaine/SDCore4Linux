@@ -61,7 +61,7 @@ fi
 
 cleanup() {
   rm -f "$BP"/* 2>/dev/null
-  rm -rf "$ACCT/BP.OUT" 2>/dev/null
+  rm -rf "$ACCT/bp.out" 2>/dev/null          # 13 Sep 26: lower case on disk (plan M3 D4)
   ( cd "$ACCT" && printf 'DELETE VOC bp.out\nCOUNT VOC\nOFF\n' \
       | timeout 60 "$SD" 2>&1 ) | strip | grep -iE 'counted' \
       | sed 's/^/  after cleanup: COUNT VOC /'

@@ -106,8 +106,8 @@ def main():
     probe_src = a.probe or PROBE_SRC
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    dirpath = os.path.join(acct, DIRF.upper())
-    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
+    dirpath = os.path.join(acct, DIRF.lower())   # plan M3 D4: CREATE.FILE makes it lower
+    bp = os.path.join(acct, "bp")           # plan M3 D3
 
     run.say("%s: as %s (uid %d), NOT elevated" % (NAME, user, os.geteuid()))
     run.say("  sd        %s" % V.SD)
@@ -157,7 +157,7 @@ def main():
                   cwd=acct, timeout=a.timeout)
     V.session_ok(run, "F session", s)
     run.note("F1 the directory file was created", True,
-             V.says(s.text, r"Created DATA part as %s" % DIRF.upper()))
+             V.says(s.text, r"Created DATA part as %s" % DIRF.lower()))
     # ANCHOR ON THE COUNT, NOT ON THE WORD "Compiled".  "Compiled 1 program(s)
     # with errors in:" contains "Compiled" too.
     run.note("F2 the probe compiled with 0 errors", True,
@@ -265,7 +265,7 @@ def main():
                   ["DELETE.FILE %s FORCE NO.QUERY" % DIRF,
                    "DELETE VOC bp.out"],
                   cwd=acct, timeout=a.timeout)
-        for p in (os.path.join(bp, PROBE), os.path.join(acct, "BP.OUT")):
+        for p in (os.path.join(bp, PROBE), os.path.join(acct, "bp.out")):
             if os.path.isdir(p):
                 shutil.rmtree(p, ignore_errors=True)
             elif os.path.exists(p):

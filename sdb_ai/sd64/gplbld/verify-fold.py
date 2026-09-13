@@ -82,8 +82,8 @@ def main():
     run = V.Run(NAME)
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
-    bpout = os.path.join(acct, "BP.OUT")
+    bp = os.path.join(acct, "bp")           # plan M3 D3
+    bpout = os.path.join(acct, "bp.out")    # plan M3 D4: CREATE.FILE makes it lower
     # WHO prints "<user number> <ACCOUNT>"; the account id is upper case today.
     who = r"^[0-9]+ %s$" % re.escape(os.path.basename(acct).upper())
 
@@ -133,7 +133,11 @@ def main():
                        "It is this run's fixture name and this run has not made"
                        " it, so it belongs to something else.")
             return run.verdict()
-    for p in (os.path.join(bp, PROBE), os.path.join(acct, FILE.upper())):
+    # 13 Sep 26 - plan M3 D4: CREATE.FILE makes the directory lower case now, so
+    # the fixture's directory is FILE; the upper spelling is refused too, since
+    # a leftover from before D4 would be a second casing of the same file.
+    for p in (os.path.join(bp, PROBE), os.path.join(acct, FILE),
+              os.path.join(acct, FILE.upper())):
         if os.path.exists(p):
             run.refuse("%s already exists" % p)
             return run.verdict()
@@ -158,7 +162,7 @@ def main():
     run.note("F1 the verb fixture was copied", True,
              V.says(s.text, r"^1 record\(s\) copied\.$"))
     run.note("F2 the file fixture was created", True,
-             V.says(s.text, r"^Created DATA part as %s$" % FILE.upper()))
+             V.says(s.text, r"^Created DATA part as %s$" % FILE))
     run.note("F3 the probe compiled with 0 errors", True,
              V.says(s.text, r"^0 error\(s\)"))
     run.note("F4 and no error summary followed it", True,
@@ -249,7 +253,7 @@ def main():
     run.note("Z1 no fixture is left in the VOC", 3,
              V.say_count(s.text, r"^Record 'zzfold[vfq]' not found$"))
     run.note("Z2 the file fixture is gone from disk", False,
-             os.path.exists(os.path.join(acct, FILE.upper())))
+             os.path.exists(os.path.join(acct, FILE)))
 
     rc = run.verdict()
     if a.allow_stale:
