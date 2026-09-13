@@ -34,7 +34,7 @@ HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SRC=$HERE/verify-tier-layer.bp
 SD=/usr/local/sdsys/bin/sd
 ACCT=/home/sd/user_accounts/$USER
-BP=$ACCT/BP
+BP=$ACCT/bp                  # 13 Sep 26: lower case on disk (plan M3 D3)
 PROBE=TLPROBE
 OUT=$(mktemp)
 
@@ -62,7 +62,7 @@ fi
 cleanup() {
   rm -f "$BP"/* 2>/dev/null
   rm -rf "$ACCT/BP.OUT" 2>/dev/null
-  ( cd "$ACCT" && printf 'DELETE VOC BP.OUT\nCOUNT VOC\nOFF\n' \
+  ( cd "$ACCT" && printf 'DELETE VOC bp.out\nCOUNT VOC\nOFF\n' \
       | timeout 60 "$SD" 2>&1 ) | strip | grep -iE 'counted' \
       | sed 's/^/  after cleanup: COUNT VOC /'
   rm -f "$OUT" 2>/dev/null

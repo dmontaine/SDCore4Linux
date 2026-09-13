@@ -33,5 +33,14 @@ program zzlcn
 
    read x from v.f, lid then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
    read x from v.f, uid then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'
+
+* 13 Sep 26 - plan M3 D3: for a dotted id, the mixed spelling the old BASIC
+* made - name lower, last segment upper (bp.OUT).  Not printed otherwise, so a
+* missing tag is a missing measurement rather than an answer.
+   n = dcount(lid, '.')
+   if n > 1 then
+      mid = field(lid, '.', 1, n - 1) : '.' : upcase(field(lid, '.', n))
+      read x from v.f, mid then crt 'EXACT.MIXED=Y' else crt 'EXACT.MIXED=N'
+   end
    crt 'ZZLCN.END=1'
 end

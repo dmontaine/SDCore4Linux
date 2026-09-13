@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts, $ipc, newvoc and voc_template by their
 *               lower-case names on disk (plan M3 D1).
 * 12 Sep 26 dm  The case migration added to update.voc earlier today is
@@ -218,7 +219,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                      acc.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
 
                      locate acc.path in voc.paths<1> setting s else
-                        s = acc.path:@ds:'VOC'
+                        s = acc.path:@ds:'voc'
                         openpath s to update.voc.f then
                            display sysmsg(5004, s) ;* Updating xx
 * 10 Sep 26 dm - SL1.  The register record is already in hand, so the tier
@@ -466,7 +467,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    * Open the VOC file
 
-   openpath "VOC" to voc on error
+   openpath "voc" to voc on error
       display 'Error ' : status() : ' opening VOC file. Check access rights.'
       audit.reason = 'the VOC could not be opened'
       goto terminate.connection

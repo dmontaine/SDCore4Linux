@@ -79,6 +79,43 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***§M3 D3 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner FULL delete→install
+(N, DELETE) + reboot — kept accounts hold `VOC`/`$HOLD`/`BP` and the new code
+opens `voc`; test accounts are disposable (owner) — then the suite.*** Names are
+the port's (its CREATEA:1247/1500-1519, SAVELST/SAVESTK/COPYLST `$svlists`,
+to_file.c `$hold`).
+- ***On disk:*** CREATEA `voc`, `$hold`+`$hold.dic` (create.dir.file's literal
+  `.DIC` → `dict.name = os.name:'.dic'`), `$svlists`, `bp` (VOC id `bp`);
+  BBPROC SDSYS `voc`, FILES_LIST `$hold`/`$hold.dic`; installer chmod list; `git
+  mv sdsys/$HOLD`; newvoc/voc_template `voc` field 2, voc_template `$hold` 2–3;
+  `to_file.c` ×3 `$hold`.
+- ***Paths (script, 24 lines, numstat matched):*** `openpath "VOC"`/`@ds:'VOC'`
+  in APISRVR, CPROC, SETACC, LOGIN, DELACC, MODIFYA, SETFILE, _VOC_REF;
+  `"$SVLISTS"` in SAVELST/SAVESTK/COPYLST; default file `"bp"` in CPROC RUN,
+  CATALOG ×3, FORMAT, GENERATE.
+- ***BASIC `bp.OUT` fix, the port's `1943704`, by hand:*** object name from the
+  VOC id that answered + suffix `.out` iff that id is all lower; default `bp`.
+  ***Live defect before D3:*** a fresh account's first `BASIC bp X` made VOC id
+  `bp.OUT` (+ dir `BP.OUT`), and every later `BASIC BP` hit "already exists".
+- ***Interim until D4, deliberate:*** CREATEF:385 still upcases the directory, so
+  the object file is VOC id `bp.out` → dir `BP.OUT`. Verifiers therefore look for
+  `BP.OUT` on disk but `DELETE VOC bp.out` (DELETE is exact) — fold, lcnames,
+  lineendings, txn, basicfuncs, tier-layer.sh; their account `BP` → `bp`.
+- ***`verify-lcnames` new rows:*** S18 (installing user's account `voc $hold
+  $hold.dic $svlists bp` and SDSYS `voc $hold $hold.dic`, lower present, upper
+  absent); F0 no `BP.OUT` before (decisive — else the create branch is not
+  reached); F1 `BASIC bp`; F2/F3 exact VOC reads `bp.out` Y, `BP.OUT` N,
+  `bp.OUT` N (probe gains `EXACT.MIXED`); F4/F5 `BASIC BP` 0 errors, no
+  "already exists". `$hold` paths in H5.
+- ***Checked, no install:*** plain `make` exit 0, `to_file.o` carries `$hold%cP%d`;
+  bbcmp compiles BBPROC, BCOMP, PATHTKN, ***BASIC***, SAVELST, SETACC, _VOC_REF
+  from the tree. The other 12 changed programs FAIL in bbcmp ***identically at
+  HEAD*** (same unsupported statement — PROMPT/VOID/ECHO/PRINTER, CPROC's
+  install-time include — lines offset only by the added history), so bbcmp is
+  not a compile check for them: ***the bootstrap is.*** Verifiers py_compile.
+  ***Would falsify:*** a bootstrap pass failing; S18 or F0–F5 red; SETPTR mode 3
+  not landing in `$hold` (H5a).
+
 ***§M3 D2 INSTALLED AND WITNESSED on `1c36762`*** (owner keep-cycle,
 `.sdcore-install` 11:19:11, boot 11:20:28, `assert-current` 0 at 11:22). Installed
 sdsys top level has no upper-case directory but `$HOLD $HOLD.DIC VOC` (D3);

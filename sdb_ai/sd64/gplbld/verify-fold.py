@@ -82,7 +82,7 @@ def main():
     run = V.Run(NAME)
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "BP")
+    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
     bpout = os.path.join(acct, "BP.OUT")
     # WHO prints "<user number> <ACCOUNT>"; the account id is upper case today.
     who = r"^[0-9]+ %s$" % re.escape(os.path.basename(acct).upper())
@@ -237,7 +237,7 @@ def main():
         if os.path.exists(p):
             os.remove(p)
     if not bpout_before:
-        V.show_sd(run, "BP.OUT was made by this run", ["DELETE VOC BP.OUT"],
+        V.show_sd(run, "BP.OUT was made by this run", ["DELETE VOC bp.out"],
                   cwd=acct, timeout=a.timeout)
         shutil.rmtree(bpout, ignore_errors=True)
     elif os.path.exists(os.path.join(bpout, PROBE)):

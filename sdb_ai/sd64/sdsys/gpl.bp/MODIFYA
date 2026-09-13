@@ -19,6 +19,7 @@
 * 
 *
 * START-HISTORY:
+* 13 Sep 26 An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 Opens sdsys accounts, newvoc and voc_template by their lower-case
 *           names on disk (plan M3 D1).
 * 12 Sep 26 The case migration added to voc.delta earlier today is removed:
@@ -733,7 +734,7 @@ voc.delta:
 
    tier.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
 
-   openpath tier.path:@ds:'VOC' to tvoc.f else
+   openpath tier.path:@ds:'voc' to tvoc.f else
       voc.ok = @false
       return
    end

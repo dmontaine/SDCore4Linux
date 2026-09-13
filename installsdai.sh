@@ -810,11 +810,10 @@ fi
 # Modified by Composer AI - 2026/06/10.
 # Skip chmod/chown when bootstrap did not create expected directories.
 # sudo chmod -R 755 "$sdsysdir/\$HOLD.DIC"
-# 13 Sep 26  Plan M3 D1: the names BBPROC's FILES_LIST creates, lower case except
-#            $HOLD.DIC and VOC (the SDSYS account's own, until D3).  A name that
+# 13 Sep 26  Plan M3 D1/D3: the names BBPROC creates, all lower case.  A name that
 #            no longer matches used to be skipped in silence, leaving that file
 #            owned by root - so a missing one is now said out loud.
-for bootstrap_dir in '$HOLD.DIC' '$ipc' '$map' '$map.dic' VOC accounts.dic dict.dic dir_dict voc.dic; do
+for bootstrap_dir in '$hold.dic' '$ipc' '$map' '$map.dic' voc accounts.dic dict.dic dir_dict voc.dic; do
     if [ -d "${sdsysdir}/${bootstrap_dir}" ]; then
         if [ "${bootstrap_dir}" = '$ipc' ]; then
             sudo chmod -R 775 "${sdsysdir}/${bootstrap_dir}"

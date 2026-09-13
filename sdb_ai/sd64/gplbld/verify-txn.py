@@ -107,7 +107,7 @@ def main():
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
     dirpath = os.path.join(acct, DIRF.upper())
-    bp = os.path.join(acct, "BP")
+    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
 
     run.say("%s: as %s (uid %d), NOT elevated" % (NAME, user, os.geteuid()))
     run.say("  sd        %s" % V.SD)
@@ -263,7 +263,7 @@ def main():
         run.heading("7. tidy up")
         V.show_sd(run, "post-clean",
                   ["DELETE.FILE %s FORCE NO.QUERY" % DIRF,
-                   "DELETE VOC BP.OUT"],
+                   "DELETE VOC bp.out"],
                   cwd=acct, timeout=a.timeout)
         for p in (os.path.join(bp, PROBE), os.path.join(acct, "BP.OUT")):
             if os.path.isdir(p):

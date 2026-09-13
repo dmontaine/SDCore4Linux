@@ -95,7 +95,7 @@ def main():
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
     fixdir = os.path.join(acct, FIXDIR)
-    bp = os.path.join(acct, "BP")
+    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
 
     run.say("%s: as %s (uid %d)" % (NAME, user, os.geteuid()))
     run.say("  account    %s" % acct)
@@ -232,7 +232,7 @@ def main():
         run.heading("8. --keep: fixtures left behind")
     else:
         run.heading("8. tidy up")
-        V.show_sd(run, "post-clean", ["DELETE VOC BP.OUT"],
+        V.show_sd(run, "post-clean", ["DELETE VOC bp.out"],
                   cwd=acct, timeout=a.timeout)
         shutil.rmtree(fixdir, ignore_errors=True)
         for p in (os.path.join(bp, PROBE), os.path.join(acct, "BP.OUT")):

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  An account's VOC file is voc on disk, and RUN's default source
+*               file is bp (plan M3 D3; the port's 1943704).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 dm  An R record's target id is read exactly again: the fold added
 *               earlier today served only accounts needing case migration, and
@@ -465,7 +467,7 @@ $endif
 
       * Look for a MASTER.LOGIN paragraph
 
-      openpath @sdsys:@ds:'VOC' to sdvoc.f on error null
+      openpath @sdsys:@ds:'voc' to sdvoc.f on error null
       then
          read pa.rec from sdvoc.f,"MASTER.LOGIN" on error null
          then
@@ -2419,7 +2421,7 @@ int.run:
    run.debug = @false
 
 int.run.common:
-   run.file.name = "BP"
+   run.file.name = "bp"
 
    * Get first name (file or record)
 
@@ -2942,7 +2944,7 @@ int.logto:
       return to abort.cproc
    end
 
-   openpath "VOC" to new.voc else
+   openpath "voc" to new.voc else
       display sysmsg(5163) ;* Directory is not a SD account
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account

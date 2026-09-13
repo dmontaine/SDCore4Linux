@@ -13,12 +13,14 @@
 # 2 the test could not be run.
 #
 # CATEGORIES COVERED (add one per M3 rename):
-#   $savedlists  saved-list VOC id; on disk still $SVLISTS
-#   $hold        hold-file VOC id; on disk still $HOLD.  The "$hold recname"
+#   $savedlists  saved-list VOC id; on disk $svlists since D3
+#   $hold        hold-file VOC id; on disk $hold since D3.  The "$hold recname"
 #                marker SETPTR writes is matched by C (to_file.c), so this
 #                category also proves the C and the BASIC agree: a mismatch
 #                prints to a file literally named "$hold zzlch" in the account
-#                directory instead of $HOLD/zzlch, and row H5b looks for it.
+#                directory instead of $hold/zzlch, and row H5b looks for it.
+#   directories  S15 (D1), S16-S17 (D2), S18 (D3), and F0-F5: the object file
+#                BASIC names is bp.out, reachable by BASIC BP afterwards.
 #   commands     every K/PA/PH/R/S/V id in NEWVOC, VOC_TEMPLATE, SD.VOCLIB
 #                (the port's 1a88360, 777 here); static rows S6-S9, and count
 #                as the one exercised in a session.
@@ -80,9 +82,9 @@ def main():
     run = V.Run(NAME)
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "BP")
+    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
     bpout = os.path.join(acct, "BP.OUT")
-    holddir = os.path.join(acct, "$HOLD")
+    holddir = os.path.join(acct, "$hold")
     stray = os.path.join(acct, "$hold " + HOLDREC)
 
     run.say("%s: as %s (uid %d), NOT elevated" % (NAME, user, os.geteuid()))
@@ -269,6 +271,20 @@ def main():
     run.note("S17 voc_template's gpl.bp/gpl.bp.out/bp/bp.out: id and path lower,"
              " no upper id", [], rec_wrong)
 
+    # THE ACCOUNT DIRECTORIES (plan M3 D3), in the account CREATE.ACCOUNT made
+    # for the installing user and in SDSYS - same both-halves rule.  BP.OUT is
+    # not here: CREATE.FILE still upper-cases the directory it makes (D4).
+    d3_wrong = []
+    for root, names in ((acct, ["voc", "$hold", "$hold.dic", "$svlists", "bp"]),
+                        (V.SDSYS, ["voc", "$hold", "$hold.dic"])):
+        have = set(os.listdir(root))
+        run.say("  %s: %s" % (root, sorted(n for n in have if n.lower() in names)))
+        d3_wrong += ["%s/%s (lower %s, upper %s)" % (root, n, n in have, n.upper() in have)
+                     for n in names
+                     if not os.path.isdir(os.path.join(root, n)) or n.upper() in have]
+    run.note("S18 the D3 account directories exist lower case and not upper",
+             [], d3_wrong)
+
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")
     for p in (os.path.join(bp, PROBE), os.path.join(holddir, HOLDREC), stray):
@@ -286,8 +302,26 @@ def main():
     bpout_before = os.path.exists(bpout)
     os.makedirs(bp, exist_ok=True)
     shutil.copyfile(PROBE_SRC, os.path.join(bp, PROBE))
-    s = sd("compile", ["BASIC BP %s" % PROBE])
+    # ***THE OBJECT-FILE NAME (plan M3 D3, the port's 1943704).***  BASIC builds
+    # the name only when the object file does not exist yet, so with one already
+    # there this measures nothing - F0 is decisive for that reason, not context.
+    # The old failure was never in the compile that made the file: it was the
+    # NEXT one, typed the other way.  So: lower first, then upper.
+    run.note("F0 no BP.OUT before this run, so BASIC's create branch is reached",
+             False, bpout_before)
+    s = sd("compile, file typed lower", ["BASIC bp %s" % PROBE])
     run.note("F1 the probe compiled with 0 errors", True, V.says(s.text, r"^0 error\(s\)"))
+    t = sd("exact VOC reads of the object file id",
+           ["RUN BP %s bp.out" % PROBE]).text
+    run.note("F2 VOC holds bp.out exactly, and not BP.OUT", ("Y", "N"),
+             (tag(t, "EXACT.LOWER"), tag(t, "EXACT.UPPER")))
+    run.note("F3 and not the mixed bp.OUT the old BASIC made", "N",
+             tag(t, "EXACT.MIXED"))
+    s = sd("compile again, file typed upper", ["BASIC BP %s" % PROBE])
+    run.note("F4 the second compile, typed the other way, compiled with 0 errors",
+             True, V.says(s.text, r"^0 error\(s\)"))
+    run.note("F5 and did not hit 'already exists'", False,
+             V.says(s.text, r"already exists"))
 
     # ------------------------------------------------ per-category function
     def savedlists_works(prefix, first):
@@ -305,7 +339,7 @@ def main():
         s = sd("print to a named hold record, then show the unit",
                ["SETPTR 5,80,66,0,0,3,AS %s,BRIEF" % HOLDREC,
                 "LIST VOC SAMPLE 1 LPTR 5", "SETPTR 5"])
-        run.note(prefix + "a the print landed in $HOLD/%s on disk" % HOLDREC, True,
+        run.note(prefix + "a the print landed in $hold/%s on disk" % HOLDREC, True,
                  os.path.exists(os.path.join(holddir, HOLDREC)))
         run.note(prefix + "b and NOT in a stray file named '$hold %s' (C and BASIC"
                  " agree on the marker)" % HOLDREC, False, os.path.exists(stray))
@@ -363,7 +397,7 @@ def main():
         run.note("Z2 no hold record of ours is left", False,
                  os.path.exists(os.path.join(holddir, HOLDREC)) or os.path.exists(stray))
         if not bpout_before:
-            V.show_sd(run, "BP.OUT was made by this run", ["DELETE VOC BP.OUT"],
+            V.show_sd(run, "BP.OUT was made by this run", ["DELETE VOC bp.out"],
                       cwd=acct, timeout=a.timeout)
             shutil.rmtree(bpout, ignore_errors=True)
         elif os.path.exists(os.path.join(bpout, PROBE)):
