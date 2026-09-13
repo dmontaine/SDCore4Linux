@@ -79,6 +79,14 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***`PRE_RELEASE` 29 BUILT 13 Sep 2026, NOT INSTALLED.*** `sd.service` is
+`Type=oneshot` + `RemainAfterExit=yes` (reason and falsifier in the unit's own
+comment; `systemd-analyze verify` silent for it). Changelog entry added. ***NEXT:
+owner keep-cycle install + reboot (no rename in flight, so keeping accounts is
+fine); then, no sudo: `systemctl is-active sd.service`, `journalctl -b -u
+sd.service` (no `sd -stop` after the start), and the suite — which must run
+WITHOUT the `sd -start` workaround.*** Then §M3 D2.
+
 ***§M3 D1 INSTALLED AND WITNESSED on `58365cc`*** (owner FULL delete→install,
 `.sdcore-install` 2026-09-13 10:29:13, `assert-current` 0 at 10:44). ***SD was
 left stopped by `PRE_RELEASE` 29*** (installer start and boot start both stopped
