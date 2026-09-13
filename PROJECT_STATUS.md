@@ -40,7 +40,8 @@ the work, nothing in "Verified" that was not observed that session.
 - **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`).
   ***M1 (the fold) INSTALLED + WITNESSED 12 Sep 20:55 on `76938f1`*** —
   `verify-fold.py` 7 failed before → 35/35 after, all standing verifiers
-  unchanged; see START HERE. The rename
+  unchanged; see START HERE. ***M2's VOC migration (`!voccase`) BUILT 12 Sep,
+  NOT INSTALLED*** — its on-disk half waits on each M3 category. The rename
   (M2/M3) is ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
   to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
   `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
@@ -78,8 +79,54 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, ~21:05 — §M1 (THE CASE FOLD) IS INSTALLED AND WITNESSED. NEXT
-TASK IS M2.*** Install `76938f1`, 20:55:16, owner-run delete→install,
+***12 Sep 2026, ~21:45 — §M2's VOC MIGRATION IS BUILT AND PUSHED, NOT
+INSTALLED. NEXT: OWNER REINSTALL, THEN `verify-voccase.py` MUST GO FROM 20
+FAILED TO 34/34, AND THE STANDING VERIFIERS MUST STAY AT THEIR COUNTS.***
+
+**What was built.** `GPL.BP/voccase` (new, lower-case name — adds no meter
+remnant; catalogued `!voccase`, which the catalogue stores as `gcat/!VOCCASE`
+like every entry). Called from `LOGIN update.voc` before the NEWVOC copy loop,
+so both routes reach it: the installer's keep-cycle `UPDATE.ACCOUNTS ALL`
+(`installsdai.sh:944`, root) and an ordinary user's release prompt. Rules, each
+settled from the record, no owner question needed:
+- moves an account VOC record to its lower-case id ***only if SD ships that
+  lower-case id*** (NEWVOC or VOC_TEMPLATE) — the 12 Sep ruling keeps user names
+  out, and the same test makes it ***inert until M3 ships a lower-case id***;
+- content moves unchanged, so `[locked]` goes with it and the copy loop honours
+  it under the new name;
+- both spellings present and DIFFERENT → neither touched, named (10917) — plan
+  M2 "refuse rather than guess"; IDENTICAL → upper deleted (no choice exists;
+  also recovers a run interrupted between its write and delete);
+- write before delete, never the reverse.
+Messages: `10052` "Cannot open SDSYS VOC_TEMPLATE" ***reused from the port with
+its number*** (it had it; this tree did not), `10916` moved, `10917` refused
+(Linux block). Uses select list 11, free at the call site.
+
+**Witness `gplbld/verify-voccase.py` + `.bp`, no sudo** — three fixture files
+stand in for account VOC / NEWVOC / VOC_TEMPLATE (a real VOC would pass by the
+routine doing nothing, and NEWVOC needs root). 34 decisive rows, including the
+must-NOT-move ones (user name, not-yet-renamed system name, already-lower,
+refused twin) and a second call proving idempotence. ***RED CONTROL WATCHED on
+install `76938f1`: 20 of 34 failed, for the right reason*** — the probe wrote
+its fixtures, then `Unable to load '!VOCCASE' object code`; compile, fixture and
+cleanup rows passed.
+
+***NOT WITNESSED BY IT, AND WHY:*** `update.voc`'s call and messages
+10916/10917 — they need a shipped lower-case id and an account that predates it,
+i.e. the first M3 rename on a KEEP-accounts cycle. Until then the "standing
+verifiers unchanged" run is what shows the inert call breaks nothing (tier-layer
+and accounts exercise `update.voc`).
+
+***M2 IS NOT FINISHED BY THIS — STILL TO BUILD, per M3 category:*** the ON-DISK
+renames the VOC move cannot do (per-account `$HOLD`, `$HOLD.DIC`, `$SVLISTS`,
+`BP`, `BP.OUT` directories and the F-record paths naming them; sdsys directory
+names; the register keys `ACCOUNTS/DON` → `don`, root-only, so installer). Each
+belongs with the M3 commit that renames its category, witnessed on a keep cycle.
+***Suggested M3 order, the port's (19 Aug):*** `$hold` / `$savedlists` VOC ids →
+TCL commands → SDSYS file names on disk → F/Q pointers → `bp`/`gpl.bp` → account
+names — conditional; re-check against the meter before starting.
+
+***12 Sep 2026, ~21:05 — §M1 (THE CASE FOLD) IS INSTALLED AND WITNESSED.*** Install `76938f1`, 20:55:16, owner-run delete→install,
 `assert-current` **0**. All 37 changed programs have `GPL.BP.OUT` objects dated
 20:55:18–21 (none missing), so the bootstrap compiled every one.
 `verify-fold.py` ***35/35*** (was 7 failed on `f14919c`) — raw output checked,

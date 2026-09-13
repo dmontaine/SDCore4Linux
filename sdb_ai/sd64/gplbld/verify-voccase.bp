@@ -1,0 +1,74 @@
+* verify-voccase.bp - the BASIC half of gplbld/verify-voccase.py.  Plan
+* section M2, the case migration (GPL.BP/voccase, catalogued !voccase).
+*
+* IT IS STAGED, COMPILED AND RUN BY verify-voccase.py IN THE CALLER'S OWN
+* ACCOUNT, against three fixture files that stand in for an account VOC, NEWVOC
+* and VOC_TEMPLATE.  So the migration's every rule is measured without sudo and
+* without touching a real VOC or the shipped SDSYS files.
+*
+* ***EVERY ANSWER IS "TAG=value" ON ITS OWN LINE***, and the ids in a list are
+* separated by spaces in SELECT order; verify-voccase.py sorts them.
+*
+program zzvcase
+
+   crt 'ZZVCASE.BEGIN=1'
+
+   open 'zzvcv' to v.f else
+      crt 'ZZVCASE.FATAL=cannot open zzvcv'
+      stop
+   end
+   open 'zzvcn' to n.f else
+      crt 'ZZVCASE.FATAL=cannot open zzvcn'
+      stop
+   end
+   open 'zzvct' to t.f else
+      crt 'ZZVCASE.FATAL=cannot open zzvct'
+      stop
+   end
+
+* What SD "ships" in lower case.
+   write 'V':@fm:'IN':@fm:'1' to n.f, 'list'
+   write 'F':@fm:'$hold' to n.f, '$hold'
+   write 'V':@fm:'IN':@fm:'2' to n.f, 'sort'
+   write 'V':@fm:'IN':@fm:'3' to n.f, 'select'
+   write 'V':@fm:'IN':@fm:'4' to t.f, 'admin.verb'
+
+* The account, as an old install left it.
+   write 'PA':@fm:'LIST ONE' to v.f, 'LIST'                ;* moves
+   write 'F [locked]':@fm:'MINE' to v.f, '$HOLD'           ;* moves, lock and all
+   write 'V':@fm:'x' to v.f, 'ADMIN.VERB'                  ;* moves via VOC_TEMPLATE
+   write 'PA':@fm:'mine' to v.f, 'MYPARA'                  ;* user's own: untouched
+   write 'V':@fm:'c' to v.f, 'COUNT'                       ;* not shipped lower: untouched
+   write 'V':@fm:'upper' to v.f, 'SORT'                    ;* differing twin: refused
+   write 'V':@fm:'lower' to v.f, 'sort'
+   write 'X':@fm:'same' to v.f, 'SELECT'                   ;* identical twin: resolved
+   write 'X':@fm:'same' to v.f, 'select'
+   write 'PA':@fm:'already' to v.f, 'lower'                ;* already lower: untouched
+   crt 'FIXTURES=1'
+
+   moved = ''
+   collided = ''
+   call !voccase(v.f, n.f, t.f, moved, collided)
+   crt 'MOVED=':convert(@fm, ' ', moved)
+   crt 'COLLIDED=':convert(@fm, ' ', collided)
+
+* What is in the fake account VOC now, record by record.
+   ids = 'LIST list $HOLD $hold ADMIN.VERB admin.verb MYPARA mypara COUNT count SORT sort SELECT select lower'
+   for i = 1 to dcount(ids, ' ')
+      id = field(ids, ' ', i)
+      read rec from v.f, id then
+         crt 'REC.':id:'=':convert(@fm, '|', rec)
+      end else
+         crt 'REC.':id:'=ABSENT'
+      end
+   next i
+
+* IDEMPOTENT: a second run moves nothing and refuses the same twin again.
+   moved = ''
+   collided = ''
+   call !voccase(v.f, n.f, t.f, moved, collided)
+   crt 'MOVED2=':convert(@fm, ' ', moved)
+   crt 'COLLIDED2=':convert(@fm, ' ', collided)
+
+   crt 'ZZVCASE.END=1'
+end

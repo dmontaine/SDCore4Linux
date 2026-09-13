@@ -1,0 +1,119 @@
+* voccase
+* Bring an account VOC's system names to the case SD now ships them in
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 12 Sep 26 dm  New.  Plan section M2, the migration half of the lower-case
+*               conversion.  No port equivalent: NTFS matches names regardless
+*               of case, so the port could rename new installs and leave old
+*               accounts alone.  On ext4 LIST and list are two records.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !voccase(voc.f, newvoc.f, template.f, moved, collided)
+*
+*    voc.f       the account VOC, open
+*    newvoc.f    SDSYS NEWVOC, open
+*    template.f  SDSYS VOC_TEMPLATE, open (may be the same file as newvoc.f)
+*    moved       returned: the lower-case ids records were moved to, @fm list
+*    collided    returned: the ids left alone because BOTH spellings exist
+*
+*    For every record in voc.f whose id contains an upper-case letter, and
+*    whose LOWER-CASE id is a record SD ships in NEWVOC or VOC_TEMPLATE, the
+*    record is moved to the lower-case id, content unchanged.  A [locked]
+*    marker moves with it, so the update that runs afterwards honours it under
+*    the new name exactly as it did under the old one.
+*
+*    ONLY NAMES SD SHIPS.  A record whose lower-case id SD does not ship is the
+*    account's own - a user's paragraph, file or verb - and is not touched:
+*    the owner's ruling of 12 Sep 2026 puts user data outside section M.  The
+*    same test also leaves a SYSTEM name alone until SD actually ships it in
+*    lower case, so this routine is inert on a tree that has not been renamed
+*    and each category starts migrating the release it is renamed in.
+*
+*    ***BOTH SPELLINGS PRESENT IS REFUSED, NOT GUESSED*** (plan M2).  If the
+*    lower-case id already exists and the two records DIFFER, neither is
+*    touched and the upper-case id is returned in collided for the caller to
+*    name.  A fallback that silently picked one would eventually pick the
+*    empty one.  If the two are IDENTICAL there is no choice to make, so the
+*    upper-case one is deleted and counted as moved - which is also how a run
+*    interrupted between the write and the delete below finishes next time.
+*
+*    WRITE THEN DELETE, never the reverse: interrupted between the two, the
+*    account has both spellings of one record (recovered by the identical rule
+*    above), never neither.
+*
+*    Uses select list 11 and reads it to the end before doing anything else,
+*    so the caller must not be holding list 11 when it calls.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+subroutine voccase(voc.f, newvoc.f, template.f, moved, collided)
+$catalogue !voccase
+
+   moved = ''
+   collided = ''
+
+*  Collect first, act second: the loop below writes and deletes records in
+*  the very file being selected.
+   ids = ''
+   select voc.f to 11
+   loop
+      readnext id from 11 else exit
+      if downcase(id) # id then ids<-1> = id
+   repeat
+
+   n = dcount(ids, @fm)
+   for i = 1 to n
+      id = ids<i>
+      lid = downcase(id)
+
+      shipped = @false
+      read x from newvoc.f, lid then shipped = @true
+      if not(shipped) then
+         read x from template.f, lid then shipped = @true
+      end
+      if not(shipped) then continue
+
+      readu rec from voc.f, id else
+         release voc.f, id              ;* gone since the select
+         continue
+      end
+
+      read lrec from voc.f, lid then
+         if lrec = rec then
+            delete voc.f, id            ;* identical: nothing to choose
+            moved<-1> = lid
+         end else
+            release voc.f, id
+            collided<-1> = id
+         end
+         continue
+      end
+
+      write rec to voc.f, lid
+      delete voc.f, id
+      moved<-1> = lid
+   next i
+
+   return
+end
+
+* END-CODE
