@@ -344,8 +344,12 @@ def reached_off(s):
     sd echoes it at its own prompt, so ":OFF" on a line of its own appears only
     when every command before it was read at the prompt.  A verb prompt that
     swallows OFF shows up as a timeout instead, which is the other half of
-    session_ok."""
-    return says(s.text, r"^:OFF$")
+    session_ok.
+
+    ONE OR MORE COLONS: while a select list is active sd's prompt is "::"
+    (measured 12 Sep 2026, SELECT VOC SAMPLE 2), so a session that ends with a
+    list active echoes "::OFF"."""
+    return says(s.text, r"^:+OFF$")
 
 
 def session_ok(run, step, s, decisive=True):

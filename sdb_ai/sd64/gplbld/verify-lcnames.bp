@@ -1,0 +1,64 @@
+* verify-lcnames.bp - the BASIC half of gplbld/verify-lcnames.py.  Plan
+* section M3, one category at a time; this release: the $savedlists VOC id.
+*
+* STAGED, COMPILED AND RUN BY verify-lcnames.py IN THE CALLER'S OWN ACCOUNT.
+*
+* WHY BASIC: every verb that could look at the VOC FOLDS the id - CT VOC
+* $SAVEDLISTS finds $savedlists - so no verb can say which spelling is actually
+* on disk.  A READ of a DYNAMIC file is an exact match, and that is the
+* instrument.
+*
+*    RUN BP ZZLCN READ    report which spellings exist
+*    RUN BP ZZLCN DOWN    move $savedlists to $SAVEDLISTS (an account from
+*                         before the rename)
+*    RUN BP ZZLCN UP      move it back, if it is still upper case
+*
+* Every answer is TAG=value on its own line, each printed on one path only.
+*
+program zzlcn
+
+   mode = upcase(field(trim(@sentence), ' ', 4))
+   crt 'ZZLCN.MODE=':mode
+
+   open 'VOC' to v.f else
+      crt 'ZZLCN.FATAL=cannot open VOC'
+      stop
+   end
+
+   begin case
+      case mode = 'READ'
+         null
+
+      case mode = 'DOWN'
+         readu rec from v.f, '$savedlists' then
+            write rec to v.f, '$SAVEDLISTS'
+            delete v.f, '$savedlists'
+            crt 'DOWN=1'
+         end else
+            release v.f, '$savedlists'
+            crt 'DOWN=0'
+         end
+
+      case mode = 'UP'
+         read lrec from v.f, '$savedlists' then
+            crt 'UP=nothing'
+         end else
+            readu rec from v.f, '$SAVEDLISTS' then
+               write rec to v.f, '$savedlists'
+               delete v.f, '$SAVEDLISTS'
+               crt 'UP=moved'
+            end else
+               release v.f, '$SAVEDLISTS'
+               crt 'UP=neither'
+            end
+         end
+
+      case 1
+         crt 'ZZLCN.FATAL=unknown mode'
+         stop
+   end case
+
+   read x from v.f, '$savedlists' then crt 'EXACT.LOWER=Y' else crt 'EXACT.LOWER=N'
+   read x from v.f, '$SAVEDLISTS' then crt 'EXACT.UPPER=Y' else crt 'EXACT.UPPER=N'
+   crt 'ZZLCN.END=1'
+end

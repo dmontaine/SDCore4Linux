@@ -33,6 +33,8 @@
 #   SORT + sort, different  REFUSED: both kept, SORT named in collided
 #   SELECT + select, same   no choice to make: upper deleted, counted moved
 #   lower                   already lower: untouched
+#   $SAVEDLISTS             CREATEA writes it, renamed (created.ids): moved
+#   $COMMAND.STACK          CREATEA writes it, not renamed yet: untouched
 # and a second call moves nothing and refuses SORT again (idempotent).
 #
 import argparse
@@ -157,8 +159,9 @@ def main():
         return tag(t, "REC." + i)
 
     run.heading("4. the first call - what moved and what was refused")
-    run.note("M1 moved exactly $hold, admin.verb, list, select",
-             ["$hold", "admin.verb", "list", "select"], idset(tag(t, "MOVED")))
+    run.note("M1 moved exactly $hold, $savedlists, admin.verb, list, select",
+             ["$hold", "$savedlists", "admin.verb", "list", "select"],
+             idset(tag(t, "MOVED")))
     run.note("M2 refused exactly SORT", ["SORT"], idset(tag(t, "COLLIDED")))
 
     run.heading("5. the account VOC afterwards, record by record")
@@ -180,6 +183,12 @@ def main():
     run.note("R13 the identical twin: SELECT deleted", "ABSENT", rec("SELECT"))
     run.note("R14 the identical twin: select kept", "X|same", rec("select"))
     run.note("R15 an id already lower is untouched", "PA|already", rec("lower"))
+    run.note("R16 $SAVEDLISTS moved though NEWVOC does not ship it (CREATEA's)",
+             "F|$SVLISTS", rec("$savedlists"))
+    run.note("R17 $SAVEDLISTS is gone", "ABSENT", rec("$SAVEDLISTS"))
+    run.note("R18 $COMMAND.STACK, CREATEA's but not renamed, is untouched",
+             "X", rec("$COMMAND.STACK"))
+    run.note("R19 and no $command.stack was made", "ABSENT", rec("$command.stack"))
 
     run.heading("6. the second call - idempotent")
     run.note("I1 moves nothing", [], idset(tag(t, "MOVED2")))

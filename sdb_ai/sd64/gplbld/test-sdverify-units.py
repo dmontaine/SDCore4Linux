@@ -130,6 +130,13 @@ def driver_cases(tmp):
     V.session_ok(r, "no prompt", V.run_sd(["WHO"], cwd=tmp, sd=echo, timeout=10))
     ck("session_ok FAILS output with no ':OFF' prompt line", r.verdict(), 1)
 
+    # The prompt is "::" while a select list is active - still a run to OFF.
+    listed = stub(tmp, "sd-listed",
+                  'while IFS= read -r l; do printf "::%s\\n" "$l"; done\n')
+    r = quiet_run()
+    V.session_ok(r, "list active", V.run_sd(["WHO"], cwd=tmp, sd=listed, timeout=10))
+    ck("session_ok passes '::OFF' (a select list was active)", r.verdict(), 0)
+
     r = quiet_run()
     ck("require_running refuses a stopped SD with exit 2",
        V.require_running(r, tmp, sd=stopped, timeout=10), 2)

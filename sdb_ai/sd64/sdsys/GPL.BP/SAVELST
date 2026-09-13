@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  The saved-list VOC id is $savedlists (plan M3, first rename).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -102,25 +103,25 @@ $include parser.h
 
 * ---------------  Step 2 -  Create the save list file if necessary
 
-   open "$SAVEDLISTS" to saved.lists.file else
+   open "$savedlists" to saved.lists.file else
       @system.return.code = -status()
       
       if status() # ER$NVR then
-         stop sysmsg(3248, status()) ;* Error xx opening $SAVEDLISTS
+         stop sysmsg(3248, status()) ;* Error xx opening $savedlists
       end
 
       create.file "$SVLISTS" dynamic on error
-         stop sysmsg(3249, status()) ;* Error xx creating $SAVEDLISTS
+         stop sysmsg(3249, status()) ;* Error xx creating $savedlists
       end
 
       voc.rec = "F" : @fm : "$SVLISTS"
-      recordlocku @voc, "$SAVEDLISTS"
-      write voc.rec to @voc, "$SAVEDLISTS"
+      recordlocku @voc, "$savedlists"
+      write voc.rec to @voc, "$savedlists"
 
-      display sysmsg(3250) ;* Created $SAVEDLISTS
+      display sysmsg(3250) ;* Created $savedlists
 
-      open "$SAVEDLISTS" to saved.lists.file else
-         stop sysmsg(3248, status()) ;* Error xx opening $SAVEDLISTS
+      open "$savedlists" to saved.lists.file else
+         stop sysmsg(3248, status()) ;* Error xx opening $savedlists
       end
    end
 

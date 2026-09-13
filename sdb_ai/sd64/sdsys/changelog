@@ -9,6 +9,29 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  THE SAVED-LIST FILE IS NOW CALLED $savedlists, THE FIRST SYSTEM NAME
+           TO MOVE TO LOWER CASE.
+
+           SD's system names are moving to lower case, one group at a time.
+           This is the first: the VOC entry for the file that SAVE.LIST,
+           GET.LIST, DELETE.LIST, COPY.LIST, EDIT.LIST and SAVE.STACK use is
+           now $savedlists.  A new account gets it under that name.
+
+           An account created before this keeps working without you doing
+           anything, and the next VOC update renames its entry for you - the
+           "Update VOC to new release?" question when you sign in, or
+           UPDATE.ACCOUNTS.  It says so, naming the entry it renamed.  If
+           that account also has an entry you made yourself called
+           $savedlists, SD will not choose between the two: it leaves both
+           and tells you, so you can decide.
+
+           You can still type $SAVEDLISTS: names are found in either case.
+
+           WHAT DOES NOT CHANGE: your saved lists.  Only the name of the VOC
+           entry moved; the directory that holds the lists is where it was,
+           with everything in it.
+
+
 12 Sep 26  A NAME NOW FINDS ITS VOC ENTRY WHETHER YOU TYPE IT IN UPPER OR
            LOWER CASE.
 

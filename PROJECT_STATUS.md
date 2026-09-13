@@ -79,6 +79,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***12 Sep 2026, ~22:40 — §M3 FIRST CATEGORY BUILT AND PUSHED, NOT INSTALLED:
+THE `$SAVEDLISTS` VOC ID IS `$savedlists`*** (the port's first rename, its
+`65c681f`). NEXT: owner reinstall → start SD if stopped (PRE_RELEASE 29) →
+`verify-lcnames.py` must go 10 failed → 37/37 and `verify-voccase.py` 3 failed →
+38/38, then the standing suite.
+- ***Edited with Edit replace-all, not the port's patch*** — it would not apply
+  (it depends on the port's earlier on-disk rename). Literals in COPYLST SAVELST
+  DELLIST LSTMRG CREATEA CLEANAC SAVESTK `_DELLIST` `_SAVELST` `_GETLIST` GETLIST;
+  MESSAGES 3248/3249/3250/6462; `NEWVOC`+`VOC_TEMPLATE` `EDIT.LIST`. On disk it
+  is still `$SVLISTS` (the (a) half, later). No C reference exists.
+- ***M2 HAD A HOLE THIS CATEGORY EXPOSED, CLOSED:*** `!voccase` moved only ids
+  SD *ships*, and `$SAVEDLISTS` is not shipped — CREATEA writes it (as it does
+  `$COMMAND.STACK`, `$HOLD`, `BP`). So an existing account would have kept
+  `$SAVEDLISTS` for ever. `voccase` now also treats `created.ids` as system names
+  — ***ONLY RENAMED ones***, since listing `$hold` early would move it and then
+  VOC_TEMPLATE's `$HOLD` would be copied back beside it. The list is checked
+  against CREATEA's own lower-case literals by `verify-lcnames` S4/S5.
+- `sdverify.reached_off` now accepts `::OFF` — measured: the prompt is `::`
+  while a select list is active. Unit case added (41/0).
+- ***NEW `gplbld/verify-lcnames.py` + `.bp`*** (37 decisive): installed source
+  static rows; a new account holds exactly `$savedlists` (BASIC exact read — CT
+  folds, so "not found" cannot test a rename); lists work; CT echoes the MATCHED
+  id; ***the migration run for real*** — probe moves DON's id back to
+  `$SAVEDLISTS`, the lists still work through the fold, real `UPDATE.ACCOUNTS`
+  must print 10916 naming `$savedlists` and leave exactly `$savedlists`. Restore
+  undoes only what the run did; Z1 "ends as it started". ***RED WATCHED on
+  pre-rename `d79ae15`: 10/36 failed, exactly the rename rows; DON's VOC left
+  (N,Y) as found.*** `verify-voccase` gained R16–R19 (CREATEA names): red 3/38.
+  ***S4 passed vacuously there (`[] == []`) — S5 added so it cannot again.***
+- ***Not measured and why:*** a KEEP-accounts install cycle (the installer's
+  root `UPDATE.ACCOUNTS ALL`) — the in-account simulation stands in; a second
+  account.
+
 ***12 Sep 2026, ~22:00 — §M2's VOC MIGRATION IS INSTALLED AND WITNESSED on
 `d79ae15`*** (21:45:13, `assert-current` 0; SD kick-started by the owner after
 install, PRE_RELEASE 29). `gcat/!VOCCASE` and `GPL.BP.OUT/voccase` 21:45:16,

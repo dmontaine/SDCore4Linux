@@ -23,6 +23,8 @@
 *               accounts alone.  On ext4 LIST and list are two records.
 * 12 Sep 26 dm  $internal: select list 11 is an internal list, and without
 *               the flag the select faulted (verify-voccase, install 4288380).
+* 12 Sep 26 dm  Names CREATEA writes (not shipped) migrate too, once renamed:
+*               $savedlists, the first M3 rename.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -80,6 +82,18 @@ $catalogue !voccase
    moved = ''
    collided = ''
 
+*  12 Sep 26 dm - THE SYSTEM NAMES SD DOES NOT SHIP BUT CREATES.  CREATEA writes
+*  $COMMAND.STACK, $HOLD, $SAVEDLISTS and BP into a new account's VOC itself
+*  (CREATEA create.dir.file and the write above it); only $HOLD is also in
+*  VOC_TEMPLATE.  Those are system names, so they migrate too - but ONLY ONCE
+*  RENAMED: an id listed here before CREATEA and the code use it would be moved
+*  to a name nothing opens, and $HOLD would be copied straight back from
+*  VOC_TEMPLATE beside it.  ***KEEP THIS EQUAL TO THE LOWER-CASE ids CREATEA
+*  WRITES*** - verify-voccase.py compares the two in the installed source.
+*  An @VM list searched with <1,1>, the form DELETEF:74/:239 uses and has been
+*  seen working ("Cannot delete system file VOC").
+   created.ids = '$savedlists'
+
 *  Collect first, act second: the loop below writes and deletes records in
 *  the very file being selected.
    ids = ''
@@ -95,7 +109,10 @@ $catalogue !voccase
       lid = downcase(id)
 
       shipped = @false
-      read x from newvoc.f, lid then shipped = @true
+      locate lid in created.ids<1,1> setting pos then shipped = @true
+      if not(shipped) then
+         read x from newvoc.f, lid then shipped = @true
+      end
       if not(shipped) then
          read x from template.f, lid then shipped = @true
       end
