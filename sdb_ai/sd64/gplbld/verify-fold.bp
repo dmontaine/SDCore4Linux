@@ -1,0 +1,54 @@
+* verify-fold.bp - the BASIC half of gplbld/verify-fold.py.  Plan section M1;
+* the intent is the port's gplbld/verify-fold.ps1 section 4.
+*
+* IT IS STAGED, COMPILED AND RUN BY verify-fold.py IN THE CALLER'S OWN ACCOUNT.
+* It is an ordinary program - NOT $internal - so it compiles as an unprivileged
+* user with no developer build.
+*
+* WHY A PROGRAM AT ALL: no verb reaches this lookup.  A verb folds the name it
+* was typed with before it opens anything, so the BASIC OPEN statement - which
+* goes through _VOC_REF and nothing else - can only be measured from BASIC.  A
+* hard-coded literal such as open "$SAVEDLISTS" is exactly that case.
+*
+* ***EVERY ANSWER IS PRINTED AS "TAG=value" ON ITS OWN LINE, AND EACH TAG IS
+* PRINTED ON EXACTLY ONE PATH PER VALUE.***  Y is printed only from the THEN of
+* the open, N only from its ELSE, so a fault part way leaves the tag absent
+* rather than looking like an answer.
+*
+* ***IT LEAVES ITS Q-POINTER BEHIND ON PURPOSE*** so verify-fold.py can read it
+* back in a fresh session before removing it.
+*
+program zzfold
+
+   crt 'ZZFOLD.BEGIN=1'
+
+   open 'VOC' to voc.f else
+      crt 'ZZFOLD.FATAL=cannot open VOC'
+      stop
+   end
+
+* The Q-pointer fixture: a lower-case VOC id whose TARGET is named in upper
+* case.  The target's real VOC id is lower (verify-fold.py made it with
+* CREATE.FILE), so only the fold on the Q-pointer target can resolve it.
+   write 'Q':@fm:'':@fm:'ZZFOLDF' to voc.f, 'zzfoldq'
+   crt 'Q.WRITTEN=1'
+
+* CONTROL: the name exactly as its VOC id is spelled.  Opens before and after.
+   open 'zzfoldf' to f1 then crt 'OPEN.EXACT=Y' else crt 'OPEN.EXACT=N'
+
+* THE ROW: a lower-case VOC id opened by its upper-case name.  N before the
+* fold, Y after.
+   open 'ZZFOLDF' to f2 then crt 'OPEN.UPPER=Y' else crt 'OPEN.UPPER=N'
+
+* THE UPWARD HALF: an upper-case VOC id opened by its lower-case name.
+   open 'voc' to f3 then crt 'OPEN.VOCLOWER=Y' else crt 'OPEN.VOCLOWER=N'
+
+* CONTROL: a name in the VOC in no case at all.  N before and after, so the
+* fold has not turned into "every open succeeds".
+   open 'ZZFOLDNONE' to f4 then crt 'OPEN.ABSENT=Y' else crt 'OPEN.ABSENT=N'
+
+* The Q-pointer's target.
+   open 'zzfoldq' to f5 then crt 'OPEN.QTARGET=Y' else crt 'OPEN.QTARGET=N'
+
+   crt 'ZZFOLD.END=1'
+end

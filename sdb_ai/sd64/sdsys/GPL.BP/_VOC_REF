@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 The VOC name folds - as typed, then lower, then upper - for OPEN,
+*           OPENSEQ, DELETESEQ and a Q-pointer's target (plan M1, the port's d815df5).
 * 09 Sep 26 Every pathname is now absolutised. The branch that left a VFS:
 *           pathname relative was waiting for a handler the C never had, so
 *           the name it produced could not be opened by anything.
@@ -72,7 +74,37 @@ $include keys.h
 
    qfile = voc.id
 
+* 12 Sep 26 dm - THE NAME FOLD FOR THE BASIC OPEN STATEMENT, the port's
+*   d815df5.  This is pcode_voc_ref, reached from get_voc_file_reference
+*   (op_dio1.c:487) for every OPEN (op_dio1.c:630), OPENSEQ (op_seqio.c:464)
+*   and DELETESEQ (op_seqio.c:204), and it was one exact-match read.  So a program
+*   opening a hard-coded literal - open "$SAVEDLISTS" - would break at the
+*   first VOC id rename while the verbs, which fold for themselves, kept
+*   working.  As typed, then lower, then upper; the fold is INSIDE the else,
+*   so an exact match still wins and the PATH: / Account:File syntax is still
+*   reached only when no VOC record answers in any case.  A flag and a goto,
+*   not a nested block, so that syntax keeps its indentation; the label is
+*   where a successful read falls through to anyway.
    read voc.rec from voc,voc.id else
+      fold.found = @false
+
+      read voc.rec from voc,downcase(voc.id) then
+         voc.id = downcase(voc.id)
+         fold.found = @true
+      end else
+         read voc.rec from voc,upcase(voc.id) then
+            voc.id = upcase(voc.id)
+            fold.found = @true
+         end
+      end
+
+      if fold.found then
+         * qfile is the multifile component default (see above) and was set from
+         * the name as typed, so it has to move to the name that actually matched.
+         qfile = voc.id
+         goto parse.as.q.pointer
+      end
+
       * We haven't found the item as a VOC entry. Is it a special syntax for
       * a remote file or a pathname
 
@@ -219,9 +251,19 @@ parse.as.q.pointer:
 
             * Read the target record
 
+* 12 Sep 26 dm - the same fold on the Q-pointer target, so a Q-pointer naming
+*   a file that has since been renamed to lower case still resolves.
             read voc.rec from qvoc, qfile else
-               set.status ER$NVR
-               return
+               read voc.rec from qvoc, downcase(qfile) then
+                  qfile = downcase(qfile)
+               end else
+                  read voc.rec from qvoc, upcase(qfile) then
+                     qfile = upcase(qfile)
+                  end else
+                     set.status ER$NVR
+                     return
+                  end
+               end
             end
 
             * Do not close the remote VOC as we may need it for a subsequent

@@ -37,8 +37,10 @@ the work, nothing in "Verified" that was not observed that session.
   corrected in place: §L1's tier-layer half (below), `PRE_RELEASE 6` (no longer
   "not one item exercised"), and `24(2)`'s `file:line`. Everything else was
   confirmed genuinely outstanding, with the measurement in the entry.
-- **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`),
-  ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
+- **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`).
+  ***M1 (the fold) BUILT + COMMITTED 12 Sep, NOT INSTALLED*** — `verify-fold.py`
+  red 7/35 on the pre-fold install as designed; see START HERE. The rename
+  (M2/M3) is ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
   to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
   `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
   `upcase(file.name)` (and `create.file zzvvw` really made `ZZVVW` on this box,
@@ -75,52 +77,76 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***13 Sep 2026 HAND-OFF — READ THIS FIRST. THE NEXT TASK IS §M's M1 (THE CASE
-FOLD), FULLY LOCATED BELOW; NOTHING IS EDITED YET, TREE CLEAN AT `b9f0156`.***
+***12 Sep 2026, 21:00 HAND-OFF — READ THIS FIRST. §M1 (THE CASE FOLD) IS
+BUILT AND COMMITTED, NOT INSTALLED. THE NEXT STEP IS AN OWNER REINSTALL, THEN
+`verify-fold.py` MUST GO FROM 7 FAILED TO 35/35.*** (The block this replaces was
+headed "13 Sep"; it was written 12 Sep ~20:15 — the date was wrong.)
 
-**Where §M is.** The scope meter is built (`gplbld/verify-nocase.py`, red by
-design, 1036 name remnants + 3 code sites) and BOTH rulings are in: account
-names → lower case (in scope, the `CREATEA:409` store site), user data-file
-record ids → OUT (SUE≠sue on ext4). Install `f14919c` current, DON `COUNT VOC`
-418. ***The migration itself is unstarted, and the plan's order is not
-optional: FOLD FIRST, THEN RENAME*** (plan §M1 — renaming first breaks every
-name until the fold lands).
+**Where §M is.** Rulings in (account names → lower, in scope at `CREATEA:409`;
+user data-file record ids → OUT). Meter `gplbld/verify-nocase.py` unchanged at
+1036 remnants + 3 code sites — ***correctly: the fold renames nothing, so M1 is
+invisible to it.*** ***DO NOT rename anything until the fold is installed and
+`verify-fold.py` is green.***
 
-***M1 — THE FOLD, "as typed → lower → upper, exact match wins". TWO ROUTES,
-FIVE SITES, ALL BASIC, ALL LOCATED:***
-- ***File / BASIC `OPEN` route — `GPL.BP/_VOC_REF:75`***, `read voc.rec from
-  voc,voc.id else …`. Currently NO case fallback (straight to the special-
-  syntax else). Add: on the else, try `downcase(voc.id)` then `upcase(voc.id)`
-  (set `voc.id` to whichever hit, so the rest of the routine uses the real id)
-  BEFORE the existing special-syntax else. This one C thunk feeds it —
-  `get_voc_file_reference` (`op_dio1.c:487`), called from `op_dio1.c:630`
-  (OPEN) and `op_seqio.c:204,:464` (OPENSEQ) — so fixing `_VOC_REF` covers all
-  three.
-- ***Command route — `GPL.BP/CPROC`, four sites that ALREADY fold as-typed →
-  UPPER and only lack the lower step:*** `:1421-1422`, `:1447-1448`,
-  `:1541-1542`, and the main verb `:1641-1645` (`read … verb else read …
-  upcase(verb) else read … change(upcase(verb),'-','.')`). Insert a
-  `read … downcase(verb)` BEFORE the `upcase` read at each, so the order
-  becomes as-typed → lower → upper.
+***THE PREVIOUS HAND-OFF SAID "FIVE SITES". IT WAS ~85, MEASURED FROM THE
+PORT'S GIT HISTORY*** — four commits on 18 Aug: `0d62cf9` (74 sites, 36 files,
+scripted + by hand), `d815df5` (`_VOC_REF`, which the 74 missed), `f9ab089`
+(9 comparison sites the fold would otherwise break — `DELETE.FILE voc` walking
+past the banned-file guard, the tier omit filter silently omitting nothing),
+`8f808a3` (CPROC verb dispatch — no lower tier; found only by a probe), plus
+`86c6f51` (`.D name`, 28 Aug). The hand-off's five were `_VOC_REF` + four CPROC
+sites. Same mistake the port recorded ("8 sites" → 76). ***Also wrong in it:
+`op_seqio.c:204` is DELETESEQ, not OPENSEQ*** (`:464` is OPENSEQ).
 
-***WHY THIS IS SAFE TO LAND BEFORE ANY RENAME (the fold-first property):*** on
-today's all-upper tree the new lower branch is dormant — as-typed or the
-existing upper read already hits, so nothing that works changes. The one
-observable gain is intended: `_VOC_REF`'s fold makes `OPEN "voc"` (lower)
-resolve to `VOC` via the upper step, bringing files in line with commands
-(which already fold). ***NOT the same as `DHF_NOCASE`*** — that flag stays OFF
-(`dh_*.c`), `FILEINFO(f,FL$NOCASE)` and `SYSTEM(91)` stay 0, so user-data record
-ids remain case-sensitive (the ruling). The fold is a NAME-lookup fallback, not
-a file-level nocase.
+***HOW IT WAS APPLIED — CLAUDE.md's script-file hatch, said first:*** `git apply`
+of the port's own patches (`0d62cf9` minus MODIFY/SED, which are removed here;
+`f9ab089` for APISRVR+CPROC only; `8f808a3`). No fuzz: every context and removed
+line matched this tree byte for byte, so the code at each site is the port's
+bootstrap-verified post-image. By hand (Edit): `_VOC_REF` (open + Q-pointer
+target), `QPROC` get.token keyword read, `SETFILE` (QFILE read + test).
+***Already in this tree, nothing to do:*** CREATEA/LOGIN tier-list guards and
+omit compare (`upcase` both sides), `DELETEF:239` banned-file guard, CPROC `.D`.
+Port comments citing `PROJECT_STATUS.md 5.12` re-pointed to "port". 37 files,
+dated START-HISTORY line in each. ***Block balance: 37 files, 0 unbalanced***
+(openers incl. bare ELSE minus END, HEAD vs tree) — necessary, not sufficient;
+the port's two worst traps passed it.
 
-***HOW TO VERIFY — the agent CANNOT compile GPL.BP (owner: "all system
-compilation is done by SDSYS, not DON"), so the reinstall IS the compile gate.***
-Edit via Edit tool (add a dated `START-HISTORY` line to each program), commit,
-push, owner reinstalls: a syntax error fails the install visibly and the old
-install keeps running (no wedge); recovery is delete+reinstall of the prior
-commit. Then witness: rename ONE `VOC` record to lower by hand, `OPEN`/`CT` it
-by both cases → resolves; confirm an all-upper session is unchanged. ***DO NOT
-rename anything in the tree until the fold is installed and witnessed.***
+***ONE PORT SITE DELIBERATELY NOT TAKEN — `QPROC` `check.record` (the port's
+`f9ab089`).*** It folds the record id of *whatever file a query names*; upstream
+never folded it, so it is a new case-insensitive match on user data, which the
+12 Sep ruling put out of §M. Comment at the site. ***Cost, and the decision it
+defers to M3:*** once VOC ids are lower, `LIST VOC LIST` will not find `list`
+(the port measured exactly that with `$HOLD`). Options then: fold only when the
+file is a VOC, or accept. Not asked yet — nothing is broken until M3.
+***Record ids that were ALREADY folded upward upstream*** (CT, ED, BASIC source,
+CATALOG, `$INCLUDE`) now also try lower — extending an existing chain, taken.
+
+***REMAINING DIFFERENCES FROM THE PORT'S `gpl.bp`, CHECKED (per-file `downcase`
+counts):*** BASIC (`bp.OUT`), CREATEA (account name lower), LOGIN (batch gate —
+not in this tree), MODIFYA (comment), SETPTR/`_PRFILE` (`$hold` literal) — all
+rename-era (M3) or absent features, none a fold site.
+
+***THE WITNESS — `gplbld/verify-fold.py` + `.bp`, NEW, NO SUDO.*** Makes
+lower-case ids (`zzfoldv` = copy of WHO, `zzfoldf` = CREATE.FILE, `zzfoldq` =
+Q-pointer to `ZZFOLDF`) and reaches them by UPPER-case name through all three
+routes: V dispatch (CPROC), C a verb's open (QPROC), O BASIC OPEN (`_VOC_REF`,
+only a program reaches it) + Q-target + `open 'voc'`. Controls: as-spelled must
+work, a name in no case must still fail. ***RED CONTROL WATCHED, 12 Sep 20:40 on
+install `f14919c` (same shipped code as `38dafd2`), `--allow-stale`: 7 of 35
+decisive rows FAILED — exactly V2 V3 C2 C3 O2 O3 O5, every control PASS, probe
+compiled 0 errors, fixtures cleaned (Z1 3/3, BP.OUT removed as run-created).***
+Raw wording measured first: `ZZFOLDV is not in your VOC`; `COUNT ZZFOLDF` →
+`File not found`.
+
+***NEXT, IN ORDER:***
+1. Owner: delete→install from `origin/main` (the reinstall is the GPL.BP compile
+   gate — SDSYS-only ruling). A syntax error fails the bootstrap visibly.
+2. Agent, no sudo: `assert-current.py` (must be 0), then
+   `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-fold.py`
+   — expect ***35/35***. Then re-run the standing verifiers (list under "Every
+   verifier re-run", below) — the fold touched CPROC, QPROC, PARSER, BCOMP, so
+   ***"unchanged" is a claim to measure, not assume***; DON `COUNT VOC` 418.
+3. Only then M2.
 
 **After M1: M2** (collision guard — refuse if `bp` and `BP` both exist; the
 migration in `installsdai.sh`/`update.accounts`; ***`git mv` via a temp name***,

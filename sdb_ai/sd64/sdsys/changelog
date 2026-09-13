@@ -9,6 +9,42 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  A NAME NOW FINDS ITS VOC ENTRY WHETHER YOU TYPE IT IN UPPER OR
+           LOWER CASE.
+
+           SD has always forgiven a command typed in lower case: type "who" and
+           it tries WHO.  It never forgave the other direction.  A VOC entry
+           whose name is lower case could only be reached by typing it in lower
+           case, so:
+
+               CREATE.FILE orders
+               COUNT orders       0 record(s) counted
+               COUNT ORDERS       File not found
+
+           CREATE.FILE had just made that entry, and the name it printed back
+           was the one COUNT then could not find.  The same was true of a verb
+           you saved under a lower-case name, and of a program that opens a
+           file by name.
+
+           Every place SD looks a name up now tries it exactly as typed, then
+           in lower case, then in upper case - the commands you type, the
+           query language (LIST, COUNT, SELECT and their keywords), BASIC's
+           OPEN and OPENSEQ, a Q-pointer's target, RUN, the stacked-command
+           editor, and the compiler's $INCLUDE.  An entry spelled exactly as
+           you typed it still wins, so nothing that works today changes.
+
+           This is the groundwork for SD's system names becoming lower case,
+           which is still to come; it has to be in place first, or that change
+           would stop every upper-case command from working.
+
+           WHAT IT DOES NOT DO: it does not make the query language's RECORD
+           ids case-insensitive.  LIST CUSTOMERS "SUE" still does not find a
+           record called "sue" - on Linux those can be two different records,
+           and SD will not guess between them.  (CT and ED already fell back to
+           the upper-case id when the one you typed was not there; they now
+           try lower case too, as they do for names.)
+
+
 12 Sep 26  DELETE.ACCOUNT NOW FULLY REMOVES AN ADMINISTRATOR IT DELETES, EVEN
            WHEN THE LINUX USER STAYS.
 

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -196,8 +197,10 @@ $include parser.h
    if src.file.name = "$SAVEDLISTS" then src.file = saved.lists.file
    else
       open src.file.name to src.file else
-         open upcase(src.file.name) to src.file else
-            stop sysmsg(2021, src.file.name) ;* File xx not found
+         open downcase(src.file.name) to src.file else
+            open upcase(src.file.name) to src.file else
+               stop sysmsg(2021, src.file.name) ;* File xx not found
+            end
          end
       end
    end
@@ -205,8 +208,10 @@ $include parser.h
    if tgt.file.name = "$SAVEDLISTS" then tgt.file = saved.lists.file
    else
       open tgt.file.name to tgt.file else
-         open upcase(tgt.file.name) to tgt.file else
-            stop sysmsg(2021, tgt.file.name) ;* File xx not found
+         open downcase(tgt.file.name) to tgt.file else
+            open upcase(tgt.file.name) to tgt.file else
+               stop sysmsg(2021, tgt.file.name) ;* File xx not found
+            end
          end
       end
 

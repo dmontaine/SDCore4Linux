@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 11 Sep 26 dm  The command-error preset is -ER$ARGS, not +ER$ARGS (UPSTREAM
 *               11, as the port).
 * 10 Sep 26 dm  Parity audit: Y/N prompts say which answer Enter gives, and
@@ -166,11 +167,15 @@ $define COMMAND.STACK.DEPTH 99
    else full.file.name = file.name
 
    open dict.flag, file.name to file else
-      open dict.flag, upcase(file.name) to file else
-         stop sysmsg(2019) ;* File not found
-      end
+      open dict.flag, downcase(file.name) to file then
+         file.name = downcase(file.name)
+      end else
+         open dict.flag, upcase(file.name) to file else
+            stop sysmsg(2019) ;* File not found
+         end
 
-      file.name = upcase(file.name)
+         file.name = upcase(file.name)
+      end
       full.file.name = upcase(full.file.name)
    end
 
@@ -1750,16 +1755,20 @@ l:
          end case
 
          open new.dict.flag, new.file to n.file else
-            open new.dict.flag, upcase(new.file) to n.file else
-               if len(new.dict.flag) then
-                  message = sysmsg(6567, new.file) ;* File DICT %1 does not exist
-               end else
-                  message = sysmsg(6568, new.file) ;* File %1 does not exist
+            open new.dict.flag, downcase(new.file) to n.file then
+               new.file = downcase(new.file)
+            end else
+               open new.dict.flag, upcase(new.file) to n.file else
+                  if len(new.dict.flag) then
+                     message = sysmsg(6567, new.file) ;* File DICT %1 does not exist
+                  end else
+                     message = sysmsg(6568, new.file) ;* File %1 does not exist
+                  end
+                  gosub error
+                  return
                end
-               gosub error
-               return
+               new.file = upcase(new.file)
             end
-            new.file = upcase(new.file)
          end
          if len(new.dict.flag) then new.file = "DICT " : new.file
 
@@ -2535,16 +2544,20 @@ u:
          end case
 
          open new.dict.flag, new.file to n.file else
-            open new.dict.flag, upcase(new.file) to n.file else
-               if len(new.dict.flag) then
-                  message = sysmsg(6567, new.file) ;* File DICT xx does not exist
-               end else
-                  message = sysmsg(6568, new.file) ;* File xx does not exist
+            open new.dict.flag, downcase(new.file) to n.file then
+               new.file = downcase(new.file)
+            end else
+               open new.dict.flag, upcase(new.file) to n.file else
+                  if len(new.dict.flag) then
+                     message = sysmsg(6567, new.file) ;* File DICT xx does not exist
+                  end else
+                     message = sysmsg(6568, new.file) ;* File xx does not exist
+                  end
+                  gosub error
+                  return
                end
-               gosub error
-               return
+               new.file = upcase(new.file)
             end
-            new.file = upcase(new.file)
          end
          if len(new.dict.flag) then new.file = "DICT " : new.file
 
@@ -3384,16 +3397,20 @@ save.record:
    end
 
    open new.dict.flag, new.file to n.file else
-      open new.dict.flag, upcase(new.file) to n.file else
-         if len(new.dict.flag) then
-            message = sysmsg(6567, new.file) ;* File DICT xx does not exist
-         end else
-            message = sysmsg(6568, new.file) ;* File xx does not exist
+      open new.dict.flag, downcase(new.file) to n.file then
+         new.file = downcase(new.file)
+      end else
+         open new.dict.flag, upcase(new.file) to n.file else
+            if len(new.dict.flag) then
+               message = sysmsg(6567, new.file) ;* File DICT xx does not exist
+            end else
+               message = sysmsg(6568, new.file) ;* File xx does not exist
+            end
+            gosub error
+            return
          end
-         gosub error
-         return
+         new.file = upcase(new.file)
       end
-      new.file = upcase(new.file)
    end
 
    if fileinfo(n.file, FL$READONLY) then
@@ -3600,8 +3617,10 @@ open.prestore.file:
 
 read.prestore.rec:
    read prestore.rec from prestore.f, prestore.id else
-      read prestore.rec from prestore.f, upcase(prestore.id) else
-         display sysmsg(6605) ;* Prestored command not found
+      read prestore.rec from prestore.f, downcase(prestore.id) else
+         read prestore.rec from prestore.f, upcase(prestore.id) else
+            display sysmsg(6605) ;* Prestored command not found
+         end
       end
    end
    return

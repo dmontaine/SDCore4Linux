@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 11 Sep 26 The three "also in ... catalogue. Remove?" prompts show their
 *           default and Enter is N (port PRE_RELEASE_FIXES 79's rule; the
 *           port missed these).  At end of input they re-asked for ever.
@@ -223,11 +224,15 @@ $define CAT_PCODE  3
    end
 
    open file.name to object.file else
-      open upcase(file.name) to object.file else
-         stop sysmsg(2021, file.name) ;* File %1 not found
-      end
+      open downcase(file.name) to object.file then
+         file.name = downcase(file.name)
+      end else
+         open upcase(file.name) to object.file else
+            stop sysmsg(2021, file.name) ;* File %1 not found
+         end
 
-      file.name = upcase(file.name)
+         file.name = upcase(file.name)
+      end
    end
 
    mark.mapping object.file, off
@@ -279,11 +284,15 @@ catalogue.program:
    * Read object code image
 
    read object.code from object.file, program.name else
-      read object.code from object.file, upcase(program.name) then
-         program.name = upcase(program.name)
+      read object.code from object.file, downcase(program.name) then
+         program.name = downcase(program.name)
       end else
-         display sysmsg(3024, file.name, program.name) ;* fn pn not found
-         return
+         read object.code from object.file, upcase(program.name) then
+            program.name = upcase(program.name)
+         end else
+            display sysmsg(3024, file.name, program.name) ;* fn pn not found
+            return
+         end
       end
    end
 
