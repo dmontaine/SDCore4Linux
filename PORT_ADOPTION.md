@@ -638,9 +638,32 @@ name but multiple casing."*** The port's §5.12 set that goal and did not reach 
 — NTFS matches names regardless of case, so what was missed never failed there.
 Filed to the port as a bug for its next version (`BUGS_FROM_LINUX_PORT.md` 5).
 
-**Nothing of §M exists here yet** — measured 11 Sep: sdsys directories 12 of 18
-upper, `NEWVOC` 395 upper / 1 lower, `VOC_TEMPLATE` 418 upper, and 0 lookups in
-`GPL.BP` with a lower-case tier (the port has 76 in 38 files).
+**The MIGRATION is unbuilt, but the SCOPE METER now exists** —
+`gplbld/verify-nocase.py`, a static source audit (no install, no sd, no sudo),
+selftest 19/19. ***It is RED BY DESIGN until §M is done and reads 0 when the
+name half is complete*** — the number going to zero IS the definition of done
+for the part it covers. Measured on the current tree, 12 Sep 2026:
+
+| Category | Still upper / total |
+|---|---|
+| `GPL.BP` source records | 212 / 213 |
+| `SYSCOM` include records | 15 / 16 |
+| `NEWVOC` record ids | 385 / 398 |
+| `VOC_TEMPLATE` record ids | 412 / 425 |
+| sdsys directory names | 12 / 15 |
+| **name remnants (ruled)** | **1036** |
+| code sites (checklist) | `CREATEF` upcase, `LOGIN` PT$INVERT |
+
+The escapes are correctly passed over, not miscounted: a name is a remnant only
+if a real `[A-Z]` survives stripping the `%<letter>` on-disk escapes
+(`sd.h:113-114`), so `%E` (`=`), `#`, `&`, `%t` are excluded and `$ACC`,
+`INT$KEYS.H`, `ACCOUNTS` are flagged. The two already-lowercase records
+(`GPL.BP/define_install.h`, `SYSCOM/sdclilib.h`) show the target casing works.
+***The meter DEFERS the two unruled categories*** rather than guess them:
+account names (`KEYS.H:263`, RE-RULE) and record ids in users' own data files
+(`SUE`≠`sue` on ext4). The prior 11 Sep counts (`NEWVOC` 395/1, `VOC_TEMPLATE`
+418) predate the shrink and the tier-layer VOC work and are superseded by the
+table above.
 
 **What the port left upper case — do each of these here, rather than copy the
 port's result** (measured on the port tree 11 Sep):

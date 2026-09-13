@@ -1135,7 +1135,16 @@ against the install).***
   ids upper; NTFS hid it. Filed to the port as `BUGS_FROM_LINUX_PORT.md` 5
   (uncommitted there, like 1–4). Gap table and two UNRULED questions (users' own
   data record ids; account names) in PORT_ADOPTION "Queue 18". CLAUDE.md stance
-  updated. **Nothing of §M is built.**
+  updated. ***THE MIGRATION IS STILL UNBUILT, BUT THE SCOPE METER NOW EXISTS***
+  (12 Sep): `gplbld/verify-nocase.py`, static source audit, selftest 19/19,
+  RED BY DESIGN until done. Current scope: **1036 name remnants** (GPL.BP 212,
+  SYSCOM 15, NEWVOC 385, VOC_TEMPLATE 412, + 12 dirs) and 2 code sites
+  (`CREATEF` upcase, `LOGIN` PT$INVERT); escapes/symbols correctly excluded, the
+  two unruled categories deferred. `--strict` exits 1 while any remain, so it is
+  the completion gate. Table in PORT_ADOPTION queue 18. ***The renames
+  themselves are NOT started — they are the big scripted transform (CLAUDE.md:
+  a script file, `git diff --stat`, a content spot-check), and two rulings gate
+  their full scope (below).***
 - ***IS THE PORT-ADOPTION AUDIT COMPLETE? NO — answered for the owner 11 Sep.***
   UPSTREAM_FIXES is now reconciled all 37 (28 done, 1 n/a, 8 open) — see
   PORT_ADOPTION "UPSTREAM_FIXES reconciliation"; 18 of them had been fixed on
