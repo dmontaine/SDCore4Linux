@@ -2893,7 +2893,28 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
-### §M3 on-disk directory rename — DESIGN, PROPOSED 12 Sep 2026, NOT APPROVED, NOT STARTED
+### §M3 on-disk directory rename — DESIGN APPROVED WITH RULINGS 12 Sep 2026, NOT STARTED
+
+***OWNER'S RULINGS, 12 Sep 2026, on the four questions below:***
+1. ***Four phases*** D1–D4, each its own install and witness.
+2. ***D3 migration by the installer only***, on a keep cycle, as root, before
+   `UPDATE.ACCOUNTS ALL`. No runtime fallback: an account restored later from
+   an old backup needs the migration re-run by hand — so the migration must be
+   runnable on its own, not only inside the installer.
+3. ***A `[locked]` F record whose path names a renamed directory: rewrite and
+   report.***
+4. ***EXISTING USER DATA DIRECTORIES ARE RENAMED TOO*** — against the proposal.
+   D3 therefore covers every F record in an account whose field 2 or 3 is a
+   relative path to a directory in that account with an upper-case letter
+   (e.g. `ORDERS`, `ORDERS.DIC`): rename on disk, rewrite the path, refuse
+   both-spellings. ***Consequences to handle and state in the changelog:***
+   record ids inside those files do NOT change (12 Sep ruling); a user program
+   or script that names the directory by a hard-coded OS path will break and
+   cannot be migrated; multifile subdirectories and `.DIC` parts rename with
+   their file; a path shared by two F records is renamed once; an absolute
+   path into another account is not touched by the exact-relative rule.
+
+*The proposal as it was written before the rulings:*
 
 Owner chose this as the next category (12 Sep). The port has no precedent: its
 `e1095ab` needed no migration because NTFS matches either case. ***Written in
