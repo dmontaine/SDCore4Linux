@@ -15,9 +15,7 @@ SD: what changed, why it mattered, and what it does not do.
 
            As with the commands, what you type does not change: LIST VOC,
            COUNT SYSCOM and $INCLUDE SYSCOM KEYS.H all work as before, and
-           CT VOC SYSCOM now answers with the heading "VOC syscom".  An
-           existing account's pointers are renamed by its next VOC update, and
-           SD lists them when it does.
+           CT VOC SYSCOM now answers with the heading "VOC syscom".
 
            WHAT DOES NOT CHANGE: the files themselves.  These are only the VOC
            entries' names; the directories on disk (SYSCOM, NEWVOC and the
@@ -37,15 +35,6 @@ SD: what changed, why it mattered, and what it does not do.
            What you will notice is what SD prints back - CT VOC LIST now
            answers with a heading of "VOC list".
 
-           An existing account's commands are renamed by its next VOC update -
-           the "Update VOC to new release?" question at sign-in, or
-           UPDATE.ACCOUNTS - and SD lists what it renamed.  A command you have
-           customised moves with your changes.  If you also made an entry of
-           your own under the lower-case name, SD leaves both and tells you.
-           Changing an account's tier with MODIFY.ACCOUNT does the same rename
-           first, so a demotion still removes the commands the new tier does
-           not get.
-
            WHAT IS NOT RENAMED YET: file pointers (VOC, BP, QFILE, SYSCOM and
            the rest), and the $ records ($ACC, $MAP, $RELEASE).  Those move
            separately.
@@ -63,12 +52,6 @@ SD: what changed, why it mattered, and what it does not do.
            and what SP.VIEW reads - is now $hold, and SD prints that spelling:
            SETPTR 5 now shows "Hold file: $hold P5" rather than "$HOLD P5".
 
-           An existing account's entry is renamed by its next VOC update, the
-           same way as $savedlists below, and SD names it when it does.  Until
-           then everything goes on working: SD finds the entry in either case,
-           and a print unit you set up before the change still reaches the same
-           hold file.
-
            WHAT DOES NOT CHANGE: your held prints.  Only the VOC entry's name
            moved; the directory on disk that holds them is still $HOLD.
 
@@ -80,14 +63,6 @@ SD: what changed, why it mattered, and what it does not do.
            This is the first: the VOC entry for the file that SAVE.LIST,
            GET.LIST, DELETE.LIST, COPY.LIST, EDIT.LIST and SAVE.STACK use is
            now $savedlists.  A new account gets it under that name.
-
-           An account created before this keeps working without you doing
-           anything, and the next VOC update renames its entry for you - the
-           "Update VOC to new release?" question when you sign in, or
-           UPDATE.ACCOUNTS.  It says so, naming the entry it renamed.  If
-           that account also has an entry you made yourself called
-           $savedlists, SD will not choose between the two: it leaves both
-           and tells you, so you can decide.
 
            You can still type $SAVEDLISTS: names are found in either case.
 

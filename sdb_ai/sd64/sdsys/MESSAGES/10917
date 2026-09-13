@@ -1,1 +1,0 @@
-%1 VOC record(s) exist under BOTH an upper-case and a lower-case name, and were left alone: %2\n\nSD now uses the lower-case name, and the two records differ, so SD will not guess which one you want.  Compare them (CT VOC name, in both cases), keep the one you want under the lower-case name, delete the upper-case one, and run update.accounts again.
