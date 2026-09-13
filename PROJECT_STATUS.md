@@ -79,8 +79,20 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***§M3 D2 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: owner keep-cycle install +
-reboot (the reboot is also `PRE_RELEASE` 29's second boot), then the suite.***
+***§M3 D2 INSTALLED AND WITNESSED on `1c36762`*** (owner keep-cycle,
+`.sdcore-install` 11:19:11, boot 11:20:28, `assert-current` 0 at 11:22). Installed
+sdsys top level has no upper-case directory but `$HOLD $HOLD.DIC VOC` (D3);
+`gpl.bp.out` 201 objects, `gcat` 142 (one fewer each than 12 Sep: `voccase`
+removed). Suite as the installing user, no sudo, no workaround: all exit 0, no
+`[FAIL]`, 0 not-OFF — ***lcnames 64/64 (S15, S16, S17 PASS)***, vocverbs 34,
+fold 35, setpw 24, txn 33, editors 28, nonet 59, lineendings 42, basicfuncs 199,
+accounts 35, sysperms 18, grants 16/0, tier-layer 0 with `COUNT VOC` 418.
+***`PRE_RELEASE` 29 boot 2 of N held:*** active since 11:20:36, `sdlnxd` in the
+cgroup, 0 `-stop` lines after the suite. ***NEXT: §M3 D3*** (per-account `VOC
+$HOLD $HOLD.DIC $SVLISTS BP BP.OUT`, the SDSYS account's own `VOC $HOLD
+$HOLD.DIC`, and the port's BASIC `bp.OUT` fix `1943704`) — needs a FULL cycle.
+
+*Pre-install, 13 Sep:*
 Keep cycle is safe: no kept account's VOC names a D2 path (voc_template's four
 records reach only SDSYS, whose VOC the bootstrap rebuilds; TIER.ADD lists none).
 - ***Renames (script, 224 files `R`):*** sdsys `GPL.BP GPL.BP.OUT BP BP.OUT
