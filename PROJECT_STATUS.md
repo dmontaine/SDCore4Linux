@@ -83,6 +83,17 @@ the work, nothing in "Verified" that was not observed that session.
 INSTALLED. NEXT: OWNER REINSTALL, THEN `verify-voccase.py` MUST GO FROM 20
 FAILED TO 34/34, AND THE STANDING VERIFIERS MUST STAY AT THEIR COUNTS.***
 
+***21:12 install `4288380`: SD WAS LEFT STOPPED*** — `PRE_RELEASE` 29 (`sd.service`
+`Type=forking` race; the owner's post-install reboot did not bring it up this
+time). ***And it exposed an instrument defect, fixed:*** `verify-voccase`'s
+ground check read "SD has not been started" as *"VOC zzvcv already exists"* —
+`session_ok` passed a session that FINISHED without RUNNING. `sdverify.session_ok`
+now requires the `:OFF` prompt line; new `require_running()` refuses exit 2 and
+quotes sd; both ground checks gated. Units 34→40, ***watched red against HEAD's
+old module*** (2 new rows fail, `require_running` absent), and watched refusing
+the real stopped SD with the true reason. ***Every OTHER verifier inherits the
+stricter row and has NOT been re-run under it yet*** — re-run them once SD is up.
+
 **What was built.** `GPL.BP/voccase` (new, lower-case name — adds no meter
 remnant; catalogued `!voccase`, which the catalogue stores as `gcat/!VOCCASE`
 like every entry). Called from `LOGIN update.voc` before the NEWVOC copy loop,

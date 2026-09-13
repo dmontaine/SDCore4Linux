@@ -98,12 +98,20 @@ def main():
         run.blocked = None
     elif V.require_current(run):
         return run.verdict()
+    if V.require_running(run, acct):
+        return run.verdict()
 
     run.heading("1. the ground is clear")
     names = FILES + [f.upper() for f in FILES]
     s = V.show_sd(run, "readback", ["CT VOC %s" % " ".join(names)],
                   cwd=acct, timeout=a.timeout)
-    V.session_ok(run, "G session", s)
+    # ***GATED.***  The check below reads an ABSENCE ("not found" missing) as
+    # "the fixture exists", so a session that never ran would refuse for a
+    # reason that is not true - which is what it did on 12 Sep 2026.
+    if not V.session_ok(run, "G session", s):
+        run.refuse("the ground-check session did not run, so nothing is known"
+                   " about the fixtures")
+        return run.verdict()
     for n in names:
         if not V.says(s.text, r"^Record '%s' not found$" % re.escape(n)):
             run.refuse("VOC %s already exists" % n,

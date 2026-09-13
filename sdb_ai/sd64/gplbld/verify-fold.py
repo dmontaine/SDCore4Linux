@@ -111,6 +111,8 @@ def main():
         run.blocked = None
     elif V.require_current(run):
         return run.verdict()
+    if V.require_running(run, acct):
+        return run.verdict()
 
     # ***REFUSE IF THE GROUND IS NOT CLEAR, IN EITHER CASE.***  A surviving
     # fixture - under its own spelling OR its upper-case one - belongs to
@@ -120,7 +122,11 @@ def main():
     names = [VERB, FILE, QPTR, VERB.upper(), FILE.upper(), QPTR.upper()]
     s = V.show_sd(run, "readback", ["CT VOC %s" % " ".join(names)],
                   cwd=acct, timeout=a.timeout)
-    V.session_ok(run, "G session", s)
+    # GATED: the check below reads an ABSENCE as "exists" (see verify-voccase).
+    if not V.session_ok(run, "G session", s):
+        run.refuse("the ground-check session did not run, so nothing is known"
+                   " about the fixtures")
+        return run.verdict()
     for n in names:
         if not V.says(s.text, r"^Record '%s' not found$" % re.escape(n)):
             run.refuse("VOC %s already exists" % n,
