@@ -1133,9 +1133,11 @@ against the install).***
   on the fly, so no command, file or record id can exist in two casings. The port
   left `CREATEF:311`'s upcase, all of `gpl.bp`/`syscom`, `PT$INVERT`, and six VOC
   ids upper; NTFS hid it. Filed to the port as `BUGS_FROM_LINUX_PORT.md` 5
-  (uncommitted there, like 1–4). Gap table and two UNRULED questions (users' own
-  data record ids; account names) in PORT_ADOPTION "Queue 18". CLAUDE.md stance
-  updated. ***THE MIGRATION IS STILL UNBUILT, BUT THE SCOPE METER NOW EXISTS***
+  (uncommitted there, like 1–4). Gap table in PORT_ADOPTION "Queue 18". ***BOTH
+  FORMERLY-OPEN QUESTIONS RULED 12 Sep 2026:*** account names → LOWER CASE (so
+  the id matches its Linux user; in scope, the `CREATEA:409` store site); user
+  data-file record ids → OUT of scope (SUE≠sue on ext4 — forcing them would
+  alter app data). CLAUDE.md stance updated. ***THE MIGRATION IS STILL UNBUILT, BUT THE SCOPE METER NOW EXISTS***
   (12 Sep): `gplbld/verify-nocase.py`, static source audit, selftest 19/19,
   RED BY DESIGN until done. Current scope: **1036 name remnants** (GPL.BP 212,
   SYSCOM 15, NEWVOC 385, VOC_TEMPLATE 412, + 12 dirs) and 2 code sites

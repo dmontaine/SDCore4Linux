@@ -89,13 +89,22 @@ CODE_SITES = [
      "the OS filename CREATE.FILE makes is upper-cased (:306,:379)"),
     ("GPL.BP/LOGIN", r"pterm\(PT\$INVERT",
      "case inversion at sign-on (:302)"),
+    # Account names are RULED lower case (owner, 12 Sep 2026).  CREATEA:409
+    # stores the register key upper-cased; the lookups (DELACC:113, LOGIN:311/
+    # 368/447, SET_ACC_PASSWORD:105/108) upcase to find it.  While CREATEA still
+    # upcases the stored id, account names are upper - so this is the static
+    # tell for the register half, which the meter cannot scan (the register is
+    # runtime state, not in the source tree).
+    ("GPL.BP/CREATEA", r"acc\.name = upcase\(acc\.name\)",
+     "the account id is stored upper-cased (:409) - account names ruled lower"),
 ]
 
-# Open, unruled - printed so they are seen to be deferred, not missed.
+# Ruled OUT of scope (owner, 12 Sep 2026) - printed so the reader sees it was
+# decided, not missed.  Not a remnant, deliberately.
 DEFERRED = [
-    ("account names", "SYSCOM/KEYS.H:263 'forced to uppercase' - RE-RULE"),
     ("record ids in users' own data files",
-     "SUE vs sue are two files on ext4; ruling would change app data"),
+     "RULED OUT 12 Sep: SUE vs sue are two files on ext4, so forcing lower "
+     "case would alter an application's own data.  §M is system names only."),
 ]
 
 
@@ -210,9 +219,11 @@ def main():
         say("  [%s] %-18s %s" % ("open" if hits else " ok ", rel, why))
 
     say("")
-    say("=== deferred: unruled, NOT measured (PORT_ADOPTION queue 18) ===")
+    say("=== ruled OUT of scope, NOT measured (PORT_ADOPTION queue 18) ===")
     for what, why in DEFERRED:
         say("  - %s: %s" % (what, why))
+    say("  (account names WERE the other open question - ruled lower case")
+    say("   12 Sep, now tracked as the CREATEA code site above)")
 
     say("")
     say("--- summary ------------------------------------------------------")

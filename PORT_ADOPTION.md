@@ -673,18 +673,23 @@ port's result** (measured on the port tree 11 Sep):
 | Files `CREATE.FILE` makes: OS name upper-cased unless `CREATE.FILE.CASE` is set, and nothing sets it | port `CREATEF:309-311` (here `:304-306`) — `create.file zzak` made `ZZAK` on this box | **no** |
 | All 203 `gpl.bp` program sources, 12 of 15 `syscom` includes | `CPROC`, `QSELECT`, `ERR.H`, `KEYS.H` … | **no** |
 | Case inversion at sign-on | port `LOGIN:624` / here `:250`, `pterm(PT$INVERT, @true)` | **no** |
-| Account names, "forced to uppercase" | port `syscom/KEYS.H:269` | kept deliberately by the plan (§M3) — ***RE-RULE*** |
+| Account names, "forced to uppercase" | `KEYS.H:263`; stored upper at `CREATEA:409`, upcased to look up at `DELACC:113`, `LOGIN:311/368/447`, `SET_ACC_PASSWORD:105/108` | ***RULED LOWER CASE, owner 12 Sep 2026*** — the account id and its Linux user (already lower, `don`) finally match. Store lower at `CREATEA:409`, resolve input case-insensitively at the lookups, fix the `KEYS.H:263` comment; the register keys (`ACCOUNTS/DON`) migrate with it |
 | VOC ids `$ACC`, `$MAP`, `$RELEASE`, `SD.VOCLIB`, `TIER.ADD.ADMINISTRATOR`, `TIER.OMIT.STANDARD` | port `newvoc`, `voc_template` | partly — §M3 renames "the `$` records" without naming these |
 | Lookup sites the first pass missed | `.D` (port entry 5, open here — audit below), `_VOC_REF`, the `$SAVEDLISTS` literals | yes for the last two |
 
 Not names, so correctly left alone: `%E` `%G` `%L` (and pairs) are the escaped
 filenames of records `=` `>` `<`; `#` `&` `!` are symbols.
 
-***OPEN FOR THE OWNER, NOT RULED:*** does "record ids" reach **record ids in a
-user's own data files**? Plan §M3 keeps directory-file record ids case-sensitive
-on ext4 because `SUE` and `sue` are two files there. Forcing an application's
-data ids to lower case would change its data, so this was not assumed either way.
-Likewise account names (row 4 above).
+***BOTH FORMERLY-OPEN QUESTIONS ARE NOW RULED (owner, 12 Sep 2026):***
+- **Record ids in a user's own data files — RULED OUT.** `SUE` and `sue` are
+  two files on ext4, so forcing an application's data ids to lower case would
+  alter its own data. §M is a migration of SYSTEM names — VOC verbs, system
+  files, program/include names, account ids — not a rewrite of user data. The
+  scope meter deliberately does not measure them.
+- **Account names — RULED LOWER CASE** (row 4 above). This is the larger of the
+  two: the register keys, `CREATEA`'s store and every account lookup move, so
+  the account id matches its Linux user. In scope, tracked as the `CREATEA:409`
+  code site by `verify-nocase.py`.
 
 ## Queue 3 — measured here, 11 Sep 2026, not read
 
