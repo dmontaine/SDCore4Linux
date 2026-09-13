@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The default source file is bp, not BP (plan M3 D3; the port's
+*               1943704).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -50,7 +52,7 @@ $include err.h
 
 * ---------------  Step 1 -  Parse command
 
-   file.name = 'BP'
+   file.name = 'bp'
    case.option = @false
    using.list = @false
 

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The default source file is bp, not BP (plan M3 D3; the port's
+*               1943704).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -115,7 +117,7 @@ $include dictdict.h
 
    if incl.rec[1,1] = 'X' then
       file.name = incl.rec<2>
-      if file.name = '' then file.name = "BP"
+      if file.name = '' then file.name = "bp"
 
       copyright = incl.rec<5>
       duplicates.allowed = (incl.rec<6> = "M")

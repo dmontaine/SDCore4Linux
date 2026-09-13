@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  A saved-list file it has to create is $svlists on disk (plan M3 D3).
 * 12 Sep 26 dm  The saved-list VOC id is $savedlists (plan M3, first rename).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -176,13 +177,13 @@ $include parser.h
 
          recordlocku @voc, '$savedlists'
 
-         create.file "$SVLISTS" dynamic on error
+         create.file "$svlists" dynamic on error
             release @voc, '$savedlists'
             @system.return.code = -status()
             stop sysmsg(3249, status()) ;* Erorr xx creating $savedlists
          end
 
-         voc.rec = "F" : @fm : "$SVLISTS"
+         voc.rec = "F" : @fm : "$svlists"
          write voc.rec to @voc, "$savedlists"
 
          display sysmsg(3250) ;* Created $savedlists

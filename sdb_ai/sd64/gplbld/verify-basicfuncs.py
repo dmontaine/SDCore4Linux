@@ -211,7 +211,7 @@ def main():
     probe_src = a.probe or PROBE_SRC
     user = os.environ.get("USER") or "?"
     acct = a.account or os.path.join(V.ACCOUNTS, user)
-    bp = os.path.join(acct, "BP")
+    bp = os.path.join(acct, "bp")           # plan M3 D3; BP.OUT stays until D4
     bpout = os.path.join(acct, "BP.OUT")
     staged = os.path.join(bp, PROBE)
 
@@ -410,7 +410,7 @@ def _finish(run, a, staged, bpout, bpout_existed, acct):
         shutil.rmtree(bpout, ignore_errors=True)
         run.say("  removed %s (this run created it)" % bpout)
         V.show_sd(run, "drop the VOC entry this run's compile made",
-                  ["DELETE VOC BP.OUT"], cwd=acct, timeout=a.timeout)
+                  ["DELETE VOC bp.out"], cwd=acct, timeout=a.timeout)
     elif bpout_existed:
         run.say("  %s predates this run and is left alone." % bpout)
 

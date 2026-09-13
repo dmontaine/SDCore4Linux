@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 The VOC name folds - as typed, then lower, then upper - for OPEN,
 *           OPENSEQ, DELETESEQ and a Q-pointer's target (plan M1, the port's d815df5).
@@ -237,7 +238,7 @@ parse.as.q.pointer:
                * Open target VOC file
 
                dir = qpath
-               openpath qpath:@ds:'VOC' to qvoc else
+               openpath qpath:@ds:'voc' to qvoc else
                   set.status ER$VNF
                   return
                end

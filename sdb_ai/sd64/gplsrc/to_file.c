@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 13 Sep 26 dm  The hold directory these paths name is $hold on disk (plan M3
+ *               D3), matching CREATE.ACCOUNT and the port.
  * 12 Sep 26 dm  The "$hold " marker compares case-insensitively (plan M3).
  * 10 Sep 26 dm  Parity audit: strncmp for the "$HOLD " prefix, so a short
  *               print file name is not overread (UPSTREAM_FIXES 8).
@@ -176,7 +178,7 @@ Private void start_file(PRINT_UNIT* pu) {
     }
 
     if (pu->mode == PRINT_TO_AUX_PORT) {
-      sprintf(fn, "$HOLD%c__Aux%d.%d", DS, (int)process.user_no,
+      sprintf(fn, "$hold%c__Aux%d.%d", DS, (int)process.user_no,
               (int)(pu->unit));
       goto open_file;
     }
@@ -185,7 +187,7 @@ Private void start_file(PRINT_UNIT* pu) {
 
     if (pu->file_name == NULL) /* Use default name */
     {
-      sprintf(fn, "$HOLD%cP%d", DS, (int)(pu->unit));
+      sprintf(fn, "$hold%cP%d", DS, (int)(pu->unit));
     /* 10 Sep 26 dm - Parity audit: strncmp, not memcmp (UPSTREAM_FIXES 8; the
        Windows port removed the same overread).  file_name is allocated at
        exactly its length + 1, and "SETPTR ... AS PATHNAME /tmp" stores a
@@ -198,10 +200,10 @@ Private void start_file(PRINT_UNIT* pu) {
        BASIC half is built by the bootstrap and this by make, so neither may
        assume the other has moved.  MemCompareNoCase uses SD's own case table
        and stops at the first difference, so a short name is still not read
-       past its NUL.  The PATHS built here stay "$HOLD": that is the directory
-       on disk, which has not been renamed. */
+       past its NUL.  13 Sep 26 dm - plan M3 D3: the PATHS built here are now
+       "$hold" too, because that is the directory CREATE.ACCOUNT makes. */
     } else if (MemCompareNoCase(pu->file_name, "$hold ", 6) == 0) {
-      sprintf(fn, "$HOLD%c%s", DS, pu->file_name + 6);
+      sprintf(fn, "$hold%c%s", DS, pu->file_name + 6);
     } else {
       strcpy(fn, pu->file_name);
     }

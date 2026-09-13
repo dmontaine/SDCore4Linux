@@ -18,6 +18,10 @@
 * 
 *
 * START-HISTORY:
+* 13 Sep 26 dm  The object file is named from the VOC id that answered the open
+*               and its suffix follows that id's case, so BASIC bp X makes
+*               bp.out, never bp.OUT; the default source file is bp (plan M3
+*               D3, the port's 1943704).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 24 0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -92,7 +96,7 @@ $define max.levels   10
 
    * If the first name in program.name.list is a file, it is the source file
 
-   source.file.name = 'BP'
+   source.file.name = 'bp'
    if program.name.list # '' then
       s = program.name.list<1>
       open s to src.f else
@@ -141,14 +145,40 @@ source.file.opened:
    end else
       * The output file does not exist
 
+* 13 Sep 26 dm - plan M3 D3, the port's 1943704: THE OBJECT FILE IS NAMED FROM
+*   THE VOC RECORD THAT ANSWERED, NOT FROM THE TOKEN, AND THE SUFFIX FOLLOWS ITS
+*   CASE.  Either half alone still makes a mixed-case name.  Built from the
+*   token, "BASIC bp X" against VOC id BP asked for bp.OUT; CREATE.FILE writes
+*   the id as typed, and no case of the fold (as typed, lower, upper) reaches a
+*   mixed id again - so the next "BASIC BP Y" tried to create BP.OUT and
+*   stopped with "Data pathname already exists" for ever.  Live in this tree
+*   before D3, for anyone who typed the file name in lower case first.
       s = field(source.file.name, ',', 1)
-      read voc.rec from voc, s else
-         read voc.rec from voc, downcase(s) else
-            read voc.rec from voc, upcase(s) else
+      source.voc.name = s
+      read voc.rec from voc, source.voc.name else
+         source.voc.name = downcase(s)
+         read voc.rec from voc, source.voc.name else
+            source.voc.name = upcase(s)
+            read voc.rec from voc, source.voc.name else
                @system.return.code = -ER$NVR
                stop sysmsg(2801)  ;* Unable to read source file VOC entry
             end
          end
+      end
+
+*   The suffix: a name entirely in lower case takes '.out', anything else keeps
+*   '.OUT', so an id that is BP still gets BP.OUT.  One variable, because the
+*   Q-pointer branch below appends the same suffix to the file in the other
+*   account, where this same program applies this same rule.
+      if source.voc.name = downcase(source.voc.name) then
+         out.suffix = '.out'
+      end else
+         out.suffix = '.OUT'
+      end
+
+      output.file.name = source.voc.name : out.suffix
+      if index(source.file.name, ',', 1) then
+         output.file.name := ',' : field(source.file.name, ',', 2, 999)
       end
 
       voc.type = upcase(voc.rec[1,1])
@@ -165,7 +195,7 @@ source.file.opened:
          * Create a Q-pointer to the .OUT file elsewhere
 
          recordlocku voc, output.file.name
-         voc.rec<3> := '.OUT'
+         voc.rec<3> := out.suffix
          write voc.rec to voc, output.file.name
 
          open output.file.name to out.f else

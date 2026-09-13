@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -65,7 +66,7 @@ $include keys.h
       goto revert.to.old.account
    end
 
-   openpath "VOC" to new.voc else
+   openpath "voc" to new.voc else
       err = ER$ACCOUNT
       msg = sysmsg(5163) ;* Directory is not a SD account
       goto revert.to.old.account

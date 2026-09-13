@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  A new account is made lower case on disk: voc, $hold, $hold.dic,
+*               $svlists, bp - the port's names - and its BASIC file's VOC id
+*               is bp (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts, newvoc and voc_template by their lower-case
 *               names on disk (plan M3 D1).
 * 12 Sep 26 dm  A new account's hold-file VOC id is $hold (plan M3); the
@@ -649,18 +652,18 @@ make.account:
 
    display sysmsg(6015) ;* Creating VOC...
 * rev 0.9-3 Nov 25 move voc back to dynamic file
-   create.file pathname:@ds:'VOC' dynamic on error
+   create.file pathname:@ds:'voc' dynamic on error
       @system.return.code = -6
       stop sysmsg(6016) ;* Unable to create VOC
    end
-   set.owner.path = pathname:@ds:'VOC'
+   set.owner.path = pathname:@ds:'voc'
    gosub set.owner
-   set.owner.path = pathname:@ds:'VOC':@ds:'%0'
+   set.owner.path = pathname:@ds:'voc':@ds:'%0'
    gosub set.owner
-   set.owner.path = pathname:@ds:'VOC':@ds:'%1'
+   set.owner.path = pathname:@ds:'voc':@ds:'%1'
    gosub set.owner
 
-   openpath pathname:@ds:'VOC' to voc.f else
+   openpath pathname:@ds:'voc' to voc.f else
       @system.return.code = -status()
       stop sysmsg(6017) ;* Unable to open new VOC
    end
@@ -743,7 +746,7 @@ make.account:
    * Create $HOLD
 
    fn = '$hold'
-   os.name = '$HOLD'
+   os.name = '$hold'
    descr = 'File for deferred prints'
    dict = @true
    gosub create.dir.file
@@ -752,7 +755,7 @@ make.account:
    * Create $savedlists
 
    fn = '$savedlists'
-   os.name = '$SVLISTS'
+   os.name = '$svlists'
    descr = 'File for saved select lists'
    dict = @false
    gosub create.dir.file
@@ -760,8 +763,8 @@ make.account:
 * 20240308 mab add BP when creating new account
   * Create BP
 
-   fn = 'BP'
-   os.name = 'BP'
+   fn = 'bp'
+   os.name = 'bp'
    descr = 'File for BASIC programs'
    dict = @false
    gosub create.dir.file
@@ -784,7 +787,7 @@ make.account:
    end
 
  * 20240225 mab set file ownership for VOC
-   set.owner.path = pathname:@ds:'VOC'
+   set.owner.path = pathname:@ds:'voc'
    gosub set.owner
 
 
@@ -869,18 +872,22 @@ create.dir.file:
    voc.rec<2> = os.name
 
    if dict then
-      create.file pathname:@ds:os.name:'.DIC' dynamic on error
+* 13 Sep 26 dm - plan M3 D3: the dictionary's name is lower case too.  Every
+*   caller now passes a lower-case os.name, and a literal '.DIC' would give
+*   $hold.DIC - a mixed name no case of the fold can reach.
+      dict.name = os.name:'.dic'
+      create.file pathname:@ds:dict.name dynamic on error
          @system.return.code = -ER$NOT.CREATED
          stop sysmsg(6023, fn) ;* Unable to create dictionary part of xx
       end
-* 20240302 mab set file ownership accordingly 
-* rev 0.9.0 * 
-      set.owner.path = pathname:@ds:os.name:'.DIC':@ds:'%0'
+* 20240302 mab set file ownership accordingly
+* rev 0.9.0 *
+      set.owner.path = pathname:@ds:dict.name:@ds:'%0'
       gosub set.owner
-      set.owner.path = pathname:@ds:os.name:'.DIC':@ds:'%1'
-      gosub set.owner            
+      set.owner.path = pathname:@ds:dict.name:@ds:'%1'
+      gosub set.owner
 
-      openpath pathname:@ds:os.name:'.DIC' to dict.f else
+      openpath pathname:@ds:dict.name to dict.f else
          @system.return.code = -status()
          stop sysmsg(6024, fn) ;* Unable to open dictionary part of xx
       end
@@ -889,10 +896,10 @@ create.dir.file:
       close dict.f
 
 * 20240225 mab set file ownership accordingly  
-      set.owner.path = pathname:@ds:os.name:'.DIC'
+      set.owner.path = pathname:@ds:dict.name
       gosub set.owner
 
-      voc.rec<3> = os.name:'.DIC'
+      voc.rec<3> = dict.name
    end
 
    write voc.rec to voc.f, fn

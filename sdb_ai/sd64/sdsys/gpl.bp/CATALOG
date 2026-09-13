@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  The default source file is bp, not BP (plan M3 D3; the port's
+*               1943704).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 11 Sep 26 The three "also in ... catalogue. Remove?" prompts show their
 *           default and Enter is N (port PRE_RELEASE_FIXES 79's rule; the
@@ -149,18 +151,18 @@ $define CAT_PCODE  3
          if not(selectinfo(0, sl$active)) then
             stop sysmsg(3020) ;* Program name or select list required
          end
-         file.name = "BP"
+         file.name = "bp"
          using.list = @true
 
       case no.names = 1
          if name(1) = '*' then
-            file.name = "BP"
+            file.name = "bp"
             catalogue.all = @true
          end else if selectinfo(0, sl$active) then
             file.name = name(1)
             using.list = @true
          end else
-            file.name = "BP"
+            file.name = "bp"
             call.name = upcase(name(1))
             program.name = name(1)
             if mode # CAT_PCODE and index(prefix.chars, call.name[1,1], 1) then

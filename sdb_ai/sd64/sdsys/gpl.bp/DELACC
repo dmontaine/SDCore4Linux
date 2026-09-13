@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 delete-account requires admin priv, are we admin?
@@ -207,7 +208,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          if xacc # acc.name then
             read xacc.rec from acc.f, xacc then
                xacc.path = parse.pathname.tokens(xacc.rec<ACC$PATH>)
-               openpath xacc.path:@ds:'VOC' to xvoc.f then
+               openpath xacc.path:@ds:'voc' to xvoc.f then
                   select xvoc.f to 12
                   loop
                      readnext xid from 12 else exit

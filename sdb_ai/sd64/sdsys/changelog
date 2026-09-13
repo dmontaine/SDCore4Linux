@@ -9,6 +9,36 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  EVERY ACCOUNT'S OWN FILES ARE NOW LOWER CASE ON DISK: voc, $hold,
+           $hold.dic, $svlists and bp.
+
+           CREATE.ACCOUNT now makes these names, and the system account's own
+           voc and $hold follow them, so the directory SD makes for your VOC
+           is voc and your BASIC programs go in bp.  The VOC entry for your
+           program file is bp too.  These are the names SD Core for Windows
+           uses.  Printing to the hold file writes into $hold.
+
+           WHAT YOU TYPE DOES NOT CHANGE: BASIC BP MYPROG, RUN BP MYPROG,
+           SP.VIEW and GET.LIST all work as before, because names are found
+           through the VOC in either case.
+
+           FIXED ON THE WAY - "Data pathname 'BP.OUT' already exists".  If the
+           first program you compiled in an account was typed with the file
+           name in lower case (BASIC bp MYPROG), SD made its compiled-program
+           file under a mixed-case name, bp.OUT, that it could never find
+           again; every later BASIC BP stopped with that message until the
+           file was deleted by hand.  The compiled-program file is now named
+           from the file's VOC entry, so typing bp gives bp.out, and BASIC BP
+           afterwards finds it.
+
+           WHAT IS NOT CHANGED YET: CREATE.FILE still makes a new file's
+           directory in upper case, so the compiled-program directory on disk
+           is still BP.OUT behind the bp.out VOC entry.  That is the next
+           change.  An account made before this one keeps its old names and
+           will not work with this release - there are no such accounts
+           outside development, so delete and re-create any test account.
+
+
 13 Sep 26  THE SYSTEM'S PROGRAM DIRECTORIES ARE NOW LOWER CASE TOO: gpl.bp,
            gpl.bp.out, bp, bp.out and pcode.out.
 

@@ -25,6 +25,8 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  The SDSYS account's voc, $hold and $hold.dic are created lower
+*               case (plan M3 D3).
 * 13 Sep 26 dm  Reads gpl.bp and writes gpl.bp.out, their names on disk (plan
 *               M3 D2).
 * 13 Sep 26 dm  The bootstrap creates the sdsys data files in lower case and
@@ -153,7 +155,7 @@ unload.object               ;* Unload inactive object code
 
 * need VOC to exist for BCOMP to work 
    
-filename = @sdsys:@ds:'VOC' 
+filename = @sdsys:@ds:'voc'    ;* 13 Sep 26 dm - lower case on disk (plan M3 D3)
 crt 'creating: ':filename
 create.file filename  DYNAMIC on error crt 'cannot create VOC'; goto abort.bbproc
    
@@ -289,12 +291,12 @@ FILES_LIST = ''
 * 13 Sep 26 dm - plan M3 D1: these names ARE the names on disk, because the
 *   create.file STATEMENT takes a path exactly as given (the port's e1095ab).
 *   The third column now names the dictionary rather than saying Y, so a
-*   lower-case file gets a lower-case .dic; $HOLD and its $HOLD.DIC are the
-*   SDSYS account's own hold file and stay upper case until D3, with VOC.
+*   lower-case file gets a lower-case .dic.  D3 (same day) lowered the SDSYS
+*   account's own $hold and $hold.dic, and its voc above.
 *
 *                  file      create file  dictionary to create
 FILES_LIST<-1> = "accounts"  :@VM:'N'      :@VM:'accounts.dic'
-FILES_LIST<-1> = "$HOLD"     :@VM:'N'      :@VM:'$HOLD.DIC'
+FILES_LIST<-1> = "$hold"     :@VM:'N'      :@VM:'$hold.dic'
 FILES_LIST<-1> = "$map"      :@VM:'Y'      :@VM:'$map.dic'
 FILES_LIST<-1> = "$ipc"      :@VM:'Y'      :@VM:''
 FILES_LIST<-1> = "dict.dic"  :@VM:'Y'      :@VM:''

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 dm  The QFILE default stays upper case after the id rename, and why.
 * 12 Sep 26 dm  The default QFILE pointer read folds, as typed then lower (plan
@@ -81,7 +82,7 @@ $include int$keys.h
 
    acc.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
 
-   openpath acc.path:@ds:'VOC' to rvoc.f else
+   openpath acc.path:@ds:'voc' to rvoc.f else
       @system.return.code = -status()
       stop sysmsg(6870) ;* Cannot open target account VOC file
    end
