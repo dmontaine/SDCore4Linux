@@ -75,8 +75,63 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, AFTER THE FULL CYCLE — READ THIS BLOCK FIRST; EVERYTHING BELOW
-IT IS OLDER.***
+***13 Sep 2026 HAND-OFF — READ THIS FIRST. THE NEXT TASK IS §M's M1 (THE CASE
+FOLD), FULLY LOCATED BELOW; NOTHING IS EDITED YET, TREE CLEAN AT `b9f0156`.***
+
+**Where §M is.** The scope meter is built (`gplbld/verify-nocase.py`, red by
+design, 1036 name remnants + 3 code sites) and BOTH rulings are in: account
+names → lower case (in scope, the `CREATEA:409` store site), user data-file
+record ids → OUT (SUE≠sue on ext4). Install `f14919c` current, DON `COUNT VOC`
+418. ***The migration itself is unstarted, and the plan's order is not
+optional: FOLD FIRST, THEN RENAME*** (plan §M1 — renaming first breaks every
+name until the fold lands).
+
+***M1 — THE FOLD, "as typed → lower → upper, exact match wins". TWO ROUTES,
+FIVE SITES, ALL BASIC, ALL LOCATED:***
+- ***File / BASIC `OPEN` route — `GPL.BP/_VOC_REF:75`***, `read voc.rec from
+  voc,voc.id else …`. Currently NO case fallback (straight to the special-
+  syntax else). Add: on the else, try `downcase(voc.id)` then `upcase(voc.id)`
+  (set `voc.id` to whichever hit, so the rest of the routine uses the real id)
+  BEFORE the existing special-syntax else. This one C thunk feeds it —
+  `get_voc_file_reference` (`op_dio1.c:487`), called from `op_dio1.c:630`
+  (OPEN) and `op_seqio.c:204,:464` (OPENSEQ) — so fixing `_VOC_REF` covers all
+  three.
+- ***Command route — `GPL.BP/CPROC`, four sites that ALREADY fold as-typed →
+  UPPER and only lack the lower step:*** `:1421-1422`, `:1447-1448`,
+  `:1541-1542`, and the main verb `:1641-1645` (`read … verb else read …
+  upcase(verb) else read … change(upcase(verb),'-','.')`). Insert a
+  `read … downcase(verb)` BEFORE the `upcase` read at each, so the order
+  becomes as-typed → lower → upper.
+
+***WHY THIS IS SAFE TO LAND BEFORE ANY RENAME (the fold-first property):*** on
+today's all-upper tree the new lower branch is dormant — as-typed or the
+existing upper read already hits, so nothing that works changes. The one
+observable gain is intended: `_VOC_REF`'s fold makes `OPEN "voc"` (lower)
+resolve to `VOC` via the upper step, bringing files in line with commands
+(which already fold). ***NOT the same as `DHF_NOCASE`*** — that flag stays OFF
+(`dh_*.c`), `FILEINFO(f,FL$NOCASE)` and `SYSTEM(91)` stay 0, so user-data record
+ids remain case-sensitive (the ruling). The fold is a NAME-lookup fallback, not
+a file-level nocase.
+
+***HOW TO VERIFY — the agent CANNOT compile GPL.BP (owner: "all system
+compilation is done by SDSYS, not DON"), so the reinstall IS the compile gate.***
+Edit via Edit tool (add a dated `START-HISTORY` line to each program), commit,
+push, owner reinstalls: a syntax error fails the install visibly and the old
+install keeps running (no wedge); recovery is delete+reinstall of the prior
+commit. Then witness: rename ONE `VOC` record to lower by hand, `OPEN`/`CT` it
+by both cases → resolves; confirm an all-upper session is unchanged. ***DO NOT
+rename anything in the tree until the fold is installed and witnessed.***
+
+**After M1: M2** (collision guard — refuse if `bp` and `BP` both exist; the
+migration in `installsdai.sh`/`update.accounts`; ***`git mv` via a temp name***,
+verify with `git ls-files`) — **M3** (the rename, the one big scripted transform
+CLAUDE.md's script-file hatch is for; drive the meter to 0 with `--strict`) —
+**§N** (release-number bump so accounts get the update prompt; plan says do §M
+and §N in the same release). Plan detail: `/home/don/Documents/claude_plan.md`
+§M/§N; gap table in PORT_ADOPTION queue 18.
+
+***12 Sep 2026, AFTER THE FULL CYCLE — older, but still current on everything
+except §M's progress above.***
 
 **The install is current.** `f446ac1`, 11:56:05, `assert-current` **0**. ***IT
 WAS A GENUINE FULL CYCLE, MEASURED, BECAUSE THE LAST ONE WAS A KEEP CYCLE THAT
