@@ -79,9 +79,22 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***§M3 D1 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT: FULL delete→install (answer
-N, type DELETE — owner: test accounts are disposable, no keep cycle across the
-rename), then the suite.*** The sdsys data directories are lower case on disk,
+***§M3 D1 INSTALLED AND WITNESSED on `58365cc`*** (owner FULL delete→install,
+`.sdcore-install` 2026-09-13 10:29:13, `assert-current` 0 at 10:44). ***SD was
+left stopped by `PRE_RELEASE` 29*** (installer start and boot start both stopped
+within 1 s); the first suite run refused "SD has not been started" everywhere and
+is void; owner ran `sudo /usr/local/sdsys/bin/sd -start`. Rerun as the installing
+user, no sudo, no `--allow-stale`: all exit 0, no `[FAIL]`, every session "ran to
+OFF". ***`verify-lcnames` 62/62*** (61 + new S15, which read the installed
+top level: all 13 lower, no upper); vocverbs 34 (A2 `@SDSYS/syscom`), fold 35,
+setpw 24, txn 33, editors 28, nonet 59 (D1 `@SDSYS/syscom`), lineendings 42,
+basicfuncs 199, accounts 35, sysperms 18 (W1/W2 on `$ipc`), grants 16/0,
+tier-layer exit 0 with `COUNT VOC` 418. `stat`: bootstrap dirs `sdsys:sdusers`,
+`$ipc` 775, D1 dirs 755; no chmod-loop WARNING was reported by the owner.
+***Found: `PRE_RELEASE` 30*** — `accounts/SDSYS` installed 755, not 654.
+***NEXT: `PRE_RELEASE` 29 (it blocks every cycle), then §M3 D2.***
+
+*Pre-install, 13 Sep:* The sdsys data directories are lower case on disk,
 names as the port's `e1095ab`.
 - ***Renames (script, 2839 files `R`, 0 lines):*** `git mv` sdsys `NEWVOC
   VOC_TEMPLATE MESSAGES SYSCOM SD.VOCLIB ACCOUNTS` → lower; `gplbld/FILES_DICTS`
