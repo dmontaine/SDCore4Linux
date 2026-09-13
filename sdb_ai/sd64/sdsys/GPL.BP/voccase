@@ -21,6 +21,8 @@
 *               conversion.  No port equivalent: NTFS matches names regardless
 *               of case, so the port could rename new installs and leave old
 *               accounts alone.  On ext4 LIST and list are two records.
+* 12 Sep 26 dm  $internal: select list 11 is an internal list, and without
+*               the flag the select faulted (verify-voccase, install 4288380).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -65,6 +67,13 @@
 *
 * START-CODE
 
+* $INTERNAL IS LOAD BEARING, NOT HABIT.  Lists 11 and 12 are refused to any
+* program without HDR_INTERNAL (sd.h:43-48, "Select list number out of range")
+* - measured 12 Sep 2026, verify-voccase on install 4288380, where this ran
+* without it and faulted at its select.  The flag is the running program's,
+* so it holds when an ordinary user's sign-in reaches this through update.voc,
+* and an internal list is also the one that cannot clobber the user's own.
+$internal
 subroutine voccase(voc.f, newvoc.f, template.f, moved, collided)
 $catalogue !voccase
 
