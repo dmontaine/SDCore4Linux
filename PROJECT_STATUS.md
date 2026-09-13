@@ -2893,6 +2893,74 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
+### §M3 on-disk directory rename — DESIGN, PROPOSED 12 Sep 2026, NOT APPROVED, NOT STARTED
+
+Owner chose this as the next category (12 Sep). The port has no precedent: its
+`e1095ab` needed no migration because NTFS matches either case. ***Written in
+the conditional; nothing below is measured behaviour except where it says so.***
+
+**Measured facts it rests on (12 Sep, install `8c14634`):**
+- A directory is reached only through a PATH in a VOC record: DON's 12 F/Q
+  records name `VOC`, `$HOLD`, `$HOLD.DIC`, `$SVLISTS`, `BP` relatively and
+  `@SDSYS/<NAME>` for system files. A session opens its VOC by `openpath "VOC"`
+  (LOGIN:468, CPROC:2952, APISRVR, SETACC); admin verbs by `pathname:'VOC'`
+  (CREATEA, DELACC, MODIFYA, SETFILE, `_VOC_REF`, LOGIN's all-accounts walk).
+- Uninstall deletes sdsys whole (`deletesdai.sh:182`); only the register is
+  carried, saved as `/home/sd/ACCOUNTS` and moved back at `installsdai.sh:722-724`.
+- Keep cycle: `UPDATE.ACCOUNTS ALL` runs as root at `:940-944`, before
+  services start — ***the one moment no user session can be open.***
+- C names only `messages.c` MESSAGES ×3 and `to_file.c` `$HOLD` ×3. 483
+  path-name lines overall (C, installer, bootstrap, helpers, verifiers,
+  comments included). `bbcmp.py:7141` upper-cases every `$include` name.
+
+**Proposed phases, each its own install and witness:**
+- ***D1 — sdsys data directories*** (NEWVOC VOC_TEMPLATE MESSAGES SYSCOM
+  SD.VOCLIB PCODE.OUT ACCOUNTS `$HOLD`, and the bootstrap-made `$HOLD.DIC $IPC
+  $MAP $MAP.DIC VOC VOC.DIC ACCOUNTS.DIC DICT.DIC DIR_DICT`): repo `git mv`,
+  BBPROC FILES_LIST, installer bootstrap loop, `gplbld/FILES_DICTS`, messages.c,
+  every `@sdsys:@ds:'X'` literal, helper scripts (`reconcile-accounts.sh` REG).
+  No user data moves. Two carry-overs: the register restore accepts the old
+  `/home/sd/ACCOUNTS` or the new name (refusing if both), and account VOC paths
+  `@SDSYS/X` are rewritten (see *path rewrite*).
+- ***D2 — sdsys program directories*** `GPL.BP GPL.BP.OUT BP BP.OUT` (the port's
+  `1943704`): build tooling churn (make/gen_includes, bbcmp, pcode_bld,
+  installer, CLAUDE.md, every verifier path), and the `$include` upcase above.
+- ***D3 — per-account directories*** `VOC $HOLD $HOLD.DIC $SVLISTS BP BP.OUT`,
+  user-owned, the only phase touching user data.
+- ***D4 — CREATE.FILE makes lower-case names*** (`CREATEF:306/:379`, the meter's
+  code site). New files only; existing ones keep working through their recorded
+  path.
+
+**Path rewrite (`!vocpaths`, called by update.voc beside `!voccase`):** for F
+records only, fields 2 and 3: a value EXACTLY equal to a known old path
+(`@SDSYS/SYSCOM`, `$HOLD`, …) becomes the new one; any other value is never
+touched; records rewritten are named. Idempotent.
+
+**D3 migration, proposed:** the INSTALLER, as root, on a keep cycle, for every
+registered account path (user and group), BEFORE `UPDATE.ACCOUNTS ALL`: per
+directory, both spellings present → refuse that account and name it; old only →
+`mv` (one `rename(2)`, owner and mode kept); new only → nothing. Then the update
+rewrites the paths. ***Objection raised and not fully resolved:*** between the
+`mv` and the rewrite an account is broken; if the install dies there, it stays
+broken until the update is re-run. Mitigation proposed: the installer stops,
+names the accounts and the one recovery command; both steps idempotent.
+***Alternative considered:*** a runtime fallback (open lower, else upper, refuse
+if both) needing no ordering and covering an account restored later from an old
+backup — at the cost of dual-casing support in the runtime for ever.
+
+**Would falsify the plan:** a session or process that can be open during the
+keep-cycle update (the order at `:940-944` would then not be safe); a path to an
+account directory recorded anywhere other than a VOC record (the register's
+`ACC$PATH` is the account root, already lower); F records whose path is
+absolute to a renamed directory (the exact-match rewrite would miss them).
+
+**For the owner to decide before D1:** (1) the phase split; (2) D3 migration by
+installer only, or also a runtime fallback; (3) a `[locked]` F record whose
+path names a renamed directory — rewrite and report (proposed: a dead pointer
+protects nothing, the same logic as verbs overriding the lock) or leave and
+report; (4) existing user data files already created upper case — leave
+(proposed) or rename.
+
 ### Conformity fix 10 Sep 2026 — CREATE.ACCOUNT always creates the OS user
 
 ***The `config('CREATUSR')` gate is removed from `CREATEA` `case 1`*** so

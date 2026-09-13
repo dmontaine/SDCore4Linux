@@ -60,6 +60,13 @@
 # direction.  A blunt check that is sometimes pessimistic cannot lie in the
 # direction that costs.
 #
+# ***RE-PROPOSED AND REAFFIRMED THE SAME DAY (12 Sep 2026, late):*** a session
+# suggested exempting commits that change only .md files - measured true today,
+# no .md reaches an install - without first reading this header.  The owner
+# chose strict again.  Do not propose it a third time; fix the friction on the
+# CALLER'S side instead - do not commit witness records between an install's
+# test runs, and state the delta out loud when --allow-stale is used.
+#
 # SO THE FRICTION IS PAID WHERE IT IS VISIBLE INSTEAD.  A caller who has
 # reasoned about the delta says so out loud with its own --allow-stale, which
 # prints a banner, and states the commit and the reason when quoting the
