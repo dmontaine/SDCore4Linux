@@ -18,7 +18,10 @@
 #                marker SETPTR writes is matched by C (to_file.c), so this
 #                category also proves the C and the BASIC agree: a mismatch
 #                prints to a file literally named "$hold zzlch" in the account
-#                directory instead of $HOLD/zzlch, and row H2 looks for it.
+#                directory instead of $HOLD/zzlch, and row H5b looks for it.
+#   commands     every K/PA/PH/R/S/V id in NEWVOC, VOC_TEMPLATE, SD.VOCLIB
+#                (the port's 1a88360, 777 here); static rows S6-S9, and count
+#                as the one run through the account migration.
 #
 # ***"NOT FOUND" CANNOT TEST A RENAME*** - the port's lesson (its 65c681f):
 # CT folds the record id, so CT VOC $SAVEDLISTS finds $savedlists either way.
@@ -155,6 +158,50 @@ def main():
     run.note("S5 and that list is not empty (S4 compared something)",
              True, len(created_lower) > 0)
 
+    # THE COMMAND IDS (the port's 1a88360).  Which ids keep upper case, and why:
+    # F/Q file pointers (file names, a later category), T tier lists (data),
+    # X, and $ % @ records.  Everything else in NEWVOC / VOC_TEMPLATE /
+    # SD.VOCLIB must be lower case.
+    def vtype(p):
+        l1 = open(p, errors="replace").readline()
+        t = l1[:1].upper()
+        return l1[:2].upper() if t == "P" else t
+    upper_cmds, counted = [], 0
+    for d in ("NEWVOC", "VOC_TEMPLATE", "SD.VOCLIB"):
+        dp = os.path.join(V.SDSYS, d)
+        for n in sorted(os.listdir(dp)):
+            p = os.path.join(dp, n)
+            if not os.path.isfile(p) or n[0] in "$%@":
+                continue
+            if vtype(p) in ("K", "PA", "PH", "R", "S", "V"):
+                counted += 1
+                if n != n.lower():
+                    upper_cmds.append("%s/%s" % (d, n))
+    run.say("  command-type records examined: %d" % counted)
+    run.note("S6 command records were found (not the null case)", True, counted > 700)
+    run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
+             " letter", [], upper_cmds[:10])
+    unresolved = []
+    for lst, src in (("TIER.OMIT.STANDARD", "NEWVOC"),
+                     ("TIER.ADD.ADMINISTRATOR", "VOC_TEMPLATE")):
+        body = open(os.path.join(V.SDSYS, "NEWVOC", lst), errors="replace").read()
+        for n in [l.strip() for l in body.splitlines()[1:] if l.strip()]:
+            if n != n.lower() or not os.path.exists(os.path.join(V.SDSYS, src, n)):
+                unresolved.append("%s:%s" % (lst, n))
+    run.note("S8 every tier-list entry is lower case and names a shipped record",
+             [], unresolved)
+    bad_r = []
+    for d in ("NEWVOC", "VOC_TEMPLATE"):
+        dp = os.path.join(V.SDSYS, d)
+        for n in sorted(os.listdir(dp)):
+            p = os.path.join(dp, n)
+            if os.path.isfile(p) and vtype(p) == "R":
+                f = open(p, errors="replace").read().split("\n")
+                tgt = f[2] if len(f) > 2 else ""
+                if not os.path.exists(os.path.join(V.SDSYS, f[1] if len(f) > 1 else "", tgt)):
+                    bad_r.append("%s/%s -> %s" % (d, n, tgt))
+    run.note("S9 every R record's field 3 names a record that exists", [], bad_r)
+
     # ---------------------------------------------------------------- 2. ground
     run.heading("2. ground and probe")
     for p in (os.path.join(bp, PROBE), os.path.join(holddir, HOLDREC), stray):
@@ -199,9 +246,18 @@ def main():
                  V.says(s.text, r"^\s*Mode\s+: 3 \(Hold file: \$hold %s\)$" % HOLDREC))
         run.note(prefix + "d no runtime fault", False, V.says(s.text, FAULT))
 
+    def command_works(prefix, first):
+        s = sd("the command typed in both cases", ["COUNT VOC", "count voc"])
+        run.note(prefix + "a it counted, typed both ways", 2,
+                 V.say_count(s.text, r"^[0-9]+ record\(s\) counted$"))
+        run.note(prefix + "b neither said 'is not in your VOC'", False,
+                 V.says(s.text, r"is not in your VOC"))
+        run.note(prefix + "c no runtime fault", False, V.says(s.text, FAULT))
+
     CATS = [
         ("$savedlists", "L", savedlists_works),
         ("$hold", "H", hold_works),
+        ("count", "C", command_works),
     ]
 
     try:

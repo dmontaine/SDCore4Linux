@@ -53,7 +53,10 @@ CATALOGUED = ["$GRANTA", "!TIER_ALLOWS", "!GRP_MEMBERS"]
 
 SOURCES = ["GRANTA", "TIERGATE", "GRP_MEMBERS"]
 
-VERBS = ["GRANT", "REVOKE", "LIST.GRANTS"]
+# The VOC ids, which are FILE NAMES in VOC_TEMPLATE and entries in the tier
+# list.  Lower case since plan M3 renamed the command ids (12 Sep 2026); this
+# reads the files by name, so it must spell them as they are on disk.
+VERBS = ["grant", "revoke", "list.grants"]
 VERB_RECORD = "V\nCA\n$GRANTA\n"
 
 MESSAGES = [str(n) for n in range(10041, 10051)] + \

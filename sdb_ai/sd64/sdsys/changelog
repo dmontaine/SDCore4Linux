@@ -9,6 +9,34 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  SD'S COMMANDS ARE NOW LOWER CASE IN THE VOC: list, create.file,
+           count, and the other 380 or so.
+
+           Every verb, keyword, paragraph, phrase and sentence SD ships is now
+           stored under a lower-case name.  WHAT YOU TYPE DOES NOT CHANGE:
+           LIST, list and List all run the same command, as they already did.
+           What you will notice is what SD prints back - CT VOC LIST now
+           answers with a heading of "VOC list".
+
+           An existing account's commands are renamed by its next VOC update -
+           the "Update VOC to new release?" question at sign-in, or
+           UPDATE.ACCOUNTS - and SD lists what it renamed.  A command you have
+           customised moves with your changes.  If you also made an entry of
+           your own under the lower-case name, SD leaves both and tells you.
+           Changing an account's tier with MODIFY.ACCOUNT does the same rename
+           first, so a demotion still removes the commands the new tier does
+           not get.
+
+           WHAT IS NOT RENAMED YET: file pointers (VOC, BP, QFILE, SYSCOM and
+           the rest), and the $ records ($ACC, $MAP, $RELEASE).  Those move
+           separately.
+
+           ONE THING TO KNOW: a command that reads a VOC record by its exact
+           name - COPY FROM VOC LIST,MYLIST, for example - now needs the
+           lower-case name (COPY FROM VOC list,MYLIST).  Commands you TYPE are
+           found in any case; a record id handed to COPY is taken as given.
+
+
 12 Sep 26  THE HOLD FILE IS NOW CALLED $hold.
 
            The second system name to move to lower case.  The VOC entry for the
