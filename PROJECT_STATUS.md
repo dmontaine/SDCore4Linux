@@ -79,11 +79,21 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***12 Sep 2026, ~22:40 — §M3 FIRST CATEGORY BUILT AND PUSHED, NOT INSTALLED:
-THE `$SAVEDLISTS` VOC ID IS `$savedlists`*** (the port's first rename, its
-`65c681f`). NEXT: owner reinstall → start SD if stopped (PRE_RELEASE 29) →
-`verify-lcnames.py` must go 10 failed → 37/37 and `verify-voccase.py` 3 failed →
-38/38, then the standing suite.
+***12 Sep 2026, ~22:55 — §M3 FIRST CATEGORY (`$savedlists`) INSTALLED AND
+WITNESSED on `3da9b8b`*** (22:13:42, `assert-current` 0; SD came up at boot this
+time). `verify-lcnames` ***36/36*** (red was 10/36; "37" was a miscount — U0
+is recorded only when the move-back fails, and S5 was added after the red run),
+raw: `CT VOC $SAVEDLISTS` → `VOC $savedlists`, and the real `UPDATE.ACCOUNTS`
+printed ***"1 VOC record(s) were renamed to the lower-case name SD now uses:
+$savedlists"***. `verify-voccase` 38/38. Standing suite unchanged at its counts,
+0 not-OFF; units sdverify 41. ***METER GAP:*** `verify-nocase` still 1036 — it
+counts NEWVOC/VOC_TEMPLATE ids and names on disk, not CREATEA-written ids or
+quoted literals in GPL.BP, so this rename did not move it. ***NEXT: `$HOLD`***
+(the port's `134d0a4`: VOC_TEMPLATE record renamed on disk, SETPTR, SPVIEW,
+`_NEXTPTR`, `_PRFILE`, CLEANAC, CREATEA, `NEWVOC/SP.VIEW`, messages
+7119/7131/7170, and C in `to_file.c`).
+
+*Pre-install block, 22:40:* §M3 first category built and pushed.
 - ***Edited with Edit replace-all, not the port's patch*** — it would not apply
   (it depends on the port's earlier on-disk rename). Literals in COPYLST SAVELST
   DELLIST LSTMRG CREATEA CLEANAC SAVESTK `_DELLIST` `_SAVELST` `_GETLIST` GETLIST;
