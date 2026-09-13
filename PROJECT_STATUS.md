@@ -79,6 +79,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***HAND-OFF 12 Sep 2026, ~23:45 — STOPPED MID-TASK ON THE OWNER'S INSTRUCTION
+(credits). TASK: REMOVE THE CASE MIGRATION, THEN §M3 D1.*** Owner ruled: no
+existing installs, no migration ever needed for §M (memory
+`sdcore4linux-no-migration`), and "remove now, before D1".
+- ***DONE in this commit, NOT compiled or installed:*** removed the `!voccase`
+  call + 10916/10917 display blocks from LOGIN `update.voc` and MODIFYA
+  `voc.delta`; removed CPROC's R-record target fold (~:1891, now a plain exact
+  read again — ***its START-HISTORY line still describes the fold: fix it***);
+  CREATEA history line trimmed.
+- ***STILL TO DO for the removal:*** `git rm` `sdsys/GPL.BP/voccase`,
+  `sdsys/MESSAGES/10916 10917 10052` (10052 was only used by the removed block —
+  re-grep first), `gplbld/verify-voccase.py/.bp`; strip `verify-lcnames.py`
+  migration rows (S3–S5 read `voccase`; the DOWN / UPDATE.ACCOUNTS / restore
+  sections and `M10917`; the probe's DOWN/UP modes) — ***until then
+  verify-lcnames WILL FAIL/CRASH***; remove the changelog paragraphs promising
+  existing accounts get renamed (the `$savedlists`, `$hold`, commands and file
+  pointer entries, and MODIFY.ACCOUNT's sentence). Then reinstall and run the
+  suite (owner's command list: previous session transcript / list below).
+- ***THEN D1*** (design in Open, "on-disk directory rename"): sdsys dirs
+  `NEWVOC VOC_TEMPLATE MESSAGES SYSCOM SD.VOCLIB ACCOUNTS $IPC $MAP $MAP.DIC
+  VOC.DIC ACCOUNTS.DIC DICT.DIC DIR_DICT` → lower, no migration. NOT in D1:
+  `VOC $HOLD $HOLD.DIC` (SDSYS account dirs → D3), `PCODE.OUT` (→ D2). Audit
+  script `scratchpad/d1audit.py` (scratchpad is session-local; re-create). Sites:
+  `messages.c:183/211/233`, ~30 `openpath @sdsys:@ds:'X'` in GPL.BP, BBPROC
+  FILES_LIST + `:167`, installer `:613-614 :722-727 :804 :910`, deletesdai
+  `:98-117`, `reconcile-accounts.sh:128`, `witness-accounts.sh:110`,
+  `bbcmp.py:7142`, `gen_includes.py` SYSCOM output, `gplbld/FILES_DICTS` file
+  prefixes (not `$HOLD.DIC^@ID`), NEWVOC/VOC_TEMPLATE `@SDSYS/X` paths and
+  `accounts` record fields, R records field 2 `SD.VOCLIB`, verifiers (accounts,
+  editors, grants, lcnames, nocase, nonet, sysperms, tier-layer.bp, vocverbs).
+- `assert-current` stays STRICT (owner, twice). Don't commit docs between an
+  install's test runs.
+
 ***§M3 FOURTH CATEGORY (F/Q POINTER IDS) INSTALLED AND WITNESSED on `8c14634`***
 (23:03:08, `assert-current` 0). ***The owner ran the suite and pasted the
 verdicts***; the agent re-ran the two missing from the paste. `verify-lcnames`
@@ -2895,7 +2928,23 @@ the plan does not name (found 9 Sep — see the §I note).
 
 ### §M3 on-disk directory rename — DESIGN APPROVED WITH RULINGS 12 Sep 2026, NOT STARTED
 
-***OWNER'S RULINGS, 12 Sep 2026, on the four questions below:***
+***SUPERSEDING RULING, OWNER, 12 Sep 2026 (later the same night): NO MIGRATION IS
+NEEDED FOR ANY OF §M.*** *"There are no existing installs of SD Core for Linux
+and there is no migration path from full SD"* (full SD has the TAPE system; this
+does not). Every install is fresh and §M lands before the first release, so no
+account, register or VOC ever holds an old name. ***Consequences:*** D1–D4 are
+renames plus references only; D3's installer migration, `!vocpaths`, and the
+two-name register restore are ***DROPPED***; rulings 2 and 3 below are moot, and
+ruling 4 reduces to "CREATE.FILE makes lower-case names" (D4). The already-built
+case migration (`GPL.BP/voccase`, its calls in LOGIN `update.voc` and MODIFYA
+`voc.delta`, messages 10916/10917, `verify-voccase`, `verify-lcnames` sections
+4–5) serves no install — removal is proposed to the owner, not done.
+***Also found while auditing D1:*** the SDSYS account's own directories (`VOC`,
+`$HOLD`, `$HOLD.DIC` in sdsys) are account directories, reached by the same
+generic `pathname:'VOC'` code as every account — they move with D3, not D1.
+`PCODE.OUT` is build tooling — D2.
+
+***OWNER'S RULINGS, 12 Sep 2026, on the four questions below (2 and 3 now moot):***
 1. ***Four phases*** D1–D4, each its own install and witness.
 2. ***D3 migration by the installer only***, on a keep cycle, as root, before
    `UPDATE.ACCOUNTS ALL`. No runtime fallback: an account restored later from

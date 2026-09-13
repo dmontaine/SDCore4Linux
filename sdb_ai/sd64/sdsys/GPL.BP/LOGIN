@@ -18,9 +18,8 @@
 * 
 * 
 * START-HISTORY:
-* 12 Sep 26 dm  update.voc first moves each VOC record whose lower-case id SD
-*               now ships to that id (!voccase, plan M2), and names the moves
-*               (10916) and the both-spellings refusals (10917).
+* 12 Sep 26 dm  The case migration added to update.voc earlier today is
+*               removed: there are no existing installs to migrate (owner).
 * 11 Sep 26 dm  update.voc now also adds the ADMINISTRATOR tier layer from
 *               VOC_TEMPLATE, which it never read before, so an upgrade brings
 *               an existing administrator the verbs added since its account was
@@ -610,24 +609,6 @@ update.voc:
    end
    omit.count = dcount(omit.rec, @fm)
 
-* 12 Sep 26 dm - PLAN M2, THE CASE MIGRATION, BEFORE THE COPY.  This loop only
-*   ever writes, so once SD ships 'list' an account holding 'LIST' would end up
-*   with both.  !voccase moves each record whose lower-case id SD now ships
-*   (NEWVOC or VOC_TEMPLATE) to that id first, so the copy below updates it
-*   under its new name and honours a [locked] marker that moved with it.
-*   Names SD does not ship in lower case - a user's own, or a system name not
-*   yet renamed - are untouched.  Both spellings present and different is
-*   refused and named after the loop (10917).  It takes select list 11, which
-*   is free here: the copy loop below is what fills it next.
-   openpath @sdsys:@ds:"VOC_TEMPLATE" to case.tmpl.f else
-      display sysmsg(10052) ;* Cannot open SDSYS VOC_TEMPLATE
-      goto abort.login
-   end
-   case.moved = ''
-   case.collided = ''
-   call !voccase(update.voc.f, sdsys.file, case.tmpl.f, case.moved, case.collided)
-   close case.tmpl.f
-
    select sdsys.file to 11
    loop
       readnext id from 11 else exit
@@ -826,14 +807,6 @@ accept.without.query:
 *  asked for something it did not get, and is told where to put the behaviour.
    if overridden.count then
       display sysmsg(10166, overridden.count, convert(@fm, ' ', overridden.ids))
-   end
-
-*  12 Sep 26 dm - plan M2: the case migration's two outcomes, named.
-   if case.moved # '' then
-      display sysmsg(10916, dcount(case.moved, @fm), convert(@fm, ' ', case.moved))
-   end
-   if case.collided # '' then
-      display sysmsg(10917, dcount(case.collided, @fm), convert(@fm, ' ', case.collided))
    end
 
    close sdsys.file
