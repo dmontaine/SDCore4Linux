@@ -9,6 +9,25 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+12 Sep 26  THE SYSTEM FILE POINTERS ARE NOW LOWER CASE IN THE VOC: voc, syscom,
+           newvoc, dict.dict, md, sd.accounts, sd.voclib, and in the system
+           account accounts, messages and qfile.
+
+           As with the commands, what you type does not change: LIST VOC,
+           COUNT SYSCOM and $INCLUDE SYSCOM KEYS.H all work as before, and
+           CT VOC SYSCOM now answers with the heading "VOC syscom".  An
+           existing account's pointers are renamed by its next VOC update, and
+           SD lists them when it does.
+
+           WHAT DOES NOT CHANGE: the files themselves.  These are only the VOC
+           entries' names; the directories on disk (SYSCOM, NEWVOC and the
+           rest) keep their current names for now.
+
+           THE SAME CAUTION AS BEFORE: a command that takes a record id exactly
+           - COPY FROM VOC SYSCOM,MYPTR, or QSELECT VOC SYSCOM - now needs the
+           lower-case id.  Names you open or type are found in either case.
+
+
 12 Sep 26  SD'S COMMANDS ARE NOW LOWER CASE IN THE VOC: list, create.file,
            count, and the other 380 or so.
 

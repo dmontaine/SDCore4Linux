@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups and the VOC token read fold as typed, then lower,
 *               then upper (plan M1).  check.record is deliberately NOT folded.
 * 10 Sep 26 dm  Parity audit: Enter is N at the CSV overwrite prompt (7305) and
@@ -510,7 +511,7 @@ $define MAX.STRINGS     20          ;* For SEARCH command
 
    dict.open = @false
    if len(dict.flag) then
-      open "DICT.DICT" to dict.file then dict.open = @true
+      open "dict.dict" to dict.file then dict.open = @true
    end else
       open "DICT", qproc.file.name to dict.file then dict.open = @true
    end

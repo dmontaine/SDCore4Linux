@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 24  0.6.1 SD launch. Earlier history details suppressed.
 * 28 Jul 24  mab remove unsupported BASIC Functions / Statements:
@@ -2992,7 +2993,7 @@ process.include:
 
          if err then            ;* Try SYSCOM
             err = @false
-            include.file.name = "SYSCOM"
+            include.file.name = "syscom"
             include.error.name = include.record.name
             ignore.not.found = @false
             gosub open.include.record

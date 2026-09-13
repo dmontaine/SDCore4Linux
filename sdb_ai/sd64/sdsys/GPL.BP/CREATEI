@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -84,7 +85,7 @@ $include err.h
    if dict.flag = '' then
       open 'DICT', filename to dict.f else stop sysmsg(2012)
    end else
-      open 'DICT.DICT' to dict.f else stop sysmsg(2012)
+      open 'dict.dict' to dict.f else stop sysmsg(2012)
    end
    
    * Collect field names and associated data

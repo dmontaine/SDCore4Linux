@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -50,7 +51,7 @@ $include dictdict.h
 
    prompt.string = ''
 
-   open 'VOC' to voc.f else stop 'Cannot open VOC'
+   open 'voc' to voc.f else stop 'Cannot open VOC'
 
    sentence = trimf(@sentence)
    gosub get.token    ;* Skip verb name
@@ -84,7 +85,7 @@ $include dictdict.h
    end
 
    if len(dict.flag) then
-      open 'DICT.DICT' to dict.fvar else
+      open 'dict.dict' to dict.fvar else
          stop 'Cannot open DICT.DICT, status ' : status()
       end
    end else

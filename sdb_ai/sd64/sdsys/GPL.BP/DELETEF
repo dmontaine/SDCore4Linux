@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 12 Sep 26 dm  Opens voc in lower case; the banned list stays upper, and why
+*               (plan M3).
 * 12 Sep 26 dm  Enter is N at the select-list prompt (2050) as well, on the
 *               owner's conformance ruling.  The argument for Y rested on a
 *               misreading: measured in BOTH trees, all six verbs sharing 2050
@@ -71,13 +73,17 @@ $define max.name.len 12
    @system.return.code = -ER$ARGS      ;* Preset for argument errors
 
 * 20240121 mab use @VM not hard coded hex fd 
+* 12 Sep 26 dm - DELIBERATELY STILL UPPER CASE, though the VOC id is voc (plan
+*   M3).  The guard at delete.upcased.file is locate UPCASE(file.name) - only
+*   the left side is upcased - so lowering this list would let DELETE.FILE voc
+*   walk past it and delete the account's VOC.  The port's 0394af4, same note.
    banned.files = 'VOC':@VM:'$ACC'
    no.query = @false
 
    * Open VOC here rather than using @VOC so that it will be closed on
    * exit avoiding the need for explicit releases on locks in error paths.
 
-   open 'VOC' to voc.f else stop sysmsg(2026) ;* Cannot open VOC
+   open 'voc' to voc.f else stop sysmsg(2026) ;* Cannot open VOC
 
    prompt ''
 
