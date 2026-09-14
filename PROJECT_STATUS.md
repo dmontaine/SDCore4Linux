@@ -30,9 +30,11 @@ the work, nothing in "Verified" that was not observed that session.
     `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
     **10 Sep: `3` ruled (EDIT = ED alias) and `4` superseded (port EDIT adopted)
     — both struck; the counts above predate that.**
-- **Plan steps: 1–4 done. Step 7: §M DONE + installed (14 Sep, `83e5ccf`);
-  §L1 all but one owner-run witness** (MODIFYA tier re-derivation — below). The
-  release blockers are essentially cleared.
+- ***Plan steps 1–4 done. Step 7 (§M + §L1) — BOTH RELEASE BLOCKERS CLEARED,
+  14 Sep.*** §M done + installed on `83e5ccf`; §L1 closed by the owner-run
+  `witness-tierchange.sh --commit` (15/15, MODIFYA re-derives the per-tier VOC
+  alone). ***No release-blocking work remains*** — see the §M/§L1 lines below
+  and the START HERE block for what is post-parity (goals) vs owner-run leads.
 - ***AUDITED 12 Sep 2026 — EVERY REMAINING TASK RE-MEASURED AGAINST THE TREE
   AND THE INSTALL RATHER THAN READ. THREE CLAIMS WERE STALE*** and are
   corrected in place: §L1's tier-layer half (below), `PRE_RELEASE 6` (no longer
@@ -75,9 +77,11 @@ the work, nothing in "Verified" that was not observed that session.
   COUNT VOC; CT VOC`, and ***`LOGTO` errored `3001 … CPROC:2952`*** (the
   `openpath "voc"` there) in the piped root session, so every read stayed in
   SDSYS (425 each time). The rewrite asserts on 10113 cross-checked against the
-  tier.policy sizes and the register tier read off disk — no `LOGTO`. bash -n
-  clean, dry-run verified; a re-run would now go green on the same evidence.
-  This clears the last §L1 item.
+  tier.policy sizes and the register tier read off disk — no `LOGTO`.
+  ***THE FIXED SCRIPT WAS RE-RUN GREEN — 14 Sep 00:01, owner-run, 15 of 15, 0
+  failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
+  disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
+  CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
 - ***LEAD, from the above, NOT a defect claim yet: `LOGTO <account>` errored
   3001 at `cproc:2952` (`openpath "voc"`) from a piped `sudo sd` (root/SDSYS)
   session.*** Whether this is a piped-non-tty artefact or a real LOGTO issue is
