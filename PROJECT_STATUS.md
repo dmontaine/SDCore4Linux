@@ -25,7 +25,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
 | ◐ | **S.8** | S | `kernel(K$INTERNAL, n)` guard built + compiled 14 Sep; left: an install that bootstraps and signs on with it | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ⬜ | **S.2** | S | lead: `LOGTO <account>` failed 3001 at `cproc:2952` in a piped `sudo sd` session; non-tty artefact or real | — |
+| ⬜ | **S.2** | S | lead: `LOGTO` 3001 under `sudo sd`; piping ruled out 14 Sep, real/effective-uid mismatch suspected; one owner `sudo` command decides | — |
 | ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
 | ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
 | ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
@@ -153,9 +153,25 @@ owner's ruling comes first.
   failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
   disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
   CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
-- ***[S.2] LEAD, from the above, NOT a defect claim yet: `LOGTO <account>` errored
+- ***[S.2] LEAD, NARROWED 14 Sep 2026: PIPING IS RULED OUT BY MEASUREMENT; A
+  real/effective-uid mismatch is the likely cause, from source, UNWITNESSED.***
+  Measured as `don`, no sudo, install `83e5ccf` (`cproc`, `op_dio*` unchanged
+  to HEAD): `printf 'WHO\nLOGTO don\nWHO\nCOUNT VOC\nQUIT\n' | /usr/local/sdsys/bin/sd`
+  → `1 don`, `418 record(s) counted`, exit 0, no 3001. ***Hypothesis:*** `sudo sd`
+  runs EUID `sdsys` over real UID 0 (`cproc:344`; PRE_RELEASE 20's WHO.AM.I);
+  only `$CREATEA/$DELACC/$MODIFYA` get euid 0 back (`cproc:221-223,1807`), and
+  LOGTO is in CPROC itself. `3001` = `ER_SFNF`, set only at `op_dio1.c:738`
+  from `dh_open`'s `DHE_FILE_NOT_FOUND`: `dh_open.c` `access(%0, 2)` asks with
+  the REAL uid (root → writable), then `dio_open(DIO_UPDATE)` opens with the
+  EFFECTIVE uid `sdsys`, which cannot write `voc/%0` (`-rw-rw-r-- don:sdu_don`,
+  `sdsys` is only in `sdusers`). If so it hits interactive `sudo sd` too, for
+  every user account. ***Falsified if*** `printf 'LOGTO don\nWHO\nQUIT\n' | sudo
+  /usr/local/sdsys/bin/sd` enters `don` (WHO → `don` account, no 3001). The fix is
+  a ruling, not a typo (`euidaccess` gives an admin a read-only VOC; restoring
+  euid 0 around LOGTO changes file ownership) — measure first.
+  *(Original entry follows.)* `LOGTO <account>` errored
   3001 at `cproc:2952` (`openpath "voc"`) from a piped `sudo sd` (root/SDSYS)
-  session.*** Whether this is a piped-non-tty artefact or a real LOGTO issue is
+  session. Whether this is a piped-non-tty artefact or a real LOGTO issue is
   unmeasured; an admin normally LOGTOs interactively. Worth its own look before
   relying on LOGTO in any instrument.
 - ***CORRECTION (14 Sep): `gplbld/witness-accounts.sh` is NOT broken*** — an
@@ -184,6 +200,16 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***HAND-OFF, 14 Sep 2026, third session.*** Worked the table's cheapest rows.
+Closed: **P.29** (kickstart note dropped; boot 0 re-read `active`, no `-stop`)
+and **P.11** (`check-msglen.py` derives its bound; `test-msglen-units.py` 10/10,
+now the sixteenth free check, all green 7.3 s). Built + compiled, not installed:
+**Q.28** (message 10918) and **S.8** (K_INTERNAL guard) — ***the tree `bin/sd`
+now differs from the install `83e5ccf`***, so both want the next install cycle.
+**S.2** narrowed: piping ruled out as `don`; a real/effective-uid mismatch under
+`sudo sd` is suspected from source and one owner `sudo` command decides it (the
+entry has it). Next: that command, then an install to witness Q.28/S.8.
 
 ***HAND-OFF, 14 Sep 2026, second session (credits).*** The task table at the
 top of this file is new and is the authority on what is left; read it first.
