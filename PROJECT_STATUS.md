@@ -79,11 +79,24 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***14 Sep 2026 — tier.policy move DONE IN SOURCE, UNWITNESSED. Next step is the
-install + suite (owner-run); the BASIC could not be compiled here (SDSYS
-compiles it at reinstall).*** Tree will be at the commit this session pushes;
-install is still `51da55b` until the cycle runs, so `assert-current` reads STALE
-until then.
+***14 Sep 2026 — tier.policy move WITNESSED on install `83e5ccf` (owner keep
+cycle, `.sdcore-install` 23:06:38, `assert-current` 0). The §M NAME HALF IS
+COMPLETE, installed.*** `tier.policy` shipped (both records), newvoc has no TIER
+records. Suite as `don`, no sudo, all green: ***tier-layer don 19/19, 0 short***
+(the layer read from `tier.policy/add.administrator`); grants 16/0, editors
+28/28, lcnames 139/139; vocverbs 34, fold 35, setpw 24, txn 33, nonet 59,
+lineendings 42, basicfuncs 199, accounts 36, sysperms 18. `verify-nocase`
+source **COMPLETE**. don `COUNT VOC` 418.
+
+***AND A FALSE-GREEN BUG FOUND AND FIXED IN THE WITNESS INSTRUMENT ITSELF***
+(`verify-tier-layer.bp`, not the product): it opened the account VOC as `'VOC'`,
+but §M lower-cased account dirs to `voc`, so on the case-sensitive fs the open
+FAILED and the probe `continue`d past the one admin it had — leaving `nshort` 0
+and the wrapper reporting *"every admin holds the layer"* without having tested
+one. The 51da55b witness's "0 short" was that false green. Fixed: open `'voc'`,
+and ***a VOC that will not open now counts short*** (refuses the null case). Now
+it really opens don's `voc` and confirms 19/19. Dev instrument, compiled fresh
+by the `.sh`, so witnessed this session without a reinstall.
 
 ***THE §M NAME HALF REACHES 0 IN SOURCE.*** `verify-nocase` now prints
 ***§M NAME HALF: COMPLETE*** — 0 name remnants, all 3 code sites ` ok `. The two

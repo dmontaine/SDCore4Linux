@@ -77,8 +77,15 @@ $include keys.h
 
          nadmin = nadmin + 1
 
-         openpath apath : @ds : 'VOC' to vf else
-            crt accid : ': ADMINISTRATOR - VOC COULD NOT BE OPENED at ' : apath
+*        13 Sep 26 - the account VOC directory is lower case now (plan M), so
+*        this opens 'voc', not 'VOC'.  AND A VOC THAT WILL NOT OPEN IS A
+*        FAILURE, NOT A SKIP: the old 'continue' left nshort at 0 and the
+*        wrapper then reported "every admin holds the layer" without having
+*        opened the one admin it had - a false green the lower-case rename
+*        exposed.  Counting it short refuses that.
+         openpath apath : @ds : 'voc' to vf else
+            crt accid : ': ADMINISTRATOR - voc COULD NOT BE OPENED at ' : apath : @ds : 'voc'
+            nshort = nshort + 1
             continue
          end
 
