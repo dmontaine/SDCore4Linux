@@ -16,6 +16,20 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  BACKSPACE WORKS AT THE COMMAND LINE WHICHEVER BYTE YOUR TERMINAL
+           SENDS.
+
+           A terminal's backspace key sends either Ctrl-H or DEL.  SD only
+           accepted the one its terminal type said to expect, so after TERM
+           VT100 (which expects Ctrl-H) the backspace key of a normal Linux
+           terminal, which sends DEL, did nothing at the command line.  Both
+           are now accepted as backspace unless the terminal type gives one of
+           them another meaning.
+
+           WHAT DOES NOT CHANGE: the full-screen editors handle keys
+           themselves and are not affected.
+
+
 14 Sep 26  RUN FINDS A PROGRAM WHATEVER CASE ITS NAME IS TYPED IN.
 
            BASIC stores a compiled program under a lower-case name, so
