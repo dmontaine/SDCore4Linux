@@ -406,6 +406,44 @@ def main():
     run.note("U4 and not in upper case", False,
              V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.upper())))
 
+    # ***CASE INVERSION IS OFF WITHOUT THE LOGIN PARAGRAPH (13 Sep 2026).***  C
+    # started every session inverted and LOGIN set it again; only the VOC login
+    # paragraph's PTERM CASE NOINVERT turned it off - measured on 80bd15c: with
+    # the paragraph set aside, "Case inversion: On".  THE RESTORE IS THE RISK:
+    # measured the same day, a restore session with inversion on had its
+    # record ids flipped and copied nothing.  So every session here STARTS with
+    # PTERM CASE NOINVERT, which arrives intact either way (verbs and keywords
+    # fold), and the restore is checked against the paragraph's own text.
+    save = "zzlcnlogin"
+    pre = sd("the login paragraph before", ["PTERM CASE NOINVERT", "CT VOC login %s" % save])
+    body_before = re.findall(r"^\s*\d+: .*$", pre.text.split("VOC login", 1)[-1].split("Record", 1)[0],
+                             re.MULTILINE)
+    run.note("I0 the account has a login paragraph and no %s" % save, (True, True),
+             (len(body_before) > 0, V.says(pre.text, r"^Record '%s' not found$" % save)))
+    if len(body_before) > 0 and V.says(pre.text, r"^Record '%s' not found$" % save):
+        try:
+            s = sd("set the login paragraph aside",
+                   ["PTERM CASE NOINVERT", "COPY FROM VOC login,%s" % save, "DELETE VOC login"])
+            run.note("I1 the paragraph was set aside (copied, then deleted)", True,
+                     V.says(s.text, r"^1 record\(s\) copied\.") and
+                     V.says(s.text, r"^1 record\(s\) deleted"))
+            s = sd("a session with no login paragraph", ["PTERM DISPLAY"])
+            run.note("I2 THE ROW: with no login paragraph, case inversion is Off", True,
+                     V.says(s.text, r"^\s*Case inversion: Off\s*$"))
+        finally:
+            s = sd("restore the login paragraph",
+                   ["PTERM CASE NOINVERT", "COPY FROM VOC %s,login" % save,
+                    "DELETE VOC %s" % save])
+            post = sd("the login paragraph after", ["PTERM CASE NOINVERT", "CT VOC login %s" % save])
+            body_after = re.findall(r"^\s*\d+: .*$",
+                                    post.text.split("VOC login", 1)[-1].split("Record", 1)[0],
+                                    re.MULTILINE)
+            run.say("  login paragraph before: %s" % body_before)
+            run.say("  login paragraph after : %s" % body_after)
+            run.note("I3 the login paragraph is back exactly, and %s is gone" % save,
+                     (body_before, True),
+                     (body_after, V.says(post.text, r"^Record '%s' not found$" % save)))
+
     # ------------------------------------------------ per-category function
     def savedlists_works(prefix, first):
         if first:

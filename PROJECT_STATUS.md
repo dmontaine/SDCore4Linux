@@ -79,6 +79,28 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***CASE INVERSION OFF BY DEFAULT — BUILT 13 Sep 2026, NOT INSTALLED (any cycle;
+keep is fine).***
+- ***Port's finding checked, and it held only conditionally:*** on `80bd15c` a
+  pipe AND a pty session report "Case inversion: Off" and typed `who` runs as
+  `who` — but only because the VOC `login` paragraph runs `PTERM CASE NOINVERT`.
+  C starts sessions inverted (`linuxio.c:211/284` TRUE) and `LOGIN:314` set it
+  again. ***Measured with my own login paragraph set aside: "Case inversion:
+  On".***
+- ***AND THE MEASUREMENT BROKE MY ACCOUNT FOR A MINUTE, which is the defect
+  demonstrated:*** the restore session was inverted, so `COPY FROM VOC
+  ZZLOGINSAVE,login` arrived case-flipped and copied 0. Repaired by sending
+  `pterm case noinvert` first; `CT VOC login` shows all 4 lines back,
+  `ZZLOGINSAVE` gone, inversion Off. Done with plain sessions, no flag.
+- ***Fix:*** `linuxio.c` both initialisers FALSE; `LOGIN:314` removed (nothing
+  prompts between it and the paragraph). `PTERM CASE INVERT` unchanged (relax by
+  choice). The paragraph's NOINVERT stays. `make` exit 0.
+- ***`verify-lcnames` I0–I3:*** paragraph present; set aside (COPY + DELETE);
+  ***I2 inversion Off with no paragraph*** (red on 80bd15c, measured above);
+  restore in `finally`, every session led by `PTERM CASE NOINVERT`, I3 compares the
+  paragraph's numbered lines before/after. CT parse dry-run on the real account:
+  4 lines, save absent. ***Would falsify:*** I2 On.
+
 ***ACCOUNT NAMES LOWER CASE — INSTALLED AND WITNESSED on `80bd15c`*** (owner FULL
 cycle, `.sdcore-install` 19:11:39, boot 19:12:26, `assert-current` 0 at 19:14).
 Register on disk: `don` (root:root 664), `sdsys` (root:root 644). Suite as the
