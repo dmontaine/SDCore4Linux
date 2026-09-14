@@ -5,8 +5,14 @@
     python3 gplbld/check-stale-leads.py FILE...      named files instead
 
 Exit 0 nothing to read, 1 there is a worklist, 2 the question could not be
-answered (a document missing, or no entries found in one - which means the
-shapes below have drifted and every "clean" verdict would be worthless).
+answered (a document missing, no entries found in one, or no task table -
+which means the shapes below have drifted and every "clean" verdict would be
+worthless).  Phase 2 needs all three documents, so FILE... must name them.
+
+TWO PHASES.  Phase 1 finds an entry whose opening status claim is
+contradicted later in the same entry.  Phase 2 (end of file, 14 Sep 2026)
+checks the task table at the top of PROJECT_STATUS.md against the entries in
+both directions; it arrived with the table, adopted from the port.
 
 PORT_ADOPTION 21.  ***THIS IS NOT THE PORT'S SCRIPT AND COULD NOT BE.***  Its
 check-stale-leads.py is keyed to the port's PROJECT_STATUS - a section 7,
@@ -36,11 +42,12 @@ objection stay in the entry.  The output is a worklist and every hit is read by
 hand.  Saying so matters: a script that reported these as defects would be
 committing the same overconfidence it exists to catch.
 
-WHY ONLY ONE PHASE.  The port has three; this has the first, because the other
-two need structures this tree does not have (its check-mark task table) or
-judgements a word-matcher cannot make.  ***A tool that does one thing and says
-so is worth more here than three phases that half-run*** - which is PRE_RELEASE
-9's lesson, paid for by the copy that would not start.
+WHY NOT THE PORT'S OTHER PHASES.  Until 14 Sep 2026 this had only phase 1,
+because phase 2 needs a task table and this tree had none; the table now
+exists, and so does phase 2.  The port's phase 3 needs judgements a
+word-matcher cannot make.  ***A tool that does what it says is worth more here
+than phases that half-run*** - which is PRE_RELEASE 9's lesson, paid for by the
+copy that would not start.
 
 THE LIMIT, WORTH KNOWING BEFORE TRUSTING ANY OF IT: this compares a document
 against ITSELF.  It cannot tell that an entry agrees with itself and is wrong
@@ -75,7 +82,7 @@ OPENING = 320
 # "WITNESSED".***  The other half of the trick, and the part easiest to break.
 NEGATED = re.compile(
     r"\bNOT\s+(?:YET\s+)?(?:RUN|INSTALLED|WIRED|COMPILED|STARTED|WITNESSED|BUILT|RULED|DONE|CLOSED)\b"
-    r"|\bUN(?:WITNESSED|RUN|RULED)\b"
+    r"|\bUN(?:WITNESSED|RUN|RULED|EXERCISED)\b"
     r"|\bNEVER\s+(?:RUN|INSTALLED|WIRED|WITNESSED)\b")
 
 OPEN_WORD = re.compile(
@@ -163,6 +170,10 @@ def main():
 
     print("check-stale-leads.py - PORT_ADOPTION 21")
     print("repo : %s" % REPO)
+    for path in docs:
+        print("doc  : %s" % path)
+    print("")
+    print("PHASE 1: an opening status contradicted later in the same entry")
     print("")
 
     hits = 0
@@ -238,9 +249,234 @@ def main():
         print("The 'note' rows are the opposite direction and are usually the")
         print("house style ('WITNESSED ... NOT WITNESSED: which part'); they are")
         print("listed for reading and deliberately do not affect the exit.")
+    else:
+        print("No entry opens with a claim its own body contradicts.")
+
+    drift = phase2(docs)
+    if drift == 2:
+        return 2
+    print("")
+    if hits or drift:
+        print("VERDICT: worklist - %d stale lead(s); the task table %s."
+              % (hits, "DISAGREES with its entries" if drift else "agrees"))
         return 1
-    print("No entry opens with a claim its own body contradicts.")
+    print("VERDICT: clean - no stale lead, and the task table agrees with "
+          "every entry.")
     return 0
+
+
+# ===========================================================================
+# PHASE 2 - THE TASK TABLE AGAINST THE ENTRIES, BOTH DIRECTIONS.
+#
+# Owner, 14 Sep 2026, adopting the port's table (its HISTORY.md, 26 Aug
+# 2026): a table at the top of PROJECT_STATUS.md, checked off as items
+# finish, is the authority on status.  A hand-kept table is one more place
+# status is stated - the fault this file exists for - so it is checked here
+# rather than trusted.
+#
+#   ID    its entry                               "closed" means
+#   P.N   PRE_RELEASE_FIXES.md index row N        the id is struck
+#   Q.N   PORT_ADOPTION.md queue row N (or 3b)    the id is struck
+#   S.N   the one [S.N] tag, in PROJECT_STATUS.md the entry leads with a closure
+#   W.N   or PORT_ADOPTION.md (W: waiting for     the entry leads with a closure
+#         the owner's ruling)
+#
+# Marks: TICK closed, PART partly closed (the row must say "left:"), OPEN
+# open, GONE removed or superseded.  A strike decides P and Q because it is
+# structural and cannot be misread the way a status word can.  Entries closed
+# before the table existed need no row; every OPEN P or Q entry, and every
+# tag, must have one.
+# ===========================================================================
+
+TICK, PART, OPEN_MARK, GONE = "✅", "◐", "⬜", "➖"
+MARKS = (TICK, PART, OPEN_MARK, GONE)
+TABLE_HEADING = "## THE TASK TABLE"
+ROW_ID = re.compile(r"^\*\*([PQSW])\.(\d+[a-z]?)\*\*$")
+INDEX_ROW = re.compile(r"^\|\s*(~~)?\s*(\d+[a-z]?)\s*(~~)?\s*\|")
+TAG = re.compile(r"\[([SW])\.(\d+[a-z]?)\]")
+ITEM_START = re.compile(r"^(#|\d+[a-z]?\. |- |\|)")
+
+
+def read_lines(path):
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        return fh.read().splitlines()
+
+
+def statuses(text):
+    """(carries an open claim, carries a closed claim, class of the opening's
+    last status word or None)."""
+    t = collapse(text)
+    head = classify(t[:OPENING])
+    return (bool(OPEN_WORD.search(t)), bool(CLOSED_WORD.search(t)),
+            head[0] if head else None)
+
+
+def index_rows(path, start_pattern):
+    """{id: (struck, line, text)} for the table that follows the first line
+    matching start_pattern, or None when no line matches."""
+    lines = read_lines(path)
+    start = next((n for n, ln in enumerate(lines)
+                  if re.search(start_pattern, ln)), None)
+    if start is None:
+        return None
+    rows, in_table = {}, False
+    for n in range(start + 1, len(lines)):
+        ln = lines[n]
+        if ln.startswith("|"):
+            in_table = True
+            m = INDEX_ROW.match(ln)
+            if m:
+                rows[m.group(2)] = (bool(m.group(1) and m.group(3)), n + 1, ln)
+        elif in_table:
+            break
+    return rows
+
+
+def tagged_entries(path):
+    """{id: [(line, text)]} for every [S.N] or [W.N] tag.  A tagged heading or
+    table row is its own entry; any other tagged line runs on to a blank line,
+    the next list item or the next heading."""
+    lines = read_lines(path)
+    found = {}
+    for n, ln in enumerate(lines):
+        for m in TAG.finditer(ln):
+            text = ln
+            if not ln.startswith(("#", "|")):
+                j = n + 1
+                while (j < len(lines) and lines[j].strip()
+                       and not ITEM_START.match(lines[j])):
+                    text += " " + lines[j].strip()
+                    j += 1
+            found.setdefault("%s.%s" % m.groups(), []).append((n + 1, text))
+    return found
+
+
+def phase2(docs):
+    """0 the table agrees, 1 it disagrees, 2 the question cannot be answered."""
+    print("")
+    print("PHASE 2: the task table against the entries, both directions")
+    by_name = dict((os.path.basename(p), p) for p in docs)
+    missing = [n for n in DEFAULT_DOCS if n not in by_name]
+    if missing:
+        print("  CANNOT ANSWER: phase 2 needs %s." % ", ".join(missing))
+        return 2
+
+    lines = read_lines(by_name["PROJECT_STATUS.md"])
+    start = next((n for n, ln in enumerate(lines)
+                  if ln.startswith(TABLE_HEADING)), None)
+    if start is None:
+        print("  CANNOT ANSWER: no '%s' heading in PROJECT_STATUS.md."
+              % TABLE_HEADING)
+        return 2
+
+    problems, rows = [], []
+    for n in range(start + 1, len(lines)):
+        ln = lines[n]
+        if ln.startswith("## "):
+            break
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", ln)[1:-1]]
+        m = (ROW_ID.match(cells[1])
+             if ln.startswith("|") and len(cells) == 5 else None)
+        if not m:
+            continue
+        rid = "%s.%s" % m.groups()
+        if cells[0] not in MARKS:
+            problems.append("row %s (line %d) has an unknown mark %r"
+                            % (rid, n + 1, cells[0]))
+            continue
+        rows.append((n + 1, cells[0], rid, cells[3]))
+
+    p_rows = index_rows(by_name["PRE_RELEASE_FIXES.md"], r"^\|\s*\|\s*SEV\s*\|")
+    q_rows = index_rows(by_name["PORT_ADOPTION.md"], r"^## Queue — adoptable")
+    tags = {}
+    for name in ("PROJECT_STATUS.md", "PORT_ADOPTION.md"):
+        for rid, hits_in_file in tagged_entries(by_name[name]).items():
+            tags.setdefault(rid, []).extend(
+                (name, eln, text) for eln, text in hits_in_file)
+    print("  table rows: %d   PRE_RELEASE index rows: %s   queue rows: %s   "
+          "tags: %d" % (len(rows), "none" if p_rows is None else len(p_rows),
+                        "none" if q_rows is None else len(q_rows), len(tags)))
+
+    # ***THE NULL CASE, REFUSED.***  Anything that parsed to nothing would let
+    # every comparison below pass having compared nothing.
+    for what, got in (("task table rows", rows),
+                      ("PRE_RELEASE_FIXES.md index rows", p_rows),
+                      ("PORT_ADOPTION.md queue rows", q_rows)):
+        if not got:
+            print("  CANNOT ANSWER: no %s parsed - the shape has moved." % what)
+            return 2
+
+    seen = {}
+    for ln, mark, rid, what in rows:
+        if rid in seen:
+            problems.append("row %s (line %d) repeats the row at line %d"
+                            % (rid, ln, seen[rid]))
+            continue
+        seen[rid] = ln
+        if mark == TICK and statuses(what)[0]:
+            problems.append("row %s (line %d) is ticked but its own words read "
+                            "as open" % (rid, ln))
+        if mark == PART and "left:" not in what.lower():
+            problems.append("row %s (line %d) is partly closed but does not say "
+                            "what is left ('left:')" % (rid, ln))
+
+        kind, num = rid.split(".", 1)
+        if kind in ("P", "Q"):
+            index = p_rows if kind == "P" else q_rows
+            src = ("PRE_RELEASE_FIXES.md row" if kind == "P"
+                   else "PORT_ADOPTION.md queue row")
+            if num not in index:
+                problems.append("row %s (line %d) has no entry: no %s %s"
+                                % (rid, ln, src, num))
+                continue
+            struck, eln, etext = index[num]
+            where = "%s %s (line %d)" % (src, num, eln)
+        else:
+            found = tags.get(rid, [])
+            if len(found) != 1:
+                problems.append("row %s (line %d) needs exactly one [%s] tag; "
+                                "found %d" % (rid, ln, rid, len(found)))
+                continue
+            name, eln, etext = found[0]
+            where = "[%s] in %s (line %d)" % (rid, name, eln)
+            struck = None
+        e_open, e_closed, e_head = statuses(etext)
+        closed = struck if struck is not None else (e_head == "closed")
+
+        if mark in (TICK, GONE):
+            if not closed:
+                problems.append("row %s (line %d) is closed but %s %s"
+                                % (rid, ln, where, "is not struck"
+                                   if struck is not None
+                                   else "does not lead with a closure"))
+        elif struck:
+            problems.append("row %s (line %d) is open but %s is struck - tick "
+                            "the row" % (rid, ln, where))
+        elif mark == PART and not (e_open and e_closed):
+            problems.append("row %s (line %d) is partly closed but %s does not "
+                            "carry both a closure and an open claim"
+                            % (rid, ln, where))
+        elif mark == OPEN_MARK and e_head == "closed":
+            problems.append("row %s (line %d) is open but %s leads with a "
+                            "closure - FINISHED WORK NEVER TICKED OFF, or mark "
+                            "it partly closed" % (rid, ln, where))
+
+    # Entries with no row.  Each append is ONE line containing "NO ROW":
+    # test-staleleads-units.py's mutant control disables exactly these lines.
+    for kind, index, src in (("P", p_rows, "PRE_RELEASE_FIXES.md row"),
+                             ("Q", q_rows, "PORT_ADOPTION.md queue row")):
+        for num, (struck, eln, _) in index.items():
+            if not struck and "%s.%s" % (kind, num) not in seen:
+                problems.append("%s %s (line %d) is open and has NO ROW in the task table" % (src, num, eln))
+    for rid, found in tags.items():
+        if rid not in seen:
+            problems.append("[%s] (%s line %d) has NO ROW in the task table" % (rid, found[0][0], found[0][1]))
+
+    for problem in problems:
+        print("  DRIFT  " + problem)
+    print("  %d disagreement(s) between the table and the entries."
+          % len(problems))
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":
