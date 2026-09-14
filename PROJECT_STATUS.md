@@ -22,13 +22,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.11** | S | `FILES_DICTS/$HOLD.DIC^@ID` never applied since §M3 (sdsys `$hold.dic` had no `@ID`); renamed, `verify-nocase` now scans FILES_DICTS; left: install, then the byte check | — |
-| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 installed; 13:07 witness used a 100-char id, over MAXIDLEN 63 → "not found"; reworked to a deep F-pointer; left: re-run at the next install cycle (batch it) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
-| ◐ | **S.3** | M | per-tier VOC closed; left: LOGIN `update.voc`'s STANDARD filter — built into `witness-release-run.sh` §7 (U1–U7), run at the next cycle | — |
-| ◐ | **S.4** | M | OS-access tier gate closed; left: 10054 on PROGRAMMER — built into `witness-release-run.sh` §6 (control at ADMINISTRATOR first), run at the next cycle | — |
 | ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
 | ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
@@ -39,7 +35,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.3b** | R·M | Enter takes the default at most Y/N prompts; left: rulings W.2 and W.3 | — |
 | ◐ | **W.2** | R·L | 2050's Enter default built for `DELETEF`; left: rule and build it for `DELETE`, `COPY`, `CD`, `CT`, `ED` | — |
 | ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` built 14 Sep with the `_keycode` fix (red on the old install, 2/36); `logtoaccess` built into `witness-release-run.sh` §2b; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `keys` + §2b after install, `sdsyswrite` (root) | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
@@ -62,6 +58,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.8** | — | `kernel(K$INTERNAL, n)` sets internal mode only from `$internal` code | 14 Sep 2026 |
 | ✅ | **S.9** | — | LOGIN's `$release` prompt: Enter and end of input mean N, and it says so | 14 Sep 2026 |
 | ✅ | **S.10** | — | `RUN` folds the program name, as `BASIC` does | 14 Sep 2026 |
+| ✅ | **S.3** | — | per-tier VOC, incl. LOGIN `update.voc`'s STANDARD filter | 14 Sep 2026 |
+| ✅ | **S.4** | — | OS-access tier gate, incl. 10054 on PROGRAMMER | 14 Sep 2026 |
+| ✅ | **S.11** | — | `$hold.dic`'s `@ID` installed again (FILES_DICTS key lower case) | 14 Sep 2026 |
+| ✅ | **Q.28** | — | `RUN` of a path over 128 characters names the limit (10918) | 14 Sep 2026 |
 | ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
 | ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
 | ✅ | **Q.18** | — | lower case, complete | 14 Sep 2026 |
@@ -226,8 +226,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`d704658`**, stamped 14 Sep 2026 13:06:01,
-  owner keep cycle — carries S.10. HEAD has moved past it (witness script only).
+- **Runtime:** install built from **`984be50`**, stamped 14 Sep 2026 13:37:31,
+  owner keep cycle — carries the backspace fix and S.11.
+  *(Superseded:)* `d704658`, 13:06:01 — S.10.
   *(Superseded:)* `6e5b2f5`, 12:20:13 — S.9, Q.25, P.16.
   *(Superseded:)* `ca4c07c`, 11:51:03 — P.29, Q.28, S.8, S.2.
   *(Superseded:)* `83e5ccf`, stamped 13 Sep 2026 23:06:38
@@ -244,8 +245,23 @@ owner's ruling comes first.
 
 ## START HERE
 
-***[S.11] 14 Sep 2026, seventh session — A §M REMNANT THE METER COULD NOT SEE,
-FIXED IN SOURCE, NOT INSTALLED.*** `write_install_dicts` OPENPATHs
+***HAND-OFF, 14 Sep 2026, eighth session — ONE CYCLE, `984be50` (13:37).***
+Owner-run: `verify-keys.py` ***36/36*** (the backspace fix; red 34/36 before);
+the `$hold.dic` byte check ***1*** (S.11 closed); `witness-release-run.sh
+--commit` 13:45 ***39/39***, cleanup complete — Q.28 closed (`0000322A: Runfile
+pathname is longer than 128 characters at line 2563 of $CPROC`, path 165), S.4
+closed (control `ZZOS ran OS.EXECUTE` at ADMINISTRATOR; after the move, `gpasswd
+-d zzrel1 sdadmin`, `VOC: 0 … 19 removed`, then `zzrel1 is not permitted to use
+OS.EXECUTE`), S.3 closed (after `43 removed` to STANDARD, Y at the prompt → `.`,
+then `Record 'basic' not found`, `Record 'run' not found`, `VOC list` present,
+next sign-on no prompt), `logtoaccess` 2 + 1 arrivals with its control refused.
+***Not pasted, so Q.13's reinstall-survival is still open:*** the before/after
+`head`/`wc` of the audit trail, and `assert-current` (the witness header shows
+the install at `984be50` = HEAD). Remaining open rows are owner-terminal, sudo,
+rulings, or L/XL.
+
+***[S.11] 14 Sep 2026, seventh session — A §M REMNANT THE METER COULD NOT SEE;
+CLOSED in the eighth session (above).*** `write_install_dicts` OPENPATHs
 `<sdsys>/<file>` by the file half of each `gplbld/FILES_DICTS` record, and an
 open failure prints "THIS SHOULD NOT HAPPEN" and CONTINUEs. Record
 `$HOLD.DIC^@ID` named a directory gone since §M3. Measured on `d704658`, bytes,
@@ -2488,7 +2504,7 @@ No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install 
 HEAD ahead again until the next install; that is the normal stale state, not a
 fault.
 
-### [S.4] PRE_RELEASE 23 (OS-access tier gate + grant) — CLOSED, both gates witnessed end to end; 10054 on a PROGRAMMER account UNWITNESSED
+### [S.4] PRE_RELEASE 23 (OS-access tier gate + grant) — CLOSED, both gates witnessed end to end; 10054 on a PROGRAMMER account WITNESSED 14 Sep 2026 (`witness-release-run.sh` §6 on `984be50`, after an ADMINISTRATOR control)
 Both commits pushed and installed. ***FULLY WITNESSED 10 Sep 2026 on the
 `242ae63` install, STANDARD account `pete` — both gates, refuse → grant → allow
 → revoke → refuse:***
@@ -4009,7 +4025,7 @@ or the installer's own seeding breaks):***
 - ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
   reinstall — do not stack three unverified install-critical CREATEA changes.
 
-### [S.3] §L1 — per-tier VOC (CLOSED 14 Sep 2026: core witnessed 10 Sep, MODIFYA re-derivation 14 Sep by `witness-tierchange.sh` 15/15; the LOGIN `update.voc` filter's STANDARD case is UNWITNESSED)
+### [S.3] §L1 — per-tier VOC (CLOSED 14 Sep 2026: core witnessed 10 Sep, MODIFYA re-derivation 14 Sep by `witness-tierchange.sh` 15/15; the LOGIN `update.voc` filter's STANDARD case WITNESSED 14 Sep by `witness-release-run.sh` §7 on `984be50` — Y at the prompt left `basic` and `run` absent, `list` present)
 
 ***`LOGIN` `update.voc` tier filter — BUILT AND COMPILED 10 Sep 2026, NOT RUN.***
 The port's 17 Aug 2026 fix. All three call sites set `update.voc.tier`: mode 2
