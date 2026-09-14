@@ -436,12 +436,36 @@ def main():
         run.note(prefix + "b the session ran a command", True,
                  V.says(s.text, r"^[0-9]+ \S+"))
 
+    # $acc is a DIRECTORY file on the account directory, whose records are the
+    # plain files in it - and a fresh account holds only subdirectories, so
+    # COUNT $ACC says 0 (measured 13 Sep on 80b4e83; the first version of this
+    # row expected >= 1 and failed on a correct SD).  "0 counted" cannot tell a
+    # file reached from one that is empty, so the row plants its own record,
+    # counts exactly 1 more than the baseline, and removes it.
+    acc_rec = os.path.join(acct, "zzlcnacc")
+
     def acc_works(prefix, first):
-        s = sd("the account-directory pointer, typed both ways",
-               ["COUNT $ACC", "COUNT $acc"])
-        run.note(prefix + "a it counted the account directory, typed both ways", 2,
-                 V.say_count(s.text, r"^[1-9][0-9]* record\(s\) counted$"))
-        run.note(prefix + "b no runtime fault", False, V.says(s.text, FAULT))
+        if os.path.exists(acc_rec):
+            run.note(prefix + "0 the fixture record %s was absent" % acc_rec, False, True)
+            return
+        s = sd("baseline", ["COUNT $acc"])
+        m = re.search(r"^([0-9]+) record\(s\) counted$", s.text, re.MULTILINE)
+        base = int(m.group(1)) if m else None
+        run.say("  baseline COUNT $acc = %s" % base)
+        with open(acc_rec, "w") as f:
+            f.write("zzlcn\n")
+        try:
+            s = sd("the account-directory pointer, typed both ways",
+                   ["COUNT $ACC", "COUNT $acc"])
+        finally:
+            os.remove(acc_rec)
+        want = "%d record(s) counted" % ((base or 0) + 1)
+        run.note(prefix + "a the baseline count was read", True, base is not None)
+        run.note(prefix + "b typed both ways, it counted the planted record (%s)" % want,
+                 2, V.say_count(s.text, r"^%s$" % re.escape(want)))
+        run.note(prefix + "c neither said 'File not found'", False,
+                 V.says(s.text, r"^File not found$"))
+        run.note(prefix + "d no runtime fault", False, V.says(s.text, FAULT))
 
     def map_works(prefix, first):
         s = sd("the map file, typed both ways", ["COUNT $MAP", "COUNT $map"])
