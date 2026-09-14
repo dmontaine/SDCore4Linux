@@ -16,6 +16,19 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  RUN FINDS A PROGRAM WHATEVER CASE ITS NAME IS TYPED IN.
+
+           BASIC stores a compiled program under a lower-case name, so
+           "BASIC BP REPORT" compiles to bp.out/report.  RUN did not do the
+           same, so "RUN BP REPORT" then answered "Program BP.OUT REPORT not
+           found" and only "RUN BP report" worked.  RUN now looks for the name
+           as typed, then in lower case, then in upper case, the same order SD
+           uses for file and command names.
+
+           WHAT DOES NOT CHANGE: a program is still run from the file you
+           name, and a name that matches nothing still gets the same message.
+
+
 14 Sep 26  PROCESS DUMPS HAVE THEIR OWN DIRECTORY, AND ONLY THEIR OWNER CAN READ
            ONE.
 

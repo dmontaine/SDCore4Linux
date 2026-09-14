@@ -295,10 +295,16 @@ if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -eq 1 ]; then
     chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzrel" "$ADIR/bp/zzshow"
     say "  wrote $ADIR/bp/zzrel and zzshow"
 fi
+# ***THE SETUP RUNS THE PROGRAMS BY THEIR EXACT, LOWER-CASE NAMES.***  The
+# 14 Sep 12:55 run typed RUN BP ZZREL and RUN answered "Program BP.OUT ZZREL
+# not found" - BASIC had folded the name to zzrel and RUN did not fold it back.
+# That was a real defect (fixed in cproc int.run the same day), but it left
+# every S.9 and Q.28 row NOT REACHED.  So the fold is now its own row, F1, and
+# nothing else depends on it.
 SETUP_OK=0
 if [ "$COMMIT" -eq 0 ] || [ "$ADOPTED" -eq 1 ]; then
     OUT=$(run_sd "$ACC" "compile both, set field 2, show it" \
-          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "RUN BP ZZREL" "RUN BP ZZSHOW")
+          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "RUN BP zzrel" "RUN BP zzshow")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "B1 ZZREL wrote the fake release" "ZZREL wrote field 2 = $FAKE_REL" "$OUT"
         ck_says "B2 ZZSHOW reads it back" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
@@ -306,6 +312,17 @@ if [ "$COMMIT" -eq 0 ] || [ "$ADOPTED" -eq 1 ]; then
     fi
 else
     not_reached "B1 ZZREL wrote the fake release"; not_reached "B2 ZZSHOW reads it back"
+fi
+
+head2 "3b. the RUN fold - RUN BP ZZSHOW, typed in upper case, finds bp.out/zzshow"
+if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
+    not_reached "F1 RUN BP ZZSHOW ran the program"; not_reached "F2 no 5073"
+else
+    OUT=$(run_sd "$ACC" "RUN BP ZZSHOW (upper case)" "RUN BP ZZSHOW")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "F1 RUN BP ZZSHOW ran the program" "ZZSHOW field 2 = " "$OUT"
+        ck_absent "F2 no 'Program ... not found' (5073)" "not found" "$OUT"
+    fi
 fi
 
 # ==========================================================================
@@ -334,7 +351,7 @@ else
         ck "S9b.2 it finished at end of input (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
     fi
     say "  (c) N changed nothing"
-    OUT=$(run_sd "$ACC" "RUN BP ZZSHOW" "RUN BP ZZSHOW")
+    OUT=$(run_sd "$ACC" "RUN BP zzshow" "RUN BP zzshow")
     [ "$COMMIT" -eq 1 ] && ck_says "S9c.1 field 2 is still $FAKE_REL" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
 fi
 
