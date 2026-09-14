@@ -47,6 +47,9 @@
 #
 #   14 Sep 2026 - process dumps go to $sdsysdir/dumps (1730 sdsys:sdusers),
 #   and DUMPDIR is added to a restored sd.conf that lacks it (PORT_ADOPTION 25).
+#
+#   14 Sep 2026 - the build runs as the calling user; only the install steps
+#   use sudo (PRE_RELEASE 16).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -435,7 +438,14 @@ cd "${inst_folder}/sd64"
 # Modified by Composer AI - 2026/06/10.
 # Force rebuild during install; local checkouts may otherwise report up to date.
 # if sudo make; then
-if sudo make -B; then
+# 14 Sep 26  PRE_RELEASE 16.  AS THE CALLING USER, NOT ROOT.  Compiling needs no
+#            privilege - the Makefile writes only inside this clone, which the
+#            caller made - and only the copies into $sdsysdir below do.  Built
+#            as root, gplobj/ and terminfo/ came out root-owned, which is what
+#            made the cleanup at the end abort the 9 Sep install.  Both
+#            "sudo rm -fr" cleanups stay: the first also clears a root-owned
+#            clone left by a run from before this change.
+if make -B; then
 # --------------------
     echo "Successful Build."
 else

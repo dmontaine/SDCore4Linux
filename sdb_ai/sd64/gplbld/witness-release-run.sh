@@ -1,0 +1,383 @@
+#!/usr/bin/env bash
+#
+# witness-release-run.sh - three witnesses that need a throwaway account, in
+#                          one owner-run pass on one install:
+#     S.9   LOGIN's $release prompt (5026) takes N on Enter and at end of input
+#     Q.28  RUN of a runfile path over 128 characters says so (10918)
+#     S.2   a root session LOGTOs an account whose group is newer than it
+#
+#   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#
+# ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
+# Exit 0 every check passed, 1 a check failed (or was not reached), 2 it could
+# not run.  The log goes to /var/tmp, which survives a reboot (the 14 Sep
+# witness-tierchange log in /tmp did not).
+#
+# ===========================================================================
+# THE THROWAWAY, AND WHY NOT don
+# ===========================================================================
+# don is the owner's login and never a fixture.  This makes Linux user zzrel1,
+# ADOPTs it as an SD account the way witness-tierchange.sh does (a marker + the
+# one-shot `sd -internal create-account USER <name> ADOPT no.query`, no password
+# prompt), and removes both at the end, whatever happened.
+#
+# ===========================================================================
+# WHAT EACH PART MEASURES
+# ===========================================================================
+# S.2  This script's own process started BEFORE sdu_zzrel1 existed, so its
+#      supplementary groups lack it - exactly the stale case.  Every root sd it
+#      starts inherits that list, and the S.2 fix (sdext_eguid.c, initgroups
+#      before the euid drop) must refresh it.  The script PRINTS its own group
+#      list and the new group's gid, and if the group is somehow already in the
+#      list the S.2 rows are NOT REACHED rather than passed.
+#
+# S.9  As zzrel1: BASIC compiles two tiny programs from bp (a directory file, so
+#      the source is written straight to disk).  ZZREL sets $release field 2 to
+#      L0.9-9; ZZSHOW prints it.  Then three sign-ons:
+#        (a) a blank first line - that line is the prompt's answer.  Enter must
+#            mean N: the session goes on to WHO, and "Please answer Y or N"
+#            (5027) never appears.  Before the fix a blank re-asked, and the next
+#            line (TERM) re-asked again.
+#        (b) </dev/null - end of input at the prompt.  Must finish, not spin.
+#        (c) RUN BP ZZSHOW - field 2 must STILL be L0.9-9, so N changed nothing.
+#      Success wording: the NEW prompt text "(y/<n>)?", so a run against an
+#      install without the message change fails rather than passing on 5025.
+#
+# Q.28 As zzrel1: a record in bp.out whose full path exceeds 128 characters
+#      (a copy of ZZSHOW's object under a 100-character name), then RUN BP
+#      <name>.  Must print 10918's words; "Invalid runfile pathname" (1135, the
+#      old message) or "Message not found" (10918 not installed) fail it.
+#
+# THE PIPED-SESSION RULES ARE THE PROJECT'S: a blank first line, TERM 200,9999,
+# every session ends in OFF, every sd has a timeout.
+#
+set -u
+
+SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
+
+SD=/usr/local/sdsys/bin/sd
+SDSYS=/usr/local/sdsys
+REGISTER="$SDSYS/accounts"
+ACCOUNTS_ROOT=/home/sd/user_accounts
+
+ACC=zzrel1
+COMMIT=0
+LOG=""
+FAKE_REL="L0.9-9"
+
+PASS=0
+FAIL=0
+NOT_REACHED=0
+MADE_USER=0
+MADE_ACCOUNT=0
+
+usage() { sed -n '2,16p' "$0"; exit 2; }
+
+for arg in "$@"; do
+    case "$arg" in
+        --commit) COMMIT=1 ;;
+        --log=*)  LOG="${arg#--log=}" ;;
+        -h|--help) usage ;;
+        *) echo "witness-release-run: unknown argument '$arg'" >&2; exit 2 ;;
+    esac
+done
+
+MARKER="$SDSYS/\$adopt.$ACC"
+ADIR="$ACCOUNTS_ROOT/$ACC"
+[ -n "$LOG" ] || LOG="/var/tmp/witness-release-run.$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG") 2>&1
+
+say()   { printf '%s\n' "$*"; }
+head2() { say ""; say "=== $* ============================================"; }
+
+ck() {
+    local name="$1" want="$2" got="$3"
+    if [ "$want" = "$got" ]; then
+        PASS=$((PASS + 1)); say "  [PASS] $name: expected '$want', got '$got'"
+    else
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: expected '$want', got '$got'"
+    fi
+}
+ck_says() {
+    local name="$1" needle="$2" text="$3"
+    if printf '%s' "$text" | grep -qF -- "$needle"; then
+        PASS=$((PASS + 1)); say "  [PASS] $name: found \"$needle\""
+    else
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: did NOT find \"$needle\""
+    fi
+}
+ck_absent() {
+    local name="$1" needle="$2" text="$3"
+    if printf '%s' "$text" | grep -qF -- "$needle"; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: FOUND \"$needle\""
+    else
+        PASS=$((PASS + 1)); say "  [PASS] $name: absent \"$needle\""
+    fi
+}
+not_reached() {
+    FAIL=$((FAIL + 1)); NOT_REACHED=$((NOT_REACHED + 1))
+    say "  [NOT REACHED] $1 - a precondition failed above, so it measured nothing"
+}
+
+yesno_user()  { id -u "$1" >/dev/null 2>&1 && echo yes || echo no; }
+yesno_group() { getent group "$1" >/dev/null && echo yes || echo no; }
+yesno_dir()   { [ -d "$1" ] && echo yes || echo no; }
+yesno_file()  { [ -e "$1" ] && echo yes || echo no; }
+
+strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
+
+# A piped session.  $1 who ("root" or the account), $2 title, then commands.
+# Narration to fd 2; sd's own output on fd 1; SD_RC holds the exit (124 = timeout).
+SD_RC=0
+run_sd() {
+    local who="$1" title="$2"; shift 2
+    say "  --- sd session as $who: $title ---" >&2
+    local line
+    for line in "$@"; do say "      > $line" >&2; done
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; return 0; fi
+    local body out
+    body=$'\n''TERM 200,9999'
+    for line in "$@"; do body="$body"$'\n'"$line"; done
+    body="$body"$'\n''OFF'$'\n'
+    if [ "$who" = root ]; then
+        out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    else
+        out=$(cd "$ADIR" && printf '%s' "$body" | timeout 60 runuser -u "$who" -- "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    fi
+    SD_RC=$(printf '%s' "$out" | tail -1 | sed -n 's/^rc=//p')
+    out=$(printf '%s' "$out" | sed '$d' | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    say "      (exit $SD_RC)" >&2
+    printf '%s' "$out"
+}
+
+# A sign-on as the account with stdin at END OF INPUT from the start.
+run_sd_eof() {
+    say "  --- sd session as $ACC: stdin </dev/null (end of input at once) ---" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; return 0; fi
+    local out
+    out=$(cd "$ADIR" && timeout 30 runuser -u "$ACC" -- "$SD" </dev/null 2>&1; echo "rc=$?")
+    SD_RC=$(printf '%s' "$out" | tail -1 | sed -n 's/^rc=//p')
+    out=$(printf '%s' "$out" | sed '$d' | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    say "      (exit $SD_RC)" >&2
+    printf '%s' "$out"
+}
+
+run_oneshot() {   # the installer's ADOPT form
+    say "  --- sd one-shot, cwd $SDSYS, </dev/null, timeout 25 s ---" >&2
+    say "      > $SD $*" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(cd "$SDSYS" && timeout 25 "$SD" "$@" </dev/null 2>&1 | strip)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+
+cleanup() {
+    local rc=$?
+    [ "$COMMIT" -eq 1 ] || exit $rc
+    head2 "CLEANUP - removing whatever this run made"
+    [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ADOPT marker"; }
+    if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
+        say "  deleting the SD account through SD"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''Y'$'\n''OFF'$'\n' \
+            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+    fi
+    if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
+        userdel -r "$ACC" >/dev/null 2>&1 && say "  userdel -r $ACC: done" \
+            || say "  userdel -r $ACC: FAILED - remove it by hand"
+    fi
+    say "  left behind: register=$(yesno_file "$REGISTER/$ACC")" \
+        "dir=$(yesno_dir "$ADIR") user=$(yesno_user "$ACC")" \
+        "group=$(yesno_group "sdu_$ACC") marker=$(yesno_file "$MARKER")"
+    say "  log: $LOG"
+    exit $rc
+}
+trap cleanup EXIT
+
+# ==========================================================================
+say "witness-release-run: $( [ "$COMMIT" -eq 1 ] && echo 'COMMIT - it will change this system' || echo 'DRY RUN - it changes nothing' )"
+say "  date       : $(date -Is)"
+say "  uid        : $(id -u) ($(id -un))"
+say "  sd         : $SD"
+say "  install    : $(sed -n 's/^commit=//p' "$SDSYS/.sdcore-install" 2>/dev/null) $(sed -n 's/^installed=//p' "$SDSYS/.sdcore-install" 2>/dev/null)"
+say "  account    : $ACC  ($ADIR)"
+say "  log        : $LOG"
+
+head2 "0. preconditions and the ground being clear"
+for p in "$SD" "$SDSYS" "$REGISTER" "$ACCOUNTS_ROOT"; do
+    [ -e "$p" ] || { say "witness-release-run: CANNOT RUN - $p does not exist."; exit 2; }
+done
+command -v runuser >/dev/null || { say "witness-release-run: CANNOT RUN - runuser not found."; exit 2; }
+if [ "$COMMIT" -eq 1 ] && [ "$(id -u)" -ne 0 ]; then
+    say "witness-release-run: CANNOT RUN - --commit needs root."
+    say "  re-run as: sudo bash $SELF --commit"
+    exit 2
+fi
+DIRTY=0
+[ "$(yesno_user "$ACC")" = yes ]  && { say "  DIRTY: Linux user $ACC exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC")" = yes ] && { say "  DIRTY: group sdu_$ACC exists"; DIRTY=1; }
+[ "$(yesno_dir "$ADIR")" = yes ] && { say "  DIRTY: $ADIR exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC")" = yes ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }
+[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ADOPT marker for $ACC exists"; DIRTY=1; }
+if [ "$DIRTY" -eq 1 ]; then
+    say "witness-release-run: CANNOT RUN - the ground is not clear (above)."
+    say "  This script will not touch state it did not create."
+    exit 2
+fi
+say "  ground clear: $ACC exists as no user, group, directory, record or marker."
+STAMP=$(sed -n '2p' "$SDSYS/voc_template/\$release" 2>/dev/null)
+say "  voc_template \$release field 2 (what a new account gets): '$STAMP'"
+[ "$STAMP" != "$FAKE_REL" ] || { say "witness-release-run: CANNOT RUN - the install is already at $FAKE_REL, so nothing would differ."; exit 2; }
+# THE SCRIPT'S OWN GROUPS - the S.2 input.  Printed before the group exists.
+say "  this process's groups (before): $(id -G)"
+
+# ==========================================================================
+head2 "1. adopt $ACC (no password prompt)"
+say "  useradd -m $ACC"
+if [ "$COMMIT" -eq 1 ]; then
+    if useradd -m "$ACC"; then MADE_USER=1; say "  created Linux user $ACC (uid $(id -u "$ACC"))"
+    else say "witness-release-run: CANNOT RUN - useradd failed; nothing else attempted."; exit 2; fi
+fi
+say "  touch $MARKER"
+[ "$COMMIT" -eq 1 ] && touch "$MARKER"
+run_oneshot -internal create-account USER "$ACC" ADOPT no.query >/dev/null
+[ "$COMMIT" -eq 1 ] && rm -f "$MARKER"
+
+ADOPTED=0
+if [ "$COMMIT" -eq 1 ]; then
+    ck "A1 the register record exists (the gate for the rest)" yes "$(yesno_file "$REGISTER/$ACC")"
+    ck "A2 the account directory exists" yes "$(yesno_dir "$ADIR")"
+    ck "A3 its bp directory exists" yes "$(yesno_dir "$ADIR/bp")"
+    if [ -e "$REGISTER/$ACC" ] && [ -d "$ADIR/bp" ]; then ADOPTED=1; MADE_ACCOUNT=1; fi
+    [ -e "$REGISTER/$ACC" ] && MADE_ACCOUNT=1
+fi
+
+# ==========================================================================
+head2 "2. S.2 - a root session LOGTOs $ACC, whose group is newer than this process"
+GID_NEW=$(getent group "sdu_$ACC" | cut -d: -f3)
+say "  sdu_$ACC gid: '${GID_NEW:-none}'; this process's groups: $(id -G)"
+if [ "$COMMIT" -eq 1 ]; then
+    if [ "$ADOPTED" -ne 1 ] || [ -z "$GID_NEW" ]; then
+        not_reached "S2.a LOGTO $ACC entered it"; not_reached "S2.b no Error 3001"
+    elif id -G | tr ' ' '\n' | grep -qx "$GID_NEW"; then
+        say "  this process ALREADY holds sdu_$ACC, so this is not the stale case."
+        not_reached "S2.a LOGTO $ACC entered it (stale groups)"; not_reached "S2.b no Error 3001 (stale groups)"
+    else
+        say "  this process does NOT hold sdu_$ACC - the stale case the fix is for."
+        OUT=$(run_sd root "LOGTO $ACC, WHO" "LOGTO $ACC" "WHO")
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "S2.a WHO reports the session in $ACC" yes yes
+        else
+            ck "S2.a WHO reports the session in $ACC" yes no
+        fi
+        ck_absent "S2.b no Error 3001" "Error 3001" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+head2 "3. setup as $ACC - compile ZZREL (sets \$release field 2) and ZZSHOW (prints it)"
+SRC_REL='open "voc" to f else stop "ZZREL: cannot open voc"
+read r from f, "$release" else stop "ZZREL: no $release record"
+r<2> = "'"$FAKE_REL"'"
+write r to f, "$release"
+crt "ZZREL wrote field 2 = ":r<2>
+end'
+SRC_SHOW='open "voc" to f else stop "ZZSHOW: cannot open voc"
+read r from f, "$release" else stop "ZZSHOW: no $release record"
+crt "ZZSHOW field 2 = ":r<2>
+end'
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -eq 1 ]; then
+    printf '%s\n' "$SRC_REL"  > "$ADIR/bp/zzrel"
+    printf '%s\n' "$SRC_SHOW" > "$ADIR/bp/zzshow"
+    chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzrel" "$ADIR/bp/zzshow"
+    say "  wrote $ADIR/bp/zzrel and zzshow"
+fi
+SETUP_OK=0
+if [ "$COMMIT" -eq 0 ] || [ "$ADOPTED" -eq 1 ]; then
+    OUT=$(run_sd "$ACC" "compile both, set field 2, show it" \
+          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "RUN BP ZZREL" "RUN BP ZZSHOW")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "B1 ZZREL wrote the fake release" "ZZREL wrote field 2 = $FAKE_REL" "$OUT"
+        ck_says "B2 ZZSHOW reads it back" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
+        printf '%s' "$OUT" | grep -qF "ZZSHOW field 2 = $FAKE_REL" && SETUP_OK=1
+    fi
+else
+    not_reached "B1 ZZREL wrote the fake release"; not_reached "B2 ZZSHOW reads it back"
+fi
+
+# ==========================================================================
+head2 "4. S.9 - sign-on with \$release at $FAKE_REL"
+if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
+    for r in "S9a.1 new prompt text" "S9a.2 no 5027" "S9a.3 went on to WHO" "S9a.4 finished" \
+             "S9b.1 prompt shown once" "S9b.2 finished at EOF" "S9c.1 field 2 unchanged"; do
+        not_reached "$r"; done
+else
+    say "  (a) a blank first line answers the prompt"
+    OUT=$(run_sd "$ACC" "blank line at the prompt, then WHO" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "S9a.1 the prompt says its default" "Update VOC to new release (y/<n>)?" "$OUT"
+        ck_absent "S9a.2 Enter was not refused (no 5027)" "Please answer Y or N" "$OUT"
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "S9a.3 the session went on to WHO" yes yes
+        else
+            ck "S9a.3 the session went on to WHO" yes no
+        fi
+        ck "S9a.4 it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+    say "  (b) end of input at the prompt"
+    OUT=$(run_sd_eof)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "S9b.1 the prompt was shown exactly once" 1 "$(printf '%s' "$OUT" | grep -oF 'Update VOC to new release' | wc -l)"
+        ck "S9b.2 it finished at end of input (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+    say "  (c) N changed nothing"
+    OUT=$(run_sd "$ACC" "RUN BP ZZSHOW" "RUN BP ZZSHOW")
+    [ "$COMMIT" -eq 1 ] && ck_says "S9c.1 field 2 is still $FAKE_REL" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
+fi
+
+# ==========================================================================
+head2 "5. Q.28 - RUN of a runfile path over 128 characters"
+LONG="zz$(printf 'q%.0s' $(seq 1 98))"
+LPATH="$ADIR/bp.out/$LONG"
+say "  record name : ${#LONG} characters"
+say "  full path   : ${#LPATH} characters (limit 128): $LPATH"
+if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzshow" ]; }; then
+    not_reached "Q1 10918's words"; not_reached "Q2 not 1135"; not_reached "Q3 10918 is installed"
+else
+    if [ "$COMMIT" -eq 1 ]; then
+        cp "$ADIR/bp.out/zzshow" "$LPATH" && chown "$ACC:$(id -gn "$ACC")" "$LPATH" && chmod 644 "$LPATH"
+        say "  copied bp.out/zzshow to that path: $(yesno_file "$LPATH")"
+    fi
+    OUT=$(run_sd "$ACC" "RUN BP <long name>" "RUN BP $LONG")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "Q1 RUN names the limit (10918)" "Runfile pathname is longer than 128 characters" "$OUT"
+        ck_absent "Q2 not the old 1135 message" "Invalid runfile pathname" "$OUT"
+        ck_absent "Q3 10918 is installed" "Message not found" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+head2 "6. verdict"
+if [ "$COMMIT" -eq 0 ]; then
+    say "  DRY RUN - nothing was executed and nothing was checked."
+    say "  Re-run with --commit, as root:"
+    say "    sudo bash $SELF --commit"
+    say "  A DRY RUN IS NOT A PASS.  Exit 2."
+    exit 2
+fi
+say "  passed      : $PASS"
+say "  failed      : $FAIL"
+say "  not reached : $NOT_REACHED   (counted in failed)"
+if [ "$((PASS + FAIL))" -eq 0 ]; then
+    say "witness-release-run: FAILED - no check ran, so this proves nothing."
+    exit 1
+fi
+if [ "$FAIL" -gt 0 ]; then
+    say "witness-release-run: FAILED - $FAIL of $((PASS + FAIL)) checks failed."
+    exit 1
+fi
+say "witness-release-run: PASSED - $PASS of $PASS checks passed."
+exit 0
