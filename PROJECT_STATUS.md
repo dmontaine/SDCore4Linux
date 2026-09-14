@@ -23,7 +23,6 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
-| ⬜ | **P.11** | S | `check-msglen.py` hard-codes the bound 231; derive it from the C headers | — |
 | ⬜ | **S.8** | S | `kernel(K$INTERNAL, n)` sets internal mode unguarded (`op_kernel.c:140-147`); belt-and-braces, the port is the same | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
 | ⬜ | **S.2** | S | lead: `LOGTO <account>` failed 3001 at `cproc:2952` in a piped `sudo sd` session; non-tty artefact or real | — |
@@ -53,6 +52,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
 | ✅ | **P.9** | — | `check-stale-leads.py` rewritten for this tree | 12 Sep 2026 |
 | ➖ | **P.10** | — | messages 4100, 4101, -10303: nothing here raises them | 14 Sep 2026 |
+| ✅ | **P.11** | — | `check-msglen.py` derives its bound from the C source | 14 Sep 2026 |
 | ✅ | **P.13** | — | ssh boundary for STANDARD accounts | 10 Sep 2026 |
 | ✅ | **P.15** | — | an install tests `origin/main`; `assert-current` reports it | 9 Sep 2026 |
 | ✅ | **P.23** | — | OS-access tier gate; its 10054 follow-up is S.4 | 10 Sep 2026 |
@@ -4191,8 +4191,9 @@ The survey is recorded so it is not repeated: the port has **1** Claude hook and
   match** — `MAX_ERROR_LINES` 3 / `MAX_EMSG_LEN` 80 (`sddefs.h:124-125`), the
   buffer declaration and 10-byte `"%08X: "` prefix (`k_error.c:160,212`), the D1
   `sizeof(s) - n` fix (`k_error.c:226`), and the `\n`→LF+CR substitution
-  (`messages.c:337-340`). **It hard-codes the bound 231 and will not notice if
-  those change**, which its header now says.
+  (`messages.c:337-340`). ~~**It hard-codes the bound 231 and will not notice if
+  those change**, which its header now says.~~ *(14 Sep 2026: it derives the
+  bound from the source each run and refuses if a premise is missing — P.11.)*
 - **Run on `MESSAGES/10099`, added this session: 165 rendered against a bound of
   231, 3 escapes, exit 0.** The instrument was shown to discriminate rather than
   merely pass — an over-long fixture gives `fits: False` exit **1**, and one with
