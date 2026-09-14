@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  RUN folds the program name (as typed, lower, upper), not only
+*               the file: "RUN BP ZZREL" finds bp.out/zzrel, which BASIC wrote.
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner):
 *               LOGTO and the elevation check downcase the name for the register
 *               lookup, and @WHO reads 'sdsys'.
@@ -2530,13 +2532,27 @@ int.run.common:
       return
    end
 
+* 14 Sep 26 dm - THE PROGRAM NAME FOLDS TOO, not only the file (plan M1 folded
+*   the BP.OUT open above and missed this read).  BASIC folds the name it
+*   compiles, so "BASIC BP ZZREL" files bp.out/zzrel, and "RUN BP ZZREL" then
+*   answered 5073 "Program BP.OUT ZZREL not found" - found 14 Sep 2026 by
+*   witness-release-run.sh on install 6e5b2f5.  Same order as every fold site:
+*   as typed, lower, upper.  The spelling that answered is the one run below,
+*   because run.pathname is a real path on a case-sensitive filesystem.
    readv s from run.file,run.record.name,0 on error
       display sysmsg(5072) ;* Cannot access program record
    end else
-      @system.return.code = -status()
-      close run.file
-      display sysmsg(5073, run.file.name, run.record.name) ;* Program xx xx not found
-      return
+      run.try.name = downcase(run.record.name)
+      readv s from run.file,run.try.name,0 else
+         run.try.name = upcase(run.record.name)
+         readv s from run.file,run.try.name,0 else
+            @system.return.code = -status()
+            close run.file
+            display sysmsg(5073, run.file.name, run.record.name) ;* Program xx xx not found
+            return
+         end
+      end
+      run.record.name = run.try.name
    end
 
    if run.debug then debug.on

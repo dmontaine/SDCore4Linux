@@ -22,11 +22,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: `witness-release-run.sh --commit` (throwaway `zzrel1`) | — |
+| ◐ | **S.10** | S | `RUN BP ZZX` did not fold the program name (5073 for `bp.out/zzx`); fold built in `cproc` `int.run` 14 Sep; left: install, then `witness-release-run.sh` F1 | — |
+| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: `witness-release-run.sh --commit` (12:55 run NOT REACHED behind S.10) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` built 14 Sep; left: install, then `witness-release-run.sh --commit` | — |
-| ◐ | **P.16** | M | installer builds with plain `make -B` as the caller, built 14 Sep (fresh clone built as `don`, 0 foreign-owned files); left: an install that uses it | — |
-| ◐ | **Q.25** | M | process dumps: `dumps/` 1730, `DUMPDIR`, 0600 create, `verify-sysperms` §8 built 14 Sep; left: install, then `verify-sysperms.py` | — |
+| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` installed `6e5b2f5`; left: `witness-release-run.sh --commit` (12:55 run NOT REACHED behind S.10) | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
 | ◐ | **P.1** | M | the port's PowerShell helpers, testing half via Queue 22; left: walk `upgrade-dicts`, `clean-deadvoc`, `restart-sd` | — |
@@ -52,6 +51,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ➖ | **P.10** | — | messages 4100, 4101, -10303: nothing here raises them | 14 Sep 2026 |
 | ✅ | **P.11** | — | `check-msglen.py` derives its bound from the C source | 14 Sep 2026 |
 | ✅ | **P.13** | — | ssh boundary for STANDARD accounts | 10 Sep 2026 |
+| ✅ | **P.16** | — | the installer builds as the calling user | 14 Sep 2026 |
+| ✅ | **Q.25** | — | process dumps in `dumps/`, 0600, `verify-sysperms` 28/28 | 14 Sep 2026 |
 | ✅ | **P.15** | — | an install tests `origin/main`; `assert-current` reports it | 9 Sep 2026 |
 | ✅ | **P.23** | — | OS-access tier gate; its 10054 follow-up is S.4 | 10 Sep 2026 |
 | ✅ | **P.25** | — | an upgrade keeps `sdadmin`'s members | 10 Sep 2026 |
@@ -224,8 +225,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`ca4c07c`**, stamped 14 Sep 2026 11:51:03,
-  owner keep cycle, `assert-current` current — carries P.29, Q.28, S.8, S.2.
+- **Runtime:** install built from **`6e5b2f5`**, stamped 14 Sep 2026 12:20:13,
+  owner keep cycle, `assert-current` current — carries S.9, Q.25, P.16.
+  *(Superseded:)* `ca4c07c`, 11:51:03 — P.29, Q.28, S.8, S.2.
   *(Superseded:)* `83e5ccf`, stamped 13 Sep 2026 23:06:38
   (`.sdcore-install`, read 14 Sep), owner keep cycle — carries §M and the
   `tier.policy` move. Before it, 13 Sep: `80bd15c` 19:11:39, a full cycle.
@@ -239,6 +241,23 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***[S.10] HAND-OFF, 14 Sep 2026, fifth session — `RUN` DID NOT FOLD THE PROGRAM
+NAME; FOLD BUILT, NOT INSTALLED.*** Owner-run on `6e5b2f5` (`assert-current`
+current): `verify-sysperms.py` ***28/28*** (dump `dumps/sddump.5` `don:don 0600`,
+listing refused) — Q.25 closed; the install built with plain `make` — P.16
+closed. `witness-release-run.sh --commit` 12:55: S.2's real case PASSED (groups
+`0 979 1001 1003 1005 1007 1009`, `sdu_zzrel1` = 1011 absent, `LOGTO zzrel1` →
+`7 zzrel1 from sdsys`); then `BASIC BP ZZREL` → "Compiling BP zzrel", `RUN BP
+ZZREL` → ***`Program BP.OUT ZZREL not found`***, so S.9 and Q.28 were NOT
+REACHED; cleanup complete. Cause: §M1 folded `int.run`'s BP.OUT open but not
+its `readv s from run.file,run.record.name,0` (`cproc` ~:2533); the note at
+"`RUN BP <prog>` IS CASE-SENSITIVE" below predates §M and was never followed
+up. Fix: as typed, lower, upper, the answering spelling run. Witness reworked:
+setup runs `RUN BP zzrel` exactly; new rows F1/F2 test the upper-case fold.
+`verify-nocase` could not have caught it (names only, not lookups). Other
+`readv`/`read` of a typed program name (CATALOG, DELETE.CATALOG…) are not
+audited for the same gap. Next: keep cycle, `witness-release-run.sh --commit`.
 
 ***HAND-OFF, 14 Sep 2026, fourth session.*** Built for ONE install cycle:
 **S.9** (5026 Enter/EOF = N), **Q.25** (`dumps/` + `DUMPDIR` + 0600 dumps,
@@ -2292,6 +2311,7 @@ against the install).***
   `open 'DICT','<file>' to f`; an ordinary (non-`$internal`) program compiles as
   `don` with no dev build. ***`RUN BP <prog>` IS CASE-SENSITIVE*** — `run bp
   mkf1` answers "Program BP.OUT mkf1 not found" for an object filed as `MKF1`.
+  *(14 Sep 2026: still true after §M, and the cause of S.10; `int.run` now folds.)*
 - ***SUPERSEDED — DO NOT USE FOR GPL.BP (owner 12 and 13 Sep 2026).*** System
   compilation is SDSYS's; a GPL.BP change is proven by commit → push → reinstall,
   where the bootstrap compiles it as SDSYS. `don` is a transitory user, not a
