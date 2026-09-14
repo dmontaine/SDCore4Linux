@@ -28,7 +28,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
 | ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
-| ◐ | **Q.13** | M | audit trail; left: rotation at 1 MB, survival across a keep-accounts reinstall (owner reads `head`/`wc` before delete and after install, next cycle), four record types | — |
+| ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED built into `witness-release-run.sh` §8; SH/OS not owed; left: §8 at the next cycle, rotation at 1 MB | — |
 | ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
 | ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
 | ⬜ | **W.3** | R·M | `DELETE.FILE` on a multifile, 6133: what should N do? | — |
@@ -255,9 +255,13 @@ closed (control `ZZOS ran OS.EXECUTE` at ADMINISTRATOR; after the move, `gpasswd
 OS.EXECUTE`), S.3 closed (after `43 removed` to STANDARD, Y at the prompt → `.`,
 then `Record 'basic' not found`, `Record 'run' not found`, `VOC list` present,
 next sign-on no prompt), `logtoaccess` 2 + 1 arrivals with its control refused.
-***Not pasted, so Q.13's reinstall-survival is still open:*** the before/after
-`head`/`wc` of the audit trail, and `assert-current` (the witness header shows
-the install at `984be50` = HEAD). Remaining open rows are owner-terminal, sudo,
+`assert-current` exit 0 on `984be50`, seen in `verify-keys`'s own
+precondition transcript. ***Not pasted, so Q.13's reinstall-survival is still
+open:*** the before/after `head`/`wc` of the audit trail. It can close without a
+cycle: every install today was a keep cycle, so a first record dated before
+today's 13:37 install has survived one. Audit record types measured in source:
+no SH/OS writer exists (`op_sh.c` has no `K$AUDIT`), so that type is not owed;
+`API REFUSED` waits on W.4. Remaining open rows are owner-terminal, sudo,
 rulings, or L/XL.
 
 ***[S.11] 14 Sep 2026, seventh session — A §M REMNANT THE METER COULD NOT SEE;
