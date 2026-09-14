@@ -30,38 +30,43 @@ the work, nothing in "Verified" that was not observed that session.
     `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
     **10 Sep: `3` ruled (EDIT = ED alias) and `4` superseded (port EDIT adopted)
     — both struck; the counts above predate that.**
-- **Plan steps: 1–4 done.** Step 7 (§L1 + §M) is the remaining release-blocking
-  block.
+- **Plan steps: 1–4 done. Step 7: §M DONE + installed (14 Sep, `83e5ccf`);
+  §L1 all but one owner-run witness** (MODIFYA tier re-derivation — below). The
+  release blockers are essentially cleared.
 - ***AUDITED 12 Sep 2026 — EVERY REMAINING TASK RE-MEASURED AGAINST THE TREE
   AND THE INSTALL RATHER THAN READ. THREE CLAIMS WERE STALE*** and are
   corrected in place: §L1's tier-layer half (below), `PRE_RELEASE 6` (no longer
   "not one item exercised"), and `24(2)`'s `file:line`. Everything else was
   confirmed genuinely outstanding, with the measurement in the entry.
-- **Release blocker 1 of 2:** ***§M*** — the lower-case conversion (= entry `7`).
-  ***M1 (the fold) INSTALLED + WITNESSED 12 Sep 20:55 on `76938f1`*** —
-  `verify-fold.py` 7 failed before → 35/35 after, all standing verifiers
-  unchanged; see START HERE. ***M2's VOC migration (`!voccase`) BUILT 12 Sep,
-  NOT INSTALLED*** — its on-disk half waits on each M3 category. The rename
-  (M2/M3) is ***CONFIRMED NOT STARTED, MEASURED 12 Sep***: sdsys 12 upper-case directories
-  to 3 lower, `NEWVOC` 395 upper / 3 lower, `VOC_TEMPLATE` 422 upper / 3 lower,
-  `GPL.BP` 212 upper / 1 lower, `CREATEF:306` and `:379` still
-  `upcase(file.name)` (and `create.file zzvvw` really made `ZZVVW` on this box,
-  measured), `LOGIN:302` still `pterm(PT$INVERT, @true)`, and all six named VOC
-  ids still upper.
-- **Release blocker 2 of 2:** ***§L1*** — the per-tier VOC, **core WITNESSED 10 Sep**
-  (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 = the omit
-  list; CREATUSR fix also witnessed). ***THE "unrun" HALF OF THIS LINE WAS
-  STALE AND IS CORRECTED, 12 Sep:*** `LOGIN update.voc`'s tier layer is ***RUN
-  AND RE-WITNESSED TODAY*** — `bash gplbld/verify-tier-layer.sh` exits 0 with
-  ***the layer at 19 verbs and both ADMINISTRATOR accounts (DON, TADM) holding
-  all 19, 0 short***. That is stronger than queue 16's original 18/18: the
-  layer grew by `MODIFY.PASSWORD` and the walk carried the NEW verb into
-  PRE-EXISTING accounts. ***WHAT REMAINS GENUINELY UNATTRIBUTED IS `MODIFYA`'s
-  tier RE-DERIVATION***: `UPDATE.ACCOUNTS ALL` has since run for every account,
-  so TADM holding the layer no longer proves the re-derivation did it. **It
-  needs a fresh tier move to attribute** — measure the account's VOC before and
-  after `MODIFY.ACCOUNT`, with no `UPDATE.ACCOUNTS` in between. ADOPT still to
-  build (Open section).
+- ***Release blocker 1 of 2: §M — DONE and INSTALLED (witnessed 14 Sep on
+  `83e5ccf`).*** `verify-nocase` reads ***§M NAME HALF COMPLETE*** — 0 name
+  remnants, all code sites ` ok `. **M1** (the fold, as-typed→lower→upper) done
+  + witnessed (`verify-fold` 35/35). **M2** (collision guard + VOC migration)
+  ***MOOTED and its `!voccase` code REMOVED*** under the owner's ruling *"NO
+  MIGRATION IS NEEDED FOR ANY OF §M"* (12 Sep, `313c55b`; there are no existing
+  installs to half-migrate). **M3** (the renames) done + witnessed: `gpl.bp`
+  0 upper, `syscom` 0, `newvoc` 0, `voc_template` 0, sdsys dirs 0, account names
+  lower (register keys too), case inversion off, `create.file` makes lower-case
+  files, and the tier lists moved to `sdsys/tier.policy` (14 Sep). **§N**
+  (release number) done: `SD_REV_STAMP`/`SD.REV.STAMP`/`$release` all `L1.0-0`,
+  changelog `L1.0-0 - in progress`. *(Catalogue names in `gcat` are a separate
+  namespace, deliberately left upper.)*
+- **Release blocker 2 of 2:** ***§L1*** — the per-tier VOC, **core WITNESSED
+  10 Sep** (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 =
+  the omit list; CREATUSR fix also witnessed). The tier-layer invariant is
+  RE-WITNESSED 14 Sep on `83e5ccf`: ***don (ADMINISTRATOR) holds all 19 layer
+  verbs, 0 short***, the layer read from `sdsys/tier.policy/add.administrator`.
+  ***CORRECTION, 14 Sep: the earlier "DON, TADM … 0 short" was resting on a
+  FALSE GREEN*** — `verify-tier-layer.bp` opened the admin VOC as `'VOC'` while
+  §M had lower-cased account dirs to `voc`, so the probe skipped the admin it
+  could not open and reported 0 short having tested nothing. Fixed 14 Sep
+  (opens `voc`, an unopenable admin counts short); now a real green. TADM/tstd/
+  tprog no longer exist (the 12 Sep full cycle left only `don` + `sdsys`).
+  ***WHAT REMAINS: `MODIFYA`'s tier RE-DERIVATION, still unattributed*** — a
+  fresh `MODIFY.ACCOUNT` tier move, VOC measured before and after, with no
+  `UPDATE.ACCOUNTS` between. ***OWNER-RUN: needs an admin session (sudo → SDSYS)
+  and a second account to move*** (the test accounts were removed, so one must
+  be recreated first). This is the last §L1 item.
 - **Parity audit vs the Windows port, 10 Sep:** 12 drifts corrected + compiled,
   **unrun**; key numbers renumbered so ***the tree `bin/sd` and GPL.BP must be
   installed together*** (Open, "Parity audit").
