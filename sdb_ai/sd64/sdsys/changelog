@@ -9,6 +9,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  THE TIER POLICY LISTS MOVED TO THEIR OWN FILE.
+
+           The two lists that decide which verbs each account tier gets - the
+           verbs a STANDARD account is denied, and the ones an ADMINISTRATOR
+           gains on top - used to live in SDSYS newvoc as the records
+           TIER.OMIT.STANDARD and TIER.ADD.ADMINISTRATOR.  They are not
+           vocabulary entries, so they did not belong in a VOC file - it was
+           also the last thing in newvoc whose name was not lower case.
+
+           They now live in a dedicated file, SDSYS tier.policy, as the records
+           omit.standard and add.administrator.  IF YOU CUSTOMISE what a tier
+           starts with, edit them there.  Nothing else changes: each tier gets
+           exactly the verbs it did before.
+
+
 13 Sep 26  SD'S OWN PROGRAM SOURCES AND INCLUDE RECORDS HAVE LOWER-CASE NAMES:
            gpl.bp/cproc, gpl.bp/login, syscom/keys.h, syscom/err.h and the rest.
 
