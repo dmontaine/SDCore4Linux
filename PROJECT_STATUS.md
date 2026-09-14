@@ -4,12 +4,13 @@ Handoff document for SD Core for Linux. See [CLAUDE.md](CLAUDE.md) for how to
 maintain it: terse, `file:line` over description, updated in the same commit as
 the work, nothing in "Verified" that was not observed that session.
 
-## Status roll-up (10 Sep 2026)
+## Status roll-up (14 Sep 2026)
 
 **Keep this current when an entry closes; it is a scorecard, detail lives in
 `PRE_RELEASE_FIXES.md` and below.**
 
-- **PRE_RELEASE entries — 28 total: 16 done · 1 partial · 11 open.**
+- **PRE_RELEASE entries — 30 total: 22 done · 1 partial · 7 open** (recounted 14 Sep
+  against the table after striking 5, 7, 9, 13, 23, 25, 26, 27).
   - ***`28` (SEV A) CLOSED — fixed and WITNESSED 12 Sep 19:35 on install
     `f14919c`, `witness-accounts.sh --commit` 33/0.*** `DELETE.ACCOUNT` of an
     adopted administrator had left its Linux user in `sdadmin`/`sdusers`, and
@@ -20,16 +21,17 @@ the work, nothing in "Verified" that was not observed that session.
     groups, so the strip is complete. The borrowed login and home survive; an
     SD-*created* user is still `userdel`'d whole. Not filed to the port
     (owner's call).
-  - Done: `2, 8, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27`
+  - Done: `2, 3, 4, 5, 7, 8, 9, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26,
+    27, 28, 30` (`3` ruled, `4` superseded)
   - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
     refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS
     CORRECTED: the refusal is `installsdai.sh:252-255`, not `:236`*** (audited
     12 Sep; `:236` is now the API-port prompt). Still unrun because `don` IS a
     sudoer, so the arm cannot fire on this box.
-  - Open: `1, 3, 4, 5, 6, 7, 9, 10, 11, 15, 16` — a mix of real work and notes.
-    `1`/`15` are informational; `6` = step-2 fixes compiled but unexercised.
-    **10 Sep: `3` ruled (EDIT = ED alias) and `4` superseded (port EDIT adopted)
-    — both struck; the counts above predate that.**
+  - Open: `1, 6, 10, 11, 15, 16, 29`. `1`/`15` are informational; `6` = A1, A3,
+    A5, A6 still need an induced failure (sandbox work); `29` = `sd.service`
+    has held 3 boots — after more, drop the installer's kickstart note
+    (`installsdai.sh:1112-1114`).
 - ***Plan steps 1–4 done. Step 7 (§M + §L1) — BOTH RELEASE BLOCKERS CLEARED,
   14 Sep.*** §M done + installed on `83e5ccf`; §L1 closed by the owner-run
   `witness-tierchange.sh --commit` (15/15, MODIFYA re-derives the per-tier VOC
@@ -107,7 +109,10 @@ the work, nothing in "Verified" that was not observed that session.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`76938f1`**, 12 Sep 2026 20:55:16, owner-run
+- **Runtime:** install built from **`83e5ccf`**, stamped 13 Sep 2026 23:06:38
+  (`.sdcore-install`, read 14 Sep), owner keep cycle — carries §M and the
+  `tier.policy` move. Before it, 13 Sep: `80bd15c` 19:11:39, a full cycle.
+  *(Superseded:)* install built from `76938f1`, 12 Sep 2026 20:55:16, owner-run
   delete→install, `assert-current` **0** — carries §M1's fold. Prior:
   **`f14919c`** 19:33:26, the PRE_RELEASE 28 fix, witnessed on it at 19:35.
   Earlier installs: `f446ac1` 11:56 (the full cycle
@@ -2197,7 +2202,7 @@ below): a STANDARD account is forced into `sd`, an administrator gets a shell.
 The delete→install cycle steps below remain the way to re-exercise it and to
 witness 25/27.***
 
-### Next: the delete→install cycle — witnesses 13, 25 and 27 at once
+### ~~Next:~~ the delete→install cycle — witnesses 13, 25 and 27 at once — *done: 13 and 25 on 10 Sep, 27 on the 13 Sep full cycle (PRE_RELEASE 27)*
 
 **Two scripts.** There is no unified script, and install REFUSES over an
 existing install (`installsdai.sh:125`), so a cycle is delete then install. Run
@@ -2316,7 +2321,7 @@ records, `op_sysmsg` turns the newlines into field marks. Ships on next install.
 | **12** | syntax highlighting reaches a user at last; **measured with two controls** |
 | **20** | piece 1 witnessed — `WHO.AM.I` says `User : don` |
 
-### Next task
+### ~~Next task~~ — *10 Sep 2026, superseded by the hand-off at the top of START HERE*
 
 ***THE FRESH INSTALL, 24'S SEED, 13, AND ALL OF 23 ARE DONE. What remains is
 24(2) and confirming the 25/27 delete transcript.***
@@ -3367,7 +3372,7 @@ dirties the four files even when content is identical. The build only ever runs
 | J4 | edit `gplsrc/err.h`, run `make` — it must fail at `check-includes` until `gen_includes.py` is run |
 | D6 | compile `ERRTEXT`/`APISRVR` in the bootstrap — must succeed without running ERRGEN/REVSTAMP (the tracked `.H` files are current) |
 
-## Step 4 — the shrink (in progress), 9 Sep 2026
+## Step 4 — the shrink (done), 9 Sep 2026
 
 One release (L1.0-0). Removing subsystems named in the project stance. Ordered
 so the VOC-touching ones go together; TAPE was independent and went first.
@@ -3475,7 +3480,10 @@ that compiler. The real `BCOMP` evidently resolves it, since installs work — b
 
 ## Open
 
-***RELEASE-BLOCKING: §M, THE LOWER-CASE CONVERSION.*** Owner's ruling, 9 Sep
+*§M is done — installed on `83e5ccf` (13 Sep 23:06), witnessed 14 Sep; `verify-nocase.py` reads "§M NAME
+HALF: COMPLETE" (run 14 Sep). The paragraph below is the 9 Sep plan.*
+
+~~***RELEASE-BLOCKING: §M, THE LOWER-CASE CONVERSION.***~~ Owner's ruling, 9 Sep
 2026 — later in the port is fine, **by the end is not optional**. Scheduled at
 step 7 with §N, per the plan; the reasoning and the two dependencies are in the
 step-4 note above. `M1`'s fold (the colon prompt and query language, and BASIC
@@ -3487,7 +3495,7 @@ Known traps: `M2`'s both-spellings-exist guard must **refuse, not guess**;
 **`bbcmp.py:7141` upper-cases every `$include` name**, which is a third lookup
 the plan does not name (found 9 Sep — see the §I note).
 
-### §M3 on-disk directory rename — DESIGN APPROVED WITH RULINGS 12 Sep 2026, NOT STARTED
+### §M3 on-disk directory rename — DONE, installed on `83e5ccf` (13 Sep 23:06) and witnessed 14 Sep (design approved with rulings 12 Sep, below as approved)
 
 ***SUPERSEDING RULING, OWNER, 12 Sep 2026 (later the same night): NO MIGRATION IS
 NEEDED FOR ANY OF §M.*** *"There are no existing installs of SD Core for Linux
@@ -3690,7 +3698,7 @@ a count; `listf` in a new account shows descriptions; `CREATE.ACCOUNT USER x SH-
 → 10102; `DELETE.ACCOUNT X` → one `(y/<n>)` naming the Linux user, user gone;
 `DELETE.ACCOUNT PETE` → 10036, `pete` kept. Falsified by any of those not holding.
 
-### NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — COMPILED, NOT RUN
+### NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — WITNESSED 12 Sep by `verify-editors.py` 28/28, except what a person must see
 
 Owner, 10 Sep: Microsoft Edit is not packaged for Linux; nano replaces it and
 gets SD BASIC highlighting; the verb is `NANO`; `EDIT` stays an alias for `ED`.
@@ -3755,7 +3763,7 @@ through SD.
   non-admin account → `SH ls` refused 10053. Falsified by 10053 in DON, or by micro
   opening for `tprog` before OS-ON.
 
-### ADOPT — the installer's pre-existing-user exception (TO BUILD, conditional)
+### ADOPT — the installer's pre-existing-user exception (BUILT 11 Sep 2026 as PORT_ADOPTION queue 15 and witnessed; the plan below is as written 10 Sep)
 
 ***Owner's rule (10 Sep 2026): all SD users are created WITHIN SD (CREATE.ACCOUNT
 makes the OS user — see the conformity fix above); the ONE exception is the
@@ -3786,7 +3794,7 @@ or the installer's own seeding breaks):***
 - ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
   reinstall — do not stack three unverified install-critical CREATEA changes.
 
-### §L1 — per-tier VOC (CORE WITNESSED 10 Sep 2026; LOGIN filter + MODIFYA re-derivation COMPILED, unrun)
+### §L1 — per-tier VOC (CLOSED 14 Sep 2026: core witnessed 10 Sep, MODIFYA re-derivation 14 Sep by `witness-tierchange.sh` 15/15; the LOGIN `update.voc` filter's STANDARD case has no recorded witness)
 
 ***`LOGIN` `update.voc` tier filter — BUILT AND COMPILED 10 Sep 2026, NOT RUN.***
 The port's 17 Aug 2026 fix. All three call sites set `update.voc.tier`: mode 2
@@ -3815,7 +3823,7 @@ The pre-fix control would be the same steps on the current install (expect 410 +
 BASIC), which alters `tstd`.
 
 ***`MODIFYA` tier-change re-derivation — BUILT AND COMPILED 10 Sep 2026, NOT
-RUN.*** The port's `voc.delta` + `tier.rank`/`tier.layer`/`tier.build.rec`/
+RUN.*** *Witnessed 14 Sep 2026 by `witness-tierchange.sh`, 15/15 (START HERE).* The port's `voc.delta` + `tier.rank`/`tier.layer`/`tier.build.rec`/
 `tier.add.one`/`tier.del.one` (port `gpl.bp/MODIFYA:1227-1440`), called in
 `set.tier` **before** the register write (port order: a stopped run leaves the old
 tier and a repeat converges); `voc.ok` false → **10044**, tier not written. Up
@@ -3861,7 +3869,7 @@ verbs in `TIER.OMIT.STANDARD`. So STANDARD gets NEWVOC less the omit list (canno
 build) and PROGRAMMER gets it entire — the tier VOC works at creation. Also
 witnessed: the CREATUSR fix — `create-account user tprog programmer` (no
 `no.query`) had SD create the OS user (`useradd`) and prompt for the password.
-***Still pending: running the two builds above, and the ADOPT work (above).*** Build details: the two
+~~***Still pending: running the two builds above, and the ADOPT work (above).***~~ *14 Sep: the MODIFYA build and ADOPT are witnessed; the LOGIN filter's STANDARD case has no recorded witness.* Build details: the two
 control records
 `sdsys/NEWVOC/TIER.OMIT.STANDARD` (42 dev verbs) and
 `sdsys/NEWVOC/TIER.ADD.ADMINISTRATOR` (5 admin verbs: CREATE/DELETE/MODIFY/
@@ -3875,7 +3883,7 @@ account's VOC per tier. (`LOGIN` `update.voc` and the `MODIFYA` re-derivation ar
 built, above.) *(Design
 follows.)*
 
-### §L1 design — per-tier VOC (proposed 10 Sep 2026, conditional)
+### §L1 design — per-tier VOC (proposed 10 Sep 2026; built, see the section above)
 
 ***The gates exist (entry 23); what is missing is that every tier still gets the
 SAME verb set.*** §L1 would make the account's VOC depend on `ACC$TIER` (field 5,
