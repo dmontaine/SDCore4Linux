@@ -16,6 +16,19 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  RUN SAYS WHEN A PROGRAM'S PATH IS TOO LONG, AND WHAT THE LIMIT IS.
+
+           When the full path to a compiled program was longer than 128
+           characters - an account kept deep in the directory tree, say - RUN
+           failed with "Invalid runfile pathname", which read as though the
+           name had been typed wrongly.  It now says "Runfile pathname is
+           longer than 128 characters".
+
+           WHAT DOES NOT CHANGE: the limit itself is still 128; a path that
+           long still cannot be run this way.  Catalogued programs are not
+           affected.
+
+
 14 Sep 26  THE INSTALLER NO LONGER WARNS THAT SD MAY NEED TWO REBOOTS TO START.
 
            Its closing message used to say that in rare cases SD would not

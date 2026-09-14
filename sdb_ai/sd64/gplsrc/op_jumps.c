@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 14 Sep 26 op_run(): a runfile path over MAX_PROGRAM_NAME_LEN raises 10918,
+ *           which names the limit, instead of 1135 (PORT_ADOPTION 28).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -807,9 +809,14 @@ void op_run() {
 
   DESCRIPTOR* descr;
   char runfile_name[MAX_PROGRAM_NAME_LEN + 1];
+  int n;
 
   descr = e_stack - 1;
-  if (k_get_c_string(descr, runfile_name, MAX_PROGRAM_NAME_LEN) < 1) {
+  n = k_get_c_string(descr, runfile_name, MAX_PROGRAM_NAME_LEN);
+  if (n < 0) {
+    k_error(sysmsg(10918), MAX_PROGRAM_NAME_LEN); /* Name the limit */
+  }
+  if (n < 1) {
     k_error(sysmsg(1135));
   }
   k_dismiss();
