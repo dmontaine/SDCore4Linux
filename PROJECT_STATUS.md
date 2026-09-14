@@ -79,9 +79,22 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***ACCOUNT NAMES LOWER CASE — BUILT 13 Sep 2026, NOT INSTALLED. NEXT: owner FULL
-delete→install (N, DELETE) + reboot — a kept register holds `DON`/`SDSYS` and
-every lookup now downcases — then the suite.***
+***ACCOUNT NAMES LOWER CASE — INSTALLED AND WITNESSED on `80bd15c`*** (owner FULL
+cycle, `.sdcore-install` 19:11:39, boot 19:12:26, `assert-current` 0 at 19:14).
+Register on disk: `don` (root:root 664), `sdsys` (root:root 644). Suite as the
+installing user, no sudo, no flag, all exit 0, no `[FAIL]`, 0 not-OFF:
+***lcnames 130/130*** (U1 register `don`+`sdsys`, no upper id; U2 `LOGTO DON` not
+refused; U3 WHO `don`; U4 not `DON`), accounts 36 (R3 ids lower, R8), sysperms 18
+(G1 10002 on `LOGTO SDSYS`, G2 stayed in `don`, G3 never sdsys), setpw 24 (names
+typed upper), vocverbs 34, fold 35, txn 33, editors 28, nonet 59, lineendings 42,
+basicfuncs 199, grants 16/0, pagination 10, tier-layer 0 COUNT VOC 418;
+PRE_RELEASE 29 boot held. ***NOT exercised by any verifier:*** `sudo sd`
+landing in sdsys, `UPDATE.ACCOUNTS ALL` from sdsys (the installer's keep-cycle
+walk runs it — this was a full cycle, so it did not run), a GROUP account, the
+API server's account read, a Q-pointer naming an account. NEXT: the 203 gpl.bp
+record names and LOGIN `PT$INVERT` (`LOGIN:310`).
+
+*Pre-install, 13 Sep:*
 - ***Rulings:*** lower case (owner 12 Sep, PORT_ADOPTION queue 18); ***SDSYS →
   `sdsys` too (owner, 13 Sep, asked this session)*** so the rule is uniform: key
   = downcase(name), every lookup downcases. ***The port keeps account names
