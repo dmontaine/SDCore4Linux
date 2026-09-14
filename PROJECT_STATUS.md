@@ -22,10 +22,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: witness it in a disposable account with a long `bp.out` record path (not `don`) | — |
+| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: `witness-release-run.sh --commit` (throwaway `zzrel1`) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` built 14 Sep; left: install, then a sign-on with a mismatched `$release` | — |
-| ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
+| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` built 14 Sep; left: install, then `witness-release-run.sh --commit` | — |
+| ◐ | **P.16** | M | installer builds with plain `make -B` as the caller, built 14 Sep (fresh clone built as `don`, 0 foreign-owned files); left: an install that uses it | — |
 | ◐ | **Q.25** | M | process dumps: `dumps/` 1730, `DUMPDIR`, 0600 create, `verify-sysperms` §8 built 14 Sep; left: install, then `verify-sysperms.py` | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
@@ -239,6 +239,17 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***HAND-OFF, 14 Sep 2026, fourth session.*** Built for ONE install cycle:
+**S.9** (5026 Enter/EOF = N), **Q.25** (`dumps/` + `DUMPDIR` + 0600 dumps,
+`verify-sysperms` §8), **P.16** (build as the caller). New owner-run
+`gplbld/witness-release-run.sh` covers S.9, Q.28 and S.2's real case (a root
+process older than the account's group). After the cycle: `assert-current`,
+`verify-sysperms.py` (no sudo), `witness-release-run.sh --commit` (sudo) —
+***commit nothing between them***. Noticed, not fixed:
+`witness-tierchange.sh`'s R5 compares a value with itself and cannot fail
+(§L1 rests on M2/P3/R4, which are real); and `sd < file` ends "Process
+terminated" at the first prompt where a pipe works.
 
 ***HAND-OFF, 14 Sep 2026, third session.*** Worked the table's cheapest rows.
 Closed: **P.29** (kickstart note dropped; boot 0 re-read `active`, no `-stop`)

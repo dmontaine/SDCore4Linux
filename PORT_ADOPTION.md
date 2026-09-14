@@ -732,9 +732,12 @@ EOF escape, since EOF reads as ''. Message 2050 still lacks `(y/<n>)` (the
 port's has it) and is left: DELETE/COPY/CD/CT/ED share it and are W.2.
 ***Objection kept:*** Y may be the more useful default after a release change,
 but the installer's UPDATE.ACCOUNTS ALL already updates every VOC, so the
-prompt fires only for an account that was missed. ***Witness:*** needs an
-account whose `$release` field 2 differs from `SD.REV.STAMP` (sudo to edit
-another account's VOC); falsified by a BEL loop or 5027 on a piped sign-on.
+prompt fires only for an account that was missed. ***Witness:***
+`gplbld/witness-release-run.sh --commit` (sudo; throwaway `zzrel1`, which a
+BASIC program sets to `L0.9-9`): (a) blank line → no 5027, reaches WHO; (b)
+`</dev/null` → prompt once, no timeout; (c) field 2 still `L0.9-9`. The same
+script witnesses Q.28 and re-witnesses S.2 in its realistic form. Falsified by
+a BEL loop, 5027, or the old prompt text.
 *(Earlier text follows.)* ***AND IT IS NOT ONLY `DELETEF` — `LOGIN:492-511` (now `login:516-535`) HAS THE SAME SHAPE IN THE
 SIGN-ON PATH*** (found 11 Sep while diagnosing something else, and it was NOT
 the cause of that). The `$RELEASE` check compares field 2 of the account's VOC
