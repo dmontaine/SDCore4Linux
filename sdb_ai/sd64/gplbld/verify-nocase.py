@@ -204,6 +204,32 @@ def main():
     say("  (build/runtime dirs - BP.OUT, GPL.BP.OUT, PCODE.OUT - follow from the")
     say("   code that creates them, so they change with that code, not by rename)")
 
+    # 14 Sep 26 - THE FILES_DICTS TARGETS.  Each record is "<file>^<item>" and
+    # write_install_dicts OPENPATHs <sdsys>/<file> BY THAT EXACT NAME, so an
+    # upper-case file half names a directory that has not existed since §M3 -
+    # and the open failure is a printed "THIS SHOULD NOT HAPPEN" and CONTINUE,
+    # not an install failure.  $HOLD.DIC^@ID sat there unapplied: the installed
+    # sdsys/$hold.dic had no @ID record while voc.dic and $map.dic did
+    # (measured 14 Sep on d704658).  Only the FILE half is a name in scope; the
+    # item half is a dictionary record id.
+    say("")
+    say("=== FILES_DICTS target file names (the part before ^) ===")
+    fd = os.path.join(os.path.dirname(a.sdsys), "gplbld", "FILES_DICTS")
+    if not os.path.isdir(fd):
+        say("  FILES_DICTS MISSING (%s)" % fd)
+        return 2
+    fd_names = sorted(os.listdir(fd))
+    if not fd_names:
+        say("  FILES_DICTS 0 records - refusing: nothing measured")
+        return 2
+    targets = sorted(set(n.split("^", 1)[0] for n in fd_names))
+    fd_remnants = [n for n in fd_names if needs_lowercasing(n.split("^", 1)[0])]
+    total_remnants += len(fd_remnants)
+    say("  %d of %d records name an upper-case file  (%d target files: %s)"
+        % (len(fd_remnants), len(fd_names), len(targets), " ".join(targets)))
+    if fd_remnants:
+        say("        " + "  ".join(fd_remnants))
+
     say("")
     say("=== the on-the-fly upcasing half: code sites to change (checklist) ===")
     say("  a name audit cannot prove these; they are listed, not scored green")

@@ -22,11 +22,11 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
+| ◐ | **S.11** | S | `FILES_DICTS/$HOLD.DIC^@ID` never applied since §M3 (sdsys `$hold.dic` had no `@ID`); renamed, `verify-nocase` now scans FILES_DICTS; left: install, then the byte check | — |
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 installed; 13:07 witness used a 100-char id, over MAXIDLEN 63 → "not found"; reworked to a deep F-pointer; left: re-run at the next install cycle (batch it) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
-| ◐ | **P.1** | M | the port's PowerShell helpers, testing half via Queue 22; left: walk `upgrade-dicts`, `clean-deadvoc`, `restart-sd` | — |
 | ◐ | **S.3** | M | per-tier VOC closed; left: witness LOGIN `update.voc`'s STANDARD filter | — |
 | ◐ | **S.4** | M | OS-access tier gate closed; left: re-witness 10054 on a PROGRAMMER account | — |
 | ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
@@ -43,6 +43,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
+| ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
 | ✅ | **P.9** | — | `check-stale-leads.py` rewritten for this tree | 12 Sep 2026 |
@@ -242,6 +243,25 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***[S.11] 14 Sep 2026, seventh session — A §M REMNANT THE METER COULD NOT SEE,
+FIXED IN SOURCE, NOT INSTALLED.*** `write_install_dicts` OPENPATHs
+`<sdsys>/<file>` by the file half of each `gplbld/FILES_DICTS` record, and an
+open failure prints "THIS SHOULD NOT HAPPEN" and CONTINUEs. Record
+`$HOLD.DIC^@ID` named a directory gone since §M3. Measured on `d704658`, bytes,
+no sudo: `grep -a -c @ID` over `%0 %1` → `$hold.dic` 0, `voc.dic` 1, `$map.dic`
+1. `git mv` to `$hold.dic^@ID` (content unchanged). `verify-nocase` had no
+FILES_DICTS category — added (file half only); red 1 of 70 before, 0 after,
+`--strict` 0. ***Witness after install, no sudo:*** `cat
+'/usr/local/sdsys/$hold.dic/%0' '/usr/local/sdsys/$hold.dic/%1' | grep -a -c
+'@ID'` must be ≥1. P.1's walk (same session): `upgrade-dicts` NEEDS NO
+COUNTERPART — a keep cycle rebuilds `/usr/local/sdsys` and the installer runs
+`write_install_dicts` + THIRD.COMPILE every time (`installsdai.sh:895,903`), and
+all six targets are sdsys files; `clean-deadvoc` NO COUNTERPART — cleared
+debris of the port's own `verify-catgate`, and `verify-sysperms` K4 shows this
+tree's catgate rows create nothing; `restart-sd` NO COUNTERPART NOW (unit is
+`KillMode=control-group` with `sdlnxd` in its cgroup; nothing in `gpl.bp`
+restarts SD). P.1 closed.
 
 ***HAND-OFF, 14 Sep 2026, sixth session.*** Owner keep cycle installed
 `d704658` (13:06, `assert-current` current); `witness-release-run.sh --commit`
