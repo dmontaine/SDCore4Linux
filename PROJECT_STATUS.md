@@ -79,9 +79,24 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***GPL.BP + SYSCOM RECORD NAMES LOWER CASE — BUILT 13 Sep 2026, NOT INSTALLED.
-NEXT: owner install (keep cycle fine — sdsys is replaced whole; no account holds
-these names) + reboot, then the suite.***
+***GPL.BP + SYSCOM RECORD NAMES LOWER CASE — INSTALLED AND WITNESSED on
+`51da55b`*** (owner keep cycle, `.sdcore-install` 22:24:13, boot 22:25:48,
+`assert-current` 0 at 22:28). Installed tree: `gpl.bp` 0 upper-case names,
+`syscom` 0; `gpl.bp.out` 201 items, 1 upper = `README`; `gcat` 142 upper =
+catalogue names, the separate namespace the rename deliberately left alone.
+`sd.service` Type=oneshot, active, journal shows `sd -start` "has been started"
+and ***no `-stop` line*** — PRE_RELEASE 29 boot held. Suite as the installing
+user, no sudo, no flag, all exit 0, no `[FAIL]`: ***lcnames 139/139***,
+vocverbs 34, fold 35, setpw 24, txn 33, editors 28, nonet 59, lineendings 42,
+basicfuncs 199, accounts 36, sysperms 18, grants 16/0, ***pagination 10/10 (S
+listed all 418, 0 clears, 0 headings, 0 further prompts)***, tier-layer 0 short,
+COUNT VOC 418. `verify-nocase`: gpl.bp 0/213, syscom 0/16, voc_template 0/425,
+sdsys dirs 0/15, all 3 code sites ` ok `; ***2 remnants left, both NEWVOC***:
+`TIER.OMIT.STANDARD`, `TIER.ADD.ADMINISTRATOR`. NEXT: adopt the port's
+`a47526f` — move those two into a `sdsys/tier.policy` file, which takes the §M
+name half to 0.
+
+*Pre-install:*
 - ***Renames (script, refuses on collision):*** 212 gpl.bp + 15 syscom records →
   lower; 227 `R`, 0 upper left. Catalogue names (`$CPROC`, `!PARSER`) are a
   separate namespace and are NOT touched.
