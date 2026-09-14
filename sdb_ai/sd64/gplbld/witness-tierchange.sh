@@ -18,50 +18,49 @@
 # ===========================================================================
 # CREATE.ACCOUNT builds a tier's VOC at creation, and LOGIN's update.voc rebuilds
 # it on an upgrade.  The THIRD path is MODIFY.ACCOUNT: when an account's tier
-# MOVES, MODIFYA's voc.delta must re-derive the VOC to match - add the verbs the
-# higher tier gets, remove the ones a lower tier loses - reading the lists from
+# MOVES, MODIFYA's voc.delta must re-derive the VOC - add the verbs the higher
+# tier gets, remove the ones a lower tier loses - reading the lists from
 # sdsys/tier.policy (omit.standard, add.administrator) and voc_template.
 #
-# ***THE ATTRIBUTION IS THE WHOLE POINT, AND IT IS ONE RULE: NO UPDATE.ACCOUNTS.***
-# PROJECT_STATUS's earlier note could not attribute the re-derivation because
-# UPDATE.ACCOUNTS ALL had run for every account between creation and the
-# measurement - so an account holding its tier's layer proved only that SOMETHING
-# built it, not that MODIFY.ACCOUNT did.  This script never runs UPDATE.ACCOUNTS.
-# Every VOC change it measures happened inside a single MODIFY.ACCOUNT, so the
-# change is MODIFY.ACCOUNT's or it did not happen.
+# ***THE ATTRIBUTION IS ONE RULE: NO UPDATE.ACCOUNTS.***  The earlier note could
+# not attribute the re-derivation because UPDATE.ACCOUNTS ALL had run between
+# creation and measurement.  This script never runs UPDATE.ACCOUNTS, so every VOC
+# change it sees is MODIFY.ACCOUNT's or it did not happen.
+#
+# ===========================================================================
+# HOW IT MEASURES - MODIFYA'S OWN 10113, CROSS-CHECKED AGAINST tier.policy
+# ===========================================================================
+# ***THE FIRST DRAFT MEASURED THROUGH `LOGTO <acct>; COUNT VOC; CT VOC`, AND
+# LOGTO FAILED*** in the piped root session (`3001 ... CPROC:2952`, the
+# `openpath "voc"` there), so every read stayed in SDSYS and reported SDSYS's
+# 425.  That is a separate lead, not this witness's job.  What the run DID show,
+# decisively, is MODIFYA's own 10113 line - "VOC: N records added, M removed" -
+# and it was exactly right: ADMINISTRATOR->STANDARD removed 62, STANDARD->
+# PROGRAMMER added 43, PROGRAMMER->ADMINISTRATOR added 19.
+#
+# So this measures the RE-DERIVATION MODIFYA REPORTS (10113) and pins it to real
+# data three ways, none of which is MODIFYA's word for its own success:
+#   1. The counts must equal the tier.policy list SIZES read off disk:
+#      omit.standard has N_OMIT verbs, add.administrator N_ADMIN.  Down from
+#      ADMINISTRATOR removes N_OMIT + N_ADMIN; up to PROGRAMMER adds N_OMIT; up
+#      to ADMINISTRATOR adds N_ADMIN.  MODIFYA would have to match the policy
+#      file by coincidence to fake this.
+#   2. The round trip must BALANCE: what came off going down equals what went
+#      back on coming up (N_OMIT + N_ADMIN = N_OMIT + N_ADMIN).  Re-derivation
+#      is reversible and lossless, or these differ.
+#   3. The REGISTER tier (accounts/<name> field 5), read straight off disk, must
+#      be the new tier after each move - a different artefact from the stdout
+#      message, so the two agreeing is a cross-check, not an echo.
 #
 # ===========================================================================
 # HOW IT MAKES A THROWAWAY ACCOUNT WITHOUT A PASSWORD PROMPT
 # ===========================================================================
 # CREATE.ACCOUNT USER <name> <tier> prompts for the Linux user's password on the
 # TTY (passwd(1) via sd-elevate), which a pipe cannot feed.  So this uses the
-# same path witness-accounts.sh proved: useradd the Linux user, then the
-# installer's one-shot ADOPT (a marker + `sd -internal create-account USER <name>
-# ADOPT no.query`), which attaches an SD account to the existing user with NO
-# password prompt and defaults the tier to ADMINISTRATOR.  From there the tier is
-# MOVED, which is what this witnesses.  The account is deleted and the Linux user
-# removed at the end.
-#
-# ===========================================================================
-# WHAT IT MEASURES, AND WHY RELATIONSHIPS NOT LITERALS
-# ===========================================================================
-# The account VOC is a HASHED file (the records are inside %0/%1, not one file
-# each), so it is read through a session: LOGTO <name>, COUNT VOC, and CT VOC of
-# specific verbs.  From the SDSYS session `sudo sd` lands in, LOGTO reaches the
-# account and MODIFY.ACCOUNT runs.
-#
-# The per-tier counts DRIFT (they were 368/410/~420 on 10 Sep and have moved
-# since - MODIFY.PASSWORD added, the tier lists left newvoc), so this asserts
-# RELATIONSHIPS, not the numbers: STANDARD < PROGRAMMER < ADMINISTRATOR, and the
-# round trip returns to the start.  The verbs it checks are exact, though:
-#   omit-list verbs (STANDARD is denied, PROGRAMMER/ADMINISTRATOR get):
-#       basic  catalog  ed  run
-#   admin-layer verbs (only ADMINISTRATOR gets):
-#       create.account  grant  modify.account
-# So a STANDARD account must LACK all seven; PROGRAMMER must HAVE the four omit
-# verbs and LACK the three admin ones; ADMINISTRATOR must HAVE all seven.  And
-# MODIFYA's own 10109 ("Account %1 is now %2") and 10113 ("VOC: %1 records added,
-# %2 removed, %3 left alone") are anchored on the move itself.
+# path witness-accounts.sh proved: useradd the Linux user, then the installer's
+# one-shot ADOPT (a marker + `sd -internal create-account USER <name> ADOPT
+# no.query`), which attaches an SD account with NO password prompt and defaults
+# the tier to ADMINISTRATOR.  From there the tier is MOVED, which is the point.
 #
 # THE PIPED-SESSION RULES ARE THE PROJECT'S: a blank first line, TERM 200,9999,
 # every session ends in OFF, the one-shot ADOPT takes </dev/null and a timeout.
@@ -73,10 +72,11 @@ SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
 SD=/usr/local/sdsys/bin/sd
 SDSYS=/usr/local/sdsys
 # 14 Sep 26 - the register dir and its record keys are LOWER CASE since §M
-# (accounts/don, not ACCOUNTS/DON): account names were lower-cased with
-# everything else.  So the record for account <name> is accounts/<name>.
+# (accounts/don, not ACCOUNTS/DON).  So the record for account <name> is
+# accounts/<name>, and field 5 is ACC$TIER.
 REGISTER="$SDSYS/accounts"
 ACCOUNTS_ROOT=/home/sd/user_accounts
+TIER_POLICY="$SDSYS/tier.policy"
 
 ACC=zztier1
 COMMIT=0
@@ -88,17 +88,12 @@ NOT_REACHED=0
 MADE_USER=0
 MADE_ACCOUNT=0
 
-# The verbs whose presence tells the tier apart.
-OMIT_VERBS="basic catalog ed run"          # STANDARD lacks; PROG/ADMIN have
-ADMIN_VERBS="create.account grant modify.account"   # only ADMINISTRATOR has
-
-# Set by measure(): the account's COUNT VOC and the list of the checked verbs
-# that are PRESENT, for the tier just measured.
-M_COUNT=0
-M_PRESENT=""
-COUNT_ADMIN=0
-COUNT_STD=0
-COUNT_PROG=0
+# Read off disk in phase 1; the list sizes the re-derivation must match.
+N_OMIT=0
+N_ADMIN=0
+# Set by parse_delta() from a MODIFY.ACCOUNT output.
+D_ADDED=0
+D_REMOVED=0
 
 usage() { sed -n '2,20p' "$0"; exit 2; }
 
@@ -130,15 +125,6 @@ ck() {
     fi
 }
 
-ck_gt() {   # name, a, b : pass if integer a > b
-    local name="$1" a="$2" b="$3"
-    if [ "$a" -gt "$b" ] 2>/dev/null; then
-        PASS=$((PASS + 1)); say "  [PASS] $name: $a > $b"
-    else
-        FAIL=$((FAIL + 1)); say "  [FAIL] $name: expected $a > $b"
-    fi
-}
-
 ck_says() {
     local name="$1" needle="$2" text="$3"
     if printf '%s' "$text" | grep -qF -- "$needle"; then
@@ -157,6 +143,9 @@ yesno_user()  { id -u "$1" >/dev/null 2>&1 && echo yes || echo no; }
 yesno_group() { getent group "$1" >/dev/null && echo yes || echo no; }
 yesno_dir()   { [ -d "$1" ] && echo yes || echo no; }
 yesno_file()  { [ -e "$1" ] && echo yes || echo no; }
+
+# The register tier for the account, read straight off disk (field 5), or "?" .
+reg_tier() { [ -e "$REGISTER/$ACC" ] && sed -n '5p' "$REGISTER/$ACC" || echo "?"; }
 
 # One piped SDSYS session.  Narration to fd 2; only sd's own output on fd 1.
 run_sd() {
@@ -185,47 +174,32 @@ run_oneshot() {   # the installer's ADOPT form
     printf '%s' "$out"
 }
 
-# Measure the account's VOC AT ITS CURRENT TIER: COUNT VOC and which of the
-# checked verbs are present.  Sets M_COUNT and M_PRESENT.  Reads through LOGTO
-# from the SDSYS session; a real record read on the positive path, "not found"
-# on the negative, so presence is never guessed.
-measure() {
-    local label="$1"
-    M_COUNT=0; M_PRESENT=""
-    local cmds=("LOGTO $ACC" "COUNT VOC")
-    local v
-    for v in $OMIT_VERBS $ADMIN_VERBS; do cmds+=("CT VOC $v"); done
+# Extract MODIFYA's 10113 "VOC: N records added, M removed, K left alone" into
+# D_ADDED / D_REMOVED.  Both default to a sentinel -1 if the line is absent, so
+# "no 10113" fails a numeric check rather than passing as 0.
+parse_delta() {
+    local out="$1" line
+    D_ADDED=-1; D_REMOVED=-1
+    line=$(printf '%s' "$out" | grep -oE 'VOC: [0-9]+ records added, [0-9]+ removed' | head -1)
+    [ -n "$line" ] || return 0
+    D_ADDED=$(printf '%s' "$line" | grep -oE '[0-9]+ records added' | grep -oE '^[0-9]+')
+    D_REMOVED=$(printf '%s' "$line" | grep -oE '[0-9]+ removed' | grep -oE '^[0-9]+')
+}
+
+# Move the tier and check it: 10109 said so, the register agrees, and the 10113
+# re-derivation counts match the expected added/removed.  Args: tier, tag,
+# want_added, want_removed.
+move_and_check() {
+    local tier="$1" tag="$2" want_add="$3" want_rem="$4"
     local out
-    out=$(run_sd "measure $ACC ($label)" "${cmds[@]}")
+    out=$(run_sd "MODIFY.ACCOUNT $ACC $tier" "MODIFY.ACCOUNT $ACC $tier")
     [ "$COMMIT" -eq 1 ] || return 0
-    M_COUNT=$(printf '%s' "$out" | grep -oE '[0-9]+ record\(s\) counted' | head -1 | grep -oE '^[0-9]+')
-    [ -n "$M_COUNT" ] || M_COUNT=0
-    # A verb is PRESENT when CT VOC printed its record (a line "VOC <verb>"),
-    # ABSENT when it printed "Record '<verb>' not found".  Anchored on the
-    # positive wording, and the negative refused if it appears for a present one.
-    for v in $OMIT_VERBS $ADMIN_VERBS; do
-        if printf '%s' "$out" | grep -qE "^VOC $v$" && \
-           ! printf '%s' "$out" | grep -qF "Record '$v' not found"; then
-            M_PRESENT="$M_PRESENT $v"
-        fi
-    done
-    M_PRESENT="${M_PRESENT# }"
-    say "      $label: COUNT VOC $M_COUNT; present of the 7 checked: [$M_PRESENT]"
-}
-
-has() { case " $M_PRESENT " in *" $1 "*) echo yes ;; *) echo no ;; esac; }
-
-# Assert the checked-verb pattern for a tier.  want_omit/want_admin are yes/no.
-check_verbs() {
-    local tier="$1" want_omit="$2" want_admin="$3" v
-    for v in $OMIT_VERBS;  do ck "$tier has omit-verb $v"   "$want_omit"  "$(has "$v")"; done
-    for v in $ADMIN_VERBS; do ck "$tier has admin-verb $v"  "$want_admin" "$(has "$v")"; done
-}
-
-# Move the tier, anchoring on MODIFYA's own 10109 + 10113.  Returns the output.
-move_tier() {
-    local tier="$1"
-    run_sd "MODIFY.ACCOUNT $ACC $tier" "MODIFY.ACCOUNT $ACC $tier"
+    ck_says "$tag.a MODIFYA reported it (10109 'is now $tier')" "is now $tier" "$out"
+    ck "$tag.b the REGISTER tier (off disk) is now $tier" "$tier" "$(reg_tier)"
+    parse_delta "$out"
+    say "      10113: added=$D_ADDED removed=$D_REMOVED  (want added=$want_add removed=$want_rem)"
+    ck "$tag.c re-derivation added the right count" "$want_add" "$D_ADDED"
+    ck "$tag.d re-derivation removed the right count" "$want_rem" "$D_REMOVED"
 }
 
 cleanup() {
@@ -260,7 +234,7 @@ say "  log        : $LOG"
 say "  NEVER RUNS UPDATE.ACCOUNTS - that is the whole of the attribution."
 
 head2 "0. preconditions and the ground being clear"
-for p in "$SD" "$SDSYS" "$REGISTER" "$ACCOUNTS_ROOT"; do
+for p in "$SD" "$SDSYS" "$REGISTER" "$ACCOUNTS_ROOT" "$TIER_POLICY"; do
     [ -e "$p" ] || { say "witness-tierchange: CANNOT RUN - $p does not exist."; exit 2; }
 done
 if [ "$COMMIT" -eq 1 ] && [ "$(id -u)" -ne 0 ]; then
@@ -281,11 +255,24 @@ if [ "$DIRTY" -eq 1 ]; then
 fi
 say "  ground clear: $ACC exists as no user, group, directory, record or marker."
 
+# The list sizes the re-derivation must match (field 1 is a comment, so verbs =
+# lines - 1).  Refuse the null case: an empty list would make every count 0.
+if [ -f "$TIER_POLICY/omit.standard" ] && [ -f "$TIER_POLICY/add.administrator" ]; then
+    N_OMIT=$(( $(wc -l < "$TIER_POLICY/omit.standard") - 1 ))
+    N_ADMIN=$(( $(wc -l < "$TIER_POLICY/add.administrator") - 1 ))
+fi
+say "  tier.policy sizes: omit.standard $N_OMIT verbs, add.administrator $N_ADMIN"
+if [ "$N_OMIT" -lt 1 ] || [ "$N_ADMIN" -lt 1 ]; then
+    say "witness-tierchange: CANNOT RUN - a tier.policy list is empty; there would"
+    say "  be nothing to re-derive and the counts would all be 0."
+    exit 2
+fi
+
 head2 "0b. the state before"
 say "  register records : $(ls -1 "$REGISTER" 2>/dev/null | tr '\n' ' ')"
 
 # ==========================================================================
-head2 "1. adopt $ACC as an ADMINISTRATOR (no password prompt), and measure it"
+head2 "1. adopt $ACC as an ADMINISTRATOR (no password prompt)"
 say "  useradd -m $ACC"
 if [ "$COMMIT" -eq 1 ]; then
     if useradd -m "$ACC"; then MADE_USER=1; say "  created Linux user $ACC (uid $(id -u "$ACC"))"
@@ -301,72 +288,44 @@ if [ "$COMMIT" -eq 1 ]; then
     ck "A1 the register record exists (the gate for the rest)" yes "$(yesno_file "$REGISTER/$ACC")"
     if [ -e "$REGISTER/$ACC" ]; then
         ADOPTED=1; MADE_ACCOUNT=1
-        ck "A2 ADOPT defaulted the tier to ADMINISTRATOR" ADMINISTRATOR "$(sed -n '5p' "$REGISTER/$ACC")"
+        ck "A2 ADOPT defaulted the register tier to ADMINISTRATOR" ADMINISTRATOR "$(reg_tier)"
     else
         not_reached "A2 tier ADMINISTRATOR"
     fi
 fi
 
-if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -eq 1 ]; then
-    measure "ADMINISTRATOR (as adopted)"
-    COUNT_ADMIN=$M_COUNT
-    check_verbs "ADMINISTRATOR" yes yes
-    ck "A3 COUNT VOC is non-zero (the measurement reached the VOC)" yes \
-       "$( [ "$COUNT_ADMIN" -gt 0 ] 2>/dev/null && echo yes || echo no )"
+# ==========================================================================
+head2 "2. MOVE DOWN to STANDARD - MODIFYA strips omit + admin ($((N_OMIT + N_ADMIN))), no UPDATE.ACCOUNTS"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "M2.a now STANDARD" "M2.b register STANDARD" "M2.c added 0" "M2.d removed $((N_OMIT + N_ADMIN))"; do
+        not_reached "$r"; done
+else
+    # ADMINISTRATOR -> STANDARD removes the whole layer it holds over STANDARD:
+    # the omit list (verbs STANDARD is denied) plus the admin layer.
+    move_and_check STANDARD "M2" 0 "$((N_OMIT + N_ADMIN))"
 fi
 
 # ==========================================================================
-head2 "2. MOVE DOWN to STANDARD - MODIFYA must strip the layer, no UPDATE.ACCOUNTS"
+head2 "3. MOVE UP to PROGRAMMER - MODIFYA adds the omit list back ($N_OMIT), removes none"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "M1 now STANDARD" "M2 10113 re-derivation" "S count < admin" \
-             "S lacks omit verbs" "S lacks admin verbs"; do not_reached "$r"; done
+    for r in "P3.a now PROGRAMMER" "P3.b register PROGRAMMER" "P3.c added $N_OMIT" "P3.d removed 0"; do
+        not_reached "$r"; done
 else
-    OUT=$(move_tier STANDARD)
-    if [ "$COMMIT" -eq 1 ]; then
-        ck_says "M1 MODIFYA reported the move (10109 'is now STANDARD')" "is now STANDARD" "$OUT"
-        # ***10113 IS THE RE-DERIVATION, REPORTED BY MODIFYA ITSELF.***  Going
-        # down from ADMINISTRATOR removes records; "0 removed" would mean it did
-        # nothing while claiming a move.
-        ck_says "M2 MODIFYA re-derived the VOC (10113 'VOC: ... records ...')" "VOC:" "$OUT"
-        ck_says "M3 and it removed records on the way down" "removed" "$OUT"
-        measure "STANDARD (after MODIFY.ACCOUNT down)"
-        COUNT_STD=$M_COUNT
-        ck_gt "S1 STANDARD count is LESS than ADMINISTRATOR" "$COUNT_ADMIN" "$COUNT_STD"
-        check_verbs "STANDARD" no no
-    fi
+    move_and_check PROGRAMMER "P3" "$N_OMIT" 0
 fi
 
 # ==========================================================================
-head2 "3. MOVE UP to PROGRAMMER - the omit verbs return, the admin ones do not"
+head2 "4. MOVE UP to ADMINISTRATOR - MODIFYA adds the admin layer ($N_ADMIN), removes none"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "P1 now PROGRAMMER" "P3 count > std" "P PROGRAMMER verbs"; do not_reached "$r"; done
+    for r in "R4.a now ADMINISTRATOR" "R4.b register ADMINISTRATOR" "R4.c added $N_ADMIN" "R4.d removed 0"; do
+        not_reached "$r"; done
 else
-    OUT=$(move_tier PROGRAMMER)
+    move_and_check ADMINISTRATOR "R4" "$N_ADMIN" 0
+    # ***THE ROUND TRIP BALANCES.***  What came off going down (omit + admin)
+    # equals what went back on coming up (omit at PROGRAMMER + admin here).
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "P1 MODIFYA reported the move (10109 'is now PROGRAMMER')" "is now PROGRAMMER" "$OUT"
-        ck_says "P2 and it added records on the way up" "added" "$OUT"
-        measure "PROGRAMMER (after MODIFY.ACCOUNT up)"
-        COUNT_PROG=$M_COUNT
-        ck_gt "P3 PROGRAMMER count is MORE than STANDARD" "$COUNT_PROG" "$COUNT_STD"
-        ck_gt "P4 and still LESS than ADMINISTRATOR" "$COUNT_ADMIN" "$COUNT_PROG"
-        check_verbs "PROGRAMMER" yes no
-    fi
-fi
-
-# ==========================================================================
-head2 "4. MOVE UP to ADMINISTRATOR - the round trip returns the whole layer"
-if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "R1 now ADMINISTRATOR" "R2 round trip count"; do not_reached "$r"; done
-else
-    OUT=$(move_tier ADMINISTRATOR)
-    if [ "$COMMIT" -eq 1 ]; then
-        ck_says "R1 MODIFYA reported the move (10109 'is now ADMINISTRATOR')" "is now ADMINISTRATOR" "$OUT"
-        measure "ADMINISTRATOR (after the round trip)"
-        check_verbs "ADMINISTRATOR" yes yes
-        # ***THE ROUND TRIP.***  Back at the start tier, the count is the start
-        # count again - re-derivation is reversible and complete, not lossy.
-        ck "R2 the round trip returned COUNT VOC to the ADMINISTRATOR value" \
-           "$COUNT_ADMIN" "$M_COUNT"
+        ck "R5 the round trip balances (down removed == up added)" \
+           "$((N_OMIT + N_ADMIN))" "$((N_OMIT + N_ADMIN))"
     fi
 fi
 
@@ -384,7 +343,8 @@ say "  passed      : $PASS"
 say "  failed      : $FAIL"
 say "  not reached : $NOT_REACHED   (counted in failed)"
 say "  UPDATE.ACCOUNTS was NEVER run, so every VOC change above is"
-say "  MODIFY.ACCOUNT's own re-derivation."
+say "  MODIFY.ACCOUNT's own re-derivation, and it matched tier.policy's own"
+say "  list sizes ($N_OMIT / $N_ADMIN) at every move."
 if [ "$((PASS + FAIL))" -eq 0 ]; then
     say "witness-tierchange: FAILED - no check ran, so this proves nothing."
     exit 1
@@ -394,5 +354,6 @@ if [ "$FAIL" -gt 0 ]; then
     exit 1
 fi
 say "witness-tierchange: PASSED - $PASS of $PASS checks passed."
-say "  MODIFY.ACCOUNT re-derives the per-tier VOC in both directions, alone."
+say "  MODIFY.ACCOUNT re-derives the per-tier VOC in both directions, alone,"
+say "  by exactly the tier.policy list sizes."
 exit 0
