@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
@@ -255,6 +256,10 @@ retry.target.file.open:
                      prompt ""
 
                      input reply
+* 14 Sep 26 dm - W.2, the port's ruling of 13 Sep 26 (its RELEASE_1.1_FIXES 33,
+*   owner): Enter means N, which stops without changing anything.  Without it
+*   the loop re-asked for ever at end of input.  In all six users of 2050.
+                     if reply = '' then reply = 'N'
 
                      if upcase(reply[1,1]) = "N" then stop
 

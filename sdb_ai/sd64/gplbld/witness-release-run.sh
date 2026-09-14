@@ -7,6 +7,7 @@
 #     S.2   a root session LOGTOs an account whose group is newer than it
 #     Q.22  logtoaccess: a root session keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
+#     W.2   Enter at 2050 means N; W.3  6133 cancels on Enter or C (5b)
 #     S.4   OS.EXECUTE runs at ADMINISTRATOR, 10054 at PROGRAMMER (6)
 #     S.3   Y at the release prompt keeps STANDARD's omit list out (7)
 #     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
@@ -478,6 +479,85 @@ else
 fi
 
 # ==========================================================================
+
+# ==========================================================================
+# W.2 and W.3 - the port's rulings of 13 Sep 26 (its RELEASE_1.1_FIXES 33),
+# adopted 14 Sep; the port's verify-promptenter legs 7 and 8, re-expressed.
+# BEFORE THE TIER MOVES: STANDARD's omit list takes CREATE.FILE and
+# DELETE.FILE, so this runs while zzrel1 is still ADMINISTRATOR.
+#   2050 via SSELECT VOC SAMPLE 1 + CT VOC (CT only displays): Enter must
+#        display nothing and let WHO run; the Y control must display it.
+#   6133 via a two-component multifile: Enter and C must delete nothing and
+#        leave both components and the dictionary on disk; the N control
+#        must still delete the dictionary only (N then Y, in case 6140 asks).
+head2 "5b. W.2 / W.3 - Enter at 2050 means N; 6133 cancels on Enter or C"
+MF=zzpromptm
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "P1 2050 prompt" "P2 Enter showed nothing" "P3 WHO ran" "P4 Y control" "M0 multifile built" "M1 Enter cancels" "M2 C cancels" "M3 N control"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "2050 answered with ENTER, then WHO" "SSELECT VOC SAMPLE 1" "CT VOC" "" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ID7=$(printf '%s' "$OUT" | grep -o "First item '[^']*'" | head -1 | sed "s/First item '//; s/'$//")
+        say "  first item of the list: '${ID7:-none}'"
+        ck_says "P1 2050 was reached, showing (y/<n>)" "Use active select list (First item '$ID7') (y/<n>)?" "$OUT"
+        if [ -n "$ID7" ] && printf '%s' "$OUT" | grep -qE "^VOC $ID7[[:space:]]*$"; then
+            ck "P2 Enter displayed nothing (no 'VOC $ID7' record)" no yes
+        else
+            ck "P2 Enter displayed nothing (no 'VOC $ID7' record)" no no
+        fi
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "P3 the session went on to WHO" yes yes
+        else
+            ck "P3 the session went on to WHO" yes no
+        fi
+    fi
+    OUT=$(run_sd "$ACC" "control: 2050 answered Y" "SSELECT VOC SAMPLE 1" "CT VOC" "Y")
+    if [ "$COMMIT" -eq 1 ]; then
+        if [ -n "$ID7" ] && printf '%s' "$OUT" | grep -qE "^VOC $ID7[[:space:]]*$"; then
+            ck "P4 control: Y displays 'VOC $ID7'" yes yes
+        else
+            ck "P4 control: Y displays 'VOC $ID7'" yes no
+        fi
+    fi
+
+    OUT=$(run_sd "$ACC" "make the multifile $MF (components c1, c2)" \
+          "CREATE.FILE $MF,c1" "CREATE.FILE $MF,c2" "CT VOC $MF")
+    MF_OK=0
+    if [ "$COMMIT" -eq 1 ]; then
+        say "  on disk: $(ls -d "$ADIR/$MF"/* "$ADIR/$MF.dic" 2>&1 | tr '\n' ' ')"
+        [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && MF_OK=1
+        ck "M0 $MF has components c1, c2 and a dictionary on disk" 1 "$MF_OK"
+    fi
+    for ANS in "" "C"; do
+        LABEL=$([ -z "$ANS" ] && echo ENTER || echo C)
+        if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
+            not_reached "M $LABEL cancels"; continue
+        fi
+        OUT=$(run_sd "$ACC" "DELETE.FILE $MF answered with $LABEL, then WHO" "DELETE.FILE $MF" "$ANS" "WHO")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says  "M.$LABEL.1 6133 reached, showing (y/n/<c>)" "C cancel (y/n/<c>)?" "$OUT"
+            ck_absent "M.$LABEL.2 no DATA portion deleted" "DATA portion '" "$OUT"
+            ck_absent "M.$LABEL.3 no DICT portion deleted" "DICT portion '" "$OUT"
+            ck "M.$LABEL.4 c1, c2 and the dictionary survive on disk" 1 \
+               "$( [ -d "$ADIR/$MF/c1" ] && [ -d "$ADIR/$MF/c2" ] && [ -e "$ADIR/$MF.dic" ] && echo 1 || echo 0)"
+            if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+                ck "M.$LABEL.5 the session went on to WHO" yes yes
+            else
+                ck "M.$LABEL.5 the session went on to WHO" yes no
+            fi
+        fi
+    done
+    if [ "$COMMIT" -eq 1 ] && [ "$MF_OK" -ne 1 ]; then
+        not_reached "M3 N control"
+    else
+        OUT=$(run_sd "$ACC" "control: DELETE.FILE $MF answered N (then Y, if 6140 asks)" "DELETE.FILE $MF" "N" "Y")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "M3.a control: N deleted the dictionary" "DICT portion '" "$OUT"
+            ck "M3.b control: the dictionary is gone and c1 remains" 1 \
+               "$( [ ! -e "$ADIR/$MF.dic" ] && [ -d "$ADIR/$MF/c1" ] && echo 1 || echo 0)"
+        fi
+    fi
+fi
 
 # ==========================================================================
 # S.4 - PRE_RELEASE 23's OS.EXECUTE gate (10054) on a PROGRAMMER account.  It
