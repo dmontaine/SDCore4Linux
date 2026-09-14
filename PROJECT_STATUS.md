@@ -79,8 +79,16 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***CASE INVERSION OFF BY DEFAULT — BUILT 13 Sep 2026, NOT INSTALLED (any cycle;
-keep is fine).***
+***CASE INVERSION OFF BY DEFAULT — INSTALLED AND WITNESSED on `6380883`*** (owner
+keep-cycle, `.sdcore-install` 21:14:23, boot 21:15:46, `assert-current` 0). Suite
+as the installing user, no sudo, no flag, all exit 0, no `[FAIL]`, 0 not-OFF:
+***lcnames 139/139 — I2 "Case inversion: Off" with the login paragraph set
+aside*** (was On on 80bd15c); I3 paragraph back line for line (checked again
+after the run: 4 lines, `zzlcnlogin` absent); every other verifier at its count;
+PRE_RELEASE 29 boot held. NEXT: the 203 gpl.bp record names — owner asked
+whether to start.
+
+*Pre-install:*
 - ***Port's finding checked, and it held only conditionally:*** on `80bd15c` a
   pipe AND a pty session report "Case inversion: Off" and typed `who` runs as
   `who` — but only because the VOC `login` paragraph runs `PTERM CASE NOINVERT`.
