@@ -27,6 +27,8 @@
  * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
  *               audit trail; the identity is stamped in k_error.c
  *               (PORT_ADOPTION 13).
+ * 14 Sep 26 dm  K_INTERNAL: only an $internal program may change internal
+ *               mode, in the shape of K_ADMINISTRATOR (PROJECT_STATUS S.8).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -138,10 +140,16 @@ void op_kernel() {
 
   switch (action) {
     case K_INTERNAL:
+      /* 14 Sep 26 dm - S.8.  Setting was unguarded, as in the Windows port.
+         KERNEL compiles only in internal mode, so this was reachable only
+         from $internal code already; the guard makes that the rule rather
+         than a consequence of BCOMP.  No shipped BASIC sets it (every caller
+         passes -1); sd -internal sets it in C (sd.c).  A refused attempt is
+         not an error and changes nothing, as for K_ADMINISTRATOR.            */
       GetInt(descr);
       if (descr->data.value < 0)
         result.data.value = internal_mode;
-      else
+      else if (process.program.flags & HDR_INTERNAL)
         internal_mode = (descr->data.value != 0);
 
       break;

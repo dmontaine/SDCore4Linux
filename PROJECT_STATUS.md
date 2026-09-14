@@ -23,7 +23,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
-| ⬜ | **S.8** | S | `kernel(K$INTERNAL, n)` sets internal mode unguarded (`op_kernel.c:140-147`); belt-and-braces, the port is the same | — |
+| ◐ | **S.8** | S | `kernel(K$INTERNAL, n)` guard built + compiled 14 Sep; left: an install that bootstraps and signs on with it | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
 | ⬜ | **S.2** | S | lead: `LOGTO <account>` failed 3001 at `cproc:2952` in a piped `sudo sd` session; non-tty artefact or real | — |
 | ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
@@ -4027,9 +4027,19 @@ already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
   PROGRAMMER = full VOC; ADMINISTRATOR = +admin verbs; a `MODIFY.ACCOUNT` tier
   change re-derives the VOC; a release `update.voc` preserves the tier's VOC.
 
-### [S.8] `kernel(K$INTERNAL, n)` sets internal mode with no `HDR_INTERNAL` guard (LEAD, NOT STARTED)
+### [S.8] `kernel(K$INTERNAL, n)` sets internal mode with no `HDR_INTERNAL` guard (BUILT + COMPILED 14 Sep 2026, NOT INSTALLED)
 
-Measured 14 Sep 2026: `gplsrc/op_kernel.c:140-147` sets `internal_mode` for any
+***Built 14 Sep 2026: `op_kernel.c` `case K_INTERNAL` changes `internal_mode` only
+when `process.program.flags & HDR_INTERNAL`; a refused set changes nothing and is
+not an error.*** Every shipped BASIC caller passes `-1` (`grep` of `gpl.bp`:
+option, debug, acomp, icomp, login, listcom, createa, bcomp, pstat); the only
+setter is `sd.c:353,364` in C, which the guard does not touch. ***The refused path
+cannot be reached from compiled BASIC***, so no witness can show the refusal;
+what an install can show is that nothing that reads it broke — `sd -internal`
+compiling `gpl.bp` at install, and LOGIN's `:555` check. That would be falsified
+by an install whose bootstrap compile or sign-on fails. Not filed to the port.
+
+*(Original entry follows.)* Measured 14 Sep 2026: `gplsrc/op_kernel.c:140-147` sets `internal_mode` for any
 `n >= 0`; the port's `op_kernel.c:146-151` is identical. Reachable only from
 `$internal` code, since `KERNEL` compiles only there (PRE_RELEASE 19, 21), so a
 guard would be belt-and-braces, in the shape of PRE_RELEASE 19's
