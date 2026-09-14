@@ -24,8 +24,6 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 |---|---|---|---|---|
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
-| ◐ | **S.12** | M | a session open during GRANT ENTERED (measured 14 Sep, `f2251e6`); 10043 reworded to "can enter the account but cannot change anything in it"; left: install it, and §10 G6/G7 witness the read-only refusal against a fresh session's write | — |
-| ◐ | **S.6** | M | plain-sd admin `SH` witnessed twice (don 14 Sep; §11 H1 on `f2251e6`); §11 H3's instrument miss fixed (zzrel1 → PROGRAMMER in §10 V0; H3b names the miss); left: re-run §11 | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; ssh door witnessed 14 Sep (§14: control landed in sd, suspended → 10107, no WHO); left: API door (W.4) | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, API REFUSED (W.4) | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
@@ -58,6 +56,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **Q.14** | — | GRANT/REVOKE incl. a session open during the grant (§10); its wording finding is S.12 | 14 Sep 2026 |
 | ✅ | **Q.17** | — | MODIFY.PASSWORD administrator arm: 10914, shadow `!` → `$y$` (§13) | 14 Sep 2026 |
 | ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
+| ✅ | **S.12** | — | 10043: a session open during GRANT enters but cannot write — `File is read-only` vs a fresh session's copy (§10, `79d7e87`) | 14 Sep 2026 |
+| ✅ | **S.6** | — | plain-sd admin `SH` runs; after LOGTO a non-admin account, 10054 names the user (§11, `79d7e87`) | 14 Sep 2026 |
 | ✅ | **W.0** | — | a dead or faulting semaphore holder gives it back (`SEM_UNDO` + fault path), `verify-semaphores` 9/9 | 14 Sep 2026 |
 | ✅ | **W.2** | — | Enter at 2050 means N in all six verbs | 14 Sep 2026 |
 | ✅ | **W.3** | — | 6133 cancels on Enter or C; N still deletes the dictionary only | 14 Sep 2026 |
@@ -227,8 +227,10 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`2edec17`**, stamped 14 Sep 2026 14:07:22,
-  owner keep cycle, `assert-current` current — carries W.0, W.2, W.3.
+- **Runtime:** install built from **`79d7e87`**, stamped 14 Sep 2026 15:02:58,
+  owner keep cycle, `assert-current` current — carries S.12's 10043.
+  *(Superseded:)* `f2251e6`, 14:37:02. *(Superseded:)* `2edec17`, 14:07:22 —
+  W.0, W.2, W.3.
   *(Superseded:)* `984be50`, 13:37:31 — the backspace fix and S.11.
   *(Superseded:)* `d704658`, 13:06:01 — S.10.
   *(Superseded:)* `6e5b2f5`, 12:20:13 — S.9, Q.25, P.16.
@@ -247,8 +249,24 @@ owner's ruling comes first.
 
 ## START HERE
 
-***THIRTEENTH SESSION, 14 Sep 2026 — S.12 AND S.6's INSTRUMENT, BUILT, NOT
-INSTALLED.*** [S.12] 10043 reworded: an open session "can enter the account but
+***FOURTEENTH SESSION, 14 Sep 2026 — [S.12] AND S.6 CLOSED, WITNESSED ON
+`79d7e87`.*** Keep cycle installed `79d7e87` (15:02:58, `assert-current`
+current); owner-run `witness-release-run.sh --commit` 15:04, log
+`/var/tmp/witness-release-run.20260914-150451.log`, ***113/113, 0 not reached***.
+§10: V0 `VOC: 43 records added`; the zzrel2 session started before the GRANT
+(Groups `965 979 1012 1013`, sdu_zzrel1 = 1011) → `28 zzrel1 from zzrel2`, then
+`COPY FROM VOC who,zzstale` → `File is read-only`, 0 bytes on disk; control, a
+session started after → `1 record(s) copied.`, zzctl on disk. GRANT printed
+the new 10043. §11: `zzsh-ran`, `31 zzrel1 from zzrel2`, `zzrel2 is not
+permitted to use OS.EXECUTE`, no `not in your VOC`. Every earlier section
+re-passed. Cleanup complete: `userdel -r zzrel1: done (waited 10s)` — a zzrel1
+process outlived §15 by up to 10 s, consistent with the 14:38 failure being
+exit 8; which process was not captured (`del_user` names them only if still
+there at 20 s). Open rows now: P.24, Q.19 (not foldable), Q.12/Q.13 (W.4 and
+rotation), Q.22 `sdsyswrite`, P.6, W.4, S.1.
+
+***THIRTEENTH SESSION, 14 Sep 2026 — S.12 AND S.6's INSTRUMENT, BUILT;
+installed and witnessed in the fourteenth (above).*** S.12: 10043 reworded: an open session "can enter the account but
 cannot change anything in it"; revoke's half "can still change the account's
 files". GRANTA comment `:380` records the 14:38 measurement. `check-msglen`
 fails 10043 at HEAD and now alike (11 lines vs `k_error`'s 3) and does not
@@ -257,7 +275,7 @@ apply: its only caller is `crt sysmsg` (`granta:391`). `witness-release-run.sh`:
 `run`, `tier.policy/omit.standard:32`), G4 is now a check, and the stale
 session's `COPY FROM VOC who,zzstale` must print 1431 `File is read-only`,
 no `record(s) copied`, 0 bytes on disk (G6–G6b), against a fresh session's same
-COPY landing (G7–G7b) — UNRUN until the next cycle. Chain from source: `dh_open.c:118` → `op_dio1.c:793`
+COPY landing (G7–G7b) — all passed in the fourteenth session. Chain from source: `dh_open.c:118` → `op_dio1.c:793`
 `FV_RDONLY` → `copy:212`. §11 gains H3b (`is not in your VOC` absent). Cleanup:
 `del_user` waits up to 20 s for the user's processes and prints `userdel`'s
 exit and message — the zzrel1 failure's cause is ***unmeasured***; exit 8 from
@@ -4055,7 +4073,7 @@ both shell scripts `bash -n` clean. ***Witness after install (conditional):***
 `nano bp x` and `micro bp x` open with colour; `~~` in the editor saves as a value
 mark; a PROGRAMMER account without OS-ON is refused before `$HOLD` is touched.
 
-### [S.6] MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN — the MICRO program half is SUPERSEDED by the section above)
+### [S.6] MICRO + plain-sd administrator OS access (earlier: built and compiled 10 Sep 2026, the MICRO program half superseded by the section above; CLOSED 14 Sep 2026 — WITNESSED on `79d7e87`, `witness-release-run.sh` §11 H1–H4)
 
 ***Found by the owner, 10 Sep:*** `micro bp test` → *"File Error: bp could not be
 opened"*; `MICRO BP TEST` → 10053, then *"Record was not saved"*. Entry 12's

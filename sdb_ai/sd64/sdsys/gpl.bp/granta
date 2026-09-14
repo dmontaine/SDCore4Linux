@@ -383,9 +383,9 @@ do.list:
 * the account and then refused by the filesystem", was wrong.  dh_open asks
 * access() and opens a file it cannot write read-only (dh_open.c:118), and a
 * VOC's %0 is 664, so the person is let in and every write is refused.  10043
-* now says that.  The write refusal is read off the code, not yet measured
-* (section 10 G6, against a fresh session's write, G7).  What would falsify
-* it: a granted person, still logged in, who can write a record in the account.
+* now says that.  The write refusal is WITNESSED too, 14 Sep 2026 on 79d7e87
+* (section 10): the open session's COPY got "File is read-only" and wrote
+* nothing, while a session started after the grant copied the same record.
 
 say.sign.out:
    crt sysmsg(10043, user) ;* %1 must log out of Linux and back in
