@@ -79,6 +79,19 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***INSTALL `f6d3b35` WITNESSED 13 Sep 18:50 — THE SUITE IS CLEAN*** (owner
+keep-cycle 18:47:46, boot 18:48:17, `assert-current` 0; no flag anywhere).
+***lcnames 125/125*** incl. the fixed A5 (baseline `COUNT $acc` 0; planted
+`zzlcnacc` counted `1 record(s)` typed both ways; fixture gone after), pagination
+10/10, vocverbs 34, fold 35, setpw 24, txn 33, editors 28, nonet 59, lineendings
+42, basicfuncs 199, accounts 36 (R8), sysperms 18, grants 16/0, tier-layer 0 with
+COUNT VOC 418; 0 not-OFF; PRE_RELEASE 29 boot held. ***No debts owed from any
+install.*** NEXT (ruled, not started): account names lower case — PORT_ADOPTION
+queue 18 row "Account names" (`CREATEA:409`, `DELACC:113`, `LOGIN:311/368/447`,
+`SET_ACC_PASSWORD:105/108`, `KEYS.H:263`); then the 203 gpl.bp record names and
+LOGIN PT$INVERT. Awaiting the owner: filing the QDISP defect to the port; audit
+coverage for CREATE/DELETE.ACCOUNT and password changes.
+
 ***INSTALL `80b4e83` WITNESSED 13 Sep 18:16*** (owner FULL cycle — the first
 attempt ran only the delete; journal showed no installer sudo in boot 0 — then
 install 18:06:07, boot 18:06:38, `assert-current` 0). Suite as the installing
