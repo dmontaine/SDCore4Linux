@@ -4,13 +4,84 @@ Handoff document for SD Core for Linux. See [CLAUDE.md](CLAUDE.md) for how to
 maintain it: terse, `file:line` over description, updated in the same commit as
 the work, nothing in "Verified" that was not observed that session.
 
+## THE TASK TABLE — READ THIS BEFORE ANSWERING "WHAT IS LEFT"
+
+Owner, 14 Sep 2026, adopting SD Core for Windows' table of 26 Aug 2026: **a
+table at the top, checked off as items finish, so nobody searches history to
+find out what is left.**
+
+***IT IS THE AUTHORITY ON STATUS. The entries carry the reasoning; this carries
+the state.*** `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`
+checks every row against its entry in both directions and exits non-zero on
+drift. Run it before answering the question this table exists for.
+
+**IDs are never renumbered or reused.** `P.N` is PRE_RELEASE_FIXES row N, `Q.N`
+PORT_ADOPTION queue row N, and `S.N` / `W.N` the one bracketed tag of that name
+in this file or PORT_ADOPTION.md (`W` = waiting for the owner). Open rows run
+cheapest first. Entries closed before 14 Sep 2026 have no row.
+
+| | ID | cost | what | settled |
+|---|---|---|---|---|
+| ◐ | **P.29** | XS | `sd.service` fix held 12 boot starts (journal, 14 Sep); left: drop the installer's kickstart note, `installsdai.sh:1112-1114` | — |
+| ⬜ | **Q.28** | S | `RUN` of a path over 128 characters fails 1135 (`sddefs.h:111`): make 1135 name the limit (lifting it is L) | — |
+| ⬜ | **P.11** | S | `check-msglen.py` hard-codes the bound 231; derive it from the C headers | — |
+| ⬜ | **S.8** | S | `kernel(K$INTERNAL, n)` sets internal mode unguarded (`op_kernel.c:140-147`); belt-and-braces, the port is the same | — |
+| ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
+| ⬜ | **S.2** | S | lead: `LOGTO <account>` failed 3001 at `cproc:2952` in a piped `sudo sd` session; non-tty artefact or real | — |
+| ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
+| ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
+| ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
+| ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
+| ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
+| ◐ | **P.1** | M | the port's PowerShell helpers, testing half via Queue 22; left: walk `upgrade-dicts`, `clean-deadvoc`, `restart-sd` | — |
+| ◐ | **S.3** | M | per-tier VOC closed; left: witness LOGIN `update.voc`'s STANDARD filter | — |
+| ◐ | **S.4** | M | OS-access tier gate closed; left: re-witness 10054 on a PROGRAMMER account | — |
+| ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
+| ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
+| ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
+| ◐ | **Q.13** | M | audit trail; left: rotation at 1 MB, survival across a keep-accounts reinstall, four record types | — |
+| ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
+| ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
+| ⬜ | **W.3** | R·M | `DELETE.FILE` on a multifile, 6133: what should N do? | — |
+| ◐ | **Q.3b** | R·M | Enter takes the default at most Y/N prompts; left: rulings W.2 and W.3 | — |
+| ◐ | **W.2** | R·L | 2050's Enter default built for `DELETEF`; left: rule and build it for `DELETE`, `COPY`, `CD`, `CT`, `ED` | — |
+| ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; left: `cmdaudit`, `sdsyswrite`, `batchjob`, `logtoaccess`, `notyet`, `keys` | — |
+| ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
+| ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
+| ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
+| ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
+| ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
+| ✅ | **P.9** | — | `check-stale-leads.py` rewritten for this tree | 12 Sep 2026 |
+| ➖ | **P.10** | — | messages 4100, 4101, -10303: nothing here raises them | 14 Sep 2026 |
+| ✅ | **P.13** | — | ssh boundary for STANDARD accounts | 10 Sep 2026 |
+| ✅ | **P.15** | — | an install tests `origin/main`; `assert-current` reports it | 9 Sep 2026 |
+| ✅ | **P.23** | — | OS-access tier gate; its 10054 follow-up is S.4 | 10 Sep 2026 |
+| ✅ | **P.25** | — | an upgrade keeps `sdadmin`'s members | 10 Sep 2026 |
+| ✅ | **P.26** | — | the delete path no longer leaves `/home/sd` a file | 10 Sep 2026 |
+| ✅ | **P.27** | — | install on an existing empty `/home/sd` | 14 Sep 2026 |
+| ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
+| ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
+| ✅ | **Q.18** | — | lower case, complete | 14 Sep 2026 |
+| ✅ | **Q.21** | — | `check-stale-leads.py` | 12 Sep 2026 |
+| ✅ | **Q.26** | — | the `:` prompt ends at end of input | 11 Sep 2026 |
+| ✅ | **Q.27** | — | OPENSEQ stranded lock | 11 Sep 2026 |
+
+**Legend** — ✅ closed · ◐ partly closed, and the row says what is `left:` · ⬜
+open · ➖ removed or not applicable.
+**Cost** — `XS` minutes, agent only · `S` under an hour, or one short owner
+step · `M` a reinstall cycle or an owner-run witness (batch them: one cycle, one
+witness script) · `L` a session plus a cycle · `XL` several sessions · `R` the
+owner's ruling comes first.
+
 ## Status roll-up (14 Sep 2026)
 
 **Keep this current when an entry closes; it is a scorecard, detail lives in
 `PRE_RELEASE_FIXES.md` and below.**
 
-- **PRE_RELEASE entries — 30 total: 22 done · 1 partial · 7 open** (recounted 14 Sep
-  against the table after striking 5, 7, 9, 13, 23, 25, 26, 27).
+- **PRE_RELEASE entries — 30; their state is the task table above** (the P
+  rows). Closed before it existed, so rowless: `2, 3, 4, 8, 12, 14, 17, 18, 19,
+  20, 21, 22, 28, 30`.
   - ***`28` (SEV A) CLOSED — fixed and WITNESSED 12 Sep 19:35 on install
     `f14919c`, `witness-accounts.sh --commit` 33/0.*** `DELETE.ACCOUNT` of an
     adopted administrator had left its Linux user in `sdadmin`/`sdusers`, and
@@ -21,17 +92,8 @@ the work, nothing in "Verified" that was not observed that session.
     groups, so the strip is complete. The borrowed login and home survive; an
     SD-*created* user is still `userdel`'d whole. Not filed to the port
     (owner's call).
-  - Done: `2, 3, 4, 5, 7, 8, 9, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 25, 26,
-    27, 28, 30` (`3` ruled, `4` superseded)
-  - Partial: `24` — installer seeds the admin (witnessed); the non-sudoer
-    refusal (**24(2)**) is unrun. ***ITS `file:line` WAS STALE AND IS
-    CORRECTED: the refusal is `installsdai.sh:252-255`, not `:236`*** (audited
-    12 Sep; `:236` is now the API-port prompt). Still unrun because `don` IS a
-    sudoer, so the arm cannot fire on this box.
-  - Open: `1, 6, 10, 11, 15, 16, 29`. `1`/`15` are informational; `6` = A1, A3,
-    A5, A6 still need an induced failure (sandbox work); `29` = `sd.service`
-    has held 3 boots — after more, drop the installer's kickstart note
-    (`installsdai.sh:1112-1114`).
+  - `24(2)`'s refusal is `installsdai.sh:252-255`, not `:236` (audited 12 Sep;
+    `:236` is now the API-port prompt).
 - ***Plan steps 1–4 done. Step 7 (§M + §L1) — BOTH RELEASE BLOCKERS CLEARED,
   14 Sep.*** §M done + installed on `83e5ccf`; §L1 closed by the owner-run
   `witness-tierchange.sh --commit` (15/15, MODIFYA re-derives the per-tier VOC
@@ -91,7 +153,7 @@ the work, nothing in "Verified" that was not observed that session.
   failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
   disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
   CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
-- ***LEAD, from the above, NOT a defect claim yet: `LOGTO <account>` errored
+- ***[S.2] LEAD, from the above, NOT a defect claim yet: `LOGTO <account>` errored
   3001 at `cproc:2952` (`openpath "voc"`) from a piped `sudo sd` (root/SDSYS)
   session.*** Whether this is a piped-non-tty artefact or a real LOGTO issue is
   unmeasured; an admin normally LOGTOs interactively. Worth its own look before
@@ -123,6 +185,16 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***HAND-OFF, 14 Sep 2026, second session (credits).*** The task table at the
+top of this file is new and is the authority on what is left; read it first.
+`check-stale-leads.py` exits 0 on it (both phases). Built this session: the
+table; checker phase 2 plus `gplbld/test-staleleads-units.py` (18/18); CLAUDE.md
+rules for table upkeep, "fix the first sentence", the handover "same block"
+clause, and the 15 free checks (all green, 7.6 s). Nothing product-facing
+changed, so the install is still `83e5ccf`. Next: the table's open rows, which
+are already the cost-ordered list the owner asked for. The cheapest are P.29
+(drop `installsdai.sh:1112-1114`), Q.28, P.11 and S.8.
+
 ***HAND-OFF, 14 Sep 2026 (credits) — READ THIS FIRST. BOTH RELEASE BLOCKERS ARE
 CLEARED; NO RELEASE-BLOCKING WORK REMAINS.*** Tree clean at `caa2203`, pushed.
 - ***§M (lower case) — DONE + INSTALLED on `83e5ccf`.*** M1 fold, M2 (mooted +
@@ -146,15 +218,9 @@ changelog text (ships next install, no behaviour change). Verifiers need
 `--allow-stale` until the next reinstall, justified: the delta is
 docs/dev-scripts/changelog only.
 
-***WHAT'S NEXT — post-parity GOALS (not blockers) and owner-run leads:***
-- The **BASIC screen/widget library** (owner goal, design note in Open) — the
-  main forward work now the release blockers are cleared.
-- ***LEAD, unmeasured:*** `LOGTO <account>` errored `3001 … cproc:2952`
-  (`openpath "voc"`) from a piped `sudo sd` root session; may be a non-tty
-  artefact or a real issue. Worth its own look before trusting `LOGTO` in an
-  instrument; admins LOGTO interactively.
-- The two owner-run witnesses that never needed doing for the release stay
-  optional: `witness-accounts.sh --commit` (account family), `sdsyswrite`.
+***WHAT'S NEXT is the task table at the top of this file*** (14 Sep 2026); it
+replaces the list that stood here. `witness-accounts.sh --commit` stays an
+optional owner-run witness, not a task.
 
 ***14 Sep 2026 — tier.policy move WITNESSED on install `83e5ccf` (owner keep
 cycle, `.sdcore-install` 23:06:38, `assert-current` 0). The §M NAME HALF IS
@@ -2273,7 +2339,7 @@ No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install 
 HEAD ahead again until the next install; that is the normal stale state, not a
 fault.
 
-### PRE_RELEASE 23 (OS-access tier gate + grant) — CLOSED, both gates witnessed end to end
+### [S.4] PRE_RELEASE 23 (OS-access tier gate + grant) — CLOSED, both gates witnessed end to end; 10054 on a PROGRAMMER account UNWITNESSED
 Both commits pushed and installed. ***FULLY WITNESSED 10 Sep 2026 on the
 `242ae63` install, STANDARD account `pete` — both gates, refuse → grant → allow
 → revoke → refuse:***
@@ -3614,7 +3680,7 @@ fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
 Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
 reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
 
-### Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED + COMPILED, NOT RUN
+### [S.5] Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED + COMPILED, NOT RUN
 
 Owner's instruction: audit every implemented feature against the port (the
 reference) and correct drift except OS differences. **Scope: this project's own
@@ -3698,7 +3764,7 @@ a count; `listf` in a new account shows descriptions; `CREATE.ACCOUNT USER x SH-
 → 10102; `DELETE.ACCOUNT X` → one `(y/<n>)` naming the Linux user, user gone;
 `DELETE.ACCOUNT PETE` → 10036, `pete` kept. Falsified by any of those not holding.
 
-### NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — WITNESSED 12 Sep by `verify-editors.py` 28/28, except what a person must see
+### [S.7] NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — WITNESSED 12 Sep by `verify-editors.py` 28/28; the person-visible half UNWITNESSED
 
 Owner, 10 Sep: Microsoft Edit is not packaged for Linux; nano replaces it and
 gets SD BASIC highlighting; the verb is `NANO`; `EDIT` stays an alias for `ED`.
@@ -3724,7 +3790,7 @@ both shell scripts `bash -n` clean. ***Witness after install (conditional):***
 `nano bp x` and `micro bp x` open with colour; `~~` in the editor saves as a value
 mark; a PROGRAMMER account without OS-ON is refused before `$HOLD` is touched.
 
-### MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN — the MICRO program half is SUPERSEDED by the section above)
+### [S.6] MICRO + plain-sd administrator OS access (BUILT + COMPILED 10 Sep 2026, NOT RUN — the MICRO program half is SUPERSEDED by the section above)
 
 ***Found by the owner, 10 Sep:*** `micro bp test` → *"File Error: bp could not be
 opened"*; `MICRO BP TEST` → 10053, then *"Record was not saved"*. Entry 12's
@@ -3794,7 +3860,7 @@ or the installer's own seeding breaks):***
 - ***Sequencing:*** build AFTER the pending SL1-core + CREATUSR verification
   reinstall — do not stack three unverified install-critical CREATEA changes.
 
-### §L1 — per-tier VOC (CLOSED 14 Sep 2026: core witnessed 10 Sep, MODIFYA re-derivation 14 Sep by `witness-tierchange.sh` 15/15; the LOGIN `update.voc` filter's STANDARD case has no recorded witness)
+### [S.3] §L1 — per-tier VOC (CLOSED 14 Sep 2026: core witnessed 10 Sep, MODIFYA re-derivation 14 Sep by `witness-tierchange.sh` 15/15; the LOGIN `update.voc` filter's STANDARD case is UNWITNESSED)
 
 ***`LOGIN` `update.voc` tier filter — BUILT AND COMPILED 10 Sep 2026, NOT RUN.***
 The port's 17 Aug 2026 fix. All three call sites set `update.voc.tier`: mode 2
@@ -3961,7 +4027,15 @@ already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
   PROGRAMMER = full VOC; ADMINISTRATOR = +admin verbs; a `MODIFY.ACCOUNT` tier
   change re-derives the VOC; a release `update.voc` preserves the tier's VOC.
 
-### BASIC screen/widget library — design note (PROPOSED 10 Sep 2026, conditional; not started)
+### [S.8] `kernel(K$INTERNAL, n)` sets internal mode with no `HDR_INTERNAL` guard (LEAD, NOT STARTED)
+
+Measured 14 Sep 2026: `gplsrc/op_kernel.c:140-147` sets `internal_mode` for any
+`n >= 0`; the port's `op_kernel.c:146-151` is identical. Reachable only from
+`$internal` code, since `KERNEL` compiles only there (PRE_RELEASE 19, 21), so a
+guard would be belt-and-braces, in the shape of PRE_RELEASE 19's
+`K_ADMINISTRATOR` fix. First named as a lead in PRE_RELEASE 21.
+
+### [S.1] BASIC screen/widget library — design note (PROPOSED 10 Sep 2026, conditional; NOT STARTED)
 
 ***Goal (owner, 10 Sep 2026):*** extend SD BASIC so a programmer builds rich
 terminal screens — administrative apps rivalling the best TUI frameworks, up to

@@ -35,6 +35,11 @@ It was created empty on 8 Sep 2026 and has been written to since. Add to it in
 the same commit as your work; do not let it go stale, because a wrong claim in
 it costs more than no claim at all.
 
+**Its task table, at the top, is the authority on what is left** (owner,
+14 Sep 2026). Before answering that question, read it and run
+`python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`.
+The upkeep rules are under "Writing it down".
+
 The parity plan the project is working from lives outside the repository at
 `/home/don/Documents/claude_plan.md` (and `.pdf`). Read it for what is being
 changed and why; it carries a verification table with `file:line` for every
@@ -164,6 +169,8 @@ Two owner rules, 23 and 28 Aug 2026, merged because they share a trigger: **the
 moment something leaves you for the owner's terminal, its failure lands away from
 you.** A rerun, a retry with a different flag, a command repeated from earlier in
 the same message — each is a fresh hand-over and carries all three parts again.
+**All three parts, every time, in the same block** (the port's wording, 12 Sep
+2026).
 
 1. ***PROVE IT LOADS. A script you have not watched load is not ready to
    submit.*** Parse or compile it — `python3 -m py_compile file.py`,
@@ -229,6 +236,17 @@ session, not for him** — he does not read it.
 - **Update PROJECT_STATUS.md in the same commit as the work**, and never move
   anything into "Verified" without observing it yourself that session. **Compiling
   is not running.**
+- ***THE TASK TABLE IS KEPT, NOT WRITTEN ONCE*** (owner, 14 Sep 2026, adopting
+  the port's rule of 26 Aug, which followed a day of different "what is left"
+  lists — this project had the same day). **The session that closes, compiles
+  or witnesses something updates its row in the same commit**: tick it, strike
+  the entry, date it. A headline claiming UNRUN or UNWITNESSED is a claim about
+  a machine, and whoever changes the machine owns it. **New work gets a row
+  when its entry is written.** Run `check-stale-leads.py` after editing these
+  documents, and commit on its exit 0.
+- ***WHEN YOU CLOSE PART OF AN ENTRY, FIX ITS FIRST SENTENCE*** (port, 26 Aug
+  2026). A reader stops at the first status sentence, so a correction appended
+  below a stale opening misleads everyone who does not read to the end.
 - **`sdb_ai/sd64/sdsys/changelog` is the exception**: it ships to users, stays
   plain English, and gets anything a user would notice, in the same commit. **Write
   it the way SD Core for Windows writes it** — what changed, why it mattered, and
@@ -346,7 +364,8 @@ separately when §K needs checking.
   `sdb_ai/sd64` from the clone*** (owner, 9 Sep 2026, superseding plan §F9 and
   the earlier wording here, which said it built the bundled tree). **So an
   install tests `origin/main`, not your working tree — commit and push first, or
-  you are testing something else.** Nothing checks this; see `PRE_RELEASE` 15.
+  you are testing something else.** Nothing stops such an install;
+`assert-current` reports it afterwards (`PRE_RELEASE` 8, 15).
 - **Binaries are not tracked, and must stay that way.** `.gitignore` covers
   `sd64/bin/` (except its README), `sd64/gplobj/`, `sd64/terminfo/`,
   `pcode_bld.log` and the installer-generated `gplsrc/sdext_python_inc.h`. All of
@@ -408,6 +427,21 @@ is `origin/main`, that the install's own commit stamp matches HEAD, and that
 `bin/sd` is newer than `gplsrc`. ***AN INSTALL PREDATING THE STAMP ANSWERS `2`,
 NOT `0`*** — reinstall once and it becomes exact. Unit tests:
 `gplbld/test-assert-current.py`, 10 rows.
+
+## The free checks run on every change
+
+Adopted from the port's tier 1 (its CLAUDE.md, 30 Aug 2026): checks that need
+no install, no `sudo` and no `sd`. Run them as an ordinary user from
+`sdb_ai/sd64`. **All fifteen took 7.6 s, measured 14 Sep 2026.** A new free
+check joins this list in the commit that creates it.
+
+In `gplbld/`: `test-accounts-units.py` · `test-assert-current.py` ·
+`test-basicfuncs-units.py` · `test-editors-units.py` · `test-edittokens-units.py`
+· `test-nonet-units.py` · `test-sd-elevate.py` · `test-sdverify-units.py` ·
+`test-ssh-forcecommand.py` · `test-sysperms-units.py` ·
+`test-staleleads-units.py` · `verify-nocase.py` · `sdverify.py --selftest` ·
+`check-stale-leads.py`. From the repository root:
+`.claude/hooks/no-program-edits.py --selftest`.
 
 ## Conventions
 
