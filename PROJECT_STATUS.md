@@ -64,9 +64,22 @@ the work, nothing in "Verified" that was not observed that session.
   tprog no longer exist (the 12 Sep full cycle left only `don` + `sdsys`).
   ***WHAT REMAINS: `MODIFYA`'s tier RE-DERIVATION, still unattributed*** — a
   fresh `MODIFY.ACCOUNT` tier move, VOC measured before and after, with no
-  `UPDATE.ACCOUNTS` between. ***OWNER-RUN: needs an admin session (sudo → SDSYS)
-  and a second account to move*** (the test accounts were removed, so one must
-  be recreated first). This is the last §L1 item.
+  `UPDATE.ACCOUNTS` between. ***THE WITNESS IS BUILT: `gplbld/witness-tierchange.sh`***
+  (14 Sep, dry-run verified, bash -n clean, `--commit` UNRUN — needs root).
+  It ADOPTs a throwaway (→ADMINISTRATOR, no password prompt), then moves it
+  ADMINISTRATOR→STANDARD→PROGRAMMER→ADMINISTRATOR, reading `COUNT VOC` and the
+  seven marker verbs (`basic catalog ed run` / `create.account grant
+  modify.account`) via `LOGTO` at each tier, and NEVER runs `UPDATE.ACCOUNTS`.
+  Asserts relationships (STANDARD<PROGRAMMER<ADMINISTRATOR, round trip returns),
+  not literals (counts drift), plus MODIFYA's own 10109/10113. Run:
+  `sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh --commit`.
+  This is the last §L1 item.
+- ***KNOWN BUG, same class: `gplbld/witness-accounts.sh` still hardcodes the
+  register as `ACCOUNTS` (upper) and the record key upper-cased*** — §M
+  lowercased the register dir to `accounts` and its keys, so that script now
+  fails its preconditions on a current install. Same two-line fix
+  `witness-tierchange.sh` got (`accounts`, drop the `ACC_UC` upcasing); not yet
+  applied.
 - **Parity audit vs the Windows port, 10 Sep:** 12 drifts corrected + compiled,
   **unrun**; key numbers renumbered so ***the tree `bin/sd` and GPL.BP must be
   installed together*** (Open, "Parity audit").
