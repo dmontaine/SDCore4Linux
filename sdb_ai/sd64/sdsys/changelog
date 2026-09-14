@@ -16,6 +16,37 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  PROCESS DUMPS HAVE THEIR OWN DIRECTORY, AND ONLY THEIR OWNER CAN READ
+           ONE.
+
+           PDUMP writes a file holding a session's variables, call stack and
+           open files.  It used to be aimed at the system directory: an
+           ordinary user's dump could not be written there at all ("Cannot
+           open dump file"), and an administrator's landed where every user
+           could read it.  Dumps now go to /usr/local/sdsys/dumps.  Any SD user
+           can create one there, nobody but an administrator can list the
+           directory, and each dump is readable only by the user whose session
+           it is (and by root).  If a dump cannot be written, the message now
+           says where and why.
+
+           WHAT DOES NOT CHANGE: who may PDUMP which process.  The DUMPDIR
+           setting in /etc/sd.conf still chooses the directory; an install
+           that kept its old configuration has DUMPDIR added for it.
+
+
+14 Sep 26  SIGNING ON AFTER A RELEASE CHANGE NO LONGER HANGS A SCRIPT.
+
+           When an account's VOC was at an older release, sign-on asked
+           "Update VOC to new release?" and accepted only Y or N.  Pressing
+           Enter asked again, and a script or pipe driving sd - which has no
+           answer to give - made it ask for ever, beeping each time.  The
+           prompt now reads "Update VOC to new release (y/<n>)?", and Enter,
+           or the end of input, means N.
+
+           WHAT DOES NOT CHANGE: answering Y still updates the VOC.  N leaves
+           it as it was, and you are asked again at the next sign-on.
+
+
 14 Sep 26  AN ADMINISTRATOR CAN LOGTO AN ACCOUNT CREATED IN THE SAME SESSION.
 
            In a sudo sd session, LOGTO to an account whose Linux group did not

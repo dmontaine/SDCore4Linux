@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 14 Sep 26 dm  The dump file is created 0600 with O_NOFOLLOW, and a failure
+ *               names the path and the reason (PORT_ADOPTION 25).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -106,10 +108,29 @@ void pdump() {
 
   FDS_close(); /* Ensure free handle without even checking if needed */
 
-  fu = fopen(path, FOPEN_WRITE_MODE);
-  if (fu == NULL) {
-    tio_printf("Cannot open dump file\n");
-    goto exit_pdump;
+  /* 14 Sep 26 dm - PORT_ADOPTION 25.  A dump holds the session's variables,
+     so it is created 0600 rather than through fopen() and the umask: the
+     installer's DUMPDIR is writable by every SD user, and a group- or
+     world-readable dump could be opened by anyone who guessed its name.
+     O_NOFOLLOW because that directory is group-writable, which the kernel's
+     protected_symlinks does not cover (it guards world-writable sticky
+     directories only), so a planted sddump.N symlink would otherwise make
+     another user's session - or root's - truncate its target.  fchmod()
+     because O_CREAT's mode does not apply to a file that already exists. */
+  {
+    int fd;
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
+    if (fd < 0) {
+      tio_printf("Cannot open dump file %s: %s\n", path, strerror(errno));
+      goto exit_pdump;
+    }
+    (void)fchmod(fd, 0600);
+    fu = fdopen(fd, FOPEN_WRITE_MODE);
+    if (fu == NULL) {
+      tio_printf("Cannot open dump file %s: %s\n", path, strerror(errno));
+      close(fd);
+      goto exit_pdump;
+    }
   }
 
   /* Write dump file header */

@@ -44,6 +44,9 @@
 #
 #   14 Sep 2026 - the closing "two reboots / kickstart" note is gone: the
 #   Type=oneshot unit held on every boot start since 13 Sep (PRE_RELEASE 29).
+#
+#   14 Sep 2026 - process dumps go to $sdsysdir/dumps (1730 sdsys:sdusers),
+#   and DUMPDIR is added to a restored sd.conf that lacks it (PORT_ADOPTION 25).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -761,6 +764,27 @@ if [ -f /home/sd/sd.conf ]; then
 else
     echo No sd.conf backup file exists
 fi
+#
+# 14 Sep 26 dm - PORT_ADOPTION 25 (the Windows port's PRE_RELEASE 28).  PROCESS
+# DUMPS IN THEIR OWN DIRECTORY.  A dump holds a session's variables and used to
+# land in $sdsysdir, readable by every SD user.  dumps/ is 1730 sdsys:sdusers:
+# an SD user's session (which runs as that user) can create a dump but cannot
+# list the directory, and pdump.c creates each file 0600, so nobody but its
+# owner and root reads it.  Sticky, so nobody removes another user's dump.
+# FOUR PARTS, AND ANY ONE MISSING SILENTLY PUTS DUMPS BACK IN $sdsysdir: this
+# directory, DUMPDIR in sd.conf (pdump.c falls back to the system directory
+# without it), pdump.c's 0600 create, and the line below for a restored
+# sd.conf - a keep-configuration cycle puts back a file written before
+# DUMPDIR existed, and replacing the setting there is the installer's job.
+# AFTER the chmod -R above and the sd.conf restore.
+sudo mkdir -p "$sdsysdir/dumps"
+sudo chown sdsys:sdusers "$sdsysdir/dumps"
+sudo chmod 1730 "$sdsysdir/dumps"
+if ! grep -q '^DUMPDIR=' /etc/sd.conf; then
+    echo "DUMPDIR=$sdsysdir/dumps" | sudo tee -a /etc/sd.conf >/dev/null
+    echo "Added DUMPDIR to /etc/sd.conf (the restored file did not have it)."
+fi
+echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dumps, $(grep '^DUMPDIR=' /etc/sd.conf)"
 #
 # 11 Sep 26 dm - PORT_ADOPTION 13.  THE AUDIT TRAIL, $sdsysdir/audit.
 # Every SD user must be able to ADD a record, and must not be able to read,
