@@ -16,6 +16,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  AN ADMINISTRATOR CAN LOGTO AN ACCOUNT CREATED IN THE SAME SESSION.
+
+           In a sudo sd session, LOGTO to an account whose Linux group did not
+           exist when the session started failed with "Error 3001 opening
+           file at line 2952 of $CPROC" and left you where you were - for
+           example, CREATE.ACCOUNT followed by LOGTO to the new account.  A
+           running program keeps the group memberships it started
+           with, and SD never looked again.  SD now refreshes them when the
+           session starts and after each CREATE.ACCOUNT, DELETE.ACCOUNT and
+           MODIFY.ACCOUNT.
+
+           WHAT DOES NOT CHANGE: who may enter which account, and who owns the
+           files SD writes.  A group change made outside SD while a session is
+           open is still only seen after one of those commands, or in a new
+           session.
+
+
 14 Sep 26  RUN SAYS WHEN A PROGRAM'S PATH IS TOO LONG, AND WHAT THE LIMIT IS.
 
            When the full path to a compiled program was longer than 128
