@@ -25,6 +25,9 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  gpl.bp record names are lower case (plan M): the bootstrap list
+*               and the installed-already check name them so.  Compiled headers
+*               still carry upper-case names - BCOMP upcases them.
 * 13 Sep 26 dm  The SDSYS account's voc, $hold and $hold.dic are created lower
 *               case (plan M3 D3).
 * 13 Sep 26 dm  Reads gpl.bp and writes gpl.bp.out, their names on disk (plan
@@ -137,7 +140,7 @@ if system(27) # 0 then
   goto abort.bbproc
 end
 
-if ospath(@sdsys:@ds:'gpl.bp.out/LOGIN',OS$EXISTS) then
+if ospath(@sdsys:@ds:'gpl.bp.out/login',OS$EXISTS) then
    crt 'System Already Installed?'
    goto abort.bbproc
 end
@@ -222,15 +225,15 @@ catalogue.mode = 'GLOBAL'
 * CPROC is not running, pcode is empty.  But we will stick with convention.
 
 src.list = ''
-src.list<-1> = 'CPROC'
-src.list<-1> = 'LOGIN'
-src.list<-1> = 'BASIC'
-src.list<-1> = 'BCOMP'
-src.list<-1> = 'PTERM'
-src.list<-1> = 'CATALOG'
-src.list<-1> = 'PARSER'
-src.list<-1> = 'IS_GRP_MEMBER'
-src.list<-1> = 'TERM'
+src.list<-1> = 'cproc'
+src.list<-1> = 'login'
+src.list<-1> = 'basic'
+src.list<-1> = 'bcomp'
+src.list<-1> = 'pterm'
+src.list<-1> = 'catalog'
+src.list<-1> = 'parser'
+src.list<-1> = 'is_grp_member'
+src.list<-1> = 'term'
 
 src.cnt = dcount(src.list,@FM) 
     

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Reads syscom $pcldata, its lower-case record name (plan M).
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  The hold-file VOC id is $hold (plan M3): the "$hold " marker is
 *               written lower case and tested case-insensitively.
@@ -135,7 +136,7 @@ $define TEMPLATE.PRINT.UNIT -3
 
    if not(pcldata) then
       open 'syscom' to syscom.f then
-         read pcldata from syscom.f, '$PCLDATA' else null
+         read pcldata from syscom.f, '$pcldata' else null
          close syscom.f
       end
    end

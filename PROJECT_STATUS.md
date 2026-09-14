@@ -79,6 +79,41 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***GPL.BP + SYSCOM RECORD NAMES LOWER CASE — BUILT 13 Sep 2026, NOT INSTALLED.
+NEXT: owner install (keep cycle fine — sdsys is replaced whole; no account holds
+these names) + reboot, then the suite.***
+- ***Renames (script, refuses on collision):*** 212 gpl.bp + 15 syscom records →
+  lower; 227 `R`, 0 upper left. Catalogue names (`$CPROC`, `!PARSER`) are a
+  separate namespace and are NOT touched.
+- ***Why this is safe, measured before editing:*** an object's header name is
+  `upcase(record.name)` or the PROGRAM/SUBROUTINE statement's name (BCOMP:831),
+  and `load_pcode` upper-cases before matching (sd.c:678); BCOMP `$INCLUDE`
+  folds file and record (BCOMP:3024-3054). ***bbcmp did NOT upcase its fallback
+  name*** (`basename(sfp)`, bbcmp.py:10443) — now `.upper()`, as BCOMP.
+- ***Literal edits (script, exact counts):*** bbproc bootstrap list + `gpl.bp.out/login`
+  check; errgen/revstamp output records; pcl/setptr `$pcldata`; first.compile;
+  installer bbcmp ×3, `RUN gpl.bp write_install_dicts` (RUN is case-sensitive),
+  `BASIC gpl.bp cproc`. By hand: pcode_bld.py and COMP_PCODE lower the NAME at use
+  (lists keep header names); bbcmp include record names `.lower()`; gen_includes
+  output names; verifiers accounts, basicfuncs, editors, grants, lcnames
+  (S13/S14/S20 reads — a missing record reads '' and would fail), nocase, nonet
+  (***"gone" rows check BOTH spellings***, editors B3 too); syntax generators'
+  header text, outputs REGENERATED.
+- ***Checked, no install:*** scratch copy of the tree through bbcmp — bbproc,
+  bcomp, pathtkn + 55 pcode programs, ***58/58***; headers `BBPROC`, `$BCOMP`,
+  `PATHTKN`, all 55 pcode names upper; ***same SET of 55 names as the installed
+  bin/pcode*** (order differs — the installed library was rebuilt after
+  pcode_bld, first name NEXTPTR; my first comparison used order and was wrong).
+  Red control: syscom `keys.h` back to `KEYS.H` → bbcmp exit 1. gen_includes in
+  sync on lower names; unit suites 0 failed; all gplbld .py compile.
+  `verify-nocase`: gpl.bp 0/213, syscom 0/16; remaining 2 = NEWVOC
+  `TIER.OMIT.STANDARD`/`TIER.ADD.ADMINISTRATOR` (the port moved them to a
+  `tier.policy` file, its `a47526f` — a conformity item). Its createf site pattern
+  was a false "open" (matched D4's fold) — now `ospath(upcase(file.name)`, 2 hits on
+  pre-D4 CREATEF, 0 now.
+- ***Would falsify:*** a bootstrap pass failing; `RUN gpl.bp write_install_dicts`
+  "not found"; a pcode item "not found" at `sd -start`; any verifier red.
+
 ***CASE INVERSION OFF BY DEFAULT — INSTALLED AND WITNESSED on `6380883`*** (owner
 keep-cycle, `.sdcore-install` 21:14:23, boot 21:15:46, `assert-current` 0). Suite
 as the installing user, no sudo, no flag, all exit 0, no `[FAIL]`, 0 not-OFF:

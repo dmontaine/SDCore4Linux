@@ -102,7 +102,9 @@ def main():
     for src in pcode_fs:
         logger.info('**********************************************************************')
         result =   subprocess.run(
-            ['python3',bbcmp,SDSYS,'gpl.bp/'+src,'pcode.out/'+src],   # 13 Sep 26: lower case on disk (plan M3 D2)
+            # 13 Sep 26: directories AND record names are lower case on disk (plan
+            # M).  The list keeps the upper-case names bbcmp's headers carry.
+            ['python3',bbcmp,SDSYS,'gpl.bp/'+src.lower(),'pcode.out/'+src.lower()],
              capture_output=True,
              text = True)
         logger.info(result.stdout)
@@ -118,11 +120,11 @@ def main():
             logger.info('**********************************************************************')
         #diff --suppress-common-lines <(xxd /usr/local/sdsys/GPL.BP.OUT/_HF) <(xxd /usr/local/sdsys/PCODE.OUT/_HF)    
             result =   subprocess.run(
-                ['xxd', SDSYS + '/gpl.bp.out/'+src, 'bsrc1'])
+                ['xxd', SDSYS + '/gpl.bp.out/'+src.lower(), 'bsrc1'])
     #             capture_output=True,
     #             text = True)
             result =   subprocess.run(
-                ['xxd', SDSYS + '/pcode.out/'+src, 'bsrc2'])
+                ['xxd', SDSYS + '/pcode.out/'+src.lower(), 'bsrc2'])
     #             capture_output=True,
     #             text = True)
             
@@ -143,7 +145,7 @@ def main():
     p_idx = 0     # byte index for pcode_file
     for src in pcode_fs:
         f_byte_count = 0  # count of bytes in src file
-        fh = open(SDSYS + os.sep + 'pcode.out' + os.sep + src, "rb")
+        fh = open(SDSYS + os.sep + 'pcode.out' + os.sep + src.lower(), "rb")
         filebytes = bytearray(fh.read())
         for fbyte in filebytes:
             pcode_file[p_idx] = fbyte

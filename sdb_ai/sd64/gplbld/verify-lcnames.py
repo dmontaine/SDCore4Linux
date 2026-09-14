@@ -230,8 +230,10 @@ def main():
     # ***THE TWO THAT MUST STAY UPPER.*** A future sweep lowering either is a
     # defect: DELETEF's guard upcases only its left side, and SETFILE's default
     # covers accounts from before the rename through exact-then-downcase.
-    deletef = readtxt(os.path.join(gplbp, "DELETEF"))
-    setfile = readtxt(os.path.join(gplbp, "SETFILE"))
+    # A MISSING RECORD READS AS '' AND FAILS S13/S14 - so lowering the names
+    # here is required, not cosmetic (gpl.bp record names lower since 13 Sep).
+    deletef = readtxt(os.path.join(gplbp, "deletef"))
+    setfile = readtxt(os.path.join(gplbp, "setfile"))
     run.note("S13 DELETEF's banned list is still 'VOC' (the guard upcases one side)",
              True, "banned.files = 'VOC':@VM:'$ACC'" in deletef)
     run.note("S14 SETFILE's default pointer is still 'QFILE'", True,
@@ -301,11 +303,11 @@ def main():
             "CPROC": ['"$command.stack"', "'$command.stack'"],
             "CREATEA": ["'$command.stack'"]}
     missing = ["%s %s" % (p, l) for p, ls in sorted(lits.items())
-               for l in ls if l not in readtxt(os.path.join(gplbp, p))]
+               for l in ls if l not in readtxt(os.path.join(gplbp, p.lower()))]
     stale = [p for p in lits
              if re.search(r"""["']\$(RELEASE|COMMAND\.STACK)["']""",
                           "\n".join(ln.split(";*")[0] for ln in
-                                    readtxt(os.path.join(gplbp, p)).splitlines()
+                                    readtxt(os.path.join(gplbp, p.lower())).splitlines()
                                     if not ln.lstrip().startswith("*")))]
     run.note("S20 LOGIN/CPROC/CREATEA name $release and $command.stack lower", [],
              missing)

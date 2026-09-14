@@ -115,6 +115,8 @@
 # 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 # 13 Sep 26 dm  $include finds the sdsys syscom and gpl.bp directories in lower
 #               case (plan M3 D1, D2); see include_dir().
+# 13 Sep 26 dm  Include record names are looked for in lower case, and the object
+#               header's name is upper-cased from the file name, as BCOMP's is.
 # END-HISTORY
 #
 #
@@ -7145,12 +7147,15 @@ def pass1(sfn):
                     case 2:
                         # second item should be file in this directory or syscom
 
-                        incfn = sdir + os.sep + tokens[1].upper()
+                        # 13 Sep 26 dm - include RECORD names are lower case on
+                        # disk (plan M), so the name is lowered, as the
+                        # directory already was (include_dir).
+                        incfn = sdir + os.sep + tokens[1].lower()
                         if os.path.isfile(incfn):
                             insert_inc(incfn,pss1src)
                         else:
                             # look in syscom
-                            incfn = os.path.dirname(sdir) + os.sep + 'syscom' + os.sep + tokens[1].upper()
+                            incfn = os.path.dirname(sdir) + os.sep + 'syscom' + os.sep + tokens[1].lower()
                             if os.path.isfile(incfn):
                                 insert_inc(incfn,pss1src)
                             else:   
@@ -7158,7 +7163,7 @@ def pass1(sfn):
                                 sys.exit('abort!')
                     # there is the third case include file_name rec_name 
                     case 3:
-                            incfn = os.path.dirname(sdir) + os.sep + include_dir(tokens[1]) + os.sep + tokens[2].upper()
+                            incfn = os.path.dirname(sdir) + os.sep + include_dir(tokens[1]) + os.sep + tokens[2].lower()
                             if os.path.isfile(incfn):
                                 insert_inc(incfn,pss1src)
                             else:   
@@ -10440,7 +10445,11 @@ def main():
     init_stuff()
     
 
-    program_name = os.path.basename(sfp)
+    # 13 Sep 26 dm - UPPER, as BCOMP:831 does.  The record name is lower case on
+    # disk now, but the object header's name is what load_pcode (sd.c:678) and
+    # the object cache match, upper case; a PROGRAM/SUBROUTINE statement still
+    # overrides this with its own (upper-case) name.
+    program_name = os.path.basename(sfp).upper()
 
     #   pass 1
     pss_src = pass1(sfp)

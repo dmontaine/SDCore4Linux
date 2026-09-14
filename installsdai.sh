@@ -585,9 +585,9 @@ sudo cp -R gplbld/FILES_DICTS "$sdsysdir/gplbld/FILES_DICTS"
 sudo cp -R terminfo "$sdsysdir"
 #
 # build program objects for bootstrap install
-sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/BBPROC gpl.bp.out/BBPROC
-sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/BCOMP gpl.bp.out/BCOMP
-sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/PATHTKN gpl.bp.out/PATHTKN
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/bbproc gpl.bp.out/bbproc
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/bcomp gpl.bp.out/bcomp
+sudo python3 gplbld/bbcmp.py "$sdsysdir" gpl.bp/pathtkn gpl.bp.out/pathtkn
 sudo python3 gplbld/pcode_bld.py
 
 sudo cp Makefile "$sdsysdir"
@@ -855,7 +855,7 @@ fi
 #
 # echo "Bootstap pass 3."
 echo "Bootstrap pass 3."
-if ! sudo "$sdsysdir/bin/sd" RUN gpl.bp WRITE_INSTALL_DICTS NO.PAGE; then
+if ! sudo "$sdsysdir/bin/sd" RUN gpl.bp write_install_dicts NO.PAGE; then
     printf "%b\n" "$RED"
     echo "Bootstrap pass 3 failed. Install terminated!"
     printf "%b\n" "$NC"
@@ -872,7 +872,7 @@ fi
 #
 echo "Compiling CPROC without IS_INSTALL defined."
 sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
-if ! sudo bin/sd -internal BASIC gpl.bp CPROC; then
+if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
     printf "%b\n" "$RED"
     echo "CPROC recompile failed. Install terminated!"
     printf "%b\n" "$NC"

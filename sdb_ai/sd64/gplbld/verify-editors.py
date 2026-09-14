@@ -64,8 +64,8 @@ NANORC = "/usr/share/nano/sdbasic.nanorc"
 ETC_NANORC = "/etc/nanorc"
 MICRO_YAML = os.path.join(V.SDSYS, "microcfg", "syntax", "sdbasic.yaml")
 GCAT_EDIT = os.path.join(V.SDSYS, "gcat", "$EDIT")
-SRC_EDIT = os.path.join(V.SDSYS, "gpl.bp", "EDIT")
-SRC_MICRO = os.path.join(V.SDSYS, "gpl.bp", "MICRO")
+SRC_EDIT = os.path.join(V.SDSYS, "gpl.bp", "edit")     # record names lower since 13 Sep 26
+SRC_MICRO = os.path.join(V.SDSYS, "gpl.bp", "micro")
 VOCT = os.path.join(V.SDSYS, "voc_template")
 OMIT = os.path.join(V.SDSYS, "newvoc", "TIER.OMIT.STANDARD")
 
@@ -220,8 +220,11 @@ def main():
     run.note("B1 $EDIT is CATALOGUED", True, os.path.exists(GCAT_EDIT))
     run.note("B2 GPL.BP/EDIT source is installed", True, os.path.exists(SRC_EDIT))
     # THE SHRINK IS A CHECK TOO: GPL.BP/MICRO was deleted when EDIT took over.
-    run.note("B3 GPL.BP/MICRO is GONE (EDIT replaced it)",
-             False, os.path.exists(SRC_MICRO))
+    # GONE IN EITHER CASE: record names are lower since 13 Sep 26, so testing
+    # only one spelling would pass on a tree that ships the other.
+    run.note("B3 GPL.BP/MICRO is GONE (EDIT replaced it), either case",
+             False, os.path.exists(SRC_MICRO)
+             or os.path.exists(os.path.join(V.SDSYS, "gpl.bp", "MICRO")))
 
     # The VOC ids (file names here, entries in the omit list) are lower case
     # since plan M3, 12 Sep 2026; field 3, the CATALOGUE name, is not a VOC id
