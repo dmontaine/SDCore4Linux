@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  S at the page prompt now scrolls the rest of the report without
+*               clearing the screen or repeating headings, as NO.PAGE does.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -848,8 +850,17 @@ page.prompt:
             gosub evaluate.pan.width
             gosub display.page.image
 
+* 13 Sep 26 dm - S MEANS NO.PAGE FROM HERE ON, NOT ONLY "STOP ASKING".  This
+*   cleared qd.paginate alone, which silences the prompt, while qd.no.page -
+*   what decides the screen clear and the heading at every page boundary
+*   (emit.line) - stayed false.  So the rest of the report still cleared the
+*   screen every page, too fast to read: all 418 VOC records went out
+*   (measured in a pty, 20 clears), and what a person saw was the last page and
+*   "418 record(s) listed" - a listing that looked terminated.  The NO.PAGE
+*   keyword sets both, and that output (measured: 1 heading, 0 clears) is what
+*   S promises.
          case action = 'S' and not(final.page)
-            qd.paginate = @false
+            gosub disable.pagination
             exit
 
          case action matches '1N' and qd.scrolling
