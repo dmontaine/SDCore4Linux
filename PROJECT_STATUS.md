@@ -22,15 +22,14 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
-| ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
-| ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
-| ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
-| ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
+| ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
+| ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
+| ◐ | **S.5** | M | parity audit of 10 Sep: its witness list built into `witness-release-run.sh` §12 + §15; left: the run | — |
+| ◐ | **S.6** | M | plain-sd admin `SH` ran as `don` 14 Sep (agent, `2edec17`); micro opens (owner); LOGTO reload built into §11; left: the run | — |
+| ◐ | **Q.12** | M | SUSPENDED tier; ssh door built into §14 (control first); left: the run, API door (W.4) | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, API REFUSED (W.4) | — |
-| ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
-| ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
+| ◐ | **Q.14** | M | GRANT/REVOKE; 10043's claim built into §10 (a session started before the grant); left: the run | — |
+| ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half witnessed; administrator arm built into §13 (shadow hash before/after); left: the run | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
@@ -57,6 +56,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.3** | — | per-tier VOC, incl. LOGIN `update.voc`'s STANDARD filter | 14 Sep 2026 |
 | ✅ | **S.4** | — | OS-access tier gate, incl. 10054 on PROGRAMMER | 14 Sep 2026 |
 | ✅ | **S.11** | — | `$hold.dic`'s `@ID` installed again (FILES_DICTS key lower case) | 14 Sep 2026 |
+| ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
 | ✅ | **W.0** | — | a dead or faulting semaphore holder gives it back (`SEM_UNDO` + fault path), `verify-semaphores` 9/9 | 14 Sep 2026 |
 | ✅ | **W.2** | — | Enter at 2050 means N in all six verbs | 14 Sep 2026 |
 | ✅ | **W.3** | — | 6133 cancels on Enter or C; N still deletes the dictionary only | 14 Sep 2026 |
@@ -245,6 +245,31 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***ELEVENTH SESSION, 14 Sep 2026 — THE REMAINING WITNESSES FOLDED, NOT RUN.***
+S.7 CLOSED on the owner's word: nano and micro both show colour at a real
+terminal. Agent-measured on `2edec17`, as `don`, plain `sd`: `SH echo zzsh-ran`
+→ `zzsh-ran` (S.6's first half). `witness-release-run.sh` gains §10 Q.14 (a
+zzrel2 session started before `GRANT zzrel1 TO zzrel2`, its `/proc` Groups
+printed; G4 records whether it entered — ***expected, from source, that it
+ENTERS READ-ONLY rather than being refused: `dh_open` asks `access()` with the
+real uid, finds `%0` unwritable and opens it read-only, and `%0` is 664, so
+10043's "refused by the filesystem" may be wrong for a plain session***), §11
+S.6 (SH in the admin's own account; after LOGTO zzrel1, zzrel1's `zzos` → 10054
+naming zzrel2 — SH itself is not in a STANDARD VOC), §12 + §15 S.5 (PROGRAMMER
+lacks sh/config/listu, ADMINISTRATOR has them; LISTF descriptions; `UPDATE.ACCOUNTS
+FOO` 10173 and `ALL` 10170/10171 — ***touches every real VOC, as an install
+does***; zzrel3 stamped `SD account` by `useradd -c`, ADOPTed PROGRAMMER SH-ON →
+10102, `DELETE.ACCOUNT zzrel3 REMOVE.HOME` one question, user and home gone;
+`DELETE.ACCOUNT zzrel1` → 10085 + 10036, user kept with no SD group), §13 Q.17
+(random password never printed, shadow hash prefix before/after; relies on
+passwd reading the session's own stdin, SD reading it a byte at a time,
+`linuxio.c:447` — ***unmeasured until the run***), §14 Q.12 (throwaway key for
+zzrel1, ssh control first, then SUSPENDED → 10107, then restored). ***Not
+folded:*** P.24 (needs no install and a non-sudoer), Q.19 (needs files-only
+NSS at a real boot), Q.13 rotation (needs a 1 MB trail and an SD restart).
+Parse and dry run clean. Because the owner ruled `assert-current` strict, the
+run follows a keep cycle.
 
 ***TENTH SESSION, 14 Sep 2026 — CYCLE `2edec17` (14:07), ALL GREEN.*** Owner-run:
 `verify-semaphores.py` ***9/9*** — KILL round caught sem 4 held by 5769, SIGKILL
@@ -3881,7 +3906,7 @@ fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
 Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
 reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
 
-### [S.5] Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED + COMPILED, NOT RUN
+### [S.5] Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED, INSTALLED and in daily use since; its witness list below is BUILT into `witness-release-run.sh` §12 and §15 (14 Sep) and NOT YET RUN
 
 Owner's instruction: audit every implemented feature against the port (the
 reference) and correct drift except OS differences. **Scope: this project's own
@@ -3965,7 +3990,7 @@ a count; `listf` in a new account shows descriptions; `CREATE.ACCOUNT USER x SH-
 → 10102; `DELETE.ACCOUNT X` → one `(y/<n>)` naming the Linux user, user gone;
 `DELETE.ACCOUNT PETE` → 10036, `pete` kept. Falsified by any of those not holding.
 
-### [S.7] NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — WITNESSED 12 Sep by `verify-editors.py` 28/28; the person-visible half UNWITNESSED
+### [S.7] NANO and MICRO — the port's EDIT program adopted (10 Sep 2026) — WITNESSED 12 Sep by `verify-editors.py` 28/28; the person-visible half WITNESSED 14 Sep by the owner (both editors show colour at a real terminal) — CLOSED
 
 Owner, 10 Sep: Microsoft Edit is not packaged for Linux; nano replaces it and
 gets SD BASIC highlighting; the verb is `NANO`; `EDIT` stays an alias for `ED`.
