@@ -25,7 +25,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
 | ◐ | **S.8** | S | `kernel(K$INTERNAL, n)` guard built + compiled 14 Sep; left: an install that bootstraps and signs on with it | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ⬜ | **S.2** | S | lead: `LOGTO` 3001 under `sudo sd`; piping ruled out 14 Sep, real/effective-uid mismatch suspected; one owner `sudo` command decides | — |
+| ⬜ | **S.2** | S | lead: `LOGTO` 3001 under `sudo sd`; piping and bare uid mismatch ruled out 14 Sep; stale supplementary groups suspected; one owner `setpriv` command decides | — |
 | ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
 | ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
 | ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
@@ -153,8 +153,23 @@ owner's ruling comes first.
   failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
   disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
   CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
-- ***[S.2] LEAD, NARROWED 14 Sep 2026: PIPING IS RULED OUT BY MEASUREMENT; A
-  real/effective-uid mismatch is the likely cause, from source, UNWITNESSED.***
+- ***[S.2] LEAD, STILL OPEN; NARROWED TWICE 14 Sep 2026. Not piping (as `don`),
+  and not the bare uid mismatch below, which the owner's run contradicted:***
+  `printf 'LOGTO don\nWHO\nQUIT\n' | sudo /usr/local/sdsys/bin/sd` → `2 don from
+  sdsys`, no 3001. Why: `root` is a member of `sdu_don` (`getent group sdu_don`
+  → `root,don`; CREATEA `:1006` adds `root,sdsys,<user>`), so the open succeeds
+  through root's supplementary groups — "`sdsys` is only in `sdusers`" was the
+  wrong credential. ***Refined, UNWITNESSED:*** supplementary groups are fixed
+  when a process starts and `sd` never reloads them (no `initgroups`/`setgroups`
+  in `gplsrc`). `witness-tierchange.sh` ran every `sd` from its own root process,
+  started before it created `sdu_<throwaway>`, so that root lacked the group and
+  the real-uid `access()` / effective-uid open mismatch below applied. If so the
+  user-facing case is ***`CREATE.ACCOUNT` then `LOGTO` it in the same `sudo sd`
+  session***, and the C half is `dh_open.c` turning a permission refusal into a
+  fatal 3001. ***Falsified if*** `sudo setpriv --groups 979 sh -c 'id; printf
+  "LOGTO don\nWHO\nQUIT\n" | /usr/local/sdsys/bin/sd'` (root without `sdu_don`)
+  enters `don` with no 3001. *(Earlier narrowing follows.)* Piping ruled out; a
+  real/effective-uid mismatch is the likely cause, from source.
   Measured as `don`, no sudo, install `83e5ccf` (`cproc`, `op_dio*` unchanged
   to HEAD): `printf 'WHO\nLOGTO don\nWHO\nCOUNT VOC\nQUIT\n' | /usr/local/sdsys/bin/sd`
   → `1 don`, `418 record(s) counted`, exit 0, no 3001. ***Hypothesis:*** `sudo sd`
