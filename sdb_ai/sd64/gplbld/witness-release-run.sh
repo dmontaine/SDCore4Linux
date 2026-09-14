@@ -44,10 +44,18 @@
 #      Success wording: the NEW prompt text "(y/<n>)?", so a run against an
 #      install without the message change fails rather than passing on 5025.
 #
-# Q.28 As zzrel1: a record in bp.out whose full path exceeds 128 characters
-#      (a copy of ZZSHOW's object under a 100-character name), then RUN BP
-#      <name>.  Must print 10918's words; "Invalid runfile pathname" (1135, the
-#      old message) or "Message not found" (10918 not installed) fail it.
+# Q.28 As zzrel1: ZZSHOW's object copied into a DEEP directory, reached through
+#      a VOC F-pointer zzdeep.out written by a third program (ZZVOC), so that
+#      the run path exceeds 128 characters with a short record name, then RUN
+#      ZZDEEP zzshow.  Must print 10918's words; "Invalid runfile pathname"
+#      (1135, the old message), "Message not found" (10918 not installed) or
+#      "not found" (the lookup never reached the length check) fail it.
+#      ***NOT A LONG RECORD NAME, AND THE 13:07 RUN SHOWED WHY:*** MAXIDLEN
+#      defaults to 63 (config.c:139) and valid_id (op_dio3.c) rejects a longer
+#      id, so a 100-character name answered "Program ... not found" before RUN
+#      ever measured the path.  With a 63-character id, a 32-character account
+#      name and /home/sd/user_accounts, a bp.out path tops out at 126 - so the
+#      limit is only reachable through a deeper data file, as here.
 #
 # THE PIPED-SESSION RULES ARE THE PROJECT'S: a blank first line, TERM 200,9999,
 # every session ends in OFF, every sd has a timeout.
@@ -357,22 +365,35 @@ fi
 
 # ==========================================================================
 head2 "5. Q.28 - RUN of a runfile path over 128 characters"
-LONG="zz$(printf 'q%.0s' $(seq 1 98))"
-LPATH="$ADIR/bp.out/$LONG"
-say "  record name : ${#LONG} characters"
-say "  full path   : ${#LPATH} characters (limit 128): $LPATH"
+DEEPDIR="$ADIR/zzdeep/$(printf 'd%.0s' $(seq 1 60))/$(printf 'e%.0s' $(seq 1 60))"
+LPATH="$DEEPDIR/zzshow"
+say "  data file   : VOC zzdeep.out -> $DEEPDIR"
+say "  record name : zzshow (6 characters, under MAXIDLEN)"
+say "  run path    : ${#LPATH} characters (limit 128)"
+SRC_VOC='open "voc" to f else stop "ZZVOC: cannot open voc"
+r = "F" : @fm : "'"$DEEPDIR"'"
+write r to f, "zzdeep.out"
+crt "ZZVOC wrote zzdeep.out"
+end'
 if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzshow" ]; }; then
-    not_reached "Q1 10918's words"; not_reached "Q2 not 1135"; not_reached "Q3 10918 is installed"
+    for r in "Q0 the pointer was written" "Q1 10918's words" "Q2 not 1135" "Q3 10918 is installed" "Q4 the lookup reached the length check"; do
+        not_reached "$r"; done
 else
     if [ "$COMMIT" -eq 1 ]; then
-        cp "$ADIR/bp.out/zzshow" "$LPATH" && chown "$ACC:$(id -gn "$ACC")" "$LPATH" && chmod 644 "$LPATH"
-        say "  copied bp.out/zzshow to that path: $(yesno_file "$LPATH")"
+        mkdir -p "$DEEPDIR" && cp "$ADIR/bp.out/zzshow" "$LPATH"
+        chown -R "$ACC:$(id -gn "$ACC")" "$ADIR/zzdeep"
+        printf '%s\n' "$SRC_VOC" > "$ADIR/bp/zzvoc"
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzvoc"
+        say "  object at that path: $(yesno_file "$LPATH")"
     fi
-    OUT=$(run_sd "$ACC" "RUN BP <long name>" "RUN BP $LONG")
+    OUT=$(run_sd "$ACC" "write the pointer, then RUN ZZDEEP zzshow" \
+          "BASIC BP ZZVOC" "RUN BP zzvoc" "RUN ZZDEEP zzshow")
     if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "Q0 the VOC pointer was written" "ZZVOC wrote zzdeep.out" "$OUT"
         ck_says  "Q1 RUN names the limit (10918)" "Runfile pathname is longer than 128 characters" "$OUT"
         ck_absent "Q2 not the old 1135 message" "Invalid runfile pathname" "$OUT"
         ck_absent "Q3 10918 is installed" "Message not found" "$OUT"
+        ck_absent "Q4 the lookup reached the length check (no 'not found')" "not found" "$OUT"
     fi
 fi
 
