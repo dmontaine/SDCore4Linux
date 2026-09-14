@@ -24,12 +24,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 |---|---|---|---|---|
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
-| ◐ | **S.5** | M | parity audit of 10 Sep: its witness list built into `witness-release-run.sh` §12 + §15; left: the run | — |
-| ◐ | **S.6** | M | plain-sd admin `SH` ran as `don` 14 Sep (agent, `2edec17`); micro opens (owner); LOGTO reload built into §11; left: the run | — |
-| ◐ | **Q.12** | M | SUSPENDED tier; ssh door built into §14 (control first); left: the run, API door (W.4) | — |
+| ⬜ | **S.12** | S | 10043's text says a session open during GRANT is "refused by the filesystem"; measured 14 Sep it ENTERED (read-only VOC expected, from `dh_open`); left: reword 10043 or rule | — |
+| ◐ | **S.6** | M | plain-sd admin `SH` witnessed twice (don 14 Sep; §11 H1 on `f2251e6`); left: the LOGTO reload — §11 H3 was an INSTRUMENT miss (zzrel1 STANDARD has no `RUN`), fix H3 to make zzrel1 PROGRAMMER first and re-run | — |
+| ◐ | **Q.12** | M | SUSPENDED tier; ssh door witnessed 14 Sep (§14: control landed in sd, suspended → 10107, no WHO); left: API door (W.4) | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, API REFUSED (W.4) | — |
-| ◐ | **Q.14** | M | GRANT/REVOKE; 10043's claim built into §10 (a session started before the grant); left: the run | — |
-| ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half witnessed; administrator arm built into §13 (shadow hash before/after); left: the run | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
@@ -56,6 +54,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.3** | — | per-tier VOC, incl. LOGIN `update.voc`'s STANDARD filter | 14 Sep 2026 |
 | ✅ | **S.4** | — | OS-access tier gate, incl. 10054 on PROGRAMMER | 14 Sep 2026 |
 | ✅ | **S.11** | — | `$hold.dic`'s `@ID` installed again (FILES_DICTS key lower case) | 14 Sep 2026 |
+| ✅ | **S.5** | — | parity audit witness list, §12 + §15 on `f2251e6` all pass | 14 Sep 2026 |
+| ✅ | **Q.14** | — | GRANT/REVOKE incl. a session open during the grant (§10); its wording finding is S.12 | 14 Sep 2026 |
+| ✅ | **Q.17** | — | MODIFY.PASSWORD administrator arm: 10914, shadow `!` → `$y$` (§13) | 14 Sep 2026 |
 | ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
 | ✅ | **W.0** | — | a dead or faulting semaphore holder gives it back (`SEM_UNDO` + fault path), `verify-semaphores` 9/9 | 14 Sep 2026 |
 | ✅ | **W.2** | — | Enter at 2050 means N in all six verbs | 14 Sep 2026 |
@@ -246,7 +247,23 @@ owner's ruling comes first.
 
 ## START HERE
 
-***ELEVENTH SESSION, 14 Sep 2026 — THE REMAINING WITNESSES FOLDED, NOT RUN.***
+***HAND-OFF, 14 Sep 2026, twelfth session (owner low on credits).*** Keep cycle
+installed `f2251e6` (14:37:02); owner-run `witness-release-run.sh --commit`
+14:38, log `/var/tmp/witness-release-run.20260914-143833.log` (root-readable),
+***105/106***. CLOSED: S.5 (V0–V10, D1–D6, K1–K6 all pass), Q.14 (G0–G3, G5),
+Q.17 (W1–W3; shadow `!` → `$y$`), Q.12's ssh door (X1–X5). ***[S.12] FINDING:***
+the zzrel2 session started before the GRANT (Groups `965 979 1012 1013`,
+sdu_zzrel1 = 1011) ENTERED zzrel1 — 10043 says "refused by the filesystem";
+from source it enters with a read-only VOC (`dh_open` real-uid `access()` →
+read-only open, `%0` 664). Reword 10043 or rule. ***THE ONE FAIL WAS THE
+INSTRUMENT:*** §11 H3 ran `RUN BP zzos` in zzrel1 while zzrel1 was STANDARD
+(§7 left it there), so `RUN is not in your VOC`; H4 passed for that wrong reason.
+Next: in §11, `MODIFY.ACCOUNT zzrel1 PROGRAMMER` before the LOGTO (and move
+§12's V0 accordingly), re-run. ***CLEANUP LEFT LINUX USER zzrel1***
+(`userdel -r zzrel1: FAILED`, no process of it remained afterwards): the owner
+removes it with `sudo userdel -r zzrel1` before the next run, or §0 refuses.
+
+***ELEVENTH SESSION, 14 Sep 2026 — THE REMAINING WITNESSES FOLDED, run in the twelfth.***
 S.7 CLOSED on the owner's word: nano and micro both show colour at a real
 terminal. Agent-measured on `2edec17`, as `don`, plain `sd`: `SH echo zzsh-ran`
 → `zzsh-ran` (S.6's first half). `witness-release-run.sh` gains §10 Q.14 (a
@@ -3906,7 +3923,7 @@ fix: the missing minus on `@system.return.code` for a failed create (was `+6`).
 Syntax-reviewed, compile-on-reinstall. `CREATUSR` still parses/prints; nothing
 reads it. ***Witness: `create-account user tstd` now needs no prior `useradd`.***
 
-### [S.5] Parity audit against SD Core for Windows (10 Sep 2026) — CORRECTED, INSTALLED and in daily use since; its witness list below is BUILT into `witness-release-run.sh` §12 and §15 (14 Sep) and NOT YET RUN
+### [S.5] Parity audit against SD Core for Windows (10 Sep 2026) — CLOSED 14 Sep 2026: its witness list below WITNESSED on `f2251e6` by `witness-release-run.sh` §12 and §15, every row passing
 
 Owner's instruction: audit every implemented feature against the port (the
 reference) and correct drift except OS differences. **Scope: this project's own
