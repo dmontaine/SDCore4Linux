@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  The $release prompt (5026) takes N on Enter and at end of
+*               input, and says so (PROJECT_STATUS S.9).
 * 13 Sep 26 dm  Tier omit/add lists read from sdsys/tier.policy, not NEWVOC
 *               (plan M / port a47526f): opened fail-safe, skip tests gone.
 * 13 Sep 26 dm  No longer turns case inversion on at sign-on (plan M).
@@ -516,10 +518,16 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
             display sysmsg(5025, s) ;* Your VOC is at release level xx
             loop
                display char(7) :
-               display sysmsg(5026) :  ;* Update VOC to new release?
+               display sysmsg(5026) :  ;* Update VOC to new release (y/<n>)?
                input s
 
+* 14 Sep 26 dm - S.9.  Enter is N, as at every other Y/N prompt built for
+*   PORT_ADOPTION 3b.  It is also the end-of-input escape: at EOF input yields
+*   '', which re-asked for ever with a BEL each turn - on the first sign-on
+*   after a release change, which is when a script is driving sd.  N is the
+*   answer that changes nothing; the prompt returns at the next sign-on.
                s = upcase(s[1,1])
+               if s = '' then s = 'N'
                begin case
                   case s = "N"
                      exit

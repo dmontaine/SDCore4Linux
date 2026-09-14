@@ -24,9 +24,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 |---|---|---|---|---|
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: witness it in a disposable account with a long `bp.out` record path (not `don`) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
+| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` built 14 Sep; left: install, then a sign-on with a mismatched `$release` | — |
 | ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
-| ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
+| ◐ | **Q.25** | M | process dumps: `dumps/` 1730, `DUMPDIR`, 0600 create, `verify-sysperms` §8 built 14 Sep; left: install, then `verify-sysperms.py` | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
 | ◐ | **P.1** | M | the port's PowerShell helpers, testing half via Queue 22; left: walk `upgrade-dicts`, `clean-deadvoc`, `restart-sd` | — |

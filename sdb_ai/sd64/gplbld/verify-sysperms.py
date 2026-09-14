@@ -71,6 +71,13 @@ PROBE = ".zzsysperms-probe"
 # for the group (0620), so an ordinary user must NOT be able to read it.
 AUDIT = "audit"
 
+# Process dumps (queue 25): DUMPDIR in sd.conf names <sdsys>/dumps.  pdump.c
+# prints the first line on the positive path and the second when the create
+# fails - both matched, so a failure is never read as a pass.
+DUMPS = "dumps"
+MSG_DUMPING = r"Dumping process state as (\S+)"
+MSG_DUMP_FAIL = "Cannot open dump file"
+
 # ***THE EXCEPTIONS, EACH WITH A REASON AND A CITATION.***  "required" means the
 # run FAILS if it is not writable - that is the control.  The others are merely
 # permitted: they are group-writable on purpose and must not turn the run red.
@@ -95,6 +102,14 @@ EXPECT_WRITABLE = {
                  "queue 13's trail: 0620 sdsys:sdusers, group write and NOT "
                  "read.  Sessions run as the Unix user, so group write is how "
                  "a record is appended; section 6 checks it cannot be read"),
+    # 14 Sep 2026 - queue 25.  Required for the same reason as the audit trail:
+    # a session dumps as its own Unix user, so if the group loses write the
+    # dump fails and only "Cannot open dump file" says so.  Section 8 checks
+    # the half that matters - the group cannot LIST it or read a dump.
+    DUMPS: (True,
+            "queue 25's DUMPDIR: 1730 sdsys:sdusers, group write+search and NOT "
+            "read; pdump.c creates each dump 0600.  Section 8 dumps a session "
+            "and checks where it landed and who can read it"),
 }
 
 # gplsrc/sysseg.c builds and opens <sysdir>/bin/pcode; a writable pcode is
@@ -421,6 +436,81 @@ def main():
     run.note("K4 no BP.OUT / bp.out was created by either attempt", False,
              os.path.exists(os.path.join(acct, "BP.OUT"))
              or os.path.exists(os.path.join(acct, "bp.out")))
+
+    # ------------------------------------------------ 8. process dumps
+    run.heading("8. a process dump lands in DUMPDIR and only its owner reads it"
+                " (queue 25)")
+    run.say("  A dump holds the session's variables, call stack and open files.")
+    run.say("  dumps/ is 1730 sdsys:sdusers and pdump.c creates each file 0600.")
+    dumps = os.path.join(a.sdsys, DUMPS)
+    dumpdir = None
+    try:
+        with open(a.conf) as f:
+            for line in f:
+                if line.startswith("DUMPDIR="):
+                    dumpdir = line.strip()[len("DUMPDIR="):]
+    except OSError as e:
+        run.say("      cannot read %s: %s" % (a.conf, e.strerror))
+    run.say("      %s DUMPDIR = %r" % (a.conf, dumpdir))
+    run.note("D0 sd.conf's DUMPDIR names %s" % dumps, dumps,
+             dumpdir.rstrip("/") if dumpdir else dumpdir)
+    run.say("      %-10s %s" % (DUMPS, describe(dumps)))
+    try:
+        listed = os.listdir(dumps)
+        run.say("      listing: SUCCEEDED, %d entr(ies)" % len(listed))
+        can_list = True
+    except OSError as e:
+        run.say("      listing: %s" % e.strerror)
+        can_list = False
+    run.note("D1 an ordinary SD user cannot LIST the dumps directory", False,
+             can_list)
+
+    # ***THE DUMP ITSELF, BEFORE AND AFTER.***  <<@USERNO>> is CPROC's inline
+    # expansion (gpl.bp/inline), so the session dumps ITSELF - no second
+    # session, and no other user's process touched.
+    def sys_dumps():
+        try:
+            return sorted(n for n in os.listdir(a.sdsys)
+                          if n.startswith("sddump."))
+        except OSError:
+            return None
+    before = sys_dumps()
+    s = V.show_sd(run, "PDUMP of this session", ["WHO", "PDUMP <<@USERNO>>"],
+                  cwd=acct, timeout=a.timeout)
+    V.session_ok(run, "D session", s)
+    after = sys_dumps()
+    run.say("      sddump.* in %s: before %s, after %s" % (a.sdsys, before, after))
+    m = re.search(MSG_DUMPING, s.text)
+    target = m.group(1) if m else None
+    run.note("D2 the session reported dumping, in pdump.c's words", True,
+             m is not None)
+    run.note("D3 and did not report failing to open the file", False,
+             V.says(s.text, re.escape(MSG_DUMP_FAIL)))
+    run.note("D4 the dump went to DUMPDIR, not the system directory", dumps,
+             os.path.dirname(target) if target else None)
+    # Both None would be equal and measure nothing, so an unlistable system
+    # directory fails this row rather than passing it.
+    run.note("D5 no sddump.* appeared in the system directory", True,
+             before is not None and before == after)
+    if target and os.path.lexists(target):
+        st = os.lstat(target)
+        run.say("      %s  %s, %d bytes" % (target, describe(target),
+                                             st.st_size))
+        run.note("D6 the dump is mode 0600", "0600",
+                 "%04o" % stat.S_IMODE(st.st_mode))
+        run.note("D7 and owned by the caller, whose session it is",
+                 os.getuid(), st.st_uid)
+        try:
+            os.unlink(target)
+            run.say("      removed %s (the caller owns it)" % target)
+            removed = True
+        except OSError as e:
+            run.say("      COULD NOT REMOVE %s: %s" % (target, e.strerror))
+            removed = False
+        run.note("D8 the test's own dump was removed", True, removed,
+                 decisive=False)
+    else:
+        run.note("D6 the dump file exists to measure", True, False)
 
     return run.verdict()
 
