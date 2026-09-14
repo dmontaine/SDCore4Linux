@@ -22,7 +22,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ⬜ | **Q.28** | S | `RUN` of a path over 128 characters fails 1135 (`sddefs.h:111`): make 1135 name the limit (lifting it is L) | — |
+| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
 | ⬜ | **P.11** | S | `check-msglen.py` hard-codes the bound 231; derive it from the C headers | — |
 | ⬜ | **S.8** | S | `kernel(K$INTERNAL, n)` sets internal mode unguarded (`op_kernel.c:140-147`); belt-and-braces, the port is the same | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
