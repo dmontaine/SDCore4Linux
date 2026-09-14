@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 A Q-pointer's account name is looked up downcased (account names
+*           are lower case, plan M, owner).
 * 13 Sep 26 An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 12 Sep 26 The VOC name folds - as typed, then lower, then upper - for OPEN,
@@ -221,7 +223,7 @@ parse.as.q.pointer:
                if index(qpath, @ds, 1) = 0 then  ;* Try lookup in ACCOUNTS file
                   if len(qpath) < 64 then
                      openpath @sdsys:@ds:'accounts' to acc.f then
-                        read acc.rec from acc.f, qpath then
+                        read acc.rec from acc.f, downcase(qpath) then
                            qpath = acc.rec<ACC$PATH>
                         end
                      end

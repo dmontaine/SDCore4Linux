@@ -260,7 +260,8 @@
       $define OI$CLASS                 1    ;* Class name
       
       * ACCOUNTS file
-      * Id = account name (forced to uppercase)
+      * Id = account name (forced to LOWER case since 13 Sep 2026, SDSYS's own
+      *      record included - sdsys; every lookup downcases its input)
       $define ACC$PATH         1     ;* Account pathname
       $define ACC$DESCR        2     ;* Account description
       * REV 0.9.0

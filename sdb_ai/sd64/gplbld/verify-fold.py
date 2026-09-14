@@ -85,7 +85,8 @@ def main():
     bp = os.path.join(acct, "bp")           # plan M3 D3
     bpout = os.path.join(acct, "bp.out")    # plan M3 D4: CREATE.FILE makes it lower
     # WHO prints "<user number> <ACCOUNT>"; the account id is upper case today.
-    who = r"^[0-9]+ %s$" % re.escape(os.path.basename(acct).upper())
+    # @WHO is the account name, lower case since 13 Sep 2026 (was upper).
+    who = r"^[0-9]+ %s$" % re.escape(os.path.basename(acct).lower())
 
     run.say("%s: as %s (uid %d), NOT elevated" % (NAME, user, os.geteuid()))
     run.say("  sd        %s" % V.SD)

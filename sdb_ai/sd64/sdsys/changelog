@@ -9,6 +9,27 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  ACCOUNT NAMES ARE LOWER CASE, THE SYSTEM ACCOUNT INCLUDED: don, sdsys.
+
+           An account's name is now stored in lower case, so it matches the
+           Linux user it belongs to.  The system account is sdsys, the same as
+           its Linux user.  @WHO, WHO and WHO.AM.I show the lower-case name.
+
+           WHAT YOU TYPE DOES NOT CHANGE: LOGTO SDSYS, LOGTO DON,
+           MODIFY.ACCOUNT DON ..., DELETE.ACCOUNT, GRANT, SET.FILE and
+           MODIFY.PASSWORD all accept the name in any case, as does a
+           Q-pointer that names an account.
+
+           ONE THING TO KNOW: a program that compares @WHO with a name in
+           capitals - IF @WHO = 'SDSYS' - needs the lower-case name now.  And
+           an account register from an earlier release has upper-case names
+           and will not work with this one; there are none outside
+           development, so delete and re-create any test installation.
+
+           WHAT DOES NOT CHANGE: account directories were already lower case,
+           and the names of Linux users and groups are untouched.
+
+
 13 Sep 26  S AT A REPORT'S PAGE PROMPT NOW SCROLLS THE REST OF THE REPORT.
 
            Answering S ("Suppress pagination") at the "Action (...)" prompt of

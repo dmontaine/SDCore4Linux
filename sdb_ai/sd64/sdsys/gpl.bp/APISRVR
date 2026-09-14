@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case (plan M, owner): the register is
+*               read with the name downcased.
 * 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys $ipc and accounts by their lower-case names on disk
 *               (plan M3 D1).
@@ -362,7 +364,7 @@ account.path = new.account
 acc.suspended = @false
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
-      read acc.rec from acc.f, new.account then
+      read acc.rec from acc.f, downcase(new.account) then
          account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
          acc.suspended = (upcase(trim(acc.rec<ACC$TIER>)) = 'SUSPENDED')
       end
@@ -1103,7 +1105,7 @@ vb.open.sdnet.continue:
                         file = field(cmnd, ';', 1)  ;* File name
 
                         openpath @sdsys:@ds:'accounts' to acc.f then
-                           read acc.rec from acc.f, acc then
+                           read acc.rec from acc.f, downcase(acc) then
                               acc = parse.pathname.tokens(acc.rec<ACC$PATH>)
                            end
                            close acc.f

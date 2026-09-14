@@ -79,6 +79,42 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***ACCOUNT NAMES LOWER CASE — BUILT 13 Sep 2026, NOT INSTALLED. NEXT: owner FULL
+delete→install (N, DELETE) + reboot — a kept register holds `DON`/`SDSYS` and
+every lookup now downcases — then the suite.***
+- ***Rulings:*** lower case (owner 12 Sep, PORT_ADOPTION queue 18); ***SDSYS →
+  `sdsys` too (owner, 13 Sep, asked this session)*** so the rule is uniform: key
+  = downcase(name), every lookup downcases. ***The port keeps account names
+  upper*** (its RELEASE_1.1 5: "a separate wide change") — this goes past it.
+- ***Register:*** `git mv sdsys/accounts/SDSYS → sdsys`; KEYS.H:263 comment.
+- ***BASIC (script, exact-once literals, + hand):*** LOGIN (`@who = 'sdsys'` ×2,
+  forced account / sudo arm / console / path-derived names downcased, tier
+  lookup); CPROC (elevation read, LOGTO gate/read/`new.account`, path-derived
+  `who`, `LOGIN.PORT ALL` check, audit strings); CREATEA (store + the early
+  0275 read + GROUP directory name); DELACC (store, `'sdsys'` guard, xref
+  Q-pointer account compared downcased); MODIFYA (store, guard, own-account
+  test); SETACC ×2; SETFILE (so its Q-pointer writes lower); SET_ACC_PASSWORD
+  ×3; TIERGATE (both names, `'sdsys'` never granted); GRANTA; APISRVR ×2;
+  _VOC_REF (Q-pointer account). newvoc + voc_template `sd.accounts` field 2
+  `sdsys`. ***Left deliberately:*** ATVAR/BCOMP `"SDSYS"` (the `@SDSYS` token),
+  10126's `'SDSYS'` tier label (MODIFYA:212, GRANTA:252), CREATEA:248 (reserved
+  Linux user name, compared upcased), messages 6025/10002 text, USERNO (Linux
+  user names).
+- ***C:*** `sysseg.c:410` startup phantom `-asdsys`; `make` exit 0, `strings`
+  shows `-asdsys`.
+- ***Scripts:*** installer `accounts/sdsys` chown/chmod/echo and the seeded-tier
+  read lower; witness-accounts.sh register keys lower (`_UC` names kept, commented);
+  reconcile's `${id^^} == SDSYS` already case-blind.
+- ***Verifiers:*** accounts R3 now "lower case" (was the opposite), R8 path
+  `sdsys`; fold `who` lower; sysperms G2 lower, G3 either case. setpw unchanged
+  (types names upper, which now exercises the downcase; no name in its patterns).
+  ***New lcnames U1–U4:*** register holds `<user>` and `sdsys`, no upper id;
+  `LOGTO <USER>` not refused; WHO says lower, not upper.
+- ***Checked, no install:*** verifiers py_compile, unit suites 0 failed, installer
+  and witness `bash -n`. BASIC compiled only by the bootstrap. ***Would
+  falsify:*** sign-on refused (5018 "not in register"); `sudo sd` not landing in
+  sdsys; U3/R3/G2 red; UPDATE.ACCOUNTS ALL refusing 10172 in sdsys.
+
 ***INSTALL `f6d3b35` WITNESSED 13 Sep 18:50 — THE SUITE IS CLEAN*** (owner
 keep-cycle 18:47:46, boot 18:48:17, `assert-current` 0; no flag anywhere).
 ***lcnames 125/125*** incl. the fixed A5 (baseline `COUNT $acc` 0; planted

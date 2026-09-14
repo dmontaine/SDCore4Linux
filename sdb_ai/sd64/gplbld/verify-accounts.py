@@ -223,8 +223,10 @@ def main():
              sorted(i for i in reg if not field(reg[i], ACC_PATH)))
     run.note("R2 every record has an ACC$GROUP", [],
              sorted(i for i in reg if not field(reg[i], ACC_GROUP)))
-    run.note("R3 every record id is upper case", [],
-             sorted(i for i in reg if i != i.upper()))
+    # 13 Sep 2026: account names are LOWER case (owner), SDSYS's record too.
+    # This row was "upper case" and would now be exactly backwards.
+    run.note("R3 every record id is lower case", [],
+             sorted(i for i in reg if i != i.lower()))
     # ***R4 ENFORCES A COMMENT.***  KEYS.H:277-278: field 4 is the retired
     # ACC$USERS and "IN THIS TREE FIELD 4 WAS NEVER WRITTEN", because a new
     # meaning there would read old data as new.
@@ -245,7 +247,7 @@ def main():
                     and field(reg[i], ACC_TIER) != "SUSPENDED"))
     # PRE_RELEASE 30: the installer sets the SDSYS record root:root 0644 after
     # everything that used to undo it.  stat() needs only read on the directory.
-    sp = os.path.join(a.register, "SDSYS")
+    sp = os.path.join(a.register, "sdsys")
     try:
         st = os.stat(sp)
         got = (pwd.getpwuid(st.st_uid).pw_name, grp.getgrgid(st.st_gid).gr_name,
@@ -253,7 +255,7 @@ def main():
     except OSError as e:
         got = ("stat failed: %s" % e,)
     run.say("  %s: %s" % (sp, got))
-    run.note("R8 the SDSYS register record is root:root 644", ("root", "root", "644"),
+    run.note("R8 the sdsys register record is root:root 644", ("root", "root", "644"),
              got)
 
     # --------------------------------------- 2. register <-> the filesystem

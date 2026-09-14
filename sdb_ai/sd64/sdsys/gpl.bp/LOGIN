@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner's
+*               rulings of 12 and 13 Sep): the register key is the lower-cased
+*               name, so every name taken from input, @LOGNAME or a path is
+*               downcased before the lookup, and @WHO reads 'sdsys', 'don'.
 * 13 Sep 26 dm  Reads the $release and $command.stack VOC records by their
 *               lower-case ids (plan M3, the $ records).  Exact reads, and
 *               there are no accounts from before the rename (owner).
@@ -191,11 +195,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   (10170) and reports the count (10171).  Anywhere but SDSYS under an
 *   administrator it refuses in words (10172) rather than updating one account
 *   and staying silent about the rest.
-      if mode = 4 and not(@who = 'SDSYS' and kernel(K$ADMINISTRATOR,-1)) then
+      if mode = 4 and not(@who = 'sdsys' and kernel(K$ADMINISTRATOR,-1)) then
          display sysmsg(10172) ;* Cannot update every account from here
       end
 
-      if @who = 'SDSYS' and kernel(K$ADMINISTRATOR,-1) then
+      if @who = 'sdsys' and kernel(K$ADMINISTRATOR,-1) then
          if mode = 4 then
             yn = 'Y'
             display sysmsg(10170) ;* Every registered account will have its VOC updated
@@ -316,7 +320,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    begin case
       
       case kernel(K$FORCED.ACCOUNT,0) # ''   ;* account specified on command line with "sd -Aname"
-         initial.account = upcase(kernel(K$FORCED.ACCOUNT,0))
+         initial.account = downcase(kernel(K$FORCED.ACCOUNT,0))
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
@@ -326,7 +330,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
 
          * 20240330 mab must be privilaged to enter sdsys
-         IF (upcase(initial.account) = "SDSYS") and not(kernel(K$ADMINISTRATOR,-1)) then            
+         IF (initial.account = "sdsys") and not(kernel(K$ADMINISTRATOR,-1)) then
             display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
             audit.reason = 'SDSYS is restricted to administrators'
             goto terminate.connection
@@ -353,7 +357,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 * 20240323 mab if sd command issued with sudo (K$ADMINISTRATOR set by cproc)
 *   and no account given wirh -a command, assume sdsys 
       case kernel(K$ADMINISTRATOR,-1)  ;* user id 0, "sudo sd"
-         initial.account = "SDSYS"
+         initial.account = "sdsys"
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
@@ -373,7 +377,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
       * 20240219 mab sd command from console with no account specified, we default to 
       *              user's account
-         initial.account = upcase(@logname)
+         initial.account = downcase(@logname)
 
          read acc.rec from acc.f, initial.account else
             display sysmsg(5018, initial.account) ;* Account %1 not in register
@@ -452,7 +456,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
       if initial.account = '' then
          * Just use final part of pathname
-         initial.account = upcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
+         initial.account = downcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
       end
    end
 
@@ -833,7 +837,7 @@ get.acc.tier:
    update.voc.tier = ''
 
    openpath @sdsys:@ds:'accounts' to tier.acc.f then
-      read tier.acc.rec from tier.acc.f, upcase(tier.acc.name) then
+      read tier.acc.rec from tier.acc.f, downcase(tier.acc.name) then
          update.voc.tier = tier.acc.rec<ACC$TIER>
          if upcase(trim(update.voc.tier)) = 'SUSPENDED' then
             update.voc.tier = tier.acc.rec<ACC$PRIOR.TIER>
