@@ -19,6 +19,8 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 d-chou add IPC_NOWAIT and RelinquishTimeslice (sched_yield) to LockSemaphore
+ * 14 Sep 26 dm  SEM_UNDO on lock and unlock, and release_owned_semaphores()
+ *               for the fatal-signal path (W.0, owner's ruling of 14 Sep 26).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -98,9 +100,21 @@ void delete_semaphores() {
 /* ======================================================================
    Variants on StartExclusive and EndExclusive for use with no shared mem */
 
+/* 14 Sep 26 dm - W.0, owner's ruling of 14 Sep 26: SEM_UNDO ON BOTH HALVES.
+   A process that died holding a semaphore used to leave it taken, and every
+   other SD process then spun in LockSemaphore for ever - the system-wide wedge
+   of 11 Sep 26.  With SEM_UNDO the kernel gives a dead process's semaphore back.
+   THE COST, ACCEPTED BY THE RULING: the next taker may find the shared structure
+   that semaphore protects half-updated, where before it found nothing at all.
+   BOTH operations carry the flag or the kernel's per-process adjustment would
+   not return to zero, and the undo at exit would add a release nobody took -
+   two holders at once.  That is also why nothing may lock in one process and
+   unlock in another: measured 14 Sep, no semaphore is held across a fork
+   (op_kernel.c ends its section before the phantom fork; bind_sysseg locks and
+   unlocks SHORT_CODE in the one process). */
 void LockSemaphore(int semno) {
-// rev 0.9.0  
-  static struct sembuf sem_lock = {0, -1, IPC_NOWAIT};
+// rev 0.9.0
+  static struct sembuf sem_lock = {0, -1, IPC_NOWAIT | SEM_UNDO};
   sem_lock.sem_num = semno;
   while (semop(semid, &sem_lock, 1)) {
 // rev 0.9.0     
@@ -109,7 +123,7 @@ void LockSemaphore(int semno) {
 }
 
 void UnlockSemaphore(int semno) {
-  static struct sembuf sem_unlock = {0, 1, 0};
+  static struct sembuf sem_unlock = {0, 1, SEM_UNDO};
   sem_unlock.sem_num = semno;
   semop(semid, &sem_unlock, 1);
 }
@@ -133,6 +147,31 @@ void EndExclusive(int semno) {
             (semno));
   semptr->owner = 0;
   UnlockSemaphore(semno);
+}
+
+/* ======================================================================
+   release_owned_semaphores()  -  Give back what this process holds, on a fault
+
+   14 Sep 26 dm - W.0, owner's ruling of 14 Sep 26: the fatal-signal path
+   releases the semaphores its own process holds, before anything else in the
+   handler - log_message() takes ERRLOG_SEM, so a fault while holding it would
+   otherwise wait on itself.  It sees only what StartExclusive recorded in the
+   owner table; a fault between the lock and the owner being set, or the raw
+   LockSemaphore(SHORT_CODE) in bind_sysseg, is left to SEM_UNDO at exit.  The
+   two cover each other; neither alone covers kill -9.                       */
+
+void release_owned_semaphores() {
+  register SEMAPHORE_ENTRY* semptr;
+  int i;
+
+  if (sysseg == NULL)
+    return;
+
+  for (i = 0; i < NUM_SEMAPHORES; i++) {
+    semptr = (((SEMAPHORE_ENTRY*)(((char*)sysseg) + sysseg->semaphore_table)) + i);
+    if ((semptr->owner != 0) && (semptr->owner == process.user_no))
+      EndExclusive(i);
+  }
 }
 
 /* END-CODE */

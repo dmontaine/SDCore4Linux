@@ -21,6 +21,8 @@
  * 11 Jun 24 mab overwrite op_errmsg (pick error message) and op_pabort (pick abort) as illegal op code
  * 15 Jun 24 mab overwrite op_ttyset op_ttyget as illegal op code
  * 28 Jul 24 mab remove op code overwrites (removed from opcodes.h)
+ * 14 Sep 26 dm  fatal_signal_handler() releases this process's semaphores
+ *               before logging (W.0, owner's ruling of 14 Sep 26).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -1336,6 +1338,11 @@ void sigusr1_handler(int signum) {
    Fatal signal handler                                                   */
 
 void fatal_signal_handler(int signum) {
+  /* 14 Sep 26 dm - W.0, owner's ruling: give back this process's semaphores
+     FIRST.  log_printf below reaches log_message, which takes ERRLOG_SEM, so a
+     fault while holding it used to wait on itself - and every other process
+     waited behind it.  See sdsem.c release_owned_semaphores(). */
+  release_owned_semaphores();
   set_old_tty_modes();
   log_printf("Fault type %d. PC = %08lX (%02X %02X) in %s\n", signum,
              op_pc - c_base, *op_pc, *(op_pc + 1), ProgramName(c_base));

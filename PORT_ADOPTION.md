@@ -80,7 +80,25 @@ process and semaphores `111111`.
 
 ## Waiting for the owner — skipped overnight 10–11 Sep because they need a ruling
 
-0. [W.0] ~~Reboot first~~ — done 05:05 11 Sep. Still open, the two decisions the
+0. [W.0] ***RULED BY THE OWNER 14 Sep 2026 — "both" — AND BUILT, NOT INSTALLED.***
+   (1) `sdsem.c` `LockSemaphore`/`UnlockSemaphore` carry `SEM_UNDO` on BOTH
+   sembufs (one half alone would leave the kernel's adjustment non-zero and the
+   exit undo would add a phantom release). Checked first: no semaphore is held
+   across a fork (`op_kernel.c` ends its section before the phantom fork;
+   `bind_sysseg` locks and unlocks SHORT_CODE in one process). (2) new
+   `release_owned_semaphores()` (`sdsem.c`) walks the owner table and
+   EndExclusives what `process.user_no` owns; `kernel.c` `fatal_signal_handler`
+   calls it FIRST — `log_message` takes ERRLOG_SEM, so logging first would wait
+   on itself. It sees only StartExclusive holds; the rest are SEM_UNDO's.
+   ***Witness built: `gplbld/verify-semaphores.py`*** (no sudo): its own sessions
+   under load, `ipcs -s -i` sampled, a hold CONFIRMED by SIGSTOP + resample, then
+   SIGKILL (SEM_UNDO) and SIGSEGV+SIGCONT (the handler); each must return to 1,
+   and no sample may ever read above 1. It refuses a stale install on purpose —
+   against the old one a confirmed kill would re-create the 11 Sep wedge.
+   ***Feasibility measured on `984be50`, catch only (SIGCONT on confirm, no
+   kill):*** 25 530 samples in 20 s, 24 confirmed holds (mostly sem 4,
+   FILE_TABLE_LOCK), max value 1, all back to 1, 10 sessions exit 0.
+   *(Earlier:)* ~~Reboot first~~ — done 05:05 11 Sep. Still open, the two decisions the
    wedge raised: should `sdsem.c` take its semaphores with
    `SEM_UNDO` (the kernel then releases a dead holder's semaphore — no more
    system-wide hang, at the risk of exposing a half-updated structure), and

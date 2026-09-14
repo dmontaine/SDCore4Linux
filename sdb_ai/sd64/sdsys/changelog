@@ -16,6 +16,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  ONE CRASHED SESSION CAN NO LONGER FREEZE ALL OF SD.
+
+           SD's processes share a small set of locks.  If a session died while
+           holding one - killed, or crashing - the lock was never given back,
+           and every other SD session then waited for it for ever; the only
+           way out was a reboot.  Now the operating system gives the lock back
+           when the process that held it ends, however it ended, and a session
+           that crashes gives back its locks itself before doing anything else.
+
+           WHAT DOES NOT CHANGE: normal locking.  The one cost is the reason
+           this was a decision: after such a crash the next session may find
+           the shared information that lock protected half-updated, where
+           before it would have found SD frozen.
+
+
 14 Sep 26  TWO MORE QUESTIONS NO LONGER WAIT FOR EVER WHEN NOBODY ANSWERS.
 
            "Use active select list?", asked by DELETE, COPY, CD, CT, ED and

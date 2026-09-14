@@ -34,7 +34,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **W.3** | M | 6133: the port RULED 13 Sep (cancel answer C, Enter = C); built 14 Sep; left: `witness-release-run.sh` §5b at the next cycle | — |
 | ◐ | **Q.3b** | M | Enter takes the default at every Y/N prompt; W.2 and W.3 built 14 Sep on the port's rulings; left: §5b at the next cycle | — |
 | ◐ | **W.2** | M | 2050: the port RULED 13 Sep (Enter = N in all six); built in `DELETE`, `COPY`, `CD`, `CT`, `ED` 14 Sep, message `(y/<n>)`; left: §5b at the next cycle | — |
-| ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
+| ◐ | **W.0** | L | semaphores after a crash: owner RULED both 14 Sep; `SEM_UNDO` + fault-path release built; left: `verify-semaphores.py` at the next cycle | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
@@ -255,8 +255,11 @@ written by a scratchpad script building the space from `chr(32)`, byte-checked,
 3 one-line diffs. The other ten `?`-ending messages without a space are
 byte-identical to the port's and left. `witness-release-run.sh` gains §5b (the
 port's verify-promptenter legs 7–8) and §8 (Q.13's ADD/DELETE/ELEVATION REFUSED,
-second throwaway `zzrel2`). ***Next cycle:*** keep cycle, `assert-current`,
-`witness-release-run.sh --commit`.
+second throwaway `zzrel2`). ***W.0 RULED BY THE OWNER ("both") and built***
+(`SEM_UNDO` + `release_owned_semaphores()` first in the fatal handler) with
+`verify-semaphores.py` — PORT_ADOPTION W.0. ***Next cycle:*** keep cycle,
+`assert-current`, `verify-semaphores.py` (no sudo), `witness-release-run.sh
+--commit` (sudo).
 
 ***HAND-OFF, 14 Sep 2026, eighth session — ONE CYCLE, `984be50` (13:37).***
 Owner-run: `verify-keys.py` ***36/36*** (the backspace fix; red 34/36 before);
