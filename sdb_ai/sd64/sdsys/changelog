@@ -16,6 +16,18 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  GRANT'S WARNING NOW SAYS WHAT HAPPENS TO A SESSION ALREADY OPEN.
+
+           GRANT tells you the person must log out of Linux and back in.  It
+           went on to say that until they did, they could be let into the
+           account and then refused by the filesystem.  A session that was
+           already open is not refused: it is let in, but cannot change
+           anything in the account, because Linux still sees it with the
+           groups it had when it started.  The message now says so.
+
+           WHAT DOES NOT CHANGE: GRANT and REVOKE themselves, and the advice
+           to log out and back in, which is still what gives full access.
+
 14 Sep 26  ONE CRASHED SESSION CAN NO LONGER FREEZE ALL OF SD.
 
            SD's processes share a small set of locks.  If a session died while

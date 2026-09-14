@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 14 Sep 26 dm  10043 reworded: an open session enters, but read-only (S.12).
 * 13 Sep 26 dm  Account names are lower case (plan M, owner).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 11 Sep 26 dm  written, from the Windows port's GRANTA of 15-29 Aug 2026
@@ -377,9 +378,13 @@ do.list:
 * grant has been taken away keeps the DIRECTORY access until their next login,
 * even though SD has already stopped admitting them.
 *
-* ***UNWITNESSED, 11 Sep 2026: the split above is read off the modes and the
-* code, not measured end to end.***  A witness needs a real grant, so it waits
-* for the install cycle - PORT_ADOPTION 14's witness list.  What would falsify
+* ***MEASURED 14 Sep 2026 on f2251e6 (witness-release-run.sh section 10): the
+* open session was NOT refused - it ENTERED.***  The earlier wording, "let into
+* the account and then refused by the filesystem", was wrong.  dh_open asks
+* access() and opens a file it cannot write read-only (dh_open.c:118), and a
+* VOC's %0 is 664, so the person is let in and every write is refused.  10043
+* now says that.  The write refusal is read off the code, not yet measured
+* (section 10 G6, against a fresh session's write, G7).  What would falsify
 * it: a granted person, still logged in, who can write a record in the account.
 
 say.sign.out:

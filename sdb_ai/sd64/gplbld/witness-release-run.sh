@@ -12,7 +12,8 @@
 #     S.3   Y at the release prompt keeps STANDARD's omit list out (7)
 #     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
 #           trail (8); a second throwaway, zzrel2, is made and removed
-#     Q.14  10043's claim: a session open during a GRANT (10)
+#     S.12  10043's claim: a session open during a GRANT enters the account
+#           but cannot write in it, against a fresh session's write (10)
 #     S.6   a plain-sd administrator reaches SH; LOGTO reloads the grants (11)
 #     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
 #           zzrel3, carries SD's "SD account" stamp and is deleted by SD
@@ -219,6 +220,22 @@ run_oneshot() {   # the installer's ADOPT form
     printf '%s' "$out"
 }
 
+# userdel refuses (exit 8) while the user owns a process, and an ssh login
+# (section 14) leaves a systemd --user manager behind for some seconds after
+# the session ends.  The 14:38 run printed only "FAILED" with the exit code
+# and message thrown away, and zzrel1 was left.  So wait, then say why.
+del_user() {   # $1 user, $2 suffix for the report line
+    local u="$1" tag="${2:-}" n=0 err urc
+    while pgrep -u "$u" >/dev/null 2>&1 && [ "$n" -lt 20 ]; do sleep 1; n=$((n + 1)); done
+    pgrep -u "$u" >/dev/null 2>&1 && say "  $u still owns processes after ${n}s: $(pgrep -a -u "$u" | tr '\n' ';')"
+    err=$(userdel -r "$u" 2>&1); urc=$?
+    if [ "$urc" -eq 0 ]; then
+        say "  userdel -r $u: done$tag (waited ${n}s)${err:+ - $err}"
+    else
+        say "  userdel -r $u: FAILED$tag, exit $urc (8 = still owns a process) - ${err:-no message} - remove it by hand"
+    fi
+}
+
 cleanup() {
     local rc=$?
     [ "$COMMIT" -eq 1 ] || exit $rc
@@ -231,8 +248,7 @@ cleanup() {
             | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
     fi
     if [ "$MADE_USER2" -eq 1 ] && id -u "$ACC2" >/dev/null 2>&1; then
-        userdel -r "$ACC2" >/dev/null 2>&1 && say "  userdel -r $ACC2: done" \
-            || say "  userdel -r $ACC2: FAILED - remove it by hand"
+        del_user "$ACC2"
     fi
     say "  left behind ($ACC2): register=$(yesno_file "$REGISTER/$ACC2")" \
         "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC2") user=$(yesno_user "$ACC2")" \
@@ -243,8 +259,7 @@ cleanup() {
             | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
     fi
     if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
-        userdel -r "$ACC" >/dev/null 2>&1 && say "  userdel -r $ACC: done" \
-            || say "  userdel -r $ACC: FAILED - remove it by hand"
+        del_user "$ACC"
     fi
     say "  left behind: register=$(yesno_file "$REGISTER/$ACC")" \
         "dir=$(yesno_dir "$ADIR") user=$(yesno_user "$ACC")" \
@@ -258,8 +273,7 @@ cleanup() {
             | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
     fi
     if [ "$MADE_USER3" -eq 1 ] && id -u "$ACC3" >/dev/null 2>&1; then
-        userdel -r "$ACC3" >/dev/null 2>&1 && say "  userdel -r $ACC3: done (fallback)" \
-            || say "  userdel -r $ACC3: FAILED - remove it by hand"
+        del_user "$ACC3" " (fallback)"
     fi
     if [ "$MADE_USER3" -eq 1 ]; then
         say "  left behind ($ACC3): register=$(yesno_file "$REGISTER/$ACC3")" \
@@ -711,23 +725,34 @@ GID1=$(getent group "sdu_$ACC" | cut -d: -f3)
 A2DIR="$ACCOUNTS_ROOT/$ACC2"
 
 # ==========================================================================
-# Q.14 - MESSAGE 10043's CLAIM.  A person with a session open at the moment of
-# a GRANT: "SD sees the change at once ... they can be let into the account and
-# then refused by the filesystem" until they log in again.  zzrel2's session is
-# STARTED FIRST, the grant is made while it sleeps, and the live process's own
-# group list is printed from /proc to show it lacks sdu_zzrel1.  This is a plain
-# session, so the S.2 initgroups refresh (root only) does not apply.
-head2 "10. Q.14 - a session open during GRANT (message 10043)"
+# S.12 - MESSAGE 10043's CLAIM.  A person with a session open at the moment of
+# a GRANT is admitted by SD at once, but the session keeps the Linux groups it
+# started with.  The 14:38 run on f2251e6 measured that such a session ENTERS
+# (the message then said "refused by the filesystem").  From source it enters
+# READ-ONLY: dh_open asks access() and opens a file it cannot write read-only
+# (dh_open.c:118), the fvar takes FV_RDONLY (op_dio1.c:793), and COPY refuses
+# a read-only target with 1431 before copying (copy:212).  So the stale session
+# COPYs a VOC record and must be refused, with nothing on disk; the CONTROL, a
+# session started after the grant, makes the same COPY and it must land - or
+# the refusal could be COPY failing for any reason.
+# zzrel1 is STANDARD since section 7, and STANDARD has no COPY (and no RUN,
+# which section 11 needs - the 14:38 run lost H3 to that), so it moves to
+# PROGRAMMER first.  VOC ids are lower case since plan M: the record is who.
+# This is a plain session, so the S.2 initgroups refresh (root only) does not
+# apply.  The live process's own group list is printed from /proc.
+head2 "10. S.12 - a session open during GRANT enters read-only (message 10043)"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
-    for r in "G0 not yet granted" "G1 10043" "G2 stale groups" "G3 SD admitted" "G5 fresh session enters"; do not_reached "$r"; done
+    for r in "V0 PROGRAMMER" "G0 not yet granted" "G1 10043" "G2 stale groups" "G3 SD admitted" "G4 entered" "G6 write refused" "G6a no copy" "G6b nothing on disk" "G5 fresh session enters" "G7 control copied" "G7b control on disk"; do not_reached "$r"; done
 else
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER (STANDARD has no COPY or RUN)" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+    [ "$COMMIT" -eq 1 ] && ck_says "V0 $ACC is now PROGRAMMER" "is now PROGRAMMER" "$OUT"
     say "  $ACC2 in sdu_$ACC before: $(id -nG "$ACC2" 2>/dev/null | tr ' ' '\n' | grep -cx "sdu_$ACC")"
-    say "  --- sd session as $ACC2, STARTED BEFORE THE GRANT: WHO; (sleep 5); LOGTO $ACC; WHO ---"
+    say "  --- sd session as $ACC2, STARTED BEFORE THE GRANT: WHO; (sleep 5); LOGTO $ACC; WHO; COPY FROM VOC who,zzstale ---"
     STALE_OUT=""
     if [ "$COMMIT" -eq 1 ]; then
         ck "G0 $ACC2 is not in sdu_$ACC before the grant" 0 "$(id -nG "$ACC2" | tr ' ' '\n' | grep -cx "sdu_$ACC")"
         STALEF=$(mktemp)
-        ( cd "$A2DIR" && { printf '\nTERM 200,9999\nWHO\n'; sleep 5; printf 'LOGTO %s\nWHO\nOFF\n' "$ACC"; } \
+        ( cd "$A2DIR" && { printf '\nTERM 200,9999\nWHO\n'; sleep 5; printf 'LOGTO %s\nWHO\nCOPY FROM VOC who,zzstale\nOFF\n' "$ACC"; } \
             | timeout 60 runuser -u "$ACC2" -- "$SD" >"$STALEF" 2>&1 ) &
         BG=$!
         sleep 2
@@ -747,27 +772,32 @@ else
         STALE_OUT=$(strip < "$STALEF"); rm -f "$STALEF"
         printf '%s\n' "$STALE_OUT" | sed -e 's/^/      | /'
         ck_absent "G3 SD admitted the LOGTO (no 10003)" "User not allowed in requested account" "$STALE_OUT"
-        if who_in "$ACC" "$STALE_OUT"; then
-            ctx "G4 the stale session ENTERED $ACC (the filesystem did not refuse the open)"
-        else
-            ctx "G4 the stale session did NOT enter $ACC - WHO still names $ACC2"
-        fi
+        ck_who "G4 the stale session entered $ACC" "$ACC" "$STALE_OUT"
         printf '%s' "$STALE_OUT" | grep -q 'Error 3001' && ctx "G4 it printed Error 3001"
+        ck_says "G6 its COPY was refused, the VOC read-only (1431)" "File is read-only" "$STALE_OUT"
+        ck_absent "G6a and COPY did not report a copy (6189)" "record(s) copied" "$STALE_OUT"
+        ck "G6b zzstale is on disk in neither account's VOC" 0 "$(cat "$ADIR"/voc/%* "$A2DIR"/voc/%* 2>/dev/null | grep -a -c zzstale)"
     fi
-    OUT=$(run_sd "$ACC2" "control: a session started AFTER the grant" "LOGTO $ACC" "WHO")
-    [ "$COMMIT" -eq 1 ] && ck_who "G5 control: a fresh session enters $ACC" "$ACC" "$OUT"
+    OUT=$(run_sd "$ACC2" "control: a session started AFTER the grant" "LOGTO $ACC" "WHO" "COPY FROM VOC who,zzctl")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_who "G5 control: a fresh session enters $ACC" "$ACC" "$OUT"
+        ck_says "G7 control: the same COPY writes (6189)" "1 record(s) copied." "$OUT"
+        ck "G7b control: zzctl is on disk in $ACC's VOC" yes "$( [ "$(cat "$ADIR"/voc/%* 2>/dev/null | grep -a -c zzctl)" -gt 0 ] && echo yes || echo no )"
+    fi
 fi
 
 # ==========================================================================
 # S.6 - A PLAIN-sd ADMINISTRATOR REACHES THE OS, AND A LOGTO RELOADS IT.
 # zzrel2 is ADMINISTRATOR and in sdadmin, in plain sd (no USR_ADMIN), so SH runs
 # only because LOGIN loaded K$SH from the tier.  After LOGTO into zzrel1
-# (STANDARD, no OS-ON) the grants reload from zzrel1's record: zzrel1's own
-# compiled OS.EXECUTE program must then be refused naming zzrel2.  SH itself is
-# not in a STANDARD VOC, which is why the second half uses OS.EXECUTE.
+# (PROGRAMMER since section 10, no OS-ON) the grants reload from zzrel1's
+# record: zzrel1's own compiled OS.EXECUTE program must then be refused naming
+# zzrel2 (10054 prints process.username, op_sh.c:158).  SH itself is not in a
+# PROGRAMMER VOC, which is why the second half uses OS.EXECUTE.  H3b names the
+# 14:38 miss: zzrel1 was still STANDARD, so RUN was not in its VOC.
 head2 "11. S.6 - plain-sd administrator: SH runs; after LOGTO a non-admin account, OS.EXECUTE is refused"
-if [ "$COMMIT" -eq 1 ] && { [ "$MADE_ACCOUNT2" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzos" ]; }; then
-    for r in "H1 SH ran" "H2 in zzrel1" "H3 10054" "H4 did not run"; do not_reached "$r"; done
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzos" ]; }; then
+    for r in "H1 SH ran" "H2 in zzrel1" "H3 10054" "H3b RUN found" "H4 did not run"; do not_reached "$r"; done
 else
     OUT=$(run_sd "$ACC2" "SH in its own account, then LOGTO $ACC and RUN BP zzos" \
           "SH echo zzsh-ran" "LOGTO $ACC" "WHO" "RUN BP zzos")
@@ -776,13 +806,14 @@ else
         ck_absent "H1b and was not refused 10053" "is not permitted to use the operating system shell" "$OUT"
         ck_who "H2 the session is in $ACC" "$ACC" "$OUT"
         ck_says "H3 after LOGTO, OS.EXECUTE refused in 10054's words" "$ACC2 is not permitted to use OS.EXECUTE" "$OUT"
+        ck_absent "H3b RUN was in $ACC's VOC (the 14:38 miss)" "is not in your VOC" "$OUT"
         ck_absent "H4 and the program did not run" "ZZOS ran OS.EXECUTE" "$OUT"
     fi
 fi
 
 # ==========================================================================
-# S.5 - THE 10 Sep PARITY AUDIT'S WITNESS LIST.  zzrel1 moves to PROGRAMMER and
-# must lack the admin verbs zzrel2 holds; UPDATE.ACCOUNTS refuses a stray word
+# S.5 - THE 10 Sep PARITY AUDIT'S WITNESS LIST.  zzrel1, PROGRAMMER since
+# section 10 (V0), must lack the admin verbs zzrel2 holds; UPDATE.ACCOUNTS refuses a stray word
 # and ALL updates every account without asking (THIS TOUCHES REAL ACCOUNTS'
 # VOCs, exactly as every install does); a new account's LISTF has descriptions;
 # CREATE.ACCOUNT ... SH-ON reports 10102 (reached through ADOPT, since a
@@ -792,10 +823,8 @@ fi
 # what sd-elevate useradd writes - the delete branch keys on the stamp alone.
 head2 "12. S.5 - the parity audit's witness list"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
-    for r in "V0" "V1-3 PROGRAMMER lacks" "V4-6 ADMINISTRATOR has" "V7 listf" "V8 10173" "V9 10170" "V10 10171" "D1 10102" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
+    for r in "V1-3 PROGRAMMER lacks" "V4-6 ADMINISTRATOR has" "V7 listf" "V8 10173" "V9 10170" "V10 10171" "D1 10102" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
 else
-    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
-    [ "$COMMIT" -eq 1 ] && ck_says "V0 $ACC is now PROGRAMMER" "is now PROGRAMMER" "$OUT"
     OUT=$(run_sd "$ACC" "PROGRAMMER: CT VOC sh, config, listu; LISTF" "CT VOC sh" "CT VOC config" "CT VOC listu" "LISTF")
     if [ "$COMMIT" -eq 1 ]; then
         for v in sh config listu; do ck_says "V1 PROGRAMMER lacks $v" "Record '$v' not found" "$OUT"; done
