@@ -22,7 +22,6 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **P.29** | XS | `sd.service` fix held 12 boot starts (journal, 14 Sep); left: drop the installer's kickstart note, `installsdai.sh:1112-1114` | — |
 | ⬜ | **Q.28** | S | `RUN` of a path over 128 characters fails 1135 (`sddefs.h:111`): make 1135 name the limit (lifting it is L) | — |
 | ⬜ | **P.11** | S | `check-msglen.py` hard-codes the bound 231; derive it from the C headers | — |
 | ⬜ | **S.8** | S | `kernel(K$INTERNAL, n)` sets internal mode unguarded (`op_kernel.c:140-147`); belt-and-braces, the port is the same | — |
@@ -60,6 +59,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **P.25** | — | an upgrade keeps `sdadmin`'s members | 10 Sep 2026 |
 | ✅ | **P.26** | — | the delete path no longer leaves `/home/sd` a file | 10 Sep 2026 |
 | ✅ | **P.27** | — | install on an existing empty `/home/sd` | 14 Sep 2026 |
+| ✅ | **P.29** | — | `sd.service` stays up at boot; installer's kickstart note dropped | 14 Sep 2026 |
 | ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
 | ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
 | ✅ | **Q.18** | — | lower case, complete | 14 Sep 2026 |
