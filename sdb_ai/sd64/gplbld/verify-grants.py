@@ -62,7 +62,7 @@ VERB_RECORD = "V\nCA\n$GRANTA\n"
 MESSAGES = [str(n) for n in range(10041, 10051)] + \
            [str(n) for n in range(10126, 10130)] + ["10911"]
 
-TIER_LIST = "TIER.ADD.ADMINISTRATOR"
+TIER_LIST = "add.administrator"           # moved to sdsys/tier.policy 13 Sep 26
 
 
 class Report:
@@ -153,7 +153,7 @@ def main():
                     "%r" % body)
 
     # ---- D. the tier list names them
-    tier_path = os.path.join(sdsys, "newvoc", TIER_LIST)
+    tier_path = os.path.join(sdsys, "tier.policy", TIER_LIST)
     tier_body = read_text(tier_path)
     if tier_body is None:
         rep.row(False, "D %s" % TIER_LIST, "%s - absent" % tier_path)

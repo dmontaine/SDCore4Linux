@@ -80,6 +80,7 @@ NAME_CATEGORIES = [
     ("SYSCOM include records", "syscom", "include records"),
     ("NEWVOC record ids", "newvoc", "the shipped VOC"),
     ("VOC_TEMPLATE record ids", "voc_template", "the per-account VOC template"),
+    ("tier.policy records", "tier.policy", "the tier verb-id lists (13 Sep 26)"),
 ]
 
 # The behavioural sites §M must also change - a checklist, not a name scan.

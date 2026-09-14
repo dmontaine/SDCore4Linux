@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Tier omit/add lists read from sdsys/tier.policy, not NEWVOC
+*               (plan M / port a47526f): opened fail-safe, skip tests gone.
 * 13 Sep 26 dm  No longer turns case inversion on at sign-on (plan M).
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner's
 *               rulings of 12 and 13 Sep): the register key is the lower-cased
@@ -604,6 +606,14 @@ update.voc:
       goto abort.login
    end
 
+* 13 Sep 26 dm - SL M / port a47526f.  The tier policy lists moved out of NEWVOC
+*   into sdsys/tier.policy (verb-id lists, not VOC records).  Fail-safe if it
+*   will not open: no omit list is the full VOC, and no add list is a
+*   programmer's VOC for an ADMINISTRATOR - the direction the lists have always
+*   failed.  See createa for the full note.
+   tierpol.open = @false
+   openpath @sdsys:@ds:'tier.policy' to tierpol.f then tierpol.open = @true
+
 * 10 Sep 26 dm - SL1, THE TIER FILTER.  CREATEA gives a STANDARD account NEWVOC
 *   less the verbs in TIER.OMIT.STANDARD; this routine re-copied all of NEWVOC
 *   and handed them straight back - BASIC, CATALOG, RUN, ED, COPY.  ***AND IT
@@ -619,8 +629,8 @@ update.voc:
 *   from VOC_TEMPLATE, not NEWVOC, so this routine neither adds nor removes them.
    omit.rec = ''
    omit.tier = upcase(trim(update.voc.tier))
-   if omit.tier # '' and omit.tier # 'PROGRAMMER' and omit.tier # 'ADMINISTRATOR' then
-      read omit.rec from sdsys.file, 'TIER.OMIT.STANDARD' else omit.rec = ''
+   if omit.tier # '' and omit.tier # 'PROGRAMMER' and omit.tier # 'ADMINISTRATOR' and tierpol.open then
+      read omit.rec from tierpol.f, 'omit.standard' else omit.rec = ''
    end
    omit.count = dcount(omit.rec, @fm)
 
@@ -628,11 +638,11 @@ update.voc:
    loop
       readnext id from 11 else exit
 
-*     The two control records are never VOC entries, whatever the tier.  Case
-*     insensitive, as CREATEA, so it survives the lower-case conversion (SL M).
+* 13 Sep 26 dm - port a47526f.  The two copy.it = @false skip tests that stood
+*     here (TIER.OMIT.STANDARD, TIER.ADD.ADMINISTRATOR) are gone with the
+*     records: the tier lists moved to sdsys/tier.policy, so NEWVOC holds only
+*     VOC entries now and there is nothing here to skip.
       copy.it = @true
-      if upcase(id) = 'TIER.OMIT.STANDARD' then copy.it = @false
-      if upcase(id) = 'TIER.ADD.ADMINISTRATOR' then copy.it = @false
       if copy.it and omit.count > 1 then
          for omit.i = 2 to omit.count       ;* field 1 is the description
             if upcase(trim(omit.rec<omit.i>)) = upcase(id) then
@@ -774,9 +784,9 @@ accept.without.query:
 *   MODIFY.ACCOUNT keeps verbs its tier no longer earns.  That is update.voc's
 *   existing property, not a new one, and MODIFYA's voc.delta is what deletes
 *   on the way down.
-   if upcase(trim(update.voc.tier)) = 'ADMINISTRATOR' then
+   if upcase(trim(update.voc.tier)) = 'ADMINISTRATOR' and tierpol.open then
       layer.added = 0
-      read layer.rec from sdsys.file, 'TIER.ADD.ADMINISTRATOR' then
+      read layer.rec from tierpol.f, 'add.administrator' then
          layer.n = dcount(layer.rec, @fm)
          if layer.n > 1 then
             openpath @sdsys:@ds:'voc_template' to layer.f then
@@ -825,6 +835,7 @@ accept.without.query:
    end
 
    close sdsys.file
+   if tierpol.open then close tierpol.f
 
    return
 

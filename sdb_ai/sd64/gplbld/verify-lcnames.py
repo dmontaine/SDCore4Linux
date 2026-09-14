@@ -175,9 +175,9 @@ def main():
     run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
              " letter", [], upper_cmds[:10])
     unresolved = []
-    for lst, src in (("TIER.OMIT.STANDARD", "newvoc"),
-                     ("TIER.ADD.ADMINISTRATOR", "voc_template")):
-        body = readtxt(os.path.join(V.SDSYS, "newvoc", lst))
+    for lst, src in (("omit.standard", "newvoc"),
+                     ("add.administrator", "voc_template")):
+        body = readtxt(os.path.join(V.SDSYS, "tier.policy", lst))
         if not body:
             unresolved.append("%s: absent or empty" % lst)
         for n in [l.strip() for l in body.splitlines()[1:] if l.strip()]:

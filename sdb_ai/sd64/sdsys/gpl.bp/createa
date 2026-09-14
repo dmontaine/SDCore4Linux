@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Tier policy lists read from sdsys/tier.policy, not NEWVOC (plan
+*               M / port a47526f): opens it fail-safe, the two copy-loop skip
+*               tests gone with the records.
 * 13 Sep 26 dm  Account names are lower case (plan M, owner): the register key
 *               is stored downcased, and a GROUP account's directory is too.
 * 13 Sep 26 dm  A new account's command-stack VOC record is $command.stack (plan
@@ -678,20 +681,30 @@ make.account:
       stop sysmsg(6018) ;* Cannot open SDSYS NEWVOC
    end
 
+* 13 Sep 26 dm - SL M / port a47526f.  THE TIER POLICY LISTS LIVE IN THEIR OWN
+*   FILE NOW, sdsys/tier.policy, not in NEWVOC.  They are control data - verb-id
+*   lists, field 1 a comment - not VOC records, so a VOC file held a malformed
+*   entry and the copy loop below had to skip them.  Fail-safe if it will not
+*   open: no policy, which is the full NEWVOC for a STANDARD account and a
+*   programmer's VOC for an ADMINISTRATOR - the direction the lists have always
+*   failed.
+   tierpol.open = @false
+   openpath @sdsys:@ds:'tier.policy' to tierpol.f then tierpol.open = @true
+
 * 10 Sep 26 dm - SL1, the per-tier VOC.  The VOC an account gets now depends on
 *   its tier (the `tier` variable set above, written to ACC$TIER).  STANDARD gets
-*   NEWVOC less the verbs named in NEWVOC's TIER.OMIT.STANDARD ("run an
+*   NEWVOC less the verbs named in tier.policy's omit.standard ("run an
 *   application, not build one"); PROGRAMMER gets NEWVOC entire; ADMINISTRATOR
-*   gets that plus the admin verbs named in TIER.ADD.ADMINISTRATOR, copied from
-*   VOC_TEMPLATE.  The two control records are never copied into an account VOC.
-*   Matching is case-insensitive so it survives the lower-case conversion (SL M).
+*   gets that plus the admin verbs named in tier.policy's add.administrator,
+*   copied from VOC_TEMPLATE.  Matching is case-insensitive so it survives the
+*   lower-case conversion (SL M).
    omit.rec = ''
    add.rec = ''
-   if tier = 'STANDARD' then
-      read omit.rec from newvoc.f, 'TIER.OMIT.STANDARD' else omit.rec = ''
+   if tier = 'STANDARD' and tierpol.open then
+      read omit.rec from tierpol.f, 'omit.standard' else omit.rec = ''
    end
-   if tier = 'ADMINISTRATOR' then
-      read add.rec from newvoc.f, 'TIER.ADD.ADMINISTRATOR' else add.rec = ''
+   if tier = 'ADMINISTRATOR' and tierpol.open then
+      read add.rec from tierpol.f, 'add.administrator' else add.rec = ''
    end
    omit.count = dcount(omit.rec, @fm)
 
@@ -700,8 +713,11 @@ make.account:
       readnext id from 11 else exit
 
       copy.it = @true
-      if upcase(id) = 'TIER.OMIT.STANDARD' then copy.it = @false
-      if upcase(id) = 'TIER.ADD.ADMINISTRATOR' then copy.it = @false
+* 13 Sep 26 dm - port a47526f.  The two copy.it = @false skip tests that stood
+*   here (TIER.OMIT.STANDARD, TIER.ADD.ADMINISTRATOR) are gone with the records:
+*   the tier lists moved to sdsys/tier.policy, so NEWVOC holds only VOC entries
+*   now and there is nothing here to skip.  An upgrade replaces NEWVOC wholesale,
+*   so no pre-move copy survives to reintroduce them into an account.
       if copy.it and omit.count > 1 then
          for omit.i = 2 to omit.count
             if upcase(trim(omit.rec<omit.i>)) = upcase(id) then
@@ -728,6 +744,7 @@ make.account:
    repeat
 
    close newvoc.f
+   if tierpol.open then close tierpol.f
 
    if tier = 'ADMINISTRATOR' then
       add.count = dcount(add.rec, @fm)

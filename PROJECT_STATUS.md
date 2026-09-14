@@ -79,43 +79,47 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
-***HANDOFF, 13 Sep 2026 22:40 — session ended on credits, NOT on a problem.
-Tree clean at `4c4a904`, pushed, `assert-current` 0, install `51da55b` current
-and witnessed (block below). Nothing is half-applied; the next task had not been
-started.***
+***14 Sep 2026 — tier.policy move DONE IN SOURCE, UNWITNESSED. Next step is the
+install + suite (owner-run); the BASIC could not be compiled here (SDSYS
+compiles it at reinstall).*** Tree will be at the commit this session pushes;
+install is still `51da55b` until the cycle runs, so `assert-current` reads STALE
+until then.
 
-***NEXT TASK (NOT STARTED — written in the conditional): adopt the port's
-`a47526f`, "move the tier policy lists out of newvoc into a dedicated file".***
-It is the last item in the §M name half: `verify-nocase` reads exactly 2
-remnants, both NEWVOC ids — `TIER.OMIT.STANDARD` (44 lines),
-`TIER.ADD.ADMINISTRATOR` (20 lines) — and everything else is 0.
-- ***The port's reasoning, which is the part to keep:*** these are control data
-  (field 1 a comment, fields 2+ verb ids), not VOC records, so a VOC file
-  holding them shows them as malformed under `LIST VOC` and forces the copy
-  loops to special-case-skip them. ***So it is removal, not a rename*** — and
-  that is why it also clears the last two upper-case names.
-- ***Shape:*** a directory file `sdsys/tier.policy`, records `omit.standard` and
-  `add.administrator`, opened by path (`@sdsys/tier.policy`), no VOC entry.
-- ***Read sites here, measured 13 Sep (grep, not read from the port):***
-  `gpl.bp/createa:691,694` (+ the two skip tests `:703,:704`),
-  `gpl.bp/login:623,779` (+ skips `:634,:635`), `gpl.bp/modifya:755,761,772,781`
-  — ***8 reads, where the port's message says 7***; measure before trusting
-  either number. CREATEA/LOGIN open fail-safe in the port (missing file → no
-  policy → full newvoc, nothing administrative); MODIFYA hard-fails so 10114
-  "tier unchanged" stays the true answer.
-- ***Also naming the records, so they do not get missed:*** `verify-editors.py:70`,
-  `verify-grants.py:65`, `verify-lcnames.py:178-179` (its pair reads
-  `TIER.ADD.ADMINISTRATOR` from **voc_template**, not newvoc),
-  `gplbld/verify-tier-layer.bp:36` (its null-case refusal is keyed on that read).
-- ***The installer ships `sdsys` wholesale***, so a new directory file needs no
-  installer change — ***check that claim before relying on it***; the port needed
-  a `stage.py` mirror entry for the same move.
-- ***Would falsify:*** `verify-nocase` not reaching 0 remnants; a fresh
-  STANDARD account gaining an omitted verb (tier-layer, grants); `MODIFY.ACCOUNT`
-  reporting a tier change it did not make.
-- ***Cycle:*** touches newvoc and BASIC only, no account holds these names, so a
-  keep cycle should do — the usual commit → push → `deletesdai.sh` /
-  `installsdai.sh` as `don`, never sudo, then the suite.
+***THE §M NAME HALF REACHES 0 IN SOURCE.*** `verify-nocase` now prints
+***§M NAME HALF: COMPLETE*** — 0 name remnants, all 3 code sites ` ok `. The two
+former NEWVOC remnants (`TIER.OMIT.STANDARD`, `TIER.ADD.ADMINISTRATOR`) moved to
+a new directory file `sdsys/tier.policy` as records `omit.standard`,
+`add.administrator` (port `a47526f`, adopted). NEWVOC 398→396 records, all lower;
+sdsys dirs 15→16, all lower.
+
+***WHAT WAS DONE (all in one commit):***
+- `git mv` the two records into `sdsys/tier.policy/{omit.standard,add.administrator}`
+  (bytes/history preserved); field 1 (the comment) rewritten to name the new
+  location and this tree's readers.
+- `gpl.bp/createa`, `gpl.bp/login`, `gpl.bp/modifya`: open `@sdsys/tier.policy`,
+  read the lists from it. ***8 reads confirmed here by grep, not 7*** —
+  this tree's `login:779` reads `add.administrator` too (the port's login does
+  not). createa/login open FAIL-SAFE (missing file → no policy → full newvoc /
+  programmer's VOC for an admin); modifya HARD-FAILS (both files needed to
+  compute a tier change, so a missing one keeps 10114 the true answer). The 4
+  copy-loop skip tests (createa, login) deleted with the records.
+- Verifiers repointed: `verify-editors.py` (OMIT path), `verify-grants.py`
+  (TIER_LIST + path), `verify-lcnames.py` (reads the lists from tier.policy;
+  `src` still newvoc/voc_template for where the verbs resolve),
+  `verify-tier-layer.bp` (opens tier.policy, reads `add.administrator`).
+  `voc_template` never held either record — measured, correcting the handoff.
+- changelog entry (admins who customise tiers edit tier.policy now).
+- Installer needs no change: `installsdai.sh:566` `cp -R sdsys /usr/local` ships
+  the whole tree — verified, not assumed.
+
+***THE WITNESS (owner-run): commit → push → `deletesdai.sh` / `installsdai.sh`
+as `don`, never sudo → suite.*** A BASIC syntax error fails the install visibly
+(old install keeps running); recovery is delete+reinstall of the prior commit.
+Then: `verify-nocase` 0 remnants on the INSTALL; the full suite green
+(especially `tier-layer` 0 short, `grants` 16/0, `editors`, `lcnames`); a fresh
+STANDARD account still lacks the omitted verbs and an ADMINISTRATOR still gains
+the layer; `MODIFY.ACCOUNT` tier moves still work (10114 only on real failure).
+***WOULD FALSIFY:*** any of those red, or `assert-current` not reaching 0.
 
 ***GPL.BP + SYSCOM RECORD NAMES LOWER CASE — INSTALLED AND WITNESSED on
 `51da55b`*** (owner keep cycle, `.sdcore-install` 22:24:13, boot 22:25:48,

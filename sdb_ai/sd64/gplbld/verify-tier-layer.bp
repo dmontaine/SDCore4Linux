@@ -26,15 +26,17 @@
 
 $include keys.h
 
-      crt 'TLPROBE  -  TIER.ADD.ADMINISTRATOR layer, per registered account'
+      crt 'TLPROBE  -  tier.policy add.administrator layer, per registered account'
       crt ''
 
-      openpath @sdsys:@ds:'newvoc' to nv else
-         crt 'REFUSED: cannot open NEWVOC - this measured nothing.'
+*     13 Sep 26 - the layer list moved from newvoc/TIER.ADD.ADMINISTRATOR to
+*     sdsys/tier.policy record add.administrator (SL M / port a47526f).
+      openpath @sdsys:@ds:'tier.policy' to nv else
+         crt 'REFUSED: cannot open sdsys/tier.policy - this measured nothing.'
          stop
       end
-      read layer from nv, 'TIER.ADD.ADMINISTRATOR' else
-         crt 'REFUSED: no TIER.ADD.ADMINISTRATOR record - measured nothing.'
+      read layer from nv, 'add.administrator' else
+         crt 'REFUSED: no add.administrator record - measured nothing.'
          stop
       end
       close nv

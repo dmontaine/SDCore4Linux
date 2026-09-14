@@ -67,7 +67,7 @@ GCAT_EDIT = os.path.join(V.SDSYS, "gcat", "$EDIT")
 SRC_EDIT = os.path.join(V.SDSYS, "gpl.bp", "edit")     # record names lower since 13 Sep 26
 SRC_MICRO = os.path.join(V.SDSYS, "gpl.bp", "micro")
 VOCT = os.path.join(V.SDSYS, "voc_template")
-OMIT = os.path.join(V.SDSYS, "newvoc", "TIER.OMIT.STANDARD")
+OMIT = os.path.join(V.SDSYS, "tier.policy", "omit.standard")  # moved 13 Sep 26
 
 # The suffix GPL.BP/EDIT gives the working copy so the editor can detect the
 # language (EDIT:41-43, :190-191).  The nanorc's own syntax regex has to match
