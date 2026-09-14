@@ -16,6 +16,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  TWO MORE QUESTIONS NO LONGER WAIT FOR EVER WHEN NOBODY ANSWERS.
+
+           "Use active select list?", asked by DELETE, COPY, CD, CT, ED and
+           DELETE.FILE when a select list is active, now reads (y/<n>) and
+           takes Enter as N in all six commands, which stops without changing
+           anything.  Before, only DELETE.FILE did; the other five asked
+           again for ever, beeping, when run from a script.
+
+           DELETE.FILE on a multifile asked "Delete all data components?",
+           and neither answer left the file alone: N still deleted its
+           dictionary.  It now offers a third answer, C to cancel, which
+           deletes nothing, and Enter means C.  Y and N do what they did.
+           This matches SD Core for Windows.
+
+           WHAT DOES NOT CHANGE: answering Y does exactly what it did.
+
+
 14 Sep 26  BACKSPACE WORKS AT THE COMMAND LINE WHICHEVER BYTE YOUR TERMINAL
            SENDS.
 

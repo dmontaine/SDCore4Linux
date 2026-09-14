@@ -31,9 +31,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED built into `witness-release-run.sh` §8; SH/OS not owed; left: §8 at the next cycle, rotation at 1 MB | — |
 | ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
 | ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
-| ⬜ | **W.3** | R·M | `DELETE.FILE` on a multifile, 6133: what should N do? | — |
-| ◐ | **Q.3b** | R·M | Enter takes the default at most Y/N prompts; left: rulings W.2 and W.3 | — |
-| ◐ | **W.2** | R·L | 2050's Enter default built for `DELETEF`; left: rule and build it for `DELETE`, `COPY`, `CD`, `CT`, `ED` | — |
+| ◐ | **W.3** | M | 6133: the port RULED 13 Sep (cancel answer C, Enter = C); built 14 Sep; left: `witness-release-run.sh` §5b at the next cycle | — |
+| ◐ | **Q.3b** | M | Enter takes the default at every Y/N prompt; W.2 and W.3 built 14 Sep on the port's rulings; left: §5b at the next cycle | — |
+| ◐ | **W.2** | M | 2050: the port RULED 13 Sep (Enter = N in all six); built in `DELETE`, `COPY`, `CD`, `CT`, `ED` 14 Sep, message `(y/<n>)`; left: §5b at the next cycle | — |
 | ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
@@ -244,6 +244,19 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***NINTH SESSION, 14 Sep 2026 — BUILT, NOT INSTALLED (next cycle):*** W.2
+and W.3 were ***answered by the port's record***, not asked: its
+`RELEASE_1.1_FIXES.md` 33 (owner, 13 Sep) — Enter = N at 2050 in all six, and
+6133 gains C (Enter = C). Built as the port's lines, messages 2050/6133 reworded.
+***TRAP, MEASURED:*** the Write tool had stripped 5026's trailing space (installed
+as `(y/<n>)?` + LF; the port hit the same on 13 Sep), so 5026, 2050 and 6133 were
+written by a scratchpad script building the space from `chr(32)`, byte-checked,
+3 one-line diffs. The other ten `?`-ending messages without a space are
+byte-identical to the port's and left. `witness-release-run.sh` gains §5b (the
+port's verify-promptenter legs 7–8) and §8 (Q.13's ADD/DELETE/ELEVATION REFUSED,
+second throwaway `zzrel2`). ***Next cycle:*** keep cycle, `assert-current`,
+`witness-release-run.sh --commit`.
 
 ***HAND-OFF, 14 Sep 2026, eighth session — ONE CYCLE, `984be50` (13:37).***
 Owner-run: `verify-keys.py` ***36/36*** (the backspace fix; red 34/36 before);

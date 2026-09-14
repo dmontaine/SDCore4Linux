@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  6133 gains a cancel answer, C, which Enter takes (W.3, the
+*               port's ruling of 13 Sep 26).
 * 13 Sep 26 dm  The file name tries lower case, silently, before the upper-case
 *               guess and its prompt (plan M3 D4).
 * 12 Sep 26 dm  Opens voc in lower case; the banned list stays upper, and why
@@ -268,6 +270,19 @@ delete.upcased.file:
                display sysmsg(6133) :  ;* Delete all data components of multifile?
                input yn
                yn = upcase(yn)
+* 14 Sep 26 dm - W.3, the port's ruling of 13 Sep 26 (its RELEASE_1.1_FIXES
+*   33, owner): "add a cancel answer".  N IS NOT THE SAFE ANSWER HERE - it goes
+*   to delete.dict, which still deletes the dictionary - so neither Y nor N
+*   leaves the file alone.  C cancels: nothing is deleted, the VOC record is
+*   released untouched, and the status is ER$STOPPED, as when 6131 is declined.
+*   Enter means C.  Y and N keep their old meaning.  Before this the loop
+*   re-asked for ever at end of input.
+               if yn = '' then yn = 'C'
+               if yn[1,1] = 'C' then
+                  release voc.f, file.name
+                  @system.return.code = -ER$STOPPED
+                  return
+               end
             until yn = 'Y'
                if yn = 'N' then goto delete.dict
             repeat

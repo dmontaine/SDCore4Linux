@@ -110,7 +110,11 @@ process and semaphores `111111`.
    2050 an Enter meaning at all**, so there is no de-facto Y and nothing to be
    inconsistent with; port PRE_RELEASE 79 (destructive → N) then decides it
    unopposed. `DELETEF:126-175`. ***2050's shared TEXT still says no default
-   and cannot until the other five are ruled. THE OTHER FIVE ARE UNRULED.*** — and they are not one
+   and cannot until the other five are ruled. THE OTHER FIVE ARE UNRULED.*** ***(14 Sep 2026:
+   RULED BY THE PORT ON 13 Sep — `RELEASE_1.1_FIXES.md` 33, owner: *"Default to
+   N"* in all six — AND BUILT HERE: `if reply = '' then reply = 'N'` after the
+   `input` in `delete`, `copy`, `cd`, `ct`, `ed`; `messages/2050` ends
+   `(y/<n>)? `. Witness: `witness-release-run.sh` §5b.)*** — and they are not one
    decision, because Y is destructive in `DELETE` and `COPY` and merely
    proceeds in `CD`, `CT` and `ED`. All five still busy-loop at end of input.
    ***WITNESSED ON INSTALL `f446ac1`, 12 Sep 2026***: exit 0, 0.047 s, 635
@@ -121,8 +125,16 @@ process and semaphores `111111`.
    wrong: it forgot this entry's own measurement. The owner's terminal showed
    one because SD's `\r ESC[K` at end of input erased the second — the byte
    count is the instrument, not the rendering.
-3. [W.3] **`DELETE.FILE` on a multifile (6133 "Delete all data components?").**
-   Answering N does not mean "change nothing" — it jumps to `delete.dict` and
+3. [W.3] ***RULED BY THE PORT 13 Sep 2026 AND BUILT HERE 14 Sep, NOT INSTALLED.***
+   The port's `RELEASE_1.1_FIXES.md` 33 (owner: *"Add a cancel answer"*),
+   found 14 Sep — the check below of 12 Sep predates it: an empty answer
+   becomes C, C releases the VOC record and returns `ER$STOPPED` having deleted
+   nothing, Y and N unchanged; `messages/6133` *"… - Y all, N dictionary only,
+   C cancel (y/n/<c>)?"*. `deletef` block copied from port `DELETEF:264-280`.
+   ***Witness:*** `witness-release-run.sh` §5b (Enter and C delete nothing, both
+   components and the dictionary survive; N control still deletes the
+   dictionary). *(Earlier:)* **`DELETE.FILE` on a multifile (6133 "Delete all
+   data components?").** Answering N does not mean "change nothing" — it jumps to `delete.dict` and
    deletes the dictionary anyway. So there is no safe answer for Enter to take
    until someone says what N should do. ***CHECKED AGAINST THE PORT 12 Sep
    UNDER THE CONFORMANCE RULING AND IT CANNOT SETTLE THIS: the port's block is
