@@ -79,6 +79,44 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***HANDOFF, 13 Sep 2026 22:40 — session ended on credits, NOT on a problem.
+Tree clean at `4c4a904`, pushed, `assert-current` 0, install `51da55b` current
+and witnessed (block below). Nothing is half-applied; the next task had not been
+started.***
+
+***NEXT TASK (NOT STARTED — written in the conditional): adopt the port's
+`a47526f`, "move the tier policy lists out of newvoc into a dedicated file".***
+It is the last item in the §M name half: `verify-nocase` reads exactly 2
+remnants, both NEWVOC ids — `TIER.OMIT.STANDARD` (44 lines),
+`TIER.ADD.ADMINISTRATOR` (20 lines) — and everything else is 0.
+- ***The port's reasoning, which is the part to keep:*** these are control data
+  (field 1 a comment, fields 2+ verb ids), not VOC records, so a VOC file
+  holding them shows them as malformed under `LIST VOC` and forces the copy
+  loops to special-case-skip them. ***So it is removal, not a rename*** — and
+  that is why it also clears the last two upper-case names.
+- ***Shape:*** a directory file `sdsys/tier.policy`, records `omit.standard` and
+  `add.administrator`, opened by path (`@sdsys/tier.policy`), no VOC entry.
+- ***Read sites here, measured 13 Sep (grep, not read from the port):***
+  `gpl.bp/createa:691,694` (+ the two skip tests `:703,:704`),
+  `gpl.bp/login:623,779` (+ skips `:634,:635`), `gpl.bp/modifya:755,761,772,781`
+  — ***8 reads, where the port's message says 7***; measure before trusting
+  either number. CREATEA/LOGIN open fail-safe in the port (missing file → no
+  policy → full newvoc, nothing administrative); MODIFYA hard-fails so 10114
+  "tier unchanged" stays the true answer.
+- ***Also naming the records, so they do not get missed:*** `verify-editors.py:70`,
+  `verify-grants.py:65`, `verify-lcnames.py:178-179` (its pair reads
+  `TIER.ADD.ADMINISTRATOR` from **voc_template**, not newvoc),
+  `gplbld/verify-tier-layer.bp:36` (its null-case refusal is keyed on that read).
+- ***The installer ships `sdsys` wholesale***, so a new directory file needs no
+  installer change — ***check that claim before relying on it***; the port needed
+  a `stage.py` mirror entry for the same move.
+- ***Would falsify:*** `verify-nocase` not reaching 0 remnants; a fresh
+  STANDARD account gaining an omitted verb (tier-layer, grants); `MODIFY.ACCOUNT`
+  reporting a tier change it did not make.
+- ***Cycle:*** touches newvoc and BASIC only, no account holds these names, so a
+  keep cycle should do — the usual commit → push → `deletesdai.sh` /
+  `installsdai.sh` as `don`, never sudo, then the suite.
+
 ***GPL.BP + SYSCOM RECORD NAMES LOWER CASE — INSTALLED AND WITNESSED on
 `51da55b`*** (owner keep cycle, `.sdcore-install` 22:24:13, boot 22:25:48,
 `assert-current` 0 at 22:28). Installed tree: `gpl.bp` 0 upper-case names,
