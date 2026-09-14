@@ -9,6 +9,8 @@
 #     S.10  RUN folds the program name (3b)
 #     S.4   OS.EXECUTE runs at ADMINISTRATOR, 10054 at PROGRAMMER (6)
 #     S.3   Y at the release prompt keeps STANDARD's omit list out (7)
+#     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
+#           trail (8); a second throwaway, zzrel2, is made and removed
 #
 #   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
 #   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
@@ -83,6 +85,10 @@ FAIL=0
 NOT_REACHED=0
 MADE_USER=0
 MADE_ACCOUNT=0
+# Section 8 (Q.13) needs a SECOND account to grant to - don is never a fixture.
+ACC2=zzrel2
+MADE_USER2=0
+MADE_ACCOUNT2=0
 
 usage() { sed -n '2,16p' "$0"; exit 2; }
 
@@ -160,6 +166,10 @@ run_sd() {
     body="$body"$'\n''OFF'$'\n'
     if [ "$who" = root ]; then
         out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+    elif [ "${who#root:}" != "$who" ]; then
+        # root:<person> - a root session whose SUDO_USER names <person>, which
+        # is who CPROC's grant.administrator asks about (K$REAL.USER).
+        out=$(cd "$SDSYS" && printf '%s' "$body" | SUDO_USER="${who#root:}" timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
     else
         out=$(cd "$ADIR" && printf '%s' "$body" | timeout 60 runuser -u "$who" -- "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
     fi
@@ -198,6 +208,19 @@ cleanup() {
     [ "$COMMIT" -eq 1 ] || exit $rc
     head2 "CLEANUP - removing whatever this run made"
     [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ADOPT marker"; }
+    [ -e "$SDSYS/\$adopt.$ACC2" ] && { rm -f "$SDSYS/\$adopt.$ACC2"; say "  removed a leftover ADOPT marker for $ACC2"; }
+    if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
+        say "  deleting the SD account $ACC2 through SD"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC2"$'\n''Y'$'\n''OFF'$'\n' \
+            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+    fi
+    if [ "$MADE_USER2" -eq 1 ] && id -u "$ACC2" >/dev/null 2>&1; then
+        userdel -r "$ACC2" >/dev/null 2>&1 && say "  userdel -r $ACC2: done" \
+            || say "  userdel -r $ACC2: FAILED - remove it by hand"
+    fi
+    say "  left behind ($ACC2): register=$(yesno_file "$REGISTER/$ACC2")" \
+        "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC2") user=$(yesno_user "$ACC2")" \
+        "group=$(yesno_group "sdu_$ACC2")"
     if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
         say "  deleting the SD account through SD"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''Y'$'\n''OFF'$'\n' \
@@ -240,6 +263,10 @@ DIRTY=0
 [ "$(yesno_dir "$ADIR")" = yes ] && { say "  DIRTY: $ADIR exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC")" = yes ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }
 [ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ADOPT marker for $ACC exists"; DIRTY=1; }
+[ "$(yesno_user "$ACC2")" = yes ]  && { say "  DIRTY: Linux user $ACC2 exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC2")" = yes ] && { say "  DIRTY: group sdu_$ACC2 exists"; DIRTY=1; }
+[ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC2")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC2 exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC2")" = yes ] && { say "  DIRTY: register record $ACC2 exists"; DIRTY=1; }
 if [ "$DIRTY" -eq 1 ]; then
     say "witness-release-run: CANNOT RUN - the ground is not clear (above)."
     say "  This script will not touch state it did not create."
@@ -510,7 +537,51 @@ else
     [ "$COMMIT" -eq 1 ] && ck_absent "U7 Y updated the release: no prompt on the next sign-on" "Your VOC is at release level" "$OUT"
 fi
 
-head2 "8. verdict"
+# ==========================================================================
+# Q.13 - THREE AUDIT RECORD TYPES THE TRAIL HAD NEVER HELD.  Measured 14 Sep:
+# the trail on 984be50 (back to the 13 Sep 19:11 full install) held only
+# ELEVATION GRANTED, LOGIN, LOGTO, LOGTO REFUSED and MODIFY.ACCOUNT TIER.
+# The writers exist (modifya:246 ADD, :275 DELETE; cproc grant.administrator
+# ELEVATION REFUSED), so each is driven once and the NEW lines of the trail
+# are read - by line count, before and after, so an old record cannot pass.
+# zzrel1 is STANDARD by now, so the refused elevation names a person who is
+# not a registered administrator (10902).
+head2 "8. Q.13 - ADD, DELETE and ELEVATION REFUSED reach the audit trail"
+AUD="$SDSYS/audit"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ ! -f "$AUD" ]; }; then
+    for r in "T1 zzrel2 adopted" "T2 ADD said" "T3 DELETE said" "T4 elevation refused" "T5 ADD record" "T6 DELETE record" "T7 REFUSED record"; do not_reached "$r"; done
+else
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+    say "  audit trail before: $N0 lines ($AUD)"
+    say "  useradd -m $ACC2; ADOPT $ACC2"
+    if [ "$COMMIT" -eq 1 ]; then
+        if useradd -m "$ACC2"; then MADE_USER2=1; fi
+        touch "$SDSYS/\$adopt.$ACC2"
+    fi
+    run_oneshot -internal create-account USER "$ACC2" ADOPT no.query >/dev/null
+    [ "$COMMIT" -eq 1 ] && rm -f "$SDSYS/\$adopt.$ACC2"
+    [ "$COMMIT" -eq 1 ] && [ -e "$REGISTER/$ACC2" ] && MADE_ACCOUNT2=1
+    [ "$COMMIT" -eq 1 ] && ck "T1 $ACC2 adopted (register record)" yes "$(yesno_file "$REGISTER/$ACC2")"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC ADD $ACC2, then DELETE" \
+          "MODIFY.ACCOUNT $ACC ADD $ACC2" "MODIFY.ACCOUNT $ACC DELETE $ACC2")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T2 ADD said so (10018)" "$ACC2 added to group sdu_$ACC" "$OUT"
+        ck_says "T3 DELETE said so (10021)" "$ACC2 removed from group sdu_$ACC" "$OUT"
+    fi
+    OUT=$(run_sd "root:$ACC" "a root session whose SUDO_USER is $ACC (not an administrator)" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_says "T4 elevation refused, in 10902's words" "$ACC is not a registered SD administrator" "$OUT"
+    if [ "$COMMIT" -eq 1 ]; then
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        say "  audit trail after: $(wc -l < "$AUD") lines; the new records naming $ACC:"
+        printf '%s\n' "$NEW" | grep -F "$ACC" | sed -e 's/^/      | /'
+        ck_says "T5 the ADD record is new in the trail" "MODIFY.ACCOUNT ADD account=$ACC to=$ACC2" "$NEW"
+        ck_says "T6 the DELETE record is new in the trail" "MODIFY.ACCOUNT DELETE account=$ACC from=$ACC2" "$NEW"
+        ck_says "T7 the ELEVATION REFUSED record is new, naming $ACC" "sudo=$ACC" "$(printf '%s\n' "$NEW" | grep -F 'ELEVATION REFUSED reason=not a registered administrator')"
+    fi
+fi
+
+head2 "9. verdict"
 if [ "$COMMIT" -eq 0 ]; then
     say "  DRY RUN - nothing was executed and nothing was checked."
     say "  Re-run with --commit, as root:"
