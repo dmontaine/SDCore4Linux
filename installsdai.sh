@@ -41,6 +41,9 @@
 #
 #   13 Sep 2026 - account names are lower case, the system account included:
 #   its register record is accounts/sdsys.
+#
+#   14 Sep 2026 - the closing "two reboots / kickstart" note is gone: the
+#   Type=oneshot unit held on every boot start since 13 Sep (PRE_RELEASE 29).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -1108,12 +1111,6 @@ echo "and the APIsrvr Service is enabled."
 echo
 echo "After rebooting, open a terminal and enter \'sd\' "
 echo "to connect to your sd home directory."
-echo
-echo "Note: In rare cases it requires two reboots for sd to autostart"
-echo "      If it still does not start, kickstarting it one time will"
-echo "      fix the problem. The kickstart command is:"
-echo
-echo "      sudo /usr/local/sdsys/bin/sd -start"
 echo
 echo
 printf "%b----------------------------------------------------------------\n" "$NC" 
