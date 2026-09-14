@@ -20,6 +20,9 @@
  * 
  * START-HISTORY:
  * rev 0.9.0 Jan 25 mab initial commit
+ * 14 Sep 26 dm  SD_EUID_SET reloads root's supplementary groups before the
+ *               drop, so a session sees account groups created since it
+ *               started (PROJECT_STATUS S.2).
   * START-DESCRIPTION:
  *
  *
@@ -34,6 +37,7 @@
 #include "sd.h"
 #include <linux/limits.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include "keys.h"
 
@@ -57,6 +61,25 @@ void sdext_eguid_set(int key, char* Arg){
       
       caller_uid = getuid ();  // returns the real UID of the current process
       caller_gid = getgid();   // returns the real group ID of the current process
+
+      /* 14 Sep 26 dm - S.2.  Reload the supplementary groups while still root.
+         seteuid() keeps the group list the process started with, and the
+         euid drop below leaves file access to those groups (root is a member
+         of every sdu_<account> group; sdsys often is not).  So a sudo sd
+         session could not LOGTO an account whose group was created after it
+         started: a fatal 3001 at CPROC's openpath "voc".  Witnessed 14 Sep
+         2026 with root run without sdu_don (setpriv --groups 979); with the
+         group, the same LOGTO entered don.  This runs at
+         session start and after every privileged verb (CPROC's drop back), so
+         the list is current then.  It grants root no group it is not already
+         a member of.  A failure keeps the old list and is not an error: the
+         drop still happens exactly as before.  getpwuid() before getpwnam()
+         below, which reuses the same static buffer.                          */
+      if (geteuid() == 0) {
+        pwd = getpwuid(caller_uid);
+        if (pwd != NULL)
+          (void)initgroups(pwd->pw_name, caller_gid);
+      }
 
       /* attempt to set to user uid */
       /* first get users uid         */

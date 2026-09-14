@@ -25,7 +25,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
 | ◐ | **S.8** | S | `kernel(K$INTERNAL, n)` guard built + compiled 14 Sep; left: an install that bootstraps and signs on with it | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ⬜ | **S.2** | S | lead: `LOGTO` 3001 under `sudo sd`; piping and bare uid mismatch ruled out 14 Sep; stale supplementary groups suspected; one owner `setpriv` command decides | — |
+| ◐ | **S.2** | S | `LOGTO` 3001 under `sudo sd` with stale groups, witnessed 14 Sep; `initgroups` fix built + compiled; left: install, re-run the `setpriv` command | — |
 | ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
 | ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
 | ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
@@ -153,8 +153,23 @@ owner's ruling comes first.
   failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
   disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
   CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
-- ***[S.2] LEAD, STILL OPEN; NARROWED TWICE 14 Sep 2026. Not piping (as `don`),
-  and not the bare uid mismatch below, which the owner's run contradicted:***
+- ***[S.2] DEFECT WITNESSED 14 Sep 2026, FIX BUILT + COMPILED, NOT INSTALLED.***
+  Owner-run `sudo setpriv --groups 979 sh -c 'id; printf "LOGTO don\nWHO\nQUIT\n"
+  | /usr/local/sdsys/bin/sd'` on `83e5ccf` → `00003943: Error 3001 opening file
+  at line 2952 of $CPROC`, `WHO` → `3 sdsys` (stayed); the control, same with
+  root's full groups, entered `don` (`2 don from sdsys`). Only the groups
+  differed (the `id` line was not in the paste). ***Fix:*** `sdext_eguid.c`
+  `SD_EUID_SET` calls `initgroups(<real user>, gid)` while still euid 0, before
+  the drop — at session start (`cproc:344`) and after each privileged verb
+  (`cproc:1820`), so a group made by `CREATE.ACCOUNT` is seen by the same
+  session. Grants root nothing it is not a member of; no ownership or read-only
+  change. ***Witness after install:*** the same `setpriv` command must enter `don`
+  (the startup refresh restores `sdu_don`); falsified by a 3001. ***Not covered:***
+  a group added outside SD mid-session is seen only after the next privileged
+  verb; and `dh_open.c`'s real-uid `access()` still turns a permission refusal
+  into a fatal "3001 opening file" rather than a message — not changed.
+  *(Earlier narrowing follows.)* Not piping (as `don`), and not the bare uid
+  mismatch below, which the owner's first run contradicted:
   `printf 'LOGTO don\nWHO\nQUIT\n' | sudo /usr/local/sdsys/bin/sd` → `2 don from
   sdsys`, no 3001. Why: `root` is a member of `sdu_don` (`getent group sdu_don`
   → `root,don`; CREATEA `:1006` adds `root,sdsys,<user>`), so the open succeeds
@@ -222,9 +237,10 @@ and **P.11** (`check-msglen.py` derives its bound; `test-msglen-units.py` 10/10,
 now the sixteenth free check, all green 7.3 s). Built + compiled, not installed:
 **Q.28** (message 10918) and **S.8** (K_INTERNAL guard) — ***the tree `bin/sd`
 now differs from the install `83e5ccf`***, so both want the next install cycle.
-**S.2** narrowed: piping ruled out as `don`; a real/effective-uid mismatch under
-`sudo sd` is suspected from source and one owner `sudo` command decides it (the
-entry has it). Next: that command, then an install to witness Q.28/S.8.
+**S.2** witnessed by the owner (root without `sdu_don` → 3001; with it → enters)
+and fixed in `sdext_eguid.c` (`initgroups` before the euid drop), built +
+compiled. Next: commit → push → an install cycle, then witness Q.28, S.8 and
+S.2 on it (S.2's command is in its entry).
 
 ***HAND-OFF, 14 Sep 2026, second session (credits).*** The task table at the
 top of this file is new and is the authority on what is left; read it first.
