@@ -22,10 +22,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.10** | S | `RUN BP ZZX` did not fold the program name (5073 for `bp.out/zzx`); fold built in `cproc` `int.run` 14 Sep; left: install, then `witness-release-run.sh` F1 | — |
-| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: `witness-release-run.sh --commit` (12:55 run NOT REACHED behind S.10) | — |
+| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 installed; 13:07 witness used a 100-char id, over MAXIDLEN 63 → "not found"; reworked to a deep F-pointer; left: re-run at the next install cycle (batch it) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ◐ | **S.9** | M | LOGIN's `$release` prompt 5026: Enter/EOF = N and `(y/<n>)` installed `6e5b2f5`; left: `witness-release-run.sh --commit` (12:55 run NOT REACHED behind S.10) | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
 | ◐ | **P.1** | M | the port's PowerShell helpers, testing half via Queue 22; left: walk `upgrade-dicts`, `clean-deadvoc`, `restart-sd` | — |
@@ -61,6 +59,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **P.29** | — | `sd.service` stays up at boot; installer's kickstart note dropped | 14 Sep 2026 |
 | ✅ | **S.2** | — | `sudo sd` reloads root's groups, so `LOGTO` reaches a newer account group | 14 Sep 2026 |
 | ✅ | **S.8** | — | `kernel(K$INTERNAL, n)` sets internal mode only from `$internal` code | 14 Sep 2026 |
+| ✅ | **S.9** | — | LOGIN's `$release` prompt: Enter and end of input mean N, and it says so | 14 Sep 2026 |
+| ✅ | **S.10** | — | `RUN` folds the program name, as `BASIC` does | 14 Sep 2026 |
 | ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
 | ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
 | ✅ | **Q.18** | — | lower case, complete | 14 Sep 2026 |
@@ -225,8 +225,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`6e5b2f5`**, stamped 14 Sep 2026 12:20:13,
-  owner keep cycle, `assert-current` current — carries S.9, Q.25, P.16.
+- **Runtime:** install built from **`d704658`**, stamped 14 Sep 2026 13:06:01,
+  owner keep cycle — carries S.10. HEAD has moved past it (witness script only).
+  *(Superseded:)* `6e5b2f5`, 12:20:13 — S.9, Q.25, P.16.
   *(Superseded:)* `ca4c07c`, 11:51:03 — P.29, Q.28, S.8, S.2.
   *(Superseded:)* `83e5ccf`, stamped 13 Sep 2026 23:06:38
   (`.sdcore-install`, read 14 Sep), owner keep cycle — carries §M and the
@@ -242,8 +243,22 @@ owner's ruling comes first.
 
 ## START HERE
 
+***HAND-OFF, 14 Sep 2026, sixth session.*** Owner keep cycle installed
+`d704658` (13:06, `assert-current` current); `witness-release-run.sh --commit`
+13:07, 18/19: ***S.10 CLOSED*** (F1 `RUN BP ZZSHOW` → `ZZSHOW field 2 = L0.9-9`,
+no 5073); ***S.9 CLOSED*** ((a) blank → `5 zzrel1`, no 5027, prompt read
+`(y/<n>)?`; (b) `</dev/null` → prompt once, "Process terminated", exit 0; (c)
+field 2 still `L0.9-9`); S.2's real case passed again (`2 zzrel1 from sdsys`).
+***Q1 FAILED AND IT WAS THE INSTRUMENT:*** the 100-character record id is over
+`MAXIDLEN` 63 (`config.c:139`, `valid_id` `op_dio3.c:1778`), so RUN said
+`Program BP.OUT zzq… not found` before measuring the path. So a `bp.out` run
+path cannot pass 128 in a standard account (23 + 32 + 8 + 63 = 126); the
+section now reaches it through a VOC F-pointer to a 158-character directory.
+The script change makes the install stale, so Q.28's re-run waits for the next
+cycle. Cleanup complete both runs.
+
 ***[S.10] HAND-OFF, 14 Sep 2026, fifth session — `RUN` DID NOT FOLD THE PROGRAM
-NAME; FOLD BUILT, NOT INSTALLED.*** Owner-run on `6e5b2f5` (`assert-current`
+NAME; CLOSED in the sixth session (above).*** Owner-run on `6e5b2f5` (`assert-current`
 current): `verify-sysperms.py` ***28/28*** (dump `dumps/sddump.5` `don:don 0600`,
 listing refused) — Q.25 closed; the install built with plain `make` — P.16
 closed. `witness-release-run.sh --commit` 12:55: S.2's real case PASSED (groups
