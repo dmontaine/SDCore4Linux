@@ -12,6 +12,15 @@
 #     S.3   Y at the release prompt keeps STANDARD's omit list out (7)
 #     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
 #           trail (8); a second throwaway, zzrel2, is made and removed
+#     Q.14  10043's claim: a session open during a GRANT (10)
+#     S.6   a plain-sd administrator reaches SH; LOGTO reloads the grants (11)
+#     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
+#           zzrel3, carries SD's "SD account" stamp and is deleted by SD
+#     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
+#     Q.12  ssh into a SUSPENDED account is refused, after a control (14);
+#           a throwaway ssh key is installed for zzrel1 only
+#     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
+#     updates every account's VOC as each install does.
 #
 #   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
 #   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
@@ -90,6 +99,12 @@ MADE_ACCOUNT=0
 ACC2=zzrel2
 MADE_USER2=0
 MADE_ACCOUNT2=0
+# Section 12 (S.5) needs an account whose Linux user carries SD's "SD account"
+# stamp, to reach DELETE.ACCOUNT's SD-created branch and REMOVE.HOME.
+ACC3=zzrel3
+MADE_USER3=0
+MADE_ACCOUNT3=0
+SSHDIR=""
 
 usage() { sed -n '2,16p' "$0"; exit 2; }
 
@@ -234,6 +249,24 @@ cleanup() {
     say "  left behind: register=$(yesno_file "$REGISTER/$ACC")" \
         "dir=$(yesno_dir "$ADIR") user=$(yesno_user "$ACC")" \
         "group=$(yesno_group "sdu_$ACC") marker=$(yesno_file "$MARKER")"
+    # Section 12's zzrel3 is normally deleted by the section itself (that is
+    # the thing measured); this is the fallback if it stopped part-way.
+    [ -e "$SDSYS/\$adopt.$ACC3" ] && rm -f "$SDSYS/\$adopt.$ACC3"
+    if [ "$MADE_ACCOUNT3" -eq 1 ] && [ -e "$REGISTER/$ACC3" ]; then
+        say "  deleting the SD account $ACC3 through SD (fallback)"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC3"$'\n''Y'$'\n''OFF'$'\n' \
+            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+    fi
+    if [ "$MADE_USER3" -eq 1 ] && id -u "$ACC3" >/dev/null 2>&1; then
+        userdel -r "$ACC3" >/dev/null 2>&1 && say "  userdel -r $ACC3: done (fallback)" \
+            || say "  userdel -r $ACC3: FAILED - remove it by hand"
+    fi
+    if [ "$MADE_USER3" -eq 1 ]; then
+        say "  left behind ($ACC3): register=$(yesno_file "$REGISTER/$ACC3")" \
+            "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC3") user=$(yesno_user "$ACC3")" \
+            "group=$(yesno_group "sdu_$ACC3") home=$(yesno_dir "/home/$ACC3")"
+    fi
+    [ -n "$SSHDIR" ] && [ -d "$SSHDIR" ] && { rm -rf "$SSHDIR"; say "  removed the witness ssh key ($SSHDIR)"; }
     say "  log: $LOG"
     exit $rc
 }
@@ -268,6 +301,11 @@ DIRTY=0
 [ "$(yesno_group "sdu_$ACC2")" = yes ] && { say "  DIRTY: group sdu_$ACC2 exists"; DIRTY=1; }
 [ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC2")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC2 exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC2")" = yes ] && { say "  DIRTY: register record $ACC2 exists"; DIRTY=1; }
+[ "$(yesno_user "$ACC3")" = yes ]  && { say "  DIRTY: Linux user $ACC3 exists"; DIRTY=1; }
+[ "$(yesno_group "sdu_$ACC3")" = yes ] && { say "  DIRTY: group sdu_$ACC3 exists"; DIRTY=1; }
+[ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC3")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC3 exists"; DIRTY=1; }
+[ "$(yesno_file "$REGISTER/$ACC3")" = yes ] && { say "  DIRTY: register record $ACC3 exists"; DIRTY=1; }
+[ "$(yesno_dir "/home/$ACC3")" = yes ] && { say "  DIRTY: /home/$ACC3 exists"; DIRTY=1; }
 if [ "$DIRTY" -eq 1 ]; then
     say "witness-release-run: CANNOT RUN - the ground is not clear (above)."
     say "  This script will not touch state it did not create."
@@ -661,7 +699,246 @@ else
     fi
 fi
 
-head2 "9. verdict"
+# ==========================================================================
+# Sections 10-15 - the remaining owner witnesses, folded in 14 Sep 2026.
+# who_in <account> <text>: WHO printed "<n> <account>" (with or without "from").
+who_in() { printf '%s' "$2" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$1([[:space:]]|$)"; }
+ck_who() { if who_in "$2" "$3"; then ck "$1" yes yes; else ck "$1" yes no; fi; }
+ck_line() { if printf '%s' "$3" | grep -qxF -- "$2"; then ck "$1" yes yes; else ck "$1" yes no; fi; }
+ck_noline() { if printf '%s' "$3" | grep -qxF -- "$2"; then ck "$1" no yes; else ck "$1" no no; fi; }
+ctx() { say "  [CONTEXT] $*"; }
+GID1=$(getent group "sdu_$ACC" | cut -d: -f3)
+A2DIR="$ACCOUNTS_ROOT/$ACC2"
+
+# ==========================================================================
+# Q.14 - MESSAGE 10043's CLAIM.  A person with a session open at the moment of
+# a GRANT: "SD sees the change at once ... they can be let into the account and
+# then refused by the filesystem" until they log in again.  zzrel2's session is
+# STARTED FIRST, the grant is made while it sleeps, and the live process's own
+# group list is printed from /proc to show it lacks sdu_zzrel1.  This is a plain
+# session, so the S.2 initgroups refresh (root only) does not apply.
+head2 "10. Q.14 - a session open during GRANT (message 10043)"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    for r in "G0 not yet granted" "G1 10043" "G2 stale groups" "G3 SD admitted" "G5 fresh session enters"; do not_reached "$r"; done
+else
+    say "  $ACC2 in sdu_$ACC before: $(id -nG "$ACC2" 2>/dev/null | tr ' ' '\n' | grep -cx "sdu_$ACC")"
+    say "  --- sd session as $ACC2, STARTED BEFORE THE GRANT: WHO; (sleep 5); LOGTO $ACC; WHO ---"
+    STALE_OUT=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "G0 $ACC2 is not in sdu_$ACC before the grant" 0 "$(id -nG "$ACC2" | tr ' ' '\n' | grep -cx "sdu_$ACC")"
+        STALEF=$(mktemp)
+        ( cd "$A2DIR" && { printf '\nTERM 200,9999\nWHO\n'; sleep 5; printf 'LOGTO %s\nWHO\nOFF\n' "$ACC"; } \
+            | timeout 60 runuser -u "$ACC2" -- "$SD" >"$STALEF" 2>&1 ) &
+        BG=$!
+        sleep 2
+    fi
+    OUT=$(run_sd root "GRANT $ACC TO $ACC2 (while that session sleeps)" "GRANT $ACC TO $ACC2")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "G1 GRANT printed 10043" "$ACC2 must log out of Linux and back in" "$OUT"
+        SPID=$(pgrep -u "$ACC2" -x sd | head -1)
+        SGRP=$(grep '^Groups:' "/proc/$SPID/status" 2>/dev/null)
+        say "  the sleeping session: pid ${SPID:-none}, $SGRP (sdu_$ACC is gid $GID1)"
+        if [ -n "$SPID" ] && [ -n "$SGRP" ] && ! printf '%s' "$SGRP" | tr ' \t' '\n\n' | grep -qx "$GID1"; then
+            ck "G2 the open session's process lacks sdu_$ACC" yes yes
+        else
+            ck "G2 the open session's process lacks sdu_$ACC" yes no
+        fi
+        wait "$BG"
+        STALE_OUT=$(strip < "$STALEF"); rm -f "$STALEF"
+        printf '%s\n' "$STALE_OUT" | sed -e 's/^/      | /'
+        ck_absent "G3 SD admitted the LOGTO (no 10003)" "User not allowed in requested account" "$STALE_OUT"
+        if who_in "$ACC" "$STALE_OUT"; then
+            ctx "G4 the stale session ENTERED $ACC (the filesystem did not refuse the open)"
+        else
+            ctx "G4 the stale session did NOT enter $ACC - WHO still names $ACC2"
+        fi
+        printf '%s' "$STALE_OUT" | grep -q 'Error 3001' && ctx "G4 it printed Error 3001"
+    fi
+    OUT=$(run_sd "$ACC2" "control: a session started AFTER the grant" "LOGTO $ACC" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_who "G5 control: a fresh session enters $ACC" "$ACC" "$OUT"
+fi
+
+# ==========================================================================
+# S.6 - A PLAIN-sd ADMINISTRATOR REACHES THE OS, AND A LOGTO RELOADS IT.
+# zzrel2 is ADMINISTRATOR and in sdadmin, in plain sd (no USR_ADMIN), so SH runs
+# only because LOGIN loaded K$SH from the tier.  After LOGTO into zzrel1
+# (STANDARD, no OS-ON) the grants reload from zzrel1's record: zzrel1's own
+# compiled OS.EXECUTE program must then be refused naming zzrel2.  SH itself is
+# not in a STANDARD VOC, which is why the second half uses OS.EXECUTE.
+head2 "11. S.6 - plain-sd administrator: SH runs; after LOGTO a non-admin account, OS.EXECUTE is refused"
+if [ "$COMMIT" -eq 1 ] && { [ "$MADE_ACCOUNT2" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzos" ]; }; then
+    for r in "H1 SH ran" "H2 in zzrel1" "H3 10054" "H4 did not run"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC2" "SH in its own account, then LOGTO $ACC and RUN BP zzos" \
+          "SH echo zzsh-ran" "LOGTO $ACC" "WHO" "RUN BP zzos")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_line "H1 plain-sd ADMINISTRATOR: SH ran (output line zzsh-ran)" "zzsh-ran" "$OUT"
+        ck_absent "H1b and was not refused 10053" "is not permitted to use the operating system shell" "$OUT"
+        ck_who "H2 the session is in $ACC" "$ACC" "$OUT"
+        ck_says "H3 after LOGTO, OS.EXECUTE refused in 10054's words" "$ACC2 is not permitted to use OS.EXECUTE" "$OUT"
+        ck_absent "H4 and the program did not run" "ZZOS ran OS.EXECUTE" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# S.5 - THE 10 Sep PARITY AUDIT'S WITNESS LIST.  zzrel1 moves to PROGRAMMER and
+# must lack the admin verbs zzrel2 holds; UPDATE.ACCOUNTS refuses a stray word
+# and ALL updates every account without asking (THIS TOUCHES REAL ACCOUNTS'
+# VOCs, exactly as every install does); a new account's LISTF has descriptions;
+# CREATE.ACCOUNT ... SH-ON reports 10102 (reached through ADOPT, since a
+# password prompt cannot be piped); DELETE.ACCOUNT of a user carrying SD's
+# stamp asks ONE question naming the user and home, then removes both.
+# zzrel3's stamp is written by this script (useradd -c "SD account"), exactly
+# what sd-elevate useradd writes - the delete branch keys on the stamp alone.
+head2 "12. S.5 - the parity audit's witness list"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    for r in "V0" "V1-3 PROGRAMMER lacks" "V4-6 ADMINISTRATOR has" "V7 listf" "V8 10173" "V9 10170" "V10 10171" "D1 10102" "D2 one question" "D3 home named" "D4 user gone" "D5 home gone" "D6 register gone"; do not_reached "$r"; done
+else
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+    [ "$COMMIT" -eq 1 ] && ck_says "V0 $ACC is now PROGRAMMER" "is now PROGRAMMER" "$OUT"
+    OUT=$(run_sd "$ACC" "PROGRAMMER: CT VOC sh, config, listu; LISTF" "CT VOC sh" "CT VOC config" "CT VOC listu" "LISTF")
+    if [ "$COMMIT" -eq 1 ]; then
+        for v in sh config listu; do ck_says "V1 PROGRAMMER lacks $v" "Record '$v' not found" "$OUT"; done
+        ck_says "V7 a new account's LISTF shows descriptions" "File for BASIC programs" "$OUT"
+    fi
+    OUT=$(run_sd "$ACC2" "ADMINISTRATOR: CT VOC sh, config, listu" "CT VOC sh" "CT VOC config" "CT VOC listu")
+    if [ "$COMMIT" -eq 1 ]; then
+        for v in sh config listu; do ck_line "V4 ADMINISTRATOR has $v" "VOC $v" "$OUT"; done
+    fi
+    OUT=$(run_sd root "UPDATE.ACCOUNTS FOO, then UPDATE.ACCOUNTS ALL" "UPDATE.ACCOUNTS FOO" "UPDATE.ACCOUNTS ALL")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "V8 UPDATE.ACCOUNTS FOO refused (10173)" "does not take" "$OUT"
+        ck_says "V9 ALL says what it will do (10170)" "Every registered account will have its VOC updated" "$OUT"
+        ck_says "V10 and reports a count (10171)" "account(s) had their VOC updated" "$OUT"
+        ck "V10b it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+
+    say "  useradd -m -c \"SD account\" $ACC3; ADOPT $ACC3 PROGRAMMER SH-ON"
+    if [ "$COMMIT" -eq 1 ]; then
+        useradd -m -c "SD account" "$ACC3" && MADE_USER3=1
+        touch "$SDSYS/\$adopt.$ACC3"
+    fi
+    OUT=$(run_oneshot -internal create-account USER "$ACC3" PROGRAMMER SH-ON ADOPT no.query)
+    if [ "$COMMIT" -eq 1 ]; then
+        rm -f "$SDSYS/\$adopt.$ACC3"
+        [ -e "$REGISTER/$ACC3" ] && MADE_ACCOUNT3=1
+        ck_says "D1 CREATE.ACCOUNT ... SH-ON reported 10102" "Account $ACC3 has SH" "$OUT"
+        say "  before delete: user=$(yesno_user "$ACC3") home=$(yesno_dir "/home/$ACC3") register=$(yesno_file "$REGISTER/$ACC3") gecos='$(getent passwd "$ACC3" | cut -d: -f5)'"
+    fi
+    OUT=$(run_sd root "DELETE.ACCOUNT $ACC3 REMOVE.HOME, answered Y" "DELETE.ACCOUNT $ACC3 REMOVE.HOME" "Y")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "D2 exactly ONE confirmation was asked" 1 "$(printf '%s' "$OUT" | grep -o '(y/<n>)?' | wc -l)"
+        ck_says "D3 it named the Linux user and the home (10905)" "its Linux user $ACC3 and the home directory /home/$ACC3" "$OUT"
+        ck_says "D3b and reported the home removed (10907)" "Home directory /home/$ACC3 removed" "$OUT"
+        ck "D4 the Linux user is gone" no "$(yesno_user "$ACC3")"
+        ck "D5 the home directory is gone" no "$(yesno_dir "/home/$ACC3")"
+        ck "D6 the register record is gone" no "$(yesno_file "$REGISTER/$ACC3")"
+        [ "$(yesno_user "$ACC3")" = no ] && MADE_USER3=0
+        [ "$(yesno_file "$REGISTER/$ACC3")" = no ] && MADE_ACCOUNT3=0
+    fi
+fi
+
+# ==========================================================================
+# Q.17 - MODIFY.PASSWORD's ADMINISTRATOR ARM.  A root session sets zzrel1's
+# password through sd-elevate passwd; passwd has no terminal, so it reads the
+# new password twice from the session's own input (SD reads stdin a byte at a
+# time, linuxio.c:447, so the lines are still there).  The password is random,
+# NEVER PRINTED, and dies with the account.  The instrument is the shadow
+# entry's hash prefix before and after, not SD's message alone.
+head2 "13. Q.17 - MODIFY.PASSWORD under sudo sd sets another account's password"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "W1 10914" "W2 no 10915" "W3 shadow changed"; do not_reached "$r"; done
+else
+    PW="Zq7$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)x9"
+    SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+    say "  shadow hash prefix before: '$(printf '%s' "$SH_BEFORE" | cut -c1-3)'"
+    say "  --- sd session as root: MODIFY.PASSWORD $ACC, then the new password twice (not shown) ---"
+    OUT=""
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$PW" "$PW" \
+              | timeout 60 "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$PW/********/g" -e 's/^/      | /'
+        SH_AFTER=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+        say "  shadow hash prefix after : '$(printf '%s' "$SH_AFTER" | cut -c1-3)'"
+        ck_says "W1 MODIFY.PASSWORD reported the change (10914)" "The password for $ACC was changed" "$OUT"
+        ck_absent "W2 and not 10915" "was NOT changed" "$OUT"
+        if [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && [ "${SH_AFTER:0:1}" = '$' ]; then
+            ck "W3 the shadow entry changed to a real hash" yes yes
+        else
+            ck "W3 the shadow entry changed to a real hash" yes no
+        fi
+    fi
+    PW=""
+fi
+
+# ==========================================================================
+# Q.12 - THE ssh DOOR TO A SUSPENDED ACCOUNT.  sshd_config's "Match Group
+# sdusers,!sdadmin / ForceCommand sd" sends zzrel1 (PROGRAMMER, not sdadmin)
+# straight into sd.  A throwaway key is installed for zzrel1 only.  CONTROL
+# FIRST: before the suspend, ssh must land in sd and WHO name zzrel1 - without
+# it a refusal after could be ssh failing for any reason.  The API door is not
+# measured here (task table W.4).
+head2 "14. Q.12 - ssh into a SUSPENDED account is refused (10107)"
+ssh_ready() {
+    command -v ssh >/dev/null && command -v ssh-keygen >/dev/null || return 1
+    systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null
+}
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || ! ssh_ready; }; then
+    say "  ssh, ssh-keygen or an active sshd is missing"
+    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO"; do not_reached "$r"; done
+else
+    SSH_OPTS=(-F /dev/null -o BatchMode=yes -o PasswordAuthentication=no -o IdentitiesOnly=yes
+              -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR)
+    ssh_sd() {   # $1 title; stdin body is fixed: blank, TERM, WHO, OFF
+        say "  --- ssh $ACC@127.0.0.1 (ForceCommand sd): $1 ---" >&2
+        [ "$COMMIT" -eq 1 ] || { say "      (dry run - not executed)" >&2; return 0; }
+        local out
+        out=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 45 ssh "${SSH_OPTS[@]}" -i "$SSHDIR/key" "$ACC@127.0.0.1" 2>&1 | strip)
+        printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+        printf '%s' "$out"
+    }
+    if [ "$COMMIT" -eq 1 ]; then
+        SSHDIR=$(mktemp -d)
+        ssh-keygen -q -t ed25519 -N '' -C witness-release-run -f "$SSHDIR/key"
+        UHOME=$(getent passwd "$ACC" | cut -d: -f6)
+        install -d -m 700 -o "$ACC" -g "$(id -gn "$ACC")" "$UHOME/.ssh"
+        install -m 600 -o "$ACC" -g "$(id -gn "$ACC")" "$SSHDIR/key.pub" "$UHOME/.ssh/authorized_keys"
+        say "  key installed in $UHOME/.ssh/authorized_keys (removed with the user)"
+    fi
+    OUT=$(ssh_sd "control, before the suspend")
+    [ "$COMMIT" -eq 1 ] && ck_who "X1 control: ssh landed in sd and WHO names $ACC" "$ACC" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC SUSPENDED")
+    [ "$COMMIT" -eq 1 ] && ck_says "X2 MODIFY.ACCOUNT reported the suspend (10109)" "is now SUSPENDED" "$OUT"
+    OUT=$(ssh_sd "after the suspend")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X3 refused in 10107's words" "Account $ACC is suspended" "$OUT"
+        if who_in "$ACC" "$OUT"; then ck "X4 and never reached a command (no WHO)" no yes; else ck "X4 and never reached a command (no WHO)" no no; fi
+    fi
+    OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+    [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted" "is now PROGRAMMER" "$OUT"
+fi
+
+# ==========================================================================
+# S.5, the other half - DELETE.ACCOUNT of an account whose Linux user SD did not
+# create (zzrel1, plain useradd, no stamp): one shorter question (10085), the
+# account goes, the Linux user is KEPT and stripped of SD's groups (10036).
+head2 "15. S.5 - DELETE.ACCOUNT of a borrowed user keeps the user (10085, 10036)"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "K1 one question" "K2 10085" "K3 10036" "K4 register gone" "K5 user kept" "K6 groups stripped"; do not_reached "$r"; done
+else
+    OUT=$(run_sd root "DELETE.ACCOUNT $ACC, answered Y" "DELETE.ACCOUNT $ACC" "Y")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "K1 exactly ONE confirmation was asked" 1 "$(printf '%s' "$OUT" | grep -o '(y/<n>)?' | wc -l)"
+        ck_says "K2 the shorter question (10085)" "Delete account $ACC and its directory (y/<n>)?" "$OUT"
+        ck_says "K3 the Linux user left in place (10036)" "Linux user $ACC was not created by SD" "$OUT"
+        ck "K4 the register record is gone" no "$(yesno_file "$REGISTER/$ACC")"
+        ck "K5 the Linux user is kept" yes "$(yesno_user "$ACC")"
+        ck "K6 and holds no SD group" 0 "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -cE '^(sdusers|sdadmin|sdu_)')"
+        [ "$(yesno_file "$REGISTER/$ACC")" = no ] && MADE_ACCOUNT=0
+    fi
+fi
+
+head2 "16. verdict"
 if [ "$COMMIT" -eq 0 ]; then
     say "  DRY RUN - nothing was executed and nothing was checked."
     say "  Re-run with --commit, as root:"
