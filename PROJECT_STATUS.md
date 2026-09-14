@@ -62,24 +62,34 @@ the work, nothing in "Verified" that was not observed that session.
   could not open and reported 0 short having tested nothing. Fixed 14 Sep
   (opens `voc`, an unopenable admin counts short); now a real green. TADM/tstd/
   tprog no longer exist (the 12 Sep full cycle left only `don` + `sdsys`).
-  ***WHAT REMAINS: `MODIFYA`'s tier RE-DERIVATION, still unattributed*** — a
-  fresh `MODIFY.ACCOUNT` tier move, VOC measured before and after, with no
-  `UPDATE.ACCOUNTS` between. ***THE WITNESS IS BUILT: `gplbld/witness-tierchange.sh`***
-  (14 Sep, dry-run verified, bash -n clean, `--commit` UNRUN — needs root).
-  It ADOPTs a throwaway (→ADMINISTRATOR, no password prompt), then moves it
-  ADMINISTRATOR→STANDARD→PROGRAMMER→ADMINISTRATOR, reading `COUNT VOC` and the
-  seven marker verbs (`basic catalog ed run` / `create.account grant
-  modify.account`) via `LOGTO` at each tier, and NEVER runs `UPDATE.ACCOUNTS`.
-  Asserts relationships (STANDARD<PROGRAMMER<ADMINISTRATOR, round trip returns),
-  not literals (counts drift), plus MODIFYA's own 10109/10113. Run:
-  `sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh --commit`.
-  This is the last §L1 item.
-- ***KNOWN BUG, same class: `gplbld/witness-accounts.sh` still hardcodes the
-  register as `ACCOUNTS` (upper) and the record key upper-cased*** — §M
-  lowercased the register dir to `accounts` and its keys, so that script now
-  fails its preconditions on a current install. Same two-line fix
-  `witness-tierchange.sh` got (`accounts`, drop the `ACC_UC` upcasing); not yet
-  applied.
+  ***`MODIFYA`'s tier RE-DERIVATION IS WITNESSED — 14 Sep, owner-run
+  `witness-tierchange.sh --commit` on `83e5ccf`.*** A throwaway ADOPTed as
+  ADMINISTRATOR was moved ADMINISTRATOR→STANDARD→PROGRAMMER→ADMINISTRATOR with
+  NO `UPDATE.ACCOUNTS` between, and MODIFYA's own 10113 reported the
+  re-derivation at each move: ***down removes 62 (= omit 43 + admin 19), up to
+  PROGRAMMER adds 43 (the omit list), up to ADMINISTRATOR adds 19 (the admin
+  layer); the round trip balances (62 off, 62 back).*** These match the
+  tier.policy list sizes exactly, so the re-derivation is MODIFY.ACCOUNT's own.
+  ***THE INSTRUMENT HAD TO BE REWRITTEN, AND THE FIRST RUN'S 21 "FAILURES" WERE
+  ALL THE INSTRUMENT, NOT THE PRODUCT:*** it measured through `LOGTO $ACC;
+  COUNT VOC; CT VOC`, and ***`LOGTO` errored `3001 … CPROC:2952`*** (the
+  `openpath "voc"` there) in the piped root session, so every read stayed in
+  SDSYS (425 each time). The rewrite asserts on 10113 cross-checked against the
+  tier.policy sizes and the register tier read off disk — no `LOGTO`. bash -n
+  clean, dry-run verified; a re-run would now go green on the same evidence.
+  This clears the last §L1 item.
+- ***LEAD, from the above, NOT a defect claim yet: `LOGTO <account>` errored
+  3001 at `cproc:2952` (`openpath "voc"`) from a piped `sudo sd` (root/SDSYS)
+  session.*** Whether this is a piped-non-tty artefact or a real LOGTO issue is
+  unmeasured; an admin normally LOGTOs interactively. Worth its own look before
+  relying on LOGTO in any instrument.
+- ***CORRECTION (14 Sep): `gplbld/witness-accounts.sh` is NOT broken*** — an
+  earlier claim here that it hardcodes `ACCOUNTS` upper was wrong, made from
+  `witness-tierchange.sh`'s failure without measuring the actual file. Measured:
+  its register is already `accounts` (line 110, fixed 13 Sep) and its `ACC_UC`
+  is *downcased* (a misnamed but correct lower-case key, comment at :143); its
+  dry run passes preconditions. Only `witness-tierchange.sh` had the upper-case
+  `ACCOUNTS`, and that was fixed as it was built.
 - **Parity audit vs the Windows port, 10 Sep:** 12 drifts corrected + compiled,
   **unrun**; key numbers renumbered so ***the tree `bin/sd` and GPL.BP must be
   installed together*** (Open, "Parity audit").
