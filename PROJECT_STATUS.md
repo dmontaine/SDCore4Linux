@@ -24,8 +24,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 |---|---|---|---|---|
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
-| ⬜ | **S.12** | S | 10043's text says a session open during GRANT is "refused by the filesystem"; measured 14 Sep it ENTERED (read-only VOC expected, from `dh_open`); left: reword 10043 or rule | — |
-| ◐ | **S.6** | M | plain-sd admin `SH` witnessed twice (don 14 Sep; §11 H1 on `f2251e6`); left: the LOGTO reload — §11 H3 was an INSTRUMENT miss (zzrel1 STANDARD has no `RUN`), fix H3 to make zzrel1 PROGRAMMER first and re-run | — |
+| ◐ | **S.12** | M | a session open during GRANT ENTERED (measured 14 Sep, `f2251e6`); 10043 reworded to "can enter the account but cannot change anything in it"; left: install it, and §10 G6/G7 witness the read-only refusal against a fresh session's write | — |
+| ◐ | **S.6** | M | plain-sd admin `SH` witnessed twice (don 14 Sep; §11 H1 on `f2251e6`); §11 H3's instrument miss fixed (zzrel1 → PROGRAMMER in §10 V0; H3b names the miss); left: re-run §11 | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; ssh door witnessed 14 Sep (§14: control landed in sd, suspended → 10107, no WHO); left: API door (W.4) | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, API REFUSED (W.4) | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
@@ -247,11 +247,33 @@ owner's ruling comes first.
 
 ## START HERE
 
+***THIRTEENTH SESSION, 14 Sep 2026 — S.12 AND S.6's INSTRUMENT, BUILT, NOT
+INSTALLED.*** [S.12] 10043 reworded: an open session "can enter the account but
+cannot change anything in it"; revoke's half "can still change the account's
+files". GRANTA comment `:380` records the 14:38 measurement. `check-msglen`
+fails 10043 at HEAD and now alike (11 lines vs `k_error`'s 3) and does not
+apply: its only caller is `crt sysmsg` (`granta:391`). `witness-release-run.sh`:
+§10 moves zzrel1 to PROGRAMMER first (V0, from §12 — STANDARD omits `copy` and
+`run`, `tier.policy/omit.standard:32`), G4 is now a check, and the stale
+session's `COPY FROM VOC who,zzstale` must print 1431 `File is read-only`,
+no `record(s) copied`, 0 bytes on disk (G6–G6b), against a fresh session's same
+COPY landing (G7–G7b) — UNRUN until the next cycle. Chain from source: `dh_open.c:118` → `op_dio1.c:793`
+`FV_RDONLY` → `copy:212`. §11 gains H3b (`is not in your VOC` absent). Cleanup:
+`del_user` waits up to 20 s for the user's processes and prints `userdel`'s
+exit and message — the zzrel1 failure's cause is ***unmeasured***; exit 8 from
+§14's lingering `systemd --user` is the hypothesis, falsified if the next run
+reports another exit. Parse clean, 0 BOM/CR; dry run of a `zzdry1` copy reaches
+all 19 sections (the real script refuses at §0 while zzrel1 exists); free
+checks green. ***Trap hit again:*** Edit stripped a trailing space in
+`run_sd "$ACC" ` and fused two arguments — caught by the dry run's title.
+***Next, owner:*** `sudo userdel -r zzrel1`; keep cycle; `assert-current`;
+`sudo bash …/witness-release-run.sh --commit`.
+
 ***HAND-OFF, 14 Sep 2026, twelfth session (owner low on credits).*** Keep cycle
 installed `f2251e6` (14:37:02); owner-run `witness-release-run.sh --commit`
 14:38, log `/var/tmp/witness-release-run.20260914-143833.log` (root-readable),
 ***105/106***. CLOSED: S.5 (V0–V10, D1–D6, K1–K6 all pass), Q.14 (G0–G3, G5),
-Q.17 (W1–W3; shadow `!` → `$y$`), Q.12's ssh door (X1–X5). ***[S.12] FINDING:***
+Q.17 (W1–W3; shadow `!` → `$y$`), Q.12's ssh door (X1–X5). ***S.12 FINDING:***
 the zzrel2 session started before the GRANT (Groups `965 979 1012 1013`,
 sdu_zzrel1 = 1011) ENTERED zzrel1 — 10043 says "refused by the filesystem";
 from source it enters with a read-only VOC (`dh_open` real-uid `access()` →
