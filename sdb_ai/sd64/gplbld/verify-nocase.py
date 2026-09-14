@@ -85,9 +85,12 @@ NAME_CATEGORIES = [
 # The behavioural sites §M must also change - a checklist, not a name scan.
 # (file, a regex that matches the site while it is still WRONG, why)
 CODE_SITES = [
-    ("GPL.BP/CREATEF", r"upcase\(file\.name\)",
+    # 13 Sep 26: the pattern is the OS-NAME upcase itself.  A bare
+    # upcase(file.name) also matches D4's fold of an EXISTING upper-case entry
+    # (createf:139), which is correct code - a false "open".
+    ("gpl.bp/createf", r"ospath\(upcase\(file\.name\)",
      "the OS filename CREATE.FILE makes is upper-cased (:306,:379)"),
-    ("GPL.BP/LOGIN", r"pterm\(PT\$INVERT",
+    ("gpl.bp/login", r"pterm\(PT\$INVERT",
      "case inversion at sign-on (:302)"),
     # Account names are RULED lower case (owner, 12 Sep 2026).  CREATEA:409
     # stores the register key upper-cased; the lookups (DELACC:113, LOGIN:311/
@@ -95,7 +98,7 @@ CODE_SITES = [
     # upcases the stored id, account names are upper - so this is the static
     # tell for the register half, which the meter cannot scan (the register is
     # runtime state, not in the source tree).
-    ("GPL.BP/CREATEA", r"acc\.name = upcase\(acc\.name\)",
+    ("gpl.bp/createa", r"acc\.name = upcase\(acc\.name\)",
      "the account id is stored upper-cased (:409) - account names ruled lower"),
 ]
 

@@ -381,10 +381,11 @@ def main():
     revstamp_h = os.path.join(args.gplsrc, 'revstamp.h')
     err_h = os.path.join(args.gplsrc, 'err.h')
     opcodes_h = os.path.join(args.gplsrc, 'opcodes.h')
-    out_revstamp = os.path.join(gpl_bp, 'REVSTAMP.H')
-    out_syscom = os.path.join(syscom, 'ERR.H')
-    out_errtext = os.path.join(gpl_bp, 'ERRTEXT.H')
-    out_opcodes = os.path.join(gpl_bp, 'OPCODES.H')
+    # 13 Sep 26 dm - plan M: the include RECORD names are lower case on disk too.
+    out_revstamp = os.path.join(gpl_bp, 'revstamp.h')
+    out_syscom = os.path.join(syscom, 'err.h')
+    out_errtext = os.path.join(gpl_bp, 'errtext.h')
+    out_opcodes = os.path.join(gpl_bp, 'opcodes.h')
 
     for path in (revstamp_h, err_h, opcodes_h):
         if not os.path.isfile(path):

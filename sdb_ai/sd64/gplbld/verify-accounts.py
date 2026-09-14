@@ -142,7 +142,7 @@ def group_members(name):
 
 def sysmsg_ids(program):
     """Every message id the program asks for, comment lines excluded."""
-    path = os.path.join(GPLBP, program)
+    path = os.path.join(GPLBP, program.lower())   # record names lower since 13 Sep 26
     if not os.path.exists(path):
         return None
     with open(path, encoding="latin-1") as f:

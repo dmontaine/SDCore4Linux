@@ -9,6 +9,26 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  SD'S OWN PROGRAM SOURCES AND INCLUDE RECORDS HAVE LOWER-CASE NAMES:
+           gpl.bp/cproc, gpl.bp/login, syscom/keys.h, syscom/err.h and the rest.
+
+           Every record in the system's program file gpl.bp and include file
+           syscom now has a lower-case name, so SD's own names follow the same
+           rule as everything else on disk.  With this, every name SD ships -
+           directories, VOC entries, programs and include records - is lower
+           case, apart from two tier lists that are due to move out of the VOC.
+
+           WHAT YOU TYPE DOES NOT CHANGE: $INCLUDE SYSCOM KEYS.H, $INCLUDE
+           KEYS.H and BASIC GPL.BP CPROC all still work, because the compiler
+           finds an include or source record in either case.  Catalogued
+           names - the ones CALL uses, such as !PARSER - are untouched.
+
+           ONE THING TO KNOW: RUN takes a program's name exactly, so a program
+           in gpl.bp is now run as RUN gpl.bp write_install_dicts, not in
+           capitals.  A script that reads these files by their path -
+           /usr/local/sdsys/syscom/KEYS.H - needs the lower-case name.
+
+
 13 Sep 26  WHAT YOU TYPE IS NO LONGER CASE-FLIPPED IN AN ACCOUNT WITHOUT ITS
            LOGIN PARAGRAPH.
 

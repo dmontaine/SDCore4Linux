@@ -162,11 +162,15 @@ def main():
     for n in REMOVED_PROGRAMS:
         # BOTH trees: a removal that reached only the source leaves the install
         # shipping the program, and only the install leaves it coming back on
-        # the next build.
-        run.note("A source GPL.BP/%-13s is gone" % n,
-                 False, os.path.exists(os.path.join(SRC_BP, n)))
-        run.note("A install GPL.BP/%-12s is gone" % n,
-                 False, os.path.exists(os.path.join(inst_bp, n)))
+        # the next build.  AND BOTH SPELLINGS: gpl.bp record names are lower
+        # case since 13 Sep 2026, so an upper-only test would pass on a tree
+        # that ships the program under its new name.
+        run.note("A source GPL.BP/%-13s is gone (either case)" % n,
+                 False, os.path.exists(os.path.join(SRC_BP, n))
+                 or os.path.exists(os.path.join(SRC_BP, n.lower())))
+        run.note("A install GPL.BP/%-12s is gone (either case)" % n,
+                 False, os.path.exists(os.path.join(inst_bp, n))
+                 or os.path.exists(os.path.join(inst_bp, n.lower())))
     # ***GONE IN ANY CASE.***  The VOC ids are lower case since plan M3 (12 Sep
     # 2026), so an exact test of "MODIFY" became true of a tree that ships
     # "modify" - a check that passes whatever happens.  Both spellings must be
@@ -195,10 +199,10 @@ def main():
     # with only section 1 would call it a success.
     run.heading("2. THE CONTROLS - what had to survive, and did")
     for n in SURVIVING_PROGRAMS:
-        run.note("B source GPL.BP/%-17s survived" % n,
-                 True, os.path.exists(os.path.join(SRC_BP, n)))
-        run.note("B install GPL.BP/%-16s survived" % n,
-                 True, os.path.exists(os.path.join(inst_bp, n)))
+        run.note("B source GPL.BP/%-17s survived (as shipped, lower case)" % n,
+                 True, os.path.exists(os.path.join(SRC_BP, n.lower())))
+        run.note("B install GPL.BP/%-16s survived (as shipped, lower case)" % n,
+                 True, os.path.exists(os.path.join(inst_bp, n.lower())))
     for n in SURVIVING_VERBS:
         run.note("B VOC_TEMPLATE/%-17s survived (as shipped, lower case)" % n,
                  True, os.path.exists(os.path.join(SRC_VOCT, n.lower())))
