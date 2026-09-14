@@ -39,7 +39,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.3b** | R·M | Enter takes the default at most Y/N prompts; left: rulings W.2 and W.3 | — |
 | ◐ | **W.2** | R·L | 2050's Enter default built for `DELETEF`; left: rule and build it for `DELETE`, `COPY`, `CD`, `CT`, `ED` | — |
 | ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` built 14 Sep with the `_keycode` fix (red on the old install, 2/36); left: `keys` after install, `cmdaudit`, `sdsyswrite`, `batchjob`, `logtoaccess`, `notyet` | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` built 14 Sep with the `_keycode` fix (red on the old install, 2/36); `logtoaccess` built into `witness-release-run.sh` §2b; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `keys` + §2b after install, `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |

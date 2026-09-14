@@ -5,6 +5,8 @@
 #     S.9   LOGIN's $release prompt (5026) takes N on Enter and at end of input
 #     Q.28  RUN of a runfile path over 128 characters says so (10918)
 #     S.2   a root session LOGTOs an account whose group is newer than it
+#     Q.22  logtoaccess: a root session keeps its access across LOGTOs (2b)
+#     S.10  RUN folds the program name (3b)
 #
 #   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
 #   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
@@ -282,6 +284,43 @@ if [ "$COMMIT" -eq 1 ]; then
             ck "S2.a WHO reports the session in $ACC" yes no
         fi
         ck_absent "S2.b no Error 3001" "Error 3001" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# THE PORT'S verify-logtoaccess (its PRE_RELEASE 91), AS IT TRANSFERS.  The port
+# lost K$ADMINISTRATOR on the first LOGTO, so the SECOND was refused; ***ONE
+# SUCCESSFUL LOGTO DOES NOT TELL THE FIX FROM THE DEFECT*** - hence arrivals
+# are COUNTED.  Here USR_ADMIN is set once (cproc grant.administrator) and
+# nothing clears it, so this is expected to hold - measured, not assumed.  The
+# port's other half (an administrator signed in as themselves enters any
+# account) does not transfer: a plain session lacks the account's sdu_ group,
+# so the filesystem would refuse the VOC even if SD admitted it.
+head2 "2b. logtoaccess - a root session keeps its access across LOGTOs"
+if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+    for r in "L1 two arrivals in $ACC" "L2 one arrival in sdsys" "L3 no refusal" "LC.1 control refused" "LC.2 control stayed"; do
+        not_reached "$r"; done
+else
+    OUT=$(run_sd root "LOGTO $ACC, LOGTO sdsys, LOGTO $ACC" \
+          "LOGTO $ACC" "WHO" "LOGTO sdsys" "WHO" "LOGTO $ACC" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "L1 WHO reported $ACC twice (both LOGTOs into it arrived)" 2 \
+           "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)")"
+        ck "L2 WHO reported sdsys once, between them" 1 \
+           "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+sdsys([[:space:]]|$)")"
+        ck_absent "L3a no 10003" "User not allowed in requested account" "$OUT"
+        ck_absent "L3b no SDSYS gate refusal" "restricted to privileged users" "$OUT"
+    fi
+    # THE CONTROL: without it L1-L3 cannot tell "the administrator keeps its
+    # access" from "the gate is open to everybody".
+    OUT=$(run_sd "$ACC" "control: LOGTO sdsys as $ACC in plain sd" "LOGTO sdsys" "WHO")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "LC.1 control: plain $ACC is refused SDSYS" "restricted to privileged users" "$OUT"
+        if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
+            ck "LC.2 control: and stayed in $ACC" yes yes
+        else
+            ck "LC.2 control: and stayed in $ACC" yes no
+        fi
     fi
 fi
 
