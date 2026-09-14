@@ -50,8 +50,15 @@ the work, nothing in "Verified" that was not observed that session.
   0 upper, `syscom` 0, `newvoc` 0, `voc_template` 0, sdsys dirs 0, account names
   lower (register keys too), case inversion off, `create.file` makes lower-case
   files, and the tier lists moved to `sdsys/tier.policy` (14 Sep). **§N**
-  (release number) done: `SD_REV_STAMP`/`SD.REV.STAMP`/`$release` all `L1.0-0`,
-  changelog `L1.0-0 - in progress`. *(Catalogue names in `gcat` are a separate
+  (release number): ***the target release is `L1.1-0`*** (owner, 14 Sep — 1.1 to
+  match SD Core for Windows W1.1-0, the release this conforms with; there was no
+  shipped L1.0). ***ONLY the changelog header moved*** to `L1.1-0 - in progress`.
+  ***THE REVSTAMP DOES NOT MOVE WITH IT*** (owner, 14 Sep): `SD_REV_STAMP` /
+  `SD.REV.STAMP` and both `$release` records STAY `L1.0-0` — the revstamp holds
+  the current version and only bumps when the release actually ships, exactly as
+  the port keeps `W1.0-0` in SD_REV_STAMP while its changelog reads `W1.1-0 - in
+  progress`. `MAJOR_REV`/`MINOR_REV` stay at upstream's throughout. So the banner
+  reads `L1.0-0` until L1.1-0 ships. *(Catalogue names in `gcat` are a separate
   namespace, deliberately left upper.)*
 - **Release blocker 2 of 2:** ***§L1*** — the per-tier VOC, **core WITNESSED
   10 Sep** (STANDARD tstd 368 records / no BASIC vs PROGRAMMER tprog 410 — Δ42 =

@@ -1,9 +1,16 @@
-L1.0-0 - in progress
+L1.1-0 - in progress
 -------------
-The L is for Linux, and parallels the W of SD Core for Windows.  1.0-1 and 1.0-2
-were releases of the SD this work was built from, not releases of this system.
-This is the first release under the new numbering rather than an increment, so
-everything below is what L1.0-0 contains rather than what changed since 1.0-2.
+The L is for Linux, and parallels the W of SD Core for Windows.  The number is
+1.1 to match SD Core for Windows W1.1-0, the release this one is built to conform
+with: SD Core for Linux tracks SD Core for Windows, and sharing the version
+number makes it plain which pair of builds a screenshot or a support question
+belongs to.
+
+There was no shipped L1.0 - this is the FIRST release of SD Core for Linux,
+numbered to line up with Windows rather than incremented from a Linux
+predecessor.  1.0-1 and 1.0-2 were releases of the SD this work was built from,
+not releases of this system.  So everything below is what L1.1-0 contains, not
+what changed since some earlier Linux release.
 
 Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
