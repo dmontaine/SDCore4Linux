@@ -9,6 +9,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  WHAT YOU TYPE IS NO LONGER CASE-FLIPPED IN AN ACCOUNT WITHOUT ITS
+           LOGIN PARAGRAPH.
+
+           SD started every session with "case inversion" on - typing list
+           gave LIST and typing LIST gave list - and relied on each account's
+           login paragraph (PTERM CASE NOINVERT) to turn it off again.  An
+           account whose login paragraph had been removed or replaced typed
+           with every letter flipped, which quietly breaks anything that takes
+           a name exactly, such as COPY FROM VOC or a record id.
+
+           Case inversion now starts off.  Nothing changes in an ordinary
+           account, where it was already being turned off.
+
+           TO USE CASE INVERSION deliberately, PTERM CASE INVERT still turns it
+           on, for a session or in a login paragraph.
+
+
 13 Sep 26  ACCOUNT NAMES ARE LOWER CASE, THE SYSTEM ACCOUNT INCLUDED: don, sdsys.
 
            An account's name is now stored in lower case, so it matches the

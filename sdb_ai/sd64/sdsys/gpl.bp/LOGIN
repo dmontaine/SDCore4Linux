@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  No longer turns case inversion on at sign-on (plan M).
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner's
 *               rulings of 12 and 13 Sep): the register key is the lower-cased
 *               name, so every name taken from input, @LOGNAME or a path is
@@ -311,7 +312,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
      end
   end
 
-   s = pterm(PT$INVERT, @true)
+* 13 Sep 26 dm - CASE INVERSION IS NO LONGER TURNED ON HERE.  This line set it,
+*   the VOC login paragraph's PTERM CASE NOINVERT turned it off again, and so an
+*   account without that paragraph typed with every letter flipped (measured on
+*   80bd15c).  Nothing between here and the paragraph prompts for input.  C now
+*   starts with it off too (linuxio.c); PTERM CASE INVERT still turns it on.
 
    * Determine account
 * 20240330 mab we no longer support forced accounts from $LOGINS

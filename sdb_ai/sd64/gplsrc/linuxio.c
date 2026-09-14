@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 13 Sep 26 dm case inversion starts OFF on both connection paths (plan M: typed
+ *           input is not case-flipped; PTERM CASE INVERT still turns it on).
  * 10 Sep 26 dm accept PF_INET for the API server only (reverses the AF_UNIX-only
  *           restriction for that path); TCP API access is gated by SD login plus
  *           the installer's bind/firewall choice.  See start_connection().
@@ -208,7 +210,12 @@ bool start_connection(int unused) {
     }
   }
 
-  case_inversion = TRUE;
+  /* 13 Sep 26 dm - OFF, not TRUE.  Inversion on by default meant a session was
+     un-inverted only by the VOC login paragraph's PTERM CASE NOINVERT: an
+     account without that paragraph had every typed letter case-flipped, which
+     was measured on install 80bd15c (PTERM DISPLAY "Case inversion: On") and
+     made a lower-case record id arrive upper case. */
+  case_inversion = FALSE;
   set_term(TRUE);
 
   /* Set up signal handler */
@@ -281,7 +288,7 @@ bool init_console() {
     }
   }
 
-  case_inversion = TRUE;
+  case_inversion = FALSE;   /* 13 Sep 26 dm - off by default; see the socket path */
   set_term(TRUE);
 
   fstat(0, &statbuf);
