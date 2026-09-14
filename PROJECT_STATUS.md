@@ -22,10 +22,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, built + compiled 14 Sep; left: witness it after the next install | — |
-| ◐ | **S.8** | S | `kernel(K$INTERNAL, n)` guard built + compiled 14 Sep; left: an install that bootstraps and signs on with it | — |
+| ◐ | **Q.28** | S | `RUN` path over 128 characters: 10918 names the limit, installed `ca4c07c`; left: witness it in a disposable account with a long `bp.out` record path (not `don`) | — |
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
-| ◐ | **S.2** | S | `LOGTO` 3001 under `sudo sd` with stale groups, witnessed 14 Sep; `initgroups` fix built + compiled; left: install, re-run the `setpriv` command | — |
 | ⬜ | **S.9** | M | LOGIN's `$RELEASE` prompt 5026 (`login:516-535`): an Enter default and an end-of-input escape; goes past the port | — |
 | ⬜ | **P.16** | M | the installer compiles as root (`sudo make -B`, `installsdai.sh:432`); build as the calling user | — |
 | ⬜ | **Q.25** | M | process dumps in their own directory; the installer never sets `DUMPDIR` | — |
@@ -60,6 +58,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **P.26** | — | the delete path no longer leaves `/home/sd` a file | 10 Sep 2026 |
 | ✅ | **P.27** | — | install on an existing empty `/home/sd` | 14 Sep 2026 |
 | ✅ | **P.29** | — | `sd.service` stays up at boot; installer's kickstart note dropped | 14 Sep 2026 |
+| ✅ | **S.2** | — | `sudo sd` reloads root's groups, so `LOGTO` reaches a newer account group | 14 Sep 2026 |
+| ✅ | **S.8** | — | `kernel(K$INTERNAL, n)` sets internal mode only from `$internal` code | 14 Sep 2026 |
 | ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
 | ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
 | ✅ | **Q.18** | — | lower case, complete | 14 Sep 2026 |
@@ -153,7 +153,14 @@ owner's ruling comes first.
   failed***: each move's 10113 matched (0/62, 43/0, 19/0), the register tier off
   disk agreed at every step, the round trip balanced, cleanup complete. ***THIS
   CLOSES §L1, THE LAST RELEASE-BLOCKER ITEM.***
-- ***[S.2] DEFECT WITNESSED 14 Sep 2026, FIX BUILT + COMPILED, NOT INSTALLED.***
+- ***[S.2] CLOSED 14 Sep 2026 — FIX INSTALLED ON `ca4c07c` (11:51:03,
+  `assert-current` current) AND WITNESSED:*** the owner re-ran the `setpriv`
+  command below → `LOGTO don`, `WHO` → `1 don from sdsys`, no 3001 (before the
+  fix, the same paste gave 3001 and stayed in `sdsys`). `nm -D
+  /usr/local/sdsys/bin/sd` shows `initgroups`, so the fix is in the installed
+  binary. ***Gap:*** neither paste shows the `id` line, so the dropped group is
+  taken from the command given, not seen. *(Earlier state follows.)* Defect
+  witnessed 14 Sep 2026, fix built + compiled, not installed.
   Owner-run `sudo setpriv --groups 979 sh -c 'id; printf "LOGTO don\nWHO\nQUIT\n"
   | /usr/local/sdsys/bin/sd'` on `83e5ccf` → `00003943: Error 3001 opening file
   at line 2952 of $CPROC`, `WHO` → `3 sdsys` (stayed); the control, same with
@@ -217,7 +224,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`83e5ccf`**, stamped 13 Sep 2026 23:06:38
+- **Runtime:** install built from **`ca4c07c`**, stamped 14 Sep 2026 11:51:03,
+  owner keep cycle, `assert-current` current — carries P.29, Q.28, S.8, S.2.
+  *(Superseded:)* `83e5ccf`, stamped 13 Sep 2026 23:06:38
   (`.sdcore-install`, read 14 Sep), owner keep cycle — carries §M and the
   `tier.policy` move. Before it, 13 Sep: `80bd15c` 19:11:39, a full cycle.
   *(Superseded:)* install built from `76938f1`, 12 Sep 2026 20:55:16, owner-run
@@ -238,9 +247,10 @@ now the sixteenth free check, all green 7.3 s). Built + compiled, not installed:
 **Q.28** (message 10918) and **S.8** (K_INTERNAL guard) — ***the tree `bin/sd`
 now differs from the install `83e5ccf`***, so both want the next install cycle.
 **S.2** witnessed by the owner (root without `sdu_don` → 3001; with it → enters)
-and fixed in `sdext_eguid.c` (`initgroups` before the euid drop), built +
-compiled. Next: commit → push → an install cycle, then witness Q.28, S.8 and
-S.2 on it (S.2's command is in its entry).
+and fixed in `sdext_eguid.c` (`initgroups` before the euid drop). ***Owner keep
+cycle installed `ca4c07c` (11:51, `assert-current` current): S.2 re-run entered
+`don`, S.8 signs on — both closed.*** Q.28 is installed and still needs a
+disposable account to witness in. Next cheapest open rows: S.7, then the M rows.
 
 ***HAND-OFF, 14 Sep 2026, second session (credits).*** The task table at the
 top of this file is new and is the authority on what is left; read it first.
@@ -4084,7 +4094,13 @@ already written by `CREATEA`/`MODIFYA`), conforming to the Windows port's model
   PROGRAMMER = full VOC; ADMINISTRATOR = +admin verbs; a `MODIFY.ACCOUNT` tier
   change re-derives the VOC; a release `update.voc` preserves the tier's VOC.
 
-### [S.8] `kernel(K$INTERNAL, n)` sets internal mode with no `HDR_INTERNAL` guard (BUILT + COMPILED 14 Sep 2026, NOT INSTALLED)
+### [S.8] `kernel(K$INTERNAL, n)` sets internal mode with no `HDR_INTERNAL` guard (CLOSED 14 Sep 2026, INSTALLED `ca4c07c`)
+
+***Witnessed as far as it can be, 14 Sep 2026 on `ca4c07c`:*** the install's
+two-stage bootstrap compiled `gpl.bp` (the install completed and is stamped), a
+piped plain sign-on as `don` answered `WHO` → `2 don` and `COUNT VOC` → 418,
+and `sudo sd` → `LOGTO don` worked (S.2's run), so LOGIN's `:555` read passed.
+The refusal itself stays unreachable from compiled BASIC, as below.
 
 ***Built 14 Sep 2026: `op_kernel.c` `case K_INTERNAL` changes `internal_mode` only
 when `process.program.flags & HDR_INTERNAL`; a refused set changes nothing and is
