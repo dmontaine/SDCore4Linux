@@ -79,6 +79,25 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***OWNER-REPORTED DEFECT, 13 Sep: S AT A REPORT'S PAGE PROMPT "TERMINATES" THE
+LISTING — FIXED, NOT INSTALLED; rides the same full cycle as the entry below.***
+- ***Measured on `c759c7a` in a pty (scratch `pagerepro.py`, no flag):*** `LIST
+  VOC`, answer S → ALL 418 records went out, but ***20 clear-screens + 20
+  headings*** after the answer (vt100 `ESC[H ESC[J`); `LIST VOC NO.PAGE` → 0
+  clears, 1 heading, 418. Control N → stopped at the next prompt. So not a
+  termination: the screen was wiped every page, leaving the last page visible.
+- ***Cause:*** QDISP:851 `S` cleared `qd.paginate` (prompt) but not `qd.no.page`
+  (the page throw at `emit.line` :442-463). QDISP is byte-identical to the port's
+  — ***an upstream/port defect too; not filed to the port (outward-facing, ask).***
+- ***Fix:*** `S` → `gosub disable.pagination` (the NO.PAGE keyword's own handler,
+  :420). History + changelog.
+- ***New `gplbld/verify-pagination.py`*** — first verifier on a PTY (QDISP only
+  paginates a live terminal; every other verifier pipes). T1–T2 measure NO.PAGE as
+  the target, N1–N3 the control, S1–S5 S against it. py_compiles. ***NOT watched
+  red*** (that needs `--allow-stale`, not approved); the red evidence is the
+  scratch run above, same measurement. ***Would falsify:*** S4 (clears after S)
+  non-zero on the next install.
+
 ***§M3 THE $ RECORDS + `PRE_RELEASE` 30 BUILT 13 Sep 2026 — NOT INSTALLED. NEXT:
 owner FULL delete→install (N, DELETE) + reboot, then the suite.*** Full cycle is
 REQUIRED: LOGIN:498 reads `$release` by exact id and TERMINATES the session if it

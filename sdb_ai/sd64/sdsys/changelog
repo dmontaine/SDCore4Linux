@@ -9,6 +9,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+13 Sep 26  S AT A REPORT'S PAGE PROMPT NOW SCROLLS THE REST OF THE REPORT.
+
+           Answering S ("Suppress pagination") at the "Action (...)" prompt of
+           LIST, SORT and the other report commands looked as though it ended
+           the report.  It did not: every remaining record was sent, but SD
+           still cleared the screen and redrew the heading at every page, so
+           on a real terminal the pages flashed past and only the last one was
+           left on screen with the record count beneath it.
+
+           S now behaves exactly as if the report had been given NO.PAGE from
+           that point: the rest of the report scrolls up the terminal without
+           clearing the screen or repeating the heading.
+
+           WHAT DOES NOT CHANGE: RETURN or N still shows the next page, Q still
+           quits and A still aborts, and a report sent to a printer or to a
+           hold file was never affected.
+
+
 13 Sep 26  THE LAST UPPER-CASE VOC ENTRIES SD SHIPS ARE LOWER CASE: $acc, $map,
            $release, and $command.stack in every new account.
 
