@@ -118,6 +118,39 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***HAND-OFF, 14 Sep 2026 (credits) — READ THIS FIRST. BOTH RELEASE BLOCKERS ARE
+CLEARED; NO RELEASE-BLOCKING WORK REMAINS.*** Tree clean at `caa2203`, pushed.
+- ***§M (lower case) — DONE + INSTALLED on `83e5ccf`.*** M1 fold, M2 (mooted +
+  `!voccase` removed under the no-migration ruling), M3 renames, all witnessed;
+  `verify-nocase` COMPLETE. Full suite green (block below).
+- ***§L1 (per-tier VOC) — CLOSED.*** `MODIFY.ACCOUNT` re-derives the VOC alone,
+  witnessed by owner-run `gplbld/witness-tierchange.sh --commit` (15/15, 14 Sep
+  00:01): down removes 62 = omit 43 + admin 19, up adds 43 then 19, round trip
+  balances, no `UPDATE.ACCOUNTS`. That run also fixed two instrument false
+  greens/fails (tier-layer's `'VOC'`, the witness's `LOGTO`).
+- ***§N (release number): the target is `L1.1-0`*** (owner, 14 Sep — conform
+  with Windows W1.1-0). ***ONLY the changelog header moved to `L1.1-0 - in
+  progress`; the revstamp STAYS `L1.0-0`*** and bumps only at ship time, as the
+  port keeps `W1.0-0` while its changelog reads `W1.1-0 - in progress`. So the
+  banner reads `L1.0-0`. (I first bumped the revstamp too; reverted.)
+
+***STATE OF THE INSTALL vs HEAD.*** Install is `83e5ccf`; HEAD is `caa2203`,
+ahead by dev instruments + docs + the changelog header. `assert-current` reads
+STALE for that reason — but nothing PRODUCT-facing is uninstalled except the
+changelog text (ships next install, no behaviour change). Verifiers need
+`--allow-stale` until the next reinstall, justified: the delta is
+docs/dev-scripts/changelog only.
+
+***WHAT'S NEXT — post-parity GOALS (not blockers) and owner-run leads:***
+- The **BASIC screen/widget library** (owner goal, design note in Open) — the
+  main forward work now the release blockers are cleared.
+- ***LEAD, unmeasured:*** `LOGTO <account>` errored `3001 … cproc:2952`
+  (`openpath "voc"`) from a piped `sudo sd` root session; may be a non-tty
+  artefact or a real issue. Worth its own look before trusting `LOGTO` in an
+  instrument; admins LOGTO interactively.
+- The two owner-run witnesses that never needed doing for the release stay
+  optional: `witness-accounts.sh --commit` (account family), `sdsyswrite`.
+
 ***14 Sep 2026 — tier.policy move WITNESSED on install `83e5ccf` (owner keep
 cycle, `.sdcore-install` 23:06:38, `assert-current` 0). The §M NAME HALF IS
 COMPLETE, installed.*** `tier.policy` shipped (both records), newvoc has no TIER
