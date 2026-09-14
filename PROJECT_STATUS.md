@@ -27,12 +27,12 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.7** | S | NANO and MICRO, `verify-editors` 28/28; left: the owner opens both at a real terminal and sees colour | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) | — |
-| ◐ | **S.3** | M | per-tier VOC closed; left: witness LOGIN `update.voc`'s STANDARD filter | — |
-| ◐ | **S.4** | M | OS-access tier gate closed; left: re-witness 10054 on a PROGRAMMER account | — |
+| ◐ | **S.3** | M | per-tier VOC closed; left: LOGIN `update.voc`'s STANDARD filter — built into `witness-release-run.sh` §7 (U1–U7), run at the next cycle | — |
+| ◐ | **S.4** | M | OS-access tier gate closed; left: 10054 on PROGRAMMER — built into `witness-release-run.sh` §6 (control at ADMINISTRATOR first), run at the next cycle | — |
 | ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
 | ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
-| ◐ | **Q.13** | M | audit trail; left: rotation at 1 MB, survival across a keep-accounts reinstall, four record types | — |
+| ◐ | **Q.13** | M | audit trail; left: rotation at 1 MB, survival across a keep-accounts reinstall (owner reads `head`/`wc` before delete and after install, next cycle), four record types | — |
 | ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
 | ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
 | ⬜ | **W.3** | R·M | `DELETE.FILE` on a multifile, 6133: what should N do? | — |
@@ -261,7 +261,16 @@ all six targets are sdsys files; `clean-deadvoc` NO COUNTERPART — cleared
 debris of the port's own `verify-catgate`, and `verify-sysperms` K4 shows this
 tree's catgate rows create nothing; `restart-sd` NO COUNTERPART NOW (unit is
 `KillMode=control-group` with `sdlnxd` in its cgroup; nothing in `gpl.bp`
-restarts SD). P.1 closed.
+restarts SD). P.1 closed. ***Also this session, all for ONE cycle:*** the
+`_keycode` backspace fix + `verify-keys.py` (red 34/36 on `d704658`);
+`witness-release-run.sh` gains §2b logtoaccess, §5 Q.28's deep F-pointer, §6
+S.4 (10054 on PROGRAMMER after an ADMINISTRATOR control) and §7 S.3 (Y at the
+release prompt on STANDARD; `FIRST_LINE` must be cleared in the parent shell,
+since `run_sd` runs in `$( )`). ***The cycle's steps:*** before the delete,
+`sudo head -3` + `sudo wc -l` of `/usr/local/sdsys/audit` (Q.13); keep cycle;
+`assert-current`; the same two reads (first lines identical, count not
+smaller); `verify-keys.py`; the `$hold.dic` byte check (S.11);
+`witness-release-run.sh --commit`.
 
 ***HAND-OFF, 14 Sep 2026, sixth session.*** Owner keep cycle installed
 `d704658` (13:06, `assert-current` current); `witness-release-run.sh --commit`

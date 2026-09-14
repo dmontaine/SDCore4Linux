@@ -7,6 +7,8 @@
 #     S.2   a root session LOGTOs an account whose group is newer than it
 #     Q.22  logtoaccess: a root session keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
+#     S.4   OS.EXECUTE runs at ADMINISTRATOR, 10054 at PROGRAMMER (6)
+#     S.3   Y at the release prompt keeps STANDARD's omit list out (7)
 #
 #   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
 #   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
@@ -140,14 +142,20 @@ strip() { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 # A piped session.  $1 who ("root" or the account), $2 title, then commands.
 # Narration to fd 2; sd's own output on fd 1; SD_RC holds the exit (124 = timeout).
 SD_RC=0
+# FIRST_LINE is the session's first stdin line - blank by the project's rule,
+# which is also what answers a sign-on prompt.  Set it to Y for one call to
+# answer a prompt yes (section 7), and it is reset to blank after every call.
+FIRST_LINE=""
 run_sd() {
     local who="$1" title="$2"; shift 2
     say "  --- sd session as $who: $title ---" >&2
+    [ -n "$FIRST_LINE" ] && say "      (first line: '$FIRST_LINE')" >&2
     local line
     for line in "$@"; do say "      > $line" >&2; done
-    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; return 0; fi
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; SD_RC=0; FIRST_LINE=""; return 0; fi
     local body out
-    body=$'\n''TERM 200,9999'
+    body="$FIRST_LINE"$'\n''TERM 200,9999'
+    FIRST_LINE=""
     for line in "$@"; do body="$body"$'\n'"$line"; done
     body="$body"$'\n''OFF'$'\n'
     if [ "$who" = root ]; then
@@ -336,11 +344,17 @@ SRC_SHOW='open "voc" to f else stop "ZZSHOW: cannot open voc"
 read r from f, "$release" else stop "ZZSHOW: no $release record"
 crt "ZZSHOW field 2 = ":r<2>
 end'
+# Section 6 (S.4): runs an OS command, then says so.  10054 aborts it first
+# when the account may not use OS.EXECUTE.
+SRC_OS='os.execute "true"
+crt "ZZOS ran OS.EXECUTE"
+end'
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -eq 1 ]; then
     printf '%s\n' "$SRC_REL"  > "$ADIR/bp/zzrel"
     printf '%s\n' "$SRC_SHOW" > "$ADIR/bp/zzshow"
-    chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzrel" "$ADIR/bp/zzshow"
-    say "  wrote $ADIR/bp/zzrel and zzshow"
+    printf '%s\n' "$SRC_OS"   > "$ADIR/bp/zzos"
+    chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzrel" "$ADIR/bp/zzshow" "$ADIR/bp/zzos"
+    say "  wrote $ADIR/bp/zzrel, zzshow and zzos"
 fi
 # ***THE SETUP RUNS THE PROGRAMS BY THEIR EXACT, LOWER-CASE NAMES.***  The
 # 14 Sep 12:55 run typed RUN BP ZZREL and RUN answered "Program BP.OUT ZZREL
@@ -351,7 +365,7 @@ fi
 SETUP_OK=0
 if [ "$COMMIT" -eq 0 ] || [ "$ADOPTED" -eq 1 ]; then
     OUT=$(run_sd "$ACC" "compile both, set field 2, show it" \
-          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "RUN BP zzrel" "RUN BP zzshow")
+          "BASIC BP ZZREL" "BASIC BP ZZSHOW" "BASIC BP ZZOS" "RUN BP zzrel" "RUN BP zzshow")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "B1 ZZREL wrote the fake release" "ZZREL wrote field 2 = $FAKE_REL" "$OUT"
         ck_says "B2 ZZSHOW reads it back" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
@@ -437,7 +451,66 @@ else
 fi
 
 # ==========================================================================
-head2 "6. verdict"
+
+# ==========================================================================
+# S.4 - PRE_RELEASE 23's OS.EXECUTE gate (10054) on a PROGRAMMER account.  It
+# was witnessed on STANDARD pete on 10 Sep, which could compile only because
+# the per-tier VOC was not built yet; a STANDARD account has no BASIC now, so
+# the witness it is owed is PROGRAMMER.  THE CONTROL COMES FIRST: at
+# ADMINISTRATOR (in sdadmin) ZZOS must RUN, or the refusal after the move
+# could be ZZOS failing for any reason at all.
+head2 "6. S.4 - OS.EXECUTE runs at ADMINISTRATOR, then 10054 at PROGRAMMER"
+if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzos" ]; }; then
+    for r in "O1 control ran" "O2 moved to PROGRAMMER" "O3 10054" "O4 did not run"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "control: RUN BP zzos at ADMINISTRATOR" "RUN BP zzos")
+    [ "$COMMIT" -eq 1 ] && ck_says "O1 control: ZZOS ran at ADMINISTRATOR" "ZZOS ran OS.EXECUTE" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+    [ "$COMMIT" -eq 1 ] && ck_says "O2 MODIFY.ACCOUNT reported the move (10109)" "is now PROGRAMMER" "$OUT"
+    OUT=$(run_sd "$ACC" "RUN BP zzos at PROGRAMMER" "RUN BP zzos")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "O3 refused in 10054's words" "$ACC is not permitted to use OS.EXECUTE" "$OUT"
+        ck_absent "O4 and the command did not run" "ZZOS ran OS.EXECUTE" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# S.3 - LOGIN update.voc's STANDARD filter.  MODIFY.ACCOUNT to STANDARD strips
+# the omit list (basic, run...); then a sign-on answers Y to the $release
+# prompt, which runs update.voc.  WITHOUT THE FILTER update.voc would copy
+# basic and run straight back from newvoc.  So: after Y, basic and run are
+# still absent, list (which STANDARD keeps) is present - the control that the
+# reads work - and the next sign-on no longer asks, so Y really updated.
+head2 "7. S.3 - Y at the release prompt on a STANDARD account keeps the omit list out"
+if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
+    for r in "U1 moved to STANDARD" "U2 basic absent before" "U3 prompt answered" "U4 basic still absent" "U5 run still absent" "U6 list present" "U7 no prompt after"; do not_reached "$r"; done
+else
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC STANDARD" "MODIFY.ACCOUNT $ACC STANDARD")
+    [ "$COMMIT" -eq 1 ] && ck_says "U1 MODIFY.ACCOUNT reported the move (10109)" "is now STANDARD" "$OUT"
+    OUT=$(run_sd "$ACC" "before: CT VOC basic (blank answers the prompt N)" "CT VOC basic")
+    [ "$COMMIT" -eq 1 ] && ck_says "U2 before: basic is absent" "Record 'basic' not found" "$OUT"
+    # run_sd runs inside $( ), a subshell, so its own reset cannot reach here:
+    # clear FIRST_LINE in THIS shell straight after, or every later session
+    # would answer Y too.
+    FIRST_LINE="Y"
+    OUT=$(run_sd "$ACC" "answer Y, then CT VOC basic, run, list" "CT VOC basic" "CT VOC run" "CT VOC list")
+    FIRST_LINE=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says  "U3 the prompt was there to answer" "Update VOC to new release (y/<n>)?" "$OUT"
+        ck_says  "U4 THE ROW: basic is still absent after update.voc" "Record 'basic' not found" "$OUT"
+        ck_says  "U5 THE ROW: run is still absent after update.voc" "Record 'run' not found" "$OUT"
+        if printf '%s' "$OUT" | grep -qE '^VOC list[[:space:]]*$'; then
+            ck "U6 control: list (kept by STANDARD) is present" yes yes
+        else
+            ck "U6 control: list (kept by STANDARD) is present" yes no
+        fi
+        ck "U6b it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
+    fi
+    OUT=$(run_sd "$ACC" "after: a plain sign-on" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_absent "U7 Y updated the release: no prompt on the next sign-on" "Your VOC is at release level" "$OUT"
+fi
+
+head2 "8. verdict"
 if [ "$COMMIT" -eq 0 ]; then
     say "  DRY RUN - nothing was executed and nothing was checked."
     say "  Re-run with --commit, as root:"
