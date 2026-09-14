@@ -80,7 +80,9 @@ process and semaphores `111111`.
 
 ## Waiting for the owner — skipped overnight 10–11 Sep because they need a ruling
 
-0. [W.0] ***RULED BY THE OWNER 14 Sep 2026 — "both" — AND BUILT, NOT INSTALLED.***
+0. [W.0] ***CLOSED 14 Sep 2026 — INSTALLED `2edec17` AND WITNESSED, `verify-semaphores.py`
+   9/9: a SIGKILLed holder of sem 4 released in 0.05 s, a SIGSEGVed holder in
+   0.00 s, no sample above 1.*** Ruled by the owner 14 Sep 2026 — "both" — and built:
    (1) `sdsem.c` `LockSemaphore`/`UnlockSemaphore` carry `SEM_UNDO` on BOTH
    sembufs (one half alone would leave the kernel's adjustment non-zero and the
    exit undo would add a phantom release). Checked first: no semaphore is held
@@ -143,7 +145,10 @@ process and semaphores `111111`.
    wrong: it forgot this entry's own measurement. The owner's terminal showed
    one because SD's `\r ESC[K` at end of input erased the second — the byte
    count is the instrument, not the rendering.
-3. [W.3] ***RULED BY THE PORT 13 Sep 2026 AND BUILT HERE 14 Sep, NOT INSTALLED.***
+3. [W.3] ***CLOSED 14 Sep 2026 — WITNESSED on `2edec17` (`witness-release-run.sh` §5b:
+   Enter and C deleted nothing, both components and the dictionary survived; N
+   deleted the dictionary only). W.2's 2050 witnessed in the same section.***
+   Ruled by the port 13 Sep 2026 and built here 14 Sep.
    The port's `RELEASE_1.1_FIXES.md` 33 (owner: *"Add a cancel answer"*),
    found 14 Sep — the check below of 12 Sep predates it: an empty answer
    becomes C, C releases the VOC record and returns `ER$STOPPED` having deleted
@@ -254,7 +259,7 @@ count was wrong in six of eight classes — which is why it was checked.*
 |---|---|---|---|
 | ~~3~~ | ~~DELETE.FILE NO.QUERY~~ — **BUILT 11 Sep**, see "Built … while the owner slept" | `DELETEF` | |
 | ~~4~~ | ~~DELETEF takes the ospath result~~ — **BUILT 11 Sep**, with port 113 | `DELETEF` | |
-| 3b | Every Y/N loop maps Enter to its default — **BUILT 11 Sep** for `CATALOG` ×3 (3033–3035), `DELETEF` 6131, `CPROC` 5040, all Enter = N. `SPVIEW` needs nothing (presets `yn = 'Y'` in a formatted field). `DELETEF` 2050: ruled and built 12 Sep, Enter = N, witnessed on `f446ac1` ("Waiting for the owner" 2). **UNRULED, for the owner:** `DELETEF` 6133 (task table W.3), and 2050 in `DELETE`, `COPY`, `CD`, `CT`, `ED` (W.2). `LOGIN`'s 5026 prompt is task table S.9 | | |
+| ~~3b~~ | ***CLOSED 14 Sep 2026 — the last two prompts, 2050 in all six verbs and DELETEF 6133 (cancel C), witnessed on `2edec17` by `witness-release-run.sh` §5b; LOGIN 5026 by §4.*** Every Y/N loop maps Enter to its default — **BUILT 11 Sep** for `CATALOG` ×3 (3033–3035), `DELETEF` 6131, `CPROC` 5040, all Enter = N. `SPVIEW` needs nothing (presets `yn = 'Y'` in a formatted field). `DELETEF` 2050: ruled and built 12 Sep, Enter = N, witnessed on `f446ac1` ("Waiting for the owner" 2). **UNRULED, for the owner:** `DELETEF` 6133 (task table W.3), and 2050 in `DELETE`, `COPY`, `CD`, `CT`, `ED` (W.2). `LOGIN`'s 5026 prompt is task table S.9 | | |
 | ~~5~~ | ~~LOGIN falls back when TERM has no terminfo~~ — **BUILT 11 Sep** | `LOGIN` | |
 | ~~6~~ | ~~ED return-code preset sign~~ — **BUILT 11 Sep** (`ED:60` was `+ER$ARGS`; CREATEA's twin already fixed) | `ED` | |
 | ~~7~~ | ~~HELP / F1 say something, msg 10149~~ — **BUILT 11 Sep** | `CPROC` | |

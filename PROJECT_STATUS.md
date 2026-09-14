@@ -28,13 +28,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ⬜ | **S.5** | M | parity audit of 10 Sep: run its witness list, much of it now covered by later verifiers | — |
 | ⬜ | **S.6** | M | MICRO and plain-sd administrator OS access: run its witness list at a real terminal | — |
 | ◐ | **Q.12** | M | SUSPENDED tier; left: the ssh and API doors | — |
-| ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED built into `witness-release-run.sh` §8; SH/OS not owed; left: §8 at the next cycle, rotation at 1 MB | — |
+| ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, API REFUSED (W.4) | — |
 | ◐ | **Q.14** | M | GRANT/REVOKE; left: message 10043's claim, with a person logged in during the grant | — |
 | ◐ | **Q.17** | M | MODIFY.PASSWORD no-sudo half; left: the administrator arm under `sudo sd` | — |
-| ◐ | **W.3** | M | 6133: the port RULED 13 Sep (cancel answer C, Enter = C); built 14 Sep; left: `witness-release-run.sh` §5b at the next cycle | — |
-| ◐ | **Q.3b** | M | Enter takes the default at every Y/N prompt; W.2 and W.3 built 14 Sep on the port's rulings; left: §5b at the next cycle | — |
-| ◐ | **W.2** | M | 2050: the port RULED 13 Sep (Enter = N in all six); built in `DELETE`, `COPY`, `CD`, `CT`, `ED` 14 Sep, message `(y/<n>)`; left: §5b at the next cycle | — |
-| ◐ | **W.0** | L | semaphores after a crash: owner RULED both 14 Sep; `SEM_UNDO` + fault-path release built; left: `verify-semaphores.py` at the next cycle | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
@@ -61,6 +57,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.3** | — | per-tier VOC, incl. LOGIN `update.voc`'s STANDARD filter | 14 Sep 2026 |
 | ✅ | **S.4** | — | OS-access tier gate, incl. 10054 on PROGRAMMER | 14 Sep 2026 |
 | ✅ | **S.11** | — | `$hold.dic`'s `@ID` installed again (FILES_DICTS key lower case) | 14 Sep 2026 |
+| ✅ | **W.0** | — | a dead or faulting semaphore holder gives it back (`SEM_UNDO` + fault path), `verify-semaphores` 9/9 | 14 Sep 2026 |
+| ✅ | **W.2** | — | Enter at 2050 means N in all six verbs | 14 Sep 2026 |
+| ✅ | **W.3** | — | 6133 cancels on Enter or C; N still deletes the dictionary only | 14 Sep 2026 |
+| ✅ | **Q.3b** | — | Enter takes the shown default at every Y/N prompt | 14 Sep 2026 |
 | ✅ | **Q.28** | — | `RUN` of a path over 128 characters names the limit (10918) | 14 Sep 2026 |
 | ✅ | **Q.15** | — | ADOPT keyword and installer seed | 14 Sep 2026 |
 | ✅ | **Q.16** | — | upgrade runs UPDATE.ACCOUNTS ALL | 11 Sep 2026 |
@@ -226,8 +226,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`984be50`**, stamped 14 Sep 2026 13:37:31,
-  owner keep cycle — carries the backspace fix and S.11.
+- **Runtime:** install built from **`2edec17`**, stamped 14 Sep 2026 14:07:22,
+  owner keep cycle, `assert-current` current — carries W.0, W.2, W.3.
+  *(Superseded:)* `984be50`, 13:37:31 — the backspace fix and S.11.
   *(Superseded:)* `d704658`, 13:06:01 — S.10.
   *(Superseded:)* `6e5b2f5`, 12:20:13 — S.9, Q.25, P.16.
   *(Superseded:)* `ca4c07c`, 11:51:03 — P.29, Q.28, S.8, S.2.
@@ -245,7 +246,22 @@ owner's ruling comes first.
 
 ## START HERE
 
-***NINTH SESSION, 14 Sep 2026 — BUILT, NOT INSTALLED (next cycle):*** W.2
+***TENTH SESSION, 14 Sep 2026 — CYCLE `2edec17` (14:07), ALL GREEN.*** Owner-run:
+`verify-semaphores.py` ***9/9*** — KILL round caught sem 4 held by 5769, SIGKILL
+→ back to 1 in 0.05 s (SEM_UNDO); FAULT round sem 4 held by 5837, SIGSEGV → -11,
+back to 1 in 0.00 s (handler); max value in any sample 1. ***W.0 CLOSED.***
+`witness-release-run.sh --commit` 14:09 ***63/63***, cleanup complete: §5b —
+2050 Enter → nothing displayed, WHO ran, Y control displayed `VOC det.sup`;
+6133 Enter and C → nothing deleted, c1/c2/dic on disk, N control → `DICT
+portion 'zzpromptm.dic' deleted` (***W.2, W.3, Q.3b CLOSED***); §8 — trail 684 → 692,
+new lines `MODIFY.ACCOUNT ADD account=zzrel1 to=zzrel2`, `… DELETE … from=zzrel2`,
+`user=root sudo=zzrel1 … ELEVATION REFUSED reason=not a registered
+administrator` (Q.13's three types witnessed); 5026 now shows its trailing
+space. Every earlier section re-passed. Open rows now: S.7 (owner terminal),
+P.24/Q.19/S.5/S.6/Q.12/Q.14/Q.17 (owner witnesses), Q.13 rotation, Q.22
+`sdsyswrite`, P.6, W.4, S.1.
+
+***NINTH SESSION, 14 Sep 2026 — BUILT, then installed and witnessed in the tenth:*** W.2
 and W.3 were ***answered by the port's record***, not asked: its
 `RELEASE_1.1_FIXES.md` 33 (owner, 13 Sep) — Enter = N at 2050 in all six, and
 6133 gains C (Enter = C). Built as the port's lines, messages 2050/6133 reworded.
