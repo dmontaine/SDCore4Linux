@@ -33,5 +33,6 @@ bool get_semaphores(bool create, char* errmsg);
 void delete_semaphores(void);
 void StartExclusive(int semno, int16_t where);
 void EndExclusive(int semno);
+void release_owned_semaphores(void);
 
 /* END-CODE */
