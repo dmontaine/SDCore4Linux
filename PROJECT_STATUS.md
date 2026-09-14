@@ -79,8 +79,29 @@ the work, nothing in "Verified" that was not observed that session.
 
 ## START HERE
 
+***INSTALL `80b4e83` WITNESSED 13 Sep 18:16*** (owner FULL cycle — the first
+attempt ran only the delete; journal showed no installer sudo in boot 0 — then
+install 18:06:07, boot 18:06:38, `assert-current` 0). Suite as the installing
+user, no sudo, no flag: ***pagination 10/10*** (after S: 418 listed, 0 clears, 0
+headings; NO.PAGE target 0 clears/1 heading; N control paused), ***vocverbs
+34/34 (the D4 debt, clean)***, accounts 36/36 (***R8 root:root 644*** —
+PRE_RELEASE 30 closed), fold 35, setpw 24, txn 33, editors 28, nonet 59,
+lineendings 42, basicfuncs 199, sysperms 18, grants 16/0, tier-layer 0 with COUNT
+VOC 418; 0 not-OFF; PRE_RELEASE 29 boot held (0 `-stop`).
+***lcnames 121/122 — ONE FAILURE, THE INSTRUMENT:*** A5a expected `COUNT $ACC` ≥ 1,
+SD printed `0 record(s) counted` both ways — correct: `$acc` is a directory file
+on the account directory, whose records are plain files, and a fresh account has
+none (find: 0). All other new rows PASS: S19–S21, N1–N6 (N names, the D4 debt),
+R/M/K categories incl. ***K5b the marker reached the saved stack via
+`$command.stack`***. Fixed: A5 plants `zzlcnacc`, expects baseline+1 typed both
+ways, removes it. ***Observed without the verifier (plain sessions, no flag):***
+`COUNT $acc` 0 → planted 1 → removed 0. ***Not re-run through the verifier*** —
+owed on the next install. (A first manual check showed one count per two
+commands: my `printf '%s\nOFF\n'` put OFF after the first command — the harness,
+not SD.)
+
 ***OWNER-REPORTED DEFECT, 13 Sep: S AT A REPORT'S PAGE PROMPT "TERMINATES" THE
-LISTING — FIXED, NOT INSTALLED; rides the same full cycle as the entry below.***
+LISTING — FIXED; WITNESSED ON `80b4e83` (above).***
 - ***Measured on `c759c7a` in a pty (scratch `pagerepro.py`, no flag):*** `LIST
   VOC`, answer S → ALL 418 records went out, but ***20 clear-screens + 20
   headings*** after the answer (vt100 `ESC[H ESC[J`); `LIST VOC NO.PAGE` → 0
