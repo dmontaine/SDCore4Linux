@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner):
+*               LOGTO and the elevation check downcase the name for the register
+*               lookup, and @WHO reads 'sdsys'.
 * 13 Sep 26 dm  The command stack is saved through the $command.stack VOC
 *               record, its lower-case id (plan M3, the $ records).
 * 13 Sep 26 dm  An account's VOC file is voc on disk, and RUN's default source
@@ -901,8 +904,8 @@ grant.administrator:
       return
    end
 
-   if admin.person # '' and upcase(admin.person) # 'SDSYS' then
-      read admin.rec from admin.f, upcase(admin.person) then
+   if admin.person # '' and downcase(admin.person) # 'sdsys' then
+      read admin.rec from admin.f, downcase(admin.person) then
          if admin.rec<ACC$GROUP> = 'sdu_' : admin.person then
             admin.tier = upcase(trim(admin.rec<ACC$TIER>))
          end
@@ -2815,9 +2818,9 @@ int.logto:
 *   when the session came in through the root-entry block above, so a session
 *   that could reach SDSYS before still can unless the gate deliberately
 *   refused it, which is the point of the change.
-   if (upcase(new.account) = "SDSYS") and not(kernel(K$ADMINISTRATOR,-1)) then
+   if (downcase(new.account) = "sdsys") and not(kernel(K$ADMINISTRATOR,-1)) then
       display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=SDSYS reason=not an administrator')
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=not an administrator')
       unwinding = 2
       return    
    end 
@@ -2847,9 +2850,9 @@ int.logto:
 
    openpath @sdsys:@ds:'accounts' to acc.f then
 *      readv acc.rec from acc.f, upcase(new.account), ACC$PATH then
-      read acc.record from acc.f, upcase(new.account) then
+      read acc.record from acc.f, downcase(new.account) then
          acc.rec = parse.pathname.tokens(acc.record<ACC$PATH>)
-         new.account = upcase(new.account)
+         new.account = downcase(new.account)
       end else
          acc.rec = new.account
          new.account = ''
@@ -2902,7 +2905,7 @@ int.logto:
 
    if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : upcase(new.account) : ' reason=not granted')
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=not granted')
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2932,7 +2935,7 @@ int.logto:
    if not(kernel(K$ADMINISTRATOR,-1)) and not(tier_allows(@logname, new.account)) then
       display sysmsg(10126, new.account, ~
                      upcase(trim(acc.record<ACC$TIER>, ' ', 'B')), @logname)
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : upcase(new.account) : ' reason=tier')
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=tier')
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2957,7 +2960,7 @@ int.logto:
    account.path = ospath("", os$cwd)     ;* @PATH
 
    if new.account = '' then
-      new.account = upcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
+      new.account = downcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999])
    end
 
    who = new.account
@@ -3339,7 +3342,7 @@ int.logout:
            return
          end
 
-         if @who # 'SDSYS' then
+         if @who # 'sdsys' then
            display sysmsg(2002) ;* Command can only be executed from SDSYS account
            return
          end

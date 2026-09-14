@@ -385,6 +385,27 @@ def main():
              (False, False, False),
              (cf in after, cf + ".dic" in after, V.says(s.text, r"\(y/<n>\)")))
 
+    # ***ACCOUNT NAMES (13 Sep 2026, owner: lower case, SDSYS included).***  The
+    # register key is the name lower-cased, and every lookup downcases its
+    # input.  The instrument is WHO, which prints @WHO: typed in UPPER case,
+    # LOGTO must reach the account and WHO must say it in lower case - and in
+    # no other spelling.  The caller's own account, so no grant is involved.
+    reg = os.path.join(V.SDSYS, "accounts")
+    reg_ids = sorted(os.listdir(reg)) if os.path.isdir(reg) else []
+    run.say("  register ids: %s" % reg_ids)
+    run.note("U1 the register holds %s and sdsys, and no upper-case id" % user.lower(),
+             (True, True, []),
+             (user.lower() in reg_ids, "sdsys" in reg_ids,
+              [i for i in reg_ids if i != i.lower()]))
+    s = sd("LOGTO own account typed upper, then WHO",
+           ["LOGTO %s" % user.upper(), "WHO"])
+    run.note("U2 LOGTO %s was not refused as unregistered" % user.upper(), False,
+             V.says(s.text, r"not in register"))
+    run.note("U3 WHO reports %s in lower case" % user.lower(), True,
+             V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.lower())))
+    run.note("U4 and not in upper case", False,
+             V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.upper())))
+
     # ------------------------------------------------ per-category function
     def savedlists_works(prefix, first):
         if first:

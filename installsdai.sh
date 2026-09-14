@@ -38,6 +38,9 @@
 #   13 Sep 2026 - and the program directories (plan M3 D2): gpl.bp,
 #   gpl.bp.out, bp, bp.out and pcode.out.  sd.service is Type=oneshot
 #   (PRE_RELEASE 29).
+#
+#   13 Sep 2026 - account names are lower case, the system account included:
+#   its register record is accounts/sdsys.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -741,10 +744,11 @@ fi
 #            which on a keep cycle replaces the whole register with the saved
 #            copy.  644, not 654: it is a data record, execute on it grants
 #            nothing, and 644 is what every other register record is
-#            (accounts/DON, written by SD as root).  Printed, not assumed.
-sudo chown root:root "$sdsysdir/accounts/SDSYS"
-sudo chmod 644 "$sdsysdir/accounts/SDSYS"
-echo "SDSYS register record: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts/SDSYS")"
+#            (accounts/don, written by SD as root).  Printed, not assumed.
+#            The record is accounts/sdsys: account names are lower case (13 Sep).
+sudo chown root:root "$sdsysdir/accounts/sdsys"
+sudo chmod 644 "$sdsysdir/accounts/sdsys"
+echo "sdsys register record: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts/sdsys")"
 #
 # Copy saved sd.conf file if it exists
 if [ -f /home/sd/sd.conf ]; then
@@ -931,7 +935,9 @@ if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
 
     # The instrument rule: say what the register ACTUALLY holds, not what the
     # command was asked for.  Field 5 is ACC$TIER.
-    acct_reg="${sdsysdir}/accounts/$(printf '%s' "$tuser" | tr '[:lower:]' '[:upper:]')"
+    # 13 Sep 26 - account names are lower case: the register key is the name
+    # downcased, as CREATE.ACCOUNT stores it.
+    acct_reg="${sdsysdir}/accounts/$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
     seeded_tier=$(sudo sed -n '5p' "$acct_reg" 2>/dev/null)
     if [ "$seeded_tier" = "ADMINISTRATOR" ]; then
       echo "Registered ${tuser} as an SD administrator (tier: ${seeded_tier})."

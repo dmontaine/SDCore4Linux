@@ -359,10 +359,12 @@ def main():
     # ***G2 IS THE ROW THAT MATTERS.***  A printed refusal is not proof the
     # refusal HELD; WHO says which account the session is actually in, and if
     # LOGTO had succeeded despite the message this is what would show it.
-    run.note("G2 and the session stayed in %s - the refusal HELD" % user.upper(),
-             True, V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.upper())))
-    run.note("G3 it never reported being in SDSYS", False,
-             V.says(s.text, r"^\s*\d+\s+SDSYS\s*$"))
+    # 13 Sep 2026: WHO prints @WHO, which is lower case now (account names are).
+    # G3 is matched in EITHER case, so a regression back to upper still fails it.
+    run.note("G2 and the session stayed in %s - the refusal HELD" % user.lower(),
+             True, V.says(s.text, r"^\s*\d+\s+%s\s*$" % re.escape(user.lower())))
+    run.note("G3 it never reported being in sdsys (either case)", False,
+             V.says(s.text, r"(?i)^\s*\d+\s+sdsys\s*$"))
 
     # ------------------------------------------------- 6. the audit trail
     run.heading("6. the audit trail is write-only to the group (queue 13)")

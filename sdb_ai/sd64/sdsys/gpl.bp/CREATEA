@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case (plan M, owner): the register key
+*               is stored downcased, and a GROUP account's directory is too.
 * 13 Sep 26 dm  A new account's command-stack VOC record is $command.stack (plan
 *               M3, the $ records; the port's 69015c3).
 * 13 Sep 26 dm  A new account is made lower case on disk: voc, $hold, $hold.dic,
@@ -371,6 +373,7 @@ PW.TRY.AGAIN:
      if pathname = '' then pathname = '/home/sd/group_accounts'
      call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
      if token.type = PARSER$END then stop
+     acc.name = downcase(acc.name)   ;* 13 Sep 26 - lower case, directory and register key alike
      pathname := @ds:acc.name
      if upcase(acc.name) = 'SDUSERS' then
        @system.return.code = -ER$ARGS
@@ -410,14 +413,14 @@ PW.TRY.AGAIN:
    * again when we are ready to create the account but doing it here
    * saves the user typing the path name before we spot the error.
 
-   read acc.rec from acc.f, acc.name then      ;* 0275
+   read acc.rec from acc.f, downcase(acc.name) then      ;* 0275
       @system.return.code = -ER$ACC.EXISTS
       stop sysmsg(6002) ;* Account already exists
    end
 
    * Validate account name
 
-   acc.name = upcase(acc.name)
+   acc.name = downcase(acc.name)
 
    if len(acc.name) > 32 or not(alpha(acc.name[1,1])) or index(acc.name, ' ', 1) then
       stop sysmsg(6003) ;* Account name is invalid

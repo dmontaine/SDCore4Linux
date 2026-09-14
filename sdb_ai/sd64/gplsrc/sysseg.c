@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 13 Sep 26 dm  The startup command runs in the sdsys account, its lower-case
+ *               name (plan M: account names are lower case).
  * 11 Sep 26 dm  start_sd() rotates the audit trail, as the port's does
  *               (PORT_ADOPTION 13).
  * 10 Sep 26 dm  Parity audit: start_sd() reports a failed fork() instead of
@@ -407,7 +409,7 @@ bool start_sd() {
         fprintf(stderr, "Overflowed file/pathname length in start_sd()!\n");
         return FALSE;
       } else
-        execl(path, path, "-aSDSYS", sysseg->startup, NULL);
+        execl(path, path, "-asdsys", sysseg->startup, NULL);
     }
   }
 

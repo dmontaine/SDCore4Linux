@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case (plan M, owner); the Q-pointer it
+*               writes names the account in lower case.
 * 13 Sep 26 dm  The target file name folds as typed, lower, upper (plan M3 D4).
 * 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
@@ -74,7 +76,7 @@ $include int$keys.h
          if account = '' then stop sysmsg(2059) ;* Command aborted
       end
 
-      account = upcase(account)
+      account = downcase(account)
       read acc.rec from acc.f, account then exit
 
       display sysmsg(2201, account) ;* Account name '%1' is not in register

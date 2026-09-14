@@ -140,8 +140,10 @@ for arg in "$@"; do
 done
 
 ACC=$(printf '%s' "$ACC" | tr '[:upper:]' '[:lower:]')
-ACC_UC=$(printf '%s' "$ACC" | tr '[:lower:]' '[:upper:]')
-ACC_REFUSE_UC=$(printf '%s' "$ACC_REFUSE" | tr '[:lower:]' '[:upper:]')
+# The REGISTER KEY for each name.  _UC once meant upper case; since 13 Sep 2026
+# account names are stored lower case, so the key is the name as it already is.
+ACC_UC=$(printf '%s' "$ACC" | tr '[:upper:]' '[:lower:]')
+ACC_REFUSE_UC=$(printf '%s' "$ACC_REFUSE" | tr '[:upper:]' '[:lower:]')
 # CREATEA:208 - the marker names the account it authorises, DOWNCASED.
 MARKER="$SDSYS/\$adopt.$ACC"
 
@@ -261,7 +263,7 @@ cleanup() {
     fi
     for n in "$ACC" "$ACC_REFUSE"; do
         local uc
-        uc=$(printf '%s' "$n" | tr '[:lower:]' '[:upper:]')
+        uc=$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')   # register key, lower since 13 Sep
         say "  left behind for $n: register=$(yesno_file "$REGISTER/$uc")" \
             "dir=$(yesno_dir "$ACCOUNTS_ROOT/$n") user=$(yesno_user "$n")" \
             "group=$(yesno_group "sdu_$n") marker=$(yesno_file "$SDSYS/\$adopt.$n")"
@@ -300,7 +302,7 @@ fi
 # would mean this run's ADOPT row could pass on an earlier run's door.
 DIRTY=0
 for n in "$ACC" "$ACC_REFUSE"; do
-    uc=$(printf '%s' "$n" | tr '[:lower:]' '[:upper:]')
+    uc=$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')   # register key, lower since 13 Sep
     [ "$(yesno_user "$n")" = yes ] && { say "  DIRTY: Linux user $n already exists"; DIRTY=1; }
     [ "$(yesno_group "sdu_$n")" = yes ] && { say "  DIRTY: group sdu_$n already exists"; DIRTY=1; }
     [ "$(yesno_dir "$ACCOUNTS_ROOT/$n")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$n already exists"; DIRTY=1; }

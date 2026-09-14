@@ -18,6 +18,8 @@
 *
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner); a
+*               cross-referencing Q-pointer's account is compared downcased.
 * 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -112,7 +114,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    * Validate account name
 
-   acc.name = upcase(acc.name)
+   acc.name = downcase(acc.name)
 
 * 10 Sep 26 dm - REMOVE.HOME, THE OWNER'S OPTION (10 Sep 2026): also remove the
 *   Linux user's home directory.  A PARAMETER RATHER THAN A SECOND PROMPT,
@@ -131,7 +133,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       end
    repeat
 
-   if acc.name = 'SDSYS' then
+   if acc.name = 'sdsys' then
       stop sysmsg(6025) ;* Cannot delete SDSYS account
    end
 
@@ -231,7 +233,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                               end
 
                            case type = 'Q'
-                              if xvoc.rec<2> = acc.name or xvoc.rec<2> = pathname then
+                              if downcase(xvoc.rec<2>) = acc.name or xvoc.rec<2> = pathname then
                                  gosub report.xref
                               end
                         end case

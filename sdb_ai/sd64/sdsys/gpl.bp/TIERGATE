@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner).
 * 13 Sep 26 dm  Opens sdsys accounts by its lower-case name on disk (plan M3 D1).
 * 11 Sep 26 dm  written, from the Windows port's TIERGATE of 29 Aug 2026
 *               (its PRE_RELEASE_FIXES 57).  PORT_ADOPTION 14.
@@ -93,12 +94,12 @@ $include int$keys.h
 
    set.status 0
 
-   acct = upcase(trim(account, ' ', 'B'))
-   who  = upcase(trim(user, ' ', 'B'))
+   acct = downcase(trim(account, ' ', 'B'))
+   who  = downcase(trim(user, ' ', 'B'))
 
 *  SDSYS IS NEVER GRANTED.  Owner's rule; see above for why this is stated
 *  rather than left to the two accidents that also stop it.
-   if acct = 'SDSYS' then
+   if acct = 'sdsys' then
       set.status 4
       return @false
    end

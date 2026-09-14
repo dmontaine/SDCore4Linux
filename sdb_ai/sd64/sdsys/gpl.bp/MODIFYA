@@ -19,6 +19,7 @@
 * 
 *
 * START-HISTORY:
+* 13 Sep 26 Account names are lower case, SDSYS included (plan M, owner).
 * 13 Sep 26 An account's VOC file is voc on disk (plan M3 D3).
 * 13 Sep 26 Opens sdsys accounts, newvoc and voc_template by their lower-case
 *           names on disk (plan M3 D1).
@@ -133,8 +134,8 @@ deffun grp_members(group) calling '!grp_members'
       stop
    end
    *
-   acc.name = upcase(acc.name)   ;* account names are always upper case
-   if acc.name = 'SDSYS' then
+   acc.name = downcase(acc.name)   ;* account names are always lower case (13 Sep 26)
+   if acc.name = 'sdsys' then
       stop sysmsg(2202) ;* Account name is invalid
    end   
    *
@@ -363,7 +364,7 @@ set.tier:
          crt sysmsg(10110, acc.name, action)  ;* %1 is already %2; nothing changed
          return
       end
-      if (acc.name = upcase(@logname)) or (acc.name = upcase(@who)) then
+      if (acc.name = downcase(@logname)) or (acc.name = downcase(@who)) then
          @system.return.code = -ER$FAILED
          crt sysmsg(10112)  ;* You cannot suspend your own account or the one you are standing in
          return
