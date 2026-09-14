@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  Both Ctrl-H (8) and DEL (127) are bound to K$BACKSPACE as
+*               defaults, before the terminfo binds so terminfo still overrides
+*               either - the Windows port's fix of 19 Aug 26 (PORT_ADOPTION 22,
+*               verify-keys).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -45,7 +49,29 @@ $include keycode.h
       kc.codes = ''
       tinfo = terminfo()
 
-      code = K$F1         ; key.string = tinfo<T$KEY.F1>        ; gosub bind
+* 14 Sep 26 dm - BOTH SPELLINGS OF BACKSPACE, BOUND BEFORE TERMINFO SO TERMINFO
+*   STILL WINS.  The Windows port's fix of 19 Aug 26, adopted for conformity and
+*   because the defect is live here too.  A terminal sends either Ctrl-H (8) or
+*   DEL (127) for its backspace key; SD bound whichever one kbs named and ignored
+*   the other.
+*
+*   MEASURED 14 Sep 2026 on install d704658, piped "COUNTX<erase> VOC" as don:
+*   after TERM vt100 (kbs ^H), DEL did NOT erase ("COUNTX is not in your VOC")
+*   while ^H did; under the default type linux, and xterm, both erased.  Linux
+*   terminal emulators send DEL by default, so backspace died for anyone who
+*   chose one of the many types whose kbs is ^H.
+*
+*   POSITION IS THE WHOLE POINT.  bind REPLACES an existing binding, so these two
+*   are defaults the terminfo binds below overwrite; a type that claims DEL for
+*   another key (kdch1) keeps it.  Additive: it turns a lookup that finds nothing
+*   into one that finds something, and changes no lookup that already succeeds.
+*
+*   THIS DOES NOT REACH THE FULL-SCREEN EDITORS, which read raw bytes with their
+*   own tables.  gplbld/verify-keys.py measures the command line.
+      code = K$BACKSPACE  ; key.string = char(8)                ; gosub bind
+      code = K$BACKSPACE  ; key.string = char(127)              ; gosub bind
+
+      code = K$F1        ; key.string = tinfo<T$KEY.F1>        ; gosub bind
       code = K$F2         ; key.string = tinfo<T$KEY.F2>        ; gosub bind
       code = K$F3         ; key.string = tinfo<T$KEY.F3>        ; gosub bind
       code = K$F4         ; key.string = tinfo<T$KEY.F4>        ; gosub bind

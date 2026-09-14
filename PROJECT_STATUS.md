@@ -39,7 +39,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.3b** | R·M | Enter takes the default at most Y/N prompts; left: rulings W.2 and W.3 | — |
 | ◐ | **W.2** | R·L | 2050's Enter default built for `DELETEF`; left: rule and build it for `DELETE`, `COPY`, `CD`, `CT`, `ED` | — |
 | ⬜ | **W.0** | R·L | semaphores after a crash: `SEM_UNDO`, and release on the fault path | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; left: `cmdaudit`, `sdsyswrite`, `batchjob`, `logtoaccess`, `notyet`, `keys` | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` built 14 Sep with the `_keycode` fix (red on the old install, 2/36); left: `keys` after install, `cmdaudit`, `sdsyswrite`, `batchjob`, `logtoaccess`, `notyet` | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ⬜ | **W.4** | L·R | walk the API surface, then rule on API login without OS passwords and a systemd/ufw REMOTE.API/REMOTE.SSH | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
@@ -258,7 +258,14 @@ The script change makes the install stale, so Q.28's re-run waits for the next
 cycle. Cleanup complete both runs.
 
 ***[S.10] HAND-OFF, 14 Sep 2026, fifth session — `RUN` DID NOT FOLD THE PROGRAM
-NAME; CLOSED in the sixth session (above).*** Owner-run on `6e5b2f5` (`assert-current`
+NAME; CLOSED in the sixth session (above).*** *Audit, sixth session, read only:*
+every `read`/`readv` in `gpl.bp` keyed by a `*name*` variable with no
+`downcase`/`upcase` within 3 lines — 37 sites, 22 outside VOC/register/dict.
+No other program-OBJECT lookup lacks the fold: CATALOG folds both (`catalog:230`,
+`:283`); DELETE.CATALOG reads catalogue names (upper by design); `prog_info:57`
+reads a given path and has no caller in `gpl.bp`. The rest (ED, CT, COPY,
+DELETE, SPVIEW, lists) are record ids in users' own files — out of §M scope by
+the 12 Sep ruling, so `ED BP ZZNEW` still makes an upper-case source record. Owner-run on `6e5b2f5` (`assert-current`
 current): `verify-sysperms.py` ***28/28*** (dump `dumps/sddump.5` `don:don 0600`,
 listing refused) — Q.25 closed; the install built with plain `make` — P.16
 closed. `witness-release-run.sh --commit` 12:55: S.2's real case PASSED (groups
