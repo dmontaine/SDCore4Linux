@@ -1,0 +1,119 @@
+* REMOTESSH
+* REMOTE.SSH verb
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 14 Sep 26 dm  written, from the Windows port's REMOTESSH of 30 Aug 2026 (its
+*               PRE_RELEASE_FIXES 78).  S.13.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    REMOTE.SSH ON | OFF
+*
+*    Says whether other computers may reach this one over ssh.
+*
+*       ON   the firewall allows port 22
+*       OFF  it does not: only this computer may connect
+*
+*    With no keyword it reports the current setting and changes nothing.
+*
+* IT MOVES THE FIREWALL RULE AND NEVER THE SSH SERVER.  sshd is the
+* distribution's service and an administrator's own shell may be running on it;
+* the port's SSH.SERVER INSTALL | REMOVE is not carried over, because packages
+* are the distribution's to install.  The rule is the installer's own ("ufw
+* allow 22/tcp").
+*
+* ***SO WHERE THE FIREWALL GATES NOTHING, THIS REFUSES.***  With ufw absent,
+* inactive, or allowing incoming connections by default, a rule for port 22
+* changes nothing about who can connect, and reporting "remote ssh access is now
+* OFF" would be exactly the reassuring falsehood the owner's instrument rule is
+* about.  sd-elevate exits 3 then, having changed nothing, and prints what the
+* machine does say; this verb says why (10139).
+*
+* ADMINISTRATOR ONLY, and audited, as REMOTE.API is.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $remote.ssh
+$catalog $REMOTESSH
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+
+   prompt ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+   action = ''
+   word = ''
+   extra = ''
+   rc = 0
+
+   parser = "!PARSER"
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* Verb remote.ssh
+   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)  ;* ON | OFF
+
+   action = upcase(trim(action))
+
+   if token.type = PARSER$END or action = '' then
+      os.execute 'sudo /usr/local/sbin/sd-elevate remote-ssh show'
+      rc = OS.ERROR()
+      if rc # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10139, 'SHOW', rc)
+      end
+      stop
+   end
+
+   begin case
+      case action = 'ON'
+         word = 'on'
+      case action = 'OFF'
+         word = 'off'
+      case 1
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10137)  ;* remote.ssh on | off
+   end case
+
+   call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
+   if token.type # PARSER$END then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10137)
+   end
+
+   os.execute 'sudo /usr/local/sbin/sd-elevate remote-ssh ' : word
+   rc = OS.ERROR()
+   if rc # 0 then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(10139, action, rc)  ;* Could not set remote ssh access to %1 (status %2)
+   end
+
+   void kernel(K$AUDIT, 'REMOTE.SSH ' : action)
+   @system.return.code = 0
+   crt sysmsg(10138, action)  ;* Remote ssh access is now %1.
+end
+
+* END-CODE

@@ -31,7 +31,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
 | ◐ | **S.16** | M | the port's per-account API route: `sdapi` (installer creates + seeds admins), MODIFY.ACCOUNT API/NONE, demotion and CREATE.ACCOUNT must name one, `vb.scram.final` tests it (10073), DELACC strips it; built 14 Sep, free checks green; left: keep cycle + witness §13f F0–F9b | — |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
-| ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
+| ◐ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh` in the admin layer, messages 10131-10139; built 14 Sep, `test-sd-elevate` 59/59; left: keep cycle + witness §13h (incl. the held-session falsifier) | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
@@ -671,7 +671,28 @@ does. SCRAM runs on Linux, so it is adopted — the port's `$cred` store,
 `CRED_SET`/`CRED_VERIFY`, SCRAM in APISRVR and the client change. Until it is
 built, with "Allow API access" = Y the password crosses TCP 4243 in clear. Run in the sixteenth (above).
 
-***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — TO BUILD.*** The
+***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — BUILT 14 Sep 2026
+(twenty-fourth session), `test-sd-elevate.py` 59/59; §OPEN§: the verbs compile
+only at install and the helper's real steps need root, so both are unrun until
+the keep cycle and witness §13h.*** As built, the plan below: `sd-elevate
+remote-api on|local|off|show` writes `/etc/systemd/system/sdclient.socket.d/
+sd-remote-api.conf` (`ListenStream=` reset, the unit's own Unix-socket line,
+then 0.0.0.0 or 127.0.0.1:4243), daemon-reload, enable, restart the socket;
+OFF is `disable --now`; ufw `allow`/`delete allow 4243/tcp` (the installer's
+rule); `show` reads systemd and ufw back and ends "The SD API is X.". `remote-ssh
+on|off|show` moves `ufw allow 22/tcp` only, and ***refuses with exit 3 where ufw
+is absent, inactive or not default-deny incoming*** (a rule would gate nothing);
+OFF warns about other ssh-allowing rules it did not add. Fixed keywords only;
+`test-sd-elevate.py` +9 rows and 5 PLAN rows asserting the dry-run steps (a
+swapped ON/LOCAL fails them). `gpl.bp/remoteapi` (`$REMOTEAPI`) and `remotessh`
+(`$REMOTESSH`): administrator-gated, one keyword, a second word refused, no
+word = report, audited; `voc_template/remote.api`, `remote.ssh` and
+`tier.policy/add.administrator` (19 → 21 verbs; login's `update.voc` adds them
+to existing administrators, `login:797`); messages 10131-10133, 10137-10139 in
+Linux wording. ***No SD restart and no Y/N, unlike the port*** — that rests on
+the falsifier below, which §13h H1 measures. `scram-probe.py --pause` added for
+it. Witness §13h saves and restores the exact listener/firewall state (also in
+cleanup). *(Plan, 12 Sep, kept:)* The
 port's record answers whether: owner, 30 Aug 2026 (port PRE_RELEASE_FIXES 78),
 because changing your mind meant re-running the installer — and here only a
 reinstall moves `installsdai.sh:736-742`, which the stance's "a restrictive

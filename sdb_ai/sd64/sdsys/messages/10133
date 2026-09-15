@@ -1,0 +1,1 @@
+Could not set the SD API to %1 (status %2).\n\nThe lines above are the helper's own and say which step stopped.  Status 2\nmeans it refused or could not run; any other number is the failing command's\nexit status.  Run "remote.api" to see what the machine says now.

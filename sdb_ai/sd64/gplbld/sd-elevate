@@ -8,6 +8,9 @@
 # 14 Sep 26 dm  sdapi joins the whitelist (S.16, the port's per-account API
 #               route): MODIFY.ACCOUNT API / NONE move a person in and out of
 #               it.  Not deletable here, like sdusers and sdadmin.
+# 14 Sep 26 dm  remote-api on|local|off|show and remote-ssh on|off|show, for
+#               REMOTE.API and REMOTE.SSH (S.13): the sdclient.socket listener
+#               through a drop-in, and ufw's 4243/tcp and 22/tcp allow rules.
 # END-HISTORY
 #
 # START-DESCRIPTION:
@@ -80,10 +83,184 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] addgroup <user> <group>
   sd-elevate [--dry-run] delgroup <user> <group>
   sd-elevate [--dry-run] setgid   <path>
+  sd-elevate [--dry-run] remote-api on | local | off | show
+  sd-elevate [--dry-run] remote-ssh on | off | show
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
   exit 2
+}
+
+# ------------------------------------------------------ remote access (S.13)
+#
+# 14 Sep 26 dm - REMOTE.API and REMOTE.SSH, the port's verbs (its REMOTEAPI /
+# REMOTESSH, PRE_RELEASE_FIXES 78 and 148, owner 30 Aug 2026).  THE SAME TWO
+# AXES THE PORT HAS, ON LINUX'S MECHANISMS: whether SD listens is systemd's
+# sdclient.socket, and who may reach it is ufw.  The rules touched are exactly
+# the ones installsdai.sh adds - "ufw allow 4243/tcp" and "ufw allow 22/tcp" -
+# so the verb and the installer describe one state.
+#
+# ***THE LISTENER IS A DROP-IN, NOT AN EDIT OF THE UNIT.***  The installer seds
+# the shipped unit; a drop-in overrides it without a second copy of that sed,
+# survives a package-free reinstall of the unit, and "ListenStream=" (empty)
+# first clears the unit's list so the result is exactly what is written.  The
+# unit's own Unix-socket line is read and carried into the drop-in, so the
+# local socket stays whatever the shipped unit says it is.
+#
+# ***SSH IS GATED BY THE FIREWALL OR IT IS NOT GATED, AND THIS SAYS WHICH.***
+# REMOTE.SSH does not stop sshd - that is the distribution's service, and an
+# administrator's own shell may be using it.  So with ufw absent, inactive, or
+# allowing incoming by default, a rule for port 22 would gate nothing, and ON
+# and OFF refuse with exit 3 rather than report a change that changes nothing.
+
+SD_SOCKET_UNIT=${SD_SOCKET_UNIT:-/usr/lib/systemd/system/sdclient.socket}
+SD_SOCKET_DROPIN_DIR=/etc/systemd/system/sdclient.socket.d
+SD_SOCKET_DROPIN=$SD_SOCKET_DROPIN_DIR/sd-remote-api.conf
+
+step() {   # print the resolved command, then run it unless --dry-run
+  printf '%s: %s\n' "$PROG" "$*"
+  [[ $DRY -eq 1 ]] && return 0
+  "$@"
+}
+
+need_root() {
+  [[ $DRY -eq 1 ]] && return 0
+  [[ ${EUID:-$(id -u)} -eq 0 ]] || die "must run as root (it is invoked through sudo); use --dry-run to validate"
+}
+
+ufw_state() {   # absent | inactive | active-deny | active-allow  (root only)
+  command -v ufw >/dev/null 2>&1 || { printf 'absent'; return; }
+  local v
+  v=$(ufw status verbose 2>/dev/null)
+  if ! printf '%s\n' "$v" | grep -q '^Status: active'; then printf 'inactive'; return; fi
+  if printf '%s\n' "$v" | grep -Eq 'Default: (deny|reject) \(incoming\)'; then
+    printf 'active-deny'
+  else
+    printf 'active-allow'
+  fi
+}
+
+ufw_has_allow() {   # $1 port/proto; true if an ALLOW rule for it is present
+  ufw status 2>/dev/null | grep -Eq "^$1([[:space:]]|\$).*ALLOW"
+}
+
+ufw_delete_allow() {   # $1 port/proto
+  if [[ $DRY -eq 1 ]]; then printf '%s: ufw delete allow %s  (if present)\n' "$PROG" "$1"; return 0; fi
+  command -v ufw >/dev/null 2>&1 || { printf '%s: ufw is not installed; no rule to delete\n' "$PROG"; return 0; }
+  if ufw_has_allow "$1"; then
+    step ufw delete allow "$1"
+  else
+    printf '%s: no ufw allow rule for %s; nothing to delete\n' "$PROG" "$1"
+  fi
+}
+
+ufw_add_allow() {   # $1 port/proto
+  if [[ $DRY -eq 1 ]]; then printf '%s: ufw allow %s\n' "$PROG" "$1"; return 0; fi
+  command -v ufw >/dev/null 2>&1 || { printf '%s: ufw is not installed; no rule was added - the listener alone decides\n' "$PROG"; return 0; }
+  step ufw allow "$1"
+}
+
+api_show() {
+  if [[ $DRY -eq 1 ]]; then printf '%s: (dry run - state not read)\n' "$PROG"; return 0; fi
+  local enabled active listen fw rule verdict
+  enabled=$(systemctl is-enabled sdclient.socket 2>/dev/null)
+  active=$(systemctl is-active sdclient.socket 2>/dev/null)
+  listen=$(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')
+  fw=$(ufw_state)
+  rule=absent
+  [[ $fw != absent ]] && ufw_has_allow 4243/tcp && rule=present
+  printf 'sdclient.socket: %s, %s\n' "${enabled:-unknown}" "${active:-unknown}"
+  printf 'listening on   : %s\n' "${listen:-nothing}"
+  printf 'firewall       : ufw %s; allow rule for 4243/tcp %s\n' "$fw" "$rule"
+  if [[ $active != active ]]; then
+    verdict=OFF
+  elif [[ $listen == *0.0.0.0:4243* ]]; then
+    if [[ $fw == active-deny && $rule == absent ]]; then
+      verdict="LISTENING ON EVERY ADDRESS BUT BLOCKED BY THE FIREWALL"
+    else
+      verdict=ON
+    fi
+  elif [[ $listen == *127.0.0.1:4243* ]]; then
+    verdict=LOCAL
+  else
+    verdict="LOCAL SOCKET ONLY"
+  fi
+  printf 'The SD API is %s.\n' "$verdict"
+}
+
+remote_api() {
+  local mode=$1 unix addr
+  need_root
+  [[ $mode == show ]] && { api_show; return 0; }
+  unix=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' "$SD_SOCKET_UNIT" 2>/dev/null | head -1)
+  [[ -n $unix ]] || die "no Unix-socket ListenStream in $SD_SOCKET_UNIT"
+  case $mode in
+    on|local)
+      addr=127.0.0.1:4243
+      [[ $mode == on ]] && addr=0.0.0.0:4243
+      step mkdir -p "$SD_SOCKET_DROPIN_DIR" || return 1
+      printf '%s: write %s: ListenStream= / ListenStream=%s / ListenStream=%s\n' "$PROG" "$SD_SOCKET_DROPIN" "$unix" "$addr"
+      if [[ $DRY -eq 0 ]]; then
+        printf '# Written by sd-elevate remote-api %s (REMOTE.API).  Do not edit.\n[Socket]\nListenStream=\nListenStream=%s\nListenStream=%s\n' \
+          "$mode" "$unix" "$addr" > "$SD_SOCKET_DROPIN" || return 1
+      fi
+      step systemctl daemon-reload || return 1
+      step systemctl enable sdclient.socket || return 1
+      step systemctl restart sdclient.socket || return 1
+      if [[ $mode == on ]]; then ufw_add_allow 4243/tcp || return 1; else ufw_delete_allow 4243/tcp || return 1; fi
+      ;;
+    off)
+      step systemctl disable --now sdclient.socket || return 1
+      ufw_delete_allow 4243/tcp || return 1
+      ;;
+  esac
+  api_show
+  return 0
+}
+
+ssh_show() {
+  if [[ $DRY -eq 1 ]]; then printf '%s: (dry run - state not read)\n' "$PROG"; return 0; fi
+  local sshd fw rules verdict
+  sshd=$(systemctl is-active ssh 2>/dev/null)
+  [[ $sshd == active ]] || sshd=$(systemctl is-active sshd 2>/dev/null)
+  fw=$(ufw_state)
+  rules=
+  [[ $fw != absent ]] && rules=$(ufw status 2>/dev/null | grep -E '^(22(/tcp)?|OpenSSH)([[:space:]]|$).*ALLOW' | sed 's/  */ /g' | tr '\n' ';')
+  printf 'ssh server     : %s\n' "${sshd:-unknown}"
+  printf 'firewall       : ufw %s; rules allowing ssh: %s\n' "$fw" "${rules:-none}"
+  if [[ $fw != active-deny ]]; then
+    verdict="NOT GATED BY THIS MACHINE'S FIREWALL"
+  elif [[ -n $rules ]]; then
+    verdict=ON
+  else
+    verdict=OFF
+  fi
+  printf 'Remote ssh access is %s.\n' "$verdict"
+}
+
+remote_ssh() {
+  local mode=$1 fw left
+  need_root
+  [[ $mode == show ]] && { ssh_show; return 0; }
+  if [[ $DRY -eq 0 ]]; then
+    fw=$(ufw_state)
+    if [[ $fw != active-deny ]]; then
+      printf '%s: REFUSED - ufw is %s, so a rule for port 22 would gate nothing; nothing was changed\n' "$PROG" "$fw" >&2
+      ssh_show
+      return 3
+    fi
+  fi
+  if [[ $mode == on ]]; then
+    ufw_add_allow 22/tcp || return 1
+  else
+    ufw_delete_allow 22/tcp || return 1
+    if [[ $DRY -eq 0 ]]; then
+      left=$(ufw status 2>/dev/null | grep -E '^(22(/tcp)?|OpenSSH)([[:space:]]|$).*ALLOW')
+      [[ -n $left ]] && printf '%s: WARNING - other rules still allow ssh and were not added by SD: %s\n' "$PROG" "$(printf '%s' "$left" | tr '\n' ';')"
+    fi
+  fi
+  ssh_show
+  return 0
 }
 
 # ---------------------------------------------------------------- validation
@@ -300,6 +477,24 @@ case $verb in
     [[ $# -eq 1 ]] || usage
     require_sd_path "$1"
     cmd=(chmod g+s -- "$(realpath -e -- "$1")")
+    ;;
+
+  # 14 Sep 26 dm - S.13.  A FIXED KEYWORD AND NOTHING ELSE: no port, address or
+  # rule text reaches these from the caller, so there is nothing to validate but
+  # the word.  They run several steps, each printed as it resolves, so they
+  # finish here rather than through the single cmd array below.
+  remote-api)
+    [[ $# -eq 1 ]] || usage
+    case $1 in on|local|off|show) ;; *) die "remote-api takes on, local, off or show - not '$1'" ;; esac
+    remote_api "$1"
+    exit $?
+    ;;
+
+  remote-ssh)
+    [[ $# -eq 1 ]] || usage
+    case $1 in on|off|show) ;; *) die "remote-ssh takes on, off or show - not '$1'" ;; esac
+    remote_ssh "$1"
+    exit $?
     ;;
 
   *)
