@@ -16,6 +16,28 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+15 Sep 26  THE INSTALLER ENDS BY ASKING FOR YOUR SD PASSWORD.
+
+           Programs that connect to SD through its API log in with an SD
+           password.  It is separate from your Linux login password and is set
+           with MODIFY.PASSWORD.  A new install used to finish with no SD
+           password set for anyone, so nothing could use the API until an
+           administrator set one by hand.
+
+           The installer now asks for it at the end, for the account it makes
+           for you.  It asks twice, to catch a typing slip.  Press Enter on an
+           empty line to skip it; you can set one later by running  sudo sd
+           and typing  MODIFY.PASSWORD  with your user name.  The install's
+           closing summary says whether it was set, and how to set it if it
+           was not.
+
+           WHAT IT DOES NOT DO: it does not ask again when you reinstall and
+           keep your accounts - the password you already set is kept.  And it
+           does not ask for a password for SDSYS, which SD Core for Windows
+           does: on Linux nothing would use one, because signing in never asks
+           for an SD password and SDSYS cannot use the API.
+
+
 15 Sep 26  REMOTE.API LOCAL AND OFF REMOVE THE FIREWALL RULE EVEN WHILE THE
            FIREWALL IS SWITCHED OFF.
 

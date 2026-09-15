@@ -50,6 +50,12 @@
 #
 #   14 Sep 2026 - the build runs as the calling user; only the install steps
 #   use sudo (PRE_RELEASE 16).
+#
+#   15 Sep 2026 - the install ends by setting the SD password of the account it
+#   makes for the installing user, with MODIFY.PASSWORD at the terminal - the
+#   Windows port's finishing step.  For that account only: an SDSYS password,
+#   which the port also sets, would unlock nothing on Linux.  W.4 phase 6, the
+#   owner's ruling of that day.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -1158,6 +1164,85 @@ else
     echo "boundary is in sshd_config for whenever ssh is turned on)."
 fi
 #
+# 15 Sep 26  W.4 PHASE 6: THE INSTALL SETS THE INSTALLING USER'S SD PASSWORD -
+#            THE WINDOWS PORT'S FINISHING STEP (finish-install.ps1:375).  An API
+#            login is SCRAM against the account's credential in $cred, which only
+#            MODIFY.PASSWORD writes, so an install ended with no account able to
+#            use the API at all and nothing on screen said so.
+#
+#            THAT ONE ACCOUNT, NOT SDSYS - the owner's ruling of 15 Sep 2026, and
+#            the one departure from the port.  Windows sets SDSYS's as well
+#            because an ELEVATED Windows session lands in SDSYS and LOGIN's
+#            require.credential asks there (port PRE_RELEASE_FIXES 138,
+#            finish-install.ps1:379-407).  NEITHER HALF OF THAT HOLDS HERE: this
+#            LOGIN has no require.credential anywhere - "sudo sd" lands in sdsys
+#            with nothing asked (gpl.bp/login:366-369) - and sdsys could not use
+#            the API even with a password, because APISRVR requires sdapi
+#            membership (gpl.bp/apisrvr:1259, message 10073) and the sdsys person
+#            is in sdusers only.  An SDSYS password here would unlock nothing.
+#
+#            THE THREE FAULTS THAT KILLED THE PORT'S FIRST PASSWORD STEP
+#            (adopt-account.ps1:46-61).  A change that brings back any one of
+#            them fails the same silent way:
+#            * A SESSION NEEDS A RUNNING SERVER - sysseg.c:133, "SD has not been
+#              started."  SD is stopped a few lines above, so this starts it and
+#              stops it again, leaving the machine as this step found it.
+#            * IT NEEDS PRIVILEGE.  $cred is root:root 0700; MODIFY.PASSWORD
+#              refuses before prompting unless the real uid is 0
+#              (set_acc_password:133) and CPROC restores euid 0 for it
+#              (cproc:235).  Hence sudo - and it is the administrator arm, the
+#              one witnessed on 74c60d4 (PORT_ADOPTION 17).
+#            * THE OUTPUT HAS TO SURVIVE.  It runs in this terminal with the rest
+#              of the install, not in a window that closes on the error.
+#
+#            SKIPPED WHEN A KEEP CYCLE ALREADY HAS A CREDENTIAL ($cred is restored
+#            at :786), as the port skips a reinstall.  ***THE PORT'S REASON FOR
+#            SKIPPING DOES NOT ARISE HERE***: it would be asked for the OLD
+#            password, whereas this is an administrator setting another account -
+#            the sudo session is sdsys - and set_acc_password:161 asks for the
+#            current one only for your own.  The reason here is simply that the
+#            person already set one and a reinstall must not quietly replace it.
+#
+#            NON-FATAL EVERY WAY IT CAN GO: declining, a failure, or no terminal
+#            leaves the install complete and says how to set one later.  ***AND
+#            NO INSTRUMENT CAN WITNESS IT***: "input ... hidden" needs a tty and
+#            every automated route in this project pipes stdin (the port's
+#            structural note, finish-install.ps1:121-127).  The first install at
+#            a keyboard is the witness; the $cred test below is what makes a
+#            prompt that never appeared visible instead of silent.
+tuser_lc=$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')
+sd_pw_state="not set"
+echo
+echo "The SD password for your account ($tuser_lc)"
+if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
+    sd_pw_state="already set - kept from the previous install"
+    echo "  Already set: this reinstall kept the credential register."
+elif ! sudo test -f "$sdsysdir/accounts/$tuser_lc"; then
+    sd_pw_state="not set - $tuser_lc is not in the SD register"
+    echo "  Skipped: $tuser_lc has no record in the SD account register."
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sd_pw_state="not set - there was no terminal to ask at"
+    echo "  Skipped: this install has no terminal to ask at."
+else
+    echo "  Programs that log in to SD through its API use this password.  It is"
+    echo "  separate from your Linux login password.  SD asks for it twice, to"
+    echo "  catch a typing slip; press Enter on an empty line to skip it."
+    echo
+    if sd_install_start; then
+        # From sdsys, as this project's other root sd sessions run
+        # (gplbld/interop-account.sh:288), and by the installed path because the
+        # clone was deleted above.  The directory does not pick the account -
+        # login:366-369 puts a root session in sdsys wherever it starts.
+        ( cd "$sdsysdir" && sudo "$sdsysdir/bin/sd" -QUIET MODIFY.PASSWORD "$tuser_lc" </dev/tty ) || true
+        sd_install_stop
+        if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
+            sd_pw_state="set"
+        fi
+    else
+        sd_pw_state="not set - SD would not start for this step"
+    fi
+fi
+#
 # display end of script message
 echo
 echo ---------------------------------------------------------------
@@ -1195,6 +1280,12 @@ else
     echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
     echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."
 fi
+echo "SD password for $tuser_lc: $sd_pw_state."
+case "$sd_pw_state" in
+    set|already*) ;;
+    *) echo "  Set one with:  sudo sd   then at the SD prompt:  MODIFY.PASSWORD $tuser_lc"
+       echo "  Until it is set, nothing can reach this account through the API." ;;
+esac
 echo
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
