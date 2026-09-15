@@ -128,6 +128,12 @@ pCloud: `~/pCloudDrive/sdcore-mail/` here, `P:\sdcore-mail\` on Windows. Its
 - **Git stays the record.** A message points at a commit or an entry. A finding
   that must last goes into PROJECT_STATUS.md, or into the port's
   `BUGS_FROM_LINUX_PORT.md`, not the mailbox.
+- **The check runs on a loop from the start of every session** (owner, 15 Sep
+  2026). `.claude/hooks/mailbox-session-start.py`, a `SessionStart` hook in
+  `.claude/settings.json`, lists the inbox and tells the session to start it:
+  the `loop` skill every 15 minutes, once per session. A hook cannot start a
+  loop itself, so if the hook's instruction is in context and no loop is
+  running, start it.
 
 ## Run standing procedures exactly as written
 

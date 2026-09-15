@@ -12,6 +12,18 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"${CLAUDE_PROJECT_DIR:-}/.claude/hooks/mailbox-session-start.py\"; [ -f \"$f\" ] || f=\"$(git rev-parse --show-toplevel 2>/dev/null)/.claude/hooks/mailbox-session-start.py\"; [ -f \"$f\" ] && python3 \"$f\" || exit 0",
+            "timeout": 15,
+            "statusMessage": "Checking the SD Core mailbox"
+          }
+        ]
+      }
     ]
   }
 }
