@@ -12,6 +12,10 @@
  * GNU General Public License for more details.
  *
  * START-HISTORY:
+ * 15 Sep 26 dm The certificate's name is built here instead of being borrowed
+ *              from the certificate: OpenSSL 4 returns X509_get_subject_name()
+ *              const, and the first build against real libssl-dev headers
+ *              (4.0.1) warned.  gplbld/test-tls-relay.py is the check.
  * 15 Sep 26 dm S.19: created.  See sd_tls.h.
  * END-HISTORY
  *
@@ -104,7 +108,7 @@ static bool create_identity(const char* path, EVP_PKEY** pkey_out,
                             X509** cert_out, char* errmsg, size_t errlen) {
   EVP_PKEY* pkey = NULL;
   X509* cert = NULL;
-  X509_NAME* name;
+  X509_NAME* name = NULL;
   unsigned char serial[8];
   char tmp[4096];
   int fd = -1;
@@ -134,13 +138,27 @@ static bool create_identity(const char* path, EVP_PKEY** pkey_out,
     }
   }
 
-  name = X509_get_subject_name(cert);
+  /* A NAME OF OUR OWN, NOT THE CERTIFICATE'S.  This read the certificate's
+     empty name and filled it in, which OpenSSL 3 allowed and OpenSSL 4 does
+     not: X509_get_subject_name() now returns a const pointer, and the first
+     build against real libssl-dev headers (4.0.1, installed by this release's
+     own installer change) warned -Wdiscarded-qualifiers here.  Building the
+     name and setting it works on both, because X509_set_subject_name and
+     X509_set_issuer_name each COPY it - which is why it is freed at done:,
+     on the success path as well.  Behaviour is unchanged: the same CN, and
+     issuer equal to subject, as a self-signed certificate needs.  */
+  name = X509_NAME_new();
+  if (name == NULL) {
+    sd_tls_error_text("cannot build the certificate name", errmsg, errlen);
+    goto done;
+  }
   if (X509_set_version(cert, 2) != 1 ||
       X509_gmtime_adj(X509_getm_notBefore(cert), -86400L) == NULL ||
       X509_time_adj_ex(X509_getm_notAfter(cert), 36500, 0, NULL) == NULL ||
       X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
                                  (const unsigned char*)"SD Core API", -1, -1,
                                  0) != 1 ||
+      X509_set_subject_name(cert, name) != 1 ||
       X509_set_issuer_name(cert, name) != 1 ||
       X509_set_pubkey(cert, pkey) != 1 ||
       X509_sign(cert, pkey, NULL) <= 0) {
@@ -183,6 +201,7 @@ static bool create_identity(const char* path, EVP_PKEY** pkey_out,
   ok = true;
 
 done:
+  X509_NAME_free(name);           /* the certificate holds its own copy */
   if (ok) {
     *pkey_out = pkey;
     *cert_out = cert;

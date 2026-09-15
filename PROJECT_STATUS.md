@@ -25,7 +25,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). Left: witness §13i T9–T14 (unrun), the port (its RELEASE_1.1 41), pinning unruled | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); left: `batchjob`/`cmdaudit` (no mechanism to verify), the API verifiers (unruled, W.4) | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); phase 6: both client libraries rebuilt (measured); SD passwords — `installsdai.sh` now ends by setting the installing user's with `sudo sd -QUIET MODIFY.PASSWORD` (owner, 15 Sep 2026: that user only, not SDSYS, whose SD password nothing on Linux uses — the port sets both, its PRE_RELEASE_FIXES 138), skipped when a keep cycle kept one, built 15 Sep and NOT YET RUN — no instrument can run it (`input … hidden` needs a tty), and any other account stays a per-account `sudo sd` + MODIFY.PASSWORD job; left: that step at a real install, witnessed by the person at the keyboard | — |
 | ➖ | **P.24** | — | dropped by the owner's choice: the installer seeds the admin (witnessed 10 Sep); the non-sudoer refusal is not pursued, because installation requires sudo by design | 15 Sep 2026 |
 | ➖ | **Q.13** | — | dropped by the owner's choice: every owed audit record type is witnessed (API REFUSED last, on `3ff8027`); rotation at 1 MB is not pursued - judged not testable - and stays unwitnessed | 15 Sep 2026 |
 | ➖ | **Q.19** | — | dropped by the owner's choice: the reconciler's report and its remote-NSS guard ran at every real start (again 15 Sep 10:10:39); the sweep's deletion stays witnessed only against a fixture, since this box's guard always refuses it | 15 Sep 2026 |
@@ -288,6 +288,15 @@ refused remotely (10174) and has no `$cred`. `gplbld/interop-account.sh`
 demoted to PROGRAMMER with the API, and proves it logs in over 127.0.0.1 and the
 LAN address. Written 15 Sep 2026: `bash -n` clean, dry run and non-root refusal
 seen, `--create` NOT YET RUN.
+***ALSO UNRUN, AND THE KEEP REINSTALL ITSELF IS ITS WITNESS:*** `installsdai.sh`
+now ends by setting the installing user's SD password (W.4 phase 6, the owner's
+"#1" of 15 Sep). On the reinstall it should ask `don` for a password twice —
+as of the 15 Sep smoke test `don` had no credential (refused at request 47 with
+5017) — and the closing summary should read `SD password for don: set.` If it
+instead says `already set`, the kept `$cred` held one and the skip is correct.
+`bash -n` clean, no BOM or CRLF; nothing automated can exercise it. The same
+cycle re-witnesses the TLS relay, whose `sd_tlssrv.c` took a const fix today
+(S.19 below, found by `test-tls-relay.py` against the real OpenSSL 4 headers).
 
 ***[S.19] PRIORITY #1, RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
 2026). LINUX: TLS 1.3 ON EVERY API CONNECTION, SCRAM BOUND TO IT (RFC 9266
@@ -319,6 +328,21 @@ real relay answered request 47 with its `c=`, equal byte for byte to
 relay as `nobody`, `apisrvr`/`sdclient` compiling in BASIC, `!sdclient` over
 `op_skt` TLS, a build against real `libssl-dev` headers, every §13i row, and
 whether the rest of the witness still passes through the rewritten probe.
+***15 Sep 2026 — THE REAL-HEADER BUILD IS MEASURED NOW, AND IT FOUND A FAULT.***
+`libssl-dev` 4.0.1 has been on this box since the 10:09 install (this release's
+own installer change puts it there), so `test-tls-relay.py` compiled against the
+shipped headers for the first time and went red: `sd_tlssrv.c:137` took
+`X509_get_subject_name(cert)` into a non-const `X509_NAME *`, which OpenSSL 4
+returns const (`-Wdiscarded-qualifiers`). The product built and ran anyway — the
+witness passed 256/256 through this very code — because `make` does not use
+`-Werror`; the free check is the stricter instrument and is the only thing that
+saw it. Fixed by building the name with `X509_NAME_new()` and setting it:
+`X509_set_subject_name`/`X509_set_issuer_name` both COPY, so it is freed on
+every path, and behaviour is unchanged (same CN, issuer = subject).
+`test-tls-relay.py` 26/26, no warning. ***IT IS A SOURCE CHANGE AFTER THE
+256/256 WITNESS***, so §13i is re-run by the next witness — the keep reinstall
+already on the owner's list. ***THE PORT HAS THE SAME LINE*** at its
+`sd_tlssrv.c:156`, unbuilt so far (its RELEASE_1.1 41); sent to it by mailbox.
 *Decisions and objections:* relay process, not SSL in `linuxio.c` - its SIGIO
 handler (`io_handler` -> `do_input`) cannot call OpenSSL and `poll` cannot see
 decrypted bytes; costs a process per session. Identity beside sd.conf, not
@@ -420,6 +444,22 @@ cycle: `deletesdai.sh:192` saves and `installsdai.sh:764` restores it — ***not
 witnessed with a real record in it*** (this run began with none). Left: the
 owner runs MODIFY.PASSWORD under `sudo sd` for each account that uses the API
 (the register holds `don`); a full delete cycle does empty `$cred`.
+***15 Sep 2026 — THE `don` HALF IS THE INSTALLER'S NOW, AND IS UNRUN.***
+`installsdai.sh:1160-1235` ends with the port's finishing step
+(`finish-install.ps1:375`): `sudo sd -QUIET MODIFY.PASSWORD <user>` at the
+terminal for the account it just made, SD started for it and stopped again
+(a session needs a running server, `sysseg.c:133`), skipped when a keep cycle
+restored a credential, and the closing summary says whether one was set and how
+to set it if not. ***NOT SDSYS — the owner's ruling that day (his "#1"), and the
+one departure from the port***, which sets both (its PRE_RELEASE_FIXES 138):
+this LOGIN has no `require.credential` at all (`login:366-369`, `sudo sd` lands
+in sdsys with nothing asked) and `apisrvr:1259` requires `sdapi`, which the
+`sdsys` person (uid 999, `sdusers` only) is not in, so an SDSYS password would
+unlock nothing. ***NO INSTRUMENT CAN WITNESS IT*** — `input … hidden` needs a
+tty and every automated route here pipes stdin — so the next install at a
+keyboard is the witness, and the `$cred` test after the prompt is what makes a
+prompt that never appeared visible. Other accounts are still MODIFY.PASSWORD by
+hand (`interop-account.sh` does its own).
 *Original build note:* The port's phase 5 (its HISTORY "20 Aug 2026 - SCRAM phase 5"). APISRVR
 `vb.login` answers 5275 and drops the connection, body unparsed; 24 stays in
 the pre-auth gate so the reply names the cause. `!sdclient` gains the port's
