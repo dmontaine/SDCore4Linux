@@ -1,0 +1,147 @@
+* TUI-RENDER-PROBE - S.1 stage 1: a double-buffered, minimal-diff renderer in
+* pure SD BASIC, and the numbers that decide whether the widget engine can stay
+* in BASIC (PROJECT_STATUS S.1: "prove the diff-renderer fast enough at 160x48"
+* BEFORE any widget).  Run by tui-render-probe.py in a sandbox, inside a pty.
+*
+*   ZZTUI W H FRAMES
+*
+* FOUR WORKLOADS, EACH FRAMES LONG, EACH TIMED IN PROCESS CPU (SYSTEM(9)):
+*   FULL   every row replaced every frame - the worst case, a repaint
+*   SCROLL every row shifts up one - naive, so it is also a full repaint
+*   REGION the same scroll through the terminal's own scroll region
+*          (DECSTBM + LF), then only the new bottom row drawn
+*   EDIT   one character changes per frame - typing in a field; measures the
+*          cost of FINDING the change among rows that did not change
+*
+* THE RENDER RULE: front() is what the terminal shows, back() what the program
+* wants.  A row that is equal is skipped outright (one string compare).  A row
+* that differs is trimmed to its first and last differing column - by 16-char
+* chunks, then by character - and only that span is sent after one cursor move.
+* A frame is ONE write.  Results are printed after the alternate screen closes,
+* one line per workload, "ZZTUI.<NAME> frames=... cpu.ms=... bytes=...".
+*
+* NOT MEASURED HERE: attributes (colour), which would be a parallel string per
+* row and roughly double the compare; and a real terminal emulator's own paint
+* time, which belongs to the emulator and not to SD.
+
+   w = field(trim(@sentence), ' ', 2) + 0
+   h = field(trim(@sentence), ' ', 3) + 0
+   frames = field(trim(@sentence), ' ', 4) + 0
+   if w < 10 then w = 160
+   if h < 5 then h = 48
+   if frames < 1 then frames = 50
+
+   esc = char(27)
+   dim front(h)
+   dim back(h)
+   mat front = space(w)
+   mat back = space(w)
+   out = ''
+   bytes = 0
+   pattern = ''
+   for i = 1 to w + 64
+      pattern := char(33 + mod(i, 90))
+   next i
+
+   crt esc:'[?1049h':esc:'[?25l':@(-1):
+   results = ''
+
+* ---- FULL ------------------------------------------------------------------
+   name = 'FULL' ; bytes = 0
+   t0 = system(9)
+   for f = 1 to frames
+      for r = 1 to h
+         back(r) = pattern[mod(f + r, 64) + 1, w]
+      next r
+      gosub render
+   next f
+   gosub record
+
+* ---- SCROLL (naive) ---------------------------------------------------------
+   name = 'SCROLL' ; bytes = 0
+   t0 = system(9)
+   for f = 1 to frames
+      for r = 1 to h - 1
+         back(r) = back(r + 1)
+      next r
+      back(h) = pattern[mod(f * 7, 64) + 1, w]
+      gosub render
+   next f
+   gosub record
+
+* ---- REGION (terminal scroll region) ---------------------------------------
+   name = 'REGION' ; bytes = 0
+   t0 = system(9)
+   crt esc:'[1;':h:'r':
+   for f = 1 to frames
+      for r = 1 to h - 1
+         back(r) = back(r + 1)
+         front(r) = front(r + 1)
+      next r
+      back(h) = pattern[mod(f * 5, 64) + 1, w]
+      out = @(0, h - 1):char(10)
+      front(h) = space(w)
+      bytes += len(out)
+      crt out:
+      gosub render
+   next f
+   crt esc:'[r':
+   gosub record
+
+* ---- EDIT (one character per frame) ----------------------------------------
+   name = 'EDIT' ; bytes = 0
+   t0 = system(9)
+   for f = 1 to frames
+      r = mod(f, h) + 1
+      c = mod(f * 3, w) + 1
+      back(r) = back(r)[1, c - 1]:char(65 + mod(f, 26)):back(r)[c + 1, w]
+      gosub render
+   next f
+   gosub record
+
+   crt esc:'[?25h':esc:'[?1049l':
+   for i = 1 to dcount(results, @fm)
+      crt results<i>
+   next i
+   stop
+
+* ============================================================================
+render:
+   out = ''
+   for r = 1 to h
+      b = back(r)
+      if b # front(r) then
+         fr = front(r)
+         c1 = 1
+         loop
+         while c1 + 15 <= w and b[c1, 16] = fr[c1, 16]
+            c1 += 16
+         repeat
+         loop
+         while c1 <= w and b[c1, 1] = fr[c1, 1]
+            c1 += 1
+         repeat
+         c2 = w
+         loop
+         while c2 - 15 > c1 and b[c2 - 15, 16] = fr[c2 - 15, 16]
+            c2 -= 16
+         repeat
+         loop
+         while c2 > c1 and b[c2, 1] = fr[c2, 1]
+            c2 -= 1
+         repeat
+         out := @(c1 - 1, r - 1):b[c1, c2 - c1 + 1]
+         front(r) = b
+      end
+   next r
+   if out # '' then
+      bytes += len(out)
+      crt out:
+   end
+   return
+
+record:
+   t1 = system(9)
+   results<-1> = 'ZZTUI.':name:' w=':w:' h=':h:' frames=':frames:' cpu.ms=':(t1 - t0):' bytes=':bytes
+   return
+end

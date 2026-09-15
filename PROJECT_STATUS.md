@@ -32,7 +32,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.16** | M | the port's per-account API route: `sdapi` (installer creates + seeds admins), MODIFY.ACCOUNT API/NONE, demotion and CREATE.ACCOUNT must name one, `vb.scram.final` tests it (10073), DELACC strips it; built 14 Sep, free checks green; left: keep cycle + witness §13f F0–F9b | — |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ◐ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh` in the admin layer, messages 10131-10139; built 14 Sep, `test-sd-elevate` 59/59; left: keep cycle + witness §13h (incl. the held-session falsifier) | — |
-| ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
+| ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -262,6 +262,17 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***TWENTY-FOURTH SESSION, LATER — EVERY AGENT-DOABLE ROW WORKED.*** Built, unrun
+until an install: S.16 (`787ab5d`, witness §13f), Q.22 sdsyswrite (`757f95b`,
+free check `check-storewriters.py` + §13g), S.13 (`d0d9558`, §13h). Measured in a
+sandbox, no install needed: P.6 (`8db0735`, `sandbox-txnfail.py` 22/22, and a
+stranded OPENSEQ lock found and fixed) and S.1 stage 1 (renderer fast enough in
+pure BASIC; mouse passes KEYIN). ***One owner hand-over covers all three unrun
+rows:*** keep cycle, `assert-current`, then `sudo bash
+/home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+--commit` — §13h changes the API listener and firewall and restores them.
+Still the owner's: W.4 phase 6, P.24, Q.19, Q.13 rotation.
 
 ***TWENTY-FOURTH SESSION, 14 Sep 2026 — ALL TEN OPEN ROWS RE-MEASURED STILL
 OPEN (`don` has no `$cred`: refused at 47 like `zzrel9`; audit 130,065 bytes of
@@ -4817,7 +4828,36 @@ by an install whose bootstrap compile or sign-on fails. Not filed to the port.
 guard would be belt-and-braces, in the shape of PRE_RELEASE 19's
 `K_ADMINISTRATOR` fix. First named as a lead in PRE_RELEASE 21.
 
-### [S.1] BASIC screen/widget library — design note (PROPOSED 10 Sep 2026, conditional; NOT STARTED)
+### [S.1] BASIC screen/widget library — stage 1 DONE 14 Sep 2026; stages 2-5 §OPEN§ (design note of 10 Sep below)
+
+***STAGE 1 DONE 14 Sep 2026 — THE FALSIFIER DID NOT FIRE: THE RENDERER CAN STAY
+PURE BASIC, AND SO CAN MOUSE INPUT.*** Measured in a sandbox (`gplbld/
+sandbox-txnfail.py --keep`, then `gplbld/tui-render-probe.py --sandbox <dir>
+--frames 500`; no sudo, live IPC unchanged) with `gplbld/tui-render-probe.bp`:
+double buffer of one string per row, an equal row skipped by one compare, a
+changed row trimmed to its differing span (16-char chunks, then chars), one
+write per frame, `@(col,row)` for position. sd ran in a pty as a person's session
+would, read by a sink that never slows it. ***160x48, 500 frames each, CPU
+(`SYSTEM(9)`) per frame: FULL repaint 0.11 ms (7,935 bytes); naive SCROLL 1.05 ms
+(every row changes); SCROLL through the terminal's scroll region 0.04 ms (163
+bytes); one typed character 0.02 ms (6 bytes). Wall for all 2,000 frames incl.
+8 MB through the pty: 617 ms.*** 80x24: 0.07/0.08/0.01/0.01 ms, wall 88 ms. Against
+16 ms (one 60 Hz frame) the worst is ~15x under. ***Mouse: `ESC [ < 0 ; 12 ; 5 M`
+written into the pty came out of KEYIN as `27 91 60 48 59 49 50 59 53 77`, byte
+for byte*** — no `op_tio.c` change is needed for SGR 1006. ***NOT measured:***
+colour attributes (a parallel string per row, roughly doubling the compare), a
+terminal emulator's paint time (not SD's), any machine but this one. ***Two
+harness traps, both in its comments:*** SD's terminfo tree has `xterm` and not
+`xterm-256color`, and with the latter the session stalls at its first prompt;
+and the prompt is the bytes `\r:` — a bare `:` matched a colon inside frame text
+and typed OFF into the middle of a render. ***Stage 2 next, in the conditional:***
+a catalogued event layer (`KEYIN`/`KEYREADY` decoded to logical keys, incl. the
+SGR mouse report), the draw layer above as the shared renderer, then field,
+button, listbox, menu, checkbox, radio and a form/focus manager — keyboard-only
+first. What would falsify stage 2's shape: colour attributes pushing a frame
+past 16 ms at 160x48 (measure them before the widgets depend on the format).
+
+*(Original note, 10 Sep:)*
 
 ***Goal (owner, 10 Sep 2026):*** extend SD BASIC so a programmer builds rich
 terminal screens — administrative apps rivalling the best TUI frameworks, up to
