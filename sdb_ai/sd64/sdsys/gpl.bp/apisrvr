@@ -35,6 +35,9 @@
 * 11 Sep 26 dm  vb.login writes an API REFUSED audit record at every refusal;
 *               a name reaches the record only after valid_os_name passed it
 *               (PORT_ADOPTION 13, the port's).
+* 14 Sep 26 dm  vb.account applies the tier ordering (!tier_allows, 10003), the
+*               port's of 29 Aug 2026; an account name folds to lower case, so
+*               WHO names it as it is on disk (W.4).
 * END-HISTORY
 *
 *
@@ -87,6 +90,7 @@ $include keys.h
 
 * 20240219 mab user must be member of sdusers  
 deffun is_grp_member(user,group) calling '!is_grp_member'
+deffun tier_allows(user,account) calling '!tier_allows'
 
 
 common /$APISRVR/ logged.in,          ;* Process is logged in
@@ -142,7 +146,9 @@ if not(kernel(K$CPROC.LEVEL,0)) then
 
    account.path = ospath("", os$cwd)     ;* @PATH
    initial.account.path = account.path
-   who = upcase(account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999]) ;* 0414
+* 14 Sep 26 dm - no upcase: account directories are lower case on disk (plan M),
+*   and LOGIN:472 takes WHO as it is.
+   who = account.path[index(account.path, @ds, count(account.path, @ds)) + 1, 99999] ;* 0414
    abort.code = 0
 
    tty = 'apisrvr'
@@ -350,7 +356,13 @@ vb.account:
 readv i from @voc,'ON.LOGTO',0 on error null
 then execute 'ON.LOGTO' trapping aborts capturing response
 
-new.account = upcase(cmnd)
+* 14 Sep 26 dm - LOWER CASE, GOING PAST THE PORT, which upcases (plan M: no
+*   account name exists in two casings).  WHO is set from this at the end, so
+*   an upcase here showed ZZREL1 over the API where CPROC's LOGTO shows zzrel1.
+*   A PATH is left as typed - a Linux path is case-sensitive, and upcasing one
+*   could only ever have missed it.
+new.account = cmnd
+if index(new.account, @ds, 1) = 0 then new.account = downcase(new.account)
 
 old.account.path = account.path
 
@@ -392,7 +404,27 @@ if  not(is_grp_member(@logname,acc.rec<ACC$GROUP>)) then
     server.error = SV$ERROR
     error.msg = sysmsg(10003) ;* User not allowed in requested account
     abort.message = error.msg
-    goto revert.to.old.account 
+    goto revert.to.old.account
+end
+
+* 14 Sep 26 dm - AND THE TIER ORDERING (W.4; the port's APISRVR:657 of 29 Aug
+*   2026).  A grant may go down or sideways, never up, and CPROC's LOGTO
+*   enforces it (cproc:2951).  ***AN API SESSION REACHES AN ACCOUNT THROUGH
+*   NEITHER LOGIN NOR CPROC***, so without this a person granted into an
+*   account that was later promoted could enter it over the API with the
+*   higher tier's whole VOC - read off the source walking the API surface,
+*   14 Sep 2026; witness-release-run.sh section 13b A4 measures the refusal.
+*
+*   THE IDENTITY IS @logname, the one the group test above uses: a tier check
+*   able to disagree with the grant check about WHO is being tested would be
+*   worse than none.  No administrator bypass, unlike CPROC's: an API session
+*   carries no K$ADMINISTRATOR.  10003 again, for the reason given at the
+*   suspended test.
+if not(tier_allows(@logname, new.account)) then
+    server.error = SV$ERROR
+    error.msg = sysmsg(10003) ;* User not allowed in requested account
+    abort.message = error.msg
+    goto revert.to.old.account
 end
 
 if not(ospath(account.path, OS$CD)) then
