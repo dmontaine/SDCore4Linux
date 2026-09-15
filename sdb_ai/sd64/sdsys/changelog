@@ -16,6 +16,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  A PROGRAM CONNECTED THROUGH THE API NOW HAS THE SAME ACCESS AS ITS
+           USER AT A TERMINAL.
+
+           Linux decides what a person may read and write partly by the groups
+           they belong to, and SD gives each account a group of its own.  A
+           session started through the API took on the person's identity but
+           none of their groups, so in an account they had been granted it
+           could read but not change anything, where the same person at a
+           terminal could.  The API now gives the session the person's groups
+           when it logs them in.
+
+           WHAT DOES NOT CHANGE: who may log in through the API and which
+           accounts they may enter.  The session gets the groups the person
+           already has in Linux and nothing more.
+
 14 Sep 26  THE API NOW KEEPS THE SAME TIER RULE AS LOGTO.
 
            A grant may go down or sideways, never up.  LOGTO has enforced that

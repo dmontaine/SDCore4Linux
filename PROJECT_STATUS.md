@@ -22,14 +22,14 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ⬜ | **S.14** | S | API passwords over 32 characters are refused (client `sdclilib.c:870` and `apisrvr` `vb.login`); the client drops an account refusal's text | — |
+| ⬜ | **S.14** | S | API passwords over 32 characters are refused (client `sdclilib.c:870` and `apisrvr` `vb.login`) | — |
+| ◐ | **S.15** | M | an API session had no supplementary groups (measured, `3ff8027` §13b A2); `initgroups` built and compiled; left: install, §13b A2c/A2d | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
-| ◐ | **Q.12** | M | SUSPENDED tier; ssh door witnessed 14 Sep (§14: control landed in sd, suspended → 10107, no WHO); left: the API door, now in the witness as §14 X6, unrun | — |
-| ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; left: rotation at 1 MB, and API REFUSED — now in the witness as §13b A3, unrun | — |
+| ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | L·R | API surface walked 14 Sep; the tier gate and lower-case WHO built for `vb.account`; witness §13b + §14 X6 added; left: install and run it, and rule on API login without OS passwords | — |
+| ◐ | **W.4** | L·R | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); left: rule on API login without OS passwords | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -58,6 +58,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **Q.14** | — | GRANT/REVOKE incl. a session open during the grant (§10); its wording finding is S.12 | 14 Sep 2026 |
 | ✅ | **Q.17** | — | MODIFY.PASSWORD administrator arm: 10914, shadow `!` → `$y$` (§13) | 14 Sep 2026 |
 | ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
+| ✅ | **Q.12** | — | SUSPENDED tier: the ssh door (§14 X1–X4, `f2251e6`) and the API door (§14 X6, `3ff8027`) both refuse | 14 Sep 2026 |
 | ✅ | **S.12** | — | 10043: a session open during GRANT enters but cannot write — `File is read-only` vs a fresh session's copy (§10, `79d7e87`) | 14 Sep 2026 |
 | ✅ | **S.6** | — | plain-sd admin `SH` runs; after LOGTO a non-admin account, 10054 names the user (§11, `79d7e87`) | 14 Sep 2026 |
 | ✅ | **W.0** | — | a dead or faulting semaphore holder gives it back (`SEM_UNDO` + fault path), `verify-semaphores` 9/9 | 14 Sep 2026 |
@@ -229,8 +230,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`79d7e87`**, stamped 14 Sep 2026 15:02:58,
-  owner keep cycle, `assert-current` current — carries S.12's 10043.
+- **Runtime:** install built from **`3ff8027`**, stamped 14 Sep 2026 17:13:12,
+  owner keep cycle, `assert-current` current — carries W.4's APISRVR.
+  *(Superseded:)* `79d7e87`, 15:02:58 — S.12's 10043.
   *(Superseded:)* `f2251e6`, 14:37:02. *(Superseded:)* `2edec17`, 14:07:22 —
   W.0, W.2, W.3.
   *(Superseded:)* `984be50`, 13:37:31 — the backspace fix and S.11.
@@ -251,8 +253,30 @@ owner's ruling comes first.
 
 ## START HERE
 
+***[S.15] SIXTEENTH SESSION, 14 Sep 2026 — CYCLE `3ff8027`, 128/128; AN API
+SESSION HAD NO SUPPLEMENTARY GROUPS, FIX BUILT, NOT INSTALLED.*** Keep cycle
+installed `3ff8027` (17:13:12, `assert-current` current); owner-run
+`witness-release-run.sh --commit` 17:18, log
+`/var/tmp/witness-release-run.20260914-171838.log`, ***128/128***, cleanup
+complete. New rows: A1 `SDConnect returned 1`, `38 zzrel1` (lower case); A2
+server pid 7741 `Uid: 1005`, `Gid: 1010`, ***`Groups:` empty*** — no `sdusers`,
+no `sdu_zzrel1`; A3 5017 and trail `API REFUSED user=zzrel1 reason=authentication
+failed` (Q.13's last type); A4 10128 named zzrel1, CPROC's control 10126, and
+the API into zzrel2 → `SDConnect returned 0` / `SDError: User not allowed in
+requested account` (W.4's gate); X6 suspended → the same (Q.12 closed). So
+S.14's second lead was wrong: the refusal text does come back. Fix:
+`linuxio.c` `login_user` calls `initgroups()` before `setgid`/`setuid` on both
+paths and refuses the login if it fails; `make` exit 0, only `linuxio.o`
+rebuilt, no warning, `nm bin/sd` shows `initgroups`. ***The least-tested
+claim:*** an administrator's API session now holds `sdadmin`, as its terminal
+session does, so what `%sdadmin` gets through sudo is reachable from an API
+session able to run OS commands — no wider than the terminal, new for this
+door. Witness: §13b A2c/A2d now decisive, A4.3b matches 10003's text; dry run
+20 sections. ***Next, owner:*** keep cycle; `assert-current`;
+`witness-release-run.sh --commit`.
+
 ***[W.4] FIFTEENTH SESSION, 14 Sep 2026 — THE API SURFACE WALKED; A TIER GAP
-BUILT, NOT INSTALLED.*** Read, no sudo. The door: `sdclient.socket` (Unix
+BUILT, WITNESSED ON `3ff8027` IN THE SIXTEENTH; THE SCRAM RULING PENDING.*** Read, no sudo. The door: `sdclient.socket` (Unix
 socket + `127.0.0.1:4243`, `Accept=true`) → `sdclient@.service` `sd -n -q` as
 root → `linuxio.c:101` `start_connection` (Unix peer by `getpeereid`, a TCP peer
 unassigned) → APISRVR `vb.login` → `login_user` (`/etc/shadow` + `crypt()`,
@@ -263,9 +287,8 @@ no tier ordering — the port's `APISRVR:657` and `cproc:2951` do; added
 `!tier_allows(@logname, …)` → 10003. Gap 2: WHO over the API was upper case
 (`upcase(cmnd)`, and `:145`) — the port does the same, §M goes past it; the name
 folds lower, a path stays as typed; `verify-nocase` 0 of 3. Compiled only by
-the next install (GPL.BP is SDSYS's to compile). ***UNMEASURED:*** which
-supplementary groups an API session holds — §13b A2 prints them and fails only
-on root's group 0. `gplbld/api-probe.py` (ctypes over the installed
+the next install (GPL.BP is SDSYS's to compile). Which supplementary
+groups an API session holds was measured in the sixteenth: none (S.15). `gplbld/api-probe.py` (ctypes over the installed
 `sdclilib.so`, password from `SD_PROBE_PASSWORD` only): py_compile clean, BOM/CR
 0, no password → exit 2, live against this install as nonexistent `zzprobe` →
 `SDConnect returned 0` / `SDError: Invalid username or password`, exit 1 (one
@@ -275,8 +298,7 @@ gate against CPROC's 10126 control, revoke) and §14 X6 (Q.12's API door); dry
 run reaches all 20 sections. ***STILL UNRULED:*** API login without OS
 passwords (`PORT_ADOPTION.md:811`). Here the reason is not the port's: with
 "Allow API access" = Y the password crosses TCP 4243 in clear; with N it is
-loopback only. ***Next, owner:*** keep cycle; `assert-current`;
-`witness-release-run.sh --commit`.
+loopback only. Run in the sixteenth (above).
 
 ***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — TO BUILD.*** The
 port's record answers whether: owner, 30 Aug 2026 (port PRE_RELEASE_FIXES 78),
@@ -291,14 +313,14 @@ What would falsify it: `ufw` inactive (the rule then gates nothing — say so),
 and whether `Accept=true` sessions survive a socket restart (the port had to
 restart SD and drop every session).
 
-***[S.14] CLIENT LIBRARY — TWO LEADS, PENDING.*** (1) `SDConnect` refuses a
-password over 32 characters (`sdclilib.c:870`, `MAX_USERNAME_LEN`) and APISRVR
+***[S.14] CLIENT LIBRARY — ONE LEAD, PENDING.*** `SDConnect` refuses a password
+over 32 characters (`sdclilib.c:870`, `MAX_USERNAME_LEN`) and APISRVR
 `vb.login` does too (`n > MAX.USERNAME.LEN`, "reason=bad password"), so a longer
-Linux password cannot use the API. (2) The client drops an account refusal's
-text: only a login `SV_ON_ERROR` fills `sderror` (`sdclilib.c:900-908`), so
-after a 10003 `SDError()` has nothing — §13b A4 reads the refusal without it.
-The server half of (1) is this tree's; the client half and (2) belong to the
-owner's `linuxsdclilib`.
+Linux password cannot use the API. The server half is this tree's, the client
+half the owner's `linuxsdclilib`. A second lead, that the client drops an
+account refusal's text, was a misreading of `sdclilib.c:900-908`: the
+sixteenth session's run printed `SDError: User not allowed in requested
+account` at §13b A4 and §14 X6.
 
 ***FOURTEENTH SESSION, 14 Sep 2026 — [S.12] AND S.6 CLOSED, WITNESSED ON
 `79d7e87`.*** Keep cycle installed `79d7e87` (15:02:58, `assert-current`
