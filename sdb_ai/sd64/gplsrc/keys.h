@@ -376,6 +376,16 @@
 #define SD_KEYFROMPW 101  /* sd_encrypt_sodium sd_KeyFromPW function */
 #define SD_EUID_SET     102  /* set current process's euid egid to that of user */
 #define SD_EUID_RESTORE 103  /* set current process's euid egid to what it was on entry to sd */
+/* 14 Sep 26 dm - SCRAM-SHA-256 primitives for the API login, at the Windows
+   port's numbers (W.4 phase 1).  Mirrored in sdsys/syscom/keys.h, which
+   nothing cross-checks - an unmatched key compiles in BASIC as an unassigned
+   variable and calls SDEXT with a null key.  Every binary value is base64. */
+#define SD_SHA256       104  /* sd_scram sha256, 1 arg */
+#define SD_HMACSHA256   105  /* sd_scram hmac-sha256: base64 key, TEXT msg */
+#define SD_PBKDF2       106  /* sd_scram pbkdf2, 4 args: pw, salt, iter, len */
+#define SD_RANDBYTES    107  /* sd_scram random bytes, 1 arg: count */
+#define SD_XORBYTES     108  /* sd_scram xor, 2 args, equal lengths */
+#define SD_CTEQUAL      109  /* sd_scram constant-time compare, 2 args */
 
 /* embedded python  */
 /* py  object types */

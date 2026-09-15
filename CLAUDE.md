@@ -432,14 +432,16 @@ NOT `0`*** — reinstall once and it becomes exact. Unit tests:
 
 Adopted from the port's tier 1 (its CLAUDE.md, 30 Aug 2026): checks that need
 no install, no `sudo` and no `sd`. Run them as an ordinary user from
-`sdb_ai/sd64`. **All sixteen took 7.3 s, measured 14 Sep 2026.** A new free
-check joins this list in the commit that creates it.
+`sdb_ai/sd64`. **The first sixteen took 7.3 s, measured 14 Sep 2026**; the
+seventeenth, `test-scram-vectors.py`, compiles a C test and is not in that
+figure. A new free check joins this list in the commit that creates it.
 
 In `gplbld/`: `test-accounts-units.py` · `test-assert-current.py` ·
 `test-basicfuncs-units.py` · `test-editors-units.py` · `test-edittokens-units.py`
 · `test-msglen-units.py` · `test-nonet-units.py` · `test-sd-elevate.py` · `test-sdverify-units.py` ·
 `test-ssh-forcecommand.py` · `test-sysperms-units.py` ·
-`test-staleleads-units.py` · `verify-nocase.py` · `sdverify.py --selftest` ·
+`test-staleleads-units.py` · `test-scram-vectors.py` · `verify-nocase.py` ·
+`sdverify.py --selftest` ·
 `check-stale-leads.py`. From the repository root:
 `.claude/hooks/no-program-edits.py --selftest`.
 
