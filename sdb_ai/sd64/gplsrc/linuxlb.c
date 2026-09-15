@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Sep 26 dm  S.18: <crypt.h> dropped - nothing here calls crypt(), and the
+ *               one caller (linuxio.c login_user) is removed.
  * 10 Sep 26 dm  Parity audit: sdrealpath() keeps resolving . and .. after a
  *               component that does not exist (UPSTREAM_FIXES 10).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -34,10 +36,6 @@
 
 #include <pwd.h>
 #include <time.h>
-
-#ifndef __APPLE__
-#include <crypt.h>
-#endif
 
 /* ======================================================================
    filelength64()  -  Return file size in bytes                           */

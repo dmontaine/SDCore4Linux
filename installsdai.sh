@@ -341,7 +341,11 @@ echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 # whether SD turns an ssh server on is a decision, not an install detail, and it
 # is PRE_RELEASE 13.  On Debian and Ubuntu the openssh-server package starts its
 # own service, so removing the Arch lines changes nothing on this platform.
-if ! sudo apt-get -y install git build-essential micro lynx libbsd-dev libsodium-dev openssh-server python3-dev; then
+#
+# 14 Sep 26 dm - S.18: libbsd-dev dropped.  Its one use was getpeereid() in
+# linuxio.c, for the retired APILOGIN=0 API login; the Makefile no longer
+# links -lbsd.  A machine that already has it is unaffected.
+if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev openssh-server python3-dev; then
     printf "%b\n" "$RED"
     echo "Package installation using apt-get failed.  Exiting script."
     echo "Verify your internet connection and then try again."

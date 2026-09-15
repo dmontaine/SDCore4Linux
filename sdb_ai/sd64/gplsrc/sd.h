@@ -443,7 +443,6 @@ bool stop_sd(void);
 
 
 /* WIN.C / LINUXIO.C */
-bool login_user(char * username, char * password);
 int64 lseek64(OSFILE handle, int64 offset, int fromwhere);
 int64 filelength64(OSFILE handle);
 int chsize64(OSFILE handle, int64 posn);

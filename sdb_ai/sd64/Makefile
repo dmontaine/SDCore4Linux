@@ -45,7 +45,9 @@ LIBSODIUM := /usr/lib/x86_64-linux-gnu/
 
 COMP     := gcc
 # rev 0.9.0 python
-L_FLAGS    := -Wl,--no-as-needed -lm -lcrypt -ldl -lbsd -L$(LIBSODIUM) -lsodium $(PY_LDFLAGS)
+# 14 Sep 26 dm - S.18: -lcrypt and -lbsd dropped.  crypt() and getpeereid()
+#   were called only by linuxio.c login_user(), which is removed.
+L_FLAGS    := -Wl,--no-as-needed -lm -ldl -L$(LIBSODIUM) -lsodium $(PY_LDFLAGS)
 SONAME_OPT := -soname
 
 RM       := rm
