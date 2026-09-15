@@ -75,6 +75,10 @@
 #define SrvrSelectLeft   44    /* Move index position to left */
 #define SrvrSelectRight  45    /* Move index position to right */
 #define SrvrMarkMapping  46    /* Enable/disable mark mapping */
+/* 14 Sep 26 dm - the Windows port's SCRAM requests (W.4 SCRAM phase 4).
+   APISRVR serves them since phase 3.                                        */
+#define SrvrScramFirst   47    /* SCRAM client-first  -> server-first */
+#define SrvrScramFinal   48    /* SCRAM client-final  -> server-final */
 
 /* Server error status values */
 #define SV_OK             0    /* Action successful                       */

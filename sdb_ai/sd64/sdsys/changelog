@@ -16,6 +16,25 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  THE SD CLIENT LIBRARY NO LONGER SENDS YOUR PASSWORD.
+
+           A program that connects to SD through the client library used to
+           send the user's password across the network in plain text.  It now
+           logs in with SCRAM-SHA-256, as SD Core for Windows does: it proves
+           it knows the password without ever sending it, and it also checks
+           that the server it reached really holds the account's credential,
+           so a program pretending to be SD cannot collect passwords.
+
+           THE PASSWORD IT USES IS THE SD PASSWORD, set with MODIFY.PASSWORD
+           under sudo sd, not the Linux password.  An account with no SD
+           password cannot be reached through the client library until one is
+           set.  The library gains no dependency: it is still one file.
+
+           WHAT DOES NOT CHANGE: the library's functions and their arguments,
+           so existing programs need no change - only the password they are
+           given.  The old plain-text login is still accepted by the server
+           for now; it will be removed in a later update.
+
 14 Sep 26  DELETE.ACCOUNT NOW REMOVES THE ACCOUNT'S SD PASSWORD, AND
            MODIFY.PASSWORD SAYS STRAIGHT AWAY WHEN IT CANNOT RUN.
 

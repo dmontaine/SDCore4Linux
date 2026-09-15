@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); left: phases 4–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) built, vectors 46/46; left: install + §13b A0 and §13c S5c, phases 5–6 | — |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
@@ -259,6 +259,31 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***TWENTY-FIRST SESSION, 14 Sep 2026 — SCRAM PHASE 4 BUILT, NOT INSTALLED.***
+`SDConnect` sends the port's SCRAM (47/48) and no longer builds SrvrLogin, in
+both `gplsrc/sdclilib.c` and `/home/don/Projects/linuxsdclilib/sdclilib.c`
+(code identical, comments differ); `scram_login`/`scram_failed` are the port's
+with `strcpy_s`→`snprintf`, `SecureZeroMemory`→`explicit_bzero`, `strtok`→
+`strtok_r`. `sdclient.h` (both) gains `SrvrScramFirst`/`Final`. ***The one
+technical difference:*** the port's primitives come from bcrypt.dll; Linux has
+no crypto library in libc, so `scram_client.h` (both copies byte-identical)
+implements SHA-256, HMAC and PBKDF2 and uses `getrandom`/`explicit_bzero`,
+keeping the port's reason (one binary, nothing travels with it). Measured:
+`nm -D` on both `.so` shows only `getrandom` and `explicit_bzero` added, no
+libsodium. Vectors: `test-scram-vectors.py` now runs server + client, ***46/46***
+(client 29, incl. SHA-256 "abc"/empty known answers); `linuxsdclilib` `make
+check` passes with its new `scram-client-test` 29/29. `make` exit 0, no warning.
+Witness: api-probe now logs in with the SD password (`LINUX_PW` keeps the
+Linux one); new A0 (the Linux password through the library is refused), A3c
+reason `wrong password`, A5 is a 62-character ***SD*** password set by
+MODIFY.PASSWORD, S5/S5c go through new `scram-probe.py --legacy` (request 24:
+SD password refused, Linux password accepted until phase 5); `--legacy` run
+live against `d880012` for `zzprobe` → `LEGACY: login REFUSED at request 24`.
+Dry run 21 sections, free checks green. ***Not covered:*** `SDConnectUDS` still
+sends request 24 with password "dummy", which `APILOGIN=1` refuses today — the
+port has no UDS path; phase 5 decides it. Next: phase 5 retires request 24
+(5275) and gives `!sdclient` SCRAM.
 
 ***TWENTIETH SESSION, 14 Sep 2026 — SCRAM PHASE 3 WITNESSED ON `d880012`,
 160/160.*** Owner keep cycle 20:01:11, `assert-current` current; witness 20:02

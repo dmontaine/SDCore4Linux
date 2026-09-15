@@ -25,6 +25,15 @@ verdict line whose wording appears only on its own path:
 --final-only sends request 48 with no 47 before it, which the server must
 refuse as a sequence error.
 
+--legacy (added with phase 4) sends the OLD cleartext request 24 instead of
+SCRAM, exactly as sdclilib's SDConnect built it before 14 Sep 2026: int16
+length and name, padded to even, then int16 length and password, padded.
+Since phase 4 the client library no longer sends it, so this is the only way
+left to reach request 24.  Its verdict lines are its own:
+
+  LEGACY: login ACCEPTED                     request 24 logged in
+  LEGACY: login REFUSED at request 24: ...   request 24 refused
+
 Exit 0 logged in (and the account, if given, entered), 1 refused (login or
 account), 2 could not run, 3 the server's signature did not verify.
 
@@ -48,6 +57,7 @@ REQ_QUIT = 1
 REQ_GETERROR = 2
 REQ_ACCOUNT = 3
 REQ_EXECUTE = 21
+REQ_LOGIN = 24
 REQ_SCRAM_FIRST = 47
 REQ_SCRAM_FINAL = 48
 
@@ -97,6 +107,8 @@ def main(argv):
     ap.add_argument("--hold", type=float, default=0.0)
     ap.add_argument("--final-only", action="store_true",
                     help="send request 48 without 47 (must be refused)")
+    ap.add_argument("--legacy", action="store_true",
+                    help="send the old cleartext request 24 instead of SCRAM")
     ap.add_argument("commands", nargs="*")
     a = ap.parse_args(argv)
 
@@ -107,7 +119,8 @@ def main(argv):
     say("  account  : %s" % (a.account or "(none - authentication only)"))
     say("  password : %s" % ("from SD_SCRAM_PASSWORD, %d characters" % len(pw)
                              if pw is not None else "SD_SCRAM_PASSWORD is not set"))
-    say("  mode     : %s" % ("request 48 ONLY, no 47" if a.final_only else "47 then 48"))
+    say("  mode     : %s" % ("request 24, the old cleartext login" if a.legacy
+                             else "request 48 ONLY, no 47" if a.final_only else "47 then 48"))
     say("  commands : %d   hold: %gs" % (len(a.commands), a.hold))
     if pw is None or pw == "":
         say("scram-probe: CANNOT RUN - SD_SCRAM_PASSWORD is not set or empty.")
@@ -130,6 +143,28 @@ def main(argv):
     cfirst_bare = "n=%s,r=%s" % (a.user, cnonce)
 
     try:
+        if a.legacy:
+            def field(text):
+                raw = text.encode("utf-8")
+                return struct.pack("<h", len(raw)) + raw + (b"\0" if len(raw) & 1 else b"")
+            err, _, text = request(sock, REQ_LOGIN, field(a.user) + field(pw))
+            if err != 0:
+                say("LEGACY: login REFUSED at request 24: %s" % text)
+                return 1
+            say("LEGACY: login ACCEPTED")
+            if a.account:
+                err, _, text = request(sock, REQ_ACCOUNT, a.account)
+                if err != 0:
+                    say("account %s: REFUSED" % a.account)
+                    return 1
+                say("account %s: entered" % a.account)
+            try:
+                sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
+            except OSError:
+                pass
+            say("disconnected")
+            return 0
+
         if a.final_only:
             err, _, text = request(sock, REQ_SCRAM_FINAL,
                                    "c=biws,r=%sAAAA,p=%s" % (cnonce, b64(b"\0" * 32)))
