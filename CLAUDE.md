@@ -520,7 +520,9 @@ In `gplbld/`: `test-accounts-units.py` · `test-assert-current.py` ·
 · `test-msglen-units.py` · `test-nonet-units.py` · `test-sd-elevate.py` · `test-sdverify-units.py` ·
 `test-ssh-forcecommand.py` · `test-sysperms-units.py` ·
 `test-staleleads-units.py` · `test-scram-vectors.py` · `test-tls-relay.py`
-(C, needs OpenSSL headers - exit 2 without libssl-dev; S.19) · `verify-nocase.py` ·
+(C, needs OpenSSL headers - exit 2 without libssl-dev; S.19) ·
+`test-tlsconsts-units.py` · `test-scramprobe-units.py` (loads libssl) ·
+`verify-nocase.py` ·
 `sdverify.py --selftest` · `check-storewriters.py` (and `--selftest`) ·
 `check-stale-leads.py`. From the repository root:
 `.claude/hooks/no-program-edits.py --selftest`.

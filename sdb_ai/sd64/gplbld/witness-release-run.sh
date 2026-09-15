@@ -1546,10 +1546,24 @@ fi
 #      DISPLAYs a marker.  The marker must reach the probe (control) and must
 #      not be in the recording, nor the user name; under 1 KB measured nothing.
 #   T8 the installed sd links libssl.
+#   T9-T13 (15 Sep 2026, adopted from the Windows port's verify-scramlogin, its
+#      RELEASE_1.1 42): each message is wrong in EXACTLY ONE WAY, so the
+#      refusal names which server check fired.  Refused at 48 in 5272's words:
+#        T9  a captured client-final replayed on a new connection (c= rewritten
+#            to that connection's binding, so only the nonce is stale)
+#        T10 a tampered nonce
+#        T11 c= carrying the binding with one bit flipped - a login relayed by
+#            a man in the middle
+#      Refused at 47 in 5272's words:
+#        T12 the 'y,,' downgrade header
+#        T13 an m= mandatory extension
+#   T14 the wire line: the password is absent from every plaintext byte a
+#      bound login handed to TLS.  T14b/c CONTROL: --legacy's request 24 carries
+#      the password, is refused, and the same search FINDS it.
 head2 "13i. S.19 - the API is TLS 1.3 and the login is bound to it"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and $SPROBE"
-    for r in "T1 bound login" "T1b TLS 1.3" "T1c WHO" "T2 unix socket TLS" "T2b entered" "T3 no plaintext ACK" "T3b no plaintext" "T4 n,, refused" "T4b not logged in" "T5 identity dir" "T5b identity file" "T6 session found" "T6b relay is nobody" "T7 marker reached the probe" "T7b recording measured" "T7c marker not on the wire" "T7d user name not on the wire" "T8 libssl"; do not_reached "$r"; done
+    for r in "T1 bound login" "T1b TLS 1.3" "T1c WHO" "T2 unix socket TLS" "T2b entered" "T3 no plaintext ACK" "T3b no plaintext" "T4 n,, refused" "T4b not logged in" "T9 replay refused" "T9b replay not accepted" "T10 tampered nonce refused" "T10b not accepted" "T11 wrong binding refused" "T11b not accepted" "T12 y,, refused" "T12b not accepted" "T13 m= refused" "T13b not accepted" "T14 password absent from the wire line" "T14b legacy refused" "T14c the wire search finds it" "T5 identity dir" "T5b identity file" "T6 session found" "T6b relay is nobody" "T7 marker reached the probe" "T7b recording measured" "T7c marker not on the wire" "T7d user name not on the wire" "T8 libssl"; do not_reached "$r"; done
 else
     OUT=$(sprobe "T1 control: a bound login over TCP, WHO" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC" WHO)
     if [ "$COMMIT" -eq 1 ]; then
@@ -1571,6 +1585,38 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "T4 the unbound header is refused at 47" "SCRAM: login REFUSED at request 47" "$OUT"
         ck_absent "T4b and it does not log in" "SCRAM: server signature VERIFIED" "$OUT"
+    fi
+    OUT=$(sprobe "T9 replay a captured client-final on a new connection" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --replay)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T9 the replayed client-final is refused at 48 in 5272's words" "REPLAY: the captured client-final was REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T9b and it is never accepted" "REPLAY: the captured client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T10 a client-final answering a nonce the server never issued" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --tamper-nonce)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T10 the tampered nonce is refused at 48 in 5272's words" "SCRAM: login REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T10b and it is not accepted" "a deliberately wrong client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T11 c= with one bit of the binding flipped (a relayed login)" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --bad-cbind)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T11 the wrong channel binding is refused at 48 in 5272's words" "SCRAM: login REFUSED at request 48: Invalid authentication message" "$OUT"
+        ck_absent "T11b and it is not accepted" "a deliberately wrong client-final was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T12 the 'y,,' downgrade header" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --gs2 'y,,')
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T12 'y,,' is refused at 47 in 5272's words" "SCRAM: login REFUSED at request 47: Invalid authentication message" "$OUT"
+        ck_absent "T12b and it is not accepted" "was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T13 an m= mandatory extension after the bound header" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --gs2 'p=tls-exporter,,m=whatever,')
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T13 the m= extension is refused at 47 in 5272's words" "SCRAM: login REFUSED at request 47: Invalid authentication message" "$OUT"
+        ck_absent "T13b and it is not accepted" "was ACCEPTED" "$OUT"
+    fi
+    OUT=$(sprobe "T14 the wire line on a bound login" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "T14 the password is absent from the plaintext the probe handed to TLS" "wire     : password absent from the" "$OUT"
+    OUT=$(sprobe "T14b CONTROL: --legacy puts the password in request 24" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --legacy)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T14b the cleartext login is refused" "LEGACY: login REFUSED at request 24" "$OUT"
+        ck_says "T14c and the same wire search FINDS its password" "wire     : password FOUND IN the" "$OUT"
     fi
 
     say "  > stat -c '%n %U %a' /etc/sd-tls /etc/sd-tls/api.pem"
