@@ -1498,10 +1498,15 @@ else
         SH_BEFORE=$(reg_field "$ACC" 7); SALT_BEFORE=$(cred_salt "$ACC")
         say "  before: register $ACC field 7 (ACC\$SH) = '${SH_BEFORE}'; \$cred/$ACC salt = ${#SALT_BEFORE} characters"
     fi
-    say "  --- sd session as root, STARTED IN $ADIR: WHO; LOGTO sdsys; WHO; MODIFY.ACCOUNT $ACC SH-ON; MODIFY.PASSWORD $ACC (password not shown) ---"
+    # 15 Sep 26 - LOGTO $ACC FIRST.  Starting sudo sd in $ADIR was meant to put
+    # the session in $ACC, but it lands in SDSYS - the first WHO read "sdsys"
+    # on dea3736 and 0d58171 - so Y1-Y4 measured writes from a session that
+    # never took the route (Y0).  LOGTO $ACC makes the ordinary account the
+    # starting point on purpose, as section 2b's arrivals already do.
+    say "  --- sd session as root, STARTED IN $ADIR: LOGTO $ACC; WHO; LOGTO sdsys; WHO; MODIFY.ACCOUNT $ACC SH-ON; MODIFY.PASSWORD $ACC (password not shown) ---"
     if [ "$COMMIT" -eq 1 ]; then
-        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nWHO\nLOGTO sdsys\nWHO\nMODIFY.ACCOUNT %s SH-ON\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
-                  "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 "$SD" 2>&1 | strip)
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nLOGTO sdsys\nWHO\nMODIFY.ACCOUNT %s SH-ON\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+                  "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
         ck "Y0 the route: WHO named $ACC, then sdsys" "$ACC sdsys " "$WHOS"
@@ -1682,7 +1687,10 @@ head2 "13h. S.13 - REMOTE.API and REMOTE.SSH"
 DROPIN=/etc/systemd/system/sdclient.socket.d/sd-remote-api.conf
 ELEV=/usr/local/sbin/sd-elevate
 RA_SAVED=""
-ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -Eq "^$1([[:space:]]|\$).*ALLOW"; }
+# 15 Sep 26 - "ufw show added", as sd-elevate's ufw_has_allow now reads: while
+# ufw is inactive "ufw status" lists no rules, so H5c failed and H1d/H7b passed
+# without having looked (dea3736, 0d58171).
+ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw show added 2>/dev/null | grep -Eq "^ufw allow (in )?$1( |\$)"; }
 listen_now() { systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' '; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -x "$ELEV" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password, $ELEV and a LAN address"
@@ -1874,7 +1882,10 @@ if [ "$COMMIT" -eq 1 ]; then
     printf '%s\n' "$LDD" | sed -e 's/^/      | /'
     if printf '%s' "$LDD" | grep -q 'libsodium'; then
         ck "R1 ldd read the binary (libsodium listed)" yes yes
-        ck_absent "R1b no libcrypt" "libcrypt" "$LDD"
+        # "libcrypt.so", not "libcrypt": since S.19 sd links libcrypto.so.4,
+        # whose name contains "libcrypt", so the bare needle failed R1b on
+        # 0d58171 with no libcrypt linked (15 Sep).
+        ck_absent "R1b no libcrypt" "libcrypt.so" "$LDD"
         ck_absent "R1c no libbsd" "libbsd" "$LDD"
     else
         ck "R1 ldd read the binary (libsodium listed)" yes no

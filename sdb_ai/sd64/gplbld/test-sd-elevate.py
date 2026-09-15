@@ -19,8 +19,10 @@ is empty, or if the helper is missing, rather than reporting 0 of 0 as success.
 
 import os
 import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HELPER = os.path.join(HERE, "sd-elevate")
@@ -208,6 +210,55 @@ def main():
         else:
             failed += 1
             failures.append((argv, "plan %s" % needles, "missing %s forbidden %s" % (missing, present), out.strip()))
+
+    # ---- 15 Sep 26: RULE DETECTION WHILE ufw IS INACTIVE (witness 13h H5c).
+    # ---- The dry run never reads the firewall, so the helpers are lifted out
+    # ---- of the script and run against a fake ufw that answers "status" the
+    # ---- way an inactive one does - no rules - and "show added" with the
+    # ---- rules it has configured.  A helper still reading "ufw status" finds
+    # ---- nothing and fails U1 and U4.
+    fake_dir = tempfile.mkdtemp(prefix="sdelev-ufw-")
+    try:
+        fake = os.path.join(fake_dir, "ufw")
+        with open(fake, "w") as f:
+            f.write("#!/bin/bash\n"
+                    "case \"$*\" in\n"
+                    "  status|'status verbose') echo 'Status: inactive' ;;\n"
+                    "  'show added') printf '%s\\n' "
+                    "\"Added user rules (see 'ufw status' for running firewall):\" "
+                    "'ufw allow 4243/tcp' 'ufw allow OpenSSH' 'ufw allow 2222/tcp' "
+                    "'ufw allow from 192.168.0.0/24 to any port 22 proto tcp' ;;\n"
+                    "  *) exit 1 ;;\n"
+                    "esac\n")
+        os.chmod(fake, 0o755)
+        lift = ("eval \"$(sed -n '/^ufw_added()/,/^}/p;/^ufw_has_allow()/,/^}/p;"
+                "/^ufw_ssh_rules()/,/^}/p' \"$1\")\"; "
+                "type ufw_has_allow >/dev/null 2>&1 && type ufw_ssh_rules >/dev/null 2>&1 "
+                "|| { echo 'NOT LIFTED'; exit 9; }; ")
+        env = dict(os.environ, PATH=fake_dir + os.pathsep + os.environ.get("PATH", ""))
+        UFW_ROWS = [
+            ("U1 4243/tcp is found while ufw is inactive", "ufw_has_allow 4243/tcp", 0, None),
+            ("U2 a rule that is not configured is not found", "ufw_has_allow 443/tcp", 1, None),
+            ("U3 22/tcp is not claimed from 2222/tcp", "ufw_has_allow 22/tcp", 1, None),
+            ("U4 the ssh rules are OpenSSH and the port 22 rule, not 2222",
+             "ufw_ssh_rules", 0,
+             "allow OpenSSH\nallow from 192.168.0.0/24 to any port 22 proto tcp"),
+        ]
+        for name, call, want_rc, want_out in UFW_ROWS:
+            p = subprocess.run(["bash", "-c", lift + call, "lift", HELPER],
+                               capture_output=True, text=True, env=env)
+            out = (p.stdout or "").strip()
+            ok = p.returncode == want_rc and (want_out is None or out == want_out)
+            shown = out.replace("\n", " | ") if out else "(no output)"
+            print(f"  [{'PASS' if ok else 'FAIL'}] UFW    {name:60} | exit {p.returncode}: {shown}")
+            if ok:
+                passed += 1
+            else:
+                failed += 1
+                failures.append(([call], "exit %d %r" % (want_rc, want_out),
+                                 "exit %d %r" % (p.returncode, out), p.stderr.strip()))
+    finally:
+        shutil.rmtree(fake_dir, ignore_errors=True)
 
     print()
 
