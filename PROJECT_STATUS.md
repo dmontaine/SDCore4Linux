@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) built; left: install + §13c S1–S7, phases 4–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); left: phases 4–6 | — |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
@@ -232,8 +232,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`b119bb3`**, stamped 14 Sep 2026 19:43:01,
-  owner keep cycle, `assert-current` current — carries SCRAM phases 1–2.
+- **Runtime:** install built from **`d880012`**, stamped 14 Sep 2026 20:01:11,
+  owner keep cycle, `assert-current` current — carries SCRAM phases 1–3.
+  *(Superseded:)* `b119bb3`, 19:43:01 — phases 1–2.
   *(Superseded:)* `74c60d4`, 19:34:27. *(Superseded:)* `8f17140`, 18:56:33 —
   S.14's password length.
   *(Superseded:)* `72933c2`, 17:34:34 — S.15's `initgroups`.
@@ -259,7 +260,19 @@ owner's ruling comes first.
 
 ## START HERE
 
-***TWENTIETH SESSION, 14 Sep 2026 — SCRAM PHASE 3 BUILT, NOT INSTALLED.***
+***TWENTIETH SESSION, 14 Sep 2026 — SCRAM PHASE 3 WITNESSED ON `d880012`,
+160/160.*** Owner keep cycle 20:01:11, `assert-current` current; witness 20:02
+(`/var/tmp/witness-release-run.20260914-200257.log`), every earlier row
+re-passed. §13c: S1 `request 47 -> server_error 0`, server-first
+`…,i=600000`, `SCRAM: server signature VERIFIED`, account entered, `46
+zzrel1`; S2 SCRAM session `Uid: 1005`, `Groups: 979 1010 1011` (K$ASSUME.USER
+works); S3 wrong password and ***S4 the Linux password*** both refused at 48
+(5017); ***S5 request 24 with the SD password refused*** — each door reads its
+own credential; S6 48-without-47 → 5273; S7 `zzrel9` refused at 47 (status
+3006); audit gained `reason=wrong password` ×2, `sequence error - no
+client-first`, `no credential`. ***The plan's falsifier is measured and did not
+fire:*** PBKDF2 at 600,000 iterations took 0.07 s per login (Python hashlib,
+this machine), so client cost does not block phase 4. *(As built:)*
 APISRVR gains the port's `vb.scram.first`/`vb.scram.final` (requests 47/48),
 their shared exits, `scram.trim.body` and `scram.clean.name`, the pre-auth gate
 admitting 47/48 and two dispatch lines; `valid_os_name` declared at the top.
@@ -277,8 +290,8 @@ and the signature verifies; the session's /proc uid and groups; wrong password
 5017 + audit; ***S4 the Linux password over SCRAM refused and S5 the SD password
 over request 24 refused*** — each door reads its own credential; 48 without 47
 → 5273; unknown user → 5017 at 47. Dry run 21 sections, free checks 17 green.
-***UNMEASURED:*** that APISRVR compiles (install only) and that the session
-runs as the user after `K$ASSUME.USER` (S2). Changelog deferred to phase 5,
+Unmeasured when built, both measured by the run above: that APISRVR compiles
+(install only) and that the session runs as the user after `K$ASSUME.USER` (S2). Changelog deferred to phase 5,
 when a user would notice.
 
 ***[S.16] PER-ACCOUNT API ROUTE — TO BUILD.*** The port's `vb.scram.final`
