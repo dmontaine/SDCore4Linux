@@ -16,6 +16,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  DELETE.ACCOUNT NOW REMOVES THE ACCOUNT'S SD PASSWORD, AND
+           MODIFY.PASSWORD SAYS STRAIGHT AWAY WHEN IT CANNOT RUN.
+
+           Deleting an account left its SD password behind.  An account
+           created later under the same name would have inherited it - the
+           old password would have let someone into the new account through
+           the API.  The password is now removed with the account.
+
+           MODIFY.PASSWORD run without sudo sd asked for a new password twice
+           before failing, because the password store is readable only by
+           root.  It now says at once that it needs sudo sd, and asks for
+           nothing.
+
+           WHAT DOES NOT CHANGE: who may set a password, and how it is done
+           under sudo sd.
+
 14 Sep 26  MODIFY.PASSWORD NOW SETS SD'S OWN PASSWORD, AS ON WINDOWS.
 
            MODIFY.PASSWORD used to change the account's Linux password.  It

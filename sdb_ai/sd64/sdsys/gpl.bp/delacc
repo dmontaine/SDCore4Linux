@@ -18,6 +18,10 @@
 *
 *
 * START-HISTORY:
+* 14 Sep 26 dm  The account's $cred record is deleted with it (W.4 SCRAM phase 2).
+*               The Windows port's DELACC does not, and a credential outliving
+*               its account would admit a later account of the same name with
+*               the old password.  To be reported to the port.
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner); a
 *               cross-referencing Q-pointer's account is compared downcased.
 * 13 Sep 26 dm  An account's VOC file is voc on disk (plan M3 D3).
@@ -365,6 +369,19 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                strip.group = 'sdusers' ; gosub strip.membership
          end case
       end
+   end
+
+* 14 Sep 26 dm - W.4 SCRAM phase 2.  THE SD PASSWORD GOES WITH THE ACCOUNT.
+*   $cred holds the account's SCRAM keys, and nothing else ever removes them:
+*   left behind, they would let a later account of the same name be entered
+*   over the API with the old password, and MODIFY.PASSWORD would demand that
+*   old password from its new owner.  This verb runs with euid 0 (CPROC
+*   privileged_commands), which $cred's root:root 0700 requires.  BEFORE the
+*   register delete below, which stays last.  The Windows port's DELACC has
+*   the same gap.
+   openpath @sdsys:@ds:'$cred' to cred.f then
+      delete cred.f, acc.name
+      close cred.f
    end
 
    * Delete ACCOUNTS entry.  LAST, so that anything failing above leaves the

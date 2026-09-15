@@ -23,11 +23,18 @@
 # refused" proves nothing on its own - a verb that refused EVERYTHING would
 # score every refusal row a pass.  So the same command without the extra token
 # has to get PAST the syntax check and the privilege check and reach the
-# credential register.  As an ordinary session it is then refused THERE, with
-# "Cannot open the $cred register" - the port's "ordinary console NO,
+# credential register's gate.  As an ordinary session it is then refused THERE,
+# with "MODIFY.PASSWORD needs sudo sd" - the port's "ordinary console NO,
 # deliberately" (its secure-cred.ps1).  Rows C1-C4 are that control: C2 shows
-# the register was reached, C3 that nothing was set, C4 that the refusal is the
-# register's mode and not something else.
+# the gate was reached, C3 that nothing was set and no password asked for, C4
+# that the register is root-only.
+#
+# ***C2 AND C3 FAILED ON THEIR FIRST RUN, 14 Sep 2026 on 74c60d4, AND THE
+# PRODUCT WAS WRONG, NOT THE INSTRUMENT.***  They expected "Cannot open the
+# $cred register"; the verb instead said "has no password set" and prompted,
+# because a directory file opens without permission and the refused read looks
+# like a missing record.  SET_ACC_PASSWORD now refuses on the real uid before
+# any prompt, and C2 matches that refusal's wording.
 #
 # ***WHAT AN UNPRIVILEGED RUN CANNOT REACH, SAID OUT LOUD RATHER THAN SCORED
 # AS A PASS.***  SET_ACC_PASSWORD tests in this order: trailing token (5276),
@@ -65,7 +72,7 @@ NAME = "verify-setpw"
 M5276 = (r"A password is never given on the command line; MODIFY\.PASSWORD "
          r"prompts for it")
 M2001 = r"Command requires administrator privileges"
-MCRED = r"Cannot open the \$cred register"
+MCRED = r"MODIFY\.PASSWORD needs sudo sd"
 MSET = r"Password set for account"
 MNEWPW = r"New password:"
 MNOVOC = r"is not in your VOC"
