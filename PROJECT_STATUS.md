@@ -22,7 +22,6 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.14** | M | API password no longer capped at 32, empty refused — the port's client; built in APISRVR, `op_login` and both `sdclilib.c` copies (this tree and `linuxsdclilib`); left: install and §13b A5 | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
@@ -57,6 +56,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **Q.14** | — | GRANT/REVOKE incl. a session open during the grant (§10); its wording finding is S.12 | 14 Sep 2026 |
 | ✅ | **Q.17** | — | MODIFY.PASSWORD administrator arm: 10914, shadow `!` → `$y$` (§13) | 14 Sep 2026 |
 | ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
+| ✅ | **S.14** | — | API password not capped at 32, as the port: a 62-character password logs in (§13b A5, `8f17140`) | 14 Sep 2026 |
 | ✅ | **S.15** | — | an API session holds its user's groups: `Groups: 979 1010 1011` (§13b A2c/A2d, `72933c2`; empty on `3ff8027`) | 14 Sep 2026 |
 | ✅ | **Q.12** | — | SUSPENDED tier: the ssh door (§14 X1–X4, `f2251e6`) and the API door (§14 X6, `3ff8027`) both refuse | 14 Sep 2026 |
 | ✅ | **S.12** | — | 10043: a session open during GRANT enters but cannot write — `File is read-only` vs a fresh session's copy (§10, `79d7e87`) | 14 Sep 2026 |
@@ -230,8 +230,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`72933c2`**, stamped 14 Sep 2026 17:34:34,
-  owner keep cycle, `assert-current` current — carries S.15's `initgroups`.
+- **Runtime:** install built from **`8f17140`**, stamped 14 Sep 2026 18:56:33,
+  owner keep cycle, `assert-current` current — carries S.14's password length.
+  *(Superseded:)* `72933c2`, 17:34:34 — S.15's `initgroups`.
   *(Superseded:)* `3ff8027`, 17:13:12 — W.4's APISRVR.
   *(Superseded:)* `79d7e87`, 15:02:58 — S.12's 10043.
   *(Superseded:)* `f2251e6`, 14:37:02. *(Superseded:)* `2edec17`, 14:07:22 —
@@ -330,7 +331,14 @@ What would falsify it: `ufw` inactive (the rule then gates nothing — say so),
 and whether `Accept=true` sessions survive a socket restart (the port had to
 restart SD and drop every session).
 
-***[S.14] API PASSWORD LENGTH — BUILT, NOT INSTALLED.*** Owner, 14 Sep 2026:
+***[S.14] API PASSWORD LENGTH — CLOSED, WITNESSED ON `8f17140`.*** Keep cycle
+installed `8f17140` (18:56:33, `assert-current` current); owner-run
+`witness-release-run.sh --commit` 19:00, log
+`/var/tmp/witness-release-run.20260914-190008.log`, ***134/134***, cleanup
+complete. A5: MODIFY.PASSWORD set a 62-character password (10914), and over
+the API `SDConnect returned 1`, `46 zzrel1`, no `Invalid password`; X6 used the
+same password on the suspended account → `SDConnect returned 0` / `SDError:
+User not allowed in requested account`, no 5017. Owner, 14 Sep 2026:
 match the port. Measured there: its `SDConnect` bounds the USER NAME at 32
 (`gplsrc/sdclilib/sdclilib.c:1218`) and refuses only an EMPTY password
 (`:1226`, no length cap, because SCRAM never sends it). Here the password had
@@ -344,7 +352,7 @@ buffer from the string and wipes it after `login_user`. The same client change
 is committed in `/home/don/Projects/linuxsdclilib` with its rebuilt tracked
 `libsdclilib.so`; its `make check` passed (smoke + internal). This tree:
 `make` exit 0, no warning. Witness §13b A5: a 62-character password set by
-MODIFY.PASSWORD must log in (UNRUN); X6 then uses it. Only the empty refusal
+MODIFY.PASSWORD must log in (passed, above); X6 then uses it. Only the empty refusal
 is client-side, so it has no server row. A second lead, that the client drops an
 account refusal's text, was a misreading of `sdclilib.c:900-908`: the
 sixteenth session's run printed `SDError: User not allowed in requested
