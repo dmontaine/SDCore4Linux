@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7); its two fixes (plain-sd refusal, DELETE.ACCOUNT drops `$cred`) built; left: install + `verify-setpw` C2/C3 + §15 K7, phases 3–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); left: phases 3–6 | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -230,8 +230,10 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`8f17140`**, stamped 14 Sep 2026 18:56:33,
-  owner keep cycle, `assert-current` current — carries S.14's password length.
+- **Runtime:** install built from **`b119bb3`**, stamped 14 Sep 2026 19:43:01,
+  owner keep cycle, `assert-current` current — carries SCRAM phases 1–2.
+  *(Superseded:)* `74c60d4`, 19:34:27. *(Superseded:)* `8f17140`, 18:56:33 —
+  S.14's password length.
   *(Superseded:)* `72933c2`, 17:34:34 — S.15's `initgroups`.
   *(Superseded:)* `3ff8027`, 17:13:12 — W.4's APISRVR.
   *(Superseded:)* `79d7e87`, 15:02:58 — S.12's 10043.
@@ -254,6 +256,24 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***NINETEENTH SESSION, 14 Sep 2026 — SCRAM PHASE 2 WITNESSED, WITH ITS TWO
+FIXES.*** `74c60d4` (19:34:27): witness 19:36 ***141/141***, §13 C0–C7 (record
+`2` / `SCRAM-SHA-256` / `600000`, salt 24, keys 44/44, `$cred` root:root 700).
+The same install failed `verify-setpw.py` 3/22 — THE PRODUCT, not the
+instrument: plain `sd` MODIFY.PASSWORD said "has no password set" and prompted,
+because a directory file opens without permission and a refused read looks
+like a missing record. And cleanup left `$cred/zzrel1`: DELETE.ACCOUNT never
+removed it (the port's DELACC has the same gap — to report). Fixed in
+`b119bb3`: `set_acc_password` refuses on `system(27) # 0` before any prompt;
+`delacc` deletes the `$cred` record before the register record; witness §0
+refuses a leftover zzrel `$cred` record, §15 gains K7. `b119bb3` (19:43:01,
+owner removed the stale record first): witness 19:45 ***142/142***
+(`/var/tmp/witness-release-run.20260914-194524.log`), K7 `$cred/zzrel1` gone;
+`verify-setpw.py` as don, no sudo, ***22/22***, C2 printed `MODIFY.PASSWORD
+needs sudo sd`, no prompt. ***Next: SCRAM phase 3*** — APISRVR requests 47/48
+from the port's `vb.scram.first`/`final` (its `APISRVR:1262-1716`), messages
+5272–5274; the API login stays on the Linux password until phase 5.
 
 ***EIGHTEENTH SESSION, 14 Sep 2026 — W.4's SCRAM LOGIN, PHASE 1 OF 6 BUILT.***
 Adopted by the owner's conformity rule (memory note, 14 Sep). The plan follows
