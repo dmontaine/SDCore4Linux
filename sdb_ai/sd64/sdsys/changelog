@@ -16,6 +16,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  A FAILED OPENSEQ NO LONGER LEAVES ITS RECORD LOCKED.
+
+           When OPENSEQ could not open a file the way it was asked - for
+           example OPENSEQ ... OVERWRITE on a file you may only read, which SD
+           now rightly reports as an error instead of pretending to empty it -
+           the lock SD had taken on that file was never released.  It stayed
+           after the program ended and after the session logged off, and
+           nothing but restarting SD removed it; the next program to open the
+           same file waited for a lock nobody held.
+
+           The lock is now released whenever OPENSEQ fails.
+
+           WHAT DOES NOT CHANGE: a successful OPENSEQ keeps its lock until
+           CLOSESEQ, exactly as before.
+
+
 14 Sep 26  THE API IS GRANTED PER ACCOUNT.
 
            Until now any SD user could log in through the API once they had
