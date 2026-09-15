@@ -585,9 +585,23 @@ rather than by how hard it is:
    as the control failing for its own ordinary reason, *"File BP.OUT not
    found"*), and `accountacl` — which is `verify-accounts.py`'s U rows, not
    repeated here.
-   ***NOT COVERED, AND IT IS THE ONE THAT NEEDS root: `sdsyswrite`.*** It asks
-   whether SDSYS reached by LOGTO can write the protected stores, and no
-   unprivileged session can be in SDSYS to ask.
+   ~~***NOT COVERED, AND IT IS THE ONE THAT NEEDS root: `sdsyswrite`.***~~
+   ***BUILT 14 Sep 2026, TWO HALVES; the witness half is §OPEN§ until an
+   install runs it.*** It asks whether SDSYS reached by LOGTO can write the
+   protected stores, and no unprivileged session can be in SDSYS to ask.
+   Measured first: on Linux the route does not change the privilege state — every
+   `sudo sd` drops to euid sdsys at entry (`cproc:356`) and CPROC raises it to 0
+   only around `privileged_commands` (`cproc:225-235`) — so the port's 68 class
+   here is *a store writer outside that list*. (1) `gplbld/check-storewriters.py`,
+   a free check: sweeps `gpl.bp` for writes/deletes on `accounts`/`$cred`,
+   follows subroutines to their verbs, requires each in `privileged_commands`;
+   today 4 writers (createa, cred_set via `$MODIFY.PASSWORD`, delacc, modifya),
+   0 failures; `--selftest` 7/7 incl. two reds, an orphan and the null case.
+   (2) `witness-release-run.sh` §13g: a root session STARTED IN zzrel1 LOGTOs
+   sdsys; SH-ON must land in register field 7 and MODIFY.PASSWORD must rewrite
+   `$cred`'s salt, both read off disk before/after, the login still working;
+   control, a plain-sd administrator's SH-OFF is refused 2001 with field 7
+   unchanged.
    **Red controls:** a fixture system tree via `--sdsys`, four of them, each
    firing its own row — a group-writable directory (`S1` names it), `$IPC`
    made unwritable (`W1:$IPC`), a readable audit file (`A1`), a writable

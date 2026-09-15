@@ -441,7 +441,7 @@ In `gplbld/`: `test-accounts-units.py` · `test-assert-current.py` ·
 · `test-msglen-units.py` · `test-nonet-units.py` · `test-sd-elevate.py` · `test-sdverify-units.py` ·
 `test-ssh-forcecommand.py` · `test-sysperms-units.py` ·
 `test-staleleads-units.py` · `test-scram-vectors.py` · `verify-nocase.py` ·
-`sdverify.py --selftest` ·
+`sdverify.py --selftest` · `check-storewriters.py` (and `--selftest`) ·
 `check-stale-leads.py`. From the repository root:
 `.claude/hooks/no-program-edits.py --selftest`.
 
