@@ -28,7 +28,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
-| ◐ | **S.18** | S | code left dead by phase 5: `login_user` + `getpeereid` capture removed, `op_login` a fail-closed stub, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`; the Unix socket KEPT (an ssh tunnel uses it); built 14 Sep, `make` clean, free checks green; left: owner keep cycle + `witness-release-run.sh` (§13c S8, §16) | — |
+| ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
@@ -263,11 +263,10 @@ owner's ruling comes first.
 
 ## START HERE
 
-***TWENTY-THIRD SESSION, 14 Sep 2026 — S.18 BUILT, NOT INSTALLED.*** The dead
-login code phase 5 left, removed; the Unix socket turned out live and is kept.
-Detail and the two traps: the S.18 entry below. Next for the owner: a keep cycle
-(`/etc/sd.conf` still has `APILOGIN=1`, which is what R3 needs), then
-`sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit`.
+***TWENTY-THIRD SESSION, 14 Sep 2026 — S.18 WITNESSED ON `fed4b36`, 183/183.***
+The dead login code phase 5 left, removed; the Unix socket turned out live and
+is kept. Detail and the two traps: the S.18 entry below. Open rows now: P.24,
+Q.19, Q.13, Q.22, P.6, W.4 (phase 6), S.16, S.17, S.13, S.1.
 
 ***TWENTY-SECOND SESSION, 14 Sep 2026 — SCRAM PHASE 5 WITNESSED ON `9fd52d9`,
 171/171.*** Owner keep cycle 20:43:13, `assert-current` current; witness 20:45
@@ -307,9 +306,15 @@ the piped password. Code now dead is task row S.18. Next: phase 6 — the port's
 is "rebuild and re-set passwords"; here every account's SD password must be
 set with MODIFY.PASSWORD before its API use, so it is an install/doc question.
 
-***[S.18] CODE LEFT DEAD BY PHASE 5 — BUILT 14 Sep 2026 (twenty-third
-session), `make` exit 0 no warning, free checks green; §OPEN§: the owner's keep
-cycle and witness.*** Callers grepped first (`gpl.bp`, `gplsrc`, installer,
+***[S.18] CODE LEFT DEAD BY PHASE 5 — CLOSED: WITNESSED 14 Sep 2026 on install
+`fed4b36` (21:19:41 keep cycle, `assert-current` current), owner-run
+`witness-release-run.sh --commit` 21:21, 183/183, 0 not reached
+(`/var/tmp/witness-release-run.20260914-212109.log`).*** S8–S8e: over
+`/tmp/sdsys/sdclient.socket` SCRAM verified, account entered, WHO `56 zzrel1`;
+request 24 refused in 5275's words. R1 `ldd`: libsodium listed, no libcrypt, no
+libbsd. R2 `CONFIG`: CMDSTACK present, no APILOGIN. R3 `/etc/sd.conf` line
+`7:APILOGIN=1` and `sd.service` active — the retired key is accepted. Every
+earlier row re-passed. *(As built:)* Callers grepped first (`gpl.bp`, `gplsrc`, installer,
 `bbcmp.py`): none for `login_user`, `pcfg.api_login` or `getpeereid` beyond
 the removed code. As built, following the port (its HISTORY "17 Aug", step 6a):
 `linuxio.c` `login_user` deleted with the `getpeereid` block in
