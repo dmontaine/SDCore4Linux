@@ -1164,7 +1164,7 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
 }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
-    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit" "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit" "S9 name gate 5017" "S9b audit: name rejected" "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
 else
     N0=0
     [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
@@ -1234,6 +1234,23 @@ else
     OUT=$(sprobe "S7 a user with no SD credential" "$SCRAM_PW" --user zzrel9)
     [ "$COMMIT" -eq 1 ] && ck_says "S7 refused at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
 
+    # 15 Sep 26 dm - Q.22's apiname: THE NAME GATE AT THE API DOOR, WHICH
+    # NOTHING EXERCISED UNTIL NOW.  APISRVR applies !valid_os_name to the SCRAM
+    # user name BEFORE it reads $cred (apisrvr:1100); the port built a whole
+    # verifier for the same question (its verify-apiname.ps1, "does it refuse a
+    # name a real client could legitimately present?").  valid_os_name allows
+    # letters, digits, dot, underscore and hyphen only, so a TRAILING '$' -
+    # legal in a Linux user name, and what a Samba machine account carries - is
+    # refused at the door.
+    #
+    # ***THE REFUSAL IS DELIBERATELY WORDED AS S7's, SO S9 ALONE CANNOT SAY
+    # WHICH CHECK FIRED*** (apisrvr:1245, the distinct refusal leaks nothing).
+    # S9b reads the reason out of the audit trail, and S7b - a legal-charset
+    # name with no credential, audited 'no credential' - is the control that
+    # stops S9b passing on a catch-all.
+    OUT=$(sprobe "S9 Q.22 apiname: a name valid_os_name refuses (trailing \$)" "$SCRAM_PW" --user "${ACC}\$")
+    [ "$COMMIT" -eq 1 ] && ck_says "S9 the name gate refuses at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
+
     # S.18 - the Unix socket.  The path comes from the installed unit, printed,
     # so a moved socket is a visible NOT REACHED rather than a probe of nothing.
     USOCK=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' /usr/lib/systemd/system/sdclient.socket 2>/dev/null | head -1)
@@ -1263,6 +1280,7 @@ else
         ck_says "S3b audited: wrong password" "API REFUSED user=$ACC reason=wrong password" "$NEW"
         ck_says "S6b audited: sequence error" "reason=sequence error - no client-first" "$NEW"
         ck_says "S7b audited: no credential" "API REFUSED user=zzrel9 reason=no credential" "$NEW"
+        ck_says "S9b audited: the name gate fired, not the credential read" "reason=name rejected by valid_os_name" "$NEW"
     fi
 fi
 
