@@ -326,6 +326,13 @@ DIRTY=0
 [ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC3")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC3 exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC3")" = yes ] && { say "  DIRTY: register record $ACC3 exists"; DIRTY=1; }
 [ "$(yesno_dir "/home/$ACC3")" = yes ] && { say "  DIRTY: /home/$ACC3 exists"; DIRTY=1; }
+# 14 Sep 26 dm - THE SD PASSWORD REGISTER TOO.  The 19:36 run on 74c60d4 left
+# $cred/zzrel1 behind (DELETE.ACCOUNT did not remove it then), and section 13's
+# C0 asserts "has no password set" - a leftover record would fail it for a
+# reason that is not the product's.  Readable only as root, as --commit is.
+for a in "$ACC" "$ACC2" "$ACC3"; do
+    [ "$(yesno_file "$SDSYS/\$cred/$a")" = yes ] && { say "  DIRTY: credential record \$cred/$a exists"; DIRTY=1; }
+done
 if [ "$DIRTY" -eq 1 ]; then
     say "witness-release-run: CANNOT RUN - the ground is not clear (above)."
     say "  This script will not touch state it did not create."
@@ -1121,6 +1128,7 @@ else
         ck "K4 the register record is gone" no "$(yesno_file "$REGISTER/$ACC")"
         ck "K5 the Linux user is kept" yes "$(yesno_user "$ACC")"
         ck "K6 and holds no SD group" 0 "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -cE '^(sdusers|sdadmin|sdu_)')"
+        ck "K7 and its SD password went with it (\$cred/$ACC, written in section 13)" no "$(yesno_file "$SDSYS/\$cred/$ACC")"
         [ "$(yesno_file "$REGISTER/$ACC")" = no ] && MADE_ACCOUNT=0
     fi
 fi

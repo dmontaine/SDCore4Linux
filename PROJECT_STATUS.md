@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) built; left: install + §13 C0–C7, phases 3–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7); its two fixes (plain-sd refusal, DELETE.ACCOUNT drops `$cred`) built; left: install + `verify-setpw` C2/C3 + §15 K7, phases 3–6 | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -285,7 +285,28 @@ Unix-socket peer login (`linuxio.c` `getpeereid`, `APILOGIN`) has no port
 counterpart. ***Would falsify the plan:*** PBKDF2 at 600,000 iterations too
 slow per client connection here — measure before phase 4.
 
-***Phase 2, same session — built, not installed.*** `gpl.bp/cred_set` and
+***Phase 2, same session — WITNESSED on `74c60d4`, 141/141; two defects it
+exposed are built, not installed.*** Keep cycle installed `74c60d4` (19:34:27,
+`assert-current` current); owner-run `witness-release-run.sh --commit` 19:36,
+log `/var/tmp/witness-release-run.20260914-193649.log`, cleanup complete. §13:
+W3 shadow `!` → `$y$` by `chpasswd`; MODIFY.PASSWORD printed "has no password
+set" then "Password set for account zzrel1"; `$cred/zzrel1` fields `2` /
+`SCRAM-SHA-256` / salt 24 / `600000` / 44 / 44; register `root:root 700`
+(C0–C7). Every earlier row re-passed. ***Defect 1, MEASURED by
+`verify-setpw.py` on the same install (19/22, C2/C3/C-session failed):*** as
+plain `don`, MODIFY.PASSWORD did not refuse — it printed "has no password set",
+prompted "New password:" and took the piped `OFF` as one. A directory file
+opens without permission and the refused read looks like a missing record, so
+the "Cannot open" guard never fired. Fix: `set_acc_password` refuses on
+`system(27) # 0` (`op_sys.c:222`, getuid) after 5276/2001/5018 and before any
+prompt; `verify-setpw.py` C2 matches its wording. ***Defect 2, from reading the
+cleanup:*** DELETE.ACCOUNT never removed `$cred/<account>` (nor does the port's
+DELACC — to be reported), so the 19:36 run left `$cred/zzrel1`, and a later
+account of that name would inherit the old API password. Fix: `delacc` deletes
+the record before the register; witness §15 K7 checks it and §0 now calls any
+leftover `$cred/zzrel[123]` DIRTY. ***The next run will refuse at §0 until the
+leftover record is removed by hand*** (hand-over below). *(Built as:)*
+`gpl.bp/cred_set` and
 `cred_verify`: the port's derivation, version-2 record and read-back, lower-case
 ids, and a direct write under euid 0 in place of the port's elevated-helper
 fallback. `int$keys.h`: the port's CRED block and `SCRAM$ITERATIONS` 600000.
