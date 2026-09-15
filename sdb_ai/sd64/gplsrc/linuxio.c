@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Sep 26 dm S.19: every API connection goes through a TLS 1.3 relay
+ *           (sd_tlssrv.c), started after the peer is recorded; the Ack moved
+ *           after it, inside TLS.  Identity in <sd.conf's dir>/sd-tls.
  * 14 Sep 26 dm S.17: a TCP API connection records the PEER's address and port
  *           (getpeername), not the listener's, so APISRVR can tell local from not.
  * 14 Sep 26 dm S.18: login_user() removed with the getpeereid() peer capture
@@ -44,6 +47,7 @@
 #include "sdtermlb.h"
 #include "telnet.h"
 #include "tio.h"
+#include "sd_tls.h"
 
 #include <netdb.h>
 #include <pwd.h>
@@ -92,6 +96,28 @@ void set_new_tty_modes(void);
 bool negotiate_telnet_parameter(void);
 
 /* ======================================================================
+   api_tls_dir()  -  Where the API's TLS relay keeps the server identity
+
+   15 Sep 26 dm - S.19.  Beside sd.conf: <its directory>/sd-tls, normally
+   /etc/sd-tls.  NOT under SDSYS, for two reasons measured in installsdai.sh:
+   the installer runs chown -R sdsys and chmod -R 755 over SDSYS, which would
+   leave the key readable and fail the relay's owner check; and the sdsys
+   account owns SDSYS, so it could rename a root-owned directory away and
+   force a silent new key.  /etc is root's.  Derived from config_path because
+   this runs before bind_sysseg() - there is no sysseg->sysdir yet.       */
+
+Private bool api_tls_dir(char *out, size_t len) {
+  char *slash = strrchr(config_path, '/');
+  int n;
+
+  if (slash == NULL || slash == config_path)
+    return FALSE;
+  n = snprintf(out, len, "%.*s/sd-tls", (int)(slash - config_path),
+               config_path);
+  return (n > 0) && ((size_t)n < len);
+}
+
+/* ======================================================================
    start_connection()  -  Start Linux socket / pipe based connection      */
 
 bool start_connection(int unused) {
@@ -111,12 +137,9 @@ bool start_connection(int unused) {
     if (is_sdApiSrvr) {
      // flag = TRUE;
      // setsockopt(0, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(int));
-      /* Fire an Ack character up the connection to start the conversation.
-         This is necessary because Linux loses anything we send before the
-         new process is up and running so Q_M_Client isn't going to talk until
-         we go first. The Ack comes from Q_M_Svc on NT style systems.          */
-
-      send(0, "\x06", 1, 0);
+      /* 15 Sep 26 dm - S.19: the Ack moved below the peer capture, after the
+         TLS relay starts, so that it travels inside TLS.  The client still
+         waits for it before speaking.                                     */
     } 
   /* 20240127 mab mods to handle IPv6 */
     n = sizeof(sa);
@@ -188,6 +211,35 @@ bool start_connection(int unused) {
       default:
           syslog (LOG_INFO,"Invalid Network Socket Type UNKNOW");
           return FALSE; /* Error */ 
+    }
+
+    /* 15 Sep 26 dm - S.19: EVERY API CONNECTION IS TLS 1.3, over TCP and over
+       the Unix socket alike - an ssh -L tunnel to either must keep working,
+       and one rule has no downgrade branch to get wrong.  AFTER the peer is
+       recorded above: once descriptor 0 is the relay's socketpair,
+       getpeername() would describe the relay.  BEFORE the ACK, so the ACK
+       and everything after it travel inside TLS.  BEFORE bind_sysseg(), so
+       the relay never maps SD's shared memory.  See sd_tlssrv.c.          */
+    if (is_sdApiSrvr) {
+      char tls_dir[MAX_PATHNAME_LEN + 16];
+      char tls_err[512];
+
+      if (!api_tls_dir(tls_dir, sizeof(tls_dir))) {
+        syslog(LOG_ERR, "API connection refused: no usable SDSYS= in %s",
+               config_path);
+        return FALSE;
+      }
+      if (!sd_tls_relay_start(tls_dir, SD_TLS_HANDSHAKE_MS, tls_err,
+                              sizeof(tls_err))) {
+        syslog(LOG_INFO, "API connection from %s refused: %s", ip_addr,
+               tls_err);
+        return FALSE;
+      }
+
+      /* Fire an Ack character up the connection to start the conversation.
+         Moved here from the top of this function by S.19: it now goes
+         through the relay, inside TLS.                                    */
+      send(0, "\x06", 1, 0);
     }
 
     /* Create output buffer */

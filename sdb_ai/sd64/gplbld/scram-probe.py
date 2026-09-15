@@ -14,9 +14,10 @@ cannot be the client agreeing with itself.
 No sudo of its own.  THE PASSWORD COMES FROM THE ENVIRONMENT, never the command
 line.  Only its length is printed.
 
-IT PRINTS WHAT IT DID: host, port, user, account; every request's number,
-server_error, status and reply text; the server-first it received; and ONE
-verdict line whose wording appears only on its own path:
+IT PRINTS WHAT IT DID: host, port, user, account; the TLS version and the
+channel binding it computed; every request's number, server_error, status and
+reply text; the server-first it received; and ONE verdict line whose wording
+appears only on its own path:
 
   SCRAM: server signature VERIFIED          the login succeeded, mutually
   SCRAM: login REFUSED at request <n>: ...   the server refused it
@@ -36,17 +37,32 @@ left to reach request 24.  Its verdict lines are its own:
 
 --unix PATH (added with S.18, 14 Sep 2026) connects to the API's Unix socket
 instead of TCP - the same protocol, the socket sdclient.socket also listens
-on.  Its server side used to read the peer's uid with getpeereid() for the
-retired APILOGIN=0 login; that code is removed, so this is how a witness shows
-the socket still serves SCRAM and still refuses request 24.  The "transport"
-line names what was actually connected to.
+on.  The "transport" line names what was actually connected to.
 
 --pause SECONDS (added with S.13, 14 Sep 2026) waits after the login and the
 account and BEFORE the commands, so a command's output proves the connection
 survived whatever happened during the pause - REMOTE.API restarting the socket.
 
+TLS (S.19, 15 Sep 2026).  Every API connection is TLS 1.3 and the login binds
+to it: GS2 header 'p=tls-exporter,,' and c= base64(header + RFC 9266 binding).
+PYTHON'S ssl MODULE CANNOT DO THIS - measured 15 Sep 2026, python 3.14.7:
+ssl.CHANNEL_BINDING_TYPES is ['tls-unique'] and nothing exports keying
+material - so the TLS session is driven through libssl directly with ctypes.
+Still no SD code: the library is the system's OpenSSL.  SD_PROBE_LIBSSL names
+the library to load if the default search picks the wrong one.
+
+--no-tls (S.19) connects WITHOUT TLS, as every client did before S.19, and
+waits for the plaintext ACK.  Its verdicts are its own:
+
+  PLAINTEXT: no ACK - connection closed      the server refused plaintext
+  PLAINTEXT: ACK RECEIVED                    the server spoke without TLS
+
+--no-binding (S.19) logs in over TLS but with the old unbound header 'n,,'
+and c=biws - the downgrade the server must refuse at request 47.
+
 Exit 0 logged in (and the account, if given, entered), 1 refused (login or
-account), 2 could not run, 3 the server's signature did not verify.
+account; and --no-tls's "no ACK"), 2 could not run, 3 the server's signature
+did not verify (and --no-tls's "ACK RECEIVED").
 
 Wire format, from gplsrc/sdclilib.c: a request is int32 length (including its
 6-byte header), int16 request type, then the body, all little-endian; a reply
@@ -56,6 +72,8 @@ status, then the body.  The API server sends one ACK byte (0x06) first.
 
 import argparse
 import base64
+import ctypes
+import ctypes.util
 import hashlib
 import hmac
 import os
@@ -75,10 +93,120 @@ REQ_SCRAM_FINAL = 48
 MIN_ITER = 4096          # the port's client bounds, sdclilib.c SCRAM_MIN/MAX
 MAX_ITER = 10000000
 
+GS2_BOUND = "p=tls-exporter,,"
+BINDING_LABEL = b"EXPORTER-Channel-Binding"
+
 
 def say(text):
     print(text)
     sys.stdout.flush()
+
+
+class Tls:
+    """TLS 1.3 client over a connected socket, through libssl with ctypes.
+
+    No certificate check, as sdclilib: the SCRAM login bound to this session
+    is what proves the server (gplsrc/sd_tls.c)."""
+
+    SSL_CTRL_SET_MIN_PROTO_VERSION = 123
+    SSL_CTRL_SET_MAX_PROTO_VERSION = 124
+    TLS1_3_VERSION = 0x0304
+    SSL_ERROR_ZERO_RETURN = 6
+
+    def __init__(self, sock):
+        self.lib_name, lib = self._load()
+        vp, i, sz = ctypes.c_void_p, ctypes.c_int, ctypes.c_size_t
+        sig = {
+            "TLS_client_method": ([], vp),
+            "SSL_CTX_new": ([vp], vp),
+            "SSL_CTX_ctrl": ([vp, i, ctypes.c_long, vp], ctypes.c_long),
+            "SSL_CTX_set_verify": ([vp, i, vp], None),
+            "SSL_CTX_free": ([vp], None),
+            "SSL_new": ([vp], vp),
+            "SSL_set_fd": ([vp, i], i),
+            "SSL_connect": ([vp], i),
+            "SSL_get_error": ([vp, i], i),
+            "SSL_read": ([vp, ctypes.c_char_p, i], i),
+            "SSL_write": ([vp, ctypes.c_char_p, i], i),
+            "SSL_get_version": ([vp], ctypes.c_char_p),
+            "SSL_export_keying_material": ([vp, ctypes.c_char_p, sz, ctypes.c_char_p,
+                                            sz, vp, sz, i], i),
+            "SSL_shutdown": ([vp], i),
+            "SSL_free": ([vp], None),
+        }
+        for name, (args, res) in sig.items():
+            fn = getattr(lib, name)
+            fn.argtypes = args
+            fn.restype = res
+        self.lib = lib
+        self.sock = sock
+        self.ctx = lib.SSL_CTX_new(lib.TLS_client_method())
+        if not self.ctx:
+            raise ConnectionError("TLS: cannot create a context")
+        lib.SSL_CTX_ctrl(self.ctx, self.SSL_CTRL_SET_MIN_PROTO_VERSION, self.TLS1_3_VERSION, None)
+        lib.SSL_CTX_ctrl(self.ctx, self.SSL_CTRL_SET_MAX_PROTO_VERSION, self.TLS1_3_VERSION, None)
+        lib.SSL_CTX_set_verify(self.ctx, 0, None)
+        self.ssl = lib.SSL_new(self.ctx)
+        # libssl needs a blocking descriptor; a stalled server is bounded by
+        # the socket's own timeouts instead of Python's.
+        sock.setblocking(True)
+        tv = struct.pack("ll", 30, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVTIMEO, tv)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, tv)
+        if not self.ssl or lib.SSL_set_fd(self.ssl, sock.fileno()) != 1:
+            raise ConnectionError("TLS: cannot attach to the socket")
+        r = lib.SSL_connect(self.ssl)
+        if r != 1:
+            raise ConnectionError("TLS handshake failed (SSL_get_error %d)"
+                                  % lib.SSL_get_error(self.ssl, r))
+        self.version = lib.SSL_get_version(self.ssl).decode("ascii")
+        out = ctypes.create_string_buffer(32)
+        if lib.SSL_export_keying_material(self.ssl, out, 32, BINDING_LABEL,
+                                          len(BINDING_LABEL), None, 0, 0) != 1:
+            raise ConnectionError("TLS: cannot export the channel binding")
+        self.binding = out.raw
+
+    @staticmethod
+    def _load():
+        names = [os.environ.get("SD_PROBE_LIBSSL", ""), "libssl.so.4", "libssl.so.3",
+                 ctypes.util.find_library("ssl") or ""]
+        for name in names:
+            if not name:
+                continue
+            try:
+                return name, ctypes.CDLL(name)
+            except OSError:
+                continue
+        raise ConnectionError("TLS: no libssl could be loaded (tried %s)"
+                              % ", ".join(n for n in names if n))
+
+    def sendall(self, data):
+        while data:
+            n = self.lib.SSL_write(self.ssl, data, len(data))
+            if n <= 0:
+                raise ConnectionError("TLS write failed (SSL_get_error %d)"
+                                      % self.lib.SSL_get_error(self.ssl, n))
+            data = data[n:]
+
+    def recv(self, n):
+        buf = ctypes.create_string_buffer(n)
+        r = self.lib.SSL_read(self.ssl, buf, n)
+        if r > 0:
+            return buf.raw[:r]
+        e = self.lib.SSL_get_error(self.ssl, r)
+        if e == self.SSL_ERROR_ZERO_RETURN:
+            return b""
+        raise ConnectionError("TLS read failed (SSL_get_error %d)" % e)
+
+    def close(self):
+        if self.ssl:
+            self.lib.SSL_shutdown(self.ssl)
+            self.lib.SSL_free(self.ssl)
+            self.ssl = None
+        if self.ctx:
+            self.lib.SSL_CTX_free(self.ctx)
+            self.ctx = None
+        self.sock.close()
 
 
 def recv_exact(sock, n):
@@ -124,6 +252,10 @@ def main(argv):
                     help="send request 48 without 47 (must be refused)")
     ap.add_argument("--legacy", action="store_true",
                     help="send the old cleartext request 24 instead of SCRAM")
+    ap.add_argument("--no-tls", action="store_true",
+                    help="connect without TLS and wait for a plaintext ACK (must not come)")
+    ap.add_argument("--no-binding", action="store_true",
+                    help="log in over TLS with the unbound 'n,,' header (must be refused)")
     ap.add_argument("commands", nargs="*")
     a = ap.parse_args(argv)
 
@@ -137,8 +269,11 @@ def main(argv):
     say("  account  : %s" % (a.account or "(none - authentication only)"))
     say("  password : %s" % ("from SD_SCRAM_PASSWORD, %d characters" % len(pw)
                              if pw is not None else "SD_SCRAM_PASSWORD is not set"))
-    say("  mode     : %s" % ("request 24, the old cleartext login" if a.legacy
-                             else "request 48 ONLY, no 47" if a.final_only else "47 then 48"))
+    say("  mode     : %s" % ("connect WITHOUT TLS, expect no ACK" if a.no_tls
+                             else "request 24, the old cleartext login" if a.legacy
+                             else "request 48 ONLY, no 47" if a.final_only
+                             else "47 then 48, UNBOUND 'n,,' over TLS" if a.no_binding
+                             else "47 then 48, bound to TLS"))
     say("  commands : %d   hold: %gs   pause: %gs" % (len(a.commands), a.hold, a.pause))
     if pw is None or pw == "":
         say("scram-probe: CANNOT RUN - SD_SCRAM_PASSWORD is not set or empty.")
@@ -149,16 +284,49 @@ def main(argv):
 
     try:
         if a.unix:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.settimeout(30)
-            sock.connect(a.unix)
+            raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            raw.settimeout(30)
+            raw.connect(a.unix)
         else:
-            sock = socket.create_connection((a.host, a.port), timeout=30)
-        ack = recv_exact(sock, 1)
+            raw = socket.create_connection((a.host, a.port), timeout=30)
     except (OSError, ConnectionError) as e:
         say("scram-probe: CANNOT RUN - cannot connect: %s" % e)
         return 2
+
+    if a.no_tls:
+        try:
+            ack = raw.recv(1)
+        except OSError as e:
+            ack = b""
+            say("  recv: %s" % e)
+        finally:
+            raw.close()
+        if ack == b"\x06":
+            say("PLAINTEXT: ACK RECEIVED - the server spoke without TLS")
+            return 3
+        say("PLAINTEXT: no ACK - connection closed (got %r)" % ack)
+        return 1
+
+    try:
+        sock = Tls(raw)
+    except (OSError, ConnectionError) as e:
+        raw.close()
+        say("scram-probe: CANNOT RUN - %s" % e)
+        return 2
+    gs2 = "n,," if a.no_binding else GS2_BOUND
+    cbind = "biws" if a.no_binding else b64(GS2_BOUND.encode("ascii") + sock.binding)
+    say("  tls      : %s via %s, binding %s..." % (sock.version, sock.lib_name,
+                                                  sock.binding[:8].hex()))
+    say("  c=       : %s" % cbind)
+
+    try:
+        ack = recv_exact(sock, 1)
+    except (OSError, ConnectionError) as e:
+        sock.close()
+        say("scram-probe: CANNOT RUN - no ACK inside TLS: %s" % e)
+        return 2
     if ack != b"\x06":
+        sock.close()
         say("scram-probe: CANNOT RUN - expected ACK 0x06, got %r" % ack)
         return 2
 
@@ -168,8 +336,9 @@ def main(argv):
     try:
         if a.legacy:
             def field(text):
-                raw = text.encode("utf-8")
-                return struct.pack("<h", len(raw)) + raw + (b"\0" if len(raw) & 1 else b"")
+                raw_field = text.encode("utf-8")
+                return (struct.pack("<h", len(raw_field)) + raw_field
+                        + (b"\0" if len(raw_field) & 1 else b""))
             err, _, text = request(sock, REQ_LOGIN, field(a.user) + field(pw))
             if err != 0:
                 say("LEGACY: login REFUSED at request 24: %s" % text)
@@ -183,21 +352,21 @@ def main(argv):
                 say("account %s: entered" % a.account)
             try:
                 sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
-            except OSError:
+            except (OSError, ConnectionError):
                 pass
             say("disconnected")
             return 0
 
         if a.final_only:
             err, _, text = request(sock, REQ_SCRAM_FINAL,
-                                   "c=biws,r=%sAAAA,p=%s" % (cnonce, b64(b"\0" * 32)))
+                                   "c=%s,r=%sAAAA,p=%s" % (cbind, cnonce, b64(b"\0" * 32)))
             if err != 0:
                 say("SCRAM: login REFUSED at request 48: %s" % text)
                 return 1
             say("scram-probe: request 48 without 47 was ACCEPTED - server_error 0")
             return 3
 
-        err, _, sfirst = request(sock, REQ_SCRAM_FIRST, "n,," + cfirst_bare)
+        err, _, sfirst = request(sock, REQ_SCRAM_FIRST, gs2 + cfirst_bare)
         if err != 0:
             say("SCRAM: login REFUSED at request 47: %s" % sfirst)
             return 1
@@ -227,7 +396,7 @@ def main(argv):
         client_key = hmac.new(salted, b"Client Key", hashlib.sha256).digest()
         stored_key = hashlib.sha256(client_key).digest()
         server_key = hmac.new(salted, b"Server Key", hashlib.sha256).digest()
-        cfinal_bare = "c=biws,r=%s" % nonce
+        cfinal_bare = "c=%s,r=%s" % (cbind, nonce)
         auth = ("%s,%s,%s" % (cfirst_bare, sfirst, cfinal_bare)).encode("utf-8")
         client_sig = hmac.new(stored_key, auth, hashlib.sha256).digest()
         proof = bytes(x ^ y for x, y in zip(client_key, client_sig))
@@ -267,7 +436,7 @@ def main(argv):
             time.sleep(a.hold)
         try:
             sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
-        except OSError:
+        except (OSError, ConnectionError):
             pass
         say("disconnected")
         return 0

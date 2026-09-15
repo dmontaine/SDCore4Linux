@@ -215,6 +215,12 @@ fi
 sudo rm -f /etc/sd.conf
 echo "Config file removed."
 
+# 15 Sep 26 dm - S.19: the API's TLS server identity, kept beside sd.conf
+# (gplsrc/linuxio.c api_tls_dir).  The relay makes a new one on the next
+# install's first API connection.
+sudo rm -rf /etc/sd-tls
+echo "Removed /etc/sd-tls."
+
 # 10 Sep 26 - nano's SD BASIC syntax file, which the installer places outside the
 # SD tree (beside its microcfg copy) because nano reads /usr/share/nano/*.nanorc.
 sudo rm -f /usr/share/nano/sdbasic.nanorc

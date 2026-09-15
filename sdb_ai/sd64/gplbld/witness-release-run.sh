@@ -34,6 +34,10 @@
 #     Q.22  sdsyswrite: from a root session that started in zzrel1 and
 #           LOGTOed SDSYS, the register and $cred writes land on disk; a
 #           plain-sd administrator is refused and changes nothing (13g)
+#     S.19  every API connection is TLS 1.3 with the login bound to it: TCP and
+#           the Unix socket, no plaintext ACK, 'n,,' refused, the identity
+#           root 0600, the relay runs as nobody, and a recording proxy sees no
+#           marker and no user name on the wire (13i)
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
@@ -1515,6 +1519,144 @@ else
     fi
     OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC SH-OFF" "MODIFY.ACCOUNT $ACC SH-OFF")
     [ "$COMMIT" -eq 1 ] && ck "Y4 restored: field 7 is 'no'" no "$(reg_field "$ACC" 7)"
+fi
+
+# ==========================================================================
+# S.19 - EVERY API CONNECTION IS TLS 1.3, AND THE LOGIN IS BOUND TO IT.
+# Placed before 13h, which changes the listener and ends by clearing the SD
+# password.  scram-probe drives libssl itself (Python's ssl module cannot
+# export the binding), so every sprobe call in this run already goes over TLS;
+# this section adds the rows that would pass if the transport were NOT secure.
+#   T1 CONTROL: a bound login over TCP runs WHO, and the probe names the TLS
+#      version it negotiated.
+#   T2 the same over the Unix socket (USOCK, read from the unit in 13c).
+#   T3 a client WITHOUT TLS gets no ACK: the server said nothing in plaintext.
+#   T4 the downgrade: the unbound 'n,,' header inside TLS is refused at 47.
+#   T5 the identity: /etc/sd-tls root 700 and api.pem root 600, made by the
+#      first connection at the latest.
+#   T6 the relay is not root: during a held session, the session's sd process
+#      has an sd child owned by nobody.  Null guard: the session is found first.
+#   T7 THE OWNER'S FALSIFIER, without tcpdump: a recording proxy between the
+#      probe and 127.0.0.1:4243 keeps every byte both ways while the session
+#      DISPLAYs a marker.  The marker must reach the probe (control) and must
+#      not be in the recording, nor the user name; under 1 KB measured nothing.
+#   T8 the installed sd links libssl.
+head2 "13i. S.19 - the API is TLS 1.3 and the login is bound to it"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and $SPROBE"
+    for r in "T1 bound login" "T1b TLS 1.3" "T1c WHO" "T2 unix socket TLS" "T2b entered" "T3 no plaintext ACK" "T3b no plaintext" "T4 n,, refused" "T4b not logged in" "T5 identity dir" "T5b identity file" "T6 session found" "T6b relay is nobody" "T7 marker reached the probe" "T7b recording measured" "T7c marker not on the wire" "T7d user name not on the wire" "T8 libssl"; do not_reached "$r"; done
+else
+    OUT=$(sprobe "T1 control: a bound login over TCP, WHO" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T1 SCRAM bound to TLS, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "T1b the session is TLS 1.3" "tls      : TLSv1.3" "$OUT"
+        ck_who "T1c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+    fi
+    OUT=$(sprobe "T2 a bound login over the Unix socket" "$SCRAM_PW" --unix "${USOCK:-/tmp/sdsys/sdclient.socket}" --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T2 the Unix socket is TLS 1.3 too" "tls      : TLSv1.3" "$OUT"
+        ck_says "T2b and the account is entered" "account $ACC: entered" "$OUT"
+    fi
+    OUT=$(sprobe "T3 a client without TLS" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --no-tls)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T3 no plaintext ACK" "PLAINTEXT: no ACK" "$OUT"
+        ck_absent "T3b the server did not speak plaintext" "PLAINTEXT: ACK RECEIVED" "$OUT"
+    fi
+    OUT=$(sprobe "T4 the downgrade: n,, inside TLS" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC" --no-binding)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "T4 the unbound header is refused at 47" "SCRAM: login REFUSED at request 47" "$OUT"
+        ck_absent "T4b and it does not log in" "SCRAM: server signature VERIFIED" "$OUT"
+    fi
+
+    say "  > stat -c '%n %U %a' /etc/sd-tls /etc/sd-tls/api.pem"
+    if [ "$COMMIT" -eq 1 ]; then
+        say "      | $(stat -c '%n %U %a' /etc/sd-tls /etc/sd-tls/api.pem 2>&1 | tr '\n' ';')"
+        ck "T5 /etc/sd-tls is root 700" "root 700" "$(stat -c '%U %a' /etc/sd-tls 2>&1)"
+        ck "T5b api.pem is root 600" "root 600" "$(stat -c '%U %a' /etc/sd-tls/api.pem 2>&1)"
+    fi
+
+    say "  --- scram-probe held 10 s: who owns the TLS relay ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        HF=$(mktemp)
+        SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 60 python3 "$SPROBE" --host 127.0.0.1 --user "$ACC" --account "$ACC" --hold 10 >"$HF" 2>&1 &
+        HPID=$!
+        sleep 5
+        PS=$(ps -eo pid=,ppid=,user=,comm= 2>&1)
+        SESS=$(printf '%s\n' "$PS" | awk -v u="$ACC" '$3 == u && $4 == "sd" { print $1; exit }')
+        say "      | the held session's sd pid: ${SESS:-none}"
+        if [ -n "$SESS" ]; then
+            ck "T6 the held session's sd process was found" yes yes
+            RELAY=$(printf '%s\n' "$PS" | awk -v p="$SESS" '$2 == p && $4 == "sd" { print $3; exit }')
+            say "      | its sd child runs as: ${RELAY:-none}"
+            ck "T6b the TLS relay (that sd's child) runs as nobody" nobody "$RELAY"
+        else
+            ck "T6 the held session's sd process was found" yes no
+            not_reached "T6b relay is nobody"
+        fi
+        wait "$HPID"
+        sed -e 's/^/      | /' "$HF"
+        rm -f "$HF"
+    fi
+
+    say "  --- T7 a recording proxy between the probe and 127.0.0.1:4243 ---"
+    PXP=45243
+    MARK="zztls$(date +%s%N)"
+    if [ "$COMMIT" -eq 1 ]; then
+        REC=$(mktemp)
+        python3 - "$PXP" "$REC" <<'PYEOF' &
+import socket, sys, threading
+port, rec = int(sys.argv[1]), sys.argv[2]
+ls = socket.socket()
+ls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+ls.bind(("127.0.0.1", port))
+ls.listen(1)
+ls.settimeout(60)
+c, _ = ls.accept()
+s = socket.create_connection(("127.0.0.1", 4243))
+out = open(rec, "wb")
+lock = threading.Lock()
+def pump(a, b):
+    try:
+        while True:
+            d = a.recv(65536)
+            if not d:
+                break
+            with lock:
+                out.write(d)
+                out.flush()
+            b.sendall(d)
+    except OSError:
+        pass
+    for x in (a, b):
+        try:
+            x.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+t = threading.Thread(target=pump, args=(s, c))
+t.start()
+pump(c, s)
+t.join()
+out.close()
+PYEOF
+        PXPID=$!
+        sleep 1
+    fi
+    OUT=$(sprobe "T7 through the recording proxy: DISPLAY a marker" "$SCRAM_PW" --host 127.0.0.1 --port "$PXP" --user "$ACC" --account "$ACC" "DISPLAY $MARK")
+    if [ "$COMMIT" -eq 1 ]; then
+        wait "$PXPID"
+        RECBYTES=$(stat -c %s "$REC" 2>/dev/null || echo 0)
+        say "      | recorded $RECBYTES bytes; marker $MARK"
+        ck_says "T7 CONTROL: the marker reached the probe" "| $MARK" "$OUT"
+        ck "T7b the recording measured a session (over 1 KB)" yes "$([ "$RECBYTES" -gt 1024 ] && echo yes || echo no)"
+        ck "T7c the marker is NOT in the bytes on the wire" 0 "$(grep -a -c -F -- "$MARK" "$REC")"
+        ck "T7d nor is the user name" 0 "$(grep -a -c -F -- "n=$ACC" "$REC")"
+        rm -f "$REC"
+    fi
+
+    say "  > ldd $SD | grep libssl"
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "T8 the installed sd links libssl" yes "$(ldd "$SD" 2>&1 | grep -q 'libssl' && echo yes || echo no)"
+    fi
 fi
 
 # ==========================================================================

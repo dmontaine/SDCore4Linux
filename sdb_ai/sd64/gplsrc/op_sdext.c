@@ -18,6 +18,8 @@
  * 
  * 
  * START-HISTORY:
+ * 15 Sep 26 dm  SD_TLS_CBIND (110): the SCRAM c= value for this session's TLS
+ *               channel binding, "" when it has no TLS (S.19).
  * 14 Sep 26 dm  SD_SHA256 .. SD_CTEQUAL (104-109): the Windows port's SCRAM
  *               primitives from sd_scram.c, with its dispatch (W.4 phase 1).
  * 10 Sep 26 dm  Parity audit: NullString() returns NULL on a failed malloc,
@@ -55,6 +57,7 @@
 #include "sd.h"
 #include "keys.h"
 #include "sd_scram.h"
+#include "sd_tls.h"
 
 /* Modified by Composer AI - 2026/06/10.
    k_error() longjmps and never returns; redeclare noreturn for analyzer. */
@@ -346,6 +349,32 @@ void op_sdext() {
       answer[1] = '\0';
       k_put_c_string(answer, e_stack);
       e_stack++;
+      break;
+    }
+
+    /* 15 Sep 26 dm - S.19.  The c= value this session's SCRAM login must
+       carry.  "" when the session is not TLS, which APISRVR reads as "nothing
+       to bind to: the login must say n,," - not an error, since a local pipe
+       session legitimately has none.  Every socket session is TLS
+       (sd_tlssrv.c), so a network client cannot reach the "" answer. */
+    case SD_TLS_CBIND: {
+      const unsigned char* binding = sd_tls_server_binding();
+      char* attr;
+      char empty[1] = {'\0'};
+
+      if (binding == NULL) {
+        k_put_c_string(empty, e_stack);
+        e_stack++;
+        break;
+      }
+      attr = sd_tls_cbind_attr(binding);
+      if (attr == NULL) {
+        sdme_err_rsp(SD_SCRAM_ERR);
+        break;
+      }
+      k_put_c_string(attr, e_stack);
+      e_stack++;
+      free(attr);
       break;
     }
 
