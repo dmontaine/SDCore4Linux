@@ -1112,7 +1112,7 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
 }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
-    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 old login refused" "S5c old login accepts Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
 else
     N0=0
     [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
@@ -1159,13 +1159,22 @@ else
         ck_absent "S4b and did not log in" "server signature VERIFIED" "$OUT"
     fi
 
-    OUT=$(sprobe "S5 the old request 24 with the SD password" "$SCRAM_PW" --user "$ACC" --legacy)
+    # 14 Sep 26 dm - SCRAM PHASE 5: REQUEST 24 IS RETIRED.  Both passwords must
+    # now be refused in 5275's words, and no longer with 5017 - a 5017 would
+    # mean the old handler still ran and merely disliked the password.  S5c is
+    # the Linux password, which request 24 ACCEPTED on 85fbbec: that success
+    # before, this refusal now, is what shows the door is shut.
+    OUT=$(sprobe "S5 request 24 with the SD password (retired)" "$SCRAM_PW" --user "$ACC" --legacy)
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "S5 request 24 refuses the SD password (it reads /etc/shadow)" "LEGACY: login REFUSED at request 24: Invalid username or password" "$OUT"
+        ck_says "S5 request 24 refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
         ck_absent "S5b and did not log in" "LEGACY: login ACCEPTED" "$OUT"
     fi
-    OUT=$(sprobe "S5c control: the old request 24 with the LINUX password" "$LINUX_PW" --user "$ACC" --account "$ACC" --legacy)
-    [ "$COMMIT" -eq 1 ] && ck_says "S5c request 24 still accepts the Linux password until phase 5" "LEGACY: login ACCEPTED" "$OUT"
+    OUT=$(sprobe "S5c THE ROW (phase 5): request 24 with the LINUX password, accepted on 85fbbec" "$LINUX_PW" --user "$ACC" --account "$ACC" --legacy)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S5c refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
+        ck_absent "S5d and not the old handler's 5017" "Invalid username or password" "$OUT"
+        ck_absent "S5e and did not log in" "LEGACY: login ACCEPTED" "$OUT"
+    fi
 
     OUT=$(sprobe "S6 request 48 with no 47" "$SCRAM_PW" --user "$ACC" --final-only)
     [ "$COMMIT" -eq 1 ] && ck_says "S6 refused as a sequence error (5273)" "SCRAM: login REFUSED at request 48: Authentication sequence error" "$OUT"
@@ -1180,6 +1189,80 @@ else
         ck_says "S3b audited: wrong password" "API REFUSED user=$ACC reason=wrong password" "$NEW"
         ck_says "S6b audited: sequence error" "reason=sequence error - no client-first" "$NEW"
         ck_says "S7b audited: no credential" "API REFUSED user=zzrel9 reason=no credential" "$NEW"
+    fi
+fi
+
+# ==========================================================================
+# W.4 SCRAM phase 5 - !sdclient, THE BASIC-CALLABLE API CLIENT, SPEAKS SCRAM.
+# The port's TESTSDCLI (its gplbld/testsdcli.bp), as zzzsdcli in zzrel1's bp.
+# Until phase 5 the class sent request 24, which APISRVR now refuses, so a
+# class that had not been changed would fail B2 with 5275.  zzrel1 is
+# PROGRAMMER here (BASIC, RUN) and the program is deliberately NOT $internal:
+# the class carries that flag itself.
+#   B1 the right SD password connects and B2 COUNT VOC runs over it;
+#   B3 CONTROL: the same connect with one character added is refused.
+# THE PASSWORD IS FED ON THE SESSION'S STDIN AFTER ECHO OFF and is never
+# printed: this block masks it in the transcript as section 13 does, and never
+# puts it on a command line.
+head2 "13d. W.4 SCRAM phase 5 - !sdclient connects with SCRAM (the port's TESTSDCLI)"
+SRC_SDCLI='crt "account: ":
+input acc
+echo off
+crt "password: ":
+input pw
+echo on
+crt
+checks = 0
+bad = 0
+obj = object("!sdclient")
+checks += 1
+if obj->connect("127.0.0.1", 4243, acc, pw, acc) then
+   crt "PASS  connect"
+end else
+   bad += 1
+   crt "FAIL  connect: ":obj->error
+end
+if bad = 0 then
+   checks += 1
+   reply = obj->execute("COUNT VOC", err)
+   if index(reply, "record", 1) then
+      crt "PASS  execute:  ":trim(reply)
+   end else
+      bad += 1
+      crt "FAIL  execute:  err ":err:", reply ":trim(reply)
+   end
+   obj->disconnect
+end
+obj2 = object("!sdclient")
+checks += 1
+if obj2->connect("127.0.0.1", 4243, acc, pw:"x", acc) then
+   bad += 1
+   crt "FAIL  a wrong password was ACCEPTED"
+   obj2->disconnect
+end else
+   crt "PASS  wrong password refused: ":obj2->error
+end
+crt
+crt checks - bad:" / ":checks:" checks passed"
+if bad then crt "ZZZSDCLI FAILED" else crt "ZZZSDCLI PASSED"
+end'
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ]; }; then
+    say "  needs zzrel1 adopted and the SD password (13, 13b A5)"
+    for r in "B0 compiled" "B1 connect" "B2 execute" "B3 wrong password refused" "B4 3 of 3"; do not_reached "$r"; done
+else
+    say "  --- sd session as $ACC: BASIC BP ZZZSDCLI, RUN BP zzzsdcli, then account and SD password (not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        printf '%s\n' "$SRC_SDCLI" > "$ADIR/bp/zzzsdcli"
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzzsdcli"
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nBASIC BP ZZZSDCLI\nRUN BP zzzsdcli\n%s\n%s\nOFF\n' "$ACC" "$SCRAM_PW" \
+              | timeout 120 runuser -u "$ACC" -- "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
+        ck_says "B0 the test program compiled" "Compiled 1 program(s) with no errors" "$OUT"
+        ck_says "B1 !sdclient connected with the SD password" "PASS  connect" "$OUT"
+        ck_says "B2 and a command ran over it" "PASS  execute:" "$OUT"
+        ck_says "B3 CONTROL: a wrong password was refused" "PASS  wrong password refused:" "$OUT"
+        ck_says "B4 the program's own verdict, 3 of 3" "3 / 3 checks passed" "$OUT"
+        ck_absent "B4b and no 5275 anywhere (the class does not send request 24)" "Cleartext login is no longer supported" "$OUT"
     fi
 fi
 SCRAM_PW=""
