@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scram-probe.py - one SD API session that logs in with SCRAM-SHA-256.
+"""scram-probe.py - one SD API session that logs in with SCRAM-SHA-256 over TLS.
 
 W.4 SCRAM phase 3, 14 Sep 2026.  The Windows port's order of work exercises the
 server's requests 47 and 48 "by a throwaway client that speaks the exchange
@@ -9,31 +9,19 @@ from Python's standard library - no SD code on the client side, so a pass
 cannot be the client agreeing with itself.
 
   SD_SCRAM_PASSWORD=... python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/scram-probe.py \
-      --user <name> [--account <name>] [--hold SECONDS] [--final-only] [--] COMMAND...
+      --user <name> [--account <name>] [--host H] [--port P | --unix PATH] [MODE] [--] COMMAND...
 
 No sudo of its own.  THE PASSWORD COMES FROM THE ENVIRONMENT, never the command
 line.  Only its length is printed.
 
-IT PRINTS WHAT IT DID: host, port, user, account; the TLS version and the
-channel binding it computed; every request's number, server_error, status and
-reply text; the server-first it received; and ONE verdict line whose wording
-appears only on its own path:
+IT PRINTS WHAT IT DID: host or socket, user, account and mode; the TLS version
+and the channel binding it computed; every request's number, server_error,
+status and reply length; the client-first and server-first; and ONE verdict
+line whose wording appears only on its own path:
 
   SCRAM: server signature VERIFIED          the login succeeded, mutually
   SCRAM: login REFUSED at request <n>: ...   the server refused it
   SCRAM: server signature MISMATCH           the server replied v= wrongly
-
---final-only sends request 48 with no 47 before it, which the server must
-refuse as a sequence error.
-
---legacy (added with phase 4) sends the OLD cleartext request 24 instead of
-SCRAM, exactly as sdclilib's SDConnect built it before 14 Sep 2026: int16
-length and name, padded to even, then int16 length and password, padded.
-Since phase 4 the client library no longer sends it, so this is the only way
-left to reach request 24.  Its verdict lines are its own:
-
-  LEGACY: login ACCEPTED                     request 24 logged in
-  LEGACY: login REFUSED at request 24: ...   request 24 refused
 
 --unix PATH (added with S.18, 14 Sep 2026) connects to the API's Unix socket
 instead of TCP - the same protocol, the socket sdclient.socket also listens
@@ -51,23 +39,55 @@ material - so the TLS session is driven through libssl directly with ctypes.
 Still no SD code: the library is the system's OpenSSL.  SD_PROBE_LIBSSL names
 the library to load if the default search picks the wrong one.
 
---no-tls (S.19) connects WITHOUT TLS, as every client did before S.19, and
-waits for the plaintext ACK.  Its verdicts are its own:
+MODES - at most one, and argparse refuses two.  The refusal modes were adopted
+15 Sep 2026 from the Windows port's copy of this probe (its RELEASE_1.1 42),
+under the owner's rule that Linux follows the Windows port's decisions.  Every
+refusal mode sends a message that is wrong in EXACTLY ONE WAY, so the message
+the server names says which of its checks fired.
 
-  PLAINTEXT: no ACK - connection closed      the server refused plaintext
-  PLAINTEXT: ACK RECEIVED                    the server spoke without TLS
+--final-only    request 48 with no 47 (must be refused as a sequence error).
+--legacy        the OLD cleartext request 24, exactly as sdclilib's SDConnect
+                built it before 14 Sep 2026 - the only way left to reach it:
+                LEGACY: login ACCEPTED / LEGACY: login REFUSED at request 24: ...
+--no-tls        connects WITHOUT TLS and waits for the plaintext ACK that must
+                not come: PLAINTEXT: no ACK - connection closed / PLAINTEXT: ACK RECEIVED
+--no-binding    logs in over TLS but with the old unbound header 'n,,' and
+                c=biws - the downgrade the server must refuse at request 47.
+--gs2 TEXT      client-first carries TEXT as its GS2 header instead of the one
+                the transport calls for ('y,,', or a header with an m=
+                extension appended).  Refused at 47, or the probe says ACCEPTED.
+--tamper-nonce  a correct exchange whose client-final answers a nonce the
+                server never issued.  Binding and header are correct.
+--bad-cbind     a correct exchange whose c= carries this session's binding with
+                ONE BIT FLIPPED - a login relayed by a man in the middle.
+--replay        a real login on one connection, then a fresh client-first on a
+                SECOND connection answered with the first one's client-final.
+                c= is rewritten to the second connection's own binding, so the
+                stale nonce is the only thing wrong with it:
+                REPLAY: the captured client-final was REFUSED at request 48: ...
+                REPLAY: the captured client-final was ACCEPTED
+For --tamper-nonce and --bad-cbind an accepted client-final prints
+"a deliberately wrong client-final was ACCEPTED" and exits 3.
 
---no-binding (S.19) logs in over TLS but with the old unbound header 'n,,'
-and c=biws - the downgrade the server must refuse at request 47.
+THE WIRE LINE.  Every session ends with one of
+  wire     : password absent from the <n> plaintext byte(s) this client sent
+  wire     : password FOUND IN the <n> plaintext byte(s) this client sent
+  wire     : password NOT CHECKED - nothing was sent
+It searches the logical stream this client handed to TLS - what it MEANT the
+server to read, before encryption.  It is not a packet capture: ciphertext on
+the wire is witness 13i T7's recording proxy.  --legacy is its control, because
+request 24 carries the password in clear and the same search must find it.
 
 Exit 0 logged in (and the account, if given, entered), 1 refused (login or
 account; and --no-tls's "no ACK"), 2 could not run, 3 the server's signature
-did not verify (and --no-tls's "ACK RECEIVED").
+did not verify, or a deliberately wrong message was accepted (and --no-tls's
+"ACK RECEIVED").
 
 Wire format, from gplsrc/sdclilib.c: a request is int32 length (including its
 6-byte header), int16 request type, then the body, all little-endian; a reply
 is int32 length (including 10 bytes of header), int16 server_error, int32
-status, then the body.  The API server sends one ACK byte (0x06) first.
+status, then the body.  The API server sends one ACK byte (0x06) first, inside
+TLS.
 """
 
 import argparse
@@ -114,6 +134,11 @@ class Tls:
     SSL_ERROR_ZERO_RETURN = 6
 
     def __init__(self, sock):
+        # Every plaintext byte handed to SSL_write, for the wire line.
+        self.sent = bytearray()
+        self.ssl = None
+        self.ctx = None
+        self.sock = sock
         self.lib_name, lib = self._load()
         vp, i, sz = ctypes.c_void_p, ctypes.c_int, ctypes.c_size_t
         sig = {
@@ -139,7 +164,6 @@ class Tls:
             fn.argtypes = args
             fn.restype = res
         self.lib = lib
-        self.sock = sock
         self.ctx = lib.SSL_CTX_new(lib.TLS_client_method())
         if not self.ctx:
             raise ConnectionError("TLS: cannot create a context")
@@ -181,6 +205,7 @@ class Tls:
                               % ", ".join(n for n in names if n))
 
     def sendall(self, data):
+        self.sent += data
         while data:
             n = self.lib.SSL_write(self.ssl, data, len(data))
             if n <= 0:
@@ -237,6 +262,265 @@ def b64(raw):
     return base64.b64encode(raw).decode("ascii")
 
 
+def scram_compute(pw, salt, iterations, cfirst_bare, sfirst, cfinal_bare):
+    """RFC 5802 client proof and expected server signature.  Pulled out of the
+    exchange so test-scramprobe-units.py can drive it against the RFC 7677
+    vector - a bug in the AuthMessage assembly or the proof XOR fails there
+    rather than only against a live server."""
+    salted = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, iterations, 32)
+    client_key = hmac.new(salted, b"Client Key", hashlib.sha256).digest()
+    stored_key = hashlib.sha256(client_key).digest()
+    server_key = hmac.new(salted, b"Server Key", hashlib.sha256).digest()
+    auth = ("%s,%s,%s" % (cfirst_bare, sfirst, cfinal_bare)).encode("utf-8")
+    client_sig = hmac.new(stored_key, auth, hashlib.sha256).digest()
+    proof = bytes(x ^ y for x, y in zip(client_key, client_sig))
+    expected_v = "v=" + b64(hmac.new(server_key, auth, hashlib.sha256).digest())
+    return proof, expected_v
+
+
+def wire_verdict(sent, pw):
+    """The wire line.  Pure, so test-scramprobe-units.py drives both answers
+    and the null case without a server."""
+    if not sent:
+        return "  wire     : password NOT CHECKED - nothing was sent"
+    found = pw.encode("utf-8") in bytes(sent)
+    return ("  wire     : password %s the %d plaintext byte(s) this client sent"
+            % ("FOUND IN" if found else "absent from", len(sent)))
+
+
+def binding_attr(binding):
+    return b64(GS2_BOUND.encode("ascii") + binding)
+
+
+def parse_server_first(sfirst, cnonce):
+    """(nonce, salt, iterations), or ValueError naming what was wrong."""
+    attrs = {}
+    for part in sfirst.split(","):
+        if len(part) > 2 and part[1] == "=":
+            attrs[part[0]] = part[2:]
+    nonce, salt_b64, iter_s = attrs.get("r", ""), attrs.get("s", ""), attrs.get("i", "")
+    if not nonce.startswith(cnonce) or len(nonce) <= len(cnonce):
+        raise ValueError("server nonce does not extend ours - refusing to continue")
+    try:
+        iterations = int(iter_s)
+        salt = base64.b64decode(salt_b64, validate=True)
+    except ValueError:
+        raise ValueError("malformed server-first")
+    if not MIN_ITER <= iterations <= MAX_ITER:
+        raise ValueError("iteration count %d outside %d..%d" % (iterations, MIN_ITER, MAX_ITER))
+    return nonce, salt, iterations
+
+
+def connect_raw(a):
+    """The transport the arguments name: TCP, or the Unix socket."""
+    if a.unix:
+        raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        raw.settimeout(30)
+        try:
+            raw.connect(a.unix)
+        except OSError:
+            raw.close()
+            raise
+        return raw
+    return socket.create_connection((a.host, a.port), timeout=30)
+
+
+def open_session(a):
+    """Connect, TLS, ACK.  (0, sock) or (2, None) having said why."""
+    try:
+        raw = connect_raw(a)
+    except OSError as e:
+        say("scram-probe: CANNOT RUN - cannot connect: %s" % e)
+        return 2, None
+    try:
+        sock = Tls(raw)
+    except (OSError, ConnectionError) as e:
+        raw.close()
+        say("scram-probe: CANNOT RUN - %s" % e)
+        return 2, None
+    say("  tls      : %s via %s, binding %s..." % (sock.version, sock.lib_name,
+                                                  sock.binding[:8].hex()))
+    try:
+        ack = recv_exact(sock, 1)
+    except (OSError, ConnectionError) as e:
+        sock.close()
+        say("scram-probe: CANNOT RUN - no ACK inside TLS: %s" % e)
+        return 2, None
+    if ack != b"\x06":
+        sock.close()
+        say("scram-probe: CANNOT RUN - expected ACK 0x06, got %r" % ack)
+        return 2, None
+    return 0, sock
+
+
+def client_first(sock, gs2, user):
+    cnonce = b64(os.urandom(18))
+    cfirst_bare = "n=%s,r=%s" % (user, cnonce)
+    say("  client-first: %s%s" % (gs2, cfirst_bare))
+    err, _, sfirst = request(sock, REQ_SCRAM_FIRST, gs2 + cfirst_bare)
+    return err, cnonce, cfirst_bare, sfirst
+
+
+def login(sock, a, pw):
+    """The exchange in whichever mode was asked for.  (rc, client-final sent);
+    rc 0 means the signature verified."""
+    if a.no_binding:
+        gs2, cbind = "n,,", "biws"
+    else:
+        gs2 = a.gs2 if a.gs2 is not None else GS2_BOUND
+        cbind = binding_attr(sock.binding)
+    if a.bad_cbind:
+        flipped = bytes([sock.binding[0] ^ 1]) + sock.binding[1:]
+        cbind = binding_attr(flipped)
+    say("  c=       : %s%s" % (cbind, "  (ONE BIT FLIPPED - not this session's binding)"
+                                if a.bad_cbind else ""))
+
+    if a.legacy:
+        def field(text):
+            raw_field = text.encode("utf-8")
+            return (struct.pack("<h", len(raw_field)) + raw_field
+                    + (b"\0" if len(raw_field) & 1 else b""))
+        err, _, text = request(sock, REQ_LOGIN, field(a.user) + field(pw))
+        if err != 0:
+            say("LEGACY: login REFUSED at request 24: %s" % text)
+            return 1, ""
+        say("LEGACY: login ACCEPTED")
+        return 0, ""
+
+    if a.final_only:
+        cnonce = b64(os.urandom(18))
+        err, _, text = request(sock, REQ_SCRAM_FINAL,
+                               "c=%s,r=%sAAAA,p=%s" % (cbind, cnonce, b64(b"\0" * 32)))
+        if err != 0:
+            say("SCRAM: login REFUSED at request 48: %s" % text)
+            return 1, ""
+        say("scram-probe: request 48 without 47 was ACCEPTED - server_error 0")
+        return 3, ""
+
+    err, cnonce, cfirst_bare, sfirst = client_first(sock, gs2, a.user)
+    if err != 0:
+        say("SCRAM: login REFUSED at request 47: %s" % sfirst)
+        return 1, ""
+    say("  server-first: %s" % sfirst)
+    if a.gs2 is not None or a.no_binding:
+        say("scram-probe: client-first with header %r was ACCEPTED" % gs2)
+        return 3, ""
+
+    try:
+        nonce, salt, iterations = parse_server_first(sfirst, cnonce)
+    except ValueError as e:
+        say("scram-probe: %s" % e)
+        return 3, ""
+
+    sent_nonce = nonce
+    if a.tamper_nonce:
+        sent_nonce = b64(os.urandom(18))
+        say("  r=       : %s  (TAMPERED - not the nonce the server issued)" % sent_nonce)
+    cfinal_bare = "c=%s,r=%s" % (cbind, sent_nonce)
+    t0 = time.time()
+    proof, expected_v = scram_compute(pw, salt, iterations, cfirst_bare,
+                                      sfirst, cfinal_bare)
+    say("  PBKDF2 %d iterations: %.2f s" % (iterations, time.time() - t0))
+
+    cfinal = "%s,p=%s" % (cfinal_bare, b64(proof))
+    err, _, sfinal = request(sock, REQ_SCRAM_FINAL, cfinal)
+    if err != 0:
+        say("SCRAM: login REFUSED at request 48: %s" % sfinal)
+        return 1, cfinal
+    if a.tamper_nonce or a.bad_cbind:
+        say("scram-probe: a deliberately wrong client-final was ACCEPTED")
+        return 3, cfinal
+    if not hmac.compare_digest(sfinal, expected_v):
+        say("SCRAM: server signature MISMATCH (got %r)" % sfinal)
+        return 3, cfinal
+    say("SCRAM: server signature VERIFIED")
+    return 0, cfinal
+
+
+def after_login(sock, a):
+    if a.account:
+        err, _, text = request(sock, REQ_ACCOUNT, a.account)
+        if err != 0:
+            _, _, detail = request(sock, REQ_GETERROR, "")
+            say("account %s: REFUSED: %s" % (a.account, detail or text))
+            return 1
+        say("account %s: entered" % a.account)
+
+    if a.pause > 0:
+        say("pausing %gs before the commands" % a.pause)
+        time.sleep(a.pause)
+
+    for cmd in a.commands:
+        say("> %s" % cmd)
+        err, _, out = request(sock, REQ_EXECUTE, cmd)
+        for line in out.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            if line != "":
+                say("| %s" % line)
+        say("  (server_error %d)" % err)
+
+    if a.hold > 0:
+        say("holding the connection %gs" % a.hold)
+        time.sleep(a.hold)
+    return 0
+
+
+def quit_session(sock):
+    try:
+        sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
+    except (OSError, ConnectionError):
+        pass
+    say("disconnected")
+
+
+def run_replay(a, pw):
+    say("  replay 1/2: a real login, to capture its client-final")
+    rc, s1 = open_session(a)
+    if rc:
+        return rc
+    try:
+        rc, captured = login(s1, a, pw)
+        if rc == 0:
+            quit_session(s1)
+    except (OSError, ConnectionError) as e:
+        say("scram-probe: connection failed part way: %s" % e)
+        rc, captured = 1, ""
+    finally:
+        say(wire_verdict(s1.sent, pw))
+        s1.close()
+    if rc != 0 or captured.count(",") != 2:
+        say("scram-probe: CANNOT RUN - the login whose client-final was to be replayed did not succeed")
+        return 2
+
+    say("  replay 2/2: a fresh client-first on a NEW connection, answered with the captured client-final")
+    rc, s2 = open_session(a)
+    if rc:
+        return rc
+    try:
+        err, _, _, sfirst = client_first(s2, GS2_BOUND, a.user)
+        if err != 0:
+            say("scram-probe: CANNOT RUN - the replay connection's client-first was refused: %s" % sfirst)
+            return 2
+        say("  server-first: %s" % sfirst)
+        # c= IS THIS CONNECTION'S, so the binding check passes and the nonce
+        # is the one stale thing - apisrvr checks c= before the nonce, so a
+        # stale c= would be refused first and the nonce check never reached.
+        _, r_attr, p_attr = captured.split(",", 2)
+        replayed = "c=%s,%s,%s" % (binding_attr(s2.binding), r_attr, p_attr)
+        say("  replayed : %s" % replayed)
+        err, _, text = request(s2, REQ_SCRAM_FINAL, replayed)
+        if err != 0:
+            say("REPLAY: the captured client-final was REFUSED at request 48: %s" % text)
+            return 1
+        say("REPLAY: the captured client-final was ACCEPTED")
+        return 3
+    except (OSError, ConnectionError) as e:
+        say("scram-probe: connection failed part way: %s" % e)
+        return 1
+    finally:
+        say(wire_verdict(s2.sent, pw))
+        s2.close()
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="One SCRAM-SHA-256 SD API session.")
     ap.add_argument("--host", default="127.0.0.1")
@@ -248,14 +532,23 @@ def main(argv):
     ap.add_argument("--hold", type=float, default=0.0)
     ap.add_argument("--pause", type=float, default=0.0,
                     help="wait this long AFTER login and account, BEFORE the commands")
-    ap.add_argument("--final-only", action="store_true",
-                    help="send request 48 without 47 (must be refused)")
-    ap.add_argument("--legacy", action="store_true",
-                    help="send the old cleartext request 24 instead of SCRAM")
-    ap.add_argument("--no-tls", action="store_true",
-                    help="connect without TLS and wait for a plaintext ACK (must not come)")
-    ap.add_argument("--no-binding", action="store_true",
-                    help="log in over TLS with the unbound 'n,,' header (must be refused)")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--final-only", action="store_true",
+                      help="send request 48 without 47 (must be refused)")
+    mode.add_argument("--legacy", action="store_true",
+                      help="send the old cleartext request 24 instead of SCRAM")
+    mode.add_argument("--no-tls", action="store_true",
+                      help="connect without TLS and wait for a plaintext ACK (must not come)")
+    mode.add_argument("--no-binding", action="store_true",
+                      help="log in over TLS with the unbound 'n,,' header (must be refused)")
+    mode.add_argument("--gs2", default=None,
+                      help="send this GS2 header in client-first (must be refused)")
+    mode.add_argument("--tamper-nonce", action="store_true",
+                      help="answer a nonce the server never issued (must be refused)")
+    mode.add_argument("--bad-cbind", action="store_true",
+                      help="c= with one bit of the binding flipped (must be refused)")
+    mode.add_argument("--replay", action="store_true",
+                      help="replay a captured client-final on a new connection (must be refused)")
     ap.add_argument("commands", nargs="*")
     a = ap.parse_args(argv)
 
@@ -273,6 +566,10 @@ def main(argv):
                              else "request 24, the old cleartext login" if a.legacy
                              else "request 48 ONLY, no 47" if a.final_only
                              else "47 then 48, UNBOUND 'n,,' over TLS" if a.no_binding
+                             else "47 with GS2 header %r" % a.gs2 if a.gs2 is not None
+                             else "47 then 48 answering a TAMPERED nonce" if a.tamper_nonce
+                             else "47 then 48 with a FLIPPED binding in c=" if a.bad_cbind
+                             else "login, then REPLAY its client-final on a new connection" if a.replay
                              else "47 then 48, bound to TLS"))
     say("  commands : %d   hold: %gs   pause: %gs" % (len(a.commands), a.hold, a.pause))
     if pw is None or pw == "":
@@ -282,18 +579,12 @@ def main(argv):
         say("scram-probe: CANNOT RUN - commands need --account.")
         return 2
 
-    try:
-        if a.unix:
-            raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            raw.settimeout(30)
-            raw.connect(a.unix)
-        else:
-            raw = socket.create_connection((a.host, a.port), timeout=30)
-    except (OSError, ConnectionError) as e:
-        say("scram-probe: CANNOT RUN - cannot connect: %s" % e)
-        return 2
-
     if a.no_tls:
+        try:
+            raw = connect_raw(a)
+        except OSError as e:
+            say("scram-probe: CANNOT RUN - cannot connect: %s" % e)
+            return 2
         try:
             ack = raw.recv(1)
         except OSError as e:
@@ -307,143 +598,31 @@ def main(argv):
         say("PLAINTEXT: no ACK - connection closed (got %r)" % ack)
         return 1
 
+    if a.replay:
+        return run_replay(a, pw)
+
+    rc, sock = open_session(a)
+    if rc:
+        return rc
     try:
-        sock = Tls(raw)
-    except (OSError, ConnectionError) as e:
-        raw.close()
-        say("scram-probe: CANNOT RUN - %s" % e)
-        return 2
-    gs2 = "n,," if a.no_binding else GS2_BOUND
-    cbind = "biws" if a.no_binding else b64(GS2_BOUND.encode("ascii") + sock.binding)
-    say("  tls      : %s via %s, binding %s..." % (sock.version, sock.lib_name,
-                                                  sock.binding[:8].hex()))
-    say("  c=       : %s" % cbind)
-
-    try:
-        ack = recv_exact(sock, 1)
-    except (OSError, ConnectionError) as e:
-        sock.close()
-        say("scram-probe: CANNOT RUN - no ACK inside TLS: %s" % e)
-        return 2
-    if ack != b"\x06":
-        sock.close()
-        say("scram-probe: CANNOT RUN - expected ACK 0x06, got %r" % ack)
-        return 2
-
-    cnonce = b64(os.urandom(18))
-    cfirst_bare = "n=%s,r=%s" % (a.user, cnonce)
-
-    try:
-        if a.legacy:
-            def field(text):
-                raw_field = text.encode("utf-8")
-                return (struct.pack("<h", len(raw_field)) + raw_field
-                        + (b"\0" if len(raw_field) & 1 else b""))
-            err, _, text = request(sock, REQ_LOGIN, field(a.user) + field(pw))
-            if err != 0:
-                say("LEGACY: login REFUSED at request 24: %s" % text)
-                return 1
-            say("LEGACY: login ACCEPTED")
-            if a.account:
-                err, _, text = request(sock, REQ_ACCOUNT, a.account)
-                if err != 0:
-                    say("account %s: REFUSED" % a.account)
-                    return 1
-                say("account %s: entered" % a.account)
-            try:
-                sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
-            except (OSError, ConnectionError):
-                pass
-            say("disconnected")
-            return 0
-
-        if a.final_only:
-            err, _, text = request(sock, REQ_SCRAM_FINAL,
-                                   "c=%s,r=%sAAAA,p=%s" % (cbind, cnonce, b64(b"\0" * 32)))
-            if err != 0:
-                say("SCRAM: login REFUSED at request 48: %s" % text)
-                return 1
-            say("scram-probe: request 48 without 47 was ACCEPTED - server_error 0")
-            return 3
-
-        err, _, sfirst = request(sock, REQ_SCRAM_FIRST, gs2 + cfirst_bare)
-        if err != 0:
-            say("SCRAM: login REFUSED at request 47: %s" % sfirst)
-            return 1
-        say("  server-first: %s" % sfirst)
-
-        attrs = {}
-        for part in sfirst.split(","):
-            if len(part) > 2 and part[1] == "=":
-                attrs[part[0]] = part[2:]
-        nonce, salt_b64, iter_s = attrs.get("r", ""), attrs.get("s", ""), attrs.get("i", "")
-        if not nonce.startswith(cnonce) or len(nonce) <= len(cnonce):
-            say("scram-probe: server nonce does not extend ours - refusing to continue")
-            return 3
-        try:
-            iterations = int(iter_s)
-            salt = base64.b64decode(salt_b64, validate=True)
-        except ValueError:
-            say("scram-probe: malformed server-first")
-            return 3
-        if not MIN_ITER <= iterations <= MAX_ITER:
-            say("scram-probe: iteration count %d outside %d..%d" % (iterations, MIN_ITER, MAX_ITER))
-            return 3
-
-        t0 = time.time()
-        salted = hashlib.pbkdf2_hmac("sha256", pw.encode("utf-8"), salt, iterations, 32)
-        say("  PBKDF2 %d iterations: %.2f s" % (iterations, time.time() - t0))
-        client_key = hmac.new(salted, b"Client Key", hashlib.sha256).digest()
-        stored_key = hashlib.sha256(client_key).digest()
-        server_key = hmac.new(salted, b"Server Key", hashlib.sha256).digest()
-        cfinal_bare = "c=%s,r=%s" % (cbind, nonce)
-        auth = ("%s,%s,%s" % (cfirst_bare, sfirst, cfinal_bare)).encode("utf-8")
-        client_sig = hmac.new(stored_key, auth, hashlib.sha256).digest()
-        proof = bytes(x ^ y for x, y in zip(client_key, client_sig))
-        expected_v = "v=" + b64(hmac.new(server_key, auth, hashlib.sha256).digest())
-
-        err, _, sfinal = request(sock, REQ_SCRAM_FINAL, "%s,p=%s" % (cfinal_bare, b64(proof)))
-        if err != 0:
-            say("SCRAM: login REFUSED at request 48: %s" % sfinal)
-            return 1
-        if not hmac.compare_digest(sfinal, expected_v):
-            say("SCRAM: server signature MISMATCH (got %r)" % sfinal)
-            return 3
-        say("SCRAM: server signature VERIFIED")
-
-        if a.account:
+        rc, _ = login(sock, a, pw)
+        if rc == 0 and not a.legacy:
+            rc = after_login(sock, a)
+        elif rc == 0 and a.account:
             err, _, text = request(sock, REQ_ACCOUNT, a.account)
             if err != 0:
-                _, _, detail = request(sock, REQ_GETERROR, "")
-                say("account %s: REFUSED: %s" % (a.account, detail or text))
-                return 1
-            say("account %s: entered" % a.account)
-
-        if a.pause > 0:
-            say("pausing %gs before the commands" % a.pause)
-            time.sleep(a.pause)
-
-        for cmd in a.commands:
-            say("> %s" % cmd)
-            err, _, out = request(sock, REQ_EXECUTE, cmd)
-            for line in out.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-                if line != "":
-                    say("| %s" % line)
-            say("  (server_error %d)" % err)
-
-        if a.hold > 0:
-            say("holding the connection %gs" % a.hold)
-            time.sleep(a.hold)
-        try:
-            sock.sendall(struct.pack("<ih", 6, REQ_QUIT))
-        except (OSError, ConnectionError):
-            pass
-        say("disconnected")
-        return 0
+                say("account %s: REFUSED" % a.account)
+                rc = 1
+            else:
+                say("account %s: entered" % a.account)
+        if rc == 0:
+            quit_session(sock)
+        return rc
     except (OSError, ConnectionError) as e:
         say("scram-probe: connection failed part way: %s" % e)
         return 1
     finally:
+        say(wire_verdict(sock.sent, pw))
         sock.close()
 
 
