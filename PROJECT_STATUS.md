@@ -273,8 +273,11 @@ owner at the keyboard (his word, 15 Sep) and the credential it wrote is on disk:
 real salt and `i=600000`, where the 10:09 install was refused at 47. The local
 tree was rebuilt after `libssl-dev` appeared on this box (`rm -f gplobj/*.o` then
 `make`, exit 0, no warning) and `assert-current` is current. *Next, all the
-owner's:* `interop-account.sh --create`, the certificate-pinning decision, and
-S.19's port half (sd4windows RELEASE_1.1 41).
+owner's:* the certificate-pinning decision and S.19's port half (sd4windows
+RELEASE_1.1 41). `interop-account.sh --create` RAN at 15:58, 21/21, so
+`zzinterop` is live until `--remove` and the Windows-client→Linux-server run is
+the thing now waiting. The Windows agent has the address, port and account by
+mailbox; its password goes across from the owner directly, never the mailbox.
 
 ***HANDOFF, 15 Sep 10:23 — RE-WITNESSED ON `0b67dba`: 256/256, R1b, Y0 AND
 H5c ALL PASS (log `/var/tmp/witness-release-run.20260915-102147.log`, install
@@ -298,8 +301,16 @@ run needs a non-administrator API account: `sdapi` holds only `don`, who is
 refused remotely (10174) and has no `$cred`. `gplbld/interop-account.sh`
 (`sudo … --create`, `--remove`) makes `zzinterop` by the witness's ADOPT route,
 demoted to PROGRAMMER with the API, and proves it logs in over 127.0.0.1 and the
-LAN address. Written 15 Sep 2026: `bash -n` clean, dry run and non-root refusal
-seen, `--create` NOT YET RUN.
+LAN address. ***RUN 15 Sep 2026 15:58 BY THE OWNER — 21/21, `zzinterop` IS
+READY AND LIVE*** (log `/var/tmp/interop-account.20260915-155808.log`, install
+`c773008`): register field 5 PROGRAMMER, in `sdapi`, out of `sdadmin` (ADOPT's
+administrator join removed), `$cred` written, and `scram-probe` logs in over TLS
+1.3 from `127.0.0.1` AND from `192.168.0.210` — server signature verified,
+account entered, `WHO` naming `zzinterop` (114, 115), password absent from the
+wire, and ***no 10174 from the LAN address, which is the row a Windows client
+depends on***. ***IT IS A THROWAWAY AND IT IS LIVE***: remove it after the
+interop run with `sudo bash
+/home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove`.
 ***THE INSTALLER'S PASSWORD STEP IS RUN AND WITNESSED (15 Sep, `c773008`).***
 `installsdai.sh` ends by setting the installing user's SD password (W.4 phase 6,
 the owner's "#1" of 15 Sep). It asked him at the keyboard on the 15:44:32
