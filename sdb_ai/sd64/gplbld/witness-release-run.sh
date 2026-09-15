@@ -874,29 +874,27 @@ else
 fi
 
 # ==========================================================================
-# Q.17 - MODIFY.PASSWORD's ADMINISTRATOR ARM.  A root session sets zzrel1's
-# password through sd-elevate passwd; passwd has no terminal, so it reads the
-# new password twice from the session's own input (SD reads stdin a byte at a
-# time, linuxio.c:447, so the lines are still there).  The password is random,
-# NEVER PRINTED, and dies with the account.  The instrument is the shadow
-# entry's hash prefix before and after, not SD's message alone.
-head2 "13. Q.17 - MODIFY.PASSWORD under sudo sd sets another account's password"
+# W.4 SCRAM phase 2 - MODIFY.PASSWORD WRITES SD'S OWN CREDENTIAL, THE PORT'S.
+# Until 14 Sep this section was Q.17's: MODIFY.PASSWORD set the Linux password
+# through passwd(1).  It now sets $cred through !CRED_SET, as the Windows port's
+# does, and the Linux password is set here by chpasswd - which the API login
+# (13b) still checks until SCRAM phase 3.  Both passwords are random and NEVER
+# PRINTED.  THE INSTRUMENTS ARE ON DISK, not SD's messages alone: the shadow
+# hash prefix before and after (W3), and the $cred record's own fields read by
+# this root script (C2-C6), plus the register's mode (C7).
+head2 "13. W.4 phase 2 - the Linux password (chpasswd); MODIFY.PASSWORD writes \$cred"
+CREDDIR="$SDSYS/\$cred"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "W1 10914" "W2 no 10915" "W3 shadow changed"; do not_reached "$r"; done
+    for r in "W3 shadow changed" "C0 first password" "C1 set" "C2 record exists" "C3 version 2" "C4 mechanism" "C5 iterations" "C6 keys" "C7 register 700 root"; do not_reached "$r"; done
 else
     PW="Zq7$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)x9"
     SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
     say "  shadow hash prefix before: '$(printf '%s' "$SH_BEFORE" | cut -c1-3)'"
-    say "  --- sd session as root: MODIFY.PASSWORD $ACC, then the new password twice (not shown) ---"
-    OUT=""
+    say "  chpasswd: set $ACC's Linux password (not shown)"
     if [ "$COMMIT" -eq 1 ]; then
-        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$PW" "$PW" \
-              | timeout 60 "$SD" 2>&1 | strip)
-        printf '%s\n' "$OUT" | sed -e "s/$PW/********/g" -e 's/^/      | /'
+        printf '%s:%s\n' "$ACC" "$PW" | chpasswd
         SH_AFTER=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
         say "  shadow hash prefix after : '$(printf '%s' "$SH_AFTER" | cut -c1-3)'"
-        ck_says "W1 MODIFY.PASSWORD reported the change (10914)" "The password for $ACC was changed" "$OUT"
-        ck_absent "W2 and not 10915" "was NOT changed" "$OUT"
         if [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && [ "${SH_AFTER:0:1}" = '$' ]; then
             ck "W3 the shadow entry changed to a real hash" yes yes
             PROBE_PW="$PW"
@@ -905,6 +903,27 @@ else
         fi
     fi
     PW=""
+
+    CPW="Cr9$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)q4"
+    say "  --- sd session as root: MODIFY.PASSWORD $ACC, then an SD password twice (not shown) ---"
+    say "  \$cred/$ACC before: $(yesno_file "$CREDDIR/$ACC")"
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$CPW" "$CPW" \
+              | timeout 120 "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$CPW/********/g" -e 's/^/      | /'
+        ck_says "C0 it saw no credential and said so" "has no password set.  Setting the first one." "$OUT"
+        ck_says "C1 MODIFY.PASSWORD reported the credential set" "Password set for account $ACC" "$OUT"
+        ck_absent "C1b and not a failure" "Unable to set password" "$OUT"
+        ck "C2 the record is on disk" yes "$(yesno_file "$CREDDIR/$ACC")"
+        CREC=$(cat "$CREDDIR/$ACC" 2>/dev/null)
+        say "  \$cred/$ACC fields: 1='$(printf '%s\n' "$CREC" | sed -n 1p)' 2='$(printf '%s\n' "$CREC" | sed -n 2p)' 4='$(printf '%s\n' "$CREC" | sed -n 4p)' salt/stored/server lengths=$(printf '%s\n' "$CREC" | sed -n 3p | tr -d '\n' | wc -c)/$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c)/$(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
+        ck "C3 field 1 is version 2" 2 "$(printf '%s\n' "$CREC" | sed -n 1p)"
+        ck "C4 field 2 is the mechanism" "SCRAM-SHA-256" "$(printf '%s\n' "$CREC" | sed -n 2p)"
+        ck "C5 field 4 is the port's cost" 600000 "$(printf '%s\n' "$CREC" | sed -n 4p)"
+        ck "C6 StoredKey and ServerKey are 44-character base64" "44 44" "$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c) $(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
+        ck "C7 the register is root:root 700" "root:root 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
+    fi
+    CPW=""
 fi
 
 # ==========================================================================
@@ -1011,12 +1030,12 @@ else
     # "Invalid password" and op_login cut it at 32 bytes.  A 62-character
     # password is set (never printed) and must log in; X6 then uses it.
     LONG_PW="Lq7$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)x9"
-    say "  --- sd session as root: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character password (not shown) ---"
+    say "  chpasswd: set $ACC's Linux password to ${#LONG_PW} characters (not shown)"
     if [ "$COMMIT" -eq 1 ]; then
-        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
-              | timeout 60 "$SD" 2>&1 | strip)
-        printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
-        ck_says "A5.0 the long password was set (10914)" "The password for $ACC was changed" "$OUT"
+        SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+        printf '%s:%s\n' "$ACC" "$LONG_PW" | chpasswd
+        SH_AFTER=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
+        ck "A5.0 the long Linux password was set (shadow changed)" yes "$( [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && echo yes || echo no )"
     fi
     GOOD_PW="$PROBE_PW"; PROBE_PW="$LONG_PW"
     OUT=$(probe "A5 THE ROW (S.14): the ${#LONG_PW}-character password logs in" --user "$ACC" --account "$ACC" WHO)

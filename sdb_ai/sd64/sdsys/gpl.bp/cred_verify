@@ -1,0 +1,99 @@
+* CRED_VERIFY
+* Verify a password against an SD account's stored credential.
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+* START-HISTORY:
+* 14 Sep 26 dm  adopted from SD Core for Windows unchanged but for lower-case
+*               record ids (plan M) and this line (W.4 SCRAM phase 2).
+* 19 Aug 26 Windows port - reads a version 2 SCRAM record, and compares in
+*           constant time.  docs/SCRAM_AUTH.md
+* 19 Aug 26 Windows port - the credential store is $cred on disk.  5.12 (a).
+* 13 Aug 26 Windows port - written for the account credential model
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !CRED_VERIFY(account, password, ok)
+*
+*    Returns ok = @true only if the account has a credential recorded and the
+*    password derives to the stored StoredKey.
+*
+* SCRAM itself has no "verify this password" step - the client proves
+* knowledge of the password without sending it.  But MODIFY.PASSWORD does:
+* changing your own password requires the current one, and there the password
+* IS in hand, locally, in a session holding euid 0.
+*
+* FAIL CLOSED, AND THAT INCLUDES OLD OR UNREADABLE RECORDS.  A record that is
+* not version 2, or a register this session cannot open, answers ok = @false.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine CRED_VERIFY(account, password, ok)
+$catalog !CRED_VERIFY
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   ok = @false
+   set.status 0
+
+   account = downcase(trim(account))
+   if account = '' or password = '' then return
+
+   openpath @sdsys:@ds:'$cred' to cred.f else
+      set.status ER$NVR
+      return
+   end
+
+   read cred.rec from cred.f, account else
+      close cred.f
+      return                     ;* no credential - fail closed
+   end
+
+   close cred.f
+
+   if cred.rec<CRED$VERSION> # SCRAM$CRED.VERSION then return
+
+   salt = cred.rec<CRED$SALT>
+   iter = cred.rec<CRED$ITER>
+   stored.key = cred.rec<CRED$STOREDKEY>
+   if salt = '' or iter = '' or stored.key = '' then return
+
+   salted = SDEXT(password : @FM : salt : @FM : iter : @FM : SCRAM$KEY.LEN, @TRUE, SD_PBKDF2)
+   if salted = '' then return
+
+   client.key = SDEXT(salted : @FM : 'Client Key', @TRUE, SD_HMACSHA256)
+   derived = SDEXT(client.key, @TRUE, SD_SHA256)
+
+   salted = ''
+   client.key = ''
+
+   if derived = '' then return
+
+*  Constant time.  BASIC's "=" returns as soon as two bytes differ, which leaks
+*  how much of a guess was right; the primitive was written for this call.
+   if SDEXT(derived : @FM : stored.key, @TRUE, SD_CTEQUAL) = '1' then ok = @true
+
+   return
+end
+
+* END-CODE

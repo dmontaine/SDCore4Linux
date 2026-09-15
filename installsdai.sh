@@ -753,6 +753,26 @@ else
     echo No accounts backup directory exists
 fi
 #
+# 14 Sep 26 dm - W.4 SCRAM phase 2, the Windows port's credential register.
+# $cred holds each account's SCRAM StoredKey and ServerKey - no password.  A
+# holder of StoredKey can impersonate the SERVER, so it is root:root 0700 and
+# nobody else reads it; MODIFY.PASSWORD writes it with euid 0 (CPROC
+# privileged_commands) and the API server reads it while still root.  A keep
+# cycle restores the saved register (deletesdai.sh keeps it with the audit
+# trail); otherwise it starts empty.  AFTER the chmod -R 755 above, which would
+# otherwise open it.  The mode is printed, not assumed.
+if [ -d "/home/sd/\$cred" ]; then
+    sudo rm -fr "$sdsysdir/\$cred"
+    sudo mv "/home/sd/\$cred" "$sdsysdir/"
+    echo "Restored the credential register (\$cred)"
+else
+    sudo mkdir -p "$sdsysdir/\$cred"
+    echo "Created an empty credential register (\$cred)"
+fi
+sudo chown -R root:root "$sdsysdir/\$cred"
+sudo chmod 700 "$sdsysdir/\$cred"
+echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
+#
 # 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
 #            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
 #            sdsys (the old "chmod 654" sat four lines before it, and the record

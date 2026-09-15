@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; left: SCRAM phases 2–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) built; left: install + §13 C0–C7, phases 3–6 | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -284,6 +284,30 @@ only `login_user`'s password path does `initgroups`/`setuid`; (d) the
 Unix-socket peer login (`linuxio.c` `getpeereid`, `APILOGIN`) has no port
 counterpart. ***Would falsify the plan:*** PBKDF2 at 600,000 iterations too
 slow per client connection here — measure before phase 4.
+
+***Phase 2, same session — built, not installed.*** `gpl.bp/cred_set` and
+`cred_verify`: the port's derivation, version-2 record and read-back, lower-case
+ids, and a direct write under euid 0 in place of the port's elevated-helper
+fallback. `int$keys.h`: the port's CRED block and `SCRAM$ITERATIONS` 600000.
+`set_acc_password` replaced by the port's MODIFY.PASSWORD (hidden prompts, three
+tries, current password via `!CRED_VERIFY` when one exists, `!CRED_SET`).
+***This supersedes the 12 Sep design there and in PORT_ADOPTION 17*** ("there
+should not be one"), whose premise — the API checks the Linux password — the
+SCRAM adoption removes; question (a) above is answered this way. CPROC
+`privileged_commands` gains `$MODIFY.PASSWORD` (euid 0 under `sudo sd`; plain
+`sd` is refused at the `$cred` open, the port's "ordinary console NO").
+`installsdai.sh` creates or restores `$cred` root:root 700 after the `chmod -R
+755` and prints the mode; `deletesdai.sh` keeps it on a keep cycle. The install
+compiles every record (`voc_template/second.compile` is `BASIC gpl.bp *`), so
+no list changed. Witness §13 now sets the Linux password with `chpasswd` (W3,
+and §13b's login still checks it) and reads the `$cred` record MODIFY.PASSWORD
+writes (C0–C7: version 2, SCRAM-SHA-256, 600000, both keys 44 base64, register
+root:root 700); A5 uses `chpasswd` too. `verify-setpw.py`'s control (C1–C4) now
+expects the `$cred` refusal where it expected PAM; T1–T3 kept. Parse clean,
+0 BOM/CR, dry run 20 sections, free checks 17 green. ***Unmeasured, from
+source:*** `input … HIDDEN` reads the witness's piped lines; plain-sd
+MODIFY.PASSWORD prints CPROC's EUID warning before the refusal. Next: keep
+cycle, `assert-current`, `verify-setpw.py`, witness `--commit`.
 
 ***[S.15] SEVENTEENTH SESSION, 14 Sep 2026 — S.15 CLOSED, WITNESSED ON
 `72933c2`, 131/131.*** Keep cycle installed `72933c2` (17:34:34,

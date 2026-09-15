@@ -270,6 +270,34 @@
       $define LGN$VALID.ACCOUNTS   9    ;* Valid accounts, blank = unrestricted
       $define LGN$BANNED.ACCOUNTS 10    ;* Banned accounts
 
+      * $cred file - account credentials.  14 Sep 26 dm - adopted from the
+      * Windows port's INT$KEYS.H (W.4 SCRAM phase 2).  Id = lower-case account
+      * name (plan M).  The password is never stored.  root:root 0700 on disk
+      * (installsdai.sh): only a session holding euid 0 reads or writes it.
+      *
+      * VERSION 2, FOR SCRAM.  The record holds StoredKey and ServerKey, which a
+      * client can prove knowledge of without sending the password.
+      *
+      * THE VERSION IS FIELD 1 SO THAT A RECORD OF ANOTHER SHAPE CANNOT BE
+      * MISREAD: !CRED_VERIFY refuses anything that is not "2".
+      *
+      * CRED$MECH is informational.  Nothing gates on it - CRED$VERSION carries
+      * that job - but it lets a later mechanism, most likely
+      * SCRAM-SHA-256-PLUS over TLS, be told apart within the same version.
+      $define CRED$VERSION         1    ;* Record format version, currently 2
+      $define CRED$MECH            2    ;* Mechanism name, informational
+      $define CRED$SALT            3    ;* Salt, base64
+      $define CRED$ITER            4    ;* PBKDF2 iteration count
+      $define CRED$STOREDKEY       5    ;* SHA256(ClientKey), base64
+      $define CRED$SERVERKEY       6    ;* HMAC(SaltedPassword,"Server Key"), b64
+
+      * Cost and sizes for new credentials.  The iteration count is written
+      * into each record rather than read from here at verify time, so raising
+      * it applies to new passwords without invalidating existing ones.
+      $define SCRAM$CRED.VERSION   2    ;* Value written to CRED$VERSION
+      $define SCRAM$ITERATIONS 600000   ;* PBKDF2 cost for a new password
+      $define SCRAM$KEY.LEN       32    ;* SaltedPassword length, = SHA-256
+
       * ID = $SECURE
       *    F1 = Secure system? (boolean)
 

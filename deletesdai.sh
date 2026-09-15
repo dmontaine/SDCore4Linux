@@ -184,6 +184,17 @@ for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
     fi
 done
 
+# 14 Sep 26 dm - W.4 SCRAM phase 2.  THE CREDENTIAL REGISTER GOES WITH THE
+# ACCOUNTS, for the reason the audit trail does: $cred is every account's SD
+# password (as SCRAM keys), and a keep cycle that dropped it would leave every
+# account unreachable through the API until each password was set again.
+# installsdai.sh restores it root:root 0700.  DELETE removes it.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/\$cred" ]; then
+    sudo rm -fr "$acct_path/\$cred"
+    sudo cp -a "$sdsysdir/\$cred" "$acct_path/"
+    echo "Saved the credential register (\$cred)"
+fi
+
 # remove the /usr/sdsys directory
 sudo rm -fr "$sdsysdir"
 echo
