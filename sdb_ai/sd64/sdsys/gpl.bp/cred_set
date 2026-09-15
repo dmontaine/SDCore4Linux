@@ -1,0 +1,165 @@
+* CRED_SET
+* Set the credential for an SD account.
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+*
+* START-HISTORY:
+* 14 Sep 26 dm  adopted from SD Core for Windows (W.4 SCRAM phase 2, the
+*               owner's conformity rule).  The derivation, the record and the
+*               read-back are the port's.  Its elevated-helper fallback is not:
+*               it exists because a Windows token cannot be raised mid-session,
+*               and here $cred is root-only and the caller runs with euid 0
+*               (CPROC privileged_commands, $MODIFY.PASSWORD).  Record ids are
+*               lower case (plan M).
+* 30 Aug 26 Windows port - the write falls back to the ELEVATED HELPER; the
+*           record is READ BACK and both keys compared.  PRE_RELEASE_FIXES 68
+* 19 Aug 26 Windows port - writes a version 2 SCRAM record.
+* 13 Aug 26 Windows port - written for the account credential model
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+* Derives and stores SCRAM material for an account.  What is written:
+*
+*   SaltedPassword = PBKDF2-HMAC-SHA256(password, salt, iterations, 32)
+*   StoredKey      = SHA256(HMAC(SaltedPassword, "Client Key"))
+*   ServerKey      = HMAC(SaltedPassword, "Server Key")
+*
+* THE PASSWORD IS NOT STORED, and neither is ClientKey.  StoredKey is the
+* SHA-256 of ClientKey, so holding it does not let the holder authenticate as
+* the client - forming a proof needs ClientKey itself, which is the preimage.
+* It does let the holder impersonate the SERVER, which is why $cred is
+* root:root 0700 (installsdai.sh) and read by nobody else.
+*
+* This is the only place in the server that runs PBKDF2.  Login does not: it
+* holds StoredKey directly and needs two HMACs and a hash, so the cost of a
+* high iteration count falls on setting a password, not on connecting.
+*
+* ***THE CALLER MUST ALREADY HOLD euid 0.***  A session without it cannot open
+* $cred, and this answers ER$NVR rather than pretending - the port's "ordinary
+* console NO, deliberately" (its secure-cred.ps1), for the same reason: a user
+* able to write their own record could write anybody's.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine CRED_SET(account, password, ok)
+$catalog !CRED_SET
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   ok = @false
+   set.status 0
+
+   account = downcase(trim(account))
+   if account = '' or password = '' then
+      set.status ER$ARGS
+      return
+   end
+
+   openpath @sdsys:@ds:'$cred' to cred.f else
+      set.status ER$NVR
+      return
+   end
+
+   salt = ''
+   call !SD_GET_SALT(salt)
+   if salt = '' then
+      close cred.f
+      set.status ER$ARGS
+      return
+   end
+
+   iter = SCRAM$ITERATIONS
+
+   salted = SDEXT(password : @FM : salt : @FM : iter : @FM : SCRAM$KEY.LEN, @TRUE, SD_PBKDF2)
+   if salted = '' then
+      close cred.f
+      set.status ER$ARGS
+      return
+   end
+
+   client.key = SDEXT(salted : @FM : 'Client Key', @TRUE, SD_HMACSHA256)
+   stored.key = SDEXT(client.key, @TRUE, SD_SHA256)
+   server.key = SDEXT(salted : @FM : 'Server Key', @TRUE, SD_HMACSHA256)
+
+*  Drop the intermediates as soon as they are spent.  Neither may be stored,
+*  and ClientKey in particular is the one value that would let its holder
+*  authenticate as this account.
+   salted = ''
+   client.key = ''
+
+   if stored.key = '' or server.key = '' then
+      close cred.f
+      set.status ER$ARGS
+      return
+   end
+
+   cred.rec = ''
+   cred.rec<CRED$VERSION> = SCRAM$CRED.VERSION
+   cred.rec<CRED$MECH> = 'SCRAM-SHA-256'
+   cred.rec<CRED$SALT> = salt
+   cred.rec<CRED$ITER> = iter
+   cred.rec<CRED$STOREDKEY> = stored.key
+   cred.rec<CRED$SERVERKEY> = server.key
+
+   write.ok = @true
+   write cred.rec to cred.f, account on error
+      write.ok = @false
+   end
+   close cred.f
+
+   if not(write.ok) then
+      set.status ER$PERM
+      return
+   end
+
+*  ***THE READ-BACK IS THE POINT, NOT A COURTESY*** - the port's rule.  A write
+*  can report success and leave a record this side cannot use, and an unusable
+*  $cred record is an account that authenticates against nothing - found at
+*  the next login rather than here.  So the record is read back through a
+*  FRESH open and BOTH keys are compared, the same fields the login will use.
+*  ER$WRITE.ERROR, not ER$PERM: a write that reported success and does not read
+*  back as meant is a different fault from being refused.
+   check.rec = ''
+   openpath @sdsys:@ds:'$cred' to chk.f else
+      set.status ER$NVR
+      return
+   end
+   read check.rec from chk.f, account else check.rec = ''
+   close chk.f
+
+   if check.rec<CRED$STOREDKEY> # stored.key then
+      set.status ER$WRITE.ERROR
+      return
+   end
+
+   if check.rec<CRED$SERVERKEY> # server.key then
+      set.status ER$WRITE.ERROR
+      return
+   end
+
+   ok = @true
+
+   return
+end
+
+* END-CODE

@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  $MODIFY.PASSWORD runs with euid 0 restored, like the account
+*               verbs: it writes $cred, which is root:root 0700 (W.4 SCRAM
+*               phase 2).
 * 14 Sep 26 dm  RUN folds the program name (as typed, lower, upper), not only
 *               the file: "RUN BP ZZREL" finds bp.out/zzrel, which BASIC wrote.
 * 13 Sep 26 dm  Account names are lower case, SDSYS included (plan M, owner):
@@ -223,6 +226,13 @@ $define max.elements 500
    privileged_commands<-1> = "$CREATEA"  ;*"CREATE.ACCOUNT"
    privileged_commands<-1> = "$DELACC"   ;*"DELETE.ACCOUNT"
    privileged_commands<-1> = "$MODIFYA"  ;*"MODIFY.ACCOUNT"
+* 14 Sep 26 dm - W.4 SCRAM phase 2.  MODIFY.PASSWORD writes $cred through
+*   !CRED_SET, and $cred is root:root 0700, so it needs euid 0 exactly as the
+*   three verbs above do.  Under plain sd EUID_RESTORE cannot raise anything
+*   and the open of $cred fails - the port's "ordinary console NO,
+*   deliberately": a session able to write its own record could write
+*   anybody's.
+   privileged_commands<-1> = "$MODIFY.PASSWORD"  ;*"MODIFY.PASSWORD"
 
    logto.reset = @false      ;* 0555
 

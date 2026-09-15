@@ -16,6 +16,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  MODIFY.PASSWORD NOW SETS SD'S OWN PASSWORD, AS ON WINDOWS.
+
+           MODIFY.PASSWORD used to change the account's Linux password.  It
+           now sets the password SD keeps for the account itself, the one the
+           SD API is moving over to, as SD Core for Windows already does.  SD
+           stores it only as keys derived from it, never as the password.
+           Changing your own asks for the current one; changing another
+           account's needs an administrator, and both need sudo sd, because
+           the store is readable only by root.  A reinstall that keeps your
+           accounts keeps these passwords too.
+
+           WHAT DOES NOT CHANGE YET: logging in through the API still checks
+           the Linux password, until the next stage of this work.  The Linux
+           password is set as before, by CREATE.ACCOUNT or with passwd.
+
 14 Sep 26  A LONG PASSWORD NOW WORKS THROUGH THE API.
 
            A program connecting through the API could not use a password
