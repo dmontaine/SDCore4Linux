@@ -281,7 +281,13 @@ Its three failures, fixed in `0b67dba`:
   63/0, and U1 and U4 red on a copy whose `ufw_added` reads `ufw status`.
   Changelog entry added.
 *Next:* S.19's port half (sd4windows RELEASE_1.1 41) and the owner's pinning
-decision; on Linux the open rows below.
+decision; on Linux the open rows below. The Windows-client→Linux-server interop
+run needs a non-administrator API account: `sdapi` holds only `don`, who is
+refused remotely (10174) and has no `$cred`. `gplbld/interop-account.sh`
+(`sudo … --create`, `--remove`) makes `zzinterop` by the witness's ADOPT route,
+demoted to PROGRAMMER with the API, and proves it logs in over 127.0.0.1 and the
+LAN address. Written 15 Sep 2026: `bash -n` clean, dry run and non-root refusal
+seen, `--create` NOT YET RUN.
 
 ***[S.19] PRIORITY #1, RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
 2026). LINUX: TLS 1.3 ON EVERY API CONNECTION, SCRAM BOUND TO IT (RFC 9266
