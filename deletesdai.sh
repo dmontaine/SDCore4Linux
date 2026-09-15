@@ -264,13 +264,20 @@ fi
 #            group just failed to set.  The sdsys user and sdusers group below
 #            have followed the "only if deleting ACCOUNTS" rule since before
 #            this; sdadmin did not, because until 9 Sep it had no members.
+# 14 Sep 26  sdapi (S.16) follows the same rule and for the same reason: an
+#            upgrade that saved its accounts must come back with the API
+#            grants it had, or every non-administrator's API access is lost.
 if [ "$keep_accts" = "DELETE" ]; then
     if getent group sdadmin &>/dev/null; then
         sudo groupdel sdadmin || true
         echo "Removed group sdadmin."
     fi
+    if getent group sdapi &>/dev/null; then
+        sudo groupdel sdapi || true
+        echo "Removed group sdapi."
+    fi
 else
-    echo "sd ACCOUNTS were saved, therefore group sdadmin not deleted."
+    echo "sd ACCOUNTS were saved, therefore groups sdadmin and sdapi not deleted."
 fi
 # --------------------
 

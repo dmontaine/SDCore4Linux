@@ -19,6 +19,12 @@
 * 
 *
 * START-HISTORY:
+* 14 Sep 26 S.16, the port's per-account API route: API / NONE put the account's
+*           person in or out of sdapi (10077/10079/10080/10081), refused for a
+*           group account (10087) or an administrator (10083); SSH and BOTH are
+*           not settable here (10919).  Leaving ADMINISTRATOR must say API or
+*           NONE (10111, the port's ruling of 27 Aug 2026); becoming one joins
+*           sdapi.
 * 13 Sep 26 Tier layer lists read from sdsys/tier.policy, not NEWVOC (plan M /
 *           port a47526f): a missing tier.policy hard-fails like a missing
 *           NEWVOC, keeping 10114 "tier unchanged" the true answer.
@@ -68,8 +74,18 @@
 *
 * START-DESCRIPTION:
 * MODIFY.ACCOUNT account <ADD/DELETE> user.name
-* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR
+* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR  {API | NONE}
 * MODIFY.ACCOUNT account SH-ON | SH-OFF | OS-ON | OS-OFF
+* MODIFY.ACCOUNT account API | NONE
+*
+* API / NONE ARE THE PORT'S ROUTE KEYWORDS WITH THE ssh HALF TAKEN OUT (S.16).
+* The port's SSH | API | BOTH | NONE set membership of sdssh and sdapi.  On
+* Linux ssh follows the tier (PRE_RELEASE 13: sshd's ForceCommand for sdusers
+* that are not sdadmin), so there is no sdssh and nothing for SSH or BOTH to
+* set; they are refused by name (10919) rather than read as API, so a command
+* written for the port does not silently do something narrower here.  The
+* property is sdapi membership and nothing else - nothing is written to the
+* register (the port's owner, 20 Aug 2026).
 *
 * THE TIER FORM IS THE PORT'S GRAMMAR MINUS ONE VALUE.  SD Core for Windows has
 * MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED
@@ -132,8 +148,9 @@ deffun grp_members(group) calling '!grp_members'
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username> '
-      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED'
+      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED {API | NONE}'
       crt '                 MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF'
+      crt '                 MODIFY.ACCOUNT <account> API | NONE'
       stop
    end
    *
@@ -179,6 +196,18 @@ deffun grp_members(group) calling '!grp_members'
          os.field = ACC$OS.EXEC ; os.want = @false
          gosub os.set
          stop
+* 14 Sep 26 dm - S.16.  The API route, absolute: API means may, NONE may not.
+      case action = 'API'
+         want.api = @true
+         gosub api.set
+         stop
+      case action = 'NONE'
+         want.api = @false
+         gosub api.set
+         stop
+      case action = 'SSH' or action = 'BOTH'
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10919, action)  ;* %1 is not a route SD sets on Linux...
    end case
 
    if is_group(group.name) then
@@ -286,8 +315,8 @@ deffun grp_members(group) calling '!grp_members'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, a tier, or an OS-access grant'
-         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED | SH-ON | SH-OFF | OS-ON | OS-OFF'
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, a tier, an OS-access grant or the API route'
+         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED | SH-ON | SH-OFF | OS-ON | OS-OFF | API | NONE'
       end
 
    end else
@@ -385,6 +414,35 @@ set.tier:
       return
    end
 
+* 14 Sep 26 dm - S.16.  A DOWNGRADE OUT OF ADMINISTRATOR MUST NAME THE API
+*   ACCESS - the port's owner's ruling of 27 Aug 2026, not a default chosen
+*   here.  An administrator has the API as a rule; below that tier it is a
+*   keyword, so the downgrade has to land somewhere and nothing here is
+*   entitled to pick.  SUSPENDED is exempt: it changes nothing in Linux.
+*   READ BEFORE ANYTHING CHANGES, so a missing word leaves the old tier
+*   standing rather than half a demotion.  from.tier, not raw.tier, so lifting
+*   an administrator's suspension to a lower tier asks too.
+   need.access = @false
+   want.api = @false
+   if from.tier = 'ADMINISTRATOR' and action # 'ADMINISTRATOR' and action # 'SUSPENDED' and acc.user # '' then
+      need.access = @true
+      call @parser(PARSER$GET.TOKEN, token.type, access.word, keyword)
+      access.ok = @false
+      if token.type # PARSER$END then
+         access.word = upcase(access.word)
+         if access.word = 'API' then
+            want.api = @true
+            access.ok = @true
+         end
+         if access.word = 'NONE' then access.ok = @true
+      end
+      if not(access.ok) then
+         @system.return.code = -ER$ARGS
+         crt sysmsg(10111, acc.name)  ;* Say whether %1 keeps the API ...: API or NONE
+         return
+      end
+   end
+
 * 10 Sep 26 dm - SL1.  THE VOC FOLLOWS THE TIER, AT ONCE, AND BEFORE THE
 *   REGISTER WRITE - the port's order, and its owner's ruling of 27 Aug 2026
 *   ("at once, not at the next login").  Every step of voc.delta is idempotent,
@@ -435,16 +493,40 @@ set.tier:
    end
    write acc.rec to acc.f, acc.name
 
+* 14 Sep 26 dm - S.16.  The API route follows the two tier moves that change it,
+*   in the same place sdadmin does.  An administrator always has it; a
+*   demotion lands where 10111 made the caller say.  Repeating ADMINISTRATOR
+*   re-applies it, which is how a membership that went missing is repaired.
+*   THE RETURN CODE IS CLEARED BEFORE THE GROUP MOVES NOW, NOT AFTER THEM.  It
+*   was set to 0 below them, which overwrote the -ER$FAILED that join.sdadmin
+*   and leave.sdadmin set on a failed usermod - the message printed and the
+*   caller's @system.return.code said success.
+   @system.return.code = 0
+   api.report = @false
    begin case
       case action = 'ADMINISTRATOR'
          gosub join.sdadmin
+         want.api = @true
+         api.report = @true
       case action = 'SUSPENDED'
          null  ;* nothing changes in Linux - the port's PRE_RELEASE 20
       case from.tier = 'ADMINISTRATOR'
          gosub leave.sdadmin
+         if need.access then api.report = @true
    end case
+   if api.report then
+      gosub api.apply
+      if api.failed then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10081, acc.user, api.stat)  ;* Unable to change API access for %1
+      end else
+         if not(api.same) then
+            void kernel(K$AUDIT, 'MODIFY.ACCOUNT API account=' : acc.name : ' to=' : api.word)
+            gosub api.say
+         end
+      end
+   end
 
-   @system.return.code = 0
 * 11 Sep 26 dm - A LINUX ADDITION, NOT THE PORT'S: a tier change is a grant or
 *   a withdrawal of privilege - ADMINISTRATOR, a suspension - so it is recorded.
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT TIER account=' : acc.name : ' from=' : raw.tier : ' to=' : action)
@@ -629,6 +711,108 @@ leave.sdadmin:
    end else
       @system.return.code = -ER$FAILED
       crt sysmsg(10022, acc.user, 'sdadmin', stat)
+   end
+   return
+
+*****************************************************************************
+* API.SET  -  MODIFY.ACCOUNT <account> API | NONE
+*
+* 14 Sep 26 dm - S.16, the port's route.set (21 Aug 2026) with the ssh half out.
+*   want.api is the wanted state.  APISRVR's vb.scram.final tests sdapi, so
+*   the change is seen at the next API login and nothing in a session caches
+*   it.
+*
+* A GROUP ACCOUNT HAS NO PERSON (10087), said plainly because the sdusers test
+*   below would otherwise answer "is not a member of sdusers", which is true
+*   and explains nothing.
+*
+* AN ADMINISTRATOR IS REFUSED (10083), BY TIER OR BY sdadmin.  The port's owner,
+*   21 Aug 2026: an administrator has the API as a rule, so there is nothing
+*   here to set, and silently doing nothing would let the caller believe the
+*   access had narrowed.  The group is asked as well as the tier because a
+*   suspended administrator still holds sdadmin, as the port asks Windows
+*   rather than ACC$TIER.  An administrator whose sdapi membership went missing
+*   is repaired with MODIFY.ACCOUNT <account> ADMINISTRATOR, which re-applies it.
+*
+* "NOTHING CHANGED" IS SAID SEPARATELY (10080), so a caller who runs it twice
+*   can tell a no-op from a change - the port's reason.
+api.set:
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no API access
+      return
+   end
+   acc.user = group.name[5,999]
+
+   if not(is_grp_member(acc.user, 'sdusers')) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10020, acc.user)  ;* %1 is not a member of sdusers, not allowed
+      return
+   end
+
+   api.is.admin = (upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR')
+   if is_grp_member(acc.user, 'sdadmin') then api.is.admin = @true
+   if api.is.admin then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10083, acc.user)  ;* %1 is an administrator and always has the API
+      return
+   end
+
+   gosub api.apply
+   if api.failed then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.user, api.stat)  ;* Unable to change API access for %1
+      return
+   end
+
+   @system.return.code = 0
+   if api.same then
+      crt sysmsg(10080, acc.user)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT API account=' : acc.name : ' to=' : api.word)
+   gosub api.say
+   return
+
+* API.APPLY  -  make acc.user's sdapi membership match want.api.  Sets
+*   api.failed, api.same, api.stat and api.word; prints nothing, so the tier
+*   change can use it without inheriting api.set's guards (the port's split of
+*   27 Aug 2026).
+api.apply:
+   api.failed = @false
+   api.same   = @false
+   api.stat   = 0
+   api.word = 'no'
+   if want.api then api.word = 'yes'
+
+   if not(valid_os_name(acc.user)) then
+      api.failed = @true
+      api.stat = 2
+      return
+   end
+
+   api.has = @false
+   if is_grp_member(acc.user, 'sdapi') then api.has = @true
+   if api.has = want.api then
+      api.same = @true
+      return
+   end
+
+   if want.api then
+      os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.user:" sdapi"
+   end else
+      os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":acc.user:" sdapi"
+   end
+   api.stat = OS.ERROR()
+   if api.stat # 0 then api.failed = @true
+   return
+
+api.say:
+   if want.api then
+      crt sysmsg(10077, acc.user)  ;* %1 may use the API.
+   end else
+      crt sysmsg(10079, acc.user)  ;* %1 may not use the API.
    end
    return
 

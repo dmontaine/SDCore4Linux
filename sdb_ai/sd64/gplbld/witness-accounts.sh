@@ -325,8 +325,11 @@ say "  sdadmin members  : $(getent group sdadmin | cut -d: -f4)"
 # ==========================================================================
 head2 "1. NO.QUERY without an existing Linux user is refused (10039) - re-witness"
 
-OUT=$(run_sd "CREATE.ACCOUNT USER $ACC_REFUSE NO.QUERY" \
-             "CREATE.ACCOUNT USER $ACC_REFUSE NO.QUERY")
+# 14 Sep 26 dm - NONE: since S.16 a non-administrator USER account must say API
+# or NONE (10082), and that is checked first; without it this row would meet
+# 10082 and never reach the 10039 it witnesses.
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC_REFUSE NONE NO.QUERY" \
+             "CREATE.ACCOUNT USER $ACC_REFUSE NONE NO.QUERY")
 if [ "$COMMIT" -eq 1 ]; then
     ck_says "1a refused with 10039's wording" "setting its password needs a prompt" "$OUT"
     ck "1b no Linux user was made"      no "$(yesno_user "$ACC_REFUSE")"
@@ -351,8 +354,8 @@ fi
 
 say ""
 say "  2a. THE CONTROL: the same user WITHOUT the marker must be refused (10038)."
-OUT=$(run_sd "CREATE.ACCOUNT USER $ACC NO.QUERY (no marker)" \
-             "CREATE.ACCOUNT USER $ACC NO.QUERY")
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC NONE NO.QUERY (no marker)" \
+             "CREATE.ACCOUNT USER $ACC NONE NO.QUERY")
 if [ "$COMMIT" -eq 1 ]; then
     ck_says "2a1 refused with 10038's wording" "SD accounts create their own Linux user" "$OUT"
     ck "2a2 no register record was made" no "$(yesno_file "$REGISTER/$ACC_UC")"
@@ -489,7 +492,7 @@ fi
 head2 "5. still owed: the SD-CREATED Linux user, by hand"
 say "  As SDSYS (a human admin becomes SDSYS to run this):"
 say "  sudo $SD"
-say "  CREATE.ACCOUNT USER zzacct3 PROGRAMMER      (type a throwaway password)"
+say "  CREATE.ACCOUNT USER zzacct3 PROGRAMMER NONE (type a throwaway password)"
 say "  DELETE.ACCOUNT zzacct3                      (answer y)"
 say "  Expect the LONGER confirmation (10084, naming the Linux user), and"
 say "  10028 \"OS User: zzacct3 Deleted\" where phase 3 got 10036."

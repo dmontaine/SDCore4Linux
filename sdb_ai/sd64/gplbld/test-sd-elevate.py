@@ -81,6 +81,14 @@ CASES = [
     (REFUSE, ["groupdel", "sdusers"],          "deleting it unregisters every SD user at once - exposed BEFORE sdadmin joined"),
     (ALLOW,  ["addgroup", "don", "sdadmin"],   "the point of the whitelist entry: an administrator may make one"),
     (ALLOW,  ["delgroup", "don", "sdadmin"],   "and unmake one - MODIFY.ACCOUNT's demotion path"),
+
+    # ---- sdapi, added 14 Sep 26 (S.16).  REFUSE rows only: the helper checks
+    # ---- that a group EXISTS even in --dry-run, and sdapi exists only after an
+    # ---- install that carries S.16, so an ALLOW row here would fail on a
+    # ---- machine that has not had one - the witness covers the allowed path.
+    (REFUSE, ["addgroup", "root", "sdapi"],    "root is never given the API route"),
+    (REFUSE, ["addgroup", "sdsys", "sdapi"],   "sdsys is an account, not a person"),
+    (REFUSE, ["groupdel", "sdapi"],            "deleting it would refuse every API login at once"),
     (REFUSE, ["setgid", "/etc"],            "outside the accounts root"),
     (REFUSE, ["setgid", "/"],               "outside the accounts root"),
     (REFUSE, ["setgid", "/usr/local/sdsys"], "SD's own tree is still not the accounts root"),

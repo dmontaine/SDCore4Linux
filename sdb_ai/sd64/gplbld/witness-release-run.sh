@@ -25,6 +25,9 @@
 #           control (14); a throwaway ssh key is installed for zzrel1 only
 #     S.17  an administrator is refused over the API from a non-loopback
 #           address and admitted locally (13e)
+#     S.16  the API route: MODIFY.ACCOUNT API / NONE move sdapi, the login
+#           needs it (10073); SSH, an administrator, a wordless demotion and
+#           a wordless CREATE.ACCOUNT are refused (13f)
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
@@ -645,7 +648,9 @@ if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzos" 
 else
     OUT=$(run_sd "$ACC" "control: RUN BP zzos at ADMINISTRATOR" "RUN BP zzos")
     [ "$COMMIT" -eq 1 ] && ck_says "O1 control: ZZOS ran at ADMINISTRATOR" "ZZOS ran OS.EXECUTE" "$OUT"
-    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+    # S.16: leaving ADMINISTRATOR names the API word; API, because 13b-13e log
+    # zzrel1 in over the API as a PROGRAMMER.
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC PROGRAMMER API" "MODIFY.ACCOUNT $ACC PROGRAMMER API")
     [ "$COMMIT" -eq 1 ] && ck_says "O2 MODIFY.ACCOUNT reported the move (10109)" "is now PROGRAMMER" "$OUT"
     OUT=$(run_sd "$ACC" "RUN BP zzos at PROGRAMMER" "RUN BP zzos")
     if [ "$COMMIT" -eq 1 ]; then
@@ -868,7 +873,7 @@ else
         useradd -m -c "SD account" "$ACC3" && MADE_USER3=1
         touch "$SDSYS/\$adopt.$ACC3"
     fi
-    OUT=$(run_oneshot -internal create-account USER "$ACC3" PROGRAMMER SH-ON ADOPT no.query)
+    OUT=$(run_oneshot -internal create-account USER "$ACC3" PROGRAMMER NONE SH-ON ADOPT no.query)
     if [ "$COMMIT" -eq 1 ]; then
         rm -f "$SDSYS/\$adopt.$ACC3"
         [ -e "$REGISTER/$ACC3" ] && MADE_ACCOUNT3=1
@@ -1044,7 +1049,7 @@ else
     fi
 
     OUT=$(run_sd root "fixture: $ACC2 to PROGRAMMER, grant it to $ACC sideways, back to ADMINISTRATOR" \
-          "MODIFY.ACCOUNT $ACC2 PROGRAMMER" "GRANT $ACC2 TO $ACC" "MODIFY.ACCOUNT $ACC2 ADMINISTRATOR")
+          "MODIFY.ACCOUNT $ACC2 PROGRAMMER NONE" "GRANT $ACC2 TO $ACC" "MODIFY.ACCOUNT $ACC2 ADMINISTRATOR")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "A4.0 the sideways grant was made (10041)" "$ACC may now use account $ACC2" "$OUT"
         ck_says "A4.1 $ACC2 is ADMINISTRATOR again (10109)" "Account $ACC2 is now ADMINISTRATOR" "$OUT"
@@ -1350,7 +1355,7 @@ else
             printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
             ck_says "E5 audited with the peer's address" "API REFUSED user=$ACC reason=administrator on a remote API session from $LANIP" "$NEW"
         fi
-        OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+        OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC PROGRAMMER API" "MODIFY.ACCOUNT $ACC PROGRAMMER API")
         if [ "$COMMIT" -eq 0 ]; then
             say "  > gpasswd -a $ACC sdadmin; scram-probe.py --host $LANIP --user $ACC --account $ACC; gpasswd -d $ACC sdadmin"
             say "      (dry run - not executed)"
@@ -1364,6 +1369,64 @@ else
             gpasswd -d "$ACC" sdadmin 2>&1 | sed -e 's/^/      | /'
             ck "E6c zzrel1 is out of sdadmin again (section 14's ssh control needs it)" no "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdadmin && echo yes || echo no)"
         fi
+    fi
+fi
+
+# ==========================================================================
+# S.16 - THE PER-ACCOUNT API ROUTE (sdapi), the port's MODIFY.ACCOUNT API/NONE.
+# zzrel1 is PROGRAMMER here and has been logging in over the API since 13b, so
+# F0 is the membership that made that possible: ADOPT made it ADMINISTRATOR
+# (CREATEA joined sdapi) and section 6's demotion said API.
+#   F1 NONE takes it away (10079) and F2 the SAME login is then refused at 48
+#      in 10073's words, audited "not a member of sdapi"; F3 NONE again is a
+#      no-op (10080); F4 API gives it back (10077) and F5 the login works again -
+#      the before/after pair is what makes F2 mean the group and not the password.
+#   F6 SSH is refused by name (10919); F7 NONE on an administrator (zzrel2) is
+#      refused (10083); F8 demoting zzrel2 without a word is refused (10111)
+#      and leaves it ADMINISTRATOR; F9 CREATE.ACCOUNT of a PROGRAMMER without a
+#      word is refused (10082) and creates nothing.
+head2 "13f. S.16 - the API route: MODIFY.ACCOUNT API / NONE, and sdapi at the login (10073)"
+in_sdapi() { id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi && echo yes || echo no; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and zzrel2 (section 8)"
+    for r in "F0 zzrel1 in sdapi" "F1 NONE 10079" "F1b out of sdapi" "F2 refused 10073" "F2b audited" "F3 10080" "F4 API 10077" "F4b in sdapi" "F5 login works" "F6 SSH 10919" "F7 admin 10083" "F8 demotion needs a word 10111" "F8b still ADMINISTRATOR" "F9 create needs a word 10082" "F9b nothing created"; do not_reached "$r"; done
+else
+    [ "$COMMIT" -eq 1 ] && ck "F0 zzrel1 (PROGRAMMER) is in sdapi - ADOPT's admin join survived the API demotion" yes "$(in_sdapi "$ACC")"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F1 NONE reported (10079)" "$ACC may not use the API." "$OUT"
+        ck "F1b zzrel1 is out of sdapi" no "$(in_sdapi "$ACC")"
+        N0=$(wc -l < "$AUD")
+    fi
+    OUT=$(sprobe "F2 the same SCRAM login, now without sdapi" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F2 refused at 48 in 10073's words" "SCRAM: login REFUSED at request 48: $ACC is not permitted to use the API" "$OUT"
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "F2b audited" "API REFUSED user=$ACC reason=not a member of sdapi" "$NEW"
+    fi
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC NONE (again)" "MODIFY.ACCOUNT $ACC NONE")
+    [ "$COMMIT" -eq 1 ] && ck_says "F3 a repeat changes nothing (10080)" "$ACC already had that access; nothing changed" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC API" "MODIFY.ACCOUNT $ACC API")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F4 API reported (10077)" "$ACC may use the API." "$OUT"
+        ck "F4b zzrel1 is in sdapi again" yes "$(in_sdapi "$ACC")"
+    fi
+    OUT=$(sprobe "F5 CONTROL: the same login with sdapi back" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "F5 the login works again" "account $ACC: entered" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC SSH" "MODIFY.ACCOUNT $ACC SSH")
+    [ "$COMMIT" -eq 1 ] && ck_says "F6 SSH is refused by name (10919)" "SSH is not a route SD sets on Linux" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC2 NONE (an administrator)" "MODIFY.ACCOUNT $ACC2 NONE")
+    [ "$COMMIT" -eq 1 ] && ck_says "F7 an administrator is refused (10083)" "$ACC2 is an administrator and always has the API" "$OUT"
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC2 PROGRAMMER (no word)" "MODIFY.ACCOUNT $ACC2 PROGRAMMER")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F8 leaving ADMINISTRATOR without a word is refused (10111)" "Say whether $ACC2 keeps the API" "$OUT"
+        ck "F8b and zzrel2 is still ADMINISTRATOR in the register" ADMINISTRATOR "$(sed -n '5p' "$REGISTER/$ACC2" 2>/dev/null)"
+    fi
+    OUT=$(run_sd root "CREATE.ACCOUNT USER zzrel4 PROGRAMMER NO.QUERY (no word)" "CREATE.ACCOUNT USER zzrel4 PROGRAMMER NO.QUERY")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F9 refused for want of API or NONE (10082)" "Say whether this account may use the API: API or NONE" "$OUT"
+        ck "F9b no Linux user, register record or directory was made" "no no no" "$(yesno_user zzrel4) $(yesno_file "$REGISTER/zzrel4") $(yesno_dir "$ACCOUNTS_ROOT/zzrel4")"
     fi
 fi
 SCRAM_PW=""
@@ -1443,7 +1506,7 @@ else
         ck_says "K3 the Linux user left in place (10036)" "Linux user $ACC was not created by SD" "$OUT"
         ck "K4 the register record is gone" no "$(yesno_file "$REGISTER/$ACC")"
         ck "K5 the Linux user is kept" yes "$(yesno_user "$ACC")"
-        ck "K6 and holds no SD group" 0 "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -cE '^(sdusers|sdadmin|sdu_)')"
+        ck "K6 and holds no SD group (sdapi included, S.16)" 0 "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -cE '^(sdusers|sdadmin|sdapi|sdu_)')"
         ck "K7 and its SD password went with it (\$cred/$ACC, written in section 13)" no "$(yesno_file "$SDSYS/\$cred/$ACC")"
         [ "$(yesno_file "$REGISTER/$ACC")" = no ] && MADE_ACCOUNT=0
     fi

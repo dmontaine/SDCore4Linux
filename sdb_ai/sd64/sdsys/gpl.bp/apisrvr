@@ -52,6 +52,8 @@
 * 14 Sep 26 dm  vb.scram.final refuses an administrator (tier or sdadmin) whose
 *               connection is not from this machine, with 10174 - the port's
 *               remote-administrator gate (S.17).
+* 14 Sep 26 dm  vb.scram.final requires sdapi membership (10073), the port's
+*               per-account API route (S.16).
 * END-HISTORY
 *
 *
@@ -1226,14 +1228,24 @@ vb.scram.final:
                scram.ssig = SDEXT(scram.serverkey : @FM : scram.authmsg, @TRUE, SD_HMACSHA256)
                if scram.ssig = '' then goto scram.crypto.failed
 
-* 14 Sep 26 dm - LINUX: MAY THIS USER USE THE API AT ALL?  The port asks sdapi
-*   membership here, after the proof (so the distinct refusal leaks nothing).
-*   This tree has no sdapi group, and vb.login's test is sdusers with 5009, so
-*   that is the test and the message; adopting the port's per-account API route
-*   is its own task row.  THE NAME IS scram.user, the one just proven.
+* 14 Sep 26 dm - LINUX: MAY THIS USER USE THE API AT ALL?  After the proof (so
+*   the distinct refusal leaks nothing).  THE NAME IS scram.user, the one just
+*   proven.  sdusers first, with 5009 - an SD user at all.
                if not(is_grp_member(scram.user, 'sdusers')) then
                   scram.refuse.reason = 'not a member of sdusers'
                   abort.message = sysmsg(5009) ;* This user is not registered for SD use
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+
+* 14 Sep 26 dm - S.16: THE PORT'S PER-ACCOUNT API ROUTE.  sdapi membership, which
+*   MODIFY.ACCOUNT <account> API grants and CREATE.ACCOUNT gives only on API or
+*   to an administrator.  10073, the port's.  A MISSING sdapi GROUP REFUSES
+*   EVERYBODY (is_grp_member answers false), the port's direction: an install
+*   that never created it has granted the API to no one, rather than to all.
+               if not(is_grp_member(scram.user, 'sdapi')) then
+                  scram.refuse.reason = 'not a member of sdapi'
+                  abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
                   server.error = SV$ON.ERROR
                   goto exit.vb.scram.fail
                end

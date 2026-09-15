@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 14 Sep 26 dm  S.16: a USER account below ADMINISTRATOR must say API or NONE
+*               (10082), the port's rule; an administrator, or API, joins sdapi.
+*               SSH and BOTH are refused (10919); a group or other account
+*               given a route is refused (10087).
 * 13 Sep 26 dm  Tier policy lists read from sdsys/tier.policy, not NEWVOC (plan
 *               M / port a47526f): opens it fail-safe, the two copy-loop skip
 *               tests gone with the records.
@@ -209,6 +213,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   account rather than the verb in general; nothing writes this bare name, so
 *   it cannot exist on a delivered system.
    adopt.marker = @sdsys:@ds:'$adopt'
+* 14 Sep 26 dm - S.16.  The API route keyword, API or NONE; see more.args.
+   route.word = ''
    begin case
    case upcase(acc.type) = 'USER'
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
@@ -237,6 +243,25 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   A DEFAULT, NOT AN OVERRIDE.  It applies only when no tier keyword was
 *   given, so an explicit PROGRAMMER on the same line still wins.
      if adopt and tier = 'STANDARD' then tier = 'ADMINISTRATOR'
+
+* 14 Sep 26 dm - S.16, THE PORT'S RULE THAT A NEW ACCOUNT SAYS WHO MAY REACH IT
+*   (its CREATEA, owner 21 Aug 2026: "Say who may reach this account", 10082).
+*   On Linux the only route SD sets is the API, so the word is API or NONE.
+*   An ADMINISTRATOR needs none - it always has the API - and NONE on one is
+*   refused (10083) rather than ignored, so nobody believes they made an
+*   administrator without it.  CHECKED HERE, before the Linux user is created
+*   below, so a missing word creates nothing.
+     if tier = 'ADMINISTRATOR' then
+       if route.word = 'NONE' then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10083, acc.uname)  ;* %1 is an administrator and always has the API
+       end
+     end else
+       if route.word = '' then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10082)  ;* Say whether this account may use the API: API or NONE
+       end
+     end
 
      * Is the user a valid os user?
      * Check reserved names then
@@ -381,10 +406,15 @@ PW.TRY.AGAIN:
      if upcase(acc.name) = 'SDUSERS' then
        @system.return.code = -ER$ARGS
        stop sysmsg(2202) ;* Account name is invalid
-     end        
+     end
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
+* 14 Sep 26 dm - S.16.  A group account has no person to give the API to.
+     if route.word # '' then
+       @system.return.code = -ER$ARGS
+       stop sysmsg(10087, acc.name)  ;* %1 is a group account and has no API access
+     end
        
 *
    case upcase(acc.type) = 'OTHER'  
@@ -403,11 +433,16 @@ PW.TRY.AGAIN:
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
+     if route.word # '' then
+       @system.return.code = -ER$ARGS
+       stop sysmsg(10087, acc.name)  ;* no person, so no API access (S.16)
+     end
 *
    case 1
 *   invalid command arg
 * rev 0.9.0 
-    crt 'Command Syntax: CREATE.ACCOUNT USER | GROUP <user name | group name> {ADMINISTRATOR | PROGRAMMER} {SH-ON} {OS-ON} {NO.QUERY}'
+    crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {ADMINISTRATOR | PROGRAMMER} API | NONE {SH-ON} {OS-ON} {NO.QUERY}'
+    crt '                CREATE.ACCOUNT GROUP <group name> {NO.QUERY}'
     @system.return.code = -ER$ARGS
     stop 
    end case
@@ -562,6 +597,28 @@ PW.TRY.AGAIN:
               end else
                 @system.return.code = -ER$FAILED
                 stop sysmsg(10033,acc.uname,stat) ;* Unable to add user %1 to sdadmin, status: %2
+              end
+            end
+          end
+        end
+
+* 14 Sep 26 dm - S.16.  THE API ROUTE: an administrator always, anyone else only
+*   on API.  Beside sdadmin because it is the same kind of step - a group the
+*   person joins because of what the command said.  A failure is reported and
+*   does NOT stop the create: the account is otherwise whole, and
+*   MODIFY.ACCOUNT <account> API (or ADMINISTRATOR) repeats the step.
+        if tier = 'ADMINISTRATOR' or route.word = 'API' then
+          if not(is_grp_member(acc.uname,'sdapi')) then
+            if not(valid_os_name(acc.uname)) then
+              crt sysmsg(10081,acc.uname,2)  ;* Unable to change API access for %1, status: %2
+            end else
+              os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdapi"
+              stat = OS.ERROR()
+              if stat = 0 then
+                crt sysmsg(10077,acc.uname)  ;* %1 may use the API.
+              end else
+                @system.return.code = -ER$FAILED
+                crt sysmsg(10081,acc.uname,stat)
               end
             end
           end
@@ -847,6 +904,17 @@ more.args:
 * 10 Sep 26 dm - PARITY AUDIT: "SH-ON" AND "OS-ON", the port's grammar (its
 *   CREATEA, 27 Aug 2026).  Two independent switches, so "SH-ON OS-ON" is both
 *   and neither cancels the other.  Written at the register write below.
+* 14 Sep 26 dm - S.16, the API route.  The port's CREATEA takes SSH | API | BOTH |
+*   NONE; ssh follows the tier on Linux, so SSH and BOTH are refused by name
+*   (10919) rather than read as API.
+         case upcase(token) = 'API'
+            route.word = 'API'
+         case upcase(token) = 'NONE'
+            route.word = 'NONE'
+         case upcase(token) = 'SSH' or upcase(token) = 'BOTH'
+            @system.return.code = -ER$ARGS
+            stop sysmsg(10919, upcase(token))
+
          case upcase(token) = 'SH-ON'
             os.sh = @true
          case upcase(token) = 'OS-ON'
