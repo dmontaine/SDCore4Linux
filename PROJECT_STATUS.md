@@ -22,6 +22,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
+| ⬜ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — an API session crosses TCP 4243 unencrypted, only the SCRAM login is protected; same in the port, whose W1.0-0 users are exposed (its RELEASE_1.1 41); fix direction unruled | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
@@ -262,6 +263,38 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***[S.19] PRIORITY #1 AND RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
+2026): AN API SESSION CROSSES TCP 4243 UNENCRYPTED. FIX TO BUILD THIS WEEK,
+DIRECTION PENDING A RULING.*** Owner: Linux is unreleased, but W1.0-0 has been
+downloaded by a few people, so the port's users carry it now. Only the login is
+protected: SCRAM (W.4) proves the password
+without sending it, but every request and reply after it is plain TCP —
+`apisrvr:1066` *"there is no TLS channel to bind to"*; no cipher in `sdclilib.c`
+or `linuxio.c` (libsodium is linked for SCRAM and BASIC ENCRYPT only). Owner:
+QM's API was removed because it was insecure, and its transport weakness is
+unchanged. Measured 15 Sep on this machine: `0.0.0.0:4243` listening (installer
+"Allow API access" = Y, `installsdai.sh:252`, `:756`). With no channel binding
+(`n,,`) an active attacker could also inject into a logged-in session — follows
+from the design, not measured. Same gap in the port, which has no encrypted
+remote route at all: its `apisrvr:1278`, `sdwind.c:364` binds `INADDR_ANY`,
+`sd.iss:390` dropped the ssh tunnel. Filed there as RELEASE_1.1 41 and
+BUGS_FROM_LINUX_PORT 9; neither record had raised it. *Declined by the owner:* a
+stopgap (drop the installer's open-4243 prompt and REMOTE.API ON, remote use by
+`ssh -L` only) — "no", fix it for 1.1. *Options, in the conditional, to be the
+same in both ports:* (1) TLS 1.3 on the listener via OpenSSL (4.0.1 present,
+`libssl-dev` headers absent), SCRAM moved to `p=tls-exporter` binding (RFC
+9266), a certificate generated at install and pinned by the client on first use
+— recommended; (2) ssh as the only remote transport, the client library opening
+the tunnel — no new crypto, but API users need an OS login, Windows clients an
+ssh client, and it reverses the port's 21 Aug ruling; (3) a libsodium
+`crypto_kx` + `secretstream` channel — advised against as unreviewed protocol
+code. Touches `gplsrc/sdclilib.c`, `sdclient.h`, `linuxio.c`,
+`sdsys/gpl.bp/apisrvr`, `sdclient`, `usr/lib/systemd/system/sdclient.socket`,
+`installsdai.sh`, `gplbld/scram-probe.py`, `api-probe.py`; and delete
+`etc/xinetd.d/qmclient` (QM's own 4243 service, unused by the installer).
+*Falsified-if (the witness):* a capture on port 4243 during an API READ shows the
+record's content, or a client that does not encrypt is admitted.
 
 ***HANDOFF, 14 Sep 23:25 — WITNESS ON `dea3736`: 236/238 (log
 `/var/tmp/witness-release-run.20260914-231854.log`). S.16 CLOSED (§13f all pass).
