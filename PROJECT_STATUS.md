@@ -25,13 +25,13 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; left: §13g on an install (root) | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` but Y0 shows the session never took the LOGTO route; left: fix §13g's route, re-witness | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
 | ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
-| ◐ | **S.16** | M | the port's per-account API route: `sdapi` (installer creates + seeds admins), MODIFY.ACCOUNT API/NONE, demotion and CREATE.ACCOUNT must name one, `vb.scram.final` tests it (10073), DELACC strips it; built 14 Sep, free checks green; left: keep cycle + witness §13f F0–F9b | — |
+| ✅ | **S.16** | — | the port's per-account API route (`sdapi`, MODIFY.ACCOUNT API/NONE, 10073 at the login) — witnessed on `dea3736`, §13f F0–F9b all pass (`/var/tmp/witness-release-run.20260914-231854.log`) | 14 Sep 2026 |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
-| ◐ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh` in the admin layer, messages 10131-10139; built 14 Sep, `test-sd-elevate` 59/59; left: keep cycle + witness §13h (incl. the held-session falsifier) | — |
+| ◐ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh` in the admin layer, messages 10131-10139; witnessed on `dea3736` §13h except H5c (rule detection reads `ufw status`, blind when ufw is inactive — see START HERE); left: fix via `ufw show added`, re-witness | — |
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
@@ -263,6 +263,22 @@ owner's ruling comes first.
 
 ## START HERE
 
+***HANDOFF, 14 Sep 23:25 — WITNESS ON `dea3736`: 236/238 (log
+`/var/tmp/witness-release-run.20260914-231854.log`). S.16 CLOSED (§13f all pass).
+S.13 §13h passes incl. H1 (a session survives the socket restart) EXCEPT H5c.
+Q.22 §13g Y1-Y4 pass EXCEPT Y0. Both failures read, NOT FIXED (out of credits):***
+- **Y0 (instrument):** a `sudo sd` session started in zzrel1's directory still
+  lands in SDSYS (first WHO `77 sdsys`), so §13g never took the LOGTO route. Fix:
+  send `LOGTO zzrel1` before the first WHO, then `LOGTO sdsys`; re-witness.
+- **H5c (product + instrument):** ufw is INACTIVE here; `ufw allow 4243/tcp`
+  said "Skipping adding existing rule" (the installer's rule is in ufw's config),
+  but `ufw status` lists no rules while inactive, so `sd-elevate`'s
+  `ufw_has_allow`, `api_show`/`ssh_show` and the witness's `ufw_rule_present`
+  all read "absent" — and REMOTE.API LOCAL/OFF therefore never delete the rule.
+  Fix: detect rules with `ufw show added` (root) instead of `ufw status`, in
+  sd-elevate and the witness; re-witness. Machine state was restored unchanged
+  (H6/H9 pass; the config rule was never touched).
+
 ***TWENTY-FOURTH SESSION, LATER — EVERY AGENT-DOABLE ROW WORKED.*** Built, unrun
 until an install: S.16 (`787ab5d`, witness §13f), Q.22 sdsyswrite (`757f95b`,
 free check `check-storewriters.py` + §13g), S.13 (`d0d9558`, §13h). Measured in a
@@ -437,9 +453,8 @@ Unmeasured when built, both measured by the run above: that APISRVR compiles
 (install only) and that the session runs as the user after `K$ASSUME.USER` (S2). Changelog deferred to phase 5,
 when a user would notice.
 
-***[S.16] PER-ACCOUNT API ROUTE — BUILT 14 Sep 2026 (twenty-fourth session),
-free checks green; §OPEN§: `gpl.bp` compiles only at install, so unrun until
-the keep cycle and witness §13f.*** ***Adopted, not asked:*** the 10 Sep parity
+***[S.16] PER-ACCOUNT API ROUTE — CLOSED: WITNESSED 14 Sep 2026 on `dea3736`,
+§13f F0–F9b all pass.*** *(As built, 14 Sep, free checks green:)* ***Adopted, not asked:*** the 10 Sep parity
 audit had listed "ssh ForceCommand vs `sdssh`/`sdapi` groups" as a kept
 difference, but neither it nor the S.16 row was an owner ruling; the owner's
 stance of 12 Sep ("security ships tight and the administrator relaxes it by
