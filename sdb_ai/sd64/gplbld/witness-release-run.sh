@@ -28,6 +28,9 @@
 #     S.16  the API route: MODIFY.ACCOUNT API / NONE move sdapi, the login
 #           needs it (10073); SSH, an administrator, a wordless demotion and
 #           a wordless CREATE.ACCOUNT are refused (13f)
+#     Q.22  sdsyswrite: from a root session that started in zzrel1 and
+#           LOGTOed SDSYS, the register and $cred writes land on disk; a
+#           plain-sd administrator is refused and changes nothing (13g)
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
@@ -1428,6 +1431,59 @@ else
         ck_says "F9 refused for want of API or NONE (10082)" "Say whether this account may use the API: API or NONE" "$OUT"
         ck "F9b no Linux user, register record or directory was made" "no no no" "$(yesno_user zzrel4) $(yesno_file "$REGISTER/zzrel4") $(yesno_dir "$ACCOUNTS_ROOT/zzrel4")"
     fi
+fi
+
+# ==========================================================================
+# Q.22 sdsyswrite - CAN SDSYS REACHED BY LOGTO WRITE THE ROOT-ONLY STORES?
+# The port's verify-sdsyswrite (its PRE_RELEASE_FIXES 68/73).  A "sudo sd"
+# session runs at euid sdsys and CPROC raises it to 0 only around the verbs in
+# privileged_commands; the register and $cred are root-owned, so a store write
+# from anywhere else fails silently in the file half.  check-storewriters.py
+# proves from the source that every writer is such a verb; this proves the
+# writes LAND, from the route the port found untested: a root session that
+# STARTS IN AN ORDINARY ACCOUNT and reaches SDSYS by LOGTO.
+#   Y0 the route: WHO names zzrel1, then sdsys after LOGTO.
+#   Y1 MODIFY.ACCOUNT zzrel1 SH-ON from there: register field 7 (ACC$SH) goes
+#      to 'yes' ON DISK, read before and after.
+#   Y2 MODIFY.PASSWORD zzrel1 from there, with the SAME SD password: $cred's
+#      salt (field 3) changes on disk, and Y2c the login still works with it -
+#      the write landed and is right, not merely present.
+#   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE EUID: zzrel2, an
+#      administrator in PLAIN sd (no sudo), MODIFY.ACCOUNT zzrel1 SH-OFF is
+#      refused (2001) and field 7 is still 'yes'.  Then root restores SH-OFF.
+head2 "13g. Q.22 sdsyswrite - store writes land from SDSYS reached by LOGTO"
+reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
+cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and zzrel2 (section 8)"
+    for r in "Y0 route zzrel1 then sdsys" "Y1 SH-ON landed" "Y2 password set" "Y2b salt changed" "Y2c login works" "Y3 plain-sd refused 2001" "Y3b field 7 unchanged" "Y4 restored"; do not_reached "$r"; done
+else
+    SH_BEFORE=""; SALT_BEFORE=""
+    if [ "$COMMIT" -eq 1 ]; then
+        SH_BEFORE=$(reg_field "$ACC" 7); SALT_BEFORE=$(cred_salt "$ACC")
+        say "  before: register $ACC field 7 (ACC\$SH) = '${SH_BEFORE}'; \$cred/$ACC salt = ${#SALT_BEFORE} characters"
+    fi
+    say "  --- sd session as root, STARTED IN $ADIR: WHO; LOGTO sdsys; WHO; MODIFY.ACCOUNT $ACC SH-ON; MODIFY.PASSWORD $ACC (password not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nWHO\nLOGTO sdsys\nWHO\nMODIFY.ACCOUNT %s SH-ON\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+                  "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
+        WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
+        ck "Y0 the route: WHO named $ACC, then sdsys" "$ACC sdsys " "$WHOS"
+        ck "Y1 SH-ON landed in the register on disk (field 7 '$SH_BEFORE' -> 'yes')" yes "$(reg_field "$ACC" 7)"
+        ck_says "Y2 MODIFY.PASSWORD reported it" "Password set for account $ACC" "$OUT"
+        SALT_AFTER=$(cred_salt "$ACC")
+        ck "Y2b the \$cred record was rewritten on disk (the salt changed)" yes "$([ -n "$SALT_AFTER" ] && [ "$SALT_AFTER" != "$SALT_BEFORE" ] && echo yes || echo no)"
+    fi
+    OUT=$(sprobe "Y2c the login with the same SD password, after the rewrite" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "Y2c the rewritten credential logs in" "account $ACC: entered" "$OUT"
+    OUT=$(run_sd "$ACC2" "CONTROL: plain-sd administrator MODIFY.ACCOUNT $ACC SH-OFF" "MODIFY.ACCOUNT $ACC SH-OFF")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "Y3 refused without sudo (2001)" "Command requires administrator privileges" "$OUT"
+        ck "Y3b and the register field 7 is still 'yes'" yes "$(reg_field "$ACC" 7)"
+    fi
+    OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC SH-OFF" "MODIFY.ACCOUNT $ACC SH-OFF")
+    [ "$COMMIT" -eq 1 ] && ck "Y4 restored: field 7 is 'no'" no "$(reg_field "$ACC" 7)"
 fi
 SCRAM_PW=""
 
