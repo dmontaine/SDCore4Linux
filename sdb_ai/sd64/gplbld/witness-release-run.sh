@@ -23,6 +23,9 @@
 #           the SCRAM login, requests 47/48, against $cred (13c)
 #     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
 #           control (14); a throwaway ssh key is installed for zzrel1 only
+#     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
+#           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
+#           APILOGIN, a restored sd.conf still carrying it starts (16)
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
 #     updates every account's VOC as each install does.
 #
@@ -1099,6 +1102,10 @@ fi
 #      shows each door reads its own credential.
 #   S6 request 48 with no 47 is a sequence error (5273), audited.
 #   S7 an unknown user is refused at 47 in 5017's words, audited "no credential".
+#   S8 S.18: S1 again over the UNIX SOCKET (scram-probe --unix), whose server
+#      side lost its getpeereid() peer capture, and S8d request 24 over it is
+#      refused in 5275's words - that socket is where APILOGIN=0 once let a
+#      peer in with no password.  The path is read from the installed unit.
 head2 "13c. W.4 SCRAM phase 3 - requests 47/48: the SD password, not the Linux one"
 SPROBE="$(dirname "$SELF")/scram-probe.py"
 sprobe() {   # $1 title, $2 password, then scram-probe arguments
@@ -1112,7 +1119,7 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
 }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
-    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit" "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
 else
     N0=0
     [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
@@ -1181,6 +1188,28 @@ else
 
     OUT=$(sprobe "S7 a user with no SD credential" "$SCRAM_PW" --user zzrel9)
     [ "$COMMIT" -eq 1 ] && ck_says "S7 refused at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
+
+    # S.18 - the Unix socket.  The path comes from the installed unit, printed,
+    # so a moved socket is a visible NOT REACHED rather than a probe of nothing.
+    USOCK=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' /usr/lib/systemd/system/sdclient.socket 2>/dev/null | head -1)
+    say "  the Unix socket, from /usr/lib/systemd/system/sdclient.socket: '${USOCK:-none}'"
+    if [ "$COMMIT" -eq 1 ] && [ ! -S "$USOCK" ]; then
+        say "  it is not a socket on this machine: $(ls -la "$USOCK" 2>&1)"
+        for r in "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
+    else
+        OUT=$(sprobe "S8 S.18: S1 over the Unix socket" "$SCRAM_PW" --unix "$USOCK" --user "$ACC" --account "$ACC" WHO)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "S8 the probe connected over the Unix socket" "transport: unix socket $USOCK" "$OUT"
+            ck_says "S8a SCRAM login, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+            ck_says "S8b account entered" "account $ACC: entered" "$OUT"
+            ck_who "S8c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+        fi
+        OUT=$(sprobe "S8d S.18: request 24 over the Unix socket (APILOGIN=0's door)" "$SCRAM_PW" --unix "$USOCK" --user "$ACC" --account "$ACC" --legacy)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "S8d request 24 refused in 5275's words" "LEGACY: login REFUSED at request 24: Cleartext login is no longer supported" "$OUT"
+            ck_absent "S8e and did not log in" "LEGACY: login ACCEPTED" "$OUT"
+        fi
+    fi
 
     if [ "$COMMIT" -eq 1 ]; then
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
@@ -1348,7 +1377,54 @@ else
     fi
 fi
 
-head2 "16. verdict"
+# ==========================================================================
+# S.18 - WHAT THE DEAD LOGIN CODE LEFT BEHIND, read off the install.  No
+# throwaway needed.
+#   R1 the installed sd links no libcrypt and no libbsd (crypt() and
+#      getpeereid() went with login_user); libsodium must be listed, or the
+#      ldd read nothing and the absences mean nothing.
+#   R2 CONFIG reports no APILOGIN line, against CMDSTACK which it must.
+#   R3 THE TRAP: an unrecognised sd.conf key is FATAL (config.c), and a keep
+#      cycle restores an sd.conf written while APILOGIN=1 shipped.  If the
+#      live /etc/sd.conf still carries it, sd.service being active is the
+#      proof it is accepted.  A full cycle ships sd.conf without it, and then
+#      R3 is NOT REACHED - it did not measure the claim, so it does not pass.
+head2 "16. S.18 - no libcrypt/libbsd, no APILOGIN, a restored APILOGIN=1 starts"
+say "  > ldd $SD"
+if [ "$COMMIT" -eq 1 ]; then
+    LDD=$(ldd "$SD" 2>&1)
+    printf '%s\n' "$LDD" | sed -e 's/^/      | /'
+    if printf '%s' "$LDD" | grep -q 'libsodium'; then
+        ck "R1 ldd read the binary (libsodium listed)" yes yes
+        ck_absent "R1b no libcrypt" "libcrypt" "$LDD"
+        ck_absent "R1c no libbsd" "libbsd" "$LDD"
+    else
+        ck "R1 ldd read the binary (libsodium listed)" yes no
+        for r in "R1b no libcrypt" "R1c no libbsd"; do not_reached "$r"; done
+    fi
+else
+    say "      (dry run - not executed)"
+fi
+OUT=$(run_sd root "CONFIG" "CONFIG")
+if [ "$COMMIT" -eq 1 ]; then
+    ck_says "R2 CONFIG listed its settings (CMDSTACK)" "CMDSTACK" "$OUT"
+    ck_absent "R2b and no APILOGIN among them" "APILOGIN" "$OUT"
+fi
+say "  > grep -n APILOGIN /etc/sd.conf; systemctl is-active sd.service"
+if [ "$COMMIT" -eq 1 ]; then
+    CONFLINE=$(grep -n 'APILOGIN' /etc/sd.conf 2>&1)
+    SDACTIVE=$(systemctl is-active sd.service 2>&1)
+    say "      | /etc/sd.conf: ${CONFLINE:-(no APILOGIN line)}"
+    say "      | sd.service  : $SDACTIVE"
+    if printf '%s' "$CONFLINE" | grep -q 'APILOGIN='; then
+        ck "R3 sd.service is active with APILOGIN in /etc/sd.conf (the retired key is accepted)" active "$SDACTIVE"
+    else
+        say "  /etc/sd.conf has no APILOGIN line (a full cycle), so the restored-file case was not measured"
+        not_reached "R3 a restored APILOGIN=1 is accepted"
+    fi
+fi
+
+head2 "17. verdict"
 if [ "$COMMIT" -eq 0 ]; then
     say "  DRY RUN - nothing was executed and nothing was checked."
     say "  Re-run with --commit, as root:"

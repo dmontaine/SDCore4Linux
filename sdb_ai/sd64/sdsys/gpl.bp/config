@@ -20,6 +20,7 @@
 * START-HISTORY:
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 Jan 25 mab add CREATUSR config parameter
+* 14 Sep 26 dm  S.18: APILOGIN no longer reported; the setting is retired.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -83,8 +84,6 @@ report.params:
 
 !!CONFIG!!
 * NOTE to dev: config names are capped at 8 char!
- * 20240219 mab mods to handle AF_UNIX sockets, security mode 
-   print 'APILOGIN  '        : config('APILOGIN')
    print 'CMDSTACK  '        : config('CMDSTACK')
    n = config('CODEPAGE') ; if n then print 'CODEPAGE  '        : n
    print 'CREATUSR  '        : config('CREATUSR')

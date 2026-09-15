@@ -28,7 +28,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
-| ⬜ | **S.18** | S | code left dead by phase 5: `linuxio.c` `login_user` (shadow + `getpeereid` peer path), `op_login`/BASIC `login()`, `APILOGIN`, and `sdclient.socket`'s Unix-socket `ListenStream` — no caller after request 24 went | — |
+| ◐ | **S.18** | S | code left dead by phase 5: `login_user` + `getpeereid` capture removed, `op_login` a fail-closed stub, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`; the Unix socket KEPT (an ssh tunnel uses it); built 14 Sep, `make` clean, free checks green; left: owner keep cycle + `witness-release-run.sh` (§13c S8, §16) | — |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
@@ -263,6 +263,12 @@ owner's ruling comes first.
 
 ## START HERE
 
+***TWENTY-THIRD SESSION, 14 Sep 2026 — S.18 BUILT, NOT INSTALLED.*** The dead
+login code phase 5 left, removed; the Unix socket turned out live and is kept.
+Detail and the two traps: the S.18 entry below. Next for the owner: a keep cycle
+(`/etc/sd.conf` still has `APILOGIN=1`, which is what R3 needs), then
+`sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit`.
+
 ***TWENTY-SECOND SESSION, 14 Sep 2026 — SCRAM PHASE 5 WITNESSED ON `9fd52d9`,
 171/171.*** Owner keep cycle 20:43:13, `assert-current` current; witness 20:45
 (`/var/tmp/witness-release-run.20260914-204511.log`), every earlier row
@@ -301,14 +307,45 @@ the piped password. Code now dead is task row S.18. Next: phase 6 — the port's
 is "rebuild and re-set passwords"; here every account's SD password must be
 set with MODIFY.PASSWORD before its API use, so it is an install/doc question.
 
-***[S.18] CODE LEFT DEAD BY PHASE 5 — TO BUILD; phase 5 witnessed on `9fd52d9`.***
-With request 24 refusing unparsed, nothing calls: `linuxio.c` `login_user`
-(the `/etc/shadow` + `crypt` path and the `getpeereid` peer path),
-`op_kernel.c` `op_login` and the BASIC `login()` it serves, `config('APILOGIN')`
-/ `pcfg.api_login`, and the Unix-socket `ListenStream` in `sdclient.socket`
-(its only client, `SDConnectUDS`, is removed). The port removed its own
-equivalents. Would falsify it: any other caller of `login(` or of the Unix
-socket — grep `gpl.bp`, `gplsrc` and the installer before deleting.
+***[S.18] CODE LEFT DEAD BY PHASE 5 — BUILT 14 Sep 2026 (twenty-third
+session), `make` exit 0 no warning, free checks green; §OPEN§: the owner's keep
+cycle and witness.*** Callers grepped first (`gpl.bp`, `gplsrc`, installer,
+`bbcmp.py`): none for `login_user`, `pcfg.api_login` or `getpeereid` beyond
+the removed code. As built, following the port (its HISTORY "17 Aug", step 6a):
+`linuxio.c` `login_user` deleted with the `getpeereid` block in
+`start_connection` and the `peer_*` globals; prototype out of `sd.h`,
+`PASSWD_FILE_NAME` out of `sdnet.h`, `<crypt.h>` out of `linuxio.c`/`linuxlb.c`;
+`op_login` a fail-closed stub (discards both args unread, pushes FALSE) — kept
+because `opcodes.h` is positional and `BCOMP`/`bbcmp.py` index the intrinsic.
+Makefile drops `-lcrypt -lbsd`; installer drops `libbsd-dev`. Measured on the
+21:00:27 `bin/sd`: `ldd` shows neither lib, `nm -u` no `crypt`/`getpeereid`.
+`APILOGIN`: field out of `PCFG`, out of `op_config.c`, `gpl.bp/config`,
+`sd.conf`; ***the `config.c` parse line STAYS, ignoring the value***, because
+an unknown key is fatal (`config.c:282`) and a keep cycle restores
+`/etc/sd.conf` (`installsdai.sh:789`), which today carries `APILOGIN=1` — the
+port kept its parses for the same reason (its PROJECT_STATUS `NETFILES`).
+***FALSIFIED HALF OF THE ORIGINAL ENTRY: the Unix-socket `ListenStream` is NOT
+dead*** — `examples/python/python_api_test/sdmeGuiTest.py:16` tunnels
+`ssh -L 4245:/tmp/sdsys/sdclient.socket`, and SCRAM works over it (measured
+below). Kept. ***Measured: the socket is `srw-rw-rw- root:sdusers`***
+(`SocketGroup` without `SocketMode`), so it is no group gate — any local user
+reaches it, as any reaches 127.0.0.1:4243; both need SCRAM.
+`scram-probe.py --unix PATH` added; run live as `don` on the `9fd52d9` install
+against `zzrel9` (no credential): unix SCRAM → refused at 47 in 5017's words,
+unix `--legacy` → 5275, TCP control → 5017. Witness: 13c S8–S8e (SCRAM and
+request 24 over the socket, path read from the installed unit), new §16 R1
+(`ldd`, libsodium as the null guard), R2 (`CONFIG`: CMDSTACK, no APILOGIN), R3
+(`sd.service` active with `APILOGIN` still in `/etc/sd.conf`; NOT REACHED on a
+full cycle, which ships none). Dry run 23 sections.
+***TWO TRAPS HIT, BOTH ALREADY IN THE PORT'S RECORD (its PROJECT_STATUS
+"`struct PCFG` IS IN THE SHARED SEGMENT"), not found by the pre-run grep
+because it searched the login tokens, not `PCFG`:*** (1) `pcfg` is a template
+in the shared segment (`sysseg.c:124` memcpy) and `SYSSEG_REVSTAMP` is only the
+release number, so the tree `bin/sd` against the live old daemon printed
+`CONFIG` shifted (`CODEPAGE 1`, `CREATUSR 0`, `DUMPDIR` empty) — an install
+cycle replaces every binary and is safe; never judge a `PCFG` change that way.
+(2) `read_config` runs only when the segment is created (`sysseg.c:139`), so
+an attaching session never parses `sd.conf`: the R3 claim is witness-only.
 
 ***TWENTY-FIRST SESSION, 14 Sep 2026 — SCRAM PHASE 4 WITNESSED ON `85fbbec`,
 163/163.*** Owner keep cycle 20:22:01, `assert-current` current; witness 20:24

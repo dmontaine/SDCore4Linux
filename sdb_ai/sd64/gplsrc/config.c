@@ -19,6 +19,7 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
+ * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
  * START-DESCRIPTION:
  *
  * Handles parsing of the configuration file.
@@ -113,8 +114,6 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.objects = 0;               /* OBJECTS:  Max loaded objects */
   pcfg.objmem = 0;                /* OBJMEM:   Max loaded object size */
   pcfg.sdclient_mode = 0;         /* SDCLIENT: Client capabilities */
-  /* 20240219 mab mods to handle AF_UNIX sockets, security mode */
-  pcfg.api_login = 1;             /* API (sdclient) login type     */
   pcfg.reccache = 0;              /* RECCACHE: Record cache size */
   pcfg.ringwait = TRUE;           /* RINGWAIT: Wait if ring buffer full */
   pcfg.safedir = FALSE;       /* SAFE_DIR: User careful update to dir files */
@@ -235,9 +234,15 @@ struct CONFIG* read_config(char* errmsg) {
       } 
       else if (sscanf(rec, "SDCLIENT=%d", &n) == 1)
         pcfg.sdclient_mode |= n;
-/* 20240219 mab mods to handle AF_UNIX sockets, security mode */        
-      else if (sscanf(rec, "APILOGIN=%d", &n) == 1)
-        pcfg.api_login = n; 
+/* 14 Sep 26 dm - S.18.  APILOGIN is RETIRED: it chose between login_user()'s
+   two paths, and login_user() is removed (the API logs in by SCRAM only).
+   The line is still ACCEPTED and ignored because an unrecognised parameter
+   is fatal just below, and a keep-configuration install restores an sd.conf
+   written while APILOGIN shipped.  Nothing reads it; CONFIG() no longer
+   reports it. */
+      else if (sscanf(rec, "APILOGIN=%d", &n) == 1) {
+        /* ignored */
+      }
       else if (strncmp(rec, "SDSYS=", 6) == 0) {
         if (!(command_options & CMD_FLASH))
           strcpy(cfg->sysdir, rec + 6);

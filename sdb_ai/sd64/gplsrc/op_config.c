@@ -22,6 +22,8 @@
  *               descriptor (the Windows port's fix; UPSTREAM_FIXES 18).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR allow create.account to create os user
+ * 14 Sep 26 dm  S.18: CONFIG('APILOGIN') removed; the setting is retired, so
+ *               it now answers as any unknown name does.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -154,9 +156,6 @@ void op_config() {
   } 
   else if (!strcmp(param, "SDCLIENT"))
     result.data.value = pcfg.sdclient_mode;
-/* 20240219 mab mods to handle AF_UNIX sockets, security mode */  
-  else if (!strcmp(param, "APILOGIN"))
-    result.data.value = pcfg.api_login;  
   else if (!strcmp(param, "RECCACHE"))
     result.data.value = pcfg.reccache;
   else if (!strcmp(param, "RINGWAIT"))

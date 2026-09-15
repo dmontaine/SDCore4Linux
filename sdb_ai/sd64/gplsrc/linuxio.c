@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Sep 26 dm S.18: login_user() removed with the getpeereid() peer capture
+ *           that fed it - request 24 is retired, nothing calls either.
  * 14 Sep 26 dm login_user loads the user's supplementary groups (initgroups)
  *           before the uid drop, on both paths; an API session had none (S.15).
  * 13 Sep 26 dm case inversion starts OFF on both connection paths (plan M: typed
@@ -53,20 +55,9 @@
 
 #include <sched.h>
 #include <syslog.h>
-/* 20240219 mab move to only allow AF_UNIX socket types */
-/* rem sudo apt install libbsd-dev needed for bsd/unistd.h and getpeereid() */
-#include <bsd/unistd.h>
 
-#ifndef __APPLE__
-#define _GNU_SOURCE /* eliminates the warning when we call crypt() below */
-#include <crypt.h>
-#endif
-
-/* 20240219 mab move to only allow AF_UNIX socket types */
-#define peer_unassigned UINT_MAX
-char peer_username[MAX_USERNAME_LEN+1];
-uid_t peer_usr_id = peer_unassigned;
-gid_t peer_grp_id = peer_unassigned;
+/* 14 Sep 26 dm - S.18.  <bsd/unistd.h> (getpeereid, libbsd) and <crypt.h>
+   went with login_user(), their only user; so did the peer_* globals.     */
 
 Public int ChildPipe;
 Public bool in_sh; /* 0562 Doing SH command? */
@@ -108,10 +99,6 @@ bool start_connection(int unused) {
   /* mostly a copy of what was done in OP_SKT.C, op_accptskt() by gwb & gcb back in Apr of 09, thanks! */
 
   struct sockaddr_storage sa;
-  struct passwd *pwd;
-  /* init peer to unassigned */
-  peer_usr_id = peer_unassigned;
-  peer_grp_id = peer_unassigned;
 
 /* 20240219 mab rebrand VBSRVR to APISRVR */ 
   if (is_sdApiSrvr)
@@ -137,32 +124,15 @@ bool start_connection(int unused) {
         struct sockaddr_un* sU =  (struct sockaddr_un*)&sa;
         /* pull out UNIX Socket path */
         strncpy(ip_addr,sU->sun_path,MAX_SOCKET_ADDR_STR_LEN-1);
-        /* see who is connecting */
-        if (getpeereid(0, &peer_usr_id, &peer_grp_id) == -1){
-          // check errno
-          syslog (LOG_INFO,"getpeereid error: %d",errno);
-          peer_usr_id = peer_unassigned; /* give garbage see UID_MAX in * /etc/login.defs */
-          peer_grp_id = peer_unassigned;
-        }else{
-          /* get user name from usr_id */
-          pwd = getpwuid(peer_usr_id);
-          if (pwd == NULL){
-            /* user not found, refuse! */
-            syslog (LOG_INFO, " When connecting to %s User: %d, not found, refuse connection!",ip_addr,peer_usr_id);
-            peer_usr_id = peer_unassigned; /* give garbage see UID_MAX in * /etc/login.defs */
-            peer_grp_id = peer_unassigned;
-            return FALSE; /* Error */ 
-          }else{
-            strncpy(peer_username, pwd->pw_name, MAX_USERNAME_LEN);
-            syslog (LOG_INFO, "Connecting to %s Peer User: %s (%d) Group: %d",ip_addr,peer_username,peer_usr_id, peer_grp_id);
- /*         
-            Ideally we would drop root privilages here with  ((setegid(grp_id))  (seteuid(usr_id)))
-            But for some reason this will cause a broken pipe error with the UNIX domain socket????
-            Strange thing is if we do it once API server is running by processing SDConnect, it works fine???
-*/
-          }
-        }
-        
+        /* 14 Sep 26 dm - S.18.  The peer's uid was read here with getpeereid()
+           for login_user()'s APILOGIN=0 branch, which ran the session as that
+           uid in place of a password.  Both are gone: a Unix-socket connection
+           authenticates by SCRAM (APISRVR requests 47/48) exactly as a TCP one
+           does.  NOT a group gate: the socket is srw-rw-rw- root:sdusers
+           (measured 14 Sep 26, SocketGroup without SocketMode), so any local
+           user reaches it, as any reaches 127.0.0.1:4243.  The socket is kept
+           - an ssh -L tunnel reaches it.                                      */
+        syslog(LOG_INFO, "Connection over Unix socket %s", ip_addr);
         break;
 
       case PF_INET:
@@ -716,101 +686,19 @@ char socket_byte() {
 }
 
 /* ======================================================================
-   login_user()  -  Perform checks and login as specified user            */
+   login_user()  -  REMOVED 14 Sep 26 dm, S.18 (the Windows port removed its
+   own 17 Aug 26).
 
-//
-// Message that details the change is here: https://groups.google.com/g/scarletdme/c/Xza0TPEVqb8
-//
-// Summarized:
-//  change this line: if (memcmp(p, "$1$", 3) == 0) /* MD5 algorithm */
-//  to: if ((memcmp(p, "$1$", 3) == 0) || /* MD5 algorithm */
-//         (memcmp(p, "$6$", 3) == 0)
-// 17Jan22 gwb Added above change
-// 30Nov23 mab Added (memcmp(p,"$y$", 3) == 0)) {  /* yescrypt */
-/* 20240219 mab move to only allow AF_UNIX socket types                                                           */
-/*   As part of this mod:                                                                                         */
-/*     if config APILOGIN = 0 (ignor)                                                                             */
-/*       we pull username, user id and group id from peer in start_connection                                     */
-/*       If these are populated, we ignore the passed user name (either came in as a local user using the API     */
-/*       or as a remote user using ssh and the API) Either way we have already gone through username and password */
-/*       verification                                                                                             */
-/*     if config APILOGIN = 1 (require)                                                                           */
-/*       require valid username and password from api connection                                                  */
-bool login_user(char *username, char *password) {
-  FILE *fu;
-  struct passwd *pwd;
-  char pw_rec[200 + 1];
-  int16_t len;
-  char *p = NULL;
-  char *q;
-  
-  if ((peer_usr_id == peer_unassigned) || (pcfg.api_login)){
-    /* peer unassigned or require api login set,  go through normal login process */
-    if ((fu = fopen(PASSWD_FILE_NAME, "r")) == NULL) {
-      tio_printf("%s\n", sysmsg(1007));
-      return FALSE;
-    }
-
-    len = strlen(username);
-
-    /* Modified by Composer AI - 2026/06/10.
-       fgets() returns a pointer; ordered comparison with zero ("> 0") is
-       invalid and only worked by accident. Compare against NULL instead. */
-    /* while (fgets(pw_rec, sizeof(pw_rec), fu) > 0) { */
-    while (fgets(pw_rec, sizeof(pw_rec), fu) != NULL) {
-    /* -------------------- */
-      if ((pw_rec[len] == ':') && (memcmp(pw_rec, username, len) == 0)) {
-        p = pw_rec + len + 1;
-        break;
-      }
-    }
-    fclose(fu);
-
-    if (p != NULL) {
-      if ((memcmp(p, "$1$", 3) == 0) || /* MD5 algorithm */
-          (memcmp(p, "$6$", 3) == 0) || /* SHA512 */
-          (memcmp(p,"$y$", 3) == 0)) {  /* yescrypt */
-        if ((q = strchr(p, ':')) != NULL)
-          *q = '\0';
-        if (strcmp((char *)crypt(password, p), p) == 0) {
-
-            /* 14 Sep 26 dm - S.15.  initgroups() BEFORE the uid drop, while this
-               process is still root.  Without it the session kept the empty
-               group list systemd started sd -n -q with - measured on 3ff8027,
-               witness-release-run.sh 13b A2: "Groups:" empty, so no sdusers and
-               no sdu_<account>, which a terminal session of the same person
-               holds.  A granted account was then read-only over the API.  It
-               gives the session the user's own groups and nothing else, as
-               login(1) does; if it fails the login is refused, because a
-               session without its groups is the defect this closes.        */
-            if (((pwd = getpwnam(username)) != NULL) && (initgroups(pwd->pw_name, pwd->pw_gid) == 0)
-                && (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
-              syslog (LOG_INFO, "sdApiSrvr login via Username: %s (%d) Group: %d",username,pwd->pw_uid, pwd->pw_gid);
-              return TRUE;
-            } 
-        }
-      }
-    }
-  }else{
-   /* we have a peer user assigned, and pcfg.api_login not set change process ids to reflect  */ 
-    /* 14 Sep 26 dm - S.15, the same for a Unix-socket peer (see above). */
-    if ((initgroups(peer_username, peer_grp_id) == 0) && (setgid(peer_grp_id) == 0) && (setuid(peer_usr_id) == 0)) {
-      syslog (LOG_INFO, "sdApiSrvr login via Peer User: %s (%d) Group: %d",peer_username,peer_usr_id, peer_grp_id);
-      syslog (LOG_INFO, "sdApiSrvr process.username is: %s", process.username);     
-  /* set process.username to reflect who we ended up logged in as */
-      strncpy(process.username, peer_username,MAX_USERNAME_LEN+1); 
-      return TRUE;
-    } 
-  }
-  if ((peer_usr_id == peer_unassigned) || (pcfg.api_login)){
-  /* failed username / password login */
-    syslog (LOG_INFO, "sdApiSrvr login via Username: %s  Rejected (Bad UserName or Password)",username);
-  }else{
-    syslog (LOG_INFO, "sdApiSrvr login via Peer: %s  Rejected (Unable to change uid / gid)",peer_username);
-  }
-
-  return FALSE;
-}
+   It authenticated APISRVR's request 24, the cleartext network login, by
+   two paths: APILOGIN=1 checked the password against /etc/shadow with
+   crypt() and dropped to that user; APILOGIN=0 skipped the password and
+   dropped to the Unix-socket peer uid getpeereid() had read in
+   start_connection().  Request 24 was retired by SCRAM phase 5 (9fd52d9,
+   witnessed 171/171) and its handler no longer calls login(), so neither
+   path had a caller.  The API now proves the password with SCRAM against
+   $cred (APISRVR requests 47/48), sets the name with K$SET.USERNAME and
+   takes the Linux identity - initgroups, setgid, setuid, the S.15 order -
+   with K$ASSUME.USER (op_kernel.c).                                        */
 
 /* ======================================================================
    Signal handler                                                         */

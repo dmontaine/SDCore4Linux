@@ -29,6 +29,8 @@
  *               initgroups/setgid/setuid (W.4 SCRAM phase 3).
  * 14 Sep 26 dm  op_login sizes the password from the string, not 32 bytes, so a
  *               longer password is not cut (S.14, conforming to the port).
+ * 14 Sep 26 dm  S.18: op_login is a fail-closed stub, as the port's is -
+ *               login_user() is removed and request 24 no longer calls login().
  * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
  *               audit trail; the identity is stamped in k_error.c
  *               (PORT_ADOPTION 13).
@@ -852,60 +854,22 @@ void op_login() {
      |================================|=============================|
  */
 
-  bool ok;
-  DESCRIPTOR *descr;
-  char username[32 + 1];
-  char *password = NULL;
-  int pw_len;
+/* 14 Sep 26 dm - S.18.  FAILS CLOSED, as the Windows port's has since 17 Aug
+   26.  The opcode is kept only because opcodes.h is positional, and BCOMP's
+   int.intrinsics and bbcmp.py's intrinsic table are matched to it - removing
+   the intrinsic is a multi-sided edit for no gain.
 
-  /* Get password */
+   login_user() is gone (linuxio.c says why), and APISRVR's request 24, its
+   one caller, answers 5275 without calling login().  Anything still calling
+   login() is using a route that no longer exists, so FALSE is the honest
+   answer.  The arguments are discarded unread: the password is never copied
+   into a buffer, so there is nothing to wipe.                              */
 
-  /* 14 Sep 26 dm - S.14, CONFORMING TO THE WINDOWS PORT, whose client refuses
-     only an empty password.  This was char[32 + 1]: k_get_c_string copies at
-     most max_bytes and returns -1 when the string is longer, so a longer
-     password was cut and failed to log in with no word why.  The buffer is
-     sized from the string itself, and wiped before it is freed.           */
-  descr = e_stack - 1;
-  if (descr->type != STRING)
-    k_get_string(descr);
-  pw_len = (descr->data.str.saddr != NULL) ? descr->data.str.saddr->string_len : 0;
-  password = (char *)k_alloc(124, pw_len + 1);
-  if (password != NULL)
-    (void)k_get_c_string(descr, password, pw_len);
-  k_dismiss();
-
-  /* Get username */
-
-  descr = e_stack - 1;
-  (void)k_get_c_string(descr, username, 32);
-  k_dismiss();
+  k_dismiss();   /* Password */
+  k_dismiss();   /* User name */
 
   InitDescr(e_stack, INTEGER);
-  ok = (password != NULL) && login_user(username, password);
-  if (password != NULL) {
-    memset(password, 0, pw_len + 1);
-    k_free(password);
-  }
-/* 20240219 mab move to only allow AF_UNIX socket types                                                           */
-/*   As part of this mod:                                                                                         */
-/*     if config APILOGIN = 0 (ignor)                                                                             */
-/*       we pull username, user id and group id from peer in start_connection                                     */
-/*       If these are populated, we ignore the passed user name (either came in as a local user using the API     */
-/*       or as a remote user using ssh and the API) Either way we have already gone through username and password */
-/*       verification                                                                                             */
-/*     if config APILOGIN = 1 (require)                                                                           */
-/*       require valid username and password from api connection                                                  */
- 
-  if (ok) {
-    if (pcfg.api_login){
-      strcpy((char *)(my_uptr->username), username);
-      strcpy(process.username, username);
-    }else{
-      /* APILOGIN = 0 process.username was assigned in login.user */
-      strcpy((char *)(my_uptr->username), process.username);
-    }
-  }
-  (e_stack++)->data.value = ok;
+  (e_stack++)->data.value = FALSE;
 }
 
 /* ======================================================================

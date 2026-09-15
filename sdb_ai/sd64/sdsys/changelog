@@ -16,6 +16,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  THE APILOGIN SETTING IS RETIRED, WITH THE OLD API LOGIN IT CONTROLLED.
+
+           APILOGIN in sd.conf chose how the old cleartext API login checked
+           a connection: against the Linux password (1), or not at all for a
+           local-socket caller, who was simply run as whichever Linux user had
+           connected (0).  That login is gone - the API accepts only SCRAM,
+           described below - so the setting has nothing left to choose, and
+           the code behind both choices is removed from SD.
+
+           CONFIG no longer lists APILOGIN, and a fresh sd.conf no longer
+           contains it.  An sd.conf that still has the line keeps working: SD
+           reads it and ignores it, so a kept configuration does not stop SD
+           starting.
+
+           SD no longer needs the libbsd library to build, and no longer links
+           the system password-hashing library (libcrypt): the only thing that
+           used either was the removed login.
+
+           WHAT DOES NOT CHANGE: the API's local socket (/tmp/sdsys/
+           sdclient.socket) still works, including through an ssh tunnel, but
+           a program connecting over it now logs in with SCRAM and the SD
+           password exactly as over the network - it is no longer let in on
+           the strength of which Linux user opened it.
+
 14 Sep 26  THE API NO LONGER ACCEPTS A PASSWORD SENT IN CLEAR.
 
            Programs that connect to SD through its API used to send the

@@ -34,6 +34,13 @@ left to reach request 24.  Its verdict lines are its own:
   LEGACY: login ACCEPTED                     request 24 logged in
   LEGACY: login REFUSED at request 24: ...   request 24 refused
 
+--unix PATH (added with S.18, 14 Sep 2026) connects to the API's Unix socket
+instead of TCP - the same protocol, the socket sdclient.socket also listens
+on.  Its server side used to read the peer's uid with getpeereid() for the
+retired APILOGIN=0 login; that code is removed, so this is how a witness shows
+the socket still serves SCRAM and still refuses request 24.  The "transport"
+line names what was actually connected to.
+
 Exit 0 logged in (and the account, if given, entered), 1 refused (login or
 account), 2 could not run, 3 the server's signature did not verify.
 
@@ -102,6 +109,8 @@ def main(argv):
     ap = argparse.ArgumentParser(description="One SCRAM-SHA-256 SD API session.")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=4243)
+    ap.add_argument("--unix", default="",
+                    help="connect to this Unix socket path instead of host:port")
     ap.add_argument("--user", required=True)
     ap.add_argument("--account", default="")
     ap.add_argument("--hold", type=float, default=0.0)
@@ -114,7 +123,10 @@ def main(argv):
 
     pw = os.environ.get("SD_SCRAM_PASSWORD")
     say("scram-probe")
-    say("  host     : %s  port %d" % (a.host, a.port))
+    if a.unix:
+        say("  transport: unix socket %s" % a.unix)
+    else:
+        say("  transport: tcp %s port %d" % (a.host, a.port))
     say("  user     : %s" % a.user)
     say("  account  : %s" % (a.account or "(none - authentication only)"))
     say("  password : %s" % ("from SD_SCRAM_PASSWORD, %d characters" % len(pw)
@@ -130,7 +142,12 @@ def main(argv):
         return 2
 
     try:
-        sock = socket.create_connection((a.host, a.port), timeout=30)
+        if a.unix:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(30)
+            sock.connect(a.unix)
+        else:
+            sock = socket.create_connection((a.host, a.port), timeout=30)
         ack = recv_exact(sock, 1)
     except (OSError, ConnectionError) as e:
         say("scram-probe: CANNOT RUN - cannot connect: %s" % e)
