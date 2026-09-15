@@ -19,9 +19,10 @@ import sys
 
 INBOX = os.path.expanduser("~/pCloudDrive/sdcore-mail/to-linux")
 
-# 15 Sep 26 - the owner: act on in-scope messages without asking, and check
-# every 2 minutes while a parity exchange is open (15 otherwise), "otherwise
-# processes could take hours".  The cadence rule itself is in CLAUDE.md.
+# 15 Sep 26 - the owner: act on in-scope messages without asking, and make the
+# check adaptive so parity discussions move quickly.  A watcher Monitor
+# (.claude/mailbox-watch.sh) wakes the session within seconds; this 15-minute
+# loop is the fallback and keeps the watcher armed.  The rules are in CLAUDE.md.
 LOOP_ARGS = (
     "15m Check the SD Core mailbox: list ~/pCloudDrive/sdcore-mail/to-linux/ "
     "(skip *.partial) and handle any new message following CLAUDE.md's "
@@ -29,10 +30,11 @@ LOOP_ARGS = (
     "asking on what it puts in scope (parity decisions approved in either "
     "port, interop details for work under way, defects to verify), move each "
     "handled message to done/, and report what was done; anything "
-    "port-specific or a new capability goes to the owner. While a parity "
-    "exchange is open, run this check every 2 minutes; drop back to 15 after "
-    "30 minutes with nothing sent or received. If there is nothing new, say "
-    "nothing."
+    "port-specific or a new capability goes to the owner. Then make sure the "
+    "mailbox watcher is running: if no Monitor is armed for "
+    "/home/don/Projects/sdcore4linux/.claude/mailbox-watch.sh, arm one with "
+    "timeout_ms 1800000, and re-arm it whenever it expires. If there is "
+    "nothing new, say nothing."
 )
 
 

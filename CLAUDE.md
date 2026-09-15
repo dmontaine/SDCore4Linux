@@ -142,19 +142,25 @@ pCloud: `~/pCloudDrive/sdcore-mail/` here, `P:\sdcore-mail\` on Windows. Its
 - **Git stays the record.** A message points at a commit or an entry. A finding
   that must last goes into PROJECT_STATUS.md, or into the port's
   `BUGS_FROM_LINUX_PORT.md`, not the mailbox.
-- **The check runs on a loop from the start of every session** (owner, 15 Sep
-  2026). `.claude/hooks/mailbox-session-start.py`, a `SessionStart` hook in
-  `.claude/settings.json`, lists the inbox and tells the session to start it:
-  the `loop` skill every 15 minutes, once per session. A hook cannot start a
-  loop itself, so if the hook's instruction is in context and no loop is
-  running, start it.
-- **Check every 2 minutes while a parity exchange is open** (owner, 15 Sep 2026:
-  *"when working on parity issues together the loop should be more often,
-  otherwise processes could take hours"*). Open means a message is waiting on a
-  reply, or one is being worked on. Drop back to 15 minutes after 30 minutes
-  with nothing sent or received. Change the cadence by replacing the loop's cron
-  job: `*/2 * * * *` while open, `7,22,37,52 * * * *` when quiet. This is a
-  parity decision, so it binds the Windows loop too.
+- **The check runs from the start of every session** (owner, 15 Sep 2026).
+  `.claude/hooks/mailbox-session-start.py`, a `SessionStart` hook in
+  `.claude/settings.json`, lists the inbox and tells the session to start the
+  `loop` skill every 15 minutes, once. A hook cannot start a loop itself, so if
+  its instruction is in context and no loop is running, start it.
+- **The check is adaptive: a watcher wakes the session within seconds, and the
+  15-minute loop is the fallback** (owner, 15 Sep 2026). He first said *"when
+  working on parity issues together the loop should be more often, otherwise
+  processes could take hours"*. The Windows loop was then made adaptive *"so
+  that parity discussions can happen quickly"*.
+  - `.claude/mailbox-watch.sh` runs as a Monitor. It reports every message
+    already in `to-linux/` when armed, then each new one within 5 seconds, and
+    says when the mailbox becomes unreachable.
+  - A Monitor expires after 30 minutes; re-arm it on each expiry.
+  - Each 15-minute tick re-arms the watcher if it is not running, and handles
+    anything the watcher missed.
+
+  This replaced a fixed 2-minute cadence the same day. If the Windows port's
+  adaptive design differs, its design is followed here (Project stance).
 
 ## Run standing procedures exactly as written
 
@@ -332,6 +338,16 @@ of them reverse what an earlier analysis recommended.
 - ***CONFORMITY WITH SD CORE FOR WINDOWS IS THE GOAL, AND IT OUTRANKS CONFORMITY
   WITH UPSTREAM `sdb64`.*** Where the two disagree, the Windows port wins.
   Upstream is a source of fixes to take, not a contract to honour.
+  ***AND THE WINDOWS PORT'S DECISIONS ARE THIS PORT'S DECISIONS*** (owner, 15 Sep
+  2026: *"the linux port should follow the windows port decisions where not
+  contraindicated by the differences between the two operating systems"*). A
+  decision taken there binds here, whether it is in the port's record or arrives
+  through the mailbox, and is adopted without asking the owner again. The
+  exception is a decision the OS difference contraindicates: the privilege
+  model, a mechanism only one OS has, or a Windows-only workaround. Then say
+  which difference applies and forward it to the owner, as "Check the Windows
+  port history before you ask" already requires. Where the port stopped short,
+  §M's rule to go further still stands.
 - **Release numbering follows SD Core for Windows, not upstream.** Upstream's
   1.0-3 is not this project's next version.
 - **The three-tier account model is adopted** — STANDARD, PROGRAMMER,
