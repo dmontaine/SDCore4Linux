@@ -11,6 +11,10 @@
 # 14 Sep 26 dm  remote-api on|local|off|show and remote-ssh on|off|show, for
 #               REMOTE.API and REMOTE.SSH (S.13): the sdclient.socket listener
 #               through a drop-in, and ufw's 4243/tcp and 22/tcp allow rules.
+# 15 Sep 26 dm  Firewall rules are read with "ufw show added" (ufw_added,
+#               ufw_has_allow, ufw_ssh_rules), not "ufw status", which lists
+#               none while ufw is inactive - so LOCAL/OFF never deleted the
+#               installer's 4243/tcp rule (witness 13h H5c).
 # END-HISTORY
 #
 # START-DESCRIPTION:
@@ -140,8 +144,23 @@ ufw_state() {   # absent | inactive | active-deny | active-allow  (root only)
   fi
 }
 
-ufw_has_allow() {   # $1 port/proto; true if an ALLOW rule for it is present
-  ufw status 2>/dev/null | grep -Eq "^$1([[:space:]]|\$).*ALLOW"
+# 15 Sep 26 dm - RULES ARE READ FROM "ufw show added", NOT "ufw status".  While
+# ufw is inactive, "ufw status" prints "Status: inactive" and no rules at all,
+# so every rule read as absent: REMOTE.API LOCAL and OFF never deleted the
+# installer's 4243/tcp rule, and a later "ufw enable" would have opened a port
+# SD had reported closed (witness 13h H5c, 14 Sep).  "show added" lists what
+# ufw has configured, enforcing or not, one "ufw <rule>" line each - the same
+# words that added it.
+ufw_added() {   # the configured rules, active or not (root only)
+  ufw show added 2>/dev/null
+}
+
+ufw_has_allow() {   # $1 port/proto; true if an allow rule for it is configured
+  ufw_added | grep -Eq "^ufw allow (in )?$1( |\$)"
+}
+
+ufw_ssh_rules() {   # the configured rules that allow ssh, one per line
+  ufw_added | grep -E '^ufw allow (in )?((22(/tcp)?|OpenSSH)( |$)|.* port 22( |$)|.* app OpenSSH( |$))' | sed 's/^ufw //'
 }
 
 ufw_delete_allow() {   # $1 port/proto
@@ -225,7 +244,7 @@ ssh_show() {
   [[ $sshd == active ]] || sshd=$(systemctl is-active sshd 2>/dev/null)
   fw=$(ufw_state)
   rules=
-  [[ $fw != absent ]] && rules=$(ufw status 2>/dev/null | grep -E '^(22(/tcp)?|OpenSSH)([[:space:]]|$).*ALLOW' | sed 's/  */ /g' | tr '\n' ';')
+  [[ $fw != absent ]] && rules=$(ufw_ssh_rules | tr '\n' ';')
   printf 'ssh server     : %s\n' "${sshd:-unknown}"
   printf 'firewall       : ufw %s; rules allowing ssh: %s\n' "$fw" "${rules:-none}"
   if [[ $fw != active-deny ]]; then
@@ -255,7 +274,7 @@ remote_ssh() {
   else
     ufw_delete_allow 22/tcp || return 1
     if [[ $DRY -eq 0 ]]; then
-      left=$(ufw status 2>/dev/null | grep -E '^(22(/tcp)?|OpenSSH)([[:space:]]|$).*ALLOW')
+      left=$(ufw_ssh_rules)
       [[ -n $left ]] && printf '%s: WARNING - other rules still allow ssh and were not added by SD: %s\n' "$PROG" "$(printf '%s' "$left" | tr '\n' ';')"
     fi
   fi
