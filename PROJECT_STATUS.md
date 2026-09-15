@@ -22,17 +22,17 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); left: re-witness after R1b's instrument fix, the port (its RELEASE_1.1 41), pinning unruled | — |
+| ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`); left: the port (its RELEASE_1.1 41), pinning unruled | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO); left: re-witness | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); left: `batchjob`/`cmdaudit` (no mechanism to verify), the API verifiers (unruled, W.4) | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
 | ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
 | ✅ | **S.16** | — | the port's per-account API route (`sdapi`, MODIFY.ACCOUNT API/NONE, 10073 at the login) — witnessed on `dea3736`, §13f F0–F9b all pass (`/var/tmp/witness-release-run.20260914-231854.log`) | 14 Sep 2026 |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
-| ◐ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh` in the admin layer, messages 10131-10139; witnessed on `dea3736` §13h except H5c (rule detection reads `ufw status`, blind when ufw is inactive — see START HERE), again on `0d58171`; fixed 15 Sep (`ufw show added` in `sd-elevate` and the witness, `test-sd-elevate.py` U1–U4); left: re-witness | — |
+| ✅ | **S.13** | — | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh`, messages 10131-10139 — H5c failed on `dea3736` and `0d58171` (`ufw status` lists no rules while ufw is inactive), fixed with `ufw show added` (`test-sd-elevate.py` U1–U4), and §13h all pass on `0b67dba` incl. H5c and a real H1d (`…-102147.log`) | 15 Sep 2026 |
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
@@ -264,9 +264,11 @@ owner's ruling comes first.
 
 ## START HERE
 
-***HANDOFF, 15 Sep — WITNESS ON `0d58171` (S.19 merged to `main`): 253/256
-(log `/var/tmp/witness-release-run.20260915-095336.log`). §13i T1–T8 ALL PASS.
-The three failures, all three fixed 15 Sep and NOT YET WITNESSED:***
+***HANDOFF, 15 Sep 10:23 — RE-WITNESSED ON `0b67dba`: 256/256, R1b, Y0 AND
+H5c ALL PASS (log `/var/tmp/witness-release-run.20260915-102147.log`, install
+10:09:58, 0 FAIL lines). S.13 CLOSED. §13i T1–T8 pass again.*** The first run,
+on `0d58171`, was 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`).
+Its three failures, fixed in `0b67dba`:
 - **R1b (instrument, new):** `ck_absent "libcrypt"` matched `libcrypto.so.4`,
   which S.19 links; the log's `ldd` has no `libcrypt.so`. Needle now `libcrypt.so`.
 - **Y0 (instrument, 14 Sep's):** §13g now sends `LOGTO zzrel1` before the first
@@ -278,8 +280,8 @@ The three failures, all three fixed 15 Sep and NOT YET WITNESSED:***
   passing vacuously too. `test-sd-elevate.py` U1–U4 against a fake inactive ufw:
   63/0, and U1 and U4 red on a copy whose `ufw_added` reads `ufw status`.
   Changelog entry added.
-*Next, owner:* keep cycle, `assert-current`, then `sudo bash
-/home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit`.
+*Next:* S.19's port half (sd4windows RELEASE_1.1 41) and the owner's pinning
+decision; on Linux the open rows below.
 
 ***[S.19] PRIORITY #1, RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
 2026). LINUX: TLS 1.3 ON EVERY API CONNECTION, SCRAM BOUND TO IT (RFC 9266
@@ -326,9 +328,8 @@ Python's `ssl` offers neither (measured 3.14.7, `CHANNEL_BINDING_TYPES ==
 10 s handshake deadline and sees "connection closed". A non-blocking BASIC
 `READ.SOCKET` on a partial TLS record busy-waits (`sd_tls_client_read` retries
 WANT_READ) - `!sdclient` is blocking. *Next:* merged to `main` and witnessed
-15 Sep (`0d58171`, §13i T1–T8); re-witness once R1b's instrument fix is
-installed (see the 15 Sep handoff); the port adopts the same design (its
-RELEASE_1.1 41). Original
+15 Sep (`0d58171`, §13i T1–T8), re-witnessed 256/256 on `0b67dba`; left: the
+port adopts the same design (its RELEASE_1.1 41), and pinning is the owner's. Original
 finding follows. Only the login was protected: SCRAM (W.4) proves the password
 without sending it, but every request and reply after it is plain TCP —
 `apisrvr:1066` *"there is no TLS channel to bind to"*; no cipher in `sdclilib.c`
@@ -792,10 +793,14 @@ does. SCRAM runs on Linux, so it is adopted — the port's `$cred` store,
 `CRED_SET`/`CRED_VERIFY`, SCRAM in APISRVR and the client change. Until it is
 built, with "Allow API access" = Y the password crosses TCP 4243 in clear. Run in the sixteenth (above).
 
-***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — BUILT 14 Sep 2026
-(twenty-fourth session), `test-sd-elevate.py` 59/59; §OPEN§: the verbs compile
-only at install and the helper's real steps need root, so both are unrun until
-the keep cycle and witness §13h.*** As built, the plan below: `sd-elevate
+***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — CLOSED: WITNESSED
+15 Sep 2026 on `0b67dba`, §13h ALL PASS (`/var/tmp/witness-release-run.20260915-102147.log`).***
+Built 14 Sep (twenty-fourth session). H5c had failed on `dea3736` and `0d58171`:
+`ufw status` lists no rules while ufw is inactive, so LOCAL/OFF never deleted
+the installer's 4243/tcp rule and H1d/H7b passed without looking. Fixed 15 Sep
+by reading `ufw show added` (`sd-elevate` `ufw_added`/`ufw_has_allow`/
+`ufw_ssh_rules`, the witness's `ufw_rule_present`; `test-sd-elevate.py` U1–U4,
+red on a status-reading copy). As built, the plan below: `sd-elevate
 remote-api on|local|off|show` writes `/etc/systemd/system/sdclient.socket.d/
 sd-remote-api.conf` (`ListenStream=` reset, the unit's own Unix-socket line,
 then 0.0.0.0 or 127.0.0.1:4243), daemon-reload, enable, restart the socket;
