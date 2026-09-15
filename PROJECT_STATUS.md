@@ -30,7 +30,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
 | ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
-| ◐ | **S.17** | M | the port's remote-administrator gate for the API: `!peer_local`, `vb.scram.final` gate (tier or `sdadmin`), 10174, `linuxio.c` records the peer (getpeername); built 14 Sep, `make` clean, free checks green; left: owner keep cycle + witness §13e E1–E6c | — |
+| ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -265,9 +265,9 @@ owner's ruling comes first.
 
 ***TWENTY-FOURTH SESSION, 14 Sep 2026 — ALL TEN OPEN ROWS RE-MEASURED STILL
 OPEN (`don` has no `$cred`: refused at 47 like `zzrel9`; audit 130,065 bytes of
-1 MB; journal 21:20:20 `REFUSING TO SWEEP`); S.17 BUILT, NOT INSTALLED.*** See
-the S.17 entry below. Next for the owner: keep cycle, then
-`sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit`.
+1 MB; journal 21:20:20 `REFUSING TO SWEEP`); S.17 WITNESSED ON `e4e470e`,
+195/195.*** See the S.17 entry below. Open rows now: P.24, Q.19, Q.13, Q.22,
+P.6, W.4 (phase 6: `don` needs MODIFY.PASSWORD), S.16, S.13, S.1.
 
 ***TWENTY-THIRD SESSION, 14 Sep 2026 — S.18 WITNESSED ON `fed4b36`, 183/183.***
 The dead login code phase 5 left, removed; the Unix socket turned out live and
@@ -433,10 +433,18 @@ no `sdapi` group, so phase 3 tests `sdusers` with 5009, as `vb.login` does.
 Would need: the group at install, MODIFY.ACCOUNT's API/NO.API keywords, the
 test swapped, and messages 10073 and the route reports.
 
-***[S.17] REMOTE ADMINISTRATOR OVER THE API — BUILT 14 Sep 2026 (twenty-fourth
-session), `make` exit 0 no warning, free checks green; §OPEN§: `gpl.bp` compiles
-only at install (owner's ruling, SDSYS compiles), so the gate is unrun until the
-keep cycle and witness §13e.*** From the port's PRE_RELEASE_FIXES 170 (witnessed
+***[S.17] REMOTE ADMINISTRATOR OVER THE API — CLOSED: WITNESSED 14 Sep 2026 on
+install `e4e470e` (21:48:07 keep cycle, `assert-current` current), owner-run
+`witness-release-run.sh --commit` 21:51, 195/195, 0 not reached
+(`/var/tmp/witness-release-run.20260914-215124.log`).*** E1 control: PROGRAMMER
+over 192.168.0.210 VERIFIED + entered. E3/E3c: ADMINISTRATOR admitted over
+127.0.0.1 and the Unix socket. E4: same account and password over
+192.168.0.210 refused at 48, reply 470 bytes, 10174's first line. E5 audit
+`API REFUSED user=zzrel1 reason=administrator on a remote API session from
+192.168.0.210` — so `getpeername` and `!peer_local` both work. E6b: PROGRAMMER
+tier + `sdadmin` by hand refused (the group arm); E6c out again, §14 X1 then
+landed in sd. `peer_local` and `apisrvr` compiled at install (the two
+unmeasured points). Every earlier row re-passed. *(As built:)* From the port's PRE_RELEASE_FIXES 170 (witnessed
 there 5 Sep, 15/0). ***The PRE_RELEASE 13 question, read:*** 13 lets an
 administrator ssh in to a real shell, which the port's ssh gate (its 167, in
 LOGIN) forbids. That half does not transfer — an admin's ssh session never
