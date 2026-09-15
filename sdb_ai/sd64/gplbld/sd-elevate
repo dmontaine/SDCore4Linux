@@ -5,6 +5,9 @@
 # START-HISTORY:
 # 09 Sep 26 dm  Written for PRE_RELEASE 14, the owner's ruling of 9 Sep 2026:
 #               SD ships a sudoers.d drop-in for a group SD owns.
+# 14 Sep 26 dm  sdapi joins the whitelist (S.16, the port's per-account API
+#               route): MODIFY.ACCOUNT API / NONE move a person in and out of
+#               it.  Not deletable here, like sdusers and sdadmin.
 # END-HISTORY
 #
 # START-DESCRIPTION:
@@ -166,9 +169,9 @@ require_sd_group() {
   local group=$1
   require_name "group" "$group"
   case $group in
-    sdusers|sdadmin) : ;;
+    sdusers|sdadmin|sdapi) : ;;
     sdu_?*|sdg_?*) : ;;
-    *) die "'$group' is not an SD group (want sdusers, sdadmin, sdu_*, or sdg_*)" ;;
+    *) die "'$group' is not an SD group (want sdusers, sdadmin, sdapi, sdu_*, or sdg_*)" ;;
   esac
 }
 
@@ -265,8 +268,10 @@ case $verb in
     # exist, which takes this helper away from every administrator.
     # Only the per-account groups are destroyable, which is all DELACC:197
     # ever asks for - it passes the account's own sdu_/sdg_ group.
+    # 14 Sep 26 dm - sdapi too: deleting it refuses every API login at once
+    # (APISRVR tests membership), which is the uninstaller's job, not SD's.
     case $1 in
-      sdusers|sdadmin)
+      sdusers|sdadmin|sdapi)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"

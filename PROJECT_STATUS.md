@@ -29,7 +29,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
 | ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
 | ✅ | **S.18** | — | dead login code removed (`login_user`, `getpeereid`, `APILOGIN` accepted-and-ignored, no `-lcrypt`/`-lbsd`); Unix socket kept and serves SCRAM — witnessed on `fed4b36`, 183/183 (§13c S8–S8e, §16 R1–R3) | 14 Sep 2026 |
-| ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
+| ◐ | **S.16** | M | the port's per-account API route: `sdapi` (installer creates + seeds admins), MODIFY.ACCOUNT API/NONE, demotion and CREATE.ACCOUNT must name one, `vb.scram.final` tests it (10073), DELACC strips it; built 14 Sep, free checks green; left: keep cycle + witness §13f F0–F9b | — |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
@@ -426,12 +426,47 @@ Unmeasured when built, both measured by the run above: that APISRVR compiles
 (install only) and that the session runs as the user after `K$ASSUME.USER` (S2). Changelog deferred to phase 5,
 when a user would notice.
 
-***[S.16] PER-ACCOUNT API ROUTE — TO BUILD.*** The port's `vb.scram.final`
-tests `sdapi` membership, which `MODIFY.ACCOUNT <account> API` grants and
-CREATE.ACCOUNT deliberately does not (port, owner 21 Aug 2026). This tree has
-no `sdapi` group, so phase 3 tests `sdusers` with 5009, as `vb.login` does.
-Would need: the group at install, MODIFY.ACCOUNT's API/NO.API keywords, the
-test swapped, and messages 10073 and the route reports.
+***[S.16] PER-ACCOUNT API ROUTE — BUILT 14 Sep 2026 (twenty-fourth session),
+free checks green; §OPEN§: `gpl.bp` compiles only at install, so unrun until
+the keep cycle and witness §13f.*** ***Adopted, not asked:*** the 10 Sep parity
+audit had listed "ssh ForceCommand vs `sdssh`/`sdapi` groups" as a kept
+difference, but neither it nor the S.16 row was an owner ruling; the owner's
+stance of 12 Sep ("security ships tight and the administrator relaxes it by
+choice") decides the API half — before this any `sdusers` member with an SD
+password could use the API. The ssh half stays ForceCommand (PRE_RELEASE 13).
+From the port (its MODIFYA route.set/route.apply 21–27 Aug, CREATEA, owner
+rulings 20/21/27 Aug), with the ssh half cut:
+- `sdapi` group: `installsdai.sh` creates it and seeds every `sdadmin` member
+  each install (a keep-accounts install otherwise keeps an administrator sdapi
+  never heard of); `deletesdai.sh` deletes it only with the accounts, as sdadmin.
+- `sd-elevate`: `sdapi` whitelisted and undeletable; `test-sd-elevate.py` +3
+  REFUSE rows, 45/45 (no ALLOW row: dry-run checks the group exists, and it
+  exists only after an install carrying this).
+- `modifya`: `API`/`NONE` (absolute, 10077/10079, 10080 no-op, 10081 failure,
+  audit `MODIFY.ACCOUNT API … to=yes|no`); refused for a group account (10087)
+  and an administrator by tier ***or `sdadmin`*** (10083); `SSH`/`BOTH` refused by
+  name (10919, Linux). Leaving ADMINISTRATOR must name API or NONE (10111, the
+  port's 27 Aug ruling), parsed before anything changes; becoming one joins
+  sdapi, and repeating ADMINISTRATOR repairs a missing membership. ***Found on
+  the way and fixed:*** `@system.return.code = 0` sat after the group moves and
+  overwrote a failed `join.sdadmin`/`leave.sdadmin`'s -ER$FAILED.
+- `createa`: a non-administrator USER account must say API or NONE (10082),
+  checked before the Linux user is created; NONE on an administrator 10083;
+  a route word on GROUP/OTHER 10087; administrator or API joins sdapi.
+- `apisrvr` `vb.scram.final`: after sdusers, `sdapi` or 10073, reason
+  `not a member of sdapi`; a missing group refuses everybody (the port's).
+- `delacc`: a kept Linux user loses sdapi, between sdadmin and sdusers.
+- Callers updated: `witness-release-run.sh` (§6 `PROGRAMMER API`, §12 zzrel3
+  `NONE`, §13b zzrel2 `PROGRAMMER NONE`, §13e E6 `PROGRAMMER API`, §15 K6 counts
+  sdapi), `witness-tierchange.sh` M2 `NONE`, `witness-accounts.sh` rows 1/2a/3.
+Witness §13f: F0 zzrel1 in sdapi; F1 NONE → F2 same login refused 10073 +
+audit; F3 10080; F4 API → F5 login works (the before/after pair); F6 SSH 10919;
+F7 NONE on zzrel2 10083; F8 wordless demotion 10111, still ADMINISTRATOR; F9
+wordless CREATE.ACCOUNT 10082, nothing made. Dry run 25 sections.
+***Would falsify it:*** a compile error in `modifya`/`createa`/`apisrvr` (no
+DEFFUN in `bbcmp.py`, so nothing compiles them before install); `id -nG`
+reading a stale group cache after `sd-elevate` (F1b/F4b would then fail on the
+instrument, not the product).
 
 ***[S.17] REMOTE ADMINISTRATOR OVER THE API — CLOSED: WITNESSED 14 Sep 2026 on
 install `e4e470e` (21:48:07 keep cycle, `assert-current` current), owner-run

@@ -16,6 +16,39 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  THE API IS GRANTED PER ACCOUNT.
+
+           Until now any SD user could log in through the API once they had
+           an SD password.  The API now admits only accounts that have been
+           given it.  An administrator always has it.  Anyone else gets it
+           with
+
+               modify.account <account> api
+
+           and loses it with
+
+               modify.account <account> none
+
+           A refused login is told "<user> is not permitted to use the API"
+           and the refusal is written to the audit trail.  SD Core for
+           Windows works the same way.
+
+           CREATE.ACCOUNT now asks for the decision up front: a new account
+           that is not an administrator must say API or NONE, and nothing is
+           created until it does.  Taking an administrator down to a lower
+           tier must also say which it keeps, for example
+
+               modify.account <account> programmer api
+
+           Your own administrator account keeps the API: the installer adds
+           every administrator to the new sdapi group.
+
+           WHAT DOES NOT CHANGE: logging in at a terminal or over ssh.  ssh
+           still follows the account's tier, so SSH and BOTH - the other two
+           words SD Core for Windows accepts - are refused here with an
+           explanation rather than quietly treated as API.
+
+
 14 Sep 26  AN ADMINISTRATOR CANNOT USE THE API FROM ANOTHER MACHINE.
 
            The API now refuses an administrator's login unless the

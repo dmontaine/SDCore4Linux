@@ -532,6 +532,19 @@ else
   echo "Group sdadmin already exists."
 fi
 
+# 14 Sep 26 dm - S.16, THE PORT'S PER-ACCOUNT API ROUTE.  APISRVR admits a SCRAM
+#            login only for a member of sdapi (10073).  CREATE.ACCOUNT puts an
+#            administrator in it, and anyone else only on the API keyword;
+#            MODIFY.ACCOUNT <account> API / NONE moves them.  A missing group
+#            refuses every API login, so it is created before anything below
+#            could need it.  Kept across a keep-accounts cycle, like sdadmin.
+if ! getent group sdapi &>/dev/null; then
+  echo "Creating group: sdapi."
+  sudo groupadd --system sdapi
+else
+  echo "Group sdapi already exists."
+fi
+
 # Root-owned, and deliberately NOT under /usr/local/sdsys: that tree is
 # chown -R sdsys:sdusers'd further down, so a helper living there could be
 # rewritten by anyone who reached the sdsys account - and the sudoers entry
@@ -1034,6 +1047,23 @@ if [ "$accounts_kept" = yes ]; then
     echo "(If it asks about a record type change, answer for each account.)"
     sudo bin/sd UPDATE.ACCOUNTS ALL
 fi
+
+# 14 Sep 26 dm - S.16.  EVERY ADMINISTRATOR HAS THE API, AS A RULE (the port's
+#            owner, 21 Aug 2026), and this is where an administrator made
+#            before sdapi existed is given it.  A first install needs nothing -
+#            ADOPT goes through CREATE.ACCOUNT, which adds the administrator -
+#            but a keep-accounts install keeps a registered administrator whose
+#            person sdapi has never heard of, and nothing else would add them.
+#            THE RULE'S OWN SEED, NOT A MIGRATION: it runs every install, is a
+#            no-op when the membership is already there, and says who it added.
+#            sdadmin's members are the administrators' persons (MODIFY.ACCOUNT
+#            keeps the two in step).
+sdadmin_members=$(getent group sdadmin | cut -d: -f4 | tr ',' ' ')
+for member in $sdadmin_members; do
+    if ! id -nG "$member" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi; then
+        sudo usermod -aG sdapi -- "$member" && echo "Administrator $member added to sdapi (the API route)."
+    fi
+done
 #
 echo
 echo Stopping sd

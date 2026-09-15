@@ -189,10 +189,12 @@ parse_delta() {
 # Move the tier and check it: 10109 said so, the register agrees, and the 10113
 # re-derivation counts match the expected added/removed.  Args: tier, tag,
 # want_added, want_removed.
+# 14 Sep 26 dm - an optional fifth arg, the API word: since S.16 a move down out of
+# ADMINISTRATOR must say API or NONE (10111), so M2 passes NONE.
 move_and_check() {
-    local tier="$1" tag="$2" want_add="$3" want_rem="$4"
+    local tier="$1" tag="$2" want_add="$3" want_rem="$4" word="${5:-}"
     local out
-    out=$(run_sd "MODIFY.ACCOUNT $ACC $tier" "MODIFY.ACCOUNT $ACC $tier")
+    out=$(run_sd "MODIFY.ACCOUNT $ACC $tier${word:+ $word}" "MODIFY.ACCOUNT $ACC $tier${word:+ $word}")
     [ "$COMMIT" -eq 1 ] || return 0
     ck_says "$tag.a MODIFYA reported it (10109 'is now $tier')" "is now $tier" "$out"
     ck "$tag.b the REGISTER tier (off disk) is now $tier" "$tier" "$(reg_tier)"
@@ -302,7 +304,7 @@ if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
 else
     # ADMINISTRATOR -> STANDARD removes the whole layer it holds over STANDARD:
     # the omit list (verbs STANDARD is denied) plus the admin layer.
-    move_and_check STANDARD "M2" 0 "$((N_OMIT + N_ADMIN))"
+    move_and_check STANDARD "M2" 0 "$((N_OMIT + N_ADMIN))" NONE
 fi
 
 # ==========================================================================

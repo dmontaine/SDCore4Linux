@@ -18,6 +18,8 @@
 *
 *
 * START-HISTORY:
+* 14 Sep 26 dm  A kept Linux user loses sdapi too (S.16), between sdadmin and
+*               sdusers.
 * 14 Sep 26 dm  The account's $cred record is deleted with it (W.4 SCRAM phase 2).
 *               The Windows port's DELACC does not, and a credential outliving
 *               its account would admit a later account of the same name with
@@ -364,8 +366,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   user.  sdadmin FIRST, sdusers SECOND, so an interrupted strip leaves the
 *   weaker state (an SD user who is no longer an administrator) rather than
 *   the stronger one.
+* 14 Sep 26 dm - S.16.  sdapi between them, by the same rule: without it the
+*   kept Linux user could still be admitted to the API by name (APISRVR tests
+*   sdapi and sdusers, and sdusers goes last).
                strip.user = os.user
                strip.group = 'sdadmin' ; gosub strip.membership
+               strip.group = 'sdapi'   ; gosub strip.membership
                strip.group = 'sdusers' ; gosub strip.membership
          end case
       end
