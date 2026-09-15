@@ -400,7 +400,8 @@ of them reverse what an earlier analysis recommended.
   NO WAY TO RELAX IT IS THE THING TO AVOID***, and "a user cannot do X" is not
   by itself a defect to fix — check whether the administrator can grant it
   before treating it as one.
-- ***A RICH BASIC SCREEN/WIDGET LIBRARY IS A GOAL*** (owner, 10 Sep 2026). Extend
+- ***A RICH BASIC SCREEN/WIDGET LIBRARY IS A GOAL — FOR 1.2, NOT 1.1*** (owner,
+  10 Sep 2026; moved after the 1.1 release on 15 Sep 2026). Extend
   SD BASIC so a programmer builds rich terminal screens — administrative apps
   rivalling the best TUI frameworks, up to a traditional terminal-based IDE —
   **without leaving BASIC and without any commercial or client-side dependency.**

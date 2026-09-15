@@ -33,7 +33,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.16** | — | the port's per-account API route (`sdapi`, MODIFY.ACCOUNT API/NONE, 10073 at the login) — witnessed on `dea3736`, §13f F0–F9b all pass (`/var/tmp/witness-release-run.20260914-231854.log`) | 14 Sep 2026 |
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ✅ | **S.13** | — | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh`, messages 10131-10139 — H5c failed on `dea3736` and `0d58171` (`ufw status` lists no rules while ufw is inactive), fixed with `ufw show added` (`test-sd-elevate.py` U1–U4), and §13h all pass on `0b67dba` incl. H5c and a real H1d (`…-102147.log`) | 15 Sep 2026 |
-| ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) | — |
+| ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -4949,7 +4949,7 @@ by an install whose bootstrap compile or sign-on fails. Not filed to the port.
 guard would be belt-and-braces, in the shape of PRE_RELEASE 19's
 `K_ADMINISTRATOR` fix. First named as a lead in PRE_RELEASE 21.
 
-### [S.1] BASIC screen/widget library — stage 1 DONE 14 Sep 2026; stages 2-5 §OPEN§ (design note of 10 Sep below)
+### [S.1] BASIC screen/widget library — stage 1 DONE 14 Sep 2026; stages 2-5 DEFERRED TO 1.2 (owner, 15 Sep 2026), §OPEN§ (design note of 10 Sep below)
 
 ***STAGE 1 DONE 14 Sep 2026 — THE FALSIFIER DID NOT FIRE: THE RENDERER CAN STAY
 PURE BASIC, AND SO CAN MOUSE INPUT.*** Measured in a sandbox (`gplbld/
