@@ -1005,6 +1005,26 @@ else
     fi
     OUT=$(run_sd root "restore: REVOKE $ACC2 FROM $ACC" "REVOKE $ACC2 FROM $ACC")
     [ "$COMMIT" -eq 1 ] && ck "A4.5 the grant is gone: $ACC is not in sdu_$ACC2" 0 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
+
+    # A5 - S.14, CONFORMING TO THE PORT: a password is not held to the user
+    # name's 32 characters.  Before 14 Sep the client refused one over 32 with
+    # "Invalid password" and op_login cut it at 32 bytes.  A 62-character
+    # password is set (never printed) and must log in; X6 then uses it.
+    LONG_PW="Lq7$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)x9"
+    say "  --- sd session as root: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character password (not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
+              | timeout 60 "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
+        ck_says "A5.0 the long password was set (10914)" "The password for $ACC was changed" "$OUT"
+    fi
+    GOOD_PW="$PROBE_PW"; PROBE_PW="$LONG_PW"
+    OUT=$(probe "A5 THE ROW (S.14): the ${#LONG_PW}-character password logs in" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A5.1 it connected" "SDConnect returned 1" "$OUT"
+        ck_absent "A5.2 and the client did not refuse its length" "Invalid password" "$OUT"
+    fi
+    GOOD_PW=""; LONG_PW=""
 fi
 
 # ==========================================================================
