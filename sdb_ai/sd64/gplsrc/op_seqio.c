@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 14 Sep 26 dm  op_openseq()'s error cleanup releases the record lock it took.
+ *               A failed OPENSEQ ... OVERWRITE truncate (the A6 fix of 8 Sep)
+ *               left the lock behind for good - found in the sandbox by P.6's
+ *               induced failure; the Windows port has the same code.
  * 11 Sep 26 dm  op_openseq() freed the file variable it had just returned,
  *               and kept its record lock, whenever the record did not yet
  *               exist - a 2026/06/10 cleaning-cycle change the Windows port
@@ -418,6 +422,7 @@ Private void openseq(bool map_name) {
   u_int16_t op_flags;
   bool read_only = FALSE;
   int16_t blocking_user;
+  bool record_locked = FALSE; /* 14 Sep 26 - lock_record() succeeded */
   int status;
   u_int16_t flags = 0;
   char* p;
@@ -657,6 +662,7 @@ Private void openseq(bool map_name) {
                                         !read_only, /* Update lock? */
                                         0, (op_flags & P_LOCKED) != 0)) {
       case 0: /* Got the lock */
+        record_locked = TRUE;
         break;
 
       case -2: /* Deadlock detected */
@@ -815,6 +821,22 @@ exit_op_openseq:
     if (ValidFileHandle(fu))
       CloseFile(fu);
 
+    /* 14 Sep 26 dm - P.6.  THE RECORD LOCK TAKEN ABOVE IS RELEASED HERE TOO.
+       Every error after lock_record() came through this block, which closed
+       the file and freed the file variable and never unlocked - so the lock
+       outlived the session, listed against whatever file later reused the
+       file-table slot (queue 27's shape).  MEASURED 14 Sep 2026 in the
+       sandbox: OPENSEQ ... OVERWRITE on a read-only file, whose truncate the
+       8 Sep A6 fix now rightly fails, left an RL lock that LIST.READU showed
+       from the next session; the same open on a binary with the A6 fix
+       reverted left none, because it never took this path.  unlock_record()
+       is close_seq()'s own call, made while fvar->file_id is still counted.
+       The buffer and record name, which this path also dropped, are freed
+       with sq_file below. */
+    if ((fvar != NULL) && record_locked) {
+      (void)unlock_record(fvar, unmapped_name, rec_name_len);
+    }
+
     if (fvar != NULL) {
       if (fvar->file_id > 0) {
         StartExclusive(FILE_TABLE_LOCK, 75);
@@ -829,6 +851,10 @@ exit_op_openseq:
     if (sq_file != NULL) {
       if (sq_file->pathname != NULL)
         k_free(sq_file->pathname);
+      if (sq_file->record_name != NULL)
+        k_free(sq_file->record_name);
+      if (sq_file->buff != NULL)
+        k_free(sq_file->buff);
       k_free(sq_file);
     }
 
