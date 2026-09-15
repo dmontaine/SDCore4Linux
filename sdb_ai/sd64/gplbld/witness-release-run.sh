@@ -913,20 +913,20 @@ fi
 #   A1 CONTROL: the right password into its own account connects, and WHO
 #      names zzrel1 in LOWER case (APISRVR upcased it before 14 Sep).
 #   A2 the connected server process's own Uid/Gid/Groups, read from /proc while
-#      the probe holds the connection.  It must not carry root's group 0.
-#      Whether it holds sdusers and sdu_zzrel1 is PRINTED, NOT JUDGED:
-#      login_user sets no supplementary groups (linuxio.c:774, set_groups()
-#      commented out), and what that leaves is the measurement this takes.
+#      the probe holds the connection.  It must not carry root's group 0, and
+#      it must hold sdusers and sdu_zzrel1 as a terminal session does (A2c,
+#      A2d).  ON 3ff8027 IT HELD NONE - "Groups:" empty, 17:18 run - because
+#      login_user set no supplementary groups; S.15 adds initgroups.
 #   A3 a wrong password is refused in 5017's words, and the trail gains
 #      "API REFUSED user=zzrel1 reason=authentication failed" - Q.13's last type.
 #   A4 THE TIER GATE.  zzrel2 goes to PROGRAMMER, is granted to zzrel1
 #      sideways, and goes back to ADMINISTRATOR.  CPROC's LOGTO must refuse
 #      zzrel1 in 10126's words (the local control), and the API connection into
-#      zzrel2 must be refused too.  THE CLIENT LIBRARY DOES NOT RETURN
-#      vb.account's 10003 TEXT (sdclilib.c: only a login SV_ON_ERROR fills
-#      sderror), so the refusal is read as "SDConnect returned 0" WITHOUT the
-#      login's 5017 text, beside A1's success with the same password.  The
-#      grant is revoked afterwards: section 15's K6 counts zzrel1's SD groups.
+#      zzrel2 must be refused too, in 10003's words, and not at the login (no
+#      5017 - A1's password).  The 14 Sep draft of this comment said the client
+#      library drops 10003's text; the 17:18 run printed it, so that reading of
+#      sdclilib.c was wrong and A4.3b now matches the text.  The grant is
+#      revoked afterwards: section 15's K6 counts zzrel1's SD groups.
 head2 "13b. W.4 - the API door: login, the session's groups, a wrong password, the tier gate"
 PROBE="$(dirname "$SELF")/api-probe.py"
 AUD="$SDSYS/audit"
@@ -942,7 +942,7 @@ probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
 probe_lines() { printf '%s' "$1" | sed -n 's/^| //p'; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
     say "  needs zzrel1 adopted, zzrel2 made, section 13's password (W3) and $PROBE"
-    for r in "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A4.0 grant" "A4.1 promoted" "A4.2 10126 control" "A4.3 API refused" "A4.4 not at login" "A4.5 revoked"; do not_reached "$r"; done
+    for r in "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A4.0 grant" "A4.1 promoted" "A4.2 10126 control" "A4.3 API refused" "A4.4 not at login" "A4.5 revoked"; do not_reached "$r"; done
 else
     OUT=$(probe "A1 control: the right password, its own account" --user "$ACC" --account "$ACC" WHO)
     if [ "$COMMIT" -eq 1 ]; then
@@ -968,10 +968,11 @@ else
             if printf '%s\n' "$AGRP" | grep -qx 0; then ck "A2b it does not carry root's group 0" no yes
             else ck "A2b it does not carry root's group 0" no no; fi
             GSDU=$(getent group sdusers | cut -d: -f3)
-            ctx "A2c the API session holds sdusers (gid $GSDU): $(printf '%s\n' "$AGRP" | grep -qx "$GSDU" && echo yes || echo NO); sdu_$ACC (gid $GID1): $(printf '%s\n' "$AGRP" | grep -qx "$GID1" && echo yes || echo NO)"
+            ck "A2c THE ROW (S.15): it holds sdusers (gid $GSDU)" yes "$(printf '%s\n' "$AGRP" | grep -qx "$GSDU" && echo yes || echo no)"
+            ck "A2d THE ROW (S.15): it holds sdu_$ACC (gid $GID1)" yes "$(printf '%s\n' "$AGRP" | grep -qx "$GID1" && echo yes || echo no)"
         else
             ck "A2 the held session's /proc was read" yes no
-            not_reached "A2b no group 0"
+            for r in "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC"; do not_reached "$r"; done
         fi
     fi
 
@@ -999,6 +1000,7 @@ else
     OUT=$(probe "A4 over the API into $ACC2" --user "$ACC" --account "$ACC2" WHO)
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "A4.3 THE ROW: the API connection into $ACC2 was refused" "SDConnect returned 0" "$OUT"
+        ck_says "A4.3b in 10003's words" "SDError: User not allowed in requested account" "$OUT"
         ck_absent "A4.4 and not at the login (no 5017; the password is A1's)" "Invalid username or password" "$OUT"
     fi
     OUT=$(run_sd root "restore: REVOKE $ACC2 FROM $ACC" "REVOKE $ACC2 FROM $ACC")

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Sep 26 dm login_user loads the user's supplementary groups (initgroups)
+ *           before the uid drop, on both paths; an API session had none (S.15).
  * 13 Sep 26 dm case inversion starts OFF on both connection paths (plan M: typed
  *           input is not case-flipped; PTERM CASE INVERT still turns it on).
  * 10 Sep 26 dm accept PF_INET for the API server only (reverses the AF_UNIX-only
@@ -41,6 +43,7 @@
 
 #include <netdb.h>
 #include <pwd.h>
+#include <grp.h>
 #include <signal.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -771,8 +774,17 @@ bool login_user(char *username, char *password) {
           *q = '\0';
         if (strcmp((char *)crypt(password, p), p) == 0) {
 
-            if (((pwd = getpwnam(username)) != NULL) && (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
-              //         set_groups();
+            /* 14 Sep 26 dm - S.15.  initgroups() BEFORE the uid drop, while this
+               process is still root.  Without it the session kept the empty
+               group list systemd started sd -n -q with - measured on 3ff8027,
+               witness-release-run.sh 13b A2: "Groups:" empty, so no sdusers and
+               no sdu_<account>, which a terminal session of the same person
+               holds.  A granted account was then read-only over the API.  It
+               gives the session the user's own groups and nothing else, as
+               login(1) does; if it fails the login is refused, because a
+               session without its groups is the defect this closes.        */
+            if (((pwd = getpwnam(username)) != NULL) && (initgroups(pwd->pw_name, pwd->pw_gid) == 0)
+                && (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
               syslog (LOG_INFO, "sdApiSrvr login via Username: %s (%d) Group: %d",username,pwd->pw_uid, pwd->pw_gid);
               return TRUE;
             } 
@@ -781,8 +793,8 @@ bool login_user(char *username, char *password) {
     }
   }else{
    /* we have a peer user assigned, and pcfg.api_login not set change process ids to reflect  */ 
-    if ((setgid(peer_grp_id) == 0) && (setuid(peer_usr_id) == 0)) {
-            //         set_groups();
+    /* 14 Sep 26 dm - S.15, the same for a Unix-socket peer (see above). */
+    if ((initgroups(peer_username, peer_grp_id) == 0) && (setgid(peer_grp_id) == 0) && (setuid(peer_usr_id) == 0)) {
       syslog (LOG_INFO, "sdApiSrvr login via Peer User: %s (%d) Group: %d",peer_username,peer_usr_id, peer_grp_id);
       syslog (LOG_INFO, "sdApiSrvr process.username is: %s", process.username);     
   /* set process.username to reflect who we ended up logged in as */
