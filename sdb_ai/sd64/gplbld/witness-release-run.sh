@@ -937,6 +937,12 @@ else
     fi
     CPW=""
 fi
+# 14 Sep 26 dm - W.4 SCRAM PHASE 4: THE CLIENT LIBRARY SPEAKS SCRAM, so
+# api-probe (SDConnect) now logs in with the SD password, not the Linux one.
+# LINUX_PW keeps the Linux password for the rows that need it: 13b's A0 (the
+# client library no longer sends it) and 13c's S4/S5c.  Never printed.
+LINUX_PW="$PROBE_PW"
+PROBE_PW="$SCRAM_PW"
 
 # ==========================================================================
 # W.4 - THE API DOOR, over TCP 127.0.0.1:4243 through the installed client
@@ -948,8 +954,12 @@ fi
 #      it must hold sdusers and sdu_zzrel1 as a terminal session does (A2c,
 #      A2d).  ON 3ff8027 IT HELD NONE - "Groups:" empty, 17:18 run - because
 #      login_user set no supplementary groups; S.15 adds initgroups.
+#   A0 (SCRAM phase 4) THE ROW: through the installed client library the LINUX
+#      password is refused and A1's SD password connects - SDConnect sends
+#      SCRAM against $cred, no longer the cleartext request 24.
 #   A3 a wrong password is refused in 5017's words, and the trail gains
-#      "API REFUSED user=zzrel1 reason=authentication failed" - Q.13's last type.
+#      "API REFUSED user=zzrel1 reason=wrong password" (SCRAM's wording since
+#      phase 4; request 24 wrote "authentication failed").
 #   A4 THE TIER GATE.  zzrel2 goes to PROGRAMMER, is granted to zzrel1
 #      sideways, and goes back to ADMINISTRATOR.  CPROC's LOGTO must refuse
 #      zzrel1 in 10126's words (the local control), and the API connection into
@@ -972,9 +982,17 @@ probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
 }
 probe_lines() { printf '%s' "$1" | sed -n 's/^| //p'; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
-    say "  needs zzrel1 adopted, zzrel2 made, section 13's password (W3) and $PROBE"
-    for r in "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A4.0 grant" "A4.1 promoted" "A4.2 10126 control" "A4.3 API refused" "A4.4 not at login" "A4.5 revoked"; do not_reached "$r"; done
+    say "  needs zzrel1 adopted, zzrel2 made, section 13's SD password (C1) and $PROBE"
+    for r in "A0 Linux password refused" "A0b not connected" "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A4.0 grant" "A4.1 promoted" "A4.2 10126 control" "A4.3 API refused" "A4.4 not at login" "A4.5 revoked"; do not_reached "$r"; done
 else
+    GOOD_PW="$PROBE_PW"; PROBE_PW="$LINUX_PW"
+    OUT=$(probe "A0 THE ROW (phase 4): the client library with the LINUX password" --user "$ACC" --account "$ACC" WHO)
+    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A0 refused: SDConnect no longer sends the Linux password" "SDError: Invalid username or password" "$OUT"
+        ck_absent "A0b and did not connect" "SDConnect returned 1" "$OUT"
+    fi
+
     OUT=$(probe "A1 control: the right password, its own account" --user "$ACC" --account "$ACC" WHO)
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "A1 control: SDConnect succeeded" "SDConnect returned 1" "$OUT"
@@ -1017,7 +1035,7 @@ else
         ck_absent "A3b and did not connect" "SDConnect returned 1" "$OUT"
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
         printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-        ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=authentication failed" "$NEW"
+        ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=wrong password" "$NEW"
     fi
 
     OUT=$(run_sd root "fixture: $ACC2 to PROGRAMMER, grant it to $ACC sideways, back to ADMINISTRATOR" \
@@ -1038,22 +1056,25 @@ else
     [ "$COMMIT" -eq 1 ] && ck "A4.5 the grant is gone: $ACC is not in sdu_$ACC2" 0 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
 
     # A5 - S.14, CONFORMING TO THE PORT: a password is not held to the user
-    # name's 32 characters.  Before 14 Sep the client refused one over 32 with
-    # "Invalid password" and op_login cut it at 32 bytes.  A 62-character
-    # password is set (never printed) and must log in; X6 then uses it.
+    # name's 32 characters.  Since phase 4 the client sends SCRAM, so the long
+    # password is the SD one: MODIFY.PASSWORD sets a 62-character password
+    # (never printed; the current one is not asked under sudo sd for another
+    # account) and SDConnect must log in with it.  13c and X6 then use it.
     LONG_PW="Lq7$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)x9"
-    say "  chpasswd: set $ACC's Linux password to ${#LONG_PW} characters (not shown)"
+    say "  --- sd session as root: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character SD password (not shown) ---"
     if [ "$COMMIT" -eq 1 ]; then
-        SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
-        printf '%s:%s\n' "$ACC" "$LONG_PW" | chpasswd
-        SH_AFTER=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
-        ck "A5.0 the long Linux password was set (shadow changed)" yes "$( [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && echo yes || echo no )"
+        OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
+              | timeout 120 "$SD" 2>&1 | strip)
+        printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
+        ck_says "A5.0 the long SD password was set" "Password set for account $ACC" "$OUT"
     fi
     GOOD_PW="$PROBE_PW"; PROBE_PW="$LONG_PW"
     OUT=$(probe "A5 THE ROW (S.14): the ${#LONG_PW}-character password logs in" --user "$ACC" --account "$ACC" WHO)
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "A5.1 it connected" "SDConnect returned 1" "$OUT"
         ck_absent "A5.2 and the client did not refuse its length" "Invalid password" "$OUT"
+        # $cred now holds the long password, so 13c's SCRAM rows use it too.
+        printf '%s' "$OUT" | grep -qF "SDConnect returned 1" && SCRAM_PW="$LONG_PW"
     fi
     GOOD_PW=""; LONG_PW=""
 fi
@@ -1062,8 +1083,8 @@ fi
 # W.4 SCRAM phase 3 - REQUESTS 47 AND 48, THE PORT'S SCRAM LOGIN, through
 # gplbld/scram-probe.py (the exchange in Python's standard library, no SD code
 # on the client side).  zzrel1 now has TWO passwords that differ: the SD one
-# written to $cred in section 13 (SCRAM_PW) and the Linux one set by chpasswd
-# in 13b (PROBE_PW).  That difference is the instrument:
+# in $cred (SCRAM_PW, long since 13b's A5) and the Linux one set by chpasswd
+# in section 13 (LINUX_PW).  That difference is the instrument:
 #   S1 CONTROL: SCRAM with the SD password logs in, the server's signature
 #      verifies, the account is entered and WHO names zzrel1.
 #   S2 the SCRAM session's own /proc: the uid is zzrel1's and it holds sdusers
@@ -1072,8 +1093,10 @@ fi
 #   S4 THE ROW: SCRAM with the LINUX password is refused - it checks $cred, not
 #      /etc/shadow ...
 #   S5 ... and the old request 24 with the SD password is refused - it still
-#      checks /etc/shadow until phase 5.  S1 with S4 and S5 is what shows each
-#      door reads its own credential.
+#      checks /etc/shadow until phase 5 - while S5c, request 24 with the Linux
+#      password, is ACCEPTED.  Since phase 4 the client library cannot send 24,
+#      so both go through scram-probe --legacy.  S1 with S4, S5 and S5c is what
+#      shows each door reads its own credential.
 #   S6 request 48 with no 47 is a sequence error (5273), audited.
 #   S7 an unknown user is refused at 47 in 5017's words, audited "no credential".
 head2 "13c. W.4 SCRAM phase 3 - requests 47/48: the SD password, not the Linux one"
@@ -1087,9 +1110,9 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
 }
-if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$PROBE_PW" ] || [ ! -f "$SPROBE" ]; }; then
-    say "  needs zzrel1 adopted, section 13's SD password, 13b's Linux password and $SPROBE"
-    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 old login refused" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 old login refused" "S5c old login accepts Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
 else
     N0=0
     [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
@@ -1130,19 +1153,19 @@ else
     OUT=$(sprobe "S3 a wrong SD password" "${SCRAM_PW}wrong" --user "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "S3 refused at 48 in 5017's words" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
 
-    OUT=$(sprobe "S4 THE ROW: SCRAM with the LINUX password" "$PROBE_PW" --user "$ACC")
+    OUT=$(sprobe "S4 THE ROW: SCRAM with the LINUX password" "$LINUX_PW" --user "$ACC")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "S4 SCRAM refuses the Linux password (it reads \$cred)" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
         ck_absent "S4b and did not log in" "server signature VERIFIED" "$OUT"
     fi
 
-    GOOD_PW="$PROBE_PW"; PROBE_PW="$SCRAM_PW"
-    OUT=$(probe "S5 the old request 24 with the SD password" --user "$ACC" --account "$ACC" WHO)
-    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    OUT=$(sprobe "S5 the old request 24 with the SD password" "$SCRAM_PW" --user "$ACC" --legacy)
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "S5 request 24 refuses the SD password (it reads /etc/shadow)" "Invalid username or password" "$OUT"
-        ck_absent "S5b and did not connect" "SDConnect returned 1" "$OUT"
+        ck_says "S5 request 24 refuses the SD password (it reads /etc/shadow)" "LEGACY: login REFUSED at request 24: Invalid username or password" "$OUT"
+        ck_absent "S5b and did not log in" "LEGACY: login ACCEPTED" "$OUT"
     fi
+    OUT=$(sprobe "S5c control: the old request 24 with the LINUX password" "$LINUX_PW" --user "$ACC" --account "$ACC" --legacy)
+    [ "$COMMIT" -eq 1 ] && ck_says "S5c request 24 still accepts the Linux password until phase 5" "LEGACY: login ACCEPTED" "$OUT"
 
     OUT=$(sprobe "S6 request 48 with no 47" "$SCRAM_PW" --user "$ACC" --final-only)
     [ "$COMMIT" -eq 1 ] && ck_says "S6 refused as a sequence error (5273)" "SCRAM: login REFUSED at request 48: Authentication sequence error" "$OUT"
@@ -1219,6 +1242,7 @@ else
     [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted" "is now PROGRAMMER" "$OUT"
 fi
 PROBE_PW=""
+LINUX_PW=""
 
 # ==========================================================================
 # S.5, the other half - DELETE.ACCOUNT of an account whose Linux user SD did not
