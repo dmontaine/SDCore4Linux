@@ -18,8 +18,10 @@
 #     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
 #           zzrel3, carries SD's "SD account" stamp and is deleted by SD
 #     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
-#     Q.12  ssh into a SUSPENDED account is refused, after a control (14);
-#           a throwaway ssh key is installed for zzrel1 only
+#     W.4   the API door over TCP 4243 (13b): login, the session's groups, a
+#           wrong password and its audit record, the tier gate over the API
+#     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
+#           control (14); a throwaway ssh key is installed for zzrel1 only
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
 #     updates every account's VOC as each install does.
 #
@@ -106,6 +108,10 @@ ACC3=zzrel3
 MADE_USER3=0
 MADE_ACCOUNT3=0
 SSHDIR=""
+# Section 13's password, kept for the API sections (13b, 14) only when W3 saw
+# the shadow entry change.  Never printed; api-probe.py takes it from its
+# environment, not its command line.
+PROBE_PW=""
 
 usage() { sed -n '2,16p' "$0"; exit 2; }
 
@@ -893,11 +899,110 @@ else
         ck_absent "W2 and not 10915" "was NOT changed" "$OUT"
         if [ -n "$SH_AFTER" ] && [ "$SH_AFTER" != "$SH_BEFORE" ] && [ "${SH_AFTER:0:1}" = '$' ]; then
             ck "W3 the shadow entry changed to a real hash" yes yes
+            PROBE_PW="$PW"
         else
             ck "W3 the shadow entry changed to a real hash" yes no
         fi
     fi
     PW=""
+fi
+
+# ==========================================================================
+# W.4 - THE API DOOR, over TCP 127.0.0.1:4243 through the installed client
+# library (gplbld/api-probe.py), as zzrel1 with the password section 13 set.
+#   A1 CONTROL: the right password into its own account connects, and WHO
+#      names zzrel1 in LOWER case (APISRVR upcased it before 14 Sep).
+#   A2 the connected server process's own Uid/Gid/Groups, read from /proc while
+#      the probe holds the connection.  It must not carry root's group 0.
+#      Whether it holds sdusers and sdu_zzrel1 is PRINTED, NOT JUDGED:
+#      login_user sets no supplementary groups (linuxio.c:774, set_groups()
+#      commented out), and what that leaves is the measurement this takes.
+#   A3 a wrong password is refused in 5017's words, and the trail gains
+#      "API REFUSED user=zzrel1 reason=authentication failed" - Q.13's last type.
+#   A4 THE TIER GATE.  zzrel2 goes to PROGRAMMER, is granted to zzrel1
+#      sideways, and goes back to ADMINISTRATOR.  CPROC's LOGTO must refuse
+#      zzrel1 in 10126's words (the local control), and the API connection into
+#      zzrel2 must be refused too.  THE CLIENT LIBRARY DOES NOT RETURN
+#      vb.account's 10003 TEXT (sdclilib.c: only a login SV_ON_ERROR fills
+#      sderror), so the refusal is read as "SDConnect returned 0" WITHOUT the
+#      login's 5017 text, beside A1's success with the same password.  The
+#      grant is revoked afterwards: section 15's K6 counts zzrel1's SD groups.
+head2 "13b. W.4 - the API door: login, the session's groups, a wrong password, the tier gate"
+PROBE="$(dirname "$SELF")/api-probe.py"
+AUD="$SDSYS/audit"
+probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
+    say "  --- api-probe: $1 ---" >&2
+    say "      > api-probe.py ${*:2}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" "${@:2}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+probe_lines() { printf '%s' "$1" | sed -n 's/^| //p'; }
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
+    say "  needs zzrel1 adopted, zzrel2 made, section 13's password (W3) and $PROBE"
+    for r in "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A4.0 grant" "A4.1 promoted" "A4.2 10126 control" "A4.3 API refused" "A4.4 not at login" "A4.5 revoked"; do not_reached "$r"; done
+else
+    OUT=$(probe "A1 control: the right password, its own account" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A1 control: SDConnect succeeded" "SDConnect returned 1" "$OUT"
+        ck_who "A1b WHO names $ACC in lower case" "$ACC" "$(probe_lines "$OUT")"
+    fi
+
+    say "  --- api-probe, held 6 s: the server process's /proc while connected ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        PF=$(mktemp)
+        SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
+        PBG=$!
+        sleep 3
+        APID=$(pgrep -u "$ACC" -x sd | head -1)
+        AST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${APID:-none}/status" 2>/dev/null)
+        say "  the API server process: pid ${APID:-none}"
+        printf '%s\n' "$AST" | sed -e 's/^/      | /'
+        wait "$PBG"
+        sed -e 's/^/      | /' "$PF"; rm -f "$PF"
+        if [ -n "$APID" ] && [ -n "$AST" ]; then
+            ck "A2 the held session's /proc was read" yes yes
+            AGRP=$(printf '%s' "$AST" | sed -n 's/^Groups:[[:space:]]*//p' | tr ' \t' '\n\n')
+            if printf '%s\n' "$AGRP" | grep -qx 0; then ck "A2b it does not carry root's group 0" no yes
+            else ck "A2b it does not carry root's group 0" no no; fi
+            GSDU=$(getent group sdusers | cut -d: -f3)
+            ctx "A2c the API session holds sdusers (gid $GSDU): $(printf '%s\n' "$AGRP" | grep -qx "$GSDU" && echo yes || echo NO); sdu_$ACC (gid $GID1): $(printf '%s\n' "$AGRP" | grep -qx "$GID1" && echo yes || echo NO)"
+        else
+            ck "A2 the held session's /proc was read" yes no
+            not_reached "A2b no group 0"
+        fi
+    fi
+
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+    GOOD_PW="$PROBE_PW"; PROBE_PW="${GOOD_PW}wrong"
+    OUT=$(probe "A3 a wrong password" --user "$ACC" --account "$ACC" WHO)
+    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A3 refused in 5017's words" "Invalid username or password" "$OUT"
+        ck_absent "A3b and did not connect" "SDConnect returned 1" "$OUT"
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=authentication failed" "$NEW"
+    fi
+
+    OUT=$(run_sd root "fixture: $ACC2 to PROGRAMMER, grant it to $ACC sideways, back to ADMINISTRATOR" \
+          "MODIFY.ACCOUNT $ACC2 PROGRAMMER" "GRANT $ACC2 TO $ACC" "MODIFY.ACCOUNT $ACC2 ADMINISTRATOR")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A4.0 the sideways grant was made (10041)" "$ACC may now use account $ACC2" "$OUT"
+        ck_says "A4.1 $ACC2 is ADMINISTRATOR again (10109)" "Account $ACC2 is now ADMINISTRATOR" "$OUT"
+    fi
+    OUT=$(run_sd "$ACC" "local control: LOGTO $ACC2 meets CPROC's tier gate" "LOGTO $ACC2" "WHO")
+    [ "$COMMIT" -eq 1 ] && ck_says "A4.2 control: CPROC refuses in 10126's words" "may not be given access to it" "$OUT"
+    OUT=$(probe "A4 over the API into $ACC2" --user "$ACC" --account "$ACC2" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "A4.3 THE ROW: the API connection into $ACC2 was refused" "SDConnect returned 0" "$OUT"
+        ck_absent "A4.4 and not at the login (no 5017; the password is A1's)" "Invalid username or password" "$OUT"
+    fi
+    OUT=$(run_sd root "restore: REVOKE $ACC2 FROM $ACC" "REVOKE $ACC2 FROM $ACC")
+    [ "$COMMIT" -eq 1 ] && ck "A4.5 the grant is gone: $ACC is not in sdu_$ACC2" 0 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
 fi
 
 # ==========================================================================
@@ -914,7 +1019,7 @@ ssh_ready() {
 }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || ! ssh_ready; }; then
     say "  ssh, ssh-keygen or an active sshd is missing"
-    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO"; do not_reached "$r"; done
+    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO" "X6 API refused"; do not_reached "$r"; done
 else
     SSH_OPTS=(-F /dev/null -o BatchMode=yes -o PasswordAuthentication=no -o IdentitiesOnly=yes
               -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR)
@@ -943,9 +1048,21 @@ else
         ck_says "X3 refused in 10107's words" "Account $ACC is suspended" "$OUT"
         if who_in "$ACC" "$OUT"; then ck "X4 and never reached a command (no WHO)" no yes; else ck "X4 and never reached a command (no WHO)" no no; fi
     fi
+    # The API door (Q.12's other half): section 13b's A1 is its control - the
+    # same password into the same account connected before the suspend.
+    if [ "$COMMIT" -eq 1 ] && [ -z "$PROBE_PW" ]; then
+        not_reached "X6 API refused"
+    else
+        OUT=$(probe "X6 the API door, while suspended" --user "$ACC" --account "$ACC" WHO)
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "X6 the API connection was refused" "SDConnect returned 0" "$OUT"
+            ck_absent "X6b and not at the login (no 5017; A1's password)" "Invalid username or password" "$OUT"
+        fi
+    fi
     OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
     [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted" "is now PROGRAMMER" "$OUT"
 fi
+PROBE_PW=""
 
 # ==========================================================================
 # S.5, the other half - DELETE.ACCOUNT of an account whose Linux user SD did not

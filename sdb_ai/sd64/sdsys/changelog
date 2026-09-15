@@ -16,6 +16,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  THE API NOW KEEPS THE SAME TIER RULE AS LOGTO.
+
+           A grant may go down or sideways, never up.  LOGTO has enforced that
+           since GRANT arrived, but a program connecting through the API
+           reaches its account by a different road, and that road did not
+           check.  So someone granted into an account that was later promoted
+           above their own tier could still enter it through the API, with
+           the higher tier's whole vocabulary.  The API now refuses them, as
+           LOGTO does.
+
+           The API also names the account in lower case, as it is everywhere
+           else - WHO over the API used to print it in capitals.
+
+           WHAT DOES NOT CHANGE: logging in through the API, and entering any
+           account the person may enter with LOGTO.  The API still gives the
+           same short refusal for every reason an account cannot be entered,
+           so a caller cannot use it to learn which accounts exist.
+
 14 Sep 26  GRANT'S WARNING NOW SAYS WHAT HAPPENS TO A SESSION ALREADY OPEN.
 
            GRANT tells you the person must log out of Linux and back in.  It
