@@ -94,6 +94,15 @@ and `PRE_RELEASE_FIXES.md` under `/home/don/Projects/SDCoreProject/sd4windows`.
 Its `.md` files have very long lines; extract a window around the match rather
 than printing the whole line.
 
+**Pull it whenever parity work needs it, without asking** (owner, 15 Sep 2026:
+*"you have my permission to pull the windows repository whenever needed when
+working on parity tasks"*). The Windows agent pushes from the Windows box, so
+the local copy falls behind. Before reading it for parity work, run
+`git -C /home/don/Projects/SDCoreProject/sd4windows pull --ff-only`. If the pull
+refuses because of local changes or a diverged branch, stop and tell the owner.
+Never merge or reset over the copy. The permission is to pull, not to commit or
+push there.
+
 **Forward the question to the owner only when** the port history has **no
 definitive answer**, or its answer **cannot be implemented on Linux** — the
 privilege model differs, so some of the port's security answers do not transfer
