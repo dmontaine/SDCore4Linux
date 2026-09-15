@@ -27,7 +27,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); left: phases 3–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) built; left: install + §13c S1–S7, phases 4–6 | — |
+| ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
+| ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -256,6 +258,43 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***TWENTIETH SESSION, 14 Sep 2026 — SCRAM PHASE 3 BUILT, NOT INSTALLED.***
+APISRVR gains the port's `vb.scram.first`/`vb.scram.final` (requests 47/48),
+their shared exits, `scram.trim.body` and `scram.clean.name`, the pre-auth gate
+admitting 47/48 and two dispatch lines; `valid_os_name` declared at the top.
+Linux differences, each commented in place: `$cred` read `downcase(username)`;
+`K$ASSUME.USER` (61) is `initgroups`/`setgid`/`setuid` while root, refusing uid 0
+and reading the uids back (`op_kernel.c`); `K$SET.USERNAME` (60) is the port's
+verbatim. Messages 5272–5274 and 10160 the port's, 5277 "Linux identity".
+`make` exit 0, `op_kernel.o` rebuilt 19:57, `nm` shows `initgroups`/`getpwnam`.
+Request 24 still works (phases 1–3 are additive). New `gplbld/scram-probe.py`:
+the exchange in Python's stdlib over the wire format from `sdclilib.c`,
+password from `SD_SCRAM_PASSWORD`; py_compile clean, three refusals exit 2, live
+against `b119bb3` (no 47 yet) → `request 47 -> server_error 1` / `Not logged in`,
+so the framing parses. Witness §13c (S1–S7): SCRAM with the SD password logs in
+and the signature verifies; the session's /proc uid and groups; wrong password
+5017 + audit; ***S4 the Linux password over SCRAM refused and S5 the SD password
+over request 24 refused*** — each door reads its own credential; 48 without 47
+→ 5273; unknown user → 5017 at 47. Dry run 21 sections, free checks 17 green.
+***UNMEASURED:*** that APISRVR compiles (install only) and that the session
+runs as the user after `K$ASSUME.USER` (S2). Changelog deferred to phase 5,
+when a user would notice.
+
+***[S.16] PER-ACCOUNT API ROUTE — TO BUILD.*** The port's `vb.scram.final`
+tests `sdapi` membership, which `MODIFY.ACCOUNT <account> API` grants and
+CREATE.ACCOUNT deliberately does not (port, owner 21 Aug 2026). This tree has
+no `sdapi` group, so phase 3 tests `sdusers` with 5009, as `vb.login` does.
+Would need: the group at install, MODIFY.ACCOUNT's API/NO.API keywords, the
+test swapped, and messages 10073 and the route reports.
+
+***[S.17] REMOTE ADMINISTRATOR OVER THE API — TO BUILD.*** The port refuses an
+ADMINISTRATOR-tier SCRAM login from another machine (`!peer_local`, its
+APISRVR:1581, PRE_RELEASE_FIXES 170, message 10174). Not built in phase 3: this
+tree has no `!peer_local`. Here an API session runs as the user, not as the
+port's LocalSystem, so the exposure is smaller — but PRE_RELEASE 13 lets an
+administrator ssh in, which differs from the port's ruling and has to be read
+first.
 
 ***NINETEENTH SESSION, 14 Sep 2026 — SCRAM PHASE 2 WITNESSED, WITH ITS TWO
 FIXES.*** `74c60d4` (19:34:27): witness 19:36 ***141/141***, §13 C0–C7 (record

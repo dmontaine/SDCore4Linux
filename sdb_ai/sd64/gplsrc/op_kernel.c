@@ -24,6 +24,9 @@
  * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
  *               port (PRE_RELEASE 19).  Only an $internal program may change
  *               USR_ADMIN now.
+ * 14 Sep 26 dm  K_SET_USERNAME and K_ASSUME_USER (60, 61), the Windows port's
+ *               keys for APISRVR's SCRAM login; on Linux assuming the user is
+ *               initgroups/setgid/setuid (W.4 SCRAM phase 3).
  * 14 Sep 26 dm  op_login sizes the password from the string, not 32 bytes, so a
  *               longer password is not cut (S.14, conforming to the port).
  * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
@@ -53,6 +56,9 @@
 #include "locks.h"
 
 #include <sys/wait.h>
+#include <pwd.h>
+#include <grp.h>
+#include <unistd.h>
 
 Public bool case_sensitive;
 
@@ -291,6 +297,62 @@ void op_kernel() {
 
       k_put_c_string((char *)person, &result);
     } break;
+
+    /* 14 Sep 26 dm - W.4 SCRAM phase 3.  THE WINDOWS PORT'S K_SET_USERNAME, AS
+       WRITTEN: set the session user name.  process.username and
+       my_uptr->username are what @LOGNAME, K_USERNAME and the audit trail read.
+       $internal ONLY, and the name as it actually stands is returned, so a
+       refused caller is told what it still is rather than getting an error -
+       APISRVR compares the answer with the name it asked for.  An overlength
+       name makes k_get_c_string answer -1 and nothing is set.               */
+    case K_SET_USERNAME:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            (process.program.flags & HDR_INTERNAL)) {
+          strcpy(process.username, uname);
+          strcpy((char *)(my_uptr->username), uname);
+        }
+      }
+      k_put_c_string(process.username, &result);
+      break;
+
+    /* 14 Sep 26 dm - W.4 SCRAM phase 3.  BECOME THE AUTHENTICATED USER - the
+       port's K_ASSUME_USER, whose Windows body is an S4U logon.  HERE THE API
+       SERVER IS A ROOT PROCESS (sdclient@.service, sd -n -q) AND BECOMING THE
+       USER IS WHAT login_user's PASSWORD PATH ALREADY DOES: initgroups, then
+       setgid, then setuid, in that order, while still root (linuxio.c,
+       S.15).  No password is involved - SCRAM never gives the server one.
+
+       IT ANSWERS 1 OR 0 AND 0 MUST BE FATAL TO THE CALLER: a session that
+       carries on believing it is the user while still root is worse than one
+       that never started.  APISRVR refuses the login on 0.
+
+       $internal ONLY, like K_SET_USERNAME, so an ordinary BASIC program cannot
+       ask to become somebody else.  AND NEVER uid 0: no SCRAM login may end
+       as root, whatever the register holds.  The drop is checked by reading
+       the uids back, not assumed from the calls' return codes.  No way back
+       to root is offered.                                                   */
+    case K_ASSUME_USER:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+        struct passwd *pwd;
+
+        result.data.value = 0;
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            (process.program.flags & HDR_INTERNAL) &&
+            (geteuid() == 0) &&
+            ((pwd = getpwnam(uname)) != NULL) &&
+            (pwd->pw_uid != 0) &&
+            (initgroups(pwd->pw_name, pwd->pw_gid) == 0) &&
+            (setgid(pwd->pw_gid) == 0) &&
+            (setuid(pwd->pw_uid) == 0) &&
+            (getuid() == pwd->pw_uid) && (geteuid() == pwd->pw_uid)) {
+          result.data.value = 1;
+        }
+      }
+      break;
 
     case K_DATE_CONV:
       if ((result.data.value = (k_get_c_string(descr, s, 32))) > 0) {

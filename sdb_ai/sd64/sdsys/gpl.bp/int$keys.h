@@ -139,6 +139,9 @@
 * 11 Sep 26 dm - PORT_ADOPTION 13.  The port's K$AUDIT, at the port's number.
 *   The caller passes what happened; C stamps who.  Must match gplsrc/keys.h.
       $define K$AUDIT           57       ;* Append a record to the audit trail
+      * 14 Sep 26 dm - the Windows port's two, at its numbers (W.4 SCRAM phase 3)
+      $define K$SET.USERNAME    60       ;* Set the session user name ($internal)
+      $define K$ASSUME.USER     61       ;* Become the authenticated user ($internal)
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

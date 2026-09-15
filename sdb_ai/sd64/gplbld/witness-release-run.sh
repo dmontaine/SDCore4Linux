@@ -19,7 +19,8 @@
 #           zzrel3, carries SD's "SD account" stamp and is deleted by SD
 #     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
 #     W.4   the API door over TCP 4243 (13b): login, the session's groups, a
-#           wrong password and its audit record, the tier gate over the API
+#           wrong password and its audit record, the tier gate over the API;
+#           the SCRAM login, requests 47/48, against $cred (13c)
 #     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
 #           control (14); a throwaway ssh key is installed for zzrel1 only
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
@@ -112,6 +113,8 @@ SSHDIR=""
 # the shadow entry change.  Never printed; api-probe.py takes it from its
 # environment, not its command line.
 PROBE_PW=""
+# Section 13's SD password ($cred), kept for 13c's SCRAM login.  Never printed.
+SCRAM_PW=""
 
 usage() { sed -n '2,16p' "$0"; exit 2; }
 
@@ -929,6 +932,8 @@ else
         ck "C5 field 4 is the port's cost" 600000 "$(printf '%s\n' "$CREC" | sed -n 4p)"
         ck "C6 StoredKey and ServerKey are 44-character base64" "44 44" "$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c) $(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
         ck "C7 the register is root:root 700" "root:root 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
+        # Kept for section 13c's SCRAM login only when C1 saw it set.  Never printed.
+        printf '%s' "$OUT" | grep -qF "Password set for account $ACC" && SCRAM_PW="$CPW"
     fi
     CPW=""
 fi
@@ -1052,6 +1057,109 @@ else
     fi
     GOOD_PW=""; LONG_PW=""
 fi
+
+# ==========================================================================
+# W.4 SCRAM phase 3 - REQUESTS 47 AND 48, THE PORT'S SCRAM LOGIN, through
+# gplbld/scram-probe.py (the exchange in Python's standard library, no SD code
+# on the client side).  zzrel1 now has TWO passwords that differ: the SD one
+# written to $cred in section 13 (SCRAM_PW) and the Linux one set by chpasswd
+# in 13b (PROBE_PW).  That difference is the instrument:
+#   S1 CONTROL: SCRAM with the SD password logs in, the server's signature
+#      verifies, the account is entered and WHO names zzrel1.
+#   S2 the SCRAM session's own /proc: the uid is zzrel1's and it holds sdusers
+#      and sdu_zzrel1, none of them root's (K$ASSUME.USER, op_kernel.c).
+#   S3 a wrong password is refused at 48 in 5017's words, audited "wrong password".
+#   S4 THE ROW: SCRAM with the LINUX password is refused - it checks $cred, not
+#      /etc/shadow ...
+#   S5 ... and the old request 24 with the SD password is refused - it still
+#      checks /etc/shadow until phase 5.  S1 with S4 and S5 is what shows each
+#      door reads its own credential.
+#   S6 request 48 with no 47 is a sequence error (5273), audited.
+#   S7 an unknown user is refused at 47 in 5017's words, audited "no credential".
+head2 "13c. W.4 SCRAM phase 3 - requests 47/48: the SD password, not the Linux one"
+SPROBE="$(dirname "$SELF")/scram-probe.py"
+sprobe() {   # $1 title, $2 password, then scram-probe arguments
+    say "  --- scram-probe: $1 ---" >&2
+    say "      > scram-probe.py ${*:3}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_SCRAM_PASSWORD="$2" timeout 90 python3 "$SPROBE" "${@:3}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$PROBE_PW" ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, section 13's SD password, 13b's Linux password and $SPROBE"
+    for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 old login refused" "S6 5273" "S6b audit" "S7 5017" "S7b audit"; do not_reached "$r"; done
+else
+    N0=0
+    [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+
+    OUT=$(sprobe "S1 control: the SD password, account $ACC, WHO" "$SCRAM_PW" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S1 SCRAM login, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "S1b account entered" "account $ACC: entered" "$OUT"
+        ck_who "S1c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+    fi
+
+    say "  --- scram-probe, held 6 s: the SCRAM session's /proc while connected ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        PF=$(mktemp)
+        SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 90 python3 "$SPROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
+        PBG=$!
+        sleep 4
+        SPID=$(pgrep -u "$ACC" -x sd | head -1)
+        SST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${SPID:-none}/status" 2>/dev/null)
+        say "  the SCRAM server process: pid ${SPID:-none}"
+        printf '%s\n' "$SST" | sed -e 's/^/      | /'
+        wait "$PBG"
+        sed -e 's/^/      | /' "$PF"; rm -f "$PF"
+        if [ -n "$SPID" ] && [ -n "$SST" ]; then
+            ck "S2 the held SCRAM session's /proc was read" yes yes
+            SUID=$(printf '%s' "$SST" | sed -n 's/^Uid:[[:space:]]*\([0-9]*\).*/\1/p')
+            ck "S2b its real uid is $ACC's" "$(id -u "$ACC")" "$SUID"
+            SGR=$(printf '%s' "$SST" | sed -n 's/^Groups:[[:space:]]*//p' | tr ' \t' '\n\n')
+            ck "S2c it carries no root group 0" no "$(printf '%s\n' "$SGR" | grep -qx 0 && echo yes || echo no)"
+            ck "S2d it holds sdusers" yes "$(printf '%s\n' "$SGR" | grep -qx "$(getent group sdusers | cut -d: -f3)" && echo yes || echo no)"
+            ck "S2e it holds sdu_$ACC" yes "$(printf '%s\n' "$SGR" | grep -qx "$GID1" && echo yes || echo no)"
+        else
+            ck "S2 the held SCRAM session's /proc was read" yes no
+            for r in "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1"; do not_reached "$r"; done
+        fi
+    fi
+
+    OUT=$(sprobe "S3 a wrong SD password" "${SCRAM_PW}wrong" --user "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "S3 refused at 48 in 5017's words" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
+
+    OUT=$(sprobe "S4 THE ROW: SCRAM with the LINUX password" "$PROBE_PW" --user "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S4 SCRAM refuses the Linux password (it reads \$cred)" "SCRAM: login REFUSED at request 48: Invalid username or password" "$OUT"
+        ck_absent "S4b and did not log in" "server signature VERIFIED" "$OUT"
+    fi
+
+    GOOD_PW="$PROBE_PW"; PROBE_PW="$SCRAM_PW"
+    OUT=$(probe "S5 the old request 24 with the SD password" --user "$ACC" --account "$ACC" WHO)
+    PROBE_PW="$GOOD_PW"; GOOD_PW=""
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S5 request 24 refuses the SD password (it reads /etc/shadow)" "Invalid username or password" "$OUT"
+        ck_absent "S5b and did not connect" "SDConnect returned 1" "$OUT"
+    fi
+
+    OUT=$(sprobe "S6 request 48 with no 47" "$SCRAM_PW" --user "$ACC" --final-only)
+    [ "$COMMIT" -eq 1 ] && ck_says "S6 refused as a sequence error (5273)" "SCRAM: login REFUSED at request 48: Authentication sequence error" "$OUT"
+
+    OUT=$(sprobe "S7 a user with no SD credential" "$SCRAM_PW" --user zzrel9)
+    [ "$COMMIT" -eq 1 ] && ck_says "S7 refused at 47 in 5017's words" "SCRAM: login REFUSED at request 47: Invalid username or password" "$OUT"
+
+    if [ "$COMMIT" -eq 1 ]; then
+        NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+        say "  the new API REFUSED records:"
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "S3b audited: wrong password" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+        ck_says "S6b audited: sequence error" "reason=sequence error - no client-first" "$NEW"
+        ck_says "S7b audited: no credential" "API REFUSED user=zzrel9 reason=no credential" "$NEW"
+    fi
+fi
+SCRAM_PW=""
 
 # ==========================================================================
 # Q.12 - THE ssh DOOR TO A SUSPENDED ACCOUNT.  sshd_config's "Match Group
