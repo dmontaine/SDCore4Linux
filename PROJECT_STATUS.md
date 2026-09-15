@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) built; left: install + §13c S5/S5c and §13d B0–B4, phase 6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); left: phase 6 (both client libraries rebuilt — measured; SD passwords re-set per account — owner) | — |
 | ⬜ | **S.18** | S | code left dead by phase 5: `linuxio.c` `login_user` (shadow + `getpeereid` peer path), `op_login`/BASIC `login()`, `APILOGIN`, and `sdclient.socket`'s Unix-socket `ListenStream` — no caller after request 24 went | — |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
@@ -233,8 +233,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`85fbbec`**, stamped 14 Sep 2026 20:22:01,
-  owner keep cycle, `assert-current` current — carries SCRAM phases 1–4.
+- **Runtime:** install built from **`9fd52d9`**, stamped 14 Sep 2026 20:43:13,
+  owner keep cycle, `assert-current` current — carries SCRAM phases 1–5.
+  *(Superseded:)* `85fbbec`, 20:22:01 — phases 1–4.
   *(Superseded:)* `d880012`, 20:01:11 — phases 1–3.
   *(Superseded:)* `b119bb3`, 19:43:01 — phases 1–2.
   *(Superseded:)* `74c60d4`, 19:34:27. *(Superseded:)* `8f17140`, 18:56:33 —
@@ -262,8 +263,24 @@ owner's ruling comes first.
 
 ## START HERE
 
-***TWENTY-SECOND SESSION, 14 Sep 2026 — SCRAM PHASE 5 BUILT, NOT INSTALLED.***
-The port's phase 5 (its HISTORY "20 Aug 2026 - SCRAM phase 5"). APISRVR
+***TWENTY-SECOND SESSION, 14 Sep 2026 — SCRAM PHASE 5 WITNESSED ON `9fd52d9`,
+171/171.*** Owner keep cycle 20:43:13, `assert-current` current; witness 20:45
+(`/var/tmp/witness-release-run.20260914-204511.log`), every earlier row
+re-passed. S5/S5c: request 24 refused in 5275's words with the SD and the Linux
+password, no 5017, no login; §13d: `zzzsdcli` compiled, connected with the SD
+password, `COUNT VOC` 403 records, wrong password refused, 3/3, no 5275 — so
+both unmeasured points below held. ***Phase 6, measured here:*** the port's
+step is "rebuild the DLLs, re-run SET.PASSWORD for every account"
+(`docs/SCRAM_AUTH.md:230`). Both client libraries are rebuilt: installed
+`sdclilib.so` 20:43:09 from `9fd52d9` (A0–A5 ran through it), `linuxsdclilib`
+`libsdclilib.so` 20:33:36, newer than `sdclilib.c` and `scram_client.h`,
+committed at `a727ccd`, `nm -D` 0 `SDConnectUDS`. The port's cycle trap
+("`$cred` comes back EMPTY", HISTORY "20 Aug") does not transfer to a keep
+cycle: `deletesdai.sh:192` saves and `installsdai.sh:764` restores it — ***not
+witnessed with a real record in it*** (this run began with none). Left: the
+owner runs MODIFY.PASSWORD under `sudo sd` for each account that uses the API
+(the register holds `don`); a full delete cycle does empty `$cred`.
+*Original build note:* The port's phase 5 (its HISTORY "20 Aug 2026 - SCRAM phase 5"). APISRVR
 `vb.login` answers 5275 and drops the connection, body unparsed; 24 stays in
 the pre-auth gate so the reply names the cause. `!sdclient` gains the port's
 `scram.login`, `$internal` and requests 47/48 — the rest of the class was
@@ -284,7 +301,7 @@ the piped password. Code now dead is task row S.18. Next: phase 6 — the port's
 is "rebuild and re-set passwords"; here every account's SD password must be
 set with MODIFY.PASSWORD before its API use, so it is an install/doc question.
 
-***[S.18] CODE LEFT DEAD BY PHASE 5 — TO BUILD, after phase 5 is witnessed.***
+***[S.18] CODE LEFT DEAD BY PHASE 5 — TO BUILD; phase 5 witnessed on `9fd52d9`.***
 With request 24 refusing unparsed, nothing calls: `linuxio.c` `login_user`
 (the `/etc/shadow` + `crypt` path and the `getpeereid` peer path),
 `op_kernel.c` `op_login` and the BASIC `login()` it serves, `config('APILOGIN')`
