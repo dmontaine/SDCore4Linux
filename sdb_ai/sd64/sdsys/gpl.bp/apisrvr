@@ -38,6 +38,8 @@
 * 14 Sep 26 dm  vb.account applies the tier ordering (!tier_allows, 10003), the
 *               port's of 29 Aug 2026; an account name folds to lower case, so
 *               WHO names it as it is on disk (W.4).
+* 14 Sep 26 dm  vb.login takes a password of any length and refuses an empty
+*               one, as the port does (S.14).
 * END-HISTORY
 *
 *
@@ -959,7 +961,10 @@ vb.login:
                * Extract password
 
                n = oconv(cmnd[pos,2], 'ISL')
-               if n > MAX.USERNAME.LEN then
+* 14 Sep 26 dm - S.14, CONFORMING TO THE WINDOWS PORT (its client refuses only
+*   an empty password, sdclilib/sdclilib.c:1226): a password is not held to
+*   the user name's length.  An empty one is still refused here.
+               if n < 1 then
                   void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=bad password')
                   abort.message = sysmsg(5017) ;* Invalid user name or password
                   server.error = SV$ON.ERROR

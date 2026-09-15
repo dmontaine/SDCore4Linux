@@ -16,6 +16,19 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  A LONG PASSWORD NOW WORKS THROUGH THE API.
+
+           A program connecting through the API could not use a password
+           longer than 32 characters: the client library refused it as
+           "Invalid password", and the server would have cut it short anyway.
+           Linux puts no such limit on passwords, and neither does SD Core
+           for Windows, so anyone with a long password was shut out of the
+           API.  Both limits are gone.  An empty user name or password is now
+           refused by the client straight away, as it is on Windows.
+
+           WHAT DOES NOT CHANGE: user names are still limited to 32
+           characters, and the password is still checked against Linux's own.
+
 14 Sep 26  A PROGRAM CONNECTED THROUGH THE API NOW HAS THE SAME ACCESS AS ITS
            USER AT A TERMINAL.
 

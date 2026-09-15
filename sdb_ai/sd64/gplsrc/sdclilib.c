@@ -33,6 +33,9 @@
  *     linuxsdclilib repo (validated bounds/lengths, partial-I/O handling,
  *     desync abandonment, max-record enforcement, SV_EMSG_PAIR/SV_ECONTXT);
  *     SDConnect default port set to 4243 to conform to SD Core for Windows.
+ * 14 Sep 26 dm SDConnect: the password is no longer capped at the user name's
+ *     length, and an empty user name or password is refused, conforming to
+ *     the Windows port (S.14).  The same change is made in linuxsdclilib.
  *
  *
  * END-HISTORY
@@ -836,7 +839,7 @@ exit_sdclose:
 int DLLEntry
 SDConnect(char* host, int port, char* username, char* password, char* account) {
   int status = FALSE;
-  char login_data[2 + MAX_USERNAME_LEN + 2 + MAX_USERNAME_LEN];
+  char* login_data = NULL; /* sized from the two lengths below (S.14) */
   int n;
   char* p;
 
@@ -855,13 +858,29 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
 
   /* Set up login data */
 
-  p = login_data;
-
   n = strlen(username);
-  if (n > MAX_USERNAME_LEN) {
+  if (n == 0 || n > MAX_USERNAME_LEN) {
     strcpy(session[session_idx].sderror, "Invalid user name");
     goto exit_sdconnect;
   }
+
+  /* 14 Sep 26 dm - S.14, CONFORMING TO THE WINDOWS PORT'S SDConnect
+     (sdclilib/sdclilib.c:1217-1229 there): an empty user name or password is
+     refused, and the password is no longer held to the user name's length.
+     The one bound left is a Linux protocol fact: SrvrLogin carries the
+     password with a 16-bit length (the port sends a SCRAM proof instead).  So
+     the packet is sized from the two lengths rather than fixed.            */
+  if (password == NULL || *password == '\0' || strlen(password) > 32767) {
+    strcpy(session[session_idx].sderror, "Invalid password");
+    goto exit_sdconnect;
+  }
+  login_data = malloc(2 + MAX_USERNAME_LEN + 1 + 2 + strlen(password) + 1);
+  if (login_data == NULL) {
+    strcpy(session[session_idx].sderror, "Out of memory");
+    goto exit_sdconnect;
+  }
+
+  p = login_data;
 
   *((int16_t*)p) = ShortInt(n); /* User name len */
   p += 2;
@@ -872,10 +891,6 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
     *(p++) = '\0';
 
   n = strlen(password);
-  if (n > MAX_USERNAME_LEN) {
-    strcpy(session[session_idx].sderror, "Invalid password");
-    goto exit_sdconnect;
-  }
 
   *((int16_t*)p) = ShortInt(n); /* Password len */
   p += 2;
@@ -924,6 +939,7 @@ SDConnect(char* host, int port, char* username, char* password, char* account) {
 exit_sdconnect:
   if (!status)
     CloseSocket();
+  free(login_data);
   return status;
 }
 

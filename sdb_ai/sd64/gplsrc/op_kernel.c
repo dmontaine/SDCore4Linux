@@ -24,6 +24,8 @@
  * 09 Sep 26 dm  K_ADMINISTRATOR: close the grant hole, matching the Windows
  *               port (PRE_RELEASE 19).  Only an $internal program may change
  *               USR_ADMIN now.
+ * 14 Sep 26 dm  op_login sizes the password from the string, not 32 bytes, so a
+ *               longer password is not cut (S.14, conforming to the port).
  * 11 Sep 26 dm  K_AUDIT (57, the Windows port's key) appends a record to the
  *               audit trail; the identity is stamped in k_error.c
  *               (PORT_ADOPTION 13).
@@ -791,12 +793,23 @@ void op_login() {
   bool ok;
   DESCRIPTOR *descr;
   char username[32 + 1];
-  char password[32 + 1];
+  char *password = NULL;
+  int pw_len;
 
   /* Get password */
 
+  /* 14 Sep 26 dm - S.14, CONFORMING TO THE WINDOWS PORT, whose client refuses
+     only an empty password.  This was char[32 + 1]: k_get_c_string copies at
+     most max_bytes and returns -1 when the string is longer, so a longer
+     password was cut and failed to log in with no word why.  The buffer is
+     sized from the string itself, and wiped before it is freed.           */
   descr = e_stack - 1;
-  (void)k_get_c_string(descr, password, 32);
+  if (descr->type != STRING)
+    k_get_string(descr);
+  pw_len = (descr->data.str.saddr != NULL) ? descr->data.str.saddr->string_len : 0;
+  password = (char *)k_alloc(124, pw_len + 1);
+  if (password != NULL)
+    (void)k_get_c_string(descr, password, pw_len);
   k_dismiss();
 
   /* Get username */
@@ -806,7 +819,11 @@ void op_login() {
   k_dismiss();
 
   InitDescr(e_stack, INTEGER);
-  ok = login_user(username, password);
+  ok = (password != NULL) && login_user(username, password);
+  if (password != NULL) {
+    memset(password, 0, pw_len + 1);
+    k_free(password);
+  }
 /* 20240219 mab move to only allow AF_UNIX socket types                                                           */
 /*   As part of this mod:                                                                                         */
 /*     if config APILOGIN = 0 (ignor)                                                                             */

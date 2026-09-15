@@ -22,13 +22,13 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ⬜ | **S.14** | S | API passwords over 32 characters are refused (client `sdclilib.c:870` and `apisrvr` `vb.login`) | — |
+| ◐ | **S.14** | M | API password no longer capped at 32, empty refused — the port's client; built in APISRVR, `op_login` and both `sdclilib.c` copies (this tree and `linuxsdclilib`); left: install and §13b A5 | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | L·R | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); left: rule on API login without OS passwords | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); left: adopt the port's SCRAM login — decided by the owner's conformity rule, 14 Sep | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
 | ⬜ | **S.1** | XL | BASIC screen/widget library; design note only | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
@@ -290,7 +290,7 @@ door. Witness: §13b A2c/A2d now decisive, A4.3b matches 10003's text; dry run
 `witness-release-run.sh --commit`.
 
 ***[W.4] FIFTEENTH SESSION, 14 Sep 2026 — THE API SURFACE WALKED; A TIER GAP
-BUILT, WITNESSED ON `3ff8027` IN THE SIXTEENTH; THE SCRAM RULING PENDING.*** Read, no sudo. The door: `sdclient.socket` (Unix
+BUILT, WITNESSED ON `3ff8027` IN THE SIXTEENTH; SCRAM TO BUILD.*** Read, no sudo. The door: `sdclient.socket` (Unix
 socket + `127.0.0.1:4243`, `Accept=true`) → `sdclient@.service` `sd -n -q` as
 root → `linuxio.c:101` `start_connection` (Unix peer by `getpeereid`, a TCP peer
 unassigned) → APISRVR `vb.login` → `login_user` (`/etc/shadow` + `crypt()`,
@@ -309,10 +309,13 @@ groups an API session holds was measured in the sixteenth: none (S.15). `gplbld/
 `API REFUSED` line added to the trail). Witness: §13b A1–A4.5 (control login,
 lower-case WHO, the session's /proc groups, 5017 + Q.13's API REFUSED, the tier
 gate against CPROC's 10126 control, revoke) and §14 X6 (Q.12's API door); dry
-run reaches all 20 sections. ***STILL UNRULED:*** API login without OS
-passwords (`PORT_ADOPTION.md:811`). Here the reason is not the port's: with
-"Allow API access" = Y the password crosses TCP 4243 in clear; with N it is
-loopback only. Run in the sixteenth (above).
+run reaches all 20 sections. API login without OS passwords
+(`PORT_ADOPTION.md:811`, filed "owner decision") is ***decided by the owner's
+rule of 14 Sep 2026***: conformity with the port is the requirement and a
+question goes to him only when Linux technically cannot do what the port
+does. SCRAM runs on Linux, so it is adopted — the port's `$cred` store,
+`CRED_SET`/`CRED_VERIFY`, SCRAM in APISRVR and the client change. Until it is
+built, with "Allow API access" = Y the password crosses TCP 4243 in clear. Run in the sixteenth (above).
 
 ***[S.13] REMOTE.API ON / LOCAL / OFF AND REMOTE.SSH ON / OFF — TO BUILD.*** The
 port's record answers whether: owner, 30 Aug 2026 (port PRE_RELEASE_FIXES 78),
@@ -327,11 +330,22 @@ What would falsify it: `ufw` inactive (the rule then gates nothing — say so),
 and whether `Accept=true` sessions survive a socket restart (the port had to
 restart SD and drop every session).
 
-***[S.14] CLIENT LIBRARY — ONE LEAD, PENDING.*** `SDConnect` refuses a password
-over 32 characters (`sdclilib.c:870`, `MAX_USERNAME_LEN`) and APISRVR
-`vb.login` does too (`n > MAX.USERNAME.LEN`, "reason=bad password"), so a longer
-Linux password cannot use the API. The server half is this tree's, the client
-half the owner's `linuxsdclilib`. A second lead, that the client drops an
+***[S.14] API PASSWORD LENGTH — BUILT, NOT INSTALLED.*** Owner, 14 Sep 2026:
+match the port. Measured there: its `SDConnect` bounds the USER NAME at 32
+(`gplsrc/sdclilib/sdclilib.c:1218`) and refuses only an EMPTY password
+(`:1226`, no length cap, because SCRAM never sends it). Here the password had
+three caps at 32: the client (`sdclilib.c` `SDConnect`), APISRVR `vb.login`
+(`n > MAX.USERNAME.LEN`) and ***a fourth the walk had missed***, `op_login`'s
+`char password[32 + 1]` (`op_kernel.c`), where `k_get_c_string` cuts a longer
+string silently. Now: the client refuses an empty user name or password and
+sizes the login packet from the two lengths (the one bound left is SrvrLogin's
+16-bit length, 32767); APISRVR refuses only `n < 1`; `op_login` sizes the
+buffer from the string and wipes it after `login_user`. The same client change
+is committed in `/home/don/Projects/linuxsdclilib` with its rebuilt tracked
+`libsdclilib.so`; its `make check` passed (smoke + internal). This tree:
+`make` exit 0, no warning. Witness §13b A5: a 62-character password set by
+MODIFY.PASSWORD must log in (UNRUN); X6 then uses it. Only the empty refusal
+is client-side, so it has no server row. A second lead, that the client drops an
 account refusal's text, was a misreading of `sdclilib.c:900-908`: the
 sixteenth session's run printed `SDError: User not allowed in requested
 account` at §13b A4 and §14 X6.
