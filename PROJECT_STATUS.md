@@ -27,7 +27,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; left: `sdsyswrite` (root) | — |
 | ◐ | **P.6** | L | transactions, A2 and A4 exercised; left: A1, A3, A5, A6, each needing an induced failure in the sandbox | — |
-| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) built, vectors 46/46; left: install + §13b A0 and §13c S5c, phases 5–6 | — |
+| ◐ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); left: phases 5–6 | — |
 | ⬜ | **S.16** | M | the port's per-account API route: an `sdapi` group, MODIFY.ACCOUNT … API, tested in `vb.scram.final` (this tree tests `sdusers`) | — |
 | ⬜ | **S.17** | M | the port's remote-administrator gate for the API (`!peer_local`, its APISRVR:1581, PRE_RELEASE_FIXES 170) | — |
 | ⬜ | **S.13** | L | REMOTE.API on/local/off and REMOTE.SSH on/off over systemd and ufw — the port's owner request of 30 Aug; design note only | — |
@@ -232,8 +232,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`d880012`**, stamped 14 Sep 2026 20:01:11,
-  owner keep cycle, `assert-current` current — carries SCRAM phases 1–3.
+- **Runtime:** install built from **`85fbbec`**, stamped 14 Sep 2026 20:22:01,
+  owner keep cycle, `assert-current` current — carries SCRAM phases 1–4.
+  *(Superseded:)* `d880012`, 20:01:11 — phases 1–3.
   *(Superseded:)* `b119bb3`, 19:43:01 — phases 1–2.
   *(Superseded:)* `74c60d4`, 19:34:27. *(Superseded:)* `8f17140`, 18:56:33 —
   S.14's password length.
@@ -260,7 +261,16 @@ owner's ruling comes first.
 
 ## START HERE
 
-***TWENTY-FIRST SESSION, 14 Sep 2026 — SCRAM PHASE 4 BUILT, NOT INSTALLED.***
+***TWENTY-FIRST SESSION, 14 Sep 2026 — SCRAM PHASE 4 WITNESSED ON `85fbbec`,
+163/163.*** Owner keep cycle 20:22:01, `assert-current` current; witness 20:24
+(`/var/tmp/witness-release-run.20260914-202410.log`), every earlier row
+re-passed. Through the installed `sdclilib.so`: A0 the Linux password →
+`SDConnect returned 0` / `Invalid username or password`; A1 the SD password →
+`SDConnect returned 1`, `39 zzrel1`; A3c trail `reason=wrong password` (SCRAM's
+wording); A5 a 62-character SD password set by MODIFY.PASSWORD connects; X6
+suspended still refused with 10003. S5 request 24 with the SD password refused,
+S5c with the Linux password `LEGACY: login ACCEPTED` and the account entered.
+*(As built:)*
 `SDConnect` sends the port's SCRAM (47/48) and no longer builds SrvrLogin, in
 both `gplsrc/sdclilib.c` and `/home/don/Projects/linuxsdclilib/sdclilib.c`
 (code identical, comments differ); `scram_login`/`scram_failed` are the port's
