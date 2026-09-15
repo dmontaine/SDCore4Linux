@@ -22,7 +22,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ⬜ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — an API session crosses TCP 4243 unencrypted, only the SCRAM login is protected; same in the port, whose W1.0-0 users are exposed (its RELEASE_1.1 41); fix direction unruled | — |
+| ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter built on branch `s19-tls`, `test-tls-relay.py` 26/26 in a sandbox; left: merge to `main`, an install built on real libssl-dev, witness §13i and the rest of the run through the TLS probe; the port (its RELEASE_1.1 41) | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
@@ -264,11 +264,53 @@ owner's ruling comes first.
 
 ## START HERE
 
-***[S.19] PRIORITY #1 AND RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
-2026): AN API SESSION CROSSES TCP 4243 UNENCRYPTED. FIX TO BUILD THIS WEEK,
-DIRECTION PENDING A RULING.*** Owner: Linux is unreleased, but W1.0-0 has been
-downloaded by a few people, so the port's users carry it now. Only the login is
-protected: SCRAM (W.4) proves the password
+***[S.19] PRIORITY #1, RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
+2026). LINUX: TLS 1.3 ON EVERY API CONNECTION, SCRAM BOUND TO IT (RFC 9266
+tls-exporter) - BUILT 15 Sep ON BRANCH `s19-tls`, SANDBOX-MEASURED, NOT
+WITNESSED ON AN INSTALL; THE PORT IS STILL TO DO.*** Owner ruled TLS ("start on
+TLS", 15 Sep). *Built:* `gplsrc/sd_tls.c` (TLS 1.3-only ctx, handshake with
+deadline, exporter, `c=` value, client), `sd_tlssrv.c` (relay: forked in
+`start_connection` after the peer capture and before `bind_sysseg`; loads
+`<dir of sd.conf>/sd-tls/api.pem` Ed25519 as root, refuses it unless owner-only;
+drops to `nobody` before any network byte; hands sd the 32-byte binding; stderr
+detached when it is the socket - systemd gives `StandardError=inherit`,
+measured). `linuxio.c` ACK moved inside TLS; SDEXT `SD_TLS_CBIND` 110
+(`op_sdext.c`, both `keys.h`); `apisrvr` requires `p=tls-exporter,,` and the
+matching `c=` when the session is TLS, `n,,`/`biws` only without (pipes);
+`sdclilib.c` TLS for every network session, bound SCRAM, `send_all` removed;
+BASIC `OPEN.SOCKET` flag `SKT$TLS`, `READ/WRITE.SOCKET` through TLS (pending
+bytes skip the `select`), `SOCKET.INFO` key 8 `SKT$INFO.TLS.CBIND`; `!sdclient`
+uses both; Makefile `OPENSSL_LIBS`, `sd_tls_pic.o`; installer `libssl-dev`;
+`deletesdai.sh` removes `/etc/sd-tls`; `scram-probe.py` drives libssl by ctypes
+(+`--no-tls`, `--no-binding`); witness §13i T1-T8. *Measured, sandbox, as don:*
+`test-tls-relay.py` 26/26 (new free check) against runtimes 3.5.5 and 4.0.1,
+built with the powershell snap's 3.0.2 headers (`SD_OPENSSL_INC`) because
+`libssl-dev` is not installed here; mutants red - zeroed binding (A4 A6 B4 B7),
+stderr left on the socket (A3 A4 A6 A7 B3 B4); a scratch stand-in running the
+real relay answered request 47 with its `c=`, equal byte for byte to
+`scram-probe.py`'s ctypes one, and `--no-tls` got no ACK (relay exit 10); full
+`make` of a scratch copy exit 0, no warning. *Unmeasured until an install:* the
+relay as `nobody`, `apisrvr`/`sdclient` compiling in BASIC, `!sdclient` over
+`op_skt` TLS, a build against real `libssl-dev` headers, every §13i row, and
+whether the rest of the witness still passes through the rewritten probe.
+*Decisions and objections:* relay process, not SSL in `linuxio.c` - its SIGIO
+handler (`io_handler` -> `do_input`) cannot call OpenSSL and `poll` cannot see
+decrypted bytes; costs a process per session. Identity beside sd.conf, not
+under SDSYS - sdcore4linux-2e's finding, checked: `installsdai.sh:659`
+`chown -R sdsys` and `:551`'s root-helpers rule, and sdsys could rename a
+directory away. A keep cycle's `deletesdai.sh` also removes it, so the key
+changes per reinstall - harmless until clients pin. NO CERTIFICATE CHECK: the
+bound login stops a man in the middle getting in or reading, but one posing as
+the server can collect a proof for offline guessing (client iteration floor
+4096) - pinning is the close. tls-exporter over tls-server-end-point, though
+Python's `ssl` offers neither (measured 3.14.7, `CHANNEL_BINDING_TYPES ==
+['tls-unique']`), hence ctypes. A client older than this change hangs for the
+10 s handshake deadline and sees "connection closed". A non-blocking BASIC
+`READ.SOCKET` on a partial TLS record busy-waits (`sd_tls_client_read` retries
+WANT_READ) - `!sdclient` is blocking. *Next:* owner merges or pushes
+`s19-tls` (the installer clones `main`), keep cycle, `assert-current`, then the
+release witness; the port adopts the same design (its RELEASE_1.1 41). Original
+finding follows. Only the login was protected: SCRAM (W.4) proves the password
 without sending it, but every request and reply after it is plain TCP —
 `apisrvr:1066` *"there is no TLS channel to bind to"*; no cipher in `sdclilib.c`
 or `linuxio.c` (libsodium is linked for SCRAM and BASIC ENCRYPT only). Owner:

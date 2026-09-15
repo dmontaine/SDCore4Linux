@@ -345,7 +345,10 @@ echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
 # 14 Sep 26 dm - S.18: libbsd-dev dropped.  Its one use was getpeereid() in
 # linuxio.c, for the retired APILOGIN=0 API login; the Makefile no longer
 # links -lbsd.  A machine that already has it is unaffected.
-if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev openssh-server python3-dev; then
+#
+# 15 Sep 26 dm - S.19: libssl-dev.  Every API connection is TLS 1.3; sd and
+# the client library link libssl (gplsrc/sd_tls.c, sd_tlssrv.c).
+if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
     printf "%b\n" "$RED"
     echo "Package installation using apt-get failed.  Exiting script."
     echo "Verify your internet connection and then try again."

@@ -72,6 +72,8 @@ pdump
 reccache
 sd_encrypt_sodium
 sd_scram
+sd_tls
+sd_tlssrv
 sdlib
 sdsem
 sdtermlb

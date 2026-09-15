@@ -47,7 +47,12 @@ COMP     := gcc
 # rev 0.9.0 python
 # 14 Sep 26 dm - S.18: -lcrypt and -lbsd dropped.  crypt() and getpeereid()
 #   were called only by linuxio.c login_user(), which is removed.
-L_FLAGS    := -Wl,--no-as-needed -lm -ldl -L$(LIBSODIUM) -lsodium $(PY_LDFLAGS)
+# 15 Sep 26 dm - S.19: libssl, for the API's TLS relay and client (gplsrc/
+#   sd_tls.c, sd_tlssrv.c).  installsdai.sh installs libssl-dev.  OPENSSL_LIBS
+#   is overridable only so a machine without the development symlinks can
+#   link a sandbox build; plain "make" does not need it.
+OPENSSL_LIBS ?= -lssl -lcrypto
+L_FLAGS    := -Wl,--no-as-needed -lm -ldl -L$(LIBSODIUM) -lsodium $(OPENSSL_LIBS) $(PY_LDFLAGS)
 SONAME_OPT := -soname
 
 RM       := rm
@@ -90,10 +95,16 @@ sd: $(SDOBJS) sdclilib.so sdtic sdfix sdconv sdidx sdlnxd terminfo
 	@echo Linking $@
 	@cd $(GPLOBJ) && $(COMP) $(ARCH) $(L_FLAGS) $(SDOBJSD) -o $(GPLBIN)sd
 
-sdclilib.so: sdclilib.o linuxlb.o
+# 15 Sep 26 dm - S.19: the client libraries speak TLS (sd_tls.c), compiled
+#   position-independent as its own object; sd links the ordinary sd_tls.o.
+sdclilib.so: sdclilib.o linuxlb.o sd_tls_pic.o
 	@echo Linking $@
-	@$(COMP) -shared -Wl,$(SONAME_OPT),sdclilib.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o -o $(GPLBIN)sdclilib.so
-	@$(COMP) -shared -Wl,$(SONAME_OPT),libsdcli.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o -o $(GPLBIN)libsdcli.so
+	@$(COMP) -shared -Wl,$(SONAME_OPT),sdclilib.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o $(GPLOBJ)sd_tls_pic.o $(OPENSSL_LIBS) -o $(GPLBIN)sdclilib.so
+	@$(COMP) -shared -Wl,$(SONAME_OPT),libsdcli.so -lc $(ARCH) $(GPLOBJ)sdclilib.o $(GPLOBJ)linuxlb.o $(GPLOBJ)sd_tls_pic.o $(OPENSSL_LIBS) -o $(GPLBIN)libsdcli.so
+
+sd_tls_pic.o: sd_tls.c sd_tls.h
+	@echo Compiling $@ with -fPIC
+	@$(COMP) $(C_FLAGS) -fPIC -c $(GPLSRC)sd_tls.c -o $(GPLOBJ)sd_tls_pic.o
 
 sdtic: sdtic.o inipath.o
 	@echo Linking $@

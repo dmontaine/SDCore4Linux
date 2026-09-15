@@ -239,6 +239,9 @@
       $define SKT$TCP                  0x00000000
       $define SKT$UDP                  0x00010000
       $define SKT$ICMP                 0x00020000
+      * 15 Sep 26 dm - S.19, mirrored from gplsrc/keys.h: OPEN.SOCKET as a TLS 1.3
+      *   client with no certificate check - for !sdclient, whose login binds to it.
+      $define SKT$TLS                  0x01000000
       
       * SOCKET.INFO() and SET.SOCKET.MODE() keys
       $define SKT$INFO.OPEN            0    ;* Is this a socket variable?
@@ -252,6 +255,9 @@
       $define SKT$INFO.NO.DELAY        5    ;* Nagle algorithm disabled?
       $define SKT$INFO.KEEP.ALIVE      6    ;* Keep alive enabled?
       $define SKT$INFO.FAMILY          7    ;* Socket address family
+      * 15 Sep 26 dm - S.19: SOCKET.INFO only.  The SCRAM c= value for a socket
+      *   opened with SKT$TLS: base64("p=tls-exporter,," + binding); "" otherwise.
+      $define SKT$INFO.TLS.CBIND       8    ;* SCRAM c= for this TLS session
       $define SKT$INFO.FAMILY.IPV4     1    ;* Socket address family IPV4
       $define SKT$INFO.FAMILY.IPV6     2    ;* Socket address family IPV6     
       
@@ -330,6 +336,9 @@
       $define SD_RANDBYTES    107  ;* sd_scram random bytes, 1 arg: count
       $define SD_XORBYTES     108  ;* sd_scram xor, 2 args, equal lengths
       $define SD_CTEQUAL      109  ;* sd_scram constant-time compare, 2 args
+      * 15 Sep 26 dm - S.19, mirrored from gplsrc/keys.h: this API session's SCRAM
+      *   c= value, base64("p=tls-exporter,," + binding), or "" with no TLS.
+      $define SD_TLS_CBIND    110  ;* sd_tlssrv channel binding, 0 args
       
       * embedded python 
       
