@@ -16,6 +16,33 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  REMOTE.API AND REMOTE.SSH: CHANGE REMOTE ACCESS WITHOUT REINSTALLING.
+
+           The installer asks whether other computers may reach this one over
+           ssh and over the API, and until now the only way to change your
+           answer was to install again.  Two administrator commands now do
+           it, as they do in SD Core for Windows:
+
+               remote.api on | local | off
+               remote.ssh on | off
+
+           REMOTE.API ON lets other computers connect to the SD API, LOCAL
+           lets only this computer connect, and OFF turns the API off
+           altogether.  REMOTE.SSH ON and OFF open and close port 22 in the
+           firewall.  Either command with no word reports what the machine is
+           doing now - read from the machine, not remembered.
+
+           Unlike SD Core for Windows, changing the API setting does not
+           restart SD or end anybody's session.
+
+           WHAT IT DOES NOT DO: REMOTE.SSH never starts or stops the ssh
+           server itself, and on a machine whose firewall does not decide who
+           reaches ssh (ufw not installed, not active, or letting everything
+           in) it refuses and says so, because changing a rule there would
+           change nothing.  Accounts still need an SD password, and for the
+           API a grant (modify.account <account> api), whatever these say.
+
+
 14 Sep 26  A FAILED OPENSEQ NO LONGER LEAVES ITS RECORD LOCKED.
 
            When OPENSEQ could not open a file the way it was asked - for

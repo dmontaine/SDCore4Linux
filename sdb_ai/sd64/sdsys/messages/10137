@@ -1,0 +1,1 @@
+remote.ssh on | off\n\nON   the firewall allows port 22: other computers may connect over ssh.\nOFF  it does not: only this computer may connect.\n\nWith no keyword it reports the current setting and changes nothing.  The ssh\nserver itself is never started or stopped.

@@ -1,0 +1,1 @@
+Could not set remote ssh access to %1 (status %2).  Nothing was changed.\n\nStatus 3 means this machine's firewall does not decide who reaches ssh: ufw is\nnot installed, not active, or allows incoming connections by default, so a rule\nfor port 22 would change nothing.  Status 2 means the helper refused or could\nnot run.  The lines above say what the machine reports.

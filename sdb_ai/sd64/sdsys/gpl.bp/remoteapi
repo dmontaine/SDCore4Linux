@@ -1,0 +1,130 @@
+* REMOTEAPI
+* REMOTE.API verb
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 14 Sep 26 dm  written, from the Windows port's REMOTEAPI of 30 Aug 2026 (its
+*               PRE_RELEASE_FIXES 78 and 148, owner's request).  S.13.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    REMOTE.API ON | LOCAL | OFF
+*
+*    Says whether this machine provides the SD API, and who may reach it.
+*
+*       ON     SD listens on port 4243 on every address, and the firewall
+*              allows it: other computers may connect
+*       LOCAL  SD listens on 127.0.0.1:4243 only: only this computer may
+*       OFF    SD opens no API socket at all, TCP or local
+*
+*    With no keyword it reports the current setting and changes nothing.
+*
+* THE PORT'S TWO AXES, LINUX'S MECHANISMS.  Whether SD listens is systemd's
+* sdclient.socket; who may reach it is ufw.  sd-elevate remote-api does both and
+* reads them back, so the report after a change is the machine's answer and not
+* this program's intention.  The firewall rule is the installer's own ("ufw
+* allow 4243/tcp"), so REMOTE.API and the install describe one state.
+*
+* NO RESTART OF SD, WHICH IS WHERE THIS DIFFERS FROM THE PORT MOST.  The port's
+* listener opens only when SD starts, so ON and OFF restarted SD and ended every
+* session, the caller's included, and it asked first.  Here the listener is the
+* socket unit's: ON and LOCAL restart the SOCKET, and OFF stops it.  A
+* connection already accepted is its own service instance (Accept=yes), so
+* whether it survives that is the witness's question (witness-release-run.sh),
+* not an assumption made here - which is also why there is no Y/N to ask.
+*
+* ADMINISTRATOR ONLY, the gate MODIFY.ACCOUNT uses: this changes what the
+* machine offers the network.  Audited, a Linux addition, as tier changes are.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $remote.api
+$catalog $REMOTEAPI
+
+$include keys.h
+$include int$keys.h
+$include parser.h
+$include err.h
+
+   prompt ''
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001)  ;* Command requires administrator privileges
+   end
+
+*  Assigned first for BCOMP: an "is not assigned a value" warning fails the
+*  bootstrap, and every value here is the safe one.
+   action = ''
+   word = ''
+   extra = ''
+   rc = 0
+
+   parser = "!PARSER"
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword)   ;* Verb remote.api
+   call @parser(PARSER$GET.TOKEN, token.type, action, keyword)  ;* ON | LOCAL | OFF
+
+   action = upcase(trim(action))
+
+*  NO KEYWORD IS A REPORT, NOT AN ERROR, and asking can never change anything.
+   if token.type = PARSER$END or action = '' then
+      os.execute 'sudo /usr/local/sbin/sd-elevate remote-api show'
+      rc = OS.ERROR()
+      if rc # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10133, 'SHOW', rc)  ;* Could not read or set the SD API
+      end
+      stop
+   end
+
+   begin case
+      case action = 'ON'
+         word = 'on'
+      case action = 'LOCAL'
+         word = 'local'
+      case action = 'OFF'
+         word = 'off'
+      case 1
+         @system.return.code = -ER$ARGS
+         stop sysmsg(10131)  ;* remote.api on | local | off
+   end case
+
+*  A second word is refused, not ignored: "remote.api on 0.0.0.0" must not look
+*  as though it chose an address.
+   call @parser(PARSER$GET.TOKEN, token.type, extra, keyword)
+   if token.type # PARSER$END then
+      @system.return.code = -ER$ARGS
+      stop sysmsg(10131)
+   end
+
+   os.execute 'sudo /usr/local/sbin/sd-elevate remote-api ' : word
+   rc = OS.ERROR()
+   if rc # 0 then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(10133, action, rc)  ;* Could not set the SD API to %1 (status %2)
+   end
+
+   void kernel(K$AUDIT, 'REMOTE.API ' : action)
+   @system.return.code = 0
+   crt sysmsg(10132, action)  ;* The SD API is now %1.
+end
+
+* END-CODE

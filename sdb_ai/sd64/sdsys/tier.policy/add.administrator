@@ -18,3 +18,5 @@ lock
 set.date
 sh
 !
+remote.api
+remote.ssh

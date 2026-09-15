@@ -41,6 +41,10 @@ retired APILOGIN=0 login; that code is removed, so this is how a witness shows
 the socket still serves SCRAM and still refuses request 24.  The "transport"
 line names what was actually connected to.
 
+--pause SECONDS (added with S.13, 14 Sep 2026) waits after the login and the
+account and BEFORE the commands, so a command's output proves the connection
+survived whatever happened during the pause - REMOTE.API restarting the socket.
+
 Exit 0 logged in (and the account, if given, entered), 1 refused (login or
 account), 2 could not run, 3 the server's signature did not verify.
 
@@ -114,6 +118,8 @@ def main(argv):
     ap.add_argument("--user", required=True)
     ap.add_argument("--account", default="")
     ap.add_argument("--hold", type=float, default=0.0)
+    ap.add_argument("--pause", type=float, default=0.0,
+                    help="wait this long AFTER login and account, BEFORE the commands")
     ap.add_argument("--final-only", action="store_true",
                     help="send request 48 without 47 (must be refused)")
     ap.add_argument("--legacy", action="store_true",
@@ -133,7 +139,7 @@ def main(argv):
                              if pw is not None else "SD_SCRAM_PASSWORD is not set"))
     say("  mode     : %s" % ("request 24, the old cleartext login" if a.legacy
                              else "request 48 ONLY, no 47" if a.final_only else "47 then 48"))
-    say("  commands : %d   hold: %gs" % (len(a.commands), a.hold))
+    say("  commands : %d   hold: %gs   pause: %gs" % (len(a.commands), a.hold, a.pause))
     if pw is None or pw == "":
         say("scram-probe: CANNOT RUN - SD_SCRAM_PASSWORD is not set or empty.")
         return 2
@@ -243,6 +249,10 @@ def main(argv):
                 say("account %s: REFUSED: %s" % (a.account, detail or text))
                 return 1
             say("account %s: entered" % a.account)
+
+        if a.pause > 0:
+            say("pausing %gs before the commands" % a.pause)
+            time.sleep(a.pause)
 
         for cmd in a.commands:
             say("> %s" % cmd)

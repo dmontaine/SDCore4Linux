@@ -89,6 +89,20 @@ CASES = [
     (REFUSE, ["addgroup", "root", "sdapi"],    "root is never given the API route"),
     (REFUSE, ["addgroup", "sdsys", "sdapi"],   "sdsys is an account, not a person"),
     (REFUSE, ["groupdel", "sdapi"],            "deleting it would refuse every API login at once"),
+
+    # ---- remote-api / remote-ssh, 14 Sep 26 (S.13).  A fixed keyword and
+    # ---- nothing else reaches them, so the refusals are the wrong word, a
+    # ---- missing word and an extra argument; the content of the allowed ones
+    # ---- is asserted below (REMOTE_CONTENT), not just their exit code.
+    (REFUSE, ["remote-api", "wide"],           "not one of on/local/off/show"),
+    (REFUSE, ["remote-api", "0.0.0.0:4243"],   "an address is never taken from the caller"),
+    (REFUSE, ["remote-api"],                   "the keyword is required"),
+    (REFUSE, ["remote-api", "on", "22"],       "no extra argument"),
+    (REFUSE, ["remote-ssh", "local"],          "ssh has no LOCAL - on/off/show only"),
+    (REFUSE, ["remote-ssh", "on", "--force"],  "no extra argument"),
+    (ALLOW,  ["remote-api", "show"],           "the report form"),
+    (ALLOW,  ["remote-api", "off"],            "OFF"),
+    (ALLOW,  ["remote-ssh", "show"],           "the report form"),
     (REFUSE, ["setgid", "/etc"],            "outside the accounts root"),
     (REFUSE, ["setgid", "/"],               "outside the accounts root"),
     (REFUSE, ["setgid", "/usr/local/sdsys"], "SD's own tree is still not the accounts root"),
@@ -166,6 +180,34 @@ def main():
     else:
         failed += 1
         failures.append((stamp_argv, "STAMP 'SD account'", "absent", out.strip()))
+
+    # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
+    # ---- exit code of 0 says the word was accepted, not that ON opens the
+    # ---- firewall and LOCAL binds loopback - a swapped pair would pass every
+    # ---- ALLOW row above.  Each needle must appear, and each forbidden one must
+    # ---- not.
+    REMOTE_CONTENT = [
+        (["remote-api", "on"], ["ListenStream=0.0.0.0:4243", "ufw allow 4243/tcp", "systemctl restart sdclient.socket"],
+         ["127.0.0.1:4243", "delete allow"]),
+        (["remote-api", "local"], ["ListenStream=127.0.0.1:4243", "ufw delete allow 4243/tcp"],
+         ["0.0.0.0:4243", "ufw allow 4243/tcp\n"]),
+        (["remote-api", "off"], ["systemctl disable --now sdclient.socket", "ufw delete allow 4243/tcp"],
+         ["ListenStream", "ufw allow 4243/tcp\n"]),
+        (["remote-ssh", "on"], ["ufw allow 22/tcp"], ["delete", "4243"]),
+        (["remote-ssh", "off"], ["ufw delete allow 22/tcp"], ["ufw allow 22/tcp\n", "systemctl"]),
+    ]
+    for argv, needles, forbidden in REMOTE_CONTENT:
+        code, out = run(argv)
+        missing = [n for n in needles if n not in out]
+        present = [f for f in forbidden if f in out]
+        ok = code == 0 and not missing and not present
+        print(f"  [{'PASS' if ok else 'FAIL'}] PLAN   sd-elevate {shlex.join(argv):46} | "
+              f"{'as designed' if ok else ('missing %s, forbidden %s, exit %d' % (missing, present, code))}")
+        if ok:
+            passed += 1
+        else:
+            failed += 1
+            failures.append((argv, "plan %s" % needles, "missing %s forbidden %s" % (missing, present), out.strip()))
 
     print()
 

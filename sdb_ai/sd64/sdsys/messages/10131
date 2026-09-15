@@ -1,0 +1,1 @@
+remote.api on | local | off\n\nON     SD listens on port 4243 on every address and the firewall allows it:\n       other computers may connect.\nLOCAL  SD listens on 127.0.0.1:4243 only: only this computer may connect.\nOFF    SD opens no API socket at all.\n\nWith no keyword it reports the current setting and changes nothing.
