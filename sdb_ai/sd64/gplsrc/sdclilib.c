@@ -39,6 +39,8 @@
  * 14 Sep 26 dm SDConnect logs in with SCRAM-SHA-256 (requests 47/48), the
  *     Windows port's scram_login; the cleartext SrvrLogin is no longer sent.
  *     Primitives in scram_client.h (W.4 SCRAM phase 4).  Same in linuxsdclilib.
+ * 14 Sep 26 dm SDConnectUDS() and its Unix-socket opener are removed: they sent
+ *     only the retired request 24 (W.4 SCRAM phase 5).  Same in linuxsdclilib.
  *
  *
  * END-HISTORY
@@ -160,7 +162,6 @@ void set_default_character_maps(void);
 
 #define FOPEN_READ_MODE "r"
 
-#define SERVER_PATH     "/tmp/sdsys/sdclient.socket"   /* define our all important UNIX DOMAIN SOCKET */
 
 #include "err.h"
 #include "revstamp.h"
@@ -181,7 +182,6 @@ void set_default_character_maps(void);
 
 /* Network data */
 Private bool OpenSocket(char* host, int16_t port);
-Private bool OpenUDSocket(void);
 Private bool CloseSocket(void);
 Private bool read_packet(void);
 Private bool write_packet(int type, char* data, int32_t bytes);
@@ -1135,96 +1135,12 @@ exit_sdconnect:
   return status;
 }
 
-/* ======================================================================
-   SDConnectUDS()  -  Open connection to server via unix domain socket   */
-
-int DLLEntry
-SDConnectUDS(char* account) {
-  int status = FALSE;
-  char login_data[2 + MAX_USERNAME_LEN + 2 + MAX_USERNAME_LEN];
-  char username[MAX_USERNAME_LEN + 1]; 
-  char password[MAX_USERNAME_LEN + 1] = "dummy";
-  u_int32_t m;
-  int n;
-  char* p;
-  
-  initialise_client();
-
-  if (!FindFreeSession())
-    goto exit_sdconnectUDS;
-  ClearError;
-  session[session_idx].is_local = FALSE;
-
-  /* setup login data */
-  /* get username of process */
-  m = MAX_USERNAME_LEN + 1;
-  p = username;
-  if (!GetUserName(p,&m)){
-    goto exit_sdconnectUDS; 
-  }
-  
-  p = login_data;
-  n = strlen(username);
-  *((int16_t*)p) = ShortInt(n); /* User name len */
-  p += 2;
-  
-  memcpy(p, username, n); /* User name */
-  p += n;
-  if (n & 1)
-    *(p++) = '\0';
-
-  n = strlen(password);
-  *((int16_t*)p) = ShortInt(n); /* Password len */
-  p += 2;
-
-  memcpy(p, password, n); /* Password */
-  p += n;
-  if (n & 1)
-    *(p++) = '\0'; 
-
-  /* Note systemd starts the  sd process as root, linuxio.c function start_connection will set process to user */
-  /* Open connection to server */
-
-  if (!OpenUDSocket())
-    goto exit_sdconnectUDS;
-
-  /* Check username and password */
-
-  n = p - login_data;
-  if (!message_pair(SrvrLogin, login_data, n)) {
-    goto exit_sdconnectUDS;
-  }
-
-  if (session[session_idx].server_error != SV_OK) {
-    if (session[session_idx].server_error == SV_ON_ERROR) {
-      n = buff_bytes - offsetof(INBUFF, data.abort.message);
-      if (n > 0) {
-        if (n >= (int)sizeof(session[session_idx].sderror))
-          n = sizeof(session[session_idx].sderror) - 1;
-        memcpy(session[session_idx].sderror, buff->data.abort.message, n);
-        session[session_idx].sderror[n] = '\0';
-      }
-    }
-    goto exit_sdconnectUDS;
-  }
-
-  /* Now attempt to attach to required account */
-
-  if (!message_pair(SrvrAccount, account, strlen(account))) {
-    goto exit_sdconnectUDS;
-  }
-  if (session[session_idx].server_error != SV_OK)
-    goto exit_sdconnectUDS;
-
-  session[session_idx].context = CX_CONNECTED;
-  status = TRUE;
-
-exit_sdconnectUDS:
-  if (!status)
-    CloseSocket();
-  return status;
-}
-
+/* 14 Sep 26 dm - SDConnectUDS() IS REMOVED (W.4 SCRAM phase 5).  It sent the
+   retired request 24 over the Unix socket with the fixed password "dummy",
+   relying on APISRVR's APILOGIN=0 branch to trust the socket peer's uid
+   instead; that branch went with request 24.  The Windows port has no such
+   function, and a SCRAM login needs the account's own password.  Programs use
+   SDConnect() to 127.0.0.1, or SDConnectLocal().                           */
 
 /* ======================================================================
    SDConnected()  -  Are we connected?                                    */
@@ -3726,60 +3642,8 @@ Private char* NullString() {
   return p;
 }
 
-/* ======================================================================
-   OpenUDSocket()  -  Open connection to Unix Domain Socket - server                            */
-
-Private bool OpenUDSocket() {
-  bool status = FALSE;
-  char ack_buff;
-  int n;
- 
-  struct sockaddr_un serveraddr;
-
-/* note see
-  https://www.ibm.com/docs/en/i/7.5?topic=uauaf-example-client-application-that-uses-af-unix-address-family
-  For af_unix client sample
-*/
-
-  session[session_idx].sock = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (session[session_idx].sock == INVALID_SOCKET) {
-    NetErr("socket()", WSAGetLastError(), errno);
-    goto exit_openUDsocket;
-  }
-
-  memset(&serveraddr, 0, sizeof(serveraddr));
-  serveraddr.sun_family = AF_UNIX;
-  strncpy(serveraddr.sun_path, SERVER_PATH,sizeof(serveraddr.sun_path)-1);
-
-  if (connect(session[session_idx].sock, (struct sockaddr *)&serveraddr,sizeof(struct sockaddr_un))) {
-    NetErr("connect()", WSAGetLastError(), errno);
-    goto exit_openUDsocket;
-  }
-
-
-  /* Wait for an Ack character to arrive before we assume the connection
-    to be open and working. This is necessary because Linux loses anything
-    we send before the SD process is up and running.                       */
-
-  do {
-    n = recv(session[session_idx].sock, &ack_buff, 1, 0);
-    if (n == 0) {
-      strcpy(session[session_idx].sderror, "Connection closed by server");
-      goto exit_openUDsocket;
-    }
-    if (n < 0) {
-      if (errno == EINTR)
-        continue;
-      net_error("recv()", errno);
-      goto exit_openUDsocket;
-    }
-  } while (ack_buff != '\x06');
-
-  status = 1;
-
-exit_openUDsocket:
-  return status;
-}
+/* 14 Sep 26 dm - OpenUDSocket() removed with SDConnectUDS(), its only caller
+   (W.4 SCRAM phase 5). */
 
 /* ======================================================================
    OpenSocket()  -  Open connection to server                            */

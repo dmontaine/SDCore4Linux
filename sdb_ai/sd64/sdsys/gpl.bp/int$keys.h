@@ -301,6 +301,15 @@
       $define SCRAM$ITERATIONS 600000   ;* PBKDF2 cost for a new password
       $define SCRAM$KEY.LEN       32    ;* SaltedPassword length, = SHA-256
 
+      * 14 Sep 26 dm - the port's bounds on what a client will accept from a
+      * server's i= (W.4 SCRAM phase 5, for !sdclient).  Below the floor the
+      * derivation is weakened; above the ceiling it is a denial of service
+      * against the caller.  The C client holds the same two numbers separately
+      * (SCRAM_MIN_ITERATIONS / SCRAM_MAX_ITERATIONS in gplsrc/sdclilib.c) and
+      * nothing cross-checks them.
+      $define SCRAM$MIN.ITER    4096    ;* Floor on a server's i=
+      $define SCRAM$MAX.ITER 10000000   ;* Ceiling on a server's i=
+
       * ID = $SECURE
       *    F1 = Secure system? (boolean)
 

@@ -16,6 +16,32 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  THE API NO LONGER ACCEPTS A PASSWORD SENT IN CLEAR.
+
+           Programs that connect to SD through its API used to send the
+           account's password across the network as it was typed.  The API
+           now accepts only a SCRAM-SHA-256 login, which proves the password
+           without sending it, and in which the server must prove itself to
+           the program as well - so a program cannot be fooled into logging
+           in to something pretending to be SD.  This is the login SD Core for
+           Windows uses.
+
+           The client library shipped with SD (sdclilib), and the BASIC
+           !sdclient class, already speak it.  A program built against an
+           older copy of the library is refused with the message "Cleartext
+           login is no longer supported", and needs the current library.
+
+           THE PASSWORD IS THE SD PASSWORD, SET WITH MODIFY.PASSWORD (under
+           sudo sd), not the Linux login password.
+
+           SDConnectUDS, which connected over a local socket without a
+           password, is removed from the client library: it depended on the
+           old login.  Connect to 127.0.0.1 with SDConnect instead.
+
+           WHAT DOES NOT CHANGE: logging in at a terminal or over ssh, which
+           still uses the Linux password; and SDConnectLocal, which starts a
+           session of your own and sends no password.
+
 14 Sep 26  THE SD CLIENT LIBRARY NO LONGER SENDS YOUR PASSWORD.
 
            A program that connects to SD through the client library used to

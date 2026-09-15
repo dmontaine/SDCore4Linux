@@ -44,7 +44,6 @@ SD_API void SDClearSelect(int listno);
 SD_API void SDClose(int fno);
 SD_API int SDConnect(char *host, int port, char *username, char *password, char *account);
 SD_API int SDConnectLocal(char *account);
-SD_API int SDConnectUDS(char *account);
 SD_API int SDConnected(void);
 SD_API int SDDcount(char *src, char *delim);
 SD_API void SDDebug(int16_t mode);
