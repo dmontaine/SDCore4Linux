@@ -23,7 +23,6 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ⬜ | **S.14** | S | API passwords over 32 characters are refused (client `sdclilib.c:870` and `apisrvr` `vb.login`) | — |
-| ◐ | **S.15** | M | an API session had no supplementary groups (measured, `3ff8027` §13b A2); `initgroups` built and compiled; left: install, §13b A2c/A2d | — |
 | ◐ | **P.24** | M | installer seeds the admin, witnessed; left: the non-sudoer refusal, which needs a user without sudo and no existing install — not foldable | — |
 | ◐ | **Q.19** | M | reconciler report and guard ran at 20 real starts; left: the sweep itself on a real start (needs files-only NSS) — not foldable | — |
 | ◐ | **Q.13** | M | audit trail; survival across keep reinstalls witnessed 14 Sep (first record 13 Sep 19:11, five keep cycles since); ADD/DELETE/ELEVATION REFUSED witnessed on `2edec17` (§8, new lines only); SH/OS not owed; API REFUSED witnessed on `3ff8027` (§13b A3); left: rotation at 1 MB | — |
@@ -58,6 +57,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **Q.14** | — | GRANT/REVOKE incl. a session open during the grant (§10); its wording finding is S.12 | 14 Sep 2026 |
 | ✅ | **Q.17** | — | MODIFY.PASSWORD administrator arm: 10914, shadow `!` → `$y$` (§13) | 14 Sep 2026 |
 | ✅ | **S.7** | — | NANO and MICRO: `verify-editors` 28/28, colour seen by the owner at a real terminal | 14 Sep 2026 |
+| ✅ | **S.15** | — | an API session holds its user's groups: `Groups: 979 1010 1011` (§13b A2c/A2d, `72933c2`; empty on `3ff8027`) | 14 Sep 2026 |
 | ✅ | **Q.12** | — | SUSPENDED tier: the ssh door (§14 X1–X4, `f2251e6`) and the API door (§14 X6, `3ff8027`) both refuse | 14 Sep 2026 |
 | ✅ | **S.12** | — | 10043: a session open during GRANT enters but cannot write — `File is read-only` vs a fresh session's copy (§10, `79d7e87`) | 14 Sep 2026 |
 | ✅ | **S.6** | — | plain-sd admin `SH` runs; after LOGTO a non-admin account, 10054 names the user (§11, `79d7e87`) | 14 Sep 2026 |
@@ -230,8 +230,9 @@ owner's ruling comes first.
 - **Goals (post-parity):** a **BASIC screen/widget library** — rich terminal
   admin apps / a terminal IDE, written in SD BASIC, GPL-clean, no dependency
   (owner, 10 Sep; design note in Open, stance in CLAUDE.md).
-- **Runtime:** install built from **`3ff8027`**, stamped 14 Sep 2026 17:13:12,
-  owner keep cycle, `assert-current` current — carries W.4's APISRVR.
+- **Runtime:** install built from **`72933c2`**, stamped 14 Sep 2026 17:34:34,
+  owner keep cycle, `assert-current` current — carries S.15's `initgroups`.
+  *(Superseded:)* `3ff8027`, 17:13:12 — W.4's APISRVR.
   *(Superseded:)* `79d7e87`, 15:02:58 — S.12's 10043.
   *(Superseded:)* `f2251e6`, 14:37:02. *(Superseded:)* `2edec17`, 14:07:22 —
   W.0, W.2, W.3.
@@ -253,8 +254,21 @@ owner's ruling comes first.
 
 ## START HERE
 
-***[S.15] SIXTEENTH SESSION, 14 Sep 2026 — CYCLE `3ff8027`, 128/128; AN API
-SESSION HAD NO SUPPLEMENTARY GROUPS, FIX BUILT, NOT INSTALLED.*** Keep cycle
+***[S.15] SEVENTEENTH SESSION, 14 Sep 2026 — S.15 CLOSED, WITNESSED ON
+`72933c2`, 131/131.*** Keep cycle installed `72933c2` (17:34:34,
+`assert-current` current); owner-run `witness-release-run.sh --commit` 17:36,
+log `/var/tmp/witness-release-run.20260914-173627.log`, ***131/131***, cleanup
+complete. §13b A2: API server pid 7011, `Uid: 1005`, `Gid: 1010`, `Groups: 979
+1010 1011` — `sdusers` and `sdu_zzrel1` held, no group 0 (the same line was
+empty on `3ff8027`). A4.3b `SDError: User not allowed in requested account`.
+Every earlier row re-passed. Not measured: an ADMINISTRATOR's API session
+holding `sdadmin` (zzrel1 is PROGRAMMER at §13b). Open rows now: S.14, P.24,
+Q.19, Q.13 (rotation), Q.22 `sdsyswrite`, P.6, W.4 (the SCRAM ruling), S.13,
+S.1.
+
+***SIXTEENTH SESSION, 14 Sep 2026 — CYCLE `3ff8027`, 128/128; AN API SESSION
+HAD NO SUPPLEMENTARY GROUPS; the fix, installed and witnessed in the
+seventeenth (above).*** Keep cycle
 installed `3ff8027` (17:13:12, `assert-current` current); owner-run
 `witness-release-run.sh --commit` 17:18, log
 `/var/tmp/witness-release-run.20260914-171838.log`, ***128/128***, cleanup
