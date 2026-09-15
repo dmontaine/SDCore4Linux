@@ -49,6 +49,9 @@
 *               here (no !peer_local); becoming the user is initgroups/setuid.
 * 14 Sep 26 dm  Request 24, the cleartext login, is retired: vb.login answers
 *               5275 and drops the connection, the port's (W.4 SCRAM phase 5).
+* 14 Sep 26 dm  vb.scram.final refuses an administrator (tier or sdadmin) whose
+*               connection is not from this machine, with 10174 - the port's
+*               remote-administrator gate (S.17).
 * END-HISTORY
 *
 *
@@ -1235,9 +1238,52 @@ vb.scram.final:
                   goto exit.vb.scram.fail
                end
 
-* 14 Sep 26 dm - LINUX: THE PORT'S REMOTE-ADMINISTRATOR GATE (its APISRVR:1581,
-*   PRE_RELEASE_FIXES 170) STANDS HERE THERE, AND IS NOT BUILT HERE: this tree
-*   has no !peer_local.  It is its own task row.
+* 14 Sep 26 dm - S.17: THE PORT'S REMOTE-ADMINISTRATOR GATE (its APISRVR:1581,
+*   PRE_RELEASE_FIXES 170).  An administrator is refused over the API unless
+*   the connection came from this machine - loopback, or the Unix socket
+*   (!peer_local).  After the proof, so the distinct refusal leaks nothing to
+*   somebody without the password; before the identity is taken, so a refused
+*   session never becomes the user.  10174, the port's number, Linux wording.
+*
+*   WHY IT MATTERS HERE TOO, THOUGH AN API SESSION CARRIES NO K$ADMINISTRATOR:
+*   the session runs as the Linux user, and an administrator's Linux user is in
+*   sdadmin, which reaches root through passwordless sd-elevate (PRE_RELEASE
+*   28's finding).  So an administrator over the network is root on the SD
+*   password alone.  An administrator on this machine is admitted - the port's
+*   owner runs a local application that way - and ssh -L is the way in from
+*   elsewhere, because the tunnel needs the Linux login first.
+*
+*   LINUX: "ADMINISTRATOR" IS THE TIER *OR* sdadmin MEMBERSHIP.  The port tests
+*   the tier only; here the power is the group, and MODIFY.ACCOUNT keeps the
+*   two in step, so a drift between them must not be the way through.  Both are
+*   computed BEFORE the test because "and"/"or" do not short-circuit (the
+*   port's CREATEA:382 note).  A register that cannot be opened REFUSES - the
+*   port admits there, inheriting its ssh gate's behaviour; this tree has no
+*   such gate to inherit from, so it takes the safe direction.
+               api.admin.tier = @false
+               api.reg.ok = @false
+               openpath @sdsys:@ds:'accounts' to api.reg.f then
+                  api.reg.ok = @true
+                  read api.reg.rec from api.reg.f, downcase(scram.user) then
+                     api.admin.tier = (upcase(trim(api.reg.rec<ACC$TIER>)) = 'ADMINISTRATOR')
+                  end
+                  close api.reg.f
+               end
+               api.admin.grp = is_grp_member(scram.user, 'sdadmin')
+               call !peer_local(api.peer.local, api.peer.addr)
+               if not(api.reg.ok) then
+                  scram.refuse.reason = 'the register of accounts could not be opened for the administrator test'
+                  abort.message = sysmsg(10174)
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
+               if (api.admin.tier or api.admin.grp) and not(api.peer.local) then
+                  scram.refuse.reason = 'administrator on a remote API session from ' : api.peer.addr
+                  abort.message = sysmsg(10174)
+                  * An administrator may not sign in to the SD API from another machine
+                  server.error = SV$ON.ERROR
+                  goto exit.vb.scram.fail
+               end
 
                * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no
                * APILOGIN branch.  The answer is taken, as the port's is (its

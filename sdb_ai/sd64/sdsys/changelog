@@ -16,6 +16,31 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+14 Sep 26  AN ADMINISTRATOR CANNOT USE THE API FROM ANOTHER MACHINE.
+
+           The API now refuses an administrator's login unless the
+           connection comes from this machine - 127.0.0.1 or the local
+           socket.  An administrator's Linux user can reach root through SD's
+           own tools, and the API admits a connection on the SD password
+           alone, so an administrator login from the network was one password
+           away from the whole machine.  SD Core for Windows has the same
+           rule.  The refusal says what happened and what to do instead, and
+           is written to the audit trail with the address it came from.
+
+           "Administrator" means an account at the ADMINISTRATOR tier, or a
+           Linux user in the sdadmin group, whichever is true.
+
+           WHAT STILL WORKS: an administrator on this machine, including a
+           local program connecting as one; standard and programmer accounts
+           from anywhere the API is reachable; and an administrator from
+           elsewhere through an ssh tunnel (ssh -L), which needs the account's
+           Linux login before it gets as far as SD.
+
+           ALSO: SD now records the address a TCP API connection came FROM.
+           It used to record the server's own address - the one the client
+           connected to - which says nothing about who connected.
+
+
 14 Sep 26  THE APILOGIN SETTING IS RETIRED, WITH THE OLD API LOGIN IT CONTROLLED.
 
            APILOGIN in sd.conf chose how the old cleartext API login checked

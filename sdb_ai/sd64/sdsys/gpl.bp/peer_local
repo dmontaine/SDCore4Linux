@@ -1,0 +1,109 @@
+* PEER_LOCAL
+* Did this session arrive from THIS machine?
+* Copyright (c) String Database
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 14 Sep 26 dm  written, from the Windows port's PEER_LOCAL of 5 Sep 2026 (its
+*               PRE_RELEASE_FIXES 170), for APISRVR's remote-administrator
+*               gate (S.17).  One Linux addition: a Unix-socket peer is local.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !peer_local(is.local, peer.addr)
+*
+*    is.local   @true  the peer is this machine
+*               @false the peer is somewhere else, OR no peer address was found
+*    peer.addr  the address it decided on, '' when there was none
+*
+*    status()  0  a peer address was found and classified
+*              1  no peer address at all - a console session, or a transport
+*                 that reports none
+*
+*    ONE RULE, KEPT IN ONE FILE, as the port's is.  Its only caller here is
+*    APISRVR.  The port's second caller, LOGIN's ssh gate (its PRE_RELEASE 167),
+*    does not transfer: here an administrator's ssh session is a real shell by
+*    PRE_RELEASE 13, outside LOGIN, so a gate in LOGIN would stop nothing.
+*
+*    BOTH TRANSPORTS ARE READ, AND "else" WOULD BE THE BUG (the port's rule).
+*    ssh reports the peer in SSH_CLIENT; the API reports it in system(42),
+*    which is ip_addr, filled by getpeername() in linuxio.c for TCP.  A session
+*    is one or the other, so reading both costs nothing.
+*
+*    AN EMPTY ADDRESS IS NOT LOCAL, AND THAT DIRECTION IS DELIBERATE.  An API
+*    session always has a peer - it is a socket - so an empty address means
+*    something is wrong, and refusing is the safe direction.
+*
+*    WHAT "LOCAL" MEANS IS LOOPBACK, NOT "THE SAME COMPUTER".  A connection to
+*    this machine's own LAN address is NOT local: it travelled over the network
+*    and anything else on the network could have sent it.
+*
+*    LINUX: A UNIX-SOCKET PEER IS LOCAL.  For an AF_UNIX connection linuxio.c
+*    puts the socket's PATH in ip_addr (it has no address), and only a process
+*    on this machine can open a Unix socket.  So an address beginning "/" is
+*    this machine - the loopback case of a transport Windows does not have.
+*
+*    AND IT DOES NOT SEE THROUGH AN ssh TUNNEL, WHICH IS A REAL LIMIT.
+*    "ssh -L" terminates on this host, so a tunnelled API connection arrives
+*    from 127.0.0.1 or the socket and this answers @true for it.  That is the
+*    port's stated limit and here it is also the intended way round the gate:
+*    a tunnel needs the account's Linux login first.  Closing it is an sshd
+*    matter (AllowTcpForwarding), not something a peer address can do.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+$flags trusted
+
+subroutine peer_local(is.local, peer.addr)
+$catalog !peer_local
+
+$include keys.h
+
+   set.status 0
+
+   is.local = @false
+   peer.addr = ''
+
+*  ssh first: it is the transport the port's routine was written for.
+   peer.addr = trim(field(env('SSH_CLIENT'), ' ', 1))
+
+*  Then the API.  Not "else" - see the header.
+   if peer.addr = '' then peer.addr = trim(system(42))
+
+   if peer.addr = '' then
+      set.status 1
+      return
+   end
+
+   begin case
+      case peer.addr[1,1] = '/'
+         is.local = @true
+      case peer.addr = '::1'
+         is.local = @true
+      case peer.addr = '::ffff:127.0.0.1'
+         is.local = @true
+      case field(peer.addr, '.', 1) = '127'
+         is.local = @true
+   end case
+
+   set.status 0
+   return
+
+* END-CODE

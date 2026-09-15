@@ -23,6 +23,8 @@
 #           the SCRAM login, requests 47/48, against $cred (13c)
 #     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
 #           control (14); a throwaway ssh key is installed for zzrel1 only
+#     S.17  an administrator is refused over the API from a non-loopback
+#           address and admitted locally (13e)
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
@@ -1292,6 +1294,76 @@ else
         ck_says "B3 CONTROL: a wrong password was refused" "PASS  wrong password refused:" "$OUT"
         ck_says "B4 the program's own verdict, 3 of 3" "3 / 3 checks passed" "$OUT"
         ck_absent "B4b and no 5275 anywhere (the class does not send request 24)" "Cleartext login is no longer supported" "$OUT"
+    fi
+fi
+
+# ==========================================================================
+# S.17 - THE REMOTE-ADMINISTRATOR GATE (the port's PRE_RELEASE_FIXES 170, its
+# verify-apiremote legs, on one machine).  The only variable is the address:
+# this host's own LAN address is NOT loopback, so a self-connection to it is
+# what !peer_local calls remote - the port's b126 witness rests on exactly that.
+#   E1 CONTROL, SCORED FIRST AND GATING THE REST: zzrel1 as PROGRAMMER over the
+#      LAN address logs in and enters.  Without it a machine whose listener is
+#      127.0.0.1 only would refuse E4 for the wrong reason.
+#   E2 zzrel1 made ADMINISTRATOR (joins sdadmin) - E3 over 127.0.0.1 and E3c
+#      over the Unix socket are ADMITTED (the local case must keep working),
+#   E4 over the LAN address is REFUSED in 10174's words, E5 audited with the
+#      peer's address (getpeername - the linuxio.c half of the change).
+#   E6 LINUX: back to PROGRAMMER, then put in sdadmin by hand (the drift the
+#      tier-or-group test is for): over the LAN address, REFUSED; then removed.
+head2 "13e. S.17 - an administrator is refused over the API from another address (10174)"
+LANIP=$(ip -4 -o addr show scope global 2>/dev/null | awk 'NR==1 { split($4, a, "/"); print a[1] }')
+LISTEN=$(ss -ltnH 'sport = :4243' 2>/dev/null | awk '{print $4}' | tr '\n' ' ')
+say "  this host's first global IPv4 address: '${LANIP:-none}'"
+say "  TCP listeners on 4243: '${LISTEN:-none}'"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
+    for r in "E1 control over the LAN address" "E1b entered" "E2 ADMINISTRATOR" "E3 local admitted" "E3b entered" "E3c unix socket admitted" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 restored PROGRAMMER" "E6b sdadmin drift refused" "E6c removed from sdadmin"; do not_reached "$r"; done
+else
+    OUT=$(sprobe "E1 CONTROL: zzrel1 (PROGRAMMER) over the LAN address" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+    E1OK=no
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "E1 control: a PROGRAMMER logs in over $LANIP" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "E1b and enters the account" "account $ACC: entered" "$OUT"
+        printf '%s' "$OUT" | grep -qF "account $ACC: entered" && E1OK=yes
+    fi
+    if [ "$COMMIT" -eq 1 ] && [ "$E1OK" != yes ]; then
+        say "  the control failed, so the route over $LANIP does not work here (listeners: ${LISTEN:-none}) - the gate cannot be measured"
+        for r in "E2 ADMINISTRATOR" "E3 local admitted" "E3b entered" "E3c unix socket admitted" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 restored PROGRAMMER" "E6b sdadmin drift refused" "E6c removed from sdadmin"; do not_reached "$r"; done
+    else
+        OUT=$(run_sd root "MODIFY.ACCOUNT $ACC ADMINISTRATOR" "MODIFY.ACCOUNT $ACC ADMINISTRATOR")
+        [ "$COMMIT" -eq 1 ] && ck_says "E2 zzrel1 is ADMINISTRATOR (10109)" "Account $ACC is now ADMINISTRATOR" "$OUT"
+        N0=0
+        [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
+        OUT=$(sprobe "E3 LEG A: the administrator over 127.0.0.1" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "E3 the administrator is admitted locally" "SCRAM: server signature VERIFIED" "$OUT"
+            ck_says "E3b and enters the account" "account $ACC: entered" "$OUT"
+        fi
+        OUT=$(sprobe "E3c LEG A (Linux): the administrator over the Unix socket" "$SCRAM_PW" --unix "${USOCK:-/tmp/sdsys/sdclient.socket}" --user "$ACC" --account "$ACC")
+        [ "$COMMIT" -eq 1 ] && ck_says "E3c the administrator is admitted over the Unix socket" "SCRAM: server signature VERIFIED" "$OUT"
+        OUT=$(sprobe "E4 LEG B: the same account and password over $LANIP" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+        if [ "$COMMIT" -eq 1 ]; then
+            ck_says "E4 refused at 48 in 10174's words" "SCRAM: login REFUSED at request 48: An administrator may not sign in to the SD API from another machine" "$OUT"
+            ck_absent "E4b and did not log in" "server signature VERIFIED" "$OUT"
+            NEW=$(tail -n +"$((N0 + 1))" "$AUD")
+            printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+            ck_says "E5 audited with the peer's address" "API REFUSED user=$ACC reason=administrator on a remote API session from $LANIP" "$NEW"
+        fi
+        OUT=$(run_sd root "restore: MODIFY.ACCOUNT $ACC PROGRAMMER" "MODIFY.ACCOUNT $ACC PROGRAMMER")
+        if [ "$COMMIT" -eq 0 ]; then
+            say "  > gpasswd -a $ACC sdadmin; scram-probe.py --host $LANIP --user $ACC --account $ACC; gpasswd -d $ACC sdadmin"
+            say "      (dry run - not executed)"
+        else
+            ck_says "E6 zzrel1 is PROGRAMMER again" "Account $ACC is now PROGRAMMER" "$OUT"
+            say "  > gpasswd -a $ACC sdadmin   (the drift: PROGRAMMER tier, sdadmin member)"
+            gpasswd -a "$ACC" sdadmin 2>&1 | sed -e 's/^/      | /'
+            OUT=$(sprobe "E6b a PROGRAMMER who is in sdadmin, over $LANIP" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
+            ck_says "E6b refused in 10174's words" "SCRAM: login REFUSED at request 48: An administrator may not sign in to the SD API from another machine" "$OUT"
+            say "  > gpasswd -d $ACC sdadmin"
+            gpasswd -d "$ACC" sdadmin 2>&1 | sed -e 's/^/      | /'
+            ck "E6c zzrel1 is out of sdadmin again (section 14's ssh control needs it)" no "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdadmin && echo yes || echo no)"
+        fi
     fi
 fi
 SCRAM_PW=""
