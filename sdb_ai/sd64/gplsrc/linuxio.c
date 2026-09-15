@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 14 Sep 26 dm S.17: a TCP API connection records the PEER's address and port
+ *           (getpeername), not the listener's, so APISRVR can tell local from not.
  * 14 Sep 26 dm S.18: login_user() removed with the getpeereid() peer capture
  *           that fed it - request 24 is retired, nothing calls either.
  * 14 Sep 26 dm login_user loads the user's supplementary groups (initgroups)
@@ -138,23 +140,37 @@ bool start_connection(int unused) {
       case PF_INET:
         /* 10 Sep 26 dm - accept TCP, but for the API server ONLY, deliberately
            reversing the 2024-02-19 "AF_UNIX only" restriction for that one path.
-           A TCP peer has no Unix uid, so getpeereid() is NOT called and the peer
-           stays unassigned - the API server authenticates the connection by SD
-           user name / password (APISRVR SDConnect).  The listener binds
-           127.0.0.1:4243 by default; installsdai.sh opens it to 0.0.0.0:4243 and
-           the firewall only on "Allow API access".  A non-API TCP connection is
-           still refused.  ip_addr/port_no here are the local (listener) end, as
-           for the AF_UNIX case above. */
+           The API server authenticates the connection by SCRAM (APISRVR
+           requests 47/48).  The listener binds 127.0.0.1:4243 by default;
+           installsdai.sh opens it to 0.0.0.0:4243 and the firewall only on
+           "Allow API access".  A non-API TCP connection is still refused.
+
+           14 Sep 26 dm - S.17: ip_addr/port_no are now the PEER's, from
+           getpeername(), as the Windows port's are.  They were the listener's
+           own end (getsockname): the address a connection was SENT TO, not
+           where it came from.  The two usually agree about loopback, but not
+           always - a connection forwarded to 127.0.0.1 from elsewhere would
+           have read as local - and the question APISRVR asks of system(42)
+           (!peer_local) is where it came from.  A failed getpeername() leaves
+           "?", which !peer_local does not call local, so the gate refuses
+           rather than guessing. */
         {
-          struct sockaddr_in* s = (struct sockaddr_in*)&sa;
-          port_no = ntohs(s->sin_port);
-          if (inet_ntop(AF_INET, &s->sin_addr, ip_addr, MAX_SOCKET_ADDR_STR_LEN) == NULL)
+          struct sockaddr_storage pa;
+          socklen_t palen = sizeof(pa);
+          struct sockaddr_in* s = (struct sockaddr_in*)&pa;
+          if ((getpeername(0, (struct sockaddr *)&pa, &palen) != 0) || (pa.ss_family != AF_INET)) {
             strncpy(ip_addr, "?", MAX_SOCKET_ADDR_STR_LEN - 1);
+            port_no = 0;
+          } else {
+            port_no = ntohs(s->sin_port);
+            if (inet_ntop(AF_INET, &s->sin_addr, ip_addr, MAX_SOCKET_ADDR_STR_LEN) == NULL)
+              strncpy(ip_addr, "?", MAX_SOCKET_ADDR_STR_LEN - 1);
+          }
           if (!is_sdApiSrvr) {
-            syslog(LOG_INFO, "Refusing PF_INET connection (not API server) on %s", ip_addr);
+            syslog(LOG_INFO, "Refusing PF_INET connection (not API server) from %s", ip_addr);
             return FALSE; /* Error */
           }
-          syslog(LOG_INFO, "API connection over TCP on %s port %d (SD login required)", ip_addr, port_no);
+          syslog(LOG_INFO, "API connection over TCP from %s port %d (SD login required)", ip_addr, port_no);
         }
         break;
 
