@@ -16,6 +16,22 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+15 Sep 26  DELETING AN ACCOUNT NO LONGER STOPS BECAUSE SOME OTHER ACCOUNT
+           COULD NOT BE CHECKED.
+
+           Before deleting an account, SD looks through every other account for
+           references to the one going, and tells you about any it finds.  If
+           one of those other accounts could not be opened - its directory had
+           been removed, say - the whole command stopped with an error, before
+           it had even asked you to confirm.  A check that only produces a
+           warning was stopping the thing you had asked for.
+
+           SD now names the account it could not look inside, says it was
+           skipped, and gets on with the deletion.
+
+           SD Core for Windows found this one and has the same change.
+
+
 15 Sep 26  THE INSTALLER ENDS BY ASKING FOR YOUR SD PASSWORD.
 
            Programs that connect to SD through its API log in with an SD
