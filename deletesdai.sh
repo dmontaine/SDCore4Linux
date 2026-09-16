@@ -8,6 +8,10 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   15 Sep 2026 - the API's TLS server identity (/etc/sd-tls) is kept when the
+#   accounts are kept, and removed only on a full DELETE.  A reinstall that
+#   keeps your database now keeps the server's identity with it.
+#
 #   13 Sep 2026 - the account register is sdsys/accounts on disk (plan M3 D1),
 #   so a kept register is saved as /home/sd/accounts, the name installsdai.sh
 #   restores.  An install from before the rename has sdsys/ACCOUNTS, which this
@@ -218,8 +222,29 @@ echo "Config file removed."
 # 15 Sep 26 dm - S.19: the API's TLS server identity, kept beside sd.conf
 # (gplsrc/linuxio.c api_tls_dir).  The relay makes a new one on the next
 # install's first API connection.
-sudo rm -rf /etc/sd-tls
-echo "Removed /etc/sd-tls."
+#
+# 15 Sep 26 dm - ***IT GOES WITH THE ACCOUNTS NOW, LIKE $cred ABOVE*** (owner's
+# ruling that day: the identity persists for 1.1; client-side recognition is
+# 1.2's mutual enrolment).  A keep cycle used to destroy the server's identity,
+# so the next install came up with a NEW key while the accounts, passwords and
+# audit trail were all the ones the machine had before.  Nothing notices today,
+# because no client checks the key - but the moment one does, every upgrade
+# would look exactly like an impostor, and a warning that fires on every routine
+# upgrade is one people learn to click through.  So the decision is taken before
+# the clients exist, not after.
+#
+# It is LEFT IN PLACE rather than saved and restored: unlike $cred it lives
+# outside the sdsys tree, at /etc/sd-tls, and installsdai.sh never touches it -
+# the relay picks it up on the next first API connection.  DELETE removes it,
+# which is the case where the machine is genuinely being wiped.
+if [ "$keep_accts" = "DELETE" ]; then
+    sudo rm -rf /etc/sd-tls
+    echo "Removed /etc/sd-tls."
+else
+    if [ -d /etc/sd-tls ]; then
+        echo "Kept the API's TLS server identity (/etc/sd-tls), as the accounts were kept."
+    fi
+fi
 
 # 10 Sep 26 - nano's SD BASIC syntax file, which the installer places outside the
 # SD tree (beside its microcfg copy) because nano reads /usr/share/nano/*.nanorc.

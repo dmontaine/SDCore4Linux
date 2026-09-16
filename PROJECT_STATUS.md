@@ -22,7 +22,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 
 | | ID | cost | what | settled |
 |---|---|---|---|---|
-| ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); left: the port (its RELEASE_1.1 41) and pinning, unruled — neither in this tree | — |
+| ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); ***the ten API verifiers RULED 15 Sep 2026*** once W.4 closed (PORT_ADOPTION "Queue 22 — the ten API verifiers, ruled"): seven already measured by witness rows, `localconnect` does not transfer (phase 5 removed that transport), `apiname` was a real hole — `!valid_os_name` screens the SCRAM name at `apisrvr:1100` and nothing had ever sent it one it refuses — now built as §13c S9/S9b, UNRUN; left: `batchjob`/`cmdaudit` (no mechanism to verify) and `tierapi`'s STANDARD leg (no API login by a STANDARD account is measured) | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
 | ◐ | **P.31** | S | `delacc:219`'s cross-reference scan opened every other account's `voc` with no ELSE, so one unopenable `voc` aborted DELETE.ACCOUNT before the confirmation instead of skipping that account — the Windows port's find (its RELEASE_1.1 44), confirmed here by reading; shared BASIC, so upstream too. ***FIXED 15 Sep 2026 with the port's number and wording, 10188*** (it built first, so it carries the number; no collision here). Only a genuinely MISSING `voc` reaches it on Linux: the deleter is always root — measured, `DELETE.ACCOUNT` as a non-root administrator is refused 2001 and `LOGTO sdsys` 10002 — which corrects my earlier "an account owner could chmod theirs shut", and the port caught that. BASIC, so it compiles at the next install; left: that compile, and a witness row (an account whose `voc` directory is removed, then a delete that must warn and continue) | — |
@@ -35,6 +35,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ✅ | **S.13** | — | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh`, messages 10131-10139 — H5c failed on `dea3736` and `0d58171` (`ufw status` lists no rules while ufw is inactive), fixed with `ufw show added` (`test-sd-elevate.py` U1–U4), and §13h all pass on `0b67dba` incl. H5c and a real H1d (`…-102147.log`) | 15 Sep 2026 |
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
+| ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026***; 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed and what was rejected | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -360,6 +361,51 @@ with a deliberately wrong password is refused at request 48 with a real salt and
 `i=600000`, where the 10:09 install was refused at 47 (no credential at all).
 The same cycle re-witnessed the TLS relay after `sd_tlssrv.c`'s const fix
 (§13i T1–T14c, 269/269).
+
+***[S.20] CLIENT RECOGNITION IS 1.2's, AS MUTUAL ENROLMENT — THE OWNER'S RULING
+OF 15 Sep 2026, AND 1.1 KEEPS THE SERVER'S IDENTITY INSTEAD.*** Not started; this
+entry is the reasoning, so the next session does not re-run the argument.
+
+***WHAT 1.1 DOES.*** `deletesdai.sh` keeps `/etc/sd-tls` whenever the accounts
+are kept and removes it only on a full DELETE, the rule `$cred` already follows
+(`:192`). It is left in place rather than saved and restored, because unlike
+`$cred` it lives outside the sdsys tree and `installsdai.sh` never touches it.
+***NOTHING CHECKS THE KEY TODAY*** (`sd_tls.c:232` is `SSL_VERIFY_NONE`), so this
+changes no behaviour now — it is taken before the clients exist, because a
+warning that fires on every routine upgrade is one people learn to click through.
+
+***THE RESIDUAL RISK 1.1 SHIPS WITH, STATED PLAINLY.*** TLS 1.3 plus RFC 9266
+channel binding stops a man in the middle joining or reading a session, and SCRAM
+proves the server at the END (the client checks `v=`). What remains is an
+impostor server: it offers its own salt, the client sends a proof, the login then
+fails — and the impostor keeps a proof to grind offline, bounded by the 4096
+iteration floor (`sdclilib.c:876`, `sdclient:857`) and the real server's 600000.
+
+***THE THREE SHAPES WEIGHED, AND WHY TWO WERE PUT ASIDE.***
+- *Trust on first use alone* — the client stores the key on first sight and
+  refuses on change. Rejected as an intermediate: 1.2's enrolment subsumes it,
+  and its refusal puts the question "did the server legitimately change?" to a
+  ***remote user who structurally cannot answer it***. The refusal happens
+  BEFORE authentication, so SD cannot even tell whether that person is an
+  administrator — there is no "only ask admins" option.
+- *A client register alone* (the owner's question, 15 Sep) — valuable, but it
+  ***cannot stop server impersonation, because the proof runs the wrong way***:
+  a client fingerprint proves the client to the server, and an impostor is not
+  bound by our register — it simply says "recognised, carry on".
+- *Mutual enrolment* — one administrator act binds both directions at once: the
+  server records the client's fingerprint and description, the client records
+  the server's. Afterwards neither side prompts anybody, and a changed server key
+  is an administrator re-enrolment rather than a dialog. ***CHOSEN, FOR 1.2.***
+
+***WHAT IT WILL COST***, so 1.2 does not discover it: client key generation and
+storage in BOTH clients (`sdclilib.c` and BASIC `!sdclient`), cert request and
+verify in the relay (it does not ask for one today — no `SSL_CTX_set_verify` in
+`sd_tlssrv.c` at all), a root-only register like `$cred`, verbs to list, approve
+and revoke, and the enrolment flow itself. ***AND THE APPROVAL STEP IS THE WHOLE
+STRENGTH***: a client that self-registers on first connection gives an attacker
+the same courtesy, which makes the register a log rather than a gate. It binds
+both ports. A by-product worth having: the audit trail could name the machine
+instead of an address, and `apisrvr` already carries `api.peer.addr` for it.
 
 ***[S.19] PRIORITY #1, RELEASE BLOCKER FOR L1.1-0 AND W1.1-0 (owner, 15 Sep
 2026). LINUX: TLS 1.3 ON EVERY API CONNECTION, SCRAM BOUND TO IT (RFC 9266

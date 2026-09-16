@@ -16,6 +16,25 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+15 Sep 26  REINSTALLING AND KEEPING YOUR ACCOUNTS NOW KEEPS THE SERVER'S
+           NETWORK IDENTITY TOO.
+
+           When a program connects to SD over the network, the connection is
+           encrypted using an identity the server makes for itself the first
+           time one arrives.  Until now, reinstalling threw that identity away
+           even when you chose to keep your accounts, so the machine came back
+           with all your accounts and passwords but a brand new identity.
+
+           It is now kept whenever your accounts are kept, and removed only
+           when you delete everything.  The delete script says which it did.
+
+           WHY IT MATTERS EVEN THOUGH NOTHING COMPLAINS TODAY: no client
+           program currently checks the server's identity, so nothing notices
+           it changing.  When one does, a routine upgrade would otherwise look
+           exactly like someone impersonating your server - and a warning that
+           appears after every upgrade is one people learn to ignore.
+
+
 15 Sep 26  DELETING AN ACCOUNT NO LONGER STOPS BECAUSE SOME OTHER ACCOUNT
            COULD NOT BE CHECKED.
 
