@@ -1496,6 +1496,87 @@ else
 fi
 
 # ==========================================================================
+# Q.22 tierapi's STANDARD LEG - THE HALF THE PORT_ADOPTION ENTRY LEFT OPEN.
+# The verifier's question is "can a client reach all three tiers, and is it
+# stopped from one it should not?"  PROGRAMMER and ADMINISTRATOR were measured
+# (13b A1/A4.3, 13e E2/E3); NO API LOGIN BY A STANDARD ACCOUNT WAS MEASURED
+# ANYWHERE, so the answer for a third of the model rested on reading.
+#
+# WHY ITS OWN SECTION RATHER THAN A LINE IN SECTION 7.  Section 7 already moves
+# zzrel1 to STANDARD, but a tier move REWRITES THE ACCOUNT VOC AND CAN RESET
+# THE API ROUTE - so a login bolted onto section 7 could fail for the route
+# (10073) while reading like a tier refusal.  Here the route is set in the same
+# breath as the tier and V0b reads it back off the group.
+#
+# Rows are J*: V is section 12's (the parity audit list, V1-V10).
+#
+#   J0  zzrel1 -> STANDARD API, and the register says STANDARD on disk
+#   J0b and it is still in sdapi, so a refusal below cannot be 10073's
+#   J1  THE FIRST ROW: a STANDARD account logs in over the API, signature
+#       verified, its own account entered, and WHO names it.  STANDARD keeps
+#       WHO - it is not in sdsys/tier.policy/omit.standard, checked before this
+#       row was written, because a stripped verb would have failed J1c for a
+#       reason that has nothing to do with the tier.
+#   J2  fixture for the second row, the same shape 13b's A4 uses: demote
+#       zzrel2 so the GRANT is SIDEWAYS (granta calls tier_allows too, and
+#       would refuse an upward grant), then promote it back above zzrel1.
+#       MODIFY.ACCOUNT ANNOUNCES the grant it just voided (10128) and does NOT
+#       remove the membership - modifya's own note says so - which is what
+#       leaves J3 measuring the tier gate rather than a missing group.
+#   J3  THE SECOND ROW: zzrel1 now HOLDS the Linux group for a PROGRAMMER
+#       account and the API still refuses it, in 10003's words.  The grant is
+#       group membership, so this is the case tiergate exists for.
+#   J3c and the refusal was NOT at the login - the signature still verified,
+#       so what refused is the tier and not the password or the route.
+#   J4  the fixtures are put back: zzrel1 PROGRAMMER + sdapi, zzrel2
+#       ADMINISTRATOR, the grant revoked.  A witness that leaves the tree
+#       different from how it found it has changed what the sections after it
+#       measure.
+head2 "13j. Q.22 tierapi - a STANDARD account over the API: admitted to its own, refused upward"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ ! -f "$SPROBE" ]; }; then
+    say "  needs zzrel1 adopted, the SD password (13, 13b A5), zzrel2 (section 8) and $SPROBE"
+    for r in "J0 move reported" "J0a STANDARD on disk" "J0b still in sdapi" "J1 signature verified" "J1b own account entered" "J1c WHO names $ACC" "J2 sideways grant" "J2b $ACC2 promoted" "J2c group held" "J2d 10128 announced it" "J3 refused upward" "J3b in 10003's words" "J3c not at the login" "J4 $ACC restored" "J4b $ACC2 restored" "J4c grant revoked"; do not_reached "$r"; done
+else
+    OUT=$(run_sd root "MODIFY.ACCOUNT $ACC STANDARD API" "MODIFY.ACCOUNT $ACC STANDARD API")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "J0 the move was reported (10109)" "Account $ACC is now STANDARD" "$OUT"
+        ck "J0a the register says STANDARD on disk" STANDARD "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
+        ck "J0b and $ACC is still in sdapi (so a refusal below is not 10073's)" yes "$(in_sdapi "$ACC")"
+    fi
+    OUT=$(sprobe "J1 THE ROW: a STANDARD account into its OWN account, WHO" "$SCRAM_PW" --user "$ACC" --account "$ACC" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "J1 SCRAM login, server signature verified" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "J1b THE ROW: STANDARD entered its own account" "account $ACC: entered" "$OUT"
+        ck_who "J1c WHO names $ACC" "$ACC" "$(printf '%s' "$OUT" | sed -n 's/^| //p')"
+    fi
+    OUT=$(run_sd root "fixture: $ACC2 to STANDARD, grant it to $ACC sideways, then $ACC2 to PROGRAMMER" \
+          "MODIFY.ACCOUNT $ACC2 STANDARD NONE" "GRANT $ACC2 TO $ACC" "MODIFY.ACCOUNT $ACC2 PROGRAMMER API")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "J2 the sideways grant was made (10041)" "$ACC may now use account $ACC2" "$OUT"
+        ck_says "J2b $ACC2 is PROGRAMMER, above $ACC (10109)" "Account $ACC2 is now PROGRAMMER" "$OUT"
+        ck "J2c and $ACC really holds sdu_$ACC2" 1 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
+        # MODIFY.ACCOUNT says out loud that the promotion voided a grant
+        # (modifya's promo.report, 10128) - which is the fixture describing
+        # itself, and the count says it voided MINE and not something else.
+        ck_says "J2d the promotion announced the voided grant (10128)" "1 grant(s) on account $ACC2 stopped working when it became" "$OUT"
+    fi
+    OUT=$(sprobe "J3 THE ROW: the same STANDARD account upward into $ACC2" "$SCRAM_PW" --user "$ACC" --account "$ACC2" WHO)
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "J3 THE ROW: STANDARD was refused a PROGRAMMER account it holds the group for" "account $ACC2: REFUSED" "$OUT"
+        ck_says "J3b in 10003's words" "User not allowed in requested account" "$OUT"
+        ck_says "J3c and NOT at the login - the signature verified first" "SCRAM: server signature VERIFIED" "$OUT"
+    fi
+    OUT=$(run_sd root "restore: REVOKE, $ACC to PROGRAMMER API, $ACC2 to ADMINISTRATOR" \
+          "REVOKE $ACC2 FROM $ACC" "MODIFY.ACCOUNT $ACC PROGRAMMER API" "MODIFY.ACCOUNT $ACC2 ADMINISTRATOR")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "J4 $ACC is PROGRAMMER again, in sdapi" "PROGRAMMER yes" \
+           "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null) $(in_sdapi "$ACC")"
+        ck "J4b $ACC2 is ADMINISTRATOR again" ADMINISTRATOR "$(sed -n '5p' "$REGISTER/$ACC2" 2>/dev/null)"
+        ck "J4c the grant is gone" 0 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
+    fi
+fi
+
+# ==========================================================================
 # Q.22 sdsyswrite - CAN SDSYS REACHED BY LOGTO WRITE THE ROOT-ONLY STORES?
 # The port's verify-sdsyswrite (its PRE_RELEASE_FIXES 68/73).  A "sudo sd"
 # session runs at euid sdsys and CPROC raises it to 0 only around the verbs in
