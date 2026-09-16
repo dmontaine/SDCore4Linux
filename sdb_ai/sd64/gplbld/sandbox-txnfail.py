@@ -23,7 +23,7 @@
 #     0902 (live is 0301/0302) and check_admin() stubbed - IN THE COPY ONLY;
 #   - a copy of /usr/local/sdsys (minus $cred and audit, which are root-only)
 #     with the sandbox binaries in its bin;
-#   - a private sd.conf named by SCARLET_CONFIG (inipath.c);
+#   - a private sd.conf named by SD_CONFIG (inipath.c);
 #   - a copy of the invoking user's own account, registered in the copy.
 # The live segment is printed before and after and must not change.
 #
@@ -312,7 +312,7 @@ class Box:
 
     def env(self):
         e = dict(os.environ)
-        e["SCARLET_CONFIG"] = self.conf
+        e["SD_CONFIG"] = self.conf
         return e
 
     def session(self, binary, lines, limit=None, timeout=120):

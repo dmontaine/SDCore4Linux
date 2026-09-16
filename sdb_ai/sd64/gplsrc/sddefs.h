@@ -19,7 +19,8 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * 02 Jul 24 mab define max string size.
- * 06 Aug 24 mab define sdext max arg 
+ * 06 Aug 24 mab define sdext max arg
+ * 15 Sep 26 dm - SD_CONFIG_ENV / SD_CONFIG_DEFAULT, one pair for both sides.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -105,6 +106,26 @@
 #define MAX_STRING_SIZE   1073741822   /* 1/ GB, 1FFF FFFF */ 
 
 #define MAX_PATHNAME_LEN 255    /* Changes affect file headers */
+
+/* 15 Sep 26 dm - where the configuration file lives.  Adopted from the
+ * Windows port's decision of 14 Aug 2026 (its HISTORY.md, "The configuration
+ * file finds itself"), which is this port's decision too.
+ *
+ * ONE VARIABLE AND ONE FILE, for the server and the client alike.  The server
+ * read SCARLET_CONFIG (inipath.c) while the client library read SD_CONFIG
+ * (sdclilib.c) - so setting the variable you would expect configured exactly
+ * one of them.  SCARLET_CONFIG is not read any more: it named a project this
+ * is not part of, and the standing rule is to convert rather than tolerate.
+ * The default stays /etc/sd.conf, which is right on Linux; the port's
+ * %ProgramData% reasoning is Windows-only and does not come across.
+ *
+ * The client library is a separate toolchain and does not include this header,
+ * so it carries its own copy of these two values.  If you change them here,
+ * change gplsrc/sdclilib.c to match.
+ */
+#define SD_CONFIG_ENV     "SD_CONFIG"
+#define SD_CONFIG_DEFAULT "/etc/sd.conf"
+
 #define MAX_ID_LEN 255          /* Increasing requires major file changes */
 #define MAX_CALL_NAME_LEN 63    /* Cannot exceed MAX_ID_LEN */
 #define MAX_TRIGGER_NAME_LEN 32 /* Increasing would alter file header */

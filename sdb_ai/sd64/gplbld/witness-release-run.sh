@@ -121,6 +121,11 @@ MADE_ACCOUNT=0
 ACC2=zzrel2
 MADE_USER2=0
 MADE_ACCOUNT2=0
+# Section 15 (P.31) moves $ACC2's voc aside for one DELETE.ACCOUNT and puts it
+# straight back.  The path lives here so cleanup() can put it back too if the
+# run dies in between - a half-made account is worse than no measurement.
+VOC_ASIDE=""
+VOC_MADE=0
 # Section 12 (S.5) needs an account whose Linux user carries SD's "SD account"
 # stamp, to reach DELETE.ACCOUNT's SD-created branch and REMOVE.HOME.
 ACC3=zzrel3
@@ -292,6 +297,10 @@ cleanup() {
     local rc=$?
     [ "$COMMIT" -eq 1 ] || exit $rc
     head2 "CLEANUP - removing whatever this run made"
+    if [ -n "$VOC_ASIDE" ] && [ -d "$VOC_ASIDE" ]; then
+        mv "$VOC_ASIDE" "$ACCOUNTS_ROOT/$ACC2/voc" \
+            && say "  put $ACC2's voc back (section 15 died with it moved aside)"
+    fi
     [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ADOPT marker"; }
     [ -e "$SDSYS/\$adopt.$ACC2" ] && { rm -f "$SDSYS/\$adopt.$ACC2"; say "  removed a leftover ADOPT marker for $ACC2"; }
     if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
@@ -1910,11 +1919,42 @@ LINUX_PW=""
 # S.5, the other half - DELETE.ACCOUNT of an account whose Linux user SD did not
 # create (zzrel1, plain useradd, no stamp): one shorter question (10085), the
 # account goes, the Linux user is KEPT and stripped of SD's groups (10036).
-head2 "15. S.5 - DELETE.ACCOUNT of a borrowed user keeps the user (10085, 10036)"
+#
+# P.31 RIDES ON THE SAME RUN - K8/K9.  delacc's cross-reference scan opens every
+# OTHER account's voc, and the 15 Sep fix names one it cannot open (10188) and
+# carries on instead of aborting the verb before the confirmation.  The 18:26
+# witness ran the changed verb twice and THE NEW ELSE NEVER FIRED, because every
+# voc was present - so the warning path shipped unexercised.  On Linux the
+# deleter is always root, so a mode cannot hide a voc from it and only a
+# GENUINELY MISSING one reaches the ELSE (delacc's own note says so).  The
+# witness therefore makes exactly that condition on its own throwaway account -
+# $ACC2's voc is moved aside and put straight back - and touches nothing else.
+head2 "15. S.5 - DELETE.ACCOUNT of a borrowed user keeps the user (10085, 10036); P.31's 10188"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
     for r in "K1 one question" "K2 10085" "K3 10036" "K4 register gone" "K5 user kept" "K6 groups stripped"; do not_reached "$r"; done
+    for r in "K8 10188 named $ACC2" "K9 the deletion finished anyway"; do not_reached "$r"; done
 else
+    # Make the condition, and SAY WHETHER IT WAS MADE.  If the voc is not
+    # missing when DELETE.ACCOUNT runs, K8 could only pass on nothing, so it
+    # is NOT REACHED rather than passed.
+    VOC_ASIDE=""
+    VOC_MADE=0
+    say "  > mv $A2DIR/voc $A2DIR/voc.witness-aside   (P.31: make $ACC2's voc MISSING)"
+    if [ "$COMMIT" -eq 1 ] && [ -d "$A2DIR/voc" ] && mv "$A2DIR/voc" "$A2DIR/voc.witness-aside"; then
+        VOC_ASIDE="$A2DIR/voc.witness-aside"
+        VOC_MADE=1
+    fi
+    if [ "$COMMIT" -eq 1 ]; then
+        say "      | $A2DIR/voc          : $(yesno_dir "$A2DIR/voc")   (must be no)"
+        say "      | $A2DIR/voc.witness-aside: $(yesno_dir "$A2DIR/voc.witness-aside")   (must be yes)"
+    fi
     OUT=$(run_sd root "DELETE.ACCOUNT $ACC, answered Y" "DELETE.ACCOUNT $ACC" "Y")
+    # Put it back BEFORE the checks, so a failing check cannot leave $ACC2
+    # crippled for the sections that follow or for the cleanup.
+    if [ -n "$VOC_ASIDE" ] && [ -d "$VOC_ASIDE" ]; then
+        mv "$VOC_ASIDE" "$A2DIR/voc" && VOC_ASIDE=""
+        say "      | restored $A2DIR/voc  : $(yesno_dir "$A2DIR/voc")   (must be yes)"
+    fi
     if [ "$COMMIT" -eq 1 ]; then
         ck "K1 exactly ONE confirmation was asked" 1 "$(printf '%s' "$OUT" | grep -o '(y/<n>)?' | wc -l)"
         ck_says "K2 the shorter question (10085)" "Delete account $ACC and its directory (y/<n>)?" "$OUT"
@@ -1923,6 +1963,19 @@ else
         ck "K5 the Linux user is kept" yes "$(yesno_user "$ACC")"
         ck "K6 and holds no SD group (sdapi included, S.16)" 0 "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -cE '^(sdusers|sdadmin|sdapi|sdu_)')"
         ck "K7 and its SD password went with it (\$cred/$ACC, written in section 13)" no "$(yesno_file "$SDSYS/\$cred/$ACC")"
+        # P.31.  The needle is delacc's own wording on the POSITIVE path - the
+        # 10188 text with the account name in it - so it cannot match a refusal
+        # or an echo of the command.  K9 is the "carries on" half: the abort
+        # this fix removed happened BEFORE the confirmation, so a deletion that
+        # finished is the proof the scan did not kill the verb.
+        if [ "$VOC_MADE" -eq 1 ]; then
+            ck_says "K8 10188 named $ACC2, whose voc was missing" "Account $ACC2 could not be opened" "$OUT"
+            ck "K9 and DELETE.ACCOUNT still finished (register record gone)" no "$(yesno_file "$REGISTER/$ACC")"
+        else
+            say "  $A2DIR/voc could not be moved aside, so the 10188 path was not made"
+            not_reached "K8 10188 named $ACC2"
+            not_reached "K9 the deletion finished anyway"
+        fi
         [ "$(yesno_file "$REGISTER/$ACC")" = no ] && MADE_ACCOUNT=0
     fi
 fi
@@ -1939,6 +1992,23 @@ fi
 #      live /etc/sd.conf still carries it, sd.service being active is the
 #      proof it is accepted.  A full cycle ships sd.conf without it, and then
 #      R3 is NOT REACHED - it did not measure the claim, so it does not pass.
+#
+#      ***R3 IS MEASURABLE ONLY ON A KEEP-CONFIGURATION CYCLE, AND THAT IS A
+#      PRECONDITION OF THE ROW, NOT A FAULT IN IT.***  Answer Y to "keep your
+#      existing configuration" and R3 measures the claim; answer N and it
+#      cannot, because a fresh sd.conf has no APILOGIN line to accept.
+#
+#      A CHEAPER ROUTE WAS LOOKED FOR ON 15 Sep 2026 AND DOES NOT EXIST, so
+#      do not spend the session finding that out again.  read_config() is
+#      called from ONE place, sysseg.c:139, and only when the shared segment
+#      is being CREATED - so a session started against a private config named
+#      by SD_CONFIG never parses it at all (measured: the built sd with
+#      SD_CONFIG pointing at an absent file started normally and reached the
+#      : prompt).  Starting a second system to force the parse is not open
+#      either: the segment key is the fixed SD_SHM_KEY (sysseg.c:306), so
+#      `sd -start` finds the live segment and returns before reading any
+#      config.  Forcing the condition therefore means stopping the live
+#      system, which a witness run must not do to the box it is measuring.
 head2 "16. S.18 - no libcrypt/libbsd, no APILOGIN, a restored APILOGIN=1 starts"
 say "  > ldd $SD"
 if [ "$COMMIT" -eq 1 ]; then
@@ -1972,8 +2042,11 @@ if [ "$COMMIT" -eq 1 ]; then
     if printf '%s' "$CONFLINE" | grep -q 'APILOGIN='; then
         ck "R3 sd.service is active with APILOGIN in /etc/sd.conf (the retired key is accepted)" active "$SDACTIVE"
     else
-        say "  /etc/sd.conf has no APILOGIN line (a full cycle), so the restored-file case was not measured"
-        not_reached "R3 a restored APILOGIN=1 is accepted"
+        say "  /etc/sd.conf has no APILOGIN line, so this was a cycle that did NOT keep the"
+        say "  configuration.  R3 needs one that did - answer Y to \"keep your existing"
+        say "  configuration\" - and cannot be forced from here (see the note above this"
+        say "  section).  NOT REACHED is the row refusing to pass on nothing."
+        not_reached "R3 a restored APILOGIN=1 is accepted (needs a keep-configuration cycle)"
     fi
 fi
 
