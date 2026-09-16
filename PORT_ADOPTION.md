@@ -341,7 +341,7 @@ for the reason the harness section already gives: one instrument, not ten copies
 | `apiname` | does the name gate refuse a name a real client could present? | ***GAP — NOW BUILT***, §13c S9/S9b (below) |
 | `apiport` | turn the port on, prove a remote session, turn it off | **Measured.** S.13 §13h H0–H9: ON/LOCAL/OFF, what it listens on, the ufw rule, and a probe admitted or refused at each |
 | `apiremote` | administrator refused remotely, admitted locally | **Measured, exactly.** S.17 §13e E1–E6c, including the audit line naming the peer |
-| `tierapi` | can a client reach all three tiers, and is it stopped from one it should not? | **Partly.** PROGRAMMER and ADMINISTRATOR are measured (§13b A1/A4.3, §13e E2/E3) and 10003 refuses an account you are not granted. ***STANDARD over the API is measured nowhere*** — the open half |
+| `tierapi` | can a client reach all three tiers, and is it stopped from one it should not? | **Partly — and the open half now has an instrument, unrun.** PROGRAMMER and ADMINISTRATOR are measured (§13b A1/A4.3, §13e E2/E3) and 10003 refuses an account you are not granted. STANDARD over the API was measured nowhere; ***§13j J0–J4c were written 15 Sep 2026*** to close it — a STANDARD account admitted to its own account, then refused upward into a PROGRAMMER account it holds the Linux group for. ***BUILT, NOT WITNESSED*** |
 | `scramlogin` | requests 47 and 48 and their refusals | **Measured, heavily.** §13c S1–S7, §13i T4 and T9–T14c |
 | `localconnect` | a second transport that sends NO password | ***Does not transfer.*** That route went in phase 5 (`SDConnectUDS`, S.18); the Unix socket that remains speaks SCRAM like any other — §13c S8–S8e, §13i T2 |
 | `peerlog` | does the daemon identify the peer, and does its per-connection log stay inside ERRLOG? | **Half measured, half Windows-only.** `linuxio.c` takes the peer from `getpeername` (S.17) and §13e E5 audits a refusal *with the peer's address*. The ERRLOG-growth half is `sdwind`'s; there is no per-connection log here |
@@ -361,11 +361,33 @@ next witness. *(The two paths also differ in `status` on the wire, 0 against
 3006. It leaks nothing — the client chose the name either way — and anchoring a
 row on it would test an implementation detail rather than the rule.)*
 
-***STILL OPEN: `tierapi`'s STANDARD leg.*** No API login by a STANDARD-tier
-account is measured anywhere. §7 already moves `zzrel1` to STANDARD for the
-release-prompt rows, so a probe login while it sits there is the cheap shape —
-but a tier move rewrites the account VOC and the API route, so it wants its own
-rows rather than a line bolted onto §7.
+~~***STILL OPEN: `tierapi`'s STANDARD leg.***~~ ***THE ROWS ARE BUILT, 15 Sep
+2026, AND HAVE NOT RUN — §13j.*** No API login by a STANDARD-tier account was
+measured anywhere. The shape this entry proposed is the shape built, including
+its warning: §7's existing STANDARD move was *not* used, because a tier move
+rewrites the account VOC and can reset the API route, and a login bolted onto
+§7 could then fail for the route (10073) while reading like a tier refusal.
+§13j sets tier and route in one command and J0b reads the route back off
+`sdapi` before anything is concluded from a refusal.
+
+**What it measures, and why each half is there.** J1 is the first half of the
+verifier's question — a STANDARD account reaching the API at all — and J3 is
+the second: the same account, ***holding the Linux group for a PROGRAMMER
+account***, refused in 10003's words. The grant is group membership, so that is
+the case `tiergate` exists for; J3c re-reads the signature line so a refusal at
+the login could not be mistaken for a refusal by the tier.
+
+*Two facts were read out of the source before the rows were written, and either
+would have made the section measure something else:* `who` is **not** in
+`sdsys/tier.policy/omit.standard`, so a STANDARD account still has the verb J1c
+runs; and `modifya`'s promotion **announces** a grant it voids (10128) without
+removing the membership — its own note, `modifya:570-592` — so J3 meets the
+tier gate rather than an absent group. J2c and J2d check both rather than trust
+them.
+
+*Falsified-if:* J1b refuses, which would mean STANDARD cannot reach the API at
+all and the model is not what `tiergate` describes; or J3 is admitted, which
+would mean the API's tier gate is not reached on that path.
 
 **Ranked worklist for the "to build" class**, by what is unwitnessed today
 rather than by how hard it is:

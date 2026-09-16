@@ -23,7 +23,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree | — |
-| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); ***the ten API verifiers RULED 15 Sep 2026*** once W.4 closed (PORT_ADOPTION "Queue 22 — the ten API verifiers, ruled"): seven already measured by witness rows, `localconnect` does not transfer (phase 5 removed that transport), `apiname` was a real hole — `!valid_os_name` screens the SCRAM name at `apisrvr:1100` and nothing had ever sent it one it refuses — now built as §13c S9/S9b and ***WITNESSED 15 Sep 2026***: 271/271 on `c773008` (16:18) and again on `c1ea29b` (18:26), S9 refused at 47 and S9b reading `reason=name rejected by valid_os_name` off the trail — the row that proves the name check fired and not a catch-all; left: `batchjob`/`cmdaudit` (no mechanism to verify) and `tierapi`'s STANDARD leg (no API login by a STANDARD account is measured) | — |
+| ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); ***the ten API verifiers RULED 15 Sep 2026*** once W.4 closed (PORT_ADOPTION "Queue 22 — the ten API verifiers, ruled"): seven already measured by witness rows, `localconnect` does not transfer (phase 5 removed that transport), `apiname` was a real hole — `!valid_os_name` screens the SCRAM name at `apisrvr:1100` and nothing had ever sent it one it refuses — now built as §13c S9/S9b and ***WITNESSED 15 Sep 2026***: 271/271 on `c773008` (16:18) and again on `c1ea29b` (18:26), S9 refused at 47 and S9b reading `reason=name rejected by valid_os_name` off the trail — the row that proves the name check fired and not a catch-all; ***`tierapi`'s STANDARD LEG IS BUILT 15 Sep 2026 AND HAS NOT RUN***: §13j J0–J4c — a STANDARD account admitted to its own account over the API, then refused upward into a PROGRAMMER account it holds the Linux group for (10003), with the route read back off `sdapi` first so the refusal cannot be 10073's, and the fixtures restored; `bash -n` clean; left: `batchjob`/`cmdaudit` (no mechanism to verify) and an owner-run witness for §13j | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
 | ◐ | **P.31** | S | `delacc:219`'s cross-reference scan opened every other account's `voc` with no ELSE, so one unopenable `voc` aborted DELETE.ACCOUNT before the confirmation instead of skipping that account — the Windows port's find (its RELEASE_1.1 44), confirmed here by reading; shared BASIC, so upstream too. ***FIXED 15 Sep 2026 with the port's number and wording, 10188*** (it built first, so it carries the number; no collision here). Only a genuinely MISSING `voc` reaches it on Linux: the deleter is always root — measured, `DELETE.ACCOUNT` as a non-root administrator is refused 2001 and `LOGTO sdsys` 10002 — which corrects my earlier "an account owner could chmod theirs shut", and the port caught that. ***COMPILED INTO `c1ea29b` AND EXERCISED 15 Sep 18:26***: the witness ran the changed verb twice, §9 `DELETE.ACCOUNT zzrel3 REMOVE.HOME` and §15 `zzrel1`, with no abort. ***THE NEW ELSE DID NOT FIRE*** — every `voc` was present, so 10188 was never printed. ***THE ROW THAT MAKES IT FIRE IS BUILT, 15 Sep 2026, AND HAS NOT RUN***: §15 now moves `zzrel2`'s `voc` aside for the one `DELETE.ACCOUNT` and puts it straight back (`cleanup()` puts it back too if the run dies holding it), and scores K8 on 10188's own wording naming `zzrel2` and K9 on the deletion finishing anyway — NOT REACHED, not passed, if the aside did not happen. `bash -n` clean, no BOM, no CRLF; left: an owner-run witness cycle to exercise it | — |
 | ◐ | **S.24** | S | the configuration file was named by two environment variables — the server read `SCARLET_CONFIG` (`inipath.c:38`), the client library `SD_CONFIG` (`sdclilib.c:4080`), so setting either moved half the system and said nothing; the port settled this on 14 Aug 2026 and its decision is this port's. ***FIXED 15 Sep 2026***: `SD_CONFIG_ENV`/`SD_CONFIG_DEFAULT` in `sddefs.h`, the symbol read in `inipath.c` with a bounded copy, the client's duplicate literals commented as duplicates, and `sdfix.c`'s `read_sdconfig()` buffer widened from `200 + 1` to `MAX_PATHNAME_LEN + 1`. Built (clean objects, exit 0) and guarded by a new free check, `test-configpath-units.py` 14/14 + `--selftest` 8 mutants; changelog written. left: no install has run since the change, so the "an installation that sets nothing behaves identically" claim is unmeasured — the next cycle settles it | — |
@@ -294,10 +294,41 @@ NOTHING HERE IS WITNESSED; THE LAST WITNESSED STATE IS STILL `c1ea29b` BELOW.***
 3. **S.24, found on the way**: the server and the client library read
    *different* environment variables for the configuration file. Fixed, built,
    and guarded by a new free check. See its entry.
+4. **Q.22's `tierapi` STANDARD leg is built** — §13j, the last of that
+   verifier's legs that a measurement here could close. `batchjob`/`cmdaudit`
+   remain, and those have no mechanism to verify rather than no instrument.
+
+***SO THE ANSWER TO "IS THERE ANYTHING LEFT THAT IS NOT BLOCKED ON WINDOWS" IS
+NARROWER THAN IT LOOKS, AND WORTH WRITING DOWN.*** S.21/S.22 wait on the port,
+S.20 and S.1 are 1.2, and P.6's two remaining halves need a transient I/O error
+nobody can induce. What was left here was ***unwitnessed paths and unlooked-for
+defects***, not table rows — S.24 was on no list until someone read
+`inipath.c`. The table was right that the 1.1 critical path is Windows; it was
+never a claim that reading this tree would find nothing.
 
 *Everything above is source and script only.* `assert-current` will read stale
 until this is committed, pushed and installed, and no claim here may move to
 "witnessed" without an owner-run cycle.
+
+***AND THE NEXT WITNESS RUN WILL REFUSE TO START UNTIL ONE COMMAND IS RUN.***
+***MEASURED 15 Sep 19:14*** by a dry run: §0 says `DIRTY: Linux user zzrel1
+exists` and stops, because the script will not touch state it did not create.
+***A SECOND WITNESS RUN WAS STARTED AT 18:28:51 AND INTERRUPTED*** part way
+through §13i T3 (`/var/tmp/witness-release-run.20260915-182851.log` ends in
+CLEANUP, after `zzrel2` went and while `zzrel1`'s SD account was going). The SD
+side finished — no register record, no account directory, no `$cred`, no adopt
+marker, and `zzrel1` is in no SD group — but `userdel` never ran, so the Linux
+user, its group `zzrel1` (gid 1010) and `/home/zzrel1` survive. That is the
+whole of what is left; nothing else on the box is dirty. ***THIS NEEDS `sudo`,
+as the owner, and it is the only leftover:***
+
+```sh
+sudo userdel -r zzrel1
+```
+
+*The 18:26 run's own cleanup is not in doubt — its log says `userdel -r
+zzrel1: done` and `left behind: … user=no`. The user present now was made at
+18:28:52 by the run that followed.*
 
 ***HANDOFF, 15 Sep 18:26 — THE RELEASE CANDIDATE IS WITNESSED ON `c1ea29b`,
 WHICH IS HEAD: 270 PASS, 0 FAIL, 1 NOT REACHED*** (log
