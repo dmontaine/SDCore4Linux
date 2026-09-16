@@ -35,7 +35,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.17** | — | an administrator (tier or `sdadmin`) is refused over the API from a non-loopback address, admitted over 127.0.0.1 and the socket; `linuxio.c` records the peer — witnessed on `e4e470e`, 195/195 (§13e E1–E6c) | 14 Sep 2026 |
 | ✅ | **S.13** | — | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh`, messages 10131-10139 — H5c failed on `dea3736` and `0d58171` (`ufw status` lists no rules while ufw is inactive), fixed with `ufw show added` (`test-sd-elevate.py` U1–U4), and §13h all pass on `0b67dba` incl. H5c and a real H1d (`…-102147.log`) | 15 Sep 2026 |
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
-| ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026***; 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed and what was rejected | — |
+| ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026, AND AS AN OPTION RATHER THAN A REQUIREMENT*** (*"let the admin decide how much they need"*) — so it ships available and off, probably as a ladder (open / server recognised / mutual). 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed, what was rejected, and what would falsify the ladder | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -396,6 +396,31 @@ iteration floor (`sdclilib.c:876`, `sdclient:857`) and the real server's 600000.
   server records the client's fingerprint and description, the client records
   the server's. Afterwards neither side prompts anybody, and a changed server key
   is an administrator re-enrolment rather than a dialog. ***CHOSEN, FOR 1.2.***
+
+***AND IT IS AN OPTION, NOT A REQUIREMENT — the owner's ruling of 15 Sep 2026:***
+*"for 1.2 we make the higher level of security an option, not a requirement. Let
+the admin decide how much they need."* So 1.2 ships enrolment available and off,
+and an administrator turns it on deliberately — the stance's "possible,
+documented and reversible" applies to the act of turning it on.
+
+***HOW THAT SITS WITH "SECURITY SHIPS TIGHT"***, since a later session will
+notice the two and wonder: the capability that ships off is the network API
+itself (`REMOTE.API` is LOCAL unless the installer is told otherwise), and
+enrolment is a level of assurance ON TOP of a door that is already shut by
+default. Requiring enrolment out of the box would mean no client could connect
+until an administrator approved it, which is a usability cliff rather than a
+tight default.
+
+*Plan, not measurement — what it would look like, and what would falsify it:* a
+ladder rather than a switch, because "how much they need" has more than two
+answers — **open** (today: TLS and bound SCRAM, no recognition), **server
+recognised** (the client checks the server's identity; no register to run), and
+**mutual** (the client register with approval). If the middle rung turns out to
+cost nearly as much as the top one, the ladder collapses to a switch and this
+paragraph is wrong. ***THE HARD PART IS SWITCHING IT ON LATER, NOT SHIPPING IT
+OFF***: clients that already work would have to be enrolled without a flag day,
+so an enrolment window, or an approval queue an administrator drains, is the
+piece to design first.
 
 ***WHAT IT WILL COST***, so 1.2 does not discover it: client key generation and
 storage in BOTH clients (`sdclilib.c` and BASIC `!sdclient`), cert request and
