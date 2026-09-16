@@ -44,8 +44,8 @@
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
 #     updates every account's VOC as each install does.
 #
-#   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
-#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 # Exit 0 every check passed, 1 a check failed (or was not reached), 2 it could

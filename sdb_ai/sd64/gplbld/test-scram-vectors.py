@@ -6,7 +6,7 @@
 # verification path and the guards.  Added 14 Sep 2026 with W.4 phase 1; the
 # client half joined with phase 4, the same day.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-scram-vectors.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-scram-vectors.py
 #
 # No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed,
 # 2 it could not run (no compiler, no libsodium, a compile error).

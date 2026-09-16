@@ -5,7 +5,7 @@
 #                  type that names the other one?  PORT_ADOPTION queue 22, the
 #                  port's verify-keys.ps1 (its PROJECT_STATUS 5.17).
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-keys.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-keys.py
 #   python3 .../verify-keys.py --allow-stale     measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

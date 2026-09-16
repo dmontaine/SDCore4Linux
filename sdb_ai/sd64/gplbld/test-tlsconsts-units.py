@@ -7,7 +7,7 @@ RELEASE_1.1 41), under the owner's rule that Linux follows the Windows port's
 decisions.  It goes further than the port's in one way: the probe and the two
 BASIC programs carry the GS2 header as literals, so they are pinned too.
 
-  python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-tlsconsts-units.py
+  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-tlsconsts-units.py
 
 No sudo, no install, no sd.  These constants are one fact kept in step by
 hand, and nothing in the build cross-checks them - the compiler accepts any

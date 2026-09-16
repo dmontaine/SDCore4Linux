@@ -6,7 +6,7 @@
 #                         PORT_ADOPTION queue 22; intent from the port's
 #                         gplbld/verify-lineendings.ps1.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-lineendings.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-lineendings.py
 #   python3 .../verify-lineendings.py --allow-stale
 #
 # NO SUDO.  Exit 0 / 1 / 2 as the others.

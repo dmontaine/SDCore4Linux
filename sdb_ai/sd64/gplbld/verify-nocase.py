@@ -6,7 +6,7 @@
 #                    don't have commands, files or record ids that differ only
 #                    in casing."
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-nocase.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-nocase.py
 #   python3 .../verify-nocase.py --list        also print every remnant name
 #   python3 .../verify-nocase.py --strict      exit 1 unless the name half is COMPLETE
 #

@@ -4,7 +4,7 @@
 #                         logic, driven through the cases that must FAIL.
 #                         PORT_ADOPTION queue 22.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-editors-units.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-editors-units.py
 #
 # No sudo, no install, no sd.  Exit 0 all cases passed, 1 a case failed.
 #

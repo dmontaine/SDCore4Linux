@@ -5,7 +5,7 @@
 #                       SD BASIC redraw 160x48 fast enough to be interactive?
 #                       Also: does an xterm SGR mouse report reach KEYIN intact?
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/tui-render-probe.py --sandbox <dir>
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/tui-render-probe.py --sandbox <dir>
 #
 # The <dir> is a sandbox built by sandbox-txnfail.py --keep and STARTED
 # (SD_CONFIG=<dir>/sd.conf <dir>/sys/bin/sd -start, its sdlnxd killed).

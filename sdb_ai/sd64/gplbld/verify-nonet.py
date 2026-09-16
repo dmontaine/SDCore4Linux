@@ -6,7 +6,7 @@
 #                   PORT_ADOPTION queue 22; intent from the port's
 #                   gplbld/verify-nonet.ps1.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-nonet.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-nonet.py
 #   python3 .../verify-nonet.py --allow-stale
 #
 # NO SUDO.  Reads the source tree and the install, plus one sd session that

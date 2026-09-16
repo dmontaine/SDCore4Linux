@@ -8,7 +8,7 @@
 # as a Monitor (CLAUDE.md, "Messages from the SD Core for Windows agent"); each
 # line it prints is a notification.  A 15-minute check is the fallback.
 #
-#   bash /home/don/Projects/sdcore4linux/.claude/mailbox-watch.sh [INBOX] [SECONDS]
+#   bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/.claude/mailbox-watch.sh [INBOX] [SECONDS]
 #
 # Read-only: it lists names and touches nothing.  It polls rather than using
 # inotify, because files pCloud syncs in from the other machine need not raise

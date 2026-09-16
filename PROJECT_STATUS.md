@@ -11,7 +11,7 @@ table at the top, checked off as items finish, so nobody searches history to
 find out what is left.**
 
 ***IT IS THE AUTHORITY ON STATUS. The entries carry the reasoning; this carries
-the state.*** `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`
+the state.*** `python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`
 checks every row against its entry in both directions and exits non-zero on
 drift. Run it before answering the question this table exists for.
 
@@ -455,7 +455,7 @@ account entered, `WHO` naming `zzinterop` (114, 115), password absent from the
 wire, and ***no 10174 from the LAN address, which is the row a Windows client
 depends on***. ***IT IS A THROWAWAY AND IT IS LIVE***: remove it after the
 interop run with `sudo bash
-/home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove`.
+/home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove`.
 ***THE RUN IT EXISTED FOR PASSED, 15 Sep 16:12 — AND THIS IS THE WINDOWS
 AGENT'S MEASUREMENT, NOT ONE TAKEN HERE*** (its mailbox note of that time,
 sd4windows `92a553a`; the audit trail is root-only, so nothing on this side
@@ -827,7 +827,7 @@ sandbox, no install needed: P.6 (`8db0735`, `sandbox-txnfail.py` 22/22, and a
 stranded OPENSEQ lock found and fixed) and S.1 stage 1 (renderer fast enough in
 pure BASIC; mouse passes KEYIN). ***One owner hand-over covers all three unrun
 rows:*** keep cycle, `assert-current`, then `sudo bash
-/home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+/home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
 --commit` — §13h changes the API listener and firewall and restores them.
 Still the owner's: W.4 phase 6, P.24, Q.19, Q.13 rotation.
 
@@ -2468,7 +2468,7 @@ Raw wording measured first: `ZZFOLDV is not in your VOC`; `COUNT ZZFOLDF` →
 1. Owner: delete→install from `origin/main` (the reinstall is the GPL.BP compile
    gate — SDSYS-only ruling). A syntax error fails the bootstrap visibly.
 2. Agent, no sudo: `assert-current.py` (must be 0), then
-   `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-fold.py`
+   `python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-fold.py`
    — expect ***35/35***. Then re-run the standing verifiers (list under "Every
    verifier re-run", below) — the fold touched CPROC, QPROC, PARSER, BCOMP, so
    ***"unchanged" is a claim to measure, not assume***; DON `COUNT VOC` 418.
@@ -2723,13 +2723,13 @@ DRY RUN IS THE DEFAULT; `--commit` IS THE OPT-IN AND NEEDS root.*** Read what
 it intends to do first:
 
 ```sh
-bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
+bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
 ```
 
 then, and only then:
 
 ```sh
-sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh --commit
+sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh --commit
 ```
 
 It refuses unless the throwaway names are absent as user, group, directory AND
@@ -2910,7 +2910,7 @@ Nothing is filed for it, and nothing should be. **Number 8 went to the
   premise would look like.
 - ***AFTER THE NEXT INSTALL, RUN THIS BEFORE BELIEVING ANY QUEUE 14 RESULT***
   (no sudo; exit 0 present, 1 missing, 2 no install to ask about):
-  `python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-grants.py`.
+  `python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-grants.py`.
   ***THE LOAD-BEARING ROW IS A, THE `gcat` CATALOGUE*** — files copied into
   `/usr/local/sdsys` prove nothing about the two-stage bootstrap, and a name in
   `gcat` is there only because SD compiled the program and ran its `$catalog`.
@@ -3634,13 +3634,13 @@ witness 25/27.***
 existing install (`installsdai.sh:125`), so a cycle is delete then install. Run
 both as `don`, **not** sudo — they elevate internally.
 
-1. `/home/don/Projects/sdcore4linux/deletesdai.sh` — answer **Y** (keep
+1. `/home/don/Projects/SDCoreLinuxProject/sdcore4linux/deletesdai.sh` — answer **Y** (keep
    accounts) and **Y** (keep configuration); answer **N** to its closing reboot
    prompt (`deletesdai.sh:297`) — a between-reboot is not needed for a keep
    cycle (groups and units unchanged). This keep-accounts path IS the upgrade,
    and it witnesses **25** (`sdadmin` survives holding `don`, no 10037 lock-out)
    and **27** (the `/home/sd` + `sd.conf` save path).
-2. `/home/don/Projects/sdcore4linux/installsdai.sh` — builds `origin/main`, so
+2. `/home/don/Projects/SDCoreLinuxProject/sdcore4linux/installsdai.sh` — builds `origin/main`, so
    it installs whatever `origin/main` is at the time — ***`728b542` when this
    step was written, `30b9c86` as of 11 Sep;*** check rather than trust the
    number, and `.sdcore-install` records what it actually took. APPLIES entry
@@ -3690,7 +3690,7 @@ an ordinary session is the two gates working, not a defect.***
 Run this first, every session:
 
 ```sh
-python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
+python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
 No `sudo`. **0 current · 1 stale · 2 cannot answer.** As of the 15:11 install on
@@ -4344,13 +4344,13 @@ run on an installed system.
 Not a formality. It corrected the plan **twice** in step 2's first third and
 shaped every fix since — the port is the reference implementation and
 `UPSTREAM_FIXES.md` / `PRE_RELEASE_FIXES.md` carry the *why*.
-`/home/don/Projects/SDCoreProject/sd4windows` has those plus `HISTORY.md`; the
+`/home/don/Projects/SDCoreWindowsProject/sd4windows` has those plus `HISTORY.md`; the
 entries are long, and the detail near the end of one is usually the correction.
 For step 4 the removals each have a §I/§G entry; grep the record for the one you
 start with, e.g.:
 
 ```sh
-grep -n -i -E 'PROC|TAPE|SDNet|OPGEN|VFS' /home/don/Projects/SDCoreProject/sd4windows/*.md
+grep -n -i -E 'PROC|TAPE|SDNet|OPGEN|VFS' /home/don/Projects/SDCoreWindowsProject/sd4windows/*.md
 ```
 
 ### The 11:35 install, 9 Sep 2026 — G2 and §I are closed

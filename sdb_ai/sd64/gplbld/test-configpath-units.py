@@ -2,8 +2,8 @@
 """test-configpath-units.py - ONE variable and ONE default for the config file,
 kept in step between the server and the client library.
 
-  python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-configpath-units.py
-  python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-configpath-units.py --selftest
+  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-configpath-units.py
+  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-configpath-units.py --selftest
 
 No sudo, no install, no sd.  A free check.
 

@@ -4,8 +4,8 @@
 #                         tier move, by ITSELF, with no UPDATE.ACCOUNTS?
 #                         The last open item of §L1 (per-tier VOC).
 #
-#   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh
-#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh --commit
+#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh
+#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-tierchange.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing and needs no
 # privilege: run it first, read what it intends, then commit.

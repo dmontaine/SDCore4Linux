@@ -32,7 +32,7 @@ LOOP_ARGS = (
     "handled message to done/, and report what was done; anything "
     "port-specific or a new capability goes to the owner. Then make sure the "
     "mailbox watcher is running: if no Monitor is armed for "
-    "/home/don/Projects/sdcore4linux/.claude/mailbox-watch.sh, arm one with "
+    "/home/don/Projects/SDCoreLinuxProject/sdcore4linux/.claude/mailbox-watch.sh, arm one with "
     "timeout_ms 1800000, and re-arm it whenever it expires. If there is "
     "nothing new, say nothing."
 )

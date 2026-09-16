@@ -3,7 +3,7 @@
 # test-sysperms-units.py - prove verify-sysperms.py's probes cannot damage what
 #                          they measure.  PORT_ADOPTION queue 22, item 7.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-sysperms-units.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-sysperms-units.py
 #
 # No sudo, no install, no sd.  Exit 0 all cases passed, 1 a case failed.
 #

@@ -6,7 +6,7 @@ RELEASE_1.1 42), under the owner's rule that Linux follows the Windows port's
 decisions; its open/write rows are left out, because this probe has no
 --open/--write.
 
-  python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-scramprobe-units.py
+  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-scramprobe-units.py
 
 No sudo, no install, no sd.  scram-probe.py drives the server's TLS+SCRAM login
 directly, and its own SCRAM arithmetic has to be right, or a real red would be

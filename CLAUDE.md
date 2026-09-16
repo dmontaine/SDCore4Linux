@@ -3,7 +3,7 @@
 ## Where these rules came from
 
 **This file is carried over from SD Core for Windows**
-(`/home/don/Projects/SDCoreProject/sd4windows/CLAUDE.md`), on the owner's
+(`/home/don/Projects/SDCoreWindowsProject/sd4windows/CLAUDE.md`), on the owner's
 instruction of 8 September 2026. The behavioural rules below were each written
 after a specific session lost time in *that* project; the incidents, dates and
 evidence are in **its** `HISTORY.md` and `PROJECT_STATUS.md`, not in this
@@ -37,7 +37,7 @@ it costs more than no claim at all.
 
 **Its task table, at the top, is the authority on what is left** (owner,
 14 Sep 2026). Before answering that question, read it and run
-`python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`.
+`python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/check-stale-leads.py`.
 The upkeep rules are under "Writing it down".
 
 The parity plan the project is working from lives outside the repository at
@@ -57,7 +57,7 @@ verb, script, path or flag you are about to type, most distinctive token first.
 **Grep the Windows project too, which is where the history actually is:**
 
 ```sh
-grep -n -i -E 'get_ak_node' PROJECT_STATUS.md ChangesApplied.txt UnsafeProposed.txt /home/don/Projects/SDCoreProject/sd4windows/*.md
+grep -n -i -E 'get_ak_node' PROJECT_STATUS.md ChangesApplied.txt UnsafeProposed.txt /home/don/Projects/SDCoreWindowsProject/sd4windows/*.md
 ```
 
 Read every hit. A hit is normally a session that has already paid for it.
@@ -66,7 +66,7 @@ Read every hit. A hit is normally a session that has already paid for it.
 stage for warning language:
 
 ```sh
-grep -n -i -E 'update\.accounts' /home/don/Projects/SDCoreProject/sd4windows/*.md |
+grep -n -i -E 'update\.accounts' /home/don/Projects/SDCoreWindowsProject/sd4windows/*.md |
   grep -i -E 'NEVER|DO NOT|CANNOT|MUST|trap|hung|hang|cost|refus|wrong|stale'
 ```
 
@@ -90,7 +90,7 @@ Windows port history for the answer first.**
 
 The port is the reference implementation (see "Project stance"), and its record
 carries decisions already made and paid for — `HISTORY.md`, `PROJECT_STATUS.md`
-and `PRE_RELEASE_FIXES.md` under `/home/don/Projects/SDCoreProject/sd4windows`.
+and `PRE_RELEASE_FIXES.md` under `/home/don/Projects/SDCoreWindowsProject/sd4windows`.
 Its `.md` files have very long lines; extract a window around the match rather
 than printing the whole line.
 
@@ -98,7 +98,7 @@ than printing the whole line.
 *"you have my permission to pull the windows repository whenever needed when
 working on parity tasks"*). The Windows agent pushes from the Windows box, so
 the local copy falls behind. Before reading it for parity work, run
-`git -C /home/don/Projects/SDCoreProject/sd4windows pull --ff-only`. If the pull
+`git -C /home/don/Projects/SDCoreWindowsProject/sd4windows pull --ff-only`. If the pull
 refuses because of local changes or a diverged branch, stop and tell the owner.
 Never merge or reset over the copy. The permission is to pull, not to commit or
 push there.
@@ -250,7 +250,7 @@ the same message — each is a fresh hand-over and carries all three parts again
    19 functions became 18. The one exemption is the inline one-liner whose failure
    you see at once.
 2. ***THE ABSOLUTE PATH, WITH EVERY VARIABLE ALREADY EXPANDED.***
-   `/home/don/Projects/sdcore4linux/installsdai.sh`, never `installsdai.sh`, never
+   `/home/don/Projects/SDCoreLinuxProject/sdcore4linux/installsdai.sh`, never `installsdai.sh`, never
    `$cwd/...`. A script that finds its own location internally does not change
    this: that makes it cwd-independent *once found*, which is the part a bare name
    breaks.
@@ -413,7 +413,23 @@ of them reverse what an earlier analysis recommended.
 ## Where this repository lives
 
 Renamed from `sdscripts_ai` to **`sdcore4linux`** on 8 Sep 2026, to match its new
-home on GitHub. The directory is `/home/don/Projects/sdcore4linux`.
+home on GitHub. The directory is `/home/don/Projects/SDCoreLinuxProject/sdcore4linux`.
+
+**Moved there from `/home/don/Projects/sdcore4linux` on 16 Sep 2026** (owner). The
+repository itself did not change: one worktree, a real `.git` directory, same
+`origin`, same HEAD. `SDCoreLinuxProject` is a containing folder outside the
+repository, so the lower-case-throughout stance is unaffected. **A move breaks the
+hand-over paths, which are absolute by rule** — 62 of them across 43 files were
+retargeted the same day. If the folder moves again, sweep
+`grep -rn '/home/don/Projects' --exclude-dir=.git --exclude-dir=gplobj --exclude-dir=bin`
+before believing any documented command.
+
+**The Windows port moved the same day**, from `/home/don/Projects/SDCoreProject/sd4windows`
+to `/home/don/Projects/SDCoreWindowsProject/sd4windows` (owner, 16 Sep 2026); its
+9 references here were retargeted in the same commit. That path is a dependency of
+"Check the Windows port history before you ask" and of the record-grep rule, so a
+stale one silently searches nothing — which reads as *"the port's record has no
+answer"* and sends a question to the owner that the record already answers.
 
 | Remote | URL | What it is |
 |---|---|---|
@@ -455,7 +471,7 @@ separately when §K needs checking.
 ## Building
 
 ```sh
-cd /home/don/Projects/sdcore4linux/sdb_ai/sd64 && make
+cd /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64 && make
 ```
 
 `make` must run from `sdb_ai/sd64` — the Makefile uses `MAIN := $(shell pwd)/`.
@@ -494,7 +510,7 @@ runs `sd -i` twice; a `GPL.BP` change that compiles is not thereby installed.
 ***IT HAS ONE NOW — 9 Sep 2026. RUN IT BEFORE BELIEVING ANY MEASUREMENT:***
 
 ```sh
-python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
+python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/assert-current.py
 ```
 
 No `sudo`. **Exit 0 current, 1 stale, 2 the question cannot be answered** — and

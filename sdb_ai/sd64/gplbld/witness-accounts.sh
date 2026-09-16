@@ -7,8 +7,8 @@
 #                       the port's verify-createaccount.ps1 and
 #                       verify-delaccount.ps1.
 #
-#   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
-#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh --commit
+#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh
+#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-accounts.sh --commit
 #
 # ***IT NEEDS sudo, AND ONLY FOR --commit.***  The dry run changes nothing and
 # needs no privilege: run it first, read what it intends, then commit.

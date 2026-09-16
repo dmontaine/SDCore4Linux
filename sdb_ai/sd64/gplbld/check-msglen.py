@@ -3,7 +3,7 @@
 # (two characters), and k_error writes at offset n after a "%08X: " prefix, so
 # the room is sizeof(s) - n.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-msglen.py sdsys/messages/10099
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/check-msglen.py sdsys/messages/10099
 #
 # Copied from SD Core for Windows (its gplbld/check-msglen.py) on the owner's
 # instruction of 9 Sep 2026.  That copy hard-coded the bound 231 and would not

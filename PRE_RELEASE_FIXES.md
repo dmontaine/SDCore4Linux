@@ -208,7 +208,7 @@ to clear the one standing NOTE — a note that is always present is a note nobod
 reads. Run it with:
 
 ```sh
-pwsh -NoProfile -File /home/don/Projects/SDCoreProject/sd4windows/sdb_ai/sd64/gplbld/test-fixlist-units.ps1 -Root /home/don/Projects/sdcore4linux
+pwsh -NoProfile -File /home/don/Projects/SDCoreWindowsProject/sd4windows/sdb_ai/sd64/gplbld/test-fixlist-units.ps1 -Root /home/don/Projects/SDCoreLinuxProject/sdcore4linux
 ```
 
 ***IT HAS BEEN WATCHED REFUSING AND FAILING ON THIS FILE, NOT ONLY PASSING***,

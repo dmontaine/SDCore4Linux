@@ -4,7 +4,7 @@
 #                       real logic, driven through the case that already caught
 #                       it out once.  PORT_ADOPTION queue 22.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-nonet-units.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-nonet-units.py
 #
 # No sudo, no install, no sd.  Exit 0 all cases passed, 1 a case failed.
 #

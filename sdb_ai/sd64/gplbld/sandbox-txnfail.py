@@ -4,7 +4,7 @@
 #                      exercise (A1, A3, A5, A6), run in a private sandbox SD,
 #                      each against a mutant build that reverts it.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/sandbox-txnfail.py --dir <empty scratch dir>
 #   python3 .../sandbox-txnfail.py --dir <dir> --keep      leave the sandbox built
 #
 # NO SUDO, AND NEVER THE LIVE SYSTEM.  Exit 0 every decisive row passed on the
