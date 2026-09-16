@@ -1532,10 +1532,13 @@ fi
 #       ADMINISTRATOR, the grant revoked.  A witness that leaves the tree
 #       different from how it found it has changed what the sections after it
 #       measure.
+#   J5  the Windows port's question of 15 Sep (its RELEASE_1.1 46), answered
+#       with a measurement rather than an expectation - an API session writing
+#       its OWN voc.  The long comment is beside the rows.
 head2 "13j. Q.22 tierapi - a STANDARD account over the API: admitted to its own, refused upward"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5), zzrel2 (section 8) and $SPROBE"
-    for r in "J0 move reported" "J0a STANDARD on disk" "J0b still in sdapi" "J1 signature verified" "J1b own account entered" "J1c WHO names $ACC" "J2 sideways grant" "J2b $ACC2 promoted" "J2c group held" "J2d 10128 announced it" "J3 refused upward" "J3b in 10003's words" "J3c not at the login" "J4 $ACC restored" "J4b $ACC2 restored" "J4c grant revoked"; do not_reached "$r"; done
+    for r in "J0 move reported" "J0a STANDARD on disk" "J0b still in sdapi" "J1 signature verified" "J1b own account entered" "J1c WHO names $ACC" "J2 sideways grant" "J2b $ACC2 promoted" "J2c group held" "J2d 10128 announced it" "J3 refused upward" "J3b in 10003's words" "J3c not at the login" "J4 $ACC restored" "J4b $ACC2 restored" "J4c grant revoked" "J5 zzapivoc absent before" "J5b COPY said 6189" "J5c not read-only" "J5d zzapivoc on disk"; do not_reached "$r"; done
 else
     OUT=$(run_sd root "MODIFY.ACCOUNT $ACC STANDARD API" "MODIFY.ACCOUNT $ACC STANDARD API")
     if [ "$COMMIT" -eq 1 ]; then
@@ -1573,6 +1576,39 @@ else
            "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null) $(in_sdapi "$ACC")"
         ck "J4b $ACC2 is ADMINISTRATOR again" ADMINISTRATOR "$(sed -n '5p' "$REGISTER/$ACC2" 2>/dev/null)"
         ck "J4c the grant is gone" 0 "$(id -nG "$ACC" | tr ' ' '\n' | grep -cx "sdu_$ACC2")"
+    fi
+    # ------------------------------------------------------------------ J5
+    # THE WINDOWS PORT ASKED, 15 Sep 2026 (its RELEASE_1.1 46): an API session
+    # running as the account's own user was refused every write to a hashed
+    # file it had not created, ITS OWN VOC INCLUDED, because dh_open decides
+    # read-only with access(pathname, 2) - dh_open.c:118-119, shared C, no port
+    # marker - and their CREATE.ACCOUNT leaves %0 owned by the elevated
+    # administrator.  Ours does not: createa:391-393 sets uid=<account> and
+    # gid=sdu_<account>, and :724-729 applies it to voc, voc/%0 and voc/%1.
+    #
+    # ***THE ANSWER SENT TO THEM WAS HONEST ABOUT ONE GAP AND THIS ROW CLOSES
+    # IT.***  Section 3 already measures an unprivileged account writing its own
+    # VOC, but over a LOCAL sd session; nothing wrote a VOC over the API.  The
+    # mechanism is transport-independent, which is a reason to expect a pass -
+    # not a measurement of one.
+    #
+    # The write is section 10's idiom (COPY FROM VOC who,<new id>) because that
+    # one is already known to land, and the PROOF IS ON DISK, read as root
+    # outside the session: 6189 is what COPY says, and a subfile that carries
+    # the new id is what actually happened.  Counted BEFORE and AFTER, so a
+    # record that was somehow already there cannot pass as a write.
+    VOCN0=0
+    [ "$COMMIT" -eq 1 ] && VOCN0=$(cat "$ADIR"/voc/%* 2>/dev/null | grep -a -c zzapivoc)
+    say "  zzapivoc in $ACC's voc subfiles BEFORE: $VOCN0   (must be 0)"
+    OUT=$(sprobe "J5 an API session writes its OWN voc" "$SCRAM_PW" --user "$ACC" --account "$ACC" "COPY FROM VOC who,zzapivoc")
+    if [ "$COMMIT" -eq 1 ]; then
+        VOCN1=$(cat "$ADIR"/voc/%* 2>/dev/null | grep -a -c zzapivoc)
+        say "  zzapivoc in $ACC's voc subfiles AFTER : $VOCN1   (must be more than before)"
+        ck "J5 the null case: zzapivoc was absent before the write" 0 "$VOCN0"
+        ck_says "J5b COPY reported the write (6189)" "1 record(s) copied." "$OUT"
+        ck_absent "J5c and the voc was NOT opened read-only (no 1431)" "File is read-only" "$OUT"
+        ck "J5d THE ROW: zzapivoc is on disk in $ACC's voc, written over the API" yes \
+           "$( [ "$VOCN1" -gt "$VOCN0" ] && echo yes || echo no )"
     fi
 fi
 
