@@ -19,7 +19,9 @@
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
- *           process_file was commented out??, sdfix didn't do anything.          
+ *           process_file was commented out??, sdfix didn't do anything.
+ * 15 Sep 26 dm - read_sdconfig()'s path buffer is MAX_PATHNAME_LEN + 1, as
+ *           every other GetConfigPath() caller passes.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -2120,7 +2122,11 @@ bool delete_subfile(int16_t sf) {
    read_sdconfig()  -  Read config file                                     */
 
 bool read_sdconfig() {
-  char path[200 + 1];
+  /* 15 Sep 26 dm - MAX_PATHNAME_LEN + 1, as every other GetConfigPath()
+     caller passes.  This one passed 201 bytes, so the function's contract was
+     whatever the smallest caller happened to be.  The port found the same
+     thing on 14 Aug 2026.                                                   */
+  char path[MAX_PATHNAME_LEN + 1];
   char rec[200 + 1];
   FILE *ini_file;
   char section[32 + 1];

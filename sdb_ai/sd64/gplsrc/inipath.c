@@ -18,9 +18,15 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 15 Sep 26 dm - read SD_CONFIG, not SCARLET_CONFIG, and bound the copy.
  * END-HISTORY
  *
  * START-DESCRIPTION:
+ *
+ * The variable is SD_CONFIG (SD_CONFIG_ENV in sddefs.h, where the reasoning
+ * is).  It was SCARLET_CONFIG here while sdclilib.c read SD_CONFIG, so
+ * setting the one you would expect configured the server or the client but
+ * never both.  SCARLET_CONFIG is not read any more.
  *
  * END-DESCRIPTION
  *
@@ -35,11 +41,15 @@ bool GetConfigPath(char *inipath) {
 
   char* p;
 
-  p = getenv("SCARLET_CONFIG");
-  if (p != NULL) {
-    strcpy(inipath, p);
+  /* Callers pass a buffer of MAX_PATHNAME_LEN + 1.  Nothing here may write
+     more than that - the environment supplies the string, so it is not ours
+     to trust.                                                              */
+
+  p = getenv(SD_CONFIG_ENV);
+  if ((p != NULL) && (*p != '\0')) {
+    snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", p);
   } else {
-    strcpy(inipath, "/etc/sd.conf");
+    snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", SD_CONFIG_DEFAULT);
   }
 
   return TRUE;

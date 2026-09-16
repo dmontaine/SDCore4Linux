@@ -42,6 +42,9 @@
  * 14 Sep 26 dm SDConnectUDS() and its Unix-socket opener are removed: they sent
  *     only the retired request 24 (W.4 SCRAM phase 5).  Same in linuxsdclilib.
  *
+ * 15 Sep 26 dm - sysdir()'s SD_CONFIG literals are a DUPLICATE of sddefs.h's
+ *     SD_CONFIG_ENV / SD_CONFIG_DEFAULT; change them together.  The server
+ *     used to read SCARLET_CONFIG instead; it does not any more.
  *
  * END-HISTORY
  *
@@ -4077,11 +4080,17 @@ Private char* sysdir() {
   FILE* fu;
   char* p;
  /* 20240219 mab correct env name */
+ /* 15 Sep 26 dm - THE SAME TWO VALUES AS SD_CONFIG_ENV / SD_CONFIG_DEFAULT in
+    gplsrc/sddefs.h, duplicated because the client library is a separate
+    toolchain and must not include the server's headers.  Change them here and
+    there together; the server used to read SCARLET_CONFIG instead, and the
+    mismatch is what that note is about.  snprintf, not strcpy: the string
+    comes from the environment.                                             */
   p = getenv("SD_CONFIG");  /* was QMCONFIG */ /* Issue #29 */
-  if (p != NULL)
-    strcpy(inipath, p);
+  if ((p != NULL) && (*p != '\0'))
+    snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", p);
   else
-    strcpy(inipath, "/etc/sd.conf"); // was sdconfig
+    snprintf(inipath, MAX_PATHNAME_LEN + 1, "%s", "/etc/sd.conf");
 
   fu = fopen(inipath, FOPEN_READ_MODE);
   if (fu == NULL) {

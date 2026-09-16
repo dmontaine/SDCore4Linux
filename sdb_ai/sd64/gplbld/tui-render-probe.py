@@ -8,7 +8,7 @@
 #   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/tui-render-probe.py --sandbox <dir>
 #
 # The <dir> is a sandbox built by sandbox-txnfail.py --keep and STARTED
-# (SCARLET_CONFIG=<dir>/sd.conf <dir>/sys/bin/sd -start, its sdlnxd killed).
+# (SD_CONFIG=<dir>/sd.conf <dir>/sys/bin/sd -start, its sdlnxd killed).
 # No sudo, never the live system.  Exit 0 measured, 2 could not run.  It gives
 # NUMBERS, not a verdict: the threshold is stated beside them and the decision
 # is written into PROJECT_STATUS, where it can be argued with.
@@ -74,7 +74,7 @@ def run_pty(sd, conf, cwd, script_lines, feed=None, timeout=300):
         # TERM=xterm: SD resolves the type through its own terminfo tree, which
         # ships xterm and not xterm-256color - with the latter the session stalls
         # at its first prompt (measured 14 Sep 2026).
-        env = dict(os.environ, SCARLET_CONFIG=conf, TERM="xterm", LINES="60", COLUMNS="200")
+        env = dict(os.environ, SD_CONFIG=conf, TERM="xterm", LINES="60", COLUMNS="200")
         os.execve(sd, [sd], env)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
     out = b""

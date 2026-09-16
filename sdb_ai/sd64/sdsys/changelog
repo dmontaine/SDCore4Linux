@@ -16,6 +16,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+15 Sep 26  ONE ENVIRONMENT VARIABLE NOW NAMES THE CONFIGURATION FILE, FOR
+           SD ITSELF AND FOR PROGRAMS THAT USE THE CLIENT LIBRARY.
+
+           SD keeps its settings in /etc/sd.conf.  If you need it somewhere
+           else - a test system beside a live one, say - you point SD at it
+           with an environment variable, and that variable is SD_CONFIG.
+
+           It used to be two variables that nobody could have guessed apart.
+           SD itself read SCARLET_CONFIG, while the client library programs
+           link against read SD_CONFIG, so setting either one moved half of
+           your system to the new file and left the other half reading
+           /etc/sd.conf - with no error to tell you.  SCARLET_CONFIG is no
+           longer read at all; it was named after a project SD is not part
+           of.
+
+           WHAT TO DO: if you set SCARLET_CONFIG anywhere - a shell profile,
+           a service file, a script - change it to SD_CONFIG.  If you have
+           never set either, nothing changes: the default is still
+           /etc/sd.conf, and it is used exactly as before.
+
+           WHAT IT DOES NOT DO: it does not let SD find a configuration file
+           on its own, and it does not change where the installer puts one.
+
+
 15 Sep 26  REINSTALLING AND KEEPING YOUR ACCOUNTS NOW KEEPS THE SERVER'S
            NETWORK IDENTITY TOO.
 

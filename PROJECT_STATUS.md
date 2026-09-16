@@ -25,7 +25,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); ***the ten API verifiers RULED 15 Sep 2026*** once W.4 closed (PORT_ADOPTION "Queue 22 — the ten API verifiers, ruled"): seven already measured by witness rows, `localconnect` does not transfer (phase 5 removed that transport), `apiname` was a real hole — `!valid_os_name` screens the SCRAM name at `apisrvr:1100` and nothing had ever sent it one it refuses — now built as §13c S9/S9b and ***WITNESSED 15 Sep 2026***: 271/271 on `c773008` (16:18) and again on `c1ea29b` (18:26), S9 refused at 47 and S9b reading `reason=name rejected by valid_os_name` off the trail — the row that proves the name check fired and not a catch-all; left: `batchjob`/`cmdaudit` (no mechanism to verify) and `tierapi`'s STANDARD leg (no API login by a STANDARD account is measured) | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
-| ◐ | **P.31** | S | `delacc:219`'s cross-reference scan opened every other account's `voc` with no ELSE, so one unopenable `voc` aborted DELETE.ACCOUNT before the confirmation instead of skipping that account — the Windows port's find (its RELEASE_1.1 44), confirmed here by reading; shared BASIC, so upstream too. ***FIXED 15 Sep 2026 with the port's number and wording, 10188*** (it built first, so it carries the number; no collision here). Only a genuinely MISSING `voc` reaches it on Linux: the deleter is always root — measured, `DELETE.ACCOUNT` as a non-root administrator is refused 2001 and `LOGTO sdsys` 10002 — which corrects my earlier "an account owner could chmod theirs shut", and the port caught that. ***COMPILED INTO `c1ea29b` AND EXERCISED 15 Sep 18:26***: the witness ran the changed verb twice, §9 `DELETE.ACCOUNT zzrel3 REMOVE.HOME` and §15 `zzrel1`, with no abort. ***THE NEW ELSE DID NOT FIRE*** — every `voc` was present, so 10188 was never printed; left: a row that removes a `voc` directory so the warning path itself is measured | — |
+| ◐ | **P.31** | S | `delacc:219`'s cross-reference scan opened every other account's `voc` with no ELSE, so one unopenable `voc` aborted DELETE.ACCOUNT before the confirmation instead of skipping that account — the Windows port's find (its RELEASE_1.1 44), confirmed here by reading; shared BASIC, so upstream too. ***FIXED 15 Sep 2026 with the port's number and wording, 10188*** (it built first, so it carries the number; no collision here). Only a genuinely MISSING `voc` reaches it on Linux: the deleter is always root — measured, `DELETE.ACCOUNT` as a non-root administrator is refused 2001 and `LOGTO sdsys` 10002 — which corrects my earlier "an account owner could chmod theirs shut", and the port caught that. ***COMPILED INTO `c1ea29b` AND EXERCISED 15 Sep 18:26***: the witness ran the changed verb twice, §9 `DELETE.ACCOUNT zzrel3 REMOVE.HOME` and §15 `zzrel1`, with no abort. ***THE NEW ELSE DID NOT FIRE*** — every `voc` was present, so 10188 was never printed. ***THE ROW THAT MAKES IT FIRE IS BUILT, 15 Sep 2026, AND HAS NOT RUN***: §15 now moves `zzrel2`'s `voc` aside for the one `DELETE.ACCOUNT` and puts it straight back (`cleanup()` puts it back too if the run dies holding it), and scores K8 on 10188's own wording naming `zzrel2` and K9 on the deletion finishing anyway — NOT REACHED, not passed, if the aside did not happen. `bash -n` clean, no BOM, no CRLF; left: an owner-run witness cycle to exercise it | — |
+| ◐ | **S.24** | S | the configuration file was named by two environment variables — the server read `SCARLET_CONFIG` (`inipath.c:38`), the client library `SD_CONFIG` (`sdclilib.c:4080`), so setting either moved half the system and said nothing; the port settled this on 14 Aug 2026 and its decision is this port's. ***FIXED 15 Sep 2026***: `SD_CONFIG_ENV`/`SD_CONFIG_DEFAULT` in `sddefs.h`, the symbol read in `inipath.c` with a bounded copy, the client's duplicate literals commented as duplicates, and `sdfix.c`'s `read_sdconfig()` buffer widened from `200 + 1` to `MAX_PATHNAME_LEN + 1`. Built (clean objects, exit 0) and guarded by a new free check, `test-configpath-units.py` 14/14 + `--selftest` 8 mutants; changelog written. left: no install has run since the change, so the "an installation that sets nothing behaves identically" claim is unmeasured — the next cycle settles it | — |
 | ✅ | **W.4** | XL | API surface walked 14 Sep; the tier gate and lower-case WHO witnessed on `3ff8027` (§13b A4.3, A1b); SCRAM phase 1 (primitives) built, RFC 7677 17/17; phase 2 (`$cred`, MODIFY.PASSWORD) witnessed on `74c60d4` (§13 C0–C7), its two fixes on `b119bb3` (§15 K7, `verify-setpw` 22/22); phase 3 (APISRVR 47/48, K$SET.USERNAME/K$ASSUME.USER) witnessed on `d880012` (§13c S1–S7); phase 4 (client `scram_login`, both `sdclilib.c` copies) witnessed on `85fbbec` (§13b A0–A5, §13c S5c); phase 5 (request 24 retired, `!sdclient` SCRAM, `SDConnectUDS` removed) witnessed on `9fd52d9` (§13c S5–S5e, §13d B0–B4b, 171/171); phase 6: both client libraries rebuilt (measured); SD passwords — `installsdai.sh` now ends by setting the installing user's with `sudo sd -QUIET MODIFY.PASSWORD` (owner, 15 Sep 2026: that user only, not SDSYS, whose SD password nothing on Linux uses — the port sets both, its PRE_RELEASE_FIXES 138), skipped when a keep cycle kept one, ***WITNESSED 15 Sep 2026 ON INSTALL `c773008` (15:44:32): the owner was asked at the keyboard (his word), and `don` went from refused at request 47 — no credential, the 10:09 install — to refused at 48 with a real salt and `i=600000`, measured by `scram-probe` with a deliberately wrong password.*** No instrument can run the prompt itself (`input … hidden` needs a tty); any other account stays a per-account `sudo sd` + MODIFY.PASSWORD job. Witness 269/269 on the same install | 15 Sep 2026 |
 | ➖ | **P.24** | — | dropped by the owner's choice: the installer seeds the admin (witnessed 10 Sep); the non-sudoer refusal is not pursued, because installation requires sudo by design | 15 Sep 2026 |
 | ➖ | **Q.13** | — | dropped by the owner's choice: every owed audit record type is witnessed (API REFUSED last, on `3ff8027`); rotation at 1 MB is not pursued - judged not testable - and stays unwitnessed | 15 Sep 2026 |
@@ -269,6 +270,35 @@ owner's ruling comes first.
 
 ## START HERE
 
+***HANDOFF, 15 Sep (later) — THREE THINGS BUILT AND NONE OF THEM INSTALLED.
+NOTHING HERE IS WITNESSED; THE LAST WITNESSED STATE IS STILL `c1ea29b` BELOW.***
+
+1. ***THE §16 R3 LEAD IS ANSWERED, AND THE ANSWER IS THAT THE CHEAP ROUTE DOES
+   NOT EXIST.*** R3 needs an `/etc/sd.conf` carrying `APILOGIN=1`, which only a
+   ***keep-configuration*** cycle produces. ***MEASURED:*** `read_config()` has
+   one caller, `sysseg.c:139`, and it runs only when the shared segment is
+   being ***created*** — a session started with `SD_CONFIG` pointing at a
+   private file never parses it (the built `sd` with `SD_CONFIG` naming an
+   absent file started normally and reached the `:` prompt), and `sd -start`
+   cannot be used to force the parse because the segment key is the fixed
+   `SD_SHM_KEY` (`sysseg.c:306`), so it finds the live segment and returns
+   first. Forcing the condition means stopping the live system, which a witness
+   must not do to the box it is measuring. So the row now ***names its
+   precondition out loud*** instead of reading like a defect, and the note
+   above §16 records the dead end so no session spends another hour on it.
+   ***THE REMAINING CHOICE IS THE OWNER'S AND IS ABOUT HIS INSTALL ANSWERS***,
+   not about the script: answer **Y** to "keep your existing configuration" on
+   some cycle and R3 measures the claim.
+2. **P.31's missing row is built** — §15 makes `zzrel2`'s `voc` missing for one
+   `DELETE.ACCOUNT` and restores it, so 10188 fires (K8/K9). See its table row.
+3. **S.24, found on the way**: the server and the client library read
+   *different* environment variables for the configuration file. Fixed, built,
+   and guarded by a new free check. See its entry.
+
+*Everything above is source and script only.* `assert-current` will read stale
+until this is committed, pushed and installed, and no claim here may move to
+"witnessed" without an owner-run cycle.
+
 ***HANDOFF, 15 Sep 18:26 — THE RELEASE CANDIDATE IS WITNESSED ON `c1ea29b`,
 WHICH IS HEAD: 270 PASS, 0 FAIL, 1 NOT REACHED*** (log
 `/var/tmp/witness-release-run.20260915-182615.log`, install 18:23:13,
@@ -405,6 +435,55 @@ with a deliberately wrong password is refused at request 48 with a real salt and
 `i=600000`, where the 10:09 install was refused at 47 (no credential at all).
 The same cycle re-witnessed the TLS relay after `sd_tlssrv.c`'s const fix
 (§13i T1–T14c, 269/269).
+
+***[S.24] THE CONFIGURATION FILE WAS NAMED BY TWO DIFFERENT ENVIRONMENT
+VARIABLES, ONE FOR THE SERVER AND ONE FOR THE CLIENT — FIXED 15 Sep 2026, NOT
+YET INSTALLED.*** Found while looking for a cheap way to reach §16 R3 (below).
+***MEASURED BY READING, BEFORE THE CHANGE:*** `inipath.c:38` read
+`SCARLET_CONFIG` while `sdclilib.c:4080` read `SD_CONFIG`, each falling back to
+`/etc/sd.conf` — so setting the variable you would expect moved the server or
+the client to the new file and left the other on the default, with nothing
+printed either way. The Windows port hit exactly this on 14 Aug 2026 and the
+owner's instruction there was to stop reading `SCARLET_CONFIG` and settle on
+`SD_CONFIG` (its `HISTORY.md`, "The configuration file finds itself"); under
+the follow-the-port rule that is this port's decision, and the OS difference
+touches only the default, which stays `/etc/sd.conf` here rather than the
+port's `%ProgramData%`.
+
+***WHAT CHANGED.*** `SD_CONFIG_ENV` / `SD_CONFIG_DEFAULT` in
+`gplsrc/sddefs.h:110-129`; `inipath.c` reads the symbol and bounds the copy
+with `snprintf` at `MAX_PATHNAME_LEN + 1`; `sdclilib.c` carries the duplicated
+literals with a comment naming the header, because the client is a separate
+toolchain that must not include the server's; `sdfix.c`'s `read_sdconfig()`
+buffer goes from `200 + 1` to `MAX_PATHNAME_LEN + 1` — the port found that one
+too, and until now `GetConfigPath()`'s contract was whatever its smallest
+caller happened to be. `gplbld/tui-render-probe.py` and `sandbox-txnfail.py`,
+the only things in this tree that set the variable, set `SD_CONFIG` now.
+***BUILT 15 Sep 2026*** from `rm -f gplobj/*.o` then `make`, exit 0, and the
+symbol is in the linked binaries (`strings bin/sd`, `bin/sdfix`).
+
+***THE GUARD IS THE POINT, NOT THE RENAME.*** Nothing in the build cross-checks
+`sdclilib.c`'s copy against the header — the compiler accepts any pair of
+values and the failure is silent at runtime, which is how the two names drifted
+apart in the first place. `gplbld/test-configpath-units.py` pins both values,
+the symbol use, the bound, `sdfix`'s buffer and the absence of the old name
+from code in six files: ***14/14 and `--selftest` 8 mutants 0 unnoticed,
+15 Sep 2026***. It is a free check and is in CLAUDE.md's list. *Its own first
+run had a mutant that went green — the anchor matched an earlier
+`char path[MAX_PATHNAME_LEN + 1]` in `sdfix.c` and mutated the wrong
+declaration — so the selftest's first act was to catch a hole in the check it
+was testing.*
+
+*The objection this session raised against itself, and did not dissolve:* this
+is a behaviour change to a witnessed release candidate on a side the owner has
+paused. Against it — the default path is unchanged, so an installation that
+sets nothing behaves identically; nothing in the installer, the service unit or
+the tree sets `SCARLET_CONFIG`; and the decision was already taken in the port.
+*What would falsify the "identically" claim:* an install that fails to find
+`/etc/sd.conf`, or a `!sdclient`/API session that cannot reach the system after
+the client library is rebuilt. ***NEITHER HAS BEEN MEASURED — NO INSTALL HAS
+RUN SINCE THE CHANGE.*** The changelog carries the user-facing note, including
+what to do if `SCARLET_CONFIG` was set somewhere.
 
 ***[S.21] [S.22] [S.23] THE THREE PRE-RELEASE TASKS, IN ORDER — THE OWNER'S, 15
 Sep 2026.*** Not started. They are sequential: each waits on the one before, and
