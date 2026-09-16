@@ -270,6 +270,44 @@ owner's ruling comes first.
 
 ## START HERE
 
+***HANDOFF, 16 Sep 00-ish — NOTHING HAS BEEN INSTALLED SINCE `c1ea29b`, SO
+NOTHING BELOW IS WITNESSED. `assert-current` SAYS STALE AND IS RIGHT.***
+
+**Two things are waiting on the owner, and they are the whole of what is
+blocked here:**
+
+1. **S.23 — does the SHIPPED `installsdai.sh` pin a TAG?** He ruled the shape
+   (*"the same as the windows version, staging directory and then a zip"*,
+   15 Sep), which dropped the build-from-zip option. The residue is costed in
+   S.23's entry: the edit is one value, `assert-current` is unaffected, and the
+   real cost is that a development install must keep cloning `main`, so the
+   shipped and repository scripts would differ. Recommendation is in the entry.
+2. **The port's `dh_open.c` fix (a), offered for parity 15 Sep 23:45 and NOT
+   taken** — see PORT_ADOPTION beside the J5 entry. It is an offer, not a
+   decision approved in one port, so the follow-the-port rule does not settle
+   it; and it is not a pure no-op here (a `DIO_UPDATE` failure after a truthful
+   `access()` would become a silent read-only instead of an error). A core
+   file-open path in a witnessed candidate, for a bug measured absent here.
+
+**Built today and unwitnessed** — all of it settles on one cycle: S.24 (the
+`SD_CONFIG` rename and the `TMP` bound), P.31's §15 K8/K9, §13j's J0–J4c
+(`tierapi`'s STANDARD leg) and J5 (an API session writes its own `voc`).
+
+***THE GROUND IS CLEAR FOR A WITNESS RUN — RE-MEASURED, AND THE EARLIER CLAIM
+IN THIS FILE WAS OVERTAKEN.*** An older handoff said `sudo userdel -r zzrel1`
+was needed; by the time the owner ran it the user was already gone (*"userdel:
+user 'zzrel1' does not exist"*), and §0 now prints *"ground clear: zzrel1
+exists as no user, group, directory, record or marker."* What removed it was
+not observed. **Do not re-add that instruction.**
+
+*Inert residue on this box, checked and deliberately not acted on:* Linux users
+`pete`, `tstd`, `tprog`, `tadm` (uids 1001-1004) with homes and their own
+`sdu_*` groups, no register record and no account directory. ***NONE IS IN
+`sdusers`, `sdadmin` OR `sdapi`*** — checked, because a user left in `sdadmin`
+is PRE_RELEASE 28's class and would matter. `deletesdai.sh` removes only SD's
+own identities and never per-account users, so this is expected rather than a
+defect.
+
 ***HANDOFF, 15 Sep (later) — THREE THINGS BUILT AND NONE OF THEM INSTALLED.
 NOTHING HERE IS WITNESSED; THE LAST WITNESSED STATE IS STILL `c1ea29b` BELOW.***
 

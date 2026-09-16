@@ -427,6 +427,32 @@ as root outside the session, and scores the before-count as its own row so a
 record that was somehow already present cannot pass as a write. ***BUILT, NOT
 WITNESSED.***
 
+***THE PORT THEN OFFERED ITS FIX (a) FOR PARITY, 15 Sep 2026 23:45 (its
+RELEASE_1.1 46, `c17f23b`) — NOT TAKEN, AND THE DECISION IS THE OWNER'S.*** It
+replaces the `access()` test at both subfile opens with a `dio_open(DIO_UPDATE)`
+that falls back to `DIO_READ` on failure. Their message frames it as optional —
+*"take it for parity if you want the two trees to read the same; no urgency"* —
+so it is an OFFER, not a decision approved in one port, and the
+follow-the-port rule does not settle it.
+
+*Read off our own code, and the reason it is not a pure no-op here:* our
+`dh_open.c` is identical to theirs, two sites (`:118-123`, `:178-184`). Today a
+`DIO_UPDATE` that fails **after `access()` said writable** reaches
+`DHE_FILE_NOT_FOUND` — a hard error. Under fix (a) that same failure falls back
+to `DIO_READ` and, if that succeeds, the file opens ***silently read-only***,
+surfacing later as 1431 at write time instead of at open. On Windows that
+fallback IS the fix, because there the `DIO_UPDATE` failure is legitimate (the
+`noacl` `access()` lie). Here `access()` answers truthfully, so the fallback
+converts an anomaly into a quiet downgrade.
+
+*Not asserted, because it was not measured:* whether any case on this box
+actually reaches that path. The argument above is from the code, not from a
+run. **The trade is a precise error for a forgiving one, to fix a bug measured
+absent here** — so it is a 1.1-or-1.2 timing call on a core file-open path in a
+witnessed candidate, which is the owner's, not this session's. If it is
+declined, S.21's parity audit will see ~8 lines of divergence in `dh_open.c` and
+this paragraph is the explanation it should find.
+
 **Ranked worklist for the "to build" class**, by what is unwitnessed today
 rather than by how hard it is:
 
