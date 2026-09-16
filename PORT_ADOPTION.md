@@ -389,6 +389,44 @@ them.
 all and the model is not what `tiergate` describes; or J3 is admitted, which
 would mean the API's tier gate is not reached on that path.
 
+### §13j J5 — an API session writing its own `voc`, and the port's question that produced it
+
+***THE WINDOWS PORT ASKED ON 15 Sep 2026 (its RELEASE_1.1 46) AND THE ANSWER
+HERE IS "NOT SHARED" — MEASURED, NOT ASSUMED.*** There, an API session running
+as the account's own user was refused every write to a hashed file it had not
+created, ***its own `voc` included***, with ER_RDONLY. The deciding line is
+shared C with no port marker — `dh_open.c:118-119`, `if (access(pathname, 2))
+read_only = TRUE;` — so it had to be checked here rather than reasoned about.
+
+***WHY LINUX IS CLEAN, AND IT IS NOT BECAUSE `access()` IS REAL.*** It is
+because `createa` chowns the new account's `voc` to the account's own user, the
+step the port lacks: `createa:391-393` sets `uid = acc.uname` and
+`gid = "sdu_":acc.uname`, and `createa:724-729` applies it to `voc`, `voc/%0`
+and `voc/%1` in three gosubs. ***MEASURED ON THE INSTALL***: an account's
+`voc/%0` is `-rw-rw-r-- <acc> sdu_<acc>` and the directory `drwxrwsr-x`, setgid
+so later files inherit the per-account group. The owner has `w`, so `access`
+succeeds. *Contrast, and do not read it as a second instance of the port's
+bug:* `/usr/local/sdsys/voc/%0` is `-rwxr-xr-x sdsys:sdusers` — no group write —
+which is this project's posture that only a root session writes SDSYS.
+
+***THE OWNER BIT IS GUARANTEED, THE GROUP BIT IS NOT.*** Nothing in the C sets
+the mode; `%0` comes out `664` because the creating process ran at umask 002.
+The owner's `w` survives any umask up to 077, so the account writing its own
+`voc` is safe regardless. The GROUP `w` — which is what lets a *granted* member
+of `sdu_<acc>` write, the case §10 measures — would go away at umask 022. Worth
+knowing before anything changes the installer's umask.
+
+***AND THE GAP THAT J5 EXISTS TO CLOSE.*** §3 already measures an unprivileged
+account writing its own `voc`, but over a ***local*** `sd` session; nothing
+wrote a `voc` over the API. The mechanism is transport-independent, which is a
+reason to *expect* a pass and not a measurement of one — so the reply sent to
+the port said so in those words, and J5 was written rather than left as an
+expectation. It uses §10's `COPY FROM VOC who,<id>` idiom because that one is
+already known to land, counts the id in the raw subfiles ***before and after***
+as root outside the session, and scores the before-count as its own row so a
+record that was somehow already present cannot pass as a write. ***BUILT, NOT
+WITNESSED.***
+
 **Ranked worklist for the "to build" class**, by what is unwitnessed today
 rather than by how hard it is:
 
