@@ -505,6 +505,22 @@ run had a mutant that went green — the anchor matched an earlier
 declaration — so the selftest's first act was to catch a hole in the check it
 was testing.*
 
+***AND THE SWEEP THAT FOLLOWED FOUND A SECOND ONE, 15 Sep 2026.*** Having
+fixed one unbounded copy of an environment string, the same question was asked
+of every `getenv` in `gplsrc/*.c`: `config.c:299-300` was
+`strcpy(pcfg.tempdir, getenv("TMP"))` into a `MAX_PATHNAME_LEN+1` field. ***IT
+IS THE ONLY COPY IN THAT FILE NOT BOUNDED BY ITS SOURCE*** — the two
+config-file arms above it (`:265`, `:271`) take their string out of
+`rec[200+1]` and cannot overrun a 256-byte field, while `TMP` comes from the
+environment of whoever runs `sd -start` and has no length at all; the
+`sortworkdir` default at `:313` then copies `tempdir`, so an overrun would have
+been carried into a second field. Bounded with `snprintf`, built. The other
+four `getenv` sites are clean: `op_misc.c:397` hands its result to
+`k_put_c_string`, and `k_error.c:714` / `op_kernel.c:292` read `SUDO_USER`
+without copying it into a fixed buffer. *This one is NOT guarded by
+`test-configpath-units.py`, which pins the config-path pair and nothing else —
+it is a fix, not an invariant.*
+
 *The objection this session raised against itself, and did not dissolve:* this
 is a behaviour change to a witnessed release candidate on a side the owner has
 paused. Against it — the default path is unchanged, so an installation that

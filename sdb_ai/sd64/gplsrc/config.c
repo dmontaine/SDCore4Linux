@@ -20,6 +20,8 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
+ *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
  * START-DESCRIPTION:
  *
  * Handles parsing of the configuration file.
@@ -296,8 +298,15 @@ struct CONFIG* read_config(char* errmsg) {
   }
 
   if (pcfg.tempdir[0] == '\0') {
+/* 15 Sep 26 dm - S.24's sweep.  THE ONE COPY IN THIS FILE THAT IS NOT BOUNDED
+   BY ITS SOURCE.  The two arms above take their string out of rec[200+1], so
+   they cannot overrun a MAX_PATHNAME_LEN+1 field; TMP comes from the
+   ENVIRONMENT of whoever runs "sd -start" and has no length at all.  The
+   sortworkdir default just below copies tempdir, so an overrun here would
+   have been carried into a second field.  Same fix as inipath.c's.         */
     p = getenv("TMP");
-    strcpy(pcfg.tempdir, (p == NULL) ? "/tmp" : p);
+    snprintf(pcfg.tempdir, MAX_PATHNAME_LEN + 1, "%s",
+             ((p == NULL) || (*p == '\0')) ? "/tmp" : p);
   }
 
   /* If the SORTWORK parameter has not been set, use TEMPDIR */
