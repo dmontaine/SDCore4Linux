@@ -39,7 +39,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026, AND AS AN OPTION RATHER THAN A REQUIREMENT*** (*"let the admin decide how much they need"*) — so it ships available and off, probably as a ladder (open / server recognised / mutual). 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed, what was rejected, and what would falsify the ladder | — |
 | ⬜ | **S.21** | L | ***PRE-RELEASE 1 of 3 (owner, 15 Sep 2026): the parity audit, and fixing what it finds.*** Runs once SD Core for Windows 1.1 is done — ***BLOCKED ON THE PORT, NOT ON THIS TREE***. Method exists: the 10 Sep audit (S.5, `witness-release-run.sh` §12's list) is the precedent to widen rather than reinvent | — |
 | ⬜ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. Blocked on S.21's issues being resolved | — |
-| ⬜ | **S.23** | M | ***PRE-RELEASE 3 of 3 (owner, 15 Sep 2026): staging repositories per version, then a release zip of each — one Linux, one Windows.*** One question to settle before packaging: `installsdai.sh` clones `main` from GitHub, so either the zip is a source snapshot and the installer keeps cloning (then it wants a TAG, not `main`), or the installer learns to build from an unpacked zip. That decision shapes both the zip and what S.22 documents | — |
+| ⬜ | **S.23** | M | ***PRE-RELEASE 3 of 3 (owner, 15 Sep 2026): staging repositories per version, then a release zip of each — one Linux, one Windows.*** ***THE SHAPE IS RULED 15 Sep 2026 — "the same as the windows version, staging directory and then a zip"***, so the zip is a distribution artifact assembled outside the project (the port's model, read out of its record) and the "installer builds from an unpacked zip" option is dropped. Costed 15 Sep against the code: pinning a TAG in the shipped `installsdai.sh` is one value (`:75`; `--branch` already takes tags), the stamp stays exact (`:397`, `:688-690`) and `assert-current` is unaffected (reads only `commit`, strict identity, fails pessimistic) — the cost is that a development install must keep cloning `main`, so the shipped and repository scripts would differ. left: the owner's yes on pinning the tag, then the staging directory and the zip itself | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -531,17 +531,62 @@ the first waits on the other port.
 3. ***STAGING REPOSITORIES PER VERSION, THEN A RELEASE ZIP OF EACH*** — one for
    Linux, one for Windows.
 
-*Plan, not measurement — the question (3) has to answer first:* `installsdai.sh`
-***clones `main` from GitHub and builds from the clone***, which is how an
-install tests `origin/main` rather than a working tree. A release zip therefore
-has two possible shapes, and they are not interchangeable: either the zip is a
-source snapshot and the installer keeps cloning, in which case it must clone a
-***TAG*** rather than `main` or a "release" install silently tracks whatever
-landed since; or the installer learns to build from an unpacked zip, which is a
-change to the installer and to `assert-current`, whose whole premise is that the
-install's commit stamp matches `origin/main`. ***THE SECOND IS NOT FREE***, and
-it is better decided before the documentation in (2) describes an install
-procedure that then changes.
+***THE SHAPE IS RULED — OWNER, 15 Sep 2026: "the way the linux version will be
+is the same as the windows version, staging directory and then a zip."*** So
+(3) is the port's mechanism, not a Linux invention, and the entry below is kept
+because the two ports differ in one place that the ruling does not reach.
+
+***WHAT THE PORT ALREADY SETTLED, AND THEREFORE BINDS HERE.*** Read out of its
+record, not asked: **GitHub carries the source** and (for the docs repository)
+the Markdown; **the zip carries the built product and the PDFs and is assembled
+by the owner outside the project** — its `PROJECT_STATUS.md` names the staging
+directory as *"his hand-assembled release zip and NOT PART OF THIS PROJECT. Do
+not read from it, write to it, or sweep it"* (its row for `../SDCore1.0-0`);
+SourceForge carries only the zip, and **nothing else is published**, because
+HTML and PDF regenerate from Markdown that is already current on GitHub (its
+owner's correction of 12 Sep 2026, which replaced two commits that had called
+publishing "owed"). ***SO THE ZIP IS A DISTRIBUTION ARTIFACT, NOT A BUILD
+INPUT***, and the option this entry used to carry — "the installer learns to
+build from an unpacked zip" — is not the model. It is not pursued.
+
+***THE ONE PLACE THE PORT CANNOT ANSWER, BECAUSE THE OS DIFFERS.*** A Windows
+zip carries a compiled Inno installer, so a Windows user never clones and never
+builds. ***A LINUX USER RUNS `installsdai.sh`, WHICH CLONES AND BUILDS ON THEIR
+MACHINE*** (`installsdai.sh:385`). So the Linux zip's `installsdai.sh` has to
+name something, and today that is `REPO_BRANCH="main"` (`:75`) — which means a
+1.1 zip installed in six months would build whatever `main` had become. *The
+residual question is therefore narrow: does the SHIPPED installer pin a TAG?*
+
+*Measured 15 Sep 2026, so the cost is known rather than guessed:*
+
+- **The change is one value.** `:385` is `git clone --branch "$REPO_BRANCH"
+  --depth 1 …`, and `--branch` takes a tag as readily as a branch. `REPO_BRANCH`
+  at `:75`, plus the two lines that say "the main branch" to the user (`:229`,
+  `:383`), are the whole edit.
+- **The stamp survives it exactly.** `:397` takes `commit` from `rev-parse HEAD`
+  of the clone, which at a tag is the tagged commit; `:688-690` already record
+  `commit`, `branch` and `origin`.
+- **`assert-current` is unaffected, and cannot be made to lie by it.** It reads
+  only `commit` from the stamp — never `branch` — and check C is strict commit
+  identity by the owner's twice-affirmed ruling of 12 Sep. A tag install whose
+  commit is not `HEAD` reports STALE, which is the pessimistic direction the
+  header calls the safe one. No false "current" is introduced.
+- **There are no tags on `origin` today** (`git ls-remote --tags origin` is
+  empty), so nothing depends on their current absence.
+- ***THE REAL COST IS NOT IN THE CODE.*** A development install must keep
+  cloning `main` — CLAUDE.md's "an install tests `origin/main`, so commit and
+  push first" is the whole test cycle — so pinning a tag means the shipped
+  script and the developer's script differ, or the choice comes back. **The
+  owner removed the branch-choice menu deliberately on 9 Sep 2026** (`:228`,
+  *"There is no selection any more: main, from GitHub"*), so re-adding a choice
+  reverses a decision rather than filling a gap.
+
+*Recommendation, conditional and for the owner's yes:* the staging copy of
+`installsdai.sh` carries the tag and the repository's copy keeps `main`, so
+neither script has a choice in it and the 9 Sep decision stands in both.
+*Falsified if* the staging copy is meant to be a verbatim copy of the
+repository's, in which case the choice has to live somewhere and this is the
+wrong shape.
 
 ***[S.20] CLIENT RECOGNITION IS 1.2's, AS MUTUAL ENROLMENT — THE OWNER'S RULING
 OF 15 Sep 2026, AND 1.1 KEEPS THE SERVER'S IDENTITY INSTEAD.*** Not started; this
