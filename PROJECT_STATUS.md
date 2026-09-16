@@ -36,6 +36,9 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.13** | — | REMOTE.API on/local/off and REMOTE.SSH on/off: `sd-elevate remote-api`/`remote-ssh` (socket drop-in + ufw), verbs `remoteapi`/`remotessh`, messages 10131-10139 — H5c failed on `dea3736` and `0d58171` (`ufw status` lists no rules while ufw is inactive), fixed with `ufw show added` (`test-sd-elevate.py` U1–U4), and §13h all pass on `0b67dba` incl. H5c and a real H1d (`…-102147.log`) | 15 Sep 2026 |
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
 | ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026, AND AS AN OPTION RATHER THAN A REQUIREMENT*** (*"let the admin decide how much they need"*) — so it ships available and off, probably as a ladder (open / server recognised / mutual). 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed, what was rejected, and what would falsify the ladder | — |
+| ⬜ | **S.21** | L | ***PRE-RELEASE 1 of 3 (owner, 15 Sep 2026): the parity audit, and fixing what it finds.*** Runs once SD Core for Windows 1.1 is done — ***BLOCKED ON THE PORT, NOT ON THIS TREE***. Method exists: the 10 Sep audit (S.5, `witness-release-run.sh` §12's list) is the precedent to widen rather than reinvent | — |
+| ⬜ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. Blocked on S.21's issues being resolved | — |
+| ⬜ | **S.23** | M | ***PRE-RELEASE 3 of 3 (owner, 15 Sep 2026): staging repositories per version, then a release zip of each — one Linux, one Windows.*** One question to settle before packaging: `installsdai.sh` clones `main` from GitHub, so either the zip is a source snapshot and the installer keeps cloning (then it wants a TAG, not `main`), or the installer learns to build from an unpacked zip. That decision shapes both the zip and what S.22 documents | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
 | ✅ | **P.7** | — | §M, the lower-case conversion | 14 Sep 2026 |
@@ -361,6 +364,33 @@ with a deliberately wrong password is refused at request 48 with a real salt and
 `i=600000`, where the 10:09 install was refused at 47 (no credential at all).
 The same cycle re-witnessed the TLS relay after `sd_tlssrv.c`'s const fix
 (§13i T1–T14c, 269/269).
+
+***[S.21] [S.22] [S.23] THE THREE PRE-RELEASE TASKS, IN ORDER — THE OWNER'S, 15
+Sep 2026.*** Not started. They are sequential: each waits on the one before, and
+the first waits on the other port.
+
+1. ***PARITY AUDIT, once SD Core for Windows 1.1 is done***, then fix what it
+   finds. ***BLOCKED ON THE PORT*** — nothing in this tree unblocks it. The
+   method is not new: the 10 Sep 2026 audit (S.5, the witness list at §12) is the
+   precedent, and widening it beats inventing a second one.
+2. ***DOCUMENTATION, after the audit's issues are resolved.*** The Linux side
+   ***starts from the updated Windows documentation*** and changes it where the
+   two differ — so it cannot usefully start until the Windows text is settled,
+   which is the same dependency as (1) arriving twice.
+3. ***STAGING REPOSITORIES PER VERSION, THEN A RELEASE ZIP OF EACH*** — one for
+   Linux, one for Windows.
+
+*Plan, not measurement — the question (3) has to answer first:* `installsdai.sh`
+***clones `main` from GitHub and builds from the clone***, which is how an
+install tests `origin/main` rather than a working tree. A release zip therefore
+has two possible shapes, and they are not interchangeable: either the zip is a
+source snapshot and the installer keeps cloning, in which case it must clone a
+***TAG*** rather than `main` or a "release" install silently tracks whatever
+landed since; or the installer learns to build from an unpacked zip, which is a
+change to the installer and to `assert-current`, whose whole premise is that the
+install's commit stamp matches `origin/main`. ***THE SECOND IS NOT FREE***, and
+it is better decided before the documentation in (2) describes an install
+procedure that then changes.
 
 ***[S.20] CLIENT RECOGNITION IS 1.2's, AS MUTUAL ENROLMENT — THE OWNER'S RULING
 OF 15 Sep 2026, AND 1.1 KEEPS THE SERVER'S IDENTITY INSTEAD.*** Not started; this
