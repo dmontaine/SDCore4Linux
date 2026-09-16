@@ -18,6 +18,9 @@
 *
 *
 * START-HISTORY:
+* 15 Sep 26 dm  An account whose voc will not open is named (10188) and skipped
+*               instead of aborting the deletion.  PRE_RELEASE 31; the Windows
+*               port found it (its RELEASE_1.1 44) and carries the number.
 * 14 Sep 26 dm  A kept Linux user loses sdapi too (S.16), between sdadmin and
 *               sdusers.
 * 14 Sep 26 dm  The account's $cred record is deleted with it (W.4 SCRAM phase 2).
@@ -245,6 +248,22 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
                         end case
                      end
                   repeat
+* 15 Sep 26 dm - PRE_RELEASE 31, THE WINDOWS PORT'S RELEASE_1.1 44: NAME IT AND
+*   CARRY ON.  There was no ELSE here, so one account whose voc would not open
+*   aborted the whole verb with ER_SFNF - and before the confirmation - though
+*   this scan only feeds a WARNING (report.xref).  A check that produces advice
+*   must not kill the thing it advises about.
+*
+*   10188 AND ITS WORDING ARE THE PORT'S, TAKEN VERBATIM so the two ports read
+*   the same: it built first, and the port that builds first carries the number.
+*
+*   WHAT REACHES HERE ON LINUX IS A voc THAT IS GENUINELY MISSING, not one whose
+*   mode refuses us.  MEASURED 15 Sep 2026: as an ADMINISTRATOR-tier person in
+*   sdadmin but not root, DELETE.ACCOUNT is refused 2001 at :101 and LOGTO SDSYS
+*   is refused 10002, so the deleter is always a root session and a mode cannot
+*   hide an account from it.  A removed directory still can.
+               end else
+                  display sysmsg(10188, xacc)
                end
             end
          end
