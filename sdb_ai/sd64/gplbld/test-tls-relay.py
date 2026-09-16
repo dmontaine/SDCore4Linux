@@ -3,7 +3,7 @@
 # gplsrc/sd_tls.c and gplsrc/sd_tlssrv.c: the API's TLS relay and client, in a
 # sandbox.  S.19, 15 Sep 2026.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-tls-relay.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-tls-relay.py
 #
 # No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed,
 # 2 it could not run (no compiler, no OpenSSL headers, a compile error).

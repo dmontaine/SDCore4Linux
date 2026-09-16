@@ -5,7 +5,7 @@
 #                 directory file's record id get MAPPED inside a transaction?
 #                 PORT_ADOPTION queue 22; intent from the port's verify-txn.ps1.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-txn.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-txn.py
 #   python3 .../verify-txn.py --allow-stale       measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

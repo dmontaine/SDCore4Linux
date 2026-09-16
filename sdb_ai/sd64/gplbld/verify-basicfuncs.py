@@ -4,7 +4,7 @@
 #                        the RIGHT ANSWERS?  PORT_ADOPTION queue 22, ranked
 #                        item 5; intent from the port's verify-basicfuncs.ps1.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-basicfuncs.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-basicfuncs.py
 #   python3 .../verify-basicfuncs.py --allow-stale     measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

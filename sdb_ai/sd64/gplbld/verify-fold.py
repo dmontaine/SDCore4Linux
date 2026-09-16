@@ -5,7 +5,7 @@
 #                  WITNESSED before anything in the tree is renamed.  Intent
 #                  from the port's verify-fold.ps1 and verify-lcnames.ps1 s.8.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-fold.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-fold.py
 #   python3 .../verify-fold.py --allow-stale       measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

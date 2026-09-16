@@ -3,9 +3,9 @@
 # interop-account.sh - a throwaway SD account for the TLS interop run between
 #                      SD Core for Linux and SD Core for Windows.
 #
-#   bash      /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh
-#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --create
-#   sudo bash /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove
+#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh
+#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --create
+#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove
 #
 # No argument is a dry run: it prints the plan and changes nothing.
 # --create asks for the SD password at the terminal, twice, hidden. The

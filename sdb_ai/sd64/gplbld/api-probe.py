@@ -6,7 +6,7 @@ APISRVR's vb.login and then vb.account - runs the given commands with
 SDExecute, optionally holds the connection open so a witness can read the
 server process's /proc entry, and disconnects.
 
-  SD_PROBE_PASSWORD=... python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/api-probe.py \
+  SD_PROBE_PASSWORD=... python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/api-probe.py \
       --user <name> --account <name> [--hold SECONDS] [--] COMMAND...
 
 No sudo of its own.  It needs a Linux user whose password is known, which in

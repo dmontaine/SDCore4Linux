@@ -4,7 +4,7 @@
 #                         store run with euid 0?  PORT_ADOPTION queue 22, the
 #                         port's verify-sdsyswrite re-expressed for Linux.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/check-storewriters.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/check-storewriters.py
 #   python3 .../check-storewriters.py --selftest
 #
 # No sudo, no install, no sd.  Exit 0 every writer is privileged, 1 a writer is

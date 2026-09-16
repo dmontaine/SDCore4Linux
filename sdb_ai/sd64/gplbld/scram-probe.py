@@ -8,7 +8,7 @@ that client: the SD wire protocol over TCP, and the RFC 5802 / 7677 exchange
 from Python's standard library - no SD code on the client side, so a pass
 cannot be the client agreeing with itself.
 
-  SD_SCRAM_PASSWORD=... python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/scram-probe.py \
+  SD_SCRAM_PASSWORD=... python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/scram-probe.py \
       --user <name> [--account <name>] [--host H] [--port P | --unix PATH] [MODE] [--] COMMAND...
 
 No sudo of its own.  THE PASSWORD COMES FROM THE ENVIRONMENT, never the command

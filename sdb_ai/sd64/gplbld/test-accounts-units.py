@@ -3,7 +3,7 @@
 # test-accounts-units.py - the pure logic verify-accounts.py grew of its own.
 #                          PORT_ADOPTION queue 22, ranked item 6.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-accounts-units.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-accounts-units.py
 #
 # No sudo, no install, no sd.  Exit 0 all cases passed, 1 a case failed.
 #

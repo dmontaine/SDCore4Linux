@@ -6,7 +6,7 @@
 #                     carry across a rename (owner, 12 Sep 2026), so the case
 #                     migration and the sections that ran it were removed.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-lcnames.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-lcnames.py
 #   python3 .../verify-lcnames.py --allow-stale       measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

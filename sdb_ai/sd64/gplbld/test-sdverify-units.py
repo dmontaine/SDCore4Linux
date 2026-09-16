@@ -3,7 +3,7 @@
 # test-sdverify-units.py - drive every arm of sdverify.py, INCLUDING THE ARMS
 #                          THAT MUST FAIL.  PORT_ADOPTION queue 22.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-sdverify-units.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-sdverify-units.py
 #
 # No sudo.  No install.  It never runs the real sd.  Exit 0 all cases passed,
 # 1 a case failed.

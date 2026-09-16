@@ -7,7 +7,7 @@
 #                      verify-accountacl, verify-catgate) re-expressed as Linux
 #                      mode, ownership and group.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-sysperms.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-sysperms.py
 #   python3 .../verify-sysperms.py --allow-stale      measure a stale install
 #
 # NO SUDO, AND NOT AS A CONVENIENCE.  Exit 0 every decisive check passed, 1 a

@@ -3,7 +3,7 @@
 # verify-pagination.py - does S at a report's page prompt scroll the rest of
 #                        the report, the way NO.PAGE does?
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-pagination.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-pagination.py
 #   python3 .../verify-pagination.py --allow-stale     measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

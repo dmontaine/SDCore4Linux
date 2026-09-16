@@ -7,7 +7,7 @@
 #                      (verify-createaccount, verify-delaccount,
 #                      verify-acctmsgs, verify-accountrules).
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-accounts.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-accounts.py
 #   python3 .../verify-accounts.py --allow-stale      measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,

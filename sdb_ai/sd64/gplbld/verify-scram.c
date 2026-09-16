@@ -3,7 +3,7 @@
  *
  * Run it through its runner, from anywhere, no sudo, no install, no sd:
  *
- *   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/test-scram-vectors.py
+ *   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-scram-vectors.py
  *
  * which compiles this file with sd_scram.c against libsodium into a temporary
  * directory and runs it.  Exit 0 all vectors reproduced, 1 a mismatch, 2 could

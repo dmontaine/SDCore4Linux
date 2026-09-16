@@ -4,7 +4,7 @@
 #                   trailing token?  PORT_ADOPTION queue 17, queue 22's
 #                   ranked worklist item 1.
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-setpw.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-setpw.py
 #   python3 .../verify-setpw.py --peer PETE       another account to be refused
 #   python3 .../verify-setpw.py --allow-stale     measure a stale install
 #

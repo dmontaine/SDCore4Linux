@@ -6,7 +6,7 @@
 #                      queue 3's lower-case half (DELETE.FILE does not prompt
 #                      for a file that is exactly where it should be).
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-vocverbs.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-vocverbs.py
 #   python3 .../verify-vocverbs.py --prefix zzvvb      use a different name set
 #   python3 .../verify-vocverbs.py --allow-stale       measure a stale install
 #

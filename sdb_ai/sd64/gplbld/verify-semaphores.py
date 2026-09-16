@@ -5,7 +5,7 @@
 #                        SEM_UNDO on the lock (sdsem.c) AND a release on the
 #                        fatal-signal path (kernel.c fatal_signal_handler).
 #
-#   python3 /home/don/Projects/sdcore4linux/sdb_ai/sd64/gplbld/verify-semaphores.py
+#   python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/verify-semaphores.py
 #   python3 .../verify-semaphores.py --allow-stale     measure a stale install
 #
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,
