@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Sep 26 reap_lost_user() and cleanup() strcpy()'d a shared-segment
+ *           username into a stack buffer without a bound; now memcpy of
+ *           MAX_USERNAME_LEN with an explicit terminator (the Windows
+ *           port's RELEASE_1.1 60).
  * 11 Sep 26 reap_lost_user(), so LOGOUT n can reclaim a slot whose process is
  *           gone instead of marking it "(logout pending)" for ever (the
  *           Windows port's PRE_RELEASE_FIXES 16).
@@ -263,7 +267,8 @@ bool reap_lost_user(int16_t user) {
     if ((uptr->uid != 0) && (uptr->uid == user)) {
       pid = uptr->pid;
       if (!process_exists(pid)) {
-        strcpy(username, (char*)(uptr->username));
+        memcpy(username, (char*)(uptr->username), MAX_USERNAME_LEN);
+        username[MAX_USERNAME_LEN] = '\0';
         remove_user(uptr);
         log_printf("LOGOUT reaped user %d (pid %d, %s) - process was gone.\n",
                    (int)user, pid, username);
@@ -313,7 +318,8 @@ void cleanup() {
       pid = uptr->pid;
       if (!process_exists(pid)) {
         user_no = uptr->uid;
-        strcpy(username, (char*)(uptr->username));
+        memcpy(username, (char*)(uptr->username), MAX_USERNAME_LEN);
+        username[MAX_USERNAME_LEN] = '\0';
         remove_user(uptr);
         log_printf("Cleanup removed user %d (pid %d, %s).\n", (int)user_no, pid,
                    username);
