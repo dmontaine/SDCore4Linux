@@ -18,6 +18,11 @@
 # and every account below UID_MIN, and confines chmod g+s to the accounts
 # root.  gplbld/test-sd-elevate.py drives those rules.
 #
+# 18 Sep 26 dm - TEARDOWN (S.26).  The grant moved from %sdadmin (the group
+# does not exist any more) to the sdsys OS user: one administrator, SDSYS,
+# entered only from a local session, and it alone may reach root through the
+# helper.
+#
 # A command listed with no arguments permits ANY arguments - that is
 # deliberate here, because the helper is what validates them.
 #
@@ -31,4 +36,4 @@
 #   2. /etc/sudoers has its "#includedir /etc/sudoers.d" line, or this file is
 #      never read and the account verbs fail with no explanation.
 
-%sdadmin ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate
+sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate

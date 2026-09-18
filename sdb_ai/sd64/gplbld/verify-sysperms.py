@@ -64,7 +64,6 @@ import sdverify as V                                    # noqa: E402
 NAME = "verify-sysperms"
 CONF = "/etc/sd.conf"
 SD_GROUP = "sdusers"
-ADMIN_GROUP = "sdadmin"
 PROBE = ".zzsysperms-probe"
 
 # Read but never written by an ordinary session, and the mode says write-only
@@ -249,9 +248,9 @@ def main():
         return run.verdict()
     run.say("  caller IS in %s, so a refusal below is the group policy"
             " refusing, not the 'other' bits." % SD_GROUP)
-    if ADMIN_GROUP in groups:
-        run.say("  caller is ALSO in %s - which makes the SDSYS gate in"
-                " section 5 a STRONGER result, not a weaker one." % ADMIN_GROUP)
+    # 18 Sep 26 (S.26): sdadmin is gone, so this note has nothing to measure.
+    # A caller somehow still carrying the legacy group would be refused
+    # nowhere by it - the group grants nothing any more.
     if a.allow_stale:
         run.say("  *** --allow-stale: assert-current is NOT being enforced.")
         V.require_current(run)

@@ -3,11 +3,11 @@
 
 Written 09 Sep 26 for PRE_RELEASE 14.
 
-WHAT IT IS FOR.  sd-elevate is the one command a member of sdadmin may run as
-root, so everything that stops that being a root shell lives in its argument
-validation.  This drives that validation through --dry-run, which acts on
-nothing and needs no privilege, so the escalation attempts below can be run
-safely as an ordinary user.
+WHAT IT IS FOR.  sd-elevate is the one command the sdsys user (SD's
+administrator) may run as root, so everything that stops that being a root
+shell lives in its argument validation.  This drives that validation through
+--dry-run, which acts on nothing and needs no privilege, so the escalation
+attempts below can be run safely as an ordinary user.
 
 THE TWO HALVES MATTER EQUALLY.  The REFUSE rows are the point of the helper.
 The ALLOW rows are the control: a script that refused everything would pass
@@ -71,26 +71,13 @@ CASES = [
     (REFUSE, ["groupdel", "sudo"],          "not an SD group"),
     (REFUSE, ["delgroup", "don", "sudo"],   "not an SD group"),
 
-    # ---- sdadmin, added to the whitelist 09 Sep 26.  It is the OS half of an
-    # ---- SD administrator, so it is the one group whose entry has to be
-    # ---- deliberate.  These four rows are what make it deliberate: the
-    # ---- operation is allowed for a real SD user and for nobody else, and
-    # ---- REMOVING the group from the whitelist would fail two of them, which
-    # ---- is the drift this guards against.
-    (REFUSE, ["addgroup", "root", "sdadmin"],  "root can never be made an SD administrator"),
-    (REFUSE, ["addgroup", "sdsys", "sdadmin"], "sdsys is an account, not a person"),
-    (REFUSE, ["groupdel", "sdadmin"],          "the group SD's own sudoers rule names must not be deletable"),
-    (REFUSE, ["groupdel", "sdusers"],          "deleting it unregisters every SD user at once - exposed BEFORE sdadmin joined"),
-    (ALLOW,  ["addgroup", "don", "sdadmin"],   "the point of the whitelist entry: an administrator may make one"),
-    (ALLOW,  ["delgroup", "don", "sdadmin"],   "and unmake one - MODIFY.ACCOUNT's demotion path"),
-
-    # ---- sdapi, added 14 Sep 26 (S.16).  REFUSE rows only: the helper checks
-    # ---- that a group EXISTS even in --dry-run, and sdapi exists only after an
-    # ---- install that carries S.16, so an ALLOW row here would fail on a
-    # ---- machine that has not had one - the witness covers the allowed path.
-    (REFUSE, ["addgroup", "root", "sdapi"],    "root is never given the API route"),
-    (REFUSE, ["addgroup", "sdsys", "sdapi"],   "sdsys is an account, not a person"),
-    (REFUSE, ["groupdel", "sdapi"],            "deleting it would refuse every API login at once"),
+    # ---- 18 Sep 26 (S.26): sdadmin and sdapi left the whitelist with the
+    # ---- teardown - the groups no longer exist.  addgroup to either is
+    # ---- refused as a non-SD group, and that is now the whole of the drift
+    # ---- guard: re-adding them to the whitelist would fail these rows.
+    (REFUSE, ["addgroup", "don", "sdadmin"], "sdadmin no longer exists (teardown S.26)"),
+    (REFUSE, ["addgroup", "don", "sdapi"],   "sdapi no longer exists (teardown S.28)"),
+    (REFUSE, ["groupdel", "sdusers"],        "deleting it unregisters every SD user at once"),
 
     # ---- remote-api / remote-ssh, 14 Sep 26 (S.13).  A fixed keyword and
     # ---- nothing else reaches them, so the refusals are the wrong word, a

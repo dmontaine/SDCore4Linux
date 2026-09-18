@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# witness-accounts.sh - the PRIVILEGED half of the account family: ADOPT a
-#                       throwaway Linux user the way the installer does, then
-#                       DELETE.ACCOUNT it, and measure what survives.
+# witness-accounts.sh - the PRIVILEGED half of the account family: create a
+#                       throwaway SD account (Linux user and all, as
+#                       CREATE.ACCOUNT does it), then DELETE.ACCOUNT it, and
+#                       measure both branches against the teardown model.
 #                       PORT_ADOPTION queue 22, ranked item 6; the intent is
 #                       the port's verify-createaccount.ps1 and
 #                       verify-delaccount.ps1.
@@ -49,55 +50,43 @@
 #     that the Y was consumed by the confirmation.
 #
 # ===========================================================================
-# WHAT IT MEASURES NOW
+# WHAT IT MEASURES NOW (18 Sep 26, AFTER THE TEARDOWN)
 # ===========================================================================
-#   1   NO.QUERY without a Linux user is refused (10039).  RE-WITNESS: the
-#       11 Sep witness-adopt.sh already covered it; this is the same path on
-#       the current install.
+#   1   NO.QUERY without a Linux user is refused (10039): SD accounts create
+#       their own Linux user, and creating one means setting its password.
 #   2a  A pre-existing Linux user WITHOUT ADOPT is refused (10038) and nothing
-#       is made.  Re-witness too - and it is the CONTROL for 2b: the same user,
-#       refused without the marker and accepted with it.
-#   2b  ADOPT, with the installer's own invocation (installsdai.sh:903-906):
-#       marker, "sd -internal create-account USER <name> ADOPT no.query",
-#       marker removed.  Re-witness of 11 Sep, and here it is chiefly the
-#       PRECONDITION for phase 3.  One row is new: A8, that ADOPT leaves the
-#       Linux user's GECOS UNSTAMPED - the property that stops DELETE.ACCOUNT
-#       from ever deleting a login SD did not create (the adopted admin's own -
-#       "don" here is the transitory human; SDSYS is the constant user).
-#   3   DELETE.ACCOUNT on that adopted account.  ***NEVER WITNESSED BY
-#       ANYTHING***: the borrowed-user branch - the SHORTER confirmation
-#       (10085), the data warning (10158), "not created by SD" (10036), and
-#       the Linux user and its home surviving.
-#   3k  ***PRE_RELEASE 28 (SEV A), NOW FIXED IN SOURCE - THESE MUST PASS.***
-#       The survivor was in sdusers and - as an ADMINISTRATOR - in sdadmin, and
-#       sdadmin grants passwordless sd-elevate (sdcore.sudoers).  sd-elevate
-#       passwd retargets any SD user who is also a Linux sudoer - the admin who
-#       "becomes SDSYS" to run administrative commands - so a leftover member
-#       reaches root; the ssh force-command exemption comes with it.  DELACC's
-#       10036 branch now removes the survivor from sdadmin then sdusers, the
-#       shape MODIFYA:616 / GRANTA:307 use.  D12/D13 assert the survivor holds
-#       NEITHER: ***A PASS IS THE FIX; A FAIL MEANS PRE_RELEASE 28 IS NOT ON
-#       THE INSTALL UNDER TEST.***  On Linux this is safe and unambiguous:
-#       sdusers and sdadmin are SD's own groups, so every membership was SD's
-#       to remove and none predates SD.  (The port cannot reason that way: its
-#       admin group is BUILTIN\Administrators.)
+#       is made.  ADOPT is now install-only (the teardown, S.26: a root
+#       session is refused outright, and -internal is root-only), so the
+#       borrowed-user route cannot exist on a delivered machine - 2a is the
+#       control that says so, and this script no longer drives an ADOPT.
+#   2b  CREATE.ACCOUNT USER <name>, SD's whole flow: it creates the Linux
+#       user itself and asks for that user's password (answered from a pipe,
+#       thrown away, never printed).  Checked: a plain account - three
+#       register fields, no tier, no suspension, in sdusers only.
+#   3   DELETE.ACCOUNT on the account SD created: the SD-created branch -
+#       the LONGER confirmation (10084, naming the Linux user), the data
+#       warning (10158), and 10028 "OS User: <name> Deleted".  The Linux
+#       user and its home go with it.
 #
-# NOT HERE: the SD-CREATED Linux user.  CREATE.ACCOUNT USER <new> without
-# NO.QUERY prompts for a password, which an unattended run cannot answer
-# without a password in a script.  Phase 5 prints the hand recipe.
+# THE SESSIONS RUN AS SDSYS, THE ONE ADMINISTRATOR (S.26): a local session
+# running as the sdsys OS user is the only thing CPROC grants, and the only
+# thing CREATE.ACCOUNT and DELETE.ACCOUNT accept.
+#
+# NOT HERE, BY RULING: the borrowed-user branch.  It was the ADOPT flow, and
+# the teardown closed it - witness-absence.sh says the closing.
 #
 # THE PIPED-SESSION RULES ARE THE PROJECT'S:
 #   * a blank first line absorbs anything emitted before the first prompt;
 #   * TERM 200,9999 stops pagination;
 #   * every session ends in OFF;
 #   * a verb that prompts EATS THE NEXT LINE - and a prompt that never appears
-#     leaves its answer for the ":" prompt (the 17:57 run);
-#   * the one-shot ADOPT call takes </dev/null and a 25 s timeout.  The first
-#     ADOPT witness FROZE on that call with the terminal attached to stdin, and
-#     the cause was never found; this is the immunisation that let it pass.
-#   * OBSERVED 17:57: with a terminal attached, sd writes its command echo
-#     straight to the TTY, so ":TERM 200,9999" appears unprefixed on screen and
-#     is NOT in the captured text.  Nothing below anchors on echo text.
+#     leaves its answer for the ":" prompt (the 12 Sep 17:57 run);
+#   * password answers are never echoed into the log: run_sd prints
+#     "(password answer)" in their place.
+#   * OBSERVED 12 Sep 17:57: with a terminal attached, sd writes its command
+#     echo straight to the TTY, so ":TERM 200,9999" appears unprefixed on
+#     screen and is NOT in the captured text.  Nothing below anchors on echo
+#     text.
 #
 set -u
 
@@ -196,46 +185,37 @@ yesno_dir()    { [ -d "$1" ] && echo yes || echo no; }
 yesno_file()   { [ -e "$1" ] && echo yes || echo no; }
 in_group()     { id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2" && echo yes || echo no; }
 
-# Drive one piped sd session.  ALL NARRATION GOES TO fd 2 and only sd's own
-# output comes back on fd 1, so `OUT=$(run_sd ...)` never captures this
-# function's echo of the commands into the text the checks search.
+# Drive one piped sd session, running AS SDSYS - the administrator (S.26).
+# ALL NARRATION GOES TO fd 2 and only sd's own output comes back on fd 1, so
+# `OUT=$(run_sd ...)` never captures this function's echo of the commands into
+# the text the checks search.  A line that is a password answer is printed as
+# "(password answer)" rather than echoed.
 run_sd() {
     local title="$1"; shift
-    say "  --- sd session: $title ---" >&2
+    say "  --- sd session as sdsys: $title ---" >&2
     local line
-    for line in "$@"; do say "      > $line" >&2; done
+    for line in "$@"; do
+        case "$line" in
+            _PW_) say "      > (password answer)" >&2 ;;
+            *)    say "      > $line" >&2 ;;
+        esac
+    done
     if [ "$COMMIT" -eq 0 ]; then
         say "      (dry run - not executed)" >&2
         return 0
     fi
     local body out
     body=$'\n''TERM 200,9999'
-    for line in "$@"; do body="$body"$'\n'"$line"; done
+    for line in "$@"; do
+        if [ "$line" = "_PW_" ]; then
+            body="$body"$'\n'"$PW_OS"
+        else
+            body="$body"$'\n'"$line"
+        fi
+    done
     body="$body"$'\n''OFF'$'\n'
-    out=$(printf '%s' "$body" | timeout 60 "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
+    out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
-    printf '%s' "$out"
-}
-
-# The installer's one-shot form, from the system directory, with the freeze
-# immunisation the first ADOPT witness needed.
-run_oneshot() {
-    say "  --- sd one-shot, cwd $SDSYS, stdin </dev/null, timeout 25 s ---" >&2
-    say "      > $SD $*" >&2
-    if [ "$COMMIT" -eq 0 ]; then
-        say "      (dry run - not executed)" >&2
-        return 0
-    fi
-    local out rc
-    # pipefail INSIDE the substitution: PIPESTATUS read after `out=$(a | b)`
-    # describes the assignment, whose status is sed's, so it would report
-    # "exit 0" for a timeout.  With pipefail the substitution returns sd's own
-    # status (or timeout's 124), and $? carries it out.
-    out=$(cd "$SDSYS" && set -o pipefail && \
-          timeout 25 "$SD" "$@" </dev/null 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
-    rc=$?
-    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
-    say "      (exit $rc)" >&2
     printf '%s' "$out"
 }
 
@@ -252,9 +232,9 @@ cleanup() {
     fi
     # Only a REGISTERED account is deleted through SD, so the Y cannot leak.
     if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC_UC" ]; then
-        say "  $ACC_UC is still registered; deleting it through SD"
-        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''Y'$'\n''OFF'$'\n' \
-            | timeout 60 "$SD" >/dev/null 2>&1
+        say "  $ACC_UC is still registered; deleting it through SD (as sdsys)"
+        printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''y'$'\n''OFF'$'\n' \
+            | timeout 90 sudo -u sdsys "$SD" >/dev/null 2>&1
     fi
     if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
         userdel -r "$ACC" >/dev/null 2>&1 \
@@ -279,7 +259,7 @@ say "  uid        : $(id -u) ($(id -un))"
 say "  sd         : $SD"
 say "  register   : $REGISTER"
 say "  accounts   : $ACCOUNTS_ROOT"
-say "  adopted    : $ACC   (marker $MARKER)"
+say "  account    : $ACC   (a leftover ADOPT marker for it would refuse: $MARKER)"
 say "  refused    : $ACC_REFUSE"
 say "  log        : $LOG"
 
@@ -320,16 +300,15 @@ head2 "0b. the state before"
 say "  register records : $(ls -1 "$REGISTER" | tr '\n' ' ')"
 say "  account dirs     : $(ls -1 "$ACCOUNTS_ROOT" | tr '\n' ' ')"
 say "  sdusers members  : $(getent group sdusers | cut -d: -f4)"
-say "  sdadmin members  : $(getent group sdadmin | cut -d: -f4)"
 
 # ==========================================================================
 head2 "1. NO.QUERY without an existing Linux user is refused (10039) - re-witness"
 
-# 14 Sep 26 dm - NONE: since S.16 a non-administrator USER account must say API
-# or NONE (10082), and that is checked first; without it this row would meet
-# 10082 and never reach the 10039 it witnesses.
-OUT=$(run_sd "CREATE.ACCOUNT USER $ACC_REFUSE NONE NO.QUERY" \
-             "CREATE.ACCOUNT USER $ACC_REFUSE NONE NO.QUERY")
+# 18 Sep 26 dm - THE API KEYWORD IS GONE (S.28), so the pre-teardown "NONE"
+# that this row used to carry would now itself be the refusal - the row asks
+# NO.QUERY alone and meets 10039, the answer it witnesses.
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC_REFUSE NO.QUERY" \
+             "CREATE.ACCOUNT USER $ACC_REFUSE NO.QUERY")
 if [ "$COMMIT" -eq 1 ]; then
     ck_says "1a refused with 10039's wording" "setting its password needs a prompt" "$OUT"
     ck "1b no Linux user was made"      no "$(yesno_user "$ACC_REFUSE")"
@@ -339,7 +318,7 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
-head2 "2. a borrowed Linux user: refused without ADOPT, adopted with it"
+head2 "2. a borrowed Linux user is refused, and that is now the whole story"
 say "  useradd -m $ACC     (this script's own doing, not SD's)"
 USER_OK=0
 if [ "$COMMIT" -eq 1 ]; then
@@ -353,9 +332,9 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 say ""
-say "  2a. THE CONTROL: the same user WITHOUT the marker must be refused (10038)."
-OUT=$(run_sd "CREATE.ACCOUNT USER $ACC NONE NO.QUERY (no marker)" \
-             "CREATE.ACCOUNT USER $ACC NONE NO.QUERY")
+say "  2a. THE CONTROL: a pre-existing Linux user is refused (10038)."
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC NO.QUERY" \
+             "CREATE.ACCOUNT USER $ACC NO.QUERY")
 if [ "$COMMIT" -eq 1 ]; then
     ck_says "2a1 refused with 10038's wording" "SD accounts create their own Linux user" "$OUT"
     ck "2a2 no register record was made" no "$(yesno_file "$REGISTER/$ACC_UC")"
@@ -364,31 +343,49 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 say ""
-say "  2b. ADOPT, exactly as installsdai.sh:903-906 does it."
-say "  touch $MARKER"
-[ "$COMMIT" -eq 1 ] && touch "$MARKER"
-OUT=$(run_oneshot -internal create-account USER "$ACC" ADOPT no.query)
-say "  rm -f $MARKER   (the installer removes it whatever happens; so does this)"
-MARKER_AFTER_VERB=no
+say "  2b. THE TEARDOWN'S DOOR (S.26): there is no ADOPT on a delivered machine."
+say "  ADOPT needs -internal, -internal needs root (check_admin), and a root"
+say "  session is refused outright by CPROC.  The borrowed-user route is closed;"
+say "  witness-absence.sh says the same about the machinery."
+say "  This script removes the borrowed user again and makes the account SD's"
+say "  own way instead."
 if [ "$COMMIT" -eq 1 ]; then
-    MARKER_AFTER_VERB=$(yesno_file "$MARKER")
-    rm -f "$MARKER"
+    if userdel -r "$ACC"; then
+        MADE_USER=0
+        say "  userdel -r $ACC: the borrowed user is gone; SD will create its own"
+    else
+        say "witness-accounts: CANNOT RUN - userdel failed; the ground is no longer clear."
+        exit 2
+    fi
 fi
 
-ADOPTED=0
+say ""
+say "  2c. CREATE.ACCOUNT USER $ACC - SD's whole flow, as sdsys."
+# A throwaway Linux password, generated per run and printed nowhere: CREATEA
+# asks for one because it is creating the Linux user, and the account dies in
+# phase 3.  passwd(1) gets it through the piped session's stdin (the _PW_
+# placeholders below), exactly as MODIFY.PASSWORD answers travel.
+PW_OS="zz$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
+             "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
+PW_OS=""
+CREATED=0
 if [ "$COMMIT" -eq 1 ]; then
     # ***A1 IS THE GATE FOR EVERYTHING IN PHASE 3.***
     ck "A1 the register record exists (the gate for phase 3)" yes "$(yesno_file "$REGISTER/$ACC_UC")"
     if [ -e "$REGISTER/$ACC_UC" ]; then
-        ADOPTED=1; MADE_ACCOUNT=1
-        say "  register record, field by field (KEYS.H:264-301):"
+        CREATED=1; MADE_ACCOUNT=1
+        say "  register record, field by field:"
         awk '{printf "      %d: %s\n", NR, $0}' "$REGISTER/$ACC_UC"
-        ck "A2 ACC\$TIER (field 5) is ADMINISTRATOR - ADOPT's default" \
-           ADMINISTRATOR "$(sed -n '5p' "$REGISTER/$ACC_UC")"
+        # 18 Sep 26 (W.7/S.25): field 5 is the suspension flag, blank for a
+        # new account; field 6 is the retired prior-tier slot, never written.
+        ck "A2 field 5 (ACC\$SUSPENDED) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC_UC")"
         ck "A3 field 4 (retired ACC\$USERS) was not written" "" "$(sed -n '4p' "$REGISTER/$ACC_UC")"
+        ck "A3b field 6 (retired ACC\$PRIOR.TIER) was not written" "" "$(sed -n '6p' "$REGISTER/$ACC_UC")"
     else
-        not_reached "A2 tier ADMINISTRATOR"
+        not_reached "A2 field 5 blank"
         not_reached "A3 field 4 not written"
+        not_reached "A3b field 6 not written"
     fi
     if [ -d "$ACCOUNTS_ROOT/$ACC" ]; then
         ck "A4 directory is $ACC:sdu_$ACC, mode 2775" "$ACC sdu_$ACC 2775" \
@@ -397,75 +394,54 @@ if [ "$COMMIT" -eq 1 ]; then
         ck "A4 the account directory exists" yes no
     fi
     ck "A5 the sdu_ group exists" yes "$(yesno_group "sdu_$ACC")"
+    ck "A5b SD created the Linux user" yes "$(yesno_user "$ACC")"
     # Two instruments: what SD said, and what /etc/group says.
     ck_says "A6 SD reported the sdusers membership (10013)" "added to sdusers" "$OUT"
     ck "A6b and $ACC is in sdusers" yes "$(in_group "$ACC" sdusers)"
-    ck_says "A7 SD reported the administrator grant (10032)" "is now an SD administrator" "$OUT"
-    ck "A7b and $ACC is in sdadmin" yes "$(in_group "$ACC" sdadmin)"
-    # ***THE MARKER IS CONSUMED BY THE VERB, NOT BY THE rm AFTER IT.***  Read
-    # between the two, which is the only moment the difference is visible.
-    ck "A8 the verb CONSUMED the marker (absent before this script's rm)" no "$MARKER_AFTER_VERB"
-    # ***A9: ADOPT DOES NOT STAMP.***  If it wrote "SD account" into GECOS,
-    # DELETE.ACCOUNT would delete an adopted person's Linux login - for the
-    # installer's account, the owner's own.
-    ck "A9 ADOPT left the GECOS unstamped" no \
-       "$( [ "$(getent passwd "$ACC" | cut -d: -f5)" = "SD account" ] && echo yes || echo no )"
+    # 18 Sep 26 (S.26/S.28): no administrator grant, no API route.
+    ck_silent "A7 SD claimed no administrator grant (10032 gone)" "is now an SD administrator" "$OUT"
+    ck "A7b the sdadmin group does not exist" no "$(yesno_group sdadmin)"
+    ck "A7c the sdapi group does not exist"    no "$(yesno_group sdapi)"
 fi
 
 # ==========================================================================
-head2 "3. DELETE.ACCOUNT on the adopted account - the branch nothing has reached"
+head2 "3. DELETE.ACCOUNT on the account SD created - the branch this run can now reach"
 
-if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
+if [ "$COMMIT" -eq 1 ] && [ "$CREATED" -ne 1 ]; then
     say "  PHASE 3 IS GATED ON A1 AND A1 FAILED: there is no registered account to"
     say "  delete, so running it would score passes on an account that never existed"
-    say "  and send its Y to the ':' prompt - the 17:57 run did both."
-    for r in "D1 10085" "D2 not 10084" "D3 10158" "D4 10036" "D5 not 10028" \
-             "D6 Y consumed" "D7 register gone" "D8 dir gone" "D9 sdu_ gone" \
-             "D10 user survives" "D11 home survives" "D12 not in sdadmin" \
-             "D13 not in sdusers"; do
+    say "  and send its y to the ':' prompt."
+    for r in "D1 10084" "D2 not 10085" "D3 10158" "D4 10028" "D5 not 10036" \
+             "D6 y consumed" "D7 register gone" "D8 dir gone" "D9 sdu_ gone" \
+             "D10 user gone" "D11 home gone"; do
         not_reached "$r"
     done
 else
-    # The BEFORE of every "gone" and "survives" row, so none of them can pass
-    # on something that was never there.
+    # The BEFORE of every "gone" row, so none of them can pass on something
+    # that was never there.
     if [ "$COMMIT" -eq 1 ]; then
         say "  before: register=$(yesno_file "$REGISTER/$ACC_UC") dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC")" \
             "group=$(yesno_group "sdu_$ACC") user=$(yesno_user "$ACC") home=$(yesno_dir "/home/$ACC")" \
-            "sdusers=$(in_group "$ACC" sdusers) sdadmin=$(in_group "$ACC" sdadmin)"
+            "sdusers=$(in_group "$ACC" sdusers)"
     fi
-    OUT=$(run_sd "DELETE.ACCOUNT $ACC (answering Y)" "DELETE.ACCOUNT $ACC" "Y")
+    OUT=$(run_sd "DELETE.ACCOUNT $ACC (answering y)" "DELETE.ACCOUNT $ACC" "y")
     if [ "$COMMIT" -eq 1 ]; then
-        # 10085 is the SHORTER confirmation; 10084 also promises the Linux user,
-        # a promise the verb cannot keep for a user SD did not create.
-        ck_says   "D1 the confirmation used the SHORTER wording (10085)" "and its directory (y/<n>)?" "$OUT"
-        ck_silent "D2 it did NOT offer to delete the Linux user (10084)"  "its Linux user"            "$OUT"
+        # 10084 is the LONGER confirmation: the verb may delete the Linux user
+        # because SD created it, and it says so.
+        ck_says   "D1 the confirmation named the Linux user (10084)" "its Linux user" "$OUT"
+        ck_silent "D2 it did NOT use the SHORTER wording (10085)" "and its directory (y/<n>)?" "$OUT"
         ck_says   "D3 the data warning preceded it (10158)" "removes everything the account holds" "$OUT"
-        ck_says   "D4 it said the Linux user is not SD's (10036)" "was not created by SD" "$OUT"
-        ck_silent "D5 it did NOT claim to delete the Linux user (10028)" "OS User:" "$OUT"
-        ck_silent "D6 the Y was consumed by the confirmation, not the ':' prompt" "Y is not in your VOC" "$OUT"
+        ck_says   "D4 it claimed the Linux user's deletion (10028)" "OS User:" "$OUT"
+        ck_silent "D5 it did NOT say the user was not SD's (10036)" "was not created by SD" "$OUT"
+        ck_silent "D6 the y was consumed by the confirmation, not the ':' prompt" "y is not in your VOC" "$OUT"
         ck "D7 the register record is gone"   no "$(yesno_file "$REGISTER/$ACC_UC")"
         ck "D8 the account directory is gone" no "$(yesno_dir "$ACCOUNTS_ROOT/$ACC")"
         ck "D9 the sdu_ group is gone"        no "$(yesno_group "sdu_$ACC")"
-        # ***D10 IS WHAT THE BRANCH EXISTS FOR*** - the others would all pass
-        # if DELETE.ACCOUNT had taken the person's Linux login with it.
-        ck "D10 the BORROWED Linux user is still there" yes "$(yesno_user "$ACC")"
-        ck "D11 and its home directory survived"        yes "$(yesno_dir "/home/$ACC")"
+        # ***THE SD-CREATED BRANCH'S POINT***: the Linux user SD made is SD's
+        # to take away, login and home included.
+        ck "D10 the SD-created Linux user is gone" no "$(yesno_user "$ACC")"
+        ck "D11 and its home directory is gone"    no "$(yesno_dir "/home/$ACC")"
         [ -e "$REGISTER/$ACC_UC" ] || MADE_ACCOUNT=0
-
-        say ""
-        say "  3k. PRE_RELEASE 28: a true deletion strips the SD groups too."
-        say "  sdadmin grants passwordless sd-elevate (sdcore.sudoers), and"
-        say "  sd-elevate passwd retargets any SD user who is also a Linux"
-        say "  sudoer - the admin who 'becomes SDSYS' - so a leftover member"
-        say "  reaches root.  DELACC's 10036 branch now removes the survivor"
-        say "  from sdadmin then sdusers (MODIFYA:616 / GRANTA:307 shape); both"
-        say "  are SD's own groups, so every membership was SD's to remove."
-        say "  ***THESE MUST PASS ON A FIXED INSTALL. A FAIL MEANS PRE_RELEASE"
-        say "  28 IS NOT INSTALLED ON THE TREE UNDER TEST (reinstall, re-run).***"
-        say "  after : sdusers=$(in_group "$ACC" sdusers) sdadmin=$(in_group "$ACC" sdadmin)" \
-            "groups='$(id -nG "$ACC" 2>/dev/null)'"
-        ck "D12 the survivor no longer holds sdadmin" no "$(in_group "$ACC" sdadmin)"
-        ck "D13 the survivor no longer holds sdusers" no "$(in_group "$ACC" sdusers)"
     fi
 fi
 
@@ -489,31 +465,9 @@ if [ "$((PASS + FAIL))" -eq 0 ]; then
     exit 1
 fi
 
-head2 "5. still owed: the SD-CREATED Linux user, by hand"
-say "  As SDSYS (a human admin becomes SDSYS to run this):"
-say "  sudo $SD"
-say "  CREATE.ACCOUNT USER zzacct3 PROGRAMMER NONE (type a throwaway password)"
-say "  DELETE.ACCOUNT zzacct3                      (answer y)"
-say "  Expect the LONGER confirmation (10084, naming the Linux user), and"
-say "  10028 \"OS User: zzacct3 Deleted\" where phase 3 got 10036."
-
 if [ "$FAIL" -eq 0 ]; then
     say "witness-accounts: PASSED - $PASS of $PASS checks passed."
     exit 0
-fi
-# ***IF THE ONLY FAILURES ARE D12/D13, THE INSTALL PREDATES THE PRE_RELEASE 28
-# FIX*** - the finding is real and present, and the fix is in source at DELACC's
-# 10036 branch.  Reinstall (SDSYS recompiles GPL.BP) and re-run; they must pass.
-d_fail=0
-for r in D12 D13; do
-    grep -qE "^\s*\[FAIL\] $r " "$LOG" && d_fail=$((d_fail + 1))
-done
-if [ "$FAIL" -eq "$d_fail" ] && [ "$d_fail" -gt 0 ]; then
-    say "witness-accounts: FAILED - PRE_RELEASE 28 is NOT installed on the tree under"
-    say "  test: the deleted account's Linux user still holds SD's groups (D12/D13)."
-    say "  Everything else passed ($PASS).  The fix is in source (DELACC 10036 branch);"
-    say "  reinstall so SDSYS recompiles it, then re-run - D12/D13 must then pass."
-    exit 1
 fi
 say "witness-accounts: FAILED - $FAIL of $((PASS + FAIL)) checks failed" \
     "($NOT_REACHED not reached)."

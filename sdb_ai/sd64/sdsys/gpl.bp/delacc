@@ -18,6 +18,8 @@
 *
 *
 * START-HISTORY:
+* 18 Sep 26 dm TEARDOWN (S.26/S.28).  A kept Linux user loses only sdusers
+*           now: sdadmin and sdapi no longer exist, so nothing strips them.
 * 15 Sep 26 dm  An account whose voc will not open is named (10188) and skipped
 *               instead of aborting the deletion.  PRE_RELEASE 31; the Windows
 *               port found it (its RELEASE_1.1 44) and carries the number.
@@ -382,15 +384,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 * 12 Sep 26 dm - PRE_RELEASE 28.  The user stays; its SD memberships do not.
 *   Only this branch needs it: a user SD created (sd.made.it above) is
 *   userdel'd whole and its groups go with it, and lookup.stat # 0 has no
-*   user.  sdadmin FIRST, sdusers SECOND, so an interrupted strip leaves the
-*   weaker state (an SD user who is no longer an administrator) rather than
-*   the stronger one.
-* 14 Sep 26 dm - S.16.  sdapi between them, by the same rule: without it the
-*   kept Linux user could still be admitted to the API by name (APISRVR tests
-*   sdapi and sdusers, and sdusers goes last).
+*   user.  sdusers LAST, so an interrupted strip leaves an SD user who can no
+*   longer enter SD accounts at all, which is the safer state.
+* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  sdadmin and sdapi are no longer stripped
+*   here: the groups do not exist any more.
                strip.user = os.user
-               strip.group = 'sdadmin' ; gosub strip.membership
-               strip.group = 'sdapi'   ; gosub strip.membership
                strip.group = 'sdusers' ; gosub strip.membership
          end case
       end

@@ -280,24 +280,14 @@ end.program:
 * ===========================================================================
 
 * ---------------------------------------------------------------------------
-* check.permitted  -  THE SECOND GATE.
+* check.permitted  -  THE ONE GATE LEFT: A TERMINAL.
 *
-* The port's owner, 26 Aug 2026: *"these commands will only work if the user
-* has OS.EXECUTE privileges.  If not, they should get a message that the
-* command is not available."*
-*
-* THE VOC TIER IS THE FIRST GATE AND IS NOT ENOUGH ON ITS OWN.  A programmer
-* account has the verb; running an editor is still reaching the operating
-* system, and who may do that is the same grant that governs OS.EXECUTE from
-* inside a program.
-*
-* WHY THE TEST IS HERE RATHER THAN LEFT TO os_permitted().  This program is
-* $internal, so op_sh admits its os.execute on HDR_INTERNAL and never asks.
-* Testing here refuses before anything is created and says what to do about it.
-*
-* LINUX: THE GRANT IS THE ACCOUNT'S OS-ON (K$OS.EXEC), loaded at account entry
-* by LOGIN and CPROC's logto - and loaded as granted for an administrator's own
-* account.  K$ADMINISTRATOR covers a sudo session in any account.
+* 18 Sep 26 dm - TEARDOWN (S.27).  The OS.EXECUTE gate is gone: OS.EXECUTE
+* runs at the account's own Linux permissions and SD keeps no second wall, so
+* an editor no longer needs a grant to exist.  What remains is the terminal
+* test below - the editor draws a full screen, and a session without a tty
+* (API, a piped script) is sent to ed.  The port's OS.EXECUTE grant model
+* (its owner, 26 Aug 2026) went with the tiers.
 *
 * AND THE TERMINAL TEST IS FIRST, because it is the plainer answer.  K$TTY is
 * ttyname(stdin), blank for an API session or a piped script, which have
@@ -318,16 +308,11 @@ check.permitted:
       return
    end
 
-   if kernel(K$OS.EXEC, -1) then
-      permitted = @true
-      return
-   end
-
-   error.text  = verb.text : ' is not available to ' : @logname : '.' : char(10)
-   error.text := 'It runs an editor outside SD, so it needs OS.EXECUTE'
-   error.text := ' permission, which an administrator grants with' : char(10)
-   error.text := '   MODIFY.ACCOUNT <account> OS-ON' : char(10)
-   error.text := 'ed, the line editor, needs none of this.'
+* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-ON grant is gone with the tiers:
+*   OS.EXECUTE runs at the account's own Linux permissions and SD keeps no
+*   second wall, so the terminal test above is the whole gate for the full
+*   screen editor now.  ed stays for sessions with no terminal.
+   permitted = @true
 return
 
 * ---------------------------------------------------------------------------

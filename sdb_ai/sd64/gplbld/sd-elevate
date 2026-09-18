@@ -3,11 +3,10 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 18 Sep 26 dm TEARDOWN (S.26/S.28).  sdadmin and sdapi leave the whitelist:
+#               the groups no longer exist.  sdusers alone is not deletable.
 # 09 Sep 26 dm  Written for PRE_RELEASE 14, the owner's ruling of 9 Sep 2026:
 #               SD ships a sudoers.d drop-in for a group SD owns.
-# 14 Sep 26 dm  sdapi joins the whitelist (S.16, the port's per-account API
-#               route): MODIFY.ACCOUNT API / NONE move a person in and out of
-#               it.  Not deletable here, like sdusers and sdadmin.
 # 14 Sep 26 dm  remote-api on|local|off|show and remote-ssh on|off|show, for
 #               REMOTE.API and REMOTE.SSH (S.13): the sdclient.socket listener
 #               through a drop-in, and ufw's 4243/tcp and 22/tcp allow rules.
@@ -340,34 +339,17 @@ require_new_user() {
 
 # SD's own groups, and nothing else.  This is the whitelist that stops
 # "add me to sudo" from having a spelling.
-# 09 Sep 26 dm - sdadmin IS IN THE WHITELIST, AND THAT IS A DECISION RATHER
-# THAN AN OVERSIGHT CORRECTED.  PRE_RELEASE 14 asked for it to be named.
 #
-# What it allows: an administrator may make another account an administrator,
-# which is the intended operation and is how CREATEA and MODIFYA do the OS half
-# of the owner's definition.  Without it those three call sites would have to
-# keep raw sudo, and the whole point of this helper is that none of them does.
-#
-# WHY IT IS NOT AN ESCALATION FOR THE CALLER.  Reaching this helper at all means
-# already being in sdadmin (the sudoers drop-in grants it to %sdadmin and
-# nothing else) or already being root.  Such a caller cannot gain anything they
-# do not have; they can only DELEGATE it.
-#
-# THE RESIDUAL, SAID OUT LOUD BECAUSE IT IS REAL: sdadmin membership is an
-# operating-system privilege that stands INDEPENDENTLY of the account register,
-# so this widens the set of people holding it.  Two things bound that.  The
-# target must still pass require_sd_user below - so root, sdsys and every
-# system account are out of reach, and "add root to sdadmin" has no spelling.
-# And SD itself fails closed: CPROC's gate wants sdadmin membership AND
-# ACC$TIER=ADMINISTRATOR, so a bare sdadmin member is not an SD administrator.
-# MODIFY.ACCOUNT moves both halves together, which is the only way SD offers.
+# 18 Sep 26 dm - TEARDOWN.  sdadmin and sdapi are gone with the tier model, so
+# the whitelist is sdusers plus the per-account groups.  An administrator is
+# the sdsys OS user, and sdsys alone is granted the sudoers drop-in.
 require_sd_group() {
   local group=$1
   require_name "group" "$group"
   case $group in
-    sdusers|sdadmin|sdapi) : ;;
+    sdusers) : ;;
     sdu_?*|sdg_?*) : ;;
-    *) die "'$group' is not an SD group (want sdusers, sdadmin, sdapi, sdu_*, or sdg_*)" ;;
+    *) die "'$group' is not an SD group (want sdusers, sdu_*, or sdg_*)" ;;
   esac
 }
 
@@ -455,19 +437,15 @@ case $verb in
   groupdel)
     [[ $# -eq 1 ]] || usage
     require_sd_group "$1"
-    # 09 Sep 26 dm - SD'S TWO SYSTEM GROUPS ARE NOT DELETABLE, AND sdusers WAS
-    # ALREADY EXPOSED BEFORE sdadmin JOINED THE WHITELIST.  require_sd_group
-    # answers "is this one of SD's groups", which is the right question for
-    # ADDING somebody to it and the wrong one for destroying it.  Deleting
-    # sdusers unregisters every SD user at once (LOGIN's entry gate reads it);
-    # deleting sdadmin leaves the sudoers drop-in naming a group that does not
-    # exist, which takes this helper away from every administrator.
-    # Only the per-account groups are destroyable, which is all DELACC:197
-    # ever asks for - it passes the account's own sdu_/sdg_ group.
-    # 14 Sep 26 dm - sdapi too: deleting it refuses every API login at once
-    # (APISRVR tests membership), which is the uninstaller's job, not SD's.
+    # 09 Sep 26 dm - SD'S SYSTEM GROUP IS NOT DELETABLE, AND sdusers WAS
+    # ALREADY EXPOSED BEFORE THE TEARDOWN.  require_sd_group answers "is this
+    # one of SD's groups", which is the right question for ADDING somebody to
+    # it and the wrong one for destroying it.  Deleting sdusers unregisters
+    # every SD user at once (LOGIN's entry gate reads it).  Only the
+    # per-account groups are destroyable, which is all DELACC:197 ever asks
+    # for - it passes the account's own sdu_/sdg_ group.
     case $1 in
-      sdusers|sdadmin|sdapi)
+      sdusers)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"

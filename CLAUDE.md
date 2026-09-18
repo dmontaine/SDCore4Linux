@@ -258,8 +258,10 @@ the same message — each is a fresh hand-over and carries all three parts again
    Windows this was the elevation verdict.) Silence is not "probably fine". Some of
    this project's measurements are only valid as an ordinary user — anything
    testing what an unprivileged SD account may reach — so the wrong shell does not
-   merely fail, **it can produce a clean-looking wrong answer.** That is the whole
-   point of the tier work below.
+   merely fail, **it can produce a clean-looking wrong answer.** The tiers are gone
+   now (the teardown), and the rule only gets sharper: measurements that differ
+   between an administrator and a plain account must still say which shell ran
+   them.
 
 ## An instrument shows what it DID, not just what it concluded
 
@@ -359,9 +361,16 @@ of them reverse what an earlier analysis recommended.
   §M's rule to go further still stands.
 - **Release numbering follows SD Core for Windows, not upstream.** Upstream's
   1.0-3 is not this project's next version.
-- **The three-tier account model is adopted** — STANDARD, PROGRAMMER,
-  ADMINISTRATOR, plus SUSPENDED — with the security posture that goes with it.
-  The largest single piece of conformity work.
+- ***THE TIERED ACCOUNT MODEL IS RIPPED OUT*** (owner's decision, 18 Sep 2026 —
+  the parity plan's §L is reversed; the teardown is S.25–S.28 in PROJECT_STATUS).
+  One VOC layer (NEWVOC as shipped) for every account; one administrator, SDSYS —
+  the `sdsys` OS user on a local session, never root, never remote; SH and
+  OS.EXECUTE run at the account's own Linux permissions; ssh and the API are
+  open to every account except SDSYS; GRANT/REVOKE/LIST.GRANTS are gone —
+  `usermod -aG` is the grant; suspension is a plain account flag
+  (`MODIFY.ACCOUNT ... SUSPENDED`/`UNSUSPEND`).  **The security-model evaluation
+  the owner reserved follows once the teardown is witnessed on an install.**
+  Built as one change set, 18 Sep 2026; not yet committed or installed.
 - **Lower case throughout**, matching the port. On a case-sensitive filesystem this
   needs real migration rather than the port's "both spellings work anyway".
   ***AND COMPLETE, WHICH THE PORT IS NOT*** (owner, 11 Sep 2026). The standard is
@@ -393,12 +402,12 @@ of them reverse what an earlier analysis recommended.
   the administrator a deliberate act to turn it on — and make that act possible,
   documented and reversible. **The restrictive default is not a judgement that
   nobody should have the capability; it is a decision about who decides.**
-  `MODIFY.PASSWORD` is the worked example: it is administrators-only in
-  `TIER.ADD.ADMINISTRATOR`, and an administrator who wants a particular user to
-  set their own password copies the VOC record into that account, which works
-  and grants nothing else (PORT_ADOPTION 17). ***SO A RESTRICTIVE DEFAULT WITH
-  NO WAY TO RELAX IT IS THE THING TO AVOID***, and "a user cannot do X" is not
-  by itself a defect to fix — check whether the administrator can grant it
+  `MODIFY.PASSWORD` is the worked example: it is an administrator act
+  (the sdsys OS user, local session — after the teardown there is no per-account
+  relaxation for it; a deliberate divergence from the port, named in
+  `set_acc_password`), and the general rule stands: ***SO A RESTRICTIVE DEFAULT
+  WITH NO WAY TO RELAX IT IS THE THING TO AVOID***, and "a user cannot do X" is
+  not by itself a defect to fix — check whether the administrator can grant it
   before treating it as one.
 - ***A RICH BASIC SCREEN/WIDGET LIBRARY IS A GOAL — FOR 1.2, NOT 1.1*** (owner,
   10 Sep 2026; moved after the 1.1 release on 15 Sep 2026). Extend

@@ -1,1 +1,2 @@
-SDSYS Account access is restricted to privileged users
+The SDSYS account is entered only by running SD as the sdsys OS user
+from a local session

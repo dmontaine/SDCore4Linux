@@ -16,6 +16,42 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+18 Sep 26  THE ACCOUNT MODEL IS NOW ONE ADMINISTRATOR AND ONE LEVEL.
+           The tiered account structure - STANDARD, PROGRAMMER and
+           ADMINISTRATOR, each with its own set of verbs - is gone.  Every
+           account gets the same VOC: the full NEWVOC, which now also
+           includes SH (the operating-system shell command) and !.  SH and
+           OS.EXECUTE run at your own Linux permissions, with no SD gate
+           behind them.
+
+           There is ONE administrator, SDSYS.  It is not a rank that people
+           are promoted into: it is the sdsys operating-system user, and SD
+           gives it administration only when SD is run AS that user on the
+           machine itself (su - sdsys) - not over ssh, not over the API
+           from another machine, and NOT by running sd as root, which is
+           now refused outright.  Every account except SDSYS can reach SD
+           over ssh (ssh just starts SD) and through the API.
+
+           The account verbs that moved people between levels (GRANT,
+           REVOKE, LIST.GRANTS) are gone; giving a person access to an
+           account is now the Linux group: usermod -aG sdu_<account> <user>.
+           Suspending an account is unchanged in effect - MODIFY.ACCOUNT
+           <account> SUSPENDED, and UNSUSPEND brings it back - but it is
+           now a flag on the account rather than a level change.
+
+           What this does NOT do: it does not remove the ssh boundary (SD
+           accounts still get SD instead of a shell over ssh, and the sdsys
+           account cannot log in over the network at all), and it does not
+           change who can read or write an account's files - those limits
+           are Linux's own.
+
+18 Sep 26  A BOUND IS PUT ON TWO NAME COPIES IN THE CLEANUP PROGRAM.
+           clopts (the "sd -cleanup" bookkeeping) copied a user name from
+           the shared system segment into a small buffer without a bound;
+           both copies now copy at most the buffer's length and always end
+           with a terminator.  Reported by the Windows port; could have
+           crashed the cleanup in a damaged shared segment.
+
 15 Sep 26  ONE ENVIRONMENT VARIABLE NOW NAMES THE CONFIGURATION FILE, FOR
            SD ITSELF AND FOR PROGRAMS THAT USE THE CLIENT LIBRARY.
 

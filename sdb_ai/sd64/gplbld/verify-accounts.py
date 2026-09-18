@@ -2,8 +2,8 @@
 #
 # verify-accounts.py - is the account register true about the operating system,
 #                      and do the account verbs refuse a session that is not
-#                      root?  PORT_ADOPTION queue 22, ranked item 6 - the
-#                      NO-SUDO HALF of the port's account family
+#                      the administrator?  PORT_ADOPTION queue 22, ranked item 6
+#                      - the NO-SUDO HALF of the port's account family
 #                      (verify-createaccount, verify-delaccount,
 #                      verify-acctmsgs, verify-accountrules).
 #
@@ -41,14 +41,15 @@
 #      way - an account DIRECTORY with no register record - and that is the
 #      direction a keep-accounts delete->install could produce, since the
 #      directories survive the cycle and the register is rewritten by it.
-#   2. ***FIELD 4 IS NEVER WRITTEN.***  `SYSCOM/KEYS.H:277-278` says so in a
-#      comment: the retired `ACC$USERS` slot must stay empty, because "a new
-#      meaning there would read old data as new".  A comment cannot enforce
-#      itself; row R4 can.
-#   3. ***THE `sdadmin` GROUP FOLLOWS THE TIER.***  `MODIFYA set.tier` writes
-#      `ACC$TIER` and then reconciles `sdadmin` - register first, group second
-#      (PRE_RELEASE_FIXES, MODIFYA table).  Two writes that can be interrupted
-#      between them, and nothing re-checks the pair afterwards.
+#   2. ***FIELD 4 IS NEVER WRITTEN.***  `SYSCOM/KEYS.H` says so in a comment:
+#      the retired `ACC$USERS` slot must stay empty, because "a new meaning
+#      there would read old data as new".  A comment cannot enforce itself;
+#      row R4 can.  18 Sep 26, the teardown: field 5 is the suspension flag
+#      (blank or SUSPENDED) and field 6 is the retired prior-tier slot, both
+#      enforced below in the same way.
+#   3. ***THE LEGACY GROUPS ARE GONE.***  The teardown removed sdadmin and
+#      sdapi; an install or upgrade that somehow recreated them would be
+#      carrying the old model's machinery, and U5 says so.
 #
 # RUN IT UNELEVATED, AND THAT IS NOT A PREFERENCE EITHER.  Section 4 asks what
 # a NON-ROOT session is refused; from a root shell every row in it would pass
@@ -71,13 +72,12 @@ REGISTER = os.path.join(V.SDSYS, "accounts")
 GPLBP = os.path.join(HERE, os.pardir, "sdsys", "gpl.bp")
 MESSAGES = os.path.join(HERE, os.pardir, "sdsys", "messages")
 
-# SYSCOM/KEYS.H:264-301.  One-based, as the BASIC is.
+# SYSCOM/KEYS.H, the ACCOUNTS record.  One-based, as the BASIC is.
 ACC_PATH, ACC_DESCR, ACC_GROUP = 1, 2, 3
 ACC_USERS_RETIRED = 4
-ACC_TIER, ACC_PRIOR_TIER, ACC_SH, ACC_OS_EXEC = 5, 6, 7, 8
+ACC_SUSPENDED, ACC_PRIOR_TIER = 5, 6
 
-TIERS = ("STANDARD", "PROGRAMMER", "ADMINISTRATOR", "SUSPENDED")
-ADMIN_GROUP = "sdadmin"
+SUSPENDED_VALUES = ("", "SUSPENDED")
 ALL_GROUP = "sdusers"
 
 # The account verbs, their catalogued names, and the program that owns each.
@@ -210,14 +210,14 @@ def main():
         return run.verdict()
 
     # ------------------------------------------------- 1. the register itself
-    run.heading("1. the register's own shape (SYSCOM/KEYS.H:264-301)")
+    run.heading("1. the register's own shape (SYSCOM/KEYS.H)")
     for aid in sorted(reg):
         rec = reg[aid]
         path, group = field(rec, ACC_PATH), field(rec, ACC_GROUP)
-        tier = field(rec, ACC_TIER)
-        run.say("      %-6s path=%-32s group=%-11s tier=%-13s sh=%s os=%s"
-                % (aid, path or "(none)", group or "(none)", tier or "(none)",
-                   field(rec, ACC_SH) or "-", field(rec, ACC_OS_EXEC) or "-"))
+        suspended = field(rec, ACC_SUSPENDED)
+        run.say("      %-6s path=%-32s group=%-11s suspended=%-9s"
+                % (aid, path or "(none)", group or "(none)",
+                   suspended or "(none)"))
 
     run.note("R1 every record has an ACC$PATH", [],
              sorted(i for i in reg if not field(reg[i], ACC_PATH)))
@@ -232,21 +232,22 @@ def main():
     # meaning there would read old data as new.
     run.note("R4 field 4 (retired ACC$USERS) is empty everywhere", [],
              sorted(i for i in reg if field(reg[i], ACC_USERS_RETIRED)))
-    # SDSYS is the system account and carries no tier; every other record must.
+    # SDSYS is the system account and carries no suspension flag; the flag is
+    # for the accounts an administrator may suspend.
     users = sorted(i for i in reg if os.path.normpath(field(reg[i], ACC_PATH))
                    != os.path.normpath(V.SDSYS))
     run.note("R5 the register has user accounts, not only SDSYS", True,
              len(users) > 0)
-    run.note("R6 every user account's tier is one of %s" % (TIERS,), [],
-             sorted(i for i in users if field(reg[i], ACC_TIER) not in TIERS))
-    # A SUSPENDED account keeps the tier it displaced, and only a SUSPENDED one
-    # has somewhere to keep it (queue 12).
-    run.note("R7 only a SUSPENDED account carries ACC$PRIOR.TIER", [],
+    # 18 Sep 26 (W.7): field 5 is the suspension flag, blank or SUSPENDED.
+    run.note("R6 every user account's suspension flag is blank or SUSPENDED", [],
              sorted(i for i in users
-                    if field(reg[i], ACC_PRIOR_TIER)
-                    and field(reg[i], ACC_TIER) != "SUSPENDED"))
-    # PRE_RELEASE 30: the installer sets the SDSYS record root:root 0644 after
-    # everything that used to undo it.  stat() needs only read on the directory.
+                    if field(reg[i], ACC_SUSPENDED) not in SUSPENDED_VALUES))
+    # 18 Sep 26 (S.25): field 6 is the retired prior-tier slot - a suspension
+    # is no longer a rank, so nothing writes it and nothing may carry one.
+    run.note("R7 field 6 (retired ACC$PRIOR.TIER) is empty everywhere", [],
+             sorted(i for i in reg if field(reg[i], ACC_PRIOR_TIER)))
+    # 18 Sep 26 (S.26): the register belongs to the administrator - records are
+    # sdsys:sdusers 644, so a local sdsys session writes them without root.
     sp = os.path.join(a.register, "sdsys")
     try:
         st = os.stat(sp)
@@ -255,8 +256,8 @@ def main():
     except OSError as e:
         got = ("stat failed: %s" % e,)
     run.say("  %s: %s" % (sp, got))
-    run.note("R8 the sdsys register record is root:root 644", ("root", "root", "644"),
-             got)
+    run.note("R8 the sdsys register record is sdsys:sdusers 644",
+             ("sdsys", "sdusers", "644"), got)
 
     # --------------------------------------- 2. register <-> the filesystem
     run.heading("2. the register against the filesystem, BOTH directions")
@@ -278,17 +279,18 @@ def main():
 
     # ------------------------------------------------ 3. register <-> Unix
     run.heading("3. the register against the operating system")
-    admins = group_members(ADMIN_GROUP)
     everyone = group_members(ALL_GROUP)
-    run.note("U0 the %s and %s groups exist" % (ADMIN_GROUP, ALL_GROUP), True,
-             admins is not None and everyone is not None)
-    if admins is None or everyone is None:
+    run.note("U0 the %s group exists" % ALL_GROUP, True, everyone is not None)
+    if everyone is None:
         run.refuse("a group the register's claims are checked against is missing",
-                   "%s: %s, %s: %s" % (ADMIN_GROUP, admins is not None,
-                                       ALL_GROUP, everyone is not None))
+                   "%s: %s" % (ALL_GROUP, everyone is not None))
         return run.verdict()
+    # 18 Sep 26 (S.26/S.28): the legacy groups are gone; their presence would
+    # mean the old model's machinery survived an install or upgrade.
+    run.note("U0b the sdadmin and sdapi groups do not exist", True,
+             group_members("sdadmin") is None and group_members("sdapi") is None)
 
-    bad_group, bad_owner, bad_sgid, not_in_all, wrong_admin = [], [], [], [], []
+    bad_group, bad_owner, bad_sgid, not_in_all = [], [], [], []
     for aid in users:
         rec = reg[aid]
         path = field(rec, ACC_PATH)
@@ -312,24 +314,16 @@ def main():
             bad_sgid.append("%s: mode %04o has no setgid" % (aid, st.st_mode & 0o7777))
         if owner not in everyone:
             not_in_all.append("%s: %s not in %s" % (aid, owner, ALL_GROUP))
-        is_admin = field(rec, ACC_TIER) == "ADMINISTRATOR"
-        if is_admin != (owner in admins):
-            wrong_admin.append("%s: tier %s, %s in %s = %s"
-                               % (aid, field(rec, ACC_TIER) or "(none)", owner,
-                                  ADMIN_GROUP, owner in admins))
 
     run.note("U1 the directory's group is the one the register names", [], bad_group)
     run.note("U2 the directory is owned by the account's own Unix user", [], bad_owner)
     run.note("U3 every account directory is setgid", [], bad_sgid)
     run.note("U4 every account's user is in %s" % ALL_GROUP, [], not_in_all)
-    # ***U5 IS THE PAIR MODIFYA WRITES IN TWO STEPS.***
-    run.note("U5 %s membership matches ACC$TIER exactly" % ADMIN_GROUP,
-             [], wrong_admin)
 
     # ------------------------------------------- 4. the gate, measured
-    run.heading("4. the account verbs refuse a session that is not root")
-    run.say("  An ADMINISTRATOR account is not a privileged SESSION here:")
-    run.say("  CPROC:328 grants K$ADMINISTRATOR only when system(27) = 0.")
+    run.heading("4. the account verbs refuse a session that is not the administrator")
+    run.say("  Only a local sdsys session is an administrator (S.26):")
+    run.say("  CPROC grants K$ADMINISTRATOR nowhere else.")
 
     # ***ONE SESSION PER VERB, AND THE FIRST DRAFT OF THIS SECTION IS WHY.***
     # It ran all three in ONE session and asked, for each, whether the refusal

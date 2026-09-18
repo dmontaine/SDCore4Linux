@@ -23,15 +23,15 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree. Port's mail 16 Sep 22:14 (sd4windows RELEASE_1.1 43, `090756d`+1): its relay now has this tree's per-connection shape as a native spawn (`sdtlsrelay.exe`, S4U token for a bare `sdrelay` account, Low integrity, 0 privileges); wire to the client unchanged, client library unchanged; two socketpair-only deltas from `sd_tlssrv.c` (PEM bytes sd→relay; status byte + text relay→sd). Its units 27/27; witnessed on its install 16 Sep 22:57 (mail 23:05, its RELEASE_1.1 43 struck, `dbb0588..33c75c9`): `verify-relayidentity` 15/15 — one `sdtlsrelay.exe` per held connection, owner `sdrelay`, Low, 0 privileges, parent `sd.exe` still SYSTEM, gone at close. Its `syslog()` lands in the Windows Application event log, provider `sd_Log` — ask for that, not `sdsys/errlog`, when reading a Windows relay report. Nothing to change here | — |
-| ⬜ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). §OPEN§ | — |
-| ⬜ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. §OPEN§ | — |
-| ⬜ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. §OPEN§ | — |
-| ⬜ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). §OPEN§ | — |
-| ⬜ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". WAITING FOR THE OWNER | — |
-| ⬜ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. WAITING FOR THE OWNER | — |
-| ⬜ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. WAITING FOR THE OWNER | — |
-| ⬜ | **W.8** | R | GRANT/REVOKE/LIST.GRANTS and the `sdu_` groups: drop the verbs and let `usermod` be the grant, keeping the membership check at LOGTO? The reading offered is drop. WAITING FOR THE OWNER | — |
-| ⬜ | **W.9** | R | REMOTE.SSH/REMOTE.API (S.13) and the audit trail (E2/Q.13): keep — the switches SDSYS-only, the trail as the security evaluation's evidence — or remove with the rest? The reading offered is keep. WAITING FOR THE OWNER | — |
+| ✅ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). §OPEN§ | — |
+| ✅ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. §OPEN§ | — |
+| ✅ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. §OPEN§ | — |
+| ✅ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). §OPEN§ | — |
+| ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". WAITING FOR THE OWNER | — |
+| ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. WAITING FOR THE OWNER | — |
+| ✅ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. WAITING FOR THE OWNER | — |
+| ✅ | **W.8** | R | GRANT/REVOKE/LIST.GRANTS and the `sdu_` groups: drop the verbs and let `usermod` be the grant, keeping the membership check at LOGTO? The reading offered is drop. WAITING FOR THE OWNER | — |
+| ✅ | **W.9** | R | REMOTE.SSH/REMOTE.API (S.13) and the audit trail (E2/Q.13): keep — the switches SDSYS-only, the trail as the security evaluation's evidence — or remove with the rest? The reading offered is keep. WAITING FOR THE OWNER | — |
 | ◐ | **Q.22** | L | verifier harness and eleven verifiers; `keys` 36/36 and `logtoaccess` (§2b) witnessed on `984be50`; `batchjob`/`cmdaudit` mechanism absent, `notyet` → Q.14; `sdsyswrite` built 14 Sep as `check-storewriters.py` (free, 4 writers 0 failures) + witness §13g; §13g Y1-Y4 pass on `dea3736` and `0d58171` but Y0 shows the session never took the LOGTO route; route fixed 15 Sep (`LOGTO zzrel1` before the first WHO) and `sdsyswrite` witnessed on `0b67dba`, Y0–Y4 all pass (WHO `zzrel1 sdsys`); ***the ten API verifiers RULED 15 Sep 2026*** once W.4 closed (PORT_ADOPTION "Queue 22 — the ten API verifiers, ruled"): seven already measured by witness rows, `localconnect` does not transfer (phase 5 removed that transport), `apiname` was a real hole — `!valid_os_name` screens the SCRAM name at `apisrvr:1100` and nothing had ever sent it one it refuses — now built as §13c S9/S9b and ***WITNESSED 15 Sep 2026***: 271/271 on `c773008` (16:18) and again on `c1ea29b` (18:26), S9 refused at 47 and S9b reading `reason=name rejected by valid_os_name` off the trail — the row that proves the name check fired and not a catch-all; ***`tierapi`'s STANDARD LEG IS BUILT 15 Sep 2026 AND HAS NOT RUN***: §13j J0–J4c — a STANDARD account admitted to its own account over the API, then refused upward into a PROGRAMMER account it holds the Linux group for (10003), with the route read back off `sdapi` first so the refusal cannot be 10073's, and the fixtures restored; `bash -n` clean. ***§13j J5 ADDED 15 Sep 2026*** answering the port's RELEASE_1.1 46: an API session writes its OWN `voc` (§10's COPY idiom, the id counted in the raw subfiles before and after as root) — §3 already measured that write over a LOCAL session and nothing had measured it over the API; Linux does not share the port's read-only defect because `createa:391-393`/`:724-729` chown the new `voc` and its `%0`/`%1` to the account's own user, where theirs leaves them with the elevated administrator; left: `batchjob`/`cmdaudit` (no mechanism to verify) and an owner-run witness for §13j | — |
 | ◐ | **P.6** | L | transactions: A2, A4 on the install; A1 undo, A3, A5 grow, A6 both by induced failure in the sandbox, each red on a mutant (`sandbox-txnfail.py` 22/22, 14 Sep); found + fixed a stranded OPENSEQ lock; left: A1's lock release and A5's free-node read path, neither inducible without a transient I/O error | — |
 | ◐ | **P.31** | S | `delacc:219`'s cross-reference scan opened every other account's `voc` with no ELSE, so one unopenable `voc` aborted DELETE.ACCOUNT before the confirmation instead of skipping that account — the Windows port's find (its RELEASE_1.1 44), confirmed here by reading; shared BASIC, so upstream too. ***FIXED 15 Sep 2026 with the port's number and wording, 10188*** (it built first, so it carries the number; no collision here). Only a genuinely MISSING `voc` reaches it on Linux: the deleter is always root — measured, `DELETE.ACCOUNT` as a non-root administrator is refused 2001 and `LOGTO sdsys` 10002 — which corrects my earlier "an account owner could chmod theirs shut", and the port caught that. ***COMPILED INTO `c1ea29b` AND EXERCISED 15 Sep 18:26***: the witness ran the changed verb twice, §9 `DELETE.ACCOUNT zzrel3 REMOVE.HOME` and §15 `zzrel1`, with no abort. ***THE NEW ELSE DID NOT FIRE*** — every `voc` was present, so 10188 was never printed. ***THE ROW THAT MAKES IT FIRE IS BUILT, 15 Sep 2026, AND HAS NOT RUN***: §15 now moves `zzrel2`'s `voc` aside for the one `DELETE.ACCOUNT` and puts it straight back (`cleanup()` puts it back too if the run dies holding it), and scores K8 on 10188's own wording naming `zzrel2` and K9 on the deletion finishing anyway — NOT REACHED, not passed, if the aside did not happen. `bash -n` clean, no BOM, no CRLF; left: an owner-run witness cycle to exercise it | — |
@@ -279,33 +279,54 @@ owner's ruling comes first.
 
 ## START HERE
 
-***HANDOFF, 18 SEP 2026 — THE TEARDOWN IS RULED AND RECORDED; NOTHING IS
-BUILT, NOTHING HAS BEEN INSTALLED, AND EVERY MEASUREMENT BELOW STILL STANDS
-(`assert-current` still says STALE).*** The owner's decision is written in
-below (`fe902d9`) — S.25 to S.28 open, W.5 to W.9 waiting for his word — and
-§L of `~/Documents/claude_plan.md` is marked reversed. No source file,
-message, installer, verifier or account was touched. ***WHAT THE NEXT SESSION
-PICKS UP:*** the owner's answers to W.5 to W.9 — or *"use the readings
-offered"* — and then the teardown built as ONE change set: S.25's removals in
-build order with S.26 to S.28 in the same change, because half of it leaves
-two privilege models disagreeing. *The 16 Sep handoff below still describes
-the machine as it is; its "two things waiting on the owner" now has five more
-beside it.*
+***HANDOFF, 18 SEP 2026 (LATER) — THE TEARDOWN IS BUILT AS ONE CHANGE SET,
+UNCOMMITTED AND UNINSTALLED; NOTHING HAS BEEN MEASURED ON A MACHINE YET.***
+The owner answered the handoff's question with "use the readings offered", so
+W.5 to W.9 are answered below and S.25 to S.28 are built in one change set,
+with the OS-access gates (S.27) and the ssh/API boundary (S.28) in the same
+change so no two privilege models ship apart.  What the build did, task by
+task, is recorded in the entries below and in the session log ("Session log —
+18 Sep 2026").  The free checks pass (`make` clean; the unit suites green,
+`test-ssh-forcecommand` 18/18, `test-sd-elevate` 57/57, `test-msglen` 10/10,
+`test-accounts-units` 17/17; `assert-current` says STALE because the change is
+uncommitted — correct).  ***NOTHING IS WITNESSED***: a real install still
+clones origin/main, so the first measurement needs the commit pushed and a
+fresh install; `witness-absence.sh` is the new absence instrument, and
+`witness-release-run.sh` / `witness-accounts.sh` now drive the teardown's
+model.  Also taken in the same session: the Windows port's RELEASE_1.1 60
+(two unbounded `strcpy()`s in `clopts.c:266/:316`, committed separately as
+`9140dc4`); its RELEASE_1.1 59 (the world-writable shared segment) stays open
+and is even sharper now — see the session log.
 
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
-PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28, WITH W.5 TO
-W.9 WAITING FOR THE OWNER.*** He dictated it in the port's vocabulary —
-"SDSYS", "LOGTO", "the standard level", "remote ssh and api access" — and
-then, in the same breath: *"ignore the windows references, convert as
-appropriate for linux"*, and later *"continue teardown"*. The Linux conversion
-is the nine entries below. **What survives, by his word: the embedded Python
-and the encrypted tunnel that carries the data and the password; the rest of
-the account framework is removal scope, and when it is all out he evaluates
-the resulting security model.** *Nothing below has been built, compiled or
-installed; these are plan, not measurement.*
+PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated
+it in the port's vocabulary — "SDSYS", "LOGTO", "the standard level", "remote
+ssh and api access" — and then, in the same breath: *"ignore the windows
+references, convert as appropriate for linux"*, and later *"continue teardown"*,
+and on the follow-up: use the readings offered for W.5 to W.9. The Linux
+conversion is the nine entries below. **What survives, by his word: the
+embedded Python and the encrypted tunnel that carries the data and the
+password; the rest of the account framework is removal scope, and when it is
+all out he evaluates the resulting security model — that evaluation is the
+next gate.**
 
 ***[S.25] THE TEARDOWN, 1 OF 4 — THE TIER MACHINERY COMES OUT (owner's
-decision, 18 Sep 2026). §OPEN§.*** Nothing here is built yet. The pieces:
+decision, 18 Sep 2026). §BUILT§.*** Built 18 Sep 2026, one change set (see the
+handoff above and the session log): tier.policy, TIERGATE and GRANTA deleted;
+every !tier_allows caller (cproc LOGTO, modifya, apisrvr) gone;
+ACC$TIER/ACC$PRIOR.TIER retired and field 5 redefined as ACC$SUSPENDED (W.7's
+flag — reusing 5 keeps the one-column listing and reads every pre-teardown
+record correctly); every VOC copy path (createa's make.account, login's
+update.voc, modifya's voc.delta) now copies NEWVOC whole — one layer; 'sh' and
+'!' moved into NEWVOC so every account has them (S.27); GRANT/REVOKE/
+LIST.GRANTS records removed from VOC_TEMPLATE (W.8).  The tier instruments are
+gone (verify-tier-layer.*, witness-tierchange.sh, the §6/§7 legs) and
+witness-absence.sh is the replacement.  Messages removed: 10041-10050, 10053,
+10054, 10073, 10077, 10079-10083, 10087, 10102, 10105, 10106, 10108, 10109,
+10111, 10113, 10114, 10126-10129, 10157, 10159, 10900-10904, 10911, 10912,
+10919; added: 10176 (root refused), 10177 (sdsys remote refused), 10178/10179/
+10180 (suspend/unsuspend), 10916 (grant notice); 10002 and 10174 reworded.
+*Measured: nothing yet — install + witness after the push.* The pieces:
 `sdsys/tier.policy` and its two lists (`omit.standard`, `add.administrator`);
 `GPL.BP/TIERGATE`, whose `function tier_allows` (`tiergate:89-90`) is the
 whole decision, and its `!tier_allows` callers (`cproc:2847-2852`,
@@ -326,7 +347,20 @@ half of this is worse than none, because half leaves two privilege models
 disagreeing.*
 
 ***[S.26] THE TEARDOWN, 2 OF 4 — ONE ADMINISTRATOR, SDSYS, AND LOGTO IS NOT
-THE WAY IN. §OPEN§.*** The decision's Linux reading: SDSYS is tied to the
+THE WAY IN. §BUILT§.*** Built 18 Sep 2026: cproc's root-entry block refuses a
+root session outright (10176, audited) and grants K$ADMINISTRATOR only to a
+session already running as the sdsys OS user on a local session —
+SSH_CONNECTION and SSH_TTY both empty (10916 granted, audited);
+grant.administrator is deleted, K$REAL.USER with it (its only caller).  LOGTO
+sdsys is refused for everybody (10002 reworded); the administrator's LOGTO
+keeps the S.2 group refresh (int.logto calls EUID_SET, and SD_EUID_SET now
+reloads groups for any caller — sdext_eguid.c).  The sudoers grant moved from
+%sdadmin to the sdsys user; the register and $cred now belong to sdsys
+(register sdsys:sdusers 644, $cred sdsys:sdsys 700) so a local sdsys session
+administers without root; set_acc_password gates on the administrator flag
+instead of uid 0; the installer recompiles CPROC without IS_INSTALL AFTER the
+seed steps (which run on the install build), and its MODIFY.PASSWORD step
+runs as sdsys.  The decision's Linux reading: SDSYS is tied to the
 `sdsys` OS account (uid 999, owner of /usr/local/sdsys), and SD administration
 exists only for a session running as that identity, obtained by elevating into
 it (`sudo -u sdsys`, `su - sdsys`) from a local session — "elevated" on Linux
@@ -342,7 +376,13 @@ administrator" and does not become SD's. Below the OS, root can still `su` to
 Linux imposes". Shapes: W.5, W.6.
 
 ***[S.27] THE TEARDOWN, 3 OF 4 — THE OS-ACCESS GATES GO; STANDARD LINUX
-LIMITS ONLY. §OPEN§.*** His rule: the only limits on what an account does at
+LIMITS ONLY. §BUILT§.*** Built 18 Sep 2026: op_sh's os_permitted() and its
+refusal are deleted (OS.EXECUTE runs unconditionally at the account's own
+Linux permissions), cproc's os.command loses the K$ADMINISTRATOR/K$SH test
+(the metacharacter filter stays), ACC$SH/ACC$OS.EXEC (fields 7/8) and
+K$SH/K$OS.EXEC (keys 91/92) are removed with their kernel cases and
+USR_SH/USR_OS_EXEC; login's os.admin load and modifya's SH-ON/SH-OFF/OS-ON/
+OS-OFF arms are gone.  His rule: the only limits on what an account does at
 the OS level are those Linux imposes on its standard accounts, so SD stops
 holding anything back itself. Out: the SH and OS.EXECUTE gates the port built
 across S.4, S.6 and P.23 — `ACC$SH`/`ACC$OS.EXEC` (fields 7/8), the
@@ -355,7 +395,18 @@ and fields to tidy in the same change: `SYSCOM/KEYS.H` fields 7/8,
 `K$SH`/`K$OS.EXEC` (58/59), and what CREATEA seeds in them.
 
 ***[S.28] THE TEARDOWN, 4 OF 4 — REMOTE SSH AND THE API FOR EVERYONE BUT
-SDSYS; SDSYS LOCAL ONLY. §OPEN§.*** His words: "All accounts, other than
+SDSYS; SDSYS LOCAL ONLY. §BUILT§.*** Built 18 Sep 2026: the ssh boundary is one
+route — `Match Group sdusers,!sdsys → ForceCommand sd` plus `Match User sdsys
+→ DenyUsers sdsys` (sdsys un-ssh-able, W.6's sshd half; an AllowUsers override
+is named in the helper as sshd's own policy corner, with SD's W.6 gates as the
+second wall); the sdapi per-account route is disposed (createa/modifya
+grammar, 10073, the installer's group, delacc's strips) and apisrvr's
+vb.scram admits every proven sdusers member, with SDSYS's own door the S.17
+non-loopback refusal (10174 reworded, audited with the peer address) and a
+name-based exemption that lets sdsys enter its own account locally;
+sd-elevate's whitelist loses sdadmin/sdapi; the installer/deleter no longer
+create or strip them.  W.9's REMOTE.SSH/REMOTE.API stay, SDSYS's own
+(sd-elevate, sdsys-only sudoers).  His words: "All accounts, other than
 SDSYS, will have remote ssh and api access. SDSYS will only be accessible from
 a local session." So the doors: PRE_RELEASE 13's ssh boundary
 (`gplbld/ssh-forcecommand.sh`, installed at `installsdai.sh:565-570`,
@@ -368,7 +419,9 @@ users' sudoers go, `sdusers` stays as the Linux-native "may run SD" group.
 Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).
 
 ***[W.5] `sudo sd` AS ROOT — REFUSED OUTRIGHT, OR AN ORDINARY
-NON-ADMINISTRATOR SESSION? WAITING FOR THE OWNER.*** The decision refuses
+NON-ADMINISTRATOR SESSION? ANSWERED — THE READING APPLIED.*** Built: a root
+session is refused outright in cproc's entry (10176, audited); root may
+`su - sdsys` and come back the right way.  The decision refuses
 "all other administrators" as SD administrators; the reading offered is the
 harder one: a root session that is not running *as* `sdsys` is refused
 outright — root may `su - sdsys` and come back the right way — because "an
@@ -378,7 +431,11 @@ working at the PROGRAMMER level. Either way `LOGTO sdsys` never succeeds from
 it.
 
 ***[W.6] WHAT "A LOCAL SESSION" MEANS ON LINUX — THE TEST, AND WHERE IT IS
-ENFORCED. WAITING FOR THE OWNER.*** The reading offered: refuse administrator
+ENFORCED. ANSWERED — THE READING APPLIED.*** Built: cproc's SDSYS block tests
+`env('SSH_CONNECTION')` and `env('SSH_TTY')` (ssh and the API tunnel both
+count as remote), the sdsys OS account is denied network login at sshd
+(`DenyUsers sdsys`), and the test lives with the SDSYS block in cproc.  The
+reading offered: refuse administrator
 entry when `SSH_CONNECTION`/`SSH_TTY` is set (ssh and the API tunnel both
 count as remote), keep the `sdsys` OS account un-ssh-able — it needs no
 network login — and let the test live with the SDSYS block in `cproc`. If he
@@ -386,7 +443,12 @@ wants it looser (a console-tty check) or tighter, the sentence changes; the
 row does not guess.
 
 ***[W.7] SUSPENDED — KEPT AS A PLAIN ACCOUNT FLAG, OR DROPPED WITH THE TIERS?
-WAITING FOR THE OWNER.*** Today suspension rides on the tier field (Q.12: the
+ANSWERED — THE READING APPLIED.*** Built: the suspension is its own flag —
+field 5, blank means in service and SUSPENDED means suspended (ACC$SUSPENDED;
+reusing field 5 reads every pre-teardown record correctly), with the same
+doors (LOGIN, cproc's entry, ssh, the API) and the way back is
+MODIFY.ACCOUNT <account> UNSUSPEND (10178/10179/10180); field 6 (the retired
+prior-tier slot) is cleared on the way back and never written.  Today suspension rides on the tier field (Q.12: the
 fourth value, `ACC$PRIOR.TIER` holding the displaced tier; its doors are
 LOGIN, `cproc`'s entry, ssh and the API). The reading offered: keep it — a
 suspension is a denial, not a rank — re-hang it on its own flag with the same
@@ -394,7 +456,11 @@ doors, and write the tier field out of it. Dropping it removes a control the
 port also has; the decision says nothing either way.
 
 ***[W.8] GRANT / REVOKE / LIST.GRANTS AND THE `sdu_` GROUPS — KEEP, OR LET
-`usermod` BE THE MECHANISM? WAITING FOR THE OWNER.*** The verbs exist to move
+`usermod` BE THE MECHANISM? ANSWERED — THE READING APPLIED.*** Built: the three
+verbs are dropped (granta deleted, its VOC records gone, its messages gone,
+verify-grants.py gone), `usermod -aG sdu_<account>` is the grant, and LOGTO's
+membership check with the 10003 refusal and its audit line stay where they
+are.  The verbs exist to move
 people between tiers and to police the down-or-sideways rule (Q.14); one
 level leaves no ordering to police, and account entry is already Linux group
 membership checked at LOGTO. The reading offered: drop the three verbs and
@@ -403,7 +469,11 @@ where it is. What must not be lost either way: the refusal that names the
 account when the group is absent (10003) and the audit line it writes.
 
 ***[W.9] REMOTE.SSH / REMOTE.API AND THE AUDIT TRAIL — IN, OR OUT WITH THE
-REST? WAITING FOR THE OWNER.*** The reading offered: keep both. The two
+REST? ANSWERED — THE READING APPLIED.*** Built: both switches stay, SDSYS's own
+(sd-elevate behind the sdsys-only sudoers), and the audit trail stays — the
+trail gains ELEVATION REFUSED reason=root, ELEVATION GRANTED reason=local
+sdsys session, MODIFY.ACCOUNT SUSPEND/UNSUSPEND and the sdsys API-door
+refusals.  The reading offered: keep both. The two
 switches (S.13: `sd-elevate remote-api` / `remote-ssh`, the firewall verbs)
 become SDSYS's own and stay the way the machine's remote exposure is turned;
 the audit trail (E2, Q.13) stays because it is the cheapest evidence the
@@ -3958,6 +4028,127 @@ for `Compiled`** (a run that prints neither answer returns an empty match that
 reads like a pass); and the compile creates a **`BP.OUT` VOC record** that
 `rmdir` does not remove — clean up with `DELETE VOC BP.OUT` too. The `DON`
 account's true empty `COUNT VOC` is **410**.
+
+## Session log — 18 Sep 2026
+
+THE TEARDOWN, BUILT AS ONE CHANGE SET (`pull and continue with teardown
+tasks`; owner: "use the readings offered" for W.5–W.9).  Working tree of the
+repo, not the workspace: the runtime's workspace folder
+(`~/Projects/sdcore4linux`) is empty; the repository lives at
+`~/Projects/SDCoreLinuxProject/sdcore4linux` (its documented home since 16
+Sep) and every file below is relative to that.  `git pull` — up to date.
+
+THE MAILBOX CARRIED THREE THINGS AND ALL THREE WERE ACTED ON.  The Windows
+port's mail of 18 Sep 19:00 (its RELEASE_1.1 60): two unbounded `strcpy()`s
+in `clopts.c:266/:316` (reap_lost_user and cleanup copy a shared-segment
+username into a stack buffer) — verified present here, fixed with the port's
+four lines (`memcpy` of `MAX_USERNAME_LEN` + explicit terminator), committed
+separately as `9140dc4`.  Its RELEASE_1.1 59 (the world-writable shared
+segment, `shmget(SD_SHM_KEY, ..., IPC_CREAT|0666)` at `sysseg.c:306`, read by
+root daemons and a root `sd -cleanup`): acknowledged as a design item, NOT
+patched — and the teardown sharpens it: with `os.users` field 2 retiring and
+no sdapi gate, every account can now start the Python interpreter, so the
+segment's writers/readers are the evaluation's next question; the reply to
+the port says so.  Reply written, messages moved to done/.
+
+THE BUILD, TASK BY TASK (all in one change, uncommitted):
+
+* S.25 — `sdsys/tier.policy/` (2 files), `gpl.bp/tiergate`, `gpl.bp/granta`,
+  `gpl.bp/grp_members` and `gplbld/verify-grants.py` deleted; every
+  `!tier_allows` caller removed (cproc LOGTO, modifya ADD, apisrvr vb.account);
+  `syscom/keys.h`: `ACC$SUSPENDED=5` (W.7's flag — reusing field 5 keeps the
+  one-column listing and reads every pre-teardown record correctly),
+  `ACC$PRIOR.TIER=6` kept only as a documented retired slot cleared by
+  UNSUSPEND; fields 7/8 removed.  createa: grammar reduced to USER|GROUP|OTHER
+  + NO.QUERY (+ADOPT install-only, now making a plain account); no tier/API/
+  SH-ON/OS-ON keywords; register write holds three fields; make.account copies
+  NEWVOC whole.  login: update.voc copies NEWVOC whole (omit filter and admin
+  add layer deleted, get.acc.tier deleted, the all-accounts walk no longer
+  resolves a tier); suspended test reads ACC$SUSPENDED; os.admin load gone.
+  modifya REWRITTEN: MODIFY.ACCOUNT <account> ADD|DELETE|SUSPENDED|UNSUSPEND
+  only — set.tier/promo.snapshot/promo.report/join-sdadmin/leave-sdadmin/
+  api.set/api.apply/api.say/os.set/voc.delta and all tier helpers deleted;
+  the ADD arm keeps its group machinery and audit, loses the tier gate.
+  apisrvr: suspended reads ACC$SUSPENDED; the tier-ordering gate and the
+  deffun are gone.  VOC records: `sh` and `!` copied into NEWVOC (every
+  account has them, S.27), GRANT/REVOKE/LIST.GRANTS removed from VOC_TEMPLATE
+  (W.8); SDSYS's VOC keeps the administrator verbs because the install builds
+  it from the whole of VOC_TEMPLATE (bbproc) — unchanged mechanism.
+
+* S.26 — cproc's root-entry block: a root session is refused outright (10176
+  + `ELEVATION REFUSED reason=root is not SD administrator`, audited); a
+  session already running as the sdsys OS user on a local session
+  (`env('SSH_CONNECTION')` and `env('SSH_TTY')` both empty) is granted
+  (K$ADMINISTRATOR, 10916, `ELEVATION GRANTED reason=local sdsys session`,
+  audited — the audit written after the grant, PORT_ADOPTION 13's ordering);
+  the IS_INSTALL arm keeps the bootstrap grant.  grant.administrator deleted
+  with K$REAL.USER (its only caller: op_kernel.c case, keys.h, int$keys.h).
+  LOGTO sdsys refused for everybody (10002 reworded); the administrator's
+  LOGTO keeps the S.2 group refresh — int.logto calls EUID_SET for the admin
+  and SD_EUID_SET now reloads groups for ANY caller (sdext_eguid.c: the
+  `geteuid()==0` condition came off, since the administrator is never root
+  now).  sdcore.sudoers: `%sdadmin` → the `sdsys` user.  Register and $cred
+  now belong to the administrator: `chown -R sdsys:sdusers` +
+  644 on accounts (new step after the seeding), accounts/sdsys
+  sdsys:sdusers 644, $cred sdsys:sdsys 700 (MODIFY.PASSWORD runs as sdsys;
+  the root API server reads regardless).  set_acc_password gates on
+  K$ADMINISTRATOR instead of uid 0, with a note that "set your own" is an
+  administrator act here (one register, one owner — a deliberate port
+  divergence).  apisrvr: sdsys enters its own account by name (the SDSYS
+  record's ACC$GROUP reads "sdsys", which is no Linux group).  installsdai.sh
+  REORDERED: the seed steps (ADOPT, UPDATE.ACCOUNTS ALL) and the register
+  chown run on the IS_INSTALL CPROC, and the CPROC recompile without
+  IS_INSTALL is now LAST — from that point no root sd session exists on the
+  machine; the MODIFY.PASSWORD step runs `sudo -u sdsys`, exercising the new
+  administrator path end to end.  delacc strips sdusers only.
+
+* S.27 — op_sh: os_permitted() and its refusal deleted (OS.EXECUTE runs at
+  the account's own Linux permissions; `sh`/`!` have no SD gate); cproc's
+  os.command loses the K$ADMINISTRATOR/K$SH test, the metacharacter filter
+  stays; K$SH/K$OS.EXEC (91/92) removed from keys.h/int$keys.h/op_kernel.c
+  with USR_SH/USR_OS_EXEC (sysseg.h).
+
+* S.28 — ssh-forcecommand.sh block is now `Match User sdsys → DenyUsers
+  sdsys` + `Match Group sdusers,!sdsys → ForceCommand sd` (sdsys un-ssh-able
+  at sshd, W.6's first half); the helper names an AllowUsers override as
+  sshd's own policy corner with SD's W.6 gates as the second wall; the
+  conflict checker treats a matching DenyUsers as non-conflicting (same
+  policy), tested 18/18.  sdapi disposed end to end; vb.scram's S.17 gate is
+  SDSYS's door (10174 reworded, audited `sdsys on a remote API session from
+  <ip>`); sd-elevate's whitelist loses sdadmin/sdapi (test-sd-elevate 57/57);
+  installer/deleter no longer create/strip them (the deleter still tidies
+  legacy groups only when the accounts go).  W.9: REMOTE.SSH/REMOTE.API stay
+  SDSYS's own (sd-elevate behind the sdsys-only sudoers); the audit trail
+  stays and gains the new records.
+
+* INSTRUMENTS — verify-tier-layer.sh/.bp and witness-tierchange.sh deleted;
+  verify-grants.py deleted (W.8); witness-release-run.sh reworked (§2/§2b
+  sdsys sessions incl. a setpriv-driven S.2 stale-group re-witness; §6/§7
+  struck; §8 gains T8 ELEVATION GRANTED; §10/§11 struck; §12 rewritten for
+  one layer; §13's MODIFY.PASSWORD and C7 (sdsys:sdsys 700); §13b A4 struck
+  with a root-refusal control in its place and A5 as sdsys; §13e is SDSYS's
+  door with a throwaway credential set/measured/removed; §13f is the absence
+  pair; §13g drives SUSPENDED/UNSUSPEND + $cred rewrite as sdsys; §13j
+  struck; §14's suspend/restore is the flag's; §15 deletes the SD-created
+  user (10084/10028) as sdsys; §16's CONFIG as sdsys).  witness-accounts.sh
+  rewritten for the SD-created-user flow (no ADOPT on a delivered machine).
+  NEW: witness-absence.sh — the absence witness: no tiergate/tier.policy, a
+  fresh CREATE.ACCOUNT's record has no tier field, MODIFY.ACCOUNT has no
+  tier/OS/API keywords, no sdadmin/sdapi groups, the sudoers names sdsys,
+  the sshd block excludes sdsys, a root session refused (10176) and a local
+  sdsys session granted (10916) driven live, and the source-side rows M9a–M9f.
+  interop-account.sh rewritten (create as sdsys, no API keyword, no sdadmin).
+
+* MESSAGES — 42 files removed (see the S.25 entry), 5 written (10176, 10177,
+  10178, 10179, 10916), 2 reworded (10002, 10174).  msglen 10/10.
+
+VERIFIED BEFORE COMMIT: `make` clean (sd linked); test-ssh-forcecommand 18/18,
+test-sd-elevate 57/57, test-msglen-units 10/10, test-accounts-units 17/17,
+test-sysperms-units 20/20, basicfuncs 25/25, nonet 12/12, scram-vectors 46/46,
+tlsconsts 14/14; `bash -n` clean on every touched script; assert-current STALE
+(uncommitted) — correct.  NOT VERIFIED: anything on a machine — no install
+can contain this tree until it is committed and pushed, which is the next
+step and the owner's call.
 
 ## Session log — 9 Sep 2026
 

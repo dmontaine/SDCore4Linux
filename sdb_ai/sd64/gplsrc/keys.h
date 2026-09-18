@@ -190,12 +190,9 @@
    things in the two systems is drift of the same kind as a message number.
    GPL.BP/INT$KEYS.H must carry the same three numbers.                        */
 #define K_REAL_USER          90
-/* 09 Sep 26 dm - PRE_RELEASE 23.  Per-account OS-access grants, loaded into the
-   session at account entry (LOGIN and CPROC logto) from ACC$SH / ACC$OS.EXEC,
-   and read by the SH gate (CPROC) and op_sh() (OS.EXECUTE).  Set only from a
-   $internal program, exactly like K_ADMINISTRATOR - see op_kernel.c.         */
-#define K_SH                 91
-#define K_OS_EXEC            92
+/* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
+   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
+   own Linux permissions, and the kernel no longer carries those keys.       */
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

@@ -150,12 +150,9 @@
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.
       $define K$REAL.USER       90       ;* Real person behind the session
-* 09 Sep 26 dm - PRE_RELEASE 23.  Per-account OS-access grants, loaded into the
-*   session at account entry from ACC$SH / ACC$OS.EXEC and read by the SH gate
-*   (CPROC) and op_sh (OS.EXECUTE).  Settable only from $internal, like
-*   K$ADMINISTRATOR.
-      $define K$SH              91       ;* may use SH and "!"
-      $define K$OS.EXEC         92       ;* may use OS.EXECUTE
+* 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
+*   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
+*   own Linux permissions, and the kernel no longer carries those keys.
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?
