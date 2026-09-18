@@ -279,6 +279,19 @@ owner's ruling comes first.
 
 ## START HERE
 
+***HANDOFF, 18 SEP 2026 — THE TEARDOWN IS RULED AND RECORDED; NOTHING IS
+BUILT, NOTHING HAS BEEN INSTALLED, AND EVERY MEASUREMENT BELOW STILL STANDS
+(`assert-current` still says STALE).*** The owner's decision is written in
+below (`fe902d9`) — S.25 to S.28 open, W.5 to W.9 waiting for his word — and
+§L of `~/Documents/claude_plan.md` is marked reversed. No source file,
+message, installer, verifier or account was touched. ***WHAT THE NEXT SESSION
+PICKS UP:*** the owner's answers to W.5 to W.9 — or *"use the readings
+offered"* — and then the teardown built as ONE change set: S.25's removals in
+build order with S.26 to S.28 in the same change, because half of it leaves
+two privilege models disagreeing. *The 16 Sep handoff below still describes
+the machine as it is; its "two things waiting on the owner" now has five more
+beside it.*
+
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28, WITH W.5 TO
 W.9 WAITING FOR THE OWNER.*** He dictated it in the port's vocabulary —
