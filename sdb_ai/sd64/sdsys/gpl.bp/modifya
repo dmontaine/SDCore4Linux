@@ -19,6 +19,14 @@
 * 
 *
 * START-HISTORY:
+* 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
+*           out: the STANDARD/PROGRAMMER/ADMINISTRATOR keywords, the OS-access
+*           keywords (SH-ON/SH-OFF/OS-ON/OS-OFF), the API route (API/NONE) and
+*           voc.delta are all gone with the tier model.  SUSPENDED now sets the
+*           suspension flag (W.7: field 5, its own flag, same doors) and
+*           UNSUSPEND clears it; field 6 is retired and cleared.  The sdadmin
+*           join/leave and the upward-grant gate on ADD went with them: ADD and
+*           DELETE now work the same for every account.
 * 14 Sep 26 S.16, the port's per-account API route: API / NONE put the account's
 *           person in or out of sdapi (10077/10079/10080/10081), refused for a
 *           group account (10087) or an administrator (10083); SSH and BOTH are
@@ -73,35 +81,29 @@
 * END-HISTORY
 *
 * START-DESCRIPTION:
-* MODIFY.ACCOUNT account <ADD/DELETE> user.name
-* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR  {API | NONE}
-* MODIFY.ACCOUNT account SH-ON | SH-OFF | OS-ON | OS-OFF
-* MODIFY.ACCOUNT account API | NONE
+* MODIFY.ACCOUNT account ADD <username>
+* MODIFY.ACCOUNT account DELETE <username>
+* MODIFY.ACCOUNT account SUSPENDED
+* MODIFY.ACCOUNT account UNSUSPEND
 *
-* API / NONE ARE THE PORT'S ROUTE KEYWORDS WITH THE ssh HALF TAKEN OUT (S.16).
-* The port's SSH | API | BOTH | NONE set membership of sdssh and sdapi.  On
-* Linux ssh follows the tier (PRE_RELEASE 13: sshd's ForceCommand for sdusers
-* that are not sdadmin), so there is no sdssh and nothing for SSH or BOTH to
-* set; they are refused by name (10919) rather than read as API, so a command
-* written for the port does not silently do something narrower here.  The
-* property is sdapi membership and nothing else - nothing is written to the
-* register (the port's owner, 20 Aug 2026).
+* 18 Sep 26 dm - TEARDOWN.  One administrator (SDSYS) and one VOC layer means
+*   this verb no longer changes ranks, OS grants or API routes - those went
+*   with the tier model (S.25/S.27/S.28).  What remains is the grant mechanic
+*   and the suspension:
 *
-* THE TIER FORM IS THE PORT'S GRAMMAR MINUS ONE VALUE.  SD Core for Windows has
-* MODIFY.ACCOUNT account STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED
-* (its gpl.bp/MODIFYA:121), and conformity with the port outranks conformity
-* with upstream.  SUSPENDED IS LEFT OUT ON PURPOSE rather than forgotten: it is
-* a denial of access, and the doors it has to close - LOGIN, CPROC's account
-* entry, ssh - are PRE_RELEASE 13's work and are not built here.  A SUSPENDED
-* that wrote a tier and shut no door would be a control that does not act.
+*   ADD/DELETE edit the account's Linux group through sd-elevate, exactly as
+*   before - that is what a grant IS (W.8: usermod -aG is the grant; this verb
+*   is the same change with SD's own audit line).  DELETE stays deliberately
+*   unguarded: taking access away is always allowed.
 *
-* NO INTERMEDIATE STEP IS REQUIRED, matching the port: an account may go from
-* any of the three to any other in one command.
-*
-* THE VOC FOLLOWS THE TIER AT ONCE (SL1, 10 Sep 26): STANDARD = NEWVOC less
-* TIER.OMIT.STANDARD, PROGRAMMER = NEWVOC, ADMINISTRATOR = that plus
-* TIER.ADD.ADMINISTRATOR from VOC_TEMPLATE - the sets CREATE.ACCOUNT builds.
-* See voc.delta.
+*   SUSPENDED sets the suspension flag - field 5, W.7: a suspension is a
+*   denial, not a rank, and it hangs on its own flag now.  The doors are the
+*   same as before: LOGIN, CPROC's account entry, ssh (via the ordinary
+*   sign-on) and the API all refuse it.  Nothing changes in Linux, which is
+*   what makes lifting it free.  UNSUSPEND clears the flag and the retired
+*   field 6.  Nobody suspends the account they logged in to or stand in
+*   (10112): the session would work until it ended and could not be
+*   re-established.
 *
 * END-DESCRIPTION
 *
@@ -119,11 +121,6 @@ $include err.h
 deffun is_grp_member(user,group) calling '!is_grp_member'
 deffun is_group(group) calling '!is_group'
 deffun valid_os_name(name) calling '!valid_os_name'
-* 11 Sep 26 dm - PORT_ADOPTION 14.  tier_allows gates the ADD arm and measures
-*   the promotion report either side of the register write; grp_members is who
-*   that report is about.  Both COURTESY callers - CPROC's int.logto is the gate.
-deffun tier_allows(user,account) calling '!tier_allows'
-deffun grp_members(group) calling '!grp_members'
 
    prompt ''
 
@@ -147,10 +144,8 @@ deffun grp_members(group) calling '!grp_members'
    * Get next token, account name
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
-      crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username> '
-      crt '                 MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED {API | NONE}'
-      crt '                 MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF'
-      crt '                 MODIFY.ACCOUNT <account> API | NONE'
+      crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username>'
+      crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPEND'
       stop
    end
    *
@@ -170,44 +165,18 @@ deffun grp_members(group) calling '!grp_members'
 *   account's Linux group being resolvable - a tier is a fact about the
 *   register.  The ADD/DELETE arm is unchanged apart from losing its own
 *   GET.TOKEN call; it still sees the same token in the same variable.
+* 18 Sep 26 dm - TEARDOWN.  The tier changed to a flag and the register is the
+*   fact about the suspension, so the same placement serves it.
    call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
    action = upcase(action)
 
    begin case
-      case action = 'STANDARD' or action = 'PROGRAMMER' or action = 'ADMINISTRATOR' or action = 'SUSPENDED'
-         gosub set.tier
+      case action = 'SUSPENDED'
+         gosub set.suspended
          stop
-* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The OS-access grants.  Four keywords
-*   over two independent fields (the port's grammar), so SH-OFF says nothing
-*   about OS.EXECUTE.  os.set does the work; os.field/os.want carry it.
-      case action = 'SH-ON'
-         os.field = ACC$SH ; os.want = @true
-         gosub os.set
+      case action = 'UNSUSPEND'
+         gosub set.unsuspended
          stop
-      case action = 'SH-OFF'
-         os.field = ACC$SH ; os.want = @false
-         gosub os.set
-         stop
-      case action = 'OS-ON'
-         os.field = ACC$OS.EXEC ; os.want = @true
-         gosub os.set
-         stop
-      case action = 'OS-OFF'
-         os.field = ACC$OS.EXEC ; os.want = @false
-         gosub os.set
-         stop
-* 14 Sep 26 dm - S.16.  The API route, absolute: API means may, NONE may not.
-      case action = 'API'
-         want.api = @true
-         gosub api.set
-         stop
-      case action = 'NONE'
-         want.api = @false
-         gosub api.set
-         stop
-      case action = 'SSH' or action = 'BOTH'
-         @system.return.code = -ER$ARGS
-         stop sysmsg(10919, action)  ;* %1 is not a route SD sets on Linux...
    end case
 
    if is_group(group.name) then
@@ -221,36 +190,10 @@ deffun grp_members(group) calling '!grp_members'
          
          if (upcase(action) = 'ADD') then
 
-* 11 Sep 26 dm - THE TIER ORDERING APPLIES HERE TOO, AND LEAVING IT OUT WOULD
-*   HAVE MADE THIS VERB THE WAY ROUND IT.  PORT_ADOPTION 14; the owner's rule
-*   to the port, 29 Aug 2026: a grant may go down or sideways, never up.  This
-*   arm makes the identical "sd-elevate addgroup" call GRANT makes - which is
-*   why it already writes the same audit record - so it needs the same refusal
-*   for the same reason.  Two verbs that change who may enter an account must
-*   not disagree about who may.
-*
-*   BEFORE THE sdusers AND "already a member" TESTS.  A membership that should
-*   not exist must not be reported as a cheerful "already", which is the one
-*   answer that stops anybody looking at it.
-*
-*   DELETE IS DELIBERATELY NOT GUARDED: taking access away is always allowed,
-*   and refusing a revoke would strand exactly the memberships this rule wants
-*   removed.
-            if not(tier_allows(user.name, acc.name)) then
-               ma.why = status()
-               @system.return.code = -ER$FAILED
-               begin case
-                  case ma.why = 4
-                     stop sysmsg(10126, acc.name, 'SDSYS', user.name)
-                  case ma.why = 2
-                     stop sysmsg(10127, user.name)
-                  case 1
-                     stop sysmsg(10126, acc.name, ~
-                                 upcase(trim(acc.rec<ACC$TIER>, ' ', 'B')), ~
-                                 user.name)
-               end case
-            end
-
+* 18 Sep 26 dm - TEARDOWN (S.25).  The upward-grant gate is gone with the tier
+*   model: there is no rank to climb any more.  ADD below makes the identical
+*   "sd-elevate addgroup" call that GRANT made, and usermod -aG is the grant
+*   (W.8); the group test at CPROC's LOGTO is the whole of the wall.
             * Add user to group
             * does user belong to sdusers?
             if is_grp_member(user.name,'sdusers') then
@@ -310,13 +253,12 @@ deffun grp_members(group) calling '!grp_members'
             end else
                crt sysmsg(10023,user.name,group.name) ;* %1 is not a member of  %2
             end 
-          
+         
          end
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, a tier, an OS-access grant or the API route'
-         crt '   STANDARD | PROGRAMMER | ADMINISTRATOR | SUSPENDED | SH-ON | SH-OFF | OS-ON | OS-OFF | API | NONE'
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Suspended or Unsuspend'
       end
 
    end else
@@ -325,791 +267,59 @@ deffun grp_members(group) calling '!grp_members'
    stop
 
 *****************************************************************************
-* SET.TIER  -  MODIFY.ACCOUNT <account> STANDARD | PROGRAMMER | ADMINISTRATOR
-*                                        | SUSPENDED
+* SET.SUSPENDED  -  MODIFY.ACCOUNT <account> SUSPENDED
 *
-* 09 Sep 26 dm - PRE_RELEASE 18.  ***THIS IS THE EXIT FROM CPROC'S BOOTSTRAP
-*   ARM, AND WITHOUT IT THE ARM COULD NEVER CLOSE.***  Found by the owner, 9 Sep
-*   26, reading message 10033 on the first install that carried the gate: it
-*   told him to register an administrator with CREATE.ACCOUNT, and
-*   ***CREATEA:255 REFUSES A NAME ALREADY IN THE REGISTER*** with sysmsg 6002.
-*   Every person who already has an account - which is everyone who matters -
-*   was therefore given advice that could not be followed, with DELETE.ACCOUNT
-*   and its data loss as the only route.  His words: "kinda impossible".
-*
-* THE TIER IS WRITTEN AND THE GROUP FOLLOWS IT, IN THAT ORDER, because the
-*   register is the record and sdadmin is a consequence of it.  CPROC's gate
-*   requires BOTH, so a half-done promotion grants nothing - it fails closed.
-*
-* THE PERSON IS DERIVED FROM ACC$GROUP, NOT FROM THE ACCOUNT NAME.  CREATEA:439
-*   writes "sdu_" : <login> for a USER account, and that is the only place the
-*   account record carries the login.  An account whose group is not sdu_
-*   prefixed is a GROUP or OTHER account: it HAS no person, so it cannot be an
-*   administrator, and 10036 says so rather than writing a tier that nothing
-*   could act on.  STANDARD and PROGRAMMER are allowed on it - they take
-*   nothing away and CREATEA writes a tier for every account type.
-*
-* IT IS DELIBERATELY NOT IDEMPOTENT-BY-EARLY-RETURN.  Re-running with a tier the
-*   account already has still reconciles sdadmin, so a promotion whose usermod
-*   failed can be repaired by repeating the command.  is_grp_member guards the
-*   OS call, so the repeat costs nothing when there is nothing to do.
-*
-* NOBODY CAN LOCK THE MACHINE OUT WITH THIS, AND THAT IS THE BOOTSTRAP ARM
-*   EARNING ITS KEEP.  An administrator demoting the last administrator - even
-*   themselves - leaves the register with none, so CPROC's arm starts firing
-*   again on the next privileged session and the way back in is open.  That is
-*   worth knowing before anyone adds a "you may not demote yourself" rule.
-*
-* 11 Sep 26 dm - SUSPENDED, THE FOURTH TIER (PORT_ADOPTION 12).  The port's
-*   tier.set of 27 Aug 2026 and its owner's rulings: a suspension is a value of
-*   ACC$TIER with the tier it displaced in ACC$PRIOR.TIER; SD's own doors refuse
-*   it (LOGIN, CPROC's LOGTO, APISRVR's vb.account); and NOTHING CHANGES IN
-*   LINUX - sdadmin and every other group stay as they are, which is what makes
-*   lifting it free (the port's PRE_RELEASE 20).  There is no resume keyword:
-*   coming back names the tier.  The VOC is left exactly as it is while the
-*   account is suspended, and the way back is a delta from ACC$PRIOR.TIER to
-*   the tier named.
-*
-*   FIELD 6 IS WRITTEN ONLY ON THE WAY IN.  The SUSPENDED-to-SUSPENDED guard
-*   (10110) is what stops a second suspend overwriting it with SUSPENDED.
-*
-*   OBJECTION, RESOLVED HERE: THAT GUARD IS SUSPENDED-ONLY, WHERE THE PORT'S
-*   RETURNS ON ANY EQUAL TIER.  Repeating STANDARD, PROGRAMMER or ADMINISTRATOR
-*   still reconciles sdadmin (the paragraph above), which is how a failed
-*   usermod is repaired on Linux; a general early return would take that away.
-*   So 10110 answers only the case that could lose data.
+* 18 Sep 26 dm - TEARDOWN (W.7).  The suspension is its own flag now: field 5,
+*   blank means in service and SUSPENDED means suspended.  Same doors as
+*   before - LOGIN, CPROC's account entry, ssh (the ordinary sign-on) and the
+*   API all refuse the flag - and NOTHING CHANGES IN LINUX, which is what
+*   makes lifting it free.  There is no prior tier to remember, so field 6
+*   (the retired ACC$PRIOR.TIER) is cleared rather than written.
 *
 *   NOBODY SUSPENDS THE ACCOUNT THEY LOGGED IN TO OR STAND IN (10112): the
 *   session would work until it ended and could not be re-established.
 
-set.tier:
-   acc.user = ''
-   if group.name[1,4] = 'sdu_' then acc.user = group.name[5,999]
-
-   raw.tier = upcase(trim(acc.rec<ACC$TIER>))
-   prior.tier = upcase(trim(acc.rec<ACC$PRIOR.TIER>))
-   old.tier = raw.tier
-   if old.tier = '' then old.tier = 'STANDARD'  ;* written before the field existed
-
-   if action = 'SUSPENDED' then
-      if raw.tier = 'SUSPENDED' then
-         crt sysmsg(10110, acc.name, action)  ;* %1 is already %2; nothing changed
-         return
-      end
-      if (acc.name = downcase(@logname)) or (acc.name = downcase(@who)) then
-         @system.return.code = -ER$FAILED
-         crt sysmsg(10112)  ;* You cannot suspend your own account or the one you are standing in
-         return
-      end
-   end
-
-* The tier this account is LEAVING, for sdadmin.  A suspended administrator kept
-*   sdadmin, so lifting the suspension to a lower tier is the demotion.
-   from.tier = old.tier
-   if raw.tier = 'SUSPENDED' then from.tier = prior.tier
-
-   if action = 'ADMINISTRATOR' and acc.user = '' then
-      @system.return.code = -ER$ARGS
-      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+set.suspended:
+   if upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED' then
+      crt sysmsg(10110, acc.name, 'SUSPENDED')  ;* %1 is already %2; nothing changed
       return
    end
-
-* 14 Sep 26 dm - S.16.  A DOWNGRADE OUT OF ADMINISTRATOR MUST NAME THE API
-*   ACCESS - the port's owner's ruling of 27 Aug 2026, not a default chosen
-*   here.  An administrator has the API as a rule; below that tier it is a
-*   keyword, so the downgrade has to land somewhere and nothing here is
-*   entitled to pick.  SUSPENDED is exempt: it changes nothing in Linux.
-*   READ BEFORE ANYTHING CHANGES, so a missing word leaves the old tier
-*   standing rather than half a demotion.  from.tier, not raw.tier, so lifting
-*   an administrator's suspension to a lower tier asks too.
-   need.access = @false
-   want.api = @false
-   if from.tier = 'ADMINISTRATOR' and action # 'ADMINISTRATOR' and action # 'SUSPENDED' and acc.user # '' then
-      need.access = @true
-      call @parser(PARSER$GET.TOKEN, token.type, access.word, keyword)
-      access.ok = @false
-      if token.type # PARSER$END then
-         access.word = upcase(access.word)
-         if access.word = 'API' then
-            want.api = @true
-            access.ok = @true
-         end
-         if access.word = 'NONE' then access.ok = @true
-      end
-      if not(access.ok) then
-         @system.return.code = -ER$ARGS
-         crt sysmsg(10111, acc.name)  ;* Say whether %1 keeps the API ...: API or NONE
-         return
-      end
-   end
-
-* 10 Sep 26 dm - SL1.  THE VOC FOLLOWS THE TIER, AT ONCE, AND BEFORE THE
-*   REGISTER WRITE - the port's order, and its owner's ruling of 27 Aug 2026
-*   ("at once, not at the next login").  Every step of voc.delta is idempotent,
-*   so a run that stops part way leaves the register at the OLD tier and
-*   repeating the command recomputes the same delta; the register first would
-*   leave a tier the VOC does not have.
-*
-*   voc.from IS THE RAW FIELD, NOT old.tier.  old.tier reads blank as STANDARD,
-*   which only the sdadmin test below uses.  For the VOC a blank tier is an
-*   account created before tiers, holding the full NEWVOC, so it ranks as
-*   PROGRAMMER (tier.rank) - read as STANDARD, the first tier change such an
-*   account saw would delete 42 verbs it has always had.
-*   SUSPENDED IS RESOLVED ON BOTH ENDS, as the port does.  From a suspension
-*   the VOC is at the tier in field 6; to one, it stays where it is.  Field 6
-*   empty on a suspended account (hand-edited, or suspended before it had a
-*   tier) leaves no honest "from", so the VOC is left alone and 10108 says so.
-   voc.from = raw.tier
-   if voc.from = 'SUSPENDED' then voc.from = prior.tier
-   voc.to = action
-   if voc.to = 'SUSPENDED' then voc.to = voc.from
-   voc.ok = @true
-   voc.added = 0
-   voc.removed = 0
-   voc.kept = 0
-   voc.failed = 0
-   voc.skipped = @false
-   if raw.tier = 'SUSPENDED' and prior.tier = '' then
-      voc.skipped = @true
-   end else
-      gosub voc.delta
-   end
-   if not(voc.ok) then
+   if (acc.name = downcase(@logname)) or (acc.name = downcase(@who)) then
       @system.return.code = -ER$FAILED
-      crt sysmsg(10114, acc.name)  ;* Unable to change the tier of %1; nothing has changed
+      crt sysmsg(10112)  ;* You cannot suspend your own account or the one you are standing in
       return
    end
 
-* 11 Sep 26 dm - WHO CAN ENTER THIS ACCOUNT TODAY?  The BEFORE half of the
-*   promotion report, taken while the register still says the OLD tier.  It
-*   must be the last thing before the write and it changes nothing.
-   gosub promo.snapshot
-
-   acc.rec<ACC$TIER> = action
-   if action = 'SUSPENDED' then
-      acc.rec<ACC$PRIOR.TIER> = raw.tier  ;* only on the way in - the guard above returned otherwise
-   end else
-      acc.rec<ACC$PRIOR.TIER> = ''
-   end
+   acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
+   acc.rec<ACC$PRIOR.TIER> = ''
    write acc.rec to acc.f, acc.name
 
-* 14 Sep 26 dm - S.16.  The API route follows the two tier moves that change it,
-*   in the same place sdadmin does.  An administrator always has it; a
-*   demotion lands where 10111 made the caller say.  Repeating ADMINISTRATOR
-*   re-applies it, which is how a membership that went missing is repaired.
-*   THE RETURN CODE IS CLEARED BEFORE THE GROUP MOVES NOW, NOT AFTER THEM.  It
-*   was set to 0 below them, which overwrote the -ER$FAILED that join.sdadmin
-*   and leave.sdadmin set on a failed usermod - the message printed and the
-*   caller's @system.return.code said success.
    @system.return.code = 0
-   api.report = @false
-   begin case
-      case action = 'ADMINISTRATOR'
-         gosub join.sdadmin
-         want.api = @true
-         api.report = @true
-      case action = 'SUSPENDED'
-         null  ;* nothing changes in Linux - the port's PRE_RELEASE 20
-      case from.tier = 'ADMINISTRATOR'
-         gosub leave.sdadmin
-         if need.access then api.report = @true
-   end case
-   if api.report then
-      gosub api.apply
-      if api.failed then
-         @system.return.code = -ER$FAILED
-         crt sysmsg(10081, acc.user, api.stat)  ;* Unable to change API access for %1
-      end else
-         if not(api.same) then
-            void kernel(K$AUDIT, 'MODIFY.ACCOUNT API account=' : acc.name : ' to=' : api.word)
-            gosub api.say
-         end
-      end
-   end
-
-* 11 Sep 26 dm - A LINUX ADDITION, NOT THE PORT'S: a tier change is a grant or
-*   a withdrawal of privilege - ADMINISTRATOR, a suspension - so it is recorded.
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT TIER account=' : acc.name : ' from=' : raw.tier : ' to=' : action)
-   crt sysmsg(10109, acc.name, action)  ;* Account %1 is now %2
-   if voc.skipped then
-      crt sysmsg(10108, acc.name)  ;* %1 has no record of the tier it held, so its VOC was left alone
-   end else
-      crt sysmsg(10113, voc.added, voc.removed, voc.kept)  ;* VOC: %1 records added, %2 removed, %3 left alone
-   end
-
-* A failed delete is reported on its own line and is not "left alone" - that
-*   count means deliberately kept because it differs from the tier build.  The
-*   port's PRE_RELEASE_FIXES 97.
-   if voc.failed then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10157, voc.failed, acc.name)  ;* VOC: %1 record(s) could not be removed, so %2 still has them
-   end
-
-* SUSPENDED SAYS WHAT IT DID AND WHAT IT DID NOT DO - the port's PRE_RELEASE
-*   111 and its owner's ruling of 1 Sep 2026.  Every claim in 10159 is from the
-*   code: the three doors refuse; Linux is untouched (the case above); and under
-*   sudo sd grant.administrator requires ACC$TIER to be exactly ADMINISTRATOR
-*   (CPROC:888), so a suspended administrator is not granted it while any other
-*   administrator is registered.
-   if action = 'SUSPENDED' then
-      crt sysmsg(10159, acc.name)  ;* what suspending took, what it left alone, and what lifts it
-   end
-
-* 11 Sep 26 dm - THE AFTER HALF.  Last, because it is a consequence of the
-*   change and the change should be reported before its consequences.
-   gosub promo.report
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT SUSPEND account=' : acc.name)
+   crt sysmsg(10179, acc.name)  ;* Account %1 is now suspended
    return
 
 *****************************************************************************
-* PROMO.SNAPSHOT / PROMO.REPORT  -  name the grants this tier change voided.
+* SET.UNSUSPENDED  -  MODIFY.ACCOUNT <account> UNSUSPEND
 *
-* 11 Sep 26 dm - PORT_ADOPTION 14, the port's routines of 29 Aug 2026.  Put to
-*   its owner as two options - refuse the promotion while lower-tier members
-*   remain, or let it proceed and say what it broke - and answered in five
-*   words: "Proceed, and print what it voided."
-*
-* WHAT IT IS FOR.  "modify.account b programmer" raises the account's rank, and
-*   every standard-tier member of sdu_b is then somebody LOGTO will refuse.
-*   The gate holds - that is what TIERGATE is for - but the membership sits in
-*   /etc/group looking perfectly valid and simply stops working, with nothing
-*   said at the moment it stopped.
-*
-* ***IT IS MEASURED ACROSS THE WRITE, NOT PREDICTED FROM THE RANKS.***
-*   tier_allows reads ACC$TIER out of the register, so the SAME call answers
-*   differently either side of the register write above.  That makes "what did
-*   this command void" a genuine before-and-after comparison instead of rank
-*   arithmetic duplicated out of TIERGATE - which is the copy that would go
-*   stale, and TIERGATE's own note says why one place has to decide.
-*
-* SO IT CLAIMS ONLY WHAT THIS COMMAND CHANGED.  A membership that was ALREADY
-*   refused before the command ran - made with usermod, or left behind by an
-*   earlier promotion - is not this command's doing and is not listed as though
-*   it were.
-*
-* A DEMOTION VOIDS NOTHING AND PRINTS NOTHING, and that falls out rather than
-*   being special-cased: lowering the account's rank cannot turn an allowed
-*   member into a refused one, so the comparison is empty.  Nothing here tests
-*   the direction of the move, which is one fewer thing to get wrong.
-*
-* ***AND THE NULL CASE IS REFUSED OUT LOUD.***  "No grant was voided" and "the
-*   group could not be read" are the same silence otherwise, and the second is
-*   the one somebody needs to hear, because it means the quiet is not evidence.
-*   promo.readable is tested before promo.n for exactly that reason.
-*
-* IT CANNOT SEE A PRIMARY-GROUP MEMBER, because !grp_members cannot - its
-*   banner says so and LIST.GRANTS prints 10911 about it.  Nobody on a system
-*   SD built is in that position, so this is a stated limit of the instrument
-*   and not a silence: an under-report here would look exactly like "nothing
-*   was voided".
+* 18 Sep 26 dm - TEARDOWN (W.7).  The way back is a keyword now, because there
+*   is no tier to name.  Clears the flag and the retired field 6.
 
-promo.snapshot:
-   promo.was      = ''
-   promo.lost     = ''
-   promo.n        = 0
-   promo.checked  = 0
-   promo.readable = @false
-
-*  An account with no group has no grants to void.  Not an error, and not a
-*  "could not read" either - there is nothing to read.  Reported as readable
-*  with an empty list, which is the truth.
-   if group.name = '' then
-      promo.readable = @true
+set.unsuspended:
+   if upcase(trim(acc.rec<ACC$SUSPENDED>)) # 'SUSPENDED' then
+      crt sysmsg(10180, acc.name)  ;* %1 is not suspended; nothing changed
       return
    end
 
-   promo.mem = grp_members(group.name)
-   if status() # 0 then return
-
-   promo.readable = @true
-
-*  dcount('') IS 1, NOT 0.  Without the correction an empty group reports one
-*  member whose name is the empty string.
-   promo.count = dcount(promo.mem, @fm)
-   if promo.mem = '' then promo.count = 0
-
-   for promo.i = 1 to promo.count
-      promo.who = trim(promo.mem<promo.i>, ' ', 'B')
-      if promo.who # '' then
-         if tier_allows(promo.who, acc.name) then
-            promo.was<-1> = promo.who
-         end
-      end
-   next promo.i
-
-   return
-
-promo.report:
-   if not(promo.readable) then
-      crt sysmsg(10129, group.name, acc.name)
-      * The members of %1 could not be read, so grants on %2 are unchecked
-      return
-   end
-
-   promo.checked = dcount(promo.was, @fm)
-   if promo.was = '' then promo.checked = 0
-
-   for promo.i = 1 to promo.checked
-      promo.who = promo.was<promo.i>
-      if not(tier_allows(promo.who, acc.name)) then
-         promo.lost<-1> = promo.who
-      end
-   next promo.i
-
-   promo.n = dcount(promo.lost, @fm)
-   if promo.lost = '' then promo.n = 0
-
-   if promo.n = 0 then return
-
-   crt sysmsg(10128, promo.n, acc.name, action)
-   for promo.i = 1 to promo.n
-      crt '   ' : promo.lost<promo.i>
-   next promo.i
-
-   return
-
-*****************************************************************************
-* JOIN.SDADMIN / LEAVE.SDADMIN
-*
-* 09 Sep 26 dm - the OS half of the owner's definition.  These mirror
-* CREATEA:377-390 and the DELETE arm above rather than inventing a second way
-* to do the same thing; valid_os_name guards the shell in both, which is why
-* the account name is not interpolated raw.
-
-join.sdadmin:
-   if is_grp_member(acc.user, 'sdadmin') then return
-   if not(valid_os_name(acc.user)) then
-      crt sysmsg(10033, acc.user, 2) ;* Unable to add user %1 to sdadmin, status: %2
-      return
-   end
-* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  sdadmin is in
-*   sd-elevate's group whitelist deliberately - an administrator may make
-*   another one - and the helper still refuses root and sdsys as targets, so
-*   this cannot put a non-person in the group the sudoers rule names.
-   os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.user:" sdadmin"
-   stat = OS.ERROR()
-   if stat = 0 then
-      crt sysmsg(10032, acc.user)    ;* %1 added to sdadmin
-   end else
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10033, acc.user, stat)
-   end
-   return
-
-leave.sdadmin:
-   if acc.user = '' then return
-   if not(is_grp_member(acc.user, 'sdadmin')) then return
-   if not(valid_os_name(acc.user)) then
-      crt sysmsg(10022, acc.user, 'sdadmin', 2) ;* Unable to remove %1 from %2
-      return
-   end
-* 09 Sep 26 dm - PRE_RELEASE 14, and the deluser portability fix again - this
-*   demotion path could never have worked on Arch or RHEL.
-   os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":acc.user:" sdadmin"
-   stat = OS.ERROR()
-   if stat = 0 then
-      crt sysmsg(10021, acc.user, 'sdadmin')    ;* %1 removed from group %2
-   end else
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10022, acc.user, 'sdadmin', stat)
-   end
-   return
-
-*****************************************************************************
-* API.SET  -  MODIFY.ACCOUNT <account> API | NONE
-*
-* 14 Sep 26 dm - S.16, the port's route.set (21 Aug 2026) with the ssh half out.
-*   want.api is the wanted state.  APISRVR's vb.scram.final tests sdapi, so
-*   the change is seen at the next API login and nothing in a session caches
-*   it.
-*
-* A GROUP ACCOUNT HAS NO PERSON (10087), said plainly because the sdusers test
-*   below would otherwise answer "is not a member of sdusers", which is true
-*   and explains nothing.
-*
-* AN ADMINISTRATOR IS REFUSED (10083), BY TIER OR BY sdadmin.  The port's owner,
-*   21 Aug 2026: an administrator has the API as a rule, so there is nothing
-*   here to set, and silently doing nothing would let the caller believe the
-*   access had narrowed.  The group is asked as well as the tier because a
-*   suspended administrator still holds sdadmin, as the port asks Windows
-*   rather than ACC$TIER.  An administrator whose sdapi membership went missing
-*   is repaired with MODIFY.ACCOUNT <account> ADMINISTRATOR, which re-applies it.
-*
-* "NOTHING CHANGED" IS SAID SEPARATELY (10080), so a caller who runs it twice
-*   can tell a no-op from a change - the port's reason.
-api.set:
-   if group.name[1,4] # 'sdu_' then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no API access
-      return
-   end
-   acc.user = group.name[5,999]
-
-   if not(is_grp_member(acc.user, 'sdusers')) then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10020, acc.user)  ;* %1 is not a member of sdusers, not allowed
-      return
-   end
-
-   api.is.admin = (upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR')
-   if is_grp_member(acc.user, 'sdadmin') then api.is.admin = @true
-   if api.is.admin then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10083, acc.user)  ;* %1 is an administrator and always has the API
-      return
-   end
-
-   gosub api.apply
-   if api.failed then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10081, acc.user, api.stat)  ;* Unable to change API access for %1
-      return
-   end
-
-   @system.return.code = 0
-   if api.same then
-      crt sysmsg(10080, acc.user)  ;* %1 already had that access; nothing changed
-      return
-   end
-
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT API account=' : acc.name : ' to=' : api.word)
-   gosub api.say
-   return
-
-* API.APPLY  -  make acc.user's sdapi membership match want.api.  Sets
-*   api.failed, api.same, api.stat and api.word; prints nothing, so the tier
-*   change can use it without inheriting api.set's guards (the port's split of
-*   27 Aug 2026).
-api.apply:
-   api.failed = @false
-   api.same   = @false
-   api.stat   = 0
-   api.word = 'no'
-   if want.api then api.word = 'yes'
-
-   if not(valid_os_name(acc.user)) then
-      api.failed = @true
-      api.stat = 2
-      return
-   end
-
-   api.has = @false
-   if is_grp_member(acc.user, 'sdapi') then api.has = @true
-   if api.has = want.api then
-      api.same = @true
-      return
-   end
-
-   if want.api then
-      os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.user:" sdapi"
-   end else
-      os.execute "sudo /usr/local/sbin/sd-elevate delgroup ":acc.user:" sdapi"
-   end
-   api.stat = OS.ERROR()
-   if api.stat # 0 then api.failed = @true
-   return
-
-api.say:
-   if want.api then
-      crt sysmsg(10077, acc.user)  ;* %1 may use the API.
-   end else
-      crt sysmsg(10079, acc.user)  ;* %1 may not use the API.
-   end
-   return
-
-*****************************************************************************
-* OS.SET  -  MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF
-*
-* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  The owner's OS-access model, 9 Sep
-*   2026 (= the port's, entry 157/80): os.execute and shell are off for anyone
-*   but administrators, and an administrator may grant either to a NAMED
-*   non-admin account.  os.field is ACC$SH or ACC$OS.EXEC; os.want is the wanted
-*   state.  The fields are 'yes'/'no', blank
-*   = denied.
-*
-* AN ADMINISTRATOR-TIER ACCOUNT IS REFUSED (10106).  It holds both by tier, so a
-*   field written on one would be ignored; refusing says so rather than doing
-*   nothing.  SDSYS was already refused at the top of the verb (2202).
-* 10 Sep 26 dm - "BY TIER" WAS NOT TRUE UNTIL TODAY.  This note said the session
-*   gates read the tier first through USR_ADMIN, which is set only under sudo
-*   sd, so a plain-sd administrator held neither and could not be granted them.
-*   LOGIN and CPROC's logto now load both as granted for an ADMINISTRATOR-tier
-*   account whose person is in sdadmin, which is what makes 10106 true.
-*
-* OS-ON ALSO GOVERNS MICRO, as the port's OS-ON governs its screen editors: an
-*   editor outside SD is reaching the operating system (MICRO's check.permitted).
-*
-* THE GRANT TAKES EFFECT AT THE NEXT ACCOUNT ENTRY, not at once: LOGIN and
-*   CPROC's logto load the field into the session (K$SH / K$OS.EXEC), so a
-*   session already in the account keeps what it had until it re-enters.
-
-os.set:
-* 10 Sep 26 dm - PARITY AUDIT: AN ACCOUNT WITH NO PERSON OF ITS OWN IS REFUSED
-*   (10105), as the port's os.set refuses one.  A GROUP or OTHER account is
-*   entered by whoever its Linux group admits, so a shell granted to it is a
-*   shell granted to all of them, decided by group membership rather than by
-*   the administrator who typed SH-ON.  The person is found the way set.tier
-*   finds it: sdu_ is the only group that names one.
-   if group.name[1,4] # 'sdu_' then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
-      return
-   end
-
-   if upcase(trim(acc.rec<ACC$TIER>)) = 'ADMINISTRATOR' then
-      @system.return.code = -ER$FAILED
-      crt sysmsg(10106, acc.name)  ;* %1 is an administrator and always reaches the operating system
-      return
-   end
-
-   os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
-   if os.was = os.want then
-      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
-      return
-   end
-
-   if os.want then acc.rec<os.field> = 'yes' else acc.rec<os.field> = 'no'
+   acc.rec<ACC$SUSPENDED> = ''
+   acc.rec<ACC$PRIOR.TIER> = ''
    write acc.rec to acc.f, acc.name
 
-* 10 Sep 26 dm - THE RESULTING STATE OF BOTH FIELDS, NOT A SENTENCE ABOUT ONE -
-*   the port's os.set reports with 10102 after its write.  SH-OFF says nothing
-*   about OS.EXECUTE, so saying where both now stand is what tells an
-*   administrator the command did only what it named.
    @system.return.code = 0
-   os.sh.now = 'no'
-   if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then os.sh.now = 'yes'
-   os.ex.now = 'no'
-   if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)  ;* 11 Sep 26 - a Linux addition, as TIER above
-   crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPEND account=' : acc.name)
+   crt sysmsg(10178, acc.name)  ;* Account %1 is no longer suspended
    return
 
-*****************************************************************************
-* VOC.DELTA  -  bring the account's VOC from tier voc.from to tier voc.to.
-*
-* 10 Sep 26 dm - SL1.  The port's voc.delta and the routines under it (its
-*   gpl.bp/MODIFYA, 27 Aug 2026), with upper-case SDSYS file names.
-*
-* A DELTA, NOT A REBUILD.  Re-running CREATEA's copy on a live account would
-*   copy NEWVOC over every F pointer the account has since acquired.  The three
-*   tiers nest, so the difference between any two is one or both of the two
-*   list records: going up copies a layer in, going down takes it out.  The
-*   lists are READ from NEWVOC - the same records CREATEA and LOGIN read - so a
-*   verb added to either reaches all three at once.
-*
-* A DOWNGRADE DELETES ONLY WHAT A TIER BUILD WOULD HAVE WRITTEN.  Each id is
-*   rebuilt from its source exactly as CREATEA builds it and compared with the
-*   account's record; one that differs has been edited or replaced by somebody,
-*   and is counted as left alone rather than deleted.
-*
-* IT CAN WRITE ANOTHER USER'S VOC ONLY BECAUSE $MODIFYA IS IN CPROC's
-*   privileged_commands (CPROC:180), so CPROC:1682 restores euid 0 around the
-*   verb.  Otherwise the session is euid sdsys, and sdext_eguid sets no
-*   supplementary groups, so the account's sdu_ group would not apply.  Taking
-*   $MODIFYA off that list would break this routine.
+end
 
-voc.delta:
-   if voc.from = voc.to then return
-
-   rank.in = voc.from
-   gosub tier.rank
-   from.rank = rank.out
-
-   rank.in = voc.to
-   gosub tier.rank
-   to.rank = rank.out
-
-   if from.rank = to.rank then return
-
-   tier.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
-
-   openpath tier.path:@ds:'voc' to tvoc.f else
-      voc.ok = @false
-      return
-   end
-
-   openpath @sdsys:@ds:'newvoc' to tnewvoc.f else
-      close tvoc.f
-      voc.ok = @false
-      return
-   end
-
-* 13 Sep 26 dm - SL M / port a47526f.  The tier policy lists moved out of NEWVOC
-*   into sdsys/tier.policy (verb-id lists, not VOC records).  Both files are
-*   needed to compute a tier change, so a missing tier.policy is a broken install
-*   and refuses here exactly as a missing NEWVOC does - which keeps 10114 "its
-*   tier in the register is unchanged" the true answer.  tnewvoc.f still supplies
-*   the STANDARD verb records, tvoctmpl.f the ADMINISTRATOR ones.
-   openpath @sdsys:@ds:'tier.policy' to tierpol.f else
-      close tvoc.f
-      close tnewvoc.f
-      voc.ok = @false
-      return
-   end
-
-   tmpl.open = @false
-
-   if to.rank > from.rank then
-      tier.dir = 'ADD'
-
-      if from.rank < 2 then
-         read tier.layer.rec from tierpol.f, 'omit.standard' else tier.layer.rec = ''
-         tier.from.template = @false
-         gosub tier.layer
-      end
-
-      if to.rank = 3 then
-         read tier.layer.rec from tierpol.f, 'add.administrator' else tier.layer.rec = ''
-         gosub tier.open.template
-         if tmpl.open then
-            tier.from.template = @true
-            gosub tier.layer
-         end
-      end
-   end else
-      tier.dir = 'DEL'
-
-      if from.rank = 3 then
-         read tier.layer.rec from tierpol.f, 'add.administrator' else tier.layer.rec = ''
-         gosub tier.open.template
-         if tmpl.open then
-            tier.from.template = @true
-            gosub tier.layer
-         end
-      end
-
-      if to.rank < 2 then
-         read tier.layer.rec from tierpol.f, 'omit.standard' else tier.layer.rec = ''
-         tier.from.template = @false
-         gosub tier.layer
-      end
-   end
-
-*  A GOSUB, NOT "close tvoctmpl.f": the port's note - tvoctmpl.f is opened in
-*  tier.open.template, below, so naming it here would be its first textual
-*  appearance.  A gosub to a label below costs nothing.
-   if tmpl.open then gosub tier.close.template
-   close tnewvoc.f
-   close tierpol.f
-   close tvoc.f
-   return
-
-*****************************************************************************
-* TIER.RANK  -  1 STANDARD, 2 PROGRAMMER, 3 ADMINISTRATOR.
-*
-* BLANK IS 2, DELIBERATELY, matching LOGIN's update.voc: a blank ACC$TIER is
-*   the pre-tier full VOC, which is a programmer's set.
-
-tier.rank:
-   rank.out = 2
-   begin case
-      case rank.in = 'STANDARD'      ; rank.out = 1
-      case rank.in = 'ADMINISTRATOR' ; rank.out = 3
-   end case
-   return
-
-*****************************************************************************
-* TIER.OPEN.TEMPLATE / TIER.CLOSE.TEMPLATE  -  SDSYS VOC_TEMPLATE, for the
-*   administrator layer.  An open failure is not undone: the standard layer may
-*   already be applied, and voc.ok = false stops the register write, so a
-*   repeat of the command converges.
-
-tier.open.template:
-   if tmpl.open then return
-   openpath @sdsys:@ds:'voc_template' to tvoctmpl.f then
-      tmpl.open = @true
-   end else
-      voc.ok = @false
-   end
-   return
-
-tier.close.template:
-   close tvoctmpl.f
-   tmpl.open = @false
-   return
-
-*****************************************************************************
-* TIER.LAYER  -  walk one list record and add or delete each id it names.
-*   Field 1 of both list records is a description, so the walk starts at 2 -
-*   the bound CREATEA and LOGIN use.  Trimmed and matched as CREATEA does.
-
-tier.layer:
-   layer.count = dcount(tier.layer.rec, @fm)
-   if layer.count > 1 then
-      for layer.i = 2 to layer.count
-         tier.id = trim(tier.layer.rec<layer.i>)
-         if tier.id # '' then
-            if tier.dir = 'ADD' then
-               gosub tier.add.one
-            end else
-               gosub tier.del.one
-            end
-         end
-      next layer.i
-   end
-   return
-
-*****************************************************************************
-* TIER.BUILD.REC  -  read tier.id from the layer's source exactly as CREATEA
-*   writes it into a VOC: whole, since PRE_RELEASE_FIXES 136.
-*
-* THIS MUST MATCH CREATEA's TWO COPY LOOPS, because it is what makes a rebuilt
-*   record byte-comparable with one CREATEA wrote - the basis of "delete only
-*   what we would have written".
-* 10 Sep 26 dm - ***THE PORT'S COPY STILL STRIPS FIELD 1 HERE, AND THAT IS A
-*   DEFECT IN THE PORT, NOT A DIFFERENCE TO KEEP.***  Its voc.delta (27 Aug) was
-*   written before its PRE_RELEASE_FIXES 136 (2 Sep) stopped CREATEA and LOGIN
-*   stripping, and this routine was not changed with them.  There, a rebuilt
-*   NEWVOC record is the bare form while the account holds the whole one, so
-*   every downgrade compares unequal and counts the verbs "left alone" instead
-*   of removing them.  Here it follows 136.
-
-tier.build.rec:
-   tier.got = @false
-
-   if tier.from.template then
-      read tier.rec from tvoctmpl.f, tier.id then tier.got = @true
-   end else
-      read tier.rec from tnewvoc.f, tier.id then tier.got = @true
-   end
-
-   return
-
-*****************************************************************************
-* TIER.ADD.ONE  -  copy one id into the account's VOC.  An id its source does
-*   not hold counts as nothing: the lists and files ship together.
-
-tier.add.one:
-   gosub tier.build.rec
-   if tier.got then
-      write tier.rec to tvoc.f, tier.id
-      voc.added = voc.added + 1
-   end
-   return
-
-*****************************************************************************
-* TIER.DEL.ONE  -  remove one id from the account's VOC, but only if what is
-*   there is what a tier build would have put there.  A failed delete is
-*   voc.failed, not voc.kept, and is not counted as removed (the port's
-*   PRE_RELEASE_FIXES 97: an unconditional count reported removals that had not
-*   happened).
-
-tier.del.one:
-   gosub tier.build.rec
-   if tier.got then
-      read tier.old.rec from tvoc.f, tier.id then
-         if tier.old.rec = tier.rec then
-            tier.del.ok = @true
-            delete tvoc.f, tier.id on error tier.del.ok = @false
-            if tier.del.ok then
-               voc.removed = voc.removed + 1
-            end else
-               voc.failed = voc.failed + 1
-            end
-         end else
-            voc.kept = voc.kept + 1
-         end
-      end
-   end
-   return
-
-   END
+* END-CODE

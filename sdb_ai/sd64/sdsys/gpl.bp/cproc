@@ -18,6 +18,16 @@
 * 
 * 
 * START-HISTORY:
+* 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier model comes
+*           out: the root-entry block no longer drops to sdsys or calls
+*           grant.administrator (deleted).  A root session is refused outright
+*           (10176, audited); a local session already running as the sdsys OS
+*           user - SSH_CONNECTION and SSH_TTY both empty - is the administrator
+*           (10916, audited).  LOGTO SDSYS is refused for everybody.  LOGTO's
+*           tier-ordering gate and the K$SH/K$OS.EXEC load are gone; the
+*           suspension test now reads ACC$SUSPENDED (W.7).  os.command no
+*           longer asks K$ADMINISTRATOR/K$SH - SH and "!" run at the account's
+*           own Linux permissions (S.27), the metacharacter filter stays.
 * 14 Sep 26 dm  $MODIFY.PASSWORD runs with euid 0 restored, like the account
 *               verbs: it writes $cred, which is root:root 0700 (W.4 SCRAM
 *               phase 2).
@@ -215,9 +225,6 @@ $include define_install.h
 deffun errtext(err) calling '!errtext'
 * rev 0.9.0 *
 deffun is_grp_member(user,group) calling '!is_grp_member'
-* 11 Sep 26 dm - PORT_ADOPTION 14.  The tier ordering, at int.logto below.
-*   ***THIS IS THE LOAD-BEARING CALLER***; GRANTA's and MODIFYA's are courtesy.
-deffun tier_allows(user,account) calling '!tier_allows'
 
 $define max.elements 500
 
@@ -350,64 +357,48 @@ restart.cproc:
 *   and the test after $LOGIN reads this either way.
       admin.notice = ''
 
-*           drop to sdsys, and set K$ADMINISTRATOR)
+* 18 Sep 26 dm - TEARDOWN (S.26).  ONE ADMINISTRATOR, SDSYS, AND IT IS AN OS
+*   ACCOUNT, NOT A PERSON.  The old model - root drops to sdsys and
+*   grant.administrator looks up the real person's register record and sdadmin
+*   membership - is gone with it.  Two arms replace it:
+*
+*   ROOT IS REFUSED OUTRIGHT (W.5, the hard reading).  A root session is not
+*   SD's administrator any more; the way in is to run SD AS the sdsys OS user
+*   (su - sdsys), so the session starts as that identity and nothing is
+*   inferred.  Refusing, instead of the old drop-and-ask, also stops SD from
+*   silently converting any root invocation into an administrator session.
+*
+*   SDSYS, LOCAL ONLY (W.6).  A session that already runs as the sdsys OS user
+*   is the administrator, PROVIDED it is a local session: SSH_CONNECTION and
+*   SSH_TTY both empty.  ssh and the API tunnel both count as remote, and the
+*   sdsys OS account is un-ssh-able at the sshd boundary as well; this test is
+*   SD's own half of that door.  K$ADMINISTRATOR is set here and nowhere else
+*   in GPL.BP - every other site reads it with -1.
+*
+*   THE INSTALL BOOTSTRAP IS EXEMPT AND HAS TO BE (IS_INSTALL): while sd -i is
+*   still building the machine there is no register and no finished CPROC, and
+*   the seeding steps run as root.  That arm compiles only into the install
+*   build of CPROC.
       if system(27) = 0 then           ;* entered as root?
 $ifndef IS_INSTALL
-        call !EUID_SET('sdsys',rstat)  ;* yes, drop to sdsys
-        if rstat > 0 then
-          crt 'Warning: failed to resend root priviages, error: ':status()
-        end else
-* 09 Sep 26 dm - PRE_RELEASE 20.  KEEP THE PERSON, NOT THE ACCOUNT WE DROPPED
-*   TO.  This line used to read kernel(K$USERNAME, 0), which after the drop
-*   above answers "sdsys" - so @logname became sdsys and SD no longer knew who
-*   was at the keyboard.  Every administrator action was then attributed to a
-*   non-person, and the owner's definition of an administrator (sudoers member
-*   AND registered SD administrator) had nobody to look up.
-*
-*   THE EUID DROP ITSELF STAYS.  It is what makes files come out owned
-*   correctly; only the identity substitution goes.
-*
-*   NOT SIMPLY REMOVING THE LINE, and this is the trap.  On "sudo sd" the
-*   process really IS root, so K$USERNAME would answer "root" rather than the
-*   person - and root is a member of sdusers and of the account groups, so
-*   every gate would PASS and it would look as though it had worked.
-*   K$REAL.USER asks SUDO_USER then getlogin(); see op_kernel.c.
-          real.person = kernel(K$REAL.USER, 0)
-          if real.person # '' then
-            logname = real.person
-          end else
-* IT REFUSES TO GUESS, BUT IT DOES NOT REFUSE THE SESSION, and the objection
-*   is recorded rather than resolved.  With no source able to name the person
-*   this keeps the old behaviour - logname is sdsys - and SAYS SO, because
-*   turning an unidentifiable session away is a lock-out risk that belongs
-*   with a ruling, not with this line.  THE COST: an unidentified privileged
-*   session still calls itself sdsys.  ***WHOEVER BUILDS THE REGISTER GATE
-*   MUST NOT LET AN UNKNOWN IDENTITY SATISFY IT*** - sdsys is an account, not
-*   a person, and this arm is exactly where that would slip through.
-            logname = kernel(K$USERNAME, 0)  ;* sdsys - identity unknown
-            admin.notice<-1> = sysmsg(10900)  ;* SD cannot tell which person ...
-          end
-        end
-$endif
-* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  REACHING uid 0 IS NO LONGER ENOUGH.
-*   This line used to grant administrator rights to anything that got here.
-*   The owner's definition needs two things and this had neither; the test is
-*   in grant.administrator below, with its reasoning.
-*
-*   THE GRANT IS GATED HERE RATHER THAN IN THE FOURTEEN READERS because this
-*   is the ONLY place USR_ADMIN is ever set - every other K$ADMINISTRATOR site
-*   in GPL.BP reads it with -1.  One test cannot then fall out of step with
-*   another, which is the same reason CATALOG:202 keeps its check in one place.
-*
-*   THE INSTALL BOOTSTRAP IS EXEMPT AND HAS TO BE: under IS_INSTALL sd -i is
-*   still building the register, so there is nothing to read.  That is the
-*   same reason the euid drop above is skipped.
-$ifndef IS_INSTALL
-        gosub grant.administrator
+         display sysmsg(10176)
+         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=root is not SD administrator')
+         goto abort.cproc
 $else
-        void kernel(K$ADMINISTRATOR, 1)   ;* bootstrap: no register to read yet
+         void kernel(K$ADMINISTRATOR, 1)   ;* bootstrap: no register to read yet
 $endif
       end
+$ifndef IS_INSTALL
+*   downcase: kernel(K$USERNAME, 0) is the OS account; su - sdsys names it in
+*   lower case, and the comparison must not depend on who typed what.
+      if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and env('SSH_CONNECTION') = '' and env('SSH_TTY') = '' then
+         void kernel(K$ADMINISTRATOR, 1)
+* 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
+*   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
+         void kernel(K$AUDIT, 'ELEVATION GRANTED reason=local sdsys session')
+         admin.notice<-1> = sysmsg(10916)
+      end
+$endif
       
       i = '$LOGIN'
       call @i(j,0)
@@ -845,134 +836,6 @@ para.reset.environment:
    i = kernel(K$CPROC.LEVEL,0)
    delete.common '$':i   ;* Delete unnamed common
 ! 0385   i = kernel(K$CPROC.LEVEL, i - 1)
-
-   return
-
-*****************************************************************************
-* GRANT.ADMINISTRATOR  -  Is this privileged session an administrator?
-*
-* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  Owner, 9 Sep 26: "An administrator
-*   is a person who is a member of sudoers and is also a registered user of SD
-*   as an administrator.  If they are not a registered user they should be
-*   refused entry."  OS privilege is NECESSARY AND NOT SUFFICIENT.  Called from
-*   the root-entry block above, which is the only place USR_ADMIN is set.
-*
-* THE TWO HALVES, AND HOW EACH IS READ:
-*   sudoers  - membership of sdadmin, SD's OWN group.  PRE_RELEASE 14's ruling,
-*              and not a shortcut: the drop-in this system ships grants
-*              sd-elevate to %sdadmin and to nothing else, so sdadmin is this
-*              system's sudoers list for SD's purposes.  Asking sudo directly
-*              was measured and rejected - "sudo -n -l" exits 1 both for "needs
-*              a password" and for "may not sudo", so a membership test on that
-*              exit code REFUSES A LEGITIMATE ADMINISTRATOR.
-*   register - the person's ACCOUNTS record, field ACC$TIER.
-*
-* THE RECORD MUST BE THAT PERSON'S.  The register is keyed by ACCOUNT name, and
-*   a GROUP or OTHER account may carry a person's name without being their
-*   account, so ACC$GROUP is required to be their own sdu_ group.  CREATEA:439
-*   is what writes it.
-*
-* AN UNKNOWN IDENTITY CANNOT SATISFY THE REGISTER HALF.  When no source could
-*   name the person, the block above leaves logname as "sdsys" and prints
-*   10032.  sdsys is an ACCOUNT, not a person; PRE_RELEASE 20 named this as the
-*   arm a gate would slip through, so it is refused BY NAME here rather than by
-*   trusting the register not to hold an SDSYS tier.
-*
-* THE BOOTSTRAP ARM IS THE OWNER'S RULING OF 9 Sep 26, AND IT CLOSES ITSELF.
-*   Measured that day on the 16:22 install: ACCOUNTS/DON has three fields, so
-*   its tier is blank, and sdadmin has no members.  A strict gate would refuse
-*   EVERYBODY - and CREATE.ACCOUNT needs administrator rights to register the
-*   first administrator, so that is a lock-out with no exit.  When the register
-*   holds no ADMINISTRATOR-tier account at all this grants the rights and SAYS
-*   SO with 10033; the moment one is registered the arm stops firing.  It is
-*   not a widening.  It is exactly the behaviour that stood before this change,
-*   kept only for as long as there is nobody to gate on.
-*
-* OBJECTION, RECORDED RATHER THAN RESOLVED: the bootstrap arm grants to an
-*   unknown identity too.  Refusing there is the tidier rule, and it is also
-*   the one arm that could leave a machine with no way in at all - a box with
-*   no SUDO_USER and no utmp entry would be unadministerable.  The lock-out
-*   risk decided it.  Read it as a deliberate under-reach, not an oversight.
-*
-* AND THE NULL CASE IS REFUSED OUT LOUD.  A register that will not open must
-*   not read as "nobody is registered", because that answer GRANTS.  Nothing
-*   measured, nothing granted.
-
-grant.administrator:
-   admin.person = logname
-   admin.tier = ''
-   admin.any = @false
-
-   openpath @sdsys:@ds:'accounts' to admin.f else
-* 09 Sep 26 dm - THE LOOKUP HAS THREE ANSWERS, NOT TWO, AND THIS ARM IS THE
-*   THIRD.  It used to print 10034, "is not a registered SD administrator",
-*   which is a claim about what the register SAYS - and nothing had been read.
-*   Conflating "measured false" with "could not measure" is the shape
-*   PRE_RELEASE 20 warns about and the port paid for in its entry 93.
-*   The verdict is unchanged - nothing measured, nothing granted - and only the
-*   wording is honest about why.
-      admin.notice<-1> = sysmsg(10904)  ;* the register could not be read
-      void kernel(K$AUDIT, 'ELEVATION REFUSED reason=the register could not be read')
-      return
-   end
-
-   if admin.person # '' and downcase(admin.person) # 'sdsys' then
-      read admin.rec from admin.f, downcase(admin.person) then
-         if admin.rec<ACC$GROUP> = 'sdu_' : admin.person then
-            admin.tier = upcase(trim(admin.rec<ACC$TIER>))
-         end
-      end
-   end
-
-   if admin.tier = 'ADMINISTRATOR' and is_grp_member(admin.person, 'sdadmin') then
-      close admin.f
-      void kernel(K$ADMINISTRATOR, 1)
-* 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
-*   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
-      void kernel(K$AUDIT, 'ELEVATION GRANTED')
-      return
-   end
-
-   * Not an administrator.  Is there one at all?
-
-   select admin.f to 11
-   readnext admin.id from 11 then
-      loop
-         read admin.rec from admin.f, admin.id then
-            if upcase(trim(admin.rec<ACC$TIER>)) = 'ADMINISTRATOR' then
-               admin.any = @true
-               exit
-            end
-         end
-         readnext admin.id from 11 else exit
-      repeat
-   end
-   clearselect 11
-   close admin.f
-
-* 09 Sep 26 dm - PRE_RELEASE 18.  ***SAY WHICH HALF FAILED.***  Found by the
-*   owner's own control run, 9 Sep 26: he dropped himself from sdadmin with the
-*   tier left at ADMINISTRATOR, and the refusal said "don is not a registered
-*   SD administrator" - ***WHICH WAS FALSE.***  He WAS registered; field 5 still
-*   read ADMINISTRATOR.  What he lacked was the group.
-*
-*   A REFUSAL THAT NAMES THE WRONG HALF SENDS THE READER TO THE WRONG PLACE.
-*   An administrator dropped from sdadmin would go and inspect the register,
-*   find it correct, and have nothing left to look at.  The definition has
-*   exactly two halves, so there are exactly two things to say.
-   if admin.any then
-      if admin.tier = 'ADMINISTRATOR' then
-         admin.notice<-1> = sysmsg(10903, admin.person) ;* registered, not in sdadmin
-         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=registered administrator is not in sdadmin')
-      end else
-         admin.notice<-1> = sysmsg(10902, admin.person) ;* not registered
-         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=not a registered administrator')
-      end
-   end else
-      admin.notice<-1> = sysmsg(10901, admin.person)
-      void kernel(K$ADMINISTRATOR, 1)
-      void kernel(K$AUDIT, 'ELEVATION GRANTED reason=no administrator is registered')
-   end
 
    return
 
@@ -2836,17 +2699,12 @@ int.logto:
       return
    end
 * 20240330 mab only root can logto sdsys
-* 09 Sep 26 dm - PRE_RELEASE 18 commit 2.  ASK THE FLAG, NOT THE uid.
-*   system(27) > 0 is "this process is not root", which is not the question.
-*   Under the owner's definition an administrator is a registered person who is
-*   in sdadmin, and root on its own is neither - so this test now reads what
-*   grant.administrator decided.  Nothing else moves: the flag is set exactly
-*   when the session came in through the root-entry block above, so a session
-*   that could reach SDSYS before still can unless the gate deliberately
-*   refused it, which is the point of the change.
-   if (downcase(new.account) = "sdsys") and not(kernel(K$ADMINISTRATOR,-1)) then
-      display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=not an administrator')
+* 18 Sep 26 dm - TEARDOWN (S.26).  LOGTO SDSYS IS REFUSED FOR EVERYBODY,
+*   administrators included.  SDSYS is entered only by running SD as the
+*   sdsys OS user on a local session - the entry block above, not LOGTO.
+   if (downcase(new.account) = "sdsys") then
+      display sysmsg(10002) ;* entered only by running SD as the sdsys OS user
+      void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=sdsys is entered by its own session only')
       unwinding = 2
       return    
    end 
@@ -2900,9 +2758,10 @@ int.logto:
 *   administrator already entered them all.  The membership test was passing
 *   on a side effect of how the groups are built.
 *
-*   Now that @logname is the real person (see the K$REAL.USER change above),
-*   that side effect is gone: an administrator is not in everybody else's
-*   sdu_ group, and LOGTO would start refusing accounts it has always allowed.
+*   Now that @logname is the sdsys OS user itself (the teardown, S.26: the
+*   administrator runs as sdsys, and root sessions are refused outright),
+*   that side effect is gone: sdsys is in the account groups CREATEA builds,
+*   but the account-entry gate below must not depend on that construction.
 *   Naming the administrator here keeps the behaviour and makes the reason
 *   legible.
 *
@@ -2916,12 +2775,16 @@ int.logto:
 *   the port's logto.authorised, 27 Aug 2026).  LOGIN shuts the front door; an
 *   account reached with LOGTO never goes through LOGIN.
 *
+* 18 Sep 26 dm - TEARDOWN (W.7).  The suspension is its own flag now: field 5,
+*   blank means in service and SUSPENDED means suspended.  Nothing else about
+*   the door moves.
+*
 *   AN ADMINISTRATOR STILL ENTERS ONE - the port's judgement call, kept rather
 *   than the owner's ruling: looking at a suspended account is the ordinary
 *   reason to have one, and an administrator can lift the suspension anyway.
 *   If that is wrong, drop the K$ADMINISTRATOR half of this test; do not add a
 *   second test.  The way out mirrors the 10003 refusal below.
-   if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$TIER>)) = 'SUSPENDED' then
+   if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then
       display sysmsg(10107, new.account) ;* Account %1 is suspended
       void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=suspended')
       if ospath(account.path, OS$CD) then return
@@ -2937,36 +2800,25 @@ int.logto:
       return to abort.cproc
    end
 
-* 11 Sep 26 dm - AND THE GRANT MUST NOT GO UPWARD.  PORT_ADOPTION 14, the
-*   port's logto.authorised of 29 Aug 2026 and the owner's rule to it: a grant
-*   may go down or sideways, never up.
-*
-*   ***THIS IS THE GATE.  GRANTA'S COPY AND MODIFYA'S ARE COURTESY AND THIS ONE
-*   IS LOAD BEARING.***  The grant IS Linux group membership, so an
-*   administrator can "usermod -aG sdu_<name> <person>" without going near SD;
-*   and MODIFY.ACCOUNT can promote an account long after a legal grant was
-*   made, with nothing revisiting the group afterwards.  Neither of those
-*   reaches a check at grant time.  Both reach this one.
-*
-*   AFTER THE GROUP TEST, NOT BEFORE, so only somebody who was actually granted
-*   learns anything from the refusal.  A caller who was never granted still
-*   gets the undifferentiated 10003 above and cannot use this message to probe
-*   other accounts' tiers.
-*
-*   THE ADMINISTRATOR BYPASS IS THE SAME HALF THE TWO TESTS ABOVE CARRY, and
-*   must be: an administrator never reaches here, so "only an administrator
-*   enters SDSYS" is not this test's job - the SDSYS block at :2745 refuses a
-*   non-administrator before the register is read.  !tier_allows refuses SDSYS
-*   by name as well, which is belt and braces rather than the mechanism.
-   if not(kernel(K$ADMINISTRATOR,-1)) and not(tier_allows(@logname, new.account)) then
-      display sysmsg(10126, new.account, ~
-                     upcase(trim(acc.record<ACC$TIER>, ' ', 'B')), @logname)
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=tier')
-      if ospath(account.path, OS$CD) then return
-      display sysmsg(5162) ;* Fatal error : Cannot return to previous account
-      return to abort.cproc
-   end
+* 18 Sep 26 dm - TEARDOWN (S.25).  The upward-grant gate is gone with the
+*   tier model: there is no rank to climb any more.  A grant is Linux group
+*   membership, and the group test above is the whole of the LOGTO wall -
+*   SD keeps no second one.
 
+
+* 18 Sep 26 dm - TEARDOWN (S.26).  THE ADMINISTRATOR'S S.2 REFRESH.  A local
+*   sdsys session started before an account's group existed would fail the
+*   filesystem checks below with Error 3001 - the S.2 defect, which the old
+*   root-entry block kept clear by reloading root's groups at session start
+*   and after every privileged verb.  The reload now happens HERE for the
+*   administrator: !EUID_SET is a uid no-op in a sdsys session (it already is
+*   sdsys) and SD_EUID_SET reloads the caller's supplementary groups first
+*   (sdext_eguid.c, 18 Sep), so the administrator's LOGTO picks up account
+*   groups created since the session started.  initgroups() grants sdsys no
+*   group it is not already a member of.
+   if kernel(K$ADMINISTRATOR, -1) then
+      call !EUID_SET('sdsys', rstat)
+   end
 
    if not(ospath(acc.rec, OS$CD)) then
       display sysmsg(5161) ;* Unable to change to new directory
@@ -2992,20 +2844,9 @@ int.logto:
    who = new.account
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 
-* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Reload the OS-access grants for the
-*   account just entered; LOGIN does the initial load at sign-on.  acc.record is
-*   the register record for a named account; a path-attached account has none,
-*   so the fields read blank = denied, the safe default.  An administrator
-*   bypasses these via USR_ADMIN regardless of the account's fields.
-* 10 Sep 26 dm - USR_ADMIN IS ONLY SET UNDER sudo sd, so a plain-sd
-*   administrator had none of this.  An ADMINISTRATOR-tier account whose person
-*   is in sdadmin now grants both, as at LOGIN - see LOGIN's note for the
-*   rulings.  Account-scoped: a LOGTO to any other account reloads from that
-*   account's own record.
-   logto.os.admin = (upcase(trim(acc.record<ACC$TIER>)) = 'ADMINISTRATOR')
-   if logto.os.admin then logto.os.admin = is_grp_member(@logname, 'sdadmin')
-   void kernel(K$SH,      logto.os.admin or (upcase(trim(acc.record<ACC$SH>)) = 'YES'))
-   void kernel(K$OS.EXEC, logto.os.admin or (upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'))
+* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-access grants and the K$SH/K$OS.EXEC
+*   load are gone: SH and OS.EXECUTE run at the account's own Linux
+*   permissions, and SD keeps no second wall.
 
    void kernel(K$AUDIT, 'LOGTO account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13
 
@@ -3765,17 +3606,12 @@ os.command:
    os.command.text = trimf(voc.rec<3> : " " : s)
 
    * Modified by Composer AI - 2026/06/10.
-   * Require administrator and reject shell metacharacters in OS commands.
+   * Reject shell metacharacters in OS commands.
    * os.execute os.command.text
    deffun valid_shell_cmd(cmd) calling '!valid_shell_cmd'
-* 09 Sep 26 dm - PRE_RELEASE 23 commit 2.  Was admin-only; now admin OR the
-*   account holds the SH grant (K$SH, loaded from ACC$SH at account entry).
-*   The owner's model, 9 Sep 2026: shell off for anyone but administrators
-*   unless given specifically with MODIFY.ACCOUNT SH-ON.
-   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then
-      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell
-      return
-   end
+* 18 Sep 26 dm - TEARDOWN (S.27).  The administrator/SH grant test is gone:
+*   SH and "!" run at the account's own Linux permissions.  The metacharacter
+*   filter stays - it is a sanitizer, not a tier gate.
    if not(valid_shell_cmd(os.command.text)) then
       display sysmsg(5240, 2) ;* Error xx executing operating system command
       return

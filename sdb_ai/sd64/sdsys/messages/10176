@@ -1,0 +1,3 @@
+This is a root session, and root is not SD's administrator.
+Run sd as the sdsys OS user from a local session instead (su - sdsys),
+or log in as yourself.

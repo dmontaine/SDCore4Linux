@@ -254,10 +254,11 @@ echo "Removed /usr/share/nano/sdbasic.nanorc."
 # --------------------
 # PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
 #
-# ORDER MATTERS: the drop-in goes FIRST.  It names the sdadmin group, and a
-# sudoers file referring to a group that no longer exists is a dangling entry
-# in the file that decides who may become root.  Removing the rule before the
-# group it mentions means there is never a moment where one outlives the other.
+# ORDER MATTERS: the drop-in goes FIRST.  It names the sdsys user, and a
+# sudoers file referring to privileges that no longer belong on this machine
+# is a dangling entry in the file that decides who may become root.  Removing
+# the rule before anything it mentions means there is never a moment where
+# one outlives the other.
 sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
@@ -284,28 +285,21 @@ if [ -x /usr/local/sbin/ssh-forcecommand ]; then
     echo "Removed /usr/local/sbin/ssh-forcecommand."
 fi
 # 10 Sep 26  PRE_RELEASE 25 - THE GROUP GOES ONLY IF THE ACCOUNTS GO.
-#            This removal was unconditional, and it was a lock-out.  An upgrade
-#            that SAVES its accounts keeps /home/sd/user_accounts and the
-#            register records, but the recreated sdadmin group came back EMPTY
-#            and nothing re-adds an existing administrator: CREATEA adds on
-#            creation only, and the installer skips create-account when the
-#            account directory survives.  CPROC's grant wants the tier AND the
-#            group, so every administrator would fall to 10903 with "Admin? No"
-#            and no in-SD way back - CREATEA and MODIFYA both need the flag the
-#            group just failed to set.  The sdsys user and sdusers group below
-#            have followed the "only if deleting ACCOUNTS" rule since before
-#            this; sdadmin did not, because until 9 Sep it had no members.
-# 14 Sep 26  sdapi (S.16) follows the same rule and for the same reason: an
-#            upgrade that saved its accounts must come back with the API
-#            grants it had, or every non-administrator's API access is lost.
+#            This removal was unconditional, and it was a lock-out on a
+#            keep-accounts upgrade.  18 Sep 26, the teardown: sdadmin and
+#            sdapi are not created any more (the administrator is the sdsys OS
+#            user; the API is open to every account except SDSYS), so these
+#            lines now only tidy machines installed before the teardown, and
+#            only when the accounts go too.  A keep-accounts cycle leaves the
+#            legacy groups exactly as it found them.
 if [ "$keep_accts" = "DELETE" ]; then
     if getent group sdadmin &>/dev/null; then
         sudo groupdel sdadmin || true
-        echo "Removed group sdadmin."
+        echo "Removed legacy group sdadmin."
     fi
     if getent group sdapi &>/dev/null; then
         sudo groupdel sdapi || true
-        echo "Removed group sdapi."
+        echo "Removed legacy group sdapi."
     fi
 else
     echo "sd ACCOUNTS were saved, therefore groups sdadmin and sdapi not deleted."

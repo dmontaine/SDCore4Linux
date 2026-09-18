@@ -1,8 +1,12 @@
 #!/bin/bash
 #
-# ssh-forcecommand.sh - the ssh half of the tier boundary for SD Core for Linux.
+# ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 18 Sep 26 dm TEARDOWN (S.28).  The sdadmin split is gone: every sdusers
+#           member is forced into sd over ssh, and the sdsys OS account is
+#           denied network login outright - SDSYS is entered only from a local
+#           session (W.6).
 # 10 Sep 26 dm  Written for PRE_RELEASE 13, the owner's ruling of 9 Sep 2026: a
 #               STANDARD account does not get a real login shell, the tier is a
 #               BOUNDARY, and SD writes sshd_config to hold it.  Mechanism ruled
@@ -12,37 +16,35 @@
 #
 # START-DESCRIPTION:
 #
-# THE HOLE IT CLOSES.  An SD account is an ordinary Unix user with a login shell
-# (CREATEA runs usermod -aG sdusers on an account adduser already made).  The
-# installer installs an ssh server.  So a STANDARD account that SD denies SH and
-# ! inside SD just ssh's in and gets a shell, never entering SD - the tier
-# boundary does not reach the edge of the machine.  The Windows port measured
-# this exact failure on 21 Aug 2026; PRE_RELEASE 13 carries the detail.
+# WHAT THE BLOCK IS NOW.  With the tiers gone (the teardown, S.28), ssh is open
+# to every SD account except one: a fenced block that ForceCommands every
+# sdusers member into sd, and denies the sdsys OS account network login
+# altogether.
 #
-# THE MECHANISM, and why this shape.  A fenced block appended to sshd_config:
-#
-#     Match Group sdusers,!sdadmin
+#     Match User sdsys
+#         DenyUsers sdsys
+#     Match Group sdusers,!sdsys
 #         ForceCommand /usr/local/sdsys/bin/sd
 #
-# The negation matches a member of sdusers who is NOT in sdadmin - every
-# non-administrator SD account.  PROGRAMMER is treated as STANDARD over ssh
-# (owner, 9 Sep 26): the tiers are told apart by the in-SD permission model
-# (PRE_RELEASE 23), not by sshd.  Administrators are in sdadmin, the negation
-# excludes them, and that is their full ssh access.  root is not in sdusers, so
-# root ssh is untouched.
+# SDSYS IS DENIED AT sshd, NOT LEFT TO SD ALONE.  CPROC and LOGIN both refuse a
+# non-local sdsys session (W.6, the SSH_CONNECTION/SSH_TTY test), but a real
+# login shell on the sdsys OS account would still be a remote shell on the
+# administrator account - so sshd denies it first, and SD's own gates are the
+# second half of the door.  root is not in sdusers, so root ssh is untouched.
 #
 # WHY ForceCommand AND NOT AllowGroups.  AllowGroups decides who may AUTHENTICATE
 # and locks everyone out if its group is empty or misnamed - the port's sharpest
 # lock-out.  ForceCommand cannot lock anyone out of authentication: it only
-# changes WHAT RUNS once a non-admin SD user is in, and an administrator (excluded
-# by !sdadmin) always keeps a real shell to recover with.  That is the fail-safe
-# that makes this the least dangerous of the three mechanisms considered.
+# changes WHAT RUNS once an SD user is in.  DenyUsers for the one account is the
+# smallest possible deny list, and the only one that can exist after the
+# teardown.
 #
-# WHY sd IS NOT setuid AND THIS STILL WORKS.  sd is not setuid (system(27) =
-# getuid()), so an admin-granted non-admin (MODIFY.ACCOUNT SH-ON, PRE_RELEASE 23)
-# who ssh's in lands in sd by ForceCommand and then SH gives them a shell AS
-# THEMSELVES.  The grant lives entirely inside SD's permission model, so the
-# fenced block stays one uniform group rule and needs no per-account carve-out.
+# THE ONE THING THIS BLOCK CANNOT WIN AGAINST: sshd processes DenyUsers before
+# AllowUsers, so a pre-existing "AllowUsers sdsys" (or an AllowGroups that
+# includes sdsys) lets sdsys authenticate regardless.  The helper does not
+# police Allow* directives - they are the administrator's own policy.  SD's
+# second half of the door (CPROC and LOGIN refuse a non-local sdsys session,
+# W.6) still holds.
 #
 # NOTHING HERE IS DISTRIBUTION-SPECIFIC, deliberately: the other three distro
 # families come back (owner, 10 Sep 26).  /etc/ssh/sshd_config is the universal
@@ -126,9 +128,9 @@ find_sshd() {
   return 1
 }
 
-# The four-line block, as an array so the writer and the test agree on it.
+# The block, as an array so the writer and the test agree on it.
 block_lines() {
-  printf '%s\n' "$BEGIN" "Match Group sdusers,!sdadmin" "    ForceCommand $SD_BIN" "$END"
+  printf '%s\n' "$BEGIN" "Match User sdsys" "    DenyUsers sdsys" "Match Group sdusers,!sdsys" "    ForceCommand $SD_BIN" "$END"
 }
 
 # Print the config with any existing SD fence removed.  Exact inverse of the
@@ -162,7 +164,7 @@ existing_conflict() {
     /^[[:space:]]*ForceCommand([[:space:]]|$)/ {
       print "a ForceCommand directive is already present: " $0; found = 1
     }
-    /^[[:space:]]*Match([[:space:]]|$)/ && (/sdusers/ || /sdadmin/) {
+    /^[[:space:]]*Match([[:space:]]|$)/ && (/sdusers/ || /sdsys/) {
       print "a Match rule already names an SD group: " $0; found = 1
     }
     END { exit (found ? 0 : 1) }
@@ -301,7 +303,7 @@ case $MODE in
     fi
     commit_file "$tmp"
     has_block || fail "the block was validated but is not in $CONFIG after the write"
-    say "INSTALLED - non-administrator SD accounts are forced into sd over ssh"
+    say "INSTALLED - SD accounts are forced into sd over ssh; sdsys is denied network login"
     say "original kept at $BACKUP"
     production && reload_sshd
     exit 0

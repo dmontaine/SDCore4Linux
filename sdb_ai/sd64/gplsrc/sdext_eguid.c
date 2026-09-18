@@ -20,6 +20,12 @@
  * 
  * START-HISTORY:
  * rev 0.9.0 Jan 25 mab initial commit
+ * 18 Sep 26 dm TEARDOWN (S.26).  The group reload no longer asks for euid 0:
+ *               the administrator is a local sdsys session, which is never
+ *               root, and CPROC's logto calls EUID_SET for it so a LOGTO
+ *               picks up account groups created since the session started.
+ *               initgroups() only grants the caller groups it is genuinely a
+ *               member of, so reloading for every caller is safe.
  * 14 Sep 26 dm  SD_EUID_SET reloads root's supplementary groups before the
  *               drop, so a session sees account groups created since it
  *               started (PROJECT_STATUS S.2).
@@ -74,12 +80,18 @@ void sdext_eguid_set(int key, char* Arg){
          the list is current then.  It grants root no group it is not already
          a member of.  A failure keeps the old list and is not an error: the
          drop still happens exactly as before.  getpwuid() before getpwnam()
-         below, which reuses the same static buffer.                          */
-      if (geteuid() == 0) {
-        pwd = getpwuid(caller_uid);
-        if (pwd != NULL)
-          (void)initgroups(pwd->pw_name, caller_gid);
-      }
+         below, which reuses the same static buffer.
+
+         18 Sep 26 dm - TEARDOWN (S.26).  NOT ROOT-ONLY ANY MORE.  The
+         administrator is now a local sdsys session (never euid 0), and
+         CPROC's logto calls this function for it, so the reload must apply
+         to the sdsys caller too - otherwise the S.2 defect returns for the
+         administrator.  initgroups() installs the caller's own real group
+         list and nothing else, so doing it for every caller is safe; the
+         caller cannot gain a group it is not a member of.                    */
+      pwd = getpwuid(caller_uid);
+      if (pwd != NULL)
+        (void)initgroups(pwd->pw_name, caller_gid);
 
       /* attempt to set to user uid */
       /* first get users uid         */

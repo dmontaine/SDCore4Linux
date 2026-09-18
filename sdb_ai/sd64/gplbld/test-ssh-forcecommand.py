@@ -90,7 +90,9 @@ def main():
     record("state", "backup sshd_config.before-sd was created",
            os.path.exists(cfg + ".before-sd"))
     record("state", "the ForceCommand line is present",
-           "ForceCommand" in read(cfg) and "Match Group sdusers,!sdadmin" in read(cfg))
+           "ForceCommand" in read(cfg) and "Match Group sdusers,!sdsys" in read(cfg))
+    record("state", "sdsys is denied network login in the block",
+           "Match User sdsys" in read(cfg) and "DenyUsers sdsys" in read(cfg))
 
     # 2. Idempotent: a second install does not stack a second block.
     code, out = run("--install", cfg, sshd=stub)
@@ -115,10 +117,18 @@ def main():
     record("state", "the refused config is left untouched", read(cfg) == before)
 
     # 6. Conflict: an existing Match rule naming an SD group -> REFUSE.
-    write(cfg, PRISTINE + "Match Group sdadmin\n    X11Forwarding yes\n")
+    write(cfg, PRISTINE + "Match Group sdusers\n    X11Forwarding yes\n")
     code, out = run("--install", cfg, sshd=stub)
     record("refuse", "install refuses a pre-existing Match rule naming an SD group",
            code == 2)
+
+    # 6b. 18 Sep 26 (S.28): a pre-existing DenyUsers sdsys says the same thing
+    #    the block says, so it is NOT a conflict - install proceeds, and the
+    #    block is still written exactly once.
+    write(cfg, PRISTINE + "DenyUsers sdsys\n")
+    code, out = run("--install", cfg, sshd=stub)
+    record("allow", "install proceeds past a matching pre-existing DenyUsers sdsys",
+           code == 0 and read(cfg).count(END_MARKER) == 1)
 
     # 7. Control: a benign connection restriction is NOT a conflict.  Guards
     #    against over-refusing, which would make the feature unusable on any

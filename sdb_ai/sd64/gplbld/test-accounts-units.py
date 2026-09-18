@@ -55,23 +55,26 @@ def main():
     print("--- fields(): the terminator is not a field ---")
 
     # The real bytes of @SDSYS/ACCOUNTS/PETE, measured with od(1) 12 Sep 2026:
-    # 8 fields in 55 bytes, "\n" throughout, no 0xFE anywhere.
+    # 8 fields in 55 bytes, "\n" throughout, no 0xFE anywhere.  A pre-teardown
+    # record, kept as the sample: field 5's old tier value now reads as the
+    # suspension flag field (blank means in service; the verify's R6 names the
+    # values that are legal now).
     PETE = ("/home/sd/user_accounts/pete\n\nsdu_pete\n\nSTANDARD\n\nno\nno\n")
     f = VA.fields(PETE)
     ck("1 the real PETE record is 8 fields, not 9", len(f), 8)
     ck("2 ACC$PATH", VA.field(f, VA.ACC_PATH), "/home/sd/user_accounts/pete")
     ck("3 ACC$GROUP", VA.field(f, VA.ACC_GROUP), "sdu_pete")
-    ck("4 ACC$TIER", VA.field(f, VA.ACC_TIER), "STANDARD")
-    ck("5 ACC$SH and ACC$OS.EXEC",
-       (VA.field(f, VA.ACC_SH), VA.field(f, VA.ACC_OS_EXEC)), ("no", "no"))
+    ck("4 ACC$SUSPENDED (field 5)", VA.field(f, VA.ACC_SUSPENDED), "STANDARD")
+    ck("5 ACC$PRIOR.TIER (field 6, retired)",
+       VA.field(f, VA.ACC_PRIOR_TIER), "")
 
-    # TPROG really does stop at field 5 - it has no SH/OS.EXEC at all - so
+    # TPROG really does stop at field 5 - it has no fields past it - so
     # asking past the end must give '' and not raise.
     TPROG = "/home/sd/user_accounts/tprog\n\nsdu_tprog\n\nPROGRAMMER\n"
     f = VA.fields(TPROG)
     ck("6 a short record is 5 fields", len(f), 5)
     ck("7 a field past the end reads '' rather than raising",
-       VA.field(f, VA.ACC_OS_EXEC), "")
+       VA.field(f, VA.ACC_PRIOR_TIER), "")
 
     # A record with no terminator at all must read the same way: the byte is a
     # terminator, not a separator, so its absence changes nothing.

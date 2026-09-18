@@ -8,39 +8,39 @@
 #   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/interop-account.sh --remove
 #
 # No argument is a dry run: it prints the plan and changes nothing.
-# --create asks for the SD password at the terminal, twice, hidden. The
-# password is never on a command line, in the log or in the mailbox; hand it
-# to the Windows side yourself.
+# --create asks for two passwords at the terminal, hidden: the Linux password
+# for the throwaway account (CREATE.ACCOUNT prompts for it when it creates the
+# Linux user) and the SD password for the API.  Neither is ever on a command
+# line, in the log or in the mailbox; hand the SD password to the Windows side
+# yourself.
 # Exit 0 every check passed, 1 a check failed, 2 it could not run.
 # The log goes to /var/tmp/interop-account.<date>.log.
 #
 # WHY (owner, 15 Sep 2026, "do it"): RELEASE_1.1 41's last witness points a
-# Windows client at this machine's API. The only sdapi member here is don, who
-# is an administrator with no SD password. He is refused from another machine
-# (10174) and at request 47. So the run needs an ordinary account with the API
-# and an SD password. Test accounts are disposable, and --remove takes this one
-# away again.
+# Windows client at this machine's API.  It needs an ordinary account with the
+# API and an SD password.  18 Sep 26, the teardown (S.28): the API is open to
+# every account except SDSYS, so the account is an ordinary one - no tier, no
+# sdapi join.  Test accounts are disposable, and --remove takes this one away
+# again.
 #
-# --create follows the release witness's own route (witness-release-run.sh
-# sections 1, 13 and 13f):
-#   A  useradd -m, the ADOPT marker, then sd -internal create-account USER
-#      zzinterop ADOPT no.query. The register record and directory must exist.
-#   T  MODIFY.ACCOUNT zzinterop PROGRAMMER API. ADOPT makes an administrator,
-#      and an administrator is refused over the network, so the account moves
-#      to PROGRAMMER and keeps the API. Checked:
-#        - 10109's "is now PROGRAMMER"
-#        - register field 5 reads PROGRAMMER
-#        - it is in sdapi
-#        - it is NOT in sdadmin (sdadmin reaches root through sd-elevate)
-#   P  MODIFY.PASSWORD zzinterop. "Password set for account zzinterop", and the
-#      $cred record is on disk.
+# --create follows the new administrator route (18 Sep 26, S.26): everything
+# that needs rights runs as the sdsys OS user, the one administrator, on a
+# local session.
+#   A  CREATE.ACCOUNT USER zzinterop, which creates the Linux user itself (the
+#      owner's rule) and asks for its password.  The register record must
+#      exist; field 5 (the suspension flag) must be blank - a plain account.
+#   T  THE ABSENCE HALF: zzinterop is in sdusers, and the legacy sdadmin and
+#      sdapi groups do not exist.
+#   P  MODIFY.PASSWORD zzinterop.  "Password set for account zzinterop", and
+#      the $cred record is on disk.
 #   L  THE PROOF THE ACCOUNT IS USABLE: scram-probe logs in over 127.0.0.1 and
-#      over this machine's LAN address. Each login must show TLS 1.3, a
+#      over this machine's LAN address.  Each login must show TLS 1.3, a
 #      verified server signature, the account entered and WHO naming
-#      zzinterop, with no refusal. The LAN login must not carry 10174's
-#      refusal. That row is the one a Windows client depends on.
+#      zzinterop, with no refusal.  The LAN login must not carry 10174's
+#      refusal (that door is SDSYS's now).  That row is the one a Windows
+#      client depends on.
 #
-# --remove: DELETE.ACCOUNT through SD, then userdel -r. It removes a leftover
+# --remove: DELETE.ACCOUNT through SD, then userdel -r.  It removes a leftover
 # $cred record, then checks nothing of the account is left.
 
 set -u
@@ -51,11 +51,10 @@ SDSYS=/usr/local/sdsys
 REGISTER="$SDSYS/accounts"
 ACCOUNTS_ROOT=/home/sd/user_accounts
 ACC=zzinterop
-MARKER="$SDSYS/\$adopt.$ACC"
 ADIR="$ACCOUNTS_ROOT/$ACC"
 CRED="$SDSYS/\$cred/$ACC"
 SPROBE="$(dirname "$SELF")/scram-probe.py"
-REFUSED_10174="An administrator may not sign in to the SD API from another machine"
+REFUSED_10174="SDSYS may be reached through the API only from this machine"
 
 MODE=dry
 [ $# -le 1 ] || { echo "interop-account: one argument at most" >&2; exit 2; }
@@ -74,6 +73,8 @@ PASS=0
 FAIL=0
 PW=""
 PW2=""
+LW=""
+LW2=""
 
 say() { printf '%s\n' "$*"; }
 ck() {
@@ -110,18 +111,20 @@ strip()       { sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g'; }
 
 state() {
     say "  state: user=$(yesno_user "$ACC") group=$(yesno_group "sdu_$ACC") dir=$(yesno_dir "$ADIR")" \
-        "register=$(yesno_file "$REGISTER/$ACC") cred=$(yesno_file "$CRED") marker=$(yesno_file "$MARKER")" \
-        "sdapi=$(in_group sdapi) sdadmin=$(in_group sdadmin)"
+        "register=$(yesno_file "$REGISTER/$ACC") cred=$(yesno_file "$CRED")" \
+        "sdadmin_group=$(yesno_group sdadmin) sdapi_group=$(yesno_group sdapi)"
 }
 
-# A root sd session.  $1 title, then commands; its output on stdout.
-sd_root() {
+# 18 Sep 26 (S.26): THE ADMINISTRATOR SESSION - the sdsys OS user, local.
+# CPROC grants it K$ADMINISTRATOR (no ssh env, uid 999) and LOGIN puts it in
+# the sdsys account.  A root session would be refused outright (10176).
+sd_sdsys() {
     local title="$1" body line out; shift
-    say "  --- sd session as root: $title ---" >&2
+    say "  --- sd session as sdsys: $title ---" >&2
     body=$'\n''TERM 200,9999'
     for line in "$@"; do say "      > $line" >&2; body="$body"$'\n'"$line"; done
     body="$body"$'\n''OFF'$'\n'
-    out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 90 "$SD" 2>&1 | strip)
+    out=$(cd "$SDSYS" && printf '%s' "$body" | sudo -u sdsys timeout 90 "$SD" 2>&1 | strip)
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
 }
@@ -139,7 +142,7 @@ del_user() {
 }
 
 verdict() {
-    PW=""; PW2=""
+    PW=""; PW2=""; LW=""; LW2=""
     say ""
     say "=== verdict ============================================"
     say "  passed: $PASS   failed: $FAIL"
@@ -156,7 +159,7 @@ verdict() {
     if [ "$MODE" = create ]; then
         say "interop-account: READY - $ACC logs in to the SD API over TLS 1.3 from 127.0.0.1 and from $LANIP."
         say "  For the Windows side: host $LANIP, port 4243, user and account $ACC,"
-        say "  and the password you typed - give it directly, not through the mailbox."
+        say "  and the SD password you typed - give it directly, not through the mailbox."
         say "  Remove it after the run: sudo bash $SELF --remove"
     else
         say "interop-account: REMOVED - nothing of $ACC is left."
@@ -183,16 +186,16 @@ done
 if [ "$MODE" = dry ]; then
     state
     say "  DRY RUN - the plan, nothing executed:"
-    say "    --create: useradd -m $ACC; touch the ADOPT marker; $SD -internal create-account USER $ACC ADOPT no.query"
-    say "              MODIFY.ACCOUNT $ACC PROGRAMMER API; MODIFY.PASSWORD $ACC (password asked at the terminal)"
+    say "    --create: CREATE.ACCOUNT USER $ACC (asks for its Linux password);"
+    say "              MODIFY.PASSWORD $ACC (SD password asked at the terminal);"
     say "              scram-probe --host 127.0.0.1 and --host ${LANIP:-<LAN address>} --user $ACC --account $ACC WHO"
+    say "              Every SD step runs as the sdsys OS user (S.26)."
     say "    --remove: DELETE.ACCOUNT $ACC; userdel -r $ACC; a leftover \$cred/$ACC"
-    say "  (the cred and sdapi readings above need root to be exact)"
     exit 0
 fi
 
 if [ "$(id -u)" -ne 0 ]; then
-    say "interop-account: CANNOT RUN - --$MODE needs root. Re-run as: sudo bash $SELF --$MODE"
+    say "interop-account: CANNOT RUN - --$MODE needs root (it becomes sdsys for the SD steps). Re-run as: sudo bash $SELF --$MODE"
     exit 2
 fi
 
@@ -202,9 +205,8 @@ if [ "$MODE" = remove ]; then
         say "interop-account: CANNOT RUN - nothing of $ACC exists, so there is nothing to remove."
         exit 2
     fi
-    rm -f "$MARKER"
     if [ -e "$REGISTER/$ACC" ]; then
-        OUT=$(sd_root "DELETE.ACCOUNT $ACC, answering Y" "DELETE.ACCOUNT $ACC" "Y")
+        OUT=$(sd_sdsys "DELETE.ACCOUNT $ACC, answering Y" "DELETE.ACCOUNT $ACC" "Y")
     fi
     [ "$(yesno_user "$ACC")" = yes ] && del_user
     [ -e "$CRED" ] && { rm -f "$CRED"; say "  removed a leftover \$cred/$ACC"; }
@@ -224,7 +226,6 @@ DIRTY=0
 [ "$(yesno_dir "$ADIR")" = yes ]          && { say "  DIRTY: $ADIR exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC")" = yes ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }
 [ "$(yesno_file "$CRED")" = yes ]         && { say "  DIRTY: \$cred/$ACC exists"; DIRTY=1; }
-[ "$(yesno_file "$MARKER")" = yes ]       && { say "  DIRTY: an ADOPT marker for $ACC exists"; DIRTY=1; }
 if [ "$DIRTY" -eq 1 ]; then
     say "interop-account: CANNOT RUN - the ground is not clear. Run: sudo bash $SELF --remove"
     exit 2
@@ -234,10 +235,25 @@ if [ -z "$LANIP" ]; then
     exit 2
 fi
 if [ ! -r /dev/tty ]; then
-    say "interop-account: CANNOT RUN - no terminal to ask for the password on."
+    say "interop-account: CANNOT RUN - no terminal to ask for the passwords on."
     exit 2
 fi
 
+# The Linux password CREATE.ACCOUNT will prompt for (hidden, twice inside SD).
+read -r -s -p "Linux password for the throwaway account $ACC (not shown, 12 characters or more): " LW </dev/tty; echo
+read -r -s -p "The same again: " LW2 </dev/tty; echo
+if [ "$LW" != "$LW2" ]; then
+    say "interop-account: CANNOT RUN - the two entries differ; nothing was changed."
+    exit 2
+fi
+if [ "${#LW}" -lt 12 ]; then
+    say "interop-account: CANNOT RUN - the password is under 12 characters; nothing was changed."
+    exit 2
+fi
+case "$LW" in
+    *[[:space:]]*) say "interop-account: CANNOT RUN - the password contains a space or tab; nothing was changed."; exit 2 ;;
+esac
+# The SD password for the API.
 read -r -s -p "SD password for $ACC (not shown, 12 characters or more): " PW </dev/tty; echo
 read -r -s -p "The same again: " PW2 </dev/tty; echo
 if [ "$PW" != "$PW2" ]; then
@@ -251,42 +267,36 @@ fi
 case "$PW" in
     *[[:space:]]*) say "interop-account: CANNOT RUN - the password contains a space or tab; nothing was changed."; exit 2 ;;
 esac
-say "  password : ${#PW} characters (not shown)"
+say "  passwords : ${#LW} and ${#PW} characters (not shown)"
 
 say ""
-say "=== A. adopt $ACC ============================================"
-say "  useradd -m $ACC"
-if ! useradd -m "$ACC"; then
-    say "interop-account: CANNOT RUN - useradd failed; nothing else attempted."
-    exit 2
-fi
-say "  touch $MARKER"
-touch "$MARKER"
-say "  --- sd one-shot, cwd $SDSYS, </dev/null ---"
-say "      > $SD -internal create-account USER $ACC ADOPT no.query"
-OUT=$(cd "$SDSYS" && timeout 25 "$SD" -internal create-account USER "$ACC" ADOPT no.query </dev/null 2>&1 | strip)
-printf '%s\n' "$OUT" | sed -e 's/^/      | /'
-rm -f "$MARKER"
+say "=== A. create $ACC ============================================"
+say "  --- sd session as sdsys: CREATE.ACCOUNT USER $ACC, then the Linux"
+say "      password twice (SET_PASSWD prompts inside SD, hidden) ---"
+OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nCREATE.ACCOUNT USER %s\n%s\n%s\nOFF\n' "$ACC" "$LW" "$LW" \
+      | sudo -u sdsys timeout 90 "$SD" 2>&1 | strip)
+printf '%s\n' "$OUT" | grep -vF -- "$LW" | sed -e 's/^/      | /'
 ck "A1 the register record exists" yes "$(yesno_file "$REGISTER/$ACC")"
 ck "A2 the account directory exists" yes "$(yesno_dir "$ADIR")"
+ck "A3 the Linux user exists" yes "$(yesno_user "$ACC")"
 if [ ! -e "$REGISTER/$ACC" ]; then
     say "  STOPPING - no register record, so nothing further can be measured."
     verdict
 fi
 
 say ""
-say "=== T. PROGRAMMER, keeping the API ============================================"
-OUT=$(sd_root "MODIFY.ACCOUNT $ACC PROGRAMMER API" "MODIFY.ACCOUNT $ACC PROGRAMMER API")
-ck_says "T1 MODIFY.ACCOUNT reported the move (10109)" "Account $ACC is now PROGRAMMER" "$OUT"
-ck "T2 register field 5 is PROGRAMMER" PROGRAMMER "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
-ck "T3 $ACC is in sdapi" yes "$(in_group sdapi)"
-ck "T4 $ACC is NOT in sdadmin (ADOPT's administrator join is gone)" no "$(in_group sdadmin)"
+say "=== T. a plain account ============================================"
+ck "T1 register field 5 (the suspension flag) is blank" "" \
+   "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
+ck "T2 $ACC is in sdusers" yes "$(in_group sdusers)"
+ck "T3 the sdadmin group does not exist" no "$(yesno_group sdadmin)"
+ck "T4 the sdapi group does not exist" no "$(yesno_group sdapi)"
 
 say ""
 say "=== P. the SD password ============================================"
-say "  --- sd session as root: MODIFY.PASSWORD $ACC, the password twice (not shown) ---"
+say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC, the password twice (not shown) ---"
 OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$PW" "$PW" \
-      | timeout 120 "$SD" 2>&1 | strip)
+      | sudo -u sdsys timeout 120 "$SD" 2>&1 | strip)
 printf '%s\n' "$OUT" | grep -vF -- "$PW" | sed -e 's/^/      | /'
 ck_says "P1 MODIFY.PASSWORD reported it set" "Password set for account $ACC" "$OUT"
 ck_absent "P1b and not a failure" "Unable to set password" "$OUT"
@@ -304,7 +314,7 @@ for host in 127.0.0.1 "$LANIP"; do
     ck_says "L3 $host: account entered" "account $ACC: entered" "$OUT"
     ck "L4 $host: WHO names $ACC" yes "$(printf '%s\n' "$OUT" | grep -Eq "^\| +[0-9]+ $ACC\$" && echo yes || echo no)"
     ck_absent "L5 $host: not refused" "SCRAM: login REFUSED" "$OUT"
-    ck_absent "L6 $host: no administrator refusal (10174)" "$REFUSED_10174" "$OUT"
+    ck_absent "L6 $host: no SDSYS-only refusal (10174)" "$REFUSED_10174" "$OUT"
 done
 
 verdict

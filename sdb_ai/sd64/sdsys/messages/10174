@@ -1,1 +1,5 @@
-An administrator may not sign in to the SD API from another machine.\n\nAn administrator's account can change every account on this system, and the API\nadmits a connection on the SD password alone.  Connect from this machine instead\n- 127.0.0.1 or the local socket - or through an ssh tunnel, which needs the\naccount's Linux login first.\n\nIf you need this account for ordinary, non-administrative work from another\nmachine, ask an administrator to change its tier.
+SDSYS may be reached through the API only from this machine.
+
+SDSYS can change every account on this system, and the API admits a
+connection on the SD password alone.  Run sd as the sdsys OS user on
+this machine instead.

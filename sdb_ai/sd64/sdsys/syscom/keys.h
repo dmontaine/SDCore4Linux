@@ -288,33 +288,23 @@
       *   9 Sep 26, not assumed.  So field 4 is genuinely free here and is left
       *   free ANYWAY, for conformity: the two ACCOUNTS layouts stay comparable,
       *   which is worth more than one reclaimed field.  Do not reuse it.
-      $define ACC$TIER         5     ;* STANDARD, PROGRAMMER, ADMINISTRATOR
-      *                              ;*   or SUSPENDED
-      $define ACC$PRIOR.TIER   6     ;* the tier SUSPENDED displaced
-      * 09 Sep 26 dm - SUSPENDED IS A FOURTH TIER RATHER THAN A FLAG, and field
-      *   6 is what it displaced.  One field answers "what may this account do",
-      *   so a listing has one column and nobody has to combine two.  The cost
-      *   is that the tier it replaced would be lost, and field 6 stops that.
+      $define ACC$SUSPENDED   5     ;* suspension flag: blank or SUSPENDED
+      $define ACC$PRIOR.TIER   6     ;* retired with the tier model (18 Sep 26);
+      *                              ;*   blank in every record, cleared by UNSUSPEND
+      * 18 Sep 26 dm - the tier model came out (owner's teardown of 18 Sep 2026,
+      *   S.25).  Field 5 is now the suspension flag alone - W.7, "a suspension
+      *   is a denial, not a rank": blank means in service, SUSPENDED means
+      *   suspended.  Reusing field 5 keeps the one-column listing and reads
+      *   every record written before today correctly: the tiers STANDARD,
+      *   PROGRAMMER and ADMINISTRATOR read as blank (in service), and the old
+      *   SUSPENDED reads as suspended.  Field 6 (the old ACC$PRIOR.TIER) is
+      *   no longer written by anything; MODIFYA's UNSUSPEND clears it.
       *
-      *   BLANK IS NORMAL AND MEANS "not suspended".  It is also what every
-      *   account written before today carries, which reads correctly.
+      *   FIELD 4 REMAINS FREE, for conformity with the port, as before.
       *
-      *   NEITHER FIELD IS READ BY ANYTHING YET.  This define and CREATEA's
-      *   write are the register half; the gates that consult it are the second
-      *   commit of PRE_RELEASE 18, and the VOC delta per tier is SL1 and is
-      *   not designed.  A tier recorded here does not yet change what an
-      *   account may do.
-      $define ACC$SH           7     ;* may use the SH verb and "!" (yes/no)
-      $define ACC$OS.EXEC      8     ;* may use OS.EXECUTE (yes/no)
-      * 09 Sep 26 dm - PRE_RELEASE 23.  The OS-access grants, owner's model 9 Sep
-      *   2026: os.execute and shell are off for anyone but administrators, and an
-      *   administrator may turn either ON for a named non-admin account with
-      *   MODIFY.ACCOUNT SH-ON | SH-OFF | OS-ON | OS-OFF.  BLANK MEANS DENIED, the
-      *   safe default and what every account written before today carries.  An
-      *   ADMINISTRATOR-tier account holds both by tier and MODIFYA refuses to set
-      *   these on one (10039); the session gates read the tier first anyway.
-      *   Two independent fields, so SH-OFF says nothing about OS.EXECUTE.  Loaded
-      *   into the session at account entry as K$SH / K$OS.EXEC (LOGIN, CPROC).
+      *   FIELDS 7 AND 8 (ACC$SH / ACC$OS.EXEC, the OS-access grants of
+      *   PRE_RELEASE 23) ARE GONE (S.27): SH and OS.EXECUTE run at the
+      *   account's own Linux permissions and SD keeps no second wall.
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

@@ -265,40 +265,12 @@ void op_kernel() {
 
        ON "sudo sd" THE PROCESS GENUINELY IS root.  getuid() is 0 and
        process.username comes from my_uptr->username (kernel.c:198), the OS
-       identity, so simply not overwriting it yields "root" rather than the
-       person.  That would fail SILENTLY IN THE WORST DIRECTION: root is a
-       member of sdusers and of the account groups, so LOGIN's registration
-       test and CPROC's account-entry test would both PASS and every
-       administrator action would still be attributed to a non-person.
-
-       SO THE PERSON IS FETCHED, IN THE ORDER THE OWNER RULED (9 Sep 26):
-       SUDO_USER, then getlogin(), then unknown.
-
-         SUDO_USER  sudo sets it to the invoker.  It is an environment
-                    variable, and that objection is weaker than it looks:
-                    forging it requires already being root, and somebody who
-                    is already root has nothing left to gain.  Its real
-                    weakness is ABSENCE - su, a root login, any non-sudo
-                    route - not forgery.
-         getlogin() the utmp answer, which survives sudo.  Empty under cron,
-                    in containers, and in some ssh configurations.
-
-       AND IT REFUSES TO GUESS.  With no source it returns "" rather than
-       falling back to root or sdsys, because that fallback is precisely the
-       silent pass described above.  The CALLER must treat "" as unknown and
-       decline to name anybody - see CPROC.                                  */
-
-    case K_REAL_USER: {
-      const char * person = getenv("SUDO_USER");
-
-      if ((person == NULL) || (*person == '\0'))
-        person = getlogin();
-
-      if ((person == NULL) || (*person == '\0'))
-        person = "";        /* unknown - say so, do not guess */
-
-      k_put_c_string((char *)person, &result);
-    } break;
+       identity.  That entry route is now closed at the front door (the
+       teardown, S.26): a root session is refused outright, and the only
+       administrator entry is a local session that already runs as the
+       sdsys OS user, whose name the OS itself provides.  The K_REAL_USER
+       accessor that answered "which person is behind the sudo" therefore
+       has no caller and is gone.                                        */
 
     /* 14 Sep 26 dm - W.4 SCRAM phase 3.  THE WINDOWS PORT'S K_SET_USERNAME, AS
        WRITTEN: set the session user name.  process.username and
@@ -454,42 +426,6 @@ void op_kernel() {
         }
       }
       result.data.value = (my_uptr->flags & USR_ADMIN) != 0;
-      break;
-
-    /* 09 Sep 26 dm - PRE_RELEASE 23.  The per-account OS-access grants, gated
-       for setting exactly like K_ADMINISTRATOR above: only a $internal program
-       (LOGIN, CPROC - the two that own entry to an account) may change them,
-       and they are loaded there from ACC$SH / ACC$OS.EXEC.  A non-internal
-       caller reads the flag but cannot move it, so a program cannot grant
-       itself OS access.  USR_OS_EXEC is what op_sh() reads; USR_SH is read by
-       CPROC's SH gate through kernel(K$SH, -1).                              */
-
-    case K_SH:
-      GetInt(descr);
-      n = descr->data.value;
-      if (n >= 0) {
-        if (process.program.flags & HDR_INTERNAL) {
-          if (n > 0)
-            my_uptr->flags |= USR_SH;
-          else
-            my_uptr->flags &= ~USR_SH;
-        }
-      }
-      result.data.value = (my_uptr->flags & USR_SH) != 0;
-      break;
-
-    case K_OS_EXEC:
-      GetInt(descr);
-      n = descr->data.value;
-      if (n >= 0) {
-        if (process.program.flags & HDR_INTERNAL) {
-          if (n > 0)
-            my_uptr->flags |= USR_OS_EXEC;
-          else
-            my_uptr->flags &= ~USR_OS_EXEC;
-        }
-      }
-      result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
       break;
 
     case K_FILESTATS:

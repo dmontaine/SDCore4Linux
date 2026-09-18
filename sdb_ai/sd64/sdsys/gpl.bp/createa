@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier keywords, the
+*           OS-access keywords (SH-ON/OS-ON) and the API route words are gone
+*           from the grammar; no ACC$TIER/ACC$SH/ACC$OS.EXEC are written; the
+*           sdadmin and sdapi joins are gone (the groups no longer exist);
+*           make.account copies all of NEWVOC - one VOC layer, no filter and no
+*           administrator add layer (S.25).  ADOPT makes a plain account (S.26).
 * 14 Sep 26 dm  S.16: a USER account below ADMINISTRATOR must say API or NONE
 *               (10082), the port's rule; an administrator, or API, joins sdapi.
 *               SSH and BOTH are refused (10919); a group or other account
@@ -100,13 +106,17 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {ADMINISTRATOR | PROGRAMMER} {SH-ON} {OS-ON} {NO.QUERY}
-* CREATE.ACCOUNT GROUP <name> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
-* CREATE.ACCOUNT OTHER <name> <pathname> {ADMINISTRATOR | PROGRAMMER} {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {NO.QUERY}
+* CREATE.ACCOUNT GROUP <name> {NO.QUERY}
+* CREATE.ACCOUNT OTHER <name> <pathname> {NO.QUERY}
 *
-* SH-ON and OS-ON (10 Sep 26, the port's) grant a USER account the SH verb's
-* shell and OS.EXECUTE; they are accepted on any type and recorded only for a
-* USER account below ADMINISTRATOR, as the port's grant.os.access.
+* 18 Sep 26 dm - TEARDOWN (owner's 18 Sep 2026 decision).  The tier keywords
+*   (ADMINISTRATOR | PROGRAMMER), the OS-access keywords (SH-ON | OS-ON) and
+*   the API route word (API | NONE) are gone with the tier model: every
+*   account gets the one VOC layer (NEWVOC), SH and OS.EXECUTE run at the
+*   account's own Linux permissions, and the API is open to every account
+*   except SDSYS.  ADOPT stays, install-only as before - and makes a plain
+*   account now; the installing user administers as the sdsys OS user.
 *
 * 09 Sep 26 dm - THIS BLOCK WAS STALE AND IT COST SOMETHING, WHICH IS WHY IT IS
 *   CORRECTED RATHER THAN JUST EXTENDED.  It read
@@ -118,13 +128,6 @@
 *   SYNTAX THE VERB PRINTS AT :246 IS THE TRUTH; THIS BLOCK IS COMMENTARY AND
 *   HAD DRIFTED.***  The port's copy of this same block is stale in the same
 *   way - do not take it from there either.
-*
-*   NOTE THE PORT HAS A KEYWORD THIS TREE DOES NOT: its documented grammar is
-*   "create.account user <name> {administrator | programmer}
-*   <ssh | api | both | none> {no.query}", with the remote-access keyword
-*   REQUIRED for a user account.  That is PRE_RELEASE 13's work and is not
-*   built here, so it is absent rather than optional - a conformity gap, named
-*   so it is not mistaken for a difference of opinion.
 *
 * END-DESCRIPTION
 *
@@ -179,13 +182,6 @@ deffun valid_os_path(path) calling '!valid_os_path'
    *
    uid = ''
    group_name = ''   ;* will be set to callers entered group name on group create, no case changes
-* 09 Sep 26 dm - PRE_RELEASE 18.  STANDARD is the default, so an account made
-*   by somebody who has read none of this is the least privileged one.  The
-*   keyword GRANTS rather than restricts.
-   tier = 'STANDARD'
-* 10 Sep 26 dm - Parity audit: SH-ON / OS-ON at creation.  Off unless typed.
-   os.sh = @false
-   os.exec = @false
 * 11 Sep 26 dm - ADOPT attaches an SD account to a Linux user that ALREADY
 *   EXISTS instead of creating one.  PORT_ADOPTION 15, the port's CREATEA of
 *   14 and 21 Aug 2026.  See more.args for what gates it.
@@ -213,8 +209,6 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   account rather than the verb in general; nothing writes this bare name, so
 *   it cannot exist on a delivered system.
    adopt.marker = @sdsys:@ds:'$adopt'
-* 14 Sep 26 dm - S.16.  The API route keyword, API or NONE; see more.args.
-   route.word = ''
    begin case
    case upcase(acc.type) = 'USER'
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
@@ -231,37 +225,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
-* 11 Sep 26 dm - AN ADOPTED ACCOUNT IS AN ADMINISTRATOR'S, the port's :1704.
-*   ADOPT is reachable only from the installer, whose user is the person
-*   installing SD, and this project's model says that person is its first
-*   administrator - the installer used to pass ADMINISTRATOR by hand to get
-*   the same result.  ***WITHOUT THIS A FRESH INSTALL LANDS ITS OWN USER
-*   STANDARD, with no BASIC, no ED and no CATALOG, and with no registered
-*   administrator at all*** - the regression installsdai.sh's note of 10 Sep
-*   describes, reintroduced by the very change meant to tidy it up.
-*
-*   A DEFAULT, NOT AN OVERRIDE.  It applies only when no tier keyword was
-*   given, so an explicit PROGRAMMER on the same line still wins.
-     if adopt and tier = 'STANDARD' then tier = 'ADMINISTRATOR'
-
-* 14 Sep 26 dm - S.16, THE PORT'S RULE THAT A NEW ACCOUNT SAYS WHO MAY REACH IT
-*   (its CREATEA, owner 21 Aug 2026: "Say who may reach this account", 10082).
-*   On Linux the only route SD sets is the API, so the word is API or NONE.
-*   An ADMINISTRATOR needs none - it always has the API - and NONE on one is
-*   refused (10083) rather than ignored, so nobody believes they made an
-*   administrator without it.  CHECKED HERE, before the Linux user is created
-*   below, so a missing word creates nothing.
-     if tier = 'ADMINISTRATOR' then
-       if route.word = 'NONE' then
-         @system.return.code = -ER$ARGS
-         stop sysmsg(10083, acc.uname)  ;* %1 is an administrator and always has the API
-       end
-     end else
-       if route.word = '' then
-         @system.return.code = -ER$ARGS
-         stop sysmsg(10082)  ;* Say whether this account may use the API: API or NONE
-       end
-     end
+* 18 Sep 26 dm - TEARDOWN (S.26).  The adopted account is a plain account now;
+*   the installing user administers as the sdsys OS user from a local session.
 
      * Is the user a valid os user?
      * Check reserved names then
@@ -410,11 +375,6 @@ PW.TRY.AGAIN:
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
-* 14 Sep 26 dm - S.16.  A group account has no person to give the API to.
-     if route.word # '' then
-       @system.return.code = -ER$ARGS
-       stop sysmsg(10087, acc.name)  ;* %1 is a group account and has no API access
-     end
        
 *
    case upcase(acc.type) = 'OTHER'  
@@ -433,16 +393,13 @@ PW.TRY.AGAIN:
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
-     if route.word # '' then
-       @system.return.code = -ER$ARGS
-       stop sysmsg(10087, acc.name)  ;* no person, so no API access (S.16)
-     end
 *
    case 1
 *   invalid command arg
 * rev 0.9.0 
-    crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {ADMINISTRATOR | PROGRAMMER} API | NONE {SH-ON} {OS-ON} {NO.QUERY}'
+    crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {NO.QUERY}'
     crt '                CREATE.ACCOUNT GROUP <group name> {NO.QUERY}'
+    crt '                CREATE.ACCOUNT OTHER <account name> <pathname> {NO.QUERY}'
     @system.return.code = -ER$ARGS
     stop 
    end case
@@ -566,64 +523,9 @@ PW.TRY.AGAIN:
           end
         end
 
-* 09 Sep 26 dm - PRE_RELEASE 18/14.  AN ADMINISTRATOR ALSO JOINS sdadmin, which
-*   is the group the sudoers drop-in grants SD's privileged helper to.  Nothing
-*   populated it before this, so the helper shipped and no one could invoke it.
-*
-*   sdusers ABOVE IS THE OTHER HALF AND IS NOT DUPLICATED HERE.  Every USER
-*   account joins sdusers whatever its tier - that is what LOGIN's
-*   "registered for SD use" test reads - and an administrator is a registered
-*   user first and a privileged one second, which is the owner's definition in
-*   the order he gave it.
-*
-*   THE GUARD IS THE TIER AND NOTHING ELSE.  Group and Other accounts have no
-*   person to privilege, and this arm is already inside case acc.type = USER.
-        if tier = 'ADMINISTRATOR' then
-          if not(is_grp_member(acc.uname,'sdadmin')) then
-            if not(valid_os_name(acc.uname)) then
-              crt sysmsg(10033,acc.uname,2) ;* Unable to add user %1 to sdadmin, status: %2
-            end else
-* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  This was called out as
-*   the one call that could not use it, because the first administrator is not
-*   in sdadmin when it runs and the helper would refuse them.  ***THAT IS NO
-*   LONGER TRUE AND THE REASON IS WORTH KEEPING***: this code only ever runs in
-*   a session that reached CPROC's root-entry block, so its REAL uid is 0, and
-*   sudo permits root whatever the drop-in says.  The drop-in's %sdadmin rule
-*   is what a non-root administrator would need, and there is no such caller.
-              os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdadmin"
-              stat = OS.ERROR()
-              if stat = 0 then
-                crt sysmsg(10032,acc.uname)  ;* %1 added to sdadmin
-              end else
-                @system.return.code = -ER$FAILED
-                stop sysmsg(10033,acc.uname,stat) ;* Unable to add user %1 to sdadmin, status: %2
-              end
-            end
-          end
-        end
-
-* 14 Sep 26 dm - S.16.  THE API ROUTE: an administrator always, anyone else only
-*   on API.  Beside sdadmin because it is the same kind of step - a group the
-*   person joins because of what the command said.  A failure is reported and
-*   does NOT stop the create: the account is otherwise whole, and
-*   MODIFY.ACCOUNT <account> API (or ADMINISTRATOR) repeats the step.
-        if tier = 'ADMINISTRATOR' or route.word = 'API' then
-          if not(is_grp_member(acc.uname,'sdapi')) then
-            if not(valid_os_name(acc.uname)) then
-              crt sysmsg(10081,acc.uname,2)  ;* Unable to change API access for %1, status: %2
-            end else
-              os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdapi"
-              stat = OS.ERROR()
-              if stat = 0 then
-                crt sysmsg(10077,acc.uname)  ;* %1 may use the API.
-              end else
-                @system.return.code = -ER$FAILED
-                crt sysmsg(10081,acc.uname,stat)
-              end
-            end
-          end
-        end
-
+* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  The sdadmin and sdapi joins are gone:
+*   the groups do not exist any more.  One administrator, SDSYS; everybody is
+*   a plain sdusers member, and the API is open to every account except SDSYS.
 
       *
       * create user's sd group      
@@ -674,38 +576,12 @@ PW.TRY.AGAIN:
    case upcase(acc.type) = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
-* 09 Sep 26 dm - PRE_RELEASE 18.  Field 5 is the SD half of the owner's
-*   definition of an administrator: sudoers membership is the OS half, and this
-*   is the register saying what SD thinks the account is.  Written for every
-*   account type, so a listing never has to treat a blank as a tier.
-*   ACC$PRIOR.TIER (6) is left blank, which is what "not suspended" reads as.
-*   NOTHING CONSULTS THIS YET - the gates are the second commit.
-   acc.rec<ACC$TIER> = tier
-
-* 10 Sep 26 dm - PARITY AUDIT: THE OS-ACCESS GRANTS AT CREATION.  The port's
-*   grant.os.access writes them for a USER account only and returns for any
-*   other type - a GROUP or OTHER account has no person to grant a shell to,
-*   and MODIFY.ACCOUNT's os.set refuses one (10105).  An ADMINISTRATOR holds
-*   both by tier (LOGIN / CPROC logto), so nothing is written for one and
-*   MODIFY.ACCOUNT refuses to change them (10106).  10102 reports the result.
-   os.written = @false
-   if upcase(acc.type) = 'USER' and tier # 'ADMINISTRATOR' then
-      if os.sh or os.exec then
-         acc.rec<ACC$SH> = 'no'
-         if os.sh then acc.rec<ACC$SH> = 'yes'
-         acc.rec<ACC$OS.EXEC> = 'no'
-         if os.exec then acc.rec<ACC$OS.EXEC> = 'yes'
-         os.written = @true
-      end
-   end
+* 18 Sep 26 dm - TEARDOWN.  No tier field and no OS-access fields are written:
+*   field 5 is the suspension flag (blank = in service), field 6 stays blank,
+*   and fields 7/8 no longer exist.
 
    write acc.rec to acc.f, acc.name
    close acc.f
-
-   if os.written then
-      display sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)
-      * Account %1 has SH %2, OS.EXECUTE %3
-   end
 
    @system.return.code = 0
    return
@@ -738,85 +614,26 @@ make.account:
       stop sysmsg(6018) ;* Cannot open SDSYS NEWVOC
    end
 
-* 13 Sep 26 dm - SL M / port a47526f.  THE TIER POLICY LISTS LIVE IN THEIR OWN
-*   FILE NOW, sdsys/tier.policy, not in NEWVOC.  They are control data - verb-id
-*   lists, field 1 a comment - not VOC records, so a VOC file held a malformed
-*   entry and the copy loop below had to skip them.  Fail-safe if it will not
-*   open: no policy, which is the full NEWVOC for a STANDARD account and a
-*   programmer's VOC for an ADMINISTRATOR - the direction the lists have always
-*   failed.
-   tierpol.open = @false
-   openpath @sdsys:@ds:'tier.policy' to tierpol.f then tierpol.open = @true
-
-* 10 Sep 26 dm - SL1, the per-tier VOC.  The VOC an account gets now depends on
-*   its tier (the `tier` variable set above, written to ACC$TIER).  STANDARD gets
-*   NEWVOC less the verbs named in tier.policy's omit.standard ("run an
-*   application, not build one"); PROGRAMMER gets NEWVOC entire; ADMINISTRATOR
-*   gets that plus the admin verbs named in tier.policy's add.administrator,
-*   copied from VOC_TEMPLATE.  Matching is case-insensitive so it survives the
-*   lower-case conversion (SL M).
-   omit.rec = ''
-   add.rec = ''
-   if tier = 'STANDARD' and tierpol.open then
-      read omit.rec from tierpol.f, 'omit.standard' else omit.rec = ''
-   end
-   if tier = 'ADMINISTRATOR' and tierpol.open then
-      read add.rec from tierpol.f, 'add.administrator' else add.rec = ''
-   end
-   omit.count = dcount(omit.rec, @fm)
-
+* 18 Sep 26 dm - TEARDOWN (S.25).  One VOC layer: the new account gets all of
+*   NEWVOC, the PROGRAMMER set.  The STANDARD omit filter and the
+*   administrator add layer are gone with sdsys/tier.policy, and only SDSYS's
+*   own VOC - built from the whole of VOC_TEMPLATE at install - carries the
+*   administrator verbs.
    select newvoc.f to 11
    loop
       readnext id from 11 else exit
 
-      copy.it = @true
-* 13 Sep 26 dm - port a47526f.  The two copy.it = @false skip tests that stood
-*   here (TIER.OMIT.STANDARD, TIER.ADD.ADMINISTRATOR) are gone with the records:
-*   the tier lists moved to sdsys/tier.policy, so NEWVOC holds only VOC entries
-*   now and there is nothing here to skip.  An upgrade replaces NEWVOC wholesale,
-*   so no pre-move copy survives to reintroduce them into an account.
-      if copy.it and omit.count > 1 then
-         for omit.i = 2 to omit.count
-            if upcase(trim(omit.rec<omit.i>)) = upcase(id) then
-               copy.it = @false
-               omit.i = omit.count         ;* stop looking
-            end
-         next omit.i
-      end
-
-      if copy.it then
-         read rec from newvoc.f, id then
+      read rec from newvoc.f, id then
 * 10 Sep 26 dm - THE RECORD IS COPIED WHOLE, the port's PRE_RELEASE_FIXES 136
 *   (2 Sep 2026).  Two lines here reduced field 1 - the DESCRIPTION whose first
 *   character is the type code - to that one character, and did the same to
 *   field 3 of a K record, so every created account listed a bare "F" where
 *   SDSYS shows a sentence.  CPROC reads only voc.rec[1,1] and [1,2], so
-*   nothing needed the bare form.  LOGIN's update.voc and MODIFYA's
-*   tier.build.rec changed with it: all three must agree, or an update or a
-*   tier change undoes what creation wrote.
-            write rec to voc.f, id
-
-         end
-      end
+*   nothing needed the bare form.
+         write rec to voc.f, id
    repeat
 
    close newvoc.f
-   if tierpol.open then close tierpol.f
-
-   if tier = 'ADMINISTRATOR' then
-      add.count = dcount(add.rec, @fm)
-      if add.count > 1 then
-         openpath @sdsys:@ds:"voc_template" to voctmpl.f then
-            for add.i = 2 to add.count
-               add.id = trim(add.rec<add.i>)
-               read rec from voctmpl.f, add.id then
-                  write rec to voc.f, add.id
-               end
-            next add.i
-            close voctmpl.f
-         end
-      end
-   end
 
    * Set up $COMMAND,STACK VOC entry
 
@@ -882,43 +699,10 @@ more.args:
          case keyword = KW$NO.QUERY
             no.query = @true
 
-* 09 Sep 26 dm - PRE_RELEASE 18, the tier keywords.
-*
-*   MATCHED ON THE TOKEN TEXT RATHER THAN ON A KW$ CONSTANT, and that is the
-*   port's reasoning taken as-is: the keyword numbers in SYSCOM/PARSER.H are a
-*   positional table shared by every verb, so adding an entry to serve one verb
-*   is a larger and riskier change than this is worth.  THE COST IS THAT THESE
-*   CANNOT BE ABBREVIATED, unlike NO.QUERY.
-*
-*   STANDARD IS NOT A KEYWORD, it is the default - again matching the port.  A
-*   caller who types it gets the "unexpected token" answer below.
-         case upcase(token) = 'ADMINISTRATOR'
-            tier = 'ADMINISTRATOR'
-
-* AND PROGRAMMER MUST NOT DOWNGRADE.  Both keywords are accepted on one command
-*   line and in either order, so PROGRAMMER given after ADMINISTRATOR would
-*   otherwise silently take the higher tier away again.
-         case upcase(token) = 'PROGRAMMER'
-            if tier # 'ADMINISTRATOR' then tier = 'PROGRAMMER'
-
-* 10 Sep 26 dm - PARITY AUDIT: "SH-ON" AND "OS-ON", the port's grammar (its
-*   CREATEA, 27 Aug 2026).  Two independent switches, so "SH-ON OS-ON" is both
-*   and neither cancels the other.  Written at the register write below.
-* 14 Sep 26 dm - S.16, the API route.  The port's CREATEA takes SSH | API | BOTH |
-*   NONE; ssh follows the tier on Linux, so SSH and BOTH are refused by name
-*   (10919) rather than read as API.
-         case upcase(token) = 'API'
-            route.word = 'API'
-         case upcase(token) = 'NONE'
-            route.word = 'NONE'
-         case upcase(token) = 'SSH' or upcase(token) = 'BOTH'
-            @system.return.code = -ER$ARGS
-            stop sysmsg(10919, upcase(token))
-
-         case upcase(token) = 'SH-ON'
-            os.sh = @true
-         case upcase(token) = 'OS-ON'
-            os.exec = @true
+* 18 Sep 26 dm - TEARDOWN (S.25/S.27/S.28).  The tier keywords
+*   (ADMINISTRATOR | PROGRAMMER), the OS-access keywords (SH-ON | OS-ON) and
+*   the API route words (API | NONE | SSH | BOTH) are gone; typing any of them
+*   gets the "Unexpected token" answer below.
 
 * 11 Sep 26 dm - ADOPT, PORT_ADOPTION 15 and the port's :1678 byte for byte in
 *   shape.  Two gates, both required: the session must be -internal (which

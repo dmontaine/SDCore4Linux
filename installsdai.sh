@@ -534,25 +534,10 @@ sudo usermod -g sdusers -G sdusers sdsys
 # The drop-in names ONE command, SD's own helper, which validates its
 # arguments; see gplbld/sdcore.sudoers for why naming useradd/passwd/usermod
 # directly would be root by another route.
-if ! getent group sdadmin &>/dev/null; then
-  echo "Creating group: sdadmin."
-  sudo groupadd --system sdadmin
-else
-  echo "Group sdadmin already exists."
-fi
-
-# 14 Sep 26 dm - S.16, THE PORT'S PER-ACCOUNT API ROUTE.  APISRVR admits a SCRAM
-#            login only for a member of sdapi (10073).  CREATE.ACCOUNT puts an
-#            administrator in it, and anyone else only on the API keyword;
-#            MODIFY.ACCOUNT <account> API / NONE moves them.  A missing group
-#            refuses every API login, so it is created before anything below
-#            could need it.  Kept across a keep-accounts cycle, like sdadmin.
-if ! getent group sdapi &>/dev/null; then
-  echo "Creating group: sdapi."
-  sudo groupadd --system sdapi
-else
-  echo "Group sdapi already exists."
-fi
+#
+# 18 Sep 26 dm - TEARDOWN (S.26).  The sudoers grant is the sdsys OS user's
+#   now, not sdadmin's: one administrator, entered only from a local session.
+#   The sdadmin and sdapi groups are gone and are no longer created.
 
 # Root-owned, and deliberately NOT under /usr/local/sdsys: that tree is
 # chown -R sdsys:sdusers'd further down, so a helper living there could be
@@ -602,7 +587,7 @@ fi
 
 # The filename must carry no '.' or '~' - sudo skips those silently.
 sudo install -o root -g root -m 0440 gplbld/sdcore.sudoers /etc/sudoers.d/sdcore
-echo "Installed: /etc/sudoers.d/sdcore (members of sdadmin may run sd-elevate)."
+echo "Installed: /etc/sudoers.d/sdcore (the sdsys user may run sd-elevate)."
 # --------------------
 #
 sudo cp -R sdsys /usr/local
@@ -796,6 +781,11 @@ else
     echo "Created an empty credential register (\$cred)"
 fi
 sudo chown -R root:root "$sdsysdir/\$cred"
+# 18 Sep 26 dm - TEARDOWN (S.26).  $cred belongs to the administrator now: the
+#            sdsys OS user reads and writes it (MODIFY.PASSWORD runs in a local
+#            sdsys session, which is never root), and the API server reads it as
+#            root, which reads anything regardless of ownership.
+sudo chown -R sdsys:sdsys "$sdsysdir/\$cred"
 sudo chmod 700 "$sdsysdir/\$cred"
 echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
 #
@@ -808,7 +798,12 @@ echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
 #            nothing, and 644 is what every other register record is
 #            (accounts/don, written by SD as root).  Printed, not assumed.
 #            The record is accounts/sdsys: account names are lower case (13 Sep).
-sudo chown root:root "$sdsysdir/accounts/sdsys"
+# 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
+#            sdsys:sdusers 644, like every other record after the teardown
+#            chown below: a local sdsys session writes records without root,
+#            everyone else only reads.  (MODIFYA refuses to touch SDSYS's
+#            record regardless - 2202.)
+sudo chown sdsys:sdusers "$sdsysdir/accounts/sdsys"
 sudo chmod 644 "$sdsysdir/accounts/sdsys"
 echo "sdsys register record: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts/sdsys")"
 #
@@ -953,33 +948,26 @@ if ! sudo "$sdsysdir/bin/sd" THIRD.COMPILE; then
     exit 1
 fi
 #
-echo "Compiling CPROC without IS_INSTALL defined."
-sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
-if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
-    printf "%b\n" "$RED"
-    echo "CPROC recompile failed. Install terminated!"
-    printf "%b\n" "$NC"
-    exit 1
-fi
+# 18 Sep 26 dm - TEARDOWN (S.26).  CPROC is recompiled without IS_INSTALL
+# AFTER the seeding below: the seed steps run on the install build, whose
+# entry block grants the administrator bootstrap and has no root refusal.
+# The production CPROC refuses root outright, so once it is in place there is
+# no more root sd session on this machine.
 sudo chmod -R 755 "$sdsysdir/gcat"
 #
 #  create a user account for the current user
 echo
 echo
-# 10 Sep 26  THE INSTALLING USER IS REGISTERED AS AN SD ADMINISTRATOR.
-#            This was "create-account USER $tuser no.query", which made a
-#            STANDARD account with no tier and no sdadmin membership, so a
-#            fresh install had NO registered administrator and CPROC's
-#            bootstrap arm was the only way in.  Owner's ruling, 10 Sep 26:
-#            the arm is a fallback, not the norm.  The ADMINISTRATOR keyword
-#            is CREATEA's own path (PRE_RELEASE 18) - it writes ACC$TIER and
-#            adds the person to sdadmin - so the installer duplicates neither
-#            half.  The port seeds its first administrator the same way, by
-#            ADOPT, which CREATEA also forces to ADMINISTRATOR.
+# 10 Sep 26  THE INSTALLING USER IS REGISTERED AS A PLAIN SD ACCOUNT (S.26).
+#            This was "create-account USER $tuser no.query" first, then
+#            ADMINISTRATOR - the tier model.  With the tiers gone the account
+#            is a plain one: the installing user administers as the sdsys OS
+#            user from a local session (su - sdsys), and needs no register
+#            rank to be who they are.
 #
 #            AN EXISTING ACCOUNT IS NOT TOUCHED.  The directory test above
-#            means an upgrade that saved its accounts keeps the tier it has,
-#            so this seeds a fresh install rather than promoting anybody.
+#            means an upgrade that saved its accounts keeps what it has,
+#            so this seeds a fresh install rather than changing anybody.
 # 11 Sep 26  ADOPT, AND THE MARKER THAT MAKES IT INSTALL-ONLY (PORT_ADOPTION 15).
 #            CREATE.ACCOUNT now REFUSES a pre-existing Linux user (10038) - the
 #            owner's rule is that SD accounts create their own Linux user, and
@@ -992,17 +980,14 @@ echo
 #            open permanently, which is the state this replaces.  It is removed
 #            again below whatever happens, so a failed create cannot leave it.
 #
-#            ***NO ADMINISTRATOR KEYWORD ANY MORE***: ADOPT defaults the tier to
-#            ADMINISTRATOR (CREATEA), which is the port's arrangement.  That
-#            makes the install the witness for that default, so the result is
-#            CHECKED below rather than assumed - a silent STANDARD here is the
-#            exact regression the note above describes.
+#            THIS RUNS ON THE IS_INSTALL CPROC, whose entry block grants the
+#            administrator bootstrap and does not refuse root (18 Sep, S.26).
 # 11 Sep 26  PORT_ADOPTION 16 (port PRE_RELEASE_FIXES 70).  Captured BEFORE the
 #            seeding block, because that block creates the very directory this
 #            asks about.  "The accounts were kept" is what makes this install an
 #            UPGRADE rather than a first one, and the walk below is for upgrades:
 #            on a first install every account is built from the current NEWVOC
-#            and VOC_TEMPLATE already, so there is nothing to bring forward.
+#            already, so there is nothing to bring forward.
 if [ -d "/home/sd/user_accounts/${tuser}" ]; then
     accounts_kept=yes
 else
@@ -1010,26 +995,25 @@ else
 fi
 
 if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
-    echo "Creating a user account for ${tuser} as an SD administrator."
+    echo "Creating a user account for ${tuser}."
     adopt_marker="${sdsysdir}/\$adopt.$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
     sudo touch "$adopt_marker"
     sudo bin/sd -internal create-account USER "$tuser" ADOPT no.query
     sudo rm -f "$adopt_marker"
 
     # The instrument rule: say what the register ACTUALLY holds, not what the
-    # command was asked for.  Field 5 is ACC$TIER.
-    # 13 Sep 26 - account names are lower case: the register key is the name
-    # downcased, as CREATE.ACCOUNT stores it.
+    # command was asked for.  A record now holds three fields: path, description
+    # and the sdu_ group - no tier.  13 Sep 26: account names are lower case,
+    # the register key is the name downcased, as CREATE.ACCOUNT stores it.
     acct_reg="${sdsysdir}/accounts/$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
-    seeded_tier=$(sudo sed -n '5p' "$acct_reg" 2>/dev/null)
-    if [ "$seeded_tier" = "ADMINISTRATOR" ]; then
-      echo "Registered ${tuser} as an SD administrator (tier: ${seeded_tier})."
+    seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
+    if [ "$seeded_group" = "sdu_${tuser}" ]; then
+      echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
     else
       printf "%b\n" "$RED"
-      echo "WARNING: ${tuser} was registered with tier '${seeded_tier:-<none>}',"
-      echo "not ADMINISTRATOR. This install has no registered administrator, so"
-      echo "'sudo sd' will fall back to its bootstrap arm. Fix with:"
-      echo "    sudo ${sdsysdir}/bin/sd modify.account ${tuser} administrator"
+      echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
+      echo "not sdu_${tuser}. Inspect the register record before using SD:"
+      echo "    cat ${acct_reg}"
       printf "%b\n" "$NC"
     fi
 fi
@@ -1043,8 +1027,9 @@ fi
 #
 #            ALL is the unattended form: it does the walk without asking the
 #            "update all accounts?" question, which is the point of running it
-#            from a script.  It must run from SDSYS as an administrator, which
-#            is what sudo gives it here.
+#            from a script.  It must run from SDSYS as an administrator; the
+#            IS_INSTALL build's entry block grants the administrator bootstrap
+#            to this root session (18 Sep, S.26).
 #
 #            ***IT MAY STILL ASK ABOUT A RECORD TYPE CHANGE***, one account at a
 #            time, when NEWVOC's type for an id differs from the account's.
@@ -1057,22 +1042,30 @@ if [ "$accounts_kept" = yes ]; then
     sudo bin/sd UPDATE.ACCOUNTS ALL
 fi
 
-# 14 Sep 26 dm - S.16.  EVERY ADMINISTRATOR HAS THE API, AS A RULE (the port's
-#            owner, 21 Aug 2026), and this is where an administrator made
-#            before sdapi existed is given it.  A first install needs nothing -
-#            ADOPT goes through CREATE.ACCOUNT, which adds the administrator -
-#            but a keep-accounts install keeps a registered administrator whose
-#            person sdapi has never heard of, and nothing else would add them.
-#            THE RULE'S OWN SEED, NOT A MIGRATION: it runs every install, is a
-#            no-op when the membership is already there, and says who it added.
-#            sdadmin's members are the administrators' persons (MODIFY.ACCOUNT
-#            keeps the two in step).
-sdadmin_members=$(getent group sdadmin | cut -d: -f4 | tr ',' ' ')
-for member in $sdadmin_members; do
-    if ! id -nG "$member" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi; then
-        sudo usermod -aG sdapi -- "$member" && echo "Administrator $member added to sdapi (the API route)."
-    fi
-done
+# 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
+#            Records are sdsys:sdusers 644: a local sdsys session writes them
+#            without root (CREATE.ACCOUNT, MODIFY.ACCOUNT, DELETE.ACCOUNT all
+#            run as sdsys now), everyone else only reads.  A keep-accounts
+#            install carries records written by root sessions under the old
+#            model, so the chown runs every install and repairs those too.
+sudo chown -R sdsys:sdusers "$sdsysdir/accounts"
+sudo chmod 755 "$sdsysdir/accounts"
+sudo find "$sdsysdir/accounts" -maxdepth 1 -type f -exec chmod 644 {} +
+echo "account register: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts")"
+
+# 18 Sep 26 dm - TEARDOWN (S.26).  CPROC IS RECOMPILED WITHOUT IS_INSTALL HERE,
+#            LAST: the seeding above ran on the install build (no root
+#            refusal, administrator bootstrap), and from this point the
+#            production CPROC refuses a root session outright - root may still
+#            su - sdsys, and that is the one way into administration.
+echo "Compiling CPROC without IS_INSTALL defined."
+sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
+if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
+    printf "%b\n" "$RED"
+    echo "CPROC recompile failed. Install terminated!"
+    printf "%b\n" "$NC"
+    exit 1
+fi
 #
 echo
 echo Stopping sd
@@ -1123,12 +1116,13 @@ if [ -d "${dflt_git_folder}" ]; then
 fi
 cd "$cwd"
 #
-# 10 Sep 26  PRE_RELEASE 13 - hold the tier boundary at the edge of the machine.
-#            Without this a STANDARD account that SD denies SH and ! just ssh's
-#            in and gets a shell, never entering SD.  The helper appends a fenced
-#            "Match Group sdusers,!sdadmin -> ForceCommand sd" block to
-#            sshd_config, validates it with sshd -t before the live file changes,
-#            and reloads sshd.  Administrators (in sdadmin) keep a real shell.
+# 10 Sep 26  PRE_RELEASE 13 - hold the SD boundary at the edge of the machine.
+#            Without this an SD account just ssh's in and gets a shell, never
+#            entering SD.  The helper appends a fenced block to sshd_config,
+#            validates it with sshd -t before the live file changes, and reloads
+#            sshd.  18 Sep 26, the teardown (S.28): every sdusers member is
+#            forced into sd over ssh, and the sdsys OS account is denied network
+#            login outright - SDSYS is entered only from a local session.
 #
 #            NON-FATAL ON PURPOSE.  By here SD is installed and working; a
 #            refusal (the administrator has customised sshd_config) or a failure
@@ -1137,14 +1131,14 @@ cd "$cwd"
 #            installed path is used so this does not depend on the clone, which
 #            was just deleted.
 echo
-echo "Applying the ssh tier boundary (PRE_RELEASE 13)."
+echo "Applying the ssh boundary (PRE_RELEASE 13)."
 if sudo /usr/local/sbin/ssh-forcecommand --install; then
     ssh_boundary_ok=1
 else
     ssh_boundary_ok=0
     printf "%b\n" "$YELLOW"
-    echo "WARNING: the ssh tier boundary was NOT applied (see the message above)."
-    echo "SD is installed and working, but until this is in place a STANDARD"
+    echo "WARNING: the ssh boundary was NOT applied (see the message above)."
+    echo "SD is installed and working, but until this is in place an SD"
     echo "account can reach a shell over ssh without entering SD.  To apply it"
     echo "by hand once any conflicting sshd_config setting is resolved, run:"
     echo
@@ -1153,14 +1147,14 @@ else
 fi
 #
 # Remote-access prompts (owner, 10 Sep 2026, approach B) - enable ssh if asked.
-# The tier boundary above is applied to sshd_config regardless; this only turns
+# The SD boundary above is applied to sshd_config regardless; this only turns
 # the ssh SERVICE on (at boot) and opens port 22, when the operator asked for it.
 if [ "$allow_ssh" = "y" ]; then
     echo "Enabling ssh access from other computers (sshd at boot, port 22)."
     sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
     if command -v ufw >/dev/null 2>&1; then sudo ufw allow 22/tcp || true; fi
 else
-    echo "ssh access was not enabled (sshd left as the box had it; the tier"
+    echo "ssh access was not enabled (sshd left as the box had it; the SD"
     echo "boundary is in sshd_config for whenever ssh is turned on)."
 fi
 #
@@ -1175,11 +1169,11 @@ fi
 #            because an ELEVATED Windows session lands in SDSYS and LOGIN's
 #            require.credential asks there (port PRE_RELEASE_FIXES 138,
 #            finish-install.ps1:379-407).  NEITHER HALF OF THAT HOLDS HERE: this
-#            LOGIN has no require.credential anywhere - "sudo sd" lands in sdsys
-#            with nothing asked (gpl.bp/login:366-369) - and sdsys could not use
-#            the API even with a password, because APISRVR requires sdapi
-#            membership (gpl.bp/apisrvr:1259, message 10073) and the sdsys person
-#            is in sdusers only.  An SDSYS password here would unlock nothing.
+#            LOGIN has no require.credential anywhere, and sdsys could not use
+#            the API even with a password - after the teardown the API refuses
+#            SDSYS unless the connection is from this machine (10174), and SDSYS
+#            is entered locally anyway.  An SDSYS password here would unlock
+#            nothing.
 #
 #            THE THREE FAULTS THAT KILLED THE PORT'S FIRST PASSWORD STEP
 #            (adopt-account.ps1:46-61).  A change that brings back any one of
@@ -1187,11 +1181,11 @@ fi
 #            * A SESSION NEEDS A RUNNING SERVER - sysseg.c:133, "SD has not been
 #              started."  SD is stopped a few lines above, so this starts it and
 #              stops it again, leaving the machine as this step found it.
-#            * IT NEEDS PRIVILEGE.  $cred is root:root 0700; MODIFY.PASSWORD
-#              refuses before prompting unless the real uid is 0
-#              (set_acc_password:133) and CPROC restores euid 0 for it
-#              (cproc:235).  Hence sudo - and it is the administrator arm, the
-#              one witnessed on 74c60d4 (PORT_ADOPTION 17).
+#            * IT NEEDS AN ADMINISTRATOR (18 Sep 26, S.26).  $cred is
+#              sdsys:sdsys 0700 and MODIFY.PASSWORD refuses before prompting
+#              unless the administrator flag is set - so this runs as the
+#              sdsys OS user, the one administrator, on a local session:
+#              CPROC grants it, exactly as an operator would after install.
 #            * THE OUTPUT HAS TO SURVIVE.  It runs in this terminal with the rest
 #              of the install, not in a window that closes on the error.
 #
@@ -1199,9 +1193,9 @@ fi
 #            at :786), as the port skips a reinstall.  ***THE PORT'S REASON FOR
 #            SKIPPING DOES NOT ARISE HERE***: it would be asked for the OLD
 #            password, whereas this is an administrator setting another account -
-#            the sudo session is sdsys - and set_acc_password:161 asks for the
-#            current one only for your own.  The reason here is simply that the
-#            person already set one and a reinstall must not quietly replace it.
+#            the session is sdsys - and SET_ACC_PASSWORD asks for the current one
+#            only for your own.  The reason here is simply that the person
+#            already set one and a reinstall must not quietly replace it.
 #
 #            NON-FATAL EVERY WAY IT CAN GO: declining, a failure, or no terminal
 #            leaves the install complete and says how to set one later.  ***AND
@@ -1229,11 +1223,12 @@ else
     echo "  catch a typing slip; press Enter on an empty line to skip it."
     echo
     if sd_install_start; then
-        # From sdsys, as this project's other root sd sessions run
-        # (gplbld/interop-account.sh:288), and by the installed path because the
-        # clone was deleted above.  The directory does not pick the account -
-        # login:366-369 puts a root session in sdsys wherever it starts.
-        ( cd "$sdsysdir" && sudo "$sdsysdir/bin/sd" -QUIET MODIFY.PASSWORD "$tuser_lc" </dev/tty ) || true
+        # From sdsys, THE administrator (18 Sep 26, S.26): a local session
+        # running as the sdsys OS user, exactly as an operator reaches it after
+        # the install.  By the installed path because the clone was deleted
+        # above.  The directory does not pick the account - CPROC grants the
+        # administrator and LOGIN puts the session in sdsys wherever it starts.
+        ( cd "$sdsysdir" && sudo -u sdsys "$sdsysdir/bin/sd" -QUIET MODIFY.PASSWORD "$tuser_lc" </dev/tty ) || true
         sd_install_stop
         if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
             sd_pw_state="set"
@@ -1263,9 +1258,9 @@ echo "Group directories are created under /home/sd/group_accounts."
 echo "Accounts are only created using CREATE-ACCOUNT in SD."
 echo
 if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
-    echo "Over ssh, non-administrator accounts are forced into SD (the tier"
-    echo "boundary); administrators keep a normal shell.  /etc/ssh/sshd_config"
-    echo "was backed up to /etc/ssh/sshd_config.before-sd."
+    echo "Over ssh, SD accounts are forced into SD and sdsys is denied network"
+    echo "login; /etc/ssh/sshd_config was backed up to"
+    echo "/etc/ssh/sshd_config.before-sd."
     echo
 fi
 if [ "$allow_ssh" = "y" ]; then
