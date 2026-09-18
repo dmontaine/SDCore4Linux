@@ -370,7 +370,8 @@ of them reverse what an earlier analysis recommended.
   `usermod -aG` is the grant; suspension is a plain account flag
   (`MODIFY.ACCOUNT ... SUSPENDED`/`UNSUSPEND`).  **The security-model evaluation
   the owner reserved follows once the teardown is witnessed on an install.**
-  Built as one change set, 18 Sep 2026; not yet committed or installed.
+  Built as one change set, 18 Sep 2026; committed (`e41d318`) and pushed; not
+  yet installed.
 - **Lower case throughout**, matching the port. On a case-sensitive filesystem this
   needs real migration rather than the port's "both spellings work anyway".
   ***AND COMPLETE, WHICH THE PORT IS NOT*** (owner, 11 Sep 2026). The standard is
