@@ -67,7 +67,7 @@ GCAT_EDIT = os.path.join(V.SDSYS, "gcat", "$EDIT")
 SRC_EDIT = os.path.join(V.SDSYS, "gpl.bp", "edit")     # record names lower since 13 Sep 26
 SRC_MICRO = os.path.join(V.SDSYS, "gpl.bp", "micro")
 VOCT = os.path.join(V.SDSYS, "voc_template")
-OMIT = os.path.join(V.SDSYS, "tier.policy", "omit.standard")  # moved 13 Sep 26
+NEWVOC = os.path.join(V.SDSYS, "newvoc")   # 18 Sep 26: the one VOC layer (S.25)
 
 # The suffix GPL.BP/EDIT gives the working copy so the editor can detect the
 # language (EDIT:41-43, :190-191).  The nanorc's own syntax regex has to match
@@ -239,13 +239,17 @@ def main():
         if rec is not None and not ok:
             run.say("      got: %r" % (rec,))
 
-    omit = readfile(OMIT)
-    omit_names = set((omit or "").split("\n"))
-    # MEMBERSHIP, NOT THE COUNT.  PROJECT_STATUS recorded 43 names when NANO
-    # was added and the file holds 44 today; a count drifts as the tier list
-    # grows and would fail this file for someone else's correct change.
-    run.note("B5 NANO is withheld from STANDARD", True, "nano" in omit_names)
-    run.note("B6 MICRO is withheld from STANDARD", True, "micro" in omit_names)
+    # 18 Sep 26 - S.25 (the owner's teardown): THE OMIT LIST WENT WITH THE TIER
+    # MODEL.  B5/B6 read sdsys/tier.policy/omit.standard to prove nano and
+    # micro were withheld from a STANDARD account; there is one VOC layer now
+    # - NEWVOC as shipped, which every account gets - so nothing withholds
+    # them and there is no list to read.  The rows assert the replacement
+    # claim instead: both verbs are IN that layer.  (The tier machinery's own
+    # absence is witness-absence.sh M1, not this file's question.)
+    run.note("B5 NANO is in NEWVOC, the one layer every account gets (S.25)",
+             True, readfile(os.path.join(NEWVOC, "nano")) is not None)
+    run.note("B6 MICRO is in NEWVOC, the one layer every account gets (S.25)",
+             True, readfile(os.path.join(NEWVOC, "micro")) is not None)
 
     # ------------------------------------------- 3. find.editor's premise
     run.heading("3. find.editor's premise - an ABSOLUTE path from command -v")

@@ -174,17 +174,14 @@ def main():
     run.note("S6 command records were found (not the null case)", True, counted > 700)
     run.note("S7 no command id in NEWVOC/VOC_TEMPLATE/SD.VOCLIB has an upper-case"
              " letter", [], upper_cmds[:10])
-    unresolved = []
-    for lst, src in (("omit.standard", "newvoc"),
-                     ("add.administrator", "voc_template")):
-        body = readtxt(os.path.join(V.SDSYS, "tier.policy", lst))
-        if not body:
-            unresolved.append("%s: absent or empty" % lst)
-        for n in [l.strip() for l in body.splitlines()[1:] if l.strip()]:
-            if n != n.lower() or not os.path.exists(os.path.join(V.SDSYS, src, n)):
-                unresolved.append("%s:%s" % (lst, n))
-    run.note("S8 every tier-list entry is lower case and names a shipped record",
-             [], unresolved)
+    # 18 Sep 26 - S8'S SUBJECT IS GONE WITH S.25 (the owner's teardown):
+    # sdsys/tier.policy and its two lists (omit.standard, add.administrator)
+    # are deleted, so there is no tier list left to check and no account layer
+    # for one to feed - one VOC layer (NEWVOC) remains.  The row asserts the
+    # absence; the source-side absence is witness-absence.sh M1.  The rest of
+    # this verifier's lower-case rows are unaffected.
+    run.note("S8 sdsys/tier.policy is gone with the tier model (S.25)", True,
+             not os.path.exists(os.path.join(V.SDSYS, "tier.policy")))
     bad_r = []
     for d in ("newvoc", "voc_template"):
         dp = os.path.join(V.SDSYS, d)
