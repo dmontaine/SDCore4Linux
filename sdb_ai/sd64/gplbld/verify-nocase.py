@@ -75,12 +75,19 @@ def scan_dir(path):
 
 
 # The name categories, all ruled in scope.  (label, path, what it holds)
+#
+# 18 Sep 26 - THE "tier.policy records" CATEGORY IS GONE WITH S.25 (the owner's
+# teardown): sdsys/tier.policy is deleted, so there is no longer a category to
+# scan and its absence is witnessed by witness-absence.sh M1, not here.  It
+# was left in this list when the file went, and because the loop below returns
+# 2 on a MISSING category - deliberately, "cannot answer" - the meter stopped
+# dead after the fourth category and silently measured NONE of the rest of
+# itself (found 18 Sep 2026, before the witness cycle).
 NAME_CATEGORIES = [
     ("GPL.BP source records", "gpl.bp", "program and include records"),
     ("SYSCOM include records", "syscom", "include records"),
     ("NEWVOC record ids", "newvoc", "the shipped VOC"),
     ("VOC_TEMPLATE record ids", "voc_template", "the per-account VOC template"),
-    ("tier.policy records", "tier.policy", "the tier verb-id lists (13 Sep 26)"),
 ]
 
 # The behavioural sites §M must also change - a checklist, not a name scan.

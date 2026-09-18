@@ -300,6 +300,12 @@ model.  Also taken in the same session: the Windows port's RELEASE_1.1 60
 `9140dc4`); its RELEASE_1.1 59 (the world-writable shared segment) stays open
 and is even sharper now — see the session log.
 
+***THE CYCLE'S INSTRUMENTS WERE REPAIRED 18 Sep 2026, LATER, BEFORE THE
+INSTALL*** — three verifiers still read the deleted `sdsys/tier.policy`
+(`verify-nocase.py`, a free check that had begun to exit 2 and stop measuring;
+`verify-editors.py`'s B5/B6; `verify-lcnames.py`'s S8).  No shipped code changed.
+See the session log.
+
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated
 it in the port's vocabulary — "SDSYS", "LOGTO", "the standard level", "remote
@@ -4154,6 +4160,44 @@ until witnessed, W.5–W.9 ruled), committed (`e41d318`) and pushed on the
 owner's word ("handoff, commit, push").  NOT VERIFIED: anything on a machine —
 the fresh install + witness cycle (witness-absence.sh, witness-release-run.sh,
 witness-accounts.sh) is the next step.
+
+---
+
+***LATER THE SAME DAY — THE CYCLE'S INSTRUMENTS WERE REPAIRED BEFORE THE
+INSTALL.***  Opened on `pull` (already up to date at `90ae906`, working tree
+clean).  Three verifiers still read `sdsys/tier.policy`, which S.25 deleted.
+Found by running them rather than by reading:
+
+* ***`verify-nocase.py` HAD STOPPED MEASURING, AND IT IS A FREE CHECK — exit 2.***
+  `NAME_CATEGORIES` still held the `tier.policy` row, and the category loop
+  returns 2 on a MISSING category (deliberately — "cannot answer"), so the run
+  printed the first four categories and stopped: the sdsys directory names,
+  the `FILES_DICTS` targets, the code-site checklist and the verdict were never
+  reached.  The row is removed with the reason in its place; measured after:
+  exit 0, `§M NAME HALF: COMPLETE`, `--selftest` 19/19.  *(A green-looking
+  instrument that answers nothing is the quiet failure this project files
+  instruments against.)*
+* `verify-editors.py` B5/B6 asserted nano and micro were withheld from a
+  STANDARD account, reading `tier.policy/omit.standard`.  One VOC layer leaves
+  nothing withheld and no list to read, so the rows now assert the replacement
+  claim instead: both verbs are IN `newvoc`.  Measured: `--allow-stale` on the
+  current install, ***28 of 28 decisive checks*** (the rows are re-pointed, not
+  dropped, so the count is kept).
+* `verify-lcnames.py` S8 checked the two tier lists' entries.  Its subject is
+  gone; the row now asserts `tier.policy` is absent — which the current
+  pre-teardown install fails by design and the next install passes.  The rest
+  of that verifier's rows are untouched.  `py_compile` clean; NOT RUN here (it
+  drives `sd` sessions from the caller's account) — it belongs to the cycle.
+
+No shipped code changed: the three files are repository instruments, so the
+install is not affected.  The free checks were re-run on this change — `make`
+exit 0; `check-stale-leads.py` exit 0; ssh-forcecommand 18/18; sd-elevate
+57/57; msglen 10/10; accounts 17/17; sysperms 20/20; basicfuncs 25/25; nonet
+12/12; scram-vectors 46/46; tlsconsts 14/14; configpath 14/14; assert-current
+10/10; staleleads 18/18; editors 19/19; `verify-editors.py` 28/28;
+`verify-nocase.py` exit 0 (was exit 2); sdverify 41/41 + 26 selftest;
+scramprobe 13/13; tls-relay 26/26; check-storewriters 7 selftest;
+no-program-edits 32 selftest.
 
 ## Session log — 9 Sep 2026
 
