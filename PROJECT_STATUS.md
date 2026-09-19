@@ -24,7 +24,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 |---|---|---|---|---|
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree. Port's mail 16 Sep 22:14 (sd4windows RELEASE_1.1 43, `090756d`+1): its relay now has this tree's per-connection shape as a native spawn (`sdtlsrelay.exe`, S4U token for a bare `sdrelay` account, Low integrity, 0 privileges); wire to the client unchanged, client library unchanged; two socketpair-only deltas from `sd_tlssrv.c` (PEM bytes sd→relay; status byte + text relay→sd). Its units 27/27; witnessed on its install 16 Sep 22:57 (mail 23:05, its RELEASE_1.1 43 struck, `dbb0588..33c75c9`): `verify-relayidentity` 15/15 — one `sdtlsrelay.exe` per held connection, owner `sdrelay`, Low, 0 privileges, parent `sd.exe` still SYSTEM, gone at close. Its `syslog()` lands in the Windows Application event log, provider `sd_Log` — ask for that, not `sdsys/errlog`, when reading a Windows relay report. Nothing to change here | — |
 | ◐ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
-| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
+| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and — ***ROUTE CORRECTED BY THE OWNER, 18 Sep night: ENTERED ONLY BY A REAL LOGIN AS SDSYS (its own password, keyboard or desktop-sharing; the sudo/su route was never agreed to and is now refused, 10181, by the loginuid gate `K$LOGIN.UID`; no plain sdsys session; no remote login)*** — `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured - and the third cycle now also carries the login-route correction (sdsys shell/home/password at install; the witnesses' sdsys sessions run through the root loginuid bridge, M8f measures the bare `sudo -u sdsys` refused).*** | — |
 | ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
 | ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
@@ -347,6 +347,53 @@ THIS REPOSITORY WAS TOUCHED BY IT - verified at handoff: clean tree,
 the other port as UNTRUSTED until its deletions have been read: the two ports
 share a mailbox and the owner's time, not a filesystem.
 
+***HANDOFF, 18 SEP 2026, LATE NIGHT — THE OWNER CORRECTED THE ADMINISTRATOR
+ROUTE BEFORE THE WITNESSES RAN; THE CORRECTION IS BUILT AND PUSHED; THE
+THIRD CYCLE (NOT YET RUN) NOW CARRIES BOTH THE CREATEA FIX AND THE LOGIN
+GATE.***
+
+The owner ran the second cycle (install `3b81fb6`, 20:32) — its defect and
+the A4/witness fixes are recorded below (the previous handoff).  BEFORE any
+witness ran on the new install, he ruled on the ROUTE: ***administration is
+by LOGGING IN as sdsys with its own password and running sd — there is no
+path from another user into sdsys; the "sudo -u sdsys" / "su - sdsys" idea
+was the former agent's, was never agreed to, and is refused; there is no
+plain sdsys session; remote login as sdsys is impossible (keyboard or
+desktop-sharing only) — the Windows side's model exactly.***
+
+BUILT (this commit), all free-checked: `kernel(K$LOGIN.UID, 'user')`
+(op_kernel.c; key 65 in gplsrc/keys.h AND gpl.bp/int$keys.h) answers 1 only
+when the kernel's audit loginuid — PAM-set once at login (verified
+`required` in login/gdm-password/sshd on this box), inherited, root-only
+writable — belongs to the named user; cproc's grant requires it (grant audit
+now `reason=sdsys login`), and a sdsys session WITHOUT the login is refused
+outright like root — new message 10181, audit `ELEVATION REFUSED
+reason=sdsys session without a sdsys login`, 10176's advice line lost its
+"su - sdsys".  The installer gives sdsys a shell, a home (/home/sdsys, 750)
+and a PASSWORD OF ITS OWN at a hidden `sudo passwd sdsys` prompt (right
+before don's SD password), bridges its own MODIFY.PASSWORD step through the
+root loginuid write, and the end-of-install text names the login as the way
+in.  The witnesses' sdsys sessions all run through that root-only bridge;
+witness-absence M8f-M8h measure the BARE `sudo -u sdsys sd` refused, in
+10181's words, audited; M8e/T8 assert the new grant reason.  `make` links
+sd clean; msglen 10/10 with 10181 at 202/231; `bash -n` clean everywhere.
+
+***NOTHING IS MEASURED on this commit — the install is still `cdf87cb`'s
+predecessor on the machine (the witnesses never ran there).***  THE THIRD
+CYCLE: `bash deletesdai.sh` → `bash installsdai.sh` — it now asks TWO
+passwords at hidden prompts: first sdsys's LINUX password (the administrator
+sign-on), then don's SD password — then reboot, `systemctl is-active
+sd.service`, and the three witnesses (absence tee'd to /var/tmp).  Rows to
+watch: M2a (the CREATE.ACCOUNT completes — the createa fix), A4
+(`zzacct2:sdu_zzacct2 2775`), the seeding line, M8f (sudo -u sdsys refused
+in 10181's words), M4b (SH in the plain account's own session, no admin
+banner).  ***ONE UNVERIFIED MECHANISM: the root loginuid bridge writes
+/proc/self/loginuid — if audit is immutable on this box the write fails, the
+install's password step reports "not set", and every witness sdsys session
+is refused (10181) — diagnosable, and the fix would be `login -f sdsys` on
+a pty.***  After the install, administration is: log in as sdsys at the
+machine (GDM's "Not listed?" or a tty), run `sd`, use the admin verbs.
+
 ***HANDOFF, 18 SEP 2026, NIGHT — THE SECOND CYCLE RAN ON `3b81fb6` (20:32) AND
 FOUND ONE PRODUCT DEFECT AND ONE WITNESS DEFECT; BOTH ARE FIXED AND PUSHED;
 THE THIRD CYCLE IS THE ONE THAT CAN CLOSE S.25-S.28.***
@@ -555,7 +602,8 @@ witness-absence.sh is the replacement.  Messages removed: 10041-10050, 10053,
 10054, 10073, 10077, 10079-10083, 10087, 10102, 10105, 10106, 10108, 10109,
 10111, 10113, 10114, 10126-10129, 10157, 10159, 10900-10904, 10911, 10912,
 10919; added: 10176 (root refused), 10177 (sdsys remote refused), 10178/10179/
-10180 (suspend/unsuspend), 10916 (grant notice); 10002 and 10174 reworded.
+10180 (suspend/unsuspend), 10181 (sdsys without a sdsys login, the night
+ruling), 10916 (grant notice); 10002 and 10174 reworded.
 *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.* The pieces:
 `sdsys/tier.policy` and its two lists (`omit.standard`, `add.administrator`);
 `GPL.BP/TIERGATE`, whose `function tier_allows` (`tiergate:89-90`) is the
@@ -577,7 +625,8 @@ half of this is worse than none, because half leaves two privilege models
 disagreeing.*
 
 ***[S.26] THE TEARDOWN, 2 OF 4 — ONE ADMINISTRATOR, SDSYS, AND LOGTO IS NOT
-THE WAY IN. §BUILT§.*** Built 18 Sep 2026: cproc's root-entry block refuses a
+THE WAY IN. §BUILT§, AND THE ROUTE WAS CORRECTED BY THE OWNER THAT SAME
+NIGHT.*** Built 18 Sep 2026: cproc's root-entry block refuses a
 root session outright (10176, audited) and grants K$ADMINISTRATOR only to a
 session already running as the sdsys OS user on a local session —
 SSH_CONNECTION and SSH_TTY both empty (10916 granted, audited);
@@ -592,20 +641,54 @@ the first fresh cycle died) so a local sdsys session
 administers without root; set_acc_password gates on the administrator flag
 instead of uid 0; the installer recompiles CPROC without IS_INSTALL AFTER the
 seed steps (which run on the install build), and its MODIFY.PASSWORD step
-runs as sdsys.  The decision's Linux reading: SDSYS is tied to the
-`sdsys` OS account (uid 999, owner of /usr/local/sdsys), and SD administration
-exists only for a session running as that identity, obtained by elevating into
-it (`sudo -u sdsys`, `su - sdsys`) from a local session — "elevated" on Linux
-is the sudo step, not a UAC twin. `LOGTO sdsys` becomes refused for EVERYBODY:
-today `cproc:2847-2852` refuses only an unflagged session (10002, audited) and
+runs through the root loginuid bridge (below).  ***THE ROUTE, CORRECTED 18
+Sep NIGHT (owner, his words): the only way to administrate SD is to LOG IN
+TO THE COMPUTER as sdsys with its own password and then run sd, which places
+the sdsys user in the SD sdsys account with every admin verb; there is NO
+path from another user directly into sdsys — the sudo approach ("sudo -u
+sdsys", "su - sdsys") was the former agent's suggestion, was NEVER AGREED
+TO, and is now refused exactly as root is; there is no plain sdsys session;
+logging in as sdsys remotely is impossible (sshd's DenyUsers sdsys stays),
+so administration is at the keyboard or through a desktop-sharing app
+(TeamViewer, VNC) that gives local desktop access — "this exactly matches
+the model on the windows side."***  MECHANISM: the kernel's audit loginuid —
+set once by PAM at login (pam_loginuid.so is `required` in login,
+gdm-password and sshd on this box), inherited by every descendant, and
+unwritable without root — so a sudo'd or su'd session still carries the
+elevating user's loginuid.  New `kernel(K$LOGIN.UID, 'user')` (op_kernel.c,
+key 65 in gplsrc/keys.h and gpl.bp/int$keys.h, this tree's block clear of
+the port's 0-64) answers 1 only when the loginuid is set and belongs to the
+named user; unset (system services, containers) or unreadable answers 0.
+CPROC's grant now requires it: sdsys + local + loginuid=sdsys → grant
+(audit `ELEVATION GRANTED reason=sdsys login`); sdsys + local without the
+login → `display sysmsg(10181)` (new message; 10176's own advice line lost
+its "su - sdsys" with it) + audit `ELEVATION REFUSED reason=sdsys session
+without a sdsys login` + abort, the root arm's exact shape.  The installer
+follows: sdsys gets a shell (/bin/sh) and a home (/home/sdsys, 750,
+created — useradd ran --no-create-home), a password of its own at a hidden
+`sudo passwd sdsys` prompt near the end of the install, and the end-of-install
+text says the login is the way in (the old "sudo sd then MODIFY.PASSWORD"
+advice was wrong twice over and is gone).  Root remains able to forge a
+loginuid (CAP_AUDIT_CONTROL) — the same "the only limits ... those Linux
+imposes" line as before; the instruments and the installer's own sdsys step
+use exactly that root-only bridge (write sdsys's uid to /proc/self/loginuid
+in the process that execs sudo), and witness-absence M8f measures the
+UN-bridged route refused.  The decision's Linux reading, AS CORRECTED: SDSYS
+is tied to the `sdsys` OS account (uid 999, owner of /usr/local/sdsys), and
+SD administration exists only for a LOGIN as that identity — its own
+password, at the machine's keyboard or a desktop-sharing view of it; the
+sudo/su elevation this paragraph used to name here was the former agent's
+suggestion, never agreed to, and is refused (10181). `LOGTO sdsys` becomes
+refused for EVERYBODY: today `cproc:2847-2852` refuses only an unflagged
+session (10002, audited) and
 lets a flagged administrator through, and TIERGATE's "SDSYS is never granted"
 is belt and braces rather than the mechanism. ***EVERY OTHER ADMINISTRATOR
 ROUTE IS REFUSED WITH IT***: `grant.administrator` and the `K$ADMINISTRATOR`
 flag (`cproc:901`, `linuxlb.c:62`), the `sdadmin` group and its sudoers
 (`installsdai.sh:537`, `:601-605`), and plain `sudo sd` — root is "another
-administrator" and does not become SD's. Below the OS, root can still `su` to
-`sdsys`; the rule binds SD's own gate, which is his "the only limits ... those
-Linux imposes". Shapes: W.5, W.6.  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
+administrator" and does not become SD's. Below the OS, root can still forge
+a loginuid; the rule binds SD's own gate, which is his "the only limits ...
+those Linux imposes". Shapes: W.5, W.6.  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
 
 ***[S.27] THE TEARDOWN, 3 OF 4 — THE OS-ACCESS GATES GO; STANDARD LINUX
 LIMITS ONLY. §BUILT§.*** Built 18 Sep 2026: op_sh's os_permitted() and its
@@ -4650,6 +4733,38 @@ calls it.  The other two witnesses were checked for the same pattern and are
 clean (release-run's sessions are inline `sudo -u sdsys`; accounts' helper
 says "as sdsys" and means it).  Free checks: `bash -n` clean, no BOM, no
 CRLF, `test-accounts-units.py` 17/17, `test-sd-elevate.py` 72/72.
+
+***THE OWNER RAN THE THIRD INSTALL (`cdf87cb`, 21:12:39, reboot 21:13, the
+fixtures cleaned first — the ground was clear), AND THEN RULED ON THE
+ROUTE BEFORE ANY WITNESS RAN: administration is by a real LOGIN as sdsys
+(its own password, at the keyboard or a desktop-sharing view of it), no
+path from another user, no plain sdsys session, no remote sdsys login —
+"this exactly matches the model on the windows side"; the sudo idea was the
+former agent's and was never agreed to.***  THE RECORD ITSELF CARRIED THE
+WRONG ROUTE: S.26's entry read "obtained by elevating into it (`sudo -u
+sdsys`, `su - sdsys`)" — recorded as the ruling, actually never agreed to;
+10176's message text and two installer comments recommended `su - sdsys`
+too.  All corrected in place, the entry marked with the night correction.
+
+THE BUILD (one commit, all in this session): `K$LOGIN.UID` (key 65, both
+keys headers, op_kernel.c — reads /proc/self/loginuid, compares against
+getpwnam of the named user, pessimistic 0 on unset/unreadable); cproc's
+grant requires it for sdsys and REFUSES a sdsys session without the login
+(10181, audited, aborted — root's exact shape); message 10181 written
+(202/231, msglen green) and 10176's advice line rewritten; the installer
+gives sdsys `/bin/sh`, `/home/sdsys` (750) and a hidden `sudo passwd sdsys`
+prompt, bridges its MODIFY.PASSWORD step (`sudo sh -c 'echo $(id -u sdsys)
+> /proc/self/loginuid; exec sudo -u sdsys …'`), and its end text names the
+login as the way in; all three witnesses' sdsys sessions run through the
+same root-only bridge, M8f-M8h assert the bare `sudo -u sdsys sd` REFUSED
+(10181's words, audited, no banner), M8e and release-run T8 assert the new
+grant reason `sdsys login`.  VERIFIED BEFORE WRITING ANY OF IT:
+pam_loginuid.so is `required` in /etc/pam.d/login, gdm-password and sshd on
+this box, and this session's own /proc/self/loginuid reads 1000 — the
+mechanism is real here.  NOT VERIFIED (no root in this agent): that root
+can overwrite an already-set loginuid if audit were immutable — the
+handoff names the diagnosis and the fallback.  Free checks: `make` links sd;
+msglen-units 10/10; bash -n clean; stale-leads exit 0.
 
 ## Session log — 9 Sep 2026
 

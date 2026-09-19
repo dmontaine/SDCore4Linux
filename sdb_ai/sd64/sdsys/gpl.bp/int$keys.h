@@ -142,6 +142,15 @@
       * 14 Sep 26 dm - the Windows port's two, at its numbers (W.4 SCRAM phase 3)
       $define K$SET.USERNAME    60       ;* Set the session user name ($internal)
       $define K$ASSUME.USER     61       ;* Become the authenticated user ($internal)
+* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the login itself must be
+*   sdsys - "sudo -u sdsys sd" and "su - sdsys" arrive as the sdsys OS user
+*   on a local session, but the login that started them was somebody else's.
+*   kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit loginuid -
+*   set once by PAM at login and inherited by every descendant, unwritable
+*   without root - belongs to the named user, 0 when it is unset or cannot
+*   be read.  This tree's own key, in the block clear of the port's 0-64.
+*   Must match gplsrc/keys.h.
+      $define K$LOGIN.UID      65       ;* Session's loginuid belongs to user?
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no

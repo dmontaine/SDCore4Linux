@@ -228,9 +228,11 @@ run_sd() {
         # that used to run as root measure that refusal.
         out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
     elif [ "$who" = sdsys ]; then
-        # 18 Sep 26 (S.26): the administrator - a local session running as the
-        # sdsys OS user.
-        out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 sudo -u sdsys "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
+        # 18 Sep 26, NIGHT (S.26 corrected): the administrator is a real sdsys
+        # LOGIN, so the session runs through the root-only loginuid bridge -
+        # without it "sudo -u sdsys sd" is refused (10181), which is the
+        # product doing exactly what the owner ruled.
+        out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
     elif [ "${who#root:}" != "$who" ]; then
         # root:<person> - a root session whose SUDO_USER names <person>; the
         # teardown refuses the session outright whatever the person is, and the
@@ -752,7 +754,7 @@ else
         ck_says "T5 the ADD record is new in the trail" "MODIFY.ACCOUNT ADD account=$ACC to=$ACC2" "$NEW"
         ck_says "T6 the DELETE record is new in the trail" "MODIFY.ACCOUNT DELETE account=$ACC from=$ACC2" "$NEW"
         ck_says "T7 the ELEVATION REFUSED record is new" "ELEVATION REFUSED reason=root is not SD administrator" "$NEW"
-        ck_says "T8 the ELEVATION GRANTED record is new (this sdsys session's own)" "ELEVATION GRANTED reason=local sdsys session" "$NEW"
+        ck_says "T8 the ELEVATION GRANTED record is new (this sdsys session's own)" "ELEVATION GRANTED reason=sdsys login" "$NEW"
     fi
 fi
 
@@ -870,7 +872,7 @@ else
     say "  \$cred/$ACC before: $(yesno_file "$CREDDIR/$ACC")"
     if [ "$COMMIT" -eq 1 ]; then
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$CPW" "$CPW" \
-              | timeout 120 sudo -u sdsys "$SD" 2>&1 | strip)
+              | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$CPW/********/g" -e 's/^/      | /'
         ck_says "C0 it saw no credential and said so" "has no password set.  Setting the first one." "$OUT"
         ck_says "C1 MODIFY.PASSWORD reported the credential set" "Password set for account $ACC" "$OUT"
@@ -997,7 +999,7 @@ else
     say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character SD password (not shown) ---"
     if [ "$COMMIT" -eq 1 ]; then
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
-              | timeout 120 sudo -u sdsys "$SD" 2>&1 | strip)
+              | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
         ck_says "A5.0 the long SD password was set" "Password set for account $ACC" "$OUT"
     fi
@@ -1390,7 +1392,7 @@ else
     #   was missing.
     if [ "$COMMIT" -eq 1 ]; then
         OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nMODIFY.ACCOUNT %s SUSPENDED\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
-                  "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo -u sdsys "$SD" 2>&1 | strip)
+                  "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
         ck "Y0 the route: WHO named $ACC" "$ACC " "$WHOS"

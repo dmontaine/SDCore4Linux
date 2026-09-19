@@ -1,0 +1,4 @@
+This session runs as sdsys but the machine was not logged in as
+sdsys, so it is not the administrator. Log in as sdsys at this
+machine's keyboard (or a desktop-sharing view of it) and run sd
+from there.

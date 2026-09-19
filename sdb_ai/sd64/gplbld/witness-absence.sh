@@ -113,7 +113,15 @@ run_sd_as() {
   done
   body="$body"$'\n''OFF'$'\n'
   if [ "$user" = sdsys ]; then
-    out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
+#   18 Sep 26 dm, NIGHT - S.26's corrected route: ONLY A REAL SDSYS LOGIN
+#   administers, so a bare "sudo -u sdsys sd" is REFUSED (10181) - its
+#   loginuid is whoever ran the witness.  The witness runs as root (--commit
+#   is sudo), and root alone may adopt a loginuid: the bridge writes sdsys's
+#   uid into /proc/self/loginuid of exactly this process tree and execs sudo,
+#   reproducing the credential state of a genuine sdsys login (OS user sdsys,
+#   local, loginuid sdsys).  It grants nothing to anybody who is not already
+#   root; M8f measures the un-bridged route and must be refused.
+    out=$(printf '%s' "$body" | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD_BIN" 2>&1 | strip)
   elif [ "$user" = root ]; then
     out=$(printf '%s' "$body" | timeout 90 "$SD_BIN" 2>&1 | strip)
   else
@@ -149,7 +157,7 @@ cleanup() {
   if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
     say "  $ACC is still registered; deleting it through SD (as sdsys, REMOVE.HOME)"
     printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC REMOVE.HOME"$'\n''y'$'\n''OFF'$'\n' \
-      | timeout 90 sudo -u sdsys "$SD_BIN" >/dev/null 2>&1
+      | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD_BIN" >/dev/null 2>&1
   fi
   # 18 Sep 26 dm - AND ITS HOME, WHICH IS THIS WITNESS'S OWN TO TAKE AWAY.  A
   #   plain DELETE.ACCOUNT keeps the home by design - REMOVE.HOME is the other
@@ -309,10 +317,23 @@ if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8c and it was audited" "ELEVATION REFUSED reason=root is not SD administrator" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
-OUT=$(run_sd sdsys "a local sdsys session (granted)" "WHO")
+OUT=$(run_sd sdsys "a sdsys login session, by the bridge (granted)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
-  ck_says "M8d the local sdsys session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
-  ck_says "M8e and the trail says so" "ELEVATION GRANTED reason=local sdsys session" \
+  ck_says "M8d the sdsys login session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
+  ck_says "M8e and the trail says so" "ELEVATION GRANTED reason=sdsys login" \
+    "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
+fi
+if [ "$COMMIT" -eq 1 ]; then
+# 18 Sep 26 dm, NIGHT - THE OWNER'S RULING AS A ROW: no path from another
+#   user into sdsys.  The witness's own loginuid is the owner's (it arrives
+#   by sudo from a don session), so a BARE "sudo -u sdsys sd" - no bridge -
+#   is exactly the route that must be refused, in 10181's words, audited,
+#   never reaching the prompt.
+  OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
+  printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+  ck_says "M8f sudo -u sdsys is refused (10181)" "not logged in as sdsys" "$OUT"
+  ck_absent "M8g and never reached the prompt (no grant banner)" "SD administration granted" "$OUT"
+  ck_says "M8h and it was audited" "ELEVATION REFUSED reason=sdsys session without a sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 

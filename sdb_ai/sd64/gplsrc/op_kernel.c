@@ -97,6 +97,7 @@ void op_kernel() {
      K$IS.PHANTOM         Is this a phantom process
      K$TERM.TYPE          Terminal type name
      K$USERNAME           User name
+     K$LOGIN.UID          Loginuid belongs to named user?
      K$DATE.CONV          Set default date conversion
      K$PPID               Get parent process id
      K$USERS              Get user list
@@ -324,6 +325,42 @@ void op_kernel() {
             (setuid(pwd->pw_uid) == 0) &&
             (getuid() == pwd->pw_uid) && (geteuid() == pwd->pw_uid)) {
           result.data.value = 1;
+        }
+      }
+      break;
+
+    /* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING (evening): THE LOGIN
+       ITSELF MUST BE SDSYS.  "sudo -u sdsys sd" and "su - sdsys" both arrive
+       as the sdsys OS user on a local session, and the grant in CPROC could
+       not tell them from the real thing.  The kernel's audit loginuid can:
+       PAM sets it once at login (pam_loginuid.so is required in login,
+       gdm-password and sshd on this box), every descendant process inherits
+       it, and without root it cannot be written - sudo and su carry the
+       elevating user's loginuid across, always.  This call answers 1 only
+       when the loginuid is SET and belongs to the named user.  An unset
+       loginuid (4294967295 - system services, containers) or an unreadable
+       /proc answers 0, so those refuse rather than grant.  CPROC's
+       administrator gate is the caller; nobody else asks this question.     */
+    case K_LOGIN_UID:
+      {
+        char uname[MAX_USERNAME_LEN + 1];
+        struct passwd *pwd;
+        FILE *f;
+        char buf[16];
+        unsigned long int lu;
+
+        result.data.value = 0;
+        if ((k_get_c_string(descr, uname, MAX_USERNAME_LEN) > 0) &&
+            ((pwd = getpwnam(uname)) != NULL) &&
+            ((f = fopen("/proc/self/loginuid", "r")) != NULL)) {
+          if (fgets(buf, sizeof(buf), f) != NULL) {
+            lu = strtoul(buf, NULL, 10);
+            if ((lu != 0) && (lu != 4294967295UL) &&
+                (lu == (unsigned long int)(pwd->pw_uid))) {
+              result.data.value = 1;
+            }
+          }
+          fclose(f);
         }
       }
       break;

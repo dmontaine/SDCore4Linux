@@ -28,6 +28,10 @@
 *           suspension test now reads ACC$SUSPENDED (W.7).  os.command no
 *           longer asks K$ADMINISTRATOR/K$SH - SH and "!" run at the account's
 *           own Linux permissions (S.27), the metacharacter filter stays.
+* 18 Sep 26 dm, NIGHT (owner): administration is by a real LOGIN as sdsys -
+*           the kernel's loginuid must be sdsys's (K$LOGIN.UID), so sudo and
+*           su from another user are refused (10181) like root is.  There is
+*           no plain sdsys session.
 * 14 Sep 26 dm  $MODIFY.PASSWORD runs with euid 0 restored, like the account
 *               verbs: it writes $cred, which is root:root 0700 (W.4 SCRAM
 *               phase 2).
@@ -363,10 +367,9 @@ restart.cproc:
 *   membership - is gone with it.  Two arms replace it:
 *
 *   ROOT IS REFUSED OUTRIGHT (W.5, the hard reading).  A root session is not
-*   SD's administrator any more; the way in is to run SD AS the sdsys OS user
-*   (su - sdsys), so the session starts as that identity and nothing is
-*   inferred.  Refusing, instead of the old drop-and-ask, also stops SD from
-*   silently converting any root invocation into an administrator session.
+*   SD's administrator any more; the way in is a real login as sdsys.  Refusing,
+*   instead of the old drop-and-ask, also stops SD from silently converting any
+*   root invocation into an administrator session.
 *
 *   SDSYS, LOCAL ONLY (W.6).  A session that already runs as the sdsys OS user
 *   is the administrator, PROVIDED it is a local session: SSH_CONNECTION and
@@ -374,6 +377,20 @@ restart.cproc:
 *   sdsys OS account is un-ssh-able at the sshd boundary as well; this test is
 *   SD's own half of that door.  K$ADMINISTRATOR is set here and nowhere else
 *   in GPL.BP - every other site reads it with -1.
+*
+* 18 Sep 26 dm, NIGHT - THE OWNER CORRECTED THE ROUTE, and the correction is
+*   the rule: administration is by LOGGING IN as sdsys (its own password, at
+*   the machine's keyboard or over a desktop-sharing view of it - VNC,
+*   TeamViewer - which is a local login the OS itself provides), and there is
+*   NO path from another user into sdsys.  "sudo -u sdsys sd" and "su - sdsys"
+*   are refused (10181) exactly the way root is: both arrive as the sdsys OS
+*   user on a local session, but the login that started them was somebody
+*   else's, and the kernel's audit loginuid says so (K$LOGIN.UID - set once
+*   by PAM at login, inherited by every descendant, unwritable without root).
+*   The "sudo -u sdsys" route this block used to describe was the former
+*   agent's suggestion and was never agreed to.  There is no plain sdsys
+*   session either (owner): a login as sdsys IS the administrator, with every
+*   admin verb - the Windows side's model exactly.
 *
 *   THE INSTALL BOOTSTRAP IS EXEMPT AND HAS TO BE (IS_INSTALL): while sd -i is
 *   still building the machine there is no register and no finished CPROC, and
@@ -389,14 +406,22 @@ $else
 $endif
       end
 $ifndef IS_INSTALL
-*   downcase: kernel(K$USERNAME, 0) is the OS account; su - sdsys names it in
-*   lower case, and the comparison must not depend on who typed what.
+*   downcase: kernel(K$USERNAME, 0) is the OS account, and the comparison must
+*   not depend on who typed what.
       if downcase(kernel(K$USERNAME, 0)) = 'sdsys' and env('SSH_CONNECTION') = '' and env('SSH_TTY') = '' then
-         void kernel(K$ADMINISTRATOR, 1)
+         if kernel(K$LOGIN.UID, 'sdsys') = 1 then
+            void kernel(K$ADMINISTRATOR, 1)
 * 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
 *   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
-         void kernel(K$AUDIT, 'ELEVATION GRANTED reason=local sdsys session')
-         admin.notice<-1> = sysmsg(10916)
+            void kernel(K$AUDIT, 'ELEVATION GRANTED reason=sdsys login')
+            admin.notice<-1> = sysmsg(10916)
+         end else
+* 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
+*   Refused like root; there is no plain sdsys session to fall back to.
+            display sysmsg(10181)
+            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session without a sdsys login')
+            goto abort.cproc
+         end
       end
 $endif
       
