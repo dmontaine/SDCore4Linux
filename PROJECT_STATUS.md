@@ -325,6 +325,27 @@ evidence is only the terminal scrollback.  If an install aborts part-way, run
 `deletesdai.sh` before retrying: `installsdai.sh:125` refuses to re-run while
 `/usr/local/sdsys/bin/sd` exists.
 
+***CLOSE, 18 SEP 2026, EVENING — THE FIRST CYCLE RAN AND DIED AT
+`installsdai.sh:788`; THE FIX IS IN, THE RE-RUN HAS NOT HAPPENED (owner:
+"install failed").***  The install cloned `origin/main` and stamped
+`.sdcore-install` `commit=767443051ecd`, `installed=2026-09-18 17:09:24` —
+***so the teardown build did reach the machine*** — and then it stopped on
+`chown: invalid group: 'sdsys:sdsys'`: THERE IS NO `sdsys` GROUP (the `sdsys`
+user's primary group is `sdusers`, gid 979).  Every place that carried the
+name is corrected to `sdsys:sdusers`, and the mode stays 700, so the group
+confers nothing either way: `installsdai.sh:788` (where it died),
+`witness-release-run.sh`'s C7 (it asserted the same string and would have
+failed next run), `set_acc_password`'s comments, `deletesdai.sh:195`'s stale
+`root:root 0700`, and the S.26 text below.  ***THE RE-RUN NEEDS THE FIX PUSHED
+FIRST*** — the installer clones `origin/main` (`installsdai.sh:74`, `:385`),
+and `deletesdai.sh` first again, because the part-install left
+`/usr/local/sdsys/bin/sd` in place (`:152`).  ***The owner's run kept the
+accounts*** (`/home/sd` held the register, `$cred`, `sd.conf` and the audit
+trail, which only the keep path saves), so the FRESH (DELETE) cycle described
+above is STILL UNRUN — fresh or keep is the owner's call on the re-run, and
+the fix is the same for both.  Nothing is witnessed; no `witness-*` log exists
+later than 15 Sep.
+
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated
 it in the port's vocabulary — "SDSYS", "LOGTO", "the standard level", "remote
@@ -383,7 +404,9 @@ sdsys is refused for everybody (10002 reworded); the administrator's LOGTO
 keeps the S.2 group refresh (int.logto calls EUID_SET, and SD_EUID_SET now
 reloads groups for any caller — sdext_eguid.c).  The sudoers grant moved from
 %sdadmin to the sdsys user; the register and $cred now belong to sdsys
-(register sdsys:sdusers 644, $cred sdsys:sdsys 700) so a local sdsys session
+(register sdsys:sdusers 644, $cred sdsys:sdusers 700 - CORRECTED 18 Sep
+2026, late: this read `sdsys:sdsys` and there is no sdsys GROUP, which is where
+the first fresh cycle died) so a local sdsys session
 administers without root; set_acc_password gates on the administrator flag
 instead of uid 0; the installer recompiles CPROC without IS_INSTALL AFTER the
 seed steps (which run on the install build), and its MODIFY.PASSWORD step
@@ -4117,7 +4140,7 @@ THE BUILD, TASK BY TASK (all in one change, committed `e41d318`):
   now).  sdcore.sudoers: `%sdadmin` → the `sdsys` user.  Register and $cred
   now belong to the administrator: `chown -R sdsys:sdusers` +
   644 on accounts (new step after the seeding), accounts/sdsys
-  sdsys:sdusers 644, $cred sdsys:sdsys 700 (MODIFY.PASSWORD runs as sdsys;
+  sdsys:sdusers 644, $cred sdsys:sdusers 700 (MODIFY.PASSWORD runs as sdsys;
   the root API server reads regardless).  set_acc_password gates on
   K$ADMINISTRATOR instead of uid 0, with a note that "set your own" is an
   administrator act here (one register, one owner — a deliberate port
@@ -4152,7 +4175,7 @@ THE BUILD, TASK BY TASK (all in one change, committed `e41d318`):
   verify-grants.py deleted (W.8); witness-release-run.sh reworked (§2/§2b
   sdsys sessions incl. a setpriv-driven S.2 stale-group re-witness; §6/§7
   struck; §8 gains T8 ELEVATION GRANTED; §10/§11 struck; §12 rewritten for
-  one layer; §13's MODIFY.PASSWORD and C7 (sdsys:sdsys 700); §13b A4 struck
+  one layer; §13's MODIFY.PASSWORD and C7 (sdsys:sdusers 700); §13b A4 struck
   with a root-refusal control in its place and A5 as sdsys; §13e is SDSYS's
   door with a throwaway credential set/measured/removed; §13f is the absence
   pair; §13g drives SUSPENDED/UNSUSPEND + $cred rewrite as sdsys; §13j
@@ -4226,6 +4249,71 @@ on the reconciled docs, and the owner takes a new session for the cycle.
 the fresh install is the next session's first act, as the handoff above says.
 The instrument repair was a repair and not a teardown step: no shipped code
 changed, so none of the S.25–S.28 rows' state moves.
+
+---
+
+***THE FIRST CYCLE RAN THE SAME EVENING AND DIED ON A GROUP THAT DOES NOT
+EXIST — FIXED, NOT YET RE-RUN (owner: "install failed").***
+
+Opened on `pull` — already up to date at `7674430`, working tree clean (the
+configured workspace folder `~/Projects/sdcore4linux` is still the empty stub;
+the repository is `~/Projects/SDCoreLinuxProject/sdcore4linux`).  The free
+checks were re-run green on the repaired tree before the cycle — `make` exit 0;
+accounts 17/17; basicfuncs 25/25; nonet 12/12; sysperms 20/20; msglen 10/10;
+editors 19/19; ssh-forcecommand 18/18; sd-elevate 57/57; sdverify 41/41 + 26
+selftest; tls-relay 26/26; tlsconsts 14/14; scramprobe 13/13; scram-vectors
+46/46; configpath 14/14 + 8 mutants; staleleads 18/18; storewriters PASSED + 7
+selftest; no-program-edits 32 selftest; `verify-nocase.py` exit 0;
+`check-stale-leads.py` exit 0; `assert-current` STALE (install `c1ea29b` vs HEAD
+`7674430`) — correct before a cycle.  The mailbox's `to-linux/` is empty.
+
+***WHAT THE INSTALL DID BEFORE IT STOPPED.***  It cloned `origin/main`; stamped
+`/usr/local/sdsys/.sdcore-install`
+`commit=767443051ecdfbaa5473ddec97978985ee9304e8`, `installed=2026-09-18
+17:09:24`, so ***the teardown build did reach the machine***; installed nano's
+BASIC syntax file; copied the units into `/usr/lib/systemd/system` (:725,
+`:732`); took the API-listener answer "yes"; installed the sudoers drop-in and
+the ssh-boundary helper (:554-555 — the helper, NOT its sshd block, which is at
+`:1144`, after the failure); and restored the accounts directory, the credential
+register (`$cred`) and the audit trail from `/home/sd` (:758-782).
+
+***THE ABORT: `installsdai.sh:788` — `chown: invalid group: 'sdsys:sdsys'`.***
+There is no `sdsys` GROUP on this box.  The `sdsys` USER's primary group is
+`sdusers` (gid 979), and nothing in the tree ever ran `groupadd sdsys`: the
+S.26 entry wrote "$cred sdsys:sdsys 700" and the installer implemented the
+string literally.  ***FIVE PLACES CARRIED IT; ALL ARE NOW `sdsys:sdusers`*** —
+the group every other sdsys-owned path in the installer already uses:
+`installsdai.sh:788` (the abort) and its `:1194` comment; C7 of
+`witness-release-run.sh` (:879), which asserted the same string and would have
+FAILED on the next witness run, and its `:1340` comment; `set_acc_password`'s
+two comments with a START-HISTORY line (comments only — no code ever read the
+group); `deletesdai.sh:195`'s "restores it root:root 0700", stale since the
+teardown; and the S.26 text and session log of this file.  The mode stays 700,
+so the group confers nothing either way: what the wall rests on is the OWNER
+(the `sdsys` user, which MODIFY.PASSWORD runs as) plus CPROC's administrator
+flag.
+
+***THE MACHINE HOLDS A PART-INSTALL, AND THE RE-RUN NEEDS TWO THINGS.***
+`/usr/local/sdsys/bin/sd` exists (17:09) and `sd.service` is inactive and
+disabled with the units copied but never enabled, so `installsdai.sh:152`
+refuses a retry until `deletesdai.sh` runs.  And `:788` is not the only step
+that did not happen — everything after it did not either: `accounts/sdsys`'s
+chown and the register's recursive chown, the `sd.conf` restore, `dumps/`, the
+audit-trail restore, the sshd boundary block (`:1144`;
+`grep -A3 'Match Group sdusers' /etc/ssh/sshd_config` is empty), the seed steps,
+the CPROC recompile without IS_INSTALL, and the MODIFY.PASSWORD step.
+
+***THE OWNER'S RUN KEPT THE ACCOUNTS*** — `/home/sd` held the register, `$cred`,
+`sd.conf` and the audit trail, and only the keep path saves those (DELETE
+removes `/home/sd` with everything else) — so ***the FRESH cycle the handoff
+prescribes is STILL UNRUN***; fresh or keep is the owner's call on the re-run
+and the fix is the same for both.  ***THE FIX MUST BE PUSHED BEFORE ANY
+RE-RUN***: the installer clones `origin/main` (`installsdai.sh:74`, `:385`), so
+an unpushed fix is tested by nothing.
+
+***NOT MEASURED: anything on a machine.***  No witness ran, no `witness-*` log
+exists later than 15 Sep, and the S.25–S.28 rows do not move until a cycle
+completes.
 
 ## Session log — 9 Sep 2026
 

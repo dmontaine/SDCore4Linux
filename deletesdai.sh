@@ -192,7 +192,9 @@ done
 # ACCOUNTS, for the reason the audit trail does: $cred is every account's SD
 # password (as SCRAM keys), and a keep cycle that dropped it would leave every
 # account unreachable through the API until each password was set again.
-# installsdai.sh restores it root:root 0700.  DELETE removes it.
+# installsdai.sh restores it sdsys:sdusers 0700 - the administrator's own
+# (18 Sep 26, S.26; the group is sdusers, there is no sdsys group).  DELETE
+# removes it.
 if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/\$cred" ]; then
     sudo rm -fr "$acct_path/\$cred"
     sudo cp -a "$sdsysdir/\$cred" "$acct_path/"
