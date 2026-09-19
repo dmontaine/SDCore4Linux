@@ -1829,7 +1829,7 @@ LINUX_PW=""
 # $ACC2's voc is moved aside and put straight back - and touches nothing else.
 head2 "15. S.5 - DELETE.ACCOUNT of the SD-created user takes the user (10084, 10028); P.31's 10188"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
-    for r in "K1 one question" "K2 10084" "K3 10028" "K4 register gone" "K5 user gone" "K7 credential gone"; do not_reached "$r"; done
+    for r in "K1 one question" "K2 10084" "K3 10028" "K4 register gone" "K5 user gone" "K7 credential gone" "K10 directory gone"; do not_reached "$r"; done
     for r in "K8 10188 named $ACC2" "K9 the deletion finished anyway"; do not_reached "$r"; done
 else
     # Make the condition, and SAY WHETHER IT WAS MADE.  If the voc is not
@@ -1860,6 +1860,8 @@ else
     if pgrep -u "$ACC" >/dev/null 2>&1; then
         say "      | WARNING: $ACC still has a running process; userdel may refuse"
     fi
+    ZZDEEP_BEFORE=$(yesno_dir "$ADIR/zzdeep")
+    [ "$COMMIT" -eq 1 ] && say "      | before: $ADIR/zzdeep (the user's own subtree): $ZZDEEP_BEFORE; owner/mode $(stat -c '%U:%G %a' "$ADIR/zzdeep" 2>/dev/null)"
     OUT=$(run_sd sdsys "DELETE.ACCOUNT $ACC, answered y" "DELETE.ACCOUNT $ACC" "y")
     # Put it back BEFORE the checks, so a failing check cannot leave $ACC2
     # crippled for the sections that follow or for the cleanup.
@@ -1874,6 +1876,14 @@ else
         ck "K4 the register record is gone" no "$(yesno_file "$REGISTER/$ACC")"
         ck "K5 the SD-created Linux user is gone" no "$(yesno_user "$ACC")"
         ck "K7 and its SD password went with it (\$cred/$ACC, written in section 13)" no "$(yesno_file "$SDSYS/\$cred/$ACC")"
+        # 19 Sep 26 - THE DIRECTORY TOO.  The fifth cycle's DELETE.ACCOUNT left
+        #   $ADIR (section 5's zzdeep is the user's own 755 subtree, which the
+        #   sdsys session cannot remove) and nothing checked it; delacc now goes
+        #   through sd-elevate rmtree-account and names a survivor (10919).
+        #   $ADIR held zzdeep when the delete ran, or K10 proves nothing (K10a).
+        ck "K10a the user's own subtree was there to delete" yes "$ZZDEEP_BEFORE"
+        ck "K10 the account directory is gone (zzdeep included)" no "$(yesno_dir "$ADIR")"
+        ck_absent "K10b and 10919 did not fire" "was not removed; remove it by hand" "$OUT"
         # P.31.  The needle is delacc's own wording on the POSITIVE path - the
         # 10188 text with the account name in it - so it cannot match a refusal
         # or an echo of the command.  K9 is the "carries on" half: the abort
