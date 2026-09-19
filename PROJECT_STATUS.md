@@ -306,6 +306,25 @@ INSTALL*** — three verifiers still read the deleted `sdsys/tier.policy`
 `verify-editors.py`'s B5/B6; `verify-lcnames.py`'s S8).  No shipped code changed.
 See the session log.
 
+***CLOSE, 18 SEP 2026, LATER THE SAME DAY — PULLED AND REPAIRED; THE CYCLE IS
+STILL UNRUN.***  `git pull` was already up to date (`90ae906`); the free checks
+were re-run green on the repaired tree, and the verifier repair is committed and
+pushed (`b0a78bd`, `90ae906..b0a78bd`).  ***THE FRESH INSTALL AND THE WITNESS
+CYCLE HAVE NOT RUN*** — `assert-current` still reads the install as `c1ea29b`
+(15 Sep, before the teardown) against HEAD `b0a78bd`, which is the correct STALE
+until an install runs, and no `witness-*` log exists later than 15 Sep.
+WHAT THE NEXT SESSION PICKS UP — the FRESH cycle (delete → install), which the
+owner chose over a keep-accounts upgrade, with the owner at the keyboard for
+`sudo`: `bash deletesdai.sh` (Continue? `y`; Keep accounts? `n`, then type
+`DELETE`; Keep configuration? Enter) → `bash installsdai.sh` (Continue? `y`;
+the ssh/API prompts are the owner's to answer; it ends by setting `don`'s SD
+password at a hidden prompt) → the three witnesses with `--commit`:
+`witness-absence.sh`, `witness-release-run.sh`, `witness-accounts.sh`.
+***The absence witness writes no log of its own*** — tee it to `/var/tmp` or its
+evidence is only the terminal scrollback.  If an install aborts part-way, run
+`deletesdai.sh` before retrying: `installsdai.sh:125` refuses to re-run while
+`/usr/local/sdsys/bin/sd` exists.
+
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated
 it in the port's vocabulary — "SDSYS", "LOGTO", "the standard level", "remote
@@ -4198,6 +4217,15 @@ exit 0; `check-stale-leads.py` exit 0; ssh-forcecommand 18/18; sd-elevate
 `verify-nocase.py` exit 0 (was exit 2); sdverify 41/41 + 26 selftest;
 scramprobe 13/13; tls-relay 26/26; check-storewriters 7 selftest;
 no-program-edits 32 selftest.
+
+***CLOSED OUT 18 Sep 2026, late:*** the repair is committed and pushed
+(`b0a78bd`; `90ae906..b0a78bd  main -> main`), `check-stale-leads.py` is exit 0
+on the reconciled docs, and the owner takes a new session for the cycle.
+***NOTHING WAS MEASURED ON A MACHINE THIS SESSION***: `assert-current` STALE
+(install `c1ea29b` vs HEAD `b0a78bd`) and no `witness-*` log later than 15 Sep —
+the fresh install is the next session's first act, as the handoff above says.
+The instrument repair was a repair and not a teardown step: no shipped code
+changed, so none of the S.25–S.28 rows' state moves.
 
 ## Session log — 9 Sep 2026
 
