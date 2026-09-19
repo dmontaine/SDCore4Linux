@@ -96,6 +96,35 @@ CASES = [
     (REFUSE, ["setgid", "/"],               "outside the accounts root"),
     (REFUSE, ["setgid", "/usr/local/sdsys"], "SD's own tree is still not the accounts root"),
 
+    # ---- chown-account (18 Sep 26, the A4 finding of the first fresh cycle's
+    # ---- witness run).  createa's set.owner could only chown with the OS$CHOWN
+    # ---- intrinsic, which needs root, and the administrator is a local sdsys
+    # ---- session and is never root (S.26) - so every account made after an
+    # ---- install came out sdsys:sdusers instead of <account>:sdu_<account>.
+    # ---- The three shapes set.owner computes are allowed; everything else,
+    # ---- and every way of escaping the account's own directory, is refused.
+    (REFUSE, ["chown-account", "don", "sdu_don"],            "three arguments are required"),
+    (REFUSE, ["chown-account", "don", "sdu_don", "/home/sd/user_accounts/don", "x"],
+                                                        "no extra argument"),
+    (REFUSE, ["chown-account", "sdsys", "sdg_probe", "/etc"],
+                                                        "sdsys is confined to the accounts root"),
+    (REFUSE, ["chown-account", "sdsys", "sdg_probe", "/usr/local/sdsys"],
+                                                        "SD's own tree is not the accounts root"),
+    (REFUSE, ["chown-account", "root", "sdu_don", "/home/sd/user_accounts/don"],
+                                                        "the OTHER shape is root:sdusers, nothing else"),
+    (REFUSE, ["chown-account", "don", "sdusers", "/home/sd/user_accounts/don"],
+                                                        "sdusers is the group EVERY account is in"),
+    (REFUSE, ["chown-account", "don", "sdu_zzprobe", "/home/sd/user_accounts/don"],
+                                                        "a person owns through its own sdu_ group"),
+    (REFUSE, ["chown-account", "don", "sdu_don", "/etc"],
+                                                        "a person's path is its own account directory"),
+    (REFUSE, ["chown-account", "don", "sdu_don", "/home/sd/user_accounts"],
+                                                        "the accounts root itself is not an account directory"),
+    (REFUSE, ["chown-account", "zzprobenouser", "sdu_zzprobenouser", "/home/sd/user_accounts/don"],
+                                                        "a user that does not exist"),
+    (REFUSE, ["chown-account", "daemon", "sdu_daemon", "/home/sd/user_accounts/don"],
+                                                        "uid < UID_MIN"),
+
     # ---- system accounts are out of reach by uid, not by name, so the rule
     # ---- holds for accounts this test never enumerated.
     (REFUSE, ["passwd", "daemon"],          "uid < UID_MIN"),
@@ -118,6 +147,14 @@ CASES = [
     (ALLOW,  ["useradd", "sdprobe_nonexistent"],       "a name that does not exist yet"),
     (ALLOW,  ["groupadd", "sdu_probe_nonexistent"],    "an SD group that does not exist yet"),
     (ALLOW,  ["setgid", "/home/sd/user_accounts/don"], "inside the accounts root"),
+    (ALLOW,  ["chown-account", "don", "sdu_don", "/home/sd/user_accounts/don"],
+                                                        "the USER shape: the account's own directory"),
+    (ALLOW,  ["chown-account", "don", "sdu_don", "/home/sd/user_accounts/don/voc"],
+                                                        "and a path inside it (the intrinsic's step)"),
+    (ALLOW,  ["chown-account", "sdsys", "sdg_probe_nonexistent", "/home/sd/user_accounts/don"],
+                                                        "the GROUP shape: sdsys, inside the accounts root"),
+    (ALLOW,  ["chown-account", "root", "sdusers", "/home/sd/user_accounts/don"],
+                                                        "the OTHER shape: to root, which grants the caller nothing"),
 ]
 
 

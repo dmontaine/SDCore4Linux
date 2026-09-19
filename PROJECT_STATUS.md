@@ -346,6 +346,45 @@ above is STILL UNRUN — fresh or keep is the owner's call on the re-run, and
 the fix is the same for both.  Nothing is witnessed; no `witness-*` log exists
 later than 15 Sep.
 
+***CLOSE, 18 SEP 2026, LATE — THE CYCLE RAN, THE INSTALL IS CLEAN, AND THE
+THREE WITNESSES SCORED 261 OF 302; ONE REAL DEFECT (A4) AND ONE SET OF STALE
+EXPECTATIONS.***  After the two installer fixes above, the fresh cycle
+succeeded: `.sdcore-install` `commit=2908280` (17:44:20), `assert-current` exit
+0 (its one STALE read came from this session's own compile experiments
+dirtying the tracked scratch files `sdb_ai/sd64/pass1`/`pass2` — restored), the
+`createa` object present (`gpl.bp.out/createa`, 5037 B — absent in the failed
+run before it), `$CREATEA` in gcat, `don` seeded with `sdu_don`, `$cred`
+`sdsys:sdusers 700`, `dumps/` 1730, the sshd boundary block in place,
+`sd.service` and `sdclient.socket` active and enabled, errlog empty.  The three
+witnesses then ran (owner-run, 17:47–17:49): `witness-absence.sh` 31/46,
+`witness-release-run.sh` 200/224, `witness-accounts.sh` 30/32 — logs
+`/var/tmp/witness-absence.20260918-174756.log`,
+`/var/tmp/witness-release-run.20260918-174803.log`,
+`/tmp/witness-accounts.20260918-174935.log`.
+***ONE PRODUCT DEFECT: A4.***  An account created through the new
+administrator route came out `sdsys:sdusers` instead of
+`<account>:sdu_<account>` — `createa`'s `set.owner` chowned with the `OS$CHOWN`
+intrinsic, which needs root, and the administrator is a local `sdsys` session
+and is never root (S.26); six `Unable change ownership of directory … err: 1`
+(EPERM) lines, and the account's own `voc/%0` left writable by `sdusers`, the
+group EVERY account belongs to.  Fixed here: a validated `chown-account` op in
+`sd-elevate` (`test-sd-elevate.py` 57 → 72 rows: 49 refusals, 13 controls) and
+`createa`'s `set.owner` routes through it when the session is not root, keeping
+the intrinsic for the install bootstrap.
+***THE OTHER 40 FAILURES ARE ROWS PREDATING THE MODEL THEY MEASURE*** — the
+next step, and none is a product defect: 11 assert the old `Unexpected token
+(X)` wording (the tier/OS/API words ARE refused — `MODIFY.ACCOUNT Action Must
+Be Add, Delete, Suspended or Unsuspend`); 9 drive `LOGTO sdsys`, which S.26
+refuses for everybody; 11 drive `REMOTE.API`/`REMOTE.SSH` as root, which is
+refused — and the release run's own §13h printed 10176's words, so the root
+refusal IS working; M8a/M8c never ran a root session at all (`run_sd root` is a
+label); M7e greps `%sdadmin` and hits a COMMENT in the drop-in; E6 expects a
+`Password REMOVED` message the product has never had; K5's `userdel` was
+refused because the witness's own §13 session still held the uid (the product
+warned and carried on); D11 expects the home gone after a plain
+`DELETE.ACCOUNT`, and the owner's 10 Sep ruling removes it only with
+`REMOVE.HOME`.  NOT YET DONE: that re-pointing, then a re-run of the three.
+
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated
 it in the port's vocabulary — "SDSYS", "LOGTO", "the standard level", "remote
@@ -4314,6 +4353,72 @@ an unpushed fix is tested by nothing.
 ***NOT MEASURED: anything on a machine.***  No witness ran, no `witness-*` log
 exists later than 15 Sep, and the S.25–S.28 rows do not move until a cycle
 completes.
+
+---
+
+***THE CREATEA `end` WAS THE SECOND INSTALLER-SIDE DEFECT, AND ITS FIX SHIPPED
+AS `2908280`.***  Opened on the owner's "install failed" after the `$cred` fix
+(24d6611) had been pushed: the install reached the seeding step and died with
+`0000209A: Unable to load '$CREATEA' object code at line 1691 of $CPROC`, the
+same line in `/usr/local/sdsys/errlog`.
+***THE MEASURE THAT FOUND IT IS THE OBJECT DIRECTORY OF THAT RUN***: 202
+objects for 202 programs in `gpl.bp`, and `createa` was the ONLY one missing —
+so BCOMP refused the file and `SECOND.COMPILE` (`BASIC gpl.bp *`,
+`installsdai.sh:935`) carried on without it, which is why the batch still
+exited 0.  The teardown's edit had flattened
+`if copy.it then / read rec from newvoc.f, id then … end / end` to a bare
+`read … then` and taken BOTH `end`s with it; a `read`'s then-clause needs its
+own `end`, and `login`'s identical loop (which compiled) closes it that way.
+Restored, and the structural check then matched the pre-teardown file exactly.
+TWO FALSE TRAILS, KEPT BECAUSE THEY COST TIME: `gplbld/bbcmp.py` rejects
+`createa` with `PROMPT statement not coded at pass2` — it is the *bootstrap*
+compiler for three seed programs and rejects `modifya`, `set_acc_password` and
+`copy` the same way, so it proves nothing about a verb; and the unprivileged
+sandbox route could not compile either, because `-internal` needs root
+(`sd.c:660`) and a sandbox session needs a registered account a fresh install
+has not yet created.
+
+***THE CYCLE THEN RAN CLEAN AND THE THREE WITNESSES FOUND ONE MORE PRODUCT
+DEFECT, A4.***  The install (2908280, 17:44:20) seeded `don`, compiled every
+program including `createa`, and left `assert-current` at exit 0.  The
+witnesses scored 261 of 302 and are read in full in the START HERE paragraph
+above; the product defect they found is A4 — an account created through the
+new administrator route is left `sdsys:sdusers` instead of
+`<account>:sdu_<account>`, because `createa`'s `set.owner` chowned with the
+`OS$CHOWN` intrinsic (`createa:814` before this change), which needs root, and
+the administrator is a `sdsys` session and is never root (S.26).
+`don`'s account is correct only because the install's seeding runs on the
+root bootstrap CPROC — so the defect hits every account created AFTER an
+install, which is every account the new model makes.
+
+***THE FIX, IN THIS COMMIT.***  `sd-elevate` gains `chown-account <user>
+<group> <path>`, built on the three shapes `set.owner` computes and on nothing
+else: `<user> sdu_<user>` (a USER account's own directory, and paths inside
+it), `sdsys <sdg_ group>` (a GROUP account's), `root sdusers` (an OTHER
+account's attached path).  A person is CONFINED to its own account directory
+and to its own `sdu_` group, so a chown cannot move one account's files into
+another's tree and cannot put them in `sdusers` — the group every account
+belongs to, which is exactly the confinement the teardown exists to give; the
+`root:sdusers` shape is the one unrestricted case and grants the caller
+nothing.  The stamp check that guards `userdel-home` is deliberately NOT
+repeated: that one guards a removal, and an ADOPTed account, which SD did not
+create, is a legitimate owner of its own directory.
+`createa`'s `set.owner` calls the helper when `system(27) # 0` and keeps the
+intrinsic for root, so the install bootstrap (which also chowns an ADOPTed
+user's directory the helper would refuse) is unchanged.  `test-sd-elevate.py`
+57 → 72 rows (49 refusals, 13 controls), each new REFUSE naming a way to escape
+the account's own directory and each new ALLOW one of the three shapes.
+*Not verified: the BASIC change is not compiled — no root, so `-internal` is
+unreachable and the sandbox needs an account that only an install creates; the
+next install's `SECOND.COMPILE` is the check, and a failure there shows as
+`createa` absent from `gpl.bp.out` again.*
+
+***THE NEXT STEP IS THE WITNESS RE-POINTING*** listed in the START HERE
+paragraph — 40 rows across the three scripts, each one a wording, a route or a
+precondition that the teardown changed — and then one more cycle to re-run the
+three.  The machine was left with `zzrel1`/`zzrel2` to clear (the owner's
+`userdel -r`, one login per call) and `/home/sd/user_accounts/zzrel*` to
+remove, both recorded because the next run expects a clean slate.
 
 ## Session log — 9 Sep 2026
 
