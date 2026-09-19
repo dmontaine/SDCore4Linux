@@ -1390,7 +1390,7 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 #      the write landed and is right, not merely present.
 #   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE PRIVILEGE: a plain-sd
 #      session has no MODIFY.ACCOUNT ("not in your VOC") and field 5 is still
-#      SUSPENDED.  Then sdsys restores UNSUSPEND.
+#      SUSPENDED.  Then sdsys restores UNSUSPENDED.
 head2 "13g. Q.22 sdsyswrite - store writes land from the administrator after a LOGTO"
 reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
 cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
@@ -1434,14 +1434,14 @@ else
     fi
     OUT=$(sprobe "Y2c the login with the same SD password, after the rewrite" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "Y2c the rewritten credential logs in" "account $ACC: entered" "$OUT"
-    OUT=$(run_sd "$ACC2" "CONTROL: plain-sd MODIFY.ACCOUNT $ACC UNSUSPEND" "MODIFY.ACCOUNT $ACC UNSUSPEND")
+    OUT=$(run_sd "$ACC2" "CONTROL: plain-sd MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
     if [ "$COMMIT" -eq 1 ]; then
         # 19 Sep 26 - the refusal is now the verb's absence: a plain account's
         #   VOC has no MODIFY.ACCOUNT (fifth cycle), so 2001 is never reached.
         ck_says "Y3 a plain account has no MODIFY.ACCOUNT (not in its VOC)" "MODIFY.ACCOUNT is not in your VOC" "$OUT"
         ck "Y3b and the register field 5 is still SUSPENDED" SUSPENDED "$(reg_field "$ACC" 5)"
     fi
-    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPEND" "MODIFY.ACCOUNT $ACC UNSUSPEND")
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
     [ "$COMMIT" -eq 1 ] && ck "Y4 restored: field 5 is blank" "" "$(reg_field "$ACC" 5)"
 fi
 
@@ -1805,7 +1805,7 @@ else
             ck_absent "X6b and not at the login (no 5017; A1's password)" "Invalid username or password" "$OUT"
         fi
     fi
-    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPEND" "MODIFY.ACCOUNT $ACC UNSUSPEND")
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
     [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted (10178)" "is no longer suspended" "$OUT"
 fi
 PROBE_PW=""

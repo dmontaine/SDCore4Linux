@@ -290,7 +290,7 @@
       *   which is worth more than one reclaimed field.  Do not reuse it.
       $define ACC$SUSPENDED   5     ;* suspension flag: blank or SUSPENDED
       $define ACC$PRIOR.TIER   6     ;* retired with the tier model (18 Sep 26);
-      *                              ;*   blank in every record, cleared by UNSUSPEND
+      *                              ;*   blank in every record, cleared by UNSUSPENDED
       * 18 Sep 26 dm - the tier model came out (owner's teardown of 18 Sep 2026,
       *   S.25).  Field 5 is now the suspension flag alone - W.7, "a suspension
       *   is a denial, not a rank": blank means in service, SUSPENDED means
@@ -298,7 +298,7 @@
       *   every record written before today correctly: the tiers STANDARD,
       *   PROGRAMMER and ADMINISTRATOR read as blank (in service), and the old
       *   SUSPENDED reads as suspended.  Field 6 (the old ACC$PRIOR.TIER) is
-      *   no longer written by anything; MODIFYA's UNSUSPEND clears it.
+      *   no longer written by anything; MODIFYA's UNSUSPENDED clears it.
       *
       *   FIELD 4 REMAINS FREE, for conformity with the port, as before.
       *

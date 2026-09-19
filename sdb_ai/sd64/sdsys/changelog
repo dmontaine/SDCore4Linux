@@ -29,7 +29,14 @@ SD: what changed, why it mattered, and what it does not do.
            The warning before a deletion also said a suspended account
            "can be given a tier again later" - tiers are gone.  It now says
            how to let a suspended account back in:
-           modify.account <name> unsuspend.
+           modify.account <name> unsuspended.
+
+19 Sep 26  UNSUSPEND IS NOW UNSUSPENDED.
+           The word that lifts a suspension is  MODIFY.ACCOUNT <account>
+           UNSUSPENDED, the same word SD Core for Windows uses, so the pair
+           reads SUSPENDED / UNSUSPENDED on both systems.  The old spelling
+           UNSUSPEND is no longer accepted; it is refused with the list of
+           words that are.
 
 19 Sep 26  MODIFY.PASSWORD CHECKS YOUR CURRENT PASSWORD FIRST.
            When you changed your own SD password, a wrong current password
@@ -145,7 +152,7 @@ SD: what changed, why it mattered, and what it does not do.
            REVOKE, LIST.GRANTS) are gone; giving a person access to an
            account is now the Linux group: usermod -aG sdu_<account> <user>.
            Suspending an account is unchanged in effect - MODIFY.ACCOUNT
-           <account> SUSPENDED, and UNSUSPEND brings it back - but it is
+           <account> SUSPENDED, and UNSUSPENDED brings it back - but it is
            now a flag on the account rather than a level change.
 
            What this does NOT do: it does not remove the ssh boundary (SD
