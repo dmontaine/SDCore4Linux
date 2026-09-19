@@ -18,6 +18,14 @@
 * 
 * 
 * START-HISTORY:
+* 18 Sep 26 dm THE MISSING end IN make.account'S VOC LOOP.  The teardown flattened
+*               "if copy.it then / read ... then ... end / end" to a bare read and
+*               took BOTH ends with it, so createa stopped compiling - the ONLY
+*               program in gpl.bp with no object after the install's
+*               SECOND.COMPILE (202 objects for 202 programs, createa absent),
+*               and CPROC could not load $CREATEA (errlog 0000209A at cproc:1691)
+*               so the install died seeding the installing user's account.  The
+*               end below is the read's, as login's identical loop has it.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier keywords, the
 *           OS-access keywords (SH-ON/OS-ON) and the API route words are gone
 *           from the grammar; no ACC$TIER/ACC$SH/ACC$OS.EXEC are written; the
@@ -631,6 +639,7 @@ make.account:
 *   SDSYS shows a sentence.  CPROC reads only voc.rec[1,1] and [1,2], so
 *   nothing needed the bare form.
          write rec to voc.f, id
+      end
    repeat
 
    close newvoc.f
