@@ -134,7 +134,7 @@ ACC=$(printf '%s' "$ACC" | tr '[:upper:]' '[:lower:]')
 ACC_UC=$(printf '%s' "$ACC" | tr '[:upper:]' '[:lower:]')
 ACC_REFUSE_UC=$(printf '%s' "$ACC_REFUSE" | tr '[:upper:]' '[:lower:]')
 # CREATEA:208 - the marker names the account it authorises, DOWNCASED.
-MARKER="$SDSYS/\$adopt.$ACC"
+MARKER="$SDSYS/\$attach.$ACC"
 
 if [ -z "$LOG" ]; then
     LOG="/tmp/witness-accounts.$(date +%Y%m%d-%H%M%S).log"
@@ -231,7 +231,7 @@ cleanup() {
     # prevent.  Removed unconditionally, and its presence is reported.
     if [ -e "$MARKER" ]; then
         rm -f "$MARKER"
-        say "  marker $MARKER WAS STILL PRESENT - removed (ADOPT did not consume it)"
+        say "  marker $MARKER WAS STILL PRESENT - removed (ATTACH did not consume it)"
     fi
     # Only a REGISTERED account is deleted through SD, so the Y cannot leak.
     if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC_UC" ]; then
@@ -249,7 +249,7 @@ cleanup() {
         uc=$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')   # register key, lower since 13 Sep
         say "  left behind for $n: register=$(yesno_file "$REGISTER/$uc")" \
             "dir=$(yesno_dir "$ACCOUNTS_ROOT/$n") user=$(yesno_user "$n")" \
-            "group=$(yesno_group "sdu_$n") marker=$(yesno_file "$SDSYS/\$adopt.$n")"
+            "group=$(yesno_group "sdu_$n") marker=$(yesno_file "$SDSYS/\$attach.$n")"
     done
     exit $rc
 }
@@ -262,7 +262,7 @@ say "  uid        : $(id -u) ($(id -un))"
 say "  sd         : $SD"
 say "  register   : $REGISTER"
 say "  accounts   : $ACCOUNTS_ROOT"
-say "  account    : $ACC   (a leftover ADOPT marker for it would refuse: $MARKER)"
+say "  account    : $ACC   (a leftover ATTACH marker for it would refuse: $MARKER)"
 say "  refused    : $ACC_REFUSE"
 say "  log        : $LOG"
 
@@ -290,7 +290,7 @@ for n in "$ACC" "$ACC_REFUSE"; do
     [ "$(yesno_group "sdu_$n")" = yes ] && { say "  DIRTY: group sdu_$n already exists"; DIRTY=1; }
     [ "$(yesno_dir "$ACCOUNTS_ROOT/$n")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$n already exists"; DIRTY=1; }
     [ "$(yesno_file "$REGISTER/$uc")" = yes ] && { say "  DIRTY: register record $uc already exists"; DIRTY=1; }
-    [ "$(yesno_file "$SDSYS/\$adopt.$n")" = yes ] && { say "  DIRTY: an ADOPT marker for $n already exists"; DIRTY=1; }
+    [ "$(yesno_file "$SDSYS/\$attach.$n")" = yes ] && { say "  DIRTY: an ATTACH marker for $n already exists"; DIRTY=1; }
 done
 if [ "$DIRTY" -eq 1 ]; then
     say "witness-accounts: CANNOT RUN - the ground is not clear (above)."
@@ -346,8 +346,8 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 say ""
-say "  2b. THE TEARDOWN'S DOOR (S.26): there is no ADOPT on a delivered machine."
-say "  ADOPT needs -internal, -internal needs root (check_admin), and a root"
+say "  2b. THE TEARDOWN'S DOOR (S.26): there is no ATTACH on a delivered machine."
+say "  ATTACH needs -internal, -internal needs root (check_admin), and a root"
 say "  session is refused outright by CPROC.  The borrowed-user route is closed;"
 say "  witness-absence.sh says the same about the machinery."
 say "  This script removes the borrowed user again and makes the account SD's"

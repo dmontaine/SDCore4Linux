@@ -18,6 +18,15 @@
 * 
 * 
 * START-HISTORY:
+* 19 Sep 26 dm ADOPT IS RENAMED ATTACH, marker $attach.<name> (the Windows
+*               port's name, agreed by mail 19 Sep 00:10; its old $adopt
+*               markers can survive on Windows disks, so only the new name is
+*               safe in both trees).  AND THE ATTACHED ACCOUNT'S NAME IS FOLDED
+*               (the port's RELEASE_1.1 67, same fault here): the arm kept the
+*               Linux user's spelling, so a user "Don" got register key don but
+*               directory user_accounts/Don and group sdu_Don.  acc.uname stays
+*               the real Linux user (chown and membership need it); the account
+*               name, directory and sdu_ group are the lower-case name.
 * 18 Sep 26 dm A4 (the first fresh cycle's witness run): set.owner goes through
 *               sd-elevate's chown-account when the session is not root.  The
 *               OS$CHOWN intrinsic needs root and the administrator is a local
@@ -199,7 +208,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
 * 11 Sep 26 dm - ADOPT attaches an SD account to a Linux user that ALREADY
 *   EXISTS instead of creating one.  PORT_ADOPTION 15, the port's CREATEA of
 *   14 and 21 Aug 2026.  See more.args for what gates it.
-   adopt = @false
+   attach = @false
 * 11 Sep 26 dm - THE ONE-SHOT MARKER THAT MAKES ADOPT INSTALL-ONLY, the port's
 *   of 21 Aug 2026.  installsdai.sh writes this file immediately before running
 *   the verb and removes it again afterwards; more.args accepts ADOPT only
@@ -219,10 +228,10 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   ASSIGNED HERE rather than in more.args because BCOMP's "is not assigned a
 *   value" is what the bootstrap fails on, and more.args is shared by the GROUP
 *   and OTHER arms, which never set acc.uname.  The USER arm overwrites it with
-*   '$adopt.<name>' as soon as the name is parsed, so one marker authorises one
+*   '$attach.<name>' as soon as the name is parsed, so one marker authorises one
 *   account rather than the verb in general; nothing writes this bare name, so
 *   it cannot exist on a delivered system.
-   adopt.marker = @sdsys:@ds:'$adopt'
+   attach.marker = @sdsys:@ds:'$attach'
    begin case
    case upcase(acc.type) = 'USER'
 *    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
@@ -235,7 +244,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   (the is_user cases below do the same) and because §M makes lower case the
 *   standard.  It has to be set here: after the name is known and before
 *   more.args, which is where ADOPT is read.
-     adopt.marker = @sdsys:@ds:'$adopt.':downcase(acc.uname)
+     attach.marker = @sdsys:@ds:'$attach.':downcase(acc.uname)
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
@@ -274,9 +283,9 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   MERGED INTO ONE BRANCH, as the port's, because the answer is now the same
 *   either way and the downcase only decides which spelling is used.
      case is_user(acc.uname) or is_user(downcase(acc.uname))
-       if adopt then
+       if attach then
          * The one sanctioned exception, and it is not reachable from a
-         * console: ADOPT needs -internal AND a one-shot marker, which means
+         * console: ATTACH needs -internal AND a one-shot marker, which means
          * the install path.  No Linux user is created and no password is set -
          * the account is already the person's.
          if is_user(acc.uname) else acc.uname = downcase(acc.uname)
@@ -288,7 +297,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
 * 11 Sep 26 dm - ADOPT NAMED A LINUX USER THAT IS NOT THERE, so there is
 *   nothing to adopt.  Creating one instead would be the opposite of what was
 *   asked, and it is the branch below that would otherwise do it.
-     case adopt
+     case attach
        @system.return.code = -ER$ARGS
        stop sysmsg(6074)  ;*    Invalid user name
 
@@ -368,10 +377,16 @@ PW.TRY.AGAIN:
      
      
      * save uid and gid for set.owner of USER account
-     uid = acc.uname  
-     gid = "sdu_":acc.uname
-     pathname := @ds:acc.uname
-     acc.name = acc.uname
+* 19 Sep 26 dm - THE ACCOUNT NAME IS FOLDED, THE LINUX USER IS NOT (port's
+*   RELEASE_1.1 67).  Only an attached user can reach here unfolded - every
+*   other path downcased acc.uname above - and it must keep the Linux user's
+*   own spelling for chown and group membership.  The account name, its
+*   directory and its sdu_ group follow the lower-case rule, so the register
+*   key (downcased below) names the directory it points at.
+     uid = acc.uname
+     gid = "sdu_":downcase(acc.uname)
+     pathname := @ds:downcase(acc.uname)
+     acc.name = downcase(acc.uname)
      
 
    case upcase(acc.type) = 'GROUP' 
@@ -543,7 +558,7 @@ PW.TRY.AGAIN:
 
       *
       * create user's sd group      
-        group_name = "sdu_":acc.uname      
+        group_name = "sdu_":downcase(acc.uname)   ;* 19 Sep 26 folded, as gid
         gosub create.group  
         if not(group_success) then
           stop
@@ -586,7 +601,7 @@ PW.TRY.AGAIN:
    * Not sure what to do about account type "OTHER" ???
    begin case
    case upcase(acc.type) = "USER"
-     acc.rec<ACC$GROUP> = "sdu_":acc.uname
+     acc.rec<ACC$GROUP> = "sdu_":downcase(acc.uname)   ;* 19 Sep 26 folded
    case upcase(acc.type) = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
@@ -738,9 +753,11 @@ more.args:
 *   the case does not match and ADOPT falls through to "Unexpected token
 *   (ADOPT)" below - the answer an invented word gets.  A refusal naming the
 *   keyword would confirm to somebody who guessed it that it exists.
-         case upcase(token) = 'ADOPT' and kernel(K$INTERNAL, -1) and ospath(adopt.marker, OS$EXISTS)
-            adopt = @true
-            void ospath(adopt.marker, OS$DELETE)
+* 19 Sep 26 dm - RENAMED ATTACH, marker $attach.<name>, the Windows port's
+*   name (see the history).  ADOPT is now an ordinary unexpected token.
+         case upcase(token) = 'ATTACH' and kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS)
+            attach = @true
+            void ospath(attach.marker, OS$DELETE)
 
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)

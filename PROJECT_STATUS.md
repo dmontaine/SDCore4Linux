@@ -27,6 +27,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and — ***ROUTE CORRECTED BY THE OWNER, 18 Sep night: ENTERED ONLY BY A REAL LOGIN AS SDSYS (its own password, keyboard or desktop-sharing; the sudo/su route was never agreed to and is now refused, 10181, by the loginuid gate `K$LOGIN.UID`; no plain sdsys session; no remote login)*** — `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured - and the third cycle now also carries the login-route correction (sdsys shell/home/password at install; the witnesses' sdsys sessions run through the root loginuid bridge, M8f measures the bare `sudo -u sdsys` refused).*** | — |
 | ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
 | ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
+| ◐ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026, UNMEASURED***; left: the third cycle's seeding compiles and runs it | — |
+| ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. RULED 18 SEP 2026 — kept as a plain account flag; built in the teardown change set | 18 Sep 2026 |
@@ -748,6 +750,47 @@ route for every account; `sdapi`'s per-account permission (S.16,
 SDSYS's door. The installer and deleter follow: `sdadmin`'s group and its
 users' sudoers go, `sdusers` stays as the Linux-native "may run SD" group.
 Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
+*19 Sep 2026: the per-account half of "disposed" is reversed by a later owner ruling — see S.29.*
+
+***[S.29] PER-ACCOUNT SSH AND API ROUTES COME BACK, DEFAULT ON, A TWO-WAY
+DOOR — §OPEN§, NOT BUILT.*** Owner's ruling on the Windows side, 18/19 Sep
+2026 night, relayed by mail 19 Sep 00:10 (binds both ports): *"every
+non-sdsys account has the potential to have ssh and api access by default,
+but it is the admins choice if it should stay on"* and *"the default is on,
+but it can be turned off, and back on again as the admin wishes."* So S.28's
+disposal of the per-account route is partly undone: the account record keeps
+a route, CREATE.ACCOUNT takes an OPTIONAL route keyword (default both —
+10082's "must say" does not come back), and MODIFY.ACCOUNT narrows AND
+re-widens, ssh and API independently, without touching REMOTE.SSH/REMOTE.API.
+Port: filed as its RELEASE_1.1 68, not built; its `route.set` is already
+symmetric (`modifya:593-612`, ADDMEM/DELMEM per half, the API half gated on
+the ssh half). Linux shape, a plan: the API half could return as S.16's
+`sdapi` group (`git show e41d318^` has the createa/modifya/apisrvr code and
+10073), the ssh half needs a mechanism S.16 never had (an sshd `Match Group`
+deny list, or a group checked by `ssh-forcecommand.sh`). Default-on argues
+for a DENY group (membership = off), so a fresh account needs no join and a
+missing group cannot shut everybody out — falsified if sshd cannot express
+it on the distributions the installer serves. The port's warning to carry:
+a narrowing-only build looks complete and passes every obvious test (their
+SUSPEND was one-way until UNSUSPENDED). Not started: the third cycle comes
+first, and the port's 68 is not built either.
+
+***[S.30] ADOPT RENAMED ATTACH, AND THE ATTACHED NAME FOLDED — §BUILT§,
+AND §OPEN§ UNTIL AN INSTALL COMPILES AND RUNS IT.*** 19 Sep 2026, agreed with the port by mail (its 00:10): the
+installer's own account is made by `sd -internal create-account USER <name>
+ATTACH` — the port's exact line once its 68 drops BOTH — with marker
+`sdsys/$attach.<name>` (only the new name is safe on Windows, where pre-64
+`$adopt` markers can survive; `installsdai.sh` seeding block, `createa`
+`more.args`). `no.query` is no longer passed. The fold is the port's
+RELEASE_1.1 67, same fault here by reading: an attached Linux user `Don` kept
+its spelling in `createa`'s `pathname`/`gid`/`group_name`/`ACC$GROUP`, so the
+register key `don` pointed at `user_accounts/Don` and group `sdu_Don`. Now
+`uid` stays the real Linux user, the rest is `downcase(acc.uname)`; the
+installer tests the folded name (ASCII-only `LC_ALL=C tr`). Witness marker
+paths re-pointed (3 scripts). `bash -n` clean, `test-accounts-units` 17/17;
+the compile check is the third cycle's seeding step (GPL.BP is compiled by
+SDSYS at install, owner 12-13 Sep). The fold is exercised only by an
+installing user whose Linux name has capitals — no witness row makes one.
 
 ***[W.5] `sudo sd` AS ROOT — REFUSED OUTRIGHT, OR AN ORDINARY
 NON-ADMINISTRATOR SESSION? RULED 18 SEP 2026 — THE READING APPLIED.*** Built: a root

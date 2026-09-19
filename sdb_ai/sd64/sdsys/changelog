@@ -16,6 +16,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  YOUR SD ACCOUNT IS NAMED IN LOWER CASE EVEN IF YOUR LINUX LOGIN IS
+           NOT.  The installer makes an SD account for the person who
+           installs SD, on top of the Linux login they already have.  If
+           that login had capital letters in it - "Don" rather than "don" -
+           the account's register entry was lower case but its directory
+           and its sdu_ group kept the capitals, so the three did not
+           match.  Now all three are lower case; the files still belong to
+           your Linux login, spelled as it is.
+
+           The installer's internal step for this is now called ATTACH, the
+           same name and the same command line SD Core for Windows uses.
+           ATTACH cannot be typed at an SD prompt: it works only inside the
+           installer, once, for the one person installing.
+
+           What this does NOT do: it does not rename an account made by an
+           earlier install.
+
 18 Sep 26  THE INSTALLER NO LONGER ASKS FOR AN SD PASSWORD FOR YOUR ACCOUNT.
            This reverses the 15 Sep entry below.  The account the installer
            makes for you is reached by logging in to Linux and running sd -
