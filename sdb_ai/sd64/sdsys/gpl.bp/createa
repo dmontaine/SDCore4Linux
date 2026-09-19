@@ -18,6 +18,12 @@
 * 
 * 
 * START-HISTORY:
+* 18 Sep 26 dm A4 (the first fresh cycle's witness run): set.owner goes through
+*               sd-elevate's chown-account when the session is not root.  The
+*               OS$CHOWN intrinsic needs root and the administrator is a local
+*               sdsys session (S.26), so every account created after an install
+*               came out sdsys:sdusers - "Unable change ownership of directory
+*               ... err: 1" (EPERM) - instead of <account>:sdu_<account>.
 * 18 Sep 26 dm THE MISSING end IN make.account'S VOC LOOP.  The teardown flattened
 *               "if copy.it then / read ... then ... end / end" to a bare read and
 *               took BOTH ends with it, so createa stopped compiling - the ONLY
@@ -809,9 +815,26 @@ set.owner:
         uid='root'
         gid='sdusers'
    end case
-   chown_parm = uid:@VM:gid:@VM:set.owner.path
-   * crt 'set.owner: ':chown_parm
-   result = ospath(chown_parm,OS$CHOWN)
+* 18 Sep 26 dm - THE INTRINSIC CHOWN NEEDS ROOT, AND THE ADMINISTRATOR IS NEVER
+*   ROOT (S.26).  Measured on the first fresh cycle's witness run (A4): every
+*   account created after an install came out sdsys:sdusers - six "Unable change
+*   ownership of directory ... err: 1" (EPERM) lines - because OS$CHOWN runs as
+*   the calling session, and a local sdsys session is not root.  So the
+*   privileged step goes through sd-elevate like the setgid, addgroup and
+*   groupadd calls above, and the helper re-derives the pair's legality (a
+*   person may own only its own account directory, through its own sdu_ group)
+*   rather than trusting this program.  THE INTRINSIC STAYS FOR ROOT: the
+*   install bootstrap (the IS_INSTALL CPROC's seeding) runs as root and an
+*   adopted account's user is not one the helper's whitelist would accept.
+   if system(27) = 0 then
+      chown_parm = uid:@VM:gid:@VM:set.owner.path
+      * crt 'set.owner: ':chown_parm
+      result = ospath(chown_parm,OS$CHOWN)
+   end else
+      result = 0
+      os.execute "sudo /usr/local/sbin/sd-elevate chown-account " : uid : " " : gid : " " : set.owner.path
+      if OS.ERROR() = 0 then result = 1
+   end
    if result <= 0 then
      st = set.owner.path:' err: ':status()
      display sysmsg(10000,st) ;* Unable change ownership of directory error %1 

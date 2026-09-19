@@ -3,6 +3,11 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 18 Sep 26 dm A4 OF THE FIRST CYCLE'S WITNESS RUN: chown-account, CREATE.ACCOUNT's
+#               own step.  createa's set.owner chowned with the OS$CHOWN intrinsic,
+#               which needs root, and the administrator is a local sdsys session and
+#               is never root (S.26) - so every account made after an install came
+#               out sdsys:sdusers (six "Unable change ownership ... err: 1" lines).
 # 18 Sep 26 dm TEARDOWN (S.26/S.28).  sdadmin and sdapi leave the whitelist:
 #               the groups no longer exist.  sdusers alone is not deletable.
 # 09 Sep 26 dm  Written for PRE_RELEASE 14, the owner's ruling of 9 Sep 2026:
@@ -86,6 +91,7 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] addgroup <user> <group>
   sd-elevate [--dry-run] delgroup <user> <group>
   sd-elevate [--dry-run] setgid   <path>
+  sd-elevate [--dry-run] chown-account <user> <group> <path>
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
 
@@ -365,6 +371,58 @@ require_sd_path() {
   [[ $real == "$root"/* ]] || die "path '$real' is outside the accounts root '$root'"
 }
 
+# 18 Sep 26 dm - CHOWN-ACCOUNT, FOR CREATE.ACCOUNT'S OWN STEP (the A4 finding of
+# the first fresh cycle's witness run).  createa's set.owner computed
+# "<user><VM><group><VM><path>" and chowned it with the OS$CHOWN intrinsic,
+# which needs root; the administrator is a local sdsys session and is NEVER
+# root (S.26), so every account created after an install came out
+# sdsys:sdusers - six "Unable change ownership of directory ... err: 1" (EPERM)
+# lines, and an account directory owned by the sdusers group that EVERY
+# account belongs to.  The three shapes below are exactly what createa's
+# set.owner computes, and nothing else is accepted:
+#
+#   <user>  sdu_<user>    the account's own directory      (createa:365-366)
+#   sdsys   <sdg_ group>  a GROUP account's directory
+#   root    sdusers       an OTHER account's attached path
+#
+# A PERSON IS CONFINED TO ITS OWN ACCOUNT DIRECTORY and to its own sdu_ group,
+# so a chown can never move one account's files into another account's tree, nor
+# put them in sdusers - the group every account belongs to, which is the
+# confinement the teardown exists to give.  sdsys and root name no such thing,
+# so their paths must sit inside the accounts root; the root:sdusers shape is
+# the ONE unrestricted case, and it grants nothing - it takes ownership to root
+# and cannot hand a caller anything it did not already have.
+require_account_owner() {
+  local user=$1 group=$2 path=$3 real uroot
+  [[ -n $user && -n $group && -n $path ]] || die "chown-account needs <user> <group> <path>"
+  require_sd_group "$group"
+  [[ $path == /* ]] || die "path '$path' is not absolute"
+  real=$(realpath -e -- "$path" 2>/dev/null) || die "path '$path' does not exist"
+  case $user in
+    root)
+      [[ $group == sdusers ]] || die "an OTHER account's owner is root:sdusers, not root:$group"
+      ;;
+    sdsys)
+      require_sd_path "$path"
+      ;;
+    *)
+      require_sd_user "$user"
+      # The stamp check that guards userdel-home is NOT repeated here: that one
+      # guards a REMOVAL (a home is deleted only when SD made it), while this is
+      # an ownership change confined to the account's own directory below, and
+      # an ADOPTed account - which SD did not create - is a legitimate owner of
+      # its own directory.
+      [[ $group == "sdu_$user" ]] || die "'$user' owns its own files through sdu_$user, not '$group'"
+      uroot=$(realpath -e -- "$SD_ACCT_ROOT/user_accounts" 2>/dev/null) \
+        || die "the user accounts root '$SD_ACCT_ROOT/user_accounts' does not exist"
+      [[ $real == "$uroot/$user" || $real == "$uroot/$user"/* ]] \
+        || die "'$real' is not the account directory of '$user'"
+      ;;
+  esac
+  # Not -R: createa names each path it made, exactly as the intrinsic did.
+  cmd=(chown -- "$user:$group" "$real")
+}
+
 # ---------------------------------------------------------------------- main
 
 DRY=0
@@ -474,6 +532,11 @@ case $verb in
     [[ $# -eq 1 ]] || usage
     require_sd_path "$1"
     cmd=(chmod g+s -- "$(realpath -e -- "$1")")
+    ;;
+
+  chown-account)
+    [[ $# -eq 3 ]] || usage
+    require_account_owner "$1" "$2" "$3"
     ;;
 
   # 14 Sep 26 dm - S.13.  A FIXED KEYWORD AND NOTHING ELSE: no port, address or
