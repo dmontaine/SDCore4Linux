@@ -289,12 +289,15 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
 
-**State.**  `HEAD == origin/main == a076571`; working tree clean; 3315 tracked
-files; `check-stale-leads.py` exit 0.  ***THE INSTALL IS `2908280` (18 Sep
-17:44:20), SO `assert-current` READS STALE BY TWO COMMITS - WHICH IS CORRECT:***
-the A4 fix and the witness re-pointing are pushed and NOT YET MEASURED.  The
-three witnesses last ran on `2908280` and scored 261 of 302 (`/var/tmp`), which
-is what found A4 and the 40 stale rows.
+**State (re-read 18 Sep 2026, after `88d85f3`).**  `HEAD == origin/main`,
+working tree clean, `check-stale-leads.py` exit 0.  ***THE INSTALL IS
+`cdf87cb`; `assert-current` READS STALE AGAINST `88d85f3` (the loginuid gate)
+- CORRECT, AND NOTHING IS MEASURED ON EITHER.*** The witnesses never ran on
+the `cdf87cb` install.  ***THE CURRENT HANDOFF IS "18 SEP 2026, LATE NIGHT"
+BELOW, AND THE NEXT STEP IS THE THIRD CYCLE IT DESCRIBES*** (fixture cleanup
+under "18 SEP 2026, NIGHT").  The rest of this paragraph block is the earlier
+end-of-session handoff, kept for its history: cycle 1 ran on `2908280` and
+scored 261 of 302, which found A4 and the 40 stale rows.
 
 **What this session changed, in order - all pushed:**
 1. `24d6611` - `installsdai.sh:788` chowned `$cred` to `sdsys:sdsys`, a group
@@ -311,8 +314,9 @@ is what found A4 and the 40 stale rows.
    the session is not root.  `test-sd-elevate.py` 57 -> 72 rows, 0 failed.
 4. `a076571` - the 40 witness rows that predate the teardown, re-pointed.
 
-**THE NEXT STEPS, EXACTLY** - the only thing between here and S.25-S.28
-closing:
+~~**THE NEXT STEPS, EXACTLY**~~ - *superseded: this was cycle 2's recipe, and
+it ran (install `3b81fb6`). Its fixture cleanup no longer matches what is on
+the machine; use the "NIGHT" and "LATE NIGHT" handoffs below.*
 
 ```sh
 sudo rm -f /usr/local/sdsys/accounts/zzrel2   # leftovers of the last run: a
@@ -335,7 +339,7 @@ is tested by nothing.  `witness-absence.sh` writes no log of its own (hence the
 tee).  The release run REFUSES to start when its ground is dirty and its dry run
 says so.  And the install's own seeding step is the compile check on any BASIC
 change - a compile failure shows as a program missing from `gpl.bp.out`.
-***NOTHING IS MEASURED ON `a076571`.***  The rows to watch: A4 must read
+*(Written at `a076571`; still true at `88d85f3`: nothing is measured.)*  The rows to watch: A4 must read
 `zzacct2:sdu_zzacct2 2775` with no `Unable change ownership` lines, and the
 seeding must reach `Registered don as a plain SD account`.
 
