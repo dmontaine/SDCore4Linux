@@ -23,10 +23,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree. Port's mail 16 Sep 22:14 (sd4windows RELEASE_1.1 43, `090756d`+1): its relay now has this tree's per-connection shape as a native spawn (`sdtlsrelay.exe`, S4U token for a bare `sdrelay` account, Low integrity, 0 privileges); wire to the client unchanged, client library unchanged; two socketpair-only deltas from `sd_tlssrv.c` (PEM bytes sd→relay; status byte + text relay→sd). Its units 27/27; witnessed on its install 16 Sep 22:57 (mail 23:05, its RELEASE_1.1 43 struck, `dbb0588..33c75c9`): `verify-relayidentity` 15/15 — one `sdtlsrelay.exe` per held connection, owner `sdrelay`, Low, 0 privileges, parent `sd.exe` still SYSTEM, gone at close. Its `syslog()` lands in the Windows Application event log, provider `sd_Log` — ask for that, not `sdsys/errlog`, when reading a Windows relay report. Nothing to change here | — |
-| ◐ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). ***§BUILT§ (`e41d318`, 18 Sep 2026) — left: the fresh install + witness cycle; nothing measured on a machine yet.*** | — |
-| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`, 18 Sep 2026) — left: the fresh install + witness cycle; nothing measured on a machine yet.*** | — |
-| ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`, 18 Sep 2026) — left: the fresh install + witness cycle; nothing measured on a machine yet.*** | — |
-| ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`, 18 Sep 2026) — left: the fresh install + witness cycle; nothing measured on a machine yet.*** | — |
+| ◐ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
+| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
+| ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
+| ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. RULED 18 SEP 2026 — kept as a plain account flag; built in the teardown change set | 18 Sep 2026 |
@@ -278,6 +278,74 @@ owner's ruling comes first.
   `assert-current` read STALE while the shipped behaviour was current.*
 
 ## START HERE
+
+***HANDOFF, 18 SEP 2026 — END OF SESSION.  READ THIS PARAGRAPH FIRST.***
+
+**Where the tree is.**  The repository is
+`~/Projects/SDCoreLinuxProject/sdcore4linux` (its documented home since 16 Sep).
+The runtime's workspace folder `~/Projects/sdcore4linux` is an EMPTY STUB - do
+not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
+`~/pCloudDrive/sdcore4linux` is a SEPARATE, OLDER clone (a backup, not the
+working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
+`to-linux/` was empty when this session closed.
+
+**State.**  `HEAD == origin/main == a076571`; working tree clean; 3315 tracked
+files; `check-stale-leads.py` exit 0.  ***THE INSTALL IS `2908280` (18 Sep
+17:44:20), SO `assert-current` READS STALE BY TWO COMMITS - WHICH IS CORRECT:***
+the A4 fix and the witness re-pointing are pushed and NOT YET MEASURED.  The
+three witnesses last ran on `2908280` and scored 261 of 302 (`/var/tmp`), which
+is what found A4 and the 40 stale rows.
+
+**What this session changed, in order - all pushed:**
+1. `24d6611` - `installsdai.sh:788` chowned `$cred` to `sdsys:sdsys`, a group
+   that DOES NOT EXIST; the first cycle died there.  Now `sdsys:sdusers` (mode
+   700, so the group confers nothing either way).
+2. `2908280` - `createa`'s make.account loop had lost the `end` that closes
+   `read rec from newvoc.f, id then`, so the program did not compile, `$CREATEA`
+   had no object, and the install died seeding the account.  Restored.
+3. `7bd558d` - A4: `createa`'s `set.owner` chowned with the `OS$CHOWN` intrinsic,
+   which needs root, and the administrator is a sdsys session and is never root
+   (S.26) - so accounts created after an install came out `sdsys:sdusers`
+   instead of `<account>:sdu_<account>`.  `sd-elevate` gained a validated
+   `chown-account <user> <group> <path>` and `set.owner` routes through it when
+   the session is not root.  `test-sd-elevate.py` 57 -> 72 rows, 0 failed.
+4. `a076571` - the 40 witness rows that predate the teardown, re-pointed.
+
+**THE NEXT STEPS, EXACTLY** - the only thing between here and S.25-S.28
+closing:
+
+```sh
+sudo rm -f /usr/local/sdsys/accounts/zzrel2   # leftovers of the last run: a
+sudo groupdel sdu_zzrel2                      # DELETE cycle does NOT take the
+sudo rm -rf /home/zzabst /home/zzacct2        # sdu_ groups or the homes away
+cd /home/don/Projects/SDCoreLinuxProject/sdcore4linux
+bash deletesdai.sh    # y . Keep accounts? n, then type DELETE . Enter . n
+bash installsdai.sh   # password . y . ssh y/N . API y/N . don's SD password twice . Restart? y
+# after the reboot:
+cd sdb_ai/sd64/gplbld
+sudo bash witness-absence.sh --commit 2>&1 | tee /var/tmp/witness-absence.$(date +%Y%m%d-%H%M%S).log
+sudo bash witness-release-run.sh --commit
+sudo bash witness-accounts.sh --commit
+```
+
+**Traps that have already cost time.**  `installsdai.sh:152` refuses a retry
+while `/usr/local/sdsys/bin/sd` exists, so an aborted install needs
+`deletesdai.sh` first.  The installer CLONES `origin/main`, so an unpushed fix
+is tested by nothing.  `witness-absence.sh` writes no log of its own (hence the
+tee).  The release run REFUSES to start when its ground is dirty and its dry run
+says so.  And the install's own seeding step is the compile check on any BASIC
+change - a compile failure shows as a program missing from `gpl.bp.out`.
+***NOTHING IS MEASURED ON `a076571`.***  The rows to watch: A4 must read
+`zzacct2:sdu_zzacct2 2775` with no `Unable change ownership` lines, and the
+seeding must reach `Registered don as a plain SD account`.
+
+**Why this session ended.**  The owner is discontinuing the agent that worked
+here after the WINDOWS-side agent had him run a cleanup command that deleted
+that project's tree (recovered over about an hour by another agent).  NOTHING IN
+THIS REPOSITORY WAS TOUCHED BY IT - verified at handoff: clean tree,
+`HEAD == origin/main`, every key path present.  Treat any cleanup recipe from
+the other port as UNTRUSTED until its deletions have been read: the two ports
+share a mailbox and the owner's time, not a filesystem.
 
 ***HANDOFF, 18 SEP 2026 (CLOSE) — THE TEARDOWN IS BUILT AS ONE CHANGE SET,
 COMMITTED (`e41d318`) AND PUSHED; NOT INSTALLED, AND NOTHING HAS BEEN
@@ -4432,6 +4500,49 @@ precondition that the teardown changed — and then one more cycle to re-run the
 three.  The machine was left with `zzrel1`/`zzrel2` to clear (the owner's
 `userdel -r`, one login per call) and `/home/sd/user_accounts/zzrel*` to
 remove, both recorded because the next run expects a clean slate.
+
+***THE 40 ROWS WERE RE-POINTED AND THE SESSION CLOSED FOR HANDOFF (`a076571`).***
+Done in one commit, each change carrying its reason in the file it changes.
+`witness-absence.sh` gained `run_sd_as` (the session's USER is a parameter now,
+and M8a/M8c run as root for real - "run_sd root" had been only a label, so the
+"root session" ran as sdsys and measured nothing); M3a/M4a/M5a (11 rows) assert
+the rewrite's own refusal text (`MODIFY.ACCOUNT Action Must Be Add, Delete,
+Suspended or Unsuspend`) instead of the old parse's "Unexpected token"; M6d
+accepts "already a member of group sdu_<acc>" (CREATE.ACCOUNT joins the account
+to its own group, so the first add has already happened) plus an absent
+"Unable"; M7e reads the sudoers RULE lines and not its comments; and its cleanup
+asks for `REMOVE.HOME` so a run no longer leaves `/home/<acc>` behind - found by
+the first run leaving `/home/zzabst`.  `witness-release-run.sh`: §2b's L2/L3b
+assert that `LOGTO sdsys` is REFUSED (S.26) and that the refusal names the one
+route in; §13g drives the stores from a sdsys session that has LOGTOed INTO the
+ordinary account (the old second leg of that route is gone); §13h (11 rows)
+drives `REMOTE.API`/`REMOTE.SSH` as SDSYS rather than root, which had measured
+10176's refusal every time; E6 takes the throwaway `$cred/sdsys` file away (no
+verb can unset a credential - an empty entry means "leave unchanged",
+`set_acc_password:192`) instead of asking for a `Password REMOVED` message the
+product has never had; §15 kills the account's sessions and waits before
+deleting, so `userdel` is not refused for a uid in use.  `witness-accounts.sh`:
+D11 asserts the home SURVIVES a plain delete - `REMOVE.HOME` is the other path,
+the owner's 10 Sep ruling - where the row had asked for the other path with this
+command.
+
+***STATE AT CLOSE.***  `HEAD == origin/main == a076571`; working tree clean;
+`check-stale-leads.py` exit 0; every touched script `bash -n` clean; both light
+witnesses' dry runs reach their verdicts and the release run's dry run stops at
+its own ground check (the leftover fixtures, not a fault).  The INSTALL is
+`2908280`, so `assert-current` reads STALE by two commits and that is the correct
+reading: ***A4'S FIX AND THE RE-POINTED ROWS ARE UNMEASURED until the next
+cycle.***  The `createa` BASIC edit is likewise unverified - `-internal` needs
+root and the unprivileged sandbox needs an account only an install creates - so
+the install's own seeding step is its check.
+
+***AND THIS REPOSITORY WAS VERIFIED INTACT WHEN THE SESSION CLOSED***, after the
+Windows-side agent had the owner run a cleanup command that deleted that
+project's tree: clean working tree, `HEAD == origin/main`, 3315 tracked files,
+every key path present, 215 `gpl.bp` sources.  Nothing here was touched; the
+incident is recorded in the START HERE paragraph above so the next reader knows
+why the session ended and where the risk is (a cleanup recipe arriving from the
+other port).
 
 ## Session log — 9 Sep 2026
 
