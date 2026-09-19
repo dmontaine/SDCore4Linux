@@ -18,6 +18,9 @@
 *
 *
 * START-HISTORY:
+* 19 Sep 26 dm  The account directory goes through sd-elevate rmtree-account
+*               when the session is not root, and one left behind is named
+*               (10919) - the fifth cycle's zzrel1 survived, silently.
 * 18 Sep 26 dm TEARDOWN (S.26/S.28).  A kept Linux user loses only sdusers
 *           now: sdadmin and sdapi no longer exist, so nothing strips them.
 * 15 Sep 26 dm  An account whose voc will not open is named (10188) and skipped
@@ -305,8 +308,26 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       stop sysmsg(6030) ;* Account deletion abandoned
    end
 
+* 19 Sep 26 dm - THROUGH THE HELPER WHEN THE SESSION IS NOT ROOT, AND CHECKED.
+*   OS$DELETE runs as the calling session, which is the local sdsys session
+*   since the teardown (S.26), and sdsys cannot remove what the account's own
+*   user made without group write - so zzrel1's directory survived the fifth
+*   cycle's DELETE.ACCOUNT, and nothing said so because the result was never
+*   read.  sd-elevate rmtree-account accepts exactly an account directory.
+*   Either way, a directory still on disk afterwards is named (10919), and the
+*   deletion carries on: the account is going, and the directory is only
+*   files the administrator can see and remove.
    if dir.exists then
-      yn = ospath(pathname, OS$DELETE)
+      if system(27) = 0 then
+         yn = ospath(pathname, OS$DELETE)
+      end else
+         if index(pathname, "'", 1) = 0 then
+            os.execute "sudo /usr/local/sbin/sd-elevate rmtree-account '" : pathname : "'"
+         end
+      end
+      if ospath(pathname, OS$EXISTS) then
+         crt sysmsg(10919, pathname) ;* Account directory %1 was not removed
+      end
    end
 
 * 10 Sep 26 dm - THE ACCOUNTS RECORD IS DELETED LAST, NOT HERE (the port's, 14

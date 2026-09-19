@@ -296,8 +296,8 @@ if [ -f /etc/sudoers.d/sdcore ]; then
   say "  /etc/sudoers.d/sdcore:"
   printf '%s\n' "$SUDOERS" | sed -e 's/^/      | /'
   ck_says "M7d the sudoers grant names the sdsys user" "sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate" "$SUDOERS"
-  ck_says "M7d2 and sdusers only the two cred-own lists (W.10)" \
-    "%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own set" "$SUDOERS"
+  ck_says "M7d2 and sdusers only the three cred-own lists (W.10)" \
+    "%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own verify, /usr/local/sbin/sd-elevate cred-own set" "$SUDOERS"
   # 18 Sep 26 dm - COMMENTS ARE NOT GRANTS.  The teardown's own note in the
   #   drop-in says the grant moved FROM %sdadmin, so searching the whole file
   #   fails on the sentence that records the change; the rule lines are the
@@ -377,8 +377,9 @@ head2 "M10. a person's own SD password, underneath (W.10)"
 ELEV=/usr/local/sbin/sd-elevate
 CREDF="$SDSYS/\$cred/$ACC"
 if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
-  for r in "M10a query" "M10b other verbs refused by sudo" "M10c first set" "M10d record owner/mode" \
-           "M10e wrong current refused" "M10f right current accepted"; do not_reached "$r"; done
+  for r in "M10a query" "M10b other verbs refused by sudo" "M10b3 helper never ran" "M10c first set" "M10d record owner/mode" \
+           "M10e wrong current refused" "M10f right current accepted" \
+           "M10g verify refuses wrong" "M10h verify accepts right"; do not_reached "$r"; done
 elif [ "$COMMIT" -eq 1 ]; then
   K1=$(head -c 32 /dev/zero | tr '\0' '\021' | base64)
   K2=$(head -c 32 /dev/zero | tr '\0' '\042' | base64)
@@ -388,8 +389,17 @@ elif [ "$COMMIT" -eq 1 ]; then
   case "$OUT" in none|salt\ *) ck "M10a the account's own query answers" yes yes ;;
                  *) ck "M10a the account's own query answers" "none or salt" "$OUT" ;; esac
   OUT=$(as_acc useradd zzw10probe); say "      > (as $ACC) sudo -n sd-elevate useradd zzw10probe"; say "      | $OUT"
-  ck_says "M10b any other helper verb is refused by sudo itself" "a password is required" "$OUT"
+  # 19 Sep 26 - fifth cycle: this box's sudo is sudo-rs (0.2.14), whose -n
+  # refusal is "I'm afraid I can't do that", not C sudo's "a password is
+  # required"; the refusal was right and the anchor failed it.  Either
+  # implementation's wording passes, and M10b3 proves the helper never ran
+  # (it prints "sd-elevate:" whenever it does).
+  case "$OUT" in
+    *"a password is required"*) ck_says "M10b any other helper verb is refused by sudo itself" "a password is required" "$OUT" ;;
+    *) ck_says "M10b any other helper verb is refused by sudo itself" "I'm afraid I can't do that" "$OUT" ;;
+  esac
   ck "M10b2 and nothing was made" no "$(yesno_user zzw10probe)"
+  ck_absent "M10b3 and the helper never ran" "sd-elevate:" "$OUT"
   CUR=""; [ -f "$CREDF" ] && CUR=$(sed -n '5p' "$CREDF")
   say "      (a credential existed before: $([ -n "$CUR" ] && echo yes || echo no))"
   OUT=$(printf '%s\n' "$CUR" 2 SCRAM-SHA-256 "$SALT" 600000 "$K1" "$K1" | as_acc cred-own set)
@@ -404,6 +414,16 @@ elif [ "$COMMIT" -eq 1 ]; then
   say "      > (as $ACC) cred-own set, the RIGHT current key"; say "      | $OUT"
   ck_says "M10f the right current password is accepted" "SD password set for $ACC" "$OUT"
   ck "M10f2 and the record changed" "$K2" "$(sed -n '5p' "$CREDF" 2>/dev/null)"
+  # 19 Sep 26 - verify, what MODIFY.PASSWORD now asks BEFORE the new password
+  #   (the owner at the keyboard: a wrong current one used to reach the new-
+  #   password prompts).  The record now holds K2.
+  OUT=$(printf '%s\n' "$K1" | as_acc cred-own verify)
+  say "      > (as $ACC) cred-own verify, a WRONG current key"; say "      | $OUT"
+  ck_says "M10g verify refuses a wrong current password" "the current password is not correct" "$OUT"
+  OUT=$(printf '%s\n' "$K2" | as_acc cred-own verify)
+  say "      > (as $ACC) cred-own verify, the RIGHT current key"; say "      | $OUT"
+  ck_says "M10h verify accepts the right one" "the current password is correct" "$OUT"
+  ck_absent "M10h2 and it wrote nothing" "write " "$OUT"
 fi
 
 # ==========================================================================
