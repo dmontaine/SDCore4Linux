@@ -16,6 +16,32 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  THE INSTALLER ASKS FOR YOUR SD PASSWORD AGAIN - AND IT IS REQUIRED.
+           This reverses the 18 Sep entry below, the same night, for a
+           reason that entry missed.  Logging in to Linux does reach your SD
+           account at the machine - but every account except sdsys can also
+           be reached remotely through the SD API, and that needs an SD
+           password.  The installer's own account was the one account an
+           install made without one, so the remote route it opened could not
+           be used.
+
+           The installer now asks for it near the end, hidden, twice.  It is
+           NOT your Linux password and does not replace it: at the machine
+           and over ssh you still sign in with your Linux password.  This one
+           is only for programs that reach SD through its API, from this
+           computer or another.
+
+           If you leave the prompt without setting one, the installer asks
+           again, up to three times, then says in red how to set it later
+           (log in as sdsys and type  MODIFY.PASSWORD  with your user name).
+           It cannot force you, and it says so rather than pretend.  A
+           reinstall that keeps your accounts keeps your password and does
+           not ask.  SD Core for Windows made the same change the same night.
+
+           Also: two MODIFY.PASSWORD refusals still told you to use
+           "su - sdsys", which SD now refuses; they now say to log in as
+           sdsys at the machine.
+
 19 Sep 26  YOUR SD ACCOUNT IS NAMED IN LOWER CASE EVEN IF YOUR LINUX LOGIN IS
            NOT.  The installer makes an SD account for the person who
            installs SD, on top of the Linux login they already have.  If
