@@ -110,6 +110,7 @@ FAIL=0
 NOT_REACHED=0
 MADE_USER=0
 MADE_ACCOUNT=0
+GROUND_CLEAR=0
 
 usage() {
     sed -n '2,20p' "$0"
@@ -247,9 +248,18 @@ cleanup() {
     for n in "$ACC" "$ACC_REFUSE"; do
         local uc
         uc=$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')   # register key, lower since 13 Sep
+        # 19 Sep 26 - THE HOME IS THIS RUN'S TO TAKE (the ground check refuses a
+        #   home that was there before), once its user is gone: DELETE.ACCOUNT
+        #   keeps it by design, so every run used to leave one.  witness-absence's
+        #   rule: only when the USER is gone, whose home it otherwise still is.
+        #   And only after the ground was found clear: this trap also runs when
+        #   the ground check refuses, and that home is then someone else's.
+        if [ "$GROUND_CLEAR" -eq 1 ] && ! id "$n" >/dev/null 2>&1 && [ -d "/home/$n" ]; then
+            rm -rf -- "/home/$n" && say "  removed /home/$n (DELETE.ACCOUNT keeps a home; this run made it)"
+        fi
         say "  left behind for $n: register=$(yesno_file "$REGISTER/$uc")" \
             "dir=$(yesno_dir "$ACCOUNTS_ROOT/$n") user=$(yesno_user "$n")" \
-            "group=$(yesno_group "sdu_$n") marker=$(yesno_file "$SDSYS/\$attach.$n")"
+            "group=$(yesno_group "sdu_$n") home=$(yesno_dir "/home/$n") marker=$(yesno_file "$SDSYS/\$attach.$n")"
     done
     exit $rc
 }
@@ -291,13 +301,19 @@ for n in "$ACC" "$ACC_REFUSE"; do
     [ "$(yesno_dir "$ACCOUNTS_ROOT/$n")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$n already exists"; DIRTY=1; }
     [ "$(yesno_file "$REGISTER/$uc")" = yes ] && { say "  DIRTY: register record $uc already exists"; DIRTY=1; }
     [ "$(yesno_file "$SDSYS/\$attach.$n")" = yes ] && { say "  DIRTY: an ATTACH marker for $n already exists"; DIRTY=1; }
+    # 19 Sep 26 - AND THE HOME.  The fifth cycle's run left /home/zzacct2 (a
+    #   plain DELETE.ACCOUNT keeps the home by design) and this check did not
+    #   look, so the sixth cycle's useradd adopted a home another uid owned and
+    #   its userdel -r then refused - the run died in section 2.
+    [ "$(yesno_dir "/home/$n")" = yes ] && { say "  DIRTY: /home/$n already exists"; DIRTY=1; }
 done
 if [ "$DIRTY" -eq 1 ]; then
     say "witness-accounts: CANNOT RUN - the ground is not clear (above)."
     say "  This script will not touch state it did not create."
     exit 2
 fi
-say "  ground clear: neither name exists as user, group, directory, record or marker."
+GROUND_CLEAR=1
+say "  ground clear: neither name exists as user, group, directory, home, record or marker."
 
 head2 "0b. the state before"
 say "  register records : $(ls -1 "$REGISTER" | tr '\n' ' ')"
@@ -368,7 +384,7 @@ say "  2c. CREATE.ACCOUNT USER $ACC - SD's whole flow, as sdsys."
 # asks for one because it is creating the Linux user, and the account dies in
 # phase 3.  passwd(1) gets it through the piped session's stdin (the _PW_
 # placeholders below), exactly as MODIFY.PASSWORD answers travel.
-PW_OS="zz$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
 OUT=$(run_sd "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
              "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
 PW_OS=""

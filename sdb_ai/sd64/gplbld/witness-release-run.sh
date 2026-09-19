@@ -120,6 +120,7 @@ FAIL=0
 NOT_REACHED=0
 MADE_USER=0
 MADE_ACCOUNT=0
+GROUND_CLEAR=0
 # Section 8 (Q.13) needs a SECOND account to grant to - don is never a fixture.
 ACC2=zzrel2
 MADE_USER2=0
@@ -367,6 +368,18 @@ cleanup() {
             "dir=$(yesno_dir "$ACCOUNTS_ROOT/$ACC3") user=$(yesno_user "$ACC3")" \
             "group=$(yesno_group "sdu_$ACC3") home=$(yesno_dir "/home/$ACC3")"
     fi
+    # 19 Sep 26 - THE HOMES THIS RUN MADE.  DELETE.ACCOUNT keeps a home by
+    #   design, so each run left /home/zzrel1 and /home/zzrel2.  Only after
+    #   the ground was found clear (this trap also runs on a refusal) and only
+    #   once the user is gone - witness-absence's rule.
+    if [ "$GROUND_CLEAR" -eq 1 ]; then
+        for n in "$ACC" "$ACC2" "$ACC3"; do
+            if ! id "$n" >/dev/null 2>&1 && [ -d "/home/$n" ]; then
+                rm -rf -- "/home/$n" && say "  removed /home/$n (DELETE.ACCOUNT keeps a home; this run made it)"
+            fi
+        done
+    fi
+    say "  homes left: $ACC=$(yesno_dir "/home/$ACC") $ACC2=$(yesno_dir "/home/$ACC2") $ACC3=$(yesno_dir "/home/$ACC3")"
     [ -n "$SSHDIR" ] && [ -d "$SSHDIR" ] && { rm -rf "$SSHDIR"; say "  removed the witness ssh key ($SSHDIR)"; }
     # S.13 (13h) changes the machine's API listener and firewall; if it stopped
     # part-way they are put back exactly as section 13h found them.
@@ -410,6 +423,11 @@ DIRTY=0
 [ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC3")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC3 exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC3")" = yes ] && { say "  DIRTY: register record $ACC3 exists"; DIRTY=1; }
 [ "$(yesno_dir "/home/$ACC3")" = yes ] && { say "  DIRTY: /home/$ACC3 exists"; DIRTY=1; }
+# 19 Sep 26 - AND THE OTHER TWO HOMES.  A plain DELETE.ACCOUNT keeps the home,
+#   so the fifth and sixth cycles left /home/zzrel1 and /home/zzrel2; a later
+#   useradd would adopt a home another uid owns.
+[ "$(yesno_dir "/home/$ACC")" = yes ] && { say "  DIRTY: /home/$ACC exists"; DIRTY=1; }
+[ "$(yesno_dir "/home/$ACC2")" = yes ] && { say "  DIRTY: /home/$ACC2 exists"; DIRTY=1; }
 # 14 Sep 26 dm - THE SD PASSWORD REGISTER TOO.  The 19:36 run on 74c60d4 left
 # $cred/zzrel1 behind (DELETE.ACCOUNT did not remove it then), and section 13's
 # C0 asserts "has no password set" - a leftover record would fail it for a
@@ -422,7 +440,8 @@ if [ "$DIRTY" -eq 1 ]; then
     say "  This script will not touch state it did not create."
     exit 2
 fi
-say "  ground clear: $ACC exists as no user, group, directory, record or marker."
+GROUND_CLEAR=1
+say "  ground clear: $ACC exists as no user, group, directory, home, record or marker."
 STAMP=$(sed -n '2p' "$SDSYS/voc_template/\$release" 2>/dev/null)
 say "  voc_template \$release field 2 (what a new account gets): '$STAMP'"
 [ "$STAMP" != "$FAKE_REL" ] || { say "witness-release-run: CANNOT RUN - the install is already at $FAKE_REL, so nothing would differ."; exit 2; }
@@ -435,7 +454,7 @@ head2 "1. create $ACC - SD's whole flow, as sdsys"
 # asks for one because it is creating the Linux user, and the account dies in
 # section 15.  passwd(1) gets it through the piped session's stdin (the _PW_
 # placeholders below), exactly as MODIFY.PASSWORD answers travel.
-PW_OS="zz$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
 OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
              "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
 PW_OS=""
@@ -756,7 +775,7 @@ else
     say "  audit trail before: $N0 lines ($AUD)"
     say "  CREATE.ACCOUNT USER $ACC2 (SD's whole flow, as sdsys)"
     if [ "$COMMIT" -eq 1 ]; then
-        PW_OS="zz$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+        PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
     fi
     OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC2 (answering the Linux password)" \
           "CREATE.ACCOUNT USER $ACC2" "_PW_" "_PW_")
@@ -837,7 +856,7 @@ else
 
     say "  CREATE.ACCOUNT USER $ACC3 (SD creates the Linux user, stamped \"SD account\")"
     if [ "$COMMIT" -eq 1 ]; then
-        PW_OS="zz$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
+        PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
     fi
     OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC3 (answering the Linux password)" \
           "CREATE.ACCOUNT USER $ACC3" "_PW_" "_PW_")
@@ -874,7 +893,7 @@ CREDDIR="$SDSYS/\$cred"
 if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
     for r in "W3 shadow changed" "C0 first password" "C1 set" "C2 record exists" "C3 version 2" "C4 mechanism" "C5 iterations" "C6 keys" "C7 register 700 root"; do not_reached "$r"; done
 else
-    PW="Zq7$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)x9"
+    PW="Zq7-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 16)x9"
     SH_BEFORE=$(getent shadow "$ACC" 2>/dev/null | cut -d: -f2)
     say "  shadow hash prefix before: '$(printf '%s' "$SH_BEFORE" | cut -c1-3)'"
     say "  chpasswd: set $ACC's Linux password (not shown)"
@@ -891,7 +910,7 @@ else
     fi
     PW=""
 
-    CPW="Cr9$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)q4"
+    CPW="Cr9-$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 20)q4"
     say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC, then an SD password twice (not shown) ---"
     say "  \$cred/$ACC before: $(yesno_file "$CREDDIR/$ACC")"
     if [ "$COMMIT" -eq 1 ]; then
@@ -1019,7 +1038,7 @@ else
     # (never printed; the current one is not asked when an administrator sets
     # another account's) and SDConnect must log in with it.  13c and X6 then
     # use it.  18 Sep 26: the session is sdsys, the administrator.
-    LONG_PW="Lq7$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)x9"
+    LONG_PW="Lq7-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 56)x9"
     say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC to a ${#LONG_PW}-character SD password (not shown) ---"
     if [ "$COMMIT" -eq 1 ]; then
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
@@ -1308,7 +1327,7 @@ else
         # no credential by ruling (the installer does not set one), so a
         # throwaway one is set, measured against, and removed again - the
         # machine is left as the install made it.
-        SDSYS_PW="Zy$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)q2"
+        SDSYS_PW="Zy-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)q2"
         PW_OS="$SDSYS_PW"
         OUT=$(run_sd sdsys "MODIFY.PASSWORD sdsys (a throwaway credential for this section)" \
               "MODIFY.PASSWORD sdsys" "_PW_" "_PW_")
@@ -1386,8 +1405,9 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 #   Y1 MODIFY.ACCOUNT zzrel1 SUSPENDED, in SDSYS: field 5 (the suspension
 #      flag) goes to SUSPENDED ON DISK, read before and after.
 #   Y2 MODIFY.PASSWORD zzrel1 from zzrel1, with the SAME SD password: $cred's
-#      salt (field 3) changes on disk, and Y2c the login still works with it -
-#      the write landed and is right, not merely present.
+#      salt (field 3) changes on disk, and Y2c the SCRAM proof still verifies
+#      with it - the write landed and is right, not merely present; Y2d the
+#      account, suspended by Y1, is then refused at the API door.
 #   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE PRIVILEGE: a plain-sd
 #      session has no MODIFY.ACCOUNT ("not in your VOC") and field 5 is still
 #      SUSPENDED.  Then sdsys restores UNSUSPENDED.
@@ -1396,7 +1416,7 @@ reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
 cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and zzrel2 (section 8)"
-    for r in "Y0 route zzrel1 then sdsys" "Y1 SUSPENDED landed" "Y2 password set" "Y2b salt changed" "Y2c login works" "Y3 plain-sd refused 2001" "Y3b field 5 unchanged" "Y4 restored"; do not_reached "$r"; done
+    for r in "Y0 route zzrel1 then sdsys" "Y1 SUSPENDED landed" "Y2 password set" "Y2b salt changed" "Y2c login works" "Y2d suspended refused" "Y3 plain-sd refused 2001" "Y3b field 5 unchanged" "Y4 restored"; do not_reached "$r"; done
 else
     FLAG_BEFORE=""; SALT_BEFORE=""
     if [ "$COMMIT" -eq 1 ]; then
@@ -1433,7 +1453,16 @@ else
         ck "Y2b the \$cred record was rewritten on disk (the salt changed)" yes "$([ -n "$SALT_AFTER" ] && [ "$SALT_AFTER" != "$SALT_BEFORE" ] && echo yes || echo no)"
     fi
     OUT=$(sprobe "Y2c the login with the same SD password, after the rewrite" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
-    [ "$COMMIT" -eq 1 ] && ck_says "Y2c the rewritten credential logs in" "account $ACC: entered" "$OUT"
+    # 19 Sep 26 - THE ACCOUNT IS SUSPENDED HERE (Y1 now runs first, and Y4
+    #   lifts it later), so the entry after the login is refused, rightly -
+    #   sixth cycle.  What Y2c is about is the CREDENTIAL, and the probe's
+    #   success-only line for that is the verified server signature (the
+    #   server sends it only when the proof matched).  Y2d is the bonus the
+    #   new order buys: a suspended account is refused at the API door.
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "Y2c the rewritten credential authenticates" "SCRAM: server signature VERIFIED" "$OUT"
+        ck_says "Y2d and the suspended account is not entered" "account $ACC: REFUSED" "$OUT"
+    fi
     OUT=$(run_sd "$ACC2" "CONTROL: plain-sd MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
     if [ "$COMMIT" -eq 1 ]; then
         # 19 Sep 26 - the refusal is now the verb's absence: a plain account's

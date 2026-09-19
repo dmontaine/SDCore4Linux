@@ -20,6 +20,8 @@
 * START-HISTORY:
 * rev 0.9.0 Jan 25 mab initial commit
 * 11 Sep 26 dm  Header: what STATUS() actually holds (passwd's exit code).
+* 19 Sep 26 dm  SD asks for the password itself and applies its rule
+*               (!pw_complex, 10920); sd-elevate setpw sets it from stdin.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -112,6 +114,7 @@ $catalog !set_passwd
 $include int$keys.h
 
 deffun valid_os_name(name) calling '!valid_os_name'
+deffun pw_complex(pw) calling '!pw_complex'
 
 pass_set = @false
 set.status 0
@@ -161,11 +164,71 @@ end
 *   is what /etc/sudoers.d/sdcore names, and a bare name would depend on
 *   sudo's secure_path.  Exit status still means what it did - the helper
 *   propagates the command's status and exits 2 on a refusal.
-OS.EXECUTE "sudo /usr/local/sbin/sd-elevate passwd " : username
+* 19 Sep 26 dm - SD ASKS FOR THE PASSWORD NOW, NOT passwd(1) (owner, 19 Sep
+*   2026: SD requires a complex password whatever the OS allows).  Under an
+*   interactive "sd-elevate passwd" SD never saw what was typed, so it could
+*   not apply its rule.  So the prompts are SD's - hidden, the new one twice,
+*   three attempts, a weak entry counting like a mismatch (MODIFY.PASSWORD's
+*   shape) - and the password goes to "sd-elevate setpw" as ONE line on its
+*   stdin, from a file in a private 0700 directory, never as an argument.
+*   The helper applies the rule again and hands it to chpasswd, where the
+*   machine's own PAM rules still apply on top.  Status 10 keeps its meaning
+*   for CREATEA (10910): not accepted - a mismatch, or a rule refused it.
+crt sysmsg(10920)  ;* the rule, said before it is applied
+max.tries = 3
+tries = 0
+pw1 = ''
+loop
+   tries += 1
+   display 'New password: ' :
+   input pw1 HIDDEN
+   display
+   if pw1 = '' then
+      set.status 10
+      return pass_set
+   end
+   if not(pw_complex(pw1)) then
+      pw1 = ''
+      crt sysmsg(10920)
+   end else
+      display 'Retype new password: ' :
+      input pw2 HIDDEN
+      display
+      if pw1 = pw2 then exit
+      pw1 = ''
+      crt 'Passwords do not match.'
+   end
+   pw2 = ''
+   if tries >= max.tries then
+      set.status 10
+      return pass_set
+   end
+repeat
+pw2 = ''
+
+pdir = '/tmp/sd-setpw.' : @userno : '.' : date() : time() : rnd(999999)
+os.execute "umask 077 && mkdir -- '" : pdir : "'"
+if os.error() # 0 then
+   pw1 = ''
+   set.status 4                   ;* unexpected failure, as passwd's 4
+   return pass_set
+end
+os.execute "umask 077 && : > '" : pdir : "/p'"
+openseq pdir : '/p' to pw.f else
+   pw1 = ''
+   os.execute "rm -rf -- '" : pdir : "'"
+   set.status 4
+   return pass_set
+end
+writeseq pw1 to pw.f else null
+closeseq pw.f
+pw1 = ''
+OS.EXECUTE "sudo /usr/local/sbin/sd-elevate setpw '" : username : "' < '" : pdir : "/p'"
 * --------------------
-stat = OS.ERROR() 
+stat = OS.ERROR()
+os.execute "rm -rf -- '" : pdir : "'"
 if stat = 0 then
-  pass_set = @TRUE 
+  pass_set = @TRUE
 end else
   set.status stat
 end

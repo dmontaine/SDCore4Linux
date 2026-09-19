@@ -1,0 +1,65 @@
+* PW_COMPLEX(pw)
+* Return @true if pw meets SD's password rule.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 19 Sep 26 dm  Written on the owner's ruling of 19 Sep 2026: SD requires a
+*               complex password itself, whatever the operating system allows,
+*               for SDSYS and every other account.  His choice of rule: at
+*               least 8 characters, and all four kinds.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    x = !pw_complex(pw)
+*
+*    THE RULE - one rule, every password SD sets (the SD password through
+*    MODIFY.PASSWORD, the Linux password CREATE.ACCOUNT sets, and the sdsys
+*    password the installer sets):
+*
+*      at least 8 characters, and at least one of each:
+*        a lower-case letter   a-z
+*        an upper-case letter  A-Z
+*        a digit               0-9
+*        a symbol              any other printable ASCII character,
+*                              space included
+*
+*    Anything outside printable ASCII (a control character, a tab, a byte
+*    above 126) fails the rule outright.  The classes are ASCII ranges on
+*    purpose: the same rule is written again in bash (sd-elevate's
+*    pw_complex, installsdai.sh's sdsys prompt) and in the Windows port, and
+*    byte ranges are the one definition all of them read the same way.
+*    Refusal text: message 10920, shared with SD Core for Windows.
+*
+*    It judges the password only; it says nothing and changes nothing.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+function pw_complex(pw)
+$catalog !pw_complex
+
+   if len(pw) < 8 then return @false
+
+   has.lower = @false ; has.upper = @false
+   has.digit = @false ; has.symbol = @false
+
+   n = len(pw)
+   for i = 1 to n
+      c = seq(pw[i,1])
+      begin case
+         case c >= 97 and c <= 122 ; has.lower = @true
+         case c >= 65 and c <= 90  ; has.upper = @true
+         case c >= 48 and c <= 57  ; has.digit = @true
+         case c >= 32 and c <= 126 ; has.symbol = @true
+         case 1 ; return @false       ;* not printable ASCII
+      end case
+   next i
+
+   return (has.lower and has.upper and has.digit and has.symbol)
+
+end
+
+* END-CODE

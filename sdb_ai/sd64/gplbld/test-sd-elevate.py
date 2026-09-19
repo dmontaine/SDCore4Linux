@@ -403,6 +403,66 @@ def main():
     finally:
         shutil.rmtree(fx, ignore_errors=True)
 
+    # ---- 19 Sep 26: SD'S PASSWORD RULE (owner's ruling: 8+ characters, a-z,
+    # ---- A-Z, 0-9 and a symbol; printable ASCII only).  The same table must
+    # ---- hold for GPL.BP/PW_COMPLEX and the port - it is the rule's spec.
+    # ---- Each REFUSE row lacks exactly ONE thing, so a rule that stopped
+    # ---- checking any one class fails here; the ALLOW rows are the control.
+    PW_RULE = [
+        (ALLOW,  "Abcdef1!",       "exactly 8, all four kinds"),
+        (ALLOW,  "zZ9 zzzz",       "a space is a symbol"),
+        (ALLOW,  "Pass:word1",     "a colon (chpasswd's separator) is only a symbol"),
+        (ALLOW,  "Aa1~" * 30,      "long is fine - no maximum"),
+        (REFUSE, "Abcde1!",        "7 characters - one short"),
+        (REFUSE, "abcdef1!",       "no upper-case letter"),
+        (REFUSE, "ABCDEF1!",       "no lower-case letter"),
+        (REFUSE, "Abcdefg!",       "no digit"),
+        (REFUSE, "Abcdefg1",       "no symbol"),
+        (REFUSE, "Abcdef1\t",      "a tab is not printable ASCII"),
+        (REFUSE, "Abcdéf1!",       "a non-ASCII letter"),
+        (REFUSE, "",               "empty"),
+    ]
+    for expect, pw, note in PW_RULE:
+        p = subprocess.run(["bash", HELPER, "--dry-run", "pw-check"],
+                           input=pw + "\n", capture_output=True, text=True)
+        got = ALLOW if p.returncode == 0 else REFUSE
+        needle = "meets the rule" if expect == ALLOW else "does not meet the rule"
+        out = (p.stdout or "") + (p.stderr or "")
+        ok = got == expect and needle in out
+        n_allow += expect == ALLOW
+        n_refuse += expect == REFUSE
+        passed += ok
+        failed += not ok
+        print(f"  [{'PASS' if ok else 'FAIL'}] {expect:6} pw-rule {note}")
+        if not ok:
+            failures.append((["pw-check", repr(pw)], f"{expect} + {needle!r}", got, out.strip()))
+
+    # ---- setpw: the rule again at the helper's door, the user rules, and one
+    # ---- line on stdin only.  Dry run: validates and prints, sets nothing.
+    SETPW = [
+        (REFUSE, ["setpw", "don"],   "weakpass\n",              "does not meet SD's rule", "a weak password"),
+        (REFUSE, ["setpw", "root"],  "Abcdef1!\n",              "root is never a target",  "root"),
+        (REFUSE, ["setpw", "sdsys"], "Abcdef1!\n",              "never a target",          "sdsys"),
+        (REFUSE, ["setpw", "don"],   "Abcdef1!\nAbcdef1!\n",    "exactly one line",        "a second line"),
+        (REFUSE, ["setpw", "don"],   "",                        "on stdin",                "nothing on stdin"),
+        (REFUSE, ["setpw", "don", "Abcdef1!"], "",              "SD Core's privileged helper", "the password as an argument"),
+        (REFUSE, ["pw-check"],       "Abcdef1!\n",              "for --dry-run only",      "pw-check outside a dry run"),
+        (ALLOW,  ["setpw", "don"],   "Abcdef1!\n",              "chpasswd for don",        "a good password (dry run)"),
+    ]
+    for expect, argv, stdin, needle, note in SETPW:
+        cmd = ["bash", HELPER] + (argv if argv == ["pw-check"] else ["--dry-run"] + argv)
+        p = subprocess.run(cmd, input=stdin, capture_output=True, text=True)
+        got = ALLOW if p.returncode == 0 else REFUSE
+        out = (p.stdout or "") + (p.stderr or "")
+        ok = got == expect and needle in out
+        n_allow += expect == ALLOW
+        n_refuse += expect == REFUSE
+        passed += ok
+        failed += not ok
+        print(f"  [{'PASS' if ok else 'FAIL'}] {expect:6} {' '.join(argv)[:30]:30} | {note}")
+        if not ok:
+            failures.append((argv, f"{expect} + {needle!r}", got, out.strip()))
+
     print()
 
     # ---- refuse the null case, out loud.  A run that established nothing must
