@@ -217,7 +217,13 @@ if [ "$COMMIT" -eq 1 ]; then
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPEND (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPEND")
   ck_says "M3b SUSPENDED is the flag (10179)" "is now suspended" "$OUT"
-  ck "M3c and UNSUSPEND cleared it on disk" "" "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
+  # 19 Sep 26: a MISSING record also reads blank, and M3c passed on the third
+  # cycle with no account at all.  The null case is refused out loud.
+  if [ -f "$REGISTER/$ACC" ]; then
+    ck "M3c and UNSUSPEND cleared it on disk" "" "$(sed -n '5p' "$REGISTER/$ACC")"
+  else
+    not_reached "M3c and UNSUSPEND cleared it on disk (no register record to read)"
+  fi
 fi
 
 # ==========================================================================
@@ -331,7 +337,10 @@ if [ "$COMMIT" -eq 1 ]; then
 #   never reaching the prompt.
   OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
   printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-  ck_says "M8f sudo -u sdsys is refused (10181)" "not logged in as sdsys" "$OUT"
+  # 19 Sep 26: the anchor must sit inside ONE line of 10181 - "not logged in as
+  # sdsys" spans its line break and failed on the third cycle although the
+  # refusal was right (M8g/M8h passed).
+  ck_says "M8f sudo -u sdsys is refused (10181)" "but the machine was not logged in as" "$OUT"
   ck_absent "M8g and never reached the prompt (no grant banner)" "SD administration granted" "$OUT"
   ck_says "M8h and it was audited" "ELEVATION REFUSED reason=sdsys session without a sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"

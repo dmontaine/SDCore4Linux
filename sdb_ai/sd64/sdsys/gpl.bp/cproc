@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 19 Sep 26 dm The two entry refusals, 10176 (root) and 10181 (sdsys without a
+*           sdsys login), are printed a line at a time.  Both records are
+*           several lines, and a single DISPLAY put the raw field marks on the
+*           user's screen (seen as a replacement character on the third
+*           cycle's witness run).  copyp's help display is the idiom.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier model comes
 *           out: the root-entry block no longer drops to sdsys or calls
 *           grant.administrator (deleted).  A root session is refused outright
@@ -398,7 +403,11 @@ restart.cproc:
 *   build of CPROC.
       if system(27) = 0 then           ;* entered as root?
 $ifndef IS_INSTALL
-         display sysmsg(10176)
+         refuse.msg = sysmsg(10176)   ;* several lines: one DISPLAY each
+         loop
+            display remove(refuse.msg, refuse.more)
+         while refuse.more
+         repeat
          void kernel(K$AUDIT, 'ELEVATION REFUSED reason=root is not SD administrator')
          goto abort.cproc
 $else
@@ -418,7 +427,11 @@ $ifndef IS_INSTALL
          end else
 * 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
 *   Refused like root; there is no plain sdsys session to fall back to.
-            display sysmsg(10181)
+            refuse.msg = sysmsg(10181)   ;* several lines: one DISPLAY each
+            loop
+               display remove(refuse.msg, refuse.more)
+            while refuse.more
+            repeat
             void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session without a sdsys login')
             goto abort.cproc
          end

@@ -439,7 +439,12 @@ if [ "$COMMIT" -eq 1 ]; then
     ck "A2 the account directory exists" yes "$(yesno_dir "$ADIR")"
     ck "A3 its bp directory exists" yes "$(yesno_dir "$ADIR/bp")"
     ck_says "A4 SD reported the sdusers membership (10013)" "added to sdusers" "$OUT"
-    ck "A5 field 5 (the suspension flag) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
+    # 19 Sep 26: a missing record reads blank too - refuse that null case.
+    if [ -f "$REGISTER/$ACC" ]; then
+        ck "A5 field 5 (the suspension flag) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC")"
+    else
+        not_reached "A5 field 5 (the suspension flag) is blank - no tier"
+    fi
     if [ -e "$REGISTER/$ACC" ] && [ -d "$ADIR/bp" ]; then ADOPTED=1; MADE_ACCOUNT=1; fi
     [ -e "$REGISTER/$ACC" ] && MADE_ACCOUNT=1
 fi
