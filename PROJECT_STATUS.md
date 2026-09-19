@@ -29,7 +29,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  THE THIRD CYCLE RAN 19 Sep on `8fbe9d8` (install 00:45:42, `assert-current` current; ATTACH seeded `don` correctly): `witness-absence` 30/50, ONE ROOT CAUSE - `createa` `set.owner` handed the shell an unquoted path, `$hold` expanded to nothing, so the ACCOUNT DIRECTORY was chowned before `$hold.dic` was made (M2a; every M3-M6 fail cascades). Fixed (quoted), with 10176/10181 printing raw field marks (cproc) and two null-case false passes (M3c, release-run A5); release-run and accounts not run on it. Left: the fourth cycle. Earlier - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
 | ◐ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026, UNMEASURED***; left: the third cycle's seeding compiles and runs it | — |
 | ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
-| ⬜ | **W.10** | R | self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | — |
+| ◐ | **W.10** | M | ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, UNMEASURED*** - `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | — |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. RULED 18 SEP 2026 — kept as a plain account flag; built in the teardown change set | 18 Sep 2026 |
@@ -832,7 +832,26 @@ the compile check is the third cycle's seeding step (GPL.BP is compiled by
 SDSYS at install, owner 12-13 Sep). The fold is exercised only by an
 installing user whose Linux name has capitals — no witness row makes one.
 
-***[W.10] SELF-SERVICE MODIFY.PASSWORD — §OPEN§, WAITING FOR THE OWNER.***
+***[W.10] SELF-SERVICE MODIFY.PASSWORD — RULED AND §BUILT§ 19 SEP 2026;
+§OPEN§ UNTIL A CYCLE AND A PERSON AT THE KEYBOARD MEASURE IT.***  The owner:
+match the Windows RESULT, not its process; one visible process for the
+administrator and the user.  Built the Linux way: `sd-elevate cred-own
+query|set` (identity from sudo's SUDO_USER/SUDO_UID; the caller's own
+register record only, not suspended, a `sdu_<self>` account; keys on stdin
+from a file in a private 0700 dir, never argv; current password proved by its
+StoredKey, derived by the caller from the reported salt/iterations and
+string-compared by the helper; write via temp + rename, sdsys:sdusers 0600,
+read back; `SD_SYS_ROOT` fixture honoured only under `--dry-run`).
+`sdcore.sudoers` grants `%sdusers` exactly those two argument lists.
+`set_acc_password`: a non-administrator's own change takes `self.svc`, same
+prompts; the administrator path is unchanged.  `newvoc/modify.password`
+added (UPDATE.ACCOUNTS brings it to existing accounts on an upgrade).  Free:
+`test-sd-elevate` 92/92 (20 cred-own rows, each wanting its own reason);
+`visudo -cf` OK.  Witness: M7d2 (the sudoers line) and M10a-f (as the plain
+throwaway through real sudo: own query; any other verb refused by sudo; set;
+owner/mode; wrong current refused and the key kept; right current accepted).
+NOT measurable by instrument: the hidden prompts themselves.  *Earlier, as
+first filed:*
 The port's mail of 19 Sep 02:15 relays his ruling (a): every account gets
 MODIFY.PASSWORD, a user sets only their own, the administrator any. The
 port needed only `newvoc/modify.password`. Here that would ship a verb that

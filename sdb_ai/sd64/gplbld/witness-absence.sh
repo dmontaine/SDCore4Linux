@@ -296,6 +296,8 @@ if [ -f /etc/sudoers.d/sdcore ]; then
   say "  /etc/sudoers.d/sdcore:"
   printf '%s\n' "$SUDOERS" | sed -e 's/^/      | /'
   ck_says "M7d the sudoers grant names the sdsys user" "sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate" "$SUDOERS"
+  ck_says "M7d2 and sdusers only the two cred-own lists (W.10)" \
+    "%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own set" "$SUDOERS"
   # 18 Sep 26 dm - COMMENTS ARE NOT GRANTS.  The teardown's own note in the
   #   drop-in says the grant moved FROM %sdadmin, so searching the whole file
   #   fails on the sentence that records the change; the rule lines are the
@@ -363,6 +365,46 @@ ck "M9e TIERGATE is not in the shipped gpl.bp sources" 0 \
    "$(find "$SRC/sdsys" -name 'tiergate' -o -name 'tier.policy' 2>/dev/null | wc -l | tr -d ' ')"
 ck "M9f no tier keyword survives in CREATE.ACCOUNT's grammar" 0 \
    "$(grep -cE 'KW\$ADMIN|ADMINISTRATOR)' "$SRC/sdsys/gpl.bp/createa" 2>/dev/null)"
+
+# ==========================================================================
+# 19 Sep 26 - W.10: a person sets their OWN SD password.  MODIFY.PASSWORD's
+# prompts are hidden and need a tty, so no instrument drives them; what this
+# measures is the machinery underneath, on the real install: the sudoers grant
+# (sdusers may run exactly "cred-own query|set"), the helper's confinement to
+# the caller's own record, and the current-password proof.  Fixed test keys,
+# never a real password; the record goes with the account at cleanup.
+head2 "M10. a person's own SD password, underneath (W.10)"
+ELEV=/usr/local/sbin/sd-elevate
+CREDF="$SDSYS/\$cred/$ACC"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  for r in "M10a query" "M10b other verbs refused by sudo" "M10c first set" "M10d record owner/mode" \
+           "M10e wrong current refused" "M10f right current accepted"; do not_reached "$r"; done
+elif [ "$COMMIT" -eq 1 ]; then
+  K1=$(head -c 32 /dev/zero | tr '\0' '\021' | base64)
+  K2=$(head -c 32 /dev/zero | tr '\0' '\042' | base64)
+  SALT=$(head -c 16 /dev/zero | tr '\0' '\063' | base64)
+  as_acc() { sudo -u "$ACC" sudo -n "$ELEV" "$@" 2>&1; }
+  OUT=$(as_acc cred-own query); say "      > (as $ACC) sudo -n sd-elevate cred-own query"; say "      | $OUT"
+  case "$OUT" in none|salt\ *) ck "M10a the account's own query answers" yes yes ;;
+                 *) ck "M10a the account's own query answers" "none or salt" "$OUT" ;; esac
+  OUT=$(as_acc useradd zzw10probe); say "      > (as $ACC) sudo -n sd-elevate useradd zzw10probe"; say "      | $OUT"
+  ck_says "M10b any other helper verb is refused by sudo itself" "a password is required" "$OUT"
+  ck "M10b2 and nothing was made" no "$(yesno_user zzw10probe)"
+  CUR=""; [ -f "$CREDF" ] && CUR=$(sed -n '5p' "$CREDF")
+  say "      (a credential existed before: $([ -n "$CUR" ] && echo yes || echo no))"
+  OUT=$(printf '%s\n' "$CUR" 2 SCRAM-SHA-256 "$SALT" 600000 "$K1" "$K1" | as_acc cred-own set)
+  say "      > (as $ACC) cred-own set, the current key as found"; say "      | $OUT"
+  ck_says "M10c the account sets its own record" "SD password set for $ACC" "$OUT"
+  ck "M10d the record is sdsys:sdusers 600" "sdsys:sdusers 600" "$(stat -c '%U:%G %a' "$CREDF" 2>/dev/null)"
+  OUT=$(printf '%s\n' "$K2" 2 SCRAM-SHA-256 "$SALT" 600000 "$K2" "$K2" | as_acc cred-own set)
+  say "      > (as $ACC) cred-own set, a WRONG current key"; say "      | $OUT"
+  ck_says "M10e a wrong current password is refused" "the current password is not correct" "$OUT"
+  ck "M10e2 and the record kept its key" "$K1" "$(sed -n '5p' "$CREDF" 2>/dev/null)"
+  OUT=$(printf '%s\n' "$K1" 2 SCRAM-SHA-256 "$SALT" 600000 "$K2" "$K2" | as_acc cred-own set)
+  say "      > (as $ACC) cred-own set, the RIGHT current key"; say "      | $OUT"
+  ck_says "M10f the right current password is accepted" "SD password set for $ACC" "$OUT"
+  ck "M10f2 and the record changed" "$K2" "$(sed -n '5p' "$CREDF" 2>/dev/null)"
+fi
 
 # ==========================================================================
 head2 "10. verdict"

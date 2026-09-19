@@ -16,6 +16,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  YOU CAN CHANGE YOUR OWN SD PASSWORD.
+           Type  MODIFY.PASSWORD  in your own account.  SD asks for your
+           current SD password, then the new one twice, all hidden.  Until
+           now only the administrator could set SD passwords, even your own,
+           and ordinary accounts did not have the command at all.
+
+           The rule is the same as in SD Core for Windows: you can change
+           only your own password; the administrator (logged in as sdsys)
+           can change anyone's, and is not asked for the old one when
+           setting somebody else's.  Both of you type the same command and
+           see the same prompts.
+
+           How it is done on Linux: the password store stays readable and
+           writable by the administrator only.  When you change your own
+           password, SD hands the new (already scrambled) password to a
+           small helper that every SD user may run through sudo for exactly
+           this and nothing else; the helper checks who you are from sudo,
+           checks your current password, and changes only your record.  No
+           password, old or new, ever appears on a command line.
+
+           What this does NOT do: it does not change your Linux password,
+           and it does not let you change anyone else's SD password.  A
+           suspended account cannot change its password.
+
 19 Sep 26  THE INSTALLER ASKS FOR YOUR SD PASSWORD AGAIN - AND IT IS REQUIRED.
            This reverses the 18 Sep entry below, the same night, for a
            reason that entry missed.  Logging in to Linux does reach your SD
