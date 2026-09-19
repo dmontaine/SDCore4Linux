@@ -23,10 +23,10 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | | ID | cost | what | settled |
 |---|---|---|---|---|
 | ◐ | **S.19** | XL | ***PRIORITY #1 (owner, 15 Sep 2026), above cheapest-first:*** release blocker for 1.1 — the API session crossed TCP 4243 unencrypted. TLS 1.3 relay + SCRAM bound by tls-exporter, on `main` at `0d58171`; witnessed on that install 15 Sep: §13i T1–T8 all pass, run 253/256 (`/var/tmp/witness-release-run.20260915-095336.log`); re-witnessed on `0b67dba`, 256/256 (`…-102147.log`). 15 Sep, adopted from the port's RELEASE_1.1 42 (follow-Windows rule): `scram-probe.py` refusal modes `--gs2`/`--tamper-nonce`/`--bad-cbind`/`--replay` and the wire line; free checks `test-scramprobe-units.py` 13/13 and `test-tlsconsts-units.py` 14/14, each red on a mutant; probe smoke-tested against the live 0b67dba server (47 refusals over TCP and the socket, `y,,` → 5272, `--no-tls` no ACK). §13i T1–T14c ALL PASS on `c773008` (269/269, 15 Sep 15:46), the OpenSSL 4 const fix included. Windows-client→Linux-server interop PASSED 15 Sep 16:12 (the Windows agent's measurement, sd4windows `92a553a`: TLS 1.3, bound SCRAM, `WHO` → `122 zzinterop`); ***INTEROP PASSES BOTH WAYS, 15 Sep 2026***: Windows client → this server (theirs, 16:12, sd4windows `92a553a`) and Linux client → their server (here, owner-run last step — signature VERIFIED, `WHO` → `7 ZZINTEROPW`); ***PINNING RULED 15 Sep 2026 (owner): 1.1 PERSISTS THE SERVER IDENTITY*** across a keep cycle (`deletesdai.sh`, done), and client-side recognition is 1.2's mutual enrolment — S.20. left: the port's half (its RELEASE_1.1 41), §OPEN§ and not in this tree. Port's mail 16 Sep 22:14 (sd4windows RELEASE_1.1 43, `090756d`+1): its relay now has this tree's per-connection shape as a native spawn (`sdtlsrelay.exe`, S4U token for a bare `sdrelay` account, Low integrity, 0 privileges); wire to the client unchanged, client library unchanged; two socketpair-only deltas from `sd_tlssrv.c` (PEM bytes sd→relay; status byte + text relay→sd). Its units 27/27; witnessed on its install 16 Sep 22:57 (mail 23:05, its RELEASE_1.1 43 struck, `dbb0588..33c75c9`): `verify-relayidentity` 15/15 — one `sdtlsrelay.exe` per held connection, owner `sdrelay`, Low, 0 privileges, parent `sd.exe` still SYSTEM, gone at close. Its `syslog()` lands in the Windows Application event log, provider `sd_Log` — ask for that, not `sdsys/errlog`, when reading a Windows relay report. Nothing to change here | — |
-| ◐ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
-| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
-| ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
-| ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the re-run of the three on `a076571`.*** | — |
+| ◐ | **S.25** | XL | ***THE TEARDOWN, 1 OF 4 (owner's decision, 18 Sep 2026 — the plan's §L reversed): the tier machinery comes out.*** `sdsys/tier.policy` and its two lists, `GPL.BP/TIERGATE` and `!tier_allows` with it (`cproc:2847-2852`, `granta:248`, `modifya:239`, `:633`), `ACC$TIER`/`ACC$PRIOR.TIER` and every arm that reads them (`createa:185`, `:243-254`, `:574-610`; `login`; `modifya` and its `voc.delta`), the module's messages. ***ONE VOC LAYER REMAINS*** — NEWVOC as shipped, the PROGRAMMER set, which is what every account now gets. Supersedes S.3's build, Q.16's `update.accounts` layer, Q.22's `tierapi` leg (§13j: built, never runs). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
+| ◐ | **S.26** | L | ***THE TEARDOWN, 2 OF 4: one administrator, SDSYS — and LOGTO is not the way in.*** SDSYS is tied to the `sdsys` OS account and entered only by running SD as that identity from a local session; `LOGTO sdsys` becomes refused for everyone (`cproc:2847` refuses only an unflagged session today); `grant.administrator`/`K$ADMINISTRATOR` (`cproc:901`, `linuxlb.c:62`) and `sdadmin` stop conferring SD administration — plain `sudo sd` is another administrator and is refused. Shapes: W.5, W.6. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
+| ◐ | **S.27** | L | ***THE TEARDOWN, 3 OF 4: the OS-access gates go — standard Linux limits only.*** `ACC$SH`/`ACC$OS.EXEC` and the `SH-ON`/`SH-OFF`/`OS-ON`/`OS-OFF` arms, `USR_ADMIN` (`op_sh.c:128-139`), `login:439-442`, and the refusal messages 10039/10041/10042/10053/10054; SH and `!` then run at the account's own Linux permissions, and SD keeps no second wall. Supersedes the S.4/S.6/P.23 build. ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
+| ◐ | **S.28** | L | ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  Left: the third cycle - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, unmeasured.*** | — |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.7** | R | SUSPENDED (the tier field's fourth value, Q.12): keep as a plain account flag with its doors re-hung, or drop with the tiers? The reading offered is keep. RULED 18 SEP 2026 — kept as a plain account flag; built in the teardown change set | 18 Sep 2026 |
@@ -347,6 +347,68 @@ THIS REPOSITORY WAS TOUCHED BY IT - verified at handoff: clean tree,
 the other port as UNTRUSTED until its deletions have been read: the two ports
 share a mailbox and the owner's time, not a filesystem.
 
+***HANDOFF, 18 SEP 2026, NIGHT — THE SECOND CYCLE RAN ON `3b81fb6` (20:32) AND
+FOUND ONE PRODUCT DEFECT AND ONE WITNESS DEFECT; BOTH ARE FIXED AND PUSHED;
+THE THIRD CYCLE IS THE ONE THAT CAN CLOSE S.25-S.28.***
+
+The owner ran the full fresh cycle: the leftover cleanup, `deletesdai.sh`,
+`installsdai.sh`, reboot — the install is `3b81fb6` (20:32:30), the register
+holds `don`+`sdsys`, `don`'s voc is `don:sdu_don` (the seeding runs as ROOT
+through the intrinsic, so the install itself never meets the defect below),
+`sd.service` came up between the 20:33 and 20:38 runs (the 20:33 witness died
+wholesale on "SD has not been started"; the two 20:34/20:35 attempts were a
+wrong working directory).  The three witnesses ran at 20:38, owner-run:
+`witness-absence.sh` 29/47, `witness-release-run.sh` 8/188 (178 NOT REACHED),
+`witness-accounts.sh` 16/32 (14 not reached) — logs
+`/var/tmp/witness-absence.20260918-203808.log`,
+`/var/tmp/witness-release-run.20260918-203809.log`,
+`/tmp/witness-accounts.20260918-203809.log`; the 20:39/20:41 re-runs refused
+on the half-created fixtures, correctly.
+
+***ONE ROOT CAUSE, NOT 40: EVERY CREATE.ACCOUNT AS SDSYS ABORTED AT
+`createa:647` — Error 3018 writing the NEWVOC copy.*** The A4 fix (`7bd558d`)
+made set.owner's chown SUCCEED for a sdsys session (the transcript shows the
+three `sd-elevate chown-account` calls for `voc`, `%0`, `%1`), and the
+still-running session can no longer write what it just gave away: its
+supplementary groups were fixed before `sdu_<account>` existed (the S.2
+mechanism, one verb too early to help).  Every failure in all three logs
+cascades from that — no register record, so every later row read "Account
+name is invalid" or gated itself NOT REACHED.  The 20:38 absence log's M2
+transcript is the evidence: chowns, then the 3018, then the account
+half-created (user, group, dirs — no record).
+
+***FIXED (this commit): THE HANDOVER COMES LAST.*** `createa`'s make.account
+chowns `voc`/`%0`/`%1` after the LAST write to voc.f (the NEWVOC copy,
+`$command.stack`, and create.dir.file's file entries), and create.dir.file
+chowns the dictionary's `%0`/`%1` after the `@ID` write — the same disease
+one turn later; both sites carried it from when the administrator was root
+and root writes through any chown.  ***THE WITNESS DEFECT: M4b WAS A FALSE
+PASS*** — `run_sd "$ACC"` puts the account name in run_sd's TITLE slot (a
+sdsys session, the admin banner visible inside the "as zzabst" transcript),
+so "SH runs for a plain account" was measured as the administrator;
+`run_sd_as` gained a plain-account branch (`sudo -u <user>`, root keeps the
+no-sudo branch M8a needs) and M4b uses it.  Free checks: `bash -n` clean,
+`test-accounts-units.py` 17/17, `test-sd-elevate.py` 72/72; the createa edit
+is statements moved verbatim plus comments, and its compile check is the
+install's own seeding step, as before.  ***NOTHING IS MEASURED ON THE NEW
+COMMIT.***
+
+THE NEXT CYCLE — clear the three half-created fixtures first (a DELETE cycle
+takes none of the `sdu_` groups, users or account dirs away):
+
+```sh
+sudo userdel -r zzabst zzrel1 zzacct2
+sudo groupdel sdu_zzabst sdu_zzrel1 sdu_zzacct2
+sudo rm -rf /home/sd/user_accounts/zzabst /home/sd/user_accounts/zzrel1 /home/sd/user_accounts/zzacct2
+```
+
+then the same cycle as before (`deletesdai.sh` → `installsdai.sh` → reboot →
+the three witnesses, absence tee'd to /var/tmp).  The rows to watch beyond
+A4 and the seeding line: **M2's CREATE.ACCOUNT must COMPLETE** — the
+register record must exist (M2a) — and M4b's transcript must show NO
+administration banner (the plain account's own session).  If M2 aborts
+again, the 3018's line number moves with the fix and the log says where.
+
 ***HANDOFF, 18 SEP 2026 (CLOSE) — THE TEARDOWN IS BUILT AS ONE CHANGE SET,
 COMMITTED (`e41d318`) AND PUSHED; NOT INSTALLED, AND NOTHING HAS BEEN
 MEASURED ON A MACHINE YET.***
@@ -494,7 +556,7 @@ witness-absence.sh is the replacement.  Messages removed: 10041-10050, 10053,
 10111, 10113, 10114, 10126-10129, 10157, 10159, 10900-10904, 10911, 10912,
 10919; added: 10176 (root refused), 10177 (sdsys remote refused), 10178/10179/
 10180 (suspend/unsuspend), 10916 (grant notice); 10002 and 10174 reworded.
-*Measured: nothing yet — install + witness after the push; §OPEN§ until the cycle runs.* The pieces:
+*Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.* The pieces:
 `sdsys/tier.policy` and its two lists (`omit.standard`, `add.administrator`);
 `GPL.BP/TIERGATE`, whose `function tier_allows` (`tiergate:89-90`) is the
 whole decision, and its `!tier_allows` callers (`cproc:2847-2852`,
@@ -543,7 +605,7 @@ flag (`cproc:901`, `linuxlb.c:62`), the `sdadmin` group and its sudoers
 (`installsdai.sh:537`, `:601-605`), and plain `sudo sd` — root is "another
 administrator" and does not become SD's. Below the OS, root can still `su` to
 `sdsys`; the rule binds SD's own gate, which is his "the only limits ... those
-Linux imposes". Shapes: W.5, W.6.  *Measured: nothing yet — install + witness after the push; §OPEN§ until the cycle runs.*
+Linux imposes". Shapes: W.5, W.6.  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
 
 ***[S.27] THE TEARDOWN, 3 OF 4 — THE OS-ACCESS GATES GO; STANDARD LINUX
 LIMITS ONLY. §BUILT§.*** Built 18 Sep 2026: op_sh's os_permitted() and its
@@ -562,7 +624,7 @@ messages (10039, 10041, 10042, 10053, 10054). ***SH AND `!` THEN RUN AT THE
 ACCOUNT'S OWN LINUX PERMISSIONS*** — the euid drop already runs a session as
 the account's OS user, so the OS is the wall and SD keeps no second one. Keys
 and fields to tidy in the same change: `SYSCOM/KEYS.H` fields 7/8,
-`K$SH`/`K$OS.EXEC` (58/59), and what CREATEA seeds in them.  *Measured: nothing yet — install + witness after the push; §OPEN§ until the cycle runs.*
+`K$SH`/`K$OS.EXEC` (58/59), and what CREATEA seeds in them.  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
 
 ***[S.28] THE TEARDOWN, 4 OF 4 — REMOTE SSH AND THE API FOR EVERYONE BUT
 SDSYS; SDSYS LOCAL ONLY. §BUILT§.*** Built 18 Sep 2026: the ssh boundary is one
@@ -586,7 +648,7 @@ route for every account; `sdapi`'s per-account permission (S.16,
 `installsdai.sh:549-553`) is disposed; S.17's non-loopback refusal stays as
 SDSYS's door. The installer and deleter follow: `sdadmin`'s group and its
 users' sudoers go, `sdusers` stays as the Linux-native "may run SD" group.
-Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured: nothing yet — install + witness after the push; §OPEN§ until the cycle runs.*
+Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.*
 
 ***[W.5] `sudo sd` AS ROOT — REFUSED OUTRIGHT, OR AN ORDINARY
 NON-ADMINISTRATOR SESSION? RULED 18 SEP 2026 — THE READING APPLIED.*** Built: a root
@@ -4543,6 +4605,51 @@ every key path present, 215 `gpl.bp` sources.  Nothing here was touched; the
 incident is recorded in the START HERE paragraph above so the next reader knows
 why the session ended and where the risk is (a cleanup recipe arriving from the
 other port).
+
+***THE NIGHT SESSION (a fresh agent, "continue"): STATE VERIFIED, THE OWNER RAN
+THE SECOND CYCLE, AND ITS ONE REAL DEFECT IS FIXED.***  Read back against the
+machine before anything ran: `HEAD == origin/main == 3b81fb6`, clean,
+`check-stale-leads.py` exit 0, the install still `2908280`, the mailbox
+`to-linux/` empty, and the 18:57/18:58 logs were the last session's dry runs
+(the release run refusing its own dirty ground — the ground check works).  The
+agent cannot run the cycle itself: every process it spawns carries
+`no_new_privs`, so `sudo` is refused outright (measured, sandboxed and not),
+and the installer's SD-password step reads `/dev/tty`
+(`installsdai.sh:1240`) — owner-at-keyboard work, exactly as the handoff
+frames it.  Two inert leftovers noted for the owner, not acted on: the
+tier-era OS users `pete`/`tstd`/`tprog`/`tadm` with their `sdu_*` groups
+(`sdadmin` is gone; they hold nothing), and the 17:47 run's orphan homes.
+
+The owner then ran the cycle (20:32:30 install of `3b81fb6`) and all three
+witnesses (20:38).  THE 20:33 ABSENCE RUN DIED ON "SD has not been started"
+(the service was not up yet after the reboot — every session-dependent row
+failed on that one line; 20:34/20:35 were a wrong directory).  THE 20:38 RUNS
+SCORED 29/47, 8/188 (178 NOT REACHED), 16/32 (14 not reached) — read in full,
+every failure is ONE cascade: M2's `CREATE.ACCOUNT USER zzabst` shows the A4
+fix working (three `sd-elevate chown-account` lines for `voc`, `%0`, `%1`) and
+then `Error 3018 (o/s 0) writing record ... at line 647 of $CREATEA` — the
+chown gave the files to `zzabst:sdu_zzabst` and the sdsys session cannot
+write them (its groups predate the group; the S.2 refresh fires a verb too
+late).  No register record, so M3-M6 read "Account name is invalid" and the
+other two witnesses gated themselves NOT REACHED.  The install never meets
+this: its seeding runs as root, and `don`'s voc is `don:sdu_don`.  The
+half-created fixtures (`zzabst`/`zzrel1`/`zzacct2` users, groups, account
+dirs) are why the 20:39/20:41 re-runs refused their own ground.
+
+TWO FIXES, ONE COMMIT: (1) `createa` — the handover comes last.  make.account
+chowns `voc`/`%0`/`%1` after the last write to voc.f; create.dir.file chowns
+the dict's `%0`/`%1` after the `@ID` write (the same disease, latent one turn
+later — no run had reached it).  Statements moved verbatim, comments dated;
+the compile check is the next install's seeding.  (2) `witness-absence.sh` —
+M4b was a FALSE PASS: `run_sd "$ACC"` put the account name in run_sd's TITLE
+slot (a sdsys session; the admin banner sits inside the "as zzabst"
+transcript of the 20:39 log), so "SH runs for a plain account" measured the
+administrator.  `run_sd_as` gained a plain-account branch (`sudo -u <user>`;
+`root` keeps the no-sudo branch M8a depends on, per its own comment) and M4b
+calls it.  The other two witnesses were checked for the same pattern and are
+clean (release-run's sessions are inline `sudo -u sdsys`; accounts' helper
+says "as sdsys" and means it).  Free checks: `bash -n` clean, no BOM, no
+CRLF, `test-accounts-units.py` 17/17, `test-sd-elevate.py` 72/72.
 
 ## Session log — 9 Sep 2026
 
