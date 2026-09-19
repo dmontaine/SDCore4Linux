@@ -770,7 +770,16 @@ the ssh half). Linux shape, a plan: the API half could return as S.16's
 deny list, or a group checked by `ssh-forcecommand.sh`). Default-on argues
 for a DENY group (membership = off), so a fresh account needs no join and a
 missing group cannot shut everybody out — falsified if sshd cannot express
-it on the distributions the installer serves. The port's warning to carry:
+it on the distributions the installer serves. ***THE PORT'S OBJECTION (mail
+19 Sep 00:40): AN ALLOW GROUP FAILS CLOSED, A DENY GROUP FAILS OPEN.***
+`!is_grp_member` is three-valued and a failed lookup reaches most callers as
+"not a member" — with a deny group that is an unaudited GRANT of remote
+access. So a deny-group build must read `status()` at both halves and treat
+could-not-tell as OFF (the port's `test-groupmember-units.py` walks every
+caller for exactly this; the seven-run b184-b190 investigation was this
+fault). The port uses ALLOW groups `sdssh`/`sdapi` as the authority (chosen
+because sshd's `AllowGroups` needs one to name), paying an explicit join in
+createa for the default. The port's warning to carry:
 a narrowing-only build looks complete and passes every obvious test (their
 SUSPEND was one-way until UNSUSPENDED). Not started: the third cycle comes
 first, and the port's 68 is not built either.
