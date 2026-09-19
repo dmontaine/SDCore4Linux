@@ -16,6 +16,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  SD NOW REQUIRES A STRONG PASSWORD.
+           Every password SD sets must be at least 8 characters long and
+           contain a lower-case letter, an upper-case letter, a digit and a
+           symbol (any other printable character, space included).  It
+           applies to:
+             - the SD password (MODIFY.PASSWORD, and the one the installer
+               asks for);
+             - the Linux password CREATE.ACCOUNT sets for a new account;
+             - the sdsys password the installer asks for.
+           Until now SD accepted whatever the machine's own rules allowed,
+           and on many machines that is anything at all.  A password that
+           gives access to the database should not be weaker than this,
+           whatever the operating system is set to allow.  SD Core for
+           Windows applies the same rule, word for word.
+
+           A password that does not meet the rule is refused before you are
+           asked to type it again, and counts as one of the three attempts.
+
+           What this does NOT do: it does not change passwords you already
+           have, and it cannot govern a Linux password you change yourself
+           outside SD (with passwd) - there the machine's own rules apply.
+           The machine's rules still apply on top of SD's where they are
+           stricter.  Only printable ASCII characters are accepted.
+
 19 Sep 26  DELETE.ACCOUNT REMOVES THE ACCOUNT'S DIRECTORY, OR SAYS IT DID NOT.
            Deleting an account promised to remove its directory, and usually
            did - but anything the account's own user had made without group

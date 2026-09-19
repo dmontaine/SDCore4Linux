@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 19 Sep 26 dm setpw (CREATE.ACCOUNT's Linux password, from stdin, SD's rule
+#               applied) and pw_complex - the owner's ruling that SD requires a
+#               complex password whatever the OS allows.
 # 19 Sep 26 dm rmtree-account: DELETE.ACCOUNT's directory step.  The sdsys
 #               session could not remove what the account's user made without
 #               group write, and the directory survived (fifth cycle, zzrel1).
@@ -102,6 +105,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] setgid   <path>
   sd-elevate [--dry-run] chown-account <user> <group> <path>
   sd-elevate [--dry-run] rmtree-account <account directory>
+  sd-elevate [--dry-run] setpw    <user>   (the Linux password, one line on stdin)
+  sd-elevate --dry-run   pw-check          (SD's password rule, one line on stdin)
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
@@ -497,6 +502,46 @@ require_account_dir() {
 # caller could otherwise point the helper at a register of its own making.
 SD_SYS_ROOT_REAL=/usr/local/sdsys
 
+# 19 Sep 26 dm - SD'S PASSWORD RULE (owner's ruling, 19 Sep 2026: SD requires
+# a complex password whatever the OS allows).  The same rule as
+# GPL.BP/PW_COMPLEX, byte for byte: 8+ characters, at least one a-z, A-Z, 0-9
+# and one other printable ASCII character (space included); anything outside
+# 32-126 fails.  LC_ALL=C so length and the character codes are bytes.
+pw_complex() {
+  local p=$1 i c lo=0 up=0 di=0 sy=0
+  local LC_ALL=C
+  (( ${#p} >= 8 )) || return 1
+  for (( i = 0; i < ${#p}; i++ )); do
+    printf -v c '%d' "'${p:i:1}"
+    if   (( c >= 97 && c <= 122 )); then lo=1
+    elif (( c >= 65 && c <= 90 ));  then up=1
+    elif (( c >= 48 && c <= 57 ));  then di=1
+    elif (( c >= 32 && c <= 126 )); then sy=1
+    else return 1
+    fi
+  done
+  (( lo && up && di && sy ))
+}
+
+# 19 Sep 26 dm - SETPW: CREATE.ACCOUNT's Linux password, set by SD rather than
+# by an interactive passwd, so SD's rule can be applied to it (passwd's own
+# prompt is the OS's rule, and SD never sees what is typed there).  The
+# password arrives as ONE line on stdin, never as an argument, is checked
+# against the rule here as well as in SD, and goes to chpasswd on its stdin.
+set_pw() {
+  local user=$1 pw extra
+  require_sd_user "$user"
+  IFS= read -r pw || die "setpw wants the password on stdin"
+  IFS= read -r extra && die "setpw wants exactly one line on stdin; there were more"
+  pw_complex "$pw" || die "the password does not meet SD's rule (10920): 8+ characters with a lower-case letter, an upper-case letter, a digit and a symbol"
+  printf '%s: chpasswd for %s (the password on stdin)\n' "$PROG" "$user"
+  [[ $DRY -eq 1 ]] && exit 0
+  need_root
+  printf '%s:%s\n' "$user" "$pw" | chpasswd || die "chpasswd refused the password for $user"
+  printf '%s: Linux password set for %s\n' "$PROG" "$user"
+  exit 0
+}
+
 cred_b64() {   # $1 value, $2 min bytes, $3 max bytes; true if base64 of that size
   local n
   [[ $1 =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || return 1
@@ -713,6 +758,20 @@ case $verb in
   rmtree-account)
     [[ $# -eq 1 ]] || usage
     require_account_dir "$1"
+    ;;
+
+  setpw)
+    [[ $# -eq 1 ]] || usage
+    set_pw "$1"
+    ;;
+
+  # A test door for the rule alone: reads one line, answers by exit status,
+  # acts on nothing.  test-sd-elevate.py drives the rule's table through it.
+  pw-check)
+    [[ $# -eq 0 && $DRY -eq 1 ]] || die "pw-check is for --dry-run only"
+    IFS= read -r pwc || true
+    pw_complex "$pwc" && { echo "meets the rule"; exit 0; }
+    die "does not meet the rule"
     ;;
 
   # 14 Sep 26 dm - S.13.  A FIXED KEYWORD AND NOTHING ELSE: no port, address or

@@ -1252,11 +1252,46 @@ if ! ( : </dev/tty ) 2>/dev/null; then
 else
     echo "  This is the sign-on for administering SD: log in as sdsys at this"
     echo "  machine's keyboard (or a desktop-sharing view of it), then run sd."
-    echo "  passwd asks for it twice, to catch a typing slip."
+    # 19 Sep 26 dm - SD'S RULE, NOT ONLY THE MACHINE'S (owner, 19 Sep 2026: SD
+    #   requires a complex password whatever the OS allows, SDSYS included).
+    #   "sudo passwd sdsys" applied PAM's rule only, and SD never saw the entry,
+    #   so the installer asks itself: hidden, twice, three attempts; the rule
+    #   is judged by the INSTALLED helper's own pw_complex (one implementation,
+    #   absolute path, no root needed for --dry-run), and the password reaches
+    #   chpasswd on its stdin - printf is a builtin, so it is never an argv.
+    #   The text below is message 10920's.
+    echo "  A password needs at least 8 characters, with a lower-case letter,"
+    echo "  an upper-case letter, a digit and a symbol.  It is asked for twice."
     echo
-    if sudo passwd sdsys; then
-        sdsys_pw_state="set"
-    fi
+    pw_try=0
+    while [ "$pw_try" -lt 3 ]; do
+        pw_try=$((pw_try + 1))
+        IFS= read -r -s -p "  New password for sdsys: " sdsys_p1 </dev/tty; echo
+        if [ -z "$sdsys_p1" ]; then
+            echo "  Nothing entered - the sdsys password is not set."
+            break
+        fi
+        if ! printf '%s\n' "$sdsys_p1" | /usr/local/sbin/sd-elevate --dry-run pw-check >/dev/null 2>&1; then
+            sdsys_p1=""
+            echo "  That does not meet the rule above (attempt $pw_try of 3)."
+            continue
+        fi
+        IFS= read -r -s -p "  Retype it: " sdsys_p2 </dev/tty; echo
+        if [ "$sdsys_p1" != "$sdsys_p2" ]; then
+            sdsys_p1=""; sdsys_p2=""
+            echo "  The two entries did not match (attempt $pw_try of 3)."
+            continue
+        fi
+        if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
+            sdsys_pw_state="set"
+        else
+            echo "  The machine's own password rules refused it; set one later"
+            echo "  (see the end of the install)."
+        fi
+        sdsys_p1=""; sdsys_p2=""
+        break
+    done
+    sdsys_p1=""; sdsys_p2=""
 fi
 #
 # 18 Sep 26 dm - (REVERSED 19 Sep, below.)  The step was removed on the
@@ -1313,6 +1348,10 @@ else
     echo "  machine, and over ssh, you still sign in with your Linux password."
     echo "  This one is only for remote access through the SD API: programs"
     echo "  that connect to SD from another computer.  SD asks twice."
+    # 19 Sep 26 dm - the rule (message 10920); -QUIET keeps MODIFY.PASSWORD
+    #   from saying it, so the installer does.
+    echo "  It needs at least 8 characters, with a lower-case letter, an"
+    echo "  upper-case letter, a digit and a symbol."
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
@@ -1376,7 +1415,10 @@ esac
 echo "Linux password for sdsys (the administrator): $sdsys_pw_state."
 case "$sdsys_pw_state" in
     set) ;;
-    *) echo "  Set one before administering:  sudo passwd sdsys" ;;
+    *) echo "  Set one before administering:  sudo passwd sdsys"
+       echo "  and keep to SD's rule, which passwd itself does not apply: at least"
+       echo "  8 characters, with a lower-case letter, an upper-case letter, a"
+       echo "  digit and a symbol." ;;
 esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"
