@@ -26,6 +26,13 @@
 # A command listed with no arguments permits ANY arguments - that is
 # deliberate here, because the helper is what validates them.
 #
+# 19 Sep 26 dm - W.10, the owner's ruling: every user sets their OWN SD
+# password.  So every SD user (%sdusers) may run the helper with EXACTLY the
+# two argument lists below and nothing else - a command listed WITH arguments
+# permits only those arguments.  The helper takes the caller's identity from
+# sudo (SUDO_USER/SUDO_UID) and touches that one person's $cred record; the
+# keys arrive on stdin, never as arguments.
+#
 # TWO PROPERTIES THIS ENTRY DEPENDS ON, both enforced by the installer:
 #
 #   1. /usr/local/sbin/sd-elevate is root-owned and NOT writable by sdsys or
@@ -37,3 +44,4 @@
 #      never read and the account verbs fail with no explanation.
 
 sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate
+%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own set

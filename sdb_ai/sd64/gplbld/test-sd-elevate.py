@@ -284,6 +284,97 @@ def main():
     finally:
         shutil.rmtree(fake_dir, ignore_errors=True)
 
+    # ---- 19 Sep 26: CRED-OWN (W.10), a person's OWN SD password.  Driven
+    # ---- through --dry-run against a fixture SD_SYS_ROOT (a register and a
+    # ---- $cred), with SUDO_USER/SUDO_UID as sudo would set them.  The REFUSE
+    # ---- rows are the confinement - wrong person, wrong account shape, wrong
+    # ---- current password, malformed input; the ALLOW rows are the control,
+    # ---- and each must also print the write line naming the caller's OWN
+    # ---- record, so an ALLOW that did nothing cannot pass.
+    import base64
+    fx = tempfile.mkdtemp(prefix="sdelev-cred-")
+    try:
+        me, my_uid = "don", None
+        try:
+            import pwd
+            my_uid = pwd.getpwnam(me).pw_uid
+        except KeyError:
+            pass
+        os.makedirs(os.path.join(fx, "accounts"))
+        os.makedirs(os.path.join(fx, "$cred"))
+        def reg(name, group, susp=""):
+            with open(os.path.join(fx, "accounts", name), "w") as f:
+                f.write(f"/home/sd/user_accounts/{name}\n\n{group}\n\n{susp}\n")
+        reg("don", "sdu_don")
+        k_old = base64.b64encode(b"\x01" * 32).decode()
+        k_new = base64.b64encode(b"\x02" * 32).decode()
+        salt = base64.b64encode(b"\x03" * 16).decode()
+        def cred_run(mode, lines=None, user=me, uid=my_uid):
+            env = dict(os.environ, SD_SYS_ROOT_FIXTURE=fx)
+            env.pop("SUDO_USER", None); env.pop("SUDO_UID", None)
+            if user is not None:
+                env["SUDO_USER"] = user
+                env["SUDO_UID"] = str(uid)
+            inp = None if lines is None else "\n".join(lines) + "\n"
+            p = subprocess.run(["bash", HELPER, "--dry-run", "cred-own", mode],
+                               input=inp, capture_output=True, text=True, env=env)
+            return p.returncode, (p.stdout or "") + (p.stderr or "")
+        def rec(cur, ver="2", mech="SCRAM-SHA-256", s=salt, it="600000", sk=k_new, svk=k_new):
+            return [cur, ver, mech, s, it, sk, svk]
+        own_write = f"write {fx}/$cred/{me} "
+        if my_uid is None:
+            print("  [SKIP] cred-own rows: this box has no user 'don' to be the caller")
+        else:
+            CRED = [
+                # (expect, mode, lines, user, uid, needle, note)
+                (ALLOW,  "query", None, me, my_uid, "none", "no credential yet: says none"),
+                (ALLOW,  "set", rec(""), me, my_uid, own_write, "the FIRST password needs no current one"),
+                (REFUSE, "set", rec(""), None, None, "only through sudo", "no SUDO_USER: not reached through sudo"),
+                (REFUSE, "set", rec(""), me, my_uid + 1, "does not match", "SUDO_UID disagrees with the user"),
+                (REFUSE, "query", None, "root", 0, "root has no SD password", "root is never the caller"),
+                (REFUSE, "query", None, "sdsys", 999, "administrator", "sdsys uses MODIFY.PASSWORD as administrator"),
+                (REFUSE, "set", rec("")[:-1], me, my_uid, "ended early", "six lines, not seven"),
+                (REFUSE, "set", rec("") + ["x"], me, my_uid, "exactly seven", "an eighth line"),
+                (REFUSE, "set", rec("", ver="1"), me, my_uid, "version must be 2", "another record version"),
+                (REFUSE, "set", rec("", mech="PLAIN"), me, my_uid, "SCRAM-SHA-256", "another mechanism"),
+                (REFUSE, "set", rec("", it="12"), me, my_uid, "outside 4096", "iterations below the floor"),
+                (REFUSE, "set", rec("", sk="not base64!"), me, my_uid, "StoredKey", "a malformed key"),
+                (REFUSE, "set", rec("", svk=base64.b64encode(b"x" * 31).decode()), me, my_uid, "ServerKey", "a 31-byte key"),
+                (REFUSE, "set", rec("", s="$(id)"), me, my_uid, "salt", "shell text as a salt"),
+            ]
+            # then a credential exists: the current password becomes required
+            CRED_AFTER = [
+                (ALLOW,  "query", None, me, my_uid, "salt " + salt, "the salt and iterations come back"),
+                (REFUSE, "set", rec(""), me, my_uid, "current one is required", "a password exists: current required"),
+                (REFUSE, "set", rec(k_new), me, my_uid, "not correct", "the wrong current password"),
+                (ALLOW,  "set", rec(k_old), me, my_uid, own_write, "the right current password"),
+            ]
+            def drive(rows):
+                nonlocal passed, failed, n_allow, n_refuse
+                for expect, mode, lines, user, uid, needle, note in rows:
+                    code, out = cred_run(mode, lines, user, uid)
+                    got = ALLOW if code == 0 else REFUSE
+                    ok = got == expect and needle in out
+                    n_allow += expect == ALLOW
+                    n_refuse += expect == REFUSE
+                    passed += ok
+                    failed += not ok
+                    first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+                    print(f"  [{'PASS' if ok else 'FAIL'}] {expect:6} cred-own {mode:5} as {str(user):6} | {first[:70]}")
+                    if not ok:
+                        print(f"         ^ {note} (wanted {needle!r})")
+                        failures.append((["cred-own", mode], f"{expect} + {needle!r}", got, out.strip()))
+            drive(CRED)
+            with open(os.path.join(fx, "$cred", me), "w") as f:
+                f.write(f"2\nSCRAM-SHA-256\n{salt}\n600000\n{k_old}\n{k_old}\n")
+            drive(CRED_AFTER)
+            reg("don", "sdu_don", susp="S")
+            drive([(REFUSE, "query", None, me, my_uid, "suspended", "a suspended account")])
+            reg("don", "sdg_team")
+            drive([(REFUSE, "query", None, me, my_uid, "not a user's own account", "a register record that is not the user's own")])
+    finally:
+        shutil.rmtree(fx, ignore_errors=True)
+
     print()
 
     # ---- refuse the null case, out loud.  A run that established nothing must

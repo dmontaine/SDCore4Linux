@@ -3,6 +3,10 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 19 Sep 26 dm cred-own query|set (W.10): a person sets their OWN SD password.
+#               Identity from sudo's SUDO_USER/SUDO_UID, one record only, keys on
+#               stdin never argv, the current password proved by its StoredKey,
+#               the write read back.  sudoers grants sdusers these two lists only.
 # 18 Sep 26 dm A4 OF THE FIRST CYCLE'S WITNESS RUN: chown-account, CREATE.ACCOUNT's
 #               own step.  createa's set.owner chowned with the OS$CHOWN intrinsic,
 #               which needs root, and the administrator is a local sdsys session and
@@ -94,6 +98,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] chown-account <user> <group> <path>
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
+  sd-elevate [--dry-run] cred-own query | set   (the caller's own SD password;
+                                                 set reads 7 lines on stdin)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -423,6 +429,120 @@ require_account_owner() {
   cmd=(chown -- "$user:$group" "$real")
 }
 
+# ------------------------------------------------------ cred-own (W.10)
+#
+# 19 Sep 26 dm - A PERSON SETS THEIR OWN SD PASSWORD (owner, 19 Sep 2026: "user
+# can only change their own password, sdsys can change any password"; parity
+# with SD Core for Windows, whose RESULT this matches by a Linux route).
+#
+# $cred is sdsys:sdusers 0700, so an ordinary session can neither read nor
+# write it, and that stays true: this is the one door, and it opens on ONE
+# record - the caller's own.  WHO THE CALLER IS COMES FROM sudo, NOT FROM THE
+# CALLER: SUDO_USER and SUDO_UID are set by sudo itself, and both must agree
+# with the passwd database.  sudoers grants sdusers exactly the two argument
+# lists "cred-own query" and "cred-own set", nothing else in this script.
+#
+# NOTHING SECRET IS EVER AN ARGUMENT.  "set" reads its seven lines on stdin,
+# redirected from a file in a private (0700) directory of the caller's - so
+# no key reaches a command line, ps, or a log:
+#
+#   1  the CURRENT password's StoredKey, derived by the caller from the salt
+#      and iterations "query" gave it (empty when there is no credential yet)
+#   2  version (2)   3  SCRAM-SHA-256   4  salt   5  iterations
+#   6  StoredKey     7  ServerKey       (base64, as !CRED_SET writes them)
+#
+# THE CURRENT PASSWORD IS CHECKED WITHOUT ANY CRYPTOGRAPHY HERE.  The caller
+# cannot read $cred, so arriving with the record's exact StoredKey proves it
+# derived it from the password; a string comparison is the whole check.  The
+# new record is written through a temp file and a rename, owned sdsys:sdusers
+# 0600 like the rest, and READ BACK - the port's rule for $cred.
+# The fixture override is for --dry-run only (test-sd-elevate.py).  A real run
+# never trusts it: where sudo passes the environment through (!env_reset), a
+# caller could otherwise point the helper at a register of its own making.
+SD_SYS_ROOT_REAL=/usr/local/sdsys
+
+cred_b64() {   # $1 value, $2 min bytes, $3 max bytes; true if base64 of that size
+  local n
+  [[ $1 =~ ^[A-Za-z0-9+/]+={0,2}$ ]] || return 1
+  n=$(printf '%s' "$1" | base64 -d 2>/dev/null | wc -c) || return 1
+  [[ $n -ge $2 && $n -le $3 ]]
+}
+
+cred_own() {
+  local mode=$1 user=${SUDO_USER:-} suid=${SUDO_UID:-} acct reg cdir cfile
+  local cur ver mech salt iter sk svk extra line old_ver old_sk tmp v SD_SYS_ROOT
+  SD_SYS_ROOT=$SD_SYS_ROOT_REAL
+  [[ $DRY -eq 1 ]] && SD_SYS_ROOT=${SD_SYS_ROOT_FIXTURE:-$SD_SYS_ROOT_REAL}
+  [[ -n $user && -n $suid ]] || die "cred-own is reached only through sudo (no SUDO_USER/SUDO_UID)"
+  [[ $suid =~ ^[0-9]+$ ]] || die "SUDO_UID '$suid' is not a number"
+  acct=${user,,}
+  require_name "account" "$acct"
+  [[ $acct != root && $suid -ne 0 ]] || die "root has no SD password of its own"
+  [[ $acct != sdsys ]] || die "sdsys sets passwords as the administrator (MODIFY.PASSWORD), not here"
+  [[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "SUDO_USER '$user' does not match SUDO_UID $suid"
+  reg="$SD_SYS_ROOT/accounts/$acct"
+  [[ -f $reg ]] || die "'$acct' is not in the SD account register"
+  [[ $(sed -n '3p' "$reg") == "sdu_$acct" ]] || die "'$acct' is not a user's own account (register group is not sdu_$acct)"
+  [[ -z $(sed -n '5p' "$reg") ]] || die "account '$acct' is suspended"
+  cdir="$SD_SYS_ROOT/\$cred"
+  [[ -d $cdir ]] || die "the credential register '$cdir' does not exist"
+  cfile="$cdir/$acct"
+  old_ver='' old_sk=''
+  if [[ -f $cfile ]]; then
+    old_ver=$(sed -n '1p' "$cfile"); old_sk=$(sed -n '5p' "$cfile")
+  fi
+
+  case $mode in
+    query)
+      # Salt and iterations are not secret - SCRAM sends both to any client.
+      if [[ $old_ver == 2 && -n $old_sk ]]; then
+        printf 'salt %s\niter %s\n' "$(sed -n '3p' "$cfile")" "$(sed -n '4p' "$cfile")"
+      else
+        printf 'none\n'
+      fi
+      exit 0
+      ;;
+    set) ;;
+    *) die "cred-own takes query or set - not '$mode'" ;;
+  esac
+
+  IFS= read -r cur  || true
+  for v in ver mech salt iter sk svk; do
+    IFS= read -r line || die "set wants seven lines on stdin; it ended early"
+    printf -v "$v" '%s' "$line"
+  done
+  IFS= read -r extra && die "set wants exactly seven lines on stdin; there were more"
+  for line in "$cur" "$ver" "$mech" "$salt" "$iter" "$sk" "$svk"; do
+    [[ ${#line} -le 256 ]] || die "an input line is over 256 characters"
+  done
+  [[ $ver == 2 ]]              || die "record version must be 2, not '$ver'"
+  [[ $mech == SCRAM-SHA-256 ]] || die "mechanism must be SCRAM-SHA-256, not '$mech'"
+  cred_b64 "$salt" 8 64        || die "the salt is not base64 of 8-64 bytes"
+  [[ $iter =~ ^[0-9]{4,8}$ && $iter -ge 4096 && $iter -le 10000000 ]] \
+                               || die "iterations '$iter' is outside 4096-10000000"
+  cred_b64 "$sk" 32 32         || die "StoredKey is not base64 of 32 bytes"
+  cred_b64 "$svk" 32 32        || die "ServerKey is not base64 of 32 bytes"
+
+  if [[ $old_ver == 2 && -n $old_sk ]]; then
+    [[ -n $cur ]] || die "'$acct' has a password; the current one is required"
+    [[ $cur == "$old_sk" ]] || die "the current password is not correct"
+  fi
+
+  printf '%s: write %s (6 fields, sdsys:sdusers 0600)\n' "$PROG" "$cfile"
+  [[ $DRY -eq 1 ]] && exit 0
+  need_root
+
+  tmp=$(mktemp "$cdir/.cred-own.XXXXXX") || die "cannot create a temp file in $cdir"
+  printf '%s\n' "$ver" "$mech" "$salt" "$iter" "$sk" "$svk" > "$tmp" \
+    && chown sdsys:sdusers "$tmp" && chmod 0600 "$tmp" && mv -f -- "$tmp" "$cfile" \
+    || { rm -f -- "$tmp"; die "writing $cfile failed"; }
+  [[ $(sed -n '5p' "$cfile") == "$sk" && $(sed -n '6p' "$cfile") == "$svk" ]] \
+    || die "the record did not read back as written"
+  logger -t sd-elevate "cred-own: SD password set for $acct" 2>/dev/null || true
+  printf '%s: SD password set for %s\n' "$PROG" "$acct"
+  exit 0
+}
+
 # ---------------------------------------------------------------------- main
 
 DRY=0
@@ -548,6 +668,11 @@ case $verb in
     case $1 in on|local|off|show) ;; *) die "remote-api takes on, local, off or show - not '$1'" ;; esac
     remote_api "$1"
     exit $?
+    ;;
+
+  cred-own)
+    [[ $# -eq 1 ]] || usage
+    cred_own "$1"
     ;;
 
   remote-ssh)
