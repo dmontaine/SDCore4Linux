@@ -368,7 +368,7 @@ of them reverse what an earlier analysis recommended.
   OS.EXECUTE run at the account's own Linux permissions; ssh and the API are
   open to every account except SDSYS; GRANT/REVOKE/LIST.GRANTS are gone —
   `usermod -aG` is the grant; suspension is a plain account flag
-  (`MODIFY.ACCOUNT ... SUSPENDED`/`UNSUSPEND`).  **The security-model evaluation
+  (`MODIFY.ACCOUNT ... SUSPENDED`/`UNSUSPENDED` — the port's word, 19 Sep 2026).  **The security-model evaluation
   the owner reserved follows once the teardown is witnessed on an install.**
   Built as one change set, 18 Sep 2026; committed (`e41d318`) and pushed; not
   yet installed.

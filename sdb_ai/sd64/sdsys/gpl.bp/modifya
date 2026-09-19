@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 19 Sep 26 dm UNSUSPEND is now UNSUSPENDED, the Windows port's keyword
+*           (its modifya:355) - a user-facing word the two ports must share.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
 *           out: the STANDARD/PROGRAMMER/ADMINISTRATOR keywords, the OS-access
 *           keywords (SH-ON/SH-OFF/OS-ON/OS-OFF), the API route (API/NONE) and
@@ -84,7 +86,7 @@
 * MODIFY.ACCOUNT account ADD <username>
 * MODIFY.ACCOUNT account DELETE <username>
 * MODIFY.ACCOUNT account SUSPENDED
-* MODIFY.ACCOUNT account UNSUSPEND
+* MODIFY.ACCOUNT account UNSUSPENDED
 *
 * 18 Sep 26 dm - TEARDOWN.  One administrator (SDSYS) and one VOC layer means
 *   this verb no longer changes ranks, OS grants or API routes - those went
@@ -100,7 +102,7 @@
 *   denial, not a rank, and it hangs on its own flag now.  The doors are the
 *   same as before: LOGIN, CPROC's account entry, ssh (via the ordinary
 *   sign-on) and the API all refuse it.  Nothing changes in Linux, which is
-*   what makes lifting it free.  UNSUSPEND clears the flag and the retired
+*   what makes lifting it free.  UNSUSPENDED clears the flag and the retired
 *   field 6.  Nobody suspends the account they logged in to or stand in
 *   (10112): the session would work until it ended and could not be
 *   re-established.
@@ -145,7 +147,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username>'
-      crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPEND'
+      crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPENDED'
       stop
    end
    *
@@ -174,7 +176,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       case action = 'SUSPENDED'
          gosub set.suspended
          stop
-      case action = 'UNSUSPEND'
+      case action = 'UNSUSPENDED'
          gosub set.unsuspended
          stop
    end case
@@ -258,7 +260,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Suspended or Unsuspend'
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Suspended or Unsuspended'
       end
 
    end else
@@ -300,7 +302,7 @@ set.suspended:
    return
 
 *****************************************************************************
-* SET.UNSUSPENDED  -  MODIFY.ACCOUNT <account> UNSUSPEND
+* SET.UNSUSPENDED  -  MODIFY.ACCOUNT <account> UNSUSPENDED
 *
 * 18 Sep 26 dm - TEARDOWN (W.7).  The way back is a keyword now, because there
 *   is no tier to name.  Clears the flag and the retired field 6.
@@ -316,7 +318,7 @@ set.unsuspended:
    write acc.rec to acc.f, acc.name
 
    @system.return.code = 0
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPEND account=' : acc.name)
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
    crt sysmsg(10178, acc.name)  ;* Account %1 is no longer suspended
    return
 

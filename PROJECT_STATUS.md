@@ -318,6 +318,11 @@ found, and what HEAD changes (none of it installed):
    S2.a (bridge the setpriv session), L1 (3 WHOs; + L3c), Y1 (MODIFY.ACCOUNT
    before the LOGTO - it is in sdsys's VOC only), Y3 (the refusal is "not in
    your VOC"), release-run cleanup (sd as root is refused - bridged).
+4. Parity, adopted from the port without asking (its 11:15 mail; "the
+   port wins"): MODIFY.ACCOUNT's `UNSUSPEND` is now `UNSUSPENDED`, the
+   port's keyword (its `modifya:355`); the old word is refused (absence M3a
+   now includes it), 10158 and the changelog name the new one.  Older
+   entries below that say UNSUSPEND are history.
 LEFT ON THE MACHINE BY THE FIFTH RUN: `zzrel2` whole (register, dir, user,
 group) and `/home/sd/user_accounts/zzrel1` - clear both before the sixth
 install (the owner's commands, in the chat).  R3 NOT REACHED is expected

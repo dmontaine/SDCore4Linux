@@ -19,7 +19,7 @@
 #   M2  a fresh CREATE.ACCOUNT writes no tier: field 5 of the new record is
 #       blank (the suspension flag) and field 6 is blank (S.25/W.7).
 #   M3  no tier keyword in MODIFY.ACCOUNT's grammar: the tier words are
-#       refused as unexpected tokens, and SUSPENDED/UNSUSPEND are the flag
+#       refused as unexpected tokens, and SUSPENDED/UNSUSPENDED are the flag
 #       (S.25/W.7).
 #   M4  no OS-access grants: SH-ON/SH-OFF/OS-ON/OS-OFF are refused by
 #       MODIFY.ACCOUNT, and fields 7/8 are gone from the register (S.27).
@@ -206,23 +206,25 @@ OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC STANDARD (refused: not an action word)" 
              "MODIFY.ACCOUNT $ACC STANDARD")
 if [ "$COMMIT" -eq 1 ]; then
   # 18 Sep 26 dm - THE WORDING IS THE REWRITE'S (S.25).  modifya's grammar is
-  #   MODIFY.ACCOUNT <acc> ADD|DELETE|SUSPENDED|UNSUSPEND, so a tier word is
+  #   MODIFY.ACCOUNT <acc> ADD|DELETE|SUSPENDED|UNSUSPENDED, so a tier word is
   #   answered by the action rule and not by the old parse's "Unexpected
   #   token".  The row's subject is that the word is REFUSED, which this is.
-  for w in STANDARD PROGRAMMER ADMINISTRATOR; do
+  # 19 Sep 26 - UNSUSPEND joins the refused words: the keyword is the Windows
+  #   port's UNSUSPENDED now, and the old spelling must not linger as an alias.
+  for w in STANDARD PROGRAMMER ADMINISTRATOR UNSUSPEND; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
+            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
   done
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPEND (the flag, W.7)" \
-             "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPEND")
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
+             "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
   ck_says "M3b SUSPENDED is the flag (10179)" "is now suspended" "$OUT"
   # 19 Sep 26: a MISSING record also reads blank, and M3c passed on the third
   # cycle with no account at all.  The null case is refused out loud.
   if [ -f "$REGISTER/$ACC" ]; then
-    ck "M3c and UNSUSPEND cleared it on disk" "" "$(sed -n '5p' "$REGISTER/$ACC")"
+    ck "M3c and UNSUSPENDED cleared it on disk" "" "$(sed -n '5p' "$REGISTER/$ACC")"
   else
-    not_reached "M3c and UNSUSPEND cleared it on disk (no register record to read)"
+    not_reached "M3c and UNSUSPENDED cleared it on disk (no register record to read)"
   fi
 fi
 
@@ -234,7 +236,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in SH-ON SH-OFF OS-ON OS-OFF; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
+            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
   done
   # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
   # and the OS runs at the account's own Linux permissions - no 10053.  This
@@ -252,7 +254,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in API NONE SSH BOTH; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M5a MODIFY.ACCOUNT $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
+            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
   done
   OUT=$(run_sd sdsys "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no API word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
