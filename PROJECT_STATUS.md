@@ -383,7 +383,20 @@ label); M7e greps `%sdadmin` and hits a COMMENT in the drop-in; E6 expects a
 refused because the witness's own §13 session still held the uid (the product
 warned and carried on); D11 expects the home gone after a plain
 `DELETE.ACCOUNT`, and the owner's 10 Sep ruling removes it only with
-`REMOVE.HOME`.  NOT YET DONE: that re-pointing, then a re-run of the three.
+`REMOVE.HOME`.  ***THEY ARE RE-POINTED (this commit)***: the absence witness runs
+its M8 root session for real (`run_sd_as root`, the witness's own uid) instead of
+labelling a sdsys session "root", asserts the refusal wording the rewrite
+actually prints, reads the drop-in's RULE lines rather than its comments, and
+accepts the group-membership wording M6d gets when the account is already in its
+own `sdu_` group; the release run drives `REMOTE.API`/`REMOTE.SSH` as sdsys,
+re-points §2b at "LOGTO sdsys is refused" (L2 now asserts the refusal, L3b its
+wording), drops §13g's `LOGTO sdsys` so the stores are written from a session
+that LOGTOed INTO an ordinary account, removes the credential register file for
+E6 (no verb can unset one: an empty entry means "leave unchanged"), and
+quiesces the account before §15's delete (`sd -k`, then waits) so `userdel` is
+not refused for a uid in use; witness-accounts' D11 asserts the home SURVIVES a
+plain delete.  WHAT REMAINS: one more cycle — delete → install → the three
+witnesses — and the createa compile is the install's own check.
 
 ***OWNER'S DECISION, 18 SEP 2026 — THE TIERED ACCOUNT MODEL IS RIPPED OUT; THE
 PARITY PLAN'S §L IS REVERSED; THE TEARDOWN OPENS AS S.25 TO S.28.*** He dictated

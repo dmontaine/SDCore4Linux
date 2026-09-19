@@ -90,9 +90,17 @@ MADE_ACCOUNT=0
 # One piped sd session, run AS SDSYS - the administrator.  A _PW_ line is
 # replaced with $PW_OS (the throwaway Linux password) and echoed as
 # "(password answer)".
-run_sd() {
+#
+# 18 Sep 26 dm - THE USER IS A PARAMETER, AND M8 USES IT.  The first real run's
+#   M8a/M8c measured NOTHING: "root" was only the title argument, so the "root
+#   session" ran as sdsys, was granted (10916), and the two refusal rows could
+#   not have passed whatever the product did.  A root session is now the
+#   witness's OWN uid - which IS root, because --commit requires sudo - with no
+#   -u switch.
+run_sd_as() {
+  local user="$1"; shift
   local title="$1"; shift
-  say "  --- sd session as sdsys: $title ---" >&2
+  say "  --- sd session as $user: $title ---" >&2
   local line
   for line in "$@"; do
     case "$line" in _PW_) say "      > (password answer)" >&2 ;; *) say "      > $line" >&2 ;; esac
@@ -104,10 +112,16 @@ run_sd() {
     if [ "$line" = "_PW_" ]; then body="$body"$'\n'"$PW_OS"; else body="$body"$'\n'"$line"; fi
   done
   body="$body"$'\n''OFF'$'\n'
-  out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
+  if [ "$user" = sdsys ]; then
+    out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
+  else
+    out=$(printf '%s' "$body" | timeout 90 "$SD_BIN" 2>&1 | strip)
+  fi
   printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
   printf '%s' "$out"
 }
+
+run_sd() { run_sd_as sdsys "$@"; }
 
 # ---------------- the ground ---------------------------------------------
 head2 "0. the ground"
@@ -126,9 +140,19 @@ fi
 
 cleanup() {
   if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
-    say "  $ACC is still registered; deleting it through SD (as sdsys)"
-    printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''y'$'\n''OFF'$'\n' \
+    say "  $ACC is still registered; deleting it through SD (as sdsys, REMOVE.HOME)"
+    printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC REMOVE.HOME"$'\n''y'$'\n''OFF'$'\n' \
       | timeout 90 sudo -u sdsys "$SD_BIN" >/dev/null 2>&1
+  fi
+  # 18 Sep 26 dm - AND ITS HOME, WHICH IS THIS WITNESS'S OWN TO TAKE AWAY.  A
+  #   plain DELETE.ACCOUNT keeps the home by design - REMOVE.HOME is the other
+  #   path, the owner's 10 Sep ruling - so a cleanup that did not ask for it left
+  #   /home/<acc> behind after every run: the first real run left /home/zzabst.
+  #   Only when the USER is gone: a home whose user survives still belongs to
+  #   that user.  AND ONLY WITH --commit: a dry run changes nothing (the run that
+  #   added this was itself a dry run, and it tried).
+  if [ "$COMMIT" -eq 1 ] && ! id "$ACC" >/dev/null 2>&1 && [ -d "/home/$ACC" ]; then
+    rm -rf "/home/$ACC"
   fi
 }
 trap cleanup EXIT
@@ -163,12 +187,17 @@ fi
 
 # ==========================================================================
 head2 "M3. no tier keyword in MODIFY.ACCOUNT (S.25/W.7)"
-OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC STANDARD (refused as an unexpected token)" \
+OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC STANDARD (refused: not an action word)" \
              "MODIFY.ACCOUNT $ACC STANDARD")
 if [ "$COMMIT" -eq 1 ]; then
+  # 18 Sep 26 dm - THE WORDING IS THE REWRITE'S (S.25).  modifya's grammar is
+  #   MODIFY.ACCOUNT <acc> ADD|DELETE|SUSPENDED|UNSUSPEND, so a tier word is
+  #   answered by the action rule and not by the old parse's "Unexpected
+  #   token".  The row's subject is that the word is REFUSED, which this is.
   for w in STANDARD PROGRAMMER ADMINISTRATOR; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
-    ck_says "M3a $w is refused as an unexpected token" "Unexpected token ($w)" "$OUT"
+    ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
+            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
   done
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPEND (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPEND")
@@ -179,9 +208,12 @@ fi
 # ==========================================================================
 head2 "M4. no OS-access grants (S.27)"
 if [ "$COMMIT" -eq 1 ]; then
+  # S.27: the OS-access words are gone from the grammar, so they are refused by
+  # the action rule (see M3a's note) - the row's subject is the REFUSAL.
   for w in SH-ON SH-OFF OS-ON OS-OFF; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
-    ck_says "M4a $w is refused" "Unexpected token ($w)" "$OUT"
+    ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
+            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
   done
   # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
   # and the OS runs at the account's own Linux permissions - no 10053.
@@ -193,9 +225,11 @@ fi
 # ==========================================================================
 head2 "M5. no API route words (S.28)"
 if [ "$COMMIT" -eq 1 ]; then
+  # S.28: the API route words are gone from the grammar (see M3a's note).
   for w in API NONE SSH BOTH; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
-    ck_says "M5a MODIFY.ACCOUNT $w is refused" "Unexpected token ($w)" "$OUT"
+    ck_says "M5a MODIFY.ACCOUNT $w is refused (not a MODIFY.ACCOUNT action)" \
+            "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
   done
   OUT=$(run_sd sdsys "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no API word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
@@ -216,7 +250,15 @@ if [ "$COMMIT" -eq 1 ]; then
   # rides on it, and it is the whole of the LOGTO wall (S.25).
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC ADD $ACC (the grant IS the membership)" \
              "MODIFY.ACCOUNT $ACC ADD $ACC")
-  ck_says "M6d the surviving grant verb is MODIFY.ACCOUNT ADD (10018)" "$ACC added to group sdu_$ACC" "$OUT"
+  # 18 Sep 26 dm - THE FIRST RUN'S WORDING ASSUMED A FIRST ADD.  CREATE.ACCOUNT
+  #   already joins the account to its own sdu_ group (createa's make.account),
+  #   so by the time this runs the membership IS the state and the verb answers
+  #   "already a member of group sdu_<acc>".  The row asserts the GROUP by name -
+  #   the grant IS the membership - and that the verb did not fail to make it so,
+  #   so either wording passes and a refusal cannot.
+  ck_says "M6d the surviving grant verb is MODIFY.ACCOUNT ADD, naming the group" \
+          "group sdu_$ACC" "$OUT"
+  ck_absent "M6d2 and it did not fail to make it so" "Unable" "$OUT"
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC DELETE $ACC" "MODIFY.ACCOUNT $ACC DELETE $ACC")
   ck_says "M6e and DELETE (10021)" "$ACC removed from group sdu_$ACC" "$OUT"
 fi
@@ -231,7 +273,12 @@ if [ -f /etc/sudoers.d/sdcore ]; then
   say "  /etc/sudoers.d/sdcore:"
   printf '%s\n' "$SUDOERS" | sed -e 's/^/      | /'
   ck_says "M7d the sudoers grant names the sdsys user" "sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate" "$SUDOERS"
-  ck_absent "M7e and not the sdadmin group" "%sdadmin" "$SUDOERS"
+  # 18 Sep 26 dm - COMMENTS ARE NOT GRANTS.  The teardown's own note in the
+  #   drop-in says the grant moved FROM %sdadmin, so searching the whole file
+  #   fails on the sentence that records the change; the rule lines are the
+  #   row's subject.
+  ck_absent "M7e and not the sdadmin group (rule lines)" "%sdadmin" \
+            "$(printf '%s\n' "$SUDOERS" | grep -v '^[[:space:]]*#')"
 else
   not_reached "M7d the sudoers grant names the sdsys user"
 fi
@@ -246,7 +293,7 @@ fi
 
 # ==========================================================================
 head2 "M8. the administrator model, driven (S.26)"
-OUT=$(run_sd root "a root session (refused outright)" "WHO")
+OUT=$(run_sd_as root "a root session (refused outright)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8a a root session is refused in 10176's words" "root is not SD's administrator" "$OUT"
   ck_absent "M8b and never reached the prompt (no WHO)" "zzabst" "$OUT"
