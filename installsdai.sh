@@ -55,7 +55,8 @@
 #   makes for the installing user, with MODIFY.PASSWORD at the terminal - the
 #   Windows port's finishing step.  For that account only: an SDSYS password,
 #   which the port also sets, would unlock nothing on Linux.  W.4 phase 6, the
-#   owner's ruling of that day.
+#   owner's ruling of that day.  REVERSED 18 Sep 2026 (owner): no SD password
+#   is asked at install - a Linux login already reaches the SD account.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -1245,40 +1246,21 @@ else
     fi
 fi
 #
+# 18 Sep 26 dm - NO SD PASSWORD IS ASKED AT INSTALL ANY MORE (owner, 18 Sep
+#            2026, adopting the Windows port's ruling of the same night; W.4's
+#            phase-6 step above is reversed).  His reason: the installing user
+#            has already logged in to Linux with a password, and a Linux login
+#            reaches their SD account with no second one (this LOGIN has no
+#            require.credential).  The SD password is only the API's SCRAM
+#            credential; an administrator sets it on request (log in as sdsys,
+#            MODIFY.PASSWORD <name>), and a keep cycle still keeps any already
+#            in $cred.  The step this replaces also carried the install's only
+#            use of the root loginuid bridge.
 tuser_lc=$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')
-sd_pw_state="not set"
-echo
-echo "The SD password for your account ($tuser_lc)"
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
-    sd_pw_state="already set - kept from the previous install"
-    echo "  Already set: this reinstall kept the credential register."
-elif ! sudo test -f "$sdsysdir/accounts/$tuser_lc"; then
-    sd_pw_state="not set - $tuser_lc is not in the SD register"
-    echo "  Skipped: $tuser_lc has no record in the SD account register."
-elif ! ( : </dev/tty ) 2>/dev/null; then
-    sd_pw_state="not set - there was no terminal to ask at"
-    echo "  Skipped: this install has no terminal to ask at."
+    sd_pw_state="kept from the previous install"
 else
-    echo "  Programs that log in to SD through its API use this password.  It is"
-    echo "  separate from your Linux login password.  SD asks for it twice, to"
-    echo "  catch a typing slip; press Enter on an empty line to skip it."
-    echo
-    if sd_install_start; then
-        # 18 Sep 26 dm, NIGHT - S.26's corrected route: only a real sdsys
-        # LOGIN administers, and this step is not one.  It is the install's
-        # own one exception: as root it ADOPTS sdsys's loginuid for exactly
-        # this process tree (the same bridge the witnesses use), because the
-        # strict CPROC is already in place by now.  The bridge grants nothing
-        # to anybody who is not already root, and if the write fails the
-        # session is refused and the $cred test below says "not set".
-        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$tuser_lc" </dev/tty ) || true
-        sd_install_stop
-        if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
-            sd_pw_state="set"
-        fi
-    else
-        sd_pw_state="not set - SD would not start for this step"
-    fi
+    sd_pw_state="none"
 fi
 #
 # display end of script message
@@ -1318,12 +1300,12 @@ else
     echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
     echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."
 fi
-echo "SD password for $tuser_lc: $sd_pw_state."
+echo "Your SD account ($tuser_lc) needs no password of its own: log in to"
+echo "  Linux and run sd.  API password for $tuser_lc: $sd_pw_state."
 case "$sd_pw_state" in
-    set|already*) ;;
-    *) echo "  Set one by logging in as sdsys and, at the SD prompt:"
-       echo "    MODIFY.PASSWORD $tuser_lc"
-       echo "  Until it is set, nothing can reach this account through the API." ;;
+    kept*) ;;
+    *) echo "  Only programs using the SD API need one.  To set it, log in as"
+       echo "  sdsys and, at the SD prompt:  MODIFY.PASSWORD $tuser_lc" ;;
 esac
 echo "Linux password for sdsys (the administrator): $sdsys_pw_state."
 case "$sdsys_pw_state" in

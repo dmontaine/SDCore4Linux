@@ -16,6 +16,23 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+18 Sep 26  THE INSTALLER NO LONGER ASKS FOR AN SD PASSWORD FOR YOUR ACCOUNT.
+           This reverses the 15 Sep entry below.  The account the installer
+           makes for you is reached by logging in to Linux and running sd -
+           you have already given a password to get that far, so a second
+           one bought nothing.  SD Core for Windows made the same change the
+           same day, so the two installers now behave alike.
+
+           The SD password still exists, and is still what programs using
+           the SD API log in with.  If you need one, the administrator sets
+           it: log in as sdsys and type  MODIFY.PASSWORD  with your user
+           name.  A reinstall that keeps your accounts keeps any password
+           already set.
+
+           What this does NOT change: the installer still asks for the
+           Linux password of the sdsys account, because logging in as sdsys
+           is how SD is administered.
+
 18 Sep 26  THE ACCOUNT MODEL IS NOW ONE ADMINISTRATOR AND ONE LEVEL.
            The tiered account structure - STANDARD, PROGRAMMER and
            ADMINISTRATOR, each with its own set of verbs - is gone.  Every
@@ -26,10 +43,11 @@ SD: what changed, why it mattered, and what it does not do.
 
            There is ONE administrator, SDSYS.  It is not a rank that people
            are promoted into: it is the sdsys operating-system user, and SD
-           gives it administration only when SD is run AS that user on the
-           machine itself (su - sdsys) - not over ssh, not over the API
-           from another machine, and NOT by running sd as root, which is
-           now refused outright.  Every account except SDSYS can reach SD
+           gives it administration only when someone LOGS IN as sdsys, with
+           its own password, at the machine itself (its keyboard, or a
+           desktop-sharing view of it) and runs sd - not over ssh, not over
+           the API from another machine, not by sudo or su from another
+           user, and NOT by running sd as root, which is refused outright.  Every account except SDSYS can reach SD
            over ssh (ssh just starts SD) and through the API.
 
            The account verbs that moved people between levels (GRANT,
