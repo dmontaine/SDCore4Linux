@@ -312,6 +312,13 @@ restore_remote() {
     RA_SAVED=""
 }
 
+# 19 Sep 26 - THE CLEANUP'S sd SESSIONS GO THROUGH THE LOGINUID BRIDGE.  They
+# ran sd as root, which CPROC now refuses (10176), so every DELETE.ACCOUNT here
+# did nothing and the fifth cycle left zzrel2 whole behind it.
+sd_admin_quiet() {
+    (cd "$SDSYS" && timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD") >/dev/null 2>&1
+}
+
 cleanup() {
     local rc=$?
     [ "$COMMIT" -eq 1 ] || exit $rc
@@ -325,7 +332,7 @@ cleanup() {
     if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
         say "  deleting the SD account $ACC2 through SD"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC2"$'\n''Y'$'\n''OFF'$'\n' \
-            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+            | sd_admin_quiet
     fi
     if [ "$MADE_USER2" -eq 1 ] && id -u "$ACC2" >/dev/null 2>&1; then
         del_user "$ACC2"
@@ -336,7 +343,7 @@ cleanup() {
     if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
         say "  deleting the SD account through SD"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''Y'$'\n''OFF'$'\n' \
-            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+            | sd_admin_quiet
     fi
     if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
         del_user "$ACC"
@@ -350,7 +357,7 @@ cleanup() {
     if [ "$MADE_ACCOUNT3" -eq 1 ] && [ -e "$REGISTER/$ACC3" ]; then
         say "  deleting the SD account $ACC3 through SD (fallback)"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC3"$'\n''Y'$'\n''OFF'$'\n' \
-            | (cd "$SDSYS" && timeout 90 "$SD") >/dev/null 2>&1
+            | sd_admin_quiet
     fi
     if [ "$MADE_USER3" -eq 1 ] && id -u "$ACC3" >/dev/null 2>&1; then
         del_user "$ACC3" " (fallback)"
@@ -461,8 +468,14 @@ if [ "$COMMIT" -eq 1 ]; then
         say "  this process PREDATES sdu_$ACC, so its group list is the stale one;"
         say "  sd runs as sdsys (the administrator) carrying THIS process's groups"
         say "  via setpriv, and CPROC's logto refresh must add sdu_$ACC itself."
+        # 19 Sep 26 - THROUGH THE LOGINUID BRIDGE, as every sdsys session here.
+        #   The fifth cycle ran setpriv bare and CPROC refused it 10181 (a sdsys
+        #   session without a sdsys login) - right, and it measured nothing.
+        #   The bridge sets only the loginuid; the stale group list, which is
+        #   what this row is about, still comes from setpriv.
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nOFF\n' "$ACC" \
-              | timeout 60 setpriv --reuid 999 --regid "$GID_SDU" --groups "$(id -G | tr ' ' ',')" -- "$SD" 2>&1 | strip)
+              | timeout 60 sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec "$@"' sd-run \
+                setpriv --reuid 999 --regid "$GID_SDU" --groups "$(id -G | tr ' ' ',')" -- "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
         if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
             ck "S2.a WHO reports the session in $ACC" yes yes
@@ -495,11 +508,17 @@ else
     OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys (refused), LOGTO $ACC" \
           "LOGTO $ACC" "WHO" "LOGTO sdsys" "WHO" "LOGTO $ACC" "WHO")
     if [ "$COMMIT" -eq 1 ]; then
-        ck "L1 WHO reported $ACC twice (both LOGTOs into it arrived)" 2 \
+        # 19 Sep 26 - THREE, NOT TWO: the refused LOGTO sdsys leaves the session
+        #   where it was, so the WHO after it names $ACC too (fifth cycle: 3).
+        #   That also means the count can no longer tell a failed second LOGTO
+        #   from a successful one (the session would still be in $ACC), so the
+        #   refusals are what decide it: L3a (10003) and L3c (any SD error).
+        ck "L1 WHO reported $ACC three times (two arrivals; the refused LOGTO sdsys stayed)" 3 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)")"
         ck "L2 and never sdsys - LOGTO sdsys is refused (S.26)" 0 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+sdsys([[:space:]]|$)")"
         ck_absent "L3a no 10003" "User not allowed in requested account" "$OUT"
+        ck_absent "L3c no SD error on either LOGTO into $ACC" "Error " "$OUT"
         ck_says "L3b and the refusal names the one route in" \
                 "entered only by running SD as the sdsys OS user" "$OUT"
     fi
@@ -1361,15 +1380,17 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 # local sdsys session - no euid dance.  The route the port found untested
 # transfers: a session that STARTS IN AN ORDINARY ACCOUNT and reaches SDSYS by
 # LOGTO (section 2b's shape) still writes the stores.
-#   Y0 the route: WHO names zzrel1, then sdsys after LOGTO.
-#   Y1 MODIFY.ACCOUNT zzrel1 SUSPENDED from there: field 5 (the suspension
+#   (19 Sep 26: Y1 runs in SDSYS BEFORE the LOGTO - MODIFY.ACCOUNT is not in
+#   an ordinary account's VOC; Y2 is the write made after it.)
+#   Y0 the route: WHO names zzrel1 after the LOGTO.
+#   Y1 MODIFY.ACCOUNT zzrel1 SUSPENDED, in SDSYS: field 5 (the suspension
 #      flag) goes to SUSPENDED ON DISK, read before and after.
-#   Y2 MODIFY.PASSWORD zzrel1 from there, with the SAME SD password: $cred's
+#   Y2 MODIFY.PASSWORD zzrel1 from zzrel1, with the SAME SD password: $cred's
 #      salt (field 3) changes on disk, and Y2c the login still works with it -
 #      the write landed and is right, not merely present.
 #   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE PRIVILEGE: a plain-sd
-#      session's MODIFY.ACCOUNT zzrel1 UNSUSPEND is refused (2001) and field 5
-#      is still SUSPENDED.  Then sdsys restores UNSUSPEND.
+#      session has no MODIFY.ACCOUNT ("not in your VOC") and field 5 is still
+#      SUSPENDED.  Then sdsys restores UNSUSPEND.
 head2 "13g. Q.22 sdsyswrite - store writes land from the administrator after a LOGTO"
 reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
 cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
@@ -1388,7 +1409,7 @@ else
     # never took the route (Y0).  LOGTO $ACC makes the ordinary account the
     # starting point on purpose, as section 2b's arrivals already do.  18 Sep:
     # the session is sdsys (the administrator) throughout.
-    say "  --- sd session as sdsys, STARTED IN $ADIR: LOGTO $ACC; WHO; MODIFY.ACCOUNT $ACC SUSPENDED; MODIFY.PASSWORD $ACC (password not shown) ---"
+    say "  --- sd session as sdsys, STARTED IN $ADIR: MODIFY.ACCOUNT $ACC SUSPENDED; LOGTO $ACC; WHO; MODIFY.PASSWORD $ACC (password not shown) ---"
     # 18 Sep 26 dm - THE SECOND HALF OF THE ROUTE IS GONE (S.26): LOGTO sdsys is
     #   refused for everybody, so the session LOGTOs INTO the ordinary account and
     #   the administrator's stores are written FROM THERE.  That is the stronger
@@ -1396,7 +1417,12 @@ else
     #   a LOGTO - and a failure now means the write did not land, not that a route
     #   was missing.
     if [ "$COMMIT" -eq 1 ]; then
-        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nMODIFY.ACCOUNT %s SUSPENDED\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+        # 19 Sep 26 - MODIFY.ACCOUNT RUNS BEFORE THE LOGTO.  It is in sdsys's
+        #   VOC only (voc_template; NEWVOC has no admin verbs, in either port),
+        #   so after LOGTO $ACC it was "not in your VOC" and Y1 measured a verb
+        #   that could not be reached (fifth cycle).  The write-after-LOGTO
+        #   claim is carried by MODIFY.PASSWORD, which NEWVOC does ship (W.10).
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nMODIFY.ACCOUNT %s SUSPENDED\nLOGTO %s\nWHO\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
                   "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
@@ -1410,7 +1436,9 @@ else
     [ "$COMMIT" -eq 1 ] && ck_says "Y2c the rewritten credential logs in" "account $ACC: entered" "$OUT"
     OUT=$(run_sd "$ACC2" "CONTROL: plain-sd MODIFY.ACCOUNT $ACC UNSUSPEND" "MODIFY.ACCOUNT $ACC UNSUSPEND")
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "Y3 refused without the administrator (2001)" "Command requires administrator privileges" "$OUT"
+        # 19 Sep 26 - the refusal is now the verb's absence: a plain account's
+        #   VOC has no MODIFY.ACCOUNT (fifth cycle), so 2001 is never reached.
+        ck_says "Y3 a plain account has no MODIFY.ACCOUNT (not in its VOC)" "MODIFY.ACCOUNT is not in your VOC" "$OUT"
         ck "Y3b and the register field 5 is still SUSPENDED" SUSPENDED "$(reg_field "$ACC" 5)"
     fi
     OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPEND" "MODIFY.ACCOUNT $ACC UNSUSPEND")

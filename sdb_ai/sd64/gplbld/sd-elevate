@@ -3,6 +3,11 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 19 Sep 26 dm rmtree-account: DELETE.ACCOUNT's directory step.  The sdsys
+#               session could not remove what the account's user made without
+#               group write, and the directory survived (fifth cycle, zzrel1).
+# 19 Sep 26 dm cred-own verify: MODIFY.PASSWORD checks the current password
+#               before asking for the new one, not only at the write.
 # 19 Sep 26 dm cred-own query|set (W.10): a person sets their OWN SD password.
 #               Identity from sudo's SUDO_USER/SUDO_UID, one record only, keys on
 #               stdin never argv, the current password proved by its StoredKey,
@@ -96,10 +101,11 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] delgroup <user> <group>
   sd-elevate [--dry-run] setgid   <path>
   sd-elevate [--dry-run] chown-account <user> <group> <path>
+  sd-elevate [--dry-run] rmtree-account <account directory>
   sd-elevate [--dry-run] remote-api on | local | off | show
   sd-elevate [--dry-run] remote-ssh on | off | show
-  sd-elevate [--dry-run] cred-own query | set   (the caller's own SD password;
-                                                 set reads 7 lines on stdin)
+  sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
+                                  password; verify reads 1 line, set 7, on stdin)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -429,6 +435,36 @@ require_account_owner() {
   cmd=(chown -- "$user:$group" "$real")
 }
 
+# 19 Sep 26 dm - RMTREE-ACCOUNT, FOR DELETE.ACCOUNT'S DIRECTORY STEP (the fifth
+# cycle's witness run).  delacc removed the account directory with the
+# OS$DELETE intrinsic, which runs as the calling session; before the teardown
+# that was root, and now it is the local sdsys session (S.26).  A file the
+# account's own Linux user made without group write - a 755 directory, which is
+# what its default umask gives - cannot be removed by sdsys, so the directory
+# survived a DELETE.ACCOUNT that had said it would go (zzrel1's zzdeep, 19 Sep).
+#
+# ***EXACTLY AN ACCOUNT DIRECTORY AND NOTHING ELSE***: a direct child of
+# <accounts root>/user_accounts or <accounts root>/group_accounts, named as an
+# SD name, given in canonical form (a symlink or a ".." anywhere in the path is
+# refused rather than resolved), and never the roots themselves.  This hands
+# sdsys nothing new: chown-account already lets it take any path under the
+# accounts root, after which it could remove it without help.
+require_account_dir() {
+  local path=$1 real parent name root
+  [[ -n $path ]] || die "path is empty"
+  [[ $path == /* ]] || die "path '$path' is not absolute"
+  real=$(realpath -e -- "$path" 2>/dev/null) || die "path '$path' does not exist"
+  [[ $real == "$path" ]] || die "path '$path' is not in canonical form (it resolves to '$real')"
+  [[ -d $real && ! -L $real ]] || die "path '$real' is not a directory"
+  root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
+  parent=${real%/*}
+  name=${real##*/}
+  [[ $parent == "$root/user_accounts" || $parent == "$root/group_accounts" ]] \
+    || die "'$real' is not directly inside $root/user_accounts or $root/group_accounts"
+  require_name "account directory" "$name"
+  cmd=(rm -rf --one-file-system -- "$real")
+}
+
 # ------------------------------------------------------ cred-own (W.10)
 #
 # 19 Sep 26 dm - A PERSON SETS THEIR OWN SD PASSWORD (owner, 19 Sep 2026: "user
@@ -502,8 +538,23 @@ cred_own() {
       fi
       exit 0
       ;;
+    # 19 Sep 26 dm - VERIFY: the current password, checked BEFORE the new one
+    # is asked for (the owner at the keyboard, fifth cycle: a wrong current
+    # password went on to the new-password prompts and failed only at the
+    # write).  One line on stdin, the StoredKey; the same comparison set makes.
+    # It is an oracle only for the caller's own password, at the caller's own
+    # PBKDF2 cost per guess - no cheaper than trying set.
+    verify)
+      IFS= read -r cur || true
+      IFS= read -r extra && die "verify wants exactly one line on stdin; there were more"
+      [[ ${#cur} -le 256 ]] || die "an input line is over 256 characters"
+      [[ $old_ver == 2 && -n $old_sk ]] || die "'$acct' has no SD password to check against"
+      [[ -n $cur && $cur == "$old_sk" ]] || die "the current password is not correct"
+      printf '%s: the current password is correct\n' "$PROG"
+      exit 0
+      ;;
     set) ;;
-    *) die "cred-own takes query or set - not '$mode'" ;;
+    *) die "cred-own takes query, verify or set - not '$mode'" ;;
   esac
 
   IFS= read -r cur  || true
@@ -657,6 +708,11 @@ case $verb in
   chown-account)
     [[ $# -eq 3 ]] || usage
     require_account_owner "$1" "$2" "$3"
+    ;;
+
+  rmtree-account)
+    [[ $# -eq 1 ]] || usage
+    require_account_dir "$1"
     ;;
 
   # 14 Sep 26 dm - S.13.  A FIXED KEYWORD AND NOTHING ELSE: no port, address or

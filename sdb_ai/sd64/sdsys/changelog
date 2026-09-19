@@ -16,6 +16,30 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  DELETE.ACCOUNT REMOVES THE ACCOUNT'S DIRECTORY, OR SAYS IT DID NOT.
+           Deleting an account promised to remove its directory, and usually
+           did - but anything the account's own user had made without group
+           write permission (a folder made at the Linux prompt, for example)
+           could not be removed by the administrator, and the rest of the
+           directory was left behind without a word.  The directory is now
+           removed through SD's privileged helper, which accepts exactly one
+           account directory and nothing else.  If one is ever still there
+           afterwards, SD says so (message 10919) and names it.
+
+           The warning before a deletion also said a suspended account
+           "can be given a tier again later" - tiers are gone.  It now says
+           how to let a suspended account back in:
+           modify.account <name> unsuspend.
+
+19 Sep 26  MODIFY.PASSWORD CHECKS YOUR CURRENT PASSWORD FIRST.
+           When you changed your own SD password, a wrong current password
+           was only noticed after you had typed the new one twice; nothing
+           was changed, but the new password was asked for as though the
+           old one had been accepted.  It is now checked straight away, and
+           a wrong one ends the command with "Password not changed."  The
+           administrator setting somebody else's password is not asked for
+           the old one, as before.
+
 19 Sep 26  YOU CAN CHANGE YOUR OWN SD PASSWORD.
            Type  MODIFY.PASSWORD  in your own account.  SD asks for your
            current SD password, then the new one twice, all hidden.  Until

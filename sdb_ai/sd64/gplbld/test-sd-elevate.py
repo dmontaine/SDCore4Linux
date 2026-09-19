@@ -125,6 +125,25 @@ CASES = [
     (REFUSE, ["chown-account", "daemon", "sdu_daemon", "/home/sd/user_accounts/don"],
                                                         "uid < UID_MIN"),
 
+    # ---- rmtree-account (19 Sep 26, the fifth cycle's witness run).  delacc's
+    # ---- OS$DELETE runs as the sdsys session, which cannot remove what the
+    # ---- account's user made without group write, so the directory survived
+    # ---- DELETE.ACCOUNT.  Exactly one account directory, canonical, or nothing.
+    (REFUSE, ["rmtree-account"],                                  "the path is required"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts/don", "x"], "no extra argument"),
+    (REFUSE, ["rmtree-account", "/"],                             "the root of the machine"),
+    (REFUSE, ["rmtree-account", "/etc"],                          "outside the accounts root"),
+    (REFUSE, ["rmtree-account", "/home/sd"],                      "the accounts root itself"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts"],        "the user accounts root itself"),
+    (REFUSE, ["rmtree-account", "/home/sd/group_accounts"],       "the group accounts root itself"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts/don/voc"], "inside an account, not the account"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts/../user_accounts/don"],
+                                                        "not canonical - a .. is refused, not resolved"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts/don/"],   "not canonical - a trailing slash"),
+    (REFUSE, ["rmtree-account", "home/sd/user_accounts/don"],     "a relative path"),
+    (REFUSE, ["rmtree-account", "/home/sd/user_accounts/zzprobenodir"], "does not exist"),
+    (REFUSE, ["rmtree-account", "/usr/local/sdsys"],              "SD's own tree"),
+
     # ---- system accounts are out of reach by uid, not by name, so the rule
     # ---- holds for accounts this test never enumerated.
     (REFUSE, ["passwd", "daemon"],          "uid < UID_MIN"),
@@ -155,6 +174,7 @@ CASES = [
                                                         "the GROUP shape: sdsys, inside the accounts root"),
     (ALLOW,  ["chown-account", "root", "sdusers", "/home/sd/user_accounts/don"],
                                                         "the OTHER shape: to root, which grants the caller nothing"),
+    (ALLOW,  ["rmtree-account", "/home/sd/user_accounts/don"],   "an account directory (dry run: never acts)"),
 ]
 
 
@@ -341,12 +361,20 @@ def main():
                 (REFUSE, "set", rec("", sk="not base64!"), me, my_uid, "StoredKey", "a malformed key"),
                 (REFUSE, "set", rec("", svk=base64.b64encode(b"x" * 31).decode()), me, my_uid, "ServerKey", "a 31-byte key"),
                 (REFUSE, "set", rec("", s="$(id)"), me, my_uid, "salt", "shell text as a salt"),
+                (REFUSE, "verify", [k_old], me, my_uid, "no SD password to check", "verify with no credential"),
             ]
             # then a credential exists: the current password becomes required
             CRED_AFTER = [
                 (ALLOW,  "query", None, me, my_uid, "salt " + salt, "the salt and iterations come back"),
                 (REFUSE, "set", rec(""), me, my_uid, "current one is required", "a password exists: current required"),
                 (REFUSE, "set", rec(k_new), me, my_uid, "not correct", "the wrong current password"),
+                # 19 Sep 26: verify, the current password checked before the
+                # new one is asked for (the owner at the keyboard, fifth cycle)
+                (REFUSE, "verify", [k_new], me, my_uid, "not correct", "verify: the wrong current password"),
+                (REFUSE, "verify", [""], me, my_uid, "not correct", "verify: an empty current password"),
+                (REFUSE, "verify", [k_old, "x"], me, my_uid, "exactly one line", "verify: a second line"),
+                (REFUSE, "verify", [k_old], None, None, "only through sudo", "verify: not reached through sudo"),
+                (ALLOW,  "verify", [k_old], me, my_uid, "the current password is correct", "verify: the right one"),
                 (ALLOW,  "set", rec(k_old), me, my_uid, own_write, "the right current password"),
             ]
             def drive(rows):
