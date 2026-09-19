@@ -214,7 +214,10 @@ run_sd() {
         fi
     done
     body="$body"$'\n''OFF'$'\n'
-    out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
+    # 18 Sep 26 dm, NIGHT - S.26 corrected: only a real sdsys LOGIN administers,
+    # so the session runs through the root-only loginuid bridge (the witness
+    # runs as root under --commit); a bare "sudo -u sdsys sd" is refused (10181).
+    out=$(printf '%s' "$body" | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
 }
@@ -234,7 +237,7 @@ cleanup() {
     if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC_UC" ]; then
         say "  $ACC_UC is still registered; deleting it through SD (as sdsys)"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC"$'\n''y'$'\n''OFF'$'\n' \
-            | timeout 90 sudo -u sdsys "$SD" >/dev/null 2>&1
+            | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" >/dev/null 2>&1
     fi
     if [ "$MADE_USER" -eq 1 ] && id -u "$ACC" >/dev/null 2>&1; then
         userdel -r "$ACC" >/dev/null 2>&1 \

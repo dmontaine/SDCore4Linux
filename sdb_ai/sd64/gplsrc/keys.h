@@ -181,6 +181,13 @@
    op_kernel.c.  GPL.BP/INT$KEYS.H carries the same two numbers.             */
 #define K_SET_USERNAME       60
 #define K_ASSUME_USER        61
+/* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the LOGIN itself must be
+   sdsys.  kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit
+   loginuid - set once by PAM at login, inherited by every descendant,
+   unwritable without root - belongs to the named user.  This tree's own key,
+   in the 65+ block clear of the port's 0-64.  GPL.BP/INT$KEYS.H carries the
+   same number.                                                             */
+#define K_LOGIN_UID          65
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH

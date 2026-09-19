@@ -510,7 +510,7 @@ if ! id sdsys &>/dev/null; then
     echo "Removing orphan sdsys group (no sdsys user)."
     sudo groupdel sdsys || true
   fi
-  if ! sudo useradd --system -g sdusers -G sdusers --no-create-home sdsys; then
+  if ! sudo useradd --system -g sdusers -G sdusers -s /bin/sh --no-create-home sdsys; then
     printf "%b\n" "$RED"
     echo "Failed to create sdsys user. Install terminated!"
     printf "%b\n" "$NC"
@@ -521,6 +521,14 @@ else
 fi
 echo "Setting user: sdsys primary group to sdusers."
 sudo usermod -g sdusers -G sdusers sdsys
+# 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: sdsys is ENTERED BY LOGIN.
+# Its password is set at the end of this install (a hidden prompt, like the
+# SD password below), and the account needs a working shell and a home to
+# log into - at the keyboard, or over a desktop-sharing view of it.  The
+# loginuid PAM sets at that login is the one credential SD's administrator
+# gate accepts; sudo and su from another user are refused (CPROC 10181).
+sudo usermod -s /bin/sh sdsys
+sudo install -d -o sdsys -g sdusers -m 750 /home/sdsys
 # --------------------
 # PRE_RELEASE 14, the owner's ruling of 9 Sep 2026: SD ships a sudoers.d
 # drop-in for a group SD owns.
@@ -970,9 +978,9 @@ echo
 # 10 Sep 26  THE INSTALLING USER IS REGISTERED AS A PLAIN SD ACCOUNT (S.26).
 #            This was "create-account USER $tuser no.query" first, then
 #            ADMINISTRATOR - the tier model.  With the tiers gone the account
-#            is a plain one: the installing user administers as the sdsys OS
-#            user from a local session (su - sdsys), and needs no register
-#            rank to be who they are.
+#            is a plain one: the installing user administers by LOGGING IN as
+#            sdsys (its own password, at the keyboard or a desktop-sharing
+#            view of it), and needs no register rank to be who they are.
 #
 #            AN EXISTING ACCOUNT IS NOT TOUCHED.  The directory test above
 #            means an upgrade that saved its accounts keeps what it has,
@@ -1065,8 +1073,9 @@ echo "account register: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts")"
 # 18 Sep 26 dm - TEARDOWN (S.26).  CPROC IS RECOMPILED WITHOUT IS_INSTALL HERE,
 #            LAST: the seeding above ran on the install build (no root
 #            refusal, administrator bootstrap), and from this point the
-#            production CPROC refuses a root session outright - root may still
-#            su - sdsys, and that is the one way into administration.
+#            production CPROC refuses a root session outright - the one way
+#            into administration is a real LOGIN as sdsys (night ruling, 18
+#            Sep: sudo and su from another user are refused with it, 10181).
 echo "Compiling CPROC without IS_INSTALL defined."
 sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
 if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
@@ -1213,6 +1222,29 @@ fi
 #            structural note, finish-install.ps1:121-127).  The first install at
 #            a keyboard is the witness; the $cred test below is what makes a
 #            prompt that never appeared visible instead of silent.
+# 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: administration is by LOGGING
+# IN as sdsys, so the account needs a password of its own - set here, at a
+# hidden prompt, by whoever is installing.  There is no other way in: SD
+# refuses a session that arrived by sudo or su from another user (CPROC
+# 10181), and sshd denies sdsys the network.  A desktop-sharing view of the
+# console (VNC, TeamViewer) is a local login and works.
+sdsys_pw_state="not set"
+echo
+echo "The Linux password for the sdsys account (SD's administrator)"
+if ! ( : </dev/tty ) 2>/dev/null; then
+    sdsys_pw_state="not set - there was no terminal to ask at"
+    echo "  Skipped: this install has no terminal to ask at."
+    echo "  Set one before administering:  sudo passwd sdsys"
+else
+    echo "  This is the sign-on for administering SD: log in as sdsys at this"
+    echo "  machine's keyboard (or a desktop-sharing view of it), then run sd."
+    echo "  passwd asks for it twice, to catch a typing slip."
+    echo
+    if sudo passwd sdsys; then
+        sdsys_pw_state="set"
+    fi
+fi
+#
 tuser_lc=$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')
 sd_pw_state="not set"
 echo
@@ -1232,12 +1264,14 @@ else
     echo "  catch a typing slip; press Enter on an empty line to skip it."
     echo
     if sd_install_start; then
-        # From sdsys, THE administrator (18 Sep 26, S.26): a local session
-        # running as the sdsys OS user, exactly as an operator reaches it after
-        # the install.  By the installed path because the clone was deleted
-        # above.  The directory does not pick the account - CPROC grants the
-        # administrator and LOGIN puts the session in sdsys wherever it starts.
-        ( cd "$sdsysdir" && sudo -u sdsys "$sdsysdir/bin/sd" -QUIET MODIFY.PASSWORD "$tuser_lc" </dev/tty ) || true
+        # 18 Sep 26 dm, NIGHT - S.26's corrected route: only a real sdsys
+        # LOGIN administers, and this step is not one.  It is the install's
+        # own one exception: as root it ADOPTS sdsys's loginuid for exactly
+        # this process tree (the same bridge the witnesses use), because the
+        # strict CPROC is already in place by now.  The bridge grants nothing
+        # to anybody who is not already root, and if the write fails the
+        # session is refused and the $cred test below says "not set".
+        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD "$2"' sd-pw "$sdsysdir/bin/sd" "$tuser_lc" </dev/tty ) || true
         sd_install_stop
         if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
             sd_pw_state="set"
@@ -1287,9 +1321,20 @@ fi
 echo "SD password for $tuser_lc: $sd_pw_state."
 case "$sd_pw_state" in
     set|already*) ;;
-    *) echo "  Set one with:  sudo sd   then at the SD prompt:  MODIFY.PASSWORD $tuser_lc"
+    *) echo "  Set one by logging in as sdsys and, at the SD prompt:"
+       echo "    MODIFY.PASSWORD $tuser_lc"
        echo "  Until it is set, nothing can reach this account through the API." ;;
 esac
+echo "Linux password for sdsys (the administrator): $sdsys_pw_state."
+case "$sdsys_pw_state" in
+    set) ;;
+    *) echo "  Set one before administering:  sudo passwd sdsys" ;;
+esac
+echo
+echo "SD is administered ONLY by logging in as sdsys (its own password) and"
+echo "running sd - that session has every admin verb.  There is no sudo or"
+echo "su route into it, and sdsys cannot log in over ssh; a desktop-sharing"
+echo "view of the console (VNC, TeamViewer) is a local login and works."
 echo
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
