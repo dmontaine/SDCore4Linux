@@ -480,15 +480,21 @@ if [ "$COMMIT" -eq 1 ] && [ "$ADOPTED" -ne 1 ]; then
     for r in "L1 two arrivals in $ACC" "L2 one arrival in sdsys" "L3 no refusal" "LC.1 control refused" "LC.2 control stayed"; do
         not_reached "$r"; done
 else
-    OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys, LOGTO $ACC" \
+    # 18 Sep 26 dm - LOGTO SDSYS IS REFUSED FOR EVERYBODY NOW (S.26), so the
+    #   middle arrival cannot happen.  What the rows measure: both LOGTOs INTO
+    #   $ACC arrive, the SDSYS arrival does NOT, and the refusal names the one
+    #   route in.  The administrator's own access is unchanged - it is the sdsys
+    #   session these commands run from.
+    OUT=$(run_sd sdsys "LOGTO $ACC, LOGTO sdsys (refused), LOGTO $ACC" \
           "LOGTO $ACC" "WHO" "LOGTO sdsys" "WHO" "LOGTO $ACC" "WHO")
     if [ "$COMMIT" -eq 1 ]; then
         ck "L1 WHO reported $ACC twice (both LOGTOs into it arrived)" 2 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)")"
-        ck "L2 WHO reported sdsys once, between them" 1 \
+        ck "L2 and never sdsys - LOGTO sdsys is refused (S.26)" 0 \
            "$(printf '%s' "$OUT" | grep -cE "^[[:space:]]*[0-9]+[[:space:]]+sdsys([[:space:]]|$)")"
         ck_absent "L3a no 10003" "User not allowed in requested account" "$OUT"
-        ck_absent "L3b no SDSYS gate refusal" "entered only by running SD as the sdsys OS user" "$OUT"
+        ck_says "L3b and the refusal names the one route in" \
+                "entered only by running SD as the sdsys OS user" "$OUT"
     fi
     # THE CONTROL: without it L1-L3 cannot tell "the administrator keeps its
     # access" from "the gate is open to everybody".
@@ -1298,9 +1304,14 @@ else
             ck_says "E5 audited with the peer's address" "API REFUSED user=sdsys reason=sdsys on a remote API session from $LANIP" "$NEW"
         fi
         PW_OS=""
-        OUT=$(run_sd sdsys "restore: no sdsys credential (the install's state)" \
-              "MODIFY.PASSWORD sdsys" "_PW_" "_PW_")
-        [ "$COMMIT" -eq 1 ] && ck_says "E6 the throwaway sdsys credential was set back to none" "Password REMOVED for account sdsys" "$OUT"
+        # 18 Sep 26 dm - MODIFY.PASSWORD CANNOT UNSET ONE, BY DESIGN: an empty
+        #   entry means "leave the password unchanged" (set_acc_password:192), and
+        #   the first real run's E6 asked the verb for a "Password REMOVED"
+        #   message the product has never had.  The register is one file per
+        #   account and the witness runs as root, so the file goes and the row
+        #   reads the machine back.
+        rm -f "$SDSYS/\$cred/sdsys"
+        [ "$COMMIT" -eq 1 ] && ck "E6 the throwaway sdsys credential is gone (the install's state)" no "$(yesno_file "$SDSYS/\$cred/sdsys")"
     fi
 fi
 
@@ -1352,7 +1363,7 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 #   Y3 CONTROL, THE REFUSAL THAT MAKES Y1 MEAN THE PRIVILEGE: a plain-sd
 #      session's MODIFY.ACCOUNT zzrel1 UNSUSPEND is refused (2001) and field 5
 #      is still SUSPENDED.  Then sdsys restores UNSUSPEND.
-head2 "13g. Q.22 sdsyswrite - store writes land from SDSYS reached by LOGTO"
+head2 "13g. Q.22 sdsyswrite - store writes land from the administrator after a LOGTO"
 reg_field() { sed -n "${2}p" "$REGISTER/$1" 2>/dev/null; }
 cred_salt() { sed -n '3p' "$SDSYS/\$cred/$1" 2>/dev/null; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ "$MADE_ACCOUNT2" -ne 1 ]; }; then
@@ -1370,13 +1381,19 @@ else
     # never took the route (Y0).  LOGTO $ACC makes the ordinary account the
     # starting point on purpose, as section 2b's arrivals already do.  18 Sep:
     # the session is sdsys (the administrator) throughout.
-    say "  --- sd session as sdsys, STARTED IN $ADIR: LOGTO $ACC; WHO; LOGTO sdsys; WHO; MODIFY.ACCOUNT $ACC SUSPENDED; MODIFY.PASSWORD $ACC (password not shown) ---"
+    say "  --- sd session as sdsys, STARTED IN $ADIR: LOGTO $ACC; WHO; MODIFY.ACCOUNT $ACC SUSPENDED; MODIFY.PASSWORD $ACC (password not shown) ---"
+    # 18 Sep 26 dm - THE SECOND HALF OF THE ROUTE IS GONE (S.26): LOGTO sdsys is
+    #   refused for everybody, so the session LOGTOs INTO the ordinary account and
+    #   the administrator's stores are written FROM THERE.  That is the stronger
+    #   claim and the one S.2 is about - the administrator keeps its access across
+    #   a LOGTO - and a failure now means the write did not land, not that a route
+    #   was missing.
     if [ "$COMMIT" -eq 1 ]; then
-        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nLOGTO sdsys\nWHO\nMODIFY.ACCOUNT %s SUSPENDED\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nMODIFY.ACCOUNT %s SUSPENDED\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' \
                   "$ACC" "$ACC" "$ACC" "$SCRAM_PW" "$SCRAM_PW" | timeout 120 sudo -u sdsys "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$SCRAM_PW/********/g" -e 's/^/      | /'
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
-        ck "Y0 the route: WHO named $ACC, then sdsys" "$ACC sdsys " "$WHOS"
+        ck "Y0 the route: WHO named $ACC" "$ACC " "$WHOS"
         ck "Y1 SUSPENDED landed in the register on disk (field 5 '$FLAG_BEFORE' -> SUSPENDED)" SUSPENDED "$(reg_field "$ACC" 5)"
         ck_says "Y2 MODIFY.PASSWORD reported it" "Password set for account $ACC" "$OUT"
         SALT_AFTER=$(cred_salt "$ACC")
@@ -1621,7 +1638,11 @@ else
         say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE ufw 4243=$RA_4243_BEFORE 22=$RA_22_BEFORE"
         say "  saved: API '$API_VERDICT0', ssh '$SSH_VERDICT0'; listening on: $(listen_now)"
     fi
-    OUT=$(run_sd root "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
+    OUT=$(run_sd sdsys "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
+    # 18 Sep 26 dm - AS SDSYS, NOT ROOT.  S.28 keeps REMOTE.API and REMOTE.SSH as
+    #   SDSYS's own (sd-elevate behind the sdsys-only sudoers), and the first real
+    #   run drove them as root - where CPROC refuses the session outright (10176),
+    #   so every H row measured the refusal instead of the verb.
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H0 REMOTE.API reports through SD" "The SD API is $API_VERDICT0." "$OUT"
         ck_says "H0b REMOTE.SSH reports through SD" "Remote ssh access is $SSH_VERDICT0." "$OUT"
@@ -1635,7 +1656,7 @@ else
         sleep 4
         say "  held session so far: $(grep -E 'entered|pausing' "$HF" | tr '\n' ' ')"
     fi
-    OUT=$(run_sd root "REMOTE.API LOCAL (while that session waits)" "REMOTE.API LOCAL")
+    OUT=$(run_sd sdsys "REMOTE.API LOCAL (while that session waits)" "REMOTE.API LOCAL")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H1a REMOTE.API LOCAL reported" "The SD API is now LOCAL." "$OUT"
         wait "$HPID"
@@ -1652,7 +1673,7 @@ else
     OUT=$(sprobe "H3 a new login over $LANIP while LOCAL" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "H3 LOCAL does not listen on the LAN address" "scram-probe: CANNOT RUN - cannot connect" "$OUT"
 
-    OUT=$(run_sd root "REMOTE.API OFF" "REMOTE.API OFF")
+    OUT=$(run_sd sdsys "REMOTE.API OFF" "REMOTE.API OFF")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H4 REMOTE.API OFF reported" "The SD API is now OFF." "$OUT"
         ck "H4a the socket is no longer active" yes "$([ "$(systemctl is-active sdclient.socket 2>/dev/null)" != active ] && echo yes || echo no)"
@@ -1660,7 +1681,7 @@ else
     OUT=$(sprobe "H4b a login over 127.0.0.1 while OFF" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "H4b OFF admits nobody" "scram-probe: CANNOT RUN - cannot connect" "$OUT"
 
-    OUT=$(run_sd root "REMOTE.API ON" "REMOTE.API ON")
+    OUT=$(run_sd sdsys "REMOTE.API ON" "REMOTE.API ON")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H5 REMOTE.API ON reported" "The SD API is now ON." "$OUT"
         L=$(listen_now); say "  listening on: $L"
@@ -1675,14 +1696,14 @@ else
     say "  --- REMOTE.SSH: OFF then ON where ufw gates ssh; OFF refused (status 3) where it does not - chosen from the saved verdict ---"
     if [ "$COMMIT" -eq 1 ]; then
         if [ "$SSH_VERDICT0" = "NOT GATED BY THIS MACHINE'S FIREWALL" ]; then
-            OUT=$(run_sd root "REMOTE.SSH OFF where ufw does not gate ssh" "REMOTE.SSH OFF")
+            OUT=$(run_sd sdsys "REMOTE.SSH OFF where ufw does not gate ssh" "REMOTE.SSH OFF")
             ck_says "H7 REMOTE.SSH OFF is refused where it would gate nothing (status 3)" "Could not set remote ssh access to OFF (status 3)" "$OUT"
             ck "H7b and the 22/tcp rule is as it was" "$RA_22_BEFORE" "$(ufw_rule_present 22/tcp && echo yes || echo no)"
         else
-            OUT=$(run_sd root "REMOTE.SSH OFF" "REMOTE.SSH OFF")
+            OUT=$(run_sd sdsys "REMOTE.SSH OFF" "REMOTE.SSH OFF")
             ck_says "H7 REMOTE.SSH OFF reported" "Remote ssh access is now OFF." "$OUT"
             ck "H7b no ufw allow rule for 22/tcp" no "$(ufw_rule_present 22/tcp && echo yes || echo no)"
-            OUT=$(run_sd root "REMOTE.SSH ON" "REMOTE.SSH ON")
+            OUT=$(run_sd sdsys "REMOTE.SSH ON" "REMOTE.SSH ON")
             ck_says "H8 REMOTE.SSH ON reported" "Remote ssh access is now ON." "$OUT"
             ck "H8b a ufw allow rule for 22/tcp exists" yes "$(ufw_rule_present 22/tcp && echo yes || echo no)"
         fi
@@ -1789,6 +1810,20 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         say "      | $A2DIR/voc          : $(yesno_dir "$A2DIR/voc")   (must be no)"
         say "      | $A2DIR/voc.witness-aside: $(yesno_dir "$A2DIR/voc.witness-aside")   (must be yes)"
+    fi
+    # 18 Sep 26 dm - THE ACCOUNT MUST BE IDLE.  The first real run's K5 failed on
+    #   "userdel: user zzrel1 is currently used by process 14001" - a session an
+    #   earlier section had left - and the product warned and carried on, which is
+    #   right: userdel refuses a uid in use.  Kill this account's sessions and
+    #   wait for its processes to go, so the row measures the DELETION and not a
+    #   session that should have ended.
+    "$SD" -k "$ACC" >/dev/null 2>&1 || true
+    for _ in $(seq 1 15); do
+        pgrep -u "$ACC" >/dev/null 2>&1 || break
+        sleep 1
+    done
+    if pgrep -u "$ACC" >/dev/null 2>&1; then
+        say "      | WARNING: $ACC still has a running process; userdel may refuse"
     fi
     OUT=$(run_sd sdsys "DELETE.ACCOUNT $ACC, answered y" "DELETE.ACCOUNT $ACC" "y")
     # Put it back BEFORE the checks, so a failing check cannot leave $ACC2

@@ -438,9 +438,15 @@ else
         ck "D8 the account directory is gone" no "$(yesno_dir "$ACCOUNTS_ROOT/$ACC")"
         ck "D9 the sdu_ group is gone"        no "$(yesno_group "sdu_$ACC")"
         # ***THE SD-CREATED BRANCH'S POINT***: the Linux user SD made is SD's
-        # to take away, login and home included.
+        # to take away.  THE HOME IS NOT: it goes only with REMOVE.HOME
+        # (delacc's own description, the owner's 10 Sep 2026 ruling - on Linux
+        # the home holds the person's own files and ssh keys).  The first real
+        # run's D11 asked for the home to be gone while running the PLAIN
+        # delete, which was the row's error, not the product's; the row now
+        # asserts the designed outcome and names the other path.
         ck "D10 the SD-created Linux user is gone" no "$(yesno_user "$ACC")"
-        ck "D11 and its home directory is gone"    no "$(yesno_dir "/home/$ACC")"
+        ck "D11 and its home SURVIVES a plain delete (REMOVE.HOME is the other path)" \
+           yes "$(yesno_dir "/home/$ACC")"
         [ -e "$REGISTER/$ACC_UC" ] || MADE_ACCOUNT=0
     fi
 fi
