@@ -114,8 +114,15 @@ run_sd_as() {
   body="$body"$'\n''OFF'$'\n'
   if [ "$user" = sdsys ]; then
     out=$(printf '%s' "$body" | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
-  else
+  elif [ "$user" = root ]; then
     out=$(printf '%s' "$body" | timeout 90 "$SD_BIN" 2>&1 | strip)
+  else
+#   18 Sep 26 - a PLAIN ACCOUNT'S OWN SESSION.  M4b used run_sd "$ACC", and
+#   run_sd's first argument is a TITLE on a sdsys session - so "SH runs for a
+#   plain account" was measured as the administrator and passed on nothing
+#   (the 20:39 run: the admin banner inside the "as zzabst" transcript).  The
+#   account's session is its own uid, the way the account itself would run sd.
+    out=$(printf '%s' "$body" | timeout 90 sudo -u "$user" "$SD_BIN" 2>&1 | strip)
   fi
   printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
   printf '%s' "$out"
@@ -216,8 +223,10 @@ if [ "$COMMIT" -eq 1 ]; then
             "Action Must Be Add, Delete, Suspended or Unsuspend" "$OUT"
   done
   # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
-  # and the OS runs at the account's own Linux permissions - no 10053.
-  OUT=$(run_sd "$ACC" "SH echo zzsh-absence-ran (no gate)" "SH echo zzsh-absence-ran")
+  # and the OS runs at the account's own Linux permissions - no 10053.  This
+  # is run_sd_as, NOT run_sd: the session must BE the account (see the note
+  # in run_sd_as), or the row measures the administrator's SH instead.
+  OUT=$(run_sd_as "$ACC" "SH echo zzsh-absence-ran (no gate)" "SH echo zzsh-absence-ran")
   ck_says "M4b SH runs for a plain account (no 10053)" "zzsh-absence-ran" "$OUT"
   ck_absent "M4c and it was not refused" "is not permitted to use the operating system shell" "$OUT"
 fi

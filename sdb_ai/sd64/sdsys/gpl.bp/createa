@@ -611,12 +611,13 @@ make.account:
       @system.return.code = -6
       stop sysmsg(6016) ;* Unable to create VOC
    end
-   set.owner.path = pathname:@ds:'voc'
-   gosub set.owner
-   set.owner.path = pathname:@ds:'voc':@ds:'%0'
-   gosub set.owner
-   set.owner.path = pathname:@ds:'voc':@ds:'%1'
-   gosub set.owner
+* 18 Sep 26 dm - THE HANDOVER COMES LAST.  set.owner used to run here, before
+*   the NEWVOC copy below - harmless when the administrator was root, but a
+*   local sdsys session (the only administrator, S.26) cannot write a file it
+*   has just given away: the session's groups were fixed before sdu_<account>
+*   existed.  Measured on the 20:38 witness cycle - Error 3018 at the copy,
+*   the account left half-created.  voc and its parts are chowned after the
+*   last record is written, at the end of this subroutine.
 
    openpath pathname:@ds:'voc' to voc.f else
       @system.return.code = -status()
@@ -698,7 +699,14 @@ make.account:
    end
 
  * 20240225 mab set file ownership for VOC
+ * 18 Sep 26 dm - and for its parts, HERE: every write to voc.f above (the
+*   NEWVOC copy, $command.stack, the file entries from create.dir.file) is
+*   done before the handover - see the note at the top of this subroutine.
    set.owner.path = pathname:@ds:'voc'
+   gosub set.owner
+   set.owner.path = pathname:@ds:'voc':@ds:'%0'
+   gosub set.owner
+   set.owner.path = pathname:@ds:'voc':@ds:'%1'
    gosub set.owner
 
 
@@ -769,23 +777,24 @@ create.dir.file:
          @system.return.code = -ER$NOT.CREATED
          stop sysmsg(6023, fn) ;* Unable to create dictionary part of xx
       end
-* 20240302 mab set file ownership accordingly
-* rev 0.9.0 *
-      set.owner.path = pathname:@ds:dict.name:@ds:'%0'
-      gosub set.owner
-      set.owner.path = pathname:@ds:dict.name:@ds:'%1'
-      gosub set.owner
-
+* 18 Sep 26 dm - same handover-last rule as the VOC above: the %0/%1 chowns
+*   used to sit before the @ID write and would kill it for a sdsys session.
       openpath pathname:@ds:dict.name to dict.f else
          @system.return.code = -status()
          stop sysmsg(6024, fn) ;* Unable to open dictionary part of xx
       end
-* 20240121 mab use @VM not hard coded hex fd 
+* 20240121 mab use @VM not hard coded hex fd
       write raise('D':@VM:'0':@VM:@VM:fn:@VM:'10L':@VM:'S') to dict.f, '@ID'
       close dict.f
 
-* 20240225 mab set file ownership accordingly  
+* 20240225 mab set file ownership accordingly
+* 20240302 mab set file ownership accordingly
+* rev 0.9.0 *
       set.owner.path = pathname:@ds:dict.name
+      gosub set.owner
+      set.owner.path = pathname:@ds:dict.name:@ds:'%0'
+      gosub set.owner
+      set.owner.path = pathname:@ds:dict.name:@ds:'%1'
       gosub set.owner
 
       voc.rec<3> = dict.name
