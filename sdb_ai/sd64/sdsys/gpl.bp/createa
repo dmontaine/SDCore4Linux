@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 19 Sep 26 dm set.owner single-quotes what it hands the shell.  "$hold" in a
+*               path was expanded away, so a sdsys session's CREATE.ACCOUNT
+*               chowned the account directory itself and then could not create
+*               $hold.dic in it (the third cycle's witness, M2).
 * 19 Sep 26 dm ADOPT IS RENAMED ATTACH, marker $attach.<name> (the Windows
 *               port's name, agreed by mail 19 Sep 00:10; its old $adopt
 *               markers can survive on Windows disks, so only the new name is
@@ -856,10 +860,21 @@ set.owner:
       chown_parm = uid:@VM:gid:@VM:set.owner.path
       * crt 'set.owner: ':chown_parm
       result = ospath(chown_parm,OS$CHOWN)
+* 19 Sep 26 dm - EVERY ARGUMENT IS SINGLE-QUOTED FOR THE SHELL.  Unquoted, the
+*   shell expanded "$hold" in ".../<account>/$hold" to nothing, so the helper
+*   was handed - and legally chowned - THE ACCOUNT DIRECTORY ITSELF; the sdsys
+*   session could then not create $hold.dic inside it ("Unable to create
+*   dictionary part of $hold", the third cycle's M2, 19 Sep).  $svlists and
+*   $hold.dic took the same route.  A quote inside an argument cannot be
+*   passed safely this way, so it is refused rather than guessed at.
    end else
       result = 0
-      os.execute "sudo /usr/local/sbin/sd-elevate chown-account " : uid : " " : gid : " " : set.owner.path
-      if OS.ERROR() = 0 then result = 1
+      if index(uid:gid:set.owner.path, "'", 1) then
+         null   ;* result stays 0: the "Unable change ownership" line below says so
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate chown-account '" : uid : "' '" : gid : "' '" : set.owner.path : "'"
+         if OS.ERROR() = 0 then result = 1
+      end
    end
    if result <= 0 then
      st = set.owner.path:' err: ':status()
