@@ -876,7 +876,7 @@ else
         ck "C4 field 2 is the mechanism" "SCRAM-SHA-256" "$(printf '%s\n' "$CREC" | sed -n 2p)"
         ck "C5 field 4 is the port's cost" 600000 "$(printf '%s\n' "$CREC" | sed -n 4p)"
         ck "C6 StoredKey and ServerKey are 44-character base64" "44 44" "$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c) $(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
-        ck "C7 the register is sdsys:sdsys 700" "sdsys:sdsys 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
+        ck "C7 the register is sdsys:sdusers 700" "sdsys:sdusers 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
         # Kept for section 13c's SCRAM login only when C1 saw it set.  Never printed.
         printf '%s' "$OUT" | grep -qF "Password set for account $ACC" && SCRAM_PW="$CPW"
     fi
@@ -1337,7 +1337,9 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 # Q.22 sdsyswrite - CAN SDSYS REACHED BY LOGTO WRITE THE ADMINISTRATOR STORES?
 # The port's verify-sdsyswrite (its PRE_RELEASE_FIXES 68/73).  Under the
 # teardown the stores belong to the administrator: the register is sdsys:sdusers
-# 644 and $cred is sdsys:sdsys 700 (installsdai.sh), and the administrator IS a
+# 644 and $cred is sdsys:sdusers 700 (installsdai.sh - the GROUP is sdusers:
+# there is no sdsys group on this box, corrected 18 Sep 26 after the first
+# fresh cycle died on it), and the administrator IS a
 # local sdsys session - no euid dance.  The route the port found untested
 # transfers: a session that STARTS IN AN ORDINARY ACCOUNT and reaches SDSYS by
 # LOGTO (section 2b's shape) still writes the stores.

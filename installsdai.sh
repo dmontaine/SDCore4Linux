@@ -785,7 +785,16 @@ sudo chown -R root:root "$sdsysdir/\$cred"
 #            sdsys OS user reads and writes it (MODIFY.PASSWORD runs in a local
 #            sdsys session, which is never root), and the API server reads it as
 #            root, which reads anything regardless of ownership.
-sudo chown -R sdsys:sdsys "$sdsysdir/\$cred"
+# 18 Sep 26 dm - THE GROUP IS sdusers, NOT sdsys.  The first fresh cycle after
+#            the teardown was pushed died on this line, before anything else
+#            could: "chown: invalid group: 'sdsys:sdsys'" - THERE IS NO sdsys
+#            GROUP.  The sdsys USER's primary group is sdusers (gid 979) and
+#            nothing in this tree ever created a group of that name.  Every
+#            other sdsys-owned path in this script is sdsys:sdusers, and the
+#            mode two lines down is 700, so the group confers nothing either
+#            way: what the wall rests on is the OWNER (the sdsys user, which
+#            MODIFY.PASSWORD runs as) plus CPROC's administrator flag.
+sudo chown -R sdsys:sdusers "$sdsysdir/\$cred"
 sudo chmod 700 "$sdsysdir/\$cred"
 echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
 #
@@ -1182,7 +1191,7 @@ fi
 #              started."  SD is stopped a few lines above, so this starts it and
 #              stops it again, leaving the machine as this step found it.
 #            * IT NEEDS AN ADMINISTRATOR (18 Sep 26, S.26).  $cred is
-#              sdsys:sdsys 0700 and MODIFY.PASSWORD refuses before prompting
+#              sdsys:sdusers 0700 and MODIFY.PASSWORD refuses before prompting
 #              unless the administrator flag is set - so this runs as the
 #              sdsys OS user, the one administrator, on a local session:
 #              CPROC grants it, exactly as an operator would after install.
