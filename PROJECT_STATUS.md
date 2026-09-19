@@ -294,6 +294,28 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
 
+***HANDOFF, 19 SEP 2026, ~14:45 — END OF SESSION.  READ THIS FIRST.***
+- Install: `60ac74a` (seventh cycle), everything on it witnessed.  HEAD is
+  one documents-only commit further, so `assert-current` answers STALE
+  (install stamp != HEAD) though no installed code differs; the next
+  install makes it exact.
+- Open, in order: W.11 (the owner's security-model evaluation - his to
+  start); S.31's follow-up - move the "That was attempt %1 of %2." lines in
+  `set_acc_password` and `set_passwd` onto message 10921 (the port's
+  number, agreed at 14:00), a source change that needs a cycle; S.29
+  (per-account ssh/API routes, neither port has built it); R3 (needs a
+  keep-configuration cycle: answer Y to keeping the configuration).
+- Mailbox: `to-linux/` empty.  Sent today, the last two unread by the port
+  when this session closed: 1340 (password rule at `60ac74a`) and 1400
+  (10921 agreed).  Earlier today: 10919 and UNSUSPENDED adopted by both
+  ports; the port built the password rule to our spec.
+- Machine: clean - every witness now removes the homes it makes; no zz*
+  users, groups, homes or account directories are left.
+- Traps met today, recorded in the entries: this box's sudo is sudo-rs
+  (refusal wording differs from C sudo); DELETE.ACCOUNT keeps a user's home
+  by design, so a witness must remove its own; a sdsys session without the
+  loginuid bridge is refused 10181, including in cleanup code.
+
 **State (19 Sep 2026, ~14:30).**  ***THE SEVENTH CYCLE PASSED ON `60ac74a`
 (install ~10:50, `assert-current` current): absence 72/72, release-run
 228/229 (R3 needs a keep-configuration cycle), accounts 32/32, and the
