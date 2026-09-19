@@ -292,9 +292,38 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
 
-**State (19 Sep 2026).**  ***THE INSTALL IS `8fbe9d8` (third cycle, 00:45:42);
-HEAD CARRIES ITS FIX, UNMEASURED.  THE CURRENT HANDOFF IS "19 SEP 2026,
-EARLY" BELOW, AND THE NEXT STEP IS THE FOURTH CYCLE.***  The rest of this paragraph block is the earlier
+**State (19 Sep 2026, ~01:30, END OF SESSION).**  ***THE INSTALL IS `5074955`
+(the fourth cycle's, 01:05) AND NO WITNESS HAS RUN ON IT.  HEAD IS `d147a5c`
+(pushed), which adds W.10 on top.  THE NEXT STEP IS A FIFTH CYCLE FROM
+`d147a5c` - ONE WITNESS PASS THEN COVERS EVERYTHING BELOW.***
+
+***HANDOFF, 19 SEP 2026, ~01:30 — READ THIS FIRST.***
+Unmeasured and waiting for one cycle, newest first:
+1. `d147a5c` **W.10** — every user sets their own SD password, sdsys any
+   (`sd-elevate cred-own`, a `%sdusers` sudoers line, `set_acc_password`
+   self.svc, `newvoc/modify.password`).  Witness M7d2, M10a-f.  The prompts
+   themselves need the owner at the keyboard: in `don`'s own session,
+   `MODIFY.PASSWORD` (asks current, new twice) must end "Password set for
+   account don"; `MODIFY.PASSWORD sdsys` from `don` must be refused 2001.
+2. `5074955` — the install-time SD password, REQUIRED (the port's RELEASE_1.1
+   70).  Witness: the prompt appeared at install, and
+   `sudo test -f /usr/local/sdsys/\$cred/don` — CHECK THIS ON THE CURRENT
+   (01:05) INSTALL BEFORE DELETING IT; it is that step's only evidence.
+3. `e4f1fdb` — the third cycle's M2 fault (`set.owner`'s unquoted shell path
+   ate `$hold`), 10176/10181 raw field marks, M8f's anchor, two null-case
+   false passes.  Witness: M2a, A4, M8f.
+4. `fca5ca3` S.30 — ATTACH + the fold: ALREADY SEEN WORKING on the 00:45
+   install (register `don` → `user_accounts/don`, `sdu_don`, no marker).
+Open questions for the owner: none.  Ruled tonight and recorded: W.10 (build
+it; mimic the result, not the process — memory note
+`parity-means-same-result`).  S.29 (per-account ssh/API routes) is built by
+nobody yet, in either port; after the cycle.  Noticed, not acted on:
+`sdu_don` holds `root,don` but not `sdsys`.  Mailbox: `to-linux/` empty;
+four replies sent tonight, all read by the port except the 01:26 note.
+The fifth cycle is the fourth's recipe (the "19 SEP 2026, EARLY" handoff and
+the chat's step list): zzabst is already cleaned; delete → install (TWO
+password prompts: sdsys Linux, then don's SD) → reboot → `assert-current`
+(expect `d147a5c`) → `sudo test -f .../\$cred/don` → the three witnesses.  The rest of this paragraph block is the earlier
 end-of-session handoff, kept for its history: cycle 1 ran on `2908280` and
 scored 261 of 302, which found A4 and the 40 stale rows.
 
