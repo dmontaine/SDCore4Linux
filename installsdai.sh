@@ -1006,31 +1006,39 @@ echo
 #            UPGRADE rather than a first one, and the walk below is for upgrades:
 #            on a first install every account is built from the current NEWVOC
 #            already, so there is nothing to bring forward.
-if [ -d "/home/sd/user_accounts/${tuser}" ]; then
+# 19 Sep 26  ADOPT IS NOW ATTACH, and the line matches SD Core for Windows'
+#            (agreed by mail, 19 Sep 00:10): marker $attach.<name>, no
+#            NO.QUERY - the ATTACH arm never prompts.  AND THE ACCOUNT NAME IS
+#            FOLDED (the port's RELEASE_1.1 67): CREATEA now names the account,
+#            its directory and its sdu_ group in lower case even when the Linux
+#            user is not, so every test here uses the folded name.  The fold is
+#            ASCII-only (LC_ALL=C), as SD's own lc_chars[] is.
+tuser_lc=$(printf '%s' "$tuser" | LC_ALL=C tr 'A-Z' 'a-z')
+if [ -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     accounts_kept=yes
 else
     accounts_kept=no
 fi
 
-if [ ! -d "/home/sd/user_accounts/${tuser}" ]; then
+if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     echo "Creating a user account for ${tuser}."
-    adopt_marker="${sdsysdir}/\$adopt.$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
-    sudo touch "$adopt_marker"
-    sudo bin/sd -internal create-account USER "$tuser" ADOPT no.query
-    sudo rm -f "$adopt_marker"
+    attach_marker="${sdsysdir}/\$attach.${tuser_lc}"
+    sudo touch "$attach_marker"
+    sudo bin/sd -internal create-account USER "$tuser" ATTACH
+    sudo rm -f "$attach_marker"
 
     # The instrument rule: say what the register ACTUALLY holds, not what the
     # command was asked for.  A record now holds three fields: path, description
     # and the sdu_ group - no tier.  13 Sep 26: account names are lower case,
     # the register key is the name downcased, as CREATE.ACCOUNT stores it.
-    acct_reg="${sdsysdir}/accounts/$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')"
+    acct_reg="${sdsysdir}/accounts/${tuser_lc}"
     seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
-    if [ "$seeded_group" = "sdu_${tuser}" ]; then
+    if [ "$seeded_group" = "sdu_${tuser_lc}" ]; then
       echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
     else
       printf "%b\n" "$RED"
       echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
-      echo "not sdu_${tuser}. Inspect the register record before using SD:"
+      echo "not sdu_${tuser_lc}. Inspect the register record before using SD:"
       echo "    cat ${acct_reg}"
       printf "%b\n" "$NC"
     fi
@@ -1255,8 +1263,7 @@ fi
 #            credential; an administrator sets it on request (log in as sdsys,
 #            MODIFY.PASSWORD <name>), and a keep cycle still keeps any already
 #            in $cred.  The step this replaces also carried the install's only
-#            use of the root loginuid bridge.
-tuser_lc=$(printf '%s' "$tuser" | tr '[:upper:]' '[:lower:]')
+#            use of the root loginuid bridge.  (tuser_lc is set at the seeding.)
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
 else

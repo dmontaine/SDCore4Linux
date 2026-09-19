@@ -153,7 +153,7 @@ for arg in "$@"; do
     esac
 done
 
-MARKER="$SDSYS/\$adopt.$ACC"
+MARKER="$SDSYS/\$attach.$ACC"
 ADIR="$ACCOUNTS_ROOT/$ACC"
 [ -n "$LOG" ] || LOG="/var/tmp/witness-release-run.$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG") 2>&1
@@ -320,8 +320,8 @@ cleanup() {
         mv "$VOC_ASIDE" "$ACCOUNTS_ROOT/$ACC2/voc" \
             && say "  put $ACC2's voc back (section 15 died with it moved aside)"
     fi
-    [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ADOPT marker"; }
-    [ -e "$SDSYS/\$adopt.$ACC2" ] && { rm -f "$SDSYS/\$adopt.$ACC2"; say "  removed a leftover ADOPT marker for $ACC2"; }
+    [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ATTACH marker"; }
+    [ -e "$SDSYS/\$attach.$ACC2" ] && { rm -f "$SDSYS/\$attach.$ACC2"; say "  removed a leftover ATTACH marker for $ACC2"; }
     if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
         say "  deleting the SD account $ACC2 through SD"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC2"$'\n''Y'$'\n''OFF'$'\n' \
@@ -346,7 +346,7 @@ cleanup() {
         "group=$(yesno_group "sdu_$ACC") marker=$(yesno_file "$MARKER")"
     # Section 12's zzrel3 is normally deleted by the section itself (that is
     # the thing measured); this is the fallback if it stopped part-way.
-    [ -e "$SDSYS/\$adopt.$ACC3" ] && rm -f "$SDSYS/\$adopt.$ACC3"
+    [ -e "$SDSYS/\$attach.$ACC3" ] && rm -f "$SDSYS/\$attach.$ACC3"
     if [ "$MADE_ACCOUNT3" -eq 1 ] && [ -e "$REGISTER/$ACC3" ]; then
         say "  deleting the SD account $ACC3 through SD (fallback)"
         printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC3"$'\n''Y'$'\n''OFF'$'\n' \
@@ -393,7 +393,7 @@ DIRTY=0
 [ "$(yesno_group "sdu_$ACC")" = yes ] && { say "  DIRTY: group sdu_$ACC exists"; DIRTY=1; }
 [ "$(yesno_dir "$ADIR")" = yes ] && { say "  DIRTY: $ADIR exists"; DIRTY=1; }
 [ "$(yesno_file "$REGISTER/$ACC")" = yes ] && { say "  DIRTY: register record $ACC exists"; DIRTY=1; }
-[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ADOPT marker for $ACC exists"; DIRTY=1; }
+[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ATTACH marker for $ACC exists"; DIRTY=1; }
 [ "$(yesno_user "$ACC2")" = yes ]  && { say "  DIRTY: Linux user $ACC2 exists"; DIRTY=1; }
 [ "$(yesno_group "sdu_$ACC2")" = yes ] && { say "  DIRTY: group sdu_$ACC2 exists"; DIRTY=1; }
 [ "$(yesno_dir "$ACCOUNTS_ROOT/$ACC2")" = yes ] && { say "  DIRTY: $ACCOUNTS_ROOT/$ACC2 exists"; DIRTY=1; }

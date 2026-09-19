@@ -83,7 +83,7 @@ ACC="zzabst"
 ACC_UC="ZZABST"
 ADIR="/home/sd/user_accounts/$ACC"
 REGISTER="$SDSYS/accounts"
-MARKER="$SDSYS/\$adopt.$ACC"
+MARKER="$SDSYS/\$attach.$ACC"   # 19 Sep 26: ADOPT renamed ATTACH, the port's name
 PW_OS=""
 MADE_ACCOUNT=0
 
@@ -143,7 +143,7 @@ head2 "0. the ground"
 say "  throwaway : $ACC   (register record $REGISTER/$ACC, dir $ADIR)"
 say "  adopt marker: $MARKER (a leftover would refuse; a marker never exists on a delivered machine)"
 DIRTY=0
-[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ADOPT marker for $ACC exists"; DIRTY=1; }
+[ "$(yesno_file "$MARKER")" = yes ] && { say "  DIRTY: an ATTACH marker for $ACC exists"; DIRTY=1; }
 if [ "$COMMIT" -eq 1 ] && [ "$(yesno_file "$REGISTER/$ACC")" = yes ]; then
   say "  DIRTY: $ACC is already registered; delete it first or pick another name"
   DIRTY=1
