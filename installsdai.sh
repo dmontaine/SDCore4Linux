@@ -1337,7 +1337,7 @@ echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
     echo
-    echo "  Kept: this reinstall kept your accounts, and the password with them."
+    echo "  Password exists - not changed"
 elif ! sudo test -f "$sdsysdir/accounts/$tuser_lc"; then
     sd_pw_state="not set - $tuser_lc is not in the SD register"
     echo
@@ -1387,9 +1387,7 @@ echo ---------------------------------------------------------------
 if [ "$(sudo passwd -S sdsys 2>/dev/null | awk '{print $2}')" = "P" ]; then
     sdsys_pw_state="kept from the previous install"
     echo
-    echo "  Kept: sdsys already has a Linux password, and this install has not"
-    echo "  changed it.  To change it deliberately:  sudo passwd sdsys"
-    echo "  (keep to SD's rule above - passwd itself does not apply it)."
+    echo "  Password exists - not changed"
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sdsys_pw_state="not set - there was no terminal to ask at"
     echo
@@ -1471,7 +1469,7 @@ echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
     echo
-    echo "  Kept: this reinstall kept its credentials."
+    echo "  Password exists - not changed"
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sdsys_sd_pw_state="not set - there was no terminal to ask at"
     echo
