@@ -76,8 +76,21 @@ CASES = [
     # ---- refused as a non-SD group, and that is now the whole of the drift
     # ---- guard: re-adding them to the whitelist would fail these rows.
     (REFUSE, ["addgroup", "don", "sdadmin"], "sdadmin no longer exists (teardown S.26)"),
-    (REFUSE, ["addgroup", "don", "sdapi"],   "sdapi no longer exists (teardown S.28)"),
+    # 20 Sep 26, S.29: the "sdapi no longer exists" row is gone.  It passed
+    # because the teardown had deleted the group, so it would have FLIPPED to
+    # a failure the moment an install created it again - a row that measures
+    # this machine's state rather than the helper's rules.  The rules for
+    # sdssh/sdapi are the groupadd/groupdel rows below.
     (REFUSE, ["groupdel", "sdusers"],        "deleting it unregisters every SD user at once"),
+
+    # ---- 20 Sep 26, S.29: sdssh and sdapi are SD's own groups again, and are
+    # ---- the authority for a per-account remote route.  Deleting one would
+    # ---- not narrow a route, it would remove the register the route is read
+    # ---- from - sdusers' own reason - so both are undeletable here.
+    (REFUSE, ["groupdel", "sdssh"],          "the ssh route register is not deletable"),
+    (REFUSE, ["groupdel", "sdapi"],          "the API route register is not deletable"),
+    (ALLOW,  ["groupadd", "sdssh"],          "SD may create its own ssh route group"),
+    (ALLOW,  ["groupadd", "sdapi"],          "SD may create its own API route group"),
 
     # ---- remote-api / remote-ssh, 14 Sep 26 (S.13).  A fixed keyword and
     # ---- nothing else reaches them, so the refusals are the wrong word, a

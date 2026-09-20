@@ -526,6 +526,22 @@ if ! getent group sdusers &>/dev/null; then
 else
   echo "Group sdusers already exists."
 fi
+# 20 Sep 26 dm - S.29, THE TWO ROUTE GROUPS (owner's ruling of 18/19 Sep 2026,
+#   relayed by the port: "every non-sdsys account has the potential to have ssh
+#   and api access by default, but it is the admins choice if it should stay
+#   on").  Membership IS the route - the Windows port's shape, and an ALLOW
+#   group fails CLOSED: !is_grp_member is three-valued and a lookup that cannot
+#   answer reaches its callers as "not a member", which with a DENY group would
+#   silently GRANT remote access instead of withholding it.  They must exist
+#   before any account is created, because CREATE.ACCOUNT joins them.
+for sd_route_group in sdssh sdapi; do
+  if ! getent group "$sd_route_group" &>/dev/null; then
+    echo "Creating group: $sd_route_group."
+    sudo groupadd --system "$sd_route_group"
+  else
+    echo "Group $sd_route_group already exists."
+  fi
+done
 sudo usermod -a -G sdusers root
 # Modified by Composer AI - 2026/06/10.
 # Use sdusers as primary group (-g). Remove orphan sdsys group when no user
