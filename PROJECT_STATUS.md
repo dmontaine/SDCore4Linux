@@ -29,6 +29,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.28** | L | ***WITNESSED 19 Sep 2026 on `60ac74a` (seventh cycle, M5, M7a-h, release-run's API rows).*** ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  THE THIRD CYCLE RAN 19 Sep on `8fbe9d8` (install 00:45:42, `assert-current` current; ATTACH seeded `don` correctly): `witness-absence` 30/50, ONE ROOT CAUSE - `createa` `set.owner` handed the shell an unquoted path, `$hold` expanded to nothing, so the ACCOUNT DIRECTORY was chowned before `$hold.dic` was made (M2a; every M3-M6 fail cascades). Fixed (quoted), with 10176/10181 printing raw field marks (cproc) and two null-case false passes (M3c, release-run A5); release-run and accounts not run on it. ***THE FIFTH CYCLE RAN 19 Sep on `359d5ce` (install 09:4x, `assert-current` current): absence 59/60, release-run 218/224 (log `/var/tmp/witness-release-run.20260919-095341.log`), accounts 32/32 - M2/A4/M8f pass, so the third cycle's fix holds. Every failure but one was an instrument row still written for the old route (M10b sudo-rs wording; S2.a bare setpriv, refused 10181; L1's count; Y1/Y3 reach MODIFY.ACCOUNT from a VOC that has none; the cleanup ran sd as root, so zzrel2 was left). THE ONE PRODUCT DEFECT: DELETE.ACCOUNT left the account directory silently (sdsys cannot remove a 755 subtree the user made; `delacc` ignored OS$DELETE's result) - now `sd-elevate rmtree-account` + 10919. All fixed in `a35b30e`/`43f8140`/`47b0d15`.  ***THE SIXTH CYCLE RAN 19 Sep on `47b0d15` (install 10:22:53, `assert-current` A-D pass): absence 65/65 (log `/var/tmp/witness-absence.20260919-102748.log`), release-run 226/228 (`…-102835.log`; K10/K10a/K10b pass - the directory fix is witnessed; the fails were Y2c, an instrument row the Y1 reordering broke - suspended accounts are rightly refused entry after a VERIFIED proof - and R3, expected), accounts stopped in section 2 on a stale `/home/zzacct2` left by the fifth run (instrument: the ground check never looked at homes). Both fixed; accounts to re-run.*** Superseded: left: the fourth cycle. Earlier - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, and witnessed since.*** | 19 Sep 2026 |
 | ✅ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026; SEEN RUNNING on two installs' seeding***: 00:45 (third cycle) and `359d5ce` (fifth: `/home/sd/user_accounts/don` `don:sdu_don` 2775, observed 19 Sep) | 19 Sep 2026 |
 | ✅ | **S.31** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M2e/f, M11a-d) and by the owner at the keyboard.*** SD's own password rule (owner, 19 Sep 2026: "SD require it even if the OS does not for both SDSYS and any other accounts"; his choice: 8+, a-z, A-Z, 0-9 and a symbol, printable ASCII) - ***§BUILT§ 19 Sep, UNMEASURED***: `gpl.bp/pw_complex` + 10920; MODIFY.PASSWORD, `set_passwd` (SD prompts, `sd-elevate setpw` from stdin), installer's sdsys prompt (`chpasswd`); `test-sd-elevate` 132/132; witness M2e/f, M11a-d; mailed to the port (parity, approved here; the port built it, and took 10921 "That was attempt %1 of %2." - agreed; ours moves onto it with the next source change) | 19 Sep 2026 |
+| ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
@@ -294,15 +295,61 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
 
-***HANDOFF, 19 SEP 2026, ~14:45 — END OF SESSION.  READ THIS FIRST.***
+***HANDOFF, 19 SEP 2026, EVENING — END OF SESSION.  READ THIS FIRST.***
+- Install: still `60ac74a` (seventh cycle).  This session changed BASIC, so
+  `assert-current` answers STALE and every measurement of the two password
+  prompts below is owed a cycle.  Nothing here has run on an install.
+- ***[S.32] THE ATTEMPT COUNT IS MESSAGE 10921 — §BUILT§ 19 Sep 2026,
+  THE BASIC UNWITNESSED.***  The port took 10921 ("That was attempt %1 of
+  %2.") on 19 Sep 13:40 and we agreed it at 14:00, so ours moves off a
+  hard-coded `crt` and onto the message: `set_acc_password:294` (a weak
+  entry) and `:302` (a mismatch), `messages/10921` new.  ***`set_passwd`
+  gained a count it never printed*** — its header claimed MODIFY.PASSWORD's
+  shape and it had three attempts with no way to tell which one you were
+  on.  What would falsify the claim that this is right: the next cycle
+  showing either prompt printing a bare number, an empty expansion, or
+  10921 not found.  The installer's own sdsys prompt still says "(attempt
+  N of 3)" in its own words — it runs before SD is reachable and cannot
+  call `sysmsg`; left alone deliberately, not missed.
+- ***THE RULE NOW HAS A FREE CHECK: `gplbld/test-pwcomplex-units.py`,
+  42 of 42, 124 mutants, RUN 19 Sep 2026 (exit 0).***  It owns the rule's
+  SPEC table (15 rows — `test-sd-elevate.py` imports it now rather than
+  keeping a second copy, and REFUSES if the import fails) and drives both
+  implementations: `sd-elevate`'s bash run for real, `gpl.bp/pw_complex`
+  read rather than run, because no session can execute SD BASIC.  ***THE
+  LIMIT, STATED: it proves the rule the FILE states, not the rule the
+  compiler emits*** — the compiled behaviour is `witness-absence.sh`
+  M2e/f, M11a-d on an install.  Mutants, all on text, with the live files
+  asserted byte-identical afterwards: B2 drives all 120 permutations of
+  the case arms and requires every non-printable row refused by each;
+  B2b is the row the port asked for, proving the permutation driver is
+  not vacuous (114 of the 120 refuse a GOOD password, the shipped order
+  accepts it); B3 rebuilds the port's ORIGINAL shape, shows it agrees
+  with ours on all 15 rows as written, then demotes its guard arm past
+  the catch-all and watches a TAB be ACCEPTED; S2/S3 are the same two in
+  bash, executed.  P asserts the partition — every hidden password prompt
+  in the tree reaches the rule, which is the regression no row about the
+  rule itself can see.
+- Mailbox: handled the port's 14:30 (it took our case block; two rows
+  suggested, both built as B2b and B3/S3).  Replied in `to-windows/`.
+  ***Its process note does not apply here***: it said every delivery
+  disarms its watcher because the watcher EXITS on finding a message.
+  Ours polls and keeps running (`.claude/mailbox-watch.sh`), so a
+  delivery does not disarm it; the 30-minute Monitor expiry still does.
+- Next, in order: W.11 (the owner's, unchanged); a cycle for S.32; S.29;
+  R3 (needs a keep-configuration cycle).
+
+***THE PREVIOUS HANDOFF, 19 SEP 2026, ~14:45 — HISTORY NOW.***
 - Install: `60ac74a` (seventh cycle), everything on it witnessed.  HEAD is
   one documents-only commit further, so `assert-current` answers STALE
   (install stamp != HEAD) though no installed code differs; the next
   install makes it exact.
 - Open, in order: W.11 (the owner's security-model evaluation - his to
-  start); S.31's follow-up - move the "That was attempt %1 of %2." lines in
+  start); ~~S.31's follow-up - move the "That was attempt %1 of %2." lines in
   `set_acc_password` and `set_passwd` onto message 10921 (the port's
-  number, agreed at 14:00), a source change that needs a cycle; S.29
+  number, agreed at 14:00), a source change that needs a cycle~~ *built the
+  same evening - S.32 in the table and in the handoff above; the cycle is
+  still owed*; S.29
   (per-account ssh/API routes, neither port has built it); R3 (needs a
   keep-configuration cycle: answer Y to keeping the configuration).
 - Mailbox: `to-linux/` empty.  Sent today, the last two unread by the port

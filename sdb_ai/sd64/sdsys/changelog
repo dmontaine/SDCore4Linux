@@ -33,6 +33,10 @@ SD: what changed, why it mattered, and what it does not do.
 
            A password that does not meet the rule is refused before you are
            asked to type it again, and counts as one of the three attempts.
+           Both prompts now say which attempt you are on - MODIFY.PASSWORD
+           and the one CREATE.ACCOUNT asks when it sets the account's Linux
+           password.  The second of those had three attempts and no way to
+           tell how many were left.
 
            What this does NOT do: it does not change passwords you already
            have, and it cannot govern a Linux password you change yourself

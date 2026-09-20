@@ -404,24 +404,29 @@ def main():
         shutil.rmtree(fx, ignore_errors=True)
 
     # ---- 19 Sep 26: SD'S PASSWORD RULE (owner's ruling: 8+ characters, a-z,
-    # ---- A-Z, 0-9 and a symbol; printable ASCII only).  The same table must
-    # ---- hold for GPL.BP/PW_COMPLEX and the port - it is the rule's spec.
-    # ---- Each REFUSE row lacks exactly ONE thing, so a rule that stopped
-    # ---- checking any one class fails here; the ALLOW rows are the control.
-    PW_RULE = [
-        (ALLOW,  "Abcdef1!",       "exactly 8, all four kinds"),
-        (ALLOW,  "zZ9 zzzz",       "a space is a symbol"),
-        (ALLOW,  "Pass:word1",     "a colon (chpasswd's separator) is only a symbol"),
-        (ALLOW,  "Aa1~" * 30,      "long is fine - no maximum"),
-        (REFUSE, "Abcde1!",        "7 characters - one short"),
-        (REFUSE, "abcdef1!",       "no upper-case letter"),
-        (REFUSE, "ABCDEF1!",       "no lower-case letter"),
-        (REFUSE, "Abcdefg!",       "no digit"),
-        (REFUSE, "Abcdefg1",       "no symbol"),
-        (REFUSE, "Abcdef1\t",      "a tab is not printable ASCII"),
-        (REFUSE, "Abcdéf1!",       "a non-ASCII letter"),
-        (REFUSE, "",               "empty"),
-    ]
+    # ---- A-Z, 0-9 and a symbol; printable ASCII only).  Each REFUSE row lacks
+    # ---- exactly ONE thing, so a rule that stopped checking any one class
+    # ---- fails here; the ALLOW rows are the control.
+    # ---- 19 Sep 26: THE TABLE IS NO LONGER KEPT HERE.  It is the rule's spec,
+    # ---- it must hold for GPL.BP/PW_COMPLEX and for the port as well, and two
+    # ---- copies of a spec drift.  test-pwcomplex-units.py owns it and drives
+    # ---- the BASIC through the same rows.  A table that cannot be imported is
+    # ---- a REFUSAL, not a silently skipped section.
+    spec_path = os.path.join(HERE, "test-pwcomplex-units.py")
+    try:
+        import importlib.util
+        mspec = importlib.util.spec_from_file_location("pwcomplex_units", spec_path)
+        pwmod = importlib.util.module_from_spec(mspec)
+        mspec.loader.exec_module(pwmod)
+        PW_RULE = pwmod.SPEC
+    except Exception as e:                                # noqa: BLE001
+        print("REFUSING - cannot read the password rule's spec table from %s: %s"
+              % (spec_path, e), file=sys.stderr)
+        return 2
+    if not PW_RULE:
+        print("REFUSING - the imported password rule table is empty", file=sys.stderr)
+        return 2
+    print("  (password rule: %d rows, imported from %s)" % (len(PW_RULE), spec_path))
     for expect, pw, note in PW_RULE:
         p = subprocess.run(["bash", HELPER, "--dry-run", "pw-check"],
                            input=pw + "\n", capture_output=True, text=True)
