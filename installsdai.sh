@@ -1261,16 +1261,17 @@ fi
 echo
 echo ---------------------------------------------------------------
 echo "PASSWORDS.  Three are asked for from here on, in this order:"
-echo "  1. YOUR SD password ($tuser_lc)   - lets programs reach SD as you over"
-echo "                                the API.  It is NOT a Linux password."
-echo "  2. sdsys's LINUX password   - signs SD's administrator in at this"
-echo "                                machine's keyboard."
-echo "  3. sdsys's SD password      - lets a program on this machine reach"
-echo "                                SD as the administrator over the API."
+echo "  1. YOUR SD password ($tuser_lc)   - the SD password for API access."
+echo "  2. sdsys's LINUX password   - used to log into the sdsys Linux account."
+echo "  3. sdsys's SD password      - lets a program on THIS machine reach SD"
+echo "                                as the administrator.  sdsys cannot be"
+echo "                                reached from another computer at all."
 echo
 echo "All passwords must contain at least 8 characters, with a lower-case"
 echo "letter, an upper-case letter, a digit and a symbol."
-echo "A password that is already set is kept, and is not asked for again."
+echo
+echo "A password that already exists is not asked for again."
+echo
 echo ---------------------------------------------------------------
 # 20 Sep 26 dm - THE INSTALLING USER'S OWN PASSWORD COMES FIRST (owner, 20 Sep
 #   2026: the three ran "sdsys, installer, sdsys", and he asked for the
@@ -1320,10 +1321,6 @@ sd_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
 echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
-echo "        An SD password, not $tuser_lc's Linux one: it is for reaching"
-echo "        SD over the API from a program, here or on another computer."
-echo "        At this machine and over ssh you still sign in with Linux."
-echo "        SD asks for it twice."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
@@ -1360,11 +1357,7 @@ fi
 sdsys_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
-echo "2 of 3: the LINUX password for the sdsys account"
-echo "        sdsys is SD's administrator, and this is its Linux password:"
-echo "        the sign-on for administering SD.  Log in as sdsys at this"
-echo "        machine's keyboard (or a desktop-sharing view of it), run sd."
-echo "        It is asked for twice."
+echo "2 of 3: Password for the LINUX sdsys account"
 echo ---------------------------------------------------------------
 # 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
 #   happens if you give a different password at 3 than the one you currently
@@ -1417,6 +1410,7 @@ else
         fi
         if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
             sdsys_pw_state="set"
+            echo
             echo "  Password accepted"
         else
             echo "  The machine's own password rules refused it; set one later"
@@ -1455,12 +1449,10 @@ fi
 sdsys_sd_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
-echo "3 of 3: the SD password for the sdsys account - for the API"
-echo "        sdsys's OTHER password: its Linux one was 2 of 3 above.  This"
-echo "        one lets a program on THIS machine reach SD as the administrator."
-echo "        A remote connection cannot use it: SD admits sdsys over the API"
-echo "        only when the kernel says the socket was opened by sdsys here."
-echo "        Press Enter to leave it unset."
+echo "3 of 3: the SD password for the SD sdsys account - optional"
+echo "        For a program on THIS machine to reach SD as the administrator."
+echo "        It is not a remote login: sdsys is refused over the network"
+echo "        whatever password it has.  Press Enter to leave it unset."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
