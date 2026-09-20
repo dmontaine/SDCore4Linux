@@ -370,7 +370,14 @@ person considers theirs.  He accepted that and gave the wording: "don is my
 name and the account name for another installer might be much longer so it
 should just read <Installers name> SD password" - so the prompt is
 `<account> SD password: `, and the three-item list pads to the longest of
-its own labels instead of the literal spaces that assumed a 3-letter name.  It is still said where a step can be reached without the list
+its own labels instead of the literal spaces that assumed a 3-letter name.
+Last: "the justification of the password entry lines is not consistent, some
+are indented, others are not" - SD's lines were flush and the installer's
+LINUX step was indented two.  `set_acc_password` now carries one prefix
+(`pw.pfx`, two spaces under -QUIET and empty otherwise) on every line of the
+exchange: both prompts, 10920, 10921, the mismatch, "Password not changed.",
+the verdict and the failure.  It is set above the current-password check,
+because that refusal is one of those lines.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
