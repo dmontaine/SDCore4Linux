@@ -1242,58 +1242,34 @@ fi
 # refuses a session that arrived by sudo or su from another user (CPROC
 # 10195), and sshd denies sdsys the network.  A desktop-sharing view of the
 # console (VNC, TeamViewer) is a local login and works.
-sdsys_pw_state="not set"
+# 20 Sep 26 dm - SAY WHAT IS COMING, AND WHOSE IT IS (owner, 20 Sep 2026, after
+#   an install: "It is not clear what users are being asked for and confusing
+#   that it goes sdsys, os, sdsys.  There should be a message stating that the
+#   user will be entering 3 passwords ... the prompts should make it very clear
+#   which password is being entered").  The order he asked for is the order
+#   these already ran in - his own Linux password at the start (sudo), then
+#   sdsys's Linux one, then sdsys's SD one; what he did not recognise was the
+#   THIRD prompt, his own account's SD password, which he required on 19 Sep.
+#   So: a list before the first of them, and every heading and prompt below
+#   names the account AND which of its two passwords it is.
 echo
-echo "The Linux password for the sdsys account (SD's administrator)"
-if ! ( : </dev/tty ) 2>/dev/null; then
-    sdsys_pw_state="not set - there was no terminal to ask at"
-    echo "  Skipped: this install has no terminal to ask at."
-    echo "  Set one before administering:  sudo passwd sdsys"
-else
-    echo "  This is the sign-on for administering SD: log in as sdsys at this"
-    echo "  machine's keyboard (or a desktop-sharing view of it), then run sd."
-    # 19 Sep 26 dm - SD'S RULE, NOT ONLY THE MACHINE'S (owner, 19 Sep 2026: SD
-    #   requires a complex password whatever the OS allows, SDSYS included).
-    #   "sudo passwd sdsys" applied PAM's rule only, and SD never saw the entry,
-    #   so the installer asks itself: hidden, twice, three attempts; the rule
-    #   is judged by the INSTALLED helper's own pw_complex (one implementation,
-    #   absolute path, no root needed for --dry-run), and the password reaches
-    #   chpasswd on its stdin - printf is a builtin, so it is never an argv.
-    #   The text below is message 10920's.
-    echo "  A password needs at least 8 characters, with a lower-case letter,"
-    echo "  an upper-case letter, a digit and a symbol.  It is asked for twice."
-    echo
-    pw_try=0
-    while [ "$pw_try" -lt 3 ]; do
-        pw_try=$((pw_try + 1))
-        IFS= read -r -s -p "  New password for sdsys: " sdsys_p1 </dev/tty; echo
-        if [ -z "$sdsys_p1" ]; then
-            echo "  Nothing entered - the sdsys password is not set."
-            break
-        fi
-        if ! printf '%s\n' "$sdsys_p1" | /usr/local/sbin/sd-elevate --dry-run pw-check >/dev/null 2>&1; then
-            sdsys_p1=""
-            echo "  That does not meet the rule above (attempt $pw_try of 3)."
-            continue
-        fi
-        IFS= read -r -s -p "  Retype it: " sdsys_p2 </dev/tty; echo
-        if [ "$sdsys_p1" != "$sdsys_p2" ]; then
-            sdsys_p1=""; sdsys_p2=""
-            echo "  The two entries did not match (attempt $pw_try of 3)."
-            continue
-        fi
-        if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
-            sdsys_pw_state="set"
-        else
-            echo "  The machine's own password rules refused it; set one later"
-            echo "  (see the end of the install)."
-        fi
-        sdsys_p1=""; sdsys_p2=""
-        break
-    done
-    sdsys_p1=""; sdsys_p2=""
-fi
-#
+echo ---------------------------------------------------------------
+echo "PASSWORDS.  Three are asked for from here on, in this order:"
+echo "  1. YOUR SD password ($tuser_lc)   - lets programs reach SD as you over"
+echo "                                the API.  It is NOT a Linux password."
+echo "  2. sdsys's LINUX password   - signs SD's administrator in at this"
+echo "                                machine's keyboard."
+echo "  3. sdsys's SD password      - lets a program on this machine reach"
+echo "                                SD as the administrator over the API."
+echo "A password that is already set is kept, and is not asked for again."
+echo "(The password asked for at the start of the install was your own Linux"
+echo "one, for sudo.  These three are not it.)"
+echo ---------------------------------------------------------------
+# 20 Sep 26 dm - THE INSTALLING USER'S OWN PASSWORD COMES FIRST (owner, 20 Sep
+#   2026: the three ran "sdsys, installer, sdsys", and he asked for the
+#   installer's own first, then sdsys's two).  This block was below the sdsys
+#   Linux one; moving it up is safe because it needs no password of sdsys's -
+#   it reaches MODIFY.PASSWORD through the root loginuid bridge, not a login.
 # 18 Sep 26 dm - (REVERSED 19 Sep, below.)  The step was removed on the
 #            owner's ruling that a Linux login already reaches the account.
 # 19 Sep 26 dm - THE INSTALL-TIME SD PASSWORD IS BACK, AND REQUIRED (owner, on
@@ -1331,7 +1307,8 @@ fi
 #            session is refused (10195) and the $cred check says "not set".
 sd_pw_state="not set"
 echo
-echo "The SD password for your account ($tuser_lc) - required"
+echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
+echo "        (this is an SD password, not $tuser_lc's Linux password)"
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
     echo "  Kept: this reinstall kept your accounts, and the password with them."
@@ -1352,6 +1329,10 @@ else
     #   from saying it, so the installer does.
     echo "  It needs at least 8 characters, with a lower-case letter, an"
     echo "  upper-case letter, a digit and a symbol."
+    # 20 Sep 26 dm - SD's own prompts say only "New password:", the same words
+    #   for either account, so the account is named immediately before them.
+    echo "  SD asks next: 'New password:' then 'Repeat new password:'"
+    echo "  - and they are for the SD password of $tuser_lc."
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
@@ -1364,6 +1345,73 @@ else
         pw_try=$((pw_try + 1))
     done
     sd_install_stop
+fi
+#
+sdsys_pw_state="not set"
+echo
+echo "2 of 3: the LINUX password for the sdsys account (SD's administrator)"
+# 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
+#   happens if you give a different password at 3 than the one you currently
+#   have? ... Doesn't seem like you should have to enter it again if it already
+#   exists").  It was asked for unconditionally and chpasswd'd, so a keep-
+#   accounts reinstall - which leaves the sdsys USER in place, deletesdai only
+#   removes it on a DELETE (deletesdai.sh:332-343) - silently replaced a
+#   password the administrator was already using, with no way to enter the
+#   existing one.  The two SD prompts below already kept what they found;
+#   this one now does the same, and says how to change it deliberately.
+#   "passwd -S <user>" prints P (usable), L (locked) or NP (none) as field 2.
+if [ "$(sudo passwd -S sdsys 2>/dev/null | awk '{print $2}')" = "P" ]; then
+    sdsys_pw_state="kept from the previous install"
+    echo "  Kept: sdsys already has a Linux password, and this install has not"
+    echo "  changed it.  To change it deliberately:  sudo passwd sdsys"
+    echo "  (keep to SD's rule below - passwd itself does not apply it)."
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sdsys_pw_state="not set - there was no terminal to ask at"
+    echo "  Skipped: this install has no terminal to ask at."
+    echo "  Set one before administering:  sudo passwd sdsys"
+else
+    echo "  This is the sign-on for administering SD: log in as sdsys at this"
+    echo "  machine's keyboard (or a desktop-sharing view of it), then run sd."
+    # 19 Sep 26 dm - SD'S RULE, NOT ONLY THE MACHINE'S (owner, 19 Sep 2026: SD
+    #   requires a complex password whatever the OS allows, SDSYS included).
+    #   "sudo passwd sdsys" applied PAM's rule only, and SD never saw the entry,
+    #   so the installer asks itself: hidden, twice, three attempts; the rule
+    #   is judged by the INSTALLED helper's own pw_complex (one implementation,
+    #   absolute path, no root needed for --dry-run), and the password reaches
+    #   chpasswd on its stdin - printf is a builtin, so it is never an argv.
+    #   The text below is message 10920's.
+    echo "  A password needs at least 8 characters, with a lower-case letter,"
+    echo "  an upper-case letter, a digit and a symbol.  It is asked for twice."
+    echo
+    pw_try=0
+    while [ "$pw_try" -lt 3 ]; do
+        pw_try=$((pw_try + 1))
+        IFS= read -r -s -p "  New LINUX password for sdsys: " sdsys_p1 </dev/tty; echo
+        if [ -z "$sdsys_p1" ]; then
+            echo "  Nothing entered - the sdsys password is not set."
+            break
+        fi
+        if ! printf '%s\n' "$sdsys_p1" | /usr/local/sbin/sd-elevate --dry-run pw-check >/dev/null 2>&1; then
+            sdsys_p1=""
+            echo "  That does not meet the rule above (attempt $pw_try of 3)."
+            continue
+        fi
+        IFS= read -r -s -p "  Retype sdsys's LINUX password: " sdsys_p2 </dev/tty; echo
+        if [ "$sdsys_p1" != "$sdsys_p2" ]; then
+            sdsys_p1=""; sdsys_p2=""
+            echo "  The two entries did not match (attempt $pw_try of 3)."
+            continue
+        fi
+        if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
+            sdsys_pw_state="set"
+        else
+            echo "  The machine's own password rules refused it; set one later"
+            echo "  (see the end of the install)."
+        fi
+        sdsys_p1=""; sdsys_p2=""
+        break
+    done
+    sdsys_p1=""; sdsys_p2=""
 fi
 #
 # 19 Sep 26 dm - AND SDSYS'S SD PASSWORD, WHICH THIS INSTALLER USED TO WITHHOLD.
@@ -1392,7 +1440,8 @@ fi
 #            asked for earlier - that one signs sdsys in at the machine.
 sdsys_sd_pw_state="not set"
 echo
-echo "The SD password for the sdsys administrator account - for the API"
+echo "3 of 3: the SD password for the sdsys account - for the API"
+echo "        (sdsys's OTHER password: its Linux one was 1 of 3 above)"
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
     echo "  Kept: this reinstall kept its credentials."
@@ -1411,6 +1460,8 @@ else
     echo "  It needs at least 8 characters, with a lower-case letter, an"
     echo "  upper-case letter, a digit and a symbol."
     echo "  Leave it unset by pressing Enter if you do not need API access."
+    echo "  SD asks next: 'New password:' then 'Repeat new password:'"
+    echo "  - and they are for the SD password of sdsys."
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo

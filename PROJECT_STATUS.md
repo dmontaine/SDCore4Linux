@@ -33,6 +33,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.36** | M | ***DONE 20 Sep 2026*** — the six teardown messages 10176-10181 move to ***10190-10195***; SD Core for Windows had independently allocated the same block for its case-insensitivity conversion, so one number meant two things across the ports. Neither was upstream (`sdb64`'s 10000 range stops at 10029), so neither had seniority. Settled between the two agents under the owner's delegation of 20 Sep; this port moved because its cycle was owed anyway. Numbers only — no message text changed, and PROJECT_STATUS history keeps the numbers it used at the time | 20 Sep 2026 |
 | ✅ | **S.34** | S | ***DONE 19 Sep 2026 — THREE DELETED, AND THE FOURTH CAME BACK THE SAME NIGHT (S.35): 10177 was UNFINISHED, NOT DEAD*** (and is 10191 since S.36). Message records in this port's range with no caller: 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
 | ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED*** — left: one cycle for §13e E3/E3c/E3d/E3e, which are written and unrun | — |
+| ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
@@ -298,6 +299,29 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 `~/pCloudDrive/sdcore4linux` is a SEPARATE, OLDER clone (a backup, not the
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
+
+***[S.37] THE INSTALL'S THREE PASSWORD PROMPTS — §BUILT§ 20 SEP 2026,
+UNWITNESSED.***  The owner ran an install and could not tell whose password
+each prompt wanted: "first the OS Sdsys User, then the OS don (installer,
+me) user, then the SD Sdsys user ... confusing that it goes sdsys, os,
+sdsys".  The middle one was not his Linux password at all - it was his
+account's SD password (19 Sep, required), which is the misreading the
+wording caused.  Built: (1) a list of the three printed before the first,
+naming account and kind; (2) the order he asked for - his own first, then
+sdsys's Linux, then sdsys's SD (the block moved above the sdsys one; safe
+because it reaches MODIFY.PASSWORD through the root loginuid bridge, not a
+sdsys login); (3) "1 of 3 / 2 of 3 / 3 of 3" headings, each naming the
+account AND which of its two passwords it is, and a line naming the account
+immediately before SD's own "New password:" prompts, which say the same
+words for either account.  ***AND THE DEFECT HIS QUESTION FOUND***: the
+sdsys LINUX prompt asked unconditionally and chpasswd'd, so a keep-accounts
+reinstall - which leaves the sdsys user in place (`deletesdai.sh:332-343`
+removes it only on a DELETE) - silently replaced a password already in use,
+with no way to enter the existing one.  It now reads `passwd -S sdsys`,
+keeps a usable password (field 2 = P), and prints `sudo passwd sdsys` as
+the deliberate way to change it - the shape the two SD prompts already had.
+What would falsify it: an install where a prompt still does not name its
+account, or where a kept sdsys password stops working afterwards.
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
 - ***NOTHING IN THIS SESSION HAS RUN ON AN INSTALL.***  The install is still
