@@ -435,6 +435,41 @@ $ifndef IS_INSTALL
             void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session without a sdsys login')
             goto abort.cproc
          end
+      end else
+* 19 Sep 26 dm - SDSYS HAS NO REMOTE ACCESS AT ALL (owner, 19 Sep 2026: "sdsys
+*   should not have any remote access from ssh or api").  REFUSED AT THE DOOR
+*   NOW, not at the account.
+*
+*   WHAT IT WAS BEFORE, MEASURED RATHER THAN ASSUMED: the test above simply did
+*   not match a remote sdsys session, so it got no grant and carried on; LOGIN
+*   then refused it entry to the SDSYS account (login:334, 10002, audited).  So
+*   the door was SHUT, and this is a hardening rather than a hole - but it was
+*   shut one room further in, and a refusal at the door is what the owner's
+*   ruling asks for and what root (10176) and a non-login sdsys (10181) already
+*   get.  A session that should not exist should not start.
+*
+*   10177 WAS WRITTEN FOR EXACTLY THIS CASE IN THE TEARDOWN AND NEVER WIRED.
+*   It was deleted earlier tonight as an orphan (S.34) and is restored here
+*   with its original text, because the text was right and only the wiring was
+*   missing.  ***THAT IS THE LESSON OF S.34 CORRECTING ITSELF WITHIN THE DAY:
+*   AN ORPHANED MESSAGE MEANS "UNFINISHED" AS OFTEN AS IT MEANS "DEAD", AND
+*   ONLY A RULING TELLS YOU WHICH.***
+*
+*   ssh IS NOT THE ONLY REMOTE TRANSPORT THIS CATCHES, WHICH IS WHY THE ARM IS
+*   THE else OF THE LOCAL TEST RATHER THAN AN SSH TEST OF ITS OWN: anything
+*   that sets SSH_CONNECTION or SSH_TTY lands here.  The API does not come
+*   through CPROC at all - APISRVR has its own two doors (10174 remote, 10922
+*   not-sdsys-on-the-socket) - so "or api" in the owner's ruling is served
+*   there and named here only so the next reader does not look for it.
+         if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
+            refuse.msg = sysmsg(10177)   ;* several lines: one DISPLAY each
+            loop
+               display remove(refuse.msg, refuse.more)
+            while refuse.more
+            repeat
+            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session from a remote transport')
+            goto abort.cproc
+         end
       end
 $endif
       
