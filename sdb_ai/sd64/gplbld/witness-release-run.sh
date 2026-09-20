@@ -23,9 +23,12 @@
 #           47/48, against $cred (13c)
 #     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
 #           control (14); a throwaway ssh key is installed for zzrel1 only
+#     S.29  the ssh half, on the same real ssh login: the route withdrawn
+#           (the API kept), refused 10074, given back, admitted (14, X7-X9b)
 #     S.17  SDSYS is refused over the API from a non-loopback address and
 #           admitted locally (13e)
-#     S.16  struck: the API is open to every account except SDSYS (13f)
+#     S.29  the per-account API route, narrowed and re-widened over a real
+#           SCRAM login: admitted, NONE, refused 10073, BOTH, admitted (13f)
 #     S.13  REMOTE.API LOCAL / OFF / ON and REMOTE.SSH OFF / ON, a session
 #           surviving the socket restart; the machine's prior listener and
 #           firewall state is saved and put back (13h)
@@ -1421,23 +1424,60 @@ else
 fi
 
 # ==========================================================================
-# 18 Sep 26 dm - TEARDOWN (S.28): 13f IS STRUCK AND REPLACED BY ITS ABSENCE.
-# The per-account API route (sdapi, MODIFY.ACCOUNT API/NONE, 10073) is gone:
-# the API is open to every account except SDSYS, and SDSYS's own door is
-# measured in 13e.  What remains to measure is the ABSENCE - no sdapi group,
-# and the same login working without one.
-head2 "13f. S.28 - the API is open to every account except SDSYS (no sdapi route)"
+# 20 Sep 26 dm - 13f IS REVERSED BACK, AND IT IS THE ROW THAT MAKES THE WORD
+# MEAN SOMETHING (S.29 part 3).  S.28 disposed of the per-account API route;
+# the owner's ruling of 18/19 Sep restores it: sdapi membership IS
+# the route, MODIFY.ACCOUNT takes it away and gives it back, and apisrvr
+# refuses a non-member with 10073.
+#
+# ***THE DOOR IS DRIVEN BOTH WAYS, ON A REAL SCRAM LOGIN, AND THE MEMBERSHIP IS
+# READ FROM THE MACHINE.***  A narrowing-only build passes every obvious test
+# (the teardown paid for that lesson once - UNSUSPENDED exists because of it),
+# so the order is: admitted with the route, REFUSED without it, admitted again
+# when it is given back.  F2's admission is the control: without it, F4's
+# refusal could be any of the dozen other reasons a login fails.
+#
+# WHY id -nG AND NOT THE VERB'S OWN REPORT: MODIFY.ACCOUNT saying "the API
+# only, not ssh" is the verb's claim about itself.  The group is the fact.
+head2 "13f. S.29 - the per-account API route, narrowed and re-widened (10073)"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ]; }; then
     say "  needs zzrel1 adopted and the SD password (13, 13b A5)"
-    for r in "F1 no sdapi group" "F2 login works without it" "F3 not refused 10073"; do not_reached "$r"; done
+    for r in "F1 the sdapi group exists" "F1b the account has the route" \
+             "F2 login works with it" "F3 NONE takes the route away" \
+             "F4 THE ROW: refused 10073 without it" "F5 BOTH gives it back" \
+             "F6 and the login works again"; do not_reached "$r"; done
 else
     OUT=$(getent group sdapi 2>/dev/null)
-    [ "$COMMIT" -eq 1 ] && ck "F1 the sdapi group does not exist" no "$( [ -z "$OUT" ] && echo no || echo yes )"
-    OUT=$(sprobe "F2 THE ROW: the SCRAM login, with no sdapi group in existence" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck "F1 the sdapi group exists" yes "$( [ -z "$OUT" ] && echo no || echo yes )"
+    f_in_sdapi() { id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi && echo yes || echo no; }
+    [ "$COMMIT" -eq 1 ] && ck "F1b $ACC has the API route to begin with" yes "$(f_in_sdapi)"
+
+    OUT=$(sprobe "F2 CONTROL: the SCRAM login WITH the sdapi route" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says "F2 the login works" "account $ACC: entered" "$OUT"
-        ck_absent "F3 and it was not refused 10073" "not permitted to use the API" "$OUT"
+        ck_says "F2 the login works while the route is there" "account $ACC: entered" "$OUT"
+        ck_absent "F2b and it was not refused 10073" "not permitted to use the API" "$OUT"
     fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC NONE (take both routes away)" "MODIFY.ACCOUNT $ACC NONE")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F3 NONE reports the routes gone (10079)" "has no remote access" "$OUT"
+        ck "F3b and the machine agrees: not in sdapi" no "$(f_in_sdapi)"
+    fi
+
+    OUT=$(sprobe "F4 THE ROW: the same login with the route withdrawn" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F4 refused in 10073's words" "not permitted to use the API" "$OUT"
+        ck_absent "F4b and it never entered the account" "account $ACC: entered" "$OUT"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH (give them back)" "MODIFY.ACCOUNT $ACC BOTH")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "F5 BOTH restores what NONE took (10078)" "ssh and the API" "$OUT"
+        ck "F5b and the machine agrees: in sdapi again" yes "$(f_in_sdapi)"
+    fi
+
+    OUT=$(sprobe "F6 the door really is two-way: log in again" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
+    [ "$COMMIT" -eq 1 ] && ck_says "F6 the login works again" "account $ACC: entered" "$OUT"
 fi
 
 # ==========================================================================
@@ -1847,14 +1887,15 @@ SCRAM_PW=""
 # FIRST: before the suspend, ssh must land in sd and WHO name zzrel1 - without
 # it a refusal after could be ssh failing for any reason.  The API door is not
 # measured here (task table W.4).
-head2 "14. Q.12 - ssh into a SUSPENDED account is refused (10107)"
+head2 "14. Q.12 - ssh into a SUSPENDED account is refused (10107); S.29 - and into one without the ssh route (10074)"
 ssh_ready() {
     command -v ssh >/dev/null && command -v ssh-keygen >/dev/null || return 1
     systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null
 }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || ! ssh_ready; }; then
     say "  ssh, ssh-keygen or an active sshd is missing"
-    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO" "X6 API refused"; do not_reached "$r"; done
+    for r in "X1 control landed in sd" "X2 suspended" "X3 10107" "X4 no WHO" "X6 API refused" \
+             "X7 ssh route withdrawn" "X8 ssh refused 10074" "X9 ssh route given back"; do not_reached "$r"; done
 else
     SSH_OPTS=(-F /dev/null -o BatchMode=yes -o PasswordAuthentication=no -o IdentitiesOnly=yes
               -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -o LogLevel=ERROR)
@@ -1896,6 +1937,35 @@ else
     fi
     OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
     [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted (10192)" "is no longer suspended" "$OUT"
+
+    # ======================================================================
+    # 20 Sep 26 - S.29 PART 3, THE ssh HALF, ON A REAL ssh LOGIN.  This is the
+    # only place in the project where one runs, so the ssh route is measured
+    # here and not in a scratch sshd_config.  X1 above is already the control
+    # in the "with the route" direction - the same key, the same account,
+    # landed in sd - so these rows only have to take it away and give it back.
+    #
+    # API, NOT NONE, IS WHAT IS ASKED FOR: it withdraws the ssh route and
+    # LEAVES the API one, so a refusal here cannot be "the account lost
+    # everything" and the two routes are shown to be independent.
+    #
+    # sshd RESOLVES GROUPS AT CONNECT TIME, so no reload is needed between the
+    # verb and the ssh - which is itself part of what these rows measure.
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC API (withdraw ssh, keep the API)" "MODIFY.ACCOUNT $ACC API")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X7 the verb reports ssh gone, the API kept (10077)" "the API only, not ssh" "$OUT"
+        ck "X7b and the machine agrees: out of sdssh, still in sdapi" "no yes" \
+           "$(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdssh && echo yes || echo no) $(id -nG "$ACC" 2>/dev/null | tr ' ' '\n' | grep -qx sdapi && echo yes || echo no)"
+    fi
+    OUT=$(ssh_sd "THE ROW: ssh with the ssh route withdrawn")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "X8 ssh refused in 10074's words" "$ACC is not permitted to reach SD over ssh" "$OUT"
+        if who_in "$ACC" "$OUT"; then ck "X8b and it never reached sd (no WHO)" no yes; else ck "X8b and it never reached sd (no WHO)" no no; fi
+    fi
+    OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
+    [ "$COMMIT" -eq 1 ] && ck_says "X9 BOTH gives the ssh route back (10078)" "ssh and the API" "$OUT"
+    OUT=$(ssh_sd "the door is two-way: ssh again")
+    [ "$COMMIT" -eq 1 ] && ck_who "X9b ssh lands in sd again and WHO names $ACC" "$ACC" "$OUT"
 fi
 PROBE_PW=""
 LINUX_PW=""

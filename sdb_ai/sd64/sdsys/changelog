@@ -16,6 +16,59 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+20 Sep 26  YOU CAN NOW TURN AN ACCOUNT'S ssh AND API ACCESS OFF, AND ON
+           AGAIN.
+           Every account can be reached two ways from elsewhere: by ssh,
+           which lands the person straight in SD, and by the API, which is
+           how a program connects.  Both are ON for a new account, which is
+           almost always what you want - but not always, and until now
+           there was no way to say so.
+
+           Two verbs now take a route word: SSH, API, BOTH or NONE.
+
+             MODIFY.ACCOUNT sales NONE     no remote access at all
+             MODIFY.ACCOUNT sales API      programs may connect, people may not
+             MODIFY.ACCOUNT sales SSH      the other way round
+             MODIFY.ACCOUNT sales BOTH     back to the default
+
+           CREATE.ACCOUNT takes the same word, and leaving it out means
+           BOTH, so nothing you already type needs to change:
+
+             CREATE.ACCOUNT USER sales          both routes, as before
+             CREATE.ACCOUNT USER sales NONE     a local-only account
+
+           IT GOES BOTH WAYS, WHICH IS THE POINT.  A setting you can only
+           tighten is a trap: you would have to delete the account and make
+           it again to undo a mistake.  Whatever you take away you can give
+           back, in either direction, as often as you like.  SD tells you
+           what the account ended up with each time, and says plainly when
+           you have asked for the access it already had.
+
+           WHAT HAPPENS TO SOMEONE WHO IS TURNED AWAY.  An ssh connection
+           is refused as it arrives, with "<name> is not permitted to reach
+           SD over ssh", and no tunnel can be opened through it either.  A
+           program connecting to the API is told "<name> is not permitted
+           to use the API".  Both refusals come after the password has been
+           checked, so neither tells a stranger anything about whether an
+           account exists.
+
+           The two routes are independent: turning off ssh leaves the API
+           working, and the other way round.
+
+           WHAT THIS DOES NOT DO.  It does not affect signing in at the
+           machine itself - an account with NONE is still a normal SD
+           account to anyone sitting at this computer, and that is the way
+           back in if you shut yourself out of a remote one.  It is not a
+           Linux login setting: it governs reaching SD, not what the
+           account's Linux user may do.  It does not apply to SDSYS, which
+           has never been reachable by ssh and reaches the API only from a
+           session already signed in as sdsys on this machine.  And
+           REMOTE.SSH and REMOTE.API, which say whether this computer can
+           be reached from elsewhere at all, are unchanged and still have
+           the last word: what you grant one account here cannot get past
+           them.
+
+
 20 Sep 26  THE INSTALLER NOW SAYS WHOSE PASSWORD IT IS ASKING FOR.
            Near the end of an install you are asked for three passwords,
            and it was not clear which account each one belonged to - two of
