@@ -116,8 +116,10 @@ state() {
 }
 
 # 18 Sep 26 (S.26): THE ADMINISTRATOR SESSION - the sdsys OS user, local.
-# CPROC grants it K$ADMINISTRATOR (no ssh env, uid 999) and LOGIN puts it in
-# the sdsys account.  A root session would be refused outright (10190).
+# CPROC grants it K$ADMINISTRATOR (no ssh env) and LOGIN puts it in the sdsys
+# account.  A root session would be refused outright (10190).  20 Sep 26 (S.38):
+# sdsys's uid is no longer fixed at 999 - it is an ordinary account now, so the
+# grant is by NAME (CPROC) and by group membership, never by a specific number.
 sd_sdsys() {
     local title="$1" body line out; shift
     say "  --- sd session as sdsys: $title ---" >&2
