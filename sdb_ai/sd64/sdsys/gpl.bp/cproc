@@ -937,11 +937,21 @@ para.reset.environment:
 * THE RULE IS 79 BECAUSE THE BANNER'S WIDEST LINE IS 79 (LOGIN:169, measured),
 *   so the box reads as belonging to the same block and still fits 80 columns.
 *
-* IT IS NOT SUPPRESSED BY CMD.QUIET, AND THAT IS DELIBERATE.  The banner is a
-*   courtesy and these are the session telling you what rights it does or does
-*   not have; a quiet flag should not be able to silence that.
+* ~~IT IS NOT SUPPRESSED BY CMD.QUIET, AND THAT IS DELIBERATE.~~  20 Sep 26 dm -
+*   REVERSED FOR -QUIET ONLY, on the owner's reading of an install: the notice
+*   landed between the installer's explanation and the password prompt, where
+*   he read it as a RESULT of what he had just been told ("There is a result
+*   message before the first password entry").  The reasoning it replaces -
+*   "these are the session telling you what rights it has, and a quiet flag
+*   should not silence that" - holds for a session somebody signs in to.  A
+*   -QUIET session is not that: it is SD run as a tool to carry out one command
+*   (the installer's MODIFY.PASSWORD steps), its copyright and sign-on banner
+*   are already suppressed, and the caller is doing the explaining.  A REFUSAL
+*   is not a notice and is not affected - refuse.msg still prints, because a
+*   session that was turned away must say so however it was started.
 
 display.admin.notice:
+   if bitand(kernel(K$COMMAND.OPTIONS, 0), CMD.QUIET) then return
    admin.rule = str('-', 79)
    crt
    crt admin.rule

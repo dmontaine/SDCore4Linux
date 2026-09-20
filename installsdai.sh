@@ -184,11 +184,17 @@ NC='\033[0m' # No Color (reset)
 # sd -start and sd -stop return non-zero when already in the target state.
 # Helpers prevent set -e from aborting reinstall/bootstrap mid-install.
 sd_install_stop() {
-  sudo "${sdsysdir}/bin/sd" -stop 2>/dev/null || true
+  sudo "${sdsysdir}/bin/sd" -stop >/dev/null 2>&1 || true
 }
 
+# 20 Sep 26 dm - QUIET ON THE HAPPY PATH (owner, 20 Sep, reading an install):
+#   "SD (64 Bit) has been started" and its shutdown twin landed in the middle
+#   of the password steps, between the explanation and the prompt.  Only the
+#   SUCCESSFUL start is silenced; every failure path below still prints, and
+#   the retry and the red failure are untouched - a start that did not happen
+#   must say so.
 sd_install_start() {
-  if sudo "${sdsysdir}/bin/sd" -start; then
+  if sudo "${sdsysdir}/bin/sd" -start >/dev/null; then
     return 0
   fi
   printf "%b\n" "$YELLOW"
@@ -1306,9 +1312,15 @@ echo ---------------------------------------------------------------
 #            grants nothing to anyone not already root; if the write fails the
 #            session is refused (10195) and the $cred check says "not set".
 sd_pw_state="not set"
+# 20 Sep 26 dm - THE RULED BLOCK ANNOUNCES THE STEP (owner, 20 Sep: "The blocks
+#   ... should announce each password block not be at the end").  It used to be
+#   a bare heading line, and the only ruled block in view was SD's own notice,
+#   which arrived after the explanation and read as its result.
 echo
+echo ---------------------------------------------------------------
 echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
-echo "        (this is an SD password, not $tuser_lc's Linux password)"
+echo "        (an SD password, not $tuser_lc's Linux password)"
+echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
     echo "  Kept: this reinstall kept your accounts, and the password with them."
@@ -1349,7 +1361,10 @@ fi
 #
 sdsys_pw_state="not set"
 echo
-echo "2 of 3: the LINUX password for the sdsys account (SD's administrator)"
+echo ---------------------------------------------------------------
+echo "2 of 3: the LINUX password for the sdsys account"
+echo "        (sdsys is SD's administrator; this is its Linux password)"
+echo ---------------------------------------------------------------
 # 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
 #   happens if you give a different password at 3 than the one you currently
 #   have? ... Doesn't seem like you should have to enter it again if it already
@@ -1404,6 +1419,7 @@ else
         fi
         if printf 'sdsys:%s\n' "$sdsys_p1" | sudo chpasswd; then
             sdsys_pw_state="set"
+            echo "  Password accepted"
         else
             echo "  The machine's own password rules refused it; set one later"
             echo "  (see the end of the install)."
@@ -1440,8 +1456,10 @@ fi
 #            asked for earlier - that one signs sdsys in at the machine.
 sdsys_sd_pw_state="not set"
 echo
+echo ---------------------------------------------------------------
 echo "3 of 3: the SD password for the sdsys account - for the API"
-echo "        (sdsys's OTHER password: its Linux one was 1 of 3 above)"
+echo "        (sdsys's OTHER password: its Linux one was 2 of 3 above)"
+echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
     echo "  Kept: this reinstall kept its credentials."
