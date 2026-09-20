@@ -245,17 +245,13 @@ clear
 printf "%bSD installer%b\n" "$RED" "$NC"
 echo -----------------------
 echo
-echo "WARNING - This script installs a version of SD that has been modified by AI."
-echo "          This is a very experimental version for testing code reviews and"
-echo "          modifications to the c code  by Composer AI."
-# Modified by Composer AI - 2026/06/10.
-# Fix typo in warning text.
-# echo "          Do no try to install in parallel with a standard SD installation."
-echo "          Do not try to install in parallel with a standard SD installation."
-# --------------------
-echo "          DO NOT USE IN A PRODUCTION ENVIRONMENT!"
-echo
-printf "%bFor this install script to work you must have sudo installed\n" "$GREEN" 
+# 20 Sep 26 dm - THE WARNING BLOCK IS GONE (owner, 20 Sep).  It opened every
+#   install with "modified by AI ... very experimental ... DO NOT USE IN A
+#   PRODUCTION ENVIRONMENT", which contradicts the project's own stance that
+#   this version ships for production (CLAUDE.md, owner 9 Sep 2026), and the
+#   "do not install in parallel with a standard SD" line describes a situation
+#   the installer refuses for itself (installsdai.sh:152).
+printf "%bFor this install script to work you must have sudo installed\n" "$GREEN"
 printf "and be a member of the sudo group.  Also, systemd must be enabled.%b\n" "$NC"
 echo
 # Modified by Composer AI - 2026/06/10.
