@@ -549,7 +549,10 @@ off the source — it cannot say the gate refuses anybody, which is
 `witness-release-run.sh` §13f's job) · `test-assert-current.py` ·
 `test-basicfuncs-units.py` · `test-configpath-units.py` (and `--selftest`, 8
 mutants) · `test-editors-units.py` · `test-edittokens-units.py`
-· `test-msglen-units.py` · `test-nonet-units.py` · `test-pwcomplex-units.py`
+· `test-msglen-units.py` · `test-msgreserved-units.py` (the message-number
+space convention agreed with the port 20 Sep — W.12 — refuses any message
+this tree allocates inside the Windows port's 12000-12999 block) ·
+`test-nonet-units.py` · `test-pwcomplex-units.py`
 (SD's password rule, both implementations, 124 mutants; it owns the rule's
 spec table and `test-sd-elevate.py` imports it) ·
 `test-sd-elevate.py` · `test-sdverify-units.py` ·
