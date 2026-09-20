@@ -183,8 +183,13 @@ say "  CREATE.ACCOUNT USER $ACC (SD's whole flow, as sdsys)"
 if [ "$COMMIT" -eq 1 ]; then
   PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
 fi
-OUT=$(run_sd "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
-             "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
+# 19 Sep 26 - S.32: A WEAK ENTRY FIRST, so M2g/M2h have something to read.
+#   "weakpass" is 8 lower-case letters - it lacks three of the four kinds, so
+#   set_passwd refuses it, counts it, and asks again without ever reaching the
+#   repeat; the good password then goes in twice as before.  UNRUN when
+#   written: this line and M2g/M2h are owed the next cycle.
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC (a weak Linux password, then a good one)" \
+             "CREATE.ACCOUNT USER $ACC" "weakpass" "_PW_" "_PW_")
 PW_OS=""
 if [ "$COMMIT" -eq 1 ]; then
   [ -e "$REGISTER/$ACC" ] && MADE_ACCOUNT=1
@@ -203,6 +208,11 @@ if [ "$COMMIT" -eq 1 ]; then
   #   and sd-elevate setpw sets it from stdin - not an interactive passwd.
   ck_says "M2e the Linux password was set by SD, through setpw" "Linux password set for $ACC" "$OUT"
   ck_absent "M2f and not by an interactive passwd" "sd-elevate: passwd -- " "$OUT"
+  # 19 Sep 26 - S.32: the rule and the attempt count at THIS prompt too.  M2h
+  #   anchors on 10921 fully expanded - a bare number, an empty expansion or a
+  #   missing message record all read differently, and none of them matches.
+  ck_says "M2g the weak Linux password is refused in 10920's words" "A password needs at least 8 characters" "$OUT"
+  ck_says "M2h and is counted in 10921's words" "That was attempt 1 of 3." "$OUT"
 fi
 
 # ==========================================================================
@@ -442,12 +452,16 @@ fi
 # read before and after, so a refusal that wrote anyway cannot pass.
 head2 "M11. SD's password rule on MODIFY.PASSWORD (owner, 19 Sep)"
 if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
-  for r in "M11a weak refused" "M11b ended unchanged" "M11c record untouched" "M11d a good one taken"; do not_reached "$r"; done
+  for r in "M11a weak refused" "M11a2 attempt counted" "M11b ended unchanged" "M11c record untouched" "M11d a good one taken"; do not_reached "$r"; done
 elif [ "$COMMIT" -eq 1 ]; then
   SK_BEFORE=$(sed -n '5p' "$CREDF" 2>/dev/null)
   OUT=$(run_sd "MODIFY.PASSWORD $ACC, three weak entries" \
                "MODIFY.PASSWORD $ACC" "abcdef1!" "ABCDEF1!" "Abcdefg1")
   ck_says "M11a a weak password is refused in 10920's words" "A password needs at least 8 characters" "$OUT"
+  # 19 Sep 26 - S.32: the third weak entry is the LAST of the three, so the
+  #   anchor is the count at its limit.  It matches only when 10921 expanded
+  #   BOTH arguments; UNRUN when written, owed the next cycle.
+  ck_says "M11a2 and counted in 10921's words, up to the limit" "That was attempt 3 of 3." "$OUT"
   ck_says "M11b three weak entries end the command" "Password not changed." "$OUT"
   ck_absent "M11b2 and the repeat was never asked" "Repeat new password" "$OUT"
   ck "M11c the credential record is untouched" "$SK_BEFORE" "$(sed -n '5p' "$CREDF" 2>/dev/null)"

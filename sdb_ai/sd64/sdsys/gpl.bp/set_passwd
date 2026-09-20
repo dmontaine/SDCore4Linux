@@ -22,6 +22,11 @@
 * 11 Sep 26 dm  Header: what STATUS() actually holds (passwd's exit code).
 * 19 Sep 26 dm  SD asks for the password itself and applies its rule
 *               (!pw_complex, 10920); sd-elevate setpw sets it from stdin.
+* 19 Sep 26 dm  The attempt count is said here too, as message 10921 ("That
+*               was attempt %1 of %2." - the port's number and text, agreed
+*               by mail 19 Sep 14:00).  It was MODIFY.PASSWORD's shape minus
+*               the count, so with three attempts a caller could not tell how
+*               many were left.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -190,13 +195,14 @@ loop
    if not(pw_complex(pw1)) then
       pw1 = ''
       crt sysmsg(10920)
+      crt sysmsg(10921, tries, max.tries)  ;* That was attempt %1 of %2.
    end else
       display 'Retype new password: ' :
       input pw2 HIDDEN
       display
       if pw1 = pw2 then exit
       pw1 = ''
-      crt 'Passwords do not match.'
+      crt 'Passwords do not match.  ' : sysmsg(10921, tries, max.tries)
    end
    pw2 = ''
    if tries >= max.tries then
