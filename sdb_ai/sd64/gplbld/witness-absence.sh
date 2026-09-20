@@ -191,6 +191,9 @@ fi
 OUT=$(run_sd "CREATE.ACCOUNT USER $ACC (a weak Linux password, then a good one)" \
              "CREATE.ACCOUNT USER $ACC" "weakpass" "_PW_" "_PW_")
 PW_OS=""
+# 20 Sep 26 - kept for M5f: this is the only creation in the run that passes NO
+# route word, so it is the only place the S.29 default can be read.
+CREATE_OUT="$OUT"
 if [ "$COMMIT" -eq 1 ]; then
   [ -e "$REGISTER/$ACC" ] && MADE_ACCOUNT=1
   ck "M2a the register record exists (the gate for M2b-d)" yes "$(yesno_file "$REGISTER/$ACC")"
@@ -229,7 +232,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in STANDARD PROGRAMMER ADMINISTRATOR UNSUSPEND; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
+            "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
   done
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
@@ -251,7 +254,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in SH-ON SH-OFF OS-ON OS-OFF; do
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
+            "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
   done
   # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
   # and the OS runs at the account's own Linux permissions - no 10053.  This
@@ -263,17 +266,54 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
-head2 "M5. no API route words (S.28)"
-if [ "$COMMIT" -eq 1 ]; then
-  # S.28: the API route words are gone from the grammar (see M3a's note).
-  for w in API NONE SSH BOTH; do
-    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
-    ck_says "M5a MODIFY.ACCOUNT $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Suspended or Unsuspended" "$OUT"
-  done
-  OUT=$(run_sd sdsys "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no API word needed)" \
+# 20 Sep 26 - M5 MEASURED THE OPPOSITE UNTIL TODAY.  S.28 deleted the route
+# words and this section proved them refused; S.29 brings them back on the
+# owner's ruling, so the same four words are now driven for their effect.
+# ***THE DOOR IS DRIVEN BOTH WAYS ON PURPOSE***: a narrowing-only build passes
+# every obvious test, which is how the tier teardown left no way to lift a
+# suspension.  NONE first, so every later row starts from nothing and a row
+# that changed nothing cannot read as success.  Membership is read from the
+# machine (id -nG), not from what the verb said about itself.
+in_group() {   # user, group -> yes/no
+  id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2" && echo yes || echo no
+}
+head2 "M5. the route words narrow AND re-widen (S.29)"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  for r in "M5a NONE" "M5b SSH" "M5c API" "M5d BOTH" "M5e BOTH again" "M5f the default at create"; do
+    not_reached "$r"; done
+elif [ "$COMMIT" -eq 1 ]; then
+  say "  before: $ACC in sdssh=$(in_group "$ACC" sdssh) sdapi=$(in_group "$ACC" sdapi)"
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
+  ck_says "M5a NONE takes both routes away (10079)" "has no remote access" "$OUT"
+  ck "M5a2 and the machine agrees: neither group" "no no" \
+     "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SSH" "MODIFY.ACCOUNT $ACC SSH")
+  ck_says "M5b SSH re-widens one route (10076)" "ssh only, not the API" "$OUT"
+  ck "M5b2 and the machine agrees: sdssh only" "yes no" \
+     "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC API" "MODIFY.ACCOUNT $ACC API")
+  ck_says "M5c API swaps the routes over (10077)" "the API only, not ssh" "$OUT"
+  ck "M5c2 and the machine agrees: sdapi only" "no yes" \
+     "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
+  ck_says "M5d BOTH restores what NONE took (10078)" "ssh and the API" "$OUT"
+  ck "M5d2 and the machine agrees: both groups" "yes yes" \
+     "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+
+  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH (again)" "MODIFY.ACCOUNT $ACC BOTH")
+  ck_says "M5e asking twice changes nothing and says so (10080)" \
+          "already had that access" "$OUT"
+
+  # The default: M2 created $ACC with no route word at all.
+  ck_says "M5f CREATE.ACCOUNT with no route word gave both (10078)" \
+          "SD routes for $ACC: ssh and the API" "$CREATE_OUT"
+
+  OUT=$(run_sd sdsys "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no route word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
-  ck_says "M5b CREATE.ACCOUNT no longer demands API or NONE (10082 is gone)" \
+  ck_says "M5g CREATE.ACCOUNT does not demand a route word (10082 is not reached)" \
           "Cannot create user zzabst2 with NO.QUERY" "$OUT"
 fi
 

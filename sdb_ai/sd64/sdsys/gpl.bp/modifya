@@ -153,6 +153,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
       crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username>'
+      crt '                 MODIFY.ACCOUNT <account> SSH | API | BOTH | NONE'
       crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPENDED'
       stop
    end
@@ -178,12 +179,31 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
    action = upcase(action)
 
+* 20 Sep 26 dm - S.29, THE ROUTE WORDS.  Each NAMES THE STATE WANTED, as the
+*   Windows port's do (its modifya:284-296), so the same four words mean the
+*   same thing here and at CREATE.ACCOUNT, and the door opens both ways: SSH
+*   after NONE re-widens exactly as NONE after BOTH narrows.  A one-way build
+*   passes every obvious test - this teardown already paid for that once, when
+*   deleting the tier keywords left no way to lift a suspension (UNSUSPENDED
+*   exists because of it) - so set.route is driven in both directions.
    begin case
       case action = 'SUSPENDED'
          gosub set.suspended
          stop
       case action = 'UNSUSPENDED'
          gosub set.unsuspended
+         stop
+      case action = 'SSH'
+         want.ssh = @true  ; want.api = @false ; gosub set.route
+         stop
+      case action = 'API'
+         want.ssh = @false ; want.api = @true  ; gosub set.route
+         stop
+      case action = 'BOTH'
+         want.ssh = @true  ; want.api = @true  ; gosub set.route
+         stop
+      case action = 'NONE'
+         want.ssh = @false ; want.api = @false ; gosub set.route
          stop
    end case
 
@@ -266,7 +286,8 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Suspended or Unsuspended'
+         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Ssh, Api, Both, None,'
+         crt '   Suspended or Unsuspended'
       end
 
    end else
@@ -326,6 +347,111 @@ set.unsuspended:
    @system.return.code = 0
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
    crt sysmsg(10192, acc.name)  ;* Account %1 is no longer suspended
+   return
+
+*****************************************************************************
+* SET.ROUTE  -  MODIFY.ACCOUNT <account> SSH | API | BOTH | NONE
+*
+* 20 Sep 26 dm - S.29 (owner, 18/19 Sep 2026, through the port).  want.ssh and
+* want.api are set by the caller; membership of sdssh and sdapi IS the route,
+* so this is the whole mechanism - nothing is written to the register.
+*
+* ***THE LOOKUP IS THREE-VALUED AND THAT IS WHY THIS READS status().***
+* !is_grp_member answers @false BOTH for "not a member" and for "could not
+* tell" (empty argument, /etc unreadable, /etc/group unreadable - is_grp_member
+* :48, :87, :91), distinguishing them only by status 1.  Acting on a
+* could-not-tell would write a state derived from a guess: NONE would look
+* like a change that already happened, and BOTH would re-add memberships that
+* may be there.  So an unreadable register changes NOTHING and says so (10081
+* with the status), which is the fail-closed half the port paid seven runs for.
+*
+* THE LINUX USER IS THE ACCOUNT NAME, lower case, which is true of every
+* account CREATE.ACCOUNT makes (createa folds it).  An ATTACHed account whose
+* Linux user is spelt otherwise is refused rather than guessed at: its
+* sdusers membership will not be found under the folded name, and a silent
+* miss would report success while changing a route nobody has.
+*
+* THE API HALF RUNS ONLY IF THE ssh HALF SUCCEEDED (the port's ordering): a
+* failure part way leaves a state neither the caller nor a summary describes,
+* so it is reported with its status rather than called a change.
+
+set.route:
+   route.user = acc.name
+
+   if not(valid_os_name(route.user)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      return
+   end
+
+   in.sdusers = is_grp_member(route.user, 'sdusers')
+   route.stat = status()
+   if route.stat # 0 or not(in.sdusers) then
+      @system.return.code = -ER$FAILED
+      if route.stat = 0 then route.stat = 2
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   has.ssh = is_grp_member(route.user, 'sdssh')
+   route.stat = status()
+   if route.stat = 0 then
+      has.api = is_grp_member(route.user, 'sdapi')
+      route.stat = status()
+   end
+   if route.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   if (has.ssh = want.ssh) and (has.api = want.api) then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if has.ssh # want.ssh then
+      if want.ssh then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : route.user : " sdssh"
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : route.user : " sdssh"
+      end
+      route.stat = OS.ERROR()
+   end
+
+   if route.stat = 0 and (has.api # want.api) then
+      if want.api then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : route.user : " sdapi"
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : route.user : " sdapi"
+      end
+      route.stat = OS.ERROR()
+   end
+
+   if route.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, route.stat)
+      return
+   end
+
+   @system.return.code = 0
+   route.said = 'NONE'
+   if want.ssh and want.api then route.said = 'BOTH'
+   if want.ssh and not(want.api) then route.said = 'SSH'
+   if want.api and not(want.ssh) then route.said = 'API'
+   void kernel(K$AUDIT, 'MODIFY.ACCOUNT ROUTE ' : route.said : ' account=' : acc.name)
+
+   begin case
+      case want.ssh and want.api
+         crt sysmsg(10078, acc.name)  ;* SD routes for %1: ssh and the API.
+      case want.ssh
+         crt sysmsg(10076, acc.name)  ;* SD routes for %1: ssh only, not the API.
+      case want.api
+         crt sysmsg(10077, acc.name)  ;* SD routes for %1: the API only, not ssh.
+      case 1
+         crt sysmsg(10079, acc.name)  ;* %1 has no remote access: not ssh, not the API
+   end case
    return
 
 end

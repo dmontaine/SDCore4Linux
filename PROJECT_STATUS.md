@@ -36,7 +36,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
-| ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
+| ◐ | **S.29** | L | ***PARTS 1 AND 2 OF 3 §BUILT§ 20 Sep 2026, NO BASIC COMPILED AND NOTHING RUN*** (`96bf3e1` groups/messages/helper; part 2 the verbs).  Left: part 3, the two enforcement points (`apisrvr` 10073, `ssh-forcecommand.sh` 10074) and their tests, then a cycle.  per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
@@ -402,7 +402,40 @@ display *").  Two faults no reading of the source would have shown:
   needs the next install, the bash half was measured.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
-***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
+***HANDOFF, 20 SEP 2026, LATE — END OF SESSION (CREDITS).  READ THIS FIRST.***
+- ***THE INSTALL IS STILL `60ac74a` (19 Sep) AND NOTHING SINCE HAS RUN.***
+  `assert-current` answers STALE.  Unwitnessed and waiting for ONE cycle:
+  S.32, S.33, S.35, S.36 (19 Sep), S.37 (the install's password section) and
+  S.29 parts 1-2.  The owner ran a delete/install today and read the password
+  section from it - that is where S.37's last four faults came from - but no
+  witness has run since.
+- ***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***  Parts 1 and 2
+  give the words, the groups and the reports; NOTHING READS THE GROUPS YET,
+  so an administrator can type NONE, be told the routes are gone, and still
+  be reachable both ways.  ***PART 3 IS THE NEXT PIECE OF WORK***: `apisrvr`
+  refuses a non-member of `sdapi` (10073 - `git show e41d318^` has the exact
+  shape it had before the teardown), `gplbld/ssh-forcecommand.sh` refuses a
+  non-member of `sdssh` (10074) with sshd naming the group, then unit tests
+  for both and witness rows that drive a real ssh and a real API login.
+- **The cycle, when credits allow** (the owner at the keyboard; neither
+  script takes `sudo`, they call it themselves):
+  `bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/deletesdai.sh`
+  then `bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/installsdai.sh`,
+  then each WITH `sudo`:
+  `sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit`,
+  `…/witness-release-run.sh --commit`, `…/witness-accounts.sh --commit`.
+  ***EXPECT INSTRUMENT FIXES***: M5a-g, M12a-d, M2h/M11a2 and §13e E3c/E3d
+  have never run, and `sprobe_as` is new code.
+- **Mailbox**: `to-linux/` empty, nothing owed either way.  The port's
+  RELEASE_1.1 68 is DONE AND WITNESSED there (measured today; this entry
+  used to say it was not built, which was wrong) - its groups are `sdssh`
+  and `sdapi` and its keywords `SSH | API | BOTH | NONE`, which is what part
+  1 and 2 follow.
+- **A principle from today, worth more than the section that taught it**:
+  while prompting, print only what the person must decide; explanations
+  belong in the closing summary (memory `prompts-terse-explanations-in-summary`).
+
+***HANDOFF, 20 SEP 2026, ~04:40 — EARLIER THE SAME DAY.***
 - ***NOTHING IN THIS SESSION HAS RUN ON AN INSTALL.***  The install is still
   `60ac74a` (seventh cycle, 19 Sep).  `assert-current` answers STALE.  Four
   change sets are built and unwitnessed: S.32, S.33, S.35, S.36.
@@ -1274,7 +1307,45 @@ Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured
 *19 Sep 2026: the per-account half of "disposed" is reversed by a later owner ruling — see S.29.*
 
 ***[S.29] PER-ACCOUNT SSH AND API ROUTES COME BACK, DEFAULT ON, A TWO-WAY
-DOOR — §OPEN§, NOT BUILT.*** Owner's ruling on the Windows side, 18/19 Sep
+DOOR — PARTS 1 AND 2 OF 3 BUILT 20 SEP 2026; §OPEN§ UNTIL PART 3 AND A
+CYCLE.***
+
+***WHAT IS BUILT (20 Sep 2026).***  Part 1, `96bf3e1`: `sdssh` and `sdapi`
+are ALLOW groups and membership IS the route (the port's shape; an allow
+group fails closed where a deny group fails open - `!is_grp_member` answers
+@false for "not a member" AND for "could not tell", parting them only by
+`status()`, `is_grp_member:48/:87/:91`).  `installsdai.sh` makes both before
+any account exists; `deletesdai.sh` takes them with the accounts and never
+without them; `sd-elevate` accepts both and refuses to delete either;
+messages restored with the PORT'S numbers and text (10073, 10076-10082,
+10087) plus Linux-only 10074 for the ssh refusal.  `test-sd-elevate` 138/138,
+and a row that measured the machine rather than the helper was deleted, not
+updated (it asserted `addgroup don sdapi` is refused BECAUSE the teardown had
+removed the group - it would have flipped on the next install).
+Part 2, this commit: `createa` takes an OPTIONAL `SSH | API | BOTH | NONE`
+(absent = both, so the ATTACH line is unchanged and identical on both ports),
+joins the groups, reports what the account got, and refuses a route word on a
+GROUP account (10087); `modifya`'s `set.route` narrows and re-widens, reading
+`status()` on every membership lookup and changing NOTHING when the register
+cannot be read (10081 with the status); `delacc` strips both memberships
+BEFORE `sdusers`, so an interrupted strip leaves fewer ways in, never more.
+`witness-absence` M5 was REVERSED - it proved those four words refused (S.28)
+and now drives the door NONE -> SSH -> API -> BOTH -> BOTH again, reading
+membership from `id -nG` rather than from what the verb said, with M5f for
+the default and M5e for "already had that access".
+***WHAT WOULD FALSIFY IT:*** M5a-g on a cycle; a route that narrows but will
+not re-widen; a CREATE.ACCOUNT that stops asking for a route word AND fails
+to join the groups, which would read as success and leave no route at all.
+
+***WHAT IS LEFT: PART 3, THE ENFORCEMENT.*** Nothing yet READS these
+groups, so today they are bookkeeping: `apisrvr` must refuse a non-member
+(10073, the shape `git show e41d318^` has) and the ssh side must refuse one
+(10074) in `gplbld/ssh-forcecommand.sh`, with sshd naming the group; then
+unit tests for both and witness rows that drive a real ssh and a real API
+login.  ***THE HALF-BUILT STATE IS THE DANGEROUS ONE***: an administrator
+can type NONE today, see it reported, and still be reachable both ways.
+
+*The original entry, as written before any of it was built:* Owner's ruling on the Windows side, 18/19 Sep
 2026 night, relayed by mail 19 Sep 00:10 (binds both ports): *"every
 non-sdsys account has the potential to have ssh and api access by default,
 but it is the admins choice if it should stay on"* and *"the default is on,

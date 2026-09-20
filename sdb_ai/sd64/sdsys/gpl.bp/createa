@@ -191,6 +191,18 @@ deffun valid_os_path(path) calling '!valid_os_path'
    parser = "!PARSER"
    no.query = @false
 
+* 20 Sep 26 dm - S.29, THE ROUTE KEYWORD AND ITS DEFAULT (owner, 18/19 Sep
+*   2026, through the port: "every non-sdsys account has the potential to have
+*   ssh and api access by default, but it is the admins choice if it should
+*   stay on").  Both routes are ON unless a keyword narrows them, so the
+*   installer's ATTACH line needs no keyword and reads the same on both ports.
+*   ACCESS.GIVEN IS KEPT AND IS NOT REDUNDANT (the port's warning, its 68):
+*   NONE and silence both end with no keyword to act on, but they are not the
+*   same request - without the flag, NONE could not be said at all.
+   access.ssh = @true
+   access.api = @true
+   access.given = @false
+
    @system.return.code = -ER$ARGS     ;* Preset for argument errors
 
 
@@ -408,7 +420,16 @@ PW.TRY.AGAIN:
      * any other args? (specifically no.query)
      * rem we may abort in this routine
      gosub more.args
-       
+* 20 Sep 26 dm - S.29: A GROUP ACCOUNT HAS NO ROUTES TO NARROW.  Nobody signs
+*   in as one - it is reached with LOGTO from an account that did - so a route
+*   keyword here would set a membership on a Linux user that does not exist.
+*   Refused by name (10087, the port's number and text) rather than ignored,
+*   because silently dropping a keyword somebody typed hides the misreading.
+     if access.given then
+       @system.return.code = -ER$ARGS
+       stop sysmsg(10087, acc.name) ;* %1 is a group account and has no remote access; reach it with LOGTO
+     end
+
 *
    case upcase(acc.type) = 'OTHER'  
 *  CREATE.ACCOUNT OTHER <acc name> <path> {NO.QUERY} 
@@ -430,9 +451,11 @@ PW.TRY.AGAIN:
    case 1
 *   invalid command arg
 * rev 0.9.0 
-    crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {NO.QUERY}'
+    crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {SSH | API | BOTH | NONE} {NO.QUERY}'
     crt '                CREATE.ACCOUNT GROUP <group name> {NO.QUERY}'
     crt '                CREATE.ACCOUNT OTHER <account name> <pathname> {NO.QUERY}'
+    crt '  Without a route word a USER account gets both ssh and the API;'
+    crt '  MODIFY.ACCOUNT changes it afterwards, either way.'
     @system.return.code = -ER$ARGS
     stop 
    end case
@@ -556,9 +579,37 @@ PW.TRY.AGAIN:
           end
         end
 
-* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  The sdadmin and sdapi joins are gone:
-*   the groups do not exist any more.  One administrator, SDSYS; everybody is
-*   a plain sdusers member, and the API is open to every account except SDSYS.
+* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  The sdadmin join is gone: there is one
+*   administrator, SDSYS, and no group confers it.
+* 20 Sep 26 dm - S.29, THE ROUTES.  Membership of sdssh and sdapi IS the
+*   route, and the default is both.  A join that FAILS is not summarised away:
+*   the account would be advertised as reachable and not be, so the status is
+*   reported (10081) and the verb stops.  The report below says what the
+*   account ended up with, in the port's words, so a person who typed no
+*   keyword still reads what they got.
+        route.stat = 0
+        if access.ssh then
+           os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdssh"
+           route.stat = OS.ERROR()
+        end
+        if route.stat = 0 and access.api then
+           os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdapi"
+           route.stat = OS.ERROR()
+        end
+        if route.stat # 0 then
+           @system.return.code = -ER$FAILED
+           stop sysmsg(10081, acc.uname, route.stat) ;* Unable to change remote access for %1, status: %2
+        end
+        begin case
+           case access.ssh and access.api
+              crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
+           case access.ssh
+              crt sysmsg(10076, acc.uname)  ;* SD routes for %1: ssh only, not the API.
+           case access.api
+              crt sysmsg(10077, acc.uname)  ;* SD routes for %1: the API only, not ssh.
+           case 1
+              crt sysmsg(10079, acc.uname)  ;* %1 has no remote access: not ssh, not the API
+        end case
 
       *
       * create user's sd group      
@@ -742,9 +793,20 @@ more.args:
             no.query = @true
 
 * 18 Sep 26 dm - TEARDOWN (S.25/S.27/S.28).  The tier keywords
-*   (ADMINISTRATOR | PROGRAMMER), the OS-access keywords (SH-ON | OS-ON) and
-*   the API route words (API | NONE | SSH | BOTH) are gone; typing any of them
-*   gets the "Unexpected token" answer below.
+*   (ADMINISTRATOR | PROGRAMMER) and the OS-access keywords (SH-ON | OS-ON)
+*   are gone; typing any of them gets the "Unexpected token" answer below.
+* 20 Sep 26 dm - S.29 BRINGS THE ROUTE WORDS BACK, OPTIONAL.  SSH, API, BOTH
+*   and NONE name the state wanted, as MODIFY.ACCOUNT's do, so the same four
+*   words mean the same thing at create time and afterwards.  Matched on token
+*   text like ATTACH and NO.QUERY above, not through the KW$ table.
+         case upcase(token) = 'SSH'
+            access.ssh = @true  ; access.api = @false ; access.given = @true
+         case upcase(token) = 'API'
+            access.ssh = @false ; access.api = @true  ; access.given = @true
+         case upcase(token) = 'BOTH'
+            access.ssh = @true  ; access.api = @true  ; access.given = @true
+         case upcase(token) = 'NONE'
+            access.ssh = @false ; access.api = @false ; access.given = @true
 
 * 11 Sep 26 dm - ADOPT, PORT_ADOPTION 15 and the port's :1678 byte for byte in
 *   shape.  Two gates, both required: the session must be -internal (which
