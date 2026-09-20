@@ -231,7 +231,7 @@ run_sd() {
     elif [ "$who" = sdsys ]; then
         # 18 Sep 26, NIGHT (S.26 corrected): the administrator is a real sdsys
         # LOGIN, so the session runs through the root-only loginuid bridge -
-        # without it "sudo -u sdsys sd" is refused (10181), which is the
+        # without it "sudo -u sdsys sd" is refused (10195), which is the
         # product doing exactly what the owner ruled.
         out=$(cd "$SDSYS" && printf '%s' "$body" | timeout 60 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1; echo "rc=${PIPESTATUS[1]}")
     elif [ "${who#root:}" != "$who" ]; then
@@ -314,7 +314,7 @@ restore_remote() {
 }
 
 # 19 Sep 26 - THE CLEANUP'S sd SESSIONS GO THROUGH THE LOGINUID BRIDGE.  They
-# ran sd as root, which CPROC now refuses (10176), so every DELETE.ACCOUNT here
+# ran sd as root, which CPROC now refuses (10190), so every DELETE.ACCOUNT here
 # did nothing and the fifth cycle left zzrel2 whole behind it.
 sd_admin_quiet() {
     (cd "$SDSYS" && timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD") >/dev/null 2>&1
@@ -488,7 +488,7 @@ if [ "$COMMIT" -eq 1 ]; then
         say "  sd runs as sdsys (the administrator) carrying THIS process's groups"
         say "  via setpriv, and CPROC's logto refresh must add sdu_$ACC itself."
         # 19 Sep 26 - THROUGH THE LOGINUID BRIDGE, as every sdsys session here.
-        #   The fifth cycle ran setpriv bare and CPROC refused it 10181 (a sdsys
+        #   The fifth cycle ran setpriv bare and CPROC refused it 10195 (a sdsys
         #   session without a sdsys login) - right, and it measured nothing.
         #   The bridge sets only the loginuid; the stale group list, which is
         #   what this row is about, still comes from setpriv.
@@ -763,7 +763,7 @@ fi
 # The writers exist (modifya ADD/DELETE; cproc ELEVATION REFUSED), so each is
 # driven once and the NEW lines of the trail are read - by line count, before
 # and after, so an old record cannot pass.  Under the teardown the refused
-# elevation is a root session refused outright (10176), and the granted one
+# elevation is a root session refused outright (10190), and the granted one
 # is the local sdsys session itself.
 head2 "8. Q.13 - ADD, DELETE, ELEVATION REFUSED and ELEVATION GRANTED reach the audit trail"
 AUD="$SDSYS/audit"
@@ -789,7 +789,7 @@ else
         ck_says "T3 DELETE said so (10021)" "$ACC2 removed from group sdu_$ACC" "$OUT"
     fi
     OUT=$(run_sd root "a root session - refused outright under the teardown" "WHO")
-    [ "$COMMIT" -eq 1 ] && ck_says "T4 elevation refused: a root session (10176)" "root is not SD's administrator" "$OUT"
+    [ "$COMMIT" -eq 1 ] && ck_says "T4 elevation refused: a root session (10190)" "root is not SD's administrator" "$OUT"
     if [ "$COMMIT" -eq 1 ]; then
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
         say "  audit trail after: $(wc -l < "$AUD") lines; the new records:"
@@ -1030,7 +1030,7 @@ else
     fi
 
     OUT=$(run_sd root "fixture: A ROOT SESSION IS REFUSED OUTRIGHT (teardown control)" "WHO")
-    [ "$COMMIT" -eq 1 ] && ck_says "A4.0 control: root is refused (10176)" "root is not SD's administrator" "$OUT"
+    [ "$COMMIT" -eq 1 ] && ck_says "A4.0 control: root is refused (10190)" "root is not SD's administrator" "$OUT"
 
     # A5 - S.14, CONFORMING TO THE PORT: a password is not held to the user
     # name's 32 characters.  Since phase 4 the client sends SCRAM, so the long
@@ -1765,7 +1765,7 @@ else
     OUT=$(run_sd sdsys "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
     # 18 Sep 26 dm - AS SDSYS, NOT ROOT.  S.28 keeps REMOTE.API and REMOTE.SSH as
     #   SDSYS's own (sd-elevate behind the sdsys-only sudoers), and the first real
-    #   run drove them as root - where CPROC refuses the session outright (10176),
+    #   run drove them as root - where CPROC refuses the session outright (10190),
     #   so every H row measured the refusal instead of the verb.
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H0 REMOTE.API reports through SD" "The SD API is $API_VERDICT0." "$OUT"
@@ -1877,7 +1877,7 @@ else
     OUT=$(ssh_sd "control, before the suspend")
     [ "$COMMIT" -eq 1 ] && ck_who "X1 control: ssh landed in sd and WHO names $ACC" "$ACC" "$OUT"
     OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC SUSPENDED")
-    [ "$COMMIT" -eq 1 ] && ck_says "X2 MODIFY.ACCOUNT reported the suspend (10179)" "is now suspended" "$OUT"
+    [ "$COMMIT" -eq 1 ] && ck_says "X2 MODIFY.ACCOUNT reported the suspend (10193)" "is now suspended" "$OUT"
     OUT=$(ssh_sd "after the suspend")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "X3 refused in 10107's words" "Account $ACC is suspended" "$OUT"
@@ -1895,7 +1895,7 @@ else
         fi
     fi
     OUT=$(run_sd sdsys "restore: MODIFY.ACCOUNT $ACC UNSUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
-    [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted (10178)" "is no longer suspended" "$OUT"
+    [ "$COMMIT" -eq 1 ] && ck_says "X5 the suspension was lifted (10192)" "is no longer suspended" "$OUT"
 fi
 PROBE_PW=""
 LINUX_PW=""

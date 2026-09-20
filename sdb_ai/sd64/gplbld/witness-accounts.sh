@@ -217,7 +217,7 @@ run_sd() {
     body="$body"$'\n''OFF'$'\n'
     # 18 Sep 26 dm, NIGHT - S.26 corrected: only a real sdsys LOGIN administers,
     # so the session runs through the root-only loginuid bridge (the witness
-    # runs as root under --commit); a bare "sudo -u sdsys sd" is refused (10181).
+    # runs as root under --commit); a bare "sudo -u sdsys sd" is refused (10195).
     out=$(printf '%s' "$body" | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g')
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
