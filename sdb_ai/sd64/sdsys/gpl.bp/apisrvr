@@ -1265,6 +1265,18 @@ vb.scram.final:
 *   taken, so a refused session never becomes the user.  10174, the port's
 *   number, Linux wording.
 *
+* 19 Sep 26 dm - 10174 IS OURS ALONE NOW.  It was taken FROM the port, but the
+*   port DELETED its own 10174 (and 10175) in its tier teardown of 18 Sep 2026
+*   - its RELEASE_1.1 64 - so the number is live here and free there, in a
+*   space the two ports share.  Its agent flagged it 19 Sep 23:30 and has
+*   recorded 10174 as spoken for at our request, so a later Windows session
+*   cannot take it and give it a second meaning.  Kept rather than moved: it is
+*   in service here and renumbering a shipped refusal costs more than the
+*   bookkeeping does.  ***THE GENERAL POINT IS WORTH MORE THAN THIS NUMBER: a
+*   deletion in one port is invisible to the other, exactly as an allocation
+*   is, so "the port's number" is a fact about the day it was taken and not a
+*   standing guarantee.***
+*
 *   WHY IT MATTERS: SDSYS can change every account on this system, and the API
 *   admits a connection on the SD password alone.  On this machine SDSYS is
 *   admitted - the port's owner runs a local application that way - and
