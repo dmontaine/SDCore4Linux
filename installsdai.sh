@@ -1262,11 +1262,22 @@ echo
 echo ---------------------------------------------------------------
 echo "PASSWORDS."
 echo
-echo "  1. YOUR SD password ($tuser_lc)   - remote access using the API"
+# 20 Sep 26 dm - THE COLUMN IS COMPUTED, NOT TYPED (owner, 20 Sep: "don is my
+#   name and the account name for another installer might be much longer").
+#   The names were padded with literal spaces, so an installing user called
+#   something longer than "don" pushed its dash past the other two.  The width
+#   is the longest of the three labels, so they line up whatever the name is.
+pw_label1="$tuser_lc's SD password"
+pw_label2="sdsys's LINUX password"
+pw_label3="sdsys's SD password"
+pw_w=${#pw_label1}
+[ ${#pw_label2} -gt "$pw_w" ] && pw_w=${#pw_label2}
+[ ${#pw_label3} -gt "$pw_w" ] && pw_w=${#pw_label3}
+printf "  1. %-${pw_w}s - remote access using the API\n"  "$pw_label1"
 echo
-echo "  2. sdsys's LINUX password   - local console administration"
+printf "  2. %-${pw_w}s - local console administration\n" "$pw_label2"
 echo
-echo "  3. sdsys's SD password      - local API administration"
+printf "  3. %-${pw_w}s - local API administration\n"     "$pw_label3"
 echo
 echo "All passwords must contain at least 8 characters, with a lower-case"
 echo "letter, an upper-case letter, a digit and a symbol."
