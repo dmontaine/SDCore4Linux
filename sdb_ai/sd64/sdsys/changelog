@@ -16,6 +16,37 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  SDSYS CAN USE THE API AGAIN, AND NOW HAS TWO PASSWORDS.
+           The install now asks for a second password for sdsys: one is the
+           Linux password that signs sdsys in at this machine, the other is
+           an SD password that lets a program reach SD as the administrator
+           through the API.  They are different passwords for different
+           doors, and the install says so as it asks.
+
+           It is optional.  Press Enter and sdsys simply has no API access,
+           which is how every earlier release was delivered - until now SD
+           refused to set an SDSYS password at all, so nothing could reach
+           the administrator account through the API even on this machine.
+
+           WHAT GUARDS IT.  SD admits sdsys over the API only when the
+           operating system itself says the connection was opened by a
+           process running as sdsys on this machine.  SD used to accept any
+           connection that arrived from a local address, and that is not the
+           same test: an ssh tunnel ends on this machine, so a connection
+           forwarded from somewhere else looks local.  Anyone with a login
+           here could have forwarded a port and offered sdsys's password.
+           SD now asks the kernel who opened the socket, which a tunnel
+           cannot disguise - it reports whoever owns the tunnel.
+
+           What this does NOT do: it does not give sdsys API access from
+           another computer, and it does not work over 127.0.0.1 either.
+           Only SD's own local socket carries the proof SD needs, so a
+           program wanting to connect as sdsys must use that socket and must
+           be running as sdsys.  Every other account is unaffected and
+           reaches the API exactly as before.  LOGTO SDSYS remains refused
+           for everybody: the administrator account is entered by logging in
+           as sdsys, or through the API as described here.
+
 19 Sep 26  SD NOW REQUIRES A STRONG PASSWORD.
            Every password SD sets must be at least 8 characters long and
            contain a lower-case letter, an upper-case letter, a digit and a

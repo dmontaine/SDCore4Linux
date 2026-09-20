@@ -42,7 +42,13 @@
 #define FALLBACK
 #define HOT_SPOT_MONITOR
 
+/* 19 Sep 26 dm - GUARDED.  linuxio.c defines _GNU_SOURCE before its includes
+   (SO_PEERCRED), and glibc's features.h then sets _XOPEN_SOURCE itself, so an
+   unconditional define here warned "redefined" in that one file.  Guarding is
+   the correct shape anyway and changes nothing where it is not predefined.  */
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 700
+#endif
 #define _XOPEN_CRYPT
 #include <unistd.h>
 

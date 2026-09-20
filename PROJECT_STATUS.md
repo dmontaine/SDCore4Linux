@@ -29,6 +29,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.28** | L | ***WITNESSED 19 Sep 2026 on `60ac74a` (seventh cycle, M5, M7a-h, release-run's API rows).*** ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  THE THIRD CYCLE RAN 19 Sep on `8fbe9d8` (install 00:45:42, `assert-current` current; ATTACH seeded `don` correctly): `witness-absence` 30/50, ONE ROOT CAUSE - `createa` `set.owner` handed the shell an unquoted path, `$hold` expanded to nothing, so the ACCOUNT DIRECTORY was chowned before `$hold.dic` was made (M2a; every M3-M6 fail cascades). Fixed (quoted), with 10176/10181 printing raw field marks (cproc) and two null-case false passes (M3c, release-run A5); release-run and accounts not run on it. ***THE FIFTH CYCLE RAN 19 Sep on `359d5ce` (install 09:4x, `assert-current` current): absence 59/60, release-run 218/224 (log `/var/tmp/witness-release-run.20260919-095341.log`), accounts 32/32 - M2/A4/M8f pass, so the third cycle's fix holds. Every failure but one was an instrument row still written for the old route (M10b sudo-rs wording; S2.a bare setpriv, refused 10181; L1's count; Y1/Y3 reach MODIFY.ACCOUNT from a VOC that has none; the cleanup ran sd as root, so zzrel2 was left). THE ONE PRODUCT DEFECT: DELETE.ACCOUNT left the account directory silently (sdsys cannot remove a 755 subtree the user made; `delacc` ignored OS$DELETE's result) - now `sd-elevate rmtree-account` + 10919. All fixed in `a35b30e`/`43f8140`/`47b0d15`.  ***THE SIXTH CYCLE RAN 19 Sep on `47b0d15` (install 10:22:53, `assert-current` A-D pass): absence 65/65 (log `/var/tmp/witness-absence.20260919-102748.log`), release-run 226/228 (`…-102835.log`; K10/K10a/K10b pass - the directory fix is witnessed; the fails were Y2c, an instrument row the Y1 reordering broke - suspended accounts are rightly refused entry after a VERIFIED proof - and R3, expected), accounts stopped in section 2 on a stale `/home/zzacct2` left by the fifth run (instrument: the ground check never looked at homes). Both fixed; accounts to re-run.*** Superseded: left: the fourth cycle. Earlier - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, and witnessed since.*** | 19 Sep 2026 |
 | ✅ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026; SEEN RUNNING on two installs' seeding***: 00:45 (third cycle) and `359d5ce` (fifth: `/home/sd/user_accounts/don` `don:sdu_don` 2775, observed 19 Sep) | 19 Sep 2026 |
 | ✅ | **S.31** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M2e/f, M11a-d) and by the owner at the keyboard.*** SD's own password rule (owner, 19 Sep 2026: "SD require it even if the OS does not for both SDSYS and any other accounts"; his choice: 8+, a-z, A-Z, 0-9 and a symbol, printable ASCII) - ***§BUILT§ 19 Sep, UNMEASURED***: `gpl.bp/pw_complex` + 10920; MODIFY.PASSWORD, `set_passwd` (SD prompts, `sd-elevate setpw` from stdin), installer's sdsys prompt (`chpasswd`); `test-sd-elevate` 132/132; witness M2e/f, M11a-d; mailed to the port (parity, approved here; the port built it, and took 10921 "That was attempt %1 of %2." - agreed; ours moves onto it with the next source change) | 19 Sep 2026 |
+| ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED*** — left: one cycle for §13e E3/E3c/E3d/E3e, which are written and unrun | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ⬜ | **S.29** | L | per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
@@ -299,6 +300,58 @@ working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 - Install: still `60ac74a` (seventh cycle).  This session changed BASIC, so
   `assert-current` answers STALE and every measurement of the two password
   prompts below is owed a cycle.  Nothing here has run on an install.
+- ***[S.33] SDSYS'S API DOOR ASKS THE KERNEL, NOT THE ADDRESS — §BUILT§
+  19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED.***  Owner,
+  19 Sep 2026, in two steps: first *"logto sdsys should also not be
+  available… only an elevated session by a user logged in as sdsys should
+  be able to access sd's sdsys account"*, then, on being shown what that
+  would cost, *"I have no problem with the user having to enter two
+  passwords… the ability to use the API outweighs the slight
+  inconvenience."*
+  - **LOGTO was already closed** and needed nothing: `cproc:2743` refuses
+    `LOGTO SDSYS` for everybody, built in the teardown 18 Sep, witnessed on
+    `60ac74a` (§13g L1/L2 + a plain-account control).
+  - ***WHAT THE RULE WAS ACTUALLY RESTING ON, AND IT WAS NOT A DECISION.***
+    Two accidents: the installer set no SD password for SDSYS, so SCRAM as
+    sdsys could not succeed; and `accounts/sdsys`'s `ACC$GROUP` is `sdsys`,
+    a group the installer deletes, so `apisrvr`'s membership test failed for
+    everyone.  A door held shut by a missing credential and an absent group.
+    The comment at `installsdai.sh:1200` also claimed sdsys "could not use
+    the API even with a password" — wrong: 10174 refuses sdsys only when the
+    peer is REMOTE.
+  - ***THE FLAW THE OWNER'S QUESTION FOUND: AN ADDRESS CANNOT ANSWER "IS
+    THIS LOCAL".*** `peer_local`'s own header says it cannot see through an
+    ssh tunnel, and everywhere else that is fine because a tunnel needs the
+    account's Linux login first.  **That argument does not hold for sdsys**,
+    which is `DenyUsers`'d at sshd and can never own a tunnel — so a tunnel
+    carrying SDSYS's credential belongs to somebody else and no address can
+    tell.
+  - **The fix**: `system(43)`, the socket peer's OS user from `SO_PEERCRED`
+    (`linuxio.c`, in the `PF_UNIX` arm **before** the TLS relay takes
+    descriptor 0 — past that it would describe the relay).  `SO_PEERCRED`
+    not `getpeereid()`, which would restore the `libbsd` dependency S.18
+    removed.  ***A CHECK, NEVER AN AUTHENTICATION*** — SCRAM still proves
+    the identity; this only says which local user the process runs as, and
+    that distinction is what S.18 was right about.
+  - **The narrowing, stated rather than glossed**: TCP carries no such
+    credential, so `""` is the refusing answer and **SDSYS over loopback TCP
+    is no longer admitted** — socket only.  §13e E3 reverses accordingly.
+  - **What would falsify it**: the next cycle showing E3c (sdsys over the
+    socket, as sdsys) refused — the control that stops the section being all
+    refusals — or E3d (the same password, socket opened by `zzrel1`)
+    admitted.  E3d is the row the change exists for: the secret is correct
+    there and the opener is not.
+  - Premise measured, not assumed: `struct ucred` is invisible under the
+    tree's `-std=gnu17` (compiled: *"storage size of 'cr' isn't known"*) and
+    clean with `_GNU_SOURCE`, so `linuxio.c` defines it before every include
+    and `sddefs.h`'s `_XOPEN_SOURCE` is now guarded.
+  - Shared number space: `system(43)` and message 10922 taken, both free in
+    both ports when checked; the port was told before this landed.
+  - ***TRAP PAID FOR: a header change with only the edited objects cleared.***
+    `make` relinks what changed, so `sd.o` kept the old globals and the link
+    failed on `undefined reference to peer_user`, which reads like a header
+    error and is not.  CLAUDE.md says clear every object after a header
+    change; it was read afterwards.
 - ***[S.32] THE ATTEMPT COUNT IS MESSAGE 10921 — §BUILT§ 19 Sep 2026,
   THE BASIC UNWITNESSED.***  The port took 10921 ("That was attempt %1 of
   %2.") on 19 Sep 13:40 and we agreed it at 14:00, so ours moves off a

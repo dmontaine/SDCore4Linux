@@ -1366,6 +1366,65 @@ else
     sd_install_stop
 fi
 #
+# 19 Sep 26 dm - AND SDSYS'S SD PASSWORD, WHICH THIS INSTALLER USED TO WITHHOLD.
+#            REVERSES THE 15 Sep RULING ABOVE, on the owner's decision of 19 Sep
+#            2026: "I have no problem with the user having to enter two
+#            passwords, one for the os level sdsys and a second for sd itself.
+#            The ability to use the API outweighs the slight inconvenience."
+#
+#            WHY IT WAS WITHHELD, AND WHY THAT REASONING WAS WRONG.  The note
+#            above says sdsys "could not use the API even with a password,
+#            because the API refuses SDSYS unless the connection is from this
+#            machine".  10174 refuses sdsys only when the peer is REMOTE - a
+#            LOCAL connection was always admitted, so the capability was real
+#            and the missing password was the only thing shutting it.  That is
+#            a door held closed by an omission, which is the kind that opens
+#            when somebody later supplies what was missing.
+#
+#            WHAT MAKES IT SAFE TO ISSUE NOW: APISRVR no longer trusts the
+#            ADDRESS for this one account.  SDSYS over the API is Unix-socket
+#            only and the kernel must say the socket was opened by the sdsys OS
+#            user itself (system(43), SO_PEERCRED - an ssh -L tunnel reports its
+#            own owner, and sdsys can never own one because sshd denies it).
+#            So the password unlocks a local sdsys process and nothing else.
+#
+#            TWO PASSWORDS, AND THE TEXT SAYS SO: this is not the Linux password
+#            asked for earlier - that one signs sdsys in at the machine.
+sdsys_sd_pw_state="not set"
+echo
+echo "The SD password for the sdsys administrator account - for the API"
+if sudo test -f "$sdsysdir/\$cred/sdsys"; then
+    sdsys_sd_pw_state="kept from the previous install"
+    echo "  Kept: this reinstall kept its credentials."
+elif ! ( : </dev/tty ) 2>/dev/null; then
+    sdsys_sd_pw_state="not set - there was no terminal to ask at"
+    echo "  Cannot ask: this install has no terminal."
+elif ! sd_install_start; then
+    sdsys_sd_pw_state="not set - SD would not start for this step"
+else
+    echo "  This is the SECOND of sdsys's two passwords and they are not the"
+    echo "  same thing.  The Linux one asked for earlier signs sdsys in at this"
+    echo "  machine; this one lets a program on THIS machine reach SD as the"
+    echo "  administrator through the API.  A remote connection cannot use it:"
+    echo "  SD admits sdsys over the API only when the kernel says the socket"
+    echo "  was opened by sdsys on this machine."
+    echo "  It needs at least 8 characters, with a lower-case letter, an"
+    echo "  upper-case letter, a digit and a symbol."
+    echo "  Leave it unset by pressing Enter if you do not need API access."
+    pw_try=1
+    while [ "$pw_try" -le 3 ]; do
+        echo
+        ( cd "$sdsysdir" && sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" -QUIET MODIFY.PASSWORD sdsys' sd-pw "$sdsysdir/bin/sd" </dev/tty ) || true
+        if sudo test -f "$sdsysdir/\$cred/sdsys"; then
+            sdsys_sd_pw_state="set"
+            break
+        fi
+        echo "  No SD password was recorded for sdsys (attempt $pw_try of 3)."
+        pw_try=$((pw_try + 1))
+    done
+    sd_install_stop
+fi
+#
 # display end of script message
 echo
 echo ---------------------------------------------------------------
@@ -1419,6 +1478,18 @@ case "$sdsys_pw_state" in
        echo "  and keep to SD's rule, which passwd itself does not apply: at least"
        echo "  8 characters, with a lower-case letter, an upper-case letter, a"
        echo "  digit and a symbol." ;;
+esac
+# 19 Sep 26 dm - sdsys's SECOND password, reported apart from its first so the
+#   two are never read as one.  NOT in red when unset: unlike $tuser_lc's, this
+#   one is optional - without it sdsys simply has no API access, which is the
+#   state every install before today shipped in.
+echo "SD password for sdsys (API access as the administrator): $sdsys_sd_pw_state."
+case "$sdsys_sd_pw_state" in
+    set|kept*) ;;
+    *) echo "  Optional.  To set one later, log in as sdsys and, at the SD prompt:"
+       echo "    MODIFY.PASSWORD sdsys"
+       echo "  Until then sdsys has no API access.  Even with it, SD admits sdsys"
+       echo "  over the API only from a process running as sdsys on this machine." ;;
 esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"

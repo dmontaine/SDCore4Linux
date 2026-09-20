@@ -1,0 +1,7 @@
+SDSYS may use the API only from a process running as the sdsys user on this machine.
+
+SDSYS can change every account on this system.  A loopback address does not
+show who is at the other end - an ssh tunnel ends on this machine and looks
+local - so SD asks the kernel which user opened the socket, and admits SDSYS
+only when that user is sdsys itself.  Connect over SD's Unix socket from a
+session running as sdsys, or run sd as the sdsys user at this machine.
