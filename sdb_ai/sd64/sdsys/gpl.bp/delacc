@@ -407,9 +407,17 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   userdel'd whole and its groups go with it, and lookup.stat # 0 has no
 *   user.  sdusers LAST, so an interrupted strip leaves an SD user who can no
 *   longer enter SD accounts at all, which is the safer state.
-* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  sdadmin and sdapi are no longer stripped
-*   here: the groups do not exist any more.
+* 18 Sep 26 dm - TEARDOWN (S.26).  sdadmin is no longer stripped here: the
+*   group does not exist any more.
+* 20 Sep 26 dm - S.29.  sdssh and sdapi are stripped again, and BEFORE sdusers
+*   for the reason the ordering comment above gives: each membership is a
+*   remote ROUTE, so an interrupted strip must leave the kept Linux user with
+*   fewer ways in, never more.  Left behind, they would hand a later account of
+*   the same name the routes this one had - the shape $cred's removal exists
+*   to prevent.
                strip.user = os.user
+               strip.group = 'sdssh'   ; gosub strip.membership
+               strip.group = 'sdapi'   ; gosub strip.membership
                strip.group = 'sdusers' ; gosub strip.membership
          end case
       end
