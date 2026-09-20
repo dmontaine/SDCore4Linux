@@ -32,11 +32,11 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.35** | S | ***SDSYS HAS NO REMOTE ACCESS AT ALL*** (owner, 19 Sep 2026: "sdsys should not have any remote access from ssh or api"). A remote sdsys session is now refused AT THE DOOR by `cproc` (10191 — written as 10177, restored from S.34 and wired at last, renumbered by S.36; audited `reason=sdsys session from a remote transport`); before this it was refused one room further in, by `login:334` at SDSYS account entry (10002) — a hardening, not a hole, and the earlier report of a silent fall-through was wrong. The API half was already served by S.33 (10174 remote, 10922 not-sdsys-on-the-socket). ***§BUILT§ 19 Sep 2026, UNWITNESSED*** — left: one cycle for `witness-absence` M12a-d, written and unrun | — |
 | ✅ | **S.36** | M | ***DONE 20 Sep 2026*** — the six teardown messages 10176-10181 move to ***10190-10195***; SD Core for Windows had independently allocated the same block for its case-insensitivity conversion, so one number meant two things across the ports. Neither was upstream (`sdb64`'s 10000 range stops at 10029), so neither had seniority. Settled between the two agents under the owner's delegation of 20 Sep; this port moved because its cycle was owed anyway. Numbers only — no message text changed, and PROJECT_STATUS history keeps the numbers it used at the time | 20 Sep 2026 |
 | ✅ | **S.34** | S | ***DONE 19 Sep 2026 — THREE DELETED, AND THE FOURTH CAME BACK THE SAME NIGHT (S.35): 10177 was UNFINISHED, NOT DEAD*** (and is 10191 since S.36). Message records in this port's range with no caller: 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
-| ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED*** — left: one cycle for §13e E3/E3c/E3d/E3e, which are written and unrun | — |
+| ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, STILL UNWITNESSED — THE 20 Sep CYCLE TRIED AND THE INSTRUMENT STOPPED IT.*** §13e E0 fed the NEW password to a `Current password:` prompt it did not expect, so no throwaway credential was set and E3/E3c/E3d/E3e/E4/E5 all measured a machine with none (`API REFUSED … reason=wrong password` six times). ***THE PREMISE WAS THIS ENTRY'S OWN CHANGE***: the installer now sets sdsys's SD password, so `MODIFY.PASSWORD sdsys` in a sdsys session is `own and has.cred` (`set_acc_password:235`). ***AND THE OLD E6 DELETED THE OWNER'S sdsys CREDENTIAL***, calling the absence "the install's state". Fixed: the record is stashed and restored byte for byte, E0b anchors on the failure wording, the section REFUSES if it cannot stash. Left: one cycle for §13e E0-E6 | — |
 | ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
-| ◐ | **S.29** | L | ***ALL THREE PARTS BUILT, AND THE `MODIFY.ACCOUNT`/sshd HALF IS §WITNESSED§ 20 Sep 2026 — the owner's `witness-absence --commit` on install `5f74c15` (14:12:24), 92/93.*** The door drives both ways on a real install: M5a-g (`NONE`→`SSH`→`API`→`BOTH`→`BOTH` again, membership read from `id -nG`), M5f (no route word at create gave both), M7b/M7b2/M7c2 (both groups exist, sdsys in neither), M7i-M7i4 (the sshd arm, ORDER 148 < 154, its command, forwarding shut), M7i5/M7i6 (`--refuse` as the account: *"zzabst is not permitted to reach SD over ssh"*, non-zero).  Left: ***the API gate (10073) and a real ssh login are STILL UNWITNESSED*** — release-run §13f F1-F6 and §14 X7-X9b, which that run does not reach, plus a re-run of witness-absence.  The ONE failure was an instrument, M9d, matching `printf.*Match Group` on one line; it and M9b (passing because its pattern missed a loop variable) and `run_sd`'s title-as-command are fixed, so ***witness-absence is owed a re-run***.  Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants.  Partly reverses S.28's disposal | — |
+| ✅ | **S.29** | L | ~~parts 1-2~~ ***ALL THREE PARTS BUILT AND §WITNESSED§ 20 Sep 2026 ON INSTALL `5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.*** `witness-release-run --commit` (14:54:48): ***§13f F4 — a real SCRAM login REFUSED with 10073 after `MODIFY.ACCOUNT zzrel1 NONE`***, between F2 and F6 admitting the same login either side, F3b/F5b reading `id -nG`; ***§14 X8 — a real ssh login REFUSED with "zzrel1 is not permitted to reach SD over ssh"***, X8b never reached sd, X9b ssh works again after `BOTH`, X7b `no yes` proving the two routes independent. `witness-absence --commit` re-run after its instrument fixes: ***96 of 96*** — M5a-g the door both ways, M7b/M7b2/M7c2, M7i-M7i6 (arm ORDER 148 < 154, `--refuse` driven). Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants. Three instrument faults found and fixed on the way (M9d, M9b, `run_sd`'s title-as-command). Partly reverses S.28's disposal | 20 Sep 2026 |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
@@ -620,7 +620,38 @@ display *").  Two faults no reading of the source would have shown:
   - Not in the changelog: nothing a user could have seen changed.  These
     records were unreachable, which is the whole reason they went.
 - ***[S.33] SDSYS'S API DOOR ASKS THE KERNEL, NOT THE ADDRESS — §BUILT§
-  19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED.***  Owner,
+  19 Sep 2026, C COMPILES CLEAN, STILL UNWITNESSED: THE 20 SEP CYCLE TRIED
+  AND ITS OWN INSTRUMENT STOPPED IT.***
+  - ***THE SIX FAILURES WERE ONE FAULT AND THE PRODUCT WAS RIGHT EVERY
+    TIME.***  §13e E0 sets a throwaway sdsys credential with
+    `MODIFY.PASSWORD sdsys` and feeds it two lines.  The verb asked
+    `Current password:` first, took the new password as the answer, printed
+    *"Password not changed."*, and the second line landed at the `:` prompt
+    (*"… is not in your VOC"*).  E3/E3c/E3d/E3e/E4/E5 then measured a machine
+    with no matching credential — the trail reads `API REFUSED user=sdsys
+    reason=wrong password` six times, which is the right answer to the
+    question actually asked.
+  - ***THE STALE PREMISE WAS THIS ENTRY'S OWN CHANGE.***  The section's
+    comment said *"sdsys carries no credential by ruling (the installer does
+    not set one)"*.  S.33 and S.37 reversed exactly that, so
+    `MODIFY.PASSWORD sdsys` in a sdsys session is now `own and has.cred`
+    (`set_acc_password:235`).  **A section that measures a door has to be
+    re-read when the door's other half moves.**
+  - ***AND THE OLD E6 DELETED THE OWNER'S OWN sdsys CREDENTIAL***, `rm -f`ing
+    the record and calling the absence *"the install's state"* — true before
+    S.33, false since.  It ran on 20 Sep, so **that machine's sdsys SD
+    password is gone and has to be set again** (a local sdsys session,
+    `MODIFY.PASSWORD sdsys`; with no record present it takes the "setting the
+    first one" path and asks for no current password).
+  - **Fixed, same day**: the real record is stashed with `cp -p` and a sha256
+    taken, `rm`'d so the verb sees no credential, and E6 restores it and
+    COMPARES THE SUM — a restore that put back the wrong bytes would satisfy
+    a mere "does it exist".  A new E0b anchors on the FAILURE wording
+    (*"Password not changed."*) so the next such change reads as one row
+    rather than six cascading refusals.  If the stash cannot be made the
+    whole section is NOT REACHED: overwriting the administrator's real
+    credential is not a thing to do by accident.  ***UNRUN.***
+  - *As first filed:*  Owner,
   19 Sep 2026, in two steps: first *"logto sdsys should also not be
   available… only an elevated session by a user logged in as sdsys should
   be able to access sd's sdsys account"*, then, on being shown what that
@@ -1328,10 +1359,25 @@ Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured
 *19 Sep 2026: the per-account half of "disposed" is reversed by a later owner ruling — see S.29.*
 
 ***[S.29] PER-ACCOUNT SSH AND API ROUTES COME BACK, DEFAULT ON, A TWO-WAY
-DOOR — ALL THREE PARTS BUILT 20 SEP 2026, AND THE VERB/sshd HALF IS
-§WITNESSED§ ON INSTALL `5f74c15` (the owner's `witness-absence --commit`,
-14:12:24, 92 of 93).  §OPEN§ FOR THE OTHER HALF: THE API GATE AND A REAL SSH
-LOGIN HAVE NOT RUN.***
+DOOR — CLOSED 20 SEP 2026.  ALL THREE PARTS BUILT AND §WITNESSED§ ON INSTALL
+`5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.***
+
+***THE ENFORCEMENT, MEASURED — `witness-release-run --commit`, 14:54:48,
+239/248 (every failure in §13e, S.33's, none of them S.29's).***
+- ***§13f: THE API DOOR, DRIVEN BOTH WAYS ON A REAL SCRAM LOGIN.***  F1 the
+  group exists, F1b `zzrel1` starts with the route, F2/F2b *"account zzrel1:
+  entered"* and no 10073 — the control; ***F3 `NONE` → F3b `id -nG` says not
+  in sdapi → F4 THE ROW, the same login now refused in 10073's words, F4b it
+  never entered***; F5/F5b `BOTH` puts it back, F6 the login works again.
+- ***§14: THE ssh DOOR, ON THE PROJECT'S ONLY REAL ssh LOGIN.***  X1 the
+  control landed in sd; X7 `API` withdraws ssh and keeps the API, X7b the
+  machine agrees `no yes`; ***X8 the ssh login refused with "zzrel1 is not
+  permitted to reach SD over ssh", X8b never reached sd***; X9 `BOTH`, X9b
+  ssh lands in sd again and WHO names the account.  Asking for `API` rather
+  than `NONE` is what makes X8 mean something: the account still had its API
+  route, so the refusal cannot be read as "it lost everything".
+- **`witness-absence --commit`, re-run after its own instrument fixes: 96 of
+  96**, every session now one command per title.
 
 ***THE CYCLE, 20 SEP 2026 — WHAT IT ACTUALLY SHOWED.***  `witness-absence.sh
 --commit`, root, on `5f74c15` (`/usr/local/sdsys/.sdcore-install`, installed
@@ -1380,8 +1426,8 @@ LOGIN HAVE NOT RUN.***
   false positive waiting for a verb that is not idempotent — M5g's stray
   *"Unexpected token (("* was the same fault, visible.  Fixed at the
   convention, not the call sites: `run_sd`'s first argument is the TITLE.
-- ***SO WITNESS-ABSENCE IS OWED A RE-RUN*** — the instrument changed after the
-  measurement.  The product did not, and the machine-state rows stand.
+- ~~***SO WITNESS-ABSENCE IS OWED A RE-RUN***~~ ***— RE-RUN THE SAME
+  AFTERNOON: 96 of 96, every fault gone and every earlier row still passing.***
 
 ***WHAT IS BUILT (20 Sep 2026).***  Part 1, `96bf3e1`: `sdssh` and `sdapi`
 are ALLOW groups and membership IS the route (the port's shape; an allow
