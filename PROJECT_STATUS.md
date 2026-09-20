@@ -32,11 +32,12 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.35** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026 on the S.38 cycle's `witness-absence --commit`: M12a-d, 4 of 4, "found `may not administer over ssh or the API`" (10191).*** SDSYS HAS NO REMOTE ACCESS AT ALL (owner, 19 Sep 2026: "sdsys should not have any remote access from ssh or api"). A remote sdsys session is refused AT THE DOOR by `cproc` (10191 since S.36; audited `reason=sdsys session from a remote transport`); before this it was refused one room further in, by `login:334` at SDSYS account entry (10002) — a hardening, not a hole, and the earlier report of a silent fall-through was wrong. The API half was already served by S.33 (10174 remote, 10922 not-sdsys-on-the-socket) | 20 Sep 2026 |
 | ✅ | **S.36** | M | ***DONE 20 Sep 2026*** — the six teardown messages 10176-10181 move to ***10190-10195***; SD Core for Windows had independently allocated the same block for its case-insensitivity conversion, so one number meant two things across the ports. Neither was upstream (`sdb64`'s 10000 range stops at 10029), so neither had seniority. Settled between the two agents under the owner's delegation of 20 Sep; this port moved because its cycle was owed anyway. Numbers only — no message text changed, and PROJECT_STATUS history keeps the numbers it used at the time | 20 Sep 2026 |
 | ✅ | **S.34** | S | ***DONE 19 Sep 2026 — THREE DELETED, AND THE FOURTH CAME BACK THE SAME NIGHT (S.35): 10177 was UNFINISHED, NOT DEAD*** (and is 10191 since S.36). Message records in this port's range with no caller: 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
-| ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, STILL UNWITNESSED — THE 20 Sep CYCLE TRIED AND THE INSTRUMENT STOPPED IT.*** §13e E0 fed the NEW password to a `Current password:` prompt it did not expect, so no throwaway credential was set and E3/E3c/E3d/E3e/E4/E5 all measured a machine with none (`API REFUSED … reason=wrong password` six times). ***THE PREMISE WAS THIS ENTRY'S OWN CHANGE***: the installer now sets sdsys's SD password, so `MODIFY.PASSWORD sdsys` in a sdsys session is `own and has.cred` (`set_acc_password:235`). ***AND THE OLD E6 DELETED THE OWNER'S sdsys CREDENTIAL***, calling the absence "the install's state". Fixed: the record is stashed and restored byte for byte, E0b anchors on the failure wording, the section REFUSES if it cannot stash. Left: one cycle for §13e E0-E6 | — |
-| ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
+| ✅ | **S.33** | M | ***CLOSED — §WITNESSED§ 20 Sep 2026 ON `witness-release-run --commit`, ALL 15 ROWS OF §13e.*** `apisrvr` admits SDSYS only on the Unix socket and only when `SO_PEERCRED` says the peer IS sdsys: E1/E1b the control login; E0/E0b the throwaway credential set cleanly (no `Current password:` snag); E3/E3b sdsys refused over loopback TCP (10922); E3c/E3c2 admitted over the socket AS sdsys; E3d/E3d2 the same credential refused when a DIFFERENT user (`zzrel1`) opens the socket; E3e audited naming the opener; E4/E4b the remote case still refused (10174); E5 audited with the peer's address; ***E6 restored the owner's own sdsys credential BYTE FOR BYTE (sha256 compared, matched)***. SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued | 20 Sep 2026 |
+| ✅ | **S.37** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026, THE OWNER AT THE KEYBOARD ON THE S.38 CYCLE'S INSTALL (`b8e195d`).***  Confirmed directly: the order was his own SD password, then sdsys's Linux one, then sdsys's SD one, each heading naming the account and which password; a successful entry said only "Password accepted", no extra noise.  The install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***BUILT 20 Sep***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted` | 20 Sep 2026 |
 | ✅ | **S.32** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026 on the S.38 cycle's `witness-absence --commit`, BOTH PROGRAMS, NEITHER FALSIFIER FOUND.*** `set_passwd` (CREATE.ACCOUNT's Linux password): M2g/M2h, "attempt 1 of 3" filled in. `set_acc_password` (MODIFY.PASSWORD): M11a/M11a2, "attempt 3 of 3" filled in. Neither a bare number, an empty expansion, nor 10921 not found — the entry's own falsification test. The attempt count is message 10921 (the port's number and text, agreed by mail 19 Sep 14:00), `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`; free check `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants) | 20 Sep 2026 |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ✅ | **S.38** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026 ON A REAL DELETE/INSTALL CYCLE, AND AT THE OWNER'S OWN LOGIN SCREEN.***  His ruling: *"the account needs to be created so that users can get to it through the login screen to match windows"*.  `installsdai.sh` drops `--system` from the `useradd`, so sdsys gets a uid at or above `UID_MIN` and the greeter lists it; the shell and home it already gave were there for exactly this and `--system` was quietly defeating them.  ***sd-elevate REFUSES sdsys BY NAME, NOT BY UID — CHECKED BEFORE THE FLAG MOVED***, so raising the uid opens no door a uid test was holding shut (`require_sd_user`).  ***THE OWNER, AT THE KEYBOARD: "verified - sdsys appears on login screen."***  `witness-absence --commit`, same cycle, ***99 of 99*** — M7c3/M7c4/M7c5 (uid 1005 ≥ UID_MIN 1000, a real shell, a home) all PASS where M7c3 failed before the cycle.  An EXISTING sdsys (a keep-accounts cycle) still keeps its old uid and the installer says so; that path is unwitnessed, by construction — this cycle removed accounts | 20 Sep 2026 |
+| ◐ | **S.39** | S | ***FOUND AND FIXED 20 SEP 2026, SAME SESSION — A WITNESS ROW HARD-CODED SDSYS'S UID.*** `witness-release-run.sh`'s S.2 test (`§2`, S2.a) drove `setpriv --reuid 999` to become sdsys and check CPROC's LOGTO group refresh; sdsys was a `--system` account (fixed at 999) until S.38 gave it an ordinary uid, so the very next cycle after S.38 handed `--reuid` a number belonging to nobody-in-particular and CPROC refused the session outright (*"not registered for String Database (sd) use"*) instead of measuring anything — measured live: 247/249 with S2.a the one real failure, R3's NOT REACHED expected (needs a keep-configuration cycle). ***THE SAME TRAP AS M9d/M9b/M7b***: a fact the product no longer promises, baked into an instrument rather than read from the machine. Fixed: `SDSYS_UID=$(id -u sdsys)` replaces the literal. `bash -n` clean, ***NOT YET RE-RUN*** — left: one `witness-release-run --commit` to see S2.a pass | — |
 | ⬜ | **W.12** | S | ***WAITING FOR THE OWNER — THE SHARED MESSAGE-NUMBER SPACE HAS COLLIDED FOUR TIMES AND NOBODY NOTICED.***  The port mailed 20 Sep that it is taking 10922; ***measured here first: 10922 is in service since 19 Sep*** (`sdsys/messages/10922`, caller `apisrvr:1381`, `8c78e44`, a security refusal on SDSYS's API door).  Its block-mates are taken here too, all 19 Sep, all with callers and different meanings: 10919 `delacc` (`a35b30e`), 10920 and 10921 `set_acc_password`/`set_passwd` (`60ac74a`, `127057d`).  ***NOTHING BREAKS AT RUN TIME*** - a user sees only their own port's file - but "the same number means the same thing in both ports" is false today.  First-come-and-tell-the-other-side has now failed four times; a replacement convention (disjoint ranges, or a declared block per port) is a new shared rule and is the owners' to settle, not ours.  Told to the port 20 Sep (`to-windows/2026-09-20T1515`), with the asymmetry noted: theirs is unrun, ours is shipped | — |
 | ✅ | **S.29** | L | ~~parts 1-2~~ ***ALL THREE PARTS BUILT AND §WITNESSED§ 20 Sep 2026 ON INSTALL `5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.*** `witness-release-run --commit` (14:54:48): ***§13f F4 — a real SCRAM login REFUSED with 10073 after `MODIFY.ACCOUNT zzrel1 NONE`***, between F2 and F6 admitting the same login either side, F3b/F5b reading `id -nG`; ***§14 X8 — a real ssh login REFUSED with "zzrel1 is not permitted to reach SD over ssh"***, X8b never reached sd, X9b ssh works again after `BOTH`, X7b `no yes` proving the two routes independent. `witness-absence --commit` re-run after its instrument fixes: ***96 of 96*** — M5a-g the door both ways, M7b/M7b2/M7c2, M7i-M7i6 (arm ORDER 148 < 154, `--refuse` driven). Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants. Three instrument faults found and fixed on the way (M9d, M9b, `run_sd`'s title-as-command). Partly reverses S.28's disposal | 20 Sep 2026 |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
@@ -302,8 +303,12 @@ not work there.  The parity plan is `/home/don/Documents/claude_plan.md`.
 working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 `to-linux/` was empty when this session closed.
 
-***[S.37] THE INSTALL'S THREE PASSWORD PROMPTS — §BUILT§ 20 SEP 2026,
-UNWITNESSED.***  The owner ran an install and could not tell whose password
+***[S.37] THE INSTALL'S THREE PASSWORD PROMPTS — CLOSED, §WITNESSED§
+20 SEP 2026 AT THE KEYBOARD ON `b8e195d`.***  Confirmed directly by the
+owner: the order was his own SD password, then sdsys's Linux one, then
+sdsys's SD one, each heading naming the account and which password; a
+successful entry said only "Password accepted".  *As built:*  The owner ran
+an install and could not tell whose password
 each prompt wanted: "first the OS Sdsys User, then the OS don (installer,
 me) user, then the SD Sdsys user ... confusing that it goes sdsys, os,
 sdsys".  The middle one was not his Linux password at all - it was his
@@ -405,24 +410,27 @@ display *").  Two faults no reading of the source would have shown:
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, LATER STILL.  READ THIS FIRST.***
-- ***THE INSTALL IS `b8e195d` (S.38), 15:21:06, A DELETE/INSTALL THAT REMOVED
-  ACCOUNTS.***  `witness-absence --commit` on it: ***99 of 99***.  Closed
-  this cycle: S.29 (already witnessed on `5f74c15`, see below), **S.32**
-  (M2h/M11a2, both password programs), **S.35** (M12a-d), **S.38**
-  (M7c3-c5, and the owner confirmed it at the screen: *"verified - sdsys
+- ***THE INSTALL IS `b8e195d` (S.38), 15:21:06.***  `witness-absence
+  --commit`: ***99 of 99***.  `witness-release-run --commit`
+  (`/var/tmp/witness-release-run.20260920-154751.log`): ***247 of 249***,
+  one real failure (S2.a) and one expected NOT REACHED (R3, needs a
+  keep-configuration cycle).  Closed this cycle: S.29 (already witnessed on
+  `5f74c15`), **S.32** (M2h/M11a2), **S.33** (§13e, all 15 rows, E6's
+  byte-for-byte credential restore), **S.35** (M12a-d), **S.37** (the owner
+  directly, at the keyboard), **S.38** (M7c3-c5 and *"verified - sdsys
   appears on login screen"*).
-- ***STILL OPEN: S.33 and S.37.***  S.33 needs `witness-release-run.sh
-  --commit` — its §13e was fixed this session (the stash/restore for
-  sdsys's credential) but not re-run since; that same run also owes S.29's
-  API/ssh rows a second look on THIS install (they already passed on
-  `5f74c15`, whose product is byte-identical - see the note below - but a
-  fresh run costs nothing and closes the loop).  S.37 needs the owner
-  watching the three password prompts on a real install, which this cycle's
-  transcript does not show.
-- **The next cycle needs no delete/install** — `git diff --stat
-  b8e195d..HEAD` is documentation only, so this install stays current for
-  a `witness-release-run.sh --commit` run:
+- ***S2.a's FAILURE IS S.39, FOUND AND FIXED THE SAME SESSION.*** The row
+  drove `setpriv --reuid 999` to become sdsys; S.38 gave sdsys an ordinary
+  uid, so the literal now names nobody-in-particular and CPROC refused the
+  session outright instead of measuring the LOGTO group refresh.  Fixed:
+  the uid is read with `id -u sdsys`.  ***NOT YET RE-RUN*** — the next
+  `witness-release-run --commit` should show S2.a pass; if it does not, S.39
+  is not what it looks like.
+- **This install stays current for that re-run** — nothing shipped has
+  changed since `b8e195d` (only the witness script and this document):
   `sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit`
+- **Nothing else is owed.**  Every built-and-unwitnessed item from earlier
+  today is closed or (S.39) fixed and awaiting one more run.
 - **Mailbox**: `to-linux/` empty at last check.  W.12 (shared message-number
   space) is with the owner.
 
@@ -644,9 +652,11 @@ display *").  Two faults no reading of the source would have shown:
     piece of work if the owner wants it.
   - Not in the changelog: nothing a user could have seen changed.  These
     records were unreachable, which is the whole reason they went.
-- ***[S.33] SDSYS'S API DOOR ASKS THE KERNEL, NOT THE ADDRESS — §BUILT§
-  19 Sep 2026, C COMPILES CLEAN, STILL UNWITNESSED: THE 20 SEP CYCLE TRIED
-  AND ITS OWN INSTRUMENT STOPPED IT.***
+- ***[S.33] SDSYS'S API DOOR ASKS THE KERNEL, NOT THE ADDRESS — CLOSED,
+  §WITNESSED§ 20 SEP 2026: `witness-release-run --commit`, §13e, ALL 15
+  ROWS PASS, INCLUDING E6's BYTE-FOR-BYTE RESTORE OF THE OWNER'S OWN
+  CREDENTIAL.***  The 20 Sep cycle's first attempt failed on its own
+  instrument, fixed the same session; this run is the re-measurement.
   - ***THE SIX FAILURES WERE ONE FAULT AND THE PRODUCT WAS RIGHT EVERY
     TIME.***  §13e E0 sets a throwaway sdsys credential with
     `MODIFY.PASSWORD sdsys` and feeds it two lines.  The verb asked
@@ -949,7 +959,41 @@ found, and what HEAD changes (none of it installed):
    - ***WHAT WOULD FALSIFY THE FIX***: a greeter that does list sdsys (some
      "Not listed?" prompts accept any name — untested here, and not asserted
      either way), or a distribution whose `UID_MIN` is below 999.
-8. ***[W.12] THE SHARED MESSAGE-NUMBER SPACE — WAITING FOR THE OWNER, AND
+8. ***[S.39] S.38 BROKE A WITNESS ROW THAT ASSUMED SDSYS IS ALWAYS UID 999
+   — FOUND AND FIXED 20 SEP 2026, SAME SESSION.  §OPEN§ FOR ONE RE-RUN.***
+   The very next `witness-release-run --commit` after S.38 landed (install
+   `b8e195d`) scored 247 of 249, with one genuine failure: S2.a, *"WHO
+   reports the session in zzrel1"*, got *"This user is not registered for
+   String Database (sd) use"* / *"Connection terminated"* instead.
+   - ***THE CAUSE: `gplbld/witness-release-run.sh:500` hard-coded `setpriv
+     --reuid 999`.***  The row exists to prove CPROC's LOGTO refreshes a
+     STALE group list — it starts a session whose process predates
+     `sdu_zzrel1`, becomes sdsys via `setpriv`, and checks that `LOGTO
+     zzrel1` still works.  Becoming sdsys meant becoming uid 999, because
+     until today that was sdsys's uid unconditionally — a `--system`
+     account, fixed at 999, is exactly what S.38 removed.
+   - ***SO THE ROW BECAME WRONG THE MOMENT S.38 LANDED, AND NOTHING ABOUT
+     THE ROW ITSELF CHANGED.***  With sdsys reassigned to an ordinary uid
+     (1005 on this install), `--reuid 999` no longer means sdsys — it means
+     whichever uid 999 now resolves to, or nobody at all — and CPROC
+     correctly refused a session that was never really sdsys.  ***THE SAME
+     TRAP AS M9d/M9b/M7b (§S.29's cycle, same day)***: an instrument that
+     encodes a fact about the product rather than asking the product, and
+     a change on one side breaks a check on a completely different one with
+     no shared code path between them.
+   - **Fixed**: `SDSYS_UID=$(id -u sdsys)` resolves the real uid immediately
+     before the `setpriv` call, replacing the literal.  `bash -n` clean.  A
+     stale comment in `interop-account.sh` (*"uid 999"*) was also fixed in
+     passing — descriptive only, no functional effect, found by the same
+     grep for `999` that turned up nothing else live.
+   - ***UNWITNESSED***: the fix has not been re-run.  Left: one
+     `witness-release-run --commit` on this same install (nothing shipped
+     has changed, so no delete/install is needed) to see S2.a pass.
+   - ***WHAT WOULD FALSIFY IT***: S2.a still failing after the fix (wrong
+     diagnosis), or a NEW failure appearing where S2.a used to be reached
+     (the `setpriv --groups` list or `--regid` argument also assumed
+     something that changed).
+9. ***[W.12] THE SHARED MESSAGE-NUMBER SPACE — WAITING FOR THE OWNER, AND
    THE NUMBER IS NOT THE POINT.***  The port mailed 20 Sep that it is taking
    10922.  ***Measured here before replying: 10922 has been in service since
    19 Sep*** — `sdsys/messages/10922`, caller `apisrvr:1381`, commit

@@ -495,9 +495,19 @@ if [ "$COMMIT" -eq 1 ]; then
         #   session without a sdsys login) - right, and it measured nothing.
         #   The bridge sets only the loginuid; the stale group list, which is
         #   what this row is about, still comes from setpriv.
+        # 20 Sep 26 - ***--reuid WAS HARD-CODED TO 999 AND S.38 MADE THAT
+        #   FALSE.***  sdsys was a --system account (always 999) until S.38
+        #   gave it an ordinary uid so the greeter would list it; this row went
+        #   on assuming the old number and, on the very next cycle, set the
+        #   real uid to an account that is no longer sdsys - CPROC then refused
+        #   the session outright ("not registered for String Database (sd)
+        #   use") instead of measuring the group refresh at all.  THE SAME TRAP
+        #   AS M9d/M9b/M7b: a number the product no longer promises, baked into
+        #   an instrument.  Read from the machine instead.
+        SDSYS_UID=$(id -u sdsys)
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nLOGTO %s\nWHO\nOFF\n' "$ACC" \
               | timeout 60 sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec "$@"' sd-run \
-                setpriv --reuid 999 --regid "$GID_SDU" --groups "$(id -G | tr ' ' ',')" -- "$SD" 2>&1 | strip)
+                setpriv --reuid "$SDSYS_UID" --regid "$GID_SDU" --groups "$(id -G | tr ' ' ',')" -- "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
         if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
             ck "S2.a WHO reports the session in $ACC" yes yes
