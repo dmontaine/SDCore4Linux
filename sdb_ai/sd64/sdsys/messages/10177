@@ -1,3 +1,0 @@
-SD administration needs a local session.
-The sdsys OS user may not administer over ssh or the API;
-run sd as that user on the machine itself.
