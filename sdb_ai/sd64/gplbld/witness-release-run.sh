@@ -1330,7 +1330,7 @@ say "  this host's first global IPv4 address: '${LANIP:-none}'"
 say "  TCP listeners on 4243: '${LISTEN:-none}'"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
-    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
+    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
 else
     OUT=$(sprobe "E1 CONTROL: $ACC over the LAN address" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
     E1OK=no
@@ -1341,19 +1341,69 @@ else
     fi
     if [ "$COMMIT" -eq 1 ] && [ "$E1OK" != yes ]; then
         say "  the control failed, so the route over $LANIP does not work here (listeners: ${LISTEN:-none}) - the gate cannot be measured"
-        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
+        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
     else
         # THE TEARDOWN'S DOOR (S.17 became S.28): only SDSYS is refused over
-        # the API unless the connection is from this machine.  sdsys carries
-        # no credential by ruling (the installer does not set one), so a
-        # throwaway one is set, measured against, and removed again - the
-        # machine is left as the install made it.
+        # the API unless the connection is from this machine.  A throwaway
+        # credential is set for sdsys, measured against, and the machine put
+        # back as the install made it.
+        #
+        # 20 Sep 26 - ***THE PREMISE THIS SECTION WAS BUILT ON IS GONE, AND THE
+        #   20 SEP CYCLE IS WHERE IT SHOWED: SIX ROWS FAILED AND THE PRODUCT WAS
+        #   RIGHT EVERY TIME.***  It used to say "sdsys carries no credential by
+        #   ruling (the installer does not set one)".  S.33 and S.37 reversed
+        #   that - the installer now ASKS for sdsys's SD password (the third of
+        #   three) and sets it, because the API door was previously held shut by
+        #   nothing but a credential never being issued.  So `MODIFY.PASSWORD
+        #   sdsys` in a sdsys session is `own and has.cred`
+        #   (set_acc_password:235) and asks "Current password:" first.  The
+        #   witness answered it with the NEW password, got "Password not
+        #   changed.", and E3/E3c/E3d/E3e/E4/E5 then measured a machine with no
+        #   matching credential - the trail reads `API REFUSED user=sdsys
+        #   reason=wrong password` for every one of them.
+        #
+        # ***AND THE OLD E6 DELETED THE OWNER'S OWN sdsys CREDENTIAL.***  It
+        #   `rm -f`'d the record and called the absence "the install's state",
+        #   which stopped being true the day the installer started setting one.
+        #   A witness may not quietly take away something the install put there.
+        #
+        # SO THE RECORD IS STASHED, NOT OVERWRITTEN.  The witness is root: it
+        # moves the real record aside, which makes `has.cred` false so the verb
+        # takes its "setting the first one" path with no current-password
+        # prompt, and E6 puts the original back byte for byte.  If the stash
+        # cannot be made, every row here is NOT REACHED - measuring the door
+        # with the administrator's real credential in place is not a thing to
+        # do by accident.
+        SDSYS_CRED="$SDSYS/\$cred/sdsys"
+        SDSYS_CRED_SAVED=""
+        SDSYS_CRED_SUM=""
+        if [ "$COMMIT" -eq 1 ] && [ -f "$SDSYS_CRED" ]; then
+            SDSYS_CRED_SAVED=$(mktemp) || SDSYS_CRED_SAVED=""
+            if [ -n "$SDSYS_CRED_SAVED" ] && cp -p "$SDSYS_CRED" "$SDSYS_CRED_SAVED"; then
+                SDSYS_CRED_SUM=$(sha256sum < "$SDSYS_CRED" | cut -d' ' -f1)
+                say "  the install's sdsys credential is stashed (sha256 ${SDSYS_CRED_SUM:0:16}…); E6 puts it back"
+                rm -f "$SDSYS_CRED"
+            else
+                SDSYS_CRED_SAVED=""
+            fi
+        fi
+        say "  sdsys credential present before MODIFY.PASSWORD: $(yesno_file "$SDSYS_CRED")   (must be no, or the verb asks for the current one)"
+        if [ "$COMMIT" -eq 1 ] && [ -f "$SDSYS_CRED" ]; then
+            say "  REFUSING this section: the sdsys credential could not be stashed, and overwriting the administrator's own is not something to do by accident"
+            for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
+            SDSYS_PW=""
+        else
         SDSYS_PW="Zy-$(head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 57)q2"
         PW_OS="$SDSYS_PW"
         OUT=$(run_sd sdsys "MODIFY.PASSWORD sdsys (a throwaway credential for this section)" \
               "MODIFY.PASSWORD sdsys" "_PW_" "_PW_")
         PW_OS=""
         [ "$COMMIT" -eq 1 ] && ck_says "E0 a throwaway sdsys credential was set" "Password set for account sdsys" "$OUT"
+        # ANCHOR ON THE FAILURE WORDING TOO: "Password not changed." is what a
+        # refused current-password entry prints, and it is the exact way this
+        # section broke on 20 Sep.  A row that only looks for success would let
+        # the next such change through as six cascading refusals again.
+        [ "$COMMIT" -eq 1 ] && ck_absent "E0b and it was not stopped at a current-password prompt" "Password not changed." "$OUT"
         N0=0
         [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
         # 19 Sep 26 dm - E3 REVERSES (owner, 19 Sep 2026).  Loopback TCP used to
@@ -1416,10 +1466,29 @@ else
         #   entry means "leave the password unchanged" (set_acc_password:192), and
         #   the first real run's E6 asked the verb for a "Password REMOVED"
         #   message the product has never had.  The register is one file per
-        #   account and the witness runs as root, so the file goes and the row
-        #   reads the machine back.
-        rm -f "$SDSYS/\$cred/sdsys"
-        [ "$COMMIT" -eq 1 ] && ck "E6 the throwaway sdsys credential is gone (the install's state)" no "$(yesno_file "$SDSYS/\$cred/sdsys")"
+        #   account and the witness runs as root, so the file is handled here
+        #   and the row reads the machine back.
+        # 20 Sep 26 - AND THE THROWAWAY IS REPLACED BY THE ORIGINAL, NOT BY
+        #   NOTHING.  The install sets sdsys's SD password (S.33/S.37), so
+        #   "the install's state" is a record that EXISTS with the owner's own
+        #   key in it.  The row compares the sha256 the stash was taken with,
+        #   because a restore that put back the wrong bytes would satisfy a
+        #   mere "does it exist".
+        rm -f "$SDSYS_CRED"
+        if [ -n "$SDSYS_CRED_SAVED" ] && [ -f "$SDSYS_CRED_SAVED" ]; then
+            cp -p "$SDSYS_CRED_SAVED" "$SDSYS_CRED"
+            rm -f "$SDSYS_CRED_SAVED"
+            [ "$COMMIT" -eq 1 ] && ck "E6 the install's own sdsys credential is back, byte for byte" \
+               "$SDSYS_CRED_SUM" "$(sha256sum < "$SDSYS_CRED" 2>/dev/null | cut -d' ' -f1)"
+        else
+            # No stash means the install had no sdsys credential to begin with -
+            # a pre-S.33 install, or one where the owner skipped that password.
+            # Then the absence IS the state to return to, and the row says which
+            # of the two cases it is rather than leaving a reader to guess.
+            say "  (no stash: this install had no sdsys credential, so the absence is what it goes back to)"
+            [ "$COMMIT" -eq 1 ] && ck "E6 the throwaway sdsys credential is gone (this install had none)" no "$(yesno_file "$SDSYS_CRED")"
+        fi
+        fi
     fi
 fi
 
