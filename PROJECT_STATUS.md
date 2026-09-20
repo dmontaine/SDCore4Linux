@@ -364,9 +364,13 @@ wording is gone and the end-of-install line reads like the other two.  Two
 judgements he did not make explicitly, flagged to him: the complexity
 sentence was KEPT (his sample omitted it, but he had asked for it one turn
 earlier and a rule learned only from a refusal costs an attempt); and SD's
--QUIET prompts name the ACCOUNT ("New SD don password: ") rather than saying
-"Your", because the installer runs both SD steps as sdsys and SD cannot tell
-whose account the person considers theirs.  It is still said where a step can be reached without the list
+-QUIET prompts name the ACCOUNT rather than saying "Your", because the
+installer runs both SD steps as sdsys and SD cannot tell whose account the
+person considers theirs.  He accepted that and gave the wording: "don is my
+name and the account name for another installer might be much longer so it
+should just read <Installers name> SD password" - so the prompt is
+`<account> SD password: `, and the three-item list pads to the longest of
+its own labels instead of the literal spaces that assumed a 3-letter name.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
