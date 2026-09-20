@@ -29,6 +29,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.28** | L | ***WITNESSED 19 Sep 2026 on `60ac74a` (seventh cycle, M5, M7a-h, release-run's API rows).*** ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  THE THIRD CYCLE RAN 19 Sep on `8fbe9d8` (install 00:45:42, `assert-current` current; ATTACH seeded `don` correctly): `witness-absence` 30/50, ONE ROOT CAUSE - `createa` `set.owner` handed the shell an unquoted path, `$hold` expanded to nothing, so the ACCOUNT DIRECTORY was chowned before `$hold.dic` was made (M2a; every M3-M6 fail cascades). Fixed (quoted), with 10176/10181 printing raw field marks (cproc) and two null-case false passes (M3c, release-run A5); release-run and accounts not run on it. ***THE FIFTH CYCLE RAN 19 Sep on `359d5ce` (install 09:4x, `assert-current` current): absence 59/60, release-run 218/224 (log `/var/tmp/witness-release-run.20260919-095341.log`), accounts 32/32 - M2/A4/M8f pass, so the third cycle's fix holds. Every failure but one was an instrument row still written for the old route (M10b sudo-rs wording; S2.a bare setpriv, refused 10181; L1's count; Y1/Y3 reach MODIFY.ACCOUNT from a VOC that has none; the cleanup ran sd as root, so zzrel2 was left). THE ONE PRODUCT DEFECT: DELETE.ACCOUNT left the account directory silently (sdsys cannot remove a 755 subtree the user made; `delacc` ignored OS$DELETE's result) - now `sd-elevate rmtree-account` + 10919. All fixed in `a35b30e`/`43f8140`/`47b0d15`.  ***THE SIXTH CYCLE RAN 19 Sep on `47b0d15` (install 10:22:53, `assert-current` A-D pass): absence 65/65 (log `/var/tmp/witness-absence.20260919-102748.log`), release-run 226/228 (`…-102835.log`; K10/K10a/K10b pass - the directory fix is witnessed; the fails were Y2c, an instrument row the Y1 reordering broke - suspended accounts are rightly refused entry after a VERIFIED proof - and R3, expected), accounts stopped in section 2 on a stale `/home/zzacct2` left by the fifth run (instrument: the ground check never looked at homes). Both fixed; accounts to re-run.*** Superseded: left: the fourth cycle. Earlier - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, and witnessed since.*** | 19 Sep 2026 |
 | ✅ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026; SEEN RUNNING on two installs' seeding***: 00:45 (third cycle) and `359d5ce` (fifth: `/home/sd/user_accounts/don` `don:sdu_don` 2775, observed 19 Sep) | 19 Sep 2026 |
 | ✅ | **S.31** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M2e/f, M11a-d) and by the owner at the keyboard.*** SD's own password rule (owner, 19 Sep 2026: "SD require it even if the OS does not for both SDSYS and any other accounts"; his choice: 8+, a-z, A-Z, 0-9 and a symbol, printable ASCII) - ***§BUILT§ 19 Sep, UNMEASURED***: `gpl.bp/pw_complex` + 10920; MODIFY.PASSWORD, `set_passwd` (SD prompts, `sd-elevate setpw` from stdin), installer's sdsys prompt (`chpasswd`); `test-sd-elevate` 132/132; witness M2e/f, M11a-d; mailed to the port (parity, approved here; the port built it, and took 10921 "That was attempt %1 of %2." - agreed; ours moves onto it with the next source change) | 19 Sep 2026 |
+| ✅ | **S.34** | S | ***DONE 19 Sep 2026***, four message records in this port's range deleted for having no caller: 10177 (written in the teardown, never wired — 10181 took its case), 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
 | ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED*** — left: one cycle for §13e E3/E3c/E3d/E3e, which are written and unrun | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
@@ -300,6 +301,38 @@ working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 - Install: still `60ac74a` (seventh cycle).  This session changed BASIC, so
   `assert-current` answers STALE and every measurement of the two password
   prompts below is owed a cycle.  Nothing here has run on an install.
+- ***[S.34] DONE 19 Sep 2026 — FOUR MESSAGE RECORDS WITH NO CALLER, DELETED***
+  (owner: "delete the orphan messages").  Found by the port's orphan check,
+  which it mailed at 19:45 after we reported its `update.voc` finding: *for
+  every message id your port added, grep the whole tree for the number; a
+  message with no caller is either dead text or a deletion that did not
+  finish.*
+  - **10913/10914/10915** — `%1 has no Linux user of its own…`, `The password
+    for %1 was changed`, `…passwd ended with status %2`.  Their callers went
+    on 14 Sep in `74c60d4`, when MODIFY.PASSWORD moved to the credential
+    register and stopped driving `passwd(1)`.  Five days dead; no compile, no
+    test and no lint could see it, because nothing referenced them.
+  - **10177** — written in the teardown (`e41d318`) and ***never wired***:
+    that commit is the only one that ever mentioned the number.  10181,
+    written later the same night after the owner corrected the route, took
+    its case.  PROJECT_STATUS claimed it as "added", so the document was
+    wrong about the machine too; both claims are struck above.
+  - ***THE GAP IN THE FIRST SCAN WAS INDIRECT CALLERS, AND THE PORT NAMED IT
+    BEFORE WE HIT IT.***  Two exist here — `option:209` `sysmsg(desc.msgs<i>)`
+    and `debug:1649` `sysmsg(msgno)` — and both are bounded: the option table
+    carries only 3100-3133, `dbg.stop` is called with the literals 6715 and
+    6716.  Neither can reach the four.  Checked BEFORE deleting; re-scanned
+    after, and the 10000+ range is clean.
+  - **Scope, deliberately narrow**: the full scan reported 423 orphans of
+    1912 records, but ~419 are upstream Ladybridge text for subsystems this
+    project is removing (TAPE/RESTORE, SED, PROC, SDNet, licensing, menus,
+    serial ports).  Those are NOT touched here.  They want a different
+    judgement — which subsystem each belongs to, and whether it has gone —
+    and a scan that has not been checked for indirect callers across the
+    whole upstream range has no business deleting them.  §OPEN§ as a separate
+    piece of work if the owner wants it.
+  - Not in the changelog: nothing a user could have seen changed.  These
+    records were unreachable, which is the whole reason they went.
 - ***[S.33] SDSYS'S API DOOR ASKS THE KERNEL, NOT THE ADDRESS — §BUILT§
   19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED.***  Owner,
   19 Sep 2026, in two steps: first *"logto sdsys should also not be
@@ -868,7 +901,9 @@ gone (verify-tier-layer.*, witness-tierchange.sh, the §6/§7 legs) and
 witness-absence.sh is the replacement.  Messages removed: 10041-10050, 10053,
 10054, 10073, 10077, 10079-10083, 10087, 10102, 10105, 10106, 10108, 10109,
 10111, 10113, 10114, 10126-10129, 10157, 10159, 10900-10904, 10911, 10912,
-10919; added: 10176 (root refused), 10177 (sdsys remote refused), 10178/10179/
+10919; added: 10176 (root refused), ~~10177 (sdsys remote refused)~~ *(never
+wired — no caller was ever written; the case is handled by CPROC not granting
+the flag, and the record was deleted 19 Sep 2026, S.34)*, 10178/10179/
 10180 (suspend/unsuspend), 10181 (sdsys without a sdsys login, the night
 ruling), 10916 (grant notice); 10002 and 10174 reworded.
 *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.* The pieces:
@@ -4810,8 +4845,12 @@ THE BUILD, TASK BY TASK (all in one change, committed `e41d318`):
   sdsys session granted (10916) driven live, and the source-side rows M9a–M9f.
   interop-account.sh rewritten (create as sdsys, no API keyword, no sdadmin).
 
-* MESSAGES — 42 files removed (see the S.25 entry), 5 written (10176, 10177,
+* MESSAGES — 42 files removed (see the S.25 entry), 5 written (10176, ~~10177~~,
   10178, 10179, 10916), 2 reworded (10002, 10174).  msglen 10/10.
+  ***10177 WAS WRITTEN AND NEVER CALLED*** — found 19 Sep 2026 by the orphan
+  scan and deleted the same day (S.34).  It said "SD administration needs a
+  local session"; 10181, written later the same night after the owner
+  corrected the route, took that case.
 
 VERIFIED BEFORE COMMIT: `make` clean (sd linked); test-ssh-forcecommand 18/18,
 test-sd-elevate 57/57, test-msglen-units 10/10, test-accounts-units 17/17,
