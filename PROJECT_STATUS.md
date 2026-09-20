@@ -403,12 +403,16 @@ display *").  Two faults no reading of the source would have shown:
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, LATE — END OF SESSION (CREDITS).  READ THIS FIRST.***
-- ***THE INSTALL IS STILL `60ac74a` (19 Sep) AND NOTHING SINCE HAS RUN.***
-  `assert-current` answers STALE.  Unwitnessed and waiting for ONE cycle:
-  S.32, S.33, S.35, S.36 (19 Sep), S.37 (the install's password section) and
-  ***S.29, now all three parts***.  The owner ran a delete/install today and
-  read the password section from it - that is where S.37's last four faults
-  came from - but no witness has run since.
+- ~~***THE INSTALL IS STILL `60ac74a` (19 Sep)***~~ ***— MEASURED 20 Sep,
+  LATER: IT IS `1d308b7`, INSTALLED 12:55:17 THAT DAY.***
+  `/usr/local/sdsys/.sdcore-install` says so and `assert-current` reads it;
+  the earlier claim was written before the owner's delete/install of that
+  afternoon and never corrected.  ***THE DISTINCTION THE OLD WORDING LOST:
+  S.32, S.33, S.35, S.36 and S.37 ARE ON THE INSTALLED TREE — they are
+  UNWITNESSED, which is not the same as uninstalled.***  What is neither
+  installed nor witnessed is ***S.29, now all three parts***.
+  `assert-current` answers STALE (HEAD is `fc6e5de`), so ONE CYCLE is still
+  what everything above is waiting for.
 - ~~***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***~~  ***CLOSED AS
   A BUILD 20 Sep 2026: PART 3 LANDED AND NOTHING IS HALF BUILT ANY MORE.***
   `apisrvr` refuses a non-member of `sdapi` (10073) and sshd's third Match
