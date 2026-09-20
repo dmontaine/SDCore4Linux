@@ -36,6 +36,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
+| ⬜ | **W.12** | S | ***WAITING FOR THE OWNER — THE SHARED MESSAGE-NUMBER SPACE HAS COLLIDED FOUR TIMES AND NOBODY NOTICED.***  The port mailed 20 Sep that it is taking 10922; ***measured here first: 10922 is in service since 19 Sep*** (`sdsys/messages/10922`, caller `apisrvr:1381`, `8c78e44`, a security refusal on SDSYS's API door).  Its block-mates are taken here too, all 19 Sep, all with callers and different meanings: 10919 `delacc` (`a35b30e`), 10920 and 10921 `set_acc_password`/`set_passwd` (`60ac74a`, `127057d`).  ***NOTHING BREAKS AT RUN TIME*** - a user sees only their own port's file - but "the same number means the same thing in both ports" is false today.  First-come-and-tell-the-other-side has now failed four times; a replacement convention (disjoint ranges, or a declared block per port) is a new shared rule and is the owners' to settle, not ours.  Told to the port 20 Sep (`to-windows/2026-09-20T1515`), with the asymmetry noted: theirs is unrun, ours is shipped | — |
 | ✅ | **S.29** | L | ~~parts 1-2~~ ***ALL THREE PARTS BUILT AND §WITNESSED§ 20 Sep 2026 ON INSTALL `5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.*** `witness-release-run --commit` (14:54:48): ***§13f F4 — a real SCRAM login REFUSED with 10073 after `MODIFY.ACCOUNT zzrel1 NONE`***, between F2 and F6 admitting the same login either side, F3b/F5b reading `id -nG`; ***§14 X8 — a real ssh login REFUSED with "zzrel1 is not permitted to reach SD over ssh"***, X8b never reached sd, X9b ssh works again after `BOTH`, X7b `no yes` proving the two routes independent. `witness-absence --commit` re-run after its instrument fixes: ***96 of 96*** — M5a-g the door both ways, M7b/M7b2/M7c2, M7i-M7i6 (arm ORDER 148 < 154, `--refuse` driven). Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants. Three instrument faults found and fixed on the way (M9d, M9b, `run_sd`'s title-as-command). Partly reverses S.28's disposal | 20 Sep 2026 |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
@@ -642,7 +643,21 @@ display *").  Two faults no reading of the source would have shown:
     S.33, false since.  It ran on 20 Sep, so **that machine's sdsys SD
     password is gone and has to be set again** (a local sdsys session,
     `MODIFY.PASSWORD sdsys`; with no record present it takes the "setting the
-    first one" path and asks for no current password).
+    first one" path and asks for no current password).  ***CONFIRMED BY THE
+    OWNER'S OWN `sudo ls -l '/usr/local/sdsys/$cred/'`: one record, `don`,
+    dated 14:12 (the install) — no `sdsys`.***  The session that first claimed
+    this had checked with `[ -e ]` as `don` against a directory it cannot
+    traverse, which answers "no" for a file that is present as readily as for
+    one that is not; the right answer by the wrong instrument.
+  - ***§OPEN§, ONE MEASUREMENT SETTLES IT: `$cred/don` IS MODE 664, NOT 600.***
+    The same listing shows `-rw-rw-r-- 1 sdsys sdusers 138`.  The helper
+    writes 600 and `witness-absence` M10d asserts 600, so the installer's own
+    MODIFY.PASSWORD step appears to leave a different mode from the helper's.
+    **Whether it matters depends on `$cred` itself**: the record says that
+    directory is `sdsys:sdsys 700`, and if it still is, no `sdusers` member
+    can traverse in and this is defence-in-depth only.  `sudo ls -ld
+    '/usr/local/sdsys/$cred'` answers it.  Written in the conditional because
+    nobody has looked.
   - **Fixed, same day**: the real record is stashed with `cp -p` and a sha256
     taken, `rm`'d so the verb sees no credential, and E6 restores it and
     COMPARES THE SUM — a restore that put back the wrong bytes would satisfy
@@ -697,6 +712,10 @@ display *").  Two faults no reading of the source would have shown:
     and `sddefs.h`'s `_XOPEN_SOURCE` is now guarded.
   - Shared number space: `system(43)` and message 10922 taken, both free in
     both ports when checked; the port was told before this landed.
+    ***AND ON 20 SEP THE PORT MAILED THAT IT IS TAKING 10922 ANYWAY*** — so
+    "free in both ports when checked" held on the day and not a day longer.
+    See W.12: the whole 10919-10922 block collides, and the convention, not
+    this number, is what needs fixing.
   - ***TRAP PAID FOR: a header change with only the edited objects cleared.***
     `make` relinks what changed, so `sd.o` kept the old globals and the link
     failed on `undefined reference to peer_user`, which reads like a header
@@ -829,6 +848,28 @@ found, and what HEAD changes (none of it installed):
    reserved it for after the teardown was witnessed on an install
    (CLAUDE.md, Project stance); that happened 19 Sep 2026 on `60ac74a`.
    Not started; nothing is built for it.
+7. ***[W.12] THE SHARED MESSAGE-NUMBER SPACE — WAITING FOR THE OWNER, AND
+   THE NUMBER IS NOT THE POINT.***  The port mailed 20 Sep that it is taking
+   10922.  ***Measured here before replying: 10922 has been in service since
+   19 Sep*** — `sdsys/messages/10922`, caller `apisrvr:1381`, commit
+   `8c78e44`, and it is the refusal on SDSYS's API door.  Its block-mates
+   are taken here too, all 19 Sep, all with callers, all meaning something
+   else: 10919 (`delacc`, `a35b30e`), 10920 and 10921
+   (`set_acc_password`/`set_passwd`, `60ac74a`, `127057d`).  **Four
+   collisions in one block, in a space CLAUDE.md names as one the two ports
+   must agree on, and neither side noticed.**  Nothing breaks at run time —
+   a user sees only their own port's file — so the cost is parity and
+   bookkeeping, which is exactly the kind that stays invisible until
+   somebody reconciles two records.  ***WHAT IS ASKED OF THE OWNER***: the
+   replacement convention.  First-come-and-tell-the-other-side has failed
+   four times; disjoint ranges or a declared block per port would not, but a
+   new shared rule is not ours to settle and it binds both ports.  ***WHAT
+   IS NOT ASKED***: whose 10922 wins.  The port was told the asymmetry
+   (`to-windows/2026-09-20T1515`) — theirs is built and unrun, ours is
+   shipped with an anchored witness row, and renumbering an unrun message is
+   cheaper than renumbering a shipped refusal, which is the reasoning they
+   accepted from us over 10174 in the other direction.  Their call, their
+   port; nothing here changes either way.
 LEFT ON THE MACHINE BY THE FIFTH RUN: `zzrel2` whole (register, dir, user,
 group) and `/home/sd/user_accounts/zzrel1` - clear both before the sixth
 install (the owner's commands, in the chat).  R3 NOT REACHED is expected
