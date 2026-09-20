@@ -136,6 +136,26 @@ run_sd_as() {
   printf '%s' "$out"
 }
 
+# 20 Sep 26 - ***EVERY "run_sd sdsys ..." CALL RAN ITS OWN TITLE AS A COMMAND,
+#   AND THE 20 SEP CYCLE'S TRANSCRIPT IS WHERE IT SHOWS.***  run_sd ALREADY
+#   supplies the user, so run_sd_as consumed the caller's extra "sdsys" as the
+#   TITLE and the intended title fell through into the command list.  Sixteen
+#   sites did it; three (M2, M11) used the right form all along, which is why
+#   only some session headers read "as sdsys: sdsys".
+#
+#   ***WHAT IT COST, AND IT IS NOT NOTHING.***  Each of those sessions ran its
+#   verb TWICE - the title, then the command - so M5a's "has no remote access"
+#   came from the TITLE's execution and the command that the row names answered
+#   "already had that access".  Every row still passed and the machine-state
+#   rows (M5a2 etc., read from id -nG) were never in doubt, but a row whose
+#   anchor is produced by something other than the line it names is a false
+#   positive waiting for a verb that is not idempotent.  M5g's stray
+#   "Unexpected token ((" was the same fault, visible.
+#
+#   THE FIX IS THE CONVENTION, NOT THE SIXTEEN CALLS: run_sd's first argument
+#   is now the TITLE, as its three correct callers always assumed, and the
+#   sixteen dropped their redundant "sdsys".  A caller that needs another user
+#   uses run_sd_as, which is what it is for.
 run_sd() { run_sd_as sdsys "$@"; }
 
 # ---------------- the ground ---------------------------------------------
@@ -220,7 +240,7 @@ fi
 
 # ==========================================================================
 head2 "M3. no tier keyword in MODIFY.ACCOUNT (S.25/W.7)"
-OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC STANDARD (refused: not an action word)" \
+OUT=$(run_sd "MODIFY.ACCOUNT $ACC STANDARD (refused: not an action word)" \
              "MODIFY.ACCOUNT $ACC STANDARD")
 if [ "$COMMIT" -eq 1 ]; then
   # 18 Sep 26 dm - THE WORDING IS THE REWRITE'S (S.25).  modifya's grammar is
@@ -230,11 +250,11 @@ if [ "$COMMIT" -eq 1 ]; then
   # 19 Sep 26 - UNSUSPEND joins the refused words: the keyword is the Windows
   #   port's UNSUSPENDED now, and the old spelling must not linger as an alias.
   for w in STANDARD PROGRAMMER ADMINISTRATOR UNSUSPEND; do
-    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
             "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
   done
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
   ck_says "M3b SUSPENDED is the flag (10193)" "is now suspended" "$OUT"
   # 19 Sep 26: a MISSING record also reads blank, and M3c passed on the third
@@ -252,7 +272,7 @@ if [ "$COMMIT" -eq 1 ]; then
   # S.27: the OS-access words are gone from the grammar, so they are refused by
   # the action rule (see M3a's note) - the row's subject is the REFUSAL.
   for w in SH-ON SH-OFF OS-ON OS-OFF; do
-    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
             "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
   done
@@ -283,27 +303,27 @@ if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
     not_reached "$r"; done
 elif [ "$COMMIT" -eq 1 ]; then
   say "  before: $ACC in sdssh=$(in_group "$ACC" sdssh) sdapi=$(in_group "$ACC" sdapi)"
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
   ck_says "M5a NONE takes both routes away (10079)" "has no remote access" "$OUT"
   ck "M5a2 and the machine agrees: neither group" "no no" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SSH" "MODIFY.ACCOUNT $ACC SSH")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC SSH" "MODIFY.ACCOUNT $ACC SSH")
   ck_says "M5b SSH re-widens one route (10076)" "ssh only, not the API" "$OUT"
   ck "M5b2 and the machine agrees: sdssh only" "yes no" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC API" "MODIFY.ACCOUNT $ACC API")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC API" "MODIFY.ACCOUNT $ACC API")
   ck_says "M5c API swaps the routes over (10077)" "the API only, not ssh" "$OUT"
   ck "M5c2 and the machine agrees: sdapi only" "no yes" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
   ck_says "M5d BOTH restores what NONE took (10078)" "ssh and the API" "$OUT"
   ck "M5d2 and the machine agrees: both groups" "yes yes" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC BOTH (again)" "MODIFY.ACCOUNT $ACC BOTH")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC BOTH (again)" "MODIFY.ACCOUNT $ACC BOTH")
   ck_says "M5e asking twice changes nothing and says so (10080)" \
           "already had that access" "$OUT"
 
@@ -311,7 +331,7 @@ elif [ "$COMMIT" -eq 1 ]; then
   ck_says "M5f CREATE.ACCOUNT with no route word gave both (10078)" \
           "SD routes for $ACC: ssh and the API" "$CREATE_OUT"
 
-  OUT=$(run_sd sdsys "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no route word needed)" \
+  OUT=$(run_sd "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no route word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
   ck_says "M5g CREATE.ACCOUNT does not demand a route word (10082 is not reached)" \
           "Cannot create user zzabst2 with NO.QUERY" "$OUT"
@@ -320,15 +340,15 @@ fi
 # ==========================================================================
 head2 "M6. no grant verbs (W.8)"
 if [ "$COMMIT" -eq 1 ]; then
-  OUT=$(run_sd sdsys "GRANT $ACC TO $ACC" "GRANT $ACC TO $ACC")
+  OUT=$(run_sd "GRANT $ACC TO $ACC" "GRANT $ACC TO $ACC")
   ck_says "M6a GRANT is not in any VOC" "not in your VOC" "$OUT"
-  OUT=$(run_sd sdsys "REVOKE $ACC FROM $ACC" "REVOKE $ACC FROM $ACC")
+  OUT=$(run_sd "REVOKE $ACC FROM $ACC" "REVOKE $ACC FROM $ACC")
   ck_says "M6b REVOKE is not in any VOC" "not in your VOC" "$OUT"
-  OUT=$(run_sd sdsys "LIST.GRANTS $ACC" "LIST.GRANTS $ACC")
+  OUT=$(run_sd "LIST.GRANTS $ACC" "LIST.GRANTS $ACC")
   ck_says "M6c LIST.GRANTS is not in any VOC" "not in your VOC" "$OUT"
   # The grant that remains is Linux membership itself - MODIFY.ACCOUNT ADD
   # rides on it, and it is the whole of the LOGTO wall (S.25).
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC ADD $ACC (the grant IS the membership)" \
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC ADD $ACC (the grant IS the membership)" \
              "MODIFY.ACCOUNT $ACC ADD $ACC")
   # 18 Sep 26 dm - THE FIRST RUN'S WORDING ASSUMED A FIRST ADD.  CREATE.ACCOUNT
   #   already joins the account to its own sdu_ group (createa's make.account),
@@ -339,7 +359,7 @@ if [ "$COMMIT" -eq 1 ]; then
   ck_says "M6d the surviving grant verb is MODIFY.ACCOUNT ADD, naming the group" \
           "group sdu_$ACC" "$OUT"
   ck_absent "M6d2 and it did not fail to make it so" "Unable" "$OUT"
-  OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC DELETE $ACC" "MODIFY.ACCOUNT $ACC DELETE $ACC")
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC DELETE $ACC" "MODIFY.ACCOUNT $ACC DELETE $ACC")
   ck_says "M6e and DELETE (10021)" "$ACC removed from group sdu_$ACC" "$OUT"
 fi
 
@@ -425,7 +445,7 @@ if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8c and it was audited" "ELEVATION REFUSED reason=root is not SD administrator" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
-OUT=$(run_sd sdsys "a sdsys login session, by the bridge (granted)" "WHO")
+OUT=$(run_sd "a sdsys login session, by the bridge (granted)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8d the sdsys login session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
   ck_says "M8e and the trail says so" "ELEVATION GRANTED reason=sdsys login" \
@@ -490,12 +510,49 @@ REPO="$(dirname "$(dirname "$SRC")")"
 say "  source root: $SRC (repo root: $REPO)"
 ck "M9a the installer creates no sdadmin group" 0 \
    "$(grep -c 'groupadd.*sdadmin\|groupadd --system sdadmin' "$REPO/installsdai.sh" 2>/dev/null)"
-ck "M9b the installer creates no sdapi group" 0 \
-   "$(grep -c 'groupadd.*sdapi\|groupadd --system sdapi' "$REPO/installsdai.sh" 2>/dev/null)"
+# 20 Sep 26 - ***M9b IS REVERSED, AND IT WAS PASSING FOR THE WRONG REASON.***
+#   It asserted the installer creates no sdapi group (S.28) and matched
+#   `groupadd.*sdapi` - but S.29 part 1 creates BOTH route groups through a
+#   loop variable (`for sd_route_group in sdssh sdapi`), so the literal never
+#   appeared and the row scored 0 against an installer that does create it.
+#   ***A ROW THAT PASSES BECAUSE ITS PATTERN MISSED IS WORSE THAN ONE THAT
+#   FAILS***: M7b, which read the MACHINE, would have caught the same change
+#   and did.  The subject is the loop that names both.
+ck "M9b the installer creates BOTH route groups (S.29)" 1 \
+   "$(grep -c 'for sd_route_group in sdssh sdapi' "$REPO/installsdai.sh" 2>/dev/null)"
+# The seeding line, not the comment two dozen lines above it that quotes an
+# older spelling of it: `create-account USER` alone matches the comment first
+# and the row would then compare against prose.
+GRP_LINE=$(grep -n 'for sd_route_group in sdssh sdapi' "$REPO/installsdai.sh" | head -1 | cut -d: -f1)
+SEED_LINE=$(grep -n 'bin/sd -internal create-account USER' "$REPO/installsdai.sh" | head -1 | cut -d: -f1)
+say "  installsdai.sh: route groups made at line ${GRP_LINE:-<absent>}, account seeded at line ${SEED_LINE:-<absent>}"
+if [ -n "$GRP_LINE" ] && [ -n "$SEED_LINE" ]; then
+  ck "M9b2 and it makes them before any account exists" yes \
+     "$( [ "$GRP_LINE" -lt "$SEED_LINE" ] && echo yes || echo no )"
+else
+  not_reached "M9b2 and it makes them before any account exists"
+fi
 ck "M9c the installer seeds a PLAIN account (no ADMINISTRATOR keyword)" 0 \
    "$(grep -c 'create-account USER .*ADMINISTRATOR' "$REPO/installsdai.sh" 2>/dev/null)"
-ck "M9d the ssh helper's block excludes sdsys, not sdadmin" 1 \
-   "$(grep -c 'printf.*Match Group sdusers,!sdsys' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
+# 20 Sep 26 - ***M9d MEASURED THE LAYOUT OF OUR OWN SOURCE, NOT THE FACT IT
+#   CLAIMED, AND S.29 PART 3 BROKE IT*** (the 93-row cycle: 92 passed, this
+#   one failed against a correct helper).  It matched `printf.*Match Group
+#   sdusers,!sdsys` - `printf` and the arm on ONE line - so the moment
+#   block_lines() became a multi-line printf with backslash continuations, a
+#   row whose subject had not changed at all started reporting 0.  The arm
+#   strings are what the claim is about, so the arm strings are what is
+#   matched, quoted exactly as block_lines() writes them: the narrow arm
+#   contains the general one as a prefix, and only the closing quote parts
+#   them.
+ck "M9d the ssh helper writes the general arm, excluding sdsys" 1 \
+   "$(grep -cF '"Match Group sdusers,!sdsys"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
+ck "M9d2 and the S.29 arm, excluding an account without the sdssh route" 1 \
+   "$(grep -cF '"Match Group sdusers,!sdsys,!sdssh"' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null)"
+# Comments are not code: the helper's START-HISTORY still records the sdadmin
+# split it replaced, which is history and must stay.  M7e makes the same
+# distinction for the sudoers drop-in, for the same reason.
+ck "M9d3 and no sdadmin in its CODE (the history keeps the word)" 0 \
+   "$(grep -v '^[[:space:]]*#' "$SRC/gplbld/ssh-forcecommand.sh" 2>/dev/null | grep -c sdadmin)"
 ck "M9e TIERGATE is not in the shipped gpl.bp sources" 0 \
    "$(find "$SRC/sdsys" -name 'tiergate' -o -name 'tier.policy' 2>/dev/null | wc -l | tr -d ' ')"
 ck "M9f no tier keyword survives in CREATE.ACCOUNT's grammar" 0 \
