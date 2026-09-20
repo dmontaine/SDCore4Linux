@@ -42,6 +42,14 @@ SD: what changed, why it mattered, and what it does not do.
            "sudo passwd sdsys" is how to change it on purpose.  The two SD
            passwords already behaved this way.
 
+           The steps are quieter, too.  Each one is introduced by its own
+           ruled block, rather than the only ruled block on screen being
+           SD's "administration granted" notice arriving mid-step, where it
+           read as a result.  When the installer runs SD to set a password
+           it now runs it silently: no start and shutdown lines, no notice,
+           and a successful entry answers "Password accepted".  A refusal
+           still says everything - that is the case you have to act on.
+
            What this does NOT do: it does not change which passwords are
            asked for, and your own SD password is still required.  The
            password asked for at the very start of an install is your own
