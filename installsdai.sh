@@ -254,12 +254,10 @@ echo
 printf "%bFor this install script to work you must have sudo installed\n" "$GREEN"
 printf "and be a member of the sudo group.  Also, systemd must be enabled.%b\n" "$NC"
 echo
-# Modified by Composer AI - 2026/06/10.
-# Fix tested-distribution wording.
-# echo "Installer tested on Fedora 4r, and Ubuntu 26.04."
-echo "Installer tested on Linux Mint 22.3."
+# 20 Sep 26 dm - THE "Installer tested on ..." LINE IS GONE (owner, 20 Sep).
+#   It named one distribution and one version, so it aged the moment either
+#   moved, and it answered a question nobody installing here is asking.
 # --------------------
-echo
 # 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
 #            repository.  There is no selection any more: main, from GitHub.
 echo "This script will download the SD source code from the main branch at"
