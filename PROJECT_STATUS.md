@@ -36,7 +36,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
-| ◐ | **S.29** | L | ***ALL THREE PARTS §BUILT§ 20 Sep 2026, NO BASIC COMPILED AND NOTHING RUN ON AN INSTALL*** (`96bf3e1` groups/messages/helper; `ee500db` the verbs; part 3 the two enforcement points).  Left: ONE CYCLE.  per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, DONE and witnessed there).  Part 3 free-checked: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants, real `sshd -t` accepts the three-arm block.  Witness rows written and UNRUN: absence M7b/M7b2/M7c2/M7i-i6, release-run §13f F1-F6 and §14 X7-X9b. Partly reverses S.28's disposal | — |
+| ◐ | **S.29** | L | ***ALL THREE PARTS BUILT, AND THE `MODIFY.ACCOUNT`/sshd HALF IS §WITNESSED§ 20 Sep 2026 — the owner's `witness-absence --commit` on install `5f74c15` (14:12:24), 92/93.*** The door drives both ways on a real install: M5a-g (`NONE`→`SSH`→`API`→`BOTH`→`BOTH` again, membership read from `id -nG`), M5f (no route word at create gave both), M7b/M7b2/M7c2 (both groups exist, sdsys in neither), M7i-M7i4 (the sshd arm, ORDER 148 < 154, its command, forwarding shut), M7i5/M7i6 (`--refuse` as the account: *"zzabst is not permitted to reach SD over ssh"*, non-zero).  Left: ***the API gate (10073) and a real ssh login are STILL UNWITNESSED*** — release-run §13f F1-F6 and §14 X7-X9b, which that run does not reach, plus a re-run of witness-absence.  The ONE failure was an instrument, M9d, matching `printf.*Match Group` on one line; it and M9b (passing because its pattern missed a loop variable) and `run_sd`'s title-as-command are fixed, so ***witness-absence is owed a re-run***.  Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants.  Partly reverses S.28's disposal | — |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
@@ -403,16 +403,20 @@ display *").  Two faults no reading of the source would have shown:
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, LATE — END OF SESSION (CREDITS).  READ THIS FIRST.***
-- ~~***THE INSTALL IS STILL `60ac74a` (19 Sep)***~~ ***— MEASURED 20 Sep,
-  LATER: IT IS `1d308b7`, INSTALLED 12:55:17 THAT DAY.***
-  `/usr/local/sdsys/.sdcore-install` says so and `assert-current` reads it;
-  the earlier claim was written before the owner's delete/install of that
-  afternoon and never corrected.  ***THE DISTINCTION THE OLD WORDING LOST:
-  S.32, S.33, S.35, S.36 and S.37 ARE ON THE INSTALLED TREE — they are
-  UNWITNESSED, which is not the same as uninstalled.***  What is neither
-  installed nor witnessed is ***S.29, now all three parts***.
-  `assert-current` answers STALE (HEAD is `fc6e5de`), so ONE CYCLE is still
-  what everything above is waiting for.
+- ~~***THE INSTALL IS STILL `60ac74a` (19 Sep)***~~ ~~*— MEASURED 20 Sep,
+  LATER: IT IS `1d308b7`, INSTALLED 12:55:17 THAT DAY.*~~ ***— AND SUPERSEDED
+  AGAIN THE SAME AFTERNOON: THE OWNER CYCLED, SO IT IS NOW `5f74c15`,
+  INSTALLED 14:12:24, WHICH CARRIES ALL THREE PARTS OF S.29.***
+  `witness-absence --commit` ran on it: 92 of 93, the one failure an
+  instrument (see S.29).  ***STILL OWED ON THIS INSTALL***:
+  `witness-release-run.sh --commit` and `witness-accounts.sh --commit`, which
+  hold every row that drives a real API or ssh login — so S.29's enforcement
+  half is still unwitnessed.  ***THE DISTINCTION BOTH EARLIER READINGS LOST,
+  AND IT IS THE PART WORTH KEEPING: S.32, S.33, S.35, S.36 and S.37 ARE ON
+  THE INSTALLED TREE — they are UNWITNESSED, which is not the same as
+  uninstalled.***  `/usr/local/sdsys/.sdcore-install` is what answers this,
+  and `assert-current` reads it; each stale claim above was written before a
+  cycle nobody went back and corrected.
 - ~~***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***~~  ***CLOSED AS
   A BUILD 20 Sep 2026: PART 3 LANDED AND NOTHING IS HALF BUILT ANY MORE.***
   `apisrvr` refuses a non-member of `sdapi` (10073) and sshd's third Match
@@ -1313,8 +1317,60 @@ Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured
 *19 Sep 2026: the per-account half of "disposed" is reversed by a later owner ruling — see S.29.*
 
 ***[S.29] PER-ACCOUNT SSH AND API ROUTES COME BACK, DEFAULT ON, A TWO-WAY
-DOOR — ALL THREE PARTS BUILT 20 SEP 2026; §OPEN§ UNTIL A CYCLE.  NO BASIC HAS
-BEEN COMPILED AND NOTHING HAS RUN ON AN INSTALL.***
+DOOR — ALL THREE PARTS BUILT 20 SEP 2026, AND THE VERB/sshd HALF IS
+§WITNESSED§ ON INSTALL `5f74c15` (the owner's `witness-absence --commit`,
+14:12:24, 92 of 93).  §OPEN§ FOR THE OTHER HALF: THE API GATE AND A REAL SSH
+LOGIN HAVE NOT RUN.***
+
+***THE CYCLE, 20 SEP 2026 — WHAT IT ACTUALLY SHOWED.***  `witness-absence.sh
+--commit`, root, on `5f74c15` (`/usr/local/sdsys/.sdcore-install`, installed
+14:12:24).
+- **The door, both ways, on the machine**: M5a `NONE` → *"zzabst has no
+  remote access"*, M5a2 `no no`; M5b `SSH` → *"ssh only, not the API"*, `yes
+  no`; M5c `API` → *"the API only, not ssh"*, `no yes`; M5d `BOTH` → *"ssh and
+  the API"*, `yes yes`; M5e twice → *"already had that access"*; M5f
+  CREATE.ACCOUNT with NO route word gave both; M5g 10082 is not reached.  The
+  `sd-elevate` lines in the transcript name each `usermod -aG`/`gpasswd -d`,
+  so the group changes are visible and not inferred.
+- **The groups and the boundary**: M7b/M7b2 both route groups EXIST (the row
+  that used to assert the opposite), M7c2 sdsys is in neither, M7i-M7i4 the
+  sshd arm with its ORDER read off the live config as line numbers — 148 for
+  `sdusers,!sdsys,!sdssh`, 154 for the general arm — its ForceCommand and
+  `AllowTcpForwarding no`.
+- ***THE REFUSAL, DRIVEN***: M7i5/M7i6, `sudo -u zzabst
+  /usr/local/sbin/ssh-forcecommand --refuse` → *"zzabst is not permitted to
+  reach SD over ssh"*, exit non-zero.  10074's words came off the INSTALLED
+  message file, which is the point of reading it rather than carrying a copy.
+- ***WHAT THIS RUN CANNOT SAY, AND IT IS HALF OF S.29***: no API login and no
+  ssh login happened.  `witness-absence` has neither.  ***THE sdapi GATE
+  (10073) HAS NEVER REFUSED ANYBODY ON A MACHINE***, and neither has sshd's
+  arm — M7i5 drove the refusal COMMAND, not a connection.  Both are
+  `witness-release-run.sh` (§13f F1-F6, §14 X7-X9b), still owed.
+- ***THE ONE FAILURE WAS THE INSTRUMENT, AND SO WAS A PASS.***  M9d matched
+  `printf.*Match Group sdusers,!sdsys` — `printf` and the arm on ONE line — so
+  making `block_lines()` a multi-line `printf` broke a row whose subject had
+  not changed.  Worse, M9b PASSED for the wrong reason: it asserted the
+  installer creates no `sdapi` group and matched a literal the installer no
+  longer writes, because part 1 creates both through `for sd_route_group in
+  sdssh sdapi`.  ***A ROW THAT PASSES BECAUSE ITS PATTERN MISSED IS WORSE THAN
+  ONE THAT FAILS***; M7b, which reads the MACHINE, caught the same change.
+  Both now match the fact: M9b/M9b2 (the loop, and that it precedes the
+  seeding line — the real one at 1076, not the comment at 1029), M9d/M9d2/M9d3
+  (each arm as `block_lines()` quotes it, and no `sdadmin` in CODE, the
+  START-HISTORY keeping the word).
+- ***AND A THIRD FAULT THE TRANSCRIPT GAVE AWAY: EVERY `run_sd sdsys …`
+  SESSION RAN ITS OWN TITLE AS A COMMAND.***  `run_sd` already supplies the
+  user, so `run_sd_as` took the caller's extra `sdsys` as the TITLE — hence
+  the `as sdsys: sdsys` headers — and the intended title fell into the command
+  list.  Sixteen sites; three (M2, M11) had the right form all along.  So each
+  of those verbs ran TWICE, and M5a's anchor came from the TITLE's execution
+  while the line the row names answered *"already had that access"*.  Every
+  row still passed and the `id -nG` rows were never in doubt, but this is a
+  false positive waiting for a verb that is not idempotent — M5g's stray
+  *"Unexpected token (("* was the same fault, visible.  Fixed at the
+  convention, not the call sites: `run_sd`'s first argument is the TITLE.
+- ***SO WITNESS-ABSENCE IS OWED A RE-RUN*** — the instrument changed after the
+  measurement.  The product did not, and the machine-state rows stand.
 
 ***WHAT IS BUILT (20 Sep 2026).***  Part 1, `96bf3e1`: `sdssh` and `sdapi`
 are ALLOW groups and membership IS the route (the port's shape; an allow
