@@ -38,7 +38,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ✅ | **S.38** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026 ON A REAL DELETE/INSTALL CYCLE, AND AT THE OWNER'S OWN LOGIN SCREEN.***  His ruling: *"the account needs to be created so that users can get to it through the login screen to match windows"*.  `installsdai.sh` drops `--system` from the `useradd`, so sdsys gets a uid at or above `UID_MIN` and the greeter lists it; the shell and home it already gave were there for exactly this and `--system` was quietly defeating them.  ***sd-elevate REFUSES sdsys BY NAME, NOT BY UID — CHECKED BEFORE THE FLAG MOVED***, so raising the uid opens no door a uid test was holding shut (`require_sd_user`).  ***THE OWNER, AT THE KEYBOARD: "verified - sdsys appears on login screen."***  `witness-absence --commit`, same cycle, ***99 of 99*** — M7c3/M7c4/M7c5 (uid 1005 ≥ UID_MIN 1000, a real shell, a home) all PASS where M7c3 failed before the cycle.  An EXISTING sdsys (a keep-accounts cycle) still keeps its old uid and the installer says so; that path is unwitnessed, by construction — this cycle removed accounts | 20 Sep 2026 |
 | ✅ | **S.39** | S | ***CLOSED — §WITNESSED§ 20 SEP 2026: RE-RUN AFTER THE FIX, S2.a PASSES ("expected 'yes', got 'yes'"), 248 of 249*** (the one remaining item is R3's already-expected NOT REACHED, needing a keep-configuration cycle).  `witness-release-run.sh`'s S.2 test (`§2`, S2.a) drove `setpriv --reuid 999` to become sdsys and check CPROC's LOGTO group refresh; sdsys was a `--system` account (fixed at 999) until S.38 gave it an ordinary uid, so the first cycle after S.38 handed `--reuid` a number belonging to nobody-in-particular and CPROC refused the session outright (*"not registered for String Database (sd) use"*) instead of measuring anything.  ***THE SAME TRAP AS M9d/M9b/M7b***: a fact the product no longer promises, baked into an instrument rather than read from the machine.  Fixed: `SDSYS_UID=$(id -u sdsys)` replaces the literal | 20 Sep 2026 |
-| ⬜ | **W.12** | S | ***WAITING FOR THE OWNER — THE SHARED MESSAGE-NUMBER SPACE HAS COLLIDED FOUR TIMES AND NOBODY NOTICED.***  The port mailed 20 Sep that it is taking 10922; ***measured here first: 10922 is in service since 19 Sep*** (`sdsys/messages/10922`, caller `apisrvr:1381`, `8c78e44`, a security refusal on SDSYS's API door).  Its block-mates are taken here too, all 19 Sep, all with callers and different meanings: 10919 `delacc` (`a35b30e`), 10920 and 10921 `set_acc_password`/`set_passwd` (`60ac74a`, `127057d`).  ***NOTHING BREAKS AT RUN TIME*** - a user sees only their own port's file - but "the same number means the same thing in both ports" is false today.  First-come-and-tell-the-other-side has now failed four times; a replacement convention (disjoint ranges, or a declared block per port) is a new shared rule and is the owners' to settle, not ours.  Told to the port 20 Sep (`to-windows/2026-09-20T1515`), with the asymmetry noted: theirs is unrun, ours is shipped | — |
+| ◐ | **W.12** | S | ***THE OWNER DELEGATED IT, 20 SEP 2026: "I am the owner of both. I am satisfied with whatever is agreed on between the two ports."***  So the convention is now the two agents' to settle, not his to arbitrate.  ***PROPOSAL SENT*** (`to-windows/2026-09-20T1605`): 0000-10029 stays upstream's; 10030-10999 stays shared legacy (everything already shipped on either side keeps its number, no mass renumbering); 11000-11999 becomes this port's block for every NEW allocation from now on, 12000-12999 the proposed block for the port (theirs to accept, move, or counter).  Resolves the live 10919-10922 collision without renumbering anything shipped, because the port's 10922 - built, unrun - simply becomes its block's first number instead of a contested legacy one.  §OPEN§ - left: the port's answer, accepting this split or countering one | — |
 | ✅ | **S.29** | L | ~~parts 1-2~~ ***ALL THREE PARTS BUILT AND §WITNESSED§ 20 Sep 2026 ON INSTALL `5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.*** `witness-release-run --commit` (14:54:48): ***§13f F4 — a real SCRAM login REFUSED with 10073 after `MODIFY.ACCOUNT zzrel1 NONE`***, between F2 and F6 admitting the same login either side, F3b/F5b reading `id -nG`; ***§14 X8 — a real ssh login REFUSED with "zzrel1 is not permitted to reach SD over ssh"***, X8b never reached sd, X9b ssh works again after `BOTH`, X7b `no yes` proving the two routes independent. `witness-absence --commit` re-run after its instrument fixes: ***96 of 96*** — M5a-g the door both ways, M7b/M7b2/M7c2, M7i-M7i6 (arm ORDER 148 < 154, `--refuse` driven). Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants. Three instrument faults found and fixed on the way (M9d, M9b, `run_sd`'s title-as-command). Partly reverses S.28's disposal | 20 Sep 2026 |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
@@ -424,7 +424,9 @@ display *").  Two faults no reading of the source would have shown:
   hard-coded sdsys's uid at 999, broken by S.38's own fix; corrected the
   same session and the re-run confirms it (S2.a *"expected 'yes', got
   'yes'"*, no new failure appeared in its place).
-- **Mailbox**: `to-linux/` empty at last check.
+- **Mailbox**: `to-linux/` empty at last check.  `to-windows/` carries a
+  concrete W.12 proposal (`2026-09-20T1605`), sent after the owner
+  delegated the convention question to the two agents directly.
 
 ***THE PREVIOUS HANDOFF, 20 SEP 2026, LATE — HISTORY NOW.***
 - ~~***THE INSTALL IS STILL `60ac74a` (19 Sep)***~~ ~~*— MEASURED 20 Sep,
@@ -987,28 +989,39 @@ found, and what HEAD changes (none of it installed):
      second instance of the same fault.  The one remaining row is R3's
      already-documented NOT REACHED (needs a keep-configuration cycle) —
      unchanged from before this fix and not something it could touch.
-9. ***[W.12] THE SHARED MESSAGE-NUMBER SPACE — WAITING FOR THE OWNER, AND
-   THE NUMBER IS NOT THE POINT.***  The port mailed 20 Sep that it is taking
-   10922.  ***Measured here before replying: 10922 has been in service since
-   19 Sep*** — `sdsys/messages/10922`, caller `apisrvr:1381`, commit
-   `8c78e44`, and it is the refusal on SDSYS's API door.  Its block-mates
-   are taken here too, all 19 Sep, all with callers, all meaning something
-   else: 10919 (`delacc`, `a35b30e`), 10920 and 10921
-   (`set_acc_password`/`set_passwd`, `60ac74a`, `127057d`).  **Four
-   collisions in one block, in a space CLAUDE.md names as one the two ports
-   must agree on, and neither side noticed.**  Nothing breaks at run time —
-   a user sees only their own port's file — so the cost is parity and
-   bookkeeping, which is exactly the kind that stays invisible until
-   somebody reconciles two records.  ***WHAT IS ASKED OF THE OWNER***: the
-   replacement convention.  First-come-and-tell-the-other-side has failed
-   four times; disjoint ranges or a declared block per port would not, but a
-   new shared rule is not ours to settle and it binds both ports.  ***WHAT
-   IS NOT ASKED***: whose 10922 wins.  The port was told the asymmetry
-   (`to-windows/2026-09-20T1515`) — theirs is built and unrun, ours is
-   shipped with an anchored witness row, and renumbering an unrun message is
-   cheaper than renumbering a shipped refusal, which is the reasoning they
-   accepted from us over 10174 in the other direction.  Their call, their
-   port; nothing here changes either way.
+9. ***[W.12] THE SHARED MESSAGE-NUMBER SPACE — THE OWNER DELEGATED IT, 20
+   SEP 2026: "I am the owner of both. I am satisfied with whatever is
+   agreed on between the two ports."***  So the convention question below
+   is the two agents' to settle directly; nothing here needs him arbitrated
+   line by line.
+   - **What was found**: the port mailed 20 Sep that it is taking 10922.
+     Measured here before replying: 10922 has been in service since 19
+     Sep — `sdsys/messages/10922`, caller `apisrvr:1381`, commit `8c78e44`,
+     the refusal on SDSYS's API door.  Its block-mates are taken here too,
+     all 19 Sep, all with callers, all meaning something else: 10919
+     (`delacc`, `a35b30e`), 10920 and 10921 (`set_acc_password`/
+     `set_passwd`, `60ac74a`, `127057d`).  Four collisions in one block, in
+     a space CLAUDE.md names as one the two ports must agree on, and
+     neither side had noticed.  Nothing breaks at run time — a user sees
+     only their own port's file — so the cost is parity and bookkeeping,
+     the kind that stays invisible until somebody reconciles two records.
+   - ***PROPOSAL SENT*** (`to-windows/2026-09-20T1605`): `0000-10029`
+     stays upstream's (already true — `sdb64` stops at 10029); `10030-10999`
+     stays SHARED LEGACY — everything either port has already shipped keeps
+     its number, no mass renumbering, a NEW collision there is a defect
+     under the existing mailbox rule; `11000-11999` becomes this port's
+     block for every allocation from now on; `12000-12999` is the proposed
+     block for the port, theirs to accept, move, or counter.  ***THIS
+     RESOLVES 10919-10922 WITHOUT EITHER SIDE RENUMBERING A SHIPPED
+     MESSAGE***: the port's 10922, built but unrun, simply becomes its
+     block's first number instead of a contested legacy one — the same
+     asymmetry reasoning (an unrun message is cheaper to renumber than a
+     shipped refusal) that they accepted from us over 10174, now applied
+     without either side losing anything already shipped.
+   - ***§OPEN§ UNTIL THE PORT ANSWERS.***  This entry becomes CLOSED on
+     their agreement (or a countered convention adopted instead), noted
+     here and in the mailbox per the "git stays the record" rule — not on
+     the strength of this port's own proposal alone.
 LEFT ON THE MACHINE BY THE FIFTH RUN: `zzrel2` whole (register, dir, user,
 group) and `/home/sd/user_accounts/zzrel1` - clear both before the sixth
 install (the owner's commands, in the chat).  R3 NOT REACHED is expected
