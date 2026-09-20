@@ -417,6 +417,17 @@ display *").  Two faults no reading of the source would have shown:
   uninstalled.***  `/usr/local/sdsys/.sdcore-install` is what answers this,
   and `assert-current` reads it; each stale claim above was written before a
   cycle nobody went back and corrected.
+- ***`assert-current` NOW ANSWERS STALE AGAIN, AND HERE IS THE ONE CASE WHERE
+  THAT IS NOT A REASON TO REINSTALL.***  Everything committed after `5f74c15`
+  is the INSTRUMENT and this document: `git diff --stat 5f74c15..HEAD` is
+  `PROJECT_STATUS.md` and `gplbld/witness-absence.sh`, and the same diff
+  restricted to `gplsrc`, `sdsys`, the two installer scripts, `sd-elevate` and
+  `ssh-forcecommand.sh` is EMPTY — the installed product is byte-identical to
+  HEAD (measured 20 Sep).  So `witness-release-run.sh --commit` run on this
+  install measures the product that is on it.  ***THE RULE BEING OVERRIDDEN IS
+  NAMED ON PURPOSE*** (CLAUDE.md, *"a cycle ends at the next source change"*):
+  it is overridden for the release-run only, on that measurement, and NOT for
+  `witness-absence`, whose own source did change and which is owed a re-run.
 - ~~***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***~~  ***CLOSED AS
   A BUILD 20 Sep 2026: PART 3 LANDED AND NOTHING IS HALF BUILT ANY MORE.***
   `apisrvr` refuses a non-member of `sdapi` (10073) and sshd's third Match
