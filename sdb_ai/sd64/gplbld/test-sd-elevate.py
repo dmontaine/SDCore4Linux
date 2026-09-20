@@ -45,7 +45,7 @@ CASES = [
     # ---- the escalation attempts.  Every one of these is a way the eight
     # ---- raw sudo commands would have handed out root.
     (REFUSE, ["passwd", "root"],            "sudo passwd root - own the machine"),
-    (REFUSE, ["passwd", "sdsys"],           "SD's own system account"),
+    (REFUSE, ["passwd", "sdsys"],           "SD's own administrator account (by NAME - S.38 puts its uid above UID_MIN)"),
     (REFUSE, ["userdel", "root"],           "delete root"),
     (REFUSE, ["userdel", "sdsys"],          "delete SD's system account"),
     (REFUSE, ["useradd", "root"],           "root already exists"),
@@ -89,8 +89,14 @@ CASES = [
     # ---- from - sdusers' own reason - so both are undeletable here.
     (REFUSE, ["groupdel", "sdssh"],          "the ssh route register is not deletable"),
     (REFUSE, ["groupdel", "sdapi"],          "the API route register is not deletable"),
-    (ALLOW,  ["groupadd", "sdssh"],          "SD may create its own ssh route group"),
-    (ALLOW,  ["groupadd", "sdapi"],          "SD may create its own API route group"),
+    # 20 Sep 26 - ***THESE TWO ROWS MEASURED THIS MACHINE, NOT THE HELPER, AND
+    # THEY FLIPPED THE DAY AN INSTALL CREATED THE GROUPS.***  They asserted
+    # ALLOW for `groupadd sdssh|sdapi`; sd-elevate refuses "group already
+    # exists", so they passed only while no install had made them and failed
+    # from 14:12 on 20 Sep onward.  S.29 part 1 deleted a row for exactly this
+    # fault in the other direction and the same trap caught these.  The
+    # whitelist question they were asking is existence-independent and is now
+    # asked that way, in WHITELIST_BY_NAME below.
 
     # ---- remote-api / remote-ssh, 14 Sep 26 (S.13).  A fixed keyword and
     # ---- nothing else reaches them, so the refusals are the wrong word, a
@@ -239,6 +245,31 @@ def main():
     else:
         failed += 1
         failures.append((stamp_argv, "STAMP 'SD account'", "absent", out.strip()))
+
+    # ---- 20 Sep 26: THE NAME WHITELIST, ASKED WITHOUT ASKING THE MACHINE.
+    # ---- sdssh and sdapi are SD's own groups (S.29 part 1), so sd-elevate must
+    # ---- accept the NAMES.  Whether it then creates them depends on whether an
+    # ---- install already did - which is a fact about this box and has no place
+    # ---- in a free check.  So the assertion is on the REASON: the helper may
+    # ---- allow, or refuse for existence, but it must never say "not an SD
+    # ---- group".  That sentence is the whitelist talking, and it is the only
+    # ---- answer that would be a defect.
+    for grp in ("sdssh", "sdapi"):
+        code, out = run(["groupadd", grp])
+        rejected_by_name = "not an SD group" in out
+        exists = "already exists" in out
+        ok = not rejected_by_name and (code == 0 or exists)
+        why = ("created" if code == 0 else
+               "refused: already exists (this box has it)" if exists else
+               "REFUSED BY THE WHITELIST" if rejected_by_name else
+               out.strip().splitlines()[0] if out.strip() else "(no output)")
+        print(f"  [{'PASS' if ok else 'FAIL'}] NAME   sd-elevate {shlex.join(['groupadd', grp]):46} | {why}")
+        if ok:
+            passed += 1
+            n_allow += 1
+        else:
+            failed += 1
+            failures.append((["groupadd", grp], "name accepted by the whitelist", why, out.strip()))
 
     # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
     # ---- exit code of 0 says the word was accepted, not that ON opens the

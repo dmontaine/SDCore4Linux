@@ -380,6 +380,29 @@ ck "M7c the sdsys OS user exists" yes "$(yesno_user sdsys)"
 # NAME, which is only safe while this row holds.
 ck "M7c2 sdsys is in neither route group" "no no" \
    "$(in_group sdsys sdssh) $(in_group sdsys sdapi)"
+# 20 Sep 26 - S.38: ***THE ADMINISTRATOR'S ACCOUNT MUST BE ONE THE GREETER
+#   WILL LIST.***  The owner's ruling (match Windows, where SDSYS appears at
+#   the logon screen).  A uid under UID_MIN is what every common greeter uses
+#   to decide an account is plumbing and hide it, and the installer's
+#   "--system" flag was producing exactly that while the rest of the block was
+#   already shaped for a login (shell, home).  This row is the invariant,
+#   because nothing else fails when it regresses: SD works perfectly and the
+#   administrator simply cannot find the way in.
+SDSYS_UID=$(id -u sdsys 2>/dev/null)
+UID_MIN_M7=$(awk '/^[[:space:]]*UID_MIN[[:space:]]/ {print $2; exit}' /etc/login.defs 2>/dev/null)
+UID_MIN_M7=${UID_MIN_M7:-1000}
+say "  sdsys uid=${SDSYS_UID:-<absent>}, UID_MIN=$UID_MIN_M7, shell=$(getent passwd sdsys 2>/dev/null | cut -d: -f7)"
+if [ -n "$SDSYS_UID" ]; then
+  ck "M7c3 sdsys's uid is at or above UID_MIN, so a greeter lists it" yes \
+     "$( [ "$SDSYS_UID" -ge "$UID_MIN_M7" ] && echo yes || echo no )"
+  # A greeter also hides an account whose shell is not a login shell, so the
+  # uid alone is not the whole of "can be logged into".
+  ck "M7c4 and its shell is a real one (/etc/shells)" yes \
+     "$(grep -qxF "$(getent passwd sdsys | cut -d: -f7)" /etc/shells 2>/dev/null && echo yes || echo no)"
+  ck "M7c5 and it has a home to log into" yes "$(yesno_dir "$(getent passwd sdsys | cut -d: -f6)")"
+else
+  not_reached "M7c3 sdsys's uid is at or above UID_MIN, so a greeter lists it"
+fi
 if [ -f /etc/sudoers.d/sdcore ]; then
   SUDOERS=$(cat /etc/sudoers.d/sdcore)
   say "  /etc/sudoers.d/sdcore:"
