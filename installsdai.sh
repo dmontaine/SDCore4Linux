@@ -1267,11 +1267,10 @@ echo "  2. sdsys's LINUX password   - signs SD's administrator in at this"
 echo "                                machine's keyboard."
 echo "  3. sdsys's SD password      - lets a program on this machine reach"
 echo "                                SD as the administrator over the API."
+echo
 echo "All passwords must contain at least 8 characters, with a lower-case"
 echo "letter, an upper-case letter, a digit and a symbol."
 echo "A password that is already set is kept, and is not asked for again."
-echo "(The password asked for at the start of the install was your own Linux"
-echo "one, for sudo.  These three are not it.)"
 echo ---------------------------------------------------------------
 # 20 Sep 26 dm - THE INSTALLING USER'S OWN PASSWORD COMES FIRST (owner, 20 Sep
 #   2026: the three ran "sdsys, installer, sdsys", and he asked for the
