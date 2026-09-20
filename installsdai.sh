@@ -183,6 +183,34 @@ NC='\033[0m' # No Color (reset)
 # Modified by Composer AI - 2026/06/10.
 # sd -start and sd -stop return non-zero when already in the target state.
 # Helpers prevent set -e from aborting reinstall/bootstrap mid-install.
+# 20 Sep 26 dm - ASTERISKS, LIKE SD'S OWN PROMPTS (owner, 20 Sep, of his
+#   install: "#2 does not display *").  "read -s" echoes NOTHING, so the LINUX
+#   step looked dead while SD's two steps showed a * per character.  This
+#   reads one character at a time and echoes the star itself, handles
+#   backspace and DEL, and reads from the terminal rather than stdin - the
+#   installer's own stdin may be a pipe.  The password never leaves this
+#   shell: it goes into the named variable, and nothing is echoed but stars.
+#   SD_PW_TTY exists so the loop can be exercised from a pipe (see its test
+#   at the end of this comment block: printf 'abc\n' | SD_PW_TTY=/dev/stdin).
+read_password() {
+  local prompt=$1 __name=$2 tty=${SD_PW_TTY:-/dev/tty} ch pw=""
+  printf '%s' "$prompt" > "$tty"
+  while IFS= read -r -s -n1 ch < "$tty"; do
+    case "$ch" in
+      "") break ;;                                  # Return
+      $'\177'|$'\b')
+        if [ -n "$pw" ]; then
+          pw=${pw%?}
+          printf '\b \b' > "$tty"
+        fi
+        ;;
+      *) pw="$pw$ch"; printf '*' > "$tty" ;;
+    esac
+  done
+  printf '\n' > "$tty"
+  printf -v "$__name" '%s' "$pw"
+}
+
 sd_install_stop() {
   sudo "${sdsysdir}/bin/sd" -stop >/dev/null 2>&1 || true
 }
@@ -1407,7 +1435,7 @@ else
     pw_try=0
     while [ "$pw_try" -lt 3 ]; do
         pw_try=$((pw_try + 1))
-        IFS= read -r -s -p "  New LINUX sdsys password: " sdsys_p1 </dev/tty; echo
+        read_password "  New LINUX sdsys password: " sdsys_p1
         if [ -z "$sdsys_p1" ]; then
             echo "  Nothing entered - the sdsys password is not set."
             break
@@ -1417,7 +1445,7 @@ else
             echo "  That does not meet the rule above (attempt $pw_try of 3)."
             continue
         fi
-        IFS= read -r -s -p "  Enter password again: " sdsys_p2 </dev/tty; echo
+        read_password "  Enter password again: " sdsys_p2
         if [ "$sdsys_p1" != "$sdsys_p2" ]; then
             sdsys_p1=""; sdsys_p2=""
             echo "  The two entries did not match (attempt $pw_try of 3)."
