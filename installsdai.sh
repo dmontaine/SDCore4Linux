@@ -1267,6 +1267,8 @@ echo "  2. sdsys's LINUX password   - signs SD's administrator in at this"
 echo "                                machine's keyboard."
 echo "  3. sdsys's SD password      - lets a program on this machine reach"
 echo "                                SD as the administrator over the API."
+echo "All passwords must contain at least 8 characters, with a lower-case"
+echo "letter, an upper-case letter, a digit and a symbol."
 echo "A password that is already set is kept, and is not asked for again."
 echo "(The password asked for at the start of the install was your own Linux"
 echo "one, for sudo.  These three are not it.)"
@@ -1322,8 +1324,7 @@ echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
 echo "        An SD password, not $tuser_lc's Linux one: it is for reaching"
 echo "        SD over the API from a program, here or on another computer."
 echo "        At this machine and over ssh you still sign in with Linux."
-echo "        At least 8 characters, with a lower-case letter, an upper-case"
-echo "        letter, a digit and a symbol.  SD asks for it twice."
+echo "        SD asks for it twice."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
@@ -1364,8 +1365,7 @@ echo "2 of 3: the LINUX password for the sdsys account"
 echo "        sdsys is SD's administrator, and this is its Linux password:"
 echo "        the sign-on for administering SD.  Log in as sdsys at this"
 echo "        machine's keyboard (or a desktop-sharing view of it), run sd."
-echo "        At least 8 characters, with a lower-case letter, an upper-case"
-echo "        letter, a digit and a symbol.  It is asked for twice."
+echo "        It is asked for twice."
 echo ---------------------------------------------------------------
 # 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
 #   happens if you give a different password at 3 than the one you currently
@@ -1461,8 +1461,7 @@ echo "        sdsys's OTHER password: its Linux one was 2 of 3 above.  This"
 echo "        one lets a program on THIS machine reach SD as the administrator."
 echo "        A remote connection cannot use it: SD admits sdsys over the API"
 echo "        only when the kernel says the socket was opened by sdsys here."
-echo "        At least 8 characters, with a lower-case letter, an upper-case"
-echo "        letter, a digit and a symbol.  Press Enter to leave it unset."
+echo "        Press Enter to leave it unset."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"

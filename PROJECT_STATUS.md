@@ -352,6 +352,10 @@ not only the one he named - the same shape, and the rule generalises; say so
 if 2 and 3 should differ.  Nothing was dropped: which password it is, what
 it is for, that ssh still uses the Linux one, the complexity rule (10920,
 which -QUIET stops SD from saying) and Enter-to-skip are all in the blocks.
+Then, same day: the complexity rule left the three blocks and is stated once
+before the first of them - "All passwords must contain ..." (owner's
+wording).  It is still said where a step can be reached without the list
+(the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
 - ***NOTHING IN THIS SESSION HAS RUN ON AN INSTALL.***  The install is still
