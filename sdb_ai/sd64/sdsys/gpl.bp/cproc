@@ -18,7 +18,17 @@
 * 
 * 
 * START-HISTORY:
-* 19 Sep 26 dm The two entry refusals, 10176 (root) and 10181 (sdsys without a
+* 20 Sep 26 dm RENUMBERED: the entry refusals moved from 10176/10177/10181 to
+*           10190/10191/10195.  SD Core for Windows had independently allocated
+*           10176-10181 for its case-insensitivity conversion, so one number
+*           meant two things across the ports; neither block was upstream
+*           (sdb64's 10000 range stops at 10029) so neither had seniority.  The
+*           two agents settled it under the owner's delegation of 20 Sep 2026:
+*           this port moves, because a cycle was owed here anyway and the
+*           re-witness is free, while the Windows verifiers cannot run at all
+*           until its own LOGTO SDSYS problem is fixed.  Numbers only - not one
+*           byte of any message text changed.
+* 19 Sep 26 dm The two entry refusals, 10190 (root) and 10195 (sdsys without a
 *           sdsys login), are printed a line at a time.  Both records are
 *           several lines, and a single DISPLAY put the raw field marks on the
 *           user's screen (seen as a replacement character on the third
@@ -26,7 +36,7 @@
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier model comes
 *           out: the root-entry block no longer drops to sdsys or calls
 *           grant.administrator (deleted).  A root session is refused outright
-*           (10176, audited); a local session already running as the sdsys OS
+*           (10190, audited); a local session already running as the sdsys OS
 *           user - SSH_CONNECTION and SSH_TTY both empty - is the administrator
 *           (10916, audited).  LOGTO SDSYS is refused for everybody.  LOGTO's
 *           tier-ordering gate and the K$SH/K$OS.EXEC load are gone; the
@@ -35,7 +45,7 @@
 *           own Linux permissions (S.27), the metacharacter filter stays.
 * 18 Sep 26 dm, NIGHT (owner): administration is by a real LOGIN as sdsys -
 *           the kernel's loginuid must be sdsys's (K$LOGIN.UID), so sudo and
-*           su from another user are refused (10181) like root is.  There is
+*           su from another user are refused (10195) like root is.  There is
 *           no plain sdsys session.
 * 14 Sep 26 dm  $MODIFY.PASSWORD runs with euid 0 restored, like the account
 *               verbs: it writes $cred, which is root:root 0700 (W.4 SCRAM
@@ -388,7 +398,7 @@ restart.cproc:
 *   the machine's keyboard or over a desktop-sharing view of it - VNC,
 *   TeamViewer - which is a local login the OS itself provides), and there is
 *   NO path from another user into sdsys.  "sudo -u sdsys sd" and "su - sdsys"
-*   are refused (10181) exactly the way root is: both arrive as the sdsys OS
+*   are refused (10195) exactly the way root is: both arrive as the sdsys OS
 *   user on a local session, but the login that started them was somebody
 *   else's, and the kernel's audit loginuid says so (K$LOGIN.UID - set once
 *   by PAM at login, inherited by every descendant, unwritable without root).
@@ -403,7 +413,7 @@ restart.cproc:
 *   build of CPROC.
       if system(27) = 0 then           ;* entered as root?
 $ifndef IS_INSTALL
-         refuse.msg = sysmsg(10176)   ;* several lines: one DISPLAY each
+         refuse.msg = sysmsg(10190)   ;* several lines: one DISPLAY each
          loop
             display remove(refuse.msg, refuse.more)
          while refuse.more
@@ -427,7 +437,7 @@ $ifndef IS_INSTALL
          end else
 * 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
 *   Refused like root; there is no plain sdsys session to fall back to.
-            refuse.msg = sysmsg(10181)   ;* several lines: one DISPLAY each
+            refuse.msg = sysmsg(10195)   ;* several lines: one DISPLAY each
             loop
                display remove(refuse.msg, refuse.more)
             while refuse.more
@@ -445,10 +455,10 @@ $ifndef IS_INSTALL
 *   then refused it entry to the SDSYS account (login:334, 10002, audited).  So
 *   the door was SHUT, and this is a hardening rather than a hole - but it was
 *   shut one room further in, and a refusal at the door is what the owner's
-*   ruling asks for and what root (10176) and a non-login sdsys (10181) already
+*   ruling asks for and what root (10190) and a non-login sdsys (10195) already
 *   get.  A session that should not exist should not start.
 *
-*   10177 WAS WRITTEN FOR EXACTLY THIS CASE IN THE TEARDOWN AND NEVER WIRED.
+*   10191 WAS WRITTEN FOR EXACTLY THIS CASE IN THE TEARDOWN AND NEVER WIRED.
 *   It was deleted earlier tonight as an orphan (S.34) and is restored here
 *   with its original text, because the text was right and only the wiring was
 *   missing.  ***THAT IS THE LESSON OF S.34 CORRECTING ITSELF WITHIN THE DAY:
@@ -462,7 +472,7 @@ $ifndef IS_INSTALL
 *   not-sdsys-on-the-socket) - so "or api" in the owner's ruling is served
 *   there and named here only so the next reader does not look for it.
          if downcase(kernel(K$USERNAME, 0)) = 'sdsys' then
-            refuse.msg = sysmsg(10177)   ;* several lines: one DISPLAY each
+            refuse.msg = sysmsg(10191)   ;* several lines: one DISPLAY each
             loop
                display remove(refuse.msg, refuse.more)
             while refuse.more

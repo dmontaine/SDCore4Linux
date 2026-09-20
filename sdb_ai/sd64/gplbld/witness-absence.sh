@@ -31,7 +31,7 @@
 #       names the sdsys user alone; the ssh boundary block forces every
 #       sdusers member into sd and denies sdsys network login (S.28).
 #   M8  the administrator model, driven: a root session is refused outright
-#       (10176, audited) and a local sdsys session is granted (10916).
+#       (10190, audited) and a local sdsys session is granted (10916).
 #   M9  the machine-side absences the source must not contradict: this
 #       script checks the shipped installer, deleter, ssh helper, sudoers
 #       and register-key comments in the source tree it lives in.
@@ -114,7 +114,7 @@ run_sd_as() {
   body="$body"$'\n''OFF'$'\n'
   if [ "$user" = sdsys ]; then
 #   18 Sep 26 dm, NIGHT - S.26's corrected route: ONLY A REAL SDSYS LOGIN
-#   administers, so a bare "sudo -u sdsys sd" is REFUSED (10181) - its
+#   administers, so a bare "sudo -u sdsys sd" is REFUSED (10195) - its
 #   loginuid is whoever ran the witness.  The witness runs as root (--commit
 #   is sudo), and root alone may adopt a loginuid: the bridge writes sdsys's
 #   uid into /proc/self/loginuid of exactly this process tree and execs sudo,
@@ -233,7 +233,7 @@ if [ "$COMMIT" -eq 1 ]; then
   done
   OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
-  ck_says "M3b SUSPENDED is the flag (10179)" "is now suspended" "$OUT"
+  ck_says "M3b SUSPENDED is the flag (10193)" "is now suspended" "$OUT"
   # 19 Sep 26: a MISSING record also reads blank, and M3c passed on the third
   # cycle with no account at all.  The null case is refused out loud.
   if [ -f "$REGISTER/$ACC" ]; then
@@ -337,7 +337,7 @@ fi
 head2 "M8. the administrator model, driven (S.26)"
 OUT=$(run_sd_as root "a root session (refused outright)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
-  ck_says "M8a a root session is refused in 10176's words" "root is not SD's administrator" "$OUT"
+  ck_says "M8a a root session is refused in 10190's words" "root is not SD's administrator" "$OUT"
   ck_absent "M8b and never reached the prompt (no WHO)" "zzabst" "$OUT"
   ck_says "M8c and it was audited" "ELEVATION REFUSED reason=root is not SD administrator" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
@@ -352,14 +352,14 @@ if [ "$COMMIT" -eq 1 ]; then
 # 18 Sep 26 dm, NIGHT - THE OWNER'S RULING AS A ROW: no path from another
 #   user into sdsys.  The witness's own loginuid is the owner's (it arrives
 #   by sudo from a don session), so a BARE "sudo -u sdsys sd" - no bridge -
-#   is exactly the route that must be refused, in 10181's words, audited,
+#   is exactly the route that must be refused, in 10195's words, audited,
 #   never reaching the prompt.
   OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo -u sdsys "$SD_BIN" 2>&1 | strip)
   printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-  # 19 Sep 26: the anchor must sit inside ONE line of 10181 - "not logged in as
+  # 19 Sep 26: the anchor must sit inside ONE line of 10195 - "not logged in as
   # sdsys" spans its line break and failed on the third cycle although the
   # refusal was right (M8g/M8h passed).
-  ck_says "M8f sudo -u sdsys is refused (10181)" "but the machine was not logged in as" "$OUT"
+  ck_says "M8f sudo -u sdsys is refused (10195)" "but the machine was not logged in as" "$OUT"
   ck_absent "M8g and never reached the prompt (no grant banner)" "SD administration granted" "$OUT"
   ck_says "M8h and it was audited" "ELEVATION REFUSED reason=sdsys session without a sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
@@ -368,7 +368,7 @@ fi
 # ==========================================================================
 # 19 Sep 26 dm - M12, SDSYS HAS NO REMOTE ACCESS (owner, 19 Sep 2026: "sdsys
 # should not have any remote access from ssh or api").  CPROC now refuses a
-# sdsys session that arrives over a remote transport, at the door (10177),
+# sdsys session that arrives over a remote transport, at the door (10191),
 # instead of letting it start and leaving LOGIN to refuse the ACCOUNT (10002).
 #
 # ***THIS MEASURES SD'S HALF AND SAYS SO.***  A real ssh login as sdsys cannot
@@ -379,22 +379,22 @@ fi
 # point: this proves SD refuses, not that sshd does.
 #
 # THE BRIDGE IS STILL USED, so the session is otherwise a GOOD one - OS user
-# sdsys, loginuid sdsys.  Without it the refusal would be 10181 and the row
+# sdsys, loginuid sdsys.  Without it the refusal would be 10195 and the row
 # would pass for the wrong reason; M12b is the control that says which refusal
 # fired.  UNRUN WHEN WRITTEN: owed the next cycle.
 head2 "M12. sdsys over a remote transport is refused at the door (owner, 19 Sep)"
 if [ "$COMMIT" -eq 0 ]; then
-  for r in "M12a refused in 10177's words" "M12b not the 10181 refusal" "M12c no grant" "M12d audited"; do not_reached "$r"; done
+  for r in "M12a refused in 10191's words" "M12b not the 10195 refusal" "M12c no grant" "M12d audited"; do not_reached "$r"; done
 else
   say "  a bridged sdsys session (loginuid sdsys) with SSH_CONNECTION set"
   OUT=$(printf '\nTERM 200,9999\nWHO\nOFF\n' | timeout 90 sudo sh -c \
         'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys SSH_CONNECTION="10.0.0.9 51000 10.0.0.1 22" "$1"' \
         sd-run "$SD_BIN" 2>&1 | strip)
   printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
-  # The anchor sits inside ONE line of 10177 - M8f was fixed on the third cycle
+  # The anchor sits inside ONE line of 10191 - M8f was fixed on the third cycle
   # for spanning a line break, and this message wraps in the same way.
-  ck_says "M12a refused in 10177's words" "may not administer over ssh or the API" "$OUT"
-  ck_absent "M12b and NOT as a session without a sdsys login (10181)" "was not logged in as" "$OUT"
+  ck_says "M12a refused in 10191's words" "may not administer over ssh or the API" "$OUT"
+  ck_absent "M12b and NOT as a session without a sdsys login (10195)" "was not logged in as" "$OUT"
   ck_absent "M12c no administrator grant" "SD administration granted" "$OUT"
   ck_says "M12d audited as a remote transport" "ELEVATION REFUSED reason=sdsys session from a remote transport" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"

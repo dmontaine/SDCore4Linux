@@ -532,7 +532,7 @@ sudo usermod -g sdusers -G sdusers sdsys
 # SD password below), and the account needs a working shell and a home to
 # log into - at the keyboard, or over a desktop-sharing view of it.  The
 # loginuid PAM sets at that login is the one credential SD's administrator
-# gate accepts; sudo and su from another user are refused (CPROC 10181).
+# gate accepts; sudo and su from another user are refused (CPROC 10195).
 sudo usermod -s /bin/sh sdsys
 sudo install -d -o sdsys -g sdusers -m 750 /home/sdsys
 # --------------------
@@ -1089,7 +1089,7 @@ echo "account register: $(sudo stat -c '%U:%G %a' "$sdsysdir/accounts")"
 #            refusal, administrator bootstrap), and from this point the
 #            production CPROC refuses a root session outright - the one way
 #            into administration is a real LOGIN as sdsys (night ruling, 18
-#            Sep: sudo and su from another user are refused with it, 10181).
+#            Sep: sudo and su from another user are refused with it, 10195).
 echo "Compiling CPROC without IS_INSTALL defined."
 sudo bash -c 'echo "*comment out * $define IS_INSTALL" > /usr/local/sdsys/gpl.bp/define_install.h'
 if ! sudo bin/sd -internal BASIC gpl.bp cproc; then
@@ -1240,7 +1240,7 @@ fi
 # IN as sdsys, so the account needs a password of its own - set here, at a
 # hidden prompt, by whoever is installing.  There is no other way in: SD
 # refuses a session that arrived by sudo or su from another user (CPROC
-# 10181), and sshd denies sdsys the network.  A desktop-sharing view of the
+# 10195), and sshd denies sdsys the network.  A desktop-sharing view of the
 # console (VNC, TeamViewer) is a local login and works.
 sdsys_pw_state="not set"
 echo
@@ -1328,7 +1328,7 @@ fi
 #            install, as root, gives this one process tree sdsys's loginuid
 #            (the witnesses' bridge, granted by M8d on the 19 Sep cycle).  It
 #            grants nothing to anyone not already root; if the write fails the
-#            session is refused (10181) and the $cred check says "not set".
+#            session is refused (10195) and the $cred check says "not set".
 sd_pw_state="not set"
 echo
 echo "The SD password for your account ($tuser_lc) - required"

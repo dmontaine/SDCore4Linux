@@ -19,6 +19,12 @@
 * 
 *
 * START-HISTORY:
+* 20 Sep 26 dm RENUMBERED: the three suspension messages moved from
+*           10178/10179/10180 to 10192/10193/10194.  SD Core for Windows had
+*           independently allocated the same block for its case-insensitivity
+*           conversion; neither side was upstream, so the two agents settled it
+*           under the owner's delegation and this port moved.  See CPROC's note
+*           of the same date for the reasoning.  Numbers only - no text changed.
 * 19 Sep 26 dm UNSUSPEND is now UNSUSPENDED, the Windows port's keyword
 *           (its modifya:355) - a user-facing word the two ports must share.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
@@ -298,7 +304,7 @@ set.suspended:
 
    @system.return.code = 0
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT SUSPEND account=' : acc.name)
-   crt sysmsg(10179, acc.name)  ;* Account %1 is now suspended
+   crt sysmsg(10193, acc.name)  ;* Account %1 is now suspended
    return
 
 *****************************************************************************
@@ -309,7 +315,7 @@ set.suspended:
 
 set.unsuspended:
    if upcase(trim(acc.rec<ACC$SUSPENDED>)) # 'SUSPENDED' then
-      crt sysmsg(10180, acc.name)  ;* %1 is not suspended; nothing changed
+      crt sysmsg(10194, acc.name)  ;* %1 is not suspended; nothing changed
       return
    end
 
@@ -319,7 +325,7 @@ set.unsuspended:
 
    @system.return.code = 0
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
-   crt sysmsg(10178, acc.name)  ;* Account %1 is no longer suspended
+   crt sysmsg(10192, acc.name)  ;* Account %1 is no longer suspended
    return
 
 end
