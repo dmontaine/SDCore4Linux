@@ -255,6 +255,19 @@ void op_system() {
       k_put_c_string(ip_addr, descr);
       break;
 
+    /* 19 Sep 26 dm - THE UNIX-SOCKET PEER'S OS USER, "" when there is none.
+       Next to 42 because it answers the question 42 cannot: 42 is an ADDRESS,
+       and an address classifies a transport, not a person - an ssh -L tunnel
+       arrives from 127.0.0.1 or the socket and reads local either way.  This
+       is the kernel's own view of the process on the other end (SO_PEERCRED,
+       linuxio.c), so a tunnel reports the tunnel's owner.
+       EMPTY IS THE REFUSING ANSWER, not a missing one: TCP has no equivalent
+       credential, so "" means the caller cannot be placed on this machine and
+       every caller must treat that as remote.                               */
+    case 43: /* Unix-socket peer's OS user */
+      k_put_c_string(peer_user, descr);
+      break;
+
     case 91: /* Windows? */
       descr->data.value = 0;
       break;

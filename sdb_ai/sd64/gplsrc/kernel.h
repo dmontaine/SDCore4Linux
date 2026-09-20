@@ -54,6 +54,16 @@ Public int phantom_user_index init(0); /* User table index for phantom */
 Public int16_t connection_type init(CN_CONSOLE);
 /* 20240219 mab mods to handle AF_UNIX socket */
 Public char ip_addr[MAX_SOCKET_ADDR_STR_LEN] init("");   /* IP address or AF_UNIX socket path... */
+/* 19 Sep 26 dm - THE UNIX-SOCKET PEER'S OS USER, from SO_PEERCRED, "" when
+   there is none.  An address cannot answer "is this a local user?" - ssh -L
+   terminates on this host, so a tunnelled connection arrives from 127.0.0.1
+   or from the socket and looks local either way (see gpl.bp/peer_local's own
+   statement of that limit).  The kernel's credential CAN answer it: under a
+   tunnel the process on the other end of the socket is sshd running as the
+   TUNNEL'S OWNER, so this reports that user and never sdsys, which cannot
+   authenticate to sshd at all (DenyUsers, ssh-forcecommand.sh).  Read by
+   system(43).                                                              */
+Public char peer_user[MAX_USERNAME_LEN + 1] init("");
 Public int port_no init(0);             /* ...port number for telnet */
 Public char port_name[20 + 1] init(""); /* Port name for serial connection */
 Public int forced_user_no init(0);      /* Login as specific user */

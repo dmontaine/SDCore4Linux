@@ -1092,6 +1092,24 @@ sprobe() {   # $1 title, $2 password, then scram-probe arguments
     printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
     printf '%s' "$out"
 }
+# 19 Sep 26 dm - THE SAME PROBE, RUN AS SOMEBODY ELSE (S.33).  SDSYS's API door
+#   now asks the KERNEL which user opened the socket, so the witness has to be
+#   able to open it as somebody other than root - that is the whole measurement.
+#   --preserve-env rather than "env VAR=..." so the password never appears in a
+#   command line: this runs on the owner's machine and ps is world-readable.
+#   $PROBE_PUB, not $SPROBE: the repository lives under a home directory the
+#   target users cannot read.
+PROBE_PUB=/var/tmp/sd-witness-scram-probe.py
+sprobe_as() {   # $1 run-as user, $2 title, $3 password, then scram-probe arguments
+    say "  --- scram-probe as $1: $2 ---" >&2
+    say "      > sudo -u $1 python3 $PROBE_PUB ${*:4}" >&2
+    if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+    local out
+    out=$(SD_SCRAM_PASSWORD="$3" timeout 90 sudo -u "$1" --preserve-env=SD_SCRAM_PASSWORD \
+              python3 "$PROBE_PUB" "${@:4}" 2>&1)
+    printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+    printf '%s' "$out"
+}
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LINUX_PW" ] || [ ! -f "$SPROBE" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5), the Linux password (13) and $SPROBE"
     for r in "S1 verified" "S1b entered" "S1c WHO" "S2 /proc" "S2b uid" "S2c no group 0" "S2d sdusers" "S2e sdu_zzrel1" "S3 5017" "S3b audit" "S4 Linux password refused" "S5 5275" "S5c 5275 for the Linux password" "S6 5273" "S6b audit" "S7 5017" "S7b audit" "S9 name gate 5017" "S9b audit: name rejected" "S8 unix socket transport" "S8a verified" "S8b entered" "S8c WHO" "S8d 5275 over the unix socket" "S8e not logged in"; do not_reached "$r"; done
@@ -1309,7 +1327,7 @@ say "  this host's first global IPv4 address: '${LANIP:-none}'"
 say "  TCP listeners on 4243: '${LISTEN:-none}'"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
-    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 local admitted" "E3b entered" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
+    for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
 else
     OUT=$(sprobe "E1 CONTROL: $ACC over the LAN address" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
     E1OK=no
@@ -1320,7 +1338,7 @@ else
     fi
     if [ "$COMMIT" -eq 1 ] && [ "$E1OK" != yes ]; then
         say "  the control failed, so the route over $LANIP does not work here (listeners: ${LISTEN:-none}) - the gate cannot be measured"
-        for r in "E0 sdsys credential set" "E3 local admitted" "E3b entered" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
+        for r in "E0 sdsys credential set" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 sdsys credential removed"; do not_reached "$r"; done
     else
         # THE TEARDOWN'S DOOR (S.17 became S.28): only SDSYS is refused over
         # the API unless the connection is from this machine.  sdsys carries
@@ -1335,10 +1353,52 @@ else
         [ "$COMMIT" -eq 1 ] && ck_says "E0 a throwaway sdsys credential was set" "Password set for account sdsys" "$OUT"
         N0=0
         [ "$COMMIT" -eq 1 ] && N0=$(wc -l < "$AUD")
-        OUT=$(sprobe "E3 LEG A: sdsys over 127.0.0.1" "$SDSYS_PW" --host 127.0.0.1 --user sdsys --account sdsys)
+        # 19 Sep 26 dm - E3 REVERSES (owner, 19 Sep 2026).  Loopback TCP used to
+        #   admit sdsys; it no longer does, because TCP carries no peer
+        #   credential and an address cannot tell a local process from an ssh
+        #   tunnel that ends here.  SDSYS over the API is Unix-socket only now,
+        #   and the socket's peer must BE sdsys (system(43), SO_PEERCRED).
+        #   UNRUN WHEN WRITTEN: E3/E3c/E3d are owed the next cycle.
+        OUT=$(sprobe "E3 LEG A: sdsys over 127.0.0.1 (now refused - TCP has no credential)" "$SDSYS_PW" --host 127.0.0.1 --user sdsys --account sdsys)
         if [ "$COMMIT" -eq 1 ]; then
-            ck_says "E3 sdsys is admitted locally" "SCRAM: server signature VERIFIED" "$OUT"
-            ck_says "E3b and enters its own account" "account sdsys: entered" "$OUT"
+            ck_says "E3 sdsys over loopback TCP is refused in 10922's words" "SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
+            ck_absent "E3b and did not log in" "server signature VERIFIED" "$OUT"
+        fi
+        # THE CONTROL, AND THE SECTION IS WORTHLESS WITHOUT IT: every other row
+        # here is a refusal, so one route must still WORK or a server that
+        # refused everything would pass them all.  sdsys over the socket, from a
+        # process actually running as sdsys.
+        USOCK13E=$(sed -n 's#^ListenStream=\(/.*\)#\1#p' /usr/lib/systemd/system/sdclient.socket 2>/dev/null | head -1)
+        say "  the Unix socket, from the installed unit: '${USOCK13E:-none}'"
+        # The probe is copied somewhere every user can read: it lives under the
+        # repository owner's home, which sdsys and $ACC cannot reach.
+        PROBE_PUB=/var/tmp/sd-witness-scram-probe.py
+        if [ "$COMMIT" -eq 1 ] && [ -n "$USOCK13E" ]; then
+            cp -f "$SPROBE" "$PROBE_PUB" && chmod 644 "$PROBE_PUB"
+        fi
+        if [ "$COMMIT" -eq 1 ] && [ -z "$USOCK13E" ]; then
+            for r in "E3c socket as sdsys admitted" "E3d socket as $ACC refused" "E3e audited with the opener"; do not_reached "$r"; done
+        else
+            OUT=$(sprobe_as sdsys "E3c CONTROL: sdsys over the socket, as sdsys" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            if [ "$COMMIT" -eq 1 ]; then
+                ck_says "E3c sdsys over the socket AS sdsys is admitted" "SCRAM: server signature VERIFIED" "$OUT"
+                ck_says "E3c2 and enters its own account" "account sdsys: entered" "$OUT"
+            fi
+            # THE ROW THE CHANGE EXISTS FOR.  $ACC is an ordinary local SD user
+            # with a Linux account - exactly what sits at the far end of an
+            # "ssh -L" tunnel.  It holds sdsys's SD password here, which is the
+            # worst case: the secret is not what is being tested, the OPENER is.
+            N1=0
+            [ "$COMMIT" -eq 1 ] && N1=$(wc -l < "$AUD")
+            OUT=$(sprobe_as "$ACC" "E3d sdsys's password over the socket, opened by $ACC" "$SDSYS_PW" --unix "$USOCK13E" --user sdsys --account sdsys)
+            if [ "$COMMIT" -eq 1 ]; then
+                ck_says "E3d refused in 10922's words though the password was right" "SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
+                ck_absent "E3d2 and did not log in" "server signature VERIFIED" "$OUT"
+                NEW=$(tail -n +"$((N1 + 1))" "$AUD")
+                printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+                ck_says "E3e audited, naming who opened the socket" "API REFUSED user=sdsys reason=sdsys API session opened by $ACC" "$NEW"
+            fi
+            rm -f "$PROBE_PUB"
         fi
         OUT=$(sprobe "E4 LEG B: the same account and password over $LANIP" "$SDSYS_PW" --host "$LANIP" --user sdsys --account sdsys)
         if [ "$COMMIT" -eq 1 ]; then

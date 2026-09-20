@@ -39,6 +39,13 @@
  *
  */
 
+/* 19 Sep 26 dm - _GNU_SOURCE, AND IT MUST PRECEDE EVERY INCLUDE.  struct ucred
+   and SO_PEERCRED are glibc extensions gated on it; -std=gnu17 does NOT imply
+   it (measured: without this the file fails with "storage size of 'cr' isn't
+   known", with it the same code compiles clean).  Defined here rather than in
+   the Makefile's C_FLAGS so it changes this file's feature set and no other. */
+#define _GNU_SOURCE
+
 #include "sd.h"
 #include "config.h"
 #include "err.h"
@@ -157,7 +164,35 @@ bool start_connection(int unused) {
            (measured 14 Sep 26, SocketGroup without SocketMode), so any local
            user reaches it, as any reaches 127.0.0.1:4243.  The socket is kept
            - an ssh -L tunnel reaches it.                                      */
-        syslog(LOG_INFO, "Connection over Unix socket %s", ip_addr);
+        /* 19 Sep 26 dm - AND THE PEER'S CREDENTIAL IS READ AGAIN, AS A CHECK
+           AND NEVER AS AN AUTHENTICATION - which is the distinction S.18 was
+           right about.  SCRAM still proves who the caller is; this only says
+           which local user the connecting PROCESS runs as, so APISRVR can
+           require that SDSYS's API session really is sdsys on this machine
+           (owner's ruling, 19 Sep 2026: sdsys keeps local API access, and it
+           is worth a second password to have it).
+           SO_PEERCRED, not getpeereid(): the same answer without bringing back
+           the libbsd dependency S.18 removed.
+           HERE, NOT LATER: below this switch the TLS relay takes descriptor 0,
+           and from that point the credential would describe the relay, exactly
+           as the comment on getpeername() says of the address.
+           FAILURE LEAVES peer_user EMPTY, and empty is refused by the caller.  */
+        {
+          struct ucred cr;
+          socklen_t crlen = sizeof(cr);
+          struct passwd *pw;
+
+          if (getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cr, &crlen) == 0
+              && (pw = getpwuid(cr.uid)) != NULL) {
+            strncpy(peer_user, pw->pw_name, MAX_USERNAME_LEN);
+            peer_user[MAX_USERNAME_LEN] = '\0';
+            syslog(LOG_INFO, "Connection over Unix socket %s from uid %d (%s)",
+                   ip_addr, (int)cr.uid, peer_user);
+          } else {
+            syslog(LOG_INFO, "Connection over Unix socket %s; no peer "
+                             "credential (SO_PEERCRED failed)", ip_addr);
+          }
+        }
         break;
 
       case PF_INET:

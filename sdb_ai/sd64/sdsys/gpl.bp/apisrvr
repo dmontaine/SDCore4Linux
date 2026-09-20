@@ -19,6 +19,14 @@
 *
 *
 * START-HISTORY:
+* 19 Sep 26 dm SDSYS's API door asks the KERNEL who opened the socket, not the
+*           address (owner, 19 Sep 2026: only a user logged in as sdsys reaches
+*           SDSYS, and local API access is worth a second password).  An
+*           address cannot see through an ssh tunnel and sdsys can never own
+*           one, so !peer_local alone admitted a tunnel opened by anybody with
+*           a login here.  system(43) is the socket peer's OS user
+*           (SO_PEERCRED); 10922 refuses when it is not sdsys, 10174 keeps the
+*           remote case.  SDSYS over the API is now Unix-socket only.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  vb.account's
 *           tier-ordering gate is gone with the tier model (S.25); vb.scram's
 *           sdapi test is gone - the API is open to every account (S.28) - and
@@ -1263,14 +1271,60 @@ vb.scram.final:
 *   ssh -L is the way in from elsewhere, because the tunnel needs the Linux
 *   login first.  The comparison is against the sdsys name itself: there is
 *   one administrator now, no register lookup needed.
+*
+* 19 Sep 26 dm - AND THE ADDRESS WAS NEVER ENOUGH FOR THIS ONE ACCOUNT (owner,
+*   19 Sep 2026: only a user actually logged in as sdsys reaches SDSYS; local
+*   API access is kept, and a second password is worth it to have it).
+*
+*   THE FLAW IN THE OLD TEST: !peer_local classifies an ADDRESS, and its own
+*   header says it cannot see through an ssh tunnel - "ssh -L" ends on this
+*   host, so a tunnelled connection arrives from 127.0.0.1 or from the socket
+*   and reads LOCAL.  That was accepted everywhere else because a tunnel needs
+*   the account's own Linux login first.  ***THAT ARGUMENT DOES NOT HOLD FOR
+*   SDSYS***: sdsys is DenyUsers'd at sshd (ssh-forcecommand.sh), so sdsys can
+*   never own a tunnel - a tunnel carrying SDSYS's credential belongs to SOME
+*   OTHER USER, and no address can tell.
+*
+*   WHAT REPLACES IT: system(43), the kernel's own view of the process at the
+*   other end of the Unix socket (SO_PEERCRED, linuxio.c, read before the TLS
+*   relay takes the descriptor).  Under a tunnel that process is sshd running
+*   as the TUNNEL'S OWNER, so it reports that user and never sdsys.
+*
+*   THREE CONDITIONS, ALL REQUIRED, AND "" IS A REFUSAL NOT A GAP: the peer
+*   must be local, the transport must be the Unix socket (TCP has no such
+*   credential, so loopback TCP no longer admits SDSYS - a real narrowing,
+*   stated rather than glossed), and the socket's peer must BE sdsys.
                api.peer.local = @false
                call !peer_local(api.peer.local, api.peer.addr)
+*
+*   TWO REFUSALS, NOT ONE, AND 10174 KEEPS ITS OWN CASE.  "You are not on this
+*   machine" and "you are on it but you are not sdsys" are different facts and
+*   an administrator reading a log needs to know which.  Keeping 10174 on the
+*   remote arm also leaves §13e E4 measuring what it has always measured, and
+*   leaves no message record without a caller - tonight's other lesson.
                if downcase(scram.user) = 'sdsys' and not(api.peer.local) then
                   scram.refuse.reason = 'sdsys on a remote API session from ' : api.peer.addr
                   abort.message = sysmsg(10174)
                   * SDSYS may be reached through the API only from this machine
                   server.error = SV$ON.ERROR
                   goto exit.vb.scram.fail
+               end
+               if downcase(scram.user) = 'sdsys' then
+                  api.peer.user = downcase(trim(system(43)))
+                  sdsys.api.ok = @true
+                  if api.peer.addr[1,1] # '/' then sdsys.api.ok = @false
+                  if api.peer.user # 'sdsys' then sdsys.api.ok = @false
+                  if not(sdsys.api.ok) then
+                     if api.peer.user = '' then
+                        scram.refuse.reason = 'sdsys API session with no socket credential from ' : api.peer.addr
+                     end else
+                        scram.refuse.reason = 'sdsys API session opened by ' : api.peer.user : ' from ' : api.peer.addr
+                     end
+                     abort.message = sysmsg(10922)
+                     * SDSYS may use the API only from a process running as sdsys
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
                end
 
                * THE IDENTITY IS THE NAME THAT WAS PROVEN, UNCONDITIONALLY - no
