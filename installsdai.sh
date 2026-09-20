@@ -1360,7 +1360,7 @@ sd_pw_state="not set"
 #   which arrived after the explanation and read as its result.
 echo
 echo ---------------------------------------------------------------
-echo "1 of 3: Your SD password"
+echo "1 of 3: Password for the SD $tuser_lc account"
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
