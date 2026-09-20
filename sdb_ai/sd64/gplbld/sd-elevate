@@ -56,8 +56,9 @@
 #
 #   users   - must exist (except useradd), must have uid >= UID_MIN, and must
 #             never be root or sdsys.  System accounts are out of reach.
-#   groups  - must be one of SD's own: sdusers, sdu_*, sdg_*.  Nothing else is
-#             addressable, so "add me to sudo" has no spelling here.
+#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdu_*, sdg_*.
+#             Nothing else is addressable, so "add me to sudo" has no spelling
+#             here.
 #   paths   - setgid only under the SD accounts root, and the path is resolved
 #             with realpath first so a symlink cannot point out of it.
 #
@@ -369,10 +370,15 @@ require_new_user() {
 require_sd_group() {
   local group=$1
   require_name "group" "$group"
+  # 20 Sep 26 dm - S.29: sdssh and sdapi are SD's own groups again.  They are
+  # the AUTHORITY for a per-account remote route (membership = permitted), the
+  # shape the Windows port uses; an allow group fails CLOSED, which a deny
+  # group cannot - a group lookup that cannot answer reads as "not a member",
+  # and with a deny group that silently grants remote access.
   case $group in
-    sdusers) : ;;
+    sdusers|sdssh|sdapi) : ;;
     sdu_?*|sdg_?*) : ;;
-    *) die "'$group' is not an SD group (want sdusers, sdu_*, or sdg_*)" ;;
+    *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdu_*, or sdg_*)" ;;
   esac
 }
 
@@ -718,8 +724,12 @@ case $verb in
     # every SD user at once (LOGIN's entry gate reads it).  Only the
     # per-account groups are destroyable, which is all DELACC:197 ever asks
     # for - it passes the account's own sdu_/sdg_ group.
+    # 20 Sep 26 dm - S.29 adds sdssh and sdapi to the undeletable set, for
+    # sdusers' own reason: deleting one does not narrow a route, it removes
+    # the register every account's route is read from, and an allow group that
+    # does not exist refuses everybody at once.
     case $1 in
-      sdusers)
+      sdusers|sdssh|sdapi)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"

@@ -294,17 +294,24 @@ fi
 #            lines now only tidy machines installed before the teardown, and
 #            only when the accounts go too.  A keep-accounts cycle leaves the
 #            legacy groups exactly as it found them.
+# 20 Sep 26 dm - S.29 BRINGS sdssh AND sdapi BACK, so sdapi is no longer a
+#   leftover to tidy: it and sdssh are where each account's remote routes are
+#   recorded.  They go with the accounts and never without them - on a keep
+#   cycle the memberships ARE the routes the accounts still have.  sdadmin
+#   stays legacy: the teardown removed the administrator group for good.
 if [ "$keep_accts" = "DELETE" ]; then
     if getent group sdadmin &>/dev/null; then
         sudo groupdel sdadmin || true
         echo "Removed legacy group sdadmin."
     fi
-    if getent group sdapi &>/dev/null; then
-        sudo groupdel sdapi || true
-        echo "Removed legacy group sdapi."
-    fi
+    for sd_route_group in sdssh sdapi; do
+        if getent group "$sd_route_group" &>/dev/null; then
+            sudo groupdel "$sd_route_group" || true
+            echo "Removed group $sd_route_group (the accounts went with it)."
+        fi
+    done
 else
-    echo "sd ACCOUNTS were saved, therefore groups sdadmin and sdapi not deleted."
+    echo "sd ACCOUNTS were saved, so the route groups sdssh and sdapi were kept."
 fi
 # --------------------
 
