@@ -344,6 +344,15 @@ REFUSAL is untouched - `refuse.msg` prints however the session started.
 The witnesses read the long success wording because `run_sd` does not pass
 -QUIET, so their anchors are unaffected (checked, not assumed).
 
+***THIRD ROUND, 20 SEP 2026.***  Owner, of step 1: "The text between the
+section header and the password entry is unnecessary.  The header explains
+everything."  So each step's explanation moved INTO its ruled block and
+nothing is printed between the block and the prompt.  Applied to all three,
+not only the one he named - the same shape, and the rule generalises; say so
+if 2 and 3 should differ.  Nothing was dropped: which password it is, what
+it is for, that ssh still uses the Linux one, the complexity rule (10920,
+which -QUIET stops SD from saying) and Enter-to-skip are all in the blocks.
+
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
 - ***NOTHING IN THIS SESSION HAS RUN ON AN INSTALL.***  The install is still
   `60ac74a` (seventh cycle, 19 Sep).  `assert-current` answers STALE.  Four
