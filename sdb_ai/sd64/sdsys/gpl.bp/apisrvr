@@ -19,6 +19,13 @@
 *
 *
 * START-HISTORY:
+* 20 Sep 26 dm S.29 part 3: vb.scram's sdapi gate is BACK (10073, the port's
+*           number and text).  The owner's ruling of 18/19 Sep reverses S.28's
+*           disposal of the per-account route: membership of sdapi IS the API
+*           route, MODIFY.ACCOUNT turns it off and on, and this is the test that
+*           makes the word mean something.  status() is read so "could not tell"
+*           refuses with its own audit reason rather than reading as "not a
+*           member"; sdsys is exempt by name, as at vb.account.
 * 19 Sep 26 dm SDSYS's API door asks the KERNEL who opened the socket, not the
 *           address (owner, 19 Sep 2026: only a user logged in as sdsys reaches
 *           SDSYS, and local API access is worth a second password).  An
@@ -1255,8 +1262,47 @@ vb.scram.final:
                   goto exit.vb.scram.fail
                end
 
-* 18 Sep 26 dm - TEARDOWN (S.28).  The sdapi gate is gone: the API is open to
-*   every account except SDSYS, and SDSYS's door is the gate below.
+* 20 Sep 26 dm - S.29 PART 3: THE sdapi GATE IS BACK, AND IT IS WHAT MAKES THE
+*   ROUTE REAL.  S.28 disposed of it; that disposal is reversed by the owner's
+*   ruling of 18/19 Sep 2026 (relayed by the port): every account has ssh and
+*   the API by default, and the administrator may turn either off and on
+*   again.  Parts 1
+*   and 2 gave the groups and the words; until this test existed, MODIFY.ACCOUNT
+*   <acc> NONE reported the routes gone and the account was still reachable.
+*
+*   THE SHAPE IS THE PORT'S AND THE NUMBER IS THE PORT'S (10073).  Membership of
+*   sdapi IS the route: an ALLOW group, so a missing or unreadable register
+*   refuses rather than grants.
+*
+*   ***status() IS READ AND A THREE-VALUED ANSWER IS NOT COLLAPSED.***
+*   !is_grp_member returns @false both for "not a member" and for "could not
+*   tell" (is_grp_member:48/:87/:91 set status 1 for an empty argument, an
+*   unreadable /etc/group and an unopenable /etc).  Both refuse here - an allow
+*   group fails closed in either case - but the two are written into the audit
+*   trail as different reasons, because "this account has no API route" and "the
+*   machine could not answer" call for different action from whoever reads it.
+*
+*   SDSYS IS EXEMPT BY NAME, as it is at vb.account's group test above and for
+*   the same reason: the sdsys register record's ACC$GROUP is "sdsys", the OS
+*   user IS the account, and nothing joins it to sdapi.  Its own door is the
+*   next two gates, which are stricter than this one - so the exemption widens
+*   nothing.  The name is compared downcased, as everywhere else.
+               if not(downcase(scram.user) = 'sdsys') then
+                  api.in.sdapi = is_grp_member(scram.user, 'sdapi')
+                  api.route.stat = status()
+                  if api.route.stat # 0 then
+                     scram.refuse.reason = 'the sdapi route could not be read, status ' : api.route.stat
+                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+                  if not(api.in.sdapi) then
+                     scram.refuse.reason = 'not a member of sdapi'
+                     abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
+                     server.error = SV$ON.ERROR
+                     goto exit.vb.scram.fail
+                  end
+               end
 
 * 18 Sep 26 dm - TEARDOWN (S.28, was S.17).  THE SDSYS DOOR: SDSYS is refused
 *   over the API unless the connection came from this machine - loopback, or

@@ -344,10 +344,22 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
-head2 "M7. no sdadmin, no sdapi; the boundary names sdsys (S.26/S.28)"
+# 20 Sep 26 - M7b IS REVERSED, AND IT WOULD HAVE FAILED ON THE NEXT CYCLE
+# WHATEVER THE PRODUCT DID.  It asserted the sdapi group does NOT exist (S.28);
+# S.29 part 1 has the installer create sdapi and sdssh before any account, so
+# the row measured a decision that had been taken back.  sdadmin is untouched -
+# that one really is gone (S.26).
+head2 "M7. sdadmin gone, the two route groups present, the boundary names sdsys (S.26/S.29)"
 ck "M7a the sdadmin group does not exist" no "$(yesno_group sdadmin)"
-ck "M7b the sdapi group does not exist"   no "$(yesno_group sdapi)"
+ck "M7b the sdapi group EXISTS (S.29: membership is the API route)" yes "$(yesno_group sdapi)"
+ck "M7b2 the sdssh group EXISTS (S.29: membership is the ssh route)" yes "$(yesno_group sdssh)"
 ck "M7c the sdsys OS user exists" yes "$(yesno_user sdsys)"
+# ***AND SDSYS IS IN NEITHER.***  Its API door is its own (10174/10922, §13e)
+# and sshd denies it network login outright, so a membership here would be a
+# route nobody meant to grant.  apisrvr exempts sdsys from the sdapi test BY
+# NAME, which is only safe while this row holds.
+ck "M7c2 sdsys is in neither route group" "no no" \
+   "$(in_group sdsys sdssh) $(in_group sdsys sdapi)"
 if [ -f /etc/sudoers.d/sdcore ]; then
   SUDOERS=$(cat /etc/sudoers.d/sdcore)
   say "  /etc/sudoers.d/sdcore:"
@@ -369,6 +381,37 @@ if [ -f /etc/ssh/sshd_config ]; then
   ck_says "M7f sshd forces every sdusers member into sd" "Match Group sdusers,!sdsys" "$SSC"
   ck_says "M7g and denies sdsys network login" "DenyUsers sdsys" "$SSC"
   ck_absent "M7h and not the sdadmin exemption" "sdusers,!sdadmin" "$SSC"
+# 20 Sep 26 - S.29 part 3: THE ssh ROUTE IS READ BY sshd, AND THE ORDER IS THE
+#   WHOLE OF IT.  sshd takes the FIRST matching arm's ForceCommand, so an SD
+#   account without sdssh reaches the refusal only while the ,!sdssh arm sits
+#   ABOVE the general one.  Both line numbers are taken from the live file and
+#   compared; M7i2 fails rather than passes if either arm is missing, because
+#   two empty answers would otherwise compare equal.
+  SSH_ARM_NARROW=$(grep -n '^Match Group sdusers,!sdsys,!sdssh$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
+  SSH_ARM_GEN=$(grep -n '^Match Group sdusers,!sdsys$' /etc/ssh/sshd_config | head -1 | cut -d: -f1)
+  say "  sshd arms: no-sdssh at line ${SSH_ARM_NARROW:-<absent>}, general at line ${SSH_ARM_GEN:-<absent>}"
+  ck_says "M7i sshd refuses an SD account without the sdssh route" \
+          "Match Group sdusers,!sdsys,!sdssh" "$SSC"
+  if [ -n "$SSH_ARM_NARROW" ] && [ -n "$SSH_ARM_GEN" ]; then
+    ck "M7i2 and that arm comes FIRST (sshd takes the first value)" yes \
+       "$( [ "$SSH_ARM_NARROW" -lt "$SSH_ARM_GEN" ] && echo yes || echo no )"
+  else
+    not_reached "M7i2 and that arm comes FIRST (sshd takes the first value)"
+  fi
+  ck_says "M7i3 the refusal arm runs ssh-forcecommand --refuse" \
+          "ForceCommand /usr/local/sbin/ssh-forcecommand --refuse" "$SSC"
+  ck_says "M7i4 and no route means no tunnel either" "AllowTcpForwarding no" "$SSC"
+# ***AND THE REFUSAL ITSELF, DRIVEN.***  Not ssh - that needs a second machine
+#   or a password nobody may type here - but the exact command the arm runs,
+#   as the throwaway account, reading the wording back off the installed
+#   message file.  A refusal that exits 0 would let ssh report a clean session.
+  if [ "$COMMIT" -eq 1 ] && [ -f "$REGISTER/$ACC" ]; then
+    OUT=$(sudo -u "$ACC" /usr/local/sbin/ssh-forcecommand --refuse 2>&1); RC=$?
+    printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+    ck_says "M7i5 the refusal names the account and 10074's words" \
+            "$ACC is not permitted to reach SD over ssh" "$OUT"
+    ck "M7i6 and it exits non-zero" yes "$( [ "$RC" -ne 0 ] && echo yes || echo no )"
+  fi
 else
   not_reached "M7f sshd forces every sdusers member into sd"
 fi

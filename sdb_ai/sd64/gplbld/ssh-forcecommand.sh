@@ -3,6 +3,14 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
+# 20 Sep 26 dm S.29 part 3: THE BLOCK NOW READS sdssh, AND THIS SCRIPT IS ALSO
+#           THE REFUSAL.  Parts 1 and 2 made sdssh membership the ssh route and
+#           gave MODIFY.ACCOUNT the words to change it; nothing read the group,
+#           so NONE was reported and not enforced.  A third Match arm, written
+#           FIRST so sshd's first-obtained-value rule picks it, sends an sdusers
+#           member who is not in sdssh to "--refuse" instead of to sd, and shuts
+#           the forwarding channels for that arm so "no ssh route" also means no
+#           tunnel.  --refuse prints message 10074 and exits 1.
 # 18 Sep 26 dm TEARDOWN (S.28).  The sdadmin split is gone: every sdusers
 #           member is forced into sd over ssh, and the sdsys OS account is
 #           denied network login outright - SDSYS is entered only from a local
@@ -16,15 +24,42 @@
 #
 # START-DESCRIPTION:
 #
-# WHAT THE BLOCK IS NOW.  With the tiers gone (the teardown, S.28), ssh is open
-# to every SD account except one: a fenced block that ForceCommands every
-# sdusers member into sd, and denies the sdsys OS account network login
-# altogether.
+# WHAT THE BLOCK IS NOW.  Three arms: sdsys is denied network login outright,
+# an SD account WITHOUT the ssh route is refused as soon as it connects, and
+# every other SD account is ForceCommanded into sd.
 #
 #     Match User sdsys
 #         DenyUsers sdsys
+#     Match Group sdusers,!sdsys,!sdssh
+#         ForceCommand /usr/local/sbin/ssh-forcecommand --refuse
+#         AllowTcpForwarding no
+#         AllowStreamLocalForwarding no
+#         AllowAgentForwarding no
+#         PermitTunnel no
 #     Match Group sdusers,!sdsys
 #         ForceCommand /usr/local/sdsys/bin/sd
+#
+# MEMBERSHIP OF sdssh IS THE ssh ROUTE (S.29, the owner's ruling of 18/19 Sep
+# 2026 relayed by the port).  CREATE.ACCOUNT joins the group by default and
+# MODIFY.ACCOUNT <acc> SSH|API|BOTH|NONE takes it away and gives it back; this
+# block is what makes those words mean something at the door.
+#
+# ORDER IS LOAD-BEARING AND IT IS THE ONE THING TO GET WRONG HERE.  sshd uses
+# the FIRST obtained value for a keyword, so the narrow ,!sdssh arm must come
+# BEFORE the general arm or every SD account gets sd and the route is bookkeeping
+# again.  The two arms are mutually exclusive in intent but not in sshd's
+# matching: both match a non-member, and only the order parts them.
+#
+# AN ALLOW GROUP, SO A MISSING sdssh REFUSES EVERY SD ACCOUNT rather than
+# admitting every one: !sdssh matches when the group does not exist.  That is
+# the direction part 1 chose on the port's objection (a deny group fails OPEN),
+# and it is why sd-elevate will not delete sdssh.  It is not a login lock-out:
+# root and non-SD users are untouched, and the refused account is told why.
+#
+# AND THE REFUSAL ARM SHUTS FORWARDING, which ForceCommand alone does not.
+# ForceCommand replaces the command; it leaves -L, -R, -D, agent forwarding and
+# PermitTunnel working, so without those four lines an account with NO ssh route
+# could still open a tunnel through this host.  "No route" has to mean no route.
 #
 # SDSYS IS DENIED AT sshd, NOT LEFT TO SD ALONE.  CPROC and LOGIN both refuse a
 # non-local sdsys session (W.6, the SSH_CONNECTION/SSH_TTY test), but a real
@@ -70,14 +105,28 @@
 #   ssh-forcecommand.sh --check     print what it would do, touch nothing, no root
 #   ssh-forcecommand.sh --install   write the block, validate, reload sshd
 #   ssh-forcecommand.sh --remove    take SD's block back out, validate, reload
+#   ssh-forcecommand.sh --refuse    the refusal arm's ForceCommand: say 10074, exit 1
 #
-# Exit 0 done (or nothing to do), 1 failed, 2 refused.
+# Exit 0 done (or nothing to do), 1 failed (and --refuse), 2 refused.
+#
+# WHY --refuse LIVES HERE rather than in a second installed file: the policy and
+# the refusal it implies are one decision, and the installer already puts this
+# script at /usr/local/sbin/ssh-forcecommand, root:root 0755, before the block is
+# written.  A second file would be a second thing to install, a second thing to
+# get the mode of, and a second thing for a later session to find.
+#
+# ***--refuse READS THE MESSAGE FILE; IT DOES NOT CARRY A COPY OF THE TEXT.***
+# /usr/local/sdsys/messages/10074 is the one source, world-readable, with %1
+# replaced by the login name - so the wording an ssh user sees and the wording an
+# SD session sees cannot drift.  If the file cannot be read it STILL REFUSES,
+# naming the file it wanted: a refusal that fails open is not a refusal.
 #
 # TESTING SURFACE.  Point SD_SSHD_CONFIG at a scratch file and SD_SSHD_BIN at a
 # stub to drive --install/--remove with no root and no real sshd; that is what
-# gplbld/test-ssh-forcecommand.py drives.  When SD_SSHD_CONFIG is left at the
-# real /etc/ssh/sshd_config, root is required and the service is reloaded; with
-# it overridden, neither happens.
+# gplbld/test-ssh-forcecommand.py drives.  SD_SSH_REFUSE_BIN names the command
+# the refusal arm points at and SD_MESSAGE_DIR the directory --refuse reads
+# 10074 from.  When SD_SSHD_CONFIG is left at the real /etc/ssh/sshd_config, root
+# is required and the service is reloaded; with it overridden, neither happens.
 #
 # END-DESCRIPTION
 #
@@ -98,6 +147,17 @@ BACKUP="$CONFIG.before-sd"
 # distribution, and symlinks /usr/local/bin/sd to it.  The canonical target is
 # used so the block does not depend on PATH at ssh-login time.
 SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}
+
+# Where the refusal arm's command lives - this same script, as the installer
+# puts it (installsdai.sh installs gplbld/ssh-forcecommand.sh there before it
+# writes the block).  Named rather than derived from $0 on purpose: the block
+# must carry the INSTALLED path, and $0 is the repository copy when the
+# installer or the unit test runs it from gplbld/.
+REFUSE_BIN=${SD_SSH_REFUSE_BIN:-/usr/local/sbin/ssh-forcecommand}
+
+# Where --refuse reads message 10074 from.  The installed message directory,
+# world-readable, is the single source of the wording.
+MSG_DIR=${SD_MESSAGE_DIR:-/usr/local/sdsys/messages}
 
 # Fence markers.  Comments, so they are inert to sshd; exactly these strings are
 # matched on removal, so re-running replaces our block rather than stacking.
@@ -128,9 +188,41 @@ find_sshd() {
   return 1
 }
 
-# The block, as an array so the writer and the test agree on it.
+# The block, as one list so the writer and the test agree on it.  The ,!sdssh
+# arm is SECOND on purpose - sshd takes the first obtained value for a keyword,
+# so the narrow arm has to precede the general one (see the description).
 block_lines() {
-  printf '%s\n' "$BEGIN" "Match User sdsys" "    DenyUsers sdsys" "Match Group sdusers,!sdsys" "    ForceCommand $SD_BIN" "$END"
+  printf '%s\n' "$BEGIN" \
+    "Match User sdsys" \
+    "    DenyUsers sdsys" \
+    "Match Group sdusers,!sdsys,!sdssh" \
+    "    ForceCommand $REFUSE_BIN --refuse" \
+    "    AllowTcpForwarding no" \
+    "    AllowStreamLocalForwarding no" \
+    "    AllowAgentForwarding no" \
+    "    PermitTunnel no" \
+    "Match Group sdusers,!sdsys" \
+    "    ForceCommand $SD_BIN" \
+    "$END"
+}
+
+# --refuse: what the sdssh-less arm runs.  Message 10074 with %1 replaced by the
+# login name, on stderr (stdout of a ForceCommand can be consumed by a client
+# that asked for a command), and a non-zero exit so the ssh client reports
+# failure rather than a clean session that did nothing.
+#
+# IT REFUSES WHETHER OR NOT IT CAN READ THE MESSAGE.  The exit code is the
+# refusal; the text is a courtesy.  Naming the missing file is what turns "ssh
+# closed with a blank error" into something an administrator can act on.
+refuse_now() {
+  local who=${USER:-$(id -un 2>/dev/null)} msg=$MSG_DIR/10074
+  if [[ -r $msg ]]; then
+    sed -e "s|%1|${who:-this account}|g" -- "$msg" >&2
+  else
+    printf 'ssh refused for %s: no SD ssh route, and %s could not be read to say so properly\n' \
+      "${who:-this account}" "$msg" >&2
+  fi
+  exit 1
 }
 
 # Print the config with any existing SD fence removed.  Exact inverse of the
@@ -212,6 +304,8 @@ production() { [[ $CONFIG == "$REAL_CONFIG" ]]; }
 report_target() {
   say "config            $CONFIG"
   say "ForceCommand ->   $SD_BIN"
+  say "no-sdssh arm ->   $REFUSE_BIN --refuse"
+  say "10074 read from   $MSG_DIR"
   if has_block; then say "SD block present  yes (before)"; else say "SD block present  no (before)"; fi
 }
 
@@ -223,9 +317,16 @@ print_block() {
 # ------------------------------------------------------------------------ main
 
 MODE=${1:-}
-[[ -n $MODE ]] || die "no mode; want --check, --install or --remove"
+[[ -n $MODE ]] || die "no mode; want --check, --install, --remove or --refuse"
 
 case $MODE in
+
+  # First, because this is the mode an ordinary ssh login runs: nothing above
+  # it in this case statement, and nothing before it that needs root or a
+  # readable sshd_config.
+  --refuse)
+    refuse_now
+    ;;
 
   --check)
     report_target
@@ -279,6 +380,11 @@ case $MODE in
     # missing binary would let a non-admin authenticate and then fail instantly,
     # which reads as a lock-out.  In production sd is installed before this runs.
     [[ -x $SD_BIN ]] || die "sd binary $SD_BIN is missing or not executable; not writing a ForceCommand to it"
+    # The same rule for the refusal arm, and for the same reason turned round:
+    # a ForceCommand naming a command that is not there closes the connection
+    # with no explanation, so the account cannot tell a withdrawn ssh route
+    # from a broken installation.  20 Sep 26, S.29 part 3.
+    [[ -x $REFUSE_BIN ]] || die "refusal command $REFUSE_BIN is missing or not executable; not writing a ForceCommand to it"
     if [[ ! -f $CONFIG ]]; then
       die "no $CONFIG - the ssh server has not written its config yet; install and start it first"
     fi
@@ -303,13 +409,14 @@ case $MODE in
     fi
     commit_file "$tmp"
     has_block || fail "the block was validated but is not in $CONFIG after the write"
-    say "INSTALLED - SD accounts are forced into sd over ssh; sdsys is denied network login"
+    say "INSTALLED - SD accounts with the sdssh route are forced into sd over ssh;"
+    say "            an SD account without it is refused (10074); sdsys is denied network login"
     say "original kept at $BACKUP"
     production && reload_sshd
     exit 0
     ;;
 
   *)
-    die "unknown mode '$MODE'; want --check, --install or --remove"
+    die "unknown mode '$MODE'; want --check, --install, --remove or --refuse"
     ;;
 esac

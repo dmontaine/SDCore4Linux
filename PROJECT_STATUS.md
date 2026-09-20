@@ -36,7 +36,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.37** | S | the install's three password prompts: named, listed before the first, and in the owner's order (20 Sep 2026, after an install - "It is not clear what users are being asked for and confusing that it goes sdsys, os, sdsys ... the prompts should make it very clear which password is being entered").  ***§BUILT§ 20 Sep, UNWITNESSED***: order is now the installing user's SD password, sdsys's Linux one, sdsys's SD one; a list before them; every heading and prompt names the account and which of its two passwords it is; ***and the sdsys LINUX password is no longer replaced in silence on a keep cycle*** (`passwd -S` says P, the install keeps it and says how to change it).  Second round the same day, from his screenshot: each heading is a ruled block, a successful `sd -start`/`-stop` is silent, and under -QUIET `cproc` skips the administration notice (reversing `cproc:940`) while MODIFY.PASSWORD answers `Password accepted`.  Left: the next cycle, at the keyboard | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
-| ◐ | **S.29** | L | ***PARTS 1 AND 2 OF 3 §BUILT§ 20 Sep 2026, NO BASIC COMPILED AND NOTHING RUN*** (`96bf3e1` groups/messages/helper; part 2 the verbs).  Left: part 3, the two enforcement points (`apisrvr` 10073, `ssh-forcecommand.sh` 10074) and their tests, then a cycle.  per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, not built there either). Partly reverses S.28's disposal. After the third cycle | — |
+| ◐ | **S.29** | L | ***ALL THREE PARTS §BUILT§ 20 Sep 2026, NO BASIC COMPILED AND NOTHING RUN ON AN INSTALL*** (`96bf3e1` groups/messages/helper; `ee500db` the verbs; part 3 the two enforcement points).  Left: ONE CYCLE.  per-account ssh and API routes return, default on, MODIFY.ACCOUNT narrows AND re-widens (owner's ruling via the port, 19 Sep 00:10 mail; the port's RELEASE_1.1 68, DONE and witnessed there).  Part 3 free-checked: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants, real `sshd -t` accepts the three-arm block.  Witness rows written and UNRUN: absence M7b/M7b2/M7c2/M7i-i6, release-run §13f F1-F6 and §14 X7-X9b. Partly reverses S.28's disposal | — |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
 | ✅ | **W.5** | R | `sudo sd` as root: refused outright, or an ordinary non-administrator session? The reading offered is refused — root is "another administrator". RULED 18 SEP 2026 — refused outright; built in the teardown change set | 18 Sep 2026 |
 | ✅ | **W.6** | R | "a local session" on Linux: refuse administrator entry when `SSH_CONNECTION`/`SSH_TTY` is set, keep `sdsys` un-ssh-able, and the check lives at `cproc`'s SDSYS block — confirm. RULED 18 SEP 2026 — as offered; built in the teardown change set | 18 Sep 2026 |
@@ -406,17 +406,19 @@ display *").  Two faults no reading of the source would have shown:
 - ***THE INSTALL IS STILL `60ac74a` (19 Sep) AND NOTHING SINCE HAS RUN.***
   `assert-current` answers STALE.  Unwitnessed and waiting for ONE cycle:
   S.32, S.33, S.35, S.36 (19 Sep), S.37 (the install's password section) and
-  S.29 parts 1-2.  The owner ran a delete/install today and read the password
-  section from it - that is where S.37's last four faults came from - but no
-  witness has run since.
-- ***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***  Parts 1 and 2
-  give the words, the groups and the reports; NOTHING READS THE GROUPS YET,
-  so an administrator can type NONE, be told the routes are gone, and still
-  be reachable both ways.  ***PART 3 IS THE NEXT PIECE OF WORK***: `apisrvr`
-  refuses a non-member of `sdapi` (10073 - `git show e41d318^` has the exact
-  shape it had before the teardown), `gplbld/ssh-forcecommand.sh` refuses a
-  non-member of `sdssh` (10074) with sshd naming the group, then unit tests
-  for both and witness rows that drive a real ssh and a real API login.
+  ***S.29, now all three parts***.  The owner ran a delete/install today and
+  read the password section from it - that is where S.37's last four faults
+  came from - but no witness has run since.
+- ~~***S.29 IS HALF BUILT AND THAT IS THE DANGEROUS STATE.***~~  ***CLOSED AS
+  A BUILD 20 Sep 2026: PART 3 LANDED AND NOTHING IS HALF BUILT ANY MORE.***
+  `apisrvr` refuses a non-member of `sdapi` (10073) and sshd's third Match
+  arm refuses a non-member of `sdssh` (10074, `ssh-forcecommand --refuse`).
+  ***WHAT REPLACES THE WARNING***: the whole of S.29 is now UNWITNESSED
+  rather than half-built - the words, the groups and both gates exist and
+  not one of them has run on a machine.  `test-ssh-forcecommand` 34/34 and
+  `test-apiroute-units` 11/11 + 5 mutants say the source is shaped right;
+  they cannot say an account with `NONE` is actually turned away.  That is
+  the cycle's job: absence M7i5/M7i6, release-run §13f F1-F6 and §14 X7-X9b.
 - **The cycle, when credits allow** (the owner at the keyboard; neither
   script takes `sudo`, they call it themselves):
   `bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/deletesdai.sh`
@@ -1307,8 +1309,8 @@ Edges: W.8 (the GRANT verbs), W.9 (the switches and the audit trail).  *Measured
 *19 Sep 2026: the per-account half of "disposed" is reversed by a later owner ruling — see S.29.*
 
 ***[S.29] PER-ACCOUNT SSH AND API ROUTES COME BACK, DEFAULT ON, A TWO-WAY
-DOOR — PARTS 1 AND 2 OF 3 BUILT 20 SEP 2026; §OPEN§ UNTIL PART 3 AND A
-CYCLE.***
+DOOR — ALL THREE PARTS BUILT 20 SEP 2026; §OPEN§ UNTIL A CYCLE.  NO BASIC HAS
+BEEN COMPILED AND NOTHING HAS RUN ON AN INSTALL.***
 
 ***WHAT IS BUILT (20 Sep 2026).***  Part 1, `96bf3e1`: `sdssh` and `sdapi`
 are ALLOW groups and membership IS the route (the port's shape; an allow
@@ -1337,13 +1339,59 @@ the default and M5e for "already had that access".
 not re-widen; a CREATE.ACCOUNT that stops asking for a route word AND fails
 to join the groups, which would read as success and leave no route at all.
 
-***WHAT IS LEFT: PART 3, THE ENFORCEMENT.*** Nothing yet READS these
-groups, so today they are bookkeeping: `apisrvr` must refuse a non-member
-(10073, the shape `git show e41d318^` has) and the ssh side must refuse one
-(10074) in `gplbld/ssh-forcecommand.sh`, with sshd naming the group; then
-unit tests for both and witness rows that drive a real ssh and a real API
-login.  ***THE HALF-BUILT STATE IS THE DANGEROUS ONE***: an administrator
-can type NONE today, see it reported, and still be reachable both ways.
+***PART 3, THE ENFORCEMENT, IS BUILT — THIS COMMIT.*** ~~Nothing yet READS
+these groups~~; both enforcement points do now.
+- **The API**: `apisrvr`'s `vb.scram.final` gate is back with the port's
+  10073, after the `sdusers` test (5009 keeps the first word) and before
+  `K$SET.USERNAME`, so a refused session never becomes the user.  `status()`
+  is read and the three-valued answer is NOT collapsed: "could not tell"
+  refuses like "not a member" — an allow group fails closed either way — but
+  writes its own audit reason, because the two call for different action.
+  SDSYS is exempt BY NAME, as at `vb.account`, since its `ACC$GROUP` is
+  `sdsys` and nothing joins it to `sdapi`; its own door (10174/10922) is the
+  next two gates and is stricter.
+- **ssh**: `ssh-forcecommand.sh` writes a THIRD Match arm,
+  `Match Group sdusers,!sdsys,!sdssh`, whose ForceCommand is this same script
+  run as `--refuse` — it prints 10074 from the installed message file (one
+  source for the wording) and exits 1.  ***THE ARM'S POSITION IS THE WHOLE
+  MECHANISM***: sshd takes the FIRST obtained value for a keyword, so the
+  narrow arm must precede the general one, and a build with them the other
+  way round hands every account `sd` and looks identical in a diff.  The arm
+  also shuts `AllowTcpForwarding`/`AllowStreamLocalForwarding`/
+  `AllowAgentForwarding`/`PermitTunnel`, because ForceCommand replaces the
+  command and leaves `-L`/`-R`/`-D` working — "no route" has to mean no
+  tunnel.  `--install` refuses a missing refusal command for the reason it
+  already refuses a missing `sd`.
+- **Measured here, free, this session**: `test-ssh-forcecommand` 34/34 (was
+  18/18), including a row that asks the REAL `/usr/sbin/sshd` (OpenSSH
+  10.5p1) which of two identical Match arms wins — it answered the first,
+  which is the assumption the block rests on, so the row tests sshd and not
+  our own string; it reports SKIP, counted separately, where there is no
+  sshd.  New `gplbld/test-apiroute-units.py` 11/11 with `--selftest` 5/5
+  mutants caught.  `sshd -t -f` accepts the three-arm block (driven against a
+  scratch config with a throwaway host key).  Whole free tier green.
+- ***WHAT IS NOT MEASURED, AND `test-apiroute-units.py` SAYS SO IN ITS OWN
+  OUTPUT***: it reads BASIC as TEXT.  It cannot say the gate refuses anybody,
+  only that the gate is still written and still in the right place.  GPL.BP
+  cannot be compiled without an install, so between cycles a reader was the
+  only guard on three ORDERING invariants — which is the kind a later edit
+  breaks silently.
+- **Witness rows, WRITTEN AND UNRUN**: `witness-absence` M7b/M7b2 (both route
+  groups now EXIST — ***M7b asserted the opposite and would have failed on
+  the next cycle whatever the product did***), M7c2 (sdsys in neither, which
+  is what makes apisrvr's by-name exemption safe), M7i–M7i4 (the arm, its
+  ORDER read as line numbers off the live config, its command, its forwarding
+  lines) and M7i5/M7i6 (`--refuse` driven as the throwaway account).
+  `witness-release-run` §13f is REVERSED from "the route is gone" to the door
+  driven both ways on a real SCRAM login — admitted, NONE, refused 10073,
+  BOTH, admitted — with membership read from `id -nG`, not from what the verb
+  said; §14 X7–X9b does the same on the project's only REAL ssh login, using
+  `API` rather than `NONE` so the refusal cannot be "the account lost
+  everything" and the two routes are shown independent.
+- ***WHAT WOULD FALSIFY PART 3***: a cycle where an account with `NONE` still
+  gets in either way; a refusal that arrives after the session has become the
+  user; `--refuse` exiting 0 (ssh would report a clean session that did
+  nothing); the narrow arm written second.
 
 *The original entry, as written before any of it was built:* Owner's ruling on the Windows side, 18/19 Sep
 2026 night, relayed by mail 19 Sep 00:10 (binds both ports): *"every

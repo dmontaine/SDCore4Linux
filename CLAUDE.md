@@ -543,7 +543,10 @@ no install, no `sudo` and no `sd`. Run them as an ordinary user from
 seventeenth, `test-scram-vectors.py`, compiles a C test and is not in that
 figure. A new free check joins this list in the commit that creates it.
 
-In `gplbld/`: `test-accounts-units.py` · `test-assert-current.py` ·
+In `gplbld/`: `test-accounts-units.py` · `test-apiroute-units.py` (and
+`--selftest`, 5 mutants; APISRVR's `sdapi` gate as ordering invariants read
+off the source — it cannot say the gate refuses anybody, which is
+`witness-release-run.sh` §13f's job) · `test-assert-current.py` ·
 `test-basicfuncs-units.py` · `test-configpath-units.py` (and `--selftest`, 8
 mutants) · `test-editors-units.py` · `test-edittokens-units.py`
 · `test-msglen-units.py` · `test-nonet-units.py` · `test-pwcomplex-units.py`
