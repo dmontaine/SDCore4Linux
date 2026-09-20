@@ -1319,7 +1319,11 @@ sd_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
 echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
-echo "        (an SD password, not $tuser_lc's Linux password)"
+echo "        An SD password, not $tuser_lc's Linux one: it is for reaching"
+echo "        SD over the API from a program, here or on another computer."
+echo "        At this machine and over ssh you still sign in with Linux."
+echo "        At least 8 characters, with a lower-case letter, an upper-case"
+echo "        letter, a digit and a symbol.  SD asks for it twice."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
@@ -1333,18 +1337,12 @@ elif ! ( : </dev/tty ) 2>/dev/null; then
 elif ! sd_install_start; then
     sd_pw_state="not set - SD would not start for this step"
 else
-    echo "  This is NOT your Linux password and does not replace it.  At this"
-    echo "  machine, and over ssh, you still sign in with your Linux password."
-    echo "  This one is only for remote access through the SD API: programs"
-    echo "  that connect to SD from another computer.  SD asks twice."
-    # 19 Sep 26 dm - the rule (message 10920); -QUIET keeps MODIFY.PASSWORD
-    #   from saying it, so the installer does.
-    echo "  It needs at least 8 characters, with a lower-case letter, an"
-    echo "  upper-case letter, a digit and a symbol."
-    # 20 Sep 26 dm - SD's own prompts say only "New password:", the same words
-    #   for either account, so the account is named immediately before them.
-    echo "  SD asks next: 'New password:' then 'Repeat new password:'"
-    echo "  - and they are for the SD password of $tuser_lc."
+    # 20 Sep 26 dm - NOTHING BETWEEN THE BLOCK AND THE PROMPT (owner, 20 Sep:
+    #   "The text between the section header and the password entry is
+    #   unnecessary.  The header explains everything").  What was said here -
+    #   which password this is, what it is for, that ssh still uses the Linux
+    #   one, the rule (message 10920, which -QUIET stops SD from saying) and
+    #   that SD asks twice - is now IN the block above, said once.
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
@@ -1363,7 +1361,11 @@ sdsys_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
 echo "2 of 3: the LINUX password for the sdsys account"
-echo "        (sdsys is SD's administrator; this is its Linux password)"
+echo "        sdsys is SD's administrator, and this is its Linux password:"
+echo "        the sign-on for administering SD.  Log in as sdsys at this"
+echo "        machine's keyboard (or a desktop-sharing view of it), run sd."
+echo "        At least 8 characters, with a lower-case letter, an upper-case"
+echo "        letter, a digit and a symbol.  It is asked for twice."
 echo ---------------------------------------------------------------
 # 20 Sep 26 dm - AND IT IS NOT REPLACED IN SILENCE (owner, same note: "What
 #   happens if you give a different password at 3 than the one you currently
@@ -1379,14 +1381,13 @@ if [ "$(sudo passwd -S sdsys 2>/dev/null | awk '{print $2}')" = "P" ]; then
     sdsys_pw_state="kept from the previous install"
     echo "  Kept: sdsys already has a Linux password, and this install has not"
     echo "  changed it.  To change it deliberately:  sudo passwd sdsys"
-    echo "  (keep to SD's rule below - passwd itself does not apply it)."
+    echo "  (keep to SD's rule above - passwd itself does not apply it)."
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sdsys_pw_state="not set - there was no terminal to ask at"
     echo "  Skipped: this install has no terminal to ask at."
     echo "  Set one before administering:  sudo passwd sdsys"
 else
-    echo "  This is the sign-on for administering SD: log in as sdsys at this"
-    echo "  machine's keyboard (or a desktop-sharing view of it), then run sd."
+    # 20 Sep 26 dm - said in the block above, once (owner, 20 Sep).
     # 19 Sep 26 dm - SD'S RULE, NOT ONLY THE MACHINE'S (owner, 19 Sep 2026: SD
     #   requires a complex password whatever the OS allows, SDSYS included).
     #   "sudo passwd sdsys" applied PAM's rule only, and SD never saw the entry,
@@ -1395,8 +1396,6 @@ else
     #   absolute path, no root needed for --dry-run), and the password reaches
     #   chpasswd on its stdin - printf is a builtin, so it is never an argv.
     #   The text below is message 10920's.
-    echo "  A password needs at least 8 characters, with a lower-case letter,"
-    echo "  an upper-case letter, a digit and a symbol.  It is asked for twice."
     echo
     pw_try=0
     while [ "$pw_try" -lt 3 ]; do
@@ -1458,7 +1457,12 @@ sdsys_sd_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
 echo "3 of 3: the SD password for the sdsys account - for the API"
-echo "        (sdsys's OTHER password: its Linux one was 2 of 3 above)"
+echo "        sdsys's OTHER password: its Linux one was 2 of 3 above.  This"
+echo "        one lets a program on THIS machine reach SD as the administrator."
+echo "        A remote connection cannot use it: SD admits sdsys over the API"
+echo "        only when the kernel says the socket was opened by sdsys here."
+echo "        At least 8 characters, with a lower-case letter, an upper-case"
+echo "        letter, a digit and a symbol.  Press Enter to leave it unset."
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
@@ -1469,17 +1473,7 @@ elif ! ( : </dev/tty ) 2>/dev/null; then
 elif ! sd_install_start; then
     sdsys_sd_pw_state="not set - SD would not start for this step"
 else
-    echo "  This is the SECOND of sdsys's two passwords and they are not the"
-    echo "  same thing.  The Linux one asked for earlier signs sdsys in at this"
-    echo "  machine; this one lets a program on THIS machine reach SD as the"
-    echo "  administrator through the API.  A remote connection cannot use it:"
-    echo "  SD admits sdsys over the API only when the kernel says the socket"
-    echo "  was opened by sdsys on this machine."
-    echo "  It needs at least 8 characters, with a lower-case letter, an"
-    echo "  upper-case letter, a digit and a symbol."
-    echo "  Leave it unset by pressing Enter if you do not need API access."
-    echo "  SD asks next: 'New password:' then 'Repeat new password:'"
-    echo "  - and they are for the SD password of sdsys."
+    # 20 Sep 26 dm - said in the block above, once (owner, 20 Sep).
     pw_try=1
     while [ "$pw_try" -le 3 ]; do
         echo
