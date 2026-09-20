@@ -16,6 +16,21 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+19 Sep 26  A REMOTE SDSYS SESSION IS NOW TURNED AWAY AT THE DOOR.
+           Running sd as sdsys over ssh was already stopped - SD would not
+           let the session into the SDSYS account - but it stopped it one
+           step late, after the session had started.  SD now refuses such a
+           session as it opens, and says why: SD administration needs a
+           local session.  Log in as sdsys at the machine itself.
+
+           This is a tightening of something that already worked, not the
+           closing of a way in.  sdsys still cannot log in over ssh at all;
+           that is set in the machine's ssh configuration, and this is SD's
+           own half of the same door.
+
+           What this does NOT do: it does not affect any other account, and
+           it does not change how sdsys is administered locally.
+
 19 Sep 26  SDSYS CAN USE THE API AGAIN, AND NOW HAS TWO PASSWORDS.
            The install now asks for a second password for sdsys: one is the
            Linux password that signs sdsys in at this machine, the other is

@@ -29,7 +29,8 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ✅ | **S.28** | L | ***WITNESSED 19 Sep 2026 on `60ac74a` (seventh cycle, M5, M7a-h, release-run's API rows).*** ***THE TEARDOWN, 4 OF 4: remote ssh and the API for every account but SDSYS; SDSYS local only.*** The ssh boundary's `sdadmin` split (PRE_RELEASE 13, `gplbld/ssh-forcecommand.sh`, `installsdai.sh:565-570`) becomes one route for every account; `sdapi`'s per-account permission (S.16; group `:549-553`) is disposed; the installer and deleter follow (`sdadmin` `:537`, sudoers `:601-605`; `sdusers` stays). Edges: W.8 (the grants verbs), W.9 (the switches, the audit trail). ***§BUILT§ (`e41d318`) AND §CYCLED§ 18 Sep 2026: the install ran clean at `2908280`, and the three witnesses scored 261/302 - they found A4 (accounts left `sdsys:sdusers`; fixed `7bd558d`) and 40 rows written for the old model (re-pointed `a076571`).  THE THIRD CYCLE RAN 19 Sep on `8fbe9d8` (install 00:45:42, `assert-current` current; ATTACH seeded `don` correctly): `witness-absence` 30/50, ONE ROOT CAUSE - `createa` `set.owner` handed the shell an unquoted path, `$hold` expanded to nothing, so the ACCOUNT DIRECTORY was chowned before `$hold.dic` was made (M2a; every M3-M6 fail cascades). Fixed (quoted), with 10176/10181 printing raw field marks (cproc) and two null-case false passes (M3c, release-run A5); release-run and accounts not run on it. ***THE FIFTH CYCLE RAN 19 Sep on `359d5ce` (install 09:4x, `assert-current` current): absence 59/60, release-run 218/224 (log `/var/tmp/witness-release-run.20260919-095341.log`), accounts 32/32 - M2/A4/M8f pass, so the third cycle's fix holds. Every failure but one was an instrument row still written for the old route (M10b sudo-rs wording; S2.a bare setpriv, refused 10181; L1's count; Y1/Y3 reach MODIFY.ACCOUNT from a VOC that has none; the cleanup ran sd as root, so zzrel2 was left). THE ONE PRODUCT DEFECT: DELETE.ACCOUNT left the account directory silently (sdsys cannot remove a 755 subtree the user made; `delacc` ignored OS$DELETE's result) - now `sd-elevate rmtree-account` + 10919. All fixed in `a35b30e`/`43f8140`/`47b0d15`.  ***THE SIXTH CYCLE RAN 19 Sep on `47b0d15` (install 10:22:53, `assert-current` A-D pass): absence 65/65 (log `/var/tmp/witness-absence.20260919-102748.log`), release-run 226/228 (`…-102835.log`; K10/K10a/K10b pass - the directory fix is witnessed; the fails were Y2c, an instrument row the Y1 reordering broke - suspended accounts are rightly refused entry after a VERIFIED proof - and R3, expected), accounts stopped in section 2 on a stale `/home/zzacct2` left by the fifth run (instrument: the ground check never looked at homes). Both fixed; accounts to re-run.*** Superseded: left: the fourth cycle. Earlier - the second (`3b81fb6`, 18 Sep 20:38) found the A4 fix's chown SUCCEEDS and kills the writes (every CREATE.ACCOUNT as sdsys aborts at `createa:647`; the handover now comes last), plus M4b's false sdsys session; both fixed, and witnessed since.*** | 19 Sep 2026 |
 | ✅ | **S.30** | S | ADOPT renamed ATTACH (the port's name and line, `$attach.<name>`, no `no.query`) and the attached account's name, directory and `sdu_` group folded (the port's RELEASE_1.1 67) — ***§BUILT§ 19 Sep 2026; SEEN RUNNING on two installs' seeding***: 00:45 (third cycle) and `359d5ce` (fifth: `/home/sd/user_accounts/don` `don:sdu_don` 2775, observed 19 Sep) | 19 Sep 2026 |
 | ✅ | **S.31** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M2e/f, M11a-d) and by the owner at the keyboard.*** SD's own password rule (owner, 19 Sep 2026: "SD require it even if the OS does not for both SDSYS and any other accounts"; his choice: 8+, a-z, A-Z, 0-9 and a symbol, printable ASCII) - ***§BUILT§ 19 Sep, UNMEASURED***: `gpl.bp/pw_complex` + 10920; MODIFY.PASSWORD, `set_passwd` (SD prompts, `sd-elevate setpw` from stdin), installer's sdsys prompt (`chpasswd`); `test-sd-elevate` 132/132; witness M2e/f, M11a-d; mailed to the port (parity, approved here; the port built it, and took 10921 "That was attempt %1 of %2." - agreed; ours moves onto it with the next source change) | 19 Sep 2026 |
-| ✅ | **S.34** | S | ***DONE 19 Sep 2026***, four message records in this port's range deleted for having no caller: 10177 (written in the teardown, never wired — 10181 took its case), 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
+| ◐ | **S.35** | S | ***SDSYS HAS NO REMOTE ACCESS AT ALL*** (owner, 19 Sep 2026: "sdsys should not have any remote access from ssh or api"). A remote sdsys session is now refused AT THE DOOR by `cproc` (10177, restored from S.34 and wired at last, audited `reason=sdsys session from a remote transport`); before this it was refused one room further in, by `login:334` at SDSYS account entry (10002) — a hardening, not a hole, and the earlier report of a silent fall-through was wrong. The API half was already served by S.33 (10174 remote, 10922 not-sdsys-on-the-socket). ***§BUILT§ 19 Sep 2026, UNWITNESSED*** — left: one cycle for `witness-absence` M12a-d, written and unrun | — |
+| ✅ | **S.34** | S | ***DONE 19 Sep 2026 — THREE DELETED, AND THE FOURTH CAME BACK THE SAME NIGHT (S.35): 10177 was UNFINISHED, NOT DEAD.*** Message records in this port's range with no caller: 10913/10914/10915 (callers removed 14 Sep in `74c60d4` when MODIFY.PASSWORD left `passwd(1)`). Found by the SD Core for Windows agent's orphan check, mailed 19 Sep 19:45. Indirect callers checked first and both are bounded (`option` 3100-3133, `debug` 6715/6716), so none could reach the four; re-scanned after, and the 10000+ range is clean. The ~419 upstream orphans are NOT touched — see the entry | 19 Sep 2026 |
 | ◐ | **S.33** | M | SDSYS's API door asks the KERNEL who opened the socket, not the address (owner, 19 Sep 2026): `system(43)` = the Unix-socket peer's OS user via `SO_PEERCRED` (`linuxio.c`, read before the TLS relay takes fd 0), `apisrvr` admits SDSYS only on the socket and only when its peer IS sdsys (10922; 10174 keeps the remote case), and the installer now sets SDSYS's SD password — the capability was previously shut only by that password never being issued. ***§BUILT§ 19 Sep 2026, C COMPILES CLEAN, EVERYTHING ELSE UNWITNESSED*** — left: one cycle for §13e E3/E3c/E3d/E3e, which are written and unrun | — |
 | ◐ | **S.32** | S | the attempt count becomes message 10921 (the port's number and text, agreed by mail 19 Sep 14:00) in `set_acc_password:294`/`:302` and `set_passwd:194`/`:201`, which gains a count it never printed; the rule also gains a free check, `gplbld/test-pwcomplex-units.py` (42/42, 124 mutants, run 19 Sep) — ***§BUILT§ 19 Sep 2026, THE BASIC UNWITNESSED*** — left: one cycle, to compile the two programs and see 10921 at both prompts | — |
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
@@ -301,7 +302,47 @@ working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
 - Install: still `60ac74a` (seventh cycle).  This session changed BASIC, so
   `assert-current` answers STALE and every measurement of the two password
   prompts below is owed a cycle.  Nothing here has run on an install.
-- ***[S.34] DONE 19 Sep 2026 — FOUR MESSAGE RECORDS WITH NO CALLER, DELETED***
+- ***[S.35] SDSYS HAS NO REMOTE ACCESS AT ALL — §BUILT§ 19 Sep 2026,
+  UNWITNESSED.***  Owner, 19 Sep 2026: *"sdsys should not have any remote
+  access from ssh or api"*.
+  - ***THE EARLIER REPORT OF A SILENT FALL-THROUGH WAS WRONG, AND THE
+    CORRECTION MATTERS MORE THAN THE CHANGE.***  This session told the owner
+    a remote sdsys session was "neither granted nor refused — it just becomes
+    an ordinary session".  Measured after his ruling: `login:334` refuses it
+    entry to the SDSYS account with 10002, audited.  ***THE DOOR WAS SHUT.***
+    What was true is that it was shut one room further in, at account entry
+    rather than at the session door.
+  - **What changed**: `cproc`'s entry block gains the `else` arm the local
+    test never had.  A sdsys session with `SSH_CONNECTION` or `SSH_TTY` set is
+    refused before it starts, in 10177's words, audited `reason=sdsys session
+    from a remote transport` — the treatment root (10176) and a sdsys session
+    without a sdsys login (10181) already get.  **A session that should not
+    exist should not start.**
+  - **10177 came back for this** — see S.34.  Deleted as an orphan earlier the
+    same evening, restored with its original bytes and wired here, because its
+    text was written for exactly this case and only the wiring was missing.
+  - **The API half needed nothing new**: S.33 already refuses a remote sdsys
+    API session (10174) and one whose socket peer is not sdsys (10922).  The
+    API does not pass through CPROC, which the new comment says so the next
+    reader does not look for it there.
+  - **What would falsify it**: M12a-d on the next cycle.  M12b is the row that
+    stops a false pass — the bridge keeps the session otherwise GOOD (OS user
+    sdsys, loginuid sdsys), so if 10181 fired instead of 10177 the refusal
+    would be right for the wrong reason and M12a alone could not tell.
+  - ***THE LIMIT, STATED: THIS MEASURES SD'S HALF ONLY.***  A real ssh login as
+    sdsys cannot be staged — sshd's `DenyUsers` refuses it, which is the other
+    half and is checked against the config by `test-ssh-forcecommand.py`.  M12
+    sets `SSH_CONNECTION` to reproduce what CPROC actually reads.  It proves SD
+    refuses, not that sshd does.
+- ***[S.34] DONE 19 Sep 2026 — FOUR MESSAGE RECORDS WITH NO CALLER; THREE
+  DELETED, AND 10177 RESTORED AND WIRED THE SAME NIGHT (S.35) WHEN THE OWNER
+  RULED THE CASE IT DESCRIBED MUST BE REFUSED.***  ***THE CORRECTION IS THE
+  FINDING: AN ORPHANED MESSAGE MEANS "UNFINISHED" AS OFTEN AS IT MEANS "DEAD",
+  AND NOTHING IN THE TREE CAN TELL YOU WHICH — ONLY A RULING CAN.***  The
+  port's own framing said exactly that ("either dead text or a deletion that
+  did not finish") and this session read 10177 as the first when it was the
+  second.  A standing orphan scan must therefore produce a QUESTION, never a
+  deletion list.
   (owner: "delete the orphan messages").  Found by the port's orphan check,
   which it mailed at 19:45 after we reported its `update.voc` finding: *for
   every message id your port added, grep the whole tree for the number; a
@@ -317,6 +358,10 @@ working tree); the shared mailbox is `~/pCloudDrive/sdcore-mail/`, and its
     written later the same night after the owner corrected the route, took
     its case.  PROJECT_STATUS claimed it as "added", so the document was
     wrong about the machine too; both claims are struck above.
+    ***DELETED HERE AND THEN RESTORED AND WIRED THE SAME NIGHT (S.35)***, when
+    the owner ruled that sdsys must have no remote access at all: the text was
+    right and only the wiring was missing, so it came back with its original
+    bytes rather than as a new number.
   - ***THE GAP IN THE FIRST SCAN WAS INDIRECT CALLERS, AND THE PORT NAMED IT
     BEFORE WE HIT IT.***  Two exist here — `option:209` `sysmsg(desc.msgs<i>)`
     and `debug:1649` `sysmsg(msgno)` — and both are bounded: the option table
@@ -901,9 +946,11 @@ gone (verify-tier-layer.*, witness-tierchange.sh, the §6/§7 legs) and
 witness-absence.sh is the replacement.  Messages removed: 10041-10050, 10053,
 10054, 10073, 10077, 10079-10083, 10087, 10102, 10105, 10106, 10108, 10109,
 10111, 10113, 10114, 10126-10129, 10157, 10159, 10900-10904, 10911, 10912,
-10919; added: 10176 (root refused), ~~10177 (sdsys remote refused)~~ *(never
-wired — no caller was ever written; the case is handled by CPROC not granting
-the flag, and the record was deleted 19 Sep 2026, S.34)*, 10178/10179/
+10919; added: 10176 (root refused), 10177 (sdsys remote refused) *(written
+here and NOT wired until 19 Sep 2026 — deleted as an orphan that evening,
+S.34, then restored and wired the same night under S.35 when the owner ruled
+sdsys must have no remote access; the claim is true now, by a later route than
+it assumed)*, 10178/10179/
 10180 (suspend/unsuspend), 10181 (sdsys without a sdsys login, the night
 ruling), 10916 (grant notice); 10002 and 10174 reworded.
 *Measured: two cycles, 18 Sep — `2908280` scored 261/302 (found A4: accounts left `sdsys:sdusers`; fixed `7bd558d`); `3b81fb6` (20:38) 29/47, 8/188, 16/32, ALL cascade: the A4 chown now succeeds and a sdsys session cannot write what it gave away, every CREATE.ACCOUNT aborting at `createa:647` — the handover moved after the last write (this commit). §OPEN§: the third cycle.* The pieces:
@@ -4845,12 +4892,14 @@ THE BUILD, TASK BY TASK (all in one change, committed `e41d318`):
   sdsys session granted (10916) driven live, and the source-side rows M9a–M9f.
   interop-account.sh rewritten (create as sdsys, no API keyword, no sdadmin).
 
-* MESSAGES — 42 files removed (see the S.25 entry), 5 written (10176, ~~10177~~,
+* MESSAGES — 42 files removed (see the S.25 entry), 5 written (10176, 10177,
   10178, 10179, 10916), 2 reworded (10002, 10174).  msglen 10/10.
-  ***10177 WAS WRITTEN AND NEVER CALLED*** — found 19 Sep 2026 by the orphan
-  scan and deleted the same day (S.34).  It said "SD administration needs a
-  local session"; 10181, written later the same night after the owner
-  corrected the route, took that case.
+  ***10177 WAS WRITTEN HERE AND NOT CALLED FOR A DAY*** — found 19 Sep 2026 by
+  the orphan scan, deleted (S.34), then restored and wired the same night
+  (S.35) when the owner ruled sdsys must have no remote access.  It says "SD
+  administration needs a local session", which is now CPROC's refusal at the
+  door; 10181 keeps the different case it was written for that night, a sdsys
+  session without a sdsys login.
 
 VERIFIED BEFORE COMMIT: `make` clean (sd linked); test-ssh-forcecommand 18/18,
 test-sd-elevate 57/57, test-msglen-units 10/10, test-accounts-units 17/17,
