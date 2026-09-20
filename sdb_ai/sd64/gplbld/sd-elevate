@@ -56,6 +56,13 @@
 #
 #   users   - must exist (except useradd), must have uid >= UID_MIN, and must
 #             never be root or sdsys.  System accounts are out of reach.
+#             20 Sep 26 - ***sdsys IS REFUSED BY NAME, NOT BY UID, AND THAT
+#             MATTERS AS OF TODAY***: S.38 makes it an ordinary account with a
+#             uid ABOVE UID_MIN so the greeter will list it (the owner's
+#             ruling, matching Windows).  A guard that had relied on the uid
+#             test to cover sdsys would have stopped covering it, silently, on
+#             the next install.  It never did, and this note is here so the
+#             next person to touch either rule knows the two are independent.
 #   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdu_*, sdg_*.
 #             Nothing else is addressable, so "add me to sudo" has no spelling
 #             here.
@@ -326,7 +333,7 @@ require_sd_user() {
   local user=$1 uid min
   require_name "user" "$user"
   [[ $user != root  ]] || die "root is never a target"
-  [[ $user != sdsys ]] || die "sdsys is SD's own system account and is never a target"
+  [[ $user != sdsys ]] || die "sdsys is SD's own administrator account and is never a target"
   uid=$(id -u "$user" 2>/dev/null) || die "user '$user' does not exist"
   [[ $uid =~ ^[0-9]+$ ]] || die "could not read a uid for '$user'"
   [[ $uid -ne 0 ]] || die "'$user' has uid 0; refusing"
@@ -357,7 +364,7 @@ require_new_user() {
   local user=$1
   require_name "user" "$user"
   [[ $user != root  ]] || die "root is never a target"
-  [[ $user != sdsys ]] || die "sdsys is SD's own system account and is never a target"
+  [[ $user != sdsys ]] || die "sdsys is SD's own administrator account and is never a target"
   ! id -u "$user" >/dev/null 2>&1 || die "user '$user' already exists"
 }
 

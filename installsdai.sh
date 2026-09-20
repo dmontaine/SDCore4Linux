@@ -554,13 +554,35 @@ sudo usermod -a -G sdusers root
 # fi
 # echo "Setting user: sdsys default group to sdusers."
 # sudo usermod -g sdusers sdsys
+# 20 Sep 26 dm - S.38, THE OWNER'S RULING: "the account needs to be created so
+# that users can get to it through the login screen to match windows".  On
+# Windows SDSYS is an ordinary administrator account and appears at the logon
+# screen; here it must appear at the greeter, which is the same RESULT reached
+# the Linux way (parity-means-same-result).
+#
+# ***THE ONE FLAG THAT DEFEATED THE RULING ALREADY IN PLACE.***  The 18 Sep
+# block below gave sdsys a shell and a home precisely so it could be logged
+# into - and "--system" survived from the pre-teardown era and allocated a uid
+# under UID_MIN (999, measured 20 Sep), which is exactly what GDM and every
+# common greeter use to decide an account is plumbing and hide it.  So the
+# ruling was implemented and invisible: the owner, at his own machine, found
+# "there is no linux sdsys account listed to switch to" while following SD's
+# own refusal message.
+#
+# NOT --system, therefore.  Everything else about the account is unchanged: it
+# is NOT in sudo or wheel, it reaches root only through the sd-elevate drop-in
+# below, and sd-elevate refuses it as a TARGET by name (require_sd_user), not
+# by uid - so raising the uid above UID_MIN opens no door that the uid test was
+# holding shut.  That was checked before this line changed, because a uid guard
+# that happened to cover sdsys is exactly the kind of thing that stops covering
+# it silently.
 if ! id sdsys &>/dev/null; then
   echo "Creating user: sdsys."
   if getent group sdsys &>/dev/null; then
     echo "Removing orphan sdsys group (no sdsys user)."
     sudo groupdel sdsys || true
   fi
-  if ! sudo useradd --system -g sdusers -G sdusers -s /bin/sh --no-create-home sdsys; then
+  if ! sudo useradd -g sdusers -G sdusers -s /bin/sh --no-create-home sdsys; then
     printf "%b\n" "$RED"
     echo "Failed to create sdsys user. Install terminated!"
     printf "%b\n" "$NC"
@@ -568,6 +590,22 @@ if ! id sdsys &>/dev/null; then
   fi
 else
   echo "User sdsys already exists."
+  # AN EXISTING sdsys KEEPS ITS UID, so a keep-accounts cycle over a tree
+  # installed before today leaves it hidden.  Say so rather than letting the
+  # administrator hunt for it at a greeter that will never list it: changing a
+  # live uid would orphan every file under /usr/local/sdsys and /home/sdsys,
+  # which is not something an installer should do behind anyone's back.
+  sd_sdsys_uid=$(id -u sdsys 2>/dev/null)
+  sd_uid_min=$(awk '/^[[:space:]]*UID_MIN[[:space:]]/ {print $2; exit}' /etc/login.defs 2>/dev/null)
+  sd_uid_min=${sd_uid_min:-1000}
+  if [ -n "$sd_sdsys_uid" ] && [ "$sd_sdsys_uid" -lt "$sd_uid_min" ]; then
+    printf "%b\n" "$RED"
+    echo "NOTE: the existing sdsys user has uid $sd_sdsys_uid, below UID_MIN $sd_uid_min,"
+    echo "      so your login screen will not list it.  Reach it with a text console"
+    echo "      (Ctrl+Alt+F3) instead, or run a delete/install that removes accounts"
+    echo "      to have it made again as an ordinary account."
+    printf "%b\n" "$NC"
+  fi
 fi
 echo "Setting user: sdsys primary group to sdusers."
 sudo usermod -g sdusers -G sdusers sdsys

@@ -16,6 +16,40 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+20 Sep 26  THE SDSYS ADMINISTRATOR ACCOUNT NOW APPEARS ON YOUR LOGIN
+           SCREEN.
+           SD has one administrator, SDSYS, and the way to use it is to log
+           in to this computer as the Linux user "sdsys" and run sd from
+           that session.  That is what SD tells you when it turns an
+           administrator command away.
+
+           It was not possible to follow that advice.  The installer created
+           sdsys as a "system" account - the kind Linux uses for background
+           services - and a login screen deliberately hides those, so the
+           account SD kept pointing you at was never in the list.  It had a
+           password, a home directory and a working shell; you simply could
+           not get to it the ordinary way.
+
+           It is now created as a normal account, so it appears in the login
+           screen and the user switcher alongside everyone else, which is
+           how SD Core for Windows has always behaved.
+
+           NOTHING ELSE ABOUT IT CHANGES.  sdsys is still not an ordinary
+           user account to work in, it is still not in the sudo group, it
+           still cannot be reached over ssh or from another machine, and SD
+           still refuses to administer unless the session really is a local
+           sdsys login.  The only thing that changed is that you can find it.
+
+           WHAT THIS DOES NOT DO: it does not alter an sdsys account that
+           already exists.  Reinstalling and keeping your accounts leaves the
+           old hidden one as it was, because changing a live account's
+           identity number would break the ownership of every file SD has
+           installed.  The installer now says so when it sees one, and points
+           you at a text console (Ctrl+Alt+F3), which reaches the hidden
+           account perfectly well.  A delete-and-install that removes accounts
+           creates it afresh, visible.
+
+
 20 Sep 26  YOU CAN NOW TURN AN ACCOUNT'S ssh AND API ACCESS OFF, AND ON
            AGAIN.
            Every account can be reached two ways from elsewhere: by ssh,
