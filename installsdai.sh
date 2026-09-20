@@ -1260,12 +1260,13 @@ fi
 #   names the account AND which of its two passwords it is.
 echo
 echo ---------------------------------------------------------------
-echo "PASSWORDS.  Three are asked for from here on, in this order:"
-echo "  1. YOUR SD password ($tuser_lc)   - the SD password for API access."
-echo "  2. sdsys's LINUX password   - used to log into the sdsys Linux account."
-echo "  3. sdsys's SD password      - lets a program on THIS machine reach SD"
-echo "                                as the administrator.  sdsys cannot be"
-echo "                                reached from another computer at all."
+echo "PASSWORDS."
+echo
+echo "  1. YOUR SD password ($tuser_lc)   - remote access using the API"
+echo
+echo "  2. sdsys's LINUX password   - local console administration"
+echo
+echo "  3. sdsys's SD password      - local API administration"
 echo
 echo "All passwords must contain at least 8 characters, with a lower-case"
 echo "letter, an upper-case letter, a digit and a symbol."
@@ -1320,7 +1321,7 @@ sd_pw_state="not set"
 #   which arrived after the explanation and read as its result.
 echo
 echo ---------------------------------------------------------------
-echo "1 of 3: the SD password for YOUR account ($tuser_lc) - required"
+echo "1 of 3: Your SD password"
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
@@ -1392,7 +1393,7 @@ else
     pw_try=0
     while [ "$pw_try" -lt 3 ]; do
         pw_try=$((pw_try + 1))
-        IFS= read -r -s -p "  New LINUX password for sdsys: " sdsys_p1 </dev/tty; echo
+        IFS= read -r -s -p "  New LINUX sdsys password: " sdsys_p1 </dev/tty; echo
         if [ -z "$sdsys_p1" ]; then
             echo "  Nothing entered - the sdsys password is not set."
             break
@@ -1402,7 +1403,7 @@ else
             echo "  That does not meet the rule above (attempt $pw_try of 3)."
             continue
         fi
-        IFS= read -r -s -p "  Retype sdsys's LINUX password: " sdsys_p2 </dev/tty; echo
+        IFS= read -r -s -p "  Enter password again: " sdsys_p2 </dev/tty; echo
         if [ "$sdsys_p1" != "$sdsys_p2" ]; then
             sdsys_p1=""; sdsys_p2=""
             echo "  The two entries did not match (attempt $pw_try of 3)."
@@ -1449,10 +1450,7 @@ fi
 sdsys_sd_pw_state="not set"
 echo
 echo ---------------------------------------------------------------
-echo "3 of 3: the SD password for the SD sdsys account - optional"
-echo "        For a program on THIS machine to reach SD as the administrator."
-echo "        It is not a remote login: sdsys is refused over the network"
-echo "        whatever password it has.  Press Enter to leave it unset."
+echo "3 of 3: Password for the SD sdsys account"
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
@@ -1533,16 +1531,20 @@ case "$sdsys_pw_state" in
        echo "  digit and a symbol." ;;
 esac
 # 19 Sep 26 dm - sdsys's SECOND password, reported apart from its first so the
-#   two are never read as one.  NOT in red when unset: unlike $tuser_lc's, this
-#   one is optional - without it sdsys simply has no API access, which is the
-#   state every install before today shipped in.
+#   two are never read as one.
+# 20 Sep 26 dm - ALL THREE ARE REQUIRED NOW (owner, 20 Sep: "always require all
+#   three passwords but don't ask if already exist"), so this reads like
+#   $tuser_lc's when it is missing rather than calling itself optional.
 echo "SD password for sdsys (API access as the administrator): $sdsys_sd_pw_state."
 case "$sdsys_sd_pw_state" in
     set|kept*) ;;
-    *) echo "  Optional.  To set one later, log in as sdsys and, at the SD prompt:"
+    *) printf "%b" "$RED"
+       echo "  It is required.  Log in as sdsys and, at the SD prompt:"
        echo "    MODIFY.PASSWORD sdsys"
-       echo "  Until then sdsys has no API access.  Even with it, SD admits sdsys"
-       echo "  over the API only from a process running as sdsys on this machine." ;;
+       echo "  Until then no program can reach SD as the administrator.  Even"
+       echo "  with it, SD admits sdsys over the API only from a process"
+       echo "  running as sdsys on this machine."
+       printf "%b" "$NC" ;;
 esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"

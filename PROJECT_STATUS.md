@@ -354,7 +354,19 @@ it is for, that ssh still uses the Linux one, the complexity rule (10920,
 which -QUIET stops SD from saying) and Enter-to-skip are all in the blocks.
 Then, same day: the complexity rule left the three blocks and is stated once
 before the first of them - "All passwords must contain ..." (owner's
-wording).  It is still said where a step can be reached without the list
+wording).  Then his own layout, pasted as the target: "PASSWORDS." alone,
+the three items spaced, purposes cut to "remote access using the API" /
+"local console administration" / "local API administration", headings alone
+in their blocks ("1 of 3: Your SD password"), and blank lines between the
+prompts and the answer.  ***AND ALL THREE ARE REQUIRED*** ("always require
+all three passwords but don't ask if already exist"): step 3's Enter-to-skip
+wording is gone and the end-of-install line reads like the other two.  Two
+judgements he did not make explicitly, flagged to him: the complexity
+sentence was KEPT (his sample omitted it, but he had asked for it one turn
+earlier and a rule learned only from a refusal costs an attempt); and SD's
+-QUIET prompts name the ACCOUNT ("New SD don password: ") rather than saying
+"Your", because the installer runs both SD steps as sdsys and SD cannot tell
+whose account the person considers theirs.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
