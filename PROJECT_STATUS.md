@@ -384,7 +384,22 @@ summary still prints for a password that is NOT set.  ***THE PRINCIPLE, HIS
 WORDS, WORTH MORE THAN THIS ENTRY***: "in a follow up explanation it is
 fine, but during the prompting it is just extra noise".  Four rounds of this
 section were spent learning it; it is in the memory file as
-`prompts-terse-explanations-in-summary`.  It is still said where a step can be reached without the list
+`prompts-terse-explanations-in-summary`.
+
+***FROM THE FIRST REAL INSTALL OF IT, 20 SEP 2026*** (owner: "#2 does not
+display *").  Two faults no reading of the source would have shown:
+- `read -s` echoes NOTHING, so the LINUX step looked dead beside SD's two,
+  which star each character.  `installsdai.sh` gained `read_password`: one
+  character at a time from the TERMINAL (its own stdin may be a pipe), a `*`
+  echoed per character, backspace and DEL erasing both.  Exercised on a
+  pseudo-terminal before commit - `abXc` printed 4 stars, `abX<DEL>c` printed
+  3 and captured `abc` - and the password reaches only the named variable.
+- SD printed TWO blank lines where the layout wanted one, in two places: the
+  `crt` that separates the Enter-advice (which -QUIET suppresses) from the
+  banner above it, and the `display` after each `input ... HIDDEN`, since the
+  terminal echoes the Return itself.  Both are now skipped when the prefix is
+  set, so an ordinary session's layout is untouched.  UNWITNESSED: the SD half
+  needs the next install, the bash half was measured.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
