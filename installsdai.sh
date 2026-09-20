@@ -1336,12 +1336,15 @@ echo "1 of 3: Your SD password"
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/$tuser_lc"; then
     sd_pw_state="kept from the previous install"
+    echo
     echo "  Kept: this reinstall kept your accounts, and the password with them."
 elif ! sudo test -f "$sdsysdir/accounts/$tuser_lc"; then
     sd_pw_state="not set - $tuser_lc is not in the SD register"
+    echo
     echo "  Cannot ask: $tuser_lc has no record in the SD account register."
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sd_pw_state="not set - there was no terminal to ask at"
+    echo
     echo "  Cannot ask: this install has no terminal."
 elif ! sd_install_start; then
     sd_pw_state="not set - SD would not start for this step"
@@ -1383,11 +1386,13 @@ echo ---------------------------------------------------------------
 #   "passwd -S <user>" prints P (usable), L (locked) or NP (none) as field 2.
 if [ "$(sudo passwd -S sdsys 2>/dev/null | awk '{print $2}')" = "P" ]; then
     sdsys_pw_state="kept from the previous install"
+    echo
     echo "  Kept: sdsys already has a Linux password, and this install has not"
     echo "  changed it.  To change it deliberately:  sudo passwd sdsys"
     echo "  (keep to SD's rule above - passwd itself does not apply it)."
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sdsys_pw_state="not set - there was no terminal to ask at"
+    echo
     echo "  Skipped: this install has no terminal to ask at."
     echo "  Set one before administering:  sudo passwd sdsys"
 else
@@ -1465,9 +1470,11 @@ echo "3 of 3: Password for the SD sdsys account"
 echo ---------------------------------------------------------------
 if sudo test -f "$sdsysdir/\$cred/sdsys"; then
     sdsys_sd_pw_state="kept from the previous install"
+    echo
     echo "  Kept: this reinstall kept its credentials."
 elif ! ( : </dev/tty ) 2>/dev/null; then
     sdsys_sd_pw_state="not set - there was no terminal to ask at"
+    echo
     echo "  Cannot ask: this install has no terminal."
 elif ! sd_install_start; then
     sdsys_sd_pw_state="not set - SD would not start for this step"
