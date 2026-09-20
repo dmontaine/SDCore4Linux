@@ -377,7 +377,14 @@ LINUX step was indented two.  `set_acc_password` now carries one prefix
 (`pw.pfx`, two spaces under -QUIET and empty otherwise) on every line of the
 exchange: both prompts, 10920, 10921, the mismatch, "Password not changed.",
 the verdict and the failure.  It is set above the current-password check,
-because that refusal is one of those lines.  It is still said where a step can be reached without the list
+because that refusal is one of those lines.  Then the three "Kept ..."
+branches became one line, `Password exists - not changed`, and with them
+went step 2's advice about `sudo passwd sdsys` - which the end-of-install
+summary still prints for a password that is NOT set.  ***THE PRINCIPLE, HIS
+WORDS, WORTH MORE THAN THIS ENTRY***: "in a follow up explanation it is
+fine, but during the prompting it is just extra noise".  Four rounds of this
+section were spent learning it; it is in the memory file as
+`prompts-terse-explanations-in-summary`.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
 ***HANDOFF, 20 SEP 2026, ~04:40 — END OF SESSION (CREDITS).  READ THIS FIRST.***
