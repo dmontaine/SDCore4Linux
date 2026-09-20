@@ -16,6 +16,37 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+20 Sep 26  THE INSTALLER NOW SAYS WHOSE PASSWORD IT IS ASKING FOR.
+           Near the end of an install you are asked for three passwords,
+           and it was not clear which account each one belonged to - two of
+           them are sdsys's, and the third is your own, with your account's
+           password asked for in between sdsys's two.
+
+           Before the first of them the installer now lists all three, in
+           the order they come:
+             1. your own SD password  - for reaching SD over the API;
+             2. sdsys's LINUX password - for signing in as SD's
+                administrator at this machine;
+             3. sdsys's SD password   - for reaching SD as the
+                administrator over the API.
+           Each prompt is headed "1 of 3", "2 of 3" or "3 of 3" and names
+           the account and which of its two passwords it wants.  Where SD
+           itself asks ("New password:"), the line above it names the
+           account, because SD asks in the same words for either one.
+
+           A REINSTALL NO LONGER REPLACES SDSYS'S LINUX PASSWORD BEHIND
+           YOUR BACK.  If you reinstall and keep your accounts, the sdsys
+           user is still there with the password you set.  The installer
+           used to ask again and replace it, with no way to enter the one
+           already in use.  It now keeps it, says so, and tells you that
+           "sudo passwd sdsys" is how to change it on purpose.  The two SD
+           passwords already behaved this way.
+
+           What this does NOT do: it does not change which passwords are
+           asked for, and your own SD password is still required.  The
+           password asked for at the very start of an install is your own
+           Linux password, for sudo, and is not one of the three.
+
 19 Sep 26  A REMOTE SDSYS SESSION IS NOW TURNED AWAY AT THE DOOR.
            Running sd as sdsys over ssh was already stopped - SD would not
            let the session into the SDSYS account - but it stopped it one
