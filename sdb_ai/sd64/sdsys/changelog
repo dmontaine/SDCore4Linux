@@ -16,6 +16,34 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+20 Sep 26  A COMMAND RUN FROM THE COMMAND LINE NOW NEEDS TO BE ON A LIST.
+           SD can be run as "sd 'SOME COMMAND'" - a single command, typed
+           on the command line or run from a scheduled job, rather than a
+           full sign-on session.  Until now that ran anything at all, for
+           any account, the moment the account itself was reachable.
+
+           IT NOW HAS TO BE ON THAT ACCOUNT'S OWN LIST, or the session is
+           refused.  An administrator adds a command by name to the
+           account's record in the SD system file "batch.jobs" - one
+           command per line, nothing after it, and it has to be a
+           paragraph or a sentence in that account, not an arbitrary
+           program. Signing in as an administrator, at this machine, is
+           unaffected - the list only limits a bare, unattended command
+           line.
+
+           WHY: an interactive sign-on has somebody present who can use
+           judgement about what they type. A command run this way does
+           not - it is meant for an unattended job, like one launched on a
+           schedule - so it gets a list an administrator sets up in
+           advance instead.
+
+           WHAT THIS DOES NOT DO: it does not change what an interactive
+           session may do once signed on, and it does not apply to an
+           administrator's own session, at this machine or otherwise. A
+           new account's list starts empty, so nothing can be run this way
+           until an administrator adds to it.
+
+
 20 Sep 26  THE SDSYS ADMINISTRATOR ACCOUNT NOW APPEARS ON YOUR LOGIN
            SCREEN.
            SD has one administrator, SDSYS, and the way to use it is to log

@@ -547,7 +547,10 @@ In `gplbld/`: `test-accounts-units.py` · `test-apiroute-units.py` (and
 `--selftest`, 5 mutants; APISRVR's `sdapi` gate as ordering invariants read
 off the source — it cannot say the gate refuses anybody, which is
 `witness-release-run.sh` §13f's job) · `test-assert-current.py` ·
-`test-basicfuncs-units.py` · `test-configpath-units.py` (and `--selftest`, 8
+`test-basicfuncs-units.py` · `test-batchgate-units.py` (and `--selftest`, 6
+mutants; the LOGIN `batch.permitted` gate, S.40, parity with the port's
+batch.jobs — same shape as `test-apiroute-units.py`, cannot say the gate
+refuses anybody, that is a witness row's job) · `test-configpath-units.py` (and `--selftest`, 8
 mutants) · `test-editors-units.py` · `test-edittokens-units.py`
 · `test-msglen-units.py` · `test-msgreserved-units.py` (the message-number
 space convention agreed with the port 20 Sep — W.12 — refuses any message

@@ -201,6 +201,18 @@ if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/\$cred" ]; then
     echo "Saved the credential register (\$cred)"
 fi
 
+# 20 Sep 26 dm - S.40 (parity with the Windows port, owner's ruling).
+# batch.jobs is the per-account allowlist for a command run from the sd
+# command line (login's batch.permitted); it goes with the accounts for the
+# same reason $cred does - a keep cycle that dropped it would silently widen
+# every account back to "any command, unattended" until the list was rebuilt
+# by hand.  installsdai.sh restores it sdsys:sdusers 0750.  DELETE removes it.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/batch.jobs" ]; then
+    sudo rm -fr "$acct_path/batch.jobs"
+    sudo cp -a "$sdsysdir/batch.jobs" "$acct_path/"
+    echo "Saved the batch-job allowlist (batch.jobs)"
+fi
+
 # remove the /usr/sdsys directory
 sudo rm -fr "$sdsysdir"
 echo

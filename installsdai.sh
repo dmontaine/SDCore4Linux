@@ -894,6 +894,45 @@ sudo chown -R sdsys:sdusers "$sdsysdir/\$cred"
 sudo chmod 700 "$sdsysdir/\$cred"
 echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
 #
+# 20 Sep 26 dm - S.40, PARITY WITH THE WINDOWS PORT (owner's ruling, 20 Sep
+# 2026: a behavior prevented on one port must be prevented on both, the
+# mechanism free to vary with the OS).  Windows built batch.jobs 22 Aug 2026
+# (its PROJECT_STATUS.md 7 step 9) because sd.exe refused every unelevated
+# command-line invocation outright, which broke a legitimate scheduled job
+# along with everything else; batch.jobs is the controlled exception, one
+# record per account, one command name per field.  Linux's CPROC ran ANY
+# single-command invocation unconditionally since it was written - the
+# group-membership test at LOGTO/login proves WHO is running it, never WHAT
+# it may run unattended - so this is a genuine gap being closed, not a
+# documented divergence like S.27's.
+#
+# STARTS EMPTY, SO NOTHING IS RUNNABLE FROM THE COMMAND LINE UNTIL AN
+# ADMINISTRATOR LISTS IT (security ships tight, the Project stance's rule):
+# an account with no entry here is refused 11000, exactly as one with an
+# entry that does not match.  A keep cycle restores the saved list
+# (deletesdai.sh keeps it with the accounts and the credential register);
+# otherwise a fresh, empty directory.
+if [ -d "/home/sd/batch.jobs" ]; then
+    sudo rm -fr "$sdsysdir/batch.jobs"
+    sudo mv "/home/sd/batch.jobs" "$sdsysdir/"
+    echo "Restored the batch-job allowlist (batch.jobs)"
+else
+    sudo mkdir -p "$sdsysdir/batch.jobs"
+    echo "Created an empty batch-job allowlist (batch.jobs)"
+fi
+# READ-ONLY TO sdusers, WHICH IS THE WHOLE OF THE CONTROL (the port's own
+# words for the same rule): sdusers must be able to READ their own account's
+# entry from their own unprivileged sd session, but must never be able to
+# WRITE one - a user who could add their own name grants themselves whatever
+# is on somebody else's list, or their own without an administrator's say.
+# 0750: sdsys may add, change or remove records; sdusers may traverse and
+# read; nobody else reaches it at all.  The administrator maintains it
+# directly - there is no verb to edit it with, matching the port, which has
+# not built one either (its own step 10, still open there).
+sudo chown -R sdsys:sdusers "$sdsysdir/batch.jobs"
+sudo chmod 750 "$sdsysdir/batch.jobs"
+echo "batch-job allowlist: $(sudo stat -c '%U:%G %a' "$sdsysdir/batch.jobs")"
+#
 # 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
 #            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
 #            sdsys (the old "chmod 654" sat four lines before it, and the record

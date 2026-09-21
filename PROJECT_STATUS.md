@@ -38,6 +38,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ⬜ | **W.11** | R | ***WAITING FOR THE OWNER*** - the security-model evaluation he reserved "once the teardown is witnessed on an install" (CLAUDE.md, Project stance).  The teardown was witnessed 19 Sep 2026 on `60ac74a`, so it is his to start | — |
 | ✅ | **S.38** | S | ***CLOSED — §WITNESSED§ 20 Sep 2026 ON A REAL DELETE/INSTALL CYCLE, AND AT THE OWNER'S OWN LOGIN SCREEN.***  His ruling: *"the account needs to be created so that users can get to it through the login screen to match windows"*.  `installsdai.sh` drops `--system` from the `useradd`, so sdsys gets a uid at or above `UID_MIN` and the greeter lists it; the shell and home it already gave were there for exactly this and `--system` was quietly defeating them.  ***sd-elevate REFUSES sdsys BY NAME, NOT BY UID — CHECKED BEFORE THE FLAG MOVED***, so raising the uid opens no door a uid test was holding shut (`require_sd_user`).  ***THE OWNER, AT THE KEYBOARD: "verified - sdsys appears on login screen."***  `witness-absence --commit`, same cycle, ***99 of 99*** — M7c3/M7c4/M7c5 (uid 1005 ≥ UID_MIN 1000, a real shell, a home) all PASS where M7c3 failed before the cycle.  An EXISTING sdsys (a keep-accounts cycle) still keeps its old uid and the installer says so; that path is unwitnessed, by construction — this cycle removed accounts | 20 Sep 2026 |
 | ✅ | **S.39** | S | ***CLOSED — §WITNESSED§ 20 SEP 2026: RE-RUN AFTER THE FIX, S2.a PASSES ("expected 'yes', got 'yes'"), 248 of 249*** (the one remaining item is R3's already-expected NOT REACHED, needing a keep-configuration cycle).  `witness-release-run.sh`'s S.2 test (`§2`, S2.a) drove `setpriv --reuid 999` to become sdsys and check CPROC's LOGTO group refresh; sdsys was a `--system` account (fixed at 999) until S.38 gave it an ordinary uid, so the first cycle after S.38 handed `--reuid` a number belonging to nobody-in-particular and CPROC refused the session outright (*"not registered for String Database (sd) use"*) instead of measuring anything.  ***THE SAME TRAP AS M9d/M9b/M7b***: a fact the product no longer promises, baked into an instrument rather than read from the machine.  Fixed: `SDSYS_UID=$(id -u sdsys)` replaces the literal | 20 Sep 2026 |
+| ◐ | **S.40** | M | ***THE BATCH GATE — PARITY WITH THE WINDOWS PORT (owner's ruling, 20 Sep 2026: a behavior prevented on one port must be prevented on both, the mechanism free to differ with the OS).*** Found while explaining Q.22's `batchjob` verifier: a single-command invocation (`sd '<command>'`, `system(1026)`) has run UNCONDITIONALLY on this port since `login`/`cproc` were written — the group-membership test at entry proves WHO is running it, never WHAT it may run unattended.  Windows built `batch.jobs` 22 Aug 2026 (its PROJECT_STATUS.md 7 step 9) for exactly this: `sd.exe` used to refuse every unelevated command line outright, breaking a legitimate scheduled job along with everything else.  ***§BUILT§ 20 Sep 2026, NO BASIC COMPILED AND NOTHING RUN.*** `login`'s `batch.permitted` (ported from the port's own routine, same algorithm, new messages 11000-11002 from this port's own block): admitted by `K$ADMINISTRATOR` or by an exact, argument-free match in the account's own record in `@SDSYS/batch.jobs` (VOC type PA or S only); refused otherwise, before `cproc` ever sees the command.  `batch.jobs` is a directory file (the shape of `accounts`/`$cred`, not a VOC entry — a VOC record grants its own account Modify by default), `sdsys:sdusers 0750` (group may read, never write — matching the port's own "read-only to sdusers" rule), created empty by the installer and preserved by `deletesdai.sh` on a keep cycle exactly as `$cred` is.  Free: `gplbld/test-batchgate-units.py`, 24/24 + `--selftest` 6/6 mutants caught (two genuine holes found and fixed by the self-test itself — see the entry).  Witness M13a-g2 written in `witness-absence.sh`, unrun.  Left: one cycle | — |
 | ✅ | **W.12** | S | ***CLOSED — AGREED BY MAIL 20 SEP 2026*** (`to-windows/2026-09-20T1605`, `to-linux/2026-09-20T1609`): `0-10029` upstream's, `10030-10999` shared legacy, `11000-11999` this port's block, `12000-12999` the port's. The port already acted on it: their 10922 moved to `12000`, `test-msgreserved-units.py` guards it on each side (ours free-checked; theirs "built and free-tier guarded", one install left to witness).  ***THE "FOUR COLLISIONS" COUNT WAS WRONG, CORRECTED ON THE PORT'S QUESTION AND VERIFIED HERE, NOT TAKEN ON THEIR WORD***: 10919 was mailed as a shared number when taken (`done/2026-09-19T1045…`, *"if you adopt the check below, please use the same number"*) and the port's file adds two paragraphs to our sentence; 10920 was "mailed to the port (parity, approved here)" per S.31's own entry; 10921 was "agreed by mail, 19 Sep 14:00" per its own history block.  ***ONLY 10922 WAS A REAL, ACCIDENTAL COLLISION*** — now resolved | 20 Sep 2026 |
 | ✅ | **S.29** | L | ~~parts 1-2~~ ***ALL THREE PARTS BUILT AND §WITNESSED§ 20 Sep 2026 ON INSTALL `5f74c15`, BOTH HALVES, ON REAL CONNECTIONS.*** `witness-release-run --commit` (14:54:48): ***§13f F4 — a real SCRAM login REFUSED with 10073 after `MODIFY.ACCOUNT zzrel1 NONE`***, between F2 and F6 admitting the same login either side, F3b/F5b reading `id -nG`; ***§14 X8 — a real ssh login REFUSED with "zzrel1 is not permitted to reach SD over ssh"***, X8b never reached sd, X9b ssh works again after `BOTH`, X7b `no yes` proving the two routes independent. `witness-absence --commit` re-run after its instrument fixes: ***96 of 96*** — M5a-g the door both ways, M7b/M7b2/M7c2, M7i-M7i6 (arm ORDER 148 < 154, `--refuse` driven). Free: `test-ssh-forcecommand` 34/34 (was 18), `test-apiroute-units` 11/11 + 5/5 mutants. Three instrument faults found and fixed on the way (M9d, M9b, `run_sd`'s title-as-command). Partly reverses S.28's disposal | 20 Sep 2026 |
 | ✅ | **W.10** | M | ***WITNESSED 19 Sep 2026 on `60ac74a` (M7d2, M10a-h) and by the owner at the keyboard, the verify fix included.*** ***RULED 19 Sep (owner, here): mimic the RESULT, not the process - "user can only change their own password, sdsys can change any"; admin and user follow the same process. §BUILT§ 19 Sep, AND WITNESSED 19 Sep ON `359d5ce`*** - absence M7d2, M10a-f pass (M10b's fail was sudo-rs's wording); the owner at the keyboard: `MODIFY.PASSWORD` in `don` set it, `MODIFY.PASSWORD sdsys` refused. ***HE FOUND ONE FAULT: a wrong current password reached the new-password prompts (the helper refused it only at the write - journal shows one set, 09:59:39).*** Fixed: `cred-own verify`, called before the prompts (`set_acc_password` helper.verify, sudoers now three lists, witness M10g/h, `test-sd-elevate` 112/112); unmeasured - the sixth cycle. Built: `sd-elevate cred-own` (query, set) + a `%sdusers` sudoers line for exactly those two lists, `set_acc_password` self.svc path, `newvoc/modify.password`; `test-sd-elevate` 92/92, witness M7d2 + M10a-f added; left: a cycle, and a person at the keyboard for the prompts. *Earlier:* self-service MODIFY.PASSWORD — the owner ruled on the Windows side 19 Sep ("a - as long the user can only modify their own password, but the admin can change any password"; the port added `newvoc/modify.password`, no code change there). ***HERE IT CONFLICTS WITH A RECORDED LINUX DIVERGENCE*** (`set_acc_password:79-80`, CLAUDE.md): `$cred` is `sdsys:sdusers 0700`, so an ordinary session cannot write even its own record and the verb refuses before any prompt (`:144`). Adding the VOC entry alone would ship a verb that always refuses. Needs the owner: keep the divergence, or build a privileged own-record write path (a new mechanism — e.g. euid 0 for `$MODIFY.PASSWORD` as CPROC gives `$CREATEA/$DELACC/$MODIFYA`, the own-only and current-password checks already in the BASIC) | 19 Sep 2026 |
@@ -409,24 +410,35 @@ display *").  Two faults no reading of the source would have shown:
   needs the next install, the bash half was measured.  It is still said where a step can be reached without the list
 (the end-of-install advice for an unset sdsys password).
 
-***HANDOFF, 20 SEP 2026, LATEST.  READ THIS FIRST.***
-- ***THE INSTALL IS STILL `b8e195d` (S.38), 15:21:06 — NO DELETE/INSTALL
-  SINCE, AND NONE NEEDED.***  `witness-absence --commit`: ***99 of 99***.
-  `witness-release-run --commit`, re-run after the S.39 fix
-  (`/var/tmp/witness-release-run.20260920-155539.log`): ***248 of 249***,
-  the sole remainder R3's already-expected NOT REACHED (needs a
-  keep-configuration cycle).  ***EVERYTHING FOUND OR BUILT TODAY IS NOW
-  CLOSED: S.29, S.32, S.33, S.35, S.37, S.38, S.39.***  The one open item
-  from today is **W.12** (shared message-number space), which is the
-  owner's to settle, not ours to build.
-- **Nothing is owed on this install.**  A first release-run scored 247/249
-  with one real failure (S2.a) caused by S.39 - a witness row that
-  hard-coded sdsys's uid at 999, broken by S.38's own fix; corrected the
-  same session and the re-run confirms it (S2.a *"expected 'yes', got
-  'yes'"*, no new failure appeared in its place).
-- **Mailbox**: `to-linux/` empty at last check.  `to-windows/` carries a
-  concrete W.12 proposal (`2026-09-20T1605`), sent after the owner
-  delegated the convention question to the two agents directly.
+***HANDOFF, 20 SEP 2026, EVEN LATER.  READ THIS FIRST.***
+- ***THE INSTALL IS STILL `b8e195d` (S.38), 15:21:06 — S.40 IS NOT ON IT.***
+  `witness-absence --commit`: 99 of 99.  `witness-release-run --commit`,
+  re-run after the S.39 fix: 248 of 249 (R3's already-expected NOT REACHED
+  is the sole remainder).  ***EVERYTHING BUILT BEFORE S.40 IS CLOSED: S.29,
+  S.32, S.33, S.35, S.37, S.38, S.39.  W.12 is agreed, closed by mail.***
+- ***S.40, THE BATCH GATE, IS NEW THIS SESSION AND §UNRUN§.***  The owner's
+  general ruling on parity ("if something prevents a particular behavior on
+  Windows, that behavior needs to be prevented here, the mechanism free to
+  vary") applied to a real, live Windows feature this port never had:
+  `login`'s `batch.permitted` now gates a single-command `sd` invocation
+  behind elevation or an account's own allowlist in `@sdsys/batch.jobs`,
+  matching the port's own `batch.jobs`.  Free-checked (`test-batchgate-
+  units.py` 24/24, `--selftest` 6/6 mutants — two genuine holes in the
+  check itself found and fixed by the self-test, see S.40's entry).
+  Witness M13a-g2 written in `witness-absence.sh`.  ***NO BASIC HAS BEEN
+  COMPILED.*** Left: one cycle.
+- **Mailbox**: `to-linux/` empty at last check.  W.12's split (`0-10029`
+  upstream, `10030-10999` shared legacy, `11000-11999` this port,
+  `12000-12999` theirs) is AGREED, confirmed in `done/2026-09-20T1609` and
+  `2026-09-20T1618`.
+- **The cycle owed**: a real delete/install this time — S.40 changed shipped
+  BASIC and needs the two-stage bootstrap to compile it, unlike the
+  documentation-only gap since `b8e195d`.
+  `bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/deletesdai.sh`
+  then `bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/installsdai.sh`,
+  then `sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit`
+  (M13a-g2) and `…/witness-release-run.sh --commit` (a fresh cycle re-runs
+  everything; expect the usual instrument fixes on code that has never run).
 
 ***THE PREVIOUS HANDOFF, 20 SEP 2026, LATE — HISTORY NOW.***
 - ~~***THE INSTALL IS STILL `60ac74a` (19 Sep)***~~ ~~*— MEASURED 20 Sep,
@@ -1036,6 +1048,81 @@ found, and what HEAD changes (none of it installed):
    - Recorded as memory `shared-number-space`, since CLAUDE.md already
      pointed at "the memory note on shared number spaces" before one
      existed.
+10. ***[S.40] THE BATCH GATE — PARITY WITH THE WINDOWS PORT, §BUILT§ 20 SEP
+    2026, NO BASIC COMPILED AND NOTHING RUN.***  The owner, asked to
+    arbitrate the underlying disagreement, ruled the general case instead:
+    *"if something works on Windows it needs to work here... if something
+    prevents a particular behavior on Windows that behavior needs to be
+    prevented here... the mechanism to achieve parity can vary given the
+    capabilities of the underlying OS."*
+    - **How it was found**: explaining Q.22's `batchjob` verifier led to
+      reading the port's actual mechanism rather than guessing at it.
+      `batch.jobs` is not a Pick-style background job queue — it is a
+      per-account allowlist gating what a SINGLE COMMAND LINE invocation of
+      `sd` (`sd -A<account> "<command>"`, Windows Task Scheduler's route in)
+      may run, refused by default unless elevated.  ***THE TWO PORTS SHARE
+      THE UNDERLYING MECHANISM ALREADY***: Linux's `cproc:762`
+      (`at.command = system(1026)`) is the identical single-command branch,
+      same kernel call, same comment shape — but it has run any command
+      unconditionally since it was written.  This is not the OS-identity
+      question the owner raised (both ports already gate WHO reaches an
+      account identically, by group/token membership, before either gets
+      here) — it is a second, independent restriction Windows adds on top:
+      an unattended invocation gets a pre-vetted list regardless of whose
+      identity is running it, because nobody is present to use judgement.
+      Confirmed live on Windows 20 Sep (a real bug in
+      `Invoke-BatchJobPhase` was found and fixed there the same day, so the
+      feature is active and maintained, not legacy).
+    - **What was built**: `login`'s `batch.permitted` (new `START-HISTORY`
+      entry, ported from the port's own routine almost verbatim — same
+      algorithm, same field/value-mark fold, same three-case VOC lookup
+      order) gated into the mode-0 flow right before login declares success
+      (`ok = @true`), exactly where the port's own gate sits.  Admitted by
+      `K$ADMINISTRATOR` or an exact, argument-free match in the account's
+      own record in `@SDSYS/batch.jobs`, VOC type PA or S only; refused
+      otherwise, with new messages 11000-11002 (this port's own block, per
+      W.12 — not a reuse of the port's 10096-10098, since this is a fresh
+      allocation made after the convention took effect).  `batch.jobs`
+      itself is a directory file — the shape of `accounts`/`$cred`, not a
+      VOC entry, because a VOC record grants its own account Modify by
+      default and cannot carry an ACL — `sdsys:sdusers 0750` (the group may
+      read, never write, matching the port's own "read-only to sdusers"
+      rule), created empty by the installer and preserved by
+      `deletesdai.sh` on a keep cycle exactly as `$cred` is.  There is no
+      verb to maintain it with, matching the port, which has not built one
+      either (its own step 10, still open there) — the administrator, who
+      owns the file, edits it directly from a local sdsys session.
+    - ***THE FREE CHECK CAUGHT TWO REAL HOLES IN ITSELF***, which is the
+      point of running `--selftest`: B3's first draft matched a coincidental
+      unrelated line elsewhere in `login` sharing the same substring
+      (`not(kernel(K$ADMINISTRATOR,-1))` also appears in the SDSYS-entry
+      check `:334`), so a mutant that deleted the gate's OWN elevation
+      exemption still passed B3 — the same class of fault the instrument
+      rule names for success/failure wording, generalised to any anchor
+      string.  And the "move the gate after success" mutant's own generator
+      first inserted the moved block after the WRONG "ok = @true" (`login`
+      has an earlier, unrelated one at an early-return branch), which
+      produced a file the ordering check correctly read as still in order —
+      not a flaw in the check, a flaw in the mutant.  Both fixed the same
+      session; `gplbld/test-batchgate-units.py` now 24/24 with `--selftest`
+      6/6 mutants caught.
+    - ***WITNESS M13a-g2 WRITTEN IN `witness-absence.sh`, UNRUN.***  Driven
+      both ways (refused with no entry, admitted once listed, refused with
+      an argument, refused again once delisted, refused for the wrong VOC
+      type) using `login` itself as the probe — real, ships in every
+      account's NEWVOC, genuinely VOC type PA, harmless to run.  ***WHAT
+      M13a-e CANNOT SHOW, STATED IN THEIR OWN COMMENT***: `login` prints
+      nothing on success, so admission there is read from the absence of
+      every refusal wording rather than a positive trace — the same limit
+      the port's own witness names (*"it did not refuse is not evidence it
+      ran"*).  M13f is the stronger row: `WHO`, a command that is
+      DEFINITELY not PA/S, run unlisted as the elevated sdsys — if the
+      elevation exemption broke, this row would refuse with 11002 exactly
+      as M13e does, so its admission is not merely an absence.
+    - ***WHAT WOULD FALSIFY IT***: a cycle where an account with no
+      `batch.jobs` entry still runs a single-command invocation; a listed
+      command still refused; an argument accepted; `sdusers` able to write
+      `batch.jobs`; or M13f refusing (elevation no longer exempt).
 LEFT ON THE MACHINE BY THE FIFTH RUN: `zzrel2` whole (register, dir, user,
 group) and `/home/sd/user_accounts/zzrel1` - clear both before the sixth
 install (the owner's commands, in the chat).  R3 NOT REACHED is expected
