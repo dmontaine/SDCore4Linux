@@ -669,6 +669,93 @@ elif [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
+# 20 Sep 26 - M13, THE BATCH GATE (S.40, parity with the Windows port: a
+# behavior prevented on one port must be prevented on both).  A session
+# invoked as "sd '<command>'" - a single command line, no interactive
+# session - is now refused unless elevated or listed in the account's own
+# record in @SDSYS/batch.jobs.  Driven both ways, on purpose, for the same
+# reason M5 is: a narrowing-only build passes every obvious test.
+#
+# "login" IS THE PROBE, NOT A THROWAWAY PARAGRAPH, because it is real: it
+# ships in NEWVOC (every account has it), it is genuinely VOC type PA
+# (measured: `sdsys/newvoc/login` field 1 is "PA"), and it is harmless to
+# run (three TERM/PTERM lines, no side effect on data).  ***WHAT THIS ROW
+# CANNOT SHOW, AND SAYS SO***: "login" prints nothing on success, so
+# admission is read from the ABSENCE of every refusal wording and a clean
+# exit - the same limit the port's own witness names ("it did not refuse is
+# not evidence it ran") and works around with a probe that prints a count.
+# M13f below is the stronger row: it uses a command (WHO) that WOULD be
+# refused for its VOC type if the gate reached it at all, so an elevated
+# admission there is not merely an absence of refusal.
+run_sd_batch() {   # user, title, single command line (one shell argument)
+  local user="$1" title="$2" cmdline="$3"
+  say "  --- sd '$cmdline' as $user: $title ---" >&2
+  if [ "$COMMIT" -eq 0 ]; then say "      (dry run - not executed)" >&2; return 0; fi
+  local out
+  if [ "$user" = sdsys ]; then
+    out=$(timeout 30 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1" "$2"' sd-run "$SD_BIN" "$cmdline" 2>&1 | strip)
+  else
+    out=$(timeout 30 sudo -u "$user" "$SD_BIN" "$cmdline" 2>&1 | strip)
+  fi
+  printf '%s\n' "$out" | sed -e 's/^/      | /' >&2
+  printf '%s' "$out"
+}
+head2 "M13. the batch gate: a command line is admitted by elevation or the account's own list (S.40)"
+BATCHJOBS="$SDSYS/batch.jobs"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  for r in "M13a refused with no entry" "M13b admitted once listed" "M13c refused with an argument" \
+           "M13d refused again once delisted" "M13e refused for the wrong VOC type" \
+           "M13f elevation admits an unlisted, wrong-type command" "M13g file owner" "M13g2 file mode"; do not_reached "$r"; done
+else
+  say "  batch.jobs before: $(yesno_dir "$BATCHJOBS") $([ -f "$BATCHJOBS/$ACC" ] && echo "($ACC has a record)" || echo "(no record for $ACC)")"
+
+  OUT=$(run_sd_batch "$ACC" "M13a control: no batch.jobs record for $ACC" "login")
+  ck_says "M13a refused with no entry (11000)" "is not a command that account $ACC may run" "$OUT"
+  ck_says "M13a2 and the connection was terminated (5024), not left half-open" "Connection terminated" "$OUT"
+
+  say "  > sudo -u sdsys sh -c 'mkdir -p $BATCHJOBS && printf login\\\\n > $BATCHJOBS/$ACC'"
+  if [ "$COMMIT" -eq 1 ]; then
+    sudo -u sdsys sh -c "mkdir -p '$BATCHJOBS' && printf 'login\n' > '$BATCHJOBS/$ACC'" 2>&1 | sed -e 's/^/      | /' >&2
+  fi
+  say "  batch.jobs/$ACC now: $(sudo -u sdsys cat "$BATCHJOBS/$ACC" 2>/dev/null | tr '\n' ',' )"
+
+  OUT=$(run_sd_batch "$ACC" "M13b THE ROW: login is now listed" "login")
+  ck_absent "M13b admitted once listed: no 11000" "is not a command that account" "$OUT"
+  ck_absent "M13b2 and no 11001/11002 either" "must be a single name" "$OUT"
+  ck_absent "M13b3 and no 'Connection terminated' (the refusal path's own line)" "Connection terminated" "$OUT"
+
+  OUT=$(run_sd_batch "$ACC" "M13c the same command, with an argument" "login extra")
+  ck_says "M13c refused with an argument (11001)" "must be a single name with nothing" "$OUT"
+
+  say "  > sudo -u sdsys sh -c 'rm -f $BATCHJOBS/$ACC'   (delist)"
+  [ "$COMMIT" -eq 1 ] && sudo -u sdsys rm -f "$BATCHJOBS/$ACC"
+  OUT=$(run_sd_batch "$ACC" "M13d delisted again" "login")
+  ck_says "M13d refused again once delisted (11000)" "is not a command that account $ACC may run" "$OUT"
+
+  say "  > sudo -u sdsys sh -c 'printf who\\\\n > $BATCHJOBS/$ACC'   (a real verb, not PA/S)"
+  [ "$COMMIT" -eq 1 ] && sudo -u sdsys sh -c "printf 'who\n' > '$BATCHJOBS/$ACC'"
+  OUT=$(run_sd_batch "$ACC" "M13e listed, but WHO is not a paragraph or sentence" "who")
+  ck_says "M13e refused for the wrong VOC type (11002)" "has to be a paragraph or a sentence" "$OUT"
+  [ "$COMMIT" -eq 1 ] && sudo -u sdsys rm -f "$BATCHJOBS/$ACC"
+
+  # THE STRONG ROW: WHO is not PA/S, sdsys has NO batch.jobs record at all,
+  # and this still must be admitted - because elevation is checked FIRST and
+  # skips the list (and the type test) entirely.  If elevation stopped
+  # exempting the gate, this row would refuse with 11002 exactly as M13e did.
+  OUT=$(run_sd_batch sdsys "M13f sdsys, unlisted, a command that fails the type test" "who")
+  ck_absent "M13f elevation admits it anyway: no 11002" "has to be a paragraph or a sentence" "$OUT"
+  ck_absent "M13f2 and no 11000 either" "is not a command that account" "$OUT"
+
+  BJ_OWNER=$(stat -c '%U:%G' "$BATCHJOBS" 2>/dev/null)
+  BJ_MODE=$(stat -c '%a' "$BATCHJOBS" 2>/dev/null)
+  BJ_GROUP_DIGIT=${BJ_MODE: -2:1}
+  say "  batch.jobs: owner=$BJ_OWNER mode=$BJ_MODE"
+  ck "M13g batch.jobs is owned sdsys:sdusers" "sdsys:sdusers" "$BJ_OWNER"
+  ck "M13g2 and the group digit has no write bit (odd count would; not 2,3,6,7)" yes \
+     "$( [ -n "$BJ_GROUP_DIGIT" ] && [ $((BJ_GROUP_DIGIT & 2)) -eq 0 ] && echo yes || echo no )"
+fi
+
+# ==========================================================================
 head2 "10. verdict"
 if [ "$COMMIT" -eq 0 ]; then
   say "  DRY RUN - nothing was executed and nothing was checked."

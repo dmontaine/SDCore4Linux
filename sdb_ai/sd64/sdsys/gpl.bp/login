@@ -18,6 +18,16 @@
 * 
 * 
 * START-HISTORY:
+* 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
+*           ruling, 20 Sep 2026: a behavior prevented on one port must be
+*           prevented on both, the mechanism free to differ with the OS.  A
+*           single-command invocation ("sd '<command>'", system(1026)) is now
+*           admitted by an ELEVATED session as before, or by the account's own
+*           list in SDSYS batch.jobs (one command, no arguments, VOC type PA
+*           or S), refused otherwise (11000-11002).  See batch.permitted.
+*           Before this, CPROC ran any command line unconditionally once the
+*           account was entered - Linux never had either half of what Windows
+*           built 22 Aug 2026 (its batch.jobs, PROJECT_STATUS.md 7 step 9).
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
 *           out: update.voc copies all of NEWVOC with no STANDARD omit filter
 *           and no administrator add layer (one VOC layer, S.25); get.acc.tier
@@ -554,6 +564,32 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
       end
    end
 
+* 20 Sep 26 dm - THE BATCH GATE, PARITY WITH THE WINDOWS PORT (owner's
+*   ruling, 20 Sep 2026: a behavior prevented on one port must be prevented
+*   on both, the mechanism free to differ with the OS).  A session invoked as
+*   "sd '<command>'" - system(1026), the same single-command mechanism
+*   CPROC's own single-command branch reads back as at.command (:762) - is
+*   admitted by an ELEVATED session as before, or by the account's own list
+*   in SDSYS batch.jobs, and refused otherwise.  See batch.permitted.
+*
+*   LINUX NEVER HAD EITHER HALF.  CPROC has run any command line
+*   unconditionally since it was written: the group-membership test above
+*   proves WHO is running it, never WHAT it may run unattended.  Windows
+*   built batch.jobs 22 Aug 2026 (its PROJECT_STATUS.md 7 step 9) because
+*   sd.exe used to refuse EVERY unelevated command line outright, which
+*   refused the legitimate scheduled job this exists for along with
+*   everything else - the same distinction still applies here: an
+*   interactive session has a human present to use judgement, a bare command
+*   line does not, so it gets a pre-vetted list instead, regardless of whose
+*   Linux identity is running it.
+   if mode = 0 and not(is.phantom) and not(kernel(K$INTERNAL,-1)) then
+      batch.command = trim(system(1026))
+      if batch.command # '' and not(kernel(K$ADMINISTRATOR,-1)) then
+         gosub batch.permitted
+         if not(batch.ok) then goto terminate.connection
+      end
+   end
+
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
    if mode = 0 then void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
@@ -566,6 +602,102 @@ terminate.connection:
    sleep 2
 abort.login:
    return to abort.login
+
+*
+* ======================================================================
+* BATCH.PERMITTED - may this account run this command from the command line?
+*
+* PARITY WITH THE WINDOWS PORT, 20 Sep 2026.  Sets batch.ok, and on a
+* refusal sets audit.reason and displays which of the four refusals it was.
+* NEVER SETS batch.ok TRUE BY FALLING THROUGH: every path that does not
+* reach the last line leaves it false, which is the direction a permission
+* list has to fail.
+*
+* THE LIST IS @SDSYS/batch.jobs, A DIRECTORY FILE, ONE RECORD PER ACCOUNT -
+* the same shape as `accounts` and $cred, not a VOC entry: a VOC record
+* grants its own account Modify by default and cannot carry an ACL of its
+* own, so an ordinary account could add its own name to a VOC-based list.
+* The installer makes it sdsys:sdusers 640 - sdusers may READ it (every
+* login checks its own account's entry from its own, unprivileged process)
+* but never WRITE it; the administrator, who owns the file, maintains it
+* directly - there is no verb to edit it with, matching the port, which has
+* not built one either.
+*
+* KEYED BY initial.account, DOWNCASED - the same identity the group-
+* membership test above already proved, so this cannot consult one
+* account's list while running as another.
+*
+* BOTH FIELD-MARK AND VALUE-MARK LISTS ARE READ, deliberately (the port's
+* reasoning, carried over): an administrator editing with a plain editor as
+* naturally puts one command per LINE (a field mark) as per VALUE, and
+* folding both into one list lets them agree instead of one silently
+* granting nothing.
+
+batch.permitted:
+   batch.ok = @false
+
+*  ONE TOKEN, NO ARGUMENTS - THE LINE DOING THE SECURITY WORK.  "Must be in
+*  the VOC" is worth nothing alone, since every verb is a VOC item; it is
+*  the absence of arguments that stops a listed name being turned into
+*  something else.
+   if index(batch.command, ' ', 1) then
+      display sysmsg(11001) ;* A command run this way takes no arguments
+      audit.reason = 'command line carried arguments'
+      return
+   end
+
+   openpath @sdsys:@ds:'batch.jobs' to batch.f else
+      display sysmsg(11000, batch.command, initial.account)
+      audit.reason = 'batch.jobs could not be opened'
+      return
+   end
+
+   read batch.rec from batch.f, downcase(initial.account) else batch.rec = ''
+   close batch.f
+
+   batch.listed = @false
+   batch.list = change(batch.rec, @fm, @vm)
+   batch.n = dcount(batch.list, @vm)
+   for batch.i = 1 to batch.n
+      if downcase(trim(batch.list<1, batch.i>)) = downcase(batch.command) then
+         batch.listed = @true
+      end
+   next batch.i
+
+   if not(batch.listed) then
+      display sysmsg(11000, batch.command, initial.account)
+      audit.reason = 'command is not on the account list'
+      return
+   end
+
+*  PA AND S ONLY.  A mislisted name should fail when it is set up, not at
+*  3am; this cannot fully deliver that without a verb to edit the list
+*  with, but it refuses with a message naming the type problem rather than
+*  a bare "not permitted".  THE THREE-CASE FOLD is CPROC's own VOC-read
+*  order: as typed, then lower, then upper.
+   read batch.voc.rec from voc, batch.command else
+      read batch.voc.rec from voc, downcase(batch.command) else
+         read batch.voc.rec from voc, upcase(batch.command) else
+            display sysmsg(11002, batch.command)
+            audit.reason = 'no VOC record for the command'
+            return
+         end
+      end
+   end
+
+*  THE TYPE IS THE LEADING CHARACTERS OF FIELD 1, and the rest may be
+*  prose - "File for BASIC programs" is how CREATEA writes a file pointer,
+*  so testing for exact equality with 'PA' would reject a perfectly good
+*  paragraph.
+   batch.type = upcase(trim(batch.voc.rec<1>))
+   if batch.type[1,2] # 'PA' and batch.type[1,1] # 'S' then
+      display sysmsg(11002, batch.command)
+      audit.reason = 'VOC type is not PA or S'
+      return
+   end
+
+   batch.ok = @true
+   return
 
 *
 * ======================================================================
