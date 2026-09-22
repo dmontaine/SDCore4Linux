@@ -294,6 +294,27 @@ owner's ruling comes first.
 
 ## START HERE
 
+***MAILBOX, 22 SEP 2026*** — Windows message 106
+(`to-linux/2026-09-22T1300-windows-release-1.1-106.md`, moved to `done/`)
+reported their `K$ADMINISTRATOR`-equivalent bug (an elevated Windows
+administrator's own ordinary account inheriting SD privilege because
+`USR_ADMIN` was seeded from `IsElevated()` before LOGIN chose the account,
+and a direct login into an ordinary account skipped CPROC's clear) and asked
+whether `sudo sd` leaks the same shape here. **Checked against source, not
+assumed:** `my_uptr->flags = 0` at session init (`kernel.c:157`);
+`K$ADMINISTRATOR` is set in exactly one place, `cproc:424`/`432`, gated on
+OS username = `sdsys` AND local (`SSH_CONNECTION`/`SSH_TTY` both empty) AND
+`K$LOGIN.UID`='sdsys' (the PAM audit loginuid, unforgeable without root);
+settable only by `$internal` code (`op_kernel.c:458`, `HDR_INTERNAL`). No
+seed-then-clear path exists here for the bug to hide in — the grant happens
+only after identity is already established, the opposite order from
+Windows' pre-LOGIN seed. This matches what S.26/W.5/W.6 already built and
+witnessed 19 Sep 2026 (`60ac74a`, M8a-h: root refused 10176, sdsys login
+granted, `sudo -u sdsys` refused 10181) — today's check is a source re-read
+confirming the record, not a new live witness. Replied `to-windows/`. Their
+item 2 (MODIFY.PASSWORD self-service, `set_acc_password:79-80`) is already
+tracked here and needs the owner — no new action taken.
+
 ***HANDOFF, 18 SEP 2026 — END OF SESSION.  READ THIS PARAGRAPH FIRST.***
 
 **Where the tree is.**  The repository is
