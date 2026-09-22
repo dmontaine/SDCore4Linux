@@ -311,9 +311,23 @@ only after identity is already established, the opposite order from
 Windows' pre-LOGIN seed. This matches what S.26/W.5/W.6 already built and
 witnessed 19 Sep 2026 (`60ac74a`, M8a-h: root refused 10176, sdsys login
 granted, `sudo -u sdsys` refused 10181) — today's check is a source re-read
-confirming the record, not a new live witness. Replied `to-windows/`. Their
-item 2 (MODIFY.PASSWORD self-service, `set_acc_password:79-80`) is already
-tracked here and needs the owner — no new action taken.
+confirming the record, not a new live witness. Replied `to-windows/`.
+
+***CORRECTED, SAME SESSION: their item 2 was wrong, not merely "already
+tracked."*** Their message and their entry 47 both cite `set_acc_password:79-80`
+as recording self-service "ruled but not built." **That premise was checked
+against the live file and is stale** — `set_acc_password:79-80` no longer says
+that (comment history moved), and **W.10 is ✅ CLOSED here, built and witnessed
+19 Sep 2026 on `60ac74a`** (three days before their 22 Sep audit): a
+setuid-root helper, `sd-elevate cred-own` (`gplbld/sd-elevate:486`), lets an
+ordinary account write its own `$cred` record through sudoers, taking identity
+from `sudo`; the administrator (a real sdsys login) writes `$cred` directly
+through `!CRED_SET`. Witnessed at the keyboard: `MODIFY.PASSWORD` as `don` set
+it, `MODIFY.PASSWORD sdsys` refused. Sent the correction
+(`to-windows/2026-09-22T1530-linux-modifypassword-correction.md`) so their 47
+doesn't ship a stale open item. **The lesson for next time: check our own task
+table before repeating a mailbox claim about our tree, even a well-sourced
+one** — the first pass here took theirs on faith instead of grepping W.10.
 
 ***HANDOFF, 18 SEP 2026 — END OF SESSION.  READ THIS PARAGRAPH FIRST.***
 
