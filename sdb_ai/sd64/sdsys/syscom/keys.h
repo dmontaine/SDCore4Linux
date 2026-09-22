@@ -361,7 +361,8 @@
       $define SD_PyObjLen      2216  ;* get object length (return err overflow > 32bits)
       $define SD_PyObjType     2217  ;* get object type
       
-      $define SD_PyListGet     2221  ;* get list items as tab separated string 
+      $define SD_PyListCrte    2220  ;* create list object
+      $define SD_PyListGet     2221  ;* get list items as tab separated string
       $define SD_PyListAppd    2222  ;* append object to list   
       $define SD_PyListClr     2223  ;* clear list object     
       

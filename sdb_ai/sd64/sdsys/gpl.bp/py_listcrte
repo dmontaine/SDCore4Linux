@@ -1,0 +1,70 @@
+* PY_LISTCRTE
+* Create Python list for sd use
+* Copyright (c)2026 The SD Developers, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 22 Sep 26 dm - new.  SD_PyListCrte (2220) was reserved in KEYS.H and
+*                dispatched by op_sdpyobj.c/sdext_py.c, but nothing in BASIC
+*                called it, so a list could be appended to and read but
+*                never made - PyListAppd/PyListGet/PyListClr all existed,
+*                PyListCrte did not.  Found by the Windows port (RELEASE_1.1,
+*                gate 47 audit, 22 Sep 2026 mail) after hitting the identical
+*                gap on their own side and fixing it as PY_LISTCREATE, "the
+*                21st Python program... shaped exactly like PY_CREATEDICT."
+*                Same shape here, our own architecture underneath: PyListCrte
+*                (sdext_py.c) uses PyList_New()/PyMapping_SetItemString
+*                directly, matching PyDictCrte, not Windows' py_call("LISTCRTE",..)
+*                helper-process dispatch - same result, different mechanism.
+*                New error codes SD_PyErr_LstCrteEr/SD_PyErr_LstExsts
+*                (err.h -12037/-12038), following this tree's own LstAppdEr/
+*                LstClrEr numbering (already diverged from Windows's, which
+*                has neither).
+* END-HISTORY
+* START-DESCRIPTION:
+*
+* return_status = PY_LISTCRTE(listname)
+*
+* listname - name of python list to create
+* return_status 0 - success or error as defined in ERR.H
+*               status() - 0 on success, error code as defined in ERR.H
+*
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+$no.symbols
+$no.xref
+function py_listcrte(listname)
+$catalog !py_listcrte
+
+$include KEYS.H
+$include ERR.H
+
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call, as the
+* other PY_* programs do.
+if listname = '' then
+   set.status 1
+   return 1
+end
+* --------------------
+rtn_status = SDPYOBJ("","",listname,SD_PyListCrte)
+*
+return rtn_status
+
+end

@@ -72,6 +72,7 @@ int PyDictDel(char* dictname, char* key);
 int PyDictKeysS(char* dictname);
 int PyDictValuesS(char* dictname);
 
+int PyListCrte(char* listname);
 int PyListGet(char* listname);
 int PyListAppd(char* listname, char* objname);
 int PyListClr(char* listname);
@@ -690,6 +691,48 @@ int PyStrGet(char* strname ){
 
   return myResult;
 }
+
+/***************************************************************************************************************************/
+/*  Create List                                                                                                    */
+/***************************************************************************************************************************/
+int PyListCrte(char* listname ){
+  /* create new list for use by SD */
+  /* Arg is name of list                 */
+
+  int myResult;
+  PyObject* list_lookup;
+  PyObject* new_list;     /* new list we are creating */
+
+  myResult = 0;
+
+  /* does list (or object with this name) already exist? */
+  list_lookup = lookup_dict_item(global_dict, listname);
+  if (list_lookup == NULL) {
+  /* does not exist, create it */
+    new_list = PyList_New(0);
+    if (new_list == NULL) {
+       // not created
+      PyErr_Print();
+      return SD_PyErr_LstCrteEr;
+    } else {
+      // created, add it to the main_module name space
+      myResult = PyMapping_SetItemString(global_dict, listname, new_list);
+      if (myResult != 0){
+        // failed to add to global dictionary namespace !?
+        myResult =  SD_PyErr_NamSpcErr;
+      }
+      // free up ref  (global dict holds a ref to the new_list, we should be safe to do this)
+      Py_XDECREF(new_list);
+    }
+  } else {
+    // exists, this is an error
+    myResult = SD_PyErr_LstExsts;
+    Py_XDECREF(list_lookup);
+
+  }
+
+    return myResult;
+  }
 
 /***************************************************************************************************************************/
 /* Get List                                                                                                            */

@@ -320,4 +320,6 @@ $define SD$PyErr.LstItem   -12033    ;* Failed to access List Objects Item
 $define SD$PyErr.NotList   -12034    ;* Object not a list
 $define SD$PyErr.LstAppdEr -12035    ;* List append failed
 $define SD$PyErr.LstClrEr  -12036    ;* list clear failed
+$define SD$PyErr.LstCrteEr -12037    ;* PyList.New() failed
+$define SD$PyErr.LstExsts  -12038    ;* list already exists
 * END-CODE

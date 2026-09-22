@@ -336,4 +336,6 @@
 #define SD_PyErr_NotList   -12034    /* Object not a list  */
 #define SD_PyErr_LstAppdEr -12035    /* List append failed */
 #define SD_PyErr_LstClrEr  -12036    /* list clear failed  */
+#define SD_PyErr_LstCrteEr -12037    /* PyList_New() failed */
+#define SD_PyErr_LstExsts  -12038    /* list already exists */
 /* END-CODE */

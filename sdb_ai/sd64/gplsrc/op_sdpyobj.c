@@ -61,6 +61,7 @@ extern int PyDictValuesS(char* dictname);
 extern int PyStrSet(char* strname, char* strvalue );
 extern int PyStrGet(char* strname );
 
+extern int PyListCrte(char* listname );
 extern int PyListGet(char* listname );
 extern int PyListAppd(char* listname, char* objname);
 extern int PyListClr(char* listname);
@@ -235,7 +236,16 @@ void op_sdpyobj() {
       e_stack++;
       break;  
 
-    /********************* list objects **********************/  
+    /********************* list objects **********************/
+
+    case SD_PyListCrte:
+      /* Create new list for sd */
+      // Arg1 is name of list to create
+      myResult = PyListCrte(Arg1);
+      process.status = myResult;
+      InitDescr(e_stack, INTEGER);
+      (e_stack++)->data.value = (int32_t)myResult;
+      break;
 
     case SD_PyListGet:
       /* get list items as fld mrk separated string list   */
