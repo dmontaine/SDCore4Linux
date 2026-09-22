@@ -66,7 +66,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
 | ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026, AND AS AN OPTION RATHER THAN A REQUIREMENT*** (*"let the admin decide how much they need"*) — so it ships available and off, probably as a ladder (open / server recognised / mutual). 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed, what was rejected, and what would falsify the ladder | — |
 | ⬜ | **S.21** | L | ***PRE-RELEASE 1 of 3 (owner, 15 Sep 2026): the parity audit, and fixing what it finds.*** Runs once SD Core for Windows 1.1 is done — ***BLOCKED ON THE PORT, NOT ON THIS TREE***. Method exists: the 10 Sep audit (S.5, `witness-release-run.sh` §12's list) is the precedent to widen rather than reinvent | — |
-| ⬜ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. Blocked on S.21's issues being resolved | — |
+| ◐ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. ***STARTED 22 SEP 2026 (owner, out of the S.21-blocked sequence, mailbox unavailable)***, in `SDCoreLinuxDocs` (a separate repository, `github.com/dmontaine/SDCoreLinuxDocs`), not this one. Re-synced from `SDCoreWindowsDocs` post-gate-48 (its tier-model sweep); dropped generated `book/`/`html/`/`pdf`/zips from tracking, matching Windows's own "the markdown is the source" ruling; `start-docs.cmd` ported to `start-docs.sh`. Content fixed and tool-verified (`tools/docmap.py`/`tclmap.py`/`confmap.py`, not assumed): Administrator's accounts-and-security (sdsys local-login model, S.26, not UAC; `grant`/`revoke`/`list.grants` replaced by `modify.account add/delete`, W.8; "no second wall" for `sh`/`os.execute`, S.27, plus `umask`), remote-access-and-the-machine (`ssh.server`/`append.sd.path` dropped — no SD-managed ssh server or PATH tool here; `remote.ssh`/`remote.api` rewritten for `ufw`+`systemd`), admin-configuration (`/etc/sd.conf`, real installed paths, `APIPORT`/`NETDIRS` don't exist here — confirmed against `config.c`, 50 params not 52); the SD BASIC/TCL syntax cards regenerated against this tree's own `bcomp`/`newvoc` (411 names unchanged, 144 TCL verbs not Windows' 147). Left: the rest of Administrator (03, 04, 06, 08, 09, 09a, 11), all of GettingStarted (installation, account types, administrator/programmer commands, ssh/api access, security, hardening — heavily Windows-specific), a spot-check of User's mostly-OS-agnostic language reference, and the PDF-rendering toolchain (`mkpdf.ps1` has no Linux port yet, noted in the docs' own README rather than silently dropped) | 22 Sep 2026 |
 | ⬜ | **S.23** | M | ***PRE-RELEASE 3 of 3 (owner, 15 Sep 2026): staging repositories per version, then a release zip of each — one Linux, one Windows.*** ***THE SHAPE IS RULED 15 Sep 2026 — "the same as the windows version, staging directory and then a zip"***, so the zip is a distribution artifact assembled outside the project (the port's model, read out of its record) and the "installer builds from an unpacked zip" option is dropped. Costed 15 Sep against the code: pinning a TAG in the shipped `installsdai.sh` is one value (`:75`; `--branch` already takes tags), the stamp stays exact (`:397`, `:688-690`) and `assert-current` is unaffected (reads only `commit`, strict identity, fails pessimistic) — the cost is that a development install must keep cloning `main`, so the shipped and repository scripts would differ. left: the owner's yes on pinning the tag, then the staging directory and the zip itself | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
@@ -2293,20 +2293,40 @@ the client library is rebuilt. ***NEITHER HAS BEEN MEASURED — NO INSTALL HAS
 RUN SINCE THE CHANGE.*** The changelog carries the user-facing note, including
 what to do if `SCARLET_CONFIG` was set somewhere.
 
-***[S.21] [S.22] [S.23] THE THREE PRE-RELEASE TASKS, IN ORDER — THE OWNER'S, 15
-Sep 2026.*** Not started. They are sequential: each waits on the one before, and
-the first waits on the other port.
+***[S.21] [S.23] THE THREE PRE-RELEASE TASKS, IN ORDER — THE OWNER'S, 15
+Sep 2026.*** Not started. They were meant to be sequential: each waits on the
+one before, and the first waits on the other port. ***(2), THE DOCUMENTATION,
+NO LONGER WAITS — SEE THE S.22 ENTRY, BELOW: THE OWNER STARTED IT DIRECTLY
+22 SEP 2026,*** out of order, while the mailbox to Windows was unavailable.
 
 1. ***PARITY AUDIT, once SD Core for Windows 1.1 is done***, then fix what it
    finds. ***BLOCKED ON THE PORT*** — nothing in this tree unblocks it. The
    method is not new: the 10 Sep 2026 audit (S.5, the witness list at §12) is the
    precedent, and widening it beats inventing a second one.
-2. ***DOCUMENTATION, after the audit's issues are resolved.*** The Linux side
-   ***starts from the updated Windows documentation*** and changes it where the
-   two differ — so it cannot usefully start until the Windows text is settled,
-   which is the same dependency as (1) arriving twice.
+2. ***DOCUMENTATION*** — see the S.22 entry below; no longer blocked on (1).
 3. ***STAGING REPOSITORIES PER VERSION, THEN A RELEASE ZIP OF EACH*** — one for
    Linux, one for Windows.
+
+***[S.22] §BUILT§ 22 SEP 2026, §OPEN§: THE BULK OF IT.*** In a separate
+repository, `SDCoreLinuxDocs` (`github.com/dmontaine/SDCoreLinuxDocs`), forked
+from `SDCoreWindowsDocs` post-gate-48 (its tier-model sweep) rather than the
+stale pre-gate-48 copy the day started from. Verified against source, not
+assumed — `tools/docmap.py`/`tclmap.py`/`confmap.py` all read 0 problems after
+the fix: Administrator's accounts-and-security (S.26's local-`sdsys`-login
+model, not UAC; `modify.account add/delete` replacing `grant`/`revoke`/
+`list.grants`, W.8; S.27's "no second wall" for `sh`/`os.execute`, plus
+`umask`), remote-access-and-the-machine (`ssh.server`/`append.sd.path`
+dropped — no Linux equivalent, the distribution owns both; `remote.ssh`/
+`remote.api` rewritten for `ufw`+`systemd`), admin-configuration (`/etc/
+sd.conf`, real installed paths, `APIPORT`/`NETDIRS` do not exist on this
+port — 50 config parameters, not 52); the SD BASIC/TCL syntax cards
+regenerated against this tree's own `bcomp`/`newvoc` (144 TCL verbs, not
+Windows' 147). Left: the rest of `Administrator` (03, 04, 06, 08, 09, 09a,
+11), all of `GettingStarted` (the heavily OS-specific set — installation,
+account types, administrator/programmer commands, ssh/api access, security,
+hardening), a spot-check of `User`'s mostly-OS-agnostic language reference,
+and the PDF-rendering toolchain (`mkpdf.ps1` has no Linux port — noted in the
+docs' own README as an open gap, not silently dropped).
 
 ***THE SHAPE IS RULED — OWNER, 15 Sep 2026: "the way the linux version will be
 is the same as the windows version, staging directory and then a zip."*** So
