@@ -66,7 +66,7 @@ cheapest first. Entries closed before 14 Sep 2026 have no row.
 | ◐ | **S.1** | XL | BASIC screen/widget library; stage 1 DONE 14 Sep (sandbox, `tui-render-probe.py`): a pure-BASIC diff renderer redraws 160x48 at 0.11 ms CPU/frame (naive scroll 1.05), and an SGR 1006 mouse report reaches KEYIN intact, so the engine stays BASIC; left: stages 2-5 (event/draw layer + core widgets + form manager, mouse, advanced widgets, the IDE) — ***DEFERRED TO 1.2*** (owner, 15 Sep 2026: after the 1.1 release), so not 1.1 work | — |
 | ⬜ | **S.20** | L | client recognition for the API, as ***mutual enrolment***: a root-only register of client machines (fingerprint + a description a person can read), an administrator approval step, and the client learning the server's identity in the same act — so neither side ever asks a user to adjudicate. ***RULED 1.2 BY THE OWNER, 15 Sep 2026, AND AS AN OPTION RATHER THAN A REQUIREMENT*** (*"let the admin decide how much they need"*) — so it ships available and off, probably as a ladder (open / server recognised / mutual). 1.1 ships TLS 1.3 + channel-bound SCRAM + a persistent server identity, with the residual risk written down. The entry below carries what was weighed, what was rejected, and what would falsify the ladder | — |
 | ⬜ | **S.21** | L | ***PRE-RELEASE 1 of 3 (owner, 15 Sep 2026): the parity audit, and fixing what it finds.*** Runs once SD Core for Windows 1.1 is done — ***BLOCKED ON THE PORT, NOT ON THIS TREE***. Method exists: the 10 Sep audit (S.5, `witness-release-run.sh` §12's list) is the precedent to widen rather than reinvent | — |
-| ◐ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. ***STARTED 22 SEP 2026 (owner, out of the S.21-blocked sequence, mailbox unavailable)***, in `SDCoreLinuxDocs` (a separate repository, `github.com/dmontaine/SDCoreLinuxDocs`), not this one. Re-synced from `SDCoreWindowsDocs` post-gate-48 (its tier-model sweep); dropped generated `book/`/`html/`/`pdf`/zips from tracking, matching Windows's own "the markdown is the source" ruling; `start-docs.cmd` ported to `start-docs.sh`. Content fixed and tool-verified (`tools/docmap.py`/`tclmap.py`/`confmap.py`, not assumed): Administrator's accounts-and-security (sdsys local-login model, S.26, not UAC; `grant`/`revoke`/`list.grants` replaced by `modify.account add/delete`, W.8; "no second wall" for `sh`/`os.execute`, S.27, plus `umask`), remote-access-and-the-machine (`ssh.server`/`append.sd.path` dropped — no SD-managed ssh server or PATH tool here; `remote.ssh`/`remote.api` rewritten for `ufw`+`systemd`), admin-configuration (`/etc/sd.conf`, real installed paths, `APIPORT`/`NETDIRS` don't exist here — confirmed against `config.c`, 50 params not 52); the SD BASIC/TCL syntax cards regenerated against this tree's own `bcomp`/`newvoc` (411 names unchanged, 144 TCL verbs not Windows' 147). Left: the rest of Administrator (03, 04, 06, 08, 09, 09a, 11), all of GettingStarted (installation, account types, administrator/programmer commands, ssh/api access, security, hardening — heavily Windows-specific), a spot-check of User's mostly-OS-agnostic language reference, and the PDF-rendering toolchain (`mkpdf.ps1` has no Linux port yet, noted in the docs' own README rather than silently dropped) | 22 Sep 2026 |
+| ◐ | **S.22** | L | ***PRE-RELEASE 2 of 3 (owner, 15 Sep 2026): the documentation.*** The Linux side starts from the UPDATED WINDOWS documentation and changes it where Linux differs. ***STARTED 22 SEP 2026 (owner, out of the S.21-blocked sequence, mailbox unavailable)***, in `SDCoreLinuxDocs` (a separate repository, `github.com/dmontaine/SDCoreLinuxDocs`, `e8dae7c`), not this one. **`GettingStarted` (19/19) and `Administrator` (14/14) fully rewritten; `User`'s highest-traffic pages rewritten plus a full 53-file residual-content sweep.** `tools/docmap.py`/`tclmap.py`/`confmap.py` clean throughout. Real corrections found, not just reworded: `update.accounts all` is not run automatically on upgrade here (a genuine gap vs Windows, not a difference); `sdtic` does not survive on the installed machine; `edit` aliases `ed`, not a full-screen editor — `nano`/`micro` are the two real ones (a wrong first-pass assumption in the `User` set, corrected); `writeseq`/CSV write LF here, not Windows's deliberate CRLF (the page's own text had the divergence backwards); `umask` is a real dispatchable verb (`newvoc/umask`), not unreachable as the `User` set claimed. Fixed 11 cross-set hyperlinks this session's own edits had introduced, against the "sets never link to each other" convention. Left: ~30 of `User`'s BASIC/TCL language-reference pages have not each had a dedicated read (only the sweep's keyword hits); the PDF-rendering toolchain (`mkpdf.ps1` has no Linux port, noted honestly in the docs' own README); whether account directories are permissioned to isolate accounts from each other is stated as unverified in Security rather than assumed | 22 Sep 2026 |
 | ⬜ | **S.23** | M | ***PRE-RELEASE 3 of 3 (owner, 15 Sep 2026): staging repositories per version, then a release zip of each — one Linux, one Windows.*** ***THE SHAPE IS RULED 15 Sep 2026 — "the same as the windows version, staging directory and then a zip"***, so the zip is a distribution artifact assembled outside the project (the port's model, read out of its record) and the "installer builds from an unpacked zip" option is dropped. Costed 15 Sep against the code: pinning a TAG in the shipped `installsdai.sh` is one value (`:75`; `--branch` already takes tags), the stamp stays exact (`:397`, `:688-690`) and `assert-current` is unaffected (reads only `commit`, strict identity, fails pessimistic) — the cost is that a development install must keep cloning `main`, so the shipped and repository scripts would differ. left: the owner's yes on pinning the tag, then the staging directory and the zip itself | — |
 | ✅ | **P.1** | — | the port's helpers walked: testing half → Q.22, admin half adopted or no counterpart | 14 Sep 2026 |
 | ✅ | **P.5** | — | `bbcmp.py` lowers include names | 13 Sep 2026 |
@@ -2307,26 +2307,52 @@ NO LONGER WAITS — SEE THE S.22 ENTRY, BELOW: THE OWNER STARTED IT DIRECTLY
 3. ***STAGING REPOSITORIES PER VERSION, THEN A RELEASE ZIP OF EACH*** — one for
    Linux, one for Windows.
 
-***[S.22] §BUILT§ 22 SEP 2026, §OPEN§: THE BULK OF IT.*** In a separate
-repository, `SDCoreLinuxDocs` (`github.com/dmontaine/SDCoreLinuxDocs`), forked
-from `SDCoreWindowsDocs` post-gate-48 (its tier-model sweep) rather than the
-stale pre-gate-48 copy the day started from. Verified against source, not
-assumed — `tools/docmap.py`/`tclmap.py`/`confmap.py` all read 0 problems after
-the fix: Administrator's accounts-and-security (S.26's local-`sdsys`-login
-model, not UAC; `modify.account add/delete` replacing `grant`/`revoke`/
-`list.grants`, W.8; S.27's "no second wall" for `sh`/`os.execute`, plus
-`umask`), remote-access-and-the-machine (`ssh.server`/`append.sd.path`
-dropped — no Linux equivalent, the distribution owns both; `remote.ssh`/
-`remote.api` rewritten for `ufw`+`systemd`), admin-configuration (`/etc/
-sd.conf`, real installed paths, `APIPORT`/`NETDIRS` do not exist on this
-port — 50 config parameters, not 52); the SD BASIC/TCL syntax cards
-regenerated against this tree's own `bcomp`/`newvoc` (144 TCL verbs, not
-Windows' 147). Left: the rest of `Administrator` (03, 04, 06, 08, 09, 09a,
-11), all of `GettingStarted` (the heavily OS-specific set — installation,
-account types, administrator/programmer commands, ssh/api access, security,
-hardening), a spot-check of `User`'s mostly-OS-agnostic language reference,
-and the PDF-rendering toolchain (`mkpdf.ps1` has no Linux port — noted in the
-docs' own README as an open gap, not silently dropped).
+***[S.22] §BUILT§ 22 SEP 2026, §OPEN§: ONE PAGE LEFT.*** In a separate
+repository, `SDCoreLinuxDocs` (`github.com/dmontaine/SDCoreLinuxDocs`,
+`e8dae7c`), forked from `SDCoreWindowsDocs` post-gate-48 (its tier-model
+sweep) rather than the stale pre-gate-48 copy the day started from.
+**`GettingStarted` (19 of 19) and `Administrator` (14 of 14) are fully
+rewritten**; `User`'s highest-traffic and most OS-specific pages are too
+(introduction, system/environment, client API, glossary, terminfo,
+printing ×2, file handling ×2, the three editors, standard subroutines,
+processes/phantoms, and a full residual-content sweep across all 53
+files for leftover paths and wording) — **left: `User`'s remaining ~30
+mostly-BASIC/TCL-language reference pages have not each had a dedicated
+read**, only the sweep's keyword hits. `tools/docmap.py`/`tclmap.py`/
+`confmap.py` all read 0 problems throughout.
+
+Real content corrections found along the way, not just terminology:
+`update.accounts all` is **not** run automatically by `installsdai.sh`
+on upgrade (Windows's installer does this; checked, this one has no such
+call — a genuine gap, not a deliberate difference); `sdtic` does not
+survive on the installed machine (the installer deletes its own temp
+build tree, `sdtic` included); `edit` aliases `ed` here, not a
+full-screen editor — `nano`/`micro` are the two real ones, each with
+their own key bindings, not "two names for one program" as an earlier,
+wrong first-pass adaptation in the `User` set had it; `writeseq`/CSV
+output uses LF here, not the CRLF SD Core for Windows deliberately added
+(the page's own text named this as a divergence from "the Linux
+original" — corrected the direction); the lower-case file rename is
+load-bearing on `ext4`, not cosmetic the way NTFS's case-insensitivity
+made it on Windows; `umask` is a real, dispatchable verb here (`newvoc/
+umask`), not "implemented and unreachable" as the `User` set's command-
+stack page claimed. **Fixed 11 broken cross-set hyperlinks this session's
+own edits introduced** — "sets never link to each other" is stated
+explicitly on every Administrator page's own header and was checked
+against untouched originals, which name a reference in words instead.
+
+**Honestly left open, not silently accepted:** the PDF-rendering
+toolchain (`mkpdf.ps1` has no Linux port, noted in the docs' own
+README); whether ordinary account directories under `/home/sd/
+user_accounts` are permissioned to isolate accounts from each other —
+GettingStarted's Security page states this plainly as unverified rather
+than assert Windows's ACL scheme applies; and several `User`-set "every
+listing on this page was produced by running it" disclaimers were
+changed from "Windows" to "Linux" by analogy (the underlying language
+behaviour is shared `bcomp` source) rather than freshly re-run this
+session — one page (18, class/object probes) was left honestly
+unswapped for exactly this reason, since its probe files are still the
+unmodified Windows originals.
 
 ***THE SHAPE IS RULED — OWNER, 15 Sep 2026: "the way the linux version will be
 is the same as the windows version, staging directory and then a zip."*** So
