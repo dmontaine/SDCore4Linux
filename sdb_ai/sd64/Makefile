@@ -41,9 +41,18 @@ PY_HDRS   := $(shell python3-config --includes)
 PY_LDFLAGS := $(shell python3-config --ldflags --embed)
 
 SODIUM   := /usr/include/sodium
-LIBSODIUM := /usr/lib/x86_64-linux-gnu/
 
 COMP     := gcc
+# 22 Sep 26 - LIBSODIUM (-L/usr/lib/x86_64-linux-gnu/) dropped from L_FLAGS,
+#   below.  That is Debian/Ubuntu's multiarch triplet, and does not exist on
+#   Fedora, Arch or openSUSE (S.44, restoring installsdai.sh to all four) -
+#   the link step would have failed on any of the three even with libsodium
+#   correctly installed.  Confirmed unnecessary here too: `-lm`, `-ldl` and
+#   OPENSSL_LIBS already link with no explicit -L at all, and `gcc
+#   -print-search-dirs` already lists this exact directory as one of gcc's
+#   own defaults for this target - the same reason no explicit path is
+#   needed on any of the other three.  Rebuilt clean, libsodium still linked
+#   (ldd), same install.
 # rev 0.9.0 python
 # 14 Sep 26 dm - S.18: -lcrypt and -lbsd dropped.  crypt() and getpeereid()
 #   were called only by linuxio.c login_user(), which is removed.
@@ -52,7 +61,7 @@ COMP     := gcc
 #   is overridable only so a machine without the development symlinks can
 #   link a sandbox build; plain "make" does not need it.
 OPENSSL_LIBS ?= -lssl -lcrypto
-L_FLAGS    := -Wl,--no-as-needed -lm -ldl -L$(LIBSODIUM) -lsodium $(OPENSSL_LIBS) $(PY_LDFLAGS)
+L_FLAGS    := -Wl,--no-as-needed -lm -ldl -lsodium $(OPENSSL_LIBS) $(PY_LDFLAGS)
 SONAME_OPT := -soname
 
 RM       := rm
