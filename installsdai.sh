@@ -132,6 +132,15 @@ require_command() {
 
 # Modified by Composer AI - 2026/06/10.
 # Auto-detect distribution from /etc/os-release when possible.
+# 22 Sep 2026 - word-boundary match, not a colon-joined substring.  The old
+#   "${ID_LIKE:-}:${ID}:" pattern needed a colon BEFORE the family name to
+#   match, which is only there when something precedes it in the string.  A
+#   derivative whose ID_LIKE IS the family, with nothing before it - Linux
+#   Mint (ID_LIKE=ubuntu), Pop!_OS (ID_LIKE="ubuntu debian") - built a string
+#   with the family name at position zero and so never matched *:ubuntu:*.
+#   Real Ubuntu itself was unaffected (ID_LIKE=debian precedes ID=ubuntu), which
+#   is why this went unnoticed.  Space-joined with a leading and trailing space
+#   makes every field a bounded word regardless of position.
 detect_distro() {
   is_arch=0
   is_debian=0
@@ -140,12 +149,11 @@ detect_distro() {
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
-    case "${ID_LIKE:-}:${ID}:" in
-      *arch:*|*:arch:*) is_arch=1 ;;
-      *debian:*|*:debian:*|*:ubuntu:*) is_debian=1 ;;
-      *fedora:*|*:fedora:*|*:rhel:*) is_fedora=1 ;;
-      *suse:*|*:opensuse*|*:sles:*) is_suse=1 ;;
-    esac
+    ids=" ${ID:-} ${ID_LIKE:-} "
+    case "$ids" in *" arch "*) is_arch=1 ;; esac
+    case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
+    case "$ids" in *" fedora "*|*" rhel "*) is_fedora=1 ;; esac
+    case "$ids" in *" suse "*|*" opensuse"*|*" sles "*) is_suse=1 ;; esac
   fi
 }
 # --------------------
@@ -254,9 +262,14 @@ echo
 printf "%bFor this install script to work you must have sudo installed\n" "$GREEN"
 printf "and be a member of the sudo group.  Also, systemd must be enabled.%b\n" "$NC"
 echo
-# 20 Sep 26 dm - THE "Installer tested on ..." LINE IS GONE (owner, 20 Sep).
-#   It named one distribution and one version, so it aged the moment either
+# 20 Sep 26 dm - THE "Installer tested on ..." LINE WAS GONE (owner, 20 Sep):
+#   it named one distribution and one version, so it aged the moment either
 #   moved, and it answered a question nobody installing here is asking.
+# 22 Sep 2026 - BACK, ON THE OWNER'S DIRECT INSTRUCTION OF THAT DAY, updated to
+#   the current release under test.  The 20 Sep reasoning was not wrong; the
+#   owner is choosing to accept that cost again rather than leave the line out.
+echo "Installer tested on Ubuntu 26.10."
+echo
 # --------------------
 # 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
 #            repository.  There is no selection any more: main, from GitHub.
@@ -344,61 +357,84 @@ printf "%b\n" "$NC"
 # is_suse=0
 # printf "%bChoose your distribution.\n" "$GREEN"
 detect_distro
-# 09 Sep 26  DEBIAN AND UBUNTU ONLY, DELIBERATELY AND TEMPORARILY.  Arch, Fedora
-#            and openSUSE are served by the upstream sdb64 installer while this
-#            one is stabilised; they come back once it is.  Refusing is the
-#            point: silently running the Debian branch on Fedora would install
-#            nothing and fail later, somewhere that does not name the cause.
-if [ "$is_debian" -ne 1 ]; then
-    printf "%b\n" "$RED"
-    echo "This installer currently supports Debian and Ubuntu based"
-    echo "distributions only."
-    echo
-    if [ "$is_arch" -eq 1 ] || [ "$is_fedora" -eq 1 ] || [ "$is_suse" -eq 1 ]; then
-        echo "Detected an Arch, Fedora or openSUSE based distribution from"
-        echo "/etc/os-release.  Support for it will return; for now use the"
-        echo "upstream sdb64 installer on this system."
-    else
-        echo "Could not identify this distribution from /etc/os-release."
+# 22 Sep 2026 - ARCH, FEDORA AND OPENSUSE RESTORED (owner, 22 Sep 2026).  They
+#            were removed 09 Sep 26 "deliberately and temporarily" while the
+#            Debian/Ubuntu branch was stabilised, on the understanding they
+#            would return once it was; that day has come.  The manual a/d/f/s
+#            distribution menu stays gone - detect_distro() decides, or the
+#            refusal below fires.
+#
+# NOTE the pre-09-Sep Arch branch also START-ed and ENABLE-d sshd, which no
+# other branch did.  That asymmetry is deliberately NOT restored here: whether
+# SD turns an ssh server on is a decision, not an install detail (PRE_RELEASE
+# 13), and it is handled once, uniformly, for every distro, by the allow_ssh
+# prompt near the end of this script (systemctl enable --now ssh || sshd).
+#
+# 14 Sep 26 dm - S.18: libbsd/libbsd-dev/libbsd-devel dropped from every
+# branch, restored or not.  Its one use was getpeereid() in linuxio.c, for the
+# retired APILOGIN=0 API login; the Makefile no longer links -lbsd.
+#
+# 15 Sep 26 dm - S.19: an OpenSSL development package added to every branch.
+# Every API connection is TLS 1.3; sd and the client library link libssl
+# (gplsrc/sd_tls.c, sd_tlssrv.c).  Arch does not split a -devel package for
+# openssl the way Debian, Fedora and openSUSE do; installing "openssl" there
+# carries the headers already.
+if [ "$is_arch" -eq 1 ]; then
+    echo "Detected an Arch based distribution from /etc/os-release."
+    if ! sudo pacman -Sy --noconfirm git base-devel micro lynx libsodium openssl openssh python; then
+        printf "%b\n" "$RED"
+        echo "Package installation using pacman failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
     fi
-    printf "%b\n" "$NC"
-    exit 1
-fi
-echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
-#
-# The manual a/d/f/s distribution menu is gone with the other three branches.
-# Detection either recognises Debian/Ubuntu or the refusal above has already
-# exited, so there is nothing left to ask.
-#
-# 09 Sep 26  The pacman, dnf and zypper branches are removed with the rest of
-#            the multi-distribution support; only apt-get is left.  They return
-#            with the distributions, not before, so that what comes back is
-#            written against an installer that works rather than restored from
-#            memory.
-#
-# NOTE the Arch branch also START-ed and ENABLE-d sshd, which no other branch
-# did.  That asymmetry is deliberately not carried into the apt branch here:
-# whether SD turns an ssh server on is a decision, not an install detail, and it
-# is PRE_RELEASE 13.  On Debian and Ubuntu the openssh-server package starts its
-# own service, so removing the Arch lines changes nothing on this platform.
-#
-# 14 Sep 26 dm - S.18: libbsd-dev dropped.  Its one use was getpeereid() in
-# linuxio.c, for the retired APILOGIN=0 API login; the Makefile no longer
-# links -lbsd.  A machine that already has it is unaffected.
-#
-# 15 Sep 26 dm - S.19: libssl-dev.  Every API connection is TLS 1.3; sd and
-# the client library link libssl (gplsrc/sd_tls.c, sd_tlssrv.c).
-if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
+elif [ "$is_debian" -eq 1 ]; then
+    echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
+    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
+        printf "%b\n" "$RED"
+        echo "Package installation using apt-get failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+    # run this along as only required on Ubuntu 26.04 and
+    # don't want to abort if not found on earlier distributions
+    sudo apt-get -y --ignore-missing install libcrypt-dev || true
+elif [ "$is_fedora" -eq 1 ]; then
+    echo "Detected a Fedora or RHEL based distribution from /etc/os-release."
+    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel openssh-server python3-devel; then
+        printf "%b\n" "$RED"
+        echo "Package installation using dnf failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+elif [ "$is_suse" -eq 1 ]; then
+    echo "Detected an openSUSE or SUSE based distribution from /etc/os-release."
+    if ! sudo zypper --non-interactive install git make automake gcc gcc-c++ kernel-default-devel micro-editor lynx libsodium-devel libopenssl-devel openssh python3-devel; then
+        printf "%b\n" "$RED"
+        echo "Package installation using zypper failed.  Exiting script."
+        echo "Verify your internet connection and then try again."
+        printf "%b\n" "$NC"
+        exit 1
+    fi
+else
     printf "%b\n" "$RED"
-    echo "Package installation using apt-get failed.  Exiting script."
-    echo "Verify your internet connection and then try again."
+    echo "Could not identify this distribution from /etc/os-release."
+    echo "This installer supports Debian, Ubuntu, Arch, Fedora, RHEL and"
+    echo "openSUSE based distributions (and their common derivatives)."
     printf "%b\n" "$NC"
     exit 1
 fi
-# run this along as only required on Ubuntu 26.04 and
-# don't want to abort if not found on earlier distributions
-sudo apt-get -y --ignore-missing install libcrypt-dev || true
 #
+# 22 Sep 2026 - have_ufw computed once, here, rather than re-probed at each of
+#   the two call sites and again in the closing summary.  ufw is Debian/
+#   Ubuntu's firewall front-end; Fedora and openSUSE ship firewalld and Arch
+#   ships no firewall by default, so a machine from any of the three restored
+#   branches normally has no ufw at all.  Both call sites already no-op safely
+#   without it (command -v guarded); what did not follow was the closing
+#   summary, which claimed a rule was added unconditionally - see below.
+if command -v ufw >/dev/null 2>&1; then have_ufw=1; else have_ufw=0; fi
 
 # Modified by Composer AI - 2026/06/10.
 # Confirm build tools are available after distribution packages are installed.
@@ -737,9 +773,37 @@ sudo cp -r gplbld/microcfg "$sdsysdir"
 # here serves every user and GPL.BP/EDIT copies nothing for it.  If the directory
 # is missing nano is not installed; say so rather than create a directory
 # nothing would read.  deletesdai.sh removes the file.
+#
+# 22 Sep 2026 - THE GLOB THAT MAKES THIS ACHIEVE ANYTHING IS DEBIAN'S OWN
+#   PATCH TO NANO'S DEFAULT /etc/nanorc, NOT UPSTREAM NANO BEHAVIOUR
+#   (PROJECT_STATUS, row A2).  Restoring Arch, Fedora and openSUSE support
+#   without checking this would place the file and silently never have nano
+#   read it on any of the three.  Same reachability test verify-editors.py's
+#   active_includes()/include_covers() already use: an UNCOMMENTED
+#   include "..." line, matched by directory for a *.nanorc glob rather than
+#   a substring search that a commented-out line (Debian's own /etc/nanorc
+#   ships three, right below the live one) would also match.  Where it is not
+#   already covered, one exact line is appended to that machine's own
+#   /etc/nanorc - deletesdai.sh removes it again, by the same exact match.
 if [ -d /usr/share/nano ]; then
     sudo install -m 644 gplbld/nanocfg/sdbasic.nanorc /usr/share/nano/sdbasic.nanorc
-    echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+    nanorc_target="/usr/share/nano/sdbasic.nanorc"
+    nanorc_covered=0
+    if [ -f /etc/nanorc ]; then
+        while IFS= read -r nanorc_inc; do
+            case "$nanorc_inc" in
+                "$nanorc_target"|/usr/share/nano/*.nanorc) nanorc_covered=1 ;;
+            esac
+        done < <(sed -n 's/^[[:space:]]*include[[:space:]]\+"\([^"]*\)".*/\1/p' /etc/nanorc)
+    fi
+    if [ "$nanorc_covered" -eq 1 ]; then
+        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+    else
+        echo "include \"$nanorc_target\"" | sudo tee -a /etc/nanorc >/dev/null
+        echo "Installed nano's SD BASIC syntax: /usr/share/nano/sdbasic.nanorc"
+        echo "  (this distribution's own /etc/nanorc does not glob /usr/share/nano the"
+        echo "  way Debian's does, so one include line was appended to it.)"
+    fi
 else
     echo "Note: /usr/share/nano not found, so nano's SD BASIC highlighting was not installed (the NANO verb needs nano)."
 fi
@@ -844,7 +908,7 @@ if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
     if [ "$allow_api" = "y" ]; then
         echo "Allowing API access from other computers (TCP 4243)."
         sudo sed -i 's#^ListenStream=127\.0\.0\.1:4243#ListenStream=0.0.0.0:4243#' "$SYSTEMDPATH/sdclient.socket"
-        if command -v ufw >/dev/null 2>&1; then sudo ufw allow 4243/tcp || true; fi
+        if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 4243/tcp || true; fi
     else
         echo "API access is local-only (listener bound to 127.0.0.1:4243)."
     fi
@@ -1305,7 +1369,7 @@ fi
 if [ "$allow_ssh" = "y" ]; then
     echo "Enabling ssh access from other computers (sshd at boot, port 22)."
     sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
-    if command -v ufw >/dev/null 2>&1; then sudo ufw allow 22/tcp || true; fi
+    if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 22/tcp || true; fi
 else
     echo "ssh access was not enabled (sshd left as the box had it; the SD"
     echo "boundary is in sshd_config for whenever ssh is turned on)."
@@ -1632,14 +1696,31 @@ if [ "${ssh_boundary_ok:-0}" -eq 1 ]; then
     echo "/etc/ssh/sshd_config.before-sd."
     echo
 fi
+# 22 Sep 2026 - both messages below used to claim a ufw rule unconditionally.
+#   ufw is Debian/Ubuntu's firewall front-end; on the three restored branches
+#   there is normally none to add a rule to (Fedora and openSUSE ship
+#   firewalld, Arch ships nothing by default), so the claim was wrong there
+#   even though the ufw call itself was already safely guarded.  $have_ufw was
+#   computed once, earlier, alongside the package install.
 if [ "$allow_ssh" = "y" ]; then
-    echo "ssh access: ENABLED - sshd runs at boot; a ufw allow rule for 22 was added."
+    if [ "$have_ufw" -eq 1 ]; then
+        echo "ssh access: ENABLED - sshd runs at boot; a ufw allow rule for 22 was added."
+    else
+        echo "ssh access: ENABLED - sshd runs at boot on port 22 (no ufw found;"
+        echo "  open port 22 with this distribution's own firewall tool if it has one)."
+    fi
 else
     echo "ssh access: not enabled - sshd left as the box had it."
 fi
 if [ "$allow_api" = "y" ]; then
-    echo "API access: OPEN - the network API listens on 0.0.0.0:4243 and a ufw"
-    echo "  allow rule for 4243 was added.  Clients still enter an SD user/password."
+    if [ "$have_ufw" -eq 1 ]; then
+        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 and a ufw"
+        echo "  allow rule for 4243 was added.  Clients still enter an SD user/password."
+    else
+        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 (no ufw found;"
+        echo "  open TCP 4243 with this distribution's own firewall tool if it has one)."
+        echo "  Clients still enter an SD user/password."
+    fi
 else
     echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
     echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."

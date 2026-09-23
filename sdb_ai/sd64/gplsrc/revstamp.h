@@ -72,10 +72,19 @@
 /* compiled into LOGIN - and on a mismatch it displays sysmsg 5029 and      */
 /* TERMINATES THE CONNECTION for any session that is not internal.  That is */
 /* why the BASIC copy is generated rather than typed.                      */
+/*                                                                         */
+/* 22 Sep 2026 - SHIP TIME.  The revstamp holds the CURRENT version and only */
+/* bumps when a release actually ships (owner, 14 Sep 2026) - sdsys/changelog */
+/* has read "L1.1-0 - in progress" since that day while this stayed L1.0-0,  */
+/* exactly as the Windows port keeps its own SD_REV_STAMP at W1.0-0 while its */
+/* changelog reads "W1.1-0 - in progress".  The owner's instruction of 22 Sep */
+/* 2026 is that instruction: this release IS L1.1-0.  MAJOR_REV/MINOR_REV/   */
+/* BUILD do not move - they stay at upstream's 1/0/2, a binary interface,    */
+/* not a name, per the ruling above.                                        */
 #define MAJOR_REV      1
 #define MINOR_REV      0
 #define BUILD          2
-#define SD_REV_STAMP   "L1.0-0"
+#define SD_REV_STAMP   "L1.1-0"
 
 #define SD_COPYRIGHT_YEAR "2007"
 

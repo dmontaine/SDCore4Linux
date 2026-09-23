@@ -265,6 +265,15 @@ fi
 sudo rm -f /usr/share/nano/sdbasic.nanorc
 echo "Removed /usr/share/nano/sdbasic.nanorc."
 
+# 22 Sep 2026 - the include line the installer appends to /etc/nanorc on a
+#   distribution whose own copy does not already glob /usr/share/nano the way
+#   Debian's does (Arch, Fedora, openSUSE).  Exact-line match only, same as
+#   what was written; a line the machine's owner added themselves is untouched.
+if [ -f /etc/nanorc ] && grep -qxF 'include "/usr/share/nano/sdbasic.nanorc"' /etc/nanorc; then
+    sudo sed -i '\#^include "/usr/share/nano/sdbasic\.nanorc"$#d' /etc/nanorc
+    echo "Removed the sdbasic.nanorc include line from /etc/nanorc."
+fi
+
 # --------------------
 # PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
 #
