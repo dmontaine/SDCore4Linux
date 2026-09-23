@@ -15,6 +15,11 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
+*               unconditionally, in the multi-distribution restore of
+*               installsdai.sh (Arch, Fedora, RHEL, openSUSE besides Debian and
+*               Ubuntu).  New find.pkg.mgr probes apt-get/dnf/pacman/zypper in
+*               turn and names whichever one is actually on the machine.
 * 12 Sep 26 dm  The working copy goes to $hold, the renamed VOC id (plan M3).
 * 10 Sep 26 dm  ADOPTED FROM SD CORE FOR WINDOWS' gpl.bp/EDIT, REPLACING
 *               GPL.BP/MICRO.  Owner, 10 Sep 2026: Microsoft Edit is not in the
@@ -383,14 +388,54 @@ find.editor:
    if editor.path[1, 1] # '/' then editor.path = ''
 
    if editor.path = '' then
+      gosub find.pkg.mgr
       error.text  = editor.name : ' (' : editor.exe : ') was not found on this'
       error.text := ' machine, so ' : verb.text : ' has nothing to edit with.'
       error.text := @fm
-      error.text := 'Install the ' : editor.exe : ' package with the'
-      error.text := ' distribution''s package manager, for example:' : @fm
-      error.text := '   sudo apt install ' : editor.exe : @fm
+      if pkg.install # '' then
+         error.text := 'Install the ' : editor.exe : ' package, for example:' : @fm
+         error.text := '   ' : pkg.install : @fm
+      end else
+         error.text := 'Install the ' : editor.exe : ' package with this'
+         error.text := ' distribution''s package manager.' : @fm
+      end
       error.text := 'or use ed, the line editor, which needs nothing installed.'
       error.text  = change(error.text, @fm, char(10))
+   end
+return
+
+* ---------------------------------------------------------------------------
+* find.pkg.mgr  -  ask the shell which of the four package managers this
+* machine has, once, so the missing-editor message names the real install
+* command instead of assuming Debian's.
+*
+* 22 Sep 2026 - installsdai.sh installs on Arch, Fedora, RHEL and openSUSE as
+* well as Debian and Ubuntu now (the multi-distribution restore); this message
+* had stayed apt-only, which told a Fedora user to run a command that does not
+* exist on their machine.  Same "command -v, absolute path or refuse" check
+* find.editor already uses, run once per manager, first match wins.
+* ---------------------------------------------------------------------------
+find.pkg.mgr:
+   pkg.install = ''
+   probe.out = ''
+   os.execute 'command -v apt-get' capturing probe.out
+   if probe.out[1, 1] = '/' then
+      pkg.install = 'sudo apt install ' : editor.exe
+   end else
+      os.execute 'command -v dnf' capturing probe.out
+      if probe.out[1, 1] = '/' then
+         pkg.install = 'sudo dnf install ' : editor.exe
+      end else
+         os.execute 'command -v pacman' capturing probe.out
+         if probe.out[1, 1] = '/' then
+            pkg.install = 'sudo pacman -S ' : editor.exe
+         end else
+            os.execute 'command -v zypper' capturing probe.out
+            if probe.out[1, 1] = '/' then
+               pkg.install = 'sudo zypper install ' : editor.exe
+            end
+         end
+      end
    end
 return
 
