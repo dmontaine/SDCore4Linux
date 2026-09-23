@@ -16,6 +16,24 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+22 Sep 26  A BASIC PROGRAM CAN NOW CREATE A PYTHON LIST, NOT JUST USE ONE.
+           Embedded Python already let a BASIC program append an item to a
+           list (PY_LISTAPPD), read one back (PY_LISTGETS) and empty one
+           out (PY_LISTCLR) - but there was no way to create the list in
+           the first place.  PY_LISTCRTE(listname) is now built and
+           cataloged, so a program can make a new, empty list before it
+           puts anything in it.
+
+           WHY: the function was reserved and wired through to Python when
+           embedded Python was written, but nothing in BASIC ever called
+           it.  Found by SD Core for Windows, which hit the identical gap
+           in its own verb-surface check and fixed it the same day.
+
+           WHAT THIS DOES NOT DO: it does not change PY_LISTAPPD,
+           PY_LISTGETS or PY_LISTCLR, which already worked - it only adds
+           the missing fourth verb.
+
+
 20 Sep 26  A COMMAND RUN FROM THE COMMAND LINE NOW NEEDS TO BE ON A LIST.
            SD can be run as "sd 'SOME COMMAND'" - a single command, typed
            on the command line or run from a scheduled job, rather than a
