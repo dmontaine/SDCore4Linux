@@ -8,9 +8,6 @@
  *  - GNU General Public License Version 3 or later (the "GPL")
  *    http://www.gnu.org/licenses/gpl.html
  *
- *  - GNU Lesser General Public License Version 3 or later (the "LGPL")
- *    http://www.gnu.org/licenses/lgpl.html
- *
  * START-HISTORY
  * 31 Dec 23 SD launch - prior history suppressed
  * 20240219  mab Major update to use AF_UNIX socket to talk to sd
