@@ -50,8 +50,8 @@
 #   session is refused outright and is measured as such (section 8's T4,
 #   13b's A4.0).  witness-absence.sh carries the absence half of the model.
 #
-#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh
-#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 # Exit 0 every check passed, 1 a check failed (or was not reached), 2 it could

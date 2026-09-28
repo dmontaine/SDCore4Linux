@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-msgreserved-units.py - the message-number space convention, checked.
 
-  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-msgreserved-units.py
+  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-msgreserved-units.py
 
 No sudo, no install, no sd.  Exit 0 the convention holds, 1 a violation, 2 it
 could not run.  Written 20 Sep 26, W.12.

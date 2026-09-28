@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """test-apiroute-units.py - the sdapi gate in APISRVR, as invariants.
 
-  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-apiroute-units.py
+  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-apiroute-units.py
   python3 .../test-apiroute-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 all checks passed, 1 a check failed, 2 it

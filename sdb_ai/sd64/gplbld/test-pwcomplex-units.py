@@ -41,7 +41,7 @@ Null case refused out loud: a run with no ALLOW rows, no REFUSE rows, no
 permutations, or a mutant that stayed green, exits 2 rather than reporting
 success.
 
-  python3 /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/test-pwcomplex-units.py
+  python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-pwcomplex-units.py
 
 No sudo.  Exit 0 all rows passed, 1 a row failed, 2 a premise was not found in
 the source or the run established nothing.

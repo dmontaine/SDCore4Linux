@@ -8,8 +8,8 @@
 #                      verify-tier-layer.*, which measured the machinery that
 #                      no longer exists.
 #
-#   bash      /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-absence.sh
-#   sudo bash /home/don/Projects/SDCoreLinuxProject/sdcore4linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit
+#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-absence.sh --commit
 #
 # ***NEEDS sudo, ONLY FOR --commit.***  The dry run changes nothing.
 #
