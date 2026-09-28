@@ -16,6 +16,11 @@ Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
 
+27 Sep 26  THE LICENCE TEXT NAMES THE RIGHT LICENCE.
+           It said the install and delete scripts were under the "Black
+           Oak" Model License.  The licence is the Blue Oak Model License
+           1.0.0, as the scripts' own headers say.
+
 22 Sep 26  A BASIC PROGRAM CAN NOW CREATE A PYTHON LIST, NOT JUST USE ONE.
            Embedded Python already let a BASIC program append an item to a
            list (PY_LISTAPPD), read one back (PY_LISTGETS) and empty one
