@@ -35,8 +35,9 @@
 #   M9  the machine-side absences the source must not contradict: this
 #       script checks the shipped installer, deleter, ssh helper, sudoers
 #       and register-key comments in the source tree it lives in.
-#   M14 English only (S.46, 29 Sep 2026): SETLANG/LOADLANG/NLS, their
-#       catalog entries and their messages are not installed, and DATE
+#   M14 English only (S.46, 29 Sep 2026): SETLANG/LOADLANG, their
+#       catalog entries and their messages are not installed; NLS (kept,
+#       owner 29 Sep) is, and runs for a plain account; and DATE
 #       prints English day and month names for a plain account.
 #
 # THE THROWAWAY.  M2 needs a real CREATE.ACCOUNT, so a throwaway account
@@ -760,24 +761,42 @@ fi
 
 # ==========================================================================
 # 29 Sep 26 dm - M14, S.46: English only (owner, 29 Sep 2026).  The removal
-#   of SETLANG/LOADLANG/NLS, their messages and K$SET.LANGUAGE, seen on the
+#   of SETLANG/LOADLANG, their messages and K$SET.LANGUAGE, seen on the
 #   install.  The file rows run in a dry run too; an install that predates
 #   the removal FAILS M14a-c (measured 29 Sep on the 22 Sep install, dry
-#   run: all thirteen FAIL, M14c2 passes), which shows they reach the machine.  M14d is the
+#   run: all thirteen FAIL, M14c2 passes, when NLS was still listed), which
+#   shows they reach the machine.  M14d is the
 #   runtime half of load_language's replacement, init_messages(): DATE prints
 #   the day and month names from the tables it builds, as a plain account.
 #   Anchored on the full expected date, never on the echoed ":DATE".
-head2 "M14. English only: the language programs, their messages and catalog entries are gone (S.46)"
-for p in setlang loadlang nls; do
+#   Later the same day the owner kept NLS ("restore nls"): it sets currency
+#   and separators, not a language.  M14a-c no longer list it; M14e is the
+#   other direction - installed, catalogued, in a fresh account's VOC (the
+#   throwaway is made from NEWVOC) and printing its own message 6900.
+head2 "M14. English only: the language programs, their messages and catalog entries are gone; NLS is kept (S.46)"
+for p in setlang loadlang; do
   ck "M14a gpl.bp/$p is not installed" no "$(yesno_file "$SDSYS/gpl.bp/$p")"
 done
-for p in SETLANG LOADLANG NLS; do
+for p in SETLANG LOADLANG; do
   ck "M14b the global catalog has no \$$p" no "$(yesno_file "$SDSYS/gcat/\$$p")"
 done
-for m in 3340 3341 3342 6900 6901 6902 6903; do
+for m in 3340 3341 3342; do
   ck "M14c message $m is not installed" no "$(yesno_file "$SDSYS/messages/$m")"
 done
 ck "M14c2 control: message 1500 (the month names) IS installed" yes "$(yesno_file "$SDSYS/messages/1500")"
+ck "M14e gpl.bp/nls IS installed (kept)" yes "$(yesno_file "$SDSYS/gpl.bp/nls")"
+ck "M14e2 and catalogued as \$NLS" yes "$(yesno_file "$SDSYS/gcat/\$NLS")"
+for m in 6900 6901 6902 6903; do
+  ck "M14e3 message $m IS installed (NLS's own)" yes "$(yesno_file "$SDSYS/messages/$m")"
+done
+ck "M14e4 NEWVOC has nls" yes "$(yesno_file "$SDSYS/newvoc/nls")"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  not_reached "M14e5 NLS runs for a plain account"
+elif [ "$COMMIT" -eq 1 ]; then
+  OUT=$(run_sd_as "$ACC" "M14e5 NLS as a plain account" "NLS")
+  ck_says "M14e5 NLS runs for a plain account (message 6900)" "Currency symbol" "$OUT"
+  ck_absent "M14e6 and it is not missing from the VOC" "is not in your VOC" "$OUT"
+fi
 if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
   not_reached "M14d DATE prints English day and month names"
 elif [ "$COMMIT" -eq 1 ]; then

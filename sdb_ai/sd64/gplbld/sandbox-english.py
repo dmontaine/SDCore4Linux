@@ -24,7 +24,7 @@
 # WHAT IT DOES NOT MEASURE
 #   - that K$SET.LANGUAGE (38) is refused: KERNEL() compiles only in internal
 #     mode, and the retirement is visible in op_kernel.c's switch.
-#   - that SETLANG/LOADLANG/NLS are gone from the catalog: the sandbox copies
+#   - that SETLANG/LOADLANG are gone from the catalog: the sandbox copies
 #     the INSTALLED sdsys, which still has them.  That needs an install
 #     (witness-absence.sh), not this.
 #

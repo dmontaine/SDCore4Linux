@@ -5,14 +5,22 @@ is released together with SD Core for Windows W1.1-1.
 
 29 Sep 26  SD CORE IS ENGLISH ONLY, AND THE LANGUAGE MACHINERY IS GONE.
 
-           L1.1-0 already took NLS, SET.LANGUAGE and LOAD.LANGUAGE out of
+           L1.1-0 already took SET.LANGUAGE and LOAD.LANGUAGE out of
            every account's VOC, but the programs behind them, and the part
            of SD itself that looked up a message in another language
            first, were still installed.  Now they are removed: the
-           SETLANG, LOADLANG and NLS programs, the messages only they
-           used, and the kernel function that switched the message
-           language.  SD reads its messages from the one English message
-           file, and builds its month and day names once when it starts.
+           SETLANG and LOADLANG programs, the messages only they used,
+           and the kernel function that switched the message language.
+           SD reads its messages from the one English message file, and
+           builds its month and day names once when it starts.
+
+           NLS IS BACK.  L1.1-0 also took the NLS command out of the VOC.
+           It is restored: NLS shows the currency symbol, thousands
+           separator and decimal separator, and NLS CURRENCY, THOUSANDS
+           or DECIMAL followed by a value changes one for the session,
+           and NLS DEFAULT puts back "$", "," and ".".  It has nothing to
+           do with languages.  New accounts get it; an
+           existing account gets it from UPDATE.ACCOUNTS.
 
            WHY: SD Core for Linux, SD Core for Windows and SD Core Solo
            for Windows are English-only products.  Support for other
