@@ -1149,15 +1149,14 @@ fi
 #   require the first and refuse on any of the others, or on a RUN that never
 #   started (10918, 1123, 1002/1134) or a refused session (5024, which only
 #   LOGIN's and CPROC's refusal paths display).
-# 29 Sep 26 dm - ***AND ITS FIRST REAL RUN REFUSED A GOOD INSTALL.***  The
-#   owner's c8475dd cycle printed COMPLETE and then stopped here: nothing in
-#   sdsys was written after 13:40:37, sd.service was never enabled, the
-#   register was never re-owned.  The raw output was not kept, so which rule
-#   misfired is unknown - and the sandbox cannot reproduce a root install
-#   session.  UNTIL ONE REAL RUN HAS BEEN READ, THE CHECK WARNS AND DOES NOT
-#   STOP: the old exit-code rule still stops the install, and every run's raw
-#   output is kept in /var/tmp/sdcore-install-pass3.log for the next session
-#   to judge the rules against.  Make it strict again only from that log.
+# 29 Sep 26 dm - ***ITS FIRST TWO REAL RUNS STOPPED GOOD INSTALLS, SILENTLY.***
+#   Not the rules: the p3_bad assignment below failed under set -euo pipefail
+#   whenever grep found nothing (the clean case) - fixed with "|| true" and
+#   guarded by the free check gplbld/test-install-pass3.sh, which runs this
+#   block under this script's own options.  Two real outputs have since been
+#   read (/var/tmp/sdcore-install-pass3.log: COMPLETE, rc 0) and the rules
+#   pass them, so the check is STRICT again (owner, 29 Sep 2026).  Every
+#   run's raw output is still kept in that log, so a refusal can be read.
 echo "Bootstrap pass 3."
 p3_rc=0
 p3_out=$(sudo "$sdsysdir/bin/sd" RUN gpl.bp write_install_dicts NO.PAGE 2>&1) || p3_rc=$?
@@ -1178,13 +1177,16 @@ p3_plain=$(printf '%s\n' "$p3_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/
 # real output in /var/tmp/sdcore-install-pass3.log).
 p3_bad=$(printf '%s\n' "$p3_plain" | grep -E 'ERROR OPENING|PROCESS ABORTED|READLIST EMPTY|NO DIRECTORY RECORDS FOUND|CANNOT READ TRANSFER_FILE|ERROR CANNOT OPEN|requires administrator privileges|Runfile pathname is longer than|Invalid runfile|Runfile .* not found|Unable to load .* object code|Connection terminated' | head -1 || true)
 if [ -n "$p3_bad" ] || ! printf '%s\n' "$p3_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
-    echo "WARNING: bootstrap pass 3 may not have written the install dictionaries."
+    printf "%b\n" "$RED"
+    echo "Bootstrap pass 3 failed: the install dictionaries were not written. Install terminated!"
     if [ -n "$p3_bad" ]; then
         echo "  write_install_dicts said: $p3_bad"
     else
         echo "  write_install_dicts did not print a COMPLETE line."
     fi
-    echo "  The install continues; its output is in /var/tmp/sdcore-install-pass3.log."
+    echo "  Its full output is in /var/tmp/sdcore-install-pass3.log."
+    printf "%b\n" "$NC"
+    exit 1
 fi
 #
 echo "Compiling C and I type dictionaries."

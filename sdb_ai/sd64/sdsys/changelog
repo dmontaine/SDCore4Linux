@@ -1,6 +1,6 @@
-Next release - in progress
+L1.1-1 - 29 Sep 2026
 -------------
-Changes since L1.1-1.  NOTHING IN THIS SECTION HAS BEEN RELEASED.
+Changes since L1.1-0.  L1.1-1 pairs with SD Core for Windows W1.1-1.
 
 29 Sep 26  RUN WORKS FROM A DEEP FOLDER, AND TWO OVERRUNS ARE CLOSED.
 
@@ -19,13 +19,14 @@ Changes since L1.1-1.  NOTHING IN THIS SECTION HAS BEEN RELEASED.
            last 128 characters of a longer path.  Neither was known to
            have happened, but both could have.
 
-           The installer also looks harder at its dictionary step.  It
+           The installer also checks its dictionary step properly.  It
            used to trust sd's exit code, and sd reports success even when
-           the command it was given never ran.  It now also looks for the
-           step's own COMPLETE line and its error messages, and warns if
-           something looks wrong, keeping the step's output in
-           /var/tmp/sdcore-install-pass3.log.  For now it warns rather
-           than stopping the install.
+           the command it was given never ran, so an install could finish
+           "successfully" with no dictionaries.  It now requires the step
+           to finish with its own COMPLETE line and stops the install,
+           saying why, if it does not or if the step reports an error.
+           The step's full output is kept in
+           /var/tmp/sdcore-install-pass3.log.
 
            WHY: found by SD Core Solo for Windows, which shares this code;
            the same defects were in SD Core for Windows and in the SD this
@@ -34,11 +35,6 @@ Changes since L1.1-1.  NOTHING IN THIS SECTION HAS BEEN RELEASED.
            WHAT THIS DOES NOT DO: it does not change how RUN finds a
            program, and it changes nothing for a program under 128
            characters, which is every program in a normal install.
-
-
-L1.1-1 - 29 Sep 2026
--------------
-Changes since L1.1-0.  L1.1-1 pairs with SD Core for Windows W1.1-1.
 
 29 Sep 26  SD CORE IS ENGLISH ONLY, AND THE LANGUAGE MACHINERY IS GONE.
 
