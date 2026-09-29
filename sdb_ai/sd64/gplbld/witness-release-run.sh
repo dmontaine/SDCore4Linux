@@ -3,7 +3,7 @@
 # witness-release-run.sh - three witnesses that need a throwaway account, in
 #                          one owner-run pass on one install:
 #     S.9   LOGIN's $release prompt (5026) takes N on Enter and at end of input
-#     Q.28  RUN of a runfile path over 128 characters says so (10918)
+#     Q.28  RUN of a runfile path over 128 characters runs (S.48; 10918 is for 255)
 #     S.2   the administrator (sdsys) LOGTOs an account whose group is newer
 #           than the session (2)
 #     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
@@ -91,7 +91,9 @@
 # Q.28 As zzrel1: ZZSHOW's object copied into a DEEP directory, reached through
 #      a VOC F-pointer zzdeep.out written by a third program (ZZVOC), so that
 #      the run path exceeds 128 characters with a short record name, then RUN
-#      ZZDEEP zzshow.  Must print 10918's words; "Invalid runfile pathname"
+#      ZZDEEP zzshow.  ***29 Sep 26, S.48: THE LIMIT IS NOW 255, SO THE RUN
+#      MUST SUCCEED*** - Q1 wants zzshow's own output and no 10918.  Before
+#      that it had to print 10918's words; "Invalid runfile pathname"
 #      (1135, the old message), "Message not found" (10918 not installed) or
 #      "not found" (the lookup never reached the length check) fail it.
 #      ***NOT A LONG RECORD NAME, AND THE 13:07 RUN SHOWED WHY:*** MAXIDLEN
@@ -646,19 +648,19 @@ else
 fi
 
 # ==========================================================================
-head2 "5. Q.28 - RUN of a runfile path over 128 characters"
+head2 "5. Q.28/S.48 - RUN of a runfile path over 128 characters now runs"
 DEEPDIR="$ADIR/zzdeep/$(printf 'd%.0s' $(seq 1 60))/$(printf 'e%.0s' $(seq 1 60))"
 LPATH="$DEEPDIR/zzshow"
 say "  data file   : VOC zzdeep.out -> $DEEPDIR"
 say "  record name : zzshow (6 characters, under MAXIDLEN)"
-say "  run path    : ${#LPATH} characters (limit 128)"
+say "  run path    : ${#LPATH} characters (limit 255 since S.48; was 128)"
 SRC_VOC='open "voc" to f else stop "ZZVOC: cannot open voc"
 r = "F" : @fm : "'"$DEEPDIR"'"
 write r to f, "zzdeep.out"
 crt "ZZVOC wrote zzdeep.out"
 end'
 if [ "$COMMIT" -eq 1 ] && { [ "$SETUP_OK" -ne 1 ] || [ ! -f "$ADIR/bp.out/zzshow" ]; }; then
-    for r in "Q0 the pointer was written" "Q1 10918's words" "Q2 not 1135" "Q3 10918 is installed" "Q4 the lookup reached the length check"; do
+    for r in "Q0 the pointer was written" "Q1 the program ran" "Q1b not 10918" "Q2 not 1135" "Q3 10918 is installed" "Q4 the lookup reached the length check"; do
         not_reached "$r"; done
 else
     if [ "$COMMIT" -eq 1 ]; then
@@ -672,7 +674,10 @@ else
           "BASIC BP ZZVOC" "RUN BP zzvoc" "RUN ZZDEEP zzshow")
     if [ "$COMMIT" -eq 1 ]; then
         ck_says  "Q0 the VOC pointer was written" "ZZVOC wrote zzdeep.out" "$OUT"
-        ck_says  "Q1 RUN names the limit (10918)" "Runfile pathname is longer than 128 characters" "$OUT"
+        # 29 Sep 26 - S.48: the limit is 255 now, so this 165-character path
+        #   RUNS.  Anchored on the program's own output, never on the echo.
+        ck_says  "Q1 RUN from a 165-character path reaches the program" "ZZSHOW field 2 =" "$OUT"
+        ck_absent "Q1b and 10918 did not refuse it" "Runfile pathname is longer than" "$OUT"
         ck_absent "Q2 not the old 1135 message" "Invalid runfile pathname" "$OUT"
         ck_absent "Q3 10918 is installed" "Message not found" "$OUT"
         ck_absent "Q4 the lookup reached the length check (no 'not found')" "not found" "$OUT"

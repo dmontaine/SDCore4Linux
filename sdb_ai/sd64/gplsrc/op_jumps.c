@@ -20,6 +20,9 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * 14 Sep 26 op_run(): a runfile path over MAX_PROGRAM_NAME_LEN raises 10918,
  *           which names the limit, instead of 1135 (PORT_ADOPTION 28).
+ * 29 Sep 26 op_run(): the limit is MAX_PATHNAME_LEN (255), not 128 - a RUN
+ *           from a directory deeper than 128 characters works (SD Core Solo's
+ *           SOLO 12, adopted; S.48).  10918 now names 255.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -808,13 +811,17 @@ void op_run() {
  */
 
   DESCRIPTOR* descr;
-  char runfile_name[MAX_PROGRAM_NAME_LEN + 1];
+  /* 29 Sep 26  A runfile name is a PATH (CPROC builds it from the file's
+     directory), so it is bounded by MAX_PATHNAME_LEN, not by the 128 of a
+     catalogued name.  load_object() bounds its own copy into the object
+     header (object.c), which is what the old limit was protecting. */
+  char runfile_name[MAX_PATHNAME_LEN + 1];
   int n;
 
   descr = e_stack - 1;
-  n = k_get_c_string(descr, runfile_name, MAX_PROGRAM_NAME_LEN);
+  n = k_get_c_string(descr, runfile_name, MAX_PATHNAME_LEN);
   if (n < 0) {
-    k_error(sysmsg(10918), MAX_PROGRAM_NAME_LEN); /* Name the limit */
+    k_error(sysmsg(10918), MAX_PATHNAME_LEN); /* Name the limit */
   }
   if (n < 1) {
     k_error(sysmsg(1135));

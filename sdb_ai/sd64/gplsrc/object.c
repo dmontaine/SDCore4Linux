@@ -18,6 +18,9 @@
  *
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 29 Sep 26 dm  load_object(): the copy into program_name is bounded,
+ *               keeping the tail of an over-long runfile path (SD Core
+ *               Solo's SOLO 12, adopted; S.48).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -271,7 +274,19 @@ found:
      necessary for runfiles and locally catalogued items but we might as
      well do it for everything.                                            */
 
-  strcpy(obj->code.ext_hdr.prog.program_name, name);
+  /* 29 Sep 26  Bounded.  program_name is MAX_PROGRAM_NAME_LEN + 1 bytes
+     (header.h, part of the object format) and a runfile name is a path of
+     up to MAX_PATHNAME_LEN (op_run).  An over-long name keeps its TAIL -
+     the part that names the program.  A truncated name can never equal the
+     full path on the next call, so the cache search above cannot return
+     the wrong program; the file is simply loaded again. */
+  {
+    size_t name_len = strlen(name);
+    strcpy(obj->code.ext_hdr.prog.program_name,
+           (name_len > MAX_PROGRAM_NAME_LEN)
+               ? name + (name_len - MAX_PROGRAM_NAME_LEN)
+               : name);
+  }
 
   if (is_runfile)
     obj->code.id = -(next_id++); /* Run files have negative ids */

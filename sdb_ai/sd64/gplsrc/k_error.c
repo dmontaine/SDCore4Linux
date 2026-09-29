@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 29 Sep 26 dm  k_error(): the three appends after the message ("at line N
+ *               of <program>") are snprintf bounded by what is left of s;
+ *               sprintf could write past it (SD Core Solo's SOLO 12; S.48).
  * 11 Sep 26 dm  audit_message() and audit_rotate(), the audit trail - the
  *               Windows port's (16 Aug 2026), with an append-only file
  *               attribute where the port uses an append-only ACL
@@ -246,16 +249,18 @@ void k_error(char* message, ...) {
   n = strlen(s);
   if (process.program.flags & HDR_ITYPE) {
     // sprintf(s + n, sysmsg(1120)); /* in dictionary expression */
-    sprintf(s + n, "%s", sysmsg(1120)); /* 20Jun12 gwb #1 */
+    /* 29 Sep 26  snprintf, bounded by what is left of s: the message above
+       may already fill most of it, and a program name is up to 128. */
+    snprintf(s + n, sizeof(s) - n, "%s", sysmsg(1120)); /* 20Jun12 gwb #1 */
 
   } else {
     line = k_line_no(failing_offset, xcbase);
     if (line >= 0) {
-      sprintf(s + n, sysmsg(1121), (int)line,
-              ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
+      snprintf(s + n, sizeof(s) - n, sysmsg(1121), (int)line,
+               ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
     } else {
-      sprintf(s + n, sysmsg(1122),
-              ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
+      snprintf(s + n, sizeof(s) - n, sysmsg(1122),
+               ((OBJECT_HEADER*)xcbase)->ext_hdr.prog.program_name);
     }
   }
   tio_write(s);

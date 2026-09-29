@@ -1,3 +1,40 @@
+Next release - in progress
+-------------
+Changes since L1.1-1.  NOTHING IN THIS SECTION HAS BEEN RELEASED.
+
+29 Sep 26  RUN WORKS FROM A DEEP FOLDER, AND TWO OVERRUNS ARE CLOSED.
+
+           RUN refused any program whose full path was longer than 128
+           characters, even though the file was there and readable: a
+           program in a data file a few folders deep could not be run at
+           all.  The limit is now 255 characters, the same as any other
+           file path SD opens.  Beyond that, the file itself cannot be
+           opened, and SD says so instead of running anything.
+
+           Two places could write past the end of a buffer.  The error
+           line "at line N of <program>" was added to a message without
+           checking the room left, so a long message from a program with a
+           long name could overrun it.  And the name recorded inside a
+           loaded program was copied without a limit; it now keeps the
+           last 128 characters of a longer path.  Neither was known to
+           have happened, but both could have.
+
+           The installer also checks its dictionary step properly.  It
+           used to trust sd's exit code, and sd reports success even when
+           the command it was given never ran, so an install could finish
+           "successfully" with no dictionaries.  It now requires the step
+           to finish with its own COMPLETE line, and stops the install,
+           saying why, if it does not.
+
+           WHY: found by SD Core Solo for Windows, which shares this code;
+           the same defects were in SD Core for Windows and in the SD this
+           was built from.
+
+           WHAT THIS DOES NOT DO: it does not change how RUN finds a
+           program, and it changes nothing for a program under 128
+           characters, which is every program in a normal install.
+
+
 L1.1-1 - 29 Sep 2026
 -------------
 Changes since L1.1-0.  L1.1-1 pairs with SD Core for Windows W1.1-1.
