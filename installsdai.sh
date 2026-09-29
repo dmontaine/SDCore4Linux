@@ -1159,8 +1159,8 @@ fi
 #   output is kept in /var/tmp/sdcore-install-pass3.log for the next session
 #   to judge the rules against.  Make it strict again only from that log.
 echo "Bootstrap pass 3."
-p3_out=$(sudo "$sdsysdir/bin/sd" RUN gpl.bp write_install_dicts NO.PAGE 2>&1)
-p3_rc=$?
+p3_rc=0
+p3_out=$(sudo "$sdsysdir/bin/sd" RUN gpl.bp write_install_dicts NO.PAGE 2>&1) || p3_rc=$?
 printf '%s\n' "$p3_out"
 printf '%s\n' "$p3_out" | sudo tee /var/tmp/sdcore-install-pass3.log >/dev/null
 echo "sd exit code: $p3_rc" | sudo tee -a /var/tmp/sdcore-install-pass3.log >/dev/null
@@ -1171,7 +1171,12 @@ if [ "$p3_rc" -ne 0 ]; then
     exit 1
 fi
 p3_plain=$(printf '%s\n' "$p3_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
-p3_bad=$(printf '%s\n' "$p3_plain" | grep -E 'ERROR OPENING|PROCESS ABORTED|READLIST EMPTY|NO DIRECTORY RECORDS FOUND|CANNOT READ TRANSFER_FILE|ERROR CANNOT OPEN|requires administrator privileges|Runfile pathname is longer than|Invalid runfile|Runfile .* not found|Unable to load .* object code|Connection terminated' | head -1)
+# "|| true": under this script's set -euo pipefail, grep finding NOTHING -
+# the normal, clean case - fails the pipeline, and a failing assignment ends
+# the script with no message.  That, not the rules, is what stopped both
+# 29 Sep installs right after a clean pass 3 (measured: the rules pass the
+# real output in /var/tmp/sdcore-install-pass3.log).
+p3_bad=$(printf '%s\n' "$p3_plain" | grep -E 'ERROR OPENING|PROCESS ABORTED|READLIST EMPTY|NO DIRECTORY RECORDS FOUND|CANNOT READ TRANSFER_FILE|ERROR CANNOT OPEN|requires administrator privileges|Runfile pathname is longer than|Invalid runfile|Runfile .* not found|Unable to load .* object code|Connection terminated' | head -1 || true)
 if [ -n "$p3_bad" ] || ! printf '%s\n' "$p3_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
     echo "WARNING: bootstrap pass 3 may not have written the install dictionaries."
     if [ -n "$p3_bad" ]; then
