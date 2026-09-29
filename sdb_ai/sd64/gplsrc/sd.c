@@ -21,7 +21,8 @@
  * 15 Jun 24 add bootstrap build option install option -I
  * 02 Jul 24 -i  typeo will hit bootstrap option
  * 08 Aug 24 mab add code to embedded python if EMBED_PYTHON defined 
- * rev 0.9.1 Mar 25 return to single rev track 
+ * rev 0.9.1 Mar 25 return to single rev track
+ * 29 Sep 26 dm  load_language("") is init_messages(): English only.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -226,7 +227,7 @@ int main(int argc, char *argv[]) {
   }
 
   /* Initialize English messages */
-  if (!load_language("")) {
+  if (!init_messages()) {
     clean_stop();
     return status; /* TODO: add a custom return value for this failure. */
   }

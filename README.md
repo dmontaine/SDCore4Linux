@@ -12,9 +12,12 @@ login for the client API, the same message numbers, and embedded Python. Where
 the two platforms must differ — the installer, file permissions, service
 management — it uses the native Linux mechanism.
 
-**Version L1.1-0, in development — the first release of SD Core for Linux**,
-numbered to pair with SD Core for Windows W1.1-0. See
-`sdb_ai/sd64/sdsys/changelog` for what it contains.
+**Version L1.1-0, released 26 September 2026 — the first release of SD Core
+for Linux**, numbered to pair with SD Core for Windows W1.1-0. L1.1-1, paired
+with W1.1-1, is in progress on `main`. See `sdb_ai/sd64/sdsys/changelog` for
+what each contains.
+
+SD Core is English only: it has no support for other languages or locales.
 
 ## Requirements
 

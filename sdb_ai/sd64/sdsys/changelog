@@ -1,4 +1,39 @@
-L1.1-0 - in progress
+L1.1-1 - in progress
+-------------
+Changes since L1.1-0.  NOTHING IN THIS SECTION HAS BEEN RELEASED.  L1.1-1
+is released together with SD Core for Windows W1.1-1.
+
+29 Sep 26  SD CORE IS ENGLISH ONLY, AND THE LANGUAGE MACHINERY IS GONE.
+
+           L1.1-0 already took NLS, SET.LANGUAGE and LOAD.LANGUAGE out of
+           every account's VOC, but the programs behind them, and the part
+           of SD itself that looked up a message in another language
+           first, were still installed.  Now they are removed: the
+           SETLANG, LOADLANG and NLS programs, the messages only they
+           used, and the kernel function that switched the message
+           language.  SD reads its messages from the one English message
+           file, and builds its month and day names once when it starts.
+
+           WHY: SD Core for Linux, SD Core for Windows and SD Core Solo
+           for Windows are English-only products.  Support for other
+           languages had been carried in from the SD they were built
+           from without ever being decided on, and a feature nobody is
+           meant to use is still something that can go wrong.
+
+           WHAT THIS DOES NOT DO: it does not remove the currency,
+           thousands-separator and decimal-point settings.  A BASIC
+           program can still read and change them with GETNLS() and
+           SETNLS(), and the CURRENCY, THOUSANDS and DECIMAL keywords are
+           still there.  It does not change any message, date or number
+           that SD prints: they were English before and are the same now.
+
+27 Sep 26  THE LICENCE TEXT NAMES THE RIGHT LICENCE.
+           It said the install and delete scripts were under the "Black
+           Oak" Model License.  The licence is the Blue Oak Model License
+           1.0.0, as the scripts' own headers say.
+
+
+L1.1-0 - 26 Sep 2026
 -------------
 The L is for Linux, and parallels the W of SD Core for Windows.  The number is
 1.1 to match SD Core for Windows W1.1-0, the release this one is built to conform
@@ -15,11 +50,6 @@ what changed since some earlier Linux release.
 Entries are newest first, by date.  This section is written for someone using
 SD: what changed, why it mattered, and what it does not do.
 
-
-27 Sep 26  THE LICENCE TEXT NAMES THE RIGHT LICENCE.
-           It said the install and delete scripts were under the "Black
-           Oak" Model License.  The licence is the Blue Oak Model License
-           1.0.0, as the scripts' own headers say.
 
 22 Sep 26  A BASIC PROGRAM CAN NOW CREATE A PYTHON LIST, NOT JUST USE ONE.
            Embedded Python already let a BASIC program append an item to a

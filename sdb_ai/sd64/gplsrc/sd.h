@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 29 Sep 26 dm  load_language() is init_messages(): English only.
  * END-HISTORY
  * 
 */
@@ -271,7 +272,7 @@ u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 
 
 /* MESSAGES.C */
-bool load_language(char * language_prefix);
+bool init_messages(void);
 char * sysmsg(int msg_no);
 
 /* NETFILES.C removed - SDNet (plan G4). sdnet.h is a different file (the

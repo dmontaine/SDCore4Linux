@@ -23,7 +23,8 @@
  * 09 Aug 24 mab embedded python SDEXT keys
  * rev 0.9.0 Jan 25 mab SD_EUID_SET SD_EUID_RESTORE
  * rev 0.9-2 Mar 25 mab add sdext_pyobj direct control of python dictionary object
- * 
+ * 29 Sep 26 dm  K_SET_LANGUAGE (38) retired: SD is English only
+ *
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -152,7 +153,7 @@
 #define K_COMMAND_OPTIONS    35
 #define K_CASE_SENSITIVE     36
 #define K_PACKAGE_DATA       37
-#define K_SET_LANGUAGE       38
+/* 38 was K_SET_LANGUAGE - retired 29 Sep 26, English only; do not reuse */
 #define K_HSM                39
 #define K_COLLATION          40
 #define K_GET_SDNET_CONNECTIONS  41

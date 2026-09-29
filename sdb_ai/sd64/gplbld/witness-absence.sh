@@ -35,6 +35,9 @@
 #   M9  the machine-side absences the source must not contradict: this
 #       script checks the shipped installer, deleter, ssh helper, sudoers
 #       and register-key comments in the source tree it lives in.
+#   M14 English only (S.46, 29 Sep 2026): SETLANG/LOADLANG/NLS, their
+#       catalog entries and their messages are not installed, and DATE
+#       prints English day and month names for a plain account.
 #
 # THE THROWAWAY.  M2 needs a real CREATE.ACCOUNT, so a throwaway account
 # (zzabst) is made as sdsys - SD's whole flow, Linux user and all - and
@@ -753,6 +756,41 @@ else
   ck "M13g batch.jobs is owned sdsys:sdusers" "sdsys:sdusers" "$BJ_OWNER"
   ck "M13g2 and the group digit has no write bit (odd count would; not 2,3,6,7)" yes \
      "$( [ -n "$BJ_GROUP_DIGIT" ] && [ $((BJ_GROUP_DIGIT & 2)) -eq 0 ] && echo yes || echo no )"
+fi
+
+# ==========================================================================
+# 29 Sep 26 dm - M14, S.46: English only (owner, 29 Sep 2026).  The removal
+#   of SETLANG/LOADLANG/NLS, their messages and K$SET.LANGUAGE, seen on the
+#   install.  The file rows run in a dry run too; an install that predates
+#   the removal FAILS M14a-c (measured 29 Sep on the 22 Sep install, dry
+#   run: all thirteen FAIL, M14c2 passes), which shows they reach the machine.  M14d is the
+#   runtime half of load_language's replacement, init_messages(): DATE prints
+#   the day and month names from the tables it builds, as a plain account.
+#   Anchored on the full expected date, never on the echoed ":DATE".
+head2 "M14. English only: the language programs, their messages and catalog entries are gone (S.46)"
+for p in setlang loadlang nls; do
+  ck "M14a gpl.bp/$p is not installed" no "$(yesno_file "$SDSYS/gpl.bp/$p")"
+done
+for p in SETLANG LOADLANG NLS; do
+  ck "M14b the global catalog has no \$$p" no "$(yesno_file "$SDSYS/gcat/\$$p")"
+done
+for m in 3340 3341 3342 6900 6901 6902 6903; do
+  ck "M14c message $m is not installed" no "$(yesno_file "$SDSYS/messages/$m")"
+done
+ck "M14c2 control: message 1500 (the month names) IS installed" yes "$(yesno_file "$SDSYS/messages/1500")"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  not_reached "M14d DATE prints English day and month names"
+elif [ "$COMMIT" -eq 1 ]; then
+  WANT1=$(LC_ALL=C date '+%A, %-d %B %Y')
+  OUT=$(run_sd_as "$ACC" "M14d DATE as a plain account" "DATE")
+  WANT2=$(LC_ALL=C date '+%A, %-d %B %Y')
+  say "  expected (LC_ALL=C date, before/after): \"$WANT1\" / \"$WANT2\""
+  if printf '%s' "$OUT" | grep -qF -- "$WANT1" || printf '%s' "$OUT" | grep -qF -- "$WANT2"; then
+    PASS=$((PASS + 1)); say "  [PASS] M14d DATE prints English day and month names: found \"$WANT1\""
+  else
+    FAIL=$((FAIL + 1)); say "  [FAIL] M14d DATE prints English day and month names: did NOT find \"$WANT1\""
+  fi
+  ck_absent "M14d2 and no missing-message stub" "Message not found" "$OUT"
 fi
 
 # ==========================================================================
