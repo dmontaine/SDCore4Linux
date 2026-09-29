@@ -19,12 +19,13 @@ Changes since L1.1-1.  NOTHING IN THIS SECTION HAS BEEN RELEASED.
            last 128 characters of a longer path.  Neither was known to
            have happened, but both could have.
 
-           The installer also checks its dictionary step properly.  It
+           The installer also looks harder at its dictionary step.  It
            used to trust sd's exit code, and sd reports success even when
-           the command it was given never ran, so an install could finish
-           "successfully" with no dictionaries.  It now requires the step
-           to finish with its own COMPLETE line, and stops the install,
-           saying why, if it does not.
+           the command it was given never ran.  It now also looks for the
+           step's own COMPLETE line and its error messages, and warns if
+           something looks wrong, keeping the step's output in
+           /var/tmp/sdcore-install-pass3.log.  For now it warns rather
+           than stopping the install.
 
            WHY: found by SD Core Solo for Windows, which shares this code;
            the same defects were in SD Core for Windows and in the SD this
