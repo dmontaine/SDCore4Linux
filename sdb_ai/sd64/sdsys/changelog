@@ -2,6 +2,29 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  SD CORE AND SD CORE SOLO CAN BE INSTALLED ON THE SAME COMPUTER, AND
+           THE COMMAND YOU TYPE SAYS WHICH ONE YOU GET.
+
+           The installer now makes two commands, sd and sd-full, and both
+           start SD Core.  SD Core Solo makes sd-solo, which always starts
+           Solo, and its own sd, which hands over to SD Core when SD Core is
+           installed on the computer and starts Solo otherwise.  So a person
+           who has both gets SD Core from plain sd, and a person who has only
+           one gets that one.  The uninstaller removes sd-full with sd.
+           SD Core for Windows works the same way (sd and sd-full start the
+           full product, sd-solo starts Solo).
+
+           WHY: with their own shared-memory keys and API ports (see the
+           entries below), nothing but the commands stopped the two being
+           installed together.  Whichever of them came first on a user's PATH
+           answered sd, which is the wrong way to choose.
+
+           WHAT THIS DOES NOT DO: it does not change which one ssh starts
+           (each ssh route names its own program).  A person who is both a
+           Solo user and a member of the sdusers group, and who connects over
+           ssh, may get either, depending on the order of the two sshd
+           settings; that combination has not been tested.
+
 02 Oct 26  THE SD API NOW LISTENS ON PORT 4247 (IT WAS 4243).
 
            Programs that connect to SD through its API - the client library,
@@ -36,11 +59,12 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            Windows, full and Solo - able to run at the same time on one
            machine.
 
-           WHAT THIS DOES NOT DO: SD Core Solo's installer still refuses a
-           machine that has this product installed.  (The API ports are
-           separate too now - see the entry above.)  An SD started by an older release must be stopped by
-           that release before this one is installed; uninstalling it first,
-           as the installer already requires, does that.
+           WHAT THIS DOES NOT DO: it does not make an SD started by an older
+           release stop itself.  That release must stop it before this one is
+           installed; uninstalling it first, as the installer already
+           requires, does that.  (The API ports are separate too now, and SD
+           Core Solo's installer accepts a computer that has this product -
+           see the entries above.)
 
 01 Oct 26  ACCOUNTS CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
            RESTORE.ACCOUNT AND SETTINGS.REPORT.

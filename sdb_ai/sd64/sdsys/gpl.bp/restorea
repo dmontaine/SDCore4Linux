@@ -9,6 +9,12 @@
 *              (!acc_archive, !acc_tree_count, !acc_os_info, !acc_os_place,
 *              !acc_os_akpath) and !create_account, agreed by mail 2026-09-30T2359
 *              to 2026-10-02T1000.
+* 02 Oct 26 dm parse.manifest strips CR before it reads a line.  MEASURED in a
+*              sandbox SD (Linux build): TRIM leaves a CR, so a manifest with
+*              CRLF line ends read "format: 1" as "1" plus a CR (13028) and
+*              found no [account x] section.  accbak.h says LF; SD Core for
+*              Windows wrote CRLF until its 2 Oct fix (mail 2026-10-02T2000),
+*              and this makes the reader safe whichever way a zip was made.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -465,6 +471,7 @@ write.marker:
 *   section sec.keys / sec.vals (value lists) and sec.gcat.  bad is set to
 *   what disagrees with the unpacked archive, '' when it all agrees.
 parse.manifest:
+   mtext = convert(char(13), '', mtext)   ;* a CRLF manifest: see the 02 Oct 26 history line
    bad = ''
    hdr.format = '' ; hdr.product = '' ; hdr.accounts = ''
    sec.names = '' ; sec.keys = '' ; sec.vals = '' ; sec.gcat = ''
