@@ -133,6 +133,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] restore-place <owner> <group> <staged dir> <account dir>
   sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account)
   sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key)
+  sd-elevate [--dry-run] bakdir-set <full path of an existing directory>
+                                  (saves BACKUPDIR=<path> in /etc/sd.conf, nothing else)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -792,6 +794,54 @@ cred_own() {
   exit 0
 }
 
+# ------------------------------------------------------ the backup directory (S.53)
+#
+# 02 Oct 26 dm - SET.BACKUP.DIRECTORY (owner's ruling, 1 Oct 2026, for both ports; the verb,
+# the key and the helper split are shared with SD Core for Windows).  /etc/sd.conf is root's
+# and the administrator, sdsys, is never root, so SAVING BACKUPDIR=<path> there is a root
+# step.  It is ALL this verb does, and it is shaped so that it can do nothing else:
+#   - the directory must ALREADY EXIST: root creates nothing and chowns nothing (sdsys makes
+#     it, or an administrator prepares it and gives it to sdsys, before this is called);
+#   - the path is checked character by character BEFORE it can reach the file, so a newline
+#     cannot add a second line to sd.conf (an SDSYS= line, say);
+#   - the file is /etc/sd.conf and nothing a caller passes moves it, as SD_API_PORT;
+#   - the rewrite is a temp file beside it with the same owner and mode, renamed over it,
+#     and the line is read back.  Every other line is kept as it was.
+# gplbld/test-bakdir-elevate-units.py cuts the two functions between the markers out of this file and
+# runs them on scratch files; keep the lines, and keep the code between them free of anything
+# but die().
+
+SD_CONF=/etc/sd.conf
+
+# BEGIN bakdir_functions
+bakdir_checked() {   # bakdir_checked PATH - dies unless PATH may be saved as the backup directory
+  local p=$1 re='^/[A-Za-z0-9._@+=,:/ -]+$'
+  [[ -n $p ]] || die "no directory was given"
+  [[ ${#p} -le 180 ]] || die "the directory path is longer than 180 characters"
+  [[ $p == /* ]] || die "'$p' is not a full path: it must start with /"
+  [[ $p =~ $re ]] || die "the directory path may hold only letters, digits and . _ @ + = , : / - and a space"
+  [[ $p != */ ]] || die "'$p' must not end with /"
+  case "$p/" in
+    *//*)       die "'$p' has an empty path component (//)" ;;
+    */./*|*/../*) die "'$p' has a . or .. path component" ;;
+    *" /"*|*"/ "*) die "'$p' has a path component that starts or ends with a space" ;;
+  esac
+  [[ -d $p ]] || die "$p is not an existing directory: sdsys makes it, or an administrator prepares it and gives it to sdsys, first"
+}
+
+conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, last; every other line kept
+  local f=$1 p=$2 tmp
+  [[ -f $f && ! -L $f ]] || die "$f is not a regular file"
+  tmp=$(mktemp "$f.XXXXXX") || die "cannot create a temp file beside $f"
+  { grep -v -E '^[[:space:]]*BACKUPDIR=' -- "$f" || true; printf 'BACKUPDIR=%s\n' "$p"; } > "$tmp" \
+    && chown --reference="$f" -- "$tmp" && chmod --reference="$f" -- "$tmp" \
+    && mv -f -- "$tmp" "$f" \
+    || { rm -f -- "$tmp"; die "writing $f failed"; }
+  [[ $(grep -c -E '^BACKUPDIR=' -- "$f") -eq 1 && $(grep -E '^BACKUPDIR=' -- "$f") == "BACKUPDIR=$p" ]] \
+    || die "$f does not read back as written"
+}
+# END bakdir_functions
+
 # ---------------------------------------------------------------------- main
 
 DRY=0
@@ -1011,6 +1061,20 @@ case $verb in
     q=$("$SD_SYS_ROOT_REAL/bin/sdidx" -q "$1" 2>&1) || die "sdidx -q failed (status $?)"
     [[ $q == *"Index directory is $2"* ]] || die "sdidx -q does not show the new path: ${q//$'\n'/ | }"
     printf '%s: index path of %s is now %s\n' "$PROG" "$1" "$2"
+    exit 0
+    ;;
+
+  # 02 Oct 26 dm - S.53.  See "the backup directory" above.  The success line is the
+  # one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR is now".
+  bakdir-set)
+    [[ $# -eq 1 ]] || usage
+    bakdir_checked "$1"
+    printf '%s: set BACKUPDIR=%s in %s\n' "$PROG" "$1" "$SD_CONF"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    conf_set_backupdir "$SD_CONF" "$1"
+    logger -t sd-elevate "bakdir-set: the backup directory is now $1" 2>/dev/null || true
+    printf '%s: BACKUPDIR is now %s in %s\n' "$PROG" "$1" "$SD_CONF"
     exit 0
     ;;
 

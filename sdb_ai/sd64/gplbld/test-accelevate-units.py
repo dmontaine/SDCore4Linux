@@ -97,7 +97,16 @@ def cases(root, me):
          "an index path inside the file's own account"),
         (ALLOW, ["tls-show"], "openssl x509 -noout -subject", "the API certificate's fields, -noout"),
         (REFUSE, ["tls-show", "/etc/shadow"], "privileged helper", "tls-show takes no path from the caller"),
+        # S.53: bakdir-set saves one validated line in /etc/sd.conf (the functions are measured
+        # on scratch files by test-bakdir-elevate-units.py; these are the real command line).
+        (ALLOW, ["bakdir-set", mine], "set BACKUPDIR=%s in /etc/sd.conf" % mine,
+         "an existing full path, saved in the fixed /etc/sd.conf"),
         # ----------------------------------------------------------- REFUSE
+        (REFUSE, ["bakdir-set", "backups/x"], "is not a full path", "a relative path"),
+        (REFUSE, ["bakdir-set", os.path.join(root, "nope")], "is not an existing directory",
+         "a directory that does not exist: root creates nothing"),
+        (REFUSE, ["bakdir-set", mine + "\nSDSYS=/evil"], "may hold only", "a newline: a second line for sd.conf"),
+        (REFUSE, ["bakdir-set", mine, "/etc/sd.conf"], "privileged helper", "bakdir-set takes one path and no file name"),
         (REFUSE, ["tree-count", "/etc"], "not directly inside", "a system directory"),
         (REFUSE, ["tree-count", ua], "not directly inside", "the user-accounts root itself"),
         (REFUSE, ["tree-count", os.path.join(mine, "bp")], "not directly inside", "a directory INSIDE an account"),
@@ -165,6 +174,7 @@ MUTANTS = [
     ("owner check gone", '[[ $owner == "$tname" ]] || die', '[[ 1 ]] || die'),
     ("cross-account akpath allowed", '[[ $ACCT_REAL == "$data_acct" ]] || die', '[[ 1 ]] || die'),
     ("pack name check gone", '[[ ${pair%%=*} == "$ACCT_NAME" ]] || die', '[[ 1 ]] || die'),
+    ("bakdir character check gone", '[[ $p =~ $re ]] || die', '[[ 1 ]] || die'),
 ]
 
 

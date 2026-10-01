@@ -22,6 +22,7 @@
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
  *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
+ * 02 Oct 26 dm  S.53: BACKUPDIR accepted and ignored (SET.BACKUP.DIRECTORY).
  * START-DESCRIPTION:
  *
  * Handles parsing of the configuration file.
@@ -243,6 +244,16 @@ struct CONFIG* read_config(char* errmsg) {
    written while APILOGIN shipped.  Nothing reads it; CONFIG() no longer
    reports it. */
       else if (sscanf(rec, "APILOGIN=%d", &n) == 1) {
+        /* ignored */
+      }
+/* 02 Oct 26 dm - S.53.  BACKUPDIR=<path> is the backup directory that
+   SET.BACKUP.DIRECTORY saves (owner's ruling, 1 Oct 2026; the key and the verb are
+   shared with SD Core for Windows).  It is ACCEPTED and ignored here, for the same
+   reason as APILOGIN: an unrecognised parameter is fatal just below, so a build that
+   did not know the key would refuse to start on a file that carries it.  Nothing in
+   the C code reads it: the BASIC helper !acc_os_bakdir reads sd.conf at each use, so
+   a change needs no restart. */
+      else if (strncmp(rec, "BACKUPDIR=", 10) == 0) {
         /* ignored */
       }
       else if (strncmp(rec, "SDSYS=", 6) == 0) {

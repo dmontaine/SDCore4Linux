@@ -1,0 +1,135 @@
+* ACC_OS_BAKDIR
+* The saved backup directory, SD Core for Linux's half (SET.BACKUP.DIRECTORY).
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 02 Oct 26 dm Written for S.53 (per-OS helper; signature agreed with SD Core
+*              for Windows by mail, 2026-10-02T2000 and T2030).  LINUX ONLY - the
+*              Windows port has its own file of this name.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_bakdir(mode, dir, err)
+*
+*    mode  GET  dir comes back as the saved directory, '' when none is saved.
+*          SET  dir goes in as the directory to save, and comes back as the full
+*               path.  It is created if necessary, proved writable and saved.
+*    err   '' on success, else a message number, @vm, then its arguments.
+*
+*    A relative path is refused with 13046 before anything is run: a saved
+*    setting that meant different places depending on the current directory
+*    would be a trap (agreed with Windows, 2026-10-02T2030).
+*
+*    LINUX DETAIL.  The setting is the line BACKUPDIR=<path> in sd.conf (SD_CONFIG,
+*    else /etc/sd.conf), read at each use, so a change needs no restart.  The
+*    file belongs to root and SDSYS is never root, so SAVING the line is the one
+*    root step: "sd-elevate bakdir-set", which writes that one line and nothing
+*    else.  Everything before it runs as SDSYS:
+*      - THE DIRECTORY IS CREATED HERE, AS SDSYS (mkdir -p, the last component
+*        mode 0700 because the zips hold every account's files), so SDSYS can
+*        create it wherever SDSYS is allowed to.  Under a directory SDSYS may
+*        not write to (/var/backups, say) it cannot, and says so (11024): an
+*        administrator creates it and gives it to sdsys, then runs this again.
+*        This is the privilege model, not a missing feature: root creates and
+*        chowns nothing here.
+*      - THE WRITE IS PROVED AS SDSYS, because BACKUP.ACCOUNT's zip is written by
+*        this session (backup-pack sends it to stdout), not by root.
+*
+*    SUCCESS IS THE HELPER'S OWN "BACKUPDIR is now <dir> in " LINE, not its exit
+*    status alone (CLAUDE.md: anchor on the success wording).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_bakdir(mode, dir, err)
+$catalog !acc_os_bakdir
+
+$include keys.h
+$include int$keys.h
+$include accos.h
+
+   err  = ''
+   md   = upcase(mode)
+   conf = env('SD_CONFIG')
+   if conf = '' then conf = '/etc/sd.conf'
+
+   begin case
+      case md = 'GET'
+         d = ''
+         openseq conf to f then
+            loop
+               readseq line from f else exit
+               t = trim(line)
+               if t[1,10] = 'BACKUPDIR=' then d = trim(t[11,999])   ;* the last one wins
+            repeat
+            closeseq f
+         end else
+            err = 11026:@vm:conf:' cannot be read (status ':status():')'
+            return
+         end
+         dir = d
+         return
+
+      case md = 'SET'
+         d = trim(dir)
+         if d[1,1] # '/' then
+            err = 13046   ;* Give the full path of the backup directory
+            return
+         end
+         if len(d) > 1 and d[len(d),1] = '/' then d = d[1, len(d) - 1]
+         if index(d, "'", 1) then
+            err = 11024:@vm:d:@vm:'a single quote is not allowed in the path'
+            return
+         end
+
+*        Create it if it is not there - as this session's user, never as root.
+         if not(ospath(d, OS$EXISTS)) then
+            out = ''
+            os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
+            if os.error() # 0 or not(ospath(d, OS$EXISTS)) then
+               err = 11024:@vm:d:@vm:convert(@fm, ' ', out)
+               return
+            end
+         end
+
+*        Prove it can be written to, as this user: the zips are written by this session.
+         probe = d:'/.sd-probe.':@userno
+         openseq probe overwrite to pf else
+*           ELSE is taken for a file that did not exist (and is then created); only a status is a failure.
+            if status() then
+               err = 11025:@vm:d:@vm:'status ':status()
+               return
+            end
+         end
+         writeseq 'probe' to pf else null
+         closeseq pf
+         out = ''
+         os.execute "rm -f '":probe:"' 2>&1" capturing out
+
+*        Save it: the one root step.
+         out = ''
+         os.execute ACCOS$ELEVATE:" bakdir-set '":d:"' 2>&1" capturing out
+         stat = os.error()
+         ok = @false
+         for i = 1 to dcount(out, @fm)
+            if index(out<i>, 'BACKUPDIR is now ':d:' in ', 1) then ok = @true
+         next i
+         if stat # 0 or not(ok) then
+            err = 11026:@vm:convert(@fm, '|', out)
+            return
+         end
+         dir = d
+         return
+
+      case 1
+         err = 11026:@vm:'unknown mode ':mode
+         return
+   end case
+
+   return
+end
+
+* END-CODE

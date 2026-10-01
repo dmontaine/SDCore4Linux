@@ -88,6 +88,13 @@ case $verb in
     q=$("$SDIDX" -q "$2" 2>&1)
     if [[ $q == *"Index directory is $3"* ]]; then echo "sd-elevate: index path of $2 is now $3"
     else printf '%%s\n' "$q"; exit 2; fi ;;
+  bakdir-set)
+    # S.53: the REAL conf_set_backupdir, cut out of the real sd-elevate, on the sandbox's own
+    # sd.conf (SD_CONFIG, which the sandbox's sd passes down) - never /etc/sd.conf.
+    eval "$(sed -n '/^# BEGIN bakdir_functions/,/^# END bakdir_functions/p' "$REAL")"
+    die() { printf 'sd-elevate: REFUSED - %%s\n' "$1" >&2; exit 2; }
+    conf_set_backupdir "${SD_CONFIG:?}" "$2" || exit 3
+    echo "sd-elevate: BACKUPDIR is now $2 in $SD_CONFIG [sandbox: its own sd.conf]" ;;
   *) echo "sd-elevate (sandbox): checked, pretended: $*" ;;
 esac
 '''
@@ -196,8 +203,15 @@ def main():
                              and "0 error(s)" in out))
             rc, out = run(env, [sd, "-internal", "SECOND.COMPILE"], cwd=sysd)
             m = re.search(r"Compiled (\d+) program\(s\) with no errors", out)
-            verdicts.append(("pass 2 (SECOND.COMPILE) %s" % (m.group(0) if m else "- no success line"),
-                             m is not None and "Unable to load" not in out))
+            # 02 Oct 26 - THE COMPILER'S "is not assigned a value" WARNING IS A FAILURE EVEN AT
+            # "0 error(s)": SD Core for Windows found setbakdir including keys.h without int$keys.h
+            # so K$ADMINISTRATOR read as an unassigned variable - a warning, 0 errors, a program
+            # that fails at run time (its mail 2026-10-02T2100).  The log only PRINTS the last 2500
+            # characters, so this reads the whole output.
+            unassigned = "is not assigned a value" in out
+            verdicts.append(("pass 2 (SECOND.COMPILE) %s%s" % (m.group(0) if m else "- no success line",
+                                                                 " BUT a warning says a constant is not assigned a value" if unassigned else ""),
+                             m is not None and "Unable to load" not in out and not unassigned))
             rc, out = run(env, [sd, "RUN", "gpl.bp", "write_install_dicts", "NO.PAGE"], cwd=sysd)
             verdicts.append(("pass 3 (write_install_dicts)", re.search(r"^COMPLETE$", out, re.M) is not None
                              and "Unable to load" not in out))
