@@ -160,7 +160,7 @@ verdict() {
     fi
     if [ "$MODE" = create ]; then
         say "interop-account: READY - $ACC logs in to the SD API over TLS 1.3 from 127.0.0.1 and from $LANIP."
-        say "  For the Windows side: host $LANIP, port 4243, user and account $ACC,"
+        say "  For the Windows side: host $LANIP, port 4247, user and account $ACC,"
         say "  and the SD password you typed - give it directly, not through the mailbox."
         say "  Remove it after the run: sudo bash $SELF --remove"
     else

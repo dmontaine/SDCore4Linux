@@ -2,6 +2,25 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  THE SD API NOW LISTENS ON PORT 4247 (IT WAS 4243).
+
+           Programs that connect to SD through its API - the client library,
+           and SD's own connections to another SD - now use port 4247 unless
+           they name another.  The installer's "Allow API access" question,
+           the firewall rule it adds, and REMOTE.API all use 4247.  The port
+           is fixed: there is no setting to move it.
+
+           WHY: 4243 is the port OpenQM and ScarletDME use, and the original
+           SD uses 4245.  SD Core's full products now use 4247 and SD Core
+           Solo uses 4249, so each can run on the same computer as the others.
+
+           WHAT YOU MAY NEED TO DO: a client program that named port 4243
+           must name 4247 (or name no port, and take the new default).  On a
+           computer upgraded from an earlier release, a firewall rule for 4243
+           may remain; the uninstaller now removes SD's 4247 rule and tells
+           you about a 4243 one, but does not remove it, because another
+           database may be using that port.
+
 02 Oct 26  SD CORE NOW HAS ITS OWN SHARED-MEMORY KEYS, SO IT CAN RUN BESIDE
            SD CORE SOLO AND THE DATABASES IT CAME FROM.
 
@@ -17,11 +36,9 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            Windows, full and Solo - able to run at the same time on one
            machine.
 
-           WHAT THIS DOES NOT DO: it does not make everything else separate.
-           The API port (4243) is still the same in every product, so two
-           products cannot both offer the API on one machine, and SD Core
-           Solo's installer still refuses a machine that has this product
-           installed.  An SD started by an older release must be stopped by
+           WHAT THIS DOES NOT DO: SD Core Solo's installer still refuses a
+           machine that has this product installed.  (The API ports are
+           separate too now - see the entry above.)  An SD started by an older release must be stopped by
            that release before this one is installed; uninstalling it first,
            as the installer already requires, does that.
 

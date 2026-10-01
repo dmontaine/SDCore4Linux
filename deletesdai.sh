@@ -275,6 +275,24 @@ if [ -f /etc/nanorc ] && grep -qxF 'include "/usr/share/nano/sdbasic.nanorc"' /e
 fi
 
 # --------------------
+# 02 Oct 26  THE API FIREWALL RULE (owner, 2 Oct 2026: the API port is 4247,
+#            fixed).  The installer and REMOTE.API add "ufw allow 4247/tcp";
+#            nothing removed it before, so an uninstall left the port open.
+#            Our own rule goes.  A 4243 rule is only REPORTED: SD Core used 4243
+#            until 2 Oct 2026, but it is also OpenQM's and ScarletDME's port,
+#            so this script cannot know the rule is SD's and does not touch it.
+if command -v ufw >/dev/null 2>&1; then
+    if sudo ufw show added 2>/dev/null | grep -q -E '^ufw allow 4247/tcp$'; then
+        sudo ufw delete allow 4247/tcp >/dev/null && echo "Removed the firewall rule for the SD API (ufw allow 4247/tcp)."
+    fi
+    if sudo ufw show added 2>/dev/null | grep -q -E '^ufw allow 4243/tcp$'; then
+        echo "NOTE: a firewall rule 'ufw allow 4243/tcp' remains.  SD Core before 2 Oct 2026"
+        echo "  used port 4243; if nothing else on this computer needs it, remove it with:"
+        echo "      sudo ufw delete allow 4243/tcp"
+    fi
+fi
+
+# --------------------
 # PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.
 #
 # ORDER MATTERS: the drop-in goes FIRST.  It names the sdsys user, and a

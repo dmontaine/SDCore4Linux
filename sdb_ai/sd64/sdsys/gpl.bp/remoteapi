@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 02 Oct 26 dm  The port in the description is 4247 (owner; sd-elevate holds it).
 * 14 Sep 26 dm  written, from the Windows port's REMOTEAPI of 30 Aug 2026 (its
 *               PRE_RELEASE_FIXES 78 and 148, owner's request).  S.13.
 * END-HISTORY
@@ -27,9 +28,9 @@
 *
 *    Says whether this machine provides the SD API, and who may reach it.
 *
-*       ON     SD listens on port 4243 on every address, and the firewall
+*       ON     SD listens on port 4247 on every address, and the firewall
 *              allows it: other computers may connect
-*       LOCAL  SD listens on 127.0.0.1:4243 only: only this computer may
+*       LOCAL  SD listens on 127.0.0.1:4247 only: only this computer may
 *       OFF    SD opens no API socket at all, TCP or local
 *
 *    With no keyword it reports the current setting and changes nothing.
@@ -38,7 +39,8 @@
 * sdclient.socket; who may reach it is ufw.  sd-elevate remote-api does both and
 * reads them back, so the report after a change is the machine's answer and not
 * this program's intention.  The firewall rule is the installer's own ("ufw
-* allow 4243/tcp"), so REMOTE.API and the install describe one state.
+* allow 4247/tcp"; 4243 before 2 Oct 2026), so REMOTE.API and the install
+* describe one state.  The port is fixed (owner, 2 Oct 2026): no keyword moves it.
 *
 * NO RESTART OF SD, WHICH IS WHERE THIS DIFFERS FROM THE PORT MOST.  The port's
 * listener opens only when SD starts, so ON and OFF restarted SD and ended every

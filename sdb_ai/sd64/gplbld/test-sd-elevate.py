@@ -103,7 +103,7 @@ CASES = [
     # ---- missing word and an extra argument; the content of the allowed ones
     # ---- is asserted below (REMOTE_CONTENT), not just their exit code.
     (REFUSE, ["remote-api", "wide"],           "not one of on/local/off/show"),
-    (REFUSE, ["remote-api", "0.0.0.0:4243"],   "an address is never taken from the caller"),
+    (REFUSE, ["remote-api", "0.0.0.0:4247"],   "an address is never taken from the caller"),
     (REFUSE, ["remote-api"],                   "the keyword is required"),
     (REFUSE, ["remote-api", "on", "22"],       "no extra argument"),
     (REFUSE, ["remote-ssh", "local"],          "ssh has no LOCAL - on/off/show only"),
@@ -277,13 +277,14 @@ def main():
     # ---- ALLOW row above.  Each needle must appear, and each forbidden one must
     # ---- not.
     REMOTE_CONTENT = [
-        (["remote-api", "on"], ["ListenStream=0.0.0.0:4243", "ufw allow 4243/tcp", "systemctl restart sdclient.socket"],
-         ["127.0.0.1:4243", "delete allow"]),
-        (["remote-api", "local"], ["ListenStream=127.0.0.1:4243", "ufw delete allow 4243/tcp"],
-         ["0.0.0.0:4243", "ufw allow 4243/tcp\n"]),
-        (["remote-api", "off"], ["systemctl disable --now sdclient.socket", "ufw delete allow 4243/tcp"],
-         ["ListenStream", "ufw allow 4243/tcp\n"]),
-        (["remote-ssh", "on"], ["ufw allow 22/tcp"], ["delete", "4243"]),
+        # 02 Oct 26 - the API port is 4247, fixed (owner); 4243 must not appear.
+        (["remote-api", "on"], ["ListenStream=0.0.0.0:4247", "ufw allow 4247/tcp", "systemctl restart sdclient.socket"],
+         ["127.0.0.1:4247", "delete allow", "4243"]),
+        (["remote-api", "local"], ["ListenStream=127.0.0.1:4247", "ufw delete allow 4247/tcp"],
+         ["0.0.0.0:4247", "ufw allow 4247/tcp\n", "4243"]),
+        (["remote-api", "off"], ["systemctl disable --now sdclient.socket", "ufw delete allow 4247/tcp"],
+         ["ListenStream", "ufw allow 4247/tcp\n", "4243"]),
+        (["remote-ssh", "on"], ["ufw allow 22/tcp"], ["delete", "4247"]),
         (["remote-ssh", "off"], ["ufw delete allow 22/tcp"], ["ufw allow 22/tcp\n", "systemctl"]),
     ]
     for argv, needles, forbidden in REMOTE_CONTENT:
@@ -314,7 +315,7 @@ def main():
                     "  status|'status verbose') echo 'Status: inactive' ;;\n"
                     "  'show added') printf '%s\\n' "
                     "\"Added user rules (see 'ufw status' for running firewall):\" "
-                    "'ufw allow 4243/tcp' 'ufw allow OpenSSH' 'ufw allow 2222/tcp' "
+                    "'ufw allow 4247/tcp' 'ufw allow OpenSSH' 'ufw allow 2222/tcp' "
                     "'ufw allow from 192.168.0.0/24 to any port 22 proto tcp' ;;\n"
                     "  *) exit 1 ;;\n"
                     "esac\n")
@@ -325,7 +326,7 @@ def main():
                 "|| { echo 'NOT LIFTED'; exit 9; }; ")
         env = dict(os.environ, PATH=fake_dir + os.pathsep + os.environ.get("PATH", ""))
         UFW_ROWS = [
-            ("U1 4243/tcp is found while ufw is inactive", "ufw_has_allow 4243/tcp", 0, None),
+            ("U1 4247/tcp is found while ufw is inactive", "ufw_has_allow 4247/tcp", 0, None),
             ("U2 a rule that is not configured is not found", "ufw_has_allow 443/tcp", 1, None),
             ("U3 22/tcp is not claimed from 2222/tcp", "ufw_has_allow 22/tcp", 1, None),
             ("U4 the ssh rules are OpenSSH and the port 22 rule, not 2222",

@@ -3014,7 +3014,7 @@ Private bool OpenSocket(char* host, int16_t port) {
     int n;
     unsigned int n1, n2, n3, n4;
     if (port < 0)
-        port = 4243;
+        port = 4247;   /* 02 Oct 26: SD Core's full products (Solo: 4249) */
     /* Start Winsock up */
     if (WSAStartup(MAKEWORD(1, 1), &wsadata) != 0) {
         sprintf_s(session->sderror, sizeof(session[0].sderror), "WSAStartup error");

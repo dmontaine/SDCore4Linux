@@ -18,7 +18,7 @@
 #     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
 #           zzrel3, carries SD's "SD account" stamp and is deleted by SD
 #     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
-#     W.4   the API door over TCP 4243 (13b): login, the session's groups, a
+#     W.4   the API door over TCP 4247 (13b): login, the session's groups, a
 #           wrong password and its audit record; the SCRAM login, requests
 #           47/48, against $cred (13c)
 #     Q.12  ssh AND the API into a SUSPENDED account are refused, after a
@@ -309,11 +309,11 @@ restore_remote() {
     if [ "$RA_ENABLED_BEFORE" = enabled ]; then systemctl enable sdclient.socket 2>/dev/null; else systemctl disable sdclient.socket 2>/dev/null; fi
     if [ "$RA_ACTIVE_BEFORE" = active ]; then systemctl restart sdclient.socket; else systemctl stop sdclient.socket; fi
     if command -v ufw >/dev/null 2>&1; then
-        if [ "$RA_4243_BEFORE" = yes ]; then ufw allow 4243/tcp >/dev/null; elif ufw_rule_present 4243/tcp; then ufw delete allow 4243/tcp >/dev/null; fi
+        if [ "$RA_4247_BEFORE" = yes ]; then ufw allow 4247/tcp >/dev/null; elif ufw_rule_present 4247/tcp; then ufw delete allow 4247/tcp >/dev/null; fi
         if [ "$RA_22_BEFORE" = yes ]; then ufw allow 22/tcp >/dev/null; elif ufw_rule_present 22/tcp; then ufw delete allow 22/tcp >/dev/null; fi
     fi
     say "      socket $(systemctl is-enabled sdclient.socket 2>/dev/null)/$(systemctl is-active sdclient.socket 2>/dev/null); listening on: $(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')"
-    say "      ufw 4243 rule: $(ufw_rule_present 4243/tcp && echo yes || echo no); 22 rule: $(ufw_rule_present 22/tcp && echo yes || echo no)"
+    say "      ufw 4247 rule: $(ufw_rule_present 4247/tcp && echo yes || echo no); 22 rule: $(ufw_rule_present 22/tcp && echo yes || echo no)"
     [ -n "${RA_DROPIN_COPY:-}" ] && rm -f "$RA_DROPIN_COPY"
     RA_SAVED=""
 }
@@ -959,7 +959,7 @@ LINUX_PW="$PROBE_PW"
 PROBE_PW="$SCRAM_PW"
 
 # ==========================================================================
-# W.4 - THE API DOOR, over TCP 127.0.0.1:4243 through the installed client
+# W.4 - THE API DOOR, over TCP 127.0.0.1:4247 through the installed client
 # library (gplbld/api-probe.py), as zzrel1 with the password section 13 set.
 #   A1 CONTROL: the right password into its own account connects, and WHO
 #      names zzrel1 in LOWER case (APISRVR upcased it before 14 Sep).
@@ -1274,7 +1274,7 @@ checks = 0
 bad = 0
 obj = object("!sdclient")
 checks += 1
-if obj->connect("127.0.0.1", 4243, acc, pw, acc) then
+if obj->connect("127.0.0.1", 4247, acc, pw, acc) then
    crt "PASS  connect"
 end else
    bad += 1
@@ -1293,7 +1293,7 @@ if bad = 0 then
 end
 obj2 = object("!sdclient")
 checks += 1
-if obj2->connect("127.0.0.1", 4243, acc, pw:"x", acc) then
+if obj2->connect("127.0.0.1", 4247, acc, pw:"x", acc) then
    bad += 1
    crt "FAIL  a wrong password was ACCEPTED"
    obj2->disconnect
@@ -1340,9 +1340,9 @@ fi
 #      tier-or-group test is for): over the LAN address, REFUSED; then removed.
 head2 "13e. S.17 - SDSYS is refused over the API from another address (10174)"
 LANIP=$(ip -4 -o addr show scope global 2>/dev/null | awk 'NR==1 { split($4, a, "/"); print a[1] }')
-LISTEN=$(ss -ltnH 'sport = :4243' 2>/dev/null | awk '{print $4}' | tr '\n' ' ')
+LISTEN=$(ss -ltnH 'sport = :4247' 2>/dev/null | awk '{print $4}' | tr '\n' ' ')
 say "  this host's first global IPv4 address: '${LANIP:-none}'"
-say "  TCP listeners on 4243: '${LISTEN:-none}'"
+say "  TCP listeners on 4247: '${LISTEN:-none}'"
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password (13, 13b A5) and a global IPv4 address"
     for r in "E0 sdsys credential set" "E1 control over the LAN address" "E1b entered" "E3 loopback TCP refused 10922" "E3b not logged in" "E3c socket as sdsys admitted" "E3c2 entered" "E3d socket as another user refused" "E3d2 not logged in" "E3e audited with the opener" "E4 remote refused 10174" "E4b not logged in" "E5 audited" "E6 the install's credential is back"; do not_reached "$r"; done
@@ -1674,7 +1674,7 @@ fi
 #   T6 the relay is not root: during a held session, the session's sd process
 #      has an sd child owned by nobody.  Null guard: the session is found first.
 #   T7 THE OWNER'S FALSIFIER, without tcpdump: a recording proxy between the
-#      probe and 127.0.0.1:4243 keeps every byte both ways while the session
+#      probe and 127.0.0.1:4247 keeps every byte both ways while the session
 #      DISPLAYs a marker.  The marker must reach the probe (control) and must
 #      not be in the recording, nor the user name; under 1 KB measured nothing.
 #   T8 the installed sd links libssl.
@@ -1781,7 +1781,7 @@ else
         rm -f "$HF"
     fi
 
-    say "  --- T7 a recording proxy between the probe and 127.0.0.1:4243 ---"
+    say "  --- T7 a recording proxy between the probe and 127.0.0.1:4247 ---"
     PXP=45243
     MARK="zztls$(date +%s%N)"
     if [ "$COMMIT" -eq 1 ]; then
@@ -1795,7 +1795,7 @@ ls.bind(("127.0.0.1", port))
 ls.listen(1)
 ls.settimeout(60)
 c, _ = ls.accept()
-s = socket.create_connection(("127.0.0.1", 4243))
+s = socket.create_connection(("127.0.0.1", 4247))
 out = open(rec, "wb")
 lock = threading.Lock()
 def pump(a, b):
@@ -1846,16 +1846,16 @@ fi
 # S.13 - REMOTE.API ON | LOCAL | OFF AND REMOTE.SSH ON | OFF (the port's verbs,
 # its PRE_RELEASE_FIXES 78).  ***THIS SECTION CHANGES THE MACHINE'S API LISTENER
 # AND FIREWALL***, so the exact prior state is saved first - the drop-in or its
-# absence, the socket's enabled/active state, the ufw 4243 and 22 allow rules -
+# absence, the socket's enabled/active state, the ufw 4247 and 22 allow rules -
 # and put back at the end, and again by cleanup if the run stops part-way.
 #   H0 the report forms run through SD and end on the helper's verdict line.
 #   H1 THE DESIGN NOTE'S FALSIFIER: a SCRAM session opened BEFORE "REMOTE.API
 #      LOCAL", paused across the socket restart, must still run WHO afterwards
 #      (Accept=yes: an accepted connection is its own service).  H1b-d LOCAL
-#      binds 127.0.0.1 only, the drop-in says so, no ufw 4243 rule; H2 a new
+#      binds 127.0.0.1 only, the drop-in says so, no ufw 4247 rule; H2 a new
 #      loopback login works; H3 one to this host's LAN address cannot connect.
 #   H4 OFF: the socket is inactive and a loopback login cannot connect.
-#   H5 ON: 0.0.0.0:4243, a ufw 4243 rule when ufw is installed, LAN login works.
+#   H5 ON: 0.0.0.0:4247, a ufw 4247 rule when ufw is installed, LAN login works.
 #   H6 restored: the helper's verdict is the one H0 read.
 #   H7-H9 ssh: where ufw gates ssh, OFF removes the 22/tcp rule and ON adds it;
 #      where it does not, OFF is REFUSED with status 3 and changes nothing.
@@ -1872,18 +1872,18 @@ ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw show added 2>/dev/nul
 listen_now() { systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' '; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -x "$ELEV" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password, $ELEV and a LAN address"
-    for r in "H0 report" "H1 held session survived" "H1b LOCAL binds loopback" "H1c drop-in" "H1d no 4243 rule" "H2 loopback login" "H3 LAN refused" "H4 OFF" "H4b loopback refused" "H5 ON" "H5b LAN login" "H6 restored" "H7 ssh"; do not_reached "$r"; done
+    for r in "H0 report" "H1 held session survived" "H1b LOCAL binds loopback" "H1c drop-in" "H1d no 4247 rule" "H2 loopback login" "H3 LAN refused" "H4 OFF" "H4b loopback refused" "H5 ON" "H5b LAN login" "H6 restored" "H7 ssh"; do not_reached "$r"; done
 else
     if [ "$COMMIT" -eq 1 ]; then
         RA_DROPIN_BEFORE=no; [ -f "$DROPIN" ] && { RA_DROPIN_BEFORE=yes; RA_DROPIN_COPY=$(mktemp); cp "$DROPIN" "$RA_DROPIN_COPY"; }
         RA_ENABLED_BEFORE=$(systemctl is-enabled sdclient.socket 2>/dev/null)
         RA_ACTIVE_BEFORE=$(systemctl is-active sdclient.socket 2>/dev/null)
-        RA_4243_BEFORE=no; ufw_rule_present 4243/tcp && RA_4243_BEFORE=yes
+        RA_4247_BEFORE=no; ufw_rule_present 4247/tcp && RA_4247_BEFORE=yes
         RA_22_BEFORE=no; ufw_rule_present 22/tcp && RA_22_BEFORE=yes
         RA_SAVED=yes
         API_VERDICT0=$("$ELEV" remote-api show 2>&1 | sed -n 's/^The SD API is \(.*\)\.$/\1/p')
         SSH_VERDICT0=$("$ELEV" remote-ssh show 2>&1 | sed -n 's/^Remote ssh access is \(.*\)\.$/\1/p')
-        say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE ufw 4243=$RA_4243_BEFORE 22=$RA_22_BEFORE"
+        say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE ufw 4247=$RA_4247_BEFORE 22=$RA_22_BEFORE"
         say "  saved: API '$API_VERDICT0', ssh '$SSH_VERDICT0'; listening on: $(listen_now)"
     fi
     OUT=$(run_sd sdsys "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
@@ -1912,9 +1912,9 @@ else
         ck "H1 THE FALSIFIER: the session opened before the socket restart still ran WHO" yes "$(grep -Eq "^\| [0-9]+ $ACC\$" "$HF" && echo yes || echo no)"
         rm -f "$HF"
         L=$(listen_now); say "  listening on: $L"
-        ck "H1b LOCAL listens on 127.0.0.1:4243 and not 0.0.0.0:4243" yes "$([[ $L == *127.0.0.1:4243* && $L != *0.0.0.0:4243* ]] && echo yes || echo no)"
-        ck "H1c the drop-in names 127.0.0.1:4243" yes "$(grep -q '^ListenStream=127.0.0.1:4243$' "$DROPIN" 2>/dev/null && echo yes || echo no)"
-        ck "H1d no ufw allow rule for 4243/tcp" no "$(ufw_rule_present 4243/tcp && echo yes || echo no)"
+        ck "H1b LOCAL listens on 127.0.0.1:4247 and not 0.0.0.0:4247" yes "$([[ $L == *127.0.0.1:4247* && $L != *0.0.0.0:4247* ]] && echo yes || echo no)"
+        ck "H1c the drop-in names 127.0.0.1:4247" yes "$(grep -q '^ListenStream=127.0.0.1:4247$' "$DROPIN" 2>/dev/null && echo yes || echo no)"
+        ck "H1d no ufw allow rule for 4247/tcp" no "$(ufw_rule_present 4247/tcp && echo yes || echo no)"
     fi
     OUT=$(sprobe "H2 a new login over 127.0.0.1 while LOCAL" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "H2 LOCAL admits this machine" "account $ACC: entered" "$OUT"
@@ -1933,9 +1933,9 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "H5 REMOTE.API ON reported" "The SD API is now ON." "$OUT"
         L=$(listen_now); say "  listening on: $L"
-        ck "H5a ON listens on 0.0.0.0:4243" yes "$([[ $L == *0.0.0.0:4243* ]] && echo yes || echo no)"
+        ck "H5a ON listens on 0.0.0.0:4247" yes "$([[ $L == *0.0.0.0:4247* ]] && echo yes || echo no)"
         if command -v ufw >/dev/null 2>&1; then
-            ck "H5c a ufw allow rule for 4243/tcp exists" yes "$(ufw_rule_present 4243/tcp && echo yes || echo no)"
+            ck "H5c a ufw allow rule for 4247/tcp exists" yes "$(ufw_rule_present 4247/tcp && echo yes || echo no)"
         fi
     fi
     OUT=$(sprobe "H5b a login over $LANIP while ON" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")

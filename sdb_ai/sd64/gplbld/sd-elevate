@@ -145,8 +145,9 @@ EOF
 # REMOTESSH, PRE_RELEASE_FIXES 78 and 148, owner 30 Aug 2026).  THE SAME TWO
 # AXES THE PORT HAS, ON LINUX'S MECHANISMS: whether SD listens is systemd's
 # sdclient.socket, and who may reach it is ufw.  The rules touched are exactly
-# the ones installsdai.sh adds - "ufw allow 4243/tcp" and "ufw allow 22/tcp" -
-# so the verb and the installer describe one state.
+# the ones installsdai.sh adds - "ufw allow $SD_API_PORT/tcp" (4247 since 2 Oct
+# 2026; 4243 before) and "ufw allow 22/tcp" - so the verb and the installer
+# describe one state.
 #
 # ***THE LISTENER IS A DROP-IN, NOT AN EDIT OF THE UNIT.***  The installer seds
 # the shipped unit; a drop-in overrides it without a second copy of that sed,
@@ -164,6 +165,12 @@ EOF
 SD_SOCKET_UNIT=${SD_SOCKET_UNIT:-/usr/lib/systemd/system/sdclient.socket}
 SD_SOCKET_DROPIN_DIR=/etc/systemd/system/sdclient.socket.d
 SD_SOCKET_DROPIN=$SD_SOCKET_DROPIN_DIR/sd-remote-api.conf
+
+# 02 Oct 26 dm - THE API PORT, FIXED (owner, 2 Oct 2026: "make ports 4247 and
+# 4249 -- do not allow adjustable ports").  Deliberately not taken from the
+# environment, as the paths above are for tests: nothing a caller passes moves
+# it.  4247 is the full SD Core products'; both Solos use 4249.
+SD_API_PORT=4247
 
 step() {   # print the resolved command, then run it unless --dry-run
   printf '%s: %s\n' "$PROG" "$*"
@@ -231,19 +238,19 @@ api_show() {
   listen=$(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')
   fw=$(ufw_state)
   rule=absent
-  [[ $fw != absent ]] && ufw_has_allow 4243/tcp && rule=present
+  [[ $fw != absent ]] && ufw_has_allow "$SD_API_PORT/tcp" && rule=present
   printf 'sdclient.socket: %s, %s\n' "${enabled:-unknown}" "${active:-unknown}"
   printf 'listening on   : %s\n' "${listen:-nothing}"
-  printf 'firewall       : ufw %s; allow rule for 4243/tcp %s\n' "$fw" "$rule"
+  printf 'firewall       : ufw %s; allow rule for %s/tcp %s\n' "$fw" "$SD_API_PORT" "$rule"
   if [[ $active != active ]]; then
     verdict=OFF
-  elif [[ $listen == *0.0.0.0:4243* ]]; then
+  elif [[ $listen == *0.0.0.0:$SD_API_PORT* ]]; then
     if [[ $fw == active-deny && $rule == absent ]]; then
       verdict="LISTENING ON EVERY ADDRESS BUT BLOCKED BY THE FIREWALL"
     else
       verdict=ON
     fi
-  elif [[ $listen == *127.0.0.1:4243* ]]; then
+  elif [[ $listen == *127.0.0.1:$SD_API_PORT* ]]; then
     verdict=LOCAL
   else
     verdict="LOCAL SOCKET ONLY"
@@ -259,8 +266,8 @@ remote_api() {
   [[ -n $unix ]] || die "no Unix-socket ListenStream in $SD_SOCKET_UNIT"
   case $mode in
     on|local)
-      addr=127.0.0.1:4243
-      [[ $mode == on ]] && addr=0.0.0.0:4243
+      addr=127.0.0.1:$SD_API_PORT
+      [[ $mode == on ]] && addr=0.0.0.0:$SD_API_PORT
       step mkdir -p "$SD_SOCKET_DROPIN_DIR" || return 1
       printf '%s: write %s: ListenStream= / ListenStream=%s / ListenStream=%s\n' "$PROG" "$SD_SOCKET_DROPIN" "$unix" "$addr"
       if [[ $DRY -eq 0 ]]; then
@@ -270,11 +277,11 @@ remote_api() {
       step systemctl daemon-reload || return 1
       step systemctl enable sdclient.socket || return 1
       step systemctl restart sdclient.socket || return 1
-      if [[ $mode == on ]]; then ufw_add_allow 4243/tcp || return 1; else ufw_delete_allow 4243/tcp || return 1; fi
+      if [[ $mode == on ]]; then ufw_add_allow "$SD_API_PORT/tcp" || return 1; else ufw_delete_allow "$SD_API_PORT/tcp" || return 1; fi
       ;;
     off)
       step systemctl disable --now sdclient.socket || return 1
-      ufw_delete_allow 4243/tcp || return 1
+      ufw_delete_allow "$SD_API_PORT/tcp" || return 1
       ;;
   esac
   api_show

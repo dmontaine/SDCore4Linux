@@ -174,6 +174,11 @@ tgroup=sdusers
 tuser=$USER
 cwd=$(pwd)
 sdsysdir="/usr/local/sdsys"
+# 02 Oct 26  THE API PORT IS 4247, FIXED (owner, 2 Oct 2026: "make ports 4247 and
+#            4249 -- do not allow adjustable ports").  4243 is OpenQM's and
+#            ScarletDME's, 4245 upstream SD's; SD Core's full products take 4247
+#            and both Solos 4249, so all of them can run on one computer.
+sd_api_port=4247
 
 # Define color codes as variables
 # note 90–97 Set bright foreground color aixterm (not in standard)
@@ -294,15 +299,15 @@ esac
 # --------------------
 # Remote-access prompts (owner, 10 Sep 2026, approach B).  Asked up front so the
 # rest of the install runs unattended.  Both default to NO: without them, sshd
-# stays as the box has it and the API listens on 127.0.0.1:4243 (local only).
+# stays as the box has it and the API listens on 127.0.0.1:$sd_api_port (local only).
 # "Allow ssh access"  y -> enable sshd at boot + ufw allow 22/tcp.
-# "Allow API access"  y -> rebind the API listener to 0.0.0.0:4243 + ufw allow 4243/tcp.
+# "Allow API access"  y -> rebind the API listener to 0.0.0.0:$sd_api_port + ufw allow $sd_api_port/tcp.
 allow_ssh=n
 allow_api=n
 printf "%b\n" "$YELLOW"
 read -r -p "Allow ssh access from other computers? enables sshd at boot, opens port 22 (y/N) " yn_ssh
 case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
-read -r -p "Allow API access from other computers? opens TCP port 4243 (y/N) " yn_api
+read -r -p "Allow API access from other computers? opens TCP port $sd_api_port (y/N) " yn_api
 case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
 printf "%b\n" "$NC"
 # --------------------
@@ -907,17 +912,17 @@ if [ -d  "$SYSTEMDPATH" ]; then
 fi
 #
 # Remote-access prompts (owner, 10 Sep 2026, approach B) - API listener bind.
-# The shipped sdclient.socket listens on the Unix socket plus 127.0.0.1:4243
+# The shipped sdclient.socket listens on the Unix socket plus 127.0.0.1:4247
 # (local only).  If API access was requested, rebind the TCP listener to all
 # interfaces and open the firewall; otherwise leave it local and add no rule.
 # daemon-reload so the started socket below picks up the deployed/edited unit.
 if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
     if [ "$allow_api" = "y" ]; then
-        echo "Allowing API access from other computers (TCP 4243)."
-        sudo sed -i 's#^ListenStream=127\.0\.0\.1:4243#ListenStream=0.0.0.0:4243#' "$SYSTEMDPATH/sdclient.socket"
-        if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 4243/tcp || true; fi
+        echo "Allowing API access from other computers (TCP $sd_api_port)."
+        sudo sed -i "s#^ListenStream=127\\.0\\.0\\.1:$sd_api_port#ListenStream=0.0.0.0:$sd_api_port#" "$SYSTEMDPATH/sdclient.socket"
+        if [ "$have_ufw" -eq 1 ]; then sudo ufw allow "$sd_api_port/tcp" || true; fi
     else
-        echo "API access is local-only (listener bound to 127.0.0.1:4243)."
+        echo "API access is local-only (listener bound to 127.0.0.1:$sd_api_port)."
     fi
     sudo systemctl daemon-reload
 fi
@@ -1762,16 +1767,16 @@ else
 fi
 if [ "$allow_api" = "y" ]; then
     if [ "$have_ufw" -eq 1 ]; then
-        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 and a ufw"
-        echo "  allow rule for 4243 was added.  Clients still enter an SD user/password."
+        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port and a ufw"
+        echo "  allow rule for $sd_api_port was added.  Clients still enter an SD user/password."
     else
-        echo "API access: OPEN - the network API listens on 0.0.0.0:4243 (no ufw found;"
-        echo "  open TCP 4243 with this distribution's own firewall tool if it has one)."
+        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port (no ufw found;"
+        echo "  open TCP $sd_api_port with this distribution's own firewall tool if it has one)."
         echo "  Clients still enter an SD user/password."
     fi
 else
-    echo "API access: LOCAL only - the API listens on 127.0.0.1:4243; a remote"
-    echo "  client reaches it by tunnelling over ssh: ssh -L 4243:127.0.0.1:4243 <host>."
+    echo "API access: LOCAL only - the API listens on 127.0.0.1:$sd_api_port; a remote"
+    echo "  client reaches it by tunnelling over ssh: ssh -L $sd_api_port:127.0.0.1:$sd_api_port <host>."
 fi
 echo "SD password for $tuser_lc (remote access through the SD API): $sd_pw_state."
 case "$sd_pw_state" in

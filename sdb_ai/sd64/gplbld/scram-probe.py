@@ -524,7 +524,7 @@ def run_replay(a, pw):
 def main(argv):
     ap = argparse.ArgumentParser(description="One SCRAM-SHA-256 SD API session.")
     ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=4243)
+    ap.add_argument("--port", type=int, default=4247)   # the fixed API port since 2 Oct 26
     ap.add_argument("--unix", default="",
                     help="connect to this Unix socket path instead of host:port")
     ap.add_argument("--user", required=True)
