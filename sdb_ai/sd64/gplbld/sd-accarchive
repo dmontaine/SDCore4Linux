@@ -23,6 +23,17 @@
 #   sd-accarchive extract ZIP TARGET
 #       Unpacks the whole archive into TARGET, which must not exist.  Run by the
 #       SDSYS session itself, without root.  Prints one COUNT line per account.
+#   sd-accarchive swap MARKER
+#       SD CORE SOLO ONLY: the start-up half of an own-account restore (agreed
+#       with SD Core for Windows, mail 2026-10-02T1000/1045).  Run by sd -start
+#       before the shared segment exists, so no session can be in the account.
+#       MARKER is <accounts root>/.sdrestore.pending, written by RESTORE.ACCOUNT:
+#         format: 1 / staged tree / target directory / account / created / zip
+#       It moves the target aside to <accounts root>/.sdrestore.previous
+#       (replacing an older one), moves the staged tree into place, then - and
+#       only then - deletes the marker and the rest of the staging directory.
+#       Any failure puts the old tree back and keeps the marker.  Every step is
+#       appended to <accounts root>/sdrestore.log; one outcome line on stdout.
 #
 #   Exit 0 done, 2 refused (one "sd-accarchive: REFUSED - <why>" line on
 #   stderr), 3 an I/O failure part way (same shape, "FAILED").
@@ -326,9 +337,62 @@ def do_extract(zpath, target):
             print("COUNT %s %d %d %d" % (acct, t["files"], t["bytes"], t["dirs"]))
 
 
+def do_swap(marker):
+    """The start-up swap (SD Core Solo).  Exit 0 swapped, 3 failed and rolled
+    back (marker kept), 2 refused (the marker is not one this program wrote)."""
+    import shutil
+    if not os.path.isabs(marker) or os.path.basename(marker) != ".sdrestore.pending":
+        raise Refused("'%s' is not an absolute <accounts root>/.sdrestore.pending" % marker)
+    root = os.path.dirname(marker)
+    logp = os.path.join(root, "sdrestore.log")
+
+    def log(line):
+        with open(logp, "a") as f:
+            f.write("%s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), line))
+
+    lines = open(marker, encoding="ascii", errors="replace").read().split("\n")
+    if len(lines) < 4 or lines[0].strip() != "format: 1":
+        log("REFUSED %s: not a format-1 marker" % marker)
+        raise Refused("%s is not a format-1 marker" % marker)
+    staged, target, name = lines[1].strip(), lines[2].strip(), lines[3].strip()
+    m = re.match(r"^%s/\.sdrestore\.(\d+)/accounts/([^/]+)$" % re.escape(root), staged)
+    if not m or m.group(2) != name or not NAME_RE.match(name):
+        log("REFUSED: staged tree %r is not %s/.sdrestore.<n>/accounts/%s" % (staged, root, name))
+        raise Refused("the staged tree %r is not %s/.sdrestore.<n>/accounts/%s" % (staged, root, name))
+    if os.path.dirname(os.path.dirname(target)) != root or os.path.basename(target) != name:
+        log("REFUSED: target %r is not %s/<dir>/%s" % (target, root, name))
+        raise Refused("the target %r is not %s/<dir>/%s" % (target, root, name))
+    for p in (staged, target):
+        if os.path.islink(p) or not os.path.isdir(p):
+            log("REFUSED: %s is not a directory" % p)
+            raise Refused("%s is not a directory" % p)
+    stage = os.path.dirname(os.path.dirname(staged))
+    prev = os.path.join(root, ".sdrestore.previous")
+
+    log("SWAP %s -> %s (from %s, restored %s)" % (staged, target, lines[5].strip() if len(lines) > 5 else "?",
+                                                   lines[4].strip() if len(lines) > 4 else "?"))
+    if os.path.lexists(prev):
+        shutil.rmtree(prev)
+        log("removed the older %s" % prev)
+    os.rename(target, prev)
+    log("moved %s aside to %s" % (target, prev))
+    try:
+        os.rename(staged, target)
+    except OSError as e:
+        os.rename(prev, target)
+        log("FAILED putting %s in place (%s); %s put back; marker kept" % (staged, e.strerror, target))
+        raise Failed("the restored tree could not be put in place (%s); the account is unchanged" % e.strerror)
+    log("moved %s into place" % staged)
+    os.remove(marker)
+    shutil.rmtree(stage, ignore_errors=True)
+    log("DONE: marker and %s removed; the previous tree is %s" % (stage, prev))
+    print("RESTORED %s from the pending restore; the previous tree is kept at %s" % (target, prev))
+
+
 def main(argv):
+    usage = "usage: pack NAME=DIR... | count DIR | extract ZIP TARGET | swap MARKER"
     if len(argv) < 2:
-        raise Refused("usage: pack NAME=DIR... | count DIR | extract ZIP TARGET")
+        raise Refused(usage)
     mode, args = argv[1], argv[2:]
     if mode == "pack":
         do_pack(args)
@@ -336,8 +400,10 @@ def main(argv):
         do_count(args[0])
     elif mode == "extract" and len(args) == 2:
         do_extract(args[0], args[1])
+    elif mode == "swap" and len(args) == 1:
+        do_swap(args[0])
     else:
-        raise Refused("usage: pack NAME=DIR... | count DIR | extract ZIP TARGET")
+        raise Refused(usage)
 
 
 if __name__ == "__main__":

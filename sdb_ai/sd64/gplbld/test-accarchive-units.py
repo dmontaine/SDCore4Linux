@@ -231,8 +231,69 @@ def suite(tool, work):
         row("refuse", "pack refuses " + label, rc == 2 and want in err and out == b"",
             ["$ " + " ".join(cmd[1:]), "  -> exit %d %r, %d bytes on stdout" % (rc, err.strip(), len(out))])
 
+    swap_suite(tool, work)
+
+
+def swap_suite(tool, work):
+    """SD Core Solo's start-up swap.  A good marker swaps and cleans up; a bad
+    one moves NOTHING and keeps the marker."""
+    def fixture(tag, staged_rel="/.sdrestore.5/accounts/zz", target_rel="/user_accounts/zz", fmt="format: 1",
+                make_staged=True):
+        root = os.path.join(work, "swap-" + tag)
+        os.makedirs(os.path.join(root, "user_accounts", "zz"))
+        with open(os.path.join(root, "user_accounts", "zz", "data"), "w") as f:
+            f.write("OLD")
+        if make_staged:
+            os.makedirs(os.path.join(root, ".sdrestore.5", "accounts", "zz"))
+            with open(os.path.join(root, ".sdrestore.5", "accounts", "zz", "data"), "w") as f:
+                f.write("NEW")
+            with open(os.path.join(root, ".sdrestore.5", "manifest.txt"), "w") as f:
+                f.write("format: 1\n")
+        marker = os.path.join(root, ".sdrestore.pending")
+        with open(marker, "w") as f:
+            f.write("%s\n%s%s\n%s%s\nzz\n2026-10-02 10:00:00\n/x/SD-h-zz.zip\n" % (fmt, root, staged_rel, root, target_rel))
+        return root, marker
+
+    def read(p):
+        try:
+            return open(p).read()
+        except OSError:
+            return None
+
+    root, marker = fixture("good")
+    rc, out, err, cmd = run(tool, ["swap", marker])
+    tgt, prev = os.path.join(root, "user_accounts", "zz", "data"), os.path.join(root, ".sdrestore.previous", "data")
+    log = read(os.path.join(root, "sdrestore.log")) or ""
+    row("allow", "swap: the staged tree goes in, the old one to .sdrestore.previous, marker and staging gone",
+        rc == 0 and read(tgt) == "NEW" and read(prev) == "OLD" and not os.path.exists(marker)
+        and not os.path.exists(os.path.join(root, ".sdrestore.5")) and "DONE" in log and b"RESTORED" in out,
+        ["$ " + " ".join(cmd[1:]), "  -> exit %d out=%r err=%r" % (rc, out.decode().strip(), err.strip()),
+         "  target=%r previous=%r marker kept=%s log tail=%r" % (read(tgt), read(prev), os.path.exists(marker),
+                                                                 log.strip().splitlines()[-1:] )])
+
+    bad = [
+        ("a staged tree outside .sdrestore.<n>", dict(staged_rel="/elsewhere/zz"), "is not"),
+        ("a target outside the accounts root", dict(target_rel="/../../etc/zz"), "the target"),
+        ("a marker of another format", dict(fmt="format: 2"), "not a format-1 marker"),
+        ("a staged tree that is not there", dict(make_staged=False), "is not a directory"),
+    ]
+    for i, (label, kw, want) in enumerate(bad):
+        root, marker = fixture("bad%d" % i, **kw)
+        if kw.get("staged_rel") == "/elsewhere/zz":
+            os.makedirs(os.path.join(root, "elsewhere", "zz"))
+        rc, out, err, cmd = run(tool, ["swap", marker])
+        tgt = os.path.join(root, "user_accounts", "zz", "data")
+        row("refuse", "swap refuses " + label + "; nothing moves, the marker stays",
+            rc == 2 and want in err and read(tgt) == "OLD" and os.path.exists(marker)
+            and not os.path.exists(os.path.join(root, ".sdrestore.previous")),
+            ["$ " + " ".join(cmd[1:]), "  -> exit %d %r; target=%r marker kept=%s" % (rc, err.strip(), read(tgt),
+                                                                                 os.path.exists(marker))])
+
 
 MUTANTS = [
+    ("swap staged check gone", 'if not m or m.group(2) != name or not NAME_RE.match(name):', 'if False:'),
+    ("swap target check gone", 'if os.path.dirname(os.path.dirname(target)) != root or os.path.basename(target) != name:',
+     'if False:'),
     ("'..' allowed", 'if any(s in ("", ".", "..") for s in segs):', 'if any(s in ("",) for s in segs):'),
     ("symlinks followed", "if stat.S_ISLNK(st.st_mode):", "if False:"),
     ("existing target reused", "if os.path.lexists(target):", "if False:"),
