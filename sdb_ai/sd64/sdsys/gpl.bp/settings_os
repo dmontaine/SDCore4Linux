@@ -1,0 +1,126 @@
+* SETTINGS_OS
+* SETTINGS.REPORT's operating-system sections, SD Core for Linux.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50 (per-OS helper; signature and the split of the
+*              report agreed with SD Core for Windows by mail, 2026-10-01T1210:
+*              the shared verb prints what SD holds, this prints what the OS
+*              holds, sd.conf included).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !settings_os(lines, err)
+*
+*    lines: the report text, one line per field, each section headed [name].
+*    A section with nothing to say is left out.  NEVER A SECRET: no key, no
+*    password hash, nothing from $cred or /etc/shadow - the API certificate's
+*    fields come from "sd-elevate tls-show", which runs openssl x509 -noout.
+*
+*    [sd.conf]   the configuration file SD read (SD_CONFIG, else /etc/sd.conf)
+*    [ssh]       sshd's Port / AllowGroups / Match / ForceCommand lines, and
+*                REMOTE.SSH's own report (sd-elevate remote-ssh show)
+*    [api]       REMOTE.API's report and the API certificate's fields
+*    [groups]    the members of sdusers, sdssh and sdapi
+*    [service]   whether sd.service and sdclient.socket are enabled / active
+*    [sudoers]   whether /etc/sudoers.d/sdcore is present
+*
+*    A command that fails is reported in its section as such, with its status,
+*    rather than leaving the section looking empty.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine settings_os(lines, err)
+$catalog !settings_os
+
+$include int$keys.h
+$include accos.h
+
+   lines = ''
+   err = ''
+
+* [sd.conf]
+   conf = env('SD_CONFIG')
+   if conf = '' then conf = '/etc/sd.conf'
+   sec = ''
+   openseq conf to f then
+      loop
+         readseq line from f else exit
+         sec<-1> = line
+      repeat
+      closeseq f
+   end else
+      sec<-1> = conf:': cannot be read (status ':status():')'
+   end
+   hdr = '[sd.conf] ':conf ; gosub add.section
+
+* [ssh]
+   cmd = "grep -H -i -E '^[[:space:]]*(Port|AllowGroups|Match|ForceCommand)[[:space:]]' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null"
+   gosub run.cmd
+   sec = out
+   cmd = ACCOS$ELEVATE:' remote-ssh show 2>&1'
+   gosub run.cmd
+   sec<-1> = out
+   hdr = '[ssh]' ; gosub add.section
+
+* [api]
+   cmd = ACCOS$ELEVATE:' remote-api show 2>&1'
+   gosub run.cmd
+   sec = out
+   cmd = ACCOS$ELEVATE:' tls-show 2>&1'
+   gosub run.cmd
+   sec<-1> = out
+   hdr = '[api]' ; gosub add.section
+
+* [groups]
+   cmd = 'getent group sdusers sdssh sdapi 2>&1'
+   gosub run.cmd
+   sec = out
+   hdr = '[groups]' ; gosub add.section
+
+* [service]
+   sec = ''
+   for u = 1 to 2
+      unit = if u = 1 then 'sd.service' else 'sdclient.socket'
+      cmd = 'systemctl is-enabled ':unit:' 2>&1'
+      gosub run.cmd
+      en = out<1>
+      cmd = 'systemctl is-active ':unit:' 2>&1'
+      gosub run.cmd
+      sec<-1> = unit:': ':en:', ':out<1>
+   next u
+   hdr = '[service]' ; gosub add.section
+
+* [sudoers]
+   cmd = 'test -e /etc/sudoers.d/sdcore && echo /etc/sudoers.d/sdcore: present || echo /etc/sudoers.d/sdcore: absent'
+   gosub run.cmd
+   sec = out
+   hdr = '[sudoers]' ; gosub add.section
+   return
+
+* ======================================================================
+* run.cmd - cmd in, out (fields) out; a failure says so with its status.
+run.cmd:
+   out = ''
+   os.execute cmd capturing out
+   stat = os.error()
+   if out[len(out),1] = @fm then out = out[1, len(out) - 1]
+   if stat # 0 and out = '' then out = '(exit status ':stat:')'
+   return
+
+* add.section - hdr and sec in; appended to lines if sec has anything.
+add.section:
+   if trim(convert(@fm, '', sec)) # '' then
+      if lines # '' then lines<-1> = ''
+      lines<-1> = hdr
+      lines<-1> = sec
+   end
+   return
+
+end
+
+* END-CODE

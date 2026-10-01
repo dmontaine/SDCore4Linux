@@ -18,6 +18,11 @@
 * 
 * 
 * START-HISTORY:
+* 01 Oct 26 dm S.50: the verb is now the sentence parser only.  Everything from
+*               the register check on moved to !create_account (gpl.bp
+*               create_account), which RESTORE.ACCOUNT calls with settings
+*               (createacc.h, agreed with SD Core for Windows).  The words
+*               accepted and the messages shown are unchanged.
 * 19 Sep 26 dm set.owner single-quotes what it hands the shell.  "$hold" in a
 *               path was expanded away, so a sdsys session's CREATE.ACCOUNT
 *               chowned the account directory itself and then could not create
@@ -168,15 +173,13 @@ $include keys.h
 $include int$keys.h
 $include parser.h
 $include err.h
-* 20240219 mab user must be member of sdusers  
-deffun is_grp_member(user,group) calling '!is_grp_member'
-* rev 0.9.0 *
-deffun is_group(group) calling '!is_group'
-deffun is_user(uname) calling '!is_user'
-deffun create_user(uname) calling '!create_user'
-deffun set_passwd(uname)  calling '!set_passwd'
-deffun valid_os_name(name) calling '!valid_os_name'
-deffun valid_os_path(path) calling '!valid_os_path'
+$include createacc.h
+
+* 01 Oct 26 dm - S.50: THIS VERB NOW ONLY READS THE SENTENCE.  Everything from the
+*   register check on is !create_account, so RESTORE.ACCOUNT can make a missing
+*   account without building a sentence; the settings it is given are exactly
+*   what the words below set (createacc.h).  The comments that explained each
+*   step moved with the code.
 
    prompt ''
 
@@ -184,604 +187,65 @@ deffun valid_os_path(path) calling '!valid_os_path'
    if not(kernel(K$ADMINISTRATOR, -1)) then
       stop sysmsg(2001)  ;* Command requires administrator privileges
    end
-      
-* we run as root, and the root umask is usually 022, that will not work for us
-   if umask(002) then null
 
    parser = "!PARSER"
-   no.query = @false
-
-* 20 Sep 26 dm - S.29, THE ROUTE KEYWORD AND ITS DEFAULT (owner, 18/19 Sep
-*   2026, through the port: "every non-sdsys account has the potential to have
-*   ssh and api access by default, but it is the admins choice if it should
-*   stay on").  Both routes are ON unless a keyword narrows them, so the
-*   installer's ATTACH line needs no keyword and reads the same on both ports.
-*   ACCESS.GIVEN IS KEPT AND IS NOT REDUNDANT (the port's warning, its 68):
-*   NONE and silence both end with no keyword to act on, but they are not the
-*   same request - without the flag, NONE could not be said at all.
-   access.ssh = @true
-   access.api = @true
-   access.given = @false
+   settings = ''
 
    @system.return.code = -ER$ARGS     ;* Preset for argument errors
 
-
-   openpath @sdsys:@ds:'accounts' to acc.f else
-      @system.return.code = -status()
-      stop sysmsg(6000) ;* Cannot open ACCOUNTS file in SDSYS account
-   end
-
-
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb create-account
-   * 20240219 mab dflt user and group parent directory for accounts
-   * Get next token, could be USER, GROUP or account name
-
    call @parser(PARSER$GET.TOKEN, token.type, acc.type, keyword)
-   *
-   uid = ''
-   group_name = ''   ;* will be set to callers entered group name on group create, no case changes
-* 11 Sep 26 dm - ADOPT attaches an SD account to a Linux user that ALREADY
-*   EXISTS instead of creating one.  PORT_ADOPTION 15, the port's CREATEA of
-*   14 and 21 Aug 2026.  See more.args for what gates it.
-   attach = @false
-* 11 Sep 26 dm - THE ONE-SHOT MARKER THAT MAKES ADOPT INSTALL-ONLY, the port's
-*   of 21 Aug 2026.  installsdai.sh writes this file immediately before running
-*   the verb and removes it again afterwards; more.args accepts ADOPT only
-*   while it is there, and deletes it on acceptance.
-*
-*   ***K$INTERNAL IS NOT ENOUGH ON ITS OWN AND THE PORT LEARNED THAT THE HARD
-*   WAY.***  Here -internal is behind check_admin() (sd.c:351), so it already
-*   means root - but root is exactly who an administrator becomes with sudo,
-*   and the owner's rule is that the system AS DELIVERED enforces that SD
-*   account setup happens in SD.  A marker makes the door open for one account
-*   for one command instead of standing open for anybody who reaches -internal.
-*
-*   ***IT IS NOT SHIPPED AND MUST NEVER BE.***  A marker in the source tree
-*   would be staged into every install and leave the door open permanently,
-*   which is the state this replaces.
-*
-*   ASSIGNED HERE rather than in more.args because BCOMP's "is not assigned a
-*   value" is what the bootstrap fails on, and more.args is shared by the GROUP
-*   and OTHER arms, which never set acc.uname.  The USER arm overwrites it with
-*   '$attach.<name>' as soon as the name is parsed, so one marker authorises one
-*   account rather than the verb in general; nothing writes this bare name, so
-*   it cannot exist on a delivered system.
+   acc.type = upcase(acc.type)
+
+* 11 Sep 26 dm - THE ONE-SHOT MARKER THAT MAKES ATTACH INSTALL-ONLY (PORT_ADOPTION
+*   15).  installsdai.sh writes @sdsys/$attach.<name> immediately before running
+*   the verb.  It is named per account as soon as the name is parsed, so one
+*   marker authorises one account; nothing writes the bare name.  ***IT IS NOT
+*   SHIPPED AND MUST NEVER BE.***  more.args accepts ATTACH only while the marker
+*   exists and the session is -internal; !create_account checks both again and
+*   consumes the marker.
    attach.marker = @sdsys:@ds:'$attach'
    begin case
-   case upcase(acc.type) = 'USER'
-*    CREATE.ACCOUNT USER <user acct name>  {NO.QUERY}   
-     pathname = CONFIG('USRDIR')
-     if pathname = '' then pathname = '/home/sd/user_accounts'
-     call @parser(PARSER$GET.TOKEN, token.type, acc.uname, keyword)
-     if token.type = PARSER$END then stop
-* 11 Sep 26 dm - PORT_ADOPTION 15.  The marker names the account it authorises,
-*   and it is DOWNCASED because that is the Linux user name SD would settle on
-*   (the is_user cases below do the same) and because §M makes lower case the
-*   standard.  It has to be set here: after the name is known and before
-*   more.args, which is where ADOPT is read.
-     attach.marker = @sdsys:@ds:'$attach.':downcase(acc.uname)
-     * any other args? (specifically no.query)
-     * rem we may abort in this routine
-     gosub more.args
-* 18 Sep 26 dm - TEARDOWN (S.26).  The adopted account is a plain account now;
-*   the installing user administers as the sdsys OS user from a local session.
-
-     * Is the user a valid os user?
-     * Check reserved names then
-     * Check user name as entered, then force to lower case and re check
-     begin case
-     
-     * is user reserved?
-     case upcase(acc.uname) = 'ROOT' 
-       @system.return.code = -ER$ARGS
-       stop sysmsg(6052) ;* User name is invalid
-     
-     case upcase(acc.uname) = 'SDSYS' 
-       @system.return.code = -ER$ARGS
-       stop sysmsg(6052) ;* User name is invalid
-      
-     case upcase(acc.uname) = 'SDUSERS' 
-       @system.return.code = -ER$ARGS
-       stop sysmsg(6052) ;* User name is invalid
-          
-* 11 Sep 26 dm - PORT_ADOPTION 15.  ***A PRE-EXISTING LINUX USER IS ADOPTED OR
-*   REFUSED, NEVER TAKEN SILENTLY.***  Owner's rule, 10 Sep 2026: all SD users
-*   are created WITHIN SD, and the ONE exception is the installer's own user,
-*   adopted at install time.  These two branches used to say `null` and take
-*   the account - so "create.account user <anybody-with-a-login>" quietly
-*   attached an SD account to somebody else's existing Linux login.  The port
-*   removed the same two branches on 14 Aug 2026 (its CREATEA:483) and its note
-*   is worth carrying: there the verb refused only BY ACCIDENT, because
-*   !is_user was broken on MSYS2, so repairing the lookup alone would have
-*   turned an accidental refusal into a silent adoption.
-*
-*   MERGED INTO ONE BRANCH, as the port's, because the answer is now the same
-*   either way and the downcase only decides which spelling is used.
-     case is_user(acc.uname) or is_user(downcase(acc.uname))
-       if attach then
-         * The one sanctioned exception, and it is not reachable from a
-         * console: ATTACH needs -internal AND a one-shot marker, which means
-         * the install path.  No Linux user is created and no password is set -
-         * the account is already the person's.
-         if is_user(acc.uname) else acc.uname = downcase(acc.uname)
-       end else
-         @system.return.code = -ER$ARGS
-         stop sysmsg(10038, acc.uname) ;* Linux user %1 already exists
-       end
-
-* 11 Sep 26 dm - ADOPT NAMED A LINUX USER THAT IS NOT THERE, so there is
-*   nothing to adopt.  Creating one instead would be the opposite of what was
-*   asked, and it is the branch below that would otherwise do it.
-     case attach
-       @system.return.code = -ER$ARGS
-       stop sysmsg(6074)  ;*    Invalid user name
-
-     case no.query
-* 11 Sep 26 dm - THE REASON WAS WRONG, the port's fix of 14 Aug 2026.  This
-*   said "Invalid user name" (6074), but by this point the name is fine - what
-*   cannot work is NO.QUERY, because creating a Linux user means setting its
-*   password and SET_PASSWD prompts.  10039 is the port's number and meaning.
-         @system.return.code = -ER$ARGS
-         stop sysmsg(10039, acc.uname)  ;* Cannot create user %1 with NO.QUERY
-
-     case 1
-       * not a valid os user, are we configured to auto create os user?
-* 10 Sep 26 dm - CONFORM TO THE PORT (its CREATEA, 14 Aug 2026): the
-*   config('CREATUSR') gate is gone.  SD has accounts, not accounts-and-users as
-*   QM/ScarletDME do - creating an account IS creating the OS account, so there is
-*   nothing to opt in to.  CREATUSR still parses (config.c) and CONFIG still
-*   prints it; nothing consults it here any more.  (no.query with no OS user is
-*   still refused above - creating one needs the interactive password prompt.)
-       * sd convention is os user names are lowercase, if you don't want this, pre create the os user
-         acc.uname = downcase(acc.uname)
-		 * Check INVERT/NOINVERT STATUS (1=INVERT on)
-         PVAL = SYSTEM(1001)
-         IF PVAL = 1 THEN
-           CRT "Warning: **** Case Inversion is not active during password entry! ****"   
-         END
-         if not(create_user(acc.uname)) then
-           * create user failed
-           * 10 Sep 26 dm - the minus was missing (port's 21 Aug fix): a refused
-           *   create left +6, indistinguishable from "6 things done".
-           @system.return.code = -ER$NOT.CREATED
-           stop sysmsg(10006,STATUS()) ;* Create User Failed, OS Error: %1
-         end else
-           crt sysmsg(10007,acc.uname)  ;* 'User ':acc.uname:' Created' 
-           * user created set passowrd
-PW.TRY.AGAIN:
-           if not(set_passwd(acc.uname)) then
-* 11 Sep 26 dm - SAY WHY (port PRE_RELEASE_FIXES 22).  !set_passwd already
-*   left the reason in status() and this discarded it, so every failure read
-*   the same.  status() is read IMMEDIATELY, before anything can reset it.
-*   The Linux cases, and why they are these and not the port's four:
-*     6  - !set_passwd's own refusal, the session is not an administrator.
-*          Unreachable from here (this verb is gated at the top) and mapped
-*          anyway so 10120 keeps the port's meaning.
-*     2  - the name was refused: !set_passwd's valid_os_name check, or
-*          sd-elevate's refusal (it exits 2 for root, sdsys and every account
-*          below UID_MIN).  passwd's own 2, "invalid combination of options",
-*          cannot arise from the fixed argument list.
-*     10 - passwd(1): "an error was returned by pam" (man 1 passwd).  That one
-*          code covers both "the two entries did not match" and "the policy
-*          refused it", so the port's 10118/10119 cannot be told apart here and
-*          10910 says both.
-*     any other - the number, verbatim (10121).
-*   2 and 6 cannot succeed on a retry, so no retry is offered for them.
-              pw.stat = status()
-              pw.retry = @true
-              begin case
-                 case pw.stat = 6
-                    crt sysmsg(10120) ;* Not an SD administrator - retrying will not help
-                    pw.retry = @false
-                 case pw.stat = 2
-                    crt sysmsg(10909, acc.uname) ;* SD may not set this user's password
-                    pw.retry = @false
-                 case pw.stat = 10
-                    crt sysmsg(10910) ;* Not accepted: mismatch, or the password rules
-                 case 1
-                    crt sysmsg(10121, pw.stat) ;* The password could not be set (status %1)
-              end case
-              if pw.retry then
-                 crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (Y/N)'
-                 input yn
-                 if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
-              end
-           end
-         end
-     end case
-     
-     
-     * save uid and gid for set.owner of USER account
-* 19 Sep 26 dm - THE ACCOUNT NAME IS FOLDED, THE LINUX USER IS NOT (port's
-*   RELEASE_1.1 67).  Only an attached user can reach here unfolded - every
-*   other path downcased acc.uname above - and it must keep the Linux user's
-*   own spelling for chown and group membership.  The account name, its
-*   directory and its sdu_ group follow the lower-case rule, so the register
-*   key (downcased below) names the directory it points at.
-     uid = acc.uname
-     gid = "sdu_":downcase(acc.uname)
-     pathname := @ds:downcase(acc.uname)
-     acc.name = downcase(acc.uname)
-     
-
-   case upcase(acc.type) = 'GROUP' 
-*    CREATE.ACCOUNT GROUP <grp acct name>  {NO.QUERY}     
-     pathname = CONFIG('GRPDIR')
-     if pathname = '' then pathname = '/home/sd/group_accounts'
+   case acc.type = 'USER'
+*    CREATE.ACCOUNT USER <user acct name> {SSH | API | BOTH | NONE} {NO.QUERY}
      call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
      if token.type = PARSER$END then stop
-     acc.name = downcase(acc.name)   ;* 13 Sep 26 - lower case, directory and register key alike
-     pathname := @ds:acc.name
-     if upcase(acc.name) = 'SDUSERS' then
-       @system.return.code = -ER$ARGS
-       stop sysmsg(2202) ;* Account name is invalid
-     end
-     * any other args? (specifically no.query)
-     * rem we may abort in this routine
+     attach.marker = @sdsys:@ds:'$attach.':downcase(acc.name)
      gosub more.args
-* 20 Sep 26 dm - S.29: A GROUP ACCOUNT HAS NO ROUTES TO NARROW.  Nobody signs
-*   in as one - it is reached with LOGTO from an account that did - so a route
-*   keyword here would set a membership on a Linux user that does not exist.
-*   Refused by name (10087, the port's number and text) rather than ignored,
-*   because silently dropping a keyword somebody typed hides the misreading.
-     if access.given then
-       @system.return.code = -ER$ARGS
-       stop sysmsg(10087, acc.name) ;* %1 is a group account and has no remote access; reach it with LOGTO
-     end
 
-*
-   case upcase(acc.type) = 'OTHER'  
-*  CREATE.ACCOUNT OTHER <acc name> <path> {NO.QUERY} 
-     * get account name
+   case acc.type = 'GROUP'
+*    CREATE.ACCOUNT GROUP <grp acct name> {NO.QUERY}
      call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
      if token.type = PARSER$END then stop
-     if upcase(acc.name) = 'SDUSERS' then
-       @system.return.code = -ER$ARGS
-       stop sysmsg(2202) ;* Account name is invalid
-     end 
-     * Get pathname
+     gosub more.args
+
+   case acc.type = 'OTHER'
+*  CREATE.ACCOUNT OTHER <acc name> <path> {NO.QUERY}
+     call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
+     if token.type = PARSER$END then stop
      call @parser(parser$get.token, token.type, pathname, keyword)
      if token.type = PARSER$END then stop
-     pathname = trim(pathname)
-     * any other args? (specifically no.query)
-     * rem we may abort in this routine
+     settings<CA$PATH> = trim(pathname)
      gosub more.args
-*
+
    case 1
-*   invalid command arg
-* rev 0.9.0 
     crt 'Command Syntax: CREATE.ACCOUNT USER <user name> {SSH | API | BOTH | NONE} {NO.QUERY}'
     crt '                CREATE.ACCOUNT GROUP <group name> {NO.QUERY}'
     crt '                CREATE.ACCOUNT OTHER <account name> <pathname> {NO.QUERY}'
     crt '  Without a route word a USER account gets both ssh and the API;'
     crt '  MODIFY.ACCOUNT changes it afterwards, either way.'
     @system.return.code = -ER$ARGS
-    stop 
+    stop
    end case
 
-   * Check if already exists in ACCOUNTS file.  We will need to do this
-   * again when we are ready to create the account but doing it here
-   * saves the user typing the path name before we spot the error.
-
-   read acc.rec from acc.f, downcase(acc.name) then      ;* 0275
-      @system.return.code = -ER$ACC.EXISTS
-      stop sysmsg(6002) ;* Account already exists
+   call !create_account(acc.type, acc.name, settings, err)
+   if err # '' then
+      stop sysmsg(err<1,1>, err<1,2>, err<1,3>, err<1,4>)
    end
 
-   * Validate account name
-
-   acc.name = downcase(acc.name)
-
-   if len(acc.name) > 32 or not(alpha(acc.name[1,1])) or index(acc.name, ' ', 1) then
-      stop sysmsg(6003) ;* Account name is invalid
-   end
-
-   * Validate pathname
-
-   if not(ospath(pathname, OS$PATHNAME)) then
-      stop sysmsg(6005) ;* Invalid account pathname
-   end
-
-
-   * Check if already exists in ACCOUNTS file
-
-   readu acc.rec from acc.f, acc.name locked
-      stop sysmsg(6006, status()) ;* ACCOUNTS record is locked by user xx
-   end then
-      @system.return.code = -ER$ACC.EXISTS
-      stop sysmsg(6002) ;* Account already exists
-   end
-
-   * Check parent directory exists
-
-
-   if index(pathname, @ds, 1) then
-      parent.dir = field(pathname, @ds, 1, dcount(pathname, @ds) - 1)
-      if parent.dir # '' and not(parent.dir matches "1A':") then
-         if not(ospath(parent.dir, OS$EXISTS)) then
-            @system.return.code = -ER$NO.DIR
-            stop sysmsg(6008) ;* Parent directory does not exist
-         end
-      end
-   end
-
-   pathname = ospath(pathname, OS$FULLPATH)
-
-   * Check if account directory exists
-   * rev 0.9.0 we no longer support conversion of existing directoris to sd accounts
-   * too many unknows with whether this is a non sd type account (Scarlett or other)
-
-   if ospath(pathname, OS$EXISTS) then
-      @system.return.code = -ER$NOT.CREATED
-      stop sysmsg(10009) ;* 'Cannot Create a New SD Account in an Existing Directory'
-   end else
-   * create the new account directory  
-      create.file pathname directory on error
-         @system.return.code = -ER$NOT.CREATED
-         stop sysmsg(6013) ;* Unable to create account directory
-      end
-      
-* rev 0.9.0 *
-* for all accounts set the setgid bit
-* When the bit is set for a directory, the set of files in that directory will have the same group as the group of the parent directory,
-* and not that of the user who created those files.
-* This is used for file sharing since they can be now modified by all the users who are part of the group of the parent directory.
-*
-      if upcase(acc.type) = "GROUP"  or  upcase(acc.type) = "USER" then
-        * Modified by Composer AI - 2026/06/10.
-        * Use shared !valid_os_path before OS.EXECUTE (phase 2).
-        * path.chars = '...'
-        * if pathname = '' or convert(path.chars, '', pathname) # '' then
-        if not(valid_os_path(pathname)) then
-          crt sysmsg(10011,2) ;* 'Warning unable to setgid bit on Group Folder, status: %1
-        end else
-* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper; see SET_PASSWD for why.
-*   "sudo chmod g+s" on an arbitrary path is root by another route.  sd-elevate
-*   resolves the path with realpath FIRST and refuses anything outside the
-*   accounts root, so a planted symlink cannot aim it at /usr or /etc.
-        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate setgid ":pathname
-        * --------------------
-        stat = OS.ERROR()
-        if stat = 0 then
-          crt sysmsg(10010,pathname)  ;* setgid bit set on: %1 
-        end else
-          crt sysmsg(10011,stat) ;* 'Warning unable to setgid bit on Group Folder, status: %1
-        end
-        end
-      end
-
-      
-     * rev 0.9.0  create group for the account *   
-      begin case
-      case upcase(acc.type) = "USER" 
-
-     *  is this user a member or sdusers?
-        if not(is_grp_member(acc.uname,'sdusers')) then
-         * not a member, add them
-          * Modified by Composer AI - 2026/06/10.
-          * Use shared !valid_os_name before os.execute (phase 2).
-          * os.name.chars = '...'
-          if not(valid_os_name(acc.uname)) then
-             crt sysmsg(10012,acc.uname,2) ;* Warning unable to add user to sdusers, user: %1 status: %2
-          end else
-* 09 Sep 26 dm - PRE_RELEASE 14.  Through the helper.  Argument order reverses:
-*   "addgroup <user> <group>", not "-aG <group> <user>".
-          os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdusers"
-          * --------------------
-          stat = OS.ERROR()
-          if stat = 0 then
-            crt sysmsg(10013,acc.uname)   ;* %1 added to sdusers'
-          end else
-            @system.return.code = -ER$FAILED
-            stop sysmsg(10012,acc.uname,stat) ;* Unable to add user %1 to sdusers, status: %2
-          end
-          end
-        end
-
-* 18 Sep 26 dm - TEARDOWN (S.26/S.28).  The sdadmin join is gone: there is one
-*   administrator, SDSYS, and no group confers it.
-* 20 Sep 26 dm - S.29, THE ROUTES.  Membership of sdssh and sdapi IS the
-*   route, and the default is both.  A join that FAILS is not summarised away:
-*   the account would be advertised as reachable and not be, so the status is
-*   reported (10081) and the verb stops.  The report below says what the
-*   account ended up with, in the port's words, so a person who typed no
-*   keyword still reads what they got.
-        route.stat = 0
-        if access.ssh then
-           os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdssh"
-           route.stat = OS.ERROR()
-        end
-        if route.stat = 0 and access.api then
-           os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdapi"
-           route.stat = OS.ERROR()
-        end
-        if route.stat # 0 then
-           @system.return.code = -ER$FAILED
-           stop sysmsg(10081, acc.uname, route.stat) ;* Unable to change remote access for %1, status: %2
-        end
-        begin case
-           case access.ssh and access.api
-              crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
-           case access.ssh
-              crt sysmsg(10076, acc.uname)  ;* SD routes for %1: ssh only, not the API.
-           case access.api
-              crt sysmsg(10077, acc.uname)  ;* SD routes for %1: the API only, not ssh.
-           case 1
-              crt sysmsg(10079, acc.uname)  ;* %1 has no remote access: not ssh, not the API
-        end case
-
-      *
-      * create user's sd group      
-        group_name = "sdu_":downcase(acc.uname)   ;* 19 Sep 26 folded, as gid
-        gosub create.group  
-        if not(group_success) then
-          stop
-        end
-		
-      case upcase(acc.type) = "GROUP" 
-      *
-      * create account's sd group 
-* rev 1.0-1	  
-        group_name = downcase("sdg_" : acc.name) ;* callers entered group name, force lower case with sdg_prefix
-        gosub create.group
-        if not(group_success) then
-          stop
-        end     
-      end case
-      
-      *      
-*     make the accountfolders and copy files    
-*     Note --> if there is a failure in make.account the program terminates
-*     We could end up with groups created and no acctual account
-*
-      gosub make.account
-      
-
- * 20240225 mab set file ownership for account parent dir
-      set.owner.path = pathname
-      gosub set.owner
-
-   end
-
-   * Add ACCOUNTS entry
-
-   display sysmsg(6014) ;* Adding to register of accounts...
-
-   acc.rec = ''
-   acc.rec<ACC$PATH> = pathname
-   * rev 0.9.0 add group name to ACCOUNT record
-   * group name depends on which type of ACCOUNT we are creating
-   * We do not default to ACCOUNT name because account names are (historically?) always upper case
-   * Not sure what to do about account type "OTHER" ???
-   begin case
-   case upcase(acc.type) = "USER"
-     acc.rec<ACC$GROUP> = "sdu_":downcase(acc.uname)   ;* 19 Sep 26 folded
-   case upcase(acc.type) = "GROUP"
-     acc.rec<ACC$GROUP> = group_name
-   end case
-* 18 Sep 26 dm - TEARDOWN.  No tier field and no OS-access fields are written:
-*   field 5 is the suspension flag (blank = in service), field 6 stays blank,
-*   and fields 7/8 no longer exist.
-
-   write acc.rec to acc.f, acc.name
-   close acc.f
-
-   @system.return.code = 0
    return
 
-* ======================================================================
-
-make.account:
-   * Set up VOC
-
-   display sysmsg(6015) ;* Creating VOC...
-* rev 0.9-3 Nov 25 move voc back to dynamic file
-   create.file pathname:@ds:'voc' dynamic on error
-      @system.return.code = -6
-      stop sysmsg(6016) ;* Unable to create VOC
-   end
-* 18 Sep 26 dm - THE HANDOVER COMES LAST.  set.owner used to run here, before
-*   the NEWVOC copy below - harmless when the administrator was root, but a
-*   local sdsys session (the only administrator, S.26) cannot write a file it
-*   has just given away: the session's groups were fixed before sdu_<account>
-*   existed.  Measured on the 20:38 witness cycle - Error 3018 at the copy,
-*   the account left half-created.  voc and its parts are chowned after the
-*   last record is written, at the end of this subroutine.
-
-   openpath pathname:@ds:'voc' to voc.f else
-      @system.return.code = -status()
-      stop sysmsg(6017) ;* Unable to open new VOC
-   end
-
-   openpath @sdsys:@ds:"newvoc" to newvoc.f else
-      @system.return.code = -status()
-      stop sysmsg(6018) ;* Cannot open SDSYS NEWVOC
-   end
-
-* 18 Sep 26 dm - TEARDOWN (S.25).  One VOC layer: the new account gets all of
-*   NEWVOC, the PROGRAMMER set.  The STANDARD omit filter and the
-*   administrator add layer are gone with sdsys/tier.policy, and only SDSYS's
-*   own VOC - built from the whole of VOC_TEMPLATE at install - carries the
-*   administrator verbs.
-   select newvoc.f to 11
-   loop
-      readnext id from 11 else exit
-
-      read rec from newvoc.f, id then
-* 10 Sep 26 dm - THE RECORD IS COPIED WHOLE, the port's PRE_RELEASE_FIXES 136
-*   (2 Sep 2026).  Two lines here reduced field 1 - the DESCRIPTION whose first
-*   character is the type code - to that one character, and did the same to
-*   field 3 of a K record, so every created account listed a bare "F" where
-*   SDSYS shows a sentence.  CPROC reads only voc.rec[1,1] and [1,2], so
-*   nothing needed the bare form.
-         write rec to voc.f, id
-      end
-   repeat
-
-   close newvoc.f
-
-   * Set up $COMMAND,STACK VOC entry
-
-   write 'X' to voc.f, '$command.stack'
-
-   * Create $HOLD
-
-   fn = '$hold'
-   os.name = '$hold'
-   descr = 'File for deferred prints'
-   dict = @true
-   gosub create.dir.file
-
-
-   * Create $savedlists
-
-   fn = '$savedlists'
-   os.name = '$svlists'
-   descr = 'File for saved select lists'
-   dict = @false
-   gosub create.dir.file
-
-* 20240308 mab add BP when creating new account
-  * Create BP
-
-   fn = 'bp'
-   os.name = 'bp'
-   descr = 'File for BASIC programs'
-   dict = @false
-   gosub create.dir.file
-
-
-   * Create private catalogue
-
-   display sysmsg(6019) ;* Creating private catalogue directory..."
-
-   s = pathname:@ds:'cat'
-   if not(ospath(s, OS$EXISTS)) then
-      create.file s directory on error
-         @system.return.code = -ER$NOT.CREATED
-         stop sysmsg(6020) ;* Unable to create private catalogue directory
-      end
-
- * 20240225 mab set file ownership for cat
-      set.owner.path = pathname:@ds:'cat'
-      gosub set.owner
-   end
-
- * 20240225 mab set file ownership for VOC
- * 18 Sep 26 dm - and for its parts, HERE: every write to voc.f above (the
-*   NEWVOC copy, $command.stack, the file entries from create.dir.file) is
-*   done before the handover - see the note at the top of this subroutine.
-   set.owner.path = pathname:@ds:'voc'
-   gosub set.owner
-   set.owner.path = pathname:@ds:'voc':@ds:'%0'
-   gosub set.owner
-   set.owner.path = pathname:@ds:'voc':@ds:'%1'
-   gosub set.owner
-
-
-   return
-   
 * ======================================================================
    * Check for further command arguments
 more.args:
@@ -790,220 +254,32 @@ more.args:
    until token.type = PARSER$END
       begin case
          case keyword = KW$NO.QUERY
-            no.query = @true
+            settings<CA$NO.QUERY> = 1
 
-* 18 Sep 26 dm - TEARDOWN (S.25/S.27/S.28).  The tier keywords
-*   (ADMINISTRATOR | PROGRAMMER) and the OS-access keywords (SH-ON | OS-ON)
-*   are gone; typing any of them gets the "Unexpected token" answer below.
-* 20 Sep 26 dm - S.29 BRINGS THE ROUTE WORDS BACK, OPTIONAL.  SSH, API, BOTH
-*   and NONE name the state wanted, as MODIFY.ACCOUNT's do, so the same four
-*   words mean the same thing at create time and afterwards.  Matched on token
-*   text like ATTACH and NO.QUERY above, not through the KW$ table.
+* 20 Sep 26 dm - S.29: SSH, API, BOTH and NONE name the state wanted, as
+*   MODIFY.ACCOUNT's do.  Matched on token text, not through the KW$ table.  Any
+*   of them on a GROUP account is refused by !create_account (10087).
          case upcase(token) = 'SSH'
-            access.ssh = @true  ; access.api = @false ; access.given = @true
+            settings<CA$ROUTE.SSH> = 1 ; settings<CA$ROUTE.API> = 0
          case upcase(token) = 'API'
-            access.ssh = @false ; access.api = @true  ; access.given = @true
+            settings<CA$ROUTE.SSH> = 0 ; settings<CA$ROUTE.API> = 1
          case upcase(token) = 'BOTH'
-            access.ssh = @true  ; access.api = @true  ; access.given = @true
+            settings<CA$ROUTE.SSH> = 1 ; settings<CA$ROUTE.API> = 1
          case upcase(token) = 'NONE'
-            access.ssh = @false ; access.api = @false ; access.given = @true
+            settings<CA$ROUTE.SSH> = 0 ; settings<CA$ROUTE.API> = 0
 
-* 11 Sep 26 dm - ADOPT, PORT_ADOPTION 15 and the port's :1678 byte for byte in
-*   shape.  Two gates, both required: the session must be -internal (which
-*   check_admin() already makes root-only here), and the one-shot marker for
-*   THIS account name must exist.  Accepting it consumes the marker, so a
-*   second CREATE.ACCOUNT in the same install cannot ride on the first.
-*
-*   ***THE TESTS ARE IN THE CASE CONDITION RATHER THAN INSIDE THE BRANCH, AND
-*   THAT IS THE POINT, NOT AN ACCIDENT OF LAYOUT.***  When either gate is shut
-*   the case does not match and ADOPT falls through to "Unexpected token
-*   (ADOPT)" below - the answer an invented word gets.  A refusal naming the
-*   keyword would confirm to somebody who guessed it that it exists.
-* 19 Sep 26 dm - RENAMED ATTACH, marker $attach.<name>, the Windows port's
-*   name (see the history).  ADOPT is now an ordinary unexpected token.
+* 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
+*   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word
+*   falls through to "Unexpected token (ATTACH)", the answer an invented word
+*   gets, so a refusal never confirms the keyword exists.
          case upcase(token) = 'ATTACH' and kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS)
-            attach = @true
-            void ospath(attach.marker, OS$DELETE)
+            settings<CA$ATTACH> = 1
 
          case 1
             stop sysmsg(2018, token) ;* Unexpected token (xx)
       end case
    repeat
 return
-* ======================================================================
-
-create.dir.file:
-   display sysmsg(6021, fn) ;* Creating xx...
-
-   create.file pathname:@ds:os.name directory on error
-      @system.return.code = -ER$NOT.CREATED
-      stop sysmsg(6022, fn) ;* Unable to create data part of xx
-   end
-* 20240225 mab set file ownership accordingly  
-   set.owner.path = pathname:@ds:os.name
-   gosub set.owner
-
-   begin case
-      case descr[1,1]= 'F'       ; voc.rec = descr
-      case descr # ''            ; voc.rec = 'F ' : descr
-      case 1                     ; voc.rec = 'F'
-   end case
-
-   voc.rec<2> = os.name
-
-   if dict then
-* 13 Sep 26 dm - plan M3 D3: the dictionary's name is lower case too.  Every
-*   caller now passes a lower-case os.name, and a literal '.DIC' would give
-*   $hold.DIC - a mixed name no case of the fold can reach.
-      dict.name = os.name:'.dic'
-      create.file pathname:@ds:dict.name dynamic on error
-         @system.return.code = -ER$NOT.CREATED
-         stop sysmsg(6023, fn) ;* Unable to create dictionary part of xx
-      end
-* 18 Sep 26 dm - same handover-last rule as the VOC above: the %0/%1 chowns
-*   used to sit before the @ID write and would kill it for a sdsys session.
-      openpath pathname:@ds:dict.name to dict.f else
-         @system.return.code = -status()
-         stop sysmsg(6024, fn) ;* Unable to open dictionary part of xx
-      end
-* 20240121 mab use @VM not hard coded hex fd
-      write raise('D':@VM:'0':@VM:@VM:fn:@VM:'10L':@VM:'S') to dict.f, '@ID'
-      close dict.f
-
-* 20240225 mab set file ownership accordingly
-* 20240302 mab set file ownership accordingly
-* rev 0.9.0 *
-      set.owner.path = pathname:@ds:dict.name
-      gosub set.owner
-      set.owner.path = pathname:@ds:dict.name:@ds:'%0'
-      gosub set.owner
-      set.owner.path = pathname:@ds:dict.name:@ds:'%1'
-      gosub set.owner
-
-      voc.rec<3> = dict.name
-   end
-
-   write voc.rec to voc.f, fn
-
-   return
-
-
-* ======================================================================
-* 20240225 mab set file ownership accordingly   
-* assumes:
-* set.owner.path - file path
-* acc.type - USER/GROUP/OTHER
-* acc.name - populated
-set.owner:
-
-   begin case
-      case upcase(acc.type) = 'USER'
-        null ;* uid/gid set at "case upcase(acc.type) = 'USER'" validation
-* rev 0.9.0 *        
-      case upcase(acc.type) = 'GROUP' 
-        uid='sdsys'
-        gid= group_name
-      case 1
-        uid='root'
-        gid='sdusers'
-   end case
-* 18 Sep 26 dm - THE INTRINSIC CHOWN NEEDS ROOT, AND THE ADMINISTRATOR IS NEVER
-*   ROOT (S.26).  Measured on the first fresh cycle's witness run (A4): every
-*   account created after an install came out sdsys:sdusers - six "Unable change
-*   ownership of directory ... err: 1" (EPERM) lines - because OS$CHOWN runs as
-*   the calling session, and a local sdsys session is not root.  So the
-*   privileged step goes through sd-elevate like the setgid, addgroup and
-*   groupadd calls above, and the helper re-derives the pair's legality (a
-*   person may own only its own account directory, through its own sdu_ group)
-*   rather than trusting this program.  THE INTRINSIC STAYS FOR ROOT: the
-*   install bootstrap (the IS_INSTALL CPROC's seeding) runs as root and an
-*   adopted account's user is not one the helper's whitelist would accept.
-   if system(27) = 0 then
-      chown_parm = uid:@VM:gid:@VM:set.owner.path
-      * crt 'set.owner: ':chown_parm
-      result = ospath(chown_parm,OS$CHOWN)
-* 19 Sep 26 dm - EVERY ARGUMENT IS SINGLE-QUOTED FOR THE SHELL.  Unquoted, the
-*   shell expanded "$hold" in ".../<account>/$hold" to nothing, so the helper
-*   was handed - and legally chowned - THE ACCOUNT DIRECTORY ITSELF; the sdsys
-*   session could then not create $hold.dic inside it ("Unable to create
-*   dictionary part of $hold", the third cycle's M2, 19 Sep).  $svlists and
-*   $hold.dic took the same route.  A quote inside an argument cannot be
-*   passed safely this way, so it is refused rather than guessed at.
-   end else
-      result = 0
-      if index(uid:gid:set.owner.path, "'", 1) then
-         null   ;* result stays 0: the "Unable change ownership" line below says so
-      end else
-         os.execute "sudo /usr/local/sbin/sd-elevate chown-account '" : uid : "' '" : gid : "' '" : set.owner.path : "'"
-         if OS.ERROR() = 0 then result = 1
-      end
-   end
-   if result <= 0 then
-     st = set.owner.path:' err: ':status()
-     display sysmsg(10000,st) ;* Unable change ownership of directory error %1 
-   end
-
-return
-
-* rev 0.9.0 
-*=======================================================================
-* create.group
-* group_name - name of group to create
-* acc.type   - account type (USER/GROUP)
-* acc.uname  - user name for acc.type USER
-* return group_success t/f
-*        group_stat
-* rem: stat groupadd
-* 0 success
-* 2 invalid command syntax
-* 3 invalid argument to option
-* 4 GID not unique (when -o not used)
-* 9 group name not unique
-* 10 can't update group file
-create.group:  *
- group_success = @TRUE 
-* Modified by Composer AI - 2026/06/10.
-* Use shared !valid_os_name before groupadd OS.EXECUTE (phase 2).
-* os.name.chars = '...'
-if not(valid_os_name(group_name)) then
-   group_success = @FALSE
-   return
-end
-if upcase(acc.type) = 'USER' and not(valid_os_name(acc.uname)) then
-   group_success = @FALSE
-   return
-end
-* --------------------
-*
-* does group already exist in /etc/group?
-*      
-   if not(is_group(group_name)) then 
-*
-* no, attempt to create it
-*
-* 09 Sep 26 dm - PRE_RELEASE 14, AND THIS PAIR IS A PORTABILITY FIX TOO.
-*   ***THE ARGUMENT ORDER REVERSES***: raw groupadd is "-U <members> <group>",
-*   sd-elevate is "groupadd <group> [members]".  And ***groupadd -U IS RECENT
-*   shadow-utils*** - absent on distributions this installer serves - so the
-*   helper creates the group and then adds each member with gpasswd -a, which
-*   is everywhere.  root and sdsys are legitimate members of an account group,
-*   which is why the helper permits them HERE and refuses them as targets
-*   everywhere else.
-      if upcase(acc.type) = 'USER' then
-        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys,":acc.uname
-      end else
-        OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys"
-      end
-      group_stat = OS.ERROR()
-      if group_stat = 0 then
-        crt sysmsg(10014,group_name)   ;* Group -  %1 created
-      end else
-        crt sysmsg(10015,group_name,group_stat)   ;* Unable to create group: %1 status: %2
-        group_success = @FALSE
-      end
-   end
-return
-
 
 end
 

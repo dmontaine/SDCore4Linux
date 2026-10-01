@@ -1,0 +1,97 @@
+* ACC_OS_INFO
+* What the operating system knows about an SD account, as manifest lines.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core
+*              for Windows by mail, 2026-10-01T1030 and 1115).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_info(acc.name, acc.rec, info, err)
+*
+*    info: "key: value" lines, one per field.
+*
+*    acc.name ''  - the system keys: product, host, accounts.root, sd.version.
+*    acc.name set - the account's keys, from its ACCOUNTS record (acc.rec):
+*                   type, os.user, os.group, route.ssh, route.api, and for a
+*                   GROUP account its members.
+*
+*    LINUX DETAIL.  The type comes from the register's group (sdu_ USER, sdg_
+*    GROUP, anything else OTHER), as DELETE.ACCOUNT reads it.  A route is
+*    membership of sdssh / sdapi (S.29).  A GROUP account's members are its
+*    sdg_ group's members less root and sdsys, which createa adds to every
+*    account group.  There is no os.users here, so os.sh and os.execute are
+*    never written (the Windows port writes them).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_info(acc.name, acc.rec, info, err)
+$catalog !acc_os_info
+
+$include keys.h
+$include int$keys.h
+
+deffun is_grp_member(user,group) calling '!is_grp_member'
+
+   info = ''
+   err = ''
+
+   if acc.name = '' then
+      usr = config('USRDIR')
+      if usr = '' then usr = '/home/sd/user_accounts'
+      info<-1> = 'product: linux-full'
+      info<-1> = 'host: ':downcase(field(@hostname, '.', 1))
+      info<-1> = 'accounts.root: ':field(usr, @ds, 1, dcount(usr, @ds) - 1)
+      info<-1> = 'sd.version: ':system(1012)
+      return
+   end
+
+   grp = acc.rec<ACC$GROUP>
+   begin case
+      case grp[1,4] = 'sdu_'
+         user = grp[5,999]
+         info<-1> = 'type: USER'
+         info<-1> = 'os.user: ':user
+         info<-1> = 'os.group: ':grp
+         info<-1> = 'route.ssh: ':(if is_grp_member(user, 'sdssh') then 1 else 0)
+         info<-1> = 'route.api: ':(if is_grp_member(user, 'sdapi') then 1 else 0)
+
+      case grp[1,4] = 'sdg_'
+         info<-1> = 'type: GROUP'
+         info<-1> = 'os.group: ':grp
+         if index(grp, "'", 1) then
+            err = 11013:@vm:grp
+            return
+         end
+         out = ''
+         os.execute "getent group '":grp:"'" capturing out
+         stat = os.error()
+         if stat # 0 or out<1> = '' then
+            err = 11021:@vm:grp:@vm:stat ;* Cannot read the Linux group %1
+            return
+         end
+         members = ''
+         list = field(out<1>, ':', 4)
+         n = dcount(list, ',')
+         for i = 1 to n
+            m = field(list, ',', i)
+            if m # '' and m # 'root' and m # 'sdsys' then
+               if members # '' then members := ','
+               members := m
+            end
+         next i
+         info<-1> = 'members: ':members
+
+      case 1
+         info<-1> = 'type: OTHER'
+   end case
+   return
+
+end
+
+* END-CODE

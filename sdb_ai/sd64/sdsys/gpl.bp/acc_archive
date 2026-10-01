@@ -1,0 +1,181 @@
+* ACC_ARCHIVE
+* The archive step of BACKUP.ACCOUNT / RESTORE.ACCOUNT, SD Core for Linux.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50.  One of the per-OS helpers whose name and
+*              signature are agreed with SD Core for Windows (mail 2026-10-01T1030);
+*              this body is Linux's.  The shared verbs call only the helpers.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_archive(mode, zip.path, entries, counts, err)
+*
+*    CREATE   entries: one per field, <archive name> VM <source path>.  The one
+*             entry whose archive name does not begin "accounts/" is the
+*             manifest FILE; every other is an account DIRECTORY, stored under
+*             its archive name.  zip.path must not exist.  counts: one per
+*             field in entry order, files VM bytes VM dirs of what was WRITTEN.
+*    EXTRACT  entries<1>: a target directory that must not exist; the whole
+*             archive is unpacked into it.  counts: one per account,
+*             files VM bytes VM dirs VM name.
+*    err      '' or the message number then its arguments, value-mark
+*             separated.
+*
+*    LINUX DETAIL.  CREATE runs as root through "sd-elevate backup-pack",
+*    because SDSYS cannot read every account's files: the manifest goes in on
+*    stdin and the zip comes out on stdout, both redirected by this session's
+*    own shell, so root never opens the manifest or the zip by a name this
+*    program chose.  EXTRACT runs as this session, without root - the staged
+*    tree is SDSYS's until acc_os_place hands it over.  A path holding a single
+*    quote is refused: it cannot be passed to the shell safely (CREATEA's rule).
+*
+*    Anything the archiver skipped (a symlink, a device) is named on the
+*    terminal here (11023), so the administrator sees what the backup lacks.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_archive(mode, zip.path, entries, counts, err)
+$catalog !acc_archive
+
+$include int$keys.h
+$include accos.h
+
+   err = ''
+   counts = ''
+   mode = upcase(mode)
+
+   if index(zip.path, "'", 1) then
+      err = 11013:@vm:zip.path ;* contains a single quote
+      return
+   end
+
+   begin case
+      case mode = 'CREATE'
+         gosub create.archive
+      case mode = 'EXTRACT'
+         gosub extract.archive
+      case 1
+         err = 2018:@vm:mode   ;* Unexpected token (xx)
+   end case
+   return
+
+* ======================================================================
+create.archive:
+   if ospath(zip.path, OS$EXISTS) then
+      err = 11016:@vm:zip.path  ;* already exists; a backup never overwrites
+      return
+   end
+
+   manifest.src = ''
+   pairs = ''
+   n = dcount(entries, @fm)
+   for i = 1 to n
+      aname = entries<i,1>
+      src = entries<i,2>
+      if index(src:aname, "'", 1) then
+         err = 11013:@vm:src
+         return
+      end
+      if aname[1,9] = 'accounts/' then
+         pairs := " '" : aname[10,999] : "=" : src : "'"
+      end else
+         if manifest.src # '' then
+            err = 2018:@vm:aname   ;* Linux packs exactly one file, the manifest
+            return
+         end
+         manifest.src = src
+      end
+   next i
+   if manifest.src = '' or pairs = '' then
+      err = 11015:@vm:zip.path:@vm:'':@vm:'no manifest or no account to pack'
+      return
+   end
+
+   log.path = zip.path:'.log'
+   cmd = ACCOS$ELEVATE:' backup-pack':pairs
+   cmd := " < '":manifest.src:"' > '":zip.path:"' 2> '":log.path:"'"
+   os.execute cmd
+   stat = os.error()
+
+   log.lines = ''
+   openseq log.path to log.f then
+      loop
+         readseq line from log.f else exit
+         log.lines<-1> = line
+      repeat
+      closeseq log.f
+   end
+   void ospath(log.path, OS$DELETE)
+
+   nl = dcount(log.lines, @fm)
+   for j = 1 to nl
+      if log.lines<j>[1,8] = 'SKIPPED ' then
+         crt sysmsg(11023, log.lines<j>[9,999]) ;* Not in the backup: %1
+      end
+   next j
+
+   if stat # 0 then
+      void ospath(zip.path, OS$DELETE)
+      err = 11015:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', log.lines)
+      return
+   end
+
+* The counts of what was WRITTEN, in entry order - the verb compares them with
+*   the manifest it wrote before the pack, and deletes the zip on a mismatch.
+   for i = 1 to n
+      aname = entries<i,1>
+      found = @false
+      for j = 1 to nl
+         line = log.lines<j>
+         begin case
+            case aname[1,9] = 'accounts/' and field(line, ' ', 1) = 'COUNT' and field(line, ' ', 2) = aname[10,999]
+               counts<i> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5)
+               found = @true
+            case aname[1,9] # 'accounts/' and field(line, ' ', 1) = 'MANIFEST'
+               counts<i> = 1:@vm:field(line, ' ', 2):@vm:0
+               found = @true
+         end case
+         if found then exit
+      next j
+      if not(found) then
+         void ospath(zip.path, OS$DELETE)
+         err = 11022:@vm:aname ;* The archive tool did not report %1
+         return
+      end
+   next i
+   return
+
+* ======================================================================
+extract.archive:
+   target = entries<1>
+   if target = '' or index(target, "'", 1) then
+      err = 11013:@vm:target
+      return
+   end
+   out = ''
+   os.execute ACCOS$ARCHIVER:" extract '":zip.path:"' '":target:"' 2>&1" capturing out
+   stat = os.error()
+   if stat # 0 then
+      err = 11017:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      return
+   end
+   n = dcount(out, @fm)
+   for j = 1 to n
+      line = out<j>
+      if field(line, ' ', 1) = 'COUNT' then
+         counts<-1> = field(line, ' ', 3):@vm:field(line, ' ', 4):@vm:field(line, ' ', 5):@vm:field(line, ' ', 2)
+      end
+   next j
+   if counts = '' then
+      err = 11022:@vm:zip.path
+   end
+   return
+
+end
+
+* END-CODE

@@ -1,0 +1,77 @@
+* ACC_TREE_COUNT
+* Count a directory tree the way the archive stores it, SD Core for Linux.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core
+*              for Windows by mail, 2026-10-01T1030).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_tree_count(path, files, bytes, dirs, err)
+*
+*    files and bytes count the regular files below path, dirs the directories
+*    below it (path itself is not counted).  Symlinks and special files are not
+*    counted, because the archive does not store them.
+*
+*    An account directory (directly inside USRDIR or GRPDIR) is counted as root
+*    through "sd-elevate tree-count": SDSYS cannot read every account's files,
+*    and a count that silently missed a directory it could not read would make
+*    the manifest disagree with the zip.  Anything else - a staged restore,
+*    which this session owns - is counted directly.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_tree_count(path, files, bytes, dirs, err)
+$catalog !acc_tree_count
+
+$include int$keys.h
+$include accos.h
+
+   files = 0 ; bytes = 0 ; dirs = 0 ; err = ''
+
+   if path = '' or index(path, "'", 1) then
+      err = 11013:@vm:path
+      return
+   end
+
+   usr = config('USRDIR')
+   if usr = '' then usr = '/home/sd/user_accounts'
+   grp = config('GRPDIR')
+   if grp = '' then grp = '/home/sd/group_accounts'
+   parent = field(path, @ds, 1, dcount(path, @ds) - 1)
+
+   if parent = usr or parent = grp then
+      cmd = ACCOS$ELEVATE:" tree-count '":path:"' 2>&1"
+   end else
+      cmd = ACCOS$ARCHIVER:" count '":path:"' 2>&1"
+   end
+   out = ''
+   os.execute cmd capturing out
+   stat = os.error()
+
+   found = @false
+   n = dcount(out, @fm)
+   for i = 1 to n
+      line = out<i>
+      if field(line, ' ', 1) = 'COUNT' and field(line, ' ', 2) = '.' then
+         files = field(line, ' ', 3) + 0
+         bytes = field(line, ' ', 4) + 0
+         dirs = field(line, ' ', 5) + 0
+         found = @true
+      end
+   next i
+
+   if stat # 0 or not(found) then
+      files = 0 ; bytes = 0 ; dirs = 0
+      err = 11014:@vm:path:@vm:stat:@vm:convert(@fm, '|', out) ;* Counting %1 failed
+   end
+   return
+
+end
+
+* END-CODE

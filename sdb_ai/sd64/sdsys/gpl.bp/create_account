@@ -1,0 +1,596 @@
+* CREATE_ACCOUNT
+* Create an SD account: the body of CREATE.ACCOUNT, callable with settings.
+* Copyright (c) 2007 Ladybridge Systems, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 01 Oct 26 dm Split out of CREATEA for S.50 (RESTORE.ACCOUNT creates an account
+*              that is missing, and must not parse a sentence to do it).  The
+*              signature and the settings positions (createacc.h) are agreed
+*              with SD Core for Windows by mail (2026-10-01T0010 / 0025); each
+*              port writes its own body.  The body below is CREATEA's from the
+*              register check on, with every "stop sysmsg(n, ...)" turned into
+*              err = n, args and a return, and with CA$REUSE.SD.USER added (a
+*              Linux user SD itself created may be taken over by a restore).
+*              Earlier history is CREATEA's and stays there.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !create_account(acc.type, acc.name, settings, err)
+*
+*    acc.type  USER, GROUP or OTHER.
+*    acc.name  As typed.  This lower-cases it (the account name, directory and
+*              register key; a USER account's Linux user too, unless attached).
+*    settings  createacc.h.  Blank fields take CREATE.ACCOUNT's defaults.
+*    err       '' when the account was made.  Otherwise the message number, then
+*              its arguments, value-mark separated - the caller shows it with
+*              sysmsg(err<1,1>, err<1,2>, ...).  Progress lines are displayed
+*              here as CREATE.ACCOUNT always displayed them.
+*
+*    THE GATES ARE CHECKED HERE, NOT ONLY IN THE VERB.  This is catalogued, so a
+*    program can call it without going through CREATE.ACCOUNT: the administrator
+*    check, and ATTACH's -internal and one-shot marker, are repeated here.
+*
+*    A NEW USER ACCOUNT ASKS FOR A PASSWORD.  NO.QUERY is refused for it (10039),
+*    because making the Linux user means setting its password.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine create_account(acc.type, acc.name, settings, err)
+$catalog !create_account
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include createacc.h
+
+deffun is_grp_member(user,group) calling '!is_grp_member'
+deffun is_group(group) calling '!is_group'
+deffun is_user(uname) calling '!is_user'
+deffun is_sd_user(username) calling '!is_sd_user'
+deffun create_user(uname) calling '!create_user'
+deffun set_passwd(uname)  calling '!set_passwd'
+deffun valid_os_name(name) calling '!valid_os_name'
+deffun valid_os_path(path) calling '!valid_os_path'
+
+   err = ''
+   locked = @false
+   acc.f.open = @false
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      err = 2001  ;* Command requires administrator privileges
+      return
+   end
+
+* we run as root, and the root umask is usually 022, that will not work for us
+   if umask(002) then null
+
+   acc.type = upcase(trim(acc.type))
+   acc.uname = ''
+   uid = ''
+   group_name = ''
+
+* S.29: both routes are on unless a setting narrows them.  A setting that is
+*   present at all is a request (CREATE.ACCOUNT's access.given), which a GROUP
+*   account refuses below.
+   access.given = settings<CA$ROUTE.SSH> # '' or settings<CA$ROUTE.API> # ''
+   access.ssh = settings<CA$ROUTE.SSH> # '0'
+   access.api = settings<CA$ROUTE.API> # '0'
+   no.query = settings<CA$NO.QUERY> = 1
+   reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
+
+* ATTACH, re-checked here: -internal and the one-shot marker for THIS account.
+*   The verb has already refused the word when either gate was shut, without
+*   naming it (CREATEA more.args); a caller that bypassed the verb gets 2018
+*   the same way, and the marker is consumed only here.
+   attach = @false
+   if settings<CA$ATTACH> = 1 then
+      attach.marker = @sdsys:@ds:'$attach.':downcase(acc.name)
+      if kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS) then
+         attach = @true
+         void ospath(attach.marker, OS$DELETE)
+      end else
+         err = 2018:@vm:'ATTACH'  ;* Unexpected token (xx)
+         return
+      end
+   end
+
+   @system.return.code = -ER$ARGS     ;* Preset for argument errors
+
+   openpath @sdsys:@ds:'accounts' to acc.f else
+      @system.return.code = -status()
+      err = 6000 ;* Cannot open ACCOUNTS file in SDSYS account
+      return
+   end
+   acc.f.open = @true
+
+   begin case
+   case acc.type = 'USER'
+     pathname = CONFIG('USRDIR')
+     if pathname = '' then pathname = '/home/sd/user_accounts'
+     acc.uname = acc.name
+
+     begin case
+     case upcase(acc.uname) = 'ROOT' or upcase(acc.uname) = 'SDSYS' or upcase(acc.uname) = 'SDUSERS'
+       @system.return.code = -ER$ARGS
+       err = 6052 ;* User name is invalid
+       goto exit.create
+
+* A PRE-EXISTING LINUX USER IS ATTACHED, TAKEN OVER BY A RESTORE, OR REFUSED -
+*   NEVER TAKEN SILENTLY (CREATEA, PORT_ADOPTION 15).  The restore's door is
+*   narrower than ATTACH: only a Linux user carrying SD's own "SD account" stamp
+*   (!is_sd_user), so SD made it - an install's leftover, not somebody's login.
+     case is_user(acc.uname) or is_user(downcase(acc.uname))
+       begin case
+         case attach
+           if is_user(acc.uname) else acc.uname = downcase(acc.uname)
+         case reuse.sd.user and is_sd_user(downcase(acc.uname))
+           acc.uname = downcase(acc.uname)
+           crt sysmsg(11010, acc.uname) ;* existing Linux user SD created; password unchanged
+         case 1
+           @system.return.code = -ER$ARGS
+           err = 10038:@vm:acc.uname ;* Linux user %1 already exists
+           goto exit.create
+       end case
+
+     case attach
+       @system.return.code = -ER$ARGS
+       err = 6074  ;* Invalid user name
+       goto exit.create
+
+     case no.query
+       @system.return.code = -ER$ARGS
+       err = 10039:@vm:acc.uname  ;* Cannot create user %1 with NO.QUERY
+       goto exit.create
+
+     case 1
+       acc.uname = downcase(acc.uname)
+       if system(1001) = 1 then
+         crt "Warning: **** Case Inversion is not active during password entry! ****"
+       end
+       if not(create_user(acc.uname)) then
+         @system.return.code = -ER$NOT.CREATED
+         err = 10006:@vm:status() ;* Create User Failed, OS Error: %1
+         goto exit.create
+       end
+       crt sysmsg(10007,acc.uname)  ;* 'User ':acc.uname:' Created'
+PW.TRY.AGAIN:
+       if not(set_passwd(acc.uname)) then
+* CREATEA, 11 Sep 26: say why, from status() read at once.  2 and 6 cannot
+*   succeed on a retry, so no retry is offered for them.
+          pw.stat = status()
+          pw.retry = @true
+          begin case
+             case pw.stat = 6
+                crt sysmsg(10120) ;* Not an SD administrator - retrying will not help
+                pw.retry = @false
+             case pw.stat = 2
+                crt sysmsg(10909, acc.uname) ;* SD may not set this user's password
+                pw.retry = @false
+             case pw.stat = 10
+                crt sysmsg(10910) ;* Not accepted: mismatch, or the password rules
+             case 1
+                crt sysmsg(10121, pw.stat) ;* The password could not be set (status %1)
+          end case
+          if pw.retry then
+             crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (Y/N)'
+             input yn
+             if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
+          end
+       end
+     end case
+
+* The account name is folded, the Linux user is not (CREATEA, RELEASE_1.1 67):
+*   only an attached user reaches here unfolded.
+     uid = acc.uname
+     gid = "sdu_":downcase(acc.uname)
+     pathname := @ds:downcase(acc.uname)
+     acc.name = downcase(acc.uname)
+
+   case acc.type = 'GROUP'
+     pathname = CONFIG('GRPDIR')
+     if pathname = '' then pathname = '/home/sd/group_accounts'
+     acc.name = downcase(acc.name)
+     pathname := @ds:acc.name
+     if acc.name = 'sdusers' then
+       @system.return.code = -ER$ARGS
+       err = 2202 ;* Account name is invalid
+       goto exit.create
+     end
+* S.29: a GROUP account has no routes to narrow (10087, the port's).
+     if access.given then
+       @system.return.code = -ER$ARGS
+       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
+       goto exit.create
+     end
+
+   case acc.type = 'OTHER'
+     if upcase(acc.name) = 'SDUSERS' then
+       @system.return.code = -ER$ARGS
+       err = 2202 ;* Account name is invalid
+       goto exit.create
+     end
+     pathname = trim(settings<CA$PATH>)
+     if pathname = '' then
+       err = 6005 ;* Invalid account pathname
+       goto exit.create
+     end
+
+   case 1
+     @system.return.code = -ER$ARGS
+     err = 2018:@vm:acc.type ;* Unexpected token (xx)
+     goto exit.create
+   end case
+
+   acc.name = downcase(acc.name)
+
+   if len(acc.name) > 32 or not(alpha(acc.name[1,1])) or index(acc.name, ' ', 1) then
+      err = 6003 ;* Account name is invalid
+      goto exit.create
+   end
+
+   if not(ospath(pathname, OS$PATHNAME)) then
+      err = 6005 ;* Invalid account pathname
+      goto exit.create
+   end
+
+   readu acc.rec from acc.f, acc.name locked
+      err = 6006:@vm:status() ;* ACCOUNTS record is locked by user xx
+      goto exit.create
+   end then
+      locked = @true
+      @system.return.code = -ER$ACC.EXISTS
+      err = 6002 ;* Account already exists
+      goto exit.create
+   end
+   locked = @true
+
+   if index(pathname, @ds, 1) then
+      parent.dir = field(pathname, @ds, 1, dcount(pathname, @ds) - 1)
+      if parent.dir # '' and not(parent.dir matches "1A':") then
+         if not(ospath(parent.dir, OS$EXISTS)) then
+            @system.return.code = -ER$NO.DIR
+            err = 6008 ;* Parent directory does not exist
+            goto exit.create
+         end
+      end
+   end
+
+   pathname = ospath(pathname, OS$FULLPATH)
+
+   if ospath(pathname, OS$EXISTS) then
+      @system.return.code = -ER$NOT.CREATED
+      err = 10009 ;* 'Cannot Create a New SD Account in an Existing Directory'
+      goto exit.create
+   end
+
+   create.file pathname directory on error
+      @system.return.code = -ER$NOT.CREATED
+      err = 6013 ;* Unable to create account directory
+      goto exit.create
+   end
+
+* rev 0.9.0: setgid on the account directory, so its files take its group.
+   if acc.type = "GROUP" or acc.type = "USER" then
+      if not(valid_os_path(pathname)) then
+         crt sysmsg(10011,2) ;* 'Warning unable to setgid bit on Group Folder, status: %1
+      end else
+         OS.EXECUTE "sudo /usr/local/sbin/sd-elevate setgid ":pathname
+         stat = OS.ERROR()
+         if stat = 0 then
+            crt sysmsg(10010,pathname)  ;* setgid bit set on: %1
+         end else
+            crt sysmsg(10011,stat) ;* 'Warning unable to setgid bit on Group Folder, status: %1
+         end
+      end
+   end
+
+   begin case
+   case acc.type = "USER"
+      if not(is_grp_member(acc.uname,'sdusers')) then
+         if not(valid_os_name(acc.uname)) then
+            crt sysmsg(10012,acc.uname,2) ;* Warning unable to add user to sdusers
+         end else
+            os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdusers"
+            stat = OS.ERROR()
+            if stat = 0 then
+               crt sysmsg(10013,acc.uname)   ;* %1 added to sdusers'
+            end else
+               @system.return.code = -ER$FAILED
+               err = 10012:@vm:acc.uname:@vm:stat ;* Unable to add user %1 to sdusers, status: %2
+               goto exit.create
+            end
+         end
+      end
+
+* S.29, the routes: membership of sdssh and sdapi IS the route.  A join that
+*   fails is reported (10081) and the account stops here.
+      route.stat = 0
+      if access.ssh then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdssh"
+         route.stat = OS.ERROR()
+      end
+      if route.stat = 0 and access.api then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdapi"
+         route.stat = OS.ERROR()
+      end
+      if route.stat # 0 then
+         @system.return.code = -ER$FAILED
+         err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1
+         goto exit.create
+      end
+      begin case
+         case access.ssh and access.api
+            crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
+         case access.ssh
+            crt sysmsg(10076, acc.uname)  ;* SD routes for %1: ssh only, not the API.
+         case access.api
+            crt sysmsg(10077, acc.uname)  ;* SD routes for %1: the API only, not ssh.
+         case 1
+            crt sysmsg(10079, acc.uname)  ;* %1 has no remote access: not ssh, not the API
+      end case
+
+      group_name = "sdu_":downcase(acc.uname)
+      gosub create.group
+      if err # '' then goto exit.create
+
+   case acc.type = "GROUP"
+      group_name = downcase("sdg_" : acc.name)
+      gosub create.group
+      if err # '' then goto exit.create
+   end case
+
+   gosub make.account
+   if err # '' then goto exit.create
+
+   set.owner.path = pathname
+   gosub set.owner
+
+   display sysmsg(6014) ;* Adding to register of accounts...
+
+   acc.rec = ''
+   acc.rec<ACC$PATH> = pathname
+   acc.rec<ACC$DESCR> = settings<CA$DESC>
+   begin case
+   case acc.type = "USER"
+     acc.rec<ACC$GROUP> = "sdu_":downcase(acc.uname)
+   case acc.type = "GROUP"
+     acc.rec<ACC$GROUP> = group_name
+   end case
+   if settings<CA$SUSPENDED> = 1 then acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
+
+   write acc.rec to acc.f, acc.name
+   locked = @false
+
+* A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;
+*   CREATE.ACCOUNT never has, and still says so in its syntax).  Each must be
+*   an existing SD user; one that cannot be added is named and the rest go on,
+*   because the account itself is made by now.
+   if acc.type = "GROUP" then
+      n = dcount(settings<CA$MEMBERS>, @vm)
+      for i = 1 to n
+         member = downcase(trim(settings<CA$MEMBERS,i>))
+         if member = '' then continue
+         if valid_os_name(member) and is_user(member) then
+            os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":member:" ":group_name
+            stat = OS.ERROR()
+         end else
+            stat = 2
+         end
+         if stat = 0 then
+            crt sysmsg(11011, member, group_name)  ;* %1 added to %2
+         end else
+            crt sysmsg(11012, member, group_name, stat) ;* %1 could not be added to %2 (status %3)
+         end
+      next i
+   end
+
+   @system.return.code = 0
+
+exit.create:
+   if acc.f.open then
+      if locked then release acc.f, acc.name
+      close acc.f
+   end
+   return
+
+* ======================================================================
+
+make.account:
+   display sysmsg(6015) ;* Creating VOC...
+   create.file pathname:@ds:'voc' dynamic on error
+      @system.return.code = -6
+      err = 6016 ;* Unable to create VOC
+      return
+   end
+* CREATEA, 18 Sep 26: the handover comes last - a sdsys session cannot write a
+*   file it has just given away, so voc and its parts are chowned after the
+*   last record is written.
+   openpath pathname:@ds:'voc' to voc.f else
+      @system.return.code = -status()
+      err = 6017 ;* Unable to open new VOC
+      return
+   end
+
+   openpath @sdsys:@ds:"newvoc" to newvoc.f else
+      @system.return.code = -status()
+      err = 6018 ;* Cannot open SDSYS NEWVOC
+      return
+   end
+
+* One VOC layer (S.25): the new account gets all of NEWVOC, each record whole.
+   select newvoc.f to 11
+   loop
+      readnext id from 11 else exit
+      read rec from newvoc.f, id then
+         write rec to voc.f, id
+      end
+   repeat
+   close newvoc.f
+
+   write 'X' to voc.f, '$command.stack'
+
+   fn = '$hold' ; os.name = '$hold' ; descr = 'File for deferred prints' ; dict = @true
+   gosub create.dir.file
+   if err # '' then return
+
+   fn = '$savedlists' ; os.name = '$svlists' ; descr = 'File for saved select lists' ; dict = @false
+   gosub create.dir.file
+   if err # '' then return
+
+   fn = 'bp' ; os.name = 'bp' ; descr = 'File for BASIC programs' ; dict = @false
+   gosub create.dir.file
+   if err # '' then return
+
+   display sysmsg(6019) ;* Creating private catalogue directory..."
+   s = pathname:@ds:'cat'
+   if not(ospath(s, OS$EXISTS)) then
+      create.file s directory on error
+         @system.return.code = -ER$NOT.CREATED
+         err = 6020 ;* Unable to create private catalogue directory
+         return
+      end
+      set.owner.path = pathname:@ds:'cat'
+      gosub set.owner
+   end
+
+   set.owner.path = pathname:@ds:'voc'
+   gosub set.owner
+   set.owner.path = pathname:@ds:'voc':@ds:'%0'
+   gosub set.owner
+   set.owner.path = pathname:@ds:'voc':@ds:'%1'
+   gosub set.owner
+   return
+
+* ======================================================================
+
+create.dir.file:
+   display sysmsg(6021, fn) ;* Creating xx...
+
+   create.file pathname:@ds:os.name directory on error
+      @system.return.code = -ER$NOT.CREATED
+      err = 6022:@vm:fn ;* Unable to create data part of xx
+      return
+   end
+   set.owner.path = pathname:@ds:os.name
+   gosub set.owner
+
+   begin case
+      case descr[1,1]= 'F'       ; voc.rec = descr
+      case descr # ''            ; voc.rec = 'F ' : descr
+      case 1                     ; voc.rec = 'F'
+   end case
+
+   voc.rec<2> = os.name
+
+   if dict then
+      dict.name = os.name:'.dic'
+      create.file pathname:@ds:dict.name dynamic on error
+         @system.return.code = -ER$NOT.CREATED
+         err = 6023:@vm:fn ;* Unable to create dictionary part of xx
+         return
+      end
+      openpath pathname:@ds:dict.name to dict.f else
+         @system.return.code = -status()
+         err = 6024:@vm:fn ;* Unable to open dictionary part of xx
+         return
+      end
+      write raise('D':@VM:'0':@VM:@VM:fn:@VM:'10L':@VM:'S') to dict.f, '@ID'
+      close dict.f
+
+      set.owner.path = pathname:@ds:dict.name
+      gosub set.owner
+      set.owner.path = pathname:@ds:dict.name:@ds:'%0'
+      gosub set.owner
+      set.owner.path = pathname:@ds:dict.name:@ds:'%1'
+      gosub set.owner
+
+      voc.rec<3> = dict.name
+   end
+
+   write voc.rec to voc.f, fn
+   return
+
+* ======================================================================
+* set.owner.path - the path; uid/gid set for USER, derived here otherwise.
+set.owner:
+   begin case
+      case acc.type = 'USER'
+        null
+      case acc.type = 'GROUP'
+        uid='sdsys'
+        gid= group_name
+      case 1
+        uid='root'
+        gid='sdusers'
+   end case
+* CREATEA, 18/19 Sep 26: through sd-elevate's chown-account when the session is
+*   not root (the administrator is a local sdsys session, S.26), every argument
+*   single-quoted for the shell; a quote inside one is refused, not guessed at.
+   if system(27) = 0 then
+      chown_parm = uid:@VM:gid:@VM:set.owner.path
+      result = ospath(chown_parm,OS$CHOWN)
+   end else
+      result = 0
+      if index(uid:gid:set.owner.path, "'", 1) then
+         null
+      end else
+         os.execute "sudo /usr/local/sbin/sd-elevate chown-account '" : uid : "' '" : gid : "' '" : set.owner.path : "'"
+         if OS.ERROR() = 0 then result = 1
+      end
+   end
+   if result <= 0 then
+     st = set.owner.path:' err: ':status()
+     display sysmsg(10000,st) ;* Unable change ownership of directory error %1
+   end
+   return
+
+* ======================================================================
+* create.group - group_name; acc.type and acc.uname for a USER account.
+*   Sets err on failure (10015, the message CREATEA displayed before stopping).
+create.group:
+   if not(valid_os_name(group_name)) then
+      err = 10015:@vm:group_name:@vm:2 ;* Unable to create group: %1 status: %2
+      return
+   end
+   if acc.type = 'USER' and not(valid_os_name(acc.uname)) then
+      err = 10015:@vm:group_name:@vm:2
+      return
+   end
+   if not(is_group(group_name)) then
+* CREATEA, 09 Sep 26: sd-elevate is "groupadd <group> [members]"; root and sdsys
+*   are legitimate members of an account group.
+      if acc.type = 'USER' then
+         OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys,":acc.uname
+      end else
+         OS.EXECUTE "sudo /usr/local/sbin/sd-elevate groupadd ": group_name :" root,sdsys"
+      end
+      group_stat = OS.ERROR()
+      if group_stat = 0 then
+         crt sysmsg(10014,group_name)   ;* Group -  %1 created
+      end else
+         err = 10015:@vm:group_name:@vm:group_stat ;* Unable to create group: %1 status: %2
+      end
+   end
+   return
+
+end
+
+* END-CODE

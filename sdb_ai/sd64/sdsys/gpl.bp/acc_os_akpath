@@ -1,0 +1,56 @@
+* ACC_OS_AKPATH
+* Set a restored hashed file's relocated index path.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50 (per-OS helper; agreed with SD Core for Windows
+*              by mail, 2026-10-01T1115 and 1200).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_akpath(data.path, ak.path, err)
+*
+*    Runs only after acc_os_place: sdidx -p refuses a directory that does not
+*    exist yet, so it cannot run on the staged tree.  On Linux the placed tree
+*    belongs to the account's own user, so it goes through root -
+*    "sd-elevate akpath-set", which keeps both paths inside one account and
+*    accepts the change only when sdidx -q then names the new path (sdidx -p
+*    itself prints nothing and ignores its own write's result).
+*
+*    SUCCESS IS THE HELPER'S "index path of <data> is now <ak>" LINE.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_akpath(data.path, ak.path, err)
+$catalog !acc_os_akpath
+
+$include int$keys.h
+$include accos.h
+
+   err = ''
+   if index(data.path:ak.path, "'", 1) then
+      err = 11013:@vm:data.path
+      return
+   end
+
+   out = ''
+   os.execute ACCOS$ELEVATE:" akpath-set '":data.path:"' '":ak.path:"' 2>&1" capturing out
+   stat = os.error()
+   want = 'index path of ':data.path:' is now ':ak.path
+   ok = @false
+   n = dcount(out, @fm)
+   for i = 1 to n
+      if index(out<i>, want, 1) then ok = @true
+   next i
+   if stat # 0 or not(ok) then
+      err = 11019:@vm:data.path:@vm:stat:@vm:convert(@fm, '|', out) ;* Setting the index path failed
+   end
+   return
+
+end
+
+* END-CODE

@@ -1,0 +1,84 @@
+* ACC_OS_PLACE
+* Put a staged, restored account tree in place and give it to its owner.
+* Copyright (c) String Database
+*
+* START-HISTORY:
+* 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core
+*              for Windows by mail, 2026-10-01T1030).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !acc_os_place(acc.name, staged.path, target.path, err)
+*
+*    target.path is the account's register path; the account (and on a create,
+*    its OS user and group) already exists.  The staged tree replaces it, the
+*    old tree is removed only after the new one is in place, and the whole tree
+*    is given to the account's owner.
+*
+*    LINUX DETAIL.  The current account directory belongs to <user>:sdu_<user>
+*    (or sdsys:sdg_<name>) and SDSYS is not root, so the swap, the chown -R and
+*    the setgid on every directory are root's: "sd-elevate restore-place",
+*    which re-derives that the staged tree and the target are exactly what
+*    they should be.  The owner pair comes from the register's group, as
+*    createa's set.owner chose it.  An OTHER account (any path) is refused:
+*    sd-elevate works only inside user_accounts and group_accounts.
+*
+*    SUCCESS IS THE HELPER'S OWN "restored <target>" LINE, not its exit status
+*    alone (CLAUDE.md: anchor on the success wording).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine acc_os_place(acc.name, staged.path, target.path, err)
+$catalog !acc_os_place
+
+$include keys.h
+$include int$keys.h
+$include accos.h
+
+   err = ''
+
+   openpath @sdsys:@ds:'accounts' to acc.f else
+      err = 6000 ;* Cannot open ACCOUNTS file in SDSYS account
+      return
+   end
+   read acc.rec from acc.f, acc.name else
+      close acc.f
+      err = 6027 ;* Account not registered in ACCOUNTS file
+      return
+   end
+   close acc.f
+
+   grp = acc.rec<ACC$GROUP>
+   begin case
+      case grp[1,4] = 'sdu_' ; owner = grp[5,999]
+      case grp[1,4] = 'sdg_' ; owner = 'sdsys'
+      case 1
+         err = 11020:@vm:acc.name:@vm:target.path ;* an OTHER account is not restored here
+         return
+   end case
+
+   if index(owner:grp:staged.path:target.path, "'", 1) then
+      err = 11013:@vm:staged.path:' ':target.path
+      return
+   end
+
+   out = ''
+   os.execute ACCOS$ELEVATE:" restore-place '":owner:"' '":grp:"' '":staged.path:"' '":target.path:"' 2>&1" capturing out
+   stat = os.error()
+   ok = @false
+   n = dcount(out, @fm)
+   for i = 1 to n
+      if index(out<i>, 'restored ':target.path:' (', 1) then ok = @true
+   next i
+   if stat # 0 or not(ok) then
+      err = 11018:@vm:acc.name:@vm:stat:@vm:convert(@fm, '|', out) ;* Putting %1 in place failed
+   end
+   return
+
+end
+
+* END-CODE

@@ -3,6 +3,14 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 01 Oct 26 dm S.50, BACKUP.ACCOUNT / RESTORE.ACCOUNT: tree-count, backup-pack,
+#               restore-place and akpath-set.  SDSYS is not root and cannot read
+#               every account's files, nor give a restored tree back to its
+#               owner, so those four steps are root's - each confined to account
+#               directories as rmtree-account is.  backup-pack writes the zip on
+#               STDOUT, which the SDSYS shell redirects to the file the
+#               administrator chose; root never opens a path the caller names
+#               except account directories it has checked.
 # 19 Sep 26 dm setpw (CREATE.ACCOUNT's Linux password, from stdin, SD's rule
 #               applied) and pw_complex - the owner's ruling that SD requires a
 #               complex password whatever the OS allows.
@@ -119,6 +127,12 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] remote-ssh on | off | show
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
+  sd-elevate [--dry-run] tree-count <account directory>
+  sd-elevate [--dry-run] backup-pack <name>=<account directory> ...
+                                  (the manifest on stdin, the zip on stdout)
+  sd-elevate [--dry-run] restore-place <owner> <group> <staged dir> <account dir>
+  sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account)
+  sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -483,6 +497,125 @@ require_account_dir() {
   cmd=(rm -rf --one-file-system -- "$real")
 }
 
+# ------------------------------------------------------ account backup (S.50)
+#
+# 01 Oct 26 dm - BACKUP.ACCOUNT / RESTORE.ACCOUNT (owner, 30 Sep / 1 Oct 2026;
+# the format and the helper split are agreed with SD Core for Windows by mail).
+# The archive work itself is gplbld/sd-accarchive, installed root-owned beside
+# this script; these verbs decide WHICH paths it may touch.
+#
+#   tree-count    counts an account directory as root (the manifest's files,
+#                 bytes and dirs come from this, before the pack).
+#   backup-pack   packs account directories as root.  Every directory must pass
+#                 require_account_dir and be named for its own account; the
+#                 manifest arrives on stdin and the zip leaves on stdout, so root
+#                 never opens a file the caller named.  sd-accarchive never
+#                 follows a symlink, so one planted in an account cannot pull a
+#                 file the administrator cannot read into the zip.
+#   restore-place puts a staged tree into an account directory, replacing what
+#                 is there, then chowns it to the account's owner and sets setgid
+#                 on its directories.  The staged tree must be exactly
+#                 <root>/.sdrestore.<n>/accounts/<name>, the target exactly
+#                 <root>/user_accounts/<name> or <root>/group_accounts/<name>,
+#                 and the owner pair one chown-account would accept for it.
+#   akpath-set    sdidx -p on a restored hashed file whose indices were relocated
+#                 inside its own account.  Both paths must be in one account.
+#
+# NONE OF THESE HANDS sdsys ANYTHING NEW: chown-account and rmtree-account
+# already let it take or remove any account directory.  What they do not give it
+# is READING a file it is not allowed to read, and backup-pack is shaped so that
+# it still cannot: the zip goes to the caller, but only of account trees, and
+# sdsys is a member of every account's group by construction (createa's
+# groupadd), so an account file is one it was entitled to see.
+
+SD_ACCARCHIVE=${SD_ACCARCHIVE:-/usr/local/sbin/sd-accarchive}
+
+# The canonical account directory, by the same rules rmtree-account uses,
+# without building the removal.  Sets ACCT_REAL and ACCT_NAME.
+account_dir_checked() {
+  require_account_dir "$1"
+  ACCT_REAL=$(realpath -e -- "$1")
+  ACCT_NAME=${ACCT_REAL##*/}
+}
+
+# The account directory a path lies in, or refuse.  Sets ACCT_REAL.
+account_of_path() {
+  local path=$1 real root rel kind name
+  [[ $path == /* ]] || die "path '$path' is not absolute"
+  real=$(realpath -e -- "$path" 2>/dev/null) || die "path '$path' does not exist"
+  [[ $real == "$path" ]] || die "path '$path' is not in canonical form (it resolves to '$real')"
+  root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
+  rel=${real#"$root"/}
+  [[ $rel != "$real" ]] || die "'$real' is outside the accounts root '$root'"
+  kind=${rel%%/*}
+  rel=${rel#*/}
+  name=${rel%%/*}
+  [[ $kind == user_accounts || $kind == group_accounts ]] \
+    || die "'$real' is not inside $root/user_accounts or $root/group_accounts"
+  require_name "account directory" "$name"
+  ACCT_REAL=$root/$kind/$name
+}
+
+restore_place() {
+  local owner=$1 group=$2 staged=$3 target=$4 root sreal treal sname tname kind old n
+  [[ -n $owner && -n $group && -n $staged && -n $target ]] || usage
+  root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
+
+  # The staged tree: exactly <root>/.sdrestore.<n>/accounts/<name>, canonical.
+  [[ $staged == /* ]] || die "staged path '$staged' is not absolute"
+  sreal=$(realpath -e -- "$staged" 2>/dev/null) || die "staged path '$staged' does not exist"
+  [[ $sreal == "$staged" ]] || die "staged path '$staged' is not in canonical form (it resolves to '$sreal')"
+  [[ -d $sreal && ! -L $sreal ]] || die "staged path '$sreal' is not a directory"
+  [[ $sreal =~ ^"$root"/\.sdrestore\.([0-9]+)/accounts/([^/]+)$ ]] \
+    || die "'$sreal' is not $root/.sdrestore.<n>/accounts/<name>"
+  n=${BASH_REMATCH[1]}
+  sname=${BASH_REMATCH[2]}
+  require_name "staged account" "$sname"
+
+  # The target: exactly <root>/user_accounts/<name> or group_accounts/<name>.
+  [[ $target == /* ]] || die "target '$target' is not absolute"
+  treal=$(realpath -e -- "$target" 2>/dev/null) || die "target '$target' does not exist (CREATE.ACCOUNT makes it first)"
+  [[ $treal == "$target" ]] || die "target '$target' is not in canonical form (it resolves to '$treal')"
+  [[ -d $treal && ! -L $treal ]] || die "target '$treal' is not a directory"
+  tname=${treal##*/}
+  kind=${treal%/*}
+  [[ $tname == "$sname" ]] || die "the staged tree is account '$sname' but the target is '$tname'"
+  [[ $kind == "$root/user_accounts" || $kind == "$root/group_accounts" ]] \
+    || die "'$treal' is not directly inside $root/user_accounts or $root/group_accounts"
+
+  # The owner pair: what createa's set.owner gives that kind of account.
+  require_sd_group "$group"
+  if [[ $kind == "$root/user_accounts" ]]; then
+    require_sd_user "$owner"
+    [[ $owner == "$tname" ]] || die "user account '$tname' belongs to user '$tname', not '$owner'"
+    [[ $group == "sdu_$owner" ]] || die "'$owner' owns its own files through sdu_$owner, not '$group'"
+  else
+    [[ $owner == sdsys ]] || die "a group account's owner is sdsys, not '$owner'"
+    [[ $group == sdg_?* ]] || die "a group account's group is sdg_<name>, not '$group'"
+  fi
+  getent group "$group" >/dev/null 2>&1 || [[ $DRY -eq 1 ]] || die "group '$group' does not exist"
+
+  old=$root/.sdrestore.$n/old.$tname
+  [[ ! -e $old ]] || die "'$old' already exists; a previous restore did not finish"
+
+  need_root
+  step mv -T -- "$treal" "$old" || die "could not move the current account aside"
+  if ! step mv -T -- "$sreal" "$treal"; then
+    step mv -T -- "$old" "$treal"
+    die "could not put the restored tree in place; the current account was put back"
+  fi
+  step chown -R -P -- "$owner:$group" "$treal" || die "chown of $treal failed; the restored tree is in place, the old one is at $old"
+  if [[ $DRY -eq 1 ]]; then
+    printf '%s: find %s -type d -exec chmod g+s {} +\n' "$PROG" "$treal"
+  else
+    printf '%s: find %s -type d -exec chmod g+s {} +\n' "$PROG" "$treal"
+    find "$treal" -type d -exec chmod g+s {} + || die "setgid on $treal failed"
+  fi
+  step rm -rf --one-file-system -- "$old" || die "the restore is in place, but the old tree at $old could not be removed"
+  printf '%s: restored %s (%s:%s)\n' "$PROG" "$treal" "$owner" "$group"
+  exit 0
+}
+
 # ------------------------------------------------------ cred-own (W.10)
 #
 # 19 Sep 26 dm - A PERSON SETS THEIR OWN SD PASSWORD (owner, 19 Sep 2026: "user
@@ -812,6 +945,66 @@ case $verb in
     case $1 in on|off|show) ;; *) die "remote-ssh takes on, off or show - not '$1'" ;; esac
     remote_ssh "$1"
     exit $?
+    ;;
+
+  # 01 Oct 26 dm - S.50.  See "account backup" above.
+  tree-count)
+    [[ $# -eq 1 ]] || usage
+    account_dir_checked "$1"
+    cmd=(python3 "$SD_ACCARCHIVE" count "$ACCT_REAL")
+    ;;
+
+  # The zip is the command's STDOUT, so the resolved command and every refusal
+  # go to stderr here - one byte of status text on stdout would corrupt it.
+  backup-pack)
+    [[ $# -ge 1 ]] || usage
+    declare -a pack=()
+    for pair in "$@"; do
+      [[ $pair == *=* ]] || die "'$pair' is not <name>=<account directory>"
+      account_dir_checked "${pair#*=}"
+      [[ ${pair%%=*} == "$ACCT_NAME" ]] || die "'${pair%%=*}' is not the account whose directory is $ACCT_REAL"
+      pack+=("$ACCT_NAME=$ACCT_REAL")
+    done
+    printf '%s: python3 %s pack %s\n' "$PROG" "$SD_ACCARCHIVE" "${pack[*]}" >&2
+    [[ $DRY -eq 1 ]] && exit 0
+    [[ ${EUID:-$(id -u)} -eq 0 ]] || die "must run as root (it is invoked through sudo); use --dry-run to validate"
+    exec python3 "$SD_ACCARCHIVE" pack "${pack[@]}"
+    ;;
+
+  restore-place)
+    [[ $# -eq 4 ]] || usage
+    restore_place "$1" "$2" "$3" "$4"
+    ;;
+
+  # SETTINGS.REPORT's [api] section: the API certificate's subject, dates and
+  # fingerprint.  api.pem also holds the PRIVATE KEY and is root's (linuxio.c
+  # api_tls_dir), so this reads it as root - and openssl x509 -noout prints
+  # the certificate's fields only, never the key.  No arguments: the path is
+  # fixed here, not the caller's.
+  tls-show)
+    [[ $# -eq 0 ]] || usage
+    cmd=(openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in /etc/sd-tls/api.pem)
+    ;;
+
+  akpath-set)
+    [[ $# -eq 2 ]] || usage
+    account_of_path "$1"
+    data_acct=$ACCT_REAL
+    account_of_path "$2"
+    [[ $ACCT_REAL == "$data_acct" ]] || die "the index path is in $ACCT_REAL, not in the file's own account $data_acct"
+    # sdidx -p prints nothing on success and ignores write_primary_header()'s
+    # result (sdidx.c case 'P'), so its status proves nothing: the change is
+    # accepted only when -q then names the new path (the Windows port's check,
+    # mailed 2026-10-01T1200).
+    printf '%s: %s -p %s %s\n' "$PROG" "$SD_SYS_ROOT_REAL/bin/sdidx" "$1" "$2"
+    printf '%s: %s -q %s\n' "$PROG" "$SD_SYS_ROOT_REAL/bin/sdidx" "$1"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    "$SD_SYS_ROOT_REAL/bin/sdidx" -p "$1" "$2" || die "sdidx -p failed (status $?)"
+    q=$("$SD_SYS_ROOT_REAL/bin/sdidx" -q "$1" 2>&1) || die "sdidx -q failed (status $?)"
+    [[ $q == *"Index directory is $2"* ]] || die "sdidx -q does not show the new path: ${q//$'\n'/ | }"
+    printf '%s: index path of %s is now %s\n' "$PROG" "$1" "$2"
+    exit 0
     ;;
 
   *)
