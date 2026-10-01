@@ -19,6 +19,7 @@
 # is wrong: a stranded lock that survives OFF (queue 27) and the 11 Sep wedge.
 # PROJECT_STATUS P.6: "sandbox work, not DON work".  The sandbox is the 11 Sep
 # recipe made repeatable:
+#   - (02 Oct 26: the keys are now 0x53434C91/92, live 0x53434C01/02 - sddefs.h)
 #   - a copy of this sd64 tree with SD_SHM_KEY/SD_SEM_KEY moved to 0x716d0901/
 #     0902 (live is 0301/0302) and check_admin() stubbed - IN THE COPY ONLY;
 #   - a copy of /usr/local/sdsys (minus $cred and audit, which are root-only)
@@ -77,8 +78,9 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.dirname(HERE)
 LIVE_SYS = "/usr/local/sdsys"
-LIVE_KEYS = ("0x716d0301", "0x716d0302")
-BOX_KEYS = ("0x716d0901", "0x716d0902")
+# 02 Oct 26 - SD Core's own key family (gplsrc/sddefs.h): ipcs prints lower case.
+LIVE_KEYS = ("0x53434c01", "0x53434c02")
+BOX_KEYS = ("0x53434c91", "0x53434c92")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 PASS = FAIL = 0
@@ -111,7 +113,9 @@ def sh(cmd, **kw):
 
 def ipcs_keys():
     out = sh(["ipcs", "-m", "-s"]).stdout
-    return sorted(set(re.findall(r"0x716d0[0-9]0[12]", out)))
+    # Both families: SD Core's 0x5343xxxx and the inherited 0x716d0x0x, which an
+    # instance built before 02 Oct 26 (or SD Core for Linux Solo) may still hold.
+    return sorted(set(k.lower() for k in re.findall(r"0x(?:5343[0-9a-f]{4}|716d0[0-9]0[12])", out, re.I)))
 
 
 def replace_once(path, old, new, label):
@@ -132,8 +136,8 @@ def replace_once(path, old, new, label):
 # control would silently pass.
 
 SANDBOX_PATCHES = [
-    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x716d0301", "#define SD_SHM_KEY 0x716d0901", "sandbox shm key"),
-    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x716d0302", "#define SD_SEM_KEY 0x716d0902", "sandbox sem key"),
+    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C01", "#define SD_SHM_KEY 0x53434C91", "sandbox shm key"),
+    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C02", "#define SD_SEM_KEY 0x53434C92", "sandbox sem key"),
     ("gplsrc/sd.c",
      '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
      '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',

@@ -2,6 +2,29 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  SD CORE NOW HAS ITS OWN SHARED-MEMORY KEYS, SO IT CAN RUN BESIDE
+           SD CORE SOLO AND THE DATABASES IT CAME FROM.
+
+           Every running SD keeps its user table and locks in a shared-memory
+           segment and a set of semaphores, found through two fixed numbers.
+           SD Core used the same two numbers as the SD it was built from, and
+           as SD Core Solo, so only one of them could run on a machine at a
+           time.  Each SD Core product now has its own pair (this one:
+           0x53434C01 and 0x53434C02), outside the range used by OpenQM,
+           ScarletDME and the original SD.
+
+           WHY: the owner wants the four SD Core products - for Linux and
+           Windows, full and Solo - able to run at the same time on one
+           machine.
+
+           WHAT THIS DOES NOT DO: it does not make everything else separate.
+           The API port (4243) is still the same in every product, so two
+           products cannot both offer the API on one machine, and SD Core
+           Solo's installer still refuses a machine that has this product
+           installed.  An SD started by an older release must be stopped by
+           that release before this one is installed; uninstalling it first,
+           as the installer already requires, does that.
+
 01 Oct 26  ACCOUNTS CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
            RESTORE.ACCOUNT AND SETTINGS.REPORT.
 

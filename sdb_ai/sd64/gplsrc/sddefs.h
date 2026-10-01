@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Oct 26 dm SD_SHM_KEY / SD_SEM_KEY 0x53434C01/02 - SD Core's own key family
+ *              (owner, 2 Oct 2026), one pair per SD Core product.
  * 31 Dec 23 SD launch - prior history suppressed
  * 02 Jul 24 mab define max string size.
  * 06 Aug 24 mab define sdext max arg
@@ -81,11 +83,20 @@
 
 #define MakeDirectory(path) mkdir(path, 0777)
 
-#define SD_SHM_KEY 0x716d0301
-#define SD_SEM_KEY 0x716d0302
-/* To allow the SD  and other versions based on the same code 
- * base tocoexist, SD has changed the third byte from 01 to 03          
- */
+/* 02 Oct 26 dm - A KEY PAIR PER SD CORE PRODUCT (owner, 2 Oct 2026: "choose new
+ * shared memory segments for each of the four versions so that they can run
+ * concurrently ... not the same as the segment chosen upstream").  Upstream SD
+ * moved QM's 0x716d01xx to 0x716d03xx so that it could coexist with QM and its
+ * descendants; all four SD Core products had kept upstream SD's 0x716d0301/02.
+ * SD Core leaves the 0x716d family entirely: 0x5343 ("SC"), then "L" or "W",
+ * then 0x for a full product and 1x for Solo (agreed with SD Core for Windows,
+ * mail 2026-10-02T1245):
+ *   Linux 0x53434C01/02   Linux Solo 0x53434C11/12
+ *   Windows 0x53435701/02 Windows Solo 0x53435711/12
+ * An instance still running under the old key must be stopped by its own
+ * binary before this one is installed - a new binary cannot see its segment. */
+#define SD_SHM_KEY 0x53434C01
+#define SD_SEM_KEY 0x53434C02
 
 #define RelinquishTimeslice sched_yield()
 

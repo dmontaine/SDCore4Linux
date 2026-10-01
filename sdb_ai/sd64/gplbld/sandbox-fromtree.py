@@ -19,9 +19,9 @@
 # END-HISTORY
 #
 # WHAT IT CHANGES, IN THE COPY ONLY (each must match exactly once, or it refuses):
-#   sandbox-txnfail.py's SANDBOX_PATCHES - IPC keys 0x716d0901/0902 (live is
-#     0301/0302, which on this machine belong to SD Core for Linux Solo: never
-#     touched) and check_admin() stubbed;
+#   sandbox-txnfail.py's SANDBOX_PATCHES - IPC keys 0x53434C91/92 (live is
+#     0x53434C01/02; SD Core for Linux Solo's are 0x53434C11/12, and an older
+#     Solo still on 0x716d0301/02: never touched) and check_admin() stubbed;
 #   pcode_bld.py's hard-coded /usr/local/sdsys -> the sandbox's sys;
 #   the root tests in cproc (install arm), bbproc and write_install_dicts take
 #     the invoking user's uid; that user plays sdsys in cproc; LOGIN's sdusers

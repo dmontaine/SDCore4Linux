@@ -144,6 +144,10 @@ $include header.h
       loop
          readnext gid from 12 else exit
          locate upcase(gid) in sys.names<1> setting x then continue
+* 02 Oct 26 - NO gpl.bp SOURCE, NO NAME LIST (the Windows port's finding D:
+*   Windows Solo deletes the source at install).  Then the prefix decides: $, !
+*   and _ are SD's own family, the names both Solos' CATALOG refuses to users.
+         if sys.names = '' and index('$!_', gid[1,1], 1) then continue
          read obj from gcat.f, gid else continue
          if len(obj) < object.header.size then continue      ;* not an object (README)
 * compile_time is SYSTEM(1005): SD's own day number * 86400 + seconds.

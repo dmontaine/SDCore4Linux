@@ -62,7 +62,7 @@ sys.path.insert(0, HERE)
 import sdverify as V                                    # noqa: E402
 
 NAME = "verify-semaphores"
-SEM_KEY = "0x716d0302"          # gplsrc/sddefs.h:78 SD_SEM_KEY
+SEM_KEY = "0x53434c02"          # gplsrc/sddefs.h SD_SEM_KEY (02 Oct 26; ipcs prints lower case)
 NSEMS = 6                       # gplsrc/sysseg.h:125 NUM_SEMAPHORES
 WORKERS = 10
 ROUND_SECS = 40

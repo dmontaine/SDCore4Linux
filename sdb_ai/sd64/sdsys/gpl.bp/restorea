@@ -319,9 +319,15 @@ voc.rewrite:
          if vrec<3> # '' then paths<1,-1> = vrec<3>
          for v = 1 to dcount(paths, @vm)
             p = paths<1,v>
-            if p[1,1] = @ds then
-               if p[1, len(target) + 1] = target:@ds then
-                  sp = staged:p[len(target) + 1, 99999]
+* 02 Oct 26 - ABSOLUTE ON EITHER OS (the Windows port's finding A): C:\..., C:/...
+*   and \\... are absolute too.  The under-the-target test compares with both
+*   separators as '/', since OS$FULLPATH on Windows can give either.
+            p.abs = p[1,1] = @ds or p[1,1] = '/' or p[1,1] = '\' or p[2,1] = ':'
+            if p.abs then
+               cp = convert('\', '/', p)
+               ct = convert('\', '/', target)
+               if cp[1, len(ct) + 1] = ct:'/' then
+                  sp = staged:convert('/\', @ds:@ds, p[len(target) + 1, 99999])
                   if from.windows and not(ospath(sp, OS$EXISTS)) then
                      display sysmsg(13018, vid, acc.name, p)
                   end
@@ -340,7 +346,7 @@ voc.rewrite:
                   val = akp
                   gosub map.path
                   if hit then
-                     if p[1,1] = @ds then tp = p else tp = target:@ds:p
+                     if p.abs then tp = p else tp = target:@ds:p
                      ak.fixes<-1> = tp:@vm:new
                   end else
                      display sysmsg(13020, vid, akp)
@@ -355,8 +361,8 @@ voc.rewrite:
 
 * map.path - val in; hit and new out.  A value that IS s.path, or starts with
 *   s.path and a separator, becomes the target path.  From Windows the
-*   comparison ignores case and treats \ as /, and the rest of the path takes
-*   / (agreed with Windows 2026-10-01T0010).
+*   comparison ignores case and treats \ as / (agreed with Windows
+*   2026-10-01T0010); the rest of the path takes the target's own separator.
 map.path:
    hit = @false
    new = ''
@@ -371,7 +377,9 @@ map.path:
    ls = len(cs)
    if cv = cs or cv[1, ls + 1] = cs:'/' then
       rest = val[ls + 1, 99999]
-      if from.windows then rest = convert('\', '/', rest)
+* 02 Oct 26 - the rest takes the TARGET's separator, whichever OS wrote it (the
+*   Windows port's finding B: '/' kept on a Windows target mixed separators).
+      rest = convert('/\', @ds:@ds, rest)
       new = target:rest
       hit = @true
    end
@@ -418,7 +426,9 @@ gcat.restore:
       if noxref then cmd := ' NOXREF'
       out = ''
       execute cmd trapping aborts capturing out
-      if index(out, sysmsg(3030, call.name), 1) then
+* 02 Oct 26 - without regard to case (the Windows port's finding C): Windows
+*   CATALOG prints the call name in lower case, Linux in upper.
+      if index(upcase(out), upcase(sysmsg(3030, call.name)), 1) then
          display sysmsg(13032, call.name, rel, rec.id) ;* re-catalogued globally
       end else
          display sysmsg(13036, call.name, convert(@fm, '|', out))
