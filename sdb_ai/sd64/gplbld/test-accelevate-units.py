@@ -104,7 +104,17 @@ def cases(root, me):
         # ----------------------------------------------------------- REFUSE
         (REFUSE, ["bakdir-set", "backups/x"], "is not a full path", "a relative path"),
         (REFUSE, ["bakdir-set", os.path.join(root, "nope")], "is not an existing directory",
-         "a directory that does not exist: root creates nothing"),
+         "bakdir-set saves only: a directory that does not exist is not saved, and not made here"),
+        # bakdir-make: root makes a directory SDSYS cannot, only below the allowed places.
+        (ALLOW, ["bakdir-make", "/var/backups/sd-test-zz"], "make /var/backups/sd-test-zz (below", "a new directory below /var/backups"),
+        (ALLOW, ["bakdir-make", "/media/zz/usb/sd"], "make /media/zz/usb/sd (below /media)", "a removable drive's path"),
+        (REFUSE, ["bakdir-make", "/etc/systemd/system/ssh.service.d"], "is not below a place where root may make a backup directory",
+         "a systemd drop-in directory: a directory sdsys owns there would run as root"),
+        (REFUSE, ["bakdir-make", "/etc/zz-backups"], "is not below a place where root may make a backup directory", "/etc"),
+        (REFUSE, ["bakdir-make", "/var/backups/../etc/zz"], "or .. path component", "a .. out of an allowed place"),
+        (REFUSE, ["bakdir-make", mine], "already exists", "a directory that is already there is not made"),
+        (REFUSE, ["bakdir-make", "relative"], "is not a full path", "a relative path"),
+        (REFUSE, ["bakdir-make", "/var/backups/a", "/etc/sd.conf"], "privileged helper", "bakdir-make takes one path"),
         (REFUSE, ["bakdir-set", mine + "\nSDSYS=/evil"], "may hold only", "a newline: a second line for sd.conf"),
         (REFUSE, ["bakdir-set", mine, "/etc/sd.conf"], "privileged helper", "bakdir-set takes one path and no file name"),
         (REFUSE, ["tree-count", "/etc"], "not directly inside", "a system directory"),
@@ -175,6 +185,7 @@ MUTANTS = [
     ("cross-account akpath allowed", '[[ $ACCT_REAL == "$data_acct" ]] || die', '[[ 1 ]] || die'),
     ("pack name check gone", '[[ ${pair%%=*} == "$ACCT_NAME" ]] || die', '[[ 1 ]] || die'),
     ("bakdir character check gone", '[[ $p =~ $re ]] || die', '[[ 1 ]] || die'),
+    ("bakdir allowed-places check gone", '[[ $ok -eq 1 ]] || die', 'true || die'),
 ]
 
 

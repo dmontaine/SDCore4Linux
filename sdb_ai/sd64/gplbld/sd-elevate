@@ -135,6 +135,10 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key)
   sd-elevate [--dry-run] bakdir-set <full path of an existing directory>
                                   (saves BACKUPDIR=<path> in /etc/sd.conf, nothing else)
+  sd-elevate [--dry-run] bakdir-make <full path of a directory that does not exist>
+                                  (makes it for sdsys, mode 0700, only below /media, /run/media,
+                                  /mnt, /var/backups, /srv, /opt, /home/sdsys or a place listed
+                                  in /etc/sd-backup-roots)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -799,22 +803,43 @@ cred_own() {
 # 02 Oct 26 dm - SET.BACKUP.DIRECTORY (owner's ruling, 1 Oct 2026, for both ports; the verb,
 # the key and the helper split are shared with SD Core for Windows).  /etc/sd.conf is root's
 # and the administrator, sdsys, is never root, so SAVING BACKUPDIR=<path> there is a root
-# step.  It is ALL this verb does, and it is shaped so that it can do nothing else:
-#   - the directory must ALREADY EXIST: root creates nothing and chowns nothing (sdsys makes
-#     it, or an administrator prepares it and gives it to sdsys, before this is called);
-#   - the path is checked character by character BEFORE it can reach the file, so a newline
-#     cannot add a second line to sd.conf (an SDSYS= line, say);
-#   - the file is /etc/sd.conf and nothing a caller passes moves it, as SD_API_PORT;
-#   - the rewrite is a temp file beside it with the same owner and mode, renamed over it,
-#     and the line is read back.  Every other line is kept as it was.
-# gplbld/test-bakdir-elevate-units.py cuts the two functions between the markers out of this file and
-# runs them on scratch files; keep the lines, and keep the code between them free of anything
-# but die().
+# step.  Two verbs, each shaped so that it can do nothing else:
+#
+#   bakdir-set <dir>   SAVES the line.  The directory must ALREADY EXIST and root changes
+#                      nothing about it - so a directory on a USB drive, in the pCloud folder
+#                      or anywhere else that already exists can be saved from anywhere.  The
+#                      path is checked character by character BEFORE it can reach the file, so
+#                      a newline cannot add a second line to sd.conf (an SDSYS= line, say);
+#                      the file is /etc/sd.conf and nothing a caller passes moves it, as
+#                      SD_API_PORT; the rewrite is a temp file beside it with the same owner
+#                      and mode, renamed over it, and the line is read back.
+#   bakdir-make <dir>  CREATES a directory SDSYS may not create itself (SET.BACKUP.DIRECTORY
+#                      tries mkdir as sdsys first), owned by sdsys, mode 0700 because a backup
+#                      holds every account's files - and ONLY INSIDE THE PLACES BELOW.
+#
+# WHY NOT ANYWHERE (owner, 2 Oct 2026: the full product has the capability Solo and Windows
+# have, and "restricting it to locations normally available to sdsys ... a USB or other
+# removable drive" is acceptable).  A directory that sdsys owns inside a place root reads
+# configuration from - /etc/systemd/system/ssh.service.d, say - lets sdsys write a drop-in that
+# runs as root, and sdsys is never root.  So root creates only below:
+#     /media  /run/media  /mnt     removable and mounted drives
+#     /var/backups  /srv  /opt     the usual homes for backups and site data
+#     /home/sdsys                  sdsys's own home
+#   and below any directory listed, one per line, in /etc/sd-backup-roots - the way an
+#   administrator relaxes it by choice (SECURITY SHIPS TIGHT, owner 12 Sep 2026).  That file
+#   is read only when root owns it and nobody else may write it.  Other users' homes are not
+#   in the list (a directory sdsys owns inside one runs as that user), so the pCloud folder
+#   is added there if sdsys is to CREATE inside it; an existing one is saved with no entry.
+# Symlinks are resolved before the test, so a link inside an allowed place cannot lead out.
+# gplbld/test-bakdir-elevate-units.py cuts the functions between the markers out of this file and
+# runs them on scratch files and scratch directories; keep the lines, and keep the code between
+# them free of anything but die().
 
 SD_CONF=/etc/sd.conf
+SD_BAKROOTS=/etc/sd-backup-roots
 
 # BEGIN bakdir_functions
-bakdir_checked() {   # bakdir_checked PATH - dies unless PATH may be saved as the backup directory
+bakdir_valid() {   # bakdir_valid PATH - dies unless PATH is a path that may be saved or made
   local p=$1 re='^/[A-Za-z0-9._@+=,:/ -]+$'
   [[ -n $p ]] || die "no directory was given"
   [[ ${#p} -le 180 ]] || die "the directory path is longer than 180 characters"
@@ -826,7 +851,75 @@ bakdir_checked() {   # bakdir_checked PATH - dies unless PATH may be saved as th
     */./*|*/../*) die "'$p' has a . or .. path component" ;;
     *" /"*|*"/ "*) die "'$p' has a path component that starts or ends with a space" ;;
   esac
-  [[ -d $p ]] || die "$p is not an existing directory: sdsys makes it, or an administrator prepares it and gives it to sdsys, first"
+}
+
+bakdir_checked() {   # bakdir_checked PATH - dies unless PATH may be saved as the backup directory
+  bakdir_valid "$1"
+  [[ -d $1 ]] || die "$1 is not an existing directory: SET.BACKUP.DIRECTORY makes it first (as sdsys, or through bakdir-make inside an allowed place)"
+}
+
+bakdir_roots() {   # bakdir_roots FILE [UID] - the places root may create in, canonical, one per line
+  local f=$1 owner_uid=${2:-0} r line mode
+  for r in /media /run/media /mnt /var/backups /srv /opt /home/sdsys; do realpath -m -- "$r"; done
+  [[ -e $f || -L $f ]] || return 0
+  [[ -f $f && ! -L $f ]] || die "$f is not a regular file"
+  [[ $(stat -c '%u' -- "$f") == "$owner_uid" ]] || die "$f is not owned by the user that must own it ($owner_uid), so it is not read"
+  mode=$(stat -c '%a' -- "$f")
+  (( (8#$mode & 8#022) == 0 )) || die "$f is writable by someone besides its owner (mode $mode), so it is not read"
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%#*}
+    line=${line#"${line%%[![:space:]]*}"}
+    line=${line%"${line##*[![:space:]]}"}
+    [[ -n $line ]] || continue
+    ( bakdir_valid "$line" ) 2>/dev/null || die "$f has a line that is not a usable directory: '$line'"
+    r=$(realpath -m -- "$line") || die "cannot resolve '$line' in $f"
+    [[ $r != / ]] || die "$f lists '$line', which resolves to / - the whole machine"
+    printf '%s\n' "$r"
+  done < "$f"
+}
+
+# bakdir_plan PATH ROOTSFILE [UID] - PATH does not exist: sets BAK_REAL (its deepest existing
+# directory, symlinks resolved) and BAK_REST (the part still to make), or dies.
+bakdir_plan() {
+  local p=$1 rootsfile=$2 owner_uid=${3:-0} anc r ok=0 target rl
+  local -a roots
+  bakdir_valid "$p"
+  [[ ! -e $p && ! -L $p ]] || die "$p already exists: nothing to make"
+  anc=$p
+  while [[ ! -e $anc ]]; do
+    [[ ! -L $anc ]] || die "$anc is a dangling symlink"
+    anc=${anc%/*}
+    [[ -n $anc ]] || anc=/
+  done
+  [[ -d $anc ]] || die "$anc is not a directory, so nothing can be made below it"
+  BAK_REAL=$(realpath -e -- "$anc") || die "cannot resolve $anc"
+  if [[ $anc == / ]]; then BAK_REST=$p; else BAK_REST=${p#"$anc"}; fi
+  [[ -n $BAK_REST ]] || die "internal: nothing left to make"
+  if [[ $BAK_REAL == / ]]; then target=$BAK_REST; else target=$BAK_REAL$BAK_REST; fi
+  # not a process substitution: a die inside one would end only that subshell and be missed here
+  rl=$(bakdir_roots "$rootsfile" "$owner_uid") || exit 2
+  mapfile -t roots <<< "$rl"
+  for r in "${roots[@]}"; do
+    [[ $target == "$r"/* ]] && ok=1
+  done
+  [[ $ok -eq 1 ]] || die "$target is not below a place where root may make a backup directory (${roots[*]}); make it yourself and give it to sdsys, or list its parent in $rootsfile"
+}
+
+bakdir_make() {   # bakdir_make OWNER GROUP - after bakdir_plan: makes BAK_REST below BAK_REAL
+  local owner=$1 group=$2 cur=$BAK_REAL comps i last
+  IFS=/ read -ra comps <<< "${BAK_REST#/}"
+  last=$(( ${#comps[@]} - 1 ))
+  for i in "${!comps[@]}"; do
+    cur=${cur%/}/${comps[i]}
+    if (( i == last )); then
+      mkdir -m 0700 -- "$cur" || die "cannot make $cur"
+      chown -h -- "$owner:$group" "$cur" || die "cannot give $cur to $owner:$group"
+    else
+      mkdir -m 0755 -- "$cur" || die "cannot make $cur"   # explicit: not whatever umask this process has
+    fi
+  done
+  [[ $(stat -c '%U:%G %a' -- "$cur") == "$owner:$group 700" ]] || die "$cur does not read back as $owner:$group, mode 700"
+  BAK_MADE=$cur
 }
 
 conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, last; every other line kept
@@ -1064,8 +1157,26 @@ case $verb in
     exit 0
     ;;
 
-  # 02 Oct 26 dm - S.53.  See "the backup directory" above.  The success line is the
-  # one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR is now".
+  # 02 Oct 26 dm - S.53.  See "the backup directory" above.  Makes a directory SDSYS could
+  # not make for itself, owned by sdsys, mode 0700 - and only below the allowed places.  The
+  # success line is the one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR directory made".
+  bakdir-make)
+    [[ $# -eq 1 ]] || usage
+    bakdir_plan "$1" "$SD_BAKROOTS"
+    if ! sd_group=$(id -gn sdsys 2>/dev/null); then
+      [[ $DRY -eq 1 ]] || die "the user sdsys does not exist"
+      sd_group='(sdsys is not on this machine)'
+    fi
+    printf '%s: make %s (below %s) owned by sdsys:%s, mode 0700\n' "$PROG" "$1" "$BAK_REAL" "$sd_group"
+    [[ $DRY -eq 1 ]] && exit 0
+    need_root
+    bakdir_make sdsys "$sd_group"
+    logger -t sd-elevate "bakdir-make: made $BAK_MADE for sdsys" 2>/dev/null || true
+    printf '%s: BACKUPDIR directory made %s (as %s)\n' "$PROG" "$1" "$BAK_MADE"
+    exit 0
+    ;;
+
+  # The success line is the one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR is now".
   bakdir-set)
     [[ $# -eq 1 ]] || usage
     bakdir_checked "$1"

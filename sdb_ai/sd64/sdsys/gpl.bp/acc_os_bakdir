@@ -23,21 +23,28 @@
 *
 *    LINUX DETAIL.  The setting is the line BACKUPDIR=<path> in sd.conf (SD_CONFIG,
 *    else /etc/sd.conf), read at each use, so a change needs no restart.  The
-*    file belongs to root and SDSYS is never root, so SAVING the line is the one
-*    root step: "sd-elevate bakdir-set", which writes that one line and nothing
-*    else.  Everything before it runs as SDSYS:
-*      - THE DIRECTORY IS CREATED HERE, AS SDSYS (mkdir -p, the last component
-*        mode 0700 because the zips hold every account's files), so SDSYS can
-*        create it wherever SDSYS is allowed to.  Under a directory SDSYS may
-*        not write to (/var/backups, say) it cannot, and says so (11024): an
-*        administrator creates it and gives it to sdsys, then runs this again.
-*        This is the privilege model, not a missing feature: root creates and
-*        chowns nothing here.
+*    file belongs to root and SDSYS is never root, so SAVING the line is a root
+*    step: "sd-elevate bakdir-set", which writes that one line and nothing
+*    else.  The directory itself, in order:
+*      - AN EXISTING DIRECTORY IS USED AS IT IS, wherever it is (a USB drive, the
+*        pCloud folder): nothing about it is changed.
+*      - A MISSING ONE IS MADE BY SDSYS FIRST (mkdir -p, the last component mode
+*        0700 because the zips hold every account's files), so nothing needs root
+*        wherever SDSYS may create it.
+*      - WHERE SDSYS MAY NOT, ROOT MAKES IT: "sd-elevate bakdir-make", owned by
+*        sdsys, mode 0700 - but only below /media, /run/media, /mnt, /var/backups,
+*        /srv, /opt, /home/sdsys and the places an administrator lists in
+*        /etc/sd-backup-roots.  The full product has the capability Solo and
+*        Windows have (owner, 2 Oct 2026), within that limit: a directory sdsys
+*        owns inside a place root reads configuration from would let sdsys run
+*        commands as root.  Anywhere else it says so (11024) and names the way
+*        to widen it.
 *      - THE WRITE IS PROVED AS SDSYS, because BACKUP.ACCOUNT's zip is written by
 *        this session (backup-pack sends it to stdout), not by root.
 *
-*    SUCCESS IS THE HELPER'S OWN "BACKUPDIR is now <dir> in " LINE, not its exit
-*    status alone (CLAUDE.md: anchor on the success wording).
+*    SUCCESS IS THE HELPER'S OWN "BACKUPDIR is now <dir> in " LINE, and for a
+*    directory root made "BACKUPDIR directory made <dir> ", not its exit status
+*    alone (CLAUDE.md: anchor on the success wording).
 *
 * END-DESCRIPTION
 *
@@ -85,13 +92,24 @@ $include accos.h
             return
          end
 
-*        Create it if it is not there - as this session's user, never as root.
+*        Create it if it is not there: as this session's user first, and only if that
+*        is not allowed, as root through sd-elevate - which makes it only below the
+*        places it lists, and says which if this is not one.
          if not(ospath(d, OS$EXISTS)) then
             out = ''
             os.execute "mkdir -p -m 0700 '":d:"' 2>&1" capturing out
-            if os.error() # 0 or not(ospath(d, OS$EXISTS)) then
-               err = 11024:@vm:d:@vm:convert(@fm, ' ', out)
-               return
+            if not(ospath(d, OS$EXISTS)) then
+               out2 = ''
+               os.execute ACCOS$ELEVATE:" bakdir-make '":d:"' 2>&1" capturing out2
+               stat2 = os.error()
+               made = @false
+               for i = 1 to dcount(out2, @fm)
+                  if index(out2<i>, 'BACKUPDIR directory made ':d:' ', 1) then made = @true
+               next i
+               if stat2 # 0 or not(made) or not(ospath(d, OS$EXISTS)) then
+                  err = 11024:@vm:d:@vm:convert(@fm, ' ', out2)
+                  return
+               end
             end
          end
 

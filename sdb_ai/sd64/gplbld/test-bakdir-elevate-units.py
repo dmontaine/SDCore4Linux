@@ -19,7 +19,9 @@
 
 import io
 import contextlib
+import grp as grpmod
 import os
+import pwd
 import shlex
 import stat
 import subprocess
@@ -69,6 +71,139 @@ class Suite:
 
     def conf(self, f, p):
         return self.bash("conf_set_backupdir %s %s" % (shlex.quote(f), shlex.quote(p)))
+
+    def roots(self, f, uid):
+        return self.bash("bakdir_roots %s %d" % (shlex.quote(f), uid))
+
+    def plan(self, path, rootsfile, uid):
+        return self.bash('bakdir_plan %s %s %d && printf "REAL=%%s REST=%%s\\n" "$BAK_REAL" "$BAK_REST"'
+                         % (shlex.quote(path), shlex.quote(rootsfile), uid))
+
+    def make(self, path, rootsfile, uid, owner, group):
+        return self.bash('bakdir_plan %s %s %d && bakdir_make %s %s && printf "MADE=%%s\\n" "$BAK_MADE"'
+                         % (shlex.quote(path), shlex.quote(rootsfile), uid, shlex.quote(owner), shlex.quote(group)))
+
+    # bakdir-make: where ROOT may create a backup directory.  Everything runs as the person who
+    # runs the test, so "root" and "sdsys" are played by that person (the owner and group come
+    # in as arguments, and the roots file's owner is checked against this uid, not 0).
+    def suite_make(self):
+        S = self
+        uid = os.getuid()
+        me = pwd.getpwuid(uid).pw_name
+        mygrp = grpmod.getgrgid(os.getgid()).gr_name
+        with tempfile.TemporaryDirectory() as tmp0:
+            tmp = os.path.realpath(tmp0)
+            allowed, forbidden = os.path.join(tmp, "allowed"), os.path.join(tmp, "forbidden")
+            os.mkdir(allowed)
+            os.mkdir(forbidden)
+            rf = os.path.join(tmp, "roots")
+
+            def roots_file(text, mode=0o644):
+                if os.path.lexists(rf):
+                    os.unlink(rf)
+                with open(rf, "w") as fh:
+                    fh.write(text)
+                os.chmod(rf, mode)
+                return rf
+
+            defaults = {os.path.realpath(p) for p in ("/media", "/run/media", "/mnt", "/var/backups", "/srv", "/opt", "/home/sdsys")}
+            # ---- bakdir_roots
+            r = S.roots(os.path.join(tmp, "no-such-file"), uid)
+            got = set(r.stdout.split("\n")) - {""}
+            S.check("R1 no list file: exactly the built-in places", "7 places incl. /var/backups /mnt /media /run/media",
+                    r.returncode == 0 and got == defaults, "exit %d %s" % (r.returncode, sorted(got)))
+            r = S.roots(roots_file("# a comment\n\n  %s  # trailing comment\n" % allowed), uid)
+            got = set(r.stdout.split("\n")) - {""}
+            S.check("R2 a list file adds its (canonical) places, comments and blanks ignored", "built-ins + %s" % allowed,
+                    r.returncode == 0 and got == defaults | {allowed}, "exit %d %s" % (r.returncode, sorted(got - defaults)))
+            r = S.roots(roots_file("%s\n" % allowed, 0o666), uid)
+            S.check("R3 a list file anyone can write is refused", "exit 2 'writable by someone besides its owner'",
+                    r.returncode == 2 and "writable by someone besides its owner" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            r = S.roots(roots_file("%s\n" % allowed, 0o664), uid)
+            S.check("R3b ... and one only its group can write", "exit 2", r.returncode == 2, "exit %d" % r.returncode)
+            r = S.roots(roots_file("%s\n" % allowed), uid + 1)
+            S.check("R4 a list file the wrong user owns is refused", "exit 2 'is not owned by'",
+                    r.returncode == 2 and "is not owned by" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            for name, line in (("R5 a root of / (the whole machine)", "/"), ("R5b a relative line", "relative/dir"),
+                               ("R5c a .. line", "/a/../b"), ("R5d a trailing /", allowed + "/"),
+                               ("R5e a quote", "/bad'quote"), ("R5f a . line (/. is /, the whole machine)", "/.")):
+                r = S.roots(roots_file(line + "\n"), uid)
+                S.check(name, "exit 2 'not a usable directory'", r.returncode == 2 and "not a usable directory" in r.stderr,
+                        "exit %d %s" % (r.returncode, r.stderr.strip()))
+            root_link = os.path.join(tmp, "rootlink")
+            os.symlink("/", root_link)
+            r = S.roots(roots_file(root_link + "\n"), uid)
+            S.check("R5g a place that is a symlink to / is refused once resolved", "exit 2 'resolves to /'",
+                    r.returncode == 2 and "resolves to /" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            os.unlink(root_link)
+            real_rf = roots_file("%s\n" % allowed)
+            link_rf = os.path.join(tmp, "roots.link")
+            os.symlink(real_rf, link_rf)
+            r = S.roots(link_rf, uid)
+            S.check("R6 a list file that is a symlink is refused", "exit 2 'not a regular file'",
+                    r.returncode == 2 and "not a regular file" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            os.unlink(link_rf)
+
+            # ---- bakdir_plan: is this path below a place root may make things in
+            roots_file("%s\n" % allowed)
+            nested = os.path.join(allowed, "a", "b", "c")
+            r = S.plan(nested, rf, uid)
+            S.check("P1 a path below an allowed place: planned from its deepest existing directory",
+                    "REAL=%s REST=/a/b/c" % allowed, r.returncode == 0 and r.stdout.strip() == "REAL=%s REST=/a/b/c" % allowed,
+                    "exit %d %s %s" % (r.returncode, r.stdout.strip(), r.stderr.strip()))
+            r = S.plan(os.path.join(forbidden, "x"), rf, uid)
+            S.check("P2 a path outside every allowed place is refused", "exit 2 'is not below a place'",
+                    r.returncode == 2 and "is not below a place" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+            r = S.plan(allowed, rf, uid)
+            S.check("P3 a directory that already exists is not made again", "exit 2 'already exists'",
+                    r.returncode == 2 and "already exists" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            link = os.path.join(allowed, "escape")
+            os.symlink(forbidden, link)
+            r = S.plan(os.path.join(link, "new"), rf, uid)
+            S.check("P4 a symlink inside an allowed place that leads OUT of it does not smuggle the path in",
+                    "exit 2 'is not below a place' (the link is resolved first)",
+                    r.returncode == 2 and "is not below a place" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+            dang = os.path.join(allowed, "dangling")
+            os.symlink(os.path.join(tmp, "does-not-exist"), dang)
+            r = S.plan(os.path.join(dang, "x"), rf, uid)
+            S.check("P5 a dangling symlink in the path is refused", "exit 2 'dangling symlink'",
+                    r.returncode == 2 and "dangling symlink" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+            ghost = os.path.join(tmp, "ghost")
+            roots_file("%s\n" % ghost)
+            r = S.plan(ghost, rf, uid)
+            S.check("P6 the listed place ITSELF is not made (only things below it)", "exit 2 'is not below a place'",
+                    r.returncode == 2 and "is not below a place" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+            roots_file("%s\n" % allowed)
+            r = S.plan(allowed + "/../forbidden/x", rf, uid)
+            S.check("P7 a .. path is refused before anything is looked at", "exit 2 'or .. path component'",
+                    r.returncode == 2 and "or .. path component" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+            r = S.plan("relative/x", rf, uid)
+            S.check("P8 a relative path is refused", "exit 2 'not a full path'",
+                    r.returncode == 2 and "not a full path" in r.stderr, "exit %d %s" % (r.returncode, r.stderr.strip()[:150]))
+
+            # ---- bakdir_make: what root makes
+            r = S.make(nested, rf, uid, me, mygrp)
+            ok = r.returncode == 0 and r.stdout.strip() == "MADE=%s" % nested
+            modes = [stat.S_IMODE(os.stat(p).st_mode) for p in (os.path.join(allowed, "a"), os.path.join(allowed, "a", "b"), nested)]
+            S.check("M1 the whole path is made; the directories on the way 0755, the last one 0700", "MADE=<path>, modes 755 755 700",
+                    ok and modes == [0o755, 0o755, 0o700], "exit %d %s modes %s %s" % (r.returncode, r.stdout.strip(), [oct(m) for m in modes], r.stderr.strip()))
+            st = os.stat(nested)
+            S.check("M2 the last directory is owned by the owner and group it was given", "%s:%s" % (me, mygrp),
+                    st.st_uid == uid and st.st_gid == os.getgid(), "uid %d gid %d" % (st.st_uid, st.st_gid))
+            spaced = os.path.join(allowed, "my backups", "2026")
+            r = S.make(spaced, rf, uid, me, mygrp)
+            S.check("M3 a space inside a component is made as given", "MADE=<path>",
+                    r.returncode == 0 and os.path.isdir(spaced) and r.stdout.strip() == "MADE=%s" % spaced, "exit %d %s" % (r.returncode, r.stderr.strip()))
+            single = os.path.join(allowed, "x")
+            r = S.make(single, rf, uid, me, mygrp)
+            S.check("M4 one new component: 0700", "mode 700", r.returncode == 0 and stat.S_IMODE(os.stat(single).st_mode) == 0o700,
+                    "exit %d %s" % (r.returncode, r.stderr.strip()))
+            r = S.make(os.path.join(forbidden, "y"), rf, uid, me, mygrp)
+            S.check("M5 outside the allowed places nothing is made", "exit 2 and no directory",
+                    r.returncode == 2 and not os.path.exists(os.path.join(forbidden, "y")), "exit %d %s" % (r.returncode, r.stderr.strip()[:120]))
+            r = S.make(os.path.join(link, "z"), rf, uid, me, mygrp)
+            S.check("M6 through the escaping symlink nothing is made either", "exit 2 and no directory in the target",
+                    r.returncode == 2 and not os.path.exists(os.path.join(forbidden, "z")), "exit %d %s" % (r.returncode, r.stderr.strip()[:120]))
 
     def suite(self):
         S = self
@@ -185,15 +320,27 @@ class Suite:
             S.check("C10 a missing file is refused, and none is made", "exit 2 and no file", r.returncode == 2 and not os.path.exists(os.path.join(tmp, "absent.conf")),
                     "exit %d %s" % (r.returncode, r.stderr.strip()))
 
+        self.suite_make()
+
 
 def selftest(code):
     mutants = [
         ("the character check is gone (a newline gets through)", "  [[ $p =~ $re ]] || die \"the directory path may hold only letters, digits and . _ @ + = , : / - and a space\"\n", ""),
         ("the .. check is gone", "*/./*|*/../*) die", "*/./*) die"),
-        ("the existing-directory check is gone", "  [[ -d $p ]] || die", "  true || die"),
+        ("the existing-directory check is gone", "  [[ -d $1 ]] || die", "  true || die"),
+        ("the allowed-places check is gone", "  [[ $ok -eq 1 ]] || die", "  true || die"),
+        ("symlinks are not resolved before the test", "BAK_REAL=$(realpath -e -- \"$anc\") || die \"cannot resolve $anc\"", "BAK_REAL=$anc"),
+        ("the last directory is made world-readable", "mkdir -m 0700 -- \"$cur\"", "mkdir -m 0755 -- \"$cur\""),
+        ("the list file's mode is not checked", "  (( (8#$mode & 8#022) == 0 )) || die", "  true || die"),
+        ("the list file's owner is not checked", "  [[ $(stat -c '%u' -- \"$f\") == \"$owner_uid\" ]] || die", "  true || die"),
+        ("a listed place that resolves to / is accepted", "[[ $r != / ]] || die", "true || die"),
+        ("a listed place is not validated as a path", "( bakdir_valid \"$line\" ) 2>/dev/null || die", "true || die"),
+        ("a dangling symlink is stepped over", "    [[ ! -L $anc ]] || die \"$anc is a dangling symlink\"\n", ""),
+        ("the listed place itself may be made", "[[ $target == \"$r\"/* ]] && ok=1", "[[ $target == \"$r\"/* || $target == \"$r\" ]] && ok=1"),
         ("the old BACKUPDIR line is not removed", "grep -v -E '^[[:space:]]*BACKUPDIR=' -- \"$f\"", "cat -- \"$f\""),
         ("the file's mode is not kept", "&& chmod --reference=\"$f\" -- \"$tmp\" ", ""),
-        ("a symlink is followed", "[[ -f $f && ! -L $f ]]", "[[ -f $f ]]"),
+        ("a symlink is followed", "  [[ -f $f && ! -L $f ]] || die \"$f is not a regular file\"\n  tmp=", "  [[ -f $f ]] || die \"$f is not a regular file\"\n  tmp="),
+        ("a list file that is a symlink is read", "  [[ -f $f && ! -L $f ]] || die \"$f is not a regular file\"\n  [[ $(stat", "  [[ -f $f ]] || die \"$f is not a regular file\"\n  [[ $(stat"),
     ]
     bad = 0
     for name, old, new in mutants:
