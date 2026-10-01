@@ -679,6 +679,13 @@ echo "Installing privileged helper: /usr/local/sbin/sd-elevate."
 sudo mkdir -p /usr/local/sbin
 sudo install -o root -g root -m 0755 gplbld/sd-elevate /usr/local/sbin/sd-elevate
 
+# 01 Oct 26  S.50 - BACKUP.ACCOUNT / RESTORE.ACCOUNT's archive tool, beside the
+#            helper and for its reason: sd-elevate runs it as root (backup-pack,
+#            tree-count), so a copy sdsys could rewrite would be root by
+#            another route.  The SDSYS session runs it unprivileged to unpack.
+echo "Installing the account archive tool: /usr/local/sbin/sd-accarchive."
+sudo install -o root -g root -m 0755 gplbld/sd-accarchive /usr/local/sbin/sd-accarchive
+
 # 10 Sep 26  PRE_RELEASE 13's ssh-boundary helper is installed alongside it, and
 #            for the same root-owned reason.  The uninstaller calls it with
 #            --remove, so it has to outlive the source tree - it cannot be run

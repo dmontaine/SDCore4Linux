@@ -1,3 +1,48 @@
+L1.1-3 - in progress
+-------------
+Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
+
+01 Oct 26  ACCOUNTS CAN BE BACKED UP AND RESTORED: BACKUP.ACCOUNT,
+           RESTORE.ACCOUNT AND SETTINGS.REPORT.
+
+           BACKUP.ACCOUNT name [name ...] TO directory (or ALL TO
+           directory) writes one zip file, named for the machine, the
+           accounts and the time, holding each account's files and a
+           plain-text manifest of how the account was set up: its type,
+           description, suspension, remote access and group members.
+           RESTORE.ACCOUNT archive name [name ...] (or ALL) puts accounts
+           back, over an account that exists or onto a machine that has
+           never had it.  A restored account's paths are corrected to where
+           it now lives, and programs it had in the global catalogue are
+           catalogued again.  SETTINGS.REPORT [directory] writes, or shows,
+           a plain-text record of the system's settings (sd.conf, ssh and
+           API access, the accounts) for an administrator to keep.
+
+           All three are for the administrator (SDSYS).  A backup or
+           restore starts only when every other session has logged out,
+           says who is still logged in if any are, and no one can log in -
+           at the terminal, over ssh or through the API - until it has
+           finished.  Every backup is checked as it is made: the files,
+           bytes and directories of each account are counted before it is
+           packed and compared with what was written, and a backup that does
+           not match is deleted rather than kept.  A restore checks the whole
+           archive against its manifest before it changes anything, lists
+           what it will replace and create, and asks first.
+
+           WHY: there was no way to back up or move an SD account.  Backups
+           made here restore on SD Core for Windows and the other way round.
+
+           WHAT THIS DOES NOT DO: it does not back up SDSYS or the system's
+           configuration (SETTINGS.REPORT records that, for reference only;
+           nothing reads it back).  It carries no passwords: an account
+           restored onto a machine that never had it asks for a new one, and
+           an account that exists keeps its own.  It does not follow
+           symbolic links inside an account; any it finds are named and left
+           out.  A program recompiled after it was catalogued globally is not
+           recognised as the account's and is not catalogued again.  A full
+           system's backup restores only to a full system, and SD Core Solo's
+           only to Solo.
+
 L1.1-1 - 29 Sep 2026
 -------------
 Changes since L1.1-0.  L1.1-1 pairs with SD Core for Windows W1.1-1.

@@ -286,6 +286,10 @@ sudo rm -f /etc/sudoers.d/sdcore
 echo "Removed /etc/sudoers.d/sdcore."
 sudo rm -f /usr/local/sbin/sd-elevate
 echo "Removed /usr/local/sbin/sd-elevate."
+# 01 Oct 26  S.50 - the account archive tool goes with the helper that runs it.
+#            Backups already written are the administrator's files and stay.
+sudo rm -f /usr/local/sbin/sd-accarchive
+echo "Removed /usr/local/sbin/sd-accarchive."
 # 12 Sep 26  PORT_ADOPTION 19.  The reconciler goes with the other helpers.
 #            It removes account directories under --sweep, so leaving a
 #            root-owned copy behind after an uninstall would leave a tool

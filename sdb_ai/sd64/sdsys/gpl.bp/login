@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 01 Oct 26 dm S.50: the login hold.  A new session is refused (13002) while
+*           BACKUP.ACCOUNT or RESTORE.ACCOUNT runs; !acc_hold decides.
 * 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
 *           ruling, 20 Sep 2026: a behavior prevented on one port must be
 *           prevented on both, the mechanism free to differ with the OS.  A
@@ -314,6 +316,17 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
      if  not(is_grp_member(lgn.id,'sdusers')) then
         display sysmsg(5009) ;* This user is not registered for SD use
         audit.reason = 'not a member of sdusers'
+        goto terminate.connection
+     end
+* 01 Oct 26 dm - S.50, THE LOGIN HOLD (owner, 1 Oct 2026, relayed by the Windows
+*   port and binding on both): while BACKUP.ACCOUNT or RESTORE.ACCOUNT runs, a
+*   new session is refused with a message until it finishes.  !acc_hold ignores
+*   a hold whose holder session has gone, so a run that died cannot lock
+*   everybody out.  The administrator's own new session is refused too.
+     call !acc_hold('TEST', hold.info, hold.err)
+     if hold.err # '' then
+        display sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
+        audit.reason = 'a backup or restore is running'
         goto terminate.connection
      end
   end

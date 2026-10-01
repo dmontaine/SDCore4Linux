@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 01 Oct 26 dm S.50: $RESTOREA joins privileged_commands (it writes the register).
 * 20 Sep 26 dm RENUMBERED: the entry refusals moved from 10176/10177/10181 to
 *           10190/10191/10195.  SD Core for Windows had independently allocated
 *           10176-10181 for its case-insensitivity conversion, so one number
@@ -259,6 +260,10 @@ $define max.elements 500
 *   deliberately": a session able to write its own record could write
 *   anybody's.
    privileged_commands<-1> = "$MODIFY.PASSWORD"  ;*"MODIFY.PASSWORD"
+* 01 Oct 26 dm - S.50.  RESTORE.ACCOUNT writes the register itself (description
+*   and suspension) and through !create_account, exactly as CREATE.ACCOUNT does,
+*   so it is privileged for the same reason (check-storewriters.py).
+   privileged_commands<-1> = "$RESTOREA"  ;*"RESTORE.ACCOUNT"
 
    logto.reset = @false      ;* 0555
 

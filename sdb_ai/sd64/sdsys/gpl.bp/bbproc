@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 01 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (S.50).
 * 13 Sep 26 dm  gpl.bp record names are lower case (plan M): the bootstrap list
 *               and the installed-already check name them so.  Compiled headers
 *               still carry upper-case names - BCOMP upcases them.
@@ -233,6 +234,11 @@ src.list<-1> = 'pterm'
 src.list<-1> = 'catalog'
 src.list<-1> = 'parser'
 src.list<-1> = 'is_grp_member'
+* 01 Oct 26 dm - S.50: LOGIN calls !acc_hold (the login hold) on every entry,
+*   SECOND.COMPILE's included, so it must exist before LOGIN first runs.
+*   Without it every later pass died "Unable to load '!ACC_HOLD' object code
+*   in $LOGIN" - and sd still exited 0 (measured in the sandbox, 1 Oct 2026).
+src.list<-1> = 'acc_hold'
 src.list<-1> = 'term'
 
 src.cnt = dcount(src.list,@FM) 
