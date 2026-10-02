@@ -3007,8 +3007,8 @@ Private bool context_error(int16_t expected) {
  * The annoying thing about this is that p is being set to useful values,
  * but that detailed information is never making it out of the routine.
  * It appears that many of these extended descriptions are also living
- * in sdclient.c where they're used as part of a Windows message box
- * output.  I'm going to comment out the use here in order to clean up the
+ * in the old Windows client DLL (removed) where they were used as part of a
+ * Windows message box output.  I'm going to comment out the use here in order to clean up the
  * error, but some method of leveraging this extended information should be
  * developed. -gwb 23Feb20
  */

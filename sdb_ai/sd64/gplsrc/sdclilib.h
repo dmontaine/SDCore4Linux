@@ -9,15 +9,7 @@
 
 #include <stdint.h>
 
-#if defined(_WIN32)
-#  if defined(BUILDING_SDCLILIB)
-#    define SD_API __declspec(dllexport)
-#  else
-#    define SD_API __declspec(dllimport)
-#  endif
-#else
-#  define SD_API
-#endif
+#define SD_API
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,7 +78,7 @@ SD_API void SDWriteu(int fno, char *id, char *data);
    branch had defined them the other way round on 19 Jul 2026 (d0647b9),
    and sdb64 is where these two names come from - main does not carry them
    at all, so this import cannot have taken them from there.  sdb64's
-   values are the shared ones.  Same fix applied to winsdclilib.        */
+   values are the shared ones.                                          */
 #define SV_EMSG_PAIR 6
 #define SV_ECONTXT   7
 

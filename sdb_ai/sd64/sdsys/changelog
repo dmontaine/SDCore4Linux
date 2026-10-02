@@ -2,6 +2,14 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
+
+           examples/windows.c (a Visual Studio port of the C client library)
+           and gplsrc/sdclient.c (the Windows client DLL source, which this
+           product never built) are removed.  SD Core for Windows has its own
+           client library.  The Python API example no longer has a Windows
+           library path.  Nothing installed changes.
+
 02 Oct 26  THE INSTALLER AND UNINSTALLER HAVE NEW NAMES.
 
            installsdai.sh is now installsdcore.sh, and deletesdai.sh is now

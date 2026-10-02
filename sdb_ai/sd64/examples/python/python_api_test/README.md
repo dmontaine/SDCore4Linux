@@ -14,9 +14,7 @@ you may also need to install tkinter: sudo apt install python3-tk
 
 Script expects to find the API library:
 
-Windows: LIBRARY_PATH = '.\\winsdclilib.dll'
-
-Linux: LIBRARY_PATH = os.getcwd() +"/sdclilib.so"
+LIBRARY_PATH = os.getcwd() +"/sdclilib.so"
   
 
 From windows 11 pc I use the following ssh command to create the tunnel to my linux box Z400:

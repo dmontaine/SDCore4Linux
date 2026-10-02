@@ -72,7 +72,7 @@ SDTEMP   := $(addsuffix .o,$(SDSRCS))
 SDOBJS   := $(SDTEMP)
 SDOBJSD  := $(addprefix $(GPLOBJ),$(SDTEMP))
 TEMPSRCS := $(wildcard *.c)
-SRCS     := $(TEMPSRCS:sdclient.c=)
+SRCS     := $(TEMPSRCS)
 OBJS     := $(SRCS:.c=.o)
 DIROBJS  := $(addprefix $(GPLOBJ),$(OBJS))
 
@@ -172,9 +172,6 @@ pdump.o: pdump.c sd.h header.h syscom.h config.h revstamp.h locks.h dh_int.h
 sd.o:	sd.c sd.h revstamp.h header.h debug.h dh_int.h tio.h config.h options.h \
 locks.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sd.o
-
-sdclient.o: sdclient.c sddefs.h revstamp.h sdclient.h err.h
-	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sdclient.o
 
 sdconv.o: sdconv.c sd.h dh_int.h header.h revstamp.h
 	@$(COMP) $(C_FLAGS) -c $< -o $(GPLOBJ)sdconv.o
