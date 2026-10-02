@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 02 Oct 26 dm  SD_REV_STAMP L1.1-3 (owner, 2 Oct 2026: "version should be 1.1-3 on both full and solo")
  * 29 Sep 26 dm  SD_REV_STAMP L1.1-1 (English-only release)
  * rev 1.0-2 see sdsys/changelog
  * rev 1.0-1 Add back PROCREAD PROCWRITE
@@ -88,7 +89,7 @@
 #define MAJOR_REV      1
 #define MINOR_REV      0
 #define BUILD          2
-#define SD_REV_STAMP   "L1.1-1"
+#define SD_REV_STAMP   "L1.1-3"
 
 #define SD_COPYRIGHT_YEAR "2007"
 
