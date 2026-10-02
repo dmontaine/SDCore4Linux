@@ -2,6 +2,32 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  RESTORE.ACCOUNT LATEST: RESTORE THE MOST RECENT BACKUP WITHOUT
+           NAMING IT.
+
+           RESTORE.ACCOUNT LATEST name [name ...] and RESTORE.ACCOUNT LATEST
+           ALL (each with the usual NO.QUERY) put the word LATEST where the
+           archive name goes.  SD looks in the directory saved by
+           SET.BACKUP.DIRECTORY, picks the newest backup made on this
+           computer that holds every account you named, says which one it
+           chose ("The most recent backup is ..."), and restores from it as
+           it would have if you had typed its name.  For ALL it takes the
+           newest backup that was made with ALL.  If there is none it says
+           so and changes nothing.  The same command is in SD Core for
+           Windows.
+
+           WHY: a backup's name holds the computer, the accounts and the
+           time, which is a lot to type when you only want the last one.
+
+           WHAT THIS DOES NOT DO: it chooses from the file names alone, so a
+           backup of several accounts made with more than three names counts
+           for any account you ask for, and is checked against its own
+           contents before anything is changed; one that does not hold the
+           account stops the restore with nothing changed.  It never picks a
+           backup made on another computer, and it only restores the accounts
+           you named from a backup of several.  Archive names always end in
+           .zip, so LATEST cannot be mistaken for one.
+
 02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
 
            examples/windows.c (a Visual Studio port of the C client library)
