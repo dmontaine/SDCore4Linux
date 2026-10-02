@@ -148,6 +148,43 @@ def suite(tool, work):
         and ex.get("zz") == pk.get("zz"),
         ["$ " + " ".join(cmd), "  -> exit %d %s (pack said %s); bytes equal: %s" % (rc, ex, pk.get("zz"), same)])
 
+    # Directory modes.  pack stores each directory's mode; extract must apply it, or a restore
+    # turns an account's 0700 directories into 0775 (measured on a real Solo, 2 Oct 2026: the
+    # extractor created every directory 0775 under umask 002 and never read the archived mode).
+    msrc = os.path.join(work, "msrc")
+    want_modes = {"": 0o700, "priv": 0o700, "shared": 0o750, "ro": 0o700}   # "ro" is stored 0500: the owner keeps rwx
+    for rel in ("priv", "shared", "ro"):
+        os.makedirs(os.path.join(msrc, rel))
+    for rel, perm in (("priv", 0o700), ("shared", 0o750), ("ro", 0o500), ("", 0o700)):
+        os.chmod(os.path.join(msrc, rel), perm)
+    rc, zb, err, cmd = run(tool, ["pack", "zz=" + msrc], b"format: 1\n")
+    mzip = os.path.join(work, "modes.zip")
+    with open(mzip, "wb") as f:
+        f.write(zb)
+    mout = os.path.join(work, "modesout")
+    rc2, out2, err2, cmd2 = run(tool, ["extract", mzip, mout])
+
+    def mode_of(rel):
+        try:
+            return os.stat(os.path.join(mout, "accounts", "zz", rel)).st_mode & 0o777
+        except OSError:
+            return None
+    got = {rel: mode_of(rel) for rel in want_modes}
+    stored = {}                 # read back out of the zip itself, so a pack that stored nothing cannot pass
+    if rc == 0:
+        with zipfile.ZipFile(mzip) as zf:
+            for zi in zf.infolist():
+                if zi.filename.startswith("accounts/zz") and zi.is_dir():
+                    stored[zi.filename[len("accounts/zz/"):].rstrip("/")] = (zi.external_attr >> 16) & 0o777
+    want_stored = {"": 0o700, "priv": 0o700, "shared": 0o750, "ro": 0o500}
+    row("allow", "extract applies each archived directory mode (0700 stays 0700, 0750 stays 0750, 0500 becomes 0700)",
+        rc == 0 and rc2 == 0 and stored == want_stored and got == want_modes,
+        ["$ " + " ".join(cmd), "$ " + " ".join(cmd2),
+         "  stored in the zip:      %s" % {rel: oct(p) for rel, p in sorted(stored.items())},
+         "  expected after extract: %s" % {rel: oct(p) for rel, p in want_modes.items()},
+         "  got after extract:      %s" % {rel: (oct(p) if p is not None else None) for rel, p in got.items()}])
+    os.chmod(os.path.join(msrc, "ro"), 0o700)
+
     win = os.path.join(work, "win.zip")
     good_zip(win, BASE + [("accounts/zz/empty/", None)])
     wout = os.path.join(work, "wout")
@@ -298,6 +335,7 @@ MUTANTS = [
     ("symlinks followed", "if stat.S_ISLNK(st.st_mode):", "if False:"),
     ("existing target reused", "if os.path.lexists(target):", "if False:"),
     ("manifest not required", "if not has_manifest:", "if False:"),
+    ("directory modes not applied", "os.chmod(dest, dperm)", "pass"),
 ]
 
 

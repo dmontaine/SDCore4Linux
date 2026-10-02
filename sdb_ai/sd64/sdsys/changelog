@@ -2,6 +2,26 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  A RESTORED ACCOUNT KEEPS ITS DIRECTORY PERMISSIONS.
+
+           RESTORE.ACCOUNT used to create every directory of the restored
+           account readable and writable by its group (mode 775), whatever
+           the directory's mode had been when BACKUP.ACCOUNT saved it, so an
+           account whose directories were private (700) came back with them
+           open to its group.  The backup always recorded each directory's
+           mode; the restore now applies it, as it already did for files.
+           The owner always keeps full access, and permission for everyone
+           else to write is not restored.
+
+           WHY: found on the first restore run on a real installation, where
+           every directory of the account changed from 700 to 775.
+
+           WHAT THIS DOES NOT DO: it does not repair an account that was
+           already restored the old way; restore it again from the same
+           backup.  A backup made by SD Core for Windows carries no Unix
+           permissions, so the directories of an account restored from one
+           stay 775, as before.
+
 02 Oct 26  RESTORE.ACCOUNT LATEST: RESTORE THE MOST RECENT BACKUP WITHOUT
            NAMING IT.
 

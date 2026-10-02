@@ -9,6 +9,9 @@
 #               a zip, deflate or stored, "/" separators, manifest.txt at the
 #               root and one tree per account under accounts/<name>/, a directory
 #               entry ("name/", stored, no data) for EVERY directory, empty or not.
+# 02 Oct 26 dm  extract applies each directory's archived mode.  Measured on the owner's
+#               Solo: a restore turned every directory of the account from 0700 to 0775
+#               (makedirs 0o775 under umask 002; the mode pack stores was never read).
 # END-HISTORY
 #
 # START-DESCRIPTION:
@@ -292,6 +295,7 @@ def do_extract(zpath, target):
 
         os.mkdir(target, 0o700)
         totals = {}
+        dir_modes = []
         for zi, parsed in plan:
             if parsed is None:
                 dest = os.path.join(target, "manifest.txt")
@@ -305,6 +309,8 @@ def do_extract(zpath, target):
             if zi.is_dir():
                 if not os.path.isdir(dest):
                     os.makedirs(dest, 0o775)
+                if zi.create_system == 3 and mode & 0o777:
+                    dir_modes.append((dest, (mode & 0o775) | 0o700))
                 if acct is not None and parsed[1]:
                     totals[acct]["dirs"] += 1
                 continue
@@ -327,6 +333,11 @@ def do_extract(zpath, target):
             if acct is not None:
                 totals[acct]["files"] += 1
                 totals[acct]["bytes"] += written
+        # Each directory gets its archived mode now that its contents are in, the same
+        # rule as a file (group-write kept, other-write dropped, the owner always rwx).
+        # A directory the archive gave no Unix mode (a Windows zip) keeps 0775.
+        for dest, dperm in dir_modes:
+            os.chmod(dest, dperm)
         # A directory implied only by a file path still counts once, so the
         # count matches a writer that omitted the entry.  Recount from disk.
         for acct in totals:
