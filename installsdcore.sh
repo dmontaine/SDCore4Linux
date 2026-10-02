@@ -263,7 +263,7 @@ echo
 #   PRODUCTION ENVIRONMENT", which contradicts the project's own stance that
 #   this version ships for production (CLAUDE.md, owner 9 Sep 2026), and the
 #   "do not install in parallel with a standard SD" line describes a situation
-#   the installer refuses for itself (installsdai.sh:152).
+#   the installer refuses for itself (installsdcore.sh:152).
 printf "%bFor this install script to work you must have sudo installed\n" "$GREEN"
 printf "and be a member of the sudo group.  Also, systemd must be enabled.%b\n" "$NC"
 echo
@@ -553,7 +553,7 @@ fi
 #
 # Create sd system user and group
 # Modified by Composer AI - 2026/06/10.
-# Create sdusers/sdsys only when absent so reinstall after deletesdai.sh succeeds.
+# Create sdusers/sdsys only when absent so reinstall after deletesdcore.sh succeeds.
 # echo "Creating group: sdusers."
 # sudo groupadd --system sdusers
 # sudo usermod -a -G sdusers root
@@ -784,7 +784,7 @@ sudo cp -r gplbld/microcfg "$sdsysdir"
 # /usr/share/nano/*.nanorc (measured: nano 9.2, /etc/nanorc:257) - so one copy
 # here serves every user and GPL.BP/EDIT copies nothing for it.  If the directory
 # is missing nano is not installed; say so rather than create a directory
-# nothing would read.  deletesdai.sh removes the file.
+# nothing would read.  deletesdcore.sh removes the file.
 #
 # 22 Sep 2026 - THE GLOB THAT MAKES THIS ACHIEVE ANYTHING IS DEBIAN'S OWN
 #   PATCH TO NANO'S DEFAULT /etc/nanorc, NOT UPSTREAM NANO BEHAVIOUR
@@ -796,7 +796,7 @@ sudo cp -r gplbld/microcfg "$sdsysdir"
 #   a substring search that a commented-out line (Debian's own /etc/nanorc
 #   ships three, right below the live one) would also match.  Where it is not
 #   already covered, one exact line is appended to that machine's own
-#   /etc/nanorc - deletesdai.sh removes it again, by the same exact match.
+#   /etc/nanorc - deletesdcore.sh removes it again, by the same exact match.
 if [ -d /usr/share/nano ]; then
     sudo install -m 644 gplbld/nanocfg/sdbasic.nanorc /usr/share/nano/sdbasic.nanorc
     nanorc_target="/usr/share/nano/sdbasic.nanorc"
@@ -841,7 +841,7 @@ sudo chmod -R 775 "$sdsysdir/prt"
 # would be swept into sdsys ownership and mode, and it must not be, because
 # anything that can rewrite this file can lie about what is installed.
 sudo tee "$sdsysdir/.sdcore-install" >/dev/null <<SDSTAMP
-# Written by installsdai.sh.  Read by gplbld/assert-current.py.
+# Written by installsdcore.sh.  Read by gplbld/assert-current.py.
 commit=${sdcore_commit}
 branch=${REPO_BRANCH}
 origin=${REPO_URL}
@@ -858,7 +858,7 @@ ACCT_PATH=/home/sd
 # 10 Sep 26  PRE_RELEASE 27 - ENSURE BOTH SUBDIRECTORIES WHATEVER /home/sd IS.
 #            This was an "if [ ! -d "$ACCT_PATH" ]" around both mkdirs, so
 #            they were created only when /home/sd was ABSENT.  PRE_RELEASE 26
-#            makes deletesdai.sh recreate /home/sd to hold the saved sd.conf
+#            makes deletesdcore.sh recreate /home/sd to hold the saved sd.conf
 #            on the DELETE path, so /home/sd now EXISTS but empty; the guard
 #            skipped the mkdirs, the chown of /home/sd/group_accounts below
 #            died with "No such file or directory", and set -e aborted the
@@ -877,9 +877,9 @@ fi
 sudo mkdir -p "$ACCT_PATH"/user_accounts "$ACCT_PATH"/group_accounts
 #
 # Modified by Composer AI - 2026/06/10.
-# Reference deletesdai.sh by its actual script name.
+# Reference deletesdcore.sh by its actual script name.
 # rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesd.sh script
-# rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesdai.sh script
+# rev 0.9.3 always set ownership (these could get messed up if sdsys and sdusers group gets deleted during deletesdcore.sh script
 # --------------------
 sudo chown sdsys:sdusers "$ACCT_PATH"
 sudo chmod 775 "$ACCT_PATH"
@@ -944,7 +944,7 @@ fi
 # holder of StoredKey can impersonate the SERVER, so it is root:root 0700 and
 # nobody else reads it; MODIFY.PASSWORD writes it with euid 0 (CPROC
 # privileged_commands) and the API server reads it while still root.  A keep
-# cycle restores the saved register (deletesdai.sh keeps it with the audit
+# cycle restores the saved register (deletesdcore.sh keeps it with the audit
 # trail); otherwise it starts empty.  AFTER the chmod -R 755 above, which would
 # otherwise open it.  The mode is printed, not assumed.
 if [ -d "/home/sd/\$cred" ]; then
@@ -989,7 +989,7 @@ echo "credential register: $(sudo stat -c '%U:%G %a' "$sdsysdir/\$cred")"
 # ADMINISTRATOR LISTS IT (security ships tight, the Project stance's rule):
 # an account with no entry here is refused 11000, exactly as one with an
 # entry that does not match.  A keep cycle restores the saved list
-# (deletesdai.sh keeps it with the accounts and the credential register);
+# (deletesdcore.sh keeps it with the accounts and the credential register);
 # otherwise a fresh, empty directory.
 if [ -d "/home/sd/batch.jobs" ]; then
     sudo rm -fr "$sdsysdir/batch.jobs"
@@ -1068,7 +1068,7 @@ echo "Process dumps: $(sudo stat -c '%U:%G %a' "$sdsysdir/dumps") $sdsysdir/dump
 # refuses every open that does not append, and every truncate, rename and
 # unlink, to everyone until root lifts it.  Without the attribute a writable
 # file can be emptied by anyone who can write it - the Windows port measured
-# that and rejected it.  A trail deletesdai.sh saved is put back first, so a
+# that and rejected it.  A trail deletesdcore.sh saved is put back first, so a
 # keep-accounts reinstall keeps its history.  AFTER the chown -R and chmod -R
 # above, which would otherwise reset the mode.
 for f in /home/sd/audit /home/sd/audit.*; do
@@ -1373,7 +1373,7 @@ echo
 # 09 Sep 26  The download is always removed.  There is no longer a saved-copy
 #            branch, and no local-repository case to exempt.
 # 09 Sep 26  ***sudo, AND THIS IS THE BUG THAT MADE THE FIRST GITHUB INSTALL
-#            "FAIL" AFTER IT HAD ACTUALLY SUCCEEDED.***  installsdai.sh:359 runs
+#            "FAIL" AFTER IT HAD ACTUALLY SUCCEEDED.***  installsdcore.sh:359 runs
 #            "sudo make -B", so gplobj/ and terminfo/ inside the download are
 #            owned by root.  A plain "rm -fr" as the calling user cannot unlink
 #            files inside a root-owned directory: it deletes everything else,
@@ -1613,8 +1613,8 @@ echo ---------------------------------------------------------------
 #   happens if you give a different password at 3 than the one you currently
 #   have? ... Doesn't seem like you should have to enter it again if it already
 #   exists").  It was asked for unconditionally and chpasswd'd, so a keep-
-#   accounts reinstall - which leaves the sdsys USER in place, deletesdai only
-#   removes it on a DELETE (deletesdai.sh:332-343) - silently replaced a
+#   accounts reinstall - which leaves the sdsys USER in place, deletesdcore only
+#   removes it on a DELETE (deletesdcore.sh:332-343) - silently replaced a
 #   password the administrator was already using, with no way to enter the
 #   existing one.  The two SD prompts below already kept what they found;
 #   this one now does the same, and says how to change it deliberately.

@@ -45,7 +45,7 @@ SODIUM   := /usr/include/sodium
 COMP     := gcc
 # 22 Sep 26 - LIBSODIUM (-L/usr/lib/x86_64-linux-gnu/) dropped from L_FLAGS,
 #   below.  That is Debian/Ubuntu's multiarch triplet, and does not exist on
-#   Fedora, Arch or openSUSE (S.44, restoring installsdai.sh to all four) -
+#   Fedora, Arch or openSUSE (S.44, restoring installsdcore.sh to all four) -
 #   the link step would have failed on any of the three even with libsodium
 #   correctly installed.  Confirmed unnecessary here too: `-lm`, `-ldl` and
 #   OPENSSL_LIBS already link with no explicit -L at all, and `gcc
@@ -57,7 +57,7 @@ COMP     := gcc
 # 14 Sep 26 dm - S.18: -lcrypt and -lbsd dropped.  crypt() and getpeereid()
 #   were called only by linuxio.c login_user(), which is removed.
 # 15 Sep 26 dm - S.19: libssl, for the API's TLS relay and client (gplsrc/
-#   sd_tls.c, sd_tlssrv.c).  installsdai.sh installs libssl-dev.  OPENSSL_LIBS
+#   sd_tls.c, sd_tlssrv.c).  installsdcore.sh installs libssl-dev.  OPENSSL_LIBS
 #   is overridable only so a machine without the development symlinks can
 #   link a sandbox build; plain "make" does not need it.
 OPENSSL_LIBS ?= -lssl -lcrypto
@@ -88,7 +88,7 @@ $(shell mkdir -p $(GPLOBJ) $(GPLBIN))
 all: check-includes sd
 
 # EXTRA_C_FLAGS is the opt-in hatch and it is EMPTY unless you pass it on the
-# command line (plain "make" is unaffected, which is what installsdai.sh runs).
+# command line (plain "make" is unaffected, which is what installsdcore.sh runs).
 # The only flag it is meant for today is the developer build:
 #
 #   make EXTRA_C_FLAGS=-DSD_DEV_BUILD

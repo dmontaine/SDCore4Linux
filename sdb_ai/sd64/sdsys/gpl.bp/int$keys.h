@@ -283,7 +283,7 @@
       * $cred file - account credentials.  14 Sep 26 dm - adopted from the
       * Windows port's INT$KEYS.H (W.4 SCRAM phase 2).  Id = lower-case account
       * name (plan M).  The password is never stored.  root:root 0700 on disk
-      * (installsdai.sh): only a session holding euid 0 reads or writes it.
+      * (installsdcore.sh): only a session holding euid 0 reads or writes it.
       *
       * VERSION 2, FOR SCRAM.  The record holds StoredKey and ServerKey, which a
       * client can prove knowledge of without sending the password.

@@ -13,7 +13,7 @@
 #   keeps your database now keeps the server's identity with it.
 #
 #   13 Sep 2026 - the account register is sdsys/accounts on disk (plan M3 D1),
-#   so a kept register is saved as /home/sd/accounts, the name installsdai.sh
+#   so a kept register is saved as /home/sd/accounts, the name installsdcore.sh
 #   restores.  An install from before the rename has sdsys/ACCOUNTS, which this
 #   does not look for: no install needs carrying across (owner, 12-13 Sep) -
 #   take the delete-accounts path instead.
@@ -176,7 +176,7 @@ sudo systemctl disable sd.service sdclient.socket 2>/dev/null || true
 # and "rm -fr" cannot remove such a file: the removal below would stop part way
 # and leave half an install.  So the attribute comes off first, after the
 # services are stopped above so nothing is appending.  When the accounts are
-# kept the trail is kept with them, in $acct_path, and installsdai.sh puts it
+# kept the trail is kept with them, in $acct_path, and installsdcore.sh puts it
 # back - the Windows port's uninstaller keeps the trail with the database.
 # Answering DELETE removes it with everything else.
 for f in "$sdsysdir"/audit "$sdsysdir"/audit.*; do
@@ -192,7 +192,7 @@ done
 # ACCOUNTS, for the reason the audit trail does: $cred is every account's SD
 # password (as SCRAM keys), and a keep cycle that dropped it would leave every
 # account unreachable through the API until each password was set again.
-# installsdai.sh restores it sdsys:sdusers 0700 - the administrator's own
+# installsdcore.sh restores it sdsys:sdusers 0700 - the administrator's own
 # (18 Sep 26, S.26; the group is sdusers, there is no sdsys group).  DELETE
 # removes it.
 if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/\$cred" ]; then
@@ -206,7 +206,7 @@ fi
 # command line (login's batch.permitted); it goes with the accounts for the
 # same reason $cred does - a keep cycle that dropped it would silently widen
 # every account back to "any command, unattended" until the list was rebuilt
-# by hand.  installsdai.sh restores it sdsys:sdusers 0750.  DELETE removes it.
+# by hand.  installsdcore.sh restores it sdsys:sdusers 0750.  DELETE removes it.
 if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/batch.jobs" ]; then
     sudo rm -fr "$acct_path/batch.jobs"
     sudo cp -a "$sdsysdir/batch.jobs" "$acct_path/"
@@ -255,7 +255,7 @@ echo "Config file removed."
 # the clients exist, not after.
 #
 # It is LEFT IN PLACE rather than saved and restored: unlike $cred it lives
-# outside the sdsys tree, at /etc/sd-tls, and installsdai.sh never touches it -
+# outside the sdsys tree, at /etc/sd-tls, and installsdcore.sh never touches it -
 # the relay picks it up on the next first API connection.  DELETE removes it,
 # which is the case where the machine is genuinely being wiped.
 if [ "$keep_accts" = "DELETE" ]; then
@@ -422,7 +422,7 @@ echo "----------------------------------------------------------------------"
 # Modified by Composer AI - 2026/06/10.
 # Correct script name in completion message.
 # echo "The deletesd.sh script has completed."
-echo "The deletesdai.sh script has completed."
+echo "The deletesdcore.sh script has completed."
 # --------------------
 echo "Reboot to update user and group information and prior to sd reinstall."
 echo "----------------------------------------------------------------------"

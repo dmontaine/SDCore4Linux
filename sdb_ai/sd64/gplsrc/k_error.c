@@ -670,7 +670,7 @@ void log_message(char* msg) {
    APPEND ONLY, BY THE FILE AND NOT BY TRUST.  Sessions run as the user who
    started them, so every SD user must be able to write this file - and a
    writable file can be truncated or overwritten in place, the failure the port
-   measured and rejected.  installsdai.sh creates it sdsys:sdusers 0620 (write
+   measured and rejected.  installsdcore.sh creates it sdsys:sdusers 0620 (write
    without read for SD users) with chattr +a, so the kernel accepts only
    O_APPEND writes and refuses truncation, overwriting, renaming and unlinking
    to everyone until root lifts the attribute.

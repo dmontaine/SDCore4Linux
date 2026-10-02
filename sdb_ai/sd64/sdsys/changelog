@@ -2,6 +2,19 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+02 Oct 26  THE INSTALLER AND UNINSTALLER HAVE NEW NAMES.
+
+           installsdai.sh is now installsdcore.sh, and deletesdai.sh is now
+           deletesdcore.sh.  They do exactly what they did before; only the
+           file names changed.  SD Core Solo's are installsdsolo.sh and
+           deletesdsolo.sh.
+
+           WHY: the names now say which product each one is for.
+
+           WHAT THIS DOES NOT DO: it does not touch an installed system.  If
+           you kept a copy of the old installer or uninstaller, it still
+           works, but fetch the new names for a new install.
+
 02 Oct 26  SET.BACKUP.DIRECTORY: SAY WHERE BACKUPS GO ONCE.
 
            SET.BACKUP.DIRECTORY directory saves the directory that

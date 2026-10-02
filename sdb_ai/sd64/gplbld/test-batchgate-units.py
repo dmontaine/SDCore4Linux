@@ -34,8 +34,8 @@ REPO = os.path.abspath(os.path.join(HERE, os.pardir, os.pardir, os.pardir))
 SD64 = os.path.abspath(os.path.join(HERE, os.pardir))
 LOGIN = os.path.join(SD64, "sdsys", "gpl.bp", "login")
 MESSAGES = os.path.join(SD64, "sdsys", "messages")
-INSTALLSDAI = os.path.join(REPO, "installsdai.sh")
-DELETESDAI = os.path.join(REPO, "deletesdai.sh")
+INSTALLSDCORE = os.path.join(REPO, "installsdcore.sh")
+DELETESDCORE = os.path.join(REPO, "deletesdcore.sh")
 
 # The anchors, each written once so a check and its mutant cannot drift apart.
 GATE_CALL = "gosub batch.permitted"
@@ -99,7 +99,7 @@ def find_exact_line_last(lines, exact):
     return hit
 
 
-def checks(src, messages=MESSAGES, installsdai=None, deletesdai=None):
+def checks(src, messages=MESSAGES, installsdcore=None, deletesdcore=None):
     """[(name, ok, detail)] - every invariant S.40 rests on."""
     lines = code_lines(src)
     out = []
@@ -204,21 +204,21 @@ def checks(src, messages=MESSAGES, installsdai=None, deletesdai=None):
                "%1" in body, repr(body[:60]))
 
     # The installer side: batch.jobs is made, protected, and preserved.
-    if installsdai is not None:
-        ck("B17 installsdai.sh creates batch.jobs", "batch.jobs" in installsdai,
-           "mkdir/restore block present" if "batch.jobs" in installsdai else "absent")
-        ck("B18 installsdai.sh chowns it sdsys:sdusers",
-           "chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"" in installsdai,
-           "found" if "chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"" in installsdai else "absent")
-        mode_m = re.search(r'chmod\s+([0-7]{3,4})\s+"\$sdsysdir/batch\.jobs"', installsdai)
+    if installsdcore is not None:
+        ck("B17 installsdcore.sh creates batch.jobs", "batch.jobs" in installsdcore,
+           "mkdir/restore block present" if "batch.jobs" in installsdcore else "absent")
+        ck("B18 installsdcore.sh chowns it sdsys:sdusers",
+           "chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"" in installsdcore,
+           "found" if "chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"" in installsdcore else "absent")
+        mode_m = re.search(r'chmod\s+([0-7]{3,4})\s+"\$sdsysdir/batch\.jobs"', installsdcore)
         group_no_write = bool(mode_m) and int(mode_m.group(1)[-2]) & 2 == 0
-        ck("B19 installsdai.sh's chmod on batch.jobs gives the group no write bit",
+        ck("B19 installsdcore.sh's chmod on batch.jobs gives the group no write bit",
            group_no_write,
            f"chmod {mode_m.group(1)}" if mode_m else "no chmod on batch.jobs found")
-    if deletesdai is not None:
-        ck("B20 deletesdai.sh preserves batch.jobs on a keep cycle",
-           "batch.jobs" in deletesdai,
-           "preserve block present" if "batch.jobs" in deletesdai else "absent")
+    if deletesdcore is not None:
+        ck("B20 deletesdcore.sh preserves batch.jobs on a keep cycle",
+           "batch.jobs" in deletesdcore,
+           "preserve block present" if "batch.jobs" in deletesdcore else "absent")
 
     return out
 
@@ -292,9 +292,9 @@ def _move_gate_after_success(src):
 
 def selftest(src):
     print("--- self-test: each mutation must be CAUGHT by at least one check ---")
-    base = checks(src, installsdai="chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"\n"
+    base = checks(src, installsdcore="chown -R sdsys:sdusers \"$sdsysdir/batch.jobs\"\n"
                                     "chmod 750 \"$sdsysdir/batch.jobs\"\nbatch.jobs",
-                  deletesdai="batch.jobs")
+                  deletesdcore="batch.jobs")
     base_bad = [n for n, ok, _ in base if not ok]
     if base_bad:
         print("REFUSING - the unmutated source already fails: %s" % ", ".join(base_bad),
@@ -331,15 +331,15 @@ def main(argv):
     if "--selftest" in argv:
         return selftest(src)
 
-    installsdai = deletesdai = None
-    if os.path.isfile(INSTALLSDAI):
-        with open(INSTALLSDAI) as f:
-            installsdai = f.read()
-    if os.path.isfile(DELETESDAI):
-        with open(DELETESDAI) as f:
-            deletesdai = f.read()
+    installsdcore = deletesdcore = None
+    if os.path.isfile(INSTALLSDCORE):
+        with open(INSTALLSDCORE) as f:
+            installsdcore = f.read()
+    if os.path.isfile(DELETESDCORE):
+        with open(DELETESDCORE) as f:
+            deletesdcore = f.read()
 
-    rows = checks(src, installsdai=installsdai, deletesdai=deletesdai)
+    rows = checks(src, installsdcore=installsdcore, deletesdcore=deletesdcore)
     failed = 0
     for name, ok, detail in rows:
         print(f"  [{'PASS' if ok else 'FAIL'}] {name}: {detail}")

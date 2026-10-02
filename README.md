@@ -28,12 +28,12 @@ SD Core is English only: it has no support for other languages or locales.
 
 ## Installing
 
-Download `installsdai.sh` from this repository, make it executable and run it
+Download `installsdcore.sh` from this repository, make it executable and run it
 as your ordinary user (it calls `sudo` itself):
 
 ```sh
-chmod +x installsdai.sh
-./installsdai.sh
+chmod +x installsdcore.sh
+./installsdcore.sh
 ```
 
 It installs the required packages, clones the main branch of this repository,
@@ -41,7 +41,7 @@ builds SD, installs it under `/usr/local/sdsys`, registers the service, and
 deletes the download when it finishes. The installing user is registered as an
 SD administrator.
 
-`deletesdai.sh` removes SD again.
+`deletesdcore.sh` removes SD again.
 
 **SD Core for Linux cannot be installed alongside another SD** (such as sdb64):
 both use `/usr/local/sdsys`.

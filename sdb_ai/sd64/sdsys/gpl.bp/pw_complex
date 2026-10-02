@@ -27,7 +27,7 @@
 *    Anything outside printable ASCII (a control character, a tab, a byte
 *    above 126) fails the rule outright.  The classes are ASCII ranges on
 *    purpose: the same rule is written again in bash (sd-elevate's
-*    pw_complex, installsdai.sh's sdsys prompt) and in the Windows port, and
+*    pw_complex, installsdcore.sh's sdsys prompt) and in the Windows port, and
 *    byte ranges are the one definition all of them read the same way.
 *    Refusal text: message 10920, shared with SD Core for Windows.
 *

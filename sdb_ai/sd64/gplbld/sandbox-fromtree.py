@@ -12,7 +12,7 @@
 # START-HISTORY:
 # 01 Oct 26 dm  Written for S.50, when there was no install on this machine to
 #               copy: sandbox-txnfail.py's sandbox copies /usr/local/sdsys, this
-#               one replays installsdai.sh's assembly and its bootstrap passes
+#               one replays installsdcore.sh's assembly and its bootstrap passes
 #               (sd -i, SECOND.COMPILE, write_install_dicts, THIRD.COMPILE) on a
 #               copy of the tree.  Its first real use found the bootstrap break
 #               S.50's LOGIN change caused - and that sd exited 0 through it.

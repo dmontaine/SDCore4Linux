@@ -5,7 +5,7 @@ Description=String Database (SD)  Per-Connection client Server
 SocketGroup=sdusers
 ListenStream=/tmp/sdsys/sdclient.socket
 # PRE_RELEASE API listener (owner, 10 Sep 2026): localhost by default (the port's
-# "LOCAL" state). installsdai.sh rewrites this to 0.0.0.0:4247 if the installer's
+# "LOCAL" state). installsdcore.sh rewrites this to 0.0.0.0:4247 if the installer's
 # "Allow API access" prompt is answered yes.  4247, fixed (owner, 2 Oct 2026): the
 # full SD Core products' API port; the Solos use 4249, upstream SD 4245, OpenQM
 # and ScarletDME 4243 - so all of them can run on one computer.

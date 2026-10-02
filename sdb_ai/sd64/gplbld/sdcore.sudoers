@@ -1,7 +1,7 @@
 # SD Core for Linux - the privileged helper.
 #
-# Written by installsdai.sh to /etc/sudoers.d/sdcore, mode 0440, root:root.
-# Removed by deletesdai.sh.  Validate with:
+# Written by installsdcore.sh to /etc/sudoers.d/sdcore, mode 0440, root:root.
+# Removed by deletesdcore.sh.  Validate with:
 #
 #     visudo -cf /etc/sudoers.d/sdcore
 #

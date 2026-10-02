@@ -272,7 +272,7 @@ def main():
             note("CANNOT ANSWER: the install is newer than HEAD's commit, but "
                  "without a stamp there is nothing that says WHICH commit it "
                  "was built from - a newer mtime is not evidence.")
-            note("  Re-install once; installsdai.sh writes the stamp now.")
+            note("  Re-install once; installsdcore.sh writes the stamp now.")
             return finish(UNKNOWN)
 
     # --------------------------------------------- D. is bin/sd even rebuilt?

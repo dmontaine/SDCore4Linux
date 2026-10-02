@@ -29,7 +29,7 @@ sdb_ai/sd64/bin/*
 # directory from the tracked terminfo.src.
 sdb_ai/sd64/terminfo/
 
-# Written by installsdai.sh:388 before the build, pointing at whatever Python
+# Written by installsdcore.sh:388 before the build, pointing at whatever Python
 # headers the machine has. It is machine-specific and must not be shared.
 sdb_ai/sd64/gplsrc/sdext_python_inc.h
 

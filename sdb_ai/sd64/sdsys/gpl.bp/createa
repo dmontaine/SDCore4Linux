@@ -80,7 +80,7 @@
 *               15, the port's of 14 and 21 Aug 2026).  A pre-existing Linux
 *               user is now REFUSED (10038) instead of silently taken over;
 *               ADOPT is the one sanctioned exception, needs -internal AND a
-*               one-shot marker written by installsdai.sh, consumes the marker,
+*               one-shot marker written by installsdcore.sh, consumes the marker,
 *               and defaults the tier to ADMINISTRATOR.  NO.QUERY without a
 *               Linux user now says why (10039) instead of "Invalid user name".
 * 11 Sep 26 dm  A password that could not be set says why - 10120, 10909,
@@ -199,7 +199,7 @@ $include createacc.h
    acc.type = upcase(acc.type)
 
 * 11 Sep 26 dm - THE ONE-SHOT MARKER THAT MAKES ATTACH INSTALL-ONLY (PORT_ADOPTION
-*   15).  installsdai.sh writes @sdsys/$attach.<name> immediately before running
+*   15).  installsdcore.sh writes @sdsys/$attach.<name> immediately before running
 *   the verb.  It is named per account as soon as the name is parsed, so one
 *   marker authorises one account; nothing writes the bare name.  ***IT IS NOT
 *   SHIPPED AND MUST NEVER BE.***  more.args accepts ATTACH only while the marker

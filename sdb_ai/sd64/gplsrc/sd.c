@@ -325,7 +325,7 @@ Private bool comlin(int argc, char *argv[]) {
 
          check_admin() is what -I three lines below already does, and every
          install runs both under sudo, so the installer is unaffected
-         (installsdai.sh:645, :672).  THE COST IS DELIBERATE AND RULED: it
+         (installsdcore.sh:645, :672).  THE COST IS DELIBERATE AND RULED: it
          puts compiling CPROC, CATALOG and LOGIN outside an install behind
          sudo.  The owner ruled 09 Sep 26 that this system ships for
          production rather than for developers, so the shipped install owes
@@ -335,7 +335,7 @@ Private bool comlin(int argc, char *argv[]) {
          SAFE HERE FOR A REASON THAT IS NOT GENERALLY TRUE.  A build-time
          escape hatch normally means the binary you tested is not the binary
          that ships, which is the worst place for a difference to hide.  It
-         does not mean that here: installsdai.sh CLONES main FROM GITHUB AND
+         does not mean that here: installsdcore.sh CLONES main FROM GITHUB AND
          BUILDS THAT (owner, 9 Sep 26), so an installed system is always
          built from a clean checkout with default flags, and a developer
          binary has no route to a user.

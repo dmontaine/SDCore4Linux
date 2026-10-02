@@ -143,13 +143,13 @@ CONFIG=${SD_SSHD_CONFIG:-/etc/ssh/sshd_config}
 REAL_CONFIG=/etc/ssh/sshd_config
 BACKUP="$CONFIG.before-sd"
 
-# Where the installed sd is.  installsdai.sh installs it here regardless of
+# Where the installed sd is.  installsdcore.sh installs it here regardless of
 # distribution, and symlinks /usr/local/bin/sd to it.  The canonical target is
 # used so the block does not depend on PATH at ssh-login time.
 SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}
 
 # Where the refusal arm's command lives - this same script, as the installer
-# puts it (installsdai.sh installs gplbld/ssh-forcecommand.sh there before it
+# puts it (installsdcore.sh installs gplbld/ssh-forcecommand.sh there before it
 # writes the block).  Named rather than derived from $0 on purpose: the block
 # must carry the INSTALLED path, and $0 is the repository copy when the
 # installer or the unit test runs it from gplbld/.

@@ -43,7 +43,7 @@
 * SHA-256 of ClientKey, so holding it does not let the holder authenticate as
 * the client - forming a proof needs ClientKey itself, which is the preimage.
 * It does let the holder impersonate the SERVER, which is why $cred is
-* root:root 0700 (installsdai.sh) and read by nobody else.
+* root:root 0700 (installsdcore.sh) and read by nobody else.
 *
 * This is the only place in the server that runs PBKDF2.  Login does not: it
 * holds StoredKey directly and needs two HMACs and a hash, so the cost of a

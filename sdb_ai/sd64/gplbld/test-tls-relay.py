@@ -9,7 +9,7 @@
 # 2 it could not run (no compiler, no OpenSSL headers, a compile error).
 #
 # OPENSSL HEADERS: the system's (/usr/include/openssl, package libssl-dev,
-# which installsdai.sh installs) when present.  Otherwise SD_OPENSSL_INC
+# which installsdcore.sh installs) when present.  Otherwise SD_OPENSSL_INC
 # (directories, ':'-separated) and SD_OPENSSL_LIBS (link arguments) must both
 # be set, and the run says loudly that it did not use the system headers.
 #

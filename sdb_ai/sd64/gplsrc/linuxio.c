@@ -106,7 +106,7 @@ bool negotiate_telnet_parameter(void);
    api_tls_dir()  -  Where the API's TLS relay keeps the server identity
 
    15 Sep 26 dm - S.19.  Beside sd.conf: <its directory>/sd-tls, normally
-   /etc/sd-tls.  NOT under SDSYS, for two reasons measured in installsdai.sh:
+   /etc/sd-tls.  NOT under SDSYS, for two reasons measured in installsdcore.sh:
    the installer runs chown -R sdsys and chmod -R 755 over SDSYS, which would
    leave the key readable and fail the relay's owner check; and the sdsys
    account owns SDSYS, so it could rename a root-owned directory away and
@@ -201,7 +201,7 @@ bool start_connection(int unused) {
            The API server authenticates the connection by SCRAM (APISRVR
            requests 47/48).  The listener binds 127.0.0.1:4247 by default
            (4243 before 2 Oct 26 - the owner fixed SD Core's ports then);
-           installsdai.sh opens it to 0.0.0.0:4247 and the firewall only on
+           installsdcore.sh opens it to 0.0.0.0:4247 and the firewall only on
            "Allow API access".  A non-API TCP connection is still refused.
 
            14 Sep 26 dm - S.17: ip_addr/port_no are now the PEER's, from

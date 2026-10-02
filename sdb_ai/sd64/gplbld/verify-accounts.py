@@ -28,7 +28,7 @@
 # the model PORT_ADOPTION 12 and 14 used: one script, backs up what it changes,
 # PASS/FAIL on the success wording, restores on failure, tees to a log.  It
 # also wants the FULL delete->install this project already owes, because a
-# keep-accounts cycle never runs `installsdai.sh`'s seeding block.
+# keep-accounts cycle never runs `installsdcore.sh`'s seeding block.
 #
 # ***WHAT THIS HALF CAN STILL DECIDE, AND IT IS MORE THAN IT LOOKS.***  The
 # register `@SDSYS/ACCOUNTS` is a DIRECTORY file and world-readable

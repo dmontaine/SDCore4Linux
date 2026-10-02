@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# test-install-pass3.sh - installsdai.sh's "Bootstrap pass 3" block, run the
+# test-install-pass3.sh - installsdcore.sh's "Bootstrap pass 3" block, run the
 #                         way the installer runs it.
 #
 #   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-pass3.sh
@@ -9,7 +9,7 @@
 # failed, 2 it could not run.
 #
 # WHY IT EXISTS (29 Sep 2026, S.48).  The pass-3 check stopped TWO real
-# installs silently, right after a clean pass 3: installsdai.sh runs under
+# installs silently, right after a clean pass 3: installsdcore.sh runs under
 # "set -euo pipefail", and "x=$(... | grep ... | head -1)" with grep finding
 # nothing - the clean case - is a failing assignment, which ends the script
 # with no message.  The first harness evaluated the block WITHOUT those
@@ -23,7 +23,7 @@
 # output of an install is on this machine (/var/tmp/sdcore-install-pass3.log,
 # written by the installer), it is the first row.
 
-INST="$(cd "$(dirname "$0")/../../.." && pwd)/installsdai.sh"
+INST="$(cd "$(dirname "$0")/../../.." && pwd)/installsdcore.sh"
 REAL=/var/tmp/sdcore-install-pass3.log
 OPTS=$(grep -m1 -E '^set -' "$INST")
 BLOCK=$(awk '/^echo "Bootstrap pass 3."/{f=1} f{print} f&&/^fi$/{n++} f&&n==2{exit}' "$INST")

@@ -536,7 +536,7 @@ SRC="$(dirname "$(dirname "$SELF")")"
 REPO="$(dirname "$(dirname "$SRC")")"
 say "  source root: $SRC (repo root: $REPO)"
 ck "M9a the installer creates no sdadmin group" 0 \
-   "$(grep -c 'groupadd.*sdadmin\|groupadd --system sdadmin' "$REPO/installsdai.sh" 2>/dev/null)"
+   "$(grep -c 'groupadd.*sdadmin\|groupadd --system sdadmin' "$REPO/installsdcore.sh" 2>/dev/null)"
 # 20 Sep 26 - ***M9b IS REVERSED, AND IT WAS PASSING FOR THE WRONG REASON.***
 #   It asserted the installer creates no sdapi group (S.28) and matched
 #   `groupadd.*sdapi` - but S.29 part 1 creates BOTH route groups through a
@@ -546,13 +546,13 @@ ck "M9a the installer creates no sdadmin group" 0 \
 #   FAILS***: M7b, which read the MACHINE, would have caught the same change
 #   and did.  The subject is the loop that names both.
 ck "M9b the installer creates BOTH route groups (S.29)" 1 \
-   "$(grep -c 'for sd_route_group in sdssh sdapi' "$REPO/installsdai.sh" 2>/dev/null)"
+   "$(grep -c 'for sd_route_group in sdssh sdapi' "$REPO/installsdcore.sh" 2>/dev/null)"
 # The seeding line, not the comment two dozen lines above it that quotes an
 # older spelling of it: `create-account USER` alone matches the comment first
 # and the row would then compare against prose.
-GRP_LINE=$(grep -n 'for sd_route_group in sdssh sdapi' "$REPO/installsdai.sh" | head -1 | cut -d: -f1)
-SEED_LINE=$(grep -n 'bin/sd -internal create-account USER' "$REPO/installsdai.sh" | head -1 | cut -d: -f1)
-say "  installsdai.sh: route groups made at line ${GRP_LINE:-<absent>}, account seeded at line ${SEED_LINE:-<absent>}"
+GRP_LINE=$(grep -n 'for sd_route_group in sdssh sdapi' "$REPO/installsdcore.sh" | head -1 | cut -d: -f1)
+SEED_LINE=$(grep -n 'bin/sd -internal create-account USER' "$REPO/installsdcore.sh" | head -1 | cut -d: -f1)
+say "  installsdcore.sh: route groups made at line ${GRP_LINE:-<absent>}, account seeded at line ${SEED_LINE:-<absent>}"
 if [ -n "$GRP_LINE" ] && [ -n "$SEED_LINE" ]; then
   ck "M9b2 and it makes them before any account exists" yes \
      "$( [ "$GRP_LINE" -lt "$SEED_LINE" ] && echo yes || echo no )"
@@ -560,7 +560,7 @@ else
   not_reached "M9b2 and it makes them before any account exists"
 fi
 ck "M9c the installer seeds a PLAIN account (no ADMINISTRATOR keyword)" 0 \
-   "$(grep -c 'create-account USER .*ADMINISTRATOR' "$REPO/installsdai.sh" 2>/dev/null)"
+   "$(grep -c 'create-account USER .*ADMINISTRATOR' "$REPO/installsdcore.sh" 2>/dev/null)"
 # 20 Sep 26 - ***M9d MEASURED THE LAYOUT OF OUR OWN SOURCE, NOT THE FACT IT
 #   CLAIMED, AND S.29 PART 3 BROKE IT*** (the 93-row cycle: 92 passed, this
 #   one failed against a correct helper).  It matched `printf.*Match Group

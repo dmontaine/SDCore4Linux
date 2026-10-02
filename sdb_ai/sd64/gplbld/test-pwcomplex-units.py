@@ -457,11 +457,11 @@ def main():
         body = open(path, "rb").read().decode("latin-1")
         if re.search(r"^\s*input\s+\S+\s+HIDDEN\s*$", body, re.M | re.I):
             prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))
-    installer = os.path.join(os.path.dirname(SD64), "..", "installsdai.sh")
+    installer = os.path.join(os.path.dirname(SD64), "..", "installsdcore.sh")
     installer = os.path.normpath(installer)
     inst_body = open(installer, "rb").read().decode("latin-1")
     if re.search(r"read\s+-r\s+-s", inst_body):
-        prompts.append(("installsdai.sh", inst_body, r"pw-check"))
+        prompts.append(("installsdcore.sh", inst_body, r"pw-check"))
     if not prompts:
         refuse("no password prompt was found anywhere - the partition check measured nothing")
     for where, body, needle in prompts:

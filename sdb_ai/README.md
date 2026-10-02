@@ -9,7 +9,7 @@ source code from OpenQM and ScarletDME, code written by the SD developers after
 their fork from ScarletDME ([sdb64](https://codeberg.org/stringdatabase/sdb64)),
 and the changes made in this project to match SD Core for Windows.
 
-The tree contains no binaries. `installsdai.sh` clones it and builds everything
+The tree contains no binaries. `installsdcore.sh` clones it and builds everything
 from source during the install.
 
 | | |

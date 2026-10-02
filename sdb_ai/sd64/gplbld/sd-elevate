@@ -89,7 +89,7 @@ set -uo pipefail
 
 PROG=${0##*/}
 
-# The SD accounts root.  installsdai.sh uses /home/sd; kept in one place here.
+# The SD accounts root.  installsdcore.sh uses /home/sd; kept in one place here.
 SD_ACCT_ROOT=${SD_ACCT_ROOT:-/home/sd}
 
 # Below this, an account is a system account and out of reach.  Read from
@@ -151,7 +151,7 @@ EOF
 # REMOTESSH, PRE_RELEASE_FIXES 78 and 148, owner 30 Aug 2026).  THE SAME TWO
 # AXES THE PORT HAS, ON LINUX'S MECHANISMS: whether SD listens is systemd's
 # sdclient.socket, and who may reach it is ufw.  The rules touched are exactly
-# the ones installsdai.sh adds - "ufw allow $SD_API_PORT/tcp" (4247 since 2 Oct
+# the ones installsdcore.sh adds - "ufw allow $SD_API_PORT/tcp" (4247 since 2 Oct
 # 2026; 4243 before) and "ufw allow 22/tcp" - so the verb and the installer
 # describe one state.
 #

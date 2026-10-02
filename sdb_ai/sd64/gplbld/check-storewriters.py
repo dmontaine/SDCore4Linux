@@ -19,7 +19,7 @@
 # failed its file half.  On Linux the shape is the euid.  A "sudo sd" session
 # drops to euid sdsys at entry (CPROC's root-entry block, !EUID_SET), and CPROC
 # raises it back to 0 only around the verbs in privileged_commands.  accounts
-# and $cred are root-owned (installsdai.sh), so a write to either from any
+# and $cred are root-owned (installsdcore.sh), so a write to either from any
 # other verb fails however administrative the session is.
 #
 # WHY A STATIC CHECK AND NOT ONLY A WITNESS.  The witness (witness-release-run.sh
@@ -58,7 +58,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 SD64 = os.path.dirname(HERE)
 
-# The root-only stores.  installsdai.sh makes the register root:root and $cred
+# The root-only stores.  installsdcore.sh makes the register root:root and $cred
 # root:root 0700; verify-sysperms.py and witness-release-run.sh C7 measure them.
 STORES = ["accounts", "$cred"]
 

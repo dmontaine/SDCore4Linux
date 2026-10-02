@@ -17,7 +17,7 @@
 * START-HISTORY:
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
 *               unconditionally, in the multi-distribution restore of
-*               installsdai.sh (Arch, Fedora, RHEL, openSUSE besides Debian and
+*               installsdcore.sh (Arch, Fedora, RHEL, openSUSE besides Debian and
 *               Ubuntu).  New find.pkg.mgr probes apt-get/dnf/pacman/zypper in
 *               turn and names whichever one is actually on the machine.
 * 12 Sep 26 dm  The working copy goes to $hold, the renamed VOC id (plan M3).
@@ -409,7 +409,7 @@ return
 * machine has, once, so the missing-editor message names the real install
 * command instead of assuming Debian's.
 *
-* 22 Sep 2026 - installsdai.sh installs on Arch, Fedora, RHEL and openSUSE as
+* 22 Sep 2026 - installsdcore.sh installs on Arch, Fedora, RHEL and openSUSE as
 * well as Debian and Ubuntu now (the multi-distribution restore); this message
 * had stayed apt-only, which told a Fedora user to run a command that does not
 * exist on their machine.  Same "command -v, absolute path or refuse" check

@@ -86,9 +86,9 @@ EXPECT_WRITABLE = {
              "asserting it; the port's sd.c:55 hands a phantom its command here"),
     "prt": (False,
             "the print spool: gplsrc/to_file.c:169 writes <sysdir>/prt/p<n>; "
-            "installsdai.sh:621 sets it 775"),
+            "installsdcore.sh:621 sets it 775"),
     "errlog": (False,
-               "sessions append errors to it; installsdai.sh:620 sets it 775"),
+               "sessions append errors to it; installsdcore.sh:620 sets it 775"),
     # ***THE SWEEP IN SECTION 1 FOUND THIS ONE AND THAT IS THE SWEEP WORKING.***
     # The first run flagged `audit` as an unexpected writable.  It is writable
     # on purpose: 0620 is sdsys:sdusers with the GROUP holding write and NOT

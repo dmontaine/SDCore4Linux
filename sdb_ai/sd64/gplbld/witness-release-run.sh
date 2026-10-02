@@ -1577,7 +1577,7 @@ head2 "13j. Q.22 tierapi - struck: there is one layer, and witness-absence.sh pr
 # Q.22 sdsyswrite - CAN SDSYS REACHED BY LOGTO WRITE THE ADMINISTRATOR STORES?
 # The port's verify-sdsyswrite (its PRE_RELEASE_FIXES 68/73).  Under the
 # teardown the stores belong to the administrator: the register is sdsys:sdusers
-# 644 and $cred is sdsys:sdusers 700 (installsdai.sh - the GROUP is sdusers:
+# 644 and $cred is sdsys:sdusers 700 (installsdcore.sh - the GROUP is sdusers:
 # there is no sdsys group on this box, corrected 18 Sep 26 after the first
 # fresh cycle died on it), and the administrator IS a
 # local sdsys session - no euid dance.  The route the port found untested
