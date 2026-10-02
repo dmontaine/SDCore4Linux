@@ -891,12 +891,9 @@ sudo chmod 775 "$ACCT_PATH"/user_accounts
 # Modified by Composer AI - 2026/06/10.
 # sudo ln -s $sdsysdir/bin/sd /usr/local/bin/sd
 sudo ln -sf "$sdsysdir/bin/sd" /usr/local/bin/sd
-# 02 Oct 26 - THE COMMAND NAMES (owner, 2 Oct 2026, the same result as SD Core for
-# Windows' ruling of 1 Oct): "sd" and "sd-full" start THIS product; "sd-solo" starts
-# SD Core for Linux Solo.  When both are installed, Solo's own "sd" (a launcher in
-# the user's ~/.local/bin, which comes first on PATH) hands over to this one, so a
-# person who has both gets the full product from plain "sd".
-sudo ln -sf "$sdsysdir/bin/sd" /usr/local/bin/sd-full
+# 02 Oct 26 - THE COMMAND NAMES (owner, 1 Oct 2026, relayed by the Windows agent,
+# mail 2026-10-02T2400): "sd" is THIS product and its only name; "sd-solo" is SD Core
+# for Linux Solo.  There is no "sd-full" (the 2 Oct first cut made one; dropped).
 # --------------------
 #
 # Install sd service for systemd

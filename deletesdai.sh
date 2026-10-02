@@ -224,7 +224,8 @@ if [ -L "/usr/local/bin/sd" ]; then
     echo "Removed symbolic link /usr/local/bin/sd."
 fi
 
-# 02 Oct 26 - the second command name the installer makes (sd-full); only a link, as sd is.
+# 02 Oct 26 - a leftover sd-full link, which a 2 Oct installer made and the 1 Oct ruling
+# dropped; only a link, as sd is.
 if [ -L "/usr/local/bin/sd-full" ]; then
     sudo rm /usr/local/bin/sd-full
     echo "Removed symbolic link /usr/local/bin/sd-full."
