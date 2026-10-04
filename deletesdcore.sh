@@ -307,11 +307,15 @@ if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/
     # ordinary user (Fedora 44), which would read a running firewalld as stopped.
     if systemctl is-active --quiet firewalld 2>/dev/null; then fwd_live=1; fwd_saved() { sudo firewall-cmd --permanent "$@"; }
     else fwd_live=0; fwd_saved() { sudo firewall-offline-cmd "$@"; }; fi
-    if fwd_saved --query-port=4247/tcp >/dev/null 2>&1; then
+    # The EXACT entry, not --query-port: on Fedora Workstation the zone's own
+    # 1025-65535/tcp answers yes for 4247, and removing 4247 then split that range
+    # (measured, 4 Oct 2026) - a hole in a rule SD did not make.
+    fwd_rule() { fwd_saved --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$1"; }
+    if fwd_rule 4247/tcp; then
         fwd_saved --remove-port=4247/tcp >/dev/null && echo "Removed the firewall rule for the SD API (firewalld port 4247/tcp)."
         if [ "$fwd_live" -eq 1 ]; then sudo firewall-cmd -q --reload; fi
     fi
-    if fwd_saved --query-port=4243/tcp >/dev/null 2>&1; then
+    if fwd_rule 4243/tcp; then
         echo "NOTE: a firewalld rule for port 4243/tcp remains.  SD Core before 2 Oct 2026"
         echo "  used port 4243; if nothing else on this computer needs it, remove it with:"
         echo "      sudo firewall-cmd --permanent --remove-port=4243/tcp && sudo firewall-cmd --reload"

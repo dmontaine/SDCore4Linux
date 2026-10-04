@@ -268,8 +268,18 @@ fwd_state() {   # absent | inactive | active-deny | active-allow  (root only)
   if [[ $target == ACCEPT ]]; then printf 'active-allow'; else printf 'active-deny'; fi
 }
 
-fwd_has_allow() {   # $1 port/proto; true if the saved default zone allows it
+fwd_has_allow() {   # $1 port/proto; true if the saved default zone ALLOWS it (a range counts)
   fwd_perm --query-port="$1" >/dev/null 2>&1
+}
+
+# 04 Oct 26 dm - "ALLOWED" IS NOT "SD'S RULE".  Measured on a Fedora 44 Workstation VM:
+# its zone carries 1025-65535/tcp, --query-port answers yes for 4247 with no entry
+# of SD's, and --remove-port=4247/tcp then SPLIT the distribution's range into
+# 1025-4246/tcp and 4248-65535/tcp - a hole cut in a rule SD never made.  So a
+# rule is removed only when the exact entry is listed; whether the port is
+# reachable (api_show's verdict) still asks --query-port.
+fwd_has_rule() {   # $1 port/proto; true if exactly that entry is in the saved default zone
+  fwd_perm --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$1"
 }
 
 fwd_ssh_rules() {   # the saved default-zone entries that allow ssh, one per line
@@ -289,7 +299,7 @@ fwd_add_allow() {   # $1 port/proto
 
 fwd_delete_allow() {   # $1 port/proto
   if [[ $DRY -eq 1 ]]; then printf '%s: firewall-cmd --permanent --remove-port=%s && firewall-cmd --reload  (if present)\n' "$PROG" "$1"; return 0; fi
-  if ! fwd_has_allow "$1"; then printf '%s: no firewalld rule for port %s; nothing to delete\n' "$PROG" "$1"; return 0; fi
+  if ! fwd_has_rule "$1"; then printf '%s: no firewalld rule for port %s; nothing to delete\n' "$PROG" "$1"; return 0; fi
   if fwd_running; then
     step firewall-cmd --permanent --remove-port="$1" && step firewall-cmd --reload
   else
@@ -328,7 +338,7 @@ api_show() {
   [[ $fw != absent ]] && fw_has_allow "$SD_API_PORT/tcp" && rule=present
   printf 'sdclient.socket: %s, %s\n' "${enabled:-unknown}" "${active:-unknown}"
   printf 'listening on   : %s\n' "${listen:-nothing}"
-  printf 'firewall       : %s %s; allow rule for %s/tcp %s\n' "$FW" "$fw" "$SD_API_PORT" "$rule"
+  printf 'firewall       : %s %s; a rule or range allowing %s/tcp %s\n' "$FW" "$fw" "$SD_API_PORT" "$rule"
   if [[ $active != active ]]; then
     verdict=OFF
   elif [[ $listen == *0.0.0.0:$SD_API_PORT* ]]; then

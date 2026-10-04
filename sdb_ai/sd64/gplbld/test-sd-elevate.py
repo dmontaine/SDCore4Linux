@@ -365,6 +365,8 @@ def main():
                     "  --get-default-zone) echo FedoraServer ;;\n"
                     "  '--permanent --zone=FedoraServer --get-target') echo \"${FAKE_TARGET:-default}\" ;;\n"
                     "  '--permanent --query-port=4247/tcp'|'--permanent --query-service=ssh') [ \"$FAKE_FWD\" = running ] ;;\n"
+                    "  '--permanent --list-ports') [ \"$FAKE_FWD\" = running ] || exit 252\n"
+                    "     if [ \"${FAKE_RANGE:-}\" = 1 ]; then echo '1025-65535/tcp 1025-65535/udp'; else echo '4247/tcp 4251/tcp'; fi ;;\n"
                     "  *) exit 1 ;;\n"
                     "esac\n")
         with open(os.path.join(fake_dir, "firewall-offline-cmd"), "w") as f:
@@ -376,7 +378,7 @@ def main():
         for n in ("firewall-cmd", "firewall-offline-cmd"):
             os.chmod(os.path.join(fake_dir, n), 0o755)
         lift = ("eval \"$(sed -n '/^fwd_running()/p;/^fwd_perm()/,/^}/p;/^fwd_state()/,/^}/p;"
-                "/^fwd_has_allow()/,/^}/p;/^fwd_ssh_rules()/,/^}/p;/^fw_kind()/,/^}/p' \"$1\")\"; "
+                "/^fwd_has_allow()/,/^}/p;/^fwd_has_rule()/,/^}/p;/^fwd_ssh_rules()/,/^}/p;/^fw_kind()/,/^}/p' \"$1\")\"; "
                 "type fwd_state >/dev/null 2>&1 && type fwd_ssh_rules >/dev/null 2>&1 && type fw_kind >/dev/null 2>&1 "
                 "|| { echo 'NOT LIFTED'; exit 9; }; ")
         base = "/usr/bin" + os.pathsep + "/bin"
@@ -390,6 +392,12 @@ def main():
             ("F7 running: 4247/tcp read with --permanent", "fwd_has_allow 4247/tcp", 0, None, "running", True),
             ("F8 fw_kind: no ufw, firewalld running -> firewalld", "fw_kind", 0, "firewalld", "running", True),
             ("F9 fw_kind: neither installed -> none", "fw_kind", 0, "none", "stopped", False),
+            # 4 Oct 26: Fedora Workstation's zone carries 1025-65535/tcp.  ALLOWED is
+            # not SD'S RULE: removing 4247 there split the distro's range (measured).
+            ("F10 Workstation range: 4247 allowed", "FAKE_RANGE=1 fwd_has_allow 4247/tcp", 0, None, "running", True),
+            ("F11 Workstation range: but no SD rule to remove", "FAKE_RANGE=1 fwd_has_rule 4247/tcp", 1, None, "running", True),
+            ("F12 SD's exact 4247/tcp entry is SD's rule", "fwd_has_rule 4247/tcp", 0, None, "running", True),
+            ("F13 4249/tcp is not claimed from the entries", "fwd_has_rule 4249/tcp", 1, None, "running", True),
         ]
         for name, call, want_rc, want_out, state, with_fakes in FWD_ROWS:
             path = (fake_dir + os.pathsep + base) if with_fakes else base
