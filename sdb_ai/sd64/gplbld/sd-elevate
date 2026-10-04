@@ -3,6 +3,12 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 04 Oct 26 dm remote-api / remote-ssh drive firewalld as well as ufw (owner,
+#               4 Oct 2026: "yes - for both sd core and sd solo"), after Solo's
+#               "open" on a Fedora VM got no rule and timed out at firewalld.
+#               fw_kind picks the front end; rules are read from firewalld's
+#               SAVED configuration (firewall-offline-cmd when it is stopped),
+#               the same lesson as "ufw show added".
 # 01 Oct 26 dm S.50, BACKUP.ACCOUNT / RESTORE.ACCOUNT: tree-count, backup-pack,
 #               restore-place and akpath-set.  SDSYS is not root and cannot read
 #               every account's files, nor give a restored tree back to its
@@ -150,7 +156,8 @@ EOF
 # 14 Sep 26 dm - REMOTE.API and REMOTE.SSH, the port's verbs (its REMOTEAPI /
 # REMOTESSH, PRE_RELEASE_FIXES 78 and 148, owner 30 Aug 2026).  THE SAME TWO
 # AXES THE PORT HAS, ON LINUX'S MECHANISMS: whether SD listens is systemd's
-# sdclient.socket, and who may reach it is ufw.  The rules touched are exactly
+# sdclient.socket, and who may reach it is the firewall - ufw, or firewalld since
+# 4 Oct 2026 (fw_kind, below).  The rules touched are exactly
 # the ones installsdcore.sh adds - "ufw allow $SD_API_PORT/tcp" (4247 since 2 Oct
 # 2026; 4243 before) and "ufw allow 22/tcp" - so the verb and the installer
 # describe one state.
@@ -236,18 +243,92 @@ ufw_add_allow() {   # $1 port/proto
   step ufw allow "$1"
 }
 
+# 04 Oct 26 dm - FIREWALLD, Fedora's and openSUSE's front end (owner, 4 Oct 2026).
+# The same four answers as ufw_state, from firewalld: not installed, not running,
+# running with the default zone refusing what it does not allow (its target is
+# "default", REJECT or DROP), or accepting everything (ACCEPT).  ***RULES ARE READ
+# FROM THE SAVED CONFIGURATION*** - "--permanent", or firewall-offline-cmd while the
+# daemon is stopped - for the reason "ufw show added" is read: a stopped firewall
+# shows no live rules, and a rule left in its saved set opens a port when it
+# starts.  The rule is the default zone's "port 4247/tcp" or "port 22/tcp"; the
+# distribution's own "ssh" service is reported and never removed, as ufw's OpenSSH
+# rule is.  A change is saved and then applied with --reload.
+fwd_running() { [[ $(firewall-cmd --state 2>/dev/null) == running ]]; }
+
+fwd_perm() {   # the saved configuration, running or not (root only)
+  if fwd_running; then firewall-cmd --permanent "$@"; else firewall-offline-cmd "$@"; fi
+}
+
+fwd_state() {   # absent | inactive | active-deny | active-allow  (root only)
+  command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1 || { printf 'absent'; return; }
+  fwd_running || { printf 'inactive'; return; }
+  local zone target
+  zone=$(firewall-cmd --get-default-zone 2>/dev/null)
+  target=$(firewall-cmd --permanent --zone="$zone" --get-target 2>/dev/null)
+  if [[ $target == ACCEPT ]]; then printf 'active-allow'; else printf 'active-deny'; fi
+}
+
+fwd_has_allow() {   # $1 port/proto; true if the saved default zone allows it
+  fwd_perm --query-port="$1" >/dev/null 2>&1
+}
+
+fwd_ssh_rules() {   # the saved default-zone entries that allow ssh, one per line
+  fwd_perm --query-port=22/tcp >/dev/null 2>&1 && echo "port 22/tcp"
+  fwd_perm --query-service=ssh >/dev/null 2>&1 && echo "service ssh"
+  return 0
+}
+
+fwd_add_allow() {   # $1 port/proto
+  if [[ $DRY -eq 1 ]]; then printf '%s: firewall-cmd --permanent --add-port=%s && firewall-cmd --reload\n' "$PROG" "$1"; return 0; fi
+  if fwd_running; then
+    step firewall-cmd --permanent --add-port="$1" && step firewall-cmd --reload
+  else
+    step firewall-offline-cmd --add-port="$1"
+  fi
+}
+
+fwd_delete_allow() {   # $1 port/proto
+  if [[ $DRY -eq 1 ]]; then printf '%s: firewall-cmd --permanent --remove-port=%s && firewall-cmd --reload  (if present)\n' "$PROG" "$1"; return 0; fi
+  if ! fwd_has_allow "$1"; then printf '%s: no firewalld rule for port %s; nothing to delete\n' "$PROG" "$1"; return 0; fi
+  if fwd_running; then
+    step firewall-cmd --permanent --remove-port="$1" && step firewall-cmd --reload
+  else
+    step firewall-offline-cmd --remove-port="$1"
+  fi
+}
+
+# Which front end SD's rules go to: an active one first, then an installed one
+# (ufw before firewalld, as before 4 Oct), else none.  "ufw status" needs root, so
+# a --dry-run by an ordinary user falls through to "installed".
+fw_kind() {
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then printf 'ufw'; return; fi
+  if command -v firewall-cmd >/dev/null 2>&1 && fwd_running; then printf 'firewalld'; return; fi
+  if command -v ufw >/dev/null 2>&1; then printf 'ufw'; return; fi
+  if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then printf 'firewalld'; return; fi
+  printf 'none'
+}
+FW=
+fw()              { [[ -n $FW ]] || FW=$(fw_kind); }
+fw_state()        { fw; case $FW in ufw) ufw_state ;; firewalld) fwd_state ;; *) printf 'absent' ;; esac; }
+fw_has_allow()    { fw; case $FW in ufw) ufw_has_allow "$1" ;; firewalld) fwd_has_allow "$1" ;; *) return 1 ;; esac; }
+fw_ssh_rules()    { fw; case $FW in ufw) ufw_ssh_rules ;; firewalld) fwd_ssh_rules ;; esac; }
+fw_add_allow()    { fw; case $FW in ufw) ufw_add_allow "$1" ;; firewalld) fwd_add_allow "$1" ;;
+                    *) printf '%s: no firewall (ufw or firewalld) is installed; no rule was added - the listener alone decides\n' "$PROG" ;; esac; }
+fw_delete_allow() { fw; case $FW in ufw) ufw_delete_allow "$1" ;; firewalld) fwd_delete_allow "$1" ;;
+                    *) printf '%s: no firewall (ufw or firewalld) is installed; no rule to delete\n' "$PROG" ;; esac; }
+
 api_show() {
   if [[ $DRY -eq 1 ]]; then printf '%s: (dry run - state not read)\n' "$PROG"; return 0; fi
   local enabled active listen fw rule verdict
   enabled=$(systemctl is-enabled sdclient.socket 2>/dev/null)
   active=$(systemctl is-active sdclient.socket 2>/dev/null)
   listen=$(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')
-  fw=$(ufw_state)
+  fw; fw=$(fw_state)
   rule=absent
-  [[ $fw != absent ]] && ufw_has_allow "$SD_API_PORT/tcp" && rule=present
+  [[ $fw != absent ]] && fw_has_allow "$SD_API_PORT/tcp" && rule=present
   printf 'sdclient.socket: %s, %s\n' "${enabled:-unknown}" "${active:-unknown}"
   printf 'listening on   : %s\n' "${listen:-nothing}"
-  printf 'firewall       : ufw %s; allow rule for %s/tcp %s\n' "$fw" "$SD_API_PORT" "$rule"
+  printf 'firewall       : %s %s; allow rule for %s/tcp %s\n' "$FW" "$fw" "$SD_API_PORT" "$rule"
   if [[ $active != active ]]; then
     verdict=OFF
   elif [[ $listen == *0.0.0.0:$SD_API_PORT* ]]; then
@@ -283,11 +364,11 @@ remote_api() {
       step systemctl daemon-reload || return 1
       step systemctl enable sdclient.socket || return 1
       step systemctl restart sdclient.socket || return 1
-      if [[ $mode == on ]]; then ufw_add_allow "$SD_API_PORT/tcp" || return 1; else ufw_delete_allow "$SD_API_PORT/tcp" || return 1; fi
+      if [[ $mode == on ]]; then fw_add_allow "$SD_API_PORT/tcp" || return 1; else fw_delete_allow "$SD_API_PORT/tcp" || return 1; fi
       ;;
     off)
       step systemctl disable --now sdclient.socket || return 1
-      ufw_delete_allow "$SD_API_PORT/tcp" || return 1
+      fw_delete_allow "$SD_API_PORT/tcp" || return 1
       ;;
   esac
   api_show
@@ -299,11 +380,11 @@ ssh_show() {
   local sshd fw rules verdict
   sshd=$(systemctl is-active ssh 2>/dev/null)
   [[ $sshd == active ]] || sshd=$(systemctl is-active sshd 2>/dev/null)
-  fw=$(ufw_state)
+  fw; fw=$(fw_state)
   rules=
-  [[ $fw != absent ]] && rules=$(ufw_ssh_rules | tr '\n' ';')
+  [[ $fw != absent ]] && rules=$(fw_ssh_rules | tr '\n' ';')
   printf 'ssh server     : %s\n' "${sshd:-unknown}"
-  printf 'firewall       : ufw %s; rules allowing ssh: %s\n' "$fw" "${rules:-none}"
+  printf 'firewall       : %s %s; rules allowing ssh: %s\n' "$FW" "$fw" "${rules:-none}"
   if [[ $fw != active-deny ]]; then
     verdict="NOT GATED BY THIS MACHINE'S FIREWALL"
   elif [[ -n $rules ]]; then
@@ -319,19 +400,19 @@ remote_ssh() {
   need_root
   [[ $mode == show ]] && { ssh_show; return 0; }
   if [[ $DRY -eq 0 ]]; then
-    fw=$(ufw_state)
+    fw; fw=$(fw_state)
     if [[ $fw != active-deny ]]; then
-      printf '%s: REFUSED - ufw is %s, so a rule for port 22 would gate nothing; nothing was changed\n' "$PROG" "$fw" >&2
+      printf '%s: REFUSED - the firewall (%s) is %s, so a rule for port 22 would gate nothing; nothing was changed\n' "$PROG" "$FW" "$fw" >&2
       ssh_show
       return 3
     fi
   fi
   if [[ $mode == on ]]; then
-    ufw_add_allow 22/tcp || return 1
+    fw_add_allow 22/tcp || return 1
   else
-    ufw_delete_allow 22/tcp || return 1
+    fw_delete_allow 22/tcp || return 1
     if [[ $DRY -eq 0 ]]; then
-      left=$(ufw_ssh_rules)
+      left=$(fw_ssh_rules)
       [[ -n $left ]] && printf '%s: WARNING - other rules still allow ssh and were not added by SD: %s\n' "$PROG" "$(printf '%s' "$left" | tr '\n' ';')"
     fi
   fi

@@ -298,6 +298,25 @@ if command -v ufw >/dev/null 2>&1; then
         echo "      sudo ufw delete allow 4243/tcp"
     fi
 fi
+# 04 Oct 26  THE SAME FOR FIREWALLD (owner, 4 Oct 2026), which the installer and
+#            REMOTE.API use where it is the firewall (Fedora, openSUSE).  Read
+#            from the saved configuration, as sd-elevate reads it: --permanent,
+#            or firewall-offline-cmd while firewalld is stopped.
+if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then
+    # Running is asked of systemd: "firewall-cmd --state" is refused by polkit to an
+    # ordinary user (Fedora 44), which would read a running firewalld as stopped.
+    if systemctl is-active --quiet firewalld 2>/dev/null; then fwd_live=1; fwd_saved() { sudo firewall-cmd --permanent "$@"; }
+    else fwd_live=0; fwd_saved() { sudo firewall-offline-cmd "$@"; }; fi
+    if fwd_saved --query-port=4247/tcp >/dev/null 2>&1; then
+        fwd_saved --remove-port=4247/tcp >/dev/null && echo "Removed the firewall rule for the SD API (firewalld port 4247/tcp)."
+        if [ "$fwd_live" -eq 1 ]; then sudo firewall-cmd -q --reload; fi
+    fi
+    if fwd_saved --query-port=4243/tcp >/dev/null 2>&1; then
+        echo "NOTE: a firewalld rule for port 4243/tcp remains.  SD Core before 2 Oct 2026"
+        echo "  used port 4243; if nothing else on this computer needs it, remove it with:"
+        echo "      sudo firewall-cmd --permanent --remove-port=4243/tcp && sudo firewall-cmd --reload"
+    fi
+fi
 
 # --------------------
 # PRE_RELEASE 14 - the privileged helper and its sudoers drop-in.

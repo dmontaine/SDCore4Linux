@@ -349,6 +349,66 @@ def main():
     finally:
         shutil.rmtree(fake_dir, ignore_errors=True)
 
+    # ---- 4 Oct 26: FIREWALLD (owner, 4 Oct: "yes - for both sd core and sd solo").
+    # ---- The same lesson as the ufw rows: rules come from the SAVED
+    # ---- configuration.  A fake firewall-cmd answers rule queries ONLY with
+    # ---- --permanent, and while "stopped" only firewall-offline-cmd knows the
+    # ---- rules - so a helper that asked the live firewall would fail F2, F4, F7.
+    # ---- PATH is the fakes plus /usr/bin:/bin, so the host's /usr/sbin/ufw is
+    # ---- not seen by fw_kind.
+    fake_dir = tempfile.mkdtemp(prefix="sdelev-fwd-")
+    try:
+        with open(os.path.join(fake_dir, "firewall-cmd"), "w") as f:
+            f.write("#!/bin/bash\n"
+                    "case \"$*\" in\n"
+                    "  --state) if [ \"$FAKE_FWD\" = running ]; then echo running; else echo 'not running'; exit 252; fi ;;\n"
+                    "  --get-default-zone) echo FedoraServer ;;\n"
+                    "  '--permanent --zone=FedoraServer --get-target') echo \"${FAKE_TARGET:-default}\" ;;\n"
+                    "  '--permanent --query-port=4247/tcp'|'--permanent --query-service=ssh') [ \"$FAKE_FWD\" = running ] ;;\n"
+                    "  *) exit 1 ;;\n"
+                    "esac\n")
+        with open(os.path.join(fake_dir, "firewall-offline-cmd"), "w") as f:
+            f.write("#!/bin/bash\n"
+                    "case \"$*\" in\n"
+                    "  --query-port=4247/tcp|--query-service=ssh) exit 0 ;;\n"
+                    "  *) exit 1 ;;\n"
+                    "esac\n")
+        for n in ("firewall-cmd", "firewall-offline-cmd"):
+            os.chmod(os.path.join(fake_dir, n), 0o755)
+        lift = ("eval \"$(sed -n '/^fwd_running()/p;/^fwd_perm()/,/^}/p;/^fwd_state()/,/^}/p;"
+                "/^fwd_has_allow()/,/^}/p;/^fwd_ssh_rules()/,/^}/p;/^fw_kind()/,/^}/p' \"$1\")\"; "
+                "type fwd_state >/dev/null 2>&1 && type fwd_ssh_rules >/dev/null 2>&1 && type fw_kind >/dev/null 2>&1 "
+                "|| { echo 'NOT LIFTED'; exit 9; }; ")
+        base = "/usr/bin" + os.pathsep + "/bin"
+        FWD_ROWS = [
+            ("F1 a stopped firewalld is 'inactive'", "fwd_state", 0, "inactive", "stopped", True),
+            ("F2 stopped: 4247/tcp found in the saved config", "fwd_has_allow 4247/tcp", 0, None, "stopped", True),
+            ("F3 stopped: a rule not configured is not found", "fwd_has_allow 443/tcp", 1, None, "stopped", True),
+            ("F4 stopped: the ssh service is reported, no port 22", "fwd_ssh_rules", 0, "service ssh", "stopped", True),
+            ("F5 running, zone target default -> active-deny", "fwd_state", 0, "active-deny", "running", True),
+            ("F6 running, zone target ACCEPT -> active-allow", "FAKE_TARGET=ACCEPT fwd_state", 0, "active-allow", "running", True),
+            ("F7 running: 4247/tcp read with --permanent", "fwd_has_allow 4247/tcp", 0, None, "running", True),
+            ("F8 fw_kind: no ufw, firewalld running -> firewalld", "fw_kind", 0, "firewalld", "running", True),
+            ("F9 fw_kind: neither installed -> none", "fw_kind", 0, "none", "stopped", False),
+        ]
+        for name, call, want_rc, want_out, state, with_fakes in FWD_ROWS:
+            path = (fake_dir + os.pathsep + base) if with_fakes else base
+            env = dict(os.environ, PATH=path, FAKE_FWD=state)
+            p = subprocess.run(["/bin/bash", "-c", lift + call, "lift", HELPER],
+                               capture_output=True, text=True, env=env)
+            out = (p.stdout or "").strip()
+            ok = p.returncode == want_rc and (want_out is None or out == want_out)
+            shown = out.replace("\n", " | ") if out else "(no output)"
+            print(f"  [{'PASS' if ok else 'FAIL'}] FWD    {name:60} | exit {p.returncode}: {shown}")
+            if ok:
+                passed += 1
+            else:
+                failed += 1
+                failures.append(([call], "exit %d %r" % (want_rc, want_out),
+                                 "exit %d %r" % (p.returncode, out), p.stderr.strip()))
+    finally:
+        shutil.rmtree(fake_dir, ignore_errors=True)
+
     # ---- 19 Sep 26: CRED-OWN (W.10), a person's OWN SD password.  Driven
     # ---- through --dry-run against a fixture SD_SYS_ROOT (a register and a
     # ---- $cred), with SUDO_USER/SUDO_UID as sudo would set them.  The REFUSE

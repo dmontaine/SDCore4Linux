@@ -2,6 +2,27 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+04 Oct 26  THE FIREWALL RULES WORK ON FEDORA (FIREWALLD) AS WELL AS UBUNTU (UFW).
+
+           Opening the API or ssh to other computers - at install, or later
+           with REMOTE.API ON and REMOTE.SSH ON - added a rule only to ufw,
+           the firewall Debian and Ubuntu use.  Fedora uses firewalld, so
+           there the listener opened but the firewall kept every other
+           computer out, and the install said nothing about it.
+
+           The installer, REMOTE.API, REMOTE.SSH and the uninstaller now use
+           whichever of the two the computer runs: the API's port 4247 and
+           ssh's port 22 are added to firewalld's default zone and kept in
+           its saved settings, so they survive a restart.  REMOTE.API SHOW
+           and REMOTE.SSH SHOW name the firewall they read.  REMOTE.SSH OFF
+           removes only the port 22 rule SD added; Fedora's own "ssh" service
+           still lets ssh in, and the command says so rather than remove a
+           rule SD did not make.  The uninstaller removes SD's 4247 rule from
+           firewalld as it does from ufw.
+
+           A computer with neither firewall is unchanged: the listener alone
+           decides, as before.  Tested on Fedora 44 Server.
+
 02 Oct 26  A RESTORED ACCOUNT KEEPS ITS DIRECTORY PERMISSIONS.
 
            RESTORE.ACCOUNT used to create every directory of the restored

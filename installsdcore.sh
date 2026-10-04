@@ -439,7 +439,35 @@ fi
 #   branches normally has no ufw at all.  Both call sites already no-op safely
 #   without it (command -v guarded); what did not follow was the closing
 #   summary, which claimed a rule was added unconditionally - see below.
-if command -v ufw >/dev/null 2>&1; then have_ufw=1; else have_ufw=0; fi
+# 04 Oct 2026 - firewalld as well as ufw (owner, 4 Oct 2026: "yes - for both sd
+#   core and sd solo", after SD Core Solo's "open" on a Fedora VM got no rule and
+#   timed out at firewalld).  The front end is chosen as sd-elevate's fw_kind
+#   chooses it, so the installer and REMOTE.API/REMOTE.SSH touch the same rules:
+#   an active one first, then an installed one (ufw before firewalld).  A stopped
+#   firewalld gets the rule in its saved configuration (firewall-offline-cmd), as
+#   an inactive ufw does, so starting it later does not shut SD out.
+#   "Running" is asked of systemd, not of "firewall-cmd --state": polkit refuses
+#   that to an ordinary user (measured on Fedora 44, "Authorization failed"), so a
+#   running firewalld read as stopped and got no live rule.
+fwd_up() { systemctl is-active --quiet firewalld 2>/dev/null; }
+fw_tool=none
+if command -v ufw >/dev/null 2>&1 && sudo ufw status 2>/dev/null | grep -q '^Status: active'; then fw_tool=ufw
+elif command -v firewall-cmd >/dev/null 2>&1 && fwd_up; then fw_tool=firewalld
+elif command -v ufw >/dev/null 2>&1; then fw_tool=ufw
+elif command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then fw_tool=firewalld
+fi
+fw_allow() {   # fw_allow PORT/PROTO - an allow rule in whichever firewall fw_tool names
+    case "$fw_tool" in
+        ufw) sudo ufw allow "$1" ;;
+        firewalld)
+            if fwd_up; then
+                sudo firewall-cmd -q --permanent --add-port="$1" && sudo firewall-cmd -q --reload
+            else
+                sudo firewall-offline-cmd --add-port="$1"
+            fi ;;
+        *) return 0 ;;
+    esac
+}
 
 # Modified by Composer AI - 2026/06/10.
 # Confirm build tools are available after distribution packages are installed.
@@ -923,7 +951,7 @@ if [ -f "$SYSTEMDPATH/sdclient.socket" ]; then
     if [ "$allow_api" = "y" ]; then
         echo "Allowing API access from other computers (TCP $sd_api_port)."
         sudo sed -i "s#^ListenStream=127\\.0\\.0\\.1:$sd_api_port#ListenStream=0.0.0.0:$sd_api_port#" "$SYSTEMDPATH/sdclient.socket"
-        if [ "$have_ufw" -eq 1 ]; then sudo ufw allow "$sd_api_port/tcp" || true; fi
+        fw_allow "$sd_api_port/tcp" || true
     else
         echo "API access is local-only (listener bound to 127.0.0.1:$sd_api_port)."
     fi
@@ -1425,7 +1453,7 @@ fi
 if [ "$allow_ssh" = "y" ]; then
     echo "Enabling ssh access from other computers (sshd at boot, port 22)."
     sudo systemctl enable --now ssh 2>/dev/null || sudo systemctl enable --now sshd 2>/dev/null || true
-    if [ "$have_ufw" -eq 1 ]; then sudo ufw allow 22/tcp || true; fi
+    fw_allow 22/tcp || true
 else
     echo "ssh access was not enabled (sshd left as the box had it; the SD"
     echo "boundary is in sshd_config for whenever ssh is turned on)."
@@ -1758,22 +1786,23 @@ fi
 #   firewalld, Arch ships nothing by default), so the claim was wrong there
 #   even though the ufw call itself was already safely guarded.  $have_ufw was
 #   computed once, earlier, alongside the package install.
+#   04 Oct 2026: the rule may be firewalld's now; $fw_tool names which.
 if [ "$allow_ssh" = "y" ]; then
-    if [ "$have_ufw" -eq 1 ]; then
-        echo "ssh access: ENABLED - sshd runs at boot; a ufw allow rule for 22 was added."
+    if [ "$fw_tool" != none ]; then
+        echo "ssh access: ENABLED - sshd runs at boot; a $fw_tool allow rule for 22 was added."
     else
-        echo "ssh access: ENABLED - sshd runs at boot on port 22 (no ufw found;"
+        echo "ssh access: ENABLED - sshd runs at boot on port 22 (no ufw or firewalld found;"
         echo "  open port 22 with this distribution's own firewall tool if it has one)."
     fi
 else
     echo "ssh access: not enabled - sshd left as the box had it."
 fi
 if [ "$allow_api" = "y" ]; then
-    if [ "$have_ufw" -eq 1 ]; then
-        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port and a ufw"
+    if [ "$fw_tool" != none ]; then
+        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port and a $fw_tool"
         echo "  allow rule for $sd_api_port was added.  Clients still enter an SD user/password."
     else
-        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port (no ufw found;"
+        echo "API access: OPEN - the network API listens on 0.0.0.0:$sd_api_port (no ufw or firewalld found;"
         echo "  open TCP $sd_api_port with this distribution's own firewall tool if it has one)."
         echo "  Clients still enter an SD user/password."
     fi
