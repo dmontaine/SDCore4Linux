@@ -25,7 +25,8 @@ SD Core is English only: it has no support for other languages or locales.
   The installer refuses any other, including Arch, openSUSE, RHEL and RHEL's clones.
 - A user who can use `sudo`.
 - An internet connection: the installer installs the build packages, clones
-  this repository and compiles SD.
+  this repository and compiles SD. It checks first and stops, changing nothing,
+  if the computer is offline.
 
 ## Installing
 
@@ -41,6 +42,19 @@ It installs the required packages, clones the main branch of this repository,
 builds SD, installs it under `/usr/local/sdsys`, registers the service, and
 deletes the download when it finishes. The installing user is registered as an
 SD administrator.
+
+**From a USB stick.** A release zip can be unzipped on a USB stick and the
+installer run from there. Run it with `bash`, because a stick formatted FAT,
+exFAT or NTFS has no execute permission and `./installsdcore.sh` can fail on it:
+
+```sh
+bash /media/<you>/<stick>/installsdcore.sh
+```
+
+The stick carries only the installer and the documentation. The installer still
+downloads SD and the build packages, so the computer must be online; if it is
+not, the installer says so before it asks anything or changes anything. It
+builds under your home directory and writes nothing to the stick.
 
 `deletesdcore.sh` removes SD again.
 

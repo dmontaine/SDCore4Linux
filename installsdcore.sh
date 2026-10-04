@@ -130,6 +130,42 @@ require_command() {
 }
 # --------------------
 
+# 04 Oct 26 - S.57: THE NETWORK IS CHECKED BEFORE ANYTHING ELSE IS ASKED OR
+#            CHANGED (owner, 4 Oct 2026: on Linux a USB stick carries only this
+#            installer and the documentation; the install downloads SD, because
+#            there are several target distributions to build for).  repo_available
+#            below already says so, but it runs after the questions, after sudo
+#            and after the build packages, and it needs git, which a bare
+#            machine may not have yet.  This needs only bash and getent.  It
+#            refuses ONLY when it is sure: any proxy variable, or
+#            SD_SKIP_NET_CHECK=1, skips it, because a false refusal is worse
+#            than the late message.  test-netpreflight-units.py runs this.
+net_preflight() {   # net_preflight HOST PORT
+  local host="$1" port="$2" v why
+  [ "${SD_SKIP_NET_CHECK:-}" = "1" ] && return 0
+  for v in https_proxy HTTPS_PROXY all_proxy ALL_PROXY; do
+    [ -n "${!v:-}" ] && return 0
+  done
+  if ! getent hosts "$host" >/dev/null 2>&1; then
+    why="cannot look up $host"
+  elif ! timeout 8 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$host" "$port" >/dev/null 2>&1; then
+    why="cannot connect to $host port $port"
+  else
+    return 0
+  fi
+  printf "%b\n" "$RED"
+  echo "This computer is not online: $why."
+  echo "This installer downloads SD from $host and the build packages from your"
+  echo "distribution, so the computer must be connected to the internet while it"
+  echo "runs.  A USB stick carries this installer and the documentation, not SD."
+  echo "Nothing has been changed.  Connect to the internet and run it again."
+  echo "If you do reach $host through a proxy this check cannot see, run it again"
+  echo "as: SD_SKIP_NET_CHECK=1 bash <this script>"
+  printf "%b\n" "$NC"
+  exit 1
+}
+# --------------------
+
 # Modified by Composer AI - 2026/06/10.
 # Auto-detect distribution from /etc/os-release when possible.
 # 22 Sep 2026 - word-boundary match, not a colon-joined substring.  The old
@@ -257,6 +293,8 @@ sd_install_start() {
 # --------------------
 
 #
+# 04 Oct 26 - S.57: before the banner, the questions and the first sudo.
+net_preflight github.com 443
 clear
 printf "%bSD installer%b\n" "$RED" "$NC"
 echo -----------------------
