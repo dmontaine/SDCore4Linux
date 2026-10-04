@@ -141,19 +141,22 @@ require_command() {
 #   Real Ubuntu itself was unaffected (ID_LIKE=debian precedes ID=ubuntu), which
 #   is why this went unnoticed.  Space-joined with a leading and trailing space
 #   makes every field a bounded word regardless of position.
+# 04 Oct 2026 - DEBIAN, UBUNTU AND FEDORA ONLY (owner, 4 Oct 2026: "lets drop arch
+#   and opensuse and focus on debian, ubuntu and fedora server versions").  The
+#   Arch and openSUSE branches are gone and those systems are refused by name.
+#   And S.49 with it: RHEL and its clones (Rocky, Alma) list "fedora" in ID_LIKE
+#   too, so "rhel" no longer matches and a "rhel" in the list turns a non-Fedora
+#   ID away - Solo's detect_distro, owner's ruling of 30 Sep 2026.
 detect_distro() {
-  is_arch=0
   is_debian=0
   is_fedora=0
-  is_suse=0
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     . /etc/os-release
     ids=" ${ID:-} ${ID_LIKE:-} "
-    case "$ids" in *" arch "*) is_arch=1 ;; esac
     case "$ids" in *" debian "*|*" ubuntu "*) is_debian=1 ;; esac
-    case "$ids" in *" fedora "*|*" rhel "*) is_fedora=1 ;; esac
-    case "$ids" in *" suse "*|*" opensuse"*|*" sles "*) is_suse=1 ;; esac
+    case "$ids" in *" fedora "*) is_fedora=1 ;; esac
+    case "$ids" in *" rhel "*) [ "${ID:-}" = fedora ] || is_fedora=0 ;; esac
   fi
 }
 # --------------------
@@ -384,16 +387,10 @@ detect_distro
 # (gplsrc/sd_tls.c, sd_tlssrv.c).  Arch does not split a -devel package for
 # openssl the way Debian, Fedora and openSUSE do; installing "openssl" there
 # carries the headers already.
-if [ "$is_arch" -eq 1 ]; then
-    echo "Detected an Arch based distribution from /etc/os-release."
-    if ! sudo pacman -Sy --noconfirm git base-devel micro lynx libsodium openssl openssh python; then
-        printf "%b\n" "$RED"
-        echo "Package installation using pacman failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
-elif [ "$is_debian" -eq 1 ]; then
+#
+# 04 Oct 26 - the Arch and openSUSE branches are removed (owner, 4 Oct 2026; see
+# detect_distro): Debian, Ubuntu and Fedora only.
+if [ "$is_debian" -eq 1 ]; then
     echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
     if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
         printf "%b\n" "$RED"
@@ -406,7 +403,7 @@ elif [ "$is_debian" -eq 1 ]; then
     # don't want to abort if not found on earlier distributions
     sudo apt-get -y --ignore-missing install libcrypt-dev || true
 elif [ "$is_fedora" -eq 1 ]; then
-    echo "Detected a Fedora or RHEL based distribution from /etc/os-release."
+    echo "Detected Fedora from /etc/os-release."
     if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel openssh-server python3-devel; then
         printf "%b\n" "$RED"
         echo "Package installation using dnf failed.  Exiting script."
@@ -414,20 +411,11 @@ elif [ "$is_fedora" -eq 1 ]; then
         printf "%b\n" "$NC"
         exit 1
     fi
-elif [ "$is_suse" -eq 1 ]; then
-    echo "Detected an openSUSE or SUSE based distribution from /etc/os-release."
-    if ! sudo zypper --non-interactive install git make automake gcc gcc-c++ kernel-default-devel micro-editor lynx libsodium-devel libopenssl-devel openssh python3-devel; then
-        printf "%b\n" "$RED"
-        echo "Package installation using zypper failed.  Exiting script."
-        echo "Verify your internet connection and then try again."
-        printf "%b\n" "$NC"
-        exit 1
-    fi
 else
     printf "%b\n" "$RED"
-    echo "Could not identify this distribution from /etc/os-release."
-    echo "This installer supports Debian, Ubuntu, Arch, Fedora, RHEL and"
-    echo "openSUSE based distributions (and their common derivatives)."
+    echo "This distribution is not supported (read from /etc/os-release: ${ID:-unknown})."
+    echo "This installer supports Debian, Ubuntu (and their common derivatives) and"
+    echo "Fedora.  Arch, openSUSE, RHEL and RHEL's clones are not supported."
     printf "%b\n" "$NC"
     exit 1
 fi

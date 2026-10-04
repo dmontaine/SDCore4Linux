@@ -21,8 +21,8 @@ SD Core is English only: it has no support for other languages or locales.
 
 ## Requirements
 
-- A 64-bit Linux with systemd. The installer detects Debian/Ubuntu, Fedora/RHEL,
-  openSUSE and Arch-based distributions and refuses any other.
+- A 64-bit Linux with systemd: Debian, Ubuntu (and their derivatives) or Fedora.
+  The installer refuses any other, including Arch, openSUSE, RHEL and RHEL's clones.
 - A user who can use `sudo`.
 - An internet connection: the installer installs the build packages, clones
   this repository and compiles SD.
