@@ -800,11 +800,17 @@ fi
 if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
   not_reached "M14d DATE prints English day and month names"
 elif [ "$COMMIT" -eq 1 ]; then
-  WANT1=$(LC_ALL=C date '+%A, %-d %B %Y')
+# 4 Oct 26 - SD's DATE zero-pads the day ("Sunday, 04 October 2026"); this expected the unpadded
+#   "%-d" and so failed on every day before the 10th (first exercised on the 4th, on three VMs).
+#   The check is for ENGLISH day and month names, so either form of the day is accepted.
+  WANT1=$(LC_ALL=C date '+%A, %d %B %Y')
+  WANT1U=$(LC_ALL=C date '+%A, %-d %B %Y')
   OUT=$(run_sd_as "$ACC" "M14d DATE as a plain account" "DATE")
-  WANT2=$(LC_ALL=C date '+%A, %-d %B %Y')
-  say "  expected (LC_ALL=C date, before/after): \"$WANT1\" / \"$WANT2\""
-  if printf '%s' "$OUT" | grep -qF -- "$WANT1" || printf '%s' "$OUT" | grep -qF -- "$WANT2"; then
+  WANT2=$(LC_ALL=C date '+%A, %d %B %Y')
+  WANT2U=$(LC_ALL=C date '+%A, %-d %B %Y')
+  say "  expected (LC_ALL=C date, before/after, padded or not): \"$WANT1\" / \"$WANT2\" (or \"$WANT1U\" / \"$WANT2U\")"
+  if printf '%s' "$OUT" | grep -qF -- "$WANT1" || printf '%s' "$OUT" | grep -qF -- "$WANT2" \
+     || printf '%s' "$OUT" | grep -qF -- "$WANT1U" || printf '%s' "$OUT" | grep -qF -- "$WANT2U"; then
     PASS=$((PASS + 1)); say "  [PASS] M14d DATE prints English day and month names: found \"$WANT1\""
   else
     FAIL=$((FAIL + 1)); say "  [FAIL] M14d DATE prints English day and month names: did NOT find \"$WANT1\""

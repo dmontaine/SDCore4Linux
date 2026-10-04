@@ -308,12 +308,10 @@ restore_remote() {
     systemctl daemon-reload
     if [ "$RA_ENABLED_BEFORE" = enabled ]; then systemctl enable sdclient.socket 2>/dev/null; else systemctl disable sdclient.socket 2>/dev/null; fi
     if [ "$RA_ACTIVE_BEFORE" = active ]; then systemctl restart sdclient.socket; else systemctl stop sdclient.socket; fi
-    if command -v ufw >/dev/null 2>&1; then
-        if [ "$RA_4247_BEFORE" = yes ]; then ufw allow 4247/tcp >/dev/null; elif ufw_rule_present 4247/tcp; then ufw delete allow 4247/tcp >/dev/null; fi
-        if [ "$RA_22_BEFORE" = yes ]; then ufw allow 22/tcp >/dev/null; elif ufw_rule_present 22/tcp; then ufw delete allow 22/tcp >/dev/null; fi
-    fi
+    fw_rule_set 4247/tcp "$RA_4247_BEFORE"
+    fw_rule_set 22/tcp "$RA_22_BEFORE"
     say "      socket $(systemctl is-enabled sdclient.socket 2>/dev/null)/$(systemctl is-active sdclient.socket 2>/dev/null); listening on: $(systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' ')"
-    say "      ufw 4247 rule: $(ufw_rule_present 4247/tcp && echo yes || echo no); 22 rule: $(ufw_rule_present 22/tcp && echo yes || echo no)"
+    say "      firewall ($(fw_kind)) SD's 4247 entry: $(fw_rule_present 4247/tcp && echo yes || echo no); SD's 22 entry: $(fw_rule_present 22/tcp && echo yes || echo no)"
     [ -n "${RA_DROPIN_COPY:-}" ] && rm -f "$RA_DROPIN_COPY"
     RA_SAVED=""
 }
@@ -992,7 +990,7 @@ probe() {   # $1 title, then api-probe arguments; the password from PROBE_PW
 probe_lines() { printf '%s' "$1" | sed -n 's/^| //p'; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ "$MADE_ACCOUNT2" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
     say "  needs zzrel1 adopted, zzrel2 made, section 13's SD password (C1) and $PROBE"
-    for r in "A0 Linux password refused" "A0b not connected" "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record"; do not_reached "$r"; done
+    for r in "A0 Linux password refused" "A0b not connected" "A1 control connected" "A1b WHO lower case" "A2 /proc read" "A2b no group 0" "A2c sdusers" "A2d sdu_$ACC" "A3 5017" "A3b not connected" "A3c API REFUSED record" "A3d audited though the client dropped"; do not_reached "$r"; done
 else
     GOOD_PW="$PROBE_PW"; PROBE_PW="$LINUX_PW"
     OUT=$(probe "A0 THE ROW (phase 4): the client library with the LINUX password" --user "$ACC" --account "$ACC" WHO)
@@ -1045,6 +1043,21 @@ else
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
         printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
         ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+    fi
+    if [ "$COMMIT" -eq 1 ]; then
+        # 4 Oct 26 - S.60.  A3d: THE REFUSAL IS AUDITED EVEN WHEN THE CLIENT DROPS DURING THE SERVER'S 3-SECOND DELAY.
+        #   Before the fix the delay came first, a client that dropped inside it ended the process and no line was written
+        #   (measured on Debian 13 and Fedora 44: five of five drops at 0.6-2.5 s).  This kills a wrong-password SCRAM login
+        #   2 s in, waits for the server to finish, and reads the trail.  A3c above is the control (a client that waits).
+        N1=$(wc -l < "$AUD")
+        SD_SCRAM_PASSWORD="not-the-password-S60" timeout 20 python3 "$(dirname "$SELF")/scram-probe.py" --user "$ACC" --account "$ACC" >/dev/null 2>&1 &
+        DPID=$!
+        sleep 2; kill -9 "$DPID" 2>/dev/null; wait "$DPID" 2>/dev/null
+        sleep 6
+        NEW=$(tail -n +"$((N1 + 1))" "$AUD")
+        say "  A3d: the client was killed 2 s into the delay; the trail gained:"
+        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
+        ck_says "A3d a refusal is audited although the client dropped during the delay (S.60)" "API REFUSED user=$ACC" "$NEW"
     fi
 
     OUT=$(run_sd root "fixture: A ROOT SESSION IS REFUSED OUTRIGHT (teardown control)" "WHO")
@@ -1869,6 +1882,45 @@ RA_SAVED=""
 # ufw is inactive "ufw status" lists no rules, so H5c failed and H1d/H7b passed
 # without having looked (dea3736, 0d58171).
 ufw_rule_present() { command -v ufw >/dev/null 2>&1 && ufw show added 2>/dev/null | grep -Eq "^ufw allow (in )?$1( |\$)"; }
+# 4 Oct 26 - S.55: THE FIREWALL IS ufw OR firewalld, chosen as sd-elevate's fw_kind chooses it (an active ufw, then a
+#   running firewalld, then an installed ufw, then an installed firewalld), so these checks measure the same rules the
+#   product wrote.  Until now every H check asked ufw, and on the two Fedora 44 VMs H8b failed although "Remote ssh access
+#   is now ON" and `22/tcp` was in firewalld's list.  fw_rule_present is the EXACT entry SD owns (what SD adds and removes;
+#   firewalld's own ranges, such as Workstation's 1025-65535, are not SD's and never count); fw_port_allowed is
+#   REACHABILITY (SD's entry or a range that covers the port: on Workstation SD's add of 4247 is a no-op, S.55).
+fwd_up() { systemctl is-active --quiet firewalld 2>/dev/null; }
+fwd_saved() { if fwd_up; then firewall-cmd --permanent "$@"; else firewall-offline-cmd "$@"; fi; }
+fw_kind() {
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q '^Status: active'; then echo ufw
+    elif command -v firewall-cmd >/dev/null 2>&1 && fwd_up; then echo firewalld
+    elif command -v ufw >/dev/null 2>&1; then echo ufw
+    elif command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then echo firewalld
+    else echo none; fi
+}
+fw_rule_present() {   # fw_rule_present PORT/PROTO
+    case "$(fw_kind)" in
+        ufw) ufw_rule_present "$1" ;;
+        firewalld) fwd_saved --list-ports 2>/dev/null | tr ' ' '\n' | grep -qx -- "$1" ;;
+        *) return 1 ;;
+    esac
+}
+fw_port_allowed() {   # fw_port_allowed PORT/PROTO
+    case "$(fw_kind)" in
+        ufw) ufw_rule_present "$1" ;;
+        firewalld) fwd_saved --query-port="$1" >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+fw_rule_set() {   # fw_rule_set PORT/PROTO yes|no - make SD's exact entry present or absent
+    case "$(fw_kind)" in
+        ufw) if [ "$2" = yes ]; then ufw allow "$1" >/dev/null; elif ufw_rule_present "$1"; then ufw delete allow "$1" >/dev/null; fi ;;
+        firewalld)
+            if [ "$2" = yes ]; then fwd_saved --add-port="$1" >/dev/null 2>&1
+            elif fw_rule_present "$1"; then fwd_saved --remove-port="$1" >/dev/null 2>&1; fi
+            if fwd_up; then firewall-cmd -q --reload 2>/dev/null; fi ;;
+    esac
+    return 0
+}
 listen_now() { systemctl show -p Listen --value sdclient.socket 2>/dev/null | tr '\n' ' '; }
 if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -x "$ELEV" ] || [ -z "$LANIP" ]; }; then
     say "  needs zzrel1 adopted, the SD password, $ELEV and a LAN address"
@@ -1878,12 +1930,12 @@ else
         RA_DROPIN_BEFORE=no; [ -f "$DROPIN" ] && { RA_DROPIN_BEFORE=yes; RA_DROPIN_COPY=$(mktemp); cp "$DROPIN" "$RA_DROPIN_COPY"; }
         RA_ENABLED_BEFORE=$(systemctl is-enabled sdclient.socket 2>/dev/null)
         RA_ACTIVE_BEFORE=$(systemctl is-active sdclient.socket 2>/dev/null)
-        RA_4247_BEFORE=no; ufw_rule_present 4247/tcp && RA_4247_BEFORE=yes
-        RA_22_BEFORE=no; ufw_rule_present 22/tcp && RA_22_BEFORE=yes
+        RA_4247_BEFORE=no; fw_rule_present 4247/tcp && RA_4247_BEFORE=yes
+        RA_22_BEFORE=no; fw_rule_present 22/tcp && RA_22_BEFORE=yes
         RA_SAVED=yes
         API_VERDICT0=$("$ELEV" remote-api show 2>&1 | sed -n 's/^The SD API is \(.*\)\.$/\1/p')
         SSH_VERDICT0=$("$ELEV" remote-ssh show 2>&1 | sed -n 's/^Remote ssh access is \(.*\)\.$/\1/p')
-        say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE ufw 4247=$RA_4247_BEFORE 22=$RA_22_BEFORE"
+        say "  saved: drop-in=$RA_DROPIN_BEFORE socket=$RA_ENABLED_BEFORE/$RA_ACTIVE_BEFORE firewall=$(fw_kind) SD's entries 4247=$RA_4247_BEFORE 22=$RA_22_BEFORE"
         say "  saved: API '$API_VERDICT0', ssh '$SSH_VERDICT0'; listening on: $(listen_now)"
     fi
     OUT=$(run_sd sdsys "REMOTE.API and REMOTE.SSH, report forms" "REMOTE.API" "REMOTE.SSH")
@@ -1914,7 +1966,7 @@ else
         L=$(listen_now); say "  listening on: $L"
         ck "H1b LOCAL listens on 127.0.0.1:4247 and not 0.0.0.0:4247" yes "$([[ $L == *127.0.0.1:4247* && $L != *0.0.0.0:4247* ]] && echo yes || echo no)"
         ck "H1c the drop-in names 127.0.0.1:4247" yes "$(grep -q '^ListenStream=127.0.0.1:4247$' "$DROPIN" 2>/dev/null && echo yes || echo no)"
-        ck "H1d no ufw allow rule for 4247/tcp" no "$(ufw_rule_present 4247/tcp && echo yes || echo no)"
+        ck "H1d no SD firewall entry for 4247/tcp" no "$(fw_rule_present 4247/tcp && echo yes || echo no)"
     fi
     OUT=$(sprobe "H2 a new login over 127.0.0.1 while LOCAL" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "H2 LOCAL admits this machine" "account $ACC: entered" "$OUT"
@@ -1934,8 +1986,8 @@ else
         ck_says "H5 REMOTE.API ON reported" "The SD API is now ON." "$OUT"
         L=$(listen_now); say "  listening on: $L"
         ck "H5a ON listens on 0.0.0.0:4247" yes "$([[ $L == *0.0.0.0:4247* ]] && echo yes || echo no)"
-        if command -v ufw >/dev/null 2>&1; then
-            ck "H5c a ufw allow rule for 4247/tcp exists" yes "$(ufw_rule_present 4247/tcp && echo yes || echo no)"
+        if [ "$(fw_kind)" != none ]; then
+            ck "H5c the firewall allows 4247/tcp (SD's entry, or a range that covers it)" yes "$(fw_port_allowed 4247/tcp && echo yes || echo no)"
         fi
     fi
     OUT=$(sprobe "H5b a login over $LANIP while ON" "$SCRAM_PW" --host "$LANIP" --user "$ACC" --account "$ACC")
@@ -1946,14 +1998,14 @@ else
         if [ "$SSH_VERDICT0" = "NOT GATED BY THIS MACHINE'S FIREWALL" ]; then
             OUT=$(run_sd sdsys "REMOTE.SSH OFF where ufw does not gate ssh" "REMOTE.SSH OFF")
             ck_says "H7 REMOTE.SSH OFF is refused where it would gate nothing (status 3)" "Could not set remote ssh access to OFF (status 3)" "$OUT"
-            ck "H7b and the 22/tcp rule is as it was" "$RA_22_BEFORE" "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+            ck "H7b and SD's 22/tcp entry is as it was" "$RA_22_BEFORE" "$(fw_rule_present 22/tcp && echo yes || echo no)"
         else
             OUT=$(run_sd sdsys "REMOTE.SSH OFF" "REMOTE.SSH OFF")
             ck_says "H7 REMOTE.SSH OFF reported" "Remote ssh access is now OFF." "$OUT"
-            ck "H7b no ufw allow rule for 22/tcp" no "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+            ck "H7b no SD firewall entry for 22/tcp" no "$(fw_rule_present 22/tcp && echo yes || echo no)"
             OUT=$(run_sd sdsys "REMOTE.SSH ON" "REMOTE.SSH ON")
             ck_says "H8 REMOTE.SSH ON reported" "Remote ssh access is now ON." "$OUT"
-            ck "H8b a ufw allow rule for 22/tcp exists" yes "$(ufw_rule_present 22/tcp && echo yes || echo no)"
+            ck "H8b SD's firewall entry for 22/tcp exists" yes "$(fw_rule_present 22/tcp && echo yes || echo no)"
         fi
     fi
     restore_remote "section 13h"
