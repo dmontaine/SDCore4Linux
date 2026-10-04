@@ -19,6 +19,10 @@
 *
 *
 * START-HISTORY:
+* 04 Oct 26 dm S.60: a refused SCRAM login is audited BEFORE the three-second
+*           failed-credential delay, not after it (scram.bad.cred,
+*           exit.vb.scram.fail).  A client that dropped during the delay used to
+*           leave no audit line.
 * 01 Oct 26 dm S.50: the login hold.  vb.scram.first and vb.local.login refuse
 *           a new API session (13002) while BACKUP.ACCOUNT or RESTORE.ACCOUNT
 *           runs, as LOGIN does.
@@ -258,6 +262,7 @@ scram.storedkey = ''   ;* From $cred, base64
 scram.serverkey = ''   ;* From $cred, base64
 scram.audit.name = ''   ;* Name as PRESENTED, sanitised - see scram.clean.name
 scram.refuse.reason = '';* Why this exchange was refused; '' = not refused
+scram.fail.delay = 0   ;* Seconds to wait AFTER the refusal is audited (3 for a bad credential)
 
 loop
    unload.object               ;* Unload inactive object code
@@ -1465,7 +1470,15 @@ scram.bad.cred:
                if scram.refuse.reason = '' then scram.refuse.reason = 'credential'
                abort.message = sysmsg(5017) ;* Invalid username or password
                server.error = SV$ON.ERROR
-               sleep 3
+* 04 Oct 26 dm S.60: THE DELAY IS TAKEN AFTER THE REFUSAL IS AUDITED, NOT BEFORE.
+*   It was "sleep 3" here, ahead of exit.vb.scram.fail.  A client that dropped the
+*   connection during those three seconds ended this process before the audit
+*   line was written, so a refused login left no trail: measured on Debian 13 and
+*   Fedora 44, five of five drops at 0.6-2.5 s wrote nothing, a client that waited
+*   wrote one.  Anyone guessing passwords over the API could therefore choose not
+*   to be recorded.  The delay itself is unchanged and still slows a guesser;
+*   exit.vb.scram.fail now writes the line first and then waits.
+               scram.fail.delay = 3
                goto exit.vb.scram.fail
 
 exit.vb.scram.fail:
@@ -1476,6 +1489,11 @@ exit.vb.scram.fail:
                   if scram.audit.name = '' then scram.audit.name = '(none)'
                   void kernel(K$AUDIT, 'API REFUSED user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
                   scram.refuse.reason = ''
+               end
+               * The wait comes AFTER the record, never before it (S.60 above).
+               if scram.fail.delay > 0 then
+                  sleep scram.fail.delay
+                  scram.fail.delay = 0
                end
 
                * The connection goes, as for a failed request 24.
