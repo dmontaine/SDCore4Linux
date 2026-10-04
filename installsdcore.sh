@@ -1874,14 +1874,16 @@ esac
 echo
 echo "SD is administered ONLY by logging in as sdsys (its own password) and"
 echo "running sd - that session has every admin verb.  There is no sudo or"
-echo "su route into it, and sdsys cannot log in over ssh; a desktop-sharing"
-echo "view of the console (VNC, TeamViewer) is a local login and works."
+echo "su route into it.  sdsys cannot log in over ssh, and the API admits"
+echo "sdsys only from a process running as sdsys on this machine, never"
+echo "from another computer.  A desktop-sharing view of the console (VNC,"
+echo "TeamViewer) is a local login and works."
 echo
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
 #
 echo
-echo "After rebooting, open a terminal and enter \'sd\' "
+echo "After rebooting, open a terminal and enter 'sd'"
 echo "to connect to your sd home directory."
 echo
 echo
