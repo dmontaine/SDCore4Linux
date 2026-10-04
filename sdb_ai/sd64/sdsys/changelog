@@ -13,6 +13,10 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            were never a target.  Nothing changes on a computer already
            running SD Core.
 
+           The installer also installs the "openssl" command, which SD Core
+           uses to show the API certificate.  Fedora Workstation (the desktop
+           edition) does not include it, unlike Fedora Server.
+
 04 Oct 26  THE FIREWALL RULES WORK ON FEDORA (FIREWALLD) AS WELL AS UBUNTU (UFW).
 
            Opening the API or ssh to other computers - at install, or later

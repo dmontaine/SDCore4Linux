@@ -392,7 +392,9 @@ detect_distro
 # detect_distro): Debian, Ubuntu and Fedora only.
 if [ "$is_debian" -eq 1 ]; then
     echo "Detected a Debian or Ubuntu based distribution from /etc/os-release."
-    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssh-server python3-dev; then
+    # 04 Oct 26 - "openssl" (the command, sd-elevate tls-show) added to both lists:
+    #   Fedora Workstation ships without it (measured on a VM: Solo's installer refused).
+    if ! sudo apt-get -y install git build-essential micro lynx libsodium-dev libssl-dev openssl openssh-server python3-dev; then
         printf "%b\n" "$RED"
         echo "Package installation using apt-get failed.  Exiting script."
         echo "Verify your internet connection and then try again."
@@ -404,7 +406,7 @@ if [ "$is_debian" -eq 1 ]; then
     sudo apt-get -y --ignore-missing install libcrypt-dev || true
 elif [ "$is_fedora" -eq 1 ]; then
     echo "Detected Fedora from /etc/os-release."
-    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl-devel openssh-server python3-devel; then
+    if ! sudo dnf -y install git make automake gcc gcc-c++ kernel-devel micro lynx libsodium-devel openssl openssl-devel openssh-server python3-devel; then
         printf "%b\n" "$RED"
         echo "Package installation using dnf failed.  Exiting script."
         echo "Verify your internet connection and then try again."
