@@ -420,7 +420,10 @@ if [ "$COMMIT" -eq 1 ]; then
     # 18 Sep 26 (S.26/S.28): no administrator grant, no API route.
     ck_silent "A7 SD claimed no administrator grant (10032 gone)" "is now an SD administrator" "$OUT"
     ck "A7b the sdadmin group does not exist" no "$(yesno_group sdadmin)"
-    ck "A7c the sdapi group does not exist"    no "$(yesno_group sdapi)"
+    # 4 Oct 26 - A7c IS REVERSED, as witness-absence.sh's M7b was on 20 Sep: S.29 has the
+    # installer create sdapi (and sdssh) before any account, so "does not exist" measured a
+    # decision that had been taken back and failed on every fresh install since.
+    ck "A7c the sdapi group EXISTS (S.29: membership is the API route)" yes "$(yesno_group sdapi)"
 fi
 
 # ==========================================================================
