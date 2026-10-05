@@ -22,7 +22,8 @@
 #   sd-accarchive manifest ZIP
 #       Prints manifest.txt on stdout and unpacks nothing.  Run by the SDSYS session itself,
 #       without root.  Refused: not a readable zip; no manifest.txt, or more than one; one over
-#       1 MB; one that is not plain ASCII.  It reads nothing but the manifest: vetting every
+#       1 MB; one that is not plain ASCII (a CR is allowed: older Windows builds wrote CRLF).
+#       It reads nothing but the manifest: vetting every
 #       other entry is extract's job, and extract still does it before anything is written.
 #   sd-accarchive pack NAME=DIR [NAME=DIR ...]
 #       The manifest on stdin, the zip on stdout.  Run as root by
@@ -427,7 +428,10 @@ def do_manifest(zpath):
             data = f.read(MAX_MANIFEST + 1)
     if len(data) > MAX_MANIFEST:
         raise Refused("manifest.txt is larger than %d bytes" % MAX_MANIFEST)
-    check_manifest(data)
+    # A CR is allowed (05 Oct 26, SD Core for Windows's catch): a manifest made by an older Windows
+    # build holds CRLF, extract accepts it and parse.manifest drops every CR, so LATEST must not skip
+    # such a backup as unreadable.  Every other control character is still refused.
+    check_manifest(data.replace(b"\r", b""))
     sys.stdout.write(data.decode("ascii"))
 
 

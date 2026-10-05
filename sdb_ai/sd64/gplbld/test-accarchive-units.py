@@ -284,6 +284,16 @@ def manifest_suite(tool, work, good):
         ["$ " + " ".join(cmd[1:]), "  -> exit %d, %d bytes (the zip's own manifest is %d), stderr %r"
          % (rc, len(out), len(want), err.strip()), "  scratch directory unchanged: %s" % (sorted(os.listdir(work)) == before)])
 
+    # A CRLF manifest: an older Windows build wrote them, extract accepts one, parse.manifest drops every CR.
+    # SD Core for Windows caught this on 05 Oct 26: a first version refused the CR and LATEST skipped such a
+    # backup as unreadable.
+    zp = os.path.join(work, "mf-crlf.zip")
+    good_zip(zp, [("manifest.txt", b"format: 1\r\naccounts: 0\r\n")])
+    rc, out, err, cmd = run(tool, ["manifest", zp])
+    row("allow", "manifest reads a CRLF manifest as it is (older Windows builds wrote them)",
+        rc == 0 and out == b"format: 1\r\naccounts: 0\r\n" and err == "",
+        ["$ " + " ".join(cmd[1:]), "  -> exit %d %r, stderr %r" % (rc, out, err.strip())])
+
     # The whole-archive vetting is extract's job: a zip with a '..' entry still yields its manifest here,
     # and is refused where it matters, at extract.  The row says so, so nobody 'fixes' it by accident.
     zp = os.path.join(work, "mf-dotdot.zip")
@@ -315,6 +325,8 @@ def manifest_suite(tool, work, good):
            "appears twice")
     refuse("manifest.txt as a directory entry", [("manifest.txt/", b"")], "has no manifest.txt")
     refuse("a manifest that is not plain ASCII", [("manifest.txt", "format: é\n".encode("utf-8"))], "not plain ASCII")
+    refuse("a manifest with a control character other than CR, LF and tab", [("manifest.txt", b"format: 1\x01\n")],
+           "not plain ASCII")
     refuse("a manifest over 1 MB", [("manifest.txt", b"a: b\n" * 300000)], "is larger than")
     refuse("something that is not a zip", None, "is not a readable zip", raw=b"this is not a zip file")
     rc, out, err, cmd = run(tool, ["manifest", os.path.join(work, "no-such.zip")])
@@ -391,7 +403,8 @@ MUTANTS = [
     ("manifest not required", "if not has_manifest:", "if False:"),
     ("directory modes not applied", "os.chmod(dest, dperm)", "pass"),
     ("manifest: size bound gone", "if len(data) > MAX_MANIFEST:", "if False:"),
-    ("manifest: ASCII check gone", "    check_manifest(data)\n    sys.stdout.write(", "    sys.stdout.write("),
+    ("manifest: ASCII check gone", '    check_manifest(data.replace(b"\\r", b""))\n    sys.stdout.write(', "    sys.stdout.write("),
+    ("manifest: a CR refused (the first version)", 'check_manifest(data.replace(b"\\r", b""))', "check_manifest(data)"),
     ("manifest: a missing manifest.txt allowed", "        if not hits:\n", "        if False:\n"),
     ("manifest: a duplicate manifest.txt allowed", "        if len(hits) > 1:\n", "        if False:\n"),
 ]

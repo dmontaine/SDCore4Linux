@@ -71,15 +71,16 @@ S() { python3 "$TOOL" "$SBX" sess "$SBX/user_accounts" "$@" 2>&1 | sed -e '1,/^:
 mk() {   # mk STAMP WHAT account...
     local stamp=$1 what=$2; shift 2
     python3 - "$BAK/SD-$HOST-$what-$stamp.zip" "$HOST" "$@" <<'PY'
-import sys, zipfile
+import os, sys, zipfile
 path, host, accts = sys.argv[1], sys.argv[2], sys.argv[3:]
+nl = "\r\n" if os.environ.get("CRLF") else "\n"      # CRLF=1: a manifest as an older Windows build wrote it
 man = ["format: 1", "product: linux-full", "sd.version: L1.1-3", "created: 2026-01-01T00:00:00", "host: " + host,
        "source.root: /home/sd", "accounts: %d" % len(accts), ""]
 for a in accts:
     man += ["[account %s]" % a, "type: USER", "os.user: %s" % a, "os.group: sdu_%s" % a, "route.ssh: 1", "route.api: 1",
             "description: ", "suspended: 0", "source.path: /home/sd/user_accounts/%s" % a, "files: 1", "bytes: 1", "dirs: 0", ""]
 with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-    z.writestr("manifest.txt", "\n".join(man) + "\n")
+    z.writestr("manifest.txt", nl.join(man) + nl)
     for a in accts:
         z.writestr("accounts/%s/" % a, b"")
         z.writestr("accounts/%s/f" % a, b"x")
@@ -156,6 +157,14 @@ say ""; say "F  answering y goes on to restore from the chosen zip"
 OUT=$(S "RESTORE.ACCOUNT LATEST gad" "y")
 ck_says "F1 it announces the zip" "The most recent backup is $(Z 2accounts-20260101-000006)" "$OUT"
 ck_says "F1 it asks, and y goes on (the sandbox only pretends the Linux user, then asks for a password)" "sd-elevate (sandbox): checked, pretended: useradd gad" "$OUT"
+
+say ""; say "H  a backup made by an older Windows build: its manifest has CRLF line ends"
+rm -f "$BAK"/*.zip
+CRLF=1 mk 20260101-000010 gaw gaw
+OUT=$(S "RESTORE.ACCOUNT LATEST gaw" "n")
+ck_says "H1 a CRLF manifest is read, not skipped as unreadable: 13048" "The most recent backup is $(Z gaw-20260101-000010)" "$OUT"
+ck_silent "H1 and not refused" "No backup of" "$OUT"
+ck_says "H1 it asks, and n abandons" "Restore abandoned. Nothing was changed." "$OUT"
 
 say ""; say "G  nothing holds it"
 rm -f "$BAK"/*.zip; mk 20260101-000009 gab gab
