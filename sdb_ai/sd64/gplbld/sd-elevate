@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 05 Oct 26 dm tls-show says "certificate: not yet generated" when root finds
+#               no /etc/sd-tls/api.pem (SETTINGS.REPORT showed openssl's raw
+#               error on a fresh install); parity with Windows' report.
 # 04 Oct 26 dm remote-api / remote-ssh drive firewalld as well as ufw (owner,
 #               4 Oct 2026: "yes - for both sd core and sd solo"), after Solo's
 #               "open" on a Fedora VM got no rule and timed out at firewalld.
@@ -138,7 +141,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
                                   (the manifest on stdin, the zip on stdout)
   sd-elevate [--dry-run] restore-place <owner> <group> <staged dir> <account dir>
   sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account)
-  sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key)
+  sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key;
+                                                 "certificate: not yet generated" when there is none)
   sd-elevate [--dry-run] bakdir-set <full path of an existing directory>
                                   (saves BACKUPDIR=<path> in /etc/sd.conf, nothing else)
   sd-elevate [--dry-run] bakdir-make <full path of a directory that does not exist>
@@ -1222,9 +1226,29 @@ case $verb in
   # api_tls_dir), so this reads it as root - and openssl x509 -noout prints
   # the certificate's fields only, never the key.  No arguments: the path is
   # fixed here, not the caller's.
+  #
+  # 05 Oct 26 - the certificate is made by the API's FIRST TLS connection, so a
+  # fresh install has none, and openssl's own "Could not open file or uri" used
+  # to land in the report (the owner's S.50 Part 1 run).  Windows' report says
+  # "certificate: not yet generated" for the same state; so does this.  Only
+  # root can say the file is absent (/etc/sd-tls is root's: another user's
+  # test of it would say absent for a certificate that is there), so a dry run
+  # by an ordinary user prints the command, and asks only when it is given
+  # SD_TLS_PEM_FIXTURE - a dry-run-only stand-in path, as SD_SYS_ROOT_FIXTURE is.
   tls-show)
     [[ $# -eq 0 ]] || usage
-    cmd=(openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in /etc/sd-tls/api.pem)
+    tls_pem=/etc/sd-tls/api.pem
+    tls_can_see=0
+    [[ ${EUID:-$(id -u)} -eq 0 ]] && tls_can_see=1
+    if [[ $DRY -eq 1 && -n ${SD_TLS_PEM_FIXTURE:-} ]]; then
+      tls_pem=$SD_TLS_PEM_FIXTURE
+      tls_can_see=1
+    fi
+    if [[ $tls_can_see -eq 1 && ! -e $tls_pem ]]; then
+      printf 'certificate: not yet generated\n'
+      exit 0
+    fi
+    cmd=(openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in "$tls_pem")
     ;;
 
   akpath-set)

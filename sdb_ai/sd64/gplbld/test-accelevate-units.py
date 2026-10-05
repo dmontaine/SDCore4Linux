@@ -71,8 +71,10 @@ def other_user(me):
     return None
 
 
-def run(helper, root, args):
+def run(helper, root, args, extra=None):
     env = dict(os.environ, SD_ACCT_ROOT=root)
+    env.pop("SD_TLS_PEM_FIXTURE", None)      # a row sets it itself, or runs without it
+    env.update(extra or {})
     p = subprocess.run(["bash", helper, "--dry-run"] + args, capture_output=True, text=True, env=env)
     return p.returncode, p.stdout, p.stderr
 
@@ -95,7 +97,17 @@ def cases(root, me):
          "a group account back to sdsys:sdg_<name>"),
         (ALLOW, ["akpath-set", os.path.join(mine, "data"), os.path.join(mine, "idx")], "sdidx -p",
          "an index path inside the file's own account"),
-        (ALLOW, ["tls-show"], "openssl x509 -noout -subject", "the API certificate's fields, -noout"),
+        # An ordinary user cannot see into /etc/sd-tls, so only root may call the file absent: this
+        # row must print the command and must NOT claim "not yet generated" (the last element is
+        # text that must not appear - the failure wording, refused as well as the success wording).
+        (ALLOW, ["tls-show"], "openssl x509 -noout -subject", "the API certificate's fields, -noout; an ordinary user is never told it is absent",
+         None, "not yet generated"),
+        # 05 Oct 26: no certificate yet (the API makes it at the first TLS connection) is one plain
+        # line, not openssl's "Could not open file or uri".  SD_TLS_PEM_FIXTURE is honoured on a dry run only.
+        (ALLOW, ["tls-show"], "certificate: not yet generated", "no certificate yet: one plain line, as Windows' report prints it",
+         {"SD_TLS_PEM_FIXTURE": os.path.join(root, "absent", "api.pem")}, "Could not open"),
+        (ALLOW, ["tls-show"], "-in " + os.path.join(root, "elsewhere", "present.pem"), "a certificate there: openssl still runs on the path",
+         {"SD_TLS_PEM_FIXTURE": os.path.join(root, "elsewhere", "present.pem")}, "not yet generated"),
         (REFUSE, ["tls-show", "/etc/shadow"], "privileged helper", "tls-show takes no path from the caller"),
         # S.53: bakdir-set saves one validated line in /etc/sd.conf (the functions are measured
         # on scratch files by test-bakdir-elevate-units.py; these are the real command line).
@@ -157,14 +169,17 @@ def build_fixture(root, me):
               "elsewhere/%s" % me):
         os.makedirs(os.path.join(root, d))
     os.symlink(os.path.join(root, "user_accounts", me), os.path.join(root, "linked"))
+    open(os.path.join(root, "elsewhere", "present.pem"), "w").close()   # tls-show's "a certificate is there" row
 
 
 def suite(helper, root, me, quiet=False):
-    for kind, args, want, why in cases(root, me):
-        rc, out, err = run(helper, root, args)
+    for case in cases(root, me):
+        kind, args, want, why = case[:4]
+        extra, bad = (case[4:] + (None, None))[:2]
+        rc, out, err = run(helper, root, args, extra)
         both = out + err
         if kind == ALLOW:
-            ok = rc == 0 and want in both
+            ok = rc == 0 and want in both and not (bad and bad in both)
             if args[0] == "backup-pack":
                 ok = ok and out == ""   # the zip is stdout; status must not touch it
         else:
@@ -174,8 +189,9 @@ def suite(helper, root, me, quiet=False):
         if quiet and ok:
             continue
         say("  [%s] %-6s %s" % ("PASS" if ok else "FAIL", kind, why))
-        say("         | $ sd-elevate --dry-run %s" % " ".join(args))
-        say("         | -> exit %d; looked for %r; got %r" % (rc, want, both.strip()[-240:]))
+        say("         | $ %ssd-elevate --dry-run %s" % ("".join("%s=%s " % kv for kv in (extra or {}).items()), " ".join(args)))
+        say("         | -> exit %d; looked for %r%s; got %r"
+            % (rc, want, "" if not bad else " and not %r" % bad, both.strip()[-240:]))
 
 
 MUTANTS = [
@@ -186,6 +202,8 @@ MUTANTS = [
     ("pack name check gone", '[[ ${pair%%=*} == "$ACCT_NAME" ]] || die', '[[ 1 ]] || die'),
     ("bakdir character check gone", '[[ $p =~ $re ]] || die', '[[ 1 ]] || die'),
     ("bakdir allowed-places check gone", '[[ $ok -eq 1 ]] || die', 'true || die'),
+    ("tls-show absent test gone", 'if [[ $tls_can_see -eq 1 && ! -e $tls_pem ]]; then', 'if false; then'),
+    ("tls-show says absent to a non-root user", '[[ ${EUID:-$(id -u)} -eq 0 ]] && tls_can_see=1', 'tls_can_see=1'),
 ]
 
 
