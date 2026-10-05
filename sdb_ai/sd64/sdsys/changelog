@@ -2,6 +2,41 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+05 Oct 26  RESTORE.ACCOUNT LATEST NOW CHOOSES THE NEWEST BACKUP THAT REALLY
+           HOLDS THE ACCOUNT, AND SAYS WHEN A NEWER BACKUP DOES NOT.
+
+           RESTORE.ACCOUNT LATEST name [name ...] used to choose from the
+           names of the backup files.  A backup of everything (ALL), or of
+           several accounts, has no account names in its file name, so it
+           counted for every account.  If you asked for an account that was
+           not in the newest backup of that kind, SD chose that backup anyway
+           and then refused it, even with an older backup of your account in
+           the same directory.  This was measured on an Ubuntu 26.04 test
+           machine.
+
+           SD now opens each backup the name might fit, reads the list of
+           accounts it holds (nothing is unpacked) and takes the newest one
+           that holds every account you named.  If a newer backup made on
+           this computer does not hold the account, or cannot be read, SD
+           says so before it asks whether to go ahead:
+
+               The most recent backup made on this computer, <file>, does
+               not hold <account> (or cannot be read). The newest backup that
+               does is <path>
+
+           You can still answer n.  If no backup holds the account, SD says
+           "No backup of <account> made on this computer was found in
+           <directory>." and changes nothing.
+
+           RESTORE.ACCOUNT LATEST ALL is as before: it takes the newest
+           backup made with ALL, and a newer backup of one account is not a
+           reason to warn.
+
+           WHAT THIS DOES NOT DO: it looks only at backups made on this
+           computer, in the directory saved by SET.BACKUP.DIRECTORY, and it
+           still checks the chosen backup in full before anything is
+           changed.  A backup that cannot be read is skipped, not repaired.
+
 04 Oct 26  EVERY FAILED API LOGIN IS NOW RECORDED, EVEN IF THE CLIENT HANGS UP EARLY.
 
            When a program tried to log in to the API with a wrong password,
@@ -124,14 +159,11 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            WHY: a backup's name holds the computer, the accounts and the
            time, which is a lot to type when you only want the last one.
 
-           WHAT THIS DOES NOT DO: it chooses from the file names alone, so a
-           backup of several accounts made with more than three names counts
-           for any account you ask for, and is checked against its own
-           contents before anything is changed; one that does not hold the
-           account stops the restore with nothing changed.  It never picks a
-           backup made on another computer, and it only restores the accounts
-           you named from a backup of several.  Archive names always end in
-           .zip, so LATEST cannot be mistaken for one.
+           WHAT THIS DOES NOT DO: it never picks a backup made on another
+           computer, and it only restores the accounts you named from a
+           backup of several.  Archive names always end in .zip, so LATEST
+           cannot be mistaken for one.  (How it decides which backup holds
+           an account was changed on 05 Oct 26: see that entry.)
 
 02 Oct 26  THE WINDOWS CLIENT LIBRARY EXAMPLE IS GONE.
 

@@ -6,6 +6,9 @@
 * 01 Oct 26 dm Written for S.50.  One of the per-OS helpers whose name and
 *              signature are agreed with SD Core for Windows (mail 2026-10-01T1030);
 *              this body is Linux's.  The shared verbs call only the helpers.
+* 05 Oct 26 dm MANIFEST mode, for RESTORE.ACCOUNT LATEST (owner, 5 Oct 2026: the last
+*              backup that CONTAINS the account, found by looking).  A new mode of an
+*              agreed helper: SD Core for Windows is told in the same mail as the verb.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -20,6 +23,10 @@
 *    EXTRACT  entries<1>: a target directory that must not exist; the whole
 *             archive is unpacked into it.  counts: one per account,
 *             files VM bytes VM dirs VM name.
+*    MANIFEST nothing is unpacked.  counts: the archive's manifest.txt, one
+*             line per field.  (05 Oct 26: RESTORE.ACCOUNT LATEST reads this to
+*             learn which accounts a backup holds.)  Every other entry of the
+*             archive is left unread; EXTRACT still vets the whole archive.
 *    err      '' or the message number then its arguments, value-mark
 *             separated.
 *
@@ -59,6 +66,8 @@ $include accos.h
          gosub create.archive
       case mode = 'EXTRACT'
          gosub extract.archive
+      case mode = 'MANIFEST'
+         gosub manifest.archive
       case 1
          err = 2018:@vm:mode   ;* Unexpected token (xx)
    end case
@@ -174,6 +183,22 @@ extract.archive:
    if counts = '' then
       err = 11022:@vm:zip.path
    end
+   return
+
+* ======================================================================
+manifest.archive:
+   out = ''
+   os.execute ACCOS$ARCHIVER:" manifest '":zip.path:"' 2>&1" capturing out
+   stat = os.error()
+   if stat # 0 then
+      err = 11017:@vm:zip.path:@vm:stat:@vm:convert(@fm, '|', out)
+      return
+   end
+   if out = '' then
+      err = 11022:@vm:zip.path
+      return
+   end
+   counts = out
    return
 
 end

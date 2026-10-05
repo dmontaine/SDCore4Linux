@@ -268,7 +268,61 @@ def suite(tool, work):
         row("refuse", "pack refuses " + label, rc == 2 and want in err and out == b"",
             ["$ " + " ".join(cmd[1:]), "  -> exit %d %r, %d bytes on stdout" % (rc, err.strip(), len(out))])
 
+    manifest_suite(tool, work, zpath)
     swap_suite(tool, work)
+
+
+def manifest_suite(tool, work, good):
+    """sd-accarchive manifest ZIP: what RESTORE.ACCOUNT LATEST reads to learn what a backup holds.
+    Added 05 Oct 26 (owner: LATEST is chosen by looking inside, not by the file's name)."""
+    before = sorted(os.listdir(work))
+    rc, out, err, cmd = run(tool, ["manifest", good])
+    with zipfile.ZipFile(good) as zf:
+        want = zf.read("manifest.txt")
+    row("allow", "manifest prints manifest.txt exactly and unpacks nothing",
+        rc == 0 and out == want and err == "" and sorted(os.listdir(work)) == before,
+        ["$ " + " ".join(cmd[1:]), "  -> exit %d, %d bytes (the zip's own manifest is %d), stderr %r"
+         % (rc, len(out), len(want), err.strip()), "  scratch directory unchanged: %s" % (sorted(os.listdir(work)) == before)])
+
+    # The whole-archive vetting is extract's job: a zip with a '..' entry still yields its manifest here,
+    # and is refused where it matters, at extract.  The row says so, so nobody 'fixes' it by accident.
+    zp = os.path.join(work, "mf-dotdot.zip")
+    good_zip(zp, BASE + [("accounts/zz/../../x", b"x")])
+    rc, out, err, cmd = run(tool, ["manifest", zp])
+    rc2, out2, err2, cmd2 = run(tool, ["extract", zp, os.path.join(work, "mf-dotdot-out")])
+    row("allow", "manifest reads only the manifest: a zip extract refuses ('..') still yields it",
+        rc == 0 and out == b"format: 1\n" and rc2 == 2 and "'..' segment" in err2,
+        ["$ " + " ".join(cmd[1:]) + "  -> exit %d %r" % (rc, out), "$ " + " ".join(cmd2[1:]) + "  -> exit %d %r" % (rc2, err2.strip())])
+
+    def refuse(label, entries, want, raw=None):
+        zp = os.path.join(work, "mf-bad.zip")
+        if raw is not None:
+            with open(zp, "wb") as f:
+                f.write(raw)
+        else:
+            with zipfile.ZipFile(zp, "w") as zf:
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    for name, data in entries:
+                        zf.writestr(name, data)
+        rc, out, err, cmd = run(tool, ["manifest", zp])
+        row("refuse", "manifest refuses " + label, rc == 2 and want in err and out == b"",
+            ["$ " + " ".join(cmd[1:]), "  -> exit %d %r, %d bytes on stdout" % (rc, err.strip(), len(out))])
+
+    refuse("a zip with no manifest.txt", [("accounts/zz/a", b"A")], "has no manifest.txt")
+    refuse("two manifest.txt entries", [("manifest.txt", b"format: 1\n"), ("manifest.txt", b"format: 9\n")],
+           "appears twice")
+    refuse("manifest.txt as a directory entry", [("manifest.txt/", b"")], "has no manifest.txt")
+    refuse("a manifest that is not plain ASCII", [("manifest.txt", "format: é\n".encode("utf-8"))], "not plain ASCII")
+    refuse("a manifest over 1 MB", [("manifest.txt", b"a: b\n" * 300000)], "is larger than")
+    refuse("something that is not a zip", None, "is not a readable zip", raw=b"this is not a zip file")
+    rc, out, err, cmd = run(tool, ["manifest", os.path.join(work, "no-such.zip")])
+    row("refuse", "manifest refuses a file that is not there", rc == 2 and "is not a readable zip" in err and out == b"",
+        ["$ " + " ".join(cmd[1:]), "  -> exit %d %r" % (rc, err.strip())])
+    rc, out, err, cmd = run(tool, ["manifest"])
+    row("refuse", "manifest refuses no zip name", rc == 2 and "usage:" in err and out == b"",
+        ["$ " + " ".join(cmd[1:]), "  -> exit %d %r" % (rc, err.strip())])
 
 
 def swap_suite(tool, work):
@@ -336,6 +390,10 @@ MUTANTS = [
     ("existing target reused", "if os.path.lexists(target):", "if False:"),
     ("manifest not required", "if not has_manifest:", "if False:"),
     ("directory modes not applied", "os.chmod(dest, dperm)", "pass"),
+    ("manifest: size bound gone", "if len(data) > MAX_MANIFEST:", "if False:"),
+    ("manifest: ASCII check gone", "    check_manifest(data)\n    sys.stdout.write(", "    sys.stdout.write("),
+    ("manifest: a missing manifest.txt allowed", "        if not hits:\n", "        if False:\n"),
+    ("manifest: a duplicate manifest.txt allowed", "        if len(hits) > 1:\n", "        if False:\n"),
 ]
 
 

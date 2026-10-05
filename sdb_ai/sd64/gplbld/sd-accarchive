@@ -12,10 +12,18 @@
 # 02 Oct 26 dm  extract applies each directory's archived mode.  Measured on the owner's
 #               Solo: a restore turned every directory of the account from 0700 to 0775
 #               (makedirs 0o775 under umask 002; the mode pack stores was never read).
+# 05 Oct 26 dm  manifest: print manifest.txt and nothing else, so RESTORE.ACCOUNT LATEST can ask
+#               what an archive holds without unpacking it (owner, 5 Oct 2026: LATEST is the last
+#               backup that CONTAINS the account, chosen by looking, not by the file's name).
 # END-HISTORY
 #
 # START-DESCRIPTION:
 #
+#   sd-accarchive manifest ZIP
+#       Prints manifest.txt on stdout and unpacks nothing.  Run by the SDSYS session itself,
+#       without root.  Refused: not a readable zip; no manifest.txt, or more than one; one over
+#       1 MB; one that is not plain ASCII.  It reads nothing but the manifest: vetting every
+#       other entry is extract's job, and extract still does it before anything is written.
 #   sd-accarchive pack NAME=DIR [NAME=DIR ...]
 #       The manifest on stdin, the zip on stdout.  Run as root by
 #       "sd-elevate backup-pack", which has already checked that every DIR is an
@@ -400,12 +408,37 @@ def do_swap(marker):
     print("RESTORED %s from the pending restore; the previous tree is kept at %s" % (target, prev))
 
 
+MAX_MANIFEST = 1 << 20
+
+
+def do_manifest(zpath):
+    """Print manifest.txt, bounded and checked, and nothing else: no entry is unpacked."""
+    try:
+        zf = zipfile.ZipFile(zpath, "r")
+    except (OSError, zipfile.BadZipFile) as e:
+        raise Refused("'%s' is not a readable zip: %s" % (zpath, e))
+    with zf:
+        hits = [zi for zi in zf.infolist() if zi.filename == "manifest.txt"]
+        if not hits:
+            raise Refused("the archive has no manifest.txt")
+        if len(hits) > 1:
+            raise Refused("entry 'manifest.txt' appears twice")
+        with zf.open(hits[0]) as f:
+            data = f.read(MAX_MANIFEST + 1)
+    if len(data) > MAX_MANIFEST:
+        raise Refused("manifest.txt is larger than %d bytes" % MAX_MANIFEST)
+    check_manifest(data)
+    sys.stdout.write(data.decode("ascii"))
+
+
 def main(argv):
-    usage = "usage: pack NAME=DIR... | count DIR | extract ZIP TARGET | swap MARKER"
+    usage = "usage: pack NAME=DIR... | count DIR | extract ZIP TARGET | manifest ZIP | swap MARKER"
     if len(argv) < 2:
         raise Refused(usage)
     mode, args = argv[1], argv[2:]
-    if mode == "pack":
+    if mode == "manifest" and len(args) == 1:
+        do_manifest(args[0])
+    elif mode == "pack":
         do_pack(args)
     elif mode == "count" and len(args) == 1:
         do_count(args[0])
