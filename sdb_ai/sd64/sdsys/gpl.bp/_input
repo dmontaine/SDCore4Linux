@@ -19,6 +19,12 @@
 	  * 
 	  * START-HISTORY:
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+	  * 07 Oct 26 dm  PAL-21, the Windows port's 22 Aug 26 fix: Ctrl-H (8) and DEL
+	  *           (127) both erase, whatever the terminal type's kbs names, and the
+	  *           erase is char(8) space char(8) rather than @(IT$CUB).  An unmatched
+	  *           byte used to be APPENDED to the string, so on a terminal that sent
+	  *           the other byte a HIDDEN password could not be corrected.
+	  *           sandbox-input.py is the witness.
 	  * END-HISTORY
 	  *
       *
@@ -78,7 +84,21 @@
       end
       
       c = terminfo('kbs')    ;* 0402
-      backspace = if len(c) = 1 then seq(c) else 8
+
+*     07 Oct 26 - PAL-21, BOTH ERASE BYTES (the Windows port's 22 Aug 26 fix, which
+*     _KEYCODE's 14 Sep 26 Linux twin, verify-keys.py, did not reach: this routine reads
+*     RAW BYTES with keyinc() and compared them with the one byte kbs named).  A
+*     terminal that sends the other byte - DEL under vt100, whose kbs is ^H; ^H under a
+*     type that names DEL - got no erase, and because a single-line INPUT has no
+*     forward delete the unmatched byte fell through to the catch-all case and was
+*     APPENDED to the string.  On INPUT ... HIDDEN, which is what the password
+*     prompts of MODIFY.PASSWORD are, a typing mistake could not be corrected and the
+*     attempt to correct it made the entry longer.  Measured here, sandbox-input.py
+*     before this change: vt100 + DEL, linux + ^H and xterm + ^H gave 'ab' DEL 'c'.
+*     ADDITIVE, AND kbs STILL COUNTS: whatever the terminal type names stays in the
+*     set and 8 and 127 are added.  DEL has no other meaning in this routine.
+      erase.keys = char(8) : char(127)
+      if len(c) = 1 and index(erase.keys, c, 1) = 0 then erase.keys := c
 
       string = ''
       if max.input = 0 then max.input = 99999
@@ -117,10 +137,17 @@
 
             n = seq(c)
             begin case  ;* 0392 Allow rebindable values
-               case n = backspace                     ;* BACKSPACE key
+               case index(erase.keys, c, 1)           ;* BACKSPACE key
                   if len(string) then
                      string = string[1, len(string) - 1]
-                     if echo.input then display @(IT$CUB) : ' ' : @(IT$CUB) :
+*                    07 Oct 26 - char(8), as the Windows port has had it since 22 Aug 26,
+*                    not @(IT$CUB): BS-space-BS is the portable destructive erase and
+*                    must not rest on a capability string (cub1 came back EMPTY in the
+*                    Windows installer's console, so the erase printed a bare space and
+*                    the cursor walked forward).  For vt100, linux and xterm cub1 IS ^H
+*                    (infocmp, and SD's own terminfo.src, 7 Oct 26), so on those this
+*                    prints exactly what it printed before.
+                     if echo.input then display char(8) : ' ' : char(8) :
                   end
 
                case n = return.key                    ;* RETURN key
