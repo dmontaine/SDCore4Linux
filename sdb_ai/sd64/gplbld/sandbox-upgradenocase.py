@@ -42,6 +42,11 @@ TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 USER = getpass.getuser()
+# --solo: run SD Core for Linux Solo's version of the walk (its own gpl.bp/upgrade_nocase and messages
+# 11060-11063, no owner switching: one user) inside this full-product sandbox.  The kernel is the full
+# product's, which is the same C for everything the walk does; a Solo kernel sandbox does not exist (LSOLO 40).
+SOLO = "--solo" in sys.argv
+SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 A, G, U, O = "zzacct" + RUN, "zzgrp" + RUN, "zzusr" + RUN, "zzoth" + RUN
 FIX, RD = "zzfix" + RUN, "zzrd" + RUN
 passed = failed = 0
@@ -130,6 +135,16 @@ def main():
     if not os.path.isfile(os.path.join(sysd, "gpl.bp", "upgrade_nocase")):
         bail("this tree has no gpl.bp/upgrade_nocase")
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+    if SOLO:
+        say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11063 replace the full product's in this sandbox")
+        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11064)):
+            src = os.path.join(SOLO_SDSYS, rel)
+            if not os.path.isfile(src):
+                bail("Solo has no %s" % src)
+            shutil.copyfile(src, os.path.join(sysd, rel))
+        out = isess(box, "BASIC gpl.bp upgrade_nocase")
+        if not re.search(r"(?m)^Compiled 1 program\(s\) with no errors", out):
+            bail("Solo's upgrade_nocase did not compile in the sandbox")
 
     created = []
 
@@ -230,14 +245,19 @@ def main():
         row("1: it said 2 catalogue names would be made lower case", "2 private catalogue name(s) in" in out and "would be made lower case" in out,
             "no 11031 line with 2")
         row("1: it named both pairs of cat that cannot be renamed (ZZPAIR / zzpair)", "'ZZPAIR' and 'zzpair' both exist" in out, "no 11032 line")
-        row("1: the group account with no Linux group was skipped with the helper's words (11035, 11021)",
-            ("Account %s was skipped: its operating-system details could not be read. Cannot read the Linux group sdg_%s" % (G, G)) in out,
-            "no 11035 line for %s" % G)
-        row("1: the account that is neither user nor group was skipped (11028)",
-            out.count("Account %s was skipped: it is neither a user nor a group account" % O) == 1, "no 11028 line for %s" % O)
-        row("1: CHECK switches no owner, so the missing-user account is NOT skipped in CHECK (no 11029)",
-            "this session cannot act as its owner" not in out, "an owner switch was attempted in CHECK")
-        row("1: the two skips were counted", "2 account(s) were not converted" in out, "no 11033 line with 2")
+        if SOLO:
+            row("1 (Solo): every registered account is walked and none is skipped (there is no owner to switch to)",
+                all(("Account " + x) in out for x in (G, U, O)) and "skipped" not in out and "not converted" not in out,
+                "a skip line, or an account not walked")
+        else:
+            row("1: the group account with no Linux group was skipped with the helper's words (11035, 11021)",
+                ("Account %s was skipped: its operating-system details could not be read. Cannot read the Linux group sdg_%s" % (G, G)) in out,
+                "no 11035 line for %s" % G)
+            row("1: the account that is neither user nor group was skipped (11028)",
+                out.count("Account %s was skipped: it is neither a user nor a group account" % O) == 1, "no 11028 line for %s" % O)
+            row("1: CHECK switches no owner, so the missing-user account is NOT skipped in CHECK (no 11029)",
+                "this session cannot act as its owner" not in out, "an owner switch was attempted in CHECK")
+            row("1: the two skips were counted", "2 account(s) were not converted" in out, "no 11033 line with 2")
         after, fold1, _ = readback(box, acct)
         row("1: CHECK changed nothing: every file is still case sensitive", after == before, repr(after))
         row("1: CHECK renamed nothing in cat/", sorted(os.listdir(os.path.join(acct, "cat"))) == cat0, repr(sorted(os.listdir(os.path.join(acct, "cat")))))
@@ -267,19 +287,30 @@ def main():
             open(os.path.join(acct, "cat", "zzsub1"), "rb").read() == b"obj1" if os.path.exists(os.path.join(acct, "cat", "zzsub1")) else False)
         row("2: both of a catalogue pair survive, each with its own bytes",
             open(os.path.join(acct, "cat", "ZZPAIR"), "rb").read() == b"upper" and open(os.path.join(acct, "cat", "zzpair"), "rb").read() == b"lower")
-        row("2: the owner switch was refused for the missing user (11029), once",
-            out.count("Account %s was skipped: this session cannot act as its owner, zznouser%s" % (U, RUN)) == 1, "no 11029 line for %s" % U)
-        row("2: and the other two skips are as in CHECK (11028 once, 11035 once)",
-            out.count("neither a user nor a group account") == 1 and out.count("operating-system details could not be read") == 1,
-            "wrong skip lines")
+        if SOLO:
+            row("2 (Solo): every registered account is walked and none is skipped",
+                all(("Account " + x) in out for x in (A, G, U, O)) and "skipped" not in out and "not converted" not in out,
+                "a skip line, or an account not walked")
+        else:
+            row("2: the owner switch was refused for the missing user (11029), once",
+                out.count("Account %s was skipped: this session cannot act as its owner, zznouser%s" % (U, RUN)) == 1, "no 11029 line for %s" % U)
+            row("2: and the other two skips are as in CHECK (11028 once, 11035 once)",
+                out.count("neither a user nor a group account") == 1 and out.count("operating-system details could not be read") == 1,
+                "wrong skip lines")
         row("2: a catalogue pair is a warning, not a failure (no 'could not be read or rebuilt' line)",
             "could not be read or rebuilt" not in out, "the pair was counted as an error")
-        row("2: and the skips were counted (3 account(s) were not converted)", "3 account(s) were not converted" in out, "no 11033 line")
+        if not SOLO:
+            row("2: and the skips were counted (3 account(s) were not converted)", "3 account(s) were not converted" in out, "no 11033 line")
         owner_ok = all(stat_of(p) [:2] == mark[p][:2] for p in mark if os.path.exists(p))
         row("2: the rebuilt file belongs to the same owner and group as the one it replaced", owner_ok,
             "before %r after %r" % (mark, {p: stat_of(p) for p in mark if os.path.exists(p)}))
         modes = [stat_of(os.path.join(acct, "zzd1", n))[2] for n in ("%0", "%1") if os.path.exists(os.path.join(acct, "zzd1", n))]
-        row("2: the rebuilt file is group writable (mode 664 under the walk's umask 002)", bool(modes) and all(m == 0o664 for m in modes), repr([oct(m) for m in modes]))
+        if SOLO:
+            row("2 (Solo): the rebuilt file has the mode of the one it replaced (the user's own umask; Solo sets none)",
+                bool(modes) and all(stat_of(p)[2] == mark[p][2] for p in mark if os.path.exists(p)),
+                "before %r after %r" % ({p: oct(m[2]) for p, m in mark.items()}, {p: oct(stat_of(p)[2]) for p in mark if os.path.exists(p)}))
+        else:
+            row("2: the rebuilt file is group writable (mode 664 under the walk's umask 002)", bool(modes) and all(m == 0o664 for m in modes), repr([oct(m) for m in modes]))
         row("2: SDSYS was not touched (its voc is unchanged)", os.stat(os.path.join(sysd, "voc", "%0")).st_mtime_ns == sysmark,
             "sys/voc/%0 was rewritten")
 

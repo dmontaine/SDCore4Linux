@@ -43,6 +43,11 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 N, C, K, X, E, P = ("zztwn" + RUN, "zztwc" + RUN, "zztwk" + RUN, "zzx" + RUN, "zztwe" + RUN, "zzncp" + RUN)
 passed = failed = 0
+# --solo: run SD Core for Linux Solo's createf and configf (and messages 10176 and 10177) inside this full-product
+# sandbox.  The kernel is the full product's, the same C for everything these rows measure (op_create_dh); Solo
+# has no sandbox tool of its own (LSOLO 40).  The rows are unchanged.
+SOLO = "--solo" in sys.argv
+SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 
 
 def say(s=""):
@@ -138,6 +143,18 @@ def main():
     elif not os.path.isfile(os.path.join(sysd, "bin", "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+    if SOLO:
+        say("sandbox-nocase: SOLO MODE - Solo's createf, configf and messages 10176, 10177 replace the full product's in this sandbox")
+        for rel in ("gpl.bp/createf", "gpl.bp/configf", "messages/10176", "messages/10177"):
+            src = os.path.join(SOLO_SDSYS, rel)
+            if not os.path.isfile(src):
+                bail("Solo has no %s" % src)
+            shutil.copyfile(src, os.path.join(sysd, rel))
+        r = subprocess.run([os.path.join(sysd, "bin", "sd"), "-internal", "BASIC", "gpl.bp", "createf", "configf"], cwd=sysd,
+                           env=dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf")), stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True, errors="replace", timeout=300)
+        if len(re.findall(r"(?m)^Compiled 2 program\(s\) with no errors", r.stdout)) != 1:
+            bail("Solo's createf and configf did not compile in the sandbox:\n" + r.stdout[-600:])
 
     # The probe reads the flag itself.  create.file ... flags 4 is the KEEPCASE request, written as the number
     # because int$keys.h (FL$FLAGS.KEEPCASE) is not for an ordinary program.

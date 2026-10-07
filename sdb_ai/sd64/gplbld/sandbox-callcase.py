@@ -144,6 +144,16 @@ def main():
     elif not os.path.isfile(os.path.join(sysd, "bin", "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, timeout=120)
+    if "--solo" in sys.argv:
+        # LSOLO 43: Solo's own programs on the full sandbox's kernel (see solo_swap.py); the rows are unchanged
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("solo_swap", os.path.join(HERE, "solo_swap.py"))
+        ss = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ss)
+        ok, why = ss.swap(box, programs=("catalog", "delcat", "settrig", "_voc_cat", "bcomp", "debug", "pstat"))
+        say("sandbox-callcase: SOLO MODE - " + why.splitlines()[0])
+        if not ok:
+            bail(why)
     say("\n--- sweep leftovers --------------------------------------------------------")
     sweep(box)
     sess(box, "DELETE.CATALOG zzcc3ap", "DELETE.CATALOG zzcl3a LOCAL", "DELETE.CATALOG ZZCL3A LOCAL")

@@ -89,6 +89,22 @@ def main():
     elif not os.path.isfile(os.path.join(box, "sys", "bin", "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, timeout=120)
+    if "--solo" in sys.argv:
+        # LSOLO 43: Solo's own programs, messages and shipped dictionaries on the full sandbox's kernel (see
+        # solo_swap.py), then Solo's write_install_dicts writes Solo's dictionaries; the rows are unchanged.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("solo_swap", os.path.join(HERE, "solo_swap.py"))
+        ss = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ss)
+        ok, why = ss.swap(box, programs=("acomp", "bcomp", "cd", "cname", "generate", "icomp", "listi", "mkindx", "qproc", "show",
+                                         "_nextptr", "createf", "write_install_dicts"), messages=(6129,), dictdir=True)
+        say("sandbox-dictfold: SOLO MODE - " + why.splitlines()[0])
+        if not ok:
+            bail(why)
+        wr = subprocess.run([sys.executable, TOOL, box, "sess", os.path.join(box, "sys"), "RUN gpl.bp write_install_dicts NO.PAGE"],
+                            capture_output=True, text=True, errors="replace", timeout=300)
+        if not re.search(r"(?m)^COMPLETE\s*$", ANSI.sub("", wr.stdout + wr.stderr)):
+            bail("Solo's write_install_dicts did not reach COMPLETE")
     xt = "zzxt" + RUN
     # the I-type: its expression names F1 and F3 in UPPER case, the dictionary stores f1 and f3 lower
     with open(os.path.join(box, "sys", "bp", xt), "wb") as f:
