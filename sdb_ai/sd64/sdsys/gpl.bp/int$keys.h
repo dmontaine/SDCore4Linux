@@ -149,9 +149,11 @@
 *   kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit loginuid -
 *   set once by PAM at login and inherited by every descendant, unwritable
 *   without root - belongs to the named user, 0 when it is unset or cannot
-*   be read.  This tree's own key, in the block clear of the port's 0-64.
-*   Must match gplsrc/keys.h.
-      $define K$LOGIN.UID      65       ;* Session's loginuid belongs to user?
+*   be read.  This tree's own key.  Must match gplsrc/keys.h.
+* 06 Oct 26 dm - PAL-7 (parity audit): MOVED FROM 65 TO 91, because the Windows
+*   port's K$OS.ELEVATED is 65.  See gplsrc/keys.h.  The binary and GPL.BP are
+*   one unit: a binary that still says 65 refuses this program's KERNEL call.
+      $define K$LOGIN.UID      91       ;* Session's loginuid belongs to user?
 * 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session.
 *   NOT the same as K$USERNAME, which answers whoever the process is running
 *   as - "sdsys" after CPROC's drop, or "root" before it.  Returns '' when no
@@ -163,6 +165,7 @@
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.
+*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above); 92 is still free.
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

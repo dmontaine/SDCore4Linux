@@ -185,10 +185,17 @@
 /* 18 Sep 26 dm - S.26, THE OWNER'S NIGHT RULING: the LOGIN itself must be
    sdsys.  kernel(K$LOGIN.UID, 'user') answers 1 when the kernel's audit
    loginuid - set once by PAM at login, inherited by every descendant,
-   unwritable without root - belongs to the named user.  This tree's own key,
-   in the 65+ block clear of the port's 0-64.  GPL.BP/INT$KEYS.H carries the
-   same number.                                                             */
-#define K_LOGIN_UID          65
+   unwritable without root - belongs to the named user.  This tree's own key.
+   GPL.BP/INT$KEYS.H carries the same number.
+   06 Oct 26 dm - PAL-7 (parity audit): MOVED FROM 65 TO 91.  The Windows port
+   uses 65 for K_OS_ELEVATED (and 58-59, 62-68), so one number meant two things
+   across the ports: a program shipped byte for byte on both that called either
+   would have silently asked the other's question.  Agreed with the Windows
+   agent: it keeps 58-89 for kernel() keys, this tree 90-99 (K_REAL_USER 90 and
+   K_LOGIN_UID 91 now sit together), 100-199 is the shared SDEXT range.  A key
+   number is compiled into every BASIC program that calls KERNEL, so the binary
+   and GPL.BP are one unit: install the commit, do not mix.                   */
+#define K_LOGIN_UID          91
 /* 09 Sep 26 dm - PRE_RELEASE 20.  The REAL person behind a privileged session,
    which is not the same question as K_USERNAME.  See op_kernel.c.            */
 /* 10 Sep 26 dm - PARITY AUDIT: 57-59 ARE THE WINDOWS PORT'S K_AUDIT, K_WINPATH
@@ -200,7 +207,8 @@
 #define K_REAL_USER          90
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
-   own Linux permissions, and the kernel no longer carries those keys.       */
+   own Linux permissions, and the kernel no longer carries those keys.
+   06 Oct 26 dm - 91 is K_LOGIN_UID now (see above); 92 is still free.       */
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

@@ -2,6 +2,28 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  THE KERNEL KEY THAT ASKS "WHOSE LOGIN IS THIS" MOVED FROM 65 TO 91.
+
+           SD's internal programs ask the kernel a few questions by number.
+           One of them, K$LOGIN.UID ("does this session's login belong to
+           user x?", used when SDSYS is entered), was number 65 here, and
+           number 65 on SD Core for Windows meant a different question ("did
+           this process start elevated?").  A program written for both ports
+           would have asked the wrong question on one of them without any
+           error.  It is now 91, in the block set aside for this port (90-99);
+           SD Core for Windows keeps 58-89.  The audit tool found the clash,
+           and now finds none.
+
+           This was run on a test copy of SD: a small internal program
+           printed K$LOGIN.UID as 65 before and 91 after, and the kernel
+           answered the question correctly at the new number.
+
+           What it does not do: nothing changes for anyone who only types
+           SD commands.  The kernel program and GPL.BP must be installed
+           together, which the installer already does; a BASIC program of
+           your own that is marked $internal and uses the number 65 directly
+           (instead of K$LOGIN.UID) must change it.
+
 06 Oct 26  THE EMBEDDED-PYTHON ERROR MESSAGES ARE SPELT CORRECTLY.
 
            The text that goes with the Python error numbers (-12001 to
