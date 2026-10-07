@@ -2,6 +2,44 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  SDSYS'S OWN VOC HAS THE SOUNDEX KEYWORD, AND THE BATCH-JOB LIST HAS
+           A DICTIONARY.
+
+           The keyword "~" (find names that sound like ...) is in the VOC of
+           every ordinary account again (restored on 6 October).  SDSYS's own VOC is built
+           from a second set of records, VOC_TEMPLATE, and that set had no
+           record for it, so a query in SDSYS could not use it.  The record
+           (%T, the same bytes as the ordinary one) is there now.  SD Core for
+           Windows found the same omission in its own tree the same day and
+           made the same change.
+
+           BATCH.JOBS, the list of commands each account may run from the
+           command line, is a directory file the installer makes, and it had
+           no dictionary, so a LIST of it could name no field.  It now has
+           one (batch.jobs.dic: the account as the id, and "command", which
+           holds one command per line), made by the first bootstrap pass and
+           filled by the same step that fills the other dictionaries.  This
+           is how SD Core for Windows has had it since 22 August, from the
+           same records.  What it does not do: nothing adds a VOC entry for
+           BATCH.JOBS, so you still reach it the way you did, by its path.
+
+           Also: a message of several lines is shown a line at a time.  The
+           refusal you get when you try to enter SDSYS from another account
+           ("The SDSYS account is entered only by running SD as the sdsys OS
+           user ... from a local session") was printed as one string, and
+           the break between its two lines came out as a stray replacement
+           character; the same was true of the three refusals of a command
+           run from the command line (a command not on the account's list,
+           one with arguments, one that is not a paragraph or sentence).
+           This was measured for the first: LOGTO SDSYS printed the two lines
+           run together with the stray character before, and on two lines
+           after.  The other three were compiled, not run.
+
+           This was measured on a test copy of SD: a new SDSYS VOC holds "~"
+           (type K, "Keyword to test soundex code"), and the dictionary
+           directory exists with its three records after the bootstrap, which
+           passed all four steps.  Not run on an install.
+
 07 Oct 26  THE PROGRAM NAMES IN THE SHIPPED VOCS ARE LOWER CASE.
 
            Each verb in a VOC names the program that runs it in the third

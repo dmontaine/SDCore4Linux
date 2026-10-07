@@ -242,7 +242,7 @@ def main():
     # and VOC are the SDSYS account's own (D3); GPL.BP and friends are D2.
     D1 = ["newvoc", "voc_template", "messages", "syscom", "sd.voclib",
           "accounts", "$ipc", "$map", "$map.dic", "voc.dic", "accounts.dic",
-          "dict.dic", "dir_dict"]
+          "dict.dic", "dir_dict", "batch.jobs.dic"]   # batch.jobs.dic added 7 Oct 26
     top = set(os.listdir(V.SDSYS))
     run.say("  sdsys top level: %s" % sorted(top))
     d1_wrong = ["%s (lower %s, upper %s)" % (n, n in top, n.upper() in top)

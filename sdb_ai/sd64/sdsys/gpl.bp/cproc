@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 dm PAL-1 (parity audit): the LOGTO SDSYS refusal (10002) is shown a line at a
+*           time, so no raw field mark reaches the screen; and the privileged-command match
+*           is case blind (stage 3a, see the comment at the locate).
 * 06 Oct 26 dm PAL-5 (parity audit): Enter at the "Overwrite VOC record" prompt
 *           means N, as at every other Y/N prompt, and the prompt shows (y/<n>).
 *           Message 10149 (F1) names LISTV, as the Windows port's does (PAL-3).
@@ -2819,7 +2822,12 @@ int.logto:
 *   administrators included.  SDSYS is entered only by running SD as the
 *   sdsys OS user on a local session - the entry block above, not LOGTO.
    if (downcase(new.account) = "sdsys") then
-      display sysmsg(10002) ;* entered only by running SD as the sdsys OS user
+* 07 Oct 26 - 10002 has two lines; one DISPLAY of it put the raw field mark on the screen, so
+*   it is shown a line at a time, as 10190/10191/10195 are (19 Sep).
+      lg.msg = sysmsg(10002) ;* entered only by running SD as the sdsys OS user
+      for lg.i = 1 to dcount(lg.msg, @fm)
+         display lg.msg<lg.i>
+      next lg.i
       void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=sdsys is entered by its own session only')
       unwinding = 2
       return    

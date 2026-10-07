@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 dm PAL-1 (parity audit): the multi-line refusals 10002 and 11000-11002 are
+*           shown a line at a time (show.msg), so no raw field mark reaches the screen.
 * 06 Oct 26 dm PAL-16 (parity audit): the LOGIN audit line of a single-command
 *           sign-on carries command=<the command>, as on the Windows port.
 * 06 Oct 26 dm PAL-12 (parity audit): a release mismatch at login no longer asks
@@ -360,7 +362,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
          * 20240330 mab must be privilaged to enter sdsys
          IF (initial.account = "sdsys") and not(kernel(K$ADMINISTRATOR,-1)) then
-            display sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
+            msg.text = sysmsg(10002) ;* SDSYS Account access is restricted to privileged users
+            gosub show.msg
             audit.reason = 'SDSYS is restricted to administrators'
             goto terminate.connection
          end
@@ -613,6 +616,16 @@ terminate.connection:
 abort.login:
    return to abort.login
 
+* show.msg - 07 Oct 26.  A message of several lines (10002, 11000-11002) comes back from
+*   sysmsg() with its lines joined by field marks, and one DISPLAY of it puts the raw
+*   marks on the screen as a replacement character between the lines (measured on 10176;
+*   cproc's 19 Sep note).  So it is shown a line at a time.  msg.text is the message.
+show.msg:
+   for msg.i = 1 to dcount(msg.text, @fm)
+      display msg.text<msg.i>
+   next msg.i
+   return
+
 *
 * ======================================================================
 * BATCH.PERMITTED - may this account run this command from the command line?
@@ -651,13 +664,15 @@ batch.permitted:
 *  the absence of arguments that stops a listed name being turned into
 *  something else.
    if index(batch.command, ' ', 1) then
-      display sysmsg(11001) ;* A command run this way takes no arguments
+      msg.text = sysmsg(11001) ;* A command run this way takes no arguments
+      gosub show.msg
       audit.reason = 'command line carried arguments'
       return
    end
 
    openpath @sdsys:@ds:'batch.jobs' to batch.f else
-      display sysmsg(11000, batch.command, initial.account)
+      msg.text = sysmsg(11000, batch.command, initial.account)
+      gosub show.msg
       audit.reason = 'batch.jobs could not be opened'
       return
    end
@@ -675,7 +690,8 @@ batch.permitted:
    next batch.i
 
    if not(batch.listed) then
-      display sysmsg(11000, batch.command, initial.account)
+      msg.text = sysmsg(11000, batch.command, initial.account)
+      gosub show.msg
       audit.reason = 'command is not on the account list'
       return
    end
@@ -688,7 +704,8 @@ batch.permitted:
    read batch.voc.rec from voc, batch.command else
       read batch.voc.rec from voc, downcase(batch.command) else
          read batch.voc.rec from voc, upcase(batch.command) else
-            display sysmsg(11002, batch.command)
+            msg.text = sysmsg(11002, batch.command)
+            gosub show.msg
             audit.reason = 'no VOC record for the command'
             return
          end
@@ -701,7 +718,8 @@ batch.permitted:
 *  paragraph.
    batch.type = upcase(trim(batch.voc.rec<1>))
    if batch.type[1,2] # 'PA' and batch.type[1,1] # 'S' then
-      display sysmsg(11002, batch.command)
+      msg.text = sysmsg(11002, batch.command)
+      gosub show.msg
       audit.reason = 'VOC type is not PA or S'
       return
    end

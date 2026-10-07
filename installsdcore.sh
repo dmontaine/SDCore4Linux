@@ -1185,7 +1185,7 @@ fi
 # 13 Sep 26  Plan M3 D1/D3: the names BBPROC creates, all lower case.  A name that
 #            no longer matches used to be skipped in silence, leaving that file
 #            owned by root - so a missing one is now said out loud.
-for bootstrap_dir in '$hold.dic' '$ipc' '$map' '$map.dic' voc accounts.dic dict.dic dir_dict voc.dic; do
+for bootstrap_dir in '$hold.dic' '$ipc' '$map' '$map.dic' voc accounts.dic batch.jobs.dic dict.dic dir_dict voc.dic; do
     if [ -d "${sdsysdir}/${bootstrap_dir}" ]; then
         if [ "${bootstrap_dir}" = '$ipc' ]; then
             sudo chmod -R 775 "${sdsysdir}/${bootstrap_dir}"

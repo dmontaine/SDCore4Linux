@@ -25,6 +25,8 @@
 *
 *
 * START-HISTORY:
+* 07 Oct 26 dm  batch.jobs.dic is created with the other dictionaries (the Windows port's
+*               batch.jobs dictionary, 22 Aug; PAL-1 audit).
 * 01 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (S.50).
 * 13 Sep 26 dm  gpl.bp record names are lower case (plan M): the bootstrap list
 *               and the installed-already check name them so.  Compiled headers
@@ -306,6 +308,11 @@ FILES_LIST = ''
 *                  file      create file  dictionary to create
 FILES_LIST<-1> = "accounts"  :@VM:'N'      :@VM:'accounts.dic'
 FILES_LIST<-1> = "$hold"     :@VM:'N'      :@VM:'$hold.dic'
+* 07 Oct 26 dm - PAL-1 (the Windows agent's answer of 7 Oct, mail T0305): batch.jobs, the
+*   allowlist the installer makes as a directory, gets a dictionary as it does on the Windows
+*   port, where it arrived with the scheduled-jobs work on 22 Aug.  The records are in
+*   gplbld/FILES_DICTS (batch.jobs.dic^@, ^@id, ^command), copied from there byte for byte.
+FILES_LIST<-1> = "batch.jobs" :@VM:'N'     :@VM:'batch.jobs.dic'
 FILES_LIST<-1> = "$map"      :@VM:'Y'      :@VM:'$map.dic'
 FILES_LIST<-1> = "$ipc"      :@VM:'Y'      :@VM:''
 FILES_LIST<-1> = "dict.dic"  :@VM:'Y'      :@VM:''

@@ -234,7 +234,8 @@ MUTANTS = [
     ("the no-arguments test is deleted",
      lambda s: s.replace(
          "   if index(batch.command, ' ', 1) then\n"
-         "      display sysmsg(11001) ;* A command run this way takes no arguments\n"
+         "      msg.text = sysmsg(11001) ;* A command run this way takes no arguments\n"
+         "      gosub show.msg\n"
          "      audit.reason = 'command line carried arguments'\n"
          "      return\n"
          "   end\n\n",
@@ -242,7 +243,8 @@ MUTANTS = [
     ("the PA/S type test is deleted (any VOC type is accepted)",
      lambda s: s.replace(
          "   if batch.type[1,2] # 'PA' and batch.type[1,1] # 'S' then\n"
-         "      display sysmsg(11002, batch.command)\n"
+         "      msg.text = sysmsg(11002, batch.command)\n"
+         "      gosub show.msg\n"
          "      audit.reason = 'VOC type is not PA or S'\n"
          "      return\n"
          "   end\n\n",
