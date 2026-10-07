@@ -113,7 +113,9 @@ Public bool internal_mode
 
 Public char * df_restricted_chars init("*,=><%/+:;?\\\"");
 Public char * df_substitute_chars init("ACEGLPSVXYZBQ");
-/* Also, leading . and ~ become %d and %t */
+/* Also, leading . and ~ become %D and %T - UPPER case: map_t1_id (op_dio3.c) writes them and
+   dir_select (op_dio4.c) decodes only them.  This comment said %d and %t until 6 Oct 2026 (PAL-19);
+   a lower-case %t record in newvoc then never became the ~ keyword. */
 
 /* Date formats */
 

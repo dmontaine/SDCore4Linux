@@ -2,6 +2,29 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  THE SOUNDEX TEST "~" WORKS AGAIN IN EVERY ACCOUNT'S VOC.
+
+           A query such as LIST CUSTOMERS WITH NAME ~ "smith" (find names that
+           sound like smith) needs the keyword "~" in the account's VOC.  On
+           SD Core for Linux that keyword was missing from every account
+           created or updated since the file names were put into lower case on
+           13 September.  Its source record is a file in sdsys/newvoc whose
+           name has to be %T, in capitals: the loader turns a leading %T into
+           "~" and does not recognise %t.  The record had been renamed to %t
+           by mistake, from a comment that said lower case (that comment, in
+           sd.h and in verify-nocase.py, was wrong and is corrected).  The
+           mistake was reported by the SD Core for Windows agent, who could
+           see %T in its own tree.
+
+           This was measured on a test copy of SD: the VOC of an ordinary
+           account held none of "~", "%t" or "%T" before, and holds "~"
+           (type K, "Keyword to test soundex code") after.  The other
+           punctuation keywords (=, <>, >, <, %) were present both times.
+
+           What it does not do: an account that already exists does not gain
+           the keyword by itself.  UPDATE.ACCOUNTS adds it, and the installer
+           runs UPDATE.ACCOUNTS ALL on an upgrade of the full product.
+
 06 Oct 26  SUSPENDING AN ACCOUNT NOW LOCKS ITS REGISTER RECORD AND REPORTS A
            FAILED WRITE.
 

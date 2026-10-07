@@ -24,7 +24,11 @@
 # WHAT COUNTS AS "STILL UPPER CASE", AND WHY THE ESCAPES ARE NOT.  A record id
 # containing a restricted character is stored as a filename of "%" plus a
 # substitute letter - sd.h:113-114 maps each of  *,=><%/+:;?\"  to  ACEGLPSVXYZBQ
-# and a leading "." or "~" to %d / %t.  So "%E" on disk is the record "=", not a
+# and a leading "." or "~" to %D / %T - UPPER CASE, and it has to be: dir_select
+# (op_dio4.c) decodes only %D and %T, and map_t1_id (op_dio3.c) writes them.  The
+# sd.h comment and this one said %d / %t, and newvoc/%t was lower-cased on that
+# word; MEASURED 6 Oct 2026 on a sandbox SD, no ordinary account's VOC then held
+# the "~" keyword at all (the Windows agent's report, PAL-19).  So "%E" on disk is the record "=", not a
 # name called E; "#" and "&" are symbol record ids with no letters at all.  The
 # test therefore STRIPS every "%<letter>" escape and only then looks for [A-Z]:
 # a name needs lowercasing only if a real, unescaped upper-case letter survives.
@@ -134,7 +138,7 @@ def _selftest():
     for n in ("ACCOUNTS", "$ACC", "$RELEASE", "INT$KEYS.H", "A%E", "SD.VOCLIB"):
         ck(n, needs_lowercasing(n), True)
     # escaped restricted-char / leading-char records -> NOT names
-    for n in ("%E", "%E%G", "%G%L", "%P", "%t", "%d"):
+    for n in ("%E", "%E%G", "%G%L", "%P", "%T", "%D", "%t", "%d"):
         ck(n, needs_lowercasing(n), False)
     # symbol record ids with no letters -> NOT names
     for n in ("#", "&", "!"):
@@ -143,7 +147,7 @@ def _selftest():
     for n in ("define_install.h", "sdclilib.h", "zzak", "a%e"):
         ck(n, needs_lowercasing(n), False)
 
-    print("verify-nocase selftest: %d cases, %d failed" % (19, len(fails)))
+    print("verify-nocase selftest: %d cases, %d failed" % (21, len(fails)))
     for f in fails:
         print("  FAIL " + f)
     return 1 if fails else 0
