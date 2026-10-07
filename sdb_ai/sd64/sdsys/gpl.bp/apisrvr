@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 06 Oct 26 dm PAL-17 (parity audit): the two refusals to enter an account (suspended;
+*           not in the account's group) are on the audit trail, as the Windows
+*           port's ACCOUNT REFUSED lines (branch=2 and branch=4).
 * 04 Oct 26 dm S.60: a refused SCRAM login is audited BEFORE the three-second
 *           failed-credential delay, not after it (scram.bad.cred,
 *           exit.vb.scram.fail).  A client that dropped during the delay used to
@@ -463,6 +466,10 @@ end
 *   member" from "suspended", and the API does not enumerate the register for
 *   anyone probing it.  No administrator exemption: an API session carries none.
 if acc.suspended then
+* 06 Oct 26 dm - PAL-17 (parity audit): the refusal is on the audit trail, in the
+*   Windows port's words (its ACCOUNT REFUSED branch=2), with the account asked
+*   for appended.  The CALLER still sees only 10003.
+    void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=2 suspended account=' : new.account)
     server.error = SV$ERROR
     error.msg = sysmsg(10003) ;* User not allowed in requested account
     abort.message = error.msg
@@ -477,6 +484,9 @@ if  not(is_grp_member(@logname,acc.rec<ACC$GROUP>)) then
 *   The local API door above (10174) already confined it to this machine; the
 *   exemption is by NAME and for the sdsys account only.
    if not(downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys') then
+* 06 Oct 26 dm - PAL-17: audited as the Windows port's branch=4 not.in.group, with
+*   the account asked for appended.
+      void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=4 not.in.group user=' : @logname : ' group=' : acc.rec<ACC$GROUP> : ' account=' : new.account)
       server.error = SV$ERROR
       error.msg = sysmsg(10003) ;* User not allowed in requested account
       abort.message = error.msg

@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm PAL-16 (parity audit): the LOGIN audit line of a single-command
+*           sign-on carries command=<the command>, as on the Windows port.
 * 06 Oct 26 dm PAL-12 (parity audit): a release mismatch at login no longer asks
 *           (5025/5026/5027); it proceeds, as on the Windows port (its
 *           RELEASE_1.1 39).  UPDATE.ACCOUNTS ALL refreshes every account.
@@ -580,6 +582,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   interactive session has a human present to use judgement, a bare command
 *   line does not, so it gets a pre-vetted list instead, regardless of whose
 *   Linux identity is running it.
+   batch.command = ''      ;* 06 Oct 26 - assigned on every path now: the success record reads it
    if mode = 0 and not(is.phantom) and not(kernel(K$INTERNAL,-1)) then
       batch.command = trim(system(1026))
       if batch.command # '' and not(kernel(K$ADMINISTRATOR,-1)) then
@@ -590,7 +593,16 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
 * 11 Sep 26 dm - THE SUCCESS RECORD, mode 0 only: the update modes reach here
 *   too and are not sign-ons.
-   if mode = 0 then void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+* 06 Oct 26 dm - PAL-16 (parity audit): a sign-on that was a single command line
+*   ("sd 'command'") records the command, as the Windows port's does, so the trail
+*   says WHAT ran unattended and not only who.  An interactive sign-on is unchanged.
+   if mode = 0 then
+      if batch.command = '' then
+         void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+      end else
+         void kernel(K$AUDIT, 'LOGIN account=' : initial.account : ' command=' : batch.command)
+      end
+   end
    ok = @true
    return
 

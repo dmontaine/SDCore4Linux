@@ -2,6 +2,30 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  THE AUDIT TRAIL NOW SAYS WHAT A SINGLE-COMMAND SIGN-ON RAN, AND
+           RECORDS TWO REFUSALS AT THE API DOOR.
+
+           A sign-on that is a single command line (sd 'COUNT VOC', as a
+           scheduled job runs) used to write the same line as an interactive
+           one: "LOGIN account=sdsys".  It now adds the command:
+           "LOGIN account=sdsys command=COUNT VOC".  An interactive sign-on is
+           unchanged.  This was run on a test copy of SD and both lines were
+           read from its audit file.
+
+           When an API client signs in correctly but is then refused entry to
+           the account it asked for, the client sees only "User not allowed in
+           requested account" (the text is the same for every reason, so a
+           probe learns nothing).  The audit trail now records why, in the
+           words SD Core for Windows uses: "ACCOUNT REFUSED branch=2 suspended
+           account=name" when the account is suspended, and "ACCOUNT REFUSED
+           branch=4 not.in.group user=name group=group account=name" when the
+           user is not in the account's group.
+
+           What it does not do: the API lines were compiled but not run, as
+           the test copy has no API client; the client's message is unchanged;
+           and a refusal because the account directory cannot be entered is
+           still not recorded.
+
 06 Oct 26  THE KERNEL KEY THAT ASKS "WHOSE LOGIN IS THIS" MOVED FROM 65 TO 91.
 
            SD's internal programs ask the kernel a few questions by number.
