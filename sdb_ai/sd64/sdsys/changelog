@@ -2,6 +2,24 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  SUSPENDING AN ACCOUNT NOW LOCKS ITS REGISTER RECORD AND REPORTS A
+           FAILED WRITE.
+
+           MODIFY.ACCOUNT name SUSPENDED and UNSUSPENDED wrote back the account
+           record that the command had read when it started.  If another
+           administrator changed the same account in between, that change was
+           lost, and a write that failed was not noticed.  The record is now
+           read again under a lock just before the flag is written, and a
+           failed write says "Unable to change the state of name; its state in
+           the register is unchanged".  This is how SD Core for Windows has
+           done it.  Run on a test copy of SD: suspend, a second suspend
+           ("already SUSPENDED; nothing changed"), unsuspend and a second
+           unsuspend behave as before, and the audit lines are unchanged.
+
+           What it does not do: the failed-write message was not provoked (no
+           way to make that write fail was found), and suspending SDSYS is
+           still refused as an invalid account name.
+
 06 Oct 26  THE AUDIT TRAIL NOW SAYS WHAT A SINGLE-COMMAND SIGN-ON RAN, AND
            RECORDS TWO REFUSALS AT THE API DOOR.
 

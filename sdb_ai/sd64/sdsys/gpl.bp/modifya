@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 06 Oct 26 dm PAL-18 (parity audit): SUSPENDED and UNSUSPENDED write the register
+*           record under a lock and report a failed write (10114), as the
+*           Windows port's tier.set does.
 * 20 Sep 26 dm RENUMBERED: the three suspension messages moved from
 *           10178/10179/10180 to 10192/10193/10194.  SD Core for Windows had
 *           independently allocated the same block for its case-insensitivity
@@ -319,9 +322,22 @@ set.suspended:
       return
    end
 
-   acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
-   acc.rec<ACC$PRIOR.TIER> = ''
-   write acc.rec to acc.f, acc.name
+* 06 Oct 26 dm - PAL-18 (parity audit), the Windows port's tier.set: the register
+*   record is read again UNDER A LOCK before the flag is written, so two
+*   administrators changing one account cannot overwrite each other with the copy
+*   this verb read at the start, and a failed write is reported (10114), not
+*   dropped.  Readu, then write on error, then release on the failure arm.
+   readu acc.new from acc.f, acc.name else acc.new = acc.rec
+   acc.new<ACC$SUSPENDED> = 'SUSPENDED'
+   acc.new<ACC$PRIOR.TIER> = ''
+   acc.written = @true
+   write acc.new to acc.f, acc.name on error acc.written = @false
+   if not(acc.written) then
+      release acc.f, acc.name
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10114, acc.name)  ;* Unable to change the state of %1; its state in the register is unchanged
+      return
+   end
 
    @system.return.code = 0
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT SUSPEND account=' : acc.name)
@@ -340,9 +356,18 @@ set.unsuspended:
       return
    end
 
-   acc.rec<ACC$SUSPENDED> = ''
-   acc.rec<ACC$PRIOR.TIER> = ''
-   write acc.rec to acc.f, acc.name
+* 06 Oct 26 dm - PAL-18: under a lock, and a failed write reported, as SET.SUSPENDED.
+   readu acc.new from acc.f, acc.name else acc.new = acc.rec
+   acc.new<ACC$SUSPENDED> = ''
+   acc.new<ACC$PRIOR.TIER> = ''
+   acc.written = @true
+   write acc.new to acc.f, acc.name on error acc.written = @false
+   if not(acc.written) then
+      release acc.f, acc.name
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10114, acc.name)  ;* Unable to change the state of %1; its state in the register is unchanged
+      return
+   end
 
    @system.return.code = 0
    void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
