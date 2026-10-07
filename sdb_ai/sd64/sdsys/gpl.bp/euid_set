@@ -18,7 +18,7 @@ subroutine EUID_SET(user,rtnstat)
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 $internal
-$catalog !EUID_SET
-$include KEYS.H
+$catalog !euid_set
+$include keys.h
 rtnstat = SDEXT(user,@FALSE,SD_EUID_SET)
 end

@@ -2,6 +2,32 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  THE PROGRAM NAMES IN THE SHIPPED VOCS ARE LOWER CASE.
+
+           Each verb in a VOC names the program that runs it in the third
+           line of its record: $ALIAS, $CATALOG, $QPROC and so on.  They are
+           now $alias, $catalog, $qproc, in every record of both shipped VOCs
+           (the one every account gets and the one SDSYS uses), 189 records in
+           all, which is how SD Core for Windows has them.  Nothing you type
+           changes, and the verbs run as before, because a program name was
+           already looked up in lower case.  What you see is LIST.ITEM or CT
+           on a VOC record, or a COPY of one, showing the lower-case name; an
+           account gets it when UPDATE.ACCOUNTS brings its VOC forward.
+           Twenty-seven programs that SD ships (the Python call set, the
+           password-hash helpers, the two that switch the process's user
+           and OPTION) named their include files in capitals, as KEYS.H;
+           they say keys.h now, with no change to what they do.  The step goes a little past the port: eight of these
+           records (COUNT and NLS in each VOC, and four verbs of SDSYS's own:
+           SETTINGS.REPORT, BACKUP.ACCOUNT, RESTORE.ACCOUNT and
+           SET.BACKUP.DIRECTORY) are still in capitals in the Windows copy,
+           and are lower case here.
+
+           This was measured on a test copy of SD built from the tree: it
+           compiled 218 programs with no errors and the four earlier checks
+           of this series (26, 25, 28 and 42 rows) passed again.  A check of
+           the shipped files finds no VOC record whose program name has a
+           capital in it.
+
 07 Oct 26  AN UPGRADE MAKES YOUR OLD FILES CASE INSENSITIVE, AND YOUR PRIVATE
            CATALOGUE LOWER CASE.
 

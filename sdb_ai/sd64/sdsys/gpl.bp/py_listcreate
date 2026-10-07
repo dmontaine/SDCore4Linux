@@ -45,8 +45,8 @@ $no.xref
 function py_listcreate(listname)
 $catalog !py_listcreate
 
-$include KEYS.H
-$include ERR.H
+$include keys.h
+$include err.h
 
 * Reject empty Python object name(s) before SDPYOBJ/SDEXT call, as the
 * other PY_* programs do.

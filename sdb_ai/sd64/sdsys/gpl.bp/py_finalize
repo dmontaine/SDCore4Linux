@@ -23,8 +23,8 @@ $no.xref
 function py_finalize()
 $catalog !py_finalize
 
-$include KEYS.H
-$include ERR.H
+$include keys.h
+$include err.h
 
 rtnstat = SDEXT('',@FALSE,SD_PyFinal)
 return rtnstat

@@ -22,7 +22,7 @@ $no.xref
 function py_runstring(py_script)
 $catalog !py_runstring
 
-$include KEYS.H
+$include keys.h
 
 * Modified by Composer AI - 2026/06/10.
 * Reject empty script before calling Python interpreter.

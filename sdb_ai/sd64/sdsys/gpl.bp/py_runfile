@@ -23,7 +23,7 @@ $no.xref
 function py_runfile(py_script_file)
 $catalog !py_runfile
 
-$include KEYS.H
+$include keys.h
 
 deffun valid_os_path(path) calling '!valid_os_path'
 

@@ -22,8 +22,8 @@ $no.xref
 function py_getattr(objname)
 $catalog !py_getattr
 
-$include KEYS.H
-$include ERR.H
+$include keys.h
+$include err.h
 
 * Modified by Composer AI - 2026/06/10.
 * Reject empty object name before SDEXT call.

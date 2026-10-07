@@ -20,7 +20,7 @@
 * START-HISTORY:
 * REV 1.0-2 mAR 26 mab Restore pick compatibility options.
 * rev 0.9.0 Jan 25 mab remove pick compatibility options
-*                  note - did not remove references from GPL.BP/INT$KEYS.H, gplsrc/options.h
+*                  note - did not remove references from gpl.bp/int$keys.h, gplsrc/options.h
 *                  as of 0.9.0 these options exist in source, but we have removed the option
 *                  to turn on from this program.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.

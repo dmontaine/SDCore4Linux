@@ -35,7 +35,7 @@ $no.xref
 function py_is_initialized()
 $catalog !py_is_initialized
 
-$include KEYS.H
+$include keys.h
 rtnstat = SDEXT('',@FALSE,SD_IsPyInit)
 return rtnstat
 

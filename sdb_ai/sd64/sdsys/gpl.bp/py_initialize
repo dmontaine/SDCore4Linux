@@ -22,7 +22,7 @@ $no.xref
 function py_initialize()
 $catalog !py_initialize
 
-$include KEYS.H
+$include keys.h
 
 deffun PY_IS_INITIALIZED() calling '!PY_IS_INITIALIZED'
 deffun PY_RUNSTRING(py_script) calling '!PY_RUNSTRING'

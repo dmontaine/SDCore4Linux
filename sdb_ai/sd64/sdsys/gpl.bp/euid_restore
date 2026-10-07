@@ -18,7 +18,7 @@ subroutine EUID_RESTORE(rtnstat)
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 $internal
-$catalog !EUID_RESTORE
-$include KEYS.H
+$catalog !euid_restore
+$include keys.h
 rtnstat = SDEXT('dummy',@FALSE,SD_EUID_RESTORE)
 end

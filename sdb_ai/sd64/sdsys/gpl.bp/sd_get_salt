@@ -18,8 +18,8 @@ subroutine SD_GET_SALT(rtn_salt)
 *
 $internal
 $catalog !SD_GET_SALT
-$include KEYS.H
-$include ERR.H
+$include keys.h
+$include err.h
 rtn_salt = SDEXT('',@false,SD_SALT)
 *
 end
