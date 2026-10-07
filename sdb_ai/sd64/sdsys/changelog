@@ -2,6 +2,49 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  THE DICTIONARIES SD SHIPS NOW NAME THEIR ITEMS IN LOWER CASE, AND
+           "LIST ACCOUNTS" SAYS SUSPENSION, NOT TIER.
+
+           The step before this one made every dictionary read find an item
+           whether it was stored in lower or upper case.  This step uses it:
+           the items SD itself supplies for its own files (the dictionaries of
+           VOC, ACCOUNTS, $MAP, $HOLD, DICT and BATCH.JOBS) are now stored in
+           lower case, so type instead of TYPE, f1 instead of F1, @id instead
+           of @ID, data.name instead of DATA.NAME, and the field names inside
+           their I-types are lower case too.  A file made with CREATE.FILE, and
+           a new account's VOC dictionary, get their default item as @id, and
+           message 6129 says so.  Queries you already write in capitals keep
+           working: the exact name is tried first, then the other case.
+
+           An upgrade does not leave the old names behind.  The program that
+           writes these dictionaries during installation used to add each item
+           and delete nothing, so an upgraded VOC dictionary would have held
+           TYPE and type side by side.  It now deletes an older item that
+           differs from the new one only in case, after writing the new one,
+           and prints "REPLACED OLD ID: voc.dic TYPE BY type" for each.  An
+           item of your own that matches no shipped name is left alone.
+
+           The ACCOUNTS dictionary still described a "Tier" field and a "Was"
+           field from the account tiers that were removed on 18 September, so
+           LIST ACCOUNTS showed a column headed "Tier" that actually held the
+           word SUSPENDED or nothing.  It now has one field, "Suspension".
+           An upgraded system keeps its old TIER and PRIOR.TIER items
+           (nothing deletes an item SD no longer ships); they are harmless.
+
+           This was measured on test copies of SD.  A fresh one listed
+           DICT VOC as @id, name, f1, data.name, type and so on, none in
+           capitals.  To rehearse an upgrade, TYPE and @ID were planted beside
+           type and @id, with one item of our own; the installer program was
+           run again; the dictionary went from 16 items to 19 to 17, two
+           REPLACED lines were printed, and our own item was still there.
+
+           What it does not do: this is still only the dictionaries.  File
+           names, program and call names and the case of ids in new files are
+           the following steps, and a data file made with CREATE.FILE is
+           still case sensitive.  An existing system is converted only for
+           the shipped dictionaries named above, not for dictionaries of your
+           own files.
+
 06 Oct 26  A DICTIONARY ITEM IS FOUND WHETHER IT WAS STORED IN LOWER OR UPPER
            CASE (FIRST STEP OF MAKING EVERY NAME LOWER CASE).
 

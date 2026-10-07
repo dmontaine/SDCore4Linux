@@ -54,10 +54,10 @@ def bail(msg):
     sys.exit(2)
 
 
-def sess(box, *cmds):
-    say("    > " + " | ".join(cmds))
-    p = subprocess.run([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts")] + list(cmds),
-                       capture_output=True, text=True, timeout=300)
+def sess(box, *cmds, cwd=None):
+    say("    > " + " | ".join(cmds) + ("   [cwd " + os.path.relpath(cwd, box) + "]" if cwd else ""))
+    p = subprocess.run([sys.executable, TOOL, box, "sess", cwd or os.path.join(box, "user_accounts")] + list(cmds),
+                       capture_output=True, text=True, timeout=600)
     out = ANSI.sub("", p.stdout + p.stderr)
     out = out.split(":TERM 200,9999", 1)[-1]
     for line in out.splitlines():
@@ -93,12 +93,19 @@ def main():
     # the I-type: its expression names F1 and F3 in UPPER case, the dictionary stores f1 and f3 lower
     with open(os.path.join(box, "sys", "bp", xt), "wb") as f:
         f.write(b"I\nF1 : '-' : F3\n\nXtype\n12L\nS\n")
+    # F1 and F3 as D-type items, written here and copied from bp: COPY does not fold, and the shipped
+    # DICT VOC stores f1 in lower case on a build that has stage 2b and F1 in upper case on one that has
+    # not, so copying it would make the fixture differ between the builds this script is run against.
+    f1, f3 = "zzf1" + RUN, "zzf3" + RUN
+    for rec, num, nm in ((f1, b"1", b"F1"), (f3, b"3", b"F3")):
+        with open(os.path.join(box, "sys", "bp", rec), "wb") as f:
+            f.write(b"D\n" + num + b"\n\n" + nm + b"\n5L\nS\n")
     try:
         say("\n--- setup: %s stores f1, f3 and xtype in LOWER case; %s stores F1 in UPPER case ----------" % (F, G))
         out = sess(box,
-                   "CREATE.FILE " + F, "COPY FROM DICT VOC TO DICT %s F1,f1" % F, "COPY FROM DICT VOC TO DICT %s F3,f3" % F,
+                   "CREATE.FILE " + F, "COPY FROM BP TO DICT %s %s,f1" % (F, f1), "COPY FROM BP TO DICT %s %s,f3" % (F, f3),
                    "COPY FROM BP TO DICT %s %s,xtype" % (F, xt), "COPY FROM VOC TO %s who,r1" % F, "LIST DICT " + F,
-                   "CREATE.FILE " + G, "COPY FROM DICT VOC TO DICT %s F1,F1" % G, "COPY FROM VOC TO %s who,r1" % G,
+                   "CREATE.FILE " + G, "COPY FROM BP TO DICT %s %s,F1" % (G, f1), "COPY FROM VOC TO %s who,r1" % G,
                    "LIST DICT " + G)
         copied = len(re.findall(r"(?m)^1 record\(s\) copied\.", out))
         row("setup: all six COPY commands each copied one record", copied == 6, "copied lines: %d" % copied)
@@ -140,6 +147,47 @@ def main():
             len(h) == 2 and h[1] == "F1...", " | ".join(h))
         row("leg 3: f1 typed lower uses the same stored item (heading 'F1...')",
             len(h) == 2 and h[0] == "F1...", " | ".join(h))
+
+        # ---- stage 2b: the shipped ids are lower case, and an upgrade replaces rather than twins ------
+        H = "ZZH" + RUN
+        say("\n--- leg 4 (stage 2b): the shipped dictionary ids are lower case; CREATE.FILE writes @id ---------")
+        out = sess(box, "CREATE.FILE " + H, "LIST DICT " + H, "LIST DICT VOC")
+        row("leg 4: CREATE.FILE said it added '@id' (6129)",
+            re.search(r"(?m)^Added default '@id' record to dictionary", out) is not None, "no 6129 line naming '@id'")
+        row("leg 4: the new dictionary stores '@id' and no '@ID'",
+            re.search(r"(?m)^@id\s{2,}D\s", out) is not None and re.search(r"(?m)^@ID\s{2,}D\s", out) is None,
+            "LIST DICT shows '@ID' or no '@id'")
+        for ident in ("type", "f1", "data.name", "ftype"):
+            row("leg 4: DICT VOC holds '%s' in lower case, and no upper-case twin" % ident,
+                re.search(r"(?m)^" + re.escape(ident) + r"\s{2,}[DI]\s", out) is not None
+                and re.search(r"(?m)^" + re.escape(ident.upper()) + r"\s{2,}[DI]\s", out) is None,
+                "the shipped id is not stored lower case")
+
+        say("\n--- leg 5 (stage 2b): an UPGRADE replaces the old upper-case ids; an item of the administrator's is kept")
+        ctl = "zzc" + RUN
+        out = sess(box, "COUNT DICT VOC")
+        m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
+        n0 = int(m.group(1)) if m else -1
+        out = sess(box, "COPY FROM DICT VOC TO DICT VOC type,TYPE OVERWRITING", "COPY FROM DICT VOC TO DICT VOC @id,@ID OVERWRITING",
+                   "COPY FROM DICT VOC TO DICT VOC f1,%s OVERWRITING" % ctl, "COUNT DICT VOC")
+        m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
+        n1 = int(m.group(1)) if m else -1
+        row("leg 5: three items planted (TYPE, @ID, and a control the shipped data does not know)",
+            n0 > 0 and n1 == n0 + 3, "count %d -> %d" % (n0, n1))
+        out = sess(box, "RUN gpl.bp write_install_dicts NO.PAGE", cwd=os.path.join(box, "sys"))
+        row("leg 5: write_install_dicts finished (COMPLETE)", re.search(r"(?m)^COMPLETE\s*$", out) is not None, "no COMPLETE")
+        row("leg 5: it reported 'REPLACED OLD ID: voc.dic TYPE BY type'",
+            re.search(r"(?m)^REPLACED OLD ID: voc\.dic TYPE BY type\s*$", out) is not None, "no such line")
+        row("leg 5: it reported 'REPLACED OLD ID: voc.dic @ID BY @id'",
+            re.search(r"(?m)^REPLACED OLD ID: voc\.dic @ID BY @id\s*$", out) is not None, "no such line")
+        row("leg 5: it replaced only those two (no REPLACED line for the control)",
+            ctl not in out and len(re.findall(r"(?m)^REPLACED OLD ID:", out)) == 2,
+            "REPLACED lines: %d" % len(re.findall(r"(?m)^REPLACED OLD ID:", out)))
+        out = sess(box, "COUNT DICT VOC", "LIST DICT VOC WITH @ID LIKE \"%s...\" @ID" % ctl)
+        m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
+        n2 = int(m.group(1)) if m else -1
+        row("leg 5: the dictionary is back to its size plus the control (%d)" % (n0 + 1), n2 == n0 + 1, "count %d" % n2)
+        row("leg 5: the control item is still there", re.search(r"(?m)^" + ctl + r"\s", out) is not None, "control gone")
     finally:
         subprocess.run([sys.executable, TOOL, box, "stop"], capture_output=True, text=True, timeout=120)
     say("\nsandbox-dictfold: %d passed, %d failed" % (passed, failed))

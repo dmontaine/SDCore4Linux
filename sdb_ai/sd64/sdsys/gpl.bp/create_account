@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 06 Oct 26 dm PAL-1 stage 2b (parity audit; the Windows port's RELEASE_1.1 5): a new
+*              account's VOC dictionary gets its default record as @id.
 * 01 Oct 26 dm Split out of CREATEA for S.50 (RESTORE.ACCOUNT creates an account
 *              that is missing, and must not parse a sentence to do it).  The
 *              signature and the settings positions (createacc.h) are agreed
@@ -512,7 +514,7 @@ create.dir.file:
          err = 6024:@vm:fn ;* Unable to open dictionary part of xx
          return
       end
-      write raise('D':@VM:'0':@VM:@VM:fn:@VM:'10L':@VM:'S') to dict.f, '@ID'
+      write raise('D':@VM:'0':@VM:@VM:fn:@VM:'10L':@VM:'S') to dict.f, '@id'  ;* 06 Oct 26 PAL-1 stage 2b: lower case
       close dict.f
 
       set.owner.path = pathname:@ds:dict.name

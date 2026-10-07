@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-1 stage 2b (parity audit; the Windows port's RELEASE_1.1 5): the
+*               default dictionary record is written as @id, and message 6129 says so.
 * 13 Sep 26 dm  A new file is named in lower case - VOC id, directory, component
 *               and .dic - unless CREATE.FILE.CASE is set; an existing entry is
 *               found by the fold and keeps its id (plan M3 D4).
@@ -502,7 +504,7 @@ $define default.split.load 80
 
    write voc.rec to voc.f, file.name
 
-   * Write @ID record to dictionary
+   * Write @id record to dictionary
 
    if create.dict and not(using.dict) then
       open "DICT", file.name to dict.file else
@@ -510,13 +512,13 @@ $define default.split.load 80
          stop sysmsg(6128) ;* Unable to open newly created dictionary
       end
 
-      recordlocku dict.file, '@ID'
+      recordlocku dict.file, '@id'
       id.rec = "D" : @fm : "0" : @fm : "" : @fm : file.name : @fm
       id.rec := if file.type = FL$TYPE.DIR then "12L" else "10L"
       id.rec := @fm : "S" : @fm
-      write id.rec to dict.file, "@ID"
+      write id.rec to dict.file, "@id"
 
-      display sysmsg(6129) ;* Added default '@ID' record to dictionary
+      display sysmsg(6129) ;* Added default '@id' record to dictionary
 
       close dict.file
    end
