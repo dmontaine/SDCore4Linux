@@ -156,6 +156,8 @@ def main():
     SDXF = os.path.join(sysd, "zzsdx" + RUN)                      # the same, but its owner (SDSYS) leaves the account no access
     OUTF_REAL, SDSF_REAL = os.path.realpath(OUTF), os.path.realpath(SDSF)   # what FL$PATH prints (links resolved)
     SDXF_REAL = os.path.realpath(SDXF)
+    SYSCOMD = os.path.join(sysd, "syscom")                        # a DIRECTORY file under SDSYS: never converted, never reported
+    SYSCOMD_REAL, ACCT_REAL = os.path.realpath(SYSCOMD), os.path.realpath(acct)
     BADF = os.path.join(acct, "zzbad")                            # the account's OWN file, but one that cannot be opened
     VACC = os.path.join(box, "user_accounts", V)                  # the account whose VOC cannot be opened
     VOCF = os.path.join(VACC, "voc")
@@ -246,6 +248,16 @@ def main():
             "   write 's' to fs, 'SdsRec'",
             "   write 'F':@fm:'%s' to v, 'ZZOUT'" % OUTF,
             "   write 'F':@fm:'%s' to v, 'ZZSDS'" % SDSF,
+            # the owner's first COMPLETE install read "Converted 2 of 3" and a 10-file list: several VOC records may
+            # name ONE file (here zzd1 again, and the SDSYS file again), and a VOC may name a directory file (SDSYS's
+            # syscom, the account's own directory) - none of those may be counted twice or listed
+            "   write 'F':@fm:'zzd1':@fm:'zzd1.dic' to v, 'ZZDUP'",
+            # and the real cause of the owner's "2 of 3": a shipped VOC has a record, VOC, that names the account's OWN
+            # voc (field 2 'voc'), which the walk then converts again as its final step
+            "   write 'F':@fm:'voc':@fm:'voc' to v, 'ZZVOC'",
+            "   write 'F':@fm:'%s' to v, 'ZZSDS2'" % SDSF,
+            "   write 'F':@fm:'%s' to v, 'ZZDIRS'" % SYSCOMD,
+            "   write 'F':@fm:'%s' to v, 'ZZDIRA'" % acct,
             # and a third that the account cannot open at all, as the owner's real install found (7 Oct 26):
             # SDSYS's own files are the administrator's and an account's owner may not open them for update
             "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed sdx' ; stop" % SDXF,
@@ -336,6 +348,8 @@ def main():
         # like a plain directory and openpath would quietly refuse it - measured 7 Oct 26).
         if os.geteuid() == 0:
             bail("running as root: nothing can be made unopenable to root, so the SDSX row would pass over nothing")
+        if not os.path.isdir(SYSCOMD) or os.path.exists(os.path.join(SYSCOMD, "%0")):
+            bail("%s is not a directory file: the 'directory files are not listed' rows would pass over nothing" % SYSCOMD)
         sdx0 = os.path.join(SDXF, "%0")
         if not os.path.isfile(sdx0):
             bail("the SDSX fixture file was not made (%s)" % sdx0)
@@ -397,6 +411,9 @@ def main():
             row("1: the two files under SDSYS and the file outside the account are counted and named (3 files, all real paths)",
                 "3 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out
                 and SDSF_REAL in out and OUTF_REAL in out and SDXF_REAL in out, "no 11036 report naming all three")
+        row("1: a directory file and the account's own directory, named by the VOC, are not listed",
+            re.search(r"(?m)^\s*File: (%s|%s)\s*$" % (re.escape(SYSCOMD_REAL), re.escape(ACCT_REAL)), out) is None,
+            "a directory was listed as a file to convert")
         row("1: the file SDSYS will not let the account open did not stop the walk (no fatal 'Error 3001 opening file')",
             "Error 3001" not in out and "opening file" not in out, "the walk died on the unopenable file")
         row("1: and the account's own unopenable file, zzbad, and the unopenable VOC of %s are each reported once (11037, error 3001) and counted, not fatal" % V,
@@ -430,9 +447,13 @@ def main():
             after.get("zzd1", {}).get("ids") == ["Alpha", "GAMMA", "beta"], repr(after.get("zzd1")))
         row("2: a record is now found under another case (ALPHA reads 'one')", fold2 == "one", repr(fold2))
         row("2: the dictionary part zzd1.dic converted too", after.get("zzd1.dic", {}).get("nocase") == "1", repr(after.get("zzd1.dic")))
-        row("2: the VOC converted, last, and kept all six of its records (ZZBAD, ZZD1, ZZD2, ZZOUT, ZZSDS, ZZSDX)",
+        row("2: the VOC converted and kept all eleven of its records",
             after.get("voc", {}).get("nocase") == "1"
-            and after["voc"]["ids"] == ["ZZBAD", "ZZD1", "ZZD2", "ZZOUT", "ZZSDS", "ZZSDX"], repr(after.get("voc")))
+            and after["voc"]["ids"] == ["ZZBAD", "ZZD1", "ZZD2", "ZZDIRA", "ZZDIRS", "ZZDUP", "ZZOUT", "ZZSDS", "ZZSDS2", "ZZSDX", "ZZVOC"],
+            repr(after.get("voc")))
+        row("2: a directory file and the account's own directory, named by the VOC, are not listed",
+            re.search(r"(?m)^\s*File: (%s|%s)\s*$" % (re.escape(SYSCOMD_REAL), re.escape(ACCT_REAL)), out) is None,
+            "a directory was listed as a file to convert")
         row("2: THE TWIN FILE WAS LEFT WHOLE: zzd2 is still case sensitive with jack, JACK and solo",
             after.get("zzd2", {}).get("nocase") == "0" and after["zzd2"]["ids"] == ["JACK", "jack", "solo"], repr(after.get("zzd2")))
         row("2: the report names the twin (WARNING line, then the file and the pair)",

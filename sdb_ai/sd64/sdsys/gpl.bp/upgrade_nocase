@@ -58,6 +58,12 @@
 *      folder's ACL.
 *
 * START-HISTORY:
+* 07 Oct 26 dm  First COMPLETE install run (the owner's, of 40d0378): "Converted 2 of 3" and a
+*           10-file list that named voc.dic three times and the directory files syscom, newvoc,
+*           sd.voclib and the account's own directory.  A file is now judged once per account
+*           (real path), a path with no %0 (a directory file) is returned silently again, and
+*           a file named from outside is listed once.  Measured on that install: $hold.dic and
+*           voc were rebuilt as don:sdu_don, mode 664.
 * 07 Oct 26 dm  First real install run (the owner's, of 5cb696b): "Error 3001 opening file".  The
 *           path is now judged BEFORE the file is opened (convert.one), so an SDSYS file or one
 *           outside the account is never touched; the opens that remain (a file, an account's VOC)
@@ -267,6 +273,7 @@ fix.cat.names:
 *   this.is.sdsys says whether its VOC is the live one.
 do.account.at:
    file.list = ''
+   seen.real = ''                  ;* @fm: real paths already judged in THIS account (several F-records may name one file)
 * 07 Oct 26 - the account's own directory in the form FL$PATH uses (links resolved), for
 *   the inside-the-account test in convert.one (LINUX 5).
    acct.real = ospath(this.acct, OS$FULLPATH)
@@ -355,11 +362,26 @@ convert.one:
 *   its error number and the walk goes on.
    one.real = ospath(one.path, OS$FULLPATH)
    if one.real = '' then one.real = one.path
+* 07 Oct 26 - THE OWNER'S FIRST COMPLETE RUN (the install of 40d0378) READ "Converted 2 of 3" and
+*   "10 file(s) ... outside", which were three faults of this routine, not of his files: two VOC
+*   records may name one file (voc.dic three times; the account's own voc, named by its VOC
+*   record and then converted again as the final VOC step), so it is judged ONCE per
+*   account; a path with no %0 beside it is a directory file, which is never converted and was
+*   returned silently before the test moved ahead of the open, so it is again (syscom, newvoc,
+*   sd.voclib, the account's own directory named by a VOC record, bp and cat); and a file named
+*   from outside is listed once however many accounts and records name it.
+   locate one.real in seen.real<1> setting seen.at then
+      return
+   end
+   seen.real<-1> = one.real
+   if not(ospath(one.real : @ds : '%0', OS$EXISTS)) then return   ;* a directory file, or nothing there
    in.sds = (one.real[1, len(sds.real) + 1] = sds.real : @ds) or (one.real[1, len(@sdsys) + 1] = @sdsys : @ds)
    in.acct = (one.real[1, len(acct.real) + 1] = acct.real : @ds)
    if in.sds or not(in.acct) then
-      outside.count += 1
-      if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = one.real
+      locate one.real in outside.files<1> setting out.at else
+         outside.count += 1
+         if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = one.real
+      end
       return
    end
    openpath one.path to old.fu on error
