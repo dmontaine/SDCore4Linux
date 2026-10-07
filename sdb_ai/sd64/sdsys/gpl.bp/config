@@ -21,6 +21,15 @@
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 Jan 25 mab add CREATUSR config parameter
 * 14 Sep 26 dm  S.18: APILOGIN no longer reported; the setting is retired.
+* 06 Oct 26 dm  PAL-9 (parity audit): CREATUSR is no longer reported.  Nothing has
+*               read pcfg.create_user since the tier teardown (measured by grep:
+*               set in config.c, returned by op_config.c, printed here, used by no
+*               program), and the Windows port dropped it on 16 Aug.  The key is
+*               still ACCEPTED in sd.conf and config('CREATUSR') still answers, so
+*               an existing sd.conf keeps working.  STARTUP stays: it runs here
+*               (sysseg.c:400), which the Windows port could not do.  There is no
+*               APIPORT to report: the API port is fixed at 4247 and its on, local
+*               and off states are the firewall's, reported by REMOTE.API.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -86,7 +95,6 @@ report.params:
 * NOTE to dev: config names are capped at 8 char!
    print 'CMDSTACK  '        : config('CMDSTACK')
    n = config('CODEPAGE') ; if n then print 'CODEPAGE  '        : n
-   print 'CREATUSR  '        : config('CREATUSR')
    print 'DEADLOCK  '        : config('DEADLOCK')
    n = config('DEBUG') ; if n then print 'DEBUG     '        : n
    print 'DUMPDIR   '        : config('DUMPDIR')

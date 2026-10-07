@@ -2,6 +2,24 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  CONFIG NO LONGER LISTS CREATUSR.
+
+           CREATUSR was an sd.conf setting that let CREATE.ACCOUNT create a
+           Linux user.  Since the account tiers were removed nothing reads it:
+           CREATE.ACCOUNT always makes the Linux user a USER account needs.
+           CONFIG still printed "CREATUSR  1", which suggested that changing
+           it would do something.  The line is gone from CONFIG's output, as
+           it is on SD Core for Windows, which dropped it on 16 August.  This
+           was compared on a test copy of SD: the output differs by that one
+           line and nothing else.
+
+           What it does not do: an sd.conf that still has a CREATUSR line is
+           still accepted, and the CONFIG() function still answers for it, so
+           no existing installation is affected.  STARTUP stays in the list
+           (it runs here, which it could not on Windows), and there is no
+           APIPORT to list here: the API port is fixed at 4247 and REMOTE.API
+           with no word reports whether it is on, local or off.
+
 06 Oct 26  PY_LISTCREATE IS THE NAME OF THE PYTHON LIST CONSTRUCTOR ON BOTH
            PORTS, AND PY_LISTCRTE STILL WORKS.
 
