@@ -22,6 +22,10 @@
  * 30 Jul 24 mab add error codes for SD_ENCRYPT_SODIUM
  * rev 0.9.0 Jan 25 mab sdext_eguid_set error codes
  * rev 0.9-2 Mar 25 mab add sdext_pyobj direct control of python dictionary object
+ * 06 Oct 26 dm PAL-10 (parity audit): the Python error texts and two sdext_euid texts
+ *    are spelt and worded as the Windows port's (interpreter, initialised,
+ *    concatenate, process ...); no code or value changed.  SYSCOM ERR.H and
+ *    ERRTEXT.H are regenerated from this file by ERRGEN.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -300,38 +304,38 @@
 
 /* sdext_eguid_set error codes */
 #define SD_EUID_PWD_Err  -10400  /* Couldn't get pwd of user */
-#define SD_EUID_SET_Err  -10401  /* Couldn't set proess to uid / gid of user */
-#define SD_EUID_RST_Err  -10402  /* Couldn't return proess to uid / gid of caller */
+#define SD_EUID_SET_Err  -10401  /* Couldn't set process to uid / gid of user */
+#define SD_EUID_RST_Err  -10402  /* Couldn't return process to uid / gid of caller */
 #define SD_EUID_NSET_Err -10403  /* SD_EUID_RESTORE called before SD_EUID_SET */
 
 /* Embedded Python Error codes   */
-#define SD_PyEr_NotInit    -12001    /* interperter not initiialized */
+#define SD_PyEr_NotInit    -12001    /* interpreter not initialised */
 #define SD_PyEr_Dict       -12002    /* PyDict_New() failed */
-#define SD_PyEr_Builtin    -12003    /* failed to set __builtins__ link to the built-in scope */
-#define SD_PyEr_Excpt      -12004    /* exception on PyRun_String */
-#define SD_PyEr_FinalEr    -12005    /*  error reported by GPL.BP Program PY_FINALIZE */
+#define SD_PyEr_Builtin    -12003    /* failed to link __builtins__ into the scope */
+#define SD_PyEr_Excpt      -12004    /* exception while running code */
+#define SD_PyEr_FinalEr    -12005    /* error reported by PY_FINALIZE */
 #define SD_PyEr_NOF        -12006    /* could not open script file */
 #define SD_PyEr_Key        -12007    /* failed to find key in dictionary */
 #define SD_PyEr_ObToStr    -12008    /* failed to convert python object to string */
-#define SD_PyErr_UniToStr  -12009    /* error encoding unicode python string to to Latin */
+#define SD_PyErr_UniToStr  -12009    /* error encoding unicode string to Latin */
 
 #define SD_PyErr_MainMod   -12010    /* cannot import __main__ */
-#define SD_PyErr_GlobDict  -12011    /* could get __main__ dictionary  */
-#define SD_PyErr_DictExsts -12012    /* dictionary already exists  */
-#define SD_PyErr_NamSpcErr -12013    /* Failed to add to namespace  */
-#define SD_PyErr_ObjNOF    -12014    /* requested object does not exist  */
+#define SD_PyErr_GlobDict  -12011    /* could not get __main__ dictionary */
+#define SD_PyErr_DictExsts -12012    /* dictionary already exists */
+#define SD_PyErr_NamSpcErr -12013    /* failed to add to namespace */
+#define SD_PyErr_ObjNOF    -12014    /* requested object does not exist */
 #define SD_PyErr_DictSet   -12015    /* failed to set dictionary key / value */
-#define SD_PyErr_DictDel   -12016    /* failed to Delete dictionary key / value */
-#define SD_PyErr_NotDict   -12017    /* Object not a dictionary  */
-#define SD_PyErr_EnLatin   -12018    /* error encoding latin string to unicode      */
-#define SD_PyErr_NotStr    -12019    /* Object not a String (unicode)  */
-#define SD_PyErr_DelObj    -12020    /* Failed to remove Object from global dictionary */
+#define SD_PyErr_DictDel   -12016    /* failed to delete dictionary key / value */
+#define SD_PyErr_NotDict   -12017    /* object is not a dictionary */
+#define SD_PyErr_EnLatin   -12018    /* error encoding Latin string to unicode */
+#define SD_PyErr_NotStr    -12019    /* object is not a string */
+#define SD_PyErr_DelObj    -12020    /* failed to remove object from the namespace */
 
-#define SD_PyErr_NoItems   -12030    /* Python Object contains no items (List?) */
-#define SD_PyErr_CreStr    -12031    /* Failed to create Python String Object   */
-#define SD_PyErr_ConCat    -12032    /* Failed to concatinate Python String Objects   */
-#define SD_PyErr_LstItem   -12033    /* Failed to access List Objects Item  */
-#define SD_PyErr_NotList   -12034    /* Object not a list  */
+#define SD_PyErr_NoItems   -12030    /* object contains no items */
+#define SD_PyErr_CreStr    -12031    /* failed to create a python string object */
+#define SD_PyErr_ConCat    -12032    /* failed to concatenate python strings */
+#define SD_PyErr_LstItem   -12033    /* failed to access a list item */
+#define SD_PyErr_NotList   -12034    /* object is not a list */
 #define SD_PyErr_LstAppdEr -12035    /* List append failed */
 #define SD_PyErr_LstClrEr  -12036    /* list clear failed  */
 #define SD_PyErr_LstCrteEr -12037    /* PyList_New() failed */

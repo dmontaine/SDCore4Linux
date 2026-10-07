@@ -2,6 +2,28 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  THE EMBEDDED-PYTHON ERROR MESSAGES ARE SPELT CORRECTLY.
+
+           The text that goes with the Python error numbers (-12001 to
+           -12034, and two of the -104xx user-switch errors) had typing
+           mistakes: "interperter not initiialized", "concatinate", "proess",
+           "could get __main__ dictionary" for "could not get".  They are now
+           worded as SD Core for Windows words them, for example "interpreter
+           not initialised", "failed to concatenate python strings" and
+           "could not get __main__ dictionary".  No error number or value
+           changed, so a program that tests STATUS() against SYSCOM ERR.H is
+           unaffected; only the words shown by ERRTEXT change.
+
+           The text lives in gplsrc/err.h and the two header files that carry
+           it, SYSCOM ERR.H and the ERRTEXT include, are regenerated from it
+           by ERRGEN.  Run on a test copy of SD, ERRGEN on the old source
+           reproduced the old files exactly, and on the new source changed
+           only these words.
+
+           What it does not do: it does not add the Windows-only server codes
+           (3042, 4100, 4101), and it does not reword any message outside the
+           Python and user-switch groups.
+
 06 Oct 26  CONFIG NO LONGER LISTS CREATUSR.
 
            CREATUSR was an sd.conf setting that let CREATE.ACCOUNT create a

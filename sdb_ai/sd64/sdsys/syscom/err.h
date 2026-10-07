@@ -22,6 +22,10 @@
 * 30 Jul 24 mab add error codes for SD_ENCRYPT_SODIUM
 * rev 0.9.0 Jan 25 mab sdext_eguid_set error codes
 * rev 0.9-2 Mar 25 mab add sdext_pyobj direct control of python dictionary object
+* 06 Oct 26 dm PAL-10 (parity audit): the Python error texts and two sdext_euid texts
+*    are spelt and worded as the Windows port's (interpreter, initialised,
+*    concatenate, process ...); no code or value changed.  SYSCOM ERR.H and
+*    ERRTEXT.H are regenerated from this file by ERRGEN.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -284,38 +288,38 @@ $define SD$SCRAM.ERR   -10303  ;* sd.scram.c primitive failed or was given bad i
 
 * sdext_eguid_set error codes
 $define SD$EUID.PWD.Err  -10400  ;* Couldn't get pwd of user
-$define SD$EUID.SET.Err  -10401  ;* Couldn't set proess to uid / gid of user
-$define SD$EUID.RST.Err  -10402  ;* Couldn't return proess to uid / gid of caller
+$define SD$EUID.SET.Err  -10401  ;* Couldn't set process to uid / gid of user
+$define SD$EUID.RST.Err  -10402  ;* Couldn't return process to uid / gid of caller
 $define SD$EUID.NSET.Err -10403  ;* SD.EUID.RESTORE called before SD.EUID.SET
 
 * Embedded Python Error codes
-$define SD$PyEr.NotInit    -12001    ;* interperter not initiialized
+$define SD$PyEr.NotInit    -12001    ;* interpreter not initialised
 $define SD$PyEr.Dict       -12002    ;* PyDict.New() failed
-$define SD$PyEr.Builtin    -12003    ;* failed to set ..builtins.. link to the built-in scope
-$define SD$PyEr.Excpt      -12004    ;* exception on PyRun.String
-$define SD$PyEr.FinalEr    -12005    ;*  error reported by GPL.BP Program PY.FINALIZE
+$define SD$PyEr.Builtin    -12003    ;* failed to link ..builtins.. into the scope
+$define SD$PyEr.Excpt      -12004    ;* exception while running code
+$define SD$PyEr.FinalEr    -12005    ;* error reported by PY.FINALIZE
 $define SD$PyEr.NOF        -12006    ;* could not open script file
 $define SD$PyEr.Key        -12007    ;* failed to find key in dictionary
 $define SD$PyEr.ObToStr    -12008    ;* failed to convert python object to string
-$define SD$PyErr.UniToStr  -12009    ;* error encoding unicode python string to to Latin
+$define SD$PyErr.UniToStr  -12009    ;* error encoding unicode string to Latin
 
 $define SD$PyErr.MainMod   -12010    ;* cannot import ..main..
-$define SD$PyErr.GlobDict  -12011    ;* could get ..main.. dictionary
+$define SD$PyErr.GlobDict  -12011    ;* could not get ..main.. dictionary
 $define SD$PyErr.DictExsts -12012    ;* dictionary already exists
-$define SD$PyErr.NamSpcErr -12013    ;* Failed to add to namespace
+$define SD$PyErr.NamSpcErr -12013    ;* failed to add to namespace
 $define SD$PyErr.ObjNOF    -12014    ;* requested object does not exist
 $define SD$PyErr.DictSet   -12015    ;* failed to set dictionary key / value
-$define SD$PyErr.DictDel   -12016    ;* failed to Delete dictionary key / value
-$define SD$PyErr.NotDict   -12017    ;* Object not a dictionary
-$define SD$PyErr.EnLatin   -12018    ;* error encoding latin string to unicode
-$define SD$PyErr.NotStr    -12019    ;* Object not a String (unicode)
-$define SD$PyErr.DelObj    -12020    ;* Failed to remove Object from global dictionary
+$define SD$PyErr.DictDel   -12016    ;* failed to delete dictionary key / value
+$define SD$PyErr.NotDict   -12017    ;* object is not a dictionary
+$define SD$PyErr.EnLatin   -12018    ;* error encoding Latin string to unicode
+$define SD$PyErr.NotStr    -12019    ;* object is not a string
+$define SD$PyErr.DelObj    -12020    ;* failed to remove object from the namespace
 
-$define SD$PyErr.NoItems   -12030    ;* Python Object contains no items (List?)
-$define SD$PyErr.CreStr    -12031    ;* Failed to create Python String Object
-$define SD$PyErr.ConCat    -12032    ;* Failed to concatinate Python String Objects
-$define SD$PyErr.LstItem   -12033    ;* Failed to access List Objects Item
-$define SD$PyErr.NotList   -12034    ;* Object not a list
+$define SD$PyErr.NoItems   -12030    ;* object contains no items
+$define SD$PyErr.CreStr    -12031    ;* failed to create a python string object
+$define SD$PyErr.ConCat    -12032    ;* failed to concatenate python strings
+$define SD$PyErr.LstItem   -12033    ;* failed to access a list item
+$define SD$PyErr.NotList   -12034    ;* object is not a list
 $define SD$PyErr.LstAppdEr -12035    ;* List append failed
 $define SD$PyErr.LstClrEr  -12036    ;* list clear failed
 $define SD$PyErr.LstCrteEr -12037    ;* PyList.New() failed
