@@ -20,6 +20,12 @@
 #     zzd1(.dic)   case-sensitive, ids Alpha, beta, GAMMA - no pair: must convert, keeping every record
 #     zzd2(.dic)   case-sensitive, ids jack AND JACK - a fold-pair: must be left whole and named
 #     cat/         ZZSUB1 and Mixed (to be made lower case), zzsub2 (already), ZZPAIR beside zzpair (both kept)
+#     out, sds, sdx  case-sensitive files the VOC NAMES that are not the account's: one in another directory, one
+#                  under SDSYS, and one under SDSYS whose subfiles nothing may open (mode 000: the owner's real install,
+#                  7 Oct 26, died with error 3001 opening an SDSYS file as the switched owner).  None is converted;
+#                  the walk judges the path BEFORE it opens the file and names all three at the end.
+#     zzbad        the account's OWN file, subfiles mode 000: it cannot be opened, so the walk reports it (11037),
+#                  counts it, leaves it untouched and goes on
 #   account zzgrp   a GROUP account whose Linux group does not exist  -> skipped, 11028
 #   account zzusr   a USER account whose Linux user does not exist     -> skipped, 11029
 #   account zzoth   neither a user nor a group account                  -> skipped, 11028
@@ -43,11 +49,12 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 USER = getpass.getuser()
 # --solo: run SD Core for Linux Solo's version of the walk (its own gpl.bp/upgrade_nocase and messages
-# 11060-11063, no owner switching: one user) inside this full-product sandbox.  The kernel is the full
+# 11060-11065, no owner switching: one user) inside this full-product sandbox.  The kernel is the full
 # product's, which is the same C for everything the walk does; a Solo kernel sandbox does not exist (LSOLO 40).
 SOLO = "--solo" in sys.argv
 SOLO_SDSYS = "/home/don/Projects/SDCore4LinuxSolo/sdb_ai/sd64/sdsys"
 A, G, U, O = "zzacct" + RUN, "zzgrp" + RUN, "zzusr" + RUN, "zzoth" + RUN
+V = "zzvoc" + RUN        # a USER account (the invoking user's) whose VOC cannot be opened: reported, and the walk goes on
 FIX, RD = "zzfix" + RUN, "zzrd" + RUN
 passed = failed = 0
 
@@ -99,6 +106,30 @@ def stat_of(path):
     return (st.st_uid, st.st_gid, st.st_mode & 0o777)
 
 
+def lock(path, dmode, fmode):
+    """What SDSYS's own files look like to an account: the directory and its subfiles with the given modes."""
+    for n in os.listdir(path):
+        os.chmod(os.path.join(path, n), fmode)
+    os.chmod(path, dmode)
+
+
+def unlock(path):
+    os.chmod(path, 0o755)
+    for n in os.listdir(path):
+        os.chmod(os.path.join(path, n), 0o644)
+
+
+def snapshot(path):
+    """{subfile: (size, mtime_ns, bytes)} - what proves a file the walk had no business with was not touched."""
+    d = {}
+    for n in sorted(os.listdir(path)):
+        p = os.path.join(path, n)
+        st = os.stat(p)
+        with open(p, "rb") as f:
+            d[n] = (st.st_size, st.st_mtime_ns, f.read())
+    return d
+
+
 def readback(box, acct):
     """{file: {'nocase': flag, 'ids': sorted stored ids} | 'missing'} and the fold probe line, from RD."""
     out = isess(box, "RUN bp " + RD)
@@ -122,7 +153,12 @@ def main():
     OUTD = os.path.join(box, "user_accounts", "zzout" + RUN)      # a directory that is NOT the account's
     OUTF = os.path.join(OUTD, "zzo")                              # a case-sensitive file in it, named by the VOC
     SDSF = os.path.join(sysd, "zzsds" + RUN)                      # a case-sensitive file under SDSYS, named by the VOC
+    SDXF = os.path.join(sysd, "zzsdx" + RUN)                      # the same, but its owner (SDSYS) leaves the account no access
     OUTF_REAL, SDSF_REAL = os.path.realpath(OUTF), os.path.realpath(SDSF)   # what FL$PATH prints (links resolved)
+    SDXF_REAL = os.path.realpath(SDXF)
+    BADF = os.path.join(acct, "zzbad")                            # the account's OWN file, but one that cannot be opened
+    VACC = os.path.join(box, "user_accounts", V)                  # the account whose VOC cannot be opened
+    VOCF = os.path.join(VACC, "voc")
     say("sandbox-upgradenocase: sandbox  %s" % box)
     say("sandbox-upgradenocase: tree     %s" % os.path.dirname(HERE))
     say("sandbox-upgradenocase: user     %s (the account's owner; also the walk's owner switch)" % USER)
@@ -140,8 +176,8 @@ def main():
         bail("this tree has no gpl.bp/upgrade_nocase")
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     if SOLO:
-        say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11063 replace the full product's in this sandbox")
-        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11065)):
+        say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11065 replace the full product's in this sandbox")
+        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11066)):
             src = os.path.join(SOLO_SDSYS, rel)
             if not os.path.isfile(src):
                 bail("Solo has no %s" % src)
@@ -153,12 +189,15 @@ def main():
     created = []
 
     def cleanup():
-        for n in (A, G, U, O):
+        for n in (A, G, U, O, V):
             p = os.path.join(sysd, "accounts", n)
             if os.path.exists(p):
                 os.remove(p)
-        for p in (acct, OUTD, SDSF):
+        for p in (acct, OUTD, SDSF, SDXF, VACC):
             if os.path.isdir(p):
+                for q in (SDXF, BADF, VOCF):
+                    if os.path.isdir(q) and (p == q or q.startswith(p + os.sep)):
+                        unlock(q)
                 shutil.rmtree(p)
         for rec in (FIX, RD):
             for d in ("bp", "bp.out"):
@@ -177,6 +216,8 @@ def main():
         reg(box, G, os.path.join(box, "group_accounts", G), "sdg_" + G)
         reg(box, U, os.path.join(box, "user_accounts", U), "sdu_zznouser" + RUN)
         reg(box, O, os.path.join(box, "user_accounts", O), "zzother" + RUN)
+        os.makedirs(VACC)
+        reg(box, V, VACC, "sdu_" + USER)
         for name, body in (("ZZSUB1", b"obj1"), ("Mixed", b"obj2"), ("zzsub2", b"obj3"), ("ZZPAIR", b"upper"), ("zzpair", b"lower")):
             with open(os.path.join(acct, "cat", name), "wb") as f:
                 f.write(body)
@@ -205,6 +246,25 @@ def main():
             "   write 's' to fs, 'SdsRec'",
             "   write 'F':@fm:'%s' to v, 'ZZOUT'" % OUTF,
             "   write 'F':@fm:'%s' to v, 'ZZSDS'" % SDSF,
+            # and a third that the account cannot open at all, as the owner's real install found (7 Oct 26):
+            # SDSYS's own files are the administrator's and an account's owner may not open them for update
+            "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed sdx' ; stop" % SDXF,
+            "   openpath '%s' to fx else crt 'FIX no sdx' ; stop" % SDXF,
+            "   write 'x' to fx, 'SdxRec'",
+            "   close fx",
+            "   write 'F':@fm:'%s' to v, 'ZZSDX'" % SDXF,
+            # and one of the account's own that cannot be opened (a damaged or foreign-owned file): the walk must
+            # report it, count it, and go on - not die on it
+            "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed bad' ; stop" % BADF,
+            "   openpath '%s' to fb else crt 'FIX no bad' ; stop" % BADF,
+            "   write 'b' to fb, 'BadRec'",
+            "   close fb",
+            "   write 'F':@fm:'zzbad':@fm:'zzbad.dic' to v, 'ZZBAD'",
+            # and an account whose VOC itself cannot be opened
+            "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed voc' ; stop" % VOCF,
+            "   openpath '%s' to fv else crt 'FIX no voc2' ; stop" % VOCF,
+            "   write 'v' to fv, 'VocRec'",
+            "   close fv",
             "   crt 'FIX done'", "end"])
         write_text(os.path.join(sysd, "bp", RD), [
             "$internal",             # select list 11 is for an $internal program only
@@ -255,6 +315,7 @@ def main():
         say("    fixture read back: %s" % before)
         ok = all(isinstance(before.get(k), dict) for k in ("voc", "zzd1", "zzd1.dic", "zzd2", "zzd2.dic", "out", "sds"))
         row("setup: all seven files exist and are readable (the five of the account, one outside it, one under SDSYS)", ok, repr(before))
+        # (an eighth, SDSX, also under SDSYS, is checked separately below: the readback program must never open it)
         row("setup: every one of them is case SENSITIVE (flag 0) - KEEPCASE worked", ok and all(v["nocase"] == "0" for v in before.values()),
             repr(before))
         row("setup: zzd1 holds Alpha, beta, GAMMA; zzd2 holds jack, JACK, solo",
@@ -266,6 +327,55 @@ def main():
         cat0 = sorted(os.listdir(os.path.join(acct, "cat")))
         mark = {p: stat_of(p) for p in (os.path.join(acct, "zzd1", "%0"), os.path.join(acct, "zzd1", "%1"))}
         sysmark = os.stat(os.path.join(sysd, "voc", "%0")).st_mtime_ns
+        # SDSX is made unopenable now, after the fixture read back, and is never opened by the readback program.
+        # The owner's real install failed because the kernel's dh_open tests write access with access(), which
+        # answers for the REAL uid (root), then opens with the EFFECTIVE uid (the account owner) - the open fails
+        # and openpath raises 3001.  A sandbox cannot split the two uids, so this fixture reaches the same
+        # error by the other road: a DH file whose subfiles no open can read (mode 000 under an open directory,
+        # so dh_open's "is it a DH file" test passes and its open fails; a closed directory would make it look
+        # like a plain directory and openpath would quietly refuse it - measured 7 Oct 26).
+        if os.geteuid() == 0:
+            bail("running as root: nothing can be made unopenable to root, so the SDSX row would pass over nothing")
+        sdx0 = os.path.join(SDXF, "%0")
+        if not os.path.isfile(sdx0):
+            bail("the SDSX fixture file was not made (%s)" % sdx0)
+        sdx_snap = snapshot(SDXF)
+        lock(SDXF, 0o755, 0o000)      # the directory stays open, so the kernel sees a DH file (%0 exists) it cannot open
+        try:
+            open(sdx0, "rb").close()
+            refused = False
+        except PermissionError:
+            refused = True
+        row("setup: the SDSX file is now closed to any open (the null case: the rows below would otherwise pass over nothing)",
+            refused, "rb on %s succeeded" % sdx0)
+        if not refused:
+            bail("the SDSX fixture is readable")
+        bad0 = os.path.join(BADF, "%0")
+        if not os.path.isfile(bad0):
+            bail("the ZZBAD fixture file was not made (%s)" % bad0)
+        bad_snap = snapshot(BADF)
+        lock(BADF, 0o755, 0o000)
+        try:
+            open(bad0, "rb").close()
+            refused = False
+        except PermissionError:
+            refused = True
+        row("setup: the account's own file zzbad is now closed to any open (same null-case refusal)", refused, "rb on %s succeeded" % bad0)
+        if not refused:
+            bail("the ZZBAD fixture is readable")
+        voc0 = os.path.join(VOCF, "%0")
+        if not os.path.isfile(voc0):
+            bail("the unopenable VOC fixture was not made (%s)" % voc0)
+        voc_snap = snapshot(VOCF)
+        lock(VOCF, 0o755, 0o000)
+        try:
+            open(voc0, "rb").close()
+            refused = False
+        except PermissionError:
+            refused = True
+        row("setup: account %s's own voc is now closed to any open (same null-case refusal)" % V, refused, "rb on %s succeeded" % voc0)
+        if not refused:
+            bail("the unopenable VOC fixture is readable")
 
         say("\n--- leg 1: CHECK - reads, converts nothing, still names the twin and the cat renames ---")
         out = isess(box, "RUN gpl.bp upgrade_nocase CHECK")
@@ -280,16 +390,22 @@ def main():
         # the Windows agent's review (mail T0639): a file the VOC names under SDSYS, or (full product) outside the account,
         # is not converted, and is COUNTED and NAMED rather than skipped in silence
         if SOLO:
-            row("1 (Solo): the file under SDSYS is counted and named (1 file), and the one outside the account is not",
-                "1 file(s) named by an account's VOC lie under SDSYS" in out and SDSF_REAL in out and OUTF_REAL not in out,
-                "wrong 11064 report")
+            row("1 (Solo): the two files under SDSYS are counted and named (2 files), and the one outside the account is not",
+                "2 file(s) named by an account's VOC lie under SDSYS" in out and SDSF_REAL in out and SDXF_REAL in out
+                and OUTF_REAL not in out, "wrong 11064 report")
         else:
-            row("1: the file under SDSYS and the file outside the account are counted and named (2 files, both real paths)",
-                "2 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out
-                and SDSF_REAL in out and OUTF_REAL in out, "no 11036 report naming both")
+            row("1: the two files under SDSYS and the file outside the account are counted and named (3 files, all real paths)",
+                "3 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out
+                and SDSF_REAL in out and OUTF_REAL in out and SDXF_REAL in out, "no 11036 report naming all three")
+        row("1: the file SDSYS will not let the account open did not stop the walk (no fatal 'Error 3001 opening file')",
+            "Error 3001" not in out and "opening file" not in out, "the walk died on the unopenable file")
+        row("1: and the account's own unopenable file, zzbad, and the unopenable VOC of %s are each reported once (11037, error 3001) and counted, not fatal" % V,
+            out.count("Cannot open ") == 2 and out.count("(error 3001)") == 2 and out.count("It was left as it is.") == 2
+            and "2 file(s) could not be read or rebuilt" in out and re.search(r"Cannot open \S*zzbad", out) is not None
+            and re.search(r"Cannot open \S*%s\S*voc" % V, out) is not None, "no 11037 line for each of zzbad and the VOC")
         if SOLO:
             row("1 (Solo): every registered account is walked and none is skipped (there is no owner to switch to)",
-                all(("Account " + x) in out for x in (G, U, O)) and "skipped" not in out and "not converted" not in out,
+                all(("Account " + x) in out for x in (G, U, O, V)) and "skipped" not in out and "not converted" not in out,
                 "a skip line, or an account not walked")
         else:
             row("1: the group account with no Linux group was skipped with the helper's words (11035, 11021)",
@@ -314,8 +430,9 @@ def main():
             after.get("zzd1", {}).get("ids") == ["Alpha", "GAMMA", "beta"], repr(after.get("zzd1")))
         row("2: a record is now found under another case (ALPHA reads 'one')", fold2 == "one", repr(fold2))
         row("2: the dictionary part zzd1.dic converted too", after.get("zzd1.dic", {}).get("nocase") == "1", repr(after.get("zzd1.dic")))
-        row("2: the VOC converted, last, and kept all four of its records (ZZD1, ZZD2, ZZOUT, ZZSDS)",
-            after.get("voc", {}).get("nocase") == "1" and after["voc"]["ids"] == ["ZZD1", "ZZD2", "ZZOUT", "ZZSDS"], repr(after.get("voc")))
+        row("2: the VOC converted, last, and kept all six of its records (ZZBAD, ZZD1, ZZD2, ZZOUT, ZZSDS, ZZSDX)",
+            after.get("voc", {}).get("nocase") == "1"
+            and after["voc"]["ids"] == ["ZZBAD", "ZZD1", "ZZD2", "ZZOUT", "ZZSDS", "ZZSDX"], repr(after.get("voc")))
         row("2: THE TWIN FILE WAS LEFT WHOLE: zzd2 is still case sensitive with jack, JACK and solo",
             after.get("zzd2", {}).get("nocase") == "0" and after["zzd2"]["ids"] == ["JACK", "jack", "solo"], repr(after.get("zzd2")))
         row("2: the report names the twin (WARNING line, then the file and the pair)",
@@ -332,10 +449,19 @@ def main():
                 after.get("out", {}).get("nocase") == "0" and after["out"]["ids"] == ["OutRec"], repr(after.get("out")))
         row("2: the file under SDSYS was LEFT case sensitive and whole",
             after.get("sds", {}).get("nocase") == "0" and after["sds"]["ids"] == ["SdsRec"], repr(after.get("sds")))
-        row("2: and both are named at the end, once",
-            (("1 file(s) named by an account's VOC lie under SDSYS" in out) if SOLO else
-             ("2 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out))
-            and out.count(SDSF_REAL) == 1, "report wrong")
+        row("2: and all of them are named at the end, once each",
+            (("2 file(s) named by an account's VOC lie under SDSYS" in out) if SOLO else
+             ("3 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out))
+            and out.count(SDSF_REAL) == 1 and out.count(SDXF_REAL) == 1, "report wrong")
+        row("2: the unopenable files did not stop the walk (no fatal 'Error 3001 opening file'); zzbad and the VOC are reported once each, not SDSX",
+            "Error 3001" not in out and "opening file" not in out and out.count("Cannot open ") == 2 and out.count("(error 3001)") == 2,
+            "the walk died on an unopenable file, or reported one other than once")
+        for label, path, snap in (("SDSX", SDXF, sdx_snap), ("zzbad", BADF, bad_snap), ("the unopenable VOC", VOCF, voc_snap)):
+            unlock(path)
+            now = snapshot(path)
+            lock(path, 0o755, 0o000)
+            row("2: and %s was not touched (same subfiles, same bytes, same times)" % label, now == snap,
+                "before %r after %r" % ({k: v[:2] for k, v in snap.items()}, {k: v[:2] for k, v in now.items()}))
         row("2: cat/ is ZZSUB1 and Mixed renamed lower, the pair and zzsub2 untouched",
             sorted(os.listdir(os.path.join(acct, "cat"))) == sorted(["zzsub1", "mixed", "zzsub2", "ZZPAIR", "zzpair"]),
             repr(sorted(os.listdir(os.path.join(acct, "cat")))))
@@ -345,7 +471,7 @@ def main():
             open(os.path.join(acct, "cat", "ZZPAIR"), "rb").read() == b"upper" and open(os.path.join(acct, "cat", "zzpair"), "rb").read() == b"lower")
         if SOLO:
             row("2 (Solo): every registered account is walked and none is skipped",
-                all(("Account " + x) in out for x in (A, G, U, O)) and "skipped" not in out and "not converted" not in out,
+                all(("Account " + x) in out for x in (A, G, U, O, V)) and "skipped" not in out and "not converted" not in out,
                 "a skip line, or an account not walked")
         else:
             row("2: the owner switch was refused for the missing user (11029), once",
@@ -353,8 +479,9 @@ def main():
             row("2: and the other two skips are as in CHECK (11028 once, 11035 once)",
                 out.count("neither a user nor a group account") == 1 and out.count("operating-system details could not be read") == 1,
                 "wrong skip lines")
-        row("2: a catalogue pair is a warning, not a failure (no 'could not be read or rebuilt' line)",
-            "could not be read or rebuilt" not in out, "the pair was counted as an error")
+        row("2: a catalogue pair is a warning, not a failure (the only 'could not be read or rebuilt' count is the 2 unopenable files)",
+            "2 file(s) could not be read or rebuilt" in out and out.count("could not be read or rebuilt") == 1,
+            "the pair was counted as an error, or an unopenable file was not")
         if not SOLO:
             row("2: and the skips were counted (3 account(s) were not converted)", "3 account(s) were not converted" in out, "no 11033 line")
         owner_ok = all(stat_of(p) [:2] == mark[p][:2] for p in mark if os.path.exists(p))
@@ -381,8 +508,9 @@ def main():
     finally:
         say("\n--- cleanup ------------------------------------------------------------------")
         cleanup()
-        left = [n for n in (A, G, U, O) if os.path.exists(os.path.join(sysd, "accounts", n))]
-        row("cleanup: no register record and no fixture account is left", not left and not os.path.exists(acct), " ".join(left))
+        left = [n for n in (A, G, U, O, V) if os.path.exists(os.path.join(sysd, "accounts", n))]
+        row("cleanup: no register record and no fixture account is left",
+            not left and not os.path.exists(acct) and not os.path.exists(VACC) and not os.path.exists(SDXF), " ".join(left))
 
     say("\nsandbox-upgradenocase: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:

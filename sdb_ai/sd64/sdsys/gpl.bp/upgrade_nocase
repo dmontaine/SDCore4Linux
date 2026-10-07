@@ -58,6 +58,10 @@
 *      folder's ACL.
 *
 * START-HISTORY:
+* 07 Oct 26 dm  First real install run (the owner's, of 5cb696b): "Error 3001 opening file".  The
+*           path is now judged BEFORE the file is opened (convert.one), so an SDSYS file or one
+*           outside the account is never touched; the opens that remain (a file, an account's VOC)
+*           are ON ERROR: reported (11037), counted in 10183, and the walk goes on.
 * 07 Oct 26 dm  The Windows agent's review (mail T0639): hunk 4 is no longer silent, and the
 *           test is made on the real path of both sides (links resolved); files outside
 *           the account's own directory are left and named (LINUX 5).
@@ -267,27 +271,30 @@ do.account.at:
 *   the inside-the-account test in convert.one (LINUX 5).
    acct.real = ospath(this.acct, OS$FULLPATH)
    if acct.real = '' then acct.real = this.acct
-   openpath this.acct:@ds:'voc' to acct.voc then
+* 07 Oct 26 - ON ERROR, like convert.one's open: a VOC the account's owner cannot open is
+*   reported (11037) and counted, and the walk goes on to the next account.
+   openpath this.acct:@ds:'voc' to acct.voc on error
+      crt sysmsg(11037, this.acct:@ds:'voc', status())   ;* Cannot open %1 (error %2); left as it is
+      err.count += 1
+      return
+   end else return                 ;* no VOC at this path; nothing to do
 * 14 Sep 26 - LIST 11, NOT 13.  Select lists run 0 to 12 (HIGH_SELECT,
 *   gplsrc/sd.h:43), and 11-12 only in an $internal program; 13, 14 and 15
 *   stopped the walk with 1118 "Select list number out of range" on its first
 *   file (verify-nocaseupgrade, its first measuring run).  The register walk
 *   holds 12 for its whole loop, so every inner list here is 11, used one after
 *   another: this one is exhausted before any file is converted.
-      select acct.voc to 11
-      loop
-         readnext vid from 11 else exit
-         read vrec from acct.voc, vid then
-            if upcase(vrec[1,1]) = 'F' then
-               gosub add.file
-               if vrec<3> # '' and vrec<3> # vrec<2> then gosub add.file.dict
-            end
+   select acct.voc to 11
+   loop
+      readnext vid from 11 else exit
+      read vrec from acct.voc, vid then
+         if upcase(vrec[1,1]) = 'F' then
+            gosub add.file
+            if vrec<3> # '' and vrec<3> # vrec<2> then gosub add.file.dict
          end
-      repeat
-      close acct.voc
-   end else
-      return                       ;* no VOC at this path; nothing to do
-   end
+      end
+   repeat
+   close acct.voc
 
    nf = dcount(file.list, @fm)
    for fi = 1 to nf
@@ -337,7 +344,29 @@ convert.one:
 * 07 Oct 26 - the port folded backslashes to '/' here (a Windows register path
 *   carries them).  On Linux a backslash is a legal file name character, so the
 *   path is used exactly as it was resolved.
-   openpath one.path to old.fu else return    ;* not a file we can open; skip
+* 07 Oct 26 - THE PATH IS JUDGED BEFORE THE FILE IS OPENED (first real run, the owner's
+*   install of 5cb696b: "Error 3001 opening file at line 340").  A real account's VOC names
+*   SDSYS's own files ($map, voc.dic, dict.dic ...) and this walk had already switched to
+*   the account's owner, who cannot open them; openpath's ELSE catches a missing file but
+*   not that, and the whole walk died on the first F-record.  The same test as before
+*   (LINUX 4 and 5, below) is made on the real path of the string, which needs no open, so
+*   a file that is not this account's is never touched.  The sandbox could not show it:
+*   there the user owns SDSYS's files too.  And an open that still fails is reported with
+*   its error number and the walk goes on.
+   one.real = ospath(one.path, OS$FULLPATH)
+   if one.real = '' then one.real = one.path
+   in.sds = (one.real[1, len(sds.real) + 1] = sds.real : @ds) or (one.real[1, len(@sdsys) + 1] = @sdsys : @ds)
+   in.acct = (one.real[1, len(acct.real) + 1] = acct.real : @ds)
+   if in.sds or not(in.acct) then
+      outside.count += 1
+      if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = one.real
+      return
+   end
+   openpath one.path to old.fu on error
+      crt sysmsg(11037, one.path, status())   ;* Cannot open %1 (error %2); left as it is
+      err.count += 1
+      return
+   end else return    ;* not a file we can open; skip
    ftype = fileinfo(old.fu, FL$TYPE)
    if ftype # FL$TYPE.DH then
       close old.fu
@@ -375,24 +404,16 @@ convert.one:
 *   on how the file was queued, and both separators are folded first because
 *   FL$PATH may carry backslashes where @ds is '/'.
 * 07 Oct 26 - LINUX 4 AND 5.  SDSYS is skipped as a whole (LINUX 2), so the port's $ipc
-*   case above cannot arise here.  The test now guards two things: a file under SDSYS
-*   that an account's VOC names (a pointer to $ipc, say) is not that account's to
-*   rebuild; and a file OUTSIDE the account's own directory - another user's, a group
-*   account's - would be rebuilt as THIS user and change hands (the Windows agent's
-*   review, mail T0639).  Both are counted and named at the end, not skipped silently.
-*   FL$PATH is fullpath()'s answer, sdrealpath() in linuxlb.c: "..", doubled separators
-*   AND symbolic links are resolved, so a VOC path that goes through a link into SDSYS
-*   arrives here as the real path.  @sdsys and the account's own path are resolved the
-*   same way (sds.real, acct.real) before they are compared, or a link at
-*   /usr/local/sdsys would make every test miss.
-   in.sds = (old.path[1, len(sds.real) + 1] = sds.real : @ds) or (old.path[1, len(@sdsys) + 1] = @sdsys : @ds)
-   in.acct = (old.path[1, len(acct.real) + 1] = acct.real : @ds)
-   if in.sds or not(in.acct) then
-      outside.count += 1
-      if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = old.path
-      close old.fu
-      return
-   end
+*   case above cannot arise here.  The test, made before the open (top of this routine),
+*   guards two things: a file under SDSYS that an account's VOC names (a pointer to $ipc,
+*   say) is not that account's to rebuild; and a file OUTSIDE the account's own directory
+*   - another user's, a group account's - would be rebuilt as THIS user and change hands
+*   (the Windows agent's review, mail T0639).  Both are counted and named at the end, not
+*   skipped silently.  ospath(.., OS$FULLPATH) is fullpath(), sdrealpath() in linuxlb.c:
+*   "..", doubled separators AND symbolic links are resolved, so a VOC path that goes
+*   through a link into SDSYS arrives as the real path.  @sdsys and the account's own path
+*   are resolved the same way (sds.real, acct.real), or a link at /usr/local/sdsys would
+*   make every test miss.
    scanned += 1
 
    if bitand(fileinfo(old.fu, FL$FLAGS), FL$FLAGS.NOCASE) then
