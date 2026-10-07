@@ -777,15 +777,18 @@ head2 "M14. English only: the language programs, their messages and catalog entr
 for p in setlang loadlang; do
   ck "M14a gpl.bp/$p is not installed" no "$(yesno_file "$SDSYS/gpl.bp/$p")"
 done
-for p in SETLANG LOADLANG; do
+# 06 Oct 26 (PAL-1 stage 3a): CATALOG stores lower-case names now, so the absence is checked in BOTH
+# cases; an upper-case-only check would pass for ever over a catalogue that holds the lower-case name.
+for p in setlang loadlang; do
   ck "M14b the global catalog has no \$$p" no "$(yesno_file "$SDSYS/gcat/\$$p")"
+  ck "M14b the global catalog has no \$${p^^}" no "$(yesno_file "$SDSYS/gcat/\$${p^^}")"
 done
 for m in 3340 3341 3342; do
   ck "M14c message $m is not installed" no "$(yesno_file "$SDSYS/messages/$m")"
 done
 ck "M14c2 control: message 1500 (the month names) IS installed" yes "$(yesno_file "$SDSYS/messages/1500")"
 ck "M14e gpl.bp/nls IS installed (kept)" yes "$(yesno_file "$SDSYS/gpl.bp/nls")"
-ck "M14e2 and catalogued as \$NLS" yes "$(yesno_file "$SDSYS/gcat/\$NLS")"
+ck "M14e2 and catalogued as \$nls" yes "$(yesno_file "$SDSYS/gcat/\$nls")"
 for m in 6900 6901 6902 6903; do
   ck "M14e3 message $m IS installed (NLS's own)" yes "$(yesno_file "$SDSYS/messages/$m")"
 done

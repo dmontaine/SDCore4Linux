@@ -167,7 +167,7 @@ def main():
                              "'python3 %s'" % os.path.join(tree, "gplbld", "sd-accarchive"), "s50: accos.h archiver")
             sbx.say("    --s50: %d sd-elevate call sites in gpl.bp now run %s" % (n, shim))
         shutil.copytree(os.path.join(tree, "sdsys"), sysd)
-        open(os.path.join(sysd, "gcat", "$CPROC"), "w").close()
+        open(os.path.join(sysd, "gcat", "$cproc"), "w").close()   # 06 Oct 26: lower case, as config.c looks for it
         open(os.path.join(sysd, "errlog"), "w").close()
         for d in ("bin", "gplsrc", "gplobj", "terminfo"):
             if os.path.isdir(os.path.join(tree, d)):

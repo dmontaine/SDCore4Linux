@@ -23,6 +23,8 @@
  * 08 Aug 24 mab add code to embedded python if EMBED_PYTHON defined 
  * rev 0.9.1 Mar 25 return to single rev track
  * 29 Sep 26 dm  load_language("") is init_messages(): English only.
+ * 07 Oct 26 dm  PAL-1 stage 3a: the bootstrap processor is $bbproc and load_pcode
+ *           lowers the name it searches for (the Windows port's 14 Sep 26).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -363,7 +365,7 @@ Private bool comlin(int argc, char *argv[]) {
         check_admin();
         is_bootstrap = TRUE;
         internal_mode = TRUE;
-        strcpy(command_processor, "$BBPROC");
+        strcpy(command_processor, "$bbproc");
 
     } else {
       switch (UpperCase(argv[arg][1])) {
@@ -673,10 +675,13 @@ Private bool load_pcode(char *pname, u_char **ptr) {
 
   pcode = ((u_char *)sysseg) + sysseg->pcode_offset;
 
-  /* Take a local copy of the pcode name and force it to uppercase */
+  /* Take a local copy of the pcode name and force it to lower case, the
+     canonical case of every program name since RELEASE_1.1 5 stage 3a.  The
+     names come from pcode.h, already lower, so this only guards a future
+     entry; the headers they must match are written by bbcmp.py.         */
 
   strcpy(u_pname, pname);
-  UpperCaseString(u_pname);
+  LowerCaseString(u_pname);
 
   /* Search for this item in the pcode library */
   for (i = 0; i < sysseg->pcode_len; i += (obj->object_size + 3) & ~3) {

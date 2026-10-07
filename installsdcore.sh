@@ -791,8 +791,9 @@ echo "Installed: /etc/sudoers.d/sdcore (the sdsys user may run sd-elevate)."
 # --------------------
 #
 sudo cp -R sdsys /usr/local
-# Fool sd's vm into thinking gcat is populated
-sudo touch /usr/local/sdsys/gcat/\$CPROC
+# Fool sd's vm into thinking gcat is populated.  06 Oct 26 (PAL-1 stage 3a): the name is lower
+# case, because that is what config.c now looks for and what CATALOG writes.
+sudo touch /usr/local/sdsys/gcat/\$cproc
 # create errlog
 sudo touch /usr/local/sdsys/errlog
 #

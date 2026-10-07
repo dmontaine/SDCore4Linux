@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 dm  PAL-1 stage 3a: the debugger process is $pdbg, lower case (the
+*               Windows port's 4d8136b2).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -1547,7 +1549,7 @@ show.call.stack:
       ss = s<stack.index>
       message = ss<1,1>
       begin case
-         case message = '$CPROC'
+         case message = '$cproc'   ;* 14 Sep 26 stage 3a: program names are lower
             message = 'Command processor'
             gosub emit.msg
          case 1

@@ -78,7 +78,7 @@ REMOVED_VERBS = ["MODIFY", "PROC", "SED", "UPDATE.RECORD", "TAPE", "RESTORE",
 SURVIVING_PROGRAMS = ["MODIFYA", "SET_ACC_PASSWORD", "ED", "EDIT", "APISRVR",
                       "CPROC", "LOGIN", "SETPTR"]
 SURVIVING_VERBS = ["MODIFY.ACCOUNT", "MODIFY.PASSWORD", "ED", "EDIT"]
-SURVIVING_CATALOGUE = ["$MODIFYA", "$APISRVR", "$EDIT", "$ED"]
+SURVIVING_CATALOGUE = ["$modifya", "$apisrvr", "$edit", "$ed"]   # lower case since PAL-1 stage 3a (6 Oct 26)
 
 # The SDNet machinery itself.
 GONE_FROM_C = ["net_open", "NET_FILE"]

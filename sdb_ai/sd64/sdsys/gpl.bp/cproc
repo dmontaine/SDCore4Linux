@@ -1787,8 +1787,15 @@ reparse:
 * we check to see if the command is in out list of commands requiring addition priviliges 
 * we skip this during install
 $ifndef IS_INSTALL
-                  priv_required = 0    
-                  locate s in privileged_commands<1> setting priv_required then
+                  priv_required = 0
+* 06 Oct 26 dm - PAL-1 stage 3a.  THE MATCH IS CASE BLIND.  Program names are lower case now
+*   (CATALOG stores them so, and a VOC record's field 3 may carry either case while the
+*   shipped records are converted), and LOCATE is case sensitive: with the exact test, a
+*   lower-case "$createa" would match nothing, the root-privilege step would be SKIPPED, and
+*   CREATE.ACCOUNT, DELETE.ACCOUNT, MODIFY.ACCOUNT, MODIFY.PASSWORD and RESTORE.ACCOUNT
+*   would run without the privilege they need.  The list below stays upper case.
+*   test-privcmd-units.py holds this in place.
+                  locate upcase(s) in privileged_commands<1> setting priv_required then
                      priv_required = 1 
 *                    * must raise  privilige 
                     call !EUID_RESTORE(rstat)  ;* restore root privilages

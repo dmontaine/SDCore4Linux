@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 07 Oct 26 dm PAL-1 stage 3a: the API command processor is $apisrvr, lower case.
  * 15 Sep 26 dm S.19: every API connection goes through a TLS 1.3 relay
  *           (sd_tlssrv.c), started after the peer is recorded; the Ack moved
  *           after it, inside TLS.  Identity in <sd.conf's dir>/sd-tls.
@@ -137,7 +138,7 @@ bool start_connection(int unused) {
 
 /* 20240219 mab rebrand VBSRVR to APISRVR */ 
   if (is_sdApiSrvr)
-    strcpy(command_processor, "$APISRVR");
+    strcpy(command_processor, "$apisrvr");
     
 /* 20240219 mab rebrand VBSRVR to APISRVR */
   if (connection_type == CN_SOCKET) {

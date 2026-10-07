@@ -5291,7 +5291,7 @@ def st_deffun():
             if token != TKN_STRING:
                 error('Deffun - Expected quoted call name after CALLING')
 
-            function_call_name = u_token_string
+            function_call_name = token_string.lower()   # 14 Sep 26 stage 3a
             st_work =  (st_work | 1)
 
         elif u_look_ahead_token_string == "KEY":
@@ -5528,7 +5528,7 @@ def st_program():
 
     # Get name of program
 
-    s = get_name()
+    s = get_name().lower()     # 14 Sep 26 stage 3a - program names are lower case
     program_name = s[:HDR_PROGRAM_NAME_LEN]
     if len(s) > HDR_PROGRAM_NAME_LEN:
         error(' Program name exceeds max lenght')
@@ -7187,7 +7187,7 @@ def pass1(sfn):
             elif uln[:8] == "$CATALOG":
                 tokens = ln.split()
                 if len(tokens) == 2:
-                    catalog_name = tokens[1].upper()
+                    catalog_name = tokens[1].lower()   # 14 Sep 26 stage 3a - gcat names are lower case
                     print ('$CATALOG Found: ' + catalog_name)
                 else:
                     catalog_name = ''
@@ -9649,16 +9649,24 @@ def get_var_name():
 # GET.CALL.NAME  Used for CALL and SUBROUTINE statements
 
 def get_call_name():
+    # 14 Sep 26 Windows port - RELEASE_1.1 5 stage 3a: call and program names
+    # are LOWER case, the runtime's canonical case, in lockstep with BCOMP's
+    # GET.CALL.NAME.  The pcode library's header names come from here and
+    # sd.c load_pcode() matches them against lower-case names, so the two
+    # compilers disagreeing would stop the bootstrap at "Pcode item not found".
+    # get_name() itself is unchanged: COMMON names come through it.
+    # The '!' branch called the string as a function; a call name beginning
+    # "!" or "*" would have raised TypeError here.  Fixed while in the function.
     s = ""
 
     if look_ahead_token_string == '!' or look_ahead_token_string == '*':
-        s = look_ahead_token_string()
+        s = look_ahead_token_string
         get_token()
         s = get_name_common_path(s)
-        return s
+        return s.lower()
     else:
         s = get_name()
-        return s
+        return s.lower()
 
 def get_name():
     s = ""
@@ -10445,11 +10453,12 @@ def main():
     init_stuff()
     
 
-    # 13 Sep 26 dm - UPPER, as BCOMP:831 does.  The record name is lower case on
-    # disk now, but the object header's name is what load_pcode (sd.c:678) and
-    # the object cache match, upper case; a PROGRAM/SUBROUTINE statement still
-    # overrides this with its own (upper-case) name.
-    program_name = os.path.basename(sfp).upper()
+    # 13 Sep 26 dm - UPPER, as BCOMP:831 did.
+    # 06 Oct 26 dm - LOWER now (PAL-1 stage 3a, the Windows port's RELEASE_1.1 5): the
+    # object header's name is what load_pcode (sd.c) and the object cache match,
+    # and both now match lower case; a PROGRAM/SUBROUTINE statement overrides this
+    # with its own name, lower-cased by get_name() above, in lockstep with BCOMP.
+    program_name = os.path.basename(sfp).lower()
 
     #   pass 1
     pss_src = pass1(sfp)

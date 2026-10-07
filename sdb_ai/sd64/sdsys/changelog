@@ -2,6 +2,63 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  A PROGRAM, SUBROUTINE AND CATALOGUE NAME IS LOWER CASE EVERYWHERE
+           SD KEEPS IT.
+
+           Until now SD wrote the name of a catalogued program in capitals:
+           a CATALOG made the VOC entry ZZSUB and the file cat/ZZSUB, the
+           global catalogue held $CPROC and !USERNAME, the program library
+           held the names of the built-in subroutines in capitals, and the
+           messages said "ZZSUB added to private catalogue".  Every one of
+           them is now lower case - zzsub, $cproc, !username - and the
+           messages print the name that way.  You can still type a name in
+           any case: CALL, CATALOG and DELETE.CATALOG turn what you typed to
+           lower case before they look.  This is the step of making every
+           name in SD lower case that SD Core for Windows took on 14 September
+           (its change 4d8136b2); the two products now agree on it.
+
+           It changes the SD program and the SD kernel together, so an
+           install replaces both: a new kernel over an old catalogue, or the
+           reverse, would look for $cproc in the wrong case and find nothing.
+           The installer replaces both.
+
+           CATALOG over an entry that was catalogued before this step does
+           the right thing: it finds the old capital-letter entry, writes the
+           new lower-case one and removes the old one, so you are left with
+           one entry and not two.  DELETE.CATALOG finds an old capital-letter
+           local entry too.  Two things beside that: CPROC decides which
+           commands need administrator rights (CREATE.ACCOUNT, DELETE.ACCOUNT,
+           MODIFY.ACCOUNT, MODIFY.PASSWORD, RESTORE.ACCOUNT) by looking their
+           catalogue name up in a list written in capitals, and a lower-case
+           catalogue name would have matched nothing and run the command
+           without the rights it needs, silently; it now compares in capitals
+           whatever case the VOC holds.  A file's trigger name, stored inside
+           the file by an earlier version in capitals, is turned to lower case
+           when the file is opened.
+
+           What it does NOT do: it does not rename anything you catalogued
+           before.  On Linux a name that differs only in case is a different
+           file, so a program of your own catalogued as ZZSUB, with its object
+           in cat/ZZSUB, is no longer found after this step ("Unable to load
+           'zzsub'", measured on a test copy of SD) until you run CATALOG on
+           it again.  The dictionaries of your own files and the other
+           records you own are unchanged.  SD's own catalogue is rebuilt by
+           the install, so nothing of SD's needs doing.
+
+           This was measured on a test copy of SD built from this tree and on
+           one built from the tree before it.  A script reads names back
+           case-sensitively: the global catalogue held no capital letter in
+           any of its 158 entries (before: all 158), the program library's 55
+           names held none (before: all 55), CATALOG said "zzcc3ap added to private
+           catalogue" and cat/ held exactly zzcc3ap (before: ZZCC3AP), the
+           runtime named a missing subroutine as '!zznosuchsub3a', a local
+           entry stored as zzcl3a was found by a call typed ZZCL3A, and
+           CATALOG and DELETE.CATALOG over an entry stored as ZZCL3A left and
+           removed exactly one.  29 of 29 rows passed; the same script against
+           the earlier build failed 15.  Two rows of it were made to fail on
+           purpose, by taking the old-entry handling out of DELETE.CATALOG and
+           CATALOG in turn, and each failed exactly where it should.
+
 06 Oct 26  THE DICTIONARIES SD SHIPS NOW NAME THEIR ITEMS IN LOWER CASE, AND
            "LIST ACCOUNTS" SAYS SUSPENSION, NOT TIER.
 
