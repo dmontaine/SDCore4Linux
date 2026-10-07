@@ -1,0 +1,62 @@
+* PY_LISTCREATE
+* Create Python list for sd use
+* Copyright (c)2026 The SD Developers, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 06 Oct 26 dm - new (parity audit PAL-8, agreed with the Windows agent).  The
+*                Windows port's catalogued name for this program is PY_LISTCREATE
+*                (it matches PY_CREATEDICT); this tree shipped it as PY_LISTCRTE
+*                (22 Sep, S.43), so a BASIC program that called one failed on
+*                the other port.  PY_LISTCREATE is now the documented name on
+*                both ports and PY_LISTCRTE stays as an alias; this program has
+*                the same body as PY_LISTCRTE.  Nothing is removed.
+* END-HISTORY
+* START-DESCRIPTION:
+*
+* return_status = PY_LISTCREATE(listname)
+*
+* listname - name of python list to create
+* return_status 0 - success or error as defined in ERR.H
+*               status() - 0 on success, error code as defined in ERR.H
+*
+* PY_LISTCRTE is the same program under its older name.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+$no.symbols
+$no.xref
+function py_listcreate(listname)
+$catalog !py_listcreate
+
+$include KEYS.H
+$include ERR.H
+
+* Reject empty Python object name(s) before SDPYOBJ/SDEXT call, as the
+* other PY_* programs do.
+if listname = '' then
+   set.status 1
+   return 1
+end
+* --------------------
+rtn_status = SDPYOBJ("","",listname,SD_PyListCrte)
+*
+return rtn_status
+
+end

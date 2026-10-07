@@ -2,6 +2,29 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  PY_LISTCREATE IS THE NAME OF THE PYTHON LIST CONSTRUCTOR ON BOTH
+           PORTS, AND PY_LISTCRTE STILL WORKS.
+
+           The embedded-Python function that makes an empty Python list was
+           added here on 22 September as PY_LISTCRTE.  SD Core for Windows had
+           added the same function a week earlier as PY_LISTCREATE, so a BASIC
+           program that called one name failed on the other port with
+           "Unable to load '!PY_LISTCREATE' object code".  Both names now work
+           on both ports, and PY_LISTCREATE is the one the documentation will
+           use.  Both are also declared in the sdpyfunc.h header, which until
+           now did not declare PY_LISTCRTE at all, so including the header gave
+           access to every other Python function but not this one.
+
+           This was run on a test copy of SD: PY_LISTCREATE made a list,
+           appended to it and read it back, a second call with the same name
+           returned -12038, an empty name returned 1, and PY_LISTCRTE behaved
+           the same.  On the build before the change, the new name failed as
+           above.
+
+           What it does not do: it does not rename or remove anything, and the
+           User and Administrator guides still name only PY_LISTCRTE until the
+           documentation is revised.
+
 06 Oct 26  SIGNING IN NO LONGER ASKS "UPDATE VOC TO NEW RELEASE" WHEN AN
            ACCOUNT'S VOC IS FROM AN OLDER RELEASE.
 

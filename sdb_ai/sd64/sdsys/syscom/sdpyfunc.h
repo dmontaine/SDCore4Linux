@@ -17,7 +17,11 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* rev 0.9-2 Apr 25 mab 
+* 06 Oct 26 dm - PAL-8 (parity audit): PY_LISTCREATE, the name the Windows port
+*           uses, and its older alias PY_LISTCRTE are declared here, so the
+*           documented $include route reaches them.  PY_LISTCRTE was never
+*           declared in this header before.
+* rev 0.9-2 Apr 25 mab
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -48,4 +52,6 @@ deffun PY_STRGET(strname) calling '!PY_STRGET'
 deffun PY_LISTAPPD(listname,objname) calling '!PY_LISTAPPD'
 deffun PY_LISTGETS(listname) calling '!PY_LISTGETS'
 deffun PY_LISTCLR(listname) calling '!PY_LISTCLR'
+deffun PY_LISTCREATE(listname) calling '!PY_LISTCREATE'
+deffun PY_LISTCRTE(listname) calling '!PY_LISTCRTE'
 *
