@@ -28,7 +28,7 @@
 * running from is not safe; it holds only shipped lower-case ids, so it has no
 * pair, and the lookup fold serves it).
 *
-* LINUX.  Four things differ from the port, each forced by the operating system:
+* LINUX.  Five things differ from the port, each forced by the operating system:
 *   1. OWNERSHIP.  A rebuilt file is a NEW file, owned by whoever creates it.  The
 *      install runs this as root, so each account's files are converted with the
 *      process switched to the account's owner (!euid_set, back with !euid_restore):
@@ -47,9 +47,20 @@
 *      case, unless the lower-case name already exists (then both are reported and
 *      left).  NTFS folds, so the port has no such step.
 *   4. A path under SDSYS named by a user's VOC is not converted: it is not the
-*      user's to rebuild.
+*      user's to rebuild.  It is counted and named at the end (11036), not skipped
+*      silently.
+*   5. A file named by an account's VOC but lying OUTSIDE that account's directory
+*      (another user's, a group account's) is not converted either: the rebuilt file
+*      would belong to this user, not to its owner, and two accounts naming one file
+*      would make the owner depend on register order.  Counted and named (11036); the
+*      owner converts it with CONFIGURE.FILE NO.CASE, or it is converted as part of
+*      the account it lives in.  The port has no such case: the new file inherits the
+*      folder's ACL.
 *
 * START-HISTORY:
+* 07 Oct 26 dm  The Windows agent's review (mail T0639): hunk 4 is no longer silent, and the
+*           test is made on the real path of both sides (links resolved); files outside
+*           the account's own directory are left and named (LINUX 5).
 * 07 Oct 26 dm  PAL-1 D2: ported for Linux from the port's 16 Sep 26 version.  The
 *           register walk converts each account as its owner (see LINUX above),
 *           SDSYS is skipped, cat/ names are made lower case, and the port's
@@ -97,6 +108,10 @@ $include err.h
    err.count = 0                   ;* files that could not be read or rebuilt
    acct.skipped = 0                ;* accounts not converted (no owner to act as)
    cat.renamed = 0                 ;* private catalogue names made lower case
+   outside.count = 0               ;* files a VOC names outside its account, or under SDSYS: left
+   outside.files = ''              ;* @fm: their real paths (capped like the twin list)
+   sds.real = ospath(@sdsys, OS$FULLPATH)
+   if sds.real = '' then sds.real = @sdsys
 
 * 07 Oct 26 - the install runs this as root, and a rebuilt file is a new file, so
 *   every file is made with the process acting as the account's owner (LINUX 1
@@ -139,6 +154,12 @@ $include err.h
          next j
       next i
       crt sysmsg(10181)            ;* Rename or delete one id of each pair, then convert that file with CONFIGURE.FILE NO.CASE.
+   end
+   if outside.count then
+      crt sysmsg(11036, outside.count)         ;* %1 file(s) named by an account's VOC lie outside it or under SDSYS and were left:
+      for i = 1 to dcount(outside.files, @fm)
+         crt sysmsg(10184, outside.files<i>)   ;* File: %1
+      next i
    end
    if check.only then
       crt sysmsg(10182, scanned, twin.count)   ;* Checked %1 file(s); %2 hold a case-only duplicate record id.
@@ -242,6 +263,10 @@ fix.cat.names:
 *   this.is.sdsys says whether its VOC is the live one.
 do.account.at:
    file.list = ''
+* 07 Oct 26 - the account's own directory in the form FL$PATH uses (links resolved), for
+*   the inside-the-account test in convert.one (LINUX 5).
+   acct.real = ospath(this.acct, OS$FULLPATH)
+   if acct.real = '' then acct.real = this.acct
    openpath this.acct:@ds:'voc' to acct.voc then
 * 14 Sep 26 - LIST 11, NOT 13.  Select lists run 0 to 12 (HIGH_SELECT,
 *   gplsrc/sd.h:43), and 11-12 only in an $internal program; 13, 14 and 15
@@ -349,11 +374,22 @@ convert.one:
 *   THE TEST IS ON THE OPENED FILE'S PATH, like the VOC test above rather than
 *   on how the file was queued, and both separators are folded first because
 *   FL$PATH may carry backslashes where @ds is '/'.
-* 07 Oct 26 - LINUX.  SDSYS is skipped as a whole (LINUX 2), so the port's $ipc
-*   case above cannot arise here.  The test now guards LINUX 4: any file under
-*   SDSYS that an account's VOC names (a pointer to $ipc, say) is not that
-*   account's to rebuild, whatever it is called.
-   if old.path[1, len(@sdsys) + 1] = @sdsys : @ds then
+* 07 Oct 26 - LINUX 4 AND 5.  SDSYS is skipped as a whole (LINUX 2), so the port's $ipc
+*   case above cannot arise here.  The test now guards two things: a file under SDSYS
+*   that an account's VOC names (a pointer to $ipc, say) is not that account's to
+*   rebuild; and a file OUTSIDE the account's own directory - another user's, a group
+*   account's - would be rebuilt as THIS user and change hands (the Windows agent's
+*   review, mail T0639).  Both are counted and named at the end, not skipped silently.
+*   FL$PATH is fullpath()'s answer, sdrealpath() in linuxlb.c: "..", doubled separators
+*   AND symbolic links are resolved, so a VOC path that goes through a link into SDSYS
+*   arrives here as the real path.  @sdsys and the account's own path are resolved the
+*   same way (sds.real, acct.real) before they are compared, or a link at
+*   /usr/local/sdsys would make every test miss.
+   in.sds = (old.path[1, len(sds.real) + 1] = sds.real : @ds) or (old.path[1, len(@sdsys) + 1] = @sdsys : @ds)
+   in.acct = (old.path[1, len(acct.real) + 1] = acct.real : @ds)
+   if in.sds or not(in.acct) then
+      outside.count += 1
+      if dcount(outside.files, @fm) < twin.list.cap then outside.files<-1> = old.path
       close old.fu
       return
    end

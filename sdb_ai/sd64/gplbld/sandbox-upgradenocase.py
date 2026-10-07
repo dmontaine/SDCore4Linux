@@ -119,6 +119,10 @@ def main():
     box = os.path.abspath(args[0])
     sysd = os.path.join(box, "sys")
     acct = os.path.join(box, "user_accounts", A)
+    OUTD = os.path.join(box, "user_accounts", "zzout" + RUN)      # a directory that is NOT the account's
+    OUTF = os.path.join(OUTD, "zzo")                              # a case-sensitive file in it, named by the VOC
+    SDSF = os.path.join(sysd, "zzsds" + RUN)                      # a case-sensitive file under SDSYS, named by the VOC
+    OUTF_REAL, SDSF_REAL = os.path.realpath(OUTF), os.path.realpath(SDSF)   # what FL$PATH prints (links resolved)
     say("sandbox-upgradenocase: sandbox  %s" % box)
     say("sandbox-upgradenocase: tree     %s" % os.path.dirname(HERE))
     say("sandbox-upgradenocase: user     %s (the account's owner; also the walk's owner switch)" % USER)
@@ -137,7 +141,7 @@ def main():
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
     if SOLO:
         say("sandbox-upgradenocase: SOLO MODE - Solo's upgrade_nocase and messages 11060-11063 replace the full product's in this sandbox")
-        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11064)):
+        for rel in ("gpl.bp/upgrade_nocase",) + tuple("messages/%d" % n for n in range(11060, 11065)):
             src = os.path.join(SOLO_SDSYS, rel)
             if not os.path.isfile(src):
                 bail("Solo has no %s" % src)
@@ -153,7 +157,7 @@ def main():
             p = os.path.join(sysd, "accounts", n)
             if os.path.exists(p):
                 os.remove(p)
-        for p in (acct,):
+        for p in (acct, OUTD, SDSF):
             if os.path.isdir(p):
                 shutil.rmtree(p)
         for rec in (FIX, RD):
@@ -166,6 +170,7 @@ def main():
         say("\n--- the fixture ------------------------------------------------------------------")
         cleanup()
         os.makedirs(os.path.join(acct, "cat"))
+        os.makedirs(OUTD)
         created.append(acct)
         # register: path, description, group (ACC$PATH, ACC$DESCR, ACC$GROUP)
         reg(box, A, acct, "sdu_" + USER)
@@ -189,6 +194,17 @@ def main():
             "   openpath acct:'/voc' to v else crt 'FIX no voc' ; stop",
             "   write 'F':@fm:'zzd1':@fm:'zzd1.dic' to v, 'ZZD1'",
             "   write 'F':@fm:'zzd2':@fm:'zzd2.dic' to v, 'ZZD2'",
+            # two more single-record case-sensitive files the VOC NAMES: one outside the account's directory
+            # (another user's, in the full product), one under SDSYS.  Neither holds a pair, so a walk that
+            # does not refuse them converts them - that is what the rows below look for.
+            "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed out' ; stop" % OUTF,
+            "   create.file '%s' dynamic flags 4 on error crt 'FIX create failed sds' ; stop" % SDSF,
+            "   openpath '%s' to fo else crt 'FIX no out' ; stop" % OUTF,
+            "   write 'o' to fo, 'OutRec'",
+            "   openpath '%s' to fs else crt 'FIX no sds' ; stop" % SDSF,
+            "   write 's' to fs, 'SdsRec'",
+            "   write 'F':@fm:'%s' to v, 'ZZOUT'" % OUTF,
+            "   write 'F':@fm:'%s' to v, 'ZZSDS'" % SDSF,
             "   crt 'FIX done'", "end"])
         write_text(os.path.join(sysd, "bp", RD), [
             "$internal",             # select list 11 is for an $internal program only
@@ -209,6 +225,22 @@ def main():
             "         crt 'RD ':nm<i>:' missing'",
             "      end",
             "   next i",
+            "   pn = 'out':@fm:'sds'",
+            "   pp = '%s':@fm:'%s'" % (OUTF, SDSF),
+            "   for i = 1 to 2",
+            "      openpath pp<i> to f then",
+            "         ids = ''",
+            "         select f to 11",
+            "         loop",
+            "            readnext id from 11 else exit",
+            "            ids<-1> = id",
+            "         repeat",
+            "         crt 'RD ':pn<i>:' nocase=':fileinfo(f, FL$NOCASE):' n=':dcount(ids, @fm):' ids=':convert(@fm, ',', ids)",
+            "         close f",
+            "      end else",
+            "         crt 'RD ':pn<i>:' missing'",
+            "      end",
+            "   next i",
             "   openpath acct:'/zzd1' to f then",
             "      read r from f, 'ALPHA' then crt 'RD fold alpha=':r else crt 'RD fold alpha=none'",
             "   end",
@@ -221,8 +253,8 @@ def main():
             bail("the fixture was not built")
         before, fold0, _ = readback(box, acct)
         say("    fixture read back: %s" % before)
-        ok = all(isinstance(before.get(k), dict) for k in ("voc", "zzd1", "zzd1.dic", "zzd2", "zzd2.dic"))
-        row("setup: all five files exist and are readable", ok, repr(before))
+        ok = all(isinstance(before.get(k), dict) for k in ("voc", "zzd1", "zzd1.dic", "zzd2", "zzd2.dic", "out", "sds"))
+        row("setup: all seven files exist and are readable (the five of the account, one outside it, one under SDSYS)", ok, repr(before))
         row("setup: every one of them is case SENSITIVE (flag 0) - KEEPCASE worked", ok and all(v["nocase"] == "0" for v in before.values()),
             repr(before))
         row("setup: zzd1 holds Alpha, beta, GAMMA; zzd2 holds jack, JACK, solo",
@@ -245,6 +277,16 @@ def main():
         row("1: it said 2 catalogue names would be made lower case", "2 private catalogue name(s) in" in out and "would be made lower case" in out,
             "no 11031 line with 2")
         row("1: it named both pairs of cat that cannot be renamed (ZZPAIR / zzpair)", "'ZZPAIR' and 'zzpair' both exist" in out, "no 11032 line")
+        # the Windows agent's review (mail T0639): a file the VOC names under SDSYS, or (full product) outside the account,
+        # is not converted, and is COUNTED and NAMED rather than skipped in silence
+        if SOLO:
+            row("1 (Solo): the file under SDSYS is counted and named (1 file), and the one outside the account is not",
+                "1 file(s) named by an account's VOC lie under SDSYS" in out and SDSF_REAL in out and OUTF_REAL not in out,
+                "wrong 11064 report")
+        else:
+            row("1: the file under SDSYS and the file outside the account are counted and named (2 files, both real paths)",
+                "2 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out
+                and SDSF_REAL in out and OUTF_REAL in out, "no 11036 report naming both")
         if SOLO:
             row("1 (Solo): every registered account is walked and none is skipped (there is no owner to switch to)",
                 all(("Account " + x) in out for x in (G, U, O)) and "skipped" not in out and "not converted" not in out,
@@ -272,14 +314,28 @@ def main():
             after.get("zzd1", {}).get("ids") == ["Alpha", "GAMMA", "beta"], repr(after.get("zzd1")))
         row("2: a record is now found under another case (ALPHA reads 'one')", fold2 == "one", repr(fold2))
         row("2: the dictionary part zzd1.dic converted too", after.get("zzd1.dic", {}).get("nocase") == "1", repr(after.get("zzd1.dic")))
-        row("2: the VOC converted, last, and kept ZZD1 and ZZD2",
-            after.get("voc", {}).get("nocase") == "1" and after["voc"]["ids"] == ["ZZD1", "ZZD2"], repr(after.get("voc")))
+        row("2: the VOC converted, last, and kept all four of its records (ZZD1, ZZD2, ZZOUT, ZZSDS)",
+            after.get("voc", {}).get("nocase") == "1" and after["voc"]["ids"] == ["ZZD1", "ZZD2", "ZZOUT", "ZZSDS"], repr(after.get("voc")))
         row("2: THE TWIN FILE WAS LEFT WHOLE: zzd2 is still case sensitive with jack, JACK and solo",
             after.get("zzd2", {}).get("nocase") == "0" and after["zzd2"]["ids"] == ["JACK", "jack", "solo"], repr(after.get("zzd2")))
         row("2: the report names the twin (WARNING line, then the file and the pair)",
             "WARNING: 1 file(s) hold 1 record id(s) that differ only by case" in out and re.search(r"jack / JACK|JACK / jack", out) is not None,
             "no WARNING for zzd2")
-        row("2: the summary says 4 of 5 files converted (voc, zzd1, zzd1.dic, zzd2.dic)", "Converted 4 of 5 file(s)" in out, "summary differs")
+        if SOLO:
+            row("2 (Solo): the summary says 5 of 6 files converted (voc, zzd1, zzd1.dic, zzd2.dic, and the one outside the account, which is the user's own)",
+                "Converted 5 of 6 file(s)" in out, "summary differs")
+            row("2 (Solo): the file outside the account WAS converted (flag 1) and kept its record",
+                after.get("out", {}).get("nocase") == "1" and after["out"]["ids"] == ["OutRec"], repr(after.get("out")))
+        else:
+            row("2: the summary says 4 of 5 files converted (voc, zzd1, zzd1.dic, zzd2.dic)", "Converted 4 of 5 file(s)" in out, "summary differs")
+            row("2: the file outside the account was LEFT case sensitive and whole (it is another owner's)",
+                after.get("out", {}).get("nocase") == "0" and after["out"]["ids"] == ["OutRec"], repr(after.get("out")))
+        row("2: the file under SDSYS was LEFT case sensitive and whole",
+            after.get("sds", {}).get("nocase") == "0" and after["sds"]["ids"] == ["SdsRec"], repr(after.get("sds")))
+        row("2: and both are named at the end, once",
+            (("1 file(s) named by an account's VOC lie under SDSYS" in out) if SOLO else
+             ("2 file(s) named by an account's VOC lie outside that account's directory, or under SDSYS" in out))
+            and out.count(SDSF_REAL) == 1, "report wrong")
         row("2: cat/ is ZZSUB1 and Mixed renamed lower, the pair and zzsub2 untouched",
             sorted(os.listdir(os.path.join(acct, "cat"))) == sorted(["zzsub1", "mixed", "zzsub2", "ZZPAIR", "zzpair"]),
             repr(sorted(os.listdir(os.path.join(acct, "cat")))))
@@ -317,7 +373,8 @@ def main():
         say("\n--- leg 3: a second real run has nothing left to convert -------------------------")
         out = isess(box, "RUN gpl.bp upgrade_nocase")
         row("3: it ran to the end (COMPLETE)", re.search(r"(?m)^COMPLETE\s*$", out) is not None, "no COMPLETE")
-        row("3: nothing more was converted (Converted 0 of 5)", "Converted 0 of 5 file(s)" in out, "summary differs")
+        row("3: nothing more was converted (Converted 0 of %s)" % ("6" if SOLO else "5"),
+            ("Converted 0 of %s file(s)" % ("6" if SOLO else "5")) in out, "summary differs")
         row("3: the twin is still reported, and still left whole", "WARNING: 1 file(s) hold 1 record id(s)" in out, "no WARNING")
         again, _, _ = readback(box, acct)
         row("3: the files read back as after leg 2", again == after, repr(again))

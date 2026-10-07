@@ -98,9 +98,14 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            What it does NOT do: SDSYS's own files are not converted, because
            the install makes them new; an account that is neither a user nor
            a group account is named and skipped; a file another session has
-           open is left and named; it does not touch a directory file; and it
-           runs only during an install, because it needs the installer's root
-           session (the program refuses to switch owner for anyone else).
+           open is left and named; a file that an account's VOC names but that
+           lies outside that account's own directory (another user's, say), or
+           under SDSYS, is left and named in a list at the end, because
+           converting it as this user would change who owns it (the real path
+           is used, so a link into SDSYS does not get past); it does not touch
+           a directory file; and it runs only during an install, because it
+           needs the installer's root session (the program refuses to switch
+           owner for anyone else).
 
            This was measured on a test copy of SD, not yet on an install.  A
            fixture account with five case-sensitive files (a VOC, a data file
@@ -115,11 +120,15 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            left the new files with the owner and group of the ones they
            replaced, made them mode 664 and did not touch SDSYS; a second run
            converted none.  Three accounts it could not convert were each
-           named with the reason.  42 of 42 rows passed.  Deleting the pair
+           named with the reason.  Two more case-sensitive files the VOC
+           named, one in another directory and one under SDSYS, were left
+           whole and named.  46 of 46 rows passed.  Deleting the pair
            test for a trial let it rebuild the pair file and lose JACK, and
            the rows caught that; taking out the catalogue step failed the
-           four catalogue rows and nothing else.  Not measured: an install,
-           where the owner is another user than the one running the test.
+           four catalogue rows and nothing else; taking out the test for the
+           other directory and SDSYS let both files be converted and failed
+           six rows.  Not measured: an install, where the owner is another
+           user than the one running the test.
 
 07 Oct 26  NO TWO RECORD IDS IN A FILE MAY DIFFER ONLY BY CASE.
 
