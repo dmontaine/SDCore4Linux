@@ -227,10 +227,10 @@ def main():
              or os.path.exists(os.path.join(V.SDSYS, "gpl.bp", "MICRO")))
 
     # The VOC ids (file names here, entries in the omit list) are lower case
-    # since plan M3, 12 Sep 2026; field 3, the CATALOGUE name, is not a VOC id
-    # and stays as it was.
-    for verb, target in (("NANO", "$EDIT"), ("MICRO", "$EDIT"),
-                         ("EDIT", "$ED"), ("ED", "$ED")):
+    # since plan M3, 12 Sep 2026; field 3, the CATALOGUE name, is lower case
+    # since PAL-1 stage 3b, 7 Oct 2026 ($EDIT before it).
+    for verb, target in (("NANO", "$edit"), ("MICRO", "$edit"),
+                         ("EDIT", "$ed"), ("ED", "$ed")):
         rec = voc_template(verb.lower())
         ok = (rec is not None and len(rec) >= 3
               and rec[0][:1] == "V" and rec[1] == "CA" and rec[2] == target)

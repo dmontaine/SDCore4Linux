@@ -81,9 +81,9 @@ SUSPENDED_VALUES = ("", "SUSPENDED")
 ALL_GROUP = "sdusers"
 
 # The account verbs, their catalogued names, and the program that owns each.
-VERBS = (("CREATE.ACCOUNT", "$CREATEA", "CREATEA"),
-         ("DELETE.ACCOUNT", "$DELACC", "DELACC"),
-         ("MODIFY.ACCOUNT", "$MODIFYA", "MODIFYA"))
+VERBS = (("CREATE.ACCOUNT", "$createa", "CREATEA"),
+         ("DELETE.ACCOUNT", "$delacc", "DELACC"),
+         ("MODIFY.ACCOUNT", "$modifya", "MODIFYA"))   # catalogue names lower since PAL-1 stage 3b (7 Oct 26)
 
 # ***THE REFUSAL WORDINGS, AND THEY MUST NOT SHARE A SUBSTRING.***  2001 is the
 # privilege refusal the verbs print themselves; the VOC miss is CPROC's and
