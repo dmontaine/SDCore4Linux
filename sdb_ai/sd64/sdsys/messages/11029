@@ -1,0 +1,1 @@
+Account %1 was skipped: this session cannot act as its owner, %2 (error %3). The conversion runs as root, as the installer does.

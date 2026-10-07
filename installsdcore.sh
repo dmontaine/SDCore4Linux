@@ -1369,6 +1369,41 @@ if [ "$accounts_kept" = yes ]; then
     echo "Bringing every registered account's VOC up to this release."
     echo "(If it asks about a record type change, answer for each account.)"
     sudo bin/sd UPDATE.ACCOUNTS ALL
+
+# 07 Oct 26 dm - PAL-1 D2 (the Windows port's RELEASE_1.1 5 D2, its RefreshNocase).
+#            THE KEPT ACCOUNTS' FILES ARE MADE CASE INSENSITIVE.  The kernel now
+#            makes every NEW file so, but an upgrade keeps the old ones, built
+#            case sensitive, and so keeps their twins' risk.  upgrade_nocase
+#            reads every file first and rebuilds only those proven to hold no
+#            two ids that differ only by case; a file that holds a pair is left
+#            exactly as it was and named.  It also makes each account's private
+#            catalogue names lower case (cat/ZZSUB -> cat/zzsub), which stage 3a
+#            needs on ext4 and the port does not.
+#
+#            IT RUNS HERE AND ONLY HERE: it acts as each account's owner
+#            (euid_set), which a root session may do and nobody else, and the
+#            production CPROC compiled below refuses root.  It runs AFTER the VOC
+#            update, as the port does, so the register it walks is the finished
+#            one.  A WARNING about a pair of ids is NOT a failure and is not
+#            fatal; a run that did not reach COMPLETE is reported and the
+#            install goes on, because an unconverted file keeps working as it did.
+#            The report is kept in /var/tmp/sdcore-install-nocase.log.
+    echo
+    echo "Making every kept account's files case insensitive."
+    nc_rc=0
+    nc_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_nocase 2>&1) || nc_rc=$?
+    printf '%s\n' "$nc_out"
+    printf '%s\n' "$nc_out" | sudo tee /var/tmp/sdcore-install-nocase.log >/dev/null
+    echo "sd exit code: $nc_rc" | sudo tee -a /var/tmp/sdcore-install-nocase.log >/dev/null
+    nc_plain=$(printf '%s\n' "$nc_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+    if [ "$nc_rc" -ne 0 ] || ! printf '%s\n' "$nc_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+        printf "%b\n" "$RED"
+        echo "WARNING: the case-insensitive conversion of the kept accounts did not finish."
+        echo "  Nothing was lost: a file that was not converted works as it did."
+        echo "  Its output is in /var/tmp/sdcore-install-nocase.log."
+        echo "  Run this installer again to retry; it can only run during an install."
+        printf "%b\n" "$NC"
+    fi
 fi
 
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.

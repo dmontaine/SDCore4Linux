@@ -2,6 +2,61 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  AN UPGRADE MAKES YOUR OLD FILES CASE INSENSITIVE, AND YOUR PRIVATE
+           CATALOGUE LOWER CASE.
+
+           When you reinstall and keep your accounts, the installer now walks
+           every kept account after it has brought the VOCs forward.  Each
+           of the account's files (the data and dictionary parts its VOC names,
+           then the VOC itself, last) is first read, looking for two ids that
+           differ only by case.  A file with none is rebuilt case insensitive
+           and keeps every record.  A file that has a pair is left exactly as
+           it was and named, with the pair, so you can rename or delete one id
+           and convert that file with CONFIGURE.FILE NO.CASE; a file with
+           indexes is named and left for CONFIGURE.FILE too.  The report is
+           printed and kept in /var/tmp/sdcore-install-nocase.log.  A pair is
+           a warning, not a failure, and the install goes on.  This is the
+           second half of the step SD Core for Windows took on 14 September
+           (its change 407fa2e4).
+
+           Two things are Linux's own.  A rebuilt file is a new file, so each
+           account is converted with the installer acting as the account's
+           owner (your Linux user for a user account, sdsys for a group
+           account); an account that cannot be acted as is skipped and named.
+           The files come out group writable (mode 664).  And each account's
+           private catalogue is made lower case: the step that made every
+           program name lower case left an entry catalogued before it, as
+           cat/ZZSUB, where a call no longer finds it ("Unable to load"),
+           because a name that differs only by case is a different file on
+           Linux.  cat/ZZSUB is renamed cat/zzsub unless cat/zzsub exists
+           already, in which case both are named and left for you.
+
+           What it does NOT do: SDSYS's own files are not converted, because
+           the install makes them new; an account that is neither a user nor
+           a group account is named and skipped; a file another session has
+           open is left and named; it does not touch a directory file; and it
+           runs only during an install, because it needs the installer's root
+           session (the program refuses to switch owner for anyone else).
+
+           This was measured on a test copy of SD, not yet on an install.  A
+           fixture account with five case-sensitive files (a VOC, a data file
+           with ids Alpha, beta and GAMMA, a file with jack and JACK, and two
+           dictionaries) and a private catalogue with ZZSUB1, Mixed, a lower
+           case entry and a pair ZZPAIR and zzpair: a read-only run (CHECK)
+           changed nothing and named the pair and the two renames; the real
+           run converted four of the five files, kept all three records of
+           the data file, read ALPHA back as "one", left the file with jack
+           and JACK holding both and case sensitive, renamed ZZSUB1 and
+           Mixed with their bytes intact and kept both of ZZPAIR and zzpair,
+           left the new files with the owner and group of the ones they
+           replaced, made them mode 664 and did not touch SDSYS; a second run
+           converted none.  Three accounts it could not convert were each
+           named with the reason.  42 of 42 rows passed.  Deleting the pair
+           test for a trial let it rebuild the pair file and lose JACK, and
+           the rows caught that; taking out the catalogue step failed the
+           four catalogue rows and nothing else.  Not measured: an install,
+           where the owner is another user than the one running the test.
+
 07 Oct 26  NO TWO RECORD IDS IN A FILE MAY DIFFER ONLY BY CASE.
 
            Every file SD creates now treats record ids without regard to

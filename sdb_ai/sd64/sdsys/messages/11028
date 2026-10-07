@@ -1,0 +1,1 @@
+Account %1 was skipped: it is neither a user nor a group account, so there is no owner to convert its files as. Convert them by hand with CONFIGURE.FILE NO.CASE.
