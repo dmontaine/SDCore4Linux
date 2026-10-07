@@ -26,6 +26,7 @@
 *    are spelt and worded as the Windows port's (interpreter, initialised,
 *    concatenate, process ...); no code or value changed.  SYSCOM ERR.H and
 *    ERRTEXT.H are regenerated from this file by ERRGEN.
+* 07 Oct 26 dm PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): ER_TWIN 3042.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -147,6 +148,10 @@ $define ER$WRITE.ERROR 3037    ;* Write error (os.errno)
 * ER_VFS_CLASS and ER_VFS_NGLBL, and were never raised; the VFS scaffolding
 * was removed by plan G2.  The numbers stay claimed.
 $define ER$ENCRYPTED   3041    ;* Access denied to encrypted file
+* 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  Raised by CONFIGURE.FILE when a
+* case-sensitive file it is asked to rebuild holds two ids that differ only
+* by case, so the rebuild (which would keep only one) is refused.
+$define ER$TWIN        3042    ;* Two record ids differ only by case
 
 * 4000 - 4999   SDClient errors
 $define ER$SRVRMEM     4000    ;* Insufficient memory for packet buffer

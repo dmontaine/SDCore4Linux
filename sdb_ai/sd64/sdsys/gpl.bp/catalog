@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, d236ac72 and bc54c53a): the
+*               upper-case rename and the second 3033 question run only on a
+*               case-sensitive VOC; on a NOCASE one they deleted the new entry.
 * 07 Oct 26 dm  PAL-1 stage 3a: catalogue names are stored lower case and an
 *               old upper-case entry is found and replaced (the Windows port's
 *               4d8136b2).
@@ -353,8 +356,14 @@ catalogue.program:
 *        14 Sep 26 - stage 3a.  An entry catalogued before call names went lower
 *        is under the upper-case VOC id.  It is found here and deleted once the
 *        lower-case one is written, so the entry is renamed, not twinned.
+*        07 Oct 26 - ONLY ON A CASE-SENSITIVE VOC (PAL-1 D2, the Windows port's
+*        14 Sep 26).  On a case-insensitive one the upcase read below hits the
+*        lower-case entry ITSELF, so the write updated it and the delete removed
+*        it: a second CATALOG ... LOCAL printed 3029 and left no entry.  There the
+*        exact read of call.name already finds an old upper entry, and writing
+*        over it keeps the catalogue whole.
          old.local.id = ''
-         if upcase(call.name) # call.name then
+         if upcase(call.name) # call.name and not(fileinfo(@voc, FL$NOCASE)) then
             readu old.voc.rec from @voc, upcase(call.name) then
                if upcase(old.voc.rec[1,1]) = 'V' and old.voc.rec<2> = 'CS' then
                   old.local.id = upcase(call.name)
@@ -477,8 +486,11 @@ validate.call.name:
 check.local:
 * 14 Sep 26 - stage 3a.  A local entry catalogued before call names went lower
 * is under the upper-case VOC id, so both spellings are checked.
+* 07 Oct 26 - ONLY ON A CASE-SENSITIVE VOC (PAL-1 D2, the Windows port's 14 Sep 26).
+*   On a NOCASE one both reads hit the same record, so 3033 was asked twice and
+*   the second question ate the lines after it.
    local.ids = call.name
-   if upcase(call.name) # call.name then local.ids<2> = upcase(call.name)
+   if upcase(call.name) # call.name and not(fileinfo(@voc, FL$NOCASE)) then local.ids<2> = upcase(call.name)
    for local.i = 1 to dcount(local.ids, @fm)
       local.id = local.ids<local.i>
       gosub check.local.id

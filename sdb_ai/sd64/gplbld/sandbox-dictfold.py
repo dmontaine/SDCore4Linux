@@ -168,12 +168,35 @@ def main():
         out = sess(box, "COUNT DICT VOC")
         m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
         n0 = int(m.group(1)) if m else -1
-        out = sess(box, "COPY FROM DICT VOC TO DICT VOC type,TYPE OVERWRITING", "COPY FROM DICT VOC TO DICT VOC @id,@ID OVERWRITING",
-                   "COPY FROM DICT VOC TO DICT VOC f1,%s OVERWRITING" % ctl, "COUNT DICT VOC")
+        # 07 Oct 26 - PAL-1 D2.  The plant used to COPY type to TYPE beside it, which made a twin pair on a
+        # case-sensitive dictionary.  Under D2 the dictionary is case insensitive: that COPY overwrites type
+        # in place and the stored spelling stays 'type'.  So the plant is a program that READS the shipped
+        # item, DELETES it and WRITES it back under the upper-case id: an item stored as TYPE (the upgraded
+        # dictionary of an earlier install) on a build of either kind.  The size is n0 + 1 on both: the two
+        # old-style items replace the two shipped ones, and the control is new.
+        plant = "zzpl%s" % RUN
+        with open(os.path.join(box, "sys", "bp", plant), "wb") as f:
+            f.write(("\n".join([
+                "   open 'DICT', 'VOC' to d else crt 'PLANT5 cannot open DICT VOC' ; stop",
+                "   ids = 'type':@fm:'@id'",
+                "   for i = 1 to 2",
+                "      read r from d, ids<i> else crt 'PLANT5 no ':ids<i> ; stop",
+                "      delete d, ids<i>",
+                "      write r on d, upcase(ids<i>)",
+                "   next i",
+                "   write r on d, '%s'" % ctl,
+                "   crt 'PLANT5 done'", "end"]) + "\n").encode("ascii"))
+        out = sess(box, "BASIC bp " + plant, "RUN bp " + plant, "COUNT DICT VOC")
+        os.remove(os.path.join(box, "sys", "bp", plant))
         m = re.search(r"(?m)^(\d+) record\(s\) counted", out)
         n1 = int(m.group(1)) if m else -1
-        row("leg 5: three items planted (TYPE, @ID, and a control the shipped data does not know)",
-            n0 > 0 and n1 == n0 + 3, "count %d -> %d" % (n0, n1))
+        row("leg 5: TYPE and @ID stored in upper case, and a control the shipped data does not know, planted",
+            re.search(r"(?m)^PLANT5 done\s*$", out) is not None and n0 > 0 and n1 == n0 + 1, "count %d -> %d" % (n0, n1))
+        out = sess(box, "LIST DICT VOC")
+        row("leg 5: the listing shows the two old items under their UPPER-case ids (TYPE, @ID) and not type, @id",
+            re.search(r"(?m)^TYPE\s{2,}", out) is not None and re.search(r"(?m)^@ID\s{2,}", out) is not None
+            and re.search(r"(?m)^type\s{2,}", out) is None and re.search(r"(?m)^@id\s{2,}", out) is None,
+            "the plant did not leave TYPE and @ID as the stored spellings")
         out = sess(box, "RUN gpl.bp write_install_dicts NO.PAGE", cwd=os.path.join(box, "sys"))
         row("leg 5: write_install_dicts finished (COMPLETE)", re.search(r"(?m)^COMPLETE\s*$", out) is not None, "no COMPLETE")
         row("leg 5: it reported 'REPLACED OLD ID: voc.dic TYPE BY type'",

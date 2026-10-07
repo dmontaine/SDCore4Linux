@@ -2,6 +2,67 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  NO TWO RECORD IDS IN A FILE MAY DIFFER ONLY BY CASE.
+
+           Every file SD creates now treats record ids without regard to
+           case, so a file can hold "jack" or "JACK" but never both: writing
+           one when the other is there updates the same record.  The system
+           files (the VOC and the dictionaries) were already built that way;
+           it now holds for every file, including your own.  CREATE.FILE and
+           CONFIGURE.FILE no longer accept the CASE keyword, and say why
+           (message 10176).  CONFIGURE.FILE used to carry a file's case
+           setting forward unchanged; now a rebuild of an older case-sensitive
+           file makes it case insensitive, and if the file holds two ids that
+           differ only by case it refuses (message 10177), names both, and
+           leaves the file exactly as it was, because a rebuild would have
+           kept only one of them without a word.  This is the step SD Core for
+           Windows took on 14 September (its change 72d4a533).
+
+           The same step fixed two programs that would have deleted what
+           they had just written once the VOC ignores case: CATALOG, run a
+           second time on a name it had already catalogued, wrote the entry
+           and then deleted it as an "old capital-letter entry", so no entry
+           was left and 3029 had said "added" (the Windows port measured
+           this on its own copy; here the guard went in with the change);
+           and the program that writes the
+           shipped dictionaries at installation renamed an old upper-case id by
+           writing the new one and deleting the old one, which on a file that
+           ignores case is the same record.  CATALOG now does that rename only
+           on a VOC that is still case sensitive, and the dictionary writer
+           deletes the old id first on a file that is not.
+
+           What it does NOT do: it does not convert a file that already
+           exists.  An upgrade keeps your files as they were, case sensitive,
+           and they stay that way until the conversion that follows this
+           change (or CONFIGURE.FILE on the file).  Nor does it touch a
+           directory file: on Linux a name that differs only by case is a
+           different file in the operating system, which Windows hides and
+           Linux does not, so records of bp, cat and every other directory
+           file are still looked up exactly by the kernel; the programs that
+           take a name from you (BASIC, CATALOG and the like) still try it as
+           typed, then lower case, then upper case, as before.  That
+           difference is the operating system's, not a choice.
+
+           This was measured on test copies of SD built before and after.  A
+           file made with CREATE.FILE, a record written as jack and then as
+           JACK: before, two records; after, one, stored jack.  The flag was
+           read from the file itself, not inferred from the count, on the data
+           part, the dictionary part and the account's VOC: all three case
+           insensitive after, none before.  CREATE.FILE ... CASE was refused
+           with message 10176, printed a line at a time, and made no file.
+           A case-sensitive file built in internal mode with jack and JACK in
+           it was refused by CONFIGURE.FILE with message 10177 naming both and
+           still held both records and the case-sensitive flag afterwards; the
+           same file with only jack converted, kept its record, and read case
+           insensitive.  A create.file statement in an ordinary program that
+           asked for a case-sensitive file still got a case-insensitive one;
+           when the internal-mode test in the kernel was taken out for a trial
+           that one row failed and the others passed.  26 of 26 rows passed.
+
+           Also, in passing: message 10176 and 10177 are several lines, and
+           showing them with one DISPLAY put raw field marks on the screen;
+           they are shown a line at a time, as the root-entry refusals are.
+
 07 Oct 26  A PROGRAM, SUBROUTINE AND CATALOGUE NAME IS LOWER CASE EVERYWHERE
            SD KEEPS IT.
 

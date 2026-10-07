@@ -24,11 +24,14 @@
 #   E. CATALOG LOCAL                        - 3029 names zzcl3a; the VOC id is stored lower
 #   F. the local entry, called typed upper  - and a second CATALOG LOCAL leaves ONE entry
 #   G. DELETE.CATALOG                       - 3042 / 3040 name the lower id; nothing stored remains
-#   H. LINUX ONLY, until D2 makes VOC case blind: an entry catalogued BEFORE stage 3a is stored under
-#      the upper-case VOC id.  H1 re-catalogues over it - one entry, lower, the old one gone.
-#      H2 DELETE.CATALOG of a name that exists only as the upper-case id removes it.  Windows retired
-#      its plant when D2 made the second spelling unreachable; here it is still reachable, and
-#      the hunks that handle it (catalog's old.local.id, delcat's local.id) are otherwise unwitnessed.
+#   H. an entry catalogued BEFORE stage 3a is stored under the upper-case VOC id - possible only while
+#      the VOC is case sensitive, so it depends on the build.  The script reads the VOC's flag first.
+#      On a build WITH D2 (7 Oct 26) the plant leaves no entry at all, which is D2's point, and the one
+#      row says so.  On a build before D2: H1 re-catalogues over the old entry - one entry, lower, the
+#      old one gone; H2 DELETE.CATALOG of a name that exists only as the upper-case id removes it.
+#      Windows retired its plant the same way when D2 made the second spelling unreachable (b161).
+#      Against the 3a build before D2 each of H1 and H2 was made to fail alone on a hand-made mutant
+#      (delcat without its upper-case retry, catalog with old.local.id off); see PROJECT_STATUS.md S.62.
 #
 # THE INSTRUMENT.  It prints the commands it sent and what came back.  A stored id is read from
 # LIST VOC's ROWS: CATALOG's 3029 and DELETE.CATALOG's 3040 also begin "<id> added ..." and
@@ -230,35 +233,49 @@ def main():
         # CATALOG LOCAL wrote it.  The program is the lower-case one's twin: it reads the record E made,
         # writes it under ZZCL3A and deletes zzcl3a.
         write(os.path.join(bp, "zzpl3a"), [
+            "$include keys.h",
             "   open 'VOC' to v else crt 'PLANT3A no voc' ; stop",
+            "   crt 'PLANT3A voc.nocase=':fileinfo(v, FL$NOCASE)",
             "   read r from v, 'zzcl3a' else crt 'PLANT3A no zzcl3a' ; stop",
             "   write r on v, 'ZZCL3A'", "   delete v, 'zzcl3a'", "   crt 'PLANT3A done [':r<2>:']'", "end"])
         out = sess(box, "BASIC bp zzpl3a", "RUN bp zzpl3a", LISTV)
         ids = stored_ids(out, "zzcl3a")
-        row("H1 setup: the plant ran and the VOC now stores ONLY 'ZZCL3A' (a pre-3a entry)",
-            re.search(r"(?m)^PLANT3A done \[CS\]", out) is not None and ids == ["ZZCL3A"], "stored: " + " ".join(ids))
-        if ids != ["ZZCL3A"]:
-            bail("the plant did not make an old-style entry - nothing below would measure it")
-        out = sess(box, "CATALOG bp zzcl3a zzcc3ap LOCAL", LISTV)
-        ids = stored_ids(out, "zzcl3a")
-        row("H1: CATALOG LOCAL over it leaves ONE entry, stored 'zzcl3a' (renamed, not twinned)",
-            ids == ["zzcl3a"], "stored: " + " ".join(ids))
-        out = sess(box, "RUN bp zzlc3a")
-        row("H1: the renamed entry answers a call typed ZZCL3A", re.search(r"(?m)^LOCAL3A \[ok3a\]", out) is not None,
-            "no LOCAL3A [ok3a] line")
+        m = re.search(r"(?m)^PLANT3A voc.nocase=(\d)", out)
+        if not m:
+            bail("the plant program did not report the VOC's flag - nothing below would know which case this is")
+        nocase_voc = m.group(1) == "1"
+        say("    the account's VOC reads %s" % ("NOCASE (D2)" if nocase_voc else "case sensitive (before D2)"))
+        if nocase_voc:
+            # 07 Oct 26 - PAL-1 D2.  The plant WROTE ZZCL3A and DELETED zzcl3a.  On a case-blind VOC those are
+            # one record, so the delete took it: no old-style entry can exist, which is D2's point and
+            # Windows' reason for retiring this plant (b161).  H1 and H2 have nothing to measure here.
+            row("H: the VOC is case insensitive, so an upper-case twin cannot be planted (write ZZCL3A, delete zzcl3a: NO entry)",
+                ids == [], "stored: " + " ".join(ids))
+            row("H: H1 and H2 do not apply to this build - the old-entry handling has no entry to find", True)
+        else:
+            row("H1 setup: the plant ran and the VOC now stores ONLY 'ZZCL3A' (a pre-3a entry)",
+                re.search(r"(?m)^PLANT3A done \[CS\]", out) is not None and ids == ["ZZCL3A"], "stored: " + " ".join(ids))
+            if ids != ["ZZCL3A"]:
+                bail("the plant did not make an old-style entry - nothing below would measure it")
+            out = sess(box, "CATALOG bp zzcl3a zzcc3ap LOCAL", LISTV)
+            ids = stored_ids(out, "zzcl3a")
+            row("H1: CATALOG LOCAL over it leaves ONE entry, stored 'zzcl3a' (renamed, not twinned)",
+                ids == ["zzcl3a"], "stored: " + " ".join(ids))
+            out = sess(box, "RUN bp zzlc3a")
+            row("H1: the renamed entry answers a call typed ZZCL3A", re.search(r"(?m)^LOCAL3A \[ok3a\]", out) is not None,
+                "no LOCAL3A [ok3a] line")
 
-        # --- H2. DELETE.CATALOG of an entry that exists only under the upper-case id -----------
-        say("\n--- H2. DELETE.CATALOG of an old entry that exists only under the upper-case id ---")
-        out = sess(box, "RUN bp zzpl3a", LISTV)
-        ids = stored_ids(out, "zzcl3a")
-        row("H2 setup: the VOC stores ONLY 'ZZCL3A' again", ids == ["ZZCL3A"], "stored: " + " ".join(ids))
-        if ids != ["ZZCL3A"]:
-            bail("the plant did not make an old-style entry - H2 would measure nothing")
-        out = sess(box, "DELETE.CATALOG zzcl3a LOCAL", LISTV)
-        ids = stored_ids(out, "zzcl3a")
-        row("H2: DELETE.CATALOG zzcl3a LOCAL removed the upper-case entry", ids == [], "stored: " + " ".join(ids))
-        row("H2: the refusal wording 3041 ('is not in the local catalogue') did not appear",
-            "is not in the local catalogue" not in out, "DELETE.CATALOG could not find the old entry")
+            say("\n--- H2. DELETE.CATALOG of an old entry that exists only under the upper-case id ---")
+            out = sess(box, "RUN bp zzpl3a", LISTV)
+            ids = stored_ids(out, "zzcl3a")
+            row("H2 setup: the VOC stores ONLY 'ZZCL3A' again", ids == ["ZZCL3A"], "stored: " + " ".join(ids))
+            if ids != ["ZZCL3A"]:
+                bail("the plant did not make an old-style entry - H2 would measure nothing")
+            out = sess(box, "DELETE.CATALOG zzcl3a LOCAL", LISTV)
+            ids = stored_ids(out, "zzcl3a")
+            row("H2: DELETE.CATALOG zzcl3a LOCAL removed the upper-case entry", ids == [], "stored: " + " ".join(ids))
+            row("H2: the refusal wording 3041 ('is not in the local catalogue') did not appear",
+                "is not in the local catalogue" not in out, "DELETE.CATALOG could not find the old entry")
 
         # --- G. DELETE.CATALOG, both catalogues ------------------------------------------------
         say("\n--- G. DELETE.CATALOG, typed upper -----------------------------------------------")

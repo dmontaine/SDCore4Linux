@@ -233,8 +233,10 @@ def main():
         if len(a.rest) < 2:
             sbx.die("sandbox-fromtree: sess needs <cwd> and at least one command")
         body = "\nTERM 200,9999\n" + "".join(l + "\n" for l in a.rest[1:]) + "OFF\n"
+        # 07 Oct 26: errors="replace" - SD prints a raw field mark (0xFE) when a verb shows a record
+        # it was given, and a strict decode killed the session's whole output (PAL-1 D2 witness).
         p = subprocess.run([os.path.join(sysd, "bin", "sd")], input=body, cwd=a.rest[0], env=env,
-                           capture_output=True, text=True, timeout=600)
+                           capture_output=True, text=True, errors="replace", timeout=600)
         sbx.say(sbx.ANSI.sub("", p.stdout + p.stderr))
         sbx.say("exit %d" % p.returncode)
     return 0

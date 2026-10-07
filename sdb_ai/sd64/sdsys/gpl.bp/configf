@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): the rebuild
+*               refuses a case-sensitive file that holds two ids differing only by
+*               case (10177, ER$TWIN) instead of silently dropping one; CASE is
+*               refused outside internal mode (10176); the default is NO.CASE.
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
@@ -121,7 +125,13 @@ $include err.h
    end
 
    old.case.insensitive = bitand(fileinfo(old.fu, FL$FLAGS), FL$FLAGS.NOCASE) # 0
-   case.insensitive = old.case.insensitive
+   * 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  This used to carry the old
+   *   file's setting forward.  Now every file is case insensitive, so a
+   *   CONFIGURE.FILE of a case-sensitive file for ANY reason converts it -
+   *   the test at "Do the job" sees the difference and rebuilds - and the
+   *   rebuild below refuses if the old file holds a pair of ids that differ
+   *   only by case.  Only the CASE keyword (internal mode) turns this off.
+   case.insensitive = @true
 
    * Process file parameters
 
@@ -141,6 +151,19 @@ $include err.h
             new.type = FL$TYPE.DH
 
          case keyword = KW$CASE
+            * 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  The kernel makes the
+            *   rebuilt file NOCASE whatever this asks (op_dio1.c), so CASE
+            *   would be silently ineffective.  Refused, except in internal
+            *   mode, where tooling builds the upgrade witness's fixture.
+*            07 Oct 26 - shown a line at a time: the message is several lines and
+*            one DISPLAY of it puts raw field marks on the screen (cproc, 19 Sep 26).
+            if not(kernel(K$INTERNAL, -1)) then
+               case.msg = sysmsg(10176)
+               for case.i = 1 to dcount(case.msg, @fm)
+                  display case.msg<case.i>
+               next case.i
+               stop
+            end
             case.insensitive = @false
 
          case keyword = KW$DEFAULT
@@ -311,7 +334,14 @@ convert.file:
    end
 
    file.flags = 0
-   if case.insensitive then file.flags = bitor(file.flags, FL$FLAGS.NOCASE)
+   * 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  KEEPCASE is a request the
+   *   kernel honours only in internal mode; everywhere else the new file is
+   *   NOCASE whatever is asked, and CASE was already refused above.
+   if case.insensitive then
+      file.flags = bitor(file.flags, FL$FLAGS.NOCASE)
+   end else
+      file.flags = bitor(file.flags, FL$FLAGS.KEEPCASE)
+   end
 
    begin case
       case new.type = FL$TYPE.DIR
@@ -333,10 +363,50 @@ convert.file:
 
    * Copy the data
 
+   * 14 Sep 26 Windows port - RELEASE_1.1 5 D2.  A REBUILD THAT TURNS A
+   *   CASE-SENSITIVE FILE INTO A CASE-INSENSITIVE ONE MUST NOT LOSE A RECORD.
+   *   As this loop stood, a file holding both jack and JACK would copy jack
+   *   and then write JACK over it - the new file is NOCASE, so the second
+   *   write is a rewrite - and the file came out one record short with
+   *   nothing said.  So on that conversion, and only then (an old NOCASE file
+   *   cannot hold a pair, and a conversion the other way cannot collide),
+   *   each id is looked up in the new file before it is written: a hit is a
+   *   twin.  The refusal names both spellings, deletes the temporary file
+   *   and leaves the original exactly as it was, case sensitive; the fold
+   *   (PROJECT_STATUS.md 5.12) still serves it until somebody renames or
+   *   deletes one of the pair and runs this again.  One extra read per
+   *   record on that path, about 2 us each (Handoff 61).
+   twin.check = case.insensitive and not(old.case.insensitive)
+
    select old.fu
    loop
       readnext id else exit
       read rec from old.fu, id then
+         if twin.check then
+            read twin.rec from new.fu, id then
+               * The id already there is the other spelling; find it exactly.
+               other = ''
+               select new.fu to 9
+               loop
+                  readnext other.id from 9 else exit
+                  if upcase(other.id) = upcase(id) and other.id # id then
+                     other = other.id
+                     exit
+                  end
+               repeat
+               twin.msg = sysmsg(10177, id, other, trimf(dict.flag : ' ' : file.name))
+               for twin.i = 1 to dcount(twin.msg, @fm)     ;* a line at a time (07 Oct 26)
+                  display twin.msg<twin.i>
+               next twin.i
+               if fileinfo(new.fu, FL$OPEN) then close new.fu
+               if not(ospath(new.path, os$delete)) then
+                  display sysmsg(6172) ;* Failed to delete temporary file
+               end
+               display sysmsg(6169) ;* Original file is still in place
+               @system.return.code = -ER$TWIN
+               stop
+            end
+         end
          write rec to new.fu, id
       end else
           display sysmsg(6171) ;* Error reading record from old file
@@ -450,7 +520,7 @@ set.dh.params:
       min.modulus.value = 1
       split.load.value = 80
       merge.load.value = 50
-      case.insensitive = @false
+      case.insensitive = @true      ;* 14 Sep 26 - the default is NOCASE (D2)
    end else
       if group.size.value < 0 then group.size.value = old.group.size
       if file.version < 0 then file.version = old.file.version
