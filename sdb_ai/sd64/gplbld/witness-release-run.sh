@@ -2,7 +2,8 @@
 #
 # witness-release-run.sh - three witnesses that need a throwaway account, in
 #                          one owner-run pass on one install:
-#     S.9   LOGIN's $release prompt (5026) takes N on Enter and at end of input
+#     S.9   LOGIN's $release prompt is GONE (PAL-12, 7 Oct 26): a sign-on with an old
+#           $release proceeds silently, asks nothing, and changes nothing
 #     Q.28  RUN of a runfile path over 128 characters runs (S.48; 10918 is for 255)
 #     S.2   the administrator (sdsys) LOGTOs an account whose group is newer
 #           than the session (2)
@@ -79,14 +80,18 @@
 # S.9  As zzrel1: BASIC compiles two tiny programs from bp (a directory file, so
 #      the source is written straight to disk).  ZZREL sets $release field 2 to
 #      L0.9-9; ZZSHOW prints it.  Then three sign-ons:
-#        (a) a blank first line - that line is the prompt's answer.  Enter must
-#            mean N: the session goes on to WHO, and "Please answer Y or N"
-#            (5027) never appears.  Before the fix a blank re-asked, and the next
-#            line (TERM) re-asked again.
-#        (b) </dev/null - end of input at the prompt.  Must finish, not spin.
-#        (c) RUN BP ZZSHOW - field 2 must STILL be L0.9-9, so N changed nothing.
-#      Success wording: the NEW prompt text "(y/<n>)?", so a run against an
-#      install without the message change fails rather than passing on 5025.
+#        (a) a blank first line, then WHO.  PAL-12 REMOVED THE PROMPT THIS SECTION
+#            WAS WRITTEN FOR (the Windows port's RELEASE_1.1 39), so the rows are
+#            inverted: neither "Update VOC to new release" (5026) nor "release level"
+#            (5025) nor "Please answer Y or N" (5027) appears, and the session goes
+#            on to WHO and finishes.  The two positive rows (WHO ran, not a timeout)
+#            are what make the absences believable.
+#        (b) </dev/null - end of input at sign-on.  Must finish, not spin, and show
+#            no question.
+#        (c) RUN BP ZZSHOW - field 2 must STILL be L0.9-9: a sign-on does not touch it.
+#      Before PAL-12 the rows were the opposite (the prompt shown exactly once and Enter
+#      meaning N); a run of this script against an install older than PAL-12 now FAILS
+#      S9a.1, which is the right answer for that install.
 #
 # Q.28 As zzrel1: ZZSHOW's object copied into a DEEP directory, reached through
 #      a VOC F-pointer zzdeep.out written by a third program (ZZVOC), so that
@@ -616,17 +621,25 @@ else
 fi
 
 # ==========================================================================
-head2 "4. S.9 - sign-on with \$release at $FAKE_REL"
+head2 "4. S.9 / PAL-12 - sign-on with \$release at $FAKE_REL proceeds silently"
+# 7 Oct 26 - THE PROMPT THIS SECTION USED TO MEASURE IS GONE.  PAL-12 (the Windows port's
+#   RELEASE_1.1 39, "proceed silently") removed LOGIN's release-mismatch question (5025/5026/
+#   5027), so the old rows S9a.1 ("(y/<n>)?" shown) and S9b.1 (shown exactly once) could never
+#   pass again.  The rows now measure what replaced it: the sign-on asks nothing, says nothing
+#   about the release, goes on to the first command, finishes at end of input, and leaves
+#   field 2 alone.  The success anchors are S9a.3 (WHO ran) and S9a.4 (not a timeout): the
+#   absence rows are only believed because those two say the session really got that far.
 if [ "$COMMIT" -eq 1 ] && [ "$SETUP_OK" -ne 1 ]; then
-    for r in "S9a.1 new prompt text" "S9a.2 no 5027" "S9a.3 went on to WHO" "S9a.4 finished" \
-             "S9b.1 prompt shown once" "S9b.2 finished at EOF" "S9c.1 field 2 unchanged"; do
+    for r in "S9a.1 no release question" "S9a.2 no release banner and no 5027" "S9a.3 went on to WHO" "S9a.4 finished" \
+             "S9b.1 no release question at EOF" "S9b.2 finished at EOF" "S9c.1 field 2 unchanged"; do
         not_reached "$r"; done
 else
-    say "  (a) a blank first line answers the prompt"
-    OUT=$(run_sd "$ACC" "blank line at the prompt, then WHO" "WHO")
+    say "  (a) a blank first line, then WHO: no question is asked"
+    OUT=$(run_sd "$ACC" "blank first line, then WHO" "WHO")
     if [ "$COMMIT" -eq 1 ]; then
-        ck_says  "S9a.1 the prompt says its default" "Update VOC to new release (y/<n>)?" "$OUT"
-        ck_absent "S9a.2 Enter was not refused (no 5027)" "Please answer Y or N" "$OUT"
+        ck_absent "S9a.1 no release question (no 5026 wording)" "Update VOC to new release" "$OUT"
+        ck_absent "S9a.2 no release banner (5025) and no 5027" "release level" "$OUT"
+        ck_absent "S9a.2b and no 'Please answer Y or N'" "Please answer Y or N" "$OUT"
         if printf '%s' "$OUT" | grep -qE "^[[:space:]]*[0-9]+[[:space:]]+$ACC([[:space:]]|$)"; then
             ck "S9a.3 the session went on to WHO" yes yes
         else
@@ -634,13 +647,13 @@ else
         fi
         ck "S9a.4 it finished (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
     fi
-    say "  (b) end of input at the prompt"
+    say "  (b) end of input at sign-on"
     OUT=$(run_sd_eof)
     if [ "$COMMIT" -eq 1 ]; then
-        ck "S9b.1 the prompt was shown exactly once" 1 "$(printf '%s' "$OUT" | grep -oF 'Update VOC to new release' | wc -l)"
+        ck "S9b.1 no release question was shown" 0 "$(printf '%s' "$OUT" | grep -oF 'Update VOC to new release' | wc -l)"
         ck "S9b.2 it finished at end of input (not a timeout)" no "$( [ "$SD_RC" = 124 ] && echo yes || echo no )"
     fi
-    say "  (c) N changed nothing"
+    say "  (c) the sign-on changed nothing"
     OUT=$(run_sd "$ACC" "RUN BP zzshow" "RUN BP zzshow")
     [ "$COMMIT" -eq 1 ] && ck_says "S9c.1 field 2 is still $FAKE_REL" "ZZSHOW field 2 = $FAKE_REL" "$OUT"
 fi
