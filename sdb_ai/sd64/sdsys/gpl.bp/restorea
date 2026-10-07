@@ -365,8 +365,12 @@ $include createacc.h
          restored += 1
 * 06 Oct 26 dm - PAL-15, parity audit J-3: each account restored is on the audit
 *   trail, with the archive's file name (not its directory), the same string on
-*   both ports.
-         void kernel(K$AUDIT, 'RESTORE.ACCOUNT account=' : acc.name : ' archive=' : field(zip.path, @ds, dcount(zip.path, @ds)))
+*   both ports.  The first line turns a Windows path's backslashes into @ds so the
+*   file name comes out the same on both ports (the Windows agent's form, taken
+*   so this program stays byte-identical to the Windows copy).
+         zip.leaf = change(zip.path, '\', @ds)
+         zip.leaf = field(zip.leaf, @ds, dcount(zip.leaf, @ds))
+         void kernel(K$AUDIT, 'RESTORE.ACCOUNT account=' : acc.name : ' archive=' : zip.leaf)
       end else
          failed += 1
          display sysmsg(13037, acc.name) ;* was not restored
