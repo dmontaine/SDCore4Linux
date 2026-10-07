@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
+*               dictionary read folds case, as typed then lower then upper.
 * 13 Sep 26 dm  The default source file is bp, not BP (plan M3 D3; the port's
 *               1943704).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -87,9 +89,18 @@ $include dictdict.h
       end
    end
 
+* 14 Sep 26 Windows port - RELEASE_1.1 5 stage 2a: an existing control record is
+*   found as $INCLUDE or $include; only when neither exists is one asked for.
+   incl.found = @false
    readu incl.rec from dict.file, "$INCLUDE" then
-      release dict.file, "$INCLUDE"
+      incl.found = @true
    end else
+      release dict.file, "$INCLUDE"
+      readu incl.rec from dict.file, "$include" then incl.found = @true
+   end
+   release dict.file, "$INCLUDE"
+   release dict.file, "$include"
+   if not(incl.found) then
       incl.rec = 'X'
 
       loop

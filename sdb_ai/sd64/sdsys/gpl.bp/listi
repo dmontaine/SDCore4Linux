@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
+*               dictionary read folds case, as typed then lower then upper.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -261,7 +263,15 @@ not.all.keyword:
       * Check against dictionary entry
 
       if dict.open then
-         read dict.rec from dict.f, index.name then
+*        14 Sep 26 - RELEASE_1.1 5 stage 2a: an index built on TYPE still finds
+*        its field once the dictionary id is type, and the other way round.
+         dict.found = @true
+         read dict.rec from dict.f, index.name else
+            read dict.rec from dict.f, downcase(index.name) else
+               read dict.rec from dict.f, upcase(index.name) else dict.found = @false
+            end
+         end
+         if dict.found then
             if type # upcase(dict.rec[1, 1]) or trimb(trimf(ak.data<comp.field>)) # trimb(trimf(dict.rec<comp.field>)) then
                crt sysmsg(2622)  ;* ** The above index differs from its dictionary definition
             end

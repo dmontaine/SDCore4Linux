@@ -2,6 +2,37 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  A DICTIONARY ITEM IS FOUND WHETHER IT WAS STORED IN LOWER OR UPPER
+           CASE (FIRST STEP OF MAKING EVERY NAME LOWER CASE).
+
+           A dictionary item named in a query, CD, a SHOW, an I-type or a
+           CREATE.INDEX was looked up exactly as typed, so a field stored as
+           f1 was not found when you typed F1, and an I-type whose expression
+           named F1 and F3 could not be compiled against a dictionary that
+           stored f1 and f3.  The lookup now tries the name as typed, then in
+           lower case, then in upper case, in the programs that read
+           dictionaries (the query processor, ACOMP, BCOMP, CD, CNAME,
+           GENERATE, ICOMP, LISTI, MKINDX, SHOW and the counter that
+           numbers hold-file records).  This is the first of the steps that
+           SD Core for Windows took to make every name in SD lower case; it
+           changes nothing that already works, because the exact name is tried
+           first, and it has to come before any dictionary is renamed.
+
+           This was measured on test copies of SD built before and after.
+           With a dictionary storing f1 in lower case, LIST file F1 used a
+           15-character default heading before ("F1............") and the
+           item's own heading after ("F1..."), and CD of an I-type naming F1
+           and F3 failed before and compiled and evaluated after.  Fifteen
+           ordinary queries (COUNT, LIST, SORT, SELECT, LIST DICT, with and
+           without conditions) printed identical output before and after.
+
+           What it does not do: nothing is renamed yet.  The dictionaries SD
+           ships still hold their names in upper case, new files are still
+           case sensitive, program and call names are still stored in upper
+           case, and the conversion tool for existing installations is not
+           here.  SHOW, MKINDX, LISTI, GENERATE and the hold-file counter were
+           compiled, not run.
+
 06 Oct 26  THE SOUNDEX TEST "~" WORKS AGAIN IN EVERY ACCOUNT'S VOC.
 
            A query such as LIST CUSTOMERS WITH NAME ~ "smith" (find names that

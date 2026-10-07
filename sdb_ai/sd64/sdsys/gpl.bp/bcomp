@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
+*               dictionary read folds case, as typed then lower then upper.
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 24  0.6.1 SD launch. Earlier history details suppressed.
@@ -12023,11 +12025,17 @@ if.then.else.expr.abort:
          end
 
          gosub get.token
+*        14 Sep 26 - RELEASE_1.1 5 stage 2a: the downcase tier, before the
+*        existing upcase one.  The upcase tier keeps its REWRITE shape.
          read dict.rec from dict.f, token.string else
-            token.string = upcase(token.string)
-            read dict.rec from dict.f, token.string else
-               gosub err.field.name
-               goto exit.get.expr.item
+            read dict.rec from dict.f, downcase(token.string) then
+               token.string = downcase(token.string)
+            end else
+               token.string = upcase(token.string)
+               read dict.rec from dict.f, token.string else
+                  gosub err.field.name
+                  goto exit.get.expr.item
+               end
             end
          end
 

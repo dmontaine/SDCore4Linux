@@ -18,6 +18,10 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-1 stage 2a (parity audit; the Windows port's RELEASE_1.1 5): a
+*               dictionary read folds case, as typed then lower then upper; and an
+*               I-type's expression can name a field stored in lower case (it could
+*               only name an upper-case one, ICOMP:1212).
 * 12 Sep 26 dm  Opens the file-pointer ids in lower case (plan M3).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -1208,16 +1212,26 @@ if.then.else.expr.abort:
          end else
             * Look up name in dictionary
 
-            read field.rec from dict.file, u.token.string else
-               read field.rec from dict.file, u.token.string then
-                  token.string = u.token.string
+*           14 Sep 26 Windows port - RELEASE_1.1 5 stage 2a.  THIS READ THE
+*           UPPER-CASED TOKEN TWICE AND NEVER THE NAME AS WRITTEN, so an I-type
+*           could only name an upper-case field.  Now as written, then lower,
+*           then upper; token.string becomes the id that matched, because it is
+*           written back and recorded as an embedded object name below.  The
+*           VOC fallback after it is unchanged.
+            read field.rec from dict.file, token.string else
+               read field.rec from dict.file, downcase(token.string) then
+                  token.string = downcase(token.string)
                end else
-                  read field.rec from @voc, token.string else
-                     read field.rec from @voc, u.token.string then
-                        token.string = u.token.string
-                     end else
-                        err.msg = sysmsg(2982, token.string) ;* Field 'xx' is not defined
-                        goto error
+                  read field.rec from dict.file, u.token.string then
+                     token.string = u.token.string
+                  end else
+                     read field.rec from @voc, token.string else
+                        read field.rec from @voc, u.token.string then
+                           token.string = u.token.string
+                        end else
+                           err.msg = sysmsg(2982, token.string) ;* Field 'xx' is not defined
+                           goto error
+                        end
                      end
                   end
                end
