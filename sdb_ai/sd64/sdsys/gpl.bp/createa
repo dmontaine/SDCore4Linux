@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm PAL-15 (parity audit J-3): an account created is audited.
 * 01 Oct 26 dm S.50: the verb is now the sentence parser only.  Everything from
 *               the register check on moved to !create_account (gpl.bp
 *               create_account), which RESTORE.ACCOUNT calls with settings
@@ -243,6 +244,11 @@ $include createacc.h
    if err # '' then
       stop sysmsg(err<1,1>, err<1,2>, err<1,3>, err<1,4>)
    end
+
+* 06 Oct 26 dm - PAL-15, parity audit J-3: an account created is on the audit
+*   trail, with the same string on both ports.  Only after !create_account
+*   reported no error.
+   void kernel(K$AUDIT, 'CREATE.ACCOUNT account=' : acc.name : ' type=' : acc.type)
 
    return
 

@@ -468,6 +468,20 @@ def number_clashes(lin_defs, win_defs):
     return rows
 
 
+def privilege_split(dl, dw):
+    """A verb that one port keeps for SDSYS alone (in voc_template, not in newvoc) and
+    the other gives to every account (in its newvoc): who may run it differs.  Asked by
+    the Windows agent (its 22:35 read of the identity programs), answered by hand first,
+    then made a check."""
+    rows = []
+    for side, mine, other in (("LINUX", dl, dw), ("WINDOWS", dw, dl)):
+        sysonly = set(mine["verbs-voc-template"]) - set(mine["verbs-newvoc"])
+        for k in sorted(sysonly & set(other["verbs-newvoc"])):
+            rows.append("%s-RESTRICTS\t%s\tSDSYS only on %s, every account on the other port"
+                        % (side, k, side.lower()))
+    return rows
+
+
 def fmt_pair(a, b):
     return "%s (%s lines) | %s (%s lines)" % (a[1][:16] or "-", a[2], b[1][:16] or "-", b[2])
 
@@ -577,6 +591,14 @@ def cmd_diff(args):
     for row in clash[:args.limit]:
         say("      " + row)
     detail["number-clash"] = clash
+    split = (privilege_split(dl, dw)
+             if all(a in dl and a in dw for a in ("verbs-newvoc", "verbs-voc-template")) else [])
+    total += len(split)
+    say("AXIS %-20s verbs kept for SDSYS on one port and open to every account on the other  findings=%d"
+        % ("privilege-split", len(split)))
+    for row in split[:args.limit]:
+        say("      " + row)
+    detail["privilege-split"] = split
     say("")
     say("findings %d  ->  exit %d" % (total, 1 if total else 0))
     if args.out:
@@ -723,6 +745,9 @@ def selftest():
                has="kernel key and SDEXT numbers")
         mutant("mutant: two names of one side share a key number",
                lambda r: put(r, "gplsrc/keys.h", KEYS_C + "#define K_ALSO_NINE 9\n"), "number-clash")
+        mutant("mutant: a verb SDSYS-only on one port and open to every account on the other",
+               lambda r: os.remove(os.path.join(r, "sdb_ai", "sd64", "sdsys", "newvoc", "list")),
+               "privilege-split", has="SDSYS on one port")
         mutant("mutant: a dictionary field list differs", lambda r: put(r, "gplbld/FILES_DICTS/accounts", "D\nF2\n"),
                "files-dicts")
 

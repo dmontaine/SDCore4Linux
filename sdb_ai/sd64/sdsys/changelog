@@ -2,6 +2,35 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  CREATING, DELETING AND RESTORING AN ACCOUNT NOW LEAVE A RECORD IN
+           THE AUDIT TRAIL.
+
+           The audit trail (the "audit" file in the SDSYS directory) already
+           recorded logins, refused logins, LOGTO, MODIFY.ACCOUNT changes and
+           REMOTE.API and REMOTE.SSH.  It did not record the three verbs that
+           make or remove an account, which are the ones an administrator
+           most often needs to answer "who did that, and when".  Each now
+           writes one line, in the same shape as the others:
+
+               CREATE.ACCOUNT account=name type=USER
+               DELETE.ACCOUNT account=name
+               RESTORE.ACCOUNT account=name archive=SD-host-name-stamp.zip
+
+           The line is written only when the verb finished: a creation that
+           was refused, a deletion that was abandoned at the question, and an
+           account that was not restored leave nothing.  RESTORE.ACCOUNT
+           writes one line per account restored, naming the archive by its
+           file name.  SD Core for Windows is taking the same three strings.
+
+           This was measured on a test copy of SD: a created and then deleted
+           account produced the first two lines.  The RESTORE.ACCOUNT line is
+           built and compiled but was not run, because the test copy cannot
+           make a real backup of an account that has a Linux group.
+
+           What it does not do: it does not record a refused attempt, and it
+           does not record who did it beyond the user name and process that
+           the audit trail already stamps on every line.
+
 06 Oct 26  PRESSING ENTER AT THE "OVERWRITE VOC RECORD" PROMPT NOW MEANS NO,
            AND THREE MESSAGES SAY WHAT THEY SHOULD.
 

@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 06 Oct 26 dm  PAL-15 (parity audit J-3): an account deleted is audited.
 * 19 Sep 26 dm  The account directory goes through sd-elevate rmtree-account
 *               when the session is not root, and one left behind is named
 *               (10919) - the fifth cycle's zzrel1 survived, silently.
@@ -440,6 +441,11 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    * account registered and this verb able to be run again.
 
    delete acc.f, acc.name
+
+* 06 Oct 26 dm - PAL-15, parity audit J-3: an account deleted is on the audit
+*   trail, with the same string on both ports.  After the register delete, so
+*   only a deletion that completed is recorded.
+   void kernel(K$AUDIT, 'DELETE.ACCOUNT account=' : acc.name)
 
    @system.return.code = 0
    return
