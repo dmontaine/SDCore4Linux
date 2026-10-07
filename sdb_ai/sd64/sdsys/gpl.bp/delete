@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  Enter at the "Delete all records" prompt (3220) means N, and the
+*               prompt shows (y/<n>).  Found by the parity audit: the same loop
+*               as cproc's 5045, identical in both ports.
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -150,6 +153,7 @@ $include int$keys.h
                      * Delete all records in xx?
                prompt ""
                input reply
+               if reply = '' then reply = 'N' ;* 06 Oct 26 - Enter is N; '' at end of input re-asked for ever
                if upcase(reply[1,1]) = "N" then stop
 
             until upcase(reply[1,1]) = "Y"

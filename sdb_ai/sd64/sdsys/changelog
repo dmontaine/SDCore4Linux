@@ -2,6 +2,38 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  PRESSING ENTER AT THE "OVERWRITE VOC RECORD" PROMPT NOW MEANS NO,
+           AND THREE MESSAGES SAY WHAT THEY SHOULD.
+
+           The .S command saves a command from the stack as a VOC record.  If
+           the name is already a VOC record, SD asks "Overwrite VOC record
+           'name'?".  Pressing Enter, or reaching the end of a script that was
+           feeding SD, did not answer it: SD asked again, for ever, and the
+           session had to be killed.  This was measured on a test copy of SD:
+           the session never returned.  Enter now means no, the record is left
+           alone, and the prompt shows "(y/<n>)" like every other yes-or-no
+           question.  The same loop was closed at the other prompts earlier;
+           this one had been missed.  Two more were found the same way and
+           fixed alike: DELETE file ALL ("Delete all records in file?") and
+           CLEAR.FILE's "Use file 'name'?".  Measured on a test copy of SD for
+           DELETE ... ALL: the session never returned, and the lines typed
+           after the prompt were swallowed as its answers.  Now Enter means
+           no and the records are kept.
+
+           Three messages were brought into line with SD Core for Windows.  F1
+           at an empty prompt names the LISTV command, not "list voc".  The
+           note that UPDATE.ACCOUNTS ALL is the form an upgrade runs now says
+           so.  When DELETE.ACCOUNT cannot remove an account's directory, the
+           message now says everything else was done and gives the usual
+           reasons: a file system mounted inside it (SD does not cross file
+           systems), or a file SD was not allowed to remove.
+
+           What it does not do: CLEAR.FILE's prompt only appears when the file
+           name was typed in a different case from the file's own, which is rare
+           here, so that one was changed the same way but not run.  The printer
+           prompt in SPOOL's viewer already has a default answer.  SD Core for
+           Windows has the same two loops and has not changed them yet.
+
 06 Oct 26  COPY ... DELETING NO LONGER DELETES A RECORD THAT WAS COPIED ONTO
            ITSELF.
 
@@ -22,10 +54,15 @@ Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
            copying one to the other and deleting the original still works.
            Copying to a different id or to a different file is unchanged.
 
-           What it does not do: the closing line still says "1 record(s)
-           copied and deleted" even when the delete was skipped.  The count
-           of what was copied is right; the words "and deleted" are not.
-           SD Core for Windows has the same guard and the same closing line.
+           The closing line says what happened.  When DELETING skipped
+           records, it reads, for example, "1 record(s) copied, 0 deleted. 1
+           record(s) copied onto themselves were left in place."  When
+           nothing was skipped, the line is the usual "n record(s) copied and
+           deleted."
+
+           What it does not do: it does not stop you copying a record onto
+           itself without DELETING; that has always been harmless and is
+           unchanged.
 
 05 Oct 26  RESTORE.ACCOUNT LATEST NOW CHOOSES THE NEWEST BACKUP THAT REALLY
            HOLDS THE ACCOUNT, AND SAYS WHEN A NEWER BACKUP DOES NOT.

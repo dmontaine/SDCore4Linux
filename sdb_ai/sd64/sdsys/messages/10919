@@ -1,1 +1,1 @@
-Account directory %1 was not removed; remove it by hand
+Account directory %1 was not removed; remove it by hand.\n\nEverything else about the deletion has been done. The usual reasons are a file system mounted inside that directory, which SD does not cross, and a file that SD was not allowed to remove.

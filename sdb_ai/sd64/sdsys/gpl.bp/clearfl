@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  Enter at "Use file 'xx'?" (2051) means N, and the prompt shows
+*               (y/<n>).  Found by the parity audit: the same loop as cproc's
+*               5045, identical in both ports.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * END-HISTORY
 *
@@ -76,6 +79,7 @@ $include syscom keys.h
          display sysmsg(2051, file.name) :  ;* Use file 'xx'?
          input response
          response = upcase(response)
+         if response = '' then response = 'N' ;* 06 Oct 26 - Enter is N; '' at end of input re-asked for ever
       until response = 'Y'
          if response = 'N' then stop
       repeat

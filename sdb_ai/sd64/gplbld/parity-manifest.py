@@ -431,6 +431,43 @@ def compare_plain(lin, win):
     return same, differ, comment_only, case_only, case_comment, only_l, only_w, case
 
 
+NUM_RE = re.compile(r"^-?[0-9]+$")
+KEYS_PREFIX = "gplsrc/keys.h:"
+
+
+def number_space(rows):
+    """{namespace: {value: set of names}} for the K_ (kernel key) and SD_ (SDEXT call)
+    numbers in gplsrc/keys.h.  Numeric values only."""
+    out = {"k_": {}, "sd_": {}}
+    for k, r in rows.items():
+        if not k.startswith(KEYS_PREFIX) or not NUM_RE.match(r[1]):
+            continue
+        name = k[len(KEYS_PREFIX):]
+        for ns in out:
+            if name.startswith(ns):
+                out[ns].setdefault(r[1], set()).add(r[3])
+    return out
+
+
+def number_clashes(lin_defs, win_defs):
+    """One number, two meanings.  WITHIN-<side>: two names of one side share a value.
+    CLASH: a value that both sides use and that no name is common to, so a program
+    both ports ship byte for byte would silently mean two things (PAL-7: K_LOGIN_UID
+    and K_OS_ELEVATED were both 65).  Found by the Windows agent's suggestion."""
+    ls, ws = number_space(lin_defs), number_space(win_defs)
+    rows = []
+    for ns in ("k_", "sd_"):
+        for side, sp in (("LINUX", ls), ("WINDOWS", ws)):
+            for val in sorted(sp[ns], key=int):
+                if len(sp[ns][val]) > 1:
+                    rows.append("WITHIN-%s\t%s %s\t%s" % (side, ns.upper(), val, " ".join(sorted(sp[ns][val]))))
+        for val in sorted(set(ls[ns]) & set(ws[ns]), key=int):
+            if not (ls[ns][val] & ws[ns][val]):
+                rows.append("CLASH\t%s %s\tlinux %s | windows %s"
+                            % (ns.upper(), val, " ".join(sorted(ls[ns][val])), " ".join(sorted(ws[ns][val]))))
+    return rows
+
+
 def fmt_pair(a, b):
     return "%s (%s lines) | %s (%s lines)" % (a[1][:16] or "-", a[2], b[1][:16] or "-", b[2])
 
@@ -534,6 +571,12 @@ def cmd_diff(args):
             say("      " + row)
         if len(rows) > args.limit:
             say("      ... %d more (use --out for the full list)" % (len(rows) - args.limit))
+    clash = number_clashes(dl["defines"], dw["defines"]) if "defines" in dl else []
+    total += len(clash)
+    say("AXIS %-20s kernel key and SDEXT numbers: one value, two meanings  findings=%d" % ("number-clash", len(clash)))
+    for row in clash[:args.limit]:
+        say("      " + row)
+    detail["number-clash"] = clash
     say("")
     say("findings %d  ->  exit %d" % (total, 1 if total else 0))
     if args.out:
@@ -554,7 +597,7 @@ YAML = ('rules:\n'
         '    - statement: "(?i)\\\\b(ABORT|DELETE\\\\.COMMON|SET\\\\.EXIT\\\\.STATUS)\\\\b"\n'
         '    - special: "(?i)\\\\b(APPEND|WHILE)\\\\b"\n'
         '    - identifier: "(?i)\\\\b(ABS|ACCEPT\\\\.SOCKET\\\\.CONNECTION)\\\\b"\n')
-KEYS_C = "#define IN_FIELD_MODE 0x0001   /* a note */\n#define ER_ARGS 1\n"
+KEYS_C = "#define IN_FIELD_MODE 0x0001   /* a note */\n#define ER_ARGS 1\n#define K_LOGIN_UID 9\n#define SD_SALT 100\n"
 KEYS_B = "      $define FL$OPEN 0  ;* open\n      $define FL$PATH 2\n"
 CHANGELOG = ("L1.1-3 - in progress\n-------------\n\n"
              "05 Oct 26  FIRST TITLE\n           CONTINUED HERE.\n\n           Body.\n\n"
@@ -675,6 +718,11 @@ def selftest():
         mutant("mutant: a program differs only in a comment is not a finding",
                lambda r: put(r, "sdsys/gpl.bp/prog1", "* one, reworded\n*  more history\nprint 1\nend\n"),
                "programs", want_exit=0, want_findings=0)
+        mutant("mutant: one kernel key number, two meanings (the PAL-7 shape)",
+               lambda r: put(r, "gplsrc/keys.h", KEYS_C.replace("K_LOGIN_UID", "K_OS_ELEVATED")), "number-clash",
+               has="kernel key and SDEXT numbers")
+        mutant("mutant: two names of one side share a key number",
+               lambda r: put(r, "gplsrc/keys.h", KEYS_C + "#define K_ALSO_NINE 9\n"), "number-clash")
         mutant("mutant: a dictionary field list differs", lambda r: put(r, "gplbld/FILES_DICTS/accounts", "D\nF2\n"),
                "files-dicts")
 
