@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm  DELETING no longer deletes a record that was copied onto itself
+*               (parity audit PAL-2; the Windows port's guard, message 10187).
 * 14 Sep 26 dm  Enter at 2050 means N (W.2, the port's ruling of 13 Sep 26).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -338,14 +340,39 @@ copy.record:
          * Check for DELETING action - Only valid when copying to a file
 
          if deleting then
-            recordlocku src.file, src.record.name
-            delete src.file, src.record.name on error
-               crt sysmsg(6165, status(), tgt.record.name) ;* Error xx deleting record 'xx'
-               if status() = ER$TRIGGER then
-                  crt sysmsg(3007, @trigger.return.code) ;* Data validation error: xx
+            * 06 Oct 26 dm - A RECORD COPIED ONTO ITSELF IS NOT DELETED (parity
+            *   audit PAL-2; the Windows port's guard of 14 Sep 26, message 10187).
+            *   With the same file as source and target, the write above lands on
+            *   the source record whenever the two ids name the same one, and the
+            *   delete below then removed the only copy.  MEASURED 6 Oct 2026 on a
+            *   sandbox SD built from this tree, before the guard: COPY FROM zzt TO
+            *   zzt jack,jack OVERWRITING DELETING printed "1 record(s) copied and
+            *   deleted." and COUNT zzt then said 0.  A file whose ids fold (NO.CASE,
+            *   and a directory file) is compared the same way, so a case-only
+            *   rename of one record is guarded too.
+            same.record = @false
+            if fileinfo(src.file, FL$PATH) = fileinfo(tgt.file, FL$PATH) then
+               if tgt.record.name = src.record.name then
+                  same.record = @true
+               end else
+                  if fileinfo(tgt.file, FL$NOCASE) or fileinfo(tgt.file, FL$TYPE) = FL$TYPE.DIR then
+                     if upcase(tgt.record.name) = upcase(src.record.name) then same.record = @true
+                  end
                end
-               @system.return.code = -status()
-               stop
+            end
+
+            if same.record then
+               display sysmsg(10187, src.record.name) ;* Record 'xx' was copied onto itself, so it was not deleted.
+            end else
+               recordlocku src.file, src.record.name
+               delete src.file, src.record.name on error
+                  crt sysmsg(6165, status(), tgt.record.name) ;* Error xx deleting record 'xx'
+                  if status() = ER$TRIGGER then
+                     crt sysmsg(3007, @trigger.return.code) ;* Data validation error: xx
+                  end
+                  @system.return.code = -status()
+                  stop
+               end
             end
          end
       end

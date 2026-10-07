@@ -2,6 +2,31 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  COPY ... DELETING NO LONGER DELETES A RECORD THAT WAS COPIED ONTO
+           ITSELF.
+
+           COPY FROM file TO file id,id OVERWRITING DELETING copies a record
+           and then deletes the original.  When the source and the target
+           were the same record (the same file and the same id, for example
+           COPY FROM customers TO customers jack,jack OVERWRITING DELETING),
+           the copy landed on the original and the delete then removed the
+           only copy.  The command said "1 record(s) copied and deleted" and
+           the record was gone.  This was measured on a test copy of SD built
+           from this release: after the command, COUNT of the file said 0.
+
+           COPY now leaves a record alone when it was copied onto itself and
+           says so: "Record 'jack' was copied onto itself, so it was not
+           deleted."  The same holds in a file that ignores case (CREATE.FILE
+           ... NO.CASE) and in a directory file, where jack and JACK are one
+           record.  In an ordinary file, jack and JACK are two records, so
+           copying one to the other and deleting the original still works.
+           Copying to a different id or to a different file is unchanged.
+
+           What it does not do: the closing line still says "1 record(s)
+           copied and deleted" even when the delete was skipped.  The count
+           of what was copied is right; the words "and deleted" are not.
+           SD Core for Windows has the same guard and the same closing line.
+
 05 Oct 26  RESTORE.ACCOUNT LATEST NOW CHOOSES THE NEWEST BACKUP THAT REALLY
            HOLDS THE ACCOUNT, AND SAYS WHEN A NEWER BACKUP DOES NOT.
 
