@@ -947,7 +947,7 @@ else
               | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$CPW/********/g" -e 's/^/      | /'
         ck_says "C0 it saw no credential and said so" "has no password set.  Setting the first one." "$OUT"
-        ck_says "C1 MODIFY.PASSWORD reported the credential set" "Password set for account $ACC" "$OUT"
+        ck_says "C1 MODIFY.PASSWORD reported the credential set" "Password accepted." "$OUT"
         ck_absent "C1b and not a failure" "Unable to set password" "$OUT"
         ck "C2 the record is on disk" yes "$(yesno_file "$CREDDIR/$ACC")"
         CREC=$(cat "$CREDDIR/$ACC" 2>/dev/null)
@@ -958,7 +958,7 @@ else
         ck "C6 StoredKey and ServerKey are 44-character base64" "44 44" "$(printf '%s\n' "$CREC" | sed -n 5p | tr -d '\n' | wc -c) $(printf '%s\n' "$CREC" | sed -n 6p | tr -d '\n' | wc -c)"
         ck "C7 the register is sdsys:sdusers 700" "sdsys:sdusers 700" "$(stat -c '%U:%G %a' "$CREDDIR" 2>/dev/null)"
         # Kept for section 13c's SCRAM login only when C1 saw it set.  Never printed.
-        printf '%s' "$OUT" | grep -qF "Password set for account $ACC" && SCRAM_PW="$CPW"
+        printf '%s' "$OUT" | grep -qF "Password accepted." && SCRAM_PW="$CPW"
     fi
     CPW=""
 fi
@@ -1088,7 +1088,7 @@ else
         OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$LONG_PW" "$LONG_PW" \
               | timeout 120 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" 2>&1 | strip)
         printf '%s\n' "$OUT" | sed -e "s/$LONG_PW/********/g" -e 's/^/      | /'
-        ck_says "A5.0 the long SD password was set" "Password set for account $ACC" "$OUT"
+        ck_says "A5.0 the long SD password was set" "Password accepted." "$OUT"
     fi
     GOOD_PW="$PROBE_PW"; PROBE_PW="$LONG_PW"
     OUT=$(probe "A5 THE ROW (S.14): the ${#LONG_PW}-character password logs in" --user "$ACC" --account "$ACC" WHO)
@@ -1439,7 +1439,7 @@ else
         OUT=$(run_sd sdsys "MODIFY.PASSWORD sdsys (a throwaway credential for this section)" \
               "MODIFY.PASSWORD sdsys" "_PW_" "_PW_")
         PW_OS=""
-        [ "$COMMIT" -eq 1 ] && ck_says "E0 a throwaway sdsys credential was set" "Password set for account sdsys" "$OUT"
+        [ "$COMMIT" -eq 1 ] && ck_says "E0 a throwaway sdsys credential was set" "Password accepted." "$OUT"
         # ANCHOR ON THE FAILURE WORDING TOO: "Password not changed." is what a
         # refused current-password entry prints, and it is the exact way this
         # section broke on 20 Sep.  A row that only looks for success would let
@@ -1658,7 +1658,7 @@ else
         WHOS=$(printf '%s\n' "$OUT" | grep -oE '^[0-9]+ [a-z0-9_]+' | awk '{print $2}' | tr '\n' ' ')
         ck "Y0 the route: WHO named $ACC" "$ACC " "$WHOS"
         ck "Y1 SUSPENDED landed in the register on disk (field 5 '$FLAG_BEFORE' -> SUSPENDED)" SUSPENDED "$(reg_field "$ACC" 5)"
-        ck_says "Y2 MODIFY.PASSWORD reported it" "Password set for account $ACC" "$OUT"
+        ck_says "Y2 MODIFY.PASSWORD reported it" "Password accepted." "$OUT"
         SALT_AFTER=$(cred_salt "$ACC")
         ck "Y2b the \$cred record was rewritten on disk (the salt changed)" yes "$([ -n "$SALT_AFTER" ] && [ "$SALT_AFTER" != "$SALT_BEFORE" ] && echo yes || echo no)"
     fi

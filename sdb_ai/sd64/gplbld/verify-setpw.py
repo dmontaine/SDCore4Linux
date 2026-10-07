@@ -73,7 +73,7 @@ M5276 = (r"A password is never given on the command line; MODIFY\.PASSWORD "
          r"prompts for it")
 M2001 = r"Command requires administrator privileges"
 MCRED = r"MODIFY\.PASSWORD needs sudo sd"
-MSET = r"Password set for account"
+MSET = r"Password accepted\."      # PAL-22, 7 Oct 26: the success line in every mode (it was "Password set for account X")
 MNEWPW = r"New password:"
 MNOVOC = r"is not in your VOC"
 

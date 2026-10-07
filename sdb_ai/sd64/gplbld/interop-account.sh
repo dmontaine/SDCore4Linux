@@ -31,7 +31,7 @@
 #      exist; field 5 (the suspension flag) must be blank - a plain account.
 #   T  THE ABSENCE HALF: zzinterop is in sdusers, and the legacy sdadmin and
 #      sdapi groups do not exist.
-#   P  MODIFY.PASSWORD zzinterop.  "Password set for account zzinterop", and
+#   P  MODIFY.PASSWORD zzinterop.  "Password accepted." (PAL-22), and
 #      the $cred record is on disk.
 #   L  THE PROOF THE ACCOUNT IS USABLE: scram-probe logs in over 127.0.0.1 and
 #      over this machine's LAN address.  Each login must show TLS 1.3, a
@@ -300,7 +300,7 @@ say "  --- sd session as sdsys: MODIFY.PASSWORD $ACC, the password twice (not sh
 OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nMODIFY.PASSWORD %s\n%s\n%s\nOFF\n' "$ACC" "$PW" "$PW" \
       | sudo -u sdsys timeout 120 "$SD" 2>&1 | strip)
 printf '%s\n' "$OUT" | grep -vF -- "$PW" | sed -e 's/^/      | /'
-ck_says "P1 MODIFY.PASSWORD reported it set" "Password set for account $ACC" "$OUT"
+ck_says "P1 MODIFY.PASSWORD reported it set" "Password accepted." "$OUT"
 ck_absent "P1b and not a failure" "Unable to set password" "$OUT"
 ck "P2 the \$cred record is on disk" yes "$(yesno_file "$CRED")"
 

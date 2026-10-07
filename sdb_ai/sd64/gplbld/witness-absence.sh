@@ -669,7 +669,7 @@ elif [ "$COMMIT" -eq 1 ]; then
   ck "M11c the credential record is untouched" "$SK_BEFORE" "$(sed -n '5p' "$CREDF" 2>/dev/null)"
   OUT=$(run_sd "MODIFY.PASSWORD $ACC, a good entry" \
                "MODIFY.PASSWORD $ACC" "Zz9-good-Pass" "Zz9-good-Pass")
-  ck_says "M11d a password meeting the rule is taken" "Password set for account $ACC" "$OUT"
+  ck_says "M11d a password meeting the rule is taken" "Password accepted." "$OUT"
 fi
 
 # ==========================================================================
