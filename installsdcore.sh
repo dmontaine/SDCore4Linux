@@ -1819,6 +1819,28 @@ else
     sd_install_stop
 fi
 #
+# 07 Oct 26 dm - THE LAST STEP LEAVES SD RUNNING (owner, 7 Oct: "make the installer restart sd
+#   as its last step"; S.58 (2), open since 4 Oct).  The password steps above start SD and put
+#   it down again with a bare "sd -stop", which systemd does not see: sd.service is
+#   Type=oneshot with RemainAfterExit=yes, so it stayed "active (exited)" with no daemon behind
+#   it, "systemctl start sd" was a no-op, and every "sd" and every witness answered "SD has not
+#   been started" until a reboot (measured 7 Oct, the owner's third reinstall of the day: the
+#   journal shows the install's own -stop at 11:21:25 and nothing after it).  A restart through
+#   systemd runs the unit's stop and start, so the unit and the daemon agree again.  It is the
+#   last thing the installer does to SD, after the last password step (test-install-restart.sh
+#   holds that order), and it cannot fail the install: a failure is said, with the command that
+#   tries it again.
+sd_running_state="not started"
+echo
+echo "Starting SD"
+if sudo systemctl restart sd.service; then
+    sd_running_state="running"
+else
+    printf "%b" "$RED"
+    echo "  SD did not start.  Start it with:  sudo systemctl restart sd.service"
+    printf "%b" "$NC"
+fi
+#
 # display end of script message
 echo
 echo ---------------------------------------------------------------
@@ -1915,6 +1937,10 @@ echo "sdsys only from a process running as sdsys on this machine, never"
 echo "from another computer.  A desktop-sharing view of the console (VNC,"
 echo "TeamViewer) is a local login and works."
 echo
+if [ "$sd_running_state" = running ]; then
+    echo "SD is running now."
+    echo
+fi
 echo "Reboot to assure that group memberships are updated"
 echo "and the APIsrvr Service is enabled."
 #

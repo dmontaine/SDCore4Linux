@@ -2,6 +2,37 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  THE INSTALLER NOW LEAVES SD RUNNING.
+
+           The last thing the installer does is start SD.  Until now it ended
+           with SD stopped: it starts SD for each password step and stops it
+           again, and the stop did not go through the service manager, so the
+           service still read "active" while no SD was running.  "sd" then
+           answered "SD has not been started", and "systemctl start sd" did
+           nothing, until the computer was rebooted or the service was
+           restarted by hand.  The installer now runs "systemctl restart
+           sd.service" after the last password step, and its closing text says
+           "SD is running now." when that worked.  If the restart fails the
+           install still finishes, says "SD did not start" and prints the
+           command that tries again.
+
+           What it does NOT do: the advice to reboot stays, because the
+           groups you were added to take effect at your next login, and a
+           reboot is still the sure way to have them.  Nothing about how SD
+           starts at boot changed.
+
+           This was measured on the installer's own text, not on an install:
+           the restart block run the way the installer runs it, with a failing
+           restart as well as a working one, and its place in the script
+           (after the last password step, before the closing text, and no
+           stop after it).  11 of 11 rows passed, and six deliberate
+           breakages of the installer (the restart turned back into a start,
+           removed, made fatal, a stop put after it, the "running" line shown
+           unconditionally, the retry command dropped) were each caught.  On
+           the owner's computer the same restart typed by hand started SD from
+           exactly the stopped state the installer left.  Not measured: the
+           installer ending with SD running, which needs the next reinstall.
+
 07 Oct 26  SDSYS'S OWN VOC HAS THE SOUNDEX KEYWORD, AND THE BATCH-JOB LIST HAS
            A DICTIONARY.
 
