@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 06 Oct 26 dm PAL-12 (parity audit): a release mismatch at login no longer asks
+*           (5025/5026/5027); it proceeds, as on the Windows port (its
+*           RELEASE_1.1 39).  UPDATE.ACCOUNTS ALL refreshes every account.
 * 01 Oct 26 dm S.50: the login hold.  A new session is refused (13002) while
 *           BACKUP.ACCOUNT or RESTORE.ACCOUNT runs; !acc_hold decides.
 * 20 Sep 26 dm THE BATCH GATE (S.40), PARITY WITH THE WINDOWS PORT.  Owner's
@@ -514,35 +517,17 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    if not(is.phantom) and not(fileinfo(voc, FL$READONLY)) then
       read voc.rec from voc, "$release" then     ;* 13 Sep 26 - plan M3, the $ records
-         * ----- Field 2 - Release level
-         s = matchfield(voc.rec<2>, "0X0A", 1)
-         if s # SD.REV.STAMP then
-            display sysmsg(5025, s) ;* Your VOC is at release level xx
-            loop
-               display char(7) :
-               display sysmsg(5026) :  ;* Update VOC to new release (y/<n>)?
-               input s
-
-* 14 Sep 26 dm - S.9.  Enter is N, as at every other Y/N prompt built for
-*   PORT_ADOPTION 3b.  It is also the end-of-input escape: at EOF input yields
-*   '', which re-asked for ever with a BEL each turn - on the first sign-on
-*   after a release change, which is when a script is driving sd.  N is the
-*   answer that changes nothing; the prompt returns at the next sign-on.
-               s = upcase(s[1,1])
-               if s = '' then s = 'N'
-               begin case
-                  case s = "N"
-                     exit
-                  case s = "Y"
-                     update.voc.f = voc
-                     gosub update.voc
-                     close update.voc.f
-                     exit
-               end case
-               display sysmsg(5027) ;* Please answer Y or N"
-            repeat
-         end
-
+* 06 Oct 26 dm - PAL-12, the Windows port's RELEASE_1.1 39 (owner, 16 Sep 2026,
+*   "proceed silently").  THE OLD PER-LOGIN RELEASE-MISMATCH PROMPT (5025/5026/
+*   5027, Field 2) IS REMOVED.  It ran an unguarded `input` on the mode-0 path, so
+*   a session with no keyboard behind it (the installer's hidden upgrade sessions,
+*   a script driving sd) blocked on it; our own S.9 (14 Sep) had only made Enter
+*   and end of input mean N.  It is redundant: installsdcore.sh drives
+*   UPDATE.ACCOUNTS ALL (mode 4), which reuses update.voc to refresh every
+*   account at upgrade, so a mismatch at an ordinary login simply PROCEEDS and
+*   the VOC is refreshed by the next UPDATE.ACCOUNTS.  Field 2 (release level) is
+*   no longer read; Field 3 still is.  5025/5026/5027 stay in the messages, as on
+*   the Windows port (message number parity).
          * ----- Field 3 - Command processing modes
          s = voc.rec<3>
          cursor.at.end = (index(s, 'E', 1) # 0)

@@ -2,6 +2,24 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+06 Oct 26  SIGNING IN NO LONGER ASKS "UPDATE VOC TO NEW RELEASE" WHEN AN
+           ACCOUNT'S VOC IS FROM AN OLDER RELEASE.
+
+           When an account's VOC had been made by an older release of SD, the
+           first sign-in after the upgrade stopped and asked "Update VOC to
+           new release (y/<n>)?".  A session with no one at the keyboard (a
+           script driving SD, an installer step) could not answer it.  This
+           was measured on a test copy of SD: a VOC marked as release L0.0-1
+           produced the question at sign-in.  SD now signs in without asking.
+           Every upgrade already runs UPDATE.ACCOUNTS ALL, which refreshes
+           every account's VOC, so nothing is left stale by an upgrade; an
+           account whose VOC is still old can be refreshed with
+           UPDATE.ACCOUNTS.  SD Core for Windows made the same change on 16
+           September, at the owner's wish to proceed silently.
+
+           What it does not do: it does not refresh the VOC by itself at
+           sign-in, and it does not warn that the VOC is old.
+
 06 Oct 26  CREATING, DELETING AND RESTORING AN ACCOUNT NOW LEAVE A RECORD IN
            THE AUDIT TRAIL.
 
