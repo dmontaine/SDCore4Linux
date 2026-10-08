@@ -17,6 +17,13 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 08 Oct 26 dm Three changes from the S.62 line-by-line read against the Windows port
+*              (owner: "1 yes, 2 yes if possible, 3 fix").  (1) 10161 and 10162 warn,
+*              without refusing, when a route was given and nothing is behind it
+*              (Windows RELEASE_1.1 125).  (2) A refused password now UNWINDS the
+*              Linux user just made: 10086, or 10130 when the removal itself fails
+*              (Windows' owner rule of 21 Aug 26, "an account cannot be created
+*              without a password").  (3) ATTACH is honoured for a USER account only.
 * 06 Oct 26 dm PAL-1 stage 2b (parity audit; the Windows port's RELEASE_1.1 5): a new
 *              account's VOC dictionary gets its default record as @id.
 * 01 Oct 26 dm Split out of CREATEA for S.50 (RESTORE.ACCOUNT creates an account
@@ -105,7 +112,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
    attach = @false
    if settings<CA$ATTACH> = 1 then
       attach.marker = @sdsys:@ds:'$attach.':downcase(acc.name)
-      if kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS) then
+      if acc.type = 'USER' and kernel(K$INTERNAL, -1) and ospath(attach.marker, OS$EXISTS) then
          attach = @true
          void ospath(attach.marker, OS$DELETE)
       end else
@@ -192,10 +199,33 @@ PW.TRY.AGAIN:
                 crt sysmsg(10121, pw.stat) ;* The password could not be set (status %1)
           end case
           if pw.retry then
-             crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (Y/N)'
+             crt sysmsg(10008): ;* 'Warning, user created but password not set, Retry (y/<n>)'
              input yn
              if upcase(yn) = 'Y' then goto PW.TRY.AGAIN
           end
+* 08 Oct 26 dm - NOT RETRYING UNWINDS (Windows, owner 21 Aug 26: an account cannot
+*   be created without a password).  It used to carry on and make the account
+*   around a Linux user with no password.  Only the Linux user exists at this
+*   point - the sdu_ group, the directory, the VOC and the ACCOUNTS record all
+*   come later - so removing the user, and the empty home useradd -m made, is
+*   the whole of it.  "Nothing was created" (10086) is a claim about what just
+*   happened, so it is made only when the user is READ OFF the system as gone
+*   (is_user), not inferred from an exit code; otherwise 10130 says it is still
+*   there.  userdel-home first, which takes the home with it, then plain
+*   userdel in case the home was the part that would not go; sd-elevate refuses
+*   either unless the user carries SD's "SD account" stamp, which create_user
+*   put there a moment ago.
+          OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel-home ":acc.uname
+          if is_user(acc.uname) then
+             OS.EXECUTE "sudo /usr/local/sbin/sd-elevate userdel ":acc.uname
+          end
+          @system.return.code = -ER$NOT.CREATED
+          if is_user(acc.uname) then
+             err = 10130:@vm:acc.uname ;* The Linux user %1 was created, and removing it again FAILED
+          end else
+             err = 10086 ;* An account must have a password. Nothing was created.
+          end
+          goto exit.create
        end
      end case
 
@@ -348,6 +378,26 @@ PW.TRY.AGAIN:
          case 1
             crt sysmsg(10079, acc.uname)  ;* %1 has no remote access: not ssh, not the API
       end case
+
+* 08 Oct 26 dm - A ROUTE WITH NOTHING BEHIND IT IS SAID, NOT REFUSED (the Windows
+*   port's RELEASE_1.1 125, witnessed there 2 Sep 26 on two machines).  The
+*   membership above is made either way and takes effect the day the server or
+*   listener arrives, so the account is still made; the warning only stops
+*   "I created it and it cannot connect" from being a mystery.  Each route is
+*   asked on its own: ssh by whether sshd is installed (not whether it is
+*   running - Ubuntu starts it from ssh.socket on demand, so "inactive" would
+*   warn wrongly), the API by whether sdclient.socket is active, the unit
+*   REMOTE.API ON/LOCAL/OFF start and stop.  The Windows port reads
+*   config('APIPORT') for its half; this port's listener is systemd's.
+      if access.ssh and not(ospath('/usr/sbin/sshd', OS$EXISTS)) then
+         crt sysmsg(10161, acc.uname)  ;* %1 is set up for ssh, but this machine has no ssh server yet
+      end
+      if access.api then
+         OS.EXECUTE "systemctl is-active --quiet sdclient.socket 2>/dev/null"
+         if OS.ERROR() # 0 then
+            crt sysmsg(10162, acc.uname)  ;* %1 is set up for the API, but this machine provides no API listener yet
+         end
+      end
 
       group_name = "sdu_":downcase(acc.uname)
       gosub create.group

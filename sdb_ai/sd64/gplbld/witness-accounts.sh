@@ -54,6 +54,9 @@
 # ===========================================================================
 #   1   NO.QUERY without a Linux user is refused (10039): SD accounts create
 #       their own Linux user, and creating one means setting its password.
+#   1b  (8 Oct 26) A password SD refuses, answered n at the retry, unwinds the
+#       Linux user it just made: 10086, user and home gone, nothing registered.
+#       Needs the build with S.62's create_account change on the install.
 #   2a  A pre-existing Linux user WITHOUT ADOPT is refused (10038) and nothing
 #       is made.  ADOPT is now install-only (the teardown, S.26: a root
 #       session is refused outright, and -internal is root-only), so the
@@ -334,6 +337,51 @@ if [ "$COMMIT" -eq 1 ]; then
     ck "1c no group was made"           no "$(yesno_group "sdu_$ACC_REFUSE")"
     ck "1d no directory was made"       no "$(yesno_dir "$ACCOUNTS_ROOT/$ACC_REFUSE")"
     ck "1e no register record was made" no "$(yesno_file "$REGISTER/$ACC_REFUSE_UC")"
+fi
+
+# ==========================================================================
+head2 "1b. a refused password unwinds the Linux user (8 Oct 26; the Windows owner rule of 21 Aug 26) - 10086"
+
+# CREATE.ACCOUNT USER makes the Linux user, then asks for its password.  Three
+# entries the password rule refuses ("weak", under 8 characters), then "n" at
+# the retry prompt: SD must remove the user it just made (userdel-home, then
+# userdel) and say "Nothing was created".  Before 8 Oct it carried on and made
+# the account around a user with no password.
+# ***THE NULL CASE IS NAMED, NOT ASSUMED.***  "The user is gone" is also true of
+# a user that was never made, so the row that proves the user existed first is
+# the one that reads SD's own "User <name> Created" (10007), and every row after
+# it counts as NOT REACHED without it.  The retry answer is read, not trusted:
+# 10008's prompt must be on screen before the "n" can have meant anything.
+OUT=$(run_sd "CREATE.ACCOUNT USER $ACC_REFUSE, three refused passwords, then n" \
+             "CREATE.ACCOUNT USER $ACC_REFUSE" "weak" "weak" "weak" "n")
+if [ "$COMMIT" -eq 1 ]; then
+    if printf '%s' "$OUT" | grep -qF -- "User $ACC_REFUSE Created"; then
+        ck_says "1b0 the Linux user WAS made first (10007), so its absence below is an unwind" "User $ACC_REFUSE Created" "$OUT"
+        ck_says "1b1 the password was refused and a retry was offered (10008)" "password not set, Retry" "$OUT"
+        ck_says "1b2 SD said nothing was created (10086)" "An account must have a password. Nothing was created." "$OUT"
+        ck_silent "1b3 and did not say the removal failed (10130)" "could not be removed again" "$OUT"
+        ck "1b4 the Linux user is gone"        no "$(yesno_user "$ACC_REFUSE")"
+        ck "1b5 its home went with it"         no "$(yesno_dir "/home/$ACC_REFUSE")"
+        ck "1b6 no sdu_ group was made"        no "$(yesno_group "sdu_$ACC_REFUSE")"
+        ck "1b7 no account directory was made" no "$(yesno_dir "$ACCOUNTS_ROOT/$ACC_REFUSE")"
+        ck "1b8 no register record was made"   no "$(yesno_file "$REGISTER/$ACC_REFUSE_UC")"
+    else
+        for r in "1b1 the password was refused and a retry was offered (10008)" \
+                 "1b2 SD said nothing was created (10086)" \
+                 "1b3 and did not say the removal failed (10130)" \
+                 "1b4 the Linux user is gone" "1b5 its home went with it" \
+                 "1b6 no sdu_ group was made" "1b7 no account directory was made" \
+                 "1b8 no register record was made"; do
+            not_reached "$r"
+        done
+        ck "1b0 the Linux user WAS made first (10007), so its absence below is an unwind" yes no
+    fi
+    # Whatever happened, this run does not leave the user behind.
+    if [ "$(yesno_user "$ACC_REFUSE")" = yes ]; then
+        userdel -r "$ACC_REFUSE" >/dev/null 2>&1 \
+            && say "  1b cleanup: userdel -r $ACC_REFUSE (SD did not remove it)" \
+            || say "  1b cleanup: userdel -r $ACC_REFUSE FAILED - remove it by hand"
+    fi
 fi
 
 # ==========================================================================
