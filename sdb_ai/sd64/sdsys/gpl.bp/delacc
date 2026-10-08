@@ -445,7 +445,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 * 06 Oct 26 dm - PAL-15, parity audit J-3: an account deleted is on the audit
 *   trail, with the same string on both ports.  After the register delete, so
 *   only a deletion that completed is recorded.
-   void kernel(K$AUDIT, 'DELETE.ACCOUNT account=' : acc.name)
+* 07 Oct 26 dm - PAL-24: the command word is lower case.
+   void kernel(K$AUDIT, 'delete.account account=' : acc.name)
 
    @system.return.code = 0
    return

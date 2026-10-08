@@ -429,7 +429,9 @@ $ifndef IS_INSTALL
             display remove(refuse.msg, refuse.more)
          while refuse.more
          repeat
-         void kernel(K$AUDIT, 'ELEVATION REFUSED reason=root is not SD administrator')
+* 07 Oct 26 dm - PAL-24, the owner's lower-case rule: the whole audit trail is lower case,
+*   event names included ("all lower case", 7 Oct).  reason= is text and keeps its nouns.
+         void kernel(K$AUDIT, 'elevation refused reason=root is not SD administrator')
          goto abort.cproc
 $else
          void kernel(K$ADMINISTRATOR, 1)   ;* bootstrap: no register to read yet
@@ -443,7 +445,7 @@ $ifndef IS_INSTALL
             void kernel(K$ADMINISTRATOR, 1)
 * 11 Sep 26 dm - PORT_ADOPTION 13.  Written AFTER the grant, the port's
 *   PRE_RELEASE 98 ordering: a trail must not record rights not yet given.
-            void kernel(K$AUDIT, 'ELEVATION GRANTED reason=sdsys login')
+            void kernel(K$AUDIT, 'elevation granted reason=sdsys login')  ;* 07 Oct 26 PAL-24: lower case
             admin.notice<-1> = sysmsg(10916)
          end else
 * 18 Sep 26 dm, NIGHT - sdsys without a sdsys login: sudo, su, a service.
@@ -453,7 +455,7 @@ $ifndef IS_INSTALL
                display remove(refuse.msg, refuse.more)
             while refuse.more
             repeat
-            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session without a sdsys login')
+            void kernel(K$AUDIT, 'elevation refused reason=sdsys session without a sdsys login')  ;* 07 Oct 26 PAL-24
             goto abort.cproc
          end
       end else
@@ -488,7 +490,7 @@ $ifndef IS_INSTALL
                display remove(refuse.msg, refuse.more)
             while refuse.more
             repeat
-            void kernel(K$AUDIT, 'ELEVATION REFUSED reason=sdsys session from a remote transport')
+            void kernel(K$AUDIT, 'elevation refused reason=sdsys session from a remote transport')  ;* 07 Oct 26 PAL-24
             goto abort.cproc
          end
       end
@@ -2828,7 +2830,7 @@ int.logto:
       for lg.i = 1 to dcount(lg.msg, @fm)
          display lg.msg<lg.i>
       next lg.i
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=sdsys reason=sdsys is entered by its own session only')
+      void kernel(K$AUDIT, 'logto refused account=sdsys reason=sdsys is entered by its own session only')  ;* 07 Oct 26 PAL-24
       unwinding = 2
       return    
    end 
@@ -2910,7 +2912,7 @@ int.logto:
 *   second test.  The way out mirrors the 10003 refusal below.
    if not(kernel(K$ADMINISTRATOR,-1)) and upcase(trim(acc.record<ACC$SUSPENDED>)) = 'SUSPENDED' then
       display sysmsg(10107, new.account) ;* Account %1 is suspended
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=suspended')
+      void kernel(K$AUDIT, 'logto refused account=' : new.account : ' reason=suspended')  ;* 07 Oct 26 PAL-24
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2918,7 +2920,7 @@ int.logto:
 
    if  not(kernel(K$ADMINISTRATOR,-1)) and not(is_grp_member(@logname,acc.record<ACC$GROUP>)) then
       display sysmsg(10003) ;* User not allowed in requested account
-      void kernel(K$AUDIT, 'LOGTO REFUSED account=' : new.account : ' reason=not granted')
+      void kernel(K$AUDIT, 'logto refused account=' : new.account : ' reason=not granted')  ;* 07 Oct 26 PAL-24
       if ospath(account.path, OS$CD) then return
       display sysmsg(5162) ;* Fatal error : Cannot return to previous account
       return to abort.cproc
@@ -2972,7 +2974,7 @@ int.logto:
 *   load are gone: SH and OS.EXECUTE run at the account's own Linux
 *   permissions, and SD keeps no second wall.
 
-   void kernel(K$AUDIT, 'LOGTO account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13
+   void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
    gosub find.private.catalogue
 

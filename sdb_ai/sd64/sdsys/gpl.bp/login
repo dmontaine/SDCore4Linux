@@ -600,17 +600,20 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   ("sd 'command'") records the command, as the Windows port's does, so the trail
 *   says WHAT ran unattended and not only who.  An interactive sign-on is unchanged.
    if mode = 0 then
+* 07 Oct 26 dm - PAL-24, the owner's lower-case rule (7 Oct, and "all lower case" for the
+*   whole audit trail, event names included): login, not LOGIN.  command= is what the
+*   caller typed and stays as typed.
       if batch.command = '' then
-         void kernel(K$AUDIT, 'LOGIN account=' : initial.account)
+         void kernel(K$AUDIT, 'login account=' : initial.account)
       end else
-         void kernel(K$AUDIT, 'LOGIN account=' : initial.account : ' command=' : batch.command)
+         void kernel(K$AUDIT, 'login account=' : initial.account : ' command=' : batch.command)
       end
    end
    ok = @true
    return
 
 terminate.connection:
-   void kernel(K$AUDIT, 'LOGIN REFUSED account=' : initial.account : ' reason=' : audit.reason)
+   void kernel(K$AUDIT, 'login refused account=' : initial.account : ' reason=' : audit.reason)  ;* 07 Oct 26 PAL-24
    display sysmsg(5024) ;* Connection terminated
    sleep 2
 abort.login:

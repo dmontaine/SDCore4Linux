@@ -124,7 +124,9 @@ $include err.h
       stop sysmsg(10133, action, rc)  ;* Could not set the SD API to %1 (status %2)
    end
 
-   void kernel(K$AUDIT, 'REMOTE.API ' : action)
+* 07 Oct 26 dm - PAL-24: remote.api and its keyword are lower case in the audit line
+*   (action stays ON, LOCAL or OFF for the tests and for message 10132).
+   void kernel(K$AUDIT, 'remote.api ' : downcase(action))
    @system.return.code = 0
    crt sysmsg(10132, action)  ;* The SD API is now %1.
 end

@@ -246,7 +246,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
                   * --------------------
                   stat = OS.ERROR()
                   if stat = 0 then
-                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT ADD account=' : acc.name : ' to=' : user.name)
+                     void kernel(K$AUDIT, 'modify.account add account=' : acc.name : ' to=' : user.name)  ;* 07 Oct 26 PAL-24: lower case
                      crt sysmsg(10018,user.name,group.name)  ;* %1 added to group %2
                   end else
                      crt sysmsg(10019,user.name,group.name,stat) ;* Unable to add user %1 to group %s status: %2
@@ -275,7 +275,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
                * --------------------
                stat = OS.ERROR()
                   if stat = 0 then
-                     void kernel(K$AUDIT, 'MODIFY.ACCOUNT DELETE account=' : acc.name : ' from=' : user.name)
+                     void kernel(K$AUDIT, 'modify.account delete account=' : acc.name : ' from=' : user.name)  ;* 07 Oct 26 PAL-24: lower case
                      crt sysmsg(10021,user.name,group.name) ;*  %1 removed from group %2
                   end else
                      crt sysmsg(10022,user.name,group.name,stat) ;* Unable to remove user %1 from group %s status: %2
@@ -340,7 +340,7 @@ set.suspended:
    end
 
    @system.return.code = 0
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT SUSPEND account=' : acc.name)
+   void kernel(K$AUDIT, 'modify.account suspend account=' : acc.name)  ;* 07 Oct 26 PAL-24: lower case
    crt sysmsg(10193, acc.name)  ;* Account %1 is now suspended
    return
 
@@ -370,7 +370,7 @@ set.unsuspended:
    end
 
    @system.return.code = 0
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT UNSUSPENDED account=' : acc.name)
+   void kernel(K$AUDIT, 'modify.account unsuspended account=' : acc.name)  ;* 07 Oct 26 PAL-24: lower case
    crt sysmsg(10192, acc.name)  ;* Account %1 is no longer suspended
    return
 
@@ -461,11 +461,14 @@ set.route:
    end
 
    @system.return.code = 0
-   route.said = 'NONE'
-   if want.ssh and want.api then route.said = 'BOTH'
-   if want.ssh and not(want.api) then route.said = 'SSH'
-   if want.api and not(want.ssh) then route.said = 'API'
-   void kernel(K$AUDIT, 'MODIFY.ACCOUNT ROUTE ' : route.said : ' account=' : acc.name)
+* 07 Oct 26 dm - PAL-24, the owner's lower-case rule: the route word is lower case, as the
+*   Windows port had it first (06 Oct 26 this was upper case on both ports by agreement,
+*   T2358, which was the mistake).
+   route.said = 'none'
+   if want.ssh and want.api then route.said = 'both'
+   if want.ssh and not(want.api) then route.said = 'ssh'
+   if want.api and not(want.ssh) then route.said = 'api'
+   void kernel(K$AUDIT, 'modify.account route ' : route.said : ' account=' : acc.name)
 
    begin case
       case want.ssh and want.api

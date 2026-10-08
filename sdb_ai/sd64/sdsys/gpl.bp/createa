@@ -248,7 +248,9 @@ $include createacc.h
 * 06 Oct 26 dm - PAL-15, parity audit J-3: an account created is on the audit
 *   trail, with the same string on both ports.  Only after !create_account
 *   reported no error.
-   void kernel(K$AUDIT, 'CREATE.ACCOUNT account=' : acc.name : ' type=' : acc.type)
+* 07 Oct 26 dm - PAL-24, the owner's lower-case rule: the command words are lower case,
+*   so create.account and type=user (acc.type is USER or GROUP inside create_account).
+   void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type))
 
    return
 

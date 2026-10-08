@@ -111,7 +111,8 @@ $include err.h
       stop sysmsg(10139, action, rc)  ;* Could not set remote ssh access to %1 (status %2)
    end
 
-   void kernel(K$AUDIT, 'REMOTE.SSH ' : action)
+* 07 Oct 26 dm - PAL-24: remote.ssh and its keyword are lower case in the audit line.
+   void kernel(K$AUDIT, 'remote.ssh ' : downcase(action))
    @system.return.code = 0
    crt sysmsg(10138, action)  ;* Remote ssh access is now %1.
 end

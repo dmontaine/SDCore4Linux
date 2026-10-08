@@ -2,6 +2,38 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  THE AUDIT TRAIL IS WRITTEN IN LOWER CASE.
+
+           Every line SD adds to /usr/local/sdsys/audit now has its event words
+           in lower case: create.account, delete.account, restore.account,
+           modify.account add, delete, suspend, unsuspended and route, remote.api,
+           remote.ssh, logto and login, and the event names elevation granted,
+           elevation refused, account refused, api refused, login refused and
+           logto refused.  A line reads, for example,
+               login account=sdsys
+               logto refused account=sdsys reason=sdsys is entered by its own session only
+               modify.account route api account=zzrel1
+           This is the rule that commands are lower case wherever SD writes them,
+           which SD Core for Windows set first and the lower-case work of 7 October
+           finished here; the audit trail had kept upper case from the start.
+           What follows an equals sign is unchanged: the account name as it is
+           registered, the text of a reason=, and what a caller typed in command=.
+
+           What it does NOT do: it does not rewrite the lines already in your
+           audit file, so one file can hold both spellings until it is rotated.
+           Anything of yours that reads the trail by matching the old upper-case
+           words (ELEVATION REFUSED, API REFUSED, LOGIN ...) has to match the new
+           ones, or match without regard to case.  The messages SD shows on
+           screen are not changed by this.
+
+           This was measured on a test copy of SD: sessions that sign in and are
+           refused SDSYS wrote "login account=sdsys" and "logto refused account=sdsys
+           reason=..." where the previous build wrote "LOGIN" and "LOGTO REFUSED".
+           A new check reads every audit statement in the programs (26) and fails
+           on an upper-case event word, and six deliberate breakages of the
+           programs were each caught.  The witness rows that wait for these lines
+           were changed and have not been run.
+
 07 Oct 26  UPDATE.ACCOUNTS ALL NO LONGER TELLS YOU TO START SD WITH SUDO.
 
            When UPDATE.ACCOUNTS ALL is typed anywhere but in an administrator's

@@ -469,7 +469,7 @@ if acc.suspended then
 * 06 Oct 26 dm - PAL-17 (parity audit): the refusal is on the audit trail, in the
 *   Windows port's words (its ACCOUNT REFUSED branch=2), with the account asked
 *   for appended.  The CALLER still sees only 10003.
-    void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=2 suspended account=' : new.account)
+    void kernel(K$AUDIT, 'account refused branch=2 suspended account=' : new.account)  ;* 07 Oct 26 PAL-24: the audit trail is lower case
     server.error = SV$ERROR
     error.msg = sysmsg(10003) ;* User not allowed in requested account
     abort.message = error.msg
@@ -486,7 +486,7 @@ if  not(is_grp_member(@logname,acc.rec<ACC$GROUP>)) then
    if not(downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys') then
 * 06 Oct 26 dm - PAL-17: audited as the Windows port's branch=4 not.in.group, with
 *   the account asked for appended.
-      void kernel(K$AUDIT, 'ACCOUNT REFUSED branch=4 not.in.group user=' : @logname : ' group=' : acc.rec<ACC$GROUP> : ' account=' : new.account)
+      void kernel(K$AUDIT, 'account refused branch=4 not.in.group user=' : @logname : ' group=' : acc.rec<ACC$GROUP> : ' account=' : new.account)
       server.error = SV$ERROR
       error.msg = sysmsg(10003) ;* User not allowed in requested account
       abort.message = error.msg
@@ -1039,7 +1039,7 @@ vb.local.login:
                * 20240219 mab user must be member of sdusers           
                if  not(is_grp_member(username,'sdusers')) then
                      server.error = SV$ON.ERROR
-                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=not a member of sdusers (local login)')
+                     void kernel(K$AUDIT, 'api refused user=' : username : ' reason=not a member of sdusers (local login)')  ;* 07 Oct 26 PAL-24
                      abort.message = sysmsg(5009) ;* This user is not registered for SD use
                      goto exit.vb.local.login
                end
@@ -1048,7 +1048,7 @@ vb.local.login:
                call !acc_hold('TEST', hold.info, hold.err)
                if hold.err # '' then
                      server.error = SV$ON.ERROR
-                     void kernel(K$AUDIT, 'API REFUSED user=' : username : ' reason=a backup or restore is running (local login)')
+                     void kernel(K$AUDIT, 'api refused user=' : username : ' reason=a backup or restore is running (local login)')  ;* 07 Oct 26 PAL-24
                      abort.message = sysmsg(hold.err<1,1>, hold.err<1,2>, hold.err<1,3>)
                      goto exit.vb.local.login
                end
@@ -1497,7 +1497,7 @@ exit.vb.scram.fail:
                * audited whether or not its author thinks about the trail.
                if scram.refuse.reason # '' then
                   if scram.audit.name = '' then scram.audit.name = '(none)'
-                  void kernel(K$AUDIT, 'API REFUSED user=' : scram.audit.name : ' reason=' : scram.refuse.reason)
+                  void kernel(K$AUDIT, 'api refused user=' : scram.audit.name : ' reason=' : scram.refuse.reason)  ;* 07 Oct 26 PAL-24
                   scram.refuse.reason = ''
                end
                * The wait comes AFTER the record, never before it (S.60 above).

@@ -56,7 +56,7 @@ def checks(src):
     bad = find(lines, r"^scram\.bad\.cred:")
     exitl = find(lines, r"^exit\.vb\.scram\.fail:")
     setd = find(lines, r"^\s*scram\.fail\.delay\s*=\s*3\b", bad or 0)
-    audit = find(lines, r"kernel\(K\$AUDIT,\s*'API REFUSED user='", exitl or 0)
+    audit = find(lines, r"kernel\(K\$AUDIT,\s*'api refused user='", exitl or 0)
     wait_if = find(lines, r"^\s*if scram\.fail\.delay\s*>\s*0\s+then", exitl or 0)
     wait = find(lines, r"^\s*sleep scram\.fail\.delay\b", exitl or 0)
     ret = find(lines, r"^\s*return\s*$", exitl or 0)

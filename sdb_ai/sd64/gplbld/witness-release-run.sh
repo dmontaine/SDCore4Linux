@@ -823,10 +823,10 @@ else
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
         say "  audit trail after: $(wc -l < "$AUD") lines; the new records:"
         printf '%s\n' "$NEW" | sed -e 's/^/      | /'
-        ck_says "T5 the ADD record is new in the trail" "MODIFY.ACCOUNT ADD account=$ACC to=$ACC2" "$NEW"
-        ck_says "T6 the DELETE record is new in the trail" "MODIFY.ACCOUNT DELETE account=$ACC from=$ACC2" "$NEW"
-        ck_says "T7 the ELEVATION REFUSED record is new" "ELEVATION REFUSED reason=root is not SD administrator" "$NEW"
-        ck_says "T8 the ELEVATION GRANTED record is new (this sdsys session's own)" "ELEVATION GRANTED reason=sdsys login" "$NEW"
+        ck_says "T5 the ADD record is new in the trail" "modify.account add account=$ACC to=$ACC2" "$NEW"
+        ck_says "T6 the DELETE record is new in the trail" "modify.account delete account=$ACC from=$ACC2" "$NEW"
+        ck_says "T7 the ELEVATION REFUSED record is new" "elevation refused reason=root is not SD administrator" "$NEW"
+        ck_says "T8 the ELEVATION GRANTED record is new (this sdsys session's own)" "elevation granted reason=sdsys login" "$NEW"
     fi
 fi
 
@@ -983,7 +983,7 @@ PROBE_PW="$SCRAM_PW"
 #      password is refused and A1's SD password connects - SDConnect sends
 #      SCRAM against $cred, no longer the cleartext request 24.
 #   A3 a wrong password is refused in 5017's words, and the trail gains
-#      "API REFUSED user=zzrel1 reason=wrong password" (SCRAM's wording since
+#      "api refused user=zzrel1 reason=wrong password" (lower case since 7 Oct 26, PAL-24; SCRAM's wording since
 #      phase 4; request 24 wrote "authentication failed").
 #   A4 STRUCK (18 Sep 26, the teardown, S.25): the tier gate is gone - a grant
 #      is Linux group membership and nothing else, so there is no rank for a
@@ -1054,8 +1054,8 @@ else
         ck_says "A3 refused in 5017's words" "Invalid username or password" "$OUT"
         ck_absent "A3b and did not connect" "SDConnect returned 1" "$OUT"
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
-        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-        ck_says "A3c the trail gained an API REFUSED record" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+        printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
+        ck_says "A3c the trail gained an API REFUSED record" "api refused user=$ACC reason=wrong password" "$NEW"
     fi
     if [ "$COMMIT" -eq 1 ]; then
         # 4 Oct 26 - S.60.  A3d: THE REFUSAL IS AUDITED EVEN WHEN THE CLIENT DROPS DURING THE SERVER'S 3-SECOND DELAY.
@@ -1069,8 +1069,8 @@ else
         sleep 6
         NEW=$(tail -n +"$((N1 + 1))" "$AUD")
         say "  A3d: the client was killed 2 s into the delay; the trail gained:"
-        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-        ck_says "A3d a refusal is audited although the client dropped during the delay (S.60)" "API REFUSED user=$ACC" "$NEW"
+        printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
+        ck_says "A3d a refusal is audited although the client dropped during the delay (S.60)" "api refused user=$ACC" "$NEW"
     fi
 
     OUT=$(run_sd root "fixture: A ROOT SESSION IS REFUSED OUTRIGHT (teardown control)" "WHO")
@@ -1268,10 +1268,10 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         NEW=$(tail -n +"$((N0 + 1))" "$AUD")
         say "  the new API REFUSED records:"
-        printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-        ck_says "S3b audited: wrong password" "API REFUSED user=$ACC reason=wrong password" "$NEW"
+        printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
+        ck_says "S3b audited: wrong password" "api refused user=$ACC reason=wrong password" "$NEW"
         ck_says "S6b audited: sequence error" "reason=sequence error - no client-first" "$NEW"
-        ck_says "S7b audited: no credential" "API REFUSED user=zzrel9 reason=no credential" "$NEW"
+        ck_says "S7b audited: no credential" "api refused user=zzrel9 reason=no credential" "$NEW"
         ck_says "S9b audited: the name gate fired, not the credential read" "reason=name rejected by valid_os_name" "$NEW"
     fi
 fi
@@ -1400,7 +1400,7 @@ else
         #   (set_acc_password:235) and asks "Current password:" first.  The
         #   witness answered it with the NEW password, got "Password not
         #   changed.", and E3/E3c/E3d/E3e/E4/E5 then measured a machine with no
-        #   matching credential - the trail reads `API REFUSED user=sdsys
+        #   matching credential - the trail reads `api refused user=sdsys
         #   reason=wrong password` for every one of them.
         #
         # ***AND THE OLD E6 DELETED THE OWNER'S OWN sdsys CREDENTIAL.***  It
@@ -1489,8 +1489,8 @@ else
                 ck_says "E3d refused in 10922's words though the password was right" "SDSYS may use the API only from a process running as the sdsys user on this machine" "$OUT"
                 ck_absent "E3d2 and did not log in" "server signature VERIFIED" "$OUT"
                 NEW=$(tail -n +"$((N1 + 1))" "$AUD")
-                printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-                ck_says "E3e audited, naming who opened the socket" "API REFUSED user=sdsys reason=sdsys API session opened by $ACC" "$NEW"
+                printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
+                ck_says "E3e audited, naming who opened the socket" "api refused user=sdsys reason=sdsys API session opened by $ACC" "$NEW"
             fi
             rm -f "$PROBE_PUB"
         fi
@@ -1499,8 +1499,8 @@ else
             ck_says "E4 refused at 48 in 10174's words" "SCRAM: login REFUSED at request 48: SDSYS may be reached through the API only from this machine" "$OUT"
             ck_absent "E4b and did not log in" "server signature VERIFIED" "$OUT"
             NEW=$(tail -n +"$((N0 + 1))" "$AUD")
-            printf '%s\n' "$NEW" | grep -F 'API REFUSED' | sed -e 's/^/      | /'
-            ck_says "E5 audited with the peer's address" "API REFUSED user=sdsys reason=sdsys on a remote API session from $LANIP" "$NEW"
+            printf '%s\n' "$NEW" | grep -F 'api refused' | sed -e 's/^/      | /'
+            ck_says "E5 audited with the peer's address" "api refused user=sdsys reason=sdsys on a remote API session from $LANIP" "$NEW"
         fi
         PW_OS=""
         # 18 Sep 26 dm - MODIFY.PASSWORD CANNOT UNSET ONE, BY DESIGN: an empty

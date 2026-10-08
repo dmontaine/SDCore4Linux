@@ -469,13 +469,13 @@ OUT=$(run_sd_as root "a root session (refused outright)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8a a root session is refused in 10190's words" "root is not SD's administrator" "$OUT"
   ck_absent "M8b and never reached the prompt (no WHO)" "zzabst" "$OUT"
-  ck_says "M8c and it was audited" "ELEVATION REFUSED reason=root is not SD administrator" \
+  ck_says "M8c and it was audited" "elevation refused reason=root is not SD administrator" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 OUT=$(run_sd "a sdsys login session, by the bridge (granted)" "WHO")
 if [ "$COMMIT" -eq 1 ]; then
   ck_says "M8d the sdsys login session is granted (10916)" "SD administration granted: this session is the sdsys OS user" "$OUT"
-  ck_says "M8e and the trail says so" "ELEVATION GRANTED reason=sdsys login" \
+  ck_says "M8e and the trail says so" "elevation granted reason=sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 if [ "$COMMIT" -eq 1 ]; then
@@ -491,7 +491,7 @@ if [ "$COMMIT" -eq 1 ]; then
   # refusal was right (M8g/M8h passed).
   ck_says "M8f sudo -u sdsys is refused (10195)" "but the machine was not logged in as" "$OUT"
   ck_absent "M8g and never reached the prompt (no grant banner)" "SD administration granted" "$OUT"
-  ck_says "M8h and it was audited" "ELEVATION REFUSED reason=sdsys session without a sdsys login" \
+  ck_says "M8h and it was audited" "elevation refused reason=sdsys session without a sdsys login" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 
@@ -526,7 +526,7 @@ else
   ck_says "M12a refused in 10191's words" "may not administer over ssh or the API" "$OUT"
   ck_absent "M12b and NOT as a session without a sdsys login (10195)" "was not logged in as" "$OUT"
   ck_absent "M12c no administrator grant" "SD administration granted" "$OUT"
-  ck_says "M12d audited as a remote transport" "ELEVATION REFUSED reason=sdsys session from a remote transport" \
+  ck_says "M12d audited as a remote transport" "elevation refused reason=sdsys session from a remote transport" \
     "$(tail -n 5 "$SDSYS/audit" 2>/dev/null)"
 fi
 
