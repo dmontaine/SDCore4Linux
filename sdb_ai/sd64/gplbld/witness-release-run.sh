@@ -2010,7 +2010,7 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         if [ "$SSH_VERDICT0" = "NOT GATED BY THIS MACHINE'S FIREWALL" ]; then
             OUT=$(run_sd sdsys "REMOTE.SSH OFF where ufw does not gate ssh" "REMOTE.SSH OFF")
-            ck_says "H7 REMOTE.SSH OFF is refused where it would gate nothing (status 3)" "Could not set remote ssh access to OFF (status 3)" "$OUT"
+            ck_says "H7 REMOTE.SSH OFF is refused where it would gate nothing (status 3)" "Could not set remote ssh access to off (status 3)" "$OUT"
             ck "H7b and SD's 22/tcp entry is as it was" "$RA_22_BEFORE" "$(fw_rule_present 22/tcp && echo yes || echo no)"
         else
             OUT=$(run_sd sdsys "REMOTE.SSH OFF" "REMOTE.SSH OFF")

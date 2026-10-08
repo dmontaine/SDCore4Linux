@@ -338,7 +338,7 @@ elif [ "$COMMIT" -eq 1 ]; then
   OUT=$(run_sd "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no route word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
   ck_says "M5g CREATE.ACCOUNT does not demand a route word (10082 is not reached)" \
-          "Cannot create user zzabst2 with NO.QUERY" "$OUT"
+          "Cannot create user zzabst2 with no.query" "$OUT"
 fi
 
 # ==========================================================================
