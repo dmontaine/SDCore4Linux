@@ -224,7 +224,7 @@ PY
 # traced to the step that made it.  Prints, never judges.
 note_state() {
     local a line=""
-    for a in tester "$A1" "$A2"; do
+    for a in ${PREX:-} "$A1" "$A2"; do
         [ -d "$ACCOUNTS_ROOT/$a" ] && line="$line $a=$(sig "$a")/voc-raw:$(sha256sum "$ACCOUNTS_ROOT/$a/voc/%0" 2>/dev/null | cut -c1-8)"
     done
     say "  [state @ $1]$line"
@@ -528,7 +528,17 @@ if [ "$SETUP_OK" -ne 1 ]; then
 else
     C1=$(counts "$A1"); C2=$(counts "$A2")
     say "  measured on disk before the first backup: $A1 = $C1, $A2 = $C2  (files bytes dirs)"
-    TESTER_SIG0=$(sig tester 2>/dev/null)
+    # 8 Oct 26: the control for 5f6, 5g8 and 5g9 is "an account this run did not make", whichever the machine
+    #   has.  It was hard-coded as tester, the test VMs' user; on any other machine sig() of a missing directory
+    #   is the hash of nothing, so 5g8 PASSED over a directory that was not there and only 5g9 noticed.  The
+    #   null case is refused: no usable account means those rows are NOT REACHED, never a pass.
+    PREX=$(ls -1 "$REGISTER" | grep -v -x -e sdsys -e "$A1" -e "$A2" | head -1)
+    if [ -n "$PREX" ] && [ -d "$ACCOUNTS_ROOT/$PREX" ]; then
+        PREX_OK=1; TESTER_SIG0=$(sig "$PREX")
+    else
+        PREX_OK=0; TESTER_SIG0=""
+    fi
+    say "  control account this run did not make (5f6, 5g8, 5g9): '${PREX:-none}', usable: $PREX_OK, tree $TESTER_SIG0"
     note_state "3 start"
 
     # ---- 3a one account
@@ -586,7 +596,14 @@ else
     ck_says "3e1 LATEST $A1 is the newest of the three (13048)" "The most recent backup is $Z_A1B" "$OUT"
     ck_says "3e2 answering n abandons it (13024)" "Restore abandoned. Nothing was changed." "$OUT"
     OUT=$(run_sd "LATEST $A2 (only the two-account zip names it), answering n" "RESTORE.ACCOUNT LATEST $A2" "n")
-    ck_says "3e3 LATEST $A2 is the two-account zip (13048)" "The most recent backup is $Z_BOTH" "$OUT"
+    # 8 Oct 26 - S.61: LATEST is the newest backup that actually HOLDS the account (read from the zips'
+    #   manifests), and a newer backup that does not is said out loud (13049) before the question.  Here the
+    #   newest zip of all is the one-account zip from 3d, which does not hold $A2.  These three rows were
+    #   written for the old by-name rule ("The most recent backup is ...") and failed on the first run of
+    #   a post-S.61 build; they anchor on the wording the product prints on the new path.
+    ck_says "3e3 the newest backup does not hold $A2, and SD says so (13049)" "does not hold $A2" "$OUT"
+    ck_says "3e3b and names the newest one that does, the two-account zip (13049)" "The newest backup that does is $Z_BOTH" "$OUT"
+    ck_silent "3e3c and it is not a refusal (13047)" "No backup of $A2 made on this computer was found" "$OUT"
     note_state "after 3e"
 
     # ---- 3f ALL: every registered account but sdsys - the two made here and whatever was there
@@ -730,7 +747,11 @@ else
     ck "5f3 the later file is gone" "no" "$(yesno_dir "$ACCOUNTS_ROOT/$A1/zzlater3")"
     ck "5f4 $A1 holds the ALL backup's counts" "$C1" "$(counts "$A1")"
     ck "5f5 $A2 was not touched by a restore of $A1 from an ALL zip" "$S2" "$(sig "$A2")"
-    ck "5f6 nor was tester" "$TESTER_SIG0" "$(sig tester)"
+    if [ "$PREX_OK" -eq 1 ]; then
+        ck "5f6 nor was $PREX, an account this run did not make" "$TESTER_SIG0" "$(sig "$PREX")"
+    else
+        not_reached "5f6 nor was a pre-existing account - there is none on this machine"
+    fi
     note_state "after 5f"
 
     # ---- 5g LATEST ALL
@@ -746,15 +767,22 @@ else
     ck "5g5 $A1 is the backup's again" "$C1" "$(counts "$A1")"
     ck "5g6 $A2 is the backup's again" "$C2" "$(counts "$A2")"
     ck "5g7 the later files are gone" "no no" "$(yesno_dir "$ACCOUNTS_ROOT/$A1/zzlater4") $(yesno_dir "$ACCOUNTS_ROOT/$A2/zzlater5")"
-    ck "5g8 tester - not made by this run - is replaced by itself: its tree is identical" "$TESTER_SIG0" "$(sig tester)"
-    ck "5g9 tester's directory is still its own" "tester" "$(stat -c '%U' "$ACCOUNTS_ROOT/tester")"
+    if [ "$PREX_OK" -eq 1 ]; then
+        ck "5g8 $PREX - not made by this run - is replaced by itself: its tree is identical" "$TESTER_SIG0" "$(sig "$PREX")"
+        ck "5g9 $PREX's directory is still its own" "$PREX" "$(stat -c '%U' "$ACCOUNTS_ROOT/$PREX")"
+    else
+        not_reached "5g8 a pre-existing account is replaced by itself - there is none on this machine"
+        not_reached "5g9 and its directory is still its own"
+    fi
     note_state "after 5g"
 
     # ---- 5h LATEST for a name the newest zip does not hold
     S1=$(sig "$A1"); S2=$(sig "$A2")
     OUT=$(run_sd "LATEST for an account the ALL zip does not hold" "RESTORE.ACCOUNT LATEST nosuchacct")
-    ck_says "5h1 an ALL zip qualifies by NAME, so it is chosen (13048)" "The most recent backup is $Z_ALL" "$OUT"
-    ck_says "5h2 and its manifest refuses (13014): nothing changed" "nosuchacct is not in this backup." "$OUT"
+    # 8 Oct 26 - S.61: an ALL zip no longer qualifies by its NAME; its manifest is read, it does not hold
+    #   nosuchacct, and with no backup that does the answer is the refusal 13047, before any question.
+    ck_says "5h1 no backup holds it, so LATEST refuses even though an ALL zip is the newest (13047)" "No backup of nosuchacct made on this computer was found in $BAK." "$OUT"
+    ck_silent "5h2 and no restore was offered" "Restore these accounts" "$OUT"
     ck "5h3 nothing changed" "$S1 $S2" "$(sig "$A1") $(sig "$A2")"
 
     # ---- 5i archives that lie
