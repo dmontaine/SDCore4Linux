@@ -155,9 +155,9 @@ deffun valid_os_name(name) calling '!valid_os_name'
    * Get next token, account name
    call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
    if token.type = PARSER$END then
-      crt 'Command Syntax:  MODIFY.ACCOUNT <account> ADD | DELETE <username>'
-      crt '                 MODIFY.ACCOUNT <account> SSH | API | BOTH | NONE'
-      crt '                 MODIFY.ACCOUNT <account> SUSPENDED | UNSUSPENDED'
+      crt 'Command Syntax:  modify.account <account> add | delete <username>'
+      crt '                 modify.account <account> ssh | api | both | none'
+      crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
    *
@@ -289,8 +289,8 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
          
       end else
-         crt 'MODIFY.ACCOUNT Action Must Be Add, Delete, Ssh, Api, Both, None,'
-         crt '   Suspended or Unsuspended'
+         crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
+         crt '   suspended or unsuspended'
       end
 
    end else

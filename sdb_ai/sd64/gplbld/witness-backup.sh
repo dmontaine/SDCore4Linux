@@ -615,7 +615,7 @@ else
     OUT=$(run_sd "the refusals" "BACKUP.ACCOUNT nosuchacct" "BACKUP.ACCOUNT sdsys" "BACKUP.ACCOUNT" "BACKUP.ACCOUNT $A1 TO /nonexistent/dir" "BACKUP.ACCOUNT ALL $A1")
     ck_says "3g1 an unregistered name (13005)" "nosuchacct is not a registered account." "$OUT"
     ck_says "3g2 SDSYS is not backed up (13004)" "SDSYS is not backed up or restored with the accounts." "$OUT"
-    ck_says "3g3 no arguments is a syntax error (13006)" "Syntax: BACKUP.ACCOUNT name [name ...] [TO directory]" "$OUT"
+    ck_says "3g3 no arguments is a syntax error (13006)" "Syntax: backup.account name [name ...] [to directory]" "$OUT"
     ck_says "3g4 TO a missing directory (13010)" "/nonexistent/dir is not a directory." "$OUT"
     ck "3g5 none of the refusals wrote a zip" "$ZN0" "$(ls -1 "$BAK" | wc -l)"
 
@@ -689,7 +689,7 @@ else
     ck_says "5c1 a missing archive, looked for in the saved directory (13034)" "$BAK/nosuch.zip does not exist." "$OUT"
     ck_says "5c2 a name not in the zip (13014)" "nosuchacct is not in this backup." "$OUT"
     ck_says "5c3 sdsys is not in a zip either (13014)" "sdsys is not in this backup." "$OUT"
-    ck_says "5c4 no arguments: syntax (13016)" "Syntax: RESTORE.ACCOUNT archive name [name ...] {NO.QUERY}" "$OUT"
+    ck_says "5c4 no arguments: syntax (13016)" "Syntax: restore.account archive name [name ...] {no.query}" "$OUT"
     ck "5c5 nothing changed: $A1, $A2" "$S1 $S2" "$(sig "$A1") $(sig "$A2")"
 
     # ---- 5d the restore of one account, by BARE zip name, answering y

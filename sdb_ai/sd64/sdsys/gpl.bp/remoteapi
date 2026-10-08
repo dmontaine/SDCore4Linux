@@ -92,7 +92,7 @@ $include err.h
       rc = OS.ERROR()
       if rc # 0 then
          @system.return.code = -ER$FAILED
-         crt sysmsg(10133, 'SHOW', rc)  ;* Could not read or set the SD API
+         crt sysmsg(10133, 'show', rc)  ;* Could not read or set the SD API
       end
       stop
    end
@@ -121,7 +121,7 @@ $include err.h
    rc = OS.ERROR()
    if rc # 0 then
       @system.return.code = -ER$FAILED
-      stop sysmsg(10133, action, rc)  ;* Could not set the SD API to %1 (status %2)
+      stop sysmsg(10133, word, rc)  ;* Could not set the SD API to %1 (status %2); word is the lower-case form (PAL-24 stage 2)
    end
 
 * 07 Oct 26 dm - PAL-24: remote.api and its keyword are lower case in the audit line

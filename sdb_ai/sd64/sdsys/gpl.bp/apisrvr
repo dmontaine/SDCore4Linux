@@ -1169,7 +1169,7 @@ vb.scram.first:
 
                if scram.cred<CRED$VERSION> # SCRAM$CRED.VERSION then
                   scram.cred = ''
-                  scram.refuse.reason = 'credential is not version 2 - run MODIFY.PASSWORD'
+                  scram.refuse.reason = 'credential is not version 2 - run modify.password'
                   goto scram.bad.cred
                end
 

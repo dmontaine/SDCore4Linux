@@ -83,7 +83,7 @@ $include err.h
       rc = OS.ERROR()
       if rc # 0 then
          @system.return.code = -ER$FAILED
-         crt sysmsg(10139, 'SHOW', rc)
+         crt sysmsg(10139, 'show', rc)
       end
       stop
    end
@@ -108,7 +108,7 @@ $include err.h
    rc = OS.ERROR()
    if rc # 0 then
       @system.return.code = -ER$FAILED
-      stop sysmsg(10139, action, rc)  ;* Could not set remote ssh access to %1 (status %2)
+      stop sysmsg(10139, word, rc)  ;* Could not set remote ssh access to %1 (status %2); word is the lower-case form (PAL-24 stage 2)
    end
 
 * 07 Oct 26 dm - PAL-24: remote.ssh and its keyword are lower case in the audit line.

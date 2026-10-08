@@ -256,7 +256,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in STANDARD PROGRAMMER ADMINISTRATOR UNSUSPEND; do
     OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M3a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
+            "Action Must Be add, delete, ssh, api, both, none," "$OUT"
   done
   OUT=$(run_sd "MODIFY.ACCOUNT $ACC SUSPENDED, then UNSUSPENDED (the flag, W.7)" \
              "MODIFY.ACCOUNT $ACC SUSPENDED" "MODIFY.ACCOUNT $ACC UNSUSPENDED")
@@ -278,7 +278,7 @@ if [ "$COMMIT" -eq 1 ]; then
   for w in SH-ON SH-OFF OS-ON OS-OFF; do
     OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
     ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be Add, Delete, Ssh, Api, Both, None," "$OUT"
+            "Action Must Be add, delete, ssh, api, both, none," "$OUT"
   done
   # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
   # and the OS runs at the account's own Linux permissions - no 10053.  This

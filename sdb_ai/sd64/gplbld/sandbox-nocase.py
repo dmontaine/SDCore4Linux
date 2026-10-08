@@ -227,7 +227,7 @@ def main():
         # --- B. CASE is refused outside internal mode --------------------------------------
         say("\n--- B. CREATE.FILE ... CASE is refused for a normal session ------------------")
         out = sess(box, "CREATE.FILE %s CASE" % X)
-        row("B: CREATE.FILE ... CASE answers 10176", "Record ids are case insensitive in every file, so CASE is not accepted." in out,
+        row("B: CREATE.FILE ... CASE answers 10176", "Record ids are case insensitive in every file, so case is not accepted." in out,
             "no 10176 text")
         row("B: the refusal carries no raw field mark (printed a line at a time)", "�" not in out and "\xfe" not in out,
             "a field mark reached the screen")
