@@ -2,6 +2,23 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+07 Oct 26  UPDATE.ACCOUNTS ALL NO LONGER TELLS YOU TO START SD WITH SUDO.
+
+           When UPDATE.ACCOUNTS ALL is typed anywhere but in an administrator's
+           session as SDSYS, SD refuses and says so.  The refusal ended with
+           "Start SD with sudo - that lands you in SDSYS - and run it again".
+           That advice is from before 18 September: running SD as root is now
+           refused outright ("root is not SD's administrator"), so following it
+           led to a second refusal.  It now says what the other refusals say:
+           log in as sdsys at the machine's keyboard (or a desktop-sharing view
+           of it), run sd from that session, and run it again.
+
+           What it does NOT do: the refusal itself is unchanged, and the
+           installer, which runs the update with its own privileges, is
+           unaffected.  No other message SD prints advises starting SD with
+           sudo (the editor's hint to install a missing editor package with
+           sudo is a different matter).
+
 07 Oct 26  A PASSWORD THAT IS TAKEN IS ANSWERED "Password accepted." EVERYWHERE.
 
            Setting a password with MODIFY.PASSWORD used to answer in two ways:
