@@ -8,6 +8,13 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   09 Oct 2026 - the listing of the saved accounts after "sudo cp -r" is
+#   "sudo ls": the copy is made by root and, under a 027 umask (a fresh Ubuntu
+#   26.04 account), comes out root:root 0750, so the bare "ls" run as the
+#   ordinary user failed with "Permission denied" and, under "set -e", ended the
+#   whole delete after the accounts were saved and before anything was removed.
+#   Found on the release VM; the listing is informational only.
+#
 #   15 Sep 2026 - the API's TLS server identity (/etc/sd-tls) is kept when the
 #   accounts are kept, and removed only on a full DELETE.  A reinstall that
 #   keeps your database now keeps the server's identity with it.
@@ -106,7 +113,7 @@ case $yn in
            # sudo cp -r /usr/local/sdsys/ACCOUNTS /home/sd
            # ls /home/sd/ACCOUNTS;;
            sudo cp -r "${sdsysdir}/accounts" "$acct_path"
-           ls "$acct_path/accounts";;
+           sudo ls "$acct_path/accounts";;
     [nN] ) echo
            # Modified by Composer AI - 2026/06/10.
            # read -p 'Enter "DELETE" to confirm deletion of Accounts ' keep_accts
@@ -118,13 +125,13 @@ case $yn in
            else
                echo Accounts Directory Saved
                sudo cp -r "${sdsysdir}/accounts" "$acct_path"
-               ls "$acct_path/accounts"
+               sudo ls "$acct_path/accounts"
            fi
            ;;
     *)     echo
            echo Accounts Directory Saved
            sudo cp -r "${sdsysdir}/accounts" "$acct_path"
-           ls "$acct_path/accounts";;
+           sudo ls "$acct_path/accounts";;
 esac
 
 echo
