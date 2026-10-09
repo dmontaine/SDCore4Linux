@@ -144,15 +144,24 @@ def run(root):
 def selftest():
     import shutil
     base = tempfile.mkdtemp(prefix="auditwords-")
-    caught = missed = 0
+    caught = missed = na = 0
     try:
         def mutant(name, prog, old, new, expect_fail=True):
-            nonlocal caught, missed
+            nonlocal caught, missed, na
             d = os.path.join(base, name)
             shutil.copytree(GPLBP, d)
             p = os.path.join(d, prog)
+            if not os.path.isfile(p):
+                # byte-identical in both Linux trees (9 Oct): SD Core for Linux Solo has no delacc, createa, remoteapi ...
+                print("  [n/a] %s: this tree has no gpl.bp/%s" % (name, prog))
+                na += 1
+                return
             with open(p, encoding="utf-8", errors="replace") as f:
                 t = f.read()
+            if t.count(old) == 0 and not os.path.isfile(os.path.join(GPLBP, "delacc")):
+                print("  [n/a] %s: SD Core for Linux Solo does not write that line" % name)
+                na += 1
+                return
             if t.count(old) != 1:
                 print("  [MISSED] %s: the text to change occurs %d times, not once" % (name, t.count(old)))
                 missed += 1
@@ -191,7 +200,14 @@ def selftest():
         mutant("control-upper-in-reason-text", "cproc", "reason=sdsys login'", "reason=SDSYS login'", expect_fail=False)
         mutant("control-upper-in-a-comment", "delacc", "* 07 Oct 26 dm - PAL-24: the command word is lower case.",
                "* DELETE.ACCOUNT in a comment is not code.", expect_fail=False)
-        print("selftest: %d mutants/controls behaved, %d did not" % (caught, missed))
+        # the same guard for the programs only SD Core for Linux Solo has (each is n/a in the full product)
+        mutant("solo-admin-event-upper", "admin", "'admin refused reason=wrong password'", "'ADMIN refused reason=wrong password'")
+        mutant("solo-admin-no-kv-upper", "admin", "'admin locked'", "'Admin locked'")
+        mutant("solo-control-upper-in-reason", "admin", "reason=wrong password'", "reason=Wrong password'", expect_fail=False)
+        print("selftest: %d mutants/controls behaved, %d did not, %d not applicable to this tree" % (caught, missed, na))
+        if caught < 4:
+            print("selftest: NOTHING MEASURED - fewer than 4 mutants could run, so the guard is untested")
+            return 2
         return 0 if missed == 0 else 1
     finally:
         shutil.rmtree(base, ignore_errors=True)
