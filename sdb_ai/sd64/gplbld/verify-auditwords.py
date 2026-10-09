@@ -39,7 +39,10 @@ record, or a scope (--since) that leaves no record to judge, is exit 2 and not a
 --selftest needs no install: it runs the rule over a fixture and breaks it each way (mutants) and
 every one must be caught, with the controls (a capital in a VALUE, a typed argument, a capital
 older than the scope) passing.
-Exit 0 pass, 1 a capital was found in the judged records (or a mutant escaped), 2 nothing measured."""
+CONTROL (taken from the Windows port, 9 Oct): at least one judged record must start with the word
+login, or it is a FAIL - a reader that recognises nothing must not pass.
+Exit 0 pass, 1 a capital was found in the judged records, no login record, or a mutant escaped,
+2 nothing measured."""
 import os
 import re
 import sys
@@ -92,6 +95,12 @@ def check(lines, since=None):
         if capital:
             r['bad'].append((n, head, line))
     return r
+
+
+def login_count(heads):
+    """The control (Windows verify-auditwords.ps1 has it): records whose first event word is login,
+    case blind - a capital one is caught by the main rule, this only asks that the reader saw a sign-in."""
+    return sum(n for h, n in heads.items() if h.lower().split(' ')[0] == 'login')
 
 
 def source_heads():
@@ -190,6 +199,8 @@ def measure(path, since=None, judge_all=False):
         return 2
     for h in sorted(r['heads']):
         print('  %5d  %s' % (r['heads'][h], h))
+    logins = login_count(r['heads'])
+    print('  control: %d judged "login" record(s)' % logins)
     want = source_heads()
     if want:
         seen, miss = not_seen(want, r['heads'])
@@ -205,6 +216,9 @@ def measure(path, since=None, judge_all=False):
         return 1
     if r['unparsed']:
         print('verify-auditwords: FAIL - %d line(s) are not audit records (the reader and the writer disagree)' % len(r['unparsed']))
+        return 1
+    if logins == 0:
+        print('verify-auditwords: FAIL - CONTROL: no "login" record among the judged ones, so this reader may be recognising nothing (a sign-in writes one)')
         return 1
     print('verify-auditwords: PASS - %d judged records, every event word lower case' % r['judged'])
     return 0
@@ -281,6 +295,9 @@ def selftest():
         e2e('garbage\n', 2, 'a file with no record')
         e2e('\n'.join(GOOD) + '\n', 0, 'a good file with no stamp (judges all)')
         e2e('\n'.join(GOOD[:2] + [GOOD[0].replace('login', 'Login')]) + '\n', 1, 'a file with one capital')
+        text = e2e('\n'.join(GOOD[3:]) + '\n', 1, 'lower-case records but no login (the control)')
+        row('...and it names the control', 'CONTROL' in text)
+        row('control: "api login" is not a sign-in', login_count({'api login': 2, 'login refused': 1, 'Login': 1}) == 2)
         text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 1, 'history with a capital and no stamp (judges all, fails)')
         row('...and it says the whole file was judged because no stamp exists', 'no usable install time' in text)
         with open(os.path.join(d, STAMP_NAME), 'w') as fh:
