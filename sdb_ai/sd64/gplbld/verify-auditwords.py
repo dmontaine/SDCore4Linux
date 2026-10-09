@@ -6,6 +6,9 @@
     sudo python3 .../verify-auditwords.py --since '2026-10-08 15:06:45'     (judge from this moment on)
     sudo python3 .../verify-auditwords.py --all                              (judge the whole file)
     sudo python3 .../verify-auditwords.py --file /usr/local/sdsys/audit.1    (a rotated file)
+    python3 .../verify-auditwords.py --file /home/USER/SDCoreSolo/audit      (SD Core for Linux Solo: the
+        file is the user's own, no sudo; its stamp is the "date" line of ~/SDCoreSolo/.sdcore-install.
+        The same file is kept byte-identical in both Linux trees.)
 
 WHY.  PAL-24 stage 1 (owner, 7 Oct 2026: "All lower case") made the audit trail's event words lower
 case, and test-auditwords-units.py proves it from the SOURCE (every kernel(K$AUDIT, ...) call in
@@ -124,8 +127,13 @@ def not_seen(want, heads):
     return seen, sorted(w for w in want if w not in seen)
 
 
+SOLO_DATE = re.compile(r'^(\d{4}-\d\d-\d\d)T(\d\d:\d\d:\d\d)')
+
+
 def stamp_installed(audit_path):
-    """(installed time, stamp path) from the install stamp beside the audit file, or (None, path)."""
+    """(installed time, stamp path) from the install stamp beside the audit file, or (None, path).
+    The full product writes  installed=YYYY-MM-DD HH:MM:SS;  Solo writes  date 2026-10-08T18:28:12-07:00
+    (the audit's own stamps are local time, so the date and time are taken as written)."""
     sp = os.path.join(os.path.dirname(os.path.abspath(audit_path)), STAMP_NAME)
     try:
         with open(sp, 'r', encoding='utf-8') as fh:
@@ -135,6 +143,10 @@ def stamp_installed(audit_path):
                     v = line.split('=', 1)[1].strip()
                     if STAMP_FORMAT.match(v):
                         return v, sp
+                elif line.startswith('date '):
+                    m = SOLO_DATE.match(line[5:].strip())
+                    if m:
+                        return m.group(1) + ' ' + m.group(2), sp
     except OSError:
         pass
     return None, sp
@@ -158,9 +170,9 @@ def measure(path, since=None, judge_all=False):
     else:
         scope, sp = stamp_installed(path)
         if scope is None:
-            print('  scope: the WHOLE file - no usable "installed=" line in %s, and no --since' % sp)
+            print('  scope: the WHOLE file - no usable install time in %s, and no --since' % sp)
         else:
-            print('  scope: records stamped %s or later (installed= in %s)' % (scope, sp))
+            print('  scope: records stamped %s or later (the install time in %s)' % (scope, sp))
     lines = text.split('\n')
     r = check(lines, scope)
     total = r['judged'] + r['older'] + len(r['unparsed'])
@@ -270,7 +282,11 @@ def selftest():
         e2e('\n'.join(GOOD) + '\n', 0, 'a good file with no stamp (judges all)')
         e2e('\n'.join(GOOD[:2] + [GOOD[0].replace('login', 'Login')]) + '\n', 1, 'a file with one capital')
         text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 1, 'history with a capital and no stamp (judges all, fails)')
-        row('...and it says the whole file was judged because no stamp exists', 'no usable "installed="' in text)
+        row('...and it says the whole file was judged because no stamp exists', 'no usable install time' in text)
+        with open(os.path.join(d, STAMP_NAME), 'w') as fh:
+            fh.write('commit 5f9d1fb\ndate 2026-10-08T18:28:12-07:00\nmode unmanaged\n')
+        text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 0, 'history with a capital before a SOLO-format stamp')
+        row('...and the Solo stamp\'s scope is read as written, not shifted', 'records stamped 2026-10-08 18:28:12 or later' in text)
         with open(os.path.join(d, STAMP_NAME), 'w') as fh:
             fh.write('commit=abc\ninstalled=2026-10-08 15:06:45\n')
         text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 0, 'history with a capital before the install stamp')
