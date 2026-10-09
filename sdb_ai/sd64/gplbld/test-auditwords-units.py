@@ -15,7 +15,8 @@ lower case").  An audit record is  <event words> key=value key=value ...  and th
 registers it, the text of a reason=, what a caller typed in command=.
 
 WHAT IS CHECKED, by reading gpl.bp (the only place BASIC writes the trail: kernel(K$AUDIT, ...)):
-  A  every audit call's event words, the tokens before the first key=, hold no upper-case letter
+  A  every audit call's event words, the tokens before the first key=, and that first key itself, hold
+     no upper-case letter (the key was left out until 9 Oct; verify-auditwords.py judges it too)
   B  where the event words continue in a variable (remote.api <action>, modify.account route <word>), the
      variable is passed through downcase() or every literal assigned to it in that program is lower case
   C  create.account's type= value is passed through downcase() (it is a keyword of the command)
@@ -74,6 +75,12 @@ def head_of(lit):
     return " ".join(words)
 
 
+def key_cut(lit):
+    """The text up to the first '=': the event words AND the first key, both SD's own words.
+    verify-auditwords.py judges the same cut in what an install wrote (9 Oct, as the Windows reader does)."""
+    return lit.split("=", 1)[0]
+
+
 def lower_literals_only(root, prog, var):
     """True when every  var = '<literal>'  in prog assigns a lower-case literal (and there is at least one)."""
     seen = 0
@@ -109,8 +116,8 @@ def run(root):
     if len(ss) < 20:
         print("test-auditwords-units: NOTHING MEASURED - %d call sites (a reader that sees almost none is broken)" % len(ss))
         return 2
-    bad_head = [(p, n, head_of(lit)) for p, n, lit, rest, raw in ss if re.search(r"[A-Z]", head_of(lit))]
-    row("A every audit call's event words are lower case (%d sites)" % len(ss), not bad_head, repr(bad_head[:4]))
+    bad_head = [(p, n, key_cut(lit)) for p, n, lit, rest, raw in ss if re.search(r"[A-Z]", key_cut(lit))]
+    row("A every audit call's event words and first key are lower case (%d sites)" % len(ss), not bad_head, repr(bad_head[:4]))
     bad_var = []
     for p, n, lit, rest, raw in ss:
         if "=" in lit or not lit.endswith(" ") or not rest:
@@ -174,6 +181,7 @@ def selftest():
         if rc0 != 0:
             return 1
         mutant("event-name-upper", "login", "'login account=' : initial.account)", "'LOGIN account=' : initial.account)")
+        mutant("key-upper", "login", "'login account=' : initial.account)", "'login Account=' : initial.account)")
         mutant("command-upper", "delacc", "'delete.account account='", "'DELETE.ACCOUNT account='")
         mutant("label-half-upper", "cproc", "'elevation granted reason=sdsys login'", "'ELEVATION granted reason=sdsys login'")
         mutant("variable-not-downcased", "remoteapi", "'remote.api ' : downcase(action)", "'remote.api ' : action")
