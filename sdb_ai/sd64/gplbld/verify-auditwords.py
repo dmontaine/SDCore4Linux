@@ -27,7 +27,8 @@ everything and says why.
 
 A RECORD is  YYYY-MM-DD HH:MM:SS user=NAME [sudo=NAME] uid=N pid=N <event words> key=value ...
 (gplsrc/k_error.c audit_message).  The EVENT WORDS are the tokens before the first token that holds
-an '=' - the same cut as test-auditwords-units.py's head_of.  A value after an '=' is what a person
+an '=' - the same cut as test-auditwords-units.py's head_of - AND the key word itself (the text up
+to the first '='), which is also SD's: a capital in  Account=  fails (decided 9 Oct, as Windows does).  A value after an '=' is what a person
 typed (an account name, a reason) and keeps its case.  A record with no key=value at all has only its
 first token checked (a typed argument may follow it, as in Solo's  deny.verbs add WHO - now who).
 
@@ -82,7 +83,9 @@ def check(lines, since=None):
             continue
         words, has_kv = event_words(m.group(6))
         head = ' '.join(words)
-        capital = re.search(r'[A-Z]', head) is not None
+        # the key word before the first '=' is SD's own word too (Windows judges it, 9 Oct): Account= fails
+        cut = m.group(6).split('=', 1)[0] if has_kv else head
+        capital = re.search(r'[A-Z]', cut) is not None
         if since is not None and m.group(1) < since:
             r['older'] += 1
             if capital:
@@ -262,6 +265,10 @@ def selftest():
                            ('a capital first token of a record with no key=value', 5, 'deny.verbs', 'Deny.verbs')):
         v = verdict([GOOD[i].replace(a, b)])
         row('mutant: %s is caught' % label, v == (1, 0, 1, 0, 0), repr(v))
+    v = verdict([GOOD[0].replace('account=', 'Account=')])
+    row('mutant: a capital KEY word (Account=) is caught', v == (1, 0, 1, 0, 0), repr(v))
+    v = verdict([GOOD[3].replace('user=Fred', 'user=Fred Reason=x')])
+    row('control: a capital in a VALUE or after the first key is not judged', v == (1, 0, 0, 0, 0), repr(v))
     v = verdict(['2026-10-08 18:46:07 pid=1 login account=don'])
     row('mutant: a line that is not a record counts as unparsed, not as a pass', v == (0, 1, 0, 0, 0), repr(v))
     v = verdict([])
