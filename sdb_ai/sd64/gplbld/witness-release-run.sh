@@ -1024,8 +1024,10 @@ else
         PF=$(mktemp)
         SD_PROBE_PASSWORD="$PROBE_PW" timeout 60 python3 "$PROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
         PBG=$!
-        sleep 3
-        APID=$(pgrep -u "$ACC" -x sd | head -1)
+        # poll for the held session's sd for up to 5 s of the 6 s hold, not once after a fixed 3 s (9 Oct 2026: a slow
+        # Fedora guest missed it); nothing found by 5 s is still "none" and still fails
+        APID=""
+        for _t in 1 2 3 4 5; do sleep 1; APID=$(pgrep -u "$ACC" -x sd | head -1); [ -n "$APID" ] && break; done
         AST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${APID:-none}/status" 2>/dev/null)
         say "  the API server process: pid ${APID:-none}"
         printf '%s\n' "$AST" | sed -e 's/^/      | /'
@@ -1173,8 +1175,9 @@ else
         PF=$(mktemp)
         SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 90 python3 "$SPROBE" --user "$ACC" --account "$ACC" --hold 6 WHO >"$PF" 2>&1 &
         PBG=$!
-        sleep 4
-        SPID=$(pgrep -u "$ACC" -x sd | head -1)
+        # as above: poll up to 5 s of the 6 s hold (S2 failed once on a slow guest with a single look at 4 s)
+        SPID=""
+        for _t in 1 2 3 4 5; do sleep 1; SPID=$(pgrep -u "$ACC" -x sd | head -1); [ -n "$SPID" ] && break; done
         SST=$(grep -E '^(Uid|Gid|Groups):' "/proc/${SPID:-none}/status" 2>/dev/null)
         say "  the SCRAM server process: pid ${SPID:-none}"
         printf '%s\n' "$SST" | sed -e 's/^/      | /'
@@ -1789,9 +1792,16 @@ else
         HF=$(mktemp)
         SD_SCRAM_PASSWORD="$SCRAM_PW" timeout 60 python3 "$SPROBE" --host 127.0.0.1 --user "$ACC" --account "$ACC" --hold 10 >"$HF" 2>&1 &
         HPID=$!
-        sleep 5
-        PS=$(ps -eo pid=,ppid=,user=,comm= 2>&1)
-        SESS=$(printf '%s\n' "$PS" | awk -v u="$ACC" '$3 == u && $4 == "sd" { print $1; exit }')
+        # Look for the held session's sd and its relay child for up to 8 s of the 10 s hold, instead of once after a fixed
+        # 5 s: on the Fedora 44 workstation VM (a slower guest) the first try, at 5 s, found nothing (T6 failed once,
+        # 9 Oct 2026) and the unchanged rerun passed.  The null case still fails: nothing found by 8 s is "none".
+        SESS=""; PS=""
+        for _t in 1 2 3 4 5 6 7 8; do
+            sleep 1
+            PS=$(ps -eo pid=,ppid=,user=,comm= 2>&1)
+            SESS=$(printf '%s\n' "$PS" | awk -v u="$ACC" '$3 == u && $4 == "sd" { print $1; exit }')
+            [ -n "$SESS" ] && printf '%s\n' "$PS" | awk -v p="$SESS" '$2 == p && $4 == "sd" { f = 1 } END { exit !f }' && break
+        done
         say "      | the held session's sd pid: ${SESS:-none}"
         if [ -n "$SESS" ]; then
             ck "T6 the held session's sd process was found" yes yes

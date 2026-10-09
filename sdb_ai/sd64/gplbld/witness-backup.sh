@@ -85,7 +85,10 @@ REGISTER="$SDSYS/accounts"
 ACCOUNTS_ROOT=/home/sd/user_accounts
 SDCONF=/etc/sd.conf
 BAK=/var/backups/sdbackups
-HOST=$(hostname)
+# What the archive writes is acc_os_info's  downcase(field(@hostname, '.', 1)): the lower-case FIRST LABEL.  This said
+# HOST=$(hostname) until 9 Oct 2026, which is only the same on a host with no dot in its name; the Fedora 44 test VM is
+# sdsolo-fed44.local, and 6 rows expected "SD-sdsolo-fed44.local-..." for a file named "SD-sdsolo-fed44-...".
+HOST=$(hostname | cut -d. -f1 | tr '[:upper:]' '[:lower:]')
 A1=zzbak1
 A2=zzbak2
 
