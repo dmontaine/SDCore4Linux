@@ -69,7 +69,7 @@ NAME = "verify-setpw"
 
 # Quoted from sdsys/MESSAGES and SET_ACC_PASSWORD so a change there fails this
 # file rather than silently weakening it.
-M5276 = (r"A password is never given on the command line; MODIFY\.PASSWORD "
+M5276 = (r"A password is never given on the command line; modify\.password "
          r"prompts for it")
 M2001 = r"Command requires administrator privileges"
 MCRED = r"MODIFY\.PASSWORD needs sudo sd"
@@ -157,7 +157,7 @@ def main():
                   ["CT VOC MODIFY.PASSWORD"], cwd=acct, timeout=a.timeout)
     V.session_ok(run, "N session", s)
     run.note("N1 MODIFY.PASSWORD is in this account's VOC", True,
-             V.says(s.text, r"^3: \$MODIFY\.PASSWORD"))
+             V.says(s.text, r"^3: \$modify\.password"))   # lower case since PAL-1 stage 3a (7 Oct): the VOC record names it so
     run.note("N2 and it is a verb (V) catalogued CA", True,
              V.says(s.text, r"^1: V") and V.says(s.text, r"^2: CA"))
 

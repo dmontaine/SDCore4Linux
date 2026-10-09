@@ -92,7 +92,7 @@ M6141 = r"DICT portion '%s' deleted"
 M6144 = r"VOC entry '%s' deleted"
 M6145 = r"WARNING: The data part of this file is in the system account"
 M6146 = r"Delete the file from the system account"
-M10117 = (r"NO\.QUERY was given and the data part of this file is in the "
+M10117 = (r"no\.query was given and the data part of this file is in the "
           r"system account")
 
 
