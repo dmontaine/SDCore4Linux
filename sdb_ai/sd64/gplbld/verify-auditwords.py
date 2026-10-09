@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-"""verify-auditwords.py - every EVENT WORD in the install's own audit file is lower case.
+"""verify-auditwords.py - every EVENT WORD this install wrote to its audit file is lower case.
 
     sudo python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py
     python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/verify-auditwords.py --selftest
-    sudo python3 .../verify-auditwords.py --file /usr/local/sdsys/audit.1      (a rotated file)
+    sudo python3 .../verify-auditwords.py --since '2026-10-08 15:06:45'     (judge from this moment on)
+    sudo python3 .../verify-auditwords.py --all                              (judge the whole file)
+    sudo python3 .../verify-auditwords.py --file /usr/local/sdsys/audit.1    (a rotated file)
 
 WHY.  PAL-24 stage 1 (owner, 7 Oct 2026: "All lower case") made the audit trail's event words lower
 case, and test-auditwords-units.py proves it from the SOURCE (every kernel(K$AUDIT, ...) call in
 gpl.bp).  A source scan cannot see a word that reaches the trail through a variable or a program the
 scan does not cover, so this reads what the install actually WROTE.  Taken from the Windows port's
 verify-auditwords.ps1 (its mail 2026-10-08T2400, item 3): the same line shape, the same rule.
+
+THE FILE OUTLIVES THE INSTALL.  A keep-accounts reinstall keeps /usr/local/sdsys/audit, so it holds
+records written by older builds - the owner's first run, 8 Oct, found 258 capitals, all of them from
+4 Oct, three days before the change.  So the verdict is on the records written BY THIS INSTALL:
+those stamped at or after  installed=  in /usr/local/sdsys/.sdcore-install (the file
+assert-current.py reads), or after --since.  THE OLDER RECORDS ARE NOT HIDDEN: it prints how many
+there are, how many hold a capital and the newest such one, so a capital that is NOT history is seen
+at once.  --all judges everything (and fails on history); with no stamp and no --since it judges
+everything and says why.
 
 A RECORD is  YYYY-MM-DD HH:MM:SS user=NAME [sudo=NAME] uid=N pid=N <event words> key=value ...
 (gplsrc/k_error.c audit_message).  The EVENT WORDS are the tokens before the first token that holds
@@ -19,18 +30,21 @@ first token checked (a typed argument may follow it, as in Solo's  deny.verbs ad
 
 THE FILE IS sdsys:sdusers 0620 - an ordinary user cannot read it, so this is run with sudo, and
 prints what it was given: the path, its size, how many lines it read, how many it could not parse.
-It refuses the null case out loud: a missing, unreadable or empty file, or one with no parsable
-record, is exit 2 and not a pass.
+It refuses the null case out loud: a missing, unreadable or empty file, a file with no parsable
+record, or a scope (--since) that leaves no record to judge, is exit 2 and not a pass.
 
 --selftest needs no install: it runs the rule over a fixture and breaks it each way (mutants) and
-every one must be caught, with the controls (a capital in a VALUE, a typed argument) passing.
-Exit 0 pass, 1 a capital was found (or a mutant escaped), 2 nothing could be measured."""
+every one must be caught, with the controls (a capital in a VALUE, a typed argument, a capital
+older than the scope) passing.
+Exit 0 pass, 1 a capital was found in the judged records (or a mutant escaped), 2 nothing measured."""
 import os
 import re
 import sys
 
 DEFAULT = '/usr/local/sdsys/audit'
+STAMP_NAME = '.sdcore-install'
 RECORD = re.compile(r'^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) user=(\S+?)(?: sudo=(\S+))? uid=(\S+) pid=(\S+) (.+)$')
+STAMP_FORMAT = re.compile(r'^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$')
 HERE = os.path.dirname(os.path.abspath(__file__))
 GPL = os.path.normpath(os.path.join(HERE, '..', 'sdsys', 'gpl.bp'))
 CALL = re.compile(r"kernel\(\s*K\$AUDIT\s*,\s*'([^']*)'")
@@ -47,30 +61,34 @@ def event_words(msg):
     return words[:1], False
 
 
-def check(lines):
-    """Returns (parsed, unparsed, [(line number, event words, text)], {head: count}, no_kv)."""
-    parsed = 0
-    unparsed = []
-    bad = []
-    heads = {}
-    no_kv = 0
+def check(lines, since=None):
+    """Returns a dict: judged, older, unparsed, bad (judged records with a capital), older_bad,
+    heads (raw event words of the judged records -> count), no_kv.  A record is OLDER when its
+    stamp sorts before `since` (the stamps are fixed-width, so a string compare is a time compare)."""
+    r = {'judged': 0, 'older': 0, 'unparsed': [], 'bad': [], 'older_bad': [], 'heads': {}, 'no_kv': 0}
     for n, raw in enumerate(lines, 1):
         line = raw.rstrip('\n')
         if line == '':
             continue
         m = RECORD.match(line)
         if not m:
-            unparsed.append((n, line))
+            r['unparsed'].append((n, line))
             continue
-        parsed += 1
         words, has_kv = event_words(m.group(6))
-        if not has_kv:
-            no_kv += 1
         head = ' '.join(words)
-        heads[head.lower()] = heads.get(head.lower(), 0) + 1
-        if re.search(r'[A-Z]', head):
-            bad.append((n, head, line))
-    return parsed, unparsed, bad, heads, no_kv
+        capital = re.search(r'[A-Z]', head) is not None
+        if since is not None and m.group(1) < since:
+            r['older'] += 1
+            if capital:
+                r['older_bad'].append((n, m.group(1), head))
+            continue
+        r['judged'] += 1
+        if not has_kv:
+            r['no_kv'] += 1
+        r['heads'][head] = r['heads'].get(head, 0) + 1
+        if capital:
+            r['bad'].append((n, head, line))
+    return r
 
 
 def source_heads():
@@ -98,7 +116,31 @@ def source_heads():
     return out
 
 
-def measure(path):
+def not_seen(want, heads):
+    """Splits the source's event heads into seen and not seen.  A written head may carry a value after
+    the words the source holds (modify.account route api, the route being a word, not a key=value)."""
+    have = [h.lower() for h in heads]
+    seen = sorted(w for w in want if any(h == w or h.startswith(w + ' ') for h in have))
+    return seen, sorted(w for w in want if w not in seen)
+
+
+def stamp_installed(audit_path):
+    """(installed time, stamp path) from the install stamp beside the audit file, or (None, path)."""
+    sp = os.path.join(os.path.dirname(os.path.abspath(audit_path)), STAMP_NAME)
+    try:
+        with open(sp, 'r', encoding='utf-8') as fh:
+            for line in fh.read().splitlines():
+                line = line.strip()
+                if line.startswith('installed='):
+                    v = line.split('=', 1)[1].strip()
+                    if STAMP_FORMAT.match(v):
+                        return v, sp
+    except OSError:
+        pass
+    return None, sp
+
+
+def measure(path, since=None, judge_all=False):
     print('verify-auditwords: reading %s' % path)
     try:
         size = os.path.getsize(path)
@@ -107,33 +149,52 @@ def measure(path):
     except OSError as e:
         print('verify-auditwords: NOTHING MEASURED - cannot read the file (%s). It is sdsys:sdusers 0620: run with sudo.' % e)
         return 2
+    if judge_all:
+        scope = None
+        print('  scope: the WHOLE file (--all) - older builds\' records are judged too')
+    elif since is not None:
+        scope = since
+        print('  scope: records stamped %s or later (--since)' % scope)
+    else:
+        scope, sp = stamp_installed(path)
+        if scope is None:
+            print('  scope: the WHOLE file - no usable "installed=" line in %s, and no --since' % sp)
+        else:
+            print('  scope: records stamped %s or later (installed= in %s)' % (scope, sp))
     lines = text.split('\n')
-    parsed, unparsed, bad, heads, no_kv = check(lines)
-    print('  size %d bytes, %d lines, %d records parsed, %d not parsed, %d with no key=value (first token checked)'
-          % (size, len([x for x in lines if x != '']), parsed, len(unparsed), no_kv))
-    if parsed == 0:
-        print('verify-auditwords: NOTHING MEASURED - no record in the file parsed (a reader that sees nothing is broken, or the file is empty).')
+    r = check(lines, scope)
+    total = r['judged'] + r['older'] + len(r['unparsed'])
+    print('  size %d bytes, %d lines: %d judged, %d older than the scope (not judged), %d not parsed; %d judged with no key=value (first token checked)'
+          % (size, len([x for x in lines if x != '']), r['judged'], r['older'], len(r['unparsed']), r['no_kv']))
+    if r['older']:
+        if r['older_bad']:
+            n, t, h = r['older_bad'][-1]
+            print('  older records with a capital: %d; the NEWEST is line %d at %s: "%s"' % (len(r['older_bad']), n, t, h))
+        else:
+            print('  older records with a capital: 0')
+    if r['judged'] == 0:
+        print('verify-auditwords: NOTHING MEASURED - no record %s (a reader that judges nothing proves nothing).'
+              % ('parsed' if total == 0 or r['older'] == 0 else 'is at or after the scope'))
         return 2
-    for h in sorted(heads):
-        print('  %5d  %s' % (heads[h], h))
+    for h in sorted(r['heads']):
+        print('  %5d  %s' % (r['heads'][h], h))
     want = source_heads()
     if want:
-        seen = sorted(w for w in want if w in heads)
-        miss = sorted(w for w in want if w not in heads)
-        print('  events the source can write: %d, seen in this file: %d' % (len(want), len(seen)))
+        seen, miss = not_seen(want, r['heads'])
+        print('  events the source can write: %d, seen in the judged records: %d' % (len(want), len(seen)))
         for w in miss:
             print('    NOT SEEN: %s' % w)
-    for n, line in unparsed[:5]:
+    for n, line in r['unparsed'][:5]:
         print('  [UNPARSED line %d] %s' % (n, line[:160]))
-    for n, head, line in bad[:10]:
+    for n, head, line in r['bad'][:10]:
         print('  [FAIL line %d] event words "%s" hold a capital: %s' % (n, head, line[:200]))
-    if bad:
-        print('verify-auditwords: FAIL - %d record(s) with a capital in the event words' % len(bad))
+    if r['bad']:
+        print('verify-auditwords: FAIL - %d judged record(s) with a capital in the event words' % len(r['bad']))
         return 1
-    if unparsed:
-        print('verify-auditwords: FAIL - %d line(s) are not audit records (the reader and the writer disagree)' % len(unparsed))
+    if r['unparsed']:
+        print('verify-auditwords: FAIL - %d line(s) are not audit records (the reader and the writer disagree)' % len(r['unparsed']))
         return 1
-    print('verify-auditwords: PASS - %d records, every event word lower case' % parsed)
+    print('verify-auditwords: PASS - %d judged records, every event word lower case' % r['judged'])
     return 0
 
 
@@ -148,6 +209,9 @@ GOOD = [
 
 
 def selftest():
+    import contextlib
+    import io
+    import tempfile
     ok = bad = 0
 
     def row(name, cond, detail=''):
@@ -159,41 +223,62 @@ def selftest():
             bad += 1
             print('  [FAIL] ' + name + ('   <- ' + detail if detail else ''))
 
-    def verdict(lines):
-        parsed, unparsed, found, _, _ = check(lines)
-        return parsed, len(unparsed), len(found)
+    def verdict(lines, since=None):
+        r = check(lines, since)
+        return r['judged'], len(r['unparsed']), len(r['bad']), r['older'], len(r['older_bad'])
 
-    p, u, f = verdict(GOOD)
-    row('control: the fixture (capitals only in VALUES and a typed argument) parses 6, no failure', (p, u, f) == (6, 0, 0), repr((p, u, f)))
-    p, u, f = verdict([GOOD[0].replace('login account', 'LOGIN account')])
-    row('mutant: a capital first event word is caught', f == 1, repr((p, u, f)))
-    p, u, f = verdict([GOOD[1].replace('login refused', 'login Refused')])
-    row('mutant: a capital second event word is caught', f == 1, repr((p, u, f)))
-    p, u, f = verdict([GOOD[2].replace('elevation granted', 'Elevation granted')])
-    row('mutant: a capital on a record with a sudo= stamp is caught', f == 1, repr((p, u, f)))
-    p, u, f = verdict([GOOD[3].replace('api refused', 'API refused')])
-    row('mutant: the 7 Oct case (API REFUSED) is caught', f == 1, repr((p, u, f)))
-    p, u, f = verdict([GOOD[5].replace('deny.verbs', 'Deny.verbs')])
-    row('mutant: a capital first token of a record with no key=value is caught', f == 1, repr((p, u, f)))
-    p, u, f = verdict(['2026-10-08 18:46:07 pid=1 login account=don'])
-    row('mutant: a line that is not a record counts as unparsed, not as a pass', (p, u, f) == (0, 1, 0), repr((p, u, f)))
-    p, u, f = verdict([])
-    row('null case: no lines parse nothing', (p, u, f) == (0, 0, 0), repr((p, u, f)))
-    import tempfile
+    row('control: the fixture (capitals only in VALUES and a typed argument) judges 6, no failure',
+        verdict(GOOD) == (6, 0, 0, 0, 0), repr(verdict(GOOD)))
+    for label, i, a, b in (('a capital first event word', 0, 'login account', 'LOGIN account'),
+                           ('a capital second event word', 1, 'login refused', 'login Refused'),
+                           ('a capital on a record with a sudo= stamp', 2, 'elevation granted', 'Elevation granted'),
+                           ('the 7 Oct case (API REFUSED)', 3, 'api refused', 'API refused'),
+                           ('a capital first token of a record with no key=value', 5, 'deny.verbs', 'Deny.verbs')):
+        v = verdict([GOOD[i].replace(a, b)])
+        row('mutant: %s is caught' % label, v == (1, 0, 1, 0, 0), repr(v))
+    v = verdict(['2026-10-08 18:46:07 pid=1 login account=don'])
+    row('mutant: a line that is not a record counts as unparsed, not as a pass', v == (0, 1, 0, 0, 0), repr(v))
+    v = verdict([])
+    row('null case: no lines judge nothing', v == (0, 0, 0, 0, 0), repr(v))
+    old = '2026-10-04 14:59:25 user=root sudo=don uid=2 pid=54875 LOGIN account=sdsys'
+    v = verdict([old] + GOOD, '2026-10-08 15:06:45')
+    row('control: a capital OLDER than the scope is counted, reported, and not judged', v == (6, 0, 0, 1, 1), repr(v))
+    v = verdict([old] + GOOD, '2026-10-04 00:00:00')
+    row('mutant: the same capital INSIDE the scope is judged and caught', v == (7, 0, 1, 0, 0), repr(v))
+    v = verdict(GOOD + [old.replace('2026-10-04 14:59:25', '2026-10-08 18:59:00')], '2026-10-08 15:06:45')
+    row('mutant: a capital stamped after the scope is caught even when older ones exist', v[2] == 1, repr(v))
+    v = verdict(GOOD, '2027-01-01 00:00:00')
+    row('null case: a scope after every record judges nothing', v == (0, 0, 0, 6, 0), repr(v))
+    seen, miss = not_seen({'modify.account route', 'remote.ssh', 'login'}, {'modify.account route api': 3, 'LOGIN': 1})
+    row('NOT SEEN: a head with a value after it counts as seen, and a head never written does not',
+        seen == ['login', 'modify.account route'] and miss == ['remote.ssh'], repr((seen, miss)))
     d = tempfile.mkdtemp(prefix='auditwords-')
+    fp = os.path.join(d, 'audit')
+
+    def e2e(content, want, label, **kw):
+        with open(fp, 'w') as fh:
+            fh.write(content)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = measure(fp, **kw)
+        row('end to end: %s exits %d' % (label, want), rc == want, 'exit %d' % rc)
+        return buf.getvalue()
+
     try:
-        for label, content, want in (('an empty file', '', 2), ('a file with no record', 'garbage\n', 2),
-                                     ('a good file', '\n'.join(GOOD) + '\n', 0),
-                                     ('a file with one capital', '\n'.join(GOOD[:2] + [GOOD[0].replace('login', 'Login')]) + '\n', 1)):
-            fp = os.path.join(d, 'audit')
-            with open(fp, 'w') as fh:
-                fh.write(content)
-            import io
-            import contextlib
-            buf = io.StringIO()
-            with contextlib.redirect_stdout(buf):
-                rc = measure(fp)
-            row('end to end: %s exits %d' % (label, want), rc == want, 'exit %d' % rc)
+        e2e('', 2, 'an empty file')
+        e2e('garbage\n', 2, 'a file with no record')
+        e2e('\n'.join(GOOD) + '\n', 0, 'a good file with no stamp (judges all)')
+        e2e('\n'.join(GOOD[:2] + [GOOD[0].replace('login', 'Login')]) + '\n', 1, 'a file with one capital')
+        text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 1, 'history with a capital and no stamp (judges all, fails)')
+        row('...and it says the whole file was judged because no stamp exists', 'no usable "installed="' in text)
+        with open(os.path.join(d, STAMP_NAME), 'w') as fh:
+            fh.write('commit=abc\ninstalled=2026-10-08 15:06:45\n')
+        text = e2e(old + '\n' + '\n'.join(GOOD) + '\n', 0, 'history with a capital before the install stamp')
+        row('...and it still prints the older capital (not hidden)', 'older records with a capital: 1' in text and '2026-10-04 14:59:25' in text)
+        e2e(old + '\n' + '\n'.join(GOOD) + '\n', 1, 'the same file with --all', judge_all=True)
+        e2e(old.replace('2026-10-04 14:59:25', '2026-10-08 16:00:00') + '\n' + '\n'.join(GOOD) + '\n', 1,
+            'a capital written after the install stamp')
+        e2e('\n'.join(GOOD) + '\n', 2, 'a stamp after every record (nothing to judge)', since='2027-01-01 00:00:00')
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc = measure(os.path.join(d, 'no-such-file'))
@@ -210,13 +295,20 @@ def main(argv):
     if '--selftest' in argv:
         return selftest()
     path = DEFAULT
+    since = None
     if '--file' in argv:
         i = argv.index('--file')
         if i + 1 >= len(argv):
             print('verify-auditwords: --file needs a path')
             return 2
         path = argv[i + 1]
-    return measure(path)
+    if '--since' in argv:
+        i = argv.index('--since')
+        if i + 1 >= len(argv) or not STAMP_FORMAT.match(argv[i + 1]):
+            print("verify-auditwords: --since needs 'YYYY-MM-DD HH:MM:SS'")
+            return 2
+        since = argv[i + 1]
+    return measure(path, since, '--all' in argv)
 
 
 if __name__ == '__main__':
