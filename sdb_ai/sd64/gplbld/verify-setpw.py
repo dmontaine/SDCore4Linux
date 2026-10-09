@@ -11,6 +11,14 @@
 # NO SUDO.  Exit 0 every decisive check passed, 1 a decisive check failed,
 # 2 the test could not be run.
 #
+# 9 Oct 2026 - THE CONTROL WAS STALE AGAIN, AND FOR A GOOD REASON: the 18-19 Sep teardown (W.10) made $cred
+# sdsys:sdusers 0700 and let a person set their OWN password through sd-elevate cred-own.  An ordinary session
+# no longer meets "needs sudo sd" (that text is gone, so the old "did NOT reach the register" rows passed over
+# nothing and C2 could not pass) - it meets "Current password:".  The rows now look for that prompt, C2 wants the
+# prompt and "Password not changed." (a wrong current password is typed on purpose, so the OFF line is not eaten
+# as an answer), C4 wants sdsys:sdusers 700.  The paragraphs below describe the 14 Sep model and are kept for
+# the reasoning (grammar before privilege, the null case, the control); read "register" as the prompt.
+#
 # 14 Sep 2026 - THE CONTROL ROWS WERE REWRITTEN WHEN MODIFY.PASSWORD BECAME THE
 # WINDOWS PORT'S (W.4 SCRAM phase 2).  It no longer runs passwd(1): it sets SD's
 # own API credential in $cred, which is root:root 0700, and CPROC gives it
@@ -72,7 +80,12 @@ NAME = "verify-setpw"
 M5276 = (r"A password is never given on the command line; modify\.password "
          r"prompts for it")
 M2001 = r"Command requires administrator privileges"
-MCRED = r"MODIFY\.PASSWORD needs sudo sd"
+# 9 Oct 26: MCRED ("MODIFY.PASSWORD needs sudo sd") is gone from the product since the teardown (19 Sep, W.10:
+# a person sets their OWN password through sd-elevate cred-own), so "not MCRED" passed over nothing and the
+# positive row could not pass.  MEASURED 9 Oct 26 on the 5f9d1fb install, an ordinary session, own account:
+# "Current password: ***" then "Password not changed." (the line fed was taken as the current password).
+MPROMPT = r"Current password:"
+MNOCHG = r"Password not changed\."
 MSET = r"Password accepted\."      # PAL-22, 7 Oct 26: the success line in every mode (it was "Password set for account X")
 MNEWPW = r"New password:"
 MNOVOC = r"is not in your VOC"
@@ -170,8 +183,8 @@ def main():
     run.note("T1a refused with 5276", True, V.says(s.text, M5276))
     run.note("T1b the verb resolved (not 'is not in your VOC')",
              True, not V.says(s.text, MNOVOC))
-    run.note("T1c did NOT reach the credential register", True,
-             not V.says(s.text, MCRED))
+    run.note("T1c did NOT reach the password prompt", True,
+             not V.says(s.text, MPROMPT))
     run.note("T1d nothing was set", True, not V.says(s.text, MSET))
     run.note("T1e it was the GRAMMAR that refused, not privilege (no 2001)",
              True, not V.says(s.text, M2001))
@@ -185,8 +198,8 @@ def main():
     run.note("T2b the verb resolved", True, not V.says(s.text, MNOVOC))
     run.note("T2c not the trailing-token refusal (no 5276)",
              True, not V.says(s.text, M5276))
-    run.note("T2d did NOT reach the credential register", True,
-             not V.says(s.text, MCRED))
+    run.note("T2d did NOT reach the password prompt", True,
+             not V.says(s.text, MPROMPT))
 
     # ------------------------------------------------------ T3, the ordering
     run.heading("4. treatment - the grammar is checked BEFORE the privilege")
@@ -203,26 +216,31 @@ def main():
     # Without this the rows above prove nothing: a verb that refused everything
     # would have scored them all.
     run.heading("5. CONTROL - the same command WITHOUT the token gets through,"
-                " to the register")
+                " to the current-password prompt")
     before = cred_mode()
     run.say("      $cred before: %s" % (before,))
-    s = V.show_sd(run, "MODIFY.PASSWORD %s (own account, no extra token)" % me,
-                  ["MODIFY.PASSWORD %s" % me], cwd=acct, timeout=a.timeout)
+    # The second line is typed at the CURRENT-password prompt and is deliberately wrong, so that the next
+    # line (build_session's OFF) is not swallowed as an answer and the session ends at its prompt.  It is
+    # a wrong password for the caller's own account: the helper only compares, it counts nothing.
+    s = V.show_sd(run, "MODIFY.PASSWORD %s (own account, no extra token; a wrong current password is typed)" % me,
+                  ["MODIFY.PASSWORD %s" % me, "not-the-password"], cwd=acct, timeout=a.timeout)
     V.session_ok(run, "C session", s)
     run.note("C1 NOT refused with 5276 or 2001 - it got past grammar and"
              " privilege", True,
              not V.says(s.text, M5276) and not V.says(s.text, M2001))
-    run.note("C2 it reached the credential register and was refused there",
-             True, V.says(s.text, MCRED))
-    run.note("C3 nothing was set, and no password was asked for", True,
+    run.note("C2 it reached the current-password prompt and was refused there",
+             True, V.says(s.text, MPROMPT) and V.says(s.text, MNOCHG))
+    run.note("C3 nothing was set, and no NEW password was asked for", True,
              not V.says(s.text, MSET) and not V.says(s.text, MNEWPW))
     after = cred_mode()
     run.say("      $cred after : %s" % (after,))
     # ***THE REFUSAL IS THE REGISTER'S MODE AND THIS IS THE ROW THAT SHOWS IT.***
-    # An ordinary session cannot open a root:root 0700 directory; if the
-    # register were anything wider, C2 would be a different failure.
-    run.note("C4 the register is root:root 700, before and after", True,
-             before == ("root", "root", "700") and after == before)
+    # An ordinary session cannot open an 0700 directory it does not own; if the
+    # register were anything wider, C2 would be a different failure.  9 Oct 26: sdsys:sdusers since the
+    # teardown (18 Sep; set_acc_password's own comment), MEASURED with stat on the 5f9d1fb install; the
+    # group is sdusers but the mode gives the group nothing.
+    run.note("C4 the register is sdsys:sdusers 700, before and after", True,
+             before == ("sdsys", "sdusers", "700") and after == before)
 
     rc = run.verdict()
     run.say("")
