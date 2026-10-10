@@ -9,8 +9,9 @@
 #   - prior history suppressed
 #
 #   09 Oct 2026 - the listing of the saved accounts after "sudo cp -r" is
-#   "sudo ls": the copy is made by root and, under a 027 umask (a fresh Ubuntu
-#   26.04 account), comes out root:root 0750, so the bare "ls" run as the
+#   "sudo ls": the copy is made by root and came out root:root 0750 on the Ubuntu
+#   26.04 release VM (measured; why that mode was not established, a 027 umask
+#   would do it), so the bare "ls" run as the
 #   ordinary user failed with "Permission denied" and, under "set -e", ended the
 #   whole delete after the accounts were saved and before anything was removed.
 #   Found on the release VM; the listing is informational only.

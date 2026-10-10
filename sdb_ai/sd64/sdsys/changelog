@@ -2,6 +2,21 @@ L1.1-3 - in progress
 -------------
 Changes since L1.1-1.  L1.1-3 pairs with SD Core for Windows W1.1-3.
 
+09 Oct 26  THE UNINSTALL SCRIPT NO LONGER STOPS HALF WAY WHEN YOU KEEP YOUR
+           ACCOUNTS.
+
+           deletesdcore.sh, asked to keep your existing accounts, copies the
+           account register to /home/sd/accounts and then lists it.  The copy
+           is made by root, and on the Ubuntu 26.04 test computer where this
+           was found it came out owned by root with mode 750, which you cannot
+           read.  The listing, which ran as you, was refused, and the script
+           ended there: your accounts were saved, but nothing else had been
+           removed and no message said why.  The listing is now run with sudo
+           like the copy before it, and the script goes on to remove SD.
+           Found by deleting and reinstalling SD on test computers.  Nothing
+           about the saved accounts changed, and this has no effect on a
+           delete that does not keep the accounts.
+
 08 Oct 26  SD'S OWN COMMANDS ARE WRITTEN IN LOWER CASE IN ITS MESSAGES AND USAGE LINES.
 
            The 7 October change put the audit trail in lower case.  This takes
