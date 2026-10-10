@@ -319,7 +319,10 @@ echo
 # --------------------
 # 09 Sep 26  Was "from the selected branch", plus a paragraph offering the local
 #            repository.  There is no selection any more: main, from GitHub.
-echo "This script will download the SD source code from the main branch at"
+# 10 Oct 26  Named "the main branch" whatever REPO_BRANCH was, so the copy a release
+#            zip carries (pinned to a tag) said main while it installed the tag.
+#            It now says what it will clone.
+echo "This script will download the SD source code (${REPO_BRANCH}) from"
 echo "${REPO_URL}, compile it and install SD."
 echo
 echo "The download is temporary and is removed when the install finishes."
@@ -511,7 +514,7 @@ echo
 #            something to hand an end user, and the local-repository option
 #            installed whatever happened to be sitting in ./sdb_ai, which is not
 #            a decision an installer should offer either.
-echo "Installing the main branch from: ${REPO_URL}"
+echo "Installing ${REPO_BRANCH} from: ${REPO_URL}"
 repo_available
 git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$dflt_git_folder"
 
