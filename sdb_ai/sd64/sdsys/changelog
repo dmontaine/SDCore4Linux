@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  TWO BASIC DEFECTS FIXED (1.2-0, the bug-fix audit against the
+           reported openQM defects; the kernel changed, so it needs a
+           rebuild).
+
+             SEEK from the end   SEEK file, -3, 2 failed with error 3028
+                                 although a negative offset from the end of
+                                 a sequential file is the usual way to say
+                                 "three bytes before the end".  It now
+                                 positions there.  A positive offset with 2
+                                 meant the same thing in SD before and still
+                                 does, so no existing program changes; an
+                                 offset that lands before the start of the
+                                 file is still refused.
+             LOCATE, right       LOCATE 5 IN s BY 'AR' where s held a single
+             justified           item that was text, such as 'abc', said
+                                 position 2.  Text sorts after numbers, so
+                                 the number goes first: it now says 1, as it
+                                 already did when the list held two or more
+                                 text items.
+
+           What this does not do.  The other reported defects were tried
+           and SD does not have them; the list is in the header of
+           gplbld/sandbox-audit-b9.py.  Those that need sockets, a
+           distributed file or an encoding with a byte order mark could not
+           be tried here.
+
 11 Oct 26  FIVE CONVERSION CODE ADDITIONS AND TRIMW (1.2-0, tenth of the
            openQM compatibility bundles, and the first that changes the
            kernel's conversion and string code; it needs a rebuild).
