@@ -1,6 +1,34 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  STRING ARITHMETIC, REGEX() AND A PRIVATE VOCABULARY (1.2-0, the
+           openQM list's unbundled items; the kernel has six new functions,
+           so it needs a rebuild and the compiler recompiled).
+
+             SADD(a, b)   Add, subtract, multiply and divide numbers held as
+             SSUB(a, b)   strings, of any length, with an optional sign and a
+             SMUL(a, b)   decimal point.  There is no rounding and no
+             SDIV(a, b)   floating point: SADD("0.1", "0.2") is exactly 0.3,
+                          and SMUL of two 20 digit numbers gives all 40
+                          digits.  SDIV gives 15 decimal places, cut off
+                          (not rounded), with trailing zeros dropped; a zero
+                          divisor is a run-time error.
+             SCMP(a, b)   -1, 0 or 1 as a is less than, equal to or greater
+                          than b, numerically.
+             REGEX(s, p)  1 if the extended regular expression p matches
+                          anywhere in s, else 0.  Begin the pattern with
+                          (?i) to ignore case.  A pattern that is not valid
+                          stops the program with the reason.
+             $PRIVATE.VOC A VOC record  X / filename  names a file laid out
+                          as the VOC is; a command that is nowhere in the
+                          VOC is looked for there last, so an application
+                          can keep its own commands out of the account's VOC.
+
+           What this does not do.  A string that is not a number counts as
+           zero in the S functions rather than raising an error.  REGEX uses
+           the C library's POSIX syntax, not Perl's: no \d, no lazy
+           quantifiers.
+
 12 Oct 26  PHANTOM OPTIONS, PDUMP, LOGOUT GROUP (1.2-0, openQM compatibility
            bundles B-7, B-6 and B-8, first parts; the kernel gained an
            opcode, so it needs a rebuild and the compiler recompiled).  The

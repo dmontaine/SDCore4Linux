@@ -48,6 +48,24 @@ CASES = [
      {}, "common /zzcn/ a, b\ncommon /zzcm/ c\na = 5 ; b = 6 ; c = 7\nclearcommon zzcn\nx = a:'/':b:'/':c", "0/0/7"),
     ("52: CLEARCOMMON alone still clears the unnamed block only",
      {}, "common a, b\ncommon /zzcm/ c\na = 5 ; b = 6 ; c = 7\nclearcommon\nx = a:'/':b:'/':c", "0/0/7"),
+    ("391: SADD of two numbers longer than any float", {},
+     "x = sadd('123456789012345678901234567890', '987654321098765432109876543210')", "1111111110111111111011111111100"),
+    ("391: SADD with signs", {}, "x = sadd('5', '-8')", "-3"),
+    ("391: SSUB", {}, "x = ssub('1000000000000000000000', '1')", "999999999999999999999"),
+    ("391: SSUB going negative", {}, "x = ssub('3', '10')", "-7"),
+    ("391: SMUL of two 20 digit numbers", {}, "x = smul('12345678901234567890', '98765432109876543210')",
+     "1219326311370217952237463801111263526900"),
+    ("391: SMUL by zero is 0, not -0", {}, "x = smul('-5', '0')", "0"),
+    ("391: SDIV with a fraction, 15 places, trailing zeros dropped", {}, "x = sdiv('10', '4')", "2.5"),
+    ("391: SDIV that does not end", {}, "x = sdiv('1', '3')", "0.333333333333333"),
+    ("391: SDIV of a negative", {}, "x = sdiv('-7', '2')", "-3.5"),
+    ("391: SCMP less, equal, greater", {}, "x = scmp('9', '10'):'/':scmp('5.0', '5'):'/':scmp('-1', '-2')", "-1/0/1"),
+    ("468: SADD with decimals", {}, "x = sadd('0.1', '0.2')", "0.3"),
+    ("468: SMUL with decimals", {}, "x = smul('1.5', '-2.25')", "-3.375"),
+    ("468: SSUB with decimals of different lengths", {}, "x = ssub('10', '0.001')", "9.999"),
+    ("510: REGEX finds a match anywhere", {}, "x = regex('hello world', 'wor')", "1"),
+    ("510: REGEX with an anchor and a class", {}, "x = regex('abc123', '^[a-z]+[0-9]+$'):regex('abc123x', '^[a-z]+[0-9]+$')", "10"),
+    ("510: REGEX is case sensitive unless the pattern begins (?i)", {}, "x = regex('ABC', 'abc'):regex('ABC', '(?i)abc')", "01"),
     ("407 CONTROL: without the option record the constant is not defined", {}, "x = unassigned(zzk)", "1"),
     ("407: an INCLUDE line in $BASIC.OPTIONS puts the record at the top of the program",
      {"$BASIC.OPTIONS": "X\nINCLUDE zzincl\n", "zzincl": "zzk = 41\n"}, "x = zzk + 1", "42"),
@@ -463,6 +481,20 @@ def run_verbs(box, sysd, bp):
         out = sess(box, 'SH echo quo_<<A,"Name, please">>_end', "xyz")
         row("377: a quoted prompt text may hold a comma and is shown whole",
             has(out, r"^quo_xyz_end") and has(out, r"Name, please="), out[-250:])
+
+        # --- private vocabulary (1) -------------------------------------------------------------------------
+        write(probe, ("   execute 'CREATE.FILE zzpv' capturing j1\n   open 'zzpv' to f else stop\n"
+                      "   write 'PA':@fm:'SH echo PV_RAN' on f, 'zzpverb'\nend\n"))
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, "ZZPVERB")
+        row("1 CONTROL: a command in no vocabulary is not run", not has(out, r"^PV_RAN") , out[-300:])
+        write(probe, "   open 'VOC' to v else stop\n   write 'X':@fm:'zzpv' on v, '$PRIVATE.VOC'\nend\n")
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, "ZZPVERB", "zzpverb")
+        row("1: with $PRIVATE.VOC naming the file, the command in it is found and run (typed either case)",
+            len(re.findall(r"(?m)^PV_RAN\s*$", out)) == 2, out[-300:])
+        write(probe, "   open 'VOC' to v else stop\n   delete v, '$PRIVATE.VOC'\nend\n")
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1", "DELETE.FILE zzpv")
 
         # --- COMO APPEND, IN, mapped names (8, 361, 9) ----------------------------------------------------------
         sess(box, "DELETE.FILE zzcd", "CREATE.FILE zzcd DIRECTORY")
