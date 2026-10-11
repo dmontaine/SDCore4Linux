@@ -237,6 +237,66 @@ def run_verbs(box, sysd, bp):
         row("534: a file against itself differs in nothing",
             has(out, r"Records only in zzoqc1: 0") and has(out, r"Records in both that differ: 0") and has(out, r"same: 3"), out[-300:])
 
+        # --- inline prompts: control letters in any case, quoted prompt text (171, 377) ---------------------------
+        out = sess(box, "SH echo cap_<<A,Name>>_end", "xyz")
+        row("171 CONTROL: <<A,Name>> prompts and substitutes the answer", has(out, r"^cap_xyz_end") and has(out, r"Name="), out[-200:])
+        out = sess(box, "SH echo low_<<a,Name>>_end", "xyz")
+        row("171: <<a,Name>> is the same with a lower case control", has(out, r"^low_xyz_end") and has(out, r"Name="), out[-200:])
+        out = sess(box, "SH echo u_<<u,Name>>_end", "xyz")
+        row("171: <<u,Name>> (lower case) makes the answer upper case", has(out, r"^u_XYZ_end"), out[-200:])
+        out = sess(box, 'SH echo quo_<<A,"Name, please">>_end', "xyz")
+        row("377: a quoted prompt text may hold a comma and is shown whole",
+            has(out, r"^quo_xyz_end") and has(out, r"Name, please="), out[-250:])
+
+        # --- COMO APPEND, IN, mapped names (8, 361, 9) ----------------------------------------------------------
+        sess(box, "DELETE.FILE zzcd", "CREATE.FILE zzcd DIRECTORY")
+        como_dir = os.path.join(sysd, "$COMO")
+        sess(box, "COMO ON zzoqm1", "SH echo MARK_ONE", "COMO OFF")
+        first = slurp(os.path.join(como_dir, "zzoqm1")) or b""
+        row("8 CONTROL: COMO ON writes the session to the record", b"MARK_ONE" in first, repr(first[-80:]))
+        sess(box, "COMO ON zzoqm1 APPEND", "SH echo MARK_TWO", "COMO OFF")
+        both = slurp(os.path.join(como_dir, "zzoqm1")) or b""
+        row("8: COMO ON ... APPEND adds to the existing record", b"MARK_ONE" in both and b"MARK_TWO" in both, repr(both[-120:]))
+        sess(box, "COMO ON zzoqm1", "SH echo MARK_THREE", "COMO OFF")
+        again = slurp(os.path.join(como_dir, "zzoqm1")) or b""
+        row("8: without APPEND the record is replaced as before", b"MARK_THREE" in again and b"MARK_ONE" not in again, repr(again[-120:]))
+        sess(box, "COMO ON zzoqm2 IN zzcd", "SH echo MARK_FOUR", "COMO OFF")
+        alt = slurp(os.path.join(sysd, "zzcd", "zzoqm2")) or b""
+        row("361: COMO ON ... IN dirfile writes to that directory file", b"MARK_FOUR" in alt, repr(alt[-80:]))
+        # (9, mapped record names: map_t1_id() maps only when the file's own mapping flag is on, and the como path
+        #  carries no file, so COMO calls ospath(..., OS$MAPPED.NAME) and gets the map the session has; no row)
+        for n in ("zzoqm1",):
+            if os.path.exists(os.path.join(como_dir, n)):
+                os.remove(os.path.join(como_dir, n))
+        sess(box, "DELETE.FILE zzcd")
+
+        # --- paragraph IF: EXISTS, IN, NO.CASE (28, 230, 426, 476) -------------------------------------------
+        paras = [
+            ("IF EXISTS zzpf r1 THEN SH echo HIT_E1", "HIT_E1", True, "28: IF EXISTS finds a record that is there"),
+            ("IF EXISTS zzpf r2 THEN SH echo HIT_E2", "HIT_E2", False, "28: IF EXISTS does not fire for a record that is not"),
+            ("IF NOT.EXISTS zzpf r2 THEN SH echo HIT_E3", "HIT_E3", True, "28: IF NOT.EXISTS fires for a missing record"),
+            ("IF NOT.EXISTS zzpf r1 THEN SH echo HIT_E4", "HIT_E4", False, "28: and not for one that is there"),
+            ("IF b IN a b c THEN SH echo HIT_I1", "HIT_I1", True, "230: IF value IN list, a member"),
+            ("IF x IN a b c THEN SH echo HIT_I2", "HIT_I2", False, "230: IN, not a member"),
+            ("IF x NOT.IN a b c THEN SH echo HIT_I3", "HIT_I3", True, "230: NOT.IN, not a member"),
+            ("IF b NOT.IN a b c THEN SH echo HIT_I4", "HIT_I4", False, "230: NOT.IN, a member"),
+            ("IF B IN a b c THEN SH echo HIT_I5", "HIT_I5", False, "426 CONTROL: IN is case sensitive without NO.CASE"),
+            ("IF B IN a b c NO.CASE THEN SH echo HIT_I6", "HIT_I6", True, "426: IN with NO.CASE ignores case"),
+            ("IF b IN a b AND c IN c d THEN SH echo HIT_I7", "HIT_I7", True, "230: two IN tests joined by AND"),
+            ("IF Hello EQ hello THEN SH echo HIT_C1", "HIT_C1", False, "476 CONTROL: a comparison is case sensitive"),
+            ("IF Hello EQ hello NO.CASE THEN SH echo HIT_C2", "HIT_C2", True, "476: NO.CASE makes it ignore case"),
+            ("IF Hello NE hello NO.CASE THEN SH echo HIT_C3", "HIT_C3", False, "476: and NE then says they are alike"),
+        ]
+        write(probe, ("   execute 'CREATE.FILE zzpf' capturing j1\n   open 'zzpf' to f else stop\n   write 'x' on f, 'r1'\n"
+                      "   open 'VOC' to v else stop\n" +
+                      "".join("   write 'PA':@fm:'%s' on v, 'zzpa%d'\n" % (p[0].replace("'", "''") if False else p[0], i)
+                              for i, p in enumerate(paras)) + "end\n"))
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, *["ZZPA%d" % i for i in range(len(paras))])
+        for i, (cmd, hit, want, label) in enumerate(paras):
+            row("%s (%s)" % (label, cmd), has(out, r"^%s\s*$" % hit) == want, "hit=%s" % has(out, r"^%s\s*$" % hit))
+        sess(box, "DELETE.FILE zzpf")
+
         # --- DELETE with a record locked by someone else (50) -----------------------------------------------
         holder = os.path.join(bp, "zzoqh1")
         made.append(holder)

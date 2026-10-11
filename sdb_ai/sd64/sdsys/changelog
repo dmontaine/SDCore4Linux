@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  COMMAND LANGUAGE: COMO, IF IN AND EXISTS, INLINE PROMPTS (1.2-0,
+           openQM compatibility bundle A-9, second part; the kernel's COMO
+           statement changed, so it needs a rebuild).  Syntax is SD's own.
+
+             COMO ON record APPEND   Adds to the record if it exists
+                                     instead of replacing it.
+             COMO ON record IN file  Writes the record in the directory file
+                                     named, not in $COMO.
+             IF EXISTS file record THEN ...      In a paragraph: true if the
+             IF NOT.EXISTS file record THEN ...  record is in the file.
+             IF value IN a b c THEN ...          True if the value is one of
+             IF value NOT.IN a b c THEN ...      the words after IN.
+             ... NO.CASE                         Put after IN's list, or
+                                                 after the second value of
+                                                 =, <>, < and so on, to
+                                                 ignore case.
+             <<a,Prompt>>   An inline prompt's control letters (A, C, F, I,
+                            L, R, S, U, SUBR, SYSTEM) may now be lower case.
+             <<A,"Prompt, with a comma">>
+                            Quotes round the prompt text let it hold commas.
+
+           What this does not do.  Record names given to COMO are mapped as
+           for any directory file only if the session has name mapping on.
+           The other command-language items in the openQM list (LOGTO RESET
+           ALL, the command stack changes, running a catalogued program by
+           name) are not built.
+
 12 Oct 26  FILE UTILITIES, COMMON BLOCKS, AUTOMATIC INCLUDES AND NAMES WITH
            TWO UNDERSCORES (1.2-0, openQM compatibility bundles A-1 and
            A-14, second part).  The openQM notes give the purpose of these
