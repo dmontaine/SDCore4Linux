@@ -794,8 +794,58 @@ def run_verbs(box, sysd, bp):
         row("72: DICT names the dictionary of the file that follows", has(out, r"^D$") and has(out, r"^Name$"), out[-300:])
         out = sess(box, "COPYP voc copyp (ST")
         row("72 CONTROL: COPYP still wants its file name first", has(out, r"^CA$") and has(out, r"1 record\(s\) copied"), out[-300:])
+
+        # --- SELECTINDEX command (119): the values of an AK index, or the ids that have one value ------------------
+        write(probe, ("   execute 'CREATE.FILE zzoqix' capturing j1\n"
+                      "   open 'zzoqix' to f else stop 'no file'\n"
+                      "   open 'DICT', 'zzoqix' to df else stop 'no dict'\n"
+                      "   write 'D':@fm:1:@fm:'':@fm:'Colour':@fm:'10L':@fm:'S' on df, 'colour'\n"
+                      "   write 'red' on f, 'a'\n   write 'blue' on f, 'b'\n   write 'red' on f, 'c'\n   write 'green' on f, 'd'\n"
+                      "   crt 'IX FILE MADE'\n"
+                      "end\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1", "CREATE.INDEX zzoqix colour", "BUILD.INDEX zzoqix colour")
+        row("119 CONTROL: the file and its index were made and built",
+            has(out, r"IX FILE MADE") and has(out, r"Added index for colour") and has(out, r"4 records processed"), out[-300:])
+
+        def listed(no, *cmds):
+            """Run the commands, then show select list no as ITEMS[a,b,c]; returns (text, set of items or None)."""
+            write(probe, ("   readlist items from %d else items = 'NONE'\n"
+                          "   crt 'ITEMS[':change(items, @fm, ','):']'\n"
+                          "end\n") % no)
+            text = sess(box, "BASIC bp zzoqp1", *(list(cmds) + ["RUN bp zzoqp1"]))
+            m = re.search(r"(?m)^ITEMS\[(.*)\]\s*$", text)
+            return text, (set(m.group(1).split(",")) - {""} if m else None)
+
+        text, items = listed(0, "SELECTINDEX zzoqix colour")
+        row("119: SELECTINDEX file index gives the values held in the index", items == {"red", "blue", "green"}, "%r %s" % (items, text[-300:]))
+        row("119: ...and says how many", has(text, r"3 record\(s\) selected to select list 0"), text[-300:])
+        text, items = listed(0, "SELECTINDEX zzoqix colour red")
+        row("119: with a value it gives the ids of the records that have it", items == {"a", "c"}, "%r %s" % (items, text[-300:]))
+        row("119: ...and says how many", has(text, r"2 record\(s\) selected to select list 0"), text[-300:])
+        text, items = listed(0, "SELECTINDEX zzoqix colour purple")
+        row("119: a value no record has gives no list (READLIST finds none) and the count says 0",
+            items == {"NONE"} and has(text, r"0 record\(s\) selected to select list 0"), "%r %s" % (items, text[-300:]))
+        text, items = listed(0, "SELECTINDEX ZZOQIX COLOUR red")
+        row("119: the file and index names are found in whichever case", items == {"a", "c"}, "%r %s" % (items, text[-300:]))
+        text, items = listed(1, "SELECTINDEX zzoqix colour blue TO 1")
+        row("119: TO n builds that list instead", items == {"b"} and has(text, r"1 record\(s\) selected to select list 1"), "%r %s" % (items, text[-300:]))
+        text = sess(box, "SELECTINDEX zzoqix nosuchindex")
+        row("119: an index that does not exist is reported", has(text, r"Unrecognised index name \(nosuchindex\)"), text[-300:])
+        text = sess(box, "SELECTINDEX zzoqnone colour")
+        row("119: a file that does not exist is reported", has(text, r"File not found"), text[-300:])
+        text = sess(box, "SELECTINDEX zzoqix")
+        row("119: no index name is reported", has(text, r"Index name required"), text[-300:])
+        text = sess(box, "SELECTINDEX")
+        row("119: no file name is reported", has(text, r"File name required"), text[-300:])
+        text = sess(box, "SELECTINDEX zzoqix colour red TO")
+        row("119: TO with no number is reported", has(text, r"Select list number missing or invalid"), text[-300:])
+        text = sess(box, "SELECTINDEX zzoqix colour red blue")
+        row("119: a further word is reported", has(text, r"Unexpected token \(blue\)"), text[-300:])
+        text = sess(box, "SELECT.DIR /tmp TO", "GET.LIST zzoqnone TO")
+        row("119 (found on the way): SELECT.DIR and GET.LIST said 'Error writing saved list record' for a missing list number; they say what 3271 says",
+            text.count("Select list number missing or invalid") == 2 and not has(text, r"writing saved list record"), text[-300:])
     finally:
-        sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld",
+        sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld", "DELETE.FILE zzoqix",
              "DELETE.LIST zzoqla", "DELETE.LIST zzoqlb", "DELETE.LIST zzoqlc", "DELETE.LIST zzoqld2")
         shutil.rmtree(d, ignore_errors=True)
         for p in made:
