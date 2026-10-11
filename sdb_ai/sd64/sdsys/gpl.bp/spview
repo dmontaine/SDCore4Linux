@@ -350,6 +350,21 @@ show.printer:
             end
          end
          destination = sysmsg(7149, name) ;* File name     : xx
+
+*     10 Oct 26 dm (openQM ref 560): modes 0, 4, 5 and 6 had no destination
+*     line at all, and mode 6 is a printer and a hold file both.
+      case mode = 0
+         destination = sysmsg(11047) ;* Display
+      case mode = 4
+         destination = sysmsg(11048) ;* Standard error
+      case mode = 5
+         destination = sysmsg(11049) ;* Auxiliary port
+      case mode = 6
+         if name = '' then destination = sysmsg(7147) ;* Using default printer
+         else destination = sysmsg(7130, name)
+         hold.name = '$hold P' : lptr
+         if bitand(flags, PU$FLG.NEXT) then hold.name := ' ' : sysmsg(7148)
+         destination := '  ' : sysmsg(7149, hold.name)
    end case
    display @(col,11) : destination : @(-4) :
 
