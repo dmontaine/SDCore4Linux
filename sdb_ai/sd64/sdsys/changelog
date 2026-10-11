@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  CREATE.FILE COMMENT, MULTIFILE AND RELATIVE PATHNAME (1.2-0,
+           openQM compatibility bundle A-8, second part).  Syntax is SD's
+           own.
+
+             CREATE.FILE name COMMENT "text"
+                            Puts the text in the VOC record after the type
+                            code, where a person listing the VOC sees it.
+             CREATE.FILE name MULTIFILE
+                            Makes the data portion a multifile with one
+                            subfile named for the file, as CREATE.FILE
+                            name,name would.
+             CREATE.FILE name PATHNAME dir
+                            A relative dir is now kept relative in the VOC
+                            record, so the account can be moved or copied.
+                            A full path is stored as before.
+
+           Also found and not changed: SD's SET.TRIGGER already refuses a
+           file that is not dynamic, so LIST.TRIGGERS has no trigger on a
+           directory file to show.  FSTAT already takes file names and DICT.
+
 12 Oct 26  MD5(), SAVED LISTS IN ANOTHER FILE, INDEX OPTIONS (1.2-0, openQM
            compatibility bundles B-4 and A-7, second part; MD5 is a kernel
            function, so it needs a rebuild and the compiler recompiled).

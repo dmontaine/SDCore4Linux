@@ -271,6 +271,28 @@ def run_verbs(box, sysd, bp):
             counts[:2] == ["2", "1"], repr(counts) + out[-200:])
         sess(box, "DELETE.FILE zzoqhd")
 
+        # --- LIST.TRIGGERS with a directory file (321) ----------------------------------------------------------
+        trg = os.path.join(bp, "zzoqtr")
+        made.append(trg)
+        write(trg, "subroutine zzoqtr(mode, file, id, rec, ctl)\n   return\nend\n")
+        out = sess(box, "BASIC bp zzoqtr", "CATALOG bp zzoqtr LOCAL", "CREATE.FILE zzoqtd DIRECTORY",
+                   "SET.TRIGGER zzoqtd zzoqtr PRE.WRITE", "LIST.TRIGGERS zzoqtd")
+        row("321 (a finding, no change): SD refuses a trigger on a directory file, so LIST.TRIGGERS has none to show",
+            has(out, r"Dynamic file required") and not has(out, r"^zzoqtd\s+\S+\s+PRE"), out[-500:])
+        sess(box, "DELETE.CATALOG zzoqtr LOCAL", "DELETE.FILE zzoqtd")
+
+        # --- CREATE.FILE COMMENT, MULTIFILE and a relative PATHNAME (383, 522, 278) ----------------------------
+        os.makedirs(os.path.join(sysd, "zzoqreld"), exist_ok=True)
+        sess(box, "DELETE.FILE zzoqcm", "DELETE.FILE zzoqmf", "DELETE.FILE zzoqrp")
+        out = sess(box, 'CREATE.FILE zzoqcm COMMENT "Test file here"', "CT VOC zzoqcm", "CREATE.FILE zzoqmf MULTIFILE",
+                   "CT VOC zzoqmf", "CREATE.FILE zzoqrp PATHNAME zzoqreld", "CT VOC zzoqrp")
+        row("383: CREATE.FILE ... COMMENT puts the text after the type code in the VOC record", has(out, r"^1: F Test file here"), out[-700:])
+        row("522: CREATE.FILE ... MULTIFILE makes the data portion a multifile named for the file",
+            has(out, r"^4: zzoqmf"), out[-700:])
+        row("278: a relative PATHNAME stays relative in the VOC record", has(out, r"^2: zzoqreld/zzoqrp"), out[-700:])
+        sess(box, "DELETE.FILE zzoqcm", "DELETE.FILE zzoqmf", "DELETE.FILE zzoqrp")
+        shutil.rmtree(os.path.join(sysd, "zzoqreld"), ignore_errors=True)
+
         # --- saved lists IN file (494), CREATE.INDEX DELETING and $INDEX.PATH (424, 184), LIST.INDEX LPTR (73) ----
         write(probe, ("   execute 'CREATE.FILE zzix' capturing j1\n   open 'zzix' to f else stop\n"
                       "   open 'DICT', 'zzix' to dv else stop\n"
@@ -333,9 +355,11 @@ def run_verbs(box, sysd, bp):
         sess(box, "COMO ON zzoqm2 IN zzcd", "SH echo MARK_FOUR", "COMO OFF")
         alt = slurp(os.path.join(sysd, "zzcd", "zzoqm2")) or b""
         row("361: COMO ON ... IN dirfile writes to that directory file", b"MARK_FOUR" in alt, repr(alt[-80:]))
-        # (9, mapped record names: map_t1_id() maps only when the file's own mapping flag is on, and the como path
-        #  carries no file, so COMO calls ospath(..., OS$MAPPED.NAME) and gets the map the session has; no row)
-        for n in ("zzoqm1",):
+        sess(box, "COMO ON zzoq=m3", "SH echo MARK_FIVE", "COMO OFF")
+        names = os.listdir(como_dir)
+        row("9: a record name with a restricted character (=) is mapped (%E) as in any directory file",
+            "zzoq%Em3" in names and "zzoq=m3" not in names, repr(names))
+        for n in ("zzoqm1", "zzoq%Em3"):
             if os.path.exists(os.path.join(como_dir, n)):
                 os.remove(os.path.join(como_dir, n))
         sess(box, "DELETE.FILE zzcd")
