@@ -237,6 +237,36 @@ def run_verbs(box, sysd, bp):
         row("534: a file against itself differs in nothing",
             has(out, r"Records only in zzoqc1: 0") and has(out, r"Records in both that differ: 0") and has(out, r"same: 3"), out[-300:])
 
+        # --- MAP NO.PAGE / LOCAL, CATALOG RELATIVE, OPTION CATALOGUE.LOCAL, OPTION DIR.SEL.OMIT.HIDDEN ----------
+        lc = os.path.join(bp, "zzoqlc")
+        lr = os.path.join(bp, "zzoqlr")
+        made += [lc, lr]
+        write(lc, "   crt 'RAN_LC'\nend\n")
+        write(lr, "   crt 'RAN_LR'\nend\n")
+        out = sess(box, "BASIC bp zzoqlc", "BASIC bp zzoqlr", "CATALOG bp zzoqlc LOCAL", "MAP LOCAL NO.PAGE")
+        row("287: MAP LOCAL lists the locally catalogued programs", has(out, r"^L\s+zzoqlc") and not has(out, r"^\*"), out[-300:])
+        row("153: MAP ... NO.PAGE runs and still ends with its total", has(out, r"Total:"), out[-300:])
+        out = sess(box, "CATALOG bp zzoqlr LOCAL RELATIVE", "ZZOQLR")
+        read_voc = sess(box, "CT VOC zzoqlr")
+        row("131: CATALOG ... LOCAL RELATIVE keeps a relative path in the VOC pointer",
+            has(read_voc, r"^1: V") and has(read_voc, r"^3: bp\.out/zzoqlr") and not has(read_voc, r"^3: /"), read_voc[-300:])
+        row("131: and the program still runs through it", has(out, r"RAN_LR"), out[-200:])
+        sess(box, "DELETE.CATALOG zzoqlc LOCAL", "DELETE.CATALOG zzoqlr LOCAL")
+        out = sess(box, "OPTION CATALOGUE.LOCAL", "CATALOG bp zzoqlc", "DELETE.CATALOG zzoqlc")
+        row("288: with OPTION CATALOGUE.LOCAL, CATALOG with no mode catalogues locally", has(out, r"added to local catalogue"), out[-300:])
+        row("288: and DELETE.CATALOG deletes the local entry by default", not has(out, r"not found|not in"), out[-300:])
+        out = sess(box, "MAP LOCAL")
+        row("288: after that no local entry is left", not has(out, r"zzoqlc"), out[-200:])
+        hd = os.path.join(sysd, "zzoqhd")
+        sess(box, "DELETE.FILE zzoqhd", "CREATE.FILE zzoqhd DIRECTORY")
+        write(os.path.join(hd, "visible"), "x\n")
+        write(os.path.join(hd, ".hidden"), "x\n")
+        out = sess(box, "SELECT zzoqhd", "OPTION DIR.SEL.OMIT.HIDDEN", "SELECT zzoqhd")
+        counts = re.findall(r"(\d+) record\(s\) selected", out)
+        row("445: SELECT of a directory file sees the dot file without the option and not with it",
+            counts[:2] == ["2", "1"], repr(counts) + out[-200:])
+        sess(box, "DELETE.FILE zzoqhd")
+
         # --- inline prompts: control letters in any case, quoted prompt text (171, 377) ---------------------------
         out = sess(box, "SH echo cap_<<A,Name>>_end", "xyz")
         row("171 CONTROL: <<A,Name>> prompts and substitutes the answer", has(out, r"^cap_xyz_end") and has(out, r"Name="), out[-200:])

@@ -91,6 +91,9 @@ $include int$keys.h
 
    if name.list = '' then stop sysmsg(3036) ;* Catalogue name required
 
+   * 12 Oct 26 dm - openQM 288: OPTION CATALOGUE.LOCAL makes local the default
+   if not(local) and not(global) and option(OPT.CATALOGUE.LOCAL) then local = @true
+
    if local and global then
       stop sysmsg(3021) ;* Incompatible cataloguing modes specified
    end

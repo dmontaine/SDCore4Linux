@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  CATALOGUE AND MAP OPTIONS, TWO NEW OPTIONS (1.2-0, openQM
+           compatibility bundles A-10 and A-4, second part; the kernel's
+           option array grew, so it needs a rebuild).  Syntax is SD's own.
+
+             MAP LOCAL           Lists the programs catalogued locally in
+                                 the account (marked L), as MAP lists the
+                                 global (*) and private ones.
+             MAP NO.PAGE         Heading once, no page breaks, on the screen.
+             CATALOG ... LOCAL RELATIVE
+                                 Stores the object file's path relative to
+                                 the account when it lies below it, so the
+                                 account can be moved or copied.
+             OPTION CATALOGUE.LOCAL
+                                 CATALOG and DELETE.CATALOG use the local
+                                 catalogue when no mode is given.  A name
+                                 with a global prefix is still global.
+             OPTION DIR.SEL.OMIT.HIDDEN
+                                 SELECT of a directory file leaves out the
+                                 names that begin with a dot.
+
+           What this does not do.  Asking before a local catalogue entry is
+           pointed at a different object file is not built: it would stop an
+           unattended install.  A prefix given apart from the call name, and
+           a hyphen prefix, need compiler support and are not built.
+
 12 Oct 26  COMMAND LANGUAGE: COMO, IF IN AND EXISTS, INLINE PROMPTS (1.2-0,
            openQM compatibility bundle A-9, second part; the kernel's COMO
            statement changed, so it needs a rebuild).  Syntax is SD's own.
