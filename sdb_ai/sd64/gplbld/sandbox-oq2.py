@@ -71,6 +71,24 @@ CASES = [
     ("472: a count below 1 means all", {}, "x = ereplace('a-b-c-d', '-', '+', 0)", "a+b+c+d"),
     ("472: a null NEW deletes", {}, "x = ereplace('a-b-c', '-', '')", "abc"),
     ("472: a null OLD puts NEW in front of the string", {}, "x = ereplace('world', '', 'hello ')", "hello world"),
+    ("472 FIX: the openQM example, default precision 4 rounds 37.73629273 to 37.7363", {}, "x = fix(37.73629273)", "37.7363"),
+    ("472 FIX: precision 2 rounds up", {}, "x = fix(37.73629273, 2)", "37.74"),
+    ("472 FIX: mode 1 truncates", {}, "x = fix(37.73629273, 2, 1)", "37.73"),
+    ("472 FIX: the places asked for are kept, zeros included", {}, "x = fix(37.5, 2)", "37.50"),
+    ("472 FIX: precision 0 gives a whole number, rounded", {}, "x = fix(2.5, 0):'/':fix(2.4, 0)", "3/2"),
+    ("472 FIX: a negative number rounds away from zero and truncates toward it", {}, "x = fix(-2.675, 2):'/':fix(-2.675, 2, 1)", "-2.68/-2.67"),
+    ("472 FIX: the program's PRECISION is the default", {}, "precision 2\nx = fix(1.23456)", "1.23"),
+    ("509 MATSTR: the openQM example, a 3 x 2 matrix: a field for each row, a value for each column", {},
+     "dim data(3, 2)\ndata(1, 1) = 'John' ; data(1, 2) = 'Doe'\ndata(2, 1) = 'Jane' ; data(2, 2) = 'Smith'\n"
+     "data(3, 1) = 'Bob' ; data(3, 2) = 'Johnson'\nx = change(change(matstr(data), @vm, ','), @fm, '/')", "John,Doe/Jane,Smith/Bob,Johnson"),
+    ("509 MATSTR: an empty cell in a 2 x 2 keeps its place", {},
+     "dim m(2, 2)\nmat m = ''\nm(1, 2) = 'b' ; m(2, 1) = 'c'\nx = change(change(matstr(m), @vm, ','), @fm, '/')", ",b/c,"),
+    ("509 MATSTR: a one dimensional matrix is an FM list like MATBUILD, trailing nulls off", {},
+     "dim v(5)\nmat v = ''\nv(1) = 'a' ; v(2) = 'b' ; v(3) = 'c'\nx = change(matstr(v), @fm, '/')", "a/b/c"),
+    ("509 CONTROL: MATBUILD of the same one dimensional matrix", {},
+     "dim v(5)\nmat v = ''\nv(1) = 'a' ; v(2) = 'b' ; v(3) = 'c'\nmatbuild s from v\nx = change(s, @fm, '/')", "a/b/c"),
+    ("509 MATSTR: the zero element of a one dimensional matrix is not used", {},
+     "dim v(2)\nv(0) = 'zero' ; v(1) = 'a' ; v(2) = 'b'\nx = change(matstr(v), @fm, '/')", "a/b"),
     ("472 CONTROL: CHANGE gives the same as EREPLACE for a non-null OLD", {}, "x = change('a-b-c-d', '-', '+', 2)", "a+b+c-d"),
     ("510: REGEX finds a match anywhere", {}, "x = regex('hello world', 'wor')", "1"),
     ("510: REGEX with an anchor and a class", {}, "x = regex('abc123', '^[a-z]+[0-9]+$'):regex('abc123x', '^[a-z]+[0-9]+$')", "10"),
@@ -510,6 +528,15 @@ def run_verbs(box, sysd, bp):
         row("86: !VOCPATH gives the path of a VOC file name and status 0", has(out, r"^V1\[0/1\]"), out[-400:])
         row("86: and a status and a null path for a name that is not there", has(out, r"^V2\[1/\]"), out[-400:])
         row("366: DIR() returns the size in bytes as a third value", has(out, r"^D1\[f5/F/5\]"), out[-400:])
+
+        # --- MATSTR of a matrix passed to a subroutine (509) -----------------------------------------------------
+        ms = os.path.join(bp, "zzoqms")
+        made.append(ms)
+        write(ms, "   subroutine zzoqms(mat a, out)\n   dim a(2, 2)\n   out = matstr(a)\n   return\nend\n")
+        write(probe, ("   dim m(2, 2)\n   m(1, 1) = 'p' ; m(1, 2) = 'q' ; m(2, 1) = 'r' ; m(2, 2) = 's'\n"
+                      "   call zzoqms(mat m, r)\n   crt 'MS[':change(change(r, @vm, ','), @fm, '/'):']'\nend\n"))
+        out = sess(box, "BASIC bp zzoqms", "CATALOG bp zzoqms LOCAL", "BASIC bp zzoqp1", "RUN bp zzoqp1", "DELETE.CATALOG zzoqms LOCAL")
+        row("509: MATSTR of a matrix passed into a subroutine", has(out, r"^MS\[p,q/r,s\]"), out[-400:])
 
         # --- SETPTR INFORM and EJECT (51, 59) --------------------------------------------------------------------
         hold = os.path.join(sysd, "$hold")
