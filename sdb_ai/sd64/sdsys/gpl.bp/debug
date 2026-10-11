@@ -97,9 +97,20 @@ found.program:
    done = @false
    prompt ""
 
+   last.command = ''
+
    loop
       gosub get.input
       dump.path = ''
+
+      * A blank line repeats the last command, unless it is the keystroke
+      * that walks an array or the source (11 Oct 26 dm, openQM ref 21)
+
+      if command = '' then
+         if array.offset < 0 and src.pos = 0 and last.command # '' then command = last.command
+      end else
+         last.command = command
+      end
 
       if command = '' then
          if array.offset >= 0 then  ;* Show next element
@@ -227,8 +238,14 @@ found.program:
                   n = trim(matchfield(u.command, '0A0X', 2))
                   begin case
                      case n = ''
-                        message = sysmsg(6701) ;* Line number or CLR required
-                        gosub emit.err.msg
+*                       11 Oct 26 dm (openQM ref 142): with no line number,
+*                       list the breakpoints that are set, as module.line
+                        if breakpoints = '' then
+                           message = sysmsg(11058) ;* No breakpoints are set
+                        end else
+                           message = sysmsg(11057, change(breakpoints, @fm, ' ')) ;* Breakpoints: xx
+                        end
+                        gosub emit.msg
 
                      case not(n matches '1N0N')
                         message = sysmsg(6702) ;* Command format error
