@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  LISTDICT (1.2-0, openQM compatibility bundle A-8; a new VOC
+           entry, added to an account by UPDATE.ACCOUNT).
+
+             LISTDICT filename {LPTR}
+
+           Lists the dictionary of a file in the form Pick systems use: one
+           line for each A, D, I and S record, with its type, its field
+           number or expression, conversion, column heading, format, S/M
+           and association, in that order of type.  LPTR sends the listing
+           to the printer instead of the screen.
+
+           It is a paragraph over LIST DICT, so the layout is the one LIST
+           DICT gives and the columns follow the DICT.DICT dictionary.  What
+           it adds is the choice of record types: phrases and every other
+           type are left out.  LIST DICT filename still lists everything.
+
+           What this does not do.  The openQM text says only that the
+           column widths follow the screen width; the layout here is SD's
+           own, not a copy of openQM's page.  LPTR must be the third word
+           of the command.
+
 12 Oct 26  TRY / CATCH / THROW, CAUGHT() AND @EXCEPTION (1.2-0, openQM
            compatibility bundle B-4; a kernel and compiler change, so it
            needs a rebuild.  Programs compiled before it are not affected).
