@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  SSELECT SORT OPTIONS AND SSELECTN (1.2-0, openQM compatibility
+           bundle B-5, first part; the kernel gained an opcode, so it needs
+           a rebuild and the BASIC compiler recompiled).
+
+             SSELECT file RIGHT.ALIGNED     Sorts the ids as numbers where
+                                            they are numbers (9, 10, 100)
+                                            instead of as text (10, 100, 9).
+             SSELECT file DESCENDING        Sorts the other way round.
+             SSELECT file TO n ...          Both options may be given, in
+                                            either order, before TO.
+             SSELECTN file TO n             Same as SSELECT file TO n.
+
+           A program compiled before this change keeps working: the old
+           SSELECT instruction still sorts left aligned and ascending.
+
+           What this does not do.  The options go BEFORE "TO n": after it
+           the list number would take the option word as part of itself.
+           SSELECTV is not built.  The rest of the openQM statement list
+           (CLEARCOMMON name, EXECUTE STACKLIST, FLUSH.DH.CACHE,
+           CSV.MODE, FOR EACH delimiters, OPENTEMP, INPUT options,
+           INPUTIF, the ~= operator and the $MODE settings) is not.
+
 11 Oct 26  SIX MULTIVALUED FUNCTIONS (1.2-0, openQM compatibility bundle
            B-4, first part; the kernel's opcode tables changed, so it needs
            a rebuild and the BASIC compiler recompiled).
