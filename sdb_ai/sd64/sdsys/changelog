@@ -1,6 +1,36 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  FOUR BASIC ADDITIONS (1.2-0, openQM compatibility bundle B-5,
+           second part; the kernel gained an opcode and OPENSEQ changed, so
+           it needs a rebuild and the compiler recompiled).  Syntax is SD's
+           own where the openQM notes give none.
+
+             CLEARCOMMON name        Sets the variables of the named common
+                                     block to zero.  CLEARCOMMON alone still
+                                     clears the unnamed block.
+             $MODE TIME.MS           TIME() then returns the seconds since
+                                     midnight to the millisecond, as a
+                                     number with a fraction (it is
+                                     SYSTEM(1020) / 1000).
+             OPENSEQ file,id CREATING TO f
+                                     Makes the file at once if it is not
+                                     there, and takes the THEN clause.
+             OPENSEQ file,id SHARED TO f
+                                     Opens for appending (and makes it if
+                                     needed) so that several processes can
+                                     add to the same file, an audit log for
+                                     example: each WRITESEQ is one whole
+                                     line at the end of the file, and no
+                                     process overwrites another's.  It is
+                                     not buffered, so it is slower than a
+                                     plain APPEND.
+
+           What this does not do.  SYSTEM(12) is not changed by TIME.MS;
+           the other openQM statements (INPUT options, INPUTIF, OPENTEMP,
+           EXECUTE STACKLIST, FLUSH.DH.CACHE, CSV.MODE, FOR EACH, the ~=
+           operator and the rest) are not built yet.
+
 12 Oct 26  CREATE.FILE COMMENT, MULTIFILE AND RELATIVE PATHNAME (1.2-0,
            openQM compatibility bundle A-8, second part).  Syntax is SD's
            own.

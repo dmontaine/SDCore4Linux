@@ -38,6 +38,16 @@ CASES = [
     ("63: MD5 of the openQM example Hello World", {}, "x = md5('Hello World')", "b10a8db164e0754105b7a99be72e3fe5"),
     ("63: MD5 of the null string", {}, "x = md5('')", "d41d8cd98f00b204e9800998ecf8427e"),
     ("63: MD5 of a string with a field mark in it (bytes, not text)", {}, "x = len(md5('a':@fm:'b'))", "32"),
+    ("581 CONTROL: TIME() is a whole number of seconds without the mode", {}, "t = time()\nx = (t = int(t))", "1"),
+    ("581: $MODE TIME.MS makes TIME() seconds to the millisecond, within half a second of SYSTEM(1020)/1000",
+     {}, "$mode time.ms\nt = time()\nx = (abs(t - system(1020) / 1000) < 0.5)", "1"),
+    ("581: and it is not a whole number (tried three times; a whole second is one chance in a thousand)",
+     {}, "$mode time.ms\nx = 0\nfor i = 1 to 3\n   t = time()\n   if t # int(t) then x = 1\n   sleep 1\nnext i", "1"),
+    ("52 CONTROL: a named common block holds its value", {}, "common /zzcn/ a, b\ncommon /zzcm/ c\na = 5 ; b = 6 ; c = 7\nx = a + b + c", "18"),
+    ("52: CLEARCOMMON name sets that block to zero and leaves the others",
+     {}, "common /zzcn/ a, b\ncommon /zzcm/ c\na = 5 ; b = 6 ; c = 7\nclearcommon zzcn\nx = a:'/':b:'/':c", "0/0/7"),
+    ("52: CLEARCOMMON alone still clears the unnamed block only",
+     {}, "common a, b\ncommon /zzcm/ c\na = 5 ; b = 6 ; c = 7\nclearcommon\nx = a:'/':b:'/':c", "0/0/7"),
     ("407 CONTROL: without the option record the constant is not defined", {}, "x = unassigned(zzk)", "1"),
     ("407: an INCLUDE line in $BASIC.OPTIONS puts the record at the top of the program",
      {"$BASIC.OPTIONS": "X\nINCLUDE zzincl\n", "zzincl": "zzk = 41\n"}, "x = zzk + 1", "42"),
@@ -270,6 +280,36 @@ def run_verbs(box, sysd, bp):
         row("445: SELECT of a directory file sees the dot file without the option and not with it",
             counts[:2] == ["2", "1"], repr(counts) + out[-200:])
         sess(box, "DELETE.FILE zzoqhd")
+
+        # --- OPENSEQ CREATING and SHARED (485, 397) --------------------------------------------------------
+        sq = os.path.join(d, "sq.txt")
+        sh = os.path.join(d, "shared.txt")
+        hp = []
+        for tag in ("A", "B"):
+            pth = os.path.join(bp, "zzoqs" + tag)
+            made.append(pth)
+            hp.append(pth)
+            write(pth, ("   openseq '%s' shared to f else stop\n   for i = 1 to 300\n      writeseq '%s' : i : ' ' : str('x', 40) to f else stop\n"
+                        "   next i\n   closeseq f\nend\n") % (sh, tag))
+        write(probe, ("   openseq '%s' to f then crt 'EXISTS_BEFORE' else crt 'MISSING_BEFORE'\n"
+                      "   openseq '%s' creating to g then crt 'THEN_G' else crt 'ELSE_G'\n"
+                      "   closeseq g\nend\n") % (sq, sq))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("485: OPENSEQ without CREATING of a file that is not there takes the ELSE", has(out, r"MISSING_BEFORE"), out[-300:])
+        row("485: OPENSEQ ... CREATING makes the file at once and takes the THEN", has(out, r"THEN_G") and os.path.exists(sq), out[-300:])
+        sess(box, "BASIC bp zzoqsA", "BASIC bp zzoqsB")
+        pa = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqsA"],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        pb = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqsB"],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        pa.wait(timeout=120)
+        pb.wait(timeout=120)
+        body = (slurp(sh) or b"").decode("latin-1")
+        lines = [l for l in body.split("\n") if l]
+        row("397: two processes appending with SHARED lose no line (600 written, 600 found)", len(lines) == 600,
+            "found %d lines" % len(lines))
+        row("397: and every line is whole (a number, a space and 40 x)",
+            all(re.fullmatch(r"[AB]\d+ x{40}", l) for l in lines), "a damaged line: %r" % [l for l in lines if not re.fullmatch(r"[AB]\d+ x{40}", l)][:2])
 
         # --- LIST.TRIGGERS with a directory file (321) ----------------------------------------------------------
         trg = os.path.join(bp, "zzoqtr")
