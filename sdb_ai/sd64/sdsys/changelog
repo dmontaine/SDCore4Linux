@@ -1,6 +1,55 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  FILE UTILITIES, COMMON BLOCKS, AUTOMATIC INCLUDES AND NAMES WITH
+           TWO UNDERSCORES (1.2-0, openQM compatibility bundles A-1 and
+           A-14, second part).  The openQM notes give the purpose of these
+           and not the syntax, so the syntax below is SD's own.  The BASIC
+           tokenizer changed in the kernel, so it needs a rebuild.
+
+             OSCOPY source target {OVERWRITE | APPEND}
+                          Copies an operating system file.  It will not
+                          replace a target that exists unless you say
+                          OVERWRITE, and APPEND adds the source to the end
+                          of the target.  !OSCOPY(source, target, mode,
+                          status) is the same for programs (mode 0, 1, 2).
+             !IOSCOPY(source, target, status)
+                          Copies a file or a whole directory tree.
+             COMPARE.FILES file1 file2 {DETAIL}
+                          Counts the records only in one, only in the
+                          other, in both but different, and the same;
+                          DETAIL lists the ids.  DICT file names a
+                          dictionary.  The exit value is 0 when the files
+                          are alike.
+             !MULTISORT(data, key, order)
+                          Sorts several related lists (one to a field,
+                          elements separated by value marks) by one of
+                          them and keeps the others in step.
+             FIXDIR file {id ...}
+                          Takes the carriage returns out of directory file
+                          items that came from a Windows system.
+             DELETE.COMMON ALL EXCEPT name ...
+                          Deletes every named common block but those
+                          listed.
+             DELETE        A record another user holds locked is now
+                          reported and skipped; DELETE used to wait for it.
+             newvoc.mods   If SDSYS has a file of that name, its records
+                          are copied over the standard VOC records in each
+                          new or updated account.  An account's own record
+                          marked [locked] is left alone.  (Built; not yet
+                          run on an install.)
+             $BASIC.OPTIONS  A line INCLUDE record (or INCLUDE file record)
+                          makes the compiler include that record at the top
+                          of every program it compiles.  Line numbers in
+                          error messages and the debugger are unchanged.
+             BASIC names   a__b, with two or more underscores together, is
+                          now a valid name.
+
+           What this does not do.  OSCOPY and IOSCOPY run cp, so they have
+           the user's own permissions and refuse a path with a single quote
+           in it.  FIXDIR rewrites a record only if it holds a carriage
+           return.
+
 11 Oct 26  SSELECT SORT OPTIONS AND SSELECTN (1.2-0, openQM compatibility
            bundle B-5, first part; the kernel gained an opcode, so it needs
            a rebuild and the BASIC compiler recompiled).

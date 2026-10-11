@@ -497,6 +497,18 @@ make.account:
    repeat
    close newvoc.f
 
+* 12 Oct 26 dm - openQM 501: the administrator's optional newvoc.mods (see login's update.voc) is applied on top.
+   openpath @sdsys:@ds:"newvoc.mods" to mods.f then
+      select mods.f to 11
+      loop
+         readnext id from 11 else exit
+         read rec from mods.f, id then
+            write rec to voc.f, id
+         end
+      repeat
+      close mods.f
+   end
+
    write 'X' to voc.f, '$command.stack'
 
    fn = '$hold' ; os.name = '$hold' ; descr = 'File for deferred prints' ; dict = @true

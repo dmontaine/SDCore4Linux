@@ -1,0 +1,78 @@
+* _OSCOPY
+* !OSCOPY() - copy an operating system file, optionally appending
+* Copyright (c) 2026 SD Core for Linux, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  1.2-0 openQM refs 517 (append) and 369 (iOSCOPY, the directory form).  The syntax is SD's own.
+* END-HISTORY
+*
+*
+* START-DESCRIPTION:
+*
+*   CALL !OSCOPY(source, target, mode, status)
+*   CALL !IOSCOPY(source, target, status)
+*
+* !OSCOPY copies one operating system file.  Mode 0 refuses if the target
+* exists, 1 replaces it, 2 appends the source to the end of it (the target
+* is made if it is not there).  !IOSCOPY copies a file or a whole directory
+* tree, replacing what is in the way; a directory is copied INTO the target
+* if the target is an existing directory, as cp -R does.
+*
+* Status is 0 when it worked.  -1 is a path that is null or holds a single
+* quote, -2 a source that is not there, -3 a target that exists (mode 0),
+* and anything else the status of the copy command.  Both run with the
+* permissions of the user, like OS.EXECUTE.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+$no.xref
+subroutine oscopy(source, target, mode, status)
+$catalog !OSCOPY
+
+$include keys.h
+$include int$keys.h
+
+   status = 0
+   gosub check.paths
+   if status # 0 then return
+
+   if mode = 0 and ospath(target, OS$EXISTS) then
+      status = -3
+      return
+   end
+
+   begin case
+      case mode = 2
+         cmd = "cat -- '" : source : "' >> '" : target : "'"
+      case 1
+         cmd = "cp -f -- '" : source : "' '" : target : "'"
+   end case
+
+   out = ''
+   os.execute cmd : " 2>&1" capturing out
+   status = os.error()
+   return
+
+check.paths:
+   if source = '' or target = '' or index(source, "'", 1) or index(target, "'", 1) then
+      status = -1
+   end else
+      if not(ospath(source, OS$EXISTS)) then status = -2
+   end
+   return
+end
+
+* END-CODE

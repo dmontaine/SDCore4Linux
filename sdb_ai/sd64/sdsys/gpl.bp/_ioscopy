@@ -1,0 +1,57 @@
+* _IOSCOPY
+* !IOSCOPY() - copy an operating system file or directory tree
+* Copyright (c) 2026 SD Core for Linux, All Rights Reserved
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* START-HISTORY:
+* 12 Oct 26 dm  1.2-0 openQM ref 369.  The syntax is SD's own.
+* END-HISTORY
+*
+*
+* START-DESCRIPTION:
+*
+*   CALL !IOSCOPY(source, target, status)
+*
+* Copies a file, or a directory and everything under it, to the target,
+* replacing what is in the way.  If the target is an existing directory the
+* source is copied INTO it (as cp -R does).  See _OSCOPY for the status
+* values.  Runs with the permissions of the user.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+$no.xref
+subroutine ioscopy(source, target, status)
+$catalog !IOSCOPY
+
+$include keys.h
+$include int$keys.h
+
+   status = 0
+   if source = '' or target = '' or index(source, "'", 1) or index(target, "'", 1) then
+      status = -1
+      return
+   end
+   if not(ospath(source, OS$EXISTS)) then
+      status = -2
+      return
+   end
+
+   out = ''
+   os.execute "cp -R -f -- '" : source : "' '" : target : "' 2>&1" capturing out
+   status = os.error()
+   return
+end
+
+* END-CODE
