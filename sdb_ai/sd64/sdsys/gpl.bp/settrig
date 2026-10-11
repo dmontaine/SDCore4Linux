@@ -131,6 +131,15 @@ $include err.h
                   case keyword = KW$READ        ; modes = bitor(modes, FL$TRG.READ)
                   case keyword = KW$PRE.CLEAR   ; modes = bitor(modes, FL$TRG.PRE.CLEAR)
                   case keyword = KW$POST.CLEAR  ; modes = bitor(modes, FL$TRG.POST.CLEAR)
+*                 11 Oct 26 dm (openQM ref 388): ALL is every mode
+                  case keyword = KW$ALL
+                     modes = bitor(modes, FL$TRG.PRE.WRITE)
+                     modes = bitor(modes, FL$TRG.PRE.DELETE)
+                     modes = bitor(modes, FL$TRG.POST.WRITE)
+                     modes = bitor(modes, FL$TRG.POST.DELETE)
+                     modes = bitor(modes, FL$TRG.READ)
+                     modes = bitor(modes, FL$TRG.PRE.CLEAR)
+                     modes = bitor(modes, FL$TRG.POST.CLEAR)
                   case 1
                      stop sysmsg(2018, token)  ;* Unexpected token (xx)
                end case
@@ -151,10 +160,14 @@ $include err.h
 
 validate.call.name:
 !!CALLNAME!!
+*  11 Oct 26 dm  The name has been lower cased by here (stage 3a) and the
+*  character sets are upper case, so every name was refused with 3002.  Check
+*  the upper case form of it.  (The Windows port has the same lines.)
+   up.name = upcase(trigger.name)
    if len(trigger.name) > MAX.TRIGGER.NAME.LEN ~
-    or index(prefix.chars:leading.chars, trigger.name[1,1], 1) = 0 ~
-    or convert(following.chars, '', trigger.name[2,99]) # '' ~
-    or (index(prefix.chars, trigger.name[1,1], 1) and len(trigger.name) = 1) then
+    or index(prefix.chars:leading.chars, up.name[1,1], 1) = 0 ~
+    or convert(following.chars, '', up.name[2,99]) # '' ~
+    or (index(prefix.chars, up.name[1,1], 1) and len(trigger.name) = 1) then
       stop sysmsg(3002) ;* Illegal trigger function name
    end
 
