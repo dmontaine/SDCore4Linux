@@ -60,6 +60,7 @@ $include syscom.h
 $include parser.h
 $include keys.h
 $include err.h
+$include int$keys.h
 
    voc.rec = ''
    quote.char = ''
@@ -77,7 +78,7 @@ rescan:
          c = parser.sentence[1, 1]
 
          begin case
-            case (c = '"') or (c = "'") or (c = "\")      ;* Quoted string
+            case (c = '"') or (c = "'") or (c = "\" and not(option(OPT.BACKSLASH.NOT.QUOTE)))      ;* Quoted string
                j = index(parser.sentence, c, 2)
                if j = 0 then stop sysmsg(2055)  ;* Unpaired string quote
                type = PARSER$STRING
@@ -115,7 +116,9 @@ rescan:
                k = index(parser.sentence, ')', 1) ; if k and k < j then j = k
                k = index(parser.sentence, '"', 1) ; if k and k < j then j = k
                k = index(parser.sentence, "'", 1) ; if k and k < j then j = k
-               k = index(parser.sentence, '\', 1) ; if k and k < j then j = k
+               if not(option(OPT.BACKSLASH.NOT.QUOTE)) then   ;* 10 Oct 26 dm, openQM ref 165
+                  k = index(parser.sentence, '\', 1) ; if k and k < j then j = k
+               end
 
 
                type = PARSER$TOKEN
@@ -229,7 +232,7 @@ rescan:
          c = parser.sentence[1, 1]
 
          begin case
-            case (c = '"') or (c = "'") or (c = "\")      ;* Quoted string
+            case (c = '"') or (c = "'") or (c = "\" and not(option(OPT.BACKSLASH.NOT.QUOTE)))      ;* Quoted string
                j = index(parser.sentence, c, 2)
                if j = 0 then stop sysmsg(2055)  ;* Unpaired string quote
 
