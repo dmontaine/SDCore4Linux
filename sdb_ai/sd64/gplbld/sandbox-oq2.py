@@ -756,8 +756,47 @@ def run_verbs(box, sysd, bp):
         out = sess(box, "LISTDICT zzoqld LPTR")
         row("10: LPTR sends the listing to the printer: nothing of it on the screen, and no complaint about the word",
             not has(out, r"^price\s") and not has(out, r"record\(s\) listed") and not has(out, r"(?i)unrecognised|illegal|not found"), out[-300:])
+
+        # --- COPY.LISTP (72): COPYP with the source file defaulting to $savedlists ----------------------------
+        out = sess(box, 'SELECT VOC WITH @ID = "copyp" "list" "sort"', "SAVE.LIST zzoqla",
+                   'SELECT VOC WITH @ID = "copy"', "SAVE.LIST zzoqlb")
+        row("72 CONTROL: the two saved lists were made", has(out, r"3 record\(s\) selected") and not has(out, r"(?i)error|not found|cannot"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla (T")
+        row("72: COPY.LISTP name (T shows the saved list of that name, the source file being $savedlists",
+            has(out, r"Item zzoqla") and has(out, r"^0001 copyp") and has(out, r"^0002 list") and has(out, r"^0003 sort")
+            and has(out, r"1 record\(s\) copied"), out[-400:])
+        out = sess(box, "COPY.LISTP zzoqla (ST")
+        row("72: S leaves out the field numbers", has(out, r"^copyp$") and not has(out, r"^0001 copyp"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla (IT")
+        row("72: ...and I the id", not has(out, r"Item zzoqla") and has(out, r"copyp"), out[-300:])
+        out = sess(box, "COPY.LISTP $savedlists zzoqla (T")
+        row("72: a first word that opens as a file, with a list name after it, is the source file",
+            has(out, r"Item zzoqla") and has(out, r"1 record\(s\) copied"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla zzoqlb (T")
+        row("72: two list names are both in $savedlists, whichever of them could be a file",
+            has(out, r"Item zzoqla") and has(out, r"Item zzoqlb") and has(out, r"2 record\(s\) copied"), out[-400:])
+        out = sess(box, "COPY.LISTP * (T")
+        row("72: * is every saved list", has(out, r"Item zzoqla") and has(out, r"Item zzoqlb"), out[-400:])
+        out = sess(box, "COPY.LISTP zzoqnone (T")
+        row("72: a list that does not exist is reported", has(out, r'Record "zzoqnone" not found') and has(out, r"0 record\(s\) copied"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla", "zzoqlc")
+        row("72: with neither P nor T it asks for the destination and copies within $savedlists",
+            has(out, r"Copied item zzoqla from \$savedlists to \$savedlists item zzoqlc"), out[-400:])
+        out = sess(box, "COPY.LISTP zzoqlc (ST")
+        row("72: and the copy holds the same list", has(out, r"^copyp$") and has(out, r"^list$") and has(out, r"^sort$"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla", "zzoqlc")
+        row("72: an existing destination is not overwritten without O", has(out, r"Item zzoqla already exists in target file"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla (D", "zzoqld2")
+        row("72: D moves the list", has(out, r"Moved item zzoqla from \$savedlists to \$savedlists item zzoqld2"), out[-300:])
+        out = sess(box, "COPY.LISTP zzoqla (T")
+        row("72: ...so the source list is gone", has(out, r'Record "zzoqla" not found'), out[-300:])
+        out = sess(box, "COPY.LISTP DICT zzoqld name (ST")
+        row("72: DICT names the dictionary of the file that follows", has(out, r"^D$") and has(out, r"^Name$"), out[-300:])
+        out = sess(box, "COPYP voc copyp (ST")
+        row("72 CONTROL: COPYP still wants its file name first", has(out, r"^CA$") and has(out, r"1 record\(s\) copied"), out[-300:])
     finally:
-        sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld")
+        sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld",
+             "DELETE.LIST zzoqla", "DELETE.LIST zzoqlb", "DELETE.LIST zzoqlc", "DELETE.LIST zzoqld2")
         shutil.rmtree(d, ignore_errors=True)
         for p in made:
             if os.path.exists(p):
