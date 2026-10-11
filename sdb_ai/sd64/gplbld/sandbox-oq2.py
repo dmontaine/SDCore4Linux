@@ -34,6 +34,10 @@ CASES = [
     ("CONTROL: a name with one underscore", {}, "a_b = 5\nx = a_b", "5"),
     ("336: a name with two consecutive underscores", {}, "a__b = 7\nx = a__b", "7"),
     ("336: and three, mixed with digits", {}, "a1___b2 = 9\nx = a1___b2", "9"),
+    ("63: MD5 of abc is the 32 character lower case digest", {}, "x = md5('abc')", "900150983cd24fb0d6963f7d28e17f72"),
+    ("63: MD5 of the openQM example Hello World", {}, "x = md5('Hello World')", "b10a8db164e0754105b7a99be72e3fe5"),
+    ("63: MD5 of the null string", {}, "x = md5('')", "d41d8cd98f00b204e9800998ecf8427e"),
+    ("63: MD5 of a string with a field mark in it (bytes, not text)", {}, "x = len(md5('a':@fm:'b'))", "32"),
     ("407 CONTROL: without the option record the constant is not defined", {}, "x = unassigned(zzk)", "1"),
     ("407: an INCLUDE line in $BASIC.OPTIONS puts the record at the top of the program",
      {"$BASIC.OPTIONS": "X\nINCLUDE zzincl\n", "zzincl": "zzk = 41\n"}, "x = zzk + 1", "42"),
@@ -266,6 +270,42 @@ def run_verbs(box, sysd, bp):
         row("445: SELECT of a directory file sees the dot file without the option and not with it",
             counts[:2] == ["2", "1"], repr(counts) + out[-200:])
         sess(box, "DELETE.FILE zzoqhd")
+
+        # --- saved lists IN file (494), CREATE.INDEX DELETING and $INDEX.PATH (424, 184), LIST.INDEX LPTR (73) ----
+        write(probe, ("   execute 'CREATE.FILE zzix' capturing j1\n   open 'zzix' to f else stop\n"
+                      "   open 'DICT', 'zzix' to dv else stop\n"
+                      "   write 'D':@fm:'1':@fm:'':@fm:'Fld':@fm:'10L':@fm:'S' on dv, 'FLD'\n"
+                      "   write 'b' on f, 'r1'\n   write 'a' on f, 'r2'\n"
+                      "   execute 'CREATE.FILE zzsl' capturing j2\n"
+                      "   formlist 'p':@fm:'q':@fm:'r' to 0\nend\n"))
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, "CREATE.INDEX zzix FLD", "CREATE.INDEX zzix FLD")
+        row("424 CONTROL: a second CREATE.INDEX of the same index is refused", has(out, r"Duplicate field name \(FLD\)"), out[-400:])
+        out = sess(box, "CREATE.INDEX zzix FLD DELETING", "LIST.INDEX zzix ALL")
+        row("424: CREATE.INDEX ... DELETING replaces it", not has(out, r"Duplicate field name") and has(out, r"Number of indices = 1"), out[-400:])
+        out = sess(box, "LIST.INDEX zzix ALL LPTR")
+        row("73: LIST.INDEX ... LPTR sends the report to the printer, not the screen",
+            not has(out, r"Alternate key indices for file") and not has(out, r"(?i)unexpected"), out[-300:])
+        ixd = os.path.join(d, "ixdir")      # must not exist yet: the first index makes the directory
+        sess(box, "DELETE.INDEX zzix ALL")
+        write(probe, ("   open 'VOC' to v else stop\n   write 'X':@fm:'%s' on v, '$INDEX.PATH'\nend\n" % ixd))
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, "CREATE.INDEX zzix FLD", "LIST.INDEX zzix ALL")
+        row("184: CREATE.INDEX with no PATHNAME uses the $INDEX.PATH record", has(out, r"Indices relocated to") and ixd in out, out[-400:])
+        sess(box, "DELETE.INDEX zzix ALL")
+        write(probe, "   open 'VOC' to v else stop\n   delete v, '$INDEX.PATH'\nend\n")
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        out = sess(box, "CREATE.INDEX zzix FLD", "LIST.INDEX zzix ALL")
+        row("184: and without that record there is no relocation", not has(out, r"Indices relocated to"), out[-300:])
+        write(probe, "   formlist 'p':@fm:'q':@fm:'r' to 0\nend\n")
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1", "SAVE.LIST zzsl1 IN zzsl", "GET.LIST zzsl1 IN zzsl", "GET.LIST zzsl1")
+        row("494: SAVE.LIST ... IN file saves in that file and GET.LIST ... IN file reads it back",
+            has(out, r"3 record\(s\) selected"), out[-400:])
+        row("494: the default saved lists file does not hold it (there is none here, or the list is not in it)",
+            has(out, r"Error \d+ opening \$savedlists|Saved select list 'zzsl1' not found"), out[-400:])
+        out = sess(box, "DELETE.LIST zzsl1 IN zzsl")
+        row("494: DELETE.LIST ... IN file deletes it", has(out, r"Deleted saved select list 'zzsl1'"), out[-300:])
+        sess(box, "DELETE.FILE zzix", "DELETE.FILE zzsl")
 
         # --- inline prompts: control letters in any case, quoted prompt text (171, 377) ---------------------------
         out = sess(box, "SH echo cap_<<A,Name>>_end", "xyz")

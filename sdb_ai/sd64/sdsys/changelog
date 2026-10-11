@@ -1,6 +1,35 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  MD5(), SAVED LISTS IN ANOTHER FILE, INDEX OPTIONS (1.2-0, openQM
+           compatibility bundles B-4 and A-7, second part; MD5 is a kernel
+           function, so it needs a rebuild and the compiler recompiled).
+
+             MD5(string)    The MD5 digest of the string, as 32 lower case
+                            hexadecimal characters:  MD5("abc") is
+                            900150983cd24fb0d6963f7d28e17f72.  MD5 is not
+                            secure against a determined attacker; use it to
+                            check data, not to protect passwords.
+             SAVE.LIST name IN file
+             GET.LIST name IN file
+             DELETE.LIST name IN file
+                            Use the file named, instead of $SAVEDLISTS, for
+                            the saved lists.  SAVE.LIST does not create it.
+             CREATE.INDEX file field ... DELETING
+             MAKE.INDEX   file field ... DELETING
+                            Delete an index of the same name that is already
+                            there first, instead of refusing.
+             $INDEX.PATH    A VOC record  X / pathname  makes that the place
+                            new indices go when CREATE.INDEX or MAKE.INDEX
+                            has no PATHNAME.  The directory must not exist
+                            yet; the first index makes it.
+             LIST.INDEX file ALL LPTR {n}
+                            Sends the report to a printer.
+
+           What this does not do.  The other new openQM functions in the
+           list (EREPLACE, FIX, MERGELIST, JBUILD, CAUGHT and the rest) are
+           not built.
+
 12 Oct 26  CATALOGUE AND MAP OPTIONS, TWO NEW OPTIONS (1.2-0, openQM
            compatibility bundles A-10 and A-4, second part; the kernel's
            option array grew, so it needs a rebuild).  Syntax is SD's own.
