@@ -1,6 +1,116 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  TRY / CATCH / THROW, CAUGHT() AND @EXCEPTION (1.2-0, openQM
+           compatibility bundle B-4; a kernel and compiler change, so it
+           needs a rebuild.  Programs compiled before it are not affected).
+
+           An exception is a named event that a program raises with THROW
+           and handles with TRY / CATCH, wherever in the program, or in the
+           subroutines it CALLs, the THROW happens.  The program leaves
+           every level below the TRY, then goes on in the CATCH clause that
+           names the exception:
+
+             LOOP
+                READNEXT ACC.ID ELSE EXIT
+                TRY
+                   CALL PROCESS.ACCOUNT
+                CATCH ACCOUNT.INVALID
+                   DISPLAY 'Account ' : ACC.ID : ' is invalid'
+                END
+             REPEAT
+
+             TRY {statement}
+                statements
+             CATCH exception {qualifiers} {, exception {qualifiers} ...}
+                statements
+             {CATCH ... any number of further clauses}
+             END
+
+             THROW exception {, data}
+
+           The exception name is not case sensitive and may be up to 63
+           characters.  In CATCH it may be written in quotes or without
+           them; in THROW it is any expression.  A TRY may have several
+           CATCH clauses and one clause may name several exceptions; the
+           first clause that names it is the one used.  Two special names
+           can be used in CATCH: SYS$ANY takes any exception that no clause
+           names, and SYS$UNHANDLED takes an exception that no TRY anywhere
+           in the program's call chain names or takes by SYS$ANY.
+
+           In the CATCH clause these hold what was thrown:
+
+             @EXCEPTION          the name, as it was written in THROW
+             @EXCEPTION.DATA    the data given to THROW, null if none
+             @EXCEPTION.ORIGIN  the name of the program that threw it, a
+                                field mark and the line number of the
+                                THROW (-1 where the program has no line
+                                table), the program being named as error
+                                messages and SYSTEM(1002) name it
+             @EXCEPTION.STACK   the call stack, in the form of SYSTEM(1002),
+                                when the CATCH name was followed by
+                                SAVING.STACK; null otherwise
+
+           Two qualifiers may follow an exception name in CATCH, and apply
+           to that name only: DUMPING writes a process dump file, as PDUMP
+           does, and SAVING.STACK fills @EXCEPTION.STACK; both are done
+           when the exception is thrown, before the program leaves the
+           levels below the TRY.  $MODE EXCEPTION.SAVE.STACK gives every
+           CATCH in the program SAVING.STACK.
+
+             CAUGHT(exception {, modes})
+
+           is 1 if a TRY that is active now (in this program or in one that
+           called it) has a CATCH for that exception, 0 if not, so that a
+           subroutine can find out before it throws.  Modes adds up what
+           else counts: 1 a SYS$ANY handler, 2 a SYS$UNHANDLED handler;
+           without it only a clause that names the exception counts.
+
+           An exception that nothing handles stops the program, with
+           "Unhandled exception name" and the data after a colon, as a run
+           time error does.
+
+           What this does not do.  Errors SD itself finds, such as dividing
+           by zero or a file that cannot be opened, are not exceptions and
+           still stop the program as before; only THROW raises one.  An
+           exception does not pass through EXECUTE, a trigger or a
+           recursive program: in there it is unhandled unless a TRY inside
+           handles it.  The program must not jump into or out of a TRY
+           clause with GOTO, EXIT or CONTINUE (openQM has the same rule);
+           the handler stays set until the program returns.  RETURN from a
+           GOSUB or a CALL inside the clause is fine.  At most 64 TRY
+           clauses may be active at once.  Objects that the levels left
+           behind hold are not given a DESTROY.OBJECT call.  openQM's
+           !EXC.STACK subroutine is not provided.  TRY, CATCH, THROW and
+           CAUGHT are now words of the language: a program that used one of
+           them as the name of an array or a function needs it renamed.  A
+           plain variable of that name is not affected.
+
+12 Oct 26  INMAT() AFTER MATCHES AND MATCHFIELD (1.2-0, openQM
+           compatibility bundle B-4, fifth part; a kernel change, so it
+           needs a rebuild but no recompile of programs).
+
+           A MATCHES template may hold several patterns separated by value
+           marks; the string matches if any one of them does.  Until now
+           there was no way to tell which one.  After MATCHES or
+           MATCHFIELD(), INMAT() is now the number of the pattern that
+           matched, counting from 1 in the order they are written in the
+           template, and 0 when none of them matched:
+
+             IF 'ab12' MATCHES '3N':@VM:'3A':@VM:'2A2N' THEN
+                CRT INMAT()                 ;* 3
+             END
+
+           The first pattern that matches is the one reported, as it is the
+           one used.  A template with a single pattern gives 1 when it
+           matches.
+
+           What this does not do.  INMAT() is also what MATPARSE, MATREAD
+           and OPEN leave behind, so a MATCHES between one of those and the
+           INMAT() that reads its result replaces that result: read INMAT()
+           straight after the statement it belongs to.  SD has no
+           MATCHESS() or PARSE() function, so those are not covered.
+
 12 Oct 26  EREPLACE() (1.2-0, openQM compatibility bundle B-4, fourth part;
            a new opcode, so it needs a rebuild and the compiler recompiled).
 
