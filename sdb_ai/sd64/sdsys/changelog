@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  SIX MULTIVALUED FUNCTIONS (1.2-0, openQM compatibility bundle
+           B-4, first part; the kernel's opcode tables changed, so it needs
+           a rebuild and the BASIC compiler recompiled).
+
+             ADDS(a, b)    Adds a and b element by element, where each is
+                           a dynamic array.  A list that runs out first
+                           counts as zero.
+             SUBS(a, b)    Subtracts.
+             MULS(a, b)    Multiplies.
+             DIVS(a, b)    Divides.
+             QUOTES(a)     Puts double quotes round every element of a
+             DQUOTES(a)    (the two names are the same function).
+
+           They work on field, value and sub-value marks the way the
+           existing ANDS, CATS and MODS do.
+
+           What this does not do.  SQUOTES is not built: it would need a
+           new opcode of its own rather than a variant of an existing
+           one.  MD5, EREPLACE, FIX, MERGELIST, JBUILD, CAUGHT, VOCPATH,
+           MATSTR and the others in the openQM list are not built; some
+           need syntax or a return format the release notes do not give.
+
 11 Oct 26  CONFIGURATION DEFAULTS, INVCASE AND sd -status (1.2-0, openQM
            compatibility bundle B-1; the kernel changed, so it needs a
            rebuild).
