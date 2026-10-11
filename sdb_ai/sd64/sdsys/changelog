@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  EREPLACE() (1.2-0, openQM compatibility bundle B-4, fourth part;
+           a new opcode, so it needs a rebuild and the compiler recompiled).
+
+             EREPLACE(string, old, new {, occurrence {, start}})
+                          The same as CHANGE() when old is not null: every
+                          occurrence of old is replaced by new, or
+                          "occurrence" of them (less than 1 means all)
+                          starting at the "start"th.  When old is null, new
+                          is put in front of the string.  A null new
+                          deletes.
+
+           What this does not do.  FIX(), the other function that the same
+           openQM release added, is not built yet.
+
 12 Oct 26  SETPTR INFORM, EJECT AND AS ... IN (1.2-0, openQM compatibility
            bundle A-6, second part; the print code changed in the kernel, so
            it needs a rebuild).  Syntax is SD's own where openQM's is not
