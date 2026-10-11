@@ -248,6 +248,9 @@ parse.as.q.pointer:
    
             qfile = voc.rec<3>
 
+            * 12 Oct 26 dm - openQM 435: a Q-pointer with no file name points at the VOC of that account
+            if len(qfile) = 0 then qfile = 'VOC'
+
             if len(qfile) = 0 then
                set.status ER$NPN
                return

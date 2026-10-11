@@ -281,6 +281,90 @@ def run_verbs(box, sysd, bp):
             counts[:2] == ["2", "1"], repr(counts) + out[-200:])
         sess(box, "DELETE.FILE zzoqhd")
 
+        # --- PHANTOM NO.MSG / DATA / LOG and !PHLOG (483, 137, 364, 87) ----------------------------------------
+        got = os.path.join(bp, "zzoqph")
+        made.append(got)
+        write(got, "   input x\n   open 'VOC' to v else stop\n   write 'Y':@fm:x on v, 'zzph_got'\nend\n")
+        sess(box, "BASIC bp zzoqph", "CATALOG bp zzoqph LOCAL", "DELETE.FILE zzcd2", "CREATE.FILE zzcd2 DIRECTORY")
+        write(probe, ("   execute 'PHANTOM LIST.FILES' capturing o1\n   crt 'M1[':o1:']'\n"
+                      "   execute 'PHANTOM NO.MSG LIST.FILES' capturing o2\n   uid = @system.return.code\n   crt 'M2[':o2:']'\n"
+                      "   data 'zz_data_line'\n   execute 'PHANTOM NO.MSG DATA RUN bp zzoqph' capturing o3\n"
+                      "   execute 'PHANTOM NO.MSG LOG zzcd2 LIST.FILES' capturing o4\n"
+                      "   sleep 8\n"
+                      "   call !phlog(uid, nm)\n   crt 'PHL[':nm:']'\n"
+                      "   open 'VOC' to v else stop\n   read r from v, 'zzph_got' then crt 'GOT[':r<2>:']' else crt 'GOT[none]'\n"
+                      "   delete v, 'zzph_got'\n   crt 'UID[':uid:']'\n"
+                      "   crt 'LEFT[':@data.pending:']'\nend\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("483 CONTROL: PHANTOM says that it started a phantom", has(out, r"^M1\[Started phantom user \d+"), out[-600:])
+        row("483: PHANTOM NO.MSG does not", has(out, r"^M2\[\]"), out[-600:])
+        row("137: PHANTOM DATA passes the DATA queue to the phantom, which read it with INPUT",
+            has(out, r"^GOT\[zz_data_line\]"), out[-600:])
+        row("137: and the parent's queue is empty afterwards", has(out, r"^LEFT\[\]"), out[-600:])
+        row("87: !PHLOG returns the phantom's log record, PH<user>_...",
+            re.search(r"(?m)^PHL\[(PH(\d+)_\S+)\]", out) is not None and
+            re.search(r"(?m)^UID\[(\d+)\]", out) is not None and
+            re.search(r"(?m)^PHL\[PH(\d+)_", out).group(1) == re.search(r"(?m)^UID\[(\d+)\]", out).group(1), out[-600:])
+        zl = [n for n in os.listdir(os.path.join(sysd, "zzcd2"))] if os.path.isdir(os.path.join(sysd, "zzcd2")) else []
+        row("364: PHANTOM LOG zzcd2 puts the phantom's log in that directory file", any(n.startswith("PH") for n in zl), repr(zl))
+        sess(box, "DELETE.CATALOG zzoqph LOCAL", "DELETE.FILE zzcd2")
+
+        # --- PDUMP statement, string length and environment in the dump (439, 22, 569) --------------------------
+        import glob
+        for old in glob.glob(os.path.join(sysd, "dumps", "sddump.*")):
+            os.remove(old)
+        write(probe, "   zzvar = 'abcdefghij'\n   pdump\n   crt 'AFTER_PDUMP'\nend\n")
+        os.environ["ZZ_OQ_TOKEN"] = "s3cr3tvalue"
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        del os.environ["ZZ_OQ_TOKEN"]
+        dumps = glob.glob(os.path.join(sysd, "dumps", "sddump.*"))
+        dtxt = (slurp(dumps[0]) or b"").decode("latin-1") if dumps else ""
+        row("439: the PDUMP statement writes a process dump file and the program goes on",
+            len(dumps) == 1 and has(out, r"AFTER_PDUMP") and "SD Process Dump" in dtxt, "dumps=%r out=%r" % (dumps, out[-200:]))
+        row("22: the dump shows the length of a string variable", re.search(r'(?i)zzvar: String \(len=10\): "abcdefghij"', dtxt) is not None,
+            dtxt[:600])
+        row("569: the dump lists the environment, and hides the value of a name that looks like a secret",
+            "\nEnvironment\n" in dtxt and re.search(r"(?m)^  PATH=", dtxt) is not None and "=(not shown)" not in "".join(
+                l for l in dtxt.splitlines() if l.startswith("  PATH=")), dtxt[:400])
+        row("569: a variable named TOKEN is listed with its value left out",
+            "ZZ_OQ_TOKEN=(not shown)" in dtxt and "s3cr3tvalue" not in dtxt, dtxt[:300])
+        for old in dumps:
+            os.remove(old)
+
+        # --- Q-pointer with a null file name means VOC (435) ------------------------------------------------
+        write(probe, ("   open 'VOC' to v else stop\n   write 'Q':@fm:'':@fm:'' on v, 'zzqnull'\n"
+                      "   open 'zzqnull' to f then\n      read r from f, 'zzqnull' then crt 'QN[':r<1>:']' else crt 'QN[norec]'\n"
+                      "   end else crt 'QN[noopen]'\n   delete v, 'zzqnull'\nend\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("435: a Q-pointer whose file name is null opens the VOC of the account (here: reads its own record, a Q)",
+            has(out, r"^QN\[Q\]"), out[-300:])
+
+        # --- LOGOUT n GROUP (386) ---------------------------------------------------------------------------
+        sl = os.path.join(bp, "zzoqsl")
+        gp = os.path.join(bp, "zzoqgp")
+        gc = os.path.join(bp, "zzoqgc")
+        made += [sl, gp, gc]
+        write(sl, "   sleep 60\nend\n")
+        write(gp, ("   execute 'PHANTOM NO.MSG RUN bp zzoqsl'\n   execute 'PHANTOM NO.MSG RUN bp zzoqsl'\n"
+                   "   open 'VOC' to v else stop\n   write 'Y':@fm:@userno on v, 'zzgrp_parent'\n   sleep 40\nend\n"))
+        write(gc, ("   include_users = 0\n   open 'VOC' to v else stop\n   read r from v, 'zzgrp_parent' else stop\n   n = r<2>\n"
+                   "   gosub count\n   crt 'G1[':c:']'\n"
+                   "   execute 'LOGOUT ':n:' GROUP'\n   sleep 4\n   gosub count\n   crt 'G2[':c:']'\n"
+                   "   delete v, 'zzgrp_parent'\n   stop\n"
+                   "count:\n   c = 0\n   call !listu(u)\n   for i = 1 to dcount(u, @fm)\n"
+                   "      if u<i,5> + 0 = n then c += 1\n   next i\n   return\nend\n"))
+        sess(box, "BASIC bp zzoqsl", "BASIC bp zzoqgp", "BASIC bp zzoqgc")
+        pg = subprocess.Popen([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts"), "RUN bp zzoqgp"],
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        time.sleep(9)
+        out = sess(box, "RUN bp zzoqgc")
+        try:
+            pg.wait(timeout=90)
+        except subprocess.TimeoutExpired:
+            pg.kill()
+        row("386 CONTROL: the parent has two phantoms before the LOGOUT", has(out, r"^G1\[2\]"), out[-400:])
+        row("386: LOGOUT n GROUP logs out the parent's phantoms as well", has(out, r"^G2\[0\]"), out[-400:])
+
         # --- OPENSEQ CREATING and SHARED (485, 397) --------------------------------------------------------
         sq = os.path.join(d, "sq.txt")
         sh = os.path.join(d, "shared.txt")

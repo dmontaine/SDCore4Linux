@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  PHANTOM OPTIONS, PDUMP, LOGOUT GROUP (1.2-0, openQM compatibility
+           bundles B-7, B-6 and B-8, first parts; the kernel gained an
+           opcode, so it needs a rebuild and the compiler recompiled).  The
+           openQM notes give no syntax, so this is SD's own.
+
+             PHANTOM NO.MSG command   Does not display "Started phantom".
+             PHANTOM DATA command     Hands this process's DATA queue to the
+                                      phantom (the queue here is emptied);
+                                      the phantom's INPUT reads it.
+             PHANTOM LOG file command The phantom's log record is made in the
+                                      directory file named, not in $COMO.
+                                      The words may come in any order, in
+                                      front of the command.
+             CALL !PHLOG(user, name)  The log record of the phantom with that
+                                      user number (the newest PH<user>_...
+                                      in $COMO), or null.
+             LOGOUT n GROUP           Logs out process n and every phantom it
+                                      started.
+             PDUMP                    A BASIC statement: writes a process
+                                      dump file of the running process and
+                                      goes on.
+             Process dump files       Show the length of each string
+                                      variable, and list the environment
+                                      (a value is left out when its name has
+                                      PASS, SECRET, TOKEN or KEY in it).
+             Q-pointers               A Q-pointer in the VOC whose file name
+                                      (field 3) is null now points at the
+                                      account's VOC.
+
+           What this does not do.  PHANTOM NO.MSG hides the start message
+           only; SD prints no message in the parent when a phantom ends.
+           Of the rest of the diagnostic list (lock times, deadlock detail,
+           object variables in a dump) nothing is built.
+
 12 Oct 26  FOUR BASIC ADDITIONS (1.2-0, openQM compatibility bundle B-5,
            second part; the kernel gained an opcode and OPENSEQ changed, so
            it needs a rebuild and the compiler recompiled).  Syntax is SD's
