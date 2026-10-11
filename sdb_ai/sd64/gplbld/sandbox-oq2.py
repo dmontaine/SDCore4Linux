@@ -502,6 +502,32 @@ def run_verbs(box, sysd, bp):
         row("86: and a status and a null path for a name that is not there", has(out, r"^V2\[1/\]"), out[-400:])
         row("366: DIR() returns the size in bytes as a third value", has(out, r"^D1\[f5/F/5\]"), out[-400:])
 
+        # --- SETPTR INFORM and EJECT (51, 59) --------------------------------------------------------------------
+        hold = os.path.join(sysd, "$hold")
+        for nm in ("zzoqjob", "zzoqjob2"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+        write(probe, "   printer on\n   print 'line one'\n   printer close\nend\n")
+        out = sess(box, "SETPTR 0,80,60,0,0,3,AS zzoqjob,INFORM,EJECT,BRIEF", "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        body = slurp(os.path.join(hold, "zzoqjob")) or b""
+        row("51: SETPTR ... INFORM says where the output file is when the job starts",
+            has(out, r"Print output is going to .*zzoqjob"), out[-300:])
+        row("59: SETPTR ... EJECT ends the job with a form feed", b"line one" in body and body.endswith(b"\f"), repr(body[-30:]))
+        out = sess(box, "SETPTR 0,80,60,0,0,3,AS zzoqjob2,BRIEF", "RUN bp zzoqp1")
+        body2 = slurp(os.path.join(hold, "zzoqjob2")) or b""
+        row("51/59 CONTROL: without the options there is no message and no form feed at the end",
+            not has(out, r"Print output is going to") and b"line one" in body2 and not body2.endswith(b"\f"), repr(body2[-30:]) + out[-200:])
+        for nm in ("zzoqjob", "zzoqjob2"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+        sess(box, "DELETE.FILE zzoqhf", "CREATE.FILE zzoqhf DIRECTORY")
+        sess(box, "SETPTR 0,80,60,0,0,3,AS zzjob3 IN zzoqhf,BRIEF", "RUN bp zzoqp1")
+        body3 = slurp(os.path.join(sysd, "zzoqhf", "zzjob3")) or b""
+        row("448: SETPTR ... AS name IN dirfile keeps the job in that directory file, not $HOLD",
+            b"line one" in body3 and not os.path.exists(os.path.join(hold, "zzjob3")), repr(body3))
+        sess(box, "DELETE.FILE zzoqhf")
+        sess(box, "SETPTR 0,80,60,0,0,1,BRIEF")
+
         # --- !TESTLOCK (42) -------------------------------------------------------------------------------------
         write(probe, ("   call !testlock(7, o1)\n   lock 7\n   call !testlock(7, o2)\n   unlock 7\n   call !testlock(7, o3)\n"
                       "   crt 'TL[':o1:'/':(o2 = @userno):'/':o3:']'\nend\n"))

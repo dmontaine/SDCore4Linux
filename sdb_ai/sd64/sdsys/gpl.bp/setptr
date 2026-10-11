@@ -49,6 +49,8 @@
 *   FORM x               Y    Y    Y   Form type
 *   GDI                                Use Windows GDI mode API calls
 *   KEEP.OPEN            Y    Y    Y   Keep print unit open
+*   INFORM                         Y   Y   Say the output file's name when the job starts (modes 3 and 6)
+*   EJECT                Y    Y    Y   End the job with a form feed
 *   LANDSCAPE            Y         Y   Set landscape orientation
 *   LEFT.MARGIN n        Y    Y    Y   Set left margin
 *   CPI n                Y         Y   Characters per inch (float, max 2 dp)
@@ -332,7 +334,20 @@ reparse:
                      end
                   end
 
-                  file.name = '$hold ' : file.name
+                  * 12 Oct 26 dm - openQM 448, SD's own syntax:  AS name IN dirfile  keeps the job in the directory
+                  * file named instead of $HOLD
+                  call @parser(PARSER$LOOK.AHEAD, token.type, in.word, keyword)
+                  if upcase(in.word) = 'IN' and token.type # PARSER$END then
+                     call @parser(PARSER$GET.TOKEN, token.type, in.word, keyword)    ;* IN
+                     call @parser(PARSER$GET.TOKEN, token.type, hold.dir, keyword)
+                     if token.type = PARSER$END or hold.dir = '' then stop sysmsg(11086) ;* Directory file name required after IN
+                     open hold.dir to hold.f else stop sysmsg(11087, hold.dir) ;* Cannot open xx
+                     if fileinfo(hold.f, FL$TYPE) # FL$TYPE.DIR then stop sysmsg(11088, hold.dir) ;* xx is not a directory file
+                     file.name = fileinfo(hold.f, FL$PATH) : @ds : ospath(file.name, OS$MAPPED.NAME)
+                     close hold.f
+                  end else
+                     file.name = '$hold ' : file.name
+                  end
                end
 
             case keyword = KW$AT and (mode = 1 or mode = 6)
@@ -391,6 +406,14 @@ reparse:
             case keyword = KW$KEEP.OPEN
                old.flags = bitor(old.flags, PU$FLG.KEEP.OPEN)
                flags = bitor(flags, PU$FLG.KEEP.OPEN)
+
+            case keyword = KW$INFORM and (mode = 3 or mode = 6)      ;* 12 Oct 26 dm - openQM 51
+               old.flags = bitor(old.flags, PU$FLG.INFORM)
+               flags = bitor(flags, PU$FLG.INFORM)
+
+            case upcase(token) = 'EJECT'                             ;* 12 Oct 26 dm - openQM 59
+               old.flags = bitor(old.flags, PU$FLG.EJECT)
+               flags = bitor(flags, PU$FLG.EJECT)
 
             case keyword = KW$LANDSCAPE
                old.flags = bitor(old.flags, PU$FLG.LAND)
@@ -694,6 +717,8 @@ decode.options:
    if form # '' then s<-1> = 'FORM "' : form : '"'
 
    if bitand(flags, PU$FLG.KEEP.OPEN)   then s<-1> = 'KEEP.OPEN'
+   if bitand(flags, PU$FLG.INFORM)      then s<-1> = 'INFORM'
+   if bitand(flags, PU$FLG.EJECT)       then s<-1> = 'EJECT'
 
    if bitand(flags, PU$FLG.LAND)   then s<-1> = 'LANDSCAPE'
 
