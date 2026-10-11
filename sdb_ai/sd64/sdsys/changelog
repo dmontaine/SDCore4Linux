@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  FOUR NEW SYSTEM() KEYS (1.2-0, openQM compatibility bundle B-2,
+           first part; the kernel changed, so it needs a rebuild).
+
+             SYSTEM(35)    The number of users logged in now, phantoms and
+                           the API server's sessions included.
+             SYSTEM(1016)  The number of user slots still free: the user
+                           limit (SYSTEM(1013)) less SYSTEM(35).
+             SYSTEM(1045)  The time SD was started, as a Unix epoch value
+                           (seconds since 1 January 1970).
+             SYSTEM(1047)  A new globally unique identifier, 36 characters
+                           such as 3f2c9a52-...; every call returns a new one.
+
+           The names SYS$USERS, SYS$START_TIME and SYS$GUID are in KEYS.H.
+           1016 had a name but no value before; it returned nothing useful.
+
+           What this does not do.  The other new keys in the openQM list
+           (1036, 1037, 1040, 1065, 1071, 1073 and the FILEINFO() and
+           GETPU() ones) are not built; some of them need a facility SD
+           does not have.
+
 11 Oct 26  TWO BASIC DEFECTS FIXED (1.2-0, the bug-fix audit against the
            reported openQM defects; the kernel changed, so it needs a
            rebuild).

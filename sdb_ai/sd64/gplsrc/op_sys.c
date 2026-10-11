@@ -83,6 +83,9 @@
  *  1030   Login time as date * 86400 + time
  *  1031   Operating system process id
  *  1032   Test and clear break pending flag
+ *    35   Current number of users
+ *  1045   Time SD was started, Unix epoch
+ *  1047   Globally unique identifier
  *  9010   Return "SD"
  *  9011   Return MAX_STRING_SIZE - max string / record lenght
  *
@@ -459,6 +462,39 @@ void op_system() {
 
     case 1031: /* Operating system process id */
       descr->data.value = my_uptr->pid;
+      break;
+
+    case 35:   /* Current number of users (openQM 3.4-17, item 586) */
+    case 1016: /* Number of available users */
+      i = 0;
+      {
+        int16_t u;
+        for (u = 1; u <= sysseg->max_users; u++) {
+          if (UPtr(u)->uid > 0)
+            i++;
+        }
+      }
+      descr->data.value = (key == 35) ? i : ((sysseg->max_users > i) ? (sysseg->max_users - i) : 0);
+      break;
+
+    case 1045: /* Time at which SD was started, as a Unix epoch value (openQM item 192) */
+      descr->data.value = (int32_t)sysseg->start_time;
+      break;
+
+    case 1047: /* Globally unique identifier (openQM item 244): the kernel's random uuid, lower case */
+      {
+        FILE* fu = fopen("/proc/sys/kernel/random/uuid", "r");
+        s[0] = '\0';
+        if (fu != NULL) {
+          if (fgets(s, 40, fu) == NULL)
+            s[0] = '\0';
+          fclose(fu);
+        }
+        p = strchr(s, '\n');
+        if (p != NULL)
+          *p = '\0';
+        k_put_c_string(s, descr);
+      }
       break;
 
     case 1032: /* Test and clear break pending flag */
