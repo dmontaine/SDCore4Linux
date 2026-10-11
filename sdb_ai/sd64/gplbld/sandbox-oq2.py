@@ -482,6 +482,59 @@ def run_verbs(box, sysd, bp):
         row("377: a quoted prompt text may hold a comma and is shown whole",
             has(out, r"^quo_xyz_end") and has(out, r"Name, please="), out[-250:])
 
+        # --- !OPTION, !VOCPATH, DIR() size (224, 473, 86, 366) ----------------------------------------------------
+        sz = os.path.join(d, "sizedir")
+        os.makedirs(sz, exist_ok=True)
+        write(os.path.join(sz, "f5"), "abcde")
+        write(probe, ("   st = ''\n   call !option(40, st)\n   crt 'O1[':st:']'\n"
+                      "   st = 1\n   call !option(40, st)\n   st = ''\n   call !option(40, st)\n   crt 'O2[':st:']'\n"
+                      "   st = 0\n   call !option(40, st)\n   crt 'O3[':st:']'\n"
+                      "   st = ''\n   call !option(999, st)\n   crt 'O4[':st:']'\n"
+                      "   call !vocpath('bp', p, s)\n   crt 'V1[':s:'/':(p[len(p) - 1, 2] = 'bp'):']'\n"
+                      "   call !vocpath('nonesuchfile', p, s)\n   crt 'V2[':(s # 0):'/':p:']'\n"
+                      "   e = dir('%s')\n   crt 'D1[':e<1,1>:'/':e<1,2>:'/':e<1,3>:']'\nend\n") % sz)
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("224 CONTROL: !OPTION reads an option that is off", has(out, r"^O1\[0\]"), out[-400:])
+        row("473: !OPTION sets an option and reads it back as on", has(out, r"^O2\[1\]"), out[-400:])
+        row("473: and clears it again", has(out, r"^O3\[0\]"), out[-400:])
+        row("473: a number that is not an option comes back -1", has(out, r"^O4\[-1\]"), out[-400:])
+        row("86: !VOCPATH gives the path of a VOC file name and status 0", has(out, r"^V1\[0/1\]"), out[-400:])
+        row("86: and a status and a null path for a name that is not there", has(out, r"^V2\[1/\]"), out[-400:])
+        row("366: DIR() returns the size in bytes as a third value", has(out, r"^D1\[f5/F/5\]"), out[-400:])
+
+        # --- !TESTLOCK (42) -------------------------------------------------------------------------------------
+        write(probe, ("   call !testlock(7, o1)\n   lock 7\n   call !testlock(7, o2)\n   unlock 7\n   call !testlock(7, o3)\n"
+                      "   crt 'TL[':o1:'/':(o2 = @userno):'/':o3:']'\nend\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("42: !TESTLOCK is 0 for a free task lock, the owner's user number while held, and 0 again",
+            has(out, r"^TL\[0/1/0\]"), out[-300:])
+
+        # --- !MERGELIST (420, 539, 566) -------------------------------------------------------------------------
+        def lst(s):
+            return "'" + "':@fm:'".join(s.split(",")) + "'" if s else "''"
+        merges = [
+            ("a,c,e", "b,c,d", "", "a,b,c,d,e", "420: the default merge is the union, in order"),
+            ("a,c,e", "b,c,d", "A", "a,b,c,c,d,e", "420: mode A keeps duplicates"),
+            ("a,c,e", "b,c,d", "I", "c", "420: mode I is the items in both"),
+            ("a,c,e", "b,c,d", "D", "a,e", "420: mode D is list 1 without list 2"),
+            ("a,c,e", "b,c,d", "X", "a,b,d,e", "420: mode X is the items in one only"),
+            ("a,c,e", "b,c,d", "U DL", "e,d,c,b,a", "420: DL puts the result in descending order"),
+            ("10,9", "100,1", "AR", "1,9,10,100", "420: AR orders numerically"),
+            ("", "b,a", "U", "a,b", "539: an empty first list"),
+            ("a,b", "", "U", "a,b", "539: an empty second list"),
+            ("", "b,a", "I", "", "539: an empty list gives no items in both"),
+            ("", "", "U", "", "539: two empty lists"),
+            ("e,a,c", "d,b", "U N", "a,b,c,d,e", "566: lists that are not in order, with the N word"),
+        ]
+        body = ""
+        for i, (a, b, m, want, label) in enumerate(merges):
+            body += ("   l1 = %s\n   l2 = %s\n   call !mergelist(r, l1, l2, '%s')\n   crt 'ML%d[':change(r, @fm, ','):']'\n"
+                     % (lst(a), lst(b), m, i))
+        write(probe, body + "end\n")
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        for i, (a, b, m, want, label) in enumerate(merges):
+            row("%s (%s | %s | %r)" % (label, a, b, m), has(out, r"^ML%d\[%s\]" % (i, re.escape(want))), out[-300:])
+
         # --- PHANTOM statement (390) ----------------------------------------------------------------------------
         write(probe, ("   phantom 'NO.MSG LIST.FILES' capturing o\n   uid = @system.return.code\n   sleep 6\n"
                       "   call !phlog(uid, nm)\n   crt 'PS[':(uid > 0):'/':(nm[1,2] = 'PH'):']'\nend\n"))
