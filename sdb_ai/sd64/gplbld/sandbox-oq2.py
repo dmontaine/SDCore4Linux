@@ -482,6 +482,32 @@ def run_verbs(box, sysd, bp):
         row("377: a quoted prompt text may hold a comma and is shown whole",
             has(out, r"^quo_xyz_end") and has(out, r"Name, please="), out[-250:])
 
+        # --- PHANTOM statement (390) ----------------------------------------------------------------------------
+        write(probe, ("   phantom 'NO.MSG LIST.FILES' capturing o\n   uid = @system.return.code\n   sleep 6\n"
+                      "   call !phlog(uid, nm)\n   crt 'PS[':(uid > 0):'/':(nm[1,2] = 'PH'):']'\nend\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("390: the PHANTOM statement starts a phantom (a user number comes back and it makes its log)",
+            has(out, r"^PS\[1/1\]"), out[-300:])
+
+        # --- REBUILD.ALL.INDICES (58) and REDO (188) -------------------------------------------------------
+        write(probe, ("   execute 'CREATE.FILE zzrb' capturing j1\n   open 'zzrb' to f else stop\n"
+                      "   open 'DICT', 'zzrb' to dv else stop\n"
+                      "   write 'D':@fm:'1':@fm:'':@fm:'Fld':@fm:'10L':@fm:'S' on dv, 'FLD'\n"
+                      "   write 'b' on f, 'r1'\n   write 'a' on f, 'r2'\nend\n"))
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1", "CREATE.INDEX zzrb FLD")
+        out = sess(box, "REBUILD.ALL.INDICES NO.QUERY")
+        row("58: REBUILD.ALL.INDICES rebuilds the indices of a file that has them and says so",
+            has(out, r"Indices of zzrb rebuilt") and re.search(r"(?m)^[1-9]\d* file\(s\) had their indices rebuilt", out) is not None, out[-500:])
+        out = sess(box, "REBUILD.ALL.INDICES", "N")
+        row("58: without NO.QUERY it asks, and N rebuilds nothing", has(out, r"Rebuild the indices of all files") and
+            not has(out, r"Indices of zzrb rebuilt"), out[-400:])
+        sess(box, "DELETE.INDEX zzrb ALL", "DELETE.FILE zzrb")
+        t0 = time.time()
+        out = sess(box, "REDO TIMES 3 EVERY 1 SH echo REDO_RAN")
+        took = time.time() - t0
+        row("188: REDO TIMES 3 runs the command three times", len(re.findall(r"(?m)^REDO_RAN\s*$", out)) == 3, out[-300:])
+        row("188: and EVERY 1 spaces the runs a second apart (the whole took at least two seconds)", took >= 2.0, "took %.1f s" % took)
+
         # --- private vocabulary (1) -------------------------------------------------------------------------
         write(probe, ("   execute 'CREATE.FILE zzpv' capturing j1\n   open 'zzpv' to f else stop\n"
                       "   write 'PA':@fm:'SH echo PV_RAN' on f, 'zzpverb'\nend\n"))

@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  REBUILD.ALL.INDICES, REDO AND A PHANTOM STATEMENT (1.2-0, the
+           openQM list's unbundled items).  Syntax is SD's own.
+
+             REBUILD.ALL.INDICES {NO.QUERY}
+                          Rebuilds the indices of every file in the account
+                          that has any (BUILD.INDEX file ALL for each).  It
+                          asks first unless NO.QUERY is given.
+             REDO {TIMES n} {EVERY s} command
+                          Runs the command again and again: n times in all
+                          (default: until the break key), a run starting
+                          every s seconds (default 1; whole seconds).
+             PHANTOM "command" in a program
+                          A statement that starts a phantom, the same as
+                          EXECUTE "PHANTOM command" and with the same
+                          CAPTURING, RETURNING and similar clauses.  The
+                          user number is in @SYSTEM.RETURN.CODE.
+
 12 Oct 26  STRING ARITHMETIC, REGEX() AND A PRIVATE VOCABULARY (1.2-0, the
            openQM list's unbundled items; the kernel has six new functions,
            so it needs a rebuild and the compiler recompiled).
