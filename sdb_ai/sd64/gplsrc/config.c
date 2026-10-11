@@ -37,6 +37,7 @@
  *  GRPSIZE=n     Default group size when creating a dynamic file
  *  MAXIDLEN=63   Maximum record id len
  *  MUSTLOCK=1    Must hold update or file lock to write or delete record
+ *  INVCASE=1     Terminal input case inversion on at login (default = 0)
  *  NETFILES=0    Allow remote files?
  *                  0x0001   Allow outgoing NFS
  *                  0x0002   Allow incoming Q_M_Net
@@ -111,7 +112,8 @@ struct CONFIG* read_config(char* errmsg) {
  /* 20240219 mab create-account based on type (user / group / other) */   
   strncpy(pcfg.grpdir,"/home/sd/group_accounts",MAX_PATHNAME_LEN+1);  /* GRPDIR: group accounts parent dir */
   pcfg.grpsize = 1;               /* GRPSIZE:  Default group size */
-  pcfg.intprec = 13;              /* INTPREC:  Precision for INT() etc */
+  pcfg.intprec = 11;              /* INTPREC:  Precision for INT() etc. 13 until 1.2-0 (openQM 2.6-9, item 6) */
+  pcfg.invcase = FALSE;           /* INVCASE:  Initial state of terminal input case inversion (item 399) */
   pcfg.lptrhigh = 66;             /* LPTRHIGH: Default printer lines */
   pcfg.lptrwide = 80;             /* LPTRWIDE: Default printer width */
   pcfg.maxcall = 10000;           /* MAXCALL:  Maximum call depth */
@@ -124,7 +126,7 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.safedir = FALSE;       /* SAFE_DIR: User careful update to dir files */
   pcfg.sh[0] = '\0';          /* SH:       Command to run interactive shell */
   pcfg.sh1[0] = '\0';         /* SH1:      Command to run single shell */
-  pcfg.sortmem = 1048576;     /* SORTMEM:  1Mb default switch to disk sort */
+  pcfg.sortmem = 4194304;     /* SORTMEM:  4Mb default switch to disk sort (1Mb until 1.2-0; openQM item 535) */
   pcfg.sortmrg = 4;           /* SORTMRG:  Files merged in one pass */
   pcfg.sortworkdir[0] = '\0'; /* SORTWORK: Use Q_MSYS directory */
   pcfg.tempdir[0] = '\0';     /* TEMPDIR:  Temporary directory */
@@ -206,6 +208,8 @@ struct CONFIG* read_config(char* errmsg) {
         strncpy(pcfg.grpdir, rec + 7,MAX_PATHNAME_LEN+1); 
       else if (sscanf(rec, "INTPREC=%d", &n) == 1)
         pcfg.intprec = n;
+      else if (sscanf(rec, "INVCASE=%d", &n) == 1)
+        pcfg.invcase = (n != 0);
       else if (strncmp(rec, "JNLDIR=", 7) == 0)
         strcpy(cfg->jnldir, rec + 7);
       else if (sscanf(rec, "JNLMODE=%d", &n) == 1)

@@ -1,6 +1,33 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  CONFIGURATION DEFAULTS, INVCASE AND sd -status (1.2-0, openQM
+           compatibility bundle B-1; the kernel changed, so it needs a
+           rebuild).
+
+             INTPREC    The default is now 11 (it was 13).  Thirteen
+                        significant figures was found to be too many: the
+                        last two or three of a calculated number showed
+                        binary rounding noise.  A site that wants the old
+                        value sets INTPREC=13 in the configuration file.
+             SORTMEM    The default is now 4096 kb (it was 1024): sorts of
+                        up to 4 Mb are done in memory, which is faster.
+                        A site short of memory sets SORTMEM lower.
+             INVCASE    New.  INVCASE=1 in the configuration file turns
+                        terminal input case inversion on when a session
+                        starts.  The default is 0 (off), as it has been
+                        since 13 September, so nothing changes unless the
+                        administrator asks.
+             sd -status Prints the version, the time SD was started and the
+                        number of interactive, phantom and API processes
+                        against the user limit.  It needs no privilege.
+
+           What this does not do.  The other parameters in the openQM
+           list (LGNWAIT, DHCACHE, PWDELAY, MAXRLOCK, IPADDR, USERPOOL,
+           the STARTUP extensions, a longer catalogued call name) are not
+           built.  -quiet was already accepted; SD has no VOC update
+           query for it to suppress.
+
 11 Oct 26  FOUR NEW SYSTEM() KEYS (1.2-0, openQM compatibility bundle B-2,
            first part; the kernel changed, so it needs a rebuild).
 

@@ -293,7 +293,7 @@ bool start_connection(int unused) {
      account without that paragraph had every typed letter case-flipped, which
      was measured on install 80bd15c (PTERM DISPLAY "Case inversion: On") and
      made a lower-case record id arrive upper case. */
-  case_inversion = FALSE;
+  case_inversion = pcfg.invcase; /* INVCASE, off unless the administrator turns it on (openQM item 399) */
   set_term(TRUE);
 
   /* Set up signal handler */
@@ -366,7 +366,7 @@ bool init_console() {
     }
   }
 
-  case_inversion = FALSE;   /* 13 Sep 26 dm - off by default; see the socket path */
+  case_inversion = pcfg.invcase;   /* 13 Sep 26 dm - off by default; see the socket path.  INVCASE=1 turns it on. */
   set_term(TRUE);
 
   fstat(0, &statbuf);

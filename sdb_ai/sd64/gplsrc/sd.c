@@ -106,6 +106,7 @@ bool bind_sysseg(bool create, char *errmsg);
 void unbind_sysseg(void);
 void dump_sysseg(bool dump_config);
 void show_users(void);
+void show_status(void);
 void kill_user(char *user);
 
 Private jmp_buf sd_exit;
@@ -475,6 +476,11 @@ Private bool comlin(int argc, char *argv[]) {
             exit(1);
           }
 
+          if (stricmp(argv[arg], "-STATUS") == 0) { /* openQM 3.4-12, item 511 */
+            show_status();
+            exit(0);
+          }
+
           if (stricmp(argv[arg], "-STOP") == 0) {
             check_admin();
             if (stop_sd()) {
@@ -577,6 +583,7 @@ help:
   fprintf(stderr, "      -k all      Kill (logout) all users n\n");
   fprintf(stderr, "      -l          Apply new licence\n");
   fprintf(stderr, "      -u          List current users\n");
+  fprintf(stderr, "      -status     Show version, start time and process counts\n");
   fprintf(stderr, "      -quiet      Suppress all displays on entry\n");
   fprintf(stderr, "      --help      Show this summary\n");
   fprintf(stderr, "      --version   Report version number\n");
