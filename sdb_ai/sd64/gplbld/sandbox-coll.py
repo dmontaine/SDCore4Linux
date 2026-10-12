@@ -212,6 +212,59 @@ CASES = [
      "$include keys.h\n   x = jp$null:'|':jp$unquoted.name:'|':jb$invalid:'|':jb$null:'|':jb$num:'|':jb$squote.name:'|':jb$noquote.name:'|':jb$squote.value:'|':jb$noquote.value", "1|2|1|2|4|8|16|32|64"),
     ("the error codes have names in err.h", "$include err.h\n   x = er$build.error:'|':er$parse.error", "1019|1020"),
     ("ERR: JBUILD() of something that is not a collection", "x = jbuild('abc')", "ERR:not a data collection"),
+    # ---- JSON booleans and nulls --------------------------------------------------------------------------------
+    ("JBOOLEAN() and JNULL() put true, false and null into a collection",
+     C + "c{'t'} = jboolean(1)\n   c{'f'} = jboolean(0)\n   c{'n'} = jnull()\n   x = jbuild(c)", "{\"f\":false,\"n\":null,\"t\":true}"),
+    ("a boolean is the number 1 or 0 and a null reads as a null string",
+     C + "c{'t'} = jboolean(1)\n   c{'f'} = jboolean(0)\n   c{'n'} = jnull()\n   x = c{'t'} + 0:'|':c{'f'} + 0:'|':'[':c{'n'}:']'", "1|0|[]"),
+    ("JBOOLEAN() is true for any other number, text and false for 0, null, 0 and false in any case",
+     "x = jboolean(7) + 0:jboolean(0) + 0:jboolean('') + 0:jboolean('0') + 0:jboolean('FaLsE') + 0:jboolean('no') + 0:jboolean('abc') + 0", "1000011"),
+    ("JTYPE() names the kind of a value",
+     C + "c{'t'} = jboolean(1)\n   c{'n'} = jnull()\n   c{'s'} = 'text'\n   c{'i'} = 5\n   c{'o/p'} = 1\n   c{'a'} = mat()\n"
+     "   x = jtype(c{'t'}):'|':jtype(c{'n'}):'|':jtype(c{'s'}):'|':jtype(c{'i'}):'|':jtype(c{'o'}):'|':jtype(c{'a'})", "boolean|null|string|number|collection|array"),
+    ("JTYPE() of plain values", "x = jtype(5):'|':jtype(2.5):'|':jtype('5'):'|':jtype(''):'|':jtype(jnull()):'|':jtype(jboolean(1))", "number|number|string|string|null|boolean"),
+    ("a boolean in a variable is still a boolean when stored",
+     C + "v = jboolean(1)\n   c{'x'} = v\n   w = jnull()\n   c{'y'} = w\n   x = jbuild(c)", "{\"x\":true,\"y\":null}"),
+    ("but arithmetic on a boolean gives an ordinary number",
+     C + "v = jboolean(1) + 1\n   c{'x'} = v\n   x = jbuild(c):'|':jtype(v)", "{\"x\":2}|number"),
+    ("a boolean or null read from a collection keeps its kind through a copy of the collection",
+     C + "c{'t'} = jboolean(1)\n   c{'n'} = jnull()\n   d = collection(c)\n   x = jbuild(d)", "{\"n\":null,\"t\":true}"),
+    ("and into another collection",
+     "c = jparse('{\"t\":true,\"f\":false,\"n\":null}')\n   d = collection()\n   d{'t2'} = c{'t'}\n   d{'f2'} = c{'f'}\n   d{'n2'} = c{'n'}\n   x = jbuild(d)", "{\"f2\":false,\"n2\":null,\"t2\":true}"),
+    ("JP$NULL makes a null an ordinary empty string", "c = jparse('{\"n\":null}', 1)\n   x = jtype(c{'n'})", "string"),
+    ("and without it a parsed null is a null", "c = jparse('{\"n\":null,\"t\":true}')\n   x = jtype(c{'n'}):'|':jtype(c{'t'})", "null|boolean"),
+    ("a null is an empty string to everything else", "x = '[':jnull():']':len(jnull()):(jnull() = '')", "[]01"),
+    ("booleans and nulls survive MAT and MAT()",
+     C + "c{'a'} = mat()\n   c{'a',1} = jboolean(1)\n   c{'a',2} = jnull()\n   dim n(2)\n   mat n = mat c{'a'}\n   d = collection()\n   d{'b'} = mat(n)\n   x = jbuild(d):'|':jtype(n(1)):'|':jtype(n(2))", "{\"b\":[true,null]}|boolean|null"),
+    # ---- += -= *= /= := on an element --------------------------------------------------------------------------
+    ("+= on an element that is not there starts from nothing", C + "c{'n'} += 5\n   x = c{'n'}", "5"),
+    ("+= -= *= /= on an element",
+     C + "c{'n'} = 10\n   c{'n'} += 5\n   x = c{'n'}\n   c{'n'} -= 3\n   x := '|':c{'n'}\n   c{'n'} *= 2\n   x := '|':c{'n'}\n   c{'n'} /= 4\n   x := '|':c{'n'}", "15|12|24|6"),
+    (":= on an element joins on the end", C + "c{'s'} := 'ab'\n   c{'s'} := 'cd'\n   x = c{'s'}", "abcd"),
+    ("the new value is worked out before it is stored, so the right side can read the element",
+     C + "c{'n'} = 4\n   c{'n'} += c{'n'} * 2\n   x = c{'n'}", "12"),
+    ("an operator on an array element", C + "c{'a'} = mat()\n   c{'a',1} = 1\n   c{'a',1} += 4\n   c{'a',2} := 'x'\n   x = c{'a',1}:'|':c{'a',2}", "5|x"),
+    ("an operator along a path that is not there makes the levels", C + "c{'x/y'} += 1\n   x = c{'x'}{'y'}", "1"),
+    ("an operator on a boolean gives an ordinary number", C + "c{'t'} = jboolean(1)\n   c{'t'} += 1\n   x = jbuild(c)", "{\"t\":2}"),
+    (":= with a null string leaves the element as it was",
+     C + "c{'s'} = 'a'\n   c{'s'} := ''\n   x = c{'s'}", "a"),
+    # ---- HU conversion ------------------------------------------------------------------------------------------
+    ("OCONV(,'HU') escapes a URL as the openQM page shows it",
+     "x = oconv('http://domain.com/hello?a=b', 'HU')", "http%3a%2f%2fdomain.com%2fhello%3fa%3db"),
+    ("ICONV(,'HU') undoes it", "x = iconv('http%3a%2f%2fdomain.com%2fhello%3fa%3db', 'HU')", "http://domain.com/hello?a=b"),
+    ("letters, digits and - . _ ~ are left alone, a space is %20", "x = oconv('Az09-._~ ', 'HU')", "Az09-._~%20"),
+    ("a mark is escaped too", "x = oconv('a':@fm:'b', 'HU')", "a%feb"),
+    ("a % that is not followed by two hex digits, and a +, are left as they are",
+     "x = iconv('%41%4A+%zz%4', 'HU')", "AJ+%zz%4"),
+    ("a null string stays null", "x = '[':oconv('', 'HU'):']':'[':iconv('', 'HU'):']'", "[][]"),
+    ("a name made with HU keeps its slashes out of the path",
+     C + "k = oconv('a/b', 'HU')\n   c{k} = 'v'\n   x = c{k}:'|':element.exists(c, 'a/b'):'|':enumerate(c):'|':iconv(enumerate(c), 'HU')", "v|0|a%2fb|a/b"),
+    ("an unknown conversion after H leaves the data and sets STATUS() 2", "x = oconv('a', 'HUX'):'|':status()", "a|2"),
+    # ---- collections and subroutines ----------------------------------------------------------------------------
+    ("a collection passed to a subroutine is the caller's own", C + "call zzcsub1(c)\n   x = c{'k'}", "set by sub"),
+    ("a subroutine can make a collection and hand it back through an argument", "call zzcsub2(r)\n   x = r{'a'}:'|':jtype(r)", "1|collection"),
+    ("calling a subroutine again and again with collections of its own is safe",
+     "for i = 1 to 300\n   call zzcsub3(i, t)\n   next i\n   x = t", "300"),
     ("ERR: a variable that is not a collection cannot take an element", "n = 5\n   n{'a'} = 1", "ERR:not a data collection"),
     ("ERR: nor can one be read from it", "n = 5\n   x = n{'a'}", "ERR:not a data collection"),
     ("ERR: an element cannot be added below a value that is not a collection",
@@ -220,6 +273,14 @@ CASES = [
     ("ERR: so is an empty part of a path", C + "c{'a//b'} = 1", "ERR:Invalid data collection element name"),
     ("ERR: a missing right curly bracket is a compile error", C + "x = c{'a'", "ERR:Right curly bracket"),
 ]
+
+
+# Subroutines the cases above call.  Each is written, compiled and catalogued LOCAL before the cases run.
+SUBS = {
+    "zzcsub1": "   subroutine zzcsub1(c)\n   c{'k'} = 'set by sub'\n   return\nend\n",
+    "zzcsub2": "   subroutine zzcsub2(out)\n   out = collection()\n   out{'a'} = 1\n   return\nend\n",
+    "zzcsub3": "   subroutine zzcsub3(n, out)\n   local = collection()\n   local{'v'} = n\n   local{'big/deep/er'} = n\n   out = local{'v'}\n   return\nend\n",
+}
 
 
 def say(s=""):
@@ -268,12 +329,18 @@ def main():
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
     cmds, names = [], []
+    for sub, src in SUBS.items():
+        names.append(sub)
+        with open(os.path.join(sysd, "bp", sub), "w") as f:
+            f.write(src)
+        cmds += ["BASIC bp %s" % sub, "CATALOG bp %s LOCAL" % sub]
     for i, (_, body, _w) in enumerate(CASES):
         nm = "zzco%02d" % i
         names.append(nm)
         with open(os.path.join(sysd, "bp", nm), "w") as f:
             f.write("   x = ''\n   " + "".join("%s\n   " % ln for ln in body.split("\n")) + "crt 'C%02d[':x:']'\nend\n" % i)
         cmds += ["BASIC bp %s" % nm, "RUN bp %s" % nm]
+    cmds += ["DELETE.CATALOG %s LOCAL" % sub for sub in SUBS]
     try:
         out = sess(box, *cmds)
         try:
