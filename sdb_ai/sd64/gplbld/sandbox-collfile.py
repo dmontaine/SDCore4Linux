@@ -42,6 +42,7 @@ A, O, B, D = "zzfa" + RUN, "zzfo" + RUN, "zzfb" + RUN, "zzfd" + RUN
 DR = "zzfr" + RUN                                        # a directory file, whose records are files on disk
 G, TS, PV = "zzfg" + RUN, "zztg" + RUN, "zzfv" + RUN       # a collection file with a trigger, the trigger, its driver
 PW, PP, PX = "zzfw" + RUN, "zzfp" + RUN, "zzfx" + RUN
+H, PF = "zzfh" + RUN, "zzfq" + RUN                       # a collection file for elements with no JSON form, its program
 passed = failed = 0
 
 
@@ -123,6 +124,26 @@ TRIGGER = """subroutine %(ts)s(mode, id, rec, onerr)
    return
 end
 """ % {"ts": TS}
+
+# Elements of a type a file cannot hold (the manual: a file variable) are stored as SQL style nulls.  The write used
+# to fail with 1019 (ER$BUILD.ERROR).  A collection that contains itself still cannot be written: it is not a type,
+# it is an unbounded depth.
+FVPROG = """   open '%(h)s' to f else crt 'F not open' ; stop
+   open 'voc' to v else crt 'F no voc' ; stop
+   c = jparse('{"a":1}')
+   c{'fv'} = v
+   x = ''
+   write c on f, 'ok1' on error x = 'status=':status()
+   crt 'F write fv: [':x:']'
+   read r from f, 'ok1' then crt 'F read ok1: ':jbuild(r):' type=':jtype(r) else crt 'F ok1 missing'
+   c2 = jparse('{"b":2}')
+   c2{'me'} = c2
+   y = ''
+   write c2 on f, 'cyc' on error y = 'status=':status()
+   crt 'F write cycle: [':y:']'
+   read r from f, 'cyc' then crt 'F cyc is there' else crt 'F cyc missing'
+end
+""" % {"h": H}
 
 TRIGGER_DRIVER = """   open '%(g)s' to f else crt 'V not open' ; stop
    write jparse('{"city":"Paris"}') on f, 'r1'
@@ -341,21 +362,33 @@ def main():
             'V read r2: {"city":"Rome","stamp":"trg"}' in out, out[-700:])
         row("the delete triggers run (modes 2 and 8)", "TRG mode=2 id=r2" in out and "TRG mode=8 id=r2" in out, out[-700:])
         row("the refused records are not in the file; the deleted one is gone", "V ids=r1" in out and "V ids=r1," not in out, out[-700:])
+
+        say("\n--- an element a file cannot hold (a file variable) ------------------------------------------------")
+        with open(os.path.join(sysd, "bp", PF), "w") as f:
+            f.write(FVPROG)
+        out = sess(box, "DELETE.FILE %s" % H, "CREATE.FILE %s COLLECTION" % H, "BASIC bp %s" % PF, "RUN bp %s" % PF)
+        row("setup: the program compiled and ran to its end", "Compiled 1 program(s) with no errors" in out and "F cyc " in out, out[-500:])
+        row("a collection holding a file variable is written (the write failed with 1019 before)",
+            "F write fv: []" in out, out[-500:])
+        row("...and the element is stored as a JSON null, the others intact",
+            'F read ok1: {"a":1,"fv":null} type=collection' in out, out[-500:])
+        row("CONTROL: a collection that contains itself is still refused (1019) and makes no record",
+            "F write cycle: [status=1019]" in out and "F cyc missing" in out, out[-500:])
     finally:
         say("\n--- cleanup ---------------------------------------------------------------------------------------")
         sess(box, "DELETE.FILE %s" % A, "DELETE.FILE %s" % O, "DELETE.FILE %s" % B, "DELETE.FILE %s" % G,
-             "DELETE.FILE %s FORCE" % DR, "DELETE.CATALOG %s LOCAL" % TS)
+             "DELETE.FILE %s" % H, "DELETE.FILE %s FORCE" % DR, "DELETE.CATALOG %s LOCAL" % TS)
         # a directory file is a directory of files, which DELETE.FILE may leave if it holds a file it did not make
         for dpath in (os.path.join(box, "user_accounts", DR), os.path.join(box, "user_accounts", DR + ".dic"),
                       os.path.join(sysd, DR), os.path.join(sysd, DR + ".dic")):
             if os.path.isdir(dpath):
                 shutil.rmtree(dpath)
-        for nm in (PW, PP, PX, TS, PV):
+        for nm in (PW, PP, PX, TS, PV, PF):
             for d in ("bp", "bp.out"):
                 pth = os.path.join(sysd, d, nm)
                 if os.path.exists(pth):
                     os.remove(pth)
-        left = [n for n in (A, O, B, D, G, DR) if any(os.path.exists(os.path.join(box, d, n)) for d in ("sys", "user_accounts"))]
+        left = [n for n in (A, O, B, D, G, DR, H) if any(os.path.exists(os.path.join(box, d, n)) for d in ("sys", "user_accounts"))]
         row("cleanup: no fixture file is left", not left, " ".join(left))
 
     say("\nsandbox-collfile: %d passed, %d failed" % (passed, failed))

@@ -75,6 +75,25 @@ CASES = [
      C + "c{'s'} = 'abc'\n   v = c{'s'}\n   v := 'def'\n   x = c{'s'}", "abc"),
     ("a collection held in a dimensioned array element",
      "dim t(2)\n   t(1) = collection()\n   t(1){'k'} = 'v'\n   x = t(1){'k'}", "v"),
+    # The manual: "A collection may be an element of a dimensioned array", CLIENT.DATA(CLI.NO){'NAME'}.  The rows
+    # below are for a feature that already worked (the row above), so none was run red.
+    ("...the index a variable (the manual's CLIENT.DATA(CLI.NO){'NAME'})",
+     "dim t(3)\n   i = 2\n   t(i) = collection()\n   t(i){'k'} = 'v'\n   x = t(i){'k'}", "v"),
+    ("...in a two dimensional matrix", "dim m(2,2)\n   m(1,2) = collection()\n   m(1,2){'k'} = 'w'\n   x = m(1,2){'k'}", "w"),
+    ("...with a path through levels, written both ways",
+     "dim t(2)\n   t(1) = collection()\n   t(1){'a','b'} = 'z'\n   x = t(1){'a'}{'b'}:t(1){'a/b'}", "zz"),
+    ("...two elements of the array are two collections",
+     "dim t(2)\n   t(1) = collection()\n   t(2) = collection()\n   t(1){'k'} = 'a'\n   t(2){'k'} = 'b'\n   x = t(1){'k'}:t(2){'k'}", "ab"),
+    ("...DEL, ELEMENT.EXISTS() and ENUMERATE() take it",
+     "dim t(2)\n   t(1) = collection()\n   t(1){'a'} = 1\n   t(1){'b'} = 2\n   del t(1){'a'}\n"
+     "   x = element.exists(t(1), 'a'):element.exists(t(1), 'b'):'|':change(enumerate(t(1)), @fm, '|')", "01|b"),
+    ("...INS AS puts an element in", "dim t(2)\n   t(1) = collection()\n   ins 'v' as t(1){'k'}\n   x = t(1){'k'}", "v"),
+    ("...an element passed to a subroutine is the same collection",
+     "dim t(2)\n   t(1) = collection()\n   call zzcsub1(t(1))\n   x = t(1){'k'}", "set by sub"),
+    ("...assigned to a simple variable it is another reference to the same collection",
+     "dim t(2)\n   t(1) = collection()\n   c = t(1)\n   c{'k'} = 'shared'\n   x = t(1){'k'}", "shared"),
+    ("...a collection variable stored in an element is shared, not copied",
+     "dim t(2)\n   " + C + "t(2) = c\n   c{'k'} = 'late'\n   x = t(2){'k'}", "late"),
     ("3000 elements go in sorted and come out again (the table grows and shrinks)",
      C + "for i = 1 to 3000\n   c{'k':i} = i\n   next i\n   x = dcount(enumerate(c), @fm)\n"
      "   for i = 1 to 3000 step 2\n   del c{'k':i}\n   next i\n   x := '|':dcount(enumerate(c), @fm):'|':c{'k2998'}:'|':element.exists(c, 'k2999')\n"
@@ -323,8 +342,12 @@ CASES = [
      "open 'zzcn' to g else stop 'no zzcn'\n   c = collection()\n   write c on g, 'x'", "ERR:Data cannot be converted to a string"),
     ("ERR: text that is not JSON cannot be written to a collection file", OPENF + "write 'not json' on f, 'bad'", "ERR:writing record"),
     ("ERR: nor can JSON that is only a number", OPENF + "write '5' on f, 'bad'", "ERR:writing record"),
-    ("ERR: a collection with something in it that has no JSON form cannot be written",
-     OPENF + "c = collection()\n   c{'f'} = f\n   write c on f, 'bad'", "ERR:writing record"),
+    # This row said the write must fail ("ERR:writing record").  The manual says an element a file cannot hold is stored
+    # as an SQL style null (collection files); it is the 12 Oct change to coll_record_text(), and the whole-set run
+    # found this row still asserting the old behaviour.
+    ("a collection with something in it that has no JSON form is written, the element as a null",
+     OPENF + "c = collection()\n   c{'f'} = f\n   write c on f, 'bad'\n   read r from f, 'bad' then x = jbuild(r):'|':status() else x = 'missing'",
+     "{\"f\":null}|0"),
     ("ERR: MATREAD makes no sense on a collection file", OPENF + "dim m(3)\n   c = collection()\n   write c on f, 'm1'\n   matread m from f, 'm1' else stop 'x'", "ERR:cannot be used on a data collection file"),
     ("ERR: READV of a field of a collection file", OPENF + "c = collection()\n   write c on f, 'v1'\n   readv x from f, 'v1', 1 else stop 'x'", "ERR:"),
     ("ERR: a variable that is not a collection cannot take an element", "n = 5\n   n{'a'} = 1", "ERR:not a data collection"),
