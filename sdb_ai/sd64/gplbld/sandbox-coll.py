@@ -292,6 +292,33 @@ CASES = [
     ("a transaction can write and read a collection",
      OPENF + "c = collection()\n   c{'t'} = 'in txn'\n   begin transaction\n   recordlocku f, 'tx1'\n   write c on f, 'tx1'\n   read d from f, 'tx1' else stop 'not read in'\n   commit\n   end transaction\n"
      "   read e from f, 'tx1' else stop 'not read after'\n   x = d{'t'}:'|':e{'t'}", "in txn|in txn"),
+    # ---- linked collections: EXPAND ---------------------------------------------------------------------------
+    ("EXPAND joins the record a link names onto its parent",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'city'} = 'Oslo'\n   write a on g, 'addr1'\n"
+     "   c = collection()\n   c{'name'} = 'Ann'\n   c{'addr'} = 'zzcf2:addr1'\n   ok = expand(c{'addr'})\n   x = ok:'|':c{'addr'}{'city'}:'|':jtype(c{'addr'}):'|':c{'name'}", "1|Oslo|collection|Ann"),
+    ("a link with no file name uses the file variable",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'city'} = 'Bergen'\n   write a on g, 'addr2'\n"
+     "   c = collection()\n   c{'addr'} = ':addr2'\n   ok = expand(c{'addr'}, g)\n   x = ok:'|':c{'addr/city'}", "1|Bergen"),
+    ("...and fails without one", OPENF + "c = collection()\n   c{'addr'} = ':addr2'\n   x = expand(c{'addr'}):'|':c{'addr'}", "0|:addr2"),
+    ("a record that is not there leaves the link as it was",
+     OPENF + "c = collection()\n   c{'addr'} = 'zzcf2:nope'\n   x = expand(c{'addr'}):'|':c{'addr'}", "0|zzcf2:nope"),
+    ("a file that is not there", OPENF + "c = collection()\n   c{'addr'} = 'nofilehere:x'\n   x = expand(c{'addr'}):'|':c{'addr'}", "0|nofilehere:x"),
+    ("an element that is not there, or is not a link", OPENF + "c = collection()\n   c{'plain'} = 'no colon'\n   x = expand(c{'nope'}):expand(c{'plain'}):'|':c{'plain'}", "00|no colon"),
+    ("an element that already is a collection is a success", OPENF + "c = collection()\n   c{'in'} = collection()\n   x = expand(c{'in'})", "1"),
+    ("the link may be deep, in a path or an array",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'v'} = 'one'\n   write a on g, 'addr3'\n   c = collection()\n"
+     "   c{'a/b'} = 'zzcf2:addr3'\n   c{'l'} = mat()\n   c{'l',1} = 'zzcf2:addr3'\n   x = expand(c{'a','b'}):expand(c{'l',1}):'|':c{'a/b/v'}:c{'l',1,'v'}", "11|oneone"),
+    ("a record can hold links and each is joined in turn",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'v'} = 'last'\n   write a on g, 'tail'\n   b = collection()\n   b{'next'} = 'zzcf2:tail'\n   write b on g, 'head'\n"
+     "   c = collection()\n   c{'h'} = 'zzcf2:head'\n   x = expand(c{'h'}):expand(c{'h/next'}):'|':c{'h/next/v'}", "11|last"),
+    ("an id may hold colons: the file name is up to the first one",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'v'} = 'colon id'\n   write a on g, 'x:y'\n   c = collection()\n   c{'l'} = 'zzcf2:x:y'\n   x = expand(c{'l'}):'|':c{'l/v'}", "1|colon id"),
+    ("a link to a record of an ordinary file is not a collection, so it fails",
+     OPENF + "open 'zzcn' to g else stop 'no zzcn'\n   write 'just text' on g, 'k'\n   c = collection()\n   c{'l'} = 'zzcn:k'\n   x = expand(c{'l'}):'|':c{'l'}", "0|zzcn:k"),
+    ("what was joined on is a copy: changing it leaves the file's record alone",
+     OPENF + "open 'zzcf2' to g else stop 'no zzcf2'\n   a = collection()\n   a{'v'} = 'orig'\n   write a on g, 'keep'\n   c = collection()\n   c{'l'} = 'zzcf2:keep'\n   ok = expand(c{'l'})\n   c{'l/v'} = 'changed'\n"
+     "   read d from g, 'keep' else stop 'x'\n   x = d{'v'}:'|':c{'l/v'}", "orig|changed"),
+    ("ERR: EXPAND wants an element, not a value", OPENF + "c = collection()\n   x = expand(c)", "ERR:Left curly bracket not found"),
     ("ERR: a collection cannot be written to an ordinary file",
      "open 'zzcn' to g else stop 'no zzcn'\n   c = collection()\n   write c on g, 'x'", "ERR:Data cannot be converted to a string"),
     ("ERR: text that is not JSON cannot be written to a collection file", OPENF + "write 'not json' on f, 'bad'", "ERR:writing record"),
@@ -362,6 +389,10 @@ QUERY_SETUP = """   execute 'DELETE.FILE zzcq' capturing j0
    write 'E':@fm:'tags/*':@fm:'':@fm:'Tags':@fm:'6L':@fm:'M' on d, 'TAGS'
    write 'E':@fm:'items/*/p':@fm:'':@fm:'Prod':@fm:'6L':@fm:'M' on d, 'PRODS'
    write 'D':@fm:'1':@fm:'':@fm:'Dnum':@fm:'6L':@fm:'S' on d, 'DNUM'
+   write 'I':@fm:'upcase(NAME)':@fm:'':@fm:'Upper':@fm:'10L':@fm:'S' on d, 'UPNAME'
+   write 'I':@fm:'@RECORD{"city"}:"-":NAME':@fm:'':@fm:'CityName':@fm:'14L':@fm:'S' on d, 'CITYNAME'
+   write 'I':@fm:'@RECORD{"items",1,"p"}':@fm:'':@fm:'First':@fm:'6L':@fm:'S' on d, 'FIRSTP'
+   write 'I':@fm:'TRANS("zzcq", @ID, NAME, "X")':@fm:'':@fm:'ViaTrans':@fm:'10L':@fm:'S' on d, 'VIATRANS'
    write 'E':@fm:'name':@fm:'':@fm:'Name':@fm:'10L':@fm:'S' on dn, 'ENAME'
    crt 'QUERY SETUP DONE'
 end
@@ -385,6 +416,10 @@ QUERIES = [
      "CT zzcq r1", [r'zzcq r1', r'(?m)^\{$', r'(?m)^  "city": "Paris",$', r'(?m)^  "items": \[$', r'(?m)^    \{$', r'(?m)^      "p": "x",$',
                     r'(?m)^  "tags": \[$', r'(?m)^\}$'], []),
     ("CT of an empty array and collection keeps them on one line", "CT zzcq r3", [r'(?m)^  "items": \[\],$', r'(?m)^  "tags": \[\]$'], []),
+    ("an I-type can use an E-type item by name", "LIST zzcq UPNAME ID.SUP", [r"ACME", r"BETA", r"CARGO"], [r"Error|not found"]),
+    ("an I-type can take an element of @RECORD with {}", "LIST zzcq CITYNAME ID.SUP", [r"Paris-Acme", r"Rome-Beta", r"Paris-Cargo"], []),
+    ("...including a path of names and positions", "LIST zzcq FIRSTP ID.SUP", [r"(?m)^\s*x\s*$", r"(?m)^\s*z\s*$"], []),
+    ("TRANS() in an I-type with an E-type item as its third argument", "LIST zzcq VIATRANS ID.SUP", [r"Acme", r"Beta", r"Cargo"], [r"Error|not found"]),
     ("a D-type item with a field number is refused", "LIST zzcq DNUM", [r"refers to a field number, which a data collection file does not have"], []),
     ("an E-type item on an ordinary file is refused", "LIST zzcn ENAME", [r"can only be used with a data collection file"], []),
     ("COPY of a record to another collection file", "COPY FROM zzcq TO zzcq2 r1", [r"1 record\(s\) copied"], []),
@@ -402,6 +437,20 @@ def run_queries(box, sysd, names):
     row("setup: the query file and its dictionary were made", "QUERY SETUP DONE" in out, out[-400:])
     if "QUERY SETUP DONE" not in out:
         return
+    # TRANS() from a BASIC program, naming a dictionary item
+    tr = os.path.join(sysd, "bp", "zzcoqt")
+    names.append("zzcoqt")
+    with open(tr, "w") as f:
+        f.write("   x = trans('zzcq', 'r2', 'NAME', 'X'):'|':trans('zzcq', 'r1', 'TAGS', 'X'):'|':trans('zzcq', 'r1', 'NOSUCH', 'X'):'|':"
+                "trans('zzcq', 'r3', 'N', 'X') + 0:'|':trans('zzcq', 'nope', 'NAME', 'X'):'|':trans('zzcq', 'r1', 'DNUM', 'X'):'|':"
+                "(len(trans('zzcq', 'r1', -1, 'X')) > 20)\n"
+                "   crt 'TR[':change(x, @sm, '~'):']'\nend\n")   # TRANS lowers marks, so the list's value marks come as subvalue marks
+    text = sess(box, "BASIC bp zzcoqt", "RUN bp zzcoqt")
+    m = re.search(r"(?m)^TR\[(.*)\]\s*$", text)
+    # DNUM is a D-type item for field 1, which a collection record does not have: null.  Field -1 is the whole record,
+    # which for a collection is its JSON text.
+    row("TRANS() from a program takes an E-type item by name, a path with * as a list, and an unknown name as null",
+        bool(m) and m.group(1) == "Beta|a~b||7|||1", "got %r  %s" % (m.group(1) if m else None, text[-300:]))
     for label, cmd, must, mustnot in QUERIES:
         text = sess(box, cmd)
         ok = all(re.search(rx, text) for rx in must) and not any(re.search(rx, text) for rx in mustnot)
