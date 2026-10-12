@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 12 Oct 26 dm  A mode 3 print unit takes an update lock on its record in $HOLD
+ *               before the file is made and keeps it until the file is closed
+ *               (openQM item 53; _holdlog does it, hold_log(pu, 2) asks).
  * 13 Sep 26 dm  The hold directory these paths name is $hold on disk (plan M3
  *               D3), matching CREATE.ACCOUNT and the port.
  * 12 Sep 26 dm  The "$hold " marker compares case-insensitively (plan M3).
@@ -160,6 +163,8 @@ void to_file(PRINT_UNIT* pu, char* str, int16_t bytes) {
 Private void hold_log(PRINT_UNIT* pu, int opening) {
   if ((pu->mode != PRINT_TO_FILE) && (pu->mode != PRINT_AND_HOLD))
     return;
+  if ((opening == 2) && (pu->mode != PRINT_TO_FILE)) /* The lock (item 53) is for mode 3 */
+    return;
   if ((pu->file.pathname == NULL) || (process.call_depth == 0) || (k_exit_cause != 0))
     return;
 
@@ -243,6 +248,7 @@ Private void start_file(PRINT_UNIT* pu) {
 
   open_file:
     pu->file.pathname = dupstring(fn);
+    hold_log(pu, 2); /* 12 Oct 26 (openQM item 53): lock the record before the file is made */
     pu->file.fu = dio_open(fn, DIO_REPLACE);
     if (!ValidFileHandle(pu->file.fu)) {
       k_error(sysmsg(1716), pu->unit, fn, process.os_error);

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 12 Oct 26 dm  op_openseq() opens a block device, a floppy disk drive among
+ *               them (openQM item 112).
  * 14 Sep 26 dm  op_openseq()'s error cleanup releases the record lock it took.
  *               A failed OPENSEQ ... OVERWRITE truncate (the A6 fix of 8 Sep)
  *               left the lock behind for good - found in the sandbox by P.6's
@@ -205,7 +207,7 @@ void op_delseq() {
   if (rec_name_len) {
     /* Use VOC to translate file name to file system path */
 
-    if (!get_voc_file_reference(file_name, FALSE, file_name)) {
+    if (!get_voc_file_reference(file_name, FALSE, file_name, NULL)) {
       /* process.status set by _VOC_REF recursive */
       goto exit_op_delseq;
     }
@@ -466,7 +468,7 @@ Private void openseq(bool map_name) {
 
     /* Use VOC to translate file name to file system path */
 
-    if (!get_voc_file_reference(file_name, FALSE, file_name)) {
+    if (!get_voc_file_reference(file_name, FALSE, file_name, NULL)) {
       /* process.status set by _VOC_REF recursive */
       goto exit_op_openseq;
     }
@@ -582,6 +584,11 @@ Private void openseq(bool map_name) {
       directory, etc.                                                    */
 
       if (S_ISREG(stat_buf.st_mode)) /* It's a file */
+      {
+      } else if (S_ISBLK(stat_buf.st_mode)) /* A block device, a floppy disk drive among them:
+                                               opened as a file (openQM item 112); FILEINFO's
+                                               FL$SEQTYPE reports 4 for it.  The operating
+                                               system's permissions decide who may open it. */
       {
       } else if (S_ISCHR(stat_buf.st_mode)) /* It's a device */
       {

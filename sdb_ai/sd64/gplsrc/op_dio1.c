@@ -29,6 +29,8 @@
  * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): op_create_dh()
  *           sets DHF_NOCASE on every hashed file it creates; DHF_KEEPCASE is
  *           honoured in internal mode only.
+ * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
+ *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -517,9 +519,11 @@ void dio_close(FILE_VAR* fvar) {
 bool get_voc_file_reference(
     char* voc_name,
     bool get_dict_name,
-    char* path) /* Can be same buffer as voc_name argument */
+    char* path,    /* Can be same buffer as voc_name argument */
+    char* vflags)  /* NULL, or room for VOC_FLAGS_LEN + 1: field 6 of the F-type entry, in capitals */
 {
   DESCRIPTOR pathname_descr;
+  DESCRIPTOR flags_descr;
 
   /* Push arguments onto e-stack */
 
@@ -531,13 +535,24 @@ bool get_voc_file_reference(
   InitDescr(e_stack, ADDR); /* File path name (output) */
   (e_stack++)->data.d_addr = &pathname_descr;
 
-  pathname_descr.type = UNASSIGNED;
+  InitDescr(e_stack, ADDR); /* Field 6 of the F-type entry (output) */
+  (e_stack++)->data.d_addr = &flags_descr;
 
-  k_recurse(pcode_voc_ref, 3); /* Execute recursive code */
+  pathname_descr.type = UNASSIGNED;
+  flags_descr.type = UNASSIGNED;
+
+  k_recurse(pcode_voc_ref, 4); /* Execute recursive code */
 
   /* Extract result string */
   k_get_c_string(&pathname_descr, path, MAX_PATHNAME_LEN);
   k_release(&pathname_descr);
+
+  /* ...and the mode letters, cut to what the caller has room for */
+  if (vflags != NULL) {
+    if (k_get_c_string(&flags_descr, vflags, VOC_FLAGS_LEN) < 0)
+      vflags[0] = '\0';
+  }
+  k_release(&flags_descr);
 
   return process.status == 0;
 }
@@ -573,6 +588,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   char voc_name[MAX_ID_LEN + 1];
   char mapped_name[MAX_PATHNAME_LEN + 1];
   char pathname[MAX_PATHNAME_LEN + 1];
+  char vflags[VOC_FLAGS_LEN + 1] = ""; /* Field 6 of the F-type VOC entry, in capitals */
   int16_t name_len;
   FILE_VAR* fvar = NULL;
   FILE_VAR* cached_fvar;
@@ -657,7 +673,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
 
     /* Map name via the VOC */
 
-    if (!get_voc_file_reference(voc_name, open_dict, mapped_name)) {
+    if (!get_voc_file_reference(voc_name, open_dict, mapped_name, vflags)) {
       /* process.status will have been set by recursive code */
       goto exit_op_open;
     }
@@ -871,6 +887,17 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   }
 
 opened_via_txn_cache:
+
+  /* 12 Oct 26 dm  Mode letters in field 6 of the F-type VOC entry that named the
+     file: N opens it non-transactionally (openQM item 380), R read-only (item
+     197).  They apply to this open only, as the OPEN statement's own options
+     do, and to a file reached through a Q-pointer as well.  The other letters
+     the manual lists (B C L M S X) are not acted on.                          */
+
+  if (strchr(vflags, 'R') != NULL)
+    fvar->flags |= FV_RDONLY;
+  if (strchr(vflags, 'N') != NULL)
+    fvar->flags |= FV_NON_TXN;
 
   /* Set file variable */
 
