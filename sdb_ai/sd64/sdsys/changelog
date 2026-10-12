@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  THE DEBUGGER SHOWS A DATA COLLECTION (1.2-0, openQM compatibility; a
+           kernel change, so it needs a rebuild).
+
+             /c                      the collection c: kind, elements, JSON
+             /c{name}                the element a path names
+             /c{a/3/k}   /c{'a','3'}  the same path written either way
+             DUMP c{sub} pathname    the element's JSON, to a file
+
+           The debugger knew nothing of collections: /c showed an empty line
+           for one.  It now says "Collection (9 elements)"
+           or "Array (3 elements)" and gives the JSON text, cut off after 10,240
+           characters with "..." (DUMP writes all of it).  A path in braces
+           shows one element: a number or a string as the debugger shows any
+           variable, a collection or array as above, and a JSON true, false or
+           null as "Boolean: true", "Boolean: false" or "Null", which the
+           program itself sees as the integer 1 or 0 and an empty string.  The
+           path is written as in a program, with slashes or commas between the
+           names and quotes optional.  The variable name is not case sensitive,
+           as before, but the path is.  An element that is not there gives
+           "Element not found in the collection"; a path on a variable that is
+           not a collection, or an index on a collection, gives the existing
+           "Index not allowed with scalar variable".  A collection that
+           contains itself is reported as "(cannot be shown)" and the debugger
+           carries on.  WATCH on an element is not provided, and the help
+           screens are unchanged.
+
 11 Oct 26  AN INDEX NOW FOLLOWS THE RECORD ID AS THE FILE HOLDS IT (a kernel
            change, so it needs a rebuild).  The fault is in L1.1-3, where every
            file is case insensitive and so every index was affected.
