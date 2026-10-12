@@ -451,11 +451,60 @@ def run_queries(box, sysd, names):
     # which for a collection is its JSON text.
     row("TRANS() from a program takes an E-type item by name, a path with * as a list, and an unknown name as null",
         bool(m) and m.group(1) == "Beta|a~b||7|||1", "got %r  %s" % (m.group(1) if m else None, text[-300:]))
+    # Indices on E-type items
+    # A file of its own with upper case ids: the index code is given a record id in upper case whatever its
+    # case (dh_write.c, dh_del.c), which is a fault of every index, not of collections, so the ids here are
+    # ones that upper casing leaves alone.
+    xs = os.path.join(sysd, "bp", "zzcoxs")
+    names.append("zzcoxs")
+    with open(xs, "w") as f:
+        f.write("   execute 'DELETE.FILE zzcx' capturing j0\n   execute 'CREATE.FILE zzcx COLLECTION' capturing j1\n"
+                "   open 'zzcx' to f else stop 'no zzcx'\n   open 'DICT zzcx' to d else stop 'no dict'\n"
+                "   write 'E':@fm:'city':@fm:'':@fm:'City':@fm:'8L':@fm:'S' on d, 'CITY'\n"
+                "   write 'E':@fm:'tags/*':@fm:'':@fm:'Tags':@fm:'6L':@fm:'M' on d, 'TAGS'\n"
+                "   write 'D':@fm:'1':@fm:'':@fm:'Dnum':@fm:'6L':@fm:'S' on d, 'DNUM'\n"
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"a\",\"b\"]}') on f, 'R1'\n"
+                "   write jparse('{\"city\":\"Rome\",\"tags\":[\"c\"]}') on f, 'R2'\n"
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[]}') on f, 'R3'\nend\n")
+    out = sess(box, "BASIC bp zzcoxs", "RUN bp zzcoxs", "CREATE.INDEX zzcx CITY", "CREATE.INDEX zzcx TAGS", "BUILD.INDEX zzcx CITY",
+               "BUILD.INDEX zzcx TAGS", "LIST.INDEX zzcx")
+    row("indices on two E-type items (one with an asterisk path) are made and built",
+        re.search(r"CITY", out) is not None and re.search(r"TAGS", out) is not None and not re.search(r"(?i)internal error|is not a|inappropriate|can only be used|Compilation error", out), out[-500:])
+    ix = os.path.join(sysd, "bp", "zzcoqi")
+    names.append("zzcoqi")
+    with open(ix, "w") as f:
+        f.write("   open 'zzcx' to f else stop 'no zzcx'\n"
+                "   selectindex 'CITY', 'Paris' from f to 5\n   readlist p from 5 else p = ''\n"
+                "   selectindex 'TAGS', 'b' from f to 6\n   readlist t from 6 else t = ''\n"
+                "   selectindex 'TAGS', 'c' from f to 7\n   readlist u from 7 else u = ''\n"
+                "   x = change(p, @fm, ',') : '|' : change(t, @fm, ',') : '|' : change(u, @fm, ',')\n"
+                "   * a new record, a changed one and a deleted one: the index follows each\n"
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"b\"]}') on f, 'R4'\n"
+                "   c = jparse('{\"city\":\"Rome\",\"tags\":[\"a\",\"b\"]}')\n   write c on f, 'R1'\n"
+                "   delete f, 'R3'\n"
+                "   selectindex 'CITY', 'Paris' from f to 5\n   readlist p from 5 else p = ''\n"
+                "   selectindex 'CITY', 'Rome' from f to 6\n   readlist q from 6 else q = ''\n"
+                "   selectindex 'TAGS', 'b' from f to 7\n   readlist t from 7 else t = ''\n"
+                "   y = change(p, @fm, ',') : '|' : change(q, @fm, ',') : '|' : change(t, @fm, ',')\n"
+                "   crt 'IX1[' : x : ']'\n   crt 'IX2[' : y : ']'\nend\n")
+    text = sess(box, "BASIC bp zzcoqi", "RUN bp zzcoqi")
+    m1 = re.search(r"(?m)^IX1\[(.*)\]\s*$", text)
+    m2 = re.search(r"(?m)^IX2\[(.*)\]\s*$", text)
+    row("SELECTINDEX on an E-type index gives the records that have the value (a path with * gives each element)",
+        bool(m1) and m1.group(1) == "R1,R3|R1|R2", "got %r  %s" % (m1.group(1) if m1 else None, text[-400:]))
+    row("the index follows a new record, a change and a delete",
+        bool(m2) and m2.group(1) == "R4|R1,R2|R1,R4", "got %r  %s" % (m2.group(1) if m2 else None, text[-400:]))
+    text = sess(box, "CREATE.INDEX zzcx DNUM")
+    row("an index on a D-type item with a field number is refused on a collection file",
+        re.search(r"refers to a field number, which a data collection file does not have", text) is not None, text[-300:])
+    text = sess(box, "CREATE.INDEX zzcn ENAME")
+    row("an index on an E-type item is refused on an ordinary file",
+        re.search(r"can only be used with a data collection file", text) is not None, text[-300:])
     for label, cmd, must, mustnot in QUERIES:
         text = sess(box, cmd)
         ok = all(re.search(rx, text) for rx in must) and not any(re.search(rx, text) for rx in mustnot)
         row(label, ok, "wanted %r, not %r; output: %s" % (must, mustnot, text[-600:]))
-    sess(box, "DELETE.FILE zzcq", "DELETE.FILE zzcq2", "DELETE.FILE zzcn")
+    sess(box, "DELETE.FILE zzcq", "DELETE.FILE zzcq2", "DELETE.FILE zzcn", "DELETE.FILE zzcx")
 
 
 def main():
