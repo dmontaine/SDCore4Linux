@@ -574,6 +574,142 @@ def run_verbs(box, sysd, bp):
         row("448: SETPTR ... AS name IN dirfile keeps the job in that directory file, not $HOLD",
             b"line one" in body3 and not os.path.exists(os.path.join(hold, "zzjob3")), repr(body3))
         sess(box, "DELETE.FILE zzoqhf")
+
+        # --- SETPTR ... FORM.FEED (139): the sequence sent between pages --------------------------------------
+        # Five lines to a page and no margins, eight lines of data: one page throw.
+        write(probe, ("   printer on\n   for k = 1 to 8\n      print 'line ':k\n   next k\n   printer close\nend\n"))
+
+        def job(*opts):
+            nm = "zzoqff"
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+            o = sess(box, "SETPTR 0,40,5,0,0,3,AS %s,%sBRIEF" % (nm, "".join(x + "," for x in opts)), "BASIC bp zzoqp1", "RUN bp zzoqp1")
+            b = slurp(os.path.join(hold, nm)) or b""
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+            return b, o
+
+        body, o = job()
+        row("139 CONTROL: by default a page throw is a carriage return and a form feed",
+            b"line 8" in body and b"\r\f" in body and body.count(b"\f") == body.count(b"\r\f"), repr(body))
+        body, o = job("FORM.FEED FF")
+        row("139: FORM.FEED FF sends the form feed alone", b"line 8" in body and b"\f" in body and b"\r" not in body, repr(body))
+        body, o = job("FORM.FEED CRFF")
+        row("139: FORM.FEED CRFF is the default said out loud", b"\r\f" in body and body.count(b"\f") == body.count(b"\r\f"), repr(body))
+        body, o = job("form.feed ff")
+        row("139: the words may be in lower case", b"\f" in body and b"\r" not in body, repr(body))
+        body, o = job("FORM.FEED FF", "NEWLINE CRLF")
+        row("139: and it is the form feed only: with NEWLINE CRLF the line ends keep their CR but no FF has one",
+            b"\r\n" in body and b"\f" in body and b"\r\f" not in body, repr(body))
+        o = sess(box, "SETPTR 0,40,5,0,0,3,AS zzoqff,FORM.FEED XX,BRIEF")
+        row("139: any other word is refused", has(o, r"FF or CRFF required after FORM\.FEED"), o[-300:])
+        o = sess(box, "SETPTR 0,40,5,0,0,3,AS zzoqff,FORM.FEED FF,BRIEF", "SETPTR 0,DISPLAY")
+        row("139: SETPTR 0,DISPLAY shows it, so a captured setting restores it", has(o, r"(?m)^\s*FORM\.FEED FF\s*$") or "FORM.FEED FF" in o, o[-400:])
+        o = sess(box, "SETPTR 0,40,5,0,0,3,AS zzoqff,BRIEF", "SETPTR 0,DISPLAY")
+        row("139 CONTROL: ...and says CRFF when it is the default", "FORM.FEED CRFF" in o and "FORM.FEED FF" not in o, o[-400:])
+
+        # --- SETPTR ... AS NEXT: the digits of the sequence number (70) ---------------------------------------
+        def nextjob(rec_fields):
+            """Set the $NEXT record of the $HOLD dictionary, run one NEXT job, return (names made, record afterwards)."""
+            for f in os.listdir(hold):
+                if f.startswith("zzn"):
+                    os.remove(os.path.join(hold, f))
+            write(probe, ("   open 'DICT', '$hold' to df else stop 'no hold dict'\n"
+                          "   write %s on df, '$NEXT'\n"
+                          "   printer on\n   print 'next job'\n   printer close\n"
+                          "   read r from df, '$NEXT' then crt 'REC[':change(r, @fm, '/'):']'\nend\n") % rec_fields)
+            t = sess(box, "SETPTR 0,80,60,0,0,3,AS NEXT zzn,BRIEF", "BASIC bp zzoqp1", "RUN bp zzoqp1")
+            made = sorted(f for f in os.listdir(hold) if f.startswith("zzn"))
+            for f in made:
+                os.remove(os.path.join(hold, f))
+            m = re.search(r"(?m)^REC\[(.*)\]\s*$", t)
+            return made, (m.group(1) if m else None), t
+
+        made, rec, t = nextjob("'X':@fm:12")
+        row("70 CONTROL: with no digit count the number is four digits and the counter moves on",
+            made == ["zzn_0012"] and rec == "X/13", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:5:@fm:3")
+        row("70: field 3 = 3 makes the number three digits", made == ["zzn_005"] and rec == "X/6/3", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:7:@fm:9")
+        row("70: ...and 9 makes it nine", made == ["zzn_000000007"] and rec == "X/8/9", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:999:@fm:3")
+        row("70: the number cycles from the highest three digits hold back to 1", made == ["zzn_999"] and rec == "X/1/3", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:9999")
+        row("70: ...and by default from 9999 (it used to turn at 1000)", made == ["zzn_9999"] and rec == "X/1", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:12:@fm:2")
+        row("70: a digit count under 3 is ignored", made == ["zzn_0012"] and rec == "X/13/2", "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:12:@fm:'abc'")
+        row("70: ...and so is one that is not a digit", made == ["zzn_0012"], "%r %r %s" % (made, rec, t[-200:]))
+        made, rec, t = nextjob("'X':@fm:5000:@fm:3")
+        row("70: a counter too big for its new digit count starts again at 1", made == ["zzn_001"] and rec == "X/2/3", "%r %r %s" % (made, rec, t[-200:]))
+
+        # --- @SEQNO and GETPU(PU$SEQNO) (70) --------------------------------------------------------------------
+        write(probe, ("   crt 'BEFORE[':@seqno:'/':getpu(1019, 0):']'\n"
+                      "   open 'DICT', '$hold' to df else stop 'no hold dict'\n"
+                      "   write 'X':@fm:12:@fm:5 on df, '$NEXT'\n"
+                      "   printer on\n   print 'seq job'\n   printer close\n"
+                      "   crt 'AFTER[':@seqno:'/':getpu(1019, 0):'/':getpu(1019, 1):']'\nend\n"))
+        t = sess(box, "SETPTR 0,80,60,0,0,3,AS NEXT zzn,BRIEF", "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        for f in os.listdir(hold):
+            if f.startswith("zzn"):
+                os.remove(os.path.join(hold, f))
+        row("70: @SEQNO and GETPU(PU$SEQNO) are null before a NEXT job", has(t, r"^BEFORE\[/\]"), t[-300:])
+        row("70: ...and the number the file was given after one (@SEQNO, that unit, another unit)", has(t, r"^AFTER\[00012/00012/\]"), t[-300:])
+
+        # --- HOLD.FILE.LOGGER, and $SETPTR.DEFAULTS (56) -----------------------------------------------------
+        lg = os.path.join(bp, "hold.file.logger")
+        made.append(lg)
+        write(lg, ("   subroutine hold.file.logger(unit, opening, path)\n"
+                   "   crt 'LOG[':unit:'/':opening:'/':path:']'\n   return\nend\n"))
+        write(probe, "   printer on\n   print 'line one'\n   printer close\n   crt 'JOB DONE'\nend\n")
+        for nm in ("zzoqlg", "zzoqlg6"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+        t = sess(box, "BASIC bp hold.file.logger", "CATALOG bp hold.file.logger LOCAL",
+                 "SETPTR 0,80,60,0,0,3,AS zzoqlg,BRIEF", "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("56: a mode 3 job calls HOLD.FILE.LOGGER with the unit, 1 and the file name when the file opens",
+            has(t, r"^LOG\[0/1/\$?hold/zzoqlg\]"), t[-400:])
+        row("56: ...and again with 0 when it is closed", has(t, r"^LOG\[0/0/\$?hold/zzoqlg\]"), t[-400:])
+        row("56: ...the open before the close", t.find("LOG[0/1/") != -1 and t.find("LOG[0/1/") < t.find("LOG[0/0/"), t[-400:])
+        t = sess(box, "SETPTR 0,80,60,0,0,6,AS zzoqlg6,BRIEF", "RUN bp zzoqp1")
+        row("56: mode 6 (file and printer) does too", has(t, r"^LOG\[0/1/") and has(t, r"^LOG\[0/0/"), t[-400:])
+        t = sess(box, "SETPTR 0,80,60,0,0,1,BRIEF", "RUN bp zzoqp1")
+        row("56: a plain printer job does not", not has(t, r"^LOG\[") and has(t, r"JOB DONE"), t[-400:])
+        sess(box, "DELETE.CATALOG hold.file.logger LOCAL")
+        t = sess(box, "SETPTR 0,80,60,0,0,3,AS zzoqlg,BRIEF", "RUN bp zzoqp1")
+        row("56 CONTROL: with no such subroutine catalogued the job simply runs", not has(t, r"^LOG\[") and has(t, r"JOB DONE"), t[-400:])
+        for nm in ("zzoqlg", "zzoqlg6"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+
+        write(probe, ("   write 'X':@fm:'NEWLINE CR':@fm:'':@fm:'NEWLINE CRLF, EJECT' on @voc, '$setptr.defaults'\n"
+                      "   crt 'DEFAULTS SET'\nend\n"))
+        t = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("56 CONTROL: the $SETPTR.DEFAULTS record was written", has(t, r"DEFAULTS SET"), t[-200:])
+        write(probe, "   printer on\n   print 'one'\n   print 'two'\n   printer close\nend\n")
+        for nm in ("zzoqdf", "zzoqdf2"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
+        sess(box, "SETPTR 0,80,60,0,0,3,AS zzoqdf,BRIEF", "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        b = slurp(os.path.join(hold, "zzoqdf")) or b""
+        row("56: the options for the mode (field 4 for mode 3) apply to a SETPTR that names none of them: CRLF line ends and EJECT",
+            b"one\r\ntwo\r\n" in b and b.endswith(b"\f"), repr(b))
+        sess(box, "SETPTR 0,80,60,0,0,3,AS zzoqdf2,NEWLINE LF,BRIEF", "RUN bp zzoqp1")
+        b = slurp(os.path.join(hold, "zzoqdf2")) or b""
+        row("56: an option in the command overrides the default (NEWLINE LF) and the rest of the defaults still apply (EJECT)",
+            b"one\ntwo\n" in b and b"\r" not in b and b.endswith(b"\f"), repr(b))
+        t = sess(box, "SETPTR 0,,,,,3", "SETPTR 0,DISPLAY")
+        row("56: the defaults apply to a SETPTR with no options at all, SETPTR 0,,,,,3", has(t, r"NEWLINE CRLF") and has(t, r"EJECT"), t[-500:])
+        t = sess(box, "SETPTR 0,,,,,1", "SETPTR 0,DISPLAY")
+        row("56: the mode 1 field (NEWLINE CR) is used for mode 1", has(t, r"NEWLINE CR\s*$") and not has(t, r"NEWLINE CRLF"), t[-500:])
+        write(probe, "   delete @voc, '$setptr.defaults'\n   crt 'DEFAULTS GONE'\nend\n")
+        sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        t = sess(box, "SETPTR 0,,,,,3", "SETPTR 0,DISPLAY")
+        row("56 CONTROL: without the record nothing is added (the unit is still reported, with the default newline unmentioned)",
+            not has(t, r"EJECT") and not has(t, r"NEWLINE") and has(t, r"Mode\s+: 3"), t[-500:])
+        for nm in ("zzoqdf", "zzoqdf2"):
+            if os.path.exists(os.path.join(hold, nm)):
+                os.remove(os.path.join(hold, nm))
         sess(box, "SETPTR 0,80,60,0,0,1,BRIEF")
 
         # --- !TESTLOCK (42) -------------------------------------------------------------------------------------
@@ -844,6 +980,83 @@ def run_verbs(box, sysd, bp):
         text = sess(box, "SELECT.DIR /tmp TO", "GET.LIST zzoqnone TO")
         row("119 (found on the way): SELECT.DIR and GET.LIST said 'Error writing saved list record' for a missing list number; they say what 3271 says",
             text.count("Select list number missing or invalid") == 2 and not has(text, r"writing saved list record"), text[-300:])
+
+        # --- TERM with the default printer's size (466) ------------------------------------------------------
+        def term_state(text):
+            """The last TERM report in the output: (page width, page depth, printer width, printer depth)."""
+            got = []
+            for key in ("Page width", "Page depth", "Printer width", "Printer depth"):
+                m = re.findall(r"(?m)^%s: (\d+)\s*$" % key, text)
+                got.append(int(m[-1]) if m else None)
+            return tuple(got)
+
+        text = sess(box, "TERM")
+        st = term_state(text)
+        row("466: TERM reports the page width and depth and the default printer's (the harness set 200 x 9999)",
+            st[0] == 200 and st[1] == 9999 and st[2] is not None and st[3] is not None, "%r %s" % (st, text[-300:]))
+        text = sess(box, "TERM ,,120,66", "TERM")
+        row("466: TERM ,,120,66 sets the printer to 120 x 66 and leaves the screen alone", term_state(text) == (200, 9999, 120, 66),
+            "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM ,,120,66", "TERM 150,40", "TERM")
+        row("466: TERM 150,40 sets the screen and leaves the printer alone", term_state(text) == (150, 40, 120, 66),
+            "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM ,,120,66", "TERM ,,,50", "TERM")
+        row("466: TERM ,,,50 sets the printer's depth alone", term_state(text) == (200, 9999, 120, 50),
+            "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM ,,100", "TERM")
+        row("466: TERM ,,100 sets the printer's width alone", term_state(text)[2] == 100 and term_state(text)[:2] == (200, 9999),
+            "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM 130,45,110,60", "TERM")
+        row("466: all four at once", term_state(text) == (130, 45, 110, 60), "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM ,,100,40", "TERM DEFAULT", "TERM")
+        row("466: TERM DEFAULT puts the screen back to 120 x 36 (SD's default, not 80 x 24) and leaves the printer alone",
+            term_state(text) == (120, 36, 100, 40), "%r %s" % (term_state(text), text[-300:]))
+        text = sess(box, "TERM ,,19")
+        row("466: a printer width under 20 is refused", has(text, r"Width must be in range 20 to 32767"), text[-300:])
+        text = sess(box, "TERM ,,,9")
+        row("466: a printer depth under 10 is refused", has(text, r"Depth must be in range 10 to 32767"), text[-300:])
+        text = sess(box, "TERM 100,5")
+        row("466 CONTROL: a screen depth under 10 still is", has(text, r"Depth must be in range 10 to 32767"), text[-300:])
+        text = sess(box, "TERM 100,30,90,40,5")
+        row("466: a fifth number is an unexpected token", has(text, r"Unexpected token"), text[-300:])
+        text = sess(box, "TERM ,,100,40 zznosuchterm")
+        row("466: a terminal type after four numbers is still read", has(text, r"Unrecognised terminal name"), text[-300:])
+        text = sess(box, "TERM 120,36 zznosuchterm")
+        row("466 CONTROL: ...and after two", has(text, r"Unrecognised terminal name"), text[-300:])
+
+        # --- SP.VIEW: X deletes the item shown (450) ---------------------------------------------------------
+        write(probe, ("   execute 'CREATE.FILE zzoqsv' capturing j1\n"
+                      "   open 'zzoqsv' to f else stop 'no file'\n"
+                      "   for k = 1 to 5\n      write 'first line of rec':k:@fm:'second line' on f, 'rec':k\n   next k\n"
+                      "   crt 'SV FILE MADE'\n"
+                      "end\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("450 CONTROL: five records were made", has(out, r"SV FILE MADE"), out[-200:])
+
+        def left_in_sv():
+            t = sess(box, "LIST zzoqsv @ID")        # the id column, then @ID again: "rec4   rec4"
+            return set(re.findall(r"(?m)^(rec\d)\s+rec\d\s*$", t)), t
+
+        # Keys arrive one line at a time with a newline after each line, and a stray newline is a Return, so every
+        # sequence is ONE line ending in the keys that quit (q, then the line's own newline confirms it), or in a
+        # delete that ends the viewer. A sequence that did not end the viewer would wait for input for ever.
+        text = sess(box, "SP.VIEW zzoqsv rec1", "xnq")
+        ids, listing = left_in_sv()
+        row("450: X asks first, and N keeps the item", has(text, r"Delete rec1 from zzoqsv \(Y/N\)\?") and "rec1" in ids, "%r %s" % (ids, text[-300:]))
+        text = sess(box, "SP.VIEW zzoqsv rec1", "xy")
+        ids, listing = left_in_sv()
+        row("450: X then Y deletes it, and only it", ids == {"rec2", "rec3", "rec4", "rec5"}, "%r %s" % (ids, text[-300:]))
+        row("450: ...and the viewer ends, as it does when the item was named", not has(text, r"Unable to read item"), text[-300:])
+        text = sess(box, "SP.VIEW zzoqsv rec2", "xY")
+        ids, listing = left_in_sv()
+        row("450: a capital Y does too", ids == {"rec3", "rec4", "rec5"}, "%r %s" % (ids, text[-300:]))
+        text = sess(box, "SP.VIEW zzoqsv rec3", "xzq")
+        ids, listing = left_in_sv()
+        row("450: any other key cancels", "rec3" in ids and len(ids) == 3, "%r %s" % (ids, text[-300:]))
+        text = sess(box, "SP.VIEW zzoqsv", "", "xyq")
+        ids, listing = left_in_sv()
+        row("450: from the pick list: dive in, delete, and the list goes on without it",
+            "rec3" not in ids and len(ids) == 2 and has(text, r"2 items|<No items>|rec4|rec5"), "%r %s" % (ids, text[-400:]))
     finally:
         sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld", "DELETE.FILE zzoqix",
              "DELETE.LIST zzoqla", "DELETE.LIST zzoqlb", "DELETE.LIST zzoqlc", "DELETE.LIST zzoqld2")
