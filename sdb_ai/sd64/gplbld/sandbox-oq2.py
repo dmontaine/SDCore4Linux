@@ -369,6 +369,70 @@ def run_verbs(box, sysd, bp):
             for g in gnames:
                 if os.path.exists(os.path.join(gdir, g)):
                     os.remove(os.path.join(gdir, g))
+
+        # --- SHOW: B for the last page (477), SORT.SUP (495), record ids not in the file (524) ---------------------
+        mk = os.path.join(bp, "zzoqshm")
+        rd = os.path.join(bp, "zzoqshr")
+        made += [mk, rd]
+        write(mk, ("   execute 'CREATE.FILE zzoqsh1 DYNAMIC' capturing junk\n"
+                   "   execute 'CREATE.FILE zzoqsh2 DYNAMIC' capturing junk\n"
+                   "   open 'zzoqsh1' to f1 else stop 'no zzoqsh1'\n"
+                   "   open 'zzoqsh2' to f2 else stop 'no zzoqsh2'\n"
+                   "   for i = 1 to 30\n"
+                   "      write 'name':i to f1, 'r':fmt(i, 'R%2')\n"
+                   "   next i\n"
+                   "   ids = 'q7,b2,m9,a1,z3,k5,d8,x4,c6,y0,e2,w1'\n"
+                   "   for i = 1 to 12\n"
+                   "      write 'name':i to f2, field(ids, ',', i)\n"
+                   "   next i\n"
+                   "end\n"))
+        write(rd, ("   readlist items from 0 else items = 'NONE'\n"
+                   "   crt 'ITEMS[':change(items, @fm, ','):']'\n"
+                   "end\n"))
+        sess(box, "DELETE.FILE zzoqsh1", "DELETE.FILE zzoqsh2")
+        out = sess(box, "BASIC bp zzoqshm", "BASIC bp zzoqshr", "RUN bp zzoqshm")
+        try:
+            def show_list(*cmds):
+                """Run the commands (a SHOW and its answers), then read list 0; returns (text, ordered ids or None)."""
+                text = sess(box, *(list(cmds) + ["RUN bp zzoqshr"]))
+                m = re.search(r"(?m)^ITEMS\[(.*)\]\s*$", text)
+                return text, (m.group(1).split(",") if m else None)
+
+            def ids(lo, hi):
+                return ["r%02d" % n for n in range(lo, hi + 1)]
+
+            # a 15-line screen gives 10 records to a page, so the 30 records are three pages
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "S VIS", "Q")
+            row("477 CONTROL: the first page holds r01 to r10", got == ids(1, 10), "%r %s" % (got, text[-300:]))
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "N", "S VIS", "Q")
+            row("477 CONTROL: N moves to the second page, r11 to r20", got == ids(11, 20), "%r %s" % (got, text[-300:]))
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "B", "S VIS", "Q")
+            row("477 B moves to the bottom page, r21 to r30", got == ids(21, 30), "%r %s" % (got, text[-300:]))
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "B", "T", "S VIS", "Q")
+            row("477 T still goes back to the top after B", got == ids(1, 10), "%r %s" % (got, text[-300:]))
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "B", "B", "P", "S VIS", "Q")
+            row("477 B on the bottom page stays there, and P then goes to the one before", got == ids(11, 20), "%r %s" % (got, text[-300:]))
+            text, got = show_list("TERM 120,15", "SHOW zzoqsh1", "b", "S VIS", "Q")
+            row("477 a lower-case b does the same", got == ids(21, 30), "%r %s" % (got, text[-300:]))
+
+            text, native = show_list("SELECT zzoqsh2")
+            row("495 CONTROL: the file is not held in id order, so SORT.SUP can be seen", native is not None and native != sorted(native) and len(native) == 12,
+                "%r %s" % (native, text[-300:]))
+            text, got = show_list("SHOW zzoqsh2", "S ALL", "Q")
+            row("495 CONTROL: SHOW with no sort clause lists the records in id order", got == sorted(native or []) and len(got or []) == 12, "%r %s" % (got, text[-300:]))
+            text, got = show_list("SHOW zzoqsh2 SORT.SUP", "S ALL", "Q")
+            row("495 SORT.SUP leaves them in the order the file gives them", got == native, "%r %r" % (got, native))
+            text, got = show_list("SHOW zzoqsh2 BY @ID SORT.SUP", "S ALL", "Q")
+            row("495 a sort clause still sorts, with SORT.SUP present", got == sorted(native or []) and len(got or []) == 12, "%r %s" % (got, text[-300:]))
+
+            text, got = show_list("SHOW zzoqsh2 a1 b2", "S ALL", "Q")
+            row("524 CONTROL: record ids that are all in the file give the list", got == ["a1", "b2"], "%r %s" % (got, text[-300:]))
+            text, got = show_list("SHOW zzoqsh2 a1 zznone1 b2 zznone2")
+            row("524 ids not in the file are listed, one per line", has(text, r"(?m)^'zznone1' not found") and has(text, r"(?m)^'zznone2' not found"), text[-400:])
+            row("524 ...and SHOW stops there: no screen is drawn and no list is made",
+                got == ["NONE"] and not has(text, r"Select, Clear, Top") and not has(text, r"record\(s\) selected"), "%r %s" % (got, text[-400:]))
+        finally:
+            sess(box, "DELETE.FILE zzoqsh1", "DELETE.FILE zzoqsh2")
         hd = os.path.join(sysd, "zzoqhd")
         sess(box, "DELETE.FILE zzoqhd", "CREATE.FILE zzoqhd DIRECTORY")
         write(os.path.join(hd, "visible"), "x\n")
