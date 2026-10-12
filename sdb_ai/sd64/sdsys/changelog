@@ -1,6 +1,57 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  THE DATA COLLECTION EDITOR, CED AND !CED() (1.2-0, openQM
+           compatibility).
+
+             CED {DICT} file {id ...}      edit records of a collection file,
+                                           or JSON text in an ordinary file
+             CALL !CED(collection)         edit a collection held in a variable
+
+           A full-screen editor for a data collection.  It shows the elements
+           of one level at a time: the name (or the position, in an array), the
+           data type, and the value, or the number of elements of a collection
+           or an array.  A > marks the selected line.  The path of the level
+           being shown is at the bottom.
+
+             Up, Down, Page up/down   move; Home and End go to the first and
+                                      last element
+             Return                   open a collection or array; change the
+                                      value of anything else (Return keeps the
+                                      change, Esc leaves it)
+             Esc                      back to the level above
+             F3                       rename the element
+             F4                       change its type: only the types the
+                                      value can become are offered
+             F5 or Ctrl-C, F6 or      copy, cut and paste an element (paste
+             Ctrl-X, F7 or Ctrl-V     asks for the name, or the position in
+                                      an array)
+             Ins or Ctrl-I            insert an element: name, type, value
+             Del                      delete the element
+             Ctrl-S                   save, and carry on
+             Q                        leave (at the top level only)
+             Ctrl-Q                   leave from any level
+             F1 or ?                  list the keys
+
+           Leaving with changes asks "Save changes (Y/N)?".  With several ids
+           Q goes on to the next record and Ctrl-Q stops.  With no ids the
+           active select list is used, and with none the ids are asked for
+           until a null one is entered.  A record that is not there is a new
+           one: the editor asks whether it is a collection or an array.  A
+           record of an ordinary file must hold a JSON object or array, and is
+           written back as JSON text; one that does not is reported and left
+           alone.  The record is locked while it is open.  !CED() changes the
+           variable it is given if the changes are kept (Ctrl-S, or Y when
+           leaving) and leaves it as it was if they are not.
+
+           An element whose name is empty or holds a slash is shown with ? for
+           its type and cannot be changed in the editor, because a path cannot
+           name it.  Ctrl-C is a key in the editor: the terminal's break
+           character and the break key are switched off while it runs and back
+           on when it ends.  If its input ends (the terminal hangs up) it
+           leaves without saving.  A null cannot be edited; F4 changes its
+           type.
+
 11 Oct 26  ED, COPY, COMPARE.FILES AND TRIGGERS WORK ON A DATA COLLECTION FILE
            (1.2-0, openQM compatibility; a kernel change, so it needs a
            rebuild).
