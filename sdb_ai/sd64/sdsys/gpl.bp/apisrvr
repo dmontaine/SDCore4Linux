@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 11 Oct 26 dm A record of a data collection file is a collection when it is read, which
+*           the response cannot hold: it goes to the client as its JSON text.
+*           COMPILED ONLY - the API server was not run against a collection file.
 * 06 Oct 26 dm PAL-17 (parity audit): the two refusals to enter an account (suspended;
 *           not in the account's group) are on the audit trail, as the Windows
 *           port's ACCOUNT REFUSED lines (branch=2 and branch=4).
@@ -359,6 +362,11 @@ loop
 return.status.set: ;* Return to here if ST already set
 
    if server.error = SV$ON.ERROR then response = @abort.message
+
+   * 11 Oct 26 dm - a record read from a data collection file is a collection; the client is sent its JSON
+   * text, the compact form the file holds
+   jt = jtype(response)
+   if jt = 'collection' or jt = 'array' then response = jbuild(response)
 
    if logging then
       s = oconv(iconv(server.error, 'ISL'):iconv(st, 'ILL'):response, 'MX0C')
