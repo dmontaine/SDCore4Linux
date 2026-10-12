@@ -147,6 +147,71 @@ CASES = [
     ("ERR: a name cannot be used as a position in an array",
      C + "c{'k'} = mat()\n   c{'k',1} = 'a'\n   c{'k','abc'} = 'b'", "ERR:Invalid data collection element name"),
     ("ERR: MAT(x) of something that is not a matrix", "t = 5\n   c = collection()\n   c{'k'} = mat(t)", "ERR:imensioned matrix"),
+    # ---- JSON: JPARSE() and JBUILD() ------------------------------------------------------------------------
+    ("JPARSE() reads an object into a collection and STATUS() is 0",
+     "c = jparse('{\"name\":\"Acme\",\"n\":5}')\n   x = c{'name'}:'|':c{'n'} + 1:'|':status()", "Acme|6|0"),
+    ("nested objects and arrays are reached by path",
+     "c = jparse('{\"a\":{\"b\":[10,20,{\"z\":\"deep\"}]}}')\n   x = c{'a/b/1'}:'|':c{'a/b/3/z'}:'|':inmat(c{'a/b'})", "10|deep|3"),
+    ("a JSON array at the top is an array", "c = jparse('[1,\"two\",[3]]')\n   x = inmat(c):'|':c{2}:'|':c{3,1}", "3|two|3"),
+    ("true and false read back as 1 and 0, null as a null string",
+     "c = jparse('{\"t\":true,\"f\":false,\"n\":null}')\n   x = c{'t'}:'|':c{'f'}:'|':'[':c{'n'}:']'", "1|0|[]"),
+    ("numbers: integers, fractions, exponents, big ones",
+     "c = jparse('{\"f\":1.5,\"big\":12345678901,\"neg\":-3,\"e\":1e2}')\n   x = c{'f'} * 2:'|':c{'neg'} - 1:'|':c{'e'}:'|':c{'big'}", "3|-4|100|12345678901"),
+    ("whitespace, and all five marks, between elements are ignored",
+     "c = jparse('{':@fm:' \"a\" ':@vm:':':@svm:' 1 ':@tm:'}')\n   x = c{'a'}:'|':status()", "1|0"),
+    ("a later name replaces an earlier one", "c = jparse('{\"a\":1,\"a\":2}')\n   x = c{'a'}:'|':inmat(c)", "2|1"),
+    ("single quotes are accepted for names and strings", "c = jparse(\"{'a':'b'}\")\n   x = c{'a'}", "b"),
+    ("escapes: quote, backslash, slash, newline, tab",
+     "c = jparse('{\"s\":\"q\\\"b\\\\s\\/n\\nt\\t\"}')\n   x = change(change(c{'s'}, char(10), 'N'), char(9), 'T')", "q\"b\\s/nNtT"),
+    ("\\u00e9 is the byte E9 and \\u20ac is three bytes of UTF-8",
+     "c = jparse('{\"a\":\"\\u00e9\",\"b\":\"\\u20ac\"}')\n   x = seq(c{'a'}):'|':len(c{'a'}):'|':seq(c{'b'}[1,1]):'|':len(c{'b'})", "233|1|226|3"),
+    ("a surrogate pair is one four byte character",
+     "c = jparse('{\"a\":\"\\ud83d\\ude00\"}')\n   x = len(c{'a'}):'|':seq(c{'a'}[1,1])", "4|240"),
+    ("a name without quotes is refused unless JP$UNQUOTED.NAME is set",
+     "c = jparse('{a:1}')\n   x = status():'|':'[':c:']'", "1020|[]"),
+    ("...and with it set is accepted", "c = jparse('{a:1,b2:2}', 2)\n   x = c{'a'}:c{'b2'}:'|':status()", "12|0"),
+    ("JP$NULL reads a null as a null string, not as null",
+     "c = jparse('{\"n\":null}', 1)\n   x = jbuild(c)", "{\"n\":\"\"}"),
+    ("an error gives a null string, STATUS() 1020 and INMAT() the character position",
+     "c = jparse('{\"a\" 1}')\n   x = '[':c:']':status():'|':inmat()", "[]1020|6"),
+    ("text after the value is an error, at the first character of it", "c = jparse('{\"a\":1} x')\n   x = status():'|':inmat()", "1020|9"),
+    ("a value that is not an object or array is refused", "c = jparse('5')\n   x = status():'|':inmat()", "1020|1"),
+    ("an empty string is refused", "c = jparse('')\n   x = status()", "1020"),
+    ("a half-finished value is refused", "c = jparse('{\"a\":[1,2')\n   x = status()", "1020"),
+    ("a trailing comma is refused", "c = jparse('[1,2,]')\n   x = status()", "1020"),
+    ("01 is not a JSON number", "c = jparse('[01]')\n   x = status()", "1020"),
+    ("600 levels of nesting are refused, not run into", "c = jparse(str('[', 600):str(']', 600))\n   x = status()", "1020"),
+    ("JBUILD() writes a collection compactly, names in order",
+     C + "c{'b'} = 2\n   c{'a'} = 'x'\n   x = jbuild(c):'|':status()", "{\"a\":\"x\",\"b\":2}|0"),
+    ("arrays and nested collections", C + "c{'l'} = mat()\n   c{'l',1} = 1\n   c{'l',2} = 'two'\n   c{'o/p'} = 3\n   x = jbuild(c)", "{\"l\":[1,\"two\"],\"o\":{\"p\":3}}"),
+    ("an array at the top", "c = mat()\n   x = jbuild(c)", "[]"),
+    ("quote, backslash and control characters are escaped",
+     C + "c{'s'} = 'q\"b\\':char(9):'t':char(10):'n'\n   x = jbuild(c)", "{\"s\":\"q\\\"b\\\\\\tt\\nn\"}"),
+    ("marks and 8 bit characters are written as \\u00XX",
+     C + "c{'m'} = 'a':@fm:'b':@vm:'c':char(233)\n   x = jbuild(c)", "{\"m\":\"a\\u00feb\\u00fdc\\u00e9\"}"),
+    ("...and come back as the same bytes",
+     C + "s = 'a':@fm:'b':@vm:'c':@svm:'d':char(233)\n   c{'m'} = s\n   d = jparse(jbuild(c))\n   x = (d{'m'} = s)", "1"),
+    ("a float is written so it reads back the same",
+     C + "c{'f'} = 0.1 + 0.2\n   d = jparse(jbuild(c))\n   x = (d{'f'} = c{'f'})", "1"),
+    ("true, false and null survive a parse and a build",
+     "s = '{\"e\":\"\",\"f\":false,\"n\":null,\"t\":true}'\n   x = (jbuild(jparse(s)) = s)", "1"),
+    ("a whole document survives a parse and a build",
+     "s = '{\"a\":[1,2.5,{\"b\":[true,null,\"x\"]}],\"c\":{\"d\":\"e\"},\"z\":[]}'\n   x = (jbuild(jparse(s)) = s)", "1"),
+    ("a string that is a number is quoted unless JB$NUM", C + "c{'n'} = '42'\n   x = jbuild(c):'|':jbuild(c, 4)", "{\"n\":\"42\"}|{\"n\":42}"),
+    ("JB$NUM leaves what is not a JSON number in quotes",
+     C + "c{'a'} = '007'\n   c{'b'} = '1.5e3'\n   c{'c'} = '+5'\n   c{'d'} = ''\n   x = jbuild(c, 4)", "{\"a\":\"007\",\"b\":1.5e3,\"c\":\"+5\",\"d\":\"\"}"),
+    ("JB$NULL writes an empty string as null", C + "c{'e'} = ''\n   x = jbuild(c):'|':jbuild(c, 2)", "{\"e\":\"\"}|{\"e\":null}"),
+    ("names in single quotes, or with none", C + "c{'a'} = 'x'\n   x = jbuild(c, 8):'|':jbuild(c, 16)", "{'a':\"x\"}|{a:\"x\"}"),
+    ("values in single quotes, or with none", C + "c{'a'} = \"it's\"\n   x = jbuild(c, 32):'|':jbuild(c, 64)", "{\"a\":'it\\'s'}|{\"a\":it's}"),
+    ("the modes add: names and values both single quoted", C + "c{'a'} = 'x'\n   x = jbuild(c, 8 + 32)", "{'a':'x'}"),
+    ("a file variable has no JSON form: a null string and STATUS() 1019",
+     C + "open 'voc' to f else stop 'no voc'\n   c{'f'} = f\n   x = '[':jbuild(c):']':status()", "[]1019"),
+    ("...unless JB$INVALID asks for a null", C + "open 'voc' to f else stop 'no voc'\n   c{'f'} = f\n   x = jbuild(c, 1):'|':status()", "{\"f\":null}|0"),
+    ("a collection that contains itself cannot be built", C + "c{'me'} = c\n   x = '[':jbuild(c):']':status()", "[]1019"),
+    ("the modes have names in keys.h",
+     "$include keys.h\n   x = jp$null:'|':jp$unquoted.name:'|':jb$invalid:'|':jb$null:'|':jb$num:'|':jb$squote.name:'|':jb$noquote.name:'|':jb$squote.value:'|':jb$noquote.value", "1|2|1|2|4|8|16|32|64"),
+    ("the error codes have names in err.h", "$include err.h\n   x = er$build.error:'|':er$parse.error", "1019|1020"),
+    ("ERR: JBUILD() of something that is not a collection", "x = jbuild('abc')", "ERR:not a data collection"),
     ("ERR: a variable that is not a collection cannot take an element", "n = 5\n   n{'a'} = 1", "ERR:not a data collection"),
     ("ERR: nor can one be read from it", "n = 5\n   x = n{'a'}", "ERR:not a data collection"),
     ("ERR: an element cannot be added below a value that is not a collection",
@@ -211,9 +276,14 @@ def main():
         cmds += ["BASIC bp %s" % nm, "RUN bp %s" % nm]
     try:
         out = sess(box, *cmds)
+        try:
+            with open(os.path.join(box, "coll.last.out"), "w") as f:   # for finding out why a row failed
+                f.write(out)
+        except OSError:
+            pass
         say("\n--- collections -------------------------------------------------------------")
         starts = {}
-        for m in re.finditer(r"(?m)^:BASIC bp zzco(\d\d)\s*$", out):
+        for m in re.finditer(r"(?m)^:BASIC bp zzco(\d{2,})\s*$", out):
             starts[int(m.group(1))] = m.start()
         for i, (label, _body, want) in enumerate(CASES):
             if i not in starts:
