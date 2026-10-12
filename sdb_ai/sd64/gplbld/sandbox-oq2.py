@@ -712,6 +712,63 @@ def run_verbs(box, sysd, bp):
                 os.remove(os.path.join(hold, nm))
         sess(box, "SETPTR 0,80,60,0,0,1,BRIEF")
 
+        # --- SEARCH ... DISPLAY, SCAN and STRINGS (437, 447, 141) ------------------------------------------------
+        write(probe, ("   execute 'CREATE.FILE zzoqsc' capturing j1\n   execute 'CREATE.FILE zzoqst' capturing j2\n"
+                      "   open 'zzoqsc' to f else stop 'no file'\n   open 'zzoqst' to g else stop 'no strings file'\n"
+                      "   write 'alpha widget one':@fm:'beta':@fm:'gamma widget two' on f, 'r1'\n"
+                      "   write 'nothing here':@fm:'widget but also gizmo' on f, 'r2'\n"
+                      "   write 'gizmo only' on f, 'r3'\n"
+                      "   write 'WIDGET upper' on f, 'r4'\n"
+                      "   write 'a':@vm:'widget':@vm:'c' on f, 'r5'\n"
+                      "   write 'widget':@fm:'gizmo' on g, 'w'\n"
+                      "   write '' on g, 'empty'\n"
+                      "   crt 'SC FILES MADE'\nend\n"))
+        t = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("437 CONTROL: the search files were made", has(t, r"SC FILES MADE"), t[-200:])
+
+        t = sess(box, 'SEARCH zzoqsc FOR "widget" DISPLAY')
+        row("437: SEARCH ... DISPLAY shows the id of a selected record and the lines that hold the string, with their numbers",
+            has(t, r"(?m)^r1\s*$") and has(t, r"(?m)^0001:\salpha widget one") and has(t, r"(?m)^0003:\sgamma widget two")
+            and has(t, r"(?m)^r2\s*$") and has(t, r"(?m)^0002:\swidget but also gizmo"), t[-600:])
+        row("437: ...not the lines that hold none of them", not has(t, r"2: beta|1: nothing here") and not has(t, r"(?m)^0002:\sbeta"), t[-600:])
+        row("437: ...not a record without the string, nor (the search being case sensitive) WIDGET", not has(t, r"(?m)^r3\s*$") and not has(t, r"(?m)^r4\s*$"), t[-600:])
+        row("437: ...with the marks of a line shown as LIST shows them", has(t, r"(?m)^0001:\sa\]widget\]c"), t[-600:])
+        row("437: ...and the usual count of what was selected", has(t, r"3 record\(s\) selected to select list 0|3 record\(s\) selected"), t[-600:])
+        t = sess(box, 'SEARCH zzoqsc FOR "widget"')
+        row("437 CONTROL: without DISPLAY the lines are not shown", not has(t, r"(?m)^0001:\salpha") and has(t, r"3 record\(s\) selected"), t[-400:])
+        t2 = sess(box, 'SCAN zzoqsc FOR "widget"')
+        row("447: SCAN is SEARCH with DISPLAY", has(t2, r"(?m)^0003:\sgamma widget two") and has(t2, r"(?m)^r5\s*$") and has(t2, r"3 record\(s\) selected"), t2[-600:])
+        t = sess(box, 'SCAN zzoqsc NO.CASE FOR "widget"')
+        row("447: NO.CASE finds WIDGET too, and shows it as it is", has(t, r"(?m)^r4\s*$") and has(t, r"(?m)^0001:\sWIDGET upper"), t[-600:])
+        t = sess(box, 'SCAN zzoqsc ALL.MATCH FOR "widget" "gizmo"')
+        row("447: ALL.MATCH selects only the records holding every string, and shows the lines holding either",
+            has(t, r"(?m)^r2\s*$") and not has(t, r"(?m)^r1\s*$") and not has(t, r"(?m)^r3\s*$") and has(t, r"1 record\(s\) selected"), t[-600:])
+        t = sess(box, "SCAN zzoqsc", "gizmo", "")
+        row("447: with no FOR it prompts for strings, ended by a blank answer",
+            has(t, r"String:") and has(t, r"(?m)^r3\s*$") and has(t, r"(?m)^r2\s*$") and not has(t, r"(?m)^r1\s*$"), t[-600:])
+        write(probe, "   readlist items from 0 else items = 'NONE'\n   crt 'ITEMS[':change(items, @fm, ','):']'\nend\n")
+        t = sess(box, 'SCAN zzoqsc FOR "widget"', "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        m = re.search(r"(?m)^ITEMS\[(.*)\]\s*$", t)
+        items = set(m.group(1).split(",")) if m else None
+        row("447: SCAN leaves the selected ids as select list 0", items == {"r1", "r2", "r5"}, "%r %s" % (items, t[-300:]))
+
+        t = sess(box, "SCAN zzoqsc STRINGS zzoqst w")
+        row("141: STRINGS file record takes the strings from the fields of that record (widget and gizmo)",
+            has(t, r"(?m)^r1\s*$") and has(t, r"(?m)^r3\s*$") and has(t, r"(?m)^0001:\sgizmo only") and has(t, r"4 record\(s\) selected"), t[-600:])
+        t = sess(box, "SEARCH zzoqsc STRINGS zzoqst w")
+        row("141: SEARCH takes STRINGS as well", has(t, r"4 record\(s\) selected") and not has(t, r"(?m)^0001:\sgizmo only"), t[-400:])
+        t = sess(box, 'SCAN zzoqsc FOR "alpha" STRINGS zzoqst w')
+        row("141: STRINGS adds to FOR", has(t, r"(?m)^r1\s*$") and has(t, r"(?m)^r3\s*$") and has(t, r"(?m)^0001:\salpha widget one"), t[-600:])
+        t = sess(box, "SCAN zzoqsc STRINGS zzoqnone w")
+        row("141: a strings file that does not exist is reported", has(t, r"File not found") and not has(t, r"record\(s\) selected"), t[-300:])
+        t = sess(box, "SCAN zzoqsc STRINGS zzoqst nosuchrec")
+        row("141: a record that does not exist is reported", has(t, r'Record "nosuchrec" not found') and not has(t, r"record\(s\) selected"), t[-300:])
+        t = sess(box, "SCAN zzoqsc STRINGS zzoqst")
+        row("141: STRINGS with no record id is reported", has(t, r"Record id required after STRINGS file name"), t[-300:])
+        t = sess(box, "SCAN zzoqsc STRINGS zzoqst empty")
+        row("141: a record with no fields gives no strings", has(t, r"No search strings") and not has(t, r"record\(s\) selected"), t[-300:])
+        sess(box, "DELETE.FILE zzoqsc", "DELETE.FILE zzoqst")
+
         # --- !TESTLOCK (42) -------------------------------------------------------------------------------------
         write(probe, ("   call !testlock(7, o1)\n   lock 7\n   call !testlock(7, o2)\n   unlock 7\n   call !testlock(7, o3)\n"
                       "   crt 'TL[':o1:'/':(o2 = @userno):'/':o3:']'\nend\n"))
