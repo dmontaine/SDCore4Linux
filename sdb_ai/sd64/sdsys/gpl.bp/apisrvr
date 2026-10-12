@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 12 Oct 26 dm Call names: the lower of 128 and MAXIDLEN (openQM item 241), 63 at the default.  Refused logins
+*           wait PWDELAY seconds (item 106), 3 by default.
 * 11 Oct 26 dm A record of a data collection file is a collection when it is read, which
 *           the response cannot hold: it goes to the client as its JSON text.
 *           COMPILED ONLY - the API server was not run against a collection file.
@@ -908,7 +910,12 @@ vb.deleteu:
 
 vb.call:
                name.len = oconv(cmnd[1,2], 'ISL')
-               if name.len < 1 or name.len > MAX.CALL.NAME.LEN then
+               * 12 Oct 26 dm  openQM item 241: the lower of 128 and MAXIDLEN (63 unless raised), as in op_jumps.c.  A client
+               * (sdclilib.c, sdclient) cannot read MAXIDLEN and keeps 63.
+               max.call.len = config('MAXIDLEN')
+               if max.call.len > 128 then max.call.len = 128
+               if max.call.len < MAX.CALL.NAME.LEN then max.call.len = MAX.CALL.NAME.LEN
+               if name.len < 1 or name.len > max.call.len then
                   abort.message = sysmsg(5263) ;* Invalid call name
                   server.error = SV$ON.ERROR
                   return
@@ -1496,7 +1503,9 @@ scram.bad.cred:
 *   wrote one.  Anyone guessing passwords over the API could therefore choose not
 *   to be recorded.  The delay itself is unchanged and still slows a guesser;
 *   exit.vb.scram.fail now writes the line first and then waits.
-               scram.fail.delay = 3
+* 12 Oct 26 dm  The length of the wait is the PWDELAY configuration parameter (openQM item 106),
+*   seconds, 3 unless sd.conf says otherwise (openQM's own default is 5); 0 means no wait.
+               scram.fail.delay = config('PWDELAY')
                goto exit.vb.scram.fail
 
 exit.vb.scram.fail:

@@ -55,7 +55,7 @@ def checks(src):
     loop = find(lines, r"^loop\s*$")
     bad = find(lines, r"^scram\.bad\.cred:")
     exitl = find(lines, r"^exit\.vb\.scram\.fail:")
-    setd = find(lines, r"^\s*scram\.fail\.delay\s*=\s*3\b", bad or 0)
+    setd = find(lines, r"^\s*scram\.fail\.delay\s*=\s*config\('PWDELAY'\)", bad or 0)
     audit = find(lines, r"kernel\(K\$AUDIT,\s*'api refused user='", exitl or 0)
     wait_if = find(lines, r"^\s*if scram\.fail\.delay\s*>\s*0\s+then", exitl or 0)
     wait = find(lines, r"^\s*sleep scram\.fail\.delay\b", exitl or 0)
@@ -65,7 +65,7 @@ def checks(src):
        "init %s, loop %s" % (init, loop))
     ck("scram.bad.cred and exit.vb.scram.fail are both there", bad and exitl and bad < exitl,
        "bad %s, exit %s" % (bad, exitl))
-    ck("scram.bad.cred SETS the delay (3) and does not sleep itself",
+    ck("scram.bad.cred SETS the delay (PWDELAY, 3 by default) and does not sleep itself",
        setd and setd < (exitl or 0) and not any(bad < n < exitl for n in sleeps if bad and exitl),
        "set at %s; sleeps %s" % (setd, sleeps))
     ck("exactly one sleep in the file, and it is the delay after the record", len(sleeps) == 1 and sleeps[0] == wait,
@@ -82,7 +82,7 @@ def checks(src):
 def mutants(src):
     res = []
     # 1 the old form: sleep 3 in scram.bad.cred, ahead of the exit, and no delay machinery
-    old = src.replace("               scram.fail.delay = 3\n", "               sleep 3\n", 1)
+    old = src.replace("               scram.fail.delay = config('PWDELAY')\n", "               sleep 3\n", 1)
     res.append(("the sleep is back in scram.bad.cred above the record", old))
     # 2 the wait is moved above the audit write
     m = re.search(r"(               \* The wait comes AFTER the record.*?\n               end\n)", src, re.S)
@@ -97,7 +97,7 @@ def mutants(src):
                 re.sub(r"^scram\.fail\.delay = 0[^\n]*\n", "", src, count=1, flags=re.M)))
     # 4 the delay is dropped altogether (no longer slows a guesser)
     res.append(("the delay is never set, so nothing waits",
-                src.replace("               scram.fail.delay = 3\n", "", 1)))
+                src.replace("               scram.fail.delay = config('PWDELAY')\n", "", 1)))
     return res
 
 

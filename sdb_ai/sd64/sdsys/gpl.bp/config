@@ -97,6 +97,7 @@ report.params:
    n = config('CODEPAGE') ; if n then print 'CODEPAGE  '        : n
    print 'DEADLOCK  '        : config('DEADLOCK')
    n = config('DEBUG') ; if n then print 'DEBUG     '        : n
+   print 'DHCACHE   '        : config('DHCACHE')
    print 'DUMPDIR   '        : config('DUMPDIR')
    print 'ERRLOG    '        : config('ERRLOG') : ' kb'
    print 'EXCLREM   '        : config('EXCLREM')
@@ -112,10 +113,12 @@ report.params:
    print 'INVCASE   '        : config('INVCASE')
    print 'JNLMODE   '        : config('JNLMODE')
    print 'JNLDIR    '        : config('JNLDIR')
+   print 'LGNWAIT   '        : config('LGNWAIT')
    print 'LPTRHIGH  '        : config('LPTRHIGH')
    print 'LPTRWIDE  '        : config('LPTRWIDE')
    print 'MAXCALL   '        : config('MAXCALL')
    print 'MAXIDLEN  '        : config('MAXIDLEN')
+   print 'MAXRLOCK  '        : config('MAXRLOCK')
    print 'MUSTLOCK  '        : config('MUSTLOCK')
    print 'NETFILES  '        : config('NETFILES')
    print 'NUMFILES  '        : config('NUMFILES')
@@ -127,7 +130,8 @@ report.params:
    print 'OBJMEM    '        : if n then n : ' kb' else '0  [':sysmsg(3067):']'
    print 'PDUMP     '        : config('PDUMP')
    s = config('PORTMAP') ; if s # '' then print 'PORTMAP   '        : s
-   
+   print 'PWDELAY   '        : config('PWDELAY')
+
    print 'RECCACHE  '        : config('RECCACHE')
    print 'RINGWAIT  '        : config('RINGWAIT')
    print 'SAFEDIR   '        : config('SAFEDIR')
@@ -141,7 +145,8 @@ report.params:
    print 'STARTUP   '        : config('STARTUP')
    print 'TEMPDIR   '        : config('TEMPDIR')
    print 'TERMINFO  '        : config('TERMINFO')
-* 20240219 mab create-account based on type (user / group / other)      
+   print 'USERPOOL  '        : config('USERPOOL')
+* 20240219 mab create-account based on type (user / group / other)
    print 'USRDIR    '        : config('USRDIR')
    print 'YEARBASE  '        : config('YEARBASE')
    print

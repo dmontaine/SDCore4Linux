@@ -54,6 +54,7 @@
 #include "locks.h"
 #include "keys.h"
 #include "header.h"
+#include "config.h" /* pcfg.maxrlock */
 #include "tio.h"
 
 #include <time.h>
@@ -516,6 +517,13 @@ void op_lockrec() {
 
   switch (status = lock_record(fvar, id, id_len, update, txn_id, no_wait)) {
     case 0: /* Got the lock */
+      break;
+
+    case -3: /* This process is at its MAXRLOCK limit: the ON ERROR clause, or an abort */
+      process.status = -ER_MAXRLOCK;
+      status = -ER_MAXRLOCK;
+      if (!(op_flags & P_ON_ERROR))
+        k_error(sysmsg(11162));
       break;
 
     case -2: /* Deadlock detected */
@@ -1278,6 +1286,16 @@ int16_t lock_record(
     } while (1);
   }
 
+  /* MAXRLOCK (openQM item 313): one process may hold only so many record locks.
+    Locking again a record we hold, and upgrading a shared lock, left above, so
+    this is a new lock.  -3 is the caller's cue to take the statement's ON ERROR
+    clause or abort, not to wait: waiting would never end.                       */
+
+  if ((pcfg.maxrlock > 0) && (llt_count >= pcfg.maxrlock)) {
+    status = -3;
+    goto exit_lock_record;
+  }
+
   /* Set up a new lock in the free cell */
 
   lptr = RLPtr(free_cell);
@@ -1306,6 +1324,7 @@ int16_t lock_record(
     memcpy(llt->id, id, id_len);
     llt->next = llt_head;
     llt_head = llt;
+    llt_count++;
   }
 
 exit_lock_record:
@@ -1315,6 +1334,7 @@ exit_lock_record:
       break;
 
     case -1: /* Lock table full */
+    case -3: /* This process is at its MAXRLOCK limit */
       my_uptr->lockwait_index = 0;
       break;
 
@@ -1487,6 +1507,7 @@ Private bool unlock_id(int16_t file_id, char* raw_id, int16_t id_len) {
               else
                 prev_llt->next = llt->next;
               k_free(llt);
+              llt_count--;
               break;
             }
             prev_llt = llt;
@@ -1655,6 +1676,7 @@ void rebuild_llt() {
     k_free(llt);
   }
   llt_head = NULL;
+  llt_count = 0;
 
   /* Create new LLT chain */
 
@@ -1673,6 +1695,7 @@ void rebuild_llt() {
         memcpy(llt->id, lptr->id, lptr->id_len);
         llt->next = llt_head;
         llt_head = llt;
+        llt_count++;
       }
     }
   }

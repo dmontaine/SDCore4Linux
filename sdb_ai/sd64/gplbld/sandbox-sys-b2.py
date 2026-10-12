@@ -8,6 +8,8 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 12 Oct 26 dm  B-1 changed what key 1053 answers: the larger of NUMUSERS and USERPOOL (1023 by default), not NUMUSERS.
+#               The 1053 row compares it with that, and with USERPOOL read through config().
 # 12 Oct 26 dm  Part 2: FILEINFO keys 1022-1040 as the manual numbers them (FL$COLLECTION moved from 1022 to 1035) and
 #               SYSTEM keys 33, 1019, 1033-1035, 1037, 1038, 1040, 1044, 1051-1054, 1057, 1058, 1065, 1070, 1076-1078,
 #               1080-1082.  A helper subroutine is catalogued for the keys that need a caller.
@@ -96,7 +98,8 @@ CASES += [
      "x = system(1034):system(1040):system(1044):system(1051):system(1080)", r"00000"),
     ("1052, 1057, 1058: a process with no phantoms has no children and no parent",
      "x = system(1052):'|':system(1057):'|[':system(1058):']'", r"0\|0\|\[\]"),
-    ("1053 is the highest user number, the user limit; 1054 lists no packages", "x = (system(1053) = system(1013)):'|[':system(1054):']'", r"1\|\[\]"),
+    ("1053 is the highest user number - the user limit, or USERPOOL when that is larger (B-1); 1054 lists no packages",
+     "u = system(1013)\np = config('USERPOOL')\nx = (system(1053) = (if p > u then p else u)):'|[':system(1054):']'", r"1\|\[\]"),
     ("1070: the PRECISION in force", "precision 7\nx = system(1070)", r"7"),
     ("1077 and 1078: as many group names as group numbers, and the effective group (SYSTEM(30)) is among the numbers",
      "x = (dcount(system(1077), @fm) = dcount(system(1078), @fm)):(index(@fm:system(1078):@fm, @fm:system(30):@fm, 1) > 0)", r"11"),
