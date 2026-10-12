@@ -27,8 +27,10 @@
 # an answer the editor waits for is sent too (its "OK to quit?" is Y), because a prompt at the end of the input
 # would otherwise wait for ever.
 
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -37,6 +39,7 @@ TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 RUN = "%05d" % (os.getpid() % 100000)
 A, O, B, D = "zzfa" + RUN, "zzfo" + RUN, "zzfb" + RUN, "zzfd" + RUN
+DR = "zzfr" + RUN                                        # a directory file, whose records are files on disk
 G, TS, PV = "zzfg" + RUN, "zztg" + RUN, "zzfv" + RUN       # a collection file with a trigger, the trigger, its driver
 PW, PP, PX = "zzfw" + RUN, "zzfp" + RUN, "zzfx" + RUN
 passed = failed = 0
@@ -100,6 +103,7 @@ end
 # Text records in the ordinary file: one that is JSON, one that is not.
 TEXTS = """   open '%(o)s' to f else crt 'X not open' ; stop
    write '{"copied":"from text"}' on f, 'good1'
+   write '{"second":"text"}' on f, 'good2'
    write 'this is not json' on f, 'bad1'
    crt 'X wrote good1 and bad1'
 end
@@ -224,6 +228,48 @@ def main():
         out = sess(box, "BASIC bp %s" % PX, "RUN bp %s" % PX, "COMPARE.FILES %s %s DETAIL" % (A, O))
         row("a record changed in the collection file is reported as differing", "Records in both that differ: 1" in out and "Records that are the same: 1" in out, out[-400:])
 
+        say("\n--- COPYP and COPY.LISTP (the Pick style copy: the same program, the destination asked at 'To:') ----")
+        out = sess(box, "COPYP %s r1 (T" % A)
+        row("COPYP ... (T shows a collection record as its JSON, a line to an element, numbered (it stopped with 'Data cannot be converted')",
+            re.search(r'(?m)^0002\s+"city": "Berlin",\s*$', out) is not None and "cannot be converted" not in out, out[-300:])
+        out = sess(box, "COPYP %s r3" % A, "(%s" % O, "CT %s r3" % O)
+        row("COPYP from a collection file to an ordinary file copies the record as its compact JSON text",
+            "1 record(s) copied." in out and re.search(r'(?m)^1: \{"city":"Oslo","n":7,"tags":\["a","b"\]\}\s*$', out) is not None, out[-400:])
+        out = sess(box, "COPYP %s good2" % O, "(%s" % B, "CT %s good2" % B)
+        row("COPYP from an ordinary file to a collection file: text that is a JSON object becomes a collection",
+            "1 record(s) copied." in out and re.search(r'(?m)^  "second": "text"\s*$', out) is not None, out[-400:])
+        out = sess(box, "COPYP %s bad1 (D" % O, "(%s" % B, "COUNT %s" % B, "CT %s bad1" % O)
+        row("...text that is not JSON is refused (error 1020) and COPYP stops", "Error 1020 writing record 'bad1'" in out, out[-300:])
+        row("...D did not delete the source record that was not copied", re.search(r'(?m)^1: this is not json\s*$', out) is not None, out[-300:])
+        row("...and no record 'bad1' was made in the collection file", "3 record(s) counted" in out, out[-300:])
+        out = sess(box, "COPYP %s r2" % A, "(%s" % B, "CT %s r2" % B)
+        row("CONTROL: COPYP between two collection files", "1 record(s) copied." in out and re.search(r'(?m)^  "city": "Lyon"|^  "city": "Rome"', out) is not None, out[-300:])
+        out = sess(box, "COPYP %s good1" % O, "good1x", "CT %s good1x" % O)
+        row("CONTROL: COPYP between ordinary files (a new id in the same file)", "1 record(s) copied." in out and re.search(r'(?m)^1: \{"copied":"from text"\}', out) is not None, out[-300:])
+
+        say("\n--- a collection file and a directory file (records that are files on disk) -------------------------")
+        out = sess(box, "CREATE.FILE %s DIRECTORY" % DR, "COPY FROM %s TO %s r2" % (A, DR))
+        ondisk = os.path.join(sysd, DR, "r2")          # the sandbox session's account is the sys directory
+        try:
+            with open(ondisk, "rb") as fh:
+                text = fh.read().decode("latin-1")
+        except OSError:
+            text = None
+        try:
+            on_disk_ok = text is not None and json.loads(text.strip()) == {"city": "Rome", "n": 10}
+        except ValueError:
+            on_disk_ok = False
+        row("COPY from a collection file to a directory file writes the record as a JSON file on disk",
+            "1 record(s) copied." in out and on_disk_ok, "%r  %s" % (text, out[-200:]))
+        try:
+            with open(os.path.join(sysd, DR, "fromdisk"), "w") as fh:
+                fh.write('{"loaded": ["a", 1, true]}')
+        except OSError:
+            pass                                       # the next row fails by itself, with the output
+        out = sess(box, "COPY FROM %s TO %s fromdisk" % (DR, B), "CT %s fromdisk" % B)
+        row("COPY from a directory file to a collection file loads a JSON file from disk as a collection",
+            "1 record(s) copied." in out and re.search(r'(?m)^  "loaded": \[\s*$', out) is not None, out[-300:])
+
         say("\n--- ED, the line editor ---------------------------------------------------------------------------")
         out = sess(box, "ED %s r2" % A, "P9", "Q")
         row("ED opens a collection record (it stopped with 'Data cannot be converted') as the JSON, one element to a line: 4 lines",
@@ -298,13 +344,18 @@ def main():
     finally:
         say("\n--- cleanup ---------------------------------------------------------------------------------------")
         sess(box, "DELETE.FILE %s" % A, "DELETE.FILE %s" % O, "DELETE.FILE %s" % B, "DELETE.FILE %s" % G,
-             "DELETE.CATALOG %s LOCAL" % TS)
+             "DELETE.FILE %s FORCE" % DR, "DELETE.CATALOG %s LOCAL" % TS)
+        # a directory file is a directory of files, which DELETE.FILE may leave if it holds a file it did not make
+        for dpath in (os.path.join(box, "user_accounts", DR), os.path.join(box, "user_accounts", DR + ".dic"),
+                      os.path.join(sysd, DR), os.path.join(sysd, DR + ".dic")):
+            if os.path.isdir(dpath):
+                shutil.rmtree(dpath)
         for nm in (PW, PP, PX, TS, PV):
             for d in ("bp", "bp.out"):
                 pth = os.path.join(sysd, d, nm)
                 if os.path.exists(pth):
                     os.remove(pth)
-        left = [n for n in (A, O, B, D, G) if any(os.path.exists(os.path.join(box, d, n)) for d in ("sys", "user_accounts"))]
+        left = [n for n in (A, O, B, D, G, DR) if any(os.path.exists(os.path.join(box, d, n)) for d in ("sys", "user_accounts"))]
         row("cleanup: no fixture file is left", not left, " ".join(left))
 
     say("\nsandbox-collfile: %d passed, %d failed" % (passed, failed))
