@@ -36,6 +36,13 @@ CASES = [
     ("207 ADDS works on field marks too", "x = change(adds('1':@fm:'2', '5':@fm:'6'), @fm, '|')", "6|8"),
     ("CONTROL: QUOTE of one string uses double quotes", "x = quote('a')", '"a"'),
     ("11 QUOTES quotes every element", "x = change(quotes('a':@vm:'b'), @vm, '|')", '"a"|"b"'),
+    ("CONTROL: FIELD with a count of 2 from occurrence 2", "x = field('a*b*c*d', '*', 2, 2)", "b*c"),
+    ("212 FIELD with an asterisk count takes everything from the occurrence", "x = field('a*b*c*d', '*', 2, *)", "b*c*d"),
+    ("212 FIELD asterisk from occurrence 1 is the whole string", "x = field('a*b*c*d', '*', 1, *)", "a*b*c*d"),
+    ("212 FIELD asterisk past the last field is null", "x = field('a*b*c*d', '*', 9, *)", ""),
+    ("CONTROL: the [d,i,n] form with a count of 2", "s = 'a*b*c*d'\n   x = s['*', 2, 2]", "b*c"),
+    ("212 the [d,i,*] form takes everything from the occurrence", "s = 'a*b*c*d'\n   x = s['*', 2, *]", "b*c*d"),
+    ("212 an asterisk in an expression is still a multiply", "x = field('a*b*c*d', '*', 2, 1 * 2)", "b*c"),
     ("11 DQUOTES is the same", "x = change(dquotes('a':@vm:'b'), @vm, '|')", '"a"|"b"'),
 ]
 
