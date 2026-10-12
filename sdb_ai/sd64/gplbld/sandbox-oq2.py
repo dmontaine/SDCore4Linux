@@ -328,6 +328,47 @@ def run_verbs(box, sysd, bp):
         row("288: and DELETE.CATALOG deletes the local entry by default", not has(out, r"not found|not in"), out[-300:])
         out = sess(box, "MAP LOCAL")
         row("288: after that no local entry is left", not has(out, r"zzoqlc"), out[-200:])
+
+        # --- 210 CATALOG ... GLOBAL c: the prefix character for names that have none ------------------------
+        gc = os.path.join(bp, "zzoqgp")
+        gd = os.path.join(bp, "zzoqgq")
+        made += [gc, gd]
+        write(gc, "   subroutine zzoqgp(r)\n   r = 'RAN_GP'\n   return\nend\n")
+        write(gd, "   subroutine zzoqgq(r)\n   r = 'RAN_GQ'\n   return\nend\n")
+        gdir = os.path.join(sysd, "gcat")
+        # the kernel stores a * in a file name as %A, so the global entry *zzoqgp is the file %Azzoqgp
+        gnames = ("zzoqgp", "%Azzoqgp", "$zzoqgp", "%Azzoqgq", "!zzoqgq", "%A$zzoqgp")
+        for g in gnames:
+            if os.path.exists(os.path.join(gdir, g)):
+                os.remove(os.path.join(gdir, g))
+        try:
+            out = sess(box, "BASIC bp zzoqgp", "BASIC bp zzoqgq", "CATALOG bp zzoqgp GLOBAL")
+            row("210 CONTROL: GLOBAL with no prefix catalogues under the bare name",
+                os.path.exists(os.path.join(gdir, "zzoqgp")) and not os.path.exists(os.path.join(gdir, "%Azzoqgp")), out[-300:])
+            os.remove(os.path.join(gdir, "zzoqgp"))
+            out = sess(box, "CATALOG bp zzoqgp GLOBAL *")
+            row("210 GLOBAL * puts the prefix on a name that has none",
+                os.path.exists(os.path.join(gdir, "%Azzoqgp")) and not os.path.exists(os.path.join(gdir, "zzoqgp"))
+                and has(out, r"added to global catalogue"), out[-300:])
+            out = sess(box, "CATALOG bp zzoqgp GLOBAL $")
+            row("210 another prefix character, $", os.path.exists(os.path.join(gdir, "$zzoqgp")), out[-300:])
+            os.remove(os.path.join(gdir, "$zzoqgp"))
+            out = sess(box, "CATALOG bp $zzoqgp GLOBAL *")
+            row("210 a name that already has a prefix keeps its own (no ** or *$)",
+                os.path.exists(os.path.join(gdir, "$zzoqgp")) and not os.path.exists(os.path.join(gdir, "%A$zzoqgp")) and not os.path.exists(os.path.join(gdir, "$$zzoqgp")), out[-300:])
+            out = sess(box, "SELECT bp WITH @ID = 'zzoqgq'", "CATALOG bp GLOBAL !")
+            row("210 with a select list the prefix is put on each program",
+                os.path.exists(os.path.join(gdir, "!zzoqgq")), out[-300:])
+            out = sess(box, "CATALOG bp zzoqgq GLOBAL ?")
+            row("210 a character that is not a prefix is refused and nothing is catalogued",
+                not os.path.exists(os.path.join(gdir, "?zzoqgq")) and not os.path.exists(os.path.join(gdir, "zzoqgq")), out[-300:])
+            out = sess(box, "CATALOG bp zzoqgp LOCAL *")
+            row("210 a prefix without GLOBAL is refused", not has(out, r"added to local catalogue"), out[-300:])
+            sess(box, "DELETE.CATALOG zzoqgp LOCAL")
+        finally:
+            for g in gnames:
+                if os.path.exists(os.path.join(gdir, g)):
+                    os.remove(os.path.join(gdir, g))
         hd = os.path.join(sysd, "zzoqhd")
         sess(box, "DELETE.FILE zzoqhd", "CREATE.FILE zzoqhd DIRECTORY")
         write(os.path.join(hd, "visible"), "x\n")
