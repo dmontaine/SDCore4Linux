@@ -388,6 +388,11 @@ void op_fileinfo() {
         /* Recognised but returns default zero */
         break;
 
+      case FL_COLLECTION: /* 1022  Data collection file? */
+        if (dynamic)
+          n = ((fptr->flags & DHF_COLLECTION) != 0);
+        break;
+
       case FL_HOLDERS: /* 1021  Which sessions hold this file open? */
         /* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.
 

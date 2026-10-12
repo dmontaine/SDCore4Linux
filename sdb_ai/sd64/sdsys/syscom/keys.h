@@ -71,6 +71,7 @@
 *     commas.  Empty when nothing else has it, which is a real answer and not a
 *     failure: the obstacle is this session's own cached reference.
       $define FL$HOLDERS     1021  ;* Sessions holding this file open
+      $define FL$COLLECTION  1022  ;* Data collection file? (13 Oct 26, mirrored from gplsrc/keys.h)
       
       * PRINTER.SETTING() function keys
       * This function is obsolete - Use GETPU() and SETPU()
@@ -275,6 +276,7 @@
       $define JB$NOQUOTE.NAME          16   ;* Names with no quotes
       $define JB$SQUOTE.VALUE          32   ;* String values in single quotes
       $define JB$NOQUOTE.VALUE         64   ;* String values with no quotes
+      $define JB$PRETTY                128  ;* SD's own: one element to a line, indented (used by CT)
 
       * OBJINFO() keys
       $define OI$ISOBJ                 0    ;* Is descriptor an object

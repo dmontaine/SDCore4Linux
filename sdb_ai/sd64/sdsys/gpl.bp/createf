@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 13 Oct 26 dm  COLLECTION makes a data collection file (the DHF_COLLECTION header bit):
+*               READ gives a collection and WRITE takes one.
 * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): every file is
 *               made NO.CASE by the kernel; CASE is refused outside internal mode
 *               (10176); the dictionary part carries the same request.
@@ -54,6 +56,8 @@
 *    CASE                   case sensitive ids - internal mode only, for the
 *                           upgrade witness; refused otherwise (10176)
 *    NO.RESIZE              disable file resizing
+*    COLLECTION             a data collection file: its records are data
+*                           collections (JSON text on disk)
 *
 * END-DESCRIPTION
 *
@@ -85,6 +89,7 @@ $define default.split.load 80
    create.data = @true
    file.type = FL$TYPE.DH
    no.case = @false
+   collection.file = @false
    keep.case = @false
    dir.name = ""
    dir.name.with.delimiter = ""
@@ -307,6 +312,10 @@ $define default.split.load 80
                stop sysmsg(6117) ;* Invalid file version
             end
             version.value = value + 0
+
+         * ---------- COLLECTION  (13 Oct 26 dm, data collections: records are collections, read and written as such)
+         case keyword = KW$COLLECTION and file.type # FL$TYPE.DIR
+            collection.file = @true
 
          case upcase(token) = 'COMMENT'       ;* 12 Oct 26 dm - openQM 383: COMMENT text  (quote it if it has spaces)
             call @parser(PARSER$GET.TOKEN, token.type, voc.comment, keyword)
@@ -538,6 +547,7 @@ $define default.split.load 80
 
       file.flags = case.flags
       if no.resize then file.flags = bitor(file.flags, FL$FLAGS.NORESIZE)
+      if collection.file then file.flags = bitor(file.flags, FL$FLAGS.COLLECTION)
 
       begin case
          case file.type = FL$TYPE.DH

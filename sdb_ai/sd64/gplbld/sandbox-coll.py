@@ -26,6 +26,7 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 passed = failed = 0
 
 C = "c = collection()\n   "
+OPENF = "open 'zzcf' to f else stop 'no zzcf'\n   "
 
 # (label, BASIC statements one per line leaving the value in x, wanted)   wanted starting with "ERR:" is a text the
 # output must hold because the program must stop with a run time error.
@@ -265,6 +266,40 @@ CASES = [
     ("a subroutine can make a collection and hand it back through an argument", "call zzcsub2(r)\n   x = r{'a'}:'|':jtype(r)", "1|collection"),
     ("calling a subroutine again and again with collections of its own is safe",
      "for i = 1 to 300\n   call zzcsub3(i, t)\n   next i\n   x = t", "300"),
+    # ---- data collection files: CREATE.FILE ... COLLECTION -------------------------------------------------------
+    ("the COLLECTION flag shows in the file's flags, and an ordinary file has none",
+     "$include keys.h\n   open 'zzcf' to f else stop 'no zzcf'\n   open 'zzcn' to g else stop 'no zzcn'\n   x = fileinfo(f, fl$collection):'|':fileinfo(g, fl$collection)", "1|0"),
+    ("WRITE takes a collection and READ gives one back",
+     OPENF + "c = collection()\n   c{'name'} = 'Acme'\n   c{'n'} = 5\n   c{'a/b'} = 'deep'\n   write c on f, 'r1'\n"
+     "   read d from f, 'r1' else stop 'not read'\n   x = d{'name'}:'|':d{'n'} + 1:'|':d{'a/b'}:'|':jtype(d)", "Acme|6|deep|collection"),
+    ("what is read is a copy: changing it changes nothing until it is written",
+     OPENF + "c = collection()\n   c{'k'} = 'one'\n   write c on f, 'r2'\n   read d from f, 'r2' else stop 'not read'\n   d{'k'} = 'two'\n"
+     "   read e from f, 'r2' else stop 'not read'\n   x = e{'k'}", "one"),
+    ("the collection written is the collection read, JSON and all",
+     OPENF + "c = jparse('{\"l\":[1,2.5,\"x\"],\"o\":{\"t\":true,\"n\":null,\"s\":\"a\\u00e9\"}}')\n   write c on f, 'r3'\n"
+     "   read d from f, 'r3' else stop 'not read'\n   x = (jbuild(d) = jbuild(c)):'|':jbuild(d)", "1|{\"l\":[1,2.5,\"x\"],\"o\":{\"n\":null,\"s\":\"a\\u00e9\",\"t\":true}}"),
+    ("an array is a record too", OPENF + "c = mat()\n   c{1} = 'p'\n   c{2} = 'q'\n   write c on f, 'r4'\n   read d from f, 'r4' else stop 'not read'\n   x = jtype(d):'|':inmat(d):'|':d{2}", "array|2|q"),
+    ("JSON text written to the file is accepted and read back as a collection",
+     OPENF + "write '{\"a\":1}' on f, 'r5'\n   read d from f, 'r5' else stop 'not read'\n   x = d{'a'}", "1"),
+    ("a record that is not there takes the ELSE", OPENF + "read d from f, 'nope' then x = 'found' else x = 'missing'", "missing"),
+    ("READU, change, WRITEU", OPENF + "c = collection()\n   c{'n'} = 5\n   write c on f, 'r6'\n   readu d from f, 'r6' else stop 'not read'\n   d{'n'} += 1\n"
+     "   writeu d on f, 'r6'\n   read e from f, 'r6' else stop 'not read'\n   x = e{'n'}", "6"),
+    ("DELETE and the record is gone", OPENF + "c = collection()\n   write c on f, 'r7'\n   delete f, 'r7'\n   read d from f, 'r7' then x = 'found' else x = 'gone'", "gone"),
+    ("an empty collection is a record", OPENF + "c = collection()\n   write c on f, 'r8'\n   read d from f, 'r8' else stop 'not read'\n   x = jtype(d):'|':inmat(d)", "collection|0"),
+    ("a collection read from one file can be written to another",
+     OPENF + "c = collection()\n   c{'k'} = 'v'\n   write c on f, 'r9'\n   open 'zzcf2' to f2 else stop 'no zzcf2'\n   read d from f, 'r9' else stop 'not read'\n"
+     "   write d on f2, 'copy'\n   read e from f2, 'copy' else stop 'not read'\n   x = e{'k'}", "v"),
+    ("a transaction can write and read a collection",
+     OPENF + "c = collection()\n   c{'t'} = 'in txn'\n   begin transaction\n   recordlocku f, 'tx1'\n   write c on f, 'tx1'\n   read d from f, 'tx1' else stop 'not read in'\n   commit\n   end transaction\n"
+     "   read e from f, 'tx1' else stop 'not read after'\n   x = d{'t'}:'|':e{'t'}", "in txn|in txn"),
+    ("ERR: a collection cannot be written to an ordinary file",
+     "open 'zzcn' to g else stop 'no zzcn'\n   c = collection()\n   write c on g, 'x'", "ERR:Data cannot be converted to a string"),
+    ("ERR: text that is not JSON cannot be written to a collection file", OPENF + "write 'not json' on f, 'bad'", "ERR:writing record"),
+    ("ERR: nor can JSON that is only a number", OPENF + "write '5' on f, 'bad'", "ERR:writing record"),
+    ("ERR: a collection with something in it that has no JSON form cannot be written",
+     OPENF + "c = collection()\n   c{'f'} = f\n   write c on f, 'bad'", "ERR:writing record"),
+    ("ERR: MATREAD makes no sense on a collection file", OPENF + "dim m(3)\n   c = collection()\n   write c on f, 'm1'\n   matread m from f, 'm1' else stop 'x'", "ERR:cannot be used on a data collection file"),
+    ("ERR: READV of a field of a collection file", OPENF + "c = collection()\n   write c on f, 'v1'\n   readv x from f, 'v1', 1 else stop 'x'", "ERR:"),
     ("ERR: a variable that is not a collection cannot take an element", "n = 5\n   n{'a'} = 1", "ERR:not a data collection"),
     ("ERR: nor can one be read from it", "n = 5\n   x = n{'a'}", "ERR:not a data collection"),
     ("ERR: an element cannot be added below a value that is not a collection",
@@ -310,6 +345,70 @@ def sess(box, *cmds):
     return out.split(":TERM 200,9999", 1)[-1]
 
 
+# ---- the query processor on a data collection file ----------------------------------------------------------------
+# A file zzcq of three records and a dictionary of E-type items is made, then SD commands are run against it.
+# (label, command, [regexes the output must match], [regexes it must not match])
+QUERY_SETUP = """   execute 'DELETE.FILE zzcq' capturing j0
+   execute 'CREATE.FILE zzcq COLLECTION' capturing j1
+   open 'zzcq' to f else stop 'no zzcq'
+   open 'DICT zzcq' to d else stop 'no dict'
+   open 'DICT zzcn' to dn else stop 'no dict zzcn'
+   write jparse('{"name":"Acme","city":"Paris","n":3,"tags":["a","b"],"items":[{"p":"x","q":1},{"p":"y","q":2}]}') on f, 'r1'
+   write jparse('{"name":"Beta","city":"Rome","n":10,"tags":["c"],"items":[{"p":"z","q":5}]}') on f, 'r2'
+   write jparse('{"name":"Cargo","city":"Paris","n":7,"tags":[],"items":[]}') on f, 'r3'
+   write 'E':@fm:'name':@fm:'':@fm:'Name':@fm:'10L':@fm:'S' on d, 'NAME'
+   write 'E':@fm:'city':@fm:'':@fm:'City':@fm:'8L':@fm:'S' on d, 'CITY'
+   write 'E':@fm:'n':@fm:'':@fm:'N':@fm:'5R':@fm:'S' on d, 'N'
+   write 'E':@fm:'tags/*':@fm:'':@fm:'Tags':@fm:'6L':@fm:'M' on d, 'TAGS'
+   write 'E':@fm:'items/*/p':@fm:'':@fm:'Prod':@fm:'6L':@fm:'M' on d, 'PRODS'
+   write 'D':@fm:'1':@fm:'':@fm:'Dnum':@fm:'6L':@fm:'S' on d, 'DNUM'
+   write 'E':@fm:'name':@fm:'':@fm:'Name':@fm:'10L':@fm:'S' on dn, 'ENAME'
+   crt 'QUERY SETUP DONE'
+end
+"""
+
+QUERIES = [
+    ("LIST gives the elements an E-type item names", "LIST zzcq NAME CITY ID.SUP",
+     [r"Acme\s+Paris", r"Beta\s+Rome", r"Cargo\s+Paris"], [r"Error|not valid"]),
+    ("the record id is the id", "LIST zzcq NAME", [r"(?m)^r1\s+Acme", r"(?m)^r2\s+Beta", r"(?m)^r3\s+Cargo"], []),
+    ("WITH selects on an element", 'LIST zzcq NAME WITH CITY = "Paris" ID.SUP', [r"Acme", r"Cargo"], [r"Beta"]),
+    ("a number in an element compares as a number", "LIST zzcq NAME WITH N > 5 ID.SUP", [r"Beta", r"Cargo"], [r"Acme"]),
+    ("BY.DSND sorts on an element", "SORT zzcq NAME N BY.DSND N ID.SUP", [r"(?s)Beta.*Cargo.*Acme"], []),
+    ("BY sorts the other way", "SORT zzcq NAME BY N ID.SUP", [r"(?s)Acme.*Cargo.*Beta"], []),
+    ("an asterisk path is a multivalued item", "LIST zzcq TAGS ID.SUP", [r"(?s)a\s+b\s+c"], []),
+    ("a path through arrays of collections", "LIST zzcq PRODS ID.SUP", [r"(?s)x\s+y\s+z"], []),
+    ("COUNT with a WITH clause", 'COUNT zzcq WITH CITY = "Paris"', [r"2 record\(s\) counted"], []),
+    ("SELECT with a WITH clause", 'SELECT zzcq WITH CITY = "Rome"', [r"1 record\(s\) selected"], []),
+    ("SEARCH finds text in the JSON of a record", 'SEARCH zzcq FOR "Rome"', [r"1 record\(s\) selected"], []),
+    ("SEARCH finds text that is deeper down", 'SEARCH zzcq FOR "z"', [r"1 record\(s\) selected"], []),
+    ("CT shows a record as JSON, one element to a line",
+     "CT zzcq r1", [r'zzcq r1', r'(?m)^\{$', r'(?m)^  "city": "Paris",$', r'(?m)^  "items": \[$', r'(?m)^    \{$', r'(?m)^      "p": "x",$',
+                    r'(?m)^  "tags": \[$', r'(?m)^\}$'], []),
+    ("CT of an empty array and collection keeps them on one line", "CT zzcq r3", [r'(?m)^  "items": \[\],$', r'(?m)^  "tags": \[\]$'], []),
+    ("a D-type item with a field number is refused", "LIST zzcq DNUM", [r"refers to a field number, which a data collection file does not have"], []),
+    ("an E-type item on an ordinary file is refused", "LIST zzcn ENAME", [r"can only be used with a data collection file"], []),
+    ("COPY of a record to another collection file", "COPY FROM zzcq TO zzcq2 r1", [r"1 record\(s\) copied"], []),
+]
+
+
+def run_queries(box, sysd, names):
+    say("\n--- the query processor on a collection file -------------------------------------")
+    setup = os.path.join(sysd, "bp", "zzcoqs")
+    names.append("zzcoqs")
+    with open(setup, "w") as f:
+        f.write(QUERY_SETUP)
+    out = sess(box, "DELETE.FILE zzcq", "DELETE.FILE zzcq2", "DELETE.FILE zzcn", "CREATE.FILE zzcq2 COLLECTION", "CREATE.FILE zzcn",
+               "BASIC bp zzcoqs", "RUN bp zzcoqs")
+    row("setup: the query file and its dictionary were made", "QUERY SETUP DONE" in out, out[-400:])
+    if "QUERY SETUP DONE" not in out:
+        return
+    for label, cmd, must, mustnot in QUERIES:
+        text = sess(box, cmd)
+        ok = all(re.search(rx, text) for rx in must) and not any(re.search(rx, text) for rx in mustnot)
+        row(label, ok, "wanted %r, not %r; output: %s" % (must, mustnot, text[-600:]))
+    sess(box, "DELETE.FILE zzcq", "DELETE.FILE zzcq2", "DELETE.FILE zzcn")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -328,7 +427,10 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    cmds, names = [], []
+    # Files the cases use: two collection files and an ordinary one.  Made fresh, removed at the end.
+    FILES = ["zzcf COLLECTION", "zzcf2 COLLECTION", "zzcn"]
+    cmds, names = ["DELETE.FILE %s" % fl.split()[0] for fl in FILES], []
+    cmds += ["CREATE.FILE %s" % fl for fl in FILES]
     for sub, src in SUBS.items():
         names.append(sub)
         with open(os.path.join(sysd, "bp", sub), "w") as f:
@@ -341,6 +443,7 @@ def main():
             f.write("   x = ''\n   " + "".join("%s\n   " % ln for ln in body.split("\n")) + "crt 'C%02d[':x:']'\nend\n" % i)
         cmds += ["BASIC bp %s" % nm, "RUN bp %s" % nm]
     cmds += ["DELETE.CATALOG %s LOCAL" % sub for sub in SUBS]
+    cmds += ["DELETE.FILE %s" % fl.split()[0] for fl in FILES]
     try:
         out = sess(box, *cmds)
         try:
@@ -366,6 +469,7 @@ def main():
                 m = re.search(r"(?m)^C%02d\[(.*)\]\s*$" % i, seg)
                 got = m.group(1) if m else None
                 row("%s: wanted %r" % (label, want), got == want, "got %r  %s" % (got, seg[-200:]) if not m else "got %r" % got)
+        run_queries(box, sysd, names)
     finally:
         for nm in names:
             for d in ("bp", "bp.out"):
