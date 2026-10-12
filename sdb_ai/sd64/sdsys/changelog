@@ -1,6 +1,31 @@
 Next release - in progress
 --------------------------
 
+11 Oct 26  AN INDEX NOW FOLLOWS THE RECORD ID AS THE FILE HOLDS IT (a kernel
+           change, so it needs a rebuild).  The fault is in L1.1-3, where every
+           file is case insensitive and so every index was affected.
+
+           An alternate key index (CREATE.INDEX, BUILD.INDEX) was kept up to
+           date with an upper case copy of the record id, while BUILD.INDEX
+           and everything else use the id as the file holds it, which in SD
+           is normally lower case.  So once an index had been built, a record
+           written to the file was entered in it as R4 when the file held r4;
+           deleting a record left it in the index, because the delete looked
+           for R3 and the index held r3; and changing a record left its old
+           entry where it was and added a second one under the upper case id.
+           A selection through the index then listed ids that were not in the
+           file, or records that had gone.  The index now gets the id the file
+           holds, whatever case the program used to write or delete it.
+
+           A related change: record ids are not case sensitive, so writing R2
+           over a record held as r2 replaces it.  The record kept the spelling
+           it was first written with, unless the new data was a different size,
+           when it took the spelling of the program that wrote it.  It now
+           always keeps the first spelling.
+
+           An index that was damaged by the old behaviour is not repaired by
+           the update: BUILD.INDEX file ITEM rebuilds it from the file.
+
 13 Oct 26  INDICES ON E-TYPE ITEMS (1.2-0, openQM compatibility; a kernel
            change, so it needs a rebuild).
 

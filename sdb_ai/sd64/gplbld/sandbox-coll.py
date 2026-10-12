@@ -452,9 +452,9 @@ def run_queries(box, sysd, names):
     row("TRANS() from a program takes an E-type item by name, a path with * as a list, and an unknown name as null",
         bool(m) and m.group(1) == "Beta|a~b||7|||1", "got %r  %s" % (m.group(1) if m else None, text[-300:]))
     # Indices on E-type items
-    # A file of its own with upper case ids: the index code is given a record id in upper case whatever its
-    # case (dh_write.c, dh_del.c), which is a fault of every index, not of collections, so the ids here are
-    # ones that upper casing leaves alone.
+    # A file of its own, with lower case ids as everywhere in SD.  Until 11 Oct 26 dh_write.c and dh_del.c gave the
+    # index code the id upper-cased, which broke every index (sandbox-akcase.py), so these rows used ids that
+    # upper casing leaves alone; they are the ordinary ones now.
     xs = os.path.join(sysd, "bp", "zzcoxs")
     names.append("zzcoxs")
     with open(xs, "w") as f:
@@ -463,9 +463,9 @@ def run_queries(box, sysd, names):
                 "   write 'E':@fm:'city':@fm:'':@fm:'City':@fm:'8L':@fm:'S' on d, 'CITY'\n"
                 "   write 'E':@fm:'tags/*':@fm:'':@fm:'Tags':@fm:'6L':@fm:'M' on d, 'TAGS'\n"
                 "   write 'D':@fm:'1':@fm:'':@fm:'Dnum':@fm:'6L':@fm:'S' on d, 'DNUM'\n"
-                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"a\",\"b\"]}') on f, 'R1'\n"
-                "   write jparse('{\"city\":\"Rome\",\"tags\":[\"c\"]}') on f, 'R2'\n"
-                "   write jparse('{\"city\":\"Paris\",\"tags\":[]}') on f, 'R3'\nend\n")
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"a\",\"b\"]}') on f, 'r1'\n"
+                "   write jparse('{\"city\":\"Rome\",\"tags\":[\"c\"]}') on f, 'r2'\n"
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[]}') on f, 'r3'\nend\n")
     out = sess(box, "BASIC bp zzcoxs", "RUN bp zzcoxs", "CREATE.INDEX zzcx CITY", "CREATE.INDEX zzcx TAGS", "BUILD.INDEX zzcx CITY",
                "BUILD.INDEX zzcx TAGS", "LIST.INDEX zzcx")
     row("indices on two E-type items (one with an asterisk path) are made and built",
@@ -479,9 +479,9 @@ def run_queries(box, sysd, names):
                 "   selectindex 'TAGS', 'c' from f to 7\n   readlist u from 7 else u = ''\n"
                 "   x = change(p, @fm, ',') : '|' : change(t, @fm, ',') : '|' : change(u, @fm, ',')\n"
                 "   * a new record, a changed one and a deleted one: the index follows each\n"
-                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"b\"]}') on f, 'R4'\n"
-                "   c = jparse('{\"city\":\"Rome\",\"tags\":[\"a\",\"b\"]}')\n   write c on f, 'R1'\n"
-                "   delete f, 'R3'\n"
+                "   write jparse('{\"city\":\"Paris\",\"tags\":[\"b\"]}') on f, 'r4'\n"
+                "   c = jparse('{\"city\":\"Rome\",\"tags\":[\"a\",\"b\"]}')\n   write c on f, 'r1'\n"
+                "   delete f, 'r3'\n"
                 "   selectindex 'CITY', 'Paris' from f to 5\n   readlist p from 5 else p = ''\n"
                 "   selectindex 'CITY', 'Rome' from f to 6\n   readlist q from 6 else q = ''\n"
                 "   selectindex 'TAGS', 'b' from f to 7\n   readlist t from 7 else t = ''\n"
@@ -491,9 +491,24 @@ def run_queries(box, sysd, names):
     m1 = re.search(r"(?m)^IX1\[(.*)\]\s*$", text)
     m2 = re.search(r"(?m)^IX2\[(.*)\]\s*$", text)
     row("SELECTINDEX on an E-type index gives the records that have the value (a path with * gives each element)",
-        bool(m1) and m1.group(1) == "R1,R3|R1|R2", "got %r  %s" % (m1.group(1) if m1 else None, text[-400:]))
+        bool(m1) and m1.group(1) == "r1,r3|r1|r2", "got %r  %s" % (m1.group(1) if m1 else None, text[-400:]))
     row("the index follows a new record, a change and a delete",
-        bool(m2) and m2.group(1) == "R4|R1,R2|R1,R4", "got %r  %s" % (m2.group(1) if m2 else None, text[-400:]))
+        bool(m2) and m2.group(1) == "r4|r1,r2|r1,r4", "got %r  %s" % (m2.group(1) if m2 else None, text[-400:]))
+    # The query processor takes a WITH clause by the index: DEBUGGING prints how far into the selection elements the
+    # clause that no index can take starts (non.ak.selection.index, 1 when no clause is taken by an index).  The control
+    # is the same command after the index is deleted.  The OPTION and the command go in one session, the LIST last
+    # (a LIST with a pager eats the line after it).
+    text = sess(box, "OPTION $QUERY.DEBUG", 'LIST zzcx WITH CITY = "Paris" DEBUGGING')
+    m = re.search(r"non\.ak\.selection\.index = (\d+)", text)
+    say("    with the index:    non.ak.selection.index = %s" % (m.group(1) if m else "not printed"))
+    row("a WITH clause on an E-type item with an index is taken by the index (non.ak.selection.index is not 1)",
+        bool(m) and m.group(1) != "1", "got %r  %s" % (m.group(1) if m else None, text[-400:]))
+    sess(box, "DELETE.INDEX zzcx CITY")
+    text = sess(box, "OPTION $QUERY.DEBUG", 'LIST zzcx WITH CITY = "Paris" DEBUGGING')
+    m = re.search(r"non\.ak\.selection\.index = (\d+)", text)
+    say("    without the index: non.ak.selection.index = %s" % (m.group(1) if m else "not printed"))
+    row("CONTROL: the same clause with the index deleted is not (non.ak.selection.index is 1)",
+        bool(m) and m.group(1) == "1", "got %r  %s" % (m.group(1) if m else None, text[-400:]))
     text = sess(box, "CREATE.INDEX zzcx DNUM")
     row("an index on a D-type item with a field number is refused on a collection file",
         re.search(r"refers to a field number, which a data collection file does not have", text) is not None, text[-300:])
