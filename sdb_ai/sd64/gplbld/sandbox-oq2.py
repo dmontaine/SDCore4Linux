@@ -712,6 +712,108 @@ def run_verbs(box, sysd, bp):
                 os.remove(os.path.join(hold, nm))
         sess(box, "SETPTR 0,80,60,0,0,1,BRIEF")
 
+        # --- PTERM MARK (155, 254): ctrl-\ ctrl-] ctrl-^ typed become SM VM FM -------------------------------------
+        write(probe, "   a = keyin() ; b = keyin() ; c = keyin()\n   crt 'KEYS[':seq(a):'/':seq(b):'/':seq(c):']'\nend\n")
+        keys = "\x1c\x1d\x1e"
+        t = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1", keys)
+        row("155 CONTROL: by default ctrl-\\ ctrl-] ctrl-^ arrive as characters 28, 29 and 30", has(t, r"KEYS\[28/29/30\]"), t[-300:])
+        t = sess(box, "PTERM MARK ON", "BASIC bp zzoqp1", "RUN bp zzoqp1", keys)
+        row("155: after PTERM MARK ON they arrive as the subvalue, value and field marks (252, 253, 254), in that order",
+            has(t, r"KEYS\[252/253/254\]"), t[-300:])
+        t = sess(box, "PTERM MARK ON", "PTERM MARK OFF", "BASIC bp zzoqp1", "RUN bp zzoqp1", keys)
+        row("155: PTERM MARK OFF puts it back", has(t, r"KEYS\[28/29/30\]"), t[-300:])
+        write(probe, "   a = keyin() ; b = keyin() ; c = keyin() ; d = keyin()\n   crt 'KEYS[':seq(a):'/':seq(b):'/':seq(c):'/':seq(d):']'\nend\n")
+        t = sess(box, "PTERM MARK ON", "BASIC bp zzoqp1", "RUN bp zzoqp1", "\x1bA\x1b\x1f")
+        row("155: no other character is touched (27, 65, 27, 31 stay as they are)", has(t, r"KEYS\[27/65/27/31\]"), t[-300:])
+        t = sess(box, "PTERM MARK")
+        row("155: PTERM MARK alone says it is off", has(t, r"Mark translation: Off"), t[-300:])
+        t = sess(box, "PTERM MARK ON", "PTERM MARK")
+        row("155: ...and on, once it is", has(t, r"Mark translation: On"), t[-300:])
+        t = sess(box, "PTERM DISPLAY")
+        row("155: PTERM DISPLAY reports it too", has(t, r"Mark translation: Off"), t[-300:])
+        t = sess(box, "PTERM MARK SIDEWAYS")
+        row("155: any other word is refused", has(t, r"Unrecognised option \(SIDEWAYS\)"), t[-300:])
+        write(probe, "   input s\n   crt 'IN[':change(change(change(s, @sm, '<SM>'), @vm, '<VM>'), @fm, '<FM>'):']'\nend\n")
+        t = sess(box, "PTERM MARK ON", "BASIC bp zzoqp1", "RUN bp zzoqp1", "a\x1cb\x1dc\x1ed")
+        row("155: INPUT receives the marks as well", has(t, r"IN\[a<SM>b<VM>c<FM>d\]"), t[-300:])
+
+        # --- PTERM ERASE, CTRL.FILTER and QUERY (253) ------------------------------------------------------------
+        inp = ("   input s\n   o = ''\n   for i = 1 to len(s)\n      n = seq(s[i, 1])\n"
+               "      if n < 32 or n = 127 then o := '<':n:'>' else o := s[i, 1]\n   next i\n   crt 'IN[':o:']'\nend\n")
+        write(probe, inp)
+
+        def typed(setup, line):
+            """Run the INPUT probe after the PTERM commands in setup, typing line; returns what INPUT stored (control characters as <n>)."""
+            t = sess(box, *(list(setup) + ["BASIC bp zzoqp1", "RUN bp zzoqp1", line]))
+            m = re.search(r"(?m)^IN\[(.*)\]\s*$", t)
+            return (m.group(1) if m else None), t
+
+        got, t = typed([], "ab\x08c")
+        row("253 CONTROL: by default INPUT erases on ctrl-H", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed([], "ab\x7fc")
+        row("253 CONTROL: ...and on DEL (PAL-21)", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE ON"], "ab\x08c")
+        row("253: PTERM ERASE ON makes ctrl-H the erase key", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE ON"], "ab\x7fc")
+        row("253: ...and DEL then is an ordinary character", got == "ab<127>c", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE 127"], "ab\x7fc")
+        row("253: PTERM ERASE 127 makes DEL the erase key", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE 127"], "ab\x08c")
+        row("253: ...and ctrl-H then is not", got == "ab<8>c", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE ^D"], "ab\x04c")
+        row("253: PTERM ERASE ^D names a control key by its letter", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE OFF"], "ab\x08c")
+        row("253: PTERM ERASE OFF leaves INPUT with no erase key: ctrl-H is data", got == "ab<8>c", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE OFF"], "ab\x7fc")
+        row("253: ...and so is DEL", got == "ab<127>c", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM ERASE OFF", "PTERM ERASE DEFAULT"], "ab\x7fc")
+        row("253: PTERM ERASE DEFAULT puts it back as it started", got == "ac", "%r %s" % (got, t[-200:]))
+        t = sess(box, "PTERM ERASE", "PTERM ERASE ON", "PTERM ERASE", "PTERM ERASE 127", "PTERM ERASE", "PTERM ERASE OFF", "PTERM ERASE")
+        row("253: PTERM ERASE alone says which key it is (default, character 8 (^H), 127 (DEL), off)",
+            has(t, r"Erase key: Default") and has(t, r"Erase key: character 8 \(\^H\)") and has(t, r"Erase key: character 127 \(DEL\)")
+            and has(t, r"Erase key: Off"), t[-500:])
+        t = sess(box, "PTERM ERASE 40")
+        row("253: a character outside 1 - 31 and 127 is refused", has(t, r"Erase character must be in range 1 - 31 or 127"), t[-300:])
+        t = sess(box, "PTERM ERASE ^~")
+        row("253: ...so is a ^ key that is not a control key", has(t, r"Invalid erase key"), t[-300:])
+        t = sess(box, "PTERM ERASE SIDEWAYS")
+        row("253: ...and any other word", has(t, r"Unrecognised option \(SIDEWAYS\)"), t[-300:])
+        t = sess(box, "PTERM ERASE 127", "PTERM CTRL.FILTER ON", "PTERM DISPLAY")
+        row("253: PTERM DISPLAY reports the erase key and the control filter", has(t, r"Erase key: character 127") and has(t, r"Control character filter: On"), t[-600:])
+
+        got, t = typed([], "a\x01b")
+        row("253 CONTROL: by default INPUT keeps a control character it does not know", got == "a<1>b", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM CTRL.FILTER ON"], "a\x01b\x1bc")
+        row("253: PTERM CTRL.FILTER ON discards them", got == "abc", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM CTRL.FILTER ON"], "ab\x08c")
+        row("253: ...but not the erase key", got == "ac", "%r %s" % (got, t[-200:]))
+        got, t = typed(["PTERM CTRL.FILTER ON", "PTERM CTRL.FILTER OFF"], "a\x01b")
+        row("253: PTERM CTRL.FILTER OFF puts it back", got == "a<1>b", "%r %s" % (got, t[-200:]))
+        t = sess(box, "PTERM CTRL.FILTER", "PTERM CTRL.FILTER ON", "PTERM CTRL.FILTER")
+        row("253: PTERM CTRL.FILTER alone says which", has(t, r"Control character filter: Off") and has(t, r"Control character filter: On"), t[-400:])
+        # a nested command level has a setting of its own, starting off
+        outer = os.path.join(bp, "zzoqp1")
+        inner = os.path.join(bp, "zzoqp2")
+        made.append(inner)
+        write(inner, inp.replace("crt 'IN['", "crt 'INNER['"))
+        write(outer, ("   input s\n   o = ''\n   for i = 1 to len(s)\n      n = seq(s[i, 1])\n"
+                      "      if n < 32 or n = 127 then o := '<':n:'>' else o := s[i, 1]\n   next i\n   crt 'OUTER[':o:']'\n"
+                      "   execute 'RUN bp zzoqp2'\nend\n"))
+        t = sess(box, "PTERM CTRL.FILTER ON", "BASIC bp zzoqp2", "BASIC bp zzoqp1", "RUN bp zzoqp1", "a\x01b", "c\x01d")
+        row("253: the filter is set for one command level: the program's INPUT drops the control character, a RUN under EXECUTE keeps it",
+            has(t, r"OUTER\[ab\]") and has(t, r"INNER\[c<1>d\]"), t[-500:])
+        write(probe, inp)
+        # Over the pipe every byte is there at once, so the whole of the rest of the input is ONE "key": what the
+        # rows can check is the way a sequence is shown, and that the end of the input ends the command.
+        t = sess(box, "PTERM QUERY", "\x1b[A")
+        row("253: PTERM QUERY shows the bytes of a key in hex and in terminfo form (the cursor-up sequence ESC [ A)",
+            has(t, r"Received: 1B 5B 41 0D") and has(t, r"As characters: \.\[A\.") and has(t, r"Terminfo form: \\E\[A\\R"), t[-600:])
+        t = sess(box, "PTERM QUERY", "\x04")
+        row("253: ...a control key as ^D (a sequence of more than one character is shown in terminfo form whatever it is)",
+            has(t, r"Received: 04 0D") and has(t, r"Terminfo form: \^D\\R"), t[-600:])
+        t = sess(box, "PTERM QUERY")
+        row("253: ...with the prompt line, and the end of the input ends it", has(t, r"Press keys to see what they send"), t[-300:])
+
         # --- SEARCH ... DISPLAY, SCAN and STRINGS (437, 447, 141) ------------------------------------------------
         write(probe, ("   execute 'CREATE.FILE zzoqsc' capturing j1\n   execute 'CREATE.FILE zzoqst' capturing j2\n"
                       "   open 'zzoqsc' to f else stop 'no file'\n   open 'zzoqst' to g else stop 'no strings file'\n"
