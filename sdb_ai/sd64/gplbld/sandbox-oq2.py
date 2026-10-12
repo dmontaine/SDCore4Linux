@@ -1321,6 +1321,62 @@ def run_verbs(box, sysd, bp):
         ids, listing = left_in_sv()
         row("450: from the pick list: dive in, delete, and the list goes on without it",
             "rec3" not in ids and len(ids) == 2 and has(text, r"2 items|<No items>|rec4|rec5"), "%r %s" % (ids, text[-400:]))
+
+        # --- SP.VIEW file BY field: the pick list's sort clause; Return and Esc-Z in a record -------------------------
+        write(probe, ("   execute 'CREATE.FILE zzoqsw' capturing j1\n"
+                      "   execute 'CREATE.FILE zzoqsx' capturing j1\n"
+                      "   open 'zzoqsw' to f else stop 'no zzoqsw'\n"
+                      "   open 'zzoqsx' to g else stop 'no zzoqsx'\n"
+                      "   open 'DICT zzoqsw' to df else stop 'no dict'\n"
+                      "   open 'DICT zzoqsx' to dg else stop 'no dict'\n"
+                      "   d = 'D':@fm:'1':@fm:'':@fm:'Name':@fm:'10L':@fm:'S'\n"
+                      "   write d to df, 'name'\n   write d to dg, 'name'\n"
+                      "   nm = 'd,b,e,a,c'\n"
+                      "   for k = 1 to 5\n      write field(nm, ',', k):@fm:'second line' on f, 'rec':k\n   next k\n"
+                      "   big = ''\n   for k = 1 to 30\n      big<-1> = 'big line ':k\n   next k\n   write big on f, 'big'\n"
+                      "   write 'B' on g, 'c1'\n   write 'a' on g, 'c2'\n   write 'C' on g, 'c3'\n"
+                      "   crt 'SW FILES MADE'\n"
+                      "end\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        row("SP.VIEW BY CONTROL: the two files were made", has(out, r"SW FILES MADE"), out[-200:])
+
+        def order(text, names):
+            """The names that appear in the text, in the order they first appear."""
+            return [n for _, n in sorted((text.find(n), n) for n in names if n in text)]
+
+        recs = ["rec1", "rec2", "rec3", "rec4", "rec5", "big"]
+        text = sess(box, "SP.VIEW zzoqsw", "q")
+        row("SP.VIEW BY CONTROL: with no sort clause the pick list is in id order", order(text, recs) == ["big", "rec1", "rec2", "rec3", "rec4", "rec5"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsw BY name", "q")
+        row("SP.VIEW BY name sorts the pick list on that dictionary item", order(text, recs) == ["rec4", "rec2", "big", "rec5", "rec1", "rec3"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsw BY.DSND name", "q")
+        row("SP.VIEW BY.DSND name sorts it the other way", order(text, recs) == ["rec3", "rec1", "rec5", "big", "rec2", "rec4"], text[-400:])
+        cs = ["c1", "c2", "c3"]
+        text = sess(box, "SP.VIEW zzoqsx BY name", "q")
+        row("SP.VIEW BY CONTROL: a sort is by case unless asked otherwise (B, C, a)", order(text, cs) == ["c1", "c3", "c2"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsx BY name NO.CASE", "q")
+        row("SP.VIEW BY name NO.CASE ignores case (a, B, C)", order(text, cs) == ["c2", "c1", "c3"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsx BY NO.CASE name", "q")
+        row("SP.VIEW BY NO.CASE name does too", order(text, cs) == ["c2", "c1", "c3"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsx BY name", "q")
+        row("SP.VIEW BY NO.CASE leaves the session's sort option as it found it", order(text, cs) == ["c1", "c3", "c2"], text[-400:])
+        text = sess(box, "SP.VIEW zzoqsw BY")
+        row("SP.VIEW BY with no field name is refused", has(text, r"Expected field name after BY"), text[-300:])
+        text = sess(box, "SP.VIEW zzoqsw BY nosuchfield")
+        row("SP.VIEW BY with a field that is not there says so and stops (does not wait for a key)",
+            has(text, r"Sort item cannot be a literal value") and not has(text, r"Down/Quit"), text[-300:])
+        text = sess(box, "SP.VIEW zzoqsw BY name LPTR 1", "q")
+        row("SP.VIEW BY name still takes LPTR after it", has(text, r"Down/Quit") and not has(text, r"Invalid print unit"), text[-300:])
+
+        text = sess(box, "TERM 120,12", "SP.VIEW zzoqsw big", "q")
+        row("SP.VIEW CONTROL: a 30-line record opens at the top, 8 lines to a page", has(text, r"top = 1,") and not has(text, r"top = 9,"), text[-300:])
+        text = sess(box, "TERM 120,12", "SP.VIEW zzoqsw big", "", "q")
+        row("SP.VIEW Return pages forward in a record", has(text, r"top = 9,"), text[-300:])
+        text = sess(box, "TERM 120,12", "SP.VIEW zzoqsw big", "", "", "q")
+        row("SP.VIEW Return twice is two pages", has(text, r"top = 17,"), text[-300:])
+        text = sess(box, "TERM 120,12", "SP.VIEW zzoqsw big", "", "\x1bzq")
+        row("SP.VIEW Esc-Z goes back a page", has(text, r"top = 9,") and text.rfind("top = 1,") > text.find("top = 9,"), text[-300:])
+        sess(box, "DELETE.FILE zzoqsw", "DELETE.FILE zzoqsx")
     finally:
         sess(box, "DELETE.FILE zzoqfd", "DELETE.FILE zzoqc1", "DELETE.FILE zzoqc2", "DELETE.FILE zzoqld", "DELETE.FILE zzoqix",
              "DELETE.LIST zzoqla", "DELETE.LIST zzoqlb", "DELETE.LIST zzoqlc", "DELETE.LIST zzoqld2")
