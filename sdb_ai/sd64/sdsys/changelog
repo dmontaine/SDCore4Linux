@@ -37,10 +37,16 @@ Next release - in progress
            DELETE.INDEX and the like) already stopped when another session had the
            file open and named the users holding it; that is now tested.
 
-           Not done: the sheet's change to the characters allowed in the ids of
-           records in a directory file would admit characters above 126, which
-           belong to other alphabets, and SD is English only; it waits for the
-           owner's say.
+           The ids of records in a directory file may now contain bytes 128 to
+           255, which they could not (anything above 126 was refused as an
+           illegal record id).  They are stored in the file name as they are
+           given, so an id written with a UTF-8 e-acute is a file name with
+           those two bytes.  Control characters (below 32) and DEL (127) are
+           still refused, and so are the system's own mark characters (248 to
+           255), which are not ordinary characters.  This is the one place the
+           rule that SD is English only has been lifted, at the owner's say,
+           and it adds no other language support: SD does not interpret the
+           bytes, fold their case or sort them in any national order.
 
 12 Oct 26  LOCK AND DUMP DIAGNOSTICS: WHEN A LOCK WAS TAKEN, DEADLOCK=2,
            SYSTEM(1083) AND OBJECTS IN A PROCESS DUMP (1.2-0, openQM

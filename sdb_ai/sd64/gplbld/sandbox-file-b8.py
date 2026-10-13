@@ -81,6 +81,19 @@ PROGS = {
                "   readu x from h, 'zzb8p' else null\n   crt 'PBW[':(time() - t0):']'\n   release h\nend\n"),
     "zzb8pc": ("   open '$hold' to h else stop 'no hold'\n"
                "   readu x from h, 'zzb8p' locked crt 'PCL[':status():']' then crt 'PCL[free]'\n   release h\nend\n"),
+    # 34: record ids of a directory file with bytes above 126 (owner's yes, 12 Oct 26); control characters and DEL stay refused
+    "zzb8id": ("   execute 'DELETE.FILE zzb8d' capturing j\n   execute 'CREATE.FILE zzb8d DIRECTORY' capturing j\n"
+               "   open 'zzb8d' to f else stop 'no f'\n"
+               "   ids = 'caf':char(233):@fm:'caf':char(195):char(169):@fm:'top':char(247):@fm:'plain'\n"
+               "   ids := @fm:'ctl':char(7):@fm:'del':char(127):@fm:'low':char(31)\n"
+               "   for i = 1 to dcount(ids, @fm)\n      err = 0\n      ok = 0\n      if i <= 4 then readu x from f, ids<i> else null\n"
+               "      write 'rec ':i on f, ids<i> on error err = status()\n      if i <= 4 then release f\n"
+               "      if i <= 4 then\n         read back from f, ids<i> then ok = (back = 'rec ':i) else ok = 0\n      end\n"
+               "      crt 'ID':i:'[err=':err:' ok=':ok:']'\n   next i\n"
+               "   select f to 1\n   n = 0\n   loop\n      readnext k from 1 else exit\n      n += 1\n      if k = ids<1> then seen1 = 1\n"
+               "      if k = ids<2> then seen2 = 1\n   repeat\n"
+               "   crt 'LISTED[':n:' ':seen1:' ':seen2:']'\n"
+               "   crt 'IDDONE'\nend\n"),
     # 107: holds the file open so that another session's CNAME must name the holder
     "zzb8ho": ("   execute 'DELETE.FILE zzb8hf' capturing j\n   execute 'CREATE.FILE zzb8hf' capturing j\n"
                "   open 'zzb8hf' to f else stop 'no f'\n   crt 'HO[':@userno:']'\n   sleep 25\n   crt 'HO DONE'\nend\n"),
@@ -293,6 +306,20 @@ def main():
                 say("    (reading a real block device stays untried on this machine)")
         else:
             skip("112: OPENSEQ of a block device", "this machine has no block device under /dev")
+
+        say("\n--- 34 bytes above 126 in a directory file's record ids (the owner's yes) -----------")
+        out = sess(box, "RUN bp zzb8id")
+        m = dict((int(a), (b, c)) for a, b, c in re.findall(r"(?m)^ID(\d+)\[err=(\w+) ok=(\w+)\]\s*$", out))
+        say("    results: %s" % m)
+        row("34: an id with byte 233 is written and read back", m.get(1) == ("0", "1"), "got %s" % (m.get(1),))
+        row("34: ... so is one with the two bytes of UTF-8 e-acute (195 169)", m.get(2) == ("0", "1"), "got %s" % (m.get(2),))
+        row("34: ... and one ending in byte 247 (the marks, 248 to 255, are not ordinary characters)", m.get(3) == ("0", "1"), "got %s" % (m.get(3),))
+        row("34: CONTROL: a plain id still works", m.get(4) == ("0", "1"), "got %s" % (m.get(4),))
+        row("34: CONTROL: ids holding byte 7, 127 or 31 are still refused and not stored",
+            all(m.get(i, ("0", "1"))[0] != "0" and m.get(i, ("0", "1"))[1] != "1" for i in (5, 6, 7)) and all(i in m for i in (5, 6, 7)),
+            "got %s" % ([m.get(i) for i in (5, 6, 7)],))
+        row("34: the file lists the extended ids back (4 stored, both spellings seen)",
+            re.search(r"(?m)^LISTED\[4 1 1\]\s*$", out) is not None, out[-200:])
 
         say("\n--- 107 a command that needs exclusive access names who holds the file --------------")
         h = Live(box, "ho", ["RUN bp zzb8ho"])
