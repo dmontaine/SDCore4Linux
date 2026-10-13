@@ -1,6 +1,91 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  THE SCREEN STATEMENT GETS COLOUR, TABS, TEXT AREAS, TABLES AND THE
+           MOUSE, AND COLOUR WORKS ON THE LINUX CONSOLE TERMINAL TYPE (1.2-0).
+
+           Colour.  Everything the SCREEN statement draws is drawn in a named
+           style - window, highlight, bar, hotkey, field and so on - and a
+           THEME says what each style looks like:
+
+               screen theme 'classic' returning name else crt 'no colour here'
+               screen style 'highlight', 'red', 'black', 'bold underline'
+
+           Three themes ship: mono, which uses only reverse video and
+           underline and reads on any terminal, classic (dark text on light
+           dialogues over a blue desktop) and blue.  A program that never asks
+           gets mono, which looks exactly as before, so nothing changes for
+           it.  A colour theme is refused (the ELSE branch) on a terminal that
+           cannot show colour and in a phantom.  SCREEN CLEAR, TEXT and BOX
+           draw in the theme's desktop colour, a theme can be changed while
+           something is on the screen (the screen is drawn again from the
+           library's picture of it), and SCREEN CLOSE clears a coloured desktop
+           and puts the theme back to mono.  There are eight colours and bold
+           for bright ones.  STYLE changes one style of the theme in force;
+           it refuses a colour or flag it does not know and changes nothing.
+
+           Why colour needed a terminal fix.  SD's own colour codes - @(-37, n)
+           and @(-38, n), and the TERM COLOUR command - read the terminfo
+           capabilities setf and setb, and the shipped linux and ansi entries
+           had only the standard setaf and setab.  Terminals that report
+           xterm-256color, screen-256color and the like get the linux entry,
+           so colour printed nothing for most users.  Both entries now carry
+           setf and setb: TERM COLOUR works on them too.
+
+           More things for a form:
+
+               screen tabs f, 'tabs', 'General':@vm:'Address':@vm:'Notes' at 2,1
+               screen page f, 1
+               screen entry f, 'name' at 10,3 width 20
+               screen page f, 2
+               screen entry f, 'street' at 10,3 width 20
+               screen page f, 0
+               screen button f, 'ok', '&OK' at 10,11 default
+
+           A strip of tabs; the widgets added after SCREEN PAGE f, n belong to
+           tab n and are drawn, take the focus and answer keys only while that
+           tab is chosen.  The values of every page still reach the program.
+           SCREEN WAIT reports a change event when another tab is chosen.
+
+               screen memo f, 'notes', text at 2,2 size 40,8
+               screen memo f, 'help', text at 2,2 size 40,8 readonly
+
+           A text area of several lines, one line to a field: typing, Return,
+           Backspace, Delete, Ctrl-A, Ctrl-E, Ctrl-K, the arrows, Home, End and
+           the page keys edit and move through it; a long line scrolls
+           sideways (it is not wrapped) and a scroll bar shows where you are.
+           With READONLY it is a viewer.  It has no undo, selection or search.
+
+               screen table f, 'people', 'Name':@sm:'10L':@vm:'Qty':@sm:'4R', rows at 2,2 size 36,8
+
+           A table: a heading, columns with a width and left, right or
+           centred alignment, rows one to a field and cells one to a value,
+           one current row, a scroll bar.  SCREEN SET f, id ITEMS rows replaces
+           the data.  The scroll bar of a long list now has a thumb as long as
+           the part showing, where it was a single cell.
+
+           The mouse.  SCREEN OPEN now asks an xterm-compatible terminal to
+           report the mouse, and SCREEN CLOSE turns that off again (SCREEN
+           OPEN NOMOUSE leaves it off).  Forms, menus and dialogues take clicks
+           with no change to the program: a click presses a button, ticks a
+           check box, chooses a radio button, a tab, a row of a list or table,
+           an entry of a menu or pick list, and puts the cursor in an entry
+           field or text area; the wheel scrolls a list, table or text area; a
+           click outside a menu or pick list closes it.  A program that reads
+           keys itself sees the key "mouse" from SCREEN KEY, and SCREEN MOUSE
+           says what happened (press, release, drag or wheel, the button, the
+           cell and the shift, alt and control keys).  The Linux console has no
+           mouse reporting and ignores the request.  SED and the other
+           full-screen editors do not use the mouse.  A program that is stopped
+           without SCREEN CLOSE (a break, an error) leaves the terminal
+           reporting and the mouse then types garbage at the prompt until the
+           terminal is reset; KEYCODE also no longer rings the bell and types
+           "0;12;5M" when such a report arrives.
+
+           Not there yet: changing the layout when the terminal is resized (SD
+           does not read the window size - it is what TERM says, 120 by 36
+           unless set); sorting, wrapping and undo in the text area and table.
+
 12 Oct 26  THE SCREEN STATEMENT: MENUS, DIALOGUES AND FORMS FROM BASIC (1.2-0).
 
            A BASIC program can now draw on the terminal with one new
@@ -40,10 +125,10 @@ Next release - in progress
            what it asks of each verb, in sd64/screenlib-design.md.
 
            A program that already uses screen, title, buttons, default,
-           returning or the like as variable names is not affected.  Not
-           there yet: colours, the mouse, drop-down lists, tabs, scroll bars,
-           a status line or a progress bar.  Shift-Tab is now a key on an
-           xterm (its terminfo entry lacked kcbt).
+           returning or the like as variable names is not affected.
+           (Colours, tabs, a text area, a table and the mouse came the same
+           day: see the entry above.)  Shift-Tab is now a key on an xterm (its
+           terminfo entry lacked kcbt).
 
 12 Oct 26  SED, THE FULL SCREEN EDITOR, IS BACK, WITH DROP-DOWN MENUS (1.2-0).
 

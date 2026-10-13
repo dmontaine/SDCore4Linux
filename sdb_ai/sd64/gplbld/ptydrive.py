@@ -44,6 +44,9 @@ class PtySession:
         pid, fd = pty.fork()
         if pid == 0:                      # the child: become the program
             try:
+                # the window size is set BEFORE the program starts: SD asks the tty how big it is when it starts (13 Oct 26), and
+                # setting it afterwards from the parent could lose the race
+                fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
                 os.chdir(cwd)
                 os.execve(argv[0], argv, env)
             finally:
@@ -51,6 +54,15 @@ class PtySession:
         self.pid = pid
         self.fd = fd
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+
+    def resize(self, cols, rows, idle=0.6):
+        """Resize the terminal window, as dragging its corner does: the kernel tells the program with SIGWINCH.  The emulator keeps
+        what it shows (termscreen.Screen.resize) and then takes what the program writes in answer."""
+        fcntl.ioctl(self.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        self.cols = cols
+        self.rows = rows
+        self.screen.resize(cols, rows)
+        self.settle(idle)
 
     def _pump(self, wait):
         """Read what is ready, up to `wait` seconds for the first byte.  Returns the bytes read."""

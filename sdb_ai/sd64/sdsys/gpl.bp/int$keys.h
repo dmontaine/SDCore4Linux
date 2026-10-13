@@ -165,7 +165,11 @@
 * 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
 *   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
 *   own Linux permissions, and the kernel no longer carries those keys.
-*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above); 92 is still free.
+*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above).
+* 13 Oct 26 dm - The terminal's own size: kernel(K$WINSIZE, '') answers width, a
+*   field mark, height as the kernel last read them from the tty (start-up and
+*   every SIGWINCH), or null when it could not.  Must match gplsrc/keys.h.
+      $define K$WINSIZE         92       ;* The terminal's size from the tty
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

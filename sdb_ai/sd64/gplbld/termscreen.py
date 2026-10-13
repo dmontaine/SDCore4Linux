@@ -39,6 +39,23 @@ class Screen:
     def _blank_row(self):
         return [" "] * self.cols, [False] * self.cols
 
+    def resize(self, cols, rows):
+        """The window was resized: what is shown stays where it is, cut off if the window got smaller and padded with blanks
+        if it got bigger (a terminal does not reflow a full-screen program's picture), and the cursor stays inside it."""
+        for i in range(len(self.grid)):
+            self.grid[i] = (self.grid[i][:cols] + [" "] * cols)[:cols]
+            self.rev[i] = (self.rev[i][:cols] + [0] * cols)[:cols]
+        self.cols = cols
+        while len(self.grid) < rows:
+            g, v = self._blank_row()
+            self.grid.append(g)
+            self.rev.append(v)
+        del self.grid[rows:]
+        del self.rev[rows:]
+        self.rows = rows
+        self.r = min(self.r, rows - 1)
+        self.c = min(self.c, cols - 1)
+
     def _scroll(self):
         self.grid.pop(0)
         self.rev.pop(0)
@@ -73,6 +90,31 @@ class Screen:
     def attrs(self, row):
         """One code per cell of the row, as the screen library names them: n normal, r reverse, u underline, x both."""
         return "".join("nrux"[v & 3] for v in self.rev[row])
+
+    def style(self, row, col):
+        """The look of one cell: (foreground, background, flags).  The colours are the ANSI numbers 0 to 7 (black, red, green,
+        yellow, blue, magenta, cyan, white: NOT the Pick order the library's names use) or None for the terminal's own; flags
+        is a string of r reverse, u underline, b bold."""
+        v = self.rev[row][col]
+        fg = ((v >> 8) & 15) - 1
+        bg = ((v >> 12) & 15) - 1
+        flags = ("r" if v & 1 else "") + ("u" if v & 2 else "") + ("b" if v & 4 else "")
+        return (fg if fg >= 0 else None, bg if bg >= 0 else None, flags)
+
+    def text_where(self, row, fg=False, bg=False, flags=None):
+        """The text of the cells on that row whose look matches: fg / bg an ANSI number or None for the terminal's own
+        (False: do not ask), flags the exact flag string (None: do not ask)."""
+        out = []
+        for c in range(self.cols):
+            f, b, fl = self.style(row, c)
+            if fg is not False and f != fg:
+                continue
+            if bg is not False and b != bg:
+                continue
+            if flags is not None and fl != flags:
+                continue
+            out.append(self.grid[row][c])
+        return "".join(out)
 
     def _csi(self, params, final):
         nums = [int(p) if p.isdigit() else None for p in params.split(";")] if params and not params.startswith("?") else []
@@ -144,6 +186,18 @@ class Screen:
                     self.reverse_on &= ~2
                 elif code == "4":
                     self.reverse_on |= 2
+                elif code == "1":
+                    self.reverse_on |= 4
+                elif code == "22":
+                    self.reverse_on &= ~4
+                elif code.isdigit() and 30 <= int(code) <= 37:
+                    self.reverse_on = (self.reverse_on & ~0xF00) | ((int(code) - 30 + 1) << 8)
+                elif code == "39":
+                    self.reverse_on &= ~0xF00
+                elif code.isdigit() and 40 <= int(code) <= 47:
+                    self.reverse_on = (self.reverse_on & ~0xF000) | ((int(code) - 40 + 1) << 12)
+                elif code == "49":
+                    self.reverse_on &= ~0xF000
 
     def feed(self, text):
         i = 0
@@ -190,9 +244,25 @@ if __name__ == "__main__":
     s.feed("\x1b[H\x1b[4mUL\x1b[24m\x1b[7mRV\x1b[4mBO\x1b[m..")
     assert s.underline(0) == "ULBO" and s.reverse(0) == "RVBO", (s.underline(0), s.reverse(0))
     assert s.attrs(0)[:8] == "uurrxxnn", s.attrs(0)[:8]
+    # colours (ANSI numbers), bold, and a reset that clears all of it
+    s.feed("\x1b[H\x1b[2J\x1b[31;44mAB\x1b[1mC\x1b[39mD\x1b[49mE\x1b[0mF")
+    assert s.style(0, 0) == (1, 4, ""), s.style(0, 0)
+    assert s.style(0, 2) == (1, 4, "b"), s.style(0, 2)
+    assert s.style(0, 3) == (None, 4, "b"), s.style(0, 3)
+    assert s.style(0, 4) == (None, None, "b"), s.style(0, 4)
+    assert s.style(0, 5) == (None, None, ""), s.style(0, 5)
+    assert s.text_where(0, fg=1, bg=4) == "ABC", s.text_where(0, fg=1, bg=4)
+    assert s.text_where(0, bg=None, flags="").strip() == "F", s.text_where(0, bg=None, flags="")
+    s.feed("\x1b[H\x1b[2J")
     assert s.cursor_visible
     s.feed("\x1b[?25l")
     assert not s.cursor_visible
     s.feed("\x1b[?25h")
     assert s.cursor_visible
+    # a resize keeps what is there, cut or padded, and the cursor inside
+    s.feed("\x1b[H\x1b[2Jabcdef\x1b[2;1Hxyz")
+    s.resize(4, 3)
+    assert s.lines() == ["abcd", "xyz", ""] and s.rows == 3 and s.cols == 4, s.lines()
+    s.resize(8, 5)
+    assert s.lines() == ["abcd", "xyz", "", "", ""] and len(s.grid[0]) == 8, s.lines()
     print("termscreen: self-test passed")

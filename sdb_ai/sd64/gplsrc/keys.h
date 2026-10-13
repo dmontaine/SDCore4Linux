@@ -239,7 +239,15 @@
 /* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
    are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
    own Linux permissions, and the kernel no longer carries those keys.
-   06 Oct 26 dm - 91 is K_LOGIN_UID now (see above); 92 is still free.       */
+   06 Oct 26 dm - 91 is K_LOGIN_UID now (see above).                         */
+/* 13 Oct 26 dm - THE TERMINAL'S OWN SIZE.  kernel(K$WINSIZE, '') answers the
+   terminal's width, a field mark and its height, as the kernel last read them
+   from the tty (TIOCGWINSZ, at start-up and again whenever the terminal is
+   resized: SIGWINCH), or null when it has not been able to - no tty (a phantom,
+   a pipe, the API) or a terminal that reports 0 by 0.  LOGIN keeps what the
+   kernel read and no longer overrides it with terminfo's 120 by 36.  This
+   tree's own key, in its own block; GPL.BP/INT$KEYS.H carries the same number. */
+#define K_WINSIZE            92
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

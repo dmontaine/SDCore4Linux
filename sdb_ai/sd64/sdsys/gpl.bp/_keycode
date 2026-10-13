@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 12 Oct 26 dm  ESC [ < (an xterm SGR mouse report) is bound to K$MOUSE.
 * 14 Sep 26 dm  Both Ctrl-H (8) and DEL (127) are bound to K$BACKSPACE as
 *               defaults, before the terminfo binds so terminfo still overrides
 *               either - the Windows port's fix of 19 Aug 26 (PORT_ADOPTION 22,
@@ -95,6 +96,13 @@ $include keycode.h
       code = K$DELETE     ; key.string = tinfo<T$KEY.DC>        ; gosub bind
       code = K$CTRL.TAB   ; key.string = tinfo<T$KEY.BTAB>      ; gosub bind
       code = K$MOUSE      ; key.string = tinfo<T$KEY.MOUSE>     ; gosub bind
+
+* 12 Oct 26 dm - AN XTERM SGR MOUSE REPORT (mode 1006: ESC [ < b ; x ; y M or m) IS A MOUSE KEY TOO.
+*   Without a binding KEYCODE read ESC [ < , found no key that starts with it, rang the bell and
+*   threw the three characters away, leaving "0;12;5M" in the input as if typed.  Now it returns
+*   K$MOUSE and leaves b;x;y and the final M or m to be read (the screen library's $sl_key does).
+*   Nothing changes for a program that never switches mouse reporting on.
+      code = K$MOUSE      ; key.string = char(27) : '[<'        ; gosub bind
       code = K$BACKSPACE  ; key.string = tinfo<T$KEY.BACKSPACE> ; gosub bind
       code = K$RETURN     ; key.string = pterm(PT$INEWLINE,'')  ; gosub bind
 
