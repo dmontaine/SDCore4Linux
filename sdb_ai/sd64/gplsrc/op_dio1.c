@@ -29,6 +29,7 @@
  * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): op_create_dh()
  *           sets DHF_NOCASE on every hashed file it creates; DHF_KEEPCASE is
  *           honoured in internal mode only.
+ * 12 Oct 26 dm  open_file() acts on the NON.TRANSACTIONAL option of OPEN and OPENPATH (P_NON_TXN; item 64).
  * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
  *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
  * END-HISTORY
@@ -896,7 +897,7 @@ opened_via_txn_cache:
 
   if (strchr(vflags, 'R') != NULL)
     fvar->flags |= FV_RDONLY;
-  if (strchr(vflags, 'N') != NULL)
+  if ((strchr(vflags, 'N') != NULL) || (op_flags & P_NON_TXN)) /* P_NON_TXN: the NON.TRANSACTIONAL option of OPEN */
     fvar->flags |= FV_NON_TXN;
 
   /* Set file variable */
