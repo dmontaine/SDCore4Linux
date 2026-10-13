@@ -457,7 +457,7 @@ def main():
     if "--refresh" in sys.argv:
         # a development aid: copy the tree's library and SED into an already built sandbox and compile them there
         import shutil
-        names = ["sl.h", "sl_attr", "sl_key", "sl_region", "sl_menu", "sl_msgbox", "sl_prompt", "sed"]
+        names = ["sl.h", "sl_attr", "sl_sgr", "sl_put", "sl_key", "sl_region", "sl_menu", "sl_msgbox", "sl_prompt", "sed"]
         for nm in names:
             shutil.copy(os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", nm), os.path.join(sysd, "gpl.bp", nm))
         out = isess(box, *["BASIC gpl.bp %s" % n for n in names if n != "sl.h"])
@@ -501,7 +501,7 @@ end
         if "FIXTURE DONE" not in out:
             bail("the fixture was not made:\n" + out[-800:])
         row("setup: the library and the editor are in the sandbox",
-            all(os.path.isfile(os.path.join(sysd, "gpl.bp", p)) for p in ("sed", "sl_key", "sl_region", "sl_menu", "sl_msgbox", "sl_prompt", "sl_attr", "sl.h")), "missing")
+            all(os.path.isfile(os.path.join(sysd, "gpl.bp", p)) for p in ("sed", "sl_key", "sl_region", "sl_menu", "sl_msgbox", "sl_prompt", "sl_attr", "sl_sgr", "sl_put", "sl.h")), "missing")
         row("setup: control - the record is as written", rec(box, "r1") == RECORD, repr(rec(box, "r1")))
         part_widgets(box, sysd)
         part_sed(box, sysd)

@@ -31,7 +31,8 @@ class Screen:
         self.rev = [[False] * cols for _ in range(rows)]
         self.r = 0
         self.c = 0
-        self.reverse_on = False
+        self.reverse_on = 0            # the current style: bit 1 reverse, bit 2 underline (the grid keeps it per cell)
+        self.cursor_visible = True
         self.before_clear = None
         self.clears = 0
 
@@ -63,13 +64,23 @@ class Screen:
         return ["".join(row).rstrip() for row in self.grid]
 
     def reverse(self, row):
-        return "".join(ch for ch, v in zip(self.grid[row], self.rev[row]) if v).strip()
+        return "".join(ch for ch, v in zip(self.grid[row], self.rev[row]) if v & 1).strip()
+
+    def underline(self, row):
+        """The text drawn underlined on that row."""
+        return "".join(ch for ch, v in zip(self.grid[row], self.rev[row]) if v & 2).strip()
+
+    def attrs(self, row):
+        """One code per cell of the row, as the screen library names them: n normal, r reverse, u underline, x both."""
+        return "".join("nrux"[v & 3] for v in self.rev[row])
 
     def _csi(self, params, final):
         nums = [int(p) if p.isdigit() else None for p in params.split(";")] if params and not params.startswith("?") else []
         n1 = nums[0] if nums and nums[0] is not None else None
         if params.startswith("?"):
-            return   # modes (cursor visibility, keypad, margins): not drawing
+            if params == "?25" and final in "lh":
+                self.cursor_visible = (final == "h")
+            return   # the other modes (keypad, margins): not drawing
         if final in "Hf":
             row = (nums[0] if len(nums) > 0 and nums[0] else 1) - 1
             col = (nums[1] if len(nums) > 1 and nums[1] else 1) - 1
@@ -123,10 +134,16 @@ class Screen:
         elif final == "m":
             codes = [x for x in params.split(";")] if params else ["0"]
             for code in codes:
-                if code in ("", "0", "27"):
-                    self.reverse_on = False
+                if code in ("", "0"):
+                    self.reverse_on = 0
+                elif code == "27":
+                    self.reverse_on &= ~1
                 elif code == "7":
-                    self.reverse_on = True
+                    self.reverse_on |= 1
+                elif code == "24":
+                    self.reverse_on &= ~2
+                elif code == "4":
+                    self.reverse_on |= 2
 
     def feed(self, text):
         i = 0
@@ -169,4 +186,13 @@ if __name__ == "__main__":
     assert s.reverse(1) == "REV", s.reverse(1)
     s.feed("\x1b[2J")
     assert s.before_clear == ["hello", "  xyREV", "zq", ""], s.before_clear
+    # underline, both together, the style kept per cell, and the cursor state
+    s.feed("\x1b[H\x1b[4mUL\x1b[24m\x1b[7mRV\x1b[4mBO\x1b[m..")
+    assert s.underline(0) == "ULBO" and s.reverse(0) == "RVBO", (s.underline(0), s.reverse(0))
+    assert s.attrs(0)[:8] == "uurrxxnn", s.attrs(0)[:8]
+    assert s.cursor_visible
+    s.feed("\x1b[?25l")
+    assert not s.cursor_visible
+    s.feed("\x1b[?25h")
+    assert s.cursor_visible
     print("termscreen: self-test passed")

@@ -35,6 +35,7 @@ passed = failed = 0
 
 UP, DOWN, LEFT, RIGHT = "\x1bOA", "\x1bOB", "\x1bOD", "\x1bOC"
 ESC, RET = "\x1b", "\r"
+CTRL_A = "\x01"
 
 
 def say(s=""):
@@ -88,6 +89,19 @@ class Term:
 
     def reverse(self, i):
         return self.s.screen.reverse(i)
+
+    def underline(self, i):
+        return self.s.screen.underline(i)
+
+    def attrs(self, i):
+        return self.s.screen.attrs(i)
+
+    def cursor(self):
+        """(column, row) of the terminal's cursor, from 0."""
+        return (self.s.screen.c, self.s.screen.r)
+
+    def cursor_visible(self):
+        return self.s.screen.cursor_visible
 
     def end(self):
         self.s.type("\rOFF\r", idle=0.5)
@@ -178,6 +192,85 @@ end
 """,
 }
 
+PROGS.update({
+    # the owned screen: text with styles, a continued text, a padded text, a clipped text, a box with a title
+    "zzscown": """   screen open clear else crt @(0, 28) : 'NOTERM' ; stop
+   screen text 'plain text' at 2,1
+   screen text 'REVERSE' at 2,3 attr 'reverse'
+   screen text 'under' at 12,3 attr 'underline'
+   screen text 'cont' at 30,5
+   screen text 'next'
+   screen text 'ab' at 10,7 width 6
+   screen text 'xyzzy-long-text' at 5,8 width 5
+   screen text '0123456789' at 95,9
+   screen box at 2,11 size 20,5 title 'Box' fill
+   screen box at 30,11 size 12,4
+   screen text 'inside' at 33,12
+   screen size returning dims
+   crt @(0, 20) : 'SIZE ' : dims<1> : 'x' : dims<2> : '|'
+   screen key returning k
+end
+""",
+    # a background of styled rows, then a dialogue over it, then the key that ends the program
+    "zzscund": """   screen open clear else crt @(0, 28) : 'NOTERM' ; stop
+   for r = 0 to 19
+      screen text 'row ':fmt(r, 'R%2'):' ':str('.', 30) at 0,r
+      if mod(r, 2) = 1 then
+         screen text ' REV ' at 6,r attr 'reverse'
+      end else
+         screen text ' UL ' at 22,r attr 'underline'
+      end
+   next r
+   screen cursor at 7,9
+   screen key returning k1
+   screen msgbox 'Replace it?' title 'Ask' buttons '&Yes,&No' returning n
+   screen key returning k2
+   crt @(0, 25) : 'ANSWER ' : n : ' ' : k1 : ' ' : k2 : '|'
+end
+""",
+    # the terminal is cleared behind the library's back, and SCREEN REFRESH paints the shadow again
+    "zzscref": """   screen open clear else crt @(0, 28) : 'NOTERM' ; stop
+   screen text 'kept text' at 3,2
+   screen text 'kept reverse' at 3,4 attr 'reverse'
+   screen key returning k
+   crt @(-1) :
+   crt @(0, 20) : 'CLEARED'
+   screen key returning k
+   screen refresh returning r
+   crt @(0, 21) : 'REFRESH [' : r : ']'
+   screen key returning k
+end
+""",
+    # the cursor: hidden, placed, shown, and put back after a dialogue
+    "zzsccur": """   screen open clear nocursor else crt @(0, 28) : 'NOTERM' ; stop
+   screen text 'x' at 0,0
+   screen cursor at 7,9
+   screen key returning k
+   screen cursor on
+   screen key returning k
+   screen msgbox 'Hi'
+   screen key returning k
+   screen cursor off
+   screen key returning k
+end
+""",
+    # keys by name, a timeout, and a screen too small for the program
+    "zzsckey": """   crt @(-1) :
+   screen open minsize 300,100 else crt @(0, 0) : 'SMALL' ; goto next1
+   crt @(0, 0) : 'BIG'
+next1:
+   for i = 1 to 3
+      screen key timeout 3 returning k then
+         crt @(0, i) : 'KEY [' : k : ']'
+      end else
+         crt @(0, i) : 'NOKEY'
+      end
+   next i
+   screen key timeout 1 returning k else crt @(0, 5) : 'TIMEOUT [' : k : ']'
+end
+""",
+})
+
 BAD = {  # name -> (source, text the compiler must give)
     "zzscbv": ("   screen frob 'x'\nend\n", "Unrecognised screen verb frob"),
     "zzscnv": ("   screen\nend\n", "The screen statement needs a verb after it"),
@@ -185,6 +278,89 @@ BAD = {  # name -> (source, text the compiler must give)
     "zzscnt": ("   screen msgbox 'x' colour 5\nend\n", "The screen msgbox statement does not take colour"),
     "zzscnx": ("   screen msgbox title 'a'\nend\n", ""),   # no text: some syntax error, any
 }
+
+
+def part_owned(box):
+    say("\n--- SCREEN OPEN, TEXT, BOX, SIZE: the screen the library owns -----------------------------------------")
+    t = Term(box, "RUN bp zzscown")
+    L = t.keys()
+    row("control: the program ran and the screen was cleared first (no NOTERM, no prompt left on row 0)", result(L, "NOTERM") is None and not L[0].startswith(":"), "\n".join(L[:3]))
+    row("TEXT at 2,1 puts the line there", L[1][2:12] == "plain text" and L[1][:2].strip() == "", repr(L[1]))
+    row("ATTR 'reverse' draws reverse video, and only that text; the text before it is not", t.reverse(3) == "REVERSE" and "plain" not in t.reverse(1), repr((t.reverse(3), t.reverse(1))))
+    row("ATTR 'underline' draws underlined text on the same row, in its own cells", t.underline(3) == "under" and t.attrs(3)[2:9] == "r" * 7 and t.attrs(3)[12:17] == "u" * 5, repr(t.attrs(3)[:20]))
+    row("TEXT without AT continues where the last one ended: 'cont' then 'next' touch", L[5][30:38] == "contnext", repr(L[5]))
+    row("WIDTH 6 pads 'ab' to six cells; WIDTH 5 cuts the long text to its first five", L[7][10:12] == "ab" and L[8][5:10] == "xyzzy" and L[8][10:11] == "", repr((L[7], L[8])))
+    row("text that runs past the right edge is cut there and does not wrap (95 + 5 cells)", L[9][95:] == "01234" and L[10].strip() == "", repr((L[9], L[10])))
+    row("BOX with a title and FILL: a +-| border exactly 20 wide, the title in the top border",
+        L[11][2:22] == "+- Box ------------+" and L[12][2:22] == "|" + " " * 18 + "|" and L[15][2:22] == "+" + "-" * 18 + "+", "\n".join(L[11:16]))
+    row("BOX without FILL leaves the inside alone (the text drawn inside it is kept), 12 wide, 4 high",
+        L[11][30:42] == "+" + "-" * 10 + "+" and L[12][30:42] == "|  inside  |" and L[14][30:42] == "+" + "-" * 10 + "+", "\n".join(L[11:15]))
+    row("SIZE answers the terminal's width and height (100x30)", result(L, "SIZE") == "100x30|", repr(result(L, "SIZE")))
+    row("the cursor is left after the last TEXT, not wherever the box ended", t.cursor() != (0, 0), repr(t.cursor()))
+    t.keys("q")
+    t.end()
+
+    say("\n--- a dialogue over the library's own text: every cell comes back, attribute for attribute -------------")
+    t = Term(box, "RUN bp zzscund")
+    L0 = t.keys()
+    A0 = [t.attrs(r) for r in range(30)]
+    row("control: the background is 20 rows of text with reverse and underline spans, recorded", "r" in A0[1] and "u" in A0[0] and "r" not in A0[2] and L0[19].startswith("row 19"), repr((A0[0][:30], A0[1][:30])))
+    row("control: the cursor was put at 7,9 and is shown", t.cursor() == (7, 9) and t.cursor_visible(), repr(t.cursor()))
+    L1 = t.keys("a")
+    row("a key and then the box: it is on the screen, over the background", any("[ Yes ]" in l and "[ No ]" in l for l in L1) and any("Replace it?" in l for l in L1), "\n".join(L1[10:19]))
+    row("control: the box really changed rows 12 to 17 (a restore that did nothing cannot pass)", L1[12:18] != L0[12:18], "")
+    row("...and left rows 0 to 11 alone", L1[:12] == L0[:12], "")
+    L2 = t.keys(RET)
+    A2 = [t.attrs(r) for r in range(30)]
+    row("Return closes it: every row of the background has its text back", L2[:20] == L0[:20], "\n".join(l for l, m in zip(L2[:20], L0[:20]) if l != m))
+    row("...and every cell its style back (reverse and underline spans, 20 rows x 100 cells)", A2[:20] == A0[:20], repr([(i, a, b) for i, (a, b) in enumerate(zip(A2[:20], A0[:20])) if a != b][:2]))
+    row("...and the cursor is where SCREEN CURSOR put it (7,9), not where the box ended", t.cursor() == (7, 9) and t.cursor_visible(), repr(t.cursor()))
+    L3 = t.keys("z")
+    row("the answer, the keys before and after: button 1, a, z", result(L3, "ANSWER") == "1 a z|", repr(result(L3, "ANSWER")))
+    t.end()
+
+    say("\n--- SCREEN REFRESH --------------------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzscref")
+    L = t.keys()
+    row("control: the kept text and the kept reverse text are on the screen", L[2][3:12] == "kept text" and t.reverse(4) == "kept reverse", "\n".join(L[:6]))
+    L = t.keys("a")
+    row("control: the program cleared the terminal behind the library's back (it says so)", any(l.startswith("CLEARED") for l in L), "\n".join(L[:22]))
+    row("...and the kept text really is gone from the screen", not any("kept text" in l for l in L), "\n".join(L[:6]))
+    L = t.keys("b")
+    row("REFRESH paints the shadow again: the text is back at the same place", L[2][3:12] == "kept text", "\n".join(L[:6]))
+    row("...with its style: the reverse text is reverse again", t.reverse(4) == "kept reverse" and "kept text" not in t.reverse(2), repr(t.reverse(4)))
+    row("...and the answer is null (the terminal is the size it was)", result(L, "REFRESH") == "[]", repr(result(L, "REFRESH")))
+    t.keys("c")
+    t.end()
+
+    say("\n--- SCREEN CURSOR ---------------------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzsccur")
+    L = t.keys()
+    row("NOCURSOR hides the cursor and CURSOR AT places it: hidden, at 7,9", (not t.cursor_visible()) and t.cursor() == (7, 9), repr((t.cursor(), t.cursor_visible())))
+    t.keys("a")
+    row("CURSOR ON shows it where it was", t.cursor_visible() and t.cursor() == (7, 9), repr((t.cursor(), t.cursor_visible())))
+    L = t.keys("b")
+    row("control: the next key opens a message box (so the next row is about a cursor that was moved)", any("[ OK ]" in l for l in L), "\n".join(L[10:20]))
+    L = t.keys(RET)
+    row("after the dialogue the cursor is put back at 7,9 and is shown", t.cursor_visible() and t.cursor() == (7, 9) and not any("[ OK ]" in l for l in L), repr((t.cursor(), t.cursor_visible())))
+    t.keys("c")
+    row("CURSOR OFF hides it again", not t.cursor_visible(), repr(t.cursor_visible()))
+    t.end()
+
+    say("\n--- SCREEN KEY, and MINSIZE ----------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzsckey")
+    L = t.keys()
+    row("MINSIZE 300,100 on a 100x30 terminal takes the ELSE branch: the screen is not taken", result(L, "SMALL") is not None or any(l.startswith("SMALL") for l in L), "\n".join(L[:3]))
+    row("...and the program carried on without the screen (no BIG)", not any(l.startswith("BIG") for l in L), "")
+    L = t.keys("x")
+    L = t.keys(UP)
+    L = t.keys(CTRL_A)
+    row("keys come back by name: x, up, ctrl-a", L[1].strip() == "KEY [x]" and L[2].strip() == "KEY [up]" and L[3].strip() == "KEY [ctrl-a]", "\n".join(L[:5]))
+    row("control: no TIMEOUT line before the time has run out", not any(l.startswith("TIMEOUT") for l in L), "")
+    t.s.settle(1.8)
+    L = t.lines()
+    row("TIMEOUT 1 with no key: ELSE is taken and RETURNING holds null", any(l.startswith("TIMEOUT []") for l in L), "\n".join(L[:8]))
+    t.end()
 
 
 def main():
@@ -290,6 +466,8 @@ def main():
         row("and the same names used as the statement's values: the box answers 1 and the variables are unchanged",
             result(L, "GOT") == "1|T|OK|1|", repr(result(L, "GOT")))
         t.end()
+
+        part_owned(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
