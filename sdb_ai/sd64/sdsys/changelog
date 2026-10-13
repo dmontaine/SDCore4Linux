@@ -61,6 +61,19 @@ Next release - in progress
            a small message box (No is the default).  Esc followed at once by a
            letter is still the editor's own Esc-key command.
 
+           The keys are now the ones most editors have: Ctrl-S saves, Ctrl-Q
+           quits (a changed record asks first), Ctrl-O opens a record, Ctrl-W
+           writes it under another name, Ctrl-C, Ctrl-X and Ctrl-V copy, cut
+           and paste the text between the mark (Esc .) and the cursor, Ctrl-F
+           and Ctrl-B search forward and backward, Ctrl-R replaces, Ctrl-L goes
+           to a line, Ctrl-G gives up a question, and the Backspace key erases
+           backwards.  The shell's line keys stay (Ctrl-A, Ctrl-E, Ctrl-N,
+           Ctrl-P, Ctrl-D, Ctrl-K).  Ctrl-X is no longer a prefix, so the old
+           Ctrl-X sequences are gone: the actions that had one are reached
+           through the menu, which shows the key of every item that has one.
+           To keep the old Emacs layout, put EMACS in field 3 of the record
+           &sed.options& in your VOC.  SED still has no undo.
+
            SED needs a terminal of at least 80 columns by 12 lines; it used
            to insist on 120 by 36.  It does not change what SED edits or how
            the keys work.  The record names it reads for its options and key

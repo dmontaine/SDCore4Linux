@@ -603,7 +603,13 @@ $include sl.h
       end
    end
 
-   if not(bound) then gosub set.default.bindings
+   if not(bound) then
+      if upcase(options.rec<3>) = 'EMACS' then
+         gosub set.emacs.bindings           ;* the layout SED had before 12 Oct 26
+      end else
+         gosub set.default.bindings
+      end
+   end
 
    selected.records = 0
 
@@ -4519,14 +4525,99 @@ getch:
       c = keyin()
       if keyin.case.conversion then convert keyin.from to keyin.to in c
    end
+   return
+
+*****************************************************************************
+* Set default key bindings.  The defaults are the ones most editors have (12 Oct 26 dm, owner: "I would
+* rather have at least the common actions like save and quit be what users expect them to be"): Ctrl-S
+* saves, Ctrl-Q quits, Ctrl-C / Ctrl-X / Ctrl-V copy, cut and paste the region between the mark (Esc . ;
+* Ctrl-Space sends a null, which keyin() does not deliver, so it cannot be the mark key) and the cursor, Ctrl-F / Ctrl-B search forward / backward, Ctrl-R replaces, Ctrl-L goes to a line, Ctrl-O
+* opens a record, Ctrl-W writes (saves as).  The line-editing keys the shell and readline use stay
+* (Ctrl-A, Ctrl-E, Ctrl-N, Ctrl-P, Ctrl-D, Ctrl-H, Ctrl-K); Ctrl-X is no longer a prefix, so the old
+* Ctrl-X sequences are gone and those actions are reached through the menu (F10, or Esc on its own), which
+* shows the keys.  An action with no key is a blank line below: keep the lines in step with the F.* table.
+* The old Emacs layout is set.emacs.bindings, chosen by naming EMACS in field 3 of &sed.options&.
+
+set.default.bindings:
+   bindings.name = ''
+   key.rec = '@J':@VM:'@M'                ;* F.NEWLINE
+   key.rec<-1> = '@A':@VM:char(209)    ;* F.HOME
+   key.rec<-1> = '@E':@VM:char(210)    ;* F.END
+   key.rec<-1> = '@[[D':@VM:'@[OD':@VM:char(203)    ;* F.LEFT
+   key.rec<-1> = '@[[C':@VM:'@[OC':@VM:char(204)    ;* F.RIGHT
+   key.rec<-1> = '@P':@VM:'@[[A':@VM:'@[OA':@VM:char(205) ;* F.UP
+   key.rec<-1> = '@N':@VM:'@[[B':@VM:'@[OB':@VM:char(206)    ;* F.DOWN
+   key.rec<-1> = '@[<':@VM:'@[[1;5H'    ;* F.TOP
+   key.rec<-1> = '@[>':@VM:'@[[1;5F'    ;* F.BOTTOM
+   key.rec<-1> = '@[V':@VM:char(207)   ;* F.PAGE.UP
+   key.rec<-1> = char(208)             ;* F.PAGE.DOWN
+   key.rec<-1> = '@D':@VM:char(212)    ;* F.DELETE
+   key.rec<-1> = '@H':@VM:char(127)    ;* F.BACKSPACE
+   key.rec<-1> = '@K'               ;* F.KILL.LINE
+   key.rec<-1> = '@S'               ;* F.SAVE.RECORD
+   key.rec<-1> = '@Q'               ;* F.QUIT
+   key.rec<-1> = char(211)          ;* F.OVERLAY
+   key.rec<-1> = '@I'               ;* F.TAB
+   key.rec<-1> = '@L':@VM:'@[G'           ;* F.GOTO.LINE
+   key.rec<-1> = '@T'               ;* F.TOGGLE
+   key.rec<-1> = '@F':@VM:'@[S'           ;* F.FWD.SEARCH
+   key.rec<-1> = '@R'               ;* F.REPLACE
+   key.rec<-1> = '@[%'              ;* F.QREPLACE
+   key.rec<-1> = '@[M'              ;* F.SWAP.MARK
+   key.rec<-1> = ''                 ;* F.EXECUTE
+   key.rec<-1> = '@[[1;5B'          ;* F.NUDGE.DOWN
+   key.rec<-1> = '@[[1;5A'          ;* F.NUDGE.UP
+   key.rec<-1> = '@[.'              ;* F.MARK
+   key.rec<-1> = '@X'               ;* F.KILL
+   key.rec<-1> = '@C':@VM:'@[W'           ;* F.COPY
+   key.rec<-1> = '@V':@VM:'@[Y'           ;* F.YANK
+   key.rec<-1> = '@[F':@VM:'@[[1;5C'      ;* F.FWD.WORD
+   key.rec<-1> = '@[D'              ;* F.DEL.WORD
+   key.rec<-1> = ''                 ;* F.IMPORT
+   key.rec<-1> = '@B':@VM:'@[R'           ;* F.REV.SEARCH
+   key.rec<-1> = '@[L'              ;* F.LOWER.CASE
+   key.rec<-1> = '@[U'              ;* F.UPPER.CASE
+   key.rec<-1> = '@[C'              ;* F.CAP.INIT
+   key.rec<-1> = '@[B':@VM:'@[[1;5D'      ;* F.BACK.WORD
+   key.rec<-1> = '@[@H'             ;* F.DEL.BACK.WORD
+   key.rec<-1> = '@[ '              ;* F.CLOSE.SPACES
+   key.rec<-1> = '@[N'              ;* F.NEXT.BUFFER
+   key.rec<-1> = '@[P'              ;* F.PREV.BUFFER
+   key.rec<-1> = ''                 ;* F.GOTO.BUFFER
+   key.rec<-1> = ''                 ;* F.DELETE.BUFFER
+   key.rec<-1> = ''                 ;* F.UP.TO.PARENT
+   key.rec<-1> = '@U'               ;* F.REPEAT
+   key.rec<-1> = ''                 ;* F.REFRESH
+   key.rec<-1> = '@[Q'              ;* F.QUOTE.CHAR
+   key.rec<-1> = ''                 ;* F.LIST.BUFFERS
+   key.rec<-1> = '@O'               ;* F.FIND.RECORD
+   key.rec<-1> = '@W'               ;* F.WRITE.RECORD
+   key.rec<-1> = ''                 ;* F.START.MACRO
+   key.rec<-1> = ''                 ;* F.END.MACRO
+   key.rec<-1> = '@[='              ;* F.EXPAND.CHAR
+   key.rec<-1> = ''                 ;* F.EXPLORE
+   key.rec<-1> = ''                 ;* F.EXPORT
+   key.rec<-1> = '@[X'              ;* F.COMMAND
+   key.rec<-1> = '@G'               ;* F.CANCEL
+   key.rec<-1> = '@[E'              ;* F.RUN
+   key.rec<-1> = '@[@I'             ;* F.ALIGN
+   key.rec<-1> = ''                 ;* F.UPCASE.REGION
+   key.rec<-1> = ''                 ;* F.DNCASE.REGION
+   key.rec<-1> = ''                 ;* F.UNSPLIT.WINDOW
+   key.rec<-1> = ''                 ;* F.SPLIT.WINDOW
+   key.rec<-1> = ''                 ;* F.TOGGLE.WINDOW
+   key.rec<-1> = ''                 ;* F.DIVE
+   key.rec<-1> = ''                 ;* F.COMPRUN
+
+   gosub load.key.bindings
 
    return
 
 *****************************************************************************
-* Set default key bindings
- 
-set.default.bindings:
-   bindings.name = ''
+* The Emacs layout SED had until 12 Oct 26: Ctrl-X is the prefix of most of the less common actions
+
+set.emacs.bindings:
+   bindings.name = 'EMACS'
 * 20240121 mab use @VM not hard coded hex fd 
    key.rec = '@J':@VM:'@M'                ;* F.NEWLINE
    key.rec<-1> = '@A':@VM:char(209)    ;* F.HOME

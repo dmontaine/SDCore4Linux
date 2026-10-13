@@ -328,8 +328,9 @@ def part_sed(box, sysd):
     D = "\n".join(L[:30])
     row("control: the record text is on screen before F10 and the File items are not", not any("Save as..." in l for l in base), "")
     row("F10 opens the File menu: " + ", ".join(MENUS["File"][:3]) + " ...", all(any(x in l for l in L[1:12]) for x in MENUS["File"]), D)
-    row("shortcuts are shown from the real bindings: Save is Ctrl-X Ctrl-S, Quit is Ctrl-X Ctrl-C",
-        any("Save" in l and "Ctrl-X Ctrl-S" in l for l in L[1:12]) and any("Quit" in l and "Ctrl-X Ctrl-C" in l for l in L[1:12]), D)
+    row("shortcuts are shown from the real bindings: Save is Ctrl-S, Quit is Ctrl-Q, Save as is Ctrl-W, Open record is Ctrl-O",
+        any("Save " in l and "Ctrl-S" in l for l in L[1:12]) and any("Quit" in l and "Ctrl-Q" in l for l in L[1:12])
+        and any("Save as" in l and "Ctrl-W" in l for l in L[1:12]) and any("Open record" in l and "Ctrl-O" in l for l in L[1:12]), D)
     row("a menu is drawn over the text (the record's first line is cut at the menu's edge)", L[1][:6] != "alpha " , repr(L[1]))
     L = e.keys(ESC, idle=0.9)
     row("Esc closes it and leaves no trace: the screen equals the one before F10, all rows", L == base, "\n".join(l for l, b in zip(L, base) if l != b)[:300])
@@ -346,11 +347,10 @@ def part_sed(box, sysd):
     e.keys(ESC, idle=0.9)
 
     say("\n--- SED: shortcuts shown are the real ones --------------------------------------------------------")
-    want = {"Edit": [("Paste", "Ctrl-Y"), ("Kill line", "Ctrl-K"), ("Copy region", "Esc W"), ("Set mark", "Esc .")],
-            "Search": [("Forward search", "Ctrl-S"), ("Goto line", "Esc G"), ("Top", "Esc <"), ("Bottom".replace("Bottom", "Botto"), "Esc >")],
-            "Buffer": [("Next buffer", "Esc N"), ("List buffers", "Ctrl-X Ctrl-B")],
-            "Window": [("Split window", "Ctrl-X 2"), ("Refresh screen", "Ctrl-L")],
-            "Tools": [("Compile and run", "Ctrl-X M"), ("Execute macro", "Ctrl-X E")]}
+    want = {"Edit": [("Paste", "Ctrl-V"), ("Cut region", "Ctrl-X"), ("Copy region", "Ctrl-C"), ("Kill line", "Ctrl-K"), ("Set mark", "Esc .")],
+            "Search": [("Forward search", "Ctrl-F"), ("Backward search", "Ctrl-B"), ("Replace...", "Ctrl-R"), ("Goto line", "Ctrl-L"), ("Top", "Esc <"), ("Bottom".replace("Bottom", "Botto"), "Esc >")],
+            "Buffer": [("Next buffer", "Esc N"), ("Previous buffer", "Esc P")],
+            "Tools": [("Command...", "Esc X"), ("Run extension", "Esc E")]}
     for title, pairs in want.items():
         e.keys(F10)
         for _ in range(["File", "Edit", "Search", "Buffer", "Window", "Tools"].index(title)):
@@ -403,8 +403,8 @@ def part_sed(box, sysd):
     say("\n--- SED: Quit with an unsaved change asks first, in the library's message box -------------------------")
     e = Term(box, "SED %s r2" % F)
     e.keys("Z")
-    L = e.keys(CTRL("x") + CTRL("c"))
-    row("Ctrl-X Ctrl-C with a change opens a box with the question and [ No ] [ Yes ]", any("[ No ]" in l and "[ Yes ]" in l for l in L) and any("Quit without saving" in l for l in L), "\n".join(L[:25]))
+    L = e.keys(CTRL("q"))
+    row("Ctrl-Q with a change opens a box with the question and [ No ] [ Yes ]", any("[ No ]" in l and "[ Yes ]" in l for l in L) and any("Quit without saving" in l for l in L), "\n".join(L[:25]))
     L = e.keys(ESC, idle=0.9)
     row("Esc answers no: the box is gone and the editor is still there with the change", not any("[ No ]" in l for l in L) and "Z" in L[1], "\n".join(L[:4]))
     e.keys(F10, "q")
@@ -419,12 +419,55 @@ def part_sed(box, sysd):
     e = Term(box, "SED %s r1" % F)
     L = e.keys(CTRL("n"), CTRL("n"))
     row("the editor's own keys still work: Ctrl-N twice puts the cursor on line 3 (status 3.1)", any(re.search(r"\b3\.1\b", l) for l in L[-3:]), "\n".join(L[-3:]))
-    e.keys(CTRL("x") + CTRL("c"))
+    e.keys(CTRL("q"))
     e.end()
     e = Term(box, "SED %s r1" % F, cols=80, rows=24)
     L = e.lines()
     row("on an 80x24 terminal the bar, the record and the two bottom lines all fit", "File" in L[0] and L[1].startswith("alpha") and len([l for l in L if l.strip()]) >= 4, "\n".join(L))
-    e.keys(CTRL("x") + CTRL("c"))
+    e.keys(CTRL("q"))
+    e.end()
+
+    say("\n--- SED: the keys most editors have (12 Oct 26 layout) ---------------------------------------------")
+    e = Term(box, "SED %s r2" % F)
+    e.keys("Z")
+    e.keys(CTRL("s"))
+    row("Ctrl-S saves the record: line 1 on disk now starts with the Z", rec(box, "r2")[0] == "Z" + RECORD[0], repr(rec(box, "r2")[:1]))
+    L = e.keys(CTRL("q"))
+    row("...and Ctrl-Q on a saved record leaves SED at once, with no question", not any("[ No ]" in l for l in L) and any(l.startswith(":") for l in L), "\n".join(L[-4:]))
+    e.end()
+    e = Term(box, "SED %s r1" % F)
+    e.keys("Q")
+    L = e.keys(BS)
+    row("Backspace (the DEL byte a terminal sends) deletes the character before the cursor", L[1].startswith("alpha one") and not L[1].startswith("Qalpha"), repr(L[1]))
+    e.keys(CTRL("q"))
+    e.keys("y")
+    e.end()
+    e = Term(box, "SED %s r1" % F)
+    e.keys(ESC + ".", CTRL("e"), CTRL("c"), CTRL("v"), idle=0.8)
+    L = e.lines()
+    row("Esc . sets the mark, Ctrl-E goes to the end of the line, Ctrl-C copies the region and Ctrl-V pastes it: the line is there twice",
+        any(re.search(r"\b1\.%d\b" % (2 * len(RECORD[0]) + 1), l) for l in L[-3:]), "\n".join(L[-3:]))
+    e.keys(CTRL("q"))
+    e.keys("y")
+    e.end()
+    e = Term(box, "SED %s r1" % F)
+    e.keys(ESC + ".", CTRL("e"), CTRL("x"), idle=0.8)
+    L = e.lines()
+    row("Ctrl-X cuts the region: the first line is empty now", not L[1].startswith("alpha"), repr(L[1]))
+    L = e.keys(CTRL("v"))
+    row("...and Ctrl-V puts it back", L[1].startswith(RECORD[0]), repr(L[1]))
+    e.keys(CTRL("q"))
+    e.keys("y")
+    e.end()
+    e = Term(box, "SED %s r1" % F)
+    L = e.keys(CTRL("l"))
+    row("Ctrl-L asks for a line (Goto line), Esc gives it up", any("Line" in l or "line" in l for l in L[-3:]), "\n".join(L[-3:]))
+    e.keys(CTRL("g"))
+    e.keys(CTRL("f"))
+    L = e.lines()
+    row("Ctrl-F asks for a string to search for", any("earch" in l for l in L[-3:]), "\n".join(L[-3:]))
+    e.keys(CTRL("g"))
+    e.keys(CTRL("q"))
     e.end()
 
 
