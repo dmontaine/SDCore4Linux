@@ -395,6 +395,24 @@ $include sl.h
 
    dim image(screen.lines + 1) ; mat image = sw.space
 
+   * Syntax colour (13 Oct 26).  OFF unless &sed.options& says SYNTAX or the Tools menu is used, and the screen
+   * is then drawn exactly as before.  The language of the record, one style code per character of every line
+   * drawn, and the state each line ends in (so that a comment or string that goes on to the next line colours
+   * it) come from $sl_syntax; the colours are the theme's ($sl_theme: dark, or light for SYNTAX.LIGHT).
+   syn.want = @false                  ;* asked for, by &sed.options& or the menu
+   syn.light = @false                 ;* the light theme rather than the dark one
+   syn.on = @false                    ;* in use: wanted AND this terminal can show colour
+   syn.lang = 0                       ;* the number of the record's language in $sl_syntax; 0 = none
+   syn.key = char(255)                ;* what syn.lang was worked out for (file, dict flag, record id); never equal at first
+   dim simage(screen.lines + 1) ; mat simage = ''   ;* style codes of what is drawn on each row ('' = drawn plain)
+   dim syn.end(screen.lines + 1) ; mat syn.end = 0  ;* the state the line shown on each row ends in
+   syn.chk = ''                       ;* field k: the state at the start of line (k - 1) * 100 + 1
+   syn.chk.n = 1                      ;* how many of them are good (the first is always: state 0)
+   syn.top.state = 0                  ;* the state at the start of top.line, when syn.top.for = top.line
+   syn.top.for = 0
+   syn.lines.seen = 0                 ;* the line count when the checkpoints were last good
+   sty = ''                           ;* the style codes of the line zoned.update is about to draw ('' = plain)
+
    dim refresh(screen.lines + 1)     ;* Refresh this line?
    refresh.file = @true              ;* Refresh file line?
    refresh.other = @false            ;* Refresh "other" window?
@@ -428,7 +446,7 @@ $include sl.h
 
    gosub open.file
    if not(open.ok) then
-      message = sysmsg(2019) ;* File not found
+      message = if open.why # '' then open.why else sysmsg(2019) ;* File not found, or the OS gate's refusal
       goto stop.sed
    end
 
@@ -514,6 +532,16 @@ $include sl.h
 
                   case token = 'OVERLAY'
                      overlay = @true
+
+                  case token = 'SYNTAX'
+                     syn.want = @true
+
+                  case token = 'NO.SYNTAX'
+                     syn.want = @false
+
+                  case token = 'SYNTAX.LIGHT'
+                     syn.want = @true
+                     syn.light = @true
 
                   case token = 'TABS'
                      n = remove(ss, delim)
@@ -3521,6 +3549,7 @@ save.current:
       end
 
       chunk(current.chunk)<current.fld> = current.line
+      syn.dl = line ; gosub syn.dirty      ;* syntax colour: what starts below this line may have changed
       if line > lines then     ;* Adding new line at end
 * 0060  Was chunk.lines(ch) += 1
          chunk.lines(current.chunk) += 1
@@ -3579,6 +3608,7 @@ insert.line:
 
 delete.current:
    if line <= lines then
+      syn.dl = line ; gosub syn.dirty      ;* syntax colour: the lines below move up
       n = line
       gosub find.line
 
@@ -4046,6 +4076,7 @@ update.screen:
 
    * Refresh lines that have changed
 
+   if syn.on then gosub syn.prepare   ;* the record's language, and the state its first row starts in
    n = top.line       ;* Data record line
    for ln = live.top to live.btm
       i = ln + 1
@@ -4053,19 +4084,23 @@ update.screen:
 
       if refresh(i) then
          if n > lines then
-            if image(i) # sw.space then
+            if image(i) # sw.space or simage(i) # '' then
                display @(0, ln + 1) : @(-4) :
                image(i) = sw.space
+               simage(i) = ''
             end
          end else
-            if n = line then ss = current.line[pan, screen.width]
+            if n = line then syn.full = current.line
             else
                gosub find.line
-               ss = chunk(ch)<fld>[pan, screen.width]
+               syn.full = chunk(ch)<fld>
             end
+            ss = syn.full[pan, screen.width]
+            if syn.on and syn.lang then gosub syn.row   ;* sty: a style code for every character of ss
 
             if lcol then ss = (fmt(n, lcol.fmt) : ': ' : ss)[1, screen.width]
             gosub zoned.update
+            sty = ''
          end
          refresh(i) = @false
       end
@@ -4265,6 +4300,11 @@ zoned.update:
    image.line = image(ln + 1)
    text.line = convert(banned, replacements, ss) : sw.space
 
+* 13 Oct 26 dm - SYNTAX COLOUR.  A row with no styles (sty = '') that was last drawn plain (simage = '') takes the old
+*   path below, character for character as before: that is every row when syntax colour is off, and the bars and the
+*   other window always.  Anything else is drawn in runs of one style.
+   if sty # '' or simage(ln + 1) # '' then goto zoned.update.styled
+
    for cl = 1 to screen.width
       if text.line[cl,1] # image.line[cl,1] then
          left = cl ; right = cl
@@ -4282,6 +4322,168 @@ zoned.update:
       end
    next cl
 
+   return
+
+* The same, for a row that has styles (or had them): one style code a character in sty, 'n' for the rest of the row.
+* A character is drawn again if its text OR its style differs from what is on the screen, the span from the first
+* such character to the last goes out in runs, and every run starts by switching all attributes off ($sl_sgr), so
+* what the terminal was doing before does not matter.  SED's own attribute is put back at the end.
+zoned.update.styled:
+   zs.new = (sty : str('n', screen.width))[1, screen.width]
+   zs.old = simage(ln + 1)
+   if zs.old = '' then zs.old = str('n', screen.width)
+   left = 0
+   for cl = 1 to screen.width
+      if text.line[cl,1] # image.line[cl,1] or zs.new[cl,1] # zs.old[cl,1] then
+         left = cl ; right = cl
+         loop
+            cl += 1
+         while cl <= screen.width
+            if text.line[cl,1] # image.line[cl,1] or zs.new[cl,1] # zs.old[cl,1] then right = cl
+         repeat
+         exit
+      end
+   next cl
+
+   if left then
+      crt @(left - 1, ln + 1) :
+      zs.p = left
+      loop
+         zs.c = zs.new[zs.p, 1]
+         zs.q = zs.p
+         loop
+            zs.q += 1
+         while zs.q <= right and zs.new[zs.q, 1] = zs.c
+         repeat
+         call $sl_sgr(zs.c, zs.seq)
+         crt zs.seq : text.line[zs.p, zs.q - zs.p] :
+         zs.p = zs.q
+      while zs.p <= right
+      repeat
+      call $sl_sgr('n', zs.seq)
+      crt zs.seq : attr :
+      w = (right - left) + 1
+      image(ln + 1)[left, w] = text.line[left, w]
+   end
+   if convert('n', '', zs.new) = '' then simage(ln + 1) = '' else simage(ln + 1) = zs.new
+
+   return
+
+*****************************************************************************
+* SYNTAX COLOUR  (13 Oct 26).  The engine is $sl_syntax: it names a record's language, and for a line of text and
+* the state the line starts in it gives one style code per character and the state the line ends in (0 = in
+* nothing; else the comment or string that goes on to the next line).  What a style looks like is the theme's.
+*
+* THE STATE AT THE TOP OF THE SCREEN is found from checkpoints, one every 100 lines (syn.chk), so that scrolling
+* to line 9,000 of a long record does not read 9,000 lines each time; each row's end state is kept (syn.end), so
+* that the row below starts from it without reading the row above again.  What an edit can change is forgotten
+* by syn.dirty: save.current, insert.line, delete.current, a region delete and a load.  A row whose end state
+* has changed makes every row below it be drawn again (syn.row).
+
+* Once an update: the language of the record, and the state the first live row starts in
+syn.prepare:
+   if lines # syn.lines.seen then          ;* lines were added or taken away
+      syn.lines.seen = lines
+      syn.chk.n = 1 ; syn.top.for = 0
+   end
+   syn.k2 = dict.flag : @fm : file.name : @fm : record.name
+   if syn.k2 # syn.key then gosub syn.detect
+   if syn.lang then gosub syn.state.top
+   return
+
+* syn.lang = the language of what is being edited (0 = none), from its file, its record id and its first line
+syn.detect:
+   syn.key = syn.k2
+   syn.lang = 0
+   syn.first = ''
+   if lines >= 1 then
+      if line = 1 then
+         syn.first = current.line
+      end else
+         n = 1 ; gosub find.line
+         if ch then syn.first = chunk(ch)<fld>
+      end
+   end
+   syn.fname = file.name
+   if upcase(syn.fname[1, 5]) = 'PATH:' then syn.fname = syn.fname[6, 9999]
+   call $sl_syntax('detect', syn.fname, record.name, syn.first, '', syn.name)
+   if syn.name # '' then call $sl_syntax('index', syn.name, '', '', '', syn.lang)
+   syn.chk = '' ; syn.chk.n = 1 ; syn.top.for = 0
+   mat refresh = @true                      ;* every row may now look different
+   return
+
+* syn.top.state = the state at the start of top.line (valid while syn.top.for = top.line)
+syn.state.top:
+   if syn.top.for = top.line then return
+   syn.k = int((top.line - 1) / 100) + 1       ;* the checkpoint at or before top.line
+   if syn.k > syn.chk.n then syn.k = syn.chk.n
+   if syn.k = 1 then syn.st = 0 else syn.st = syn.chk<syn.k> + 0
+   syn.zl = ((syn.k - 1) * 100) + 1            ;* the line that syn.st is the state at the start of
+   loop
+   while syn.zl < top.line
+      if syn.zl = line then
+         syn.t = current.line
+      end else
+         n = syn.zl ; gosub find.line
+         syn.t = if ch then chunk(ch)<fld> else ''
+      end
+      call $sl_syntax('state', syn.lang, syn.t, syn.st, syn.st2, '')
+      syn.st = syn.st2
+      syn.zl += 1
+      if mod(syn.zl - 1, 100) = 0 then          ;* syn.zl begins a checkpoint
+         syn.k = int((syn.zl - 1) / 100) + 1
+         if syn.k > syn.chk.n then
+            syn.chk<syn.k> = syn.st
+            syn.chk.n = syn.k
+         end
+      end
+   repeat
+   syn.top.state = syn.st
+   syn.top.for = top.line
+   return
+
+* sty = the style codes of the part of line n that is on the screen; syn.full is the whole line, i the row
+syn.row:
+   if ln = live.top then syn.st = syn.top.state else syn.st = syn.end(i - 1)
+   call $sl_syntax('line', syn.lang, syn.full, syn.st, syn.st2, sty)
+   sty = sty[pan, screen.width]
+   if lcol then sty = (str('n', lcol) : sty)[1, screen.width]      ;* the line number is plain
+   if syn.st2 # syn.end(i) then
+      syn.end(i) = syn.st2
+      for syn.j = i + 1 to live.btm + 1       ;* the rows below start somewhere else now
+         refresh(syn.j) = @true
+      next syn.j
+   end
+   return
+
+* Lines from syn.dl on may now start in other states: forget what was worked out below them
+syn.dirty:
+   syn.k = int((syn.dl - 1) / 100) + 1
+   if syn.chk.n > syn.k then syn.chk.n = syn.k
+   if syn.top.for > syn.dl then syn.top.for = 0
+   return
+
+* Wanted and possible: switch the theme on (a colour theme needs a terminal that can show colour)
+syn.start:
+   syn.on = @false
+   if syn.want then
+      call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
+      if syn.r = 0 then syn.on = @true
+   end
+   syn.key = char(255)
+   syn.chk = '' ; syn.chk.n = 1 ; syn.top.for = 0 ; syn.lines.seen = 0
+   mat simage = '' ; mat syn.end = 0
+   return
+
+* Put the screen back as it was: the theme to mono, and every row drawn plain
+syn.stop:
+   if syn.on then
+      call $sl_theme('set', 'mono', '', '', '', syn.r)
+      syn.on = @false
+      mat simage = ''
+      gosub clear.screen
+      gosub refresh.all
+   end
    return
 
 *****************************************************************************
@@ -4356,12 +4558,19 @@ get.set.term.state:
       keyin.to = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
    end
 
+   * 13 Oct 26: the theme syntax colour uses is put back when the terminal comes back to this program
+   if syn.on then call $sl_theme('set', (if syn.light then 'light' else 'dark'), '', '', '', syn.r)
+
    return
 
 * *****************************************************************************
 
 reset.term.state:
    * ttyset tty.modes
+
+   * 13 Oct 26: and given up when the terminal goes to somebody else (a shell, an editor, the end of SED): the next
+   * program starts from mono, having asked for nothing
+   if syn.on then call $sl_theme('reset', '', '', '', '', syn.r)
 
    return
 
@@ -5103,7 +5312,7 @@ assemble.record:
 open.file:
    open.ok = @true
    is.path = @false
-
+   open.why = ''                    ;* Why not, when it is a refusal and not a missing file
    open dict.flag, file.name to file(current.buffer) else
       open dict.flag, upcase(file.name) to file(current.buffer) then
          file.name = upcase(file.name)
@@ -5119,6 +5328,16 @@ open.file:
          * is maintained properly and locking works.
 
          fpath = file.name[6,9999]
+
+* 13 Oct 26 dm - S.63.  THIS PROGRAM IS $internal, SO THE KERNEL DOES NOT ASK THE OS GATE ABOUT THE OPENSEQ BELOW:
+*   it would open any path the Linux user can read, for an account that has not been given OS access.  The
+*   question is put here, as the account, before the path is touched: inside the account's own directory, or
+*   the account holds os-on (or is SDSYS).
+         if not(kernel(K$PATH.OK, fpath)) then
+            open.ok = @false
+            open.why = sysmsg(11180, @who)   ;* %1 has no OS access, so a file or directory outside its own account cannot be reached
+            return
+         end
 
          openseq fpath to fpath.f else
             fpath = upcase(fpath)
@@ -5196,7 +5415,7 @@ read.specific.record:     ;* Side entry from dive function
 
    gosub open.file
    if not(open.ok) then
-      message = sysmsg(2019) ;* File not found
+      message = if open.why # '' then open.why else sysmsg(2019) ;* File not found, or the OS gate's refusal
       gosub error
       no.of.buffers -= 1
       current.buffer = old.buffer
@@ -5663,7 +5882,7 @@ explore:
 
       gosub open.file
       if not(open.ok) then
-         message = "File not found."
+         message = if open.why # '' then open.why else "File not found."
          gosub error
          no.of.buffers -= 1
          goto abort.explore
