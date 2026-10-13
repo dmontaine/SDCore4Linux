@@ -1,6 +1,32 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  SED, THE FULL SCREEN EDITOR, IS BACK, WITH DROP-DOWN MENUS (1.2-0).
+
+           SED edits a record of any file (SED file record, or with an active
+           select list).  It was removed because its Emacs-style keys are hard
+           to remember.  It is back with a menu bar on the top line - File,
+           Edit, Search, Buffer, Window, Tools - opened with F10, or with Esc
+           pressed on its own.  Left and right move between the menus, up and
+           down between the items, Return runs the item, Esc closes the menu,
+           and a letter picks the item with that letter.  Each item shows the
+           key that does the same thing, read from the key bindings in use
+           (Ctrl-X Ctrl-S for Save, Esc G for Goto line), so the menus teach the
+           keys.  An item that needs an answer (a search string, a line number)
+           asks on SED's usual prompt line.  Quitting a changed record asks in
+           a small message box (No is the default).  Esc followed at once by a
+           letter is still the editor's own Esc-key command.
+
+           SED needs a terminal of at least 80 columns by 12 lines; it used
+           to insist on 120 by 36.  It does not change what SED edits or how
+           the keys work.  The record names it reads for its options and key
+           bindings are now lower case (&sed.options&, &sed.bindings&).
+
+           The menus are built on a small screen library for the system's own
+           programs (user programs cannot call $-names yet) ($sl_key, $sl_region, $sl_menu, $sl_msgbox,
+           $sl_prompt; see sd64/screenlib-design.md).  It does not change
+           anything else.
+
 12 Oct 26  SIX SMALL BASIC ADDITIONS (1.2-0, openQM compatibility; the compiler
            and the kernel).
 
