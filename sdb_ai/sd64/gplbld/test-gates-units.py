@@ -37,6 +37,8 @@ FILES = {
     "op_dio1.c": os.path.join(GPLSRC, "op_dio1.c"),
     "op_kernel.c": os.path.join(GPLSRC, "op_kernel.c"),
     "op_sdext.c": os.path.join(GPLSRC, "op_sdext.c"),
+    "op_dio4.c": os.path.join(GPLSRC, "op_dio4.c"),
+    "to_file.c": os.path.join(GPLSRC, "to_file.c"),
     "keys.h": os.path.join(GPLSRC, "keys.h"),
     "sysseg.h": os.path.join(GPLSRC, "sysseg.h"),
     "int$keys.h": os.path.join(GPL, "int$keys.h"),
@@ -47,11 +49,18 @@ FILES = {
     "create_account": os.path.join(GPL, "create_account"),
     "modifya": os.path.join(GPL, "modifya"),
     "edit": os.path.join(GPL, "edit"),
+    "seldir": os.path.join(GPL, "seldir"),
+    "_oscopy": os.path.join(GPL, "_oscopy"),
+    "_ioscopy": os.path.join(GPL, "_ioscopy"),
+    "oscopya": os.path.join(GPL, "oscopya"),
+    "setptr": os.path.join(GPL, "setptr"),
+    "apisrvr": os.path.join(GPL, "apisrvr"),
+    "_voc_ref": os.path.join(GPL, "_voc_ref"),
     "acc_os_info": os.path.join(GPL, "acc_os_info"),
     "upgrade_gates": os.path.join(GPL, "upgrade_gates"),
     "installsdcore.sh": os.path.join(ROOT, "installsdcore.sh"),
 }
-C_FILES = ("op_sh.c", "op_seqio.c", "op_dio1.c", "op_kernel.c", "op_sdext.c", "keys.h", "sysseg.h")
+C_FILES = ("op_sh.c", "op_seqio.c", "op_dio1.c", "op_kernel.c", "op_sdext.c", "op_dio4.c", "to_file.c", "keys.h", "sysseg.h")
 SH_FILES = ("installsdcore.sh",)
 
 
@@ -109,7 +118,7 @@ def checks(srcs, messages_dir):
     nums = {}
     for m in re.finditer(r"#define\s+(K_[A-Z0-9_]+)\s+(\d+)", c["keys.h"]):
         nums.setdefault(int(m.group(2)), []).append(m.group(1))
-    for key, want in (("K_SH", 93), ("K_OS_EXEC", 94), ("K_PATH_OK", 95)):
+    for key, want in (("K_SH", 93), ("K_OS_EXEC", 94), ("K_PATH_OK", 95), ("K_PATH_IN", 96)):
         m = re.search(r"#define\s+%s\s+(\d+)" % key, c["keys.h"])
         ck("K1 %s is %d in gplsrc/keys.h" % (key, want), m and int(m.group(1)) == want, m.group(0) if m else "absent")
         bkey = key.replace("K_", "K$").replace("_", ".")
@@ -138,7 +147,7 @@ def checks(srcs, messages_dir):
     gate = gate[:gate.find("\n}") + 2]
     ck("C4 os_gate_open() is the administrator or USR_OS_EXEC, and does NOT look at HDR_INTERNAL",
        "USR_ADMIN" in gate and "USR_OS_EXEC" in gate and "HDR_INTERNAL" not in gate, gate.strip()[:120])
-    pia = sh[at(sh, "Private bool path_inside_account"):]
+    pia = sh[at(sh, "Private bool path_inside_dir"):]
     pia = pia[:at(pia, "bool os_path_ok_for_account")]
     ck("C5 containment resolves with realpath() on both sides and tests a path-component boundary",
        pia.count("realpath(") >= 2 and "strncmp(resolved, root, root_len)" in pia
@@ -146,7 +155,7 @@ def checks(srcs, messages_dir):
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
        'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
     ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment",
-       re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_account\(name\);", sh))
+       re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_dir\(NULL, name\);", sh))
     ck("C8 os_path_open_ok: an $internal program is trusted, anyone else is asked",
        re.search(r"bool os_path_open_ok\(const char \*name\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\)\s*return TRUE;\s*"
                  r"return os_path_ok_for_account\(name\);", sh))
@@ -179,6 +188,15 @@ def checks(srcs, messages_dir):
     ck("C14 kernel(K_PATH_OK) answers os_path_ok_for_account (the account's question, not the caller's)",
        "os_path_ok_for_account(path_ok_name)" in kp and "os_path_open_ok" not in kp)
 
+    kin = kn[at(kn, "case K_PATH_IN:"):][:700]
+    ck("C14b kernel(K_PATH_IN) splits 'directory, field mark, pathname' and answers the GEOMETRY only (os_path_inside): it does not "
+       "ask the gate, so a caller that uses it has decided the directory is one the account may use",
+       "FIELD_MARK" in kin and "os_path_inside(path_in_buf, path_in_sep + 1)" in kin and "os_gate_open" not in kin
+       and "os_path_ok_for_account" not in kin)
+    ck("C14c os_path_inside is path_inside_dir with the directory given, and an absolute directory is required",
+       re.search(r"bool os_path_inside\(const char \*rootdir, const char \*name\) \{\s*return path_inside_dir\(rootdir, name\);", sh)
+       and "(rootdir[0] != '/')" in pia)
+
     sx = c["op_sdext.c"]
     py = sx[at(sx, "case SD_PyInit:"):][:900]
     g = at(py, "os_gate_open()")
@@ -187,6 +205,38 @@ def checks(srcs, messages_dir):
     cond = py[:g]
     ck("C16 it gates starting the interpreter and running code, and not 'is Python running?'",
        "SD_PyInit" in cond[cond.find("if ("):] and "SD_PyRunStr" in cond and "SD_PyRunFile" in cond and "SD_IsPyInit" not in cond[cond.find("if ("):])
+
+    # ---- C (second sitting). the other routes to an OS path ------------------------------------------------------
+    # 13 Oct 26: the first S.63 asked only OPENSEQ and OPENPATH.  A measured account with both gates off still listed /etc
+    # with DIR(), deleted a file outside its directory with DELETESEQ, copied files out of and into other directories
+    # with !OSCOPY / !IOSCOPY, and printed into a file outside it with SETPTR ... AS PATHNAME.  Each is asked below.
+    d4 = c["op_dio4.c"]
+    dr = d4[at(d4, "void op_dir() {"):]
+    dgate = at(dr, "if (!os_path_open_ok(pathname)) {")
+    dopen = at(dr, "opendir(pathname)")
+    ck("C17 DIR() asks the OS gate for the pathname BEFORE opendir(), and the refusal is ER_PERM",
+       0 < dgate < dopen and re.search(r"if \(!os_path_open_ok\(pathname\)\) \{\s*process\.status = ER_PERM;", dr),
+       "gate %s, opendir %s" % (dgate, dopen))
+    ds = sq[at(sq, "void op_delseq() {"):]
+    dsrec = at(ds, "strcat(file_name, rec_name);")
+    dsgate = at(ds, "if (!os_path_open_ok(file_name)) {", dsrec)
+    dsstat = at(ds, "stat(file_name, &stat_buf)")
+    ck("C18 DELETESEQ of a bare pathname (no record name) asks the OS gate AFTER the VOC-named form is dealt with and BEFORE it "
+       "stats or removes anything, and the refusal is ER_PERM",
+       0 < dsrec < dsgate < dsstat and re.search(r"if \(!os_path_open_ok\(file_name\)\) \{\s*process\.status = ER_PERM;\s*goto exit_op_delseq;", ds),
+       "record form %s, gate %s, stat %s" % (dsrec, dsgate, dsstat))
+    tf = c["to_file.c"]
+    tsf = at(tf, "Private void start_file(PRINT_UNIT* pu) {")
+    tmark = at(tf, 'sprintf(fn, "$hold%c%s", DS, pu->file_name + 6);', tsf)
+    tcpy = at(tf, "strcpy(fn, pu->file_name);", tsf)
+    tgate = at(tf, "os_path_ok_for_account(fn)", tsf)
+    topen = at(tf, "open_file:", tsf)
+    ck("C19 a print unit's FINAL path - whether it came from a raw pathname or from the '$hold name' marker, which a SETPU program "
+       "can write itself and which must not climb out with '..' - is asked of the ACCOUNT (not the printing program, which is "
+       "usually $internal) after every branch has built it and before dio_open(), and the refusal is 11180",
+       0 < tsf < tmark < tgate < topen and tcpy < tgate and "sysmsg(11180)" in tf[tgate:topen]
+       and "os_path_open_ok" not in tf[tsf:topen],
+       "start_file %s, marker %s, raw copy %s, gate %s, open_file %s" % (tsf, tmark, tcpy, tgate, topen))
 
     # ---- B. BASIC ---------------------------------------------------------------------------------------------
     cp = c["cproc"]
@@ -215,10 +265,15 @@ def checks(srcs, messages_dir):
        and "# '0'" not in ca[ca.find("access.given"):ca.find("access.given") + 900])
     ck("B5 SH and OS.EXECUTE start off too: a switch is on only if its setting is exactly 1",
        "os.sh.want = (settings<CA$OS.SH> = 1)" in ca and "os.exec.want = (settings<CA$OS.EXECUTE> = 1)" in ca)
-    att = at(ca, "if attach then")
-    ck("B6 ATTACH (the installing user) turns all four on, inside the install-only branch",
-       att > 0 and all(x in ca[att:att + 260] for x in ("access.ssh = @true", "access.api = @true", "os.sh.want = @true", "os.exec.want = @true"))
-       and at(ca, "err = 2018:@vm:'ATTACH'") < att)
+    att = at(ca, "if settings<CA$ATTACH> = 1 then")
+    att_end = at(ca, "openpath @sdsys:@ds:'accounts' to acc.f", att)
+    ck("B6 ATTACH (the installing user) turns NOTHING on: the install-only branch never sets a route or a switch, so the installing "
+       "user's account starts off like every other new account (owner, 13 Oct second sitting: the only exception is the accounts "
+       "that exist at an upgrade)",
+       0 < att < att_end and at(ca, "err = 2018:@vm:'ATTACH'") > att
+       and not any(x in ca[att:att_end] for x in ("access.ssh = @true", "access.api = @true", "os.sh.want = @true", "os.exec.want = @true",
+                                                   "if attach then")),
+       "attach block %s..%s" % (att, att_end))
     ck("B7 a GROUP and an OTHER account given SH or OS are refused with 10105",
        ca.count("os.sh.want or os.exec.want") >= 2 and ca.count("err = 10105") >= 2)
     wr = at(ca, "write acc.rec to acc.f, acc.name")
@@ -267,6 +322,81 @@ def checks(srcs, messages_dir):
     ck("B17 it touches USER accounts only (an sdu_ group) and sets both fields to yes",
        "rec<ACC$GROUP>[1, 4] = 'sdu_'" in ug and "rec<ACC$SH> = 'yes'" in ug and "rec<ACC$OS.EXEC> = 'yes'" in ug)
 
+    # the $internal programs that act for the user on an OS path: the kernel exempts them, so each asks K$PATH.OK itself
+    sdr = c["seldir"]
+    sg = at(sdr, "if not(kernel(K$PATH.OK, path)) then")
+    sd_ = at(sdr, "entries = dir(path)")
+    ck("B18 SELECT.DIR asks K$PATH.OK for the directory BEFORE it reads it, says 11180, and includes int$keys.h",
+       0 < sg < sd_ and "sysmsg(11180, @who)" in sdr[sg:sd_] and "$include int$keys.h" in sdr,
+       "ask %s, dir() %s" % (sg, sd_))
+    oc_ = c["_oscopy"]
+    o1, o2 = at(oc_, "kernel(K$PATH.OK, source)"), at(oc_, "kernel(K$PATH.OK, target)")
+    oe = at(oc_, "ospath(source, OS$EXISTS)")
+    ck("B19 !OSCOPY asks K$PATH.OK for BOTH paths BEFORE it tests that the source exists (so -2 does not say what exists "
+       "elsewhere), and the answer is status -4",
+       0 < o1 < oe and 0 < o2 < oe and "status = -4" in oc_[o1:oe], "source %s, target %s, exists %s" % (o1, o2, oe))
+    io_ = c["_ioscopy"]
+    i1, i2 = at(io_, "kernel(K$PATH.OK, source)"), at(io_, "kernel(K$PATH.OK, target)")
+    ie = at(io_, "ospath(source, OS$EXISTS)")
+    ck("B20 !IOSCOPY the same: both paths asked before the existence test, status -4",
+       0 < i1 < ie and 0 < i2 < ie and "status = -4" in io_[i1:ie], "source %s, target %s, exists %s" % (i1, i2, ie))
+    oa = c["oscopya"]
+    ck("B21 the OSCOPY verb answers -4 in 11180's words, before its catch-all",
+       re.search(r"case status = -4\s*display sysmsg\(11180, @who\)\s*case 1", oa))
+    # the API server enters an account itself, through neither LOGIN nor CPROC's LOGTO, so it loads the switches itself
+    ap = c["apisrvr"]
+    a0 = at(ap, "api.sh.grant = @false")
+    a1 = at(ap, "api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')")
+    a2 = at(ap, "api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')")
+    a_cd = at(ap, "if not(ospath(account.path, OS$CD)) then")
+    a_voc = at(ap, 'openpath "voc" to new.voc else')
+    a_ld = at(ap, "void kernel(K$SH,      api.sh.grant)")
+    a_ld2 = at(ap, "void kernel(K$OS.EXEC, api.os.grant)")
+    a_login = at(ap, "readv i from @voc, 'LOGIN', 0")
+    ck("B23 the API server reads the account's two switches from the register ('YES' only), starting from OFF on every call, and "
+       "loads them only AFTER the account has been entered (after the last revert) and before the LOGIN paragraph runs",
+       0 < a0 < a1 < a2 and 0 < a_voc < a_ld < a_ld2 < a_login and a_cd < a_voc and "api.os.grant = @false" in ap[a0:a1],
+       "reset %s, read %s/%s, cd %s, voc %s, load %s/%s, login %s" % (a0, a1, a2, a_cd, a_voc, a_ld, a_ld2, a_login))
+    # a VOC pointer is a way to NAME a file: the F-pointer's target, and the account a Q-pointer leads into (second sitting)
+    vr = c["_voc_ref"]
+    vr_top = at(vr, "vr.admin = kernel(K$ADMINISTRATOR, -1)")
+    vr_free = at(vr, "vr.free = vr.admin or kernel(K$OS.EXEC, -1)")
+    q_chk = at(vr, "gosub check.q.hop")
+    q_dir = at(vr, "dir = qpath", q_chk)
+    q_open = at(vr, "openpath qpath:@ds:'voc' to qvoc", q_chk)
+    ck("B24 _voc_ref derives 'administrator' and 'holds os-on' from the session, and a Q-pointer is checked (not for the administrator) "
+       "BEFORE its target account's VOC is opened, the refusal being ER$PERM",
+       0 < vr_top < vr_free < q_chk < q_dir < q_open
+       and re.search(r"if not\(vr\.admin\) then\s*gosub check\.q\.hop\s*if not\(q\.ok\) then\s*set\.status ER\$PERM\s*return", vr),
+       "admin %s, free %s, hop %s, dir %s, open %s" % (vr_top, vr_free, q_chk, q_dir, q_open))
+    hop = vr[at(vr, "check.q.hop:"):]
+    reg = hop[at(hop, "if q.registered then"):at(hop, "q.ok = vr.free or")]
+    ck("B25 check.q.hop: a stock pointer (the same record in NEWVOC) first; a REGISTERED account only on LOGTO's own test - not suspended, "
+       "and a member of its group - and WITHOUT looking at os-on (the owner: 'only into an account the user can logto in any case'); "
+       "a path or a name that is no account is the OS gate's question",
+       "stock.found and upcase(stock.rec[1,1]) = 'Q'" in hop and "stock.rec<2> = q.named" in hop
+       and "upcase(trim(q.susp)) # 'SUSPENDED'" in reg and "is_grp_member(@logname, q.group)" in reg and "vr.free" not in reg
+       and "q.ok = vr.free or kernel(K$PATH.OK, qpath)" in hop)
+    f_chk = at(vr, "gosub check.f.path")
+    f_ret = at(vr, "set.status 0", f_chk)
+    fcp = vr[at(vr, "check.f.path:"):at(vr, "check.q.hop:")]
+    ck("B26 _voc_ref asks about the file an F-pointer finally names, after the name is made absolute and before it is returned, "
+       "unless the session is free: inside the account, or inside the account a Q-pointer led into (K$PATH.IN), or what the stock "
+       "VOC says (same id, same field in NEWVOC)",
+       0 < f_chk < f_ret and re.search(r"if not\(vr\.free\) then\s*gosub check\.f\.path\s*if not\(path\.ok\) then\s*pathname = ''\s*set\.status ER\$PERM", vr)
+       and "kernel(K$PATH.OK, pathname)" in fcp and "kernel(K$PATH.IN, qroot : @fm : pathname)" in fcp
+       and "upcase(stock.rec[1,1]) = 'F' and stock.rec<fno> = f.raw" in fcp,
+       "check %s, return %s" % (f_chk, f_ret))
+    pf = vr[at(vr, "case upcase(x1) = 'PATH'"):at(vr, "case n = 2")]
+    ck("B27 the PATH: form (FILERULE) is held to the OS gate too, and an absolute Q-pointer target is remembered as qroot",
+       "if not(vr.free) and not(kernel(K$PATH.OK, pathname)) then" in pf and "set.status ER$PERM" in pf
+       and "if qpath[1,1] = @ds then qroot = qpath" in vr)
+    spt = c["setptr"]
+    sp0 = at(spt, "ospath(file.name, OS$PATHNAME)")
+    sp1 = at(spt, "kernel(K$PATH.OK, file.name)")
+    ck("B22 SETPTR ... AS PATHNAME asks K$PATH.OK after it has checked the name is a pathname, and says 11180",
+       0 < sp0 < sp1 and "sysmsg(11180, @who)" in spt[sp1:sp1 + 120], "valid %s, ask %s" % (sp0, sp1))
+
     # ---- I. the installer ---------------------------------------------------------------------------------------
     ins = c["installsdcore.sh"]
     blk0 = at(ins, 'if [ "$accounts_kept" = yes ]; then')
@@ -288,7 +418,7 @@ def checks(srcs, messages_dir):
             "10080": ("%1 already had that access; nothing changed", True),
             "10102": ("Account %1 has SH %2, OS.EXECUTE %3", False),
             "10105": ("%1 is a group account and has no Linux user, so it has no shell to permit", False),
-            "11167": ("%1 has no OS access", False)}
+            "11180": ("%1 has no OS access", False)}   # was 11167, which the unmerged screen branch also allocates
     for num, (text, same_as_windows) in want.items():
         path = os.path.join(messages_dir, num)
         try:
@@ -343,9 +473,24 @@ def _move_seq_hook(srcs):
     return s
 
 
+def _gate_only_raw_print_path(srcs):
+    """Move the print-path question into the raw-pathname branch of start_file(), so it still exists and still compiles but a
+    "$hold ../.." marker is never asked."""
+    s = dict(srcs)
+    t = s["to_file.c"]
+    gate = ("    if (!os_path_ok_for_account(fn)) {\n      k_error(sysmsg(11180), process.username);\n    }\n\n  open_file:")
+    raw = "      strcpy(fn, pu->file_name);\n    }\n"
+    if gate not in t or raw not in t:
+        return s
+    t = t.replace(gate, "  open_file:", 1)
+    t = t.replace(raw, "      if (!os_path_ok_for_account(pu->file_name)) {\n        k_error(sysmsg(11180), process.username);\n      }\n" + raw, 1)
+    s["to_file.c"] = t
+    return s
+
+
 MUTANTS = [
     ("sh(): the refusal is removed", sub("op_sh.c", "if (!os_permitted())\n    k_error(sysmsg(10054), process.username);", "if (0)\n    k_error(sysmsg(10054), process.username);")),
-    ("os_permitted() always true", sub("op_sh.c", "  return os_gate_open();\n}\n\nPrivate bool path_inside", "  return TRUE;\n}\n\nPrivate bool path_inside")),
+    ("os_permitted() always true", sub("op_sh.c", "  return os_gate_open();\n}\n\n/* 13 Oct 26 (second sitting): the test is", "  return TRUE;\n}\n\n/* 13 Oct 26 (second sitting): the test is")),
     ("os_gate_open() asks the program instead of the account", sub("op_sh.c", "return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;", "return (process.program.flags & HDR_INTERNAL) != 0;")),
     ("containment compares prefixes without a component boundary", sub("op_sh.c", "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')", "1")),
     ("containment no longer resolves symbolic links", sub("op_sh.c", "if (realpath(work, resolved) != NULL)", "if (strcpy(resolved, work))")),
@@ -369,7 +514,7 @@ MUTANTS = [
     ("LOGIN grants everyone both", sub("login", "void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')", "void kernel(K$SH,      1)")),
     ("a new account is on both routes by default again", sub("create_account", "access.ssh = (settings<CA$ROUTE.SSH> = 1)", "access.ssh = settings<CA$ROUTE.SSH> # '0'")),
     ("a new account gets the shell by default", sub("create_account", "os.sh.want = (settings<CA$OS.SH> = 1)", "os.sh.want = (settings<CA$OS.SH> # '0')")),
-    ("ATTACH no longer turns the four on", sub("create_account", "         os.exec.want = @true\n      end\n   end", "      end\n   end")),
+    ("ATTACH turns the four on again for the installing user", sub("create_account", "      end\n* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026, second sitting:", "      end\n      access.ssh = @true\n      os.sh.want = @true\n* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026, second sitting:")),
     ("a GROUP account may be given a shell", sub("create_account", "     if os.sh.want or os.exec.want then\n       @system.return.code = -ER$ARGS\n       err = 10105:@vm:acc.name ;* %1 is a group account", "     if @false then\n       @system.return.code = -ER$ARGS\n       err = 10105:@vm:acc.name ;* %1 is a group account")),
     ("the register is written without the gate fields", sub("create_account", "     acc.rec<ACC$SH> = if os.sh.want then 'yes' else 'no'\n", "")),
     ("CREATE.ACCOUNT OS-ON sets the wrong field", sub("createa", "settings<CA$OS.EXECUTE> = 1", "settings<CA$OS.SH> = 1")),
@@ -381,6 +526,33 @@ MUTANTS = [
     ("upgrade_gates tests its marker after the walk", swap("upgrade_gates", "   if ospath(marker, OS$EXISTS) then", "   select acc.f to 12")),
     ("upgrade_gates writes the marker even when a record failed", sub("upgrade_gates", "   if failed # 0 then", "   if @false then")),
     ("upgrade_gates touches group accounts", sub("upgrade_gates", "if rec<ACC$GROUP>[1, 4] = 'sdu_' then", "if @true then")),
+    ("DIR() no longer asks", sub("op_dio4.c", "if (!os_path_open_ok(pathname)) {", "if (0) {")),
+    ("DELETESEQ of a pathname no longer asks", sub("op_seqio.c", "if (!os_path_open_ok(file_name)) {\n      process.status = ER_PERM;\n      goto exit_op_delseq;", "if (0) {\n      process.status = ER_PERM;\n      goto exit_op_delseq;")),
+    ("a print unit's pathname is no longer asked", sub("to_file.c", "if (!os_path_ok_for_account(fn)) {", "if (0) {")),
+    ("a print unit's pathname asks the printing program, not the account", sub("to_file.c", "os_path_ok_for_account(fn)", "os_path_open_ok(fn)")),
+    ("only the raw pathname of a print unit is asked, not the $hold marker's", lambda srcs: _gate_only_raw_print_path(srcs)),
+    ("SELECT.DIR no longer asks", sub("seldir", "if not(kernel(K$PATH.OK, path)) then", "if @false then")),
+    ("!OSCOPY asks about the source only", sub("_oscopy", " or not(kernel(K$PATH.OK, target))", "")),
+    ("!OSCOPY no longer asks", sub("_oscopy", "if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then", "if @false then")),
+    ("!IOSCOPY no longer asks", sub("_ioscopy", "if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then", "if @false then")),
+    ("the OSCOPY verb says nothing about -4", sub("oscopya", "case status = -4\n         display sysmsg(11180, @who)", "case status = -4\n         display sysmsg(11061, source, target)")),
+    ("SETPTR AS PATHNAME no longer asks", sub("setptr", "if not(kernel(K$PATH.OK, file.name)) then", "if @false then")),
+    ("the API server no longer loads the switches", sub("apisrvr", "void kernel(K$SH,      api.sh.grant)", "void kernel(K$SH,      0)")),
+    ("the API server grants everybody OS.EXECUTE", sub("apisrvr", "void kernel(K$OS.EXEC, api.os.grant)", "void kernel(K$OS.EXEC, 1)")),
+    ("the API server's switches carry over from the previous call", sub("apisrvr", "api.sh.grant = @false\napi.os.grant = @false\n", "")),
+    ("the API server loads the switches before the account has been entered", swap("apisrvr", "void kernel(K$SH,      api.sh.grant)\nvoid kernel(K$OS.EXEC, api.os.grant)\n", "if not(ospath(account.path, OS$CD)) then")),
+    ("a Q-pointer into any account is followed again", sub("_voc_ref", "               if not(vr.admin) then\n                  gosub check.q.hop", "               if @false then\n                  gosub check.q.hop")),
+    ("a Q-pointer into a registered account asks nothing of an account that holds os-on", sub("_voc_ref", "q.ok = is_grp_member(@logname, q.group)", "q.ok = vr.free or is_grp_member(@logname, q.group)")),
+    ("a Q-pointer into a suspended account is followed", sub("_voc_ref", "if upcase(trim(q.susp)) # 'SUSPENDED' then", "if @true then")),
+    ("a Q-pointer into an account the user is not a member of is followed", sub("_voc_ref", "q.ok = is_grp_member(@logname, q.group)", "q.ok = @true")),
+    ("the stock Q-pointers are refused too (sd.accounts breaks)", sub("_voc_ref", "if stock.found and upcase(stock.rec[1,1]) = 'Q' and stock.rec<2> = q.named", "if @false and upcase(stock.rec[1,1]) = 'Q' and stock.rec<2> = q.named")),
+    ("any Q-pointer id passes the stock test (the pointer is not compared)", sub("_voc_ref", " and stock.rec<2> = q.named and stock.rec<3> = voc.rec<3> then", " then")),
+    ("an F-pointer to a path outside the account is followed again", sub("_voc_ref", "            if not(vr.free) then\n               gosub check.f.path", "            if @false then\n               gosub check.f.path")),
+    ("an F-pointer is checked by id only (the path is not compared with the stock one)", sub("_voc_ref", "upcase(stock.rec[1,1]) = 'F' and stock.rec<fno> = f.raw", "upcase(stock.rec[1,1]) = 'F'")),
+    ("the directory of an account a Q-pointer led into is not trusted", sub("_voc_ref", "path.ok = kernel(K$PATH.IN, qroot : @fm : pathname)", "path.ok = @false")),
+    ("the PATH: form is not asked", sub("_voc_ref", "if not(vr.free) and not(kernel(K$PATH.OK, pathname)) then", "if @false then")),
+    ("the administrator is held to the Q-pointer rule", sub("_voc_ref", "vr.admin = kernel(K$ADMINISTRATOR, -1)", "vr.admin = @false")),
+    ("kernel(K_PATH_IN) asks the gate (a caller can no longer use it for geometry)", sub("op_kernel.c", "os_path_inside(path_in_buf, path_in_sep + 1) ? 1 : 0", "os_path_ok_for_account(path_in_sep + 1) ? 1 : 0")),
     ("the installer stops running upgrade_gates", sub("installsdcore.sh", "-internal RUN gpl.bp upgrade_gates", "-internal RUN gpl.bp upgrade_nothing")),
     ("the installer runs upgrade_gates after the register is chowned", swap("installsdcore.sh", "    og_out=$(sudo \"$sdsysdir/bin/sd\" -internal RUN gpl.bp upgrade_gates 2>&1) || og_rc=$?\n", "sudo chown -R sdsys:sdusers \"$sdsysdir/accounts\"\n")),
 ]

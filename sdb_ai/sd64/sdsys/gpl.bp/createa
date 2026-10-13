@@ -151,8 +151,8 @@
 *     OS-ON       OS.EXECUTE, and OPENSEQ / OPENPATH on a path outside the account's own directory
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
-*   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and gives the
-*   installing user's own account all four; it makes a plain account otherwise.
+*   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
+*   that the Linux user already exists: the installing user's own account starts off like any other.
 *
 * 09 Sep 26 dm - THIS BLOCK WAS STALE AND IT COST SOMETHING, WHICH IS WHY IT IS
 *   CORRECTED RATHER THAN JUST EXTENDED.  It read

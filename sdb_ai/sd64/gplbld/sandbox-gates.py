@@ -35,6 +35,7 @@
 # off the source by test-gates-units.py and witnessed by witness-accounts.sh.  Windows' gate and an INSTALL are not touched.
 
 import getpass
+import grp
 import os
 import re
 import shutil
@@ -58,6 +59,13 @@ FIXTURES = {
     "zzos": ("no", "yes"),
     "zzblank": ("", ""),
     "zzcase": ("Yes", "YES"),
+}
+
+
+# Built by section D3 only (accounts a Q-pointer leads into), so that the loops over FIXTURES above are not changed.
+EXTRA_FIXTURES = {
+    "zznolog": ("no", "no"),     # register group is one the sandbox user is NOT in: LOGTO would refuse it
+    "zzsusp": ("no", "no"),      # SUSPENDED: LOGTO would refuse it
 }
 
 
@@ -217,7 +225,7 @@ def build_account(name):
     out = adm(["BASIC bp zzfix", "RUN bp zzfix"], internal=True)
     if not has(out, r"^FIX done " + name + "$"):
         bail("the fixture account %s was not built:\n%s" % (name, "\n".join(out[-6:])))
-    sh, osx = FIXTURES[name]
+    sh, osx = FIXTURES.get(name) or EXTRA_FIXTURES[name]
     reg_write(name, [path, "", GROUP, "", "", "", sh, osx])
     return path
 
@@ -393,6 +401,318 @@ def main():
     for junk in ("/tmp/zzgates.nonexistent",):
         if os.path.exists(junk):
             os.remove(junk)
+
+    # --- D2. the other routes to an OS path -----------------------------------------------------------------------
+    # 13 Oct 26 (second sitting).  THE FIRST VERSION OF THIS SUITE ASKED ABOUT OPENSEQ AND OPENPATH ONLY, AND AN
+    # ACCOUNT WITH BOTH GATES OFF STILL READ /etc, LISTED IT, COPIED FILES OUT OF AND INTO OTHER DIRECTORIES, DELETED
+    # A FILE OUTSIDE ITS OWN AND PRINTED INTO ONE: DIR() and SELECT.DIR, !OSCOPY / !IOSCOPY / the OSCOPY verb,
+    # DELETESEQ of a bare pathname, and SETPTR ... AS PATHNAME / the SETPU statement.  Each was measured on a build of
+    # the first S.63 commit (disk evidence, below), then closed; the rows are the evidence it stays closed.
+    # EVIDENCE IS THE DISK, read by this suite: a file that appears, a file that is gone, a file that is still there.
+    say("\n--- D2. the other routes to an OS path: DIR, SELECT.DIR, OSCOPY, DELETESEQ, SETPTR / SETPU print files -----------")
+    outside = os.path.join(BOX, "zzoutside")          # made here, outside every account; the suite removes it again
+    shutil.rmtree(outside, ignore_errors=True)
+    os.makedirs(os.path.join(outside, "subdir"))
+    put(os.path.join(outside, "secret.txt"), "SECRET-OUTSIDE-12345\n")
+    put(os.path.join(outside, "subdir", "x.txt"), "x\n")
+    # The fixtures are in their original state here (section I, which switches every account on, comes last).
+    for name in ("zzoff", "zzsh", "zzon", "zzos"):
+        d = os.path.join(BOX, "user_accounts", name)
+        osx = FIXTURES[name][1].lower() == "yes"
+        victim = os.path.join(outside, "victim-%s.txt" % name)
+        dropped = os.path.join(outside, "dropped-%s.txt" % name)
+        printed = os.path.join(outside, "printed-%s.txt" % name)
+        printed_tcl = os.path.join(outside, "printedtcl-%s.txt" % name)
+        for junk in (victim, dropped, printed, printed_tcl, os.path.join(d, "got1.txt"), os.path.join(d, "gotdir"),
+                     os.path.join(d, "copy-in-account.txt"), os.path.join(d, "mine-to-delete.txt"),
+                     os.path.join(d, "tcl-got.txt"), os.path.join(d, "tcl-own.txt")):
+            if os.path.isdir(junk):
+                shutil.rmtree(junk)
+            elif os.path.exists(junk):
+                os.remove(junk)
+        put(victim, "to be deleted\n")
+        put(os.path.join(d, "mine-to-delete.txt"), "an ordinary file of the account\n")
+        put(os.path.join(d, "bp", "zzroute"), "\n".join([
+            "   crt 'T begin'",
+            "   s1 = 99",
+            "   call !oscopy('%s/secret.txt', 'got1.txt', 1, s1)" % outside,
+            "   crt 'T oscopy-read ':s1",
+            "   s2 = 99",
+            "   call !oscopy('inside.txt', '%s', 1, s2)" % dropped,
+            "   crt 'T oscopy-write ':s2",
+            "   s3 = 99",
+            "   call !ioscopy('%s/subdir', 'gotdir', s3)" % outside,
+            "   crt 'T ioscopy ':s3",
+            "   s4 = 99",
+            "   call !oscopy('inside.txt', 'copy-in-account.txt', 1, s4)",
+            "   crt 'T oscopy-inside ':s4",
+            "   x = dir('%s')" % outside,
+            "   crt 'T dir-outside ':dcount(x, @fm)",
+            "   y = dir('.')",
+            "   crt 'T dir-own ':(dcount(y, @fm) > 0)",
+            "   deleteseq '%s' then" % victim,
+            "      crt 'T deleteseq-outside DONE'",
+            "   end else",
+            "      crt 'T deleteseq-outside ELSE ':status()",
+            "   end",
+            "   deleteseq 'mine-to-delete.txt' then",
+            "      crt 'T deleteseq-own DONE'",
+            "   end else",
+            "      crt 'T deleteseq-own ELSE ':status()",
+            "   end",
+            "   crt 'T end'", "end", ""]))
+        put(os.path.join(d, "bp", "zzprint"), "\n".join([
+            "   crt 'T print-begin'",
+            "   setpu 1, 1, 3",
+            "   setpu 11, 1, '%s'" % printed,
+            "   print on 1 'T printed-line-from-setpu'",
+            "   printer close on 1",
+            "   crt 'T print-end'", "end", ""]))
+        # The "$hold name" marker is the ordinary way to name a hold file, and a SETPU program can write it itself.
+        # The kernel turns it into $hold/name with no check that name stays below $hold, so "..", three times from
+        # the account's own $hold directory, lands in the outside directory.  $hold must exist for the unguarded build
+        # to be able to make the file at all, so this fixture makes it (a real account has one from CREATE.ACCOUNT).
+        os.makedirs(os.path.join(d, "$hold"), exist_ok=True)
+        holdfile = os.path.join(outside, "hold-%s.txt" % name)
+        if os.path.exists(holdfile):
+            os.remove(holdfile)
+        put(os.path.join(d, "bp", "zzhold"), "\n".join([
+            "   crt 'T hold-begin'",
+            "   setpu 1, 1, 3",
+            "   setpu 11, 1, '$hold ../../../zzoutside/hold-%s.txt'" % name,
+            "   print on 1 'T printed-via-hold-marker'",
+            "   printer close on 1",
+            "   crt 'T hold-end'", "end", ""]))
+        out = plain(name, ["BASIC bp zzroute zzprint zzhold", "RUN bp zzroute"])
+        if not has(out, r"^Compiled 3 program\(s\) with no errors"):
+            row("D2: %s's probe programs compiled" % name, False, "output=%r" % (out[-4:],))
+            continue
+        if not has(out, r"^T end$"):
+            row("D2: %s's route probe ran to its end" % name, False, "output=%r" % (out[-5:],))
+            continue
+        secret_in = os.path.join(d, "got1.txt")
+        if osx:
+            row("D2: %s (OS.EXECUTE yes) !OSCOPY reads a file outside the account: status 0, and the content is here" % name,
+                has(out, r"^T oscopy-read 0$") and os.path.exists(secret_in)
+                and "SECRET-OUTSIDE-12345" in open(secret_in).read(), "output=%r" % (out[:6],))
+            row("D2: %s !OSCOPY writes a file outside the account, and !IOSCOPY copies a directory in" % name,
+                has(out, r"^T oscopy-write 0$") and os.path.exists(dropped) and has(out, r"^T ioscopy 0$")
+                and os.path.isdir(os.path.join(d, "gotdir")), "output=%r" % (out[:6],))
+            row("D2: %s DIR() lists the directory outside the account (secret.txt and subdir at least)" % name,
+                any(re.match(r"^T dir-outside (\d+)$", ln) and int(ln.split()[-1]) >= 2 for ln in out), "output=%r" % (out,))
+            row("D2: %s DELETESEQ removes a file outside the account: ... DONE, and it is gone" % name,
+                has(out, r"^T deleteseq-outside DONE$") and not os.path.exists(victim), "exists=%s" % os.path.exists(victim))
+        else:
+            row("D2: %s (OS.EXECUTE no) !OSCOPY of a file outside is refused, status -4: nothing was copied in" % name,
+                has(out, r"^T oscopy-read -4$") and not os.path.exists(secret_in), "output=%r" % (out[:6],))
+            row("D2: %s !OSCOPY into a place outside is refused (-4): no file was made there" % name,
+                has(out, r"^T oscopy-write -4$") and not os.path.exists(dropped), "exists=%s" % os.path.exists(dropped))
+            row("D2: %s !IOSCOPY of a directory outside is refused (-4): nothing was copied in" % name,
+                has(out, r"^T ioscopy -4$") and not os.path.exists(os.path.join(d, "gotdir")), "output=%r" % (out[:6],))
+            row("D2: %s DIR() of a directory outside gives nothing (0 entries)" % name,
+                has(out, r"^T dir-outside 0$"), "output=%r" % (out,))
+            row("D2: %s DELETESEQ of a file outside is refused (ELSE 3035) and the file is still there" % name,
+                has(out, r"^T deleteseq-outside ELSE 3035$") and os.path.exists(victim),
+                "output=%r exists=%s" % (out[-4:], os.path.exists(victim)))
+        row("D2: %s may still copy inside its own directory, list it and delete its own file (controls)" % name,
+            has(out, r"^T oscopy-inside 0$") and os.path.exists(os.path.join(d, "copy-in-account.txt"))
+            and has(out, r"^T dir-own 1$") and has(out, r"^T deleteseq-own DONE$")
+            and not os.path.exists(os.path.join(d, "mine-to-delete.txt")), "output=%r" % (out,))
+
+        # the verbs, and the print unit
+        out = plain(name, ["OSCOPY %s/secret.txt tcl-got.txt" % outside, "SELECT.DIR %s" % outside,
+                           "OSCOPY inside.txt tcl-own.txt", "SELECT.DIR sub",
+                           "SETPTR 1,80,60,0,0,3,AS PATHNAME %s,BRIEF" % printed_tcl])
+        gotf = os.path.join(d, "tcl-got.txt")
+        if osx:
+            row("D2: %s the OSCOPY verb copies a file in from outside, and SELECT.DIR lists outside" % name,
+                has(out, r"copied to tcl-got\.txt$") and os.path.exists(gotf) and has(out, r"^\d+ record\(s\) selected")
+                and not has(out, "has no OS access"), "output=%r" % (out,))
+            row("D2: %s SETPTR ... AS PATHNAME outside the account is accepted" % name,
+                not has(out, "has no OS access") and not has(out, "Unexpected token"), "output=%r" % (out[-3:],))
+        else:
+            row("D2: %s the OSCOPY verb is refused in 11180's words, and nothing came in" % name,
+                has(out, re.escape("%s has no OS access, so a file or directory outside its own account cannot be reached" % name))
+                and not os.path.exists(gotf) and not has(out, r"copied to tcl-got"), "output=%r" % (out,))
+            refusals = sum(1 for ln in out if "has no OS access" in ln)
+            selected = [ln for ln in out if re.match(r"^\d+ record\(s\) selected", ln)]
+            row("D2: %s SELECT.DIR of a directory outside is refused: three refusals in all (OSCOPY, SELECT.DIR, SETPTR), "
+                "and the one SELECT.DIR that answered is its own empty sub (0 records)" % name,
+                refusals == 3 and selected == ["0 record(s) selected to select list 0"], "output=%r" % (out,))
+            row("D2: %s SETPTR ... AS PATHNAME outside the account is refused (11180) and no file was made" % name,
+                refusals == 3 and not os.path.exists(printed_tcl), "output=%r" % (out[-3:],))
+        row("D2: %s the OSCOPY verb still copies inside the account, and SELECT.DIR of its own sub works" % name,
+            has(out, r"inside\.txt copied to tcl-own\.txt$") and os.path.exists(os.path.join(d, "tcl-own.txt")),
+            "output=%r" % (out,))
+
+        out = plain(name, ["RUN bp zzprint"])
+        if osx:
+            row("D2: %s the SETPU statement prints into a file outside the account (the file is there, with the line)" % name,
+                os.path.exists(printed) and "T printed-line-from-setpu" in open(printed).read() and has(out, r"^T print-end$"),
+                "output=%r exists=%s" % (out, os.path.exists(printed)))
+        else:
+            row("D2: %s the SETPU statement cannot print into a file outside the account: refused at print time, no file, "
+                "the program stopped" % name,
+                has(out, "has no OS access") and not os.path.exists(printed) and not has(out, r"^T print-end$"),
+                "output=%r exists=%s" % (out, os.path.exists(printed)))
+        out = plain(name, ["RUN bp zzhold"])
+        if osx:
+            row("D2: %s a '$hold ../../..' print name reaches outside the account (it may: it holds OS.EXECUTE)" % name,
+                os.path.exists(holdfile) and has(out, r"^T hold-end$"), "output=%r exists=%s" % (out, os.path.exists(holdfile)))
+        else:
+            row("D2: %s a '$hold ../../..' print name does NOT climb out of the account: refused, no file, the program stopped"
+                % name, has(out, "has no OS access") and not os.path.exists(holdfile) and not has(out, r"^T hold-end$"),
+                "output=%r exists=%s" % (out, os.path.exists(holdfile)))
+    shutil.rmtree(outside, ignore_errors=True)
+
+    # --- D3. a VOC pointer is a way to name a file ------------------------------------------------------------------
+    # 13 Oct 26 (second sitting; owner: "try to make tighter ... q pointers should only be allowed into an account the
+    # user can logto in any case").  The first S.63 asked about a path a program NAMED, and a file named THROUGH THE VOC was
+    # an SD file and not asked, so an account could write an F-pointer into its own VOC - or make one with CREATE.FILE ...
+    # PATHNAME - at any directory its Linux user could read.  _VOC_REF now asks, for everybody but SDSYS: an F-pointer must
+    # end inside the account, or inside the account a Q-pointer was followed into, or be the stock pointer of the same id in
+    # NEWVOC, or the account holds os-on; a Q-pointer into a registered account is followed only if the user could LOGTO it
+    # (a member of its group, not suspended), WHETHER OR NOT the account holds os-on; a path is the OS gate's question.
+    say("\n--- D3. VOC pointers: an F-pointer outside the account, and a Q-pointer into an account the user could not LOGTO ---")
+    my_gids = set(os.getgroups()) | {os.getgid()}
+    foreign = None
+    for g in grp.getgrall():
+        if g.gr_gid not in my_gids and USER not in g.gr_mem:
+            foreign = g.gr_name
+            break
+    if foreign is None:
+        bail("no group exists that the sandbox user is not in, so a Q-pointer into an account it could not LOGTO cannot be staged")
+    out3 = os.path.join(BOX, "zzoutside3")
+    shutil.rmtree(out3, ignore_errors=True)
+    os.makedirs(out3)
+    put(os.path.join(out3, "secret.txt"), "SECRET-OUTSIDE-12345\n")
+    for name in ("zznolog", "zzsusp"):
+        build_account(name)
+    rec = (reg_read("zznolog") + [""] * 8)[:8]
+    rec[2] = foreign
+    reg_write("zznolog", rec)
+    rec = (reg_read("zzsusp") + [""] * 8)[:8]
+    rec[4] = "SUSPENDED"
+    reg_write("zzsusp", rec)
+    for name in ("zzon", "zznolog", "zzsusp"):
+        put(os.path.join(BOX, "user_accounts", name, "bp", "qprobe"), "hello-from-%s\n" % name)
+    put(os.path.join(SYS, "bp", "zzvoc3"), "\n".join([
+        "$internal",
+        "   accts = 'zzoff':@fm:'zzsh':@fm:'zzon':@fm:'zzos'",
+        "   for i = 1 to dcount(accts, @fm)",
+        "      a = accts<i>",
+        "      openpath '%s/user_accounts/':a:'/voc' to v else" % BOX,
+        "         crt 'VOC3 cannot open the VOC of ':a",
+        "         stop",
+        "      end",
+        "      write 'F':@fm:'%s' to v, 'outptr'" % out3,
+        "      write 'Q':@fm:'zzon':@fm:'bp' to v, 'qok'",
+        "      write 'Q':@fm:'zznolog':@fm:'bp' to v, 'qnolog'",
+        "      write 'Q':@fm:'zzsusp':@fm:'bp' to v, 'qsusp'",
+        "      write 'Q':@fm:'/etc':@fm:'voc' to v, 'qraw'",
+        "      close v",
+        "   next i",
+        "   crt 'VOC3 done'",
+        "end", ""]))
+    out = adm(["BASIC bp zzvoc3", "RUN bp zzvoc3"], internal=True)
+    if not has(out, r"^VOC3 done$"):
+        bail("the D3 fixture VOC records were not written:\n" + "\n".join(out[-6:]))
+    vp_prog = "\n".join([
+        "   crt 'V begin'",
+        "   names = 'outptr':@fm:'qok':@fm:'qnolog':@fm:'qsusp':@fm:'qraw':@fm:'newptr':@fm:'sd.accounts':@fm:'syscom'"
+        ":@fm:'sd.voclib':@fm:'$map':@fm:'bp'",
+        "   for i = 1 to dcount(names, @fm)",
+        "      nm = names<i>",
+        "      open nm to f then",
+        "         crt 'V ':nm:' OPENED'",
+        "         close f",
+        "      end else",
+        "         crt 'V ':nm:' REFUSED ':status()",
+        "      end",
+        "   next i",
+        "   open 'outptr' to g1 then",
+        "      read r1 from g1, 'secret.txt' then",
+        "         crt 'V outptr-read ':r1<1>",
+        "      end else",
+        "         crt 'V outptr-read NONE'",
+        "      end",
+        "      close g1",
+        "   end",
+        "   open 'qok' to g2 then",
+        "      read r2 from g2, 'qprobe' then",
+        "         crt 'V qok-read ':r2<1>",
+        "      end else",
+        "         crt 'V qok-read NONE'",
+        "      end",
+        "      close g2",
+        "   end",
+        "   crt 'V end'", "end", ""])
+
+    def vp_states(lines):
+        got = {}
+        for ln in lines:
+            m = re.match(r"^V (\S+) (OPENED|REFUSED \d+)$", ln)
+            if m:
+                got[m.group(1)] = m.group(2)
+            m = re.match(r"^V (outptr-read|qok-read) (.*)$", ln)
+            if m:
+                got[m.group(1)] = m.group(2)
+        return got
+
+    stock = ("syscom", "sd.voclib", "$map", "bp")
+    refused = "REFUSED 3035"
+    states = {}
+    for name in ("zzoff", "zzsh", "zzon", "zzos"):
+        d = os.path.join(BOX, "user_accounts", name)
+        osx = FIXTURES[name][1].lower() == "yes"
+        put(os.path.join(d, "bp", "zzvp"), vp_prog)
+        # CREATE.FILE makes the dictionary part beside the data directory, so each account gets a directory of its own
+        # (a second CREATE.FILE at the same path says the file exists: 3007)
+        np_dir = os.path.join(BOX, "zznp-%s" % name)
+        os.makedirs(np_dir, exist_ok=True)
+        put(os.path.join(np_dir, "secret.txt"), "SECRET-OUTSIDE-12345\n")
+        out = plain(name, ["CREATE.FILE newptr DIRECTORY PATHNAME %s" % np_dir, "BASIC bp zzvp", "RUN bp zzvp"])
+        if not has(out, r"^V end$"):
+            row("D3: %s's pointer probe ran to its end" % name, False, "output=%r" % (out[-6:],))
+            continue
+        got = vp_states(out)
+        states[name] = got
+        row("D3: %s (os %s) STOCK pointers still open: syscom, sd.voclib, $map and its own bp" % (name, FIXTURES[name][1]),
+            all(got.get(k) == "OPENED" for k in stock), "%r" % ({k: got.get(k) for k in stock},))
+        row("D3: %s may follow a Q-pointer into an account it could LOGTO (zzon, same group): opened, and it reads zzon's record"
+            % name, got.get("qok") == "OPENED" and got.get("qok-read") == "hello-from-zzon", "qok=%r read=%r" % (got.get("qok"), got.get("qok-read")))
+        row("D3: %s is refused a Q-pointer into an account whose group it is not in (3035) - whether or not it holds os-on" % name,
+            got.get("qnolog") == refused, "qnolog=%r" % (got.get("qnolog"),))
+        row("D3: %s is refused a Q-pointer into a SUSPENDED account (3035), as LOGTO would" % name,
+            got.get("qsusp") == refused, "qsusp=%r" % (got.get("qsusp"),))
+        if osx:
+            row("D3: %s (os-on) opens an F-pointer to a directory outside the account, reads its record, and opens the pointer "
+                "CREATE.FILE ... PATHNAME made" % name,
+                got.get("outptr") == "OPENED" and got.get("outptr-read") == "SECRET-OUTSIDE-12345" and got.get("newptr") == "OPENED",
+                "outptr=%r read=%r newptr=%r" % (got.get("outptr"), got.get("outptr-read"), got.get("newptr")))
+            row("D3: %s (os-on) is NOT stopped by the gate on a Q-pointer that names a path (it fails, if at all, for another reason)"
+                % name, got.get("qraw") != refused, "qraw=%r" % (got.get("qraw"),))
+        else:
+            row("D3: %s (os-off) is refused an F-pointer to a directory outside the account (3035), and reads nothing"
+                % name, got.get("outptr") == refused and "outptr-read" not in got, "outptr=%r read=%r" % (got.get("outptr"), got.get("outptr-read")))
+            row("D3: %s (os-off) is refused the pointer CREATE.FILE ... PATHNAME made at a directory outside (3035)" % name,
+                got.get("newptr") == refused, "newptr=%r" % (got.get("newptr"),))
+            row("D3: %s (os-off) is refused a Q-pointer that names a path outside the account (3035)" % name,
+                got.get("qraw") == refused, "qraw=%r" % (got.get("qraw"),))
+    # the stock Q-pointer into SDSYS is judged against the administrator's own result, so a sandbox whose SDSYS has no
+    # `accounts` entry does not turn this into a row about something else
+    adm_got = vp_states(sd(os.path.join(BOX, "user_accounts", "zzoff"), ["BASIC bp zzvp", "RUN bp zzvp"], admin=True, account="zzoff"))
+    row("D3: the administrator opens every pointer: the one into an account nobody could LOGTO, the suspended one, the outside directory",
+        adm_got.get("qnolog") == "OPENED" and adm_got.get("qsusp") == "OPENED" and adm_got.get("outptr") == "OPENED",
+        "%r" % ({k: adm_got.get(k) for k in ("qnolog", "qsusp", "outptr")},))
+    for name, got in states.items():
+        row("D3: %s opens sd.accounts (the stock Q-pointer into SDSYS, an account it could not LOGTO) exactly as the administrator does: %s"
+            % (name, adm_got.get("sd.accounts")), got.get("sd.accounts") == adm_got.get("sd.accounts") and adm_got.get("sd.accounts") is not None,
+            "%r vs %r" % (got.get("sd.accounts"), adm_got.get("sd.accounts")))
+    shutil.rmtree(out3, ignore_errors=True)
+    for name in ("zzoff", "zzsh", "zzon", "zzos"):
+        shutil.rmtree(os.path.join(BOX, "zznp-%s" % name), ignore_errors=True)
+        shutil.rmtree(os.path.join(BOX, "zznp-%s.dic" % name), ignore_errors=True)
 
     # --- E. K$PATH.OK, the question an internal program asks for the user ---------------------------------------
     say("\n--- E. K$PATH.OK: the account's own answer, which an internal program (SED) must ask because it is exempt -------")

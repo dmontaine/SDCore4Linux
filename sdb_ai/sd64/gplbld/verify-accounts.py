@@ -47,9 +47,10 @@
 #      row R4 can.  18 Sep 26, the teardown: field 5 is the suspension flag
 #      (blank or SUSPENDED) and field 6 is the retired prior-tier slot, both
 #      enforced below in the same way.
-#   3. ***THE LEGACY GROUPS ARE GONE.***  The teardown removed sdadmin and
-#      sdapi; an install or upgrade that somehow recreated them would be
-#      carrying the old model's machinery, and U5 says so.
+#   3. ***THE LEGACY GROUP IS GONE.***  The teardown removed sdadmin; an
+#      install or upgrade that somehow recreated it would be carrying the old
+#      model's machinery.  (It removed sdapi too, until S.29 brought the two
+#      route groups, sdssh and sdapi, back on 20 Sep 26 - U0b / U0c.)
 #
 # RUN IT UNELEVATED, AND THAT IS NOT A PREFERENCE EITHER.  Section 4 asks what
 # a NON-ROOT session is refused; from a root shell every row in it would pass
@@ -76,8 +77,10 @@ MESSAGES = os.path.join(HERE, os.pardir, "sdsys", "messages")
 ACC_PATH, ACC_DESCR, ACC_GROUP = 1, 2, 3
 ACC_USERS_RETIRED = 4
 ACC_SUSPENDED, ACC_PRIOR_TIER = 5, 6
+ACC_SH, ACC_OS_EXEC = 7, 8        # S.63, 13 Oct 26: the per-account OS-access gates
 
 SUSPENDED_VALUES = ("", "SUSPENDED")
+GATE_VALUES = ("", "YES", "NO")    # blank is read as denied; create_account writes "no"
 ALL_GROUP = "sdusers"
 
 # The account verbs, their catalogued names, and the program that owns each.
@@ -246,6 +249,13 @@ def main():
     # is no longer a rank, so nothing writes it and nothing may carry one.
     run.note("R7 field 6 (retired ACC$PRIOR.TIER) is empty everywhere", [],
              sorted(i for i in reg if field(reg[i], ACC_PRIOR_TIER)))
+    # 13 Oct 26 (S.63): fields 7 and 8 are the SH and OS.EXECUTE gates, back with
+    # the owner's correction of S.27.  Anything but blank / yes / no would be read
+    # as denied by LOGIN, which is safe but is a record somebody did not mean.
+    run.note("R9 every user account's SH and OS.EXECUTE gates are blank, yes or no", [],
+             sorted(i for i in users
+                    if field(reg[i], ACC_SH).upper() not in GATE_VALUES
+                    or field(reg[i], ACC_OS_EXEC).upper() not in GATE_VALUES))
     # 18 Sep 26 (S.26): the register belongs to the administrator - records are
     # sdsys:sdusers 644, so a local sdsys session writes them without root.
     sp = os.path.join(a.register, "sdsys")
@@ -285,10 +295,16 @@ def main():
         run.refuse("a group the register's claims are checked against is missing",
                    "%s: %s" % (ALL_GROUP, everyone is not None))
         return run.verdict()
-    # 18 Sep 26 (S.26/S.28): the legacy groups are gone; their presence would
-    # mean the old model's machinery survived an install or upgrade.
-    run.note("U0b the sdadmin and sdapi groups do not exist", True,
-             group_members("sdadmin") is None and group_members("sdapi") is None)
+    # 18 Sep 26 (S.26): the sdadmin group is gone; its presence would mean the
+    # old model's machinery survived an install or upgrade.
+    run.note("U0b the sdadmin group does not exist", True,
+             group_members("sdadmin") is None)
+    # 13 Oct 26: U0b ALSO ASSERTED THAT sdapi DOES NOT EXIST, WHICH HAS BEEN FALSE
+    # SINCE S.29 (20 Sep): the installer makes sdssh and sdapi before any account,
+    # and membership is the route.  That row was missed when witness-absence.sh's
+    # M7b was reversed.  The routes now exist and are off for a new account.
+    run.note("U0c the sdssh and sdapi route groups exist (S.29)", True,
+             group_members("sdssh") is not None and group_members("sdapi") is not None)
 
     bad_group, bad_owner, bad_sgid, not_in_all = [], [], [], []
     for aid in users:

@@ -19,8 +19,9 @@
 * START-HISTORY:
 * 13 Oct 26 dm S.63 (owner, 13 Oct 2026): a new account starts with no ssh, no API, no SH and no OS.EXECUTE;
 *              each is given by naming it.  The OS-access gates are written to ACC$SH / ACC$OS.EXEC from
-*              CA$OS.SH / CA$OS.EXECUTE (which RESTORE.ACCOUNT already passes from the manifest); the
-*              ATTACHed installing user gets all four.  Both routes were on by default from S.29 until today.
+*              CA$OS.SH / CA$OS.EXECUTE (which RESTORE.ACCOUNT already passes from the manifest).  The
+*              ATTACHed installing user starts off too (second sitting; it was given all four for a few
+*              hours).  Both routes were on by default from S.29 until today.
 * 08 Oct 26 dm Three changes from the S.62 line-by-line read against the Windows port
 *              (owner: "1 yes, 2 yes if possible, 3 fix").  (1) 10161 and 10162 warn,
 *              without refusing, when a route was given and nothing is behind it
@@ -130,16 +131,12 @@ deffun valid_os_path(path) calling '!valid_os_path'
          err = 2018:@vm:'ATTACH'  ;* Unexpected token (xx)
          return
       end
-* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026): the installing user's own account is made with all four
-*   switched on.  The person who installs owns the machine and can do all of it with sudo anyway; every
-*   other account starts off.  ATTACH is install-only (-internal and the one-shot marker), so this
-*   cannot be asked for from a session.
-      if attach then
-         access.ssh = @true
-         access.api = @true
-         os.sh.want = @true
-         os.exec.want = @true
-      end
+* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026, second sitting: "sh-off and os-off by default ... the only
+*   exception was pre-existing accounts").  THE INSTALLING USER'S ACCOUNT IS NOT AN EXCEPTION: ATTACH only
+*   says the Linux user already exists, and the account starts with no ssh, no API, no SH and no
+*   OS.EXECUTE like every other new account; SDSYS turns on what the person needs.  The first version of
+*   this gave it all four; that was a looser default than he wanted, and he chose off when asked.  The
+*   accounts that keep their access are the ones that exist at an UPGRADE (upgrade_gates).
    end
 
    @system.return.code = -ER$ARGS     ;* Preset for argument errors

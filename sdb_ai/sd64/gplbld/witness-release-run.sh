@@ -10,12 +10,14 @@
 #     Q.22  logtoaccess: the administrator keeps its access across LOGTOs (2b)
 #     S.10  RUN folds the program name (3b)
 #     W.2   Enter at 2050 means N; W.3  6133 cancels on Enter or C (5b)
-#     S.4   struck (OS.EXECUTE runs at the account's own Linux permissions)
+#     S.4   struck (the tier version of the OS.EXECUTE gate; the per-account
+#           gate, S.63, is witness-absence.sh M4 and sandbox-gates.py)
 #     S.3   struck (one VOC layer: NEWVOC as shipped for every account)
 #     Q.13  MODIFY.ACCOUNT ADD/DELETE and ELEVATION REFUSED reach the audit
 #           trail (8); a second throwaway, zzrel2, is made and removed
 #     S.12  struck (the GRANT verb is gone; a grant is Linux group membership)
-#     S.6   struck (SH runs at the account's own Linux permissions)
+#     S.6   struck (the tier version of the SH gate; the per-account gate,
+#           S.63, is witness-absence.sh M4)
 #     S.5   the 10 Sep parity audit's witness list (12, 15); a third throwaway,
 #           zzrel3, carries SD's "SD account" stamp and is deleted by SD
 #     Q.17  MODIFY.PASSWORD's administrator arm, checked in /etc/shadow (13)
@@ -337,6 +339,7 @@ cleanup() {
             && say "  put $ACC2's voc back (section 15 died with it moved aside)"
     fi
     [ -e "$MARKER" ] && { rm -f "$MARKER"; say "  removed a leftover ATTACH marker"; }
+    rm -f "/tmp/zzrel-api-sh.$$" "/tmp/zzrel-api-os.$$"      # 13k's sentinels
     [ -e "$SDSYS/\$attach.$ACC2" ] && { rm -f "$SDSYS/\$attach.$ACC2"; say "  removed a leftover ATTACH marker for $ACC2"; }
     if [ "$MADE_ACCOUNT2" -eq 1 ] && [ -e "$REGISTER/$ACC2" ]; then
         say "  deleting the SD account $ACC2 through SD"
@@ -781,11 +784,15 @@ fi
 # ==========================================================================
 # 18 Sep 26 dm - TEARDOWN (S.25/S.27): THE TIER LEGS OF SECTIONS 6 AND 7 ARE
 # STRUCK.  The OS.EXECUTE gate (S.4/PRE_RELEASE 23) and the STANDARD omit
-# filter (S.3) were tier machinery, and the tier model is gone.  SH and
-# OS.EXECUTE run at every account's own Linux permissions now, and every
+# filter (S.3) were tier machinery, and the tier model is gone, and every
 # account's VOC is NEWVOC as shipped.  witness-absence.sh proves the absence
 # (no TIERGATE, no tier field, no tier keyword); this script no longer tries
 # to measure ranks that do not exist.
+# 13 Oct 26 - S.63: the SH and OS.EXECUTE gates came back, PER ACCOUNT and off
+# unless SDSYS turns them on, with no tier behind them.  Section 6 and 7's tier
+# legs stay struck; the per-account gates are driven by witness-absence.sh M4
+# (SH-ON / SH-OFF / OS-ON / OS-OFF, and an ordinary session's SH) and by
+# sandbox-gates.py (the kernel's side), not here.
 
 # ==========================================================================
 # Q.13 - THREE AUDIT RECORD TYPES THE TRAIL HAD NEVER HELD.  Measured 14 Sep:
@@ -850,8 +857,8 @@ A2DIR="$ACCOUNTS_ROOT/$ACC2"
 # (usermod -aG), and a session open at grant time keeps the Linux groups it
 # started with, so the read-only-open-session property that section 10
 # measured is dh_open's and unchanged - but there is no SD grant verb left to
-# drive it through.  SH and OS.EXECUTE run at every account's own Linux
-# permissions, so section 11's refusals are gone with the gates.
+# drive it through.  Section 11's refusals were the tier gates and are gone with
+# them; the per-account SH / OS.EXECUTE gates of S.63 are witness-absence.sh M4.
 #
 # ==========================================================================
 # S.5 - THE 10 Sep PARITY AUDIT'S WITNESS LIST, REWRITTEN FOR THE TEARDOWN.
@@ -1593,6 +1600,75 @@ else
 
     OUT=$(sprobe "F6 the door really is two-way: log in again" "$SCRAM_PW" --host 127.0.0.1 --user "$ACC" --account "$ACC")
     [ "$COMMIT" -eq 1 ] && ck_says "F6 the login works again" "account $ACC: entered" "$OUT"
+fi
+
+# ==========================================================================
+# 13 Oct 26 - 13k, S.63 (owner, second sitting: "api should read switches").  THE PER-ACCOUNT SH AND OS.EXECUTE
+# SWITCHES OVER THE API.  apisrvr's vb.account now reads them from the register as LOGIN and CPROC's LOGTO do; before it
+# an API session never held either, so an account with sh-on had no shell over the API.  UNRUN WHEN WRITTEN: the sandbox
+# cannot host an API session (it needs a real Linux user, the installed client library and the listener), so this is
+# where the change is first measured.  THE EVIDENCE IS A FILE ON DISK made by the command and read by this script as
+# root: the session echoes the command it was given, so its text proves nothing.  $ACC is made with BOTH only, so SH and
+# OS.EXECUTE are off at the start (that is section 1's own default); each row that turns one on turns it off again.
+head2 "13k. S.63 - the SH and OS.EXECUTE switches are read over the API"
+SENT_SH="/tmp/zzrel-api-sh.$$"
+SENT_OS="/tmp/zzrel-api-os.$$"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$PROBE_PW" ] || [ ! -f "$PROBE" ]; }; then
+    say "  needs $ACC adopted, the SD password and $PROBE"
+    for r in "K0 the sentinels are absent" "K1 SH refused over the API with the switch off" "K2 SH-ON is reported" \
+             "K2b SH runs over the API with the switch on" "K3 SH-OFF is reported" "K3b SH refused again" \
+             "K4 OSCOPY outside refused with os-off" "K5 OS-ON is reported" "K5b OSCOPY runs with os-on" \
+             "K6 OS-OFF puts the register back to no / no"; do not_reached "$r"; done
+else
+    rm -f "$SENT_SH" "$SENT_OS"
+    [ "$COMMIT" -eq 1 ] && ck "K0 the two sentinels are absent before the first session (the null case refused)" no \
+        "$( [ -e "$SENT_SH" ] || [ -e "$SENT_OS" ] && echo yes || echo no )"
+    k_gates() { printf '%s %s' "$(sed -n '7p' "$REGISTER/$ACC")" "$(sed -n '8p' "$REGISTER/$ACC")"; }
+    [ "$COMMIT" -eq 1 ] && say "  the register's switches for $ACC before: $(k_gates)"
+
+    OUT=$(probe "K1 SH over the API, SH off" --user "$ACC" --account "$ACC" "SH touch $SENT_SH")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "K1 refused in 10053's words" "is not permitted to use the operating system shell" "$OUT"
+        ck "K1b and the command did not run (no sentinel)" no "$( [ -e "$SENT_SH" ] && echo yes || echo no )"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SH-ON" "MODIFY.ACCOUNT $ACC SH-ON")
+    [ "$COMMIT" -eq 1 ] && ck_says "K2 SH-ON is reported (10102)" "Account $ACC has SH yes, OS.EXECUTE no" "$OUT"
+    OUT=$(probe "K2b SH over the API, SH on (a NEW session: the switch is read at entry)" --user "$ACC" --account "$ACC" "SH touch $SENT_SH")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "K2b THE ROW: the command ran over the API (the sentinel exists)" yes "$( [ -e "$SENT_SH" ] && echo yes || echo no )"
+        ck_absent "K2c and it was not refused" "is not permitted to use the operating system shell" "$OUT"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC SH-OFF" "MODIFY.ACCOUNT $ACC SH-OFF")
+    [ "$COMMIT" -eq 1 ] && ck_says "K3 SH-OFF is reported (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
+    rm -f "$SENT_SH"
+    OUT=$(probe "K3b SH over the API, SH off again" --user "$ACC" --account "$ACC" "SH touch $SENT_SH")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "K3b refused again" "is not permitted to use the operating system shell" "$OUT"
+        ck "K3c and the command did not run" no "$( [ -e "$SENT_SH" ] && echo yes || echo no )"
+    fi
+
+    OUT=$(probe "K4 OSCOPY of a file outside the account over the API, os-off" --user "$ACC" --account "$ACC" "OSCOPY /etc/hostname $SENT_OS")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "K4 refused in 11180's words" "has no OS access, so a file or directory outside its own account cannot be reached" "$OUT"
+        ck "K4b and nothing was copied" no "$( [ -e "$SENT_OS" ] && echo yes || echo no )"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC OS-ON" "MODIFY.ACCOUNT $ACC OS-ON")
+    [ "$COMMIT" -eq 1 ] && ck_says "K5 OS-ON is reported (10102)" "Account $ACC has SH no, OS.EXECUTE yes" "$OUT"
+    OUT=$(probe "K5b the same OSCOPY over the API, os-on" --user "$ACC" --account "$ACC" "OSCOPY /etc/hostname $SENT_OS")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "K5b THE ROW: the file was copied over the API (the sentinel exists)" yes "$( [ -e "$SENT_OS" ] && echo yes || echo no )"
+        ck_absent "K5c and it was not refused" "has no OS access" "$OUT"
+    fi
+
+    OUT=$(run_sd sdsys "MODIFY.ACCOUNT $ACC OS-OFF" "MODIFY.ACCOUNT $ACC OS-OFF")
+    rm -f "$SENT_SH" "$SENT_OS"
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "K6 OS-OFF is reported (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
+        ck "K6b and the register is back to no / no" "no no" "$(k_gates)"
+    fi
 fi
 
 # ==========================================================================

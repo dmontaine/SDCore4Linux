@@ -1341,6 +1341,14 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
     if [ "$seeded_group" = "sdu_${tuser_lc}" ]; then
       echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
+      # 13 Oct 26 (S.63, owner, second sitting): every new account starts with ssh, the API, sh and
+      # OS.EXECUTE off, the installing user's too.  Said here because this is the first account anyone
+      # signs in to and it would otherwise be a surprise that sh and the editors refuse.
+      echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
+      echo "  Signed in as sdsys, give it what it needs, one word per command:"
+      echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
+      echo "      modify.account ${tuser_lc} sh-on"
+      echo "      modify.account ${tuser_lc} os-on"
     else
       printf "%b\n" "$RED"
       echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"

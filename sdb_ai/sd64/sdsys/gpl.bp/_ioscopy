@@ -13,6 +13,7 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 as in _OSCOPY.
 * 12 Oct 26 dm  1.2-0 openQM ref 369.  The syntax is SD's own.
 * END-HISTORY
 *
@@ -41,6 +42,11 @@ $include int$keys.h
    status = 0
    if source = '' or target = '' or index(source, "'", 1) or index(target, "'", 1) then
       status = -1
+      return
+   end
+* 13 Oct 26 dm - S.63: asked as the account, for both paths, before the existence test (see _OSCOPY).
+   if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then
+      status = -4
       return
    end
    if not(ospath(source, OS$EXISTS)) then

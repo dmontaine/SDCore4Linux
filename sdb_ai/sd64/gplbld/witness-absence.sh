@@ -21,10 +21,14 @@
 #   M3  no tier keyword in MODIFY.ACCOUNT's grammar: the tier words are
 #       refused as unexpected tokens, and SUSPENDED/UNSUSPENDED are the flag
 #       (S.25/W.7).
-#   M4  no OS-access grants: SH-ON/SH-OFF/OS-ON/OS-OFF are refused by
-#       MODIFY.ACCOUNT, and fields 7/8 are gone from the register (S.27).
-#   M5  no API route words: API/NONE/SSH/BOTH are refused by
-#       MODIFY.ACCOUNT and CREATE.ACCOUNT (S.28).
+#   M4  the OS-access gates are PER ACCOUNT and OFF for a new account
+#       (S.63, 13 Oct 26: the owner's correction of S.27, which removed
+#       them with the tiers).  SH-ON/SH-OFF/OS-ON/OS-OFF are driven both
+#       ways by MODIFY.ACCOUNT, fields 7/8 of the register say what was
+#       granted, and an ordinary session's SH runs only while SH is on
+#       (the evidence is a file the command makes, never the echoed text).
+#   M5  the route words SSH/API/BOTH/NONE are driven for their effect and
+#       both ways (S.29); a new account starts with NO route (S.63).
 #   M6  no grant verbs: GRANT/REVOKE/LIST.GRANTS are refused as not in VOC
 #       (W.8); a grant is usermod -aG.
 #   M7  no sdadmin or sdapi group exists (S.26/S.28); the sudoers drop-in
@@ -90,6 +94,7 @@ REGISTER="$SDSYS/accounts"
 MARKER="$SDSYS/\$attach.$ACC"   # 19 Sep 26: ADOPT renamed ATTACH, the port's name
 PW_OS=""
 MADE_ACCOUNT=0
+SHSENT="/tmp/zzabst-sh-sentinel.$$"   # M4: made by SH as the account, read and removed by this script
 
 # One piped sd session, run AS SDSYS - the administrator.  A _PW_ line is
 # replaced with $PW_OS (the throwaway Linux password) and echoed as
@@ -178,6 +183,7 @@ if [ "$DIRTY" -eq 1 ]; then
 fi
 
 cleanup() {
+  rm -f "$SHSENT"
   if [ "$MADE_ACCOUNT" -eq 1 ] && [ -e "$REGISTER/$ACC" ]; then
     say "  $ACC is still registered; deleting it through SD (as sdsys, REMOVE.HOME)"
     printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $ACC REMOVE.HOME"$'\n''y'$'\n''OFF'$'\n' \
@@ -226,9 +232,17 @@ if [ "$COMMIT" -eq 1 ]; then
     awk '{printf "      %d: %s\n", NR, $0}' "$REGISTER/$ACC"
     ck "M2b field 5 (ACC\$SUSPENDED) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC")"
     ck "M2c field 6 (retired ACC\$PRIOR.TIER) is blank"   "" "$(sed -n '6p' "$REGISTER/$ACC")"
-    ck "M2d the record has no fields 7/8 (ACC\$SH / ACC\$OS.EXEC are gone)" "" "$(sed -n '7p' "$REGISTER/$ACC")"
+    # 13 Oct 26 - S.63: THE GATES ARE BACK, SO FIELDS 7/8 EXIST AGAIN AND A NEW
+    #   ACCOUNT'S SAY 'no' (create_account writes them explicitly).  A blank would
+    #   also read as denied, but "no" is a recorded decision; "no no" cannot come
+    #   from a record that was never written, which the missing-record case below
+    #   (not_reached) already covers.
+    ck "M2d fields 7/8 (ACC\$SH / ACC\$OS.EXEC) are no / no: a new account has neither gate" "no no" \
+       "$(sed -n '7p' "$REGISTER/$ACC") $(sed -n '8p' "$REGISTER/$ACC")"
+    ck_says "M2d2 and CREATE.ACCOUNT reported both gates off (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
   else
-    not_reached "M2b field 5 blank"; not_reached "M2c field 6 blank"; not_reached "M2d no fields 7/8"
+    not_reached "M2b field 5 blank"; not_reached "M2c field 6 blank"; not_reached "M2d fields 7/8 are no / no"
+    not_reached "M2d2 CREATE.ACCOUNT reported both gates off"
   fi
   # 19 Sep 26 - THE LINUX PASSWORD IS SD'S NOW (owner's ruling: SD requires a
   #   complex password whatever the OS allows).  SD asks, applies !pw_complex,
@@ -271,22 +285,69 @@ if [ "$COMMIT" -eq 1 ]; then
 fi
 
 # ==========================================================================
-head2 "M4. no OS-access grants (S.27)"
-if [ "$COMMIT" -eq 1 ]; then
-  # S.27: the OS-access words are gone from the grammar, so they are refused by
-  # the action rule (see M3a's note) - the row's subject is the REFUSAL.
-  for w in SH-ON SH-OFF OS-ON OS-OFF; do
-    OUT=$(run_sd "MODIFY.ACCOUNT $ACC $w" "MODIFY.ACCOUNT $ACC $w")
-    ck_says "M4a $w is refused (not a MODIFY.ACCOUNT action)" \
-            "Action Must Be add, delete, ssh, api, both, none," "$OUT"
-  done
-  # SH for everyone: the verb is in a plain account's VOC (newvoc gained it),
-  # and the OS runs at the account's own Linux permissions - no 10053.  This
-  # is run_sd_as, NOT run_sd: the session must BE the account (see the note
-  # in run_sd_as), or the row measures the administrator's SH instead.
-  OUT=$(run_sd_as "$ACC" "SH echo zzsh-absence-ran (no gate)" "SH echo zzsh-absence-ran")
-  ck_says "M4b SH runs for a plain account (no 10053)" "zzsh-absence-ran" "$OUT"
-  ck_absent "M4c and it was not refused" "is not permitted to use the operating system shell" "$OUT"
+# 13 Oct 26 - S.63.  M4 MEASURED THE OPPOSITE UNTIL TODAY (S.27: the four words
+# refused, SH running for everyone).  The owner's correction - the tiers were to
+# go, the per-account gates were to stay, off unless SDSYS turns them on - put
+# them back, so the section is now the gate driven BOTH WAYS on one account, each
+# word separately (SH-OFF says nothing about OS.EXECUTE), starting from what
+# CREATE.ACCOUNT made (M2d: no / no).
+#
+# ***THE EVIDENCE THAT SH RAN IS A FILE THE COMMAND MAKES, NOT ITS ECHO.***  The
+# old row anchored on "zzsh-absence-ran", which the session also prints when it
+# echoes the line it was given, so a refused SH could have passed it.  SH's
+# metacharacter filter refuses "$" and ";", so no expansion can make the output
+# differ from the input; a sentinel on disk, absent before every session and read
+# by the witness itself (root), is the one thing the refusal cannot produce.
+# The OS.EXECUTE half of the gate (BASIC's OS.EXECUTE, OPENSEQ / OPENPATH outside
+# the account's directory, the embedded Python) is driven by sandbox-gates.py;
+# here its field is switched and read back from the register, and nothing more.
+reg_gates() { printf '%s %s' "$(sed -n '7p' "$REGISTER/$ACC")" "$(sed -n '8p' "$REGISTER/$ACC")"; }
+sh_as_account() {   # the session must BE the account: run_sd_as, never run_sd
+  rm -f "$SHSENT"
+  run_sd_as "$ACC" "SH touch $SHSENT (the SH gate decides)" "SH touch $SHSENT"
+}
+head2 "M4. the OS-access gates: off for a new account, SDSYS switches them (S.63)"
+if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
+  for r in "M4a SH refused" "M4b SH-ON" "M4c SH runs" "M4d OS-ON" "M4e SH-OFF alone" "M4f SH refused again" \
+           "M4g OS-OFF" "M4h SH-OFF twice"; do not_reached "$r"; done
+elif [ "$COMMIT" -eq 1 ]; then
+  say "  gates in the register before: $(reg_gates)   sentinel: $SHSENT"
+  rm -f "$SHSENT"
+  ck "M4a0 the sentinel is absent before the first session (the null case refused)" no "$(yesno_file "$SHSENT")"
+
+  OUT=$(sh_as_account)
+  ck_says "M4a a new account's SH is refused (10053)" "is not permitted to use the operating system shell" "$OUT"
+  ck "M4a2 and the command did not run" no "$(yesno_file "$SHSENT")"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC SH-ON" "MODIFY.ACCOUNT $ACC SH-ON")
+  ck_says "M4b SH-ON is accepted and says where both gates stand (10102)" "Account $ACC has SH yes, OS.EXECUTE no" "$OUT"
+  ck_absent "M4b2 and it was not refused as an unknown action" "Action Must Be" "$OUT"
+  ck "M4b3 the register agrees: SH yes, OS.EXECUTE no" "yes no" "$(reg_gates)"
+
+  OUT=$(sh_as_account)
+  ck "M4c SH now runs for the account (the sentinel exists)" yes "$(yesno_file "$SHSENT")"
+  ck_absent "M4c2 and it was not refused" "is not permitted to use the operating system shell" "$OUT"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC OS-ON" "MODIFY.ACCOUNT $ACC OS-ON")
+  ck_says "M4d OS-ON leaves SH as it was (10102)" "Account $ACC has SH yes, OS.EXECUTE yes" "$OUT"
+  ck "M4d2 the register agrees: yes yes" "yes yes" "$(reg_gates)"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC SH-OFF" "MODIFY.ACCOUNT $ACC SH-OFF")
+  ck_says "M4e SH-OFF leaves OS.EXECUTE as it was (10102)" "Account $ACC has SH no, OS.EXECUTE yes" "$OUT"
+  ck "M4e2 the register agrees: no yes" "no yes" "$(reg_gates)"
+
+  OUT=$(sh_as_account)
+  ck_says "M4f SH is refused again, with OS.EXECUTE still on (the gates are independent)" \
+          "is not permitted to use the operating system shell" "$OUT"
+  ck "M4f2 and the command did not run" no "$(yesno_file "$SHSENT")"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC OS-OFF" "MODIFY.ACCOUNT $ACC OS-OFF")
+  ck_says "M4g OS-OFF takes OS.EXECUTE away again (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
+  ck "M4g2 the register agrees: no no" "no no" "$(reg_gates)"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC SH-OFF (again)" "MODIFY.ACCOUNT $ACC SH-OFF")
+  ck_says "M4h asking twice changes nothing and says so (10080)" "already had that access" "$OUT"
+  ck "M4h2 and the register is unchanged: no no" "no no" "$(reg_gates)"
 fi
 
 # ==========================================================================
@@ -301,19 +362,28 @@ fi
 in_group() {   # user, group -> yes/no
   id -nG "$1" 2>/dev/null | tr ' ' '\n' | grep -qx "$2" && echo yes || echo no
 }
-head2 "M5. the route words narrow AND re-widen (S.29)"
+# 13 Oct 26 - S.63: ***THE DEFAULT HAS CHANGED, SO THE ORDER HAS.***  A new
+# account starts with NO route (the owner: "no api, no ssh ... with the sdsys
+# admin able to turn them on or off"), so the section starts from the default
+# and widens, then narrows with NONE.  Opening with NONE, as it did until today,
+# would now answer 10080 (already had that access) and prove nothing.  The
+# letters are re-assigned: M5a is the default itself, the old M5f.
+head2 "M5. a new account has no route; the route words widen AND narrow (S.29, S.63)"
 if [ "$COMMIT" -eq 1 ] && [ ! -f "$REGISTER/$ACC" ]; then
-  for r in "M5a NONE" "M5b SSH" "M5c API" "M5d BOTH" "M5e BOTH again" "M5f the default at create"; do
+  for r in "M5a the default at create" "M5b SSH" "M5c API" "M5d BOTH" "M5e BOTH again" "M5f NONE" "M5g NONE again" "M5h NO.QUERY"; do
     not_reached "$r"; done
 elif [ "$COMMIT" -eq 1 ]; then
-  say "  before: $ACC in sdssh=$(in_group "$ACC" sdssh) sdapi=$(in_group "$ACC" sdapi)"
-  OUT=$(run_sd "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
-  ck_says "M5a NONE takes both routes away (10079)" "has no remote access" "$OUT"
-  ck "M5a2 and the machine agrees: neither group" "no no" \
+  # The default: M2 created $ACC with no route word at all.  10079 is what
+  # create_account says for no route; 10078 ("ssh and the API") is what it said
+  # when the default was both, so its ABSENCE is the row's second half.
+  ck_says "M5a CREATE.ACCOUNT with no route word gave NONE (10079)" \
+          "$ACC has no remote access: not ssh, not the API" "$CREATE_OUT"
+  ck_absent "M5a2 and not both (10078)" "SD routes for $ACC: ssh and the API" "$CREATE_OUT"
+  ck "M5a3 and the machine agrees: neither group" "no no" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
   OUT=$(run_sd "MODIFY.ACCOUNT $ACC SSH" "MODIFY.ACCOUNT $ACC SSH")
-  ck_says "M5b SSH re-widens one route (10076)" "ssh only, not the API" "$OUT"
+  ck_says "M5b SSH widens one route (10076)" "ssh only, not the API" "$OUT"
   ck "M5b2 and the machine agrees: sdssh only" "yes no" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
@@ -323,7 +393,7 @@ elif [ "$COMMIT" -eq 1 ]; then
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
   OUT=$(run_sd "MODIFY.ACCOUNT $ACC BOTH" "MODIFY.ACCOUNT $ACC BOTH")
-  ck_says "M5d BOTH restores what NONE took (10078)" "ssh and the API" "$OUT"
+  ck_says "M5d BOTH gives both routes (10078)" "SD routes for $ACC: ssh and the API" "$OUT"
   ck "M5d2 and the machine agrees: both groups" "yes yes" \
      "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
 
@@ -331,13 +401,17 @@ elif [ "$COMMIT" -eq 1 ]; then
   ck_says "M5e asking twice changes nothing and says so (10080)" \
           "already had that access" "$OUT"
 
-  # The default: M2 created $ACC with no route word at all.
-  ck_says "M5f CREATE.ACCOUNT with no route word gave both (10078)" \
-          "SD routes for $ACC: ssh and the API" "$CREATE_OUT"
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC NONE" "MODIFY.ACCOUNT $ACC NONE")
+  ck_says "M5f NONE takes both routes away (10079)" "$ACC has no remote access: not ssh, not the API" "$OUT"
+  ck "M5f2 and the machine agrees: neither group" "no no" \
+     "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+
+  OUT=$(run_sd "MODIFY.ACCOUNT $ACC NONE (again)" "MODIFY.ACCOUNT $ACC NONE")
+  ck_says "M5g NONE twice changes nothing and says so (10080)" "already had that access" "$OUT"
 
   OUT=$(run_sd "CREATE.ACCOUNT USER zzabst2 NO.QUERY (no route word needed)" \
              "CREATE.ACCOUNT USER zzabst2 NO.QUERY")
-  ck_says "M5g CREATE.ACCOUNT does not demand a route word (10082 is not reached)" \
+  ck_says "M5h CREATE.ACCOUNT does not demand a route word (10082 is not reached)" \
           "Cannot create user zzabst2 with no.query" "$OUT"
 fi
 

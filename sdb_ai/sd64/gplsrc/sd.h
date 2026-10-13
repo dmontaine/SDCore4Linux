@@ -328,6 +328,7 @@ void flush_dh_cache(void);
 bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
 bool os_path_open_ok(const char * name);
+bool os_path_inside(const char * rootdir, const char * name);
 
 /* OP_DIO2.C */
 bool delete_path(char * path);

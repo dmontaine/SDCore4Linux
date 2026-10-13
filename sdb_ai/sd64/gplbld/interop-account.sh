@@ -18,9 +18,10 @@
 #
 # WHY (owner, 15 Sep 2026, "do it"): RELEASE_1.1 41's last witness points a
 # Windows client at this machine's API.  It needs an ordinary account with the
-# API and an SD password.  18 Sep 26, the teardown (S.28): the API is open to
-# every account except SDSYS, so the account is an ordinary one - no tier, no
-# sdapi join.  Test accounts are disposable, and --remove takes this one away
+# API and an SD password.  13 Oct 26, S.63: the API is a PER-ACCOUNT gate again
+# (sdapi membership, S.29) and a new account starts without it, so the account is
+# made with BOTH - ssh and the API - and is otherwise ordinary: no tier, SH and
+# OS.EXECUTE off.  Test accounts are disposable, and --remove takes this one away
 # again.
 #
 # --create follows the new administrator route (18 Sep 26, S.26): everything
@@ -29,8 +30,9 @@
 #   A  CREATE.ACCOUNT USER zzinterop, which creates the Linux user itself (the
 #      owner's rule) and asks for its password.  The register record must
 #      exist; field 5 (the suspension flag) must be blank - a plain account.
-#   T  THE ABSENCE HALF: zzinterop is in sdusers, and the legacy sdadmin and
-#      sdapi groups do not exist.
+#   T  zzinterop is in sdusers, the legacy sdadmin group does not exist, and
+#      the account holds what it was made with: sdapi and sdssh (BOTH), and
+#      SH and OS.EXECUTE off (fields 7 / 8 of the register, S.63).
 #   P  MODIFY.PASSWORD zzinterop.  "Password accepted." (PAL-22), and
 #      the $cred record is on disk.
 #   L  THE PROOF THE ACCOUNT IS USABLE: scram-probe logs in over 127.0.0.1 and
@@ -293,7 +295,14 @@ ck "T1 register field 5 (the suspension flag) is blank" "" \
    "$(sed -n '5p' "$REGISTER/$ACC" 2>/dev/null)"
 ck "T2 $ACC is in sdusers" yes "$(in_group sdusers)"
 ck "T3 the sdadmin group does not exist" no "$(yesno_group sdadmin)"
-ck "T4 the sdapi group does not exist" no "$(yesno_group sdapi)"
+# 13 Oct 26 - T4 asserted the sdapi group does NOT exist, which has been false since S.29 (the
+#   installer makes sdssh and sdapi before any account); witness-absence.sh's M7b was reversed on
+#   20 Sep and this row was missed.  The API is the point of this account, so the row now asks
+#   for the route it was made with, on the machine and not from what the verb said.
+ck "T4 the sdapi group exists and $ACC is in it (BOTH, S.63)" "yes yes" "$(yesno_group sdapi) $(in_group sdapi)"
+ck "T4b and in sdssh" yes "$(in_group sdssh)"
+ck "T5 SH and OS.EXECUTE are off (register fields 7 / 8: no no)" "no no" \
+   "$(sed -n '7p' "$REGISTER/$ACC" 2>/dev/null) $(sed -n '8p' "$REGISTER/$ACC" 2>/dev/null)"
 
 say ""
 say "=== P. the SD password ============================================"

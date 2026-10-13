@@ -76,7 +76,7 @@ Private void sh(bool capture);
 Private void sh_execute(char *command);
 Private int clparse(char *p, char *argv[], int maxargs);
 Private bool os_permitted(void);
-Private bool path_inside_account(const char *name);
+Private bool path_inside_dir(const char *rootdir, const char *name);
 
 int ChildPipe = -1;
 bool in_sh = FALSE; /* 0562 Doing SH command? */
@@ -158,7 +158,11 @@ Private bool os_permitted(void) {
   return os_gate_open();
 }
 
-Private bool path_inside_account(const char *name) {
+/* 13 Oct 26 (second sitting): the test is "inside THIS directory", and the account's own directory is the
+   case where the directory is the working directory (rootdir NULL).  A directory given is for a path reached
+   through a Q-pointer into another account (os_path_inside, K_PATH_IN), whose own tree a restricted account
+   may then use.  A relative name is relative to the directory asked about.                                  */
+Private bool path_inside_dir(const char *rootdir, const char *name) {
   char cwd[PATH_MAX + 1];
   char root[PATH_MAX + 1];
   char work[2 * PATH_MAX + 2];
@@ -170,7 +174,11 @@ Private bool path_inside_account(const char *name) {
 
   if ((name == NULL) || (name[0] == '\0'))
     return FALSE;
-  if (getcwd(cwd, sizeof(cwd)) == NULL)
+  if (rootdir != NULL) {
+    if ((rootdir[0] != '/') || (strlen(rootdir) > PATH_MAX))
+      return FALSE;
+    strcpy(cwd, rootdir);
+  } else if (getcwd(cwd, sizeof(cwd)) == NULL)
     return FALSE;
   if (realpath(cwd, root) == NULL)
     return FALSE;
@@ -241,7 +249,13 @@ Private bool path_inside_account(const char *name) {
 bool os_path_ok_for_account(const char *name) {
   if (os_gate_open())
     return TRUE;
-  return path_inside_account(name);
+  return path_inside_dir(NULL, name);
+}
+
+/* os_path_inside()  -  is this pathname inside THAT directory?  The OS gate is not asked: this is the geometry
+   alone, for a BASIC program (_voc_ref) that has already decided a directory is one the account may use.  */
+bool os_path_inside(const char *rootdir, const char *name) {
+  return path_inside_dir(rootdir, name);
 }
 
 bool os_path_open_ok(const char *name) {
