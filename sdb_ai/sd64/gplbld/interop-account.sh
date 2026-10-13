@@ -275,7 +275,8 @@ say ""
 say "=== A. create $ACC ============================================"
 say "  --- sd session as sdsys: CREATE.ACCOUNT USER $ACC, then the Linux"
 say "      password twice (SET_PASSWD prompts inside SD, hidden) ---"
-OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nCREATE.ACCOUNT USER %s\n%s\n%s\nOFF\n' "$ACC" "$LW" "$LW" \
+# 13 Oct 26 (S.63): BOTH, because the logins below use the API and a new account has no remote access unless asked.
+OUT=$(cd "$SDSYS" && printf '\nTERM 200,9999\nCREATE.ACCOUNT USER %s BOTH\n%s\n%s\nOFF\n' "$ACC" "$LW" "$LW" \
       | sudo -u sdsys timeout 90 "$SD" 2>&1 | strip)
 printf '%s\n' "$OUT" | grep -vF -- "$LW" | sed -e 's/^/      | /'
 ck "A1 the register record exists" yes "$(yesno_file "$REGISTER/$ACC")"

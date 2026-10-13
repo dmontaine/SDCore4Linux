@@ -350,9 +350,18 @@
       *
       *   FIELD 4 REMAINS FREE, for conformity with the port, as before.
       *
-      *   FIELDS 7 AND 8 (ACC$SH / ACC$OS.EXEC, the OS-access grants of
-      *   PRE_RELEASE 23) ARE GONE (S.27): SH and OS.EXECUTE run at the
-      *   account's own Linux permissions and SD keeps no second wall.
+      * 13 Oct 26 dm - S.63.  FIELDS 7 AND 8 ARE BACK: the per-account OS-access gates.
+      *   The 18 Sep teardown (S.27) had taken them out with the tiers; the owner's correction of
+      *   13 Oct was that the tiers were to go and the gates to stay.  They are defined by nothing
+      *   but these two fields, and SDSYS switches them (MODIFY.ACCOUNT SH-ON / SH-OFF / OS-ON /
+      *   OS-OFF; CREATE.ACCOUNT takes SH-ON and OS-ON).  Two independent fields, so SH-OFF says
+      *   nothing about OS.EXECUTE.  BLANK MEANS DENIED: a record that has never been told, or one
+      *   that cannot be read, gets no shell and no OS.EXECUTE.  Loaded into the session at account
+      *   entry as K$SH / K$OS.EXEC (LOGIN, CPROC logto).  The records that exist when this ships
+      *   are set to 'yes' once, by the upgrade, so no account loses what it had; accounts made
+      *   afterwards start 'no'.
+      $define ACC$SH           7     ;* may use the SH verb and "!" (yes/no)
+      $define ACC$OS.EXEC      8     ;* may use OS.EXECUTE, and reach OS paths outside its account (yes/no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

@@ -169,6 +169,11 @@ struct USER_ENTRY
      #define USR_CHGPHANT    0x0020 /* "Chargeable" phantom; counts as licensed user */
      #define USR_MSG_OFF     0x0040 /* Message reception disabled */
      #define USR_WAKE        0x0080 /* Set by op_wake, cleared by op_pause */
+     /* 13 Oct 26 S.63: the per-account OS-access gates, back after the teardown took them out with the
+        tiers (owner, 13 Oct: the tiers were to go and the gates were to stay, off unless SDSYS turns them on).
+        Loaded at account entry (LOGIN, CPROC logto) from ACC$SH / ACC$OS.EXEC; see keys.h K_SH.        */
+     #define USR_SH          0x0100 /* may use the SH verb and "!" */
+     #define USR_OS_EXEC     0x0200 /* may use OS.EXECUTE, and reach OS paths outside its own account */
   u_int16_t events;        /* Any bit set causes processing interrupt */
      #define EVT_LOGOUT      0x0001 /* Forced logout - immediate termination */
      #define EVT_STATUS      0x0002 /* Return status dump */

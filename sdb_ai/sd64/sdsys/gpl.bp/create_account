@@ -17,6 +17,10 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 13 Oct 26 dm S.63 (owner, 13 Oct 2026): a new account starts with no ssh, no API, no SH and no OS.EXECUTE;
+*              each is given by naming it.  The OS-access gates are written to ACC$SH / ACC$OS.EXEC from
+*              CA$OS.SH / CA$OS.EXECUTE (which RESTORE.ACCOUNT already passes from the manifest); the
+*              ATTACHed installing user gets all four.  Both routes were on by default from S.29 until today.
 * 08 Oct 26 dm Three changes from the S.62 line-by-line read against the Windows port
 *              (owner: "1 yes, 2 yes if possible, 3 fix").  (1) 10161 and 10162 warn,
 *              without refusing, when a route was given and nothing is behind it
@@ -100,8 +104,15 @@ deffun valid_os_path(path) calling '!valid_os_path'
 *   present at all is a request (CREATE.ACCOUNT's access.given), which a GROUP
 *   account refuses below.
    access.given = settings<CA$ROUTE.SSH> # '' or settings<CA$ROUTE.API> # ''
-   access.ssh = settings<CA$ROUTE.SSH> # '0'
-   access.api = settings<CA$ROUTE.API> # '0'
+* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026: "the default was supposed to be no api, no ssh, no os.execute
+*   and no sh"; Core ships with high security and the administrator loosens it by choice).  A new account
+*   starts with NO ssh, NO API, NO shell and NO OS.EXECUTE, and each is given by naming it (ssh, api,
+*   both, sh-on, os-on) or later by MODIFY.ACCOUNT.  This was "both routes on unless a setting narrows
+*   them" from S.29 until today.  A setting is a request only when it is exactly 1: a blank or a 0 is off.
+   access.ssh = (settings<CA$ROUTE.SSH> = 1)
+   access.api = (settings<CA$ROUTE.API> = 1)
+   os.sh.want = (settings<CA$OS.SH> = 1)
+   os.exec.want = (settings<CA$OS.EXECUTE> = 1)
    no.query = settings<CA$NO.QUERY> = 1
    reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
 
@@ -118,6 +129,16 @@ deffun valid_os_path(path) calling '!valid_os_path'
       end else
          err = 2018:@vm:'ATTACH'  ;* Unexpected token (xx)
          return
+      end
+* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026): the installing user's own account is made with all four
+*   switched on.  The person who installs owns the machine and can do all of it with sudo anyway; every
+*   other account starts off.  ATTACH is install-only (-internal and the one-shot marker), so this
+*   cannot be asked for from a session.
+      if attach then
+         access.ssh = @true
+         access.api = @true
+         os.sh.want = @true
+         os.exec.want = @true
       end
    end
 
@@ -252,11 +273,22 @@ PW.TRY.AGAIN:
        err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
        goto exit.create
      end
+* S.63: and no shell to permit - it is entered by whoever its Linux group admits (the Windows port's 10105).
+     if os.sh.want or os.exec.want then
+       @system.return.code = -ER$ARGS
+       err = 10105:@vm:acc.name ;* %1 is a group account and has no Linux user, so it has no shell to permit
+       goto exit.create
+     end
 
    case acc.type = 'OTHER'
      if upcase(acc.name) = 'SDUSERS' then
        @system.return.code = -ER$ARGS
        err = 2202 ;* Account name is invalid
+       goto exit.create
+     end
+     if os.sh.want or os.exec.want then
+       @system.return.code = -ER$ARGS
+       err = 10105:@vm:acc.name ;* %1 has no Linux user of its own, so it has no shell to permit
        goto exit.create
      end
      pathname = trim(settings<CA$PATH>)
@@ -423,6 +455,10 @@ PW.TRY.AGAIN:
    begin case
    case acc.type = "USER"
      acc.rec<ACC$GROUP> = "sdu_":downcase(acc.uname)
+* 13 Oct 26 dm - S.63: the OS-access gates are written explicitly, 'no' unless asked, so that a record that
+*   says 'no' (somebody decided) can be told from one that says nothing (never told, read as denied too).
+     acc.rec<ACC$SH> = if os.sh.want then 'yes' else 'no'
+     acc.rec<ACC$OS.EXEC> = if os.exec.want then 'yes' else 'no'
    case acc.type = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
@@ -430,6 +466,9 @@ PW.TRY.AGAIN:
 
    write acc.rec to acc.f, acc.name
    locked = @false
+   if acc.type = "USER" then
+     crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
+   end
 
 * A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;
 *   CREATE.ACCOUNT never has, and still says so in its syntax).  Each must be

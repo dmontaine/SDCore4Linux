@@ -3031,9 +3031,14 @@ int.logto:
    who = new.account
    voc = new.voc ; new.voc = 0   ;* Dereference temporary VOC file var
 
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-access grants and the K$SH/K$OS.EXEC
-*   load are gone: SH and OS.EXECUTE run at the account's own Linux
-*   permissions, and SD keeps no second wall.
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are loaded here as LOGIN loads them at sign-on:
+*   SH and OS.EXECUTE are OFF unless the account's register record says 'yes' (SDSYS switches them with
+*   MODIFY.ACCOUNT SH-ON / OS-ON).  acc.record is the register record for a named account; a path-attached
+*   account has none, so its fields read blank and it is denied - the safe default.  The administrator
+*   needs no grant: USR_ADMIN already passes the gate.  Account-scoped: a LOGTO to another account reloads
+*   from that account's own record, so one account's grant is never carried into another.
+   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3868,9 +3873,14 @@ os.command:
    * Reject shell metacharacters in OS commands.
    * os.execute os.command.text
    deffun valid_shell_cmd(cmd) calling '!valid_shell_cmd'
-* 18 Sep 26 dm - TEARDOWN (S.27).  The administrator/SH grant test is gone:
-*   SH and "!" run at the account's own Linux permissions.  The metacharacter
-*   filter stays - it is a sanitizer, not a tier gate.
+* 13 Oct 26 dm - S.63.  The administrator-or-SH-grant test is back (the 18 Sep teardown had removed it
+*   with the tiers): SH and "!" are for the administrator and for an account SDSYS has given the SH
+*   gate (K$SH, loaded from ACC$SH at account entry).  The reply is the Windows port's 10053.  The
+*   metacharacter filter below stays - it is a sanitizer, not a gate.
+   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then
+      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell
+      return
+   end
    if not(valid_shell_cmd(os.command.text)) then
       display sysmsg(5240, 2) ;* Error xx executing operating system command
       return

@@ -1,0 +1,1 @@
+%1 has no OS access, so a file outside its own account cannot be opened by pathname (SDSYS can give it: modify.account %1 os-on)

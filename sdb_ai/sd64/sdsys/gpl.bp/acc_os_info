@@ -15,15 +15,17 @@
 *
 *    acc.name ''  - the system keys: product, host, accounts.root, sd.version.
 *    acc.name set - the account's keys, from its ACCOUNTS record (acc.rec):
-*                   type, os.user, os.group, route.ssh, route.api, and for a
-*                   GROUP account its members.
+*                   type, os.user, os.group, route.ssh, route.api, os.sh,
+*                   os.execute, and for a GROUP account its members.
 *
 *    LINUX DETAIL.  The type comes from the register's group (sdu_ USER, sdg_
 *    GROUP, anything else OTHER), as DELETE.ACCOUNT reads it.  A route is
-*    membership of sdssh / sdapi (S.29).  A GROUP account's members are its
+*    membership of sdssh / sdapi (S.29).  os.sh and os.execute (S.63) are the
+*    register's ACC$SH and ACC$OS.EXEC, 1 only if the field says yes - the same
+*    keys the Windows port writes from os.users - so RESTORE.ACCOUNT gives a
+*    restored account the gates it had.  A GROUP account's members are its
 *    sdg_ group's members less root and sdsys, which createa adds to every
-*    account group.  There is no os.users here, so os.sh and os.execute are
-*    never written (the Windows port writes them).
+*    account group.
 *
 * END-DESCRIPTION
 *
@@ -60,6 +62,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          info<-1> = 'os.group: ':grp
          info<-1> = 'route.ssh: ':(if is_grp_member(user, 'sdssh') then 1 else 0)
          info<-1> = 'route.api: ':(if is_grp_member(user, 'sdapi') then 1 else 0)
+         info<-1> = 'os.sh: ':(if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then 1 else 0)
+         info<-1> = 'os.execute: ':(if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then 1 else 0)
 
       case grp[1,4] = 'sdg_'
          info<-1> = 'type: GROUP'

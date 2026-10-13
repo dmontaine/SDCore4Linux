@@ -236,10 +236,19 @@
    things in the two systems is drift of the same kind as a message number.
    GPL.BP/INT$KEYS.H must carry the same three numbers.                        */
 #define K_REAL_USER          90
-/* 18 Sep 26 dm - 91/92 (K_SH / K_OS_EXEC, the PRE_RELEASE 23 OS-access grants)
-   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
-   own Linux permissions, and the kernel no longer carries those keys.
-   06 Oct 26 dm - 91 is K_LOGIN_UID now (see above); 92 is still free.       */
+/* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (the 18 Sep teardown, S.27, had taken
+   them out with the tiers; the owner's correction of 13 Oct: the tiers were to go and the gates to stay,
+   off by default, switched by SDSYS).  They were K_SH / K_OS_EXEC at 91 and 92 (PRE_RELEASE 23); 91 is
+   K_LOGIN_UID now (06 Oct 26) and 92 is the screen library's K_WINSIZE on its branch, so they come back
+   at 93 and 94.  GPL.BP/INT$KEYS.H must carry the same numbers.
+     K_SH       the session may use SH and "!".  Set only from a $internal program, like K_ADMINISTRATOR.
+     K_OS_EXEC  the session may use OS.EXECUTE and reach OS paths outside its own account.  Same rule.
+     K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
+                An $internal program (SED) is exempt from the gate itself, so it must ask on the user's
+                behalf; it cannot be allowed to be the way round the gate.                             */
+#define K_SH                 93
+#define K_OS_EXEC            94
+#define K_PATH_OK            95
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

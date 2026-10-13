@@ -463,8 +463,10 @@ head2 "1. create $ACC - SD's whole flow, as sdsys"
 # section 15.  passwd(1) gets it through the piped session's stdin (the _PW_
 # placeholders below), exactly as MODIFY.PASSWORD answers travel.
 PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
-OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC (answering the Linux password)" \
-             "CREATE.ACCOUNT USER $ACC" "_PW_" "_PW_")
+# 13 Oct 26 (S.63): a new account has NO ssh and NO API unless asked, and the sections that follow log
+# $ACC in over both, so it is asked for here.  (Before S.63 the default was both.)
+OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC BOTH (answering the Linux password)" \
+             "CREATE.ACCOUNT USER $ACC BOTH" "_PW_" "_PW_")
 PW_OS=""
 
 ADOPTED=0

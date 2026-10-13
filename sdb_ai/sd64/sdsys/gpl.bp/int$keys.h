@@ -162,10 +162,13 @@
 *   and K$WINPID, so these three move to 90-92, clear of the port's 0-64.  Must
 *   match gplsrc/keys.h.
       $define K$REAL.USER       90       ;* Real person behind the session
-* 18 Sep 26 dm - 91/92 (K$SH / K$OS.EXEC, the PRE_RELEASE 23 OS-access grants)
-*   are gone with the teardown (S.27): SH and OS.EXECUTE run at the account's
-*   own Linux permissions, and the kernel no longer carries those keys.
-*   06 Oct 26 dm - 91 is K$LOGIN.UID now (see above); 92 is still free.
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (see gplsrc/keys.h): K$SH and
+*   K$OS.EXEC, at 93 and 94 now.  Settable only from $internal, like K$ADMINISTRATOR; LOGIN and CPROC
+*   load them at account entry from ACC$SH / ACC$OS.EXEC.  K$PATH.OK asks whether THIS ACCOUNT may open
+*   a pathname - for an $internal program (SED) that is exempt from the gate itself.  Must match keys.h.
+      $define K$SH              93       ;* may use SH and "!"
+      $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
+      $define K$PATH.OK         95       ;* 1 if this account may open the pathname
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

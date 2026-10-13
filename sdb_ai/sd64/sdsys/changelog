@@ -1,6 +1,52 @@
 Next release - in progress
 --------------------------
 
+13 Oct 26  A NEW ACCOUNT STARTS WITH NO SHELL, NO OS.EXECUTE, NO SSH AND NO API;
+           THE ADMINISTRATOR TURNS EACH ON, ACCOUNT BY ACCOUNT.
+
+           SD is delivered with the tighter setting, and SDSYS loosens it for
+           the accounts that need it.  Four switches, each kept per account:
+
+             ssh, api   The two remote doors.  CREATE.ACCOUNT USER name ssh,
+                        api or both gives them (none, the default, gives
+                        neither); MODIFY.ACCOUNT name ssh / api / both / none
+                        changes them later, either way.  A new account used to
+                        get both without being asked.
+             sh-on      The SH verb and "!".
+             os-on      OS.EXECUTE in a BASIC program, nano and micro, the
+                        embedded Python, and opening a file of the operating
+                        system by its path (OPENSEQ or OPENPATH with a path)
+                        outside the account's own directory.
+
+           CREATE.ACCOUNT USER name sh-on os-on gives them at creation, and
+           MODIFY.ACCOUNT name sh-on, sh-off, os-on or os-off changes either
+           later; the two are independent, so sh-off leaves OS.EXECUTE alone.
+           After either command SD says where the account now stands ("Account
+           name has SH yes, OS.EXECUTE no").  A change takes effect the next
+           time the account is entered.
+
+           An account without os-on can still open every file it can reach
+           through its VOC - dictionaries and other SD files included - and any
+           file inside its own directory.  What it can no longer do is open
+           /etc, another account's directory, or a symbolic link that points
+           out of its own, with OPENSEQ or OPENPATH; the program is told the
+           open was refused (status 3035), so OPEN ... ELSE works as before.
+           SH and OS.EXECUTE give a refusal in words: "name is not permitted to
+           use the operating system shell" or "...to use OS.EXECUTE".
+
+           Upgrading keeps what accounts have.  The installer switches SH and
+           OS.EXECUTE on, once, for every account that exists when you upgrade
+           (ssh and the API are left as they are), so nobody loses a command
+           they were using; the administrator can then turn them off one
+           account at a time, and a later install does not turn them back on.
+           The installing user's own account gets all four.  SDSYS is never
+           refused.
+
+           What this does not do yet: a file pointer that an account writes
+           into its own VOC, naming a directory elsewhere, is still opened as
+           an SD file.  An account that can edit its VOC can reach files that
+           way; closing that is the next step.
+
 12 Oct 26  FOUR SMALL FIXES (1.2-0, openQM compatibility).
 
            CLEAR.FILE on a file that has NO.RESIZE set (CONFIGURE.FILE ...

@@ -62,6 +62,13 @@ SD64 = os.path.dirname(HERE)
 # root:root 0700; verify-sysperms.py and witness-release-run.sh C7 measure them.
 STORES = ["accounts", "$cred"]
 
+# 13 Oct 26 dm (S.63).  WRITERS THAT NO VERB REACHES BECAUSE THE INSTALLER RUNS THEM, AS ROOT.  upgrade_gates sets the
+# register's OS-access fields for the accounts that already exist, once, during an upgrade; it is not a verb and must
+# never become one.  It is accepted here ONLY while installsdcore.sh really runs it as `sudo ... -internal RUN gpl.bp
+# <name>` - a program on this list that the installer stops running, or a name that is catalogued as a verb after all,
+# is judged like any other writer.  The list is the exemption's whole width: adding a name here is a decision to read.
+INSTALL_RUN = ["upgrade_gates"]
+
 OPEN_RE = re.compile(r"""openpath\s+@sdsys\s*:\s*@ds\s*:\s*['"]([^'"]+)['"]\s+to\s+([a-z0-9._$]+)""", re.I)
 CATALOG_RE = re.compile(r"^\s*\$catalog\s+(\S+)", re.I | re.M)
 PRIV_RE = re.compile(r"""privileged_commands\s*<\s*-1\s*>\s*=\s*['"]([^'"]+)['"]""", re.I)
@@ -93,7 +100,13 @@ def load(bp):
     return recs
 
 
-def check(bp, cproc_path, out=print):
+def installer_runs(installer_text, name):
+    """True if the installer runs gpl.bp <name> as root: a sudo, -internal, RUN gpl.bp <name>, on a non-comment line."""
+    rx = re.compile(r"^\s*[^#\n]*\bsudo\b[^#\n]*-internal\s+RUN\s+gpl\.bp\s+" + re.escape(name) + r"\b", re.I | re.M)
+    return bool(rx.search(installer_text))
+
+
+def check(bp, cproc_path, out=print, installer_text=None):
     out("check-storewriters")
     out("  gpl.bp   : %s" % bp)
     out("  cproc    : %s" % cproc_path)
@@ -103,6 +116,14 @@ def check(bp, cproc_path, out=print):
         return 2
 
     recs = load(bp)
+    if installer_text is None:
+        inst = os.path.join(os.path.dirname(os.path.dirname(SD64)), "installsdcore.sh")
+        try:
+            with open(inst, "r", encoding="utf-8", errors="replace") as f:
+                installer_text = f.read()
+        except OSError:
+            installer_text = ""
+        out("  installer: %s%s" % (inst, "" if installer_text else "  (NOT READABLE: install-run writers cannot be accepted)"))
     with open(cproc_path, "r", encoding="utf-8", errors="replace") as f:
         priv = [p.upper() for p in PRIV_RE.findall(f.read())]
     out("  privileged_commands: %s" % (", ".join(priv) or "(none)"))
@@ -173,6 +194,8 @@ def check(bp, cproc_path, out=print):
                     orphan = True
                 for x in cs:
                     todo.append((x, catalog.get(x, "")))
+            elif rec in INSTALL_RUN and installer_runs(installer_text, rec):
+                out("      %s is not a verb: installsdcore.sh runs it as root (-internal RUN gpl.bp %s)  PRIVILEGED" % (rec, rec))
             else:
                 out("      %s has no $catalog name, so no verb can be found for it" % rec)
                 orphan = True
@@ -216,9 +239,35 @@ def selftest():
             "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n"}),
         ("not a write: a commented-out write", 2, {
             "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\n* write r to acc.f, id\n"}),
+        # 13 Oct 26 (S.63): a writer run by the installer, not by a verb
+        ("clean: an install-run writer that the installer really runs as root", 0, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "upgrade_gates": "openpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         'out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates 2>&1) || rc=$?\n'),
+        ("red: an install-run writer that the installer does not run", 1, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "upgrade_gates": "openpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         'sudo bin/sd UPDATE.ACCOUNTS ALL\n'),
+        ("red: the installer names it only in a comment", 1, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "upgrade_gates": "openpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         '# sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates\n'),
+        ("red: the installer runs it without sudo", 1, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "upgrade_gates": "openpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         '"$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates\n'),
+        ("red: the name is catalogued as a verb that is not privileged, whatever the installer does", 1, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "upgrade_gates": "$catalog $UPGRADE_GATES\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         'sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates\n'),
+        ("red: a writer NOT on the install list is not accepted just because the installer runs it", 1, {
+            "good": "$catalog $GOOD\nopenpath @sdsys:@ds:'accounts' to acc.f else stop\nread r from acc.f, id else null\n",
+            "somethingelse": "openpath @sdsys:@ds:'accounts' to acc.f else stop\nwrite r to acc.f, id\n"},
+         'sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp somethingelse\n'),
     ]
     failed = 0
-    for title, want, files in cases:
+    for title, want, files, *rest in cases:
+        installer = rest[0] if rest else ""
         with tempfile.TemporaryDirectory() as d:
             bp = os.path.join(d, "gpl.bp")
             os.mkdir(bp)
@@ -228,7 +277,7 @@ def selftest():
             cp = os.path.join(d, "cproc")
             with open(cp, "w") as f:
                 f.write(cproc)
-            got = check(bp, cp, out=lambda s: None)
+            got = check(bp, cp, out=lambda s: None, installer_text=installer)
         ok = got == want
         failed += 0 if ok else 1
         print("  [%s] %s: expected exit %d, got %d" % ("PASS" if ok else "FAIL", title, want, got))

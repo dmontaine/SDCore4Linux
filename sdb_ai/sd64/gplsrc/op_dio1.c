@@ -686,6 +686,16 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
 
   fullpath(pathname, mapped_name);
 
+  /* 13 Oct 26 S.63: OPENPATH names an OS path directly, which is "a file external to SD".  An account that has
+     not been given OS.EXECUTE reaches only paths inside its own directory (a $internal program is trusted, and
+     asks the account's own question through K_PATH_OK when it acts for the user).  ER_PERM rather than an abort,
+     as the Windows port refuses a contained path: OPEN ... ELSE is the BASIC idiom, and 3035 says "permission",
+     not the "not found" of 3024.  A file named through the VOC is an SD file and is not asked this here.     */
+  if (!map_name && !os_path_open_ok(pathname)) {
+    process.status = ER_PERM;
+    goto exit_op_open;
+  }
+
   if (process.txn_id != 0) {
     /* Try to re-open a file previously closed during this transaction */
 

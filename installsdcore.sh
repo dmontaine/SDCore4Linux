@@ -1407,6 +1407,31 @@ if [ "$accounts_kept" = yes ]; then
         echo "  Run this installer again to retry; it can only run during an install."
         printf "%b\n" "$NC"
     fi
+
+# 13 Oct 26 dm - S.63 (owner, 13 Oct 2026).  THE OS-ACCESS GATES RETURN OFF BY DEFAULT, AND THE KEPT
+#            ACCOUNTS KEEP WHAT THEY HAVE.  Since the teardown every account has been able to use SH, "!",
+#            nano, micro, OS.EXECUTE and Python; with the gates back a blank in the register reads as
+#            denied, so without this step every kept account would lose all of it at once.  upgrade_gates
+#            switches SH and OS.EXECUTE on for each USER account in the register, ONCE (it leaves
+#            sdsys/$gates.done, so a later install does not undo an administrator's SH-OFF), and leaves
+#            ssh and the API alone.  Accounts made afterwards start off.  Same rules as the walk above:
+#            it must run here, as the root session of the install; a run that did not print COMPLETE is
+#            reported and the install goes on, because it is repeated by running this installer again.
+    echo
+    echo "Keeping the shell and OS.EXECUTE access that the existing accounts have."
+    og_rc=0
+    og_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates 2>&1) || og_rc=$?
+    printf '%s\n' "$og_out"
+    og_plain=$(printf '%s\n' "$og_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+    if [ "$og_rc" -ne 0 ] || ! printf '%s\n' "$og_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+        printf "%b\n" "$RED"
+        echo "WARNING: the existing accounts' shell and OS.EXECUTE access was not all set."
+        echo "  Until it is, an account without it cannot use sh, nano, micro or OS.EXECUTE."
+        echo "  Run this installer again to retry, or give an account the access with"
+        echo "      modify.account <account> sh-on"
+        echo "      modify.account <account> os-on"
+        printf "%b\n" "$NC"
+    fi
 fi
 
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.

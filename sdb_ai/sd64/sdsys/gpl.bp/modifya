@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 13 Oct 26 dm S.63: SH-ON, SH-OFF, OS-ON and OS-OFF are back (os.set), without the tiers they were
+*           once defined by: two independent switches per account, off unless SDSYS turns them on,
+*           reported with 10102.  The 18 Sep teardown had removed them with the tier model.
 * 06 Oct 26 dm PAL-18 (parity audit): SUSPENDED and UNSUSPENDED write the register
 *           record under a lock and report a failed write (10114), as the
 *           Windows port's tier.set does.
@@ -157,6 +160,8 @@ deffun valid_os_name(name) calling '!valid_os_name'
    if token.type = PARSER$END then
       crt 'Command Syntax:  modify.account <account> add | delete <username>'
       crt '                 modify.account <account> ssh | api | both | none'
+      crt '                 modify.account <account> sh-on | sh-off'
+      crt '                 modify.account <account> os-on | os-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
@@ -195,6 +200,26 @@ deffun valid_os_name(name) calling '!valid_os_name'
          stop
       case action = 'UNSUSPENDED'
          gosub set.unsuspended
+         stop
+* 13 Oct 26 dm - S.63.  The OS-access gates, the Windows port's four words over two independent fields (so
+*   SH-OFF says nothing about OS.EXECUTE).  Off unless typed.  os.set does the work; os.field and
+*   os.want carry it.  ssh/api/both/none above are a different kind of word: one selector for the
+*   state of two doors; these are switches, and both and none already mean ssh and api.
+      case action = 'SH-ON'
+         os.field = ACC$SH ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'SH-OFF'
+         os.field = ACC$SH ; os.want = @false
+         gosub os.set
+         stop
+      case action = 'OS-ON'
+         os.field = ACC$OS.EXEC ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'OS-OFF'
+         os.field = ACC$OS.EXEC ; os.want = @false
+         gosub os.set
          stop
       case action = 'SSH'
          want.ssh = @true  ; want.api = @false ; gosub set.route
@@ -290,7 +315,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
-         crt '   suspended or unsuspended'
+         crt '   sh-on, sh-off, os-on, os-off, suspended or unsuspended'
       end
 
    end else
@@ -480,6 +505,62 @@ set.route:
       case 1
          crt sysmsg(10079, acc.name)  ;* %1 has no remote access: not ssh, not the API
    end case
+   return
+
+*****************************************************************************
+* OS.SET  -  MODIFY.ACCOUNT <account> SH-ON | SH-OFF | OS-ON | OS-OFF
+*
+* 13 Oct 26 dm - S.63.  The OS-access gates, back (the 18 Sep teardown took them out with the tiers; the
+*   owner's correction of 13 Oct: the tiers were to go and the gates to stay).  Off by default, and
+*   SDSYS - the only account that has this verb - switches them.  os.field is ACC$SH or ACC$OS.EXEC;
+*   os.want is the wanted state.  The fields are 'yes'/'no'; blank = denied.  The code is the
+*   pre-teardown os.set (git show 11a4268^), without the administrator-tier refusal that has nothing to
+*   refer to now, and with the register written under a lock as SET.SUSPENDED writes it (PAL-18).
+*
+* OS-ON ALSO GOVERNS WHAT AN ACCOUNT CAN OPEN BY PATHNAME: OPENSEQ and OPENPATH reach only the account's own
+*   directory without it (op_sh.c), and SED's PATH: asks the same question (K$PATH.OK).  SH-ON governs the
+*   SH verb and "!".
+*
+* THE GRANT TAKES EFFECT AT THE NEXT ACCOUNT ENTRY, not at once: LOGIN and CPROC's logto load the field into
+*   the session (K$SH / K$OS.EXEC), so a session already in the account keeps what it had until it
+*   re-enters.
+
+os.set:
+*   A GROUP or OTHER account is entered by whoever its Linux group admits, so a shell granted to it would
+*   be a shell granted to all of them, decided by group membership rather than by the administrator who
+*   typed SH-ON.  sdu_ is the only group that names one person (the Windows port's 10105).
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
+      return
+   end
+
+   os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
+   if os.was = os.want then
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   readu acc.new from acc.f, acc.name else acc.new = acc.rec
+   if os.want then acc.new<os.field> = 'yes' else acc.new<os.field> = 'no'
+   acc.written = @true
+   write acc.new to acc.f, acc.name on error acc.written = @false
+   if not(acc.written) then
+      release acc.f, acc.name
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10114, acc.name)  ;* Unable to change the state of %1; its state in the register is unchanged
+      return
+   end
+
+*   THE RESULTING STATE OF BOTH FIELDS, NOT A SENTENCE ABOUT ONE: SH-OFF says nothing about OS.EXECUTE, so
+*   saying where both now stand is what tells the administrator the command did only what it named.
+   @system.return.code = 0
+   os.sh.now = 'no'
+   if upcase(trim(acc.new<ACC$SH>)) = 'YES' then os.sh.now = 'yes'
+   os.ex.now = 'no'
+   if upcase(trim(acc.new<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
    return
 
 end
