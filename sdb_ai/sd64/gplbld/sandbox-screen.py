@@ -288,9 +288,52 @@ PROGS.update({
    crt @(0, 1) : 'ERRS ' : dup : ' ' : bad1 : ' ' : bad2 : ' ' : gm : ' ' : sm : ' ' : fm1 : ' ' : rm : ' ' : okm : ' ' : nof : ' ' : g2 : '|'
 end
 """,
+    # an event loop: the form stays on the screen between the waits, the program changes it with SET and ends it with HIDE
+    "zzscwt1": dialogue_program("""   screen form title 'Events' at 10,3 size 44,12 returning f
+   screen label  f, 'st', 'ready' at 2,9 width 30 attr 'reverse'
+   screen entry  f, 'name' at 8,2 width 20 value 'Al'
+   screen check  f, 'on', '&Enable' at 8,4 value 0
+   screen combo  f, 'city', 'Albany':@vm:'Boston':@vm:'Chicago' at 8,6 width 12 value 'Boston'
+   screen progress f, 'pg' at 2,8 width 20 value 25
+   screen button f, 'go', '&Go' at 2,10 default
+   screen button f, 'quit', '&Quit' at 12,10 cancel
+   log = ''
+   loop
+      screen wait f timeout 5 returning ev else
+         log := ev<1>:';'
+         exit
+      end
+      begin case
+         case ev<1> = 'button'
+            log := 'button:':ev<2>:';'
+            screen set f, 'pg' value 75
+            screen set f, 'st' text 'working'
+         case ev<1> = 'change'
+            log := 'change:':ev<2>:'=':ev<3>:';'
+         case ev<1> = 'focus'
+            log := 'focus:':ev<2>:'<':ev<3>:';'
+         case ev<1> = 'key'
+            log := 'key:':ev<3>:';'
+      end case
+   repeat
+   screen hide f
+   res = log
+"""),
+    # a wait that times out, and the hide that follows
+    "zzscwt2": dialogue_program("""   res = 'NO-ELSE'
+   screen form title 'Late' at 10,3 size 30,6 returning f
+   screen label  f, 'st', 'waiting' at 2,2 width 20
+   screen button f, 'ok', '&OK' at 2,4 default
+   screen wait f timeout 1 returning ev else
+      res = 'ELSE ':ev<1>:'|'
+   end
+   screen set f, 'st' text 'timed out'
+   screen key returning kk
+   screen hide f
+"""),
     # a phantom has no terminal: every statement that waits for the user answers ELSE and nothing hangs.  It writes
     # what it found to a VOC record, which zzscphs (a program in the session that started it) reads back.
-    "zzscph": """   r1 = 'OPEN-THEN' ; r2 = 'MSG-THEN' ; r3 = 'KEY-THEN' ; r4 = 'MENU-THEN' ; r5 = 'RUN-THEN' ; r6 = 'PICK-THEN' ; r7 = 'ASK-THEN'
+    "zzscph": """   r1 = 'OPEN-THEN' ; r2 = 'MSG-THEN' ; r3 = 'KEY-THEN' ; r4 = 'MENU-THEN' ; r5 = 'RUN-THEN' ; r6 = 'PICK-THEN' ; r7 = 'ASK-THEN' ; r8 = 'WAIT-THEN'
    screen open clear else r1 = 'OPEN-ELSE'
    screen msgbox 'hi' returning n else r2 = 'MSG-ELSE ':n
    screen key timeout 1 returning k else r3 = 'KEY-ELSE'
@@ -301,8 +344,9 @@ end
    screen entry f, 'x' at 1,1
    screen button f, 'ok', 'OK' at 1,3 default
    screen run f returning p else r5 = 'RUN-ELSE'
+   screen wait f timeout 1 returning ev else r8 = 'WAIT-ELSE ':ev<1>
    open 'VOC' to v else stop
-   write r1:@fm:r2:@fm:r3:@fm:r4:@fm:r5:@fm:r6:@fm:r7 on v, 'zzscph_out'
+   write r1:@fm:r2:@fm:r3:@fm:r4:@fm:r5:@fm:r6:@fm:r7:@fm:r8 on v, 'zzscph_out'
 end
 """,
     "zzscphs": """   open 'VOC' to v else stop
@@ -902,13 +946,72 @@ def part_forms(box):
     out = sess(box, "RUN bp zzscphs")
     row("in a phantom SCREEN OPEN takes ELSE (no terminal), and a message box, a key, a menu, a pick list, an input dialogue and a form "
         "all answer ELSE without waiting for anybody; the answers are not the THEN ones",
-        has(out, r"^PHANTOM OPEN-ELSE\|MSG-ELSE 0\|KEY-ELSE\|MENU-ELSE\|RUN-ELSE\|PICK-ELSE\|ASK-ELSE\|"), out[-500:])
+        has(out, r"^PHANTOM OPEN-ELSE\|MSG-ELSE 0\|KEY-ELSE\|MENU-ELSE\|RUN-ELSE\|PICK-ELSE\|ASK-ELSE\|WAIT-ELSE end\|"), out[-500:])
     row("control: the phantom did run and write its record (PHANTOM none would mean the harness failed, not the statements)",
         not has(out, r"^PHANTOM none"), out[-300:])
 
 
 def has(out, pattern):
     return re.search(r"(?m)" + pattern, out) is not None
+
+
+F2_KEY = "\x1bOQ"
+
+
+def part_events(box):
+    say("\n--- SCREEN WAIT: events from a form that stays on the screen; combo box, progress bar, a label with a width ---")
+    t = Term(box, "RUN bp zzscwt1")
+    L0, A0 = record(t)
+    L = t.keys("a")
+    row("the first WAIT draws the form (44 x 12 at 10,3) and the program is still waiting: no event, no report line",
+        L[3][10:20] == "+- Events " and L[14][10] == "+" and L[14][53] == "+" and result(L, "PRESSED") is None, "\n".join(l[8:56] for l in L[2:16]))
+    row("the label has a width of 30: 'ready' on 30 cells of reverse video",
+        L[12][12:17] == "ready" and t.attrs(12)[12:42] == "r" * 30, repr((L[12][10:44], t.attrs(12)[10:44])))
+    row("the combo box shows Boston in its entry field and [v] after it; the progress bar is [###          ] 25% (13 cells inside: a quarter is 3.25, three filled)",
+        L[9][18:24] == "Boston" and L[9][30:33] == "[v]" and L[11][12:32] == "[###" + " " * 10 + "]  25%", "\n".join(l[8:56] for l in L[8:13]))
+    row("the first widget (the entry) has the focus, as in a run",
+        L[5][18:20] == "Al" and t.attrs(5)[18:38] == "r" * 20, repr((L[5][16:40], t.attrs(5)[16:40])))
+    L = t.keys(TAB)
+    row("Tab moves the focus to the check box: the check box is reverse video now, and the form is still on the screen",
+        t.attrs(7)[18:28] == "r" * 10 and L[7][18:28] == "[ ] Enable", repr((L[7][16:30], t.attrs(7)[16:30])))
+    L = t.keys(" ")
+    row("the space bar checks it", L[7][18:28] == "[x] Enable", repr(L[7][16:30]))
+    L = t.keys(TAB, DOWN)
+    row("Tab to the combo box and Down: the list of choices opens under the field (Albany, Boston, Chicago) with Boston current",
+        L[10][18] == "+" and L[11][19:26] == " Albany" and L[12][19:26] == " Boston" and L[13][19:27] == " Chicago" and t.attrs(12)[19:32] == "r" * 13,
+        "\n".join(l[14:40] for l in L[8:16]))
+    L = t.keys(DOWN, RET)
+    row("Down and Return pick Chicago: the list closes, the field says Chicago, and what was under the list is back",
+        L[9][18:25] == "Chicago" and L[10][18:22].strip() == "" and L[11][19:26].strip() == "" and "Albany" not in "".join(L[10:15]), "\n".join(l[14:40] for l in L[8:16]))
+    L = t.keys(F2_KEY)
+    L = t.keys(TAB)
+    L = t.keys(RET)
+    row("a button pressed is an event and the program changes the form while it is on the screen: the bar is 75% and the label says working (padded, nothing left of 'ready')",
+        L[11][12:32] == "[" + "#" * 10 + " " * 3 + "]  75%" and L[12][12:19] == "working" and L[12][19:42].strip() == "" and t.attrs(12)[12:42] == "r" * 30,
+        "\n".join(l[8:56] for l in L[10:14]))
+    L = t.keys(ESC, idle=0.9)
+    ok, bad = same_as(t, L0, A0)
+    row("Esc is the cancel event, not a close: the program ended its loop and HID the form, and the 20 rows are back cell for cell", ok, repr(bad))
+    L = t.keys("z")
+    got = [l for l in L if "focus:on<name" in l]
+    row("the events the program saw, in order: focus (to the check box), change (checked), focus (to the combo), change (Chicago), "
+        "key (F2), focus (to the button), button (go), cancel (Esc)",
+        bool(got) and got[0].strip() == "focus:on<name;change:on=1;focus:city<on;change:city=Chicago;key:f2;focus:go<city;button:go;cancel;", repr(got))
+    t.end()
+
+    t = Term(box, "RUN bp zzscwt2")
+    L0, A0 = record(t)
+    t.keys("a")
+    t.s.settle(1.8)
+    L = t.lines()
+    row("a WAIT with TIMEOUT 1 and no key gives ELSE, and the program changes the label while the form is still shown: 'timed out' over 'waiting'",
+        any("Late" in l for l in L) and L[5][12:21] == "timed out" and "waiting" not in "".join(L[3:10]), "\n".join(l[8:44] for l in L[2:10]))
+    t.keys("k")
+    ok, bad = same_as(t, L0, A0)
+    row("HIDE puts the screen back cell for cell", ok, repr(bad))
+    L = t.keys("z")
+    row("...and the event was `timeout`", result(L, "ELSE") == "timeout|", repr(result(L, "ELSE")))
+    t.end()
 
 
 def part_forms2(box):
@@ -1039,7 +1142,7 @@ def main():
         t.end()
 
         only = [a[7:] for a in sys.argv[1:] if a.startswith("--only=")]
-        parts = only[0].split(",") if only else ["owned", "dialogs", "forms"]
+        parts = only[0].split(",") if only else ["owned", "dialogs", "forms", "events"]
         if "owned" in parts:
             part_owned(box)
         if "dialogs" in parts:
@@ -1047,6 +1150,8 @@ def main():
         if "forms" in parts:
             part_forms(box)
             part_forms2(box)
+        if "events" in parts:
+            part_events(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
