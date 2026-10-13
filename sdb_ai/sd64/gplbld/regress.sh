@@ -33,6 +33,7 @@
 # 12 Oct 26 dm  lock-b6 added (the 27th suite, 49 s; the 27 together took 14 minutes).
 # 12 Oct 26 dm  file-b8 added (the 28th suite, about 80 s).
 # 12 Oct 26 dm  lang-a15 added (the 29th suite).
+# 12 Oct 26 dm  fix-b10 added (the 30th suite).
 # END-HISTORY
 
 set -u
@@ -41,7 +42,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, in the order that shows a failure soonest: the editor (the longest) and the newest first.
-ALL_SUITES="ced collfile dbgcoll akcase coll try oq2 bcomp-a1 stmt-b5 func-b4 qproc-a3 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase sys-b2 conf-b1 lock-b6 file-b8 lang-a15"
+ALL_SUITES="ced collfile dbgcoll akcase coll try oq2 bcomp-a1 stmt-b5 func-b4 qproc-a3 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase sys-b2 conf-b1 lock-b6 file-b8 lang-a15 fix-b10"
 
 ONLY=""
 SKIP=""

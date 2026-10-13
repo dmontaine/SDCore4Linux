@@ -18,6 +18,7 @@
 * 
 *  
 * START-HISTORY:
+* 12 Oct 26 dm  LIST.ITEM / SORT.ITEM number lines of more than 999 fields with as many digits as they need (openQM 349).
 * 13 Oct 26 dm  Data collection files (1.2-0): E-type items, which are fields of the
 *               view make.coll.view builds, and the ELEMENT keyword (a path named on
 *               the command line, add.field; messages 11160, 11161).
@@ -2289,8 +2290,10 @@ skip.record:
                if qdisp(QD$EMIT, '', 'D') then goto qdisp.error
                if qdisp(QD$EMIT, id, 'D') then goto qdisp.error
 
+               * 12 Oct 26 dm - openQM 349: three digits, or as many as the last line number needs
+               line.fmt = if num.fields > 999 then len(num.fields):'"0"R' else '3"0"R'
                for fno = 1 to num.fields
-                  printline = fmt(fno, '3"0"R') : ': ' : qproc.record<fno>
+                  printline = fmt(fno, line.fmt) : ': ' : qproc.record<fno>
                   if qdisp(QD$EMIT, printline, 'D') then goto qdisp.error
                next fno
             end else
