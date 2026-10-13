@@ -1,6 +1,50 @@
 Next release - in progress
 --------------------------
 
+12 Oct 26  THE SCREEN STATEMENT: MENUS, DIALOGUES AND FORMS FROM BASIC (1.2-0).
+
+           A BASIC program can now draw on the terminal with one new
+           statement, SCREEN, followed by a verb, with no C, no extra package
+           and no change to the program's own PRINT and INPUT:
+
+               screen msgbox 'Delete this record?' title 'Confirm' buttons '&Yes,&No' returning n then ...
+               screen menu items at 10,4 returning code
+               screen pick cities title 'City' size 20,5 returning n
+               screen ask 'Your name?' value 'Bob' width 12 returning s
+               screen form title 'Customer' at 10,3 size 56,16 returning f
+               screen entry f, 'name' at 12,2 width 30 value 'Smith'
+               screen button f, 'ok', '&OK' at 18,14 default
+               screen run f returning pressed then ...
+               screen get f, 'name' returning name
+
+           The verbs are open, close, clear, text, box, cursor, refresh, size
+           and key (the screen itself); msgbox, menu, menubar, pick and ask
+           (dialogues that ask one thing and give back the answer); and form,
+           label, frame, entry, check, radio, list, button, run, get, set,
+           focus and values (a form holds fields, check boxes, radio buttons,
+           lists and buttons; Tab and Shift-Tab, the arrows, Return for the
+           default button, Esc to cancel and a button's letter work as they do
+           in a dialogue box).  Clauses (TITLE, AT, SIZE, DEFAULT ...) can be
+           written in any order and left out; RETURNING names the variable
+           that gets the answer; THEN is taken when the user finished and ELSE
+           when the user cancelled (Esc), the terminal went away, or there is
+           no terminal at all (a phantom or the API).  A form is a data
+           collection, so JBUILD writes one out and JPARSE reads it back.
+
+           After SCREEN OPEN the library keeps a picture of what it has drawn,
+           so a dialogue over your text puts every character and its
+           highlighting back when it closes.  Text you print with PRINT or CRT
+           is not in that picture: draw it with SCREEN TEXT, or SCREEN REFRESH
+           will not bring it back.  Before SCREEN OPEN a dialogue still works,
+           but leaves blanks where it was.  The statement is documented, with
+           what it asks of each verb, in sd64/screenlib-design.md.
+
+           A program that already uses screen, title, buttons, default,
+           returning or the like as variable names is not affected.  Not
+           there yet: colours, the mouse, drop-down lists, tabs, scroll bars,
+           a status line or a progress bar.  Shift-Tab is now a key on an
+           xterm (its terminfo entry lacked kcbt).
+
 12 Oct 26  SED, THE FULL SCREEN EDITOR, IS BACK, WITH DROP-DOWN MENUS (1.2-0).
 
            SED edits a record of any file (SED file record, or with an active
@@ -22,9 +66,8 @@ Next release - in progress
            the keys work.  The record names it reads for its options and key
            bindings are now lower case (&sed.options&, &sed.bindings&).
 
-           The menus are built on a small screen library for the system's own
-           programs (user programs cannot call $-names yet) ($sl_key, $sl_region, $sl_menu, $sl_msgbox,
-           $sl_prompt; see sd64/screenlib-design.md).  It does not change
+           The menus are built on the screen library that the SCREEN statement
+           (the entry above) gives to BASIC programs.  It does not change
            anything else.
 
 12 Oct 26  FOUR SMALL FIXES (1.2-0, openQM compatibility).

@@ -288,6 +288,38 @@ PROGS.update({
    crt @(0, 1) : 'ERRS ' : dup : ' ' : bad1 : ' ' : bad2 : ' ' : gm : ' ' : sm : ' ' : fm1 : ' ' : rm : ' ' : okm : ' ' : nof : ' ' : g2 : '|'
 end
 """,
+    # a phantom has no terminal: every statement that waits for the user answers ELSE and nothing hangs.  It writes
+    # what it found to a VOC record, which zzscphs (a program in the session that started it) reads back.
+    "zzscph": """   r1 = 'OPEN-THEN' ; r2 = 'MSG-THEN' ; r3 = 'KEY-THEN' ; r4 = 'MENU-THEN' ; r5 = 'RUN-THEN' ; r6 = 'PICK-THEN' ; r7 = 'ASK-THEN'
+   screen open clear else r1 = 'OPEN-ELSE'
+   screen msgbox 'hi' returning n else r2 = 'MSG-ELSE ':n
+   screen key timeout 1 returning k else r3 = 'KEY-ELSE'
+   screen menu 'a':@vm:'b' returning c else r4 = 'MENU-ELSE'
+   screen pick 'a':@vm:'b' returning n2 else r6 = 'PICK-ELSE'
+   screen ask 'Name' returning s else r7 = 'ASK-ELSE'
+   screen form returning f
+   screen entry f, 'x' at 1,1
+   screen button f, 'ok', 'OK' at 1,3 default
+   screen run f returning p else r5 = 'RUN-ELSE'
+   open 'VOC' to v else stop
+   write r1:@fm:r2:@fm:r3:@fm:r4:@fm:r5:@fm:r6:@fm:r7 on v, 'zzscph_out'
+end
+""",
+    "zzscphs": """   open 'VOC' to v else stop
+   delete v, 'zzscph_out'
+   execute 'PHANTOM NO.MSG RUN bp zzscph'
+   for i = 1 to 40
+      read r from v, 'zzscph_out' then exit
+      sleep 1
+   next i
+   read r from v, 'zzscph_out' then
+      crt 'PHANTOM ' : convert(@fm, '|', r) : '|'
+      delete v, 'zzscph_out'
+   end else
+      crt 'PHANTOM none'
+   end
+end
+""",
     # a form that wants a name, run again with what was typed until it has one
     "zzscfr2": dialogue_program("""   screen form title 'Needs a name' returning f
    screen label  f, 'l', 'Name:' at 2,1
@@ -866,6 +898,20 @@ def part_forms(box):
         result(L, "ERRS") == "DUP EMPTYID SLASH NOGET NOSET NOFOCUS NORUN - - five|", repr(result(L, "ERRS")))
     t.end()
 
+    say("\n--- no terminal: a phantom ---------------------------------------------------------------------------")
+    out = sess(box, "RUN bp zzscphs")
+    row("in a phantom SCREEN OPEN takes ELSE (no terminal), and a message box, a key, a menu, a pick list, an input dialogue and a form "
+        "all answer ELSE without waiting for anybody; the answers are not the THEN ones",
+        has(out, r"^PHANTOM OPEN-ELSE\|MSG-ELSE 0\|KEY-ELSE\|MENU-ELSE\|RUN-ELSE\|PICK-ELSE\|ASK-ELSE\|"), out[-500:])
+    row("control: the phantom did run and write its record (PHANTOM none would mean the harness failed, not the statements)",
+        not has(out, r"^PHANTOM none"), out[-300:])
+
+
+def has(out, pattern):
+    return re.search(r"(?m)" + pattern, out) is not None
+
+
+def part_forms2(box):
     say("\n--- a form run again with what was typed, a message box over it ------------------------------------------")
     t = Term(box, "RUN bp zzscfr2")
     L0, A0 = record(t)
@@ -1000,6 +1046,7 @@ def main():
             part_dialogs(box)
         if "forms" in parts:
             part_forms(box)
+            part_forms2(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
