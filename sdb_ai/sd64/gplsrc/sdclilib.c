@@ -3918,7 +3918,7 @@ Private bool read_packet() {
   p = (unsigned char*)buff;
   buff_bytes = 0;
   while (buff_bytes < packet_bytes) {
-    rcv_len = min(buff_size - buff_bytes, 16384);
+    rcv_len = min(packet_bytes - buff_bytes, 16384); /* 12 Oct 26: what is left of THIS packet, not the buffer's free space */
     if (session[session_idx].is_local) {
       rcvd_bytes = read(session[session_idx].RxPipe[0], p, rcv_len);
       if ((rcvd_bytes < 0) && (errno == EINTR))
