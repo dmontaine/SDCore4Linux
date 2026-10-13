@@ -13,6 +13,9 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 is a path outside the account
+*               for an account without OS.EXECUTE.  A measured !OSCOPY by such an account read AND wrote files
+*               outside its directory.
 * 12 Oct 26 dm  1.2-0 openQM refs 517 (append) and 369 (iOSCOPY, the directory form).  The syntax is SD's own.
 * END-HISTORY
 *
@@ -30,8 +33,10 @@
 *
 * Status is 0 when it worked.  -1 is a path that is null or holds a single
 * quote, -2 a source that is not there, -3 a target that exists (mode 0),
-* and anything else the status of the copy command.  Both run with the
-* permissions of the user, like OS.EXECUTE.
+* -4 a path outside the account's own directory for an account that has not
+* been given OS.EXECUTE (modify.account name os-on), and anything else the
+* status of the copy command.  Both run with the permissions of the user,
+* like OS.EXECUTE, and are asked the same question.
 *
 * END-DESCRIPTION
 *
@@ -70,7 +75,16 @@ check.paths:
    if source = '' or target = '' or index(source, "'", 1) or index(target, "'", 1) then
       status = -1
    end else
-      if not(ospath(source, OS$EXISTS)) then status = -2
+* 13 Oct 26 dm - S.63.  This program is $internal, so the kernel does not ask the account's gate on its behalf and
+*   the copy runs with the permissions of the Linux user.  It is asked here, as the account, for BOTH paths and
+*   BEFORE the existence test, so that -2 does not tell an account without OS access which files exist elsewhere.
+      if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then
+         status = -4
+      end else
+         if not(ospath(source, OS$EXISTS)) then
+            status = -2
+         end
+      end
    end
    return
 end

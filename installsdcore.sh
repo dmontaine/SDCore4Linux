@@ -1341,6 +1341,14 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
     if [ "$seeded_group" = "sdu_${tuser_lc}" ]; then
       echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
+      # 13 Oct 26 (S.63, owner, second sitting): every new account starts with ssh, the API, sh and
+      # OS.EXECUTE off, the installing user's too.  Said here because this is the first account anyone
+      # signs in to and it would otherwise be a surprise that sh and the editors refuse.
+      echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
+      echo "  Signed in as sdsys, give it what it needs, one word per command:"
+      echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
+      echo "      modify.account ${tuser_lc} sh-on"
+      echo "      modify.account ${tuser_lc} os-on"
     else
       printf "%b\n" "$RED"
       echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
@@ -1405,6 +1413,31 @@ if [ "$accounts_kept" = yes ]; then
         echo "  Nothing was lost: a file that was not converted works as it did."
         echo "  Its output is in /var/tmp/sdcore-install-nocase.log."
         echo "  Run this installer again to retry; it can only run during an install."
+        printf "%b\n" "$NC"
+    fi
+
+# 13 Oct 26 dm - S.63 (owner, 13 Oct 2026).  THE OS-ACCESS GATES RETURN OFF BY DEFAULT, AND THE KEPT
+#            ACCOUNTS KEEP WHAT THEY HAVE.  Since the teardown every account has been able to use SH, "!",
+#            nano, micro, OS.EXECUTE and Python; with the gates back a blank in the register reads as
+#            denied, so without this step every kept account would lose all of it at once.  upgrade_gates
+#            switches SH and OS.EXECUTE on for each USER account in the register, ONCE (it leaves
+#            sdsys/$gates.done, so a later install does not undo an administrator's SH-OFF), and leaves
+#            ssh and the API alone.  Accounts made afterwards start off.  Same rules as the walk above:
+#            it must run here, as the root session of the install; a run that did not print COMPLETE is
+#            reported and the install goes on, because it is repeated by running this installer again.
+    echo
+    echo "Keeping the shell and OS.EXECUTE access that the existing accounts have."
+    og_rc=0
+    og_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_gates 2>&1) || og_rc=$?
+    printf '%s\n' "$og_out"
+    og_plain=$(printf '%s\n' "$og_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+    if [ "$og_rc" -ne 0 ] || ! printf '%s\n' "$og_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+        printf "%b\n" "$RED"
+        echo "WARNING: the existing accounts' shell and OS.EXECUTE access was not all set."
+        echo "  Until it is, an account without it cannot use sh, nano, micro or OS.EXECUTE."
+        echo "  Run this installer again to retry, or give an account the access with"
+        echo "      modify.account <account> sh-on"
+        echo "      modify.account <account> os-on"
         printf "%b\n" "$NC"
     fi
 fi

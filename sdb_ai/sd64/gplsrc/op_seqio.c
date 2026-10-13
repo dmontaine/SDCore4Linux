@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 13 Oct 26 dm  S.63: op_delseq() asks the OS-access gate when it is given a bare pathname (no record name).
  * 12 Oct 26 dm  op_openseq() opens a block device, a floppy disk drive among
  *               them (openQM item 112).
  * 14 Sep 26 dm  op_openseq()'s error cleanup releases the record lock it took.
@@ -220,6 +221,16 @@ void op_delseq() {
     if (file_name[strlen(file_name) - 1] != DS)
       strcat(file_name, DSS);
     strcat(file_name, rec_name);
+  } else {
+    /* 13 Oct 26 S.63 (the second sitting): with no record name the file name IS an OS pathname, and DELETESEQ
+       removes it.  That is an OS file external to SD, so it is asked as OPENSEQ asks: an account without
+       OS.EXECUTE reaches only paths inside its own directory (ER_PERM, which is the ELSE branch, as for
+       OPENSEQ).  A measured DELETESEQ of a file outside the account succeeded before this.  The record form
+       above names an SD directory file through the VOC and is not asked.                                    */
+    if (!os_path_open_ok(file_name)) {
+      process.status = ER_PERM;
+      goto exit_op_delseq;
+    }
   }
 
   /* Check file exists */
@@ -521,6 +532,14 @@ Private void openseq(bool map_name) {
     file_name_len = k_get_c_string(filename_descr, file_name, MAX_PATHNAME_LEN);
     if ((file_name_len < 1) || (file_name[file_name_len - 1] == DS)) {
       process.status = ER_NAM;
+      goto exit_op_openseq;
+    }
+
+    /* 13 Oct 26 S.63: OPENSEQ by pathname (and a port, which is an OS device) is an OS file external to SD.  An
+       account without OS.EXECUTE reaches only paths inside its own directory; see op_sh.c os_path_ok_for_account.
+       A file named through the VOC (the file, record form above) is an SD file and is not asked this here.     */
+    if (!os_path_open_ok(file_name)) {
+      process.status = ER_PERM;
       goto exit_op_openseq;
     }
 

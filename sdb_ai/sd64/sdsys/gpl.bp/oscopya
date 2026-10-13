@@ -13,6 +13,8 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 13 Oct 26 dm  S.63: !OSCOPY refuses a path outside the account for an account without OS.EXECUTE (status -4);
+*               this verb says so in 11180.
 * 12 Oct 26 dm  1.2-0 openQM ref 517.  The syntax is SD's own.
 * END-HISTORY
 *
@@ -75,6 +77,8 @@ $include parser.h
          display sysmsg(11064, source) ;* Source xx not found
       case status = -3
          display sysmsg(11063, target) ;* Target xx already exists: give OVERWRITE or APPEND
+      case status = -4
+         display sysmsg(11180, @who) ;* %1 has no OS access, so a file or directory outside its own account cannot be reached
       case 1
          display sysmsg(11062, source, target, status) ;* Cannot copy xx to xx (status xx)
    end case

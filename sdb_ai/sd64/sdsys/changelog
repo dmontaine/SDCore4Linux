@@ -1,6 +1,94 @@
 Next release - in progress
 --------------------------
 
+13 Oct 26  A NEW ACCOUNT STARTS WITH NO SHELL, NO OS.EXECUTE, NO SSH AND NO API;
+           THE ADMINISTRATOR TURNS EACH ON, ACCOUNT BY ACCOUNT.
+
+           SD is delivered with the tighter setting, and SDSYS loosens it for
+           the accounts that need it.  Four switches, each kept per account:
+
+             ssh, api   The two remote doors.  CREATE.ACCOUNT USER name ssh,
+                        api or both gives them (none, the default, gives
+                        neither); MODIFY.ACCOUNT name ssh / api / both / none
+                        changes them later, either way.  A new account used to
+                        get both without being asked.
+             sh-on      The SH verb and "!".
+             os-on      OS.EXECUTE in a BASIC program, nano and micro, the
+                        embedded Python, and reaching a file or directory of
+                        the operating system by its path outside the account's
+                        own directory: OPENSEQ and OPENPATH, DIR() and
+                        SELECT.DIR (listing a directory), DELETESEQ of a path,
+                        !OSCOPY, !IOSCOPY and the OSCOPY verb, and printing
+                        into a file by path (SETPTR ... AS PATHNAME, or the
+                        SETPU statement).
+
+           CREATE.ACCOUNT USER name sh-on os-on gives them at creation, and
+           MODIFY.ACCOUNT name sh-on, sh-off, os-on or os-off changes either
+           later; the two are independent, so sh-off leaves OS.EXECUTE alone.
+           After either command SD says where the account now stands ("Account
+           name has SH yes, OS.EXECUTE no").  A change takes effect the next
+           time the account is entered.
+
+           An account without os-on can still open every file it can reach
+           through its VOC - dictionaries and other SD files included - and any
+           file inside its own directory, as long as the VOC pointer leads
+           somewhere it may go (the next paragraphs).  What it can no longer do
+           is open
+           /etc, another account's directory, or a symbolic link that points
+           out of its own, by any of the ways above; a program is told the
+           open was refused (status 3035), so OPEN ... ELSE works as before,
+           and DIR() gives nothing and sets STATUS().  SH and OS.EXECUTE give
+           a refusal in words: "name is not permitted to use the operating
+           system shell" or "...to use OS.EXECUTE"; the OSCOPY and SELECT.DIR
+           verbs and SETPTR say "name has no OS access, so a file or directory
+           outside its own account cannot be reached by pathname (SDSYS can
+           give it: modify.account name os-on)".
+
+           DIR() now sets STATUS() to 0 when it works and to a code when the
+           directory cannot be opened.  It used to leave whatever the last
+           operation had set, so SELECT.DIR on an empty directory could say
+           "Cannot read directory".
+
+           Upgrading keeps what accounts have.  The installer switches SH and
+           OS.EXECUTE on, once, for every account that exists when you upgrade
+           (ssh and the API are left as they are), so nobody loses a command
+           they were using; the administrator can then turn them off one
+           account at a time, and a later install does not turn them back on.
+           A fresh install makes the installing user's own account with
+           everything off too, like any other new account, and says how to
+           turn it on: sign in as sdsys and give it what it needs with
+           modify.account.  SDSYS is never refused.
+
+           A VOC pointer is held to the same rule (owner: "try to make
+           tighter ... q pointers should only be allowed into an account the
+           user can logto in any case").  An account used to be able to write a
+           file pointer into its own VOC, or make one with CREATE.FILE ...
+           PATHNAME, naming any directory its Linux user could read, and open
+           it as an SD file.  Now, for everybody but SDSYS:
+
+             - a file pointer must lead inside the account's own directory,
+               or inside the account a Q-pointer was followed into, or be the
+               pointer SD itself puts in every VOC (the same id and the same
+               path as in NEWVOC: syscom, $map, sd.voclib, dict.dict, voc,
+               newvoc, $acc); an account that holds os-on may go anywhere its
+               Linux user can.  Otherwise the open is refused with status 3035.
+             - a Q-pointer into a registered account is followed only if the
+               user could LOGTO that account - a member of its group, and the
+               account not suspended - whether or not the account holds os-on.
+               So a Q-pointer made with SET.FILE into somebody else's account
+               works only for a user who may enter it.  The two pointers every
+               VOC starts with are the exception, because they are exactly
+               what SD put there: sd.accounts, which leads into SDSYS (an
+               account nobody can LOGTO), and md.
+             - a Q-pointer that names a path instead of an account is an
+               operating-system path, and the os-on question.
+
+           What this changes for an existing site: a Q-pointer that leads into
+           an account its owner can no longer enter stops opening, and so does
+           a hand-made file pointer to a directory outside the account in an
+           account that does not hold os-on.  Accounts that existed at an
+           upgrade hold os-on, so their pointers keep working.
+
 12 Oct 26  THE SCREEN STATEMENT GETS COLOUR, TABS, TEXT AREAS, TABLES AND THE
            MOUSE, AND COLOUR WORKS ON THE LINUX CONSOLE TERMINAL TYPE (1.2-0).
 

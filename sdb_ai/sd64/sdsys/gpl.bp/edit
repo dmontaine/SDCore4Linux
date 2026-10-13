@@ -285,14 +285,19 @@ end.program:
 * ===========================================================================
 
 * ---------------------------------------------------------------------------
-* check.permitted  -  THE ONE GATE LEFT: A TERMINAL.
+* check.permitted  -  TWO GATES: A TERMINAL, AND OS.EXECUTE.
 *
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS.EXECUTE gate is gone: OS.EXECUTE
-* runs at the account's own Linux permissions and SD keeps no second wall, so
-* an editor no longer needs a grant to exist.  What remains is the terminal
-* test below - the editor draws a full screen, and a session without a tty
-* (API, a piped script) is sent to ed.  The port's OS.EXECUTE grant model
-* (its owner, 26 Aug 2026) went with the tiers.
+* The Windows port's owner, 26 Aug 2026: "these commands will only work if the user
+* has OS.EXECUTE privileges.  If not, they should get a message that the
+* command is not available."  Running an editor outside SD is reaching the operating
+* system, and who may do that is the same grant that governs OS.EXECUTE from inside
+* a program.  This program is $internal, so op_sh admits its os.execute on
+* HDR_INTERNAL and never asks; testing here refuses before anything is created and
+* says what to do about it.
+*
+* LINUX: THE GRANT IS THE ACCOUNT'S OS-ON (K$OS.EXEC), loaded at account entry by
+* LOGIN and CPROC's logto.  K$ADMINISTRATOR covers SDSYS.  ed, the line editor, is
+* inside SD and needs none of this.
 *
 * AND THE TERMINAL TEST IS FIRST, because it is the plainer answer.  K$TTY is
 * ttyname(stdin), blank for an API session or a piped script, which have
@@ -313,11 +318,16 @@ check.permitted:
       return
    end
 
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-ON grant is gone with the tiers:
-*   OS.EXECUTE runs at the account's own Linux permissions and SD keeps no
-*   second wall, so the terminal test above is the whole gate for the full
-*   screen editor now.  ed stays for sessions with no terminal.
-   permitted = @true
+   if kernel(K$OS.EXEC, -1) then
+      permitted = @true
+      return
+   end
+
+   error.text  = verb.text : ' is not available to ' : @logname : '.' : char(10)
+   error.text := 'It runs an editor outside SD, so it needs OS.EXECUTE'
+   error.text := ' permission, which an administrator grants with' : char(10)
+   error.text := '   modify.account <account> os-on' : char(10)
+   error.text := 'ed, the line editor, needs none of this.'
 return
 
 * ---------------------------------------------------------------------------

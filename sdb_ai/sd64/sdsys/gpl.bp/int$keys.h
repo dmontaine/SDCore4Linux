@@ -170,6 +170,16 @@
 *   field mark, height as the kernel last read them from the tty (start-up and
 *   every SIGWINCH), or null when it could not.  Must match gplsrc/keys.h.
       $define K$WINSIZE         92       ;* The terminal's size from the tty
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (see gplsrc/keys.h): K$SH and
+*   K$OS.EXEC, at 93 and 94 now.  Settable only from $internal, like K$ADMINISTRATOR; LOGIN and CPROC
+*   load them at account entry from ACC$SH / ACC$OS.EXEC.  K$PATH.OK asks whether THIS ACCOUNT may open
+*   a pathname - for an $internal program (SED) that is exempt from the gate itself.  Must match keys.h.
+      $define K$SH              93       ;* may use SH and "!"
+      $define K$OS.EXEC         94       ;* may use OS.EXECUTE and reach OS paths outside its account
+      $define K$PATH.OK         95       ;* 1 if this account may open the pathname
+* 13 Oct 26 dm - second sitting.  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the
+*   directory (geometry only, realpath).  _VOC_REF uses it for a file reached through a Q-pointer.
+      $define K$PATH.IN         96       ;* 1 if the pathname is inside the directory
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

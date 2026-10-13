@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 13 Oct 26 dm  S.63: start_file() asks the OS-access gate (os_path_ok_for_account) for a print unit's raw
+ *               pathname, so an account without OS.EXECUTE prints only into its own directory.
  * 12 Oct 26 dm  A mode 3 print unit takes an update lock on its record in $HOLD
  *               before the file is made and keeps it until the file is closed
  *               (openQM item 53; _holdlog does it, hold_log(pu, 2) asks).
@@ -249,6 +251,19 @@ Private void start_file(PRINT_UNIT* pu) {
       strncpy(pu->seqno, seqno, sizeof(pu->seqno) - 1);
       pu->seqno[sizeof(pu->seqno) - 1] = '\0';
       strcpy(last_seqno, pu->seqno);
+    }
+
+    /* 13 Oct 26 S.63 (the second sitting): a mode 3 or 6 print unit makes (or replaces) a file with the
+       permissions of the Linux user, at a path the account chose: SETPTR ... AS PATHNAME and the SETPU statement
+       set it, and a "$hold name" marker - which SETPU lets a program write itself - becomes "$hold/name" with no
+       check that name stays below $hold ("$hold ../../../etc/x").  The program that finally prints is usually an
+       $internal one (LIST, a report), so the question is put to the ACCOUNT, not the program, and about the path
+       as it is about to be opened, whichever of the three ways built it.  Without OS.EXECUTE the account prints
+       only into its own directory.  A measured SETPTR ... AS PATHNAME <outside> followed by LIST VOC LPTR
+       created a file outside the account before this.  The spooler's own directory and the aux port name
+       jump to open_file below and are not asked.                                                            */
+    if (!os_path_ok_for_account(fn)) {
+      k_error(sysmsg(11180), process.username);
     }
 
   open_file:

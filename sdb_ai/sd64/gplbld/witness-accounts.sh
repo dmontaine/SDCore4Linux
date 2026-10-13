@@ -449,10 +449,27 @@ if [ "$COMMIT" -eq 1 ]; then
         ck "A2 field 5 (ACC\$SUSPENDED) is blank - no tier" "" "$(sed -n '5p' "$REGISTER/$ACC_UC")"
         ck "A3 field 4 (retired ACC\$USERS) was not written" "" "$(sed -n '4p' "$REGISTER/$ACC_UC")"
         ck "A3b field 6 (retired ACC\$PRIOR.TIER) was not written" "" "$(sed -n '6p' "$REGISTER/$ACC_UC")"
+        # 13 Oct 26 - S.63: THE OS-ACCESS GATES ARE BACK AND A NEW ACCOUNT STARTS WITH BOTH
+        #   OFF.  Fields 7/8 (ACC$SH / ACC$OS.EXEC) hold 'no', written by create_account, so
+        #   a decision can be told from a record nobody completed; and the account is in
+        #   neither route group (the ssh / API default is off too).  The same facts are said
+        #   aloud: 10102 for the gates, 10079 for the routes.  M2d / M5a of witness-absence.sh
+        #   read the same record from a second account; this row is the one that reads it
+        #   from the account the DELETE phase then removes.
+        ck "A3c fields 7/8 (ACC\$SH / ACC\$OS.EXEC) are no / no: a new account has neither gate" "no no" \
+           "$(sed -n '7p' "$REGISTER/$ACC_UC") $(sed -n '8p' "$REGISTER/$ACC_UC")"
+        ck_says "A3d CREATE.ACCOUNT reported both gates off (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
+        ck_says "A3e and no remote access (10079)" "$ACC has no remote access: not ssh, not the API" "$OUT"
+        ck "A3f and the machine agrees: in neither sdssh nor sdapi" "no no" \
+           "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
     else
         not_reached "A2 field 5 blank"
         not_reached "A3 field 4 not written"
         not_reached "A3b field 6 not written"
+        not_reached "A3c fields 7/8 are no / no"
+        not_reached "A3d both gates off said"
+        not_reached "A3e no remote access said"
+        not_reached "A3f in neither route group"
     fi
     if [ -d "$ACCOUNTS_ROOT/$ACC" ]; then
         ck "A4 directory is $ACC:sdu_$ACC, mode 2775" "$ACC sdu_$ACC 2775" \

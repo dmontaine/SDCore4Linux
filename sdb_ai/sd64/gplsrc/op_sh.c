@@ -17,6 +17,12 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 13 Oct 26 dm S.63: os_permitted() is back, and the gate now reaches OS paths. OS.EXECUTE and the SH
+ *           verb are refused (10053, 10054, the Windows port's wording) to an account that has not been
+ *           given them; OPENSEQ and OPENPATH by pathname are refused (ER_PERM) outside the account's own
+ *           directory unless it holds OS.EXECUTE; K_PATH_OK lets an $internal program (SED) ask the same
+ *           question on the user's behalf. SH and OS.EXECUTE are OFF by default and SDSYS switches them
+ *           (owner, 13 Oct 2026: the tiers were to go and the gates to stay).
  * 18 Sep 26 dm Teardown (S.27): os_permitted() and its refusal are gone.
  *           OS.EXECUTE and the SH verb now run at the account's own Linux
  *           permissions - the euid drop already made a session the account's
@@ -48,6 +54,10 @@
 #include "tio.h"
 #include "config.h"
 #include <signal.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <sys/wait.h>
 
@@ -65,6 +75,8 @@ void op_capture(void);
 Private void sh(bool capture);
 Private void sh_execute(char *command);
 Private int clparse(char *p, char *argv[], int maxargs);
+Private bool os_permitted(void);
+Private bool path_inside_dir(const char *rootdir, const char *name);
 
 int ChildPipe = -1;
 bool in_sh = FALSE; /* 0562 Doing SH command? */
@@ -115,12 +127,155 @@ void op_shcap() {
 }
 
 /* ======================================================================
+   The OS-access gates (13 Oct 26, S.63).
+
+   os_gate_open()  -  has THIS ACCOUNT been given OS access?  The administrator always has it; anyone else
+   has it only if SDSYS switched it on (MODIFY.ACCOUNT OS-ON), which LOGIN and CPROC logto load into the
+   session at account entry.  It does NOT look at HDR_INTERNAL, because the question it answers is about
+   the person, not about the program: an $internal program that acts for the user (SED opening a file by
+   pathname) is exempt from the gate itself and must not become the way round it.
+
+   os_permitted()  -  may THIS PROGRAM run OS.EXECUTE or the SH verb?  Three answers, in the Windows
+   port's order: a $internal system program (every shipped OS.EXECUTE caller is one) is trusted; otherwise
+   the account must hold the gate.  The SH verb and "!" are gated by CPROC at the prompt (os.command, on
+   K_SH) and reach here as an internal caller.
+
+   os_path_ok_for_account()  -  may this account open this OS pathname with OPENSEQ or OPENPATH?  Yes if
+   it holds the gate; otherwise only inside its own directory (the process's working directory, which is
+   the account, set by LOGIN and CPROC and not changeable from BASIC).  The name is resolved with
+   realpath() before the comparison - the longest part that exists, then the rest - so ".." and a symbolic
+   link inside the account that points out of it do not get round it.  A path it cannot resolve is a no.
+
+   os_path_open_ok()  -  the same for a caller: an $internal program is trusted, anyone else is asked.   */
+
+bool os_gate_open(void) {
+  return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC)) != 0;
+}
+
+Private bool os_permitted(void) {
+  if (process.program.flags & HDR_INTERNAL)
+    return TRUE;
+  return os_gate_open();
+}
+
+/* 13 Oct 26 (second sitting): the test is "inside THIS directory", and the account's own directory is the
+   case where the directory is the working directory (rootdir NULL).  A directory given is for a path reached
+   through a Q-pointer into another account (os_path_inside, K_PATH_IN), whose own tree a restricted account
+   may then use.  A relative name is relative to the directory asked about.                                  */
+Private bool path_inside_dir(const char *rootdir, const char *name) {
+  char cwd[PATH_MAX + 1];
+  char root[PATH_MAX + 1];
+  char work[2 * PATH_MAX + 2];
+  char resolved[2 * PATH_MAX + 2];      /* realpath() needs PATH_MAX; the tail is appended after it */
+  char tail[PATH_MAX + 1];
+  char *p;
+  size_t root_len;
+  size_t n;
+
+  if ((name == NULL) || (name[0] == '\0'))
+    return FALSE;
+  if (rootdir != NULL) {
+    if ((rootdir[0] != '/') || (strlen(rootdir) > PATH_MAX))
+      return FALSE;
+    strcpy(cwd, rootdir);
+  } else if (getcwd(cwd, sizeof(cwd)) == NULL)
+    return FALSE;
+  if (realpath(cwd, root) == NULL)
+    return FALSE;
+
+  if (name[0] == '/') {
+    if (strlen(name) > PATH_MAX)
+      return FALSE;
+    strcpy(work, name);
+  } else {
+    if (strlen(cwd) + strlen(name) + 2 > sizeof(work))
+      return FALSE;
+    strcpy(work, cwd);
+    strcat(work, "/");
+    strcat(work, name);
+  }
+
+  /* Resolve what exists; whatever does not yet exist (a file about to be created) is the tail, and a tail
+     may not contain ".." because there is nothing to resolve it against. */
+  tail[0] = '\0';
+  for (;;) {
+    if (realpath(work, resolved) != NULL)
+      break;
+    p = strrchr(work, '/');
+    if (p == NULL)
+      return FALSE;
+    if ((strcmp(p + 1, "..") == 0) || (strcmp(p + 1, ".") == 0))
+      return FALSE;
+    if (p[1] != '\0') {
+      /* prepend this component to the tail */
+      n = strlen(p + 1);
+      if (n + strlen(tail) + 2 > sizeof(tail))
+        return FALSE;
+      if (tail[0] != '\0') {
+        memmove(tail + n + 1, tail, strlen(tail) + 1);
+        tail[n] = '/';
+        memcpy(tail, p + 1, n);
+      } else {
+        memcpy(tail, p + 1, n + 1);
+      }
+    }
+    if (p == work) {
+      /* only the root is left */
+      strcpy(resolved, "/");
+      break;
+    }
+    *p = '\0';
+  }
+
+  if (tail[0] != '\0') {
+    if (strlen(resolved) + strlen(tail) + 2 > sizeof(resolved))
+      return FALSE;
+    if (strcmp(resolved, "/") != 0)
+      strcat(resolved, "/");
+    strcat(resolved, tail);
+  }
+
+  root_len = strlen(root);
+  while ((root_len > 1) && (root[root_len - 1] == '/'))
+    root[--root_len] = '\0';
+  if (root_len == 1)           /* an account at "/" would contain the whole machine: refuse */
+    return FALSE;
+
+  if (strncmp(resolved, root, root_len) != 0)
+    return FALSE;
+  return (resolved[root_len] == '\0') || (resolved[root_len] == '/');
+}
+
+bool os_path_ok_for_account(const char *name) {
+  if (os_gate_open())
+    return TRUE;
+  return path_inside_dir(NULL, name);
+}
+
+/* os_path_inside()  -  is this pathname inside THAT directory?  The OS gate is not asked: this is the geometry
+   alone, for a BASIC program (_voc_ref) that has already decided a directory is one the account may use.  */
+bool os_path_inside(const char *rootdir, const char *name) {
+  return path_inside_dir(rootdir, name);
+}
+
+bool os_path_open_ok(const char *name) {
+  if (process.program.flags & HDR_INTERNAL)
+    return TRUE;
+  return os_path_ok_for_account(name);
+}
+
+/* ======================================================================
    sh()  -  Execute shell command                                         */
 
 Private void sh(bool capture) {
   DESCRIPTOR *descr;
   STRING_CHUNK *str;
   int bytes;
+
+  /* 13 Oct 26 S.63: refuse before the stack is touched, so a refusal leaves it as it was found - the
+     Windows port's placement.  k_error() does not return.                                            */
+  if (!os_permitted())
+    k_error(sysmsg(10054), process.username);
 
   descr = e_stack - 1;
   k_get_string(descr);

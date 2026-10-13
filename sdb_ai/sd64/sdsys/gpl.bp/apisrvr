@@ -457,11 +457,21 @@ end
 
 account.path = new.account
 acc.suspended = @false
+* 13 Oct 26 dm - S.63 (owner, second sitting: "api should read switches").  The account's SH and OS.EXECUTE
+*   switches are read here from its register record, as LOGIN reads them at sign-on and CPROC's LOGTO
+*   reloads them, and are set only once the account has been entered (below), so a refusal or a revert
+*   leaves the previous account's switches with the previous account.  FAIL CLOSED: both start off for
+*   every call, and an account named by a path, or with no record, keeps them off.  Before this an API
+*   session never held either switch, so an account given sh-on or os-on had neither over the API.
+api.sh.grant = @false
+api.os.grant = @false
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, downcase(new.account) then
          account.path = parse.pathname.tokens(acc.rec<ACC$PATH>)
          acc.suspended = (upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
+         api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
+         api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
       end
       close acc.f
    end
@@ -536,6 +546,12 @@ read voc.rec from voc, "$PRIVATE.CATALOGUE" then
 end
 
 i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
+
+* 13 Oct 26 dm - S.63: every way out of this routine that keeps the new account has passed; load its
+*   switches now (see where they were read, above).  The administrator flag is not touched: an API session
+*   carries none, so SDSYS over the local socket is held to its own switches like anybody else.
+void kernel(K$SH,      api.sh.grant)
+void kernel(K$OS.EXEC, api.os.grant)
 
 * Run the LOGIN paragraph, if it exists
 

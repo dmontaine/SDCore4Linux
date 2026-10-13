@@ -248,6 +248,24 @@
    kernel read and no longer overrides it with terminfo's 120 by 36.  This
    tree's own key, in its own block; GPL.BP/INT$KEYS.H carries the same number. */
 #define K_WINSIZE            92
+/* 13 Oct 26 dm - S.63.  The per-account OS-access gates are back (the 18 Sep teardown, S.27, had taken
+   them out with the tiers; the owner's correction of 13 Oct: the tiers were to go and the gates to stay,
+   off by default, switched by SDSYS).  They were K_SH / K_OS_EXEC at 91 and 92 (PRE_RELEASE 23); 91 is
+   K_LOGIN_UID now (06 Oct 26) and 92 is the screen library's K_WINSIZE on its branch, so they come back
+   at 93 and 94.  GPL.BP/INT$KEYS.H must carry the same numbers.
+     K_SH       the session may use SH and "!".  Set only from a $internal program, like K_ADMINISTRATOR.
+     K_OS_EXEC  the session may use OS.EXECUTE and reach OS paths outside its own account.  Same rule.
+     K_PATH_OK  the argument is a pathname; the answer is 1 if THIS ACCOUNT may open it - whoever asks.
+                An $internal program (SED) is exempt from the gate itself, so it must ask on the user's
+                behalf; it cannot be allowed to be the way round the gate.
+     K_PATH_IN  (second sitting, 13 Oct) the argument is a directory, a field mark and a pathname; the
+                answer is 1 if the pathname is inside that directory (realpath, so .. and links out do not
+                count).  The geometry only: it does not ask the gate.  _VOC_REF uses it for a file reached
+                through a Q-pointer into an account the user may enter.                                */
+#define K_SH                 93
+#define K_OS_EXEC            94
+#define K_PATH_OK            95
+#define K_PATH_IN            96
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

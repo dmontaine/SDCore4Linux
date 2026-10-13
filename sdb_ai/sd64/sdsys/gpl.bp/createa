@@ -139,17 +139,20 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {NO.QUERY}
 * CREATE.ACCOUNT GROUP <name> {NO.QUERY}
 * CREATE.ACCOUNT OTHER <name> <pathname> {NO.QUERY}
 *
-* 18 Sep 26 dm - TEARDOWN (owner's 18 Sep 2026 decision).  The tier keywords
-*   (ADMINISTRATOR | PROGRAMMER), the OS-access keywords (SH-ON | OS-ON) and
-*   the API route word (API | NONE) are gone with the tier model: every
-*   account gets the one VOC layer (NEWVOC), SH and OS.EXECUTE run at the
-*   account's own Linux permissions, and the API is open to every account
-*   except SDSYS.  ADOPT stays, install-only as before - and makes a plain
-*   account now; the installing user administers as the sdsys OS user.
+* There are no tiers: every account gets the one VOC layer (NEWVOC).  What an account may DO beyond
+*   its own SD work is four per-account gates, each OFF unless SDSYS turns it on (owner, 13 Oct 2026:
+*   Core ships with high security and the administrator loosens it by choice):
+*     SSH, API    the two remote doors; SSH, API or BOTH names the ones wanted (NONE is the default)
+*     SH-ON       the SH verb and "!"
+*     OS-ON       OS.EXECUTE, and OPENSEQ / OPENPATH on a path outside the account's own directory
+*   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
+*   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
+*   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
+*   that the Linux user already exists: the installing user's own account starts off like any other.
 *
 * 09 Sep 26 dm - THIS BLOCK WAS STALE AND IT COST SOMETHING, WHICH IS WHY IT IS
 *   CORRECTED RATHER THAN JUST EXTENDED.  It read
@@ -209,7 +212,7 @@ $include createacc.h
    attach.marker = @sdsys:@ds:'$attach'
    begin case
    case acc.type = 'USER'
-*    CREATE.ACCOUNT USER <user acct name> {SSH | API | BOTH | NONE} {NO.QUERY}
+*    CREATE.ACCOUNT USER <user acct name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {NO.QUERY}
      call @parser(PARSER$GET.TOKEN, token.type, acc.name, keyword)
      if token.type = PARSER$END then stop
      attach.marker = @sdsys:@ds:'$attach.':downcase(acc.name)
@@ -231,11 +234,11 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {no.query}'
     crt '                create.account group <group name> {no.query}'
     crt '                create.account other <account name> <pathname> {no.query}'
-    crt '  Without a route word a user account gets both ssh and the API;'
-    crt '  modify.account changes it afterwards, either way.'
+    crt '  A new user account starts with no ssh, no API, no shell (sh) and no os.execute;'
+    crt '  the words above give them, and modify.account changes any of them afterwards, either way.'
     @system.return.code = -ER$ARGS
     stop
    end case
@@ -275,6 +278,15 @@ more.args:
             settings<CA$ROUTE.SSH> = 1 ; settings<CA$ROUTE.API> = 1
          case upcase(token) = 'NONE'
             settings<CA$ROUTE.SSH> = 0 ; settings<CA$ROUTE.API> = 0
+
+* 13 Oct 26 dm - S.63: SH-ON and OS-ON, the Windows port's words (its CREATEA, 27 Aug 2026).  Two
+*   independent switches, so "SH-ON OS-ON" is both and neither cancels.  Off unless typed.  Matched on the
+*   token text: the parser reads a word with a dash in it as one token.  A GROUP or OTHER account given
+*   either is refused by !create_account (10105).
+         case upcase(token) = 'SH-ON'
+            settings<CA$OS.SH> = 1
+         case upcase(token) = 'OS-ON'
+            settings<CA$OS.EXECUTE> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word

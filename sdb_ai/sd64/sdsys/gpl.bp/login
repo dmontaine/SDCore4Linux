@@ -37,6 +37,8 @@
 *           Before this, CPROC ran any command line unconditionally once the
 *           account was entered - Linux never had either half of what Windows
 *           built 22 Aug 2026 (its batch.jobs, PROJECT_STATUS.md 7 step 9).
+* 13 Oct 26 dm S.63: the OS-access grant load is back (K$SH / K$OS.EXEC from ACC$SH / ACC$OS.EXEC), off
+*           unless SDSYS switched it on; the 18 Sep teardown had taken it out with the tiers.
 * 18 Sep 26 dm TEARDOWN (owner's 18 Sep 2026 decision).  The tier machinery is
 *           out: update.voc copies all of NEWVOC with no STANDARD omit filter
 *           and no administrator add layer (one VOC layer, S.25); get.acc.tier
@@ -457,9 +459,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    end
 
 
-* 18 Sep 26 dm - TEARDOWN (S.27).  The OS-access grant load is gone: SH and
-*   OS.EXECUTE run at the account's own Linux permissions, and SD keeps no
-*   second wall.
+* 13 Oct 26 dm - S.63.  The per-account OS-access gates are loaded at sign-on (CPROC's logto reloads them
+*   when the account changes): SH and OS.EXECUTE are OFF unless this account's register record says 'yes'.
+*   SDSYS switches them (MODIFY.ACCOUNT SH-ON / OS-ON).  Blank, or an account with no record, is denied.
+*   The administrator needs no grant - USR_ADMIN passes the gate on its own.
+   void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
+   void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
 
    * Set @PATH
 

@@ -387,6 +387,19 @@ void op_sdext() {
     case SD_PyRunFile: 
     case SD_PyGetAtt :
   /* embedding Python functions*/
+      /* 13 Oct 26 dm - S.63.  THE PYTHON GATE.  Python runs arbitrary code in this process (os.system,
+         subprocess, open), so it is reached under the same grant as OS.EXECUTE, as the Windows port does
+         (its sd_os_permitted).  ***IT ASKS THE ACCOUNT, NOT THE PROGRAM***: the PY_* BASIC wrappers that
+         arrive here are $internal, and a test of process.program would pass for every user, always -
+         os_permitted() answers TRUE on HDR_INTERNAL before it reads who is asking.  os_gate_open() is the
+         account's own flags (the administrator, or an account SDSYS gave OS-ON).  Only starting the
+         interpreter and running code are gated; asking "is Python running?" and shutting it down are not,
+         and the answer to the first is still no for a refused account.                                    */
+      if (((key == SD_PyInit) || (key == SD_PyRunStr) || (key == SD_PyRunFile)) &&
+          !os_gate_open()) {
+        sdme_err_rsp(ER_PERM);
+        break;
+      }
       sdext_py(key, SDMEArgArray[0], NULL, NULL);
       break;
     #endif  

@@ -78,7 +78,7 @@ man = ["format: 1", "product: linux-full", "sd.version: L1.1-3", "created: 2026-
        "source.root: /home/sd", "accounts: %d" % len(accts), ""]
 for a in accts:
     man += ["[account %s]" % a, "type: USER", "os.user: %s" % a, "os.group: sdu_%s" % a, "route.ssh: 1", "route.api: 1",
-            "description: ", "suspended: 0", "source.path: /home/sd/user_accounts/%s" % a, "files: 1", "bytes: 1", "dirs: 0", ""]
+            "os.sh: 0", "os.execute: 0", "description: ","suspended: 0", "source.path: /home/sd/user_accounts/%s" % a, "files: 1", "bytes: 1", "dirs: 0", ""]
 with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
     z.writestr("manifest.txt", nl.join(man) + nl)
     for a in accts:
