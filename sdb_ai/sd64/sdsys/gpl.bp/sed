@@ -348,6 +348,7 @@ $include sl.h
 
    no.invert = @false
    keyin.case.conversion = @false
+   syn.on = @false                    ;* read by get.set.term.state; the syntax colour block below sets the rest
    gosub get.set.term.state
 
    banned = ''
@@ -842,6 +843,7 @@ edit:
       buffer.comment = ''
    end
 
+   gosub syn.start                         ;* the options are read: switch the colour theme on if asked for
    gosub read.record
    if read.blocked.by.lock then goto exit.edit
 
@@ -3109,7 +3111,8 @@ delete.region:
       if line > lines then line = lines  ;* 1.1-30 Deleted final line
       gosub get.current
       gosub refresh.line
-   end else 
+   end else
+      syn.dl = region.start.line ; gosub syn.dirty   ;* syntax colour: the lines below move up
       lines -= region.end.line - region.start.line
       line = region.start.line
 
@@ -3595,6 +3598,7 @@ find.line:
 * INSERT.LINE  -  Insert a new line below the current line, making current
 
 insert.line:
+   syn.dl = line ; gosub syn.dirty         ;* syntax colour: the lines below move down
    current.fld += 1
    ins "" before chunk(current.chunk)<current.fld>
    chunk.lines(current.chunk) += 1
@@ -5109,6 +5113,7 @@ read.record:
    mark.col = 0
    line.len = 0
    line.updated = @false
+   syn.chk.n = 1 ; syn.top.for = 0        ;* syntax colour: a new record, nothing worked out is valid
    if lnum.all then gosub set.lcol else lcol = 0
 
    gosub clear.screen
@@ -6376,6 +6381,10 @@ run.menu:
    bar.w<SL.W.S1> = 1 ; bar.w<SL.W.S2> = 1      ;* Always opens on the first menu
    call $sl_menu('init', bar.w, scr, '', mz)
    call $sl_menu('run', bar.w, scr, '', menu.code)
+   if syn.on then                          ;* the library puts plain text back from its shadow
+      mat image = sw.space ; mat simage = ''
+      gosub refresh.all
+   end
    action = 0
    rpt = 1
    rpt.set = @false
@@ -6526,6 +6535,7 @@ build.menu.defs:
    ml = '&Indent mode' ; mc = 'c:INDENT' ; gosub add.item
    ml = 'E&xpand tabs' ; mc = 'c:EXPAND.TABS' ; gosub add.item
    ml = '&Stamp' ; mc = 'c:STAMP' ; gosub add.item
+   ml = 'Syntax &colour' ; mc = 'c:SYNTAX' ; gosub add.item
    ml = 'Release &lock' ; mc = 'c:RELEASE' ; gosub add.item
    ml = '&Keys in use' ; mc = 'c:KEYS' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
@@ -6789,6 +6799,7 @@ ext.command:
             repeat
 
             last.base = 99999999 ;* Force re-extraction of record
+            syn.chk.n = 1 ; syn.top.for = 0   ;* syntax colour: every line may have changed
             gosub get.current
             gosub refresh.all
          end
@@ -7120,6 +7131,36 @@ ext.command:
             message = sysmsg(6911) ;* Tab interval must be in range 1 to 99
             gosub error
          end
+
+      case c = 'SYNTAX'
+         * SYNTAX (toggle), SYNTAX ON, SYNTAX OFF, SYNTAX LIGHT, SYNTAX DARK
+         arg = upcase(trim(s<2>))
+         begin case
+            case arg = 'OFF' or (arg = '' and syn.want)
+               syn.want = @false
+               gosub syn.stop
+               message = sysmsg(11190) ;* Syntax colour is off
+               gosub status.msg
+            case arg = '' or arg = 'ON' or arg = 'LIGHT' or arg = 'DARK'
+               if arg = 'LIGHT' then syn.light = @true
+               if arg = 'DARK' then syn.light = @false
+               gosub syn.stop
+               syn.want = @true
+               gosub syn.start
+               if syn.on then
+                  message = sysmsg(11191) ;* Syntax colour is on
+               end else
+                  syn.want = @false
+                  message = sysmsg(11192) ;* This terminal cannot show colour
+               end
+               gosub clear.screen
+               mat simage = ''
+               gosub refresh.all
+               gosub status.msg
+            case 1
+               message = sysmsg(11193) ;* SYNTAX takes ON, OFF, LIGHT or DARK
+               gosub error
+         end case
 
       case c = "WORD"
          search.mode = WORD.SEARCH
