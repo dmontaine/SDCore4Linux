@@ -11,6 +11,9 @@
 #
 # START-HISTORY:
 # 12 Oct 26 dm  Written with the screen library and SED's menu bar.
+# 13 Oct 26 dm  SED is 120 by 36 always and a smaller window is refused (owner): the windows here are 120 by 36, and a row
+#               tests the refusal on 80 by 24.  The scrolling drop-down is tested in sandbox-screen.py (part_menutall), on a
+#               user program, since SED can no longer run on a window too short for its menu.
 # END-HISTORY
 #
 # HOW IT DRIVES THE PROGRAMS.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-ced.py does, and reads the screen from
@@ -91,7 +94,7 @@ def isess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=100, rows=30):
+    def __init__(self, box, cmd, cols=120, rows=36):
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
@@ -423,7 +426,29 @@ def part_sed(box, sysd):
     e.end()
     e = Term(box, "SED %s r1" % F, cols=80, rows=24)
     L = e.lines()
-    row("on an 80x24 terminal the bar, the record and the two bottom lines all fit", "File" in L[0] and L[1].startswith("alpha") and len([l for l in L if l.strip()]) >= 4, "\n".join(L))
+    row("on an 80x24 window SED is refused, in words, and draws no bar and no record (it is 120 by 36 always)",
+        any("SED needs a window of at least 120 columns by 36 lines; this one is 80 by 24" in l for l in L) and "File" not in L[0]
+        and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=119, rows=36)
+    L = e.lines()
+    row("one column short is refused too: 119 by 36", any("this one is 119 by 36" in l for l in L) and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=120, rows=35)
+    L = e.lines()
+    row("and one row short: 120 by 35", any("this one is 120 by 35" in l for l in L) and not any(l.startswith("alpha") for l in L), "\n".join(L[:8]))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=160, rows=50)
+    L = e.lines()
+    row("a bigger window is laid out as 120 by 36: the bar is on row 0, the record on row 1, the file line on row 34 and the status line on row 35, and the rest is blank",
+        "File" in L[0] and L[1].startswith("alpha") and F in L[34] and "lines" in L[35] and not any(l.strip() for l in L[36:]) and len(L[0].rstrip()) <= 120,
+        "\n".join(l[:60] for l in L[:4]) + "\n...\n" + "\n".join(l[:60] for l in L[33:38]))
+    e.keys(CTRL("q"))
+    e.end()
+    e = Term(box, "SED %s r1" % F, cols=120, rows=36)
+    L = e.lines()
+    row("a window of exactly 120 by 36 is what SED is made for: the bar, the record and the two bottom lines", "File" in L[0] and L[1].startswith("alpha")
+        and F in L[34] and "lines" in L[35], "\n".join(l[:60] for l in L[:3]) + "\n...\n" + "\n".join(l[:60] for l in L[33:36]))
     e.keys(CTRL("q"))
     e.end()
 

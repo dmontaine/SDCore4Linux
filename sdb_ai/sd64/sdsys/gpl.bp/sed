@@ -21,6 +21,9 @@
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 12 Oct 26 dm  Revived from SD 2.6.6 (removed from SD earlier), lower case, for the drop-down
 *               menu bar that shows each action's keyboard shortcut.
+* 13 Oct 26 dm  Syntax colour (SYNTAX).  Undo and redo (Ctrl-Z, Ctrl-Y; UNDO AND REDO below).  The mouse (MOUSE; THE MOUSE
+*               below): click puts the cursor, click on the bar opens a menu, the wheel moves three lines.  The size is
+*               120 by 36 always (owner), and a smaller window is refused (see Get screen characteristics).
 * END-HISTORY
 *
 *
@@ -227,12 +230,15 @@ $include sl.h
    equ F.TOGGLE.WINDOW to 66  ;* Toggle windows
    equ F.DIVE          to 67  ;* Dive into include record
    equ F.COMPRUN       to 68  ;* Compile and run
-   equ LAST.BINDABLE.ACTION to 68
+   equ F.UNDO          to 69  ;* Undo the last change (13 Oct 26)
+   equ F.REDO          to 70  ;* Do again what was undone (13 Oct 26)
+   equ LAST.BINDABLE.ACTION to 70
 * Actions after here are not bound to keys
-   equ F.INSERT        to 69  ;* Insert character
-   equ F.KEY.CODE      to 70  ;* Expand a key code
-   equ F.BOUND.EXT     to 71  ;* Run bound extension
-   equ F.MENU          to 72  ;* Open the menu bar (F10, or Esc on its own)
+   equ F.INSERT        to 71  ;* Insert character
+   equ F.KEY.CODE      to 72  ;* Expand a key code
+   equ F.BOUND.EXT     to 73  ;* Run bound extension
+   equ F.MENU          to 74  ;* Open the menu bar (F10, or Esc on its own)
+   equ F.MOUSE         to 75  ;* A mouse report arrived (13 Oct 26)
 * !!BINDINGS!!
    * The following names are used as the comments in the key binding record.
    * They are also used with a dot prefix and embedded spaces replaced by dots
@@ -252,7 +258,7 @@ $include sl.h
    actions := 'Start macro|End macro|Expand char|List records|Export|'
    actions := 'Command|Cancel|Run|Align text|Upcase region|Downcase region|'
    actions := 'Unsplit window|Split window|Toggle window|Dive|'
-   actions := 'CompRun|Insert'
+   actions := 'CompRun|Undo|Redo|Insert'
 * !!BINDINGS!!
 
 
@@ -299,9 +305,22 @@ $include sl.h
 
 * Get screen characteristics
 
+   * 13 Oct 26 (owner: "sed should have a default size of 120x36, the sd default terminal size"): SED is laid out for
+   * 120 columns by 36 lines whatever the size of the window, the size it insisted on until 12 Oct and the size SD's own
+   * default page is.  It does not follow a window that is resized (it read the size once and went wrong when the window
+   * changed), and a terminal that says it is smaller than that is refused, since SED would draw off the edge of it.  A
+   * session with no window to ask (a pipe, a phantom) has nothing to refuse.
+   equ SED.COLS to 120
+   equ SED.ROWS to 36
+   ws = kernel(K$WINSIZE, '')
+   if ws # '' then
+      if ws<1> < SED.COLS or ws<2> < SED.ROWS then
+         stop sysmsg(11197, ws<1>, ws<2>)       ;* SED needs a window of at least 120 columns by 36 lines; this one is %1 by %2
+      end
+   end
+
    * The top terminal row is the menu bar: every row below is the editor's row 0 up
-   screen.lines = @crthigh - 1
-   if screen.lines < 12 then screen.lines = 12
+   screen.lines = SED.ROWS - 1
    displayed.lines = screen.lines - 2
    last.data.line = displayed.lines - 1
    split.line = int((displayed.lines + 1) / 2)  ;* Top line of lower window
@@ -313,8 +332,7 @@ $include sl.h
    gosub set.one.window
    scroll.increment = int(live.height / 2)
 
-   screen.width = @crtwide
-   if screen.width < 80 then screen.width = 80
+   screen.width = SED.COLS
    sw.fmt = screen.width : 'L'
    swm1 = screen.width - 1
    swm1.fmt = swm1 : 'L'
@@ -416,6 +434,30 @@ $include sl.h
    syn.top.for = 0
    syn.lines.seen = 0                 ;* the line count when the checkpoints were last good
    sty = ''                           ;* the style codes of the line zoned.update is about to draw ('' = plain)
+
+   * Undo and redo (13 Oct 26): see UNDO AND REDO, below.  The actions that leave the text as it is
+   equ UNDO.MAX to 100                ;* the most states kept
+   equ UNDO.BYTES to 8000000          ;* and about this many characters of them
+   dim uj.text(UNDO.MAX + 2) ; mat uj.text = ''
+   dim uj.line(UNDO.MAX + 2) ; mat uj.line = 0
+   dim uj.col(UNDO.MAX + 2) ; mat uj.col = 0
+   dim uj.top(UNDO.MAX + 2) ; mat uj.top = 0
+   * (a string of the numbers with a comma on each side of every one, so that 7 is not found in 17)
+   uj.nomod = ',' : F.HOME : ',' : F.END : ',' : F.LEFT : ',' : F.RIGHT : ',' : F.UP : ',' : F.DOWN : ',' : F.TOP : ',' : F.BOTTOM : ','
+   uj.nomod := F.PAGE.UP : ',' : F.PAGE.DOWN : ',' : F.SAVE.RECORD : ',' : F.QUIT : ',' : F.OVERLAY : ',' : F.GOTO.LINE : ','
+   uj.nomod := F.FWD.SEARCH : ',' : F.REV.SEARCH : ',' : F.SWAP.MARK : ',' : F.MARK : ',' : F.COPY : ',' : F.FWD.WORD : ','
+   uj.nomod := F.BACK.WORD : ',' : F.NEXT.BUFFER : ',' : F.PREV.BUFFER : ',' : F.GOTO.BUFFER : ',' : F.DELETE.BUFFER : ','
+   uj.nomod := F.UP.TO.PARENT : ',' : F.REFRESH : ',' : F.LIST.BUFFERS : ',' : F.FIND.RECORD : ',' : F.WRITE.RECORD : ','
+   uj.nomod := F.START.MACRO : ',' : F.END.MACRO : ',' : F.EXPLORE : ',' : F.EXPORT : ',' : F.CANCEL : ',' : F.UNSPLIT : ','
+   uj.nomod := F.SPLIT : ',' : F.TOGGLE.WINDOW : ',' : F.DIVE : ',' : F.UNDO : ',' : F.REDO : ','
+   uj.tag = ''
+   gosub uj.reset
+
+   * The mouse (13 Oct 26): on unless &sed.options& says NO.MOUSE or the MOUSE command turns it off
+   mouse.want = @true                 ;* wanted
+   mouse.armed = @false               ;* the terminal is reporting it just now
+   mouse.b = 0 ; mouse.x = 0 ; mouse.y = 0 ; mouse.release = @false ; mouse.seq = '' ; mouse.end = ''
+   menu.start = 0                     ;* the menu a click on the bar chose (0: the first)
 
    dim refresh(screen.lines + 1)     ;* Refresh this line?
    refresh.file = @true              ;* Refresh file line?
@@ -546,6 +588,12 @@ $include sl.h
                   case token = 'SYNTAX.LIGHT'
                      syn.want = @true
                      syn.light = @true
+
+                  case token = 'MOUSE'
+                     mouse.want = @true
+
+                  case token = 'NO.MOUSE'
+                     mouse.want = @false
 
                   case token = 'TABS'
                      n = remove(ss, delim)
@@ -849,6 +897,7 @@ edit:
    gosub syn.start                         ;* the options are read: switch the colour theme on if asked for
    gosub read.record
    if read.blocked.by.lock then goto exit.edit
+   gosub uj.reset                          ;* a new record: nothing to undo yet
 
    top.line = 1
    pan = 1
@@ -872,13 +921,22 @@ edit:
          gosub place.cursor
       end
       menu.ok = @true
+      gosub mouse.arm                      ;* the terminal is asked for mouse reports only while SED waits for a key
       gosub get.key
+      gosub mouse.disarm
       menu.ok = @false
+
+      if action = F.MOUSE then
+         gosub do.mouse                    ;* leaves 0 (done), F.MENU (the bar was clicked) or an action (the wheel)
+         if action = 0 then goto skip.function
+      end
 
       if action = F.MENU then
          gosub run.menu
          if action = 0 then goto skip.function
       end
+
+      gosub uj.capture                     ;* 13 Oct 26: the state before an action that may change the text
 
       if action # F.REPEAT then macro.qualifiers = ''
 
@@ -950,6 +1008,8 @@ edit:
                      null.prelude,      ;* F.TOGGLE.WINDOW
                      null.prelude,      ;* F.DIVE
                      null.prelude,      ;* F.COMPRUN
+                     null.prelude,      ;* F.UNDO
+                     null.prelude,      ;* F.REDO
                      null.prelude,      ;* F.INSERT
                      pre.key.code,      ;* F.KEY.CODE
                      null.prelude       ;* F.BOUND.EXT
@@ -1285,6 +1345,8 @@ action.split:
                   a.toggle.window,    ;* Toggle window
                   a.dive,             ;* Dive
                   a.comprun,          ;* Compile and run
+                  a.undo,             ;* Undo
+                  a.redo,             ;* Redo
                   a.insert,           ;* Insert character
                   null.action,        ;* Key code expansion
                   a.bound.ext         ;* Run bound extension
@@ -4006,6 +4068,9 @@ get.string.common:
                   display @sys.bell :
             end case
 
+         case action = F.MOUSE
+            null                       ;* a mouse report that got here (one sent just before the terminal was told to stop) is not a key
+
          case 1
             display @sys.bell :
       end case
@@ -4605,6 +4670,8 @@ reset.term.state:
    * program starts from mono, having asked for nothing
    if syn.on then call $sl_theme('reset', '', '', '', '', syn.r)
 
+   gosub mouse.disarm                 ;* 13 Oct 26: and the mouse is the terminal's again
+
    return
 
 *****************************************************************************
@@ -4684,6 +4751,24 @@ parse.key:
 
 key.found:
    begin case
+      case action = F.MOUSE
+         * The rest of the report: b ; x ; y and then M (press) or m (release).  A report that never ends is given up after 24
+         * characters (the characters read are then dropped, not typed)
+         mouse.seq = '' ; mouse.end = ''
+         loop
+            gosub getch
+            if c = '' then exit
+            if keyin.case.conversion then convert keyin.to to keyin.from in c     ;* (a report is not typing: M is M and m is m)
+            mouse.end = c
+            if c = 'M' or c = 'm' then exit
+            mouse.seq := c
+            if len(mouse.seq) > 24 then exit
+         repeat
+         mouse.b = field(mouse.seq, ';', 1) + 0
+         mouse.x = field(mouse.seq, ';', 2) - 1
+         mouse.y = field(mouse.seq, ';', 3) - 1
+         mouse.release = (mouse.end = 'm')
+
       case action = F.BOUND.EXT
          n = key.actions<i,2>   ;* Extension name
 
@@ -4850,6 +4935,8 @@ set.default.bindings:
    key.rec<-1> = ''                 ;* F.TOGGLE.WINDOW
    key.rec<-1> = ''                 ;* F.DIVE
    key.rec<-1> = ''                 ;* F.COMPRUN
+   key.rec<-1> = '@Z'               ;* F.UNDO
+   key.rec<-1> = '@Y'               ;* F.REDO
 
    gosub load.key.bindings
 
@@ -4943,6 +5030,13 @@ add.menu.key:
    locate z in keys<1> by 'AL' setting i else
       ins z before keys<i>
       ins F.MENU before key.actions<i>
+   end
+   * 13 Oct 26: a mouse report (the xterm SGR form, ESC [ < b ; x ; y M or m) is one key, whatever the bindings, so that
+   * the rest of it is never typed into the text.  It only arrives when mouse.arm has asked the terminal for it
+   z = char(27) : '[<'
+   locate z in keys<1> by 'AL' setting i else
+      ins z before keys<i>
+      ins F.MOUSE before key.actions<i>
    end
    return
 
@@ -5256,11 +5350,12 @@ reload.record:
       if lines = 0 then lines = 1
 
       mark.line = 0              ;* Mark position lost
-      mark.col = 0 
+      mark.col = 0
 
       * Split modified record
       gosub split.into.chunks
       gosub get.current
+      gosub uj.reset
    end else
       message = sysmsg(6666) ;* Error reloading record.
       gosub error
@@ -6231,6 +6326,8 @@ get.buffer:
 
    if split.window then other.live = (current.buffer = other.buffer)
 
+   if buffer.tag # uj.tag then gosub uj.reset      ;* the undo list is one buffer's: another buffer starts afresh
+
    last.base = 999999999
    gosub get.current
 
@@ -6370,6 +6467,208 @@ status.msg:
    return
 
 *****************************************************************************
+* UNDO AND REDO (13 Oct 26).  SED had none.  The text is kept as a list of whole-record STATES, uj.text(1) to uj.text(uj.m), and
+* uj.p says which of them the text on the screen is, when nothing has changed since.  A state is taken BEFORE an action that may
+* change the text (uj.capture, called by the main loop for every action but the ones known to leave the text alone), so undoing
+* has only to put a state back.  A run of typing, of backspaces or of deletes on one line is one step.  When the user asks to
+* undo, the text as it is then goes on the end of the list first if it is not state p (which is what makes a redo possible, and
+* what lets a change that nothing here knew of be undone as a step of its own instead of being lost with the one before it).  The
+* list belongs to the record being edited: it starts again with each record and when the buffer is changed.  It holds UNDO.MAX
+* states or about UNDO.BYTES characters, the oldest going first.
+
+uj.reset:
+   uj.m = 0 ; uj.p = 0 ; uj.bytes = 0 ; uj.run.act = 0 ; uj.run.line = 0
+   mat uj.text = ''
+   uj.tag = buffer.tag
+   return
+
+uj.capture:
+   if read.only then return
+   if index(uj.nomod, ',' : action : ',', 1) then
+      uj.run.act = 0                    ;* moving about ends a run of typing
+      return
+   end
+   if action = uj.run.act and line = uj.run.line then
+      if action = F.INSERT or action = F.BACKSPACE or action = F.DELETE then return   ;* the same run of typing: one step
+   end
+   uj.run.act = action ; uj.run.line = line
+   gosub save.current
+   gosub assemble.record
+   if uj.p > 0 then
+      if rec = uj.text(uj.p) then       ;* nothing has changed since that state: it stays, and what came after it goes
+         gosub uj.cut.after
+         rec = ''
+         return
+      end
+   end
+   gosub uj.cut.after
+   uj.p += 1 ; uj.m = uj.p
+   uj.text(uj.p) = rec ; uj.line(uj.p) = line ; uj.col(uj.p) = col ; uj.top(uj.p) = top.line
+   uj.bytes += len(rec)
+   rec = ''
+   gosub uj.trim
+   return
+
+uj.cut.after:
+   for uk = uj.p + 1 to uj.m
+      uj.bytes -= len(uj.text(uk)) ; uj.text(uk) = ''
+   next uk
+   uj.m = uj.p
+   return
+
+uj.trim:
+   loop
+   while uj.m > 1 and (uj.m > UNDO.MAX or uj.bytes > UNDO.BYTES)
+      uj.bytes -= len(uj.text(1))
+      for uk = 1 to uj.m - 1
+         uj.text(uk) = uj.text(uk + 1) ; uj.line(uk) = uj.line(uk + 1) ; uj.col(uk) = uj.col(uk + 1) ; uj.top(uk) = uj.top(uk + 1)
+      next uk
+      uj.text(uj.m) = ''
+      uj.m -= 1 ; uj.p -= 1
+   repeat
+   return
+
+a.undo:
+   if read.only then
+      gosub read.only.buffer
+      return
+   end
+   gosub save.current
+   gosub assemble.record
+   begin case
+      case uj.p = 0
+         rec = ''
+         message = sysmsg(11194) ;* Nothing to undo
+         gosub error
+      case rec # uj.text(uj.p)
+         * Changes since state p: keep the text as it is for a redo, then go back to p
+         gosub uj.cut.after
+         uj.m = uj.p + 1
+         uj.text(uj.m) = rec ; uj.line(uj.m) = line ; uj.col(uj.m) = col ; uj.top(uj.m) = top.line
+         uj.bytes += len(rec)
+         uj.k = uj.p
+         gosub uj.restore
+      case uj.p = 1
+         rec = ''
+         message = sysmsg(11194) ;* Nothing to undo
+         gosub error
+      case 1
+         rec = ''
+         uj.p -= 1
+         uj.k = uj.p
+         gosub uj.restore
+   end case
+   return
+
+a.redo:
+   if read.only then
+      gosub read.only.buffer
+      return
+   end
+   gosub save.current
+   gosub assemble.record
+   if uj.p = 0 or uj.p >= uj.m then uj.can = @false
+   else uj.can = (rec = uj.text(uj.p))
+   rec = ''
+   if uj.can then
+      uj.p += 1
+      uj.k = uj.p
+      gosub uj.restore
+   end else
+      message = sysmsg(11195) ;* Nothing to redo
+      gosub error
+   end
+   return
+
+* Put state uj.k on the screen: the text, in chunks again, and the cursor where it was when the state was taken
+uj.restore:
+   rec = uj.text(uj.k)
+   uj.want.line = uj.line(uj.k) ; uj.want.col = uj.col(uj.k) ; uj.want.top = uj.top(uj.k)
+   gosub rebuild.chunks                 ;* (the mark is lost with it)
+   rec = ''
+   line = uj.want.line
+   if line > lines + 1 then line = lines + 1
+   if line < 1 then line = 1
+   col = uj.want.col
+   top.line = uj.want.top
+   if top.line < 1 then top.line = 1
+   gosub get.current
+   record.updated = @true
+   syn.chk.n = 1 ; syn.top.for = 0
+   uj.run.act = 0
+   gosub refresh.all
+   return
+
+*****************************************************************************
+* THE MOUSE (13 Oct 26).  The terminal is asked for press, release and wheel reports (xterm modes 1000 and 1006) only while SED
+* is waiting for a key at its main loop (mouse.arm / mouse.disarm), so that a prompt, a question or a program SED runs never meets
+* one; the menu, which reads its own, is armed around its run.  A terminal that does not know the modes ignores the request.
+* The report is ESC [ < b ; x ; y M (press) or m (release): get.key reads it as the key F.MOUSE and key.found leaves it in
+* mouse.b, mouse.x and mouse.y (cells from 0, as in @(x, y)).
+
+mouse.arm:
+   if mouse.want and not(mouse.armed) then
+      display char(27) : '[?1000h' : char(27) : '[?1006h' :
+      mouse.armed = @true
+   end
+   return
+
+mouse.disarm:
+   if mouse.armed then
+      display char(27) : '[?1006l' : char(27) : '[?1000l' :
+      mouse.armed = @false
+   end
+   return
+
+* A press of the left button on the bar opens that menu, on the text puts the cursor there; the wheel moves the cursor three
+* lines.  Anything else is ignored.  Leaves action = 0 (done), F.MENU or F.UP / F.DOWN (the main loop goes on with it)
+do.mouse:
+   action = 0
+   if mouse.release or not(mouse.want) then return        ;* (MOUSE OFF: a report that comes anyway is read and dropped)
+   begin case
+      case mouse.b = 64 or mouse.b = 65
+         action = (if mouse.b = 64 then F.UP else F.DOWN)
+         rpt = 3 ; rpt.set = @false
+      case mouse.b # 0
+         null                           ;* another button, a drag, a movement, a shifted click
+      case mouse.y = 0
+         * A title of the bar
+         mc0 = 0
+         menu.start = 0
+         for mz = 1 to 6
+            mp = bar.titles<mz>
+            mq = index(mp, '&', 1)
+            if mq then mp = mp[1, mq - 1] : mp[mq + 1, 99]
+            if mouse.x >= mc0 and mouse.x < mc0 + len(mp) + 2 then menu.start = mz ; exit
+            mc0 += len(mp) + 2
+         next mz
+         if menu.start then action = F.MENU
+      case 1
+         gosub mouse.place
+   end case
+   return
+
+* A click on the text: which window, which line, which column
+mouse.place:
+   mr = mouse.y - 1                     ;* the editor's own row
+   if mr >= live.top and mr <= live.btm then
+      null
+   end else
+      if split.window and mr >= other.top and mr <= other.btm and other.live then gosub a.toggle.window
+      else return
+   end
+   if mr < live.top or mr > live.btm then return
+   gosub save.current
+   line = top.line + mr - live.top
+   if line > lines then line = (if read.only then lines else lines + 1)
+   if line < 1 then line = 1
+   gosub get.current
+   col = mouse.x - lcol + pan
+   if col < 1 then col = 1
+   if col > line.len + 1 then col = line.len + 1
+   return
+
+*****************************************************************************
 check.quit:
    aborted = @false
 
@@ -6407,9 +6706,12 @@ run.menu:
    gosub get.key.bindings
    gosub build.menu.defs
    gosub build.scr
-   bar.w<SL.W.S1> = 1 ; bar.w<SL.W.S2> = 1      ;* Always opens on the first menu
+   bar.w<SL.W.S1> = (if menu.start then menu.start else 1) ; bar.w<SL.W.S2> = 1   ;* the first menu, or the one a click chose
+   menu.start = 0
    call $sl_menu('init', bar.w, scr, '', mz)
+   gosub mouse.arm                               ;* the menu takes clicks (the library reads the reports itself)
    call $sl_menu('run', bar.w, scr, '', menu.code)
+   gosub mouse.disarm
    if syn.on then                          ;* the library puts plain text back from its shadow
       mat image = sw.space ; mat simage = ''
       gosub refresh.all
@@ -6423,6 +6725,7 @@ run.menu:
       case menu.code[1, 2] = 'c:'
          s = menu.code[3, 99]
          suppress.command.cr = @false
+         action = F.COMMAND ; gosub uj.capture ; action = 0     ;* a command may change the text (FORMAT, EXPAND.TABS ...)
          gosub ext.command
    end case
    return
@@ -6504,6 +6807,9 @@ build.menu.defs:
    ml = '&Quit' ; ma = F.QUIT ; gosub add.item
 
    mi = 2
+   ml = '&Undo' ; ma = F.UNDO ; gosub add.item
+   ml = 'R&edo' ; ma = F.REDO ; gosub add.item
+   ml = '-' ; mc = 'x:' ; gosub add.item
    ml = '&Set mark' ; ma = F.MARK ; gosub add.item
    ml = 'Swap &mark' ; ma = F.SWAP.MARK ; gosub add.item
    ml = 'Cu&t region' ; ma = F.KILL ; gosub add.item
@@ -6569,6 +6875,7 @@ build.menu.defs:
    mf = (if read.only then 'D' else '') ; ml = 'E&xpand tabs' ; mc = 'c:EXPAND.TABS' ; gosub add.item
    ml = '&Stamp' ; mc = 'c:STAMP' ; gosub add.item
    mf = (if syn.on then 'C' else '') ; ml = 'Syntax &colour' ; mc = 'c:SYNTAX' ; gosub add.item
+   mf = (if mouse.want then 'C' else '') ; ml = 'M&ouse' ; mc = 'c:MOUSE' ; gosub add.item
    ml = 'Release &lock' ; mc = 'c:RELEASE' ; gosub add.item
    ml = '&Keys in use' ; mc = 'c:KEYS' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
@@ -7188,6 +7495,20 @@ ext.command:
                end
             case 1
                message = sysmsg(11193) ;* SYNTAX takes ON, OFF, LIGHT or DARK
+               gosub error
+         end case
+
+      case c = 'MOUSE'
+         * MOUSE (toggle), MOUSE ON, MOUSE OFF
+         arg = upcase(trim(s<2>))
+         begin case
+            case arg = 'OFF' or (arg = '' and mouse.want)
+               mouse.want = @false
+               gosub mouse.disarm
+            case arg = '' or arg = 'ON'
+               mouse.want = @true
+            case 1
+               message = sysmsg(11196) ;* MOUSE takes ON or OFF
                gosub error
          end case
 

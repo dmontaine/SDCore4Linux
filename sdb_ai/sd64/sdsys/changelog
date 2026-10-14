@@ -143,10 +143,9 @@ Next release - in progress
            follow it.  The TERM 120,36 that LOGIN used to run is gone.  A
            program waiting in SCREEN WAIT is told by a "resize" event and can
            lay its screen out again.  What a program wrote with PRINT or CRT
-           is not drawn again, only what the screen library drew.  SED reads
-           the size when it starts and does not follow a window that is
-           resized while it runs.  A session with no terminal gets the size it
-           got before.
+           is not drawn again, only what the screen library drew.  A session
+           with no terminal gets the size it got before.  SED is the exception:
+           it is 120 columns by 36 lines whatever the window is (below).
 
            Default theme.  SCREENTHEME=name in sd.conf (mono, classic or blue)
            is the theme a SCREEN program gets when it does not choose one.
@@ -194,7 +193,46 @@ Next release - in progress
            language of the site's own or replaces one.  A comment or string
            that goes on to the next line colours the lines below it.  A
            terminal that cannot show colour is told so and carries on without
-           it.  SED still has no undo and does not use the mouse.
+           it.
+
+           SED has undo and redo: Ctrl-Z and Ctrl-Y, and Undo and Redo at the
+           top of the Edit menu.  A run of typing, of backspaces or of deletes
+           on one line is one step; each other edit is a step, a command such
+           as FORMAT or EXPAND.TABS included.  The cursor goes back to where the
+           change began.  It undoes the screen, not the file, and holds 100
+           steps (about 8 million characters); it starts again with each record
+           and when another buffer is shown.  "Nothing to undo" and "Nothing to
+           redo" say there is nothing.
+
+           SED takes the mouse in a terminal that reports it (xterm and the
+           like).  A click puts the cursor on the text, a click on a title of
+           the bar opens that menu and a click on an item chooses it, and the
+           wheel moves the cursor three lines.  It is on: the terminal's own
+           selection then needs Shift.  The command MOUSE OFF, Tools > Mouse or
+           NO.MOUSE in &sed.options& turn it off.  SED asks the terminal for the
+           reports only while it waits for a key and for the menu.
+
+           SED is 120 columns by 36 lines, SD's own default terminal size,
+           whatever the window is, as it was until 12 October (when it was made
+           80 by 12 at least, which let it draw off the edge of a small window
+           and go wrong when a window was resized).  A window that says it is
+           smaller than 120 by 36 is refused: "SED needs a window of at least
+           120 columns by 36 lines; this one is 80 by 24".  A bigger window
+           shows SED in its top left corner.  A session with no window to ask
+           (a pipe, a phantom) is 120 by 36 as before.
+
+           A drop-down menu with more entries than the screen has rows below
+           its title (SCREEN MENU and SCREEN MENUBAR, on a short window) shows
+           the rows that fit, scrolls as the cursor moves, and marks the cut
+           edges with ^ and v.  The rows that did not fit used to be left off
+           the screen though the cursor still moved over them.
+
+           SCREEN MEMO takes SYNTAX name (the text is drawn in the syntax
+           styles of the theme in force, for SD BASIC, C, JSON, Markdown, shell,
+           Python or a language of the site's own) and LNUM (line numbers down
+           the left).  The mono theme has no syntax styles, so a program that
+           asks for colour should choose the dark, light, classic or blue
+           theme.  A program that uses SCREEN MEMO must be compiled again.
 
            CED shows the elements of a collection as a table with a scroll bar,
            and asks its questions (a value, a name, a type, Save changes?) in

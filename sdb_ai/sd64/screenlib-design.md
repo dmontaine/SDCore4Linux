@@ -466,7 +466,9 @@ the cursor keeping its screen row. Built 13 Oct: `wrap` (SCREEN MEMO ... WRAP; S
 Selection (Ctrl-G marks, Ctrl-X cut, Ctrl-C or Ctrl-O copy, Ctrl-V paste; the clipboard is shared between
 memos), undo and redo (Ctrl-Z, Ctrl-Y; 100 steps, a run of typing is one step), find (Ctrl-T prompts,
 Ctrl-N finds the next; ignores case; wraps) and word movement (Ctrl-B, Ctrl-F). A readonly viewer can
-select, copy and find. Still not built: a separate editor widget (`ced_edit` is on the library since 13 Oct, as a table and dialogues, not as a memo).
+select, copy and find. `SYNTAX name` colours the text as a language of `$sl_syntax` (the theme's syntax styles; `dark`, `light`,
+`classic` and `blue` have them, `mono` none) and `LNUM` puts line numbers down the left (13 Oct, later the same day; `part_memo3`).
+Still not built: a separate editor widget (`ced_edit` is on the library since 13 Oct, as a table and dialogues, not as a memo).
 
 **The scroll bar** is a routine (`$sl_scrollbar`) that returns the column of characters for a list, memo or table;
 the thumb is proportional (it was one cell). The standalone scroll bar widget is built 13 Oct (`screen scrollbar`): vertical or horizontal,
@@ -572,7 +574,17 @@ from `6a2cb02` plus the doc edits (`probe-sed-small.py`, a pty at 100 columns; t
 scratchpad, not kept in the tree): SED on 24, 14 and 12 rows (12 is the least SED accepts), F10 then the Edit and
 Tools menus, and SED on a 24-row pty that is then resized to 40 rows and to 14. What each result means, best first.
 
-1. **A drop-down taller than the screen is cut off - BUILD (a defect, measured).** `$sl_menu` `open.geom` clamps the
+**The owner's answers, the same day:** 1 fix; 2 "sed should have a default size of 120x36, the sd default terminal size"
+(chosen from three options: always 120x36); 3 fix; 4 fix; 5 "on by default"; 6 no; 7 no; 8 "give me more information
+about this". **What was built:** 1 in `sl_menu` (rows `part_menutall` in `sandbox-screen.py`); 2 as a fixed layout and a
+refusal of a smaller window (message 11197; `sed` "Get screen characteristics"; rows in `sandbox-sed-menu.py`) - which also
+removes 1's SED case, so item 1 is tested on a user program; 3 and 5 in `sed` (UNDO AND REDO, THE MOUSE; messages 11194-11196;
+the new suite `sandbox-sed-edit.py`, 67 rows, red 49 of 67 on the SED before); 4 in `sl_memo`, `screen_memo` and `bcomp`
+(rows `part_memo3`). 6 and 7 are not built, by the owner's word. 8 is not built; what it would be is in the closing notes
+of the session that asked. The text below is the evaluation as it stood when the question was asked, and its item 2 is
+superseded by the owner's choice.
+
+1. **A drop-down taller than the screen is cut off - BUILT 13 Oct (a defect, measured).** `$sl_menu` `open.geom` clamps the
    drop-down's width and, for a pop-up or a submenu, its top, but never its height: a bar menu of N items is N rows
    from row 1. On 24 rows every item of SED's Edit (17 items, 3 separators) and Tools (14) menus shows. On 14 rows the
    Edit menu shows 11 of 17 items and Tools 11 of 14; on 12 rows 10 of 17 and 10 of 14, and the menu paints over the
@@ -620,3 +632,38 @@ Tools menus, and SED on a 24-row pty that is then resized to 40 rows and to 14. 
    the text; about two to three thousand lines of BASIC and a split-pane layout. Worth deciding after 2 and 4, because
    both are what it would stand on.
 Not changed by this: scrolling pick lists (`screen pick` already scrolls), a separate editor widget (the memo is it).
+
+### The IDE, written out (13 Oct 26: the owner asked for "more information about this"; nothing is built)
+
+**What it would be.** One SD BASIC program (a verb, `ide` say) on the screen library, in three panes and a bar: a
+**tree** of the account (its files from the VOC, and the records of each: `bp` first), the **editor** (a `screen memo` with
+`syntax` and `lnum`, tabs for several records open), and an **output pane** at the bottom (the compiler's messages as a
+`screen table` of line, error, with a click or Return jumping the editor to the line); a status line; and a menu bar
+(File, Edit, Search, Build, Run, Debug, Window). Build is `basic file record` through `execute ... capturing`, Catalogue
+the same, Run is `run`, Debug hands the terminal to `debug` (which takes the alternate screen), Search in files is `scan`.
+The account is the project: no project files.
+
+**What is already there.** Tree, memo (selection, undo, find, wrap, now colour and line numbers), table, tabs, scroll bar, menu
+bar, dialogues, forms, mouse, the `resize` event, themes, and the programs it would call. SED already edits, compiles with the
+errors put into the text, and runs.
+
+**What is missing.** (a) A layout that follows the window: the panes' sizes are numbers in `screen` statements, so the program
+lays them out again on a `resize` event (the library gives the event; the layout is the program's to write; no splitter widget
+is needed to start, a pane's size is a variable). (b) The memo is not SED: no macros, no buffers, no kill ring, no replace
+with query. The IDE's editor would be the memo, and SED stays for those who want its keys. (c) Running a program that
+draws on its own screen: leave the library's screen (`screen close`), run it, come back, as the debugger does. (d) The memo's
+colour is worked out from line 1 at each paint (cost grows with the text): a check-pointed state in the memo before it holds
+long programs. (e) Completion and inline help are not on this list.
+
+**Stages.** 1: the shell - bar, tree, memo with colour, open and save, build with the error table that jumps - one long sitting,
+about a thousand lines and a suite of its own (~80 rows, as `sandbox-ced.py`). 2: run, catalogue, debug, search in files,
+a tab for each open record. 3: resize layout, settings, polish. Each stage is usable on its own.
+
+**What would make it not worth it.** SED already has the menus, the colour, the compile with errors and (now) undo and the
+mouse; the IDE's gain over it is the tree, the error list and the output beside the text, in one program. A site that is
+happy with SED loses nothing. **What would falsify the plan:** the memo too slow to repaint a 2,000-line program with colour
+at each key (measure it first: a program of that size in a `screen memo` with `syntax 'sd.basic'`, 100 keystrokes), or
+`execute ... capturing` not giving the compiler's lines in a form the table can use (it does for SED's error tags).
+
+**Sequential order.** Core first; Solo and Windows only when the owner says Core is stable. The IDE is not bound by SED's
+120 by 36: it follows the window.

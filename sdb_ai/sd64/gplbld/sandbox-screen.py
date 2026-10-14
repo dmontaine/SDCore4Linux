@@ -2066,6 +2066,198 @@ def part_memo2(box):
     t.end()
 
 
+PROGS.update({
+    # a text area that shows SD BASIC in colour (the dark theme has the syntax styles) with line numbers, and a button after it
+    "zzthsyn": dialogue_program("""   text = '* a comment':@fm:'if x = 5 then crt "hi"':@fm:'$include syscom.h':@fm:'end'
+   screen theme 'dark' returning th else th = 'NO-COLOUR'
+   screen form title 'Syntax' at 10,3 size 50,14 returning f
+   screen memo f, 'm', text at 2,2 size 40,5 syntax 'sd.basic' lnum
+   screen button f, 'ok', '&OK' at 10,11 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'm' returning t
+   res := ' ':dcount(t, @fm):'|':convert(@fm, '/', t):'|'
+"""),
+    # the same with the mono theme (which has no syntax styles) and a language that does not exist: plain, no error
+    "zzthsy2": dialogue_program("""   text = '* a comment':@fm:'if x = 5 then crt "hi"'
+   screen form title 'Plain' at 10,3 size 50,14 returning f
+   screen memo f, 'm', text at 2,2 size 40,5 syntax 'sd.basic'
+   screen memo f, 'n', text at 2,8 size 40,3 syntax 'nosuch.language'
+   screen button f, 'ok', '&OK' at 10,12 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+"""),
+    # line numbers with wrap: a number on the first row of a line only
+    "zzthlnw": dialogue_program("""   text = 'short':@fm:'a very long line that has to be wrapped in the narrow area':@fm:'end'
+   screen form title 'Numbers' at 10,3 size 40,14 returning f
+   screen memo f, 'm', text at 2,2 size 16,8 wrap lnum readonly
+   screen button f, 'ok', '&OK' at 10,11 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+"""),
+})
+
+
+PROGS.update({
+    # a menu of twenty entries under the bar's first title, for a terminal with fewer rows than it needs
+    "zzthmbg": dialogue_program("""   menus = '&Tall'
+   for i = 1 to 20
+      menus := @vm : 'Item ' : fmt(i, 'R%2') : @sm : '' : @sm : 'i' : i
+   next i
+   screen menubar menus returning c then
+      res = 'CHOSE ':c:'|'
+   end else
+      res = 'LEFT|'
+   end
+"""),
+})
+
+
+def tall_geometry(L):
+    """(row, column of the first character of the label) of 'Item 01' on the screen, or None."""
+    for i, l in enumerate(L):
+        if "Item 01" in l:
+            return i, l.index("Item 01")
+    return None
+
+
+def part_menutall(box):
+    say("\n--- a menu with more entries than the screen has rows (13 Oct 26) ---------------------------------------")
+    # twenty entries.  Before 13 Oct the rows that did not fit were not drawn though the cursor still moved over them
+    t = Term(box, "RUN bp zzthmbg", cols=100, rows=24)
+    t.keys()
+    L = t.keys("a")
+    g = tall_geometry(L)
+    row("control (24 rows): all twenty entries show, Item 01 first and Item 20 last, no ^ and no v at the right edge",
+        g is not None and "Item 20" in L[g[0] + 19] and "^" not in L[g[0]][g[1]:g[1] + 12] and "v" not in L[g[0] + 19][g[1] + 6:g[1] + 12], "\n".join(L[:24]))
+    t.keys(ESC)
+    t.end()
+
+    t = Term(box, "RUN bp zzthmbg", cols=100, rows=12)
+    before = t.keys()
+    L = t.keys("a")
+    g = tall_geometry(L)
+    if g is None:
+        row("12 rows: the menu is drawn (Item 01 found)", False, "\n".join(L))
+        t.end()
+        return
+    r1, c1 = g
+    # the marker is in the last cell of the dropdown: it starts one cell left of the label (a blank first) and is the label's
+    # 7 cells and 4 more wide (a blank each side, and room for a shortcut that these entries do not have)
+    mk = (c1 - 1) + 11 - 1
+    row("12 rows: the first eleven entries show (Item 01 on row 1, Item 11 on row 11) and Item 12 does not",
+        r1 == 1 and "Item 11" in L[11] and not any("Item 12" in l for l in L), "\n".join(L))
+    row("...no ^ on the first row (nothing above it), a v on the last row (more below)", L[1][mk:mk + 1] != "^" and L[11][mk:mk + 1] == "v", repr((L[1][mk - 3:mk + 2], L[11][mk - 3:mk + 2])))
+    hl = [i for i in range(1, 12) if t.attrs(i)[c1 + 1:c1 + 2] not in ("r", "x")]
+    row("...and Item 01 is the highlighted row, the only one", hl == [1], repr(hl))
+    L = t.keys(UP)
+    hl = [i for i in range(1, 12) if t.attrs(i)[c1 + 1:c1 + 2] not in ("r", "x")]
+    row("Up from the first goes to the last and the menu scrolls to it: Item 20 is on the last row, highlighted, with a ^ above and no v",
+        "Item 20" in L[11] and hl == [11] and L[1][mk:mk + 1] == "^" and L[11][mk:mk + 1] != "v" and not any("Item 01" in l for l in L), "\n".join(L) + repr(hl))
+    L = t.keys(DOWN)
+    row("Down from the last wraps to the first: Item 01 shows again, no ^", "Item 01" in L[1] and L[1][mk:mk + 1] != "^", repr(L[1]))
+    L = t.keys(*([DOWN] * 14))
+    ri = [i for i, l in enumerate(L) if "Item 15" in l]
+    hl = [i for i in range(1, 12) if t.attrs(i)[c1 + 1:c1 + 2] not in ("r", "x")]
+    row("Down fourteen times: Item 15 is shown and highlighted, Item 01 has scrolled off, ^ above and v below",
+        bool(ri) and hl == [ri[0]] and not any("Item 01" in l for l in L) and L[1][mk:mk + 1] == "^" and L[11][mk:mk + 1] == "v", "\n".join(L) + repr((hl, ri)))
+    L = t.keys(UP, UP, UP, UP, UP, UP, UP, UP, UP, UP, UP, UP, UP, UP)
+    row("Up fourteen times: back at Item 01, the window with it", "Item 01" in L[1] and t.attrs(1)[c1 + 1:c1 + 2] not in ("r", "x"), "\n".join(L))
+    t.keys(*([DOWN] * 14))
+    t.keys(RET)
+    # on a 12-row window the program's result line (@(0, 25)) lands on a row that still holds the background, so the
+    # answer is the text between the tag and its bar, not the rest of the row
+    got = [l for l in t.keys("z") if l.startswith("CHOSE")]
+    row("Return on a scrolled-in entry chooses it, and the program has its code: i15",
+        bool(got) and got[0][len("CHOSE "):].split("|")[0] == "i15", repr(got))
+    t.end()
+
+    t = Term(box, "RUN bp zzthmbg", cols=100, rows=12)
+    t.keys()
+    L0, A0 = t.lines(), [t.attrs(r) for r in range(12)]       # (record() reads 30 rows; this window has 12)
+    t.keys("a", UP)
+    L = t.keys(ESC, idle=0.9)
+    ok, bad = same_as(t, L0, A0, range(1, 12))
+    row("Esc on a scrolled menu leaves no trace: rows 1-11 are cell for cell as they were before the menu opened (row 0 keeps the bar)",
+        ok and L[0].lstrip().startswith("Tall"), repr((bad, L[0][:20])))
+    t.end()
+
+
+def part_memo3(box):
+    say("\n--- the text area: syntax colour and line numbers (13 Oct 26) -------------------------------------------")
+    t = Term(box, "RUN bp zzthsyn")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "* a comment")
+    r0 = p[0] if p else 0
+    c0 = p[1] if p else 0
+    row("line numbers: the four lines are 1 * a comment, 2 if x ..., 3 $include ... and 4 end, the text two cells in from the numbers",
+        p is not None and L[r0][c0 - 2:c0 + 11] == "1 * a comment" and L[r0 + 1][c0 - 2:c0 + 4] == "2 if x" and L[r0 + 2][c0 - 2:c0 + 6] == "3 $inclu"
+        and L[r0 + 3][c0 - 2:c0 + 5] == "4 end  ", repr([l[c0 - 2:c0 + 22] for l in L[r0:r0 + 4]]))
+    row("control: the theme was given (the dark theme is coloured)", t.style(r0, c0) != (None, None, ""), repr(t.style(r0, c0)))
+    cm = t.style(r0, c0)
+    row("a comment line is blue and bold, all of it", cm == (BLUE, None, "b") and t.style(r0, c0 + 8) == cm, repr((cm, t.style(r0, c0 + 8))))
+    line2 = L[r0 + 1]
+    ci, ct, cs, cn = c0, line2.index("then"), line2.index('"hi"'), line2.index("5")
+    kw = t.style(r0 + 1, ci)
+    row("keywords are one colour, bold, and not the comment's: if, then and crt", kw[0] is not None and "b" in kw[2] and kw != cm
+        and t.style(r0 + 1, ct) == kw and t.style(r0 + 1, line2.index("crt")) == kw, repr((kw, t.style(r0 + 1, ct), t.style(r0 + 1, line2.index("crt")))))
+    row("a name that is no keyword is plain: the x", t.style(r0 + 1, line2.index(" x ") + 1) == (None, None, ""), repr(t.style(r0 + 1, line2.index(" x ") + 1)))
+    row("a string is green, and so are its quotes: \"hi\"", t.style(r0 + 1, cs) == (GREEN, None, "") and t.style(r0 + 1, cs + 3) == (GREEN, None, ""), repr((t.style(r0 + 1, cs), t.style(r0 + 1, cs + 3))))
+    row("a number is not plain and not a keyword's colour: the 5", t.style(r0 + 1, cn) not in ((None, None, ""), kw), repr(t.style(r0 + 1, cn)))
+    row("a line that starts with $ is the preprocessor's, red, all of it", t.style(r0 + 2, c0) == (RED, None, "") and t.style(r0 + 2, c0 + 15) == (RED, None, ""), repr((t.style(r0 + 2, c0), t.style(r0 + 2, c0 + 15))))
+    L = t.keys("q")
+    row("typing goes in at the cursor and the colours follow the text: q* a comment is no comment now, the * is plain",
+        L[r0][c0:c0 + 12] == "q* a comment" and t.style(r0, c0 + 1) == (None, None, ""), repr((L[r0][c0:c0 + 12], t.style(r0, c0 + 1))))
+    L = t.keys(CTRL_A, DELK)
+    row("deleting the q gives the comment back its colour, in one go", L[r0][c0:c0 + 11] == "* a comment" and t.style(r0, c0) == cm, repr((L[r0][c0:c0 + 11], t.style(r0, c0))))
+    # a click on the text: through the numbers
+    click(t, c0 + 4, r0)
+    L = t.keys("Z")
+    row("a click on the c of comment puts the cursor there (the numbers are not counted): Z goes in before it", L[r0][c0:c0 + 12] == "* a Zcomment", repr(L[r0][c0:c0 + 13]))
+    t.keys(TAB, RET)                    # (Return in the text splits a line: Tab goes to the button first)
+    got = final(t, "PRESSED")
+    row("the text the program gets back has no line numbers in it, and the Z",
+        got == 'ok| 4|* a Zcomment/if x = 5 then crt "hi"/$include syscom.h/end|', repr(got))
+    t.end()
+
+    t = Term(box, "RUN bp zzthsy2")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "* a comment")
+    r1 = p[0] if p else 0
+    c1 = p[1] if p else 0
+    row("the mono theme has no syntax colours: the text is plain, a comment included (and no line numbers when none are asked for)",
+        p is not None and t.style(r1, c1) == (None, None, "") and t.style(r1 + 1, c1) == (None, None, "") and L[r1][c1 - 2:c1 + 2] != "1 * ",
+        repr((t.style(r1, c1), L[r1][c1 - 2:c1 + 11])))
+    p2 = [i for i, l in enumerate(L) if i > r1 + 1 and "* a comment" in l]
+    row("a language that does not exist is not an error: the second area shows its text, plain", bool(p2) and t.style(p2[0], c1) == (None, None, ""), repr(p2))
+    t.keys(RET)
+    t.end()
+
+    t = Term(box, "RUN bp zzthlnw")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "short")
+    r2 = p[0] if p else 0
+    c2 = p[1] if p else 0
+    area = [l[c2 - 2:c2 + 14] for l in L[r2:r2 + 8]]
+    row("wrap with numbers: a number on the first row of each line only: 1 short, 2 a very long, a blank where the line goes on, 3 end",
+        p is not None and area[0].startswith("1 short") and area[1].startswith("2 a very long") and area[2].startswith("  ") and area[2][2:3].strip() != ""
+        and any(a.startswith("3 end") for a in area), repr(area))
+    t.keys(RET)
+    t.end()
+
+
 def part_table2(box):
     say("\n--- the table: sorting, marked rows, columns -----------------------------------------------------------")
     t = Term(box, "RUN bp zzthtbs")
@@ -2553,6 +2745,7 @@ def main():
         if "memo" in parts:
             part_memo(box)
             part_memo2(box)
+            part_memo3(box)
         if "themes" in parts:
             part_themes(box)
         if "tabs" in parts:
@@ -2562,6 +2755,8 @@ def main():
         if "dialogs" in parts:
             part_dialogs(box)
             part_menu2(box)
+        if "dialogs" in parts or "menutall" in parts:            # (menutall alone is a development aid)
+            part_menutall(box)
         if "forms" in parts:
             part_forms(box)
             part_forms2(box)

@@ -70,7 +70,7 @@ def sess(box, *cmds):
 
 
 class Term:
-    def __init__(self, box, cmd, cols=100, rows=30, term="xterm"):
+    def __init__(self, box, cmd, cols=120, rows=36, term="xterm"):       # SED is 120 by 36 always (13 Oct 26)
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows)
         self.s.settle(1.0)
