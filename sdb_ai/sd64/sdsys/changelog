@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  NEW $MODE SETTING: OPEN.FAIL.ZERO.FVAR.
+
+           A program compiled with $MODE OPEN.FAIL.ZERO.FVAR gets the
+           integer 0 in the file variable of an OPEN or OPENPATH that
+           fails, where it is otherwise left unassigned.  Some programs
+           written for other multivalue systems rely on that, and an
+           unassigned variable stops them with a run-time error the moment
+           they test it.  The ELSE clause is taken as always and an OPEN
+           that works is not touched.  Nothing changes for a program that
+           does not ask for it.
+
 14 Oct 26  A DEVELOPMENT ENVIRONMENT: THE IDE VERB.
 
            IDE opens one full-screen program for working on BASIC programs

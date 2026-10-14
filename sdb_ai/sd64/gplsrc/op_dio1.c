@@ -32,6 +32,7 @@
  * 12 Oct 26 dm  open_file() acts on the NON.TRANSACTIONAL option of OPEN and OPENPATH (P_NON_TXN; item 64).
  * 12 Oct 26 dm  open_file() acts on the mode letters N and R in field 6 of the
  *           F-type VOC entry (openQM items 380 and 197); _voc_ref returns them.
+ * 14 Oct 26 dm  open_file() acts on P_OPEN_ZERO ($MODE OPEN.FAIL.ZERO.FVAR, openQM item 514).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -921,6 +922,14 @@ exit_op_open:
   {
     if (fvar != NULL)
       dio_close(fvar);
+
+    /* 14 Oct 26 dm - $MODE OPEN.FAIL.ZERO.FVAR (openQM item 514): the file variable of a failed open is the
+       integer 0 rather than unassigned */
+    if (op_flags & P_OPEN_ZERO) {
+      k_release(fvar_descr);
+      InitDescr(fvar_descr, INTEGER);
+      fvar_descr->data.value = 0;
+    }
   }
 
   /* Set status code on stack */
