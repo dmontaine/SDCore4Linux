@@ -409,6 +409,9 @@ $include sl.h
    dim syn.end(screen.lines + 1) ; mat syn.end = 0  ;* the state the line shown on each row ends in
    syn.chk = ''                       ;* field k: the state at the start of line (k - 1) * 100 + 1
    syn.chk.n = 1                      ;* how many of them are good (the first is always: state 0)
+   syn.other.state = 0                ;* the same for the first row of the other window (worked out on every update)
+   syn.bm = 0                         ;* the last row of the window being drawn (syn.row marks the rows below a change)
+   syn.oth = @false                   ;* the window being drawn is the other one
    syn.top.state = 0                  ;* the state at the start of top.line, when syn.top.for = top.line
    syn.top.for = 0
    syn.lines.seen = 0                 ;* the line count when the checkpoints were last good
@@ -4081,6 +4084,8 @@ update.screen:
    * Refresh lines that have changed
 
    if syn.on then gosub syn.prepare   ;* the record's language, and the state its first row starts in
+   syn.bm = live.btm
+   syn.oth = @false                   ;* the rows being drawn are the live window's
    n = top.line       ;* Data record line
    for ln = live.top to live.btm
       i = ln + 1
@@ -4114,6 +4119,8 @@ update.screen:
    if split.window then  ;* Update non-live half of window ("other" window)
       if other.live then     ;* Other window is live buffer
          * Refresh lines that have changed
+         syn.bm = other.btm
+         syn.oth = @true                  ;* ... and now the other window's
          n = other.top.line       ;* Data record line
          for ln = other.top to other.btm
             i = ln + 1
@@ -4121,19 +4128,23 @@ update.screen:
 
             if refresh(i) then
                if n > lines then
-                  if image(i) # sw.space then
+                  if image(i) # sw.space or simage(i) # '' then
                      display @(0, ln + 1) : @(-4) :
                      image(i) = sw.space
+                     simage(i) = ''
                   end
                end else
-                  if n = line then ss = current.line[pan, screen.width]
+                  if n = line then syn.full = current.line
                   else
                      gosub find.line
-                     ss = chunk(ch)<fld>[pan, screen.width]
+                     syn.full = chunk(ch)<fld>
                   end
+                  ss = syn.full[pan, screen.width]
+                  if syn.on and syn.lang then gosub syn.row
 
                   if lcol then ss = (fmt(n, lcol.fmt) : ': ' : ss)[1, screen.width]
                   gosub zoned.update
+                  sty = ''
                end
                refresh(i) = @false
             end
@@ -4418,13 +4429,29 @@ syn.detect:
 
 * syn.top.state = the state at the start of top.line (valid while syn.top.for = top.line)
 syn.state.top:
-   if syn.top.for = top.line then return
-   syn.k = int((top.line - 1) / 100) + 1       ;* the checkpoint at or before top.line
+   if syn.top.for # top.line then
+      syn.tl = top.line
+      gosub syn.scan
+      syn.top.state = syn.st
+      syn.top.for = top.line
+   end
+   if split.window then
+      if other.live then                         ;* the other window shows the same record from another line
+         syn.tl = other.top.line
+         gosub syn.scan
+         syn.other.state = syn.st
+      end
+   end
+   return
+
+* syn.st = the state at the start of line syn.tl, from the checkpoint before it (which are made on the way)
+syn.scan:
+   syn.k = int((syn.tl - 1) / 100) + 1         ;* the checkpoint at or before syn.tl
    if syn.k > syn.chk.n then syn.k = syn.chk.n
    if syn.k = 1 then syn.st = 0 else syn.st = syn.chk<syn.k> + 0
    syn.zl = ((syn.k - 1) * 100) + 1            ;* the line that syn.st is the state at the start of
    loop
-   while syn.zl < top.line
+   while syn.zl < syn.tl
       if syn.zl = line then
          syn.t = current.line
       end else
@@ -4442,19 +4469,21 @@ syn.state.top:
          end
       end
    repeat
-   syn.top.state = syn.st
-   syn.top.for = top.line
    return
 
 * sty = the style codes of the part of line n that is on the screen; syn.full is the whole line, i the row
 syn.row:
-   if ln = live.top then syn.st = syn.top.state else syn.st = syn.end(i - 1)
+   syn.st = syn.end(i - 1)
+   if ln = live.top then syn.st = syn.top.state
+   if syn.oth then                            ;* (other.top is not set until the window is split)
+      if ln = other.top then syn.st = syn.other.state     ;* the first row of the other window
+   end
    call $sl_syntax('line', syn.lang, syn.full, syn.st, syn.st2, sty)
    sty = sty[pan, screen.width]
    if lcol then sty = (str('n', lcol) : sty)[1, screen.width]      ;* the line number is plain
    if syn.st2 # syn.end(i) then
       syn.end(i) = syn.st2
-      for syn.j = i + 1 to live.btm + 1       ;* the rows below start somewhere else now
+      for syn.j = i + 1 to syn.bm + 1         ;* the rows below start somewhere else now
          refresh(syn.j) = @true
       next syn.j
    end
@@ -6427,9 +6456,10 @@ add.item:
       next kv
       if mc = '' then mc = 'a:' : ma
    end
-   bar.w<19 + mi, -1> = ml : @sm : sc : @sm : mc
+   bar.w<19 + mi, -1> = ml : @sm : sc : @sm : mc : @sm : mf
    ma = 0
    mc = ''
+   mf = ''
    return
 
 fmt.key:
@@ -6461,7 +6491,7 @@ build.menu.defs:
    for mz = 1 to 6
       bar.w<19 + mz> = bar.titles<mz>      ;* Title only: the items are added below
    next mz
-   ma = 0 ; mc = ''
+   ma = 0 ; mc = '' ; mf = ''
 
    mi = 1
    ml = '&Save' ; ma = F.SAVE.RECORD ; gosub add.item
@@ -6529,13 +6559,16 @@ build.menu.defs:
    ml = '&Refresh screen' ; ma = F.REFRESH ; gosub add.item
 
    mi = 6
-   ml = '&Compile' ; mc = 'c:BASIC' ; gosub add.item
-   ml = 'Compile and r&un' ; ma = F.COMPRUN ; gosub add.item
-   ml = '&Format' ; mc = 'c:FORMAT' ; gosub add.item
-   ml = '&Indent mode' ; mc = 'c:INDENT' ; gosub add.item
-   ml = 'E&xpand tabs' ; mc = 'c:EXPAND.TABS' ; gosub add.item
+   * An item that the command would refuse is disabled (dim, and the cursor goes past it); a mode that is on is checked
+   cant = ''
+   if len(dict.flag) or read.only then cant = 'D'
+   mf = cant ; ml = '&Compile' ; mc = 'c:BASIC' ; gosub add.item
+   mf = cant ; ml = 'Compile and r&un' ; ma = F.COMPRUN ; gosub add.item
+   mf = cant ; ml = '&Format' ; mc = 'c:FORMAT' ; gosub add.item
+   mf = (if indent then 'C' else '') ; ml = '&Indent mode' ; mc = 'c:INDENT' ; gosub add.item
+   mf = (if read.only then 'D' else '') ; ml = 'E&xpand tabs' ; mc = 'c:EXPAND.TABS' ; gosub add.item
    ml = '&Stamp' ; mc = 'c:STAMP' ; gosub add.item
-   ml = 'Syntax &colour' ; mc = 'c:SYNTAX' ; gosub add.item
+   mf = (if syn.on then 'C' else '') ; ml = 'Syntax &colour' ; mc = 'c:SYNTAX' ; gosub add.item
    ml = 'Release &lock' ; mc = 'c:RELEASE' ; gosub add.item
    ml = '&Keys in use' ; mc = 'c:KEYS' ; gosub add.item
    ml = '-' ; mc = 'x:' ; gosub add.item
@@ -7139,24 +7172,20 @@ ext.command:
             case arg = 'OFF' or (arg = '' and syn.want)
                syn.want = @false
                gosub syn.stop
-               message = sysmsg(11190) ;* Syntax colour is off
-               gosub status.msg
             case arg = '' or arg = 'ON' or arg = 'LIGHT' or arg = 'DARK'
                if arg = 'LIGHT' then syn.light = @true
                if arg = 'DARK' then syn.light = @false
                gosub syn.stop
                syn.want = @true
                gosub syn.start
-               if syn.on then
-                  message = sysmsg(11191) ;* Syntax colour is on
-               end else
-                  syn.want = @false
-                  message = sysmsg(11192) ;* This terminal cannot show colour
-               end
                gosub clear.screen
                mat simage = ''
                gosub refresh.all
-               gosub status.msg
+               if not(syn.on) then
+                  syn.want = @false
+                  message = sysmsg(11192) ;* This terminal cannot show colour
+                  gosub error
+               end
             case 1
                message = sysmsg(11193) ;* SYNTAX takes ON, OFF, LIGHT or DARK
                gosub error
