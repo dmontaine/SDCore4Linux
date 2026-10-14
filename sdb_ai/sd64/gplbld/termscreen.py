@@ -122,6 +122,17 @@ class Screen:
         if params.startswith("?"):
             if params == "?25" and final in "lh":
                 self.cursor_visible = (final == "h")
+            if params in ("?1047", "?1049", "?47") and final in "lh":
+                # the ALTERNATE screen: h keeps the main one aside and shows a blank one, l gives the main one back
+                if final == "h" and getattr(self, "_main", None) is None:
+                    self._main = ([row[:] for row in self.grid], [row[:] for row in self.rev], self.r, self.c)
+                    for i in range(len(self.grid)):
+                        self.grid[i] = [" "] * self.cols
+                        self.rev[i] = [0] * self.cols
+                    self.alt_entered = getattr(self, "alt_entered", 0) + 1
+                elif final == "l" and getattr(self, "_main", None) is not None:
+                    self.grid, self.rev, self.r, self.c = self._main
+                    self._main = None
             return   # the other modes (keypad, margins): not drawing
         if final in "Hf":
             row = (nums[0] if len(nums) > 0 and nums[0] else 1) - 1

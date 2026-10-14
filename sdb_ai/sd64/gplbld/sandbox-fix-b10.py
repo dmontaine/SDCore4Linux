@@ -6,7 +6,7 @@
 #                        347  CT opens a file named in lower case          (already true)
 #                        249  SOCKET.INFO(var, SKT$INFO.OPEN) on a non-socket (already true)
 #                        203  NO.SOURCE.WARNING in the VOC record $DEBUG.OPTIONS silences "unable to find source"
-#                        545  xmc#1 in the terminfo entries adds4000 and adds4000-at
+#                        545  xmc#1 in the terminfo entry adds4000 (and adds4000-at, until the AccuTerm types went)
 #                      No install, no sudo.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fix-b10.py <dir> [--build]
@@ -187,7 +187,8 @@ def main():
 
         say("\n--- 545 terminfo adds4000 ----------------------------------------------------------")
         text = open(TERMINFO, errors="replace").read()
-        for name in ("adds4000", "adds4000-at"):
+        # (the adds4000-at entry went with the AccuTerm terminal types, 13 Oct 26)
+        for name in ("adds4000",):
             m = re.search(r"(?ms)^%s\|.*?(?=^\S)" % re.escape(name), text)
             row("545: the %s entry has xmc#1" % name, m is not None and re.search(r"\bxmc#1\b", m.group(0)) is not None,
                 "no entry" if m is None else "xmc#1 missing")

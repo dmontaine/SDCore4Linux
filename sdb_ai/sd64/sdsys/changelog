@@ -1,6 +1,41 @@
 Next release - in progress
 --------------------------
 
+13 Oct 26  THE ACCUTERM SUPPORT IS GONE, AND THE DEBUGGER AND IMMEDIATE
+           MESSAGES WORK ON ANY TERMINAL.
+
+           SD used to keep a part of its screen handling for AccuTerm, a
+           Windows terminal emulator: it asked the terminal to remember the
+           screen under a pop-up, to report the mouse and to rebind the
+           function keys, with escape sequences only AccuTerm understood.  On
+           every other terminal that code did nothing, which meant two things
+           did not work there: the debugger had no full-screen display, and a
+           message sent with MESSAGE ... IMMEDIATE was never shown.
+
+           That code, and the eleven AccuTerm terminal types (vt100-at,
+           vt220-at, vt320-at, vt420-at, wy50-at, wy60-at, adds4000-at,
+           vp-at, viewpoint60-at, addsviewpoint-at and pcmon-at, with their
+           aliases), has been removed.  In its place:
+
+             The debugger  On a terminal that has an alternate screen (xterm
+                        and the terminals that behave like it) the debugger
+                        takes the whole screen: the title, the source with its
+                        line numbers, the line about to run, breakpoints
+                        marked, five lines of messages and the command line,
+                        drawn in the screen library's styles.  The program's
+                        own screen is kept by the terminal and comes back when
+                        the debugger lets go.  F1 shows the help in a box, F4
+                        shows the program's screen until a key.  A terminal
+                        without an alternate screen, and a session with no
+                        terminal, get the line-by-line debugger as before.
+             MESSAGE ... IMMEDIATE  The message is shown in a box over the
+                        alternate screen (or as lines and "Press return to
+                        continue" on a terminal without one).
+             OPTION DEBUG.REBIND.KEYS  Still accepted, no longer does anything.
+
+           A user on AccuTerm should set the terminal type to xterm, or vt100:
+           the -at types are no longer known.
+
 13 Oct 26  A NEW ACCOUNT STARTS WITH NO SHELL, NO OS.EXECUTE, NO SSH AND NO API;
            THE ADMINISTRATOR TURNS EACH ON, ACCOUNT BY ACCOUNT.
 
