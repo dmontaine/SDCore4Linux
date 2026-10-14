@@ -80,7 +80,18 @@ SD64 = os.path.dirname(HERE)
 LIVE_SYS = "/usr/local/sdsys"
 # 02 Oct 26 - SD Core's own key family (gplsrc/sddefs.h): ipcs prints lower case.
 LIVE_KEYS = ("0x53434c01", "0x53434c02")
-BOX_KEYS = ("0x53434c91", "0x53434c92")
+# 14 Oct 26 - SDBOX_KEYSET (0-7): regress.sh --jobs gives each worker a pair of its own, 0x20 apart, so that sandboxes
+# can run side by side (kernel: shmget / semget of SD_SHM_KEY / SD_SEM_KEY, exactly, no offsets).  Unset is 0, the
+# original pair 0x53434c91/92.  Every other tool reads the keys through BOX_KEYS and SANDBOX_PATCHES, so one variable
+# moves them all.
+_KEYSET = os.environ.get("SDBOX_KEYSET", "0")
+if not re.fullmatch("[0-7]", _KEYSET):
+    print("sandbox-txnfail: REFUSED - SDBOX_KEYSET must be a digit 0-7, not %r" % _KEYSET)
+    sys.exit(2)
+KEYSET = int(_KEYSET)
+SHM_BOX = 0x53434C91 + 0x20 * KEYSET
+SEM_BOX = 0x53434C92 + 0x20 * KEYSET
+BOX_KEYS = ("0x%08x" % SHM_BOX, "0x%08x" % SEM_BOX)
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
 PASS = FAIL = 0
@@ -136,8 +147,8 @@ def replace_once(path, old, new, label):
 # control would silently pass.
 
 SANDBOX_PATCHES = [
-    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C01", "#define SD_SHM_KEY 0x53434C91", "sandbox shm key"),
-    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C02", "#define SD_SEM_KEY 0x53434C92", "sandbox sem key"),
+    ("gplsrc/sddefs.h", "#define SD_SHM_KEY 0x53434C01", "#define SD_SHM_KEY 0x%08X" % SHM_BOX, "sandbox shm key"),
+    ("gplsrc/sddefs.h", "#define SD_SEM_KEY 0x53434C02", "#define SD_SEM_KEY 0x%08X" % SEM_BOX, "sandbox sem key"),
     ("gplsrc/sd.c",
      '  if (geteuid() != 0) {\n    fprintf(stderr, "Command requires administrator privileges\\n");\n    exit(1);\n  }\n',
      '  fprintf(stderr, "sd: SANDBOX BUILD - check_admin stubbed\\n");\n',

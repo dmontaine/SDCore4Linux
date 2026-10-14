@@ -2,8 +2,10 @@
 #
 # regress.sh - run the sandbox suites, one fresh build each, and say which passed.  No install, no sudo.
 #
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh                     all of them, about 12 minutes
-#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --skip ced          all but the pseudo-terminal one (3.8 minutes of the 12)
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh                     all of them, one after another, about 50 minutes
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --jobs 6            all of them, six at a time
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --snapshot --jobs 6 --free   the same, on a copy of the tree (edit meanwhile)
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --skip ced          all but the pseudo-terminal one
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --only coll,try     just those
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --tree DIR          the suites of the sd64 tree DIR, in that tree
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              then the gplbld/test-*.py free checks too
@@ -18,14 +20,21 @@
 # directory, which is printed, and the [FAIL] rows of a failed suite are shown.
 #
 # WHY A SNAPSHOT.  Each suite builds its sandbox from the tree it lives in, so editing a kernel source while the run
-# is going voids the suites still to come.  To keep working, run it on a copy:
+# is going voids the suites still to come.  --snapshot makes a copy of the tree, builds it, runs the suites in the
+# copy and removes it afterwards, so the live tree is free to edit.  By hand, the same is:
 #   git ls-files -z --cached --others --exclude-standard sdb_ai | rsync -a --from0 --files-from=- ./ COPY/
 #   cp sdb_ai/sd64/gplsrc/sdext_python_inc.h COPY/sdb_ai/sd64/gplsrc/      (git ignores it; the build needs it)
+#   cp installsdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md COPY/   (the --free checks read them)
 #   (cd COPY/sdb_ai/sd64 && make)                                           (SERIAL: make -j races sdtic and terminfo)
-#   COPY/sdb_ai/sd64/gplbld/regress.sh --tree COPY/sdb_ai/sd64
-# The suites use fixed shared memory keys (0x53434c91, 0x53434c92), so two cannot run at once, here or with a
-# sandbox of your own; the run refuses to start while the keys are held.  Each sandbox leaves ~14,000 files in /tmp
-# (1M inodes there) and is removed as soon as its suite ends.
+#   COPY/sdb_ai/sd64/gplbld/regress.sh --jobs 6 --tree COPY/sdb_ai/sd64
+#
+# WHY SOME CAN RUN AT ONCE.  A sandbox is built with its own pair of shared memory keys (sddefs.h, patched into the
+# sandbox's copy: gplbld/sandbox-txnfail.py).  The pair is 0x53434c91/92 for the keyset 0, and each further keyset
+# is 0x20 higher: --jobs N starts N workers, worker k exports SDBOX_KEYSET=k, and the workers take the suites from
+# one queue, the longest first (the order of ALL_SUITES below).  Nothing else is shared: each suite has its own
+# directory and its own run-tagged names.  The run refuses to start while any of the N pairs is held (an earlier
+# sandbox, or one of your own on the same keys).  Each sandbox leaves ~14,000 files in /tmp (1M inodes there) and is
+# removed as soon as its suite ends, so N workers hold about N times that at a time.
 #
 # START-HISTORY:
 # 12 Oct 26 dm  New.  The list and the loop had lived in a scratchpad script that was lost between sessions; the
@@ -52,6 +61,13 @@
 #               file variable, 17), wdthenelse (WRITE.DELETE.THEN.ELSE, 17), bpv (the X breakpoint control and @BPV, 6),
 #               numexp (NUMERIC.EXPONENT, 27), forcereload (FORCE.RELOAD, 7), footpause (QUERY.FOOTER.PAUSE, 7),
 #               pgheading (PAGINATE.ON.HEADING, 9) and mfilepath (INHERIT.MFILE.PATH, 8): the 45th to 53rd.
+# 14 Oct 26 dm  --jobs N: a keyset per worker (SDBOX_KEYSET, sandbox-txnfail.py) and a queue.  The serial run was 50
+#               minutes, 13 of them the sandbox builds; ALL_SUITES is now in the order of the times measured in the
+#               run of 14 Oct (screen 613 s, ide 351, ced about 230, sed-menu 188, sed-edit 139, the rest under 100).
+# 14 Oct 26 dm  --snapshot: the copy, its build and its removal are the script's own (the recipe above had been run by
+#               hand each time).  Measured 14 Oct on a snapshot of the tree: 53 of 53 suites with --jobs 6 in 647 s,
+#               screen (619 s) being the longest piece; the 38 free checks read installsdcore.sh and three documents
+#               outside sdb_ai, which the old recipe did not copy (4 of 38 "failed" for that on the first run).
 # END-HISTORY
 
 set -u
@@ -59,8 +75,8 @@ set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
-# The suites, in the order that shows a failure soonest: the editor (the longest) and the newest first.
-ALL_SUITES="ced screen sed-menu sed-edit ide syntax dbgui edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload footpause pgheading mfilepath collfile dbgcoll akcase coll try oq2 bcomp-a1 stmt-b5 func-b4 qproc-a3 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase sys-b2 conf-b1 lock-b6 file-b8 lang-a15 fix-b10 gates"
+# The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15"
 
 ONLY=""
 SKIP=""
@@ -69,9 +85,12 @@ SUITES_OFF=0
 LIST=0
 LOGS=""
 LIMIT=3000
+JOBS=1
+SNAPSHOT=0
+SNAP=""
 
 usage() {
-  sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -84,10 +103,17 @@ while [ $# -gt 0 ]; do
     --list) LIST=1; shift ;;
     --logs) LOGS=$2; shift 2 ;;
     --limit) LIMIT=$2; shift 2 ;;
+    --jobs) JOBS=$2; shift 2 ;;
+    --snapshot) SNAPSHOT=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "regress: unknown argument '$1' (try --help)" >&2; exit 2 ;;
   esac
 done
+
+case "$JOBS" in
+  [1-8]) ;;
+  *) echo "regress: CANNOT RUN - --jobs must be 1 to 8 (there are eight keysets), not '$JOBS'" >&2; exit 2 ;;
+esac
 
 if [ -n "$ONLY" ]; then SUITES=${ONLY//,/ }; else SUITES=$ALL_SUITES; fi
 KEEP=""
@@ -97,6 +123,25 @@ for s in $SUITES; do
   [ $skipped -eq 0 ] && KEEP="$KEEP $s"
 done
 SUITES=${KEEP# }
+
+# With more than one worker, a long suite that has parts of its own is cut into PIECES, <suite>~<part>+<part>, which run
+# side by side: the piece's script is sandbox-<suite>.py and it is given --only=<part>,<part>.  The screen suite was the
+# longest thing in the run (619 s of 647, 14 Oct 26) and its parts are independent (11 of them, 54 to 164 s each on a
+# fresh build).  The pieces must cover the parts the suite runs by default: test-regress-units.py reads
+# sandbox-screen.py and refuses a list that has drifted.  One worker runs the suite whole, as before.
+declare -A PIECES
+PIECES[screen]="dialogs mouse+resize forms+tabs memo+scroll+owned table+themes+events"
+if [ "$JOBS" -gt 1 ]; then
+  EXPANDED=""
+  for s in $SUITES; do
+    if [ -n "${PIECES[$s]:-}" ]; then
+      for p in ${PIECES[$s]}; do EXPANDED="$EXPANDED $s~$p"; done
+    else
+      EXPANDED="$EXPANDED $s"
+    fi
+  done
+  SUITES=${EXPANDED# }
+fi
 
 if [ $LIST -eq 1 ]; then
   for s in $SUITES; do echo "$s"; done
@@ -108,13 +153,17 @@ if [ ! -d "$TREE/gplbld" ]; then
   exit 2
 fi
 
+count=$(echo $SUITES | wc -w)
+# No more workers than suites.
+[ "$JOBS" -gt "$count" ] && [ "$count" -gt 0 ] && JOBS=$count
+
 echo "regress: tree     $TREE"
 
 # An unknown suite is a refusal, not a pass over nothing.
 if [ $SUITES_OFF -eq 0 ]; then
   for s in $SUITES; do
-    if [ ! -f "$TREE/gplbld/sandbox-$s.py" ]; then
-      echo "regress: CANNOT RUN - no suite '$s' ($TREE/gplbld/sandbox-$s.py is not there)" >&2
+    if [ ! -f "$TREE/gplbld/sandbox-${s%%~*}.py" ]; then
+      echo "regress: CANNOT RUN - no suite '$s' ($TREE/gplbld/sandbox-${s%%~*}.py is not there)" >&2
       exit 2
     fi
   done
@@ -122,59 +171,91 @@ if [ $SUITES_OFF -eq 0 ]; then
     echo "regress: CANNOT RUN - no suite is selected" >&2
     exit 2
   fi
-  held=$(ipcs -m 2>/dev/null | grep -i -E '0x53434c9[12]' | head -2)
-  if [ -n "$held" ]; then
-    echo "regress: CANNOT RUN - a sandbox already holds the shared memory keys 0x53434c91/92:" >&2
-    echo "$held" >&2
-    echo "         stop it with  python3 $TREE/gplbld/sandbox-fromtree.py <its directory> stop  (or ipcrm -M 0x53434c91; ipcrm -S 0x53434c92 if its directory is gone)" >&2
-    exit 2
-  fi
+  k=0
+  while [ $k -lt "$JOBS" ]; do
+    shm=$(printf '0x%08x' $((0x53434C91 + 0x20 * k)))
+    sem=$(printf '0x%08x' $((0x53434C92 + 0x20 * k)))
+    held=$(ipcs -m -s 2>/dev/null | grep -i -E "$shm|$sem" | head -2)
+    if [ -n "$held" ]; then
+      echo "regress: CANNOT RUN - a sandbox already holds the shared memory keys $shm/${sem#0x} (keyset $k of $JOBS):" >&2
+      echo "$held" >&2
+      echo "         stop it with  SDBOX_KEYSET=$k python3 $TREE/gplbld/sandbox-fromtree.py <its directory> stop  (or ipcrm -M $shm; ipcrm -S $sem if its directory is gone)" >&2
+      exit 2
+    fi
+    k=$((k + 1))
+  done
 fi
 
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/sdregress.XXXXXX") || { echo "regress: CANNOT RUN - no scratch directory" >&2; exit 2; }
 [ -n "$LOGS" ] || LOGS="$RUN/logs"
 mkdir -p "$LOGS" || { echo "regress: CANNOT RUN - cannot make $LOGS" >&2; exit 2; }
+CLAIMS="$RUN/claims"
+mkdir -p "$CLAIMS"
 echo "regress: logs     $LOGS"
 
-CURRENT=""
-cleanup() {
-  if [ -n "$CURRENT" ]; then
-    python3 "$TREE/gplbld/sandbox-fromtree.py" "$CURRENT" stop >/dev/null 2>&1
-    rm -rf "${CURRENT:?}"
+WORKERS=""
+trap 'for w in $WORKERS; do kill -TERM "$w" 2>/dev/null; done; wait; [ -n "$SNAP" ] && rm -rf "$SNAP"; echo "regress: interrupted" >&2; exit 2' INT TERM
+
+# --snapshot: a copy of the tree, built, in which the suites run.  rsync gets the files git knows (tracked, and new
+# ones that are not ignored); the build wants the one ignored header; the --free checks read four files at the top of
+# the repository.  The copy is removed when the run ends.
+if [ $SNAPSHOT -eq 1 ]; then
+  command -v rsync >/dev/null 2>&1 || { echo "regress: CANNOT RUN - --snapshot needs rsync" >&2; exit 2; }
+  REPO=$(git -C "$TREE" rev-parse --show-toplevel 2>/dev/null) || { echo "regress: CANNOT RUN - --snapshot needs $TREE inside a git work tree" >&2; exit 2; }
+  if [ "$(cd "$TREE" && pwd -P)" != "$REPO/sdb_ai/sd64" ]; then
+    echo "regress: CANNOT RUN - --snapshot wants the tree to be <repository>/sdb_ai/sd64, and it is $TREE (repository $REPO)" >&2
+    exit 2
   fi
-}
-trap 'cleanup; echo "regress: interrupted" >&2; exit 2' INT TERM
-
-n=0
-total=0
-passed_suites=0
-failed_suites=0
-notrun_suites=0
-failed_list=""
-notrun_list=""
-count=$(echo $SUITES | wc -w)
-T0=$(date +%s)
-
-if [ $SUITES_OFF -eq 0 ]; then
-  echo "regress: suites   $count:$(for s in $SUITES; do printf ' %s' "$s"; done)"
-  echo "regress: each     python3 $TREE/gplbld/sandbox-<suite>.py <fresh directory> --build"
-  echo
+  SNAP="$RUN/snap"
+  mkdir -p "$SNAP"
+  (cd "$REPO" && git ls-files -z --cached --others --exclude-standard sdb_ai | rsync -a --from0 --files-from=- ./ "$SNAP"/) \
+    || { echo "regress: CANNOT RUN - the copy of the tree failed" >&2; rm -rf "$SNAP"; exit 2; }
+  if [ -f "$TREE/gplsrc/sdext_python_inc.h" ]; then
+    mkdir -p "$SNAP/sdb_ai/sd64/gplsrc"
+    cp "$TREE/gplsrc/sdext_python_inc.h" "$SNAP/sdb_ai/sd64/gplsrc/"
+  else
+    echo "regress: note - $TREE/gplsrc/sdext_python_inc.h is not there, so the build may fail" >&2
+  fi
+  for f in installsdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md; do
+    [ -f "$REPO/$f" ] && cp "$REPO/$f" "$SNAP/$f"
+  done
+  if ! (cd "$SNAP/sdb_ai/sd64" && make > "$LOGS/snapshot-make.log" 2>&1); then
+    echo "regress: CANNOT RUN - make failed in the snapshot (see $LOGS/snapshot-make.log)" >&2
+    rm -rf "$SNAP"
+    exit 2
+  fi
+  TREE="$SNAP/sdb_ai/sd64"
+  echo "regress: snapshot $SNAP"
 fi
 
-for s in $SUITES; do
-  [ $SUITES_OFF -eq 1 ] && break
-  n=$((n + 1))
-  d="$RUN/sbx-$s"
-  CURRENT=$d
+declare -A IDX
+i=0
+for s in $SUITES; do i=$((i + 1)); IDX[$s]=$i; done
+
+# --- one suite -----------------------------------------------------------------------------------------------------
+# run_suite <suite> <keyset>: build and run it in a fresh directory, stop and remove that, print its line and write its
+# verdict to $LOGS/<suite>.verdict (status, passed, seconds, why - tab separated), which the end of the run tallies.
+W_DIR=""
+W_KS=0
+CHILD=""
+
+run_suite() {
+  local s=$1 ks=$2 log verdict passed failed why status t1 rc secs line rows only=""
+  W_DIR="$RUN/sbx-$s"
+  W_KS=$ks
   log="$LOGS/$s.out"
+  # a piece: <suite>~<part>+<part> runs sandbox-<suite>.py --only=<part>,<part>
+  case "$s" in *~*) only="--only=$(echo "${s#*~}" | tr '+' ',')" ;; esac
   t1=$(date +%s)
-  timeout "$LIMIT" python3 "$TREE/gplbld/sandbox-$s.py" "$d" --build > "$log" 2>&1
+  timeout "$LIMIT" python3 "$TREE/gplbld/sandbox-${s%%~*}.py" "$W_DIR" --build $only > "$log" 2>&1 &
+  CHILD=$!
+  wait "$CHILD"
   rc=$?
-  python3 "$TREE/gplbld/sandbox-fromtree.py" "$d" stop >/dev/null 2>&1
-  rm -rf "${d:?}"
-  CURRENT=""
+  CHILD=""
+  python3 "$TREE/gplbld/sandbox-fromtree.py" "$W_DIR" stop >/dev/null 2>&1
+  rm -rf "${W_DIR:?}"
+  W_DIR=""
   secs=$(( $(date +%s) - t1 ))
-  total=$((total + secs))
 
   # The suite's own last line: "sandbox-NAME: N passed, M failed" - and nothing else is taken as a verdict.
   verdict=$(grep -E '^sandbox-[A-Za-z0-9._-]+: [0-9]+ passed, [0-9]+ failed' "$log" | tail -1)
@@ -206,20 +287,82 @@ for s in $SUITES; do
     status="PASS"
   fi
 
-  printf '[%2d/%d] %-14s %-8s %5s passed  %4d s  %s\n' "$n" "$count" "$s" "$status" "$passed" "$secs" "$why"
-  case "$status" in
-    PASS) passed_suites=$((passed_suites + 1)) ;;
-    FAIL)
-      failed_suites=$((failed_suites + 1))
-      failed_list="$failed_list $s"
-      grep -E '\[FAIL\]' "$log" | head -5 | cut -c1-200 | sed 's/^/         /'
-      ;;
-    *)
-      notrun_suites=$((notrun_suites + 1))
-      notrun_list="$notrun_list $s"
-      ;;
-  esac
-done
+  line=$(printf '[%2d/%d] %-20s %-8s %5s passed  %4d s  %s' "${IDX[$s]}" "$count" "$s" "$status" "$passed" "$secs" "$why")
+  rows=""
+  if [ "$status" = "FAIL" ]; then
+    rows=$(grep -E '\[FAIL\]' "$log" | head -5 | cut -c1-200 | sed 's/^/         /')
+  fi
+  # One write, so that the lines of two workers do not mix.
+  printf '%s\n' "$line${rows:+$'\n'$rows}"
+  printf '%s\t%s\t%s\t%s\n' "$status" "$passed" "$secs" "$why" > "$LOGS/$s.verdict"
+}
+
+# A worker is a subshell with its own keyset: it takes the next suite nobody has claimed (mkdir is the claim, and is
+# atomic) and runs it, until none is left.
+worker_abort() {
+  [ -n "$CHILD" ] && kill -TERM "$CHILD" 2>/dev/null
+  if [ -n "$W_DIR" ]; then
+    SDBOX_KEYSET=$W_KS python3 "$TREE/gplbld/sandbox-fromtree.py" "$W_DIR" stop >/dev/null 2>&1
+    rm -rf "${W_DIR:?}"
+  fi
+  exit 2
+}
+
+worker() {
+  local ks=$1 s
+  export SDBOX_KEYSET=$ks
+  trap worker_abort TERM
+  for s in $SUITES; do
+    mkdir "$CLAIMS/$s" 2>/dev/null || continue
+    run_suite "$s" "$ks"
+  done
+  exit 0
+}
+
+total=0
+passed_suites=0
+failed_suites=0
+notrun_suites=0
+failed_list=""
+notrun_list=""
+T0=$(date +%s)
+
+if [ $SUITES_OFF -eq 0 ]; then
+  echo "regress: suites   $count:$(for s in $SUITES; do printf ' %s' "$s"; done)"
+  echo "regress: each     python3 $TREE/gplbld/sandbox-<suite>.py <fresh directory> --build   ($JOBS worker$([ "$JOBS" -gt 1 ] && echo s), keysets 0-$((JOBS - 1)))"
+  echo
+  k=0
+  while [ $k -lt "$JOBS" ]; do
+    worker $k &
+    WORKERS="$WORKERS $!"
+    k=$((k + 1))
+  done
+  for w in $WORKERS; do wait "$w"; done
+
+  # The tally, in the order of the list, from what each suite wrote - not from what the workers said.
+  for s in $SUITES; do
+    status=""
+    if IFS=$'\t' read -r status passed secs why < "$LOGS/$s.verdict" 2>/dev/null && [ -n "$status" ]; then
+      :
+    else
+      status="NOT RUN"; passed=0; secs=0; why="no verdict was written (the worker ended)"
+      printf '[%2d/%d] %-20s %-8s %5s passed  %4d s  %s\n' "${IDX[$s]}" "$count" "$s" "$status" "$passed" "$secs" "$why"
+    fi
+    total=$((total + secs))
+    case "$status" in
+      PASS) passed_suites=$((passed_suites + 1)) ;;
+      FAIL)
+        failed_suites=$((failed_suites + 1))
+        failed_list="$failed_list $s"
+        ;;
+      *)
+        notrun_suites=$((notrun_suites + 1))
+        notrun_list="$notrun_list $s"
+        ;;
+    esac
+  done
+fi
+rm -rf "$CLAIMS"
 
 free_failed=0
 free_ran=0
@@ -241,9 +384,10 @@ fi
 echo
 elapsed=$(( $(date +%s) - T0 ))
 if [ $SUITES_OFF -eq 0 ]; then
-  echo "regress: $count suites: $passed_suites passed, $failed_suites failed${failed_list:+ ($failed_list )}, $notrun_suites not run${notrun_list:+ ($notrun_list )}; $total s in the suites, $elapsed s in all"
+  echo "regress: $count suites: $passed_suites passed, $failed_suites failed${failed_list:+ ($failed_list )}, $notrun_suites not run${notrun_list:+ ($notrun_list )}; $total s in the suites, $elapsed s in all${JOBS:+ ($JOBS worker$([ "$JOBS" -gt 1 ] && echo s))}"
 fi
 
+[ -n "$SNAP" ] && rm -rf "$SNAP"
 rmdir "$RUN/logs" 2>/dev/null
 if [ "$LOGS" != "$RUN/logs" ]; then rmdir "$RUN" 2>/dev/null; fi
 
