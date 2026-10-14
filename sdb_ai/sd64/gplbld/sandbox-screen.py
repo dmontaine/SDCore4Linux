@@ -358,6 +358,24 @@ end
    screen hide f
    res = 'DONE ':t:'|'
 """),
+    # a scroll bar of its own: 20 lines, 5 shown, a bar 6 long; every move is a change event
+    "zzscsb": dialogue_program("""   screen form title 'Scroll' at 10,3 size 30,12 returning f
+   screen label f, 'l', 'lines' at 6,1 width 10
+   screen scrollbar f, 'sb', 20 at 2,1 size 1,6 visible 5
+   screen button f, 'ok', '&OK' at 6,9 default
+   log = ''
+   loop
+      screen wait f timeout 8 returning ev else exit
+      if ev<1> = 'change' then
+         log := ev<3>:';'
+         screen set f, 'l' text 'line ':ev<3>
+      end
+      if ev<1> = 'button' then exit
+   repeat
+   screen get f, 'sb' returning v
+   screen hide f
+   res = 'LOG ':log:' V ':v:'|'
+"""),
     # a wait that times out, and the hide that follows
     "zzscwt2": dialogue_program("""   res = 'NO-ELSE'
    screen form title 'Late' at 10,3 size 30,6 returning f
@@ -2056,6 +2074,32 @@ def part_table2(box):
     t.end()
 
 
+def part_scrollbar(box):
+    say("\n--- a scroll bar of its own -------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzscsb")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "lines")
+    r0 = p[0] if p else 0
+    c0 = (p[1] if p else 0) - 4
+
+    def bar(L):
+        return "".join(L[r0 + i][c0] for i in range(6))
+
+    row("the bar: ^ at the top, v at the bottom, the thumb (# one cell: 5 of 20 of 4 track cells) right under the ^", p is not None and bar(L) == "^#|||v", repr(bar(L)))
+    L = t.keys(DOWN)
+    row("Down moves it one: the thumb has not left its cell (a quarter of the way is still the first cell of four) and the label says line 2",
+        any("line 2" in l for l in L), "\n".join(L[r0:r0 + 3]))
+    L = t.keys(PGDN)
+    L = t.keys(END)
+    row("End goes to the last place, 16 (20 lines, 5 shown): the thumb is on the last track cell, next to the v", bar(L) == "^|||#v", repr(bar(L)))
+    t.keys(TAB)
+    t.keys(RET)
+    row("every move was a change event with the number of the first line, and SCREEN GET answers where the bar is: 16",
+        final(t, "LOG") == "2;6;16; V 16|", repr(final(t, "LOG")))
+    t.end()
+
+
 def part_set(box):
     say("\n--- SCREEN SET: WRAP, READONLY, VISIBLE ----------------------------------------------------------------")
     t = Term(box, "RUN bp zzscset")
@@ -2458,6 +2502,7 @@ def main():
         if "events" in parts:
             part_events(box)
             part_set(box)
+            part_scrollbar(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
