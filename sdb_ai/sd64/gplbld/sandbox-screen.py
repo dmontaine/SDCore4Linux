@@ -1237,6 +1237,7 @@ PROGS.update({
 })
 
 
+F3 = "\x1bOR"
 CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F = (
     "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06")
 
@@ -1270,6 +1271,28 @@ PROGS.update({
    screen get f, 'v' returning t
    screen get f, 'e' returning u
    res := ' ':convert(@fm, '/', t):'|':convert(@fm, '/', u):'|'
+"""),
+})
+
+
+PROGS.update({
+    # a table of four columns in 22 cells (so the last two are off to the right), five rows, rows that can be marked
+    "zzthtbs": dialogue_program("""   cols = 'Name':@sm:'8L':@vm:'Qty':@sm:'4R':@vm:'City':@sm:'8L':@vm:'Code':@sm:'6L'
+   rows = 'Smith':@vm:'12':@vm:'Albany':@vm:'A1'
+   rows<2> = 'Jones':@vm:'7':@vm:'Boston':@vm:'B2'
+   rows<3> = 'Adams':@vm:'150':@vm:'Chicago':@vm:'C3'
+   rows<4> = 'Baker':@vm:'3':@vm:'Denver':@vm:'D4'
+   rows<5> = 'Clark':@vm:'44':@vm:'Elgin':@vm:'E5'
+   screen form title 'Sorting' at 10,3 size 40,14 returning f
+   screen table f, 'tbl', cols, rows at 2,1 size 22,6 multi
+   screen button f, 'ok', '&OK' at 10,9 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'tbl' returning v
+   res := ' ':convert(@vm, ',', v):'|'
 """),
 })
 
@@ -1950,6 +1973,48 @@ def part_memo2(box):
     t.end()
 
 
+def part_table2(box):
+    say("\n--- the table: sorting, marked rows, columns -----------------------------------------------------------")
+    t = Term(box, "RUN bp zzthtbs")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "Name")
+    r0 = p[0] if p else 0
+    c0 = p[1] if p else 0
+
+    def names(L):
+        return [L[r0 + 1 + i][c0:c0 + 8].rstrip() for i in range(5)]
+
+    row("the table: the heading, five names; the columns that do not fit (Code, most of City) are off the right edge",
+        p is not None and names(L) == ["Smith", "Jones", "Adams", "Baker", "Clark"] and "Code" not in L[r0], repr((names(L), L[r0])))
+    L = t.keys(RIGHT, F3)
+    row("Right makes Qty the current column and F3 sorts by it, up, as NUMBERS (3, 7, 12, 44, 150, not 12, 150, 3...): Baker Jones Smith Clark Adams, "
+        "and the heading says ^",
+        names(L) == ["Baker", "Jones", "Smith", "Clark", "Adams"] and "^" in L[r0][c0 + 9:c0 + 14], repr((names(L), L[r0])))
+    L = t.keys(F3)
+    row("F3 again: down, Adams first, v in the heading", names(L) == ["Adams", "Clark", "Smith", "Jones", "Baker"] and "v" in L[r0][c0 + 9:c0 + 14], repr((names(L), L[r0])))
+    L = t.keys(F3)
+    row("F3 again: the order of the rows, no mark", names(L) == ["Smith", "Jones", "Adams", "Baker", "Clark"] and "^" not in L[r0] and "v" not in L[r0][c0 + 9:c0 + 14], repr((names(L), L[r0])))
+    L = t.keys(" ", DOWN, DOWN, " ")
+    lead = [L[r0 + 1 + i][c0 - 1] for i in range(5)]
+    row("the space bar marks rows: Smith and Adams have a * in front of them, the others not", lead == ["*", " ", "*", " ", " "], repr(lead))
+    L = t.keys(F3)
+    lead = [L[r0 + 1 + i][c0 - 1] for i in range(5)]
+    row("the marks stay with their rows through a sort: Baker Jones *Smith Clark *Adams",
+        names(L) == ["Baker", "Jones", "Smith", "Clark", "Adams"] and lead == [" ", " ", "*", " ", "*"], repr((names(L), lead)))
+    L = t.keys(">")
+    row("> makes the current column (Qty) one cell wider: City moves right by one", L[r0][c0 + 14:c0 + 18].strip() == "City"[:len(L[r0][c0 + 14:c0 + 18].strip())] or "City" in L[r0], repr(L[r0]))
+    L = t.keys(RIGHT, RIGHT, RIGHT)
+    row("Right to the last column scrolls the table sideways: Code is shown and Name is gone",
+        "Code" in L[r0] and "Name" not in L[r0], repr(L[r0]))
+    L = t.keys(LEFT, LEFT, LEFT)
+    row("Left back to the first column scrolls it back: Name is shown", "Name" in L[r0], repr(L[r0]))
+    t.keys(TAB)
+    t.keys(RET)
+    row("the program has the NUMBERS (in the data's order) of the rows marked: 1 and 3", final(t, "PRESSED") == "ok| 1,3|", "")
+    t.end()
+
+
 def part_menu2(box):
     say("\n--- menus: disabled and checked entries, submenus -----------------------------------------------------")
     t = Term(box, "RUN bp zzscmfl")
@@ -2261,6 +2326,7 @@ def main():
             part_mouse(box)
         if "table" in parts:
             part_table(box)
+            part_table2(box)
         if "scroll" in parts:
             part_scroll(box)
         if "memo" in parts:
