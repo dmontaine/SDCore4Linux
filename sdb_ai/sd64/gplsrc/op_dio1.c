@@ -564,6 +564,7 @@ bool get_voc_file_reference(
 
 Private void open_file(bool map_name) /* Map file name via VOC entry */
 {
+  hsm_io(HSM_OPEN); /* 14 Oct 26: Hot Spot Monitor counts, sheet 491 */
   /* Stack:
 
       |================================|=============================|

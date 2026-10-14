@@ -490,6 +490,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    end
 
    who = initial.account
+   void kernel(K$SET.ACCOUNT, who)      ;* 14 Oct 26 - the user table's account (LISTU, sheet 24 and 29)
    close acc.f
 
    * Set @TTY

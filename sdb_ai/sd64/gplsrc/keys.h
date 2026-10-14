@@ -266,6 +266,14 @@
 #define K_OS_EXEC            94
 #define K_PATH_OK            95
 #define K_PATH_IN            96
+/* 14 Oct 26 dm - 1.2-0 sheet items 24, 29 and 38 (LISTU).  This tree's own block, 90-99; GPL.BP/INT$KEYS.H carries
+   the same numbers.
+     K_SET_ACCOUNT  the account the session is in, for the user table.  The argument is the account name, set only from
+                    a $internal program (LOGIN, CPROC's logto, APISRVR, which own entry to an account), and the name
+                    as it stands is returned.  K_USERS answers it as the ninth value of each user.
+     K_USER_PEAK    the most user table cells in use at once since SD started (sysseg->users_peak).               */
+#define K_SET_ACCOUNT        97
+#define K_USER_PEAK          98
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

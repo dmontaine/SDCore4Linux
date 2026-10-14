@@ -23,6 +23,8 @@
  *               Solo's SOLO 12, adopted; S.48).
  * 14 Oct 26 dm  FORCE.RELOAD (openQM ref 37): stale_objects(),
  *               object_is_stale(), refresh_subr_object().
+ * 14 Oct 26 dm  1.2-0 bundle A-5, sheet 491: the Hot Spot Monitor counts opens, reads, writes and deletes
+ *               by program (hsm_io(), OBJECT.io, HSM.io, hsm_dump).
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -54,6 +56,7 @@ struct OBJECT {
 #define OBJ_GLOBAL 0x0002  /* Loaded from global catalogue */
 #define OBJ_STALE 0x0004   /* FORCE.RELOAD: superseded, in use through a link */
   u_int16_t pad;
+  u_int32_t io[4]; /* HSM: opens, reads, writes, deletes (HSM_OPEN...); keeps the header 8 byte aligned */
   struct OBJECT_HEADER code; /* Object code */
 };
 #define OBJHDRSIZE (offsetof(OBJECT, code))
@@ -259,6 +262,7 @@ found:
 
   obj->cp_time = 0;
   obj->calls = (hsm) ? 1 : 0;
+  memset(obj->io, 0, sizeof(obj->io));
   obj->flags = flags;
 
   Seek(obj_fu, 0, SEEK_SET);
@@ -587,6 +591,7 @@ struct HSM {
   HSM* next;
   u_int64 cp_time;
   int32_t calls;
+  u_int32_t io[4]; /* opens, reads, writes, deletes */
   char name[1];
 };
 
@@ -599,6 +604,7 @@ Private u_int64 last_cp = 0;
 Private void hsm_log(OBJECT* obj) {
   HSM* p;
   int bytes;
+  int i;
 
   hsm_enter(); /* Force update of OBJECT cp_time */
 
@@ -608,6 +614,8 @@ Private void hsm_log(OBJECT* obj) {
 
       p->cp_time += obj->cp_time;
       p->calls += obj->calls;
+      for (i = 0; i < 4; i++)
+        p->io[i] += obj->io[i];
       goto exit_hsm_log;
     }
   }
@@ -629,10 +637,12 @@ Private void hsm_log(OBJECT* obj) {
   strcpy((char*)(p->name), obj->code.ext_hdr.prog.program_name);
   p->cp_time = obj->cp_time;
   p->calls = obj->calls;
+  memcpy(p->io, obj->io, sizeof(p->io));
 
 exit_hsm_log:
   obj->cp_time = 0;
   obj->calls = 0;
+  memset(obj->io, 0, sizeof(obj->io));
 }
 
 /* ======================================================================
@@ -646,6 +656,7 @@ void hsm_on() {
   for (obj = object_head; obj != NULL; obj = obj->next) {
     obj->calls = 0;
     obj->cp_time = 0;
+    memset(obj->io, 0, sizeof(obj->io));
   }
 
   for (p = hsm_head; p != NULL; p = q) {
@@ -682,6 +693,22 @@ void hsm_enter() {
 }
 
 /* ======================================================================
+   hsm_io()  -  Count an open, read, write or delete against the program
+   that is running (14 Oct 26, sheet item 491).  HSM_OPEN... are in sd.h.
+   Attempts are counted, whether or not the operation then succeeds.
+
+   Only what the program's own object code does is counted: when c_base is
+   something else, the operation is being done by recursive code (pcode) on
+   the program's behalf - OPEN resolving its VOC name, READV and WRITEV
+   reading and writing the record they change - and that is not the
+   program's open, read or write.                                          */
+
+void hsm_io(int what) {
+  if (hsm && (hsm_old_obj != NULL) && (c_base == (u_char*)(&(hsm_old_obj->code))))
+    hsm_old_obj->io[what]++;
+}
+
+/* ======================================================================
    hsm_dump()  -  Return HSM data                                         */
 
 STRING_CHUNK* hsm_dump() {
@@ -703,7 +730,8 @@ STRING_CHUNK* hsm_dump() {
   for (p = hsm_head; p != NULL; p = p->next) {
     if (str != NULL)
       ts_copy_byte(FIELD_MARK);
-    ts_printf("%s\xfd%d\xfd%lld", p->name, p->calls, p->cp_time / 1000);
+    ts_printf("%s\xfd%d\xfd%lld\xfd%u\xfd%u\xfd%u\xfd%u", p->name, p->calls, p->cp_time / 1000,
+              p->io[HSM_OPEN], p->io[HSM_READ], p->io[HSM_WRITE], p->io[HSM_DELETE]);
   }
 
   ts_terminate();

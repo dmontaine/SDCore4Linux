@@ -89,6 +89,7 @@
       $define K$USERS.UNAME   6       ;* User login name
       $define K$USERS.DEV     7       ;* TTY name
       $define K$USERS.LOGIN   8       ;* Login time
+      $define K$USERS.ACCOUNT 9       ;* Account the session is in (14 Oct 26, sheet 24 and 29; empty until it enters one)
       $define K$CONFIG.DATA     16       ;* Configuration data
       $define K$LICENCE         17       ;* Validate licence data
       $define K$INIPATH         18       ;* Get ini file pathname
@@ -180,6 +181,11 @@
 * 13 Oct 26 dm - second sitting.  K$PATH.IN: "directory : @fm : pathname", 1 if the pathname is inside the
 *   directory (geometry only, realpath).  _VOC_REF uses it for a file reached through a Q-pointer.
       $define K$PATH.IN         96       ;* 1 if the pathname is inside the directory
+* 14 Oct 26 dm - sheet items 24, 29 and 38 (LISTU).  K$SET.ACCOUNT: the account the session is in, for the user
+*   table; settable only from $internal (LOGIN, CPROC's logto, APISRVR), the name as it stands is returned.
+*   K$USER.PEAK: the most user table cells in use at once since SD started.  Must match gplsrc/keys.h.
+      $define K$SET.ACCOUNT     97       ;* Set the session's account name (user table)
+      $define K$USER.PEAK       98       ;* Peak number of users since SD started
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?
