@@ -410,7 +410,7 @@ compile errors are refused with their messages. Cost: about 130 lines in bcomp (
 | 2 | modal dialogues: `menu`, `menubar`, `pick`, `ask`, `msgbox at` - DONE | medium | each verb: choose, cancel, keys, background restored cell for cell (106 rows with stage 1; ten mutants, see PROJECT_STATUS) |
 | 3 | the form (a collection) and its container; label, frame, entry, check, radio, list, button; focus ring; `run`, `get`, `set`, `focus`, `values` - DONE | large | the 25-line program above, field by field; Tab / Shift-Tab; default and cancel buttons |
 | 4 | `wait` (events), `combo`, tabs, scroll bar, status line, progress - DONE (tabs and the scroll bar painter 12 Oct, third sitting; the standalone scroll bar widget 13 Oct) | medium | event order; a combo over a form; scrolling lists |
-| 5 | colour themes - DONE; mouse - DONE (xterm SGR 1006; `_keycode` binds ESC [ <); resize - NOT built, needs the kernel to read the window size (the owner's say, see "Resize" above) | medium | attributes; clicks; a resized pty |
+| 5 | colour themes - DONE; mouse - DONE (xterm SGR 1006; `_keycode` binds ESC [ <); resize - DONE 13 Oct (the kernel reads the window size; see "Resize" above) | medium | attributes; clicks; a resized pty |
 | 6 | text area and viewer (`memo`, with selection, undo and find: 13 Oct), `table` (sorting, row marks, column resize, sideways scroll: 13 Oct), `tree` (13 Oct) - DONE; an editor widget as a separate widget, `ced_edit` and the debugger on the library - not built | large | the editors' existing suites (`sandbox-ced.py`) |
 | 7 | carry to Solo (bcomp, the library, 11167-11170), then the Windows agent when Core is declared stable | small each | their own suites |
 
@@ -481,10 +481,13 @@ dies with reporting on (break, error) leaves the terminal reporting, and the mou
 sends no mode reset when a program ends (it never sends `smkx` / `rmkx` either). The proper fix is a kernel hook, which is
 the owner's to ask for; the documentation says what to do (`reset`).
 
-**Resize - NOT built, and the earlier plan rested on a false claim.** SD never reads the window size: there is no
-`TIOCGWINSZ` or `SIGWINCH` anywhere in `gplsrc`. `@crtwide` / `@crthigh` are terminfo's 120 x 36 unless `TERM w,h` was
-typed or `LOGIN` found `COLUMNS` / `LINES` in the environment (which a shell rarely exports). So a program on an 80 x 24
-terminal draws for 120 x 36 today, and `LIST` pages at 36 lines. Options, in the order I would take them, all conditional:
+**Resize - BUILT 13 Oct 26 as option (B), on the owner's "B. is fine, do it".** What follows is the analysis that led to
+it, kept for the reasons: before it, SD never read the window size - there was no `TIOCGWINSZ` or `SIGWINCH` anywhere in
+`gplsrc`, and `@crtwide` / `@crthigh` were terminfo's 120 x 36 unless `TERM w,h` was typed or `LOGIN` found `COLUMNS` /
+`LINES` in the environment. Now the kernel reads the pty's size at start-up and in the SIGWINCH handler (`linuxio.c`,
+`op_tio.c` `tio_check_resize`), kernel key 92 (`K$WINSIZE`) returns it, `LOGIN` prefers it to terminfo's default, the
+library's `$sl_key` reports `resize`, and `screen wait` gives a `resize` event. Options considered, in the order I
+would have taken them, all conditional:
 (B) the kernel reads the pty's size at start-up and on SIGWINCH into the display size, and `LOGIN` prefers it to terminfo's
 default: right for every session, but `@crtwide` changes for all of them, so it is a behaviour change to be agreed;
 (C) the same read, but only through a `SYSTEM()` / `KERNEL()` key that the library calls from `screen open` and `screen key`,
@@ -492,7 +495,7 @@ and SIGWINCH only sets a flag: nothing else changes, at the price that only libr
 (A) no kernel change and the library asks nothing: a program keeps using `TERM w,h`. Falsified if the owner wants
 `@crtwide` left at terminfo's value for compatibility with scripts - then (C) is the only one left.
 
-## 13 Oct 26 additions (built and tested in `sandbox-screen.py`; not merged to Dev)
+## 13 Oct 26 additions (built and tested in `sandbox-screen.py`; merged to Dev 13 Oct, `2ca25c7`)
 
 **Menus.** An item carries flags in subvalue 4: `D` disabled (drawn in the style `bar.disabled`, skipped by the
 cursor), `C` checked (a `*` in the first cell). A submenu is a menu whose title begins with `>` and is not on the
