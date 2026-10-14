@@ -48,6 +48,10 @@
 # 14 Oct 26 dm  chained added (OPTION CHAINED.SELECT, 6 rows): the 42nd.
 # 14 Oct 26 dm  execlist added ($MODE EXECUTE.CLEARLIST, 5 rows): the 43rd.
 # 14 Oct 26 dm  partial added ($MODE PARTIAL.EXPRESSIONS, 7 rows): the 44th.
+# 14 Oct 26 dm  the A-1 / A-3 / A-4 batch: classas (INHERITS AS and empty method brackets, 8 rows), stdfil (the default
+#               file variable, 17), wdthenelse (WRITE.DELETE.THEN.ELSE, 17), bpv (the X breakpoint control and @BPV, 6),
+#               numexp (NUMERIC.EXPONENT, 27), forcereload (FORCE.RELOAD, 7), footpause (QUERY.FOOTER.PAUSE, 7),
+#               pgheading (PAGINATE.ON.HEADING, 9) and mfilepath (INHERIT.MFILE.PATH, 8): the 45th to 53rd.
 # END-HISTORY
 
 set -u
@@ -56,7 +60,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, in the order that shows a failure soonest: the editor (the longest) and the newest first.
-ALL_SUITES="ced screen sed-menu sed-edit ide syntax dbgui edbug openzero pickrn mlmask chained execlist partial collfile dbgcoll akcase coll try oq2 bcomp-a1 stmt-b5 func-b4 qproc-a3 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase sys-b2 conf-b1 lock-b6 file-b8 lang-a15 fix-b10 gates"
+ALL_SUITES="ced screen sed-menu sed-edit ide syntax dbgui edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload footpause pgheading mfilepath collfile dbgcoll akcase coll try oq2 bcomp-a1 stmt-b5 func-b4 qproc-a3 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase sys-b2 conf-b1 lock-b6 file-b8 lang-a15 fix-b10 gates"
 
 ONLY=""
 SKIP=""
