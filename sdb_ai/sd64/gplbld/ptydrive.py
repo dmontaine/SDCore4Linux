@@ -28,15 +28,19 @@ import struct
 import sys
 import termios
 import time
+import codecs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from termscreen import Screen  # noqa: E402
 
 
 class PtySession:
-    def __init__(self, argv, cwd, env, cols=100, rows=24):
+    def __init__(self, argv, cwd, env, cols=100, rows=24, utf8=False):
+        """utf8 True: what the program writes is decoded as UTF-8, so a three-byte character is one cell of the emulated
+        screen, as on a UTF-8 terminal (the default is one cell to a byte, which is what every older suite relies on)."""
         self.cols = cols
         self.rows = rows
+        self.dec = codecs.getincrementaldecoder("utf-8")("replace") if utf8 else None
         self.raw = b""
         self.screen = Screen(cols, rows)
         self.exited = False
@@ -85,7 +89,7 @@ class PtySession:
             r, _, _ = select.select([self.fd], [], [], 0)
         if got:
             self.raw += got
-            self.screen.feed(got.decode("latin-1"))
+            self.screen.feed(self.dec.decode(got) if self.dec else got.decode("latin-1"))
         return got
 
     def settle(self, idle=0.35, limit=20.0):

@@ -70,12 +70,13 @@ def sess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=100, rows=30, term="xterm", termsize=True):
-        """termsize False: the size is not typed (TERM w,h): SD has to find it out from the terminal itself."""
+    def __init__(self, box, cmd, cols=100, rows=30, term="xterm", termsize=True, utf8=False):
+        """termsize False: the size is not typed (TERM w,h): SD has to find it out from the terminal itself.
+        utf8 True: the emulator decodes UTF-8 (a three-byte character is one cell)."""
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
-        self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows)
+        self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows, utf8=utf8)
         self.s.settle(1.0)
         self.s.type("TERM %s\r" % term)
         if termsize:
@@ -529,6 +530,19 @@ end
    screen size returning dims
    crt @(0, 20) : 'SIZE ' : dims<1> : 'x' : dims<2> : '|'
    screen key returning k
+end
+""",
+    # borders in line-drawing characters (SCREEN OPEN ... LINES), a message box in them, and plain ones after SCREEN CLOSE
+    "zzscbln": """   screen open clear lines else crt @(0, 28) : 'NOTERM' ; stop
+   screen box at 2,2 size 12,4 title 'Hi'
+   screen text 'a + b - c | d' at 2,8
+   screen msgbox 'Boxed.' title 'T' at 20,3 returning n
+   screen key returning k
+   screen close
+   screen open clear
+   screen box at 2,2 size 12,4 title 'Hi'
+   screen key returning k
+   screen close
 end
 """,
     # a background of styled rows, then a dialogue over it, then the key that ends the program
@@ -2074,6 +2088,23 @@ def part_table2(box):
     t.end()
 
 
+def part_lines(box):
+    say("\n--- borders in line-drawing characters --------------------------------------------------------------")
+    t = Term(box, "RUN bp zzscbln", utf8=True)
+    L = t.keys()
+    TL, TR, BL, BR, H, V = "┌", "┐", "└", "┘", "─", "│"
+    row("LINES: the box is 12 cells wide with the Unicode line-drawing characters, the title in the top border",
+        L[2][2:14] == TL + H + " Hi " + H * 5 + TR and L[5][2:14] == BL + H * 10 + BR and L[3][2] == V and L[3][13] == V, repr(L[2:6]))
+    row("...and a + - | the program wrote itself is untouched (the stand-ins are not those characters)", "a + b - c | d" in L[8], repr(L[8]))
+    row("the message box is in them too: its top border with the title and its side",
+        L[3][20:21] == TL and "T" in L[3][20:30] and L[4][20] == V and "Boxed." in L[4], "\n".join(L[3:9]))
+    L = t.keys(RET, "a")
+    row("after SCREEN CLOSE and a second SCREEN OPEN without LINES the box is + - | again and no line-drawing character is left",
+        L[2][2:14] == "+- Hi -----+" and L[5][2:14] == "+" + "-" * 10 + "+" and not any(c in "".join(L) for c in (TL, TR, BL, BR, H, V)), "\n".join(L[:12]))
+    t.keys("b")
+    t.end()
+
+
 def part_scrollbar(box):
     say("\n--- a scroll bar of its own -------------------------------------------------------------------------")
     t = Term(box, "RUN bp zzscsb")
@@ -2503,6 +2534,7 @@ def main():
             part_events(box)
             part_set(box)
             part_scrollbar(box)
+            part_lines(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
