@@ -1,6 +1,69 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  A DEVELOPMENT ENVIRONMENT: THE IDE VERB.
+
+           IDE opens one full-screen program for working on BASIC programs
+           and the other text records of an account, built on the screen
+           library.  Type IDE at the command prompt, or IDE file record to
+           start on a record.
+
+             The screen  A menu bar on the top row (F10 or Esc opens it), a
+                        tree of the account's files on the left, the editor
+                        on the right with a tab for each record that is open,
+                        a table of the compiler's errors (or of search
+                        results) under it, and a status line that names the
+                        record, the cursor's line and column and a star when
+                        it has unsaved changes.
+             The tree   Return on a file lists its records (the first 2000)
+                        and Return on it again closes the list.  Return on a
+                        record opens it.  A letter jumps to the next entry
+                        that starts with it.
+             The editor It is the screen library's text area, so its keys
+                        are the ones SCREEN MEMO has: selection, cut, copy
+                        and paste, undo and redo, find, line numbers.  The
+                        text is coloured as SD BASIC, C, Python, JSON, shell
+                        or Markdown by the file and record name.
+             Build      F7 saves and compiles, and the compiler's lines go in
+                        the table; Return on one goes to its line, and F4
+                        goes to the next.  F8 compiles and catalogues, F5
+                        compiles and runs, F9 compiles with debugging and
+                        runs the debugger.  Run and debug give the terminal
+                        to the program and come back to the IDE when you
+                        press Return.  Nothing runs if the compile failed.
+             Search     Ctrl-R finds a text in every record of the file the
+                        tree is on (the first 2000 records, 500 lines) and
+                        lists the lines in the same table; Return opens the
+                        record at the line.
+             Saving     F2 or Ctrl-S writes the record.  If somebody else
+                        changed it since the IDE read it, the IDE asks before
+                        it overwrites.  Closing a record or leaving with
+                        unsaved changes asks whether to save them.
+
+           On a UTF-8 terminal (LC_ALL, LC_CTYPE or LANG says UTF-8) the
+           IDE draws its frame, menus and scroll bars with line-drawing
+           characters; anywhere else it uses + - | as before.  The colours
+           are the blue theme: a light-grey bar, white text on black for the
+           tree and the editor, and a light-blue column between them.
+
+           The keys follow SED where the two do the same thing: Ctrl-S
+           saves, Ctrl-Q quits, Ctrl-L goes to a line, Ctrl-X, Ctrl-C and
+           Ctrl-V cut, copy and paste, Ctrl-Z and Ctrl-Y undo and redo,
+           Ctrl-F finds forward and Ctrl-B backward (Return on the question
+           repeats the last text), Ctrl-R replaces a text through the record
+           and Ctrl-W writes the text to another record.  Find in all the
+           records of a file is F11.  In the text area of every program
+           that uses SCREEN MEMO (and so in the IDE) a word back and on are
+           now Ctrl-P and Ctrl-U: they were Ctrl-B and Ctrl-F, which are
+           SED's find keys.
+
+           What it does not do: it does not lock records while they are open
+           (the check at saving is what protects against a second editor),
+           it has no replace across records, no project files and no
+           completion.  It follows the size of the window, with a minimum of
+           60 columns by 16 lines.  SED is unchanged and stays for those who
+           want its own keys.
+
 13 Oct 26  THE ACCUTERM SUPPORT IS GONE, AND THE DEBUGGER AND IMMEDIATE
            MESSAGES WORK ON ANY TERMINAL.
 

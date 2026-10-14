@@ -1306,8 +1306,8 @@ PROGS.update({
 
 F3 = "\x1bOR"
 F2_KEY, F3_KEY, F4_KEY = "\x1bOQ", "\x1bOR", "\x1bOS"
-CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F = (
-    "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06")
+CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F, CTRL_P, CTRL_U = (
+    "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06", "\x10", "\x15")
 
 PROGS.update({
     # a wrapped text area (19 cells of text) of five rows over three lines: a long one of words, a short one and a
@@ -2036,6 +2036,16 @@ def part_memo2(box):
     row("one Ctrl-Z takes the whole run of typing back (a run is one step): 'X dog'", area(L)[2] == "X dog", repr(area(L)))
     L = t.keys(CTRL_N)
     row("Ctrl-N with nothing more to find rings the bell and leaves the text as it is", area(L)[2] == "X dog", repr(area(L)))
+    L = t.keys(CTRL_F, BS * 4, "fox", RET)               # the question starts with the last text ('LAZY'): rubbed out
+    sel = t.attrs(r0 + 1)[c0:c0 + 4]
+    row("find (14 Oct 26): Ctrl-F asks and finds forward, as SED's does - 'fox' on the second row is selected", sel == "rrrn", repr(sel))
+    L = t.keys(CTRL_B, BS * 3, "quick", RET)
+    sel = t.attrs(r0)[c0 + 4:c0 + 10]
+    row("find backward: Ctrl-B asks and finds the last 'quick' before the selection (the first row)", sel == "rrrrrn", repr(sel))
+    L = t.keys(CTRL_B, RET)
+    sel = t.attrs(r0)[c0 + 4:c0 + 10]
+    row("...and Return on the question, which starts with the last text, finds it again: the one text 'quick' is found "
+        "again (the search wraps round the text)", sel == "rrrrrn", repr(sel))
     L = t.keys(TAB)
     t.keys(RET)
     row("Return on the button: the program has the text, three lines, edited as above and wrapped nowhere",
@@ -2057,8 +2067,9 @@ def part_memo2(box):
     L = t.keys(TAB, CTRL_V)
     p2 = at(L, "onex")
     row("Tab to the editor and Ctrl-V: what the viewer copied is pasted in front of its 'x': 'onex'", p2 is not None, "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 9]))
-    L = t.keys(END, " red blue", CTRL_B, CTRL_B, CTRL_F, "Q")
-    row("Ctrl-B goes a word back and Ctrl-F a word on: 'onex red blue' becomes 'onex redQ blue'", at(L, "onex redQ blue") is not None, "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 9]))
+    L = t.keys(END, " red blue", CTRL_P, CTRL_P, CTRL_U, "Q")
+    row("Ctrl-P goes a word back and Ctrl-U a word on (they were Ctrl-B and Ctrl-F until 14 Oct 26): "
+        "'onex red blue' becomes 'onex redQ blue'", at(L, "onex redQ blue") is not None, "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 9]))
     t.keys(TAB)
     t.keys(RET)
     row("the program has both texts: the viewer's untouched, the editor's edited",

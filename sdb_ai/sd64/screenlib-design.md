@@ -464,8 +464,9 @@ falsify it:* a form with two strips (the first one wins); pages inside pages (no
 the value, no wrapping (it pans sideways), the last column is a scroll bar, Page Up/Down scroll a page less a line with
 the cursor keeping its screen row. Built 13 Oct: `wrap` (SCREEN MEMO ... WRAP; SCREEN SET ... WRAP b) wraps long lines at the width.
 Selection (Ctrl-G marks, Ctrl-X cut, Ctrl-C or Ctrl-O copy, Ctrl-V paste; the clipboard is shared between
-memos), undo and redo (Ctrl-Z, Ctrl-Y; 100 steps, a run of typing is one step), find (Ctrl-T prompts,
-Ctrl-N finds the next; ignores case; wraps) and word movement (Ctrl-B, Ctrl-F). A readonly viewer can
+memos), undo and redo (Ctrl-Z, Ctrl-Y; 100 steps, a run of typing is one step), find (Ctrl-F or Ctrl-T prompts,
+Ctrl-B prompts and finds backwards, Ctrl-N finds the next; ignores case; wraps) and word movement (Ctrl-P back,
+Ctrl-U on: Ctrl-B and Ctrl-F were these until 14 Oct 26, when they became SED's find keys). A readonly viewer can
 select, copy and find. `SYNTAX name` colours the text as a language of `$sl_syntax` (the theme's syntax styles; `dark`, `light`,
 `classic` and `blue` have them, `mono` none) and `LNUM` puts line numbers down the left (13 Oct, later the same day; `part_memo3`).
 Still not built: a separate editor widget (`ced_edit` is on the library since 13 Oct, as a table and dialogues, not as a memo).
@@ -633,7 +634,27 @@ superseded by the owner's choice.
    both are what it would stand on.
 Not changed by this: scrolling pick lists (`screen pick` already scrolls), a separate editor widget (the memo is it).
 
-### The IDE, written out (13 Oct 26: the owner asked for "more information about this"; nothing is built)
+### The IDE, written out (13 Oct 26: the owner asked for "more information about this"; BUILT 14 Oct 26, see the next paragraph)
+
+**Built 14 Oct 26 (owner: "go ahead and build the ide").** `gpl.bp/ide` (`$ide`, VOC verb `ide`, messages 11198-11230), one
+user-level program on the `screen` statement: a form of tree, tabs, memo (`syntax`, `lnum`), table and a default button,
+the menu bar above it and a status line under it. Stages 1 and 2 were built together: open, save (asks if the record
+changed on disk), compile with the table that jumps (Return, F4), catalogue, run, debug, find in the records of a file,
+a tab for each open record (text and cursor kept per tab), new record, close with the save question, quit, theme, help,
+and the layout follows the window (`resize` rebuilds the form from the state). Measured: 100 keystrokes in a 2,000-line
+record with `sd.basic` colour took 3.2 s including 20 ms of idle per key - about 30 ms a key, so the falsifier above
+(memo too slow) did not hold; the colour is still worked out from line 1 at each paint. `sandbox-ide.py`, 63 rows, red
+56 of 63 with the program taken out of the sandbox. **Decisions and what they cost:** (a) Return in the tree and the
+table is the form's `activate` event: a form the program marks with `f{'activate'} = 1` gives Return in a tree or a
+table to the program (the id and the value) instead of pressing a default button or moving the focus on. The first
+build used a visible default button ("Open"); a hidden one does not work (`default.action` skips a button that is not
+on the page), and the owner asked for the button to go; (b) the status line is refreshed on the 1-second timeout of `screen wait`, because the
+memo consumes its own keys and returns nothing to the program for them (so a star appears within a second, not at the
+key); (c) no record locks are held while a record is open - the check at saving is the protection, which is weaker
+than SED's READU and says so in the changelog; (d) the tree lists at most 2000 records of a file (a `select` of a
+larger file is slow and the widget is not paged); (e) the tree is rebuilt, not edited, when a file is opened or
+closed, so the cursor is put back by code. **Not built:** a project tree of files outside the VOC, completion,
+replace across records, a mouse click on the menu bar (it is outside the form), splitters.
 
 **What it would be.** One SD BASIC program (a verb, `ide` say) on the screen library, in three panes and a bar: a
 **tree** of the account (its files from the VOC, and the records of each: `bp` first), the **editor** (a `screen memo` with
