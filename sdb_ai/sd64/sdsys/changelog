@@ -132,6 +132,75 @@ Next release - in progress
            account that does not hold os-on.  Accounts that existed at an
            upgrade hold os-on, so their pointers keep working.
 
+13 Oct 26  SD READS THE WINDOW SIZE; MORE FOR THE SCREEN STATEMENT; COLOUR IN
+           SED; CED AND THE DEBUGGER DRAWN WITH THE SCREEN LIBRARY (1.2-0).
+
+           The window size.  SD took the size of the screen from the terminal
+           definition, 120 columns by 36 lines, unless TERM said otherwise, so
+           a window of any other size was wrong from the first line.  It now
+           reads the size of the terminal's window when a session starts and
+           again whenever the window is resized, and @CRTWIDE and @CRTHIGH
+           follow it.  The TERM 120,36 that LOGIN used to run is gone.  A
+           program waiting in SCREEN WAIT is told by a "resize" event and can
+           lay its screen out again.  What a program wrote with PRINT or CRT
+           is not drawn again, only what the screen library drew.  SED reads
+           the size when it starts and does not follow a window that is
+           resized while it runs.  A session with no terminal gets the size it
+           got before.
+
+           Default theme.  SCREENTHEME=name in sd.conf (mono, classic or blue)
+           is the theme a SCREEN program gets when it does not choose one.
+           Unset, it is mono, as before.
+
+           More on the screen, each used by SCREEN statements and by nothing
+           else, so a program that does not use them is not changed:
+
+             SCREEN TREE       a list of labelled nodes, each with a depth,
+                               opened and closed with the arrow keys, the space
+                               bar or the mouse.  The program gets the code of
+                               the current node.
+             SCREEN SCROLLBAR  a scroll bar of its own, upright or lying down,
+                               for a program that draws the content itself.
+                               Each move is a "change" event.
+             Table             F3 (or a click on a heading) sorts by the current
+                               column, numbers by value; with MULTI the space
+                               bar marks rows; Left and Right choose a column
+                               and scroll sideways; < and > narrow and widen it.
+                               SCREEN GET still answers the number of the row
+                               in the rows the program gave, however they are
+                               shown.
+             Text area         WRAP breaks long lines at the width.  Ctrl-G sets
+                               a mark, Ctrl-X, Ctrl-C and Ctrl-V cut, copy and
+                               paste (the clipboard is shared between text
+                               areas), Ctrl-Z and Ctrl-Y undo and redo for up
+                               to 100 steps, Ctrl-T finds and Ctrl-N finds
+                               again.  A viewer can select, copy and find.
+             Menus             An item may be disabled (dim, the cursor goes
+                               past it) or checked, and may open a submenu,
+                               three levels deep.
+             SCREEN OPEN ... LINES   draws boxes, forms and dialogues with the
+                               terminal's line-drawing characters.
+             SCREEN CLIP       keeps what is drawn inside a rectangle.
+             SCREEN SET        takes WRAP, READONLY and VISIBLE.
+
+           SED can colour the text it shows.  It is off until asked for, and
+           with it off the screen is drawn exactly as before.  The command
+           SYNTAX (or the Tools menu) turns it on and off, SYNTAX LIGHT and
+           SYNTAX DARK choose the palette for a light or a dark background, and
+           the words SYNTAX, NO.SYNTAX and SYNTAX.LIGHT in &sed.options& say
+           what it starts as.  It knows SD BASIC, C, JSON, Markdown, shell and
+           Python, picking the language from the name of the file, the record
+           id and the first line; a record of the file &sed.syntax& adds a
+           language of the site's own or replaces one.  A comment or string
+           that goes on to the next line colours the lines below it.  A
+           terminal that cannot show colour is told so and carries on without
+           it.  SED still has no undo and does not use the mouse.
+
+           CED shows the elements of a collection as a table with a scroll bar,
+           and asks its questions (a value, a name, a type, Save changes?) in
+           boxes over the list.  The keys are the same.  The debugger's full
+           screen is drawn with the library as well (see the entry above).
+
 12 Oct 26  THE SCREEN STATEMENT GETS COLOUR, TABS, TEXT AREAS, TABLES AND THE
            MOUSE, AND COLOUR WORKS ON THE LINUX CONSOLE TERMINAL TYPE (1.2-0).
 

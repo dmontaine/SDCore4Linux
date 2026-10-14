@@ -64,17 +64,20 @@ user programs can call library routines.
 A drop-down covers text; closing it must restore it. SD cannot ask the terminal what is on it. So
 the library never owns the screen: the CALLER hands in `scr` with the shadow (value r+1 = text of
 terminal row r) and `rattr`. `$sl_region('save')` copies the rectangle from the shadow, `'restore'`
-draws it back. Text and reverse video only; richer cells are repainted by the caller. (A
-double-buffered renderer, S.1, would own the shadow itself; the argument shape does not change.)
+draws it back. Text and reverse video only; richer cells are repainted by the caller. (This is the
+first cut's rule, for a caller of the `$sl_` routines. Since the `screen` statement the library owns the
+shadow itself once `screen open` is done, with a style code on every cell - see the SCOPE part below;
+the argument shape is the same.)
 
 ## layout and resize
 
 Character cells, from 0, as in `@(x, y)`. `SL.S.CLIP` is the clip rectangle: `$sl_region` skips rows
 outside the screen; `$sl_put` clips cell by cell to the screen and to `SL.S.CLIP` (SCREEN CLIP sets it; widgets are still sized to fit: a message box
 is clamped to the screen width, a menu shifts left if it would overflow). Size comes from
-@crtwide / @crthigh which the caller passes in `scr`. Resize hook (documented, not built): on a
-size change the caller re-reads the size, rebuilds `scr` and sends every widget `init` then `draw`;
-the widgets hold nothing that depends on the old size once re-initialised.
+@crtwide / @crthigh which the caller passes in `scr`. Resize is built (13 Oct 26, see "Resize" below): a
+program that owns the screen gets a `resize` event; a caller of the `$sl_` routines re-reads the size,
+rebuilds `scr` and sends every widget `init` then `draw`. The widgets hold nothing that depends on the
+old size once re-initialised.
 
 ## widgets expected later, and how each fits
 
@@ -98,17 +101,24 @@ SED's text area, its status lines and its own prompt line (`get.string`, with hi
 Emacs line editing driven by SED's key bindings) stay SED's: they need SED's binding tables and
 SED's image buffer, which the library does not know. SED reads raw bytes with its own tables
 (the library's `$sl_key` would have to learn SED's rebindable keys). SED feeds the library a shadow
-of its image buffer; `ced_edit` is left on its own drawing code.
+of its image buffer for its menus. Since 13 Oct SED's syntax colour comes from the library's engine
+(`$sl_syntax`: one style code per character of each row), but SED still draws its own rows.
+
+`ced_edit` and the debugger were left on their own drawing code in the first cut and are on the
+library since 13 Oct 26 (owner: "use the TUI on ced and debugger"): the element list of `ced_edit` is
+a table widget and its questions are dialogues; the debugger draws with the library's styles and
+`$sl_put`, its help is `$sl_msgbox`, and its full screen is the terminal's alternate screen.
 
 ## not done yet (deliberately)
 
-(Written for the first cut; mouse, colour, the form, borders, menu flags, submenus, the tree and the
-standalone scroll bar have been built since: see SCOPE.)
-Per-cell clipping is built (13 Oct 26: `$sl_put` always cut at the screen's edge; `SCREEN CLIP AT x,y SIZE w,h` now sets `SL.S.CLIP`, and `SCREEN CLIP` alone takes it off). Still not built: a renderer owning the shadow;
-scrolling drop-downs longer than the screen; ced_edit and the debugger on the library; SED's own text
-area on the library; the editor widget as a separate widget (the memo covers its functions). User
-programs calling `$sl_` routines (they need `$internal` and `sd -internal` to compile: settled by the `screen`
-statement, see SCOPE below); F10 is
+(Written for the first cut and brought up to date 13 Oct 26. Built since: mouse, colour, the form, borders, menu
+flags, submenus, the tree, the standalone scroll bar, per-cell clipping (`$sl_put` always cut at the screen's edge;
+`SCREEN CLIP AT x,y SIZE w,h` sets `SL.S.CLIP`, `SCREEN CLIP` alone takes it off), resize, `ced_edit` and the
+debugger on the library, and a library-owned shadow once `screen open` is done.) Still not built, each one by choice:
+scrolling drop-downs longer than the screen; SED's own text area and prompt line on the library; the editor widget as a
+separate widget (the memo covers its functions); a shadow that also holds what `print` and `crt` write (the shadow is
+the library's only). The evaluation of each is in "Revisited 13 Oct 26" at the end. User programs calling `$sl_`
+routines need `$internal` and `sd -internal` to compile: settled by the `screen` statement, see SCOPE below. F10 is
 bound by SED's table from `ESC [ 2 1 ~` (xterm, Linux console), not read from terminfo.
 
 ## evaluation: a C library as a back end (decision: NO, stay with BASIC over tio)
@@ -412,7 +422,7 @@ compile errors are refused with their messages. Cost: about 130 lines in bcomp (
 | 3 | the form (a collection) and its container; label, frame, entry, check, radio, list, button; focus ring; `run`, `get`, `set`, `focus`, `values` - DONE | large | the 25-line program above, field by field; Tab / Shift-Tab; default and cancel buttons |
 | 4 | `wait` (events), `combo`, tabs, scroll bar, status line, progress - DONE (tabs and the scroll bar painter 12 Oct, third sitting; the standalone scroll bar widget 13 Oct) | medium | event order; a combo over a form; scrolling lists |
 | 5 | colour themes - DONE; mouse - DONE (xterm SGR 1006; `_keycode` binds ESC [ <); resize - DONE 13 Oct (the kernel reads the window size; see "Resize" above) | medium | attributes; clicks; a resized pty |
-| 6 | text area and viewer (`memo`, with selection, undo and find: 13 Oct), `table` (sorting, row marks, column resize, sideways scroll: 13 Oct), `tree` (13 Oct) - DONE; an editor widget as a separate widget, `ced_edit` and the debugger on the library - not built | large | the editors' existing suites (`sandbox-ced.py`) |
+| 6 | text area and viewer (`memo`, with selection, undo and find: 13 Oct), `table` (sorting, row marks, column resize, sideways scroll: 13 Oct), `tree` (13 Oct) - DONE; `ced_edit` and the debugger on the library - DONE 13 Oct (`sandbox-ced.py` 134, `sandbox-dbgui.py` 21); an editor widget as a separate widget - not built | large | the editors' existing suites (`sandbox-ced.py`) |
 | 7 | carry to Solo (bcomp, the library, 11167-11170), then the Windows agent when Core is declared stable | small each | their own suites |
 
 What would falsify the plan: (a) stage 1's per-cell shadow making a BASIC repaint slower than ~16 ms at
@@ -456,7 +466,7 @@ the cursor keeping its screen row. Built 13 Oct: `wrap` (SCREEN MEMO ... WRAP; S
 Selection (Ctrl-G marks, Ctrl-X cut, Ctrl-C or Ctrl-O copy, Ctrl-V paste; the clipboard is shared between
 memos), undo and redo (Ctrl-Z, Ctrl-Y; 100 steps, a run of typing is one step), find (Ctrl-T prompts,
 Ctrl-N finds the next; ignores case; wraps) and word movement (Ctrl-B, Ctrl-F). A readonly viewer can
-select, copy and find. Still not built: a separate editor widget; `ced_edit` stays on its own drawing code.
+select, copy and find. Still not built: a separate editor widget (`ced_edit` is on the library since 13 Oct, as a table and dialogues, not as a memo).
 
 **The scroll bar** is a routine (`$sl_scrollbar`) that returns the column of characters for a list, memo or table;
 the thumb is proportional (it was one cell). The standalone scroll bar widget is built 13 Oct (`screen scrollbar`): vertical or horizontal,
@@ -554,3 +564,59 @@ to the owner's veto.
 documented feature once the widgets' elements are listed (they are in each widget's header comment).
 (d) The prompt dialogue stays `ask`.
 (e) Phantom and API sessions answer ELSE and draw nothing (tested by the suite).
+
+## Revisited 13 Oct 26: the things left unbuilt "by choice"
+
+Asked: would any of them give users more function or a better experience? Two probes were run on a sandbox built
+from `6a2cb02` plus the doc edits (`probe-sed-small.py`, a pty at 100 columns; the output is in the session's
+scratchpad, not kept in the tree): SED on 24, 14 and 12 rows (12 is the least SED accepts), F10 then the Edit and
+Tools menus, and SED on a 24-row pty that is then resized to 40 rows and to 14. What each result means, best first.
+
+1. **A drop-down taller than the screen is cut off - BUILD (a defect, measured).** `$sl_menu` `open.geom` clamps the
+   drop-down's width and, for a pop-up or a submenu, its top, but never its height: a bar menu of N items is N rows
+   from row 1. On 24 rows every item of SED's Edit (17 items, 3 separators) and Tools (14) menus shows. On 14 rows the
+   Edit menu shows 11 of 17 items and Tools 11 of 14; on 12 rows 10 of 17 and 10 of 14, and the menu paints over the
+   status lines. From the code (not observed): the cursor still moves over the items that are not drawn. Fix in the library (cap the rows to the space, scroll with the arrows, a marker at the cut edge); SED, and any
+   `screen menu` / `screen menubar` program on a small window or a split tmux pane, gets it. Small; a pty row at 12
+   and 14 rows is the test (red today).
+2. **SED does not follow the window - BUILD (a defect, measured; exposed by the 13 Oct window-size change).** SED
+   reads `@crthigh` and `@crtwide` once, at `sed:303-317`, and sizes its arrays from them. After the pty went from 24
+   to 40 rows SED kept its 24-row layout (status lines on rows 22-23, 16 blank rows below). After it went to 14 rows the
+   status line was off the screen and the text was corrupted (`xyalpha one two t3ree`: after the typed `x` and `y` a
+   `3`, probably the column number of the status line, appeared inside the first line). Before 13 Oct a window of another size was wrong from the first
+   line; now a window dragged mid-session breaks SED. SED needs a re-layout routine called when the size changes
+   (`kernel(K$WINSIZE)` read before each paint: cheap) and `redim` of `image`, `simage` and the row arrays. The
+   debugger reads the size once, at start (`debug:593`); it is modal and short, so lower priority. Medium.
+3. **Undo in SED - BUILD (a missing function, stated in the changelog: "SED still has no undo").** The memo has 100
+   steps with typing grouped (`part_memo2`); SED has none, and Ctrl-K and Ctrl-X are one key away from the text a user
+   was keeping. The syntax-colour hooks of 13 Oct (`syn.dirty`, `sed:3118`, `3558`, `3604`, `3618`) sit at the places
+   where text changes (`insert.line`, the line delete, the region kill), so a journal of (line, text before, text
+   after) hooks in at the same points. Not the memo's code: SED's text is in
+   chunks, not a field list. Medium; the risk is a primitive that is missed, which a mutation test per primitive finds.
+4. **Syntax colour and line numbers in the `screen memo` - BUILD, small.** `$sl_syntax` exists and `$sl_put` takes a style
+   for every cell, so `screen memo f, id, text ... syntax 'sd.basic'` and `lnum` are a keyword each and a draw change in
+   `sl_memo`. It gives any program that shows or edits source, JSON or a config file the colour SED has, and it is the
+   one missing part of a BASIC-written IDE. Check: the memo's draw time with the engine on, at 160x48.
+5. **SED's mouse - OPT-IN ONLY, low.** The library already reads the mouse (`$sl_mouse`) and `_keycode` binds the report,
+   but a program that asks the terminal to report the mouse takes away the terminal's own text selection and copy (shift
+   brings it back), and a program that dies leaves the reporting on (documented in the Mouse section above). Click to
+   place the cursor and the wheel to scroll are worth having for people who want them: a word in `&sed.options&`
+   (MOUSE), off by default. Per "The core direction" this is the delivered-off, administrator-loosens shape.
+6. **SED's text area on the library memo - NO.** SED has buffers, a split window, a kill ring, macros, overlay,
+   rebindable keys and a prompt line with history; the memo has none of them. Moving SED would lose features or rebuild
+   the memo into SED. The gains people would feel (undo, resize, mouse, colour in a widget) are items 2 to 5, done in
+   SED's own text area.
+7. **A shadow that also holds `print` and `crt` - NO, for now.** The kernel writes the bytes of `print` and `crt` straight
+   to the terminal (`tio_display_string` -> `write_console`); `@(x,y)` and the colour codes are already escape sequences by
+   then. A shadow would be a terminal emulator in the kernel: parse cursor addressing, SGR, clears, wrapping, tabs and
+   scrolling for every terminal definition SD ships, and decide what to do with a sequence it does not understand.
+   What it would give: `SAVE.SCREEN()` / `RESTORE.SCREEN` working again (they do nothing since AccuTerm went), a pop-up
+   over text a program wrote with `print`, and a resize that keeps it. What it costs: a large kernel change with a
+   failure that looks like a stray character. The way out for a program is `screen text` (12a says so), and nothing
+   else on this list needs the shadow.
+8. **An IDE - AFTER 1 to 4, and the owner's call.** The widgets exist (tree for the files, memo with colour for the
+   source, table for the compiler's errors, menu bar, status). The compile with error lines, the run and the debugger
+   exist too (SED's Tools menu, `debug`). What an IDE would add over SED is a project tree and an error list beside
+   the text; about two to three thousand lines of BASIC and a split-pane layout. Worth deciding after 2 and 4, because
+   both are what it would stand on.
+Not changed by this: scrolling pick lists (`screen pick` already scrolls), a separate editor widget (the memo is it).
