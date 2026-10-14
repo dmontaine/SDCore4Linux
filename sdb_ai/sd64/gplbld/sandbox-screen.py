@@ -1658,7 +1658,14 @@ def part_mouse(box):
     row("a click on a row of a table makes it the current one", "Jones" in t.reverse(jo[0]), repr(t.reverse(jo[0])))
     hd = at(L, "Name")
     L = click(t, hd[1] + 1, hd[0])
-    row("a click on the heading changes nothing", "Jones" in t.reverse(jo[0]), repr(t.reverse(jo[0])))
+    names = [L[hd[0] + 1 + i][hd[1]:hd[1] + 5].strip() for i in range(4)]
+    row("a click on the heading sorts by that column (since 13 Oct): Adams, Baker, Clark, Davis come first", names == ["Adams", "Baker", "Clark", "Davis"], repr(names))
+    L = click(t, hd[1] + 1, hd[0])
+    L = click(t, hd[1] + 1, hd[0])
+    names = [L[hd[0] + 1 + i][hd[1]:hd[1] + 5].strip() for i in range(4)]
+    row("two clicks more (down, then the order of rows again): Smith, Jones, Adams, Baker as given",
+        names == ["Smith", "Jones", "Adams", "Baker"], repr(names))
+    click(t, jo[1] + 1, jo[0])
     click(t, jo[1] + 1, jo[0])
     row("a second click on the row the last click chose is Return: the form's default button is pressed and the program has the row, 2",
         final(t, "PRESSED") == "ok| 2|", "")
