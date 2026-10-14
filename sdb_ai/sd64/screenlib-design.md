@@ -1,6 +1,6 @@
 # screen library (sl_), stage 2 first cut - design note
 
-12 Oct 2026. Written before the menu, kept to what SED needs plus the obvious next widgets.
+12 Oct 2026; updated 13 Oct 2026 (see the 13 Oct sections). Written before the menu, kept to what SED needs plus the obvious next widgets.
 Background: PROJECT_STATUS.md S.1 (stage 1: a pure BASIC renderer is fast enough).
 First users: SED's menu bar and quit box. Tests: gplbld/sandbox-sed-menu.py.
 
@@ -17,7 +17,7 @@ First users: SED's menu bar and quit box. Tests: gplbld/sandbox-sed-menu.py.
 3. theme - `$sl_attr(name, seq)`: the one table of attributes (normal, highlight, bar, hotkey,
    hotkey.end, frame, disabled). Only reverse video and underline, so it reads on a monochrome
    terminal; hotkey letters are underlined. A colour theme replaces this routine's table only.
-   'disabled' is not yet different from normal (a monochrome terminal has no dim).
+   'disabled' is not different from normal on the mono theme (no dim); colour themes give it their own style (see the 13 Oct sections).
 4. widgets - `$sl_menu` (menu bar + drop-downs with shortcuts), `$sl_msgbox`, `$sl_prompt`.
 
 ## the model we follow
@@ -70,7 +70,7 @@ double-buffered renderer, S.1, would own the shadow itself; the argument shape d
 ## layout and resize
 
 Character cells, from 0, as in `@(x, y)`. `SL.S.CLIP` is the clip rectangle: `$sl_region` skips rows
-outside the screen; per-cell clipping is not done yet (widgets are sized to fit: a message box
+outside the screen; `$sl_put` clips cell by cell to the screen and to `SL.S.CLIP` (SCREEN CLIP sets it; widgets are still sized to fit: a message box
 is clamped to the screen width, a menu shifts left if it would overflow). Size comes from
 @crtwide / @crthigh which the caller passes in `scr`. Resize hook (documented, not built): on a
 size change the caller re-reads the size, rebuilds `scr` and sends every widget `init` then `draw`;
@@ -88,7 +88,7 @@ the widgets hold nothing that depends on the old size once re-initialised.
 - drop-down (combo): entry field + a pick box opened over the text with `$sl_region`.
 - status line: `draw` only, text in a field.
 - progress bar: `draw` with value; no keys.
-- scroll bar: `draw` from top/total/visible, no keys of its own.
+- scroll bar: built as a standalone widget on 13 Oct (see below); lists, memos and tables draw their own column with `$sl_scrollbar`.
 - tab strip: like the menu bar with an always-open single level; `key` left/right -> `handled`, the form shows the page.
 - message / confirm box and input prompt: exist now (`$sl_msgbox`, `$sl_prompt`).
 
@@ -102,9 +102,11 @@ of its image buffer; `ced_edit` is left on its own drawing code.
 
 ## not done yet (deliberately)
 
-(Written for the first cut; mouse, colour and the form have been built since: see SCOPE.)
-acsc/Unicode box drawing (boxes are + - |); a renderer owning the shadow; disabled/
-checked/submenu items; scrolling drop-downs longer than the screen; per-cell clipping; user
+(Written for the first cut; mouse, colour, the form, borders, menu flags, submenus, the tree and the
+standalone scroll bar have been built since: see SCOPE.)
+Per-cell clipping is built (13 Oct 26: `$sl_put` always cut at the screen's edge; `SCREEN CLIP AT x,y SIZE w,h` now sets `SL.S.CLIP`, and `SCREEN CLIP` alone takes it off). Still not built: a renderer owning the shadow;
+scrolling drop-downs longer than the screen; ced_edit and the debugger on the library; SED's own text
+area on the library; the editor widget as a separate widget (the memo covers its functions). User
 programs calling `$sl_` routines (they need `$internal` and `sd -internal` to compile: settled by the `screen`
 statement, see SCOPE below); F10 is
 bound by SED's table from `ESC [ 2 1 ~` (xterm, Linux console), not read from terminfo.
@@ -178,8 +180,9 @@ Everything above is the first cut (SED's needs). This part scopes the rest.
 
 **Built and tested (`sandbox-screen.py`, through user programs on the pty):** the compiler mechanism and
 the verbs `msgbox open close clear text box cursor refresh size key menu menubar pick ask` (stages 0 to 2);
-`test-screencmd-units.py` checks the verb table, the routines and their headers agree. Stage 3 (forms,
-below) is being built. Everything marked "proposed" is written in the conditional, with what would falsify it.
+`test-screencmd-units.py` checks the verb table, the routines and their headers agree. Stages 0 to 4 are
+built, and the 13 Oct additions (memo editing, menu flags and submenus, borders, tree, standalone scroll
+bar, table sorting and row marks) are built and tested in `sandbox-screen.py`; none is merged to Dev yet. Everything marked "proposed" is written in the conditional, with what would falsify it.
 
 ## owner rulings this rests on
 
@@ -278,14 +281,16 @@ they are modal dialogues, not members of a form. Both obey the one contract
 | `values` | `screen values f` | a collection id -> value of every entry, check, radio and list | `!screen_values` |
 | `wait` | `screen wait f {timeout s}` | event: type @vm id @vm data; else on timeout | `!screen_wait` |
 | `get` | `screen get f, id` | the widget's value | `!screen_get` |
-| `set` | `screen set f, id {value v} {text t} {items i} {enabled b}` | - | `!screen_set` |
+| `set` | `screen set f, id {value v} {text t} {items i} {enabled b} {readonly b} {visible b}` | - | `!screen_set` |
 | `focus` | `screen focus f, id` | - | `!screen_focus` |
 | `theme` | `screen theme name` | the name of the theme in force; else when refused | `!screen_theme` |
 | `style` | `screen style name, fg, bg, flags` | - ; else when refused | `!screen_style` |
 | `tabs` | `screen tabs f, id, labels at x,y {value n}` | - | `!screen_tabs` |
 | `page` | `screen page f, n` | - | `!screen_page` |
-| `memo` | `screen memo f, id, text at x,y size w,h {readonly}` | - | `!screen_memo` |
+| `memo` | `screen memo f, id, text at x,y size w,h {readonly} {wrap}` | - | `!screen_memo` |
 | `table` | `screen table f, id, columns, rows at x,y size w,h {value n}` | - | `!screen_table` |
+| `tree` | `screen tree f, id, nodes {at x,y} {size w,h} {value n} {expanded}` | - | `!screen_tree` |
+| `scrollbar` | `screen scrollbar f, id, total {at x,y} {size w,h} {visible} {value n}` | - | `!screen_scrollbar` |
 
 A zero-value keyword (`fill`, `multi`, `mask`, `on`) is a flag: the subroutine is given 1, else null.
 `items` are values (or a comma list, as `buttons` already is); a menu item is label @sm shortcut @sm
@@ -404,9 +409,9 @@ compile errors are refused with their messages. Cost: about 130 lines in bcomp (
 | 1 | the owned screen: `$sl_put` with per-cell attributes, `open`/`close`/`clear`/`text`/`box`/`cursor`/`refresh`/`size`/`key`; move msgbox, menu and prompt onto it; the cursor rule - DONE | medium | text drawn, a dialogue over it, the text back row for row and attribute for attribute; cursor (61 rows) |
 | 2 | modal dialogues: `menu`, `menubar`, `pick`, `ask`, `msgbox at` - DONE | medium | each verb: choose, cancel, keys, background restored cell for cell (106 rows with stage 1; ten mutants, see PROJECT_STATUS) |
 | 3 | the form (a collection) and its container; label, frame, entry, check, radio, list, button; focus ring; `run`, `get`, `set`, `focus`, `values` - DONE | large | the 25-line program above, field by field; Tab / Shift-Tab; default and cancel buttons |
-| 4 | `wait` (events), `combo`, tabs, scroll bar, status line, progress - DONE (tabs and the scroll bar painter 12 Oct, third sitting; a standalone scroll bar widget not built) | medium | event order; a combo over a form; scrolling lists |
+| 4 | `wait` (events), `combo`, tabs, scroll bar, status line, progress - DONE (tabs and the scroll bar painter 12 Oct, third sitting; the standalone scroll bar widget 13 Oct) | medium | event order; a combo over a form; scrolling lists |
 | 5 | colour themes - DONE; mouse - DONE (xterm SGR 1006; `_keycode` binds ESC [ <); resize - NOT built, needs the kernel to read the window size (the owner's say, see "Resize" above) | medium | attributes; clicks; a resized pty |
-| 6 | text area and viewer (`memo`) and `table` - DONE; an editor widget with undo, selection and search, `ced_edit` and the debugger on the library, tree - not built | large | the editors' existing suites (`sandbox-ced.py`) |
+| 6 | text area and viewer (`memo`, with selection, undo and find: 13 Oct), `table` (sorting, row marks, column resize, sideways scroll: 13 Oct), `tree` (13 Oct) - DONE; an editor widget as a separate widget, `ced_edit` and the debugger on the library - not built | large | the editors' existing suites (`sandbox-ced.py`) |
 | 7 | carry to Solo (bcomp, the library, 11167-11170), then the Windows agent when Core is declared stable | small each | their own suites |
 
 What would falsify the plan: (a) stage 1's per-cell shadow making a BASIC repaint slower than ~16 ms at
@@ -446,15 +451,20 @@ falsify it:* a form with two strips (the first one wins); pages inside pages (no
 
 **The text area.** `screen memo` is one widget for both an editor and a viewer (`readonly`): lines are fields of
 the value, no wrapping (it pans sideways), the last column is a scroll bar, Page Up/Down scroll a page less a line with
-the cursor keeping its screen row. It is deliberately not the CED editor's replacement: no undo, no selection, no
-search. Those belong to the editor widget of stage 6 and would be built on the same line buffer.
+the cursor keeping its screen row. Built 13 Oct: `wrap` (SCREEN MEMO ... WRAP; SCREEN SET ... WRAP b) wraps long lines at the width.
+Selection (Ctrl-G marks, Ctrl-X cut, Ctrl-C or Ctrl-O copy, Ctrl-V paste; the clipboard is shared between
+memos), undo and redo (Ctrl-Z, Ctrl-Y; 100 steps, a run of typing is one step), find (Ctrl-T prompts,
+Ctrl-N finds the next; ignores case; wraps) and word movement (Ctrl-B, Ctrl-F). A readonly viewer can
+select, copy and find. Still not built: a separate editor widget; `ced_edit` stays on its own drawing code.
 
 **The scroll bar** is a routine (`$sl_scrollbar`) that returns the column of characters for a list, memo or table;
-the thumb is proportional (it was one cell). A standalone scroll-bar widget for a program's own drawing is not built
-(no demand yet).
+the thumb is proportional (it was one cell). The standalone scroll bar widget is built 13 Oct (`screen scrollbar`): vertical or horizontal,
+keys, mouse, `change` events.
 
 **The table** (`screen table f, id, columns, rows`): a heading row, columns with a width and L/R/C, one current row, a
-scroll bar; `change` events as for a list. Not built: sorting, column resize, horizontal scrolling, row marks.
+scroll bar; `change` events as for a list. Built 13 Oct: F3 sorts by the current column (up, down, natural order; numbers by value) and a click on a
+heading sorts; MULTI (space marks rows, `*` shows them; GET and Return give the original row numbers);
+Left and Right choose the column and scroll sideways; `<` and `>` narrow and widen the current column.
 
 **The mouse (built, xterm only).** `screen open` asks for modes 1000, 1002 and 1006 (buttons, drag, wheel, SGR form;
 `nomouse` opts out) and `screen close` turns them off; a terminal that does not know them, the Linux console, ignores
@@ -482,6 +492,24 @@ and SIGWINCH only sets a flag: nothing else changes, at the price that only libr
 (A) no kernel change and the library asks nothing: a program keeps using `TERM w,h`. Falsified if the owner wants
 `@crtwide` left at terminfo's value for compatibility with scripts - then (C) is the only one left.
 
+## 13 Oct 26 additions (built and tested in `sandbox-screen.py`; not merged to Dev)
+
+**Menus.** An item carries flags in subvalue 4: `D` disabled (drawn in the style `bar.disabled`, skipped by the
+cursor), `C` checked (a `*` in the first cell). A submenu is a menu whose title begins with `>` and is not on the
+bar; an item whose code is that title opens it beside the item. Three levels deep. New theme style `bar.disabled`
+(code `m`).
+
+**Tree.** `screen tree f, id, nodes {at x,y} {size w,h} {value n} {expanded}`. A node is a label, a depth
+(subvalue) and a code (subvalue). Right and Left open and close a node or move to a child or parent; space toggles;
+a letter jumps; Return gives a `done` event; `change` events as for a list.
+
+**Scroll bar.** `screen scrollbar f, id, total {at x,y} {size w,h} {visible} {value n}`. Vertical or horizontal;
+keys, mouse, `change` events.
+
+**Borders.** `screen open ... lines` draws forms, boxes and dialogues with Unicode line-drawing characters. The
+stand-ins CHAR(14) to CHAR(19) from `$sl_line` are turned into the terminal's bytes by `$sl_put`. Otherwise plain
+`+ - |`. Reset by `screen close` and by the clean-up routine.
+
 ## risks and open questions for the owner
 
 1. **The statement word.** `screen` (proposed) versus a name of its own such as `tui`, or one word per
@@ -498,7 +526,7 @@ and SIGWINCH only sets a flag: nothing else changes, at the price that only libr
 4. **`ask` or `input`.** `screen input` would clash in the reader's mind with `input`; `ask` is not an SD
    word. Open.
 5. Phantom / API sessions: every verb answers ELSE (status 1) and draws nothing; an `open` in a phantom
-   takes the else branch. Proposed, untested.
+   takes the else branch. Tested by `sandbox-screen.py` on 13 Oct (see the decisions below).
 6. Cursor after a transient dialogue: nothing in SD reads the cursor position, so it is left at the
    box's last cell. After `open` the library owns it. A save/restore pair from terminfo (`sc`/`rc`) is
    possible for terminals that have it - not proposed.
@@ -510,3 +538,15 @@ and SIGWINCH only sets a flag: nothing else changes, at the price that only libr
 9. **A default theme.** A program that never calls `screen theme` gets `mono`. Should an administrator be able to set
    another default for the site (a setting in `sd.conf` or a VOC record) so that colour terminals get colour without
    every program asking? Not proposed until you say.
+
+## Decisions taken 13 Oct 2026 on the open questions
+
+Taken by the agent under the owner's instruction to decide what gives the product the most depth. Each is open
+to the owner's veto.
+
+(a) The statement word stays `screen`.
+(b) The owned screen stays explicit (`screen open`); a dialogue before it puts back blanks.
+(c) Forms are collections built by statements. A form made from a JSON record with `jparse` works, and is a
+documented feature once the widgets' elements are listed (they are in each widget's header comment).
+(d) The prompt dialogue stays `ask`.
+(e) Phantom and API sessions answer ELSE and draw nothing (tested by the suite).

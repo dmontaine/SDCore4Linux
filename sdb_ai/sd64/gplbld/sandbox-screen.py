@@ -545,6 +545,19 @@ end
    screen close
 end
 """,
+    # SCREEN CLIP: text outside the rectangle is not drawn, text across its edge is cut, and the clip comes off again
+    "zzscclp": """   screen open clear else crt @(0, 28) : 'NOTERM' ; stop
+   screen clip at 10,5 size 10,3
+   screen text 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' at 5,4
+   screen text 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' at 5,6
+   screen text 'abcdefghijklmnopqrstuvwxyz' at 14,7
+   screen text 'below' at 10,8
+   screen clip at 10,5 size 10,3 else crt @(0, 20) : 'CLIP-ELSE'
+   screen clip
+   screen text 'free' at 0,12
+   screen key returning k
+end
+""",
     # a background of styled rows, then a dialogue over it, then the key that ends the program
     "zzscund": """   screen open clear else crt @(0, 28) : 'NOTERM' ; stop
    for r = 0 to 19
@@ -2105,6 +2118,21 @@ def part_lines(box):
     t.end()
 
 
+def part_clip(box):
+    say("\n--- SCREEN CLIP -------------------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzscclp")
+    L = t.keys()
+    row("text above the clip rectangle (row 4) is not drawn at all", L[4].strip() == "", repr(L[4]))
+    row("text across its left edge is cut there: 'FGHIJKLMNO' is what is inside columns 10 to 19, and nothing is left of or right of it",
+        L[6][:30].strip() == "FGHIJKLMNO" and L[6][10:20] == "FGHIJKLMNO", repr(L[6]))
+    row("text starting inside and running past the right edge is cut there: 'abcdef' in columns 14 to 19", L[7][14:20] == "abcdef" and L[7][20:].strip() == "", repr(L[7]))
+    row("text below the rectangle (row 8) is not drawn", L[8].strip() == "", repr(L[8]))
+    row("SCREEN CLIP with no rectangle takes the clip off: 'free' is drawn at the left edge", L[12][:4] == "free", repr(L[12]))
+    row("control: the clip statement did not take ELSE", "CLIP-ELSE" not in "".join(L), repr(L[20]))
+    t.keys("a")
+    t.end()
+
+
 def part_scrollbar(box):
     say("\n--- a scroll bar of its own -------------------------------------------------------------------------")
     t = Term(box, "RUN bp zzscsb")
@@ -2535,6 +2563,7 @@ def main():
             part_set(box)
             part_scrollbar(box)
             part_lines(box)
+            part_clip(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
