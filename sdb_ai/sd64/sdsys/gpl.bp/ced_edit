@@ -7,6 +7,9 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.  Written from the openQM pages for CED and !CED(); the keys are theirs, the
 *               layout and the messages are SD's own.
+* 13 Oct 26 dm  On the screen library (owner: "use the TUI on ced and debugger"): the element list is a
+*               table widget, the questions are dialogues (SCREEN ASK, MSGBOX, MENU), the keys are the
+*               library's names.  What the editor does with the data is as it was.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,10 +31,12 @@
 *   WRITEU and leaves the lock for the caller to release.
 *
 *   The screen: a title, the headings, one line for each element of the container being shown
-*   (its name - or its number, for an array - its type and its value), the path of the container,
-*   and a line for messages and prompts.  A '>' in the first column marks the selected element.
-*   An element whose name is empty or holds a slash cannot be reached by a path, so it is shown
-*   and left alone; every other element can be edited.
+*   (its name - or its number, for an array - its type and its value) in a table, the path of
+*   the container, and a line for messages.  A '>' in the first column marks the selected element.
+*   Questions (a value, a name, a position, a type, "save changes?") are asked in dialogues
+*   over the list.  Without a terminal (a phantom) there is nothing to edit and the editor
+*   returns at once.  An element whose name is empty or holds a slash cannot be reached by a
+*   path, so it is shown and left alone; every other element can be edited.
 *
 *   A run time error would lose the user's work, so every name and position is checked before
 *   it is used in a path.
@@ -46,6 +51,7 @@ $catalog $cedit
 
 $include keyin.h
 $include int$keys.h
+$include sl.h
 
    result = ''
    kind = jtype(c)
@@ -57,14 +63,20 @@ $include int$keys.h
    saved.trap = pterm(PT$BREAK, -1)
    void pterm(PT$BREAK, @false)
    break off
+
+   * The library's screen.  A session with no terminal has nothing to show an editor on.
+   have.screen = @false
+   screen open clear then
+      have.screen = @true
+   end else
+      break on
+      void pterm(PT$BREAK, saved.trap)
+      return
+   end
+
    w = @crtwide
    h = @crthigh
-   if w < 40 then w = 40
-   if h < 10 then h = 10
-   per.page = h - 5                  ;* element lines
-   first.row = 2
-   path.row = h - 2
-   msg.row = h - 1
+   gosub size.screen
 
    * Characters shown as a dot: the control characters and the SD marks
    bad.chars = ''
@@ -89,26 +101,35 @@ $include int$keys.h
    eof.count = 0
    sel = 1
    top = 1
-   old.sel = 1
-   old.top = 1
    done = @false
 
    gosub resolve
    gosub build.list
-   need.full = @true
 
    loop
       gosub paint
-      c.key = keycode()
+      screen key returning c.key else c.key = ''
       gosub handle.key
    until done
    repeat
 
-   display @(-1) :
+   screen close
    break on
    void pterm(PT$BREAK, saved.trap)
    result<1> = kept
    result<2> = quit.all
+   return
+
+* ======================================================================
+* size.screen  -  The rows of the screen from w and h
+
+size.screen:
+   if w < 40 then w = 40
+   if h < 10 then h = 10
+   per.page = h - 5                  ;* element lines
+   first.row = 2
+   path.row = h - 2
+   msg.row = h - 1
    return
 
 * ======================================================================
@@ -126,7 +147,8 @@ resolve:
    return
 
 * ======================================================================
-* build.list  -  The elements of cur: count, names (an object's, in order) and nw, the name column
+* build.list  -  The elements of cur: count, names (an object's, in order) and nw, the name column; the rows
+*                of the table
 
 build.list:
    if ctype = 'array' then
@@ -145,7 +167,30 @@ build.list:
    end
    if nw < len(sysmsg(11133)) then nw = len(sysmsg(11133))
    vw = w - (nw + 15)               ;* what is left for the value: marker, 2 spaces, type column
+   if vw < 4 then vw = 4
    gosub fix.window
+
+   * The table: its columns are as wide as the editor has always made them, its rows are the elements as the
+   * editor shows them
+   rows = ''
+   for i = 1 to count
+      gosub element.info
+      rows<i> = convert(bad.chars, bad.repl, nm) : @vm : et : @vm : vtext
+   next i
+   tbl = collection()
+   tbl{'id'} = 'ced'
+   tbl{'cols'} = sysmsg(11133) : @sm : nw : 'L' : @vm : sysmsg(11134) : @sm : '10L' : @vm : sysmsg(11135) : @sm : vw : 'L'
+   tbl{'rows'} = rows
+   tbl{'x'} = 0
+   tbl{'y'} = 1
+   tbl{'w'} = w
+   tbl{'h'} = per.page + 1
+   tbl{'marker'} = 1
+   tbl{'cur'} = sel
+   tbl{'focused'} = 1
+   call $sl_table('init', tbl, '', '', r)
+   tbl{'ax'} = 0
+   tbl{'ay'} = 1
    return
 
 fix.window:
@@ -196,71 +241,36 @@ element.info:
 * Painting
 
 paint:
-   if need.full then
-      display @(-1) :
-      for i = top to top + per.page - 1
-         gosub paint.row
-      next i
-      need.full = @false
-   end else
-      if old.top = top then
-         if old.sel # sel then
-            i = old.sel
-            gosub paint.row
-         end
-         i = sel
-         gosub paint.row
-      end else
-         for i = top to top + per.page - 1
-            gosub paint.row
-         next i
-      end
+   call $sl_scr('get', scr)
+   if scr<SL.S.W> # w or scr<SL.S.H> # h then
+      * the terminal's window changed size: lay the screen out again
+      w = scr<SL.S.W> + 0
+      h = scr<SL.S.H> + 0
+      gosub size.screen
+      gosub build.list
    end
-   old.sel = sel
-   old.top = top
-   gosub paint.title
-   gosub paint.path
-   gosub paint.message
-   if count > 0 then display @(0, first.row + sel - top) :
-   return
-
-paint.title:
+   call $sl_attr('bar', bc)
    t = sysmsg(11132, title)
    if dirty then t := ' *'
-   display @(0, 0) : @(-13) : fmt(t[1, w - 1], (w - 1) : 'L') : @(-14) :
-   hd = ' ' : fmt(sysmsg(11133), nw : 'L') : ' ' : fmt(sysmsg(11134), '10L') : ' ' : sysmsg(11135)
-   display @(0, 1) : @(-13) : fmt(hd[1, w - 1], (w - 1) : 'L') : @(-14) :
-   return
-
-paint.path:
+   call $sl_put(scr, 0, 0, fmt(t[1, w - 1], (w - 1) : 'L'), bc)
+   tbl{'cur'} = sel
+   tbl{'top'} = top
+   call $sl_table('draw', tbl, scr, '', r)
    t = sysmsg(11138, '/' : change(path, @fm, '/'))
-   display @(0, path.row) : fmt(t[1, w - 1], (w - 1) : 'L') :
-   return
-
-paint.message:
+   call $sl_put(scr, 0, path.row, fmt(t[1, w - 1], (w - 1) : 'L'), 'n')
    t = message.text
    if t = '' then t = sysmsg(11139)
-   display @(0, msg.row) : fmt(t[1, w - 1], (w - 1) : 'L') :
-   return
-
-paint.row:
-   r = first.row + i - top
-   if r < first.row or r >= first.row + per.page then return
-   if i < 1 or i > count then
-      display @(0, r) : @(-4) :
-      return
-   end
-   gosub element.info
-   line = (if i = sel then '>' else ' ') : ' ' : fmt(nm[1, nw], nw : 'L') : ' ' : fmt(et, '10L') : ' ' : vtext[1, vw]
-   if i = sel then
-      display @(0, r) : @(-13) : fmt(line[1, w - 1], (w - 1) : 'L') : @(-14) :
+   call $sl_put(scr, 0, msg.row, fmt(t[1, w - 1], (w - 1) : 'L'), 'n')
+   if count > 0 then
+      scr<SL.S.CUR> = 0 : @vm : (first.row + sel - top)
    end else
-      display @(0, r) : fmt(line[1, w - 1], (w - 1) : 'L') :
+      scr<SL.S.CUR> = 0 : @vm : first.row
    end
+   call $sl_scr('put', scr)
    return
 
 * ======================================================================
-* handle.key  -  One key, in c.key
+* handle.key  -  One key, in c.key (a name from the library: up, enter, f3, ctrl-s, or the character)
 
 handle.key:
    if c.key = '' then
@@ -275,17 +285,18 @@ handle.key:
    end
    eof.count = 0
    message.text = ''
-   n = seq(c.key[1, 1])
    uk = upcase(c.key)
 
    begin case
-      case n = K$UP
+      case c.key = 'resize'
+         null                        ;* paint finds the new size and lays the screen out again
+      case c.key = 'up'
          if sel > 1 then sel -= 1
          gosub fix.window
-      case n = K$DOWN
+      case c.key = 'down'
          if sel < count then sel += 1
          gosub fix.window
-      case n = K$PAGE.UP
+      case c.key = 'pgup'
          * A page: the window and the selection both move by one, the selection keeping its place on the screen
          if top > 1 then
             top -= per.page
@@ -296,7 +307,7 @@ handle.key:
             sel = 1
          end
          gosub fix.window
-      case n = K$PAGE.DOWN
+      case c.key = 'pgdn'
          if top + per.page <= count then
             top += per.page
             sel += per.page
@@ -305,35 +316,35 @@ handle.key:
             sel = count
          end
          gosub fix.window
-      case n = K$HOME
+      case c.key = 'home'
          sel = 1
          gosub fix.window
-      case n = K$END
+      case c.key = 'end'
          sel = count
          gosub fix.window
-      case n = K$RETURN
+      case c.key = 'enter'
          gosub dive
-      case n = K$ESC
+      case c.key = 'esc'
          gosub go.up
-      case n = K$F1 or c.key = '?'
+      case c.key = 'f1' or c.key = '?'
          gosub show.help
-      case n = K$F3
+      case c.key = 'f3'
          gosub rename.element
-      case n = K$F4
+      case c.key = 'f4'
          gosub change.type
-      case n = K$F5 or n = CTRL.C
+      case c.key = 'f5' or c.key = 'ctrl-c'
          gosub copy.element
-      case n = K$F6 or n = CTRL.X
+      case c.key = 'f6' or c.key = 'ctrl-x'
          gosub cut.element
-      case n = K$F7 or n = CTRL.V
+      case c.key = 'f7' or c.key = 'ctrl-v'
          gosub paste.element
-      case n = K$INSERT or n = CTRL.I
+      case c.key = 'ins' or c.key = 'tab'       ;* Ctrl-I is the tab character
          gosub insert.element
-      case n = K$DELETE
+      case c.key = 'del'
          gosub delete.element
-      case n = CTRL.S
+      case c.key = 'ctrl-s'
          gosub save.record
-      case n = CTRL.Q
+      case c.key = 'ctrl-q'
          q.all = @true
          gosub quit.editor
       case uk = 'Q' and path = ''
@@ -366,7 +377,6 @@ dive:
       top = 1
       gosub resolve
       gosub build.list
-      need.full = @true
    end else
       gosub edit.value
    end
@@ -386,87 +396,30 @@ go.up:
    del hist.top<n.path>
    gosub resolve
    gosub build.list
-   need.full = @true
    return
 
+* The help text, in a box over the list
 show.help:
-   display @(-1) :
-   s = change(sysmsg(11136), char(10), @fm)
-   n.lines = dcount(s, @fm)
-   for j = 1 to n.lines
-      display @(2, j) : s<j>[1, w - 3] :
-   next j
-   display @(2, n.lines + 2) : sysmsg(11137) :
-   x = keycode()
-   need.full = @true
+   s = convert(char(13), '', sysmsg(11136))       ;* (a carriage return in a box line would take the next cell to column 0)
+   s = change(s, char(10), @vm)
+   screen msgbox s returning b else b = 0
    return
 
 * ======================================================================
-* A line of text, edited at the message line.  In: pl.label, pl.text (the text to start from).
-* Out: pl.text and pl.key (K$RETURN to accept, K$ESC to cancel).
+* A line of text, asked for in a dialogue.  In: pl.label, pl.text (the text to start from).
+* Out: pl.text and pl.key ('enter' to accept, 'esc' to cancel).
 
 prompt.line:
-   display @(0, msg.row) : fmt('', (w - 1) : 'L') :
-   display @(0, msg.row) : pl.label : ': ' :
-   le.col = len(pl.label) + 2
-   le.w = w - le.col - 1
-   if le.w < 10 then le.w = 10
-   le.text = pl.text
-   gosub line.edit
-   pl.text = le.text
-   pl.key = le.key
-   display @(0, msg.row) : fmt('', (w - 1) : 'L') :
-   return
-
-line.edit:
-   le.pos = len(le.text) + 1
-   le.off = 1
-   loop
-      if le.pos < le.off then le.off = le.pos
-      if le.pos - le.off >= le.w - 1 then le.off = le.pos - le.w + 2
-      shown = convert(bad.chars, bad.repl, le.text[le.off, le.w - 1])
-      display @(le.col, msg.row) : fmt(shown, (le.w - 1) : 'L') :
-      display @(le.col + le.pos - le.off, msg.row) :
-      k = keycode()
-      if k = '' then
-         le.key = K$ESC
-         exit
-      end
-      kn = seq(k[1, 1])
-      begin case
-         case kn = K$RETURN
-            le.key = K$RETURN
-            exit
-         case kn = K$ESC
-            le.key = K$ESC
-            exit
-         case kn = K$BACKSPACE or kn = 127
-            if le.pos > 1 then
-               le.text = le.text[1, le.pos - 2] : le.text[le.pos, 999999]
-               le.pos -= 1
-            end
-         case kn = K$DELETE
-            if le.pos <= len(le.text) then
-               le.text = le.text[1, le.pos - 1] : le.text[le.pos + 1, 999999]
-            end
-         case kn = K$LEFT
-            if le.pos > 1 then le.pos -= 1
-         case kn = K$RIGHT
-            if le.pos <= len(le.text) then le.pos += 1
-         case kn = K$HOME
-            le.pos = 1
-         case kn = K$END
-            le.pos = len(le.text) + 1
-         case kn = CTRL.U
-            le.text = ''
-            le.pos = 1
-         case kn >= 32 and kn < 127
-            le.text = le.text[1, le.pos - 1] : k[1, 1] : le.text[le.pos, 999999]
-            le.pos += 1
-         case 1
-            display @sys.bell :
-      end case
-   repeat
+   bw = w - 12
+   if bw > 60 then bw = 60
+   if bw < 10 then bw = 10
+   pl.in = pl.text
+   screen ask pl.label value pl.in width bw returning pl.out then
+      pl.text = pl.out
+      pl.key = 'enter'
+   end else
+      pl.key = 'esc'
+   end
    return
 
 * ======================================================================
@@ -485,7 +438,7 @@ edit.value:
    loop
       pl.label = sysmsg(11147)
       gosub prompt.line
-      if pl.key = K$ESC then return
+      if pl.key = 'esc' then return
       ok = @true
       begin case
          case et = 'number'
@@ -510,8 +463,7 @@ edit.value:
       end case
       if ok then
          dirty = @true
-         i = sel
-         gosub paint.row
+         gosub build.list
          return
       end
       gosub show.error
@@ -522,7 +474,10 @@ edit.value:
 
 show.error:
    t = message.text
-   display @(0, path.row) : @(-13) : fmt(t[1, w - 1], (w - 1) : 'L') : @(-14) :
+   call $sl_scr('get', scr)
+   call $sl_attr('bar', bc)
+   call $sl_put(scr, 0, path.row, fmt(t[1, w - 1], (w - 1) : 'L'), bc)
+   call $sl_scr('put', scr)
    message.text = ''
    return
 
@@ -532,7 +487,7 @@ new.name:
    ok = @false
    pl.label = sysmsg(11140)
    gosub prompt.line
-   if pl.key = K$ESC then return
+   if pl.key = 'esc' then return
    nn = pl.text
    if nn = '' or index(nn, '/', 1) then
       message.text = sysmsg(11142)
@@ -551,7 +506,7 @@ new.position:
    ok = @false
    pl.label = sysmsg(11146, count + 1)
    gosub prompt.line
-   if pl.key = K$ESC then return
+   if pl.key = 'esc' then return
    np = pl.text
    if not(np matches '1N0N') or np < 1 or np > count + 1 then
       message.text = sysmsg(11146, count + 1)
@@ -597,7 +552,7 @@ reselect:
       locate nn in names<1> setting j then sel = j
    end
    gosub fix.window
-   need.full = @true
+   gosub build.list
    return
 
 delete.element:
@@ -614,7 +569,6 @@ delete.element:
    del cur{nm}
    dirty = @true
    gosub build.list
-   need.full = @true
    return
 
 copy.element:
@@ -627,7 +581,6 @@ cut.element:
       del cur{nm}
       dirty = @true
       gosub build.list
-      need.full = @true
    end
    return
 
@@ -683,6 +636,7 @@ paste.element:
    return
 
 * choose.type  -  A menu of the types in ct.allowed (a field mark list).  Out: ct.pick, null if cancelled.
+*                 Each entry's key is its number, as it has always been.
 
 choose.type:
    ct.pick = ''
@@ -692,22 +646,13 @@ choose.type:
       message.text = sysmsg(11145)
       return
    end
-   menu = ''
+   items = ''
    for j = 1 to n.allowed
-      menu := j : '=' : ct.allowed<j> : ' '
+      items<1, j> = '&' : j : ' ' : ct.allowed<j>
    next j
-   t = sysmsg(11144, trimb(menu))
-   display @(0, msg.row) : fmt(t[1, w - 1], (w - 1) : 'L') :
-   loop
-      k = keycode()
-      if k = '' then return
-      if seq(k[1, 1]) = K$ESC then return
-      if k matches '1N' and k >= 1 and k <= n.allowed then
-         ct.pick = ct.allowed<k>
-         return
-      end
-      display @sys.bell :
-   repeat
+   screen menu items returning code then
+      if code >= 1 and code <= n.allowed then ct.pick = ct.allowed<code>
+   end
    return
 
 change.type:
@@ -757,8 +702,7 @@ change.type:
    if ct.pick = '' then return
    gosub apply.type
    dirty = @true
-   i = sel
-   gosub paint.row
+   gosub build.list
    return
 
 * apply.type  -  Make the element nm of cur the type ct.pick; x is its value, et its type now
@@ -838,7 +782,7 @@ insert.element:
             pl.label = sysmsg(11147)
             pl.text = if ct.pick = 'boolean' then 'false' else ''
             gosub prompt.line
-            if pl.key = K$ESC then return
+            if pl.key = 'esc' then return
             ok = @true
             begin case
                case ct.pick = 'number'
@@ -914,28 +858,22 @@ revert:
    end
    return
 
+* quit.editor  -  Leave the editor; with changes unsaved the user is asked: Yes saves, No throws them away, Esc stays
+
 quit.editor:
    if dirty then
-      display @(0, msg.row) : fmt(sysmsg(11151) : ' ', (w - 1) : 'L') :
-      display @(len(sysmsg(11151)) + 1, msg.row) :
-      loop
-         k = keycode()
-         if k = '' then
-            gosub revert
-            exit
-         end
-         if upcase(k) = 'Y' then
+      qb = 0
+      screen msgbox sysmsg(11151) buttons '&Yes,&No,&Cancel' default 1 returning qb else qb = 0
+      * Esc, and the end of the input, leave the editor open (an input that has ended is given up on by the key loop)
+      begin case
+         case qb = 1
             gosub save.record
             if not(save.ok) then return
-            exit
-         end
-         if upcase(k) = 'N' then
+         case qb = 2
             gosub revert
-            exit
-         end
-         if seq(k[1, 1]) = K$ESC then return
-         display @sys.bell :
-      repeat
+         case 1
+            return
+      end case
    end
    done = @true
    if q.all then quit.all = @true

@@ -6,6 +6,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 13 Oct 26 dm  The choice of a new record's kind is a dialogue of the screen library.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -175,13 +176,13 @@ edit.record:
       end else
          null
       end
-      display sysmsg(11155, rec.id) : ' ' :
-      k = keycode()
-      display ''
+      * A collection or an array?  A dialogue (the library's): C and A choose, Esc cancels.
+      nb = 0
+      screen msgbox sysmsg(11155, rec.id) buttons '&Collection,&Array' returning nb else nb = 0
       begin case
-         case upcase(k) = 'C'
+         case nb = 1
             c = collection()
-         case upcase(k) = 'A'
+         case nb = 2
             c = mat()
          case 1
             release file, rec.id

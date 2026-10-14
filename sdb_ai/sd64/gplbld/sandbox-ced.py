@@ -122,7 +122,9 @@ def elements(lines):
     for l in lines[2:]:
         if l.startswith("Path:"):
             break
-        m = re.match(r"^([> ]) (\S+)\s+(string|number|boolean|null|collection|array|\?)\s*(.*?)\s*$", l)
+        if len(l) >= 100:
+            l = l[:99]                    # the table's scroll bar is the last column (^ | # v), not part of a value
+        m = re.match(r"^([> ]) ?(\S+)\s+(string|number|boolean|null|collection|array|\?)\s*(.*?)\s*$", l)
         if m:
             out.append(m.groups())
     return out
@@ -166,8 +168,45 @@ def path_of(lines):
     return None
 
 
+def dialog(lines):
+    """The lines inside a box the library drew over the editor (+-----+ and | at its left), stripped, or [] if there is none."""
+    for r, l in enumerate(lines):
+        m = re.search(r"\+-[^|]*\+", l)
+        if not m:
+            continue
+        a, b = m.start(), m.end()
+        out = []
+        for l2 in lines[r + 1:]:
+            if len(l2) > a and l2[a] == "|":
+                out.append(l2[a + 1:b - 1].strip())
+            else:
+                break
+        if out:
+            return out
+    return []
+
+
+def menu_choices(lines):
+    """The entries of a pop-up menu on the screen as ['1=string', '2=number'], or []: rows that are a digit and a data type,
+    set well in from the left (the editor's own rows start in column 0 or 1)."""
+    out = []
+    for l in lines:
+        for m in re.finditer(r"(?<![\w.])([1-6]) (string|number|boolean|null|collection|array)(?![\w])", l):
+            if m.start() >= 10:           # (the menu is drawn over the list, in the middle of the screen)
+                out.append("%s=%s" % m.groups())
+    return out
+
+
 def message_of(lines):
-    """The bottom line of the editor (the message or prompt line)."""
+    """What the editor is saying or asking.  A question in a dialogue: its prompt and the text typed, as 'Value: Acme'
+    (a box with buttons: its first line).  Else the bottom line of the screen (the message line)."""
+    d = dialog(lines)
+    if d:
+        if any(x.startswith("[") for x in d):
+            return d[0]
+        if len(d) >= 2:
+            return (d[0] + ": " + d[1]).rstrip()
+        return d[0]
     last = [l for l in lines if l.strip()]
     return last[-1].strip() if last else ""
 
@@ -301,10 +340,10 @@ end
         L = e.keys(DOWN, RET, "q")
         row("Q below the top level is not a quit", path_of(L) == "/sub" or path_of(L) == "/tags", repr(path_of(L)))
         L = e.keys(F1)
-        row("F1 shows the help screen, which names the keys",
-            "Ctrl-Q" in e.text() and "Ins or Ctrl-I" in e.text() and "F5 or Ctrl-C" in e.text() and "Press any key" in e.text(), e.text()[:300])
-        L = e.keys("x")
-        row("any key leaves the help screen", "Press any key" not in e.text() and "Path:" in e.text(), e.text()[-200:])
+        row("F1 shows the help in a box over the list, which names the keys and has an OK button",
+            "Ctrl-Q" in e.text() and "Ins or Ctrl-I" in e.text() and "F5 or Ctrl-C" in e.text() and "[ OK ]" in e.text(), e.text()[:300])
+        L = e.keys(RET)
+        row("Return (OK) closes it: the list and its path are back", "[ OK ]" not in e.text() and "Path:" in e.text(), e.text()[-200:])
         e.keys(CTRL_Q)
         e.end()
 
@@ -384,39 +423,39 @@ end
         rid = scen()
         e = Ced(box, "CED %s %s" % (C, rid))
         L = e.keys(F4)
-        row("F4 on a number offers only string (5 is not a boolean)", re.search(r"Change type to: 1=string \(Esc cancels\)", message_of(L)) is not None, message_of(L))
+        row("F4 on a number offers only string (5 is not a boolean)", menu_choices(L) == ["1=string"], repr(menu_choices(L)))
         L = e.keys("1")
         row("choosing 1 makes the number a string", by_name(L)["n"] == ("string", "5"), repr(by_name(L).get("n")))
         L = e.keys(F4)
-        row("a string that is a number offers number (and not boolean or null)", re.search(r"1=number", message_of(L)) is not None and "boolean" not in message_of(L), message_of(L))
+        row("a string that is a number offers number (and not boolean or null)", menu_choices(L) == ["1=number"], repr(menu_choices(L)))
         L = e.keys("1")
         row("...and the number comes back", by_name(L)["n"] == ("number", "5"), repr(by_name(L).get("n")))
         L = e.keys(DOWN, F4)
         row("a string that is not a number or JSON offers nothing, and the editor says so",
             "The type of this element cannot be changed" in e.text(), e.text()[-200:])
         L = e.keys(DOWN * 2, F4)
-        row("a boolean offers string and number", re.search(r"1=string 2=number", message_of(L)) is not None, message_of(L))
+        row("a boolean offers string and number", menu_choices(L) == ["1=string", "2=number"], repr(menu_choices(L)))
         L = e.keys("2")
         row("a boolean made a number is 1 or 0", by_name(L)["off"] == ("number", "0"), repr(by_name(L).get("off")))
         L = e.keys(UP, F4, "1")
         row("a null offers string: it becomes an empty string", by_name(L)["none"] == ("string", ""), repr(by_name(L).get("none")))
         L = e.keys(F4)
-        row("an empty string offers null", "1=null" in message_of(L), message_of(L))
+        row("an empty string offers null", "1=null" in menu_choices(L), repr(menu_choices(L)))
         L = e.keys("1")
         row("...and is a null again", by_name(L)["none"] == ("null", "null"), repr(by_name(L).get("none")))
         L = e.keys(DOWN * 4, F4)
-        row("an array offers collection and string", re.search(r"1=string 2=collection", message_of(L)) is not None, message_of(L))
+        row("an array offers collection and string", menu_choices(L) == ["1=string", "2=collection"], repr(menu_choices(L)))
         L = e.keys("2")
         row("an array made a collection has its positions for names", by_name(L)["tags"] == ("collection", "{3}"), repr(by_name(L).get("tags")))
         L = e.keys(F4)
-        row("...and a collection of that kind offers an array again", "2=array" in message_of(L), message_of(L))
+        row("...and a collection of that kind offers an array again", "2=array" in menu_choices(L), repr(menu_choices(L)))
         L = e.keys("2")
         row("...which it becomes", by_name(L)["tags"] == ("array", "[3]"), repr(by_name(L).get("tags")))
         L = e.keys(F4, "9")
-        row("a choice that is not offered is not taken (the menu stays)", "Change type to" in message_of(e.lines()), message_of(e.lines()))
-        menu_was_open = "Change type to" in message_of(e.lines())
+        row("a choice that is not offered is not taken (the menu stays)", len(menu_choices(e.lines())) > 0, repr(menu_choices(e.lines())))
+        menu_was_open = len(menu_choices(e.lines())) > 0
         L = e.keys(ESC)
-        row("Esc cancels the menu", menu_was_open and "Change type to" not in e.text() and "Collection editor" in e.text(), e.text()[-150:])
+        row("Esc cancels the menu", menu_was_open and not menu_choices(e.lines()) and "Collection editor" in e.text(), e.text()[-150:])
         e.keys(CTRL_Q, "N")
         e.end()
 
@@ -427,7 +466,7 @@ end
         L = e.keys(INS)
         row("Ins asks for a name", message_of(L) == "New name:", message_of(L))
         L = e.keys("aa", RET)
-        row("...then a type, from all six", re.search(r"1=string 2=number 3=boolean 4=null 5=collection 6=array", message_of(L)) is not None, message_of(L))
+        row("...then a type, from all six", menu_choices(L) == ["1=string", "2=number", "3=boolean", "4=null", "5=collection", "6=array"], repr(menu_choices(L)))
         L = e.keys("1")
         row("...then a value", message_of(L) == "Value:", message_of(L))
         L = e.keys("hello", RET)
