@@ -211,6 +211,10 @@ class Screen:
                     self.reverse_on &= ~0xF000
 
     def feed(self, text):
+        # An escape sequence can be cut by the end of what one read gave: the start of it is kept for the next feed
+        # (without this a lone ESC at the end of a chunk was skipped with the next character and the rest printed as text)
+        text = getattr(self, "_pend", "") + text
+        self._pend = ""
         i = 0
         n = len(text)
         while i < n:
@@ -221,6 +225,9 @@ class Screen:
                     self._csi(m.group(1), m.group(3))
                     i = m.end()
                     continue
+                if re.match(r"\x1b(\[[0-9;?<>]*)?$", text[i:]) or (text[i:] in ("\x1b(", "\x1b)")):
+                    self._pend = text[i:]
+                    break
                 # ESC 7 / 8 (save / restore cursor), ESC = and ESC > (keypad), ESC ( B and the like
                 if i + 1 < n and text[i + 1] in "()":
                     i += 3

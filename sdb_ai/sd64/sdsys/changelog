@@ -36,6 +36,14 @@ Next release - in progress
            A user on AccuTerm should set the terminal type to xterm, or vt100:
            the -at types are no longer known.
 
+           SDTerm and SDConsole, Ladybridge's own Windows terminal programs,
+           are not provided with SD and are no longer supported either: the
+           sdterm terminal type, its @(-29), @(-30) and @(-256) sequences, the
+           window size LOGIN sent it and the TERM DISPLAY line about it are
+           gone.  SAVE.SCREEN() and RESTORE.SCREEN still exist and do nothing
+           that the terminal could see (they asked it to keep the picture, which
+           only those two terminal programs could).
+
 13 Oct 26  A NEW ACCOUNT STARTS WITH NO SHELL, NO OS.EXECUTE, NO SSH AND NO API;
            THE ADMINISTRATOR TURNS EACH ON, ACCOUNT BY ACCOUNT.
 

@@ -231,9 +231,10 @@ buffer. A user program cannot be asked to build one, so the commands keep it in 
   pop-up saves "what is under me" from the shadow and a form needs no repaint code of its own. S.1
   measured the diff renderer: a full 160x48 repaint is 0.11 ms of CPU in BASIC.
 - The program's own `print @(x,y)` is not in the shadow (curses has the same rule); `screen refresh`
-  repaints from the shadow after it. The kernel's `SAVE.SCREEN` / `RESTORE.SCREEN` do nothing on a
-  Linux terminal (`linuxio.c:752`, they only work in an SDTerm client); once the shadow exists they could
-  be made to use it, which would also give the debugger's pop-ups back their screen - not proposed yet.
+  repaints from the shadow after it. The kernel's `SAVE.SCREEN` / `RESTORE.SCREEN` do nothing (since
+  13 Oct 26 on any terminal: they asked the terminal to keep the picture, which only AccuTerm and SDTerm
+  could, and both are no longer supported); the debugger uses the terminal's alternate screen and the
+  library's own shadow instead.
 - Existing widgets (`$sl_menu`, `$sl_msgbox`, `$sl_prompt`) draw with `display`; moving them to `$sl_put`
   is stage 1. SED keeps handing its own shadow in, so it does not change.
 
