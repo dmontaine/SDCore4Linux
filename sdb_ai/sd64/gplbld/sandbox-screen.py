@@ -1226,6 +1226,43 @@ PROGS.update({
 })
 
 
+CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F = (
+    "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06")
+
+PROGS.update({
+    # a wrapped text area (19 cells of text) of five rows over three lines: a long one of words, a short one and a
+    # word of 36 letters that has to be broken; a button after it
+    "zzthmwr": dialogue_program("""   text = 'the quick brown fox jumps over the lazy dog':@fm:'short':@fm:str('a', 36)
+   screen form title 'Wrap' at 10,3 size 40,14 returning f
+   screen memo f, 'm', text at 2,2 size 20,5 wrap
+   screen button f, 'ok', '&OK' at 10,11 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'm' returning t
+   res := ' ':dcount(t, @fm):'|':convert(@fm, '/', t):'|'
+"""),
+    # the same text without wrap, to see that the extra keys work there too: a viewer (it selects and copies, and
+    # nothing else) in one memo and an editor in the other, the clipboard passing from one to the other
+    "zzthmcb": dialogue_program("""   text = 'one two three':@fm:'four five six'
+   screen form title 'Clip' at 10,3 size 40,14 returning f
+   screen memo f, 'v', text at 2,2 size 20,3 readonly
+   screen memo f, 'e', 'x' at 2,6 size 20,3
+   screen button f, 'ok', '&OK' at 10,11 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'v' returning t
+   screen get f, 'e' returning u
+   res := ' ':convert(@fm, '/', t):'|':convert(@fm, '/', u):'|'
+"""),
+})
+
+
 PROGS.update({
     # a table of six rows in four rows of room: a heading, right-aligned numbers, a scroll bar, a button after it
     "zzthtbl": dialogue_program("""   cols = 'Name':@sm:'10L':@vm:'Qty':@sm:'4R':@vm:'City'
@@ -1804,6 +1841,104 @@ def part_memo(box):
     t.end()
 
 
+def part_memo2(box):
+    say("\n--- the text area: word wrap, selection, clipboard, undo, find ---------------------------------------")
+    t = Term(box, "RUN bp zzthmwr")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "the quick brown")
+    r0 = p[0] if p else 0
+    c0 = p[1] if p else 0
+
+    def area(L, n=5):
+        return [l[c0:c0 + 19].rstrip() for l in L[r0:r0 + n]]
+
+    A = area(L)
+    row("wrap: the long line is broken after the last blank that fits, the short one is whole, the 36-letter word is cut at the width (19)",
+        p is not None and A == ["the quick brown", "fox jumps over the", "lazy dog", "short", "a" * 19], repr(A))
+    row("wrap: the scroll bar is there (^ at the top, v at the bottom) and the 17 letters that are left are below the area",
+        L[r0][c0 + 19] == "^" and L[r0 + 4][c0 + 19] == "v" and "a" * 17 not in "".join(L[r0 + 4:r0 + 5])[19:], repr([l[c0 + 19:c0 + 20] for l in L[r0:r0 + 5]]))
+    L = t.keys(DOWN)
+    row("Down goes a ROW down, not a line: the cursor is on 'fox jumps over the', in the column it had", t.cursor() == (c0, r0 + 1), repr(t.cursor()))
+    L = t.keys(DOWN, DOWN, DOWN)
+    row("Down three more: 'lazy dog', 'short', then the first row of the long word", t.cursor() == (c0, r0 + 4), repr(t.cursor()))
+    L = t.keys(DOWN)
+    A = area(L)
+    row("Down onto the row the area does not show scrolls it: the rows are 'fox jumps over the' .. the 17 letters, the cursor on the last",
+        A == ["fox jumps over the", "lazy dog", "short", "a" * 19, "a" * 17] and t.cursor() == (c0, r0 + 4), repr((A, t.cursor(), L[r0 + 4])))
+    L = t.keys(UP, UP, UP, UP, UP)
+    A = area(L)
+    row("Up five times is back at the top: the first row shows again, the cursor at its first character",
+        A[0] == "the quick brown" and t.cursor() == (c0, r0), repr((A, t.cursor())))
+    L = t.keys(END)
+    row("End goes to the end of the ROW (the blank the line was wrapped at), not the line", t.cursor() == (c0 + 15, r0), repr(t.cursor()))
+    L = t.keys(RIGHT)
+    row("Right from there is the next row's first character: 'fox'", t.cursor() == (c0, r0 + 1), repr(t.cursor()))
+    before = t.attrs(r0 + 1)[c0:c0 + 3]
+    L = t.keys(CTRL_G, RIGHT, RIGHT, RIGHT)
+    sel = t.attrs(r0 + 1)[c0:c0 + 4]
+    row("selection: Ctrl-G then three Rights shows 'fox' in reverse (the highlight style), the blank after it not; before the mark it was not",
+        sel == "rrrn" and before != "rrr", repr((before, sel)))
+    L = t.keys(CTRL_O)
+    row("Ctrl-O copies and takes the selection off the screen", t.attrs(r0 + 1)[c0:c0 + 3] != "rrr", repr(t.attrs(r0 + 1)[c0:c0 + 3]))
+    L = t.keys(END, CTRL_V)
+    A = area(L)
+    row("Ctrl-V puts 'fox' in at the cursor, before the blank that ends the row: the line is 'the quick brown fox jumps over thefox lazy dog' "
+        "and it is wrapped again, the cursor after the pasted word",
+        A[:4] == ["the quick brown", "fox jumps over", "thefox lazy dog", "short"] and t.cursor() == (c0 + 6, r0 + 2), repr((A, t.cursor())))
+    L = t.keys(CTRL_Z)
+    A = area(L)
+    row("Ctrl-Z undoes the paste: the rows are as they were", A[:4] == ["the quick brown", "fox jumps over the", "lazy dog", "short"], repr(A))
+    L = t.keys(CTRL_Y)
+    A = area(L)
+    row("Ctrl-Y does it again", A[2] == "thefox lazy dog", repr(A))
+    L = t.keys(CTRL_Z)
+    row("and Ctrl-Z once more takes it back", area(L)[1] == "fox jumps over the", repr(area(L)))
+    L = t.keys(CTRL_T, "LAZY", RET)
+    A = area(L)
+    sel = t.attrs(r0 + 2)[c0:c0 + 5]
+    row("find: Ctrl-T asks for the text on the bottom row of the area and Return finds it, ignoring case: 'lazy' is selected "
+        "and the row under the question is back as it was",
+        sel == "rrrrn" and A == ["the quick brown", "fox jumps over the", "lazy dog", "short", "a" * 19], repr((sel, A)))
+    L = t.keys("X")
+    A = area(L)
+    row("typing on a selection replaces it: 'X dog'", A[2] == "X dog", repr(A))
+    L = t.keys("a", "b", "c")
+    row("typed on: 'Xabc dog'", area(L)[2] == "Xabc dog", repr(area(L)))
+    L = t.keys(CTRL_Z)
+    row("one Ctrl-Z takes the whole run of typing back (a run is one step): 'X dog'", area(L)[2] == "X dog", repr(area(L)))
+    L = t.keys(CTRL_N)
+    row("Ctrl-N with nothing more to find rings the bell and leaves the text as it is", area(L)[2] == "X dog", repr(area(L)))
+    L = t.keys(TAB)
+    t.keys(RET)
+    row("Return on the button: the program has the text, three lines, edited as above and wrapped nowhere",
+        final(t, "PRESSED") == "ok| 3|the quick brown fox jumps over the X dog/short/" + "a" * 36 + "|", "")
+    t.end()
+
+    say("\n--- the text area: a viewer that copies, the clipboard between areas, words -------------------------")
+    t = Term(box, "RUN bp zzthmcb")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "one two three")
+    r0 = p[0] if p else 0
+    c0 = p[1] if p else 0
+    L = t.keys(CTRL_G, RIGHT, RIGHT, RIGHT)
+    row("a viewer selects: 'one' is in reverse", t.attrs(r0)[c0:c0 + 4] == "rrrn", repr(t.attrs(r0)[c0:c0 + 4]))
+    L = t.keys(CTRL_O, "z", CTRL_V, BS)
+    row("...copies; typing, Ctrl-V and Backspace change nothing in a viewer",
+        L[r0][c0:c0 + 13] == "one two three" and L[r0 + 1][c0:c0 + 13] == "four five six", repr(L[r0:r0 + 2]))
+    L = t.keys(TAB, CTRL_V)
+    p2 = at(L, "onex")
+    row("Tab to the editor and Ctrl-V: what the viewer copied is pasted in front of its 'x': 'onex'", p2 is not None, "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 9]))
+    L = t.keys(END, " red blue", CTRL_B, CTRL_B, CTRL_F, "Q")
+    row("Ctrl-B goes a word back and Ctrl-F a word on: 'onex red blue' becomes 'onex redQ blue'", at(L, "onex redQ blue") is not None, "\n".join(l[c0:c0 + 20] for l in L[r0:r0 + 9]))
+    t.keys(TAB)
+    t.keys(RET)
+    row("the program has both texts: the viewer's untouched, the editor's edited",
+        final(t, "PRESSED") == "ok| one two three/four five six|onex redQ blue|", "")
+    t.end()
+
+
 def part_tabs(box):
     say("\n--- tabs and pages ------------------------------------------------------------------------------------")
     t = Term(box, "RUN bp zzthtab")
@@ -2080,6 +2215,7 @@ def main():
             part_scroll(box)
         if "memo" in parts:
             part_memo(box)
+            part_memo2(box)
         if "themes" in parts:
             part_themes(box)
         if "tabs" in parts:
