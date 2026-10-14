@@ -1276,6 +1276,24 @@ PROGS.update({
 
 
 PROGS.update({
+    # a tree of three roots, two of them with nodes under them (one three deep), a button after it
+    "zzthtre": dialogue_program("""   nodes = 'Root A':@sm:1:@sm:'a':@vm:'Child A1':@sm:2:@sm:'a1':@vm:'Leaf A1a':@sm:3:@sm:'a1a':@vm:'Child A2':@sm:2:@sm:'a2'
+   nodes := @vm:'Root B':@sm:1:@sm:'b':@vm:'Child B1':@sm:2:@sm:'b1':@vm:'Root C':@sm:1:@sm:'c'
+   screen form title 'Tree' at 10,3 size 40,14 returning f
+   screen tree f, 'tr', nodes at 2,1 size 20,6
+   screen button f, 'ok', '&OK' at 10,9 default
+   screen run f returning pressed then
+      res = 'PRESSED ':pressed:'|'
+   end else
+      res = 'CANCEL ':pressed:'|'
+   end
+   screen get f, 'tr' returning v
+   res := ' ':v:'|'
+"""),
+})
+
+
+PROGS.update({
     # a table of four columns in 22 cells (so the last two are off to the right), five rows, rows that can be marked
     "zzthtbs": dialogue_program("""   cols = 'Name':@sm:'8L':@vm:'Qty':@sm:'4R':@vm:'City':@sm:'8L':@vm:'Code':@sm:'6L'
    rows = 'Smith':@vm:'12':@vm:'Albany':@vm:'A1'
@@ -2015,6 +2033,51 @@ def part_table2(box):
     t.end()
 
 
+def part_tree(box):
+    say("\n--- the tree ----------------------------------------------------------------------------------------")
+    t = Term(box, "RUN bp zzthtre")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "Root A")
+    r0 = p[0] if p else 0
+    c0 = (p[1] if p else 0) - 3                       # the lead cell is c0, the + or - is c0 + 1, the label starts at c0 + 3
+
+    def tree(L, n=7):
+        return [L[r0 + i][c0:c0 + 20].rstrip() for i in range(n)]
+
+    A = tree(L)
+    row("the tree starts closed: the three roots, + before those with nodes under them, a blank before the leaf",
+        p is not None and A[:3] == [" + Root A", " + Root B", "   Root C"] and A[3] == "", repr(A))
+    row("the cursor is on Root A, which is in reverse (the highlight style)", t.attrs(r0)[c0 + 3:c0 + 9] == "rrrrrr", repr(t.attrs(r0)[c0:c0 + 20]))
+    L = t.keys(RIGHT)
+    A = tree(L)
+    row("Right opens Root A: - before it, Child A1 (+) and Child A2 under it, indented two cells; the roots below move down",
+        A[:5] == [" - Root A", "   + Child A1", "     Child A2", " + Root B", "   Root C"], repr(A))
+    L = t.keys(RIGHT, DOWN, LEFT)
+    A = tree(L)
+    row("Right on an open node goes to its first node (Child A1), Down to Child A2, Left on a leaf goes to the node it is under: "
+        "the cursor is on Root A again", t.attrs(r0)[c0 + 3:c0 + 9] == "rrrrrr" and t.attrs(r0 + 2)[c0 + 3:c0 + 9] != "rrrrrr", repr((t.attrs(r0)[:20], t.attrs(r0 + 2)[:20])))
+    L = t.keys(RIGHT, RIGHT)
+    A = tree(L)
+    row("Right to Child A1 and Right again opens it: Leaf A1a under it, indented four cells",
+        A[:6] == [" - Root A", "   - Child A1", "       Leaf A1a", "     Child A2", " + Root B", "   Root C"], repr(A))
+    L = t.keys(LEFT, LEFT)
+    A = tree(L)
+    row("Left closes Child A1 and Left again (on a closed node) goes to Root A",
+        A[:4] == [" - Root A", "   + Child A1", "     Child A2", " + Root B"] and t.attrs(r0)[c0 + 3:c0 + 9] == "rrrrrr", repr(A))
+    L = t.keys(" ")
+    A = tree(L)
+    row("the space bar closes Root A: back to the three roots", A[:3] == [" + Root A", " + Root B", "   Root C"], repr(A))
+    L = t.keys("r", "r")
+    row("a letter goes to the next node shown that starts with it: R twice from Root A is Root C", t.attrs(r0 + 2)[c0 + 3:c0 + 9] == "rrrrrr", repr(t.attrs(r0 + 2)[:20]))
+    L = t.keys(UP, UP, RIGHT, RIGHT, RIGHT, DOWN)
+    A = tree(L)
+    row("up to Root A, open it, to Child A1, open it, Down to Leaf A1a", t.attrs(r0 + 2)[c0 + 7:c0 + 15] == "rrrrrrrr", repr((A[:6], t.attrs(r0 + 2)[:20])))
+    t.keys(RET)
+    row("Return is a done event (the default button): the program has the leaf's code, a1a", final(t, "PRESSED") == "ok| a1a|", "")
+    t.end()
+
+
 def part_menu2(box):
     say("\n--- menus: disabled and checked entries, submenus -----------------------------------------------------")
     t = Term(box, "RUN bp zzscmfl")
@@ -2327,6 +2390,7 @@ def main():
         if "table" in parts:
             part_table(box)
             part_table2(box)
+            part_tree(box)
         if "scroll" in parts:
             part_scroll(box)
         if "memo" in parts:
