@@ -425,6 +425,17 @@ end
       res ='CANCEL [' : c : ']'
    end
 """),
+    # a menu bar with a disabled entry, a checked one and a submenu (a menu whose title begins with >)
+    "zzscmfl": dialogue_program("""   menus = '&File':@vm:'&Open':@sm:'':@sm:'open':@vm:'&Save':@sm:'':@sm:'save':@sm:'D':@vm:'&Autosave':@sm:'':@sm:'auto':@sm:'C'
+   menus := @vm:'&Recent':@sm:'':@sm:'>Recent':@vm:'E&xit':@sm:'':@sm:'exit'
+   menus<2> = '&Edit':@vm:'&Copy':@sm:'':@sm:'copy':@vm:'&Paste':@sm:'':@sm:'paste':@sm:'D'
+   menus<3> = '>Recent':@vm:'one.txt':@sm:'':@sm:'r1':@vm:'two.txt':@sm:'':@sm:'r2'
+   screen menubar menus returning c then
+      res ='CODE ' : c : '|'
+   end else
+      res ='CANCEL [' : c : ']'
+   end
+"""),
     # a pick list with more entries than rows
     "zzscpik": dialogue_program("""   items = 'Albany':@vm:'Boston':@vm:'Chicago':@vm:'Denver':@vm:'Elgin':@vm:'Fresno':@vm:'Gary':@vm:'Houston':@vm:'Irvine':@vm:'Jackson'
    screen pick items title 'Pick one' size 20,5 returning n then
@@ -1939,6 +1950,45 @@ def part_memo2(box):
     t.end()
 
 
+def part_menu2(box):
+    say("\n--- menus: disabled and checked entries, submenus -----------------------------------------------------")
+    t = Term(box, "RUN bp zzscmfl")
+    L = t.keys("a")
+    rows = [l[:14].rstrip() for l in L[1:7]]
+    row("File is open: Open, Save, Autosave (with a * in its first cell: checked), Recent with a > at its right, Exit; "
+        "the hidden submenu is not on the bar (File and Edit only)",
+        rows[0].startswith(" Open") and rows[1].startswith(" Save") and rows[2].startswith("*Autosave")
+        and rows[3].startswith(" Recent") and rows[3].endswith(">") and rows[4].startswith(" Exit")
+        and L[0].startswith(" File  Edit") and "Recent" not in L[0], repr(rows))
+    row("the cursor (the selected entry is drawn normal on the reverse menu) is on Open, not on Save",
+        t.attrs(1)[3] == "n" and t.attrs(2)[3] in "rx", repr([t.attrs(r)[:8] for r in (1, 2, 3)]))
+    L = t.keys(DOWN)
+    row("Down skips the disabled Save: the cursor is on Autosave", t.attrs(3)[3] == "n" and t.attrs(2)[3] in "rx" and t.attrs(1)[3] in "rx",
+        repr([t.attrs(r)[:8] for r in (1, 2, 3, 4)]))
+    L = t.keys("s")
+    row("the letter of a disabled entry chooses nothing: File is still open on Autosave", any("Autosave" in l for l in L[1:7]) and t.attrs(3)[3] == "n", "\n".join(L[:7]))
+    L = t.keys(DOWN, RIGHT)
+    sub = [l[14:30].rstrip() for l in L[3:7]]
+    row("Down to Recent and Right opens its submenu beside it: one.txt and two.txt; File is still open under it",
+        any("one.txt" in l for l in L[1:8]) and any("two.txt" in l for l in L[1:8]) and any("Autosave" in l for l in L[1:7]), "\n".join(L[:8]))
+    L = t.keys(ESC)
+    row("Esc closes the submenu only: its entries are gone and File is still open", not any("one.txt" in l for l in L[1:8]) and any("Recent" in l for l in L[1:7]), "\n".join(L[:8]))
+    L = t.keys(RIGHT)
+    row("Right on Recent opens it again", any("one.txt" in l for l in L[1:8]), "\n".join(L[:8]))
+    L = t.keys(DOWN, RET)
+    row("Down and Return in the submenu choose two.txt: its code is what the program gets, and every drop-down is closed",
+        not any("one.txt" in l for l in L[1:8]) and not any("Autosave" in l for l in L[1:7]) and final(t, "CODE") == "r2|", "")
+    t.end()
+    t = Term(box, "RUN bp zzscmfl")
+    L = t.keys("a")
+    L = t.keys(RIGHT)
+    row("Edit: Copy and Paste (disabled); Down from Copy stays on Copy because Paste cannot be chosen",
+        any("Copy" in l for l in L[1:5]) and any("Paste" in l for l in L[1:5]), "\n".join(L[:5]))
+    L = t.keys(DOWN, RET)
+    row("...so Down then Return chooses Copy", final(t, "CODE") == "copy|", "")
+    t.end()
+
+
 def part_tabs(box):
     say("\n--- tabs and pages ------------------------------------------------------------------------------------")
     t = Term(box, "RUN bp zzthtab")
@@ -2224,6 +2274,7 @@ def main():
             part_owned(box)
         if "dialogs" in parts:
             part_dialogs(box)
+            part_menu2(box)
         if "forms" in parts:
             part_forms(box)
             part_forms2(box)
