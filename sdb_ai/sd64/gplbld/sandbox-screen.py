@@ -336,6 +336,28 @@ end
    screen hide f
    res = log
 """),
+    # SET with WRAP, READONLY and VISIBLE: a memo that is wrapped and made a viewer while the form is shown, a button hidden
+    "zzscset": dialogue_program("""   screen form title 'Set' at 10,3 size 40,12 returning f
+   screen memo f, 'm', 'the quick brown fox jumps over the lazy dog' at 2,2 size 20,4
+   screen button f, 'ok', '&OK' at 10,8 default
+   loop
+      screen wait f timeout 8 returning ev else exit
+      if ev<1> = 'key' then
+         if ev<3> = 'f2' then
+            screen set f, 'm' wrap 1
+            screen set f, 'ok' visible 0
+         end
+         if ev<3> = 'f3' then screen set f, 'm' readonly 1
+         if ev<3> = 'f4' then
+            screen set f, 'ok' visible 1
+            exit
+         end
+      end
+   repeat
+   screen get f, 'm' returning t
+   screen hide f
+   res = 'DONE ':t:'|'
+"""),
     # a wait that times out, and the hide that follows
     "zzscwt2": dialogue_program("""   res = 'NO-ELSE'
    screen form title 'Late' at 10,3 size 30,6 returning f
@@ -1238,6 +1260,7 @@ PROGS.update({
 
 
 F3 = "\x1bOR"
+F2_KEY, F3_KEY, F4_KEY = "\x1bOQ", "\x1bOR", "\x1bOS"
 CTRL_G, CTRL_O, CTRL_X, CTRL_V, CTRL_Z, CTRL_Y, CTRL_T, CTRL_N, CTRL_B, CTRL_F = (
     "\x07", "\x0f", "\x18", "\x16", "\x1a", "\x19", "\x14", "\x0e", "\x02", "\x06")
 
@@ -2033,6 +2056,30 @@ def part_table2(box):
     t.end()
 
 
+def part_set(box):
+    say("\n--- SCREEN SET: WRAP, READONLY, VISIBLE ----------------------------------------------------------------")
+    t = Term(box, "RUN bp zzscset")
+    t.keys()
+    L = t.keys("a")
+    p = at(L, "the quick brown")
+    r0 = p[0] if p else 0
+    c0 = p[1] if p else 0
+    row("before: the memo pans (the first row is 'the quick brown fox', 19 cells) and the OK button is there",
+        p is not None and L[r0][c0:c0 + 19] == "the quick brown fox" and any("OK" in l for l in L), "\n".join(L[r0 - 1:r0 + 7]))
+    L = t.keys(F2_KEY)
+    A = [L[r0 + i][c0:c0 + 19].rstrip() for i in range(3)]
+    row("SET WRAP 1 wraps the memo while it is on the screen: 'the quick brown', 'fox jumps over the', 'lazy dog'",
+        A == ["the quick brown", "fox jumps over the", "lazy dog"], repr(A))
+    row("SET VISIBLE 0 hides the button: no OK on the form", not any("[ OK ]" in l for l in L), "\n".join(L[r0 - 1:r0 + 8]))
+    L = t.keys(F3_KEY, "x", "y")
+    A = [L[r0 + i][c0:c0 + 19].rstrip() for i in range(3)]
+    row("SET READONLY 1 makes it a viewer: typing changes nothing", A == ["the quick brown", "fox jumps over the", "lazy dog"], repr(A))
+    t.keys(F4_KEY)
+    row("the program ended with the text as it was",
+        final(t, "DONE") == "the quick brown fox jumps over the lazy dog|", repr(final(t, "DONE")))
+    t.end()
+
+
 def part_tree(box):
     say("\n--- the tree ----------------------------------------------------------------------------------------")
     t = Term(box, "RUN bp zzthtre")
@@ -2410,6 +2457,7 @@ def main():
             part_forms2(box)
         if "events" in parts:
             part_events(box)
+            part_set(box)
 
         say("\n--- compile errors -------------------------------------------------------------------------------------")
         for nm, (_, want) in BAD.items():
