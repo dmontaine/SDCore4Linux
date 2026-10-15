@@ -108,6 +108,13 @@ $include int$keys.h
    opt<-1> = 'NUMERIC.EXPONENT||11253'           ;* 46, openQM ref 404
    opt<-1> = 'QUERY.FOOTER.PAUSE||11254'         ;* 47, openQM ref 429
    opt<-1> = 'INHERIT.MFILE.PATH||11255'         ;* 48, openQM ref 461
+   * 15 Oct 26  Q-17 of the QM4 gaps tab: the position in this list is the index in options.h (49 to 54), in this order
+   opt<-1> = 'GIT||11266'                        ;* 49
+   opt<-1> = 'DIR.DTM||11267'                    ;* 50
+   opt<-1> = 'KEEP.OLD.OBJECT||11268'            ;* 51
+   opt<-1> = 'NO.PHANTOM.NOTIFY||11269'          ;* 52
+   opt<-1> = 'SPOOL.COMMAND||11270'              ;* 53
+   opt<-1> = 'ASSOC.ALL||11271'                  ;* 54
    *         'xxxxxxxxxxxxxxxxxxx'    Option name limit = 19 characters
 
    * Shortcuts

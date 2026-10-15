@@ -33,6 +33,7 @@
 #include "sd.h"
 #include "tio.h"
 #include "config.h"
+#include "options.h"
 
 #define FILE_BUFF_SIZE 1024
 
@@ -174,6 +175,10 @@ cmd_too_long:
     fprintf(stderr, "spool_print_job: print command too long - job not spooled\n");
     return;
   }
+
+  /* 15 Oct 26 (openQM SPOOL.COMMAND): a diagnostic aid - show the command the print is about to run */
+  if (Option(OptSpoolCommand))
+    tio_printf("%s\n", cmd);
 
   system(cmd);
   /* -------------------- */
