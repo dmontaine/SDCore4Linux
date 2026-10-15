@@ -94,6 +94,7 @@
  * SDRevision()
  * SDGetVar()
  * SDSystem()
+ * SDTxn()
  *
  *
  * Dynamic Array Handling
@@ -3138,6 +3139,21 @@ Private char* trans_request(int16_t action, char* file_name, char* id, char* fie
   result = text_request(action, packet, (int32_t)(p - packet), "Trans generated an abort event");
   free(packet);
   return result;
+}
+
+/* ======================================================================
+   SDTxn()  -  Start (1), commit (2), abort (3) or commit non-durably (4) a transaction on the server.
+   A refusal (no transaction to commit, a mode out of range) leaves SDStatus() and SDError() to say what.   */
+
+void DLLEntry SDTxn(int mode) {
+  struct {
+    int16_t mode;
+  } ALIGN2 packet;
+  char* reply;
+
+  packet.mode = ShortInt(mode);
+  reply = text_request(SrvrTxn, (char*)&packet, sizeof(packet), "Txn generated an abort event");
+  free(reply);
 }
 
 /* ======================================================================

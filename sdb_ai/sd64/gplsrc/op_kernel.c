@@ -61,6 +61,8 @@
 #include "dh_int.h"
 #include "locks.h"
 
+extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
+
 #include <sys/wait.h>
 #include <pwd.h>
 #include <grp.h>
@@ -697,6 +699,12 @@ void op_kernel() {
 
     /* 15 Oct 26 dm - QM4 gaps Q-8, COMMAND.LOGGING.  See keys.h.  The file is the user's own (mode 0600), and is opened
        with O_NOFOLLOW so that a link left in its place is not written through. */
+    case K_NON_DURABLE_TXN:
+      GetInt(descr);
+      txn_nondurable = (descr->data.value != 0);
+      result.data.value = txn_nondurable;
+      break;
+
     case K_USER_STATS: {
       int16_t us_i;
       USER_ENTRY* us_ptr;

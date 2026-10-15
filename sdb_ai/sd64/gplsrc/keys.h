@@ -329,6 +329,11 @@
                        then opens, reads, writes, deletes, clears, selects, AK reads, AK writes, AK deletes, splits, merges and
                        the sdtime() the counts started at, as values, and the login name last. */
 #define K_USER_STATS         112
+/* 15 Oct 26 dm - QM4 gaps Q-16 and sheet 442 (NON.DURABLE.TXN, QMTxn mode 4).
+     K_NON_DURABLE_TXN 1 makes the next COMMIT of this process non-durable: if the transaction is nested in another, its cached
+                       updates and its locks go to the parent instead of to the files.  The COMMIT clears it, used or not.
+                       A program compiled with $MODE NON.DURABLE.TXN sets it before each COMMIT. */
+#define K_NON_DURABLE_TXN    113
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

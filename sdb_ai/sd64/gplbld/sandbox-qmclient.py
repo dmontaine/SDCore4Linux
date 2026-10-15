@@ -42,6 +42,23 @@ say, row, has, tag, put = q3.say, q3.row, q3.has, q3.tag, q3.put
 
 FM, VM, SM = b"\xfe", b"\xfd", b"\xfc"
 
+ND_BODY = ("   open 'zzcl' to f else stop 'no file'\n   sc = field(@sentence, ' ', 4)\n"
+           "   transaction start\n"      # a WRITE inside a transaction needs the lock first (error 3023 otherwise)
+           "   readu x from f, 'p1' else null\n   readu x from f, 'both' else null\n"
+           "   write 'parent' on f, 'p1'\n   write 'parent first' on f, 'both'\n"
+           "   transaction start\n"
+           "   readu x from f, 'c1' else null\n   readu x from f, 'old' else null\n"
+           "   write 'child' on f, 'c1'\n   write 'child second' on f, 'both'\n"
+           "   if sc = 'delold' then delete f, 'old'\n"
+           "   if sc = 'lock' then readu x from f, 'lk' else x = ''\n"
+           "   transaction commit\n"
+           "   crt 'LOCK1[':recordlocked(f, 'lk'):']'\n"
+           "   crt 'CACHE[':change(change(system(1065), @fm, '/'), @vm, '|'):']'\n"
+           "   if sc = 'abort' or sc = 'delold' then\n      transaction abort\n   end else\n      transaction commit\n   end\n"
+           "   crt 'LOCK2[':recordlocked(f, 'lk'):']'\n"
+           "   crt 'DEPTH[':system(1008):']'\n"
+           "end\n")
+
 USER_PROGS = {
     # the data: three records of zzcl, a dictionary with NAME (field 1), QTY (2) and TAGS (3, multivalued); an index on NAME
     "zzclmk": ("   open 'zzcl' to f else stop 'no file'\n   open 'DICT zzcl' to d else stop 'no dict'\n"
@@ -52,6 +69,16 @@ USER_PROGS = {
                "   write 'Gadget':@fm:'7':@fm:'green' on f, 'r2'\n"
                "   write 'Gizmo':@fm:'9':@fm:'a':@vm:'b':@vm:'c' on f, 'r3'\n"
                "   crt 'MADE'\nend\n"),
+    # F: non-durable nested transactions.  zzndt is compiled with $MODE NON.DURABLE.TXN, zzdur is the same text without it (the
+    # control).  The scenario is the fourth word of the command; each ends by saying what SYSTEM(1065) lists and what the lock
+    # state is, and the NEXT session reads the file to see what reached the disk.
+    "zzndt": "$mode non.durable.txn\n" + ND_BODY,
+    "zzdur": ND_BODY,
+    "zzndr": ("   open 'zzcl' to f else stop 'no file'\n"
+              "   for each id in 'p1' : @fm : 'c1' : @fm : 'both' : @fm : 'old' : @fm : 'lk' : @fm : 'top'\n"
+              "      read r from f, id then crt 'R[':id:'=':r:']' else crt 'R[':id:'=-]'\n"
+              "   next id\nend\n"),
+    "zzndw": ("   open 'zzcl' to f else stop 'no file'\n   write 'old data' on f, 'old'\nend\n"),
     # what INDICES() says about the index and the file, in an ordinary session
     "zzclix": ("   open 'zzcl' to f else stop 'no file'\n"
                "   crt 'NAMES[':change(indices(f), @fm, '/'):']'\n"
@@ -105,7 +132,7 @@ def main():
 
     os.environ["SD_CONFIG"] = os.path.join(BOX, "sd.conf")
     lib = ctypes.CDLL(os.path.join(SYS, "bin", "sdclilib.so"))
-    for fn in ("SDRevision", "SDGetVar", "SDSystem", "SDIndices", "SDTrans", "SDRTrans", "SDRead", "SDExecute", "SDError"):
+    for fn in ("SDRevision", "SDGetVar", "SDSystem", "SDIndices", "SDTrans", "SDRTrans", "SDRead", "SDReadu", "SDExecute", "SDError"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.SDOpen.restype = ctypes.c_int
     lib.SDStatus.restype = ctypes.c_int
@@ -196,6 +223,90 @@ def main():
         bad = call("SDTrans", b"zzcl", b"r1", b"NAME", b"B")
         row("E7: the B (binary) action is refused: nothing returned", bad == b"" or bad is None, s(bad))
         row("E7: CONTROL: the session still works afterwards", call("SDTrans", b"zzcl", b"r2", b"QTY", b"X") == b"7", "")
+        say("\n--- F. NON.DURABLE.TXN (the program form) ---------------------------------------------------------------------")
+
+        def disk():
+            """What is on disk for the records of the scenarios, read by a new session."""
+            out = q3.plain("zzaa", ["RUN bp zzndr"])
+            return {m.group(1): m.group(2) for m in (re.match(r"^R\[([a-z0-9]+)=(.*)\]$", t) for t in out) if m}
+
+        def reset():
+            q3.plain("zzaa", ["DELETE zzcl p1", "DELETE zzcl c1", "DELETE zzcl both", "DELETE zzcl lk", "RUN bp zzndw"])
+
+        def run(prog, sc):
+            reset()
+            out = q3.plain("zzaa", ["RUN bp %s %s" % (prog, sc)])
+            return out, disk()
+
+        out, d = run("zzndt", "commit")
+        cache = (tag(out, "CACHE") or [""])[0]
+        row("F1: non-durable, the child's COMMIT writes nothing: the cache lists the child's records under the PARENT's transaction "
+            "(p1, both, c1 - all W, one transaction number)",
+            len(cache.split("/")) == 3 and len({e.split("|")[0] for e in cache.split("/")}) == 1
+            and {e.split("|")[2] for e in cache.split("/")} == {"p1", "c1", "both"}, cache)
+        row("F1: ... and the parent's COMMIT then writes them all, the later write of 'both' (the child's) winning",
+            d.get("p1") == "parent" and d.get("c1") == "child" and d.get("both") == "child second", repr(d))
+        out, d = run("zzndt", "abort")
+        row("F2: non-durable, the parent ABORTS after the child committed: neither the parent's nor the child's record reached the disk",
+            d.get("p1") == "-" and d.get("c1") == "-" and d.get("both") == "-", repr(d))
+        out, d = run("zzdur", "abort")
+        row("F3: CONTROL, the same program without the mode: the child's COMMIT is durable and survives the parent's abort "
+            "(c1 and the child's 'both' on disk, p1 not)", d.get("c1") == "child" and d.get("both") == "child second" and d.get("p1") == "-",
+            repr(d))
+        out, d = run("zzdur", "commit")
+        row("F3: CONTROL, durable, parent commits: everything on disk too", d.get("p1") == "parent" and d.get("c1") == "child", repr(d))
+        out, d = run("zzndt", "delold")
+        row("F4: non-durable: a record the child deleted comes back when the parent aborts ('old' still on disk)", d.get("old") == "old data", repr(d))
+        out, d = run("zzdur", "delold")
+        row("F4: CONTROL, durable: the same delete stays deleted", d.get("old") == "-", repr(d))
+        out, d = run("zzndt", "lock")
+        row("F5: the child's lock is held after its non-durable COMMIT (RECORDLOCKED non-zero) and released when the parent commits (0)",
+            tag(out, "LOCK1") not in ([], ["0"]) and tag(out, "LOCK2") == ["0"], repr((tag(out, "LOCK1"), tag(out, "LOCK2"))))
+        out, d = run("zzdur", "lock")
+        row("F5: CONTROL, durable: the child's COMMIT releases its lock at once (0)", tag(out, "LOCK1") == ["0"], repr(tag(out, "LOCK1")))
+        row("F6: the transaction level is back to 0 after both end", tag(out, "DEPTH") == ["0"], repr(tag(out, "DEPTH")))
+
+        say("\n--- G. SDTxn --------------------------------------------------------------------------------------------------")
+        reset()
+        fno2 = lib.SDOpen(b"zzcl")
+        row("G0: the file is open", fno2 >= 1, str(fno2))
+
+        def api_write(i, v):
+            text(lib.SDReadu(fno2, i, 0, ctypes.byref(ctypes.c_int())))       # the lock a transaction's write needs
+            lib.SDWrite(fno2, i, v)
+
+        lib.SDTxn(1)
+        api_write(b"p1", b"parent")
+        lib.SDTxn(1)
+        api_write(b"c1", b"child")
+        lib.SDTxn(4)
+        row("G1: SDTxn(4), a non-durable commit of the nested transaction, leaves STATUS 0 and the session usable", lib.SDStatus() == 0,
+            str(lib.SDStatus()))
+        lib.SDTxn(3)
+        d = disk()
+        row("G2: SDTxn(3), the parent aborted: neither record reached the disk", d.get("p1") == "-" and d.get("c1") == "-", repr(d))
+        lib.SDTxn(1)
+        api_write(b"p1", b"parent")
+        lib.SDTxn(1)
+        api_write(b"c1", b"child")
+        lib.SDTxn(2)
+        lib.SDTxn(3)
+        d = disk()
+        row("G3: CONTROL, SDTxn(2) a durable commit of the child: c1 survives the parent's abort, p1 does not",
+            d.get("c1") == "child" and d.get("p1") == "-", repr(d))
+        lib.SDTxn(1)
+        api_write(b"p1", b"parent")
+        lib.SDTxn(2)
+        d = disk()
+        row("G4: a top-level SDTxn(2) writes: p1 on disk", d.get("p1") == "parent", repr(d))
+        lib.SDTxn(2)
+        err = ctypes.string_at(lib.SDError()) if lib.SDError() else b""
+        row("G5: a commit with no transaction is refused, with a message, and the session goes on",
+            lib.SDStatus() != 0 or b"Transaction mode" in err, repr((lib.SDStatus(), err)))
+        lib.SDTxn(7)
+        err = ctypes.string_at(lib.SDError()) if lib.SDError() else b""
+        row("G5: mode 7 is refused the same way", b"Transaction mode" in err, repr(err))
+        row("G5: CONTROL: after the refusals the session still answers", call("SDSystem", 1012) == rev, "")
         lib.SDDisconnect()
     finally:
         try:
