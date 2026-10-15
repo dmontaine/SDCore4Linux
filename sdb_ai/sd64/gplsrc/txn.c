@@ -415,6 +415,8 @@ void op_txncmt() {
 
   end_txn_level();
 
+  process.status = 0; /* 14 Oct 26 (openQM 19): STATUS() after END TRANSACTION is 0 for a commit; op_txnend() sets ER_ROLLBACK */
+
 exit_op_txncmt:
   return;
 }
@@ -427,6 +429,7 @@ void op_txnend() {
     k_error(sysmsg(1424));
 
   rollback();
+  process.status = ER_ROLLBACK; /* 14 Oct 26 (openQM 19): reached by ROLLBACK and by running into END TRANSACTION; COMMIT skips this */
 }
 
 /* ======================================================================

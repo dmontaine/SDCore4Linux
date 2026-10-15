@@ -288,6 +288,51 @@ void op_closeskt() {
 }
 
 /* ======================================================================
+   connect_with_timeout()  -  connect(), giving up after a number of seconds
+
+   14 Oct 26 (openQM 174).  The socket is made non-blocking for the connect
+   and given back as it was.  Returns 0 connected, -1 failed with errno set:
+   ETIMEDOUT when the time ran out.                                       */
+
+Private int connect_with_timeout(SOCKET skt, const struct sockaddr* addr, socklen_t addrlen, int seconds) {
+  int old_flags;
+  int rc;
+  int so_err = 0;
+  socklen_t so_len = sizeof(so_err);
+  struct timeval tv;
+  fd_set writefds;
+
+  old_flags = fcntl(skt, F_GETFL, 0);
+  if (old_flags == -1 || fcntl(skt, F_SETFL, old_flags | O_NONBLOCK) == -1)
+    return connect(skt, addr, addrlen); /* Cannot change the mode: the plain connect */
+
+  rc = connect(skt, addr, addrlen);
+  if ((rc == -1) && (errno == EINPROGRESS)) {
+    tv.tv_sec = seconds;
+    tv.tv_usec = 0;
+    FD_ZERO(&writefds);
+    FD_SET(skt, &writefds);
+    rc = select(skt + 1, NULL, &writefds, NULL, &tv);
+    if (rc == 0) {
+      errno = ETIMEDOUT;
+      rc = -1;
+    } else if (rc > 0) {
+      if ((getsockopt(skt, SOL_SOCKET, SO_ERROR, &so_err, &so_len) == 0) && (so_err == 0)) {
+        rc = 0;
+      } else {
+        errno = so_err;
+        rc = -1;
+      }
+    }
+  }
+
+  so_err = errno; /* fcntl() below may change it */
+  fcntl(skt, F_SETFL, old_flags);
+  errno = so_err;
+  return rc;
+}
+
+/* ======================================================================
    op_openskt()  -  OPEN.SOCKET                                           */
 
 void op_openskt() {
@@ -296,7 +341,8 @@ void op_openskt() {
      |=============================|=============================|
      |            BEFORE           |           AFTER             |
      |=============================|=============================|
- top | Security context or zero    | Socket                      |
+ top | Connect timeout (seconds)   | Socket                      |
+     |   or zero for none          |                             |
      |-----------------------------|-----------------------------|
      | Flags                       |                             |
      |-----------------------------|-----------------------------|
@@ -312,6 +358,7 @@ void op_openskt() {
   DESCRIPTOR* descr;
   int flags;
   int port;
+  int connect_timeout;
   char server[80 + 1];
   char server_addr[80];
 
@@ -326,6 +373,13 @@ void op_openskt() {
   process.status = 0;
   InitDescr(&result_descr, INTEGER);
   result_descr.data.value = 0;
+
+  /* 14 Oct 26 (openQM 174): the fourth argument was the unused security context (always zero); it is now the number of
+     seconds to wait for the connection, zero for no limit of SD's own */
+
+  descr = e_stack - 1;
+  GetInt(descr);
+  connect_timeout = (descr->data.value > 0) ? descr->data.value : 0;
 
   /* Get flags */
 
@@ -419,7 +473,12 @@ void op_openskt() {
       }
     }
   }
-  if (process.status == 0) {
+  if ((process.status == 0) && (connect_timeout > 0) && !(flags & SKT_NON_BLOCKING)) {
+    if (connect_with_timeout(skt, res->ai_addr, res->ai_addrlen, connect_timeout) == -1) {
+      process.status = ER_CONNECT;
+      process.os_error = errno;
+    }
+  } else if (process.status == 0) {
     if (connect(skt, res->ai_addr, res->ai_addrlen) == -1) {
       if (errno == EINPROGRESS) {
         struct timeval tv;
@@ -454,10 +513,18 @@ void op_openskt() {
     }
   }
 
+  /* 14 Oct 26: a failed connect left the socket open (and the address list unfreed); a program that retries in a loop
+     with a timeout would run out of descriptors */
+
+  if (process.status == ER_CONNECT) {
+    closesocket(skt);
+    freeaddrinfo(res);
+  }
+
   /* Create socket descriptor and SOCKVAR structure */
 
   if (process.status == 0) {
-    sock = (SOCKVAR*)k_alloc(97, sizeof(SOCKVAR));
+    sock =(SOCKVAR*)k_alloc(97, sizeof(SOCKVAR));
     sock->ref_ct = 1;
     sock->socket_handle = (unsigned int)skt;
     sock->family = res->ai_family;
