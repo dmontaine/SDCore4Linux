@@ -80,6 +80,7 @@
 # 14 Oct 26 dm  flushdh (FLUSH.DH.CACHE, LOCAL, NO.WAIT: timed beside a napping process and one waiting at an INPUT; 9 rows, about 25 s): the 62nd.
 # 14 Oct 26 dm  stacklist (EXECUTE ... STACKLIST keeps list 0, its remove pointer included, and puts it back; 11 rows): the 63rd.
 # 14 Oct 26 dm  inputif (INPUTIF and INPUTIF @ on a pseudo-terminal: nothing waiting, type-ahead, the DATA queue; 10 rows): the 64th.
+# 14 Oct 26 dm  inputraw (INPUT var, length RAW: exactly length characters, no interpretation of newline or erase; the length is required; 6 rows): the 65th.
 # END-HISTORY
 
 set -u
@@ -88,7 +89,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif"
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw"
 
 ONLY=""
 SKIP=""

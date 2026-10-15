@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  INPUT ... RAW.
+
+             INPUT var, length RAW  Reads exactly length characters and puts
+                        them in the variable just as they arrive: a newline
+                        or an erase key is data, not an instruction, and
+                        nothing is echoed.  The length is required (a program
+                        without one is refused when it is compiled).  Items in
+                        the DATA queue are taken whole, as for any INPUT.
+                        UPCASE and TIMEOUT still work with it.  INPUT @ does
+                        not take RAW.
+
 14 Oct 26  OPENTEMP.
 
              OPENTEMP {pathname} {ECS} {NON.TRANSACTIONAL} TO file.var
