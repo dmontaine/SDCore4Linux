@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  SSELECTV.
+
+             SSELECTV file TO listvar {RIGHT.ALIGNED} {DESCENDING}
+                        Selects the record ids of a file (or the items of a
+                        dynamic array) in sorted order into a select list
+                        variable, as SSELECT does into a numbered list, and as
+                        SELECTV does without the sort.  The sort options are
+                        those of SSELECT and may come before or after TO.
+                        TO is required.
+
 14 Oct 26  INPUTNULL AND INPUTTRAP.
 
              INPUTNULL expr  A single character, typed alone as the answer to
