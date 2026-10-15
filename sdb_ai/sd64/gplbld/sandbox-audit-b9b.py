@@ -86,6 +86,13 @@ REDIMP = (
     "   next n\n"
     "   crt 'REDIM[':ok:']'\n   crt 'END'\nend\n")
 
+TRGP = ("subroutine zzabtrg(mode, id, rec, onerr)\n   crt 'TRG[':mode:']'\n   return\nend\n")
+TRGUSE = ("   execute 'DELETE.FILE zzab2' capturing j\n   execute 'CREATE.FILE zzab2' capturing j\n"
+          "   open 'zzab2' to f else stop 'no f'\n   write 'hello' on f, 'r1'\n   close f\n"
+          "   execute 'SET.TRIGGER zzab2 zzabtrg READ' capturing st\n   crt 'SET[':convert(@fm, '|', st):']'\n"
+          "   open 'zzab2' to g else stop 'no g'\n   read rec from g, 'r1' else rec = '?'\n   crt 'GOT[':rec:']'\n"
+          "   crt 'END'\nend\n")
+
 BASEP = ("class zzabbase\n   public tag\n   public function who()\n      return 'base'\n   end\n"
          "   public subroutine create.object\n      tag = 'basetag'\n   end\nend\n")
 DERP = ("class zzabder inherits zzabbase\n   public function who()\n      return 'derived'\n   end\nend\n")
@@ -110,9 +117,10 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    made = ("zzabsort", "zzabredim", "zzabbase", "zzabder", "zzabuse")
+    made = ("zzabsort", "zzabredim", "zzabbase", "zzabder", "zzabuse", "zzabtrg", "zzabtu")
     try:
-        for nm, text in (("zzabsort", SORTP), ("zzabredim", REDIMP), ("zzabbase", BASEP), ("zzabder", DERP), ("zzabuse", USEP)):
+        for nm, text in (("zzabsort", SORTP), ("zzabredim", REDIMP), ("zzabbase", BASEP), ("zzabder", DERP), ("zzabuse", USEP),
+                         ("zzabtrg", TRGP), ("zzabtu", TRGUSE)):
             with open(os.path.join(sysd, "bp", nm), "w") as fh:
                 fh.write(text)
         out = session(box, "BASIC bp zzabsort zzabredim")
@@ -142,13 +150,20 @@ def main():
             out = session(box, "RUN bp zzabuse")
             row("342: the derived class's function wins and the parent's public variable is reached", tag(out, "WHO") == "derived" and
                 tag(out, "TAG") == "basetag", "WHO=%r TAG=%r %s" % (tag(out, "WHO"), tag(out, "TAG"), out[-300:]))
+
+        out = session(box, "BASIC bp zzabtrg zzabtu", "CATALOG bp zzabtrg LOCAL")
+        row("317: the locally catalogued trigger and its driver compile", "Compiled 2 program(s) with no errors" in out, out[-500:])
+        out = session(box, "RUN bp zzabtu")
+        row("317: a read trigger that is catalogued LOCAL runs when a record is read (no fatal error)",
+            re.search(r"(?m)^END\s*$", out) is not None and tag(out, "GOT") == "hello" and tag(out, "TRG") is not None,
+            "SET=%r GOT=%r TRG=%r %s" % (tag(out, "SET"), tag(out, "GOT"), tag(out, "TRG"), out[-300:]))
     finally:
         for nm in made:
             for d in ("bp", "bp.out"):
                 pth = os.path.join(sysd, d, nm)
                 if os.path.exists(pth):
                     os.remove(pth)
-        session(box, "DELETE.FILE zzab1", "DELETE.CATALOG zzabbase", "DELETE.CATALOG zzabder")
+        session(box, "DELETE.FILE zzab1", "DELETE.FILE zzab2","DELETE.CATALOG zzabbase", "DELETE.CATALOG zzabder")
 
     say("\nsandbox-audit-b9b: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:

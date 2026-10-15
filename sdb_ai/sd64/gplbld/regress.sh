@@ -90,7 +90,7 @@
 # 14 Oct 26 dm  txnstatus (STATUS() after END TRANSACTION: 0 committed, 1021 rolled back, by ROLLBACK, by falling through, in a conditional and nested; 13 rows): the 70th.
 # 14 Oct 26 dm  opensock (OPEN.SOCKET's timeout, against a listener whose accept queue is full; 8 rows): the 71st.
 # 14 Oct 26 dm  dbgwatch (the debugger's WATCH var op value: every operator and word form, strings, MATCHES, UNWATCH, re-arming, refusals; 24 rows): the 76th.
-# 14 Oct 26 dm  audit-b9b (the bug-fix audit, second sitting: !SORT of a select list variable - red 7 of 10 on the old !sort - a matrix redimensioned 400 times, a derived class; 10 rows): the 77th.
+# 14 Oct 26 dm  audit-b9b (the bug-fix audit, second sitting: !SORT of a select list variable - red 7 of 10 on the old !sort - a matrix redimensioned 400 times, a derived class, a read trigger catalogued LOCAL; 12 rows): the 77th.
 # END-HISTORY
 
 set -u
