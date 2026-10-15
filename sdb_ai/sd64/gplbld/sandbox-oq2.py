@@ -1016,6 +1016,16 @@ def run_verbs(box, sysd, bp):
         row("390: the PHANTOM statement starts a phantom (a user number comes back and it makes its log)",
             has(out, r"^PS\[1/1\]"), out[-300:])
 
+        # --- the log name of the PHANTOM statement may be a variable (351, 14 Oct 26) -----------------------------
+        sess(box, "DELETE.FILE zzcd3", "CREATE.FILE zzcd3 DIRECTORY")
+        write(probe, ("   lg = 'zzcd3'\n   phantom 'NO.MSG LOG ':lg:' LIST.FILES' capturing o\n   uid = @system.return.code\n"
+                      "   sleep 6\n   crt 'PV[':(uid > 0):']'\nend\n"))
+        out = sess(box, "BASIC bp zzoqp1", "RUN bp zzoqp1")
+        zl = [n for n in os.listdir(os.path.join(sysd, "zzcd3"))] if os.path.isdir(os.path.join(sysd, "zzcd3")) else []
+        row("351: PHANTOM 'LOG ':variable starts a phantom whose log goes in the directory file the variable names",
+            has(out, r"^PV\[1\]") and any(n.startswith("PH") for n in zl), out[-300:] + repr(zl))
+        sess(box, "DELETE.FILE zzcd3")
+
         # --- REBUILD.ALL.INDICES (58) and REDO (188) -------------------------------------------------------
         write(probe, ("   execute 'CREATE.FILE zzrb' capturing j1\n   open 'zzrb' to f else stop\n"
                       "   open 'DICT', 'zzrb' to dv else stop\n"
