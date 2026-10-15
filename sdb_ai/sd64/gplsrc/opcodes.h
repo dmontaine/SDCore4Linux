@@ -588,7 +588,7 @@ _opc_(0xCFE6, OP_CSVMODE,  "CSVMODE",    op_csvmode,   OPCODE_BYTE,        -2)  
 _opc_(0xCFE7, OP_CSVDELIM, "CSVDELIM",   op_csvdelim,  OPCODE_BYTE,         1)  /* 14 Oct 26: the CSV delimiter as a string */
 _opc_(0xCFE8, OP_FLUSHDH,  "FLUSHDH",    op_flushdh,   OPCODE_BYTE,        -1)  /* 14 Oct 26: FLUSH.DH.CACHE (openQM 83, 123) */
 _opc_(0xCFE9, OP_STKLST,   "STKLST",     op_stklst,    OPCODE_BYTE,         0)  /* 14 Oct 26: EXECUTE ... STACKLIST (openQM 61) */
-_opc_(0xCFEA, OP_CFEA,     "OPCFEA",     op_illegal2,  OPCODE_BYTE,         0)
+_opc_(0xCFEA, OP_OPENTEMP, "OPENTEMP",   op_opentemp,  OPCODE_BYTE,        -1)  /* 14 Oct 26: OPENTEMP (openQM 431, 440) */
 _opc_(0xCFEB, OP_CFEB,     "OPCFEB",     op_illegal2,  OPCODE_BYTE,         0)
 _opc_(0xCFEC, OP_CFEC,     "OPCFEC",     op_illegal2,  OPCODE_BYTE,         0)
 _opc_(0xCFED, OP_CFED,     "OPCFED",     op_illegal2,  OPCODE_BYTE,         0)

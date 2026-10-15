@@ -565,6 +565,95 @@ def main():
                 "output=%r exists=%s" % (out, os.path.exists(holdfile)))
     shutil.rmtree(outside, ignore_errors=True)
 
+    # --- D4. OPENTEMP (14 Oct 26, openQM 431 and 440; owner: "security first") -----------------------------------------
+    # OPENTEMP makes a dynamic file and deletes it when the file variable is closed.  A pathname it is given, and the file it
+    # makes itself in the temp directory (SYSTEM(38), outside every account), are both OS paths and both ask the account's
+    # OS-access question: an account with OS.EXECUTE no may use OPENTEMP only on a name inside its own directory.  Evidence is
+    # the disk: no file made outside (or in the temp directory) for an account without the gate, none left behind for one
+    # with it, and an existing file or directory is never taken (it would be deleted at close).
+    say("\n--- D4. OPENTEMP: the temp directory and a named path ask the OS-access gate; the file goes at close ---------")
+    outside4 = os.path.join(BOX, "zzoutside4")
+    shutil.rmtree(outside4, ignore_errors=True)
+    os.makedirs(outside4)
+    for name in ("zzoff", "zzsh", "zzon", "zzos"):
+        d = os.path.join(BOX, "user_accounts", name)
+        osx = FIXTURES[name][1].lower() == "yes"
+        put(os.path.join(d, "bp", "zztmp"), "\n".join([
+            "   crt 'T begin'",
+            "   td = system(38)",
+            "   crt 'T tempdir ':td",
+            "   opentemp to f1 then",
+            "      crt 'T null OPENED'",
+            "      write 'hello' on f1, 'k1'",
+            "      read r1 from f1, 'k1' then crt 'T null-read ':r1 else crt 'T null-read NONE'",
+            "      close f1",
+            "      crt 'T null-closed'",
+            "   end else",
+            "      crt 'T null REFUSED ':status()",
+            "   end",
+            "   opentemp 'zztmpin' to f2 then",
+            "      crt 'T inside OPENED'",
+            "      close f2",
+            "   end else",
+            "      crt 'T inside REFUSED ':status()",
+            "   end",
+            "   opentemp '%s/zztmpout' to f3 then" % outside4,
+            "      crt 'T outside OPENED'",
+            "      close f3",
+            "   end else",
+            "      crt 'T outside REFUSED ':status()",
+            "   end",
+            "   opentemp 'bp' to f4 then",
+            "      crt 'T existing OPENED'",
+            "      close f4",
+            "   end else",
+            "      crt 'T existing REFUSED ':status()",
+            "   end",
+            "   opentemp 'zztmpnt' ecs non.transactional to f5 then",
+            "      crt 'T options OPENED'",
+            "      close f5",
+            "   end else",
+            "      crt 'T options REFUSED ':status()",
+            "   end",
+            "   crt 'T end'", "end", ""]))
+        out = plain(name, ["BASIC bp zztmp", "RUN bp zztmp"])
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            row("D4: %s's OPENTEMP probe compiled" % name, False, "output=%r" % (out[-4:],))
+            continue
+        tdir = None
+        for ln in out:
+            m = re.match(r"^T tempdir (.+)$", ln)
+            if m:
+                tdir = m.group(1)
+        before = set(os.listdir(tdir)) if tdir and os.path.isdir(tdir) else None
+        out = plain(name, ["RUN bp zztmp"])
+        after = set(os.listdir(tdir)) if tdir and os.path.isdir(tdir) else None
+        if not has(out, r"^T end$") or before is None or after is None:
+            row("D4: %s's OPENTEMP probe ran to its end and the temp directory %r could be listed" % (name, tdir), False,
+                "output=%r" % (out[-6:],))
+            continue
+        leftover = sorted(n for n in after - before if n.startswith("sdtmp"))
+        row("D4: %s OPENTEMP leaves nothing behind: no sdtmp file in %s, none of zztmpin / zztmpout / zztmpnt on disk, and the "
+            "directory 'bp' it was pointed at is still there" % (name, tdir),
+            not leftover and not os.path.exists(os.path.join(d, "zztmpin")) and not os.path.exists(os.path.join(outside4, "zztmpout"))
+            and not os.path.exists(os.path.join(d, "zztmpnt")) and os.path.isdir(os.path.join(d, "bp")),
+            "leftover=%r" % leftover)
+        row("D4: %s OPENTEMP of an existing name is refused, in every account (it would be deleted at close)" % name,
+            has(out, r"^T existing REFUSED ") and not has(out, r"^T existing OPENED$"), "output=%r" % (out,))
+        row("D4: %s OPENTEMP of a name inside its own directory works, and takes ECS and NON.TRANSACTIONAL" % name,
+            has(out, r"^T inside OPENED$") and has(out, r"^T options OPENED$"), "output=%r" % (out,))
+        if osx:
+            row("D4: %s (OS.EXECUTE yes) OPENTEMP in the temp directory works: a record written and read back, then closed" % name,
+                has(out, r"^T null OPENED$") and has(out, r"^T null-read hello$") and has(out, r"^T null-closed$"), "output=%r" % (out,))
+            row("D4: %s (OS.EXECUTE yes) OPENTEMP of a path outside the account works" % name, has(out, r"^T outside OPENED$"),
+                "output=%r" % (out,))
+        else:
+            row("D4: %s (OS.EXECUTE no) OPENTEMP in the temp directory is REFUSED (ELSE 3035), nothing made there" % name,
+                has(out, r"^T null REFUSED 3035$") and not leftover, "output=%r leftover=%r" % (out, leftover))
+            row("D4: %s (OS.EXECUTE no) OPENTEMP of a path outside the account is REFUSED (ELSE 3035)" % name,
+                has(out, r"^T outside REFUSED 3035$"), "output=%r" % (out,))
+    shutil.rmtree(outside4, ignore_errors=True)
+
     # --- D3. a VOC pointer is a way to name a file ------------------------------------------------------------------
     # 13 Oct 26 (second sitting; owner: "try to make tighter ... q pointers should only be allowed into an account the
     # user can logto in any case").  The first S.63 asked about a path a program NAMED, and a file named THROUGH THE VOC was

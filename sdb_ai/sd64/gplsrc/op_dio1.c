@@ -55,6 +55,7 @@
  * START-CODE
  */
 
+#include <dirent.h>
 #include "sd.h"
 #include "dh_int.h"
 #include "header.h"
@@ -80,6 +81,7 @@ Private struct DH_CACHE dh_cache[MAX_DH_CACHE_SIZE];
 Private int16_t dh_cache_size = 0;
 
 Private void open_file(bool map_name);
+Private void remove_temp_file(const char* path);
 
 /* ======================================================================
    op_close()  -  Close a file                                            */
@@ -506,6 +508,12 @@ void dio_close(FILE_VAR* fvar) {
       break;
   }
 
+  if (fvar->temp_path != NULL) /* OPENTEMP: the file goes with its last file variable (openQM items 431, 440) */
+  {
+    remove_temp_file(fvar->temp_path);
+    k_free(fvar->temp_path);
+  }
+
   if (fvar->voc_name != NULL)
     k_free(fvar->voc_name);
 
@@ -660,6 +668,7 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   fvar->ref_ct = 1;
   fvar->index = next_fvar_index++;
   fvar->voc_name = NULL;
+  fvar->temp_path = NULL;
   fvar->id_len = 0;
   fvar->id = NULL;
   fvar->file_id = -1;
@@ -912,6 +921,17 @@ opened_via_txn_cache:
   if ((strchr(vflags, 'N') != NULL) || (op_flags & P_NON_TXN)) /* P_NON_TXN: the NON.TRANSACTIONAL option of OPEN */
     fvar->flags |= FV_NON_TXN;
 
+  /* 14 Oct 26 (openQM items 431, 440): OPENTEMP made this file; closing the file variable deletes it.  Its updates are
+     non-transactional, so that the close is a real one even inside a transaction. */
+
+  if ((op_flags & P_TEMPFILE) && (fvar->temp_path == NULL)) {
+    fvar->temp_path = (char*)k_alloc(106, strlen(pathname) + 1);
+    if (fvar->temp_path != NULL) {
+      strcpy(fvar->temp_path, pathname);
+      fvar->flags |= FV_TEMP | FV_NON_TXN;
+    }
+  }
+
   /* Set file variable */
 
   InitDescr(fvar_descr, FILE_REF);
@@ -941,6 +961,81 @@ exit_op_open:
   if ((process.status < 0) && !(op_flags & P_ON_ERROR)) {
     k_error(sysmsg(1402), -process.status);
   }
+}
+
+/* ======================================================================
+   remove_temp_file()  -  delete the directory of a dynamic file that OPENTEMP made: its files, then it.  Only plain
+   files are removed; a directory inside (it should hold none) is left, and so is the directory then. */
+
+Private void remove_temp_file(const char* path) {
+  DIR* dp;
+  struct dirent* de;
+  char name[MAX_PATHNAME_LEN + 1];
+
+  if ((dp = opendir(path)) != NULL) {
+    while ((de = readdir(dp)) != NULL) {
+      if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+        continue;
+      if (snprintf(name, sizeof(name), "%s%c%s", path, DS, de->d_name) < (int)sizeof(name))
+        unlink(name);
+    }
+    closedir(dp);
+    rmdir(path);
+  }
+}
+
+/* ======================================================================
+   op_opentemp()  -  OPENTEMP {pathname} {options} TO file.var   (14 Oct 26, openQM items 431, 440)
+
+   Stack: top ADDR to file variable, below it the pathname, null for a file of SD's own making in the temp directory
+   (TEMPDIR).  SECURITY (owner, 14 Oct 26: "security first"): the pathname goes through the same OS-access question as
+   OPENPATH asks (os_path_open_ok), and so does the generated one in the temp directory, which is outside the account:
+   an account without the OS gate is refused both.  A file that already exists is never taken (it would be deleted at
+   close).  The file is a dynamic file with the usual defaults, private to nobody in particular: it is not opened
+   exclusively, but its generated name carries the process id and a counter.  A process that dies leaves its file. */
+
+void op_opentemp() {
+  DESCRIPTOR* name_descr;
+  char path[MAX_PATHNAME_LEN + 1];
+  int name_len;
+  bool created = FALSE;
+  static int temp_seq = 0;
+  struct stat statbuf;
+  size_t n;
+
+  name_descr = e_stack - 2;
+  name_len = k_get_c_string(name_descr, path, MAX_PATHNAME_LEN);
+
+  if (name_len == 0) {
+    n = strlen(pcfg.tempdir);
+    if (snprintf(path, sizeof(path), "%s%ssdtmp%d_%d", pcfg.tempdir, (n > 0 && pcfg.tempdir[n - 1] == DS) ? "" : "/", (int)getpid(),
+                 ++temp_seq) >= (int)sizeof(path))
+      path[0] = '\0'; /* TEMPDIR is too long to add a name to: open_file() refuses the null name */
+  } else if (name_len < 0) {
+    path[0] = '\0'; /* Too long: open_file() refuses a null name */
+  }
+
+  if (path[0] != '\0') {
+    fullpath(path, path);
+    if (os_path_open_ok(path)) {
+      if (stat(path, &statbuf) == 0) {
+        path[0] = '\0'; /* Already there: not ours to take and delete */
+      } else if (dh_create_file(path, -1, -1, -1, -1, -1, DHF_NOCASE, -1)) {
+        created = TRUE;
+        process.op_flags |= P_TEMPFILE;
+      } else {
+        path[0] = '\0';
+      }
+    } /* else open_file() asks the same question and gives the refusal (ER_PERM) */
+  }
+
+  k_release(name_descr);
+  k_put_c_string(path, name_descr);
+
+  open_file(FALSE);
+
+  if (created && process.status != 0)
+    remove_temp_file(path); /* It was made but could not be opened */
 }
 
 /* ======================================================================

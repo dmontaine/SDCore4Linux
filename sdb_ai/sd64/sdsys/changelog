@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  OPENTEMP.
+
+             OPENTEMP {pathname} {ECS} {NON.TRANSACTIONAL} TO file.var
+                        Makes a dynamic file and opens it; the file is deleted
+                        when the file variable is closed (or goes out of
+                        scope).  Leave the pathname out, or give a null
+                        string, and SD makes the file in its temporary
+                        directory (the TEMPDIR setting) under a name made from
+                        the process number and a counter.  A name that exists
+                        already is refused, never taken.  ECS is accepted and
+                        ignored.  The file's updates are never part of a
+                        transaction, so that closing it really deletes it.
+                        SECURITY: both the temporary directory and a pathname
+                        you name are outside the account, so they need the
+                        account's OS-access permission, as OPENPATH does; an
+                        account without it can use OPENTEMP only with a name
+                        inside its own directory, and gets the ELSE clause for
+                        the others.  A session that is killed leaves its
+                        temporary file behind.
+
 14 Oct 26  INPUTIF.
 
              INPUTIF var {, length} THEN / ELSE  and  INPUTIF @(x, y) : var, length
