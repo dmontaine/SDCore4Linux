@@ -93,6 +93,11 @@ TRGUSE = ("   execute 'DELETE.FILE zzab2' capturing j\n   execute 'CREATE.FILE z
           "   open 'zzab2' to g else stop 'no g'\n   read rec from g, 'r1' else rec = '?'\n   crt 'GOT[':rec:']'\n"
           "   crt 'END'\nend\n")
 
+KRUN = "   crt 'KRAN[ok]'\nend\n"
+KMAKE = ("   open 'VOC' to v else stop 'no voc'\n   read r from v, 'zzabkrun' else stop 'no local entry'\n"
+         "   crt 'ENTRY[':convert(@fm, '|', r):']'\n"
+         "   write 'K':@fm:'1':@fm:r on v, 'zzabkv'\n   crt 'MADE'\nend\n")
+
 BASEP = ("class zzabbase\n   public tag\n   public function who()\n      return 'base'\n   end\n"
          "   public subroutine create.object\n      tag = 'basetag'\n   end\nend\n")
 DERP = ("class zzabder inherits zzabbase\n   public function who()\n      return 'derived'\n   end\nend\n")
@@ -117,10 +122,10 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    made = ("zzabsort", "zzabredim", "zzabbase", "zzabder", "zzabuse", "zzabtrg", "zzabtu")
+    made = ("zzabsort", "zzabredim", "zzabbase", "zzabder", "zzabuse", "zzabtrg", "zzabtu", "zzabkrun", "zzabkmk")
     try:
         for nm, text in (("zzabsort", SORTP), ("zzabredim", REDIMP), ("zzabbase", BASEP), ("zzabder", DERP), ("zzabuse", USEP),
-                         ("zzabtrg", TRGP), ("zzabtu", TRGUSE)):
+                         ("zzabtrg", TRGP), ("zzabtu", TRGUSE), ("zzabkrun", KRUN), ("zzabkmk", KMAKE)):
             with open(os.path.join(sysd, "bp", nm), "w") as fh:
                 fh.write(text)
         out = session(box, "BASIC bp zzabsort zzabredim")
@@ -157,13 +162,22 @@ def main():
         row("317: a read trigger that is catalogued LOCAL runs when a record is read (no fatal error)",
             re.search(r"(?m)^END\s*$", out) is not None and tag(out, "GOT") == "hello" and tag(out, "TRG") is not None,
             "SET=%r GOT=%r TRG=%r %s" % (tag(out, "SET"), tag(out, "GOT"), tag(out, "TRG"), out[-300:]))
+
+        out = session(box, "BASIC bp zzabkrun zzabkmk", "CATALOG bp zzabkrun LOCAL", "RUN bp zzabkmk")
+        row("263: a locally catalogued program is entered in the VOC and a K entry is built over it",
+            "MADE" in out and tag(out, "ENTRY") is not None, out[-500:])
+        out2 = session(box, "zzabkrun")
+        row("CONTROL: the locally catalogued program runs by its own name", tag(out2, "KRAN") == "ok" or "KRAN[ok]" in out2, out2[-300:])
+        out3 = session(box, "zzabkv")
+        row("263: a K entry whose fields 3 onwards are a V entry for a locally catalogued program runs it", "KRAN[ok]" in out3,
+            "entry %r; %s" % (tag(out, "ENTRY"), out3[-300:]))
     finally:
         for nm in made:
             for d in ("bp", "bp.out"):
                 pth = os.path.join(sysd, d, nm)
                 if os.path.exists(pth):
                     os.remove(pth)
-        session(box, "DELETE.FILE zzab1", "DELETE.FILE zzab2","DELETE.CATALOG zzabbase", "DELETE.CATALOG zzabder")
+        session(box, "DELETE.FILE zzab1", "DELETE.FILE zzab2","DELETE.CATALOG zzabkrun", "DELETE VOC zzabkv", "DELETE VOC zzabkrun", "DELETE.CATALOG zzabbase","DELETE.CATALOG zzabder")
 
     say("\nsandbox-audit-b9b: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:
