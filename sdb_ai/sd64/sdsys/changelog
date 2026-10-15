@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  FLUSH.DH.CACHE.
+
+             FLUSH.DH.CACHE {LOCAL | NO.WAIT}  Makes every process close the
+                        dynamic files it keeps in its cache of recently closed
+                        files, for a program that is about to do something
+                        (outside SD) that fails while a file is still open
+                        somewhere.  The statement waits for the other
+                        processes to say they have done it and gives up after
+                        four seconds; a process that is waiting at an INPUT
+                        does not answer until a key arrives, so it costs the
+                        four seconds.  NO.WAIT asks and carries on; LOCAL
+                        flushes only the process it is in.
+
 14 Oct 26  INPUT NO.ECHO.
 
              INPUT, INPUT @ and INPUTFIELD take NO.ECHO  What the user types is

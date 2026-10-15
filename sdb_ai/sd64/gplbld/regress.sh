@@ -77,6 +77,7 @@
 # 14 Oct 26 dm  csv-b5 (CSV.MODE mode, delim: the modes, the delimiter, SYSTEM(1043) / (1046), calls, EXECUTE, WRITECSV; 27 rows): the 59th.
 # 14 Oct 26 dm  locate-b5 (the BY string of LOCATE takes C and N, the letters in any order; 15 rows): the 60th.
 # 14 Oct 26 dm  noecho (INPUT, INPUT @ and INPUTFIELD take NO.ECHO; 17 rows): the 61st.
+# 14 Oct 26 dm  flushdh (FLUSH.DH.CACHE, LOCAL, NO.WAIT: timed beside a napping process and one waiting at an INPUT; 9 rows, about 25 s): the 62nd.
 # END-HISTORY
 
 set -u
@@ -85,7 +86,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho"
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh"
 
 ONLY=""
 SKIP=""
