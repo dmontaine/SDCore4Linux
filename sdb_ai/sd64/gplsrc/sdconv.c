@@ -958,6 +958,7 @@ void convert_primary_header() {
   Reverse4(header.creation_timestamp);
   Reverse8(header.record_count);
   Reverse4(header.user_hash);
+  Reverse4(header.seq_key);
 }
 
 /* END-CODE */

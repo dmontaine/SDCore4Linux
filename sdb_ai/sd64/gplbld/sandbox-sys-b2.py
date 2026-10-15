@@ -64,9 +64,11 @@ CASES += [
     ("1023 (113): FL$SEQTYPE is 2 for a character device, 0 for a plain file and for a file that is not sequential",
      FILES + "write 'abc' on d, 'seq1'\nopenseq '/dev/null' to q1 else stop 'no q1'\nopenseq 'zzb2d', 'seq1' to q2 else stop 'no q2'\n"
      "x = FL$SEQTYPE:'|':fileinfo(q1, FL$SEQTYPE):'|':fileinfo(q2, FL$SEQTYPE):'|':fileinfo(f, FL$SEQTYPE)", r"1023\|2\|0\|0"),
-    ("1024, 1027, 1028, 1031, 1034, 1036: no replication, ECS, encoding, sequential key, forced casing or owner: null",
+    # 15 Oct 26: 1031 is the id of the last record written with CREATING.SEQKEY - 0 in a hashed file that has not used it - so the
+    # third value of the six is 0 and no longer null (the others stay null)
+    ("1024, 1027, 1028, 1034, 1036: no replication, ECS, encoding, forced casing or owner: null; 1031, the sequential key: 0 in an unused hashed file",
      FILES + "x = fileinfo(f, FL$REPLICATED):'|':fileinfo(f, FL$ECS.MAP.NAME):'|':fileinfo(d, FL$ENCODING):'|':fileinfo(f, FL$SEQ.KEY):'|':"
-     "fileinfo(f, FL$ID.CASING):'|':fileinfo(f, FL$OWNER)", r"\|\|\|\|\|"),
+     "fileinfo(f, FL$ID.CASING):'|':fileinfo(f, FL$OWNER)", r"\|\|\|0\|\|"),
     ("1025, 1026, 1029, 1033, 1037, 1040: no id translation switch, ECS, distributed file, SYNC, temporary file or constraint: 0",
      FILES + "x = fileinfo(d, FL$NOMAP):fileinfo(f, FL$ECS):fileinfo(f, FL$LAST.PART):fileinfo(f, FL$SYNC):fileinfo(f, FL$TEMP):"
      "fileinfo(f, FL$CONSTRAINTS)", r"000000"),

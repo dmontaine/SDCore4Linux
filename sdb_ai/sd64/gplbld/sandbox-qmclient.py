@@ -26,13 +26,21 @@
 #   D  SDIndices: the names of a file's indices and the details of one, against INDICES() in a session; an unknown index
 #   E  SDTrans / SDRTrans: a dictionary field, a field number, -1 for the record, a list of ids, the C and X actions, the marks
 #      lowered by SDTrans and not by SDRTrans, a file that is not there, a refused action
+#   F  the program form of NON.DURABLE.TXN, G  SDTxn
+#   H  SDEvaluate / SDEvalConv (sheet 247): D, A and I items, an item the dictionary has not, a phrase, an I-type that will not
+#      compile, several names, the conversion applied or not, the dictionary left unwritten, @ID put back
+#   I  SDIConv / SDOConv / SDIConvs / SDOConvs (sheet 409): dates both ways, the conversion's own status, the plural against the
+#      singular, a code that does not exist
 
 import ctypes
+import datetime
 import importlib.util
 import os
 import re
 import subprocess
 import sys
+import threading
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location("q3", os.path.join(HERE, "sandbox-stmt-q3.py"))
@@ -68,6 +76,17 @@ USER_PROGS = {
                "   write 'Widget':@fm:'5':@fm:'red':@vm:'blue' on f, 'r1'\n"
                "   write 'Gadget':@fm:'7':@fm:'green' on f, 'r2'\n"
                "   write 'Gizmo':@fm:'9':@fm:'a':@vm:'b':@vm:'c' on f, 'r3'\n"
+               # more dictionary items for the Evaluate rows: I-types (one with a conversion, one that is @ID, one that will not
+               # compile), A items with and without a correlative, D items with a conversion, a phrase that defines no data
+               "   write 'I':@fm:'QTY * 2':@fm:'':@fm:'Dbl':@fm:'8R':@fm:'S' on d, 'DOUBLE'\n"
+               "   write 'I':@fm:'NAME':@fm:'MCU':@fm:'Up':@fm:'10L':@fm:'S' on d, 'UPNAME'\n"
+               "   write 'I':@fm:'@ID':@fm:'':@fm:'Id':@fm:'6L':@fm:'S' on d, 'IDCOPY'\n"
+               "   write 'I':@fm:'QTY *':@fm:'':@fm:'Bad':@fm:'8R':@fm:'S' on d, 'BADI'\n"
+               "   write 'A':@fm:'1':@fm:'Name':@fm:'':@fm:'':@fm:'S':@fm:'MCU':@fm:'':@fm:'L':@fm:'10' on d, 'ANAME'\n"
+               "   write 'A':@fm:'2':@fm:'Qty':@fm:'':@fm:'':@fm:'S':@fm:'':@fm:\"A;2*'3'\":@fm:'R':@fm:'5' on d, 'ATRIPLE'\n"
+               "   write 'D':@fm:'4':@fm:'D4/':@fm:'When':@fm:'10L':@fm:'S' on d, 'WHEN'\n"
+               "   write 'D':@fm:'3':@fm:'MCU':@fm:'TagsUp':@fm:'8L':@fm:'M' on d, 'TAGU'\n"
+               "   write 'PH':@fm:'LIST zzcl' on d, 'PH1'\n"
                "   crt 'MADE'\nend\n"),
     # F: non-durable nested transactions.  zzndt is compiled with $MODE NON.DURABLE.TXN, zzdur is the same text without it (the
     # control).  The scenario is the fourth word of the command; each ends by saying what SYSTEM(1065) lists and what the lock
@@ -79,6 +98,31 @@ USER_PROGS = {
               "      read r from f, id then crt 'R[':id:'=':r:']' else crt 'R[':id:'=-]'\n"
               "   next id\nend\n"),
     "zzndw": ("   open 'zzcl' to f else stop 'no file'\n   write 'old data' on f, 'old'\nend\n"),
+    # J: a command that waits for input, so that its session is EXECUTING while another one comes and goes
+    "zzprmp": "   input x\n   crt 'GOT[':x:']'\nend\n",
+    # L: what SD's own DCOUNT() and CHANGE() make of the strings the client's SDDcount and SDChange are given
+    "zzstr": ("   crt 'D1[':dcount('a,b,c', ','):']'\n   crt 'D2[':dcount('a::b::c::d', '::'):']'\n   crt 'D3[':dcount('aaaa', 'aa'):']'\n"
+              "   crt 'D4[':dcount('a,b', ',,'):']'\n   crt 'D5[':dcount('', ','):']'\n   crt 'D6[':dcount('ab--cd--', '--'):']'\n"
+              "   crt 'C1[':change('aaaa', 'aa', 'b'):']'\n   crt 'C2[':change('aaa', 'aa', 'b'):']'\n"
+              "   crt 'C3[':change('abababa', 'aba', 'X'):']'\n   crt 'C4[':change('abcabcabcabc', 'abc', 'Z', 2, 2):']'\n"
+              "   crt 'C5[':change('hello', 'l', ''):']'\n   crt 'C6[':change('hello', 'xyz', 'Q'):']'\n"
+              "   crt 'C7[':change('xx--xx--xx', '--', '<>'):']'\n   crt 'C8[':change('aXbXc', 'X', 'YY', 1, 2):']'\nend\n"),
+    # Q: WRITE / WRITEU ... CREATING.SEQKEY (the counter in the hashed file's header), inside and outside a transaction, and a
+    # directory file refused
+    "zzsk": ("   open 'zzsq' to f else stop 'no file'\n   write 'first' to f creating.seqkey id1\n   write 'second' to f creating.seqkey id2\n"
+             "   writeu 'third' to f creating.seqkey id3\n   crt 'IDS[':id1:'|':id2:'|':id3:']'\n"
+             "   crt 'LOCK3[':recordlocked(f, id3):']'\n   crt 'LOCK2[':recordlocked(f, id2):']'\n   release f, id3\n"
+             "   read r from f, id2 then crt 'REC2[':r:']' else crt 'REC2[none]'\n   crt 'LAST[':fileinfo(f, 1031):']'\nend\n"),
+    "zzskt": ("   open 'zzsq' to f else stop 'no file'\n   transaction start\n   write 'in txn' to f creating.seqkey tid\n"
+              "   transaction commit\n   read r from f, tid then crt 'TXN[':tid:'=':r:']' else crt 'TXN[none]'\nend\n"),
+    "zzskd": ("   open 'zzdir' to d else stop 'no dir'\n   id = ''\n   write 'x' to d creating.seqkey id on error crt 'REFUSED[':status():']'\n"
+              "   crt 'AFTER[':id:']'\nend\n"),
+    # N: MASTER.LOGIN and LOGIN both call this; only an API session (@TTY apisrvr) leaves a mark, and it says in what order
+    "zzmark": ("   if @tty # 'apisrvr' then stop\n   open 'zzlog' to f else stop\n   read x from f, 'order' else x = ''\n"
+               "   x<-1> = field(@sentence, ' ', 4)\n   write x on f, 'order'\nend\n"),
+    # O: the BASIC class's connect to a port nothing listens on
+    "zzcls": ("   obj = object('!sdclient')\n   ok = obj->connect('127.0.0.1', 1, 'nobody', 'x', 'zzaa')\n   crt 'OK[':ok:']'\n"
+              "   crt 'ERR[':obj->error:']'\n   crt 'ST[':obj->ServerStatus:']'\nend\n"),
     # what INDICES() says about the index and the file, in an ordinary session
     "zzclix": ("   open 'zzcl' to f else stop 'no file'\n"
                "   crt 'NAMES[':change(indices(f), @fm, '/'):']'\n"
@@ -118,7 +162,9 @@ def main():
     say("\n--- preparation ------------------------------------------------------------------------------------------------")
     q3.prepare()
     acct = q3.build_account("zzaa")
-    q3.plain("zzaa", ["CREATE.FILE zzcl DYNAMIC", "RUN bp zzclmk", "CREATE.INDEX zzcl NAME", "BUILD.INDEX zzcl NAME"])
+    q3.build_account("zzab")                      # a second account, for SDLogto
+    q3.plain("zzaa", ["CREATE.FILE zzcl DYNAMIC", "RUN bp zzclmk", "CREATE.INDEX zzcl NAME", "BUILD.INDEX zzcl NAME", "CREATE.FILE zzlog DYNAMIC",
+                         "CREATE.FILE zzdir DIRECTORY", "CREATE.FILE zzsq DYNAMIC"])
     ix = q3.plain("zzaa", ["RUN bp zzclix"])
     if not tag(ix, "NAMES"):
         q3.bail("the fixture file was not made: " + repr(ix))
@@ -132,7 +178,9 @@ def main():
 
     os.environ["SD_CONFIG"] = os.path.join(BOX, "sd.conf")
     lib = ctypes.CDLL(os.path.join(SYS, "bin", "sdclilib.so"))
-    for fn in ("SDRevision", "SDGetVar", "SDSystem", "SDIndices", "SDTrans", "SDRTrans", "SDRead", "SDReadu", "SDExecute", "SDError"):
+    for fn in ("SDRevision", "SDGetVar", "SDSystem", "SDIndices", "SDTrans", "SDRTrans", "SDRead", "SDReadu", "SDExecute", "SDError",
+               "SDEvaluate", "SDEvalConv", "SDIConv", "SDOConv", "SDIConvs", "SDOConvs", "SDChange", "SDRespond",
+               "SDReadSeq", "SDReadBlk"):
         getattr(lib, fn).restype = ctypes.c_void_p
     lib.SDOpen.restype = ctypes.c_int
     lib.SDStatus.restype = ctypes.c_int
@@ -307,6 +355,480 @@ def main():
         err = ctypes.string_at(lib.SDError()) if lib.SDError() else b""
         row("G5: mode 7 is refused the same way", b"Transaction mode" in err, repr(err))
         row("G5: CONTROL: after the refusals the session still answers", call("SDSystem", 1012) == rev, "")
+
+        say("\n--- H. SDEvaluate and SDEvalConv ------------------------------------------------------------------------------")
+
+        def err():
+            p = lib.SDError()
+            return ctypes.string_at(p) if p else b""
+
+        IM = b"\xff"
+        flds = rec1.split(FM)                       # the oracle: the record the probe wrote, taken apart here
+        day = (datetime.date(2026, 10, 15) - datetime.date(1967, 12, 31)).days
+        dfno = lib.SDOpen(b"DICT zzcl")
+        row("H0: the dictionary opens through the API (SDOpen of DICT zzcl)", dfno >= 1, str(dfno))
+
+        def ev(name, data=rec1, id=b"r1", fn="SDEvaluate", f=None):
+            return call(fn, dfno if f is None else f, name, data, id)
+
+        row("H1: SDEvaluate of a D item (NAME) is the record's field 1", ev(b"NAME") == flds[0], s(ev(b"NAME")))
+        row("H1: ... the data given is what is evaluated, not the stored record: other data, other answer",
+            ev(b"NAME", b"Other" + FM + b"1") == b"Other", s(ev(b"NAME", b"Other" + FM + b"1")))
+        row("H2: an I-type (QTY * 2) is evaluated, though the dictionary record holds no object code", ev(b"DOUBLE") == str(int(flds[1]) * 2).encode(),
+            s(ev(b"DOUBLE")))
+        drec = text(lib.SDRead(dfno, b"DOUBLE", ctypes.byref(ctypes.c_int())))
+        row("H2: ... and the dictionary was NOT written to by the evaluation (still its six fields, no object code in field 16)",
+            drec is not None and len(drec.split(FM)) == 6, s(drec))
+        row("H3: an I-type that is @ID answers the id given", ev(b"IDCOPY") == b"r1" and ev(b"IDCOPY", id=b"zz9") == b"zz9", s(ev(b"IDCOPY")))
+        row("H3: ... and the null id gives the null string", ev(b"IDCOPY", id=b"") == b"", s(ev(b"IDCOPY", id=b"")))
+        row("H4: an A item with no correlative gives its field; one with the correlative A;2*'3' (field 2 times the constant 3) gives it times three",
+            ev(b"ANAME") == flds[0] and ev(b"ATRIPLE") == str(int(flds[1]) * 3).encode(), s(ev(b"ANAME")) + " / " + s(ev(b"ATRIPLE")))
+        row("H5: several names (value marks) give the answers joined by item marks (character 255)",
+            ev(b"NAME" + VM + b"QTY") == flds[0] + IM + flds[1], s(ev(b"NAME" + VM + b"QTY")))
+        row("H6: SDEvaluate applies NO conversion: the I-type UPNAME (conversion MCU) is Widget", ev(b"UPNAME") == b"Widget", s(ev(b"UPNAME")))
+        row("H6: SDEvalConv applies it: WIDGET", ev(b"UPNAME", fn="SDEvalConv") == b"WIDGET", s(ev(b"UPNAME", fn="SDEvalConv")))
+        row("H6: SDEvalConv of an item with no conversion is the plain value (NAME)", ev(b"NAME", fn="SDEvalConv") == flds[0], "")
+        dated = rec1 + FM + str(day).encode()
+        row("H7: a date item: SDEvaluate gives the day number, SDEvalConv the date its D4/ conversion makes",
+            ev(b"WHEN", dated) == str(day).encode() and ev(b"WHEN", dated, fn="SDEvalConv") == b"10/15/2026",
+            s(ev(b"WHEN", dated)) + " / " + s(ev(b"WHEN", dated, fn="SDEvalConv")))
+        row("H8: a multivalued item: SDEvaluate keeps the values, SDEvalConv converts each (MCU: RED and BLUE)",
+            ev(b"TAGU") == b"red" + VM + b"blue" and ev(b"TAGU", fn="SDEvalConv") == b"RED" + VM + b"BLUE",
+            s(ev(b"TAGU")) + " / " + s(ev(b"TAGU", fn="SDEvalConv")))
+        row("H8: several names with a conversion: NAME is left, UPNAME converted",
+            ev(b"NAME" + VM + b"UPNAME", fn="SDEvalConv") == flds[0] + IM + b"WIDGET", s(ev(b"NAME" + VM + b"UPNAME", fn="SDEvalConv")))
+        row("H9: a name in lower case finds the item (a dictionary folds case)", ev(b"double") == ev(b"DOUBLE") and ev(b"double") != b"", s(ev(b"double")))
+        row("H10: an item that is not in the dictionary gives nothing, and no error text about types or compiling",
+            ev(b"NOSUCH") == b"" and b"defines data" not in err() and b"compiled" not in err(), s(err()))
+        row("H11: a phrase (type PH) defines no data: nothing, and the error says so", ev(b"PH1") == b"" and b"defines data" in err(), s(err()))
+        row("H12: an I-type that will not compile gives nothing, and the error says it cannot be compiled",
+            ev(b"BADI") == b"" and b"cannot be compiled" in err(), s(err()))
+        row("H13: a file number that was never opened is refused with the file number message", ev(b"NAME", f=99) == b"" and b"file number" in err().lower(), s(err()))
+        idb = call("SDGetVar", b"@ID")
+        ev(b"IDCOPY", id=b"r3")
+        row("H14: CONTROL: @ID on the server is what it was before an evaluation that set it (the environment is put back)",
+            call("SDGetVar", b"@ID") == idb, s(idb) + " -> " + s(call("SDGetVar", b"@ID")))
+        row("H15: CONTROL: after the refusals the session still answers", ev(b"NAME") == flds[0], "")
+
+        say("\n--- I. SDIConv, SDOConv, SDIConvs and SDOConvs ----------------------------------------------------------------")
+        d1 = str(day).encode()
+        d2 = str(day + 1).encode()
+        row("I1: SDOConv of the day number with D4/ is the date, and the status is 0",
+            call("SDOConv", d1, b"D4/") == b"10/15/2026" and lib.SDStatus() == 0, s(call("SDOConv", d1, b"D4/")))
+        row("I2: SDIConv of that date with D4/ is the day number, and the status is 0",
+            call("SDIConv", b"10/15/2026", b"D4/") == d1 and lib.SDStatus() == 0, s(call("SDIConv", b"10/15/2026", b"D4/")))
+        r = call("SDIConv", b"13/45/2026", b"D4/")
+        bad_status = lib.SDStatus()
+        row("I3: an impossible date gives the null string and a NON-ZERO status, the conversion's own", r == b"" and bad_status != 0,
+            "result %s status %d" % (s(r), bad_status))
+        call("SDIConv", b"10/15/2026", b"D4/")
+        row("I3: CONTROL: the next successful conversion leaves the status 0 again (it is per call, not left over)", lib.SDStatus() == 0, str(lib.SDStatus()))
+        two = d1 + VM + d2
+        row("I4: SDOConvs converts each value of a dynamic array in turn",
+            call("SDOConvs", two, b"D4/") == b"10/15/2026" + VM + b"10/16/2026", s(call("SDOConvs", two, b"D4/")))
+        row("I4: ... each field the same way", call("SDOConvs", d1 + FM + d2, b"D4/") == b"10/15/2026" + FM + b"10/16/2026", "")
+        row("I4: CONTROL: SDOConv of the same array does not (it treats it as one string), so the plural is not the singular",
+            call("SDOConv", two, b"D4/") != b"10/15/2026" + VM + b"10/16/2026", s(call("SDOConv", two, b"D4/")))
+        row("I5: SDIConvs converts each value of a dynamic array of dates", call("SDIConvs", b"10/15/2026" + VM + b"10/16/2026", b"D4/") == two,
+            s(call("SDIConvs", b"10/15/2026" + VM + b"10/16/2026", b"D4/")))
+        row("I6: other codes: MCU upper-cases, MD2 turns 12.34 into 1234",
+            call("SDOConv", b"widget", b"MCU") == b"WIDGET" and call("SDIConv", b"12.34", b"MD2") == b"1234",
+            s(call("SDOConv", b"widget", b"MCU")) + " / " + s(call("SDIConv", b"12.34", b"MD2")))
+        call("SDIConv", b"x", b"ZZ")
+        row("I7: a code that does not exist leaves a non-zero status", lib.SDStatus() != 0, str(lib.SDStatus()))
+        row("I8: null data is converted to the null string", call("SDOConv", b"", b"D4/") == b"", s(call("SDOConv", b"", b"D4/")))
+        row("I9: CONTROL: the session still answers", call("SDSystem", 1012) == rev, "")
+
+        # ------------------------------------------------------------------------------------------------------ J
+        say("\n--- J. sessions: more than four, one waiting for input while another comes and goes, a failed connect, SDRecordlocked ---")
+        main_idx = lib.SDGetSession()
+        idxs = [main_idx]
+        okc = []
+        for _ in range(5):
+            r = lib.SDConnectLocal(b"zzaa")
+            okc.append(r)
+            if r == 1:
+                idxs.append(lib.SDGetSession())
+        row("J1: six local sessions open at once, each with an index of its own (sheet 134: the client held four)",
+            okc == [1] * 5 and len(set(idxs)) == 6, "connects %r, indexes %r" % (okc, idxs))
+        answers = 0
+        for i in idxs:
+            if lib.SDSetSession(i) and call("SDSystem", 1012) == rev:
+                answers += 1
+        row("J1: ... and each answers when it is selected", answers == len(idxs), "%d of %d" % (answers, len(idxs)))
+        for i in idxs[1:]:
+            lib.SDSetSession(i)
+            lib.SDDisconnect()
+        row("J1: CONTROL: the first session is still there and answers after the five others were disconnected",
+            lib.SDSetSession(main_idx) == 1 and call("SDSystem", 1012) == rev, "")
+
+        perr = ctypes.c_int(-1)
+        lib.SDExecute(b"RUN bp zzprmp", ctypes.byref(perr))
+        prompted = perr.value
+        r = lib.SDConnectLocal(b"zzaa")
+        other = lib.SDGetSession()
+        lib.SDDisconnect()
+        lib.SDSetSession(main_idx)
+        rerr = ctypes.c_int(-1)
+        out2 = text(lib.SDRespond(b"hello", ctypes.byref(rerr)))
+        row("J2: a session waiting for input (EXECUTING) is not harmed when another one connects and disconnects (sheet 281): the answer "
+            "reaches the command and its output comes back", prompted == 5 and r == 1 and out2 is not None and b"GOT[hello]" in out2
+            and rerr.value == 0, "prompt status %d, second connect %d, reply %s, status %d" % (prompted, r, s(out2), rerr.value))
+        row("J2: CONTROL: the session is an ordinary one again afterwards", call("SDSystem", 1012) == rev, "")
+
+        r = lib.SDConnect(b"127.0.0.1", 1, b"nobody", b"x", b"zzaa")
+        failed_error = err()
+        row("J3: a connect to a port nothing listens on fails, says why, and the session it started from can be selected and used again",
+            r == 0 and failed_error != b"" and lib.SDSetSession(main_idx) == 1 and call("SDSystem", 1012) == rev,
+            "result %d, error %s" % (r, s(failed_error)))
+
+        rl = getattr(lib, "SDRecordlocked", None)
+        if rl is None:
+            row("J4: SDRecordlocked is in the library (sheet 262)", False, "not there")
+        else:
+            rl.restype = ctypes.c_int
+            lf = lib.SDOpen(b"zzcl")
+            e0 = ctypes.byref(ctypes.c_int())
+            s_none = rl(lf, b"r1")
+            text(lib.SDReadu(lf, b"r1", 0, e0))
+            s_mine_u = rl(lf, b"r1")
+            lib.SDRelease(lf, b"r1")
+            s_rel = rl(lf, b"r1")
+            text(lib.SDReadl(lf, b"r1", 0, e0))
+            s_mine_l = rl(lf, b"r1")
+            lib.SDRelease(lf, b"r1")
+            row("J4: SDRecordlocked: 0 when nothing is held, 2 for this session's update lock, 0 after SDRelease, 1 for its read lock",
+                (s_none, s_mine_u, s_rel, s_mine_l) == (0, 2, 0, 1), repr((s_none, s_mine_u, s_rel, s_mine_l)))
+            lib.SDConnectLocal(b"zzaa")
+            idx_b = lib.SDGetSession()
+            fb = lib.SDOpen(b"zzcl")
+            text(lib.SDReadu(fb, b"r1", 0, e0))
+            lib.SDSetSession(main_idx)
+            s_other = rl(lf, b"r1")
+            lib.SDSetSession(idx_b)
+            lib.SDRelease(fb, b"r1")
+            lib.SDDisconnect()
+            lib.SDSetSession(main_idx)
+            s_after = rl(lf, b"r1")
+            row("J4: a lock held by ANOTHER session shows as -2 (update) to this one, and 0 once it is released", (s_other, s_after) == (-2, 0),
+                repr((s_other, s_after)))
+            bad_fno = rl(99, b"r1")
+            row("J4: a file number that was never opened gives 0 and says so (no abort, no crash)", bad_fno == 0 and b"file number" in err().lower(),
+                "%d, %s" % (bad_fno, s(err())))
+
+        # Python ignores SIGPIPE, so a missing guard in the library can never show in this process.  A child process with the signal
+        # at its default action starts a local session, kills the server (as the system or an administrator might) and sends a
+        # request to it: the request must fail, and the child must live to say so.
+        child = (
+            "import ctypes, os, signal, sys, time\n"
+            "signal.signal(signal.SIGPIPE, signal.SIG_DFL)\n"
+            "lib = ctypes.CDLL(sys.argv[1])\nlib.SDSystem.restype = ctypes.c_void_p\n"
+            "if lib.SDConnectLocal(b'zzaa') != 1:\n    print('NOCONNECT'); sys.exit(2)\n"
+            "me = str(os.getpid())\n"
+            "def ppid(p):\n"
+            "    try: return open('/proc/%s/stat' % p).read().rsplit(')', 1)[1].split()[1]\n"
+            "    except (OSError, IndexError): return None   # a process that ended between listdir and open: not ours\n"
+            "kids = [int(p) for p in os.listdir('/proc') if p.isdigit() and ppid(p) == me]\n"
+            "for k in kids: os.kill(k, signal.SIGKILL)\n"
+            "time.sleep(1)\nprint('KILLED', len(kids))\nr = lib.SDSystem(1012)\n"
+            "print('ANSWER', 'EMPTY' if (not r or ctypes.string_at(r) == b'') else 'GOT')\nprint('SURVIVED')\nlib.SDDisconnect()\nprint('DISCONNECTED')\n")
+        try:
+            cp = subprocess.run([sys.executable, "-I", "-c", child, os.path.join(SYS, "bin", "sdclilib.so")], capture_output=True, text=True,
+                                timeout=40, env=dict(os.environ))
+            cout, crc = cp.stdout.split(), cp.returncode
+            if crc != 0:
+                cout = cout + ["STDERR:", cp.stderr.strip()[-300:]]
+        except subprocess.TimeoutExpired:
+            cout, crc = ["TIMEOUT"], None
+        row("J5: with SIGPIPE at its default action, a request to a server that was killed fails (nothing back) and the program lives "
+            "to disconnect: the write is a failed write, not a signal", "SURVIVED" in cout and "DISCONNECTED" in cout and "EMPTY" in cout and crc == 0,
+            "output %r, exit %r" % (cout, crc))
+
+        # ------------------------------------------------------------------------------------------------------ L
+        say("\n--- L. SDDcount and SDChange against SD's own DCOUNT() and CHANGE() ------------------------------------------")
+        sout = q3.plain("zzaa", ["RUN bp zzstr"])
+        for t, src_, dl_ in (("D1", b"a,b,c", b","), ("D2", b"a::b::c::d", b"::"), ("D3", b"aaaa", b"aa"), ("D4", b"a,b", b",,"),
+                             ("D5", b"", b","), ("D6", b"ab--cd--", b"--")):
+            want = (tag(sout, t) or [None])[0]
+            got = lib.SDDcount(src_, dl_)
+            row("L1: SDDcount(%s, %s) is what DCOUNT() gives (%s)%s" % (s(src_), s(dl_), want, "  <- a multi-character delimiter (sheet 260)" if len(dl_) > 1 else ""),
+                want is not None and str(got) == want, "got %d" % got)
+        row("L1: no delimiter gives 0, as it always did", lib.SDDcount(b"abc", b"") == 0, "")
+        for t, args in (("C1", (b"aaaa", b"aa", b"b", 0, 0)), ("C2", (b"aaa", b"aa", b"b", 0, 0)), ("C3", (b"abababa", b"aba", b"X", 0, 0)),
+                        ("C4", (b"abcabcabcabc", b"abc", b"Z", 2, 2)), ("C5", (b"hello", b"l", b"", 0, 0)), ("C6", (b"hello", b"xyz", b"Q", 0, 0)),
+                        ("C7", (b"xx--xx--xx", b"--", b"<>", 0, 0)), ("C8", (b"aXbXc", b"X", b"YY", 1, 2))):
+            want = (tag(sout, t) or [None])[0]
+            got = text(lib.SDChange(*args))
+            row("L2: SDChange%s is what CHANGE() gives (%s)%s" % (repr(args[:3] + args[3:]).replace("b'", "'"), want,
+                                                                   "  <- overlapping strings (sheet 261)" if t in ("C1", "C2", "C3") else ""),
+                want is not None and got is not None and got.decode("latin-1") == want, "got %s" % s(got))
+
+        # ------------------------------------------------------------------------------------------------------ M
+        say("\n--- M. SDLogto -------------------------------------------------------------------------------------------------")
+        row("M1: SDLogto to another account returns true (sheet 272: it always returned false) and the session is in it (@WHO)",
+            lib.SDLogto(b"zzab") == 1 and call("SDGetVar", b"@WHO") == b"zzab", s(call("SDGetVar", b"@WHO")))
+        r = lib.SDLogto(b"nosuchaccountzz")
+        row("M2: SDLogto to an account that is not there returns false, says why, and the session stays where it was",
+            r == 0 and err() != b"" and call("SDGetVar", b"@WHO") == b"zzab", "result %d, error %s, @WHO %s" % (r, s(err()), s(call("SDGetVar", b"@WHO"))))
+        row("M3: CONTROL: back to the first account it returns true again", lib.SDLogto(b"zzaa") == 1 and call("SDGetVar", b"@WHO") == b"zzaa", "")
+
+        # ------------------------------------------------------------------------------------------------------ N
+        say("\n--- N. the MASTER.LOGIN paragraph (sheet 170) ------------------------------------------------------------------")
+        q3.put(os.path.join(SYS, "bp", "zzmv"),
+               "$internal\n   openpath @sdsys:@ds:'voc' to v else crt 'NOVOC' ; stop\n"
+               "   write 'PA':@fm:'RUN bp zzmark MASTER' on v, 'MASTER.LOGIN'\n   crt 'MVDONE'\nend\n")
+        q3.put(os.path.join(BOX, "user_accounts", "zzaa", "bp", "zzlv"),
+               "   open 'voc' to v else stop\n   write 'PA':@fm:'RUN bp zzmark LOGIN' on v, 'LOGIN'\n   crt 'LVDONE'\nend\n")
+        mv = q3.adm(["BASIC bp zzmv", "RUN bp zzmv"], internal=True)
+        lv = q3.plain("zzaa", ["BASIC bp zzlv", "RUN bp zzlv"])
+        row("N0: the two paragraphs are installed (MASTER.LOGIN in the SDSYS VOC, LOGIN in the account's)",
+            any(l == "MVDONE" for l in mv) and any(l == "LVDONE" for l in lv), repr((mv[-2:], lv[-2:])))
+
+        def order_after_connect():
+            q3.plain("zzaa", ["DELETE zzlog order"])
+            ok = lib.SDConnectLocal(b"zzaa")
+            n_idx = lib.SDGetSession()
+            nf = lib.SDOpen(b"zzlog")
+            rec = text(lib.SDRead(nf, b"order", ctypes.byref(ctypes.c_int())))
+            return ok, n_idx, nf, rec
+
+        ok, n_idx, nf, rec = order_after_connect()
+        row("N1: a new API session runs MASTER.LOGIN first and then the account's LOGIN", ok == 1 and rec == b"MASTER" + FM + b"LOGIN", s(rec))
+        lib.SDLogto(b"zzaa")
+        rec2 = text(lib.SDRead(nf, b"order", ctypes.byref(ctypes.c_int())))
+        row("N2: LOGTO runs the new account's LOGIN again and NOT MASTER.LOGIN (as in a terminal session)",
+            rec2 == b"MASTER" + FM + b"LOGIN" + FM + b"LOGIN", s(rec2))
+        lib.SDDisconnect()
+        lib.SDSetSession(main_idx)
+        q3.put(os.path.join(SYS, "bp", "zzmv2"),
+               "$internal\n   openpath @sdsys:@ds:'voc' to v else crt 'NOVOC' ; stop\n   delete v, 'MASTER.LOGIN'\n   crt 'MV2DONE'\nend\n")
+        rm = q3.adm(["BASIC bp zzmv2", "RUN bp zzmv2"], internal=True)
+        ok, n_idx, nf, rec = order_after_connect()
+        row("N3: CONTROL: with no MASTER.LOGIN paragraph the session runs the account's LOGIN alone", ok == 1 and rec == b"LOGIN",
+            "%s (%s)" % (s(rec), rm[-1:]))
+        lib.SDDisconnect()
+        lib.SDSetSession(main_idx)
+
+        # ------------------------------------------------------------------------------------------------------ O
+        say("\n--- O. the BASIC class's connect to a port nothing listens on (sheet 571) -------------------------------------")
+        cout = q3.plain("zzaa", ["RUN bp zzcls"])
+        cst = (tag(cout, "ST") or [""])[0]
+        row("O1: connect() returns false, and ServerStatus is the failed open's status (a number, not zero) and error names the host and port",
+            tag(cout, "OK") == ["0"] and cst.lstrip("-").isdigit() and cst != "0" and "127.0.0.1:1" in (tag(cout, "ERR") or [""])[0],
+            repr(cout[-4:]))
+
+        # ------------------------------------------------------------------------------------------------------ P
+        say("\n--- P. sequential files (sheet 441): SDOpenSeq, SDReadSeq, SDReadBlk, SDWriteSeq, SDWriteBlk, SDSeek, SDWeofSeq ---")
+        disk_dir = os.path.join(acct, "zzdir")
+
+        def ondisk(name):
+            try:
+                with open(os.path.join(disk_dir, name), "rb") as fh:
+                    return fh.read()
+            except OSError:
+                return None
+
+        rs_err = ctypes.c_int()
+        rb_n = ctypes.c_int()
+
+        def rseq(f):
+            t = text(lib.SDReadSeq(f, ctypes.byref(rs_err)))
+            return t, rs_err.value
+
+        def rblk(f, n):
+            ptr = lib.SDReadBlk(f, n, ctypes.byref(rb_n))
+            data = ctypes.string_at(ptr, rb_n.value) if ptr else b""
+            if ptr:
+                lib.SDFree(ctypes.c_void_p(ptr))
+            return data, rb_n.value
+
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 512)
+        row("P1: SDOpenSeq of an item of a directory file (the VOC name and the item) in overwrite mode gives a file number of its own, "
+            "above SDOpen's", sf > 10000, str(sf))
+        for ln in (b"alpha", b"beta", b"gamma"):
+            lib.SDWriteSeq(sf, ln)
+        lib.SDClose(sf)
+        row("P1: three SDWriteSeq lines are on the disk, each with its terminator, once the file is closed (read from the disk, not "
+            "through the API)", ondisk("lines") == b"alpha\nbeta\ngamma\n", repr(ondisk("lines")))
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 0)
+        got = [rseq(sf) for _ in range(4)]
+        row("P2: SDReadSeq gives the three lines without their terminators and then the empty string with the ELSE answer (2) at the "
+            "end of the file", got == [(b"alpha", 0), (b"beta", 0), (b"gamma", 0), (b"", 2)], repr(got))
+        lib.SDSeek(sf, 6, 0)
+        b1 = rblk(sf, 4)
+        lib.SDSeek(sf, -6, 2)
+        b2 = rblk(sf, 10)
+        lib.SDSeek(sf, 0, 0)
+        lib.SDSeek(sf, 6, 1)
+        b3 = rblk(sf, 4)
+        b4 = rblk(sf, 100)
+        row("P3: SDSeek from the start then SDReadBlk(4) gives beta; from the end by -6 then SDReadBlk(10) gives the 6 bytes there "
+            "(fewer than asked, and the count says so); from here by 6 gives beta again, the next 100 give the 7 bytes that are left; "
+            "and a read at the end gives nothing with a count of 0", (b1, b2, b3) == ((b"beta", 4), (b"gamma\n", 6), (b"beta", 4)) and b4 == (b"\ngamma\n", 7) and rblk(sf, 5) == (b"", 0),
+            repr((b1, b2, b3, b4)))
+        lib.SDClose(sf)
+
+        sf = lib.SDOpenSeq(b"zzdir", b"bin", 512)
+        binary = b"\x00\x01\xfe\xff\n\x00z"
+        lib.SDWriteBlk(sf, binary, len(binary))
+        lib.SDClose(sf)
+        sf = lib.SDOpenSeq(b"zzdir", b"bin", 16)
+        back = rblk(sf, 100)
+        lib.SDClose(sf)
+        row("P4: SDWriteBlk writes bytes exactly as given, zeros and high bytes included, and SDReadBlk returns them by its count",
+            ondisk("bin") == binary and back == (binary, len(binary)), "disk %r, back %r" % (ondisk("bin"), back))
+
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 256)
+        lib.SDWriteSeq(sf, b"delta")
+        lib.SDClose(sf)
+        row("P5: append mode (256) adds to what is there", ondisk("lines") == b"alpha\nbeta\ngamma\ndelta\n", repr(ondisk("lines")))
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 16)
+        lib.SDWriteSeq(sf, b"not allowed")
+        lib.SDClose(sf)
+        row("P5: read only (16) cannot be written: the file is as it was", ondisk("lines") == b"alpha\nbeta\ngamma\ndelta\n", repr(ondisk("lines")))
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 0)
+        lib.SDSeek(sf, 6, 0)
+        lib.SDWeofSeq(sf)
+        lib.SDClose(sf)
+        row("P5: SDWeofSeq cuts the file off at the position (6: after alpha)", ondisk("lines") == b"alpha\n", repr(ondisk("lines")))
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 512)
+        lib.SDClose(sf)
+        row("P5: overwrite mode (512) empties the file on opening it", ondisk("lines") == b"", repr(ondisk("lines")))
+
+        sf = lib.SDOpenSeq(b"zzdir", b"flush", 512 + 1024)
+        lib.SDWriteSeq(sf, b"at once")
+        flushed = ondisk("flush")
+        lib.SDClose(sf)
+        sf = lib.SDOpenSeq(b"zzdir", b"flush2", 512)
+        lib.SDWriteSeq(sf, b"later")
+        held_back = ondisk("flush2")
+        lib.SDClose(sf)
+        row("P6: with 1024 (unbuffered) a line is on the disk before the file is closed; the CONTROL, the same without it, has "
+            "nothing there until the close", flushed == b"at once\n" and held_back in (b"", None) and ondisk("flush2") == b"later\n",
+            repr((flushed, held_back, ondisk("flush2"))))
+
+        row("P7: a file number that was never given is refused with the file number message, for each of the functions",
+            rseq(10999) == (b"", 3) and b"file number" in err().lower() and rblk(10999, 5) == (b"", 0)
+            and (lib.SDWriteSeq(10999, b"x"), b"file number" in err().lower())[1] and (lib.SDSeek(10999, 0, 0), b"file number" in err().lower())[1],
+            s(err()))
+        sf = lib.SDOpenSeq(b"zzdir", b"lines", 0)
+        lib.SDClose(sf)
+        row("P7: after SDClose the number is no longer good", rseq(sf)[1] == 3, repr(rseq(sf)))
+        row("P7: an item in a file that is not there gives 0 and a message, and so does a null file name",
+            lib.SDOpenSeq(b"nosuchdirfile", b"x", 0) == 0 and lib.SDOpenSeq(b"", b"", 0) == 0 and b"name" in err().lower(), s(err()))
+
+        pf = lib.SDOpenSeq(b"inside.txt", b"", 512)
+        lib.SDWriteSeq(pf, b"in the account")
+        lib.SDClose(pf)
+        try:
+            with open(os.path.join(acct, "inside.txt"), "rb") as fh:
+                inside = fh.read()
+        except OSError:
+            inside = None
+        row("P8: THE GATE, by pathname: a file inside the account's own directory can be opened and written, with no switch on "
+            "(a null id makes the first argument a pathname)", pf > 10000 and inside == b"in the account\n", "%d, %r" % (pf, inside))
+        before = open("/etc/hostname", "rb").read()
+        refused = [lib.SDOpenSeq(p, b"", 16) for p in (b"/etc/hostname", b"../zzab/inside.txt", b"sub/../../zzab/x", b"/tmp/zzqm-seq-out")]
+        e_out = err()
+        w = lib.SDOpenSeq(b"/tmp/zzqm-seq-out", b"", 512)
+        row("P8: ... and a pathname OUTSIDE it is refused, an account without os-on reaching only its own directory: /etc/hostname, a "
+            "sibling account's file, a path that climbs out, a new file in /tmp - none gets a number, the message says it may not be "
+            "opened, and nothing was made",
+            refused == [0, 0, 0, 0] and w == 0 and b"may open" in e_out and not os.path.exists("/tmp/zzqm-seq-out")
+            and open("/etc/hostname", "rb").read() == before, "%r %d %s" % (refused, w, s(e_out)))
+
+        # a second session finding a file held by the first
+        sa = lib.SDGetSession()
+        first = lib.SDOpenSeq(b"zzdir", b"held", 512)
+        lib.SDConnectLocal(b"zzaa")
+        sb = lib.SDGetSession()
+        second = lib.SDOpenSeq(b"zzdir", b"held", 2)
+        sec_status = lib.SDStatus()
+        lib.SDSetSession(sa)
+        lib.SDClose(first)
+        lib.SDSetSession(sb)
+        third = lib.SDOpenSeq(b"zzdir", b"held", 2)
+        lib.SDDisconnect()
+        lib.SDSetSession(sa)
+        row("P9: a file another session has open is refused to a second open with 2 (give up) - 0, and the status says locked - and "
+            "can be opened once the first has closed it", first > 10000 and second == 0 and third > 10000,
+            "first %d, second %d (status %d), third %d" % (first, second, sec_status, third))
+
+        # ------------------------------------------------------------------------------------------------------ Q
+        say("\n--- Q. WRITE ... CREATING.SEQKEY, FILEINFO(1031), CONFIGURE.FILE NEXT, SDWriteSeqKey and SDWriteuSeqKey ------------------")
+        r1 = q3.plain("zzaa", ["RUN bp zzsk"])
+        row("Q1: three writes with CREATING.SEQKEY (two WRITE, one WRITEU) on a new hashed file are given 1, 2 and 3", tag(r1, "IDS") == ["1|2|3"],
+            repr(r1[-6:]))
+        row("Q1: ... the WRITEU keeps its update lock (RECORDLOCKED 2), the WRITE released its own (0), and the record is read back by its id",
+            tag(r1, "LOCK3") == ["2"] and tag(r1, "LOCK2") == ["0"] and tag(r1, "REC2") == ["second"], repr((tag(r1, "LOCK3"), tag(r1, "LOCK2"), tag(r1, "REC2"))))
+        row("Q1: FILEINFO(file, 1031) is the id of the last record written with it: 3", tag(r1, "LAST") == ["3"], repr(tag(r1, "LAST")))
+        q3.plain("zzaa", ["CONFIGURE.FILE zzsq NEXT 100"])
+        r2 = q3.plain("zzaa", ["RUN bp zzsk"])
+        row("Q2: CONFIGURE.FILE NEXT 100 sets the counter: the next three are 100, 101 and 102 (and 1031 says 102)",
+            tag(r2, "IDS") == ["100|101|102"] and tag(r2, "LAST") == ["102"], repr((tag(r2, "IDS"), tag(r2, "LAST"))))
+        qq = q3.plain("zzaa", ["CONFIGURE.FILE zzsq NEXT QUERY"])
+        row("Q2: NEXT QUERY says what the next id will be (103)", any("next sequential record id is 103" in ln for ln in qq), repr(qq[-3:]))
+        rt = q3.plain("zzaa", ["RUN bp zzskt"])
+        row("Q3: in a transaction the id is taken at the WRITE and the record is there after the commit (103)", tag(rt, "TXN") == ["103=in txn"],
+            repr(tag(rt, "TXN")))
+        rd = q3.plain("zzaa", ["RUN bp zzskd"])
+        row("Q4: a DIRECTORY file is refused (status 3005, not a dynamic file) and the id variable is left null",
+            any(re.fullmatch(r"REFUSED\[-?3005\]", ln) for ln in rd) and tag(rd, "AFTER") == [""], repr(rd[-4:]))
+        qf = lib.SDOpen(b"zzsq")
+        k1 = text(lib.SDWriteSeqKey(qf, b"api one"))
+        l1 = lib.SDRecordlocked(qf, k1) if k1 else None
+        k2 = text(lib.SDWriteuSeqKey(qf, b"api two"))
+        l2 = lib.SDRecordlocked(qf, k2) if k2 else None
+        if k2:
+            lib.SDRelease(qf, k2)
+        back = text(lib.SDRead(qf, k1 or b"x", ctypes.byref(ctypes.c_int()))) if k1 else None
+        row("Q5: SDWriteSeqKey and SDWriteuSeqKey over the API give the file's next ids (104, 105), the first releasing its lock (0) and "
+            "the second keeping it (2), and the record is there", (k1, k2, l1, l2, back) == (b"104", b"105", 0, 2, b"api one"),
+            repr((k1, k2, l1, l2, back)))
+        qdf = lib.SDOpen(b"zzdir")
+        row("Q5: on a directory file they give nothing and say a hashed file is needed",
+            text(lib.SDWriteSeqKey(qdf, b"x")) == b"" and b"hashed" in err(), s(err()))
+        qq = q3.plain("zzaa", ["CONFIGURE.FILE zzsq NEXT QUERY"])
+        row("Q5: the API and the program use the one counter: NEXT QUERY now says 106", any("next sequential record id is 106" in ln for ln in qq),
+            repr(qq[-3:]))
+
+        # ------------------------------------------------------------------------------------------------------ K (the long one)
+        say("\n--- K. AUTOLOGOUT in an API session (sheet 474): two sessions, one given AUTOLOGOUT 1, both idle for 70 seconds ------")
+        lib.SDConnectLocal(b"zzaa")
+        ia = lib.SDGetSession()
+        eK = ctypes.c_int()
+        text(lib.SDExecute(b"AUTOLOGOUT 1", ctypes.byref(eK)))
+        shown = text(lib.SDExecute(b"AUTOLOGOUT", ctypes.byref(eK)))
+        lib.SDConnectLocal(b"zzaa")
+        ib = lib.SDGetSession()
+        shown_b = text(lib.SDExecute(b"AUTOLOGOUT", ctypes.byref(eK)))
+        row("K0: AUTOLOGOUT is set by the command in one session (1 minute) and is off in the other", shown is not None and b"1 minute" in shown
+            and shown_b is not None and b"disabled" in shown_b, "%s / %s" % (s(shown), s(shown_b)))
+        time.sleep(70)
+        lib.SDSetSession(ia)
+        box = {}
+
+        def idle_call():
+            t0 = time.time()
+            box["answer"] = call("SDSystem", 1012)
+            box["secs"] = time.time() - t0
+
+        th = threading.Thread(target=idle_call, daemon=True)
+        th.start()
+        th.join(30)
+        row("K1: after the minute the session whose AUTOLOGOUT has run out is gone: its next request comes back at once with nothing and "
+            "an error, where it used to wait for ever on a pipe nobody would write to",
+            not th.is_alive() and box.get("answer") in (b"", None) and err() != b"", "answer %r after %s s, error %s" % (box.get("answer"), box.get("secs"), s(err())))
+        lib.SDSetSession(ib)
+        row("K2: CONTROL: the other session, idle for the same time without AUTOLOGOUT, still answers", call("SDSystem", 1012) == rev, "")
+        lib.SDDisconnect()
+        lib.SDSetSession(ia)
+        t0 = time.time()
+        lib.SDDisconnect()
+        row("K3: disconnecting the session whose server has gone returns (no SIGPIPE ended this program, no wait)", time.time() - t0 < 20,
+            "%.1f s" % (time.time() - t0))
+        lib.SDSetSession(main_idx)
+        row("K3: CONTROL: the first session is still there", call("SDSystem", 1012) == rev, "")
         lib.SDDisconnect()
     finally:
         try:

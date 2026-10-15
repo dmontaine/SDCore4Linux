@@ -550,6 +550,8 @@
 #define FC_NON_TXN               4    /* Set open file as non-transactional */
 #define FC_SPLIT_MERGE           5    /* Force split/merge */
 #define FC_NO_RESIZE             6    /* Set DHF_NO_RESIZE flag */
+#define FC_SET_SEQ_KEY           8    /* Set the next id of WRITE ... CREATING.SEQKEY (hashed files; 15 Oct 26) */
+#define FC_GET_SEQ_KEY           9    /* Take the next such id (null string if the file is not a hashed file) */
 #define FC_SET_MODE              7    /* Set the permission bits of a record of a directory file: "id<FM>ooo" (15 Oct 26, Q-8) */
 
 /* SD_ENCRYPT_SODIUM encryption decryption  */
