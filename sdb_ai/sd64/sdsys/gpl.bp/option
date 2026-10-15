@@ -115,6 +115,8 @@ $include int$keys.h
    opt<-1> = 'NO.PHANTOM.NOTIFY||11269'          ;* 52
    opt<-1> = 'SPOOL.COMMAND||11270'              ;* 53
    opt<-1> = 'ASSOC.ALL||11271'                  ;* 54
+   opt<-1> = 'CORRELATIVE.NOCASE||11278'         ;* 55
+   opt<-1> = 'CORRELATIVE.REUSE||11279'          ;* 56
    *         'xxxxxxxxxxxxxxxxxxx'    Option name limit = 19 characters
 
    * Shortcuts

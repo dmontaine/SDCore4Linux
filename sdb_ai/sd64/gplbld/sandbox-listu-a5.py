@@ -174,6 +174,18 @@ USER_PROGS = {
     "zzluc": ("   execute 'LISTU NO.PAGE' capturing out\n   for i = 1 to dcount(out, @am)\n      crt 'LC:':out<i>\n   next i\n"
               "   crt 'MY[':@userno:'][':@who:']'\n   crt 'LCDONE'\nend\n"),
     "zzlunap": "   for i = 1 to 120\n      nap 100\n   next i\n   crt 'NAPDONE'\nend\n",
+    # 15 Oct 26, QM4 gaps Q-5: CHILD and SIGNAL.  The phantom waits for SYSTEM(1062), then leaves a word in a sequential file; the
+    # session that started it waits for the phantom to be listed as its child, raises the signal and waits for it to end.
+    "zzlusgp": ("   t = 0\n   loop\n   until system(1062) or t >= 150\n      nap 100 ; t += 1\n   repeat\n"
+                "   openseq 'zzlusg.txt' to f then null else create f else stop 'no create'\n   weofseq f\n"
+                "   writeseq (if t < 150 then 'SIGNALLED' else 'TIMEOUT') to f else null\n   closeseq f\nend\n"),
+    "zzlusig": ("   deleteseq 'zzlusg.txt' else null\n   execute 'PHANTOM NO.MSG RUN bp zzlusgp' capturing j\n"
+                "   t = 0\n   loop\n      kids = system(1058)\n   until kids # '' or t >= 150\n      nap 100 ; t += 1\n   repeat\n"
+                "   uid = kids<1>\n   crt 'CH1[':child(uid):'/':child(0):'/':child(uid + 5000):'/':dcount(kids, @fm):']'\n"
+                "   nap 1500\n   r = signal(uid)\n"
+                "   t = 0\n   loop\n   until not(child(uid)) or t >= 200\n      nap 100 ; t += 1\n   repeat\n"
+                "   openseq 'zzlusg.txt' to f else f = ''\n   readseq a from f else a = 'NOFILE'\n   closeseq f\n"
+                "   crt 'SG[':r:'/':a:']'\n   crt 'CH2[':child(uid):']'\n   deleteseq 'zzlusg.txt' else null\n   crt 'SIGDONE'\nend\n"),
     # LISTU DETAIL and SYSTEM(1056) with a phantom alive
     # the phantom's cell is reserved at once but the phantom itself takes a moment to start: wait (up to 15 s) until the table says so
     "zzludet": ("   execute 'PHANTOM NO.MSG RUN bp zzlunap' capturing j\n   up = @false ; t = 0\n"
@@ -184,6 +196,11 @@ USER_PROGS = {
                 "   c = system(1056)\n   crt 'C1056[':change(c, @fm, '/'):']'\n"
                 "   call !listu(d)\n   for i = 1 to dcount(d, @fm)\n"
                 "      crt 'LU[':d<i,1>:'][':d<i,6>:'][':d<i,9>:'][':(bitand(d<i,4> + 0, 1) # 0):']'\n   next i\n"
+                # 15 Oct 26, QM4 gaps Q-8: LIST.PHANTOMS, which lists the phantoms and no one else
+                "   execute 'LIST.PHANTOMS' capturing out\n   for i = 1 to dcount(out, @am)\n      crt 'LP:':out<i>\n   next i\n"
+                "   execute 'LIST.PHANTOMS USER nobody.such' capturing out\n   for i = 1 to dcount(out, @am)\n      crt 'LQ:':out<i>\n   next i\n"
+                "   execute 'LIST.PHANTOMS POOL x' capturing out\n   for i = 1 to dcount(out, @am)\n      crt 'LR:':out<i>\n   next i\n"
+                "   execute 'LIST.PHANTOMS USER' capturing out\n   for i = 1 to dcount(out, @am)\n      crt 'LS:':out<i>\n   next i\n"
                 "   crt 'LDDONE'\nend\n"),
     "zzlucnt": "   c = system(1056)\n   crt 'C1056[':change(c, @fm, '/'):']'\n   crt 'LCNTDONE'\nend\n",
     # the Hot Spot Monitor: one open, three writes and a WRITEV, three reads and two READVs, two deletes
@@ -409,6 +426,19 @@ def main():
         row("24: the phantom is listed with its parent's account: sdsys", len(ph) == 1 and ph[0][2] == "sdsys", repr(rows))
         ctl = adm(["LISTU NO.PAGE"])
         row("CONTROL: LISTU without DETAIL has no counts line", not has(ctl, r"\d+ interactive"), repr(ctl[:3]))
+        # QM4 gaps Q-8: LIST.PHANTOMS shows only the phantom (the administrator's session, so the account is shown)
+        lp = [ln[3:] for ln in out if ln.startswith("LP:")]
+        row("Q-8 LIST.PHANTOMS: a header and one line, the phantom's, which is a user number, a pid, a name and the account sdsys",
+            len(lp) == 2 and re.match(r"^\s+User\s+Pid\s+Username\s+Login time\s+Account\s*$", lp[0]) is not None
+            and re.match(r"^\s*\d+\s+\d+\s+\S+\s+.*\d\d:\d\d\s+sdsys\s*$", lp[1]) is not None, repr(lp))
+        row("Q-8 LIST.PHANTOMS: the sessions that are not phantoms are not in it (the other session and the one running it)",
+            len(lp) == 2 and not re.search(r"zzother|zzbb", "\n".join(lp)), repr(lp))
+        lq = [ln[3:] for ln in out if ln.startswith("LQ:")]
+        row("Q-8 LIST.PHANTOMS USER name: no phantom of that user, so the header and nothing else", len(lq) == 1 and "Username" in lq[0], repr(lq))
+        lr = [ln[3:] for ln in out if ln.startswith("LR:")]
+        row("Q-8 LIST.PHANTOMS POOL is refused (SD has no pools of phantoms)", any("no pools of phantom" in ln for ln in lr), repr(lr))
+        ls = [ln[3:] for ln in out if ln.startswith("LS:")]
+        row("Q-8 LIST.PHANTOMS USER with no name is refused", any("User name required after USER" in ln for ln in ls), repr(ls))
         oth.wait(40)
         oth.kill()
         time.sleep(1)
@@ -416,6 +446,17 @@ def main():
         c = (tagged("\n".join(out), "C1056") or "").split("/")
         row("38: with the other sessions gone: 1 interactive, 0 API, 0 iPhantom, 0 phantom now, and the peak is not lowered",
             len(c) == 5 and c[:4] == ["1", "0", "0", "0"] and c[4].isdigit() and int(c[4]) >= 3, repr(c))
+
+        # ---------------------------------------------------------------------------------------------------------
+        say("\n--- B2. QM4 gaps Q-5: CHILD, SIGNAL and SYSTEM(1062) with a phantom -------------------------------------------")
+        out = adm(["RUN bp zzlusig"])
+        text = "\n".join(out)
+        row("Q-5 CHILD: the phantom this session started is its child (true), 0 and a number nobody has are not, and there is one child: CH1[%s]" % tagged(text, "CH1"),
+            re.match(r"^1/0/0/1$", tagged(text, "CH1") or "") is not None, repr(out[-6:]))
+        row("Q-5 SIGNAL: it was true for the phantom, whose SYSTEM(1062) saw it (the phantom wrote SIGNALLED, not TIMEOUT): SG[%s]" % tagged(text, "SG"),
+            tagged(text, "SG") == "1/SIGNALLED", repr(out[-6:]))
+        row("Q-5 CHILD: once the phantom has ended it is no longer a child: CH2[%s]" % tagged(text, "CH2"), tagged(text, "CH2") == "0", repr(out[-6:]))
+        row("the session ran to its end (SIGDONE)", has(out, r"^SIGDONE$"), repr(out[-4:]))
 
         # ---------------------------------------------------------------------------------------------------------
         say("\n--- C. 491: the Hot Spot Monitor's counters ------------------------------------------------------------")

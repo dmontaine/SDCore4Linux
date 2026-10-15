@@ -402,6 +402,72 @@ def main():
         if os.path.exists(junk):
             os.remove(junk)
 
+    # --- D4. OSREAD, OSWRITE and OSDELETE (QM4 gaps Q-4, 15 Oct 26) ------------------------------------------------
+    # They are ordinary programs made of OPENSEQ and DELETESEQ, so the gate is the account's own.  The evidence is the disk: a file
+    # that appears in /tmp, a file in /tmp that is gone or still there, and what an account reads of /etc/hostname.
+    say("\n--- D4. OSREAD, OSWRITE and OSDELETE: the same gate as OPENSEQ -------------------------------------------------")
+    osq = "\n".join([
+        "   crt 'Q begin'",
+        "   osread d1 from '/etc/hostname' then crt 'Q read-outside OK ':(len(d1) > 0) else crt 'Q read-outside REFUSED'",
+        "   oswrite 'abc' to 'zzqw.txt'",
+        "   osread d2 from 'zzqw.txt' then crt 'Q read-inside OK ':d2 else crt 'Q read-inside FAILED'",
+        "   oswrite 'xyz' to '/tmp/zzgates.osw'",
+        "   crt 'Q write-outside-status ':status()",
+        "   osdelete '/tmp/zzgates.osdel'",
+        "   osdelete 'zzqw.txt'",
+        "   osread d3 from 'zzqw.txt' then crt 'Q inside-gone NO' else crt 'Q inside-gone YES'",
+        "   crt 'Q own-account-path ':(account.path(@who) # '')",
+        "   crt 'Q other-account-path ':(account.path('zzon') # '')",
+        "   crt 'Q vocpath-bp ':(vocpath('bp') # '')",
+        "   crt 'Q end'", "end", ""])
+
+    def rows_q(name):
+        d = os.path.join(BOX, "user_accounts", name)
+        for junk in ("/tmp/zzgates.osw", "/tmp/zzgates.osdel", os.path.join(d, "zzqw.txt")):
+            if os.path.exists(junk):
+                os.remove(junk)
+        with open("/tmp/zzgates.osdel", "w") as f:
+            f.write("keep")
+        put(os.path.join(d, "bp", "zzosq"), osq)
+        out = plain(name, ["BASIC bp zzosq", "RUN bp zzosq"])
+        got = {}
+        for ln in out:
+            m = re.match(r"^Q (\S+) (.*)$", ln)
+            if m:
+                got[m.group(1)] = m.group(2)
+        disk = {"osw": open("/tmp/zzgates.osw").read() if os.path.exists("/tmp/zzgates.osw") else None,
+                "osdel": os.path.exists("/tmp/zzgates.osdel")}
+        for junk in ("/tmp/zzgates.osw", "/tmp/zzgates.osdel"):
+            if os.path.exists(junk):
+                os.remove(junk)
+        return got, disk, out
+
+    got, disk, out = rows_q("zzoff")
+    if "end" not in got and not has(out, "^Q end$"):
+        bail("zzoff's OSREAD probe did not run to its end:\n" + "\n".join(out[-6:]))
+    row("D4: zzoff (no OS.EXECUTE): OSREAD of /etc/hostname is refused", got.get("read-outside") == "REFUSED", "%r" % (got,))
+    row("D4: zzoff: OSWRITE then OSREAD inside its own directory works, and gives what was written",
+        got.get("read-inside") == "OK abc", "%r" % (got,))
+    row("D4: zzoff: OSWRITE to /tmp writes nothing (no file on the disk) and says so in STATUS(): 3035",
+        disk["osw"] is None and got.get("write-outside-status") == "3035", "disk=%r status=%r" % (disk, got.get("write-outside-status")))
+    row("D4: zzoff: OSDELETE of a file in /tmp deletes nothing: the file is still there", disk["osdel"] is True, "%r" % (disk,))
+    row("D4: zzoff: OSDELETE of its own file works", got.get("inside-gone") == "YES", "%r" % (got,))
+    row("D4: zzoff: ACCOUNT.PATH of its own account and VOCPATH of its own bp are told, but ACCOUNT.PATH of the sibling zzon is a null string",
+        got.get("own-account-path") == "1" and got.get("vocpath-bp") == "1" and got.get("other-account-path") == "0", "%r" % (got,))
+    for name in ("zzon", "zzos"):
+        got, disk, out = rows_q(name)
+        row("D4: %s (OS.EXECUTE yes): OSREAD of /etc/hostname gives its contents" % name, got.get("read-outside") == "OK 1", "%r" % (got,))
+        row("D4: %s: ACCOUNT.PATH of zzon is told (its own account, or another one to an account that has the OS gate), and its own is" % name,
+            got.get("other-account-path") == "1" and got.get("own-account-path") == "1" and got.get("vocpath-bp") == "1", "%r" % (got,))
+        row("D4: %s: OSWRITE to /tmp writes the file, and OSDELETE of another in /tmp removes it" % name,
+            disk["osw"] == "xyz" and disk["osdel"] is False and got.get("write-outside-status") == "0", "disk=%r got=%r" % (disk, got))
+    got, disk, out = rows_q("zzsh")
+    row("D4: zzsh (SH yes, OS.EXECUTE no) is contained like zzoff: SH does not open paths",
+        got.get("read-outside") == "REFUSED" and disk["osw"] is None and disk["osdel"] is True, "%r %r" % (got, disk))
+    for junk in (os.path.join(BOX, "user_accounts", "zzoff", "zzqw.txt"),):
+        if os.path.exists(junk):
+            os.remove(junk)
+
     # --- D2. the other routes to an OS path -----------------------------------------------------------------------
     # 13 Oct 26 (second sitting).  THE FIRST VERSION OF THIS SUITE ASKED ABOUT OPENSEQ AND OPENPATH ONLY, AND AN
     # ACCOUNT WITH BOTH GATES OFF STILL READ /etc, LISTED IT, COPIED FILES OUT OF AND INTO OTHER DIRECTORIES, DELETED

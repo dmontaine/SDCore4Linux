@@ -92,6 +92,12 @@
 # 14 Oct 26 dm  dbgwatch (the debugger's WATCH var op value: every operator and word form, strings, MATCHES, UNWATCH, re-arming, refusals; 24 rows): the 76th.
 # 14 Oct 26 dm  audit-b9b (the bug-fix audit, second sitting: !SORT of a select list variable - red 7 of 10 on the old !sort - a matrix redimensioned 400 times, a derived class, a read trigger catalogued LOCAL, a K entry over a V entry for a LOCAL catalogue item - red on the old cproc; 15 rows): the 77th.
 # 15 Oct 26 dm  option-q17 (QM4 gaps bundle Q-17: the options GIT, DIR.DTM, KEEP.OLD.OBJECT, NO.PHANTOM.NOTIFY, SPOOL.COMMAND and ASSOC.ALL, each off then on; 29 rows): the 78th.
+# 15 Oct 26 dm  mode-q16 (QM4 gaps bundle Q-16, the $MODE options: CHANGE.NO.OVERLAP, COUNT.OVERLAP, INDEX.OVERLAP, PICK.CONVERT, CONDITIONAL.STATEMENTS, TRAP.UNUSED.MAIN, PICK.SELECT, EXPLICIT, DEFAULT.UNASS.ARGS and default argument values; every mode has its control; 95 rows): the 79th.
+# 15 Oct 26 dm  func-q1 (QM4 gaps bundle Q-1, the functions behind the one opcode XFUN: CEIL FLOOR ROUNDUP ROUNDDOWN IS.* LEFT RIGHT LAST LASTS NV NS TRIMWS MATCHESS MATCHFIELDS, the CASING statement, ARG.PRESENT (Q-7), BOOL IS.NULL NUMERIC REUSING (Q-6); the manual's own examples; 162 rows): the 80th.
+# 15 Oct 26 dm  sys-q18 (QM4 gaps bundle Q-18, SYSTEM() keys 14, 19, 21, 45, 1048, 1049, 1067; each by a relation the program computes; 8 rows): the 81st.
+# 15 Oct 26 dm  qproc-q20 (QM4 gaps bundle Q-20, the query processor keywords MEDIAN and RPT, each with the neighbouring keyword's figure as its control; 19 rows): the 82nd.
+# 15 Oct 26 dm  list-q2 (QM4 gaps bundle Q-2, the select list statements FORMLISTV, GETLISTV, WRITELIST, MOVELIST and MOVELISTV, each read back with READNEXT; 29 rows): the 83rd.
+# 15 Oct 26 dm  verbs-q8 (QM4 gaps bundle Q-8, the verb MOVE.LIST: what each list holds afterwards, KEEP, and what it refuses; 16 rows): the 84th.  LIST.PHANTOMS has five rows in listu-a5.
 # END-HISTORY
 
 set -u
@@ -100,7 +106,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17"
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8"
 
 ONLY=""
 SKIP=""

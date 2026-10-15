@@ -1,0 +1,61 @@
+* ACCOUNTPATH
+* !ACCOUNTPATH() function, the BASIC function ACCOUNT.PATH(account)
+* Copyright (c) 2026 SD Core for Linux
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 15 Oct 26 dm  Written for QM4 gaps bundle Q-4 (ACCOUNT.PATH), as a function in BASIC that bcomp knows by name.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+* ACCOUNT.PATH(account)
+*
+* The pathname of the account, from the accounts register: a null string if there is no such account.  The name may be in either
+* case.
+*
+* A PATHNAME IS GIVEN ONLY WHERE THE ACCOUNT COULD OPEN IT, as !VOCPATH gives one: the program is internal so that it can ask the
+* account's OS gate (K$PATH.OK) about the path, which is always yes for the account's own directory and, for another account's,
+* yes only when the caller's account has the OS access gate.  Without it the answer for another account is a null string, the
+* same as for an account that does not exist, so that a program cannot find out which accounts there are, or where, by asking.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+function accountpath(account)
+$catalog !accountpath
+
+$include keys.h
+$include int$keys.h
+
+   path = ''
+   name = downcase(trim(account))
+   if name # '' then
+      openpath @sdsys:@ds:'accounts' to acc.f then
+         read acc.rec from acc.f, name then path = acc.rec<ACC$PATH>
+         close acc.f
+      end
+   end
+
+   if path # '' then
+      if not(kernel(K$PATH.OK, path)) then path = ''
+   end
+   return path
+end
+
+* END-CODE

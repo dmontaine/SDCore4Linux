@@ -114,6 +114,20 @@ ASSOCMK = ("   execute 'DELETE.FILE zzqaa' capturing j\n   execute 'CREATE.FILE 
            "   write 'A':@vm:'B':@vm:'C':@fm:'1':@vm:'2':@vm:'3' on f, 'r1'\n   crt 'MADE'\nend\n")
 
 
+# second sitting, 15 Oct 26: CORRELATIVE.NOCASE and CORRELATIVE.REUSE.  An I-type that compares F3 with "abc" over the record
+# whose F3 is ABC, and an I-type F1 + F2 over a record whose F1 has three values and F2 two (10, 20): without REUSE the missing third value of F2
+# counts as zero (3), with it the last value is used again (23)
+CORMK = ("   execute 'DELETE.FILE zzqcc' capturing j\n   execute 'CREATE.FILE zzqcc' capturing j\n"
+         "   open 'dict','zzqcc' to d else stop 'no dict'\n"
+         "   write 'D':@fm:1:@fm:'':@fm:'F1':@fm:'10L':@fm:'M' on d, 'f1'\n"
+         "   write 'D':@fm:2:@fm:'':@fm:'F2':@fm:'10L':@fm:'M' on d, 'f2'\n"
+         "   write 'D':@fm:3:@fm:'':@fm:'F3':@fm:'10L':@fm:'S' on d, 'f3'\n"
+         "   write 'I':@fm:'IF F3 = \"abc\" THEN \"same\" ELSE \"diff\"':@fm:'':@fm:'CASEX':@fm:'8L':@fm:'S' on d, 'casex'\n"
+         "   write 'I':@fm:'F1 + F2':@fm:'':@fm:'SUMX':@fm:'8R':@fm:'M' on d, 'sumx'\n"
+         "   open 'zzqcc' to f else stop 'no f'\n"
+         "   write '1':@vm:'2':@vm:'3':@fm:'10':@vm:'20':@fm:'ABC' on f, 'r1'\n   crt 'MADE'\nend\n")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -134,10 +148,10 @@ def main():
 
     try:
         progs = (("zzqgit", GITP), ("zzqdtmp", DTMP), ("zzqdtmk", DTMMK), ("zzqkg", KEEPGOOD), ("zzqkb", KEEPBAD), ("zzqphn", PHP_NOTIFY),
-                 ("zzqphq", PHP_QUIET), ("zzqphd", PHDRIVER), ("zzqspl", SPOOLP), ("zzqamk", ASSOCMK))
+                 ("zzqphq", PHP_QUIET), ("zzqphd", PHDRIVER), ("zzqspl", SPOOLP), ("zzqamk", ASSOCMK), ("zzqcmk", CORMK))
         for nm, text in progs:
             put(sysd, nm, text)
-        good = ("zzqgit", "zzqdtmp", "zzqdtmk", "zzqkg", "zzqphn", "zzqphq", "zzqphd", "zzqspl", "zzqamk")
+        good = ("zzqgit", "zzqdtmp", "zzqdtmk", "zzqkg", "zzqphn", "zzqphq", "zzqphd", "zzqspl", "zzqamk", "zzqcmk")
         out = sess(box, "BASIC bp " + " ".join(good))
         row("setup: the probes compile with no errors", "Compiled %d program(s) with no errors" % len(good) in out, out[-600:])
 
@@ -231,6 +245,27 @@ def main():
             else:
                 row("ASSOC.ALL on: f1 and f2 are one association, one f2 value to each f1 line", lines == [["r1", "A", "1"], ["r1", "B", "2"],
                     ["r1", "C", "3"]], repr(lines))
+
+        say("\n--- CORRELATIVE.NOCASE and CORRELATIVE.REUSE (second sitting) ---------------------------")
+        out = sess(box, "RUN bp zzqcmk")
+        row("the fixture file was made", "MADE" in out, out[-300:])
+        for state in ("OFF", "ON"):
+            out = sess(box, "OPTION CORRELATIVE.NOCASE " + state, "LIST zzqcc CASEX NO.PAGE")
+            m = re.search(r"(?m)^r1\s+(\S+)\s*$", out)
+            got = m.group(1) if m else None
+            say("    CORRELATIVE.NOCASE %s: %r" % (state, got))
+            if state == "OFF":
+                row("CONTROL (off): the I-type finds ABC is not abc", got == "diff", repr(out[-300:]))
+            else:
+                row("CORRELATIVE.NOCASE on: the same I-type, run now, finds ABC is abc", got == "same", repr(out[-300:]))
+        for state in ("OFF", "ON"):
+            out = sess(box, "OPTION CORRELATIVE.REUSE " + state, "LIST zzqcc SUMX NO.PAGE")
+            nums = [t for ln in out.splitlines() if re.match(r"^(r1\s|\s{8,}\S)", ln) for t in ln.split() if t != "r1"]
+            say("    CORRELATIVE.REUSE %s: %r" % (state, nums))
+            if state == "OFF":
+                row("CONTROL (off): F1 + F2 takes the missing third value of F2 as zero: 11 22 3", nums == ["11", "22", "3"], repr(nums))
+            else:
+                row("CORRELATIVE.REUSE on: the last value of F2 is used again: 11 22 23", nums == ["11", "22", "23"], repr(nums))
     finally:
         restart(box)
         for nm in set(made):
@@ -238,7 +273,7 @@ def main():
                 p = os.path.join(sysd, d, nm)
                 if os.path.exists(p):
                     os.remove(p)
-        sess(box, "DELETE.CATALOG zzqk", "DELETE.FILE zzqgit", "DELETE.FILE zzqdtm", "DELETE.FILE zzqaa")
+        sess(box, "DELETE.CATALOG zzqk", "DELETE.FILE zzqgit", "DELETE.FILE zzqdtm", "DELETE.FILE zzqaa", "DELETE.FILE zzqcc")
 
     say("\nsandbox-option-q17: %d passed, %d failed" % (passed, failed))
     if passed + failed == 0:
