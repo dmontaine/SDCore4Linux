@@ -1,6 +1,15 @@
 Next release - in progress
 --------------------------
 
+14 Oct 26  INPUT NO.ECHO.
+
+             INPUT, INPUT @ and INPUTFIELD take NO.ECHO  What the user types is
+                        not shown: INPUT answer NO.ECHO.  The new line that
+                        ends the entry still appears.  INPUT HIDDEN shows
+                        asterisks; NO.ECHO shows nothing (with INPUT @, the
+                        field stays blank), and the two together show nothing.
+                        UPCASE, TIMEOUT and the other options work with it.
+
 14 Oct 26  LOCATE CAN FORCE CASE.
 
              The BY string of LOCATE takes C and N  C forces a case sensitive
