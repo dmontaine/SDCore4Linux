@@ -1,0 +1,183 @@
+* SETMODE
+* SET.MODE verb
+* Copyright (c) 2026 SD Core for Linux
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 15 Oct 26 dm  Written for QM4 gaps bundle Q-8 (SET.MODE).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.MODE {DICT} filename {ALL | FROM listno | id...} {NO.QUERY} mode
+*
+* Sets the access permissions of records in a directory file, as chmod does for files: mode is three octal digits, owner
+* then group then other (for example 640).  The records are named on the line, or ALL of them, or those of select list
+* LISTNO, or the active select list when none of these is given (it asks first, unless NO.QUERY).
+*
+* It changes the permission bits of ordinary records of a directory file the account has open, and nothing else: only the
+* rwx bits (no set-id and no sticky bit), only regular files, and a record that is a link is not followed.  What the
+* mode lets other users do is up to the file system and the account's directory, as ever.  @SYSTEM.RETURN.CODE is the
+* number of records changed.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.mode
+$catalog $setmode
+
+$include parser.h
+$include err.h
+$include keys.h
+$include int$keys.h
+
+   parser = "!PARSER"
+
+   @system.return.code = -ER$ARGS    ;* Preset for command format errors
+
+   * It changes the permission bits of operating system files, so it is behind the account's OS gate (SDSYS turns it on with
+   * MODIFY.ACCOUNT ... OS-ON), as OS.EXECUTE is, and not given to every account because the verb is in its VOC.  The
+   * administrator has the gate by being the administrator.
+   if not(kernel(K$ADMINISTRATOR, -1) or kernel(K$OS.EXEC, -1)) then
+      @system.return.code = -ER$PERM
+      stop sysmsg(11314) ;* SET.MODE changes operating system file permissions and needs the account's operating system access
+   end
+
+   portion = ''
+   all = @false
+   no.query = @false
+   from.list = ''
+   ids = ''
+   changed = 0
+
+   call @parser(PARSER$RESET, 0, @sentence, 0)
+   call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
+   call @parser(PARSER$MFILE, token.type, token, keyword)     ;* File name
+
+   if keyword = KW$DICT then
+      portion = 'DICT'
+      call @parser(PARSER$MFILE, token.type, token, keyword)
+   end
+   if token.type = PARSER$END then stop sysmsg(2102) ;* File name required
+   file.name = token
+
+   open portion, file.name to file else
+      open portion, downcase(file.name) to file else
+         @system.return.code = -status()
+         stop sysmsg(2019) ;* File not found
+      end
+   end
+   if fileinfo(file, FL$TYPE) # FL$TYPE.DIR then stop sysmsg(11313) ;* SET.MODE needs a directory file
+
+   words = ''
+   loop
+      call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+   until token.type = PARSER$END
+      begin case
+         case keyword = KW$ALL
+            all = @true
+         case keyword = KW$NO.QUERY
+            no.query = @true
+         case keyword = KW$FROM
+            call @parser(PARSER$GET.TOKEN, token.type, token, keyword)
+            if not(token matches '1N0N') then stop sysmsg(3271) ;* Select list number missing or invalid
+            if token + 0 > 10 then stop sysmsg(3271)
+            from.list = token + 0
+         case 1
+            words<-1> = token
+      end case
+   repeat
+
+   * the last word is the mode
+   n = dcount(words, @fm)
+   if n = 0 then stop sysmsg(11311) ;* The mode must be three octal digits (000 to 777)
+   mode = words<n>
+   del words<n>
+   if not(mode matches '3N') or index(mode, '8', 1) or index(mode, '9', 1) then stop sysmsg(11311)
+   ids = words
+
+   begin case
+      case all
+         select file to 11
+         loop
+            readnext id from 11 else exit
+            gosub set.one
+         repeat
+
+      case from.list # ''
+         loop
+            readnext id from from.list else exit
+            gosub set.one
+         repeat
+
+      case dcount(ids, @fm) > 0
+         for i = 1 to dcount(ids, @fm)
+            id = ids<i>
+            gosub set.one
+         next i
+
+      case selectinfo(0, sl$active)
+         readnext id then
+            if not(no.query) and not(option(OPT.NO.SEL.LIST.QUERY)) then
+               loop
+                  display sysmsg(2050, id) :  ;* Use active select list (First item 'xx')?
+                  prompt ""
+                  input reply
+                  if reply = '' then reply = 'N'
+                  if upcase(reply[1,1]) = 'N' then
+                     clearselect
+                     stop
+                  end
+               until upcase(reply[1,1]) = 'Y'
+               repeat
+            end
+            loop
+               gosub set.one
+               readnext id else exit
+            repeat
+         end
+
+      case 1
+         stop sysmsg(2052) ;* Record name(s), select list or ALL keyword required
+   end case
+
+   display sysmsg(11310, changed, mode) ;* %1 record(s) set to mode %2
+   @system.return.code = changed
+   return
+
+* ======================================================================
+set.one:
+   if id = '' then
+      display sysmsg(2107) ;* Null record name ignored
+      return
+   end
+   x = fcontrol(file, FC$SET.MODE, id : @fm : mode)
+   if x then
+      changed += 1
+   end else
+      if status() = ER$RNF then
+         display sysmsg(2108, id) ;* Record 'xx' not found
+      end else
+         display sysmsg(11312, id, status()) ;* Record 'xx' could not be changed (status nn)
+      end
+   end
+   return
+
+end
+
+* END-CODE

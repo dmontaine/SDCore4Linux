@@ -22,6 +22,7 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 15 Oct 26 dm  USPLIT (QM4 gaps Q-19): interactive users take the lowest user number, other processes the highest.
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
  *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
  * 02 Oct 26 dm  S.53: BACKUPDIR accepted and ignored (SET.BACKUP.DIRECTORY).
@@ -138,6 +139,7 @@ struct CONFIG* read_config(char* errmsg) {
   pcfg.tempdir[0] = '\0';     /* TEMPDIR:  Temporary directory */
   pcfg.spooler[0] = '\0';     /* SPOOLER:  Default spooler name */
   pcfg.terminfodir[0] = '\0'; /* TERMINFO: Use default location */
+  pcfg.timezone[0] = '\0';    /* TIMEZONE: the epoch functions use the process's own TZ (15 Oct 26, QM4 gaps Q-3) */
   pcfg.txchar = TRUE;         /* TXCHAR:   Enable ansi/oem translation */
 /* 20240219 mab create-account based on type (user / group / other) */   
   strncpy(pcfg.usrdir,"/home/sd/user_accounts",MAX_PATHNAME_LEN+1);  /* USRDIR: user accounts parent dir */
@@ -151,6 +153,7 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->maxidlen = 63;
   cfg->lgnwait = 0;                /* LGNWAIT:  No wait when the user limit is reached (openQM item 46) */
   cfg->userpool = MIN_HI_USER_NO;  /* USERPOOL: Highest user number to allocate (openQM item 551) */
+  cfg->usplit = 0;                 /* USPLIT:   Plain allocation (QM4 gaps Q-19, 15 Oct 26) */
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
 
@@ -314,6 +317,8 @@ struct CONFIG* read_config(char* errmsg) {
         pcfg.txchar = (n != 0);
       else if (sscanf(rec, "USERPOOL=%d", &n) == 1)
         cfg->userpool = n;
+      else if (sscanf(rec, "USPLIT=%d", &n) == 1)
+        cfg->usplit = n;
  /* 20240219 mab create-account based on type (user / group / other) */
       else if (strncmp(rec, "USRDIR=", 7) == 0)
         strncpy(pcfg.usrdir, rec + 7,MAX_PATHNAME_LEN+1);        
@@ -410,6 +415,7 @@ struct CONFIG* read_config(char* errmsg) {
       !rangecheck("MAXRLOCK", pcfg.maxrlock, 0, 100000, errmsg) ||
       !rangecheck("PWDELAY", pcfg.pwdelay, 0, 3600, errmsg) ||
       !rangecheck("USERPOOL", cfg->userpool, 0, 16383, errmsg) ||
+      !rangecheck("USPLIT", cfg->usplit, 0, 1, errmsg) ||
       !rangecheck("GRPSIZE", pcfg.grpsize, 1, MAX_GROUP_SIZE, errmsg) ||
       !rangecheck("INTPREC", pcfg.intprec, 0, 14, errmsg) ||
       !rangecheck("LPTRHIGH", pcfg.lptrhigh, 10, 32767, errmsg) ||

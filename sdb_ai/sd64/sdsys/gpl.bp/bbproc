@@ -25,6 +25,7 @@
 *
 *
 * START-HISTORY:
+* 15 Oct 26 dm  login_inhibit joins the bootstrap list: LOGIN calls it (QM4 gaps Q-8, INHIBIT.LOGIN).
 * 07 Oct 26 dm  batch.jobs.dic is created with the other dictionaries (the Windows port's
 *               batch.jobs dictionary, 22 Aug; PAL-1 audit).
 * 01 Oct 26 dm  acc_hold joins the bootstrap list: LOGIN calls it (S.50).
@@ -241,6 +242,8 @@ src.list<-1> = 'is_grp_member'
 *   Without it every later pass died "Unable to load '!ACC_HOLD' object code
 *   in $LOGIN" - and sd still exited 0 (measured in the sandbox, 1 Oct 2026).
 src.list<-1> = 'acc_hold'
+* 15 Oct 26 dm - INHIBIT.LOGIN: LOGIN calls !login_inhibit on every entry, for the same reason as !acc_hold.
+src.list<-1> = 'login_inhibit'
 src.list<-1> = 'term'
 
 src.cnt = dcount(src.list,@FM) 

@@ -181,6 +181,8 @@ cmd_too_long:
     tio_printf("%s\n", cmd);
 
   system(cmd);
+  /* 15 Oct 26 dm - QM4 gaps Q-18: SYSTEM(20), the count of jobs passed to the spooler, for all sessions */
+  __atomic_fetch_add(&sysseg->print_jobs, 1, __ATOMIC_SEQ_CST);
   /* -------------------- */
 }
 

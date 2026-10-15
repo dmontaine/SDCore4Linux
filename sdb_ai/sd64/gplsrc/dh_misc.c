@@ -215,6 +215,74 @@ void op_fcontrol() {
         FreeGroupWriteLock(header_lock);
       }
       break;
+
+    case FC_SET_MODE: {
+      /* 15 Oct 26 dm - QM4 gaps Q-8, SET.MODE.  The qualifier is "record id<field mark>mode", the mode as three octal
+         digits.  The record of a DIRECTORY file is a file of the directory: it is opened without following a link and has
+         its permission bits set with fchmod() on that open file, so a link in its place is never followed, and only a
+         regular file is changed.  Nothing outside the directory can be named (the id goes through the same name mapping as
+         every other access to a record).  Only the rwx bits of owner, group and other: no set-id, no sticky bit.  Returns
+         1; 0 with STATUS() ER_RNF (no such record), ER_IID (not a good id or not a file), ER_ARGS (the mode) or ER_PERM
+         (not the owner, or the file system said no).                                                               */
+      char sm_arg[MAX_ID_LEN + 16];
+      char sm_id[MAX_ID_LEN + 1];
+      char sm_mapped[(3 * MAX_ID_LEN) + 1];
+      char sm_path[MAX_PATHNAME_LEN + 1];
+      char sm_dir[MAX_PATHNAME_LEN + 1];
+      char* sm_sep;
+      int sm_fd;
+      int sm_len;
+      struct stat sm_st;
+      unsigned int sm_mode;
+
+      if (fvar->type != DIRECTORY_FILE) {
+        process.status = ER_NSEQ;
+        break;
+      }
+      if (k_get_c_string(descr, sm_arg, (int)sizeof(sm_arg) - 1) < 1) {
+        process.status = ER_ARGS;
+        break;
+      }
+      sm_sep = strchr(sm_arg, FIELD_MARK);
+      if (sm_sep == NULL) {
+        process.status = ER_ARGS;
+        break;
+      }
+      *sm_sep++ = '\0';
+      if ((strlen(sm_sep) != 3) || (strspn(sm_sep, "01234567") != 3)) {
+        process.status = ER_ARGS;
+        break;
+      }
+      sm_mode = (unsigned int)strtoul(sm_sep, NULL, 8);
+      strncpy(sm_id, sm_arg, MAX_ID_LEN);
+      sm_id[MAX_ID_LEN] = '\0';
+      sm_len = (int)strlen(sm_id);
+      if ((sm_len < 1) || !map_t1_id(sm_id, (int16_t)sm_len, sm_mapped)) {
+        process.status = ER_IID;
+        break;
+      }
+      strcpy(sm_dir, (char*)(fptr->pathname));
+      sm_len = (int)strlen(sm_dir);
+      if ((sm_len > 0) && (sm_dir[sm_len - 1] == DS))
+        sm_dir[sm_len - 1] = '\0';
+      if (snprintf(sm_path, sizeof(sm_path), "%s%c%s", sm_dir, DS, sm_mapped) >= (int)sizeof(sm_path)) {
+        process.status = ER_IID;
+        break;
+      }
+      sm_fd = open(sm_path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+      if (sm_fd < 0) {
+        process.status = (errno == ENOENT) ? ER_RNF : ER_PERM;
+        break;
+      }
+      if ((fstat(sm_fd, &sm_st) != 0) || !S_ISREG(sm_st.st_mode)) {
+        process.status = ER_IID;
+      } else if (fchmod(sm_fd, (mode_t)sm_mode) != 0) {
+        process.status = ER_PERM;
+      } else {
+        result.data.value = 1;
+      }
+      close(sm_fd);
+    } break;
   }
 
 exit_op_fcontrol:

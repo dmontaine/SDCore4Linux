@@ -229,6 +229,7 @@ bool bind_sysseg(bool create, char* errmsg) {
   strcpy((char*)(sysseg->sysdir), cfg->sysdir);       /* SDSYS */
   strcpy((char*)(sysseg->startup), cfg->startup);     /* STARTUP */
   sysseg->userpool = cfg->userpool;                   /* USERPOOL */
+  sysseg->usplit = cfg->usplit;                       /* USPLIT */
   sysseg->lgnwait = cfg->lgnwait;                     /* LGNWAIT */
 
   /* Create dynamically sized parts of segment */

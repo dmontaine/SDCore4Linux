@@ -98,6 +98,8 @@
 # 15 Oct 26 dm  qproc-q20 (QM4 gaps bundle Q-20, the query processor keywords MEDIAN and RPT, each with the neighbouring keyword's figure as its control; 19 rows): the 82nd.
 # 15 Oct 26 dm  list-q2 (QM4 gaps bundle Q-2, the select list statements FORMLISTV, GETLISTV, WRITELIST, MOVELIST and MOVELISTV, each read back with READNEXT; 29 rows): the 83rd.
 # 15 Oct 26 dm  verbs-q8 (QM4 gaps bundle Q-8, the verb MOVE.LIST: what each list holds afterwards, KEEP, and what it refuses; 16 rows): the 84th.  LIST.PHANTOMS has five rows in listu-a5.
+# 15 Oct 26 dm  inhibit-q8 (QM4 gaps bundle Q-8, the verb INHIBIT.LOGIN: the verb, an ordinary session refused and an administrator one not, a session already running untouched, the setter's phantom, a second ON refused, another administrator session switching it off, a killed setter ignored, the audit trail, and the S.50 backup hold of a killed session; 43 rows): the 85th.
+# 15 Oct 26 dm  stmt-q3 (QM4 gaps, second sitting: DIGEST() against hashlib, SET.TIMEZONE / TIMEZONE against zoneinfo, KEEP.SELECT, FIND.FILE and FIND.PROGRAM against FILEINFO and !PROG_INFO, COMMAND.LOGGING, ANALYSE.INDEX, SET.MODE with the mode read from the disk, MATWRITECSV read back from the file, USPLIT with the sandbox restarted, SYSTEM(20); every feature with its off state or older behaviour as the control; 116 rows): the 86th.
 # END-HISTORY
 
 set -u
@@ -106,7 +108,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8"
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3"
 
 ONLY=""
 SKIP=""
