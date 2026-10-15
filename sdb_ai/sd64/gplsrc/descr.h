@@ -463,6 +463,10 @@ struct SOCKVAR {
   /* 15 Sep 26 dm - S.19: an SD_TLS_CLIENT* when OPEN.SOCKET was given SKT$TLS,
      else NULL.  Every k_alloc of a SOCKVAR must set it - k_alloc does not zero. */
   void* tls;
+  /* 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  The events to watch (SKT_READ_EVENT 1, SKT_WRITE_EVENT 2,
+     SKT_EXCEPTION_EVENT 4) and those the last SELECT.SOCKET() found.  Every k_alloc of a SOCKVAR must set both. */
+  int16_t events;
+  int16_t found;
 };
 
 /* --------------------- COLL (data collection) --------------------- */

@@ -32,6 +32,8 @@
 #   H  SET.MODE: the permission bits on the disk (stat), every way of naming records, the modes it refuses, a record that
 #      is a link, a file that is not a directory file
 #   I  MATWRITECSV: the lines the statement writes, read back from the disk, and the ELSE of a file opened read only
+#   J  SELECT.SOCKET: a server, a client and the accepted connection in one session, every event word and the timeout
+#   K  SELECTINDEXV: the values and the ids as select list variables, list 10 as scratch, an unknown index
 #   D  USPLIT=1 (sd.conf, the sandbox is restarted): the user number an interactive session and a phantom get, with the
 #      plain rotation as the control; SYSTEM(20), the count of print jobs passed to the spooler (SPOOLER=true, so nothing
 #      is printed), and that it is the system's count
@@ -280,6 +282,45 @@ USER_PROGS = {
               "   openseq 'zzmwc.csv' readonly to g else stop 'no readonly open'\n"
               "   matwritecsv v to g then crt 'M4[1]' else crt 'M4[0]'\n"
               "   closeseq g\n   crt 'MWCDONE'\nend\n"),
+    # J: SELECT.SOCKET.  One session is the server, the client and the accepted connection; the port is the fourth word of the
+    # command.  Each line says what SELECT.SOCKET answered and what STATUS() was straight after it.
+    "zzsks": ("$include keys.h\n"
+              "   port = field(@sentence, ' ', 4) + 0\n   dim skt(3)\n"
+              "   skt(1) = create.server.socket('127.0.0.1', port, 0)\n   crt 'SRV[':status():']'\n"
+              "   ok = set.socket.mode(skt(1), SKT$INFO.EVENTS, SKT$READ.EVENT)\n   crt 'SET[':ok:']'\n"
+              "   ev = select.socket(skt, 150)\n   st = status()\n   crt 'T1[':ev:'][':st:']'\n"
+              "   skt(2) = open.socket('127.0.0.1', port, 0)\n   crt 'OPN[':status():']'\n"
+              "   ev = select.socket(skt, 3000)\n   crt 'T2[':change(ev, @fm, '/'):']'\n"
+              "   skt(3) = accept.socket.connection(skt(1), 0)\n   crt 'ACC[':status():']'\n"
+              "   ok = set.socket.mode(skt(3), SKT$INFO.EVENTS, SKT$READ.EVENT)\n"
+              "   ev = select.socket(skt, 150)\n   st = status()\n   crt 'T3[':ev:'][':st:']'\n"
+              "   n = write.socket(skt(2), 'hello', 0, 0)\n"
+              "   ev = select.socket(skt, 3000)\n   crt 'T4[':change(ev, @fm, '/'):']'\n"
+              "   crt 'INFO[':socket.info(skt(3), SKT$INFO.EVENTS):'][':socket.info(skt(1), SKT$INFO.EVENTS):']'\n"
+              "   ok = set.socket.mode(skt(2), SKT$INFO.EVENTS, SKT$WRITE.EVENT)\n"
+              "   ev = select.socket(skt, 3000)\n   crt 'T5[':change(ev, @fm, '/'):']'\n"
+              "   crt 'INFO2[':socket.info(skt(2), SKT$INFO.EVENTS):']'\n"
+              "   ok = set.socket.mode(skt(2), SKT$INFO.EVENTS, 0)\n"
+              "   data = read.socket(skt(3), 100, 0, 1000)\n   crt 'DATA[':data:']'\n"
+              "   ev = select.socket(skt, 0)\n   st = status()\n   crt 'T6[':ev:'][':st:']'\n"
+              "   close.socket skt(2)\n"
+              "   ev = select.socket(skt, 3000)\n   crt 'T7[':change(ev, @fm, '/'):']'\n"
+              "   ok = set.socket.mode(skt(3), SKT$INFO.EVENTS, 0)\n"
+              "   ev = select.socket(skt, 100)\n   st = status()\n   crt 'T8[':ev:'][':st:']'\n"
+              "   ok = set.socket.mode(skt(3), SKT$INFO.EVENTS, 9)\n   crt 'BADEV[':ok:']'\n"
+              "   close.socket skt(3)\n   close.socket skt(1)\n   crt 'SKTDONE'\nend\n"),
+    # K: SELECTINDEXV, on the file of part G
+    "zzsiv": ("   open 'zzaix' to f else stop 'no file'\n"
+              "   selectindexv 'CITY' from f to lv\n   st = status()\n   vals = ''\n"
+              "   loop\n      readnext v from lv else exit\n      vals<-1> = v\n   repeat\n"
+              "   crt 'VALS[':change(vals, @fm, ','):'][':st:']'\n"
+              "   selectindexv 'CITY', 'Paris' from f to lv2\n   ids = ''\n"
+              "   loop\n      readnext v from lv2 else exit\n      ids<-1> = v\n   repeat\n"
+              "   crt 'IDS[':change(ids, @fm, ','):']'\n"
+              "   formlist 'keep':@fm:'me' to 10\n"
+              "   selectindexv 'CITY' from f to lv3\n   crt 'LIST10[':selectinfo(10, 1):']'\n"
+              "   selectindexv 'NOSUCH' from f to lv4\n   st = status()\n   crt 'BAD[':st:']'\n"
+              "   crt 'SIVDONE'\nend\n"),
     # C: KEEP.SELECT.  zzmk makes list 0 (a, b, c); zzp1 takes one id; zzp2 takes one and says KEEP.SELECT; zzdr drains list 0
     "zzmk": "   formlist 'a':@fm:'b':@fm:'c' to 0\nend\n",
     "zzp1": "   readnext x from 0 else x = 'NONE'\n   crt 'P1[':x:']'\nend\n",
@@ -589,6 +630,36 @@ def main():
         row("E10: a name that is catalogued nowhere is said so (zznosuchprog is not catalogued)", has(out, r"^zznosuchprog is not catalogued$"), repr(out[-3:]))
 
         # -------------------------------------------------------------------------------------------------------------
+        say("\n--- J. SELECT.SOCKET -----------------------------------------------------------------------------------------")
+        import socket as pysocket
+        with pysocket.socket() as ps:
+            ps.bind(("127.0.0.1", 0))
+            port = ps.getsockname()[1]
+        out = plain("zzaa", ["RUN bp zzsks %d" % port])
+        row("J0: setup: the server socket is created and the read event is accepted by SET.SOCKET.MODE (SKT$INFO.EVENTS)",
+            tag(out, "SRV") == ["0"] and tag(out, "SET") == ["1"], repr(out[:6]))
+        row("J1: nothing waiting: a null string and STATUS() 1011 (timeout) after the 150 ms",
+            tag(out, "T1") == ["][1011"], repr(tag(out, "T1")))
+        row("J2: a client connects: the server socket is readable - R in field 1, and fields 2 and 3 (not a socket, no events) are null",
+            tag(out, "OPN") == ["0"] and tag(out, "T2") == ["R//"], repr(tag(out, "T2")))
+        row("J3: the connection accepted, with the read event on it: nothing to read yet, so a timeout again",
+            tag(out, "ACC") == ["0"] and tag(out, "T3") == ["][1011"], repr(tag(out, "T3")))
+        row("J4: the peer writes 'hello': the accepted socket (field 3) is readable and the server socket (field 1) no longer is",
+            tag(out, "T4") == ["//R"], repr(tag(out, "T4")))
+        row("J5: SOCKET.INFO(skt, SKT$INFO.EVENTS) gives what was found: R for the accepted socket, null for the server socket",
+            tag(out, "INFO") == ["R]["], repr(tag(out, "INFO")))
+        row("J6: the write event on the client: W in field 2 as well, with R still in field 3 (the data has not been read)",
+            tag(out, "T5") == ["/W/R"] and tag(out, "INFO2") == ["W"], repr(tag(out, "T5")) + repr(tag(out, "INFO2")))
+        row("J7: the data is what was sent", tag(out, "DATA") == ["hello"], repr(tag(out, "DATA")))
+        row("J8: a zero timeout asks and returns at once: with the data read there is nothing, STATUS() 1011",
+            tag(out, "T6") == ["][1011"], repr(tag(out, "T6")))
+        row("J9: the peer closes: the accepted socket is readable (the end of the stream is a read event), the closed variable is skipped",
+            tag(out, "T7") == ["//R"], repr(tag(out, "T7")))
+        row("J10: with no events set on any socket nothing is watched: a timeout, not a hang", tag(out, "T8") == ["][1011"], repr(tag(out, "T8")))
+        row("J11: an events value outside 0 to 7 is refused by SET.SOCKET.MODE (it returns 0), and the program ends",
+            tag(out, "BADEV") == ["0"] and has(out, r"^SKTDONE$"), repr(tag(out, "BADEV")) + repr(out[-2:]))
+
+        # -------------------------------------------------------------------------------------------------------------
         say("\n--- I. MATWRITECSV -------------------------------------------------------------------------------------------")
         csvf = os.path.join(acct, "zzmwc.csv")
         if os.path.exists(csvf):
@@ -713,6 +784,17 @@ def main():
         row("G6: a file that is not there is refused (File not found)", has(out, r"File not found"), repr(out[-3:]))
         out = plain("zzaa", ["ANALYSE.INDEX"])
         row("G6: no file name is refused (File name required)", has(out, r"File name required"), repr(out[-3:]))
+
+        # K: SELECTINDEXV, against the same file (list 10 is its scratch list)
+        out = plain("zzaa", ["RUN bp zzsiv"])
+        vals = tag(out, "VALS")
+        row("K1: SELECTINDEXV of an index: a select list variable of the indexed values, in the index's order (Lima, Oslo, Paris, Rome), STATUS 0",
+            vals == ["Lima,Oslo,Paris,Rome][0"], repr(vals))
+        ids = tag(out, "IDS")
+        row("K2: with a value, the ids of its records: r1 to r5 for Paris", len(ids) == 1 and sorted(ids[0].split(",")) == ["r1", "r2", "r3", "r4", "r5"], repr(ids))
+        row("K3: list 10 is the scratch list: what it held is gone (documented), and nothing is left in it", tag(out, "LIST10") == ["0"], repr(tag(out, "LIST10")))
+        row("K4: an index the file does not have gives STATUS 1, as SELECTINDEX does", tag(out, "BAD") == ["1"], repr(tag(out, "BAD")))
+        row("K5: the program ends", has(out, r"^SIVDONE$"), repr(out[-3:]))
         plain("zzaa", ["DELETE.FILE zzaix"])
 
         # -------------------------------------------------------------------------------------------------------------

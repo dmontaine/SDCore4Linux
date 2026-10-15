@@ -99,7 +99,7 @@
 # 15 Oct 26 dm  list-q2 (QM4 gaps bundle Q-2, the select list statements FORMLISTV, GETLISTV, WRITELIST, MOVELIST and MOVELISTV, each read back with READNEXT; 29 rows): the 83rd.
 # 15 Oct 26 dm  verbs-q8 (QM4 gaps bundle Q-8, the verb MOVE.LIST: what each list holds afterwards, KEEP, and what it refuses; 16 rows): the 84th.  LIST.PHANTOMS has five rows in listu-a5.
 # 15 Oct 26 dm  inhibit-q8 (QM4 gaps bundle Q-8, the verb INHIBIT.LOGIN: the verb, an ordinary session refused and an administrator one not, a session already running untouched, the setter's phantom, a second ON refused, another administrator session switching it off, a killed setter ignored, the audit trail, and the S.50 backup hold of a killed session; 43 rows): the 85th.
-# 15 Oct 26 dm  stmt-q3 (QM4 gaps, second sitting: DIGEST() against hashlib, SET.TIMEZONE / TIMEZONE against zoneinfo, KEEP.SELECT, FIND.FILE and FIND.PROGRAM against FILEINFO and !PROG_INFO, COMMAND.LOGGING, ANALYSE.INDEX, SET.MODE with the mode read from the disk, MATWRITECSV read back from the file, USPLIT with the sandbox restarted, SYSTEM(20); every feature with its off state or older behaviour as the control; 116 rows): the 86th.
+# 15 Oct 26 dm  stmt-q3 (QM4 gaps, second sitting: DIGEST() against hashlib, SET.TIMEZONE / TIMEZONE against zoneinfo, KEEP.SELECT, FIND.FILE and FIND.PROGRAM against FILEINFO and !PROG_INFO, COMMAND.LOGGING, ANALYSE.INDEX, SET.MODE with the mode read from the disk, MATWRITECSV read back from the file, USPLIT with the sandbox restarted, SYSTEM(20); every feature with its off state or older behaviour as the control, then SELECT.SOCKET with a server, a client and the accepted connection in one session and SELECTINDEXV; 133 rows): the 86th.
 # END-HISTORY
 
 set -u
