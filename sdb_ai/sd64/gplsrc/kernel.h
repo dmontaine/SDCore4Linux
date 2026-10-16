@@ -193,6 +193,7 @@ struct PROCESS {
 #define P_MATCMP 0x1000  /* MATSTR makes a comparison key for IF MAT a = MAT b (openQM item 111) */
 #define P_PICK_SEL 0x2000 /* SELECTV under $MODE PICK.SELECT: an active list 0 is moved to the target variable (QM4 gaps Q-16) */
 #define P_SEQKEY 0x4000   /* WRITE ... CREATING.SEQKEY id.var: the "record id" operand is the address of a variable that is given the file's next sequential id (15 Oct 26) */
+#define P_DEF_SELLIST 0x8000 /* READNEXT under $MODE SELECTV with no FROM: the list is the program's default select list variable, and one that has never been given a list is an empty list (openQM item 85) */
 #define P_REC_LOCKS (P_LLOCK | P_ULOCK) /* Either LLOCK or ULOCK */
   bool numeric_array_allowed;           /* Opcode allows numeric arrays? */
   int32_t status;                       /* Value from STATUS() function */

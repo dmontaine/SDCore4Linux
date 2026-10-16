@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 15 Oct 26 dm  show_status(): the buffer for the start time was one byte short for its "not recorded" text (gcc warned on every
+ *               build); 64 bytes now.
  * 15 Oct 26 dm  pid_is_alive(): process_exists() for kernel(K_PID_ALIVE) (QM4 gaps Q-8, INHIBIT.LOGIN).
  * 18 Sep 26 reap_lost_user() and cleanup() strcpy()'d a shared-segment
  *           username into a stack buffer without a bound; now memcpy of
@@ -142,7 +144,7 @@ void show_status() {
   int api = 0;
   USER_ENTRY* uptr;
   time_t started;
-  char when[40];
+  char when[64]; /* 15 Oct 26: was 40, and the "not recorded" text below is 40 characters and its NUL (gcc -Wstringop-overflow) */
 
   if (!attach_shared_memory()) {
     printf("SD (%s) is not active.\n", SD_REV_STAMP);

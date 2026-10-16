@@ -226,7 +226,12 @@ def main():
         bad = 0
         runs = 3
         for r in range(runs):
-            sess(box, "DELETE.FILE DICT zzsq", "DELETE.FILE zzsq", "CREATE.FILE zzsq", "RUN bp zzsq_fill", quiet=True)
+            # 15 Oct 26: the setup's output was thrown away, and under the 8-worker regression the writer once found "no file"
+            # (run 20, NOT RUN, passing alone and in run 19).  The setup says what it did, and a setup that did not fill the file
+            # is reported with its own output, not left to look like a failed writer.
+            setup_out = sess(box, "DELETE.FILE DICT zzsq", "DELETE.FILE zzsq", "CREATE.FILE zzsq", "RUN bp zzsq_fill", quiet=True)
+            if "FILLED[" not in setup_out:
+                bail("leg 5 run %d: the setup did not fill zzsq (no FILLED line); its output: %r" % (r + 1, clean(setup_out)[-600:]))
             a = subprocess.Popen(sess_cmd(box, ["RUN bp zzsq_race"]), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             b = subprocess.Popen(sess_cmd(box, ["CREATE.INDEX zzsq FLD", "BUILD.INDEX zzsq FLD", "DELETE.INDEX zzsq FLD",
                                                 "CREATE.INDEX zzsq FLD", "BUILD.INDEX zzsq FLD", "DELETE.INDEX zzsq FLD",

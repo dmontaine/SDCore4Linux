@@ -10,6 +10,8 @@
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --tree DIR          the suites of the sd64 tree DIR, in that tree
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --free              then the gplbld/test-*.py free checks too
 #   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --list              print the suites and stop
+#   /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/regress.sh --changed --snapshot --jobs 8   THE RUN TO USE: only the suites the changed
+#                                                                       files need (gplbld/regress-map.txt), and the free checks; --since REF for a range
 #
 # Exit 0 every suite passed, 1 a suite failed (or gave no verdict), 2 something could not be run (an unknown suite,
 # a sandbox already holding the sandbox shared memory keys, a suite that said CANNOT RUN).  No sudo.
@@ -106,6 +108,8 @@
 # 15 Oct 26 dm  edseqkey (ED and SED take CREATING.SEQKEY in the place of a record id: ED through a pipe, SED on a pseudo-terminal; the id shown, the record and the counter read back from the disk by a BASIC probe, a directory file, a collection file and a read-only open refused, an ordinary id unchanged): the 89th.
 # 15 Oct 26 dm  sdfixseq (the audit of the CREATING.SEQKEY counter: sdfix's H line for it, the writers of the header that keep it, a read-only write that does not use an id up, and a writer against an index being made and deleted): the 90th.
 # 15 Oct 26 dm  fcontrol (the public FCONTROL(fvar, action {, qualifier}) with openQM's numbers, run by an ordinary program: the CREATING.SEQKEY counter, field access, FC$VALID.ID, FC$MINMOD, the refusals on a read only file and a directory file, FC$SYNC / FC$CRLF / an unknown action stopping the program with a message, and CONFIGURE.FILE NEXT through the renamed internal function): the 91st.
+# 15 Oct 26 dm  selectv-mode ($MODE SELECTV, openQM 85: SELECT / SELECTV / SSELECTV with no TO and READNEXT with no FROM use the program's default select list variable; with a no-mode control for each, PICK.SELECT with it, a LOCAL SUBROUTINE and a CALLed one; 29 rows, red 23 of 29 on the old tree): the 92nd.
+# 15 Oct 26 dm  listf-mult (LISTF / LISTFL / LISTFR, openQM 3 and 185: a line for each subfile of a multifile, WITH / WITHOUT TRIGGER, ENCRYPTION and REPLICATION; 23 rows, red 8 of 23 on the old tree, the WITHOUT rows being the ones that fail): the 93rd.
 # END-HISTORY
 
 set -u
@@ -114,12 +118,14 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient edseqkey sdfixseq fcontrol"
+ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient edseqkey sdfixseq fcontrol selectv-mode listf-mult"
 
 ONLY=""
 SKIP=""
 FREE=0
 SUITES_OFF=0
+CHANGED=0
+SINCE=""
 LIST=0
 LOGS=""
 LIMIT=3000
@@ -128,7 +134,7 @@ SNAPSHOT=0
 SNAP=""
 
 usage() {
-  sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -138,6 +144,8 @@ while [ $# -gt 0 ]; do
     --skip) SKIP=$2; shift 2 ;;
     --free) FREE=1; shift ;;
     --no-suites) SUITES_OFF=1; shift ;;
+    --changed) CHANGED=1; shift ;;
+    --since) CHANGED=1; SINCE=$2; shift 2 ;;
     --list) LIST=1; shift ;;
     --logs) LOGS=$2; shift 2 ;;
     --limit) LIMIT=$2; shift 2 ;;
@@ -153,7 +161,23 @@ case "$JOBS" in
   *) echo "regress: CANNOT RUN - --jobs must be 1 to 8 (there are eight keysets), not '$JOBS'" >&2; exit 2 ;;
 esac
 
-if [ -n "$ONLY" ]; then SUITES=${ONLY//,/ }; else SUITES=$ALL_SUITES; fi
+# --changed [--since REF]: the suites the changed files need, chosen by gplbld/regress-changed.py from gplbld/regress-map.txt.  Its
+# report (every changed file, the rule that took it, what it selected) goes to the screen; a file no rule matches, or a change
+# of nothing, stops the run (exit 2).  The free checks always run with it.  A change that needs no sandbox suite runs only those.
+if [ $CHANGED -eq 1 ]; then
+  if [ -n "$ONLY" ]; then echo "regress: --changed and --only are alternatives; give one" >&2; exit 2; fi
+  [ -f "$TREE/gplbld/regress-changed.py" ] || { echo "regress: CANNOT RUN - $TREE/gplbld/regress-changed.py is not there" >&2; exit 2; }
+  CHANGED_SUITES=$(python3 "$TREE/gplbld/regress-changed.py" ${SINCE:+--since "$SINCE"}) || exit 2
+  FREE=1
+  if [ -z "$CHANGED_SUITES" ]; then
+    SUITES_OFF=1
+    ONLY=""
+  else
+    ONLY=${CHANGED_SUITES// /,}
+  fi
+fi
+
+if [ -n "$ONLY" ]; then SUITES=${ONLY//,/ }; elif [ $SUITES_OFF -eq 1 ]; then SUITES=""; else SUITES=$ALL_SUITES; fi
 KEEP=""
 for s in $SUITES; do
   skipped=0

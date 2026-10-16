@@ -45,7 +45,10 @@
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
-#     QM    (15 Oct 26) THE QMCLIENT ROWS, ***UNRUN WHEN WRITTEN*** - nobody has run these two sections:
+#     QM    (15 Oct 26) THE QMCLIENT ROWS.  WRITTEN UNRUN, THEN RUN ONCE BY THE OWNER ON A DEV INSTALL OF 400500c (15 Oct 26,
+#           22:00, log /var/tmp/witness-release-run.20261015-220000.log): 13l 60 rows and 13m 9 rows, every one PASS, first run.
+#           The whole script that run: 336 passed, 1 not reached (R3, which needs a kept sd.conf with APILOGIN, as before).
+#           The two sections:
 #           13l the BASIC class !sdclient over TCP, every method added 15 Oct (evaluate, evalconv, iconv, oconv,
 #           iconvs, oconvs, recordlocked, getvar, indices, revision, system, trans, rtrans, txn, the openseq family,
 #           writeseqkey), each value compared with the same value from an ordinary session of the account
@@ -1681,7 +1684,7 @@ else
 fi
 
 # ==========================================================================
-# 15 Oct 26 dm - 13l, QMClient: THE BASIC CLASS !sdclient OVER TCP.  ***UNRUN WHEN WRITTEN.***  sandbox-qmclient.py proves
+# 15 Oct 26 dm - 13l, QMClient: THE BASIC CLASS !sdclient OVER TCP.  (Written unrun; run by the owner 15 Oct 22:00, 60 rows, all PASS.)  sandbox-qmclient.py proves
 # the C client library and the server over a LOCAL session; the BASIC class builds its own packets (sdsys/gpl.bp/sdclient)
 # and logs in with SCRAM over TCP, which only this script can reach (13d is its login row; this is every method added
 # since).  The method is 13d's: a BASIC program run as $ACC by RUN, the account and the SD password typed at its INPUTs
@@ -1828,7 +1831,7 @@ else
 fi
 
 # ==========================================================================
-# 15 Oct 26 dm - 13m, QMClient sheet 456: THE CLIENT LIBRARY FROM SEVERAL THREADS OVER TCP.  ***UNRUN WHEN WRITTEN.***
+# 15 Oct 26 dm - 13m, QMClient sheet 456: THE CLIENT LIBRARY FROM SEVERAL THREADS OVER TCP.  (Written unrun; run by the owner 15 Oct 22:00, 9 rows, all PASS.)
 # gplbld/api-threads-probe.py (python3 -I) starts four threads, each SDConnect()ing to 127.0.0.1 with its own session,
 # and judges the same things as part R of sandbox-qmclient.py, which has only LOCAL sessions: T1 distinct session indexes
 # and user numbers, T2 the current session is per thread, T3 no mixed buffers (a record of each thread's own size,
