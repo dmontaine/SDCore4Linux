@@ -108,6 +108,11 @@ def main():
     rows = [
         ("CONTROL: a string variable is shown", "/s", r'^String \(5 bytes\): "plain"$', None),
         ("CONTROL: an integer variable is shown", "/i", r"^Integer: 5$", None),
+        ("/* shows every variable of the program, the name first and then what /name shows: the string",
+         "/*", r'(?im)^s  String \(5 bytes\): "plain"$', None),
+        ("...the integer", "/*", r"(?im)^i  Integer: 5$", None),
+        ("...a collection, with its element count", "/*", r"(?im)^c  Collection \(9 elements\)", None),
+        ("...and the loop variable, which has its own value", "/*", r"(?im)^j  Integer: 3000$", None),
         ("a collection shows its kind, its element count and its JSON text, names in order",
          "/c", r"^Collection \(9 elements\): " + re.escape(FULL) + "$", None),
         ("an element that is an array shows as an array", "/c{a}", r'^Array \(3 elements\): \[1,2,\{"k":"v"\}\]$', None),

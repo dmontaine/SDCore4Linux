@@ -26,7 +26,7 @@
 # the pseudo-terminal suites (a terminal, keys, the screen library)
 @pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho
 # the debugger
-@debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv
+@debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
 @lists       = sselectv pickrn chained execlist stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
@@ -60,7 +60,7 @@ gplbld/ptydrive.py           : @pty
 gplbld/termscreen.py         : @pty
 gplbld/witness-*             : none
 gplbld/FILES_DICTS/voc.dic^* : dictfold listf-mult misc-a9 qproc-a3 nocase
-gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase
+gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core
 gplbld/bbcmp.py              : @core
 gplbld/COMP_PCODE            : @core
@@ -71,16 +71,16 @@ gplbld/*                     : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE KERNEL (gplsrc).  Specific files first.
-gplsrc/op_dio4.c             : @lists
+gplsrc/op_dio4.c             : @lists fixes-b12
 gplsrc/op_dio3.c             : @files @seq prof lockown
-gplsrc/op_dio2.c             : @files
+gplsrc/op_dio2.c             : @files fixes-b12
 gplsrc/op_dio1.c             : @files cll prof lockown
 gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
 gplsrc/reccache.c            : @files
 gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile @core
-gplsrc/sdfix.c               : sdfixseq akcase
+gplsrc/sdfix.c               : sdfixseq akcase fixes-b12
 gplsrc/sdidx.c               : akcase idx-nocase
 gplsrc/sdconv.c              : nocase upgradenocase
 gplsrc/op_seqio.c            : @seq prof
@@ -114,7 +114,7 @@ gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates
 gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
-gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5
+gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/sdlnxd.c              : q5
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof @core
@@ -140,14 +140,15 @@ gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
 gplsrc/objprog.c             : classas restricted prof @core
 gplsrc/descr.h               : restricted classas @core
-gplsrc/op_jumps.c            : @core try partial prof
+gplsrc/op_jumps.c            : @core try partial prof fixes-b12
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
 gplsrc/op_kernel.c           : @core q5 prof sdaccts
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12
+gplsrc/sd.c                  : @core fixes-b12
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core
@@ -181,6 +182,8 @@ sdsys/gpl.bp/bcomp ~ st.try*        : try
 sdsys/gpl.bp/bcomp ~ st.catch*      : try
 sdsys/gpl.bp/bcomp ~ st.throw*      : try
 sdsys/gpl.bp/bcomp ~ st.class*      : classas
+sdsys/gpl.bp/bcomp ~ st.begin       : dbgcase
+sdsys/gpl.bp/bcomp ~ generate.debug : dbgcase dbgcoll dbgequ
 sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
@@ -193,7 +196,7 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
@@ -218,7 +221,7 @@ sdsys/gpl.bp/qdisp           : @query
 sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
 sdsys/gpl.bp/icomp           : @query
-sdsys/gpl.bp/acomp           : @query
+sdsys/gpl.bp/acomp           : @query option-q17
 sdsys/gpl.bp/dcomp           : @query
 sdsys/gpl.bp/_sselct         : @lists
 sdsys/gpl.bp/_sselctv        : @lists
@@ -236,7 +239,11 @@ sdsys/gpl.bp/keepsel         : @lists
 sdsys/gpl.bp/nselect         : @lists
 sdsys/gpl.bp/seldir          : @lists gates
 sdsys/gpl.bp/movel*          : @lists
-sdsys/gpl.bp/mrglist         : @lists
+sdsys/gpl.bp/mrglist         : @lists fixes-b12
+sdsys/gpl.bp/lstmrg          : @lists fixes-b12
+sdsys/gpl.bp/mergekeys       : @lists fixes-b12
+sdsys/gpl.bp/analyse         : fixes-b12 misc-a9
+gplsrc/analyse.c             : fixes-b12 misc-a9
 sdsys/gpl.bp/sort*           : @lists @functions
 sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
@@ -272,8 +279,11 @@ sdsys/gpl.bp/osdelete        : gates
 sdsys/gpl.bp/_ioscopy        : gates oq2
 sdsys/gpl.bp/_oscopy         : gates oq2
 sdsys/gpl.bp/oscopya         : gates oq2
-sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9
-sdsys/gpl.bp/delcat          : callcase misc-a9
+sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12
+sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12
+sdsys/gpl.bp/setfile         : fixes-b12
+sdsys/gpl.bp/configf         : fixes-b12 nocase upgradenocase
+sdsys/gpl.bp/dirinfo         : fixes-b12
 sdsys/gpl.bp/decat           : callcase misc-a9
 sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 @core
 sdsys/gpl.bp/stdfil*         : stdfil

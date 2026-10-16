@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Oct 26 dm  OSPATH key 15 (OS_OWNER) gives the owner's user name, for DIR_DICT's OWNER item (QM4 Fixes 181).
  * 12 Oct 26 dm  FILEINFO keys 1022 to 1040 as the openQM 4 manual numbers them
  *               (FL$COLLECTION moves from 1022 to 1035); FL$SEQTYPE, FL$NON.TXN,
  *               FL$INDEX.SCAN, FL$TXN.UPDATE and FL$LOCKS report real state, the
@@ -714,6 +715,7 @@ void op_ospath() {
     12  OS_DIR         Return content of directory        Filenames
     13  OS_MKDIR       Make a directory                   True/False
     14  OS_MKPATH      Make a directory path              True/False
+    15  OS_OWNER       Name of the owner of the path      User name
 * 20240225 mab add OS_CHOWN                                          *
    ospath(mvarray,os_chown)
    where mvarray = path vm user vm group. Note this requires some funny business
@@ -872,6 +874,24 @@ void op_ospath() {
       if (stat(path, &stat_buff) == 0)
         status = stat_buff.st_mtime;
       break;
+
+    case OS_OWNER: /* 15  The owner's user name, or the user number as text if there is no such user (16 Oct 26) */
+      {
+        struct passwd* pw;
+        char own_name[MAX_PATHNAME_LEN + 1];
+
+        own_name[0] = '\0';
+        if (stat(path, &stat_buff) == 0) {
+          pw = getpwuid(stat_buff.st_uid);
+          if (pw != NULL)
+            snprintf(own_name, sizeof(own_name), "%s", pw->pw_name);
+          else
+            snprintf(own_name, sizeof(own_name), "%lu", (unsigned long)stat_buff.st_uid);
+        }
+        k_put_c_string(own_name, e_stack);
+        e_stack++;
+      }
+      goto exit_op_pathinfo;
 
     case OS_FLUSH_CACHE:
       flush_dh_cache();

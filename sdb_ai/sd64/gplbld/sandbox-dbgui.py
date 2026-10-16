@@ -37,7 +37,7 @@ PROG = "zzdu" + "%05d" % (os.getpid() % 100000)
 passed = failed = 0
 RET, F1 = "\r", "\x1bOP"
 
-SOURCE = """   s = 'plain'
+SOURCE = """   s = 'plain' ; t = 'a':char(9):'b'
    n = 5
    debug
    crt 'AFTER-ONE'
@@ -155,6 +155,27 @@ def main():
         L = t.keys("/s", RET)
         row("a variable's value appears in the data area, above the command line", any("String (5 bytes)" in l and "plain" in l for l in L[22:29]), "\n".join(L[22:30]))
         row("...and the command typed is echoed there with its prompt", any(l.startswith(">/s") for l in L[22:29]), "\n".join(L[22:30]))
+        # 16 Oct 26: QM4 Fixes 550 (the ^ command) and 193 (WINDOW n)
+        L = t.keys("/t", RET)
+        row("550: CONTROL: a tab in a string is shown as ?", any('String (3 bytes): "a?b"' in l for l in L[22:29]), "\n".join(L[22:30]))
+        L = t.keys("^", RET)
+        row("550: ^ says the characters are now shown as ^nnn", any("Non-printing characters are shown as ^nnn" in l for l in L[22:29]), "\n".join(L[22:30]))
+        L = t.keys("/t", RET)
+        row("550: ... and the tab is shown as ^9, the length still 3", any('String (3 bytes): "a^9b"' in l for l in L[22:29]), "\n".join(L[22:30]))
+        L = t.keys("^", RET, "/t", RET)
+        row("550: a second ^ puts the ? back", any('String (3 bytes): "a?b"' in l for l in L[22:29]), "\n".join(L[22:30]))
+        before = t.style(20, 0)[:2]
+        L = t.keys("window 10", RET)
+        row("193: CONTROL: with the usual 5 rows, row 20 was source (white on blue)", before == (7, 4) or before[1] == 4, repr(before))
+        row("193: WINDOW 10 makes the data area ten rows: row 20 is now in the command style (black on white)", t.style(20, 0)[:2] == (0, 7), repr(t.style(20, 0)))
+        row("193: ... the command line is still the last row", L[29].startswith(">"), repr(L[29]))
+        L = t.keys("/s", RET)
+        row("193: ... and a value shows in the larger area", any("String (5 bytes)" in l and "plain" in l for l in L[19:29]), "\n".join(L[18:30]))
+        row("193: ... the source is still shown above it", any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L[1:19]), "\n".join(L[:6]))
+        L = t.keys("window 3", RET)
+        row("193: WINDOW 3 is refused with the message of the range", any("The data area must be 5 to 15 lines" in l for l in L[19:29]), "\n".join(L[19:30]))
+        L = t.keys("window 5", RET, "/s", RET)
+        row("193: WINDOW 5 puts it back: row 20 is source again", t.style(20, 0)[1] == 4, repr(t.style(20, 0)))
         L = t.keys("brk 5", RET)
         r5 = next((i for i, l in enumerate(L) if re.match(r"^\s*5: ", l)), None)
         r6 = next((i for i, l in enumerate(L) if re.match(r"^\s*6: ", l)), None)

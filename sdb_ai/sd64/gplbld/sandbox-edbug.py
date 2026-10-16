@@ -146,6 +146,31 @@ end
         re.search(r'(?m)^>/cy\nString \(9 bytes\): "cy in sub"$', out) is not None, out[-700:])
     row("a variable of that block never assigned reads as 0, as common variables start", re.search(r"(?m)^>/cz\nInteger: 0$", out) is not None, out[-700:])
 
+    say("\n--- 375: ED in edit values mode shows the field and value positions before the line number (16 Oct 26) ---")
+    evrec, evmk, evopt = "zzev" + RUN, "zzevm" + RUN, "zzevo" + RUN
+    with open(os.path.join(sysd, "bp", evmk), "w") as fh:
+        fh.write("   open 'bp' to f else stop 'no bp'\n   write 'alpha':@fm:'b1':@vm:'b2a':@sm:'b2b':@vm:'b3':@fm:'gamma' on f, '%s'\n"
+                 "   crt 'EVFIX DONE'\nend\n" % evrec)
+    with open(os.path.join(sysd, "bp", evopt), "w") as fh:
+        fh.write("   write 'X':@fm:'NO.EV.POSITION' on @voc, '$ED.OPTIONS'\n   crt 'OPT SET'\nend\n")
+    evcmds = ["ED bp %s" % evrec, "L", "L", "EV", "L", "L", "EV", "L", "QV", "QV", "Q"]
+    out = sess(box, "BASIC bp %s" % evmk, "RUN bp %s" % evmk, *evcmds)
+    row("setup: the fixture made the record", "EVFIX DONE" in out, out[-300:])
+    row("CONTROL: outside EV a line number has no prefix (0002: is the second line, with its values)", re.search(r"(?m)^0002: b1", out) is not None, out[-400:])
+    row("in EV on line 2 a value is shown as field.line: 2.0001 is the first value", re.search(r"(?m)^2\.0001: b1$", out) is not None, out[-600:])
+    row("...and the second value, 2.0002", re.search(r"(?m)^2\.0002: b2a", out) is not None, out[-600:])
+    row("in EV on a value (subvalues) the line is field.value.line: 2.2.0001 is the first subvalue of value 2",
+        re.search(r"(?m)^2\.2\.0001: b2a$", out) is not None, out[-600:])
+    out = sess(box, "BASIC bp %s" % evopt, "RUN bp %s" % evopt, *evcmds)
+    row("with NO.EV.POSITION in $ED.OPTIONS the values are numbered as before: 0001: b1", re.search(r"(?m)^0001: b1$", out) is not None
+        and re.search(r"(?m)^2\.0001", out) is None, out[-600:])
+    sess(box, "DELETE VOC $ED.OPTIONS")
+    for nm in (evmk, evopt):
+        for d in ("bp", "bp.out"):
+            pth = os.path.join(sysd, d, nm)
+            if os.path.exists(pth):
+                os.remove(pth)
+
     say("")
     say("sandbox-edbug: %d passed, %d failed" % (passed, failed))
     sys.exit(1 if failed else 0)

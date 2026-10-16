@@ -22,6 +22,7 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 16 Oct 26 dm  NUMLOCKS is range checked, 1 to 32767 (QM4 Fixes 532): the lock table's cells and counts are int16, so a bigger value wrapped.
  * 16 Oct 26 dm  CLEANUP (seconds between scans for lost processes) and PHANTOMS (user numbers reserved for PHANTOM USER n), QM4 gaps.
  * 15 Oct 26 dm  USPLIT (QM4 gaps Q-19): interactive users take the lowest user number, other processes the highest.
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
@@ -91,6 +92,7 @@ struct CONFIG* read_config(char* errmsg) {
   struct CONFIG* cfg;
   double flt;
   int n;
+  int numlocks_asked = 100; /* NUMLOCKS as written: cfg->numlocks is int16 and would wrap before it was checked */
   bool status = FALSE;
   int n2;
   int n3;
@@ -252,8 +254,10 @@ struct CONFIG* read_config(char* errmsg) {
         cfg->netfiles |= n;
       else if (sscanf(rec, "NUMFILES=%d", &n) == 1)
         cfg->numfiles = n;
-      else if (sscanf(rec, "NUMLOCKS=%d", &n) == 1)
+      else if (sscanf(rec, "NUMLOCKS=%d", &n) == 1) {
+        numlocks_asked = n;
         cfg->numlocks = n;
+      }
       else if (sscanf(rec, "OBJECTS=%d", &n) == 1)
         pcfg.objects = n;
       else if (sscanf(rec, "OBJMEM=%d", &n) == 1)
@@ -446,6 +450,7 @@ struct CONFIG* read_config(char* errmsg) {
       !rangecheck("DHCACHE", pcfg.dhcache, 0, MAX_DH_CACHE_SIZE, errmsg) ||
       !rangecheck("LGNWAIT", cfg->lgnwait, 0, 32767, errmsg) ||
       !rangecheck("MAXRLOCK", pcfg.maxrlock, 0, 100000, errmsg) ||
+      !rangecheck("NUMLOCKS", numlocks_asked, 1, 32767, errmsg) ||        /* 16 Oct 26 (openQM 532): the table's cells are int16 */
       !rangecheck("PWDELAY", pcfg.pwdelay, 0, 3600, errmsg) ||
       !rangecheck("USERPOOL", cfg->userpool, 0, 16383, errmsg) ||
       !rangecheck("USPLIT", cfg->usplit, 0, 1, errmsg) ||

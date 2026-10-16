@@ -59,8 +59,10 @@ $define SOURCE.AREA            1
 
    wm1 = @crtwide - 1
    command.line = @crthigh - 1
-   data.area = command.line - DATA.AREA.LINES
-   source.area.lines = data.area -1 
+   msg.prefix = ''
+   if data.lines < 5 then data.lines = DATA.AREA.LINES      ;* a common block starts at 0
+   data.area = command.line - data.lines
+   source.area.lines = data.area -1
    return.key = seq(pterm(PT$INEWLINE,''))
    phantom = bitand(event, 0x80000000) # 0
 
@@ -237,6 +239,24 @@ found.program:
                case action = 'HELP' or u.command = '?'
                   gosub help
 
+               case u.command = '^'          ;* 16 Oct 26 (QM4 Fixes 550): non-printing characters as ^nnn, or as ? again
+                  expand.np = not(expand.np)
+                  message = sysmsg(if expand.np then 11388 else 11389)
+                  gosub emit.msg
+
+               case action = 'WINDOW' or action = 'WIN'     ;* 16 Oct 26 (QM4 Fixes 193)
+                  new.lines = trim(matchfield(u.command, '0A0X', 2))
+                  begin case
+                     case not(full.screen)
+                        message = sysmsg(6702) ;* Command format error
+                        gosub emit.err.msg
+                     case not(new.lines matches '1N0N') or new.lines < 5 or new.lines > MAX.DATA.AREA.LINES
+                        message = sysmsg(11390) ;* The data area must be 5 to 15 lines
+                        gosub emit.err.msg
+                     case 1
+                        gosub new.window
+                  end case
+
                case u.command[1] = '/' or u.command[1] = '?' or ~
                     u.command[1,1] = '/' or u.command[1,1] = '?'
                   begin case
@@ -246,9 +266,13 @@ found.program:
                         end else
                            var.name = command[2, 9999]
                         end
-                        gosub fold.var.name
-                        last.display = var.name
-                        gosub display.variable
+                        if var.name = '*' then
+                           gosub display.all           ;* 16 Oct 26 (QM4 Fixes 67): /* shows every variable of the program
+                        end else
+                           gosub fold.var.name
+                           last.display = var.name
+                           gosub display.variable
+                        end
 
                      case last.display # ''
                         var.name = last.display
@@ -560,16 +584,20 @@ emit.err.msg:
    crt @sys.bell :
 
 emit.msg:
+   if msg.prefix # '' then            ;* the name /* is showing the value of (QM4 Fixes 67)
+      message = msg.prefix : message
+      msg.prefix = ''
+   end
    if full.screen then
       ct = 0
       loop                           ;* 0309 Reworked this loop
       while len(message)
-         for i = 2 to DATA.AREA.LINES
+         for i = 2 to data.lines
             debug.data.area(i-1) = debug.data.area(i)
          next i
-         debug.data.area(5) = message[1,wm1]
+         debug.data.area(data.lines) = message[1,wm1]
          ct += 1
-         if rem(ct, DATA.AREA.LINES) = 0 then
+         if rem(ct, data.lines) = 0 then
             gosub paint.data.area
             call $sl_put(scr, 0, command.line, fmt(sysmsg(6710), wm1 : 'L'), command.attr)  ;* ---more---
             display @(len(sysmsg(6710)), command.line) :
@@ -589,9 +617,76 @@ emit.msg:
    return
 
 paint.data.area:
-   for i = 1 to DATA.AREA.LINES
+   for i = 1 to data.lines
       call $sl_put(scr, 0, data.area + i - 1, fmt(debug.data.area(i), wm1 : 'L'), command.attr)
    next i
+   return
+
+* DISPLAY.ALL  -  /*  -  every variable of the program, locals first and then the common blocks it names, one to a line (a
+*                 matrix or a collection says what it is; /name goes into it).  Hidden names (*Arg1) are left out.
+display.all:
+   all.shown = 0
+   all.fields = dcount(symbols(idx), @fm)
+   for all.f = 1 to all.fields
+      all.values = dcount(symbols(idx)<all.f>, @vm)
+      all.first = 2                    ;* in a common block's field the first value is the number of its first variable
+      if all.f = 1 then all.first = 1
+      for all.v = all.first to all.values
+         all.subs = dcount(symbols(idx)<all.f, all.v>, @sm)
+         for all.s = 1 to all.subs
+            all.name = symbols(idx)<all.f, all.v, all.s>
+            if all.name # '' and all.name[1,1] # '*' then
+               var.name = all.name
+               msg.prefix = all.name : '  '
+               gosub display.variable
+               msg.prefix = ''
+               all.shown += 1
+            end
+         next all.s
+      next all.v
+   next all.f
+   if all.shown = 0 then
+      message = sysmsg(11391)         ;* There are no variables to show
+      gosub emit.msg
+   end
+   return
+
+* SHOW.NP  -  s as it is to be shown: a non-printing character is a ? or, after the ^ command, ^ and its decimal number  (16 Oct 26)
+show.np:
+   if expand.np then
+      np.t = ''
+      for np.i = 1 to len(s)
+         np.c = seq(s[np.i, 1])
+         if np.c < 32 or np.c = 127 then np.t := '^' : np.c else np.t := s[np.i, 1]
+      next np.i
+      s = np.t
+   end else
+      s = convert(banned, replacements, s)
+   end
+   return
+
+* The title bar, the source area, the data area and the command line, in the library's styles (the caller has the theme in)
+paint.layout:
+   call $sl_put(scr, 0, 0, space(@crtwide), title.attr)
+   for i = SOURCE.AREA to data.area - 1
+      call $sl_put(scr, 0, i, space(@crtwide), source.attr)
+   next i
+   for i = data.area to @crthigh - 1
+      call $sl_put(scr, 0, i, space(@crtwide - (i = @crthigh - 1)), command.attr)
+   next i
+   return
+
+* WINDOW n  -  the data area becomes n rows high (QM4 Fixes 193); the source area takes what is left
+new.window:
+   data.lines = new.lines + 0
+   data.area = command.line - data.lines
+   source.area.lines = data.area - 1
+   mat debug.data.area = ''
+   gosub theme.in
+   gosub paint.layout
+   gosub theme.out
+   gosub paint.data.area
+   gosub display.source
    return
 
 * ======================================================================
@@ -626,6 +721,21 @@ initialise:
    debug.command.stack = ''
    mat debug.data.area = ''
 
+   * 16 Oct 26 dm - QM4 Fixes 193: WINDOW n in the VOC record $DEBUG.OPTIONS sets the height of the data area (5 to 15 rows)
+   expand.np = @false
+   data.lines = DATA.AREA.LINES
+   read init.options from @voc, '$debug.options' then
+      init.options = upcase(init.options)
+      for i = 1 to dcount(init.options, @fm)
+         if field(trim(init.options<i>), ' ', 1) = 'WINDOW' then
+            n = field(trim(init.options<i>), ' ', 2)
+            if n matches '1N0N' and n >= 5 and n <= MAX.DATA.AREA.LINES then data.lines = n + 0
+         end
+      next i
+      data.area = command.line - data.lines
+      source.area.lines = data.area - 1
+   end
+
    if full.screen then
       * Set up initial display and save screen image: the title bar, the source area, the data area and the
       * command line, in the library's styles
@@ -635,13 +745,7 @@ initialise:
          alt.on = @true
       end
       display @(-1) :
-      call $sl_put(scr, 0, 0, space(@crtwide), title.attr)
-      for i = SOURCE.AREA to data.area - 1
-         call $sl_put(scr, 0, i, space(@crtwide), source.attr)
-      next i
-      for i = data.area to @crthigh - 1
-         call $sl_put(scr, 0, i, space(@crtwide - (i = @crthigh - 1)), command.attr)
-      next i
+      gosub paint.layout
       gosub theme.out
    end
 
@@ -1373,8 +1477,9 @@ display.data.common:
          end
 
          if dump.path = '' then
-            s = convert(banned, replacements, s)
-            message := 'String (' : len(s) : ' bytes'
+            n.len = len(s)
+            gosub show.np
+            message := 'String (' : n.len : ' bytes'
             if rmv then message := ',R=' : rmv
             message := '): "' : s : '"'  ;* 0307
          end
@@ -1414,7 +1519,8 @@ display.data.common:
          s = field(var.info, @fm, 3, 99999)
          if fpos or vpos or spos then s = s<fpos,vpos,spos>
          if dump.path = '' then
-            s = convert(banned, replacements, s[1,10240])
+            s = s[1,10240]
+            gosub show.np
             message := 'Select list (' : var.info<2> : ' bytes): "' : s : '"'
          end
 
@@ -1453,8 +1559,11 @@ display.data.common:
          message := if var.info<2> = 'A' then 'Array' else 'Collection'
          message := ' (' : n : ' element' : (if n = 1 then '' else 's') : ')'
          if dump.path = '' then
-            message := ': ' : convert(banned, replacements, s[1, 10240])
-            if len(s) > 10240 then message := '...'
+            t.len = len(s)
+            s = s[1, 10240]
+            gosub show.np
+            message := ': ' : s
+            if t.len > 10240 then message := '...'
          end
    end case
 
@@ -1660,8 +1769,29 @@ setvar:
       gosub emit.err.msg
       return
    end
+* 16 Oct 26 dm - QM4 Fixes 239: the value may be an equate token that stands for a constant (a string, a number or CHAR(n)), as the
+*   name may be one.  A token of a variable is not a value here, so it is left to be refused as "Illegal value" as it was.
+   set.token.done = @false
+   if equates(idx) # '' and new.value # '' and not(index('"' : "'" : '\', new.value[1,1], 1)) and not(num(new.value)) then
+      set.save.name = var.name
+      var.name = new.value
+      gosub equate.resolve
+      if equ.const then
+         begin case
+            case equ.def[1,1] = '3' ; new.value = char(equ.body + 0)
+            case equ.def[1,1] = '1' and num(equ.body) ; new.value = equ.body + 0
+            case 1 ; new.value = equ.body
+         end case
+         set.token.done = @true
+      end
+      var.name = set.save.name
+   end
+
    c = new.value[1,1]
    begin case
+      case set.token.done
+         null
+
       case (c = '"' or c = "'" or c = '\') and len(new.value) > 1 and new.value[1] = c
          new.value = new.value[2,len(new.value)-2]
 
@@ -1796,7 +1926,7 @@ show.call.stack:
          case 1
             k = dcount(ss, @vm)
             for j = 2 to k
-               if rem(zz, DATA.AREA.LINES) = 0 then
+               if rem(zz, data.lines) = 0 then
                   call $sl_put(scr, 0, command.line, fmt(sysmsg(6710), wm1 : 'L'), command.attr)  ;* ---more---
                   display @(len(sysmsg(6710)), command.line) :
                   if upcase(keycode()) = 'Q' then return
