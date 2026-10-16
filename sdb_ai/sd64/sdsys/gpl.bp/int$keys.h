@@ -205,6 +205,8 @@
       $define K$FORM.QUEUE      111      ;* unit * 1000 + queue: SP.ASSIGN gave form queue 'queue' to print unit 'unit' (15 Oct 26, Q-9)
       $define K$NON.DURABLE.TXN 113      ;* 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
       $define K$USER.STATS      112     ;* File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
+      $define K$PHANTOM.USER    114     ;* The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
+      $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys
       $define PT$BREAK           1       ;* Trap break character as break?

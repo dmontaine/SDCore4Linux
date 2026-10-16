@@ -334,6 +334,17 @@
                        updates and its locks go to the parent instead of to the files.  The COMMIT clears it, used or not.
                        A program compiled with $MODE NON.DURABLE.TXN sets it before each COMMIT. */
 #define K_NON_DURABLE_TXN    113
+/* 16 Oct 26 dm - QM4 gaps (PHANTOM USER n and the PHANTOMS parameter).
+     K_PHANTOM_USER    n: the next phantom() of this process is to be user number n, and no other.  The number has to be one of
+                       those the PHANTOMS parameter keeps and not be in use, or phantom() returns 0.  0 cancels.  phantom() clears
+                       it, made or not.  Returns 1. */
+#define K_PHANTOM_USER       114
+/* 16 Oct 26 dm - QM4 gaps (LOCK.TRACER).
+     K_LOCK_TRACE      1 starts lock tracing, 0 stops it, -1 only asks.  Starting (administrator only) makes an empty file
+                       locktrace in the system directory, mode 0620; every lock taken or let go after that is added to it by
+                       lock_trace() in op_lock.c.  Returns the state after the call, -1 if the caller may not change it or the
+                       file could not be made. */
+#define K_LOCK_TRACE         115
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

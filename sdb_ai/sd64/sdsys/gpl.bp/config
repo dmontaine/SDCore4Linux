@@ -93,6 +93,7 @@ report.params:
 
 !!CONFIG!!
 * NOTE to dev: config names are capped at 8 char!
+   print 'CLEANUP   '        : config('CLEANUP') : ' seconds'
    print 'CMDSTACK  '        : config('CMDSTACK')
    n = config('CODEPAGE') ; if n then print 'CODEPAGE  '        : n
    print 'DEADLOCK  '        : config('DEADLOCK')
@@ -129,6 +130,7 @@ report.params:
    n = config('OBJMEM')
    print 'OBJMEM    '        : if n then n : ' kb' else '0  [':sysmsg(3067):']'
    print 'PDUMP     '        : config('PDUMP')
+   s = config('PHANTOMS') ; if s # '' then print 'PHANTOMS  '        : s
    s = config('PORTMAP') ; if s # '' then print 'PORTMAP   '        : s
    print 'PWDELAY   '        : config('PWDELAY')
 

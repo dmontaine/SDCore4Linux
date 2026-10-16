@@ -42,7 +42,7 @@
 # the query processor and dictionaries
 @query       = qproc-a3 qproc-q20 dict-a2 footpause pgheading dictfold misc-a9 listf-mult coll
 # accounts, logins, gates, configuration, sessions, the API
-@system      = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6
+@system      = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
 @editors     = cmd-a9 collfile edbug edseqkey option-a4
 
@@ -113,9 +113,12 @@ gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates
-gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18
-gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18
-gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18
+gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
+gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5
+gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
+gplsrc/sdlnxd.c              : q5
+gplsrc/sysseg.[ch]           : q5 conf-b1 @core
+gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
 gplsrc/sd_tls*.c             : qmclient
@@ -132,14 +135,16 @@ gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
+gplsrc/objprog.c             : classas restricted @core
+gplsrc/descr.h               : restricted classas @core
 gplsrc/op_jumps.c            : @core try partial
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core
+gplsrc/op_kernel.c           : @core q5
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core
@@ -150,7 +155,12 @@ gplsrc/*.c                   : @core
 # sub-rule ("file ~ label : suites") adds the suites of the statements whose labels a hunk lies under.  A hunk under a label no
 # sub-rule names takes the '*' rule (the whole compiler group); comments before the first label add nothing; and where the
 # hunks cannot be known (--files, a file git has not been told about) every sub-rule applies.
-sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16
+sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted
+sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas
+sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas
+sdsys/gpl.bp/bcomp ~ st.private*    : restricted classas
+sdsys/gpl.bp/bcomp ~ st.get         : restricted classas
+sdsys/gpl.bp/bcomp ~ st.set         : restricted classas
 sdsys/gpl.bp/bcomp ~ st.input*      : input inputif inputraw inputfill inputtrap
 sdsys/gpl.bp/bcomp ~ st.select*     : @lists-compile
 sdsys/gpl.bp/bcomp ~ st.sselect*    : @lists-compile
@@ -228,6 +238,7 @@ sdsys/gpl.bp/listu           : listu-a5
 sdsys/gpl.bp/_listu          : listu-a5
 sdsys/gpl.bp/pstat           : listu-a5
 sdsys/gpl.bp/hsm             : listu-a5
+sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system
@@ -238,7 +249,8 @@ sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
 sdsys/gpl.bp/cred_*          : gates qmclient
 sdsys/gpl.bp/create*         : @files gates @system
-sdsys/gpl.bp/config*         : @files conf-b1 sys-b2
+sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
+sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system

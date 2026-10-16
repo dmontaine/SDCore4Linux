@@ -22,6 +22,7 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab add CREATUSR - allow create.account to create os user
  * 14 Sep 26 dm  S.18: APILOGIN retired - accepted and ignored, not stored.
+ * 16 Oct 26 dm  CLEANUP (seconds between scans for lost processes) and PHANTOMS (user numbers reserved for PHANTOM USER n), QM4 gaps.
  * 15 Oct 26 dm  USPLIT (QM4 gaps Q-19): interactive users take the lowest user number, other processes the highest.
  * 15 Sep 26 dm  S.24: the TMP fallback is bounded; it came from the environment
  *               and was strcpy'd into a MAX_PATHNAME_LEN+1 field.
@@ -30,6 +31,8 @@
  *
  * Handles parsing of the configuration file.
  * 
+ *  CLEANUP=n     Seconds between scans for processes that ended abnormally, 30 to 3600 (default 300)
+ *  PHANTOMS=u,n  n user numbers from u are kept for phantoms started with PHANTOM USER
  *  DEADLOCK=n    Trap deadlocks?
  *  DEBUG=n       Debug features enabled? (bit flags)
  *  FDS=n         Set FDS limit (default is no limit)
@@ -75,6 +78,7 @@ Private bool rangecheck(char* param,
                         int min_val,
                         int max_val,
                         char* errmsg);
+Private bool ranges_overlap(int lo1, int count1, int lo2, int count2);
 
 /* ====================================================================== */
 
@@ -154,6 +158,9 @@ struct CONFIG* read_config(char* errmsg) {
   cfg->lgnwait = 0;                /* LGNWAIT:  No wait when the user limit is reached (openQM item 46) */
   cfg->userpool = MIN_HI_USER_NO;  /* USERPOOL: Highest user number to allocate (openQM item 551) */
   cfg->usplit = 0;                 /* USPLIT:   Plain allocation (QM4 gaps Q-19, 15 Oct 26) */
+  cfg->cleanup = 300;              /* CLEANUP:  A scan for lost processes every five minutes, as before the parameter (16 Oct 26) */
+  cfg->phantoms_base = 0;          /* PHANTOMS: No user numbers reserved for PHANTOM USER n */
+  cfg->phantoms_range = 0;
   cfg->fds_limit = SHRT_MAX;
   cfg->max_users = 1;
 
@@ -319,6 +326,12 @@ struct CONFIG* read_config(char* errmsg) {
         cfg->userpool = n;
       else if (sscanf(rec, "USPLIT=%d", &n) == 1)
         cfg->usplit = n;
+      else if (sscanf(rec, "CLEANUP=%d", &n) == 1)
+        cfg->cleanup = n;               /* 30 to 3600: rangecheck below (16 Oct 26) */
+      else if (sscanf(rec, "PHANTOMS=%d,%d", &n, &n2) == 2) {
+        cfg->phantoms_base = n;         /* checked against the highest user number and FIXUSERS / PORTMAP below */
+        cfg->phantoms_range = n2;
+      }
  /* 20240219 mab create-account based on type (user / group / other) */
       else if (strncmp(rec, "USRDIR=", 7) == 0)
         strncpy(pcfg.usrdir, rec + 7,MAX_PATHNAME_LEN+1);        
@@ -404,6 +417,26 @@ struct CONFIG* read_config(char* errmsg) {
     }
   }
 
+  /* PHANTOMS (16 Oct 26): the user numbers PHANTOM ... USER n may take must exist and must not be numbers FIXUSERS or PORTMAP reserve */
+
+  if (cfg->phantoms_base || cfg->phantoms_range) {
+    if ((cfg->phantoms_base < 1) || (cfg->phantoms_range < 1) ||
+        (cfg->phantoms_base + cfg->phantoms_range - 1 > hi_user)) {
+      sprintf(errmsg, "PHANTOMS user numbers must lie between 1 and %d.", hi_user);
+      goto exit_read_config;
+    }
+    if (cfg->fixusers_base &&
+        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->fixusers_base, cfg->fixusers_range)) {
+      sprintf(errmsg, "PHANTOMS and FIXUSERS user numbers overlap.");
+      goto exit_read_config;
+    }
+    if (cfg->portmap_range &&
+        ranges_overlap(cfg->phantoms_base, cfg->phantoms_range, cfg->portmap_base_user, cfg->portmap_range)) {
+      sprintf(errmsg, "PHANTOMS and PORTMAP user numbers overlap.");
+      goto exit_read_config;
+    }
+  }
+
   /* ERRLOG must be at least 10kb for file trim to work in log_message() */
 
   if ((cfg->errlog != 0) && (cfg->errlog < 10240))
@@ -416,6 +449,7 @@ struct CONFIG* read_config(char* errmsg) {
       !rangecheck("PWDELAY", pcfg.pwdelay, 0, 3600, errmsg) ||
       !rangecheck("USERPOOL", cfg->userpool, 0, 16383, errmsg) ||
       !rangecheck("USPLIT", cfg->usplit, 0, 1, errmsg) ||
+      !rangecheck("CLEANUP", cfg->cleanup, 30, 3600, errmsg) ||
       !rangecheck("GRPSIZE", pcfg.grpsize, 1, MAX_GROUP_SIZE, errmsg) ||
       !rangecheck("INTPREC", pcfg.intprec, 0, 14, errmsg) ||
       !rangecheck("LPTRHIGH", pcfg.lptrhigh, 10, 32767, errmsg) ||
@@ -468,6 +502,13 @@ Private bool rangecheck(char* param,
   }
 
   return TRUE;
+}
+
+/* ======================================================================
+   ranges_overlap()  -  Do two runs of user numbers (first number, how many) share a number?  (16 Oct 26, PHANTOMS) */
+
+Private bool ranges_overlap(int lo1, int count1, int lo2, int count2) {
+  return (lo1 < lo2 + count2) && (lo2 < lo1 + count1);
 }
 
 /* END-CODE */

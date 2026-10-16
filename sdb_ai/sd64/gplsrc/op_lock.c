@@ -70,6 +70,78 @@
 Private bool unlock_id(int16_t file_id, char* raw_id, int16_t id_len);
 
 /* ======================================================================
+   lock_trace()  -  LOCK.TRACER (16 Oct 26, QM4 gaps)
+
+   While the administrator has lock tracing on (sysseg->lock_trace, K_LOCK_TRACE) every lock taken or let go is added as one
+   line to the file "locktrace" in the system directory: the epoch time, the user number, the pathname of the file, the record
+   id (null for a file lock), the action code, the program that was running, the offset in it as hexadecimal and its line
+   number (-1 if not known), separated by value marks.  The action codes are openQM's:
+      1 get a record update lock     2 get a shareable read lock     3 update lock down to read lock
+      4 read lock up to update lock  5 get a file lock               6 release a record lock     7 release a file lock
+   The file is never made here (LOCK.TRACER ON makes it, owner and mode as the audit file's: only the administrator reads it,
+   the users of SD may append) and a link in its place is not followed.  A lock that fails (it waits, or the table is full) is
+   not logged; the moment it succeeds is.  Called with or without the lock semaphore held, so it takes no semaphore and does no
+   more than build a line and write it.  The locks a session drops when it ends are not logged: that release does not come
+   through here.                                                                                                           */
+
+#define LOCK_TRACE_BUFF 1024
+
+Private void lock_trace_text(char* dst, int dst_size, const char* src, int len) {
+  int n = 0;
+
+  while ((len-- > 0) && (n < dst_size - 1)) {
+    u_char c = (u_char)*src++;
+
+    dst[n++] = ((c < 32) || (c == 127) || (c >= 248)) ? '?' : (char)c; /* no mark, no line break inside a field */
+  }
+  dst[n] = '\0';
+}
+
+Private void lock_trace(int code, int16_t file_id, const char* id, int16_t id_len) {
+  char path[MAX_PATHNAME_LEN + 1];
+  char file_text[MAX_PATHNAME_LEN + 1];
+  char id_text[MAX_ID_LEN + 1];
+  char prog_text[MAX_PROGRAM_NAME_LEN + 1];
+  char buff[LOCK_TRACE_BUFF];
+  int32_t offset = 0;
+  int line = -1;
+  int bytes;
+  int fd;
+
+  if ((sysseg == NULL) || !sysseg->lock_trace)
+    return;
+  if (snprintf(path, sizeof(path), "%s%clocktrace", sysseg->sysdir, DS) >= (int)sizeof(path))
+    return;
+
+  lock_trace_text(file_text, sizeof(file_text), (char*)(FPtr(file_id)->pathname), strlen((char*)(FPtr(file_id)->pathname)));
+  lock_trace_text(id_text, sizeof(id_text), id, (id != NULL) ? id_len : 0);
+  prog_text[0] = '\0';
+  if (c_base != NULL) {
+    offset = (int32_t)(pc - c_base) - 1;
+    line = k_line_no(offset, c_base);
+    lock_trace_text(prog_text, sizeof(prog_text), ProgramName(c_base), strlen(ProgramName(c_base)));
+  }
+
+  bytes = snprintf(buff, sizeof(buff), "%ld%c%d%c%s%c%s%c%d%c%s%c%X%c%d\n", (long)time(NULL), VALUE_MARK, (int)process.user_no,
+                   VALUE_MARK, file_text, VALUE_MARK, id_text, VALUE_MARK, code, VALUE_MARK, prog_text, VALUE_MARK, (unsigned)offset,
+                   VALUE_MARK, line);
+  if (bytes > (int)sizeof(buff) - 1) {
+    bytes = (int)sizeof(buff) - 1;
+    buff[bytes - 1] = '\n';
+  }
+  if (bytes <= 0)
+    return;
+
+  fd = open(path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC);
+  if (fd >= 0) {
+    if (write(fd, buff, bytes) != bytes) {
+      /* silent: a trace must never be what stops a lock */
+    }
+    close(fd);
+  }
+}
+
+/* ======================================================================
    op_filelock()  -  Set file lock                                        */
 
 void op_filelock() {
@@ -97,6 +169,7 @@ void op_filelock() {
   int16_t idx;
   int16_t file_id;
   FILE_VAR* fvar;
+  bool took_it = FALSE; /* a new file lock, for LOCK.TRACER */
 
   op_flags = process.op_flags;
 
@@ -126,6 +199,7 @@ void op_filelock() {
       fptr->file_lock_time = (int32_t)time(NULL);
       fptr->fvar_index = fvar->index;
       fptr->txn_id = process.txn_id;
+      took_it = TRUE;
       goto locked_it;
     }
 
@@ -146,6 +220,7 @@ void op_filelock() {
     fptr->file_lock_time = (int32_t)time(NULL);
     fptr->fvar_index = fvar->index;
     fptr->txn_id = process.txn_id;
+    took_it = TRUE;
     goto locked_it;
 
     /* The lock is in use. Wait for the lock? */
@@ -173,6 +248,8 @@ void op_filelock() {
   locked_it:
     my_uptr->lockwait_index = 0;
     EndExclusive(REC_LOCK_SEM);
+    if (took_it)
+      lock_trace(5, file_id, NULL, 0); /* LOCK.TRACER: a file lock was taken */
   }
 
   process.op_flags = 0;
@@ -215,6 +292,7 @@ void op_flunlock() {
       fptr->file_lock = 0;
       clear_waiters(-file_id);
       EndExclusive(REC_LOCK_SEM);
+      lock_trace(7, file_id, NULL, 0); /* LOCK.TRACER: a file lock was let go */
       process.status = 0;
     } else if (lock_owner != 0) {
       process.status = ER_LCK;
@@ -1231,6 +1309,7 @@ int16_t lock_record(
 {
   int16_t status = 0;
   int16_t file_id;
+  int trace_code = 0; /* LOCK.TRACER: what this call did to the lock, 0 for nothing worth a line */
   FILE_ENTRY* fptr;
   char u_id[MAX_ID_LEN];
   char* id;
@@ -1306,8 +1385,10 @@ int16_t lock_record(
         if (lptr->owner == process.user_no) /* Already own this lock */
         {
           if (lptr->lock_type == L_UPDATE) {
-            if (!update)
+            if (!update) {
               lptr->lock_type = L_SHARED;
+              trace_code = 3; /* update lock down to a read lock */
+            }
             lptr->fvar_index = fvar->index; /* Now for this fvar */
             lptr->txn_id = txn_id;
             goto exit_lock_record;
@@ -1413,6 +1494,7 @@ int16_t lock_record(
   if (upgrade_idx > 0) {
     lptr = RLPtr(upgrade_idx);
     lptr->lock_type = L_UPDATE;
+    trace_code = 4; /* read lock up to an update lock */
     goto exit_lock_record;
   }
 
@@ -1450,6 +1532,7 @@ int16_t lock_record(
 
   /* Set up a new lock in the free cell */
 
+  trace_code = update ? 1 : 2; /* a new update lock, a new read lock */
   lptr = RLPtr(free_cell);
   lptr->hash = idx;
   lptr->owner = process.user_no;
@@ -1530,6 +1613,11 @@ exit_lock_record:
   if (table_full)
     log_message("Lock table full");
 
+  /* LOCK.TRACER: the lock was taken, taken over or changed */
+
+  if ((status == 0) && (trace_code != 0))
+    lock_trace(trace_code, file_id, raw_id, id_len);
+
   /* DEADLOCK=2: keep the state of every lock for whoever analyses this */
 
   if ((status == -2) && (sysseg->deadlock >= 2))
@@ -1583,6 +1671,7 @@ bool unlock_record(FILE_VAR* fvar, /* NULL if for all files */
         if (fptr->file_lock == process.user_no) {
           clear_waiters(-i);
           fptr->file_lock = 0;
+          lock_trace(7, i, NULL, 0);
         }
       }
     } else /* Release specific file lock */
@@ -1592,6 +1681,7 @@ bool unlock_record(FILE_VAR* fvar, /* NULL if for all files */
           (fptr->fvar_index == fvar->index)) {
         clear_waiters(-file_id);
         fptr->file_lock = 0;
+        lock_trace(7, file_id, NULL, 0);
       }
     }
     goto exit_unlock_record;
@@ -1673,6 +1763,7 @@ Private bool unlock_id(int16_t file_id, char* raw_id, int16_t id_len) {
           }
 
           status = TRUE;
+          lock_trace(6, file_id, raw_id, id_len); /* LOCK.TRACER: a record lock was let go */
           goto exit_unlock_id;
         } else /* Not the right lock */
         {

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Oct 26 dm  K_PHANTOM_USER: PHANTOM USER n takes the user number n from those PHANTOMS keeps (QM4 gaps).
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
  * 11 Sep 26 dm  LOGOUT() reaps a slot whose process is gone and returns 2
@@ -78,6 +79,7 @@ void set_date(int32_t);
 
 #define INPUT_FILL_MAX 3
 Private char input_fill[INPUT_FILL_MAX + 1] = ""; /* K_INPUT_FILL_SET / _GET (sheet item 389) */
+Private int16_t phantom_requested_user = 0;           /* PHANTOM USER n (16 Oct 26): the user number the next phantom() is to take, 0 for any */
 Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */Private bool run_exe(char *exe_name, char *cmd_line);
 
 /* ======================================================================
@@ -705,6 +707,49 @@ void op_kernel() {
       result.data.value = txn_nondurable;
       break;
 
+    case K_PHANTOM_USER:
+      /* PHANTOM USER n: see keys.h.  op_phantom() takes the number and checks it against PHANTOMS and the user map. */
+      GetInt(descr);
+      phantom_requested_user = (int16_t)descr->data.value;
+      result.data.value = 1;
+      break;
+
+    case K_LOCK_TRACE: {
+      /* LOCK.TRACER (see keys.h).  Only an administrator changes it.  Starting makes an EMPTY locktrace file in the system
+         directory - owner the caller, group the system directory's, mode 0620, so that the administrator reads it and the
+         users of SD append to it - and refuses a link or a file that is not a plain one in its place.                  */
+      int lt_arg;
+      struct stat lt_dir;
+      char lt_path[MAX_PATHNAME_LEN + 1];
+      char lt_dirpath[MAX_PATHNAME_LEN + 1];
+      int lt_fd;
+
+      GetInt(descr);
+      lt_arg = (int)descr->data.value;
+      if (lt_arg == -1) {
+        result.data.value = sysseg->lock_trace;
+      } else if (!(my_uptr->flags & USR_ADMIN)) {
+        result.data.value = -1;
+      } else if (lt_arg == 0) {
+        sysseg->lock_trace = 0;
+        result.data.value = 0;
+      } else {
+        result.data.value = -1;
+        if (snprintf(lt_path, sizeof(lt_path), "%s%clocktrace", sysseg->sysdir, DS) < (int)sizeof(lt_path)) {
+          lt_fd = open(lt_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0620);
+          if (lt_fd >= 0) {
+            (void)fchmod(lt_fd, 0620);
+            snprintf(lt_dirpath, sizeof(lt_dirpath), "%s", sysseg->sysdir);
+            if (stat(lt_dirpath, &lt_dir) == 0)
+              (void)fchown(lt_fd, (uid_t)-1, lt_dir.st_gid);
+            close(lt_fd);
+            sysseg->lock_trace = 1;
+            result.data.value = 1;
+          }
+        }
+      }
+    } break;
+
     case K_USER_STATS: {
       int16_t us_i;
       USER_ENTRY* us_ptr;
@@ -1076,11 +1121,15 @@ void op_phantom() {
   USER_ENTRY *uptr;
   int16_t phantom_user_index;
   int16_t phantom_uid = 0;
+  int16_t requested_user;
   char path[MAX_PATHNAME_LEN + 1];
   char option[15 + 1];
   int cpid;
 
   /* Reserve a user table entry for the phantom process */
+
+  requested_user = phantom_requested_user; /* PHANTOM USER n: asked for once, for this phantom only */
+  phantom_requested_user = 0;
 
   StartExclusive(SHORT_CODE, 38);
   phantom_user_index = 0;
@@ -1088,7 +1137,16 @@ void op_phantom() {
     uptr = UPtr(i);
     if (uptr->uid == 0) /* Spare cell */
     {
-      phantom_uid = assign_user_no(i, FALSE);
+      if (requested_user != 0) {
+        /* 16 Oct 26 dm - PHANTOM USER n.  The number has to be one PHANTOMS keeps, and nobody may hold it; if either fails no
+           cell is taken and phantom() answers 0.                                                                       */
+        if ((sysseg->phantoms_range == 0) || (requested_user < sysseg->phantoms_base) ||
+            (requested_user >= sysseg->phantoms_base + sysseg->phantoms_range) || *(UMap(requested_user)))
+          break;
+        *(UMap(requested_user)) = i;
+        phantom_uid = requested_user;
+      } else
+        phantom_uid = assign_user_no(i, FALSE);
       uptr->uid = phantom_uid;
       uptr->puid = process.user_no;
       uptr->grouped = 0;

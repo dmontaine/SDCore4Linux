@@ -1,6 +1,93 @@
 Next release - in progress
 --------------------------
 
+16 Oct 26  RESTRICTED IN A CLASS MODULE.
+
+             RESTRICTED var {READONLY}, var ...
+             RESTRICTED SUBROUTINE name{(args)} ... END
+             RESTRICTED FUNCTION name{(args)} ... END
+                        A name between PUBLIC and PRIVATE: it is the class's
+                        own and every class that inherits it can use it
+                        through the inherited object; the main program, an
+                        unrelated class and a sibling that shares only the
+                        parent cannot - they are told "Unrecognised
+                        property/method name", as for a private name.  An
+                        object that inherits the class does not pass its
+                        restricted names on to the caller.  READONLY holds as
+                        it does for PUBLIC.  A name is all public or all
+                        restricted: a PUBLIC SUBROUTINE foo beside a
+                        RESTRICTED FUNCTION foo is a compile error.
+
+             What it does NOT do: an initial value (RESTRICTED x = 1) is not
+             accepted - PUBLIC and PRIVATE do not take one either.  RESTRICTED
+             is a reserved word inside a program now.  A class compiled before
+             this release has no restricted names; recompiling a class that
+             uses the new word is what makes one.
+
+16 Oct 26  LOCK.TRACER.
+
+             LOCK.TRACER ON / OFF     (administrator only)
+                        While it is on, every lock any session takes or lets
+                        go is added to the file locktrace in the system
+                        directory: a record update lock, a read lock, one
+                        raised or lowered, a file lock, and each release.  ON
+                        empties the file first.  It shows when a hold-up began
+                        and which program, on which line, took the lock.
+             LOCK.TRACER {USER n} {LPTR {n}} {NO.PAGE}
+                        The log as a report: date and time, user number,
+                        action, program, line, file and record id.  USER n
+                        shows one session.  LPTR prints it.
+             The file is made with mode 0620 in the system directory's
+             group: the administrator reads it, the users of SD append to
+             it.  A link in its place is refused.  Each line is value mark
+             delimited (epoch time, user, pathname, record id, action number,
+             program's object, offset in hexadecimal, line number) for a
+             program of your own to read.
+
+             What it does NOT do: it logs everything, SD's own locks (a login
+             takes $ipc, the command processor $command.stack) as well, and
+             every lock costs a file write, so use it for short spells.  A
+             lock that is refused or has to wait is not logged until it is
+             granted.  The locks a killed or lost session leaves are cleared
+             by the cleanup without a line.  openQM's report needs a terminal
+             132 wide; this one is 120.
+
+16 Oct 26  CLEANUP, PHANTOMS AND PHANTOM USER.
+
+             CLEANUP=n (sd.conf)
+                        Seconds between the checks that look for sessions that
+                        ended without logging out (a killed terminal, a lost
+                        connection) and clear them out of the user table.  30
+                        to 3600; if the line is not there it is 300, the five
+                        minutes it always was.  The daemon wakes every ten
+                        seconds, so an interval is kept to within ten seconds.
+                        CONFIG lists it, CONFIG('CLEANUP') reads it.  A very
+                        short interval costs a pass over the user table that
+                        often.
+             PHANTOMS=u,n (sd.conf)
+                        Keeps n user numbers from u for phantoms started with
+                        USER.  Nobody else is given one of them: not a session,
+                        not an API session, not a phantom started without USER.
+                        It must lie between 1 and the highest user number and
+                        must not overlap FIXUSERS or PORTMAP, or SD will not
+                        start.  CONFIG lists it, CONFIG('PHANTOMS') reads it
+                        ("u,n", null when none are kept).
+             PHANTOM USER n command
+                        The phantom is user number n, one of the numbers
+                        PHANTOMS keeps.  It is refused, and no phantom is
+                        made, when n is not a number SD has kept, or when a
+                        phantom (or anyone) already has it.
+             What changed besides: two blocks of kept user numbers side by
+             side (FIXUSERS then PORTMAP, now PHANTOMS too) used to hand out
+             the first number of the second block, because the number after a
+             skipped block was not looked at again; both are skipped now.
+
+             What it does NOT do: with USPLIT=1 the numbers PHANTOMS names are
+             not kept (USPLIT ignores FIXUSERS, PHANTOMS, PORTMAP and USERPOOL),
+             though USER n still works for a free number in them.  A change to
+             either line takes an SD restart.  CLEANUP only says how often the
+             check runs; what a check does is as before.
+
 15 Oct 26  CLIENT LIBRARY HEADERS FOR C# AND PHP.
 
              The client library's headers for programs in other languages

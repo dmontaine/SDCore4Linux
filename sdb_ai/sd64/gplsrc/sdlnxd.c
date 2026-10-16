@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 16 Oct 26 dm  The scan for lost processes runs every CLEANUP seconds (sd.conf, 30 to 3600, default 300) - QM4 gaps.
  * 10 Sep 26 dm  Parity audit: a semaphore failure prints its reason before
  *               exit(2) (UPSTREAM_FIXES 3, the Windows port's proposal).
  * 31 Dec 23 SD launch - prior history suppressed
@@ -50,9 +51,12 @@ void signal_handler(int signum);
 
 /* ====================================================================== */
 
+#define TICK_SECONDS 10
+
 int main() {
   char errmsg[80];
-  int timer = 0;
+  int elapsed = 0;  /* seconds since the last scan for lost processes */
+  int interval;     /* CLEANUP */
 
   process.user_no = -2; /* Mark as sdlnxd for semaphore table */
 
@@ -83,18 +87,23 @@ int main() {
 
   /* ========================= Main loop ========================= */
 
+  /* 16 Oct 26 dm - QM4 gaps, CLEANUP.  The scan for lost processes runs every CLEANUP seconds (30 to 3600, 300 unless sd.conf
+     says otherwise; it was a fixed five minutes).  The loop wakes every ten seconds so that the shortest interval is kept to
+     within one tick and so that a terminate signal is acted on without waiting out a minute.  A segment that holds no usable
+     value (one made by an older build) gets the five minutes it always had.                                              */
+
   while (!terminate) {
-    timer++;
+    interval = sysseg->cleanup;
+    if ((interval < 30) || (interval > 3600))
+      interval = 300;
 
-    /* One minute actions */
-
-    if ((timer % 5) == 0) {
-      /* Five minute actions */
-
+    elapsed += TICK_SECONDS;
+    if (elapsed >= interval) {
+      elapsed = 0;
       check_lost_users();
     }
 
-    sleep(60);
+    sleep(TICK_SECONDS);
   }
 
   /* Tidy up on our way out */
