@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+15 Oct 26  CLIENT LIBRARY HEADERS FOR C# AND PHP.
+
+             The client library's headers for programs in other languages
+             are installed in /usr/local/sdsys/syscom.  Two more are there:
+             sdclient.cs, for C# and .NET (P/Invoke), and sdclient.php, for
+             PHP 7.4 and later with the FFI extension.  Like the six before
+             them (C, Basic, PureBasic, Gambas 3, Free Pascal, Python) each
+             declares every function of the library with its parameters.
+             The C# file passes strings as bytes, so that SD's field, value
+             and subvalue marks arrive unharmed, and names the library
+             "sdclilib", so that the same file works with sdclilib.dll on a
+             Windows client and sdclilib.so on a Linux one.
+
+             What it does NOT do: neither file has been run - no .NET or PHP
+             runtime was available when they were written.  They are checked
+             against the library's header (every function, every parameter
+             and result type, the calling convention, the status constants,
+             and the PHP declarations read by a C compiler beside the header),
+             which is not the same as a program calling the library.  A Java
+             header is not provided (a Java program can call the C library).
+
 15 Oct 26  SD -STATUS ON A SERVER THAT RECORDED NO START TIME.
 
              The text sd -status prints when the running SD has no start

@@ -26,6 +26,13 @@
 #     sdclient.module  Gambas 3                           the same
 #     sdclilibbind.pas Free Pascal: types, variables and the loader's Sym() calls all name the same functions
 #     sdclient.py      Python (ctypes)                    the same, with argtypes and restype for each
+#     sdclient.cs      C# / .NET (P/Invoke)               the same, SDCall and SDCallx as SDCall0 to SDCall20 / SDCallx0 to SDCallx20; the C type of
+#                                                         every parameter and result is read back (byte[] = char *, out int = int *, IntPtr =
+#                                                         a char * result or a void * parameter) and compared with the library's header
+#     sdclient.php     PHP 7.4+ (FFI)                     the C declarations FFI reads (a nowdoc) are compared with the header signature by
+#                                                         signature, and a C compiler reads them after the header itself
+# (The eight headers came to eight on 15 Oct 2026 with the C# and PHP files, the owner's "finish the language bindings issue".  No dotnet
+# or php runs on the machine this was written on: those two files are checked as text and, for PHP, as C, and have never been run.)
 # SDEnterPackage and SDExitPackage are not declared in any header: the owner ruled licensed packages out (15 Oct 2026) and the
 # server answers them as unsupported.  The parameter COUNT of each function is compared too (SDCall and SDCallx take a list
 # without end and are left out), with the two the Gambas header gives one more parameter, an ErrNo the library ignores.
@@ -49,7 +56,8 @@ NOT_IN_PB = {"SDFree"}                                          # sdclient.pb fr
 VARARGS = {"SDCall", "SDCallx"}
 GAMBAS_EXTRA = {"SDReadList": 1, "SDReadNext": 1}
 FILES = ["gplsrc/sdclilib.h", "gplsrc/sdclilib.c", "sdsys/syscom/sdclilib.h", "sdsys/syscom/sdclient.bas", "sdsys/syscom/sdclient.pb",
-         "sdsys/syscom/sdclient.module", "sdsys/syscom/sdclilibbind.pas", "sdsys/syscom/sdclient.py"]
+         "sdsys/syscom/sdclient.module", "sdsys/syscom/sdclilibbind.pas", "sdsys/syscom/sdclient.py", "sdsys/syscom/sdclient.cs",
+         "sdsys/syscom/sdclient.php"]
 
 
 def top_count(params):
@@ -93,6 +101,86 @@ def parse_pascal(text):
     syms = set(re.findall(r"T(SD\w+)Fn\(Sym\('(SD\w+)'\)\)", text))
     sym_ok = {a for a, b in syms if a == b}
     return types, variables, sym_ok
+
+
+def norm_type(t):
+    """A C type without spaces: 'char *' -> 'char*', 'int16_t' -> 'int16_t'."""
+    return re.sub(r"\s+", "", t.strip())
+
+
+def split_top(params):
+    """The top-level, comma separated items of a parameter list, stripped."""
+    items, depth, cur = [], 0, ""
+    for ch in params:
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            depth -= 1
+        if ch == "," and depth == 0:
+            items.append(cur.strip())
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        items.append(cur.strip())
+    return items
+
+
+def parse_c_sigs(text, prefix):
+    """name -> (return type, [parameter types]) for the C declarations that begin with PREFIX (SD_API, or nothing); '...' is kept as a
+    type so that a variadic function can be told from one with parameters."""
+    out = {}
+    pat = (r"^%s\s*([A-Za-z_][\w\s\*]*?)\s*\b(SD\w+)\s*\(([^)]*)\)\s*;" % prefix) if prefix else r"^([A-Za-z_][\w\s\*]*?)\s*\b(SD\w+)\s*\(([^)]*)\)\s*;"
+    for m in re.finditer(pat, text, re.M):
+        ptypes = []
+        for p in split_top(m.group(3)):
+            if p == "void" or p == "":
+                continue
+            if p == "...":
+                ptypes.append("...")
+                continue
+            mm = re.match(r"^(.*?[\s\*])(\w+)$", p)
+            ptypes.append(norm_type(mm.group(1)) if mm else norm_type(p))
+        out[m.group(2)] = (norm_type(m.group(1)), ptypes)
+    return out
+
+
+CS_TYPE = {"byte[]": "char*", "short": "int16_t", "int": "int", "void": "void"}
+
+
+def cs_ctype(t, is_return):
+    """The C type a C# declaration type stands for: byte[] is char *, out int is int *, IntPtr is char * as a result and void * as a parameter."""
+    t = re.sub(r"\s+", " ", t.strip())
+    if t.startswith("out ") or t.startswith("ref "):
+        return CS_TYPE.get(t[4:].strip(), "?" + t[4:]) + "*"
+    if t == "IntPtr":
+        return "char*" if is_return else "void*"
+    return CS_TYPE.get(t, "?" + t)
+
+
+def parse_csharp(text):
+    """The DllImport declarations of sdclient.cs: a list of (entry point, method name, C return type, [C parameter types]), plus how many
+    DllImport attributes there are (to catch a declaration the pattern did not read) and what the calling convention constant is."""
+    decls = []
+    for m in re.finditer(r"^\s*\[DllImport\(Lib(?:, EntryPoint = \"(\w+)\")?, CallingConvention = CC\)\]\s*public static extern (\S+) (SD\w+)\(([^)]*)\);",
+                         text, re.M):
+        ptypes = []
+        for p in split_top(m.group(4)):
+            mm = re.match(r"^(.*?)\s+\w+$", p)
+            ptypes.append(cs_ctype(mm.group(1) if mm else p, False))
+        decls.append((m.group(1) or m.group(3), m.group(3), cs_ctype(m.group(2), True), ptypes))
+    n_attr = len(re.findall(r"\[DllImport\(", text))
+    cc = re.search(r"const CallingConvention CC = CallingConvention\.(\w+);", text)
+    lib = re.search(r'const string Lib = "(\w+)";', text)
+    consts = {m.group(1): int(m.group(2)) for m in re.finditer(r"public const int (SV_\w+) = (\d+);", text)}
+    return decls, n_attr, (cc.group(1) if cc else None), (lib.group(1) if lib else None), consts
+
+
+def parse_php(text):
+    """The C declarations in sdclient.php's CDEF nowdoc (as a string, to be read as C) and the class constants SV_*."""
+    m = re.search(r"<<<'C'\n(.*?)\nC;", text, re.S)
+    consts = {mm.group(1): int(mm.group(2)) for mm in re.finditer(r"const (SV_\w+) = (\d+);", text)}
+    return (m.group(1) if m else None), consts
 
 
 def parse_python(text):
@@ -192,6 +280,67 @@ def run_checks(tree):
             m is not None and int(m.group(1)) == len(want), (r.stdout + r.stderr)[-300:])
     else:
         row("9 (bin/sdclilib.so is missing or older than gplsrc/sdclilib.c: the Python header was not loaded against it)", True, "skipped")
+
+    # C# (P/Invoke): names, SDCall / SDCallx for 0 to 20 arguments, and the C type each parameter and result stands for
+    hs = parse_c_sigs(read(tree, "gplsrc/sdclilib.h"), "SD_API")
+    cs_text = read(tree, "sdsys/syscom/sdclient.cs")
+    cs_decls, cs_attrs, cs_cc, cs_lib, cs_consts = parse_csharp(cs_text)
+    cs_by_entry = {}
+    for entry, meth, ret, pt in cs_decls:
+        cs_by_entry.setdefault(entry, []).append((meth, ret, pt))
+    row("10 syscom/sdclient.cs (C#): every [DllImport] was read (none the pattern missed)", cs_attrs == len(cs_decls) and cs_attrs > 60,
+        "%d attributes, %d declarations parsed" % (cs_attrs, len(cs_decls)))
+    same("10 ... the entry points are the library's functions", set(cs_by_entry), want, "names")
+    row("10 ... the library is sdclilib and the calling convention cdecl (the Windows kit's sdclilib.dll and the Linux sdclilib.so both are)",
+        cs_lib == "sdclilib" and cs_cc == "Cdecl", "Lib=%r CC=%r" % (cs_lib, cs_cc))
+    arit = {v: sorted(int(re.sub(r"^SDCallx?", "", m)) for m, r, pt in cs_by_entry.get(v, [])) for v in VARARGS}
+    row("10 ... SDCall and SDCallx are each declared for 0 to 20 arguments", all(arit[v] == list(range(21)) for v in VARARGS), arit)
+    bad = []
+    for n in sorted(want):
+        if n in VARARGS or n not in hs or n not in cs_by_entry:
+            continue
+        meth, ret, pt = cs_by_entry[n][0]
+        if (ret, pt) != (hs[n][0], hs[n][1]):
+            bad.append((n, (ret, pt), hs[n]))
+    row("10 ... each function has the result and parameter types the library's header gives it (byte[] = char *, out int = int *, IntPtr = char * result / void * parameter)",
+        not bad, "differs: %s" % bad[:3])
+    bad = [m for entry in VARARGS for m, r, pt in cs_by_entry.get(entry, []) if pt[:2] != ["char*", "int16_t"] or set(pt[2:]) - {"char*"} or len(pt) != int(re.sub(r"^SDCallx?", "", m)) + 2]
+    row("10 ... and each SDCallN takes a name, a count and N char * arguments", not bad, "differs: %s" % bad[:3])
+    hc = {m.group(1): int(m.group(2)) for m in re.finditer(r"^#define (SV_\w+)\s+(\d+)", read(tree, "gplsrc/sdclilib.h"), re.M)}
+    row("10 ... the SV_ constants are the header's, and every one of the header's is there", cs_consts == hc and len(hc) == 8, "cs %s header %s" % (cs_consts, hc))
+
+    # PHP (FFI): the C declarations FFI reads
+    php_text = read(tree, "sdsys/syscom/sdclient.php")
+    cdef, php_consts = parse_php(php_text)
+    row("11 syscom/sdclient.php (PHP): it starts with <?php and holds a CDEF nowdoc", php_text.startswith("<?php") and cdef is not None, "no CDEF found")
+    if cdef is not None:
+        ps = parse_c_sigs(cdef, "")
+        same("11 ... the CDEF declares the library's functions", set(ps), want, "names")
+        bad = sorted(n for n in ps if n in hs and ps[n] != hs[n])
+        row("11 ... each with exactly the result and parameter types the library's header gives it", not bad,
+            "differs: %s" % [(n, ps[n], hs[n]) for n in bad[:3]])
+        lines = [l for l in cdef.split("\n") if l.strip()]
+        row("11 ... and every line of the CDEF is one of those declarations (nothing else for FFI to choke on)", len(lines) == len(ps),
+            "%d lines, %d declarations" % (len(lines), len(ps)))
+        if cc:
+            tmp = tempfile.mkdtemp(prefix="clienthdr-php-")
+            try:
+                tu = os.path.join(tmp, "cdef.c")
+                with open(tu, "w") as f:
+                    f.write('#include <stdint.h>\n#define SD_API\n#include "%s"\n%s\n' % (os.path.join(tree, "gplsrc/sdclilib.h"), cdef))
+                r = subprocess.run([cc, "-fsyntax-only", "-x", "c", tu], capture_output=True, text=True)
+                row("11 ... a C compiler reads the CDEF after the library's own header and finds no conflicting type", r.returncode == 0, r.stderr[:400])
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+        else:
+            row("11 ... (no C compiler here: the CDEF was not read by one)", True, "skipped")
+    row("11 ... the SV_ constants are the header's", php_consts == hc, "php %s header %s" % (php_consts, hc))
+    php = shutil.which("php")
+    if php:
+        r = subprocess.run([php, "-l", os.path.join(tree, "sdsys/syscom/sdclient.php")], capture_output=True, text=True)
+        row("11 ... php -l finds no syntax error", r.returncode == 0, (r.stdout + r.stderr)[:300])
+    else:
+        row("11 ... (no php here: sdclient.php was not linted, and neither the C# nor the PHP file has ever been run)", True, "skipped")
     return res
 
 
@@ -235,6 +384,18 @@ def selftest():
         ("a Python binding taken out", [("sdsys/syscom/sdclient.py", "SDRevision = _lib.SDRevision\n", "")], "7 "),
         ("a Python restype taken out", [("sdsys/syscom/sdclient.py", "SDTxn.restype = None\n", "")], "7 "),
         ("a function added to the library and not to the headers", [("gplsrc/sdclilib.c", "SDRevision(void) {", "SDRevision(void) {}\nvoid DLLEntry SDNewThing(void) {")], "1 "),
+        ("a C# declaration taken out", [("sdsys/syscom/sdclient.cs", "    [DllImport(Lib, CallingConvention = CC)] public static extern IntPtr SDRevision();\n", "")], "10 "),
+        ("a C# parameter of the wrong type", [("sdsys/syscom/sdclient.cs", "public static extern void SDTxn(int mode);", "public static extern void SDTxn(short mode);")], "10 "),
+        ("a C# int * parameter declared as an int", [("sdsys/syscom/sdclient.cs", "SDRead(int fno, byte[] id, out int err);", "SDRead(int fno, byte[] id, int err);")], "10 "),
+        ("a C# result of the wrong type", [("sdsys/syscom/sdclient.cs", "public static extern IntPtr SDRevision();", "public static extern int SDRevision();")], "10 "),
+        ("the C# calling convention stdcall", [("sdsys/syscom/sdclient.cs", "const CallingConvention CC = CallingConvention.Cdecl;", "const CallingConvention CC = CallingConvention.StdCall;")], "10 "),
+        ("SDCall7 points at an entry the library has not", [("sdsys/syscom/sdclient.cs", 'EntryPoint = "SDCall", CallingConvention = CC)] public static extern void SDCall7(',
+                                                          'EntryPoint = "SDCallz", CallingConvention = CC)] public static extern void SDCall7(')], "10 "),
+        ("a C# status constant with the wrong value", [("sdsys/syscom/sdclient.cs", "public const int SV_LOCKED = 4;", "public const int SV_LOCKED = 5;")], "10 "),
+        ("a PHP declaration taken out", [("sdsys/syscom/sdclient.php", "char *SDRevision(void);\n", "")], "11 "),
+        ("a PHP parameter of the wrong type", [("sdsys/syscom/sdclient.php", "void SDTxn(int mode);", "void SDTxn(char *mode);")], "11 "),
+        ("a PHP status constant with the wrong value", [("sdsys/syscom/sdclient.php", "const SV_LOCKED = 4;", "const SV_LOCKED = 5;")], "11 "),
+        ("a line in the PHP CDEF that is not a declaration", [("sdsys/syscom/sdclient.php", "void SDTxn(int mode);", "void SDTxn(int mode);\nextern int Bogus;")], "11 "),
     ]
     ok_all = True
     print("selftest: the unmutated copy first (it must pass)")
