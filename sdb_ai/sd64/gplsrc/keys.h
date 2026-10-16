@@ -345,6 +345,15 @@
                        lock_trace() in op_lock.c.  Returns the state after the call, -1 if the caller may not change it or the
                        file could not be made. */
 #define K_LOCK_TRACE         115
+/* 16 Oct 26 dm - QM4 gaps (PROFILER).
+     K_PROFILER        n > 0 starts the application event profiler in this process, logging the events whose PROF_x bits are in n (and
+                       emptying the table); 0 stops it, leaving what was found; -1 asks which are being logged; -2 returns what was
+                       found (see profiler.c).  Returns the events being logged, or the table.
+     K_PROFILER_USER   user * 4096 + 2048 + n starts it in another process, user * 4096 alone stops it and has that process
+                       write its table to the $ipc record F<user>.  The administrator only.  Returns 1 if the process was found,
+                       0 if not, -1 if the caller may not. */
+#define K_PROFILER           116
+#define K_PROFILER_USER      117
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

@@ -197,6 +197,32 @@ def main():
         out = sess(box, "LIST zzq20f name num RPT ID.SUP")
         row("RPT on the multivalued item itself is accepted (it is then treated as single valued)", "2 record(s) listed" in out and "not found" not in out.lower(),
             "no record count or an error")
+
+        say("\n--- leg 6: MODE and RANGE (16 Oct 26, sheet 231) -----------------------------------")
+        # zzq20a: num 150 40 30 20 10 (range 140), grp a a b b b (mode b); zzq20e has a null num; zzq20c a negative one
+        out = sess(box, "LIST zzq20a RANGE num ID.SUP", "LIST zzq20a MODE grp ID.SUP", "LIST zzq20a MODE num ID.SUP")
+        got = after_rule(out, "LIST zzq20a RANGE num ID.SUP")
+        row("THE ROW: RANGE of 150 40 30 20 10 is the largest less the smallest, 140", got == "140", "got %r" % got)
+        got = after_rule(out, "LIST zzq20a MODE grp ID.SUP")
+        row("THE ROW: MODE of the groups a a b b b is b", got == "b", "got %r" % got)
+        got = after_rule(out, "LIST zzq20a MODE num ID.SUP")
+        row("MODE with no value repeated gives one of them (the first, 150)", got in ("150", "40", "30", "20", "10"), "got %r" % got)
+        out = sess(box, "LIST zzq20c RANGE num ID.SUP")
+        got = after_rule(out, "LIST zzq20c RANGE num ID.SUP")
+        row("RANGE with a negative value: 150 less -10 is 160", got == "160", "got %r" % got)
+        out = sess(box, "LIST zzq20e RANGE num ID.SUP", "LIST zzq20e RANGE num NO.NULLS ID.SUP", "LIST zzq20e MODE num ID.SUP", "LIST zzq20e MODE num NO.NULLS ID.SUP")
+        got = after_rule(out, "LIST zzq20e RANGE num ID.SUP")
+        row("RANGE counts a null as zero: 150 less 0 is 150", got == "150", "got %r" % got)
+        got = after_rule(out, "LIST zzq20e RANGE num NO.NULLS ID.SUP")
+        row("RANGE with NO.NULLS leaves it out: 150 less 10 is 140", got == "140", "got %r" % got)
+        out = sess(box, "LIST zzq20d RANGE num ID.SUP")
+        got = after_rule(out, "LIST zzq20d RANGE num ID.SUP")
+        row("RANGE ignores a value that is not a number (abc): 150 less 10 is 140", got == "140", "got %r" % got)
+        out = sess(box, "LIST zzq20a BY grp BREAK.ON grp RANGE num ID.SUP", "LIST zzq20a BY grp BREAK.ON grp MODE name ID.SUP")
+        rng, mod = out.split("LIST zzq20a BY grp BREAK.ON grp MODE name ID.SUP")[0], out.split("LIST zzq20a BY grp BREAK.ON grp MODE name ID.SUP")[-1]
+        subs = re.findall(r"(?m)^\*\*\s+-{3,}\s*\n\s*(?:\S+\s+)?(\d+(?:\.\d+)?)\s*$", rng)
+        row("RANGE per group: a is 150 less 40 = 110, b is 30 less 10 = 20", subs[:2] == ["110", "20"], "got %r" % subs)
+        row("MODE at a breakpoint is shown too: each group has one name each, so any of its own", "alpha" in mod or "bravo" in mod or "charlie" in mod, mod[-300:])
     finally:
         for n in made:
             for d in ("bp", "bp.out"):

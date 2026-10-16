@@ -477,6 +477,14 @@ Private void openseq(bool map_name) {
       goto exit_op_openseq;
     }
 
+    if (prof_mask & PROF_OPENSEQ) /* the application event profiler (16 Oct 26): file,record as the program named them */
+    {
+      char prof_q[2 * MAX_PATHNAME_LEN + 2];
+
+      snprintf(prof_q, sizeof(prof_q), "%s,%s", file_name, unmapped_name);
+      prof_event(PROF_OPENSEQ, prof_q, (int)strlen(prof_q));
+    }
+
     /* Use VOC to translate file name to file system path */
 
     if (!get_voc_file_reference(file_name, FALSE, file_name, NULL)) {
@@ -534,6 +542,7 @@ Private void openseq(bool map_name) {
       process.status = ER_NAM;
       goto exit_op_openseq;
     }
+    ProfEvent(PROF_OPENSEQ, file_name, file_name_len); /* OPENSEQ by pathname: the application event profiler (16 Oct 26) */
 
     /* 13 Oct 26 S.63: OPENSEQ by pathname (and a port, which is an OS device) is an OS file external to SD.  An
        account without OS.EXECUTE reaches only paths inside its own directory; see op_sh.c os_path_ok_for_account.
@@ -1174,6 +1183,8 @@ void op_readseq() {
   }
 
   sq_file = fvar->access.seq.sq_file;
+  if ((prof_mask & PROF_READSEQ) && (sq_file->pathname != NULL)) /* the application event profiler (16 Oct 26) */
+    prof_event(PROF_READSEQ, sq_file->pathname, (int)strlen(sq_file->pathname));
   flags = sq_file->flags;
   /* Modified by Composer AI - 2026/06/10.
      timeout was read uninitialized; take the value stored on the SQ_FILE. */
@@ -1785,6 +1796,8 @@ Private void writeseq(bool flush_to_disk) {
 
   k_dismiss();
   sq_file = fvar->access.seq.sq_file;
+  if ((prof_mask & PROF_WRITESEQ) && (sq_file->pathname != NULL)) /* the application event profiler (16 Oct 26) */
+    prof_event(PROF_WRITESEQ, sq_file->pathname, (int)strlen(sq_file->pathname));
 
   fu = sq_file->fu;
   if (!ValidFileHandle(fu)) /* File opened for creation */

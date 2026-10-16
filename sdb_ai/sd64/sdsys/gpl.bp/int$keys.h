@@ -206,6 +206,8 @@
       $define K$NON.DURABLE.TXN 113      ;* 1: the next COMMIT is non-durable, a nested transaction goes to its parent (15 Oct 26, sheet 442)
       $define K$USER.STATS      112     ;* File activity counts of a user (0: all): uid, 11 counts, when counting began, login name (15 Oct 26, Q-8)
       $define K$PHANTOM.USER    114     ;* The next phantom() is to be this user number (one PHANTOMS keeps, not in use); 0 cancels (16 Oct 26, PHANTOM USER)
+      $define K$PROFILER        116     ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
+      $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
       $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys
@@ -463,6 +465,8 @@
       $define OPT.CORRELATIVE.NOCASE  55 ;* String operations in a correlative or I-type are case blind (kernel)
       $define OPT.CORRELATIVE.REUSE   56 ;* Every operand of an array operation in a correlative or I-type is read as if REUSE() was applied (kernel)
       $define OPT.QUERY.MERGE.PRINT   57 ;* A query to printer 0 leaves an already active printer on (qdisp)
+      $define OPT.COMMAND.LEVEL.LOCKS 58 ;* A file variable that goes keeps its locks until the program returns to the command processor (kernel)
+      $define OPT.STACKED.ACCOUNT     59 ;* An EXECUTE that changes account returns to the account it began in (cproc)
 
       * MKINDEX flag values (additive)
       $define MKI$CREATE               1 ;* Create indices

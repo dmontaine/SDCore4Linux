@@ -126,7 +126,7 @@ def part_a():
     row("bcomp, hunks under st.select.common and st.readnext: the select-list suites, not the INPUT ones",
         "selectv-mode" in sel and "inputtrap" not in sel and "classas" not in sel, repr(sel))
     sel, _, _ = pick([bc], [])
-    row("bcomp, hunks in comments only: the small compiler check and nothing more", sorted(sel) == sorted(["bcomp-a1", "stmt-q3", "func-q1", "mode-q16", "restricted"]), repr(sel))
+    row("bcomp, hunks in comments only: the small compiler check and nothing more", sorted(sel) == sorted(["bcomp-a1", "stmt-q3", "func-q1", "mode-q16", "restricted", "stdfil", "dbgequ"]), repr(sel))
     sel, _, _ = pick([bc], ["some.label.nobody.named"])
     row("bcomp, a hunk under a label no sub-rule names: the whole compiler group", {"classas", "inputtrap", "lang-a15", "try"} <= set(sel), repr(sel))
     sel, _, _ = pick([bc], None)

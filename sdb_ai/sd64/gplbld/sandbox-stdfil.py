@@ -55,6 +55,64 @@ def sess(box, *cmds):
     return out.split(":TERM 200,9999", 1)[-1]
 
 
+def shared_rows(box, sysd):
+    """$MODE STDFIL.SHARED (16 Oct 26, QM4 gap 225): @STDFIL is one variable for every program of a command level; an
+    EXECUTE starts a level with a fresh one and gets its own back.  The controls are $MODE STDFIL (a variable per program)
+    and the two modes together (STDFIL wins)."""
+    fa, fb = "zzsa" + RUN, "zzsb" + RUN
+    sub, lsub, inner, setup, msh, mloc, mboth, mexe = ("zzsh%s%s" % (RUN, c) for c in "sltimcbe")
+
+    progs = {
+        setup: """   open '%(a)s' to f else stop
+   write 'FROMA' to f, 'k1'
+   open '%(b)s' to g else stop
+   write 'FROMB' to g, 'k1'
+end
+""" % {"a": fa, "b": fb},
+        sub: ("$mode stdfil.shared\n   subroutine %s(what, id)\n   begin case\n   case what = 'READ'\n"
+              "      read r from id then crt 'SUBREAD ':r else crt 'SUBREAD-MISSING'\n   case what = 'OPENB'\n"
+              "      open '%s' else crt 'SUBOPEN-FAILED'\n   end case\n   return\nend\n") % (sub, fb),
+        lsub: ("$mode stdfil\n   subroutine %s(what, id)\n   begin case\n   case what = 'READ'\n"
+               "      read r from id then crt 'SUBREAD ':r else crt 'SUBREAD-MISSING'\n   case what = 'OPENB'\n"
+               "      open '%s' else crt 'SUBOPEN-FAILED'\n   end case\n   return\nend\n") % (lsub, fb),
+        inner: ("$mode stdfil.shared\n   if @stdfil = 0 then crt 'INNER-FRESH' else crt 'INNER-NOT-FRESH'\n"
+                "   open '%s' else crt 'INNER-OPEN-FAILED' ; stop\n   read r from 'k1' then crt 'INNER-READ ':r else crt 'INNER-MISSING'\nend\n") % fb,
+        msh: ("$mode stdfil.shared\n   open '%(a)s' else crt 'OPEN-FAILED' ; stop\n   call %(s)s('READ', 'k1')\n"
+              "   call %(s)s('OPENB', '')\n   read r from 'k1' then crt 'AFTER-SUB ':r else crt 'AFTER-SUB-MISSING'\nend\n") % {"a": fa, "s": sub},
+        mexe: ("$mode stdfil.shared\n   open '%(a)s' else crt 'OPEN-FAILED' ; stop\n   execute 'RUN bp %(i)s'\n"
+               "   read r from 'k1' then crt 'AFTER-EXEC ':r else crt 'AFTER-EXEC-MISSING'\nend\n") % {"a": fa, "i": inner},
+        mloc: ("$mode stdfil\n   open '%(a)s' else crt 'OPEN-FAILED' ; stop\n   call %(s)s('OPENB', '')\n"
+               "   read r from 'k1' then crt 'LOCAL-AFTER-SUB ':r else crt 'LOCAL-AFTER-SUB-MISSING'\nend\n") % {"a": fa, "s": lsub},
+        mboth: ("$mode stdfil.shared, stdfil\n   open '%(a)s' else crt 'OPEN-FAILED' ; stop\n   call %(s)s('OPENB', '')\n"
+                "   read r from 'k1' then crt 'BOTH-AFTER-SUB ':r else crt 'BOTH-AFTER-SUB-MISSING'\nend\n") % {"a": fa, "s": sub},
+    }
+    for name, body in progs.items():
+        with open(os.path.join(sysd, "bp", name), "w") as fh:
+            fh.write(body)
+
+    say("\n--- $MODE STDFIL.SHARED ----------------------------------------------------------------------------------")
+    names = list(progs)
+    out = sess(box, "DELETE.FILE %s" % fa, "DELETE.FILE %s" % fb, "CREATE.FILE %s" % fa, "CREATE.FILE %s" % fb,
+               *(["BASIC bp %s" % n for n in names] + ["CATALOG bp %s" % sub, "CATALOG bp %s" % lsub, "RUN bp %s" % setup]))
+    row("setup: all eight programs compiled with no errors", len(re.findall(r"Compiled 1 program\(s\) with no errors", out)) == len(names), out[-900:])
+    o = sess(box, "RUN bp %s" % msh)
+    row("a called subroutine uses the file the main program opened (shared across programs of one level)",
+        re.search(r"(?m)^SUBREAD FROMA\s*$", o) is not None, o[-400:])
+    row("a file the subroutine opens becomes the main program's default as well",
+        re.search(r"(?m)^AFTER-SUB FROMB\s*$", o) is not None, o[-400:])
+    o = sess(box, "RUN bp %s" % mexe)
+    row("an EXECUTEd command starts with a fresh @STDFIL", re.search(r"(?m)^INNER-FRESH\s*$", o) is not None, o[-400:])
+    row("the EXECUTEd command opens and reads its own file", re.search(r"(?m)^INNER-READ FROMB\s*$", o) is not None, o[-400:])
+    row("on return from the EXECUTE the caller's @STDFIL is the file it had", re.search(r"(?m)^AFTER-EXEC FROMA\s*$", o) is not None, o[-400:])
+    o = sess(box, "RUN bp %s" % mloc)
+    row("CONTROL, $MODE STDFIL: a subroutine's open leaves the main program's default alone",
+        re.search(r"(?m)^LOCAL-AFTER-SUB FROMA\s*$", o) is not None, o[-400:])
+    o = sess(box, "RUN bp %s" % mboth)
+    row("CONTROL, STDFIL and STDFIL.SHARED together are STDFIL: the main program's default is its own",
+        re.search(r"(?m)^BOTH-AFTER-SUB FROMA\s*$", o) is not None, o[-400:])
+    sess(box, "DELETE.CATALOG %s" % sub, "DELETE.CATALOG %s" % lsub, "DELETE.FILE %s" % fa, "DELETE.FILE %s" % fb)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -181,6 +239,8 @@ end
     row("CONTROL, the mode off: a program that names its file variables is untouched", "OFF-NAMED-READ x" in ran, ran[-900:])
     row("CONTROL, the mode off: the default-file program was never run (no compiled object)",
         "OFF-COMPILED-AND-RAN" not in out and "OFF-ELSE" not in out, out[-400:])
+
+    shared_rows(box, sysd)
 
     say("")
     say("sandbox-stdfil: %d passed, %d failed" % (passed, failed))

@@ -119,6 +119,8 @@ $include int$keys.h
    opt<-1> = 'CORRELATIVE.REUSE||11279'          ;* 56
    * 15 Oct 26  openQM refs 57 and others of bundle Q-17 (57 on)
    opt<-1> = 'QUERY.MERGE.PRINT||11320'          ;* 57, openQM ref 57
+   opt<-1> = 'COMMAND.LEVEL.LOCKS||11367'        ;* 58, 16 Oct 26 QM4 gap 231
+   opt<-1> = 'STACKED.ACCOUNT||11370'            ;* 59, 16 Oct 26 QM4 gap 248
    *         'xxxxxxxxxxxxxxxxxxx'    Option name limit = 19 characters
 
    * Shortcuts

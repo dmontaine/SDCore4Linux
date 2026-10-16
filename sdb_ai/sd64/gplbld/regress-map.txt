@@ -26,7 +26,7 @@
 # the pseudo-terminal suites (a terminal, keys, the screen library)
 @pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho
 # the debugger
-@debugger    = dbgui dbgcoll dbgwatch edbug bpv
+@debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv
 # select lists and everything that makes or reads one
 @lists       = sselectv pickrn chained execlist stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
@@ -40,7 +40,7 @@
 # what a change to the select-list statements in the compiler needs
 @lists-compile = sselectv pickrn selectv-mode execlist chained stacklist list-q2 mode-q16
 # the query processor and dictionaries
-@query       = qproc-a3 qproc-q20 dict-a2 footpause pgheading dictfold misc-a9 listf-mult coll
+@query       = qproc-a3 qproc-q20 xml qdefaults qproc-when vert-fmt vlist-a3 dict-a2 footpause pgheading dictfold misc-a9 listf-mult coll
 # accounts, logins, gates, configuration, sessions, the API
 @system      = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
@@ -72,9 +72,9 @@ gplbld/*                     : @core
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE KERNEL (gplsrc).  Specific files first.
 gplsrc/op_dio4.c             : @lists
-gplsrc/op_dio3.c             : @files @seq
+gplsrc/op_dio3.c             : @files @seq prof
 gplsrc/op_dio2.c             : @files
-gplsrc/op_dio1.c             : @files
+gplsrc/op_dio1.c             : @files cll prof
 gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
@@ -83,7 +83,7 @@ gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile @cor
 gplsrc/sdfix.c               : sdfixseq akcase
 gplsrc/sdidx.c               : akcase idx-nocase
 gplsrc/sdconv.c              : nocase upgradenocase
-gplsrc/op_seqio.c            : @seq
+gplsrc/op_seqio.c            : @seq prof
 gplsrc/op_coll.c             : coll collfile dbgcoll
 gplsrc/op_array.c            : coll list-q2 @core
 gplsrc/op_skt.c              : opensock gates qmclient oq2
@@ -100,7 +100,7 @@ gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
-gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 @files
+gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 gplsrc/op_tio.c              : @pty
 gplsrc/linuxio.c             : @pty
@@ -117,8 +117,11 @@ gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/sdlnxd.c              : q5
-gplsrc/sysseg.[ch]           : q5 conf-b1 @core
-gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof @core
+gplsrc/profiler.c            : prof
+gpl.src                      : @core prof
+gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof
+gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
 gplsrc/sd_tls*.c             : qmclient
@@ -129,22 +132,22 @@ gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient
-gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload
+gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
 gplsrc/op_sh.c               : gates
 gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
-gplsrc/objprog.c             : classas restricted @core
+gplsrc/objprog.c             : classas restricted prof @core
 gplsrc/descr.h               : restricted classas @core
-gplsrc/op_jumps.c            : @core try partial
+gplsrc/op_jumps.c            : @core try partial prof
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5
+gplsrc/op_kernel.c           : @core q5 prof
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
 gplsrc/*.c                   : @core
@@ -155,7 +158,10 @@ gplsrc/*.c                   : @core
 # sub-rule ("file ~ label : suites") adds the suites of the statements whose labels a hunk lies under.  A hunk under a label no
 # sub-rule names takes the '*' rule (the whole compiler group); comments before the first label add nothing; and where the
 # hunks cannot be known (--files, a file git has not been told about) every sub-rule applies.
-sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted
+sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
+sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
+sdsys/gpl.bp/bcomp ~ process.include : incsearch
+sdsys/gpl.bp/bcomp ~ set.*   : stdfil dbgequ mode-q16
 sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas
 sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas
 sdsys/gpl.bp/bcomp ~ st.private*    : restricted classas
@@ -198,6 +204,7 @@ sdsys/gpl.bp/ed              : @editors
 sdsys/gpl.bp/edit            : @editors
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/debug           : @debugger
+sdsys/gpl.bp/debug.h         : @debugger
 sdsys/gpl.bp/pdbg            : @debugger
 sdsys/gpl.bp/pdebug          : @debugger
 sdsys/gpl.bp/ftype           : listf-mult dictfold
@@ -209,6 +216,7 @@ sdsys/gpl.bp/qdisp           : @query
 sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
 sdsys/gpl.bp/icomp           : @query
+sdsys/gpl.bp/acomp           : @query
 sdsys/gpl.bp/dcomp           : @query
 sdsys/gpl.bp/_sselct         : @lists
 sdsys/gpl.bp/_sselctv        : @lists
@@ -232,17 +240,18 @@ sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates
-sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16
+sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
 sdsys/gpl.bp/listu           : listu-a5
 sdsys/gpl.bp/_listu          : listu-a5
 sdsys/gpl.bp/pstat           : listu-a5
 sdsys/gpl.bp/hsm             : listu-a5
+sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates
 sdsys/gpl.bp/sdclient        : qmclient
 sdsys/gpl.bp/remoteapi       : gates qmclient
@@ -271,6 +280,7 @@ sdsys/gpl.bp/*               : @core
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
 sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient
+sdsys/syscom/parser.h        : @query @core
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
 sdsys/syscom/*               : @compiler @core

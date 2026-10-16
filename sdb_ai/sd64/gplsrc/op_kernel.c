@@ -750,6 +750,46 @@ void op_kernel() {
       }
     } break;
 
+    case K_PROFILER:
+      /* The application event profiler of this process (see keys.h and profiler.c).  Anyone may profile their own process. */
+      GetInt(descr);
+      if (descr->data.value == -2) {
+        prof_dump(&result);
+      } else {
+        if (descr->data.value >= 0)
+          prof_set((int16_t)(descr->data.value & PROF_ALL));
+        result.data.value = prof_mask;
+      }
+      break;
+
+    case K_PROFILER_USER: {
+      /* Start or stop the profiler in another process.  The administrator only: what a profile holds is the files another
+         user's programs open and the commands they execute. */
+      int32_t pu_arg;
+      int16_t pu_user;
+      int16_t pu_i;
+      USER_ENTRY* pu_ptr;
+
+      GetInt(descr);
+      pu_arg = descr->data.value;
+      pu_user = (int16_t)(pu_arg / 4096);
+      result.data.value = -1;
+      if ((my_uptr->flags & USR_ADMIN) && (pu_arg > 0)) {
+        result.data.value = 0;
+        StartExclusive(SHORT_CODE, 66);
+        for (pu_i = 1; pu_i <= sysseg->max_users; pu_i++) {
+          pu_ptr = UPtr(pu_i);
+          if ((pu_ptr->uid == pu_user) && (pu_user > 0)) {
+            pu_ptr->prof_request = (int16_t)((pu_arg & 2048) ? (0x4000 | (pu_arg & PROF_ALL)) : 0);
+            pu_ptr->events |= EVT_PROFILER;
+            result.data.value = 1;
+            break;
+          }
+        }
+        EndExclusive(SHORT_CODE);
+      }
+    } break;
+
     case K_USER_STATS: {
       int16_t us_i;
       USER_ENTRY* us_ptr;
@@ -1175,11 +1215,13 @@ void op_phantom() {
     /* converted to snprintf() -gwb 22Feb20 */
     if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s/bin/sd", sysseg->sysdir) >= (MAX_PATHNAME_LEN + 1)) {
       /* TODO: this should also be logged with more detail */
-      k_error("Overflowed path/filename length in op_phantom()!");
-      goto exit_op_phantom;
+      /* 16 Oct 26 (openQM 280): this is the CHILD.  It used to report the error and go on through the rest of the function as
+         a second copy of the program that called PHANTOM, with the user cell reserved for a phantom that never started. */
+      _exit(1);
     }
     sprintf(option, "-p%d", phantom_user_index);
     execl(path, path, option, NULL);
+    _exit(1); /* execl() only returns when it failed: the same */
   } else if (cpid == -1) { /* Error */
     *(UMap(uptr->uid)) = 0;
     uptr->uid = 0; /* Release reserved user cell */
