@@ -106,6 +106,52 @@ Private int skt_buff_size = 0;
 
 bool socket_wait(SOCKET socket, bool read, int timeout);
 
+/* ======================================================================
+   skt_trace_log()  -  One entry of a socket trace (SKT$INFO.TRACE, 15 Oct 26 dm)
+
+   "SEND n bytes" or "RECV n bytes", then the data sixteen bytes to a line: the offset, the bytes in hexadecimal, and the
+   same bytes as characters, a full stop for one that is not printable.  What is written is what the program handed to the
+   socket or got from it, so on a TLS socket it is the data before encryption and after decryption.  A failed write to the
+   log is not reported: a trace must not stop the traffic it is watching.                                              */
+
+Private void skt_trace_log(SOCKVAR* sock, const char* dir, const char* data, int bytes) {
+  char line[160];
+  int off;
+  int i;
+  int n;
+  int len;
+  u_char c;
+
+  if ((sock->trace_fd < 0) || (bytes <= 0))
+    return;
+
+  len = snprintf(line, sizeof(line), "%s %d bytes\n", dir, bytes);
+  if (write(sock->trace_fd, line, len) < 0)
+    return;
+
+  for (off = 0; off < bytes; off += 16) {
+    n = bytes - off;
+    if (n > 16)
+      n = 16;
+    len = snprintf(line, sizeof(line), "%06x ", off);
+    for (i = 0; i < 16; i++) {
+      if (i < n)
+        len += snprintf(line + len, sizeof(line) - len, " %02x", (u_char)data[off + i]);
+      else
+        len += snprintf(line + len, sizeof(line) - len, "   ");
+    }
+    line[len++] = ' ';
+    line[len++] = ' ';
+    for (i = 0; i < n; i++) {
+      c = (u_char)data[off + i];
+      line[len++] = ((c >= 32) && (c < 127)) ? (char)c : '.';
+    }
+    line[len++] = '\n';
+    if (write(sock->trace_fd, line, len) < 0)
+      return;
+  }
+}
+
 int translate_sockerr(int errval) {
   /* simply translates Posix error constants to SD error
      * constants.
@@ -220,6 +266,7 @@ void op_accptskt() {
   sock->tls = NULL; /* 15 Sep 26 dm - S.19: k_alloc does not zero */
   sock->events = 0;
   sock->found = 0;
+  sock->trace_fd = -1;
   sock->family = sockvar->family;
 
   switch (sock->family) {
@@ -534,6 +581,7 @@ void op_openskt() {
     sock->tls = NULL;
     sock->events = 0;
     sock->found = 0;
+    sock->trace_fd = -1;
     struct sockaddr_in const* sin;
     struct sockaddr_in6 const* sin6;
     switch (res->ai_family) {
@@ -708,6 +756,7 @@ void op_readskt() {
 
   ts_copy(skt_buff, rcvd_bytes);
   ts_terminate();
+  skt_trace_log(sock, "RECV", skt_buff, rcvd_bytes);
 
 exit_op_readskt:
   k_pop(3);
@@ -796,6 +845,35 @@ void op_setskt() {
         sockvar->found = 0;
       }
       break;
+
+    /* 15 Oct 26 dm - SKT$INFO.TRACE: the pathname of a log of the data sent and received on this socket, which is
+       overwritten; a null pathname (or closing the socket) ends the trace.  The log is a file the program names, so the
+       OS-access gate applies as it does to OPENSEQ: an account without OS.EXECUTE may trace only into its own directory.
+       Made owner-only (0600): it holds the traffic, which can include credentials.  A path that is a link is not followed. */
+    case SKT_INFO_TRACE: {
+      char trace_path[MAX_PATHNAME_LEN + 1];
+      int trace_len;
+      int fd;
+
+      trace_len = k_get_c_string(descr, trace_path, MAX_PATHNAME_LEN);
+      if (sockvar->trace_fd >= 0) {
+        close(sockvar->trace_fd);
+        sockvar->trace_fd = -1;
+      }
+      if (trace_len > 0) {
+        if (!os_path_ok_for_account(trace_path)) {
+          process.status = ER_PERM;
+          break;
+        }
+        fd = open(trace_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0600);
+        if (fd < 0) {
+          process.status = ER_IOE;
+          process.os_error = errno;
+        } else {
+          sockvar->trace_fd = fd;
+        }
+      }
+    } break;
 
     default:
       process.status = ER_BAD_KEY;
@@ -1188,6 +1266,7 @@ void op_srvrskt() {
       sock->tls = NULL; /* 15 Sep 26 dm - S.19: k_alloc does not zero */
       sock->events = 0;
       sock->found = 0;
+      sock->trace_fd = -1;
 
       struct sockaddr_in const* sin;
       struct sockaddr_in6 const* sin6;
@@ -1342,6 +1421,7 @@ void op_writeskt() {
         goto exit_op_writeskt;
       }
 
+      skt_trace_log(sock, "SEND", p, bytes_sent);
       bytes -= bytes_sent;
       total_bytes += bytes_sent;
       p += bytes_sent;
@@ -1365,6 +1445,10 @@ void close_skt(SOCKVAR* sock) {
   if (sock->tls != NULL) {
     sd_tls_client_end((SD_TLS_CLIENT*)sock->tls);
     sock->tls = NULL;
+  }
+  if (sock->trace_fd >= 0) { /* 15 Oct 26 dm - SKT$INFO.TRACE */
+    close(sock->trace_fd);
+    sock->trace_fd = -1;
   }
   closesocket((SOCKET)(sock->socket_handle));
 }

@@ -55,6 +55,8 @@
  *     connection that fails keeps its slot (CX_HELD) so that its owner can read
  *     the error; gethostbyname / getpwnam are the reentrant forms, and the
  *     child of SDConnectLocal does nothing but exec.
+ * 15 Oct 26 dm  SDExecute copies reply_len bytes: an on-error reply
+ *     (SDCLIENT 1 or 2) overran a one byte allocation with strcpy.
  *
  * END-HISTORY
  *
@@ -1711,8 +1713,12 @@ char* DLLEntry SDExecute(char* cmnd, int* err) {
   }
 
 exit_sdexecute:
+  /* 15 Oct 26 dm  copy reply_len bytes, not a string: on an on-error reply
+     reply_len is 0 and the buffer holds the refusal text, which the strcpy
+     wrote past a one byte allocation. */
   reply = malloc(reply_len + 1);
-  strcpy(reply, buff->data.execute.reply);
+  memcpy(reply, buff->data.execute.reply, reply_len);
+  reply[reply_len] = '\0';
   *err = session[session_idx].server_error;
 
   return reply;

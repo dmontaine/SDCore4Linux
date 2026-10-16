@@ -92,6 +92,9 @@
 *               remote-administrator gate (S.17).
 * 14 Sep 26 dm  vb.scram.final requires sdapi membership (10073), the port's
 *               per-account API route (S.16).
+* 15 Oct 26 dm  vb.call returns after refusing a subroutine that is not
+*               flagged $sdcall (SDCLIENT 2): it was refused in the reply
+*               but still ran.
 * END-HISTORY
 *
 *
@@ -1008,6 +1011,7 @@ vb.call:
                   if not(bitand(obj.flags, HDR.SDCALL.ALLOWED)) then
                      abort.message = sysmsg(5264, subr.name) ;* %1 cannot be called from a SDClient session
                      server.error = SV$ON.ERROR
+                     return
                   end
                end
 

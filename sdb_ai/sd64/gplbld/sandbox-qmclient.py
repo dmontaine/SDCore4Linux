@@ -12,6 +12,9 @@
 # 15 Oct 26 dm  Written for QM4 gaps bundle C-1.
 # 15 Oct 26 dm  Part R: six threads in one process (sheet 456).  K1's helper thread selects its own session now: the current
 #               session is per thread.
+# 15 Oct 26 dm  Parts S and T.  S: a sequential file by pathname for an account that holds os-on (apisrvr's vb.openseq asks K$PATH.OK
+#               itself).  T: SDCLIENT=1 and =2 in sd.conf, every request that tests it; it restarts the sandbox, so it runs LAST,
+#               after K.  QMC_MUTANT=<name> recompiles the sandbox's apisrvr (or the fixture) with one deliberate fault.
 # END-HISTORY
 #
 # THE INSTRUMENT.  A LOCAL API session: the sandbox's own sdclilib.so is loaded with ctypes, SD_CONFIG names the sandbox, and
@@ -28,6 +31,18 @@
 #   D  SDIndices: the names of a file's indices and the details of one, against INDICES() in a session; an unknown index
 #   E  SDTrans / SDRTrans: a dictionary field, a field number, -1 for the record, a list of ids, the C and X actions, the marks
 #      lowered by SDTrans and not by SDRTrans, a file that is not there, a refused action
+#   S  a pathname outside the account: refused to an account without os-on (the register flipped and a NEW session made: the
+#      switches are loaded at login), opened, written, read back and found on the disk for one with it; what the operating system
+#      still refuses
+#   T  SDCLIENT in sd.conf (RUNS LAST: it restarts the sandbox).  0 as the control, 1 (no open, no execute), 2 (also a restricted
+#      call): SDOpen, SDOpenSeq, SDTrans, SDRTrans, SDExecute, SDCall and the T and U conversions, each with the disk as evidence
+#
+# MUTANTS.  QMC_MUTANT=<name> makes one deliberate fault in the sandbox's own copy of apisrvr (never the tree) before the run, and
+# the rows that notice it must fail: open, openseq, trans, conv, execute, call (the SDCLIENT test of that request disabled),
+# path-none (vb.openseq stops asking K$PATH.OK), path-all (it refuses every pathname), fixture-os-off (the os-on account is not).
+# Two names are REPAIRS, not faults, for defects this part found (neither is in the tree; the rows T*-6 and T*-5 are red on it until
+# they are): fix-call-return (vb.call returns after refusing, where it now goes on to run the subroutine) and fix-execute-lib
+# (sdclilib.c's SDExecute copies reply_len bytes, where it strcpy's an on-error reply's text into a 1-byte buffer).
 #   F  the program form of NON.DURABLE.TXN, G  SDTxn
 #   H  SDEvaluate / SDEvalConv (sheet 247): D, A and I items, an item the dictionary has not, a phrase, an I-type that will not
 #      compile, several names, the conversion applied or not, the dictionary left unwritten, @ID put back
@@ -40,8 +55,10 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -73,6 +90,16 @@ ND_BODY = ("   open 'zzcl' to f else stop 'no file'\n   sc = field(@sentence, ' 
 USER_PROGS = {
     # R: a catalogued subroutine that returns its first argument twice in its second (called with SDCallx from six threads)
     "zzcsub": "subroutine zzcsub(a, b)\n   b = a : '/' : a\nreturn\nend\n",
+    # T: what SDCLIENT lets through.  zzcmk and zzcok each leave a mark in zzlog when they run (zzcok is flagged $sdcall), zzxmk is a
+    # program a command can run, zzmrk reads the marks back in an ordinary session (and clears them with the argument "clear")
+    "zzcmk": "subroutine zzcmk(a, b)\n   open 'zzlog' to f else return\n   write 'ran ':a on f, 'callmark'\n   b = 'ret:':a\nreturn\nend\n",
+    "zzcok": "$sdcall\nsubroutine zzcok(a, b)\n   open 'zzlog' to f else return\n   write 'ran ':a on f, 'okmark'\n   b = 'ret:':a\nreturn\nend\n",
+    "zzxmk": "   open 'zzlog' to f else stop\n   write 'ran' on f, 'execmark'\nend\n",
+    "zzmrk": ("   open 'zzlog' to f else stop 'no file'\n   sc = field(@sentence, ' ', 4)\n"
+              "   for each id in 'callmark':@fm:'okmark':@fm:'execmark'\n"
+              "      read r from f, id then crt 'M[':id:'=':r:']' else crt 'M[':id:'=-]'\n"
+              "      if sc = 'clear' then delete f, id\n   next id\n"
+              "   open 'zzcl' to g else stop 'no zzcl'\n   crt 'TC[':oconv('r1', 'Tzzcl;X;;1'):']'\nend\n"),
     # the data: three records of zzcl, a dictionary with NAME (field 1), QTY (2) and TAGS (3, multivalued); an index on NAME
     "zzclmk": ("   open 'zzcl' to f else stop 'no file'\n   open 'DICT zzcl' to d else stop 'no dict'\n"
                "   write 'D':@fm:'1':@fm:'':@fm:'Name':@fm:'10L':@fm:'S' on d, 'NAME'\n"
@@ -264,6 +291,114 @@ print("RESULT " + json.dumps(out))
 '''
 
 
+SDC = 'config("SDCLIENT") # 0'
+MUTANTS = {
+    # the SDCLIENT test of one request made never true (99 is no mode)
+    "open": ('vb.open:\nif kernel(K$SDNET, -1)  or ' + SDC, 'vb.open:\nif kernel(K$SDNET, -1)  or config("SDCLIENT") = 99'),
+    "openseq": ('vb.openseq:\nif kernel(K$SDNET, -1) or ' + SDC, 'vb.openseq:\nif kernel(K$SDNET, -1) or config("SDCLIENT") = 99'),
+    "trans": ('trans.common:\nif kernel(K$SDNET, -1) or ' + SDC, 'trans.common:\nif kernel(K$SDNET, -1) or config("SDCLIENT") = 99'),
+    "conv": ('conv.common:\n', None),       # built below: the line after the label differs from the others
+    "execute": ('               if config("SDCLIENT") # 0  or kernel', '               if config("SDCLIENT") = 99  or kernel'),
+    "call": ('config("SDCLIENT") = 2 or', 'config("SDCLIENT") = 99 or'),
+    # NOT a fault: the repair of the defect row T6 finds (vb.call announces the refusal of an unflagged subroutine under SDCLIENT=2 and
+    # then calls it all the same); with it the row passes.  Proposed for apisrvr, not applied to the tree.
+    "fix-call-return": ("                     server.error = SV$ON.ERROR\n                  end\n               end\n\n               if arg.count then",
+                        "                     server.error = SV$ON.ERROR\n                     return\n                  end\n               end\n\n               if arg.count then"),
+    # vb.openseq stops asking the path question, or answers no to every pathname
+    "path-none": ("   if not(kernel(K$PATH.OK, os.name)) then", "   if @false then"),
+    "path-all": ("   if not(kernel(K$PATH.OK, os.name)) then", "   if @true then"),
+}
+
+
+def apply_mutant(name):
+    """One deliberate fault in the SANDBOX's copy of apisrvr (recompiled there as the administrator), or in the fixture."""
+    if name == "fixture-os-off":
+        os.environ["QMC_FIXTURE_OS"] = "no"
+        say("sandbox-qmclient: MUTANT fixture-os-off: the os-on account is registered os-off")
+        return
+    if name == "call-fixed":
+        # the SDCLIENT=2 test of vb.call disabled ON TOP OF the repair: on the unrepaired code row T2-6 is red already, so only here
+        # can it show that the test, and not the missing return, is what the row sees
+        apply_mutant("fix-call-return")
+        apply_mutant("call")
+        return
+    if name == "fix-execute-lib":
+        # NOT a fault: the repair of the defect row T1-5 / T2-5 finds in sdclilib.c's SDExecute, built in the sandbox's tree copy
+        src_c = os.path.join(q3.BOX, "tree", "gplsrc", "sdclilib.c")
+        old = "  reply = malloc(reply_len + 1);\n  strcpy(reply, buff->data.execute.reply);\n"
+        new = "  reply = malloc(reply_len + 1);\n  memcpy(reply, buff->data.execute.reply, reply_len);\n  reply[reply_len] = '\\0';\n"
+        with open(src_c, encoding="utf-8", errors="replace") as f:
+            csrc = f.read()
+        if csrc.count(old) != 1:
+            q3.bail("fix-execute-lib: SDExecute's copy is found %d times, not once" % csrc.count(old))
+        with open(src_c, "w", encoding="utf-8") as f:
+            f.write(csrc.replace(old, new))
+        mk = subprocess.run(["make"], cwd=os.path.join(q3.BOX, "tree"), capture_output=True, text=True, errors="replace",
+                            timeout=600)
+        if mk.returncode != 0:
+            q3.bail("fix-execute-lib: make failed:\n" + (mk.stdout + mk.stderr)[-600:])
+        shutil.copy2(os.path.join(q3.BOX, "tree", "bin", "sdclilib.so"), os.path.join(q3.SYS, "bin", "sdclilib.so"))
+        say("sandbox-qmclient: FIX fix-execute-lib: SDExecute copies reply_len bytes; sdclilib.so rebuilt and copied into the sandbox")
+        return
+    if name not in MUTANTS:
+        q3.bail("no mutant named %s" % name)
+    old, new = MUTANTS[name]
+    path = os.path.join(q3.SYS, "gpl.bp", "apisrvr")
+    with open(path, encoding="utf-8", errors="replace") as f:
+        src = f.read()
+    if name == "conv":
+        old = "conv.common:\n"
+        mk = "if kernel(K$SDNET, -1) or config(\"SDCLIENT\") # 0 then\n   cv.count"
+        if src.count(mk) != 1:
+            q3.bail("mutant conv: the conversion test is not found once (%d)" % src.count(mk))
+        old, new = mk, mk.replace(SDC, 'config("SDCLIENT") = 99')
+    if src.count(old) != 1:
+        q3.bail("mutant %s: the text to change is found %d times, not once" % (name, src.count(old)))
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(src.replace(old, new))
+    out = q3.adm(["BASIC gpl.bp apisrvr"], internal=True)
+    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+        q3.bail("the mutant apisrvr did not compile:\n" + "\n".join(out[-8:]))
+    say("sandbox-qmclient: MUTANT %s: %r -> %r" % (name, old.strip()[:70], new.strip()[:70]))
+
+
+# T: SDExecute several times in a child process.  argv: the library, the count, the command.
+EXEC_CHILD = r'''
+import ctypes, sys
+lib = ctypes.CDLL(sys.argv[1])
+lib.SDExecute.restype = ctypes.c_void_p
+lib.SDConnectLocal.restype = ctypes.c_int
+if lib.SDConnectLocal(b"zzaa") != 1:
+    print("NOCONNECT")
+    sys.exit(2)
+n = int(sys.argv[2])
+for i in range(n):
+    e = ctypes.c_int()
+    p = lib.SDExecute(sys.argv[3].encode(), ctypes.byref(e))
+    if i == 0:
+        print("FIRST err", e.value, flush=True)         # before the free: the free is where the heap damage is found
+    if p:
+        lib.SDFree(ctypes.c_void_p(p))
+print("LOOPS", n, flush=True)
+lib.SDDisconnect()
+'''
+
+
+def cap_stderr(fn):
+    """Run fn with the C library's stderr (fd 2) sent to a file: (its result, what was written to stderr).  The client prints an
+    aborted request's message there (sdclilib.c Abort())."""
+    with tempfile.TemporaryFile() as tf:
+        saved = os.dup(2)
+        os.dup2(tf.fileno(), 2)
+        try:
+            r = fn()
+        finally:
+            os.dup2(saved, 2)
+            os.close(saved)
+        tf.seek(0)
+        return r, tf.read().decode("latin-1")
+
+
 def s(b):
     """Text for a message: the marks as visible characters."""
     if b is None:
@@ -299,6 +434,12 @@ def main():
     q3.plain("zzaa", ["CREATE.FILE zzcl DYNAMIC", "RUN bp zzclmk", "CREATE.INDEX zzcl NAME", "BUILD.INDEX zzcl NAME", "CREATE.FILE zzlog DYNAMIC",
                          "CREATE.FILE zzdir DIRECTORY", "CREATE.FILE zzsq DYNAMIC"])
     csub = q3.plain("zzaa", ["BASIC bp zzcsub", "CATALOG bp zzcsub LOCAL"])      # part R's subroutine
+    csub += q3.plain("zzaa", ["BASIC bp zzcmk zzcok", "CATALOG bp zzcmk LOCAL", "CATALOG bp zzcok LOCAL"])      # part T's two
+    if not has(csub, r"^Compiled 2 program\(s\) with no errors"):
+        q3.bail("part T's subroutines did not compile: " + repr(csub[-6:]))
+    mutant = os.environ.get("QMC_MUTANT", "")
+    if mutant:
+        apply_mutant(mutant)
     ix = q3.plain("zzaa", ["RUN bp zzclix"])
     if not tag(ix, "NAMES"):
         q3.bail("the fixture file was not made: " + repr(ix))
@@ -968,6 +1109,119 @@ def main():
         for rid in ["thr%d" % i for i in range(NTH)]:
             q3.plain("zzaa", ["DELETE zzlog %s" % rid])
 
+        # ------------------------------------------------------------------------------------------------------ S
+        say("\n--- S. a pathname outside the account, for an account that holds os-on (apisrvr's vb.openseq asks K$PATH.OK itself) ---")
+        out_path = "/tmp/zzqm-os-out"
+        nodir = "/tmp/zzqm-nodir-xyz"
+        for p_ in (out_path, nodir):
+            if os.path.exists(p_):
+                q3.bail("%s exists before the run; remove it (it is this suite's own scratch name)" % p_)
+        acct_c = q3.build_account("zzac")
+        fixture_osx = os.environ.get("QMC_FIXTURE_OS", "yes")
+
+        def register(osx_value):
+            """The register entry of zzac: path, null, group, 3 nulls, SH, OS.EXECUTE.  A session reads it at login."""
+            q3.put(os.path.join(SYS, "accounts", "zzac"), "\n".join([acct_c, "", q3.GROUP, "", "", "", "no", osx_value]) + "\n")
+            say("sandbox-qmclient: register zzac -> %r" % open(os.path.join(SYS, "accounts", "zzac")).read().split("\n")[6:8])
+
+        def seq_open_out(mode):
+            # + 2: give up if another process has the file.  A wrong gate would leave session A holding it, and without 2 the next
+            # open would wait for ever (the first mutant run of this part hung there)
+            f_ = lib.SDOpenSeq(out_path.encode(), b"", mode + 2)
+            return f_, err()
+
+        try:
+            register("no")
+            ok_a = lib.SDConnectLocal(b"zzac")
+            sess_a = lib.SDGetSession()
+            fa, ea = seq_open_out(512)
+            row("S1: CONTROL, os-off: zzac (the same account, its register entry OS.EXECUTE no) is refused a pathname in /tmp - no file number, "
+                "the message says it may not be opened, nothing was made", ok_a == 1 and fa == 0 and b"may open" in ea and not os.path.exists(out_path),
+                "connect %r, %r, %s" % (ok_a, fa, s(ea)))
+            register(fixture_osx)
+            ok_b = lib.SDConnectLocal(b"zzac")
+            sess_b = lib.SDGetSession()
+            row("S2: the register flipped and a NEW session made in zzac: it connects and is in zzac", ok_b == 1 and sess_b != sess_a
+                and call("SDGetVar", b"@WHO") == b"zzac", "%r %r %s" % (ok_b, sess_b, s(call("SDGetVar", b"@WHO"))))
+            fb, eb = seq_open_out(512)
+            row("S3: os-on: the pathname in /tmp is OPENED (a file number of the sequential range)", fb > 10000, "%r, %s" % (fb, s(eb)))
+            if fb > 10000:
+                lib.SDWriteSeq(fb, b"written by an os-on account")
+                lib.SDWriteSeq(fb, b"second line")
+                lib.SDClose(fb)
+            try:
+                with open(out_path, "rb") as fh:
+                    on_disk = fh.read()
+            except OSError:
+                on_disk = None
+            row("S3: ... the two lines are on the disk in /tmp with their terminators, read back by this program, not by SD",
+                on_disk == b"written by an os-on account\nsecond line\n", repr(on_disk))
+            rf = lib.SDOpenSeq(out_path.encode(), b"", 16 + 2)      # + 2: give up, do not wait, if a wrong gate left it held
+            l1, st1 = rseq(rf) if rf else (None, None)
+            l2, st2 = rseq(rf) if rf else (None, None)
+            if rf:
+                lib.SDClose(rf)
+            row("S4: ... and read back through the API (read only): both lines, without their terminators",
+                rf > 10000 and (l1, l2) == (b"written by an os-on account", b"second line"), "%r %r %r" % (rf, l1, l2))
+            host_line = open("/etc/hostname", "rb").read().split(b"\n")[0]
+            hf = lib.SDOpenSeq(b"/etc/hostname", b"", 16)
+            h1, _ = rseq(hf) if hf else (None, None)
+            if hf:
+                lib.SDClose(hf)
+            row("S4: a file the account does not own, /etc/hostname, is opened read only and its first line is read (the P8 refusal, lifted)",
+                hf > 10000 and h1 == host_line, "%r %r vs %r" % (hf, h1, host_line))
+
+            # what os-on does not lift: the operating system's own rules and the request's own checks
+            before_h = open("/etc/hostname", "rb").read()
+            if os.geteuid() != 0:
+                # OPENSEQ in overwrite mode refuses a file the operating system will not let the SD process truncate (an abort in
+                # the request, which the client prints on stderr); in append mode the open is answered and the first WRITE fails
+                (ovf, _) = cap_stderr(lambda: lib.SDOpenSeq(b"/etc/hostname", b"", 512))
+                row("S5: STILL REFUSED by the operating system, not the gate: /etc/hostname (root's, mode 644) in overwrite mode gets no file "
+                    "number and the file is as it was", ovf == 0 and open("/etc/hostname", "rb").read() == before_h, "%r, %s" % (ovf, s(err())))
+                af = lib.SDOpenSeq(b"/etc/hostname", b"", 256)
+                (wr, _) = cap_stderr(lambda: lib.SDWriteSeq(af, b"zz") if af else -1)
+                wst = lib.SDStatus()
+                if af:
+                    lib.SDClose(af)
+                row("S5: ... in append mode the open is answered but the WRITE fails (nothing written, a non-zero status), and the file is as "
+                    "it was", wr != 1 and wst != 0 and open("/etc/hostname", "rb").read() == before_h, "open %r, write %r, status %r" % (af, wr, wst))
+            # no refusal for a missing directory: OPENSEQ makes it, as it does for any program that holds the gate
+            ndf = lib.SDOpenSeq((nodir + "/x").encode(), b"", 512)
+            if ndf > 10000:
+                lib.SDWriteSeq(ndf, b"made")
+                lib.SDClose(ndf)
+            nd_data = open(nodir + "/x", "rb").read() if os.path.exists(nodir + "/x") else None
+            row("S5: os-on is not limited to directories that exist: a file in a new directory under /tmp is made, written and found "
+                "on the disk (OPENSEQ makes the directory)", ndf > 10000 and nd_data == b"made\n", "%r, %r" % (ndf, nd_data))
+            ef = lib.SDOpenSeq(b"", b"", 512)
+            row("S5: STILL REFUSED: a null name - the message says a sequential file needs a name", ef == 0 and b"needs a name" in err(),
+                "%r, %s" % (ef, s(err())))
+
+            # the first session, made while zzac was os-off, keeps its switches: they were loaded at login
+            if os.path.exists(out_path):
+                os.remove(out_path)
+            lib.SDSetSession(sess_a)
+            fa2, ea2 = seq_open_out(512)
+            row("S6: the os-off session made BEFORE the flip is still refused after it (the switches are loaded at login), nothing made",
+                fa2 == 0 and b"may open" in ea2 and not os.path.exists(out_path), "%r, %s" % (fa2, s(ea2)))
+            lib.SDDisconnect()
+            lib.SDSetSession(sess_b)
+            lib.SDDisconnect()
+            register("no")
+            ok_c = lib.SDConnectLocal(b"zzac")
+            fc, ec = seq_open_out(512)
+            row("S7: CONTROL: with the register os-off again a NEW session is refused again", ok_c == 1 and fc == 0 and b"may open" in ec
+                and not os.path.exists(out_path), "%r %r, %s" % (ok_c, fc, s(ec)))
+            lib.SDDisconnect()
+        finally:
+            for p_ in (out_path, nodir + "/x"):       # this suite's own scratch names, and the one directory it caused
+                if os.path.exists(p_):
+                    os.remove(p_)
+            if os.path.isdir(nodir):
+                os.rmdir(nodir)
+        lib.SDSetSession(main_idx)
+
         # ------------------------------------------------------------------------------------------------------ K (the long one)
         say("\n--- K. AUTOLOGOUT in an API session (sheet 474): two sessions, one given AUTOLOGOUT 1, both idle for 70 seconds ------")
         lib.SDConnectLocal(b"zzaa")
@@ -1006,6 +1260,141 @@ def main():
             "%.1f s" % (time.time() - t0))
         lib.SDSetSession(main_idx)
         row("K3: CONTROL: the first session is still there", call("SDSystem", 1012) == rev, "")
+        lib.SDDisconnect()
+
+        # ------------------------------------------------------------------------------------------------------ T (LAST: it restarts SD)
+        say("\n--- T. SDCLIENT in sd.conf (sheet 571 family): every request that tests it; 0 is the control, then 1, then 2 -----------")
+        say("sandbox-qmclient: part T restarts the sandbox for each mode, which ends every session, so it runs after K and last")
+        lib.SDGetArg.restype = ctypes.c_void_p
+        lib.SDOpenSeq.restype = ctypes.c_int
+
+        cap = cap_stderr
+
+        def marks(clear=False):
+            """The marks the probes leave in zzlog, and the oracle for the T conversion, read in an ordinary session."""
+            o = q3.plain("zzaa", ["RUN bp zzmrk" + (" clear" if clear else "")])
+            d = {m.group(1): m.group(2) for m in (re.match(r"^M\[([a-z]+)=(.*)\]$", t) for t in o) if m}
+            return d, (tag(o, "TC") or [None])[0]
+
+        def phase(mode, up):
+            """One SDCLIENT mode: a new session, every request that tests it, the disk as evidence."""
+            marks(clear=True)
+            for nm in ("sdcl%d" % mode, "sdclpath%d.txt" % mode):
+                for base in (os.path.join(acct, "zzdir"), acct):
+                    if os.path.exists(os.path.join(base, nm)):
+                        os.remove(os.path.join(base, nm))
+            P = "T%d-" % mode          # T0- the control, T1- SDCLIENT=1, T2- SDCLIENT=2
+            allow_file = mode == 0
+            okc = lib.SDConnectLocal(b"zzaa")
+            row("%s0: with SDCLIENT=%d SD is up and a NEW session connects" % (P, mode), up and okc == 1, "SD up %s, connect %r, %s" % (up, okc, s(err())))
+            if not (up and okc == 1):
+                return
+            row("%s1: ... and still answers SDSystem(1012) with the revision" % P, call("SDSystem", 1012) == rev, "")
+            row("%s1: ... and SDGetVar(@WHO) names the account" % P, call("SDGetVar", b"@WHO") == b"zzaa", "")
+            # SDOpen
+            fno, e = cap(lambda: lib.SDOpen(b"zzcl"))
+            row("%s2: SDOpen of a hashed file %s" % (P, "gives a file number" if allow_file else "gives 0, no file number (message 5262)"),
+                (fno >= 1) if allow_file else (fno == 0), "%r, stderr %r, error %s" % (fno, e, s(err())))
+            # (SDOpen, SDTrans and SDRTrans print no text of a refusal: sdclilib.c's SDOpen ignores the on-error reply's message)
+            # SDTrans and SDRTrans
+            tw, et = cap(lambda: call("SDTrans", b"zzcl", b"r1", b"NAME", b"X"))
+            rw, er = cap(lambda: call("SDRTrans", b"zzcl", b"r1", b"NAME", b"X"))
+            row("%s3: SDTrans and SDRTrans of a dictionary field %s" % (P, "give Widget" if allow_file else "give nothing (message 5262)"),
+                (tw == b"Widget" and rw == b"Widget") if allow_file else (tw in (b"", None) and rw in (b"", None)),
+                "%s %s, stderr %r %r" % (s(tw), s(rw), et, er))
+            # SDOpenSeq, by VOC name and by pathname in the account
+            qf, eq = cap(lambda: lib.SDOpenSeq(b"zzdir", ("sdcl%d" % mode).encode(), 512))
+            if qf > 10000:
+                lib.SDWriteSeq(qf, b"seq")
+                lib.SDClose(qf)
+            pf_, ep = cap(lambda: lib.SDOpenSeq(os.path.join(acct, "sdclpath%d.txt" % mode).encode(), b"", 512))
+            if pf_ > 10000:
+                lib.SDWriteSeq(pf_, b"path")
+                lib.SDClose(pf_)
+            f1 = os.path.join(acct, "zzdir", "sdcl%d" % mode)
+            f2 = os.path.join(acct, "sdclpath%d.txt" % mode)
+            d1 = open(f1, "rb").read() if os.path.exists(f1) else None
+            d2 = open(f2, "rb").read() if os.path.exists(f2) else None
+            if allow_file:
+                row("%s4: SDOpenSeq by VOC name and by a pathname in the account both open, write, and the bytes are on the disk" % P,
+                    qf > 10000 and pf_ > 10000 and d1 == b"seq\n" and d2 == b"path\n", "%r %r %r %r" % (qf, pf_, d1, d2))
+            else:
+                row("%s4: SDOpenSeq by VOC name and by a pathname in the account both give 0 (message 5262) and NOTHING was made on the disk" % P,
+                    qf == 0 and pf_ == 0 and d1 is None and d2 is None and not os.path.exists(f1) and not os.path.exists(f2),
+                    "%r %r %r %r, error %s" % (qf, pf_, d1, d2, s(err())))
+                row("%s4: ... the text reaches the client (File access is disabled)" % P,
+                    b"File access is disabled" in err() or "File access is disabled" in ep or "File access is disabled" in eq, "%s / %r" % (s(err()), ep))
+            # SDExecute
+            # In a CHILD process, because sdclilib.c's SDExecute copies the refusal's text into a 1-byte buffer (reply_len stays 0 on
+            # an on-error reply, then strcpy): a heap overflow that corrupts the allocator, and a crash would end this suite.
+            rounds = 1 if allow_file else 300
+            try:
+                xp = subprocess.run([sys.executable, "-I", "-c", EXEC_CHILD, os.path.join(SYS, "bin", "sdclilib.so"), str(rounds),
+                                     "RUN bp zzxmk"], capture_output=True, text=True, errors="replace", timeout=120,
+                                    # no tcache: a free() then checks the next chunk's size, which the overflow has overwritten
+                                    env=dict(os.environ, GLIBC_TUNABLES="glibc.malloc.tcache_count=0"))
+                xrc, xout, ex = xp.returncode, xp.stdout, xp.stderr
+            except subprocess.TimeoutExpired:
+                xrc, xout, ex = None, "", "TIMEOUT"
+            m1, tc = marks()
+            if allow_file:
+                row("%s5: SDExecute runs the command: its mark is in the file" % P, m1.get("execmark") == "ran" and "FIRST err 0" in xout,
+                    "%r, %r, child exit %r" % (m1, xout, xrc))
+            else:
+                row("%s5: SDExecute is refused - 'Command execution is disabled' on stderr, an on-error answer - and the command did NOT run "
+                    "(no mark)" % P, "Command execution is disabled" in ex and "FIRST err 1" in xout and m1.get("execmark") == "-",
+                    "stderr %r, stdout %r, marks %r" % (ex[:120], xout, m1))
+                row("%s5: ... and 300 refused SDExecutes in a row leave the client library's heap sound: the child ends normally (exit 0, all "
+                    "300 done), where the refusal's text written past a 1-byte buffer corrupts it" % P,
+                    xrc == 0 and "LOOPS 300" in xout, "exit %r, stdout %r, stderr tail %r" % (xrc, xout, ex[-160:]))
+            # SDCall of a subroutine that is not flagged $sdcall, and of one that is
+            lib.SDCallx(b"zzcmk", ctypes.c_int16(2), b"X", b"")
+            ra = text(lib.SDGetArg(2))
+            _, ec = cap(lambda: lib.SDCallx(b"zzcmk", ctypes.c_int16(2), b"Y", b""))
+            ra2 = text(lib.SDGetArg(2))
+            lib.SDCallx(b"zzcok", ctypes.c_int16(2), b"Z", b"")
+            rb = text(lib.SDGetArg(2))
+            m2, _ = marks()
+            if mode < 2:
+                row("%s6: SDCall of an unflagged subroutine runs (only SDCLIENT=2 restricts calls): it returned its argument and left its mark" % P,
+                    ra2 == b"ret:Y" and m2.get("callmark") == "ran Y", "%r %r" % (ra2, m2))
+            else:
+                row("%s6: SDCall of a subroutine NOT flagged $sdcall is refused (message 5264, zzcmk cannot be called from a SDClient session): "
+                    "it returned nothing and did NOT run (no mark)" % P,
+                    "cannot be called from a SDClient session" in ec and ra2 in (b"", None) and m2.get("callmark") == "-",
+                    "stderr %r, returned %r, marks %r" % (ec, ra2, m2))
+            row("%s7: SDCall of a subroutine flagged $sdcall runs in every mode: it returned its argument and left its mark" % P,
+                rb == b"ret:Z" and m2.get("okmark") == "ran Z", "%r %r" % (rb, m2))
+            # the conversions that read a file (T with a ;) or call a program (U)
+            tconv, etc_ = cap(lambda: call("SDOConv", b"r1", b"Tzzcl;X;;1"))
+            err_t = err()
+            uconv = call("SDOConv", b"x", b"U50BB")
+            err_u = err()
+            sconv = call("SDOConv", b"widget", b"MCU")
+            if mode == 0:
+                row("%s8: SDOConv with a T conversion that reads a file is done (the answer is what OCONV gives in a session: %s)" % (P, tc),
+                    tc not in (None, "") and tconv == tc.encode("latin-1"), "%s vs %r" % (s(tconv), tc))
+                row("%s8: ... and a U conversion is not refused for being a conversion that calls a program" % P,
+                    b"not allowed in this session" not in err_u, s(err_u))
+            else:
+                row("%s8: SDOConv with a T conversion that reads a file gives nothing and says it is not allowed in this session (11343)" % P,
+                    tconv in (b"", None) and b"not allowed in this session" in err_t, "%s, %s" % (s(tconv), s(err_t)))
+                row("%s8: ... so does a U conversion (one that calls a program)" % P,
+                    uconv in (b"", None) and b"not allowed in this session" in err_u, "%s, %s" % (s(uconv), s(err_u)))
+            row("%s8: CONTROL: a conversion that does neither (MCU) is done in every mode" % P, sconv == b"WIDGET", s(sconv))
+            row("%s9: CONTROL: the session still answers afterwards" % P, call("SDSystem", 1012) == rev, "")
+            lib.SDDisconnect()
+
+        try:
+            phase(0, True)
+            for mode in (1, 2):
+                up = q3.restart("SDCLIENT=%d" % mode)
+                phase(mode, up)
+        finally:
+            up = q3.restart()
+        okz = lib.SDConnectLocal(b"zzaa")
+        zf = lib.SDOpen(b"zzcl")
+        row("Tz: sd.conf restored: SD is up and a new session opens a file again", up and okz == 1 and zf >= 1, "%s %r %r" % (up, okz, zf))
         lib.SDDisconnect()
     finally:
         try:

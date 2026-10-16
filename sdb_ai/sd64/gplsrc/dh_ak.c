@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 15 Oct 26 dm  create_ak() and delete_ak() write DH_HEADER_SHARED_SIZE bytes of the primary header, not the whole of it, so that
+ *               they cannot put an old sequential id counter (CREATING.SEQKEY) over a newer one.
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
@@ -1819,9 +1821,9 @@ Private int16_t create_ak(char *data_path,          /* Data file path name */
     } while (dict_rec_len != 0);
   }
 
-  /* Write modified primary header */
+  /* Write modified primary header (15 Oct 26: all but the sequential id counter, which is not ours - see DH_HEADER_SHARED_SIZE) */
 
-  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SIZE)) {
+  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SHARED_SIZE)) {
     goto exit_create_ak;
   }
 
@@ -1912,9 +1914,9 @@ Private bool delete_ak(char *pathname, /* File path name */
     header.akpath[0] = '\0';
   }
 
-  /* Write primary subfile header */
+  /* Write primary subfile header (15 Oct 26: all but the sequential id counter - see DH_HEADER_SHARED_SIZE) */
 
-  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SIZE)) {
+  if (!write_at(fu, (int64)0, (char *)&header, DH_HEADER_SHARED_SIZE)) {
     goto exit_delete_ak;
   }
 

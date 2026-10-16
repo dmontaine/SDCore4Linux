@@ -166,7 +166,7 @@ set.one:
       display sysmsg(2107) ;* Null record name ignored
       return
    end
-   x = fcontrol(file, FC$SET.MODE, id : @fm : mode)
+   x = fcontrol.int(file, FCI$SET.MODE, id : @fm : mode)
    if x then
       changed += 1
    end else

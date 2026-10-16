@@ -45,6 +45,15 @@
 #     S.18  the dead login code is gone: SCRAM and request 24 over the Unix
 #           socket (13c S8), sd links no libcrypt/libbsd, CONFIG has no
 #           APILOGIN, a restored sd.conf still carrying it starts (16)
+#     QM    (15 Oct 26) THE QMCLIENT ROWS, ***UNRUN WHEN WRITTEN*** - nobody has run these two sections:
+#           13l the BASIC class !sdclient over TCP, every method added 15 Oct (evaluate, evalconv, iconv, oconv,
+#           iconvs, oconvs, recordlocked, getvar, indices, revision, system, trans, rtrans, txn, the openseq family,
+#           writeseqkey), each value compared with the same value from an ordinary session of the account
+#           (witness-qmclient-mk.bp and -cl.bp); 13m the client library from four threads over TCP
+#           (api-threads-probe.py, python3 -I).  Their rows are Q0-Q15 and M0-M7.  The BASIC half of the local oracle
+#           ran in a sandbox; the C_ lines and the probe have not run anywhere.  The owner runs them with the rest:
+#             sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-release-run.sh --commit
+#           (needs sudo, as the whole script does; the dry run, without --commit, needs none and runs neither section).
 #     ALSO TOUCHES REAL STATE: section 12 runs UPDATE.ACCOUNTS ALL, which
 #     updates every account's VOC as each install does.
 #
@@ -1668,6 +1677,192 @@ else
     if [ "$COMMIT" -eq 1 ]; then
         ck_says "K6 OS-OFF is reported (10102)" "Account $ACC has SH no, OS.EXECUTE no" "$OUT"
         ck "K6b and the register is back to no / no" "no no" "$(k_gates)"
+    fi
+fi
+
+# ==========================================================================
+# 15 Oct 26 dm - 13l, QMClient: THE BASIC CLASS !sdclient OVER TCP.  ***UNRUN WHEN WRITTEN.***  sandbox-qmclient.py proves
+# the C client library and the server over a LOCAL session; the BASIC class builds its own packets (sdsys/gpl.bp/sdclient)
+# and logs in with SCRAM over TCP, which only this script can reach (13d is its login row; this is every method added
+# since).  The method is 13d's: a BASIC program run as $ACC by RUN, the account and the SD password typed at its INPUTs
+# (the password is not echoed and is masked in the log).  THE ORACLE IS THE SAME VALUE OBTAINED ANOTHER WAY: the program
+# (gplbld/witness-qmclient-cl.bp) prints each value twice, C_name[..] from the class and L_name[..] from its own ordinary
+# session with no class (system(1012), trans(), indices(), oconv(), recordlocked() ...), and this script compares the
+# pairs.  The tested sources are gplbld/witness-qmclient-mk.bp (the data) and -cl.bp; both compile and the local half of
+# -cl.bp ran in a sandbox on 15 Oct (L_ lines only: a sandbox cannot host a TCP login), so what is unrun is every C_ line.
+#   Q0 both programs compiled   Q1 the class connected (a connect that failed stops the section: NOT REACHED, not a pass)
+#   Q2 open of a file and of its dictionary give file numbers   Q3 revision (client and server halves = system(1012))
+#   Q4 system()   Q5 getvar   Q6 indices   Q7 trans / rtrans   Q8 evaluate / evalconv   Q9 iconv oconv iconvs oconvs
+#   Q10 recordlocked: the class's own view AND this session's view of the class's lock (another user: negative)
+#   Q11 txn: abort, nested durable commit, nested non-durable commit, commit - judged by a plain READ in this session
+#   Q12 openseq family: lines written through the class are read by OPENSEQ here and by the class; the file on the disk
+#   Q13 writeseqkey: ids step by one, the next id this session is given steps from them, the record is there
+#   Q14 the program reached its end and disconnected   Q15 THE NULL CASE: at least 25 oracle lines, none empty by accident
+# Needs sudo only because the whole script does (--commit).  Exit counts as for every row.
+head2 "13l. QMClient - !sdclient's methods over TCP, each against the same value from an ordinary session"
+QM_MK="$(dirname "$SELF")/witness-qmclient-mk.bp"
+QM_CL="$(dirname "$SELF")/witness-qmclient-cl.bp"
+qm_has() { printf '%s\n' "$1" | awk -v t="$2[" 'index($0, t) == 1 { f = 1 } END { exit !f }'; }
+qm_val() { printf '%s\n' "$1" | awk -v t="$2[" 'index($0, t) == 1 { s = substr($0, length(t) + 1); sub(/\]$/, "", s); print s; exit }'; }
+# C_<key> against L_<key>.  Mode nonempty (the default) refuses an empty oracle: a pair of two empty strings is no check.
+qm_pair() {
+    local name="$1" key="$2" mode="${3:-nonempty}" c l
+    if ! qm_has "$OUT" "C_$key"; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: the program printed no C_$key line (the class call did not return)"; return
+    fi
+    if ! qm_has "$OUT" "L_$key"; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: the program printed no L_$key line, so there is no oracle"; return
+    fi
+    c=$(qm_val "$OUT" "C_$key"); l=$(qm_val "$OUT" "L_$key")
+    if [ "$mode" = nonempty ] && [ -z "$l" ]; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: the oracle L_$key is EMPTY - the row measured nothing"; return
+    fi
+    ck "$name (class = ordinary session)" "$l" "$c"
+}
+# <tag> against a fixed value
+qm_is() {
+    local name="$1" tagname="$2" want="$3"
+    if ! qm_has "$OUT" "$tagname"; then
+        FAIL=$((FAIL + 1)); say "  [FAIL] $name: the program printed no $tagname line"; return
+    fi
+    ck "$name" "$want" "$(qm_val "$OUT" "$tagname")"
+}
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -f "$QM_MK" ] || [ ! -f "$QM_CL" ]; }; then
+    say "  needs $ACC adopted, the SD password (13, 13b A5), $QM_MK and $QM_CL"
+    for r in "Q0 compiled" "Q1 connected" "Q2 file numbers" "Q3 revision" "Q4 system" "Q5 getvar" "Q6 indices" "Q7 trans" \
+             "Q8 evaluate" "Q9 conversions" "Q10 recordlocked" "Q11 txn" "Q12 sequential files" "Q13 writeseqkey" "Q14 ended" \
+             "Q15 oracle lines"; do not_reached "$r"; done
+else
+    say "  --- sd session as $ACC: files, RUN BP zzqmmk, indices, BASIC and RUN BP zzqmcl, then account and SD password (not shown) ---"
+    if [ "$COMMIT" -eq 1 ]; then
+        cp "$QM_MK" "$ADIR/bp/zzqmmk"; cp "$QM_CL" "$ADIR/bp/zzqmcl"
+        chown "$ACC:$(id -gn "$ACC")" "$ADIR/bp/zzqmmk" "$ADIR/bp/zzqmcl"
+        OUT=$(cd "$ADIR" && printf '\nTERM 200,9999\nCREATE.FILE zzwcl DYNAMIC\nCREATE.FILE zzwdir DIRECTORY\nCREATE.FILE zzwsq DYNAMIC\nBASIC BP ZZQMMK\nBASIC BP ZZQMCL\nRUN BP zzqmmk\nCREATE.INDEX zzwcl NAME\nBUILD.INDEX zzwcl NAME\nRUN BP zzqmcl\n%s\n%s\nOFF\n' "$ACC" "$SCRAM_PW" \
+              | timeout 180 runuser -u "$ACC" -- "$SD" 2>&1 | strip | sed -e "s/$SCRAM_PW/********/g")
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /'
+        ck "Q0 both programs compiled (two 'Compiled 1 program(s) with no errors' lines)" 2 \
+           "$(printf '%s\n' "$OUT" | grep -c 'Compiled 1 program(s) with no errors')"
+        ck_says "Q0b the data program ran" "MADE" "$OUT"
+        ck_absent "Q0c and nothing was refused for a missing file" "NOFILE" "$OUT"
+        ck_says "Q1 !sdclient connected with the SD password over TCP" "CONNECT[1]" "$OUT"
+        if ! printf '%s\n' "$OUT" | grep -qF "CONNECT[1]"; then
+            for r in "Q2 file numbers" "Q3 revision" "Q4 system" "Q5 getvar" "Q6 indices" "Q7 trans" "Q8 evaluate" \
+                     "Q9 conversions" "Q10 recordlocked" "Q11 txn" "Q12 sequential files" "Q13 writeseqkey" "Q14 ended" \
+                     "Q15 oracle lines"; do not_reached "$r"; done
+        else
+            for k in fno dfno; do
+                v=$(qm_val "$OUT" "C_$k")
+                if [ -n "$v" ] && [ "$v" != 0 ]; then
+                    PASS=$((PASS + 1)); say "  [PASS] Q2 open gave $k $v (not 0)"
+                else
+                    FAIL=$((FAIL + 1)); say "  [FAIL] Q2 open gave $k '$v'"
+                fi
+            done
+            qm_pair "Q3 revision: client and server halves"              revboth
+            qm_pair "Q4 system(1012)"                                     rev
+            qm_pair "Q4b system(1052), the phantom count"                 sys1052
+            qm_pair "Q5 getvar @WHO"                                      who
+            qm_pair "Q5b getvar path, without the @ and in lower case"    path
+            qm_pair "Q5c getvar @SELECTED after a select of 3 records"    sel
+            qm_is   "Q5d CONTROL: a name it does not know gives the null string" C_getvar_none ""
+            qm_pair "Q6 indices(file, null): the names"                   idxnames
+            qm_pair "Q6b indices(file, NAME): the details"                idxdet
+            qm_is   "Q6c an index the file has not gives the null string" C_idxnone ""
+            qm_pair "Q7 trans of a dictionary field"                      tname
+            qm_pair "Q7b trans of a field number"                         t2
+            qm_pair "Q7c trans of a list of ids"                          tmulti
+            qm_pair "Q7d trans of a missing record, action C, gives the id" tnone
+            qm_pair "Q7e trans of field -1: the record with the marks lowered" twhole
+            qm_pair "Q7f rtrans of field -1: the record as it is"        rwhole
+            qm_pair "Q7g rtrans of a multivalued field"                   rtags
+            qm_pair "Q7h trans of a multivalued field lowers the marks"   ttags
+            qm_pair "Q8 evaluate of a D item"                             ev_name
+            qm_pair "Q8b evaluate of an I-type (QTY * 2)"                 ev_dbl
+            qm_pair "Q8c evaluate applies no conversion"                  ev_up_plain
+            qm_pair "Q8d evalconv applies it"                             ev_up
+            qm_pair "Q8e evaluate of a date item is the day number"       ev_whenraw
+            qm_pair "Q8f evalconv of a date item is the date"             ev_when
+            qm_pair "Q9 oconv D4/"                                        oc
+            qm_pair "Q9b iconv D4/"                                       ic
+            qm_pair "Q9c oconvs of two dates"                             ocs
+            qm_pair "Q9d iconvs of two dates"                             ics
+            # Q10: the class's own view, and this session's view of the same lock (another user holds it: negative)
+            qm_is "Q10 recordlocked, nothing held, by the class"          C_lk_none 0
+            qm_is "Q10b ... and by this session"                          L_lk_none 0
+            qm_is "Q10c the class holds an update lock: it says 2"        C_lk_u 2
+            qm_is "Q10d ... and this session sees another user's update lock: -2" L_lk_u_seen_here -2
+            qm_is "Q10e after release the class says 0"                   C_lk_rel 0
+            qm_is "Q10f ... and so does this session"                     L_lk_rel_seen_here 0
+            qm_is "Q10g the class holds a read lock: it says 1"           C_lk_l 1
+            qm_is "Q10h ... and this session sees another user's read lock: -1" L_lk_l_seen_here -1
+            # Q11: what reached the disk is read here with a plain READ
+            qm_is "Q11 nested non-durable commit, parent aborted: the parent's record is not on the disk" L_tx_abort_p1 "-"
+            qm_is "Q11b ... nor is the child's"                           L_tx_abort_c1 "-"
+            qm_is "Q11c nested durable commit, parent aborted: the parent's record is not on the disk" L_tx_dur_p1 "-"
+            qm_is "Q11d ... the child's is"                               L_tx_dur_c1 child
+            qm_is "Q11e a top-level commit writes"                        L_tx_commit_p1 parent2
+            # Q12
+            qm_is "Q12 openseq in overwrite mode gave a file number above SDOpen's" C_seq_fno_ok 1
+            qm_is "Q12b three lines written through the class are read here by OPENSEQ / READSEQ" L_seq_lines "alpha/beta/gamma/-"
+            qm_is "Q12c the class reads them back, and the fourth read has the ELSE answer (2)" C_seq_lines "alpha/beta/gamma//0002"
+            qm_is "Q12d seek to 6 and readblk(4) gives beta"              C_seq_blk beta
+            qm_is "Q12e seek to 6 and weofseq cut the file after the first line (read here)" L_seq_weof "alpha/-"
+            ck "Q12f and the file on the disk, read as root, is exactly alpha and a newline" "alpha"$'\n'x \
+               "$(cat "$ADIR/zzwdir/lines" 2>/dev/null; echo x)"
+            # Q13
+            qm_is "Q13 writeseqkey: the second id is one above the first" C_sk_step 1
+            qm_is "Q13b ... and the next id this session is given is one above that (one counter)" L_sk_step 1
+            qm_is "Q13c ... and the record is there under the second id" L_sk_rec2 second
+            # Q14, Q15
+            ck_says "Q14 the program disconnected and reached its end" "DISCONNECTED[1]" "$OUT"
+            ck_says "Q14b ... connected" "QMCL_DONE[1]" "$OUT"
+            ck_absent "Q14c and the class did not report a failed connect" "CONNECT_ERR[" "$OUT"
+            n=$(printf '%s\n' "$OUT" | awk 'index($0, "L_") == 1 && $0 !~ /\[\]$/ { n++ } END { print n + 0 }')
+            if [ "$n" -ge 25 ]; then
+                PASS=$((PASS + 1)); say "  [PASS] Q15 $n oracle lines (L_) carry a value (at least 25 expected): the comparisons above had something to compare"
+            else
+                FAIL=$((FAIL + 1)); say "  [FAIL] Q15 only $n oracle lines carry a value (at least 25 expected) - the section measured too little"
+            fi
+        fi
+    fi
+fi
+
+# ==========================================================================
+# 15 Oct 26 dm - 13m, QMClient sheet 456: THE CLIENT LIBRARY FROM SEVERAL THREADS OVER TCP.  ***UNRUN WHEN WRITTEN.***
+# gplbld/api-threads-probe.py (python3 -I) starts four threads, each SDConnect()ing to 127.0.0.1 with its own session,
+# and judges the same things as part R of sandbox-qmclient.py, which has only LOCAL sessions: T1 distinct session indexes
+# and user numbers, T2 the current session is per thread, T3 no mixed buffers (a record of each thread's own size,
+# 3 KB upwards, written and read back 40 times at the same moment), T4 a failed connect (the wrong password, refused by
+# the server after the S.60 delay) keeps its error while another thread connects and disconnects ten times, T5 a control,
+# T6 the threads ended.  The password is SCRAM_PW in the probe's environment, never on its command line.  The null case
+# is the probe's own: it exits 2, not 0, when no thread connected.  The probe needs a file of the account; zzwthr is
+# made here and is not a file of any other row.
+head2 "13m. QMClient - the client library from four threads over TCP"
+TPROBE="$(dirname "$SELF")/api-threads-probe.py"
+if [ "$COMMIT" -eq 1 ] && { [ "$ADOPTED" -ne 1 ] || [ -z "$SCRAM_PW" ] || [ ! -f "$TPROBE" ]; }; then
+    say "  needs $ACC adopted, the SD password (13, 13b A5) and $TPROBE"
+    for r in "M0 the probe ran" "M1 distinct sessions" "M2 per-thread current session" "M3 no mixed buffers" \
+             "M4 a failed connect keeps its error" "M5 control" "M6 threads ended" "M7 exit 0"; do not_reached "$r"; done
+else
+    OUT=$(run_sd "$ACC" "CREATE.FILE zzwthr DYNAMIC" "CREATE.FILE zzwthr DYNAMIC")
+    say "  --- api-threads-probe.py: four threads, SDConnect to 127.0.0.1:4247 as $ACC (password from the environment, not shown) ---"
+    say "      > python3 -I $TPROBE --user $ACC --account $ACC --file zzwthr --threads 4"
+    if [ "$COMMIT" -eq 1 ]; then
+        # run as whoever runs this script (root), as api-probe.py is in 13b: the account's own user could not read the
+        # probe out of the project tree, and the probe talks to the listener, not to the account's files
+        OUT=$(SD_PROBE_PASSWORD="$SCRAM_PW" timeout 400 python3 -I "$TPROBE" --user "$ACC" --account "$ACC" --file zzwthr --threads 4 2>&1; echo "rc=$?")
+        TRC=$(printf '%s' "$OUT" | tail -1 | sed -n 's/^rc=//p')
+        OUT=$(printf '%s' "$OUT" | sed '$d' | sed -e "s/$SCRAM_PW/********/g")
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /'
+        ck_absent "M0 the probe could run (not 'CANNOT RUN')" "CANNOT RUN" "$OUT"
+        ck_says "M1 T1 distinct sessions" "T1 PASS" "$OUT"
+        ck_says "M2 T2 the current session is per thread" "T2 PASS" "$OUT"
+        ck_says "M3 T3 no mixed buffers" "T3 PASS" "$OUT"
+        ck_says "M4 T4 a failed connect keeps its error" "T4 PASS" "$OUT"
+        ck_says "M5 T5 control" "T5 PASS" "$OUT"
+        ck_says "M6 T6 the threads ended normally" "T6 PASS" "$OUT"
+        ck_absent "M6b and no verdict failed" " FAIL " "$OUT"
+        ck "M7 the probe's exit status (0 all passed, 1 a verdict failed, 2 it could not run)" 0 "$TRC"
     fi
 fi
 

@@ -1,0 +1,16 @@
+* witness-qmclient-mk.bp - witness-release-run.sh 13l, 15 Oct 26: the data for witness-qmclient-cl.bp.
+* Copied by the witness to bp/zzqmmk in the throwaway account and run there as that account.  Three records
+* of zzwcl and a dictionary with D, I and date items; CREATE.FILE and the index are made by the session.
+open "zzwcl" to f else crt "NOFILE" ; stop
+open "DICT zzwcl" to d else crt "NODICT" ; stop
+write "D":@fm:"1":@fm:"":@fm:"Name":@fm:"10L":@fm:"S" on d, "NAME"
+write "D":@fm:"2":@fm:"":@fm:"Qty":@fm:"5R":@fm:"S" on d, "QTY"
+write "D":@fm:"3":@fm:"":@fm:"Tags":@fm:"8L":@fm:"M" on d, "TAGS"
+write "I":@fm:"QTY * 2":@fm:"":@fm:"Dbl":@fm:"8R":@fm:"S" on d, "DOUBLE"
+write "I":@fm:"NAME":@fm:"MCU":@fm:"Up":@fm:"10L":@fm:"S" on d, "UPNAME"
+write "D":@fm:"4":@fm:"D4/":@fm:"When":@fm:"10L":@fm:"S" on d, "WHEN"
+write "Widget":@fm:"5":@fm:"red":@vm:"blue" on f, "r1"
+write "Gadget":@fm:"7":@fm:"green" on f, "r2"
+write "Gizmo":@fm:"9":@fm:"a":@vm:"b":@vm:"c" on f, "r3"
+crt "MADE"
+end

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Oct 26 dm  XF_FCONTROL: the public FCONTROL() (pub_fcontrol(), dh_misc.c).
  * 15 Oct 26 dm  XF_DIGEST for QM4 gaps bundle Q-13 (DIGEST()).
  * 15 Oct 26 dm  Written for QM4 gaps bundle Q-1: CEIL FLOOR ROUNDUP ROUNDDOWN IS.* LEFT RIGHT LAST NV NS TRIMWS MATCHESS
  *               MATCHFIELDS.  One opcode (0xBB, a single byte, so that the multivalue wrappers MVDS, MVDSS and MVDSSS can
@@ -46,6 +47,9 @@
  *    XF_SIGNAL      SIGNAL(user.no)           raise the application signal in a process; SYSTEM(1062) reads and clears it
  *    XF_DIGEST      DIGEST(string, is.file, mode)   MD5 SHA1 SHA256 SHA384 SHA512 of a string or of an OS file, as hex
  *    XF_SELSOCKET   SELECT.SOCKET(skt.array, timeout)  wait for events on the sockets of a matrix; R, W and E letters per element
+ *    XF_FCONTROL    FCONTROL(fvar, action {, qualifier})  the openQM function: 2 and 3 the CREATING.SEQKEY counter, 5 field access
+ *                   (always true), 6 a valid record id, 7 the minimum modulus; 1 and 4 (forced writes, line terminators) abort
+ *                   with a message, SD having neither
  *
  * END-DESCRIPTION
  *
@@ -90,6 +94,9 @@
 #define XF_DIGEST 26  /* DIGEST(string, is.file, mode), QM4 gaps Q-13 */
 #define XF_SELSOCKET 27 /* SELECT.SOCKET(socket matrix, timeout): the compiler loads the matrix itself (in.select.socket), QM4 gaps Q-5 */
 #define XF_SWAPMARKS 28 /* SWAPMARKS(string): the string as it is - SD has no ECS mode, where the marks would be exchanged; sheet 238 */
+#define XF_FCONTROL 29  /* FCONTROL(fvar, action, qualifier): the public one, openQM's numbers; pub_fcontrol() in dh_misc.c */
+
+void pub_fcontrol(void);
 
 void op_dcount(void);
 void op_field(void);
@@ -232,6 +239,9 @@ void op_xfun() {
     case XF_SWAPMARKS:
       /* openQM's SWAPMARKS exchanges the mark characters with accented letters on an ECS system and, since release 3.0-2,
          returns the data unchanged on any other.  SD has no ECS mode, so the argument is the result */
+      break;
+    case XF_FCONTROL:
+      pub_fcontrol();
       break;
     default:
       k_error("Illegal XFUN function number %d", (int)fn); /* the compiler cannot have made this */

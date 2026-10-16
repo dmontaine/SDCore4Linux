@@ -24,6 +24,8 @@
 * 13 Oct 26 dm  Syntax colour (SYNTAX).  Undo and redo (Ctrl-Z, Ctrl-Y; UNDO AND REDO below).  The mouse (MOUSE; THE MOUSE
 *               below): click puts the cursor, click on the bar opens a menu, the wheel moves three lines.  The size is
 *               120 by 36 always (owner), and a smaller window is refused (see Get screen characteristics).
+* 15 Oct 26 dm  CREATING.SEQKEY in the place of a record id (openQM 4), on the command line and at the Record name
+*               prompt: the file's next sequential id is taken as the edit begins ($seqkey).
 * END-HISTORY
 *
 *
@@ -692,6 +694,7 @@ $include sl.h
    end
 
    selected.records = 0
+   seq.mark = char(1) : 'SEQKEY'      ;* CREATING.SEQKEY in the list of ids on the command line
 
    * Get name of source record (if any)
 
@@ -764,6 +767,15 @@ $include sl.h
                   end
                end
 
+* 15 Oct 26 CREATING.SEQKEY at the prompt: the next sequential id, or the reason there is none and the prompt again
+               if upcase(record.name) = 'CREATING.SEQKEY' then
+                  gosub next.seq.key
+                  if message # '' then
+                     display message
+                     continue
+                  end
+               end
+
                gosub edit
                first.record = @false
                gosub set.one.window
@@ -772,17 +784,30 @@ $include sl.h
       end else
          if record.name = "*" then gosub edit.all
          else
-            * Build list of record ids to edit
-            id.list = record.name
+            * Build list of record ids to edit.  CREATING.SEQKEY (not in quotes) goes in as seq.mark, a word no id typed
+            * at a keyboard is, so that "CREATING.SEQKEY" in quotes is still the record of that name.
+            if token.type = PARSER$TOKEN and upcase(record.name) = 'CREATING.SEQKEY' then id.list = seq.mark
+            else id.list = record.name
             loop
                call @parser(PARSER$GET.TOKEN, token.type, record.name, keyword)
             until record.name = ''
-               id.list<-1> = record.name
+               if token.type = PARSER$TOKEN and upcase(record.name) = 'CREATING.SEQKEY' then id.list<-1> = seq.mark
+               else id.list<-1> = record.name
             repeat
+
+            * CREATING.SEQKEY needs a file that can give an id: say so before any record is edited
+            if index(id.list, seq.mark, 1) then
+               call $seqkey(file(current.buffer), @false, seq.id, message)
+               if message # '' then goto stop.sed
+            end
 
             * Now do the edits
             loop
                record.name = remove(id.list, more.ids)
+               if record.name = seq.mark then
+                  gosub next.seq.key
+                  if message # '' then goto stop.sed
+               end
                gosub edit
             while more.ids
                gosub set.one.window
@@ -807,6 +832,18 @@ final.exit:
 stop.sed:
    gosub reset.term.state
    stop message
+
+*****************************************************************************
+* NEXT.SEQ.KEY  -  CREATING.SEQKEY was asked for in the place of a record id
+*
+* record.name becomes the next sequential id of the file in the current buffer, taken now as the edit begins.  message is
+* null, or the reason there is none (record.name is then as it was).
+
+next.seq.key:
+   call $seqkey(file(current.buffer), @true, seq.id, message)
+   if message = '' then record.name = seq.id
+
+   return
 
 *****************************************************************************
 * ALLOCATE.CHUNKS  -  Allocate N more chunks to free chain

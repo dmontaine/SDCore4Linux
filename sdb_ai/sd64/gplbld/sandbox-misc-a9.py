@@ -10,12 +10,14 @@
 #
 # START-HISTORY:
 # 11 Oct 26 dm  Written for the small items of 1.2-0 bundles A-9 to A-14.
+# 15 Oct 26 dm  Leg 5: LIST.COMMON DETAIL (item 362).
 # END-HISTORY
 #
 #   1  DECATALOG removes the local entry and the object code (openQM ref 576)
 #   2  CT ID.SUP and NUM.SUP (242)
 #   3  CT of a compiled dictionary item shows no object code by default (373)
 #   4  the debugger: not run (needs a terminal); BRK and a blank line are in debug (142, 21)
+#   5  LIST.COMMON DETAIL shows the program that created each named common block (362)
 
 import os
 import re
@@ -156,6 +158,26 @@ def main():
             and re.search(r"\bdec-vt100\b", out) is not None, "no xterm or dec-vt100")
         m = re.search(r"(?m)^(\d+) terminal type\(s\)", out)
         row("and says how many: 50 or more", m is not None and int(m.group(1)) >= 50, "count line: %r" % (m.group(1) if m else None))
+
+        say("\n--- leg 5: LIST.COMMON DETAIL (item 362) -----------------------------------------")
+        prog("zza9ca", "   common /zzcoma/ a\n   a = 1\nend\n")
+        prog("zza9cb", "   common /zzcomb/ b\n   b = 1\nend\n")
+        prog("zza9cc", "   common /zzcom/ c\n   c = 1\nend\n")
+        c = ["BASIC bp zza9ca", "BASIC bp zza9cb", "BASIC bp zza9cc", "RUN bp zza9cb", "RUN bp zza9ca", "RUN bp zza9cc",
+             "LIST.COMMON", "LIST.COMMON DETAIL", "DELETE.COMMON ALL EXCEPT ZZCOMA", "LIST.COMMON DETAIL"]
+        sg = segments(sess(box, *c), c)
+        plain = [l.strip() for l in sg.get(6, "").splitlines() if re.match(r"(?i)zzcom", l.strip())]
+        det = [l.strip() for l in sg.get(7, "").splitlines() if re.match(r"(?i)zzcom", l.strip())]
+        after = [l.strip() for l in sg.get(9, "").splitlines() if re.match(r"(?i)zzcom", l.strip())]
+        row("CONTROL: plain LIST.COMMON gives the three names, sorted on their own (ZZCOM before ZZCOMA)",
+            [p.upper() for p in plain] == ["ZZCOM", "ZZCOMA", "ZZCOMB"], "got %r" % plain)
+        row("THE ROW: LIST.COMMON DETAIL puts the program that made each block beside its name",
+            [re.split(r"\s+", d.lower()) for d in det] == [["zzcom", "zza9cc"], ["zzcoma", "zza9ca"], ["zzcomb", "zza9cb"]],
+            "got %r" % det)
+        row("and the names are in one column (the second words start at the same place)",
+            len({re.search(r"zza9c", d).start() for d in det}) == 1 and len(det) == 3, "got %r" % det)
+        row("CONTROL: DELETE.COMMON ALL EXCEPT still works on the new list (only ZZCOMA is left)",
+            [re.split(r"\s+", d.lower()) for d in after] == [["zzcoma", "zza9ca"]], "got %r" % after)
     finally:
         for n in made:
             for d in ("bp", "bp.out"):

@@ -522,6 +522,7 @@
 /* 15 Oct 26 dm - QM4 gaps Q-5, SELECT.SOCKET().  The key (SD's own number: openQM's list does not give one) and the events
    a program can watch for.  Mirrored in sdsys/syscom/keys.h. */
 #define SKT_INFO_EVENTS          9    /* Events to watch (SET.SOCKET.MODE) / events last found (SOCKET.INFO) */
+#define SKT_INFO_TRACE          10    /* 15 Oct 26 dm - SET.SOCKET.MODE: the pathname of a log of the data sent and received; null turns it off */
 #define SKT_READ_EVENT           1    /* Data can be read, or a connection is waiting on a server socket, or it was closed */
 #define SKT_WRITE_EVENT          2    /* Data can be sent */
 #define SKT_EXCEPTION_EVENT      4    /* An exception condition */

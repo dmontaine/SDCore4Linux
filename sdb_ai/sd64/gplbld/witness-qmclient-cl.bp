@@ -1,0 +1,228 @@
+* witness-qmclient-cl.bp - witness-release-run.sh 13l, 15 Oct 26 (UNRUN when written).
+* The BASIC class !sdclient over TCP, method by method.  Copied by the witness to bp/zzqmcl in the throwaway
+* account and run there as that account; the account name and its SD password are the first two input lines
+* (the password is not echoed).  Every value comes out twice: C_name[..] from the class, L_name[..] the same value
+* obtained in this ordinary session without the class, the marks shown as <F> <V> <S> <I>.  The witness
+* compares the pairs; this program judges nothing.
+crt "account: ":
+input acc
+echo off
+crt "password: ":
+input pw
+echo on
+crt
+open "zzwcl" to f else crt "NOFILE[zzwcl]" ; stop
+open "zzwsq" to fsq else crt "NOFILE[zzwsq]" ; stop
+read rec1 from f, "r1" else crt "NOREC[r1]" ; stop
+read rec3 from f, "r3" else crt "NOREC[r3]" ; stop
+day = date()
+d1 = day
+d2 = day + 1
+* ---- the oracles: the same values obtained in this ordinary session, not through the class
+l.rev = system(1012)
+l.revboth = l.rev : @vm : l.rev
+l.sys1052 = system(1052)
+l.who = @who
+l.path = @path
+l.name = rec1<1>
+l.dbl = rec1<2> * 2
+l.upname = oconv(rec1<1>, "MCU")
+l.when = oconv(day, "D4/")
+l.whenraw = day
+l.oc = oconv(d1, "D4/")
+l.ic = iconv("10/15/2026", "D4/")
+l.ocs = oconvs(d1 : @vm : d2, "D4/")
+l.ics = iconvs("10/15/2026" : @vm : "10/16/2026", "D4/")
+l.idxnames = indices(f)
+l.idxdet = indices(f, "NAME")
+l.tname = trans("zzwcl", "r1", "NAME", "X")
+l.t2 = trans("zzwcl", "r1", "2", "X")
+l.tmulti = trans("zzwcl", "r1" : @vm : "r2", "NAME", "X")
+l.tnone = trans("zzwcl", "nope", "NAME", "C")
+l.rwhole = rec1
+l.twhole = change(change(rec1, @vm, @sm), @fm, @vm)
+l.rtags = rec3<3>
+l.ttags = change(rec3<3>, @vm, @sm)
+l.sel = ""
+execute "SELECT zzwcl" capturing junk
+l.sel = @selected
+clearselect
+v = l.revboth ; key = "L_revboth" ; gosub show
+v = l.rev ; key = "L_rev" ; gosub show
+v = l.sys1052 ; key = "L_sys1052" ; gosub show
+v = l.who ; key = "L_who" ; gosub show
+v = l.path ; key = "L_path" ; gosub show
+v = l.sel ; key = "L_sel" ; gosub show
+v = l.idxnames ; key = "L_idxnames" ; gosub show
+v = l.idxdet ; key = "L_idxdet" ; gosub show
+v = l.tname ; key = "L_tname" ; gosub show
+v = l.t2 ; key = "L_t2" ; gosub show
+v = l.tmulti ; key = "L_tmulti" ; gosub show
+v = l.tnone ; key = "L_tnone" ; gosub show
+v = l.twhole ; key = "L_twhole" ; gosub show
+v = l.rwhole ; key = "L_rwhole" ; gosub show
+v = l.rtags ; key = "L_rtags" ; gosub show
+v = l.ttags ; key = "L_ttags" ; gosub show
+v = l.name ; key = "L_ev_name" ; gosub show
+v = l.dbl ; key = "L_ev_dbl" ; gosub show
+v = rec1<1> ; key = "L_ev_up_plain" ; gosub show
+v = l.upname ; key = "L_ev_up" ; gosub show
+v = l.whenraw ; key = "L_ev_whenraw" ; gosub show
+v = l.when ; key = "L_ev_when" ; gosub show
+v = l.oc ; key = "L_oc" ; gosub show
+v = l.ic ; key = "L_ic" ; gosub show
+v = l.ocs ; key = "L_ocs" ; gosub show
+v = l.ics ; key = "L_ics" ; gosub show
+* ---- the class, over TCP
+obj = object("!sdclient")
+if obj->connect("127.0.0.1", 4247, acc, pw, acc) then
+   crt "CONNECT[1]"
+   conn = 1
+end else
+   crt "CONNECT[0]"
+   crt "CONNECT_ERR[":obj->error:"]"
+   conn = 0
+end
+if conn then
+   cf = obj->open("zzwcl")
+   cd = obj->open("DICT zzwcl")
+   csq = obj->open("zzwsq")
+   v = cf ; key = "C_fno" ; gosub show
+   v = cd ; key = "C_dfno" ; gosub show
+   rv = obj->revision()
+   v = rv ; key = "C_revboth" ; gosub show
+   v = obj->system(1012) ; key = "C_rev" ; gosub show
+   v = obj->system(1052) ; key = "C_sys1052" ; gosub show
+   v = obj->getvar("@WHO") ; key = "C_who" ; gosub show
+   v = obj->getvar("path") ; key = "C_path" ; gosub show
+   v = obj->getvar("@NOSUCHTHING") ; key = "C_getvar_none" ; gosub show
+   reply = obj->execute("SELECT zzwcl", e)
+   v = obj->getvar("@SELECTED") ; key = "C_sel" ; gosub show
+   v = obj->indices(cf, "") ; key = "C_idxnames" ; gosub show
+   v = obj->indices(cf, "NAME") ; key = "C_idxdet" ; gosub show
+   v = obj->indices(cf, "NOPE") ; key = "C_idxnone" ; gosub show
+   v = obj->trans("zzwcl", "r1", "NAME", "X") ; key = "C_tname" ; gosub show
+   v = obj->trans("zzwcl", "r1", "2", "X") ; key = "C_t2" ; gosub show
+   v = obj->trans("zzwcl", "r1" : @vm : "r2", "NAME", "X") ; key = "C_tmulti" ; gosub show
+   v = obj->trans("zzwcl", "nope", "NAME", "C") ; key = "C_tnone" ; gosub show
+   v = obj->trans("zzwcl", "r1", "-1", "X") ; key = "C_twhole" ; gosub show
+   v = obj->rtrans("zzwcl", "r1", "-1", "X") ; key = "C_rwhole" ; gosub show
+   v = obj->rtrans("zzwcl", "r3", "TAGS", "X") ; key = "C_rtags" ; gosub show
+   v = obj->trans("zzwcl", "r3", "TAGS", "X") ; key = "C_ttags" ; gosub show
+   v = obj->evaluate(cd, "NAME", rec1, "r1") ; key = "C_ev_name" ; gosub show
+   v = obj->evaluate(cd, "DOUBLE", rec1, "r1") ; key = "C_ev_dbl" ; gosub show
+   v = obj->evaluate(cd, "UPNAME", rec1, "r1") ; key = "C_ev_up_plain" ; gosub show
+   v = obj->evalconv(cd, "UPNAME", rec1, "r1") ; key = "C_ev_up" ; gosub show
+   v = obj->evaluate(cd, "WHEN", rec1 : @fm : day, "r1") ; key = "C_ev_whenraw" ; gosub show
+   v = obj->evalconv(cd, "WHEN", rec1 : @fm : day, "r1") ; key = "C_ev_when" ; gosub show
+   v = obj->oconv(d1, "D4/") ; key = "C_oc" ; gosub show
+   v = obj->iconv("10/15/2026", "D4/") ; key = "C_ic" ; gosub show
+   v = obj->oconvs(d1 : @vm : d2, "D4/") ; key = "C_ocs" ; gosub show
+   v = obj->iconvs("10/15/2026" : @vm : "10/16/2026", "D4/") ; key = "C_ics" ; gosub show
+   * record locks: held by the session of the class, seen by this one (another user) and by the class itself
+   v = obj->recordlocked(cf, "r1") ; key = "C_lk_none" ; gosub show
+   v = recordlocked(f, "r1") ; key = "L_lk_none" ; gosub show
+   x = obj->readu(cf, "r1", 0, e)
+   v = obj->recordlocked(cf, "r1") ; key = "C_lk_u" ; gosub show
+   v = recordlocked(f, "r1") ; key = "L_lk_u_seen_here" ; gosub show
+   obj->release(cf, "r1")
+   v = obj->recordlocked(cf, "r1") ; key = "C_lk_rel" ; gosub show
+   v = recordlocked(f, "r1") ; key = "L_lk_rel_seen_here" ; gosub show
+   x = obj->readl(cf, "r1", 0, e)
+   v = obj->recordlocked(cf, "r1") ; key = "C_lk_l" ; gosub show
+   v = recordlocked(f, "r1") ; key = "L_lk_l_seen_here" ; gosub show
+   obj->release(cf, "r1")
+   * transactions: what reached the disk is read here, with a plain READ
+   obj->txn(1)
+   x = obj->readu(cf, "p1", 0, e)
+   obj->write(cf, "p1", "parent")
+   obj->txn(1)
+   x = obj->readu(cf, "c1", 0, e)
+   obj->write(cf, "c1", "child")
+   obj->txn(4)
+   obj->txn(3)
+   read x from f, "p1" then v = x else v = "-"
+   key = "L_tx_abort_p1" ; gosub show
+   read x from f, "c1" then v = x else v = "-"
+   key = "L_tx_abort_c1" ; gosub show
+   obj->txn(1)
+   x = obj->readu(cf, "p1", 0, e)
+   obj->write(cf, "p1", "parent")
+   obj->txn(1)
+   x = obj->readu(cf, "c1", 0, e)
+   obj->write(cf, "c1", "child")
+   obj->txn(2)
+   obj->txn(3)
+   read x from f, "p1" then v = x else v = "-"
+   key = "L_tx_dur_p1" ; gosub show
+   read x from f, "c1" then v = x else v = "-"
+   key = "L_tx_dur_c1" ; gosub show
+   obj->txn(1)
+   x = obj->readu(cf, "p1", 0, e)
+   obj->write(cf, "p1", "parent2")
+   obj->txn(2)
+   read x from f, "p1" then v = x else v = "-"
+   key = "L_tx_commit_p1" ; gosub show
+   * sequential files: the file is written through the class, read here with OPENSEQ
+   sf = obj->openseq("zzwdir", "lines", 512)
+   v = (sf > 10000) ; key = "C_seq_fno_ok" ; gosub show
+   obj->writeseq(sf, "alpha")
+   obj->writeseq(sf, "beta")
+   obj->writeseq(sf, "gamma")
+   obj->close(sf)
+   openseq "zzwdir", "lines" to sq then
+      readseq a from sq else a = "-"
+      readseq b from sq else b = "-"
+      readseq c from sq else c = "-"
+      readseq d from sq then d = "extra" else d = "-"
+      closeseq sq
+      v = a : "/" : b : "/" : c : "/" : d
+   end else
+      v = "NOOPEN"
+   end
+   key = "L_seq_lines" ; gosub show
+   sf = obj->openseq("zzwdir", "lines", 0)
+   r1 = obj->readseq(sf, e1)
+   r2 = obj->readseq(sf, e2)
+   r3 = obj->readseq(sf, e3)
+   r4 = obj->readseq(sf, e4)
+   v = r1 : "/" : r2 : "/" : r3 : "/" : r4 : "/" : e1 : e2 : e3 : e4
+   key = "C_seq_lines" ; gosub show
+   obj->seek(sf, 6, 0)
+   v = obj->readblk(sf, 4, e) ; key = "C_seq_blk" ; gosub show
+   obj->seek(sf, 6, 0)
+   obj->weofseq(sf)
+   obj->close(sf)
+   openseq "zzwdir", "lines" to sq then
+      readseq a from sq else a = "-"
+      readseq b from sq then b = "extra" else b = "-"
+      closeseq sq
+      v = a : "/" : b
+   end else
+      v = "NOOPEN"
+   end
+   key = "L_seq_weof" ; gosub show
+   * CREATING.SEQKEY: the ids the class is given, the record read here, and the next id this program is given
+   id1 = obj->writeseqkey(csq, "first")
+   id2 = obj->writeseqkey(csq, "second")
+   write "third" to fsq creating.seqkey id3
+   v = id2 - id1 ; key = "C_sk_step" ; gosub show
+   v = id3 - id2 ; key = "L_sk_step" ; gosub show
+   read x from fsq, id2 then v = x else v = "-"
+   key = "L_sk_rec2" ; gosub show
+   obj->disconnect
+   crt "DISCONNECTED[1]"
+end
+crt "QMCL_DONE[":conn:"]"
+stop
+
+show: * one line, the marks made visible, key[value]
+   t = v
+   t = change(t, @im, "<I>")
+   t = change(t, @fm, "<F>")
+   t = change(t, @vm, "<V>")
+   t = change(t, @sm, "<S>")
+   crt key:"[":t:"]"
+return
+
+end

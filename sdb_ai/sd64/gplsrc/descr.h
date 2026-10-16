@@ -467,6 +467,9 @@ struct SOCKVAR {
      SKT_EXCEPTION_EVENT 4) and those the last SELECT.SOCKET() found.  Every k_alloc of a SOCKVAR must set both. */
   int16_t events;
   int16_t found;
+  /* 15 Oct 26 dm - SKT$INFO.TRACE: the file descriptor of the trace log, or -1 for none.  Every k_alloc of a SOCKVAR must
+     set it to -1 (k_alloc does not zero); close_skt() closes it. */
+  int trace_fd;
 };
 
 /* --------------------- COLL (data collection) --------------------- */

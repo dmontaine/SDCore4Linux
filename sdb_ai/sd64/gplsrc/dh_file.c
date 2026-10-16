@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 15 Oct 26 dm  dh_flush_header() writes back DH_HEADER_SHARED_SIZE bytes, not the whole header, so that it cannot put an
+ *               old sequential id counter (WRITE ... CREATING.SEQKEY) over a newer one.
  * 10 Sep 26 dm  Parity audit: dh_flush_header() clears FILE_UPDATED only after
  *               the header is written, and logs the two silent failures (the
  *               Windows port's fix; UPSTREAM_FIXES 29).
@@ -549,8 +551,12 @@ bool dh_flush_header(DH_FILE* dh_file) {
 
     header.stats = fptr->stats;
 
+    /* 15 Oct 26 dm - DH_HEADER_SHARED_SIZE bytes, not DH_HEADER_SIZE: the header was read a moment ago with no lock held,
+       and the counter of WRITE ... CREATING.SEQKEY (seq_key, the last field) may have moved on since.  Writing the whole
+       header back put the old value over it, and the next such write was given an id that was already in use.  The
+       bytes of the counter are dh_seq_key()'s alone. */
     if (!write_at(dh_file->sf[PRIMARY_SUBFILE].fu, (int64)0, (char*)(&header),
-                  DH_HEADER_SIZE)) {
+                  DH_HEADER_SHARED_SIZE)) {
       /* 10 Sep 26 dm - see the read_at path above. */
       log_printf("DH_FLUSH_HEADER: header write failure %d (dh_err %d) on %s.\n",
                  process.os_error, (int)dh_err, fptr->pathname);

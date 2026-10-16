@@ -39,8 +39,10 @@ import grp
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
@@ -719,6 +721,120 @@ def main():
             row("D4: %s (OS.EXECUTE no) OPENTEMP of a path outside the account is REFUSED (ELSE 3035)" % name,
                 has(out, r"^T outside REFUSED 3035$"), "output=%r" % (out,))
     shutil.rmtree(outside4, ignore_errors=True)
+
+    # --- D5. SKT$INFO.TRACE (15 Oct 26, openQM 162) -------------------------------------------------------------------------
+    # SET.SOCKET.MODE(skt, SKT$INFO.TRACE, path) makes a log of the data sent and received, in a file the program names, so it is an
+    # OS path like OPENSEQ's: an account with OS.EXECUTE no may trace only into its own directory.  Evidence is the disk: the log
+    # outside the account exists, with the data in it, only for an account with the gate; the log inside exists for all of them;
+    # a null path ends the trace (what is sent after it is not in the log); a link at the path is not followed.  The server is a
+    # thread of this process that echoes what it receives.
+    say("\n--- D5. SKT$INFO.TRACE: a log of a socket's traffic is an OS path, and the gate decides where it may go --------")
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    srv_port = srv.getsockname()[1]
+    srv_stop = threading.Event()
+
+    def echo_one(conn):
+        conn.settimeout(10)
+        try:
+            while True:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                conn.sendall(data)
+        except OSError:
+            pass
+        finally:
+            conn.close()
+
+    def echo_server():
+        srv.settimeout(0.5)
+        while not srv_stop.is_set():
+            try:
+                conn, _ = srv.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            threading.Thread(target=echo_one, args=(conn,), daemon=True).start()
+
+    srv_thread = threading.Thread(target=echo_server, daemon=True)
+    srv_thread.start()
+    outside5 = os.path.join(BOX, "zzoutside5")
+    shutil.rmtree(outside5, ignore_errors=True)
+    os.makedirs(outside5)
+    for name in ("zzoff", "zzsh", "zzon", "zzos"):
+        d = os.path.join(BOX, "user_accounts", name)
+        osx = FIXTURES[name][1].lower() == "yes"
+        out_log = os.path.join(outside5, "skt-%s.log" % name)
+        own_log = os.path.join(d, "skt-own.log")
+        link_log = os.path.join(d, "skt-link.log")
+        link_target = os.path.join(outside5, "link-target-%s.txt" % name)
+        for junk in (out_log, own_log, link_log, link_target):
+            if os.path.lexists(junk):
+                os.remove(junk)
+        put(link_target, "NOT A LOG\n")
+        os.symlink(link_target, link_log)
+        put(os.path.join(d, "bp", "zzskt"), "\n".join([
+            "$include keys.h",
+            "   sk1 = open.socket('127.0.0.1', %d, 0, 5)" % srv_port,
+            "   if status() # 0 then crt 'T open-failed ':status() ; stop",
+            "   ok1 = set.socket.mode(sk1, SKT$INFO.TRACE, '%s')" % out_log,
+            "   crt 'T trace-outside ':ok1",
+            "   n = write.socket(sk1, 'hello':char(1), 0, 0)",
+            "   r = read.socket(sk1, 100, SKT$BLOCKING, 5)",
+            "   close.socket sk1",
+            "   sk2 = open.socket('127.0.0.1', %d, 0, 5)" % srv_port,
+            "   ok2 = set.socket.mode(sk2, SKT$INFO.TRACE, 'skt-own.log')",
+            "   crt 'T trace-inside ':ok2",
+            "   n = write.socket(sk2, 'A':char(1):'B', 0, 0)",
+            "   r = read.socket(sk2, 100, SKT$BLOCKING, 5)",
+            "   ok3 = set.socket.mode(sk2, SKT$INFO.TRACE, '')",
+            "   crt 'T trace-off ':ok3",
+            "   n = write.socket(sk2, 'afteroff', 0, 0)",
+            "   r = read.socket(sk2, 100, SKT$BLOCKING, 5)",
+            "   close.socket sk2",
+            "   sk3 = open.socket('127.0.0.1', %d, 0, 5)" % srv_port,
+            "   ok4 = set.socket.mode(sk3, SKT$INFO.TRACE, 'skt-link.log')",
+            "   crt 'T trace-link ':ok4",
+            "   n = write.socket(sk3, 'viaLink', 0, 0)",
+            "   r = read.socket(sk3, 100, SKT$BLOCKING, 5)",
+            "   close.socket sk3",
+            "   crt 'T end'", "end", ""]))
+        out = plain(name, ["BASIC bp zzskt", "RUN bp zzskt"])
+        if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+            row("D5: %s's trace probe compiled" % name, False, "output=%r" % (out[-4:],))
+            continue
+        if not has(out, r"^T end$"):
+            row("D5: %s's trace probe ran to its end" % name, False, "output=%r" % (out[-6:],))
+            continue
+        own_text = open(own_log, errors="replace").read() if os.path.exists(own_log) else None
+        row("D5: %s a trace into its own directory works for every account: the log has SEND 3 bytes and RECV 3 bytes, "
+            "and the bytes 41 01 42 in hexadecimal and A.B as characters" % name,
+            has(out, r"^T trace-inside 1$") and own_text is not None and "SEND 3 bytes" in own_text and "RECV 3 bytes" in own_text
+            and "41 01 42" in own_text and "A.B" in own_text, "output=%r log=%r" % (out, own_text))
+        row("D5: %s a null path ends the trace: what was sent after it ('afteroff') is not in the log" % name,
+            has(out, r"^T trace-off 1$") and own_text is not None and "afteroff" not in own_text and "SEND 8 bytes" not in own_text,
+            "log=%r" % own_text)
+        row("D5: %s the log is made owner-only (mode 0600)" % name,
+            os.path.exists(own_log) and (os.stat(own_log).st_mode & 0o777) == 0o600,
+            "mode=%s" % (oct(os.stat(own_log).st_mode & 0o777) if os.path.exists(own_log) else None))
+        row("D5: %s a link at the log path is not followed: SET.SOCKET.MODE gives 0 and the file it pointed at is untouched" % name,
+            has(out, r"^T trace-link 0$") and open(link_target).read() == "NOT A LOG\n", "target=%r output=%r" % (open(link_target).read(), out))
+        if osx:
+            out_text = open(out_log, errors="replace").read() if os.path.exists(out_log) else None
+            row("D5: %s (OS.EXECUTE yes) a trace into a place outside the account works: the log is there, with SEND 6 bytes, "
+                "RECV 6 bytes and the bytes 68 65 6c 6c 6f 01" % name,
+                has(out, r"^T trace-outside 1$") and out_text is not None and "SEND 6 bytes" in out_text
+                and "RECV 6 bytes" in out_text and "68 65 6c 6c 6f 01" in out_text, "output=%r log=%r" % (out, out_text))
+        else:
+            row("D5: %s (OS.EXECUTE no) a trace into a place outside the account is REFUSED: SET.SOCKET.MODE gives 0 and no log "
+                "was made there" % name,
+                has(out, r"^T trace-outside 0$") and not os.path.exists(out_log), "output=%r exists=%s" % (out, os.path.exists(out_log)))
+    srv_stop.set()
+    srv.close()
+    shutil.rmtree(outside5, ignore_errors=True)
 
     # --- D3. a VOC pointer is a way to name a file ------------------------------------------------------------------
     # 13 Oct 26 (second sitting; owner: "try to make tighter ... q pointers should only be allowed into an account the

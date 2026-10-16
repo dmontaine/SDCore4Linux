@@ -58,6 +58,7 @@
 *      folder's ACL.
 *
 * START-HISTORY:
+* 15 Oct 26 dm  The rebuild carries the sequential id counter of WRITE ... CREATING.SEQKEY to the new file (audit of the counter).
 * 07 Oct 26 dm  First COMPLETE install run (the owner's, of 40d0378): "Converted 2 of 3" and a
 *           10-file list that named voc.dic three times and the directory files syscom, newvoc,
 *           sd.voclib and the account's own directory.  A file is now judged once per account
@@ -568,6 +569,13 @@ convert.one:
    if trigger # '' then
       set.trigger new.fu, trigger, fileinfo(old.fu, FL$TRG.MODES)
    end
+
+   * 15 Oct 26 - the counter of WRITE ... CREATING.SEQKEY goes to the new file, as CONFIGURE.FILE's rebuild carries it (it
+   *   lives in the file's header, and the new file is a new file: its counter would have started again at 1 and the next
+   *   write would have been given the id of a record that is there).  FL$SEQ.KEY is the id last given out, 0 for none.
+   seq.last = fileinfo(old.fu, FL$SEQ.KEY)
+   if seq.last > 0 then void fcontrol.int(new.fu, FCI$SET.SEQ.KEY, seq.last + 1)
+
    close new.fu
    void ospath('', OS$FLUSH.CACHE)
 
