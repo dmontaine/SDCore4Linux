@@ -1,6 +1,40 @@
 Next release - in progress
 --------------------------
 
+15 Oct 26  THE CLIENT LIBRARY MAY BE USED FROM SEVERAL THREADS.
+
+             Until now the client library (sdclilib.so) kept the current
+             session, its one transfer buffer and the arguments of SDCallx
+             in plain globals, so two threads of one program interleaved
+             them and a program with more than one thread could not use it.
+             Now:
+             - The current session is each thread's own: SDSetSession and
+               SDGetSession act on the calling thread, so two threads can
+               work on two sessions at the same time.  A thread starts on
+               session 0; a thread given a session by another selects it
+               with SDSetSession first.
+             - Connects from several threads at the same moment each get a
+               slot of their own, and a local server's pipes are not handed
+               to another thread's server.
+             - The transfer buffer and the SDCallx arguments are per thread
+               and are released when the thread ends.
+             - A connection that fails keeps its slot for the thread that
+               made it, so SDError() still says why after another thread
+               connected and disconnected.  It is given back by that
+               thread's next connect, SDSetSession or SDDisconnect, by its
+               end, or by SDDisconnectAll.
+             - Host names are looked up with getaddrinfo (the error number
+               in the message is the one gethostbyname gave), and a network
+               socket is close-on-exec, so a server started by another
+               thread does not hold it open.
+
+             What it does NOT do: it does not make one session safe for two
+             threads at once - a program that can reach a session from more
+             than one thread takes its own lock round each action, and an
+             SDExecute with the SDRespond calls that answer it is one
+             action.  A thread that used to rely on the process-wide
+             current session now selects its session with SDSetSession.
+
 15 Oct 26  SEQUENTIAL FILES OVER THE API, AND WRITE ... CREATING.SEQKEY.
 
              SEQUENTIAL FILES.  The client library (and the BASIC class

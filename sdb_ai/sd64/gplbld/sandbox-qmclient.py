@@ -10,6 +10,8 @@
 #
 # START-HISTORY:
 # 15 Oct 26 dm  Written for QM4 gaps bundle C-1.
+# 15 Oct 26 dm  Part R: six threads in one process (sheet 456).  K1's helper thread selects its own session now: the current
+#               session is per thread.
 # END-HISTORY
 #
 # THE INSTRUMENT.  A LOCAL API session: the sandbox's own sdclilib.so is loaded with ctypes, SD_CONFIG names the sandbox, and
@@ -35,6 +37,7 @@
 import ctypes
 import datetime
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -68,6 +71,8 @@ ND_BODY = ("   open 'zzcl' to f else stop 'no file'\n   sc = field(@sentence, ' 
            "end\n")
 
 USER_PROGS = {
+    # R: a catalogued subroutine that returns its first argument twice in its second (called with SDCallx from six threads)
+    "zzcsub": "subroutine zzcsub(a, b)\n   b = a : '/' : a\nreturn\nend\n",
     # the data: three records of zzcl, a dictionary with NAME (field 1), QTY (2) and TAGS (3, multivalued); an index on NAME
     "zzclmk": ("   open 'zzcl' to f else stop 'no file'\n   open 'DICT zzcl' to d else stop 'no dict'\n"
                "   write 'D':@fm:'1':@fm:'':@fm:'Name':@fm:'10L':@fm:'S' on d, 'NAME'\n"
@@ -131,6 +136,134 @@ USER_PROGS = {
 }
 
 
+# R: the client library used by several threads of one process (sheet 456).  It runs in a CHILD process so that a library that
+# crashes or hangs is a failed row and not the end of this suite.  argv: the library, the thread count, the revision text.
+THREAD_CHILD = r'''
+import ctypes, json, sys, threading
+
+lib = ctypes.CDLL(sys.argv[1])
+NT = int(sys.argv[2])
+REV = sys.argv[3]
+for fn in ("SDGetVar", "SDRead", "SDSystem", "SDError", "SDGetArg"):
+    getattr(lib, fn).restype = ctypes.c_void_p
+for fn in ("SDOpen", "SDConnectLocal", "SDConnect", "SDGetSession", "SDSetSession", "SDConnected"):
+    getattr(lib, fn).restype = ctypes.c_int
+
+
+def text(p):
+    if not p:
+        return None
+    b = ctypes.string_at(p)
+    lib.SDFree(ctypes.c_void_p(p))
+    return b
+
+
+def err():
+    p = lib.SDError()
+    return ctypes.string_at(p) if p else b""
+
+
+out = {"nt": NT}
+errors = []
+bar = threading.Barrier(NT, timeout=90)
+sess = [None] * NT
+
+
+def phases(i):
+    s = {"ok": None, "idx": None, "who": None, "bad": None, "wrong": None}
+    sess[i] = s
+    bar.wait()                                    # everyone connects at the same moment
+    s["ok"] = lib.SDConnectLocal(b"zzaa")
+    s["idx"] = lib.SDGetSession()
+    who = text(lib.SDGetVar(b"@USERNO"))
+    s["who"] = None if who is None else who.decode("latin-1")
+    bar.wait()                                    # then everyone asks which session is its own, over and over
+    bad = 0
+    for _ in range(100):
+        if lib.SDGetSession() != s["idx"]:
+            bad += 1
+        w = text(lib.SDGetVar(b"@USERNO"))
+        if w is None or w.decode("latin-1") != s["who"]:
+            bad += 1
+    s["bad"] = bad
+    fno = lib.SDOpen(b"zzlog")                    # then everyone writes and reads back a record of its own size
+    rid = ("thr%d" % i).encode()
+    data = bytes([65 + i]) * (3000 + 7000 * i)
+    lib.SDWrite(fno, rid, data)
+    bar.wait()
+    wrong = 0
+    for _ in range(40):
+        got = text(lib.SDRead(fno, rid, ctypes.byref(ctypes.c_int())))
+        if got != data:
+            wrong += 1
+    s["wrong"] = wrong
+    cw = 0                                        # and calls a catalogued subroutine, its returned argument read with SDGetArg
+    for n in range(40):
+        tok = ("t%d-%d" % (i, n)).encode()
+        lib.SDCallx(b"zzcsub", ctypes.c_int16(2), tok, b"")
+        got = text(lib.SDGetArg(2))
+        if got != tok + b"/" + tok:
+            cw += 1
+    s["callx_wrong"] = cw
+    bar.wait()
+    lib.SDDelete(fno, rid)
+    lib.SDDisconnect()
+
+
+def guard(fn, *a):
+    try:
+        fn(*a)
+    except Exception as e:                        # a broken barrier included
+        errors.append(repr(e))
+
+
+ts = [threading.Thread(target=guard, args=(phases, i)) for i in range(NT)]
+for t in ts:
+    t.start()
+for t in ts:
+    t.join(150)
+out["sessions"] = sess
+
+# a connection that fails keeps its error for its own thread while another thread connects and disconnects
+bar4 = threading.Barrier(2, timeout=60)
+box = {}
+
+
+def failer():
+    box["r"] = lib.SDConnect(b"127.0.0.1", 1, b"nobody", b"x", b"zzaa")
+    box["e1"] = err().decode("latin-1")
+    bar4.wait()                                   # the other thread connects and disconnects ten times now
+    bar4.wait()
+    box["e2"] = err().decode("latin-1")           # before SDConnected(), which clears the error text
+    box["connected"] = lib.SDConnected()
+
+
+def churner():
+    bar4.wait()
+    n = 0
+    for _ in range(10):
+        if lib.SDConnectLocal(b"zzaa") == 1:
+            n += 1
+            lib.SDDisconnect()
+    box["churn"] = n
+    bar4.wait()
+
+
+t1 = threading.Thread(target=guard, args=(failer,))
+t2 = threading.Thread(target=guard, args=(churner,))
+t1.start(); t2.start(); t1.join(120); t2.join(120)
+out["failed"] = box
+
+# the library still works for one thread after all of that
+ok = lib.SDConnectLocal(b"zzaa")
+rv = text(lib.SDSystem(1012))
+lib.SDDisconnect()
+out["control"] = [ok, None if rv is None else rv.decode("latin-1")]
+out["errors"] = errors
+print("RESULT " + json.dumps(out))
+'''
+
+
 def s(b):
     """Text for a message: the marks as visible characters."""
     if b is None:
@@ -165,6 +298,7 @@ def main():
     q3.build_account("zzab")                      # a second account, for SDLogto
     q3.plain("zzaa", ["CREATE.FILE zzcl DYNAMIC", "RUN bp zzclmk", "CREATE.INDEX zzcl NAME", "BUILD.INDEX zzcl NAME", "CREATE.FILE zzlog DYNAMIC",
                          "CREATE.FILE zzdir DIRECTORY", "CREATE.FILE zzsq DYNAMIC"])
+    csub = q3.plain("zzaa", ["BASIC bp zzcsub", "CATALOG bp zzcsub LOCAL"])      # part R's subroutine
     ix = q3.plain("zzaa", ["RUN bp zzclix"])
     if not tag(ix, "NAMES"):
         q3.bail("the fixture file was not made: " + repr(ix))
@@ -792,6 +926,48 @@ def main():
         row("Q5: the API and the program use the one counter: NEXT QUERY now says 106", any("next sequential record id is 106" in ln for ln in qq),
             repr(qq[-3:]))
 
+        # ------------------------------------------------------------------------------------------------------ R
+        say("\n--- R. threads (sheet 456): sessions, buffers and a failed connect's error, six threads in one process --------------")
+        NTH = 6
+        try:
+            cp = subprocess.run([sys.executable, "-I", "-c", THREAD_CHILD, os.path.join(SYS, "bin", "sdclilib.so"), str(NTH), rev.decode()],
+                                capture_output=True, text=True, timeout=240, env=dict(os.environ))
+            res_line = [ln for ln in cp.stdout.splitlines() if ln.startswith("RESULT ")]
+            tres = json.loads(res_line[-1][7:]) if res_line else None
+            tcrc, terr = cp.returncode, cp.stderr.strip()[-300:]
+        except subprocess.TimeoutExpired:
+            tres, tcrc, terr = None, None, "TIMEOUT"
+        say("sandbox-qmclient: thread child exit %r, result %s" % (tcrc, json.dumps(tres)[:900] if tres else None))
+        if tres is None:
+            for t in ("R1", "R2", "R3", "R4", "R5"):
+                row("%s: the thread child gave no result (exit %r) - %s" % (t, tcrc, terr), False, "")
+        else:
+            ss = [x for x in tres["sessions"] if x]
+            row("R1: six threads connect at the same moment: every connect succeeds and each thread is given a session index of its "
+                "own and a user number of its own", len(ss) == NTH and all(x["ok"] == 1 for x in ss)
+                and len({x["idx"] for x in ss}) == NTH and len({x["who"] for x in ss}) == NTH,
+                repr([(x["ok"], x["idx"], x["who"]) for x in ss]))
+            row("R2: each thread's current session stays its own through 100 rounds of asking while the others do the same "
+                "(SDGetSession and @USERNO never name another thread's)", len(ss) == NTH and all(x["bad"] == 0 for x in ss),
+                repr([x["bad"] for x in ss]))
+            row("R3: each thread writes a record of its own size (3 KB to 38 KB) and reads it back 40 times at the same moment as "
+                "the others: every read is exactly what it wrote", len(ss) == NTH and all(x["wrong"] == 0 for x in ss),
+                repr([x["wrong"] for x in ss]))
+            row("R3: ... and each thread's SDCallx of a catalogued subroutine gives it, through SDGetArg, the argument that call "
+                "returned, 40 times, as the others call it (the Callx buffers are per thread)",
+                len(ss) == NTH and all(x.get("callx_wrong") == 0 for x in ss),
+                repr([x.get("callx_wrong") for x in ss]) + (" catalogue: " + repr(csub[-3:]) if any(x.get("callx_wrong") for x in ss) else ""))
+            fl = tres["failed"]
+            row("R4: a connect that fails keeps its error text for its own thread while another thread connects and disconnects ten "
+                "times (the slot is held, not handed to the next connect)", fl.get("r") == 0 and fl.get("e1", "") != ""
+                and fl.get("e2") == fl.get("e1") and fl.get("churn") == 10 and fl.get("connected") == 0, repr(fl))
+            row("R5: CONTROL: afterwards one thread connects, asks the server's revision and disconnects as before",
+                tres["control"] == [1, rev.decode()], repr(tres["control"]))
+        row("R6: the thread child ended normally (exit 0, no exception in any thread, no barrier broken)",
+            tres is not None and tcrc == 0 and tres.get("errors") == [], "exit %r, errors %r %s" % (tcrc, (tres or {}).get("errors"), terr))
+        for rid in ["thr%d" % i for i in range(NTH)]:
+            q3.plain("zzaa", ["DELETE zzlog %s" % rid])
+
         # ------------------------------------------------------------------------------------------------------ K (the long one)
         say("\n--- K. AUTOLOGOUT in an API session (sheet 474): two sessions, one given AUTOLOGOUT 1, both idle for 70 seconds ------")
         lib.SDConnectLocal(b"zzaa")
@@ -809,6 +985,7 @@ def main():
         box = {}
 
         def idle_call():
+            lib.SDSetSession(ia)       # the current session is per thread (sheet 456): this thread must select the one to ask
             t0 = time.time()
             box["answer"] = call("SDSystem", 1012)
             box["secs"] = time.time() - t0

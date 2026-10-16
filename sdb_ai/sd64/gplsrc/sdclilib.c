@@ -17,7 +17,8 @@
  *               on local connection, set user / group id to user who forked process
  *               on connectlocal if account fails, disconnect!
  *  Warning: sdclilib does not maintian a storage area for Getarg parameters for each session.
- *  Using Callx will "overwrite" the previous Callx parameters regardless of session number.
+ *  Using Callx will "overwrite" the previous Callx parameters of the calling THREAD (since 15 Oct 26 they are per thread,
+ *  not shared by every thread of the process) regardless of session number.
  *  A solution would be to add the return call buffers to the session structure....
  *    Or size the pointer array CallArgArray to have a slot for the max number of call args * the max number of sessions
  *    char *    CallArgArray[MAX_ARGS*MAX_SESSIONS]
@@ -44,6 +45,16 @@
  * 15 Sep 26 dm - sysdir()'s SD_CONFIG literals are a DUPLICATE of sddefs.h's
  *     SD_CONFIG_ENV / SD_CONFIG_DEFAULT; change them together.  The server
  *     used to read SCARLET_CONFIG instead; it does not any more.
+ *
+ * 15 Oct 26 dm - sheet 456: THREAD SAFETY.  The current session, the transfer
+ *     buffer and the Callx argument buffers are per thread (__thread), the
+ *     table of sessions is shared and its slots are claimed under
+ *     session_lock, so threads work on different sessions at the same time
+ *     and each tracks its own current session (SDSetSession) as the manual
+ *     requires.  Two threads must still not use ONE session together.  A
+ *     connection that fails keeps its slot (CX_HELD) so that its owner can read
+ *     the error; gethostbyname / getpwnam are the reentrant forms, and the
+ *     child of SDConnectLocal does nothing but exec.
  *
  * END-HISTORY
  *
@@ -168,6 +179,8 @@
 /* rev 0.9.0 */
 #include <syslog.h>
 #include <pwd.h>
+#include <pthread.h> /* 15 Oct 26: thread safety, sheet 456 */
+#include <netdb.h>
 
 #define Public
 #include "sddefs.h"
@@ -216,6 +229,10 @@ Private void debug(unsigned char* p, int n);
 Private void initialise_client(void);
 Private bool FindFreeSession(void);
 Private void disconnect(void);
+Private void disconnect_session(int16_t final_context);
+Private void release_held_session(void);
+Private void release_thread_buffers(void);
+Private bool start_local_server(void);
 Private int32_t grow_buffer_size(int32_t needed);
 Private bool valid_packet_length(int32_t packet_length);
 Private bool valid_record_size(size_t bytes);
@@ -271,16 +288,23 @@ struct INBUFF {
   } data;
 } ALIGN2;
 
-Private INBUFF* buff = NULL;
-Private int32_t buff_size;  /* Allocated size of buffer */
-Private int32_t buff_bytes; /* Size of received packet */
+/* 15 Oct 26 dm - sheet 456.  What a call leaves behind for its caller - the transfer buffer, the Callx arguments and the
+   current session - belongs to the THREAD, so two threads working on two sessions cannot meet in it.  The table of sessions
+   below is shared; its slots are claimed and given up under session_lock.  The buffer is allocated by the first packet a
+   thread reads or builds (buff_size starts at 0, so every growth test already allocates), and released when the thread ends
+   or when no session is live.                                                                                          */
+#define THREAD_LOCAL __thread
+
+Private THREAD_LOCAL INBUFF* buff = NULL;
+Private THREAD_LOCAL int32_t buff_size = 0; /* Allocated size of buffer */
+Private THREAD_LOCAL int32_t buff_bytes;    /* Size of received packet */
 Private FILE* srvr_debug = NULL;
 
 /* rev 0.9.0 */
-/* buffers for Callx return arguments  */
+/* buffers for Callx return arguments - per thread (15 Oct 26: were global, so Callx overwrote another session's)  */
 #define MAX_ARGS 20
-Private char *    CallArgArray[MAX_ARGS];          /* create an array of pointers, for string arguments (returned by Callx) not sure if this is correct */
-Private int       CallArgArraySz[MAX_ARGS];        /* and size of memory allocated for each  string length + terminator */
+Private THREAD_LOCAL char *    CallArgArray[MAX_ARGS];          /* string arguments (returned by Callx) */
+Private THREAD_LOCAL int       CallArgArraySz[MAX_ARGS];        /* and size of memory allocated for each  string length + terminator */
 
 
 /* 15 Oct 26 dm - was 4 (sheet 134: the QMClient API no longer limits the number of simultaneous connections).  The server's
@@ -293,6 +317,10 @@ Private struct {
 #define CX_DISCONNECTED 0 /* No session active */
 #define CX_CONNECTED 1    /* Session active but not... */
 #define CX_EXECUTING 2    /* ...executing command (implies connected) */
+#define CX_HELD 3         /* 15 Oct 26: claimed by ONE thread - a connection being made, or one that failed or was
+                             abandoned and whose error text that thread has not read yet.  Not usable and not free:
+                             it is given up by that thread's next connect, SDSetSession, SDDisconnect or by
+                             SDDisconnectAll, so another thread cannot take the slot and clear the error first. */
   char sderror[512 + 1];
   int16_t server_error;
   int32_t sd_status;
@@ -301,12 +329,25 @@ Private struct {
   int RxPipe[2];
   int TxPipe[2];
   int pid; /* 0421 Pid of child process */
+  void* owner; /* 15 Oct 26: while CX_HELD, the thread (its &thread_token) the slot is held for */
 } session[MAX_SESSIONS];
-Private int16_t session_idx = 0;
+Private THREAD_LOCAL int16_t session_idx = 0; /* this thread's current session (SDSetSession) */
+
+/* Taken to claim or give up a slot of session[], to read the table for a free one, and round the fork of a local server
+   (below).  Nothing else is shared, so no call holds it across a read from a server.                                  */
+Private pthread_mutex_t session_lock = PTHREAD_MUTEX_INITIALIZER;
+Private pthread_once_t client_once = PTHREAD_ONCE_INIT;
+Private pthread_key_t thread_exit_key;
+Private pthread_once_t thread_key_once = PTHREAD_ONCE_INIT;
+Private THREAD_LOCAL bool thread_registered = FALSE;
+Private THREAD_LOCAL char thread_token; /* its address names this thread in session[].owner */
+
+#define session_live(i) \
+  ((session[i].context == CX_CONNECTED) || (session[i].context == CX_EXECUTING))
 
 /* Matching data */
-Private char* component_start;
-Private char* component_end;
+Private THREAD_LOCAL char* component_start;
+Private THREAD_LOCAL char* component_end;
 
 /* Internally used routines */
 void DLLEntry SDDisconnect(void);
@@ -1203,7 +1244,7 @@ exit_sdconnect:
 int DLLEntry SDConnected() {
   ClearError;
 
-  return (session[session_idx].context == CX_DISCONNECTED) ? FALSE : TRUE;
+  return session_live(session_idx) ? TRUE : FALSE;
 }
 
 /* ======================================================================
@@ -1211,15 +1252,12 @@ int DLLEntry SDConnected() {
 
 int DLLEntry SDConnectLocal(char* account) {
   int status = FALSE;
+  struct passwd pwbuf;
   struct passwd *pwd;
-  int cpid;
-  char option[20];
-  char path[MAX_PATHNAME_LEN + 1];
+  char pwstrings[4096]; /* 15 Oct 26: the _r forms need the caller's storage; getpwnam / getpwuid share a static one */
 /* rev 0.9.0 log local login */
   char username[MAX_USERNAME_LEN + 1];
-  u_int32_t m;
-  char* p;
-  
+
   initialise_client();
 
   if (!FindFreeSession())
@@ -1227,56 +1265,25 @@ int DLLEntry SDConnectLocal(char* account) {
   ClearError;
   session[session_idx].is_local = TRUE;
 
-  /* Create pipes */
+  /* Create the pipes and start the server on them */
 
-  if (pipe(session[session_idx].RxPipe) || pipe(session[session_idx].TxPipe)) {
-    sprintf(session[session_idx].sderror, "Error %d creating pipe", errno);
+  if (!start_local_server())
     goto exit_sdconnect_local;
-  }
 
-  /* 15 Oct 26 dm - this program's ends of the two pipes are not handed on to any server it starts afterwards (a second
-     connection's child would otherwise keep the first one's server alive after this program had gone, and hold its
-     pipe open), and the server's own ends are closed here once it has been started, below, so that when the server ends
-     (AUTOLOGOUT, killed) the read of its pipe reaches end of file and fails, where it used to wait for ever.            */
-  fcntl(session[session_idx].RxPipe[0], F_SETFD, FD_CLOEXEC);
-  fcntl(session[session_idx].TxPipe[1], F_SETFD, FD_CLOEXEC);
-
-  /* Launch SD process */
-
-  cpid = fork();
-  if (cpid == 0) /* Child process */
-  {
-    sprintf(path, "%s/bin/sd", sysdir());
-    sprintf(option, "-C%d!%d", session[session_idx].RxPipe[1],
-            session[session_idx].TxPipe[0]);
-    execl(path, path, "-Q", option, NULL);
-  } else if (cpid == -1) /* Error */
-  {
-    sprintf(session[session_idx].sderror, "Error %d forking process", errno);
-    goto exit_sdconnect_local;
-  } else /* Parent process */
-  {
-    session[session_idx].pid = cpid; /* 0421 */
-    close(session[session_idx].RxPipe[1]); /* the server's ends: see above */
-    session[session_idx].RxPipe[1] = -1;
-    close(session[session_idx].TxPipe[0]);
-    session[session_idx].TxPipe[0] = -1;
-  }
-  
   /* rev 0.9.0 log username of process, set forked process to uid gid of user forking process */
- 
-  m = MAX_USERNAME_LEN + 1;
-  p = username;
-  if (!GetUserName(p,&m)){
+
+  if ((getpwuid_r(getuid(), &pwbuf, pwstrings, sizeof(pwstrings), &pwd) != 0) || (pwd == NULL)) {
     sprintf(session[session_idx].sderror, "Error Could Not Establish Username");
-    goto exit_sdconnect_local; 
+    goto exit_sdconnect_local;
   }
+  snprintf(username, sizeof(username), "%s", pwd->pw_name); /* truncated to MAX_USERNAME_LEN as GetUserName() did */
 
   openlog ("sd_Log", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
   syslog (LOG_INFO, "APISrvr Local Connection, user:");
   syslog (LOG_INFO, "%s", username);
 
-  if (((pwd = getpwnam(username)) != NULL) && (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
+  if ((getpwnam_r(username, &pwbuf, pwstrings, sizeof(pwstrings), &pwd) == 0) && (pwd != NULL) &&
+      (setgid(pwd->pw_gid) == 0) && (setuid(pwd->pw_uid) == 0)) {
             //         set_groups();
     syslog (LOG_INFO, "sdApiSrvr login via Username: %s (%d) Group: %d",username,pwd->pw_uid, pwd->pw_gid);
   } else {
@@ -1300,11 +1307,11 @@ int DLLEntry SDConnectLocal(char* account) {
 
   if (!message_pair(SrvrAccount, account, strlen(account))) {
 // rev 0.9.0
-    disconnect();
+    disconnect_session(CX_HELD); /* the slot stays this thread's, with the error, until it is read */
     goto exit_sdconnect_local;
   }
   if (session[session_idx].server_error != SV_OK) {
-    disconnect();
+    disconnect_session(CX_HELD);
     goto exit_sdconnect_local;
   }
 
@@ -1545,8 +1552,10 @@ void DLLEntry SDDeleteu(int fno, char* id) {
    SDDisconnect()  -  Close connection to server.                         */
 
 void DLLEntry SDDisconnect() {
-  if (session[session_idx].context != CX_DISCONNECTED) {
+  if (session_live(session_idx)) {
     disconnect();
+  } else {
+    release_held_session(); /* a failed connection: give the slot back */
   }
 }
 
@@ -1559,7 +1568,14 @@ void DLLEntry SDDisconnectAll() {
   for (i = 0; i < MAX_SESSIONS; i++) {
     if (session[i].context != CX_DISCONNECTED) {
       session_idx = i;
-      disconnect();
+      if (session_live(i)) {
+        disconnect();
+      } else {
+        /* a failed connection, of any thread: "all" means all */
+        pthread_mutex_lock(&session_lock);
+        session[i].context = CX_DISCONNECTED;
+        pthread_mutex_unlock(&session_lock);
+      }
     }
   }
 }
@@ -3278,7 +3294,7 @@ char* DLLEntry SDRevision(void) {
 
   initialise_client();
 
-  if (session[session_idx].context == CX_DISCONNECTED) {
+  if (!session_live(session_idx)) {
     result = malloc(strlen(SD_REV_STAMP) + 1);
     strcpy(result, SD_REV_STAMP);
     return result;
@@ -3514,11 +3530,11 @@ Private char* conv_request(int16_t action, char* data, char* code) {
    SDSetSession()  -  Set session index                                   */
 
 int DLLEntry SDSetSession(int idx) {
-  if ((idx < 0) || (idx >= MAX_SESSIONS) ||
-      (session[idx].context == CX_DISCONNECTED)) {
+  if ((idx < 0) || (idx >= MAX_SESSIONS) || !session_live(idx)) {
     return FALSE;
   }
 
+  release_held_session(); /* leaving a failed connection of this thread's: its error has been had */
   session_idx = idx;
   return TRUE;
 }
@@ -4222,7 +4238,6 @@ Private char* NullString() {
 Private bool OpenSocket(char* host, int16_t port) {
   bool status = FALSE;
   u_int32_t nInterfaceAddr;
-  struct hostent* hostdata;
   int nPort;
   struct sockaddr_in sock_addr;
   char ack_buff;
@@ -4239,18 +4254,34 @@ Private bool OpenSocket(char* host, int16_t port) {
     /* Looks like an IP address */
     nInterfaceAddr = inet_addr(host);
   } else {
-    hostdata = gethostbyname(host);
-    if (hostdata == NULL) {
-      NetErr("gethostbyname()", WSAGetLastError(), h_errno);
+    /* 15 Oct 26 dm - sheet 456: getaddrinfo(), because gethostbyname() answers in a buffer every thread shares.  The
+       error number given is the h_errno the old call set (1 not found, 2 try again, 3 no recovery), so the message
+       a program prints is the same.                                                                               */
+    struct addrinfo hints;
+    struct addrinfo* res = NULL;
+    int gai;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    gai = getaddrinfo(host, NULL, &hints, &res);
+    if ((gai != 0) || (res == NULL)) {
+      if (res != NULL)
+        freeaddrinfo(res);
+      NetErr("gethostbyname()", WSAGetLastError(),
+             (gai == EAI_AGAIN) ? 2 : (gai == EAI_FAIL) ? 3 : 1);
       goto exit_opensocket;
     }
 
-    nInterfaceAddr = *((int32_t*)(hostdata->h_addr));
+    nInterfaceAddr = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
+    freeaddrinfo(res);
   }
 
   nPort = htons(port);
 
-  session[session_idx].sock = socket(AF_INET, SOCK_STREAM, 0);
+  /* 15 Oct 26 dm - close on exec: another thread's SDConnectLocal forks a server, which would otherwise hold this
+     connection's socket open after SDDisconnect had closed it here.                                              */
+  session[session_idx].sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
   if (session[session_idx].sock == INVALID_SOCKET) {
     NetErr("socket()", WSAGetLastError(), errno);
     goto exit_opensocket;
@@ -4357,7 +4388,12 @@ Private void abandon_connection() {
   } else {
     (void)CloseSocket();
   }
-  session[session_idx].context = CX_DISCONNECTED;
+  /* 15 Oct 26 dm - held, not free: the thread that met the failure reads its error text from this slot (SDError), and a
+     slot given back here could be taken, and the text cleared, by another thread's connect first.                    */
+  pthread_mutex_lock(&session_lock);
+  session[session_idx].owner = &thread_token;
+  session[session_idx].context = CX_HELD;
+  pthread_mutex_unlock(&session_lock);
 }
 
 /* ======================================================================
@@ -4638,7 +4674,7 @@ Private void debug(unsigned char* p, int n) {
    sysdir()  -  Return static SDSYS directory pointer                     */
 
 Private char* sysdir() {
-  static char sysdirpath[MAX_PATHNAME_LEN + 1] = "";
+  static THREAD_LOCAL char sysdirpath[MAX_PATHNAME_LEN + 1] = ""; /* per thread (15 Oct 26): the answer is not shared storage */
   char inipath[MAX_PATHNAME_LEN + 1];
   char section[50];
   char rec[200 + 1];
@@ -4703,32 +4739,69 @@ Private char* sysdir() {
 
 /* ====================================================================== */
 
-Private void initialise_client() {
+/* 15 Oct 26 dm - sheet 456.  Make a slot of session[] ready for a connection.  Called with session_lock held. */
+Private void prepare_session_slot(int16_t i) {
+  session[i].is_local = FALSE;
+  session[i].sderror[0] = '\0';
+  session[i].server_error = SV_OK;
+  session[i].sd_status = 0;
+  session[i].sock = INVALID_SOCKET;
+  session[i].tls = NULL;
+  session[i].RxPipe[0] = -1;
+  session[i].RxPipe[1] = -1;
+  session[i].TxPipe[0] = -1;
+  session[i].TxPipe[1] = -1;
+  session[i].pid = 0;
+}
+
+/* Once per process: the character maps and the empty table.  It used to be done whenever this thread's buffer was NULL -
+   which a second thread, or the first one after every session had ended, always found - and so wiped slots in use. */
+Private void init_client_once() {
   int16_t i;
 
-  if (buff == NULL) {
-    set_default_character_maps();
-
-    buff_size = 2048;
-    buff = (INBUFF*)malloc(buff_size);
-
-    for (i = 0; i < MAX_SESSIONS; i++) {
-      session[i].context = CX_DISCONNECTED;
-      session[i].is_local = FALSE;
-      session[i].sderror[0] = '\0';
-      session[i].sock = INVALID_SOCKET;
-      session[i].tls = NULL;
-      session[i].RxPipe[0] = -1;
-      session[i].RxPipe[1] = -1;
-      session[i].TxPipe[0] = -1;
-      session[i].TxPipe[1] = -1;
-    }
-    /* rev 0.9.0  initialize the arg pointer array for Callx */
-	  for (i = 0; i < MAX_ARGS; i++) {
-	    CallArgArray[i] = NULL;
-	    CallArgArraySz[i] = 0;
-	  }
+  set_default_character_maps();
+  for (i = 0; i < MAX_SESSIONS; i++) {
+    session[i].context = CX_DISCONNECTED;
+    prepare_session_slot(i);
   }
+}
+
+/* The thread's end gives its transfer and Callx buffers back, and any failed connection it was still holding (pthread key
+   destructor; run in the ending thread).  Its LIVE sessions are the process's: another thread may be using them.   */
+Private void thread_exit_cleanup(void* arg) {
+  int16_t i;
+
+  (void)arg;
+  pthread_mutex_lock(&session_lock);
+  for (i = 0; i < MAX_SESSIONS; i++) {
+    if ((session[i].context == CX_HELD) && (session[i].owner == (void*)&thread_token))
+      session[i].context = CX_DISCONNECTED;
+  }
+  pthread_mutex_unlock(&session_lock);
+  release_thread_buffers();
+}
+
+Private void make_thread_exit_key() {
+  (void)pthread_key_create(&thread_exit_key, thread_exit_cleanup);
+}
+
+/* This thread's transfer buffer, made on first need.  A value that is not NULL is stored under the key so that the
+   destructor runs when the thread ends; the callers' growth tests (bytes >= buff_size) cope with size 0 too. */
+Private void ensure_thread_buffer() {
+  if (!thread_registered) {
+    (void)pthread_once(&thread_key_once, make_thread_exit_key);
+    (void)pthread_setspecific(thread_exit_key, &thread_registered);
+    thread_registered = TRUE;
+  }
+  if (buff == NULL) {
+    buff = (INBUFF*)malloc(2048);
+    buff_size = (buff == NULL) ? 0 : 2048;
+  }
+}
+
+Private void initialise_client() {
+  (void)pthread_once(&client_once, init_client_once);
+  ensure_thread_buffer();
 }
 
 /* ====================================================================== */
@@ -4736,26 +4809,157 @@ Private void initialise_client() {
 Private bool FindFreeSession() {
   int16_t i;
 
+  /* 15 Oct 26 dm - sheet 456.  A failed connection of THIS thread, still holding its slot for the error to be read,
+     is given up now that the thread makes another.  The free slot is then claimed (CX_HELD) in the same hold of the
+     lock that finds it, so two threads cannot be given one slot; the caller makes it CX_CONNECTED once it is.  */
+  release_held_session();
+
   /* Find a free session table entry */
 
+  pthread_mutex_lock(&session_lock);
   for (i = 0; i < MAX_SESSIONS; i++) {
     if (session[i].context == CX_DISCONNECTED)
       break;
   }
 
   if (i == MAX_SESSIONS) {
+    pthread_mutex_unlock(&session_lock);
     /* Must return error via a currently connected session */
     strcpy(session[session_idx].sderror, "Too many sessions");
     return FALSE;
   }
 
+  session[i].context = CX_HELD;
+  session[i].owner = &thread_token;
+  prepare_session_slot(i);
+  pthread_mutex_unlock(&session_lock);
+
   session_idx = i;
+  return TRUE;
+}
+
+/* ======================================================================
+   release_held_session()  -  Give back this thread's failed connection
+
+   The current session, if it is a slot this thread was holding (a connection
+   that failed or was abandoned, whose error text has been had), goes back to
+   the free list.  A live session, a slot already free or re-taken, and a held
+   slot that belongs to another thread (a new thread's current session is slot
+   0, whoever holds that) are left alone.                                 */
+
+Private void release_held_session() {
+  pthread_mutex_lock(&session_lock);
+  if ((session[session_idx].context == CX_HELD) &&
+      (session[session_idx].owner == (void*)&thread_token))
+    session[session_idx].context = CX_DISCONNECTED;
+  pthread_mutex_unlock(&session_lock);
+}
+
+/* ======================================================================
+   release_thread_buffers()  -  Free this thread's transfer and Callx buffers */
+
+Private void release_thread_buffers() {
+  int16_t i;
+
+  if (buff != NULL) {
+    free(buff);
+    buff = NULL;
+  }
+  buff_size = 0;
+  buff_bytes = 0;
+
+  for (i = 0; i < MAX_ARGS; i++) {
+    if (CallArgArray[i] != NULL) {
+      free(CallArgArray[i]);
+      CallArgArray[i] = NULL;
+    }
+    CallArgArraySz[i] = 0;
+  }
+}
+
+/* ======================================================================
+   start_local_server()  -  Make the pipes of the current session and start
+                            "sd -Q" on them
+
+   The path and the option are made BEFORE the fork, so the child does nothing
+   but exec (in a program with other threads it must not call malloc, stdio or
+   anything else that takes a lock another thread may hold).  The pipes and the
+   fork are done with session_lock held: this program's ends are close-on-exec,
+   but the server's own ends are not, and a second thread forking between the
+   pipe() and the close of them would hand them to ITS server, which would then
+   keep this one's pipe open after this one had ended.                       */
+
+Private bool start_local_server() {
+  int cpid;
+  char option[32];
+  char path[MAX_PATHNAME_LEN + 1];
+  char* dir;
+
+  dir = sysdir(); /* says why in the session's error text when it cannot */
+  if (dir == NULL)
+    return FALSE;
+  snprintf(path, sizeof(path), "%s/bin/sd", dir);
+
+  pthread_mutex_lock(&session_lock);
+
+  /* Create pipes */
+
+  if (pipe(session[session_idx].RxPipe) || pipe(session[session_idx].TxPipe)) {
+    sprintf(session[session_idx].sderror, "Error %d creating pipe", errno);
+    pthread_mutex_unlock(&session_lock);
+    return FALSE;
+  }
+
+  /* 15 Oct 26 dm - this program's ends of the two pipes are not handed on to any server it starts afterwards (a second
+     connection's child would otherwise keep the first one's server alive after this program had gone, and hold its
+     pipe open), and the server's own ends are closed here once it has been started, below, so that when the server ends
+     (AUTOLOGOUT, killed) the read of its pipe reaches end of file and fails, where it used to wait for ever.            */
+  fcntl(session[session_idx].RxPipe[0], F_SETFD, FD_CLOEXEC);
+  fcntl(session[session_idx].TxPipe[1], F_SETFD, FD_CLOEXEC);
+
+  snprintf(option, sizeof(option), "-C%d!%d", session[session_idx].RxPipe[1],
+           session[session_idx].TxPipe[0]);
+
+  /* Launch SD process */
+
+  cpid = fork();
+  if (cpid == 0) /* Child process */
+  {
+    execl(path, path, "-Q", option, NULL);
+    _exit(127); /* it must not go on as a second copy of the client */
+  } else if (cpid == -1) /* Error */
+  {
+    sprintf(session[session_idx].sderror, "Error %d forking process", errno);
+    pthread_mutex_unlock(&session_lock);
+    return FALSE;
+  }
+
+  /* Parent process */
+  session[session_idx].pid = cpid; /* 0421 */
+  close(session[session_idx].RxPipe[1]); /* the server's ends: see above */
+  session[session_idx].RxPipe[1] = -1;
+  close(session[session_idx].TxPipe[0]);
+  session[session_idx].TxPipe[0] = -1;
+
+  pthread_mutex_unlock(&session_lock);
   return TRUE;
 }
 
 /* ====================================================================== */
 
-Private void  disconnect() {
+Private void disconnect() {
+  disconnect_session(CX_DISCONNECTED);
+}
+
+/* ======================================================================
+   disconnect_session()  -  End the current session
+
+   final_context is what the slot becomes: CX_DISCONNECTED, free for any
+   thread, or CX_HELD for a connection that failed after the server was
+   started - the slot then stays this thread's, with its error text, until
+   release_held_session() (see FindFreeSession).                          */
+
+Private void disconnect_session(int16_t final_context) {
   /* rev 0.9.0 */
    int16_t i;
 
@@ -4782,39 +4986,25 @@ Private void  disconnect() {
     (void)CloseSocket();
   }
 
-  session[session_idx].context = CX_DISCONNECTED;
+  pthread_mutex_lock(&session_lock);
+  if (final_context == CX_HELD)
+    session[session_idx].owner = &thread_token;
+  session[session_idx].context = final_context;
 
- /* rev 0.9.0 
-  I cannot find where the original transfer buffer "buff" is freed on exit
-	So look for connected session, if none, release buffer                */
-
-  /* 15 Oct 26 dm - was "== CX_CONNECTED": a session that is EXECUTING a command (waiting for input) is alive too, and the
-     buffer freed from under it made its next packet fail, and the next SDConnect, finding the buffer gone, re-initialised
-     every session including that one (sheet 281: a second connection could terminate abnormally).                      */
+  /* rev 0.9.0 - the transfer buffer is released when no session is left to use it.
+     15 Oct 26 dm - was "== CX_CONNECTED": a session that is EXECUTING a command (waiting for input) is alive too, and
+     the buffer freed from under it made its next packet fail, and the next SDConnect, finding the buffer gone,
+     re-initialised every session including that one (sheet 281: a second connection could terminate abnormally).
+     Sheet 456: the buffers are this THREAD's, and any session it can still use is live, so while one is the buffers
+     stay; a connection that is merely being made or held does not need them.  The table is read under the lock.   */
   for (i = 0; i < MAX_SESSIONS; i++) {
-	  if (session[i].context != CX_DISCONNECTED)
-	    break;
+    if (session_live(i))
+      break;
   }
+  pthread_mutex_unlock(&session_lock);
 
-  if (i == MAX_SESSIONS) {
-	/* looked at all the sessions and none connected free buff */
-	  if (buff != NULL) {
-	    free(buff);
-	    buff = NULL;
-	  }
-
-   /* free the callx arg buffers if they are still around */
-   /* this needs modifing if we go with more than 1 session, see comments at top */
-	  for (i = 0; i < MAX_ARGS; i++) {
-	    if (CallArgArray[i] != NULL ){
-		    free(CallArgArray[i]);
-		    CallArgArray[i] = NULL;
-		    CallArgArraySz[i] = 0;
-	    }
-    }
-
-  }
-
+  if (i == MAX_SESSIONS)
+    release_thread_buffers();
 }
 
 #ifdef BIG_ENDIAN_SYSTEM
