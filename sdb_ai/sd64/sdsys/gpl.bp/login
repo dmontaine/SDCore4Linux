@@ -470,6 +470,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   The administrator needs no grant - USR_ADMIN passes the gate on its own.
    void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
    void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
 
    * Set @PATH
 

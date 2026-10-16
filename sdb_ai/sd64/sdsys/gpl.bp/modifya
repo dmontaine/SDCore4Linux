@@ -162,6 +162,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       crt '                 modify.account <account> ssh | api | both | none'
       crt '                 modify.account <account> sh-on | sh-off'
       crt '                 modify.account <account> os-on | os-off'
+      crt '                 modify.account <account> sd-on | sd-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
@@ -219,6 +220,16 @@ deffun valid_os_name(name) calling '!valid_os_name'
          stop
       case action = 'OS-OFF'
          os.field = ACC$OS.EXEC ; os.want = @false
+         gosub os.set
+         stop
+* 16 Oct 26 dm - the SD.ACCOUNTS gate (QM4 gap 22): SD-ON / SD-OFF, a third switch beside the other two.  Unlike SH it is
+*   allowed on a GROUP account, because what it opens is decided for each person by the groups they are in.
+      case action = 'SD-ON'
+         os.field = ACC$SD.ACCOUNTS ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'SD-OFF'
+         os.field = ACC$SD.ACCOUNTS ; os.want = @false
          gosub os.set
          stop
       case action = 'SSH'
@@ -315,7 +326,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
-         crt '   sh-on, sh-off, os-on, os-off, suspended or unsuspended'
+         crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, suspended or unsuspended'
       end
 
    end else
@@ -529,7 +540,7 @@ os.set:
 *   A GROUP or OTHER account is entered by whoever its Linux group admits, so a shell granted to it would
 *   be a shell granted to all of them, decided by group membership rather than by the administrator who
 *   typed SH-ON.  sdu_ is the only group that names one person (the Windows port's 10105).
-   if group.name[1,4] # 'sdu_' then
+   if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS then
       @system.return.code = -ER$FAILED
       crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
       return
@@ -560,7 +571,11 @@ os.set:
    os.ex.now = 'no'
    if upcase(trim(acc.new<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
    void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
-   crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+   if os.field = ACC$SD.ACCOUNTS then
+      crt sysmsg(11385, acc.name, if upcase(trim(acc.new<ACC$SD.ACCOUNTS>)) = 'YES' then 'yes' else 'no')   ;* Account %1 has SD.ACCOUNTS %2
+   end else
+      crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+   end
    return
 
 end

@@ -748,6 +748,7 @@ $endif
          stk.who = who
          stk.sh = kernel(K$SH, -1)
          stk.os.exec = kernel(K$OS.EXEC, -1)
+         stk.sd.accounts = kernel(K$SD.ACCOUNTS, -1)
 
          pa.name = ""
          pa.rec = "PA" : @fm : xeq.command
@@ -3141,6 +3142,7 @@ int.logto:
 *   from that account's own record, so one account's grant is never carried into another.
    void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
    void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
+   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3203,6 +3205,7 @@ revert.account:
    voc = new.voc ; new.voc = 0
    void kernel(K$SH,      stk.sh)
    void kernel(K$OS.EXEC, stk.os.exec)
+   void kernel(K$SD.ACCOUNTS, stk.sd.accounts)
    void kernel(K$AUDIT, 'logto revert account=' : who)
    i = kernel(K$INVALIDATE.OBJECT, 0)
    gosub find.private.catalogue

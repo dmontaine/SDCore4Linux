@@ -121,6 +121,7 @@ $include int$keys.h
    opt<-1> = 'QUERY.MERGE.PRINT||11320'          ;* 57, openQM ref 57
    opt<-1> = 'COMMAND.LEVEL.LOCKS||11367'        ;* 58, 16 Oct 26 QM4 gap 231
    opt<-1> = 'STACKED.ACCOUNT||11370'            ;* 59, 16 Oct 26 QM4 gap 248
+   opt<-1> = 'INHERIT.OWNERSHIP||11384'          ;* 60, 16 Oct 26 QM4 gap 239
    *         'xxxxxxxxxxxxxxxxxxx'    Option name limit = 19 characters
 
    * Shortcuts

@@ -54,6 +54,9 @@
 #include "tio.h"
 #include "config.h"
 #include <signal.h>
+#include <dirent.h>
+#include <grp.h>
+#include <strings.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,26 +165,14 @@ Private bool os_permitted(void) {
    case where the directory is the working directory (rootdir NULL).  A directory given is for a path reached
    through a Q-pointer into another account (os_path_inside, K_PATH_IN), whose own tree a restricted account
    may then use.  A relative name is relative to the directory asked about.                                  */
-Private bool path_inside_dir(const char *rootdir, const char *name) {
-  char cwd[PATH_MAX + 1];
-  char root[PATH_MAX + 1];
+/* resolve_name()  -  The pathname NAME, relative to the directory CWD when it is not absolute, with ".." and links resolved
+   as far as it exists (16 Oct 26: the middle of path_inside_dir, taken out so that the SD.ACCOUNTS test uses the same one).
+   RESOLVED has room for 2 * PATH_MAX + 2.  False when it cannot be resolved.                                           */
+Private bool resolve_name(const char *cwd, const char *name, char *resolved) {
   char work[2 * PATH_MAX + 2];
-  char resolved[2 * PATH_MAX + 2];      /* realpath() needs PATH_MAX; the tail is appended after it */
   char tail[PATH_MAX + 1];
   char *p;
-  size_t root_len;
   size_t n;
-
-  if ((name == NULL) || (name[0] == '\0'))
-    return FALSE;
-  if (rootdir != NULL) {
-    if ((rootdir[0] != '/') || (strlen(rootdir) > PATH_MAX))
-      return FALSE;
-    strcpy(cwd, rootdir);
-  } else if (getcwd(cwd, sizeof(cwd)) == NULL)
-    return FALSE;
-  if (realpath(cwd, root) == NULL)
-    return FALSE;
 
   if (name[0] == '/') {
     if (strlen(name) > PATH_MAX)
@@ -228,12 +219,33 @@ Private bool path_inside_dir(const char *rootdir, const char *name) {
   }
 
   if (tail[0] != '\0') {
-    if (strlen(resolved) + strlen(tail) + 2 > sizeof(resolved))
+    if (strlen(resolved) + strlen(tail) + 2 > 2 * PATH_MAX + 2)    /* RESOLVED is a pointer here: not sizeof */
       return FALSE;
     if (strcmp(resolved, "/") != 0)
       strcat(resolved, "/");
     strcat(resolved, tail);
   }
+  return TRUE;
+}
+
+Private bool path_inside_dir(const char *rootdir, const char *name) {
+  char cwd[PATH_MAX + 1];
+  char root[PATH_MAX + 1];
+  char resolved[2 * PATH_MAX + 2];      /* realpath() needs PATH_MAX; the tail is appended after it */
+  size_t root_len;
+
+  if ((name == NULL) || (name[0] == '\0'))
+    return FALSE;
+  if (rootdir != NULL) {
+    if ((rootdir[0] != '/') || (strlen(rootdir) > PATH_MAX))
+      return FALSE;
+    strcpy(cwd, rootdir);
+  } else if (getcwd(cwd, sizeof(cwd)) == NULL)
+    return FALSE;
+  if (realpath(cwd, root) == NULL)
+    return FALSE;
+  if (!resolve_name(cwd, name, resolved))
+    return FALSE;
 
   root_len = strlen(root);
   while ((root_len > 1) && (root[root_len - 1] == '/'))
@@ -246,10 +258,109 @@ Private bool path_inside_dir(const char *rootdir, const char *name) {
   return (resolved[root_len] == '\0') || (resolved[root_len] == '/');
 }
 
+/* ======================================================================
+   The SD.ACCOUNTS gate (16 Oct 26, QM4 gap 22; the owner: "one that gives access to any file in any SD account directory the
+   user has logto access to").  Between "its own account only" and OS.EXECUTE, which reaches the whole machine: with the gate an
+   account reaches any file under the directory of an account its user could LOGTO - the register's group is one the user is in,
+   and the account is not suspended - EXCEPT the VOC of that account (voc and voc.dic at the top of it), which is the account's
+   own control record set.  SDSYS and OS.EXECUTE pass before this is asked.  The register is read a record at a time, as
+   LOGTO reads it: line 1 the path, line 3 the group, line 5 SUSPENDED.  A path that is not absolute is skipped.             */
+
+Private bool user_in_group(const char *group) {
+  struct group *g;
+  gid_t list[NGROUPS_MAX + 1];
+  int n, i;
+
+  if ((group == NULL) || (group[0] == '\0') || ((g = getgrnam(group)) == NULL))
+    return FALSE;
+  if ((g->gr_gid == getegid()) || (g->gr_gid == getgid()))
+    return TRUE;
+  n = getgroups(NGROUPS_MAX, list);
+  for (i = 0; i < n; i++) {
+    if (list[i] == g->gr_gid)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+bool os_sd_accounts_open(void) {
+  return (my_uptr->flags & (USR_ADMIN | USR_OS_EXEC | USR_SD_ACCOUNTS)) != 0;
+}
+
+Private bool path_in_enterable_account(const char *name) {
+  char cwd[PATH_MAX + 1];
+  char resolved[2 * PATH_MAX + 2];
+  char regdir[PATH_MAX + 1];
+  char recpath[PATH_MAX + 1];
+  char body[4096];
+  char root[PATH_MAX + 1];
+  char *line[6];
+  char *p;
+  DIR *d;
+  struct dirent *ent;
+  FILE *fp;
+  size_t got, root_len, i;
+  bool found = FALSE;
+
+  if ((name == NULL) || (name[0] == '\0') || (getcwd(cwd, sizeof(cwd)) == NULL) || !resolve_name(cwd, name, resolved))
+    return FALSE;
+  if (snprintf(regdir, sizeof(regdir), "%s%caccounts", sysseg->sysdir, DS) >= (int)sizeof(regdir))
+    return FALSE;
+  if ((d = opendir(regdir)) == NULL)
+    return FALSE;
+  while (!found && ((ent = readdir(d)) != NULL)) {
+    if ((ent->d_name[0] == '.') || (ent->d_name[0] == '%') || (strchr(ent->d_name, '/') != NULL))
+      continue;
+    if (snprintf(recpath, sizeof(recpath), "%s%c%s", regdir, DS, ent->d_name) >= (int)sizeof(recpath))
+      continue;
+    if ((fp = fopen(recpath, "r")) == NULL)
+      continue;
+    got = fread(body, 1, sizeof(body) - 1, fp);
+    fclose(fp);
+    body[got] = '\0';
+    p = body;
+    for (i = 0; i < 6; i++) { /* the first lines of the record; one that is missing is empty */
+      if (p == NULL) {
+        line[i] = body + got;
+        continue;
+      }
+      line[i] = p;
+      if ((p = strchr(p, '\n')) != NULL)
+        *p++ = '\0';
+    }
+    if ((line[0][0] != '/') || (strlen(line[0]) > PATH_MAX) || (realpath(line[0], root) == NULL))
+      continue;
+    if (!strcasecmp(line[4], "SUSPENDED"))
+      continue;
+    root_len = strlen(root);
+    while ((root_len > 1) && (root[root_len - 1] == '/'))
+      root[--root_len] = '\0';
+    if (root_len <= 1)
+      continue;
+    if ((strncmp(resolved, root, root_len) != 0) || ((resolved[root_len] != '\0') && (resolved[root_len] != '/')))
+      continue;
+    if (!user_in_group(line[2]))
+      continue;
+    /* The VOC of the account is not part of what this gate opens */
+    p = resolved + root_len;
+    if (*p == '/')
+      p++;
+    if ((strncmp(p, "voc", 3) == 0) && ((p[3] == '\0') || (p[3] == '/') || (strncmp(p + 3, ".dic", 4) == 0 && (p[7] == '\0' || p[7] == '/'))))
+      found = FALSE; /* and it is in no other account */
+    else
+      found = TRUE;
+    break;
+  }
+  closedir(d);
+  return found;
+}
+
 bool os_path_ok_for_account(const char *name) {
   if (os_gate_open())
     return TRUE;
-  return path_inside_dir(NULL, name);
+  if (path_inside_dir(NULL, name))
+    return TRUE;
+  return (my_uptr->flags & USR_SD_ACCOUNTS) && path_in_enterable_account(name);
 }
 
 /* os_path_inside()  -  is this pathname inside THAT directory?  The OS gate is not asked: this is the geometry

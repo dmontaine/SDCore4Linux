@@ -500,6 +500,7 @@ acc.suspended = @false
 *   session never held either switch, so an account given sh-on or os-on had neither over the API.
 api.sh.grant = @false
 api.os.grant = @false
+api.sd.grant = @false      ;* 16 Oct 26: the SD.ACCOUNTS gate
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, downcase(new.account) then
@@ -507,6 +508,7 @@ if index(new.account, @ds, 1) = 0 then
          acc.suspended = (upcase(trim(acc.rec<ACC$SUSPENDED>)) = 'SUSPENDED')
          api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
          api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
+         api.sd.grant = (upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')
       end
       close acc.f
    end
@@ -588,6 +590,7 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 *   carries none, so SDSYS over the local socket is held to its own switches like anybody else.
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
+void kernel(K$SD.ACCOUNTS, api.sd.grant)
 
 * 15 Oct 26 dm - sheet 170: the MASTER.LOGIN paragraph of the SDSYS VOC is run for an API session as CPROC runs it for an
 *   interactive or phantom one: once, when the session first enters an account, before that account's own LOGIN.  (Entering

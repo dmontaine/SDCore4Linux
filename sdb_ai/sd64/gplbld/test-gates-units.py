@@ -147,15 +147,26 @@ def checks(srcs, messages_dir):
     gate = gate[:gate.find("\n}") + 2]
     ck("C4 os_gate_open() is the administrator or USR_OS_EXEC, and does NOT look at HDR_INTERNAL",
        "USR_ADMIN" in gate and "USR_OS_EXEC" in gate and "HDR_INTERNAL" not in gate, gate.strip()[:120])
-    pia = sh[at(sh, "Private bool path_inside_dir"):]
-    pia = pia[:at(pia, "bool os_path_ok_for_account")]
+    pia = sh[at(sh, "Private bool resolve_name"):]       # resolve_name() is the middle of it (16 Oct 26)
+    pia = pia[:at(pia, "Private bool user_in_group")]      # up to the SD.ACCOUNTS block
     ck("C5 containment resolves with realpath() on both sides and tests a path-component boundary",
        pia.count("realpath(") >= 2 and "strncmp(resolved, root, root_len)" in pia
        and "(resolved[root_len] == '\\0') || (resolved[root_len] == '/')" in pia)
     ck("C6 a '..' tail that cannot be resolved is refused, and so is an account rooted at /",
        'strcmp(p + 1, "..") == 0' in pia and "root_len == 1" in pia)
-    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment",
-       re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*return path_inside_dir\(NULL, name\);", sh))
+    ck("C7 os_path_ok_for_account: the gate opens everything, otherwise containment, then (16 Oct 26) the SD.ACCOUNTS gate",
+       re.search(r"if \(os_gate_open\(\)\)\s*return TRUE;\s*if \(path_inside_dir\(NULL, name\)\)\s*return TRUE;\s*"
+                 r"return \(my_uptr->flags & USR_SD_ACCOUNTS\) && path_in_enterable_account\(name\);", sh))
+    pea = at(sh, "Private bool path_in_enterable_account(")
+    pea_end = at(sh, "bool os_path_ok_for_account(", pea)
+    pea_body = sh[pea:pea_end] if pea > 0 and pea_end > pea else ""
+    ck("C7a SD.ACCOUNTS: an account counts only if the user is in its register group and it is not suspended",
+       "user_in_group(line[2])" in pea_body and 'strcasecmp(line[4], "SUSPENDED")' in pea_body)
+    ck("C7b SD.ACCOUNTS: a path that is not absolute in the register is skipped, and the VOC of the account is left out",
+       "line[0][0] != '/'" in pea_body and 'strncmp(p, "voc", 3)' in pea_body and '".dic"' in pea_body
+       and pea_body.count("found = FALSE;") >= 2)       # the declaration, and the VOC branch
+    ck("C7c SD.ACCOUNTS: the flag is set only from a $internal program, as K_OS_EXEC is",
+       re.search(r"case K_SD_ACCOUNTS:.*?HDR_INTERNAL.*?USR_SD_ACCOUNTS", c["op_kernel.c"], re.S))
     ck("C8 os_path_open_ok: an $internal program is trusted, anyone else is asked",
        re.search(r"bool os_path_open_ok\(const char \*name\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\)\s*return TRUE;\s*"
                  r"return os_path_ok_for_account\(name\);", sh))
@@ -245,6 +256,9 @@ def checks(srcs, messages_dir):
     ck("B1 CPROC's LOGTO loads K$SH and K$OS.EXEC from the register record BEFORE the audit line",
        0 < ld < aud and "upcase(trim(acc.record<ACC$SH>)) = 'YES'" in cp and "upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES'" in cp,
        "load %s, audit %s" % (line_of(cp, ld), line_of(cp, aud)))
+    sdl = at(cp, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')")
+    ck("B1a ... and K$SD.ACCOUNTS (16 Oct 26) from field 9, 'YES' only, before the audit line; a revert puts the previous one back",
+       0 < sdl < aud and "void kernel(K$SD.ACCOUNTS, stk.sd.accounts)" in cp)
     oc = at(cp, "os.command.text = trimf(voc.rec<3>")
     gate_ = at(cp, "if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then", oc)
     meta = at(cp, "if not(valid_shell_cmd(os.command.text)) then", oc)
@@ -258,6 +272,8 @@ def checks(srcs, messages_dir):
     pth = at(lg, "account.path = ospath(\"\", OS$CWD)")
     ck("B3 LOGIN loads both grants at sign-on, from the 'YES' in fields 7 and 8, before @PATH is set",
        0 < ll < pth and "upcase(trim(acc.rec<ACC$SH>)) = 'YES'" in lg and "upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES'" in lg)
+    ck("B3a LOGIN loads the SD.ACCOUNTS gate from field 9, 'YES' only, before @PATH is set",
+       0 < at(lg, "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')") < pth)
 
     ca = c["create_account"]
     ck("B4 a new account starts with NO ssh and NO API: a route is on only if the setting is exactly 1",
@@ -508,7 +524,12 @@ MUTANTS = [
     ("key K_OS_EXEC clashes with K_SH", sub("keys.h", "#define K_OS_EXEC            94", "#define K_OS_EXEC            93")),
     ("USR_SH and USR_OS_EXEC share a bit", sub("sysseg.h", "USR_OS_EXEC     0x0200", "USR_OS_EXEC     0x0100")),
     ("LOGTO no longer loads the grants", sub("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n", "")),
-    ("LOGTO loads them after the audit line", swap("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')\n\n", "   void kernel(K$AUDIT, 'logto account=' : new.account)")),
+    ("LOGTO loads them after the audit line", swap("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')\n   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'\n\n", "   void kernel(K$AUDIT, 'logto account=' : new.account)")),
+    ("LOGTO no longer loads the SD.ACCOUNTS gate", sub("cproc", "   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')", "   void kernel(K$SD.ACCOUNTS, 1)")),
+    ("LOGIN grants the SD.ACCOUNTS gate to everyone", sub("login", "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')", "void kernel(K$SD.ACCOUNTS, 1)")),
+    ("the SD.ACCOUNTS test lets a suspended account in", sub("op_sh.c", "if (!strcasecmp(line[4], \"SUSPENDED\"))\n      continue;", "")),
+    ("the SD.ACCOUNTS test ignores the user's groups", sub("op_sh.c", "if (!user_in_group(line[2]))\n      continue;", "")),
+    ("the SD.ACCOUNTS test opens the VOC of the account", sub("op_sh.c", "found = FALSE; /* and it is in no other account */", "found = TRUE;")),
     ("the SH verb gate is removed", sub("cproc", "   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then\n      display sysmsg(10053, @logname)", "   if @false then\n      display sysmsg(10053, @logname)")),
     ("the SH verb gate comes after the command has run", swap("cproc", "   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$SH, -1)) then\n      display sysmsg(10053, @logname) ;* %1 is not permitted to use the operating system shell\n      return\n   end\n", "   os.execute os.command.text\n")),
     ("LOGIN grants everyone both", sub("login", "void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')", "void kernel(K$SH,      1)")),

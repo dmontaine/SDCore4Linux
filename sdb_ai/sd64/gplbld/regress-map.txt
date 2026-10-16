@@ -72,9 +72,9 @@ gplbld/*                     : @core
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE KERNEL (gplsrc).  Specific files first.
 gplsrc/op_dio4.c             : @lists
-gplsrc/op_dio3.c             : @files @seq prof
+gplsrc/op_dio3.c             : @files @seq prof lockown
 gplsrc/op_dio2.c             : @files
-gplsrc/op_dio1.c             : @files cll prof
+gplsrc/op_dio1.c             : @files cll prof lockown
 gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
@@ -133,7 +133,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient
 gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
-gplsrc/op_sh.c               : gates
+gplsrc/op_sh.c               : gates sdaccts
 gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
@@ -143,7 +143,7 @@ gplsrc/descr.h               : restricted classas @core
 gplsrc/op_jumps.c            : @core try partial prof
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof
+gplsrc/op_kernel.c           : @core q5 prof sdaccts
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
@@ -181,8 +181,10 @@ sdsys/gpl.bp/bcomp ~ st.try*        : try
 sdsys/gpl.bp/bcomp ~ st.catch*      : try
 sdsys/gpl.bp/bcomp ~ st.throw*      : try
 sdsys/gpl.bp/bcomp ~ st.class*      : classas
-sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse
-sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse
+sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse lockown
+sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse lockown
+sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
+sdsys/gpl.bp/bcomp ~ back.end       : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.open*       : openzero stdfil
 sdsys/gpl.bp/bcomp ~ st.execute*    : execlist stacklist chained cmd-a9
 sdsys/gpl.bp/bcomp ~ st.screen*     : screen
@@ -240,7 +242,7 @@ sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates
-sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked
+sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
 sdsys/gpl.bp/listu           : listu-a5
 sdsys/gpl.bp/_listu          : listu-a5
@@ -250,9 +252,9 @@ sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
-sdsys/gpl.bp/login           : @system
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates
+sdsys/gpl.bp/login           : @system sdaccts
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts
 sdsys/gpl.bp/sdclient        : qmclient
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
@@ -263,7 +265,7 @@ sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system
-sdsys/gpl.bp/modifya         : gates @system
+sdsys/gpl.bp/modifya         : gates @system sdaccts
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
