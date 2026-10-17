@@ -6,7 +6,7 @@
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named
-# parts (gate, logto, modify, manifest, defs, ordinary); no flag runs all of them.
+# parts (gate, logto, modify, manifest, defs, connect, ordinary); no flag runs all of them.
 #
 # START-HISTORY:
 # 17 Oct 26 dm  New.  S.65 slice 1: register field 15 (ACC$NET), K_NET 127, the user table's UG_NET bit, MODIFY.ACCOUNT NET-ON / NET-OFF,
@@ -15,6 +15,13 @@
 #               YET: the gate has no effect and the definitions are used by nothing, and these rows say only that they are right.
 #               ***NOT YET RUN*** - written on 17 Oct without a sandbox to run it on.  The first run is the first evidence; read a red
 #               row as a possible wrong expectation in this file as well as a fault in the tree.
+# 17 Oct 26 dm  S.65 slice 2a: the section "connect" - set.server name host port account CONNECT.  A TLS 1.3 server of this process (the
+#               ssl module, 127.0.0.1, a random port, no client certificate, one thread each, a lifetime limit and a 10 second limit on
+#               every connection) stands in for the other SD server; its certificates and keys are made with the openssl command line
+#               and the pin the rows expect is computed by the openssl command line too (x509 -pubkey | pkey -pubin -outform DER |
+#               dgst -sha256), never by SD.  The servers count the connections they accept, the handshakes they complete and the
+#               application bytes they receive (none: a handshake only).  ***NOT YET RUN*** - written without a sandbox to run it on;
+#               read a red row as a possible wrong expectation here as well as a fault in the tree.
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  The sandbox user plays SDSYS (the
@@ -23,8 +30,11 @@
 # WHAT IT CANNOT SHOW.  (1) The API server's load of the gate (api.net.grant): a sandbox cannot host an API session, so that is a
 # witness row.  (2) The file's owner and its mode against ANOTHER operating system user: the sandbox user is SDSYS and every
 # fixture account's user, so the mode (0644) is read from the disk but whether an unprivileged user can write the file is not tried; an
-# ordinary account's refusal here is the S.63 OS-access gate (status 3035), which an os-on account does not meet.  (3) The audit lines
-# (they are in a file only root reads).  (4) CREATE.ACCOUNT, which makes Linux users.
+# ordinary account's refusal here is the S.63 OS-access gate (status 3035), which an os-on account does not meet.  (3) The audit lines of
+# an INSTALL (they are in a file only root reads); the section "connect" reads the SANDBOX's own audit file, <sandbox>/sys/audit, and a row
+# that needs it fails when it cannot be read.  (4) CREATE.ACCOUNT, which makes Linux users.  (5) A connection that is never answered: the
+# 5 second connect timeout needs an address that drops packets, which a sandbox cannot count on, so only refused, reset, non-TLS and
+# unresolvable targets are tried.
 #
 # THE INSTRUMENTS.  zznk (a $internal verb in every fixture account) prints "NK net=<0|1> admin=<0|1>": the kernel's own answer to
 # K$NET and whether the session is an administrator; zznkset sets it from internal code and reads it back.  For the verbs the evidence is
@@ -34,11 +44,19 @@
 # question the verbs ask (replace?) is answered by a line in the same input, and an unanswered one is read as a no at the end of input.
 
 import datetime
+import errno
+import hashlib
 import importlib.util
 import os
 import re
+import shutil
+import socket
+import ssl
 import subprocess
 import sys
+import tempfile
+import threading
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -636,10 +654,430 @@ def ordinary_section():
                     os.remove(p)
 
 
+# ---- set.server ... connect --------------------------------------------------------------------------------------------------------
+
+class TestServer(threading.Thread):
+    """A local server standing in for the other SD server.  MODE 'tls': a TLS 1.3 handshake (no client certificate), then it waits up to 2
+    seconds for application data (a handshake-only client sends none and closes), then closes.  MODE 'plain': a TCP server that is not TLS -
+    it reads what the client sent and answers with an HTTP error, which a TLS client cannot parse.  Counts what it was given:
+      count      connections accepted
+      handshakes TLS handshakes it completed
+      app_bytes  application bytes received after the handshake (0 for a client that only shakes hands)
+    It is a daemon thread with a lifetime limit, and every connection has a 10 second limit, so nothing here can hold the suite for ever."""
+
+    def __init__(self, mode, cert=None, key=None, life=1500):
+        threading.Thread.__init__(self, daemon=True)
+        self.mode = mode
+        self.count = 0
+        self.handshakes = 0
+        self.app_bytes = 0
+        self.busy = False
+        self.ended = threading.Event()
+        self.deadline = time.time() + life
+        self.ctx = None
+        if mode == "tls":
+            self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            self.ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+            self.ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+            self.ctx.load_cert_chain(cert, key)
+        self.lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.lsock.bind(("127.0.0.1", 0))
+        self.lsock.listen(8)
+        self.lsock.settimeout(0.1)
+        self.port = self.lsock.getsockname()[1]
+        self.start()
+
+    def run(self):
+        while not self.ended.is_set() and time.time() < self.deadline:
+            try:
+                conn, _addr = self.lsock.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            self.busy = True
+            self.count += 1
+            try:
+                conn.settimeout(10)
+                self.handle(conn)
+            except Exception:           # a client that goes away in the middle of a handshake is not the suite's concern
+                pass
+            finally:
+                try:
+                    conn.close()
+                except OSError:
+                    pass
+                self.busy = False
+        try:
+            self.lsock.close()
+        except OSError:
+            pass
+
+    def handle(self, conn):
+        if self.mode == "plain":
+            try:
+                conn.recv(4096)          # the ClientHello; read first so that closing does not reset the connection
+            except OSError:
+                pass
+            conn.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            return
+        tls = self.ctx.wrap_socket(conn, server_side=True)
+        self.handshakes += 1
+        tls.settimeout(2)
+        try:
+            self.app_bytes += len(tls.recv(4096))
+        except (OSError, ssl.SSLError):
+            pass
+        try:
+            tls.close()
+        except OSError:
+            pass
+
+    def settle(self, quiet=0.7, limit=8.0):
+        """Wait until a connection the client has just made has been accepted and dealt with (a 'no connection' row waits the same time)."""
+        time.sleep(quiet)
+        t0 = time.time()
+        while self.busy and time.time() - t0 < limit:
+            time.sleep(0.05)
+
+    def shutdown(self):
+        self.ended.set()
+        self.join(timeout=5)
+
+
+def run_ssl(args, data=None):
+    """The openssl command line; raises with its error text when it fails."""
+    p = subprocess.run(["openssl"] + args, input=data, capture_output=True, timeout=60)
+    if p.returncode != 0:
+        raise RuntimeError("openssl %s failed: %s" % (" ".join(args[:3]), p.stderr.decode(errors="replace")[-300:]))
+    return p.stdout
+
+
+def make_key(path):
+    run_ssl(["genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256", "-out", path])
+
+
+def make_cert(key, cert, cn, serial):
+    run_ssl(["req", "-x509", "-new", "-key", key, "-out", cert, "-days", "2", "-subj", "/CN=" + cn, "-set_serial", str(serial)])
+
+
+def expected_pin(cert):
+    """The pin a server definition must hold for this certificate, computed WITHOUT sd: the SHA-256 of the SubjectPublicKeyInfo, as
+    openssl x509 -pubkey | openssl pkey -pubin -outform DER | openssl dgst -sha256, in lower case hex; Python's hashlib must agree."""
+    pub = run_ssl(["x509", "-in", cert, "-pubkey", "-noout"])
+    der = run_ssl(["pkey", "-pubin", "-outform", "DER"], pub)
+    dg = run_ssl(["dgst", "-sha256", "-binary"], der)
+    if dg != hashlib.sha256(der).digest():
+        raise RuntimeError("openssl dgst and hashlib disagree about the SubjectPublicKeyInfo of " + cert)
+    return dg.hex()
+
+
+def cert_fingerprint(cert):
+    """The SHA-256 of the whole certificate (what a pin must NOT be)."""
+    der = run_ssl(["x509", "-in", cert, "-outform", "DER"])
+    return run_ssl(["dgst", "-sha256", "-binary"], der).hex()
+
+
+def closed_port():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def msg_re(n, *args):
+    """Message N as a regular expression; each ARG is a regular expression for its %n place."""
+    t = re.escape(msg(n, *["QQ%dQQ" % i for i in range(1, len(args) + 1)]))
+    for i, a in enumerate(args, 1):
+        t = t.replace("QQ%dQQ" % i, a)
+    return t
+
+
+def first_idx(out, text):
+    for i, ln in enumerate(out):
+        if text in ln:
+            return i
+    return -1
+
+
+def entry(name):
+    for ln in file_lines() or []:
+        if ln.startswith(name + "|"):
+            return ln
+    return None
+
+
+def audit_off():
+    """Size of the sandbox's audit file.  SD APPENDS to <sys>/audit and never creates it (audit_message() opens it without O_CREAT: the
+    install makes it), so without one every audit line is dropped silently; the file is made here, empty, when it is missing."""
+    path = os.path.join(g.SYS, "audit")
+    try:
+        if not os.path.exists(path):
+            with open(path, "ab"):
+                pass
+        return os.path.getsize(path)
+    except OSError:
+        return None
+
+
+def audit_new(off):
+    """What the sandbox's audit trail gained since OFF; None when the file cannot be read (a row that needs it then FAILS)."""
+    try:
+        with open(os.path.join(g.SYS, "audit"), "rb") as f:
+            f.seek(off or 0)
+            return f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+
+
+def audit_rx(name, host, port, mode, replaced, how):
+    return r"set\.server name=%s host=%s port=%s mode=%s replaced=%s pin=%s(?:\s|$)" % tuple(re.escape(str(x)) for x in (name, host, port, mode, replaced, how))
+
+
+def conn_cmd(name, port, extra="", host="127.0.0.1", account="reader", word="connect"):
+    return "set.server %s %s %s %s %s%s" % (name, host, port, account, word, (" " + extra) if extra else "")
+
+
+def conn_run(cmd, answers, srv=None):
+    """Run CMD with the ANSWERS in an administrator session.  Returns the output, the definitions file before and after, what the audit
+    trail gained, and how many connections SRV accepted meanwhile (None without SRV).  Every session ends: the input ends with OFF."""
+    c0 = srv.count if srv is not None else 0
+    before = snap()
+    a0 = audit_off()
+    out = adm1(cmd, *answers)
+    after = snap()
+    if srv is not None:
+        srv.settle()
+    return out, before, after, audit_new(a0), (srv.count - c0 if srv is not None else None)
+
+
+def sock_probe(port):
+    return "\n".join([
+        "$include keys.h",
+        "   skt = open.socket('127.0.0.1', %d, SKT$BLOCKING, 5)" % port,
+        "   if status() # 0 then crt 'SK plain-open FAILED ':status() ; stop",
+        "   h = socket.info(skt, SKT$INFO.TLS.SPKI)",
+        "   crt 'SK plain len=':len(h):' [':h:']'",
+        "   close.socket skt",
+        "   skt = open.socket('127.0.0.1', %d, SKT$BLOCKING + SKT$TLS, 5)" % port,
+        "   if status() # 0 then crt 'SK tls-open FAILED ':status() ; stop",
+        "   h = socket.info(skt, SKT$INFO.TLS.SPKI)",
+        "   crt 'SK tls len=':len(h):' [':h:']'",
+        "   close.socket skt",
+        "   crt 'SK end'", "end", ""])
+
+
+def connect_section():
+    say("\n--- set.server ... connect: ONE TLS handshake, the hash of the key shown, SDSYS asked; a local TLS 1.3 server stands in for the other SD ---")
+    for p in (netfile(), netfile() + ".new", netfile() + ".lock"):
+        if os.path.exists(p):
+            os.remove(p)
+            say("  [note] a leftover %s was removed" % os.path.basename(p))
+    if shutil.which("openssl") is None:
+        row("SETUP: the openssl command line is needed to make the test certificates and the expected pins, and it is NOT installed: "
+            "NONE of the connect rows can run", False, "install openssl and run again")
+        return
+    work = tempfile.mkdtemp(prefix="sdnet-conn-")
+    servers = []
+    probes = []
+    try:
+        try:
+            k1, k2 = os.path.join(work, "k1.pem"), os.path.join(work, "k2.pem")
+            c1, c1b, c2 = (os.path.join(work, n) for n in ("c1.pem", "c1b.pem", "c2.pem"))
+            make_key(k1)
+            make_key(k2)
+            make_cert(k1, c1, "sdnet-test-one", 1)
+            make_cert(k1, c1b, "sdnet-test-one-renewed", 2)       # a NEW certificate over the SAME key
+            make_cert(k2, c2, "sdnet-test-two", 3)                # a certificate over a NEW key
+            pin_a, pin_a2, pin_b = expected_pin(c1), expected_pin(c1b), expected_pin(c2)
+            fp_a, fp_a2 = cert_fingerprint(c1), cert_fingerprint(c1b)
+        except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+            row("SETUP: the test certificates and the expected pins were made with the openssl command line", False, repr(e))
+            return
+        row("SETUP: the independent computation (openssl): a renewed certificate over the same key has the SAME pin and a DIFFERENT certificate hash; "
+            "a certificate over a new key has a different pin; each pin is 64 lower case hex digits",
+            pin_a == pin_a2 and fp_a != fp_a2 and pin_b != pin_a and all(re.fullmatch(r"[0-9a-f]{64}", x) for x in (pin_a, pin_b)),
+            repr((pin_a, pin_a2, pin_b, fp_a == fp_a2)))
+        srv_a = TestServer("tls", c1, k1)
+        srv_a2 = TestServer("tls", c1b, k1)
+        srv_b = TestServer("tls", c2, k2)
+        srv_p = TestServer("plain")
+        servers += [srv_a, srv_a2, srv_b, srv_p]
+        dead = closed_port()
+        say("  [note] test servers on 127.0.0.1: tls %d, tls (renewed certificate, same key) %d, tls (new key) %d, not-TLS %d; a closed port %d"
+            % (srv_a.port, srv_a2.port, srv_b.port, srv_p.port, dead))
+        H = "127.0.0.1"
+        succ_ok = lambda out: g.has(out, SUCCESS)
+        q_key = lambda out: has_text(out, msg(11442))
+
+        # -- the control: a new name, the hash shown, y
+        pa = srv_a.port
+        out, b, a, au, dials = conn_run(conn_cmd("conna", pa), ["y"], srv_a)
+        order = [first_idx(out, msg(11440, H, pa)), next((i for i, ln in enumerate(out) if ln == pin_a), -1),
+                 first_idx(out, msg(11441)[:60]), first_idx(out, msg(11442)), first_idx(out, msg(11424, "conna", H, pa))]
+        row("CONTROL, a new name and the answer y: 'Connected to host:port (a TLS handshake only...)', the hash ALONE on a line, the advice to compare it, "
+            "the question 'Trust this key (y/<n>)?', then 'Server conna is defined' - in that order",
+            all(i >= 0 for i in order) and order[0] < order[1] < order[2] <= order[3] <= order[4], repr((order, out[-6:])))
+        row("...the stored pin is EXACTLY the one computed with openssl (SHA-256 of the SubjectPublicKeyInfo, lower case), and the other fields are as typed (read, no accounts)",
+            line_is(entry("conna"), ["conna", H, str(pa), "reader", pin_a, "read", ""]), "file now: %r  expected pin %s" % (file_lines(), pin_a))
+        row("...it is the hash of the KEY and not of the certificate: the stored pin differs from the certificate's own SHA-256 (%s...)" % fp_a[:12],
+            entry("conna") is not None and entry("conna").split("|")[4] != fp_a, repr(entry("conna")))
+        row("...the audit trail says how the pin was obtained: 'set.server name=conna host=%s port=%d mode=read replaced=no pin=confirmed'" % (H, pa),
+            au is not None and re.search(audit_rx("conna", H, pa, "read", "no", "confirmed"), au) is not None, repr((au or "NO AUDIT FILE")[-300:]))
+        row("...and the audit trail does not carry the hash", au is not None and pin_a not in au and pin_a.upper() not in au, "")
+        row("...the server saw ONE connection, ONE completed handshake and NO application data at all (a handshake only), and no copy netservers.new is left",
+            dials == 1 and srv_a.handshakes == 1 and srv_a.app_bytes == 0 and not os.path.exists(netfile() + ".new"),
+            repr((dials, srv_a.handshakes, srv_a.app_bytes)))
+
+        # -- n, an empty answer and the end of input are all a no; the file is the same bytes
+        for label, answers in (("n", ["n"]), ("an empty line", [""]), ("N", ["N"]), ("x and then n (the question is put again)", ["x", "n"]),
+                               ("no answer at all (end of input)", [])):
+            out, b, a, au, dials = conn_run(conn_cmd("connb", pa), answers, srv_a)
+            asked = sum(ln.count(msg(11442)) for ln in out)        # the prompt has no newline, so two of them can stand on one line
+            row("the key question answered with %s: the hash was shown, 'The key was not trusted', no success wording, the file the SAME BYTES, no audit line, no copy left" % label,
+                has_line(out, pin_a) and has_text(out, msg(11443, "connb")) and not succ_ok(out) and b == a and entry("connb") is None
+                and au is not None and "name=connb" not in au and not os.path.exists(netfile() + ".new") and asked >= (2 if label.startswith("x") else 1)
+                and dials == 1, "asked=%d dials=%s before==after %s  out %r" % (asked, dials, b == a, out[-4:]))
+
+        # -- no.query never skips the key question
+        out, b, a, au, dials = conn_run(conn_cmd("connc", pa, "no.query"), ["n"], srv_a)
+        row("NO.QUERY does not skip the key question: the question is on the screen, the answer n writes NOTHING (file the same bytes), and the server was dialled",
+            q_key(out) and has_text(out, msg(11443, "connc")) and b == a and entry("connc") is None and dials == 1, repr((b == a, dials, out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("connc", pa, "no.query"), ["y"], srv_a)
+        row("...and with the answer y the same command defines it (the question was still put)",
+            q_key(out) and has_text(out, msg(11424, "connc", H, pa)) and line_is(entry("connc"), ["connc", H, str(pa), "reader", pin_a, "read", ""]), repr(out[-3:]))
+        out, b, a, au, dials = conn_run(conn_cmd("conna", srv_b.port, "no.query"), ["y"], srv_b)
+        row("NO.QUERY skips only the question about replacing: conna is replaced with no 'already defined' question, the KEY question is put, and the pin is now the other key's",
+            not has_text(out, "is already defined") and q_key(out) and has_text(out, msg(11425, "conna", H, srv_b.port))
+            and line_is(entry("conna"), ["conna", H, str(srv_b.port), "reader", pin_b, "read", ""]), repr((out[-3:], entry("conna"))))
+        row("...the audit trail says replaced=yes pin=confirmed",
+            au is not None and re.search(audit_rx("conna", H, srv_b.port, "read", "yes", "confirmed"), au) is not None, repr((au or "NO AUDIT FILE")[-300:]))
+
+        # -- replacing an existing name: the replace question comes first and a no to it never dials
+        out, b, a, au, dials = conn_run(conn_cmd("conna", pa), ["n"], srv_a)
+        row("replacing conna: the answer n to 'Replace it' ends it - 'Server conna was not changed', the file the same bytes and NO connection at all (the server counted %s)" % dials,
+            has_text(out, msg(11426, "conna")) and b == a and dials == 0 and not q_key(out), repr((b == a, dials, out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("conna", pa), ["y", "n"], srv_a)
+        row("...y to 'Replace it' and then n to the key question: the connection was made (1), the hash shown, the file the same bytes (the old pin stays)",
+            has_text(out, "is already defined") and has_line(out, pin_a) and has_text(out, msg(11443, "conna")) and b == a and dials == 1, repr((b == a, dials, out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("conna", pa), ["y", "y"], srv_a)
+        row("...y and y: both questions, in that order, and the definition is replaced with the first server's pin again",
+            0 <= first_idx(out, "is already defined") <= first_idx(out, msg(11440, H, pa)) < first_idx(out, msg(11442)) <= first_idx(out, msg(11425, "conna", H, pa))
+            and line_is(entry("conna"), ["conna", H, str(pa), "reader", pin_a, "read", ""]) and dials == 1, repr((out[-4:], entry("conna"))))
+
+        # -- a renewed certificate over the same key, and a new key
+        out, b, a, au, dials = conn_run(conn_cmd("connr", srv_a2.port), ["y"], srv_a2)
+        row("a RENEWED certificate over the SAME key (another serial, another subject) gives the SAME pin as the first server: %s..." % pin_a[:16],
+            line_is(entry("connr"), ["connr", H, str(srv_a2.port), "reader", pin_a2, "read", ""]) and pin_a2 == pin_a and has_line(out, pin_a2) and dials == 1,
+            repr((entry("connr"), pin_a2)))
+        out, b, a, au, dials = conn_run(conn_cmd("connk", srv_b.port), ["y"], srv_b)
+        row("a certificate over a NEW key gives a DIFFERENT pin, the one openssl computes for it: %s..." % pin_b[:16],
+            line_is(entry("connk"), ["connk", H, str(srv_b.port), "reader", pin_b, "read", ""]) and pin_b != pin_a and has_line(out, pin_b) and dials == 1,
+            repr((entry("connk"), pin_b)))
+
+        # -- a server that is not TLS
+        out, b, a, au, dials = conn_run(conn_cmd("connp", srv_p.port), [], srv_p)
+        row("a plain TCP server that is not TLS is refused with the HANDSHAKE message (11445), no hash, no question, no 'Cannot connect', the file the same bytes",
+            g.has(out, msg_re(11445, re.escape(H), str(srv_p.port))) and not g.has(out, msg_re(11444, ".*", ".*", ".*", ".*")) and not q_key(out)
+            and not g.has(out, r"^[0-9a-f]{64}$") and not succ_ok(out) and b == a and entry("connp") is None and dials == 1, repr((b == a, dials, out[-3:])))
+        row("...and no audit line for it", au is not None and "name=connp" not in au, repr(au))
+
+        # -- a closed port, a name that does not resolve
+        out, b, a, au, dials = conn_run(conn_cmd("connd", dead), [])
+        er = None
+        try:
+            with open(os.path.join(os.path.dirname(HERE), "gplsrc", "err.h"), encoding="utf-8", errors="replace") as f:
+                m = re.search(r"#define\s+ER_CONNECT\s+(\d+)", f.read())
+            er = m.group(1) if m else None
+        except OSError:
+            pass
+        row("a CLOSED port is refused with the CANNOT CONNECT message (11444: status %s, os error %d), not the handshake one, nothing written" % (er or "?", errno.ECONNREFUSED),
+            g.has(out, msg_re(11444, re.escape(H), str(dead), er or r"\d+", str(errno.ECONNREFUSED))) and not g.has(out, msg_re(11445, ".*", ".*"))
+            and not q_key(out) and not succ_ok(out) and b == a and entry("connd") is None, repr((b == a, out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("conne", pa, host="nosuchhost.invalid"), [], srv_a)
+        row("a host name that does not resolve is a clear failure (11444 with its status and os error), no question, nothing written, and the real server was NOT dialled (%s)" % dials,
+            g.has(out, msg_re(11444, "nosuchhost\\.invalid", str(pa), r"\d+", r"\d+")) and not q_key(out) and not succ_ok(out) and b == a
+            and entry("conne") is None and dials == 0, repr((b == a, dials, out[-3:])))
+
+        # -- a definition that fails field validation never dials
+        say("  (a definition that would be refused is never dialled: no 'Connected', no 'Cannot connect', no handshake message, no question, the server counts 0)")
+        bad = [("a bad name", conn_cmd("1bad", pa), [msg(11414, "1bad")]),
+               ("a bad host", conn_cmd("badh", pa, host="-bad.org"), [msg(11415, "-bad.org")]),
+               ("a bad port", conn_cmd("badp", 0), [msg(11416, "0")]),
+               ("a bad remote account", conn_cmd("bada", pa, account="bad@acct"), [msg(11417, "bad@acct")]),
+               ("a bad mode", conn_cmd("badm", pa, "append"), [msg(11419, "append")]),
+               ("an unregistered account in the list", conn_cmd("badl", pa, "accounts zznnosuch"), [msg(11421, "zznnosuch")]),
+               ("a bad list", conn_cmd("badl", pa, "accounts zznon,,zznoff"), [msg(11420)]),
+               ("name, port and account all wrong", conn_cmd("1x", 0, account="b@d"), [msg(11414, "1x"), msg(11416, "0"), msg(11417, "b@d")])]
+        for label, cmd, expect in bad:
+            out, b, a, au, dials = conn_run(cmd, [], srv_a)
+            miss = [t for t in expect if not has_line(out, t)]
+            dialled = g.has(out, r"Connected to |Cannot connect to |The TLS handshake with |completed the handshake") or q_key(out)
+            row("%s with connect -> refused with its own message, nothing dialled (the server counted %s), the file the same bytes" % (label, dials),
+                not miss and not dialled and dials == 0 and b == a and not succ_ok(out), "missing %r; dialled=%s dials=%s out %r" % (miss, dialled, dials, out[-4:]))
+
+        # -- the typed pin makes no connection
+        out, b, a, au, dials = conn_run("set.server connt %s %d reader %s read" % (H, pa, pin_b), [], srv_a)
+        row("a TYPED pin makes NO connection (the server counted %s) and no key question, even for a port with a TLS server on it; the typed pin is stored as typed" % dials,
+            dials == 0 and not q_key(out) and not g.has(out, r"Connected to ") and has_text(out, msg(11424, "connt", H, pa))
+            and line_is(entry("connt"), ["connt", H, str(pa), "reader", pin_b, "read", ""]), repr((dials, out[-3:])))
+        row("...and its audit line says pin=typed (and not pin=confirmed)",
+            au is not None and re.search(audit_rx("connt", H, pa, "read", "no", "typed"), au) is not None and "pin=confirmed" not in au, repr((au or "NO AUDIT FILE")[-300:]))
+        out, b, a, au, dials = conn_run("set.server connt2 %s %d reader %s read" % (H, dead, pin_a), [])
+        row("...a typed pin for a port with nothing listening is accepted too (nothing is dialled)", has_text(out, msg(11424, "connt2", H, dead)) and entry("connt2") is not None, repr(out[-3:]))
+
+        # -- the word is CONNECT in any case, and the other words still work with it
+        out, b, a, au, dials = conn_run(conn_cmd("connu", pa, "write accounts zznon,zznoff", word="CONNECT"), ["y"], srv_a)
+        row("the word is accepted in upper case, with write and an accounts list after it: defined with pin %s... and mode write" % pin_a[:12],
+            line_is(entry("connu"), ["connu", H, str(pa), "reader", pin_a, "write", "zznon,zznoff"]) and dials == 1, repr((entry("connu"), out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("connv", pa, "no.query", word="Connect"), ["y"], srv_a)
+        row("...and as Connect, before no.query", line_is(entry("connv"), ["connv", H, str(pa), "reader", pin_a, "read", ""]) and dials == 1, repr((entry("connv"), out[-3:])))
+
+        # -- the limit of ten comes before the dial
+        have = [x.split("|")[0] for x in (file_lines() or [])]
+        fill = ["tt%02d" % i for i in range(1, 30) if ("tt%02d" % i) not in have][:max(0, 10 - len(have))]
+        adm1(*["set.server %s %s %d reader %s read" % (n, H, dead, pin_a) for n in fill])
+        row("setup: ten definitions are held (%d filled)" % len(fill), len(file_lines() or []) == 10, repr(file_lines()))
+        out, b, a, au, dials = conn_run(conn_cmd("eleven", pa), [], srv_a)
+        row("an 11th NEW name with connect is refused with 11422 BEFORE any connection (the server counted %s), the file the same bytes" % dials,
+            has_line(out, msg(11422, 10)) and dials == 0 and b == a and not q_key(out), repr((dials, b == a, out[-3:])))
+        out, b, a, au, dials = conn_run(conn_cmd("conna", pa, "no.query"), ["y"], srv_a)
+        row("CONTROL: with ten held, REPLACING one with connect still works (it is no new name), and stays ten",
+            has_text(out, msg(11425, "conna", H, pa)) and len(file_lines() or []) == 10 and dials == 1, repr((len(file_lines() or []), dials, out[-3:])))
+
+        # -- a program reads the hash of a socket: the null string without TLS
+        say("  (SOCKET.INFO(.., SKT$INFO.TLS.SPKI): a program that opens the test server WITHOUT SKT$TLS gets the null string, and WITH it the 64 digits)")
+        prog = "zznetsk" + RUN
+        g.put(os.path.join(g.SYS, "bp", prog), sock_probe(srv_a.port))
+        probes.append(os.path.join(g.SYS, "bp", prog))
+        out = adm1("BASIC bp " + prog, "RUN bp " + prog)
+        row("the administrator's probe compiled with no errors", g.has(out, r"^Compiled 1 program\(s\) with no errors"), repr(out[-4:]))
+        row("...a socket opened WITHOUT SKT$TLS: SOCKET.INFO answers the NULL string (length 0)", has_line(out, "SK plain len=0 []"), repr(out[-4:]))
+        row("...CONTROL, the same probe with SKT$TLS: 64 digits, the pin openssl computed for that server (so the null above is not a broken SOCKET.INFO)",
+            has_line(out, "SK tls len=64 [%s]" % pin_a) and has_line(out, "SK end"), repr(out[-4:]))
+        g.put(os.path.join(acct_path("zznoff"), "bp", prog), sock_probe(srv_a.port))
+        probes.append(os.path.join(acct_path("zznoff"), "bp", prog))
+        out = g.plain("zznoff", ["BASIC bp " + prog, "RUN bp " + prog])
+        row("an ORDINARY account (zznoff): the same probe - null string for the plain socket, the 64 digits for the TLS one (the hash is a public key's, no gate hides it)",
+            g.has(out, r"^Compiled 1 program\(s\) with no errors") and has_line(out, "SK plain len=0 []") and has_line(out, "SK tls len=64 [%s]" % pin_a), repr(out[-5:]))
+    finally:
+        for s in servers:
+            s.shutdown()
+        for p in probes:
+            for q in (p, p.replace(os.sep + "bp" + os.sep, os.sep + "bp.out" + os.sep)):
+                if os.path.exists(q):
+                    os.remove(q)
+        shutil.rmtree(work, ignore_errors=True)
+        if os.path.exists(netfile()):
+            os.remove(netfile())            # the next section makes its own
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]")
+        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, ordinary)")
     g.BOX = os.path.abspath(args[0])
     g.SYS = os.path.join(g.BOX, "sys")
     g.SD = os.path.join(g.SYS, "bin", "sd")
@@ -680,7 +1118,7 @@ def main():
         bail("the plain session is an administrator (or printed nothing): every row below would be meaningless")
 
     for name, section in (("gate", gate_section), ("logto", logto_section), ("modify", modify_section), ("manifest", manifest_section),
-                          ("defs", defs_section), ("ordinary", ordinary_section)):
+                          ("defs", defs_section), ("connect", connect_section), ("ordinary", ordinary_section)):
         if run(name):
             section()
 

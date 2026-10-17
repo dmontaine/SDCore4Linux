@@ -17,6 +17,16 @@ after the write.  An edit that moves one still compiles.
 NOTHING OPENS A REMOTE FILE YET.  This slice is the gate (nothing reads it) and the definitions (nothing uses them); the checks say
 so by what they do not look for.
 
+17 Oct 26 dm  S.65 slice 2a: set.server's fifth word may be CONNECT.  Section T reads the flow as ORDER - every field, the lock, the
+read, the limit and the replace question before the one socket is opened; opened with SKT$TLS and a 5 second timeout; the hash read
+and the socket closed before the key question is shown; the key question asked on EVERY connect (no.query is not consulted between
+the connect and the question); nothing written on n, on a failed connect, on a failed handshake or on an empty hash; the audit words
+pin=typed and pin=confirmed.  Section C3-C6 reads the C side: the hash is of the SubjectPublicKeyInfo (i2d_X509_PUBKEY and SHA-256, not
+X509_digest, which is the certificate and changes at every renewal), SOCKET.INFO answers 64 lower case hex digits and a null string
+without TLS, and the key number 11 is the same in both headers and unique.  P2, P3, G1-G5 were extended for the new messages
+11440-11446 and the audit word.  What it cannot say is whether a handshake works or the hash is the right one: sandbox-net.py, section
+"connect", against an independent openssl computation.
+
 ***AND THE CHECKS ARE THEMSELVES CHECKED.***  --selftest breaks each invariant in the way an edit plausibly would and requires some
 check to notice.  A mutant that nothing catches is reported as a FAILURE of the self-test.
 """
@@ -34,12 +44,12 @@ GPLSRC = os.path.join(SD64, "gplsrc")
 ROOT = os.path.dirname(os.path.dirname(SD64))
 MSGDIR = os.path.join(SDSYS, "messages")
 
-C_FILES = ("keys.h", "sysseg.h", "op_kernel.c")
+C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c")
 MAIN_BP = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea",
            "netdefs", "setserver", "deleteserver", "listservers")
 VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteserver", "$deleteserver"),
          ("list.servers", "listservers", "$listservers"))
-MSG_FIRST, MSG_LAST = 11411, 11439
+MSG_FIRST, MSG_LAST = 11411, 11446      # 11411-11439 slice 1, 11440-11446 slice 2a (CONNECT); 11447-11449 are free
 LINUX_BLOCK = (11000, 11999)
 
 
@@ -307,7 +317,7 @@ def checks(srcs):
        and re.search(r"\$define NET\.MAX\.SERVERS 10\b", ss_) is not None
        and "if found = 0 and n.defs >= NET.MAX.SERVERS then" in ss_ and "if found # 0 and not(no.query) then" in ss_
        and re.search(r"if yn = 'N' then\s*\n\s*gosub release\.lock\s*\n\s*@system\.return\.code = 0\s*\n\s*stop sysmsg\(11426", ss_) is not None
-       and "if yn = '' and status() = ER$EOF then yn = 'N'" in ss_, "")
+       and ss_.count("if yn = '' and status() = ER$EOF then yn = 'N'") == 2, "")   # the replace question and, since slice 2a, the key question
     ck("S3 ...the lock is released straight after the write, whether or not it worked, and before the audit line",
        re.search(r"call !netdefs\('WRITE', defs, err\)\s*\n\s*gosub release\.lock\s*\n\s*if err # '' then", ss_) is not None
        and 0 <= first_write < at(ss_, "kernel(K$AUDIT, 'set.server name='"), "")
@@ -317,7 +327,7 @@ def checks(srcs):
        and "len(host) < 1 or len(host) > 253" in ss_ and "chk.set = lc.set:digits:'.-:'" in ss_ and "host[1, 1] = '-' or host[1, 1] = '.'" in ss_
        and "port matches '1N0N'" in ss_ and "port + 0 >= 1 and port + 0 <= 65535" in ss_
        and "len(account) < 1 or len(account) > 32" in ss_ and "chk.set = lc.set:upcase(lc.set):digits:'._-'" in ss_
-       and "len(pin) # 64" in ss_ and "chk.set = digits:'abcdef'" in ss_ and re.search(r"\$define NET\.MAX\.SERVERS 10\b", ss_) is not None, "")
+       and "len(pin) # 64" in ss_ and ss_.count("chk.set = digits:'abcdef'") == 2 and re.search(r"\$define NET\.MAX\.SERVERS 10\b", ss_) is not None, "")
     ck("S5 ...the accounts list: a name is checked for form and then against the register (11421); a list over 2000 bytes, an empty name or a name over 32 is 11420",
        re.search(r"\$define NET\.MAX\.ACCLIST 2000\b", ss_) is not None and "len(acc.list) <= NET.MAX.ACCLIST" in ss_
        and "if a = '' or len(a) > 32 or not(chk.ok) then list.ok = @false" in ss_
@@ -372,41 +382,126 @@ def checks(srcs):
     ck("P1 set.server, delete.server and list.servers have no statement that writes, deletes, creates or runs anything outside the register and the lock "
        "(only !netdefs writes the pin to disk)",
        not any(re.search(wsrc, bare(t)) for t in (ss_, ds, ls)), repr([re.search(wsrc, bare(t)).group(0) for t in (ss_, ds, ls) if re.search(wsrc, bare(t))]))
-    leaks = [ln.strip() for ln in strip_strings(ss_).split("\n") if re.search(r"\bpin\b", ln) and re.search(r"\b(display|crt|print|stop|sysmsg|kernel)\b", ln)]
-    ck("P2 the pin is never shown, printed or put on the audit trail by set.server (the audit line names the server, host, port and mode)", not leaks, repr(leaks))
-    ck("P3 ...it goes into the definition line and nowhere else: its only uses are the lower-casing, the form test and the line that builds the definition",
-       len([ln for ln in strip_strings(ss_).split("\n") if re.search(r"\bpin\b", ln)]) == 5
+    def pin_lines(t):       # the lines that use the variable pin (pin.how, the audit word, and the routine's name connect.pin are not it)
+        return [ln for ln in strip_strings(t).split("\n") if re.search(r"\bpin\b", re.sub(r"\b(?:pin\.how|connect\.pin)\b", "", ln))]
+    leaks = [ln.strip() for ln in pin_lines(ss_) if re.search(r"\b(display|crt|print|stop|sysmsg|kernel)\b", ln)]
+    ck("P2 the pin is never shown, printed or put on the audit trail by set.server (the audit line names the server, host, port, mode, "
+       "whether it replaced and how the pin was obtained; the one hash that is shown, in CONNECT, is the variable spki - T7)", not leaks, repr(leaks))
+    ck("P3 ...it goes into the definition line and nowhere else: its only uses are the lower-casing, the CONNECT word, the form test, the hash "
+       "confirmed by SDSYS and the line that builds the definition (8 lines)",
+       len(pin_lines(ss_)) == 8
        and re.search(r"one = name:@vm:host:@vm:port:@vm:account:@vm:pin:@vm:mode:@vm:acc\.clean:@vm:created", ss_) is not None
-       and "'set.server name=' : name : ' host=' : host : ' port=' : port : ' mode=' : mode : ' replaced=' : rep.word" in ss_, "")
+       and "'set.server name=' : name : ' host=' : host : ' port=' : port : ' mode=' : mode : ' replaced=' : rep.word : ' pin=' : pin.how)" in ss_, repr(len(pin_lines(ss_))))
+
+    # ---- T. set.server ... connect (S.65 slice 2a): the order of the flow --------------------------------------------------------
+    cp_i = ss_.find("\nconnect.pin:")
+    cp_j = ss_.find("\nrelease.lock:", cp_i) if cp_i >= 0 else -1
+    cpb = ss_[cp_i:cp_j] if 0 <= cp_i < cp_j else ""         # the routine
+    mainb = ss_[:cp_i] if cp_i >= 0 else ss_                  # everything before it
+    m_call = re.search(r"if connect\.mode then\s*\n\s*gosub connect\.pin[^\n]*\n\s*pin\.how = 'confirmed'\s*\n\s*end", ss_)
+    p_call = m_call.start() if m_call else -1
+    sop = strip_strings(ss_)
+    ck("T1 the fifth word is CONNECT in any case (the pin is lower-cased first), it empties pin, and the typed-pin form test is skipped for it",
+       ordered(ss_, "pin = downcase(field(words, ' ', 6))", "if pin = 'connect' then", "connect.mode = @true", "pin = ''")
+       and ordered(ss_, "if not(connect.mode) then", "chk.text = pin", "len(pin) # 64"), "")
+    ck("T2 nothing is dialled for a definition that would be refused: every field (11414-11421), the stop on 'bad', the lock, the read, the limit of "
+       "10 and the replace question all come BEFORE the one gosub of connect.pin, which is guarded by connect.mode and followed by the write",
+       all(0 <= f < gate for f in fld) and p_call >= 0 and ss_.count("gosub connect.pin") == 1
+       and 0 <= gate < at(ss_, "readu lock.rec") < at(ss_, "call !netdefs('READ'") < at(ss_, "sysmsg(11422") < at(ss_, "sysmsg(11423") < p_call
+       and p_call < at(ss_, "call !netdefs('WRITE'") and at(ss_, "pin.how = 'confirmed'") < at(ss_, "call !netdefs('WRITE'"),
+       repr((gate, p_call)))
+    ck("T3 the socket is opened in the routine only (the typed pin makes no connection), once, with SKT$BLOCKING + SKT$TLS and the 5 second timeout, "
+       "and the status and the operating system error are read at once",
+       ss_.count("open.socket(") == 1 and cpb.count("open.socket(") == 1
+       and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, NET\.CONNECT\.SECS\)\s*\n\s*st = status\(\)\s*\n\s*oserr = os\.error\(\)", cpb) is not None
+       and re.search(r"\$define NET\.CONNECT\.SECS 5\b", ss_) is not None and re.search(r"^\$include keys\.h", ss_, re.M) is not None, "")
+    ck("T4 a handshake only: the hash is read, the socket is closed (once), and all of that BEFORE anything is shown or asked; nothing is read from "
+       "or written to the socket",
+       ordered(cpb, "open.socket(", "if st # 0 then", "socket.info(skt, SKT$INFO.TLS.SPKI)", "close.socket skt", "sysmsg(11440", "display spki", "sysmsg(11441", "sysmsg(11442", "input yn")
+       and ss_.count("close.socket") == 1 and not re.search(r"\b(?:write|read|select)\.socket\b|set\.socket\.mode|\bsend\b|\brecv\b", sop), "")
+    ck("T5 THE KEY QUESTION IS ALWAYS ASKED: no.query is not mentioned in the routine, the only test of it is the replace question (before the connect), "
+       "and the question is a loop that ends on y or n, an empty answer and input that ends being n",
+       "no.query" not in cpb and len([ln for ln in sop.split("\n") if "no.query" in ln and re.search(r"\bif\b", ln)]) == 1
+       and "if found # 0 and not(no.query) then" in ss_ and at(ss_, "if found # 0 and not(no.query) then") < p_call
+       and ss_[p_call:at(ss_, "call !netdefs('WRITE'")].count("no.query") == 0
+       and re.search(r"display sysmsg\(11442\) :", cpb) is not None
+       and ordered(cpb, "loop", "display sysmsg(11442)", "input yn", "if yn = '' and status() = ER$EOF then yn = 'N'", "if yn = '' then yn = 'N'", "until yn = 'Y' or yn = 'N'", "repeat"), "")
+    ck("T6 nothing is written on n, on a connection that fails, on a handshake that fails or on an empty hash: each gives the lock back and STOPS "
+       "(n with return code 0), and the pin is taken from the hash only after the n has stopped",
+       re.search(r"if yn = 'N' then\s*\n\s*gosub release\.lock\s*\n\s*@system\.return\.code = 0\s*\n\s*stop sysmsg\(11443, name\)\s*\n\s*end\s*\n\s*pin = spki\s*\n\s*return", cpb) is not None
+       and re.search(r"gosub release\.lock\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*if st = ER\$CONNECT and oserr = 0 then stop sysmsg\(11445, host, port\)\s*\n\s*stop sysmsg\(11444, host, port, st, oserr\)", cpb) is not None
+       and re.search(r"gosub release\.lock\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*stop sysmsg\(11446, host, port\)", cpb) is not None
+       and cpb.count("pin = spki") == 1 and "call !netdefs" not in cpb and ss_.count("call !netdefs('WRITE'") == 1, "")
+    ck("T7 the hash is lower case and trimmed, must be 64 hexadecimal digits before it is shown (an empty or damaged one is 11446), and the failure that "
+       "is a handshake (status ER$CONNECT with os error 0, 11445) is told from the one that is not (11444)",
+       ordered(cpb, "spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))", "close.socket skt", "chk.set = digits:'abcdef'", "len(spki) # 64 or not(chk.ok)", "sysmsg(11446", "sysmsg(11440")
+       and ordered(cpb, "sysmsg(11445", "sysmsg(11444") and "display spki" in cpb and ss_.count("display spki") == 1, "")
+    ck("T8 the audit line says how the pin was obtained, in lower case: pin.how starts as typed, is confirmed only after connect.pin has returned, "
+       "and is in the one audit line, after the write",
+       ss_.count("pin.how = '") == 2 and ordered(ss_, "pin.how = 'typed'", "gosub connect.pin", "pin.how = 'confirmed'", "call !netdefs('WRITE'", "kernel(K$AUDIT, 'set.server name='")
+       and ss_.count("pin=") == 1 and "' pin=' : pin.how)" in ss_ and ss_.count("kernel(K$AUDIT") == 1, "")
+
+    # ---- C3-C6. the C side of the hash --------------------------------------------------------------------------------------
+    tc, th, sk, kh, sy = c["sd_tls.c"], c["sd_tls.h"], c["op_skt.c"], c["keys.h"], c["syscom/keys.h"]
+    i = tc.find("int sd_tls_client_peer_spki_sha256(")
+    fb = tc[i:tc.find("\n}\n", i)] if i >= 0 else ""
+    ck("C3 the hash is of the SubjectPublicKeyInfo - i2d_X509_PUBKEY of X509_get_X509_PUBKEY, then SHA-256 of those bytes, all 32 required - and NOT the "
+       "certificate (X509_digest and i2d_X509 would change at every renewal)",
+       fb != "" and tc.count("sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT") == 1
+       and "i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &der)" in fb and "EVP_Digest(" in fb and "EVP_sha256()" in fb and "n == 32" in fb
+       and "X509_digest" not in fb and not re.search(r"i2d_X509\s*\(", fb), "")
+    ck("C3b ...it asks for the certificate the server PRESENTED (SSL_get1_peer_certificate), answers false with none, and frees the certificate and the DER bytes",
+       "SSL_get1_peer_certificate(c->ssl)" in fb and "if (cert == NULL)" in fb and "X509_free(cert)" in fb and "OPENSSL_free(der)" in fb
+       and ordered(fb, "cert == NULL", "i2d_X509_PUBKEY", "EVP_Digest(", "OPENSSL_free(der)", "X509_free(cert)", "return ok"), "")
+    ck("C4 sd_tls.h declares it with the same signature (SD_TLS_CLIENT*, 32 bytes out)",
+       "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);" in th, "")
+    i = sk.find("case SKT_INFO_TLS_SPKI:")
+    cb = sk[i:sk.find("} break;", i)] if i >= 0 else ""
+    ck("C5 SOCKET.INFO(.., SKT$INFO.TLS.SPKI) answers 64 lower case hex digits for a TLS socket and the NULL string for any other (the result is set to "
+       "empty first and filled only when the socket has TLS and the hash was made)",
+       cb != "" and sk.count("case SKT_INFO_TLS_SPKI:") == 1 and "char hex[65];" in cb and "unsigned char spki[32];" in cb
+       and ordered(cb, "hex[0] = '\\0';", "sockvar->tls != NULL", "sd_tls_client_peer_spki_sha256((SD_TLS_CLIENT*)sockvar->tls, spki)", "i < 32", '"%02x"', "k_put_c_string(hex, &result_descr)")
+       and "%02X" not in cb, "")
+    spki_keys = {m.group(1): m.group(2) for m in re.finditer(r"#define\s+(SKT_INFO_[A-Z0-9_]+)\s+(\d+)", kh)}
+    spki_bas = {m.group(1): m.group(2) for m in re.finditer(r"\$define\s+(SKT\$INFO\.[A-Z0-9.]+)\s+(\d+)", sy)}
+    ck("C6 the key number is 11 in both headers and no other SKT_INFO / SKT$INFO name uses it",
+       spki_keys.get("SKT_INFO_TLS_SPKI") == "11" and spki_bas.get("SKT$INFO.TLS.SPKI") == "11"
+       and [k for k, v in spki_keys.items() if v == "11"] == ["SKT_INFO_TLS_SPKI"] and [k for k, v in spki_bas.items() if v == "11"] == ["SKT$INFO.TLS.SPKI"],
+       repr((spki_keys.get("SKT_INFO_TLS_SPKI"), spki_bas.get("SKT$INFO.TLS.SPKI"))))
 
     # ---- G. messages ----------------------------------------------------------------------------------------------------------
     texts = {n: srcs["msg:%d" % n] for n in range(MSG_FIRST, MSG_LAST + 1)}
-    ck("G1 messages 11411 to 11439 all exist, each one line of text, and inside the Linux block 11000-11999 (not the Windows block)",
+    ck("G1 messages 11411 to 11446 all exist, each one line of text, and inside the Linux block 11000-11999 (not the Windows block)",
        all(t is not None and t.strip() != "" and "\n" not in t.rstrip("\n") for t in texts.values())
        and LINUX_BLOCK[0] <= MSG_FIRST and MSG_LAST <= LINUX_BLOCK[1], repr([n for n, t in texts.items() if not t]))
     verb_code = nd + "\n" + ss_ + "\n" + ds + "\n" + ls
-    used = {int(x) for x in re.findall(r"\b(114[1-3]\d)\b", verb_code)}
-    ck("G2 every message from 11412 to 11439 is used by the verbs or !netdefs, and 11411 by MODIFY.ACCOUNT and CREATE.ACCOUNT",
-       set(range(11412, 11440)) <= used and "11411" in mo and "11411" in ca2 and 11411 not in used, repr(sorted(set(range(11412, 11440)) - used)))
-    literal = {n for n, _a in sysmsg_calls(verb_code + "\n" + mo + "\n" + ca2) if 11411 <= n <= 11439}
+    used = {int(x) for x in re.findall(r"\b(114[1-4]\d)\b", verb_code)}
+    ck("G2 every message from 11412 to 11446 is used by the verbs or !netdefs (11447-11449 are free), and 11411 by MODIFY.ACCOUNT and CREATE.ACCOUNT",
+       set(range(11412, MSG_LAST + 1)) <= used and not (used & {11447, 11448, 11449}) and "11411" in mo and "11411" in ca2 and 11411 not in used,
+       repr(sorted(set(range(11412, MSG_LAST + 1)) - used)))
+    literal = {n for n, _a in sysmsg_calls(verb_code + "\n" + mo + "\n" + ca2) if 11411 <= n <= MSG_LAST}
     reused = {n for n, _a in sysmsg_calls(verb_code)} | set(int(x) for x in re.findall(r"\berr = (\d{4,5})", verb_code))
-    ck("G3 every number the verbs print exists as a message file (11412-11439 and the reused 2001, 2018, 6000)",
-       all(srcs.get("msg:%d" % n) for n in reused if n in (2001, 2018, 6000) or 11411 <= n <= 11439)
-       and all(n in (2001, 2018, 6000) or 11411 <= n <= 11439 for n in reused), repr(sorted(reused)))
+    ck("G3 every number the verbs print exists as a message file (11412-11446 and the reused 2001, 2018, 6000)",
+       all(srcs.get("msg:%d" % n) for n in reused if n in (2001, 2018, 6000) or 11411 <= n <= MSG_LAST)
+       and all(n in (2001, 2018, 6000) or 11411 <= n <= MSG_LAST for n in reused), repr(sorted(reused)))
     short = []
     for n, args in sysmsg_calls(verb_code + "\n" + mo + "\n" + ca2):
         t = srcs.get("msg:%d" % n)
-        if t is None or not (11411 <= n <= 11439):
+        if t is None or not (11411 <= n <= MSG_LAST):
             continue
         top = max([int(x) for x in re.findall(r"%(\d)", t)] or [0])
         if len(args) != top:
             short.append((n, len(args), top))
     ck("G4 each call of sysmsg gives as many arguments as its message has %n places", not short and literal, repr(short))
     t = lambda n: texts.get(n) or ""
-    ck("G5 the wording the users and the verbs rely on: 11411 'Account %1 has NET %2'; 11423 asks 'Replace it (y/<n>)?'; 11413 says nothing connects yet; "
-       "11439 names net-on; 11412 is the usage line",
-       t(11411).strip() == "Account %1 has NET %2" and t(11423).strip().endswith("Replace it (y/<n>)?") and "Nothing connects to the server yet" in t(11413)
-       and "net-on" in t(11439) and t(11412).startswith("Usage: set.server"), "")
+    ck("G5 the wording the users and the verbs rely on: 11411 'Account %1 has NET %2'; 11423 asks 'Replace it (y/<n>)?'; 11442 asks 'Trust this key (y/<n>)?'; "
+       "11413 says no.query never skips the key question; 11439 names net-on; 11412 is the usage line and shows {pin | connect}; "
+       "11440 says a handshake only, with the host and port; 11443 and 11444-11446 say nothing was written",
+       t(11411).strip() == "Account %1 has NET %2" and t(11423).strip().endswith("Replace it (y/<n>)?") and t(11442).strip().endswith("Trust this key (y/<n>)?")
+       and "no.query never skips" in t(11413) and "net-on" in t(11439)
+       and t(11412).startswith("Usage: set.server") and "{pin | connect}" in t(11412)
+       and "%1:%2" in t(11440) and "handshake only" in t(11440)
+       and all("Nothing was written" in t(n) or "nothing was written" in t(n).lower() for n in (11443, 11444, 11445, 11446)), "")
     return rows
 
 
@@ -547,7 +642,7 @@ mut("an empty account name is allowed", "setserver", "if a = '' or len(a) > 32 o
 mut("mode may be anything", "setserver", "(lw = 'read' or lw = 'write') and not(mode.given)", "not(mode.given)")
 mut("the default mode is write", "setserver", "   mode = 'read'\n", "   mode = 'write'\n")
 mut("set.server prints the pin", "setserver", lambda t: t.replace("display sysmsg(11424, name, host, port)", "display sysmsg(11424, name, host, port) : pin", 1))
-mut("set.server puts the pin on the audit trail", "setserver", "' replaced=' : rep.word)", "' replaced=' : rep.word : ' pin=' : pin)")
+mut("set.server puts the pin on the audit trail", "setserver", "' pin=' : pin.how)", "' pin=' : pin.how : ' hash=' : pin)")
 mut("set.server writes a file itself", "setserver", lambda t: t.replace("   @system.return.code = 0\n   if replaced then", "   openseq 'netpin' to pf then null\n   writeseq pin to pf else null\n   @system.return.code = 0\n   if replaced then", 1))
 mut("set.server stores the pin twice", "setserver", "pin:@vm:mode", "pin:@vm:pin:@vm:mode")
 mut("delete.server writes before it looks for the name", "deleteserver", rx(r"(   if found = 0 then\n.*?\n   end\n)(\n   host = defs<found,2>.*?   del defs<found>\n)", r"\2\1", re.S))
@@ -593,9 +688,104 @@ mut("message 11424 has a place the call does not fill", "msg:11424", lambda t: t
 mut("11434 is called with three arguments", "listservers", "defs<i,4>:'/':defs<i,6>, pin.text:'  ':allowed)", "defs<i,4>:'/':defs<i,6>)")
 mut("11411 loses its words", "msg:11411", lambda t: "Account %1 has gate %2\n")
 mut("11423 stops asking", "msg:11423", lambda t: "Server %1 is already defined (%2)\n")
-mut("11413 hints that it connects", "msg:11413", lambda t: t.replace("Nothing connects to the server yet", "It connects to the server", 1))
+mut("11413 says no.query skips the key question", "msg:11413", lambda t: t.replace("no.query never skips that question", "no.query skips that question", 1))
 mut("11439 stops naming the word", "msg:11439", lambda t: t.replace("net-on", "net-add"))
 mut("11412 stops being the usage line", "msg:11412", lambda t: "Use the server verb\n")
+
+
+# ---- slice 2a: CONNECT
+def after(marker, old, new):
+    """OLD replaced by NEW at its first place AFTER MARKER (the same text earlier in the file is not touched)."""
+    def f(text):
+        i = text.find(marker)
+        j = text.find(old, i) if i >= 0 else -1
+        if j < 0:
+            raise KeyError("text not after the marker: %r / %r" % (marker[:40], old[:40]))
+        return text[:j] + new + text[j + len(old):]
+    return f
+
+
+def last(old, new):
+    """The LAST place OLD stands in the text is replaced."""
+    def f(text):
+        j = text.rfind(old)
+        if j < 0:
+            raise KeyError("text not in the source: %r" % old[:60])
+        return text[:j] + new + text[j + len(old):]
+    return f
+
+
+CONN_BLOCK = r"   if connect\.mode then\n      gosub connect\.pin[^\n]*\n      pin\.how = 'confirmed'\n   end\n"
+SPKI_FN = "int sd_tls_client_peer_spki_sha256("
+# T1-T2: the order of the flow
+mut("CONNECT is case sensitive", "setserver", "pin = downcase(field(words, ' ', 6))", "pin = field(words, ' ', 6)")
+mut("CONNECT does not set connect mode", "setserver", "      connect.mode = @true", "      connect.mode = @false")
+mut("a typed-pin check still runs for CONNECT", "setserver", "if not(connect.mode) then", "if @true then")
+mut("set.server dials before the fields are checked", "setserver", "   if bad # 0 then stop", "   if connect.mode then gosub connect.pin\n   if bad # 0 then stop")
+mut("set.server dials before the replace question", "setserver",
+    lambda t: re.sub(r"(   if found # 0 and not\(no\.query\) then\n)", lambda m: "   if connect.mode then\n      gosub connect.pin\n      pin.how = 'confirmed'\n   end\n" + m.group(1),
+                     rx(CONN_BLOCK, "", re.M)(t), count=1))
+mut("the dial is not guarded by connect mode", "setserver", "   if connect.mode then\n      gosub connect.pin", "   if @true then\n      gosub connect.pin")
+mut("confirmed is set before the dial", "setserver",
+    lambda t: t.replace("      pin.how = 'confirmed'\n", "", 1).replace("      gosub connect.pin", "      pin.how = 'confirmed'\n      gosub connect.pin", 1))
+mut("a typed pin opens a socket too", "setserver", lambda t: t.replace("   d = date()\n", "   skt = open.socket(host, port, SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)\n   d = date()\n", 1))
+mut("the sockets keys are not included", "setserver", rx(r"^\$include keys\.h\n", "", re.M))
+# T3-T4: the socket
+mut("the socket is opened without TLS", "setserver", "SKT$BLOCKING + SKT$TLS", "SKT$BLOCKING")
+mut("the socket is opened with no timeout", "setserver", ", NET.CONNECT.SECS)", ")")
+mut("the timeout is 50 seconds", "setserver", "$define NET.CONNECT.SECS 5", "$define NET.CONNECT.SECS 50")
+mut("the socket is not closed", "setserver", drop_line(r"^   close\.socket skt"))
+mut("the socket is closed after the question", "setserver",
+    lambda t: t.replace("   close.socket skt\n", "", 1).replace("   pin = spki\n", "   close.socket skt\n   pin = spki\n", 1))
+mut("something is sent over the connection", "setserver", "   spki = downcase(trim(", "   write.socket 'x' to skt else null\n   spki = downcase(trim(")
+mut("the status is not read at once", "setserver", drop_line(r"^   oserr = os\.error\(\)"))
+mut("the hash is not shown", "setserver", "   display spki\n", "   display ''\n")
+# T5: the key question
+mut("no.query skips the key question", "setserver", "   display sysmsg(11440, host, port)", "   if no.query then\n      pin = spki\n      return\n   end\n   display sysmsg(11440, host, port)")
+mut("an empty answer to the key question is a yes", "setserver", last("if yn = '' then yn = 'N'", "if yn = '' then yn = 'Y'"))
+mut("input that ends is a yes to the key question", "setserver", last("if yn = '' and status() = ER$EOF then yn = 'N'", "if yn = '' and status() = ER$EOF then yn = 'Y'"))
+mut("the key question is asked once", "setserver", rx(r"(   loop\n      display sysmsg\(11442\) : [^\n]*\n.*?\n)   until yn = 'Y' or yn = 'N'\n   repeat\n", r"\1   until 1\n   repeat\n", re.S))
+# T6: nothing is written
+mut("an n to the key question goes on to write", "setserver", "stop sysmsg(11443, name)", "display sysmsg(11443, name)")
+mut("a failed connection goes on to write", "setserver", "stop sysmsg(11444, host, port, st, oserr)", "display sysmsg(11444, host, port, st, oserr)")
+mut("a failed handshake is not told from a failed connection", "setserver", drop_line(r"if st = ER\$CONNECT and oserr = 0 then stop sysmsg\(11445"))
+mut("every ER$CONNECT is a handshake failure", "setserver", "if st = ER$CONNECT and oserr = 0 then stop sysmsg(11445", "if st = ER$CONNECT then stop sysmsg(11445")
+mut("an empty hash is accepted", "setserver", "if len(spki) # 64 or not(chk.ok) then", "if len(spki) > 64 then")
+mut("the hash is not checked for hexadecimal digits", "setserver", drop_line(r"^   chk\.text = spki ; chk\.set"))
+mut("the hash is not lower cased", "setserver", "spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))", "spki = trim(socket.info(skt, SKT$INFO.TLS.SPKI))")
+mut("the lock is left held after a failed connection", "setserver", rx(r"      gosub release\.lock\n(      @system\.return\.code = -ER\$FAILED\n      if st = ER\$CONNECT)", r"\1"))
+mut("the lock is left held after an empty hash", "setserver", rx(r"      gosub release\.lock\n(      @system\.return\.code = -ER\$FAILED\n      stop sysmsg\(11446)", r"\1"))
+mut("the routine writes the definitions", "setserver", "   pin = spki\n   return", "   call !netdefs('WRITE', defs, err)\n   pin = spki\n   return")
+# T8: the audit words
+mut("the audit line loses how the pin was obtained", "setserver", "' replaced=' : rep.word : ' pin=' : pin.how)", "' replaced=' : rep.word)")
+mut("a confirmed pin is audited as typed", "setserver", "pin.how = 'confirmed'", "pin.how = 'typed'")
+mut("the audit word confirmed is upper case", "setserver", "pin.how = 'confirmed'", "pin.how = 'CONFIRMED'")
+mut("a typed pin is audited as confirmed", "setserver", "pin.how = 'typed'", "pin.how = 'confirmed'")
+# C: the hash is of the key
+mut("the hash is of the certificate", "sd_tls.c", "der_len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &der);", "der_len = 1; X509_digest(cert, EVP_sha256(), out, &n);")
+mut("the hash is SHA-1", "sd_tls.c", after(SPKI_FN, "EVP_sha256()", "EVP_sha1()"))
+mut("the hash may be short", "sd_tls.c", after(SPKI_FN, "n == 32", "n == 20"))
+mut("the certificate is not freed", "sd_tls.c", after(SPKI_FN, "  X509_free(cert);\n", ""))
+mut("the DER bytes are not freed", "sd_tls.c", after(SPKI_FN, "  OPENSSL_free(der);\n", ""))
+mut("no certificate is not answered false", "sd_tls.c", after(SPKI_FN, "if (cert == NULL)", "if (0)"))
+mut("the hash function has another signature", "sd_tls.h", "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);", "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out, int n);")
+mut("the hash digits are upper case", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", '"%02x"', '"%02X"'))
+mut("the answer is not emptied first", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "hex[0] = '\\0';", ""))
+mut("only half the hash is written", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "i < 32", "i < 16"))
+mut("a socket without TLS is not tested", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "(sockvar->tls != NULL) && ", ""))
+mut("the answer is not returned", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "k_put_c_string(hex, &result_descr)", "k_put_c_string(\"\", &result_descr)"))
+mut("the SOCKET.INFO key is gone", "op_skt.c", "case SKT_INFO_TLS_SPKI:", "case SKT_INFO_TLS_SPKJ:")
+mut("SKT_INFO_TLS_SPKI shares 10 with the trace key", "keys.h", rx(r"(#define\s+SKT_INFO_TLS_SPKI\s+)11", r"\g<1>10"))
+mut("SKT_INFO_TLS_SPKI is 12", "keys.h", rx(r"(#define\s+SKT_INFO_TLS_SPKI\s+)11", r"\g<1>12"))
+mut("SKT$INFO.TLS.SPKI is 9 in the BASIC header", "syscom/keys.h", rx(r"(\$define\s+SKT\$INFO\.TLS\.SPKI\s+)11", r"\g<1>9"))
+# G: the new messages
+mut("11442 stops asking", "msg:11442", lambda t: "Trusted\n")
+mut("11440 says something was sent", "msg:11440", lambda t: t.replace("a TLS handshake only: nothing was sent", "a TLS session", 1))
+mut("11444 loses its fourth place", "msg:11444", lambda t: t.replace("(status %3, os error %4)", "(status %3)", 1))
+mut("message 11446 is missing", "msg:11446", lambda t: None)
+mut("11443 stops saying nothing was written", "msg:11443", lambda t: t.replace("Nothing was written: ", "", 1))
+mut("11412 loses the word connect", "msg:11412", lambda t: t.replace("{pin | connect}", "pin", 1))
+mut("message 11446 takes two lines", "msg:11446", lambda t: t.rstrip("\n") + "\nsecond line\n")
 
 
 def run(srcs):

@@ -3,6 +3,7 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 17 Oct 26 dm S.65 slice 2a: tls-key, the hash of the API certificate's public key (what set.server pins).
 # 05 Oct 26 dm tls-show says "certificate: not yet generated" when root finds
 #               no /etc/sd-tls/api.pem (SETTINGS.REPORT showed openssl's raw
 #               error on a fresh install); parity with Windows' report.
@@ -143,6 +144,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] akpath-set <data path> <index path>   (both in one account)
   sd-elevate [--dry-run] tls-show               (the API certificate's fields, never the key;
                                                  "certificate: not yet generated" when there is none)
+  sd-elevate [--dry-run] tls-key                (the SHA-256 of the API certificate's public key, the value a
+                                                 server definition pins; never the private key)
   sd-elevate [--dry-run] bakdir-set <full path of an existing directory>
                                   (saves BACKUPDIR=<path> in /etc/sd.conf, nothing else)
   sd-elevate [--dry-run] bakdir-make <full path of a directory that does not exist>
@@ -193,6 +196,24 @@ step() {   # print the resolved command, then run it unless --dry-run
   printf '%s: %s\n' "$PROG" "$*"
   [[ $DRY -eq 1 ]] && return 0
   "$@"
+}
+
+# tls-show and tls-key look for the same certificate the same way (17 Oct 26: one copy, so a mutant of either rule hits both verbs).
+tls_find() {   # sets tls_pem and tls_can_see; only root can say the file is absent, another user's test would say absent for a file that is there
+  tls_pem=/etc/sd-tls/api.pem
+  tls_can_see=0
+  [[ ${EUID:-$(id -u)} -eq 0 ]] && tls_can_see=1
+  if [[ $DRY -eq 1 && -n ${SD_TLS_PEM_FIXTURE:-} ]]; then
+    tls_pem=$SD_TLS_PEM_FIXTURE
+    tls_can_see=1
+  fi
+}
+
+tls_absent_exit() {   # one plain line and a clean exit when there is no certificate yet
+  if [[ $tls_can_see -eq 1 && ! -e $tls_pem ]]; then
+    printf 'certificate: not yet generated\n'
+    exit 0
+  fi
 }
 
 need_root() {
@@ -1237,18 +1258,29 @@ case $verb in
   # SD_TLS_PEM_FIXTURE - a dry-run-only stand-in path, as SD_SYS_ROOT_FIXTURE is.
   tls-show)
     [[ $# -eq 0 ]] || usage
-    tls_pem=/etc/sd-tls/api.pem
-    tls_can_see=0
-    [[ ${EUID:-$(id -u)} -eq 0 ]] && tls_can_see=1
-    if [[ $DRY -eq 1 && -n ${SD_TLS_PEM_FIXTURE:-} ]]; then
-      tls_pem=$SD_TLS_PEM_FIXTURE
-      tls_can_see=1
-    fi
-    if [[ $tls_can_see -eq 1 && ! -e $tls_pem ]]; then
-      printf 'certificate: not yet generated\n'
+    tls_find
+    tls_absent_exit
+    cmd=(openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in "$tls_pem")
+    ;;
+
+  # 17 Oct 26 dm - S.65 slice 2a: tls-key prints the SHA-256 of the API certificate's PUBLIC KEY (SubjectPublicKeyInfo), the value
+  # another SD server pins in a server definition (set.server ... connect shows the same figure).  The key hash, not the certificate
+  # fingerprint tls-show prints, because a renewed certificate over the same key keeps it.  Public information: the private key is
+  # never read.  Like tls-show it takes no argument and no path; SD_TLS_PEM_FIXTURE is honoured on a dry run only, where the
+  # fixture is hashed (so a free test can compare the figure with an independent computation).
+  tls-key)
+    [[ $# -eq 0 ]] || usage
+    tls_find
+    tls_absent_exit
+    printf '%s: openssl x509 -noout -pubkey -in %s | openssl pkey -pubin -outform DER | openssl dgst -sha256\n' "$PROG" "$tls_pem"
+    if [[ $DRY -eq 1 && -z ${SD_TLS_PEM_FIXTURE:-} ]]; then
       exit 0
     fi
-    cmd=(openssl x509 -noout -subject -startdate -enddate -fingerprint -sha256 -in "$tls_pem")
+    [[ $DRY -eq 1 ]] || need_root
+    tls_hash=$(openssl x509 -noout -pubkey -in "$tls_pem" | openssl pkey -pubin -outform DER | openssl dgst -sha256 -r | cut -d' ' -f1)
+    [[ $tls_hash =~ ^[0-9a-f]{64}$ ]] || die "the public key hash could not be worked out from $tls_pem"
+    printf 'public key sha256: %s\n' "$tls_hash"
+    exit 0
     ;;
 
   akpath-set)

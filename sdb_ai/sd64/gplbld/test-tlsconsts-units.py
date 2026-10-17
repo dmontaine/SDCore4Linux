@@ -22,12 +22,16 @@ WHAT IT PINS (the values Linux S.19 and Windows RELEASE_1.1 41 share):
                            "EXPORTER-Channel-Binding", SD_TLS_GS2_HEADER
                            "p=tls-exporter,,", SD_TLS_HANDSHAKE_MS 10000
   gplsrc/keys.h            SKT_TLS 0x01000000, SKT_INFO_TLS_CBIND 8,
-                           SD_TLS_CBIND 110
+                           SKT_INFO_TLS_SPKI 11, SD_TLS_CBIND 110
   sdsys/syscom/keys.h      the BASIC mirror: SKT$TLS, SKT$INFO.TLS.CBIND,
-                           SD_TLS_CBIND - the same three values
+                           SKT$INFO.TLS.SPKI, SD_TLS_CBIND - the same values
   gplbld/scram-probe.py    GS2_BOUND and BINDING_LABEL
   sdsys/gpl.bp/apisrvr     the literal 'p=tls-exporter,,'
   sdsys/gpl.bp/sdclient    the literal 'p=tls-exporter,,'
+
+17 Oct 26 dm  S.65 slice 2a: SKT_INFO_TLS_SPKI / SKT$INFO.TLS.SPKI 11 (the hash of the
+server's public key, what set.server ... connect pins) joined the pinned keys; the
+expected count follows the tables, 16 checks.
 
 A CONTROL is built in: every constant must be FOUND, so a renamed or deleted
 definition fails loudly rather than passing because there was nothing to
@@ -53,11 +57,13 @@ C_CONSTS = {
 KEY_CONSTS = {
     "SKT_TLS": "0x01000000",
     "SKT_INFO_TLS_CBIND": "8",
+    "SKT_INFO_TLS_SPKI": "11",
     "SD_TLS_CBIND": "110",
 }
 BASIC_CONSTS = {
     "SKT$TLS": "0x01000000",
     "SKT$INFO.TLS.CBIND": "8",
+    "SKT$INFO.TLS.SPKI": "11",
     "SD_TLS_CBIND": "110",
 }
 GS2 = "p=tls-exporter,,"

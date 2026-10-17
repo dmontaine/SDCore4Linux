@@ -588,6 +588,9 @@
    a program can watch for.  Mirrored in sdsys/syscom/keys.h. */
 #define SKT_INFO_EVENTS          9    /* Events to watch (SET.SOCKET.MODE) / events last found (SOCKET.INFO) */
 #define SKT_INFO_TRACE          10    /* 15 Oct 26 dm - SET.SOCKET.MODE: the pathname of a log of the data sent and received; null turns it off */
+/* 17 Oct 26 dm - S.65 slice 2.  SOCKET.INFO only: the SHA-256 of the SubjectPublicKeyInfo of the certificate the server of a socket opened with
+   SKT$TLS presented, as 64 lower case hex digits; "" for any other socket.  What a server definition pins.  Mirrored in sdsys/syscom/keys.h. */
+#define SKT_INFO_TLS_SPKI       11
 #define SKT_READ_EVENT           1    /* Data can be read, or a connection is waiting on a server socket, or it was closed */
 #define SKT_WRITE_EVENT          2    /* Data can be sent */
 #define SKT_EXCEPTION_EVENT      4    /* An exception condition */

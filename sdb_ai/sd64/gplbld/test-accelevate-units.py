@@ -26,6 +26,7 @@ gone, backup-pack's name check gone) and requires each to fail a row.
 """
 
 import getpass
+import hashlib
 import os
 import pwd
 import shutil
@@ -37,6 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 HELPER = os.path.join(HERE, "sd-elevate")
 ALLOW, REFUSE = "ALLOW", "REFUSE"
 R = {"pass": 0, "fail": 0, ALLOW: 0, REFUSE: 0}
+REAL_SPKI = [None]       # build_fixture() sets it: the SHA-256 of a real fixture certificate's public key, or None without openssl
 
 
 def say(s=""):
@@ -109,6 +111,17 @@ def cases(root, me):
         (ALLOW, ["tls-show"], "-in " + os.path.join(root, "elsewhere", "present.pem"), "a certificate there: openssl still runs on the path",
          {"SD_TLS_PEM_FIXTURE": os.path.join(root, "elsewhere", "present.pem")}, "not yet generated"),
         (REFUSE, ["tls-show", "/etc/shadow"], "privileged helper", "tls-show takes no path from the caller"),
+        # 17 Oct 26 (S.65 slice 2a): tls-key, the hash of the API certificate's public key.  An ordinary user's dry run prints the command only
+        # (it must not say the certificate is absent, nor print a figure), a fixture that is absent is one plain line, a real certificate gives
+        # the figure an independent computation gives, and it takes no argument.
+        (ALLOW, ["tls-key"], "openssl pkey -pubin -outform DER", "the pipeline it would run; an ordinary user is never told the certificate is absent",
+         None, "not yet generated"),
+        (ALLOW, ["tls-key"], "certificate: not yet generated", "no certificate yet: one plain line",
+         {"SD_TLS_PEM_FIXTURE": os.path.join(root, "absent", "api.pem")}, "public key sha256"),
+        (ALLOW, ["tls-key"], "public key sha256: %s" % (REAL_SPKI[0] or "<openssl is missing: this row cannot pass>"),
+         "a real certificate: the figure is the SHA-256 of the key's DER, computed here independently",
+         {"SD_TLS_PEM_FIXTURE": os.path.join(root, "elsewhere", "real.pem")}, "not yet generated"),
+        (REFUSE, ["tls-key", "/etc/shadow"], "privileged helper", "tls-key takes no path from the caller"),
         # S.53: bakdir-set saves one validated line in /etc/sd.conf (the functions are measured
         # on scratch files by test-bakdir-elevate-units.py; these are the real command line).
         (ALLOW, ["bakdir-set", mine], "set BACKUPDIR=%s in /etc/sd.conf" % mine,
@@ -170,6 +183,18 @@ def build_fixture(root, me):
         os.makedirs(os.path.join(root, d))
     os.symlink(os.path.join(root, "user_accounts", me), os.path.join(root, "linked"))
     open(os.path.join(root, "elsewhere", "present.pem"), "w").close()   # tls-show's "a certificate is there" row
+    # 17 Oct 26 (S.65 slice 2a): a REAL certificate for tls-key, whose figure is checked against an independent computation (the key's
+    # DER from openssl, hashed here by hashlib, not by openssl dgst).  Without openssl the rows say so and fail: no null pass.
+    try:
+        subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes",
+                        "-keyout", os.path.join(root, "elsewhere", "real.key"), "-out", os.path.join(root, "elsewhere", "real.pem"),
+                        "-days", "2", "-subj", "/CN=sd-elevate-test"], check=True, capture_output=True)
+        pub = subprocess.run(["openssl", "x509", "-in", os.path.join(root, "elsewhere", "real.pem"), "-noout", "-pubkey"],
+                             check=True, capture_output=True).stdout
+        der = subprocess.run(["openssl", "pkey", "-pubin", "-outform", "DER"], input=pub, check=True, capture_output=True).stdout
+        REAL_SPKI[0] = hashlib.sha256(der).hexdigest()
+    except (OSError, subprocess.CalledProcessError):
+        REAL_SPKI[0] = None
 
 
 def suite(helper, root, me, quiet=False):

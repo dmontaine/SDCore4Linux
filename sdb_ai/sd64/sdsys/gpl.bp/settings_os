@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 2a: the [api] section also shows the hash of the certificate's public key (sd-elevate tls-key).
 * 01 Oct 26 dm Written for S.50 (per-OS helper; signature and the split of the
 *              report agreed with SD Core for Windows by mail, 2026-10-01T1210:
 *              the shared verb prints what SD holds, this prints what the OS
@@ -74,6 +75,11 @@ $include accos.h
    cmd = ACCOS$ELEVATE:' tls-show 2>&1'
    gosub run.cmd
    sec<-1> = out
+* 17 Oct 26 dm - S.65 slice 2a: the hash of the certificate's PUBLIC KEY, the figure another SD server pins (set.server ... connect shows
+*   it).  tls-show prints the certificate fingerprint, which changes when the certificate is renewed; this does not.
+   cmd = ACCOS$ELEVATE:' tls-key 2>&1'
+   gosub run.cmd
+   if index(out, 'public key sha256', 1) then sec<-1> = out
    hdr = '[api]' ; gosub add.section
 
 * [groups]
