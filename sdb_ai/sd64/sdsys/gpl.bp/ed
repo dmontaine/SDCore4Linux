@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm  S.64: SAVE (FI), UNLOAD, DELETE and FD into a VOC, a dictionary or a program file ask edit_guard (the reason is displayed).
 * 15 Oct 26 dm  CREATING.SEQKEY in the place of a record id (openQM 4): the editor takes the file's next sequential
 *               id (the counter WRITE ... CREATING.SEQKEY uses, through $seqkey) and edits a new record under it.
 * 14 Oct 26 dm  1.2-0 bundle A-11: EV on a compound I-type no longer corrupts a quoted string (openQM item 268: the
@@ -58,6 +59,8 @@ $include keyin.h
 $include dictdict.h
 
 $include int$keys.h
+
+deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
 $define MERGE.LOAD  50
 $define IDEAL.LOAD 100
@@ -1212,6 +1215,9 @@ d:
             return
          end
 
+*        17 Oct 26 dm - S.64: deleting a record of a VOC, a dictionary or a program file needs the gate.
+         if not(edit_guard(file)) then return
+
          if not(option(OPT.ED.NO.QUERY.FD)) then
             display sysmsg(6555) : ;* Are you sure you want to delete the entire record?
             gosub yes.no
@@ -1416,6 +1422,9 @@ f:
             display sysmsg(6971) ;* This edit command is not allowed in EV mode
             return
          end
+
+*        17 Oct 26 dm - S.64: as for DELETE above.
+         if not(edit_guard(file)) then return
 
          if not(option(OPT.ED.NO.QUERY.FD)) then
             display sysmsg(6558) :  ;* Are you sure you want to delete the entire record?
@@ -2651,6 +2660,9 @@ u:
             return
          end
 
+*        17 Oct 26 dm - S.64: unloading into a VOC, a dictionary or a program file needs the gate (edit_guard has said why).
+         if not(edit_guard(n.file)) then return
+
          loop
             display sysmsg(6570) : ;* Start line number (default 1)?
             input n
@@ -3529,6 +3541,10 @@ save.record:
       gosub error
       return
    end
+
+*  17 Oct 26 dm - S.64: saving into a VOC, a dictionary or a program file needs the gate (edit_guard has said why).  ED is $internal,
+*  so the kernel's own test lets its WRITE through; this is the test.
+   if not(edit_guard(n.file)) then return
 
    readvu s from n.file, new.record, 0 locked
       display sysmsg(1429, status()) ;* Record is locked by user %1

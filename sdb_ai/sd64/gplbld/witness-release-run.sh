@@ -480,8 +480,10 @@ head2 "1. create $ACC - SD's whole flow, as sdsys"
 PW_OS="Zz9-$(head -c 9 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | cut -c1-14)"
 # 13 Oct 26 (S.63): a new account has NO ssh and NO API unless asked, and the sections that follow log
 # $ACC in over both, so it is asked for here.  (Before S.63 the default was both.)
-OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC BOTH (answering the Linux password)" \
-             "CREATE.ACCOUNT USER $ACC BOTH" "_PW_" "_PW_")
+# 17 Oct 26 (S.64): a new account also cannot save a change to a VOC, a program file or a dictionary unless asked, and the sections
+# that follow compile and catalogue programs in $ACC (B1, 13d, 13l) and write to its VOC, so the three edit words are asked for here.
+OUT=$(run_sd sdsys "CREATE.ACCOUNT USER $ACC BOTH VOC-ON BP-ON DICT-ON (answering the Linux password)" \
+             "CREATE.ACCOUNT USER $ACC BOTH VOC-ON BP-ON DICT-ON" "_PW_" "_PW_")
 PW_OS=""
 
 ADOPTED=0

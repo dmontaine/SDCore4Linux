@@ -1,6 +1,42 @@
 Next release - in progress
 --------------------------
 
+17 Oct 26  THE EDIT GATES: VOC.EDIT, BP.EDIT AND DICT.EDIT (S.64).
+
+             Gates       Three more per-account switches, beside the shell, OS.EXECUTE, SD.ACCOUNTS, ssh and the API, say whether
+                        the person who signed on to an account may SAVE A CHANGE to a VOC, to a program file (source or object
+                        code) and to a dictionary.  They are off for an account made from now on, and the upgrade switches all
+                        three on, once, for every user account that exists, so that no account loses what it had.  SDSYS gives
+                        and takes them with MODIFY.ACCOUNT name VOC-ON, VOC-OFF, BP-ON, BP-OFF, DICT-ON and DICT-OFF, and
+                        CREATE.ACCOUNT takes VOC-ON, BP-ON and DICT-ON.  The administrator is never refused.  A switch takes
+                        effect when the person next signs on; the command reports where all three stand.
+             Which files  A file is known by the name of the file that is OPEN, not the name that was typed, so a Q-pointer to a
+                        VOC is caught: a VOC is a file called voc; a dictionary is any file whose name ends in .dic (voc.dic is
+                        the dictionary of the VOC, not the VOC); a program file is bp, bp.out (the object code), or any name
+                        ending in .bp or .bp.out.  Capitals do not matter.
+             What stops  A program's WRITE, WRITEV, DELETE and CLEARFILE of such a file: an error that says which switch is
+                        missing, or the ON ERROR status.  The editors and verbs that change a file the person names (ED, SED,
+                        IDE, CED, EDIT, COPY and COPYP into the file or moving records out of it, DELETE, CLEAR.FILE, CNAME of
+                        a record, DELETE.FILE of a program file or of a dictionary on its own) ask first and say why in the
+                        message line.  CNAME will not take a program file out of its name, or put a file under one, for a
+                        person without the switch, so a rename cannot be used to get round it.  OPENSEQ in such a place opens
+                        the file read only and cannot create one; DELETESEQ, a print file made there and !OSCOPY or !IOSCOPY
+                        into it are refused.  Reading is never stopped.
+             Compiling   Without BP.EDIT the BASIC, CATALOG, DELETE.CATALOG and DECATALOG commands are refused, since compiling
+                        is how source becomes code that runs: otherwise source could be copied to any file and compiled.
+             LOGTO       The switches are those of the account the person SIGNED ON to (or, over the API, first entered); LOGTO
+                        does not change them.  A person with a switch on keeps it in another account, and a person without it
+                        does not gain it there.
+             Not stopped  What SD writes as a side effect of an ordinary command - the pointer CREATE.FILE makes, a saved
+                        sentence, a compiled I-type, the command stack - and anything done from the shell by an account that
+                        has SH or OS.EXECUTE.  The switches are about changing these files by hand or by program.
+             Backups      The account manifest records the three switches (edit.voc, edit.bp, edit.dict) and RESTORE.ACCOUNT
+                        gives a restored account what it had; a manifest from before has none, and gives none.
+             After install  The installing user's own account starts with all three off like any new account; the installer
+                        prints the three modify.account lines.  The user table of the shared memory has a new word, so SD is
+                        restarted at the end of an upgrade, as always.  Windows Solo's and Linux Solo's VOC gate (the
+                        administrator password) is the same idea for one account.
+
 17 Oct 26  FILEINFO KEY 1021 AND THE PICK STYLE CALL "FILE NAME" (QM4 FIXES TAB, BATCH E).
 
              FL$WHO      FILEINFO(file, 1021) now answers as the openQM manual says FL$WHO does: the user numbers of

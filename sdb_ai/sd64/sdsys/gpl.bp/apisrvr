@@ -501,6 +501,9 @@ acc.suspended = @false
 api.sh.grant = @false
 api.os.grant = @false
 api.sd.grant = @false      ;* 16 Oct 26: the SD.ACCOUNTS gate
+api.voc.grant = @false     ;* 17 Oct 26, S.64: the edit gates; loaded at the FIRST entry only (below)
+api.bp.grant = @false
+api.dict.grant = @false
 if index(new.account, @ds, 1) = 0 then
    openpath @sdsys:@ds:'accounts' to acc.f then
       read acc.rec from acc.f, downcase(new.account) then
@@ -509,6 +512,9 @@ if index(new.account, @ds, 1) = 0 then
          api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
          api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
          api.sd.grant = (upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')
+         api.voc.grant = (upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES')
+         api.bp.grant = (upcase(trim(acc.rec<ACC$BP.EDIT>)) = 'YES')
+         api.dict.grant = (upcase(trim(acc.rec<ACC$DICT.EDIT>)) = 'YES')
       end
       close acc.f
    end
@@ -591,6 +597,14 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
 void kernel(K$SD.ACCOUNTS, api.sd.grant)
+
+* 17 Oct 26 dm - S.64: the edit gates are the SIGN-ON account's (owner, 17 Oct), so they are loaded at the first entry to an account
+*   and never again; an SDLogto leaves them as they were.  master.login.done is set just below, once, at that same first entry.
+if not(master.login.done) then
+   void kernel(K$VOC.EDIT,  api.voc.grant)
+   void kernel(K$BP.EDIT,   api.bp.grant)
+   void kernel(K$DICT.EDIT, api.dict.grant)
+end
 
 * 15 Oct 26 dm - sheet 170: the MASTER.LOGIN paragraph of the SDSYS VOC is run for an API session as CPROC runs it for an
 *   interactive or phantom one: once, when the session first enters an account, before that account's own LOGIN.  (Entering

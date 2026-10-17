@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64: prototypes of the edit gates (op_sh.c): edit_kind_of_path, edit_permitted, edit_ok_for_path, edit_os_path_refusal.
  * 31 Dec 23 SD launch - prior history suppressed
  * 29 Sep 26 dm  load_language() is init_messages(): English only.
  * END-HISTORY
@@ -382,6 +383,16 @@ bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);
 bool os_path_open_ok(const char * name);
 bool os_path_inside(const char * rootdir, const char * name);
+
+/* OP_SH.C - the edit gates (17 Oct 26, S.64): which guarded kind a file is, and may the session save a change to it */
+#define EDIT_NONE 0
+#define EDIT_VOC  1
+#define EDIT_DICT 2
+#define EDIT_PROG 3
+int edit_kind_of_path(const char * path);
+bool edit_permitted(int kind);
+bool edit_ok_for_path(const char * path);
+int edit_os_path_refusal(const char * name);
 
 /* OP_DIO2.C */
 bool delete_path(char * path);

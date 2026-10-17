@@ -80,6 +80,10 @@ check.paths:
 *   BEFORE the existence test, so that -2 does not tell an account without OS access which files exist elsewhere.
       if not(kernel(K$PATH.OK, source)) or not(kernel(K$PATH.OK, target)) then
          status = -4
+      end else if not(kernel(K$EDIT.OS.OK, target)) then
+*        17 Oct 26 dm - S.64: a copy INTO a program file, a dictionary or a VOC (any component of the target below the account) is a
+*        change to it and needs the gate.  Asked for the target only: reading them is not a change.
+         status = -4
       end else
          if not(ospath(source, OS$EXISTS)) then
             status = -2

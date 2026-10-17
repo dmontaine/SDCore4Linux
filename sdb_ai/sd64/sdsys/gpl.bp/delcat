@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm  S.64: DELETE.CATALOGUE needs bp.edit (SDSYS passes); message 11408.
 * 07 Oct 26 dm  PAL-1 stage 3a: catalogue names are lower case, and an old
 *               upper-case entry is still found (the Windows port's 4d8136b2).
 * 10 Sep 26 Parity audit: the administrator test is made for every name before
@@ -46,6 +47,12 @@ $include err.h
 $include parser.h
 $include syscom.h
 $include int$keys.h
+
+* 17 Oct 26 dm - S.64: removing a program from the catalogue is a change to the code a command finds, so it needs bp.edit (SDSYS passes).
+   if not(kernel(K$ADMINISTRATOR, -1)) and not(kernel(K$BP.EDIT, -1)) then
+      @system.return.code = -ER$PERM
+      stop sysmsg(11408) ;* Programs can only be compiled or catalogued by an account that has bp.edit
+   end
 
    parser = "!PARSER"
 

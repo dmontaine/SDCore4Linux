@@ -15,6 +15,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Oct 26 dm  S.64: the record's file is asked (edit_guard) before the editor is started, so a person without voc.edit, dict.edit or
+*               bp.edit does not edit a copy and lose it at the save.
 * 22 Sep 26     find.editor's missing-editor message named "sudo apt install",
 *               unconditionally, in the multi-distribution restore of
 *               installsdcore.sh (Arch, Fedora, RHEL, openSUSE besides Debian and
@@ -66,6 +68,8 @@ $catalog $EDIT
 
 $include syscom keys.h
 $include int$keys.h
+
+deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
 
    q            = char(39)          ;* single quote, for the shell command line
    ds           = @ds
@@ -633,6 +637,12 @@ open.files:
 
    if open.ok then
       in.file.name = open.name
+* 17 Oct 26 dm - S.64: an editor that saves into a VOC, a dictionary or a program file needs the gate.  Asked BEFORE the editor is
+*   started, so the person does not edit and then lose the work at the save.  (CT or ED shows a record without changing it.)
+      if not(edit_guard(input.file)) then
+         error.text = trim(dict.text : ' ' : in.file.name) : ' cannot be changed from this account.'
+         return
+      end
       open temp.file.name to temp.file then
          files.opened = @true
       end else

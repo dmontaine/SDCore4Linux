@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64: K_VOC_EDIT, K_BP_EDIT, K_DICT_EDIT (the edit gates, set from $internal only), K_EDIT_OK and K_EDIT_KIND (a $internal
+ *               program asks whether the session may save a change to an open file) and K_EDIT_OS_OK (the same for an OS pathname).
  * 16 Oct 26 dm  K_PHANTOM_USER: PHANTOM USER n takes the user number n from those PHANTOMS keeps (QM4 gaps).
  * 31 Dec 23 SD launch - prior history suppressed
  * 28 Jul 24 mab remove op_cnctport() / CONNECT.PORT not supported
@@ -664,6 +666,58 @@ void op_kernel() {
       }
       result.data.value = (my_uptr->flags & USR_SD_ACCOUNTS) != 0;
       break;
+
+    /* 17 Oct 26 dm - S.64: the edit gates, set as K_SD_ACCOUNTS is (only from a $internal program; -1 asks).  Loaded at sign-on
+       only; the administrator needs no grant (edit_permitted() passes it).                                                  */
+    case K_VOC_EDIT:
+    case K_BP_EDIT:
+    case K_DICT_EDIT: {
+      u_int16_t edit_bit = (action == K_VOC_EDIT) ? UG_VOC_EDIT : ((action == K_BP_EDIT) ? UG_BP_EDIT : UG_DICT_EDIT);
+
+      GetInt(descr);
+      n = descr->data.value;
+      if (n >= 0) {
+        if (process.program.flags & HDR_INTERNAL) {
+          if (n > 0)
+            my_uptr->gates |= edit_bit;
+          else
+            my_uptr->gates &= (u_int16_t)~edit_bit;
+        }
+      }
+      result.data.value = (my_uptr->gates & edit_bit) != 0;
+    } break;
+
+    /* K_EDIT_OK / K_EDIT_KIND: the argument is the pathname of an open file.  An $internal program is exempt from the test in
+       op_dio3.c, so one that writes a file the USER named asks here first (see keys.h).                                      */
+    case K_EDIT_OK:
+    case K_EDIT_KIND: {
+      char edit_name[MAX_PATHNAME_LEN + 1];
+
+      /* No pathname is a refusal, not "nothing to guard": a gate that fails open on a path it cannot read is decoration (the
+         administrator is the one session that is never refused).                                                          */
+      edit_name[0] = '\0';
+      result.data.value = 0;
+      if (action == K_EDIT_OK) {
+        if (my_uptr->flags & USR_ADMIN)
+          result.data.value = 1;
+        else if (k_get_c_string(descr, edit_name, MAX_PATHNAME_LEN) > 0)
+          result.data.value = edit_ok_for_path(edit_name) ? 1 : 0;
+      } else if (k_get_c_string(descr, edit_name, MAX_PATHNAME_LEN) > 0) {
+        result.data.value = edit_kind_of_path(edit_name);
+      }
+    } break;
+
+    /* 17 Oct 26 dm - S.64: an OS pathname about to be written to (OSCOPY, a print file); see keys.h.  An empty or unreadable argument is
+       a refusal for anybody who is not the administrator.                                                                       */
+    case K_EDIT_OS_OK: {
+      char edit_os_name[MAX_PATHNAME_LEN + 1];
+
+      result.data.value = 0;
+      if (my_uptr->flags & USR_ADMIN)
+        result.data.value = 1;
+      else if (k_get_c_string(descr, edit_os_name, MAX_PATHNAME_LEN) > 0)
+        result.data.value = (edit_os_path_refusal(edit_os_name) == EDIT_NONE) ? 1 : 0;
+    } break;
 
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to
        be, to do its work), so one that opens a file for the user - SED's PATH: - asks here first.        */

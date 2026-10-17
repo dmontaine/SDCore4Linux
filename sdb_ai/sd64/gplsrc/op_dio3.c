@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64, the edit gates: edit_write_refused() before a WRITE, WRITEV, DELETE or CLEARFILE of a VOC, a dictionary or a
+ *               program file by a program that is not $internal and a session that has not the gate (voc.edit, dict.edit, bp.edit).
  * 15 Oct 26 dm  WRITE ... CREATING.SEQKEY skips an id that already names a record (owner's choice, a difference from openQM).
  * 15 Oct 26 dm  WRITE ... CREATING.SEQKEY: a read-only file variable is refused, and a suspended system waited for, BEFORE an id is
  *               taken from the file's counter (the audit of the counter: a refused write had moved it on).
@@ -103,6 +105,39 @@ Private OSFILE t1_fu;
 
 void t1in(char *src, char *dst, int16_t inct, int16_t *outct);
 
+/* ======================================================================
+   edit_write_refused()  -  Is this a change to a VOC, a dictionary or a program file that the session may not make?
+
+   17 Oct 26 dm, S.64 (owner, 17 Oct: the gates voc.edit, bp.edit and dict.edit).  Linux Solo's voc_write_refused() (LSOLO 6, the
+   owner's ruling 14 for Solo) is the model, widened to the other two kinds and asking a per-account gate instead of ADMIN.  The
+   kind comes from the pathname of the OPEN file (op_sh.c edit_kind_of_path), so a Q-pointer to a VOC is caught.  DIRECT edits
+   only: the records SD writes itself as a side effect of ordinary commands - CREATE.FILE's F-record, a saved sentence, the
+   command stack, a compiled I-type - come from $internal programs, so HDR_INTERNAL lets them through.  ED, SED, COPY, DELETE and
+   the rest are $internal too, and so ask K_EDIT_OK for themselves in BASIC (gpl.bp/edit_guard).  The caller's program flags
+   are read BEFORE any k_recurse(), since the recursive pcode is itself $internal (see op_writev()).  The administrator is never
+   refused.  The cost for a file that is none of the three is one scan of the last path component.                           */
+
+Private int edit_refusal(FILE_VAR *fvar) {
+  const char *path;
+  int kind;
+
+  if ((fvar == NULL) || ((fvar->type != DYNAMIC_FILE) && (fvar->type != DIRECTORY_FILE)))
+    return EDIT_NONE;
+  if (process.program.flags & HDR_INTERNAL)
+    return EDIT_NONE;
+  if (my_uptr->flags & USR_ADMIN)
+    return EDIT_NONE;
+
+  /* The file table is shared memory; the name cannot change while this session holds the file open. */
+  path = (const char *)FPtr(fvar->file_id)->pathname;
+  kind = edit_kind_of_path(path);
+  if ((kind != EDIT_NONE) && !edit_permitted(kind))
+    return kind;
+  return EDIT_NONE;
+}
+
+#define EDIT_REFUSED_MSG(kind) (11404 + (kind)) /* 11405 the VOC, 11406 a dictionary, 11407 a program file */
+
 void op_write(void); /* Necessary for internal call */
 void op_dspnl(void);
 void op_matparse(void);
@@ -175,6 +210,21 @@ void op_clrfile() {
 
   if (fvar->flags & FV_RDONLY)
     k_error(sysmsg(1403));
+
+  {
+    int edit_kind = edit_refusal(fvar); /* 17 Oct 26 S.64: the edit gates */
+
+    if (edit_kind != EDIT_NONE) {
+      if (!(op_flags & P_ON_ERROR))
+        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));
+      /* ON ERROR: nothing has been taken or touched yet, so drop the file variable and report the refusal as the tail does */
+      process.status = -ER_PERM;
+      k_dismiss();
+      InitDescr(e_stack, INTEGER);
+      (e_stack++)->data.value = process.status;
+      return;
+    }
+  }
 
   {
     /* Get exclusive access to the file_lock entry in the file table. Because
@@ -380,6 +430,17 @@ void op_delete() {
     process.status = -ER_RDONLY;
     log_permissions_error(fvar);
     goto exit_op_delete;
+  }
+
+  {
+    int edit_kind = edit_refusal(fvar); /* 17 Oct 26 S.64: the edit gates */
+
+    if (edit_kind != EDIT_NONE) {
+      if (!(op_flags & P_ON_ERROR))
+        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));
+      process.status = -ER_PERM;
+      goto exit_op_delete;
+    }
   }
 
   if (pcfg.must_lock || txn_id || (op_flags & P_AUTOLOCK)) {
@@ -838,6 +899,18 @@ void op_write() {
 
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
+  {
+    /* 17 Oct 26 S.64: the edit gates.  Before anything is taken from the file, a CREATING.SEQKEY id included. */
+    int edit_kind = edit_refusal(fvar);
+
+    if (edit_kind != EDIT_NONE) {
+      if (!(op_flags & P_ON_ERROR))
+        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));
+      process.status = -ER_PERM;
+      goto exit_op_write;
+    }
+  }
+
   if (op_flags & P_SEQKEY) {
     /* 15 Oct 26 dm - WRITE ... CREATING.SEQKEY id.var.  The operand where the record id would be is the ADDRESS of the program's
        id variable.  The id is the file's next sequential number, taken from the counter in the file header; it is put in the
@@ -1140,12 +1213,35 @@ void op_writev() {
       ProfFile(PROF_WRITE, prof_d->data.fvar);
   }
 
+  /* 17 Oct 26 S.64: the edit gates.  Tested HERE, not left to op_write(): the recursive pcode below is $internal, so by the time it
+     writes, the caller's program flags are gone (Linux Solo's voc_write_refused() does the same, LSOLO 6).  A refusal without
+     ON ERROR is an error with the reason; with it, the four operands are dropped and the status is -ER_PERM.                */
+  {
+    DESCRIPTOR *wv_fvar = e_stack - 3;
+    int edit_kind;
+
+    k_get_file(wv_fvar);
+    edit_kind = edit_refusal(wv_fvar->data.fvar);
+    if (edit_kind != EDIT_NONE) {
+      if (!(op_flags & P_ON_ERROR))
+        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));
+      process.status = -ER_PERM;
+      k_dismiss();
+      k_dismiss();
+      k_dismiss();
+      k_dismiss();
+      goto exit_op_writev;
+    }
+  }
+
   /* Push lock flag onto e-stack; zero for WRITEV, non-zero for WRITEVU */
 
   InitDescr(e_stack, INTEGER);
   (e_stack++)->data.value = op_flags & P_ULOCK;
 
   k_recurse(pcode_writev, 5); /* Execute recursive code */
+
+exit_op_writev:
 
   /* Set status code on stack */
 

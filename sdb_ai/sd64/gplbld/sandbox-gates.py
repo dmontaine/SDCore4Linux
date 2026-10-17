@@ -127,7 +127,17 @@ def put(path, text):
         f.write(text)
 
 
+# 17 Oct 26 dm (S.64).  THE FIXTURE ACCOUNTS KEEP THE RIGHT TO EDIT.  The edit gates (register fields 10 to 12) are off for an account that
+# says nothing, as a blank is off; but the accounts these suites make stand for accounts that existed before the gates, which the
+# upgrade switches on, and their ordinary sessions compile, catalogue and write the VOC all the time.  So a register record written with
+# fewer than 10 fields is given 'yes' in all three.  sandbox-editgates.py is the suite OF the gates and sets this to None.
+EDIT_DEFAULT = ["yes", "yes", "yes"]
+
+
 def reg_write(name, fields):
+    fields = list(fields)
+    if EDIT_DEFAULT is not None and len(fields) < 10:
+        fields += [""] * (9 - len(fields)) + list(EDIT_DEFAULT)
     put(os.path.join(SYS, "accounts", name), "\n".join(fields) + "\n")
 
 

@@ -462,6 +462,11 @@ if [ "$COMMIT" -eq 1 ]; then
         ck_says "A3e and no remote access (10079)" "$ACC has no remote access: not ssh, not the API" "$OUT"
         ck "A3f and the machine agrees: in neither sdssh nor sdapi" "no no" \
            "$(in_group "$ACC" sdssh) $(in_group "$ACC" sdapi)"
+        # 17 Oct 26 - S.64: the three edit gates are written the same way, 'no' unless a word asked for them
+        #   (fields 10/11/12 = ACC$VOC.EDIT / ACC$BP.EDIT / ACC$DICT.EDIT), and the command says so aloud (11409).
+        ck "A3g fields 10-12 (VOC.EDIT / BP.EDIT / DICT.EDIT) are no / no / no: a new account has none of the three" "no no no" \
+           "$(sed -n '10p' "$REGISTER/$ACC_UC") $(sed -n '11p' "$REGISTER/$ACC_UC") $(sed -n '12p' "$REGISTER/$ACC_UC")"
+        ck_says "A3h CREATE.ACCOUNT reported the three edit gates off (11409)" "Account $ACC has VOC.EDIT no, BP.EDIT no, DICT.EDIT no" "$OUT"
     else
         not_reached "A2 field 5 blank"
         not_reached "A3 field 4 not written"
@@ -470,6 +475,8 @@ if [ "$COMMIT" -eq 1 ]; then
         not_reached "A3d both gates off said"
         not_reached "A3e no remote access said"
         not_reached "A3f in neither route group"
+        not_reached "A3g fields 10-12 are no / no / no"
+        not_reached "A3h the three edit gates off said"
     fi
     if [ -d "$ACCOUNTS_ROOT/$ACC" ]; then
         ck "A4 directory is $ACC:sdu_$ACC, mode 2775" "$ACC sdu_$ACC 2775" \

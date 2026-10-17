@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64: start_file() also refuses a print file made under a VOC, a dictionary or a program file the session may not change.
  * 13 Oct 26 dm  S.63: start_file() asks the OS-access gate (os_path_ok_for_account) for a print unit's raw
  *               pathname, so an account without OS.EXECUTE prints only into its own directory.
  * 12 Oct 26 dm  A mode 3 print unit takes an update lock on its record in $HOLD
@@ -264,6 +265,11 @@ Private void start_file(PRINT_UNIT* pu) {
        jump to open_file below and are not asked.                                                            */
     if (!os_path_ok_for_account(fn)) {
       k_error(sysmsg(11180), process.username);
+    }
+    /* 17 Oct 26 dm - S.64 (the edit gates): a print file made in a program file, a dictionary or a VOC replaces what is there, which is
+       a change to it; asked of the ACCOUNT for the same reason as above.  The spooler's own directory is not one of the three. */
+    if (edit_os_path_refusal(fn) != EDIT_NONE) {
+      k_error(sysmsg(11404 + edit_os_path_refusal(fn)));
     }
 
   open_file:

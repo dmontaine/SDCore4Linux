@@ -67,7 +67,9 @@ STORES = ["accounts", "$cred"]
 # never become one.  It is accepted here ONLY while installsdcore.sh really runs it as `sudo ... -internal RUN gpl.bp
 # <name>` - a program on this list that the installer stops running, or a name that is catalogued as a verb after all,
 # is judged like any other writer.  The list is the exemption's whole width: adding a name here is a decision to read.
-INSTALL_RUN = ["upgrade_gates"]
+# 17 Oct 26 dm (S.64): upgrade_editgates is the second, the same walk for the three edit gates (voc.edit, bp.edit, dict.edit), run by the
+# installer next to upgrade_gates and under the same rules.
+INSTALL_RUN = ["upgrade_gates", "upgrade_editgates"]
 
 OPEN_RE = re.compile(r"""openpath\s+@sdsys\s*:\s*@ds\s*:\s*['"]([^'"]+)['"]\s+to\s+([a-z0-9._$]+)""", re.I)
 CATALOG_RE = re.compile(r"^\s*\$catalog\s+(\S+)", re.I | re.M)

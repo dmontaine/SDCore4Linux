@@ -1358,10 +1358,15 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
       # OS.EXECUTE off, the installing user's too.  Said here because this is the first account anyone
       # signs in to and it would otherwise be a surprise that sh and the editors refuse.
       echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
+      # 17 Oct 26 (S.64): and, the same way, no right to save changes to a VOC, a program file or a dictionary.
+      echo "  It also starts without the right to change the VOC, a program file (or compile and catalogue) or a dictionary."
       echo "  Signed in as sdsys, give it what it needs, one word per command:"
       echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
       echo "      modify.account ${tuser_lc} sh-on"
       echo "      modify.account ${tuser_lc} os-on"
+      echo "      modify.account ${tuser_lc} voc-on"
+      echo "      modify.account ${tuser_lc} bp-on"
+      echo "      modify.account ${tuser_lc} dict-on"
     else
       printf "%b\n" "$RED"
       echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
@@ -1451,6 +1456,29 @@ if [ "$accounts_kept" = yes ]; then
         echo "  Run this installer again to retry, or give an account the access with"
         echo "      modify.account <account> sh-on"
         echo "      modify.account <account> os-on"
+        printf "%b\n" "$NC"
+    fi
+
+# 17 Oct 26 dm - S.64 (owner, 17 Oct 2026).  THE EDIT GATES ARRIVE OFF BY DEFAULT, AND THE KEPT ACCOUNTS KEEP WHAT THEY HAVE, as the
+#            two above did.  upgrade_editgates switches voc.edit, bp.edit and dict.edit on for each USER account in the register whose
+#            field is blank, ONCE (it leaves sdsys/$editgates.done), so that no kept account suddenly cannot edit its programs, compile,
+#            catalogue or change a dictionary.  Accounts made afterwards start off.  Same rules as the walks above: it must run here, as
+#            the root session of the install; a run that did not print COMPLETE is reported and the install goes on, because it is
+#            repeated by running this installer again.
+    echo
+    echo "Keeping the right to change the VOC, programs and dictionaries that the existing accounts have."
+    oe_rc=0
+    oe_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_editgates 2>&1) || oe_rc=$?
+    printf '%s\n' "$oe_out"
+    oe_plain=$(printf '%s\n' "$oe_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+    if [ "$oe_rc" -ne 0 ] || ! printf '%s\n' "$oe_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+        printf "%b\n" "$RED"
+        echo "WARNING: the existing accounts' right to change the VOC, programs and dictionaries was not all set."
+        echo "  Until it is, an account without it cannot edit them, compile or catalogue."
+        echo "  Run this installer again to retry, or give an account the right with"
+        echo "      modify.account <account> voc-on"
+        echo "      modify.account <account> bp-on"
+        echo "      modify.account <account> dict-on"
         printf "%b\n" "$NC"
     fi
 fi

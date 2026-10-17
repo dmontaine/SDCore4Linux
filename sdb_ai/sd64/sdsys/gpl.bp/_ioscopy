@@ -49,6 +49,11 @@ $include int$keys.h
       status = -4
       return
    end
+* 17 Oct 26 dm - S.64: a copy INTO a program file, a dictionary or a VOC is a change to it and needs the gate (the target only).
+   if not(kernel(K$EDIT.OS.OK, target)) then
+      status = -4
+      return
+   end
    if not(ospath(source, OS$EXISTS)) then
       status = -2
       return

@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm S.64: edit_kind_of_path(), edit_permitted() and edit_ok_for_path(): which of a VOC, a dictionary and a
+ *           program file a pathname is, and whether the session may save a change to it (the gates voc.edit, dict.edit
+ *           and bp.edit, loaded at sign-on into the user table's gates word). op_dio3.c asks them before a write, a
+ *           delete or a clear; K_EDIT_OK and K_EDIT_KIND let a $internal program ask the same question.
  * 13 Oct 26 dm S.63: os_permitted() is back, and the gate now reaches OS paths. OS.EXECUTE and the SH
  *           verb are refused (10053, 10054, the Windows port's wording) to an account that has not been
  *           given them; OPENSEQ and OPENPATH by pathname are refused (ER_PERM) outside the account's own
@@ -373,6 +377,136 @@ bool os_path_open_ok(const char *name) {
   if (process.program.flags & HDR_INTERNAL)
     return TRUE;
   return os_path_ok_for_account(name);
+}
+
+/* ======================================================================
+   edit_kind_of_path()  -  Which of the three guarded kinds of file is this?
+
+   17 Oct 26 dm, S.64 (owner, 17 Oct: the gates voc.edit, bp.edit and dict.edit).  By the last component of the pathname
+   of the OPEN file, not by the name that was typed, so a Q-pointer or an F-pointer to one is caught (Linux Solo's
+   voc_write_refused() does the same for the VOC alone).  Case does not matter; every name SD makes is lower case.
+     VOC          voc
+     dictionary   anything ending .dic         (voc.dic is the dictionary of the VOC, not the VOC)
+     program      bp, bp.out, anything ending .bp or .bp.out
+   bp.out is in because an object file written straight into it is the same as compiling one (owner's D3, 17 Oct, said
+   "bp or *.bp"; the object directory is part of that meaning and the plan file says so).  A trailing slash is ignored.  */
+
+int edit_kind_of_path(const char *path) {
+  const char *last;
+  const char *p;
+  size_t n;
+
+  if (path == NULL)
+    return EDIT_NONE;
+  n = strlen(path);
+  while ((n > 0) && (path[n - 1] == '/'))
+    n--;
+  if (n == 0)
+    return EDIT_NONE;
+  last = path;
+  for (p = path; p < path + n; p++) {
+    if (*p == '/')
+      last = p + 1;
+  }
+  n = (size_t)((path + n) - last);
+  if (n == 0)
+    return EDIT_NONE;
+
+  if ((n == 3) && (strncasecmp(last, "voc", 3) == 0))
+    return EDIT_VOC;
+  if ((n > 4) && (strncasecmp(last + n - 4, ".dic", 4) == 0))
+    return EDIT_DICT;
+  if ((n == 2) && (strncasecmp(last, "bp", 2) == 0))
+    return EDIT_PROG;
+  if ((n == 6) && (strncasecmp(last, "bp.out", 6) == 0))
+    return EDIT_PROG;
+  if ((n > 3) && (strncasecmp(last + n - 3, ".bp", 3) == 0))
+    return EDIT_PROG;
+  if ((n > 7) && (strncasecmp(last + n - 7, ".bp.out", 7) == 0))
+    return EDIT_PROG;
+  return EDIT_NONE;
+}
+
+/* edit_permitted()  -  may THIS SESSION save a change to a file of that kind?  The administrator may always; anybody else
+   needs the gate for the kind, loaded at sign-on (UG_x in the user table's gates word) from the register.            */
+
+bool edit_permitted(int kind) {
+  if (my_uptr->flags & USR_ADMIN)
+    return TRUE;
+  switch (kind) {
+    case EDIT_VOC:
+      return (my_uptr->gates & UG_VOC_EDIT) != 0;
+    case EDIT_DICT:
+      return (my_uptr->gates & UG_DICT_EDIT) != 0;
+    case EDIT_PROG:
+      return (my_uptr->gates & UG_BP_EDIT) != 0;
+  }
+  return TRUE;
+}
+
+bool edit_ok_for_path(const char *path) {
+  int kind = edit_kind_of_path(path);
+
+  return (kind == EDIT_NONE) || edit_permitted(kind);
+}
+
+/* edit_os_path_refusal()  -  the OS-PATH routes to the same files: OPENSEQ, DELETESEQ, OSRENAME, a print file, OSCOPY.
+
+   A program file's records are files of a directory, so OPENSEQ 'bp','prog' and WRITESEQ change one as WRITE would, past the test
+   in op_dio3.c; a dictionary or the VOC can be corrupted the same way.  So the pathname a program gives is looked at for a
+   component that names a VOC, a dictionary or a program file: the path is resolved as the OS gate resolves it, and every component
+   below the account's own directory is classified (edit_kind_of_path).  Returns EDIT_NONE when the session may go on, or the kind
+   it may not change.  Read-only use is not asked: the callers use this where they would write, create, delete or rename.
+   NOT COVERED, and said in the documentation: an account that holds OS.EXECUTE or SH reaches the files from the shell as it
+   always could, so a path outside the account's own directory is not looked at for such an account.  For one that reaches another
+   account's directory through SD.ACCOUNTS the whole resolved path is searched.  A path that cannot be resolved is refused.     */
+
+int edit_os_path_refusal(const char *name) {
+  char cwd[PATH_MAX + 1];
+  char root[PATH_MAX + 1];
+  char resolved[2 * PATH_MAX + 2];
+  const char *rel;
+  char comp[PATH_MAX + 1];
+  const char *p;
+  size_t root_len, n;
+  int kind;
+
+  if (my_uptr->flags & USR_ADMIN)
+    return EDIT_NONE;
+  if ((name == NULL) || (name[0] == '\0'))
+    return EDIT_NONE;
+  if ((getcwd(cwd, sizeof(cwd)) == NULL) || !resolve_name(cwd, name, resolved) || (realpath(cwd, root) == NULL))
+    return EDIT_VOC; /* cannot tell: refuse (a gate that fails open on a path it cannot read is decoration) */
+
+  root_len = strlen(root);
+  while ((root_len > 1) && (root[root_len - 1] == '/'))
+    root[--root_len] = '\0';
+
+  if ((root_len > 1) && (strncmp(resolved, root, root_len) == 0) &&
+      ((resolved[root_len] == '\0') || (resolved[root_len] == '/'))) {
+    rel = resolved + root_len; /* inside the account's own directory: look below it */
+  } else if (my_uptr->flags & USR_OS_EXEC) {
+    return EDIT_NONE; /* OS.EXECUTE: the whole machine, and a shell; not covered */
+  } else {
+    rel = resolved; /* another account's directory through SD.ACCOUNTS: the whole path */
+  }
+
+  for (p = rel; *p != '\0';) {
+    while (*p == '/')
+      p++;
+    n = 0;
+    while ((p[n] != '\0') && (p[n] != '/'))
+      n++;
+    if ((n > 0) && (n < sizeof(comp))) {
+      memcpy(comp, p, n);
+      comp[n] = '\0';
+      kind = edit_kind_of_path(comp);
+      if ((kind != EDIT_NONE) && !edit_permitted(kind))
+        return kind;
+    }
+    p += n;
+  }
+  return EDIT_NONE;
 }
 
 /* ======================================================================

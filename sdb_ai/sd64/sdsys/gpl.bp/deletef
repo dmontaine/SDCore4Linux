@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm  S.64: the data part of a program file (or anything named like a dictionary) and a dictionary deleted on its own
+*               (DELETE.FILE DICT name) are deleted only by a session that has the gate (K$EDIT.OK, edit.check.path).
 * 14 Sep 26 dm  6133 gains a cancel answer, C, which Enter takes (W.3, the
 *               port's ruling of 13 Sep 26).
 * 13 Sep 26 dm  The file name tries lower case, silently, before the upper-case
@@ -369,6 +371,12 @@ delete.upcased.file:
                close data.f
             end else akpath = ''
 
+*           17 Oct 26 dm - S.64: the data part of a program file (bp, bp.out, *.bp), of a VOC (refused outright above) or of anything
+*           named like a dictionary is deleted only by a session that has the gate for it.  An ordinary file, and its dictionary
+*           with it, is deleted as before.
+            ef.path = data.path
+            gosub edit.check.path
+
             if ospath(data.path, OS$OPEN) then
                stop sysmsg(6198, data.path) ;* Cannot delete file - Data part %1 is open
             end
@@ -459,6 +467,13 @@ delete.dict:
             close dict.f
          end else akpath = ''
 
+*        17 Oct 26 dm - S.64: DELETE.FILE DICT name removes a dictionary on its own, which is a change to it and needs dict.edit.  The
+*        dictionary that goes with its file when both are deleted is part of deleting the file, and is not asked.
+         if not(delete.data) then
+            ef.path = dict.path
+            gosub edit.check.path
+         end
+
          if ospath(dict.path, OS$OPEN) then
             stop sysmsg(6199, dict.path) ;* Cannot delete file - Dictionary part %1 is open
          end
@@ -530,6 +545,17 @@ check.sdsys.file:
    
    skip.part = (yn = 'N')
    return
+
+* ======================================================================
+* edit.check.path  -  may this session delete the part at ef.path?  (17 Oct 26 dm, S.64)  The kernel decides by the last component of
+*   the path (K$EDIT.OK); a refusal stops the verb with the reason.
+
+edit.check.path:
+   if kernel(K$EDIT.OK, ef.path) then return
+   ef.kind = kernel(K$EDIT.KIND, ef.path)
+   if ef.kind < 1 or ef.kind > 3 then ef.kind = 1
+   @system.return.code = -ER$PERM
+   stop sysmsg(11404 + ef.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
 
    * Avoid compiler warnings
    dummy = dummy

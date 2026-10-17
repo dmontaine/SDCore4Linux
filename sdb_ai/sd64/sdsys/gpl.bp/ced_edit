@@ -5,6 +5,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Oct 26 dm  S.64: save.record asks the kernel (K$EDIT.OK) before it writes into a VOC, a dictionary or a program file, and says why in
+*               the message line when the session has not the gate.
 * 12 Oct 26 dm  New.  Written from the openQM pages for CED and !CED(); the keys are theirs, the
 *               layout and the messages are SD's own.
 * 13 Oct 26 dm  On the screen library (owner: "use the TUI on ced and debugger"): the element list is a
@@ -50,6 +52,7 @@ subroutine ced_edit(c, fv, id, ftype, title, result)
 $catalog $cedit
 
 $include keyin.h
+$include syscom keys.h
 $include int$keys.h
 $include sl.h
 
@@ -824,6 +827,19 @@ insert.element:
 save.record:
    save.ok = @true
    save.status = 0
+*  17 Oct 26 dm - S.64: CED is $internal, so the kernel's own test of a WRITE to a VOC, a dictionary or a program file lets it through;
+*  it asks for itself, by the pathname of the open file.  The reason is the message (a DISPLAY would write over the screen).
+*  Only for a record of a file: !CED() on a VARIABLE has no id and no file (fileinfo is null, which the kernel refuses by design).
+   if id # '' then
+      edit.p = fileinfo(fv, FL$PATH)
+      if not(kernel(K$EDIT.OK, edit.p)) then
+         edit.kind = kernel(K$EDIT.KIND, edit.p)
+         if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
+         message.text = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+         save.ok = @false
+         return
+      end
+   end
    if id # '' then                   ;* (fv is a file variable, which cannot be compared with a string)
       if ftype = 0 then
          writeu c on fv, id on error

@@ -47,4 +47,9 @@ $define CA$OS.EXECUTE     22     ;* Windows only: os.users field 2
 * $cred together.
 $define CA$REUSE.SD.USER  31
 
+* Linux only (17 Oct 26, S.64, the edit gates): 1 = the new account starts with the gate on.  A blank or a 0 is off.
+$define CA$VOC.EDIT       32     ;* ACC$VOC.EDIT  'yes'
+$define CA$BP.EDIT        33     ;* ACC$BP.EDIT   'yes'
+$define CA$DICT.EDIT      34     ;* ACC$DICT.EDIT 'yes'
+
 * END-CODE

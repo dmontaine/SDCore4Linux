@@ -210,6 +210,12 @@
       $define K$IS.SDAPISRVR     25     ;* Is this process an API server?  (kernel.h K_IS_SDAPISRVR; named here 16 Oct 26)
       $define K$RESET.ALL       119     ;* LOGTO ... RESET ALL: with a command, keep it and return to the bottom command processor, which takes it back with a null argument; 1 accepted, 0 refused (an API session) (16 Oct 26, Fixes item 30)
       $define K$SD.ACCOUNTS     118     ;* may reach files under the directory of an account its user could LOGTO, except its VOC (set from $internal; -1 asks) (16 Oct 26)
+      $define K$VOC.EDIT        121     ;* may save changes to a VOC (set from $internal at sign-on only; -1 asks) (17 Oct 26, S.64)
+      $define K$BP.EDIT         122     ;* may save changes to a program file, source or object, and BASIC / CATALOG (same rules) (17 Oct 26, S.64)
+      $define K$DICT.EDIT       123     ;* may save changes to a dictionary (same rules) (17 Oct 26, S.64)
+      $define K$EDIT.OK         124     ;* the pathname of an open file: 1 if THIS SESSION may save a change to it (17 Oct 26, S.64; ask before writing a file the user named)
+      $define K$EDIT.KIND       125     ;* the same argument: 0 none of the three, 1 a VOC, 2 a dictionary, 3 a program file (for the message) (17 Oct 26, S.64)
+      $define K$EDIT.OS.OK      126     ;* an OS pathname about to be written, created, deleted or copied into: 1 if no part of it below the account names a guarded file the session may not change (17 Oct 26, S.64)
       $define K$PROFILER        116    ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
       $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)

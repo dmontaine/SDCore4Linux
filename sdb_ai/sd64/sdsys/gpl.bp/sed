@@ -26,6 +26,8 @@
 *               120 by 36 always (owner), and a smaller window is refused (see Get screen characteristics).
 * 15 Oct 26 dm  CREATING.SEQKEY in the place of a record id (openQM 4), on the command line and at the Record name
 *               prompt: the file's next sequential id is taken as the edit begins ($seqkey).
+* 17 Oct 26 dm  S.64, the edit gates: saving, exporting and deleting a record of a VOC, a dictionary or a program file ask the kernel
+*               (check.edit.file, K$EDIT.OK) and say why in the message line when the session has not the gate.
 * END-HISTORY
 *
 *
@@ -2175,6 +2177,12 @@ a.kill.line:
       begin case
          case buffer.type = BUFF.TYPE.EXPLORE
             if len(current.line) and not(current.line matches '--- 0X ---') then
+*              17 Oct 26 dm - S.64: deleting a record of a VOC, a dictionary or a program file needs the gate.  Asked first, before
+*              the question and before any buffer of the record is closed, so that a refusal touches nothing.
+               edit.f = file(current.buffer)
+               gosub check.edit.file
+               if not(edit.ok) then return
+
                prefix = "Delete " : current.line : "?"
                gosub yes.no
                if aborted or not(yes) then return
@@ -3832,6 +3840,25 @@ check.split:
    return
 
 *****************************************************************************
+* CHECK.EDIT.FILE  -  may this session save a change to the file in edit.f?   (17 Oct 26 dm, S.64)
+*
+* SED is $internal, so the kernel's own test of a WRITE to a VOC, a dictionary or a program file lets it through; it asks for itself.
+* The answer comes from the kernel by the pathname of the OPEN file (K$EDIT.OK), so a Q-pointer is caught.  The reason is shown the
+* way every SED complaint is, in the message line: edit_guard() DISPLAYs, which would write over a full-screen display.
+* Out: edit.ok.
+
+check.edit.file:
+   edit.ok = @true
+   edit.p = fileinfo(edit.f, FL$PATH)
+   if kernel(K$EDIT.OK, edit.p) then return
+   edit.ok = @false
+   edit.kind = kernel(K$EDIT.KIND, edit.p)
+   if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
+   message = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   gosub error
+   return
+
+*****************************************************************************
 * SAVE.RECORD  -  Save modified record
 
 save.record:
@@ -3863,6 +3890,11 @@ save.record:
    gosub assemble.record
 
    write.allowed = @true
+
+*  17 Oct 26 dm - S.64: saving into a VOC, a dictionary or a program file needs the gate (the reason is in the message line).
+   edit.f = file(current.buffer)
+   gosub check.edit.file
+   if not(edit.ok) then return
 
    * Process source control actions if required
 
@@ -5787,6 +5819,13 @@ export:
       if write.record.name = '' then aborted = @true
    end
 
+
+*  17 Oct 26 dm - S.64: exporting into a VOC, a dictionary or a program file needs the gate.
+   if not(aborted) then
+      edit.f = write.file
+      gosub check.edit.file
+      if not(edit.ok) then aborted = @true
+   end
 
    if not(aborted) then
       readvu s from write.file, write.record.name, 0 locked
@@ -7852,8 +7891,13 @@ compile:
       ext.func.rets = field(ext.func.rets, @fm, 1, num.funcs)
    end
 
-   recordlocku file(current.buffer), record.name : '-EXT'
-   delete file(current.buffer), record.name : '-EXT'    ;* Delete old version
+*  17 Oct 26 dm - S.64: the extension object is a record of this same file; it is not kept in one the session may not change (silently:
+*  an extension record in a VOC, a dictionary or a program file is not a thing the person asked to save).
+   ext.may.write = kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))
+   if ext.may.write then
+      recordlocku file(current.buffer), record.name : '-EXT'
+      delete file(current.buffer), record.name : '-EXT'    ;* Delete old version
+   end
 
    locate record.name in extensions<1> setting i then   ;* Unload old version
       ext.table(i) = ''
@@ -8216,8 +8260,10 @@ compile:
 
    if not(ext.err) then
       s = ext.code<1> : @fm : convert(@fm, char(0), field(ext.code, @fm, 2, 9999999))
-      recordlocku file(current.buffer), record.name : '-EXT'
-      write s to file(current.buffer), record.name : '-EXT'
+      if kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH)) then   ;* 17 Oct 26 dm - S.64, as above
+         recordlocku file(current.buffer), record.name : '-EXT'
+         write s to file(current.buffer), record.name : '-EXT'
+      end
       s = ''
       ext.code = ''
    end

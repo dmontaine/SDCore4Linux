@@ -6,6 +6,8 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 17 Oct 26 dm  S.64, the edit gates: save, save as and new record ask the kernel (edit.check, K$EDIT.OK) before they write into a VOC, a
+*               dictionary or a program file, and say why in the message line.
 * 14 Oct 26 dm  New (owner: "go ahead and build the ide").  Stages 1 and 2 of the plan in screenlib-design.md
 *               together: the shell, open and save, compile with the error table that jumps, run, catalogue,
 *               debug, search in the records of a file, a tab for each open record, and a layout that follows
@@ -38,6 +40,7 @@ program $ide
 $catalog $ide
 
 $include keyin.h
+$include syscom keys.h
 $include int$keys.h
 $include sl.h
 
@@ -832,6 +835,20 @@ save.current:
    gosub save.one
    return
 
+* edit.check  -  may this session save a change to the file in fv?  (17 Oct 26 dm, S.64)
+*   IDE is $internal, so the kernel's own test of a WRITE to a VOC, a dictionary or a program file lets it through; it asks for itself,
+*   by the pathname of the OPEN file (K$EDIT.OK).  The reason goes in msg, as every IDE complaint does (DISPLAY would write over the
+*   screen).  Out: edit.ok.
+edit.check:
+   edit.ok = @true
+   edit.p = fileinfo(fv, FL$PATH)
+   if kernel(K$EDIT.OK, edit.p) then return
+   edit.ok = @false
+   edit.kind = kernel(K$EDIT.KIND, edit.p)
+   if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
+   msg = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   return
+
 * In: sv.i.  Out: sv.ok
 save.one:
    sv.ok = @false
@@ -848,6 +865,8 @@ save.one:
       msg = sysmsg(11200, bn<sv.i>)
       return
    end
+   gosub edit.check                  ;* 17 Oct 26 dm - S.64
+   if not(edit.ok) then return
    read disk from fv, bi<sv.i> then
       if disk # sv.saved then
          screen msgbox sysmsg(11203, bn<sv.i>, bi<sv.i>) buttons 'Overwrite,Cancel' default 2 returning b else b = 0
@@ -1025,6 +1044,8 @@ do.writeas:
       msg = sysmsg(11200, wa.file)
       return
    end
+   gosub edit.check                  ;* 17 Oct 26 dm - S.64
+   if not(edit.ok) then return
    exists = @false
    read x from fv, wa.id then exists = @true
    if exists then
@@ -1087,6 +1108,8 @@ do.new:
       msg = sysmsg(11200, ctx.file)
       return
    end
+   gosub edit.check                  ;* 17 Oct 26 dm - S.64
+   if not(edit.ok) then return
    exists = @false
    read x from fv, nm then exists = @true
    if exists then

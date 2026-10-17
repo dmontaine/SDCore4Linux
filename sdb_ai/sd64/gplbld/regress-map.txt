@@ -72,7 +72,7 @@ gplbld/*                     : @core
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE KERNEL (gplsrc).  Specific files first.
 gplsrc/op_dio4.c             : @lists fixes-b12
-gplsrc/op_dio3.c             : @files @seq prof lockown
+gplsrc/op_dio3.c             : @files @seq prof lockown editgates
 gplsrc/op_dio2.c             : @files fixes-b12 sys-b2
 gplsrc/op_dio1.c             : @files cll prof lockown
 gplsrc/dh_split.c            : @files splitfull
@@ -84,7 +84,7 @@ gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile syse
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12
 gplsrc/sdidx.c               : akcase idx-nocase
 gplsrc/sdconv.c              : nocase upgradenocase
-gplsrc/op_seqio.c            : @seq prof getdev
+gplsrc/op_seqio.c            : @seq prof getdev editgates
 gplsrc/op_coll.c             : coll collfile dbgcoll
 gplsrc/op_array.c            : coll list-q2 @core
 gplsrc/op_skt.c              : opensock gates qmclient oq2
@@ -118,13 +118,13 @@ gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/sdlnxd.c              : q5
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof
-gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try
+gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates
 gplsrc/k_error.c             : sysexc try @core
 gplsrc/messages.c            : sysexc @core
-gplsrc/sd.h                  : sysexc try @core
+gplsrc/sd.h                  : sysexc try editgates @core
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
@@ -137,7 +137,8 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient
 gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
-gplsrc/op_sh.c               : gates sdaccts
+gplsrc/op_sh.c               : gates sdaccts editgates
+gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
@@ -147,11 +148,11 @@ gplsrc/descr.h               : restricted classas nameindex @core
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates
 gplsrc/sd.c                  : @core fixes-b12
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -206,17 +207,25 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
 sdsys/gpl.bp/screen_*        : screen sed-menu
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey
-sdsys/gpl.bp/ide             : ide
-sdsys/gpl.bp/ced*            : ced
-sdsys/gpl.bp/ed              : @editors edext
-sdsys/gpl.bp/edit            : @editors
+sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates
+sdsys/gpl.bp/ide             : ide editgates
+sdsys/gpl.bp/ced*            : ced editgates
+sdsys/gpl.bp/ed              : @editors edext editgates
+sdsys/gpl.bp/edit            : @editors editgates
+sdsys/gpl.bp/edit_guard      : editgates @editors
+sdsys/gpl.bp/clearfl         : editgates @files
+sdsys/gpl.bp/delete          : editgates @files
+sdsys/gpl.bp/deletef         : editgates @files
+sdsys/gpl.bp/copy            : editgates @files
+sdsys/gpl.bp/copyp           : editgates @files
+sdsys/gpl.bp/cname           : editgates @files
+sdsys/gpl.bp/restorea        : editgates @system
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
@@ -261,7 +270,7 @@ sdsys/gpl.bp/sort*           : @lists @functions
 sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
-sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates
+sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
 sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
 sdsys/gpl.bp/listu           : listu-a5
@@ -272,40 +281,41 @@ sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
-sdsys/gpl.bp/login           : @system sdaccts
+sdsys/gpl.bp/login           : @system sdaccts editgates
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates
 sdsys/gpl.bp/sdclient        : qmclient
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
 sdsys/gpl.bp/cred_*          : gates qmclient
-sdsys/gpl.bp/create*         : @files gates @system
+sdsys/gpl.bp/create*         : @files gates @system editgates
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
 sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
-sdsys/gpl.bp/acc*            : gates @system
-sdsys/gpl.bp/modifya         : gates @system sdaccts
+sdsys/gpl.bp/acc*            : gates @system editgates
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
-sdsys/gpl.bp/_ioscopy        : gates oq2
-sdsys/gpl.bp/_oscopy         : gates oq2
+sdsys/gpl.bp/_ioscopy        : gates oq2 editgates
+sdsys/gpl.bp/_oscopy         : gates oq2 editgates
 sdsys/gpl.bp/oscopya         : gates oq2
-sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12
-sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12
+sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12 editgates
+sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12 editgates
 sdsys/gpl.bp/setfile         : fixes-b12
 sdsys/gpl.bp/configf         : fixes-b12 nocase upgradenocase
 sdsys/gpl.bp/dirinfo         : fixes-b12
-sdsys/gpl.bp/decat           : callcase misc-a9
-sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 @core
+sdsys/gpl.bp/decat           : callcase misc-a9 editgates
+sdsys/gpl.bp/basic           : bcomp-a1 callcase misc-a9 lang-a15 mode-q16 editgates @core
 sdsys/gpl.bp/stdfil*         : stdfil
 sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
-sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath
+sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates
+sdsys/syscom/createacc.h     : editgates @system
 sdsys/syscom/parser.h        : @query @core
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient

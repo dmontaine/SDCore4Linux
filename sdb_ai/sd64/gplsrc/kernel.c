@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64: a process taking its user entry starts with the edit gates off (the user table's gates word).
  * 17 Oct 26 dm  k_run_program() keeps a resume point so that an error k_error() turns into a SYS.* exception
  *               can go on at the handler (k_can_resume(), k_resume_exception(); QM4 Fixes 354).
  * 16 Oct 26 dm  k_return() gives back the caller's @STDFIL after an EXECUTE (QM4 gap 225, $MODE STDFIL.SHARED)
@@ -163,6 +164,7 @@ retry_login:
     strcpy((char*)(my_uptr->ip_addr), ip_addr);
     my_uptr->events = 0;
     my_uptr->flags = 0;
+    my_uptr->gates = 0; /* 17 Oct 26 S.64: the edit gates start off; LOGIN or the API server loads them */
     memset((void*)&(my_uptr->ustats), 0, sizeof(struct FILESTATS)); /* FSTAT.USER */
     my_uptr->ustats.reset = sdtime();
     if (is_phantom && my_uptr->grouped && (my_uptr->puid == 0)) {
