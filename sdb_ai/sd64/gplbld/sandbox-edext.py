@@ -16,7 +16,7 @@
 # that follow it.  The subroutine zzedx1 is the external command handler: WHERE prints the whole of INFO, DUMP the lines of INFO(3),
 # UPCASE changes INFO(3), ADD word appends a line and moves to it, BAD sets ERROR, TOOFAR gives positions outside the record.  zzedx2
 # replaces a standard command (B).  The patterns are given in the way the task asks: several, one after another, unquoted
-# (WHERE DUMP UPCASE BAD TOOFAR) and a quoted template ("'ADD 'A0X").  Every verdict is a line the handler prints (X[...], D[...],
+# (WHERE DUMP UPCASE BAD TOOFAR) and a quoted template ("'ADD '0X"; a MATCHES template needs a count in each element, as the editor's own "'.'0A0X" has).  Every verdict is a line the handler prints (X[...], D[...],
 # MYB[...]) or the final content of the record, read back by CT after ED has gone.  CONTROLS: ED with no $ED.OPTIONS record says
 # WHERE is not a command; a standard command that is not overridden (L) still works with the options in place.
 
@@ -53,8 +53,15 @@ def bail(msg):
 def sess(box, *cmds, quiet=False):
     if not quiet:
         say("    > %d lines sent: %s ..." % (len(cmds), " | ".join(cmds[:3])))
-    p = subprocess.run([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts")] + list(cmds),
-                       capture_output=True, text=True, errors="replace", timeout=600)
+    try:
+        p = subprocess.run([sys.executable, TOOL, box, "sess", os.path.join(box, "user_accounts")] + list(cmds),
+                           capture_output=True, text=True, errors="replace", timeout=180)
+    except subprocess.TimeoutExpired:
+        # ED waits for an answer the commands did not give and, at the end of the input, asks again for ever.  Say so, end the
+        # session, and let the rows that needed its output fail rather than hang the run.
+        say("    ! the session did not end in 180 seconds: ED is waiting for an answer the commands did not give")
+        subprocess.run(["pkill", "-f", "^" + os.path.join(box, "sys", "bin", "sd")], capture_output=True)
+        return "SESSION TIMED OUT"
     out = ANSI.sub("", p.stdout + p.stderr)
     return out.split(":TERM 200,9999", 1)[-1]
 
@@ -102,7 +109,7 @@ end
 
 VOCW = """   open 'VOC' to v else crt 'V[=NO VOC]' ; stop
    rec = 'X'
-   rec<-1> = 'EXTERNAL zzedx1 WHERE DUMP UPCASE BAD TOOFAR ' : '"' : "'" : 'ADD ' : "'" : 'A0X' : '"'
+   rec<-1> = 'EXTERNAL zzedx1 WHERE DUMP UPCASE BAD TOOFAR ' : '"' : "'" : 'ADD ' : "'" : '0X' : '"'
    rec<-1> = 'EXTERNAL zzedx2 B'
    write rec to v, '$ED.OPTIONS'
    crt 'V[=DONE]'
@@ -152,7 +159,9 @@ def main():
             bail("the programs did not compile:\n" + out[-1200:])
 
         say("\n--- CONTROL: no $ED.OPTIONS record ------------------------------------------------------------------------------")
-        out = sess(box, "RUN bp zzedvd", "ED bp zzedr", "WHERE", "Q")
+        # An unrecognised line is followed by "Did you mean to insert this text (y/<n>)?", which loops until it has Y, N or an empty
+        # answer: without the N the session never ends (it did not, 16 Oct 26, 20 minutes).
+        out = sess(box, "RUN bp zzedvd", "ED bp zzedr", "WHERE", "N", "Q")
         row("CONTROL  without the option WHERE is not an ED command: 'Unrecognised command'", "Unrecognised command" in out and "X[file=" not in out,
             repr(out[-400:]))
 
@@ -185,8 +194,10 @@ def main():
             "MYB[1]" in out and len(xs) > 5 and "posn=1 " in xs[5], repr(xs[5:6]))
         row("CONTROL  a standard command not overridden still works with the options in place (L shows a line)", re.search(r"(?m)^0001: ONE\s*$", out) is not None,
             repr(out[-300:]))
-        row("305  the record filed has what the external commands left: ONE TWO THREE FOUR in capitals",
-            re.search(r"(?m)^ONE\s*$", out) is not None and re.search(r"(?m)^FOUR\s*$", out) is not None, repr(out[-300:]))
+        # CT numbers its lines.  UPCASE changed the three lines; ADD four appended its text as it was typed, which is lower case.
+        ct = out.split(":CT bp zzedr", 1)[-1]
+        row("305  the record filed has what the external commands left: ONE TWO THREE in capitals, then four as it was typed",
+            all(re.search(r"(?m)^%s\s*$" % s, ct) for s in ("1: ONE", "2: TWO", "3: THREE", "4: four")), repr(ct[-300:]))
         row("331  five patterns written one after another with no quotes, and a quoted template, were all taken (WHERE, DUMP, UPCASE, BAD, TOOFAR, ADD)",
             len(xs) >= 6 and len(ds) >= 2 and "External command zzedx1 failed" in out, repr((len(xs), len(ds))))
     finally:
