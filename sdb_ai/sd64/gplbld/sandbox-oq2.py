@@ -574,8 +574,10 @@ def run_verbs(box, sysd, bp):
         write(trg, "subroutine zzoqtr(mode, file, id, rec, ctl)\n   return\nend\n")
         out = sess(box, "BASIC bp zzoqtr", "CATALOG bp zzoqtr LOCAL", "CREATE.FILE zzoqtd DIRECTORY",
                    "SET.TRIGGER zzoqtd zzoqtr PRE.WRITE", "LIST.TRIGGERS zzoqtd")
-        row("321 (a finding, no change): SD refuses a trigger on a directory file, so LIST.TRIGGERS has none to show",
-            has(out, r"Dynamic file required") and not has(out, r"^zzoqtd\s+\S+\s+PRE"), out[-500:])
+        # 16 Oct 26 (QM4 Fixes item 177): this row said SD refuses a trigger on a directory file ("Dynamic file required") and that
+        # LIST.TRIGGERS had none to show.  A directory file takes a trigger now (sandbox-dirtrig.py has the rows), so it is listed.
+        row("321: a trigger on a directory file is accepted (QM4 Fixes 177), and LIST.TRIGGERS lists it with its mode",
+            not has(out, r"Dynamic file required") and has(out, r"(?m)^zzoqtd\s+zzoqtr\s+PRE\.WRITE"), out[-500:])
         sess(box, "DELETE.CATALOG zzoqtr LOCAL", "DELETE.FILE zzoqtd")
 
         # --- CREATE.FILE COMMENT, MULTIFILE and a relative PATHNAME (383, 522, 278) ----------------------------

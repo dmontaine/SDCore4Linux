@@ -363,6 +363,14 @@ bool get_voc_file_reference(char * voc_name, bool get_dict_name,
                             char * path, char * vflags);
 void flush_dh_cache(void);
 
+/* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */
+u_char crlf_from_vflags(const char * vflags);
+/* ...and the trigger function of a directory file (16 Oct 26, QM4 Fixes item 177) */
+void dir_trigger_open(FILE_VAR * fvar, const char * dirpath);
+void dir_trigger_close(FILE_VAR * fvar);
+int dir_set_trigger(FILE_VAR * fvar, const char * name, int modes);
+bool is_dir_header(const char * name);
+
 /* OP_SH.C - the per-account OS-access gates (13 Oct 26, S.63) */
 bool os_gate_open(void);
 bool os_path_ok_for_account(const char * name);

@@ -2,9 +2,10 @@
 #
 # sandbox-fcontrol.py - the public FCONTROL(fvar, action {, qualifier}) with openQM 4's action numbers (15 Oct 26), run by an
 #                       ORDINARY program: FC$SET.SEQ.KEY, FC$GET.SEQ.KEY, the field access test (5), FC$VALID.ID and FC$MINMOD, the
-#                       refusals (a file opened read only, a file that is not hashed, a qualifier under 1), and the two actions SD
-#                       does not have (FC$SYNC, FC$CRLF), which must stop the program with a message and not answer as if they
-#                       had worked.  The internal function, renamed FCONTROL.INT, is checked through CONFIGURE.FILE ... NEXT.
+#                       refusals (a file opened read only, a file that is not hashed, a qualifier under 1), FC$SYNC (16 Oct 26) and an
+#                       unknown action, which must stop the program with a message.  FC$CRLF was refused until 16 Oct 26 and is
+#                       tested in sandbox-crlf.py; here it is only asked of a hashed file.  The internal function, renamed
+#                       FCONTROL.INT, is checked through CONFIGURE.FILE ... NEXT.
 #                       No install, no sudo.
 #
 #   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-fcontrol.py <dir> [--build]
@@ -138,8 +139,10 @@ def main():
                           "   r = fcontrol(f, FC$SYNC, @true)\n   crt 'S1[':r:']'\n   crt 'S2[':fileinfo(f, FL$SYNC):']'\n"
                           "   crt 'S3[':fcontrol(f, FC$SYNC, -1):']'\n   r = fcontrol(f, FC$SYNC, @false)\n"
                           "   crt 'S4[':r:'/':fileinfo(f, FL$SYNC):']'\nend\n")
+        # 16 Oct 26: FC$CRLF (QM4 Fixes item 452) works on a directory or sequential file (sandbox-crlf.py); on a hashed file it
+        # answers 0 with STATUS 3004.  It was refused with message 11354 until then.
         prog("zzfc_crlf", "$include keys.h\n   open 'zzfc' to f else stop 'no file'\n"
-                          "   r = fcontrol(f, FC$CRLF, -1)\n   crt 'AFTER_CRLF[':r:']'\nend\n")
+                          "   r = fcontrol(f, FC$CRLF, -1)\n   crt 'CRLF[':r:'/':status():']'\nend\n")
         prog("zzfc_bad", "   open 'zzfc' to f else stop 'no file'\n"
                          "   r = fcontrol(f, 99, 0)\n   crt 'AFTER_BAD[':r:']'\nend\n")
         prog("zzfc_get", "$include keys.h\n   open 'zzfc' to f else stop 'no file'\n   crt 'G[':fcontrol(f, FC$GET.SEQ.KEY, 0):']'\nend\n")
@@ -190,12 +193,10 @@ def main():
         row("-1 asks without changing: 1", got(out, "S3") == "1", "got %r" % got(out, "S3"))
         row("false returns the previous state, 1, and the file reads 0 again", got(out, "S4") == "1/0", "got %r" % got(out, "S4"))
 
-        say("\n--- leg 5: the one action SD does not have (line terminators), and an unknown one -------------------")
-        for name, tag, label in (("zzfc_crlf", "AFTER_CRLF", "FC$CRLF"),):
-            out = sess(box, "RUN bp " + name)
-            row("THE ROW: %s stops the program with the message" % label,
-                "FCONTROL cannot do this action in SD" in out, "got %r" % out[-300:])
-            row("and the statement after it does not run (no %s line)" % tag, tag + "[" not in out, "got %r" % out[-300:])
+        say("\n--- leg 5: FC$CRLF on a hashed file (it has no line terminators), and an unknown action -----------------")
+        out = sess(box, "RUN bp zzfc_crlf")
+        row("THE ROW: FC$CRLF on a hashed file gives 0 and STATUS 3004 (not a directory file); it no longer stops the program",
+            got(out, "CRLF") == "0/3004" and "FCONTROL cannot do this action in SD" not in out, "got %r" % out[-300:])
         out = sess(box, "RUN bp zzfc_bad")
         row("THE ROW: action 99 stops the program with the unknown-action message", "the action is not one SD knows" in out, "got %r" % out[-300:])
         row("and the statement after it does not run", "AFTER_BAD[" not in out, "got %r" % out[-300:])

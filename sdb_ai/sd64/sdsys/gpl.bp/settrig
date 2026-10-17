@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 16 Oct 26 dm  A directory file can have a trigger (QM4 Fixes item 177): it is kept in the file's %header% file and takes
+*               effect when the file is next opened.
 * 07 Oct 26 dm  PAL-1 stage 3a: the trigger name is stored lower case (the
 *               Windows port's 4d8136b2).
 * 12 Sep 26 dm  Name lookups fold as typed, then lower, then upper (plan M1).
@@ -81,7 +83,8 @@ $include err.h
       end
    end
 
-   if fileinfo(fu, FL$TYPE) # FL$TYPE.DH then
+   * 16 Oct 26 dm (QM4 Fixes item 177): a directory file takes a trigger too, kept in its %header% file
+   if fileinfo(fu, FL$TYPE) # FL$TYPE.DH and fileinfo(fu, FL$TYPE) # FL$TYPE.DIR then
       stop sysmsg(2020)  ;* Dynamic file required
    end
 
