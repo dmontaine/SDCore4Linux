@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 17 Oct 26 dm  S.65 slice 1: ACC$NET (15), the per-account NET gate.
       * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
       *               Windows port.  PRE_RELEASE 18.
       * rev 0.9-2 Mar 25 mab add sdpyobj
@@ -386,6 +387,12 @@
       $define ACC$VOC.EDIT     10    ;* may save changes to a VOC (yes/no)
       $define ACC$BP.EDIT      11    ;* may save changes to a program file, and compile and catalogue (yes/no)
       $define ACC$DICT.EDIT    12    ;* may save changes to a dictionary (yes/no)
+      * 17 Oct 26 dm - FIELD 15: the NET gate (S.65 slice 1, SDNet; owner's rulings of 17 Oct).  Whether the account may open a file on
+      *   another SD server.  yes/no; BLANK MEANS NO.  ACCOUNT-SCOPED like ACC$SD.ACCOUNTS: loaded as K$NET at sign-on, at LOGTO (restored
+      *   when LOGTO returns) and by the API server.  No upgrade walk: nothing existing used it, so every existing account stays off.
+      *   SDSYS switches it (MODIFY.ACCOUNT NET-ON / NET-OFF; CREATE.ACCOUNT takes NET-ON).  The gate takes effect for the remote-file
+      *   slices that follow and does nothing yet.  Fields 13 and 14 are reserved for the shared-account gates (S.66).
+      $define ACC$NET          15    ;* may open a file on another SD server (yes/no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *

@@ -142,7 +142,7 @@ def checks(srcs, messages_dir):
     acc = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(ACC\$[A-Z0-9.]+)\s+(\d+)", c["syscom/keys.h"])}
     ck("K4 register fields 10, 11, 12 are ACC$VOC.EDIT, ACC$BP.EDIT, ACC$DICT.EDIT and nothing else uses them",
        (acc.get("ACC$VOC.EDIT"), acc.get("ACC$BP.EDIT"), acc.get("ACC$DICT.EDIT")) == (10, 11, 12)
-       and sorted(v for v in acc.values() if v >= 10) == [10, 11, 12], repr(acc))
+       and sorted(v for v in acc.values() if 10 <= v < 13) == [10, 11, 12], repr(acc))       # 13 and 14 are reserved, 15 is ACC$NET (S.65)
     ss = c["sysseg.h"]
     ck("K5 the user table has its own gates word and the three bits (the flags word is full)",
        re.search(r"u_int16_t\s+gates\s*;", ss) is not None and re.search(r"#define\s+UG_VOC_EDIT\s+0x0001", ss) is not None

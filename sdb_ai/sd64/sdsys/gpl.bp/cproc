@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: the NET gate (K$NET, SDNet remote files; does nothing yet) is account-scoped like SD.ACCOUNTS: loaded at LOGTO from
+*           the new account's record and restored when LOGTO returns (stk.net).
 * 17 Oct 26 dm S.64 part 2: the stack commands ask the voc.edit gate.  ".S name" may still make a NEW saved sentence or paragraph
 *           (a side effect of ordinary commands) but overwriting a VOC record that exists, and ".D name" deleting one, are refused
 *           with 11405 unless the session may save a change to its VOC (the administrator, or an account with voc.edit on).  This
@@ -771,6 +773,7 @@ $endif
          stk.sh = kernel(K$SH, -1)
          stk.os.exec = kernel(K$OS.EXEC, -1)
          stk.sd.accounts = kernel(K$SD.ACCOUNTS, -1)
+         stk.net = kernel(K$NET, -1)   ;* 17 Oct 26, S.65 slice 1: the NET gate is account-scoped, so it is held and given back with the rest (does nothing yet)
 
          pa.name = ""
          pa.rec = "PA" : @fm : xeq.command
@@ -3200,6 +3203,9 @@ int.logto:
    void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')
    void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')
    void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
+* 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS: reloaded here from the new account's own
+*   record, off unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
+   void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3275,6 +3281,7 @@ revert.account:
    void kernel(K$SH,      stk.sh)
    void kernel(K$OS.EXEC, stk.os.exec)
    void kernel(K$SD.ACCOUNTS, stk.sd.accounts)
+   void kernel(K$NET, stk.net)   ;* 17 Oct 26, S.65 slice 1
    void kernel(K$AUDIT, 'logto revert account=' : who)
    i = kernel(K$INVALIDATE.OBJECT, 0)
    gosub find.private.catalogue

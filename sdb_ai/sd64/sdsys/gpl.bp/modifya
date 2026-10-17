@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: NET-ON / NET-OFF, the NET gate for SDNet remote files (register field 15), through os.set; allowed on a group account as
+*           SD-ON is; reported with 11411; account-scoped, so it takes effect at the next account entry.  It does nothing yet.
 * 17 Oct 26 dm S.64: VOC-ON / VOC-OFF, BP-ON / BP-OFF and DICT-ON / DICT-OFF, the edit gates (register fields 10 to 12), through os.set;
 *           allowed on a group account as SD-ON is; reported with 11409.  They take effect at the person's next sign-on.
 * 13 Oct 26 dm S.63: SH-ON, SH-OFF, OS-ON and OS-OFF are back (os.set), without the tiers they were
@@ -166,6 +168,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       crt '                 modify.account <account> os-on | os-off'
       crt '                 modify.account <account> sd-on | sd-off'
       crt '                 modify.account <account> voc-on | voc-off | bp-on | bp-off | dict-on | dict-off'
+      crt '                 modify.account <account> net-on | net-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
@@ -259,6 +262,17 @@ deffun valid_os_name(name) calling '!valid_os_name'
          stop
       case action = 'DICT-OFF'
          os.field = ACC$DICT.EDIT ; os.want = @false
+         gosub os.set
+         stop
+* 17 Oct 26 dm - S.65 slice 1 (SDNet, owner's rulings of 17 Oct): NET-ON / NET-OFF, the gate for opening a file on another SD server.  Allowed on a
+*   group account as SD-ON is.  Account-scoped: it takes effect at the person's next account entry (sign-on, LOGTO, the API server).  The gate takes
+*   effect for the remote-file slices that follow and does nothing yet.
+      case action = 'NET-ON'
+         os.field = ACC$NET ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'NET-OFF'
+         os.field = ACC$NET ; os.want = @false
          gosub os.set
          stop
       case action = 'SSH'
@@ -355,7 +369,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
-         crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off,'
+         crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
          crt '   suspended or unsuspended'
       end
 
@@ -570,7 +584,7 @@ os.set:
 *   A GROUP or OTHER account is entered by whoever its Linux group admits, so a shell granted to it would
 *   be a shell granted to all of them, decided by group membership rather than by the administrator who
 *   typed SH-ON.  sdu_ is the only group that names one person (the Windows port's 10105).
-   if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS and os.field # ACC$VOC.EDIT and os.field # ACC$BP.EDIT and os.field # ACC$DICT.EDIT then
+   if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS and os.field # ACC$VOC.EDIT and os.field # ACC$BP.EDIT and os.field # ACC$DICT.EDIT and os.field # ACC$NET then
       @system.return.code = -ER$FAILED
       crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
       return
@@ -612,7 +626,12 @@ os.set:
          if upcase(trim(acc.new<ACC$DICT.EDIT>)) = 'YES' then ed.dict = 'yes'
          crt sysmsg(11409, acc.name, ed.voc, ed.bp, ed.dict)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4
       end else
-         crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+         if os.field = ACC$NET then
+*           17 Oct 26, S.65 slice 1: the NET gate has one field of its own, so the line names only it.
+            crt sysmsg(11411, acc.name, if upcase(trim(acc.new<ACC$NET>)) = 'YES' then 'yes' else 'no')   ;* Account %1 has NET %2
+         end else
+            crt sysmsg(10102, acc.name, os.sh.now, os.ex.now)  ;* Account %1 has SH %2, OS.EXECUTE %3
+         end
       end
    end
    return

@@ -19,6 +19,8 @@
 *
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: the NET gate (K$NET; SDNet remote files, does nothing yet) is loaded at every entry to an account, as SD.ACCOUNTS is,
+*           from ACC$NET; the OS user sdsys entering the sdsys account has it ON (the administrator passes).
 * 17 Oct 26 dm S.64 part 2: an API session of SDSYS that enters the sdsys account loads the three edit gates ON.  An API session carries
 *           no administrator flag, and the sdsys register record has no edit fields (modify.account refuses sdsys), so SDSYS over the
 *           local door could not compile or save to a VOC, a dictionary or a program file.  Only for the OS user sdsys entering the sdsys
@@ -509,6 +511,7 @@ acc.suspended = @false
 api.sh.grant = @false
 api.os.grant = @false
 api.sd.grant = @false      ;* 16 Oct 26: the SD.ACCOUNTS gate
+api.net.grant = @false     ;* 17 Oct 26, S.65 slice 1: the NET gate (SDNet remote files; does nothing yet); account-scoped, so loaded at every entry
 api.voc.grant = @false     ;* 17 Oct 26, S.64: the edit gates; loaded at the FIRST entry only (below)
 api.bp.grant = @false
 api.dict.grant = @false
@@ -520,6 +523,7 @@ if index(new.account, @ds, 1) = 0 then
          api.sh.grant = (upcase(trim(acc.rec<ACC$SH>)) = 'YES')
          api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
          api.sd.grant = (upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')
+         api.net.grant = (upcase(trim(acc.rec<ACC$NET>)) = 'YES')
          api.voc.grant = (upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES')
          api.bp.grant = (upcase(trim(acc.rec<ACC$BP.EDIT>)) = 'YES')
          api.dict.grant = (upcase(trim(acc.rec<ACC$DICT.EDIT>)) = 'YES')
@@ -539,6 +543,7 @@ if downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys' then
    api.voc.grant = @true
    api.bp.grant = @true
    api.dict.grant = @true
+   api.net.grant = @true     ;* 17 Oct 26, S.65 slice 1: the administrator passes the NET gate too (it does nothing yet)
 end
 
 * 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
@@ -618,6 +623,7 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
 void kernel(K$SD.ACCOUNTS, api.sd.grant)
+void kernel(K$NET, api.net.grant)   ;* 17 Oct 26, S.65 slice 1: account-scoped like SD.ACCOUNTS, so every entry and every SDLogto loads it
 
 * 17 Oct 26 dm - S.64: the edit gates are the SIGN-ON account's (owner, 17 Oct), so they are loaded at the first entry to an account
 *   and never again; an SDLogto leaves them as they were.  master.login.done is set just below, once, at that same first entry.

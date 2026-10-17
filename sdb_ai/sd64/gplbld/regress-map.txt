@@ -118,7 +118,7 @@ gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/sdlnxd.c              : q5
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof
 gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates
@@ -151,11 +151,11 @@ gplsrc/descr.h               : restricted classas nameindex @core
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net
 gplsrc/sd.c                  : @core fixes-b12
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -167,6 +167,12 @@ gplsrc/*.c                   : @core
 # sub-rule ("file ~ label : suites") adds the suites of the statements whose labels a hunk lies under.  A hunk under a label no
 # sub-rule names takes the '*' rule (the whole compiler group); comments before the first label add nothing; and where the
 # hunks cannot be known (--files, a file git has not been told about) every sub-rule applies.
+# S.65 slice 1 (17 Oct 26): the SDNet server definitions and their verbs.  They come before the coarse patterns that would take their names
+# (set*, *list*, the catch-all), which would select suites that know nothing of them.
+sdsys/gpl.bp/netdefs         : net
+sdsys/gpl.bp/setserver       : net
+sdsys/gpl.bp/deleteserver    : net
+sdsys/gpl.bp/listservers     : net
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
 sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
 sdsys/gpl.bp/bcomp ~ process.include : incsearch
@@ -210,7 +216,7 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
@@ -228,7 +234,7 @@ sdsys/gpl.bp/deletef         : editgates @files
 sdsys/gpl.bp/copy            : editgates @files
 sdsys/gpl.bp/copyp           : editgates @files
 sdsys/gpl.bp/cname           : editgates @files
-sdsys/gpl.bp/restorea        : editgates @system
+sdsys/gpl.bp/restorea        : editgates net @system
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
@@ -284,21 +290,21 @@ sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
-sdsys/gpl.bp/login           : @system sdaccts editgates
+sdsys/gpl.bp/login           : @system sdaccts editgates net
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net
 sdsys/gpl.bp/sdclient        : qmclient
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
 sdsys/gpl.bp/cred_*          : gates qmclient
-sdsys/gpl.bp/create*         : @files gates @system editgates
+sdsys/gpl.bp/create*         : @files gates @system editgates net
 sdsys/gpl.bp/config*         : @files conf-b1 sys-b2 q5
 sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
-sdsys/gpl.bp/acc*            : gates @system editgates
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates
+sdsys/gpl.bp/acc*            : gates @system editgates net
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
@@ -317,8 +323,8 @@ sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
-sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates
-sdsys/syscom/createacc.h     : editgates @system
+sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net
+sdsys/syscom/createacc.h     : editgates net @system
 sdsys/syscom/parser.h        : @query @core
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
@@ -326,6 +332,9 @@ sdsys/syscom/*               : @compiler @core
 sdsys/sd.voclib/listf*       : listf-mult
 sdsys/sd.voclib/*            : @core dictfold
 sdsys/newvoc/*               : @core dictfold misc-a9
+sdsys/voc_template/set.server    : net
+sdsys/voc_template/delete.server : net
+sdsys/voc_template/list.servers  : net
 sdsys/voc_template/*         : @core dictfold misc-a9
 sdsys/messages/*             : none
 sdsys/changelog              : none

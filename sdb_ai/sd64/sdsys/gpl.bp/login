@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: the NET gate (K$NET, SDNet remote files; does nothing yet) is loaded at sign-on, account-scoped like SD.ACCOUNTS.
 * 15 Oct 26 dm QM4 gaps Q-8: INHIBIT.LOGIN.  A new session is refused (11281) while the administrator has logins
 *           inhibited, unless it is the administrator, the setter or the setter's phantom; !login_inhibit decides.
 * 07 Oct 26 dm PAL-1 (parity audit): the multi-line refusals 10002 and 11000-11002 are
@@ -471,6 +472,9 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
    void kernel(K$SH,      upcase(trim(acc.rec<ACC$SH>)) = 'YES')
    void kernel(K$OS.EXEC, upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
    void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'
+* 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS, so CPROC's logto reloads and restores it.  Off
+*   unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
+   void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')
 * 17 Oct 26 dm - S.64: the edit gates are loaded HERE ONLY, at sign-on, and CPROC's logto neither reloads nor restores them
 *   (owner, 17 Oct: the account the person signed on to decides, wherever they go with LOGTO).  Off unless 'yes'.
    void kernel(K$VOC.EDIT,  upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES')

@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: the NET gate (SDNet remote files; does nothing yet) ACC$NET is written from CA$NET: 'no' for a user account unless named,
+*              reported with 11411 after 11409.
 * 17 Oct 26 dm S.64 (owner, 17 Oct 2026): the edit gates ACC$VOC.EDIT / ACC$BP.EDIT / ACC$DICT.EDIT are written from CA$VOC.EDIT / CA$BP.EDIT /
 *              CA$DICT.EDIT: 'no' for a user account unless named, reported with 11409 after 10102.
 * 13 Oct 26 dm S.63 (owner, 13 Oct 2026): a new account starts with no ssh, no API, no SH and no OS.EXECUTE;
@@ -120,6 +122,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
    edit.voc.want = (settings<CA$VOC.EDIT> = 1)
    edit.bp.want = (settings<CA$BP.EDIT> = 1)
    edit.dict.want = (settings<CA$DICT.EDIT> = 1)
+* 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files), the same rule: off unless named (NET-ON), exactly 1 to be a request.
+   net.want = (settings<CA$NET> = 1)
    no.query = settings<CA$NO.QUERY> = 1
    reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
 
@@ -466,6 +470,8 @@ PW.TRY.AGAIN:
      acc.rec<ACC$VOC.EDIT> = if edit.voc.want then 'yes' else 'no'
      acc.rec<ACC$BP.EDIT> = if edit.bp.want then 'yes' else 'no'
      acc.rec<ACC$DICT.EDIT> = if edit.dict.want then 'yes' else 'no'
+* 17 Oct 26 dm - S.65 slice 1: the NET gate, written explicitly for a user account; the gate does nothing yet.
+     acc.rec<ACC$NET> = if net.want then 'yes' else 'no'
    case acc.type = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
@@ -475,6 +481,7 @@ PW.TRY.AGAIN:
      if edit.voc.want then acc.rec<ACC$VOC.EDIT> = 'yes'
      if edit.bp.want then acc.rec<ACC$BP.EDIT> = 'yes'
      if edit.dict.want then acc.rec<ACC$DICT.EDIT> = 'yes'
+     if net.want then acc.rec<ACC$NET> = 'yes'
    end
    if settings<CA$SUSPENDED> = 1 then acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
 
@@ -483,6 +490,7 @@ PW.TRY.AGAIN:
    if acc.type = "USER" then
      crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
      crt sysmsg(11409, acc.name, acc.rec<ACC$VOC.EDIT>, acc.rec<ACC$BP.EDIT>, acc.rec<ACC$DICT.EDIT>)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4
+     crt sysmsg(11411, acc.name, acc.rec<ACC$NET>)  ;* Account %1 has NET %2
    end
 
 * A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;

@@ -20,6 +20,7 @@
 	  * START-HISTORY:
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
+	  * 17 Oct 26 dm S.65 slice 1: K$NET (127), the per-account NET gate.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -216,7 +217,8 @@
       $define K$EDIT.OK         124     ;* the pathname of an open file: 1 if THIS SESSION may save a change to it (17 Oct 26, S.64; ask before writing a file the user named)
       $define K$EDIT.KIND       125     ;* the same argument: 0 none of the three, 1 a VOC, 2 a dictionary, 3 a program file (for the message) (17 Oct 26, S.64)
       $define K$EDIT.OS.OK      126     ;* an OS pathname about to be written, created, deleted or copied into: 1 if no part of it below the account names a guarded file the session may not change (17 Oct 26, S.64)
-      $define K$PROFILER        116    ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
+      $define K$NET             127     ;* may open a file on another SD server (SDNet): account-scoped like K$SD.ACCOUNTS (set from $internal; -1 asks); does nothing until the remote-file slices (17 Oct 26, S.65 slice 1)
+      $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
       $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 

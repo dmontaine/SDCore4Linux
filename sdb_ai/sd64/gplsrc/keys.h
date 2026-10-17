@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 1: K_NET (127), the per-account NET gate for SDNet remote files.
  * 31 Dec 23 SD launch - prior history suppressed 
  * 28 Jul 24 mab SD_ENCRYPT_SODIUM encode types
  * 08 Aug 24 mab SDEXT keys for salt and key from password
@@ -390,6 +391,11 @@
                   a print file): 1 if no component of it below the account's directory names a VOC, a dictionary or a program file
                   that THIS SESSION may not change (op_sh.c edit_os_path_refusal).  Not asked for reading. */
 #define K_EDIT_OS_OK         126
+/* 17 Oct 26 dm - S.65 slice 1 (SDNet, the NET gate).  K_NET: like K_SD_ACCOUNTS, 1 / 0 sets (only from a $internal program), -1 asks;
+   may the session open a file on another SD server.  ACCOUNT-SCOPED: loaded at sign-on (LOGIN), at LOGTO (CPROC, restored when LOGTO
+   returns) and by the API server, as K_SD_ACCOUNTS is.  The administrator is never refused.  The gate takes effect for the remote-file
+   slices that follow and does nothing yet.  GPL.BP/INT$KEYS.H carries the same number. */
+#define K_NET                127
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
 

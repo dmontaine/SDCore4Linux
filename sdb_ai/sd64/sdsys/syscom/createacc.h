@@ -8,6 +8,7 @@
 *              here first, and mail the change.
 * 02 Oct 26 dm CA$REUSE.SD.USER is read by both ports (Windows reuses with a
 *              new password - owner's ruling that day); comment only.
+* 17 Oct 26 dm S.65 slice 1: CA$NET (35), Linux only, the NET gate (as CA$VOC.EDIT etc. of S.64).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -51,5 +52,9 @@ $define CA$REUSE.SD.USER  31
 $define CA$VOC.EDIT       32     ;* ACC$VOC.EDIT  'yes'
 $define CA$BP.EDIT        33     ;* ACC$BP.EDIT   'yes'
 $define CA$DICT.EDIT      34     ;* ACC$DICT.EDIT 'yes'
+
+* Linux only (17 Oct 26, S.65 slice 1, the NET gate for SDNet): 1 = the new account starts with the gate on.  A blank or a 0 is off.
+* The gate takes effect for the remote-file slices that follow and does nothing yet.
+$define CA$NET            35     ;* ACC$NET 'yes'
 
 * END-CODE

@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 1: NET-ON (the SDNet NET gate) beside the other switches; CA$NET in createacc.h.  It does nothing yet.
 * 17 Oct 26 dm S.64: VOC-ON, BP-ON and DICT-ON (the edit gates) beside SH-ON and OS-ON; CA$VOC.EDIT, CA$BP.EDIT and CA$DICT.EDIT in createacc.h.
 * 06 Oct 26 dm PAL-15 (parity audit J-3): an account created is audited.
 * 01 Oct 26 dm S.50: the verb is now the sentence parser only.  Everything from
@@ -140,7 +141,7 @@
 *
 * START-DESCRIPTION:
 *
-* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {NO.QUERY}
+* CREATE.ACCOUNT USER  <name> {SSH | API | BOTH | NONE} {SH-ON} {OS-ON} {VOC-ON} {BP-ON} {DICT-ON} {NET-ON} {NO.QUERY}
 * CREATE.ACCOUNT GROUP <name> {NO.QUERY}
 * CREATE.ACCOUNT OTHER <name> <pathname> {NO.QUERY}
 *
@@ -152,6 +153,7 @@
 *     OS-ON       OS.EXECUTE, and OPENSEQ / OPENPATH on a path outside the account's own directory
 *     VOC-ON, BP-ON, DICT-ON   (17 Oct 26, S.64) saving changes to a VOC, to a program file (and compiling and
 *                 cataloguing), to a dictionary; each its own switch, loaded at the person's sign-on
+*     NET-ON      (17 Oct 26, S.65) opening a file on another SD server (SDNet); account-scoped like SD.ACCOUNTS
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
 *   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
@@ -237,11 +239,11 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {net-on} {no.query}'
     crt '                create.account group <group name> {no.query}'
     crt '                create.account other <account name> <pathname> {no.query}'
     crt '  A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change'
-    crt '  the VOC (voc-on), a program file (bp-on) or a dictionary (dict-on);'
+    crt '  the VOC (voc-on), a program file (bp-on) or a dictionary (dict-on), and no files on other SD servers (net-on);'
     crt '  the words above give them, and modify.account changes any of them afterwards, either way.'
     @system.return.code = -ER$ARGS
     stop
@@ -299,6 +301,11 @@ more.args:
             settings<CA$BP.EDIT> = 1
          case upcase(token) = 'DICT-ON'
             settings<CA$DICT.EDIT> = 1
+
+* 17 Oct 26 dm - S.65 slice 1: NET-ON, the gate for opening a file on another SD server (SDNet), account-scoped; off unless typed.  The
+*   gate takes effect for the remote-file slices that follow and does nothing yet.
+         case upcase(token) = 'NET-ON'
+            settings<CA$NET> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word
