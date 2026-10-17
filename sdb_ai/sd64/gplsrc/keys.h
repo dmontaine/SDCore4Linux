@@ -356,6 +356,15 @@
    -1 asks; the session may reach any file under the directory of an account its user could LOGTO, except that account's VOC.
    GPL.BP/INT$KEYS.H carries the same number. */
 #define K_SD_ACCOUNTS        118
+/* 16 Oct 26 dm - QM4 Fixes item 30 (LOGTO ... RESET ALL).  K_RESET_ALL with a command: keep it, cast off every programme and
+   stacked command processor and return to the bottom one (k_exit_cause K_RESET_ALL_EXIT), which takes the command back with a
+   null argument and runs it.  Returns 1 when accepted, 0 when refused (an API server has no bottom command processor to go
+   back to).  With a null argument it returns the kept command, or the null string, and forgets it. */
+#define K_RESET_ALL          119
+/* 16 Oct 26 dm - QM4 Fixes item 484.  K_CLASS_MAIN with 1: the next k_call() may run a class module through its MAIN subroutine
+   (kernel.c, class_main_ok).  CPROC sets it just before it calls a catalogued command; op_run() and op_chain() set it themselves.
+   Used by that one call whatever becomes of it. */
+#define K_CLASS_MAIN         120
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
 

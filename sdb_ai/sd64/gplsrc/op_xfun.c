@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 16 Oct 26 dm  XF_OSPATH: OSPATH() for programs that are not internal, with openQM's key numbers (x_ospath(); Fixes item 233).
+ * 16 Oct 26 dm  XF_GET: the GET statement for devices opened by OPENSEQ (op_get_device(), op_seqio.c; Fixes item 583).
  * 15 Oct 26 dm  XF_FCONTROL: the public FCONTROL() (pub_fcontrol(), dh_misc.c).
  * 15 Oct 26 dm  XF_DIGEST for QM4 gaps bundle Q-13 (DIGEST()).
  * 15 Oct 26 dm  Written for QM4 gaps bundle Q-1: CEIL FLOOR ROUNDUP ROUNDDOWN IS.* LEFT RIGHT LAST NV NS TRIMWS MATCHESS
@@ -95,8 +97,12 @@
 #define XF_SELSOCKET 27 /* SELECT.SOCKET(socket matrix, timeout): the compiler loads the matrix itself (in.select.socket), QM4 gaps Q-5 */
 #define XF_SWAPMARKS 28 /* SWAPMARKS(string): the string as it is - SD has no ECS mode, where the marks would be exchanged; sheet 238 */
 #define XF_FCONTROL 29  /* FCONTROL(fvar, action, qualifier): the public one, openQM's numbers; pub_fcontrol() in dh_misc.c */
+#define XF_GET 30       /* GET var {, length} {SETTING count} FROM dev {UNTIL term} {RETURNING last} {WAITING timeout}: op_get_device() in op_seqio.c (QM4 Fixes item 583) */
+#define XF_OSPATH 31    /* OSPATH(path, key {, qualifier}) for any program, openQM's key numbers and behind the OS-access gate (QM4 Fixes item 233) */
 
 void pub_fcontrol(void);
+void op_get_device(void);
+Private void x_ospath(void);
 
 void op_dcount(void);
 void op_field(void);
@@ -242,6 +248,12 @@ void op_xfun() {
       break;
     case XF_FCONTROL:
       pub_fcontrol();
+      break;
+    case XF_GET:
+      op_get_device();
+      break;
+    case XF_OSPATH:
+      x_ospath();
       break;
     default:
       k_error("Illegal XFUN function number %d", (int)fn); /* the compiler cannot have made this */
@@ -875,6 +887,226 @@ Private void x_nv(bool ns) {
   ts_terminate();
   k_dismiss();
   *(e_stack++) = result;
+}
+
+/* ======================================================================
+   x_ospath()  -  OSPATH(path, key {, qualifier})  for any program  (16 Oct 26 dm, QM4 Fixes item 233)
+
+   The openQM function with its numbers (OS$ in syscom/keys.h); the internal OSPATH of the same job (op_pathinfo, op_dio2.c)
+   has other numbers and stays an internal program's own.  Every key that looks at or changes the file system asks the
+   OS-access gate about the path first (os_path_open_ok(): an internal program is trusted; anyone else is held to the account's
+   own directory unless the account has the OS.EXECUTE gate or the SD.ACCOUNTS one), and a refusal is STATUS() ER_PERM with
+   the answer false.  The keys:
+      0 OS$PATHNAME  1 OS$FILENAME      is it a valid name (text only: no gate)
+      2 OS$EXISTS    16 IS.FILE 17 IS.DIR   exists as either / as a file / as a directory
+      3 OS$UNIQUE                       a file name that does not exist in the directory path (the name, not the path)
+      4 OS$FULLPATH  9 FULLPATHX        the full path name (SD keeps the case on Linux, so these are one)
+      5 OS$DELETE                       a file, or a directory that is EMPTY: not a tree (the internal key removes a tree)
+      6 OS$OPEN                         is it open in SD (any user)
+      7 OS$DTM                          modified, as an epoch value (seconds since 1970 UTC), 0 if it is not there
+      8 OS$FLUSH.CACHE                  flush this process's cache of dynamic files; true
+      10 OS$PARENT                      the parent directory (the same, for a top level one)
+      11 OS$UID  12 OS$GID              owner and group numbers, 0 if it is not there
+      13 OS$MKDIR  14 OS$MKPATH         make a directory / and the levels above it; true if done
+      15 OS$MODES                       the permission bits as a decimal number (0755 is 493), 0 if it is not there
+      18 OS$OWNER                       Windows only: a null string
+   An unknown key is STATUS() ER_ARGS and the answer false.  The qualifier is read and ignored.                           */
+
+Private void x_ospath() {
+  DESCRIPTOR* descr;
+  char path[MAX_PATHNAME_LEN + 1];
+  char name[MAX_PATHNAME_LEN + 1];
+  struct stat sb;
+  int32_t key;
+  int len;
+  int64 value = 0;
+  bool text = FALSE;
+  char* p;
+  int file_id;
+  FILE_ENTRY* fptr;
+  int32_t n;
+
+  process.status = 0;
+  name[0] = '\0';
+
+  descr = e_stack - 2;
+  GetInt(descr);
+  key = descr->data.value;
+
+  descr = e_stack - 3;
+  len = k_get_c_string(descr, path, MAX_PATHNAME_LEN);
+  if (len < 0) {
+    process.status = ER_LENGTH;
+    goto ospath_done;
+  }
+
+  /* The keys that touch the file system are asked of the gate; the ones that are only about the text of the name are not */
+  switch (key) {
+    case 0:
+    case 1:
+    case 4:
+    case 8:
+    case 9:
+    case 10:
+    case 18:
+      break;
+    case 2:
+    case 3:
+    case 5:
+    case 6:
+    case 7:
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+      if (len == 0 && key == 3)
+        strcpy(path, ".");
+      if (!os_path_open_ok(path)) {
+        process.status = ER_PERM;
+        if (key == 3)
+          text = TRUE;
+        goto ospath_done;
+      }
+      break;
+    default:
+      process.status = ER_ARGS;
+      goto ospath_done;
+  }
+
+  switch (key) {
+    case 0: /* OS$PATHNAME: a name of one or more parts, none longer than 255 */
+      value = (len > 0);
+      for (p = path; *p && value;) {
+        char* q = strchr(p, '/');
+        int part = (q != NULL) ? (int)(q - p) : (int)strlen(p);
+
+        if (part > 255)
+          value = 0;
+        if (q == NULL)
+          break;
+        p = q + 1;
+      }
+      break;
+
+    case 1: /* OS$FILENAME: one name, not . or .. */
+      value = (len > 0) && (len <= 255) && (strchr(path, '/') == NULL) && strcmp(path, ".") && strcmp(path, "..");
+      break;
+
+    case 2:
+      value = (stat(path, &sb) == 0);
+      break;
+
+    case 3: /* A name that is not in the directory yet */
+      text = TRUE;
+      n = (int32_t)((time(NULL) * 10) % 10000000);   /* seven digits: D and seven digits, as the name is documented */
+      do {
+        n = (n > 0) ? n - 1 : 9999999;
+        if (snprintf(name, MAX_PATHNAME_LEN + 1, "%s%cD%07d", path, DS, (int)n) >= MAX_PATHNAME_LEN + 1) {
+          process.status = ER_LENGTH;
+          name[0] = '\0';
+          goto ospath_done;
+        }
+      } while (stat(name, &sb) == 0);
+      snprintf(name, sizeof(name), "D%07d", (int)n);
+      break;
+
+    case 4:
+    case 9:
+      text = TRUE;
+      fullpath(name, path);
+      break;
+
+    case 5: /* A file or an empty directory, and nothing below it */
+      if (lstat(path, &sb) != 0)
+        break;
+      if (S_ISDIR(sb.st_mode))
+        value = (rmdir(path) == 0);
+      else
+        value = (unlink(path) == 0);
+      break;
+
+    case 6: /* Is it open in SD? */
+      fullpath(name, path);
+      for (file_id = 1; file_id <= sysseg->used_files; file_id++) {
+        fptr = FPtr(file_id);
+        if ((fptr->ref_ct != 0) && (strcmp((char*)(fptr->pathname), name) == 0)) {
+          value = 1;
+          break;
+        }
+      }
+      name[0] = '\0';
+      break;
+
+    case 7:
+      if (stat(path, &sb) == 0)
+        value = (int64)sb.st_mtime;
+      break;
+
+    case 8:
+      value = 1;
+      flush_dh_cache();
+      break;
+
+    case 10: /* The parent: everything before the last part of the full name, or the root */
+      text = TRUE;
+      fullpath(name, path);
+      p = strrchr(name, '/');
+      if (p != NULL && p != name) {
+        if (p[1] == '\0') { /* a trailing slash: take it off and look again */
+          *p = '\0';
+          p = strrchr(name, '/');
+        }
+      }
+      if (p == NULL)
+        strcpy(name, "/");
+      else if (p == name)
+        name[1] = '\0';
+      else
+        *p = '\0';
+      break;
+
+    case 11:
+    case 12:
+    case 15:
+      if (stat(path, &sb) == 0)
+        value = (key == 11) ? (int64)sb.st_uid : (key == 12) ? (int64)sb.st_gid : (int64)(sb.st_mode & 07777);
+      break;
+
+    case 13:
+      value = (MakeDirectory(path) == 0);
+      break;
+
+    case 14:
+      value = make_path(path) ? 1 : 0;
+      break;
+
+    case 16:
+      value = (stat(path, &sb) == 0) && S_ISREG(sb.st_mode);
+      break;
+
+    case 17:
+      value = (stat(path, &sb) == 0) && S_ISDIR(sb.st_mode);
+      break;
+
+    case 18: /* Windows only */
+      text = TRUE;
+      break;
+  }
+
+ospath_done:
+  k_dismiss(); /* qualifier */
+  k_dismiss(); /* key */
+  k_dismiss(); /* path */
+  if (text) {
+    k_put_c_string(name, e_stack);
+    e_stack++;
+  } else {
+    InitDescr(e_stack, INTEGER);
+    (e_stack++)->data.value = (int32_t)value;
+  }
 }
 
 /* END-CODE */

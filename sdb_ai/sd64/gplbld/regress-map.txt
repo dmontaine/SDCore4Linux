@@ -30,7 +30,7 @@
 # select lists and everything that makes or reads one
 @lists       = sselectv pickrn chained execlist stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
-@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil mfilepath lock-b6 coll fix-b10
+@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil mfilepath lock-b6 coll fix-b10 sync
 # sequential files and CSV
 @seq         = csv-b5 file-b8 gates qmclient oq2 fcontrol audit-b9
 # strings, conversions, functions, dates, locate and sort
@@ -75,6 +75,7 @@ gplsrc/op_dio4.c             : @lists fixes-b12
 gplsrc/op_dio3.c             : @files @seq prof lockown
 gplsrc/op_dio2.c             : @files fixes-b12
 gplsrc/op_dio1.c             : @files cll prof lockown
+gplsrc/dh_split.c            : @files splitfull
 gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
@@ -83,11 +84,11 @@ gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile @cor
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12
 gplsrc/sdidx.c               : akcase idx-nocase
 gplsrc/sdconv.c              : nocase upgradenocase
-gplsrc/op_seqio.c            : @seq prof
+gplsrc/op_seqio.c            : @seq prof getdev
 gplsrc/op_coll.c             : coll collfile dbgcoll
 gplsrc/op_array.c            : coll list-q2 @core
 gplsrc/op_skt.c              : opensock gates qmclient oq2
-gplsrc/op_xfun.c             : @functions
+gplsrc/op_xfun.c             : @functions getdev ospath
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
 gplsrc/op_iconv.c            : @functions
@@ -95,20 +96,20 @@ gplsrc/op_oconv.c            : @functions
 gplsrc/op_chnge.c            : @functions
 gplsrc/op_locat.c            : @functions
 gplsrc/op_find.c             : @functions
-gplsrc/op_sort.c             : @functions @lists
+gplsrc/op_sort.c             : @functions @lists sortwide
 gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
 gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
-gplsrc/op_tio.c              : @pty
+gplsrc/op_tio.c              : @pty terminfo-ext
 gplsrc/linuxio.c             : @pty
 gplsrc/keyin.h               : @pty
 gplsrc/tio.h                 : @pty
-gplsrc/sdtermlb.c            : @pty
-gplsrc/sdtic.c               : @pty
-gplsrc/ti_names.h            : @pty
+gplsrc/sdtermlb.c            : @pty terminfo-ext
+gplsrc/sdtic.c               : @pty terminfo-ext
+gplsrc/ti_names.h            : @pty terminfo-ext
 gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5
@@ -120,7 +121,7 @@ gplsrc/sdlnxd.c              : q5
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof
-gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof
+gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
@@ -138,12 +139,12 @@ gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
-gplsrc/objprog.c             : classas restricted prof @core
-gplsrc/descr.h               : restricted classas @core
-gplsrc/op_jumps.c            : @core try partial prof fixes-b12
+gplsrc/objprog.c             : classas restricted nameindex classinit prof @core
+gplsrc/descr.h               : restricted classas nameindex @core
+gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
@@ -163,11 +164,16 @@ sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdf
 sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
 sdsys/gpl.bp/bcomp ~ process.include : incsearch
 sdsys/gpl.bp/bcomp ~ set.*   : stdfil dbgequ mode-q16
-sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas
-sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas
-sdsys/gpl.bp/bcomp ~ st.private*    : restricted classas
-sdsys/gpl.bp/bcomp ~ st.get         : restricted classas
+sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas classinit
+sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas classinit
+sdsys/gpl.bp/bcomp ~ st.private*    : restricted classas classinit
+sdsys/gpl.bp/bcomp ~ st.get         : restricted classas getdev
+sdsys/gpl.bp/bcomp ~ st.get.device  : getdev
 sdsys/gpl.bp/bcomp ~ st.set         : restricted classas
+sdsys/gpl.bp/bcomp ~ st.class       : classas classinit restricted
+sdsys/gpl.bp/bcomp ~ get.class.*    : classinit
+sdsys/gpl.bp/bcomp ~ emit.class.*   : classinit
+sdsys/gpl.bp/bcomp ~ emit.inheritance : classas classinit
 sdsys/gpl.bp/bcomp ~ st.input*      : input inputif inputraw inputfill inputtrap
 sdsys/gpl.bp/bcomp ~ st.select*     : @lists-compile
 sdsys/gpl.bp/bcomp ~ st.sselect*    : @lists-compile
@@ -188,7 +194,7 @@ sdsys/gpl.bp/bcomp ~ st.write*      : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.delete*     : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ back.end       : wdthenelse lockown
-sdsys/gpl.bp/bcomp ~ st.open*       : openzero stdfil
+sdsys/gpl.bp/bcomp ~ st.open*       : openzero stdfil sync
 sdsys/gpl.bp/bcomp ~ st.execute*    : execlist stacklist chained cmd-a9
 sdsys/gpl.bp/bcomp ~ st.screen*     : screen
 sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3 numexp mlmask
@@ -205,7 +211,7 @@ sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey
 sdsys/gpl.bp/ide             : ide
 sdsys/gpl.bp/ced*            : ced
-sdsys/gpl.bp/ed              : @editors
+sdsys/gpl.bp/ed              : @editors edext
 sdsys/gpl.bp/edit            : @editors
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/debug           : @debugger
@@ -220,7 +226,7 @@ sdsys/gpl.bp/qproc           : @query
 sdsys/gpl.bp/qdisp           : @query
 sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
-sdsys/gpl.bp/icomp           : @query
+sdsys/gpl.bp/icomp           : @query itypemode
 sdsys/gpl.bp/acomp           : @query option-q17
 sdsys/gpl.bp/dcomp           : @query
 sdsys/gpl.bp/_sselct         : @lists
@@ -260,7 +266,8 @@ sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system sdaccts
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts
+sdsys/gpl.bp/classmain       : classinit
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts
 sdsys/gpl.bp/sdclient        : qmclient
 sdsys/gpl.bp/remoteapi       : gates qmclient
@@ -291,7 +298,7 @@ sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
-sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient
+sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath
 sdsys/syscom/parser.h        : @query @core
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
@@ -305,8 +312,8 @@ sdsys/changelog              : none
 sdsys/licence*               : none
 sdsys/contrib/*              : none
 sdsys/*                      : @core
-terminfo*                    : @pty fix-b10
-terminfo.src                 : @pty fix-b10
+terminfo*                    : @pty fix-b10 terminfo-ext
+terminfo.src                 : @pty fix-b10 terminfo-ext
 Makefile                     : @core
 usr/*                        : none
 etc/*                        : none

@@ -133,8 +133,11 @@ def main():
                           "   crt 'V4[':fcontrol(f, FC$VALID.ID, str('x', 200)):']'\n"
                           "   r = fcontrol(f, FC$MINMOD, 7)\n   crt 'MM[':r:'/':fileinfo(f, FL$MINMOD):']'\n"
                           "   r = fcontrol(f, FC$MINMOD, 0)\n   crt 'MM0[':r:'/':status():'/':fileinfo(f, FL$MINMOD):']'\nend\n")
+        # 16 Oct 26: FC$SYNC (forced writes, QM4 Fixes item 102) works now; it was refused until then
         prog("zzfc_sync", "$include keys.h\n   open 'zzfc' to f else stop 'no file'\n"
-                          "   r = fcontrol(f, FC$SYNC, @true)\n   crt 'AFTER_SYNC[':r:']'\nend\n")
+                          "   r = fcontrol(f, FC$SYNC, @true)\n   crt 'S1[':r:']'\n   crt 'S2[':fileinfo(f, FL$SYNC):']'\n"
+                          "   crt 'S3[':fcontrol(f, FC$SYNC, -1):']'\n   r = fcontrol(f, FC$SYNC, @false)\n"
+                          "   crt 'S4[':r:'/':fileinfo(f, FL$SYNC):']'\nend\n")
         prog("zzfc_crlf", "$include keys.h\n   open 'zzfc' to f else stop 'no file'\n"
                           "   r = fcontrol(f, FC$CRLF, -1)\n   crt 'AFTER_CRLF[':r:']'\nend\n")
         prog("zzfc_bad", "   open 'zzfc' to f else stop 'no file'\n"
@@ -180,8 +183,15 @@ def main():
         row("THE ROW: FC$MINMOD 7 gives 1 and FILEINFO(f, FL$MINMOD) reads 7", got(out, "MM") == "1/7", "got %r" % got(out, "MM"))
         row("FC$MINMOD 0 gives 0 with STATUS 1 and leaves the modulus alone", got(out, "MM0") == "0/1/7", "got %r" % got(out, "MM0"))
 
-        say("\n--- leg 5: the two actions SD does not have, and an unknown one ----------------------------------")
-        for name, tag, label in (("zzfc_sync", "AFTER_SYNC", "FC$SYNC"), ("zzfc_crlf", "AFTER_CRLF", "FC$CRLF")):
+        say("\n--- leg 5a: FC$SYNC, forced writes (16 Oct 26) ---------------------------------------------------")
+        out = sess(box, "RUN bp zzfc_sync")
+        row("FC$SYNC true returns the previous state, 0, and FILEINFO(f, FL$SYNC) then reads 1", got(out, "S1") == "0" and got(out, "S2") == "1",
+            "got %r %r" % (got(out, "S1"), got(out, "S2")))
+        row("-1 asks without changing: 1", got(out, "S3") == "1", "got %r" % got(out, "S3"))
+        row("false returns the previous state, 1, and the file reads 0 again", got(out, "S4") == "1/0", "got %r" % got(out, "S4"))
+
+        say("\n--- leg 5: the one action SD does not have (line terminators), and an unknown one -------------------")
+        for name, tag, label in (("zzfc_crlf", "AFTER_CRLF", "FC$CRLF"),):
             out = sess(box, "RUN bp " + name)
             row("THE ROW: %s stops the program with the message" % label,
                 "FCONTROL cannot do this action in SD" in out, "got %r" % out[-300:])

@@ -80,7 +80,9 @@ void set_date(int32_t);
 #define INPUT_FILL_MAX 3
 Private char input_fill[INPUT_FILL_MAX + 1] = ""; /* K_INPUT_FILL_SET / _GET (sheet item 389) */
 Private int16_t phantom_requested_user = 0;           /* PHANTOM USER n (16 Oct 26): the user number the next phantom() is to take, 0 for any */
-Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */Private bool run_exe(char *exe_name, char *cmd_line);
+Private char input_null_char = '\0';               /* INPUTNULL (sheet item 408): '\0' for none */
+Private char *reset_all_command = NULL;            /* LOGTO ... RESET ALL (item 30): the command the bottom command processor is to run */
+Private bool run_exe(char *exe_name, char *cmd_line);
 
 /* ======================================================================
    op_kernel()  -  KERNEL()  -  Miscellaneous kernel functions            */
@@ -621,6 +623,32 @@ void op_kernel() {
         }
       }
       result.data.value = (my_uptr->flags & USR_OS_EXEC) != 0;
+      break;
+
+    case K_CLASS_MAIN: /* 16 Oct 26, QM4 Fixes item 484: see keys.h */
+      GetInt(descr);
+      class_main_ok = (descr->data.value != 0);
+      break;
+
+    case K_RESET_ALL: /* 16 Oct 26, QM4 Fixes item 30: see keys.h */
+      s[0] = '\0';
+      if (k_get_c_string(descr, s, sizeof(s) - 1) > 0) {
+        if (is_sdApiSrvr) {
+          result.data.value = 0; /* Refused: nothing to go back to */
+        } else {
+          if (reset_all_command != NULL)
+            free(reset_all_command);
+          reset_all_command = strdup(s);
+          k_exit_cause = K_RESET_ALL_EXIT;
+          result.data.value = 1;
+        }
+      } else { /* Take the kept command back */
+        k_put_c_string((reset_all_command != NULL) ? reset_all_command : "", &result);
+        if (reset_all_command != NULL) {
+          free(reset_all_command);
+          reset_all_command = NULL;
+        }
+      }
       break;
 
     case K_SD_ACCOUNTS: /* 16 Oct 26, QM4 gap 22: the SD.ACCOUNTS gate, set as K_OS_EXEC is */

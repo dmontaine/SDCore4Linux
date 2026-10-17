@@ -425,7 +425,22 @@ void pub_fcontrol() {
   k_get_value(descr);
 
   switch (action) {
-    case 1: /* FC$SYNC */
+    case 1: /* FC$SYNC: forced writes of a hashed file (QM4 Fixes item 102).  The previous state is the result; -1 asks only. */
+      if (fvar->type != DYNAMIC_FILE) {
+        process.status = ER_NDYN;
+        break;
+      }
+      GetInt(descr);
+      n = descr->data.value;
+      result.data.value = ((dh_file->flags & DHF_SYNC) != 0);
+      if (n >= 0) {
+        if (n != 0)
+          dh_file->flags |= DHF_SYNC;
+        else
+          dh_file->flags &= ~DHF_SYNC;
+      }
+      break;
+
     case 4: /* FC$CRLF */
       k_error(sysmsg(11354)); /* does not return */
       break;
