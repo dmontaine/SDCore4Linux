@@ -8,6 +8,7 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 17 Oct 26 dm  FILEINFO key 1021 is FL$WHO, the manual's list of user numbers; the text form is 1100 (QM4 Fixes 62).
 # 12 Oct 26 dm  B-1 changed what key 1053 answers: the larger of NUMUSERS and USERPOOL (1023 by default), not NUMUSERS.
 #               The 1053 row compares it with that, and with USERPOOL read through config().
 # 12 Oct 26 dm  Part 2: FILEINFO keys 1022-1040 as the manual numbers them (FL$COLLECTION moved from 1022 to 1035) and
@@ -134,6 +135,30 @@ CASES += [
      "printer close\nx = (index(p, 'zzb2job', 1) > 0):'|':getpu(PU$PATHNAME, 0)", r"1\|"),
 ]
 
+# 17 Oct 26, QM4 Fixes 62: key 1021 is FL$WHO, the openQM form - the user numbers of the sessions that hold the file open,
+# a field mark between them - and the text form SD's messages use ("12 (don)") is FL$HOLDERS, 1100.  A phantom (zzb2hold)
+# holds zzb2f open for a few seconds.  The rows use the number 1021 as well as the name, so that they say what the old build
+# answered and not only that FL$WHO was undefined there.
+WAIT_HOLDER = ("t = 0\nloop\n   if fileinfo(f, 1021) # '' then exit\n   sleep 1\n   t += 1\nuntil t > 30 repeat\n")
+CASES += [
+    ("1021 (62): FL$WHO is the manual's number and is null when no other session has the file open",
+     FILES + "x = FL$WHO:'|[':fileinfo(f, FL$WHO):']'", r"1021\|\[\]"),
+    ("...and the caller is in the list when it has the file open through a second file variable, not when through the one",
+     FILES + "x = (fileinfo(f, 1021) = @userno):'|':(fileinfo(f, 1021) = '')\nopen 'zzb2f' to f2 else stop 'no f2'\n"
+     "x := '|':(fileinfo(f, 1021) = @userno):(fileinfo(f2, 1021) = @userno)", r"0\|1\|11"),
+    ("...another session that has it open is in it as a bare user number, and the text form is at 1100 (62)",
+     FILES + "execute 'PHANTOM NO.MSG RUN bp zzb2hold' capturing o\nuid = @system.return.code\n" + WAIT_HOLDER +
+     "x = fileinfo(f, 1021):'|':fileinfo(f, FL$HOLDERS):'|':uid:'|':FL$HOLDERS\nexecute 'LOGOUT ':uid capturing j\nsleep 1",
+     r"(\d+)\|\1 \(.+\)\|\1\|1100"),
+    ("...two such sessions are two numbers with a field mark between, in either order",
+     FILES + "execute 'PHANTOM NO.MSG RUN bp zzb2hold' capturing o\nu1 = @system.return.code\n"
+     "execute 'PHANTOM NO.MSG RUN bp zzb2hold' capturing o\nu2 = @system.return.code\n"
+     "t = 0\nloop\n   if dcount(fileinfo(f, 1021), @fm) = 2 then exit\n   sleep 1\n   t += 1\nuntil t > 30 repeat\n"
+     "l = fileinfo(f, 1021)\nx = dcount(l, @fm):'|':(index(@fm:l:@fm, @fm:u1:@fm, 1) > 0):(index(@fm:l:@fm, @fm:u2:@fm, 1) > 0):'|':(u1 # u2)\n"
+     "execute 'LOGOUT ':u1 capturing j\nexecute 'LOGOUT ':u2 capturing j\nsleep 1",
+     r"2\|11\|1"),
+]
+
 # OSPATH() is an internal function in SD (a user program cannot call it), so these run as internal programs, through
 # `sd -internal`, the way sandbox-nocase.py does.  Their values are printed as I00[...] and so on.
 ICASES = [
@@ -174,7 +199,8 @@ SUBS = {"zzb2s1": "   subroutine zzb2s1(a, d)\n   a = system(33)\n   d = system(
 # catalogue prefix (CATALOG bp system GLOBAL $); a $ in a SUBROUTINE name does not compile, and LOCAL refuses the prefix.
 GLOBAL_SUBS = {"system": "   subroutine zzb2usr(result, key)\n   result = 'K':key\n   return\nend\n"}
 # A program a phantom runs: it says what it sees of its parent, then lives for a few seconds.
-PHANTOM_PROGS = {"zzb2ph": "   open 'zzb2p' to p else stop\n   write system(1057):'|':system(1052) on p, 'ph'\n   sleep 6\nend\n"}
+PHANTOM_PROGS = {"zzb2ph": "   open 'zzb2p' to p else stop\n   write system(1057):'|':system(1052) on p, 'ph'\n   sleep 6\nend\n",
+                 "zzb2hold": "   open 'zzb2f' to f else stop\n   sleep 25\nend\n"}   # 17 Oct 26: holds zzb2f open (FL$WHO rows)
 
 
 def say(s=""):

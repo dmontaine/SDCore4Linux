@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  FILEINFO key 1021 is FL_WHO, the openQM form (a list of user numbers); the text form FL_HOLDERS that SD's
+ *               messages use is key 1100 now (QM4 Fixes 62).
  * 16 Oct 26 dm  OSPATH key 15 (OS_OWNER) gives the owner's user name, for DIR_DICT's OWNER item (QM4 Fixes 181).
  * 12 Oct 26 dm  FILEINFO keys 1022 to 1040 as the openQM 4 manual numbers them
  *               (FL$COLLECTION moves from 1022 to 1035); FL$SEQTYPE, FL$NON.TXN,
@@ -110,7 +112,8 @@ void op_fileinfo() {
   1018 FL_NO_RESIZE    Resizing inhibited?
   1019 FL_UPDATE       Update counter
   1020 FL_ENCRYPTED    File uses encryption?          Boolean
-  1021 FL_HOLDERS      Other sessions holding it open "n (user), ..." or ""
+  1021 FL_WHO          User numbers of the sessions holding it open, field mark between (openQM FL$WHO)
+  1100 FL_HOLDERS      Other sessions holding it open "n (user), ..." or "" (was 1021 until 17 Oct 26)
  10000 FL_EXCLUSIVE    Set exclusive access           Successful?
  10001 FL_FLAGS        Fetch file flags               File flags
  10002 FL_STATS_ON     Turn on file statistics
@@ -508,7 +511,48 @@ void op_fileinfo() {
           return;
         }
 
-      case FL_HOLDERS: /* 1021  Which sessions hold this file open? */
+      case FL_WHO: /* 1021  The user numbers of the sessions holding this file open (openQM FL$WHO) */
+        /* 17 Oct 26 dm (QM4 Fixes 62).  The same table FL_HOLDERS reads, the per-user file map, answered as the manual
+           has it: the user numbers, a field mark between them, in the order of the user slots.  The caller is left out
+           unless it holds the file through more than one file variable ("the process that executes FILEINFO() will not appear in this list if file.var is the only file
+           variable referencing the file").  Nobody else: the null string, which is an answer and not a failure.   */
+        {
+          STRING_CHUNK* wstr = NULL;
+          USER_ENTRY* wuptr;
+          int16_t wu;
+          bool first = TRUE;
+
+          ts_init(&wstr, 64);
+
+          StartExclusive(SHORT_CODE, 37);
+          for (wu = 1; wu <= sysseg->max_users; wu++) {
+            wuptr = UPtr(wu);
+            if (wuptr->uid == 0)
+              continue; /* free slot */
+            if (*UFMPtr(wuptr, fvar->file_id) == 0)
+              continue; /* does not hold this file open */
+            /* ourselves, through the one file variable we asked with.  The map counts a hashed file once for a process,
+               however many times that process opens it (the DH_FILE is shared and has its own open count); any other
+               kind of file is counted at each open. */
+            if ((wuptr->uid == process.user_no) && (dynamic ? (dh_file->open_count <= 1) : (*UFMPtr(wuptr, fvar->file_id) <= 1)))
+              continue;
+
+            if (!first)
+              ts_copy_byte(FIELD_MARK);
+            ts_printf("%d", (int)(wuptr->uid));
+            first = FALSE;
+          }
+          EndExclusive(SHORT_CODE);
+
+          (void)ts_terminate();
+
+          k_dismiss();
+          InitDescr(e_stack, STRING);
+          (e_stack++)->data.str.saddr = wstr;
+          return;
+        }
+
+      case FL_HOLDERS: /* 1100  Which sessions hold this file open?  As text, for messages (was 1021 until 17 Oct 26) */
         /* 11 Sep 26 Windows port - PRE_RELEASE_FIXES 16.
 
            "Cannot gain exclusive access to file" (message 2602) named neither

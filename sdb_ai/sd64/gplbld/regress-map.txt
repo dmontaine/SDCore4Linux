@@ -73,7 +73,7 @@ gplbld/*                     : @core
 # THE KERNEL (gplsrc).  Specific files first.
 gplsrc/op_dio4.c             : @lists fixes-b12
 gplsrc/op_dio3.c             : @files @seq prof lockown
-gplsrc/op_dio2.c             : @files fixes-b12
+gplsrc/op_dio2.c             : @files fixes-b12 sys-b2
 gplsrc/op_dio1.c             : @files cll prof lockown
 gplsrc/dh_split.c            : @files splitfull
 gplsrc/dh_*.c                : @files
@@ -144,7 +144,7 @@ gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
 gplsrc/objprog.c             : classas restricted nameindex classinit prof @core
 gplsrc/descr.h               : restricted classas nameindex @core
-gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc
+gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
 gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall
@@ -187,6 +187,7 @@ sdsys/gpl.bp/bcomp ~ stdfil.*       : stdfil
 sdsys/gpl.bp/bcomp ~ hidden.var.load : stdfil stmt-b5 selectv-mode
 sdsys/gpl.bp/bcomp ~ st.for*        : stmt-b5 lang-b45
 sdsys/gpl.bp/bcomp ~ st.loop        : stmt-b5 lang-b45
+sdsys/gpl.bp/bcomp ~ st.call        : callfile callcase
 sdsys/gpl.bp/bcomp ~ st.try*        : try
 sdsys/gpl.bp/bcomp ~ st.catch*      : try
 sdsys/gpl.bp/bcomp ~ st.throw*      : try
