@@ -335,6 +335,7 @@ sd.conf                      : none
 # THE REPOSITORY ROOT.  Documents, the installer and the process files need no sandbox suite; the installer's own checks are
 # free checks, which --changed always runs.
 /installsdcore*.sh           : none
+/deletesdcore.sh             : none
 /*.md                        : none
 /.claude/*                   : none
 /AI_Modification_Notes/*     : none

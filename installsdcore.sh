@@ -1072,6 +1072,19 @@ sudo chown -R sdsys:sdusers "$sdsysdir/batch.jobs"
 sudo chmod 750 "$sdsysdir/batch.jobs"
 echo "batch-job allowlist: $(sudo stat -c '%U:%G %a' "$sdsysdir/batch.jobs")"
 #
+# 16 Oct 26 dm - QM4 gap 501 (NEWVOC.MODS): restore the site-local VOC
+# modifications file before Bootstrap Pass 1 so bbproc applies it to SDSYS's
+# VOC and UPDATE.ACCOUNTS ALL applies it to kept accounts.  Optional: when
+# absent, nothing is created so CREATE.FILE NEWVOC.MODS remains free to make it
+# either a directory or dynamic file.
+if [ -d "/home/sd/newvoc.mods" ]; then
+    sudo rm -fr "$sdsysdir/newvoc.mods"
+    sudo mv "/home/sd/newvoc.mods" "$sdsysdir/"
+    sudo chown -R sdsys:sdusers "$sdsysdir/newvoc.mods"
+    sudo chmod -R 755 "$sdsysdir/newvoc.mods"
+    echo "Restored the local VOC modifications file (newvoc.mods)"
+fi
+#
 # 13 Sep 26  PRE_RELEASE 30.  THE SDSYS REGISTER RECORD'S MODE IS SET HERE, AFTER
 #            BOTH THINGS THAT USED TO UNDO IT: the recursive "chmod -R 755" on
 #            sdsys (the old "chmod 654" sat four lines before it, and the record

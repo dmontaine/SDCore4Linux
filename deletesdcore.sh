@@ -221,6 +221,15 @@ if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/batch.jobs" ]; then
     echo "Saved the batch-job allowlist (batch.jobs)"
 fi
 
+# 16 Oct 26 dm - QM4 gap 501 (NEWVOC.MODS): optional site-local VOC additions
+# and overrides applied by bbproc, CREATE.ACCOUNT and UPDATE.ACCOUNTS.  Saved
+# across a keep cycle if the administrator created one; DELETE removes it.
+if [ "$keep_accts" != "DELETE" ] && [ -d "$sdsysdir/newvoc.mods" ]; then
+    sudo rm -fr "$acct_path/newvoc.mods"
+    sudo cp -a "$sdsysdir/newvoc.mods" "$acct_path/"
+    echo "Saved the local VOC modifications file (newvoc.mods)"
+fi
+
 # remove the /usr/sdsys directory
 sudo rm -fr "$sdsysdir"
 echo

@@ -169,6 +169,10 @@ def main():
         shutil.copytree(os.path.join(tree, "sdsys"), sysd)
         open(os.path.join(sysd, "gcat", "$cproc"), "w").close()   # 06 Oct 26: lower case, as config.c looks for it
         open(os.path.join(sysd, "errlog"), "w").close()
+        if os.environ.get("SDBOX_NEWVOC_MODS"):     # 16 Oct 26: QM4 item 501, bbproc applies @SDSYS/newvoc.mods in pass 1 (sandbox-oq2.py)
+            os.makedirs(os.path.join(sysd, "newvoc.mods"), exist_ok=True)
+            with open(os.path.join(sysd, "newvoc.mods", "ZZ.BBPROC.MODS"), "w", encoding="latin-1") as f:
+                f.write("X\nbbproc newvoc.mods test entry\n")
         for d in ("bin", "gplsrc", "gplobj", "terminfo"):
             if os.path.isdir(os.path.join(tree, d)):
                 shutil.copytree(os.path.join(tree, d), os.path.join(sysd, d), dirs_exist_ok=True)

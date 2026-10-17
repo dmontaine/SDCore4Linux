@@ -26,7 +26,7 @@
 # copy and removes it afterwards, so the live tree is free to edit.  By hand, the same is:
 #   git ls-files -z --cached --others --exclude-standard sdb_ai | rsync -a --from0 --files-from=- ./ COPY/
 #   cp sdb_ai/sd64/gplsrc/sdext_python_inc.h COPY/sdb_ai/sd64/gplsrc/      (git ignores it; the build needs it)
-#   cp installsdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md COPY/   (the --free checks read them)
+#   cp installsdcore.sh deletesdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md COPY/   (the --free checks read them)
 #   (cd COPY/sdb_ai/sd64 && make)                                           (SERIAL: make -j races sdtic and terminfo)
 #   COPY/sdb_ai/sd64/gplbld/regress.sh --jobs 6 --tree COPY/sdb_ai/sd64
 #
@@ -112,6 +112,8 @@
 # 15 Oct 26 dm  listf-mult (LISTF / LISTFL / LISTFR, openQM 3 and 185: a line for each subfile of a multifile, WITH / WITHOUT TRIGGER, ENCRYPTION and REPLICATION; 23 rows, red 8 of 23 on the old tree, the WITHOUT rows being the ones that fail): the 93rd.
 # 16 Oct 26 dm  q5 (QM4 gaps, 16 Oct sitting: the CLEANUP parameter with sdlnxd killing a session's row, PHANTOMS and PHANTOM USER n, kept user numbers skipped by sessions and phantoms, two kept blocks side by side; it starts the sandbox's sdlnxd itself, which the sandbox tool otherwise kills): the 90th.  Since the LOCK.TRACER rows it has 50 rows and runs about three minutes (measured in the 59-suite run of 16 Oct: 153 s).
 # 16 Oct 26 dm  restricted (RESTRICTED var / SUBROUTINE / FUNCTION in a class module: the main program, an unrelated class and the child object refused, the child reaching its parent's restricted names, READONLY, the compile errors; 11 rows): the 91st.
+# 16 Oct 26 dm  --snapshot also copies deletesdcore.sh: test-newvocmods-units.py reads it, and in the snapshot it was missing, so the
+#               free check answered CANNOT RUN and the run exited 1 (found in the audit of Fixes batch A; test-regress-units.py has the row).
 # END-HISTORY
 
 set -u
@@ -280,7 +282,7 @@ if [ $SNAPSHOT -eq 1 ]; then
   else
     echo "regress: note - $TREE/gplsrc/sdext_python_inc.h is not there, so the build may fail" >&2
   fi
-  for f in installsdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md; do
+  for f in installsdcore.sh deletesdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md; do
     [ -f "$REPO/$f" ] && cp "$REPO/$f" "$SNAP/$f"
   done
   if ! (cd "$SNAP/sdb_ai/sd64" && make > "$LOGS/snapshot-make.log" 2>&1); then

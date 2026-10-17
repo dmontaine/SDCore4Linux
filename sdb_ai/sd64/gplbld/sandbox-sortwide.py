@@ -16,6 +16,8 @@
 #
 # START-HISTORY:
 # 16 Oct 26 dm  New.
+# 16 Oct 26 dm  C8: a UNIQUE sort that spills (the merge now drops duplicates that lie in two work files; red on HEAD ac509e4, which
+#               returned all 600 items of a 200 key sort).
 # END-HISTORY
 #
 # THE INSTRUMENT.  Each row prints what it read.  The expected values are computed here, in Python, from the same keys: the
@@ -228,6 +230,26 @@ end
 """
 
 
+# C8: a UNIQUE sort (flag 4) of 600 items with 200 distinct keys.  On disk the duplicates lie in different work files; the old
+# merge had no UNIQUE test and gave back all 600 (measured on HEAD ac509e4, 16 Oct 26; 200 in memory).
+P_UNIQUE = PROLOGUE % (1, 1) + """   modes(1) = 8 + 4
+   sortinit 1, modes
+   for i = 1 to 600
+      keys(1) = 'K':right('00':mod(i, 200), 3)
+      sortadd keys, 'D':i
+   next i
+   allk = ''; n = 0
+   loop
+      d = sortnext(keys)
+   until status() do
+      allk := keys(1):@fm; n += 1
+   repeat
+   sortclear
+   crt '%s[=N=':n:' MK=':md5(allk):']'
+end
+"""
+
+
 def sorted_wide(n, keyfn):
     return sorted(range(1, n + 1), key=keyfn)
 
@@ -253,6 +275,7 @@ def expected():
 
     ky = [("y" * 35000 + suffix(i)).encode() for i in ok]
     e["widekey_only"] = "N=12 LEN=%d MD=%s" % (sum(len(k) for k in ky) + 11, md5(FM.join(ky)))
+    e["unique"] = "N=200 MK=%s" % md5(b"".join(("K%03d" % v).encode() + FM for v in range(200)))
     return e
 
 
@@ -274,7 +297,8 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
 
     progs = [("zzsw1", P_SMALL % "C01"), ("zzsw3", P_WIDEDATA % "C03"), ("zzsw4", P_WIDEKEY % "C04"),
-             ("zzsw5", P_WIDEDATA_ALL % "C05"), ("zzsw6", P_WIDEKEY_ONLY % "C06"), ("zzsw7", P_NULLS % ("C07", "C07"))]
+             ("zzsw5", P_WIDEDATA_ALL % "C05"), ("zzsw6", P_WIDEKEY_ONLY % "C06"), ("zzsw7", P_NULLS % ("C07", "C07")),
+             ("zzsw8", P_UNIQUE % "C08")]
     cmds = []
     for nm, text in progs:
         with open(os.path.join(sysd, "bp", nm), "w") as f:
@@ -296,7 +320,7 @@ def main():
         n = len(re.findall(r"(?m)^Compiled 1 program\(s\) with no errors", out))
         if n != len(progs):
             bail("%d of %d programs compiled:\n%s" % (n, len(progs), out[-1500:]))
-        mem = {t: tag(out, t) for t in ("C01", "C03", "C04", "C05", "C06", "C07")}
+        mem = {t: tag(out, t) for t in ("C01", "C03", "C04", "C05", "C06", "C07", "C08")}
         mem7n = tag(out, "C07N")
         say("    in memory, SORTMEM: %s" % (re.search(r"MEM=(\d+)", mem["C01"] or "") or [None, "?"])[1])
         row("CONTROL 1  300 small items, in memory", mem["C01"] is not None and mem["C01"].startswith(exp["small"]),
@@ -306,6 +330,8 @@ def main():
         row("CONTROL 5  12 items of 40 kb by SORTDATA(), in memory", mem["C05"] == exp["widedata_all"], "got %r" % mem["C05"])
         row("CONTROL 6  12 keys of 35 kb, no data element, by SORTDATA(), in memory", mem["C06"] == exp["widekey_only"],
             "got %r" % mem["C06"])
+        row("CONTROL 8  UNIQUE sort of 600 items with 200 distinct keys, in memory", mem["C08"] == exp["unique"],
+            "got %r wanted %r" % (mem["C08"], exp["unique"]))
 
         say("\n--- SORTMEM=1 (every item goes to a work file, and the files are merged) ----------------")
         if not restart(box, "SORTMEM=1"):
@@ -314,7 +340,7 @@ def main():
         out = ""
         for r in runs:
             out += isess(box, r) + "\n"
-        dsk = {t: tag(out, t) for t in ("C01", "C03", "C04", "C05", "C06", "C07")}
+        dsk = {t: tag(out, t) for t in ("C01", "C03", "C04", "C05", "C06", "C07", "C08")}
         dsk7n = tag(out, "C07N")
         say("    on disk, SORTMEM: %s" % (re.search(r"MEM=(\d+)", dsk["C01"] or "") or [None, "?"])[1])
         row("the instrument: SORTMEM=1 reached the process (so the rows below ran on disk)",
@@ -327,6 +353,8 @@ def main():
         row("455  12 items of 40 kb by SORTDATA(), on disk", dsk["C05"] == exp["widedata_all"], "got %r" % dsk["C05"])
         row("455  12 keys of 35 kb, no data element, by SORTDATA(), on disk", dsk["C06"] == exp["widekey_only"],
             "got %r" % dsk["C06"])
+        row("UNIQUE sort of 600 items with 200 distinct keys, on disk: the duplicates in different work files are dropped by the merge "
+            "(HEAD ac509e4 gave all 600 back)", dsk["C08"] == exp["unique"], "got %r wanted %r" % (dsk["C08"], exp["unique"]))
         row("null keys and null data: the disk sort gives what the memory sort gives (SORTDATA())",
             dsk["C07"] is not None and dsk["C07"] == mem["C07"], "disk %r memory %r" % (dsk["C07"], mem["C07"]))
         row("null keys and null data: the disk sort gives what the memory sort gives (SORTNEXT())",

@@ -91,6 +91,7 @@ STUBS = {
               'print("WHERE " + tree + " untracked=" + str(os.path.exists(os.path.join(here, "untracked.txt")))'
               ' + " header=" + str(os.path.exists(os.path.join(tree, "gplsrc", "sdext_python_inc.h")))'
               ' + " installer=" + str(os.path.exists(os.path.join(top, "installsdcore.sh")))'
+              ' + " deleter=" + str(os.path.exists(os.path.join(top, "deletesdcore.sh")))'
               ' + " status=" + str(os.path.exists(os.path.join(top, "PROJECT_STATUS.md"))))\n'
               'print("sandbox-where: 1 passed, 0 failed")'),
 }
@@ -137,7 +138,7 @@ def make_repo(repo, script_text):
         f.write("/* ignored by git, needed by the build */\n")
     with open(os.path.join(repo, ".gitignore"), "w") as f:
         f.write("sdb_ai/sd64/gplsrc/sdext_python_inc.h\n")
-    for name in ("installsdcore.sh", "PROJECT_STATUS.md"):
+    for name in ("installsdcore.sh", "deletesdcore.sh", "PROJECT_STATUS.md"):
         with open(os.path.join(repo, name), "w") as f:
             f.write("x\n")
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
@@ -317,12 +318,12 @@ def cases(label, script_text):
                 where = f.read()
         except OSError:
             where = ""
-        m = re.search(r"WHERE (\S+) untracked=(\w+) header=(\w+) installer=(\w+) status=(\w+)", where)
+        m = re.search(r"WHERE (\S+) untracked=(\w+) header=(\w+) installer=(\w+) deleter=(\w+) status=(\w+)", where)
         row(label + "--snapshot: the suite runs in a COPY of the tree, not in the live one, and passes",
             rc == 0 and verdict(out, "where") == "PASS" and bool(m) and m.group(1) != sd64 and "/snap/sdb_ai/sd64" in m.group(1),
             "rc %d  %r  %s" % (rc, where, out[-200:]))
         row(label + "...the copy holds a file git has not been told about, the ignored header, and the documents at the top",
-            bool(m) and m.groups()[1:] == ("True", "True", "True", "True"), repr(where))
+            bool(m) and m.groups()[1:] == ("True", "True", "True", "True", "True"), repr(where))
         row(label + "...and the copy is gone when the run ends", leftovers() == [] and "snapshot " in out, "%r  %s" % (leftovers(), out[-200:]))
         makefile = os.path.join(sd64, "Makefile")
         with open(makefile, "w") as f:
@@ -357,7 +358,8 @@ MUTANTS = [
     ("the snapshot is not removed", '[ -n "$SNAP" ] && rm -rf "$SNAP"\nrmdir "$RUN/logs"', 'rmdir "$RUN/logs"'),
     ("a snapshot that did not build is used", 'if ! (cd "$SNAP/sdb_ai/sd64" && make > "$LOGS/snapshot-make.log" 2>&1); then', "if false; then"),
     ("the suites run in the live tree, not the snapshot", '  TREE="$SNAP/sdb_ai/sd64"\n', "  : live\n"),
-    ("the documents at the top are not copied", "for f in installsdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md; do", "for f in ; do"),
+    ("the documents at the top are not copied", "for f in installsdcore.sh deletesdcore.sh PROJECT_STATUS.md PRE_RELEASE_FIXES.md PORT_ADOPTION.md; do", "for f in ; do"),
+    ("deletesdcore.sh is left out of the copy (the 16 Oct audit)", "for f in installsdcore.sh deletesdcore.sh PROJECT_STATUS.md", "for f in installsdcore.sh PROJECT_STATUS.md"),
     ("a part of the screen suite is in no piece", "memo+scroll+owned", "memo+scroll"),
     ("a piece is not given its parts", 'only="--only=$(echo "${s#*~}" | tr \'+\' \',\')"', 'only=""'),
     ("the screen suite is cut even for one worker", 'if [ "$JOBS" -gt 1 ]; then\n  EXPANDED=""', 'if true; then\n  EXPANDED=""'),

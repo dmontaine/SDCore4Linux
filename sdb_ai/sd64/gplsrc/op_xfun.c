@@ -99,9 +99,19 @@
 #define XF_FCONTROL 29  /* FCONTROL(fvar, action, qualifier): the public one, openQM's numbers; pub_fcontrol() in dh_misc.c */
 #define XF_GET 30       /* GET var {, length} {SETTING count} FROM dev {UNTIL term} {RETURNING last} {WAITING timeout}: op_get_device() in op_seqio.c (QM4 Fixes item 583) */
 #define XF_OSPATH 31    /* OSPATH(path, key {, qualifier}) for any program, openQM's key numbers and behind the OS-access gate (QM4 Fixes item 233) */
+#define XF_SORT 32      /* SORT(key.count, {MAT} flags) (QM4 Fixes item 371) */
+#define XF_SORTADD 33   /* SORTADD sortvar, {MAT} keys {, data} (QM4 Fixes item 371) */
+#define XF_SORTCLEAR 34 /* SORTCLEAR sortvar (QM4 Fixes item 371) */
+#define XF_SORTDATA 35  /* SORTDATA(sortvar {, max.items}) (QM4 Fixes item 371) */
+#define XF_SORTNEXT 36  /* SORTNEXT(sortvar {, {MAT} keys}) (QM4 Fixes item 371) */
 
 void pub_fcontrol(void);
 void op_get_device(void);
+void x_sort(void);
+void x_sortadd(void);
+void x_sortclear(void);
+void x_sortdata(void);
+void x_sortnext(void);
 Private void x_ospath(void);
 
 void op_dcount(void);
@@ -254,6 +264,21 @@ void op_xfun() {
       break;
     case XF_OSPATH:
       x_ospath();
+      break;
+    case XF_SORT:
+      x_sort();
+      break;
+    case XF_SORTADD:
+      x_sortadd();
+      break;
+    case XF_SORTCLEAR:
+      x_sortclear();
+      break;
+    case XF_SORTDATA:
+      x_sortdata();
+      break;
+    case XF_SORTNEXT:
+      x_sortnext();
       break;
     default:
       k_error("Illegal XFUN function number %d", (int)fn); /* the compiler cannot have made this */
