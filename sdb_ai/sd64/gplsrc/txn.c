@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  txn_rollback_to(): an exception thrown out of a TRY clause rolls back the
+ *           transactions begun inside it (op_jumps.c exc_raise(), QM4 Fixes 354).
  * 12 Oct 26 dm  txn_file_updated() (FILEINFO FL$TXN.UPDATE) and txn_cache_report()
  *           (SYSTEM(1065)): read-only walks of the cache and of the cache each
  *           enclosing transaction is holding on txn_stack.
@@ -503,6 +505,16 @@ void txn_abort() {
     while (process.txn_id)
       rollback();
   }
+}
+
+/* ======================================================================
+   txn_rollback_to()  -  Roll back the transactions begun since the nesting
+   depth was depth (TRY records it; an exception thrown out of the clause
+   calls this). Silent, unlike txn_abort(): the program goes on.          */
+
+void txn_rollback_to(int depth) {
+  while ((process.txn_id != 0) && (txn_depth > depth))
+    rollback();
 }
 
 /* ======================================================================

@@ -80,7 +80,7 @@ gplsrc/dh_*.c                : @files
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
 gplsrc/reccache.c            : @files
-gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile @core
+gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12
 gplsrc/sdidx.c               : akcase idx-nocase
 gplsrc/sdconv.c              : nocase upgradenocase
@@ -121,7 +121,10 @@ gplsrc/sdlnxd.c              : q5
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof
-gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit
+gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try
+gplsrc/k_error.c             : sysexc try @core
+gplsrc/messages.c            : sysexc @core
+gplsrc/sd.h                  : sysexc try @core
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
@@ -141,7 +144,7 @@ gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
 gplsrc/objprog.c             : classas restricted nameindex classinit prof @core
 gplsrc/descr.h               : restricted classas nameindex @core
-gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit
+gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
 gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall
@@ -218,7 +221,7 @@ sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
 sdsys/gpl.bp/debug           : @debugger
 sdsys/gpl.bp/debug.h         : @debugger
-sdsys/gpl.bp/pdbg            : @debugger
+sdsys/gpl.bp/pdbg            : @debugger sysexc
 sdsys/gpl.bp/pdebug          : @debugger
 sdsys/gpl.bp/ftype           : listf-mult dictfold
 sdsys/gpl.bp/listfl          : listf-mult listu-a5

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  sysmsg_number_of(): k_error() learns which message it was given (QM4 Fixes 354, SYS.* exceptions).
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.1 Mar 25 mab correct output of messages with embedded newline
  * 13 Sep 26 dm  the SDSYS message file is sdsys/messages on disk (plan M3 D1)
@@ -56,6 +57,18 @@ char* day_names[7] = {"Monday", "Tuesday",  "Wednesday", "Thursday",
 Private char* message = NULL;
 Private int message_len;
 Private int msg_file = -1;
+Private int last_msg_no = 0; /* The number sysmsg() was last asked for (17 Oct 26, see sysmsg_number_of()) */
+
+/* ======================================================================
+   sysmsg_number_of()  -  If p is the text sysmsg() last returned, the
+   number of the message it holds, else 0. sysmsg() has one buffer, so the
+   buffer always holds the text of the last message asked for, and k_error()
+   uses this to learn which message it was given without every call to it
+   being changed (it names the SYS.* exception that message stands for).   */
+
+int sysmsg_number_of(const char* p) {
+  return ((p != NULL) && (p == message)) ? last_msg_no : 0;
+}
 
 /* ======================================================================
    init_messages()  -  Build the English month and day name tables,
@@ -161,6 +174,8 @@ char* sysmsg(int msg_no) {
      fallback without disturbing the message buffer state. */
   static char fallback_msg[80];
   /* -------------------- */
+
+  last_msg_no = msg_no;
 
   if (msg_file == -1) {
     message_len = 128;
