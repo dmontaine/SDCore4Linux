@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64 part 2: K_EDIT_OS_OK asks edit_os_path_refusal() with the target's own name counted when it is a directory or
+ *               anything but a plain file (edit_leaf_counts: !OSCOPY / !IOSCOPY can copy INTO a program file or the private
+ *               catalogue); K_EDIT_KIND and K_EDIT_OK answer EDIT_PROG for the private catalogue directory (edit_kind_of_path).
  * 17 Oct 26 dm  S.64: K_VOC_EDIT, K_BP_EDIT, K_DICT_EDIT (the edit gates, set from $internal only), K_EDIT_OK and K_EDIT_KIND (a $internal
  *               program asks whether the session may save a change to an open file) and K_EDIT_OS_OK (the same for an OS pathname).
  * 16 Oct 26 dm  K_PHANTOM_USER: PHANTOM USER n takes the user number n from those PHANTOMS keeps (QM4 gaps).
@@ -716,7 +719,9 @@ void op_kernel() {
       if (my_uptr->flags & USR_ADMIN)
         result.data.value = 1;
       else if (k_get_c_string(descr, edit_os_name, MAX_PATHNAME_LEN) > 0)
-        result.data.value = (edit_os_path_refusal(edit_os_name) == EDIT_NONE) ? 1 : 0;
+        /* The target may be a directory the file is copied INTO (a program file, the private catalogue): its own name counts then
+           (edit_leaf_counts); a plain file or a name not made yet is a record, and only what is above it is asked. */
+        result.data.value = (edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name)) == EDIT_NONE) ? 1 : 0;
     } break;
 
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to

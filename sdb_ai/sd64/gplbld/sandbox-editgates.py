@@ -12,6 +12,11 @@
 #               table's gates word; op_dio3.c edit_refusal() before WRITE, WRITEV, DELETE and CLEARFILE; op_seqio.c OPENSEQ read only and
 #               DELETESEQ refused for a path in a guarded file; the BASIC verbs ED, SED, IDE, CED, COPY, COPYP, DELETE, CLEAR.FILE, CNAME,
 #               DELETE.FILE ask; BASIC, CATALOG, DELETE.CATALOG and DECATALOG need bp.edit; LOGIN and the API server load the gates at sign-on.
+# 17 Oct 26 dm  S.64 part 2: section "routes" (--sections=routes), 5 accounts - the verbs FIXDIR, FORMAT, MAP FILE, SET.TRIGGER, COPY.LIST,
+#               DELETE.LIST, GET.LIST, SAVE.LIST, SORT.LIST, REFORMAT, the delimited LIST reports, PAGESEQ, CD DATA, GENERATE, COMO,
+#               the .S and .D stack commands and CREATE.FILE on an existing pointer; !WRITELIST in an account with no $savedlists; and the
+#               C routes from an ordinary program (OSPATH 5 / 13 / 14, the socket trace log, CREATE.FILE and OPENTEMP inside a guarded
+#               file, the private catalogue, a record called sample.bp).  Not driven: SP.VIEW, PHANTOM LOG, apisrvr.
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  Every fixture account holds the
@@ -29,6 +34,7 @@
 import importlib.util
 import os
 import re
+import socket
 import subprocess
 import sys
 
@@ -169,6 +175,7 @@ CHECKS = [
     ("voc-zzedv1", "v", "read x from v, 'zzedv1' then p = 1 else p = 0"),
     ("voc-zzedv2", "v", "read x from v, 'zzedv2' then p = 1 else p = 0"),
     ("voc-zzcat", "v", "read x from v, 'zzcat' then p = 1 else p = 0"),
+    ("voc-zzintrec", "v", "read x from v, 'zzintrec' then p = 1 else p = 0"),
     ("dict-copy", "dd", "read x from dd, 'zzdcopy' then p = 1 else p = 0"),
     ("dict-zzf", "dd", "read x from dd, 'zzf' then p = 1 else p = 0"),
     ("dict-zzq", "dd", "read x from dd, 'zzq' then p = 1 else p = 0"),
@@ -579,6 +586,392 @@ def verbs_section():
         row("%s: the compile produced bp.out/zzbas on the disk exactly when bp.edit is on" % n, on_disk(n, "bp.out/zzbas") == bp, "")
 
 
+def objtrust_section():
+    """17 Oct 26 (S.64 part 2, owner: '.out yes'): HDR_INTERNAL is a bit in an object's own header, so it was trusted from any file a
+    user could put an object in.  load_object() now clears it unless the object is from the global catalogue or the session is the
+    administrator.  The evidence is the same program run twice, as an ordinary user (the VOC write is refused) and as the administrator
+    (it writes), and by an account with voc.edit on (it writes: the program still runs, only as an ordinary one)."""
+    say("\n--- an object is run as $internal only when it is from the global catalogue or the session is the administrator -------")
+    prog = "\n".join([
+        "$internal", "program zzint",
+        "   open 'voc' to v else crt 'ZI no voc' ; stop",
+        "   write 'X' to v, 'zzintrec' on error crt 'ZI refused' ; stop",
+        "   crt 'ZI wrote'", "end", ""])
+    for n in ("zzoff", "zzall"):
+        build(n)
+        voc = WANT[n][0]
+        g.put(os.path.join(acct_path(n), "bp", "zzint"), prog)
+        out = g.sd(acct_path(n), ["BASIC bp zzint"], admin=True, internal=True, account=n)
+        row("%s: an internal program zzint is compiled by the administrator into the account's own bp.out (not the global catalogue)" % n,
+            g.has(out, r"^Compiled 1 program\(s\) with no errors"), repr(out[-4:]))
+        out = g.plain(n, ["RUN bp zzint"])
+        ck, _ = checks(n)
+        row("%s: run as the ordinary user, the VOC write is %s (the object's own internal bit is ignored)" % (n, "made" if voc else "refused"),
+            g.has(out, r"^ZI wrote$") == voc and g.has(out, r"^ZI refused$") == (not voc) and ck.get("voc-zzintrec") == (1 if voc else 0),
+            "out %r, record %r" % (out[-3:], ck.get("voc-zzintrec")))
+        if not voc:
+            out = g.sd(acct_path(n), ["RUN bp zzint"], admin=True, account=n)
+            ck, _ = checks(n)
+            row("%s: the same object run by the administrator writes (it is internal there: the control that the program does what it says)" % n,
+                g.has(out, r"^ZI wrote$") and ck.get("voc-zzintrec") == 1, "out %r, record %r" % (out[-3:], ck.get("voc-zzintrec")))
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------
+# S.64 PART 2 (17 Oct 26): the routes the first sitting missed.  Every $internal verb that writes, deletes or clears a record of a file
+# the USER names asks first (!edit_guard), and the C side asks about an OS path in OSPATH 5 / 13 / 14, the socket trace log, the
+# CREATE.FILE statement, OPENTEMP and the private catalogue.  Evidence is the disk, or a record read back by an ordinary program
+# (zzchk2); the refusal's message is looked for in the session's output.  Five accounts: all gates off, one gate on (voc, bp, dict)
+# and all on, so that "the gate for ITS kind" is shown, not only "some gate".  A refused verb must leave the thing as it was, an
+# allowed one must have changed it; every route has a control that works for everybody.
+#
+# NOT TESTED HERE, AND WHY: SP.VIEW's X key (a full-screen page; it asks the kernel, as SED and IDE do); PHANTOM LOG (the phantom's
+# own session); apisrvr (a sandbox cannot host an API session: witness-release-run.sh, and sandbox-qmclient.py for the client side).
+
+ROUTE_ACCOUNTS = ("zzoff", "zzvoc", "zzbp", "zzdict", "zzall")
+FMSRC = "'program zzfm':@fm:'if 1 then':@fm:'x = 1':@fm:'end':@fm:'end'"       # FORMAT is given unindented source and must change it
+
+
+def route_fixer(path):
+    """The second fixer: records, files and VOC pointers the part-2 routes work on.  Run by the administrator, as zzegfix."""
+    return "\n".join([
+        "$internal",
+        "   acct = '%s'" % path,
+        "   openpath acct:'/voc' to v else crt 'EGFIX2 no voc' ; stop",
+        "   openpath acct:'/bp' to b else crt 'EGFIX2 no bp' ; stop",
+        "   openpath acct:'/zzd' to d else crt 'EGFIX2 no zzd' ; stop",
+        "   write 'X':@fm:'y' to d, 'zzcl1'",                    # COPY.LIST source in an ordinary file
+        "   write 'X':@fm:'a' to v, 'zzcl2'",                    # COPY.LIST ... DELETING out of the VOC
+        "   write 'X':@fm:'a' to b, 'zzcl3'",                    # ... and out of a program file
+        "   write 'X':@fm:'a' to v, 'zzdl1'",                    # DELETE.LIST
+        "   write 'X':@fm:'a' to b, 'zzdl2'",
+        "   write 'X':@fm:'a' to v, 'zzgl1'",                    # GET.LIST ... DELETING
+        "   write 'X':@fm:'a' to b, 'zzgl2'",
+        "   write 'b':@fm:'a' to v, 'zzsl1'",                    # SORT.LIST
+        "   write 'b':@fm:'a' to b, 'zzsl2'",
+        "   write 'one':char(13):@fm:'two':char(13) to b, 'zzfx1'",      # FIXDIR
+        "   write %s to b, 'zzfm1'" % FMSRC,                    # FORMAT
+        "   write 'src' to d, 'zzdr2'",                          # REFORMAT, the Output file: prompt form
+        "   cdr = 'I':@fm:'1+1':@fm:'':@fm:'ZZCDN':@fm:'10R':@fm:'S'",   # CD DATA: the object field is cut off and rebuilt
+        "   cdr<16> = 'ZZMARK'",
+        "   write cdr to b, 'zzcdrec'",
+        "   write cdr to d, 'zzcdrec2'",
+        "   for each fn in 'zzmap.bp':@fm:'zztrgf.bp':@fm:'zzmf.bp'",
+        "      create.file acct:'/':fn directory on error crt 'EGFIX2 create ':fn ; stop",
+        "      write 'F':@fm:fn to v, fn",
+        "   next fn",
+        "   openpath acct:'/zzmap.bp' to m else crt 'EGFIX2 no zzmap.bp' ; stop",
+        "   write 'keep' to m, 'zzkeep'",                       # MAP FILE clears the file this is in
+        "   close m",
+        "   create.file acct:'/zzdicf.dic' dynamic on error crt 'EGFIX2 create zzdicf.dic' ; stop",
+        "   write 'F':@fm:'zzdicf.dic' to v, 'zzdicf'",          # a pointer whose data path is a dictionary's name
+        "   write 'F':@fm:'zzdirf' to v, 'zzdirf'",              # an ordinary directory file (made on the disk by the caller)
+        "   delete v, '$savedlists'",                            # !WRITELIST must make it
+        "   openpath acct:'/zzd4.dic' to dd4 else crt 'EGFIX2 no zzd4.dic' ; stop",
+        "   inc = 'X'",                                          # GENERATE zzd4: an $INCLUDE record already there, target bp
+        "   inc<4> = 'zz.'",
+        "   inc<8> = 'D'",
+        "   write inc to dd4, '$INCLUDE'",
+        "   write 'D':@fm:'1':@fm:'':@fm:'ZZGN':@fm:'10L':@fm:'S' to dd4, 'zzgn'",
+        "   close dd4",
+        "   crt 'EGFIX2 done'",
+        "end", ""])
+
+
+def st(label, *stmts):
+    """The lines of one try in zzprobe2: ok starts true, a statement that is refused sets it false, the word is printed."""
+    return ["   ok = @true"] + ["   " + s for s in stmts] + ["   crt 'P2 %s ':(if ok then 'OK' else 'REFUSED')" % label]
+
+
+def trace(label, p):
+    return st(label, "x = set.socket.mode(sk, SKT$INFO.TRACE, '%s') ; if not(x) then ok = @false" % p)
+
+
+def osp(label, p, key):
+    return st(label, "x = ospath('%s', %d) ; if not(x) then ok = @false" % (p, key))
+
+
+def mkf(label, stmt):
+    return st(label, stmt + " on error ok = @false")
+
+
+def ot(label, p):
+    return st(label, "opentemp '%s' to tf then close tf else ok = @false" % p)
+
+
+def cat_op(label, stmt):
+    return st(label, "openpath 'cat' to cf else ok = @false", "if ok then", "   " + stmt + " on error ok = @false", "end")
+
+
+# (label, kind of file it reaches: 0 voc, 1 program, 2 dictionary, None = a control that works for everybody,
+#  the lines, evidence on the disk: ("exists"|"gone", path in the account) or None)
+ITEMS2 = [
+    ("os-del-bp", 1, osp("os-del-bp", "bp/zzosdel", 5), ("gone", "bp/zzosdel")),
+    ("os-del-bpout", 1, osp("os-del-bpout", "bp.out/zzosdel", 5), ("gone", "bp.out/zzosdel")),
+    ("os-del-cat", 1, osp("os-del-cat", "cat/zzcatobj", 5), ("gone", "cat/zzcatobj")),
+    ("os-mkdir-bp", 1, osp("os-mkdir-bp", "bp/zznewdir", 13), ("exists", "bp/zznewdir")),
+    ("os-mkdir-cat", 1, osp("os-mkdir-cat", "cat/zznewdir", 13), ("exists", "cat/zznewdir")),
+    ("os-mkpath-dic", 2, osp("os-mkpath-dic", "zzd.dic/zzmk14/sub", 14), ("exists", "zzd.dic/zzmk14/sub")),
+    ("trace-bp", 1, trace("trace-bp", "bp/zztrace"), ("exists", "bp/zztrace")),
+    ("trace-cat", 1, trace("trace-cat", "cat/zztrace"), ("exists", "cat/zztrace")),
+    ("trace-dic", 2, trace("trace-dic", "zzd.dic/zztrace"), ("exists", "zzd.dic/zztrace")),
+    ("cf-bp", 1, mkf("cf-bp", "create.file 'bp/zzcfd' directory"), ("exists", "bp/zzcfd")),
+    ("cf-bpout", 1, mkf("cf-bpout", "create.file 'bp.out/zzcfd' directory"), ("exists", "bp.out/zzcfd")),
+    ("cf-cat", 1, mkf("cf-cat", "create.file 'cat/zzcfd' directory"), ("exists", "cat/zzcfd")),
+    ("cf-dic", 2, mkf("cf-dic", "create.file 'zzd.dic/zzcfdyn' dynamic"), ("exists", "zzd.dic/zzcfdyn")),
+    ("ot-bp", 1, ot("ot-bp", "bp/zztemp"), None),
+    ("ot-cat", 1, ot("ot-cat", "cat/zztemp"), None),
+    ("ot-dic", 2, ot("ot-dic", "zzd.dic/zztemp"), None),
+    ("wr-cat", 1, cat_op("wr-cat", "write 'x' to cf, 'zzcatw'"), ("exists", "cat/zzcatw")),
+    ("del-cat", 1, cat_op("del-cat", "delete cf, 'zzcatobj2'"), ("gone", "cat/zzcatobj2")),
+    # controls: the same statements on places that are none of the three kinds, and the LEAF cases (a record or a new file that is
+    # CALLED sample.bp / x.dic in an ordinary directory is not a program file or a dictionary)
+    ("ctl-os-del", None, osp("ctl-os-del", "zzosctl", 5), ("gone", "zzosctl")),
+    ("ctl-os-del-leaf", None, osp("ctl-os-del-leaf", "zzdirf/sample.bp", 5), ("gone", "zzdirf/sample.bp")),
+    ("ctl-os-mkdir", None, osp("ctl-os-mkdir", "zzosdir", 13), ("exists", "zzosdir")),
+    ("ctl-trace", None, trace("ctl-trace", "zztrace.log"), ("exists", "zztrace.log")),
+    ("ctl-trace-leaf", None, trace("ctl-trace-leaf", "zzdirf/zztr.bp"), ("exists", "zzdirf/zztr.bp")),
+    ("ctl-cf-newdic", None, mkf("ctl-cf-newdic", "create.file 'zzcfnew.dic' dynamic"), ("exists", "zzcfnew.dic")),
+    ("ctl-cf-newbp", None, mkf("ctl-cf-newbp", "create.file 'zzcfnew.bp' directory"), ("exists", "zzcfnew.bp")),
+    ("ctl-cf-plain", None, mkf("ctl-cf-plain", "create.file 'zzcfplain' dynamic"), ("exists", "zzcfplain")),
+    ("ctl-ot", None, ot("ctl-ot", "zztempf"), None),
+    ("ctl-openseq-leaf", None, st("ctl-openseq-leaf", "openseq 'zzdirf', 'sample3.bp' to f then null else null",
+                                  "writeseq 'a record called sample3.bp' to f else ok = @false", "closeseq f"), ("exists", "zzdirf/sample3.bp")),
+    ("ctl-deleteseq-leaf", None, st("ctl-deleteseq-leaf", "deleteseq 'zzdirf', 'sample2.bp' else ok = @false"), ("gone", "zzdirf/sample2.bp")),
+]
+
+
+def probe2_text(port):
+    lines = ["$include keys.h",
+             "* zzprobe2 - the part-2 routes from an ordinary program (sandbox-editgates.py)",
+             "   sk = open.socket('127.0.0.1', %d, 0, 5)" % port,
+             "   if status() # 0 then crt 'P2 open-socket-failed ':status() ; stop"]
+    for _label, _k, body, _ev in ITEMS2:
+        lines += body
+    return "\n".join(lines + ["   close.socket sk", "   crt 'P2 end'", "end", ""])
+
+
+# (label, file variable, statement that leaves the value in p, expected value as a function of (voc, bp, dict)).  "CK2 label value".
+CHECKS2 = [
+    ("fixdir-cr", "b", "read x from b, 'zzfx1' then p = count(x, char(13)) else p = -1", lambda v, b, d: "0" if b else "2"),
+    ("format-unchanged", "b", "read x from b, 'zzfm1' then p = (x = (%s)) else p = -1" % FMSRC, lambda v, b, d: "0" if b else "1"),
+    ("map-keep", "m", "read x from m, 'zzkeep' then p = 1 else p = 0", lambda v, b, d: "0" if b else "1"),
+    ("cl-voc", "v", "read x from v, 'zzcl1' then p = 1 else p = 0", lambda v, b, d: "1" if v else "0"),
+    ("cl-bp", "b", "read x from b, 'zzcl1' then p = 1 else p = 0", lambda v, b, d: "1" if b else "0"),
+    ("cl-ctl", "d2", "read x from d2, 'zzcl1' then p = 1 else p = 0", lambda v, b, d: "1"),
+    ("mv-voc-src", "v", "read x from v, 'zzcl2' then p = 1 else p = 0", lambda v, b, d: "0" if v else "1"),
+    ("mv-voc-tgt", "d", "read x from d, 'zzcl2' then p = 1 else p = 0", lambda v, b, d: "1" if v else "0"),
+    ("mv-bp-src", "b", "read x from b, 'zzcl3' then p = 1 else p = 0", lambda v, b, d: "0" if b else "1"),
+    ("mv-bp-tgt", "d", "read x from d, 'zzcl3' then p = 1 else p = 0", lambda v, b, d: "1" if b else "0"),
+    ("dl-voc", "v", "read x from v, 'zzdl1' then p = 1 else p = 0", lambda v, b, d: "0" if v else "1"),
+    ("dl-bp", "b", "read x from b, 'zzdl2' then p = 1 else p = 0", lambda v, b, d: "0" if b else "1"),
+    ("gl-voc", "v", "read x from v, 'zzgl1' then p = 1 else p = 0", lambda v, b, d: "0" if v else "1"),
+    ("gl-bp", "b", "read x from b, 'zzgl2' then p = 1 else p = 0", lambda v, b, d: "0" if b else "1"),
+    ("sv-voc", "v", "read x from v, 'zzsv1' then p = 1 else p = 0", lambda v, b, d: "1" if v else "0"),
+    ("sv-bp", "b", "read x from b, 'zzsv2' then p = 1 else p = 0", lambda v, b, d: "1" if b else "0"),
+    ("sl-voc", "v", "read x from v, 'zzsl1' then p = convert(@fm, '|', x) else p = '-1'", lambda v, b, d: "a|b" if v else "b|a"),
+    ("sl-bp", "b", "read x from b, 'zzsl2' then p = convert(@fm, '|', x) else p = '-1'", lambda v, b, d: "a|b" if b else "b|a"),
+    ("rf-bp", "b", "read x from b, 'zzdr' then p = 1 else p = 0", lambda v, b, d: "1" if b else "0"),
+    ("rf-voc", "v", "read x from v, 'zzdr' then p = 1 else p = 0", lambda v, b, d: "1" if v else "0"),
+    ("rf-prompt", "b", "read x from b, 'zzdr2' then p = 1 else p = 0", lambda v, b, d: "1" if b else "0"),
+    ("cd-bp", "b", "read x from b, 'zzcdrec' then p = (x<16> = 'ZZMARK') else p = -1", lambda v, b, d: "0" if b else "1"),
+    ("cd-ctl", "d", "read x from d, 'zzcdrec2' then p = (x<16> = 'ZZMARK') else p = -1", lambda v, b, d: "0"),
+    ("gen-incl", "dd", "read x from dd, '$INCLUDE' then p = 1 else p = 0", lambda v, b, d: "1" if d else "0"),
+    ("stack-overwrite", "v", "read x from v, 'zzvrec' then p = x[1,1] else p = '-1'", lambda v, b, d: "S" if v else "X"),
+    ("stack-new", "v", "read x from v, 'zzsent2' then p = 1 else p = 0", lambda v, b, d: "1"),
+    ("stack-delete", "v", "read x from v, 'zzsent1' then p = 1 else p = 0", lambda v, b, d: "0" if v else "1"),
+]
+
+CHK2 = "\n".join(
+    ["* zzchk2 - where the part-2 verbs left things (sandbox-editgates.py)",
+     "   open 'voc' to v then have.v = 1 else crt 'CK2 setup voc' ; stop",
+     "   open 'bp' to b then have.b = 1 else have.b = 0",
+     "   open 'zzd' to d then have.d = 1 else have.d = 0",
+     "   open 'zzd2' to d2 then have.d2 = 1 else have.d2 = 0",
+     "   open 'zzmap.bp' to m then have.m = 1 else have.m = 0",
+     "   open 'DICT', 'zzd' to dd then have.dd = 1 else have.dd = 0"]
+    + sum([["   if have.%s then" % fv, "      %s" % stmt, "   end else p = -1", "   crt 'CK2 %s ':p" % label] for label, fv, stmt, _e in CHECKS2], [])
+    + ["end", ""])
+
+WL = "\n".join([
+    "* zzwl - WRITELIST in an account whose VOC has no $savedlists entry (sandbox-editgates.py)",
+    "   open 'voc' to v else crt 'WL no voc' ; stop",
+    "   read x from v, '$savedlists' then crt 'WL before 1' else crt 'WL before 0'",
+    "   lst = 'a':@fm:'b'",
+    "   writelist lst to 'zzwlist'",
+    "   open '$savedlists' to sl else crt 'WL no savedlists' ; stop",
+    "   read back from sl, 'zzwlist' then crt 'WL back ':convert(@fm, '|', back) else crt 'WL none'",
+    "   read x from v, '$savedlists' then crt 'WL after 1' else crt 'WL after 0'",
+    "end", ""])
+
+TRG = "subroutine zztrg(mode, id, data, on.error, fvar)\n   null\nend\n"
+
+
+def build2(name):
+    """build(), then everything part 2 adds: disk files, the extra programs compiled by the administrator, the second fixer."""
+    path = build(name)
+    for d in ("bp.out", "zzdirf"):
+        os.makedirs(os.path.join(path, d), exist_ok=True)
+    for rel in ("bp/zzosdel", "bp.out/zzosdel", "cat/zzcatobj", "cat/zzcatobj2", "zzosctl", "zzdirf/sample.bp", "zzdirf/sample2.bp"):
+        g.put(os.path.join(path, rel), "a file the probe deletes\n")
+    g.put(os.path.join(path, "bp", "zzprobe2"), probe2_text(g.PROBE2_PORT))
+    g.put(os.path.join(path, "bp", "zzchk2"), CHK2)
+    g.put(os.path.join(path, "bp", "zzwl"), WL)
+    g.put(os.path.join(path, "bp", "zztrg"), TRG)
+    out = g.sd(path, ["BASIC bp zzprobe2 zzchk2 zzwl zztrg"], admin=True, account=name)
+    if not g.has(out, r"^Compiled 4 program\(s\) with no errors"):
+        bail("zzprobe2, zzchk2, zzwl and zztrg did not compile in %s:\n%s" % (name, "\n".join(out[-10:])))
+    g.put(os.path.join(g.SYS, "bp", "zzegfix2"), route_fixer(path))
+    out = g.adm(["BASIC bp zzegfix2", "RUN bp zzegfix2"], internal=True)
+    if not g.has(out, r"^EGFIX2 done$"):
+        bail("the part-2 fixture %s was not completed:\n%s" % (name, "\n".join(out[-6:])))
+    out = g.sd(path, ["CATALOG bp zztrg LOCAL"], admin=True, account=name)          # SET.TRIGGER wants a catalogued function
+    if not g.has(out, r"zztrg added to local catalogue"):
+        bail("zztrg was not catalogued in %s:\n%s" % (name, "\n".join(out[-6:])))
+    return path
+
+
+def sess(n, cmds):
+    """One ordinary session; a verb that waits for an answer never given hangs the session, which is a failed row, not a crash."""
+    try:
+        return g.plain(n, cmds)
+    except subprocess.TimeoutExpired:
+        row("%s: the session %r ended by itself (it waited for an answer for ever)" % (n, cmds[:2]), False, "timed out")
+        return []
+
+
+def find_name(top, wanted):
+    """True when a file called WANTED (case aside) is anywhere under TOP."""
+    for _root, _dirs, files in os.walk(top):
+        if any(f.lower() == wanted.lower() for f in files + _dirs):
+            return True
+    return False
+
+
+def routes_section():
+    say("\n--- S.64 part 2: the verbs and the C routes the first sitting missed (account with a gate off is refused, with it on is let through) ---")
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    g.PROBE2_PORT = srv.getsockname()[1]
+    try:
+        for n in ROUTE_ACCOUNTS:
+            voc, bp, dic = WANT[n]
+            path = build2(n)
+            tag = "%s (voc %s, bp %s, dict %s)" % (n, "on" if voc else "off", "on" if bp else "off", "on" if dic else "off")
+            zzold_before = os.path.getsize(os.path.join(path, "bp", "zzold"))
+
+            def seen(text, key):
+                return MESSAGES[key] in text
+
+            # ---- the verbs, one session per group so that a message belongs to its group --------------------------------------
+            t1 = "\n".join(sess(n, ["FIXDIR bp zzfx1", "FORMAT bp zzfm1", "MAP FILE zzmap.bp", "Y", "SET.TRIGGER zztrgf.bp zztrg"]))
+            t2 = "\n".join(sess(n, [
+                "COPY.LIST zzcl1 FROM zzd TO voc", "COPY.LIST zzcl1 FROM zzd TO bp", "COPY.LIST zzcl1 FROM zzd TO zzd2",
+                "COPY.LIST zzcl2 FROM voc TO zzd DELETING", "COPY.LIST zzcl3 FROM bp TO zzd DELETING",
+                "DELETE.LIST zzdl1 IN voc", "DELETE.LIST zzdl2 IN bp",
+                "GET.LIST zzgl1 IN voc DELETING", "GET.LIST zzgl2 IN bp DELETING",
+                "CLEAR.SELECT ALL", "SELECT zzd", "SAVE.LIST zzsv1 IN voc", "CLEAR.SELECT ALL", "SELECT zzd", "SAVE.LIST zzsv2 IN bp",
+                "SORT.LIST zzsl1 FROM voc", "SORT.LIST zzsl2 FROM bp"]))
+            # the prompt form of REFORMAT: the answer 'bp' is the Output file; a refused one leaves 'bp' to be a harmless word
+            t3 = "\n".join(sess(n, [
+                "REFORMAT zzd 'zzdr' zzf zzf TO bp", "REFORMAT zzd 'zzdr' zzf zzf TO voc",
+                "REFORMAT zzd 'zzdr2' zzf zzf", "bp",
+                "LIST zzd zzf DELIMITER ',' TO 'bp/zzcsv' NO.QUERY", "LIST zzd zzf DELIMITER ',' TO 'bp/zzold' APPENDING",
+                "LIST zzd zzf DELIMITER ',' TO 'zzcsvc.bp' NO.QUERY", "LIST zzd zzf DELIMITER ',' TO '../zzegout.txt' NO.QUERY"]))
+            t3b = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ bp zzseq"]))
+            t3c = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ voc zzseq"]))
+            t4 = "\n".join(sess(n, ["CD DATA bp zzcdrec", "CD DATA zzd zzcdrec2"]))
+            # GENERATE zzd asks two questions only when it gets that far; GENERATE zzd4 has its $INCLUDE already, and the same two
+            # answers follow it so that a question it did ask would not wait for ever
+            t5 = "\n".join(sess(n, ["GENERATE zzd", "D", "zz", "GENERATE zzd4", "D", "zz"]))
+            t6 = "\n".join(sess(n, ["COMO ON zzcomoa IN bp", "COMO OFF"]))
+            sess(n, ["COMO ON zzcomoc", "COMO OFF"])
+            t7 = "\n".join(sess(n, ["WHO", ".S zzvrec 1", "Y", ".S zzsent1 1", ".S zzsent2 1", ".D zzsent1", "Y"]))
+            t8 = "\n".join(sess(n, ["CREATE.FILE zzmf.bp,zzpart DIRECTORY NO.QUERY", "CREATE.FILE zzdicf,zzpart DYNAMIC NO.QUERY",
+                                    "CREATE.FILE zzd3,zzpart DYNAMIC NO.QUERY"]))
+            wl = sess(n, ["RUN bp zzwl"])
+            ck = {}
+            for ln in sess(n, ["RUN bp zzchk2"]):
+                m = re.match(r"^CK2 (\S+) ?(.*)$", ln)
+                if m:
+                    ck[m.group(1)] = m.group(2).strip()
+            pr = {}
+            pout = sess(n, ["RUN bp zzprobe2"])
+            for ln in pout:
+                m = re.match(r"^P2 (\S+) (OK|REFUSED)$", ln)
+                if m:
+                    pr[m.group(1)] = m.group(2)
+
+            # ---- what the verbs left ------------------------------------------------------------------------------------------
+            for label, _fv, _stmt, expect in CHECKS2:
+                want = expect(voc, bp, dic)
+                row("%s: %s is %s" % (tag, label, want), ck.get(label) == want, "have %r" % ck.get(label))
+            row("%s: SET.TRIGGER on a program file makes its %%header%% exactly when bp.edit is on" % tag,
+                os.path.exists(os.path.join(path, "zztrgf.bp", "%header%")) == bp, "")
+            row("%s: LIST ... DELIMITER TO 'bp/zzcsv' writes the report exactly when bp.edit is on" % tag,
+                os.path.exists(os.path.join(path, "bp", "zzcsv")) == bp, "")
+            row("%s: ... APPENDING to bp/zzold adds to the program record exactly when bp.edit is on" % tag,
+                (os.path.getsize(os.path.join(path, "bp", "zzold")) > zzold_before) == bp,
+                "size %d -> %d" % (zzold_before, os.path.getsize(os.path.join(path, "bp", "zzold"))))
+            row("%s: CONTROL ... TO 'zzcsvc.bp' (a plain file called x.bp in the account) is written for everybody" % tag,
+                os.path.exists(os.path.join(path, "zzcsvc.bp")), "")
+            row("%s: ... TO '../zzegout.txt' (outside the account, no OS access) is refused for everybody, with message 11180" % tag,
+                not os.path.exists(os.path.join(os.path.dirname(path), "zzegout.txt")) and "has no OS access" in t3, "")
+            row("%s: COMO ON zzcomoa IN bp makes the record exactly when bp.edit is on" % tag, find_name(os.path.join(path, "bp"), "zzcomoa") == bp, "")
+            row("%s: CONTROL COMO ON zzcomoc (the $COMO directory) works for everybody" % tag, find_name(path, "zzcomoc"), "")
+            row("%s: GENERATE zzd4 writes the include record into bp exactly when bp.edit is on" % tag,
+                find_name(os.path.join(path, "bp"), "zzd4.h") == bp, "")
+            row("%s: CREATE.FILE zzmf.bp,zzpart (a program file) is converted to a multifile exactly when bp.edit is on" % tag,
+                os.path.isdir(os.path.join(path, "zzmf.bp", "zzmf.bp")) == bp, "")
+            row("%s: CREATE.FILE zzdicf,zzpart (a pointer to a name ending .dic) is converted exactly when dict.edit is on" % tag,
+                os.path.isdir(os.path.join(path, "zzdicf.dic", "zzdicf")) == dic, "")
+            row("%s: CONTROL CREATE.FILE zzd3,zzpart (an ordinary file) is converted for everybody" % tag,
+                os.path.isdir(os.path.join(path, "zzd3", "zzd3")), "")
+            row("%s: CONTROL !WRITELIST in an account with no $savedlists makes it and saves the list, whatever voc.edit says" % tag,
+                g.has(wl, r"^WL before 0$") and g.has(wl, r"^WL back a\|b$") and g.has(wl, r"^WL after 1$"), repr(wl[-5:]))
+
+            # ---- the refusal says why (message 11405 / 11406 / 11407) ---------------------------------------------------------
+            row("%s: FIXDIR, FORMAT, MAP FILE and SET.TRIGGER say 11407 exactly when bp.edit is off" % tag, seen(t1, "bp") == (not bp), "")
+            row("%s: the list verbs say 11405 exactly when voc.edit is off and 11407 exactly when bp.edit is off" % tag,
+                seen(t2, "voc") == (not voc) and seen(t2, "bp") == (not bp), "voc msg %s, bp msg %s" % (seen(t2, "voc"), seen(t2, "bp")))
+            row("%s: REFORMAT TO, the Output file: prompt and the delimited reports say 11405 / 11407 for the file they would change" % tag,
+                seen(t3, "voc") == (not voc) and seen(t3, "bp") == (not bp), "")
+            row("%s: LIST ... PAGESEQ bp zzseq says 11407 and PAGESEQ voc zzseq 11405 exactly when the gate is off (before the record is locked)" % tag,
+                seen(t3b, "bp") == (not bp) and seen(t3c, "voc") == (not voc), "")
+            row("%s: CD DATA bp says 11407 exactly when bp.edit is off" % tag, seen(t4, "bp") == (not bp), "")
+            row("%s: GENERATE says 11406 for the dictionary exactly when dict.edit is off" % tag, seen(t5, "dict") == (not dic), "")
+            row("%s: COMO ON ... IN bp says 11407 exactly when bp.edit is off" % tag, seen(t6, "bp") == (not bp), "")
+            row("%s: .S of an existing VOC record and .D say 11405 exactly when voc.edit is off" % tag, seen(t7, "voc") == (not voc), "")
+            row("%s: CREATE.FILE on an existing program file / dictionary pointer says 11407 / 11406 exactly when the gate is off" % tag,
+                seen(t8, "bp") == (not bp) and seen(t8, "dict") == (not dic), "")
+
+            # ---- the C routes, from an ordinary program ------------------------------------------------------------------------
+            row("%s: zzprobe2 ran to its last line" % tag, g.has(pout, r"^P2 end$"), repr(pout[-4:]))
+            for label, kind, _body, ev in ITEMS2:
+                can = True if kind is None else WANT[n][kind]
+                word = pr.get(label)
+                disk_ok = True
+                if ev is not None:
+                    there = os.path.exists(os.path.join(path, ev[1]))
+                    disk_ok = (there if ev[0] == "exists" else not there) == can
+                row("%s: %s%s is %s%s" % (tag, "CONTROL " if kind is None else "", label, "let through" if can else "REFUSED",
+                                           ", the disk agrees" if ev is not None else ""),
+                    word == ("OK" if can else "REFUSED") and disk_ok, "word %r, evidence %r" % (word, ev))
+        # the one account with OS access: a delimited report TO a path outside the account is not an edit-gate question
+        zeo = "zzeo"
+        build(zeo)
+        outside = os.path.join(g.BOX, "user_accounts", "zzegout.txt")
+        if os.path.exists(outside):
+            os.remove(outside)
+        sess(zeo, ["LIST zzd zzf DELIMITER ',' TO '../zzegout.txt' NO.QUERY"])
+        row("zzeo (OS.EXECUTE on, edit gates off): a delimited report TO a path outside the account is written (the S.63 gate is on, the edit "
+            "gates have nothing to say about a path that runs through none of the three kinds)", os.path.exists(outside), "")
+        if os.path.exists(outside):
+            os.remove(outside)
+    finally:
+        srv.close()
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -682,7 +1075,8 @@ def main():
             on_disk(n, "zzseq3") and on_disk(n, "zzcopy2"), repr((r.get("seq-control"), r.get("oscopy-control"))))
 
     for name, section in (("verbs", verbs_section), ("editors", editors_section), ("modify", modify_section), ("logto", logto_section),
-                          ("upgrade", upgrade_section), ("manifest", manifest_section)):
+                          ("upgrade", upgrade_section), ("manifest", manifest_section), ("objtrust", objtrust_section),
+                          ("routes", routes_section)):
         if run(name):
             section()
 

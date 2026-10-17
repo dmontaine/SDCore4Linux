@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64 part 2: x_ospath() asks the edit gates (edit_os_path_refusal) before OSPATH key 5 (delete) and keys 13 and 14 (make a
+ *               directory, make the path): a path through a VOC, a dictionary, a program file or the private catalogue is refused.
  * 16 Oct 26 dm  XF_OSPATH: OSPATH() for programs that are not internal, with openQM's key numbers (x_ospath(); Fixes item 233).
  * 16 Oct 26 dm  XF_GET: the GET statement for devices opened by OPENSEQ (op_get_device(), op_seqio.c; Fixes item 583).
  * 15 Oct 26 dm  XF_FCONTROL: the public FCONTROL() (pub_fcontrol(), dh_misc.c).
@@ -921,7 +923,8 @@ Private void x_nv(bool ns) {
    has other numbers and stays an internal program's own.  Every key that looks at or changes the file system asks the
    OS-access gate about the path first (os_path_open_ok(): an internal program is trusted; anyone else is held to the account's
    own directory unless the account has the OS.EXECUTE gate or the SD.ACCOUNTS one), and a refusal is STATUS() ER_PERM with
-   the answer false.  The keys:
+   the answer false.  The keys that delete or make something (5, 13, 14) are also asked the edit gates of S.64 (voc.edit,
+   dict.edit, bp.edit: edit_os_path_refusal) and are refused the same way.  The keys:
       0 OS$PATHNAME  1 OS$FILENAME      is it a valid name (text only: no gate)
       2 OS$EXISTS    16 IS.FILE 17 IS.DIR   exists as either / as a file / as a directory
       3 OS$UNIQUE                       a file name that does not exist in the directory path (the name, not the path)
@@ -993,6 +996,16 @@ Private void x_ospath() {
         process.status = ER_PERM;
         if (key == 3)
           text = TRUE;
+        goto ospath_done;
+      }
+      /* 17 Oct 26 dm - S.64 part 2: the keys that DELETE or MAKE a file or directory change a VOC, a dictionary, a program file or
+         the private catalogue when the path runs through one, which the gate above (geometry only) does not see.  Refused as a
+         path outside the account is: STATUS() ER_PERM, the answer false.  The name deleted counts when it is anything but a plain
+         file (an empty directory file is a program file); a directory made always counts.  (This opcode is not compiled for a
+         $internal program, which has its own OSPATH; the flag is tested as os_path_open_ok does.)                              */
+      if (((key == 5) || (key == 13) || (key == 14)) && !(process.program.flags & HDR_INTERNAL) &&
+          (edit_os_path_refusal(path, (key == 5) ? edit_leaf_counts(path) : TRUE) != EDIT_NONE)) {
+        process.status = ER_PERM;
         goto ospath_done;
       }
       break;

@@ -19,6 +19,14 @@
 *
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.64 part 2: an API session of SDSYS that enters the sdsys account loads the three edit gates ON.  An API session carries
+*           no administrator flag, and the sdsys register record has no edit fields (modify.account refuses sdsys), so SDSYS over the
+*           local door could not compile or save to a VOC, a dictionary or a program file.  Only for the OS user sdsys entering the sdsys
+*           account, the pair vb.account already exempts from the group test; every other account loads what its own record says.
+*           AND THE API SERVER ASKS THE GATES FOR ITS CLIENT: this program is $internal, so the kernel's edit test never saw its WRITE,
+*           WRITEU, DELETE, DELETEU, CLEARFILE or CREATING.SEQKEY write of a file the client opened (the plan's "refused by the same kernel
+*           test" was not so).  check.edit asks before each; an OPENSEQ of a VOC, a dictionary or a program file the session may not change
+*           is opened read only.  vb.clearfile cleared files(i), a stale variable, instead of files(fno).
 * 15 Oct 26 dm QM4 gaps Q-8: INHIBIT.LOGIN.  An API session is refused (11281) while the administrator has logins
 *           inhibited, after the backup login hold and before any credential is looked at.
 * 12 Oct 26 dm Call names: the lower of 128 and MAXIDLEN (openQM item 241), 63 at the default.  Refused logins
@@ -520,6 +528,19 @@ if index(new.account, @ds, 1) = 0 then
    end
 end
 
+* 17 Oct 26 dm - S.64 part 2: SDSYS is the administrator everywhere else (USR_ADMIN passes every edit test), but an API session carries no
+*   such flag and the sdsys register record holds no edit fields (modify.account refuses sdsys), so the record above leaves all three off
+*   and SDSYS over the local door would be refused at its first save to a VOC, a dictionary or a program file and at BASIC / CATALOG.
+*   So the sdsys account entered by the OS user sdsys - the pair vb.account's group test already exempts, and the only user the door
+*   (10174 / 10922, in the SCRAM handler) admits as sdsys: a process running as sdsys, on the Unix socket - has all three on.  These
+*   are variables only: they are loaded into the kernel with the other gates below, at the first entry to an account and never again, and
+*   only after every refusal in this routine has passed.  No other user and no other account gets more than its own record gives.
+if downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys' then
+   api.voc.grant = @true
+   api.bp.grant = @true
+   api.dict.grant = @true
+end
+
 * 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
 *   port's APISRVR of 27 Aug 2026).  The third door, after LOGIN and CPROC's
 *   LOGTO; an API caller reaches an account through neither.
@@ -932,6 +953,9 @@ vb.write:
                id.len = oconv(cmnd[3,2], 'ISL')
                id = cmnd[5,id.len]
 
+               gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2: this program is $internal, so the kernel does not ask the edit gates; check.edit does
+               if err then return
+
                write cmnd[5 + id.len, 99999999] to files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -952,6 +976,9 @@ vb.writeu:
                id.len = oconv(cmnd[3,2], 'ISL')
                id = cmnd[5,id.len]
 
+               gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2
+               if err then return
+
                writeu cmnd[5 + id.len, 99999999] to files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -968,6 +995,10 @@ vb.delete:
                if err then return
 
                id = cmnd[3,99]
+
+               gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2
+               if err then return
+
                delete files(fno), id
                on error server.error = SV$ON.ERROR
 
@@ -984,6 +1015,9 @@ vb.deleteu:
                if err then return
 
                id = cmnd[3,99]
+
+               gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2
+               if err then return
 
                deleteu files(fno), id
                on error server.error = SV$ON.ERROR
@@ -1850,7 +1884,10 @@ vb.clearfile:
                                              gosub check.file
                                              if err then return
 
-                                             clearfile files(i)
+                                             gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2
+                                             if err then return
+
+                                             clearfile files(fno)   ;* 17 Oct 26 dm: was files(i), a stale loop variable, which cleared whichever file it happened to index
 
                                              return
 
@@ -2405,6 +2442,7 @@ if os.id = '' then
       error.msg = sysmsg(11345, os.name) ;* %1 is not a file this account may open
       return
    end
+   os.edit.ok = kernel(K$EDIT.OS.OK, os.name)   ;* 17 Oct 26 dm, S.64 part 2: see below
 end else
    os.path = @false
    open os.name to os.tf else
@@ -2412,6 +2450,7 @@ end else
       return
    end
    os.trusted = bitand(fileinfo(os.tf, FL$FLAGS), FL$FLAGS.TRUSTED)
+   os.edit.ok = kernel(K$EDIT.OK, fileinfo(os.tf, FL$PATH))   ;* 17 Oct 26 dm, S.64 part 2: asked of the file that is open, before it is closed
    close os.tf
    if os.trusted then
       server.error = SV$ELSE
@@ -2426,6 +2465,12 @@ begin case
    case bitand(os.modes, 512)  ; os.m = 3
    case bitand(os.modes, 256)  ; os.m = 2
 end case
+
+* 17 Oct 26 dm - S.64 part 2.  This program is $internal, which the kernel's OPENSEQ test for a VOC, a dictionary or a program file lets
+*   through, so it is asked here: a pathname with such a file in it (K$EDIT.OS.OK), or a record of one (K$EDIT.OK on the file it is
+*   in), that the session may not change is opened for reading only, as the kernel opens it for a user program - nothing is made
+*   and nothing written (a write then takes the ELSE case).  Reading is not refused, because the default mode is read and write.
+if not(os.edit.ok) then os.m = 1
 
 loop
    os.lk = 0
@@ -2489,6 +2534,29 @@ end
 if not(seq.state(si)) then
    server.error = SV$ERROR
    error.msg = sysmsg(5268)
+   return
+end
+err = @false
+return
+
+* 17 Oct 26 dm - S.64 part 2.  May this session save a change to the file in files(fno)?  err is set, with the reply, when it may not.
+*   This program is $internal, which the kernel's own edit test lets through (op_dio3.c), so the API server asks for the client: the
+*   gates are the session's, loaded at its first entry to an account (vb.account; SDSYS is given all three there).  The kernel answers
+*   by the last component of the pathname of the file that is open (voc, *.dic, bp, bp.out, *.bp, *.bp.out), so a Q-pointer to a VOC
+*   is caught.  Asked for WRITE, WRITEU, DELETE, DELETEU, CLEARFILE and the CREATING.SEQKEY writes; reading is never asked.
+check.edit:
+err = @true
+ed.path = fileinfo(files(fno), FL$PATH)
+if ed.path = '' then
+   server.error = SV$ERROR
+   error.msg = sysmsg(11410) ;* The pathname of the file cannot be read, so a change to it is refused
+   return
+end
+if not(kernel(K$EDIT.OK, ed.path)) then
+   ed.kind = kernel(K$EDIT.KIND, ed.path)
+   if ed.kind < 1 or ed.kind > 3 then ed.kind = 1
+   server.error = SV$ERROR
+   error.msg = sysmsg(11404 + ed.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
    return
 end
 err = @false
@@ -2574,6 +2642,8 @@ wk.keep = @true
 writeseqkey.common:
 fno = oconv(cmnd[1,2], 'ISL')
 gosub check.file
+if err then return
+gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2
 if err then return
 if fileinfo(files(fno), FL$TYPE) # FL$TYPE.DH then
    server.error = SV$ERROR

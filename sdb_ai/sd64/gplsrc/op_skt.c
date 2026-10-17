@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm S.64 part 2: SET.SOCKET.MODE SKT$INFO.TRACE refuses (ER_PERM) a log whose path runs through a VOC, a dictionary,
+ *           a program file or the private catalogue the session may not change (edit_os_path_refusal); it used to truncate a
+ *           program record.
  * 08 Sep 26 SET.SOCKET.MODE could not turn keep-alive off; the caller's value
  *           was read and then overwritten with TRUE.
  * rev 0.9-3 SIGPIPE Error in op_writeskt() (WRITE.SOCKET)  issue #89 / ScarletDME
@@ -86,6 +89,7 @@ void k_error(char msg[], ...) __attribute__((noreturn));
 /* -------------------- */
 
 #include "sd.h"
+#include "header.h" /* HDR_INTERNAL: the edit gates of SKT$INFO.TRACE (17 Oct 26, S.64) */
 #include "keys.h"
 #include "sdnet.h"
 #include "sd_tls.h"
@@ -862,6 +866,13 @@ void op_setskt() {
       }
       if (trace_len > 0) {
         if (!os_path_ok_for_account(trace_path)) {
+          process.status = ER_PERM;
+          break;
+        }
+        /* 17 Oct 26 dm - S.64 part 2: the log is made or overwritten, which is a change to a VOC, a dictionary, a program file or the
+           private catalogue when the path runs through one ('bp/payroll' truncated a program).  The final name is the log itself,
+           a plain file open() makes, so only what is above it is asked; a $internal program is trusted as os_path_open_ok trusts it. */
+        if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE)) {
           process.status = ER_PERM;
           break;
         }

@@ -8,8 +8,17 @@
 * the same for these): "existing accounts leave on to preserve their existing situation".
 *
 * So this sets ACC$VOC.EDIT, ACC$BP.EDIT and ACC$DICT.EDIT to 'yes' ONCE for every USER account in the register (an sdu_ group: the
-* only kind a person signs on to) whose field is BLANK, that is, never told.  A field that already says 'no' is somebody's decision and
-* is left alone.  GROUP and OTHER accounts are left blank.  SDSYS needs nothing: the administrator passes every gate.
+* account a person normally signs on to) whose field is BLANK, that is, never told.  A field that already says 'no' is somebody's
+* decision and is left alone.
+*
+* GROUP AND OTHER ACCOUNTS ARE LEFT OFF ON PURPOSE (the delivered default is the tighter one: high security is delivered and the
+* administrator loosens it).  They are not unreachable: a member of the account's Linux group who signs on to one DIRECTLY - sd -a<name>,
+* a batch job run as sd -a<name>, or an API connection to it - gets THAT ACCOUNT'S OWN switches, because the sign-on account decides and
+* only a LOGTO from another account leaves the earlier account's gates alone.  So where members need to save to a VOC, a program file or
+* a dictionary in a group or other account that way, SDSYS gives it with modify.account <account> voc-on / bp-on / dict-on; nothing
+* here does it for them.  SDSYS needs nothing from this program: the administrator passes every gate on a terminal or in a batch job,
+* and an API session of SDSYS - which carries no administrator flag - is given the three gates ON in apisrvr (the sdsys account's
+* register record has no edit fields, and modify.account refuses sdsys).
 *
 * ONCE MEANS ONCE.  An administrator who later runs MODIFY.ACCOUNT jack BP-OFF must not find the next install turning it back on, so
 * the walk leaves a marker, sdsys/$editgates.done, and does nothing when the marker is there.  The marker is written only after every
@@ -22,6 +31,8 @@
 * installer matches on that word and nothing else.
 *
 * START-HISTORY:
+* 17 Oct 26 dm  S.64 part 2: the header says that group and other accounts are left off on purpose and what a direct sign-on to one gets,
+*               and that sdsys over the API is covered in apisrvr.  Comments only.
 * 17 Oct 26 dm  New, from upgrade_gates.
 * END-HISTORY
 *

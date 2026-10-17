@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.64 part 2: OPENSEQ and DELETESEQ ask edit_os_path_refusal() about what is ABOVE the final name only (include_leaf
+ *               FALSE): a record called sample.bp, voc or x.dic in an ordinary directory file is a plain file, not a program file.
  * 17 Oct 26 dm  S.64: OPENSEQ opens read only, and cannot create, a file under a VOC, a dictionary or a program file the session may not
  *               change (edit_os_path_refusal); DELETESEQ of such a file is refused.
  * 13 Oct 26 dm  S.63: op_delseq() asks the OS-access gate when it is given a bare pathname (no record name).
@@ -239,8 +241,9 @@ void op_delseq() {
   }
 
   /* 17 Oct 26 dm - S.64 (the edit gates): deleting a file of a program file, a dictionary or a VOC is a change to it, past the test in
-     op_dio3.c.  A $internal program is trusted, as in os_path_open_ok(). */
-  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name) != EDIT_NONE)) {
+     op_dio3.c.  A $internal program is trusted, as in os_path_open_ok().  17 Oct 26 part 2: the final name is a plain file (S_ISREG
+     below), a record and not a program file, so only what is above it is asked (include_leaf FALSE). */
+  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {
     process.status = ER_PERM;
     goto exit_op_delseq;
   }
@@ -620,8 +623,10 @@ Private void openseq(bool map_name) {
   /* 17 Oct 26 dm - S.64 (the edit gates).  A record of a program file is a file of a directory, so OPENSEQ and WRITESEQ change one
      as WRITE would, past the test in op_dio3.c; a dictionary or a VOC can be damaged the same way.  A session that may not change
      the file gets the sequential file READ ONLY, and cannot create one there.  A $internal program is trusted, as in os_path_open_ok. */
+  /* 17 Oct 26 part 2: the final name is a record (a regular file, a device or a FIFO, never a directory): only what is above it is
+     asked (include_leaf FALSE), so a record called sample.bp or x.dic in an ordinary directory file is not refused. */
   if (!(flags & SQ_PORT) && !(process.program.flags & HDR_INTERNAL))
-    edit_blocked = (edit_os_path_refusal(fullpathname) != EDIT_NONE);
+    edit_blocked = (edit_os_path_refusal(fullpathname, FALSE) != EDIT_NONE);
 
   if (!(flags & SQ_PORT)) /* Not a port */
   {

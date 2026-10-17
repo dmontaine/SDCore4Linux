@@ -29,10 +29,14 @@ GPL = os.path.join(SDSYS, "gpl.bp")
 GPLSRC = os.path.join(SD64, "gplsrc")
 ROOT = os.path.dirname(os.path.dirname(SD64))
 
-C_FILES = ("op_sh.c", "op_dio3.c", "op_seqio.c", "op_kernel.c", "to_file.c", "kernel.c", "keys.h", "sysseg.h", "sd.h")
+C_FILES = ("op_sh.c", "op_dio3.c", "op_seqio.c", "op_kernel.c", "to_file.c", "kernel.c", "keys.h", "sysseg.h", "sd.h",
+           "op_xfun.c", "op_skt.c", "op_dio1.c", "object.c")
 BP_PROGRAMS = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea", "upgrade_editgates", "edit_guard",
                "clearfl", "delete", "copy", "copyp", "cname", "ed", "edit", "deletef", "sed", "ide", "ced_edit", "basic", "catalog", "delcat",
-               "decat", "_oscopy", "_ioscopy")
+               "decat", "_oscopy", "_ioscopy",
+               # S.64 part 2: the $internal verbs that write, delete or clear a record of a file the user names
+               "fixdir", "format", "mapcat", "spview", "settrig", "copylst", "dellist", "getlist", "savelst", "sortlst", "qproc", "cd",
+               "generate", "como", "createf", "writelist", "_mksavedlists")
 FILES = {n: os.path.join(GPLSRC, n) for n in C_FILES}
 FILES.update({n: os.path.join(GPL, n) for n in BP_PROGRAMS})
 FILES.update({"int$keys.h": os.path.join(GPL, "int$keys.h"), "syscom/keys.h": os.path.join(SDSYS, "syscom", "keys.h"),
@@ -94,6 +98,28 @@ def func_body(text, signature):
     return text[i:]
 
 
+# S.64 part 2: (program, the file variable the guard is asked of, the statement that opens it, what must come AFTER the ask)
+GUARD_TABLE = [
+    ("fixdir", "f", "open fname to f else", ["select f to 11", "write rec to f, id"]),
+    ("format", "src.f", "open file.name to src.f else", ["readlist id.list", "readu in.rec from src.f", "write out.rec to src.f"]),
+    ("mapcat", "map.f", "open file.name to map.f else", ["display sysmsg(3044", "filelock map.f", "clearfile map.f", "write map.rec to map.f"]),
+    ("settrig", "fu", "open dict.flag, filename to fu else", ["gosub validate.call.name", "set.trigger fu, trigger.name, modes"]),
+    ("copylst", "tgt.file", "open tgt.file.name to tgt.file else", ["select src.file to 11", "write list.rec to tgt.file", "delete src.file, src.list"]),
+    ("copylst", "src.file", "open src.file.name to src.file else", ["select src.file to 11", "write list.rec to tgt.file", "delete src.file, src.list"]),
+    ("dellist", "saved.lists.file", "open saved.name to saved.lists.file else",
+     ["readvu list.rec from saved.lists.file", "delete saved.lists.file, list.name"]),
+    ("getlist", "saved.lists.file", "open saved.name to saved.lists.file else",
+     ["read list.rec from saved.lists.file", "formlist list.rec to list.no", "delete saved.lists.file, list.name"]),
+    ("savelst", "saved.lists.file", "open saved.name to saved.lists.file else",
+     ["readlist list.rec from list.no", "recordlocku saved.lists.file, list.name", "write list.rec to saved.lists.file, list.name"]),
+    ("sortlst", "list.f", "open file.name to list.f else", ["readu list.rec from list.f", "write sorted to list.f"]),
+    ("cd", "dict.f", "open file.to.open to dict.f else", ["select dict.f to 11", "readu itype.rec from dict.f", "write itype.rec to dict.f"]),
+    ("generate", "dict.file", "open 'DICT', dict.name to dict.file else", ["display sysmsg(6862)", "write incl.rec to dict.file, '$INCLUDE'"]),
+    ("generate", "target.f", "open file.name to target.f else", ["openseq file.name, record.name overwrite"]),
+    ("qproc", "pageseq.f", "open token to pageseq.f else", ["readvu pageseq from pageseq.f"]),
+]
+
+
 def checks(srcs, messages_dir):
     rows = []
 
@@ -131,16 +157,36 @@ def checks(srcs, messages_dir):
 
     # ---- C. the kernel ---------------------------------------------------------------------------------------------------
     sh = c["op_sh.c"]
-    kind = func_body(sh, "int edit_kind_of_path(const char *path)")
-    ck("C1 edit_kind_of_path knows voc, *.dic, bp, bp.out, *.bp and *.bp.out, and ignores case",
+    kind = func_body(sh, "Private int edit_kind_of_name(const char *path)")
+    ck("C1 edit_kind_of_name knows voc, *.dic, bp, bp.out, *.bp and *.bp.out, and ignores case",
        all(s in kind for s in ('"voc"', '".dic"', '"bp"', '"bp.out"', '".bp"', '".bp.out"')) and kind.count("strncasecmp") >= 6, "")
+    kpath = func_body(sh, "int edit_kind_of_path(const char *path)")
+    ck("C1b edit_kind_of_path asks the name first and the private catalogue second, and the catalogue is a PROGRAM file (S.64 part 2)",
+       0 <= at(kpath, "edit_kind_of_name(path)") < at(kpath, "path_is_private_catalogue(path)") and "return EDIT_PROG" in kpath, "")
+    pcat = func_body(sh, "Private bool path_is_private_catalogue(const char *path)")
+    ck("C1c the catalogue test is by PLACE, not by the bare name: the cheap last-component compare comes before the realpath, the place is "
+       "compared with catalogue_position == 1, and a path that cannot be placed fails closed",
+       0 <= at(pcat, "strncasecmp(last, cat_last, n)") < at(pcat, "resolve_name(cwd, path, resolved)") < at(pcat, "catalogue_position(cwd, resolved) == 1")
+       and re.search(r"resolve_name\(cwd, path, resolved\)\)\s*\n\s*return TRUE;", pcat) is not None, "")
+    cpos = func_body(sh, "Private int catalogue_position(const char *cwd, const char *resolved)")
+    ck("C1d catalogue_position: 1 for the directory itself, 2 only below a '/' (a lookalike such as cat2 is 0)",
+       "return 1;" in cpos and "resolved[n] == '/'" in cpos and "return 0;" in cpos, "")
+    lc = func_body(sh, "bool edit_leaf_counts(const char *name)")
+    ck("C1e edit_leaf_counts: lstat, and only a name that is there and not a plain file counts (a link counts, a name not made yet does not)",
+       "lstat(name, &sb)" in lc and "!S_ISREG(sb.st_mode)" in lc and "return FALSE" in lc, "")
     perm = func_body(sh, "bool edit_permitted(int kind)")
     ck("C2 edit_permitted lets the administrator through BEFORE it looks at any gate",
        0 <= at(perm, "USR_ADMIN") < at(perm, "UG_VOC_EDIT"), "")
     ck("C3 edit_permitted reads each kind's own bit", "UG_VOC_EDIT" in perm and "UG_BP_EDIT" in perm and "UG_DICT_EDIT" in perm, "")
-    osr = func_body(sh, "int edit_os_path_refusal(const char *name)")
+    osr = func_body(sh, "int edit_os_path_refusal(const char *name, bool include_leaf)")
     ck("C4 edit_os_path_refusal passes the administrator, refuses a path it cannot resolve, and leaves an OS.EXECUTE account alone outside its own directory",
        "USR_ADMIN" in osr and "return EDIT_VOC" in osr and "USR_OS_EXEC" in osr, "")
+    ck("C4b ...takes include_leaf: the final name is classified only when include_leaf (or something follows it), bare components by edit_kind_of_name",
+       "include_leaf || (*more != '\\0')" in osr and "edit_kind_of_name(comp)" in osr and "edit_kind_of_path(comp)" not in osr, "")
+    ck("C4c ...the private catalogue is a program file by place: catalogue_position before the component loop, below it always, the directory itself "
+       "only with include_leaf, and the bp.edit bit decides",
+       0 <= at(osr, "catalogue_position(cwd, resolved)") < at(osr, "edit_kind_of_name(comp)")
+       and "((cat_pos == 2) || ((cat_pos == 1) && include_leaf)) && !edit_permitted(EDIT_PROG)" in osr, "")
     d3 = c["op_dio3.c"]
     ref = func_body(d3, "Private int edit_refusal(FILE_VAR *fvar)")
     ck("C5 edit_refusal: a $internal program and the administrator pass BEFORE the path is read",
@@ -164,20 +210,62 @@ def checks(srcs, messages_dir):
     ck("C12 K_EDIT_OK passes the administrator, refuses an empty pathname (it starts with no name and the answer starts at 0) and asks edit_ok_for_path",
        "USR_ADMIN" in okh and re.search(r"edit_name\[0\] = '\\0';\s*result\.data\.value = 0;", okh) is not None and "edit_ok_for_path(edit_name)" in okh, "")
     osk = kn[at(kn, "case K_EDIT_OS_OK:"):at(kn, "case K_PATH_OK:")]
-    ck("C13 K_EDIT_OS_OK passes the administrator and otherwise asks edit_os_path_refusal on the argument", "USR_ADMIN" in osk and "edit_os_path_refusal(edit_os_name)" in osk, "")
+    ck("C13 K_EDIT_OS_OK passes the administrator and otherwise asks edit_os_path_refusal on the argument", "USR_ADMIN" in osk
+       and "edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name))" in osk, "")
     sq = c["op_seqio.c"]
     ops = func_body(sq, "void op_delseq()")
     ck("C14 DELETESEQ asks edit_os_path_refusal after the path is built and before the file is looked at (stat)",
-       0 <= at(ops, "edit_os_path_refusal(file_name)") < at(ops, "stat(file_name"), "")
+       0 <= at(ops, "edit_os_path_refusal(file_name, FALSE)") < at(ops, "stat(file_name"), "")
     opn = sq[at(sq, "edit_blocked = FALSE"):]
-    ck("C15 OPENSEQ works out edit_blocked once the full path is known and before the file is opened (dio_open)",
-       0 <= at(opn, "edit_blocked = (edit_os_path_refusal(fullpathname)") < at(opn, "dio_open("), "")
+    ck("C15 OPENSEQ works out edit_blocked once the full path is known and before the file is opened (dio_open), leaf not counted (a record called sample.bp)",
+       0 <= at(opn, "edit_blocked = (edit_os_path_refusal(fullpathname, FALSE)") < at(opn, "dio_open("), "")
     ck("C16 ...makes an existing file read only, refuses CREATING there (ER_PERM) and marks the file variable read only",
        "|| edit_blocked) {" in opn and "(op_flags & 0x400) && edit_blocked" in opn and "read_only || edit_blocked" in opn, "")
     ck("C17 a $internal program is not asked (as os_path_open_ok does)", "!(process.program.flags & HDR_INTERNAL)" in opn and '#include "header.h"' in sq, "")
     tf = c["to_file.c"]
     ck("C18 a print file is refused in a guarded file, after the OS gate and before the file is made",
-       0 <= at(tf, "os_path_ok_for_account(fn)") < at(tf, "if (edit_os_path_refusal(fn) != EDIT_NONE) {") < at(tf, "open_file:"), "")
+       0 <= at(tf, "os_path_ok_for_account(fn)") < at(tf, "if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {") < at(tf, "open_file:"), "")
+
+    # ---- C2. the other routes to an OS path (S.64 part 2) ------------------------------------------------------------------
+    xo = func_body(c["op_xfun.c"], "Private void x_ospath() {")
+    ck("C19 OSPATH keys 5, 13 and 14 of a user program ask the edit gates AFTER the S.63 test, a $internal program is not asked, key 5 counts the "
+       "leaf only for what is not a plain file, 13 and 14 always, and the refusal is ER_PERM",
+       0 <= at(xo, "os_path_open_ok(path)") < at(xo, "(key == 5) || (key == 13) || (key == 14)")
+       and "!(process.program.flags & HDR_INTERNAL)" in xo
+       and "edit_os_path_refusal(path, (key == 5) ? edit_leaf_counts(path) : TRUE) != EDIT_NONE" in xo
+       and re.search(r"EDIT_NONE\)\)\s*\{\s*process\.status = ER_PERM;\s*goto ospath_done;", xo) is not None, "")
+    ck("C19b ...and the question comes before the delete (unlink / rmdir) and before make_path",
+       0 <= at(xo, "edit_os_path_refusal(path,") < at(xo, "rmdir(path)") and at(xo, "edit_os_path_refusal(path,") < at(xo, "make_path(path)"), "")
+    skt = c["op_skt.c"]
+    tr = skt[at(skt, "case SKT_INFO_TRACE:"):]
+    tr = tr[:tr.find("break;", at(tr, "open(trace_path"))]
+    ck("C20 the socket trace log asks the edit gates after the S.63 test and BEFORE open(O_CREAT | O_TRUNC), a $internal program is not asked, leaf not counted",
+       0 <= at(tr, "os_path_ok_for_account(trace_path)") < at(tr, "edit_os_path_refusal(trace_path, FALSE)") < at(tr, "open(trace_path")
+       and "!(process.program.flags & HDR_INTERNAL)" in tr and '#include "header.h"' in skt, "")
+    d1 = c["op_dio1.c"]
+    cer = func_body(d1, "Private int create_edit_refusal(const char* path)")
+    ck("C21 create_edit_refusal: a $internal program passes first, anybody else is asked edit_os_path_refusal with the leaf NOT counted",
+       0 <= at(cer, "HDR_INTERNAL") < at(cer, "edit_os_path_refusal(path, FALSE)"), "")
+    dh = func_body(d1, "void op_create_dh()")
+    ck("C21b op_create_dh asks create_edit_refusal AFTER the name check and BEFORE the file is made (dh_create_file), -ER_PERM with the reason unless ON ERROR",
+       0 <= at(dh, "name_len < 1") < at(dh, "create_edit_refusal(path_name)") < at(dh, "dh_create_file(")
+       and "k_error(sysmsg(11404 + edit_kind))" in dh and "process.status = -ER_PERM" in dh, "")
+    t1 = func_body(d1, "void op_create_t1()")
+    ck("C21c op_create_t1 asks BEFORE make_path, and only for a name that was given (name_len > 0)",
+       0 <= at(t1, "create_edit_refusal(path_name)") < at(t1, "make_path(path_name)") and "(name_len > 0) ? create_edit_refusal(path_name)" in t1, "")
+    ot = func_body(d1, "void op_opentemp()")
+    ck("C21d OPENTEMP of a NAMED file asks BEFORE the file is made (stat / dh_create_file), the generated name is not asked, and it sets the flag open_file takes",
+       0 <= at(ot, "(name_len > 0) && (create_edit_refusal(path) != EDIT_NONE)") < at(ot, "dh_create_file(") and "opentemp_edit_refused = TRUE" in ot, "")
+    osig = "Private void open_file(bool map_name)"       # the first one is the prototype
+    of = func_body(d1[d1.find(osig) + len(osig):], osig)
+    ck("C21e open_file takes the OPENTEMP flag in its declarations (so it cannot survive to the next OPEN), clears it, and answers ER_PERM after the S.63 test",
+       0 <= at(of, "bool temp_refused = opentemp_edit_refused;") < at(of, "opentemp_edit_refused = FALSE;")
+       < at(of, "os_path_open_ok(pathname)") < at(of, "if (temp_refused) {") and re.search(r"if \(temp_refused\) \{\s*process\.status = ER_PERM;\s*goto exit_op_open;", of) is not None, "")
+    ob = func_body(c["object.c"], "void* load_object(char* name, bool abort_on_error) {")
+    ck("C22 load_object clears HDR_INTERNAL from an object that is not from the global catalogue unless the session is the administrator, in this process's "
+       "copy, after the header is read and converted and before the object is returned or runs (the owner's .out ruling: a user cannot set the bit by patching a file)",
+       re.search(r"if \(\(obj->code\.flags & HDR_INTERNAL\) && !\(flags & OBJ_GLOBAL\) && !\(my_uptr->flags & USR_ADMIN\)\)\s*obj->code\.flags &= ~HDR_INTERNAL;", ob) is not None
+       and 0 <= at(ob, "convert_object_header(") < at(ob, "obj->code.flags &= ~HDR_INTERNAL") < ob.rfind("return (void*)(&(obj->code));"), "")
 
     # ---- B. the BASIC side -------------------------------------------------------------------------------------------------
     lg, cp, ap = c["login"], c["cproc"], c["apisrvr"]
@@ -261,6 +349,102 @@ def checks(srcs, messages_dir):
     ck("G10 !OSCOPY and !IOSCOPY refuse a copy INTO a guarded path (the target only)",
        "kernel(K$EDIT.OS.OK, target)" in c["_oscopy"] and "kernel(K$EDIT.OS.OK, target)" in c["_ioscopy"], "")
 
+    # ---- G2. S.64 part 2: the $internal verbs that write, delete or clear a record of a file the USER names ------------------------
+    for prog, var, open_text, sinks in GUARD_TABLE:
+        cc = c[prog]
+        o = at(cc, open_text)
+        g_at = at(cc, "if not(edit_guard(%s)) then" % var)
+        sink_at = [at(cc, s) for s in sinks]
+        ck("G11 %s asks edit_guard(%s) after the open and before %s" % (prog, var, " / ".join(sinks)),
+           "deffun edit_guard(f) calling '!edit_guard'" in cc and 0 <= o < g_at and all(0 <= g_at < s for s in sink_at),
+           "open=%d guard=%d sinks=%r" % (o, g_at, sink_at))
+        form = (r"if not\(edit_guard\(%s\)\) then\s*\n\s*@system\.return\.code = -ER\$PERM\s*\n(\s*clearselect\s*\n)?\s*(stop|goto exit\.qproc)\s*\n\s*end"
+                % re.escape(var))
+        ck("G11b %s: a refusal sets the return code -ER$PERM and stops (edit_guard has said why)" % prog, re.search(form, cc) is not None, "")
+    cl_ = c["copylst"]
+    ck("G12 COPY.LIST asks the target when it copies to a file, and the source only with DELETING (CRT and LPTR change no file)",
+       re.search(r"if to\.file then\s*\n\s*if not\(edit_guard\(tgt\.file\)\)", cl_) is not None
+       and re.search(r"if deleting then\s*\n\s*if not\(edit_guard\(src\.file\)\)", cl_) is not None, "")
+    ck("G12b GET.LIST asks only with DELETING (a plain GET.LIST reads), and SET.TRIGGER only when a second argument asks for a change",
+       re.search(r"if deleting then\s*\n\s*if not\(edit_guard\(saved\.lists\.file\)\)", c["getlist"]) is not None
+       and re.search(r"if token\.type # PARSER\$END then\s*\n\s*if not\(edit_guard\(fu\)\)", c["settrig"]) is not None, "")
+    st = c["settrig"]
+    ck("G12c SET.TRIGGER asks before the call name is validated and before the exclusive-access test names the holders",
+       0 <= at(st, "if not(edit_guard(fu)) then") < at(st, "gosub validate.call.name"), "")
+    cdp = c["cd"]
+    ck("G13 CD asks only for the DATA form (a data file read as dictionary items): the flag is set in the DATA case and the ask tests it",
+       "data.form = @false" in cdp and "data.form = @true" in cdp and re.search(r"if data\.form then\s*\n\s*if not\(edit_guard\(dict\.f\)\)", cdp) is not None
+       and 0 <= at(cdp, "data.form = @false") < at(cdp, "data.form = @true"), "")
+    gn = c["generate"]
+    ck("G14 GENERATE asks about the dictionary BEFORE its questions are put, and about the include target before either OPENSEQ overwrite",
+       0 <= at(gn, "if not(edit_guard(dict.file)) then") < at(gn, "display sysmsg(6862)")
+       and 0 <= at(gn, "if not(edit_guard(target.f)) then") < at(gn, "openseq file.name, record.name overwrite")
+       and gn.count("openseq file.name, record.name overwrite") >= 2, "")
+    mp = c["mapcat"]
+    ck("G15 MAP FILE asks inside the 'file name given' block, so plain MAP and the default $map are not asked",
+       0 <= at(mp, "if file.name # '' then") < at(mp, "if not(edit_guard(map.f)) then"), "")
+    fd = c["fixdir"]
+    ck("G16 FIXDIR asks after its 'is not a directory file' test (a VOC and a dictionary stop there) and before the select",
+       0 <= at(fd, "sysmsg(11071") < at(fd, "if not(edit_guard(f)) then") < at(fd, "select f to 11"), "")
+    sv = c["spview"]
+    di = sv[at(sv, "delete.item:"):]
+    di = di[:di.find("show.data.page:")]
+    ck("G17 SP.VIEW asks the KERNEL (not edit_guard: it would DISPLAY over the page) at the top of delete.item, before the Y/N question, the lock and the delete",
+       "kernel(K$EDIT.OK, edit.p)" in di and "sysmsg(11404 + edit.kind)" in di and "edit_guard" not in sv
+       and 0 <= at(di, "edit.p = fileinfo(data.f, FL$PATH)") < at(di, "kernel(K$EDIT.OK, edit.p)") < at(di, "sysmsg(11105") < at(di, "readvu dummy")
+       < at(di, "delete data.f, item.name") and "$include keys.h" in sv and "$include int$keys.h" in sv, "")
+    qp = c["qproc"]
+    ck("G18 REFORMAT / SREFORMAT: check.reformat.target is gosub'd after the TO clause's open and after the Output file: prompt, and asks edit_guard(reformat.f)",
+       qp.count("gosub check.reformat.target") == 2 and "if edit_guard(reformat.f) then return" in qp
+       and re.search(r"check\.reformat\.target:\s*\n\s*if edit_guard\(reformat\.f\) then return\s*\n\s*@system\.return\.code = -ER\$PERM\s*\n\s*goto exit\.qproc", qp) is not None
+       and "deffun edit_guard(f) calling '!edit_guard'" in qp, "")
+    ck("G18b PAGESEQ asks edit_guard(pageseq.f) BEFORE the control record is read and locked",
+       0 <= at(qp, "if not(edit_guard(pageseq.f)) then") < at(qp, "readvu pageseq from pageseq.f"), "")
+    ck("G19 a delimited report TO a pathname asks the S.63 gate then the edit gates, BEFORE openseq truncates or creates it, and names the kind of the first path "
+       "component that explains the refusal (edit.os.message)",
+       0 <= at(qp, "if not(kernel(K$PATH.OK, csv.pathname)) then") < at(qp, "if not(kernel(K$EDIT.OS.OK, csv.pathname)) then") < at(qp, "openseq csv.pathname to csv.f")
+       and "gosub edit.os.message" in qp and "kernel(K$EDIT.KIND, field(eom.path, '/', eom.i))" in qp and "eom.msg = 11410" in qp, "")
+    cm = c["como"]
+    ck("G20 COMO ON asks K$EDIT.OS.OK on the pathname the COMO statement will be given, BEFORE the statement, and closes the $COMO file it opened on a refusal",
+       0 <= at(cm, "if not(kernel(K$EDIT.OS.OK, target.dir : @ds : mapped.name)) then") < at(cm, "como (if append then")
+       and "if fileinfo(como.file, FL$OPEN) then close como.file" in cm and "gosub edit.os.message" in cm, "")
+    cpc = c["cproc"]
+    ck("G21 CPROC's .S asks (voc.edit.ask) only when the VOC record EXISTS, before the Overwrite question, and releases the id; .D asks before its first readu; "
+       "a NEW sentence is not asked",
+       cpc.count("gosub voc.edit.ask") == 2 and "voc.edit.ok = kernel(K$EDIT.OK, fileinfo(voc, FL$PATH))" in cpc
+       and re.search(r"readvu voc\.rec from voc, arg1, 0 then\s*\n\s*gosub voc\.edit\.ask\s*\n\s*if not\(voc\.edit\.ok\) then\s*\n\s*release voc, arg1\s*\n\s*goto exit\.stack\.command\s*\n\s*end\s*\n\s*loop\s*\n\s*display sysmsg\(5045", cpc) is not None
+       and re.search(r"del command\.stack<n>\s*\n\s*end else\s*\n\s*gosub voc\.edit\.ask\s*\n\s*if not\(voc\.edit\.ok\) then goto exit\.stack\.command\s*\n\s*at\.command = trimf\(trimb\(at\.command\)\)\s*\n\s*readu voc\.rec", cpc) is not None, "")
+    cf = c["createf"]
+    ck("G22 CREATE.FILE on an EXISTING pointer asks (edit.check.existing: every data path of the record, the dictionary path not) BEFORE the Convert question",
+       cf.count("gosub edit.check.existing") == 1 and 0 <= at(cf, "gosub edit.check.existing") < at(cf, "display sysmsg(6195, file.name, file.name)")
+       and re.search(r"edit\.check\.existing:\s*\n\s*for ek = 1 to dcount\(voc\.rec<2>, @vm\)", cf) is not None
+       and "kernel(K$EDIT.OK, ek.path)" in cf and "stop sysmsg(11404 + ek.kind)" in cf and "voc.rec<3>" not in cf[at(cf, "edit.check.existing:"):], "")
+    wl, mk = c["writelist"], c["_mksavedlists"]
+    ck("G23 !WRITELIST makes the $savedlists pointer through !MKSAVEDLISTS (so a session without voc.edit can still save a list) and no longer writes it itself",
+       "call !mksavedlists(mk.err)" in wl and "write 'F'" not in wl and "'$svlists'" not in wl, "")
+    ck("G24 !MKSAVEDLISTS is $internal, takes no name or path, re-reads $savedlists and returns WITHOUT writing when it exists, and writes one fixed record",
+       "$internal" in mk and "$catalog !mksavedlists" in mk and "subroutine mksavedlists(err)" in mk
+       and 0 <= at(mk, "read s from @voc, '$savedlists' then") < at(mk, "create.file '$svlists' dynamic")
+       and re.search(r"read s from @voc, '\$savedlists' then\s*\n\s*release @voc, '\$savedlists'\s*\n\s*return\s*\n\s*end", mk) is not None
+       and mk.count("write ") == 1 and "write 'F' : @fm : '$svlists' to @voc, '$savedlists'" in mk, "")
+    ap2 = c["apisrvr"]
+    ck("G25 the API server's file operations ask check.edit BEFORE the statement: write, writeu, delete, deleteu, clearfile and the SEQKEY writes",
+       ap2.count("gosub check.edit") == 6 and all(
+           0 <= at(ap2, lbl) < at(ap2, "gosub check.edit", at(ap2, lbl)) < at(ap2, stmt, at(ap2, lbl))
+           for lbl, stmt in (("vb.write:", "write cmnd["), ("vb.writeu:", "writeu cmnd["), ("vb.delete:", "delete files(fno), id"),
+                              ("vb.deleteu:", "deleteu files(fno), id"), ("vb.clearfile:", "clearfile files(fno)"),
+                              ("writeseqkey.common:", "writeu wk.data to files(fno) creating.seqkey")))
+       and len(re.findall(r"gosub check\.edit[^\n]*\n\s*if err then return", ap2)) == 6 and "clearfile files(i)" not in ap2, "")
+    ck("G25b check.edit refuses an unreadable pathname (11410) and a file the session may not change (K$EDIT.OK, kind by K$EDIT.KIND), as an error",
+       re.search(r"check\.edit:\s*\nerr = @true\s*\ned\.path = fileinfo\(files\(fno\), FL\$PATH\)\s*\nif ed\.path = '' then", ap2) is not None
+       and "sysmsg(11410)" in ap2 and "kernel(K$EDIT.OK, ed.path)" in ap2 and "sysmsg(11404 + ed.kind)" in ap2, "")
+    ck("G25c SDOpenSeq opens READ ONLY (os.m = 1) when the pathname or the file is one the session may not change",
+       "os.edit.ok = kernel(K$EDIT.OS.OK, os.name)" in ap2 and "os.edit.ok = kernel(K$EDIT.OK, fileinfo(os.tf, FL$PATH))" in ap2
+       and 0 <= at(ap2, "os.m = 0") < at(ap2, "if not(os.edit.ok) then os.m = 1") < at(ap2, "case os.path and os.m = 0"), "")
+    ck("G25d SDSYS in its own account over the API loads the three gates ON, before the first-entry load of the register's own",
+       re.search(r"if downcase\(@logname\) = 'sdsys' and downcase\(new\.account\) = 'sdsys' then\s*\n\s*api\.voc\.grant = @true\s*\n\s*api\.bp\.grant = @true\s*\n\s*api\.dict\.grant = @true", ap2) is not None
+       and 0 <= at(ap2, "downcase(@logname) = 'sdsys'") < at(ap2, "void kernel(K$VOC.EDIT,  api.voc.grant)"), "")
+
     # ---- M. the messages ------------------------------------------------------------------------------------------------------
     texts = {}
     for n in range(11405, 11411):
@@ -288,6 +472,9 @@ def load():
 
 def mutate(srcs, name, old, new, count=1):
     s = dict(srcs)
+    if callable(old):                       # a mutant made by a function of the source text (raises KeyError when it does not apply)
+        s[name] = old(s[name])
+        return s
     if old not in s[name]:
         raise KeyError("mutant text not in %s: %r" % (name, old[:70]))
     s[name] = s[name].replace(old, new, count)
@@ -304,8 +491,8 @@ MUTANTS = [
     ("K_EDIT_OK answers 1 for an empty pathname", "op_kernel.c", "  edit_name[0] = '\\0';\n      result.data.value = 0;\n      if (action == K_EDIT_OK) {", "  edit_name[0] = '\\0';\n      result.data.value = 1;\n      if (action == K_EDIT_OK) {"),
     ("the gate keys can be set from a user program", "op_kernel.c", "      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;", "      if (n >= 0) {\n        if (1) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;"),
     ("OPENSEQ no longer makes a blocked file read only", "op_seqio.c", "      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {", "      if ((op_flags & P_READONLY) || access(fullpathname, 2)) {"),
-    ("DELETESEQ asks after the file is looked at", "op_seqio.c", "  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }\n\n  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }", "  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }\n\n  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }"),
-    ("a print file is not looked at", "to_file.c", "    if (edit_os_path_refusal(fn) != EDIT_NONE) {", "    if (0) {"),
+    ("DELETESEQ asks after the file is looked at", "op_seqio.c", "  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }\n\n  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }", "  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }\n\n  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }"),
+    ("a print file is not looked at", "to_file.c", "    if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {", "    if (0) {"),
     ("LOGTO reloads the VOC gate", "cproc", "   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')", "   void kernel(K$VOC.EDIT, upcase(trim(acc.record<ACC$VOC.EDIT>)) = 'YES')\n   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')"),
     ("LOGIN forgets the bp gate", "login", "   void kernel(K$BP.EDIT,   upcase(trim(acc.rec<ACC$BP.EDIT>)) = 'YES')\n", ""),
     ("the API server reloads at every SDLogto", "apisrvr", "if not(master.login.done) then\n   void kernel(K$VOC.EDIT,  api.voc.grant)", "if 1 then\n   void kernel(K$VOC.EDIT,  api.voc.grant)"),
@@ -327,7 +514,77 @@ MUTANTS = [
     ("DELETE.FILE forgets a dictionary on its own", "deletef", "         if not(delete.data) then\n            ef.path = dict.path\n            gosub edit.check.path\n         end", ""),
     ("!OSCOPY forgets the target", "_oscopy", "end else if not(kernel(K$EDIT.OS.OK, target)) then", "end else if 0 then"),
     ("message 11405 stops naming the word", "MESSAGE:11405", "voc-on", "voc-add"),
+    # ---- S.64 part 2: the C routes ----
+    ("OSPATH keys 5, 13 and 14 are not asked", "op_xfun.c", "if (((key == 5) || (key == 13) || (key == 14)) &&", "if (0 &&"),
+    ("OSPATH makes a directory with the leaf not counted", "op_xfun.c", ": TRUE) != EDIT_NONE)) {\n        process.status = ER_PERM;", ": FALSE) != EDIT_NONE)) {\n        process.status = ER_PERM;"),
+    ("OSPATH delete counts a plain file called x.bp", "op_xfun.c", "(key == 5) ? edit_leaf_counts(path) : TRUE", "TRUE"),
+    ("the socket trace log is not asked", "op_skt.c", "(edit_os_path_refusal(trace_path, FALSE) != EDIT_NONE)", "(0)"),
+    ("the socket trace log is asked of a $internal program too", "op_skt.c", "if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(trace_path, FALSE)", "if ((edit_os_path_refusal(trace_path, FALSE)"),
+    ("an object of a local catalogue keeps its own internal bit", "object.c", "!(flags & OBJ_GLOBAL) && !(my_uptr->flags & USR_ADMIN))", "0 && !(my_uptr->flags & USR_ADMIN))"),
+    ("the administrator loses the internal bit too", "object.c", "&& !(my_uptr->flags & USR_ADMIN))\n    obj->code.flags", ")\n    obj->code.flags"),
+    ("CREATE.FILE DYNAMIC is not asked", "op_dio1.c", "edit_kind = create_edit_refusal(path_name);", "edit_kind = EDIT_NONE;"),
+    ("CREATE.FILE DIRECTORY is not asked", "op_dio1.c", "? create_edit_refusal(path_name) : EDIT_NONE", "? EDIT_NONE : EDIT_NONE"),
+    ("create_edit_refusal asks a $internal program (createf would be refused)", "op_dio1.c", "  if (process.program.flags & HDR_INTERNAL)\n    return EDIT_NONE;\n  return edit_os_path_refusal(path, FALSE);", "  return edit_os_path_refusal(path, FALSE);"),
+    ("create_edit_refusal counts the name being made", "op_dio1.c", "return edit_os_path_refusal(path, FALSE);", "return edit_os_path_refusal(path, TRUE);"),
+    ("OPENTEMP of a named file is not asked", "op_dio1.c", "(create_edit_refusal(path) != EDIT_NONE)", "(0)"),
+    ("OPENTEMP's flag is never taken by open_file", "op_dio1.c", "bool temp_refused = opentemp_edit_refused;", "bool temp_refused = FALSE;"),
+    ("OPENSEQ counts the record name (a record called sample.bp is refused)", "op_seqio.c", "edit_blocked = (edit_os_path_refusal(fullpathname, FALSE)", "edit_blocked = (edit_os_path_refusal(fullpathname, TRUE)"),
+    ("a print file counts its own name", "to_file.c", "if (edit_os_path_refusal(fn, FALSE) != EDIT_NONE) {", "if (edit_os_path_refusal(fn, TRUE) != EDIT_NONE) {"),
+    ("K_EDIT_OS_OK never counts the target's name (a copy INTO bp is allowed)", "op_kernel.c", "edit_os_path_refusal(edit_os_name, edit_leaf_counts(edit_os_name))", "edit_os_path_refusal(edit_os_name, FALSE)"),
+    ("the private catalogue is no longer a program file (edit_kind_of_path)", "op_sh.c", "if ((kind == EDIT_NONE) && path_is_private_catalogue(path))", "if (0)"),
+    ("the private catalogue is found by the bare name", "op_sh.c", "  return catalogue_position(cwd, resolved) == 1;", "  return TRUE;"),
+    ("a path that cannot be placed is taken as NOT the catalogue", "op_sh.c", "    return TRUE;\n  return catalogue_position(cwd, resolved) == 1;", "    return FALSE;\n  return catalogue_position(cwd, resolved) == 1;"),
+    ("an OS path below the private catalogue is not refused", "op_sh.c", "((cat_pos == 2) || ((cat_pos == 1) && include_leaf)) && !edit_permitted(EDIT_PROG)", "0"),
+    ("edit_os_path_refusal ignores include_leaf", "op_sh.c", "(include_leaf || (*more != '\\0'))", "1"),
+    ("edit_leaf_counts counts a plain file", "op_sh.c", "return !S_ISREG(sb.st_mode);", "return TRUE;"),
+    # ---- S.64 part 2: the BASIC verbs ----
+    ("SP.VIEW deletes without asking", "spview", "if not(kernel(K$EDIT.OK, edit.p)) then", "if 0 then"),
+    ("REFORMAT's check forgets edit_guard", "qproc", "if edit_guard(reformat.f) then return", "return"),
+    ("a delimited report TO a path forgets the edit gates", "qproc", "if not(kernel(K$EDIT.OS.OK, csv.pathname)) then", "if 0 then"),
+    ("a delimited report TO a path forgets the OS-access gate", "qproc", "if not(kernel(K$PATH.OK, csv.pathname)) then", "if 0 then"),
+    ("COMO ON forgets the edit gates", "como", "if not(kernel(K$EDIT.OS.OK, target.dir : @ds : mapped.name)) then", "if 0 then"),
+    (".S asks of a record that does not exist yet too", "cproc", "readvu voc.rec from voc, arg1, 0 then\n", "readvu voc.rec from voc, arg1, 0 else\n"),
+    (".S and .D never get the answer", "cproc", "voc.edit.ok = kernel(K$EDIT.OK, fileinfo(voc, FL$PATH))", "voc.edit.ok = 1"),
+    (".S leaves the VOC record locked on a refusal", "cproc", "release voc, arg1\n               goto exit.stack.command", "goto exit.stack.command"),
+    ("CREATE.FILE on an existing pointer is not asked", "createf", "gosub edit.check.existing", "null"),
+    ("!WRITELIST writes the pointer itself again", "writelist", "call !mksavedlists(mk.err)", "write 'F':@fm:'$svlists' to @voc, '$savedlists'"),
+    ("!MKSAVEDLISTS replaces an entry that is there", "_mksavedlists", "read s from @voc, '$savedlists' then\n      release @voc, '$savedlists'\n      return\n   end\n", ""),
+    ("the API server writes without asking", "apisrvr", "gosub check.edit   ;* 17 Oct 26 dm, S.64 part 2: this program is $internal", "null   ;* 17 Oct 26 dm, S.64 part 2: this program is $internal"),
+    ("the API server clears the wrong file again", "apisrvr", "clearfile files(fno)   ;* 17 Oct 26 dm: was files(i)", "clearfile files(i)   ;* 17 Oct 26 dm: was files(i)"),
+    ("SDOpenSeq opens a guarded file read and write", "apisrvr", "if not(os.edit.ok) then os.m = 1", "null"),
+    ("SDSYS over the API does not get the bp gate", "apisrvr", "api.voc.grant = @true\n   api.bp.grant = @true", "api.voc.grant = @true"),
+    ("CD asks for the DICT form too, or never", "cd", "data.form = @true", "data.form = @false"),
+    ("SET.TRIGGER asks for the report form too", "settrig", "if token.type # PARSER$END then\n      if not(edit_guard(fu)) then", "if 1 then\n      if not(edit_guard(fu)) then"),
+    ("GET.LIST asks for a plain read", "getlist", "if deleting then\n      if not(edit_guard(saved.lists.file)) then", "if 1 then\n      if not(edit_guard(saved.lists.file)) then"),
+    ("COPY.LIST forgets the source of DELETING", "copylst", "if deleting then\n         if not(edit_guard(src.file)) then", "if 0 then\n         if not(edit_guard(src.file)) then"),
 ]
+
+
+def guard_block(var):
+    return re.compile(r"[ \t]*if not\(edit_guard\(%s\)\) then[ \t]*\n[ \t]*@system\.return\.code = -ER\$PERM[ \t]*\n(?:[ \t]*clearselect[ \t]*\n)?"
+                      r"[ \t]*(?:stop|goto exit\.qproc)[ \t]*\n[ \t]*end[ \t]*\n" % re.escape(var))
+
+
+def late_guard(var, sink):
+    """A mutant that asks AFTER the first SINK instead of before it: the first guard block is cut out and put back after the sink's line."""
+    def f(text):
+        m = guard_block(var).search(text)
+        if m is None:
+            raise KeyError("no guard block for %s" % var)
+        block = m.group(0)
+        rest = text[:m.start()] + text[m.end():]
+        i = rest.find(sink)
+        if i < 0:
+            raise KeyError("no sink %r" % sink)
+        eol = rest.find("\n", i) + 1
+        return rest[:eol] + block + rest[eol:]
+    return f
+
+
+for _prog, _var, _open, _sinks in GUARD_TABLE:
+    MUTANTS.append(("%s never asks edit_guard(%s)" % (_prog, _var), _prog, "if not(edit_guard(%s)) then" % _var, "if 0 then"))
+    # asked after the first thing it must precede (the select, the read, the lock, the write)
+    MUTANTS.append(("%s asks edit_guard(%s) only after %s" % (_prog, _var, _sinks[0]), _prog, late_guard(_var, _sinks[0]), None))
 
 
 def run(srcs, messages_dir):
