@@ -227,11 +227,12 @@ sdsys/gpl.bp/ftype           : listf-mult dictfold
 sdsys/gpl.bp/listfl          : listf-mult listu-a5
 sdsys/gpl.bp/listcom         : misc-a9
 sdsys/gpl.bp/delcom          : misc-a9
-sdsys/gpl.bp/qproc           : @query
+sdsys/gpl.bp/qproc           : @query ltype
 sdsys/gpl.bp/qdisp           : @query
 sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
-sdsys/gpl.bp/icomp           : @query itypemode
+sdsys/gpl.bp/icomp           : @query itypemode ltype
+sdsys/gpl.bp/linkref         : @query ltype
 sdsys/gpl.bp/acomp           : @query option-q17
 sdsys/gpl.bp/dcomp           : @query
 sdsys/gpl.bp/_sselct         : @lists
