@@ -483,6 +483,12 @@ def sdfix_rows():
     say("    asked: W%s=41, W%X=4243, W%X=44454647   file now has %s from %s" % (t, base + 1, base + 3, got.hex(), t))
     row("F19 W with 2, 4 and 8 hex digits writes 1, 2 and 4 bytes in the order typed, at the hex address",
         got == bytes([0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47]), got.hex())
+    d = fresh("f-wb")
+    CONF = debug_conf
+    rc, out, to = tool("sdfix", "-I", d, stdin="W%s=41\nW%s=4a\nq\n" % (t, t), timeout=15)
+    CONF = plain
+    row("F19b W with a hex letter in the value writes it, and 'Was' shows the bytes that were there",
+        bytes_at(d, t, 1) == b"\x4a" and "Was 00" in out and "Was 41" in out, "%s %r" % (bytes_at(d, t, 1).hex(), out[-200:]))
     d = fresh("f-w2")
     cmds = "W%s=\"hi\"\nq\n" % t
     CONF = debug_conf
