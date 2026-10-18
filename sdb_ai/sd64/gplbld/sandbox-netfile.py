@@ -2042,7 +2042,13 @@ def kn_driver():
                  ["st = status()", "v = rec ; gosub shw", "crt 'KR READV ':a3:'/':a4:' ':oc:' st=':st:' len=':len(rec):' rec=[':sv:']'"], pre=["fld = a4 + 0"])
     L += kn_case("MATREAD", "matread m from {f}, a3 " + eo, ["st = status()", "crt 'KR MATREAD ':a3:' ':oc:' st=':st:' [':m(1):'][':m(2):'][':m(3):']'"])
     L += kn_case("FI", "x = fileinfo({f}, fkey)", ["v = x ; gosub shw", "crt 'KR FI ':a3:' [':sv:']'"], pre=["fkey = a3 + 0"])      # not `key`: KEY() is a function
+    L += kn_case("IDX", "x = indices({f})", ["v = x ; gosub shw", "crt 'KR IDX [':sv:']'"])
+    L += kn_case("IDX2", "x = indices({f}, 'CITY')", ["v = x ; gosub shw", "crt 'KR IDX2 [':sv:']'"])
     L += kn_case("CLOSE", "close {f}", ["crt 'KR CLOSE ':slot"])
+    # slice 3d: SELECT / SELECTV / SSELECT of the file in the slot into list a3 (or a variable); the ids come out sorted by READNEXT as the list holds them
+    for tag, stmt, src in (("SELECT", "select {f} to lno on error oc = 'error'", "lno"), ("SELECTV", "selectv {f} to lv on error oc = 'error'", "lv"), ("SSELECT", "sselect {f} to lno", "lno")):
+        L += kn_case(tag, stmt, ["st = status()", "ids = ''", "n.sel = @selected", "loop", "   readnext x from %s else exit" % src, "   ids<-1> = x", "repeat",
+                                 "crt 'KR %s ':oc:' st=':st:' n=':n.sel:' ids=[':change(ids, @fm, ','):']'" % tag], pre=["lno = a3 + 0"])
     L += ["         case op = 'EXEC'", "            execute a2", "            crt 'KR EXEC ':a2:' who=':@who",
           "         case 1", "            crt 'KR UNKNOWN ':op", "      end case", "   repeat", "   crt 'KR end'", "   stop", "",
           "shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100",
@@ -2110,6 +2116,7 @@ $catalog $zznki
    crt 'KR ki open ':oc:' st=':st
    if oc = 'then' then
       read r from f, 'c1' then crt 'KR ki read len=':len(r) else crt 'KR ki read else'
+      crt 'KR ki flags=':fileinfo(f, 10001):' type=':fileinfo(f, 3):' coll=':fileinfo(f, 1035)
    end
    crt 'KR ki end'
 end
@@ -2147,8 +2154,8 @@ end
 
 # The refusal matrix.  (tag, lines before the open, the statement lines WITHOUT an ON ERROR clause, the lines WITH one (None: the statement has no
 # such clause), the messages the abort may give as (number, second argument), the STATUS() the ON ERROR branch sees).  The server in every message
-# is nfa, the server of zznet1.  7000 is ER_NETWORK, 3035 ER_PERM: the statements that take the S.64 edit-gate convention (RECORDLOCKU / L, SELECT,
-# SELECTV) give 3035, the others the net_refuse() status.  Every statement uses the open file variable f and the record c1.
+# is nfa, the server of zznet1.  7000 is ER_NETWORK, 3035 ER_PERM: the statements that take the S.64 edit-gate convention (RECORDLOCKU / L)
+# give 3035, the others the net_refuse() status.  SELECT and SELECTV are not here since slice 3d: they work (kn_query).  Every statement uses the open file variable f and the record c1.
 
 
 def km(tag, a, e, op, st, pre=(), num=11501):
@@ -2172,9 +2179,6 @@ KM = [
     km("matreadl", "matreadl m from f, 'c1' else null", "matreadl m from f, 'c1' on error null else null", "matreadl", 7000, pre=["dim m(3)"]),
     km("recordlocku", "recordlocku f, 'c1'", "recordlocku f, 'c1' on error null", "recordlocku", 3035),
     km("recordlockl", "recordlockl f, 'c1'", "recordlockl f, 'c1' on error null", "recordlockl", 3035),
-    km("select", "select f to 5", ["select f to 5 on error null", "st = status()", "readnext x from 5 then crt 'KR select readnext THEN' else crt 'KR select readnext ELSE'"],
-       "select", 3035),
-    km("selectv", "selectv f to lst", "selectv f to lst on error null", "selectv", 3035),
     km("release", "release f, 'c1'", None, "release", None),
     km("releasef", "release f", None, "release", None),
     km("filelock", "filelock f", None, "filelock", None),
@@ -2186,8 +2190,6 @@ KM = [
     km("selectleft", "selectleft 'CITY' from f to 5", None, "selectright/selectleft", None),
     km("setleft", "setleft 'CITY' from f", None, "setleft", None),
     km("setright", "setright 'CITY' from f", None, "setright", None),
-    km("indices", "x = indices(f)", None, "indices", None),
-    km("indices2", "x = indices(f, 'CITY')", None, "indices", None),
     km("fcontrol6", "void fcontrol(f, 6, 'c1')", None, "fcontrol", None),
     km("fcontrol1", "void fcontrol(f, 1, -1)", None, "fcontrol", None),
     km("fiexcl", "x = fileinfo(f, 10000)", None, "fileinfo", None),
@@ -2198,12 +2200,11 @@ KM = [
        ["begin transaction", "write 'zz' to f, 'c1' on error null", "st = status()", "rollback", "end transaction"], "write", 7000),
 ]
 # the FILEINFO keys the handler does not answer (stage 1 answers 0, 1, 2): 11502 names the server and the key, and the key is not guessed at
-KFI_KEYS = (3, 5, 1013, 1015, 1019, 1021, 1039, 1100)
+KFI_KEYS = (5, 1013, 1015, 1019, 1021, 1039, 1100)      # 3 (type), 1035 (collection) and 10001 (flags) are answered from the file variable since slice 3d
 KM += [km("fikey%d" % k, "x = fileinfo(f, %d)" % k, None, str(k), None, num=11502) for k in KFI_KEYS]
 
 # the verbs on the VOC name: (the command, its extra lines, a message number the verb is known to refuse with or None)
-KVERBS = [("COUNT zznet1", [], None), ("LIST zznet1", [], None), ("SELECT zznet1", [], None), ("SORT zznet1", [], None),
-          ("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYSE.FILE zznet1", [], None),
+KVERBS = [("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYSE.FILE zznet1", [], None),
           ("CLEAR.FILE zznet1", [], 1431), ("DELETE.FILE zznet1", [], 2015), ("DELETE zznet1 c1", [], None),
           ("COPY FROM zznet1 TO zznetempty c1", [], None), ("ED zznet1 zznewrec", ["I hello", "FI", "Q", "Y"], None)]
 
@@ -2401,6 +2402,7 @@ def kernel_section():
     kn_gates(A, B)
     kn_matrix(A)
     kn_verbs(A)
+    kn_query(A, B)
     kn_after(A)
 
 
@@ -2507,18 +2509,19 @@ def kn_opens_refused(A, B):
     bad_ok = {v: op.get(v) for v, _s, _f in KBAD}
     row("ALL NINE badly made pointers (a server name starting with a digit, holding a space, empty or 17 characters; a file name empty, with a slash, a space, 64 characters or a semicolon) are "
         "refused in the VOC step: the ELSE branch with STATUS() 3002 (bad file name)", all(v == ("else", 3002) for v in bad_ok.values()), repr(bad_ok))
-    row("OPEN 'DICT', 'zznet1' (the dictionary of a remote file is not supported in this slice) takes ELSE with STATUS() 3009, and nothing is dialled for it",
-        "KR ODICT zznet1 else st=3009" in r.kr, repr([x for x in r.kr if x.startswith("KR ODICT")]))
+    row("OPEN 'DICT', 'zznet1' (slice 3d: the dictionary of a remote file is opened as 'dict hcust' on the server) is the THEN branch with STATUS() 0, and so is the dictionary of the upper case pointer",
+        "KR ODICT zznet1 then st=0" in r.kr and "KR ODICT zznetup then st=0" in r.kr, repr([x for x in r.kr if x.startswith("KR ODICT")]))
     da, db = r.d
-    expect_a = [[47, 48, 3, 4], [47, 48, 3, 4, 4, 6, 6]]
-    row("...WHAT WAS DIALLED: server A saw two connections - the first ACCOUNT and OPEN nosuchfile (then the handler's Quit), the second ACCOUNT, OPEN, OPEN, READ, READ and nothing else (so no pointer of "
-        "the refused kind and none of the nine bad ones, nor the DICT open, made a request; a Quit at the end of a connection is not compared)", kn_conns(da) == expect_a, repr(by_conn(da)))
+    expect_a = [[47, 48, 3, 4], [47, 48, 3, 4, 4, 6, 6, 4, 5, 4]]
+    row("...WHAT WAS DIALLED: server A saw two connections - the first ACCOUNT and OPEN nosuchfile (then the handler's Quit), the second ACCOUNT, OPEN, OPEN, READ, READ, the first dictionary OPEN, the CLOSE "
+        "of it that the second one's assignment queued, and the second dictionary OPEN, and "
+        "nothing else (so no pointer of the refused kind and none of the nine bad ones made a request; a Quit at the end of a connection is not compared)", kn_conns(da) == expect_a, repr(by_conn(da)))
     row("...server B (the pin mismatch) saw one connection and a completed handshake, ZERO request packets and ZERO application bytes: nothing was sent to a server whose key is not the pinned one",
         db["conns"] == 1 and db["handshakes"] == 1 and db["types"] == [] and db["app_bytes"] == 0, repr({k: db[k] for k in ("conns", "handshakes", "types", "app_bytes")}))
     want_audit = ["open server=nfa file=nosuchfile", "refused server=nfnocred reason=credential", "refused server=nfcpin reason=credential", "open server=nfpin file=hcust",
-                  "refused server=nfadm reason=list", "open server=nfa file=hcust", "open server=nfa file=hcust"]
-    row("...the audit trail has the handler's line for each of the seven pointers that reached it, in order, and NONE for the nine bad ones or the DICT open (the VOC step refused them before any "
-        "gate or handler); nothing secret", r.audits == want_audit and secret_free(r.audit), repr(r.audits))
+                  "refused server=nfadm reason=list", "open server=nfa file=hcust", "open server=nfa file=hcust", "open server=nfa file=dict hcust", "open server=nfa file=dict hcust"]
+    row("...the audit trail has the handler's line for each of the seven pointers that reached it and for the two dictionary opens, in order, and NONE for the nine bad ones (the VOC step refused them "
+        "before any gate or handler); nothing secret", r.audits == want_audit and secret_free(r.audit), repr(r.audits))
     row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
 
 
@@ -2633,9 +2636,6 @@ def kn_matrix(A):
         m = next((re.match(r"^KR %s st=(\d+)$" % re.escape(tag), x) for x in seg if re.match(r"^KR %s st=(\d+)$" % re.escape(tag), x)), None)
         good = (m is not None and int(m.group(1)) == st and "KR %s back len=%d" % (tag, c1len) in seg and "KR %s end" % tag in seg and kn_abort(seg) is None)
         extra = ""
-        if tag == "select":
-            good = good and "KR select readnext ELSE" in seg
-            extra = "; the default select list is untouched (READNEXT takes ELSE)"
         row("%s on a NET file WITH ON ERROR: the ON ERROR clause ran and STATUS() was %d, the program went on, read a record from the same file afterwards (%d bytes) and reached its end%s"
             % (tag.upper(), st, c1len, extra), good, repr(seg))
     types = set(r.d[0]["types"])
@@ -2656,6 +2656,96 @@ def kn_verbs(A):
             % (cmd, "" if num is None else ", and the verb refused with its own text (message %d: %r)" % (num, msg(num, "zznet1"))),
             not r.hung and "KR sent" in r.kr and types <= KALLOWED and r.idle and kn_snapshot(A) == before and (num is None or any(msg(num, "zznet1") in ln for ln in r.out)),
             "hung=%s sent=%s types=%s out=%r" % (r.hung, "KR sent" in r.kr, sorted(types - KALLOWED), r.out[:6]))
+
+
+KQALLOWED = KALLOWED | {11, 14}                       # slice 3d: and the two requests a SELECT makes (select, then readlist)
+KQ_RX = re.compile(r"^KR (SELECT|SELECTV|SSELECT) (\S+) st=(\d+) n=(\d+) ids=\[(.*)\]$")
+
+
+def kn_sel(r):
+    """The SELECT / SELECTV / SSELECT lines the driver printed: [(verb, outcome, status, count, [ids in the order READNEXT gave them])]."""
+    out = []
+    for ln in r.kr:
+        m = KQ_RX.match(ln)
+        if m:
+            out.append((m.group(1), m.group(2), int(m.group(3)), int(m.group(4)), m.group(5).split(",") if m.group(5) else []))
+    return out
+
+
+def kn_query(A, B):
+    say("\n  -- slice 3d: SELECT, SELECTV and SSELECT of a remote file, FILEINFO, its dictionary, and the query verbs on the VOC name --")
+    all_ids = sorted(A.store.records(HFILE))
+    before = kn_snapshot(A)
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "OPEN|2|zznetempty", "SELECT|1|2", "SELECT|2|3", "SELECTV|1|0", "SSELECT|1|4", "SELECT|1|2", "SELECT|2|2", "CLOSE|1", "CLOSE|2"], (A,))
+    sel = kn_sel(r)
+    say("    [note] the driver printed %r" % [x[:120] for x in r.kr])
+    row("the SELECT driver ran to its end, nothing is left open, and no fake saw anything malformed", kn_sane(r) and not r.crash, kn_why(r))
+    row("SELECT zznet1 TO 2: THEN, STATUS() 0, @SELECTED %d, and READNEXT gives every id of the remote file once (%s) - the ORDER is the fake's" % (len(all_ids), ",".join(all_ids)),
+        len(sel) >= 1 and sel[0][:4] == ("SELECT", "then", 0, len(all_ids)) and sorted(sel[0][4]) == all_ids and len(set(sel[0][4])) == len(all_ids), repr(sel[:1]))
+    row("SELECT of the empty remote file: THEN, STATUS() 0, @SELECTED 0, READNEXT takes ELSE at once", len(sel) >= 2 and sel[1] == ("SELECT", "then", 0, 0, []), repr(sel[1:2]))
+    row("SELECTV zznet1 TO a variable gives the same ids and the same count", len(sel) >= 3 and sel[2][:4] == ("SELECTV", "then", 0, len(all_ids)) and sorted(sel[2][4]) == all_ids, repr(sel[2:3]))
+    row("SSELECT zznet1 TO 4 gives them SORTED by id (SD's order: %s); STATUS() after an SSELECT is the count, as for a local file" % ",".join(all_ids),
+        len(sel) >= 4 and sel[3][:4] == ("SSELECT", "then", len(all_ids), len(all_ids)) and sel[3][4] == all_ids, repr(sel[3:4]))
+    row("SELECT into list 2 AGAIN gives the same ids (nothing doubled), and a SELECT of the empty file into list 2 afterwards EMPTIES it: the new ids replace the old list",
+        len(sel) >= 6 and sorted(sel[4][4]) == all_ids and len(sel[4][4]) == len(all_ids) and sel[5] == ("SELECT", "then", 0, 0, []), repr(sel[4:6]))
+    d = r.d[0]
+    types = d["types"]
+    row("...THE FAKE SAW only login, account, open, close, select and readlist (request types seen: %s): SIX selects (the empty file's two included), each followed by its READLIST, and nothing that writes, "
+        "locks or reads a record" % sorted(set(types)), set(types) <= KQALLOWED and types.count(11) == 6 and types.count(14) == 6 and types.count(6) == 0, repr((sorted(set(types)), types.count(11), types.count(14))))
+    row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
+
+    # FILEINFO: the three keys the query processor asks, from the file variable, nothing dialled for them
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "FI|1|3", "FI|1|1035", "IDX|1", "IDX2|1", "CLOSE|1"], (A,))
+    row("FILEINFO(f, FL$TYPE) is 7 (FL$TYPE.NET) and FL$COLLECTION is 0; INDICES(f) and INDICES(f, name) are the null string (the query processor asks both of every file); no request but the open and the "
+        "close went to the server", kn_sane(r) and "KR FI 3 [7]" in r.kr and "KR FI 1035 [0]" in r.kr and "KR IDX []" in r.kr and "KR IDX2 []" in r.kr and set(r.d[0]["types"]) <= KALLOWED
+        and r.d[0]["types"].count(6) == 0, kn_why(r))
+    r = kn_run("zznhon", ["ZZNKI"], (A,))
+    seg = kn_segments(r.out).get("ki", [])
+    row("...and an $internal program gets FL$FLAGS 16 (DHF_NOCASE: every hashed file is NOCASE), type 7 and coll 0", not r.hung and "KR ki flags=16 type=7 coll=0" in seg, repr(seg))
+
+    # the dictionary
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "ODICT|2|zznet1", "READ|2|name", "READ|2|bal", "READ|2|nosuch", "READV|2|name|2", "FI|2|1", "FI|2|3", "SELECT|2|2", "CLOSE|2", "CLOSE|1"], (A,))
+    dsel = kn_sel(r)
+    row("OPEN 'DICT', 'zznet1' opens the dictionary of the remote file: its items READ (name, bal), an item that is not there takes ELSE with STATUS() 3006, READV cuts a field",
+        kn_sane(r) and "KR ODICT zznet1 then st=0" in r.kr and kn_read_line("name", DICT_ITEMS["name"]) in r.kr and kn_read_line("bal", DICT_ITEMS["bal"]) in r.kr
+        and any(ln.startswith("KR READ nosuch else") for ln in r.kr) and kn_readv_line("name", 2, "1") in r.kr, kn_why(r))
+    row("...SELECT of the dictionary file variable gives the dictionary's own ids (%s), not the data file's" % ",".join(sorted(DICT_ITEMS)),
+        len(dsel) == 1 and dsel[0][:3] == ("SELECT", "then", 0) and sorted(dsel[0][4]) == sorted(DICT_ITEMS), repr(dsel))
+    row("...the audit trail names the dictionary open ('open server=nfa file=dict hcust'), and the data file is a different open", "open server=nfa file=dict hcust" in r.audits and "open server=nfa file=hcust" in r.audits, repr(r.audits))
+    r = kn_drive("zznhoff", ["ODICT|1|zznet1"], (A, B))
+    row("THE NET GATE applies to the dictionary: in the account without it OPEN 'DICT' takes ON ERROR with STATUS() 3035 and nothing is dialled",
+        kn_sane(r) and "KR ODICT zznet1 error st=3035" in r.kr and all(d["conns"] == 0 for d in r.d) and "refused server=nfa reason=gate" in r.audits, kn_why(r))
+
+    # the query verbs, typed at the command prompt: the dictionary, the select and the records all come from the server
+    def tcl(cmd):
+        r = kn_run("zznhon", [cmd, "RUN bp " + KSENT], (A,))
+        shown = [x for x in r.out if not x.startswith("KR ")]
+        say("    [note] %s -> %r" % (cmd, shown[:6]))
+        say("    [note] requests for it: %s (4 open, 5 close, 6 read, 11 select, 14 readlist)" % {t: r.d[0]["types"].count(t) for t in sorted(set(r.d[0]["types"])) if t not in (1, 47, 48, 3)})
+        return r, shown
+
+    def clean(r, shown):
+        return (not r.hung and "KR sent" in r.kr and not r.crash and r.idle and set(r.d[0]["types"]) <= KQALLOWED and kn_snapshot(A) == before
+                and not any(re.search(r"not answered|cannot open|not found|Unexpected|corrupt|free", x, re.I) for x in shown))
+
+    r, shown = tcl("COUNT zznet1")
+    row("COUNT zznet1: the session goes on, the count is %d, the query asked the server for a select" % len(all_ids),
+        clean(r, shown) and any(re.search(r"\b%d\b" % len(all_ids), x) for x in shown) and r.d[0]["types"].count(11) >= 1, repr(shown[:6]))
+    r, shown = tcl('LIST zznet1 NAME WITH NAME = "Smith"')
+    row("LIST zznet1 NAME WITH NAME = \"Smith\": one row, c1 and Smith, and not Jones or Brown (the dictionary came from the server, the records were read from it)",
+        clean(r, shown) and any("c1" in x and "Smith" in x for x in shown) and not any("Jones" in x or "Brown" in x for x in shown) and r.d[0]["types"].count(6) >= 1, repr(shown[:8]))
+    r, shown = tcl('SORT zznet1 BY NAME NAME WITH NAME = "Brown" OR WITH NAME = "Jones" OR WITH NAME = "Smith"')
+    pos = [next((i for i, x in enumerate(shown) if w in x), -1) for w in ("Brown", "Jones", "Smith")]
+    row("SORT zznet1 BY NAME ...: Brown, Jones, Smith, in that order", clean(r, shown) and -1 not in pos and pos == sorted(pos), repr((pos, shown[:10])))
+    r, shown = tcl('SELECT zznet1 WITH NAME = "Jones"')
+    row("SELECT zznet1 WITH NAME = \"Jones\": one record selected and the session goes on", clean(r, shown) and any(re.search(r"\b1 record", x) for x in shown), repr(shown[:6]))
+    r, shown = tcl('LIST zznet1 NAME WITH NAME = "Nobody"')
+    row("LIST zznet1 ... WITH NAME = \"Nobody\": no records, the session goes on", clean(r, shown) and not any("c1" in x or "Smith" in x for x in shown), repr(shown[:6]))
+    r, shown = tcl("LIST DICT zznet1")
+    row("LIST DICT zznet1 lists the dictionary of the remote file: both items, name and bal", clean(r, shown) and any("name" in x for x in shown) and any("bal" in x for x in shown), repr(shown[:8]))
+    r, shown = tcl("LIST zznet1 'c2' NAME")
+    row("LIST zznet1 'c2' NAME: an id given on the command line is read, not selected (no select request), and the row shows Jones",
+        clean(r, shown) and any("Jones" in x for x in shown) and r.d[0]["types"].count(11) == 0, repr((shown[:6], r.d[0]["types"].count(11))))
 
 
 def kn_after(A):

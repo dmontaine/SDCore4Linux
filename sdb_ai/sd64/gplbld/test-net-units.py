@@ -73,11 +73,18 @@ refusal of every other statement.  Section NK reads the C and BASIC as ORDER: th
 functions defined once, with one prototype everywhere (NK2); net_open_work in the order shape - GATE - audit - handler, the gate asking the session and NEVER exempting an $internal program,
 the handler found and called BY NAME (NK3); net_refuse running no BASIC, net_close sending only for a CLOSE statement and queueing every other release, net_stale and the epoch, the NET_FILE made last
 and only on success (NK4); _voc_ref's N case and check.n.pointer, with the C parse of the encoded form (NK5); open_file recognising the encoded path inside the OPEN-by-name block before fullpath and
-the file table, and dio_close / op_close (NK6); THE CENSUS - each of the 31 sites the 17 Oct census says REFUSE calls net_refuse (or refuse_net_file) behind a NET_FILE test and before the first
+the file table, and dio_close / op_close (NK6); THE CENSUS - each of the 31 sites the 17 Oct census says REFUSE (27 since slice 3d took SELECT, SELECTV and both INDICES out) calls net_refuse (or refuse_net_file) behind a NET_FILE test and before the first
 read or write of the file table, a lock, a select list or an edit-gate decision; the guards on the file table's readers; READV and FILEINFO answered before the file table (NK7); and a scan that
 FAILS when a new kernel function is given a file variable and nobody has decided what it does with a remote one (NK8); messages 11507 / 11508, the Makefile list, the suite and the map, the history
 lines (NK9-NK12).  WHAT THIS CANNOT SAY: that anything compiles (make is the compiler), that a statement is refused, that ON ERROR runs, or what reaches the wire - the section kernel of
 sandbox-netfile.py, whose refusal matrix runs about 40 statements against the fake server and requires its packet log to hold nothing but login, account, open, read, close and quit.
+
+17 Oct 26 dm  S.65 slice 3d: SELECT and SELECTV of a remote file, the dictionary of one, and three FILEINFO keys.  SELECT, SELECTV and both INDICES leave the refusal census (NK7 now counts 27 sites; INDICES of a remote file is the null string, NK18): NK13
+reads net_select (through net_op with NF_SELECT, net_raise only from the statement's own ON ERROR, *ids and *count set only on success, the field marks counted), NK14 op_select (the ids asked
+of the server BEFORE end_select and clear_select, so an error leaves the target list alone, then store_select_list), NK15 op_selectv (the target found again from the e-stack after the call,
+because the handler runs BASIC; @SELECTED set; list 11 never used), NK16 op_fileinfo (FL_TYPE FL_TYPE_NET, FL_COLLECTION 0 and FL_FLAGS the NOCASE bit for an $internal program only, all before
+any FPtr; the value 7 in both keys.h files) and NK17 the DICT form (_voc_ref adds 'dict ' only for fno 3 and only after the shape check; the file name buffer and the length test hold the 5 more
+characters).  NK5 and NK5b were rewritten for it.  WHAT THIS CANNOT SAY: that a remote SELECT returns the server's ids or that a dictionary opens - sandbox-netfile.py.
 
 ***AND THE CHECKS ARE THEMSELVES CHECKED.***  --selftest breaks each invariant in the way an edit plausibly would and requires some
 check to notice.  A mutant that nothing catches is reported as a FAILURE of the self-test.
@@ -592,6 +599,7 @@ def checks(srcs):
     checks_3a(srcs, c, ck)
     checks_3b(srcs, c, ck)
     checks_3c(srcs, c, ck)
+    checks_3d(srcs, c, ck)
     return rows
 
 
@@ -1433,7 +1441,7 @@ def checks_3b(srcs, c, ck):
 
 # ---- NK. S.65 slice 3c: the kernel half - the NET_FILE type, netfiles.c, the VOC pointer, and the refusal of every other statement ----------------------
 
-NK_FUNCS = ("net_path_is_net", "net_open", "net_close", "net_read", "net_readv", "net_fileinfo", "net_refuse", "net_close_all", "net_message")
+NK_FUNCS = ("net_path_is_net", "net_open", "net_close", "net_read", "net_readv", "net_fileinfo", "net_select", "net_refuse", "net_close_all", "net_message")   # net_select: slice 3d
 NK_TYPES = {"DIRECTORY_FILE": 1, "DYNAMIC_FILE": 2, "SEQ_FILE": 3, "NET_FILE": 4}
 # what a refusal must come before: the first of these in the function (a NET_FILE has no file table entry, so each of them reads or WRITES memory in front of the table)
 NK_DANGER = ("FPtr(", "access.dh", "lock_record(", "unlock_record(", "check_lock(", "end_select(", "clear_select(", "log_permissions_error(", "edit_refusal(", "txn_read(", "k_recurse(")
@@ -1447,8 +1455,6 @@ NK_REFUSE = {
     ("op_dio3.c", "op_delete"): ("H", ()),
     ("op_dio3.c", "op_write"): ("H", ()),
     ("op_dio3.c", "op_writev"): ("H", ()),
-    ("op_dio4.c", "op_select"): ("R", ()),
-    ("op_dio4.c", "op_selectv"): ("R", ("switch (fvar->type)",)),
     ("op_lock.c", "op_filelock"): ("R", ()),
     ("op_lock.c", "op_flunlock"): ("R", ()),
     ("op_lock.c", "op_getlocks"): ("R", ("descr->data.fvar->file_id",)),
@@ -1462,8 +1468,6 @@ NK_REFUSE = {
     ("dh_ak.c", "op_akclear"): ("R", ()),
     ("dh_ak.c", "op_akenable"): ("R", ()),
     ("dh_ak.c", "op_akmap"): ("R", ()),
-    ("dh_ak.c", "op_indices1"): ("R", ()),
-    ("dh_ak.c", "op_indices2"): ("R", ()),
     ("dh_ak.c", "op_selindx"): ("R", ()),
     ("dh_ak.c", "op_selindxv"): ("R", ()),
     ("dh_ak.c", "akscan"): ("R", ()),
@@ -1472,6 +1476,10 @@ NK_REFUSE = {
     ("dh_misc.c", "pub_fcontrol"): ("R", ()),
     ("analyse.c", "op_analyse"): ("R", ()),
 }
+# SELECT and SELECTV were REFUSE sites in slice 3c; since slice 3d they ask the server (NK14, NK15), and are decided here
+NK_SELECT = {("op_dio4.c", "op_select"), ("op_dio4.c", "op_selectv")}
+# INDICES (both forms) were REFUSE sites in slice 3c; since slice 3d a NET_FILE gets the null string through the default arm (NK18), because the query processor asks it of every file
+NK_INDICES = {("dh_ak.c", "op_indices1"), ("dh_ak.c", "op_indices2")}
 # the census says REFUSE, but by a guard on the read of the file table and not by a statement refusal: the NET_FILE test must come before the first FPtr(
 NK_GUARD = (("op_dio2.c", "get_file_status"), ("k_error.c", "log_permissions_error"), ("pdump.c", "dump_variable"), ("op_dio2.c", "op_fileinfo"))
 # the census says IGNORE because the function already answers any other kind of file: the sequential-file family (ER_NSEQ), GETPORT / SETPORT, GROUPSTAT, SET.TRIGGER, MARK.MAPPING
@@ -1485,7 +1493,7 @@ NK_OTHER = {("op_dio1.c", "op_close"), ("op_dio1.c", "open_file"), ("op_dio3.c",
             ("k_funcs.c", "k_release"), ("kernel.c", "process_events"), ("kernel.c", "dump_status"), ("op_debug.c", "get_var_info"), ("op_loads.c", "op_dup")}
 NK_SITES_WITH_H = {"read_record", "op_readv", "op_clrfile", "op_delete", "op_write", "op_writev"}
 NK_SUITE_MATRIX = ("write", "writeu", "writev", "matwrite", "delete", "clearfile", "readu", "readl", "readvu", "readvl", "matreadu", "matreadl", "recordlocku", "release", "filelock",
-                   "fileunlock", "recordlocked", "select", "selectv", "selectindex", "selectright", "setleft", "setright", "indices", "fcontrol6", "fiexcl", "txnwrite")
+                   "fileunlock", "recordlocked", "selectindex", "selectright", "setleft", "setright", "fcontrol6", "fiexcl", "txnwrite")
 NK_MAP_FILES = ("gplsrc/netfiles.c", "gplsrc/op_dio1.c", "gplsrc/op_dio2.c", "gplsrc/op_dio3.c", "gplsrc/op_dio4.c", "gplsrc/op_lock.c", "gplsrc/dh_ak.c", "gplsrc/dh_misc.c",
                 "gplsrc/analyse.c", "gplsrc/k_error.c", "gplsrc/pdump.c", "gplsrc/descr.h", "gplsrc/sd.h", "gpl.src", "sdsys/gpl.bp/_voc_ref")
 
@@ -1647,7 +1655,7 @@ def checks_3c(srcs, c, ck):
                 others[(fname, n)] = p
     twice = [n for n in NK_FUNCS if sum(len(re.findall(r"^[A-Za-z_][\w \t\*]*?\b%s\s*\([^;{)]*\)\s*\{" % n, t, re.M)) for k, t in c.items()
                                           if k.endswith((".c",)) or k.startswith("c:")) != 1]
-    ck("NK2 the nine netfiles.c functions (net_path_is_net, net_open, net_close, net_read, net_readv, net_fileinfo, net_refuse, net_close_all, net_message) are each DEFINED ONCE in the kernel, "
+    ck("NK2 the ten netfiles.c functions (net_path_is_net, net_open, net_close, net_read, net_readv, net_fileinfo, net_select, net_refuse, net_close_all, net_message) are each DEFINED ONCE in the kernel, "
        "have a prototype in sd.h that says exactly what the definition says, and every other prototype of them (op_dio2.c, op_dio3.c) agrees too",
        all(defs.values()) and defs == protos and not twice and all(p == protos[n] for (f, n), p in others.items()) and len(others) >= 5, repr((defs, protos, twice, others)))
 
@@ -1703,21 +1711,25 @@ def checks_3c(srcs, c, ck):
     i = vr.find('case type = "N"')
     case_n = vr[i:vr.find("\n         case 1", i)] if i >= 0 else ""
     chk = routine_body(vr, "check.n.pointer")
-    ck("NK5 _voc_ref: an N pointer is its own case of the pointer loop (after F and Q, before the default); a dictionary (fno 3) is refused ER$VNF FIRST; both names are trimmed and lower cased; the shape "
-       "test is a gosub and a failure is ER$NAM; the pathname returned is char(1) 'N' char(1) server char(1) file with status 0; NO kernel call and NO gate in the case (the gate is the session's, asked in C)",
+    ck("NK5 _voc_ref: an N pointer is its own case of the pointer loop (after F and Q, before the default); both names are trimmed and lower cased; the shape "
+       "test is a gosub and a failure is ER$NAM; a dictionary (fno 3) is NOT refused any more (no ER$VNF in the case) - 'dict ' goes in front of the file name AFTER the shape test; the pathname returned is "
+       "char(1) 'N' char(1) server char(1) file with status 0; NO kernel call and NO gate in the case (the gate is the session's, asked in C)",
        i > 0 and vr.find('case type = "Q"') < i < vr.find("\n         case 1", i)
-       and ordered(case_n, "if fno = 3 then", "set.status ER$VNF", "n.srv = downcase(trim(voc.rec<2>))", "n.file = downcase(trim(voc.rec<3>))", "gosub check.n.pointer", "if not(n.ok) then", "set.status ER$NAM",
-                   "pathname = char(1):'N':char(1):n.srv:char(1):n.file", "set.status 0", "return")
+       and ordered(case_n, "n.srv = downcase(trim(voc.rec<2>))", "n.file = downcase(trim(voc.rec<3>))", "gosub check.n.pointer", "if not(n.ok) then", "set.status ER$NAM", "return", "end",
+                   "if fno = 3 then n.file = 'dict ':n.file", "pathname = char(1):'N':char(1):n.srv:char(1):n.file", "set.status 0", "return")
+       and "ER$VNF" not in case_n
        and "kernel(" not in case_n and "K$NET" not in vr, repr(case_n[:120]))
-    ck("NK5a check.n.pointer: a server name is 1 to 16 characters, a lower case LETTER first, then letters and digits; a file name is 1 to 63 lower case letters, digits and . _ - $ (no space, so no DICT form; no "
-       "slash, so no pathname); n.ok starts true and only ever goes false",
+    ck("NK5a check.n.pointer: a server name is 1 to 16 characters, a lower case LETTER first, then letters and digits; a file name is 1 to 63 lower case letters, digits and . _ - $ (no space: the 'dict ' of the "
+       "DICT form is added by the case AFTER this test, NK17; no slash, so no pathname); n.ok starts true and only ever goes false",
        ordered(chk, "n.ok = @true", "'abcdefghijklmnopqrstuvwxyz'", "'0123456789'", "len(n.srv) < 1 or len(n.srv) > 16", "len(n.file) < 1 or len(n.file) > 63", "index(n.letters, n.srv[1,1], 1) = 0",
                "index(n.letters:n.digits, n.srv[n.k,1], 1) = 0", "index(n.letters:n.digits:'._-$', n.file[n.k,1], 1) = 0") and "n.ok = @true" not in chk[chk.find("n.ok = @true") + 12:]
        and chk.count("n.ok = @false") >= 5 and "/" not in re.sub(r"'[^']*'", "", chk), "")
     ck("NK5b the C side reads the encoded form the BASIC side writes: byte 0 is char(1), byte 1 is 'N', byte 2 is char(1), the server name runs to the next char(1) (1 to NET_SERVER_LEN), the file name is the rest "
-       "(1 to NET_FILE_MAX, no second separator) - and a path that is not that is message 11508 and ER_NAM, never a call of the handler",
+       "(1 to NET_FILE_NAME_MAX, which is NET_FILE_MAX and the 5 characters of 'dict ' - the buffer holds that many - no second separator) - and a path that is not that is message 11508 and ER_NAM, never a call of the handler",
        ordered(nw, "(u_char)encoded_path[0] != 1", "encoded_path[1] != 'N'", "MSG_BAD_POINTER, \"it does not begin N\"", "return -ER_NAM;", "q = strchr(p, 1);", "if (q == NULL) {", "(n > NET_SERVER_LEN)",
-               "(n > NET_FILE_MAX)", "strchr(p, 1) != NULL") and "u_char)path[0]==1" in fn("netfiles.c", "net_path_is_net").replace(" ", ""), "")
+               "(n > NET_FILE_NAME_MAX)", "strchr(p, 1) != NULL") and "u_char)path[0]==1" in fn("netfiles.c", "net_path_is_net").replace(" ", "")
+       and re.search(r"#define\s+NET_FILE_NAME_MAX\s+\(NET_FILE_MAX\s*\+\s*5\)", nf) is not None and re.search(r"char\s+file\[NET_FILE_NAME_MAX\s*\+\s*1\];", nw) is not None
+       and "(n > NET_FILE_MAX)" not in nw and "file[NET_FILE_MAX" not in nw, "")
 
     # ---- NK6. open_file, close, dio_close
     of = fn("op_dio1.c", "open_file")
@@ -1758,9 +1770,9 @@ def checks_3c(srcs, c, ck):
         j = [body.find(x) for x in NK_DANGER + tuple(extra) if body.find(x) >= 0]
         if j and min(j) < i:
             bad.append("%s/%s: %r comes before the refusal" % (fname, name, body[min(j):min(j) + 24]))
-    ck("NK7 THE CENSUS: each of the %d statements the census of 17 Oct 26 says REFUSE (CONFIGURE.FILE, the locking reads, READVU, CLEARFILE, DELETE, WRITE, WRITEV, SELECT, SELECTV, FILELOCK, FILEUNLOCK, "
-       "GETLOCKS, RECORDLOCKU/L, RECORDLOCKED, RELEASE, the twelve index operations, both FCONTROLs, ANALYSE.FILE) calls net_refuse (or refuse_net_file) behind a NET_FILE test and BEFORE the first read or "
-       "write of the file table, a lock, a select list or an edit-gate decision in the function" % seen, not bad, repr(bad))
+    ck("NK7 THE CENSUS: each of the %d statements the census of 17 Oct 26 says REFUSE (CONFIGURE.FILE, the locking reads, READVU, CLEARFILE, DELETE, WRITE, WRITEV, FILELOCK, FILEUNLOCK, "
+       "GETLOCKS, RECORDLOCKU/L, RECORDLOCKED, RELEASE, the ten index operations other than INDICES, both FCONTROLs, ANALYSE.FILE) calls net_refuse (or refuse_net_file) behind a NET_FILE test and BEFORE the first read or "
+       "write of the file table, a lock, a select list or an edit-gate decision in the function (SELECT and SELECTV are not in it since slice 3d: NK14, NK15; nor is INDICES: NK18)" % seen, not bad, repr(bad))
     badg = []
     for fname, name in NK_GUARD:
         body = fn(fname, name)
@@ -1794,7 +1806,7 @@ def checks_3c(srcs, c, ck):
             for name, body in c_functions(t).items():
                 if "k_get_file(" in body or "data.fvar" in body:
                     found.add((k[2:] if k.startswith("c:") else k, name))
-    decided = set(NK_REFUSE) | set(NK_GUARD) | set(NK_SAFE) | NK_OTHER
+    decided = set(NK_REFUSE) | set(NK_GUARD) | set(NK_SAFE) | NK_OTHER | NK_SELECT | NK_INDICES
     safe_bad = [(f, n) for (f, n), tok in sorted(NK_SAFE.items()) if tok not in fn(f, n)]
     ck("NK8 NOTHING IS LEFT UNDECIDED: every kernel function that is given a file variable (k_get_file or ->data.fvar) is in the census table of this check - refused, guarded, answering any other kind of file by "
        "its own type test (the sequential family, GETPORT, SETPORT, GROUPSTAT, SET.TRIGGER, MARK.MAPPING - the token is still in each), or listed as supported / ignored - so a NEW function that reads a file "
@@ -1831,6 +1843,109 @@ def checks_3c(srcs, c, ck):
                                                  "bp:_voc_ref", "sandbox-netfile.py")}
     lack = [n for n, t in texts_.items() if not re.search(r"17 Oct 26 dm\s+S\.65 slice 3c", t)]
     ck("NK12 the dated history lines are there: every file slice 3c changed says `S.65 slice 3c` (%d files), and this check's own file says so" % len(texts_), not lack and "slice 3c" in (__doc__ or ""), repr(lack))
+
+
+def checks_3d(srcs, c, ck):
+    """S.65 slice 3d: SELECT and SELECTV of a remote file, the dictionary of one, and the FILEINFO keys a query asks.  Text only: the section kernel of
+    sandbox-netfile.py runs the statements, and `make` is the compiler."""
+    nf, dsc, kh, skh = c["netfiles.c"], c["descr.h"], c["keys.h"], c["syscom/keys.h"]
+    vr, nfh = c["bp:_voc_ref"], c["bp:netfile.h"]
+
+    def ct(fname):
+        return c.get(fname) or c.get("c:" + fname, "")
+
+    def fn(fname, name):
+        return c_functions(ct(fname)).get(name, "")
+
+    # ---- NK13. net_select
+    ns = fn("netfiles.c", "net_select")
+    cdef = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+(NF_[A-Z_]+)\s+(\d+)\b", nf)}
+    bdef = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(NF\$[A-Z.]+)\s+(-?\d+)", nfh)}
+    ok_at = ns.find("return status;")                      # the end of the two failure returns: nothing may be set before it
+    ck("NK13 net_select: NF_SELECT is netfile.h's NF$SELECT (6); the statement's flags are taken FIRST (u_int16_t entry = process.op_flags), the request goes through net_op (never the handler directly), "
+       "process.op_flags is given back, a negative status is raised by net_raise with THAT entry (so only a statement without ON ERROR stops, exactly as net_read) and a positive one is the ELSE branch; "
+       "*ids and *count are each set once, after both returns, so a failure leaves the caller's values alone; the ids are counted by their field marks (an empty answer is 0, not 1)",
+       cdef.get("NF_SELECT") == bdef.get("NF$SELECT") == 6 and ns != ""
+       and ordered(ns, "u_int16_t entry = process.op_flags;", "net_op(fvar, NF_SELECT", "process.op_flags = entry;", "if (status < 0)", "return net_raise(status, entry);", "if (status > 0)",
+                   "return status;", "net_take_string(&out)", "k_release(&out);", "== FIELD_MARK", "n++;", "*ids = s;", "*count = n;", "return 0;")
+       and ns.count("net_raise(") == 1 and ns.count("*ids =") == 1 and ns.count("*count =") == 1 and 0 < ok_at < ns.find("*ids =") and ok_at < ns.find("*count =")
+       and not re.search(r"net_call_raw\(|net_flush_pending\(|k_call\(|load_object\(|net_refuse\(", ns)
+       and re.search(r"int32_t\s+n\s*=\s*0;", ns) is not None and re.search(r"if \(s != NULL\) \{\s*n = 1;", ns) is not None, repr(ns[:80]))
+    # ---- NK14. SELECT
+    sel = fn("op_dio4.c", "op_select")
+    d4 = ct("op_dio4.c")
+    first_net = sel.find("if (fvar->type == NET_FILE)")
+    danger = [sel.find(x) for x in NK_DANGER if sel.find(x) >= 0]
+    helper = fn("op_dio4.c", "net_select_with_flags")
+    sl = fn("op_dio4.c", "store_select_list")
+    ck("NK14 SELECT of a NET_FILE: the ids are asked of the server (net_select_with_flags) BEFORE end_select, clear_select or anything that reads the file table, so an error or an ELSE leaves the target list alone "
+       "(the status is kept, the stack is cleaned and the function leaves by select_status); only then does `case NET_FILE:` of the select switch call store_select_list (the same function dir_select ends with) "
+       "UNCONDITIONALLY - no `if (net_ids != NULL)` in front of it - and store_select_list sets SELECT.COUNT first and returns early for a NULL list only AFTER that, so an empty remote file gives @SELECTED 0; "
+       "the helper hands net_select ONLY the statement's ON ERROR bit and clears process.op_flags again; net_select is called from the helper and from nowhere else in the kernel; SELECT no longer calls net_refuse",
+       sel != "" and 0 <= first_net < sel.find("net_select_with_flags(fvar, op_flags, &net_ids, &net_count)") and (not danger or first_net < min(danger))
+       and ordered(sel, "if (fvar->type == NET_FILE)", "net_select_with_flags(fvar, op_flags, &net_ids, &net_count)", "if (net_st != 0) {", "process.status = net_st;", "k_pop(1);", "k_dismiss();",
+                   "goto select_status;", "end_select(list_no);", "clear_select(list_no);", "switch (fvar->type) {", "case NET_FILE:", "store_select_list(list_no, net_ids, net_count);")
+       and re.search(r"case NET_FILE:\s*store_select_list\(list_no, net_ids, net_count\);\s*break;", sel) is not None      # no `if (net_ids != NULL)` guard: an empty file must still set the count
+       and ordered(sl, "SYSCOM_SELECT_COUNT", "descr->data.value = record_count;", "if (head == NULL)", "return;", "SYSCOM_SELECT_LIST", "descr->data.str.saddr = head;")
+       and sl.count("if (head == NULL)") == 1 and sl.count("return;") == 1
+       and "net_refuse(" not in sel and helper != "" and ordered(helper, "process.op_flags = op_flags & P_ON_ERROR;", "net_select(fvar, ids, count)", "process.op_flags = 0;", "return st;")
+       and sum(t.count("net_select(") for k, t in c.items() if (k.endswith(".c") or k.startswith("c:")) and k != "netfiles.c") == 1
+       and "store_select_list(list_no, head, record_count)" in fn("op_dio4.c", "dir_select")
+       and c_proto(d4, "net_select_with_flags") is not None and c_proto(d4, "net_select_with_flags") == c_header(d4, "net_select_with_flags")
+       and c_proto(d4, "store_select_list") is not None and c_proto(d4, "store_select_list") == c_header(d4, "store_select_list"), repr(sel[:80]))
+    # ---- NK15. SELECTV
+    sv = fn("op_dio4.c", "op_selectv")
+    i0 = sv.find("if (fvar->type == NET_FILE)")
+    i1 = sv.find("net_select_with_flags(fvar, op_flags, &net_ids, &net_count)")
+    i2 = sv.find("goto selectv_status;", i1) if i1 >= 0 else -1
+    netb = sv[i0:i2] if 0 <= i0 < i1 < i2 else ""
+    danger = [sv.find(x, i0) for x in NK_DANGER if i0 >= 0 and sv.find(x, i0) >= 0]
+    ck("NK15 SELECTV of a NET_FILE: the NET branch asks the server and leaves by selectv_status BEFORE the file type switch (list 11 and the local selects are never reached); nothing touches tgt_descr between the "
+       "branch's opening and the call, and AFTER the call the target is found again from the e-stack (the handler runs BASIC and can move it, as op_read does) and made an empty SELLIST; on success the ids are "
+       "the list and their count is its offset (both only when there are ids: a NULL list is not touched), and @SELECTED is the count on EVERY success, an empty file included; an error or an ELSE leaves the empty list and the status; SELECTV no longer calls net_refuse",
+       sv != "" and netb != "" and "tgt_descr" not in netb[:netb.find("net_select_with_flags(")]
+       and ordered(netb, "net_select_with_flags(fvar, op_flags, &net_ids, &net_count);", "tgt_descr = e_stack - 1;", "while (tgt_descr->type == ADDR)", "tgt_descr = tgt_descr->data.d_addr;",
+                   "InitDescr(tgt_descr, SELLIST);", "tgt_descr->data.str.saddr = NULL;", "if (net_st != 0) {", "process.status = net_st;", "} else {", "if (net_ids != NULL) {", "tgt_descr->data.str.saddr = net_ids;",
+                   "net_ids->offset = net_count;", "Element(process.syscom, SYSCOM_SELECTED)", "descr->data.value = net_count;")
+       and re.search(r"\} else \{\s*if \(net_ids != NULL\) \{\s*tgt_descr->data\.str\.saddr = net_ids;\s*net_ids->offset = net_count;\s*\}\s*"
+                     r"descr = Element\(process\.syscom, SYSCOM_SELECTED\);\s*descr->data\.value = net_count;\s*\}\s*$", netb) is not None      # @SELECTED on EVERY success, outside the NULL test
+       and i2 < sv.find("switch (fvar->type) {", i2) and "net_refuse(" not in sv and not [d for d in danger if d < i2], repr(netb[:80]))
+    # ---- NK16. FILEINFO answers three more keys of a remote file
+    fi = fn("op_dio2.c", "op_fileinfo")
+    branch = fi[fi.find("if (ftype == NET_FILE) {"):fi.find("fptr = FPtr(fvar->file_id);")] if "if (ftype == NET_FILE) {" in fi else ""
+
+    def seg(label):
+        j = branch.find(label)
+        return branch[j:branch.find("goto set_integer;", j)] if j >= 0 else ""
+    tdef = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+(FL_TYPE_[A-Z]+)\s+(\d+)\b", kh)}
+    bt = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(FL\$TYPE\.[A-Z]+)\s+(\d+)", skh)}
+    ck("NK16 FILEINFO of a NET_FILE: FL_TYPE answers FL_TYPE_NET (7, its own number: FL_TYPE_NET is defined in gplsrc/keys.h and FL$TYPE.NET in sdsys/syscom/keys.h with the same value and no other type uses 7), "
+       "FL_COLLECTION answers 0, FL_FLAGS answers DHF_NOCASE for an $internal program and 0 for any other - each in the NET branch, which has no FPtr( and comes before fptr = FPtr(file_id), and each ahead of "
+       "`default:` (the server is not asked for them)",
+       branch != "" and "FPtr(" not in branch and tdef.get("FL_TYPE_NET") == bt.get("FL$TYPE.NET") == 7 and sorted(tdef.values()).count(7) == 1 and sorted(bt.values()).count(7) == 1
+       and ordered(branch, "case FL_TYPE:", "n = FL_TYPE_NET;", "goto set_integer;", "case FL_COLLECTION:", "n = 0;", "goto set_integer;", "case FL_FLAGS:",
+                   "n = (process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "goto set_integer;", "default:", "net_fileinfo(fvar, key)")
+       and re.fullmatch(r"case FL_TYPE:\s*n = FL_TYPE_NET;\s*", seg("case FL_TYPE:")) is not None and re.fullmatch(r"case FL_COLLECTION:\s*n = 0;\s*", seg("case FL_COLLECTION:")) is not None
+       and re.fullmatch(r"case FL_FLAGS:\s*n = \(process\.program\.flags & HDR_INTERNAL\) \? DHF_NOCASE : 0;\s*", seg("case FL_FLAGS:")) is not None
+       and branch.count("case FL_TYPE:") == 1 and branch.count("case FL_COLLECTION:") == 1 and branch.count("case FL_FLAGS:") == 1, repr((tdef, bt)))
+    # ---- NK18. INDICES of a remote file is the null string
+    ix1, ix2 = fn("dh_ak.c", "op_indices1"), fn("dh_ak.c", "op_indices2")
+    ck("NK18 INDICES(f) and INDICES(f, name) of a NET_FILE do NOT refuse: op_indices1 and op_indices2 hold no net_refuse, no refuse_net_file and no NET_FILE arm, and keep their `default:` arm that answers the null string "
+       "(a query asks it of every file; a refusal stopped every query on a remote file); the DYNAMIC_FILE arm is still the only other one",
+       ix1 != "" and ix2 != "" and not re.search(r"net_refuse\(|refuse_net_file\(|NET_FILE", ix1 + ix2)
+       and ordered(ix1, "switch (fvar->type) {", "case DYNAMIC_FILE:", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
+       and ordered(ix2, "if (fvar->type == DYNAMIC_FILE) {", "} else {", "switch (fvar->type) {", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
+       and ix1.count("case ") == 1 and ix2.count("case ") == 0, "")
+    # ---- NK17. the DICT form
+    i = vr.find('case type = "N"')
+    case_n = vr[i:vr.find("\n         case 1", i)] if i >= 0 else ""
+    chk = routine_body(vr, "check.n.pointer")
+    ck("NK17 the DICT form of a remote file: the case adds 'dict ' (4 letters and one space, the 5 characters NET_FILE_NAME_MAX allows beyond NET_FILE_MAX) to the file name only for fno = 3 (once, on a line of its "
+       "own, after the failure return of the shape test and before the pathname is built); check.n.pointer still allows no space, so a VOC entry cannot hold the prefix itself; the dictionary is not refused",
+       case_n != "" and case_n.count("fno") == 1 and case_n.count("'dict '") == 1 and re.search(r"^\s*if fno = 3 then n\.file = 'dict ':n\.file\s*$", case_n, re.M) is not None
+       and len("dict ") == 5 and "ER$VNF" not in case_n and chk != "" and "' '" not in chk and "dict" not in chk
+       and ordered(case_n, "gosub check.n.pointer", "set.status ER$NAM", "return", "if fno = 3 then n.file = 'dict ':n.file", "pathname = ")
+       and re.search(r"#define\s+NET_FILE_NAME_MAX\s+\(NET_FILE_MAX\s*\+\s*5\)", nf) is not None and re.search(r"#define\s+NET_FILE_MAX\s+63\b", nf) is not None, repr(case_n[:120]))
 
 
 def mutate(srcs, name, old, new=None):
@@ -2710,7 +2825,10 @@ mut("the server name is audited as typed", NFC, "(((server[i] >= 'a') && (server
 mut("the gate message is 11461", NFC, "#define MSG_NO_GATE 11460", "#define MSG_NO_GATE 11461")
 mut("the pointer's first byte is not tested", NFC, "((u_char)encoded_path[0] != 1) || ", "")
 mut("a pointer with no file name is not refused", NFC, "  q = strchr(p, 1);\n  if (q == NULL) {", "  q = strchr(p, 1);\n  if (0) {")
-mut("a file name may be 64 characters", NFC, "(n > NET_FILE_MAX) || (strchr(p, 1) != NULL)", "(n > NET_FILE_MAX + 1) || (strchr(p, 1) != NULL)")
+mut("a file name may be 64 characters too long", NFC, "(n > NET_FILE_NAME_MAX) || (strchr(p, 1) != NULL)", "(n > NET_FILE_NAME_MAX + 1) || (strchr(p, 1) != NULL)")
+mut("the file name test is NET_FILE_MAX again (a dictionary name is refused)", NFC, "(n > NET_FILE_NAME_MAX) || (strchr(p, 1) != NULL)", "(n > NET_FILE_MAX) || (strchr(p, 1) != NULL)")
+mut("the file name buffer is too small for 'dict '", NFC, "char file[NET_FILE_NAME_MAX + 1];", "char file[NET_FILE_MAX + 1];")
+mut("NET_FILE_NAME_MAX is NET_FILE_MAX + 4", NFC, "#define NET_FILE_NAME_MAX (NET_FILE_MAX + 5)", "#define NET_FILE_NAME_MAX (NET_FILE_MAX + 4)")
 mut("the handler is called by another name", NFC, "k_call(\"$netfile\", 6, NULL, 0);", "k_call(\"netfile\", 6, NULL, 0);")
 mut("the handler is not looked for first", NFC, "if (load_object(\"$netfile\", FALSE) == NULL) {", "if (0) {")
 mut("the handler is not marked as a trigger", NFC, "  process.program.flags |= PF_IS_TRIGGER;\n", "")
@@ -2746,7 +2864,13 @@ mut("the ELSE branch ignores the server's status", NFC, "return (rc->status > 0)
 mut("every error is ER_PERM", NFC, "  return -ER_NETWORK;\n}\n\n/* ======================================================================\n   net_answer()", "  return -ER_PERM;\n}\n\n/* ======================================================================\n   net_answer()")
 # _voc_ref
 VR = "bp:_voc_ref"
-mut("_voc_ref: a dictionary of a NET file is not refused", VR, "            if fno = 3 then\n               set.status ER$VNF\n               return\n            end\n            n.srv =", "            n.srv =")
+mut("_voc_ref: a dictionary of a NET file is refused again", VR, "            n.srv = downcase(trim(voc.rec<2>))", "            if fno = 3 then\n               set.status ER$VNF\n               return\n            end\n            n.srv = downcase(trim(voc.rec<2>))")
+mut("_voc_ref: a dictionary of a NET file is not given 'dict '", VR, "            if fno = 3 then n.file = 'dict ':n.file", "            if fno = 3 then n.file = n.file")
+mut("_voc_ref: every NET file is given 'dict '", VR, "            if fno = 3 then n.file = 'dict ':n.file", "            n.file = 'dict ':n.file")
+mut("_voc_ref: the data part is given 'dict ' (fno 2)", VR, "            if fno = 3 then n.file = 'dict ':n.file", "            if fno = 2 then n.file = 'dict ':n.file")
+mut("_voc_ref: the prefix has no space", VR, "            if fno = 3 then n.file = 'dict ':n.file", "            if fno = 3 then n.file = 'dict':n.file")
+mut("_voc_ref: 'dict ' is added BEFORE the shape test", VR, "            n.file = downcase(trim(voc.rec<3>))\n            gosub check.n.pointer", "            n.file = downcase(trim(voc.rec<3>))\n            if fno = 3 then n.file = 'dict ':n.file\n            gosub check.n.pointer")
+mut("_voc_ref: the shape test allows a space (a VOC entry may hold the prefix)", VR, "'._-$'", "'._-$ '")
 mut("_voc_ref: the server name is not lower cased", VR, "n.srv = downcase(trim(voc.rec<2>))", "n.srv = trim(voc.rec<2>)")
 mut("_voc_ref: the file name is not trimmed", VR, "n.file = downcase(trim(voc.rec<3>))", "n.file = downcase(voc.rec<3>)")
 mut("_voc_ref: the pathname has no separator", VR, "pathname = char(1):'N':char(1):n.srv:char(1):n.file", "pathname = char(1):'N':char(1):n.srv:'/':n.file")
@@ -2819,6 +2943,76 @@ mut("descr.h's history line is gone", "descr.h", "S.65 slice 3c: NET_FILE (4) is
 mut("netfiles.c's history line is gone", NFC, "17 Oct 26 dm  S.65 slice 3c: written.", "17 Oct 26 dm  written.")
 mut("_voc_ref's history line is gone", VR, "S.65 slice 3c: a new VOC pointer type N", "S.65: a new VOC pointer type N")
 mut("the suite's slice 3c history line is gone", NFSUITE, "# 17 Oct 26 dm  S.65 slice 3c: the section kernel", "# 17 Oct 26 dm  the section kernel")
+
+# ---- slice 3d: SELECT, SELECTV, the DICT form and three FILEINFO keys ----------------------------------------------------------------------------
+M3D = len(M)        # the mutants from here on are slice 3d's (the rewritten 3c ones above stay where they were)
+OD4, OD2 = "op_dio4.c", "op_dio2.c"
+# net_select
+mut("net_select asks for another operation", NFC, "status = net_op(fvar, NF_SELECT,", "status = net_op(fvar, NF_READ,")
+mut("NF_SELECT is 5 in netfiles.c", NFC, rx(r"(#define\s+NF_SELECT\s+)6", r"\g<1>5"))
+mut("NF$SELECT is 5 in netfile.h", NFHD, rx(r"(\$define\s+NF\$SELECT\s+)6", r"\g<1>5"))
+mut("net_select calls the handler directly", NFC, edit_func("net_select", r"net_op\(fvar, NF_SELECT, \"\", 0, \"\", 0, ER_FNF, &out\)", "net_call_raw(NF_SELECT, \"\", \"\", \"\", &out, NULL)"))
+mut("net_select raises even with ON ERROR", NFC, edit_func("net_select", r"net_raise\(status, entry\)", "net_raise(status, 0)"))
+mut("net_select takes no flags at entry", NFC, edit_func("net_select", r"u_int16_t entry = process\.op_flags;", "u_int16_t entry = 0;"))
+mut("net_select does not give the flags back", NFC, edit_func("net_select", r"process\.op_flags = entry;\n", ""))
+mut("net_select does not stop on an ELSE", NFC, edit_func("net_select", r"if \(status > 0\)\s*return status;", ""))
+mut("net_select does not stop on an error", NFC, edit_func("net_select", r"if \(status < 0\)\s*return net_raise\(status, entry\);", ""))
+mut("net_select sets *ids before it knows", NFC, edit_func("net_select", r"  status = net_op", "  *ids = NULL;\n  status = net_op"))
+mut("net_select sets *count before it knows", NFC, edit_func("net_select", r"  status = net_op", "  *count = 0;\n  status = net_op"))
+mut("net_select counts an empty answer as one id", NFC, edit_func("net_select", r"int32_t n = 0;", "int32_t n = 1;"))
+mut("net_select does not count the field marks", NFC, edit_func("net_select", r"== FIELD_MARK", "== 0"))
+mut("sd.h declares net_select with another type", "sd.h", "int net_select(FILE_VAR * fvar, STRING_CHUNK ** ids, int32_t * count);", "int net_select(FILE_VAR * fvar, STRING_CHUNK ** ids, int32_t count);")
+mut("sd.h loses net_select", "sd.h", "int net_select(FILE_VAR * fvar, STRING_CHUNK ** ids, int32_t * count);\n", "")
+# op_select and the helper
+mut("SELECT empties the target list before it asks the server", OD4, edit_func("op_select", r"fvar = descr->data\.fvar;", "fvar = descr->data.fvar;\n    clear_select(list_no);"))
+mut("SELECT of a NET_FILE goes on after an error", OD4, "        k_dismiss();\n        goto select_status;\n      }\n    }\n\n    end_select(list_no);", "        k_dismiss();\n      }\n    }\n\n    end_select(list_no);")
+mut("SELECT's switch has no NET_FILE case", OD4, "      case NET_FILE:\n        store_select_list(list_no, net_ids, net_count);", "      case 77:\n        store_select_list(list_no, net_ids, net_count);")
+mut("SELECT does not store the ids", OD4, "        store_select_list(list_no, net_ids, net_count);", "        ;")
+mut("SELECT's NULL guard is back (an empty file leaves the old count)", OD4, "      case NET_FILE:\n        store_select_list(list_no, net_ids, net_count);", "      case NET_FILE:\n        if (net_ids != NULL)\n          store_select_list(list_no, net_ids, net_count);")
+mut("store_select_list returns before it sets the count", OD4, edit_func("store_select_list", r"  descr = Element\(process\.syscom, SYSCOM_SELECT_COUNT\);", "  if (head == NULL)\n    return;\n  descr = Element(process.syscom, SYSCOM_SELECT_COUNT);"))
+mut("store_select_list has no early return for a NULL list", OD4, edit_func("store_select_list", r"  if \(head == NULL\)\s*return;", ""))
+mut("SELECT calls net_select without the helper", OD4, edit_func("op_select", r"net_select_with_flags\(fvar, op_flags, &net_ids, &net_count\)", "net_select(fvar, &net_ids, &net_count)"))
+mut("SELECT refuses a NET_FILE again", OD4, edit_func("op_select", r"net_st = net_select_with_flags", "net_refuse(fvar, \"SELECT\");\n      net_st = net_select_with_flags"))
+mut("the helper gives net_select the whole op_flags", OD4, "process.op_flags = op_flags & P_ON_ERROR;\n  st = net_select(fvar, ids, count);", "process.op_flags = op_flags;\n  st = net_select(fvar, ids, count);")
+mut("the helper leaves process.op_flags set", OD4, "  st = net_select(fvar, ids, count);\n  process.op_flags = 0;", "  st = net_select(fvar, ids, count);")
+mut("dir_select no longer ends with store_select_list", OD4, edit_func("dir_select", r"store_select_list\(list_no, head, record_count\);", ";"))
+mut("store_select_list is declared with another type", OD4, "Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count);", "Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int16_t record_count);")
+mut("net_select_with_flags is declared with another type", OD4, "Private int net_select_with_flags(FILE_VAR* fvar, u_int16_t op_flags, STRING_CHUNK** ids, int32_t* count);", "Private int net_select_with_flags(FILE_VAR* fvar, u_int16_t op_flags, STRING_CHUNK** ids, int32_t count);")
+mut("a second place calls net_select", OD4, lambda t: t + "\nvoid zz_sel(FILE_VAR* v) {\n  net_select(v, NULL, NULL);\n}\n")
+# op_selectv
+mut("SELECTV does not find its target again after the call", OD4, "\n\n      /* The handler ran BASIC: the target is found again from the stack, as op_read does */\n      tgt_descr = e_stack - 1;\n      while (tgt_descr->type == ADDR)\n        tgt_descr = tgt_descr->data.d_addr;\n", "\n")
+mut("SELECTV uses its target before the call", OD4, edit_func("op_selectv", r"net_ids = NULL;\n      net_count = 0;\n      net_st", "net_ids = NULL;\n      net_count = 0;\n      InitDescr(tgt_descr, SELLIST);\n      net_st"))
+mut("SELECTV's target is not an empty list after an error", OD4, "      tgt_descr->data.str.saddr = NULL; /* an empty list unless the ids came */\n", "")
+mut("SELECTV's list has no count", OD4, "        net_ids->offset = net_count;\n", "")
+mut("SELECTV does not set @SELECTED", OD4, "        descr = Element(process.syscom, SYSCOM_SELECTED);\n        descr->data.value = net_count;\n      }\n      goto selectv_status;", "      }\n      goto selectv_status;")
+mut("SELECTV sets @SELECTED only for a non-empty list", OD4, "          net_ids->offset = net_count;\n        }\n        descr = Element(process.syscom, SYSCOM_SELECTED);\n        descr->data.value = net_count;",
+    "          net_ids->offset = net_count;\n          descr = Element(process.syscom, SYSCOM_SELECTED);\n          descr->data.value = net_count;\n        }")
+mut("SELECTV gives the list its ids without the NULL test", OD4, "        if (net_ids != NULL) {\n          tgt_descr->data.str.saddr = net_ids;\n          net_ids->offset = net_count;\n        }", "        tgt_descr->data.str.saddr = net_ids;\n        net_ids->offset = net_count;")
+mut("SELECTV of a NET_FILE goes on into the local switch", OD4, "      }\n      goto selectv_status;\n    }\n\n    /* Do the select */", "      }\n    }\n\n    /* Do the select */")
+mut("SELECTV refuses a NET_FILE again", OD4, edit_func("op_selectv", r"net_st = net_select_with_flags", "net_refuse(fvar, \"SELECTV\");\n      net_st = net_select_with_flags"))
+mut("SELECTV ignores the status", OD4, "      if (net_st != 0) {\n        process.status = net_st;\n      } else {", "      if (0) {\n        process.status = net_st;\n      } else {")
+# INDICES of a remote file: the refusal comes back
+mut("INDICES(f) refuses a NET_FILE again", "dh_ak.c", edit_func("op_indices1", r"fvar = descr->data\.fvar;", "fvar = descr->data.fvar;\n  if (fvar->type == NET_FILE)\n    net_refuse(fvar, \"INDICES\");"))
+mut("INDICES(f, name) refuses a NET_FILE again", "dh_ak.c", edit_func("op_indices2", r"fvar = descr->data\.fvar;", "fvar = descr->data.fvar;\n  if (fvar->type == NET_FILE)\n    net_refuse(fvar, \"INDICES\");"))
+mut("INDICES(f) refuses through the helper", "dh_ak.c", edit_func("op_indices1", r"k_dismiss\(\);", "refuse_net_file(fvar, 0, \"INDICES\");\n  k_dismiss();"))
+mut("INDICES(f) has no default arm", "dh_ak.c", edit_func("op_indices1", r"    default:", "    case 99:"))
+mut("INDICES(f, name) has no default arm", "dh_ak.c", edit_func("op_indices2", r"      default:", "      case 99:"))
+mut("INDICES(f) has a NET_FILE arm", "dh_ak.c", edit_func("op_indices1", r"    default:", "    case NET_FILE:\n      break;\n\n    default:"))
+mut("SELECTV has no NET branch", OD4, edit_func("op_selectv", r"if \(fvar->type == NET_FILE\)", "if (0)"))
+# FILEINFO
+mut("FL_TYPE_NET is 6 in keys.h", "keys.h", rx(r"(#define\s+FL_TYPE_NET\s+)7", r"\g<1>6"))
+mut("FL_TYPE_NET is 5 (the sequential file's)", "keys.h", rx(r"(#define\s+FL_TYPE_NET\s+)7", r"\g<1>5"))
+mut("FL$TYPE.NET is 8 in syscom/keys.h", "syscom/keys.h", rx(r"(\$define\s+FL\$TYPE\.NET\s+)7", r"\g<1>8"))
+mut("FL$TYPE.NET is gone from syscom/keys.h", "syscom/keys.h", drop_line(r"FL\$TYPE\.NET"))
+mut("FL_TYPE_NET is gone from keys.h", "keys.h", drop_line(r"FL_TYPE_NET"))
+mut("FILEINFO FL_TYPE answers a directory file", OD2, "n = FL_TYPE_NET;", "n = FL_TYPE_DIR;")
+mut("FILEINFO FL_TYPE of a NET_FILE goes to the server", OD2, "        case FL_TYPE: /* 3  A file on another server", "        case 99998: /* 3  A file on another server")
+mut("FILEINFO FL_COLLECTION answers 1", OD2, "(slice 3d) */\n          n = 0;", "(slice 3d) */\n          n = 1;")
+mut("FILEINFO FL_COLLECTION of a NET_FILE goes to the server", OD2, "        case FL_COLLECTION: /* 1035  The query processor asks", "        case 99997: /* 1035  The query processor asks")
+mut("FILEINFO FL_FLAGS is not restricted to $internal programs", OD2, "n = (process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "n = DHF_NOCASE;")
+mut("FILEINFO FL_FLAGS answers 0 to an $internal program", OD2, "n = (process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "n = 0;")
+mut("FILEINFO FL_FLAGS of a NET_FILE goes to the server", OD2, "        case FL_FLAGS: /* 10001  The query processor asks for the NOCASE bit", "        case 99996: /* 10001  The query processor asks for the NOCASE bit")
+mut("FILEINFO FL_FLAGS of a NET_FILE reads the file table", OD2, "(process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "(process.program.flags & HDR_INTERNAL) ? FPtr(fvar->file_id)->flags : 0;")
 
 
 def run(srcs):

@@ -57,6 +57,7 @@
    #define FL_TYPE_DH      3  /* DH file */
    #define FL_TYPE_DIR     4  /* Directory file */
    #define FL_TYPE_SEQ     5  /* Sequential file */
+   #define FL_TYPE_NET     7  /* A file on another SD server (SDNet, S.65 slice 3d) */
    /* 6 was FL_TYPE_VFS - VFS scaffolding removed (plan G2).  A FILEINFO
       return value, never produced, so the number may be reused. */
 #define FL_MODULUS         5

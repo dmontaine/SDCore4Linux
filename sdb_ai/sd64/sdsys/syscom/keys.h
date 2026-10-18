@@ -29,6 +29,7 @@
       $define FL$TYPE.DH        3  ;* DH file
       $define FL$TYPE.DIR       4  ;* Directory file
       $define FL$TYPE.SEQ       5  ;* Sequential file
+      $define FL$TYPE.NET       7  ;* A file on another SD server (SDNet)
       * 6 was FL$TYPE.VFS - VFS scaffolding removed (plan G2)
       $define FL$MODULUS        5  ;* Get file modulus
       $define FL$MINMOD         6  ;* Get mimimum modulus value for file
