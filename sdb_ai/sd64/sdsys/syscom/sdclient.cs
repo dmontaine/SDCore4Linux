@@ -85,6 +85,7 @@ public static class SDClient
 
     // The functions (sorted)
     [DllImport(Lib, CallingConvention = CC)] public static extern IntPtr SDChange(byte[] src, byte[] old_string, byte[] new_string, int occurrences, int start);
+    [DllImport(Lib, CallingConvention = CC)] public static extern int SDChecksum(byte[] data);
     [DllImport(Lib, CallingConvention = CC)] public static extern void SDClearSelect(int listno);
     [DllImport(Lib, CallingConvention = CC)] public static extern void SDClose(int fno);
     [DllImport(Lib, CallingConvention = CC)] public static extern int SDConnect(byte[] host, int port, byte[] username, byte[] password, byte[] account);

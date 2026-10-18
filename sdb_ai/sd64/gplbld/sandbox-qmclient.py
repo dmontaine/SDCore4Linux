@@ -15,6 +15,8 @@
 # 15 Oct 26 dm  Parts S and T.  S: a sequential file by pathname for an account that holds os-on (apisrvr's vb.openseq asks K$PATH.OK
 #               itself).  T: SDCLIENT=1 and =2 in sd.conf, every request that tests it; it restarts the sandbox, so it runs LAST,
 #               after K.  QMC_MUTANT=<name> recompiles the sandbox's apisrvr (or the fixture) with one deliberate fault.
+# 18 Oct 26 dm  Part U: SDChecksum (encryption layer 2 / D5, the QMChecksum equivalent) against SD's own CHECKSUM() on the same strings,
+#               with the algorithm written out again here, and with no connection at all.
 # END-HISTORY
 #
 # THE INSTRUMENT.  A LOCAL API session: the sandbox's own sdclilib.so is loaded with ctypes, SD_CONFIG names the sandbox, and
@@ -34,6 +36,8 @@
 #   S  a pathname outside the account: refused to an account without os-on (the register flipped and a NEW session made: the
 #      switches are loaded at login), opened, written, read back and found on the disk for one with it; what the operating system
 #      still refuses
+#   U  SDChecksum: ten strings (high bytes, marks, empty, 10,000 characters) against CHECKSUM() in the server's BASIC and against a
+#      written-out copy of the algorithm; a control that the value is not constant; the null string is 0; no connection needed
 #   T  SDCLIENT in sd.conf (RUNS LAST: it restarts the sandbox).  0 as the control, 1 (no open, no execute), 2 (also a restricted
 #      call): SDOpen, SDOpenSeq, SDTrans, SDRTrans, SDExecute, SDCall and the T and U conversions, each with the disk as evidence
 #
@@ -139,6 +143,12 @@ USER_PROGS = {
               "   crt 'C3[':change('abababa', 'aba', 'X'):']'\n   crt 'C4[':change('abcabcabcabc', 'abc', 'Z', 2, 2):']'\n"
               "   crt 'C5[':change('hello', 'l', ''):']'\n   crt 'C6[':change('hello', 'xyz', 'Q'):']'\n"
               "   crt 'C7[':change('xx--xx--xx', '--', '<>'):']'\n   crt 'C8[':change('aXbXc', 'X', 'YY', 1, 2):']'\nend\n"),
+    # U: what SD's own CHECKSUM() (default mode) makes of the same strings SDChecksum is given; the high-byte strings are built with CHAR()
+    "zzsum": ("   crt 'U1[':checksum('ABCDE'):']'\n   crt 'U2[':checksum(''):']'\n   crt 'U3[':checksum('a'):']'\n"
+              "   crt 'U4[':checksum('hello world'):']'\n   crt 'U5[':checksum('a':char(200):'z'):']'\n"
+              "   crt 'U6[':checksum(char(255)):']'\n   crt 'U7[':checksum(char(128):char(128)):']'\n"
+              "   crt 'U8[':checksum(str('0123456789', 1000)):']'\n   crt 'U9[':checksum('ab':@vm:'cd':@fm:'e'):']'\n"
+              "   crt 'UA[':checksum('abcdefghijklmnopqrstuvwxyz0123456789'):']'\nend\n"),
     # Q: WRITE / WRITEU ... CREATING.SEQKEY (the counter in the hashed file's header), inside and outside a transaction, and a
     # directory file refused
     "zzsk": ("   open 'zzsq' to f else stop 'no file'\n   write 'first' to f creating.seqkey id1\n   write 'second' to f creating.seqkey id2\n"
@@ -837,6 +847,47 @@ def main():
             row("L2: SDChange%s is what CHANGE() gives (%s)%s" % (repr(args[:3] + args[3:]).replace("b'", "'"), want,
                                                                    "  <- overlapping strings (sheet 261)" if t in ("C1", "C2", "C3") else ""),
                 want is not None and got is not None and got.decode("latin-1") == want, "got %s" % s(got))
+
+        # ------------------------------------------------------------------------------------------------------ U
+        say("\n--- U. SDChecksum against SD's own CHECKSUM() and against the algorithm written out here -----------------------")
+
+        def ref_checksum(b):
+            """The default CHECKSUM(): rotate left one bit, exclusive-or the next byte as a SIGNED char (sign-extended)."""
+            acc = 0
+            for ch in b:
+                v = ch - 256 if ch > 127 else ch
+                acc = ((acc << 1) | (acc >> 31)) & 0xFFFFFFFF
+                acc ^= v & 0xFFFFFFFF
+            return acc - (1 << 32) if acc >= (1 << 31) else acc
+
+        fn = getattr(lib, "SDChecksum", None)
+        row("U0: the library exports SDChecksum", fn is not None, "no such symbol in sdclilib.so")
+        if fn is not None:
+            fn.argtypes = [ctypes.c_char_p]
+            fn.restype = ctypes.c_int
+        uout = q3.plain("zzaa", ["RUN bp zzsum"])
+        ucases = (("U1", b"ABCDE"), ("U2", b""), ("U3", b"a"), ("U4", b"hello world"), ("U5", b"a\xc8z"), ("U6", b"\xff"),
+                  ("U7", b"\x80\x80"), ("U8", b"0123456789" * 1000), ("U9", b"ab" + VM + b"cd" + FM + b"e"),
+                  ("UA", b"abcdefghijklmnopqrstuvwxyz0123456789"))
+        seen = set()
+        for t, data in ucases:
+            want = (tag(uout, t) or [None])[0]
+            got = fn(data) if fn is not None else None
+            refv = ref_checksum(data)
+            seen.add(got)
+            row("%s: SDChecksum(%s) is %s, what CHECKSUM() gives%s" % (t, s(data)[:30], want,
+                                                                       "  <- a byte of 128 or more is sign-extended, as the server reads it" if any(c > 127 for c in data) and len(data) < 8 and b"\xfd" not in data else ""),
+                want is not None and got is not None and str(got) == want and got == refv,
+                "client %s, server %s, written out here %s" % (got, want, refv))
+        row("U11: CONTROL: ten different strings give more than five different values (it is not a constant)", len(seen) > 5, "values %s" % sorted(map(str, seen)))
+        row("U12: the null string is 0", fn is not None and fn(b"") == 0, "")
+        # a child process that loads the library and never connects: SDConnected() is false, and the answer is the same
+        cp = subprocess.run([sys.executable, "-I", "-c",
+                             "import ctypes, sys\nlib = ctypes.CDLL(sys.argv[1])\nlib.SDChecksum.argtypes = [ctypes.c_char_p]\n"
+                             "print('CONNECTED', lib.SDConnected())\nprint('SUM', lib.SDChecksum(b'ABCDE'))\n",
+                             os.path.join(SYS, "bin", "sdclilib.so")], capture_output=True, text=True, timeout=30)
+        row("U13: needs no connection: a process that never connected (SDConnected() is 0) gets the same value",
+            ("CONNECTED 0" in cp.stdout) and ("SUM %d" % ref_checksum(b"ABCDE")) in cp.stdout, "output %r %r" % (cp.stdout, cp.stderr[-200:]))
 
         # ------------------------------------------------------------------------------------------------------ M
         say("\n--- M. SDLogto -------------------------------------------------------------------------------------------------")

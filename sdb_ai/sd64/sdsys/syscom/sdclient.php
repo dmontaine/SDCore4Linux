@@ -53,6 +53,7 @@ void SDCall(char *subrname, int16_t argc, ...);
 void SDCallx(char *subrname, int16_t argc, ...);
 char *SDGetArg(int arg_number);
 char *SDChange(char *src, char *old_string, char *new_string, int occurrences, int start);
+int SDChecksum(char *data);
 void SDClearSelect(int listno);
 void SDClose(int fno);
 int SDConnect(char *host, int port, char *username, char *password, char *account);

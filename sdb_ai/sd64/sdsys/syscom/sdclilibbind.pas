@@ -40,6 +40,8 @@ type
   TSDChangeFn = function(Src, OldStr, NewStr: PAnsiChar;
     Occurrences, StartPos: LongInt): PAnsiChar; cdecl;
 
+  TSDChecksumFn = function(Data: PAnsiChar): LongInt; cdecl;
+
   TSDClearSelectFn = procedure(ListNo: LongInt); cdecl;
 
   TSDCloseFn = procedure(FileNo: LongInt); cdecl;
@@ -194,6 +196,7 @@ var
   SDCall: TSDCallFn;
   SDCallx: TSDCallxFn;
   SDChange: TSDChangeFn;
+  SDChecksum: TSDChecksumFn;
   SDClearSelect: TSDClearSelectFn;
   SdCliLib: TLibHandle;
   SDClose: TSDCloseFn;
@@ -302,6 +305,7 @@ begin
   SDCall := TSDCallFn(Sym('SDCall'));
   SDCallx := TSDCallxFn(Sym('SDCallx'));
   SDChange := TSDChangeFn(Sym('SDChange'));
+  SDChecksum := TSDChecksumFn(Sym('SDChecksum'));
   SDClearSelect := TSDClearSelectFn(Sym('SDClearSelect'));
   SDClose := TSDCloseFn(Sym('SDClose'));
   SDConnect := TSDConnectFn(Sym('SDConnect'));
@@ -383,6 +387,7 @@ begin
   SDCall := nil;
   SDCallx := nil;
   SDChange := nil;
+  SDChecksum := nil;
   SDClearSelect := nil;
   SDClose := nil;
   SDConnect := nil;
