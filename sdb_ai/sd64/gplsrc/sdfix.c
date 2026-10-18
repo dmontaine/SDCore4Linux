@@ -23,7 +23,8 @@
  * 18 Oct 26 dm - -F could not delete an index subfile in the file's own directory: delete_subfile() tested
  *           akpath[0] against the character '0'.  It also says "Corrected" only if the delete worked.  The repair
  *           for the split and merge loads wrote 50 and 80, which its own check rejects: it writes the defaults
- *           of dh_create_file(), 80 and 50.
+ *           of dh_create_file(), 80 and 50.  Input that ends no longer loops: the Fix? and dump questions take it as
+ *           "no" and say so, the pager stops paging, interactive mode quits.
  * 16 Oct 26 dm - -Z clears the dead space at the end of each group (QM4 Fixes 33): the bytes after used_bytes of every block are zeroed.
  * 15 Oct 26 dm - H shows the sequential id counter (seq_key) and warns when it is negative.
  * 15 Sep 26 dm - read_sdconfig()'s path buffer is MAX_PATHNAME_LEN + 1, as
@@ -134,6 +135,7 @@ static int64 display_addr = 0; /* Display address */
 int16_t window_size = 256;
 static bool quit = FALSE;
 static bool bar_displayed = FALSE;
+static bool input_ended = FALSE; /* Standard input has ended (18 Oct 26) */
 
 #define HASH_ERROR_LIMIT 50 /* Maximum reported hashing errors */
 
@@ -489,7 +491,12 @@ int process_file() {
     do {
       emit("%d?", (int)subfile);
       *cmnd = '\0'; /* For quit key path which aborts gets() */
-      fgets(cmnd, 80, stdin);
+      /* 18 Oct 26 dm - fgets() returns NULL at the end of input, leaving cmnd empty, which the loop took for a blank
+         line for ever.  (An interrupt also returns NULL with cmnd cleared: that is not the end of input.) */
+      if ((fgets(cmnd, 80, stdin) == NULL) && feof(stdin)) {
+        emit("End of input\n");
+        break;
+      }
       if ((p = strchr(cmnd, '\n')) != NULL)
         *p = '\0';
       if (logging)
@@ -3059,7 +3066,7 @@ exit_write_record:
 
 void emit(char msg[], ...) {
   va_list arg_ptr;
-  char c;
+  char c = '\0';
   char text[500];
   char *p;
   char *q;
@@ -3078,7 +3085,12 @@ void emit(char msg[], ...) {
     if (emitted_lines == display_lines) {
       printf("Press return to continue...");
       fflush(stdout);
-      read(0, &c, 1);
+      /* 18 Oct 26 dm - c was left as it was when the input had ended, so the answer was whatever the stack held (a
+         Q would have ended the run).  With nobody to answer, paging stops. */
+      if (input_ended || (read(0, &c, 1) <= 0)) {
+        input_ended = TRUE;
+        c = 'S';
+      }
       printf("\n");
 
       switch (toupper(c)) {
@@ -3133,13 +3145,21 @@ bool fix() {
 
 /* ====================================================================== */
 
+/* 18 Oct 26 dm - read() returning 0 or -1 left c as it was, so a question asked after the input had ended read the
+   same byte for ever: -Q looped at "Fix?" (and at the dump question).  The end of input is "no", is said once, and
+   once the input has ended no question is waited for again.                                                         */
+
 bool yesno(char *prompt) {
-  char c;
+  char c = '\0';
 
   printf("%s? ", prompt);
   fflush(stdout);
   do {
-    read(0, &c, 1);
+    if (input_ended || (read(0, &c, 1) <= 0)) {
+      input_ended = TRUE;
+      printf("N (end of input)\n");
+      return FALSE;
+    }
     c = toupper(c);
     if (c >= 32)
       printf("%c", c);

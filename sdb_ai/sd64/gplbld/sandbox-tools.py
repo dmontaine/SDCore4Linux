@@ -467,7 +467,8 @@ def sdfix_rows():
     CONF = debug_conf
     rc, out, to = tool("sdfix", "-I", d, stdin="", timeout=8)
     CONF = plain
-    row("F18 interactive mode whose input ends: the program ends (it prompted for ever)", not to, "still running after 8 seconds")
+    row("F18 interactive mode whose input ends: the program ends and says so (it prompted for ever)",
+        not to and "End of input" in out and "Status: 0" in out, "timed out: %r; %r" % (to, out[-200:]))
 
     say("\n--- the interactive W command: hex address, hex data, written as typed -------------------------------------")
     d = fresh("f-w")
