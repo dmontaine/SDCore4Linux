@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  Encryption layer 3: the K_NET set that ends an account scope (sign-on, API sign-on, LOGTO) also empties the key ring of the XE
+ *               conversion (kr_wipe, sd_keyring.c).
  * 18 Oct 26 dm  S.65 slice 3e: K_EDIT_OK and K_EDIT_KIND accept the FILE VARIABLE of a file on another SD server (its edit kind was set at open from
  *               the remote file's name; any other file variable is refused, the administrator excepted); kernel(K_NET, -2) from a $internal program
  *               sends the queued closes of remote files (net_flush_closes).
@@ -74,6 +76,7 @@
 #include "locks.h"
 
 extern int txn_nondurable; /* txn.c: the next COMMIT is non-durable (K_NON_DURABLE_TXN) */
+void kr_wipe(void);        /* sd_keyring.c: empty the key ring of the XE conversion */
 
 #include <sys/wait.h>
 #include <pwd.h>
@@ -720,6 +723,8 @@ void op_kernel() {
             my_uptr->gates |= UG_NET;
           else
             my_uptr->gates &= (u_int16_t)~UG_NET;
+
+          kr_wipe(); /* 18 Oct 26 dm - encryption layer 3: the keys of the XE conversion belong to the account scope that ended, too (sign-on, LOGTO either way) */
 
           /* 18 Oct 26 S.65: the gate is set when the account scope changes (sign-on, the API server's sign-on, LOGTO going in and
              coming back), and the remote files and connections belong to the account that opened them: drop them all.  Nothing
