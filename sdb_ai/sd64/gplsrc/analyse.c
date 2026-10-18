@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: op_analyse() refuses a NET_FILE (net_refuse)
  * 16 Oct 26 dm  QM4 Fixes 360: fields 32 to 42 of the result are a histogram of group utilisation, the bytes a group and its overflow
  *               blocks use as a percentage of the group size (up to 10% ... up to 100%, then over 100%, i.e. overflowed).
  *               The result buffer is 512 characters, as 42 figures need more than 256.  The used bytes of a group (figures 5 and 6)
@@ -50,6 +51,8 @@ void op_analyse() {
   descr = e_stack - 1;
   k_get_file(descr);
   fvar = descr->data.fvar;
+  if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: refused with the message the other remote refusals give, before the variable is dismissed */
+    net_refuse(fvar, "ANALYSE.FILE");
   k_dismiss();
 
   switch (fvar->type) {

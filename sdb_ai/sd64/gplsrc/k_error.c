@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: log_permissions_error() does not read the file table for a NET_FILE
  * 17 Oct 26 dm  k_error(): an error with a row in sys_exc_table is thrown as a SYS.* exception when a TRY handler can
  *               catch it (QM4 Fixes 354); with none it aborts as before.
  * 29 Sep 26 dm  k_error(): the three appends after the message ("at line N
@@ -1124,6 +1125,12 @@ int log_printf(char* template_string, ...) {
 
 void log_permissions_error(FILE_VAR* fvar) {
   char msg[MAX_PATHNAME_LEN + 50];
+
+  if (fvar->type == NET_FILE) { /* 17 Oct 26 S.65: a remote file has no file table entry to name; the server's own log has the rest */
+    sprintf(msg, "Refused update to remote file %s", (fvar->voc_name != NULL) ? fvar->voc_name : "");
+    log_message(msg);
+    return;
+  }
 
   if (abs(process.status) == ER_PERM) {
     sprintf(msg, "Permissions error on %s",

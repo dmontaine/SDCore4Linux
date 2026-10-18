@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: op_fcontrol() and pub_fcontrol() refuse a NET_FILE (net_refuse)
  * 15 Oct 26 dm  pub_fcontrol(): the public FCONTROL() with openQM's action numbers (op_fcontrol is FCONTROL.INT).
  * 15 Oct 26 dm  Audit of the sequential id counter (CREATING.SEQKEY): dh_seq_key() writes only the counter's four bytes and
  *               every other writer of the primary header (FCONTROL, SETTRIG) stops short of them - DH_HEADER_SHARED_SIZE; the
@@ -146,6 +147,8 @@ void op_fcontrol() {
   descr = e_stack - 3;
   k_get_file(descr);
   fvar = descr->data.fvar;
+  if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: a remote file has no entry in the file table and no access.dh */
+    net_refuse(fvar, "FCONTROL");
   fptr = FPtr(fvar->file_id);
   /* ftype = fvar->type; variable assigned but not used */
   /* dynamic = (ftype == DYNAMIC_FILE); variable assigned but never used */
@@ -420,6 +423,8 @@ void pub_fcontrol() {
   descr = e_stack - 3;
   k_get_file(descr);
   fvar = descr->data.fvar;
+  if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: actions 5 and 6 would answer for any type */
+    net_refuse(fvar, "FCONTROL");
   dh_file = fvar->access.dh.dh_file; /* only used for a hashed file */
 
   descr = e_stack - 1;

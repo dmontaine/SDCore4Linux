@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: op_configfl() refuses a NET_FILE (net_refuse)
+ * 17 Oct 26 dm  S.65 slice 3c: open_file() opens a file on another SD server when the VOC (N pointer, _voc_ref) gives it the encoded path
+ *           char(1) 'N' char(1) server char(1) file: net_open() (netfiles.c) BEFORE fullpath() and any file table lookup, and only for OPEN
+ *           (map_name), never OPENPATH or OPENTEMP.  dio_close() closes a NET_FILE through net_close().
  * 17 Oct 26 dm  S.64 part 2 (review): the CREATE.FILE statement (op_create_dh, op_create_t1) and OPENTEMP refuse to make a file INSIDE
  *           a VOC, a dictionary, a program file or the private catalogue the session may not change (create_edit_refusal ->
  *           edit_os_path_refusal, final name not counted): -ER_PERM with the reason, or ER_PERM for OPENTEMP's ELSE. $internal
@@ -191,6 +195,9 @@ void op_configfl() {
   descr = e_stack - 5;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: a remote file is not configured from here (it would be told "read only" or status 1 silently) */
+    net_refuse(fvar, "CONFIGURE.FILE");
 
   if (fvar->flags & FV_RDONLY)
     k_error(sysmsg(1400));
@@ -589,6 +596,12 @@ void dio_close(FILE_VAR* fvar) {
     case SEQ_FILE:
       close_seq(fvar);
       break;
+
+    case NET_FILE:
+      /* 17 Oct 26 S.65 slice 3c: file_id is -1, so nothing above ran.  net_close() tells the server only for a CLOSE statement
+         (explicit_close); a release during an unwind or at scope exit is queued, as the handler is BASIC and must not run here. */
+      net_close(fvar);
+      break;
   }
 
   if (fvar->temp_path != NULL) /* OPENTEMP: the file goes with its last file variable (openQM items 431, 440) */
@@ -698,6 +711,8 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   u_int32_t device = 0;
   u_int32_t inode = 0;
   bool temp_refused = opentemp_edit_refused; /* 17 Oct 26 S.64 part 2: OPENTEMP named a place inside a guarded file */
+  bool net_failed = FALSE;                   /* 17 Oct 26 S.65 slice 3c: net_open() failed with an error: its message is the one to give */
+  int net_status;
 
   opentemp_edit_refused = FALSE; /* taken here, so that no later OPEN can find it set */
   op_flags = process.op_flags;
@@ -780,6 +795,20 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
     /* SDNet removed (plan G4): a name containing ';' is no longer a network
        file reference. It falls through to fullpath() and fails like any other
        bad pathname. */
+
+    /* 17 Oct 26 S.65 slice 3c: an N pointer in the VOC (_voc_ref) is a file on another SD server.  It comes back as the encoded path
+       char(1) 'N' char(1) server char(1) file, which no real path holds.  Only an OPEN by name looks for it (map_name): OPENPATH and
+       OPENTEMP name a path directly, and a char(1) typed into one is just a path that does not exist.  net_open() asks the NET gate
+       first and then the $netfile handler; it makes no file table entry (file_id stays -1) and sets the type itself.  A positive
+       status is the ELSE branch, a negative one an error whose message net_message() holds (shown below unless ON ERROR). */
+    if (net_path_is_net(mapped_name)) {
+      net_status = net_open(fvar, mapped_name);
+      if (net_status == 0)
+        goto net_file_opened;
+      process.status = net_status;
+      net_failed = (net_status < 0);
+      goto exit_op_open;
+    }
   }
 
   fullpath(pathname, mapped_name);
@@ -1038,6 +1067,8 @@ opened_via_txn_cache:
 
   /* Set file variable */
 
+net_file_opened: /* 17 Oct 26 S.65 slice 3c: a NET_FILE has no mode letters to act on and no file table entry; net_open() set what it needs */
+
   InitDescr(fvar_descr, FILE_REF);
   fvar_descr->data.fvar = fvar;
 
@@ -1063,6 +1094,8 @@ exit_op_open:
   (e_stack++)->data.value = process.status;
 
   if ((process.status < 0) && !(op_flags & P_ON_ERROR)) {
+    if (net_failed)
+      k_error("%s", net_message()); /* the handler's own message (11460, 11461, 11496, 11497 ...), not "Error %d opening file" */
     k_error(sysmsg(1402), -process.status);
   }
 }

@@ -8,9 +8,19 @@
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named parts
 # (login, args, pin, stale, keys, shared, down, close, notfound, files, account, locks, lists, wire - the class, slice 3a; handler, readonly,
-# refuse, lost, timeout - the handler gpl.bp/netfile, slice 3b; gaps - OPT-IN ONLY, see below); no flag runs all of them except gaps.
+# refuse, lost, timeout - the handler gpl.bp/netfile, slice 3b; kernel - the NET_FILE type through real OPEN / READ / READV / FILEINFO / CLOSE
+# statements and the refusal of everything else, slice 3c; gaps - OPT-IN ONLY, see below); no flag runs all of them except gaps.
 #
 # START-HISTORY:
+# 17 Oct 26 dm  S.65 slice 3c: the section kernel - a VOC pointer of type N opened by an ORDINARY session's OPEN statement (the C gate, the handler, the
+#               fake), READ / READV / MATREAD / FILEINFO / CLOSE as statements with THEN, ELSE and ON ERROR, two opens sharing a connection, a loop of 150
+#               opens (the queue of released handles), a LOGTO; the NET gate off, an unlisted account, no credential, a pin mismatch, a malformed pointer
+#               and a DICT open each refused without dialling; and THE REFUSAL MATRIX: about 35 statements, each given an open NET file variable in a
+#               program of its own, with and without ON ERROR, and the fake's packet log required to hold nothing but login, account, open, read, close
+#               and quit.  The verbs COUNT, LIST, SELECT, SORT, CLEAR.FILE, DELETE.FILE, COPY, ED ... on the VOC name.  ***NOT YET RUN*** - written
+#               without a sandbox to run it on, and the kernel it tests has never been compiled by anyone but its authors' syntax check; a red row is
+#               a wrong expectation here or a fault there, and the first run says which.  gaps gained the LOGTO row (the kernel key that ends the
+#               connections is not built).
 # 17 Oct 26 dm  New.  S.65 slice 3a.  ***NOT YET RUN*** - written on 17 Oct without a sandbox to run it on, as the slice's rule was that
 #               no agent compiles SD.  The first run is the first evidence; read a red row as a possible wrong expectation in this file
 #               as well as a fault in the class (the BASIC of the driver below has never been compiled either).
@@ -1941,6 +1951,723 @@ def gaps_section():
             if os.path.exists(p):
                 os.remove(p)
 
+    # slice 3c: the kernel starts a new epoch and sends NF$CLOSEALL at a LOGTO only if cproc calls the kernel key that is to reach net_close_all();
+    # that key (K_NET_CLOSEALL, suggested 128) is not built, so a LOGTO leaves the connections where they were
+    if kn_prep():
+        r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "EXEC|LOGTO zznhunl", "EXEC|LOGTO zznhon", "READ|1|c1"], (A,))
+        row("GAP: LOGTO ENDS THE CONNECTIONS (net_close_all, via a kernel key called beside kernel(K$NET, ...) in cproc): after LOGTO to another account and back to zznhon the variable opened "
+            "before is STALE - the READ is an error (STATUS() 7000) and never reaches the fake (one READ in all); without the hook the handle is the same account's again and the READ is answered",
+            kn_sane(r) and r.kr.count(kn_read_line("c1", "", "error", 7000)) == 1 and kn_wire(r.d[0]) == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"c1")], kn_why(r) + " wire=%r" % (kn_wire(r.d[0]),))
+
+
+# ---- K. the kernel: a NET_FILE through real statements (slice 3c) ---------------------------------------------------------------------------------
+#
+# S.65 slice 3c.  Until now nothing in the kernel called the handler: the sections above drive $netfile from a BASIC program that CALLs it.  Here an
+# ORDINARY session's OPEN statement names a VOC record of type N (field 2 the server, field 3 the file there), and the kernel's NET_FILE file
+# variable type does the rest: open_file() recognises the encoded path _voc_ref returns, net_open() asks the NET gate in C and then runs $netfile,
+# and READ, READV, MATREAD, FILEINFO and CLOSE go to it.  Every other statement is REFUSED before it touches anything (message 11501).
+#
+# THE INSTRUMENT.  (1) The driver zznk1 reads one line at a time and prints "KR <op> ..." for what the STATEMENT gave it - which of THEN, ELSE and
+# ON ERROR ran, STATUS(), the length and the (mark-shown) text of what it got - so a row reads the program's view and not the kernel's intent.
+# (2) The refusal matrix puts each statement in a program of its own: A (no ON ERROR: the program must stop with the kernel's message and never
+# print SURVIVED) and E (ON ERROR: the program must go on, print the STATUS() the branch saw, read a record from the same file afterwards and reach
+# its end).  (3) THE FAKE'S PACKET LOG decides what reached the other machine: whatever the program thinks happened, the log may hold only login
+# (47, 48), account (3), open (4), read (6), close (5) and quit (1); a write, delete, clear, lock, select or record-locked request in it is a
+# failed row, and the records on the fake must equal what they were.  (4) Every session is required to have ended every connection.
+# EXPECTED VALUES come from this file (the records it put into the store, the numbers err.h and the design give) and from the sandbox's own messages.
+#
+# WHAT IT CANNOT SHOW.  (1) That the kernel's own C gate is asked BEFORE the handler is loaded: the handler repeats the test with the same text, so
+# a row cannot tell them apart; test-net-units.py reads the order in netfiles.c.  (2) The verbs (COUNT, LIST ... on the VOC name): their output is
+# not known in advance, so a row requires the session to SURVIVE, the packet log to be clean, the data unchanged, and for CLEAR.FILE and DELETE.FILE
+# the verb's own refusal text.  (3) Statements only an $internal program can write (AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE, AKMAP): the
+# test-net-units.py checks read their refusals in the C; only GETLOCKS is run here.
+
+KN = {}                                             # what the kernel section made
+KDRV = "zznk1"                                      # the input driven program (OPEN READ READV MATREAD FI CLOSE EXEC)
+KLOOP, KTXN, KVOC, KSENT, KGATE = "zznkl", "zznkt", "zznkv", "zznksent", "zznkg"
+KOFF = "zznhnov"                                    # the NET gate on, voc.edit OFF
+KSLOTS = 4                                          # the driver's file variables f1 .. f4
+KALLOWED = {47, 48, 3, 4, 5, 6, 1}                  # the requests a read only session may send: login, account, open, close, read, quit
+KBAD = [("zznbad1", "1abc", HFILE), ("zznbad2", "nfa b", HFILE), ("zznbad3", "", HFILE), ("zznbad4", "nfa", ""), ("zznbad5", "nfa", "a/b"),
+        ("zznbad6", "nfa", "dict hcust"), ("zznbad7", "nfa", "x" * 64), ("zznbad8", "a" + "b" * 16, HFILE), ("zznbad9", "nfa", "a;b")]
+
+
+def kn_voc():
+    """The VOC records the administrator writes into the fixture accounts: account -> [(id, fields)]."""
+    def n(srv, fil):
+        return ["N", srv, fil]
+    verbs = [("zznki", ["V", "CA", "$zznki"]), ("zznkj", ["V", "CA", "$zznkj"])]
+    on = [("zznet1", n("nfa", HFILE)), ("zznetempty", n("nfa", HEMPTY)), ("zznetb", n("nfb", HFILE)), ("zznetmiss", n("nfa", "nosuchfile")),
+          ("zznetnc", n("nfnocred", HFILE)), ("zznetcp", n("nfcpin", HFILE)), ("zznetpin", n("nfpin", HFILE)), ("zznetunl", n("nfadm", HFILE)),
+          ("zznetup", n("NFA", "HCUST")), ("zznetsp", n(" nfa ", " hcust "))]
+    on += [(v, n(s, f)) for v, s, f in KBAD]
+    return {"zznhon": on + verbs,
+            "zznhoff": [("zznet1", n("nfa", HFILE)), ("zznqon", ["Q", "zznhon", "zznet1"])] + verbs,
+            "zznhunl": [("zznet1", n("nfa", HFILE))] + verbs}
+
+
+def kn_fix_text():
+    root = os.path.join(g.BOX, "user_accounts")
+    out = ["$internal"]
+    for acct, recs in kn_voc().items():
+        out.append("   openpath '%s' to v else crt 'KFIX no voc %s' ; stop" % (os.path.join(root, acct, "voc"), acct))
+        for rid, flds in recs:
+            out.append("   write %s to v, '%s'" % (":@fm:".join("'%s'" % x for x in flds), rid))
+        out.append("   close v")
+    out += ["   crt 'KFIX done'", "end", ""]
+    return "\n".join(out)
+
+
+def kn_case(op, tmpl, show_lines, pre=()):
+    """One case of the driver: the statement TMPL once for each of the four file variables (the slot picks one), then the lines that print."""
+    out = ["         case op = '%s'" % op] + ["            " + p for p in pre] + ["            begin case"]
+    for n in range(1, KSLOTS + 1):
+        out.append("               case slot = %d" % n)
+        out += ["                  " + ln.replace("{f}", "f%d" % n) for ln in tmpl.split("\n")]
+    out.append("            end case")
+    return out + ["            " + s for s in show_lines]
+
+
+def kn_driver():
+    L = ["$include err.h", "   dim m(4)"] + ["   f%d = ''" % n for n in range(1, KSLOTS + 1)]
+    L += ["   crt 'KR begin'", "   done = @false", "   loop", "      input ln", "      done = (ln = 'END') or (ln = '' and status() = ER$EOF)", "   until done do",
+          "      op = field(ln, '|', 1)", "      a2 = field(ln, '|', 2)", "      a3 = field(ln, '|', 3)", "      a4 = field(ln, '|', 4)",
+          "      slot = 0", "      if op # 'EXEC' then slot = a2 + 0", "      oc = 'then'", "      rec = ''", "      mat m = ''", "      begin case"]
+    eo = "on error oc = 'error' else oc = 'else'"
+    L += kn_case("OPEN", "open a3 to {f} " + eo, ["st = status()", "crt 'KR OPEN ':a3:' ':oc:' st=':st"])
+    L += kn_case("ODICT", "open 'DICT', a3 to {f} " + eo, ["st = status()", "crt 'KR ODICT ':a3:' ':oc:' st=':st"])
+    L += kn_case("READ", "read rec from {f}, a3 " + eo,
+                 ["st = status()", "v = rec ; gosub shw", "crt 'KR READ ':a3:' ':oc:' st=':st:' len=':len(rec):' rec=[':sv:']'"])
+    L += kn_case("READV", "readv rec from {f}, a3, fld " + eo,
+                 ["st = status()", "v = rec ; gosub shw", "crt 'KR READV ':a3:'/':a4:' ':oc:' st=':st:' len=':len(rec):' rec=[':sv:']'"], pre=["fld = a4 + 0"])
+    L += kn_case("MATREAD", "matread m from {f}, a3 " + eo, ["st = status()", "crt 'KR MATREAD ':a3:' ':oc:' st=':st:' [':m(1):'][':m(2):'][':m(3):']'"])
+    L += kn_case("FI", "x = fileinfo({f}, fkey)", ["v = x ; gosub shw", "crt 'KR FI ':a3:' [':sv:']'"], pre=["fkey = a3 + 0"])      # not `key`: KEY() is a function
+    L += kn_case("CLOSE", "close {f}", ["crt 'KR CLOSE ':slot"])
+    L += ["         case op = 'EXEC'", "            execute a2", "            crt 'KR EXEC ':a2:' who=':@who",
+          "         case 1", "            crt 'KR UNKNOWN ':op", "      end case", "   repeat", "   crt 'KR end'", "   stop", "",
+          "shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100",
+          "   sv = v", "   sv = change(sv, @im, '<I>')", "   sv = change(sv, @fm, '<F>')", "   sv = change(sv, @vm, '<V>')", "   sv = change(sv, @sm, '<S>')",
+          "   if len(sv) > 100 then sv = sv[1,40] : '..' : sv[len(sv) - 39, 40]", "   return", "", "end", ""]
+    return "\n".join(L)
+
+
+KLOOP_TEXT = """   crt 'KR zznkl begin'
+   bad = 0
+   for i = 1 to 150
+      open 'zznet1' to f on error bad += 1 else bad += 1
+   next i
+   crt 'KR zznkl opened bad=':bad
+   read r from f, 'c1' then crt 'KR zznkl read len=':len(r) else crt 'KR zznkl read else'
+   crt 'KR zznkl end'
+end
+"""
+
+KTXN_TEXT = """   crt 'KR zznkt begin'
+   open 'zznet1' to f else crt 'KR zznkt openfail st=':status() ; stop
+   begin transaction
+      read r from f, 'c1' then crt 'KR zznkt read len=':len(r) else crt 'KR zznkt read else'
+      x = fileinfo(f, 1038)
+      crt 'KR zznkt txnupdate=':x
+      commit
+   end transaction
+   crt 'KR zznkt end'
+end
+"""
+
+# an ordinary program writes a pointer into its own VOC and opens it: the edit gate (voc.edit) and the NET gate are each asked of the ACCOUNT
+KVOC_TEXT = """   crt 'KR v begin'
+   open 'voc' to v else crt 'KR v novoc' ; stop
+   ok = @true
+   write 'N':@fm:'nfa':@fm:'hcust' to v, 'zznetself' on error ok = @false
+   read x from v, 'zznetself' then p = 1 else p = 0
+   crt 'KR v write ':(if ok then 'OK' else 'REFUSED'):' P=':p
+   oc = 'then'
+   open 'zznetself' to f on error oc = 'error' else oc = 'else'
+   st = status()
+   crt 'KR v open ':oc:' st=':st
+   if oc = 'then' then
+      read r from f, 'c1' then crt 'KR v read len=':len(r) else crt 'KR v read else'
+   end
+   crt 'KR v end'
+end
+"""
+
+KGATE_TEXT = """   crt 'KR g begin'
+   open 'zznet1' to f else crt 'KR g ELSE st=':status() ; stop
+   crt 'KR g SURVIVED'
+end
+"""
+
+KSENT_TEXT = "   crt 'KR sent'\nend\n"
+
+KI_TEXT = """$internal
+program zznki
+$catalog $zznki
+   oc = 'then'
+   crt 'KR ki begin'
+   open 'zznet1' to f on error oc = 'error' else oc = 'else'
+   st = status()
+   crt 'KR ki open ':oc:' st=':st
+   if oc = 'then' then
+      read r from f, 'c1' then crt 'KR ki read len=':len(r) else crt 'KR ki read else'
+   end
+   crt 'KR ki end'
+end
+"""
+
+KJ_TEXT = """$internal
+program zznkj
+$catalog $zznkj
+   crt 'KR kj begin'
+   open 'zznet1' to f else crt 'KR kj openfail st=':status() ; stop
+   locks = getlocks(f, '')
+   crt 'KR kj SURVIVED ':locks
+end
+"""
+
+# programs that are not refusals of a statement but must not be taken for a remote file either: the VOC name is not a path, and a char(1) typed into
+# a path is only a path (OPENPATH never looks for the encoded form)
+KX_TEXT = {
+    "zznkx1": """   crt 'KR oseq begin'
+   openseq 'zznet1', 'c1' to sq then crt 'KR oseq THEN' else crt 'KR oseq ELSE st=':status()
+   crt 'KR oseq end'
+end
+""",
+    "zznkx2": """   crt 'KR opath begin'
+   openpath char(1):'N':char(1):'nfa':char(1):'hcust' to g then crt 'KR opath THEN' else crt 'KR opath ELSE st=':status()
+   crt 'KR opath end'
+end
+""",
+    "zznkx3": """   crt 'KR callfile begin'
+   call 'zznet1 zzprog'
+   crt 'KR callfile SURVIVED'
+end
+""",
+}
+
+# The refusal matrix.  (tag, lines before the open, the statement lines WITHOUT an ON ERROR clause, the lines WITH one (None: the statement has no
+# such clause), the messages the abort may give as (number, second argument), the STATUS() the ON ERROR branch sees).  The server in every message
+# is nfa, the server of zznet1.  7000 is ER_NETWORK, 3035 ER_PERM: the statements that take the S.64 edit-gate convention (RECORDLOCKU / L, SELECT,
+# SELECTV) give 3035, the others the net_refuse() status.  Every statement uses the open file variable f and the record c1.
+
+
+def km(tag, a, e, op, st, pre=(), num=11501):
+    ops = list(op) if isinstance(op, (list, tuple)) else [op]
+    return (tag, list(pre), a if isinstance(a, list) else [a], (e if isinstance(e, list) or e is None else [e]), [(num, o) for o in ops], st)
+
+
+KM = [
+    km("write", "write 'zz' to f, 'c1'", "write 'zz' to f, 'c1' on error null", "write", 7000),
+    km("writeu", "writeu 'zz' to f, 'c1'", "writeu 'zz' to f, 'c1' on error null", "writeu", 7000),
+    km("writev", "writev 'zz' to f, 'c1', 2", "writev 'zz' to f, 'c1', 2 on error null", "writev", 7000),
+    km("writevu", "writevu 'zz' to f, 'c1', 2", "writevu 'zz' to f, 'c1', 2 on error null", "writevu", 7000),
+    km("matwrite", "matwrite m to f, 'c1'", "matwrite m to f, 'c1' on error null", ("write", "writeu"), 7000, pre=["dim m(3)", "mat m = 'zz'"]),
+    km("delete", "delete f, 'c1'", "delete f, 'c1' on error null", "delete", 7000),
+    km("clearfile", "clearfile f", "clearfile f on error null", "clearfile", 7000),
+    km("readu", "readu r from f, 'c1' else null", "readu r from f, 'c1' on error null else null", "readu", 7000),
+    km("readl", "readl r from f, 'c1' else null", "readl r from f, 'c1' on error null else null", "readl", 7000),
+    km("readvu", "readvu v from f, 'c1', 2 else null", "readvu v from f, 'c1', 2 on error null else null", "readvu", 7000),
+    km("readvl", "readvl v from f, 'c1', 2 else null", "readvl v from f, 'c1', 2 on error null else null", "readvl", 7000),
+    km("matreadu", "matreadu m from f, 'c1' else null", "matreadu m from f, 'c1' on error null else null", "matreadu", 7000, pre=["dim m(3)"]),
+    km("matreadl", "matreadl m from f, 'c1' else null", "matreadl m from f, 'c1' on error null else null", "matreadl", 7000, pre=["dim m(3)"]),
+    km("recordlocku", "recordlocku f, 'c1'", "recordlocku f, 'c1' on error null", "recordlocku", 3035),
+    km("recordlockl", "recordlockl f, 'c1'", "recordlockl f, 'c1' on error null", "recordlockl", 3035),
+    km("select", "select f to 5", ["select f to 5 on error null", "st = status()", "readnext x from 5 then crt 'KR select readnext THEN' else crt 'KR select readnext ELSE'"],
+       "select", 3035),
+    km("selectv", "selectv f to lst", "selectv f to lst on error null", "selectv", 3035),
+    km("release", "release f, 'c1'", None, "release", None),
+    km("releasef", "release f", None, "release", None),
+    km("filelock", "filelock f", None, "filelock", None),
+    km("fileunlock", "fileunlock f", None, "fileunlock", None),
+    km("recordlocked", "x = recordlocked(f, 'c1')", None, "recordlocked", None),
+    km("selectindex", "selectindex 'CITY' from f to 5", None, "selectindex", None),
+    km("selectindexv", "selectindex 'CITY', 'Paris' from f to 5", None, "selectindex", None),
+    km("selectright", "selectright 'CITY' from f to 5", None, "selectright/selectleft", None),
+    km("selectleft", "selectleft 'CITY' from f to 5", None, "selectright/selectleft", None),
+    km("setleft", "setleft 'CITY' from f", None, "setleft", None),
+    km("setright", "setright 'CITY' from f", None, "setright", None),
+    km("indices", "x = indices(f)", None, "indices", None),
+    km("indices2", "x = indices(f, 'CITY')", None, "indices", None),
+    km("fcontrol6", "void fcontrol(f, 6, 'c1')", None, "fcontrol", None),
+    km("fcontrol1", "void fcontrol(f, 1, -1)", None, "fcontrol", None),
+    km("fiexcl", "x = fileinfo(f, 10000)", None, "fileinfo", None),
+    km("fistaton", "x = fileinfo(f, 10002)", None, "fileinfo", None),
+    km("fistatoff", "x = fileinfo(f, 10003)", None, "fileinfo", None),
+    # a transaction: the WRITE is refused before the transaction code is reached
+    km("txnwrite", ["begin transaction", "write 'zz' to f, 'c1'", "end transaction"],
+       ["begin transaction", "write 'zz' to f, 'c1' on error null", "st = status()", "rollback", "end transaction"], "write", 7000),
+]
+# the FILEINFO keys the handler does not answer (stage 1 answers 0, 1, 2): 11502 names the server and the key, and the key is not guessed at
+KFI_KEYS = (3, 5, 1013, 1015, 1019, 1021, 1039, 1100)
+KM += [km("fikey%d" % k, "x = fileinfo(f, %d)" % k, None, str(k), None, num=11502) for k in KFI_KEYS]
+
+# the verbs on the VOC name: (the command, its extra lines, a message number the verb is known to refuse with or None)
+KVERBS = [("COUNT zznet1", [], None), ("LIST zznet1", [], None), ("SELECT zznet1", [], None), ("SORT zznet1", [], None),
+          ("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYSE.FILE zznet1", [], None),
+          ("CLEAR.FILE zznet1", [], 1431), ("DELETE.FILE zznet1", [], 2015), ("DELETE zznet1 c1", [], None),
+          ("COPY FROM zznet1 TO zznetempty c1", [], None), ("ED zznet1 zznewrec", ["I hello", "FI", "Q", "Y"], None)]
+
+
+def kn_prog(tag, pre, middle, tail):
+    """The text of a matrix program: PRE, the begin line, the open of zznet1 into f, MIDDLE, TAIL, end."""
+    L = ["   " + p for p in pre]
+    L += ["   crt 'KR %s begin'" % tag, "   open 'zznet1' to f else crt 'KR %s openfail st=':status() ; stop" % tag]
+    L += ["   " + x for x in middle] + ["   " + x for x in tail] + ["end", ""]
+    return "\n".join(L)
+
+
+def kn_matrix_programs():
+    """name -> (text, kind, entry index) for the A programs (no ON ERROR) and the E programs (with it)."""
+    out = {}
+    for i, (tag, pre, a_lines, e_lines, _want, _st) in enumerate(KM, 1):
+        out["zznka%02d" % i] = (kn_prog(tag, pre, a_lines, ["crt 'KR %s SURVIVED st=':status()" % tag]), "A", i - 1)
+        if e_lines is not None:
+            mid = list(e_lines)
+            if not any(x.startswith("st = ") for x in mid):
+                mid.append("st = status()")
+            tail = ["crt 'KR %s st=':st" % tag, "read r2 from f, 'c1' then crt 'KR %s back len=':len(r2) else crt 'KR %s back else'" % (tag, tag),
+                    "crt 'KR %s end'" % tag]
+            out["zznke%02d" % i] = (kn_prog(tag, pre, mid, tail), "E", i - 1)
+    return out
+
+
+def kn_compile(acct, names):
+    """Compile programs already written to the account's bp in an ORDINARY session.  Returns (output, names with no object afterwards)."""
+    out = []
+    for i in range(0, len(names), 10):
+        out += g.plain(acct, ["BASIC bp " + " ".join(names[i:i + 10])])
+    return out, [n for n in names if not os.path.exists(os.path.join(acct_path(acct), "bp.out", n))]
+
+
+def kn_prep():
+    """What every kernel row needs, once: the handler section's preparation (credentials, definitions, fakes' files, three accounts), a fourth account
+    with voc.edit off, the pointers the administrator writes, and the programs compiled in an ordinary session."""
+    if "ready" in KN:
+        return KN["ready"]
+    KN["ready"] = False
+    if not h_prep():
+        return False
+    g.EXTRA_FIXTURES[KOFF] = ("no", "no")
+    path = g.build_account(KOFF)
+    g.reg_write(KOFF, [path, "", g.GROUP, "", "", "", "no", "no", "", "no", "yes", "yes", "", "", "yes"])        # voc.edit NO, bp.edit yes, dict.edit yes, NET yes
+
+    matrix = kn_matrix_programs()
+    KN["matrix"] = matrix
+    drv = kn_driver()
+    plan = {"zznhon": {KDRV: drv, KLOOP: KLOOP_TEXT, KTXN: KTXN_TEXT, KVOC: KVOC_TEXT, KSENT: KSENT_TEXT},
+            "zznhoff": {KDRV: drv, KVOC: KVOC_TEXT, KGATE: KGATE_TEXT, KSENT: KSENT_TEXT},
+            "zznhunl": {KDRV: drv, KGATE: KGATE_TEXT, KSENT: KSENT_TEXT},
+            KOFF: {KVOC: KVOC_TEXT}}
+    plan["zznhon"].update(KX_TEXT)
+    plan["zznhon"].update({n: t for n, (t, _k, _i) in matrix.items()})
+    missing, warn, total = {}, [], 0
+    for acct, progs in plan.items():
+        for name, text in progs.items():
+            g.put(os.path.join(acct_path(acct), "bp", name), text)
+        out, miss = kn_compile(acct, list(progs))
+        total += len(progs)
+        warn += [ln for ln in out if re.search(r"warning|not assigned", ln, re.I)]
+        if miss:
+            missing[acct] = (miss, [ln for ln in out if any(n in ln for n in miss) or re.search(r"error", ln, re.I)][:10])
+    row("SETUP: the %d kernel test programs (the driver, the loop, the transaction, the voc.edit control, the gate probes and the refusal matrix of %d statements) compile "
+        "in ORDINARY sessions with no error and no warning" % (total, len(matrix)), not missing and not warn, repr((missing, warn[:4])))
+
+    # the internal programs and the pointers: written by the administrator
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznki"), KI_TEXT)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkj"), KJ_TEXT)
+    out = g.adm(["BASIC gpl.bp zznki zznkj"], internal=True)
+    ok_i = g.has(out, r"^Compiled 2 program\(s\) with no errors") and not any(re.search(r"warning|not assigned", ln, re.I) for ln in out)
+    g.put(os.path.join(g.SYS, "bp", "zznkfix"), kn_fix_text())
+    out2 = g.adm(["BASIC bp zznkfix", "RUN bp zznkfix"], internal=True)
+    ok_f = g.has(out2, r"^KFIX done$")
+    npt = sum(len(v) for v in kn_voc().values())
+    row("SETUP: the two $internal test programs compile into gpl.bp, and the administrator wrote %d VOC records (pointers of type N - eleven of them badly made on purpose - a "
+        "Q-pointer, and the two verbs) into three accounts" % npt, ok_i and ok_f, repr((out[-4:], out2[-4:])))
+    if missing or not ok_i or not ok_f:
+        return False
+    KN["ready"] = True
+    return True
+
+
+# ---- running a session ------------------------------------------------------------------------------------------------------------------------
+
+def kn_run(acct, cmds, fakes, cfg=None):
+    """Run these TCL commands in one ordinary session of ACCT.  Returns what the program printed (r.kr: the lines that begin "KR "), what each fake saw (r.d),
+    the audit lines the session added (r.audits), whether the session hung (r.hung) and whether every connection ended (r.idle)."""
+    c = {"files": True, "files_only": True}
+    c.update(cfg or {})
+    for f in fakes:
+        f.configure(**c)
+    marks = [f.mark() for f in fakes]
+    a0 = audit_size()
+    t0 = time.time()
+    hung = False
+    try:
+        out = g.plain(acct, list(cmds))
+    except subprocess.TimeoutExpired:
+        out, hung = [], True
+    el = time.time() - t0
+    idle = True
+    for f in fakes:
+        f.settle(quiet=0.3)
+        idle = quiet(f) and idle
+    r = Run()
+    r.d = [f.delta(m) for f, m in zip(fakes, marks)]
+    for f in fakes:
+        f.configure()
+    r.out, r.el, r.idle, r.hung = out, el, idle, hung
+    r.kr = [ln for ln in out if ln.startswith("KR ")]
+    r.crash = [ln for ln in out if re.search(r"double free|corruption|Segmentation|Aborted|core dumped|glibc|fatal signal", ln, re.I)]       # the process died, whatever it printed first
+    if r.crash:
+        KN.setdefault("crashes", []).append((acct, list(cmds)[:2], r.crash[:2]))
+    r.audit = audit_since(a0)
+    r.audits = h_audits(r.audit)
+    return r
+
+
+def kn_drive(acct, lines, fakes, cfg=None):
+    return kn_run(acct, ["RUN bp " + KDRV] + list(lines) + ["END"], fakes, cfg)
+
+
+def kn_sane(r, need_end=True):
+    """The driver began and ended, the session did not hang, no fake found anything malformed or refused a request, and no connection is left."""
+    return (not r.hung and "KR begin" in r.kr and ("KR end" in r.kr or not need_end) and r.idle
+            and all(not d["errors"] for d in r.d) and all(not s.refused for d in r.d for s in d["sessions"]))
+
+
+def kn_why(r, n=6):
+    return "hung=%s began=%s ended=%s idle=%s fake errors=%r\n      kr: %r\n      tail: %r" % (
+        r.hung, "KR begin" in r.kr, "KR end" in r.kr, r.idle, [d["errors"] for d in r.d], r.kr[-n:], r.out[-3:])
+
+
+def kn_wire(d):
+    """The requests after the login, a trailing Quit left out (a process that ends closes its socket; whether the handler's last word is a Quit is not the question)."""
+    w = h_wire(d)
+    return w[:-1] if w and w[-1][0] == 1 else w
+
+
+def kn_conns(d):
+    """by_conn() with a trailing Quit (1) of each connection left out."""
+    return [c[:-1] if c and c[-1] == 1 else c for c in by_conn(d)]
+
+
+def kn_opens(r):
+    return [(m.group(1), m.group(2), int(m.group(3))) for m in (re.match(r"^KR OPEN (\S+) (\S+) st=(\d+)$", ln) for ln in r.kr) if m]
+
+
+def kn_read_line(rid, rec, oc="then", st=0):
+    return "KR READ %s %s st=%d len=%d rec=[%s]" % (rid, oc, st, len(rec), show(rec))
+
+
+def kn_readv_line(rid, fld, rec, oc="then", st=0):
+    return "KR READV %s/%s %s st=%d len=%d rec=[%s]" % (rid, fld, oc, st, len(rec), show(rec))
+
+
+def kn_segments(out):
+    """The lines each matrix program printed, by its tag: from its  KR <tag> begin  line to the next one."""
+    segs, cur = {}, None
+    for ln in out:
+        m = re.match(r"^KR (\S+) begin$", ln)
+        if m:
+            cur = m.group(1)
+            segs[cur] = []
+        elif cur is not None:
+            segs[cur].append(ln)
+    return segs
+
+
+def kn_abort(lines):
+    """The text of the kernel's abort line in these lines ("0000001A: <message> at line N of <program>"), or None."""
+    for ln in lines:
+        m = re.match(r"^[0-9A-F]{8}: (.*?)(?: at line \d+ of| in) \S+$", ln)       # sysmsg 1121, or 1122 when the line is not known
+        if m:
+            return m.group(1)
+    return None
+
+
+def kn_snapshot(A):
+    return {n: A.store.records(n) for n in (HFILE, HEMPTY)}
+
+
+# ---- the section ------------------------------------------------------------------------------------------------------------------------------------
+
+def kernel_section():
+    say("\n--- kernel: a VOC pointer of type N opened by an ordinary OPEN statement; READ, READV, MATREAD, FILEINFO and CLOSE reach the handler; everything else is refused ---")
+    if not kn_prep():
+        return
+    A, B = S["A"], S["B"]
+    kn_runtime(A, B)
+    kn_opens_refused(A, B)
+    kn_gates(A, B)
+    kn_matrix(A)
+    kn_verbs(A)
+    kn_after(A)
+
+
+def kn_runtime(A, B):
+    say("\n  -- the statements that are supported --")
+    c1, c2, c3, m1, big = (RECS[k] for k in ("c1", "c2", "c3", "m1", "big"))
+    fields = c1.split(FMC)
+    fkeys = (0, 1, 2, 1001, 1009, 1022, 1030, 1032, 1038)
+    lines = ["OPEN|1|zznet1"] + ["READ|1|" + k for k in ("c1", "c2", "c3", "m1", "big", "nosuch")]
+    lines += ["READV|1|c1|2", "READV|1|c1|1", "READV|1|c1|9", "READV|1|c1|0", "READV|1|nosuch|1", "MATREAD|1|c2", "MATREAD|1|nosuch"]
+    lines += ["FI|1|%d" % k for k in fkeys]
+    lines += ["OPEN|2|zznetempty", "READ|2|x", "OPEN|3|zznet1", "READ|3|c3", "CLOSE|1", "READ|3|c2", "READ|2|x", "CLOSE|2", "CLOSE|3"]
+    want = ["KR OPEN zznet1 then st=0", kn_read_line("c1", c1), kn_read_line("c2", c2), kn_read_line("c3", c3), kn_read_line("m1", m1), kn_read_line("big", big),
+            kn_read_line("nosuch", "", "else", 3006),
+            kn_readv_line("c1", 2, fields[1]), kn_readv_line("c1", 1, fields[0]), kn_readv_line("c1", 9, ""), kn_readv_line("c1", 0, "c1"),
+            kn_readv_line("nosuch", 1, "", "else", 3006),
+            "KR MATREAD c2 then st=0 [Jones][50][]", "KR MATREAD nosuch else st=3006 [][][]"]
+    want += ["KR FI 0 [1]", "KR FI 1 [zznet1]", "KR FI 2 []", "KR FI 1001 [1]", "KR FI 1009 [-1]", "KR FI 1022 [1]", "KR FI 1030 [0]", "KR FI 1032 [1]", "KR FI 1038 [0]"]
+    want += ["KR OPEN zznetempty then st=0", kn_read_line("x", "", "else", 3006), "KR OPEN zznet1 then st=0", kn_read_line("c3", c3),
+             "KR CLOSE 1", kn_read_line("c2", c2), kn_read_line("x", "", "else", 3006), "KR CLOSE 2", "KR CLOSE 3"]
+    W = [(3, b"acct"), (4, b"hcust")] + [(6, FNO(1) + k.encode()) for k in ("c1", "c2", "c3", "m1", "big", "nosuch")]
+    W += [(6, FNO(1) + b"c1")] * 4 + [(6, FNO(1) + b"nosuch")] + [(6, FNO(1) + b"c2"), (6, FNO(1) + b"nosuch")]
+    W += [(4, b"hempty"), (6, FNO(2) + b"x"), (4, b"hcust"), (6, FNO(3) + b"c3"), (5, FNO(1)), (6, FNO(3) + b"c2"), (6, FNO(2) + b"x"), (5, FNO(2)), (5, FNO(3))]
+    before = kn_snapshot(A)
+    r = kn_drive("zznhon", lines, (A,))
+    row("an ordinary session in zznhon (the NET gate on, listed for nfa, a stored login) ran the driver to its end: no hang, nothing malformed, no connection left", kn_sane(r), kn_why(r))
+    got = [x for x in r.kr if not x.startswith(("KR begin", "KR end"))]
+    row("OPEN 'zznet1' (a VOC record N nfa hcust) succeeds: THEN ran, STATUS() 0 - and FILEINFO(f, FL$OPEN) is 1, FL$VOCNAME is the name opened with (zznet1), "
+        "FL$PATH is null (a path on another machine is not shown)", "KR OPEN zznet1 then st=0" in r.kr and "KR FI 0 [1]" in r.kr and "KR FI 1 [zznet1]" in r.kr and "KR FI 2 []" in r.kr,
+        repr(got[:3]))
+    for rid in ("c1", "c2", "c3", "m1", "big"):
+        row("READ of %s through the NET file is exactly the record the fake holds (%d bytes%s)" % (rid, len(RECS[rid]), ", the marks shown" if rid in ("c1", "m1") else ""),
+            kn_read_line(rid, RECS[rid]) in r.kr, repr([x for x in r.kr if x.startswith("KR READ %s " % rid)]))
+    row("READ of an id the file does not hold takes the ELSE branch with STATUS() 3006 (the local not-found code) and leaves a null record, as a local READ does",
+        kn_read_line("nosuch", "", "else", 3006) in r.kr, repr([x for x in r.kr if x.startswith("KR READ nosuch")]))
+    row("READV of field 2 is that field alone ('100<V>200'), field 1 is 'Smith', a field beyond the record is null with THEN, and field 0 (the record-exists test) leaves the id in the target",
+        all(kn_readv_line(a, b, c) in r.kr for a, b, c in (("c1", 2, fields[1]), ("c1", 1, fields[0]), ("c1", 9, ""), ("c1", 0, "c1"))), repr([x for x in r.kr if x.startswith("KR READV")]))
+    row("READV of a record the file does not hold takes the ELSE branch with STATUS() 3006", kn_readv_line("nosuch", 1, "", "else", 3006) in r.kr, repr([x for x in r.kr if x.startswith("KR READV nosuch")]))
+    row("MATREAD of c2 fills the array (Jones, 50), and of a missing record takes ELSE with 3006", "KR MATREAD c2 then st=0 [Jones][50][]" in r.kr and "KR MATREAD nosuch else st=3006 [][][]" in r.kr,
+        repr([x for x in r.kr if x.startswith("KR MATREAD")]))
+    row("FILEINFO answered by the file variable itself: READONLY 1, NON.TXN 1, NETFILE 1, FILENO -1 (there is no file table entry), INDEX.SCAN 0, TXN.UPDATE 0",
+        all(x in r.kr for x in ("KR FI 1001 [1]", "KR FI 1032 [1]", "KR FI 1022 [1]", "KR FI 1009 [-1]", "KR FI 1030 [0]", "KR FI 1038 [0]")), repr([x for x in r.kr if x.startswith("KR FI")]))
+    row("the whole script printed exactly what was expected, line for line (%d lines)" % len(want), got == want, "first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    d = r.d[0]
+    row("TWO OPENS SHARE THE CONNECTION: the fake saw ONE connection and ONE handshake for three OPENs of two files (one of them twice), the session is alice's in the account 'acct', "
+        "files-only, and it ended", d["conns"] == 1 and d["handshakes"] == 1 and len(d["sessions"]) == 1 and d["sessions"][0].user == "alice" and d["sessions"][0].account == "acct"
+        and d["sessions"][0].files_only and d["sessions"][0].closed and d["ok"] == 1, repr({k: d[k] for k in ("conns", "handshakes", "ok")}))
+    row("...THE REQUESTS, in order, with their bytes: ACCOUNT, OPEN, the READs, the five READVs and the two MATREADs (each a whole READ on the wire), the second and third OPEN, and the CLOSE of "
+        "handle 1 SENT AT THE STATEMENT (before the next READ), CLOSE 2, CLOSE 3 - FILEINFO and the refused empty cases sent nothing", kn_wire(d) == W,
+        "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(d), W) if a != b), (len(kn_wire(d)), len(W))),))
+    row("...the audit trail has one 'netfile open server=nfa file=<name>' line for each OPEN, in order, and no key, hash, salt or password", r.audits == ["open server=nfa file=hcust", "open server=nfa file=hempty", "open server=nfa file=hcust"]
+        and secret_free(r.audit), repr(r.audits))
+    row("...and nothing on the fake changed (every record of both files equal)", kn_snapshot(A) == before, "")
+
+    # two servers: each pointer reaches its own
+    lines = ["OPEN|1|zznet1", "OPEN|2|zznetb", "READ|1|only_a", "READ|1|only_b", "READ|2|only_b", "READ|2|only_a", "CLOSE|1", "CLOSE|2"]
+    r = kn_drive("zznhon", lines, (A, B))
+    want = ["KR OPEN zznet1 then st=0", "KR OPEN zznetb then st=0", kn_read_line("only_a", "from A"), kn_read_line("only_b", "", "else", 3006), kn_read_line("only_b", "from B"),
+            kn_read_line("only_a", "", "else", 3006), "KR CLOSE 1", "KR CLOSE 2"]
+    got = [x for x in r.kr if not x.startswith(("KR begin", "KR end"))]
+    row("TWO SERVERS: zznet1 (nfa) and zznetb (nfb) are two connections; each file variable reads its own server's record and not the other's", kn_sane(r) and got == want, kn_why(r) + " got=%r" % got)
+    row("...each fake saw ONE connection with ACCOUNT, OPEN, two READs and CLOSE, nothing meant for the other", r.d[0]["conns"] == 1 and r.d[1]["conns"] == 1
+        and kn_wire(r.d[0]) == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"only_a"), (6, FNO(1) + b"only_b"), (5, FNO(1))]
+        and kn_wire(r.d[1]) == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"only_b"), (6, FNO(1) + b"only_a"), (5, FNO(1))], repr((kn_wire(r.d[0]), kn_wire(r.d[1]))))
+
+    # a loop of 150 opens into one variable: the released handles are queued and sent, so the 100 a process may hold are never reached
+    before = kn_snapshot(A)
+    r = kn_run("zznhon", ["RUN bp " + KLOOP], (A,))
+    d = r.d[0]
+    n_open, n_close = d["types"].count(4), d["types"].count(5)
+    row("A LOOP OF 150 OPENS into one variable (each OPEN lets the last file variable go): all 150 succeed, none takes ELSE or ON ERROR, and a record is read at the end - the 100 handles "
+        "a process may hold are not exhausted", not r.hung and "KR zznkl opened bad=0" in r.kr and "KR zznkl read len=%d" % len(RECS["c1"]) in r.kr and "KR zznkl end" in r.kr, kn_why(r))
+    row("...the fake saw 150 OPEN requests and (148 to 150) CLOSE requests - the released handles were sent, the last variable's at the end of the process or not at all (opens %d, closes %d)"
+        % (n_open, n_close), n_open == 150 and 148 <= n_close <= 150 and d["conns"] == 1 and set(d["types"]) <= KALLOWED and r.idle, repr(sorted(set(d["types"]))))
+
+    # a transaction: a READ inside it works and FL$TXN.UPDATE is 0
+    r = kn_run("zznhon", ["RUN bp " + KTXN], (A,))
+    row("a READ inside BEGIN TRANSACTION ... END TRANSACTION works (the NET file is never in the transaction): the record is read and FILEINFO(f, FL$TXN.UPDATE) is 0",
+        not r.hung and "KR zznkt read len=%d" % len(RECS["c1"]) in r.kr and "KR zznkt txnupdate=0" in r.kr and "KR zznkt end" in r.kr and r.idle, kn_why(r))
+    row("...and after all of these nothing on the fake changed", kn_snapshot(A) == before, "")
+
+
+def kn_opens_refused(A, B):
+    say("\n  -- OPEN refused or failed: ELSE and ON ERROR as for a local failure, and what was dialled --")
+    lines = ["OPEN|1|zznetmiss", "OPEN|1|zznetnc", "OPEN|1|zznetcp", "OPEN|1|zznetpin", "OPEN|1|zznetunl", "OPEN|1|zznetup", "FI|1|1", "OPEN|2|zznetsp", "READ|1|c3", "READ|2|c3"]
+    lines += ["OPEN|3|" + v for v, _s, _f in KBAD] + ["ODICT|3|zznet1", "ODICT|3|zznetup"]
+    before = kn_snapshot(A)
+    r = kn_drive("zznhon", lines, (A, B))
+    row("the open-failures driver ran to its end and no connection is left", kn_sane(r), kn_why(r))
+    op = {}
+    for nm, oc, st in kn_opens(r):
+        op[nm] = (oc, st)
+    row("a pointer to a file the server does not have (N nfa nosuchfile): the ELSE branch with STATUS() 3003 (file not found)", op.get("zznetmiss") == ("else", 3003), repr(op.get("zznetmiss")))
+    row("NO STORED LOGIN for the server (N nfnocred ...): refused at OPEN - ON ERROR ran (not THEN, not ELSE) with an error STATUS() (3035 or 7000)",
+        op.get("zznetnc", ("", 0))[0] == "error" and op.get("zznetnc", ("", 0))[1] in (3035, 7000), repr(op.get("zznetnc")))
+    row("A STORED LOGIN MADE FOR ANOTHER KEY than the definition has now (N nfcpin ...): ON ERROR ran with an error STATUS()", op.get("zznetcp", ("", 0))[0] == "error" and op.get("zznetcp", ("", 0))[1] in (3035, 7000),
+        repr(op.get("zznetcp")))
+    row("A PIN MISMATCH (N nfpin ...: the server presents key two, the definition holds A's hash): ON ERROR ran with an error STATUS()", op.get("zznetpin", ("", 0))[0] == "error" and op.get("zznetpin", ("", 0))[1] in (3035, 7000),
+        repr(op.get("zznetpin")))
+    row("AN ACCOUNT NOT IN THE DEFINITION'S LIST (N nfadm ...: listed for nobody who is signed in): ON ERROR with STATUS() 3035 (ER_PERM)", op.get("zznetunl") == ("error", 3035), repr(op.get("zznetunl")))
+    row("an upper case pointer (N NFA HCUST) is folded to lower case and opens; a pointer with spaces round both names (N ' nfa ' ' hcust ') opens too; FILEINFO(f, FL$VOCNAME) is the VOC name",
+        op.get("zznetup") == ("then", 0) and op.get("zznetsp") == ("then", 0) and "KR FI 1 [zznetup]" in r.kr, repr((op.get("zznetup"), op.get("zznetsp"))))
+    row("...both read the record: the file is hcust (the lower case name went to the wire)", kn_read_line("c3", RECS["c3"]) in r.kr and r.kr.count(kn_read_line("c3", RECS["c3"])) == 2, repr([x for x in r.kr if "READ" in x]))
+    bad_ok = {v: op.get(v) for v, _s, _f in KBAD}
+    row("ALL NINE badly made pointers (a server name starting with a digit, holding a space, empty or 17 characters; a file name empty, with a slash, a space, 64 characters or a semicolon) are "
+        "refused in the VOC step: the ELSE branch with STATUS() 3002 (bad file name)", all(v == ("else", 3002) for v in bad_ok.values()), repr(bad_ok))
+    row("OPEN 'DICT', 'zznet1' (the dictionary of a remote file is not supported in this slice) takes ELSE with STATUS() 3009, and nothing is dialled for it",
+        "KR ODICT zznet1 else st=3009" in r.kr, repr([x for x in r.kr if x.startswith("KR ODICT")]))
+    da, db = r.d
+    expect_a = [[47, 48, 3, 4], [47, 48, 3, 4, 4, 6, 6]]
+    row("...WHAT WAS DIALLED: server A saw two connections - the first ACCOUNT and OPEN nosuchfile (then the handler's Quit), the second ACCOUNT, OPEN, OPEN, READ, READ and nothing else (so no pointer of "
+        "the refused kind and none of the nine bad ones, nor the DICT open, made a request; a Quit at the end of a connection is not compared)", kn_conns(da) == expect_a, repr(by_conn(da)))
+    row("...server B (the pin mismatch) saw one connection and a completed handshake, ZERO request packets and ZERO application bytes: nothing was sent to a server whose key is not the pinned one",
+        db["conns"] == 1 and db["handshakes"] == 1 and db["types"] == [] and db["app_bytes"] == 0, repr({k: db[k] for k in ("conns", "handshakes", "types", "app_bytes")}))
+    want_audit = ["open server=nfa file=nosuchfile", "refused server=nfnocred reason=credential", "refused server=nfcpin reason=credential", "open server=nfpin file=hcust",
+                  "refused server=nfadm reason=list", "open server=nfa file=hcust", "open server=nfa file=hcust"]
+    row("...the audit trail has the handler's line for each of the seven pointers that reached it, in order, and NONE for the nine bad ones or the DICT open (the VOC step refused them before any "
+        "gate or handler); nothing secret", r.audits == want_audit and secret_free(r.audit), repr(r.audits))
+    row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
+
+
+def kn_gates(A, B):
+    say("\n  -- the NET gate in C, an unlisted account, the pointer an account wrote for itself, the internal program --")
+    before = kn_snapshot(A)
+
+    # the gate off
+    r = kn_drive("zznhoff", ["OPEN|1|zznet1", "OPEN|2|zznqon"], (A, B))
+    op = dict((nm, (oc, st)) for nm, oc, st in kn_opens(r))
+    row("THE NET GATE OFF (zznhoff, listed for nfa; the pointer was written by the administrator): OPEN takes ON ERROR with STATUS() 3035 (ER_PERM) and the program goes on", kn_sane(r) and op.get("zznet1") == ("error", 3035), kn_why(r))
+    row("...a Q-pointer in zznhoff to zznhon's pointer gives it NOTHING: it is not opened (not THEN)", op.get("zznqon", ("then", 0))[0] in ("error", "else"), repr(op.get("zznqon")))
+    row("...NOTHING WAS DIALLED: neither fake saw a connection, a handshake or a byte, and the audit trail says 'refused server=nfa reason=gate' for the pointer",
+        all(d["conns"] == 0 and d["handshakes"] == 0 and d["types"] == [] and d["app_bytes"] == 0 for d in r.d) and "refused server=nfa reason=gate" in r.audits and secret_free(r.audit),
+        repr((r.audits, [d["conns"] for d in r.d])))
+
+    # the abort form, gate off and unlisted: the kernel's own message
+    r = kn_run("zznhoff", ["RUN bp " + KGATE], (A, B))
+    seg = kn_segments(r.out).get("g", [])
+    row("the same OPEN without ON ERROR stops the program with message 11460 (%r) and prints nothing after it" % msg(11460, "zznhoff"), not r.hung and kn_abort(seg) == msg(11460, "zznhoff") and not any("SURVIVED" in x for x in seg)
+        and all(d["conns"] == 0 for d in r.d), repr(seg))
+    r = kn_run("zznhunl", ["RUN bp " + KGATE], (A, B))
+    seg = kn_segments(r.out).get("g", [])
+    row("AN ACCOUNT NOT IN THE LIST (zznhunl: the gate on, nfa lists zznhon and zznhoff): without ON ERROR the program stops with message 11461 (%r), nothing is dialled"
+        % msg(11461, "zznhunl", "nfa"), not r.hung and kn_abort(seg) == msg(11461, "zznhunl", "nfa") and not any("SURVIVED" in x for x in seg) and all(d["conns"] == 0 for d in r.d), repr(seg))
+    r = kn_drive("zznhunl", ["OPEN|1|zznet1"], (A, B))
+    row("...and with ON ERROR: STATUS() 3035, the audit trail has 'refused server=nfa reason=list'", kn_sane(r) and ("zznet1", "error", 3035) in kn_opens(r) and r.audits == ["refused server=nfa reason=list"]
+        and all(d["conns"] == 0 for d in r.d), kn_why(r))
+
+    # the edit gate: a pointer an account writes into its own VOC
+    r = kn_run("zznhnov", ["RUN bp " + KVOC], (A,))
+    seg = kn_segments(r.out).get("v", [])
+    row("CONTROL (the edit gate): an account WITHOUT voc.edit writes a pointer into its own VOC and is REFUSED, the record is not there afterwards (P=0), and opening it is the ELSE branch - nothing dialled",
+        not r.hung and "KR v write REFUSED P=0" in seg and any(x.startswith("KR v open else") for x in seg) and "KR v end" in seg and r.d[0]["conns"] == 0, repr(seg))
+    r = kn_run("zznhoff", ["RUN bp " + KVOC], (A,))
+    seg = kn_segments(r.out).get("v", [])
+    row("AN ACCOUNT WITH voc.edit AND NO NET GATE writes the pointer (P=1) and cannot make it work: OPEN is ON ERROR with STATUS() 3035 and the fake saw no connection - a VOC entry an account "
+        "wrote for itself gives it nothing it was not granted", not r.hung and "KR v write OK P=1" in seg and "KR v open error st=3035" in seg and "KR v end" in seg and r.d[0]["conns"] == 0
+        and "refused server=nfa reason=gate" in r.audits, repr(seg))
+    r = kn_run("zznhon", ["RUN bp " + KVOC], (A,))
+    seg = kn_segments(r.out).get("v", [])
+    row("CONTROL: the account with both gates writes its own pointer and opens it: the record is read (the same pointer, from an ordinary program)",
+        not r.hung and "KR v write OK P=1" in seg and "KR v open then st=0" in seg and "KR v read len=%d" % len(RECS["c1"]) in seg and r.idle, repr(seg))
+
+    # an $internal program is not exempt from the gate
+    r = kn_run("zznhoff", ["ZZNKI"], (A,))
+    seg = kn_segments(r.out).get("ki", [])
+    row("AN $INTERNAL PROGRAM IS NOT EXEMPT (the S.63 lesson): the verb ZZNKI, catalogued $internal, run in zznhoff (gate off), opens the pointer and takes ON ERROR with STATUS() 3035; nothing dialled",
+        not r.hung and "KR ki open error st=3035" in seg and "KR ki end" in seg and r.d[0]["conns"] == 0, repr(seg))
+    r = kn_run("zznhon", ["ZZNKI"], (A,))
+    seg = kn_segments(r.out).get("ki", [])
+    row("CONTROL: the same internal program in zznhon (gate on) opens it and reads the record", not r.hung and "KR ki open then st=0" in seg and "KR ki read len=%d" % len(RECS["c1"]) in seg and r.idle, repr(seg))
+    r = kn_run("zznhon", ["ZZNKJ"], (A,))
+    seg = kn_segments(r.out).get("kj", [])
+    row("GETLOCKS(f, '') on a NET file from an internal program stops with 11501 (getlocks) - without the refusal file_id -1 would mean ALL FILES and list every lock of every user",
+        not r.hung and kn_abort(seg) == msg(11501, "nfa", "getlocks") and not any("SURVIVED" in x for x in seg), repr(seg))
+
+    # LOGTO: the handle does not follow the user
+    lines = ["OPEN|1|zznet1", "READ|1|c1", "EXEC|LOGTO zznhunl", "READ|1|c1", "OPEN|2|zznet1", "CLOSE|1"]
+    r = kn_drive("zznhon", lines, (A,))
+    got = [x for x in r.kr if not x.startswith(("KR begin", "KR end"))]
+    row("A FILE VARIABLE DOES NOT SURVIVE A LOGTO: after LOGTO zznhunl a READ on the variable opened in zznhon is an ERROR (ON ERROR ran, STATUS() 7000, 'no remote file is open with handle'), and an OPEN there "
+        "of the same pointer is refused (not in the list: 3035)", kn_sane(r) and got[:2] == ["KR OPEN zznet1 then st=0", kn_read_line("c1", RECS["c1"])] and kn_read_line("c1", "", "error", 7000) in got
+        and "KR OPEN zznet1 error st=3035" in got, kn_why(r) + " got=%r" % got)
+    row("...the first account's variable can still be closed (CLOSE ran), and the process ended with its connection closed", "KR CLOSE 1" in r.kr and r.idle, repr(r.kr[-3:]))
+    row("...the fake never saw a request for the account zznhunl: one connection, ACCOUNT acct only once", r.d[0]["conns"] == 1 and kn_wire(r.d[0])[:3] == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"c1")], repr(kn_wire(r.d[0])[:4]))
+    row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
+
+
+def kn_matrix(A):
+    say("\n  -- THE REFUSAL MATRIX: every other statement given an open NET file variable --")
+    matrix = KN["matrix"]
+    a_names = sorted(n for n, (_t, k, _i) in matrix.items() if k == "A")
+    e_names = sorted(n for n, (_t, k, _i) in matrix.items() if k == "E")
+    before = kn_snapshot(A)
+    c1len = len(RECS["c1"])
+
+    # --- A: no ON ERROR.  One session runs every program; each aborts and the next RUN goes on.
+    xs = ["zznkx1", "zznkx2", "zznkx3"]
+    r = kn_run("zznhon", ["RUN bp " + n for n in a_names + xs], (A,))
+    segs = kn_segments(r.out)
+    row("the %d no-ON-ERROR programs and the three path programs ran in ONE session, each aborting and the next going on: every program printed its begin line, the session did not hang, no connection is left"
+        % len(a_names), not r.hung and r.idle and all(KM[matrix[n][2]][0] in segs for n in a_names) and all(t in segs for t in ("oseq", "opath", "callfile")),
+        "missing: %r hung=%s" % ([KM[matrix[n][2]][0] for n in a_names if KM[matrix[n][2]][0] not in segs][:6], r.hung))
+    for n in a_names:
+        tag, _pre, _a, _e, want, _st = KM[matrix[n][2]]
+        seg = segs.get(tag, [])
+        texts = [msg(num, "nfa", arg) for num, arg in want]
+        got = kn_abort(seg)
+        opened = not any("openfail" in x for x in seg)
+        row("%s on a NET file WITHOUT ON ERROR: the program stops with %r and prints nothing after it" % (tag.upper(), texts[0] if len(texts) == 1 else texts),
+            opened and got in texts and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+    seg = segs.get("oseq", [])
+    row("OPENSEQ 'zznet1', 'c1' (the VOC name of a NET file used for a sequential file) is not THEN: the encoded path is no path (ELSE, a status shown: %s), the program goes on"
+        % ([x for x in seg if "ELSE" in x][:1]), "KR oseq THEN" not in seg and "KR oseq end" in seg, repr(seg))
+    seg = segs.get("opath", [])
+    row("OPENPATH of the encoded string typed by the program (char(1) 'N' char(1) nfa char(1) hcust) is not THEN: OPENPATH never looks for the encoded form", "KR opath THEN" not in seg and "KR opath end" in seg, repr(seg))
+    seg = segs.get("callfile", [])
+    row("CALL 'zznet1 zzprog' (CALL \"file program\" through the NET VOC name) does not run anything: the program stopped (an abort line, no SURVIVED)", kn_abort(seg) is not None and not any("SURVIVED" in x for x in seg), repr(seg))
+    types = set(r.d[0]["types"])
+    row("...A: THE FAKE SAW NO WRITE, DELETE, CLEAR, LOCK, SELECT OR RECORD-LOCKED REQUEST: of everything the %d programs did, its packet log holds only login, account, open, close and quit (request types seen: %s)"
+        % (len(a_names) + 3, sorted(types)), types and types <= KALLOWED - {6} and r.d[0]["types"].count(4) >= 1, repr(sorted(types - KALLOWED)))
+    row("...A: the records on the fake are exactly what they were (both files)", kn_snapshot(A) == before, "")
+
+    # --- E: ON ERROR
+    r = kn_run("zznhon", ["RUN bp " + n for n in e_names], (A,))
+    segs = kn_segments(r.out)
+    row("the %d ON ERROR programs ran in one session and no connection is left" % len(e_names), not r.hung and r.idle and all(KM[matrix[n][2]][0] in segs for n in e_names), "hung=%s idle=%s" % (r.hung, r.idle))
+    for n in e_names:
+        tag, _pre, _a, _e, want, st = KM[matrix[n][2]]
+        seg = segs.get(tag, [])
+        m = next((re.match(r"^KR %s st=(\d+)$" % re.escape(tag), x) for x in seg if re.match(r"^KR %s st=(\d+)$" % re.escape(tag), x)), None)
+        good = (m is not None and int(m.group(1)) == st and "KR %s back len=%d" % (tag, c1len) in seg and "KR %s end" % tag in seg and kn_abort(seg) is None)
+        extra = ""
+        if tag == "select":
+            good = good and "KR select readnext ELSE" in seg
+            extra = "; the default select list is untouched (READNEXT takes ELSE)"
+        row("%s on a NET file WITH ON ERROR: the ON ERROR clause ran and STATUS() was %d, the program went on, read a record from the same file afterwards (%d bytes) and reached its end%s"
+            % (tag.upper(), st, c1len, extra), good, repr(seg))
+    types = set(r.d[0]["types"])
+    row("...E: THE FAKE SAW ONLY login, account, open, close, read and quit (request types seen: %s) - not one write, delete, clear, lock, select or record-locked request" % sorted(types),
+        types and types <= KALLOWED and r.d[0]["types"].count(6) >= len(e_names), repr(sorted(types - KALLOWED)))
+    row("...E: the records on the fake are exactly what they were, and the session held no lock on the fake", kn_snapshot(A) == before and all(A.store.locks_of(s.userno) == [] for s in r.d[0]["sessions"]), "")
+
+
+def kn_verbs(A):
+    say("\n  -- the verbs on the VOC name: the session survives, the fake sees nothing it must not, the data is unchanged --")
+    before = kn_snapshot(A)
+    for cmd, extra, num in KVERBS:
+        r = kn_run("zznhon", [cmd] + extra + ["RUN bp " + KSENT], (A,))
+        shown = [x for x in r.out if not x.startswith("KR ")][:3]
+        say("    [note] %s -> %r" % (cmd, shown))
+        types = set(r.d[0]["types"])
+        row("%s: the session survived (the next command ran), the fake saw only login, account, open, read, close and quit%s, and the data on the fake is unchanged"
+            % (cmd, "" if num is None else ", and the verb refused with its own text (message %d: %r)" % (num, msg(num, "zznet1"))),
+            not r.hung and "KR sent" in r.kr and types <= KALLOWED and r.idle and kn_snapshot(A) == before and (num is None or any(msg(num, "zznet1") in ln for ln in r.out)),
+            "hung=%s sent=%s types=%s out=%r" % (r.hung, "KR sent" in r.kr, sorted(types - KALLOWED), r.out[:6]))
+
+
+def kn_after(A):
+    say("\n  -- after all of it --")
+    before = kn_snapshot(A)
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "CLOSE|1"], (A,))
+    row("THE POINTER STILL WORKS: the VOC record zznet1 is intact after every verb and the refusals (DELETE.FILE and CLEAR.FILE did not remove or empty anything), the file still opens and reads",
+        kn_sane(r) and kn_read_line("c1", RECS["c1"]) in r.kr, kn_why(r))
+    row("...and the records on the fake are what they were when the section began", kn_snapshot(A) == before and A.store.records(HFILE).get("c1") == RECS["c1"], "")
+    row("NO SESSION OF THE KERNEL SECTION ENDED IN A CRASH: not one printed a double free, a corruption, a fatal signal or an abort (a session that opened a remote file once died at exit with a "
+        "double free, after every row had its answer; the class objects the handler keeps in common ran their destroy code on a freed e-stack)", not KN.get("crashes"), repr(KN.get("crashes")))
+
 
 # ---- main -------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1948,7 +2675,7 @@ SECTIONS = (("login", login_section), ("args", args_section), ("pin", pin_sectio
             ("down", down_section), ("close", close_section), ("notfound", notfound_section), ("files", files_section), ("account", account_section),
             ("locks", locks_section), ("lists", lists_section), ("wire", wire_section),
             ("handler", handler_section), ("readonly", readonly_section), ("refuse", refuse_section), ("lost", lost_section), ("timeout", timeout_section),
-            ("gaps", gaps_section))
+            ("kernel", kernel_section), ("gaps", gaps_section))
 
 
 def main():

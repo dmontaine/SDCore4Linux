@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: op_select() and op_selectv() refuse a NET_FILE (net_refuse) before the target list is touched
  * 16 Oct 26 dm  dir_select() closes the oldest cached file and tries again when opendir() fails at the open-file limit (QM4 Fixes 279).
  * 15 Oct 26 dm  $MODE SELECTV default select list variable (openQM item 85): readnext() takes P_DEF_SELLIST, an unassigned
  *               default variable being an empty list
@@ -714,6 +715,16 @@ void op_select() {
   } else {
     fvar = descr->data.fvar;
 
+    if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: refused before the target list is emptied (slice 3d builds remote SELECT) */
+    {
+      if (!(op_flags & P_ON_ERROR))
+        net_refuse(fvar, "SELECT");
+      process.status = -ER_PERM;
+      k_pop(1);
+      k_dismiss();
+      goto select_status;
+    }
+
     end_select(list_no);
     clear_select(list_no); /* 0441 */
 
@@ -752,6 +763,7 @@ void op_select() {
     descr->data.value = record_count;
   }
 
+select_status:
   /* Set status code on stack */
 
   InitDescr(e_stack, INTEGER);
@@ -930,6 +942,16 @@ void op_selectv() {
     }
   } else {
     fvar = descr->data.fvar;
+
+    if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: refused before list 11 is used (slice 3d builds remote SELECT) */
+    {
+      if (!(op_flags & P_ON_ERROR))
+        net_refuse(fvar, "SELECTV");
+      process.status = -ER_PERM;
+      InitDescr(tgt_descr, SELLIST); /* the target is an empty list */
+      tgt_descr->data.str.saddr = NULL;
+      goto selectv_status;
+    }
 
     /* Do the select */
 

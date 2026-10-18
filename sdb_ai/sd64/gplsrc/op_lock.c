@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 3c: FILELOCK, FILEUNLOCK, GETLOCKS, RECORDLOCKU/L, RECORDLOCKED, RELEASE of a NET_FILE are refused (net_refuse); lock_record, check_lock, unlock_record guard NET_FILE
  * 16 Oct 26 dm  OPTION COMMAND.LEVEL.LOCKS (QM4 gap 231): park_fvar(), release_parked_fvars()
  * 31 Dec 23 SD launch - prior history suppressed
  * 11 Sep 26 dm  GETLOCKS() / LIST.READU no longer dereferences a NULL user
@@ -179,6 +180,9 @@ void op_filelock() {
   k_get_file(descr);
   fvar = descr->data.fvar;
 
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "FILELOCK"); /* 17 Oct 26 S.65: a remote file has no entry in the file table; does not return */
+
   {
     file_id = fvar->file_id;
     fptr = FPtr(file_id);
@@ -286,6 +290,9 @@ void op_flunlock() {
   k_get_file(descr);
   fvar = descr->data.fvar;
 
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "FILEUNLOCK"); /* 17 Oct 26 S.65 */
+
   {
     file_id = fvar->file_id;
     fptr = FPtr(file_id);
@@ -378,6 +385,9 @@ void op_getlocks() {
   descr = e_stack - 2;
   k_get_value(descr);
   if (descr->type == FILE_REF) {
+    /* 17 Oct 26 S.65: file_id -1 means "all files" here, so a remote file would list every lock of every user */
+    if (descr->data.fvar->type == NET_FILE)
+      net_refuse(descr->data.fvar, "GETLOCKS");
     file_id = descr->data.fvar->file_id;
   } else {
     file_id = -1;
@@ -610,6 +620,20 @@ void op_lockrec() {
   descr = e_stack - 2;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  if (fvar->type == NET_FILE) /* 17 Oct 26 S.65: a remote file takes no local lock; nothing has been touched yet */
+  {
+    if (!(op_flags & P_ON_ERROR))
+      net_refuse(fvar, update ? "RECORDLOCKU" : "RECORDLOCKL");
+    process.op_flags = 0;
+    process.status = -ER_PERM;
+    k_dismiss();
+    k_dismiss();
+    InitDescr(e_stack, INTEGER);
+    (e_stack++)->data.value = process.status;
+    return;
+  }
+
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   switch (status = lock_record(fvar, id, id_len, update, txn_id, no_wait)) {
@@ -705,6 +729,9 @@ void op_reclckd() {
   descr = e_stack - 2;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "RECORDLOCKED"); /* 17 Oct 26 S.65 */
 
   {
     file_id = fvar->file_id;
@@ -805,6 +832,10 @@ void op_release() {
   descr = e_stack - 2;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "RELEASE"); /* 17 Oct 26 S.65: no lock can exist on a remote file; the census leaves a silent no-op as the owner's alternative */
+
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   if (txn_id == 0) {
@@ -846,6 +877,10 @@ void op_rlsfile() {
   descr = e_stack - 1;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "RELEASE"); /* 17 Oct 26 S.65, as op_release() */
+
   txn_id = (fvar->flags & FV_NON_TXN) ? 0 : process.txn_id;
 
   if (txn_id == 0) {
@@ -1109,6 +1144,9 @@ bool check_lock(FILE_VAR* fvar,
   char u_id[MAX_ID_LEN];
   char* id;
 
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "LOCK"); /* 17 Oct 26 S.65: backstop, file_id is -1 and there is no entry to read */
+
   file_id = fvar->file_id;
   fptr = FPtr(file_id);
 
@@ -1342,6 +1380,9 @@ int16_t lock_record(
   FILE_ENTRY* d_fptr;
   RLOCK_ENTRY* d_lptr;
   LLT_ENTRY* llt;
+
+  if (fvar->type == NET_FILE)
+    net_refuse(fvar, "LOCK"); /* 17 Oct 26 S.65: backstop, as check_lock() */
 
   file_id = fvar->file_id;
   fptr = FPtr(file_id);
@@ -1648,6 +1689,8 @@ bool unlock_record(FILE_VAR* fvar, /* NULL if for all files */
   LLT_ENTRY* next_llt;
 
   if (fvar != NULL) {
+    if (fvar->type == NET_FILE)
+      return FALSE; /* 17 Oct 26 S.65: no lock can exist on a remote file; FPtr(-1) must not be read */
     file_id = fvar->file_id;
   }
 
