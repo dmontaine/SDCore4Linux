@@ -102,8 +102,8 @@ gplsrc/op_skt.c              : opensock gates qmclient oq2
 gplsrc/op_xfun.c             : @functions getdev ospath
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
-gplsrc/op_iconv.c            : @functions
-gplsrc/op_oconv.c            : @functions
+gplsrc/op_iconv.c            : @functions crypt
+gplsrc/op_oconv.c            : @functions crypt
 gplsrc/op_chnge.c            : @functions
 gplsrc/op_locat.c            : @functions
 gplsrc/op_find.c             : @functions
@@ -149,11 +149,12 @@ gplsrc/sdclilib.c            : qmclient
 gplsrc/sdclilib.h            : qmclient
 gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
-gplsrc/sd_encrypt_sodium.c   : qmclient
+gplsrc/sd_encrypt_sodium.c   : qmclient crypt
+gplsrc/sd_keyring.c          : crypt
 gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared
 gplsrc/to_file.c             : editgates gates @core
-gplsrc/op_sdext.c            : gates
+gplsrc/op_sdext.c            : gates crypt
 gplsrc/op_sdpyobj.c          : gates
 gplsrc/sdext_*.c             : gates
 gplsrc/op_ccall.c            : @core classas
@@ -287,6 +288,8 @@ sdsys/gpl.bp/_formlst        : @lists
 sdsys/gpl.bp/_getlist        : @lists
 sdsys/gpl.bp/_dellist        : @lists
 sdsys/gpl.bp/_savelst        : @lists
+sdsys/gpl.bp/keyring_*       : crypt
+sdsys/gpl.bp/encryptkey      : crypt
 sdsys/gpl.bp/*list*          : @lists
 sdsys/gpl.bp/*lst*           : @lists
 sdsys/gpl.bp/selec*          : @lists
@@ -368,7 +371,9 @@ sdsys/voc_template/set.server    : net
 sdsys/voc_template/delete.server : net
 sdsys/voc_template/list.servers  : net
 sdsys/voc_template/list.shared   : shared
+sdsys/voc_template/encrypt.key   : crypt
 sdsys/voc_template/*         : @core dictfold misc-a9
+sdsys/messages/117*          : crypt
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared
