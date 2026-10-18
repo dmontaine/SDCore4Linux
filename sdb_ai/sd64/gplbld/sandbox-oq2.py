@@ -10,6 +10,7 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 18 Oct 26 dm  Row 466 TERM DEFAULT expects 140 x 42 (the default was 120 x 36).
 # 12 Oct 26 dm  Written: 336 names with two underscores, 407 INCLUDE in $BASIC.OPTIONS.
 # END-HISTORY
 #
@@ -1296,8 +1297,8 @@ def run_verbs(box, sysd, bp):
         text = sess(box, "TERM 130,45,110,60", "TERM")
         row("466: all four at once", term_state(text) == (130, 45, 110, 60), "%r %s" % (term_state(text), text[-300:]))
         text = sess(box, "TERM ,,100,40", "TERM DEFAULT", "TERM")
-        row("466: TERM DEFAULT puts the screen back to 120 x 36 (SD's default, not 80 x 24) and leaves the printer alone",
-            term_state(text) == (120, 36, 100, 40), "%r %s" % (term_state(text), text[-300:]))
+        row("466: TERM DEFAULT puts the screen back to 140 x 42 (SD's default, not 80 x 24) and leaves the printer alone",
+            term_state(text) == (140, 42, 100, 40), "%r %s" % (term_state(text), text[-300:]))
         text = sess(box, "TERM ,,19")
         row("466: a printer width under 20 is refused", has(text, r"Width must be in range 20 to 32767"), text[-300:])
         text = sess(box, "TERM ,,,9")
