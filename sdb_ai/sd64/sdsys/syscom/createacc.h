@@ -9,6 +9,7 @@
 * 02 Oct 26 dm CA$REUSE.SD.USER is read by both ports (Windows reuses with a
 *              new password - owner's ruling that day); comment only.
 * 17 Oct 26 dm S.65 slice 1: CA$NET (35), Linux only, the NET gate (as CA$VOC.EDIT etc. of S.64).
+* 17 Oct 26 dm S.65 slice 2c: CA$FILES (36), Linux only, membership of the group sdfiles.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -56,5 +57,6 @@ $define CA$DICT.EDIT      34     ;* ACC$DICT.EDIT 'yes'
 * Linux only (17 Oct 26, S.65 slice 1, the NET gate for SDNet): 1 = the new account starts with the gate on.  A blank or a 0 is off.
 * The gate takes effect for the remote-file slices that follow and does nothing yet.
 $define CA$NET            35     ;* ACC$NET 'yes'
+$define CA$FILES          36     ;* 1 = start in the group sdfiles, the SDNet files-only API route (Linux only; S.65 slice 2c)
 
 * END-CODE

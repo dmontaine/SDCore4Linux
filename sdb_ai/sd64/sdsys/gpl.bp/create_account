@@ -17,6 +17,9 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 2c: CA$FILES joins the new user to the Linux group sdfiles (the files-only SDNet login route) after the sdssh / sdapi joins; the
+*              group is looked for BEFORE the Linux user is made (10024 if it is missing, nothing created); a group or other account is refused
+*              (10087, 10081); a user account made without the word is not in the group.  The membership is the state: no register field.
 * 17 Oct 26 dm S.65 slice 1: the NET gate (SDNet remote files; does nothing yet) ACC$NET is written from CA$NET: 'no' for a user account unless named,
 *              reported with 11411 after 11409.
 * 17 Oct 26 dm S.64 (owner, 17 Oct 2026): the edit gates ACC$VOC.EDIT / ACC$BP.EDIT / ACC$DICT.EDIT are written from CA$VOC.EDIT / CA$BP.EDIT /
@@ -124,6 +127,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
    edit.dict.want = (settings<CA$DICT.EDIT> = 1)
 * 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files), the same rule: off unless named (NET-ON), exactly 1 to be a request.
    net.want = (settings<CA$NET> = 1)
+* 17 Oct 26 dm - S.65 slice 2c: the files-only login (membership of sdfiles), the same rule: off unless named (FILES-ON), exactly 1 to be a request.
+   files.want = (settings<CA$FILES> = 1)
    no.query = settings<CA$NO.QUERY> = 1
    reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
 
@@ -163,6 +168,23 @@ deffun valid_os_path(path) calling '!valid_os_path'
      pathname = CONFIG('USRDIR')
      if pathname = '' then pathname = '/home/sd/user_accounts'
      acc.uname = acc.name
+
+* 17 Oct 26 dm - S.65 slice 2c: the group sdfiles is looked for before anything is made, so FILES-ON on a machine without it (an install from before
+*   this release) creates nothing and names the group, instead of leaving a Linux user behind with the join failed.
+     if files.want then
+       files.found = is_group('sdfiles')
+       files.stat = status()
+       if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         err = 10081:@vm:acc.uname:@vm:files.stat ;* Unable to change remote access for %1
+         goto exit.create
+       end
+       if not(files.found) then
+         @system.return.code = -ER$FAILED
+         err = 10024:@vm:'sdfiles' ;* %1 is not a valid Linux Group
+         goto exit.create
+       end
+     end
 
      begin case
      case upcase(acc.uname) = 'ROOT' or upcase(acc.uname) = 'SDSYS' or upcase(acc.uname) = 'SDUSERS'
@@ -286,6 +308,12 @@ PW.TRY.AGAIN:
        err = 10105:@vm:acc.name ;* %1 is a group account and has no Linux user, so it has no shell to permit
        goto exit.create
      end
+* 17 Oct 26 dm - S.65 slice 2c: and no files-only login to give (10087; the group account is reached with logto).
+     if files.want then
+       @system.return.code = -ER$ARGS
+       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
+       goto exit.create
+     end
 
    case acc.type = 'OTHER'
      if upcase(acc.name) = 'SDUSERS' then
@@ -296,6 +324,12 @@ PW.TRY.AGAIN:
      if os.sh.want or os.exec.want then
        @system.return.code = -ER$ARGS
        err = 10105:@vm:acc.name ;* %1 has no Linux user of its own, so it has no shell to permit
+       goto exit.create
+     end
+* 17 Oct 26 dm - S.65 slice 2c: nor a files-only login (10081 with status 2, as MODIFY.ACCOUNT says it for an account with no Linux user).
+     if files.want then
+       @system.return.code = -ER$ARGS
+       err = 10081:@vm:acc.name:@vm:2 ;* Unable to change remote access for %1, status: 2
        goto exit.create
      end
      pathname = trim(settings<CA$PATH>)
@@ -407,6 +441,18 @@ PW.TRY.AGAIN:
          err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1
          goto exit.create
       end
+* 17 Oct 26 dm - S.65 slice 2c: the files-only login, the group sdfiles, joined by the same helper; a failed join is reported with its status and the
+*   account stops here, as for the routes.  The group's existence was checked before the Linux user was made.  Nothing is said on success: the
+*   state line (11482) is printed with the others after the register record is written.
+      if files.want then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdfiles"
+         route.stat = OS.ERROR()
+         if route.stat # 0 then
+            @system.return.code = -ER$FAILED
+            err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1
+            goto exit.create
+         end
+      end
       begin case
          case access.ssh and access.api
             crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
@@ -491,6 +537,8 @@ PW.TRY.AGAIN:
      crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
      crt sysmsg(11409, acc.name, acc.rec<ACC$VOC.EDIT>, acc.rec<ACC$BP.EDIT>, acc.rec<ACC$DICT.EDIT>)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4
      crt sysmsg(11411, acc.name, acc.rec<ACC$NET>)  ;* Account %1 has NET %2
+*    17 Oct 26, S.65 slice 2c: FILES is membership of sdfiles, so the line is read off /etc/group, not off the request.
+     crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has FILES %2
    end
 
 * A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;

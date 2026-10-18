@@ -62,6 +62,9 @@
 #   account an install makes without a credential is the installer's own, and
 #   it has remote routes.  Asked up to three times, verified in $cred, never
 #   passed as an argument; a kept credential is left alone.
+#
+#   17 Oct 2026 dm - S.65 slice 2c: the group sdfiles is created beside sdssh
+#   and sdapi (the SDNet files-only API route; empty on a fresh install).
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -634,7 +637,14 @@ fi
 #   answer reaches its callers as "not a member", which with a DENY group would
 #   silently GRANT remote access instead of withholding it.  They must exist
 #   before any account is created, because CREATE.ACCOUNT joins them.
-for sd_route_group in sdssh sdapi; do
+# 17 Oct 26 dm - S.65 slice 2c: sdfiles is a THIRD route group, the SDNet
+#   files-only API route.  A user in sdusers and sdfiles but not in sdapi may
+#   log in over the API and reach FILES AND NOTHING ELSE (apisrvr's
+#   !apifilesok); a user in sdapi keeps the whole API.  It is EMPTY on a fresh
+#   install: nobody joins it until the administrator says FILES-ON for an
+#   account (or CREATE.ACCOUNT is given FILES-ON), exactly as sdapi is off by
+#   default.
+for sd_route_group in sdssh sdapi sdfiles; do
   if ! getent group "$sd_route_group" &>/dev/null; then
     echo "Creating group: $sd_route_group."
     sudo groupadd --system "$sd_route_group"

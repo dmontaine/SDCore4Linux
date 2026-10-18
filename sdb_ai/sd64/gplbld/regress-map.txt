@@ -51,6 +51,9 @@
 gplbld/sandbox-fromtree.py   : @core @pty
 gplbld/sandbox-txnfail.py    : @core
 gplbld/sandbox-english.py    : @core
+# S.65 slice 3a (17 Oct 26): the fake API server is used by the net suite and by the netfile suite.
+gplbld/netfake.py            : net netfile
+gplbld/sandbox-netfile.py    : @self
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
@@ -169,8 +172,16 @@ gplsrc/*.c                   : @core
 # hunks cannot be known (--files, a file git has not been told about) every sub-rule applies.
 # S.65 slice 1 (17 Oct 26): the SDNet server definitions and their verbs.  They come before the coarse patterns that would take their names
 # (set*, *list*, the catch-all), which would select suites that know nothing of them.
-sdsys/gpl.bp/netdefs         : net
+sdsys/gpl.bp/netdefs         : net netfile
+sdsys/gpl.bp/netcred         : net netfile
+sdsys/gpl.bp/setnetlogin     : net netfile
+# S.65 slice 3b (17 Oct 26): the remote file handler and its operation codes.  Its messages (11490-11519) have rules of their own below, before the
+# "none" rule: a changed text changes what the netfile suite expects.
+sdsys/gpl.bp/netfile         : netfile
+sdsys/gpl.bp/netfile.h       : netfile
+sdsys/gpl.bp/deletenetlogin  : net
 sdsys/gpl.bp/setserver       : net
+sdsys/gpl.bp/apifilesok      : net qmclient
 sdsys/gpl.bp/deleteserver    : net
 sdsys/gpl.bp/listservers     : net
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
@@ -294,7 +305,7 @@ sdsys/gpl.bp/login           : @system sdaccts editgates net
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net
-sdsys/gpl.bp/sdclient        : qmclient
+sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
 sdsys/gpl.bp/cred_*          : gates qmclient
@@ -336,6 +347,9 @@ sdsys/voc_template/set.server    : net
 sdsys/voc_template/delete.server : net
 sdsys/voc_template/list.servers  : net
 sdsys/voc_template/*         : @core dictfold misc-a9
+sdsys/messages/1149*         : netfile
+sdsys/messages/1150*         : netfile
+sdsys/messages/1151*         : netfile
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

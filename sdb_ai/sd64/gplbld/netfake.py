@@ -36,12 +36,35 @@ WHAT IT RECORDS (so that a row can say what the client DID, not only what it pri
   exchanges    for each client-final: the messages, the binding, the proof, and whether it verified
   scram_ok / scram_bad   proofs that verified / that did not;   errors   things this server found wrong with the CLIENT's messages
 It is a daemon thread with a lifetime limit, handles one connection at a time, and puts a 10 second limit on every connection.
+
+17 Oct 26 dm  S.65 slice 3a: THE FILE REQUESTS.  ***NOT YET RUN AGAINST SD*** (the self-test drives it with a Python client written from
+              gpl.bp/apisrvr and gpl.bp/sdclient; whether the BASIC class and, later, the $netfile handler agree with it is the first run
+              of slices 3a to 3c).  With configure(files=True) a connection that has logged in is SERVED instead of listened to: the
+              requests of apisrvr that a files-only session needs, in the reply formats apisrvr writes (see FileSession; every handler
+              names the apisrvr label it copies), against an in-memory store (FakeStore: files, records, dictionary items, a lock table
+              that lives across connections, so that a second connection is told a record is locked and by whom).  Such a connection
+              gets a thread of its own (the lock rows need two at once); a connection with files=False is handled inline as before.
+              files_only=True (or a user added with files_only=True) is the SDNet login: every request outside gpl.bp/apifilesok's
+              allow list is answered with message 11480 and never dispatched.  Faults: close_after_requests, drop_request, delay,
+              no_reply, fail (see DEFAULTS).  A user can be added from derived keys alone (add_user_keys): the exchange on the wire is
+              the same, so a client proving itself from ClientKey is accepted exactly as one proving itself from the password.
+              ***WHAT IT DOES NOT BE FAITHFUL TO*** (stated once): (1) STATUS() after a successful request is 0 here; apisrvr sends
+              whatever the last statement of the session left in it.  (2) The text of an ABORT reply is the bare message (1010 for an
+              unknown FILEINFO key); the real one is the kernel's error text, which names the program and line.  (3) A waiting lock
+              request (8, 10, and 41 with an update or shared flag) gives up after cfg lock_wait seconds with an ON ERROR reply that
+              says so; the real server waits for ever.  (4) Closing a file does not release the locks taken through it (what the real
+              CLOSE does to them was not checked); a connection that ends releases all of its locks.
+              (5) SELECT returns the ids in insertion order; the real order is the hash order, so a test must not depend on either.
+              (6) NOT BUILT, answered with an error that says so and noted in errors: writes and deletes (16 to 19), the locks of
+              30 to 33, the indices (26, 35, 36, 38, 39, 42 to 45), and everything from 20 on that apisrvr offers (call, execute,
+              sequential files, trans, transactions ...).
 """
 
 import base64
 import hashlib
 import hmac
 import os
+import re
 import socket
 import ssl
 import struct
@@ -56,6 +79,78 @@ PKT_FIRST, PKT_FINAL = 47, 48
 SV_OK, SV_ON_ERROR, SV_ERROR = 0, 1, 3
 GS2 = b"p=tls-exporter,,"
 BASE64_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+
+# Replies: gpl.bp/sdclient $define SV$OK .. SV$PROMPT.  SV_LOCKED is the LOCKED clause, SV_ELSE the ELSE clause, SV_ERROR "text to be fetched with
+# request 2" (the reply has no data), SV_ON_ERROR the ON ERROR clause or an abort (the reply data is the message).
+SV_ELSE, SV_LOCKED = 2, 4
+# Request numbers: gpl.bp/sdclient $define Srvr...; apisrvr's dispatch table.
+R_QUIT, R_GETERROR, R_ACCOUNT, R_OPEN, R_CLOSE = 1, 2, 3, 4, 5
+R_READ, R_READL, R_READLW, R_READU, R_READUW = 6, 7, 8, 9, 10
+R_SELECT, R_READNEXT, R_CLEARSELECT, R_READLIST, R_RELEASE = 11, 12, 13, 14, 15
+R_RECORDLOCKED, R_SELECTLIST, R_FILEINFO, R_READV, R_MARKMAPPING, R_REVISION = 34, 37, 40, 41, 46, 49
+# The requests apisrvr has a handler for that this fake does not build (see the module text); a number apisrvr has no handler for is "illegal".
+NOT_BUILT = frozenset(list(range(16, 27)) + [29, 30, 31, 32, 33, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
+# gpl.bp/apifilesok's allow table, number by number (3, set account, is allowed once and handled in FileSession.allowed).  The self-test
+# parses the program and holds this to it, so a request added there and not here is found.
+FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + [49])
+# err.h
+ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
+FL_TYPE_DH, FL_TYPE_DIR = 3, 4
+# FILEINFO keys op_dio2.c knows (a key outside this set is an abort: "Illegal action key", message 1010).  The key is cut to a signed 16 bit
+# integer first, as op_dio2.c does ((int16_t)).
+FL_KNOWN = frozenset([0, 1, 2, 3] + list(range(5, 12)) + [13, 14] + list(range(1000, 1041)) + [1100] + list(range(10000, 10006)))
+FM = "\xfe"
+USERNO_BASE = 100               # the user number of the first connection is USERNO_BASE + 1: the number a lock holder is known by
+
+# The messages this fake sends, read from the tree's own message files so that a changed text is followed; the copy is for a tree that is
+# not there (the self-test holds the copy to the files when they exist).
+_MSG_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdsys", "messages"))
+_MSG_COPY = {1010: "Illegal action key", 5037: "Invalid account name", 5262: "File access is disabled", 5268: "Invalid file number",
+             5269: "Invalid select list number", 10003: "User not allowed in requested account",
+             11480: "This login is for files only: request %1 is not allowed"}
+_LOW = {c: c + 32 for c in range(65, 91)}
+_UP = {c: c - 32 for c in range(97, 123)}
+
+
+def msg(num, *args):
+    """sysmsg(num, args): the first line of sdsys/messages/<num>, %1 .. %n replaced."""
+    text = None
+    try:
+        with open(os.path.join(_MSG_DIR, str(num)), encoding="latin-1") as fh:
+            text = fh.readline().rstrip("\r\n")
+    except OSError:
+        pass
+    if text is None:
+        text = _MSG_COPY[num]
+    for i, a in enumerate(args, 1):
+        text = text.replace("%" + str(i), str(a))
+    return text
+
+
+def _lower(s):
+    """ASCII only: SD is English only."""
+    return s.translate(_LOW)
+
+
+def _upper(s):
+    return s.translate(_UP)
+
+
+def _short(data, pos):
+    """oconv(cmnd[pos+1, 2], 'ISL'): a signed 16 bit integer; a request that is too short reads as if padded with nulls."""
+    b = data[pos:pos + 2]
+    return struct.unpack("<h", b + b"\0" * (2 - len(b)))[0]
+
+
+def _long(data, pos):
+    """oconv(cmnd[pos+1, 4], 'ILL'): an unsigned 32 bit integer."""
+    b = data[pos:pos + 4]
+    return struct.unpack("<I", b + b"\0" * (4 - len(b)))[0]
+
+
+def _rid(data, pos):
+    """cmnd[pos+1, 99]: a record id."""
+    return data[pos:pos + 99].decode("latin-1")
 
 
 def b64(raw):
@@ -82,9 +177,582 @@ def server_signature(server_key, authmsg):
     return hmac.new(server_key, authmsg.encode("latin-1"), hashlib.sha256).digest()
 
 
+class FakeFile:
+    """One file of the store.  name is the VOC name (lower case); records {id: record text, marks as characters 248-255 of the latin-1 text};
+    dict_items the items of its dictionary (opened as "dict <name>"); path what FILEINFO(.., 2) answers; info {FILEINFO key: value} overrides
+    what the fake would answer; nocase folds ids (ASCII) for the lookup and the lock table; ftype 3 (dynamic) or 4 (directory)."""
+
+    def __init__(self, name, records=None, dict_items=None, path=None, info=None, nocase=False, ftype=FL_TYPE_DH, fileid=0):
+        self.name = name
+        self.vocname = name
+        self.lockname = name
+        self.records = dict(records or {})
+        self.dict_items = dict(dict_items or {})
+        self.path = path if path is not None else "/fake/" + name
+        self.info = dict(info or {})
+        self.nocase = bool(nocase)
+        self.ftype = ftype
+        self.fileid = fileid
+        self._dict = None
+
+    def find(self, rid):
+        """The id as the file holds it (a nocase file matches ids that differ in ASCII case), or None."""
+        if rid in self.records:
+            return rid
+        if self.nocase:
+            u = _upper(rid)
+            for k in self.records:
+                if _upper(k) == u:
+                    return k
+        return None
+
+    def get(self, rid):
+        k = self.find(rid)
+        return None if k is None else self.records[k]
+
+    def lockid(self, rid):
+        return _upper(rid) if self.nocase else rid
+
+    def dictionary(self):
+        """The file as opened by "dict <name>": its own records are the dictionary items (the same dict object, so a change shows), and it
+        has its own lock table namespace."""
+        if self._dict is None:
+            d = FakeFile("dict " + self.name, None, None, "/fake/dict." + self.name, self.info, self.nocase, self.ftype, self.fileid)
+            d.records = self.dict_items
+            d.vocname = self.name
+            self._dict = d
+        return self._dict
+
+
+class FakeStore:
+    """The data and the lock table of the fake server, shared by every connection (it is the server's, not the session's).  A test
+    configures it before it connects:
+
+        st = srv.store
+        st.add_file("customers", {"c1": "Smith" + FM + "100"}, dict_items={"name": "D" + FM + "1"})   # a file, its records, its dictionary
+        st.put("customers", "c2", "Jones")  /  st.delete("customers", "c2")  /  st.records("customers")
+        st.accounts = {"acct"}                    # the accounts request 3 accepts; None (the default) accepts any valid name
+        st.hold("customers", "c1", userno=7)      # another process holds an update lock (kind="shared" for a read lock)
+        st.hold_file("customers", userno=7)       # ... or the file lock;  st.drop_user(7) lets everything of that user go
+        st.locks_of(userno) -> [(file, id, "update"|"shared")]     srv.sessions[i].userno is a connection's user number
+    """
+
+    def __init__(self):
+        self.cond = threading.Condition()
+        self.files = {}
+        self.locks = {}                 # (lockname, lock id) -> {"u": user number holding the update lock or None, "s": set of read lock holders}
+        self.filelocks = {}             # lockname -> user number holding the file lock
+        self.accounts = None
+
+    # ---- the data ---------------------------------------------------------------------------------------------------------------
+    def add_file(self, name, records=None, dict_items=None, **kw):
+        name = _lower(name)
+        with self.cond:
+            f = FakeFile(name, records, dict_items, fileid=len(self.files) + 1, **kw)
+            self.files[name] = f
+        return f
+
+    def file(self, name):
+        with self.cond:
+            return self.files.get(_lower(name))
+
+    def put(self, name, rid, text):
+        with self.cond:
+            self.files[_lower(name)].records[rid] = text
+
+    def delete(self, name, rid):
+        with self.cond:
+            self.files[_lower(name)].records.pop(rid, None)
+
+    def records(self, name):
+        with self.cond:
+            return dict(self.files[_lower(name)].records)
+
+    # ---- the lock table: op_lock.c lock_record() ---------------------------------------------------------------------------------
+    def _try(self, f, rid, update, me):
+        """0 when the lock is taken (or already held, upgraded or taken down to a read lock as lock_record() does), else the user number of
+        the process in the way.  The caller holds self.cond."""
+        fl = self.filelocks.get(f.lockname, 0)
+        if fl and fl != me:
+            return fl
+        key = (f.lockname, f.lockid(rid))
+        ent = self.locks.setdefault(key, {"u": None, "s": set()})
+        try:
+            if ent["u"] == me:
+                if not update:
+                    ent["u"] = None
+                    ent["s"].add(me)
+                return 0
+            if me in ent["s"]:
+                if not update:
+                    return 0
+                others = sorted(ent["s"] - {me})
+                if others:
+                    return others[0]
+                ent["s"].discard(me)
+                ent["u"] = me
+                return 0
+            if ent["u"] is not None:
+                return ent["u"]
+            if update:
+                if ent["s"]:
+                    return sorted(ent["s"])[0]
+                ent["u"] = me
+                return 0
+            ent["s"].add(me)
+            return 0
+        finally:
+            if ent["u"] is None and not ent["s"]:
+                self.locks.pop(key, None)
+
+    def lock_try(self, f, rid, update, me):
+        with self.cond:
+            return self._try(f, rid, update, me)
+
+    def lock_wait(self, f, rid, update, me, timeout):
+        """0 when the lock was taken within timeout seconds, else the holder in the way."""
+        end = time.time() + timeout
+        with self.cond:
+            while True:
+                h = self._try(f, rid, update, me)
+                if h == 0:
+                    return 0
+                left = end - time.time()
+                if left <= 0:
+                    return h
+                self.cond.wait(min(left, 0.1))
+
+    def recordlocked(self, f, rid, me):
+        """(RECORDLOCKED() code, STATUS()) as op_lock.c op_reclckd() leaves them: -3 -2 -1 another user holds a file, update or read lock,
+        0 none, 1 2 3 this session holds a read, update or file lock; the status is the owner's user number (0 when nothing is held)."""
+        with self.cond:
+            fl = self.filelocks.get(f.lockname, 0)
+            if fl:
+                return (3 if fl == me else -3), fl
+            ent = self.locks.get((f.lockname, f.lockid(rid)))
+            if not ent:
+                return 0, 0
+            if ent["u"] == me:
+                return 2, me
+            if me in ent["s"]:
+                return 1, me
+            if ent["u"] is not None:
+                return -2, ent["u"]
+            if ent["s"]:
+                return -1, sorted(ent["s"])[-1]
+            return 0, 0
+
+    def release_one(self, f, rid, me):
+        with self.cond:
+            key = (f.lockname, f.lockid(rid))
+            ent = self.locks.get(key)
+            if ent:
+                if ent["u"] == me:
+                    ent["u"] = None
+                ent["s"].discard(me)
+                if ent["u"] is None and not ent["s"]:
+                    del self.locks[key]
+            self.cond.notify_all()
+
+    def release_file(self, f, me):
+        with self.cond:
+            for key in [k for k in self.locks if k[0] == f.lockname]:
+                ent = self.locks[key]
+                if ent["u"] == me:
+                    ent["u"] = None
+                ent["s"].discard(me)
+                if ent["u"] is None and not ent["s"]:
+                    del self.locks[key]
+            self.cond.notify_all()
+
+    def release_all(self, me):
+        with self.cond:
+            for key in list(self.locks):
+                ent = self.locks[key]
+                if ent["u"] == me:
+                    ent["u"] = None
+                ent["s"].discard(me)
+                if ent["u"] is None and not ent["s"]:
+                    del self.locks[key]
+            self.cond.notify_all()
+
+    def drop_user(self, me):
+        """Everything user number me held, as the end of a process lets it go."""
+        self.release_all(me)
+        with self.cond:
+            for k in [k for k, v in self.filelocks.items() if v == me]:
+                del self.filelocks[k]
+            self.cond.notify_all()
+
+    # ---- for tests: a lock held by a process that is not a connection of this server ------------------------------------------------
+    def hold(self, name, rid, userno, kind="update"):
+        f = self.file(name)
+        h = self.lock_try(f, rid, kind == "update", userno)
+        if h:
+            raise RuntimeError("netfake: %s/%s is held by user %d" % (name, rid, h))
+
+    def hold_file(self, name, userno):
+        with self.cond:
+            self.filelocks[_lower(name)] = userno
+
+    def locks_of(self, userno):
+        with self.cond:
+            out = []
+            for (name, lid), ent in self.locks.items():
+                if ent["u"] == userno:
+                    out.append((name, lid, "update"))
+                if userno in ent["s"]:
+                    out.append((name, lid, "shared"))
+            return sorted(out)
+
+
+class FileSession:
+    """The requests of one served connection: gpl.bp/apisrvr's labels vb.account .. vb.revision, each handler naming its label.  dispatch()
+    returns (reply error field, STATUS, reply data); the error field is SV_OK, SV_ELSE (the ELSE clause), SV_LOCKED, SV_ERROR (no data:
+    the text comes with request 2, which returns error_msg) or SV_ON_ERROR (the data is the abort message)."""
+
+    def __init__(self, server, conn, userno, user, cfg, files_only):
+        self.server = server
+        self.store = server.store
+        self.cfg = cfg
+        self.conn = conn
+        self.userno = userno
+        self.user = user
+        self.files_only = files_only
+        self.slots = []                 # slots[fno - 1] is the FakeFile open as file number fno, or None (apisrvr's files() array)
+        self.lastid = {}                # the id of the last record read through each file number (FILEINFO 1012)
+        self.lists = [None] * 12        # select lists 0 to 10 and the internal 11: [ids, position] or None
+        self.marks = {}                 # fno -> mark mapping state set by request 46
+        self.error_msg = ""             # apisrvr's error.msg: what request 2 returns
+        self.entered = False            # apisrvr's master.login.done: true once request 3 has succeeded
+        self.account = None
+        self.requests = []              # every request type received after the login, in order
+        self.refused = []               # the types the files-only gate refused
+        self.injected = []              # (type, "no_reply" | "fail") for faults this session injected
+        self.fail_counts = {}
+        self.nreq = 0
+        self.done = False
+        self.closed = False
+        self.err = SV_OK
+        self.st = 0
+        self.abort_msg = ""
+        self.cur_fno = 0
+
+    # ---- the gate: gpl.bp/apifilesok ---------------------------------------------------------------------------------------------
+    def allowed(self, ptype):
+        """!apifilesok(action, entered): 3 (set account) once only, the table for the rest, anything else (47 and 48 included) refused."""
+        if ptype == R_ACCOUNT:
+            return not self.entered
+        return ptype in FILES_OK
+
+    # ---- helpers -----------------------------------------------------------------------------------------------------------------
+    def _fail(self, text):
+        """server.error = SV$ERROR; error.msg = text."""
+        self.err = SV_ERROR
+        self.error_msg = text
+        return ""
+
+    def _file(self, data):
+        """apisrvr check.file: the FakeFile for the file number in the first two bytes, else SV$ERROR 5268."""
+        fno = _short(data, 0)
+        if fno < 1 or fno > len(self.slots) or self.slots[fno - 1] is None:
+            return self._fail(msg(5268)) or None
+        self.cur_fno = fno
+        return self.slots[fno - 1]
+
+    def _list(self, listno):
+        """apisrvr check.list: True when listno is 0 to 10, else SV$ERROR 5269."""
+        if listno < 0 or listno > 10:
+            self._fail(msg(5269))
+            return False
+        return True
+
+    def _lock(self, f, rid, update, wait):
+        """The lock a locking read takes before it reads (op_dio3.c: the lock first, so a record that is not there is locked all the same).
+        True when held.  Not waiting: the LOCKED clause with STATUS() the holder's user number (op_lock.c / op_dio3.c: process.status =
+        lock_record()).  Waiting: the real server waits for ever; this one gives up after cfg lock_wait seconds (module text, 3)."""
+        if wait:
+            h = self.store.lock_wait(f, rid, update, self.userno, self.cfg["lock_wait"])
+        else:
+            h = self.store.lock_try(f, rid, update, self.userno)
+        if h == 0:
+            return True
+        if wait:
+            self.err = SV_ON_ERROR
+            self.abort_msg = "netfake: gave up after %s seconds waiting for the lock on %s held by user %d" % (self.cfg["lock_wait"], rid, h)
+            self.server.note(self.abort_msg)
+        else:
+            self.err = SV_LOCKED
+            self.st = h
+        return False
+
+    def _found(self, f, rid, rec):
+        if rec is None:
+            self.err = SV_ELSE
+            self.st = ER_RNF
+            return ""
+        self.lastid[self.cur_fno] = f.find(rid)
+        return rec
+
+    # ---- the dispatch ------------------------------------------------------------------------------------------------------------
+    def dispatch(self, ptype, data):
+        self.err, self.st, self.abort_msg = SV_OK, 0, ""
+        h = self.HANDLERS.get(ptype)
+        if h is None:
+            if ptype in NOT_BUILT:
+                self.server.note("request %d is not built in netfake" % ptype)
+                self._fail("netfake: request %d is not implemented" % ptype)
+            else:
+                self._fail("Illegal action code (%d)" % ptype)         # apisrvr vb.illegal.action
+            return self.err, self.st, ""
+        resp = h(self, data)
+        if self.err == SV_ON_ERROR:
+            resp = self.abort_msg            # apisrvr return.status.set: response = @abort.message
+        elif self.err == SV_ERROR:
+            resp = ""
+        return self.err, self.st, resp
+
+    # ---- the handlers ------------------------------------------------------------------------------------------------------------
+    def r_quit(self, data):
+        """vb.quit: done = true; the reply is still written."""
+        self.done = True
+        return ""
+
+    def r_geterror(self, data):
+        """vb.geterror: response = error.msg."""
+        return self.error_msg
+
+    def r_account(self, data):
+        """vb.account: an account name is lower cased unless it is a path (it holds a '/'); 1 to 32 characters (5037); one the server does not
+        know, or the user may not enter, is 10003 whichever it is.  The first success is "entered": the files-only gate allows request 3 once."""
+        name = data.decode("latin-1")
+        if "/" not in name:
+            name = _lower(name)
+        if len(name) < 1 or len(name) > 32:
+            return self._fail(msg(5037))
+        accts = self.store.accounts
+        if accts is not None and name not in accts:
+            return self._fail(msg(10003))
+        self.account = name
+        self.entered = True
+        return ""
+
+    def r_open(self, data):
+        """vb.open: the file number (a short) of the lowest free slot of the files() array; "dict <name>" opens the dictionary; a file that is
+        not there is the ELSE clause with STATUS() ER$FNF, an empty name ER$NAM; the access-disabled switch is 5262 as an ON ERROR."""
+        if self.cfg["no_file_access"]:
+            self.err = SV_ON_ERROR
+            self.abort_msg = msg(5262)
+            return ""
+        parts = data.decode("latin-1").strip().split(None, 1)
+        want_dict = len(parts) == 2 and _lower(parts[0]) == "dict"
+        base = parts[1].strip() if want_dict else (parts[0] if parts else "")
+        if base == "":
+            self.err, self.st = SV_ELSE, ER_NAM
+            return ""
+        f = self.store.file(base)
+        if f is None:
+            self.err, self.st = SV_ELSE, ER_FNF
+            return ""
+        if want_dict:
+            f = f.dictionary()
+        for i, s in enumerate(self.slots):
+            if s is None:
+                self.slots[i] = f
+                return struct.pack("<h", i + 1).decode("latin-1")
+        self.slots.append(f)
+        return struct.pack("<h", len(self.slots)).decode("latin-1")
+
+    def r_close(self, data):
+        """vb.close: check.file, then the slot is free for the next open."""
+        f = self._file(data)
+        if f is not None:
+            self.slots[self.cur_fno - 1] = None
+        return ""
+
+    def _read(self, data, update=None, wait=False):
+        f = self._file(data)
+        if f is None:
+            return ""
+        rid = _rid(data, 2)
+        if rid == "":
+            self.err, self.st = SV_ELSE, ER_IID          # op_dio3.c: an empty id is ER$IID and the ELSE clause
+            return ""
+        if update is not None and not self._lock(f, rid, update, wait):
+            return ""
+        return self._found(f, rid, f.get(rid))
+
+    def r_read(self, data):
+        """vb.read: READ; not found is the ELSE clause with STATUS() ER$RNF (3006)."""
+        return self._read(data)
+
+    def r_readl(self, data):
+        """vb.readl: READL with a LOCKED clause (no waiting)."""
+        return self._read(data, False, False)
+
+    def r_readlw(self, data):
+        """vb.readlw: READL with no LOCKED clause: it waits."""
+        return self._read(data, False, True)
+
+    def r_readu(self, data):
+        """vb.readu: READU with a LOCKED clause."""
+        return self._read(data, True, False)
+
+    def r_readuw(self, data):
+        """vb.readuw: READU, waiting."""
+        return self._read(data, True, True)
+
+    def r_select(self, data):
+        """vb.select: check.file, check.list, then SELECT file TO listno.  Replaces the list."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        listno = _short(data, 2)
+        if not self._list(listno):
+            return ""
+        self.lists[listno] = [list(f.records), 0]
+        return ""
+
+    def r_readnext(self, data):
+        """vb.readnext: the next id of the list; the end of the list (or no list) is the ELSE clause."""
+        listno = _short(data, 0)
+        if not self._list(listno):
+            return ""
+        lst = self.lists[listno]
+        if lst is None or lst[1] >= len(lst[0]):
+            self.lists[listno] = None
+            self.err = SV_ELSE
+            return ""
+        rid = lst[0][lst[1]]
+        lst[1] += 1
+        return rid
+
+    def r_clearselect(self, data):
+        """vb.clearselect."""
+        listno = _short(data, 0)
+        if self._list(listno):
+            self.lists[listno] = None
+        return ""
+
+    def r_readlist(self, data):
+        """vb.readlist: what is left of the list, ids separated by field marks, and the list is used up; no list is the null string."""
+        listno = _short(data, 0)
+        if not self._list(listno):
+            return ""
+        lst = self.lists[listno]
+        self.lists[listno] = None
+        return "" if lst is None else FM.join(lst[0][lst[1]:])
+
+    def r_release(self, data):
+        """vb.release: file number 0 releases every lock of the session; an empty id every lock on the file; else the one record's."""
+        fno = _short(data, 0)
+        f = None
+        if fno:
+            f = self._file(data)
+            if f is None:
+                return ""
+        rid = _rid(data, 2)
+        if fno == 0:
+            self.store.release_all(self.userno)
+        elif rid == "":
+            self.store.release_file(f, self.userno)
+        else:
+            self.store.release_one(f, rid, self.userno)
+        return ""
+
+    def r_recordlocked(self, data):
+        """vb.recordlocked: RECORDLOCKED() as four bytes (the signed code as an unsigned long), STATUS() the owner's user number."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        code, self.st = self.store.recordlocked(f, _rid(data, 2), self.userno)
+        return struct.pack("<I", code & 0xFFFFFFFF).decode("latin-1")
+
+    def r_selectlist(self, data):
+        """vb.selectlist: SELECT file TO 11, READLIST: every id, field marks between."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        return FM.join(f.records)
+
+    def r_fileinfo(self, data):
+        """vb.fileinfo: FILEINFO(file, key) with the key a long, cut to a signed 16 bits as op_dio2.c does; the answer is the value as text.
+        A key op_dio2.c does not know is an abort, 1010 (the ON ERROR reply).  Modelled: 0 1 2 3 1001 1008 1009 1012 1014 1015; every other
+        known key is 0 unless FakeFile.info gives it."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        key = struct.unpack("<h", struct.pack("<H", _long(data, 2) & 0xFFFF))[0]
+        if key not in FL_KNOWN:
+            self.err = SV_ON_ERROR
+            self.abort_msg = msg(1010)
+            return ""
+        if key in f.info:
+            return str(f.info[key])
+        if key == 0:
+            return "1"
+        if key == 1:
+            return f.vocname
+        if key == 2:
+            return f.path
+        if key == 3:
+            return str(f.ftype)
+        if key == 1008:
+            return "1" if f.nocase else "0"
+        if key == 1009:
+            return str(f.fileid)
+        if key == 1012:
+            return self.lastid.get(self.cur_fno, "")
+        if key == 1014:
+            return ("1" if self.marks.get(self.cur_fno, True) else "0") if f.ftype == FL_TYPE_DIR else "0"
+        if key == 1015:
+            return str(len(f.records)) if f.ftype == FL_TYPE_DH else "-1"
+        return "0"
+
+    def r_readv(self, data):
+        """vb.readv: flags 0 READV, 1 READVU, 2 READVL (the last two wait), 5 and 6 the same with a LOCKED clause; any other flag does
+        nothing and answers success with no data, as the begin case of apisrvr does.  The answer is rec<field>: field 0 or less is null."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        flags = _short(data, 2)
+        field = _long(data, 4)
+        rid = _rid(data, 8)
+        modes = {0: None, 1: (True, True), 2: (False, True), 5: (True, False), 6: (False, False)}
+        if flags not in modes:
+            return ""
+        if rid == "":
+            self.err, self.st = SV_ELSE, ER_IID
+            return ""
+        if modes[flags] is not None and not self._lock(f, rid, modes[flags][0], modes[flags][1]):
+            return ""
+        rec = self._found(f, rid, f.get(rid))
+        if self.err != SV_OK:
+            return ""
+        parts = rec.split(FM)
+        return parts[field - 1] if 1 <= field <= len(parts) else ""
+
+    def r_markmapping(self, data):
+        """vb.mark.mapping: check.file; the state is kept and changes FILEINFO 1014 for a directory file; ignored for any other (op_mapmarks)."""
+        f = self._file(data)
+        if f is not None:
+            self.marks[self.cur_fno] = _short(data, 2) != 0
+        return ""
+
+    def r_revision(self, data):
+        """vb.revision: response = system(1012)."""
+        return self.server.revision
+
+    HANDLERS = {R_QUIT: r_quit, R_GETERROR: r_geterror, R_ACCOUNT: r_account, R_OPEN: r_open, R_CLOSE: r_close, R_READ: r_read,
+                R_READL: r_readl, R_READLW: r_readlw, R_READU: r_readu, R_READUW: r_readuw, R_SELECT: r_select, R_READNEXT: r_readnext,
+                R_CLEARSELECT: r_clearselect, R_READLIST: r_readlist, R_RELEASE: r_release, R_RECORDLOCKED: r_recordlocked,
+                R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision}
+
+
 class FakeServer(threading.Thread):
-    """See the module text.  Users: add_user().  Behaviour per connection: configure() - every call starts from the defaults, so a row
-    names only what it changes."""
+    """See the module text.  Users: add_user(), add_user_keys().  Behaviour per connection: configure() - every call starts from the defaults,
+    so a row names only what it changes.  The store, the lock table and the account list: self.store (FakeStore).  What a served connection
+    did: self.sessions (FileSession objects: userno, requests, refused, injected, account, files_only, closed)."""
 
     DEFAULTS = {
         "ack": True,              # send the Ack byte after the handshake
@@ -98,6 +766,18 @@ class FakeServer(threading.Thread):
         "final_error": None,      # (error field, text): answer client-final with an error without looking at the proof
         "bad_v": False,           # a wrong ServerSignature
         "no_v": False,            # an answer that is not v=
+        # ---- 17 Oct 26 S.65 slice 3a: the file requests (module text) ----
+        "files": False,           # serve the requests after a good login (False: record them and say nothing, as before)
+        "files_only": False,      # the SDNet login: only gpl.bp/apifilesok's requests are dispatched, the rest get message 11480
+        "no_file_access": False,  # request 4 (open) answers 5262 "File access is disabled" (config SDCLIENT / the SDNet mark of apisrvr)
+        "idle": 20.0,             # seconds a served connection may be silent before the server closes it
+        "lock_wait": 3.0,         # seconds a waiting lock request (8, 10, 41 with flags 1 or 2) waits before it gives up with an ON ERROR reply
+        "close_after_requests": None,   # N: close the connection after replying to the Nth request of the session
+        "drop_request": None,     # N: read the Nth request of the session and close the connection without replying
+        "delay": None,            # seconds before each reply: a number, or {request type: seconds, "*": seconds for any other}
+        "no_reply": (),           # request types that are read, recorded and never answered (the client's timeout is the test)
+        "fail": None,             # {request type or "*": (error field, text) or (error field, text, count)}: answer with that error and do not
+                                  # dispatch; count = the first COUNT times only.  Error field SV_ERROR makes text the answer to request 2.
     }
 
     def __init__(self, cert, key, life=1800):
@@ -117,7 +797,14 @@ class FakeServer(threading.Thread):
         self.scram_ok = 0
         self.scram_bad = 0
         self.errors = []
-        self.busy = False
+        self.busy = 0                   # connections being dealt with (a count since 17 Oct 26; every user tests it for truth only)
+        self.store = FakeStore()
+        self.sessions = []              # FileSession of every served connection, in order
+        self.live = set()               # accepted sockets still open, so that shutdown() can close them
+        self.userno_base = USERNO_BASE
+        self.revision = "L1.1-3"        # what request 49 answers (system(1012))
+        self.cert = cert
+        self._pin = None
         self.ended = threading.Event()
         self.deadline = time.time() + life
         self.lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -129,12 +816,31 @@ class FakeServer(threading.Thread):
         self.start()
 
     # ---- configuration and records --------------------------------------------------------------------------------------------
-    def add_user(self, name, password, salt=None, iterations=4096):
-        """A user the server knows.  Returns the salt as base64 (the one in s=)."""
+    def add_user(self, name, password, salt=None, iterations=4096, files_only=False):
+        """A user the server knows.  Returns the salt as base64 (the one in s=).  files_only=True makes every login of this user the SDNet
+        one (the sdfiles route) whatever the connection's configuration says."""
         salt = salt if salt is not None else os.urandom(16)
         with self.lock:
-            self.users[name] = {"password": password, "salt": salt, "iterations": int(iterations)}
+            self.users[name] = {"password": password, "salt": salt, "iterations": int(iterations), "files_only": bool(files_only)}
         return b64(salt)
+
+    def add_user_keys(self, name, salt_b64, iterations, stored_key_b64, server_key_b64, files_only=False):
+        """A user the server knows by what $cred holds and not by the password: the salt, the iteration count, StoredKey and ServerKey (all
+        base64 as the credential file keeps them).  The exchange on the wire is the one a password user has; a client that proves itself
+        from ClientKey (SHA-256 of which is StoredKey) is accepted, a client with any other key is not.  The iteration count the server
+        OFFERS (cfg offer_iter) cannot change the verification of such a user: there is no password to derive from again."""
+        with self.lock:
+            self.users[name] = {"password": None, "salt": base64.b64decode(salt_b64), "iterations": int(iterations),
+                                "stored_key": base64.b64decode(stored_key_b64), "server_key": base64.b64decode(server_key_b64),
+                                "files_only": bool(files_only)}
+
+    @property
+    def pin(self):
+        """The pin of this server's certificate as set.server wants it: SHA-256 of the SubjectPublicKeyInfo, 64 lower case hex digits.  Made
+        with the openssl command line (x509 -pubkey | pkey -pubin -outform DER) and hashlib, as sandbox-net.py makes it."""
+        if self._pin is None:
+            self._pin = spki_pin(self.cert)
+        return self._pin
 
     def configure(self, **kw):
         bad = [k for k in kw if k not in self.DEFAULTS]
@@ -146,15 +852,18 @@ class FakeServer(threading.Thread):
 
     def mark(self):
         with self.lock:
-            return (self.conns, self.handshakes, len(self.packets), self.app_bytes, self.scram_ok, self.scram_bad, len(self.exchanges), len(self.errors))
+            return (self.conns, self.handshakes, len(self.packets), self.app_bytes, self.scram_ok, self.scram_bad, len(self.exchanges), len(self.errors),
+                    len(self.sessions))
 
     def delta(self, m):
         """What happened since MARK: connection and handshake counts, the TYPES of the packets received, the application bytes, proofs that
-        verified and that did not, the exchanges, and what this server found wrong in the client's messages."""
+        verified and that did not, the exchanges, and what this server found wrong in the client's messages; and, since slice 3a, the
+        served sessions begun since (FileSession objects)."""
         with self.lock:
             return {"conns": self.conns - m[0], "handshakes": self.handshakes - m[1], "types": [p[1] for p in self.packets[m[2]:]],
                     "packets": list(self.packets[m[2]:]), "app_bytes": self.app_bytes - m[3], "ok": self.scram_ok - m[4],
-                    "bad": self.scram_bad - m[5], "exchanges": list(self.exchanges[m[6]:]), "errors": list(self.errors[m[7]:])}
+                    "bad": self.scram_bad - m[5], "exchanges": list(self.exchanges[m[6]:]), "errors": list(self.errors[m[7]:]),
+                    "sessions": list(self.sessions[m[8]:])}
 
     def settle(self, quiet=0.7, limit=8.0):
         """Wait until a connection the client has just made has been accepted and dealt with (a 'no connection' row waits the same time)."""
@@ -166,6 +875,13 @@ class FakeServer(threading.Thread):
     def shutdown(self):
         self.ended.set()
         self.join(timeout=5)
+        with self.lock:
+            live = list(self.live)
+        for c in live:                  # a served connection has a thread of its own: end it
+            try:
+                c.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
 
     # ---- the server ------------------------------------------------------------------------------------------------------------
     def run(self):
@@ -176,26 +892,36 @@ class FakeServer(threading.Thread):
                 continue
             except OSError:
                 break
-            self.busy = True
             with self.lock:
+                self.busy += 1
                 self.conns += 1
                 n = self.conns
                 cfg = dict(self.cfg)
-            try:
-                conn.settimeout(10)
-                self.handle(conn, n, cfg)
-            except Exception:           # a client that goes away in the middle of an exchange is not this server's concern
-                pass
-            finally:
-                try:
-                    conn.close()
-                except OSError:
-                    pass
-                self.busy = False
+                self.live.add(conn)
+            if cfg["files"]:
+                # a served connection lives as long as its client does, and the lock rows need two of them at once
+                threading.Thread(target=self.one_connection, args=(conn, n, cfg), daemon=True).start()
+            else:
+                self.one_connection(conn, n, cfg)
         try:
             self.lsock.close()
         except OSError:
             pass
+
+    def one_connection(self, conn, n, cfg):
+        try:
+            conn.settimeout(10)
+            self.handle(conn, n, cfg)
+        except Exception:               # a client that goes away in the middle of an exchange is not this server's concern
+            pass
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+            with self.lock:
+                self.busy -= 1
+                self.live.discard(conn)
 
     def note(self, text):
         with self.lock:
@@ -232,9 +958,9 @@ class FakeServer(threading.Thread):
         return ptype, data
 
     @staticmethod
-    def reply(tls, data, err=SV_OK):
+    def reply(tls, data, err=SV_OK, status=0):
         data = data.encode("latin-1") if isinstance(data, str) else data
-        tls.sendall(struct.pack("<IHI", 10 + len(data), err, 0) + data)
+        tls.sendall(struct.pack("<IHI", 10 + len(data), err, status & 0xFFFFFFFF) + data)
 
     def handle(self, conn, n, cfg):
         tls = self.ctx.wrap_socket(conn, server_side=True)
@@ -299,7 +1025,8 @@ class FakeServer(threading.Thread):
             text = data.decode("latin-1")
             fparts = text.split(",")
             ex = {"user": user, "cfirst_bare": cfirst_bare, "sfirst": sfirst, "nonce": nonce, "cnonce": cnonce, "snonce": snonce,
-                  "cbind": None, "proof": None, "cfinal_bare": None, "authmsg": None, "verified": None, "iterations": iters, "final_text": text}
+                  "cbind": None, "proof": None, "cfinal_bare": None, "authmsg": None, "verified": None, "iterations": iters, "final_text": text,
+                  "conn": n}
             with self.lock:
                 self.exchanges.append(ex)
             if cfg["final_error"] is not None:
@@ -327,7 +1054,10 @@ class FakeServer(threading.Thread):
             ex["cfinal_bare"] = fparts[0] + "," + fparts[1]
             authmsg = cfirst_bare + "," + sfirst + "," + ex["cfinal_bare"]
             ex["authmsg"] = authmsg
-            keys = derive(rec["password"], b64(rec["salt"]), iters)
+            if rec["password"] is None:         # a user known by keys alone (add_user_keys): nothing to derive from
+                keys = {"stored_key": rec["stored_key"], "server_key": rec["server_key"]}
+            else:
+                keys = derive(rec["password"], b64(rec["salt"]), iters)
             sig = hmac.new(keys["stored_key"], authmsg.encode("latin-1"), hashlib.sha256).digest()
             if len(proof) != 32:
                 ok = False
@@ -346,15 +1076,125 @@ class FakeServer(threading.Thread):
             v = server_signature(keys["server_key"], authmsg)
             if cfg["bad_v"]:
                 v = bytes([v[0] ^ 1]) + v[1:]
+            ses = None
+            if cfg["files"]:
+                # registered BEFORE the reply that tells the client it is in, so that a test which looks at self.sessions after its login
+                # has returned always finds the session (and its user number)
+                ses = FileSession(self, n, self.userno_base + n, user, cfg, bool(cfg["files_only"] or rec.get("files_only")))
+                with self.lock:
+                    self.sessions.append(ses)
             self.reply(tls, ("x=" if cfg["no_v"] else "v=") + b64(v))
-            # anything more the client sends is recorded (a client that has what it came for closes at once)
-            while self.read_packet(tls, n) is not None:
-                pass
+            if ses is not None:
+                self.serve(tls, n, ses)
+            else:
+                # anything more the client sends is recorded (a client that has what it came for closes at once)
+                while self.read_packet(tls, n) is not None:
+                    pass
         finally:
             try:
                 tls.close()
             except (OSError, ssl.SSLError):
                 pass
+
+    # ---- the served connection ---------------------------------------------------------------------------------------------------
+    def serve(self, tls, n, ses):
+        """apisrvr's main loop for one logged-in connection.  Order for each request: read and record it; drop_request; no_reply; the files-only
+        gate (apisrvr: after the logged-in test and before the dispatch, so nothing goes round it); fail; the dispatch; the delay; the reply;
+        then quit and close_after_requests end the connection.  The session's locks are let go when it ends, as a process's are."""
+        cfg = ses.cfg
+        tls.settimeout(cfg["idle"])
+        try:
+            while not self.ended.is_set():
+                pk = self.read_packet(tls, n)
+                if pk is None:
+                    break
+                ptype, data = pk
+                ses.nreq += 1
+                ses.requests.append(ptype)
+                if cfg["drop_request"] == ses.nreq:
+                    break
+                if ptype in cfg["no_reply"]:
+                    ses.injected.append((ptype, "no_reply"))
+                    continue
+                if ses.files_only and not ses.allowed(ptype):
+                    ses.refused.append(ptype)
+                    res = (SV_ON_ERROR, 0, msg(11480, ptype))         # apisrvr: server.error = SV$ON.ERROR, abort.message = sysmsg(11480, action)
+                else:
+                    res = self.injected_fault(ses, ptype)
+                    if res is None:
+                        res = ses.dispatch(ptype, data)
+                self.pause(cfg, ptype)
+                self.reply(tls, res[2], res[0], res[1])
+                if ses.done or cfg["close_after_requests"] == ses.nreq:
+                    break
+        finally:
+            ses.closed = True
+            self.store.drop_user(ses.userno)
+
+    @staticmethod
+    def injected_fault(ses, ptype):
+        """The fail setting: (error field, status, data) for a request it covers, else None."""
+        spec = ses.cfg["fail"] or {}
+        key = ptype if ptype in spec else "*"
+        if key not in spec:
+            return None
+        err, text = spec[key][0], spec[key][1]
+        limit = spec[key][2] if len(spec[key]) > 2 else None
+        count = ses.fail_counts.get(key, 0)
+        if limit is not None and count >= limit:
+            return None
+        ses.fail_counts[key] = count + 1
+        ses.injected.append((ptype, "fail"))
+        if err == SV_ERROR:
+            ses.error_msg = text
+            return (SV_ERROR, 0, "")
+        return (err, 0, text)
+
+    @staticmethod
+    def pause(cfg, ptype):
+        d = cfg["delay"]
+        if isinstance(d, dict):
+            d = d.get(ptype, d.get("*"))
+        if d:
+            time.sleep(d)
+
+
+def der_tlv(buf, pos):
+    """(tag, start of content, end of content) of the ASN.1 DER element at pos."""
+    tag = buf[pos]
+    ln = buf[pos + 1]
+    pos += 2
+    if ln & 0x80:
+        k = ln & 0x7F
+        ln = int.from_bytes(buf[pos:pos + k], "big")
+        pos += k
+    return tag, pos, pos + ln
+
+
+def spki_der(cert_der):
+    """The SubjectPublicKeyInfo of a DER certificate, header included, found by walking the ASN.1 (Certificate / TBSCertificate): version
+    [0] (when present), serial, signature, issuer, validity, subject, subjectPublicKeyInfo."""
+    _t, c0, _e = der_tlv(cert_der, 0)                   # Certificate SEQUENCE
+    _t, p, _e = der_tlv(cert_der, c0)                   # TBSCertificate SEQUENCE
+    items = []
+    while len(items) < 6:
+        s = p
+        tag, a, b = der_tlv(cert_der, p)
+        if tag == 0xA0 and not items:                   # the optional version, which is not one of the six that count
+            p = b
+            continue
+        items.append((s, b))
+        p = b
+    s, e = items[5]                                     # serial, signature, issuer, validity, subject, SPKI: the sixth
+    return cert_der[s:e]
+
+
+def spki_pin(cert_path):
+    """The pin set.server takes: SHA-256 of the certificate's SubjectPublicKeyInfo as 64 lower case hex digits, from the openssl command line
+    (x509 -pubkey | pkey -pubin -outform DER), as sandbox-net.py makes it."""
+    pub = _openssl(["x509", "-in", cert_path, "-pubkey", "-noout"])
+    der = _openssl(["pkey", "-pubin", "-outform", "DER"], pub)
+    return hashlib.sha256(der).hexdigest()
 
 
 # ---- the self-test ------------------------------------------------------------------------------------------------------------------
@@ -366,61 +1206,553 @@ def _openssl(args, data=None):
     return p.stdout
 
 
-def _probe(port, user, password, tamper_v=False):
-    """A minimal SCRAM client, for the self-test only: written from RFC 7677 and the packet text above, not from SD's code.  Returns
-    (outcome, detail): 'ok', or 'error' with the server's text, 'closed', 'bad-v'."""
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
-    raw = socket.create_connection(("127.0.0.1", port), timeout=10)
-    tls = ctx.wrap_socket(raw, server_hostname="127.0.0.1")
-    tls.settimeout(10)
+class ApiClient:
+    """A minimal API client for the self-test, written from RFC 7677, the packet text above and gpl.bp/sdclient, not from the fake's own code:
+    TLS 1.3 to 127.0.0.1, the Ack, login() (SCRAM from a password or from derived keys), then req(type, data) -> (error field, status, data).
+    Usable by a test of the BASIC class's behaviour as a reference for what the wire should look like.  It leaves the connection open."""
 
-    def rd(n):
+    def __init__(self, port, timeout=10):
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+        raw = socket.create_connection(("127.0.0.1", port), timeout=10)
+        self.tls = ctx.wrap_socket(raw, server_hostname="127.0.0.1")
+        self.tls.settimeout(timeout)
+        self.peer_der = self.tls.getpeercert(binary_form=True)       # the certificate presented (CERT_NONE still returns it)
+
+    def _rd(self, n):
         buf = b""
         while len(buf) < n:
-            c = tls.recv(n - len(buf))
+            c = self.tls.recv(n - len(buf))
             if not c:
                 raise EOFError
             buf += c
         return buf
 
-    def send(ptype, data):
-        d = data.encode("latin-1")
-        tls.sendall(struct.pack("<IH", len(d) + 6, ptype) + d)
+    def send(self, ptype, data):
+        d = data.encode("latin-1") if isinstance(data, str) else data
+        self.tls.sendall(struct.pack("<IH", len(d) + 6, ptype) + d)
 
-    def recv():
-        length, err, _st = struct.unpack("<IHI", rd(10))
-        return err, rd(length - 10).decode("latin-1") if length > 10 else ""
-    try:
-        if rd(1) != ACK:
-            return "closed", "no ack"
-        cnonce = b64(os.urandom(18))
-        bare = "n=%s,r=%s" % (user, cnonce)
-        send(PKT_FIRST, "p=tls-exporter,," + bare)
-        err, sfirst = recv()
-        if err != SV_OK:
-            return "error", sfirst
-        attrs = dict(a.split("=", 1) for a in sfirst.split(","))
-        keys = derive(password, attrs["s"], attrs["i"])
-        cfinal_bare = "c=%s,r=%s" % (b64(GS2 + os.urandom(32)), attrs["r"])
-        authmsg = bare + "," + sfirst + "," + cfinal_bare
-        proof = client_proof(keys["client_key"], keys["stored_key"], authmsg)
-        send(PKT_FINAL, cfinal_bare + ",p=" + b64(proof))
-        err, final = recv()
-        if err != SV_OK:
-            return "error", final
-        if final != "v=" + b64(server_signature(keys["server_key"], authmsg)):
-            return "bad-v", final
-        return "ok", final
-    except (EOFError, OSError):         # a close without close_notify arrives as an SSLError, which is an OSError
-        return "closed", "the server closed"
-    finally:
+    def recv(self):
+        length, err, st = struct.unpack("<IHI", self._rd(10))
+        return err, st, (self._rd(length - 10) if length > 10 else b"")
+
+    def req(self, ptype, data=b""):
+        """One request and its reply: (error field, status, data as bytes).  EOFError / OSError when the server has gone or says nothing in time."""
+        self.send(ptype, data)
+        return self.recv()
+
+    def error_text(self):
+        """Request 2: the text of the last SV$ERROR."""
+        return self.req(R_GETERROR)[2].decode("latin-1")
+
+    def login(self, user, password=None, keys=None):
+        """SCRAM-SHA-256 over TLS.  With keys = {"salt": b64, "iterations": n, "client_key": raw, "server_key": raw} no password is used: the
+        server's salt and iteration count must equal the stored ones or the client stops with 'stale' and sends nothing more.  Returns
+        (outcome, detail): 'ok', 'error' with the server's text, 'closed', 'bad-v', 'stale'."""
         try:
-            tls.close()
+            if self._rd(1) != ACK:
+                return "closed", "no ack"
+            cnonce = b64(os.urandom(18))
+            bare = "n=%s,r=%s" % (user, cnonce)
+            self.send(PKT_FIRST, "p=tls-exporter,," + bare)
+            err, _st, d = self.recv()
+            sfirst = d.decode("latin-1")
+            if err != SV_OK:
+                return "error", sfirst
+            attrs = dict(a.split("=", 1) for a in sfirst.split(","))
+            if keys is not None:
+                if attrs["s"] != keys["salt"] or attrs["i"] != str(keys["iterations"]):
+                    return "stale", sfirst
+                ck, sk = keys["client_key"], keys["server_key"]
+                stored = hashlib.sha256(ck).digest()
+            else:
+                k = derive(password, attrs["s"], attrs["i"])
+                ck, stored, sk = k["client_key"], k["stored_key"], k["server_key"]
+            cfinal_bare = "c=%s,r=%s" % (b64(GS2 + os.urandom(32)), attrs["r"])
+            authmsg = bare + "," + sfirst + "," + cfinal_bare
+            proof = client_proof(ck, stored, authmsg)
+            self.send(PKT_FINAL, cfinal_bare + ",p=" + b64(proof))
+            err, _st, d = self.recv()
+            final = d.decode("latin-1")
+            if err != SV_OK:
+                return "error", final
+            if final != "v=" + b64(server_signature(sk, authmsg)):
+                return "bad-v", final
+            return "ok", final
+        except (EOFError, OSError):         # a close without close_notify arrives as an SSLError, which is an OSError
+            return "closed", "the server closed"
+
+    def close(self):
+        try:
+            self.tls.close()
         except OSError:
             pass
+
+
+def _probe(port, user, password, tamper_v=False, keys=None):
+    """One login and goodbye, for the self-test: (outcome, detail) of ApiClient.login()."""
+    c = ApiClient(port)
+    try:
+        return c.login(user, password, keys)
+    finally:
+        c.close()
+
+
+def _S(n):
+    return struct.pack("<h", n)
+
+
+def _L(n):
+    return struct.pack("<I", n & 0xFFFFFFFF)
+
+
+def _apifilesok_numbers():
+    """The request numbers gpl.bp/apifilesok allows, read from its `files.ok := 'N,'` lines (None when the tree is not there)."""
+    path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdsys", "gpl.bp", "apifilesok"))
+    try:
+        with open(path, encoding="latin-1") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    return frozenset(int(x) for x in re.findall(r"^files\.ok := '(\d+),'", text, re.M))
+
+
+def selftest_files(srv, cert, row):
+    """The slice 3a rows: users from derived keys, every file request against apisrvr's reply formats (read from gpl.bp/apisrvr, each row's
+    label names its vb. label), the lock table across two connections, the files-only gate, the fault switches, the pin."""
+    FMc, VMc = "\xfe", "\xfd"
+    st = srv.store
+    rec_c1 = "Smith" + FMc + "100" + VMc + "200" + FMc + "x"
+    st.add_file("customers", {"c1": rec_c1, "c2": "Jones" + FMc + "50", "c3": "Brown"}, dict_items={"name": "D" + FMc + "1", "bal": "D" + FMc + "2"},
+                path="/data/acct/customers")
+    st.add_file("empty")
+    st.add_file("mixed", {"ABC": "upper"}, nocase=True)
+    st.add_file("dirfile", {"r": "x"}, ftype=FL_TYPE_DIR)
+    st.accounts = {"acct"}
+    salt_alice = b64(srv.users["alice"]["salt"])
+    salt_bob = b64(os.urandom(16))
+    kb = derive("pw-bob", salt_bob, 4096)
+    srv.add_user_keys("bob", salt_bob, 4096, kb["stored_key_b64"], kb["server_key_b64"])
+    keys_bob = {"salt": salt_bob, "iterations": 4096, "client_key": kb["client_key"], "server_key": kb["server_key"]}
+    srv.add_user("carol", "pw-carol", files_only=True)
+
+    def login_row(label, want, user, pw=None, keys=None, cfg=None, types=None, ok=None, bad=None):
+        srv.configure(**(cfg or {}))
+        m = srv.mark()
+        res = _probe(srv.port, user, pw, keys=keys)
+        srv.settle(quiet=0.3)
+        d = srv.delta(m)
+        good = res[0] == want and d["errors"] == []
+        if types is not None:
+            good = good and d["types"] == types
+        if ok is not None:
+            good = good and d["ok"] == ok and d["bad"] == bad
+        row(label, good, "client saw %r, server saw %r" % (res, {x: d[x] for x in ("types", "ok", "bad", "errors")}))
+
+    # ---- A  the login from derived keys -------------------------------------------------------------------------------------------
+    login_row("keys alone (add_user_keys): a client proving itself from ClientKey is accepted, the same two packets 47 and 48", "ok", "bob",
+              keys=keys_bob, types=[47, 48], ok=1, bad=0)
+    ka = derive("pw-one", salt_alice, 4096)
+    login_row("a password user is accepted from the keys the password gives (the exchange is the same)", "ok", "alice",
+              keys={"salt": salt_alice, "iterations": 4096, "client_key": ka["client_key"], "server_key": ka["server_key"]}, types=[47, 48], ok=1, bad=0)
+    login_row("a user known by keys alone is accepted from the password too", "ok", "bob", pw="pw-bob", types=[47, 48], ok=1, bad=0)
+    bad_keys = dict(keys_bob, client_key=bytes([keys_bob["client_key"][0] ^ 1]) + keys_bob["client_key"][1:])
+    login_row("a wrong ClientKey: the proof does not verify, the server answers an error", "error", "bob", keys=bad_keys, types=[47, 48], ok=0, bad=1)
+    login_row("a salt that differs from the stored one: the keys client stops after client-first and sends nothing more", "stale", "bob",
+              keys=keys_bob, cfg={"salt_text": "AAAAAAAAAAAAAAAAAAAAAA=="}, types=[47], ok=0, bad=0)
+    login_row("an iteration count that differs from the stored one: the same", "stale", "bob", keys=keys_bob, cfg={"offer_iter": 5000},
+              types=[47], ok=0, bad=0)
+    srv.configure()
+
+    # ---- B  one served connection -------------------------------------------------------------------------------------------------
+    def connect(user="alice", pw="pw-one", timeout=5, **cfg):
+        srv.configure(files=True, **cfg)
+        cl = ApiClient(srv.port, timeout=timeout)
+        r = cl.login(user, pw)
+        if r[0] != "ok":
+            raise RuntimeError("netfake self-test: login of %s gave %r" % (user, r))
+        return cl
+
+    def closed_by_server(cl, ptype=R_READ, data=b"\x01\x00c1"):
+        try:
+            cl.req(ptype, data)
+        except (EOFError, OSError):
+            return True
+        return False
+
+    def wait_closed(ses, limit=4.0):
+        t0 = time.time()
+        while not ses.closed and time.time() - t0 < limit:
+            time.sleep(0.05)
+        return ses.closed
+
+    m_b = srv.mark()
+    c = connect()
+    ses = srv.sessions[-1]
+    row("a served connection is registered with a user number before the login reply, and is not files-only", ses.userno == USERNO_BASE + ses.conn and not ses.files_only)
+    r = c.req(R_ACCOUNT, "ACCT")
+    row("vb.account: the configured name, typed in upper case, is accepted: error 0, no data", r == (0, 0, b""), repr(r))
+    r = c.req(R_ACCOUNT, "other")
+    row("vb.account: another name is SV$ERROR with no data, and request 2 returns 10003", r == (3, 0, b"") and c.error_text() == msg(10003), repr(r))
+    r = c.req(R_ACCOUNT, "x" * 33)
+    row("vb.account: 33 characters is 5037", r[0] == 3 and c.error_text() == msg(5037), repr(r))
+    r = c.req(R_ACCOUNT, "")
+    row("vb.account: no name is 5037", r[0] == 3 and c.error_text() == msg(5037), repr(r))
+    r1, r2 = c.req(R_OPEN, "customers"), c.req(R_OPEN, "CUSTOMERS")
+    row("vb.open: file numbers are handed out from 1, the name is case blind", r1 == (0, 0, _S(1)) and r2 == (0, 0, _S(2)), repr((r1, r2)))
+    r = c.req(R_OPEN, "nosuch")
+    row("vb.open: a file that is not there is SV$ELSE with STATUS() ER$FNF 3003 and no data", r == (SV_ELSE, 3003, b""), repr(r))
+    r = c.req(R_OPEN, "")
+    row("vb.open: no name is SV$ELSE with ER$NAM 3002", r == (SV_ELSE, 3002, b""), repr(r))
+    r = c.req(R_OPEN, "dict customers")
+    row("vb.open: \"dict name\" opens the dictionary", r == (0, 0, _S(3)), repr(r))
+    r = c.req(R_CLOSE, _S(2))
+    r2 = c.req(R_READ, _S(2) + b"c1")
+    row("vb.close: the slot is closed, a read through it is SV$ERROR and request 2 returns 5268", r == (0, 0, b"") and r2[0] == 3 and c.error_text() == msg(5268), repr((r, r2)))
+    r = c.req(R_OPEN, "empty")
+    row("vb.open: the lowest free file number is reused", r == (0, 0, _S(2)), repr(r))
+    r = c.req(R_CLOSE, _S(9))
+    row("vb.close: a file number that was never opened is 5268", r[0] == 3 and c.error_text() == msg(5268), repr(r))
+    r = c.req(R_READ, _S(1) + b"c1")
+    row("vb.read: the record, marks as they are stored: error 0, STATUS 0", r == (0, 0, rec_c1.encode("latin-1")), repr(r))
+    r = c.req(R_READ, _S(1) + b"c9")
+    row("vb.read: a record that is not there is SV$ELSE, STATUS() ER$RNF 3006, no data", r == (SV_ELSE, 3006, b""), repr(r))
+    r = c.req(R_READ, _S(1))
+    row("vb.read: an empty id is SV$ELSE with ER$IID 3000", r == (SV_ELSE, 3000, b""), repr(r))
+    r = c.req(R_READ, _S(3) + b"name")
+    row("vb.read: through the dictionary's file number it reads the dictionary item", r == (0, 0, ("D" + FMc + "1").encode("latin-1")), repr(r))
+    r = c.req(R_OPEN, "mixed")
+    fm = struct.unpack("<h", r[2])[0]
+    r2, r3 = c.req(R_READ, _S(fm) + b"abc"), c.req(R_READ, _S(fm) + b"ABC")
+    row("vb.read: a nocase file finds the record whatever the case of the id", r[0] == 0 and r2 == (0, 0, b"upper") and r3 == (0, 0, b"upper"), repr((r, r2, r3)))
+    r = [c.req(R_READV, _S(1) + _S(0) + _L(f) + b"c1")[2] for f in (1, 2, 3, 5, 0)]
+    row("vb.readv: rec<field> (the value marks stay); a field beyond the record and field 0 are null", r == [b"Smith", b"100\xfd200", b"x", b"", b""], repr(r))
+    r = c.req(R_READV, _S(1) + _S(0) + _L(1) + b"c9")
+    row("vb.readv: a record that is not there is SV$ELSE with ER$RNF", r == (SV_ELSE, 3006, b""), repr(r))
+    r = c.req(R_READV, _S(1) + _S(3) + _L(1) + b"c1")
+    row("vb.readv: a flag value the begin case does not list does nothing: success, no data", r == (0, 0, b""), repr(r))
+    r = c.req(R_SELECT, _S(1) + _S(0))
+    ids = []
+    for _ in range(4):
+        rn = c.req(R_READNEXT, _S(0))
+        ids.append(rn)
+    row("vb.select / vb.readnext: the ids one by one, then SV$ELSE at the end of the list",
+        r == (0, 0, b"") and [x[2] for x in ids[:3]] == [b"c1", b"c2", b"c3"] and ids[3][0] == SV_ELSE and all(x[0] == 0 for x in ids[:3]), repr(ids))
+    c.req(R_SELECT, _S(1) + _S(4))
+    first = c.req(R_READNEXT, _S(4))
+    rest = c.req(R_READLIST, _S(4))
+    again = c.req(R_READLIST, _S(4))
+    nxt = c.req(R_READNEXT, _S(4))
+    row("vb.readlist: what is left of the list, field marks between, and the list is used up (a second readlist is null, readnext is SV$ELSE)",
+        first[2] == b"c1" and rest == (0, 0, b"c2\xfec3") and again == (0, 0, b"") and nxt[0] == SV_ELSE, repr((first, rest, again, nxt)))
+    r = c.req(R_SELECTLIST, _S(1))
+    row("vb.selectlist: every id, field marks between", r == (0, 0, b"c1\xfec2\xfec3"), repr(r))
+    r = c.req(R_SELECTLIST, _S(2))
+    row("vb.selectlist: an empty file gives no data and success", r == (0, 0, b""), repr(r))
+    c.req(R_SELECT, _S(1) + _S(2))
+    r = c.req(R_CLEARSELECT, _S(2))
+    r2 = c.req(R_READNEXT, _S(2))
+    row("vb.clearselect: the list is gone", r == (0, 0, b"") and r2[0] == SV_ELSE, repr((r, r2)))
+    r = c.req(R_SELECT, _S(1) + _S(11))
+    t1 = c.error_text()
+    r2 = c.req(R_READNEXT, _S(-1))
+    row("vb.select / vb.readnext: a list number outside 0 to 10 is SV$ERROR, request 2 returns 5269", r[0] == 3 and t1 == msg(5269) and r2[0] == 3 and c.error_text() == msg(5269), repr((r, r2)))
+    r = c.req(R_SELECT, _S(9) + _S(0))
+    row("vb.select: the file number is checked first (5268)", r[0] == 3 and c.error_text() == msg(5268), repr(r))
+    c.req(R_READ, _S(1) + b"c2")
+    fi = {k: c.req(R_FILEINFO, _S(1) + _L(k)) for k in (0, 1, 2, 3, 1008, 1009, 1012, 1014, 1015)}
+    row("vb.fileinfo: 0 open, 1 VOC name, 2 path, 3 type, 1008 nocase, 1009 file number, 1012 last id read, 1014 mark mapping (0: not a directory file), 1015 record count",
+        {k: v[2] for k, v in fi.items()} == {0: b"1", 1: b"customers", 2: b"/data/acct/customers", 3: b"3", 1008: b"0", 1009: b"1", 1012: b"c2", 1014: b"0", 1015: b"3"}
+        and all(v[:2] == (0, 0) for v in fi.values()), repr(fi))
+    r = c.req(R_FILEINFO, _S(1) + _L(4))
+    r2 = c.req(R_FILEINFO, _S(1) + _L(99999))
+    row("vb.fileinfo: a key op_dio2.c does not know (4; 99999 cut to 16 bits) is an abort: the ON ERROR reply with message 1010", r == (1, 0, msg(1010).encode()) and r2[0] == 1, repr((r, r2)))
+    st.file("customers").info[1001] = 1
+    r = c.req(R_FILEINFO, _S(1) + _L(1001))
+    row("vb.fileinfo: FakeFile.info overrides what the fake would answer", r[2] == b"1", repr(r))
+    fd = struct.unpack("<h", c.req(R_OPEN, "dirfile")[2])[0]
+    a = c.req(R_FILEINFO, _S(fd) + _L(1014))[2]
+    c.req(R_MARKMAPPING, _S(fd) + _S(0))
+    b = c.req(R_FILEINFO, _S(fd) + _L(1014))[2]
+    r = c.req(R_MARKMAPPING, _S(fd) + _S(1))
+    d_ = c.req(R_FILEINFO, _S(fd) + _L(1014))[2]
+    r9 = c.req(R_MARKMAPPING, _S(9) + _S(1))
+    row("vb.mark.mapping: a directory file starts with it on, 0 turns it off, 1 on again; a bad file number is 5268",
+        (a, b, d_) == (b"1", b"0", b"1") and r == (0, 0, b"") and r9[0] == 3 and c.error_text() == msg(5268), repr((a, b, d_, r, r9)))
+    r = c.req(R_REVISION)
+    row("vb.revision: system(1012)", r == (0, 0, srv.revision.encode()), repr(r))
+    r0, r27 = c.req(0), c.req(27)
+    row("vb.illegal.action: 0 and 27 are SV$ERROR with no data and \"Illegal action code (N)\" for request 2",
+        r0[0] == 3 and r27[0] == 3 and c.error_text() == "Illegal action code (27)", repr((r0, r27)))
+    r = c.req(20, b"\x00\x00")
+    row("a request apisrvr has and this fake does not build (20, call) is SV$ERROR saying so, and is noted", r[0] == 3 and "not implemented" in c.error_text()
+        and any("request 20" in e for e in srv.errors), repr(r))
+    r = c.req(R_QUIT)
+    gone = closed_by_server(c)
+    row("vb.quit: the reply is still written (error 0), then the connection is closed", r == (0, 0, b"") and gone and wait_closed(ses), repr(r))
+    c.close()
+    d = srv.delta(m_b)
+    row("the session recorded its requests, in order, and every packet reached the packet log",
+        ses.requests[:6] == [R_ACCOUNT, R_ACCOUNT, R_GETERROR, R_ACCOUNT, R_GETERROR, R_ACCOUNT] and d["types"][:2] == [47, 48]
+        and ses.requests[-1] == R_QUIT and d["types"][2:] == ses.requests, repr(ses.requests[:6]))
+    row("nothing was found wrong with the client except the one request the fake does not build", d["errors"] == ["request 20 is not built in netfake"], repr(d["errors"]))
+    srv.errors.clear()
+
+    # ---- C  the lock table, two connections ------------------------------------------------------------------------------------
+    def open2():
+        a_ = connect()
+        b_ = connect()
+        for x in (a_, b_):
+            x.req(R_OPEN, "customers")
+        return a_, b_, srv.sessions[-2].userno, srv.sessions[-1].userno
+    c1, c2, u1, u2 = open2()
+    row("two connections get different user numbers", u1 != u2 and u1 == srv.sessions[-2].userno)
+    r = c1.req(R_READU, _S(1) + b"c1")
+    row("vb.readu: the record comes back and the lock is taken", r == (0, 0, rec_c1.encode("latin-1")) and st.locks_of(u1) == [("customers", "c1", "update")], repr(r))
+    r, rl = c2.req(R_READU, _S(1) + b"c1"), c2.req(R_READL, _S(1) + b"c1")
+    row("a second connection's readu and readl are SV$LOCKED, no data, and STATUS() is the holder's user number", r == (SV_LOCKED, u1, b"") and rl == (SV_LOCKED, u1, b""), repr((r, rl)))
+    rp = c2.req(R_READ, _S(1) + b"c1")
+    row("a plain read ignores the lock", rp[0] == 0 and rp[2] == rec_c1.encode("latin-1"), repr(rp))
+    a_, b_, z_ = c2.req(R_RECORDLOCKED, _S(1) + b"c1"), c1.req(R_RECORDLOCKED, _S(1) + b"c1"), c2.req(R_RECORDLOCKED, _S(1) + b"c2")
+    row("vb.recordlocked: -2 (another user's update lock) with the holder in STATUS(), 2 for the holder, 0 and STATUS 0 for a free record",
+        a_ == (0, u1, _L(-2)) and b_ == (0, u1, _L(2)) and z_ == (0, 0, _L(0)), repr((a_, b_, z_)))
+    c1.req(R_READL, _S(1) + b"c1")
+    r = c2.req(R_READL, _S(1) + b"c1")
+    s1, s2 = c1.req(R_RECORDLOCKED, _S(1) + b"c1"), c2.req(R_RECORDLOCKED, _S(1) + b"c1")
+    row("readl by the holder takes the update lock down to a read lock; another connection's readl then shares it (recordlocked 1 for both)",
+        r[0] == 0 and s1[2] == _L(1) and s2[2] == _L(1), repr((r, s1, s2)))
+    r = c2.req(R_READU, _S(1) + b"c1")
+    row("a readu cannot take a record others hold a read lock on: SV$LOCKED naming a holder", r[0] == SV_LOCKED and r[1] in (u1,), repr(r))
+    c1.req(R_RELEASE, _S(1) + b"c1")
+    r = c2.req(R_RECORDLOCKED, _S(1) + b"c1")
+    c2.req(R_RELEASE, _S(1) + b"c1")
+    r2 = c2.req(R_RECORDLOCKED, _S(1) + b"c1")
+    row("vb.release (one record): c1 lets go (c2 still holds a read lock), then c2 does", r[2] == _L(1) and r2[2] == _L(0), repr((r, r2)))
+    r = c1.req(R_READU, _S(1) + b"zz")
+    r2 = c2.req(R_READU, _S(1) + b"zz")
+    row("a readu on a record that is not there takes the lock and the ELSE clause; the lock stays, so another connection is told it is locked",
+        r == (SV_ELSE, 3006, b"") and r2 == (SV_LOCKED, u1, b""), repr((r, r2)))
+    c1.req(R_RELEASE, _S(1))
+    r = c2.req(R_READU, _S(1) + b"zz")
+    row("vb.release with an empty id lets go of every lock on the file", r[0] == SV_ELSE and ("customers", "zz", "update") in st.locks_of(u2), repr(r))
+    c1.req(R_READU, _S(1) + b"c1")
+    c2.req(R_READU, _S(1) + b"c3")
+    c1.req(R_RELEASE, _S(0))
+    row("vb.release with file number 0 lets go of every lock of the session and of no other", st.locks_of(u1) == [] and ("customers", "c3", "update") in st.locks_of(u2),
+        repr((st.locks_of(u1), st.locks_of(u2))))
+    c2.req(R_RELEASE, _S(0))
+    c1.req(R_READU, _S(1) + b"c1")
+    r5, r6 = c2.req(R_READV, _S(1) + _S(5) + _L(1) + b"c1"), c2.req(R_READV, _S(1) + _S(6) + _L(1) + b"c1")
+    row("vb.readv with flags 5 and 6 (update / shared lock, LOCKED clause) against a held record: SV$LOCKED with the holder in STATUS()",
+        r5 == (SV_LOCKED, u1, b"") and r6 == (SV_LOCKED, u1, b""), repr((r5, r6)))
+    c1.req(R_RELEASE, _S(0))
+    r = c2.req(R_READV, _S(1) + _S(1) + _L(1) + b"c1")
+    row("vb.readv with flags 1 (update lock, waiting) on a free record takes it and returns the field", r == (0, 0, b"Smith") and ("customers", "c1", "update") in st.locks_of(u2), repr(r))
+    c2.req(R_RELEASE, _S(0))
+    st.hold("customers", "c2", 7)
+    st.hold_file("empty", 8)
+    r = c1.req(R_READU, _S(1) + b"c2")
+    oe = struct.unpack("<h", c1.req(R_OPEN, "empty")[2])[0]
+    rf = c1.req(R_READL, _S(oe) + b"anything")
+    rk = c1.req(R_RECORDLOCKED, _S(oe) + b"anything")
+    row("a lock held by a process that is not a connection (FakeStore.hold, hold_file) is reported by its user number; a file lock is -3 in recordlocked",
+        r == (SV_LOCKED, 7, b"") and rf == (SV_LOCKED, 8, b"") and rk == (0, 8, _L(-3)), repr((r, rf, rk)))
+    st.drop_user(7)
+    st.drop_user(8)
+    r = c1.req(R_READU, _S(1) + b"c2")
+    row("drop_user lets everything of that user go", r[0] == 0, repr(r))
+    c1.req(R_RELEASE, _S(0))
+    c1.req(R_READU, _S(1) + b"c1")
+    box = {}
+
+    def waiter():
+        t0 = time.time()
+        try:
+            box["r"] = c2.req(R_READUW, _S(1) + b"c1")
+        except Exception as ex_:
+            box["r"] = ex_
+        box["t"] = time.time() - t0
+    th = threading.Thread(target=waiter)
+    th.start()
+    time.sleep(0.6)
+    c1.req(R_RELEASE, _S(1) + b"c1")
+    th.join(8)
+    row("vb.readuw waits for the lock and gets the record when the holder lets go (about 0.6 s here)",
+        box.get("r") == (0, 0, rec_c1.encode("latin-1")) and 0.4 <= box.get("t", 0) < 3.0, repr(box))
+    c1.close()
+    c2.close()
+    c3 = connect(lock_wait=0.6)
+    c4 = connect(lock_wait=0.6)
+    ses3, ses4 = srv.sessions[-2], srv.sessions[-1]
+    for x in (c3, c4):
+        x.req(R_OPEN, "customers")
+    c3.req(R_READU, _S(1) + b"c1")
+    t0 = time.time()
+    r = c4.req(R_READUW, _S(1) + b"c1")
+    el = time.time() - t0
+    row("a waiting request that is not satisfied in lock_wait seconds gives up with an ON ERROR reply that says so, and the fake notes it",
+        r[0] == 1 and r[2].startswith(b"netfake: gave up") and 0.5 <= el < 3.0 and any("gave up" in e for e in srv.errors), repr((r, el)))
+    srv.errors.clear()
+    c3.close()
+    wait_closed(ses3)
+    r = c4.req(R_READU, _S(1) + b"c1")
+    row("the locks of a connection that ends are let go", r[0] == 0 and st.locks_of(ses3.userno) == [], repr(r))
+    c4.close()
+    wait_closed(ses4)
+
+    # ---- D  the files-only gate ----------------------------------------------------------------------------------------------------
+    c = connect(files_only=True)
+    ses = srv.sessions[-1]
+    refusal = "This login is for files only: request 20 is not allowed"
+    r = c.req(20, b"\x00\x00")
+    row("files-only: request 20 (call) is answered with message 11480, the ON ERROR reply, and is not dispatched",
+        r == (1, 0, refusal.encode()) and msg(11480, 20) == refusal and ses.refused == [20], repr(r))
+    r = [c.req(n) for n in (0, 21, 27, 47, 50, 61, 69, 70)]
+    row("files-only: 0, 21, 27, 47, 50, 61, 69 and 70 are refused the same way", all(x[0] == 1 and x[2].startswith(b"This login is for files only") for x in r) and
+        ses.refused == [20, 0, 21, 27, 47, 50, 61, 69, 70], repr(r))
+    r1 = c.req(R_ACCOUNT, "acct")
+    r2 = c.req(R_ACCOUNT, "acct")
+    row("files-only: request 3 is allowed the first time and refused the second (the session has entered an account)",
+        r1 == (0, 0, b"") and r2 == (1, 0, msg(11480, 3).encode()) and ses.refused[-1] == 3, repr((r1, r2)))
+    r = c.req(R_OPEN, "customers")
+    r2 = c.req(R_READ, r[2] + b"c1")
+    row("files-only: open and read are allowed through", r2 == (0, 0, rec_c1.encode("latin-1")), repr((r, r2)))
+    r = c.req(16, _S(1) + _S(2) + b"c9x")
+    row("files-only: a request the gate allows and the fake does not build (16, write) reaches the dispatch: SV$ERROR \"not implemented\"",
+        r[0] == 3 and "not implemented" in c.error_text() and 16 not in ses.refused, repr(r))
+    c.close()
+    wait_closed(ses)
+    row("... and the write is the one thing the fake noted", srv.errors == ["request 16 is not built in netfake"], repr(srv.errors))
+    srv.errors.clear()
+    c = connect(user="carol", pw="pw-carol")
+    ses = srv.sessions[-1]
+    r = c.req(21, b"x")
+    row("a user added with files_only=True gets the files-only login whatever the connection says", ses.files_only and r[0] == 1 and ses.refused == [21], repr(r))
+    c.close()
+    wait_closed(ses)
+    c = connect(files_only=True, fail={21: (1, "injected"), 6: (1, "injected")})
+    ses = srv.sessions[-1]
+    r = c.req(21, b"x")
+    row("files-only is before fail: a refused request is never injected", r[2].startswith(b"This login is for files only"), repr(r))
+    r = c.req(R_READ, _S(1) + b"c1")
+    row("... and an allowed request is", r == (1, 0, b"injected"), repr(r))
+    c.close()
+    wait_closed(ses)
+    row("... and the refusals and injections noted nothing", srv.errors == [], repr(srv.errors))
+    want = _apifilesok_numbers()
+    if want is None:
+        print("  [SKIP] gpl.bp/apifilesok is not there: the allow list is not compared")
+    else:
+        row("FILES_OK is gpl.bp/apifilesok's table, number for number (and 3 is allowed once)", FILES_OK == want, repr(sorted(FILES_OK ^ want)))
+    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 15, 34, 37, 40, 41, 46, 49",
+        set(FileSession.HANDLERS) == set(range(1, 16)) | {34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
+    row("NOT_BUILT and the built requests do not overlap", not (NOT_BUILT & set(FileSession.HANDLERS)), repr(sorted(NOT_BUILT & set(FileSession.HANDLERS))))
+    bad_msgs = []
+    for num, copy in _MSG_COPY.items():
+        try:
+            with open(os.path.join(_MSG_DIR, str(num)), encoding="latin-1") as fh:
+                if fh.readline().rstrip("\r\n") != copy:
+                    bad_msgs.append(num)
+        except OSError:
+            pass
+    row("the copies of the messages in this file are what sdsys/messages holds (a file that is not there is not compared)", bad_msgs == [], repr(bad_msgs))
+
+    # ---- E fault injection --------------------------------------------------------------------------------------------------------
+    c = connect(close_after_requests=2)
+    ses = srv.sessions[-1]
+    r1 = c.req(R_OPEN, "customers")
+    r2 = c.req(R_READ, _S(1) + b"c1")
+    gone = closed_by_server(c)
+    row("close_after_requests=2: two requests are answered, the third finds the connection closed", r1[0] == 0 and r2[0] == 0 and gone and wait_closed(ses), repr((r1, r2, gone)))
+    c.close()
+    c = connect(drop_request=2)
+    ses = srv.sessions[-1]
+    r1 = c.req(R_OPEN, "customers")
+    try:
+        c.req(R_READ, _S(1) + b"c1")
+        r2 = "answered"
+    except (EOFError, OSError):
+        r2 = "closed"
+    row("drop_request=2: the second request is read and recorded and never answered: the connection closes", r1[0] == 0 and r2 == "closed" and ses.requests == [R_OPEN, R_READ], repr((r1, r2, ses.requests)))
+    c.close()
+    c = connect(delay=0.5)
+    t0 = time.time()
+    c.req(R_REVISION)
+    el = time.time() - t0
+    row("delay=0.5: every reply is held back (measured %.2f s)" % el, 0.45 <= el < 3.0, repr(el))
+    c.close()
+    c = connect(delay={R_READ: 0.5})
+    c.req(R_OPEN, "customers")
+    t0 = time.time()
+    c.req(R_REVISION)
+    fast = time.time() - t0
+    t0 = time.time()
+    c.req(R_READ, _S(1) + b"c1")
+    slow = time.time() - t0
+    row("delay={6: 0.5}: only reads are held back (revision %.2f s, read %.2f s)" % (fast, slow), fast < 0.4 and 0.45 <= slow < 3.0, repr((fast, slow)))
+    c.close()
+    c = connect(fail={R_READ: (1, "boom", 1)})
+    ses = srv.sessions[-1]
+    c.req(R_OPEN, "customers")
+    r1 = c.req(R_READ, _S(1) + b"c1")
+    r2 = c.req(R_READ, _S(1) + b"c1")
+    row("fail={6: (1, 'boom', 1)}: the first read gets the ON ERROR reply with that text, the second is dispatched; open is untouched",
+        r1 == (1, 0, b"boom") and r2[0] == 0 and r2[2] == rec_c1.encode("latin-1") and ses.injected == [(R_READ, "fail")], repr((r1, r2, ses.injected)))
+    c.close()
+    c = connect(fail={R_READ: (SV_ERROR, "bad thing")})
+    c.req(R_OPEN, "customers")
+    r = c.req(R_READ, _S(1) + b"c1")
+    row("fail with the SV$ERROR field: no data, and request 2 returns the text", r == (3, 0, b"") and c.error_text() == "bad thing", repr(r))
+    c.close()
+    c = connect(fail={"*": (1, "all")})
+    r = c.req(R_OPEN, "customers")
+    row("fail={'*': ...}: every request that has no entry of its own is answered with it", r == (1, 0, b"all"), repr(r))
+    c.close()
+    c = connect(no_reply=(R_READ,), timeout=1)
+    ses = srv.sessions[-1]
+    c.req(R_OPEN, "customers")
+    try:
+        c.req(R_READ, _S(1) + b"c1")
+        outcome = "answered"
+    except TimeoutError:
+        outcome = "timeout"
+    except (EOFError, OSError):
+        outcome = "closed"
+    row("no_reply=(6,): the read is recorded and never answered, the client's own timeout is what it sees", outcome == "timeout" and ses.requests == [R_OPEN, R_READ]
+        and ses.injected == [(R_READ, "no_reply")], repr((outcome, ses.requests, ses.injected)))
+    c.close()
+    c = connect(no_file_access=True)
+    r = c.req(R_OPEN, "customers")
+    row("no_file_access: open answers 5262 as an ON ERROR reply", r == (1, 0, msg(5262).encode()), repr(r))
+    c.close()
+
+    # ---- F  files=False: the old behaviour --------------------------------------------------------------------------------------------
+    srv.configure()
+    m_f = srv.mark()
+    cl = ApiClient(srv.port, timeout=1)
+    ok_login = cl.login("alice", "pw-one")
+    try:
+        cl.req(R_READ, _S(1) + b"c1")
+        outcome = "answered"
+    except TimeoutError:
+        outcome = "timeout"
+    except (EOFError, OSError):
+        outcome = "closed"
+    cl.close()
+    srv.settle(quiet=0.3)
+    d = srv.delta(m_f)
+    row("files=False (the default): a request after the login is recorded and not answered, no session is made",
+        ok_login[0] == "ok" and outcome == "timeout" and d["types"] == [47, 48, 6] and d["sessions"] == [], repr((ok_login, outcome, d["types"])))
+
+    # ---- G  the pin ------------------------------------------------------------------------------------------------------------------
+    cl = ApiClient(srv.port)
+    seen = hashlib.sha256(spki_der(cl.peer_der)).hexdigest()
+    cl.close()
+    row("srv.pin is the SHA-256 of the SubjectPublicKeyInfo of the certificate the TLS peer presents (found here by walking the ASN.1), 64 lower case hex digits",
+        srv.pin == seen and re.fullmatch(r"[0-9a-f]{64}", srv.pin) is not None, "%s vs %s" % (srv.pin, seen))
+    srv.configure()
 
 
 def selftest():
@@ -454,7 +1786,7 @@ def selftest():
         k, c = os.path.join(work, "k.pem"), os.path.join(work, "c.pem")
         _openssl(["genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256", "-out", k])
         _openssl(["req", "-x509", "-new", "-key", k, "-out", c, "-days", "2", "-subj", "/CN=netfake", "-set_serial", "1"])
-        srv = FakeServer(c, k, life=120)
+        srv = FakeServer(c, k, life=300)
         srv.add_user("alice", "pw-one", iterations=4096)
 
         def run(label, want, cfg=None, user="alice", pw="pw-one", types=None, ok=None, bad=None):
@@ -480,6 +1812,7 @@ def selftest():
         ex = srv.exchanges[-1]
         row("the exchange record holds the binding shape the client sent and an independent proof check agrees",
             ex["cbind"].startswith(GS2) and ex["verified"] is True and ex["iterations"] == 5000 and len(ex["proof"]) == 32, repr(ex)[:200])
+        selftest_files(srv, c, row)
     finally:
         if srv is not None:
             srv.shutdown()

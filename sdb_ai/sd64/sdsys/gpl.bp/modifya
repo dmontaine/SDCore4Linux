@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 2c: FILES-ON / FILES-OFF put the account's person in or out of the Linux group sdfiles (the files-only SDNet login route) through
+*           sd-elevate addgroup / delgroup, as the api word does for sdapi (set.files); refused for a group or other account; reported with 11482.
 * 17 Oct 26 dm S.65 slice 1: NET-ON / NET-OFF, the NET gate for SDNet remote files (register field 15), through os.set; allowed on a group account as
 *           SD-ON is; reported with 11411; account-scoped, so it takes effect at the next account entry.  It does nothing yet.
 * 17 Oct 26 dm S.64: VOC-ON / VOC-OFF, BP-ON / BP-OFF and DICT-ON / DICT-OFF, the edit gates (register fields 10 to 12), through os.set;
@@ -103,6 +105,12 @@
 * MODIFY.ACCOUNT account DELETE <username>
 * MODIFY.ACCOUNT account SUSPENDED
 * MODIFY.ACCOUNT account UNSUSPENDED
+* MODIFY.ACCOUNT account FILES-ON
+* MODIFY.ACCOUNT account FILES-OFF
+*
+* 17 Oct 26 dm - S.65 slice 2c.  FILES-ON / FILES-OFF add or remove the account's person from the Linux group sdfiles: the files-only
+*   login route SDNet uses (an API login that may work with files and do nothing else).  Off for a new account; sdapi, when also held, still
+*   gives the whole API.  A user account only; the line printed is "Account %1 has FILES yes|no", read back from /etc/group.
 *
 * 18 Sep 26 dm - TEARDOWN.  One administrator (SDSYS) and one VOC layer means
 *   this verb no longer changes ranks, OS grants or API routes - those went
@@ -169,6 +177,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       crt '                 modify.account <account> sd-on | sd-off'
       crt '                 modify.account <account> voc-on | voc-off | bp-on | bp-off | dict-on | dict-off'
       crt '                 modify.account <account> net-on | net-off'
+      crt '                 modify.account <account> files-on | files-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
@@ -275,6 +284,17 @@ deffun valid_os_name(name) calling '!valid_os_name'
          os.field = ACC$NET ; os.want = @false
          gosub os.set
          stop
+* 17 Oct 26 dm - S.65 slice 2c: FILES-ON / FILES-OFF, membership of the Linux group sdfiles, the files-only SDNet login route (an API login
+*   that may open, read and write files and do nothing else).  Like the api word it changes a Linux group, not the register, so it needs
+*   a user account; sdapi, when the person is also in it, still gives the whole API.  Takes effect at the person's next login.
+      case action = 'FILES-ON'
+         files.want = @true
+         gosub set.files
+         stop
+      case action = 'FILES-OFF'
+         files.want = @false
+         gosub set.files
+         stop
       case action = 'SSH'
          want.ssh = @true  ; want.api = @false ; gosub set.route
          stop
@@ -370,7 +390,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
-         crt '   suspended or unsuspended'
+         crt '   files-on, files-off, suspended or unsuspended'
       end
 
    end else
@@ -560,6 +580,96 @@ set.route:
       case 1
          crt sysmsg(10079, acc.name)  ;* %1 has no remote access: not ssh, not the API
    end case
+   return
+
+*****************************************************************************
+* SET.FILES  -  MODIFY.ACCOUNT <account> FILES-ON | FILES-OFF
+*
+* 17 Oct 26 dm - S.65 slice 2c.  files.want is set by the caller.  Membership of the Linux group sdfiles IS the files-only route (as
+* sdapi is the API route), so nothing is written to the register.  The same helper does it as set.route: sd-elevate addgroup / delgroup.
+*
+* THE LINUX USER IS THE ONE THE ACCOUNT'S GROUP NAMES (sdu_<user>), which is what ACC_OS_INFO reads for the manifest, so the state line,
+* the manifest and the login agree.  For every account CREATE.ACCOUNT makes it is the account name.
+*
+* AS SET.ROUTE, THE LOOKUP IS THREE-VALUED: !is_grp_member answers @false for "not a member" and for "could not tell" and tells them
+* apart only by status().  An unreadable /etc/group changes NOTHING and says so (10081 with the status).  Three further refusals:
+*   - a group (sdg_) or other account has no Linux user: 10087 for a group, 10081 for the rest, as the api word ends up saying;
+*   - FILES-ON for a person who is not in sdusers: the login would refuse them first (10073), so the group is not added to look like access;
+*   - FILES-ON when the Linux group sdfiles does not exist on this machine (an install from before this release has not made it yet):
+*     10024 names it, and nothing is changed - sd-elevate would fail on it too, but with only a status.
+*   The state line (11482) is read back from /etc/group after the change, not taken from the request, and a read back that does not
+*   show the wanted state is reported as a failure (10081), never as a success.
+*   sdapi is not touched: a person in both groups has the whole API (sdapi wins at login).
+
+set.files:
+   if group.name[1,4] # 'sdu_' then
+      @system.return.code = -ER$FAILED
+      if group.name[1,4] = 'sdg_' then
+         crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto
+      end else
+         crt sysmsg(10081, acc.name, 2)  ;* Unable to change remote access for %1, status: %2
+      end
+      return
+   end
+   files.user = group.name[5,999]
+
+   if not(valid_os_name(files.user)) then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, 2)
+      return
+   end
+
+   has.files = is_grp_member(files.user, 'sdfiles')
+   files.stat = status()
+   if files.stat = 0 and files.want then
+      in.sdusers = is_grp_member(files.user, 'sdusers')
+      files.stat = status()
+      if files.stat = 0 and not(in.sdusers) then files.stat = 2
+   end
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   if has.files = files.want then
+      @system.return.code = 0
+      crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
+      return
+   end
+
+   if files.want then
+      files.found = is_group('sdfiles')
+      files.stat = status()
+      if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10081, acc.name, files.stat)
+         return
+      end
+      if not(files.found) then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10024, 'sdfiles')  ;* %1 is not a valid Linux Group
+         return
+      end
+      os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files.user : " sdfiles"
+   end else
+      os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files.user : " sdfiles"
+   end
+   files.stat = OS.ERROR()
+   if files.stat = 0 then
+      now.files = is_grp_member(files.user, 'sdfiles')
+      files.stat = status()
+      if files.stat = 0 and now.files # files.want then files.stat = 2
+   end
+   if files.stat # 0 then
+      @system.return.code = -ER$FAILED
+      crt sysmsg(10081, acc.name, files.stat)
+      return
+   end
+
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has FILES %2
    return
 
 *****************************************************************************

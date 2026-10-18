@@ -8,6 +8,10 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   17 Oct 2026 dm - S.65 slice 2c: the route group sdfiles (the SDNet
+#   files-only API route) is removed with sdssh and sdapi on a full DELETE and
+#   kept when the accounts are kept.
+#
 #   09 Oct 2026 - the listing of the saved accounts after "sudo cp -r" is
 #   "sudo ls": the copy is made by root and came out root:root 0750 on the Ubuntu
 #   26.04 release VM (measured; why that mode was not established, a 027 umask
@@ -394,14 +398,16 @@ if [ "$keep_accts" = "DELETE" ]; then
         sudo groupdel sdadmin || true
         echo "Removed legacy group sdadmin."
     fi
-    for sd_route_group in sdssh sdapi; do
+    # 17 Oct 26 dm - S.65 slice 2c: sdfiles (the SDNet files-only API route)
+    #   goes with sdssh and sdapi, for their reason.
+    for sd_route_group in sdssh sdapi sdfiles; do
         if getent group "$sd_route_group" &>/dev/null; then
             sudo groupdel "$sd_route_group" || true
             echo "Removed group $sd_route_group (the accounts went with it)."
         fi
     done
 else
-    echo "sd ACCOUNTS were saved, so the route groups sdssh and sdapi were kept."
+    echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi and sdfiles were kept."
 fi
 # --------------------
 

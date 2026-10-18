@@ -3,6 +3,8 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 17 Oct 26 dm S.65 slice 2c: sdfiles, the SDNet files-only API route group, joins sdusers, sdssh and sdapi in
+#               require_sd_group (a user may be added to and removed from it) and in groupdel's undeletable set.
 # 17 Oct 26 dm S.65 slice 2b: netcred-dir, the caller's own /var/lib/sd-net/<user> (mode 0700) where their SDNet logins are kept.
 #               Self-service like cred-own (SUDO_USER/SUDO_UID, no argument); sudoers grants sdusers that one command line.
 # 17 Oct 26 dm S.65 slice 2a: tls-key, the hash of the API certificate's public key (what set.server pins).
@@ -83,7 +85,7 @@
 #             test to cover sdsys would have stopped covering it, silently, on
 #             the next install.  It never did, and this note is here so the
 #             next person to touch either rule knows the two are independent.
-#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdu_*, sdg_*.
+#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdfiles, sdu_*, sdg_*.
 #             Nothing else is addressable, so "add me to sudo" has no spelling
 #             here.
 #   paths   - setgid only under the SD accounts root, and the path is resolved
@@ -529,10 +531,13 @@ require_sd_group() {
   # shape the Windows port uses; an allow group fails CLOSED, which a deny
   # group cannot - a group lookup that cannot answer reads as "not a member",
   # and with a deny group that silently grants remote access.
+  # 17 Oct 26 dm - S.65 slice 2c: sdfiles is the third route group, the SDNet
+  # files-only API route (a member of sdusers and sdfiles but not sdapi logs in
+  # to files and nothing else).  Exact name, like the other two.
   case $group in
-    sdusers|sdssh|sdapi) : ;;
+    sdusers|sdssh|sdapi|sdfiles) : ;;
     sdu_?*|sdg_?*) : ;;
-    *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdu_*, or sdg_*)" ;;
+    *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdfiles, sdu_*, or sdg_*)" ;;
   esac
 }
 
@@ -1217,8 +1222,9 @@ case $verb in
     # sdusers' own reason: deleting one does not narrow a route, it removes
     # the register every account's route is read from, and an allow group that
     # does not exist refuses everybody at once.
+    # 17 Oct 26 dm - S.65 slice 2c: sdfiles joins them, for the same reason.
     case $1 in
-      sdusers|sdssh|sdapi)
+      sdusers|sdssh|sdapi|sdfiles)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"

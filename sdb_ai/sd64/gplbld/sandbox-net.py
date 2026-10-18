@@ -6,7 +6,7 @@
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named
-# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary); no flag runs all of them.
+# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files); no flag runs all of them.
 #
 # START-HISTORY:
 # 17 Oct 26 dm  New.  S.65 slice 1: register field 15 (ACC$NET), K_NET 127, the user table's UG_NET bit, MODIFY.ACCOUNT NET-ON / NET-OFF,
@@ -41,6 +41,20 @@
 #               (3) the channel binding, which Python's ssl cannot compute (netfake.py says so): witness-release-run.sh on an install;
 #               (4) a server that goes silent (a 15 second read timeout per row); (5) the real sudoers line and the real helper.
 #               ***NOT YET RUN*** - written without a sandbox to run it on; read a red row as a possible wrong expectation as well as a fault.
+# 17 Oct 26 dm  S.65 slice 2c: the section "files" - the SERVER side of a files-only login (the group sdfiles).  (1) The REAL !apifilesok, compiled
+#               in the sandbox, is asked by an internal probe (zznfok) run in an ORDINARY session about every request number 0 to 80 with the
+#               account not yet entered and entered, plus eight values that are not request numbers; the answers are compared with a table written
+#               here from the owner's list (ranges, not the list the free check holds), 3 flips with `entered`, every kind of request the owner named
+#               as refused (call, execute, the logins, open sdnet, sequential files, ...) is refused in both states.  (2) MODIFY.ACCOUNT files-on /
+#               files-off and CREATE.ACCOUNT files-on, measured only where they need no root: syntax and word list, the refusals for a group, an
+#               other and an unknown account, FILES-OFF for a Linux user that does not exist (nothing to remove: 10080, and sd-elevate is never run),
+#               FILES-ON for it (not in sdusers: 10081), CREATE.ACCOUNT of a group and an other account (refused before anything is made), and - ONLY
+#               when this machine has no group sdfiles - CREATE.ACCOUNT USER ... files-on (10024, nothing created).  (3) the manifest key route.files
+#               (0 for a user who is in no group; none for a group account; no bare `files:` key).  WHAT A SANDBOX CANNOT DO, and what is left
+#               for an install (witness-release-run.sh / witness-accounts.sh): a real SCRAM login by the sdfiles route and the refusal on the wire
+#               (11480 and its audit lines), sdapi winning, sdsys exempt, the group change itself (FILES-ON and FILES-OFF succeeding, the read back,
+#               the 11482 line, the audit line), CREATE.ACCOUNT USER ... files-on succeeding, route.files: 1, the restore round trip, the group made
+#               by the installer and removed by deletesdcore.  ***NOT YET RUN*** - written without a sandbox to run it on.
 # END-HISTORY
 #
 # It uses sandbox-gates.py's way of making ordinary sessions in fixture accounts, by loading that file.  The sandbox user plays SDSYS (the
@@ -64,6 +78,7 @@
 
 import datetime
 import errno
+import grp
 import hashlib
 import importlib.util
 import os
@@ -201,6 +216,46 @@ ZZNKSET = "\n".join([
     "   crt 'NS before=':a:' set1=':b:' ask1=':c:' set0=':d:' ask0=':e", "end", ""])
 
 
+# S.65 slice 2c, section "files".  The probe asks the REAL !apifilesok about every request number 0 to 80 with the account not yet entered (e=0) and
+# entered (e=1), then about eight values that are not request numbers (the first is the empty string).  It prints what the session is (admin) so that
+# a row can show it ran as an ordinary session, and an end line so that a probe that stopped early cannot pass.  It is $internal because the function is.
+ZZFOK = "\n".join([
+    "$internal", "program zznfok", "$catalog $zznfok", "$include keys.h", "$include int$keys.h",
+    "deffun apifilesok(action, entered) calling '!apifilesok'",
+    "   crt 'FOK admin=':kernel(K$ADMINISTRATOR, -1)",
+    "   odd = '|abc|-1|1000|81|4x|x4|3x'",
+    "   for e = 0 to 1",
+    "      for a = 0 to 80",
+    "         crt 'FOK e=':e:' a=':a:' r=':apifilesok(a, e)",
+    "      next a",
+    "      for q = 1 to 8",
+    "         crt 'FQ e=':e:' q=':q:' r=':apifilesok(field(odd, '|', q), e)",
+    "      next q",
+    "   next e",
+    "   crt 'FOK end'", "end", ""])
+ZZFINFO = "\n".join([
+    "$internal", "program zznfinfo", "$catalog $zznfinfo", "$include keys.h", "$include int$keys.h",
+    "   openpath @sdsys:@ds:'accounts' to acc.f else crt 'FI no register' ; stop",
+    "   for each a in 'zznfilu':@fm:'zznfilg'",
+    "      read rec from acc.f, a then",
+    "         call !acc_os_info(a, rec, info, err)",
+    "         crt 'FI ':a:' ':convert(@fm, '|', info):' err=':err",
+    "      end else crt 'FI no record ':a",
+    "   next a", "end", ""])
+
+# The request numbers a files-only session may make, WRITTEN HERE from the owner's list as ranges (test-net-units.py holds the same list number by
+# number; the two were written apart): 1 quit and 2 error text; 4 to 19 open, close, the reads and locking reads, select, readnext, clearselect,
+# readlist, release, the four writes and deletes; 26 selectindex; 30 to 46 the record and file locks, the indices, the select lists, fileinfo, readv,
+# the left / right pair, mark mapping; 49 revision.  3 (set account) is allowed once.
+FILES_RANGES = ((1, 2), (4, 19), (26, 26), (30, 46), (49, 49))
+
+
+def files_want(n, entered):
+    if n == 3:
+        return 0 if entered else 1
+    return 1 if any(lo <= n <= hi for lo, hi in FILES_RANGES) else 0
+
+
 def fixer_text():
     names = "'" + "':@fm:'".join(ACCOUNTS) + "'"
     return "\n".join([
@@ -209,6 +264,7 @@ def fixer_text():
         "      openpath '%s':@ds:a:@ds:'voc' to v else crt 'NETFIX no voc ':a ; stop" % os.path.join(g.BOX, "user_accounts"),
         "      write 'V':@fm:'CA':@fm:'$zznk' to v, 'zznk'",
         "      write 'V':@fm:'CA':@fm:'$zznkset' to v, 'zznkset'",
+        "      write 'V':@fm:'CA':@fm:'$zznfok' to v, 'zznfok'",         # slice 2c: the probe of section "files" (compiled there)
         "      if a = 'zznverb' then",
         "         write 'V':@fm:'CA':@fm:'$setserver' to v, 'set.server'",
         "         write 'V':@fm:'CA':@fm:'$deleteserver' to v, 'delete.server'",
@@ -1853,10 +1909,154 @@ def netlogin_section():
                 os.remove(p)
 
 
+# ---- slice 2c: the files-only route (section "files") --------------------------------------------------------------------------------------
+
+def sdfiles_members():
+    """The members of the Linux group sdfiles on THIS machine as /etc/group holds them, or None when there is no such group."""
+    try:
+        return sorted(grp.getgrnam("sdfiles").gr_mem)
+    except KeyError:
+        return None
+
+
+def linux_user_exists(name):
+    try:
+        pwd.getpwnam(name)
+        return True
+    except KeyError:
+        return False
+
+
+def files_section():
+    say("\n--- S.65 slice 2c, the files-only route: the REAL !apifilesok for every request number; the words FILES-ON / FILES-OFF where no root is needed ---")
+    # ---------------------------------------------------------------- the function
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznfok"), ZZFOK)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznfinfo"), ZZFINFO)
+    row("setup: the sandbox holds gpl.bp/apifilesok, the program it was built from this tree with", os.path.isfile(os.path.join(g.SYS, "gpl.bp", "apifilesok")),
+        os.path.join(g.SYS, "gpl.bp", "apifilesok"))
+    out = g.adm(["BASIC gpl.bp apifilesok apisrvr modifya createa create_account acc_os_info restorea zznfok zznfinfo"], internal=True)
+    row("setup: !apifilesok, apisrvr, modifya, createa, create_account, acc_os_info, restorea and the two probes compile with no errors, and the compiler warns of no constant "
+        "'not assigned a value' (CA$FILES is the one it would name if createacc.h lacked it)",
+        g.has(out, r"^Compiled 9 program\(s\) with no errors") and not g.has(out, r"not assigned a value"), repr(out[-8:]))
+
+    out = g.plain("zznoff", ["ZZNFOK"])
+    ans, odd, admin = {}, {}, None
+    for ln in out:
+        m = re.match(r"^FOK e=(\d) a=(\d+) r=(\S*)$", ln)
+        if m:
+            ans[(int(m.group(1)), int(m.group(2)))] = m.group(3)
+        m = re.match(r"^FQ e=(\d) q=(\d) r=(\S*)$", ln)
+        if m:
+            odd[(int(m.group(1)), int(m.group(2)))] = m.group(3)
+        m = re.match(r"^FOK admin=(\d+)$", ln)
+        if m:
+            admin = m.group(1)
+    row("the probe ran as an ORDINARY session (admin=0), answered all 162 questions (81 request numbers, the account not entered and entered) and the 16 about values "
+        "that are not request numbers, and reached its end line - a probe that did nothing fails here, not in the comparisons",
+        admin == "0" and len(ans) == 162 and len(odd) == 16 and has_line(out, "FOK end"), "admin=%r answers=%d odd=%d tail=%r" % (admin, len(ans), len(odd), out[-3:]))
+    for e in (0, 1):
+        bad = [(a, ans.get((e, a)), files_want(a, e)) for a in range(81) if ans.get((e, a)) != str(files_want(a, e))]
+        row("entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
+            % (e, "the first request 3 is still to come" if e == 0 else "the account has been entered", sum(files_want(a, e) for a in range(81))),
+            len(ans) == 162 and not bad, "(number, got, wanted): %r" % bad[:8])
+    ones0 = sum(1 for a in range(81) if ans.get((0, a)) == "1")
+    ones1 = sum(1 for a in range(81) if ans.get((1, a)) == "1")
+    row("CONTROL: the answers are neither all 0 nor all 1 (a function that returned a constant, or a probe that printed a constant, fails): 38 allowed before the account is "
+        "entered and 37 after", (ones0, ones1) == (38, 37), repr((ones0, ones1)))
+    row("request 3 (set account) is allowed the first time and refused once the account is entered, and no other answer depends on `entered`",
+        ans.get((0, 3)) == "1" and ans.get((1, 3)) == "0" and all(ans.get((0, a)) == ans.get((1, a)) for a in range(81) if a != 3), repr((ans.get((0, 3)), ans.get((1, 3)))))
+    never = [("0, no such request", [0]), ("20 call", [20]), ("21 execute", [21]), ("22 respond and 23 end command", [22, 23]), ("24 and 25, the other logins", [24, 25]),
+             ("27 and 28", [27, 28]), ("29 open sdnet file", [29]), ("47 and 48, the SCRAM login itself (only before logged.in)", [47, 48]), ("50 getvar", [50]),
+             ("51 system", [51]), ("52 and 53 trans", [52, 53]), ("54 transactions", [54]), ("55 to 60 evaluate and the conversions", list(range(55, 61))),
+             ("61 to 69 the sequential files", list(range(61, 70))), ("70 to 80, numbers this tree does not know", list(range(70, 81)))]
+    for label, nums in never:
+        row("refused in both states: %s" % label, all(ans.get((e, a)) == "0" for e in (0, 1) for a in nums), repr([(e, a, ans.get((e, a))) for e in (0, 1) for a in nums if ans.get((e, a)) != "0"][:6]))
+    names = ["empty", "abc", "-1", "1000", "81", "4x", "x4", "3x"]
+    row("values that are not request numbers are refused in both states, so a malformed request number cannot slip through (%s)" % ", ".join(names),
+        len(odd) == 16 and all(v == "0" for v in odd.values()), repr({names[q - 1]: v for (e, q), v in odd.items() if v != "0"}))
+
+    # ---------------------------------------------------------------- the words
+    fix = {"zznfilu": ["/tmp/zznfilu", "", "sdu_zznfilu", "", "", "", "no", "no"],      # a USER account whose Linux user does not exist on this machine
+           "zznfilg": ["/tmp/zznfilg", "", "sdg_zznfilg", "", "", "", "", "", "", "", "", "", "", "", ""],     # a GROUP account
+           "zznfilo": ["/tmp/zznfilo", "", "zznfilgrp", "", "", "", "", ""]}         # an account that is neither (its group field is not an SD group)
+    for n, rec in fix.items():
+        g.reg_write(n, rec)
+    row("CONTROL: the Linux user zznfilu does not exist on this machine (so FILES-OFF has nothing to remove and FILES-ON finds it in no group)", not linux_user_exists("zznfilu"), "")
+    kf = g.flags(g.plain("zznoff", ["ZZKF"]))
+    row("CONTROL: the fixture accounts are in the register and a plain session in zznoff is not an administrator (the ordinary-session rows rely on it)",
+        all(os.path.exists(os.path.join(g.SYS, "accounts", n)) for n in fix) and kf is not None and kf[0] == "0", repr(kf))
+    regs = lambda: {n: g.reg_read(n) for n in list(fix) + ["sdsys"]}
+    mem0, reg0 = sdfiles_members(), regs()
+    unchanged = lambda: sdfiles_members() == mem0 and regs() == reg0
+    out = g.adm(["MODIFY.ACCOUNT"])
+    row("MODIFY.ACCOUNT's syntax lines name files-on | files-off", g.has(out, r"modify\.account <account> files-on \| files-off"), repr(out[-9:]))
+    out = g.adm(["MODIFY.ACCOUNT zznfilu FILESON"])
+    # an unknown second word is not a route word: modify.account's older code reads it as a group name to act on and refuses it its own way
+    # ("... is not a valid Linux Group"), so the row asserts what matters here: no files wording, and nothing changed
+    row("a word that is not one of them (FILESON) is refused: no 'has FILES' line, the register and the group sdfiles untouched",
+        not g.has(out, r"has FILES") and unchanged(), repr(out[-4:]))
+    for word in ("files-off", "FILES-OFF"):
+        out = g.adm(["modify.account zznfilu " + word])
+        row("%s on a user whose Linux user is in no group: 'already had that access' (10080), no 11482 line, the register and the group sdfiles untouched, and sd-elevate "
+            "was never run (the change is not asked for)" % word,
+            has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+    for word in ("files-on", "FILES-ON"):
+        out = g.adm(["MODIFY.ACCOUNT zznfilu " + word])
+        row("%s for a user who is not in sdusers: refused with 10081, status 2 (the login would refuse them first), no 11482 line, nothing changed" % word,
+            has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has FILES") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
+    for word in ("files-on", "files-off"):
+        out = g.adm(["modify.account zznfilg " + word])
+        row("%s on a GROUP account: refused (10087 - reached with logto), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilo " + word])
+        row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
+            has_line(out, msg(10081, "zznfilo", 2)) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account sdsys " + word])
+        row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilnosuch " + word])
+        row("%s on an account that is not in the register: refused (6003), nothing changed, no record made" % word,
+            has_line(out, msg(6003)) and unchanged() and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilnosuch")), repr(out[-3:]))
+    out = g.plain("zznoff", ["MODIFY.ACCOUNT zznfilu FILES-ON"])
+    row("an ordinary account cannot run MODIFY.ACCOUNT (it is not in its VOC) and nothing changed", g.has(out, r"(?i)is not in your VOC|not found in VOC") and unchanged(), repr(out[-3:]))
+
+    # CREATE.ACCOUNT: only the refusals that come before anything is made
+    out = g.adm(["CREATE.ACCOUNT"])
+    row("CREATE.ACCOUNT's syntax line names {files-on} and its text says what the word is", g.has(out, r"\{net-on\} \{files-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on\)"), repr(out[-9:]))
+    out = g.adm(["create.account group zznfilgx files-on"])
+    row("create.account group ... files-on: refused (10087), and no account, no register record and no directory was made",
+        has_line(out, msg(10087, "zznfilgx")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgx")), repr(out[-3:]))
+    out = g.adm(["create.account other zznfiloo /tmp/zznfiloo files-on"])
+    row("create.account other ... files-on: refused (10081, status 2), and no register record was made",
+        has_line(out, msg(10081, "zznfiloo", 2)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfiloo")), repr(out[-3:]))
+    if sdfiles_members() is None and not linux_user_exists("zznfilx"):
+        out = g.adm(["create.account user zznfilx files-on no.query"])
+        row("THIS MACHINE HAS NO GROUP sdfiles: create.account user ... files-on says so (10024) BEFORE it makes anything - no Linux user, no register record",
+            has_line(out, msg(10024, "sdfiles")) and not linux_user_exists("zznfilx") and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilx")), repr(out[-3:]))
+    else:
+        say("  [skip] create.account user ... files-on without the group: this machine HAS a group sdfiles (or the user zznfilx), so the command would go on to make a Linux user")
+
+    # the manifest
+    out = g.adm(["RUN gpl.bp zznfinfo"], internal=True)
+    pick = lambda a: [x for x in out if x.startswith("FI %s " % a)]
+    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
+        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
+    row("zznfilg (a GROUP account): type GROUP and no route.files key (only a user account has one)",
+        g.has(pick("zznfilg"), r"type: GROUP") and not g.has(pick("zznfilg"), r"route\.files"), repr(pick("zznfilg")[:2]))
+
+    # the messages
+    for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has FILES %2")):
+        p = os.path.join(g.SYS, "messages", str(n))
+        got = open(p, encoding="utf-8", errors="replace").read().strip("\n") if os.path.exists(p) else None
+        row("the sandbox holds message %d, one line: %r" % (n, text), got == text, repr(got))
+    for n in fix:
+        p = os.path.join(g.SYS, "accounts", n)
+        if os.path.isfile(p):
+            os.remove(p)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary)")
+        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files)")
     g.BOX = os.path.abspath(args[0])
     g.SYS = os.path.join(g.BOX, "sys")
     g.SD = os.path.join(g.SYS, "bin", "sd")
@@ -1898,7 +2098,7 @@ def main():
 
     for name, section in (("gate", gate_section), ("logto", logto_section), ("modify", modify_section), ("manifest", manifest_section),
                           ("defs", defs_section), ("connect", connect_section), ("netcred", netcred_section), ("netlogin", netlogin_section),
-                          ("ordinary", ordinary_section)):
+                          ("ordinary", ordinary_section), ("files", files_section)):
         if run(name):
             section()
     nl_cleanup()

@@ -38,6 +38,36 @@ line).  B5 was extended: setnetlogin asks (never sets) K$NET.  WHAT THIS CANNOT 
 file written is mode 600, that a symlink is refused - sandbox-net.py, sections netcred and netlogin, with a fake server that speaks the
 packet text of sdclient (gplbld/netfake.py).
 
+17 Oct 26 dm  S.65 slice 2c: the SERVER side of a files-only login - a second, narrower API route.  Section W reads: !apifilesok (the one place that
+decides, an ALLOW table of request numbers; the table parsed out of the source and run in Python for every number 0 to 80 with the account
+entered and not, against a list written again in this file from the task, so a number wrong in either direction fails; 3 allowed once; an empty
+or non-numeric action refused; the function pure), apisrvr (sdusers first, sdapi tried first and winning, sdfiles second, neither refused
+exactly as before with 10073, both groups read with the three-valued status, sdsys exempt by name, the mark in the common block set once and
+never cleared, the gate after the not-logged-in test and BEFORE the dispatch, audited, answering 11480), MODIFY.ACCOUNT / CREATE.ACCOUNT /
+CREATEA / the manifest (route.files - NOT `files`, which is the backup's file count) / RESTORE.ACCOUNT, the installer and deletesdcore (the group
+is made and removed), sd-elevate (the group is whitelisted, never deletable), and messages 11480 / 11482.  WHAT THIS CANNOT SAY: that a
+files-only user logs in, that a request is refused on the wire or that the group changes - sandbox-net.py, section "files" (the table run by the
+real compiled function; the words' syntax and their refusals), and an install for the rest (witness-release-run.sh).
+
+17 Oct 26 dm  S.65 slice 3a: the BASIC client class gpl.bp/sdclient logs in from stored derived keys.  Section Z reads sdclient as text: connect.keys
+(its parameters by value; every argument checked before open.socket; the socket opened with SKT$TLS and the 5 second connect timeout; THE PIN TESTED
+BEFORE A BYTE IS SENT - nothing between the open and the comparison writes, reads or exchanges, and the comparison is of text ('p' : prefix) and not of
+numbers; the Ack read bounded by io.ms; the exchange; the account entered and its refusal failing the call; the keys cleared after the exchange and on
+every failure path, the socket closed), scram.exchange (the stored salt and count compared with the server's AFTER client-first and BEFORE the
+client-final message, PBKDF2 only in the password branch, the spent keys dropped before the final message), scram.login as a one line wrapper, connect()
+unchanged in kind (its Ack wait still unbounded, its open still without a timeout), the bounded reads of read.packet, settimeout, the three defines, no
+secret in any error text, and the suite's wiring (regress.sh, regress-map.txt, the verdict line of sandbox-netfile.py, and every error text the suite
+asserts being in the class).  WHAT THIS CANNOT SAY: that the class compiles, that obj->connect.keys parses, or that anything it checks happens at run
+time - sandbox-netfile.py, against the fake in gplbld/netfake.py.
+
+17 Oct 26 dm  S.65 slice 3b: the remote file handler gpl.bp/netfile ($netfile, operations in netfile.h).  Section N reads it as ORDER and as what it cannot
+do: the 13 operation codes and the limits (NF1), the header (NF2), the checks of NF$OPEN in order with the gate asked by the handler itself and nothing dialled
+before the audit line (NF3), the one way to the network (NF4), READ ONLY - no write, delete, create, lock or command, $netcred and !netdefs called with READ only, the
+refused operations touching no connection (NF5), the gate in check.gate and again for every request (NF6), every request preceded by the no-reply mark, no retry
+and no loop, the 30 second bound (NF7), the connections in the one named common block with no secret in it (NF8), exactly two audit lines and no secret in any message
+argument (NF9), messages 11490-11506 (NF10), and the suite and the map (NF11, NF12).  B5 now counts the handler as one asker of K$NET.  WHAT THIS CANNOT SAY: that the
+handler compiles, that an object stays in common, or that any of it happens - sandbox-netfile.py, sections handler, readonly, refuse, lost and timeout.
+
 ***AND THE CHECKS ARE THEMSELVES CHECKED.***  --selftest breaks each invariant in the way an edit plausibly would and requires some
 check to notice.  A mutant that nothing catches is reported as a FAILURE of the self-test.
 """
@@ -57,14 +87,15 @@ MSGDIR = os.path.join(SDSYS, "messages")
 
 C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c", "op_sdext.c")
 MAIN_BP = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea",
-           "netdefs", "setserver", "deleteserver", "listservers", "netcred", "setnetlogin", "deletenetlogin", "bcomp")
+           "netdefs", "setserver", "deleteserver", "listservers", "netcred", "setnetlogin", "deletenetlogin", "bcomp", "apifilesok", "netfile")
 VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteserver", "$deleteserver"),
          ("list.servers", "listservers", "$listservers"))
 NL_VERBS = (("set.netlogin", "setnetlogin", "$setnetlogin"), ("delete.netlogin", "deletenetlogin", "$deletenetlogin"))   # slice 2b: in newvoc AND voc_template
 MSG_FIRST, MSG_LAST = 11411, 11446      # 11411-11439 slice 1, 11440-11446 slice 2a (CONNECT); 11447-11449 are free
 NL_MSG_FIRST, NL_MSG_LAST = 11450, 11479    # slice 2b: the person's login (the whole block is this slice's)
+NF_MSG_FIRST, NF_MSG_LAST, NF_MSG_USED = 11490, 11519, 11506    # slice 3b: the remote file handler's block; 11490-11506 are written and used, 11507-11519 are kept free
 LINUX_BLOCK = (11000, 11999)
-SH_FILES = ("installsdcore.sh", "sd-elevate", "sdcore.sudoers")      # shell-style comments (#)
+SH_FILES = ("installsdcore.sh", "deletesdcore.sh", "sd-elevate", "sdcore.sudoers", "regress.sh", "regress-map.txt")      # shell-style comments (#)
 
 
 @functools.lru_cache(maxsize=None)
@@ -175,8 +206,12 @@ def load():
     get("syscom/keys.h", os.path.join(SDSYS, "syscom", "keys.h"))
     get("createacc.h", os.path.join(SDSYS, "syscom", "createacc.h"))
     get("installsdcore.sh", os.path.join(ROOT, "installsdcore.sh"))
+    get("deletesdcore.sh", os.path.join(ROOT, "deletesdcore.sh"))
     get("sd-elevate", os.path.join(HERE, "sd-elevate"))
     get("sdcore.sudoers", os.path.join(HERE, "sdcore.sudoers"))
+    get("regress.sh", os.path.join(HERE, "regress.sh"))                    # slice 3a: the netfile suite is wired in
+    get("regress-map.txt", os.path.join(HERE, "regress-map.txt"))
+    get("sandbox-netfile.py", os.path.join(HERE, "sandbox-netfile.py"))
     for fname in sorted(os.listdir(GPL)):
         p = os.path.join(GPL, fname)
         if os.path.isfile(p):
@@ -195,7 +230,10 @@ def load():
     for n in list(range(MSG_FIRST, MSG_LAST + 1)) + list(range(NL_MSG_FIRST, NL_MSG_LAST + 1)):
         p = os.path.join(MSGDIR, str(n))
         srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
-    for n in (2001, 2018, 6000):
+    for n in (2001, 2018, 6000, 10024, 10080, 10081, 10087, 11480, 11481, 11482):      # 11480-11482: slice 2c (11481 is not used; read only to be sure)
+        p = os.path.join(MSGDIR, str(n))
+        srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
+    for n in range(NF_MSG_FIRST, NF_MSG_LAST + 1):                                      # slice 3b: the handler's block
         p = os.path.join(MSGDIR, str(n))
         srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
     return srcs
@@ -272,8 +310,8 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (3), the API server (1) and set.netlogin (1, which only ASKS: K$NET, -1 - see U2) mentions K$NET",
-       sites == {"login": 1, "cproc": 3, "apisrvr": 1, "setnetlogin": 1}, repr(sites))
+    ck("B5 no program but LOGIN (1), CPROC (3), the API server (1), set.netlogin (1) and the remote file handler netfile (1) mentions K$NET - the last two only ASK: K$NET, -1 (see U2, NF6)",
+       sites == {"login": 1, "cproc": 3, "apisrvr": 1, "setnetlogin": 1, "netfile": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}
@@ -473,6 +511,12 @@ def checks(srcs):
     ck("C3b ...it asks for the certificate the server PRESENTED (SSL_get1_peer_certificate), answers false with none, and frees the certificate and the DER bytes",
        "SSL_get1_peer_certificate(c->ssl)" in fb and "if (cert == NULL)" in fb and "X509_free(cert)" in fb and "OPENSSL_free(der)" in fb
        and ordered(fb, "cert == NULL", "i2d_X509_PUBKEY", "EVP_Digest(", "OPENSSL_free(der)", "X509_free(cert)", "return ok"), "")
+    i = tc.find("void sd_tls_client_end(SD_TLS_CLIENT* c) {")
+    eb = tc[i:tc.find("\n}\n", i)] if i >= 0 else ""
+    ck("C3c sd_tls_client_end holds SIGPIPE off around SSL_shutdown (the close_notify write ended the whole process when the peer had already closed the "
+       "connection): the signal is blocked, and consumed only if it was not already pending, BEFORE the mask is put back",
+       eb != "" and ordered(eb, "pthread_sigmask(SIG_BLOCK", "SSL_shutdown(c->ssl)", "sigtimedwait(", "pthread_sigmask(SIG_SETMASK")
+       and "was_pending" in eb and "SSL_free(c->ssl)" in eb, "")
     ck("C4 sd_tls.h declares it with the same signature (SD_TLS_CLIENT*, 32 bytes out)",
        "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);" in th, "")
     i = sk.find("case SKT_INFO_TLS_SPKI:")
@@ -523,6 +567,9 @@ def checks(srcs):
        and "%1:%2" in t(11440) and "handshake only" in t(11440)
        and all("Nothing was written" in t(n) or "nothing was written" in t(n).lower() for n in (11443, 11444, 11445, 11446)), "")
     checks_2b(srcs, c, ck)
+    checks_2c(srcs, c, ck)
+    checks_3a(srcs, c, ck)
+    checks_3b(srcs, c, ck)
     return rows
 
 
@@ -824,6 +871,543 @@ def checks_2b(srcs, c, ck):
        and not re.search(r"netcred-dir\s*\*", sdo), repr(cmds))
 
 
+# ---- W. S.65 slice 2c: the files-only route -----------------------------------------------------------------------------------------------
+# The request numbers a files-only session may make, WRITTEN OUT HERE from the owner's list and not read from the program: 1 quit, 2 get error text,
+# 4 open, 5 close, 6-10 the reads, 11 select, 12 readnext, 13 clearselect, 14 readlist, 15 release, 16-19 write / writeu / delete / deleteu, 26
+# selectindex (a select, so allowed), 30-34 the locks, 35-36 indices, 37-39 the select lists, 40 fileinfo, 41 readv, 42-45 the left / right pair,
+# 46 mark mapping, 49 revision.  3 (set account) is allowed ONCE and is not in this tuple.  Everything else - 0, 20-25, 27-29, 47, 48, 50 and
+# up - is refused.
+FILES_ALLOWED = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 26,
+                 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 49)
+
+
+def files_ok_table(text):
+    """What apifilesok builds: the string it starts from (files.ok = '..') and the pieces appended to it (files.ok := '..')."""
+    m = re.search(r"^files\.ok = '([^']*)'[ \t]*$", text, re.M)
+    return (m.group(1) if m else None), re.findall(r"^files\.ok := '([^']*)'[ \t]*$", text, re.M)
+
+
+def files_ok_model(allow, action, entered):
+    """What !apifilesok answers, run in Python on the table read from its source: empty is 0, not a number is 0, 3 is 0 once entered and 1
+    before, anything else is 1 only if ',N,' is in the table.  (The source is held to exactly these tests, in this order, by W2.)"""
+    if action == "":
+        return 0
+    if not re.fullmatch(r"[+-]?(?:\d+\.?\d*|\.\d+)", action):
+        return 0
+    if float(action) == 3:
+        return 0 if entered else 1
+    return 1 if ("," + action + ",") in allow else 0
+
+
+def want_files_ok(n, entered):
+    if n == 3:
+        return 0 if entered else 1
+    return 1 if n in FILES_ALLOWED else 0
+
+
+def checks_2c(srcs, c, ck):
+    """S.65 slice 2c: the files-only route, the group sdfiles."""
+    fo, ap = c["apifilesok"], c["apisrvr"]
+    mo, cr, ca2, ai, rs = c["modifya"], c["createa"], c["create_account"], c["acc_os_info"], c["restorea"]
+    inst, dele, se = c["installsdcore.sh"], c["deletesdcore.sh"], c["sd-elevate"]
+    bps = {n[3:]: t for n, t in c.items() if n.startswith("bp:")}
+
+    # ---- W1-W3. !apifilesok -----------------------------------------------------------------------------------------------------------
+    init, parts = files_ok_table(fo)
+    allow = (init or "") + "".join(parts)
+    nums = [int(x) for p in parts for x in p.split(",") if x != ""]
+    wrong = [(e, n, files_ok_model(allow, str(n), e), want_files_ok(n, e)) for e in (0, 1) for n in range(0, 81)
+             if files_ok_model(allow, str(n), e) != want_files_ok(n, e)]
+    ck("W1 !apifilesok, the table read from its source and run for EVERY request number 0 to 80, the account entered and not, agrees with the list "
+       "written out in this file (a number wrong in either direction fails); the table holds exactly those 37 numbers once each, 3 is NOT in it "
+       "(it is allowed once, by its own test) and the table starts from ','",
+       init == "," and not wrong and sorted(nums) == sorted(FILES_ALLOWED) and 3 not in nums and len(FILES_ALLOWED) == 37, repr((init, wrong[:6], sorted(set(nums) ^ set(FILES_ALLOWED)))))
+    odd = [a for a in ("", "abc", "-1", "1000", "81", "70", "4x", "x4", "3x") if files_ok_model(allow, a, 0) or files_ok_model(allow, a, 1)]
+    ck("W2 ...and the tests after the table are exactly these, in this order: an empty action is 0, a non-number is 0, 3 is 0 when entered and 1 before, "
+       "a number is 1 only if ',N,' (commas on both sides, so 4 cannot match 49 or 14) is in the table, and the default is 0 (fail closed)",
+       not odd and re.search(r"if action = '' then return 0\s*\n\s*if not\(num\(action\)\) then return 0\s*\n\s*if action = 3 then\s*\n\s*if entered then return 0\s*\n"
+                             r"\s*return 1\s*\n\s*end\s*\n\s*if index\(files\.ok, ',' : action : ',', 1\) then return 1\s*\n\s*return 0\s*\n\s*end\s*$", fo) is not None
+       and ordered(fo, "files.ok := ", "if action = '' then return 0"), repr(odd))
+    ck("W3 ...it is a $internal function catalogued once as !apifilesok, and it is PURE: no read, no write, no open, no kernel call, no execute, no prompt - "
+       "a sandbox asks it about every number and the server asks it about every request",
+       "$internal" in fo and re.search(r"^function apifilesok\(action, entered\)\s*$", fo, re.M) is not None and re.search(r"^\$catalog !apifilesok\s*$", fo, re.M) is not None
+       and len([n for n, t in bps.items() if "$catalog !apifilesok" in t]) == 1
+       and not re.search(r"\b(?:kernel|read|readv|readu|readt|open|openseq|openpath|write|writeu|writev|writeseq|delete|execute|os\.execute|select|readnext|input|crt|display|print|call|gosub|goto|void)\b", strip_strings(fo)), "")
+
+    # ---- W4-W12. apisrvr -------------------------------------------------------------------------------------------------------------
+    cm_i = ap.find("common /$APISRVR/")
+    cm = ap[cm_i:ap.find("seq.unbuf(SEQ.MAX)", cm_i)] if cm_i >= 0 else ""
+    fi = ap.find("\nvb.scram.final:")
+    fin = ap[fi:] if fi >= 0 else ""
+    ck("W4 apisrvr declares !apifilesok, keeps the files-only mark in the COMMON block /$APISRVR/ (a plain variable is set afresh by a runtime abort "
+       "while logged.in survives it, which would hand a files-only login the whole API) and starts it false ONCE, in the first-time block beside master.login.done",
+       re.search(r"^deffun apifilesok\(action, entered\) calling '!apifilesok'\s*$", ap, re.M) is not None and re.search(r"^files\.only,", cm, re.M) is not None
+       and ap.count("files.only = @false") == 1
+       and ordered(ap, "if not(kernel(K$CPROC.LEVEL,0)) then", "master.login.done = @false", "files.only = @false", 'openpath "voc" to voc else'), "")
+    others = [n for n, t in bps.items() if n != "apisrvr" and re.search(r"\bfiles\.only\b", t)]
+    ck("W5 the mark is SET ONCE and NEVER CLEARED: exactly two assignments to files.only in the whole tree (the initialisation and the one `= @true`), the true one "
+       "inside `if api.files.login then`, in vb.scram.final after K$ASSUME.USER and before logged.in, and no other program mentions it",
+       len(re.findall(r"\bfiles\.only\s*=(?!=)", ap)) == 2 and ap.count("files.only = @true") == 1 and not others
+       and re.search(r"if api\.files\.login then\s*\n\s*files\.only = @true\s*\n", fin) is not None
+       and ordered(fin, "kernel(K$ASSUME.USER, scram.user)", "if api.files.login then", "files.only = @true", "logged.in = @true"), repr(others))
+    ck("W6 THE ORDER OF THE ROUTE: sdusers first, then sdapi, then sdfiles, then the identity is assumed, then the mark - each group read ONCE, by scram.user (the name "
+       "just proven)",
+       ordered(fin, "is_grp_member(scram.user, 'sdusers')", "is_grp_member(scram.user, 'sdapi')", "is_grp_member(scram.user, 'sdfiles')", "kernel(K$ASSUME.USER, scram.user)",
+               "files.only = @true", "logged.in = @true")
+       and all(fin.count("is_grp_member(scram.user, '%s')" % g_) == 1 for g_ in ("sdusers", "sdapi", "sdfiles"))
+       and ap.count("is_grp_member(scram.user, 'sdfiles')") == 1, "")
+    ck("W7 sdapi is tried first and WINS: the sdfiles read is inside `if not(api.in.sdapi) then`, api.files.login starts false before it and is set true only after the "
+       "sdfiles test passed (once in the tree)",
+       ordered(fin, "api.files.login = @false", "api.in.sdapi = is_grp_member(scram.user, 'sdapi')", "if not(api.in.sdapi) then", "api.in.sdfiles = is_grp_member(scram.user, 'sdfiles')",
+               "if not(api.in.sdfiles) then", "api.files.login = @true")
+       and ap.count("api.files.login = @true") == 1 and ap.count("api.files.login = @false") == 1, "")
+    ck("W8 SDSYS IS EXEMPT BY NAME from both groups (one test, downcased, round the reading of both, before the first of them)",
+       re.search(r"if not\(downcase\(scram\.user\) = 'sdsys'\) then\s*\n\s*api\.in\.sdapi = is_grp_member", fin) is not None
+       and ordered(fin, "if not(downcase(scram.user) = 'sdsys') then", "api.in.sdapi = is_grp_member", "api.in.sdfiles = is_grp_member", "api.files.login = @true", "logged.in = @true"), "")
+    ck("W9 BOTH groups are read with the three-valued status and neither is collapsed: a lookup that could not answer refuses (10073) with its own reason, for sdapi and for sdfiles",
+       re.search(r"api\.in\.sdapi = is_grp_member\(scram\.user, 'sdapi'\)\s*\n\s*api\.route\.stat = status\(\)\s*\n\s*if api\.route\.stat # 0 then\s*\n"
+                 r"\s*scram\.refuse\.reason = 'the sdapi route could not be read, status ' : api\.route\.stat\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
+                 r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None
+       and re.search(r"api\.in\.sdfiles = is_grp_member\(scram\.user, 'sdfiles'\)\s*\n\s*api\.files\.stat = status\(\)\s*\n\s*if api\.files\.stat # 0 then\s*\n"
+                     r"\s*scram\.refuse\.reason = 'the sdfiles route could not be read, status ' : api\.files\.stat\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
+                     r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None, "")
+    ck("W10 a user in NEITHER group is refused EXACTLY as before: the same reason ('not a member of sdapi'), the same message 10073, the same exit; and a user not in sdusers "
+       "is still refused first with 5009",
+       re.search(r"if not\(api\.in\.sdfiles\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdapi'\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
+                 r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None
+       and re.search(r"if not\(is_grp_member\(scram\.user, 'sdusers'\)\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdusers'\s*\n\s*abort\.message = sysmsg\(5009\)", fin) is not None, "")
+    gi = ap.find("if files.only then")
+    gb = ap[gi:ap.find("cproc.date = date()", gi)] if gi >= 0 else ""
+    nl_ = ap.find("abort.message = sysmsg(5270)")
+    dsp = ap.find("on action + 1 gosub")
+    ck("W11 THE GATE: one `if files.only then`, after the not-logged-in test (5270) and BEFORE cproc.date and the dispatch table, so no request goes round it; "
+       "it asks !apifilesok with master.login.done as `entered`; a refusal is audited, is an error answer (SV$ON.ERROR), says 11480 with the request number, and "
+       "goes to return.status.set - the reply is written and the dispatch is skipped",
+       ap.count("if files.only then") == 1 and 0 <= nl_ < gi < ap.find("cproc.date = date()") < dsp
+       and "if not(apifilesok(action, master.login.done)) then" in gb
+       and re.search(r"void kernel\(K\$AUDIT, 'api refused request=' : action : ' route=sdfiles user=' : @logname\)", gb) is not None
+       and ordered(gb, "kernel(K$AUDIT", "server.error = SV$ON.ERROR", "abort.message = sysmsg(11480, action)", "st = status()", "goto return.status.set")
+       and ap.count("apifilesok(") == 2 and "\nreturn.status.set:" in ap and ap.find("\nreturn.status.set:") > dsp, "")
+    ck("W12 'entered' is real: master.login.done is set true exactly once, at the first successful entry (vb.account), after the first-time `if not(master.login.done)` "
+       "tests; a request 3 is therefore allowed until then and refused after; and the audit words are lower case: api login route=sdfiles user=, api refused request=",
+       ap.count("master.login.done = @true") == 1 and ordered(ap, "if not(master.login.done) then\n   void kernel(K$VOC.EDIT", "master.login.done = @true")
+       and "void kernel(K$AUDIT, 'api login route=sdfiles user=' : scram.user)" in fin and "'api refused request='" in ap, "")
+
+    # ---- W13-W15. the messages ---------------------------------------------------------------------------------------------------------
+    m80, m82 = srcs.get("msg:11480"), srcs.get("msg:11482")
+    cited = {}
+    for n_, t_ in bps.items():
+        for num_, args_ in sysmsg_calls(t_):
+            if 11480 <= num_ <= 11489:
+                cited.setdefault(num_, []).append((n_, len(args_)))
+    stray = sorted({int(x) for t_ in bps.values() for x in re.findall(r"\b(1148\d)\b", t_)} - {11480, 11482})
+    ck("W13 message 11480 and 11482 exist, one line each, inside the Linux block, with the wording the logins and the verbs rely on: 11480 'This login is for files only: request %1 "
+       "is not allowed', 11482 'Account %1 has FILES %2'",
+       m80 is not None and m82 is not None and m80.strip() == "This login is for files only: request %1 is not allowed" and m82.strip() == "Account %1 has FILES %2"
+       and "\n" not in m80.rstrip("\n") and "\n" not in m82.rstrip("\n") and LINUX_BLOCK[0] <= 11480 <= 11489 <= LINUX_BLOCK[1], repr((m80, m82)))
+    ck("W14 11480 is cited only by apisrvr with ONE argument (the request number); 11482 only by MODIFY.ACCOUNT and CREATE.ACCOUNT with TWO (the account, yes or no); "
+       "no program cites 11481 or 11483 to 11489, or writes such a number any other way (the block 11480-11489 is this slice's and only 11480 and 11482 are used)",
+       sorted(cited.get(11480, [])) == [("apisrvr", 1)] and sorted(cited.get(11482, [])) == [("create_account", 2), ("modifya", 2)] and set(cited) <= {11480, 11482} and not stray, repr((cited, stray)))
+    ck("W15 nothing is said on a successful files-only login: the login path prints nothing in vb.scram.final (no crt, display or print between the mark and logged.in)",
+       not re.search(r"\b(?:crt|display|print)\b", fin[fin.find("if api.files.login then"):fin.find("logged.in = @true", fin.find("if api.files.login then"))]), "")
+
+    # ---- W16-W22. the words: MODIFY.ACCOUNT, CREATE.ACCOUNT, CREATEA ----------------------------------------------------------------------
+    sf = routine_body(mo, "set.files")
+    ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
+       "touched by set.files",
+       all(re.search(r"case action = '%s'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
+       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, suspended or unsuspended" in mo
+       and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
+    ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
+       "name is checked with valid_os_name; the Linux user is the one the account's group names (the manifest reads the same)",
+       ordered(sf, "if group.name[1,4] # 'sdu_' then", "sysmsg(10087, acc.name)", "sysmsg(10081, acc.name, 2)", "files.user = group.name[5,999]", "valid_os_name(files.user)", "os.execute")
+       and sf.count("os.execute") == 2, "")
+    ck("W18 ...membership is read three-valued (status read at once, a lookup that cannot answer changes NOTHING and says 10081 with the status); FILES-ON also needs sdusers "
+       "(else status 2 - the login would refuse them first); FILES-OFF is never gated on sdusers",
+       re.search(r"has\.files = is_grp_member\(files\.user, 'sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and files\.want then\s*\n"
+                 r"\s*in\.sdusers = is_grp_member\(files\.user, 'sdusers'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and not\(in\.sdusers\) then files\.stat = 2\s*\n"
+                 r"\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return", sf) is not None
+       and ordered(sf, "if files.stat # 0 then", "if has.files = files.want then", "sysmsg(10080, acc.name)", "os.execute"), "")
+    ck("W19 ...already in the wanted state is 10080 and nothing is run; FILES-ON when the group sdfiles does not exist is 10024 and nothing is run; the change is the SAME "
+       "helper and verbs the api word uses (sd-elevate addgroup / delgroup <user> sdfiles)",
+       ordered(sf, "if has.files = files.want then", "sysmsg(10080, acc.name)", "return", "files.found = is_group('sdfiles')", "sysmsg(10024, 'sdfiles')", "os.execute")
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files\.user : " sdfiles"', sf) is not None
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files\.user : " sdfiles"', sf) is not None
+       and ordered(sf, "files.found = is_group('sdfiles')", 'addgroup " : files.user', 'delgroup " : files.user'), "")
+    ck("W20 ...after the change the membership is READ BACK from /etc/group, a read back that does not show the wanted state is a failure (10081, status 2), the audit line "
+       "(lower case) comes only after it, and the line printed (11482) is the read-back value and not the request",
+       re.search(r"files\.stat = OS\.ERROR\(\)\s*\n\s*if files\.stat = 0 then\s*\n\s*now\.files = is_grp_member\(files\.user, 'sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n"
+                 r"\s*if files\.stat = 0 and now\.files # files\.want then files\.stat = 2\s*\n\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
+                 r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*@system\.return\.code = 0\s*\n"
+                 r"\s*void kernel\(K\$AUDIT, 'modify\.account ' : downcase\(action\) : ' account=' : acc\.name\)\s*\n"
+                 r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None, "")
+    ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
+       re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILES>\s*=", cr)) == 1
+       and "{net-on} {files-on} {no.query}" in cr and "(files-on)" in cr, "")
+    ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
+       "and no register field is added - the membership of the group IS the state",
+       re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None
+       and "ACC$FILES" not in c["syscom/keys.h"],
+       "createacc.h has no  $define CA$FILES 36")
+    ck("W22 CREATE.ACCOUNT: a request is exactly CA$FILES = 1; the group is looked for BEFORE the Linux user is made (a missing group is 10024 and creates nothing, an unreadable "
+       "/etc/group is 10081); a GROUP account (10087) and an OTHER account (10081, status 2) are refused before anything is created",
+       "files.want = (settings<CA$FILES> = 1)" in ca2
+       and ordered(ca2, "files.found = is_group('sdfiles')", "err = 10081:@vm:acc.uname:@vm:files.stat", "err = 10024:@vm:'sdfiles'", "if not(create_user(acc.uname)) then")
+       and re.search(r"if files\.want then\s*\n\s*files\.found = is_group\('sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
+                     r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat\s*\n\s*goto exit\.create\s*\n\s*end\s*\n"
+                     r"\s*if not\(files\.found\) then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10024:@vm:'sdfiles'\s*\n\s*goto exit\.create", ca2) is not None
+       and re.search(r"case acc\.type = 'GROUP'.*?if files\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10087:@vm:acc\.name\s*\n\s*goto exit\.create.*?case acc\.type = 'OTHER'.*?"
+                     r"if files\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10081:@vm:acc\.name:@vm:2\s*\n\s*goto exit\.create", ca2.replace('"', "'"), re.S) is not None, "")
+    ck("W23 ...the join is sd-elevate addgroup <user> sdfiles, only when asked, AFTER the sdssh and sdapi joins; a failed join is 10081 with its status and the account stops; "
+       "and a user account is told its state (11482), read off /etc/group, right after the NET line",
+       re.search(r'if files\.want then\s*\n\s*os\.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc\.uname:" sdfiles"\s*\n\s*route\.stat = OS\.ERROR\(\)\s*\n\s*if route\.stat # 0 then\s*\n'
+                 r'\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:route\.stat\s*\n\s*goto exit\.create', ca2) is not None
+       and ordered(ca2, 'addgroup ":acc.uname:" sdssh"', 'addgroup ":acc.uname:" sdapi"', 'addgroup ":acc.uname:" sdfiles"')
+       and re.search(r"crt sysmsg\(11411, acc\.name, acc\.rec<ACC\$NET>\)\s*\n\s*crt sysmsg\(11482, acc\.name, if is_grp_member\(acc\.uname, 'sdfiles'\) then 'yes' else 'no'\)", ca2) is not None, "")
+
+    # ---- W24-W26. the manifest and the restore -------------------------------------------------------------------------------------------
+    ck("W24 the account manifest carries `route.files: 1|0` for a USER account, read from membership of sdfiles, after route.api and before os.sh, and before the GROUP branch; "
+       "the key is NOT `files` - the backup writes `files: N` (the file count) into the same section and RESTORE.ACCOUNT reads it as that count",
+       ordered(ai, "'route.api: '", "'route.files: ':(if is_grp_member(user, 'sdfiles') then 1 else 0)", "'os.sh: '", "case grp[1,4] = 'sdg_'")
+       and "'files: '" not in ai and ai.count("route.files") == 1 and "'files: ':files" in c["bp:backupa"] and re.search(r"= 'files'\s*; m\.files = kv", rs) is not None, "")
+    ck("W25 RESTORE.ACCOUNT reads route.files, clears it for each section, hands it on as CA$FILES (a manifest without the key restores as NOT in the group), and still reads "
+       "`files` as the count",
+       re.search(r"= 'route\.files'\s*; m\.route\.files = kv", rs) is not None and "settings<CA$FILES> = m.route.files" in rs and "m.net = '' ; m.route.files = ''" in rs
+       and re.search(r"= 'files'\s*; m\.files = kv", rs) is not None, "")
+
+    # ---- W26-W28. the group: installer, deletesdcore, sd-elevate ----------------------------------------------------------------------------
+    ck("W26 the installer makes sdfiles beside sdssh and sdapi: one loop `for sd_route_group in sdssh sdapi sdfiles`, groupadd --system, only when the group is missing",
+       inst.count("for sd_route_group in") == 1
+       and re.search(r'for sd_route_group in sdssh sdapi sdfiles; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None, "")
+    li = dele.find("for sd_route_group in sdssh sdapi sdfiles; do")
+    br = dele.rfind('if [ "$keep_accts" = "DELETE" ]; then', 0, li) if li >= 0 else -1
+    el = dele.find("\nelse\n", li) if li >= 0 else -1
+    fi_ = dele.find("\nfi", el) if el >= 0 else -1
+    ck("W27 deletesdcore removes it with the others ONLY on a full DELETE (the loop and its groupdel inside the DELETE branch, no end of branch between them) and says it kept it "
+       "when the accounts are kept (in the else branch)",
+       dele.count("for sd_route_group in") == 1 and 0 <= br < li < el and "\nfi" not in dele[br:li] and 'sudo groupdel "$sd_route_group"' in dele[li:el]
+       and "route groups sdssh, sdapi and sdfiles were kept" in dele[el:el + 200] and fi_ > el and "groupdel" not in dele[el:fi_], "")
+    ck("W28 sd-elevate whitelists sdfiles by its exact name for addgroup, delgroup and groupadd (require_sd_group), says so in its refusal text, and never deletes it with groupdel "
+       "(it is one of the system groups)",
+       re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\) : ;;\s*\n\s*sdu_\?\*\|sdg_\?\*\) : ;;", se) is not None
+       and "(want sdusers, sdssh, sdapi, sdfiles, sdu_*, or sdg_*)" in se
+       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\)\s*\n\s*die \"'\$1' is one of SD's system groups and is never deleted here\"", se) is not None
+       and "sdfiles*" not in se, "")
+
+
+# ---- Z. S.65 slice 3a: gpl.bp/sdclient logs in from the stored derived keys -------------------------------------------------------------------
+
+# Every error text sandbox-netfile.py asserts of the class, written out here once: each must be in sdclient AND in the suite, so that a text changed in
+# one and not the other is found by a free check and not by a red row in a suite that takes minutes.
+CLIENT_TEXTS = ("A connection has already been established", "Invalid host name", "Invalid user name", "Invalid public key pin",
+                "The stored login is incomplete", "The stored iteration count is not a whole number", "The stored iteration count is unacceptable",
+                "PIN MISMATCH: the public key of", "is not the key pinned in its definition; nothing was sent",
+                "No acknowledgement from", "at the start of the session", "during the login (the connection failed or timed out)",
+                "Server signature did not verify", "Server did not return a signature",
+                "Server nonce does not extend the client nonce", "Malformed server-first message", "Server sent a non-numeric iteration count",
+                "Server asked for an unacceptable iteration count", "The TLS handshake with ", " did not complete (status ", "Cannot connect to ",
+                "The server's salt is not the stored one: the stored login is out of date or this is not the server it was made with",
+                "The server's iteration count is not the stored one: the stored login is out of date or this is not the server it was made with")
+
+
+def between(text, start, end):
+    i = text.find(start)
+    j = text.find(end, i + 1) if i >= 0 else -1
+    return text[i:j] if i >= 0 and j >= 0 else ""
+
+
+def checks_3a(srcs, c, ck):
+    """S.65 slice 3a: connect.keys, scram.exchange, settimeout and the wiring of the netfile suite."""
+    sc = c["bp:sdclient"]
+    raw = srcs["bp:sdclient"]
+    kb = between(sc, "public function connect.keys(", "public subroutine settimeout(")
+    cb = between(sc, "public function connect(host", "public function connect.keys(")
+    ex = between(sc, "local function scram.exchange(", "local function evaluate.packet(")
+    rp = between(sc, "local function read.packet()", "local subroutine disconnect.session")
+    pre_pin = kb[:kb.find("('p' : spki)")] if "('p' : spki)" in kb else kb
+    keys_branch = between(ex, "if keys.mode then", "end else")
+
+    # ---- Z1. the shape
+    ck("Z1 connect.keys is a public function, once, whose secret parameters are BY VALUE (port, salt, iterations, client.key, server.key, pin: the copies are cleared here and the "
+       "caller's variables are the caller's); settimeout is a public subroutine; the class lists both in its description",
+       sc.count("public function connect.keys(host, (port), username, (salt), (iterations), (client.key), (server.key), account, (pin))") == 1
+       and sc.count("public subroutine settimeout(ms)") == 1 and "bool = obj->connect.keys(host, port, username, salt, iterations, client.key, server.key, account, pin)" in raw
+       and "obj->settimeout(ms)" in raw, "")
+
+    # ---- Z2. the order
+    ck("Z2 connect.keys, in this ORDER: a connected object refused, the host, the user name, the pin's shape, an incomplete login, the count a whole number and within the bounds, the "
+       "one open.socket, the key hash, the pin compared, the Ack read, the exchange, the account entered, the context set last",
+       ordered(kb, "context # CX.DISCONNECTED", "len(host) = 0", "valid_os_name(username)", "pin = downcase(trim(pin))", "'The stored login is incomplete'",
+               "iterations matches '1N0N'", "iterations < SCRAM$MIN.ITER or iterations > SCRAM$MAX.ITER", "open.socket(", "socket.info(skt, SKT$INFO.TLS.SPKI)",
+               "('p' : spki) # ('p' : pin)", "read.socket(skt, 1, SKT$BLOCKING, io.ms)", "scram.exchange(username, '', salt, iterations, client.key, server.key)",
+               "message.pair(SrvrAccount, account)", "server.error # SV$OK", "context = CX.CONNECTED"), "")
+    ck("Z2a ...each shape check refuses with ITS OWN text and returns false (a connected object, an empty host, a user name !valid_os_name refuses, a pin that is not 64 hex digits, "
+       "a login with ANY of salt, ClientKey and ServerKey null, a count that is not 1 to 8 digits, a count outside the bounds)",
+       all(re.search(p, kb) is not None for p in (
+           r"if context # CX\.DISCONNECTED then\s*\n\s*error = 'A connection has already been established'\s*\n\s*return @false",
+           r"if len\(host\) = 0 then\s*\n\s*error = 'Invalid host name'\s*\n\s*return @false",
+           r"if not\(valid_os_name\(username\)\) then\s*\n\s*error = 'Invalid user name'\s*\n\s*return @false",
+           r"if len\(pin\) # 64 or len\(convert\('0123456789abcdef', '', pin\)\) # 0 then\s*\n\s*error = 'Invalid public key pin'\s*\n\s*return @false",
+           r"if salt = '' or client\.key = '' or server\.key = '' then\s*\n\s*error = 'The stored login is incomplete'\s*\n\s*return @false",
+           r"if len\(iterations\) < 1 or len\(iterations\) > 8 or not\(iterations matches '1N0N'\) then\s*\n\s*error = 'The stored iteration count is not a whole number'\s*\n\s*return @false",
+           r"if iterations < SCRAM\$MIN\.ITER or iterations > SCRAM\$MAX\.ITER then\s*\n\s*error = 'The stored iteration count is unacceptable'\s*\n\s*return @false")), "")
+    ck("Z3 ...the shape checks are all BEFORE the socket is opened (no network is touched for a bad argument), the socket is opened once, with SKT$TLS and the 5 second connect timeout",
+       kb.count("open.socket(") == 1 and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, NET\.CONNECT\.SECS\)", kb) is not None
+       and not re.search(r"socket|SDEXT|message\.pair", kb[:kb.find("open.socket(")]), "")
+    ck("Z4 ...NOTHING IS SENT BEFORE THE PIN IS CHECKED: between the open and the comparison of the key hash there is no write, no read, no packet, no exchange and no disconnect "
+       "(the only thing done is SOCKET.INFO); the comparison is of TEXT - each side has a letter in front, because two all-digit strings would be compared as numbers - and a mismatch "
+       "and a missing hash both leave through keys.fail, naming a PIN MISMATCH and saying nothing was sent",
+       "('p' : spki)" in kb and not re.search(r"write\.packet|write\.socket|message\.pair|read\.socket|read\.packet|scram\.|disconnect|SrvrQuit|SDEXT", pre_pin)
+       and re.search(r"if \('p' : spki\) # \('p' : pin\) then\s*\n\s*error = 'PIN MISMATCH: the public key of ' : host : ':' : port : ' is not the key pinned in its definition; nothing was sent'\s*\n\s*goto keys\.fail\s*\n\s*end", kb) is not None
+       and re.search(r"if spki = '' then\s*\n\s*error = '[^']*nothing was sent'\s*\n\s*goto keys\.fail", kb) is not None
+       and not re.search(r"if spki # pin|if pin # spki", kb), "")
+    ck("Z5 ...the Ack is awaited with the BOUNDED read (io.ms, a byte at a time, a limited number of tries), and the exchange is entered only after it; connect.keys sets the bound to "
+       "NET.READ.MS only when it is still 0, so that settimeout() called first wins",
+       re.search(r"if io\.ms = 0 then io\.ms = NET\.READ\.MS", kb) is not None and ordered(kb, "if io.ms = 0 then io.ms = NET.READ.MS", "tries += 1", "read.socket(skt, 1, SKT$BLOCKING, io.ms)",
+                                                                                         "until acked or tries >= NET.ACK.TRIES", "scram.exchange(") and kb.count("read.socket(") == 1, "")
+    ck("Z6 ...the keys are dropped the moment the exchange has returned (client.key and server.key set to null before the result is tested), and on EVERY failure path through keys.fail, which "
+       "also closes the socket and returns false; every failure after the open goes through it; a refusal of the account fails the call",
+       ordered(kb, "ok = scram.exchange(", "client.key = ''", "server.key = ''", "if not(ok) then")
+       and re.search(r"\nkeys\.fail:\s*\n\s*client\.key = ''\s*\n\s*server\.key = ''\s*\n\s*close\.socket skt\s*\n\s*return @false\s*\nend", kb) is not None
+       and len(re.findall(r"goto keys\.fail", kb)) == 7 and kb[kb.find("spki = downcase"):].count("return @false") == 1
+       and re.search(r"if server\.error # SV\$OK then\s*\n\s*error = 'The server did not enter the account'\s*\n\s*goto keys\.fail", kb) is not None, "")
+
+    # ---- Z7-Z9. the exchange, shared by both logins
+    ck("Z7 scram.exchange in the stored-key mode (keys.mode: a stored ClientKey was given): AFTER client-first and BEFORE client-final, the server's salt is compared with the stored one "
+       "as TEXT and its count as a NUMBER with the stored count, each mismatch ending the exchange with its own text and the stored keys dropped; the nonce and the iteration bounds are "
+       "tested before either; the stored keys become the working keys only after both compares",
+       ordered(ex, "keys.mode = (stored.ck # '')", "message.pair(SrvrScramFirst", "nonce[1,len(cnonce)] # cnonce", "iter < SCRAM$MIN.ITER or iter > SCRAM$MAX.ITER", "if keys.mode then",
+               "if ('s' : salt) # ('s' : stored.salt) then", "if iter + 0 # stored.iter + 0 then", "client.key = stored.ck", "srvr.key = stored.sk", "end else", "message.pair(SrvrScramFinal")
+       and "stored." not in re.sub(r"keys\.mode = \(stored\.ck # ''\)", "", ex[ex.find("keys.mode = (stored.ck"):ex.find("message.pair(SrvrScramFirst")]) and "keys.mode" not in ex[:ex.find("keys.mode = (")]
+       and re.search(r"if \('s' : salt\) # \('s' : stored\.salt\) then\s*\n\s*error = \"The server's salt is not the stored one[^\"]*\"\s*\n\s*stored\.ck = '' ; stored\.sk = ''\s*\n\s*return @false\s*\n\s*end", ex) is not None
+       and re.search(r"if iter \+ 0 # stored\.iter \+ 0 then\s*\n\s*error = \"The server's iteration count is not the stored one[^\"]*\"\s*\n\s*stored\.ck = '' ; stored\.sk = ''\s*\n\s*return @false\s*\n\s*end", ex) is not None, "")
+    ck("Z8 ...PBKDF2 (the password) is used only in the password branch: once in the whole exchange, after the stored-key branch, and the stored-key branch uses no SDEXT of it; the proof "
+       "and the server's signature are computed from client.key and srvr.key either way, and the working keys, the stored key and the client signature are dropped before the final message "
+       "is sent; the server's v= is compared in constant time",
+       ex.count("SD_PBKDF2") == 1 and "SD_PBKDF2" not in keys_branch and ex.find("SD_PBKDF2") > ex.find("end else")
+       and ordered(ex, "stored.key = SDEXT(client.key", "client.sig = SDEXT(", "proof = SDEXT(", "expect.v = SDEXT(srvr.key", "client.key = ''", "srvr.key = ''", "stored.key = ''", "client.sig = ''",
+                   "message.pair(SrvrScramFinal", "in.pkt[1,2] # 'v='", "SD_CTEQUAL") and "stored.ck" not in ex[ex.find("end else"):], "")
+    ck("Z9 scram.login is the ONE LINE `return scram.exchange(username, password, '', '', '', '')` and nothing else (a null stored ClientKey is the password mode), declared once; connect() "
+       "calls it and calls neither connect.keys nor scram.exchange",
+       re.search(r"local function scram\.login\(username, password\)\s*\n\s*return scram\.exchange\(username, password, '', '', '', ''\)\s*\nend", sc) is not None
+       and sc.count("local function scram.login(") == 1 and sc.count("deffun scram.login(username, password) local") == 1
+       and sc.count("deffun scram.exchange(username, password, stored.salt, stored.iter, stored.ck, stored.sk) local") == 1
+       and cb.count("scram.login(username, password)") == 1 and "scram.exchange" not in cb and "connect.keys" not in cb, "")
+
+    # ---- Z10. connect() is the same kind of function it was
+    ck("Z10 connect() is UNCHANGED IN KIND: its Ack wait still reads with the timeout 0 (it waits for ever, as before), its socket is still opened with no timeout argument, it enters the "
+       "account as before (no check of the reply), and it asks no pin",
+       "read.socket(skt, 1, SKT$BLOCKING, 0) = char(6)" in cb and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS\)\s*\n", cb) is not None
+       and "io.ms" not in cb and "SPKI" not in cb and re.search(r"\bpin\b", cb) is None and ordered(cb, "scram.login(username, password)", "message.pair(SrvrAccount, account)", "context = CX.CONNECTED"), "")
+    ck("Z11 the bounded read: read.packet reads the header and the data with io.ms (both of its read.socket calls, and no literal 0 timeout is left in it); create.object starts io.ms at 0 so "
+       "that connect() still waits for ever; settimeout accepts only a number of 0 or more (it aborts 'Illegal timeout') and sets io.ms; io.ms is a private variable",
+       len(re.findall(r"read\.socket\(skt, n, SKT\$BLOCKING, io\.ms\)", rp)) == 2 and not re.search(r"read\.socket\([^)]*, 0\)", rp)
+       and re.search(r"public subroutine create\.object\s*\n(?:[^\n]*\n){0,6}?\s*io\.ms = 0\s*\nend", sc) is not None
+       and re.search(r"public subroutine settimeout\(ms\)\s*\n\s*if not\(num\(ms\)\) or ms < 0 then abort 'Illegal timeout'\s*\n\s*io\.ms = ms \+ 0\s*\nend", sc) is not None
+       and re.search(r"private context,[^\n]*\n(?:[^\n]*\n){0,4}?\s*io\.ms\b", sc) is not None, "")
+    dv = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define (NET\.[A-Z.]+)\s+(\d+)", sc)}
+    ck("Z12 the three defines: NET.CONNECT.SECS 5 (the plan's connect timeout), NET.READ.MS 30000 (a read), NET.ACK.TRIES 16", dv == {"NET.CONNECT.SECS": 5, "NET.READ.MS": 30000, "NET.ACK.TRIES": 16}, repr(dv))
+
+    # ---- Z13. nothing secret in a message
+    leak = [ln.strip() for ln in strip_strings(sc).split("\n") if re.search(r"\berror\s*=", ln) and re.search(
+        r"\b(client\.key|server\.key|stored\.ck|stored\.sk|srvr\.key|salted|proof|stored\.key|expect\.v|auth\.msg|client\.sig|cbind|cnonce)\b", ln)]
+    shown = [ln.strip() for ln in (kb + "\n" + ex).split("\n") if re.search(r"\b(display|crt|print)\b", ln)]
+    ck("Z13 no error text carries a key, a proof, a signature or the binding (no `error =` line names one), and neither connect.keys nor scram.exchange displays anything",
+       not leak and not shown, repr((leak[:3], shown[:3])))
+
+    # ---- Z14. every text the suite asserts is the class's, and the suite is wired in
+    suite = srcs["sandbox-netfile.py"]
+    miss = [t for t in CLIENT_TEXTS if t not in raw or t not in suite]
+    ck("Z14 every error text sandbox-netfile.py asserts of the class (%d of them) is in sdclient and in the suite, word for word" % len(CLIENT_TEXTS), not miss, repr(miss[:4]))
+    al = re.search(r'^ALL_SUITES="([^"]*)"', c["regress.sh"], re.M)
+    names = al.group(1).split() if al else []
+    rm = c["regress-map.txt"]
+    ck("Z15 the suite is wired in: `netfile` is in regress.sh's ALL_SUITES once, gplbld/sandbox-netfile.py is its own suite in the map, and the map selects it for sdclient, netdefs, netcred, "
+       "setnetlogin and netfake.py; the suite file prints the verdict line regress.sh reads and builds with --build",
+       names.count("netfile") == 1 and re.search(r"^gplbld/sandbox-netfile\.py\s*:\s*@self\s*$", rm, re.M) is not None
+       and all(re.search(r"^%s\s*:[^\n]*\bnetfile\b" % re.escape(p), rm, re.M) is not None
+               for p in ("sdsys/gpl.bp/sdclient", "sdsys/gpl.bp/netdefs", "sdsys/gpl.bp/netcred", "sdsys/gpl.bp/setnetlogin", "gplbld/netfake.py"))
+       and 'say("sandbox-netfile: %d passed, %d failed" % (passed, failed))' in suite and '"--build" in sys.argv' in suite, repr(names[-3:]))
+    ck("Z16 the dated history lines are there: sdclient (`17 Oct 26 dm S.65 slice 3a`), and the suite's own",
+       "17 Oct 26 dm S.65 slice 3a" in raw and "17 Oct 26 dm  New.  S.65 slice 3a" in suite, "")
+
+
+# ---- N. S.65 slice 3b: gpl.bp/netfile, the handler for every operation on a remote file ---------------------------------------------------------
+
+NF_OPS = {"NF$OPEN": 1, "NF$CLOSE": 2, "NF$READ": 3, "NF$READV": 4, "NF$RECORDLOCKED": 5, "NF$SELECT": 6, "NF$FILEINFO": 7, "NF$CLOSEALL": 8,
+          "NF$WRITE": 9, "NF$DELETE": 10, "NF$CLEARFILE": 11, "NF$LOCK": 12, "NF$STATE": 13}
+NF_DEFS = dict(NF_OPS, **{"NF$RC.OK": 0, "NF$RC.ELSE": 2, "NF$RC.ERROR": 3, "NF$MAX.SERVERS": 10, "NF$MAX.HANDLES": 100})
+NF_REASONS = ("gate", "server", "list", "credential", "limit", "file")
+NF_METHODS = {"connect.keys", "settimeout", "open", "close", "read", "select", "readlist", "recordlocked", "disconnect", "error", "ServerStatus"}
+NF_SECRET_LOCALS = r"\b(cred|ruser|rsalt|riter|rck|rsk|pin|pw|password)\b"
+NF_SUITE_SECTIONS = ("handler", "readonly", "refuse", "lost", "timeout", "gaps")
+NF_FORBIDDEN = (r"(?<![\w.$])(write|writeu|writev|writevu|writeseq|writeblk|weofseq|delete|deleteu|deleteseq|create|openseq|openpath|osrename|osdelete|"
+                r"execute|perform|sh|logto|clearfile|recordlock|release|mkdir|chdir)(?![\w.$])")
+
+
+def checks_3b(srcs, c, ck):
+    """S.65 slice 3b: the handler $netfile, as ORDER and as what it cannot do.  Nothing here runs it: the sections handler, readonly, refuse, lost and
+    timeout of sandbox-netfile.py do, against the fake server."""
+    nf, nfh, raw, rawh = c["bp:netfile"], c["bp:netfile.h"], srcs["bp:netfile"], srcs["bp:netfile.h"]
+    suite, rm = srcs["sandbox-netfile.py"], c["regress-map.txt"]
+    ns = strip_strings(nf)
+    main = nf[:nf.find("\nact.open:")] if "\nact.open:" in nf else nf
+    body = {lab: routine_body(nf, lab) for lab in ("act.open", "act.close", "act.read", "act.recordlocked", "act.select", "act.fileinfo", "act.closeall", "act.refuse",
+                                                   "act.state", "get.handle", "check.gate", "check.id", "connect.new", "shape.names", "after.rq", "lost.fail", "drop.conn",
+                                                   "refuse", "fail", "idle.release")}
+    ao, gh = body["act.open"], body["get.handle"]
+
+    # ---- N1. the numbers the kernel slice will mirror
+    got = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(NF\$[A-Z.]+)\s+(-?\d+)", nfh)}
+    ck("NF1 netfile.h: the 13 operation codes are 1 to 13 in this order (OPEN CLOSE READ READV RECORDLOCKED SELECT FILEINFO CLOSEALL WRITE DELETE CLEARFILE LOCK STATE), the results are "
+       "NF$RC.OK 0, ELSE 2, ERROR 3, the limits are 10 servers and 100 files, and no name or number is defined twice (the kernel slice mirrors these in C)",
+       got == NF_DEFS and len(re.findall(r"\$define\s+NF\$", nfh)) == len(NF_DEFS) and len(set(got[k] for k in NF_OPS)) == 13, repr({k: v for k, v in got.items() if NF_DEFS.get(k) != v}))
+    ck("NF2 netfile is an internal subroutine `netfile(op, a, b, c, out, rc)` catalogued as $netfile (only an internal program can call a dollar name), and includes netfile.h",
+       re.match(r"\s*\$internal\s*\nsubroutine netfile\(op, a, b, c, out, rc\)\s*\n\$catalog \$netfile\s*\n", nf) is not None and "$include netfile.h" in nf
+       and nf.count("$catalog") == 1 and nf.count("subroutine ") == 1, "")
+
+    # ---- N3. the order of the checks on NF$OPEN, every one before anything is dialled
+    ai = ao.find("void kernel(K$AUDIT, 'netfile open server='")
+    pre = ao[:ai] if ai >= 0 else ao
+    ck("NF3 NF$OPEN, in this ORDER: the name shapes (no side effect), THE GATE (administrator or K$NET), the definition read (!netdefs READ) and its fields, the accounts list (the administrator "
+       "exempt), the stored login ($netcred READ), the limits (10 servers, 100 files), the file name - then the audit line, and only then the connection and the open",
+       ordered(ao, "gosub shape.names", "gosub check.gate", "call !netdefs('READ'", "gosub check.def", "if not(is.admin) then", "index(',':downcase(accts):','", "call $netcred('READ'",
+               "gosub find.slot", "ns >= NF$MAX.SERVERS", "nh >= NF$MAX.HANDLES", "if not(fname.ok) then", "void kernel(K$AUDIT, 'netfile open server='", "gosub connect.new", "obj->open(fname)"), "")
+    ck("NF3a ...NOTHING IS DIALLED BEFORE THE AUDIT LINE: before it there is no connect.new, no object(), no connect.keys and no `->` call of the class",
+       ai >= 0 and not re.search(r"connect\.new|object\(|connect\.keys|->", pre), repr(re.findall(r"connect\.new|object\(|connect\.keys|->[\w.]+", pre)))
+    ck("NF3b ...every refusal of NF$OPEN is `gosub refuse` followed by a return (six reasons: gate, server, list, credential, limit, file - each used), the reason a literal word, and the audit "
+       "names the server only as the lower cased name that passed its shape test or the word invalid, never the bytes typed",
+       len(re.findall(r"gosub refuse\s*\n\s*return", ao)) == ao.count("gosub refuse") >= 8
+       and sorted(set(re.findall(r"refused\.why = '(\w+)'", ao))) == sorted(NF_REASONS)
+       and re.search(r"safe = 'invalid'\s*\n\s*if name\.ok then safe = srv", ao) is not None
+       and ordered(body["refuse"], "gosub fail", "void kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)"), "")
+    ck("NF3c ...the administrator is exempt from the accounts list but from nothing else the gate asks (the list test is inside `if not(is.admin)`), and the account compared is the lower cased @who",
+       re.search(r"if not\(is\.admin\) then\s*\n\s*if index\(',':downcase\(accts\):',', ',':acc:',', 1\) = 0 then", ao) is not None and "acc = downcase(@who)" in main, "")
+
+    # ---- N4. the one way to the network
+    cn = body["connect.new"]
+    ck("NF4 the network is reached in ONE place: object('!sdclient') once and obj->connect.keys once, both in connect.new, which has NO password login (no ->connect, no open.socket or any socket "
+       "verb of its own, no SDEXT), and connect.new is called from act.open only",
+       nf.count("object('!sdclient')") == 1 and nf.count("connect.keys(") == 1 and "object('!sdclient')" in cn and "obj->connect.keys(" in cn
+       and not re.search(r"->connect\(|open\.socket|read\.socket|write\.socket|SDEXT", nf) and nf.count("gosub connect.new") == 1 and "gosub connect.new" in ao, "")
+    ck("NF4a connect.new copies the five values out of the credential, CLEARS the credential before the object is made, calls connect.keys with them and the definition's host, port, remote "
+       "account and pin, clears each copy at once, sets the 30 second read bound, and only then puts the object in common (and refuses if it did not stay an object)",
+       ordered(cn, "ruser = cred<1>", "rsalt = cred<2>", "riter = cred<3>", "rck = cred<4>", "rsk = cred<5>", "cred = ''", "obj = object('!sdclient')",
+               "obj->connect.keys(host, port, ruser, rsalt, riter, rck, rsk, racct, pin)", "ruser = ''", "rsalt = ''", "riter = ''", "rck = ''", "rsk = ''",
+               "obj->settimeout(NF$REQUEST.MS)", "nf.s.obj(slot) = obj", "vartype(nf.s.obj(slot)) # V$OBJ"), "")
+    meth = set(re.findall(r"->([A-Za-z.]+)", nf))
+    ck("NF4b the handler calls only these methods and properties of the class: connect.keys, settimeout, open, close, read, select, readlist, recordlocked, disconnect, error, ServerStatus "
+       "(no write, delete, lock, execute, call, logto, sequential-file or password login method)", meth <= NF_METHODS, repr(sorted(meth - NF_METHODS)))
+
+    # ---- N5. nothing is written to the remote server, nothing is stored
+    ck("NF5 READ ONLY: no statement of netfile writes, deletes, creates, opens a file, runs a command or releases a lock; $netcred is called with 'READ' only and !netdefs with 'READ' only; "
+       "kernel() is called for K$AUDIT, and for K$ADMINISTRATOR and K$NET with -1 only; nothing is shown (no crt, print or display)",
+       not re.search(NF_FORBIDDEN, re.sub(r"->[\w.]+", "", ns), re.I) and re.findall(r"call \$netcred\('(\w+)'", nf) == ["READ"] and re.findall(r"call !netdefs\('(\w+)'", nf) == ["READ"]
+       and all(m.group(1) == "K$AUDIT" or (m.group(1) in ("K$ADMINISTRATOR", "K$NET") and m.group(2).strip() == "-1") for m in re.finditer(r"kernel\((K\$[A-Z.]+)\s*,\s*([^)\n]*)", nf))
+       and not re.search(r"(?<![\w.$])(crt|print|display)(?![\w.$])", ns), repr(re.findall(NF_FORBIDDEN, re.sub(r"->[\w.]+", "", ns), re.I)[:4]))
+    ar = body["act.refuse"]
+    ck("NF5a write, delete, clear.file and lock are ONE case that gosubs act.refuse, which asks for a handle of this account and answers 11501 naming the server and the operation - and "
+       "touches no object, no connection and no request (the word obj is not in it)",
+       re.search(r"case op = NF\$WRITE or op = NF\$DELETE or op = NF\$CLEARFILE or op = NF\$LOCK\s*\n\s*gosub act\.refuse", main) is not None
+       and ordered(ar, "gosub get.handle", "'write'", "'delete'", "'clear.file'", "'lock'", "fail.num = 11501", "fail.a1 = srvname", "fail.a2 = opname", "gosub fail")
+       and not re.search(r"\bobj\b|nf\.s\.obj|nf\.s\.state|connect|requests", ar), "")
+
+    # ---- N6. the gate is asked by the handler itself, and only asked
+    cg = body["check.gate"]
+    ck("NF6 the handler asks the gate ITSELF (an internal program is exempt from the kernel's): check.gate is `is.admin = kernel(K$ADMINISTRATOR, -1)` and `kernel(K$NET, -1)` and nothing else, "
+       "it is the only place either is mentioned, and it is gosubbed from NF$OPEN first of all and from get.handle",
+       "is.admin = kernel(K$ADMINISTRATOR, -1)" in cg and re.search(r"if not\(is\.admin\) and not\(kernel\(K\$NET, -1\)\) then gate\.ok = @false", cg) is not None
+       and nf.count("kernel(K$NET") == 1 and nf.count("kernel(K$ADMINISTRATOR") == 1 and nf.count("gosub check.gate") == 2, "")
+    ck("NF6a ...every operation that sends a request asks it again through get.handle (need.gate = @true in read, readv, recordlocked, select and fileinfo), the gate test comes BEFORE the test that "
+       "the handle belongs to this account, and a handle belongs to the account that opened it (stored lower case, compared with the lower cased @who)",
+       all(re.match(r"act\.[a-z]+:\s*\n\s*need\.gate = @true", body[l]) for l in ("act.read", "act.recordlocked", "act.select", "act.fileinfo"))
+       and ordered(gh, "if need.gate then", "gosub check.gate", "fail.num = 11460", "if not(any.acct) then", "nf.h.acct(hx) # acc", "fail.num = 11494")
+       and "nf.h.acct(hx) = acc" in ao, "")
+
+    # ---- N7. a request, a lost connection and no retry
+    lines = [ln for ln in nf.split("\n") if ln.strip()]
+    reqs = [i for i, ln in enumerate(lines) if re.search(r"obj->(open|close|read|select|readlist|recordlocked)\(", ln)]
+    unmarked = [lines[i].strip() for i in reqs if not any("obj->ServerStatus = NF$NOREPLY" in p for p in lines[max(0, i - 3):i])]
+    ck("NF7 EVERY request is preceded by the 'no reply' mark (obj->ServerStatus = NF$NOREPLY, three lines before at most): %d request sites, none unmarked; a reply of any kind overwrites it, "
+       "so after.rq reads a mark still in place as a lost connection (rq.lost = ServerStatus < 0), and NF$NOREPLY is -1" % len(reqs),
+       len(reqs) == 7 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st < 0)" in body["after.rq"]
+       and re.search(r"\$define NF\$NOREPLY\s+-1\b", nf) is not None, repr(unmarked))
+    ck("NF7a a lost connection is dropped and reported, NEVER retried or reconnected inside an operation: lost.fail drops the connection then answers 11497; the only connect.new is in NF$OPEN; the "
+       "handler holds no loop construct at all (no loop, no repeat, no while); drop.conn frees the slot and marks every handle on it lost (state 2)",
+       ordered(body["lost.fail"], "gosub drop.conn", "fail.num = 11497") and "connect.new" not in body["lost.fail"] + body["drop.conn"]
+       and not re.search(r"(?<![\w.$])(loop|repeat|while|goto)(?![\w.$])", ns) and "nf.h.state(hy) = 2" in body["drop.conn"]
+       and ordered(body["drop.conn"], "nf.s.obj(slot) = 0", "nf.s.state(slot) = 0", "nf.h.state(hy) = 2"), "")
+    ck("NF7b the 30 second request bound: NF$REQUEST.MS is 30000 and is given to the object once, in connect.new; a handle of a lost connection answers 11495 (not a new connection) and CLOSE of it frees "
+       "it without a word (allow.lost)",
+       re.search(r"\$define NF\$REQUEST\.MS\s+30000\b", nf) is not None and nf.count("settimeout(") == 1
+       and ordered(gh, "if nf.h.state(hx) = 2 then", "if allow.lost then return", "fail.num = 11495")
+       and re.search(r"act\.close:\s*\n\s*need\.gate = @false ; need\.conn = @false ; any\.acct = @true ; allow\.lost = @true", body["act.close"]) is not None, "")
+    ck("NF7c CLOSEALL ends every connection and forgets every handle, is never refused (no gate, no list) and sends nothing but the quit that disconnect sends; STATE asks nothing and sends nothing",
+       "obj->disconnect" in body["act.closeall"] and "gosub clear.handle" in body["act.closeall"] and not re.search(r"gate|kernel|obj->(open|read|select|close)", body["act.closeall"] + body["act.state"]), "")
+
+    # ---- N8. the connection table: in named common, no secret in it
+    cm = re.search(r"common\s+/\$netfile/[^\n]*(?:\n[ \t]+[^\n]*)*", nf)
+    ck("NF8 the connections live in the named common block /$netfile/ (the only COMMON statement of the program), and the block holds no key, hash, pin, password, salt or credential by name",
+       re.findall(r"common\s+/([^/]+)/", nf) == ["$netfile"] and cm is not None and not re.search(r"key|pin|pass|cred|hash|salt|secret", cm.group(0), re.I) and "nf.s.obj(NF$MAX.SERVERS)" in cm.group(0), "")
+
+    # ---- N9. the audit trail and the messages carry nothing secret
+    audits = re.findall(r"kernel\(K\$AUDIT,[^\n]*", nf)
+    fails = re.findall(r"fail\.a\d = [^\n;]*", nf)
+    ck("NF9 exactly two audit lines, both lower case with fixed words and values: `netfile open server=<name> file=<remote file>` and `netfile refused server=<name> reason=<word>`; no secret local "
+       "(login, keys, salt, pin, password) is in an audit line or becomes an argument of a message",
+       audits == ["kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)", "kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)"]
+       and not any(re.search(NF_SECRET_LOCALS, a, re.I) for a in audits) and not any(re.search(NF_SECRET_LOCALS, f) for f in fails), repr((audits, [f for f in fails if re.search(NF_SECRET_LOCALS, f)])))
+    ck("NF9a the shapes that guard the names: a server name is a lower case letter then up to 15 lower case letters or digits; a remote file name is letters, digits and . _ - $ up to MAX.ID.LEN with "
+       "'dict ' in front for a dictionary - and no slash, so no pathname can be asked for",
+       ordered(body["shape.names"], "chk.set = lc.set:digits", "len(srv) <= 16", "index(lc.set, srv[1, 1], 1)", "fname[1, 5] = 'dict '", "chk.set = lc.set:digits:'._-$'", "len(body) <= MAX.ID.LEN")
+       and "'/'" not in body["shape.names"] and "/" not in re.sub(r"'[^']*'", "", body["shape.names"]), "")
+
+    # ---- N10. the messages
+    lits = {}
+    for m in re.finditer(r"fail\.num = (\d+)([^\n]*)", nf):
+        lits.setdefault(int(m.group(1)), []).append(len(re.findall(r"fail\.a\d = ", m.group(2))))
+    block_used = {n for n in lits if NF_MSG_FIRST <= n <= NF_MSG_LAST}
+    texts = {n: srcs.get("msg:%d" % n) for n in range(NF_MSG_FIRST, NF_MSG_LAST + 1)}
+    places = {n: max([int(x) for x in re.findall(r"%(\d)", t)] or [0]) for n, t in texts.items() if t}
+    ck("NF10 messages 11490 to 11506 all exist (one line each, inside the Linux block 11000-11999), all are used by netfile, 11507 to 11519 are kept free (no file, no use), and no other program of "
+       "gpl.bp cites a number of the block",
+       all(texts[n] is not None and texts[n].strip() != "" and "\n" not in texts[n].rstrip("\n") for n in range(NF_MSG_FIRST, NF_MSG_USED + 1))
+       and block_used == set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) and all(texts[n] is None for n in range(NF_MSG_USED + 1, NF_MSG_LAST + 1))
+       and LINUX_BLOCK[0] <= NF_MSG_FIRST and NF_MSG_LAST <= LINUX_BLOCK[1]
+       and not [k for k, t in c.items() if k.startswith("bp:") and k not in ("bp:netfile", "bp:netfile.h") and re.search(r"\b115[01]\d\b|\b1149\d\b", t)],
+       repr(sorted(set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) ^ block_used)))
+    short = [(n, k, places.get(n, 0)) for n, ks in lits.items() if n in places for k in ks if k < places.get(n, 0)]
+    ck("NF10a each message has at most three %n places (rc carries three arguments), and every place a message has is given an argument at the line that raises it (11460, reused, gets two - its "
+       "server is rc<4>, which the text does not print)",
+       all(v <= 3 for v in places.values()) and not short and places.get(11497) == 2 and places.get(11500) == 3 and places.get(11494) == 1, repr(short))
+    ck("NF10b the wording the suite relies on: 11494 names the handle, 11495 and 11497 and 11499 and 11500 name the server, 11497 says the connection was LOST during an operation and that nothing "
+       "more is sent, 11501 says the file is read only and that nothing was sent, 11493 says 10 servers is the limit by its argument",
+       all("%1" in (texts.get(n) or "") for n in (11493, 11494, 11495, 11496, 11497, 11498, 11499, 11500, 11501)) and "lost during" in (texts.get(11497) or "")
+       and "Nothing more is sent" in (texts.get(11497) or "") and "read only" in (texts.get(11501) or "") and "Nothing was sent" in (texts.get(11501) or "")
+       and "%1 servers" in (texts.get(11493) or ""), "")
+
+    # ---- N11. the suite and the map
+    drv = suite[suite.find("NFH_DRIVER = r"):suite.find("NFH_SUB = r")]
+    k_errs = {int(x) for x in re.findall(r"k_err\((\d+)", suite)}
+    ck("NF11 the suite sandbox-netfile.py drives EVERY operation by its NF$ name (13 names in the driver), compiles netcred, netfile and its two test programs, has the sections handler, readonly, "
+       "refuse, lost, timeout and gaps, runs gaps only when it is named (it is red by design), and every message number it expects is a message of the tree",
+       all(re.search(r"op = %s\b" % re.escape(k).replace(r"\$", "[$]"), drv) for k in NF_OPS)
+       and "BASIC gpl.bp netcred netfile zznfh zznfhx" in suite and r"Compiled 4 program\(s\) with no errors" in suite
+       and all('("%s", %s_section)' % (s, s) in suite for s in NF_SUITE_SECTIONS) and 'OPT_IN = ("gaps",)' in suite
+       and "(sections is None and name not in OPT_IN)" in suite and k_errs and all(os.path.exists(os.path.join(MSGDIR, str(k))) for k in k_errs), repr(sorted(k_errs)))
+    rules_ok = all(re.search(r"^%s\s*:[^\n]*\bnetfile\b" % re.escape(p), rm, re.M) is not None
+                   for p in ("sdsys/gpl.bp/netfile", "sdsys/gpl.bp/netfile.h", "sdsys/messages/1149*", "sdsys/messages/1150*", "sdsys/messages/1151*"))
+    def first(pat):
+        m = re.search(r"^%s\s*:" % re.escape(pat), rm, re.M)
+        return m.start() if m else 10 ** 9
+    ck("NF12 regress-map.txt: the handler, its header and its messages select the netfile suite, and each rule comes BEFORE the coarse rule that would otherwise take the file (gpl.bp/*.h, gpl.bp/*, "
+       "messages/* - the first rule that matches is the only one used)",
+       rules_ok and first("sdsys/gpl.bp/netfile") < first("sdsys/gpl.bp/*.h") and first("sdsys/gpl.bp/netfile.h") < first("sdsys/gpl.bp/*.h") and first("sdsys/gpl.bp/netfile.h") < first("sdsys/gpl.bp/*")
+       and first("sdsys/messages/1151*") < first("sdsys/messages/*"), "")
+    ck("NF13 the dated history lines are there: netfile, netfile.h and the suite (`17 Oct 26 dm  S.65 slice 3b`), and this check's own file says so",
+       "17 Oct 26 dm  S.65 slice 3b" in raw and "17 Oct 26 dm  S.65 slice 3b" in rawh and "17 Oct 26 dm  S.65 slice 3b" in suite and "S.65 slice 3b" in (__doc__ or ""), "")
+
+
 def mutate(srcs, name, old, new=None):
     s = dict(srcs)
     if callable(old):                       # a mutant made by a function of the source text (raises KeyError when it does not apply)
@@ -1088,6 +1672,8 @@ mut("the certificate is not freed", "sd_tls.c", after(SPKI_FN, "  X509_free(cert
 mut("the DER bytes are not freed", "sd_tls.c", after(SPKI_FN, "  OPENSSL_free(der);\n", ""))
 mut("no certificate is not answered false", "sd_tls.c", after(SPKI_FN, "if (cert == NULL)", "if (0)"))
 mut("the hash function has another signature", "sd_tls.h", "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out);", "int sd_tls_client_peer_spki_sha256(SD_TLS_CLIENT* c, unsigned char* out, int n);")
+mut("sd_tls_client_end no longer blocks SIGPIPE for the close_notify", "sd_tls.c", after("void sd_tls_client_end(SD_TLS_CLIENT* c) {", "pthread_sigmask(SIG_BLOCK, &pipe_only, &old_mask);", ""))
+mut("sd_tls_client_end shuts down before the signal is blocked", "sd_tls.c", after("void sd_tls_client_end(SD_TLS_CLIENT* c) {", "(void)SSL_shutdown(c->ssl);", "/* gone */"))
 mut("the hash digits are upper case", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", '"%02x"', '"%02X"'))
 mut("the answer is not emptied first", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "hex[0] = '\\0';", ""))
 mut("only half the hash is written", "op_skt.c", after("case SKT_INFO_TLS_SPKI:", "i < 32", "i < 16"))
@@ -1334,6 +1920,335 @@ mut("the sudoers line is lost", "sdcore.sudoers", ", /usr/local/sbin/sd-elevate 
 mut("the sudoers line gives netcred-dir an argument", "sdcore.sudoers", "/usr/local/sbin/sd-elevate netcred-dir", "/usr/local/sbin/sd-elevate netcred-dir --dry-run")
 # B5: nobody else asks the gate
 mut("another program asks K$NET", "bp:cd", lambda t: t + "\n   x = kernel(K$NET, -1)\n")
+
+
+# ---- slice 2c: the files-only route ---------------------------------------------------------------------------------------------------
+AFO, AP2, MOD, CRA, CAC = "apifilesok", "apisrvr", "modifya", "createa", "create_account"
+# !apifilesok: every number of the list, taken out of the table, one at a time (a request the server then refuses a files-only client)
+for _n in FILES_ALLOWED:
+    mut("apifilesok: %d is taken out of the table" % _n, AFO, "files.ok := '%d,'" % _n, "files.ok := ''")
+# ...and every kind of number that must stay refused, put into it, one at a time (the first four and the last are the ones the owner named: execute, call, logins, SDNet)
+for _n in (0, 3, 20, 21, 22, 23, 24, 25, 27, 28, 29, 47, 48, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 80):
+    mut("apifilesok: %d is put into the table" % _n, AFO, "files.ok := '49,'", "files.ok := '49,'\nfiles.ok := '%d,'" % _n)
+mut("apifilesok: one line holds two numbers (49,21)", AFO, "files.ok := '49,'", "files.ok := '49,21,'")
+mut("apifilesok: the table starts from nothing (the first number cannot match)", AFO, "files.ok = ','", "files.ok = ''")
+mut("apifilesok: 3 is allowed always", AFO, "if entered then return 0", "if 0 then return 0")
+mut("apifilesok: 3 is refused always", AFO, "if entered then return 0", "return 0")
+mut("apifilesok: 3 is not special (it falls to the table)", AFO, "if action = 3 then", "if action = 3 and 0 then")
+mut("apifilesok: an empty action is tested no more", AFO, "if action = '' then return 0\n", "")
+mut("apifilesok: a non-number is tested no more", AFO, "if not(num(action)) then return 0\n", "")
+mut("apifilesok: the table is searched without its commas (4 matches 49)", AFO, "',' : action : ','", "action")
+mut("apifilesok: the default is yes", AFO, rx(r"(if index\(files\.ok[^\n]*\n\s*)return 0", r"\g<1>return 1"))
+mut("apifilesok: an unknown number is yes", AFO, "if index(files.ok, ',' : action : ',', 1) then return 1", "if index(files.ok, ',' : action : ',', 1) or action > 69 then return 1")
+mut("apifilesok: it is not $internal", AFO, "$internal\nfunction", "function")
+mut("apifilesok: it is catalogued under another name", AFO, "$catalog !apifilesok", "$catalog !apifilesk")
+mut("apifilesok: it asks the kernel something", AFO, "$catalog !apifilesok\n", "$catalog !apifilesok\nx = kernel(K$USERNAME, 0)\n")
+mut("apifilesok: it writes something", AFO, "$catalog !apifilesok\n", "$catalog !apifilesok\nwriteseq 'x' to zz else null\n")
+# apisrvr: the declaration, the mark, the order of the route
+mut("apisrvr: the mark is a plain variable (not in the common block)", AP2, "files.only,         ;*", "files.zz,           ;*")
+mut("apisrvr: the mark is not started false", AP2, "   files.only = @false\n", "")
+mut("apisrvr: the mark is started false twice", AP2, "   files.only = @false\n", "   files.only = @false\n   files.only = @false\n")
+mut("apisrvr: the mark is started at EVERY entry (an abort would clear it), not in the first-time block",
+    AP2, lambda t: t.replace("   files.only = @false\n", "", 1).replace("if not(kernel(K$CPROC.LEVEL,0)) then", "files.only = @false\nif not(kernel(K$CPROC.LEVEL,0)) then", 1))
+mut("apisrvr: the mark is cleared after the login", AP2, "               response = 'v=' : scram.ssig\n               logged.in = @true\n",
+    "               response = 'v=' : scram.ssig\n               logged.in = @true\n               files.only = @false\n")
+mut("apisrvr: the mark is cleared at an SDLogto", AP2, "if not(master.login.done) then\n   master.login.done = @true", "files.only = @false\nif not(master.login.done) then\n   master.login.done = @true")
+mut("apisrvr: the mark is set for everybody", AP2, "if api.files.login then\n                  files.only = @true", "if @true then\n                  files.only = @true")
+mut("apisrvr: the mark is never set", AP2, "files.only = @true", "files.zz = @true")
+mut("apisrvr: the mark is set before the identity is assumed",
+    AP2, lambda t: t.replace("                  files.only = @true\n", "", 1).replace("               if not(kernel(K$ASSUME.USER, scram.user)) then", "               files.only = api.files.login\n               if not(kernel(K$ASSUME.USER, scram.user)) then", 1))
+mut("apisrvr: the sdusers test is gone", AP2, "if not(is_grp_member(scram.user, 'sdusers')) then", "if 0 then")
+mut("apisrvr: sdfiles is read before sdapi",
+    AP2, lambda t: t.replace("is_grp_member(scram.user, 'sdapi')", "is_grp_member(scram.user, 'sdfiles') ;* swapped", 1).replace("api.in.sdfiles = is_grp_member(scram.user, 'sdfiles')", "api.in.sdfiles = is_grp_member(scram.user, 'sdapi')", 1))
+mut("apisrvr: sdapi does not win (the sdfiles route is read for everybody)", AP2, "                  if not(api.in.sdapi) then\n", "                  if @true then\n")
+mut("apisrvr: a member of sdapi is marked files-only too", AP2, "                     api.files.login = @true\n", "                     api.files.login = @true\n                  end\n                  if api.in.sdapi then\n                     api.files.login = @true\n")
+mut("apisrvr: neither group is not refused", AP2, "if not(api.in.sdfiles) then", "if 0 then")
+mut("apisrvr: neither group gives another reason", AP2, "scram.refuse.reason = 'not a member of sdapi'", "scram.refuse.reason = 'not a member of sdfiles'")
+mut("apisrvr: neither group gives another message", AP2, "                        scram.refuse.reason = 'not a member of sdapi'\n                        abort.message = sysmsg(10073, scram.user)",
+    "                        scram.refuse.reason = 'not a member of sdapi'\n                        abort.message = sysmsg(5009)")
+mut("apisrvr: the sdfiles lookup that cannot answer is not looked at", AP2, "if api.files.stat # 0 then", "if 0 then")
+mut("apisrvr: the sdfiles status is not read", AP2, "api.files.stat = status()", "api.files.stat = 0")
+mut("apisrvr: the sdapi lookup that cannot answer is not looked at", AP2, "if api.route.stat # 0 then", "if 0 then")
+mut("apisrvr: an unreadable sdfiles route is let in", AP2, "scram.refuse.reason = 'the sdfiles route could not be read, status ' : api.files.stat\n",
+    "scram.refuse.reason = 'the sdfiles route could not be read, status ' : api.files.stat\n                        api.files.login = @true\n")
+mut("apisrvr: sdsys is not exempt by name", AP2, "if not(downcase(scram.user) = 'sdsys') then", "if @true then")
+mut("apisrvr: sdsys's name is compared in the case it was typed", AP2, "if not(downcase(scram.user) = 'sdsys') then", "if not(scram.user = 'sdsys') then")
+mut("apisrvr: the login by this route is not audited", AP2, drop_line(r"'api login route=sdfiles user='"))
+mut("apisrvr: the login audit line is upper case", AP2, "'api login route=sdfiles user='", "'API LOGIN route=sdfiles user='")
+mut("apisrvr: the login audit line names the wrong route", AP2, "'api login route=sdfiles user='", "'api login route=sdapi user='")
+# apisrvr: the gate
+mut("apisrvr: the gate is not taken", AP2, "   if files.only then\n", "   if 0 then\n")
+mut("apisrvr: the gate is taken for every session", AP2, "   if files.only then\n", "   if @true then\n")
+mut("apisrvr: the gate asks no function", AP2, "if not(apifilesok(action, master.login.done)) then", "if 0 then")
+mut("apisrvr: the account is always 'not yet entered' (3 allowed for ever)", AP2, "apifilesok(action, master.login.done)", "apifilesok(action, @false)")
+mut("apisrvr: the account is always 'entered' (the first 3 is refused)", AP2, "apifilesok(action, master.login.done)", "apifilesok(action, @true)")
+mut("apisrvr: the refusal does not skip the dispatch", AP2, "         goto return.status.set\n", "         null\n")
+mut("apisrvr: the refusal is not an error answer", AP2, "         server.error = SV$ON.ERROR\n         abort.message = sysmsg(11480, action)", "         abort.message = sysmsg(11480, action)")
+mut("apisrvr: the refusal says another message", AP2, "sysmsg(11480, action)", "sysmsg(5270)")
+mut("apisrvr: the refusal does not name the request", AP2, "sysmsg(11480, action)", "sysmsg(11480)")
+mut("apisrvr: the refusal is not audited", AP2, drop_line(r"'api refused request='"))
+mut("apisrvr: the refusal audit line is upper case", AP2, "'api refused request='", "'API REFUSED request='")
+mut("apisrvr: the refusal audit line has no route", AP2, " route=sdfiles user=' : @logname)", " user=' : @logname)")
+mut("apisrvr: the refusal audit line uses a plain variable that an abort loses", AP2, "' route=sdfiles user=' : @logname)", "' route=sdfiles user=' : logname)")
+mut("apisrvr: the gate comes after the dispatch",
+    AP2, lambda t: t.replace(t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")], "", 1).replace("   st = status()\nreturn.status.set:", t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")] + "   st = status()\nreturn.status.set:", 1))
+mut("apisrvr: the gate comes before the not-logged-in test",
+    AP2, lambda t: t.replace(t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")], "", 1).replace("   if not(logged.in) then\n      * 14 Sep 26 dm - 47 and 48", t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")] + "   if not(logged.in) then\n      * 14 Sep 26 dm - 47 and 48", 1))
+mut("apisrvr: a second use of the function (a second gate that lets 20 through)", AP2, "   cproc.date = date()\n", "   if files.only and action = 20 then null\n   if apifilesok(action, 1) then null\n   cproc.date = date()\n")
+mut("apisrvr: master.login.done is set at another place too", AP2, "   tty = 'apisrvr'\n", "   tty = 'apisrvr'\n   master.login.done = @true\n")
+# MODIFY.ACCOUNT
+mut("modifya: the word FILES-ON is not a word", MOD, "case action = 'FILES-ON'", "case action = 'FILES-ONX'")
+mut("modifya: the word FILES-OFF is not a word", MOD, "case action = 'FILES-OFF'", "case action = 'FILES-OFX'")
+mut("modifya: FILES-ON asks for off", MOD, "files.want = @true\n         gosub set.files", "files.want = @false\n         gosub set.files")
+mut("modifya: FILES-OFF asks for on", MOD, "files.want = @false\n         gosub set.files", "files.want = @true\n         gosub set.files")
+mut("modifya: the syntax lines do not name the words", MOD, drop_line(r"modify\.account <account> files-on \| files-off"))
+mut("modifya: the list of words does not name them", MOD, "files-on, files-off, suspended or unsuspended", "suspended or unsuspended")
+mut("modifya: set.files lets a group account through", MOD, "   if group.name[1,4] # 'sdu_' then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then",
+    "   if 0 then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then")
+mut("modifya: a group account is told 10081 and not 10087", MOD, "crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto\n      end else\n         crt sysmsg(10081, acc.name, 2)",
+    "crt sysmsg(10081, acc.name, 2)\n      end else\n         crt sysmsg(10081, acc.name, 2)")
+mut("modifya: the Linux user is not checked for its name", MOD, "if not(valid_os_name(files.user)) then", "if 0 then")
+mut("modifya: the Linux user comes from the account name", MOD, "files.user = group.name[5,999]", "files.user = acc.name")
+mut("modifya: membership is not read three-valued", MOD, "has.files = is_grp_member(files.user, 'sdfiles')\n   files.stat = status()", "has.files = is_grp_member(files.user, 'sdfiles')\n   files.stat = 0")
+mut("modifya: FILES-ON does not need sdusers", MOD, "in.sdusers = is_grp_member(files.user, 'sdusers')", "in.sdusers = @true")
+mut("modifya: FILES-OFF needs sdusers too", MOD, "if files.stat = 0 and files.want then\n      in.sdusers", "if files.stat = 0 then\n      in.sdusers")
+mut("modifya: already in the state is not noticed", MOD, "if has.files = files.want then", "if 0 then")
+mut("modifya: the group's existence is not checked", MOD, "files.found = is_group('sdfiles')", "files.found = @true")
+mut("modifya: FILES-ON adds to sdapi", MOD, "addgroup \" : files.user : \" sdfiles\"", "addgroup \" : files.user : \" sdapi\"")
+mut("modifya: FILES-OFF takes the person out of sdapi", MOD, "delgroup \" : files.user : \" sdfiles\"", "delgroup \" : files.user : \" sdapi\"")
+mut("modifya: the helper is not sd-elevate", MOD, "sudo /usr/local/sbin/sd-elevate addgroup \" : files.user", "sudo /usr/sbin/usermod -aG sdfiles \" : files.user")
+mut("modifya: the change is not read back", MOD, "now.files = is_grp_member(files.user, 'sdfiles')", "now.files = files.want")
+mut("modifya: a read back that differs is a success", MOD, "if files.stat = 0 and now.files # files.want then files.stat = 2", "null")
+mut("modifya: the line shows the request and not the read back", MOD, "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if files.want then 'yes' else 'no')")
+mut("modifya: the audit line is upper case",
+    MOD, "void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   crt sysmsg(11482", "void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)\n   crt sysmsg(11482")
+mut("modifya: the audit line is written before the change",
+    MOD, lambda t: t.replace("   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   crt sysmsg(11482", "   crt sysmsg(11482", 1).replace("   if files.want then\n      files.found = is_group('sdfiles')", "   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.want then\n      files.found = is_group('sdfiles')", 1))
+mut("modifya: a failed change is reported as done", MOD, "   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      crt sysmsg(10081, acc.name, files.stat)\n      return\n   end\n\n   @system.return.code = 0\n   void kernel",
+    "   @system.return.code = 0\n   void kernel")
+# CREATEA and CREATE.ACCOUNT
+mut("createa: FILES-ON is not a word", CRA, "case upcase(token) = 'FILES-ON'", "case upcase(token) = 'FILES-ONX'")
+mut("createa: FILES-ON sets the NET gate", CRA, "settings<CA$FILES> = 1", "settings<CA$NET> = 1")
+mut("createa: FILES-ON sets the setting to 2", CRA, "settings<CA$FILES> = 1", "settings<CA$FILES> = 2")
+mut("createa: the syntax line does not name it", CRA, " {files-on}", "")
+mut("createacc.h: CA$FILES is 35 (the NET setting's number)", "createacc.h", rx(r"(\$define\s+CA\$FILES\s+)36", r"\g<1>35"))
+mut("createacc.h: CA$FILES is not defined", "createacc.h", drop_line(r"\$define\s+CA\$FILES"))
+mut("create_account: any non-zero setting is a request", CAC, "files.want = (settings<CA$FILES> = 1)", "files.want = (settings<CA$FILES> # 0)")
+mut("create_account: the group is not looked for", CAC, "files.found = is_group('sdfiles')", "files.found = @true")
+mut("create_account: a missing group is not told", CAC, "if not(files.found) then\n         @system.return.code = -ER$FAILED\n         err = 10024:@vm:'sdfiles'", "if 0 then\n         @system.return.code = -ER$FAILED\n         err = 10024:@vm:'sdfiles'")
+mut("create_account: an unreadable /etc/group is not looked at", CAC, "if files.stat # 0 then\n         @system.return.code = -ER$FAILED\n         err = 10081:@vm:acc.uname:@vm:files.stat", "if 0 then\n         @system.return.code = -ER$FAILED\n         err = 10081:@vm:acc.uname:@vm:files.stat")
+mut("create_account: the group is looked for AFTER the Linux user is made",
+    CAC, lambda t: (lambda m: t.replace(m.group(1), "", 1).replace("      if not(is_grp_member(acc.uname,'sdusers')) then", m.group(1) + "      if not(is_grp_member(acc.uname,'sdusers')) then", 1))(
+        re.search(r"(\* 17 Oct 26 dm - S\.65 slice 2c: the group sdfiles is looked for.*?\n     end\n)", t, re.S)))
+mut("create_account: a GROUP account is not refused", CAC, "if files.want then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create",
+    "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create")
+mut("create_account: an OTHER account is not refused", CAC, "if files.want then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2", "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2")
+mut("create_account: the join goes to sdapi", CAC, "sd-elevate addgroup \":acc.uname:\" sdfiles\"", "sd-elevate addgroup \":acc.uname:\" sdapi\"")
+mut("create_account: the join is not asked for", CAC, "      if files.want then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfiles\"", "      if @true then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfiles\"")
+mut("create_account: a failed join is not reported", CAC, "         route.stat = OS.ERROR()\n         if route.stat # 0 then", "         route.stat = OS.ERROR()\n         if 0 then")
+mut("create_account: the state line shows the request", CAC, "if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no'", "if files.want then 'yes' else 'no'")
+mut("create_account: the state line is not printed", CAC, drop_line(r"crt sysmsg\(11482,"))
+mut("a register field ACC$FILES is added", "syscom/keys.h", lambda t: t + "\n$define ACC$FILES            16\n")
+# the manifest and the restore
+mut("acc_os_info: the manifest key is `files`", "acc_os_info", "'route.files: '", "'files: '")
+mut("acc_os_info: the manifest asks sdapi", "acc_os_info", "is_grp_member(user, 'sdfiles')", "is_grp_member(user, 'sdapi')")
+mut("acc_os_info: the manifest has no route.files", "acc_os_info", drop_line(r"'route\.files: '"))
+mut("acc_os_info: route.files is written for a group account too", "acc_os_info", "      case grp[1,4] = 'sdg_'\n", "      case grp[1,4] = 'sdg_'\n         info<-1> = 'route.files: 0'\n")
+mut("restorea: the key route.files is not read", "restorea", "= 'route.files' ; m.route.files = kv", "= 'route.filez' ; m.route.files = kv")
+mut("restorea: the key route.files is read into the file count", "restorea", "= 'route.files' ; m.route.files = kv", "= 'route.files' ; m.files = kv")
+mut("restorea: it is not handed on", "restorea", "settings<CA$FILES> = m.route.files", "settings<CA$FILES> = m.files")
+mut("restorea: it is not cleared for each section", "restorea", " ; m.route.files = ''", "")
+mut("restorea: the file count is lost", "restorea", "case sec.keys<s.idx,kp> = 'files'       ; m.files = kv", "case sec.keys<s.idx,kp> = 'filez'       ; m.files = kv")
+mut("backupa: the file count is renamed route.files", "bp:backupa", "m<-1> = 'files: ':files", "m<-1> = 'route.files: ':files")
+# the group
+mut("the installer does not make sdfiles", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles; do", "for sd_route_group in sdssh sdapi; do")
+mut("the installer makes sdfiles a login group", "installsdcore.sh", "sudo groupadd --system \"$sd_route_group\"", "sudo groupadd \"$sd_route_group\"")
+mut("deletesdcore does not remove sdfiles", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles; do", "for sd_route_group in sdssh sdapi; do")
+mut("deletesdcore says it kept two groups", "deletesdcore.sh", "route groups sdssh, sdapi and sdfiles were kept", "route groups sdssh and sdapi were kept")
+mut("deletesdcore removes sdfiles when the accounts are kept", "deletesdcore.sh", "else\n    echo \"sd ACCOUNTS were saved", "else\n    sudo groupdel sdfiles\n    echo \"sd ACCOUNTS were saved")
+mut("sd-elevate does not whitelist sdfiles", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi) : ;;")
+mut("sd-elevate whitelists sdfiles* (a prefix)", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi|sdfiles*) : ;;")
+mut("sd-elevate lets groupdel delete sdfiles", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdusers|sdssh|sdapi)\n        die")
+mut("sd-elevate's refusal does not name sdfiles", "sd-elevate", "(want sdusers, sdssh, sdapi, sdfiles, sdu_*, or sdg_*)", "(want sdusers, sdssh, sdapi, sdu_*, or sdg_*)")
+# the messages
+mut("message 11480 is missing", "msg:11480", lambda t: None)
+mut("message 11480 says another thing", "msg:11480", lambda t: t.replace("files only", "files and more", 1))
+mut("message 11480 loses its place for the request", "msg:11480", lambda t: t.replace("%1", "", 1))
+mut("message 11482 is two lines", "msg:11482", lambda t: t.rstrip("\n") + "\nsecond line\n")
+mut("message 11482 says NET", "msg:11482", lambda t: t.replace("FILES", "NET", 1))
+mut("message 11481 is cited by a program", "bp:cd", lambda t: t + "\n   crt sysmsg(11481)\n")
+mut("a program cites 11483", "bp:cd", lambda t: t + "\n   crt sysmsg(11483)\n")
+mut("a second program cites 11480", "bp:cd", lambda t: t + "\n   crt sysmsg(11480, 1)\n")
+mut("another program reads the mark", "bp:cd", lambda t: t + "\n   if files.only then null\n")
+mut("the login prints something on success", AP2, "                  files.only = @true\n", "                  files.only = @true\n                  crt 'files only'\n")
+
+
+# ---- slice 3a: the class logs in from the stored keys ---------------------------------------------------------------------------------------
+SCL = "bp:sdclient"
+mut("connect.keys: the parameters are by reference", SCL, "public function connect.keys(host, (port), username, (salt), (iterations), (client.key), (server.key), account, (pin))",
+    "public function connect.keys(host, (port), username, salt, iterations, client.key, server.key, account, pin)")
+mut("connect.keys: the pin comparison is gone", SCL, "if ('p' : spki) # ('p' : pin) then", "if 0 then")
+mut("connect.keys: the pin is compared as numbers", SCL, "if ('p' : spki) # ('p' : pin) then", "if spki # pin then")
+mut("connect.keys: the hash is not required", SCL, "   if spki = '' then\n      error = 'The server gave no public key hash", "   if 0 then\n      error = 'The server gave no public key hash")
+mut("connect.keys: something is sent before the pin is checked", SCL, "   spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))",
+    "   void message.pair(SrvrRevision, '')\n   spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))")
+mut("connect.keys: the Ack is read before the pin is checked", SCL, "   spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))",
+    "   void read.socket(skt, 1, SKT$BLOCKING, 5000)\n   spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))")
+mut("connect.keys: the pin is not lowered", SCL, "   pin = downcase(trim(pin))", "   pin = trim(pin)")
+mut("connect.keys: the pin's shape is not checked", SCL, "if len(pin) # 64 or len(convert('0123456789abcdef', '', pin)) # 0 then", "if 0 then")
+mut("connect.keys: no connect timeout", SCL, "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)", "SKT$BLOCKING + SKT$TLS)")
+mut("connect.keys: the socket is opened without TLS", SCL, "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)", "SKT$BLOCKING, NET.CONNECT.SECS)")
+mut("connect.keys: the Ack wait is for ever", SCL, "      b = read.socket(skt, 1, SKT$BLOCKING, io.ms)", "      b = read.socket(skt, 1, SKT$BLOCKING, 0)")
+mut("connect.keys: the Ack loop has no limit", SCL, "   until acked or tries >= NET.ACK.TRIES", "   until acked")
+mut("connect.keys: the read bound is always 30 s (settimeout() before it is lost)", SCL, "   if io.ms = 0 then io.ms = NET.READ.MS", "   io.ms = NET.READ.MS")
+mut("connect.keys: the iteration bounds are not checked", SCL, "   if iterations < SCRAM$MIN.ITER or iterations > SCRAM$MAX.ITER then\n      error = 'The stored iteration count is unacceptable'",
+    "   if 0 then\n      error = 'The stored iteration count is unacceptable'")
+mut("connect.keys: an incomplete login is let through", SCL, "if salt = '' or client.key = '' or server.key = '' then", "if salt = '' then")
+mut("connect.keys: a connected object is let through", SCL, "   if context # CX.DISCONNECTED then\n      error = 'A connection has already been established'", "   if 0 then\n      error = 'A connection has already been established'")
+mut("connect.keys: the keys are not dropped after the exchange", SCL, "   client.key = ''\n   server.key = ''\n   if not(ok) then", "   if not(ok) then")
+mut("connect.keys: keys.fail leaves the socket open", SCL, "keys.fail:\n   client.key = ''\n   server.key = ''\n   close.socket skt", "keys.fail:\n   client.key = ''\n   server.key = ''")
+mut("connect.keys: keys.fail does not drop the keys", SCL, "keys.fail:\n   client.key = ''\n   server.key = ''\n   close.socket skt", "keys.fail:\n   close.socket skt")
+mut("connect.keys: a refused account is let through", SCL, "   if server.error # SV$OK then\n      error = 'The server did not enter the account'", "   if 0 then\n      error = 'The server did not enter the account'")
+mut("connect.keys: a failed account is not a failure", SCL, "   if not(message.pair(SrvrAccount, account)) then\n      if error = '' then error = 'No reply from ' : host : ':' : port : ' when entering the account'\n      goto keys.fail\n   end",
+    "   void message.pair(SrvrAccount, account)")
+mut("connect.keys: a failure returns without keys.fail", SCL, "         error = 'No acknowledgement from ' : host : ':' : port : ' at the start of the session'\n         goto keys.fail\n      end\n      if b = char(6)",
+    "         error = 'No acknowledgement from ' : host : ':' : port : ' at the start of the session'\n         return @false\n      end\n      if b = char(6)")
+mut("connect.keys: a text names the ClientKey", SCL, "error = 'Server signature did not verify'", "error = 'Server signature did not verify ' : expect.v")
+mut("connect.keys: it displays the pin", SCL, "   pin = downcase(trim(pin))", "   pin = downcase(trim(pin))\n   display pin")
+mut("scram.exchange: the salt is not compared", SCL, "if ('s' : salt) # ('s' : stored.salt) then", "if 0 then")
+mut("scram.exchange: the salt is compared as numbers", SCL, "if ('s' : salt) # ('s' : stored.salt) then", "if salt # stored.salt then")
+mut("scram.exchange: the count is not compared", SCL, "if iter + 0 # stored.iter + 0 then", "if 0 then")
+mut("scram.exchange: the stored mode is never taken", SCL, "   if keys.mode then", "   if 0 then")
+mut("scram.exchange: the stored mode is taken for a password", SCL, "   keys.mode = (stored.ck # '')", "   keys.mode = @true")
+mut("scram.exchange: a refused salt keeps the stored keys", SCL, "error = \"The server's salt is not the stored one: the stored login is out of date or this is not the server it was made with\"\n         stored.ck = '' ; stored.sk = ''",
+    "error = \"The server's salt is not the stored one: the stored login is out of date or this is not the server it was made with\"")
+mut("scram.exchange: the compare comes after the nonce check no more (before client-first)", SCL, "   if not(message.pair(SrvrScramFirst, 'p=tls-exporter,,' : cfirst.bare)) then return @false",
+    "   if keys.mode and ('s' : stored.salt) # ('s' : '') then return @false\n   if not(message.pair(SrvrScramFirst, 'p=tls-exporter,,' : cfirst.bare)) then return @false")
+mut("scram.exchange: the working keys are not dropped", SCL, "   client.key = ''\n   srvr.key = ''\n   stored.key = ''\n   client.sig = ''", "   client.key = ''\n   srvr.key = ''\n   client.sig = ''")
+mut("scram.exchange: the server signature is compared with =", SCL, "SDEXT(in.pkt[3,999999] : @FM : expect.v, @TRUE, SD_CTEQUAL) # '1'", "in.pkt[3,999999] # expect.v")
+mut("scram.exchange: the server's signature is not required", SCL, "   if in.pkt[1,2] # 'v=' then", "   if 0 then")
+mut("scram.login is not a wrapper", SCL, "   return scram.exchange(username, password, '', '', '', '')\nend", "   return scram.exchange(username, password, '', '', '', '') and @true\nend")
+mut("connect() calls connect.keys", SCL, "   if not(scram.login(username, password)) then", "   if not(obj->connect.keys(host, port, username, '', 4096, '', '', account, '')) then")
+mut("connect() waits with a bound", SCL, "      until read.socket(skt, 1, SKT$BLOCKING, 0) = char(6)", "      until read.socket(skt, 1, SKT$BLOCKING, io.ms) = char(6)")
+mut("connect() opens with a timeout", SCL, "   skt = open.socket(host, port, SKT$BLOCKING + SKT$TLS)\n   if status() then", "   skt = open.socket(host, port, SKT$BLOCKING + SKT$TLS, 5)\n   if status() then")
+mut("connect() asks a pin", SCL, "   if not(scram.login(username, password)) then", "   if socket.info(skt, SKT$INFO.TLS.SPKI) = '' then return @false\n   if not(scram.login(username, password)) then")
+mut("read.packet's header read waits for ever", SCL, "      s = read.socket(skt, n, SKT$BLOCKING, io.ms)\n      if status() then return @false\n      pkt.header := s",
+    "      s = read.socket(skt, n, SKT$BLOCKING, 0)\n      if status() then return @false\n      pkt.header := s")
+mut("read.packet's data read waits for ever", SCL, "      s = read.socket(skt, n, SKT$BLOCKING, io.ms)\n      if status() then return @false\n      if debugging then",
+    "      s = read.socket(skt, n, SKT$BLOCKING, 0)\n      if status() then return @false\n      if debugging then")
+mut("create.object does not start io.ms", SCL, "   debugging = @false\n   io.ms = 0\nend", "   debugging = @false\nend")
+mut("settimeout takes a negative", SCL, "if not(num(ms)) or ms < 0 then abort 'Illegal timeout'", "if not(num(ms)) then abort 'Illegal timeout'")
+mut("settimeout does not set the bound", SCL, "   io.ms = ms + 0\nend", "   null\nend")
+mut("NET.CONNECT.SECS is 50", SCL, "$define NET.CONNECT.SECS  5 ", "$define NET.CONNECT.SECS  50")
+mut("NET.READ.MS is 0", SCL, "$define NET.READ.MS   30000", "$define NET.READ.MS       0")
+mut("NET.ACK.TRIES is 1", SCL, "$define NET.ACK.TRIES    16", "$define NET.ACK.TRIES     1")
+mut("the class text for a pin mismatch changes", SCL, "'PIN MISMATCH: the public key of '", "'PIN MISSMATCH: the public key of '")
+mut("the class text for a stale salt changes", SCL, "The server's salt is not the stored one: the stored login", "The server salt is not the stored one: the stored login")
+mut("sdclient's history line is gone", SCL, "* 17 Oct 26 dm S.65 slice 3a: connect.keys()", "* 17 Oct 26 dm slice 3a: connect.keys()")
+mut("sdclient's description does not list connect.keys", SCL, "* bool = obj->connect.keys(host, port, username, salt, iterations, client.key, server.key, account, pin)\n", "")
+mut("regress.sh does not list netfile", "regress.sh", ' editgates net netfile"', ' editgates net"')
+mut("regress.sh lists netfile twice", "regress.sh", ' editgates net netfile"', ' editgates net netfile netfile"')
+mut("the map does not select netfile for sdclient", "regress-map.txt", "sdsys/gpl.bp/sdclient        : qmclient netfile net", "sdsys/gpl.bp/sdclient        : qmclient net")
+mut("the map does not select netfile for netcred", "regress-map.txt", "sdsys/gpl.bp/netcred         : net netfile", "sdsys/gpl.bp/netcred         : net")
+mut("the map does not select netfile for setnetlogin", "regress-map.txt", "sdsys/gpl.bp/setnetlogin     : net netfile", "sdsys/gpl.bp/setnetlogin     : net")
+mut("the map does not select netfile for netdefs", "regress-map.txt", "sdsys/gpl.bp/netdefs         : net netfile", "sdsys/gpl.bp/netdefs         : net")
+mut("the map does not select netfile for netfake.py", "regress-map.txt", "gplbld/netfake.py            : net netfile", "gplbld/netfake.py            : net")
+mut("the map has no rule for the suite file", "regress-map.txt", "gplbld/sandbox-netfile.py    : @self\n", "")
+mut("the suite's verdict line changes", "sandbox-netfile.py", 'say("sandbox-netfile: %d passed, %d failed" % (passed, failed))', 'say("sandbox-netfile: %d ok, %d failed" % (passed, failed))')
+mut("the suite has no --build", "sandbox-netfile.py", '"--build" in sys.argv', '"--make" in sys.argv')
+mut("the suite expects another text for the stale count", "sandbox-netfile.py", 'iter_err = "The server\'s iteration count is not the stored one: the stored login is out of date or this is not the server it was made with"',
+    'iter_err = "The server\'s count is not the stored one"')
+mut("the suite's history line is gone", "sandbox-netfile.py", "# 17 Oct 26 dm  New.  S.65 slice 3a.", "# 17 Oct 26 dm  New.")
+
+
+# ---- slice 3b: the remote file handler ------------------------------------------------------------------------------------------------------
+NFP, NFHD, NFSUITE, NFMAP = "bp:netfile", "bp:netfile.h", "sandbox-netfile.py", "regress-map.txt"
+mut("netfile.h: NF$LOCK is 11 (the same as CLEARFILE)", NFHD, rx(r"(\$define\s+NF\$LOCK\s+)12", r"\g<1>11"))
+mut("netfile.h: NF$WRITE is 14", NFHD, rx(r"(\$define\s+NF\$WRITE\s+)9", r"\g<1>14"))
+mut("netfile.h: NF$MAX.SERVERS is 11", NFHD, rx(r"(\$define\s+NF\$MAX\.SERVERS\s+)10", r"\g<1>11"))
+mut("netfile.h: NF$MAX.HANDLES is 101", NFHD, rx(r"(\$define\s+NF\$MAX\.HANDLES\s+)100", r"\g<1>101"))
+mut("netfile.h: NF$RC.ERROR is 4", NFHD, rx(r"(\$define\s+NF\$RC\.ERROR\s+)3", r"\g<1>4"))
+mut("netfile.h: NF$STATE is gone", NFHD, drop_line(r"\$define NF\$STATE\b"))
+mut("netfile is not internal", NFP, "$internal\nsubroutine netfile(", "subroutine netfile(")
+mut("netfile is catalogued under another name", NFP, "$catalog $netfile\n", "$catalog $netfiles\n")
+mut("NF$OPEN does not ask the gate", NFP, "*  (1) THE GATE\n   gosub check.gate\n   if not(gate.ok) then", "*  (1) THE GATE\n   gate.ok = @true\n   if not(gate.ok) then")
+mut("NF$OPEN asks the gate after the definition is read", NFP,
+    lambda t: t.replace("   gosub check.gate\n   if not(gate.ok) then", "   gate.ok = @true\n   if not(gate.ok) then", 1).replace("   call !netdefs('READ', defs, err)\n", "   call !netdefs('READ', defs, err)\n   gosub check.gate\n", 1))
+mut("the accounts list is not asked", NFP, "if index(',':downcase(accts):',', ',':acc:',', 1) = 0 then", "if 0 then")
+mut("the administrator is not exempt from the list", NFP, "   if not(is.admin) then\n      if index(", "   if 1 then\n      if index(")
+mut("the accounts list is compared case sensitively", NFP, "index(',':downcase(accts):',', ',':acc:',', 1)", "index(',':accts:',', ',':acc:',', 1)")
+mut("the stored login is not read", NFP, "call $netcred('READ', srv, cred, pin, err)", "cred = ''")
+mut("the stored login is written", NFP, "call $netcred('READ', srv, cred, pin, err)", "call $netcred('WRITE', srv, cred, pin, err)")
+mut("the definitions are rewritten", NFP, "call !netdefs('READ', defs, err)", "call !netdefs('WRITE', defs, err)")
+mut("the file name is not checked", NFP, "   if not(fname.ok) then\n      cred = ''", "   if 0 then\n      cred = ''")
+mut("the limit on servers is not asked", NFP, "if slot = 0 and ns >= NF$MAX.SERVERS then", "if 0 then")
+mut("the limit on files is not asked", NFP, "   if nh >= NF$MAX.HANDLES then\n      cred = ''", "   if 0 then\n      cred = ''")
+mut("the connection is made before the file name is checked", NFP, "*  (7) THE REMOTE FILE NAME\n", "   gosub connect.new\n*  (7) THE REMOTE FILE NAME\n")
+mut("the open is audited after the connection is made", NFP,
+    lambda t: t.replace("   void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n\n   created = @false", "   created = @false", 1)
+    .replace("   fno = obj->open(fname)\n", "   void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n   fno = obj->open(fname)\n", 1))
+mut("a refusal is not audited", NFP, "   void kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)\n", "")
+mut("the open audit line names the pin", NFP, "' file=' : fname)\n\n   created", "' file=' : fname : ' pin=' : pin)\n\n   created")
+mut("the open audit line is in capitals", NFP, "'netfile open server='", "'NETFILE OPEN server='")
+mut("a refusal reason outside the six", NFP, "refused.why = 'credential' ; gosub refuse", "refused.why = 'secret' ; gosub refuse")
+mut("a refusal falls through without a return", NFP, "refused.why = 'list' ; gosub refuse\n         return\n", "refused.why = 'list' ; gosub refuse\n")
+mut("the audit names the server as typed", NFP, "   if name.ok then safe = srv\n", "   safe = srv\n")
+mut("the password login is used", NFP, "obj->connect.keys(host, port, ruser, rsalt, riter, rck, rsk, racct, pin)", "obj->connect(host, port, ruser, rck, racct)")
+mut("the copies of the keys are not cleared", NFP, "   ruser = ''\n   rsalt = ''\n   riter = ''\n   rck = ''\n   rsk = ''\n   if not(ok) then", "   if not(ok) then")
+mut("the credential is not cleared before the object is made", NFP, "   cred = ''\n   obj = object('!sdclient')", "   obj = object('!sdclient')")
+mut("a second place makes an object", NFP, lambda t: t + "\n   obj2 = object('!sdclient')\n")
+mut("the request bound is not given to the object", NFP, "   obj->settimeout(NF$REQUEST.MS)\n", "")
+mut("the request bound is 0", NFP, "$define NF$REQUEST.MS 30000", "$define NF$REQUEST.MS 0")
+mut("a refused operation calls a write method", NFP, "   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n",
+    "   obj = nf.s.obj(nf.h.slot(hx))\n   obj->write(nf.h.fno(hx), b, c)\n   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n")
+mut("LOCK is no longer refused", NFP, "case op = NF$WRITE or op = NF$DELETE or op = NF$CLEARFILE or op = NF$LOCK", "case op = NF$WRITE or op = NF$DELETE or op = NF$CLEARFILE")
+mut("a read takes a lock", NFP, "rec = obj->read(nf.h.fno(hx), id, e)", "rec = obj->readu(nf.h.fno(hx), id, 0, e)")
+mut("the handler executes a command on the server", NFP, lambda t: t + "\n   obj->execute('x', e)\n")
+mut("the handler writes a file", NFP, lambda t: t + "\n   writeseq 'x' to f else null\n")
+mut("the handler shows the credential", NFP, lambda t: t + "\n   crt cred\n")
+mut("the refusal message is another number", NFP, "fail.num = 11501", "fail.num = 11500")
+mut("the gate is asked with a set", NFP, "kernel(K$NET, -1)", "kernel(K$NET, 1)")
+mut("a second place asks the gate", NFP, lambda t: t + "\n   if kernel(K$NET, -1) then null\n")
+mut("get.handle does not ask the gate", NFP, "   if need.gate then\n      gosub check.gate", "   if 0 then\n      gosub check.gate")
+mut("read does not ask the gate again", NFP, "act.read:\n   need.gate = @true", "act.read:\n   need.gate = @false")
+mut("select does not ask the gate again", NFP, "act.select:\n   need.gate = @true", "act.select:\n   need.gate = @false")
+mut("a handle is not tied to its account", NFP, "      if nf.h.acct(hx) # acc then", "      if 0 then")
+mut("the account is not stored with the handle", NFP, "   nf.h.acct(hx) = acc\n", "   nf.h.acct(hx) = ''\n")
+mut("the account is the log name", NFP, "   acc = downcase(@who)", "   acc = downcase(@logname)")
+mut("a request is sent without the no-reply mark", NFP, "   obj->ServerStatus = NF$NOREPLY\n   e = ''\n   rec = obj->read(", "   e = ''\n   rec = obj->read(")
+mut("a lost connection is not noticed", NFP, "   rq.lost = (st < 0)", "   rq.lost = (st = 0)")
+mut("the no-reply mark is 0", NFP, "$define NF$NOREPLY    -1", "$define NF$NOREPLY    0")
+mut("a lost connection is reconnected", NFP, "   gosub drop.conn\n   fail.num = 11497", "   gosub drop.conn\n   gosub connect.new\n   fail.num = 11497")
+mut("a lost connection is retried in a loop", NFP, "   gosub drop.conn\n   fail.num = 11497", "   gosub drop.conn\n   loop\n   until 1 do\n   repeat\n   fail.num = 11497")
+mut("a lost handle is let through", NFP, "      if allow.lost then return\n", "")
+mut("CLOSE of a lost handle is refused", NFP, "need.gate = @false ; need.conn = @false ; any.acct = @true ; allow.lost = @true", "need.gate = @false ; need.conn = @false ; any.acct = @true ; allow.lost = @false")
+mut("CLOSEALL asks the gate", NFP, "act.closeall:\n   for sx = 1", "act.closeall:\n   gosub check.gate\n   for sx = 1")
+mut("a dropped connection does not mark its handles lost", NFP, "                  nf.h.state(hy) = 2\n", "                  nf.h.state(hy) = 0\n")
+mut("the common block holds a key", NFP, "common /$netfile/ nf.opens,", "common /$netfile/ nf.s.key(NF$MAX.SERVERS), nf.opens,")
+mut("a second common block", NFP, "   out = ''\n   rc = ''\n   rc<1> = NF$RC.OK", "   common /$other/ zz.x\n   out = ''\n   rc = ''\n   rc<1> = NF$RC.OK")
+mut("a message carries the pin", NFP, "fail.num = 11492 ; fail.a1 = srv ; fail.a2 = bad.field", "fail.num = 11492 ; fail.a1 = srv ; fail.a2 = pin")
+mut("a slash is a character of a remote file name", NFP, "chk.set = lc.set:digits:'._-$'", "chk.set = lc.set:digits:'._-$/'")
+mut("a server name may be 17 characters", NFP, "len(srv) <= 16", "len(srv) <= 17")
+mut("message 11497 is missing", "msg:11497", lambda t: None)
+mut("message 11501 has two lines", "msg:11501", lambda t: t.rstrip("\n") + "\nsecond line\n")
+mut("message 11500 has a fourth place", "msg:11500", lambda t: t.rstrip("\n") + " %4\n")
+mut("message 11507 exists", "msg:11507", lambda t: "x\n")
+mut("a message of the block is not used", NFP, "fail.num = 11506 ;", "fail.num = 11507 ;")
+mut("another program cites 11502", "bp:cd", lambda t: t + "\n   crt sysmsg(11502)\n")
+mut("the map loses the handler rule", NFMAP, "sdsys/gpl.bp/netfile         : netfile\n", "")
+mut("the map loses the header rule", NFMAP, "sdsys/gpl.bp/netfile.h       : netfile\n", "")
+mut("the map loses a message rule", NFMAP, "sdsys/messages/1150*         : netfile\n", "")
+mut("the map's last message rule comes after the none rule", NFMAP, "sdsys/messages/1151*         : netfile\nsdsys/messages/*             : none", "sdsys/messages/*             : none\nsdsys/messages/1151*         : netfile")
+mut("the map's header rule comes after the *.h rule", NFMAP,
+    lambda t: t.replace("sdsys/gpl.bp/netfile.h       : netfile\n", "", 1).replace("sdsys/gpl.bp/*.h             : @compiler @core\n", "sdsys/gpl.bp/*.h             : @compiler @core\nsdsys/gpl.bp/netfile.h       : netfile\n", 1))
+mut("the suite loses a section", NFSUITE, '("lost", lost_section), ', "")
+mut("the suite runs gaps by default", NFSUITE, 'OPT_IN = ("gaps",)', "OPT_IN = ()")
+mut("the suite's driver loses CLEARFILE", NFSUITE, "            op = NF$CLEARFILE\n", "            op = 11\n")
+mut("the suite expects a message that is not there", NFSUITE, "k_err(11501, ", "k_err(11599, ")
+mut("the suite does not compile netfile", NFSUITE, "BASIC gpl.bp netcred netfile zznfh zznfhx", "BASIC gpl.bp netcred zznfh zznfhx")
+mut("netfile's history line is gone", NFP, "* 17 Oct 26 dm  S.65 slice 3b: written.", "* 17 Oct 26 dm  written.")
+mut("netfile.h's history line is gone", NFHD, "* 17 Oct 26 dm  S.65 slice 3b: written.", "* 17 Oct 26 dm  written.")
+mut("the suite's history line is gone", NFSUITE, "# 17 Oct 26 dm  S.65 slice 3b:", "# 17 Oct 26 dm  slice 3b:")
 
 
 def run(srcs):

@@ -3,6 +3,8 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 17 Oct 26 dm S.65 slice 2c: the manifest key route.files (1 if the user is in the group sdfiles, the files-only SDNet login), beside route.ssh and
+*              route.api.  NOT `files`: the backup writes `files: N` (the file count) into the same section, and restorea reads it as that count.
 * 17 Oct 26 dm S.65 slice 1: the manifest key net (1 only if ACC$NET says yes), beside edit.voc, edit.bp and edit.dict; the NET gate does nothing yet.
 * 01 Oct 26 dm Written for S.50 (per-OS helper; signature agreed with SD Core
 *              for Windows by mail, 2026-10-01T1030 and 1115).
@@ -16,7 +18,7 @@
 *
 *    acc.name ''  - the system keys: product, host, accounts.root, sd.version.
 *    acc.name set - the account's keys, from its ACCOUNTS record (acc.rec):
-*                   type, os.user, os.group, route.ssh, route.api, os.sh,
+*                   type, os.user, os.group, route.ssh, route.api, route.files, os.sh,
 *                   os.execute, and for a GROUP account its members.
 *
 *    LINUX DETAIL.  The type comes from the register's group (sdu_ USER, sdg_
@@ -63,6 +65,7 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          info<-1> = 'os.group: ':grp
          info<-1> = 'route.ssh: ':(if is_grp_member(user, 'sdssh') then 1 else 0)
          info<-1> = 'route.api: ':(if is_grp_member(user, 'sdapi') then 1 else 0)
+         info<-1> = 'route.files: ':(if is_grp_member(user, 'sdfiles') then 1 else 0)     ;* 17 Oct 26, S.65 slice 2c: membership of sdfiles, the files-only login
          info<-1> = 'os.sh: ':(if upcase(trim(acc.rec<ACC$SH>)) = 'YES' then 1 else 0)
          info<-1> = 'os.execute: ':(if upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES' then 1 else 0)
          info<-1> = 'edit.voc: ':(if upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES' then 1 else 0)     ;* 17 Oct 26, S.64

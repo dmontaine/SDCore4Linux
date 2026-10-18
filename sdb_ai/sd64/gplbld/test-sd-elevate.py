@@ -3,6 +3,9 @@
 
 Written 09 Sep 26 for PRE_RELEASE 14.
 
+17 Oct 26 dm S.65 slice 2c: rows for the route group sdfiles (group_rows) and
+`--selftest`, which runs them against eight mutated copies of the helper.
+
 WHAT IT IS FOR.  sd-elevate is the one command the sdsys user (SD's
 administrator) may run as root, so everything that stops that being a root
 shell lives in its argument validation.  This drives that validation through
@@ -30,13 +33,141 @@ HELPER = os.path.join(HERE, "sd-elevate")
 ALLOW, REFUSE = "ALLOW", "REFUSE"
 
 
-def run(args):
-    """Run the helper in dry-run mode.  Returns (exit_code, stdout+stderr)."""
+def run(args, helper=None):
+    """Run the helper in dry-run mode.  Returns (exit_code, stdout+stderr).
+
+    `helper` is a mutated copy when --selftest drives the group rows."""
     p = subprocess.run(
-        ["bash", HELPER, "--dry-run"] + args,
+        ["bash", helper or HELPER, "--dry-run"] + args,
         capture_output=True, text=True,
     )
     return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+
+# ---- 17 Oct 26, S.65 slice 2c: THE ROUTE GROUPS, asked without asking the
+# ---- machine.  sdfiles is the SDNet files-only API route, a third group beside
+# ---- sdssh and sdapi.  Whether it exists on this box depends on whether an
+# ---- install has made it, so no row asserts the helper CREATES it; each row
+# ---- asserts the REASON, which is the whitelist's own sentence:
+# ----   "not an SD group"          the name is not on the whitelist
+# ----   "never deleted here"       the group is a system group, not destroyable
+# ----   (anything else, or exit 0) the name was accepted
+# ---- A user for addgroup/delgroup is the account running the test, if the
+# ---- helper takes it as an SD user at all; otherwise those rows are SKIPPED
+# ---- out loud and the groupadd / groupdel rows still run.
+def _accepted(code, out):
+    return ("not an SD group" not in out and "not a valid name" not in out
+            and (code == 0 or "already exists" in out or "does not exist" in out))
+
+
+def _name_refused(code, out):
+    return code != 0 and "not an SD group" in out
+
+
+def _undeletable(code, out):
+    return code != 0 and "never deleted here" in out
+
+
+def _bad_name(code, out):
+    return code != 0 and "not a valid name" in out
+
+
+# Names that merely begin with, end with, or look like sdfiles.
+NOT_SDFILES = ["sdfilesx", "sdfiles2", "sdfiles-x", "sdfile", "xsdfiles"]
+
+
+def group_rows(helper=None):
+    """Returns (rows, skipped).  A row is (label, ok, detail)."""
+    import getpass
+    rows = []
+    skipped = []
+
+    def ask(label, argv, check):
+        code, out = run(argv, helper)
+        first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+        rows.append((label, check(code, out), f"exit {code}: {first}"))
+
+    who = getpass.getuser()
+    code, out = run(["passwd", who], helper)
+    if code != 0:
+        skipped.append(f"addgroup/delgroup: '{who}' is not an SD user here ({out.strip().splitlines()[0] if out.strip() else 'no output'})")
+        who = None
+
+    ask("groupadd sdfiles is on the whitelist", ["groupadd", "sdfiles"], _accepted)
+    if who:
+        ask("addgroup <me> sdfiles is on the whitelist", ["addgroup", who, "sdfiles"], _accepted)
+        ask("delgroup <me> sdfiles is on the whitelist", ["delgroup", who, "sdfiles"], _accepted)
+    for grp in ("sdfiles", "sdusers", "sdssh", "sdapi"):
+        ask(f"groupdel {grp} is never deleted", ["groupdel", grp], _undeletable)
+    for bad in NOT_SDFILES:
+        ask(f"groupadd {bad} is not an SD group", ["groupadd", bad], _name_refused)
+        ask(f"groupdel {bad} is not an SD group", ["groupdel", bad], _name_refused)
+        if who:
+            ask(f"addgroup <me> {bad} is not an SD group", ["addgroup", who, bad], _name_refused)
+            ask(f"delgroup <me> {bad} is not an SD group", ["delgroup", who, bad], _name_refused)
+    ask("groupadd SDFILES is not a valid name (lower case only)", ["groupadd", "SDFILES"], _bad_name)
+    return rows, skipped
+
+
+# Each mutant is (name, old text, new text) applied to the helper's source; the
+# old text must occur exactly once, or the selftest refuses.
+GROUP_MUTANTS = [
+    ("sdfiles dropped from the whitelist",
+     "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi) : ;;"),
+    ("sdfiles matched as a prefix",
+     "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi|sdfiles*) : ;;"),
+    ("whitelist widened to sd*",
+     "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi|sd*) : ;;"),
+    ("whitelist refuses nothing",
+     "*) die \"'$group' is not an SD group", "*) : ;; # \"'$group' is not an SD group"),
+    ("sdfiles made deletable",
+     "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdusers|sdssh|sdapi)\n        die"),
+    ("sdapi made deletable",
+     "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdusers|sdssh|sdfiles)\n        die"),
+    ("sdssh made deletable",
+     "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdusers|sdapi|sdfiles)\n        die"),
+    ("sdusers made deletable",
+     "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdssh|sdapi|sdfiles)\n        die"),
+]
+
+
+def selftest():
+    """The group rows must pass on the real helper and fail on every mutant."""
+    if not os.path.exists(HELPER):
+        print(f"REFUSING - helper not found at {HELPER}", file=sys.stderr)
+        return 2
+    src = open(HELPER, encoding="utf-8").read()
+    rows, skipped = group_rows()
+    for s in skipped:
+        print(f"  SKIPPED {s}")
+    if len(rows) < 10:
+        print(f"REFUSING - only {len(rows)} group rows ran", file=sys.stderr)
+        return 2
+    bad = [r for r in rows if not r[1]]
+    print(f"  control: the real helper, {len(rows)} group rows, {len(bad)} failed")
+    for label, ok, detail in bad:
+        print(f"    FAIL {label} | {detail}")
+    if bad:
+        return 1
+    survivors = 0
+    with tempfile.TemporaryDirectory() as td:
+        for name, old, new in GROUP_MUTANTS:
+            if src.count(old) != 1:
+                print(f"REFUSING - mutant '{name}': its text occurs {src.count(old)} times, not once",
+                      file=sys.stderr)
+                return 2
+            path = os.path.join(td, "sd-elevate-mutant")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(src.replace(old, new))
+            mrows, _ = group_rows(path)
+            caught = [r for r in mrows if not r[1]]
+            if caught:
+                print(f"  [KILLED  ] {name:42} | {len(caught)} row(s), first: {caught[0][0]}")
+            else:
+                survivors += 1
+                print(f"  [SURVIVED] {name}")
+    print(f"{len(GROUP_MUTANTS) - survivors} of {len(GROUP_MUTANTS)} mutants killed")
+    return 1 if survivors else 0
 
 
 # Each row: (expectation, argv, note).  `note` says WHY the row exists, so a
@@ -89,6 +220,7 @@ CASES = [
     # ---- from - sdusers' own reason - so both are undeletable here.
     (REFUSE, ["groupdel", "sdssh"],          "the ssh route register is not deletable"),
     (REFUSE, ["groupdel", "sdapi"],          "the API route register is not deletable"),
+    (REFUSE, ["groupdel", "sdfiles"],        "the SDNet files-only route register is not deletable (S.65 slice 2c)"),
     # 20 Sep 26 - ***THESE TWO ROWS MEASURED THIS MACHINE, NOT THE HELPER, AND
     # THEY FLIPPED THE DAY AN INSTALL CREATED THE GROUPS.***  They asserted
     # ALLOW for `groupadd sdssh|sdapi`; sd-elevate refuses "group already
@@ -270,6 +402,27 @@ def main():
         else:
             failed += 1
             failures.append((["groupadd", grp], "name accepted by the whitelist", why, out.strip()))
+
+    # ---- 17 Oct 26, S.65 slice 2c: sdfiles, the SDNet files-only API route.
+    # ---- The same question for the third route group, plus the other half: a
+    # ---- name that merely resembles it (a prefix, a suffix, a hyphen, a digit)
+    # ---- is not on the whitelist, and none of the four system groups is
+    # ---- deletable.  See group_rows() above; `--selftest` runs these same rows
+    # ---- against eight mutated copies of the helper.
+    grows, gskipped = group_rows()
+    for s in gskipped:
+        print(f"  SKIPPED {s}")
+    for label, ok, detail in grows:
+        print(f"  [{'PASS' if ok else 'FAIL'}] GROUP  {label:52} | {detail}")
+        if ok:
+            passed += 1
+            if "is on the whitelist" in label:
+                n_allow += 1
+            else:
+                n_refuse += 1
+        else:
+            failed += 1
+            failures.append(([label], "group rule", "broken", detail))
 
     # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
     # ---- exit code of 0 says the word was accepted, not that ON opens the
@@ -609,4 +762,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(selftest() if "--selftest" in sys.argv[1:] else main())
