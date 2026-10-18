@@ -17,6 +17,10 @@
 #               said nothing; sdfix -F could not delete a local index subfile, repaired the split and merge loads to
 #               values its own check rejects, -Q looped for ever when its input ended, the interactive W command read
 #               decimal against its hex help, -R with -F or -Q fixed nothing, and it did not look for a file open in SD.
+# 18 Oct 26 dm  Rows V1-V13 (verifier_rows): a data path of 252 characters (-F deleted the overflow subfile and the index),
+#               interactive mode whose input fails rather than ends, junk after the W address, an unreadable index file
+#               repaired twice, the exit status over several files, and a relative index path stored as typed.  Each was
+#               red on the tree before (10 of the 13; V1, V6 and V7 are controls).
 # END-HISTORY
 #
 # WHAT IT MEASURES.  A hashed file with 40 records and one D-type index (CITY) is made INSIDE the sandbox by SD itself,
@@ -76,19 +80,53 @@ def sess(*cmds):
     return ANSI.sub("", p.stdout + p.stderr).split(":TERM 200,9999", 1)[-1]
 
 
-def tool(name, *args, stdin="", timeout=20):
-    """Run the sandbox's tool.  Returns (status, text, timed_out).  stdin is ALWAYS a pipe: '' means input that ends."""
+def tool(name, *args, stdin="", timeout=20, stdin_dir=False):
+    """Run the sandbox's tool.  Returns (status, text, timed_out).  stdin is ALWAYS a pipe: '' means input that ends.
+    stdin_dir=True makes it a DIRECTORY instead: read() on it fails (EISDIR), which is not the end of input."""
     cmd = [os.path.join(BIN, name)] + list(args)
-    say("    $ " + (("printf %r | " % stdin) if stdin else "(stdin ends) ") + " ".join(cmd).replace(BOX, "<box>"))
+    if stdin_dir:
+        say("    $ (stdin is a directory) " + " ".join(cmd).replace(BOX, "<box>"))
+    else:
+        say("    $ " + (("printf %r | " % stdin) if stdin else "(stdin ends) ") + " ".join(cmd).replace(BOX, "<box>"))
     env = dict(os.environ, SD_CONFIG=CONF)
+    dfd = os.open("/", os.O_RDONLY) if stdin_dir else None
     try:
-        p = subprocess.run(cmd, input=stdin, capture_output=True, text=True, errors="replace", env=env, cwd=WORK,
-                           timeout=timeout)
+        if stdin_dir:
+            p = subprocess.run(cmd, stdin=dfd, capture_output=True, text=True, errors="replace", env=env, cwd=WORK,
+                               timeout=timeout)
+        else:
+            p = subprocess.run(cmd, input=stdin, capture_output=True, text=True, errors="replace", env=env, cwd=WORK,
+                               timeout=timeout)
         return p.returncode, ANSI.sub("", p.stdout + p.stderr), False
     except subprocess.TimeoutExpired as e:
         out = e.stdout or b""
         out = out.decode("utf-8", "replace") if isinstance(out, bytes) else out
         return None, ANSI.sub("", out), True
+    finally:
+        if dfd is not None:
+            os.close(dfd)
+
+
+def fresh_long(name, length):
+    """Copy the fixture to a data directory whose path is exactly LENGTH characters (components of 100 or fewer)."""
+    top = os.path.join(WORK, name)
+    if os.path.exists(top):
+        shutil.rmtree(top)
+    os.makedirs(top)
+    need = length - len(top) - 1
+    comps = []
+    while need > 0:
+        n = min(need, 100)
+        if need - n == 1:
+            n -= 1
+        comps.append("d" * n)
+        need -= n + 1
+    dst = top + "/" + "/".join(comps)
+    if len(dst) != length:
+        bail("could not make a path of %d characters (made %d)" % (length, len(dst)))
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    shutil.copytree(FIX, dst, symlinks=True)
+    return dst
 
 
 def fresh(name, where=None):
@@ -562,6 +600,102 @@ def open_rows():
 
 
 # --------------------------------------------------------------------------------------------------------------------
+def verifier_rows():
+    """Faults found by trying to break the first fixes (18 Oct 26): rows V1-V13, each run red on the tree before."""
+    global CONF
+    say("\n=== found by trying to break the fixes ===================================================================")
+    plain = CONF
+    debug_conf = make_conf(True)
+    CONF = debug_conf
+    offs = header_offsets(fresh("v-offs"))
+    CONF = plain
+    t = offs["Trigger name"]
+    sl, ml = offs["Split load"], offs["Merge load"]
+
+    say("\n--- a data path so long that a two-digit index subfile name does not fit --------------------------------")
+    d = fresh_long("v-long251", 251)
+    before = blob(d)
+    rc, out, to = tool("sdfix", "-B", "-F", d)
+    row("V1 (control) at 251 characters every subfile name fits: -F ends Status: 0 and changes nothing",
+        rc == 0 and blob(d) == before and "AK" not in out.replace("Checking AK", "") and "Status: 0" in out, "%r %r" % (rc, out[-300:]))
+    d = fresh_long("v-long252", 252)
+    before = blob(d)
+    say("    BEFORE %r" % ls(d))
+    rc, out, to = tool("sdfix", "-B", "-F", d)
+    say("    AFTER  %r" % ls(d))
+    row("V2 at 252 characters the name of AK 8 and up is cut short to %1: -F must not delete the overflow subfile or the "
+        "index (it did both)", blob(d) == before, "left %r" % ls(d))
+    row("V3 ... it refuses the file, says why, and ends Status: 1",
+        rc == 1 and "too long" in out and "Status: 1" in out and "Checking file header" not in out, "%r %r" % (rc, out[-300:]))
+    rc, out, to = tool("sdfix", "-B", "-C", d)
+    row("V4 ... and a plain check does not report AK subfiles that are the overflow subfile cut short",
+        "found but not expected" not in out and "too long" in out, out[-300:])
+
+    say("\n--- input that fails (as opposed to ending) ----------------------------------------------------------------")
+    d = fresh("v-stdin-dir")
+    CONF = debug_conf
+    rc, out, to = tool("sdfix", "-I", d, stdin_dir=True, timeout=8)
+    CONF = plain
+    row("V5 interactive mode whose input FAILS (stdin is a directory): the program ends (it prompted for ever), "
+        "Status: 1", not to and rc == 1 and "Input error" in out, "timed out: %r %r %r" % (to, rc, out[-100:]))
+    d = fresh("v-stdin-q")
+    set_int16(d, sl, 50)
+    set_int16(d, ml, 80)
+    before = blob(d)
+    rc, out, to = tool("sdfix", "-B", "-Q", d, stdin_dir=True, timeout=8)
+    row("V6 -Q whose input fails ends, answers no and writes nothing", not to and blob(d) == before and "end of input" in out.lower(),
+        "timed out: %r %r" % (to, out[-200:]))
+    d = fresh("v-stdin-idx")
+    x = os.path.join(WORK, "v-stdin-idx", "idx")
+    tool("sdidx", "-m", d, x)
+    rc, out, to = tool("sdidx", "-d", d, stdin_dir=True, timeout=8)
+    row("V7 (control) sdidx -d whose input fails stops with nothing deleted, status 1",
+        not to and rc == 1 and ls(x) == ["%2"] and "Indices not deleted" in out, "%r %r %r" % (to, rc, out[-200:]))
+
+    say("\n--- the W command's address ---------------------------------------------------------------------------")
+    d = fresh("v-w")
+    before = blob(d)
+    cmds = "W%sg0=41\nW%sxyz=41\nW%s =41\nW%s=41zz\nq\n" % (t, t, t, t)
+    CONF = debug_conf
+    rc, out, to = tool("sdfix", "-I", d, stdin=cmds, timeout=15)
+    CONF = plain
+    row("V8 junk after the hex address (g0, xyz, a space) is a format error and writes nothing; it wrote at the part it "
+        "could read", blob(d) == before and out.count("Format error in W command") == 4, "%d format errors; %r" % (out.count("Format error in W command"), out[-300:]))
+
+    say("\n--- an index file that cannot be read -----------------------------------------------------------------------")
+    d = fresh("v-ak0")
+    with open(os.path.join(d, "%2"), "r+b") as fh:
+        fh.truncate(0)
+    rc, out, to = tool("sdfix", "-B", "-C", d)
+    row("V9 an empty index file: a check reports it unreadable once, not also as a bad magic number read from nothing",
+        "Cannot read AK0 subfile header" in out and "incorrect magic number" not in out, out[-300:])
+    rc, out, to = tool("sdfix", "-B", "-F", d)
+    say("    AFTER -F  %r" % ls(d))
+    row("V10 -F deletes it and says so once, not a second time that it could not",
+        ls(d) == ["%0", "%1"] and out.count("Corrected by deleting") == 1 and "could not be deleted" not in out, out[-400:])
+
+    say("\n--- the exit status over several files ----------------------------------------------------------------")
+    d = fresh("v-multi")
+    rc, out, to = tool("sdfix", "-B", d + "/nonexistent", d)
+    row("V11 a file that is not found, then a good one: the status is 1, not the last file's 0", rc == 1 and "Status: 0" in out,
+        "%r %r" % (rc, out[-300:]))
+
+    say("\n--- a relative index path -----------------------------------------------------------------------------")
+    d = fresh("v-rel")
+    rc, out, to = tool("sdidx", "-m", d, "v-rel/idx")
+    where = os.path.join(WORK, "v-rel", "idx")
+    row("V12 -m with a RELATIVE index path stores the full path (the header held the text as typed)",
+        rc == 0 and ls(where) == ["%2"] and ("Index directory is " + where) in q(d), "%r %r" % (rc, q(d)[-200:]))
+    d = fresh("v-relp")
+    where = os.path.join(WORK, "v-relp", "idx")
+    os.makedirs(where)
+    shutil.copy(os.path.join(d, "%2"), where)
+    rc, out, to = tool("sdidx", "-p", d, "v-relp/idx")
+    row("V13 -p with a RELATIVE index path stores the full path",
+        rc == 0 and ("Index directory is " + where) in out and ("Index directory is " + where) in q(d), "%r %r" % (rc, q(d)[-200:]))
+
+
+# --------------------------------------------------------------------------------------------------------------------
 def main():
     global BOX, SYSD, BIN, WORK, CONF, FIX
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -612,6 +746,7 @@ def main():
         sdidx_rows()
         sdfix_rows()
         open_rows()
+        verifier_rows()
     finally:
         say("\n--- cleanup -------------------------------------------------------------------------------------")
         sess("DELETE.FILE %s" % F)

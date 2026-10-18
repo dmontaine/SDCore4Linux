@@ -1384,10 +1384,11 @@ case $verb in
     data_acct=$ACCT_REAL
     account_of_path "$2"
     [[ $ACCT_REAL == "$data_acct" ]] || die "the index path is in $ACCT_REAL, not in the file's own account $data_acct"
-    # sdidx -p prints nothing on success and ignores write_primary_header()'s
-    # result (sdidx.c case 'P'), so its status proves nothing: the change is
-    # accepted only when -q then names the new path (the Windows port's check,
-    # mailed 2026-10-01T1200).
+    # sdidx -p used to print nothing on success and ignore write_primary_header()'s
+    # result (sdidx.c case 'P'); since 18 Oct 26 it checks that write and says what
+    # -q says.  The change is still accepted only when -q then names the new path
+    # (the Windows port's check, mailed 2026-10-01T1200): it also covers an older
+    # sdidx.
     printf '%s: %s -p %s %s\n' "$PROG" "$SD_SYS_ROOT_REAL/bin/sdidx" "$1" "$2"
     printf '%s: %s -q %s\n' "$PROG" "$SD_SYS_ROOT_REAL/bin/sdidx" "$1"
     [[ $DRY -eq 1 ]] && exit 0
