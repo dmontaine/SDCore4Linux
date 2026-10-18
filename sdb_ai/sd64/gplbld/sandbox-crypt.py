@@ -10,6 +10,9 @@
 # START-HISTORY:
 # 18 Oct 26 dm  Written for encryption layer 2 (.claude/plan-encryption-layers.md): SDSALT(), SDKEY(passphrase, salt),
 #               SDRANDKEY() and the way they meet SDENCRYPT / SDDECRYPT.
+# 18 Oct 26 dm  Cold-start rows: each is the first libsodium call of a session of its own.  The rows of one session share a libsodium
+#               that an early SDSALT() started, so SDKEY() as a process's first call (sodium_malloc() before sodium_init(): an assertion
+#               that kills the process) passed unseen.
 # END-HISTORY
 #
 # THE INSTRUMENT is the value a BASIC program printed between brackets (as sandbox-func-b4.py).  A row that compares two
@@ -166,6 +169,20 @@ CASES = [
      "x = (sdkey('pw', sdsalt()) # sdkey('pw', sdsalt()))", "1"),
 ]
 
+# COLD START.  Each of these is the FIRST libsodium call of its own sd process (a session of its own).  The rows above all run in
+# one session, where an earlier SDSALT() has already started libsodium: SDKEY() as the first call used to kill the process with a
+# libsodium assertion (sodium_malloc() before sodium_init()), and nothing above could see it.  (found 18 Oct 26 by the XE work)
+COLD = [
+    ("COLD: SDKEY as the first libsodium call of the process gives the key libsodium makes outside SD",
+     "x = sdkey('%s', '%s')" % (REF_PW.decode(), REF_SALT_B64), "REFERENCE"),
+    ("COLD: SDKEY as the first call, with a salt that is refused, gives the null string and 10206 (not a dead process)",
+     "x = sdkey('pw', 'bad'):'|':status()", "|10206"),
+    ("COLD: SDSALT as the first call is 24 characters", "x = len(sdsalt()):'|':status()", "24|0"),
+    ("COLD: SDRANDKEY as the first call is 44 characters", "x = len(sdrandkey()):'|':status()", "44|0"),
+    ("COLD: SDENCRYPT as the first call, with a key from SDRANDKEY, round-trips",
+     "k = sdrandkey()\n   x = sddecrypt(sdencrypt('cold value', k, 202), k, 202)", "cold value"),
+]
+
 # Files the canary must not reach.  The passphrase is built at run time, so the program source does not hold it.
 CANARY_A, CANARY_B = "Canary", "Phrase-7f3a91"
 CONTROL_FRAG = "zzcryptsourcefrag"
@@ -279,6 +296,18 @@ def main():
                     "ran and printed %r" % got if m else "compiler output: %s" % " / ".join(seg.split("\n")[1:6]))
             else:
                 row("%s: wanted %r" % (label, want), got == want, "got %r" % got if m else "no output")
+        say("\n--- cold start: the first libsodium call of a process ------------------------------")
+        for j, (label, body, want) in enumerate(COLD):
+            nm = "zzcrcold%d" % j
+            names.append(nm)
+            with open(os.path.join(sysd, "bp", nm), "w") as f:
+                f.write("   x = ''\n" + "".join("   %s\n" % ln for ln in body.split("\n")) + "   crt 'COLD[':x:']'\nend\n")
+            cout = sess(box, "BASIC bp %s" % nm, "RUN bp %s" % nm)
+            m = re.search(r"(?m)^COLD\[(.*)\]\s*$", cout)
+            got = m.group(1) if m else None
+            if want == "REFERENCE":
+                want = ref
+            row("%s: wanted %r" % (label, want), got == want, "got %r" % got if m else "no output; the session said: %s" % cout.strip()[-200:])
         say("\n--- key hygiene: nothing is written to disk ---------------------------------------")
         mk = re.search(r"(?m)^KEY\[(.*)\]\s*$", out)
         mp = re.search(r"(?m)^PW\[(.*)\]\s*$", out)
