@@ -12,10 +12,11 @@
 # START-HISTORY:
 # 15 Oct 26 dm  Written with the CREATING.SEQKEY option of ED and SED (openQM 4: "Use of CREATING.SEQKEY instead of a
 #               record id automatically generates the next sequential key for the file"), gpl.bp/seqkey.
+# 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42.
 # END-HISTORY
 #
 # HOW IT DRIVES THE EDITORS.  ED, the line editor, is driven through a pipe, one command to a line, as sandbox-collfile.py
-# does.  SED is driven on a PSEUDO-TERMINAL (ptydrive.py) at 120 by 36, its one size, and its screen is read from the
+# does.  SED is driven on a PSEUDO-TERMINAL (ptydrive.py) at 140 by 42, its one size, and its screen is read from the
 # emulator in termscreen.py.  What each editor DID is read from the disk afterwards by a BASIC probe (the counter, from
 # FILEINFO(f, 1031), and every record of the data part, the dictionary part, a directory file and a collection file), not
 # from what the editor printed; what the editor printed is read for the id it showed and for the words of a refusal.
@@ -82,7 +83,7 @@ def sess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=120, rows=36):          # SED is 120 by 36 always, and refuses a smaller window
+    def __init__(self, box, cmd, cols=140, rows=42):          # SED is 140 by 42 always (18 Oct 26; 120 by 36 before), and refuses a smaller window
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")

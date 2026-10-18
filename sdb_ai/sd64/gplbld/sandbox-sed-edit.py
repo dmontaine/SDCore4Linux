@@ -11,6 +11,8 @@
 # START-HISTORY:
 # 13 Oct 26 dm  Written for SED's undo and redo (Ctrl-Z, Ctrl-Y, Edit > Undo and Redo) and its mouse (a click on the text, on
 #               the bar, the wheel; MOUSE ON / OFF and NO.MOUSE in &sed.options&).
+# 18 Oct 26 dm  SED is 140 by 42 (terminal 140x42, phase 2): the window here is 140 by 42, the split window's lower half starts
+#               a few rows lower (the click on its third row is at y = 24, 1-based).
 # END-HISTORY
 #
 # HOW IT DRIVES SED.  On a PSEUDO-TERMINAL (ptydrive.py), as sandbox-sed-menu.py does, and reads the screen from the emulator
@@ -85,7 +87,7 @@ def sess(box, *cmds):
 class Term:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=120, rows=36):          # SED is 120 by 36 always, and refuses a smaller window
+    def __init__(self, box, cmd, cols=140, rows=42):          # SED is 140 by 42 always (18 Oct 26; 120 by 36 before), and refuses a smaller window
         self.cols = cols
         self.rows = rows
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
@@ -305,14 +307,14 @@ def part_mouse(box):
     e.keys(click(1, 2))
     e.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, "s", idle=0.9)
     L = e.lines()
-    srow = [i for i, l in enumerate(L) if i > 2 and F in l and i < 35]
+    srow = [i for i, l in enumerate(L) if i > 2 and F in l and i < 41]
     row("control: Window > Split window cuts the screen in two: the file name is on a line in the middle", bool(srow) and 10 < srow[0] < 30, repr(srow))
-    L = e.keys(click(10, 21))
-    row("a click in the lower window (row 21) makes it the live one and puts the cursor on its line 3", at(e) is not None and at(e)[0] == 3, repr(at(e)))
+    L = e.keys(click(10, 24))
+    row("a click in the lower window (row 24: its third row) makes it the live one and puts the cursor on its line 3", at(e) is not None and at(e)[0] == 3, repr(at(e)))
     L = e.keys(click(10, 4))
     row("a click back in the upper window (row 4) goes there and puts the cursor on line 3 of it", at(e) is not None and at(e)[0] == 3, repr(at(e)))
     e.keys(F10, RIGHT, RIGHT, RIGHT, RIGHT, "u", idle=0.9)
-    row("Window > Unsplit window puts the one window back", not any(F in l for l in e.lines()[3:33]), "")
+    row("Window > Unsplit window puts the one window back", not any(F in l for l in e.lines()[3:39]), "")
 
     say("\n--- SED: a prompt takes no mouse report as an answer --------------------------------------------------------")
     e.keys(click(1, 2))
