@@ -18,6 +18,9 @@
  * 
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111) - is a path a private file or
+ *               directory of the running user (lstat, owner, no group or world bits;
+ *               a file's parent directory too); fails closed.
  * 15 Sep 26 dm  SD_TLS_CBIND (110): the SCRAM c= value for this session's TLS
  *               channel binding, "" when it has no TLS (S.19).
  * 14 Sep 26 dm  SD_SHA256 .. SD_CTEQUAL (104-109): the Windows port's SCRAM
@@ -53,6 +56,10 @@
 #include <sodium.h>
 
 #include <errno.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "sd.h"
 #include "keys.h"
@@ -79,6 +86,7 @@ char* NullString(void);
 Private void sdme_err_rsp(int errnbr);
 Private void scram_reply(char* value);
 Private long scram_arg_long(const char* text);
+Private int file_private_check(const char* path, int want_dir);
 
 /* ======================================================================
    op_sdext()   op code for BASIC function  SDME.EXT   
@@ -378,9 +386,35 @@ void op_sdext() {
       break;
     }
 
+    /* 17 Oct 26 dm - S.65 slice 2b.  SD_FILE_PRIVATE: is this path the kind of
+       object a credential may be trusted in (see file_private_check)?  Two
+       arguments, path and the word FILE or DIR.  The answer is the text "1" or
+       "0" and nothing else; every failure - a wrong argument count, a word that
+       is neither, a path that cannot be examined - answers "0", so a caller
+       that tests for "1" refuses.  Only a wrong argument count also sets
+       process.status (SD_EXT_ARG_CNT), as the neighbours do. */
+    case SD_FILE_PRIVATE: {
+      char answer[2];
+
+      answer[0] = '0';
+      answer[1] = '\0';
+      if (argCnt != 2) {
+        process.status = SD_EXT_ARG_CNT;
+      } else if (strcmp(SDMEArgArray[1], "FILE") == 0) {
+        if (file_private_check(SDMEArgArray[0], 0))
+          answer[0] = '1';
+      } else if (strcmp(SDMEArgArray[1], "DIR") == 0) {
+        if (file_private_check(SDMEArgArray[0], 1))
+          answer[0] = '1';
+      }
+      k_put_c_string(answer, e_stack);
+      e_stack++;
+      break;
+    }
+
     /* 20240808 mab embedding python? */
     #ifdef EMBED_PYTHON
-    case SD_PyInit:  
+    case SD_PyInit:
     case SD_PyFinal:  
     case SD_IsPyInit: 
     case SD_PyRunStr:  
@@ -491,4 +525,52 @@ Private long scram_arg_long(const char* text) {
     return -1;
 
   return value;
+}
+
+/* 17 Oct 26 dm - S.65 slice 2b.  The test the SDNet credential files are held
+   to before they are read or written, the one ssh makes of ~/.ssh: the object
+   is what it should be, belongs to the process's effective user, and nobody
+   else has any permission on it.  lstat(), not stat(): a link in the LAST
+   component is refused whatever it points at.  (A link higher up the path is
+   not detected here; the directory test on the parent is what keeps the
+   directories above the file the user's own.)  Answers 1 or 0 and is closed
+   on every failure.
+     want_dir 1: path is a directory, owned by geteuid(), no bit in 077.
+     want_dir 0: path is a regular file, owned by geteuid(), no bit in 077, and
+                 its parent directory passes the directory test.
+   The path must be absolute and shorter than PATH_MAX.  This is a check, not a
+   lock: the caller still opens the file afterwards. */
+Private int file_private_check(const char* path, int want_dir) {
+  struct stat st;
+  char parent[PATH_MAX];
+  size_t len;
+  char* slash;
+
+  if (path == NULL || path[0] != '/')
+    return 0;
+  len = strlen(path);
+  if (len >= sizeof(parent))
+    return 0;
+
+  if (lstat(path, &st) != 0)
+    return 0;
+  if (st.st_uid != geteuid())
+    return 0;
+  if ((st.st_mode & 077) != 0)
+    return 0;
+
+  if (want_dir)
+    return S_ISDIR(st.st_mode) ? 1 : 0;
+
+  if (!S_ISREG(st.st_mode))
+    return 0;
+
+  /* the parent: everything before the last slash ("/" for a file in the root) */
+  memcpy(parent, path, len + 1);
+  slash = strrchr(parent, '/');
+  if (slash == parent)
+    parent[1] = '\0';
+  else
+    *slash = '\0';
+  return file_private_check(parent, 1);
 }

@@ -444,6 +444,8 @@ def main():
         "catch-all means symbol, guard not first: %r -> %s (ours: %s)"
         % (TAB_ROW, got, helper_verdict(TAB_ROW)))
 
+    REMOTE_PASSWORD_PROMPTS = {"setnetlogin": "the password of the user on another SD server, spent once on the SCRAM exchange"}
+
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the
     # ---- rule can be perfect and simply not reached.
@@ -456,6 +458,16 @@ def main():
             continue
         body = open(path, "rb").read().decode("latin-1")
         if re.search(r"^\s*input\s+\S+\s+HIDDEN\s*$", body, re.M | re.I):
+            if name in REMOTE_PASSWORD_PROMPTS:
+                # 17 Oct 26 (S.65 slice 2b): this prompt asks for a password on ANOTHER SD server.  It is not an SD password and SD's
+                # rule must not judge it (the other server's own rule applies there).  The exemption must not hide a program that
+                # sets an SD password, so the row below asserts that it neither calls the SD password setters nor stores the typed
+                # value; it is a named list, not a pattern.
+                bad = [w for w in ("cred-own", "set_acc_password", "setpw", "pw_complex(") if w in body]
+                row("P  exempt     ", not bad,
+                    "%-28s asks for a REMOTE password (%s) and sets no SD password; found %r"
+                    % ("sdsys/gpl.bp/" + name, REMOTE_PASSWORD_PROMPTS[name], bad))
+                continue
             prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))
     installer = os.path.join(os.path.dirname(SD64), "..", "installsdcore.sh")
     installer = os.path.normpath(installer)

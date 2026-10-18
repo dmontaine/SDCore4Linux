@@ -19,6 +19,12 @@ THE USER IS WHOEVER RUNS IT (getpass.getuser()).  It must be an ordinary
 account (uid at or above UID_MIN), because the user-account rows need one that
 require_sd_user accepts; run as root or a system account, it refuses to run.
 
+17 Oct 26, S.65 slice 2b: also netcred-dir (the caller's own /var/lib/sd-net/<user>, mode 0700), driven with SUDO_USER /
+SUDO_UID as sudo would set them and SD_NET_ROOT_FIXTURE standing for /var/lib/sd-net.  The commands it would run are
+printed by the helper itself, so the owner and the mode are asserted from that line.  WHAT A DRY RUN CANNOT SHOW: that
+the directory really appears, that a second run changes nothing (idempotence), and that root:root really owns the root
+- the rows check that a dry run leaves the fixture as it was, and the real run is the install witness's.
+
 THE NULL CASE IS REFUSED: no ALLOW or no REFUSE rows, or a missing helper, exits
 2.  --selftest runs the rows against mutant copies of the helper (the
 staged-path pattern gone, the owner check gone, the cross-account akpath check
@@ -76,9 +82,81 @@ def other_user(me):
 def run(helper, root, args, extra=None):
     env = dict(os.environ, SD_ACCT_ROOT=root)
     env.pop("SD_TLS_PEM_FIXTURE", None)      # a row sets it itself, or runs without it
+    for k in ("SUDO_USER", "SUDO_UID", "SD_NET_ROOT_FIXTURE"):
+        env.pop(k, None)                     # netcred-dir rows set them; nothing leaks in from a sudo shell
     env.update(extra or {})
     p = subprocess.run(["bash", helper, "--dry-run"] + args, capture_output=True, text=True, env=env)
     return p.returncode, p.stdout, p.stderr
+
+
+def system_user(lo):
+    """An existing account with a uid above 0 and below UID_MIN and a name the helper's name rule accepts
+    ('daemon', 'bin'), or None."""
+    for p in sorted(pwd.getpwall(), key=lambda p: p.pw_uid):
+        if 0 < p.pw_uid < lo and p.pw_name[:1].isalpha() and p.pw_name.isalnum() and p.pw_name == p.pw_name.lower():
+            return p
+    return None
+
+
+def netcred_cases(root, me):
+    """17 Oct 26, S.65 slice 2b: sd-elevate netcred-dir.  The caller is whoever sudo says (SUDO_USER, SUDO_UID), so each
+    row sets both; SD_NET_ROOT_FIXTURE stands for /var/lib/sd-net and, on a dry run, for root's own directory, so it
+    belongs to the person running this.  The commands printed are the ones a real run would execute (they go through
+    step), which is where the mode and the owner are asserted.  A dry run cannot show idempotence or that a directory
+    appears: that is the install witness's row (and sandbox-free)."""
+    uid, grp = pwd.getpwnam(me).pw_uid, grp_name(me)
+    ouid = pwd.getpwnam(OTHER).pw_uid
+    sysu = system_user(uid_min())
+    n = lambda d: os.path.join(root, d)
+    sudo_me = {"SUDO_USER": me, "SUDO_UID": str(uid)}
+    def env(fixture, **kw):
+        e = dict(sudo_me, SD_NET_ROOT_FIXTURE=n(fixture))
+        e.update(kw)
+        return e
+    rows = [
+        # ---- ALLOW: what a real run would do
+        (ALLOW, ["netcred-dir"], "install -d -o %s -g %s -m 0700 -- %s" % (me, grp, os.path.join(n("net-new"), me)),
+         "nothing there yet: the caller's directory is made owned by the caller, mode 0700", env("net-new"), "REFUSED"),
+        (ALLOW, ["netcred-dir"], "install -d -o root -g root -m 0755 -- " + n("net-new"),
+         "nothing there yet: the root of the logins is made root:root, mode 0755", env("net-new"), "REFUSED"),
+        (ALLOW, ["netcred-dir"], "chmod 0700 -- " + os.path.join(n("net-open"), me),
+         "the caller's directory is there with mode 770: set back to 0700", env("net-open"), "install -d"),
+        (ALLOW, ["netcred-dir"], "%s is in place (owner uid %d, mode 700)" % (os.path.join(n("net-open7"), me), uid),
+         "the caller's directory is there already and right: left as it is, no command", env("net-open7"), "chmod"),
+        (ALLOW, ["netcred-dir"], "(dry run - nothing made or changed)", "a dry run says it made nothing", env("net-new"), "netcred-dir: "),
+        # ---- REFUSE: who may ask
+        (REFUSE, ["netcred-dir"], "only through sudo", "no SUDO_USER or SUDO_UID: not reached through sudo", {"SD_NET_ROOT_FIXTURE": n("net-new")}),
+        (REFUSE, ["netcred-dir"], "only through sudo", "SUDO_UID missing", {"SUDO_USER": me, "SD_NET_ROOT_FIXTURE": n("net-new")}),
+        (REFUSE, ["netcred-dir"], "is not a number", "SUDO_UID is not a number", env("net-new", SUDO_UID="12x")),
+        (REFUSE, ["netcred-dir"], "root is never a target", "root is not given a directory", env("net-new", SUDO_USER="root", SUDO_UID="0")),
+        (REFUSE, ["netcred-dir"], "sdsys is SD's own administrator account", "sdsys is not given one (it is refused by name)",
+         env("net-new", SUDO_USER="sdsys", SUDO_UID="999")),
+        (REFUSE, ["netcred-dir"], "does not exist", "SUDO_USER is nobody on this machine", env("net-new", SUDO_USER="zz-no-such-user", SUDO_UID="31999")),
+        (REFUSE, ["netcred-dir"], "does not match SUDO_UID", "SUDO_UID is another person's uid", env("net-new", SUDO_UID=str(ouid))),
+        (REFUSE, ["netcred-dir"], "does not match SUDO_UID", "SUDO_UID is root's, SUDO_USER an ordinary account", env("net-new", SUDO_UID="0")),
+        (REFUSE, ["netcred-dir", "/etc"], "privileged helper", "netcred-dir takes no argument (not a path, not a user)", env("net-new")),
+        (REFUSE, ["netcred-dir", OTHER], "privileged helper", "a user name as an argument is not the way to name another person", env("net-new")),
+        (REFUSE, ["netcred-dir"], "is not an absolute directory", "the fixture root must be absolute", env("net-new", SD_NET_ROOT_FIXTURE="relative/dir")),
+        # ---- REFUSE: what is already there
+        (REFUSE, ["netcred-dir"], "is not a plain directory", "the root of the logins is a link", env("net-link")),
+        (REFUSE, ["netcred-dir"], "is not a plain directory", "the root of the logins is a file", env("net-file")),
+        (REFUSE, ["netcred-dir"], "is writable by its group or by everyone", "the root of the logins is group-writable (mode 775)", env("net-wide")),
+        (REFUSE, ["netcred-dir"], "is not a plain directory", "the caller's directory is a link", env("net-linkdir")),
+        (REFUSE, ["netcred-dir"], "is not a plain directory", "the caller's directory is a file", env("net-filedir")),
+        (REFUSE, ["netcred-dir"], "owned by uid %d, not uid %d" % (uid, ouid), "the directory is owned by somebody else: root does not take it over",
+         env("net-foreign", SUDO_USER=OTHER, SUDO_UID=str(ouid))),
+    ]
+    if sysu:
+        rows.append((REFUSE, ["netcred-dir"], "below UID_MIN", "a system account (%s, uid %d) is not given a directory" % (sysu.pw_name, sysu.pw_uid),
+                     env("net-new", SUDO_USER=sysu.pw_name, SUDO_UID=str(sysu.pw_uid))))
+    else:
+        say("  (no system account between uid 1 and UID_MIN on this machine: the below-UID_MIN row is left out)")
+    return rows
+
+
+def grp_name(user):
+    import grp
+    return grp.getgrgid(pwd.getpwnam(user).pw_gid).gr_name
 
 
 def cases(root, me):
@@ -182,6 +260,19 @@ def build_fixture(root, me):
               "elsewhere/%s" % me):
         os.makedirs(os.path.join(root, d))
     os.symlink(os.path.join(root, "user_accounts", me), os.path.join(root, "linked"))
+    # 17 Oct 26 (S.65 slice 2b): the roots netcred-dir is pointed at.  net-new is NOT made (a dry run must leave it so; main() checks).
+    for d, mode in (("net-open", 0o755), ("net-open7", 0o755), ("net-wide", 0o775), ("net-linkdir", 0o755), ("net-filedir", 0o755),
+                    ("net-foreign", 0o755), ("net-dirtarget", 0o755)):
+        os.makedirs(os.path.join(root, d))
+        os.chmod(os.path.join(root, d), mode)
+    os.makedirs(os.path.join(root, "net-open", me));  os.chmod(os.path.join(root, "net-open", me), 0o770)
+    os.makedirs(os.path.join(root, "net-open7", me)); os.chmod(os.path.join(root, "net-open7", me), 0o700)
+    os.symlink(os.path.join(root, "net-dirtarget"), os.path.join(root, "net-linkdir", me))     # the caller's directory is a link
+    open(os.path.join(root, "net-filedir", me), "w").close()                                    # ... or a file
+    os.makedirs(os.path.join(root, "net-foreign", OTHER))                                       # ... or made by somebody else (this runner)
+    os.chmod(os.path.join(root, "net-foreign", OTHER), 0o700)
+    os.symlink(os.path.join(root, "net-open7"), os.path.join(root, "net-link"))                 # the root of the logins is a link
+    open(os.path.join(root, "net-file"), "w").close()                                           # ... or a file
     open(os.path.join(root, "elsewhere", "present.pem"), "w").close()   # tls-show's "a certificate is there" row
     # 17 Oct 26 (S.65 slice 2a): a REAL certificate for tls-key, whose figure is checked against an independent computation (the key's
     # DER from openssl, hashed here by hashlib, not by openssl dgst).  Without openssl the rows say so and fail: no null pass.
@@ -198,7 +289,7 @@ def build_fixture(root, me):
 
 
 def suite(helper, root, me, quiet=False):
-    for case in cases(root, me):
+    for case in cases(root, me) + netcred_cases(root, me):
         kind, args, want, why = case[:4]
         extra, bad = (case[4:] + (None, None))[:2]
         rc, out, err = run(helper, root, args, extra)
@@ -217,6 +308,14 @@ def suite(helper, root, me, quiet=False):
         say("         | $ %ssd-elevate --dry-run %s" % ("".join("%s=%s " % kv for kv in (extra or {}).items()), " ".join(args)))
         say("         | -> exit %d; looked for %r%s; got %r"
             % (rc, want, "" if not bad else " and not %r" % bad, both.strip()[-240:]))
+    # The state AFTER: the netcred-dir dry runs above were pointed at net-new, which did not exist, and must have left it so.
+    made = os.path.lexists(os.path.join(root, "net-new"))
+    ok = not made
+    R[ALLOW] += 1
+    R["pass" if ok else "fail"] += 1
+    if not (quiet and ok):
+        say("  [%s] %-6s netcred-dir dry runs made nothing" % ("PASS" if ok else "FAIL", ALLOW))
+        say("         | %s %s after the dry runs" % (os.path.join(root, "net-new"), "exists" if made else "does not exist"))
 
 
 MUTANTS = [
@@ -229,6 +328,25 @@ MUTANTS = [
     ("bakdir allowed-places check gone", '[[ $ok -eq 1 ]] || die', 'true || die'),
     ("tls-show absent test gone", 'if [[ $tls_can_see -eq 1 && ! -e $tls_pem ]]; then', 'if false; then'),
     ("tls-show says absent to a non-root user", '[[ ${EUID:-$(id -u)} -eq 0 ]] && tls_can_see=1', 'tls_can_see=1'),
+    # 17 Oct 26, S.65 slice 2b: netcred-dir.
+    ("netcred-dir: sudo identity not required", '[[ -n $user && -n $suid ]] || die "netcred-dir is reached', 'true || die "netcred-dir is reached'),
+    ("netcred-dir: SUDO_UID need not be a number", '[[ $suid =~ ^[0-9]+$ ]] || die "netcred-dir: SUDO_UID', 'true || die "netcred-dir: SUDO_UID'),
+    ("netcred-dir: the user is not checked (root, sdsys, system accounts)",
+     'require_sd_user "$user"\n  [[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "netcred-dir:',
+     'true\n  [[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "netcred-dir:'),
+    ("netcred-dir: SUDO_UID need not match the user", '[[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "netcred-dir:',
+     '[[ 1 ]] || die "netcred-dir:'),
+    ("netcred-dir: the fixture root need not be absolute", '[[ $SD_NET_ROOT_FIXTURE == /* && $SD_NET_ROOT_FIXTURE != / ]] || die', 'true || die'),
+    ("netcred-dir: a link is used as a directory", '[[ -d $p && ! -L $p ]] || die "netcred-dir: $p is not', '[[ -d $p ]] || die "netcred-dir: $p is not'),
+    ("netcred-dir: the owner of an existing directory is not checked", '[[ ${ids% *} -eq $2 ]] || die', '[[ 1 ]] || die'),
+    ("netcred-dir: a writable root is accepted", '(( (8#$NET_MODE & 8#$3) == 0 )) ||', 'true ||'),
+    ("netcred-dir: the root of the logins is made 0777", 'install -d -o root -g root -m 0755', 'install -d -o root -g root -m 0777'),
+    ("netcred-dir: the caller's directory is made 0755", 'install -d -o "$user" -g "$grp" -m 0700', 'install -d -o "$user" -g "$grp" -m 0755'),
+    ("netcred-dir: the caller's directory is made root's", 'install -d -o "$user" -g "$grp"', 'install -d -o root -g "$grp"'),
+    ("netcred-dir: an open directory is set to 0750", 'step chmod 0700 -- "$dir"', 'step chmod 0750 -- "$dir"'),
+    ("netcred-dir: a dry run goes on to act",
+     """  if [[ $DRY -eq 1 ]]; then\n    printf '%s: (dry run - nothing made or changed)""",
+     """  if false; then\n    printf '%s: (dry run - nothing made or changed)"""),
 ]
 
 

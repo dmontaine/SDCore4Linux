@@ -27,6 +27,17 @@ without TLS, and the key number 11 is the same in both headers and unique.  P2, 
 11440-11446 and the audit word.  What it cannot say is whether a handshake works or the hash is the right one: sandbox-net.py, section
 "connect", against an independent openssl computation.
 
+17 Oct 26 dm  S.65 slice 2b: the person's login on a server (set.netlogin, delete.netlogin, $netcred, SDEXT SD_FILE_PRIVATE).  Sections F (the
+C private-file test: fail closed, lstat and not stat, the EFFECTIVE uid, no bit in 077, a regular file whose parent directory passes the
+same test, the number 111 in both headers, SDEXT an internal-only intrinsic in BCOMP), R ($netcred: the path rule, SD_FILE_PRIVATE before
+EVERY use, the file never holds the password, READ/WRITE/DELETE/EXISTS as ORDER, a strict shape for every value), U (set.netlogin: the
+NET gate, the definition and the account list before anything is dialled, the pin tested before the first SCRAM packet, nothing written
+on any failure, the password spent and cleared, no secret in a message or in the audit line), Y (delete.netlogin), V (the VOC entries,
+in newvoc so EVERY account has them), H (messages 11450-11479) and E (the root agrees with sd-elevate netcred-dir and the sudoers
+line).  B5 was extended: setnetlogin asks (never sets) K$NET.  WHAT THIS CANNOT SAY: that the exchange works against a server, that a
+file written is mode 600, that a symlink is refused - sandbox-net.py, sections netcred and netlogin, with a fake server that speaks the
+packet text of sdclient (gplbld/netfake.py).
+
 ***AND THE CHECKS ARE THEMSELVES CHECKED.***  --selftest breaks each invariant in the way an edit plausibly would and requires some
 check to notice.  A mutant that nothing catches is reported as a FAILURE of the self-test.
 """
@@ -44,13 +55,16 @@ GPLSRC = os.path.join(SD64, "gplsrc")
 ROOT = os.path.dirname(os.path.dirname(SD64))
 MSGDIR = os.path.join(SDSYS, "messages")
 
-C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c")
+C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c", "op_sdext.c")
 MAIN_BP = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea",
-           "netdefs", "setserver", "deleteserver", "listservers")
+           "netdefs", "setserver", "deleteserver", "listservers", "netcred", "setnetlogin", "deletenetlogin", "bcomp")
 VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteserver", "$deleteserver"),
          ("list.servers", "listservers", "$listservers"))
+NL_VERBS = (("set.netlogin", "setnetlogin", "$setnetlogin"), ("delete.netlogin", "deletenetlogin", "$deletenetlogin"))   # slice 2b: in newvoc AND voc_template
 MSG_FIRST, MSG_LAST = 11411, 11446      # 11411-11439 slice 1, 11440-11446 slice 2a (CONNECT); 11447-11449 are free
+NL_MSG_FIRST, NL_MSG_LAST = 11450, 11479    # slice 2b: the person's login (the whole block is this slice's)
 LINUX_BLOCK = (11000, 11999)
+SH_FILES = ("installsdcore.sh", "sd-elevate", "sdcore.sudoers")      # shell-style comments (#)
 
 
 @functools.lru_cache(maxsize=None)
@@ -87,7 +101,7 @@ def strip_strings(src):
 def code(name, text):
     if name in C_FILES:
         return strip_c(text)
-    if name == "installsdcore.sh":
+    if name in SH_FILES:
         return strip_sh(text)
     return strip_bas(text)
 
@@ -161,6 +175,8 @@ def load():
     get("syscom/keys.h", os.path.join(SDSYS, "syscom", "keys.h"))
     get("createacc.h", os.path.join(SDSYS, "syscom", "createacc.h"))
     get("installsdcore.sh", os.path.join(ROOT, "installsdcore.sh"))
+    get("sd-elevate", os.path.join(HERE, "sd-elevate"))
+    get("sdcore.sudoers", os.path.join(HERE, "sdcore.sudoers"))
     for fname in sorted(os.listdir(GPL)):
         p = os.path.join(GPL, fname)
         if os.path.isfile(p):
@@ -172,8 +188,11 @@ def load():
         srcs[n] = srcs["bp:" + n]
     for word, _prog, _cat in VERBS:
         get("voc:" + word, os.path.join(SDSYS, "voc_template", word))
+    for word, _prog, _cat in NL_VERBS:
+        get("voc:" + word, os.path.join(SDSYS, "voc_template", word))
+        get("newvoc:" + word, os.path.join(SDSYS, "newvoc", word))
     srcs["newvoc.list"] = "\n".join(sorted(os.listdir(os.path.join(SDSYS, "newvoc"))))
-    for n in range(MSG_FIRST, MSG_LAST + 1):
+    for n in list(range(MSG_FIRST, MSG_LAST + 1)) + list(range(NL_MSG_FIRST, NL_MSG_LAST + 1)):
         p = os.path.join(MSGDIR, str(n))
         srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
     for n in (2001, 2018, 6000):
@@ -253,7 +272,8 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (3) and the API server (1) mentions K$NET", sites == {"login": 1, "cproc": 3, "apisrvr": 1}, repr(sites))
+    ck("B5 no program but LOGIN (1), CPROC (3), the API server (1) and set.netlogin (1, which only ASKS: K$NET, -1 - see U2) mentions K$NET",
+       sites == {"login": 1, "cproc": 3, "apisrvr": 1, "setnetlogin": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}
@@ -502,7 +522,306 @@ def checks(srcs):
        and t(11412).startswith("Usage: set.server") and "{pin | connect}" in t(11412)
        and "%1:%2" in t(11440) and "handshake only" in t(11440)
        and all("Nothing was written" in t(n) or "nothing was written" in t(n).lower() for n in (11443, 11444, 11445, 11446)), "")
+    checks_2b(srcs, c, ck)
     return rows
+
+
+SECRETS = r"\b(pw|client\.key|srvr\.key|salted|proof|stored\.key|expect\.v|auth\.msg|client\.sig|rec)\b"      # the names set.netlogin holds a secret in
+
+
+def case_body(t, label):
+    """The text of one action of $netcred: from  case act = 'LABEL'  to the next case or the end of the block."""
+    i = t.find("case act = '%s'" % label)
+    if i < 0:
+        return ""
+    ends = [x for x in (t.find("\n      case act =", i + 5), t.find("\n   end case", i)) if x > 0]
+    return t[i:min(ends)] if ends else t[i:]
+
+
+def routine_body(t, label):
+    """A BASIC internal subroutine: from  label:  to the next line that starts a label or the final end."""
+    m = re.search(r"^%s:\s*$" % re.escape(label), t, re.M)
+    if not m:
+        return ""
+    n = re.search(r"^[a-z][\w.$]*:\s*$|^end\s*$", t[m.end():], re.M)
+    return t[m.start():m.end() + n.start()] if n else t[m.start():]
+
+
+def fail_places(t):
+    """(message number, how many fail.aK it sets) for every  fail.num = N ; fail.a1 = .. ; fail.a2 = ..  line."""
+    out = []
+    for m in re.finditer(r"fail\.num = (\d+)([^\n]*)", t):
+        out.append((int(m.group(1)), len(re.findall(r"fail\.a\d = ", m.group(2)))))
+    return out
+
+
+def err_places(t):
+    """(message number, how many arguments it gives) for every  err = N:@vm:arg:@vm:arg  statement of $netcred."""
+    out = []
+    for m in re.finditer(r"\berr = (\d{4,5})([^\n]*)", t):
+        out.append((int(m.group(1)), m.group(2).count(":@vm:")))
+    return out
+
+
+def checks_2b(srcs, c, ck):
+    """S.65 slice 2b: the person's login on a server."""
+    kh, sy, ex_ = c["keys.h"], c["syscom/keys.h"], c["op_sdext.c"]
+    nc, sn, dn, bc = c["bp:netcred"], c["bp:setnetlogin"], c["bp:deletenetlogin"], c["bp:bcomp"]
+
+    # ---- F. SD_FILE_PRIVATE: the C test -------------------------------------------------------------------------------------------
+    sd_c = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+(SD_[A-Za-z0-9_]+)\s+(\d+)\b", kh)}
+    sd_b = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(SD_[A-Za-z0-9_]+)\s+(\d+)\b", sy)}
+    both = {k for k in sd_c if k in sd_b and 100 <= sd_c[k] <= 127}
+    ck("F1 SD_FILE_PRIVATE is 111 in gplsrc/keys.h and in syscom/keys.h, no other SD_ name uses 111 in either, and every SDEXT function number the two headers "
+       "share (100-127) is the same in both",
+       sd_c.get("SD_FILE_PRIVATE") == 111 and sd_b.get("SD_FILE_PRIVATE") == 111
+       and [k for k, v in sd_c.items() if v == 111] == ["SD_FILE_PRIVATE"] and [k for k, v in sd_b.items() if v == 111] == ["SD_FILE_PRIVATE"]
+       and all(sd_c[k] == sd_b[k] for k in both) and "SD_FILE_PRIVATE" in both, repr((sd_c.get("SD_FILE_PRIVATE"), sd_b.get("SD_FILE_PRIVATE"))))
+    i = ex_.find("case SD_FILE_PRIVATE:")
+    cb = ex_[i:ex_.find("break;", i)] if i >= 0 else ""
+    ck("F2 the SDEXT case answers the text 0 unless the C test says 1: the answer is set to '0' first, '1' is put in only inside "
+       "`if (file_private_check(...))` for the word FILE (want_dir 0) and for the word DIR (want_dir 1), a wrong argument count is not 1, and "
+       "exactly the text '0' or '1' is returned",
+       ex_.count("case SD_FILE_PRIVATE:") == 1 and cb != "" and ordered(cb, "answer[0] = '0';", "argCnt != 2", "SD_EXT_ARG_CNT", "k_put_c_string(answer, e_stack)")
+       and cb.count("answer[0] = '1'") == 2
+       and re.search(r'strcmp\(SDMEArgArray\[1\], "FILE"\) == 0\)\s*\{\s*if \(file_private_check\(SDMEArgArray\[0\], 0\)\)\s*answer\[0\] = \'1\';', cb) is not None
+       and re.search(r'strcmp\(SDMEArgArray\[1\], "DIR"\) == 0\)\s*\{\s*if \(file_private_check\(SDMEArgArray\[0\], 1\)\)\s*answer\[0\] = \'1\';', cb) is not None
+       and re.search(r"if \(argCnt != 2\) \{\s*process\.status = SD_EXT_ARG_CNT;\s*\} else if", cb) is not None, "")
+    j = ex_.find("Private int file_private_check(const char* path, int want_dir) {")
+    fb2 = ex_[j:ex_.find("\n}\n", j) + 3] if j >= 0 else ""          # the function, to its closing brace
+    ck("F3 file_private_check is fail-closed: a path that is not absolute or is PATH_MAX or longer is 0, lstat (NOT stat, which follows a link) failing is 0, "
+       "an owner that is not geteuid() (NOT getuid) is 0, any bit in 077 is 0, and no `return 1;` stands anywhere in it",
+       fb2 != "" and ordered(fb2, "path == NULL || path[0] != '/'", "return 0;", "len >= sizeof(parent)", "return 0;", "lstat(path, &st) != 0", "return 0;",
+                             "st.st_uid != geteuid()", "return 0;", "(st.st_mode & 077) != 0", "return 0;")
+       and not re.search(r"(?<![l\w])stat\s*\(", fb2) and "getuid" not in fb2 and not re.search(r"return\s+1\s*;", fb2) and "access(" not in fb2
+       and re.search(r"if \(lstat\(path, &st\) != 0\)\s*return 0;", fb2) is not None and re.search(r"if \(st\.st_uid != geteuid\(\)\)\s*return 0;", fb2) is not None
+       and re.search(r"if \(\(st\.st_mode & 077\) != 0\)\s*return 0;", fb2) is not None
+       and re.search(r"if \(path == NULL \|\| path\[0\] != '/'\)\s*return 0;", fb2) is not None and re.search(r"if \(len >= sizeof\(parent\)\)\s*return 0;", fb2) is not None, "")
+    ck("F4 ...a directory test is S_ISDIR of the lstat result (a link to a directory is not one); a file test is S_ISREG of it, and then the PARENT directory "
+       "(everything before the last slash, '/' for a file in the root) must pass the directory test, which is the last thing and the answer",
+       ordered(fb2, "if (want_dir)", "return S_ISDIR(st.st_mode) ? 1 : 0;", "!S_ISREG(st.st_mode)", "return 0;", "memcpy(parent, path, len + 1)", "strrchr(parent, '/')",
+               "return file_private_check(parent, 1);")
+       and re.search(r"return file_private_check\(parent, 1\);\s*\}\s*$", fb2) is not None, "")
+    sdext_calls = {n[3:]: re.findall(r"SDEXT\([^\n]*SD_FILE_PRIVATE\)[^\n]*", t) for n, t in c.items() if n.startswith("bp:") and "SD_FILE_PRIVATE" in t}
+    ck("F5 only $netcred (5 calls: the directory, and the file for EXISTS, READ, the new file and DELETE) and set.netlogin (1: the directory) call it, each with "
+       "@TRUE and a FILE or DIR word, each compared with the text '1'",
+       set(sdext_calls) == {"netcred", "setnetlogin"} and len(sdext_calls.get("netcred", [])) == 5 and len(sdext_calls.get("setnetlogin", [])) == 1
+       and all(re.search(r"SDEXT\(\w[\w.]* : @FM : '(?:FILE|DIR)', @TRUE, SD_FILE_PRIVATE\) (?:#|=) '1'", x) for v in sdext_calls.values() for x in v), repr(sdext_calls))
+    ck("F6 SDEXT is an INTERNAL intrinsic in BCOMP (int.intrinsics), so a user program cannot call SD_FILE_PRIVATE, or SD_PBKDF2, or any of its neighbours",
+       'int.intrinsics<-1> = "SDEXT"' in bc and re.search(r'(?<!int\.)intrinsics<-1> = "SDEXT"', bc) is None, "")
+
+    # ---- R. $netcred -------------------------------------------------------------------------------------------------------------
+    ck("R1 $netcred is $internal, `subroutine netcred(action, server, record, pin, err)`, catalogued once as $netcred, and nothing else in gpl.bp takes the name",
+       nc.lstrip().startswith("$internal") or "\n$internal\n" in nc, "")
+    ck("R1b ...(the signature, the catalogue name, and uniqueness)",
+       "subroutine netcred(action, server, record, pin, err)" in nc and "$catalog $netcred" in nc
+       and len([n for n, t in c.items() if n.startswith("bp:") and "$catalog $netcred\n" in t + "\n"]) == 1 and "$internal" in nc, "")
+    ck("R2 THE PATH RULE: /var/lib/sd-net is defined once (NETCRED.ROOT), the directory is that root, a slash and the Linux user, the file is the directory, a slash and "
+       "the server name, the copy is the file and '.new'; the Linux user is kernel(K$USERNAME, 0) and nothing else (no @logname, no @who, no env()); no other string "
+       "in the program names the directory",
+       re.search(r"\$define NETCRED\.ROOT\s+'/var/lib/sd-net'", nc) is not None and nc.count("sd-net") == 1
+       and len(re.findall(r"^   cred\.dir = NETCRED\.ROOT : '/' : lu\s*$", nc, re.M)) == 1 and len(re.findall(r"^   path = cred\.dir : '/' : server\s*$", nc, re.M)) == 1
+       and len(re.findall(r"^   tmp = path : '\.new'\s*$", nc, re.M)) == 1
+       and nc.count("kernel(K$USERNAME, 0)") == 1 and not re.search(r"@logname|@who|@user|\benv\(", nc), "")
+    ck("R2b ...the server name is validated (a lower case letter first, 1-16 of lower case letters and digits: 11452) and the Linux user is refused when it is empty, "
+       "root, sdsys, too long or holds a character outside letters, digits and ._- (11458), BOTH before the first look at the disk",
+       ordered(nc, "len(server) < 1 or len(server) > 16", "index(lc.set, server[1, 1], 1) = 0", "err = 11452", "lu = kernel(K$USERNAME, 0)",
+               "lu = '' or lu = 'root' or lu = 'sdsys'", "len(lu) > MAX.USERNAME.LEN", "err = 11458", "cred.dir = NETCRED.ROOT", "ospath(cred.dir, OS$EXISTS)")
+       and "chk.text = server ; chk.set = lc.set:digits ; gosub check.chars" in nc and "chk.text = lu ; chk.set = os.chars ; gosub check.chars" in nc
+       and "if not(dir.there) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then" in nc, "")
+    rd, wr, dl, xs = case_body(nc, "READ"), case_body(nc, "WRITE"), case_body(nc, "DELETE"), case_body(nc, "EXISTS")
+    ck("R3 THE PRIVATE-FILE TEST COMES FIRST, EVERY TIME: the directory is tested (and a directory that is missing or fails is 11454) before the action is looked at; "
+       "READ tests the file before it opens it; DELETE tests it before it removes it; EXISTS tests it before it says 1; WRITE tests the new copy after it is written and "
+       "BEFORE it is renamed over the login",
+       ordered(nc, "dir.there = ospath(cred.dir, OS$EXISTS)", "SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1'", "err = 11454", "begin case")
+       and ordered(rd, "SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1'", "err = 11454", "openseq path to f")
+       and ordered(dl, "SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1'", "err = 11454", "ospath(path, OS$DELETE)")
+       and ordered(xs, "SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1'", "record = 1")
+       and ordered(wr, "openseq tmp to tmp.f", "writeseq line to tmp.f", "SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1'", "err = 11454", "osrename(tmp, path)"),
+       repr([bool(rd), bool(wr), bool(dl), bool(xs)]))
+    ck("R3b ...the file is opened in exactly two places (READ, and the new copy in WRITE), renamed in one, written in one, and deleted in three (the old copy before "
+       "a write, the copy after a failure, the login by DELETE after its test)",
+       nc.count("openseq ") == 2 and nc.count("osrename(") == 1 and nc.count("writeseq ") == 1 and nc.count("OS$DELETE") == 3
+       and rd.count("openseq path to f") == 1, repr((nc.count("openseq "), nc.count("osrename("), nc.count("writeseq "), nc.count("OS$DELETE"))))
+    ck("R4 THE FILE NEVER HOLDS THE PASSWORD: there is no password parameter and no word password, passwd or pw in the code; the only thing written is `line`, built "
+       "from the literal v1 and the seven values one<1> to one<7>; WRITE has no other way to put text in the file",
+       not re.search(r"\b(password|passwd|pw)\b", nc, re.I) and "line = 'v1'" in nc and "line := '|' : one<i>" in nc and nc.count("writeseq line to tmp.f") == 1
+       and re.search(r"for i = 1 to 7\s*\n\s*line := '\|' : one<i>\s*\n\s*next i", wr) is not None
+       and "subroutine netcred(action, server, record, pin, err)" in nc, "")
+    ck("R5 READ in order: the pin argument must be 64 lower case hex digits (11459) before the disk is touched; no file is 11453; an untrusted one 11454; the line is read "
+       "and the file closed; a mark byte or the wrong layout (v1 and 8 fields) is 11456; every value has its shape (check.record) BEFORE the stored pin is compared with "
+       "the definition's (11455, and record stays null); the record is handed back last",
+       ordered(rd, "record = ''", "gosub check.pin", "err = 11459", "ospath(path, OS$EXISTS)", "err = 11453", "SD_FILE_PRIVATE", "openseq path to f", "readseq line from f", "closeseq f",
+               "convert(marks, '', line)", "err = 11456", "dcount(line, @fm) # 8 or line<1> # 'v1'", "err = 11456", "gosub check.record", "err = 11456",
+               "if one<6> # pin then", "err = 11455", "record = one") and rd.count("record = one") == 1 and rd.count("gosub check.record") == 1, "")
+    ck("R6 WRITE in order: the pin argument first (11459), the pin ARGUMENT is what is stored (attribute 6 of the record is overwritten), every value checked (11456) before "
+       "the first byte is written; umask 077 (63) while the copy is made and put back straight after, before anything is written; the copy is tested; the rename is last, "
+       "only when there is no error; a failed write deletes the copy",
+       ordered(wr, "gosub check.pin", "err = 11459", "one = record", "one<6> = pin", "gosub check.record", "err = 11456", "line = 'v1'", "void umask(NETCRED.UMASK)",
+               "openseq tmp to tmp.f", "void umask(old.umask)", "writeseq line to tmp.f", "closeseq tmp.f", "SD_FILE_PRIVATE", "if err = '' then\n            if not(osrename(tmp, path))")
+       and re.search(r"if err # '' then void ospath\(tmp, OS\$DELETE\)", wr) is not None and re.search(r"\$define NETCRED\.UMASK\s+63\b", nc) is not None
+       and "old.umask = umask(-1)" in wr, "")
+    ck("R6b ...an old copy left behind is removed first (and a failure to remove it is 11457), and a failure to create the copy is 11457",
+       ordered(wr, "if ospath(tmp, OS$EXISTS) then", "ospath(tmp, OS$DELETE)", "err = 11457", "old.umask = umask(-1)", "if not(made) then", "err = 11457"), "")
+    ck("R7 check.record gives every value its shape: remote user of letters, digits and ._- up to MAX.USERNAME.LEN; iterations a whole number inside SCRAM$MIN.ITER and "
+       "SCRAM$MAX.ITER; salt and both keys base64 of 4 to 128 characters; the pin 64 lower case hex digits; created yyyy-mm-dd",
+       ordered(nc, "check.record:", "chk.set = os.chars", "MAX.USERNAME.LEN", "what matches '1N0N'", "SCRAM$MIN.ITER", "SCRAM$MAX.ITER", "chk.set = b64", "len(what) < 4 or len(what) > 128 or not(chk.ok)",
+               "chk.set = hex.set", "len(what) # 64", "'4N\"-\"2N\"-\"2N'") and "b64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':lc.set:digits:'+/='" in nc
+       and "hex.set = digits:'abcdef'" in nc and "os.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':lc.set:digits:'._-'" in nc, "")
+    ck("R8 DELETE: no login is 11453; EXISTS: a missing directory or a missing file answers 0 with no error, a file that is there and not trusted is 11454 with 0; an unknown "
+       "action is 2018 before anything else",
+       ordered(dl, "err = 11453", "SD_FILE_PRIVATE", "err = 11454", "ospath(path, OS$DELETE)", "err = 11457")
+       and ordered(nc, "if act # 'READ' and act # 'WRITE' and act # 'DELETE' and act # 'EXISTS' then", "err = 2018", "chk.text = server")
+       and "if act = 'EXISTS' then return" in nc and "if act = 'EXISTS' then record = 0" in nc, "")
+
+    # ---- U. set.netlogin ---------------------------------------------------------------------------------------------------------
+    ck("U1 set.netlogin is $internal, `program set.netlogin`, catalogued once as $setnetlogin",
+       "\n$internal\nprogram set.netlogin" in "\n" + sn and "$catalog $setnetlogin" in sn
+       and len([n for n, t in c.items() if n.startswith("bp:") and "$catalog $setnetlogin\n" in t + "\n"]) == 1, "")
+    ck("U2 EVERY LOCAL CHECK COMES BEFORE ANY PROMPT OR CONNECTION, in this order: the usage (11450), the server name (11452), the NET gate or the administrator (11460), the "
+       "definition (11430, 11436), the account list (11461), the Linux user (11462), sd-elevate netcred-dir (11463), the directory test; and then the two prompts, then the one socket",
+       ordered(sn, "stop sysmsg(11450", "stop sysmsg(11452", "is.admin = kernel(K$ADMINISTRATOR, -1)", "stop sysmsg(11460", "call !netdefs('READ'", "stop sysmsg(11430",
+               "stop sysmsg(11436", "stop sysmsg(11461", "stop sysmsg(11462", "os.execute elev", "stop sysmsg(11463", "SD_FILE_PRIVATE", "stop sysmsg(11463", "input ru",
+               "stop sysmsg(11467", "input pw HIDDEN", "stop sysmsg(11468", "open.socket(")
+       and "len(name) < 1 or len(name) > 16 or not(chk.ok) or index(lc.set, name[1, 1], 1) = 0" in sn and sn.count("input ru") == 1 and sn.count("input pw HIDDEN") == 1
+       and "if dcount(words, ' ') # 2 then" in sn and "acc = downcase(@who)" in sn and "if len(pin) # 64 or not(chk.ok) then" in sn
+       and "if ru = '' or len(ru) > MAX.USERNAME.LEN or not(chk.ok) then" in sn
+       and re.search(r"if pw = '' then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*stop sysmsg\(11468\)", sn) is not None
+       and re.search(r"if not\(is\.admin\) and not\(kernel\(K\$NET, -1\)\) then", sn) is not None and "kernel(K$NET, -1)" in sn and sn.count("kernel(K$NET") == 1
+       and "index(',':downcase(defs<found,7>):',', ',':acc:',', 1) = 0" in sn and re.search(r"if not\(is\.admin\) then\s*\n\s*if index\(", sn) is not None, "")
+    ck("U3 the Linux user is kernel(K$USERNAME, 0) and nothing else, sdsys, root and an empty one are refused before sd-elevate is run, the helper is run as `sudo -n` "
+       "(no password prompt in an SD session), its success line must be `netcred-dir: <path>` and the path must end in /<the Linux user> and pass SD_FILE_PRIVATE as a directory",
+       ordered(sn, "lu = kernel(K$USERNAME, 0)", "lu = '' or lu = 'sdsys' or lu = 'root'", "elev = ACCOS$ELEVATE", "'sudo -n '", "os.execute elev : ' netcred-dir 2>&1' capturing out",
+               "out<i>[1, 13] = 'netcred-dir: '", "tail = '/' : lu", "cred.path[len(cred.path) - len(tail) + 1, len(tail)] # tail", "SDEXT(cred.path : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1'")
+       and sn.count("os.execute") == 1 and sn.count("kernel(K$USERNAME") == 1 and not re.search(r"@logname", sn), "")
+    ck("U4 ONE connection, TLS, to the host and port of the DEFINITION, and the key it presents is tested BEFORE a byte is sent or read: open.socket (once) -> the hash "
+       "(socket.info .. SKT$INFO.TLS.SPKI, once, lower case) must be 64 hex digits (11479) -> `spki # pin` gives 11471 through give.up -> only then the Ack read and the first packet",
+       sn.count("open.socket(") == 1 and sn.count("socket.info(skt, SKT$INFO.TLS.SPKI)") == 1 and "open.socket(host, port, SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)" in sn
+       and ordered(sn, "open.socket(", "spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))", "fail.num = 11479", "if spki # pin then", "fail.num = 11471", "gosub give.up",
+                   "read.socket(skt, 1, SKT$BLOCKING, NET.READ.MS)", "ptype = SrvrScramFirst")
+       and re.search(r"if spki # pin then\s*\n\s*fail\.num = 11471[^\n]*\n\s*gosub give\.up\s*\n\s*end", sn) is not None
+       and "if len(spki) # 64 or not(chk.ok) then" in sn
+       and "pin = downcase(defs<found,5>)" in sn and "host = defs<found,2>" in sn and "port = defs<found,3>" in sn, "")
+    reads = re.findall(r"(?:read|write)\.socket\([^\n]*\)", sn)
+    ck("U4b ...every read and every write of the socket has a timeout (NET.READ.MS), write.socket stands once and only in send.packet, which every packet goes through "
+       "and which comes after the pin test in the flow",
+       len(reads) == 4 and all("NET.READ.MS)" in x for x in reads) and sn.count("write.socket(") == 1 and sn.count("gosub send.packet") == 2
+       and ordered(sn, "if spki # pin then", "gosub send.packet", "gosub send.packet") and "write.socket(" in routine_body(sn, "send.packet"), repr(reads))
+    ck("U5 THE SCRAM EXCHANGE as sdclient makes it: client-first is `p=tls-exporter,,` + n= + r=, with the binding read from the socket and required; the server's first "
+       "message must keep our nonce and extend it, the iteration count must be a whole number inside SCRAM$MIN.ITER..SCRAM$MAX.ITER, the salt base64 of 4 to 128; the "
+       "proof is built from ClientKey over AuthMessage; the server's v= is compared in constant time (SD_CTEQUAL) and a missing or wrong one stops",
+       ordered(sn, "cbind = socket.info(skt, SKT$INFO.TLS.CBIND)", "cfirst.bare = 'n=' : ru : ',r=' : cnonce", "pdata = 'p=tls-exporter,,' : cfirst.bare",
+               "nonce[1, len(cnonce)] # cnonce or len(nonce) = len(cnonce)", "iter matches '1N0N'","iter < SCRAM$MIN.ITER or iter > SCRAM$MAX.ITER",
+               "len(salt) < 4 or len(salt) > 128", "SD_PBKDF2", "pw = ''", "SD_HMACSHA256", "SD_SHA256", "SD_XORBYTES", "pdata = cfinal.bare : ',p=' : proof",
+               "in.pkt[1, 2] # 'v='", "SD_CTEQUAL) # '1'", "fail.num = 11475")
+       and "if cbind = '' then" in sn and "cfinal.bare = 'c=' : cbind : ',r=' : nonce" in sn and "auth.msg = cfirst.bare : ',' : sfirst : ',' : cfinal.bare" in sn, "")
+    pwl = [ln.strip() for ln in sn.split("\n") if re.search(r"\bpw\b", ln)]
+    allowed_pw = (r"pw = ''", r"input pw HIDDEN", r"if pw = '' then", r"salted = SDEXT\(pw : @FM : salt : @FM : iter : @FM : SCRAM\$KEY\.LEN, @TRUE, SD_PBKDF2\)")
+    ck("U6 THE PASSWORD IS HELD IN ONE VARIABLE AND NOWHERE ELSE: every line that names pw is `pw = ''`, the hidden input, the empty test, or the SD_PBKDF2 call; it is cleared "
+       "right after the derivation and in give.up (the only exit of a failure); and the keys the program derived are cleared there too",
+       pwl and all(any(re.fullmatch(a, x) for a in allowed_pw) for x in pwl) and ordered(sn, "salted = SDEXT(pw :", "pw = ''", "client.key = SDEXT(salted")
+       and "pw = ''" in routine_body(sn, "give.up") and all(v in routine_body(sn, "give.up") for v in ("salted = ''", "client.key = ''", "srvr.key = ''", "expect.v = ''", "proof = ''")),
+       repr(pwl))
+    leaks = []
+    for n, args in sysmsg_calls(sn):
+        for a in args:
+            if re.search(SECRETS, a):
+                leaks.append((n, a))
+    for ln in sn.split("\n"):
+        if re.search(r"\b(display|crt|print|stop)\b", ln) and re.search(SECRETS, strip_strings(ln)) and "pw = ''" not in ln:
+            leaks.append(ln.strip())
+        if re.search(r"fail\.a\d = ", ln) and re.search(SECRETS, strip_strings(ln.split("=", 1)[1])):
+            leaks.append(ln.strip())
+    ck("U7 NO SECRET IS EVER PRINTED: no message, display, crt or fail.a argument names the password, the salted password, a key, the proof, the signature or the AuthMessage",
+       not leaks, repr(leaks))
+    gu = routine_body(sn, "give.up")
+    wr_re = r"\b(writeseq|writeblk|weofseq|oswrite|osdelete|osrename|osopen|openseq|openpath|write|writev|writeu|writet|delete|deleteu|execute|create|createfile|create\.file)\b"
+    bare2 = strip_strings(re.sub(r"\b(?:write|open|close|read)\.socket\b|\bos\.execute\b|\b(?:ospath|osrename)\(", "", re.sub(r"^\s*program\s+\S+", "", sn, flags=re.M)))
+    ck("U8 NOTHING IS WRITTEN ON ANY FAILURE: the only call of $netcred is WRITE, once, after the server's signature has been verified and the socket closed, and a refusal "
+       "from it is the last word; give.up (the exit of every failure) calls nothing that writes and closes the socket; set.netlogin has no statement that writes or deletes a "
+       "file at all (only $netcred does) and runs one command (the helper)",
+       sn.count("$netcred(") == 1 and sn.count("call $netcred('WRITE', name, rec, pin, err)") == 1
+       and ordered(sn, "SD_CTEQUAL) # '1'", "expect.v = ''", "close.socket skt", "call $netcred('WRITE', name, rec, pin, err)", "if err # '' then", "stop sysmsg(err<1,1>", "kernel(K$AUDIT")
+       and "netcred" not in gu and "close.socket skt" in gu and "stop sysmsg(fail.num" in gu and not re.search(wr_re, bare2), repr(re.findall(wr_re, bare2)))
+    ck("U8b ...every failure goes through give.up (message and stop): no `stop sysmsg(11469..11479` stands anywhere else, and the record handed to $netcred is only the remote "
+       "user, the salt, the iteration count and the two keys (attributes 1-5; the pin goes as the argument)",
+       not re.search(r"stop sysmsg\(114(?:69|7\d)", sn.replace(gu, "")) and ordered(sn, "rec = ''", "rec<1> = ru", "rec<2> = salt", "rec<3> = iter", "rec<4> = client.key", "rec<5> = srvr.key", "call $netcred('WRITE'")
+       and re.search(r"rec = ''\s*\n\s*rec<1> = ru", sn) is not None and not re.search(r"rec<[67]>", sn)
+       and re.search(r"fail\.num = 11474 ; fail\.a1 = reason\s*\n\s*gosub give\.up", routine_body(sn, "refused")) is not None, "")
+    audits = re.findall(r"kernel\(K\$AUDIT[^\n]*", sn)
+    ck("U9 THE AUDIT LINE is one, lower case, after the login is stored: `set.netlogin server=<name> remote=<remote user>` and nothing else - no password, key, hash, salt or pin",
+       audits == ["kernel(K$AUDIT, 'set.netlogin server=' : name : ' remote=' : ru)"] and ordered(sn, "call $netcred('WRITE'", "kernel(K$AUDIT"), repr(audits))
+    ck("U10 the exit code and the success message: 0 and message 11477 are set together after the audit line, and every refusal sets a failure code before its message",
+       ordered(sn, "kernel(K$AUDIT", "@system.return.code = 0", "crt sysmsg(11477, name, ru)", "stop")
+       and sn.count("@system.return.code = 0") == 1, "")
+
+    # ---- Y. delete.netlogin ------------------------------------------------------------------------------------------------------
+    ck("Y1 delete.netlogin is $internal, `program delete.netlogin`, catalogued once as $deletenetlogin; it validates the name (11452) before $netcred is called, asks EXISTS and "
+       "then DELETE (11453 when there is none), audits after the delete and then says 11478",
+       "\n$internal\nprogram delete.netlogin" in "\n" + dn and "$catalog $deletenetlogin" in dn
+       and len([n for n, t in c.items() if n.startswith("bp:") and "$catalog $deletenetlogin\n" in t + "\n"]) == 1
+       and "len(name) < 1 or len(name) > 16 or not(chk.ok) or index(lc.set, name[1, 1], 1) = 0" in dn and "if dcount(words, ' ') # 2 then" in dn
+       and ordered(dn, "stop sysmsg(11451", "stop sysmsg(11452", "call $netcred('EXISTS'", "stop sysmsg(11453", "call $netcred('DELETE'", "kernel(K$AUDIT", "crt sysmsg(11478"), "")
+    ck("Y2 ...it asks no gate (K$NET, K$ADMINISTRATOR: removing a login adds nothing to what an account may do), prompts for nothing, opens no socket, runs no command, and "
+       "has exactly one audit line, `delete.netlogin server=<name>`",
+       not re.search(r"K\$NET|K\$ADMINISTRATOR|\binput\b|open\.socket|os\.execute|\$netcred\('(?:READ|WRITE)'", dn)
+       and re.findall(r"kernel\(K\$AUDIT[^\n]*", dn) == ["kernel(K$AUDIT, 'delete.netlogin server=' : name)"], "")
+
+    # ---- V. the VOC entries ---------------------------------------------------------------------------------------------------------
+    nv = srcs["newvoc.list"].lower().split("\n")
+    ck("V1 both verbs are in voc_template as V / CA / $name AND in newvoc (so EVERY account has them: a person needs no administrator to set up a login, the gate and the "
+       "list are what limit it) as a description line, CA, $name",
+       all(srcs["voc:" + w].split() == ["V", "CA", cat] and w in nv
+           and [x for x in srcs["newvoc:" + w].split("\n") if x != ""][1:] == ["CA", cat] and len([x for x in srcs["newvoc:" + w].split("\n") if x != ""]) == 3
+           for w, _p, cat in NL_VERBS), "")
+
+    # ---- H. messages 11450-11479 -------------------------------------------------------------------------------------------------------
+    nlt = {n: srcs["msg:%d" % n] for n in range(NL_MSG_FIRST, NL_MSG_LAST + 1)}
+    ck("H1 messages 11450 to 11479 all exist, each one line, inside the Linux block 11000-11999, and the whole block is this slice's",
+       all(t is not None and t.strip() != "" and "\n" not in t.rstrip("\n") for t in nlt.values()) and LINUX_BLOCK[0] <= NL_MSG_FIRST and NL_MSG_LAST <= LINUX_BLOCK[1],
+       repr([n for n, t in nlt.items() if not t]))
+    prog = nc + "\n" + sn + "\n" + dn
+    used2 = {int(x) for x in re.findall(r"\b(114[5-7]\d)\b", prog)}
+    ck("H2 every message from 11450 to 11479 is used by $netcred, set.netlogin or delete.netlogin (and none outside the block is invented)",
+       set(range(NL_MSG_FIRST, NL_MSG_LAST + 1)) <= used2 and not (used2 - set(range(NL_MSG_FIRST, NL_MSG_LAST + 1))), repr(sorted(set(range(NL_MSG_FIRST, NL_MSG_LAST + 1)) - used2)))
+    short2 = []
+    for n, args in sysmsg_calls(sn + "\n" + dn):
+        t = srcs.get("msg:%d" % n)
+        if t is None or not (NL_MSG_FIRST <= n <= NL_MSG_LAST):
+            continue
+        top = max([int(x) for x in re.findall(r"%(\d)", t)] or [0])
+        if len(args) != top:
+            short2.append((n, len(args), top))
+    for n, a in fail_places(sn):
+        top = max([int(x) for x in re.findall(r"%(\d)", srcs.get("msg:%d" % n) or "")] or [0])
+        if a != top:
+            short2.append(("fail.num", n, a, top))
+    for n, a in err_places(nc):
+        t = srcs.get("msg:%d" % n)
+        if t is None or not (NL_MSG_FIRST <= n <= NL_MSG_LAST):
+            continue
+        top = max([int(x) for x in re.findall(r"%(\d)", t)] or [0])
+        if a != top:
+            short2.append(("err", n, a, top))
+    ck("H3 each message a program gives has as many arguments as the message has %n places: the sysmsg calls, the fail.aK of every failure, and the err of $netcred",
+       not short2 and len(fail_places(sn)) >= 10 and len(err_places(nc)) >= 12, repr(short2))
+    g_ = lambda n: nlt.get(n) or ""
+    ck("H4 the wording the users rely on: the password is said not to be stored (11464, 11477); every failure after the pin says nothing was stored, and the ones before any "
+       "byte was sent say nothing was sent (11469, 11470, 11471, 11479); 11460 names net-on in lower case; 11455 tells the person to run set.netlogin again; 11454 says nothing was used",
+       "not stored" in g_(11464) and "not stored" in g_(11477) and all("Nothing was sent or stored" in g_(n) or "nothing was stored" in g_(n) for n in (11469, 11470, 11471, 11479))
+       and "Nothing was sent to it" in g_(11471) and all("Nothing was stored" in g_(n) for n in (11472, 11473, 11474, 11475, 11476))
+       and "net-on" in g_(11460) and "Run set.netlogin %1 again" in g_(11455) and "Nothing was used" in g_(11454)
+       and g_(11450).strip() == "Usage: set.netlogin server" and g_(11451).strip() == "Usage: delete.netlogin server", "")
+
+    # ---- E. the root agrees with sd-elevate, and the sudoers line is exactly one command -----------------------------------------
+    se, sdo = c["sd-elevate"], c["sdcore.sudoers"]
+    ck("E1 /var/lib/sd-net is the root in $netcred and in sd-elevate netcred-dir (SD_NET_ROOT_REAL), and the verb is `netcred-dir` in the usage, the case and the helper's success line",
+       "SD_NET_ROOT_REAL=/var/lib/sd-net" in se and "/var/lib/sd-net" in nc and re.search(r"netcred-dir\)", se) is not None and "netcred-dir: " in se, "")
+    sline = next((ln for ln in sdo.split("\n") if ln.startswith("%sdusers") and "NOPASSWD:" in ln), "")
+    cmds = [x.strip() for x in sline.split("NOPASSWD:", 1)[1].split(",")] if sline else []
+    ck("E2 the sudoers line gives %sdusers exactly `/usr/local/sbin/sd-elevate netcred-dir` for it - no wildcard, no argument after it - and nothing else for netcred-dir",
+       [x for x in cmds if "netcred-dir" in x] == ["/usr/local/sbin/sd-elevate netcred-dir"] and sdo.count("netcred-dir") >= 1
+       and not re.search(r"netcred-dir\s*\*", sdo), repr(cmds))
 
 
 def mutate(srcs, name, old, new=None):
@@ -786,6 +1105,235 @@ mut("message 11446 is missing", "msg:11446", lambda t: None)
 mut("11443 stops saying nothing was written", "msg:11443", lambda t: t.replace("Nothing was written: ", "", 1))
 mut("11412 loses the word connect", "msg:11412", lambda t: t.replace("{pin | connect}", "pin", 1))
 mut("message 11446 takes two lines", "msg:11446", lambda t: t.rstrip("\n") + "\nsecond line\n")
+
+# ---- slice 2b: the person's login ---------------------------------------------------------------------------------------------------
+FP_FN = "Private int file_private_check(const char* path, int want_dir) {"
+NCR = "bp:netcred"
+SNL = "bp:setnetlogin"
+DNL = "bp:deletenetlogin"
+NC_TRUST_READ = "         if SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then\n            err = 11454:@vm:server:@vm:path\n            return\n         end\n"
+# F: the number and the case
+mut("SD_FILE_PRIVATE is 112 in keys.h", "keys.h", rx(r"(#define\s+SD_FILE_PRIVATE\s+)111", r"\g<1>112"))
+mut("SD_FILE_PRIVATE is 112 in the BASIC header", "syscom/keys.h", rx(r"(\$define\s+SD_FILE_PRIVATE\s+)111", r"\g<1>112"))
+mut("SD_FILE_PRIVATE shares 110 with SD_TLS_CBIND", "keys.h", rx(r"(#define\s+SD_FILE_PRIVATE\s+)111", r"\g<1>110"))
+mut("the BASIC header gives the neighbour another number", "syscom/keys.h", rx(r"(\$define\s+SD_TLS_CBIND\s+)110", r"\g<1>109"))
+mut("the answer starts as 1", "op_sdext.c", after("case SD_FILE_PRIVATE:", "answer[0] = '0';", "answer[0] = '1';"))
+mut("a wrong argument count is not looked at", "op_sdext.c", after("case SD_FILE_PRIVATE:", "argCnt != 2", "argCnt != 3"))
+mut("the word FILE asks for a directory", "op_sdext.c", after("case SD_FILE_PRIVATE:", "file_private_check(SDMEArgArray[0], 0)", "file_private_check(SDMEArgArray[0], 1)"))
+mut("the word DIR asks for a file", "op_sdext.c", after("case SD_FILE_PRIVATE:", "file_private_check(SDMEArgArray[0], 1)", "file_private_check(SDMEArgArray[0], 0)"))
+mut("any other word is a yes", "op_sdext.c", after("case SD_FILE_PRIVATE:", "      }\n      k_put_c_string(answer, e_stack);", "      } else {\n        answer[0] = '1';\n      }\n      k_put_c_string(answer, e_stack);"))
+mut("the answer is not the computed one", "op_sdext.c", after("case SD_FILE_PRIVATE:", "k_put_c_string(answer, e_stack)", "k_put_c_string(\"1\", e_stack)"))
+mut("lstat is stat (a link is followed)", "op_sdext.c", after(FP_FN, "lstat(path, &st)", "stat(path, &st)"))
+mut("the owner is the real uid", "op_sdext.c", after(FP_FN, "geteuid()", "getuid()"))
+mut("the owner is not tested", "op_sdext.c", after(FP_FN, "if (st.st_uid != geteuid())", "if (0)"))
+mut("group bits are allowed", "op_sdext.c", after(FP_FN, "(st.st_mode & 077)", "(st.st_mode & 007)"))
+mut("world bits are allowed", "op_sdext.c", after(FP_FN, "(st.st_mode & 077)", "(st.st_mode & 070)"))
+mut("a relative path is allowed", "op_sdext.c", after(FP_FN, "path[0] != '/'", "path[0] != 'x'"))
+mut("a long path is allowed", "op_sdext.c", after(FP_FN, "len >= sizeof(parent)", "0"))
+mut("a failed lstat is allowed", "op_sdext.c", after(FP_FN, "lstat(path, &st) != 0", "lstat(path, &st) != 0 && 0"))
+mut("any directory passes", "op_sdext.c", after(FP_FN, "return S_ISDIR(st.st_mode) ? 1 : 0;", "return 1;"))
+mut("a link to a directory passes (not S_ISDIR)", "op_sdext.c", after(FP_FN, "S_ISDIR(st.st_mode)", "(st.st_mode & S_IFMT) != 0"))
+mut("a file need not be a regular file", "op_sdext.c", after(FP_FN, "!S_ISREG(st.st_mode)", "0"))
+mut("the parent directory is not tested", "op_sdext.c", after(FP_FN, "return file_private_check(parent, 1);", "return 1;"))
+mut("the parent is tested as a file", "op_sdext.c", after(FP_FN, "return file_private_check(parent, 1);", "return file_private_check(parent, 0);"))
+mut("the parent is the file itself", "op_sdext.c", after(FP_FN, "slash = strrchr(parent, '/');", "slash = parent + len;"))
+# F: who calls it
+mut("a program outside $netcred and set.netlogin calls it", "bp:cd", lambda t: t + "\n   x = SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1'\n")
+mut("set.netlogin's call is not compared with 1", SNL, "SDEXT(cred.path : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1'", "SDEXT(cred.path : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE)")
+mut("SDEXT is a plain intrinsic in BCOMP", "bp:bcomp", lambda t: t + '\n   intrinsics<-1> = "SDEXT"\n')
+mut("SDEXT is not an internal intrinsic", "bp:bcomp", 'int.intrinsics<-1> = "SDEXT"', 'int.intrinsics<-1> = "SDEXX"')
+# R: $netcred, the path
+mut("the credential root is /tmp/sd-net", NCR, "'/var/lib/sd-net'", "'/tmp/sd-net'")
+mut("the credential root is built twice", NCR, lambda t: t.replace("   tmp = path : '.new'\n", "   tmp = path : '.new'\n   zz = '/var/lib/sd-net/x'\n", 1))
+mut("the Linux user comes from @logname", NCR, "lu = kernel(K$USERNAME, 0)", "lu = @logname")
+mut("root may keep a login", NCR, "lu = '' or lu = 'root' or lu = 'sdsys'", "lu = '' or lu = 'sdsys'")
+mut("sdsys may keep a login", NCR, "lu = '' or lu = 'root' or lu = 'sdsys'", "lu = '' or lu = 'root'")
+mut("the user name is not length checked", NCR, "len(lu) > MAX.USERNAME.LEN", "len(lu) > 9999")
+mut("the path is built before the user is validated", NCR,
+    lambda t: t.replace("   cred.dir = NETCRED.ROOT : '/' : lu\n", "", 1).replace("   lu = kernel(K$USERNAME, 0)\n", "   cred.dir = NETCRED.ROOT : '/' : lu\n   lu = kernel(K$USERNAME, 0)\n", 1))
+mut("the server name is not validated", NCR, "len(server) < 1 or len(server) > 16 or not(chk.ok) or index(lc.set, server[1, 1], 1) = 0", "len(server) < 1")
+mut("a server name may start with a digit", NCR, " or index(lc.set, server[1, 1], 1) = 0", "")
+mut("a server name of 17 is allowed", NCR, "len(server) > 16", "len(server) > 17")
+mut("a server name may hold a slash", NCR, "chk.text = server ; chk.set = lc.set:digits", "chk.text = server ; chk.set = lc.set:digits:'/'")
+mut("the copy has the login's own name", NCR, "tmp = path : '.new'", "tmp = path")
+mut("the file is somewhere else", NCR, "path = cred.dir : '/' : server", "path = cred.dir : '/' : server : '.cred'")
+# R: the test comes first
+mut("the directory is not tested", NCR, "if not(dir.there) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then", "if not(dir.there) then")
+mut("a missing directory is allowed", NCR, "if not(dir.there) or SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then", "if dir.there and SDEXT(cred.dir : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1' then")
+mut("READ opens a file it has not tested", NCR, after("case act = 'READ'", NC_TRUST_READ, ""))
+mut("READ tests the file after it opens it", NCR,
+    lambda t: after("case act = 'READ'", NC_TRUST_READ, "")(t).replace("         closeseq f\n", "         closeseq f\n" + NC_TRUST_READ, 1))
+mut("DELETE removes a file it has not tested", NCR, after("case act = 'DELETE'", NC_TRUST_READ, ""))
+mut("EXISTS says 1 without the test", NCR, after("case act = 'EXISTS'", "SDEXT(path : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) = '1'", "1"))
+mut("WRITE renames a copy it has not tested", NCR, "if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then", "if 0 then")
+mut("WRITE tests the copy before it is written", NCR,
+    lambda t: t.replace("if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then", "if 0 then", 1).replace("         writeseq line to tmp.f else\n", "         if SDEXT(tmp : @FM : 'FILE', @TRUE, SD_FILE_PRIVATE) # '1' then err = 11454\n         writeseq line to tmp.f else\n", 1))
+mut("a file that fails the test is reported as damaged", NCR, after("case act = 'READ'", "err = 11454:@vm:server:@vm:path", "err = 11456:@vm:server:@vm:path"))
+mut("a file is opened a third time", NCR, lambda t: t.replace("         closeseq f\n", "         closeseq f\n         openseq path to f else null\n", 1))
+mut("the copy is renamed twice", NCR, lambda t: t.replace("         if err # '' then void ospath(tmp, OS$DELETE)\n", "         void osrename(tmp, path)\n         if err # '' then void ospath(tmp, OS$DELETE)\n", 1))
+# R: the file never holds the password
+mut("the line holds a password", NCR, "line = 'v1'", "line = 'v1' : pw")
+mut("WRITE writes the record raw", NCR, "line := '|' : one<i>", "line := '|' : record<i>")
+mut("a password parameter appears", NCR, "subroutine netcred(action, server, record, pin, err)", "subroutine netcred(action, server, record, pin, err, password)")
+mut("a second line is written", NCR, "         writeseq line to tmp.f else\n", "         writeseq 'x' to tmp.f else null\n         writeseq line to tmp.f else\n")
+# R: READ and WRITE in order
+mut("READ does not need the pin argument", NCR, after("case act = 'READ'", "gosub check.pin", "pin.ok = @true"))
+mut("READ accepts another pin", NCR, "if one<6> # pin then", "if one<6> # one<6> then")
+mut("READ does not look at the shape of the record", NCR, after("case act = 'READ'", "         gosub check.record\n", ""))
+mut("READ hands the record back before the pin test", NCR, after("case act = 'READ'", "         if one<6> # pin then", "         record = one\n         if one<6> # pin then"))
+mut("READ does not look for marks", NCR, "len(convert(marks, '', line)) # len(line)", "0")
+mut("READ takes any layout", NCR, "dcount(line, @fm) # 8 or line<1> # 'v1'", "0")
+mut("READ opens before it looks for the file", NCR, after("case act = 'READ'", "         if not(ospath(path, OS$EXISTS)) then\n            err = 11453:@vm:server\n            return\n         end\n", ""))
+mut("WRITE keeps attribute 6 of the record", NCR, "         one<6> = pin\n", "")
+mut("WRITE does not need the pin argument", NCR, after("case act = 'WRITE'", "gosub check.pin", "pin.ok = @true"))
+mut("WRITE does not look at the shape of the record", NCR, after("case act = 'WRITE'", "         gosub check.record\n", ""))
+mut("WRITE sets no umask", NCR, "         void umask(NETCRED.UMASK)\n", "")
+mut("the umask is 022", NCR, "$define NETCRED.UMASK 63", "$define NETCRED.UMASK 18")
+mut("the umask is not put back", NCR, "         void umask(old.umask)\n", "")
+mut("the umask is put back after the write", NCR,
+    lambda t: t.replace("         void umask(old.umask)\n", "", 1).replace("         closeseq tmp.f\n", "         closeseq tmp.f\n         void umask(old.umask)\n", 1))
+mut("WRITE renames whatever the error", NCR, "         if err = '' then\n            if not(osrename(tmp, path)) then", "         if @true then\n            if not(osrename(tmp, path)) then")
+mut("a failed write leaves the copy", NCR, "if err # '' then void ospath(tmp, OS$DELETE)", "if err # '' then null")
+mut("an old copy is not removed first", NCR, "if ospath(tmp, OS$EXISTS) then", "if 0 then")
+mut("a copy that could not be made is not noticed", NCR, "         if not(made) then\n            err = 11457", "         if 0 then\n            err = 11457")
+mut("check.record: iterations have no ceiling", NCR, " or what + 0 > SCRAM$MAX.ITER", "")
+mut("check.record: iterations have no floor", NCR, "what + 0 < SCRAM$MIN.ITER", "what + 0 < 1")
+mut("check.record: iterations need not be a number", NCR, "or not(what matches '1N0N')", "")
+mut("check.record: base64 allows a bar", NCR, "digits:'+/='", "digits:'+/=|'")
+mut("check.record: a key may be long", NCR, "len(what) < 4 or len(what) > 128", "len(what) < 4 or len(what) > 1280")
+mut("check.record: a pin may be upper case", NCR, "hex.set = digits:'abcdef'", "hex.set = digits:'abcdefABCDEF'")
+mut("check.record: a pin may be short", NCR, "len(what) # 64", "len(what) < 8")
+mut("check.record: created is anything", NCR, "'4N\"-\"2N\"-\"2N'", "'0X'")
+mut("check.record: a remote user may hold a space", NCR, "os.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':lc.set:digits:'._-'", "os.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':lc.set:digits:'._- '")
+mut("an unknown action is allowed through", NCR, "err = 2018:@vm:action", "err = 11452:@vm:action")
+mut("EXISTS reports an error for no directory", NCR, "if act = 'EXISTS' then return", "null")
+mut("EXISTS does not start at 0", NCR, "if act = 'EXISTS' then record = 0", "null")
+mut("DELETE of nothing is not told", NCR, after("case act = 'DELETE'", "err = 11453:@vm:server", "err = 11457:@vm:server"))
+# U: set.netlogin, the order of the checks
+mut("set.netlogin is not internal", SNL, "$internal\nprogram set.netlogin", "program set.netlogin")
+mut("set.netlogin is catalogued under another name", SNL, "$catalog $setnetlogin", "$catalog $setnetlogon")
+mut("the NET gate is not asked", SNL, "if not(is.admin) and not(kernel(K$NET, -1)) then", "if not(is.admin) and 0 then")
+mut("the NET gate is asked with 1 (set)", SNL, "kernel(K$NET, -1)", "kernel(K$NET, 1)")
+mut("the administrator test is not made", SNL, "is.admin = kernel(K$ADMINISTRATOR, -1)", "is.admin = @false")
+mut("the NET gate is asked after the definition", SNL,
+    lambda t: t.replace("   if not(is.admin) and not(kernel(K$NET, -1)) then\n      @system.return.code = -ER$PERM\n      stop sysmsg(11460, acc) ;* This account does not have the NET gate\n   end\n", "", 1)
+    .replace("   host = defs<found,2>\n", "   if not(is.admin) and not(kernel(K$NET, -1)) then\n      @system.return.code = -ER$PERM\n      stop sysmsg(11460, acc)\n   end\n   host = defs<found,2>\n", 1))
+mut("the account list is not tested", SNL, "index(',':downcase(defs<found,7>):',', ',':acc:',', 1) = 0", "0")
+mut("the account list is a substring test", SNL, "index(',':downcase(defs<found,7>):',', ',':acc:',', 1) = 0", "index(downcase(defs<found,7>), acc, 1) = 0")
+mut("the account list binds the administrator too", SNL, "if not(is.admin) then\n      if index(", "if @true then\n      if index(")
+mut("the account name is not lower cased", SNL, "acc = downcase(@who)", "acc = @who")
+mut("the server name is not validated", SNL, "len(name) < 1 or len(name) > 16 or not(chk.ok) or index(lc.set, name[1, 1], 1) = 0", "len(name) < 1")
+mut("two words after the verb are allowed", SNL, "if dcount(words, ' ') # 2 then", "if dcount(words, ' ') < 2 then")
+mut("the definition's pin is not tested for form", SNL, "if len(pin) # 64 or not(chk.ok) then", "if 0 then")
+mut("sdsys may run it", SNL, "lu = '' or lu = 'sdsys' or lu = 'root'", "lu = ''")
+mut("the Linux user comes from @logname", SNL, "lu = kernel(K$USERNAME, 0)", "lu = @logname")
+mut("sudo may ask for a password", SNL, "   if elev[1, 5] = 'sudo ' then elev = 'sudo -n ' : elev[6, 9999]\n", "")
+mut("the helper is run with another word", SNL, "elev : ' netcred-dir 2>&1'", "elev : ' netcred-dir all 2>&1'")
+mut("a second command is run", SNL, "   stat = os.error()\n", "   stat = os.error()\n   os.execute 'id' capturing zz\n")
+mut("the helper's path need not end in the user", SNL, "cred.path[len(cred.path) - len(tail) + 1, len(tail)] # tail or SDEXT", "SDEXT")
+mut("the directory is not tested", SNL, " or SDEXT(cred.path : @FM : 'DIR', @TRUE, SD_FILE_PRIVATE) # '1'", "")
+mut("the helper's success line is any line", SNL, "out<i>[1, 13] = 'netcred-dir: ' and ", "")
+# U: prompts and the connection
+mut("the password is asked before the user", SNL, lambda t: t.replace("   input ru\n", "   input pw HIDDEN\n   input ru\n", 1))
+mut("the user is asked twice", SNL, lambda t: t.replace("   input ru\n", "   input ru\n   input ru\n", 1))
+mut("an empty user goes on", SNL, "if ru = '' or len(ru) > MAX.USERNAME.LEN or not(chk.ok) then", "if 0 then")
+mut("an empty password goes on", SNL, "   if pw = '' then\n      @system.return.code = -ER$ARGS\n      stop sysmsg(11468)", "   if 0 then\n      @system.return.code = -ER$ARGS\n      stop sysmsg(11468)")
+mut("the socket is opened without TLS", SNL, "SKT$BLOCKING + SKT$TLS", "SKT$BLOCKING")
+mut("the socket is opened with no timeout", SNL, ", NET.CONNECT.SECS)", ")")
+mut("a second socket is opened", SNL, lambda t: t.replace("   spki = downcase(", "   skt2 = open.socket(host, port, SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)\n   spki = downcase(", 1))
+mut("the host is not the definition's", SNL, "host = defs<found,2>", "host = 'localhost'")
+mut("the pin is not the definition's", SNL, "pin = downcase(defs<found,5>)", "pin = ''")
+mut("the pin is not compared", SNL, "if spki # pin then", "if spki # spki then")
+mut("the pin is compared after the Ack", SNL,
+    lambda t: t.replace("if spki # pin then", "if 0 then", 1).replace("   if not(acked) then", "   if spki # pin then\n      fail.num = 11471 ; fail.a1 = host ; fail.a2 = port ; fail.a3 = name\n      gosub give.up\n   end\n   if not(acked) then", 1))
+mut("the pin is compared after the first packet", SNL,
+    lambda t: t.replace("if spki # pin then", "if 0 then", 1).replace("   gosub read.packet\n", "   if spki # pin then\n      fail.num = 11471 ; fail.a1 = host ; fail.a2 = port ; fail.a3 = name\n      gosub give.up\n   end\n   gosub read.packet\n", 1))
+mut("a mismatch only warns", SNL, "      fail.num = 11471 ; fail.a1 = host ; fail.a2 = port ; fail.a3 = name   ;* The key is not the key in the definition\n      gosub give.up\n", "      crt 'warning'\n")
+mut("the hash is not lower cased", SNL, "spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))", "spki = trim(socket.info(skt, SKT$INFO.TLS.SPKI))")
+mut("an empty hash goes on", SNL, "if len(spki) # 64 or not(chk.ok) then", "if len(spki) > 64 then")
+mut("a read has no timeout", SNL, "b = read.socket(skt, 1, SKT$BLOCKING, NET.READ.MS)", "b = read.socket(skt, 1, SKT$BLOCKING, 0)")
+mut("a write has no timeout", SNL, "void write.socket(skt, pk, SKT$BLOCKING, NET.READ.MS)", "void write.socket(skt, pk, SKT$BLOCKING, 0)")
+mut("a second place writes to the socket", SNL, lambda t: t.replace("   spki = downcase(", "   void write.socket(skt, 'x', SKT$BLOCKING, NET.READ.MS)\n   spki = downcase(", 1))
+mut("the first packet is sent before the pin test", SNL, lambda t: t.replace("   skt.open = @true\n", "   skt.open = @true\n   ptype = SrvrScramFirst ; pdata = 'x' ; gosub send.packet\n", 1))
+# U: the exchange
+mut("client-first has no binding", SNL, "pdata = 'p=tls-exporter,,' : cfirst.bare", "pdata = 'n,,' : cfirst.bare")
+mut("a missing binding goes on", SNL, "   if cbind = '' then", "   if 0 then")
+mut("the nonce is not checked", SNL, "nonce[1, len(cnonce)] # cnonce or len(nonce) = len(cnonce)", "0")
+mut("the iteration count is not bounded", SNL, "iter < SCRAM$MIN.ITER or iter > SCRAM$MAX.ITER", "iter < 1")
+mut("the iteration count need not be a number", SNL, "or not(iter matches '1N0N')", "")
+mut("the salt is not checked", SNL, "len(salt) < 4 or len(salt) > 128 or not(chk.ok)", "len(salt) < 0")
+mut("the signature is not compared", SNL, "SDEXT(in.pkt[3, 999999] : @FM : expect.v, @TRUE, SD_CTEQUAL) # '1'", "0")
+mut("the signature is compared in the open", SNL, "SDEXT(in.pkt[3, 999999] : @FM : expect.v, @TRUE, SD_CTEQUAL) # '1'", "in.pkt[3, 999999] # expect.v")
+mut("a missing signature goes on", SNL, "if in.pkt[1, 2] # 'v=' then", "if 0 then")
+# U: the password and the keys
+mut("the password is printed", SNL, "   salted = SDEXT(pw :", "   crt pw\n   salted = SDEXT(pw :")
+mut("the password is a message argument", SNL, "crt sysmsg(11477, name, ru)", "crt sysmsg(11477, name, pw)")
+mut("the password is audited", SNL, "' remote=' : ru)", "' remote=' : ru : ' pw=' : pw)")
+mut("the password is stored", SNL, "   rec<5> = srvr.key\n", "   rec<5> = srvr.key\n   rec<6> = pw\n")
+mut("the password is kept after the derivation", SNL, "   pw = ''\n   if salted = '' then", "   if salted = '' then")
+mut("give.up keeps the password", SNL, "   pw = ''\n   salted = ''\n   client.key = ''", "   salted = ''\n   client.key = ''")
+mut("give.up keeps the server key", SNL, "   srvr.key = ''\n   expect.v = ''\n   proof = ''\n   rec = ''", "   expect.v = ''\n   proof = ''\n   rec = ''")
+mut("give.up leaves the socket open", SNL, "   if skt.open then\n      close.socket skt\n      skt.open = @false\n   end\n   @system.return.code = -ER$FAILED", "   @system.return.code = -ER$FAILED")
+mut("a key is a message argument", SNL, "fail.num = 11476 ; fail.a1 = 'the proof'", "fail.num = 11476 ; fail.a1 = client.key")
+mut("the server key is displayed", SNL, "   srvr.key = SDEXT(salted : @FM : 'Server Key', @TRUE, SD_HMACSHA256)\n", "   srvr.key = SDEXT(salted : @FM : 'Server Key', @TRUE, SD_HMACSHA256)\n   display srvr.key\n")
+mut("the login is written before the signature is checked", SNL, "   salted = SDEXT(pw :", "   call $netcred('WRITE', name, rec, pin, err)\n   salted = SDEXT(pw :")
+mut("a failure writes", SNL, "   rec = ''\n   if skt.open then", "   call $netcred('WRITE', name, rec, pin, err)\n   rec = ''\n   if skt.open then")
+mut("a failure deletes the old login", SNL, "   rec = ''\n   if skt.open then", "   call $netcred('DELETE', name, rec, pin, err)\n   rec = ''\n   if skt.open then")
+mut("a refusal stops outside give.up", SNL, "      fail.num = 11475\n      gosub give.up\n", "      stop sysmsg(11475)\n")
+mut("the server's text is not a failure", SNL, "   fail.num = 11474 ; fail.a1 = reason\n", "   crt reason\n   fail.num = 11474 ; fail.a1 = reason\n   return\n")
+mut("the record carries the pin", SNL, "   rec<5> = srvr.key\n", "   rec<5> = srvr.key\n   rec<6> = pin\n")
+mut("the record is not cleared first", SNL, "   rec = ''\n   rec<1> = ru\n", "   rec<1> = ru\n")
+mut("the audit line is in upper case", SNL, "'set.netlogin server='", "'SET.NETLOGIN server='")
+mut("the audit line carries the pin", SNL, "' remote=' : ru)", "' remote=' : ru : ' pin=' : pin)")
+mut("the audit line is written before the login is stored", SNL,
+    lambda t: t.replace("   void kernel(K$AUDIT, 'set.netlogin server=' : name : ' remote=' : ru)\n", "", 1).replace("   call $netcred('WRITE'", "   void kernel(K$AUDIT, 'set.netlogin server=' : name : ' remote=' : ru)\n   call $netcred('WRITE'", 1))
+mut("a second audit line is written", SNL, "   @system.return.code = 0\n   crt sysmsg(11477", "   void kernel(K$AUDIT, 'set.netlogin done')\n   @system.return.code = 0\n   crt sysmsg(11477")
+mut("success is not exit 0", SNL, "   @system.return.code = 0\n   crt sysmsg(11477", "   @system.return.code = -ER$FAILED\n   crt sysmsg(11477")
+# Y: delete.netlogin
+mut("delete.netlogin is not internal", DNL, "$internal\nprogram delete.netlogin", "program delete.netlogin")
+mut("delete.netlogin asks for the NET gate", DNL, lambda t: t.replace("   words = trim(@sentence)\n", "   if not(kernel(K$NET, -1)) then stop\n   words = trim(@sentence)\n", 1))
+mut("delete.netlogin asks for the administrator", DNL, lambda t: t.replace("   words = trim(@sentence)\n", "   if not(kernel(K$ADMINISTRATOR, -1)) then stop\n   words = trim(@sentence)\n", 1))
+mut("delete.netlogin does not ask if there is one", DNL, "call $netcred('EXISTS', name, rec, '', err)", "rec = 1")
+mut("delete.netlogin does not validate the name", DNL, "len(name) < 1 or len(name) > 16 or not(chk.ok) or index(lc.set, name[1, 1], 1) = 0", "len(name) < 1")
+mut("delete.netlogin reads the login", DNL, "call $netcred('DELETE', name, rec, '', err)", "call $netcred('READ', name, rec, '', err)")
+mut("delete.netlogin audits in upper case", DNL, "'delete.netlogin server='", "'DELETE.NETLOGIN server='")
+mut("delete.netlogin audits the password", DNL, "'delete.netlogin server=' : name)", "'delete.netlogin server=' : name : ' pw=' : rec)")
+mut("delete.netlogin audits before the delete", DNL,
+    lambda t: t.replace("   void kernel(K$AUDIT, 'delete.netlogin server=' : name)\n", "", 1).replace("   call $netcred('DELETE'", "   void kernel(K$AUDIT, 'delete.netlogin server=' : name)\n   call $netcred('DELETE'", 1))
+mut("delete.netlogin prompts", DNL, lambda t: t.replace("   words = trim(@sentence)\n", "   input zz\n   words = trim(@sentence)\n", 1))
+# V: the VOC entries
+mut("set.netlogin is not in newvoc", "newvoc.list", lambda t: t.replace("set.netlogin", "", 1))
+mut("delete.netlogin is not in newvoc", "newvoc.list", lambda t: t.replace("delete.netlogin", "", 1))
+mut("the template entry names another program", "voc:set.netlogin", "$setnetlogin", "$setnetlogon")
+mut("the template entry of delete.netlogin is a paragraph", "voc:delete.netlogin", "V\n", "PA\n")
+mut("the newvoc entry names another program", "newvoc:set.netlogin", "$setnetlogin", "$deletenetlogin")
+mut("the newvoc entry is not a catalogued verb", "newvoc:delete.netlogin", "CA", "BA")
+# H: the messages
+mut("message 11450 is missing", "msg:11450", lambda t: None)
+mut("message 11460 is empty", "msg:11460", lambda t: "")
+mut("message 11464 takes two lines", "msg:11464", lambda t: t.rstrip("\n") + "\nsecond line\n")
+mut("11464 stops saying the password is not stored", "msg:11464", lambda t: t.replace("Your password is used once here and is not stored", "Your password is used here", 1))
+mut("11477 says the password is stored", "msg:11477", lambda t: t.replace("The password is not stored", "The password is stored", 1))
+mut("11471 stops saying nothing was sent", "msg:11471", lambda t: t.replace("Nothing was sent to it and nothing was stored", "Nothing was stored", 1))
+mut("11460 names the gate in upper case", "msg:11460", lambda t: t.replace("net-on", "NET-ON", 1))
+mut("11455 stops telling the person what to do", "msg:11455", lambda t: t.replace("Run set.netlogin %1 again", "Try later", 1))
+mut("11454 stops saying nothing was used", "msg:11454", lambda t: t.replace("Nothing was used", "Used", 1))
+mut("message 11475 stops saying nothing was stored", "msg:11475", lambda t: t.replace("Nothing was stored", "", 1))
+mut("message 11469 has a place the call does not fill", "msg:11469", lambda t: t.rstrip("\n") + " %5\n")
+mut("11466 is never used", SNL, "display sysmsg(11466)", "display sysmsg(11465)")
+mut("11479 is never used", SNL, "fail.num = 11479", "fail.num = 11473")
+mut("11471 loses its third argument", SNL, "fail.num = 11471 ; fail.a1 = host ; fail.a2 = port ; fail.a3 = name", "fail.num = 11471 ; fail.a1 = host ; fail.a2 = port")
+mut("11477 loses its second argument", SNL, "crt sysmsg(11477, name, ru)", "crt sysmsg(11477, name)")
+mut("11454 loses its path", NCR, after("case act = 'READ'", "err = 11454:@vm:server:@vm:path", "err = 11454:@vm:server"))
+mut("11457 loses its status", NCR, "err = 11457:@vm:server:@vm:path:@vm:status()", "err = 11457:@vm:server:@vm:path")
+mut("$netcred gives a message number outside the block", NCR, "err = 11455:@vm:server", "err = 11499:@vm:server")
+# E: the helper and the sudoers line
+mut("the helper's root is another directory", "sd-elevate", "SD_NET_ROOT_REAL=/var/lib/sd-net", "SD_NET_ROOT_REAL=/var/lib/sdnet")
+mut("the sudoers line gives netcred-dir a wildcard", "sdcore.sudoers", "/usr/local/sbin/sd-elevate netcred-dir", "/usr/local/sbin/sd-elevate netcred-dir *")
+mut("the sudoers line is lost", "sdcore.sudoers", ", /usr/local/sbin/sd-elevate netcred-dir", "")
+mut("the sudoers line gives netcred-dir an argument", "sdcore.sudoers", "/usr/local/sbin/sd-elevate netcred-dir", "/usr/local/sbin/sd-elevate netcred-dir --dry-run")
+# B5: nobody else asks the gate
+mut("another program asks K$NET", "bp:cd", lambda t: t + "\n   x = kernel(K$NET, -1)\n")
 
 
 def run(srcs):

@@ -44,5 +44,9 @@
 #   2. /etc/sudoers has its "#includedir /etc/sudoers.d" line, or this file is
 #      never read and the account verbs fail with no explanation.
 
+# 17 Oct 26 dm - S.65 slice 2b (SDNet).  A fourth argument list for %sdusers: "netcred-dir", with NO further argument.  It makes
+# the caller's OWN /var/lib/sd-net/<user> (mode 0700), where their logins on other SD servers are kept; like cred-own it takes
+# the caller's identity from sudo (SUDO_USER/SUDO_UID) and acts on that one directory only.  Nothing else was added.
+
 sdsys ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate
-%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own verify, /usr/local/sbin/sd-elevate cred-own set
+%sdusers ALL=(root) NOPASSWD: /usr/local/sbin/sd-elevate cred-own query, /usr/local/sbin/sd-elevate cred-own verify, /usr/local/sbin/sd-elevate cred-own set, /usr/local/sbin/sd-elevate netcred-dir

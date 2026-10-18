@@ -420,6 +420,9 @@
       * 15 Sep 26 dm - S.19, mirrored from gplsrc/keys.h: this API session's SCRAM
       *   c= value, base64("p=tls-exporter,," + binding), or "" with no TLS.
       $define SD_TLS_CBIND    110  ;* sd_tlssrv channel binding, 0 args
+      * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
+      *   or directory only the running user can touch.  Args: path, FILE or DIR.
+      $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
       
       * embedded python 
       

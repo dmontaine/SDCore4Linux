@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111), the SDEXT private-file test.
  * 17 Oct 26 dm  S.65 slice 1: K_NET (127), the per-account NET gate for SDNet remote files.
  * 31 Dec 23 SD launch - prior history suppressed 
  * 28 Jul 24 mab SD_ENCRYPT_SODIUM encode types
@@ -648,6 +649,11 @@
    not TLS (a local pipe connection).  A new number; the Windows port takes
    the same one when it adopts TLS (RELEASE_1.1 41).  No arguments. */
 #define SD_TLS_CBIND    110  /* sd_tlssrv channel binding, 0 args */
+/* 17 Oct 26 dm - S.65 slice 2b.  Is a path a file or directory only the running
+   user can touch (lstat, owner, no 077 bits, a file's parent directory too)?
+   Args: path, FILE or DIR.  Answers "1" or "0"; every failure is "0".  Mirrored
+   in sdsys/syscom/keys.h. */
+#define SD_FILE_PRIVATE 111  /* op_sdext private-file test, 2 args: path, FILE|DIR */
 
 /* embedded python  */
 /* py  object types */

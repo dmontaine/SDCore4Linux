@@ -3,6 +3,8 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 17 Oct 26 dm S.65 slice 2b: netcred-dir, the caller's own /var/lib/sd-net/<user> (mode 0700) where their SDNet logins are kept.
+#               Self-service like cred-own (SUDO_USER/SUDO_UID, no argument); sudoers grants sdusers that one command line.
 # 17 Oct 26 dm S.65 slice 2a: tls-key, the hash of the API certificate's public key (what set.server pins).
 # 05 Oct 26 dm tls-show says "certificate: not yet generated" when root finds
 #               no /etc/sd-tls/api.pem (SETTINGS.REPORT showed openssl's raw
@@ -137,6 +139,8 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
   sd-elevate [--dry-run] remote-ssh on | off | show
   sd-elevate [--dry-run] cred-own query | verify | set   (the caller's own SD
                                   password; verify reads 1 line, set 7, on stdin)
+  sd-elevate [--dry-run] netcred-dir            (makes the caller's own /var/lib/sd-net/<user>, mode 0700, for
+                                  their SDNet logins; no argument, the caller is from sudo)
   sd-elevate [--dry-run] tree-count <account directory>
   sd-elevate [--dry-run] backup-pack <name>=<account directory> ...
                                   (the manifest on stdin, the zip on stdout)
@@ -914,6 +918,85 @@ cred_own() {
   exit 0
 }
 
+# ------------------------------------------------------ netcred-dir (S.65 slice 2b)
+#
+# 17 Oct 26 dm - THE DIRECTORY OF A PERSON'S SDNET LOGINS.  Using a server defined by SDSYS (set.server) needs a login on it, and
+# what is kept is never the password: the SCRAM values derived for that one user on that one server (salt, iterations, ClientKey,
+# ServerKey), one file per server in /var/lib/sd-net/<linux user>/.  That directory sits OUTSIDE the account directory on purpose:
+# an account program whose OS-access gate is off cannot reach it with OPENSEQ.  (An account holding the sh or os.execute gate can
+# read whatever its Linux user can read, this directory included, exactly as it can read ~/.ssh; the docs say so.)
+#
+# This verb only MAKES the directory - the files in it are written by the person's own session, as that person, so root never
+# writes or reads a credential.  SELF-SERVICE like cred-own: WHO is from sudo (SUDO_USER and SUDO_UID, which must agree with the
+# passwd database), there is no argument, and sudoers grants sdusers exactly "netcred-dir".  What it will do, and nothing else:
+#
+#   /var/lib/sd-net          root:root, mode 0755, made if missing; an existing one must be a plain directory (not a link), owned
+#                            by root and not writable by group or world, or it is refused
+#   /var/lib/sd-net/<user>   <user>:<their primary group>, mode 0700, made if missing; an existing one must be a plain directory
+#                            owned by that user (anything else is refused), and is set back to 0700 if it was not
+#
+# Root, sdsys and every uid below UID_MIN are refused, as every verb here does.  Because /var/lib/sd-net is root's and not
+# writable by anybody else, the person cannot swap their directory for a link between the checks and the chmod.
+# The commands are run through step(), so the line printed IS the command run.  The success line is "netcred-dir: <path>" alone on
+# its line (that is what the caller anchors on); a dry run prints the commands and "(dry run - nothing made or changed)" instead.
+# SD_NET_ROOT_FIXTURE moves the root of /var/lib/sd-net on a DRY RUN ONLY (a real run never trusts it), and then the directory
+# stands in for root's, so it is expected to belong to the caller rather than to root.
+SD_NET_ROOT_REAL=/var/lib/sd-net
+
+net_plain_dir() {   # $1 path, $2 the uid that must own it, $3 mode bits (octal) that must be clear; sets NET_MODE (the octal mode)
+  local p=$1 ids
+  [[ -d $p && ! -L $p ]] || die "netcred-dir: $p is not a plain directory (a link or a file); refusing to use it"
+  ids=$(stat -c '%u %a' -- "$p" 2>/dev/null) || die "netcred-dir: cannot stat $p"
+  [[ ${ids% *} -eq $2 ]] || die "netcred-dir: $p is owned by uid ${ids% *}, not uid $2"
+  NET_MODE=${ids#* }
+  (( (8#$NET_MODE & 8#$3) == 0 )) || die "netcred-dir: $p is writable by its group or by everyone (mode $NET_MODE)"
+}
+
+netcred_dir() {
+  local user=${SUDO_USER:-} suid=${SUDO_UID:-} grp net_root dir root_uid
+  [[ -n $user && -n $suid ]] || die "netcred-dir is reached only through sudo (no SUDO_USER/SUDO_UID)"
+  [[ $suid =~ ^[0-9]+$ ]] || die "netcred-dir: SUDO_UID '$suid' is not a number"
+  require_sd_user "$user"
+  [[ $(id -u "$user" 2>/dev/null) == "$suid" ]] || die "netcred-dir: SUDO_USER '$user' does not match SUDO_UID $suid"
+  grp=$(id -gn "$user" 2>/dev/null) && [[ -n $grp ]] || die "netcred-dir: cannot read the primary group of '$user'"
+  net_root=$SD_NET_ROOT_REAL root_uid=0
+  if [[ $DRY -eq 1 && -n ${SD_NET_ROOT_FIXTURE:-} ]]; then
+    [[ $SD_NET_ROOT_FIXTURE == /* && $SD_NET_ROOT_FIXTURE != / ]] || die "netcred-dir: the fixture root is not an absolute directory"
+    net_root=$SD_NET_ROOT_FIXTURE root_uid=$(id -u)
+  fi
+  dir=$net_root/$user
+
+  # The checks come first and apply to what is there already, on a dry run as well as a real one.
+  if [[ -e $net_root || -L $net_root ]]; then net_plain_dir "$net_root" "$root_uid" 022; fi
+  if [[ -e $dir || -L $dir ]]; then net_plain_dir "$dir" "$suid" 0; fi
+
+  if [[ $DRY -eq 0 ]]; then need_root; fi
+  if [[ -e $net_root ]]; then
+    printf '%s: %s is in place\n' "$PROG" "$net_root"
+  else
+    step install -d -o root -g root -m 0755 -- "$net_root" || die "netcred-dir: could not make $net_root"
+  fi
+  if [[ -d $dir ]]; then
+    if [[ ${NET_MODE:-} == 700 ]]; then
+      printf '%s: %s is in place (owner uid %s, mode 700)\n' "$PROG" "$dir" "$suid"
+    else
+      step chmod 0700 -- "$dir" || die "netcred-dir: could not set $dir to mode 0700"
+    fi
+  else
+    step install -d -o "$user" -g "$grp" -m 0700 -- "$dir" || die "netcred-dir: could not make $dir"
+  fi
+  if [[ $DRY -eq 1 ]]; then
+    printf '%s: (dry run - nothing made or changed)\n' "$PROG"
+    exit 0
+  fi
+  net_plain_dir "$net_root" 0 022
+  net_plain_dir "$dir" "$suid" 077
+  [[ $NET_MODE == 700 ]] || die "netcred-dir: $dir did not read back as mode 700 (it is $NET_MODE)"
+  logger -t sd-elevate "netcred-dir: $dir for $user" 2>/dev/null || true
+  printf 'netcred-dir: %s\n' "$dir"
+  exit 0
+}
+
 # ------------------------------------------------------ the backup directory (S.53)
 #
 # 02 Oct 26 dm - SET.BACKUP.DIRECTORY (owner's ruling, 1 Oct 2026, for both ports; the verb,
@@ -1204,6 +1287,12 @@ case $verb in
   cred-own)
     [[ $# -eq 1 ]] || usage
     cred_own "$1"
+    ;;
+
+  # 17 Oct 26 dm - S.65 slice 2b.  See "netcred-dir" above.  No argument: WHO is from sudo.
+  netcred-dir)
+    [[ $# -eq 0 ]] || usage
+    netcred_dir
     ;;
 
   remote-ssh)
