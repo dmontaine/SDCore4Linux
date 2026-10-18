@@ -2084,11 +2084,11 @@ def files_section():
     for word in ("files-write-off", "FILES-WRITE-OFF"):
         out = g.adm(["modify.account zznfilu " + word])
         row("%s on a user whose Linux user is in no group: 'already had that access' (10080), no 11522 line, nothing changed (and sd-elevate never run)" % word,
-            has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has FILES-WRITE") and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has files-write") and unchanged(), repr(out[-3:]))
     for word in ("files-write-on", "FILES-WRITE-ON"):
         out = g.adm(["MODIFY.ACCOUNT zznfilu " + word])
         row("%s for a user who is not in sdusers: refused with 10081, status 2, no 11522 line, nothing changed" % word,
-            has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has FILES-WRITE") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has files-write") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
     for word in ("files-write-on", "files-write-off"):
         out = g.adm(["modify.account zznfilg " + word])
         row("%s on a GROUP account: refused (10087), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
@@ -2168,8 +2168,8 @@ def files_section():
     # the messages
     for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has FILES %2"),
                     (11521, "This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed"),
-                    (11522, "Account %1 has FILES-WRITE %2"),
-                    (11523, "Account %1 does not have FILES access, so it cannot be given FILES-WRITE: use files-on first")):
+                    (11522, "Account %1 has files-write %2"),
+                    (11523, "Account %1 does not have files access, so it cannot be given files-write: use files-on first")):
         p = os.path.join(g.SYS, "messages", str(n))
         got = open(p, encoding="utf-8", errors="replace").read().strip("\n") if os.path.exists(p) else None
         row("the sandbox holds message %d, one line: %r" % (n, text), got == text, repr(got))

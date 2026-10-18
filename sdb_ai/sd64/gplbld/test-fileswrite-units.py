@@ -285,9 +285,9 @@ def run_checks(raw):
                 if re.search(r"\b1152[123]\b", strip_bas(f.read())):
                     stray.append(fname)
     ck("F15 messages 11521 to 11523 exist, ONE line each, with the words they name in lower case (files-write-on, files-on); 11521 names the request (%1) and what the administrator can do; "
-       "11522 is 'Account %1 has FILES-WRITE %2'; and each is used where it should be and nowhere else: 11521 by apisrvr only, twice (the gate, ONE argument; vb.readv, request 41), "
+       "11522 is 'Account %1 has files-write %2' (lower case, the owner's rule: a keyword SD prints); and each is used where it should be and nowhere else: 11521 by apisrvr only, twice (the gate, ONE argument; vb.readv, request 41), "
        "11522 by MODIFY.ACCOUNT and CREATE.ACCOUNT once each with the account and yes or no, 11523 by MODIFY.ACCOUNT (sysmsg) and CREATE.ACCOUNT (err =) once each with the account",
-       "\n" not in m21 and "\n" not in m22 and "\n" not in m23 and "%1" in m21 and "files-write-on" in m21 and m22 == "Account %1 has FILES-WRITE %2" and "files-on" in m23 and "%1" in m23
+       "\n" not in m21 and "\n" not in m22 and "\n" not in m23 and "%1" in m21 and "files-write-on" in m21 and m22 == "Account %1 has files-write %2" and "files-on" in m23 and "%1" in m23 and "FILES" not in m21 + m22 + m23
        and len(re.findall(r"sysmsg\(11521, (?:action|41)\)", ap)) == 2 and ap.count("11521") == 2 and mo.count("sysmsg(11522, acc.name, if now.files then 'yes' else 'no')") == 1
        and ca2.count("sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')") == 1 and mo.count("sysmsg(11523, acc.name)") == 1
        and ca2.count("err = 11523:@vm:acc.name") == 1 and mo.count("11522") == 1 and ca2.count("11522") == 1 and mo.count("11523") == 1 and ca2.count("11523") == 1
@@ -356,7 +356,9 @@ def mutants(raw):
     m("sd-elevate may delete the group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die", "      sdusers|sdssh|sdapi|sdfiles)\n        die")
     # messages
     m("message 11521 does not name the verb", "msg:11521", "files-write-on", "the-write-word")
-    m("message 11522 is another text", "msg:11522", "Account %1 has FILES-WRITE %2", "Account %1 has WRITE %2")
+    m("message 11522 is another text", "msg:11522", "Account %1 has files-write %2", "Account %1 has write %2")
+    m("message 11522 spells its keyword in capitals (the lower case rule)", "msg:11522", "Account %1 has files-write %2", "Account %1 has FILES-WRITE %2")
+    m("message 11523 spells its keywords in capitals (the lower case rule)", "msg:11523", "so it cannot be given files-write:", "so it cannot be given FILES-WRITE:")
     return M
 
 

@@ -218,7 +218,7 @@ deffun valid_os_path(path) calling '!valid_os_path'
      if files.write.want then
        if not(files.want) then
          @system.return.code = -ER$ARGS
-         err = 11523:@vm:acc.name ;* %1 does not have FILES access, so it cannot be given FILES-WRITE: use files-on first
+         err = 11523:@vm:acc.name ;* %1 does not have files access, so it cannot be given files-write: use files-on first
          goto exit.create
        end
        files.found = is_group('sdfileswrite')
@@ -607,7 +607,7 @@ PW.TRY.AGAIN:
 *    17 Oct 26, S.65 slice 2c: FILES is membership of sdfiles, so the line is read off /etc/group, not off the request.
      crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has FILES %2
 *    18 Oct 26, S.65 write group: the same, for sdfileswrite.
-     crt sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')  ;* Account %1 has FILES-WRITE %2
+     crt sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')  ;* Account %1 has files-write %2
    end
 
 * A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;

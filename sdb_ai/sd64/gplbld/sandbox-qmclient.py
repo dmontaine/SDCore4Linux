@@ -657,7 +657,7 @@ def main():
         plain = lib.SDOpen(b"zzcl")
         plain_item = text(lib.SDRead(plain, b"DOUBLE", ctypes.byref(ctypes.c_int()))) if plain >= 1 else None
         row("H0c: CONTROL: the DATA file zzcl opened by its plain name does not hold the dictionary item DOUBLE (so the opens above reached the dictionary, not the data)",
-            plain >= 1 and plain_item in (None, ""), "fno=%s item=%r" % (plain, plain_item))
+            plain >= 1 and plain_item in (None, b""), "fno=%s item=%r" % (plain, plain_item))
         no_dict = lib.SDOpen(b"dictzzcl")
         row("H0d: CONTROL: 'dictzzcl' (no space) is a plain file name, not a dictionary open: gives 0", no_dict == 0, "fno=%s" % no_dict)
 

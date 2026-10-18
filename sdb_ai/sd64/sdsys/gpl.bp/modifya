@@ -695,7 +695,7 @@ set.files:
       end
       if not(in.files) then
          @system.return.code = -ER$FAILED
-         crt sysmsg(11523, acc.name)  ;* %1 does not have FILES access, so it cannot be given FILES-WRITE: use files-on first
+         crt sysmsg(11523, acc.name)  ;* %1 does not have files access, so it cannot be given files-write: use files-on first
          return
       end
    end
@@ -754,7 +754,7 @@ set.files:
    @system.return.code = 0
    void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
    if files.grp = 'sdfileswrite' then
-      crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has FILES-WRITE %2
+      crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has files-write %2
    end else
       crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has FILES %2
    end
