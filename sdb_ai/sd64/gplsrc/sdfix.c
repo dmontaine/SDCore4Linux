@@ -20,6 +20,20 @@
  * 31 Dec 23 SD launch - prior history suppressed
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  *           process_file was commented out??, sdfix didn't do anything.
+ * 18 Oct 26 dm - -F could not delete an index subfile in the file's own directory: delete_subfile() tested
+ *           akpath[0] against the character '0'.  It also says "Corrected" only if the delete worked.  The repair
+ *           for the split and merge loads wrote 50 and 80, which its own check rejects: it writes the defaults
+ *           of dh_create_file(), 80 and 50.  Input that ends no longer loops: the Fix? and dump questions take it as
+ *           "no" and say so, the pager stops paging, interactive mode quits.  The interactive W command reads its
+ *           address and its value as the hex its help says (it read decimal) and writes the bytes as typed.  -R with
+ *           -F or -Q is refused (it ran no check and fixed nothing, silently).  A file that is open within a
+ *           running SD is refused, as sdidx does.
+ * 18 Oct 26 dm - Verifier fixes.  A file whose path leaves no room for the name of its last index subfile (252 or more
+ *           characters) is refused: the names of AK 8 and up were cut short to "%1", so -F took the overflow subfile and
+ *           the index for index subfiles "found but not expected" and deleted them.  Interactive mode ends when its
+ *           input FAILS, not only when it ends.  The W address must be hex digits followed by '=' (g0, xyz or a space
+ *           after them wrote at the digits it could read).  An index subfile that cannot be read is repaired once, and
+ *           its (unread) header is not then tested for a magic number.  The exit status is 1 if any file named failed.
  * 16 Oct 26 dm - -Z clears the dead space at the end of each group (QM4 Fixes 33): the bytes after used_bytes of every block are zeroed.
  * 15 Oct 26 dm - H shows the sequential id counter (seq_key) and warns when it is negative.
  * 15 Sep 26 dm - read_sdconfig()'s path buffer is MAX_PATHNAME_LEN + 1, as
@@ -75,6 +89,7 @@
 #include "revstamp.h"
 
 #include <unistd.h>
+#include <sys/shm.h>
 
 #define Seek(fu, offset, whence) lseek(fu, offset, whence)
 
@@ -130,6 +145,7 @@ static int64 display_addr = 0; /* Display address */
 int16_t window_size = 256;
 static bool quit = FALSE;
 static bool bar_displayed = FALSE;
+static bool input_ended = FALSE; /* Standard input has ended (18 Oct 26) */
 
 #define HASH_ERROR_LIMIT 50 /* Maximum reported hashing errors */
 
@@ -150,10 +166,12 @@ void H_command(void);
 void L_command(char *id, int16_t id_len);
 void S_command(int32_t n);
 void W_command(char *cmnd);
+static int hex_digit(char c);
 void Z_command(void);
 /* rev 0.9.0 */
 int fix_file(char *fn);
 bool is_dh_file(void);
+bool file_open_in_sd(void);
 int process_file(void);
 void show_window(int64 addr);
 void show_group(int32_t group);
@@ -169,11 +187,14 @@ int32_t get_overflow(void);
 bool clear_group(int32_t grp);
 bool check_and_fix(void);
 bool open_subfile(int16_t subfile);
+bool subfile_path(char *path, int16_t sf);
+bool subfile_names_fit(void);
 bool read_block(int16_t subfile, int64 offset, int16_t bytes, char *buff);
 bool write_block(int16_t subfile, int64 offset, int16_t bytes, char *buff);
 bool read_header(void);
 bool write_header(void);
 bool delete_subfile(int16_t subfile);
+bool delete_bad_ak(int16_t sf, int16_t akno);
 bool read_sdconfig(void);
 bool map_big_rec(int16_t rec_hdr_sf, int64 rec_hdr_offset, DH_RECORD *rec_ptr, int32_t *map);
 void tag_block(int64 offset, int16_t ref_subfile, int64 ref_offset, int16_t usage);
@@ -196,6 +217,7 @@ int main(argc, argv) int argc;
 char *argv[];
 {
   int status = 1;
+  int worst_status = 0; /* 1 if any file named failed */
   int arg;
   int argx;
   bool arg_end;
@@ -295,27 +317,43 @@ char *argv[];
     } while (!arg_end);
   }
 
+  /* 18 Oct 26 dm - -R given with -F or -Q ran neither the check nor the fix (the test below left check off when
+     recover was on), so it fixed nothing and said nothing.  It is refused instead of being made to do both: -R
+     rewrites the file in place and first empties its free chain, and a repair that has just rewritten groups is
+     not something to follow with it in the same pass.  Run the fix, look at the result, then -R. */
+
+  if (recover && fix_level) {
+    printf("-r cannot be combined with -f or -q: run the fix first, then -r on its own\n");
+    goto exit_sdfix;
+  }
+
   if (!(check || fix_level || interactive || recover))
     check = TRUE;
 
   if (zero_dead)
     check = TRUE; /* the dead space is cleared while the groups are walked */
 
-  if (fix_level && !(interactive || recover))
+  if (fix_level && !interactive)
     check = TRUE;
 
   if (arg == argc)
     goto usage; /* No filenames */
 
+  /* 18 Oct 26 dm - The status is the last file's, so a file that was refused (open in SD, path too long, not found)
+     followed by one that was fine ended 0.  It is 1 if any of them failed. */
+
   while (arg < argc) {
 /* rev 0.9.0 */
     status = fix_file(argv[arg]);
+    if (status != 0)
+      worst_status = status;
     emit(
       " SDFIX processed:  %s   Status: %d"
       "\n",
       argv[arg], status);
     arg++;
   }
+  status = worst_status;
 
   if (!file_found)
     printf("No SD hashed files found matching given name(s)\n");
@@ -396,6 +434,47 @@ exit_is_dh_file:
 }
 
 /* ======================================================================
+   file_open_in_sd()  -  Is the file being processed open within a running
+   SD?  The same test as sdidx.c's open_primary(): SD's table of open files
+   (shared memory) is searched for the file's resolved directory name.  It
+   checks nothing when SD is not running, which is also when nothing can be
+   told.  If SD is running but its table cannot be attached, that is said and
+   the file is processed as it was before this check existed.             */
+
+bool file_open_in_sd() {
+  bool in_use = FALSE;
+  int shmid;
+  int fno;
+  FILE_ENTRY *fptr;
+  char real[PATH_MAX + 1];
+
+  if (realpath(filename, real) == NULL) {
+    if (strlen(filename) > MAX_PATHNAME_LEN)
+      return FALSE; /* No SD file has a name this long */
+    strcpy(real, filename);
+  }
+
+  if ((shmid = shmget(SD_SHM_KEY, 0, 0666)) == -1)
+    return FALSE; /* SD is not running */
+
+  if ((sysseg = (SYSSEG *)shmat(shmid, NULL, SHM_RDONLY)) == (void *)(-1)) {
+    emit("Cannot attach to SD's shared memory [%d]: not checked whether the file is open in SD\n", errno);
+    return FALSE;
+  }
+
+  for (fno = 1; fno <= sysseg->used_files; fno++) {
+    fptr = FPtr(fno);
+    if ((fptr->ref_ct != 0) && (strcmp((char *)(fptr->pathname), real) == 0)) {
+      in_use = TRUE;
+      break;
+    }
+  }
+
+  shmdt((void *)sysseg);
+  return in_use;
+}
+
+/* ======================================================================
    process_file()  -  Process a file                                      */
 
 int process_file() {
@@ -410,6 +489,14 @@ int process_file() {
   char *p;
 
   emit("Processing %s\n", filename);
+
+  /* 18 Oct 26 dm - sdidx refuses a file that is open within SD; this tool, which writes far more of the file, did
+     not.  dh_fmt.h says of the off-line tools that "nothing has the file open while they run": this makes it so. */
+
+  if (file_open_in_sd()) {
+    emit("File is currently open within SD\n");
+    goto exit_process_file;
+  }
 
   /* Open primary and overflow subfiles */
 
@@ -459,6 +546,15 @@ int process_file() {
 
   group_bytes = header.group_size;
 
+  /* 18 Oct 26 dm - Index subfiles are looked for under all 32 possible names.  If the last of them does not fit in a
+     pathname, the check would find some of them under a name that was cut short (AK 8 and up as "%1", the overflow
+     subfile) and -F would delete what it found.  Nothing more is opened for a path like that. */
+
+  if (!subfile_names_fit()) {
+    emit("The path is too long: the name of the last index subfile does not fit in %d characters\n", MAX_PATHNAME_LEN);
+    goto exit_process_file;
+  }
+
   /* Check for each AK subfile and open */
 
   for (i = 0; i < MAX_INDICES; i++) {
@@ -484,7 +580,21 @@ int process_file() {
     do {
       emit("%d?", (int)subfile);
       *cmnd = '\0'; /* For quit key path which aborts gets() */
-      fgets(cmnd, 80, stdin);
+      /* 18 Oct 26 dm - fgets() returns NULL at the end of input, leaving cmnd empty, which the loop took for a blank
+         line for ever.  (An interrupt also returns NULL with cmnd cleared: that is not the end of input.) */
+      if (fgets(cmnd, 80, stdin) == NULL) {
+        if (feof(stdin)) {
+          emit("End of input\n");
+          break;
+        }
+        /* A failed read (an unreadable terminal or file as input) is not an interrupt either: it fails again at once,
+           for ever.  Only an interrupted read goes round again. */
+        if (errno != EINTR) {
+          emit("Input error [%d]\n", errno);
+          goto exit_process_file;
+        }
+        clearerr(stdin);
+      }
       if ((p = strchr(cmnd, '\n')) != NULL)
         *p = '\0';
       if (logging)
@@ -544,8 +654,8 @@ int process_file() {
         emit("RECOVER    recover disk space\n");
         emit("Sn         select subfile\n");
         emit(
-            "Wn=x       write hex value (1, 2 or 4 bytes in file byte "
-            "order)\n");
+            "Wa=x       write hex value x (2, 4 or 8 digits: 1, 2 or 4 bytes, in the order typed) at hex address a\n");
+        emit("Wa=\"t\"     write the text t at hex address a\n");
         emit("Z          show statistic counters\n");
         emit("n          show window from given hex address\n");
       } else {
@@ -726,63 +836,61 @@ void S_command(int32_t n) {
 /* ======================================================================
    W_command()  -  Write data                                             */
 
+/* 18 Oct 26 dm - Wa=x and Wa="text".  The help text says the address and the value are hex, and the code read them
+   with "%d", decimal (a 64 bit change of the %lx that was there had made it so), then byte-swapped what it had read as if
+   it were hex.  A is a hex file offset, as the offsets H prints are; X is 2, 4 or 8 hex digits for 1, 2 or 4 bytes and
+   the bytes are written in the order they are typed, which is the order a dump of the file shows them, so no byte order
+   comes into it.  "Was" shows the bytes that were there in the same form.  Anything that is not a hex digit is a format
+   error, not a number cut short.                                                                                       */
+
 void W_command(char *cmnd) {
   u_int32_t w_addr;
-  u_int32_t w_data;
-  u_int32_t old_data;
+  u_char w_data[4];
+  u_char old_data[4];
   int16_t n;
   int16_t bytes;
+  int16_t i;
   char *p;
   char c;
-  /* Modified by Composer AI - 2026/06/10.
-     "%d" requires pointers to signed int, but w_addr/w_data are u_int32_t:
-     that is undefined behaviour, and it also allowed a negative address to
-     wrap to a huge unsigned value because the "w_addr < 0" guards below
-     could never fire. Parse into signed temporaries, reject negatives, then
-     assign to the unsigned working variables. */
-  int w_addr_in;
-  int w_data_in;
 
-  /* n = sscanf(cmnd, "%d=%d", &w_addr, &w_data); */ /* was %lx for both - 64bit fix -gwb*/
-  n = sscanf(cmnd, "%d=%d", &w_addr_in, &w_data_in);
+  /* The address is hex digits and then '=' and nothing between: sscanf() took the digits it could read and ignored what
+     followed, so W10xyz=41 and W1G0=41 wrote at 10 and at 1.  Spaces before the address are allowed. */
 
-  if (n < 1)
-    goto w_format_error; /* Address component not present */
-
-  if (w_addr_in < 0) {
+  while (*cmnd == ' ')
+    cmnd++;
+  for (p = cmnd, n = 0; isxdigit((u_char)*p); p++)
+    n++;
+  if ((n == 0) || (*p != '='))
+    goto w_format_error; /* Address component not present, or not hex */
+  if (n > 8) {
     emit("Illegal address\n");
     return;
   }
-  w_addr = (u_int32_t)w_addr_in;
-  w_data = (n == 2) ? (u_int32_t)w_data_in : 0;
-  /* -------------------- */
+  sscanf(cmnd, "%x", &w_addr);
+  p++; /* The value */
 
-  if (n == 2) /* Hex assignment */
+  if ((*p != '"') && (*p != '\'')) /* Hex assignment */
   {
-    n = strlen(cmnd) - (strchr(cmnd, '=') - cmnd) - 1; /* Chars after '=' */
-    switch (n) {
-      case 2:
-        break;
-      case 4:
-        w_data = ((w_data & 0x0000FF00L) >> 8) | ((w_data & 0x000000FFL) << 8);
-        break;
-      case 8:
-        w_data = (w_data >> 24) | ((w_data & 0x00FF0000L) >> 8) | ((w_data & 0x0000FF00L) << 8) | ((w_data & 0x000000FFL) << 24);
-        break;
-      default:
-        emit("Illegal data length\n");
-        return;
+    n = strlen(p); /* Hex digits */
+    for (i = 0; i < n; i++) {
+      if (!isxdigit((u_char)p[i]))
+        goto w_format_error;
+    }
+    if (n == 0)
+      goto w_format_error;
+    if ((n != 2) && (n != 4) && (n != 8)) {
+      emit("Illegal data length\n");
+      return;
     }
 
     bytes = n >> 1; /* Convert to bytes */
+    for (i = 0; i < bytes; i++) {
+      w_data[i] = (u_char)((hex_digit(p[2 * i]) << 4) | hex_digit(p[2 * i + 1]));
+    }
 
-    /* Modified by Composer AI - 2026/06/10.
-       w_addr is unsigned so "w_addr < 0" was always false (negative input is
-       now rejected at parse time above). Perform the range check in 64-bit
-       arithmetic so it cannot wrap. */
-    /* if ((w_addr < 0) || (w_addr + bytes > filelength64(fu[subfile]))) { */
+    /* The address is unsigned, so the range check is done in 64 bit arithmetic and cannot wrap (Composer AI,
+       2026/06/10) */
     if ((int64_t)w_addr + bytes > filelength64(fu[subfile])) {
-    /* -------------------- */
       emit("Illegal address\n");
       return;
     }
@@ -792,42 +900,27 @@ void W_command(char *cmnd) {
       return;
     }
 
-    old_data = 0;
-    read(fu[subfile], &old_data, bytes);
-
-    switch (n) {
-      case 2:
-        emit("Was %02X\n", old_data);
-        break;
-      case 4:
-        old_data = ((old_data & 0x0000FF00L) >> 8) | ((old_data & 0x000000FFL) << 8);
-        emit("Was %04X\n", old_data);
-        break;
-      case 8:
-        old_data = (old_data >> 24) | ((old_data & 0x00FF0000L) >> 8) | ((old_data & 0x0000FF00L) << 8) | ((old_data & 0x000000FFL) << 24);
-        emit("Was %08X\n", old_data);
-        break;
+    if (read(fu[subfile], old_data, bytes) != bytes) {
+      emit("Read error\n");
+      return;
     }
+
+    emit("Was ");
+    for (i = 0; i < bytes; i++)
+      emit("%02X", (int)old_data[i]);
+    emit("\n");
 
     if (Seek(fu[subfile], w_addr, SEEK_SET) < 0) {
       emit("Seek error\n");
       return;
     }
 
-    write(fu[subfile], &w_data, bytes);
-
-    if (subfile == 0) {
-      if (!read_header()) {
-        emit("Error re-reading primary subfile header\n");
-      }
+    if (write(fu[subfile], w_data, bytes) != bytes) {
+      emit("Write error\n");
+      return;
     }
-  } else if ((n == 1) && ((p = strchr(cmnd, '=')) != NULL) && (((c = *(++p)) == '"') || (c == '\'')) && ((n = strlen(p)) >= 2) && (p[n - 1] == c)) {
-    /* Modified by Composer AI - 2026/06/10.
-       Same as above: drop the always-false unsigned "< 0" test and do the
-       range check in 64-bit arithmetic so it cannot wrap. */
-    /* if ((w_addr < 0) || (w_addr + n - 2 > filelength64(fu[subfile]))) { */
+  } else if (((c = *p) == '"' || c == '\'') && ((n = strlen(p)) >= 2) && (p[n - 1] == c)) {
     if ((int64_t)w_addr + n - 2 > filelength64(fu[subfile])) {
-    /* -------------------- */
       emit("Illegal address\n");
       return;
     }
@@ -837,14 +930,32 @@ void W_command(char *cmnd) {
       return;
     }
 
-    write(fu[subfile], p + 1, n - 2);
+    if (write(fu[subfile], p + 1, n - 2) != n - 2) {
+      emit("Write error\n");
+      return;
+    }
   } else
     goto w_format_error;
+
+  if (subfile == 0) {
+    if (!read_header()) {
+      emit("Error re-reading primary subfile header\n");
+    }
+  }
 
   return;
 
 w_format_error:
   emit("Format error in W command\n");
+}
+
+/* ======================================================================
+   hex_digit()  -  Value of a hexadecimal digit (the caller has checked it) */
+
+static int hex_digit(char c) {
+  if ((c >= '0') && (c <= '9'))
+    return c - '0';
+  return (toupper((u_char)c) - 'A') + 10;
 }
 
 /* ======================================================================
@@ -1046,11 +1157,15 @@ bool check_file() {
   if ((header.params.split_load < 0) || (header.params.merge_load < 0) || (header.params.split_load <= header.params.merge_load)) {
     emit("Invalid split and/or merge loads (%d, %d)\n", (int)(header.params.split_load), (int)(header.params.merge_load));
     if (fix()) {
-      header.params.split_load = 50;
-      header.params.merge_load = 80;
+      /* 18 Oct 26 dm - split 50 and merge 80 were written, which the test above rejects (it wants split above
+         merge), so every -F wrote what the next check reported.  The defaults are the ones a new file gets from
+         dh_create_file(), DEFAULT_SPLIT_LOAD 80 and DEFAULT_MERGE_LOAD 50 (dh_int.h).  The message names (split,
+         merge) in the order the check message above does. */
+      header.params.split_load = DEFAULT_SPLIT_LOAD;
+      header.params.merge_load = DEFAULT_MERGE_LOAD;
       if (!write_header())
         goto exit_check;
-      emit("   Corrected by resetting to defaults (50, 80)\n");
+      emit("   Corrected by resetting to defaults (%d, %d)\n", DEFAULT_SPLIT_LOAD, DEFAULT_MERGE_LOAD);
     }
   }
 
@@ -1063,35 +1178,32 @@ bool check_file() {
       {
         /* Read AK subfile header to check magic number */
 
-        if (!read_block(sf, 0, DH_AK_HEADER_SIZE, (char *)&ak_header)) {
-          emit("Cannot read AK%d subfile header", (int)akno);
-          if (fix()) {
-            delete_subfile(sf);
-            header.ak_map &= ~(1 << akno);
-            if (!write_header())
-              goto exit_check;
-            emit("   Corrected by deleting affected AK index subfile\n");
-            emit("   AK must be recreated and rebuilt\n");
-          }
-        }
+        /* 18 Oct 26 dm - The magic number is tested only if the header was read.  It used to be tested anyway, against
+           whatever ak_header held (the last index's, or nothing), so an index file that could not be read was also
+           reported as having a wrong magic number, and -F repaired it twice. */
 
-        if (ak_header.magic != DH_INDEX) {
+        if (!read_block(sf, 0, DH_AK_HEADER_SIZE, (char *)&ak_header)) {
+          emit("Cannot read AK%d subfile header\n", (int)akno);
+          if (fix()) {
+            if (!delete_bad_ak(sf, akno))
+              goto exit_check;
+          }
+        } else if (ak_header.magic != DH_INDEX) {
           emit("AK%d subfile has incorrect magic number (%04X)\n", (int)akno, (int)(ak_header.magic));
           if (fix()) {
-            delete_subfile(sf);
-            header.ak_map &= ~(1 << akno);
-            if (!write_header())
+            if (!delete_bad_ak(sf, akno))
               goto exit_check;
-            emit("   Corrected by deleting affected AK index subfile\n");
-            emit("   AK must be recreated and rebuilt\n");
           }
         }
       } else /* Did not expect this AK subfile */
       {
         emit("AK%d subfile found but not expected\n", (int)akno);
         if (fix()) {
-          delete_subfile(sf);
-          emit("   Corrected by deleting affected AK index subfile\n");
+          /* 18 Oct 26 dm - "Corrected" only when the file really went (it printed it whatever remove() said). */
+          if (delete_subfile(sf))
+            emit("   Corrected by deleting affected AK index subfile\n");
+          else
+            emit("   The AK index subfile could not be deleted\n");
         }
       }
     } else {
@@ -2064,20 +2176,46 @@ Private void show_node(int32_t group) {
 
 bool open_subfile(int16_t sf) {
   char path[MAX_PATHNAME_LEN + 1];  // was hardcoded to 160.
-  // converted to snprintf() -gwb 23Feb20
-  if ((sf >= AK_BASE_SUBFILE) && (header.akpath[0] != '\0')) {
-/* rev 0.9.0 */    
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", header.akpath, DS, (int)sf) >= (MAX_PATHNAME_LEN + 1)) {
-      emit("Overflow of max file/pathname size. Truncated to:\n\"%s\"\n", path);
-    }
-  } else {
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", filename, DS, (int)sf) >= (MAX_PATHNAME_LEN + 1)) {
-      emit("Overflow of max file/pathname size. Truncated to:\n\"%s\"\n", path);
-    }
-  }
+
+  if (!subfile_path(path, sf))
+    return FALSE;
 
   fu[sf] = open(path, (int)(O_RDWR | O_BINARY), default_access);
   return (fu[sf] >= 0);
+}
+
+/* ======================================================================
+   subfile_path()  -  Form the pathname of subfile SF: an index subfile in
+   the relocated directory if the header names one, otherwise in the file's
+   own directory.  FALSE if the name does not fit, in which case PATH must
+   not be used.  (18 Oct 26 dm - the two callers went on with the truncated
+   name, and a name cut to "%1" is the overflow subfile.)                 */
+
+bool subfile_path(char *path, int16_t sf) {
+  char *dir = ((sf >= AK_BASE_SUBFILE) && (header.akpath[0] != '\0')) ? header.akpath : filename;
+
+  if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", dir, DS, (int)sf) >= (MAX_PATHNAME_LEN + 1)) {
+    emit("Overflow of max file/pathname size for subfile %d of \"%s\"\n", (int)sf, dir);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+/* ======================================================================
+   subfile_names_fit()  -  Does the name of the LAST index subfile fit in
+   the file's directory and in the relocated one?  Every other name is
+   shorter or the same length.                                            */
+
+bool subfile_names_fit() {
+  char path[MAX_PATHNAME_LEN + 1];
+  int16_t last = AK_BASE_SUBFILE + MAX_INDICES - 1;
+
+  if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", filename, DS, (int)last) >= (MAX_PATHNAME_LEN + 1))
+    return FALSE;
+  if ((header.akpath[0] != '\0') &&
+      (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", header.akpath, DS, (int)last) >= (MAX_PATHNAME_LEN + 1)))
+    return FALSE;
+  return TRUE;
 }
 
 /* ======================================================================
@@ -2139,21 +2277,37 @@ bool write_header() {
 }
 
 /* ======================================================================
+   delete_bad_ak()  -  The repair for an AK subfile that cannot be read or
+   has the wrong magic number: delete it and take it out of the header's
+   index map.  Returns FALSE if the primary header could not be written.
+   (18 Oct 26 dm - the two call sites were the same ten lines.)          */
+
+bool delete_bad_ak(int16_t sf, int16_t akno) {
+  bool deleted = delete_subfile(sf);
+
+  header.ak_map &= ~(1 << akno);
+  if (!write_header())
+    return FALSE;
+  if (deleted)
+    emit("   Corrected by deleting affected AK index subfile\n");
+  else
+    emit("   Removed from the index map, but the AK index subfile could not be deleted\n");
+  emit("   AK must be recreated and rebuilt\n");
+  return TRUE;
+}
+
+/* ======================================================================
    delete_subfile()  -  Delete a subfile                                  */
 
 bool delete_subfile(int16_t sf) {
   char path[MAX_PATHNAME_LEN + 1];  // was hardcoded 160
-  // converted to snprintf() -gwb 23Feb20
-  if ((sf >= AK_BASE_SUBFILE) && (header.akpath[0] != '0')) {
-/* rev 0.9.0 */    
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", header.akpath, DS, (int)sf) >= (MAX_PATHNAME_LEN + 1)) {
-      emit("Overflow of max file/pathname size. Truncated to:\n\"%s\"\n", path);
-    }
-  } else {
-    if (snprintf(path, MAX_PATHNAME_LEN + 1, "%s%c%%%d", filename, DS, (int)sf) >= (MAX_PATHNAME_LEN + 1)) {
-      emit("Overflow of max file/pathname size. Truncated to:\n\"%s\"\n", path);
-    }
-  }
+
+  /* 18 Oct 26 dm - was header.akpath[0] != '0': the character zero, not the end of the string.  An index in the
+     file's own directory (akpath empty) was looked for in "" + "/%2", so -F reported "Corrected by deleting" and
+     removed nothing.  subfile_path() has the right test. */
+
+  if (!subfile_path(path, sf))
+    return FALSE;
 
   if (fu[sf] >= 0) {
     close(fu[sf]);
@@ -3032,7 +3186,7 @@ exit_write_record:
 
 void emit(char msg[], ...) {
   va_list arg_ptr;
-  char c;
+  char c = '\0';
   char text[500];
   char *p;
   char *q;
@@ -3051,7 +3205,12 @@ void emit(char msg[], ...) {
     if (emitted_lines == display_lines) {
       printf("Press return to continue...");
       fflush(stdout);
-      read(0, &c, 1);
+      /* 18 Oct 26 dm - c was left as it was when the input had ended, so the answer was whatever the stack held (a
+         Q would have ended the run).  With nobody to answer, paging stops. */
+      if (input_ended || (read(0, &c, 1) <= 0)) {
+        input_ended = TRUE;
+        c = 'S';
+      }
       printf("\n");
 
       switch (toupper(c)) {
@@ -3106,13 +3265,21 @@ bool fix() {
 
 /* ====================================================================== */
 
+/* 18 Oct 26 dm - read() returning 0 or -1 left c as it was, so a question asked after the input had ended read the
+   same byte for ever: -Q looped at "Fix?" (and at the dump question).  The end of input is "no", is said once, and
+   once the input has ended no question is waited for again.                                                         */
+
 bool yesno(char *prompt) {
-  char c;
+  char c = '\0';
 
   printf("%s? ", prompt);
   fflush(stdout);
   do {
-    read(0, &c, 1);
+    if (input_ended || (read(0, &c, 1) <= 0)) {
+      input_ended = TRUE;
+      printf("N (end of input)\n");
+      return FALSE;
+    }
     c = toupper(c);
     if (c >= 32)
       printf("%c", c);
