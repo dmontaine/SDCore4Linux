@@ -29,6 +29,10 @@
 *   SL.S.CURON       1 when the cursor is shown
 *   SL.S.OWNED       1 for the screen SCREEN OPEN made; 0 for a transient blank one
 *   SL.S.MOUSE       1 while SCREEN OPEN has switched mouse reporting on (SCREEN CLOSE switches it off)
+*   SL.S.BCLIP, SL.S.NARROW   while $sl_form has narrowed SL.S.CLIP to the visible part of a container for the
+*                    widget it is calling (18 Oct 26): NARROW is 1 and BCLIP is the clip that was in force before, the
+*                    program's own.  A widget that opens a pop-up (the combo box's list, the memo's find line) lifts
+*                    the clip to BCLIP while the pop-up is on the screen, so that it is not cut at the container's edge.
 *
 * Everything the library draws goes through $sl_put, which writes this shadow as well as the terminal, so a
 * pop-up can save what is under it and put it back.
@@ -57,3 +61,5 @@ $define SL.S.CUR       7
 $define SL.S.CURON     8
 $define SL.S.OWNED     9
 $define SL.S.MOUSE     10
+$define SL.S.BCLIP     11
+$define SL.S.NARROW    12

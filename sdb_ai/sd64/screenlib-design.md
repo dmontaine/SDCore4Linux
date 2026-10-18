@@ -1,6 +1,6 @@
 # screen library (sl_), stage 2 first cut - design note
 
-12 Oct 2026; updated 13 Oct 2026 (see the 13 Oct sections). Written before the menu, kept to what SED needs plus the obvious next widgets.
+12 Oct 2026; updated 13 Oct 2026 (see the 13 Oct sections) and 18 Oct 2026 (containers and viewports). Written before the menu, kept to what SED needs plus the obvious next widgets.
 Background: PROJECT_STATUS.md S.1 (stage 1: a pure BASIC renderer is fast enough).
 First users: SED's menu bar and quit box. Tests: gplbld/sandbox-sed-menu.py.
 
@@ -82,7 +82,7 @@ old size once re-initialised.
 ## widgets expected later, and how each fits
 
 - label: `draw` only, never focusable.
-- frame: `draw` a box with title; children are the form's, not the frame's.
+- frame: `draw` a box with title; children are the form's, not the frame's. (A container, built 18 Oct 26, is the widget that does own children.)
 - button: `draw` caption, `key` enter/space -> `done` with its code; hotkey letter from `&`.
 - entry field: the `$sl_prompt` code with x/w and scroll state in S1/S2; masked variant by a flag.
 - check box: `key` space toggles `value`, `handled`.
@@ -302,6 +302,12 @@ they are modal dialogues, not members of a form. Both obey the one contract
 | `table` | `screen table f, id, columns, rows at x,y size w,h {value n}` | - | `!screen_table` |
 | `tree` | `screen tree f, id, nodes {at x,y} {size w,h} {value n} {expanded}` | - | `!screen_tree` |
 | `scrollbar` | `screen scrollbar f, id, total {at x,y} {size w,h} {visible} {value n}` | - | `!screen_scrollbar` |
+| `container` | `screen container f, id {at x,y} {size w,h} {title t} {noborder}` | - | `!screen_container` |
+| `viewport` | `screen viewport f, id {at x,y} {size w,h} {content cw,ch} {title t} {noborder}` | - (`get`: first column, @vm, first row) | `!screen_viewport` |
+| `in` | `screen in f, id` (null id ends it) | - ; else when id is not a container | `!screen_in` |
+| `move` | `screen move f, id {at x,y} {size w,h} {content cw,ch}` | - ; else when a size is asked of a widget that has none | `!screen_move` |
+| `delete` | `screen delete f, id` | how many widgets went (a container takes its children) | `!screen_delete` |
+| `scroll` | `screen scroll f, id {to x,y} {by dx,dy}` | where the viewport is now: column @vm row | `!screen_scroll` |
 
 A zero-value keyword (`fill`, `multi`, `mask`, `on`) is a flag: the subroutine is given 1, else null.
 `items` are values (or a comma list, as `buttons` already is); a menu item is label @sm shortcut @sm
@@ -526,6 +532,75 @@ keys, mouse, `change` events.
 **Borders.** `screen open ... lines` draws forms, boxes and dialogues with Unicode line-drawing characters. The
 stand-ins CHAR(14) to CHAR(19) from `$sl_line` are turned into the terminal's bytes by `$sl_put`. Otherwise plain
 `+ - |`. Reset by `screen close` and by the clean-up routine.
+
+## 18 Oct 26: containers and viewports (built; tested in `sandbox-viewport.py`)
+
+From `.claude/plan-fullscreen-apps.md`, "Container and viewport". Written for the screen builder (a canvas larger than the
+window) and for the full-screen apps (a form larger than the 140 by 42 floor), but a plain library feature.
+
+**What it is.** `SCREEN CONTAINER f, id` is a bordered rectangle that owns widgets; `SCREEN VIEWPORT f, id ... CONTENT cw,ch`
+is a container whose inside is a window on a sheet cw by ch cells. `SCREEN IN f, id` is to containers what `SCREEN PAGE` is to
+tabs: the widgets added after it are inside (`SCREEN IN f, ''` ends it; a container added while another is current is inside
+that one, so `IN o / CONTAINER i / IN i` nests). `SCREEN MOVE`, `DELETE` and `SCROLL` were not in the plan; the rows the task asked
+for (move, delete with children) and a program that has to put a viewport somewhere needed them.
+
+**The model (`$sl_form`, `$sl_viewport`, `$sl_wadd`).** A child has `parent` (an id) and `pn` (the number of the parent in the
+flat `widgets` array; the parent comes first, so the container is drawn first). `layout` places a child at `parent.ox + x`
+(`ox` = the first cell inside the border less the viewport's scroll) and gives it `clip`, the visible part of its container
+intersected with the container's own clip, so nesting is an intersection. **A child's x,y count from the first cell inside the
+container's border** (as the plan said), which differs from a form's (0,0 is the border corner); with `noborder` the inside is
+the whole rectangle and a child at x,y is at the container's corner plus x,y - the same cells as the widget put directly in the
+form at that place (a suite row compares the two screens cell for cell and attribute for attribute). `on.page` walks up the
+parents (a hidden container, or one on another tab page, hides its children; a disabled one takes them out of the focus ring and
+the mouse); `delete` takes a container's children with it. The focus ring stays flat, and the viewport is in it (so its own keys
+work), ahead of its children. A form with no parents is drawn exactly as before.
+
+**Clipping.** Every call a form makes to a child widget - draw, focus, key, mouse - runs with `SL.S.CLIP` narrowed to the child's
+clip (the program's own clip is kept in `SL.S.BCLIP`, `SL.S.NARROW` is 1 meanwhile). So a widget that redraws itself on a key (an
+entry typing, a memo of 14 rows in a window of 7) is cut at the edge too, not only when the form draws it. A child with nothing
+in its clip is not drawn at all (this is what keeps a scroll cheap). The plain container clips as well as the viewport; the plan
+said only the viewport, but a child running over its container's border is never wanted.
+
+**The four things the plan left to test:**
+1. *Pop-ups.* Wrong as the plan had it: key handling happens inside the narrowed clip, so a combo box's list WAS cut. `$sl_combo`
+   now draws its list under the program's own clip (`SL.S.BCLIP`) and puts the narrow one back. Audit of the other pop-ups: the
+   memo's find line is on the memo's own bottom row (clipped like the memo, correct); menus, message boxes and pick lists are
+   statements the program calls outside the form. Rows: `sandbox-viewport.py` part `focus` (the list covers the bar row and the
+   border row; Esc puts them back; a choice is the combo's value).
+2. *The cursor of a widget scrolled away.* Each widget puts the hardware cursor where its text is, with `display @(x,y)`; the
+   form cannot know where. So the form decides by the widget's rectangle: if the focused widget is a container, or is not WHOLLY
+   in view (hidden, scrolled out, or cut by an edge), `park.cursor` hides the cursor (`@(-32)`) and shows it again when the widget
+   is back (`@(-31)`, only if the screen's own state says the cursor is on). The limit: a widget bigger than the window (a memo of
+   14 rows in a window of 7) never shows a cursor there; the answer is a window that fits the widget. After a `SCREEN WAIT` that
+   returned an event the library puts the cursor at its own place, (0,0) - existing behaviour for every form - and the next WAIT
+   hides it again before it reads a key. Rows: part `focus` (`zzvpcur`, a modal run, where the cursor's place can be read).
+3. *Widgets that bypass `$sl_put`.* None: every widget's text goes through `$sl_put` (grep of `display`/`crt`/`print` in the widget
+   programs finds the cursor moves, the bell in the memo, and `$sl_desktop` / `$sl_repaint`, which are not widgets). A memo (14
+   rows) and a table (10 by 24) in a 10 by 30 viewport are typed in and scrolled and nothing outside the viewport changes (part
+   `wid`; the same rows fail with the narrowing taken out - recorded in PROJECT_STATUS).
+4. *Mouse drag tracking.* The terminal's button-event reports (mode 1002) already reach the form as `mouse` keys with their
+   position; nothing used them. A press on a bar's thumb now starts a drag (`f{'drag'}` = the viewport) and the form hands every
+   drag and the release to that viewport wherever the pointer is, so the thumb follows the pointer off the bar sideways and past
+   the ends. A drag for any other purpose (the builder moving a widget) is still the separate gap.
+
+**Keys and the mouse.** With the viewport focused: Up, Down, Left, Right one row or column, Page Up and Down a window less one,
+Home and End the top and the bottom. At an edge the key is unhandled, so Up and Down go on to the widget before or after (the
+scroll bar widget does the same). The wheel scrolls 3 rows over a viewport or over a child that does not use the wheel itself
+(a list, memo, table, tree and scroll bar do), Shift-wheel 3 columns; the wheel never moves the focus to the viewport. A click on a
+bar's arrow moves 1, on the track a page. A child that takes the focus (Tab, a click, `SCREEN FOCUS` before the form is shown) is
+scrolled into view in every viewport round it, just far enough; a widget too big for the window gets its top left corner shown.
+A click counts only where the child is inside its container's clip. Events: a scroll is the `change` event of the viewport's id
+with the first column, a value mark and the first row as data; if the same key moved the focus, the `focus` event is the one
+returned. `SCREEN SCROLL` from the program is not an event. `SCREEN GET` of a viewport answers where it is.
+
+**Cost.** A scroll redraws the viewport's inside and its descendants (and any later widget lying over it) with the
+rest of the form untouched. Measured 18 Oct 26 on 200 by 60 of sheet (630 widgets) in a 138 by 40 viewport on a 140 by 42 screen:
+about 70-90 ms per scroll step to the last byte, for Down, Page Down, Home, End, the wheel and Shift-wheel alike (`sandbox-viewport.py`
+part `big` prints the numbers). The cost is the widgets in view; a widget wholly outside the window is skipped before its draw.
+
+**Not done.** Drag as a library event for other widgets; design-mode placeholders and selection handles; a wheel that passes
+from a self-scrolling child that is at its limit to the viewport round it; `SCREEN SET` of a viewport's content size (it is
+`SCREEN MOVE ... CONTENT`).
 
 ## risks and open questions for the owner
 
