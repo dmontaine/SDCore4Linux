@@ -41,6 +41,10 @@ SDChange = _lib.SDChange
 SDChange.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 SDChange.restype = ctypes.c_char_p
 
+SDChecksum = _lib.SDChecksum
+SDChecksum.argtypes = [ctypes.c_char_p]
+SDChecksum.restype = ctypes.c_int
+
 SDClearSelect = _lib.SDClearSelect
 SDClearSelect.argtypes = [ctypes.c_int]
 SDClearSelect.restype = None

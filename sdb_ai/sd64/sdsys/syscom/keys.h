@@ -436,6 +436,9 @@
       * 17 Oct 26 dm - S.65 slice 2b, mirrored from gplsrc/keys.h: is a path a file
       *   or directory only the running user can touch.  Args: path, FILE or DIR.
       $define SD_FILE_PRIVATE 111  ;* op_sdext private-file test, 2 args: path, FILE|DIR
+      * 18 Oct 26 dm - encryption layer 3, mirrored from gplsrc/keys.h: the key ring of the XE conversion.
+      *   Args: 'set', name, base64 key (answers the key id, 8 hex digits) / 'clear', name or * (answers how many) / 'list'.
+      $define SD_KEYRING      120  ;* sd_keyring key ring: set, clear, list
       
       * embedded python 
       

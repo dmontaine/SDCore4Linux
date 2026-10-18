@@ -444,7 +444,11 @@ def main():
         "catch-all means symbol, guard not first: %r -> %s (ours: %s)"
         % (TAB_ROW, got, helper_verdict(TAB_ROW)))
 
-    REMOTE_PASSWORD_PROMPTS = {"setnetlogin": "the password of the user on another SD server, spent once on the SCRAM exchange"}
+    # 18 Oct 26 (encryption layer 3): ENCRYPT.KEY asks for the passphrase a data key is made from.  It is not an SD password: nothing is
+    # stored or compared, SDKEY() turns it into a key and it is gone.  The strength of that passphrase is the person's (the page says so);
+    # the rule above is for the passwords SD sets, and a 4-class rule would refuse the long word passphrases that are the better choice.
+    REMOTE_PASSWORD_PROMPTS = {"setnetlogin": "the password of the user on another SD server, spent once on the SCRAM exchange",
+                               "encryptkey": "the passphrase a data encryption key is made from, used once by SDKEY() and not stored"}
 
     # ---- P: THE PARTITION.  Every prompt that sets a password runs the rule.
     # ---- This is the regression no row about the rule itself can see: the
@@ -465,7 +469,7 @@ def main():
                 # value; it is a named list, not a pattern.
                 bad = [w for w in ("cred-own", "set_acc_password", "setpw", "pw_complex(") if w in body]
                 row("P  exempt     ", not bad,
-                    "%-28s asks for a REMOTE password (%s) and sets no SD password; found %r"
+                    "%-28s asks for a password that is not an SD password (%s) and sets none; found %r"
                     % ("sdsys/gpl.bp/" + name, REMOTE_PASSWORD_PROMPTS[name], bad))
                 continue
             prompts.append(("sdsys/gpl.bp/" + name, body, r"pw_complex\("))

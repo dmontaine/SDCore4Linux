@@ -69,8 +69,9 @@
 * NOT.TESTED: GET.PORT.PARAMS SET.PORT.PARAMS GETNLS
 *   - terminal or printer state.
 * NOT.TESTED: CHGPHANT CONFIG UMASK CATALOGUED DIR GET.MESSAGES SYSMSG
-* NOT.TESTED: SDENCRYPT SDDECRYPT
-*   - change the process, or read something the process was started with.
+* NOT.TESTED: SDENCRYPT SDDECRYPT SDSALT SDKEY SDRANDKEY
+*   - change the process, or read something the process was started with.  (SDSALT and SDRANDKEY are random and SDKEY takes
+*     about a tenth of a second: sandbox-crypt.py has their rows.)
 *
 * ***TWO NAMES CAME OFF THE PORT'S EXCLUSION LIST RATHER THAN ONTO THIS ONE,
 * AND A THIRD PAIR WAS ON NEITHER LIST THERE.***  Measured 12 Sep 2026 against
