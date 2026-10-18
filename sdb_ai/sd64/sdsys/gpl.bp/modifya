@@ -19,6 +19,10 @@
 * 
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.65 write group: FILES-WRITE-ON / FILES-WRITE-OFF put the account's person in or out of the Linux group sdfileswrite, which lets a files-only
+*           (sdfiles) login CHANGE files on this server; set.files now takes the group from files.grp (it was sdfiles only).  FILES-WRITE-ON is refused
+*           for a person who is not in sdfiles (11523) and when the group does not exist (10024); FILES-OFF takes the person out of sdfileswrite as well,
+*           so a later files-on does not hand the write back.  Reported with 11522.
 * 18 Oct 26 dm S.66: SHARED-READ-ON / -OFF and SHARED-WRITE-ON / -OFF, the shared-account gates (register fields 13 and 14), through os.set; allowed on a
 *           group account (and on the account shared itself, which is not refused); reported with 11515.  SHARED-READ is the one gate whose blank field means ON,
 *           so os.set reads its "was" as "is not no" and writes 'yes' / 'no'.  Account-scoped: they take effect at the person's next account entry.
@@ -110,6 +114,13 @@
 * MODIFY.ACCOUNT account UNSUSPENDED
 * MODIFY.ACCOUNT account FILES-ON
 * MODIFY.ACCOUNT account FILES-OFF
+* MODIFY.ACCOUNT account FILES-WRITE-ON
+* MODIFY.ACCOUNT account FILES-WRITE-OFF
+*
+* 18 Oct 26 dm - S.65 write group.  FILES-WRITE-ON / FILES-WRITE-OFF add or remove the account's person from the Linux group sdfileswrite.  A
+*   files-only login (sdfiles) reads files on this server without it and may change them (write, delete, lock, clear) only with it: the
+*   administrator of the server a remote definition points at decides.  Off for a new account.  The person must already be in sdfiles
+*   (11523 otherwise: the group alone gives nothing).  The line printed is "Account %1 has FILES-WRITE yes|no", read back from /etc/group.
 *
 * 17 Oct 26 dm - S.65 slice 2c.  FILES-ON / FILES-OFF add or remove the account's person from the Linux group sdfiles: the files-only
 *   login route SDNet uses (an API login that may work with files and do nothing else).  Off for a new account; sdapi, when also held, still
@@ -181,7 +192,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       crt '                 modify.account <account> voc-on | voc-off | bp-on | bp-off | dict-on | dict-off'
       crt '                 modify.account <account> net-on | net-off'
       crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
-      crt '                 modify.account <account> files-on | files-off'
+      crt '                 modify.account <account> files-on | files-off | files-write-on | files-write-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
    end
@@ -312,10 +323,23 @@ deffun valid_os_name(name) calling '!valid_os_name'
 *   that may open, read and write files and do nothing else).  Like the api word it changes a Linux group, not the register, so it needs
 *   a user account; sdapi, when the person is also in it, still gives the whole API.  Takes effect at the person's next login.
       case action = 'FILES-ON'
+         files.grp = 'sdfiles'
          files.want = @true
          gosub set.files
          stop
       case action = 'FILES-OFF'
+         files.grp = 'sdfiles'
+         files.want = @false
+         gosub set.files
+         stop
+* 18 Oct 26 dm - S.65 write group: the same helper, the group sdfileswrite.
+      case action = 'FILES-WRITE-ON'
+         files.grp = 'sdfileswrite'
+         files.want = @true
+         gosub set.files
+         stop
+      case action = 'FILES-WRITE-OFF'
+         files.grp = 'sdfileswrite'
          files.want = @false
          gosub set.files
          stop
@@ -415,7 +439,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
          crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
-         crt '   files-on, files-off, suspended or unsuspended'
+         crt '   files-on, files-off, files-write-on, files-write-off, suspended or unsuspended'
       end
 
    end else
@@ -608,7 +632,9 @@ set.route:
    return
 
 *****************************************************************************
-* SET.FILES  -  MODIFY.ACCOUNT <account> FILES-ON | FILES-OFF
+* SET.FILES  -  MODIFY.ACCOUNT <account> FILES-ON | FILES-OFF | FILES-WRITE-ON | FILES-WRITE-OFF
+*
+* 18 Oct 26 dm - S.65 write group.  files.grp is set by the caller with files.want: 'sdfiles' for the first pair, 'sdfileswrite' for the second.
 *
 * 17 Oct 26 dm - S.65 slice 2c.  files.want is set by the caller.  Membership of the Linux group sdfiles IS the files-only route (as
 * sdapi is the API route), so nothing is written to the register.  The same helper does it as set.route: sd-elevate addgroup / delgroup.
@@ -644,7 +670,7 @@ set.files:
       return
    end
 
-   has.files = is_grp_member(files.user, 'sdfiles')
+   has.files = is_grp_member(files.user, files.grp)
    files.stat = status()
    if files.stat = 0 and files.want then
       in.sdusers = is_grp_member(files.user, 'sdusers')
@@ -657,6 +683,23 @@ set.files:
       return
    end
 
+* 18 Oct 26 dm - S.65 write group: sdfileswrite on its own gives nothing (the login route needs sdfiles), so it is not handed out to a person without
+*   it.  Asked before the "already had it" answer so that the refusal is the same whatever the group holds now.
+   if files.grp = 'sdfileswrite' and files.want then
+      in.files = is_grp_member(files.user, 'sdfiles')
+      files.stat = status()
+      if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(10081, acc.name, files.stat)
+         return
+      end
+      if not(in.files) then
+         @system.return.code = -ER$FAILED
+         crt sysmsg(11523, acc.name)  ;* %1 does not have files access, so it cannot be given files-write: use files-on first
+         return
+      end
+   end
+
    if has.files = files.want then
       @system.return.code = 0
       crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
@@ -664,7 +707,7 @@ set.files:
    end
 
    if files.want then
-      files.found = is_group('sdfiles')
+      files.found = is_group(files.grp)
       files.stat = status()
       if files.stat # 0 then
          @system.return.code = -ER$FAILED
@@ -673,16 +716,32 @@ set.files:
       end
       if not(files.found) then
          @system.return.code = -ER$FAILED
-         crt sysmsg(10024, 'sdfiles')  ;* %1 is not a valid Linux Group
+         crt sysmsg(10024, files.grp)  ;* %1 is not a valid Linux Group
          return
       end
-      os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files.user : " sdfiles"
+      os.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files.user : " " : files.grp
    end else
-      os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files.user : " sdfiles"
+      os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files.user : " " : files.grp
    end
    files.stat = OS.ERROR()
+
+* 18 Oct 26 dm - S.65 write group: FILES-OFF takes the person out of sdfileswrite too, so that a later files-on does not hand the write back
+*   without the administrator saying so.  Read three-valued; a person who is not in it, or a machine with no such group, changes nothing.
+   if files.stat = 0 and files.grp = 'sdfiles' and not(files.want) then
+      had.write = is_grp_member(files.user, 'sdfileswrite')
+      files.stat = status()
+      if files.stat = 0 and had.write then
+         os.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files.user : " sdfileswrite"
+         files.stat = OS.ERROR()
+         if files.stat = 0 then
+            had.write = is_grp_member(files.user, 'sdfileswrite')
+            files.stat = status()
+            if files.stat = 0 and had.write then files.stat = 2
+         end
+      end
+   end
    if files.stat = 0 then
-      now.files = is_grp_member(files.user, 'sdfiles')
+      now.files = is_grp_member(files.user, files.grp)
       files.stat = status()
       if files.stat = 0 and now.files # files.want then files.stat = 2
    end
@@ -694,7 +753,11 @@ set.files:
 
    @system.return.code = 0
    void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
-   crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has FILES %2
+   if files.grp = 'sdfileswrite' then
+      crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has files-write %2
+   end else
+      crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has FILES %2
+   end
    return
 
 *****************************************************************************

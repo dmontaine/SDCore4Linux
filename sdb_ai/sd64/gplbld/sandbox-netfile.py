@@ -1322,8 +1322,9 @@ def quit_seen(d):
 
 def h_go(acct, script, fakes=(), cfg=None, admin=False):
     """Run zznfh with the script's lines in an ordinary session of ACCT (or as the administrator).  The FAKES are configured with files=True and
-    files_only=True (the SDNet login) and CFG; r.d is a list of what each saw, r.calls what the program got, r.audits what the audit trail gained."""
-    c = {"files": True, "files_only": True}
+    files_only=True (the SDNet login), write_group=True (18 Oct 26: the login is also in sdfileswrite, as a target's administrator gives it; the section wgroup says what
+    happens without) and CFG; r.d is a list of what each saw, r.calls what the program got, r.audits what the audit trail gained."""
+    c = {"files": True, "files_only": True, "write_group": True}
     c.update(cfg or {})
     for f in fakes:
         f.configure(**c)
@@ -2889,8 +2890,8 @@ def kn_prep():
 
 def kn_run(acct, cmds, fakes, cfg=None):
     """Run these TCL commands in one ordinary session of ACCT.  Returns what the program printed (r.kr: the lines that begin "KR "), what each fake saw (r.d),
-    the audit lines the session added (r.audits), whether the session hung (r.hung) and whether every connection ended (r.idle)."""
-    c = {"files": True, "files_only": True}
+    the audit lines the session added (r.audits), whether the session hung (r.hung) and whether every connection ended (r.idle).  write_group=True from 18 Oct 26 (see h_go)."""
+    c = {"files": True, "files_only": True, "write_group": True}
     c.update(cfg or {})
     for f in fakes:
         f.configure(**c)
@@ -4211,7 +4212,7 @@ def kw_mode_admin(A):
     say("\n  -- the mode read again at a statement: the administrator's session, the definitions file changed in the middle --")
     hw_flip_files()
     try:
-        A.configure(files=True, files_only=True, edit_allow=frozenset(["prog"]))          # the server's own gate for program files is open: only the client's decides
+        A.configure(files=True, files_only=True, write_group=True, edit_allow=frozenset(["prog"]))          # the server's own gate for program files is open: only the client's decides
         m = A.mark()
         a0 = audit_size()
         out = g.adm(["RUN bp zznkwadm"], internal=True)
@@ -4280,13 +4281,89 @@ def kw_misc(A):
             not r.hung and kw_types_ok(r) and (not cmd.endswith("zznwbp") or 31 not in r.d[0]["types"]) and r.idle, repr(r.out[-4:]))
 
 
+# ---- W. the write group (18 Oct 26, section wgroup) ---------------------------------------------------------------------------------------------
+#
+# A files-only login on the TARGET server may change files and take locks only if the user is also in the Linux group sdfileswrite (gpl.bp/apifilesok's third argument;
+# the owner's yes of 18 Oct 2026).  A server DEFINITION that says mode=write on the client is necessary and no longer enough: the target's administrator decides.  The fake
+# models the target with the cfg write_group (False is the real default), and refuses the change set with message 11521 as an ON ERROR reply.  WHAT THE FAKE CANNOT SHOW:
+# that the REAL apisrvr does the same for a real files-only login (the group is read from /etc/group at the SCRAM login), which is the VM witness.  What the CLIENT shows
+# for a refusal is "11500 ... status 0": the text of an ON ERROR reply is never shown (it can be stale), so the person at the client sees that the change failed and the
+# administrator of the target sees why in the target's audit trail (api refused request=N route=sdfiles write=off).
+
+def wgroup_section():
+    say("\n--- the write group (18 Oct 26): a files-only login on the target WITHOUT sdfileswrite can read and select but every change and every lock is refused; WITH it the same program changes the file ---")
+    if not hw_prep() or not kw_prep():
+        return
+    A = S["A"]
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("READ", 1, "w1", label="WITHOUT the group: a READ is served (the record comes back) - reading needs sdfiles alone", ok=k_rec(HWREC["w1"]))
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED is served too (a test of a lock is a read)", ok=k_ok("0", 1))
+    s.add("WRITE", 1, "w1", "x", label="...WRITE is refused: rc 3, message 11500 naming the server and 'write', 'status 0' (the target's reason is in ITS audit trail, not in the reply the client shows)",
+          ok=k_srverr("write", 0), audit="write server=nfw file=hwork")
+    s.add("WRITEU", 1, "w2", "x", label="...WRITEU is refused", ok=k_srverr("writeu", 0))
+    s.add("DELETE", 1, "w3", label="...DELETE is refused", ok=k_srverr("delete", 0), audit="delete server=nfw file=hwork")
+    s.add("DELETEU", 1, "w3", label="...DELETEU is refused", ok=k_srverr("deleteu", 0))
+    s.add("LOCK", 1, "w1", "u", label="...a LOCK (update) is refused: a lock is a change of state on the target", ok=k_srverr("lock", 0))
+    s.add("LOCK", 1, "w1", "l", label="...a LOCK (shared) is refused too", ok=k_srverr("lock", 0))
+    s.add("CLEARFILE", 1, label="...CLEARFILE is refused", ok=k_srverr("clear.file", 0), audit="clear server=nfw file=hwork")
+    s.add("READ", 1, "w1", label="...and the handler goes on: the same READ is served again, the record unchanged", ok=k_rec(HWREC["w1"]))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    for it, rq in zip(s.items, [[ACCT_REQ, W_OPEN(HW)], [W_READ(1, "w1")], [W_RLK(1, "w1")], [W_WRITE(1, "w1", "x")], [W_WRITE(1, "w2", "x", True)], [W_DEL(1, "w3")],
+                                [W_DEL(1, "w3", True)], [W_LOCK(1, "w1", True)], [W_LOCK(1, "w1", False)], [W_CLEAR(1)], [W_READ(1, "w1")], [(1, b"")]]):
+        it["req"] = rq
+    r = hw_go("zznhon", s, (A,), cfg={"write_group": False})
+    row("the program that made those calls ran to its end and no connection is left", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+    d = r.d[0]
+    sess = d["sessions"]
+    row("...THE FAKE (the target) saw the requests, in order, with their bytes, and REFUSED the seven changes: 16, 17, 18, 19, 30, 30 and 31 (and nothing else)",
+        a_wire(r, s) and len(sess) == 1 and sess[0].files_only and not sess[0].write_ok and sess[0].refused == [16, 17, 18, 19, 30, 30, 31],
+        "first difference: %r refused %r" % (hw_first_diff(d, s.wire()), [x.refused for x in sess]))
+    row("...THE FILE ON THE FAKE IS AS IT WAS (the records are the evidence, not the replies): no record written, w3 still there, nothing cleared, no lock in the table",
+        r.stores[0][HW] == dict(HWREC) and all(r.stores[0][n] == dict(rec) for n, rec, _p, _c in HWFILES if n != HW), repr(r.stores[0][HW]))
+    row("...the audit trail on the client: the open, one write line, one delete line, one clear line (the refused attempts are audited like the good ones: the line is written BEFORE the request)",
+        r.audits == s.audits(), repr(r.audits))
+
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("WRITE", 1, "w1", "x", label="CONTROL, the same target WITH sdfileswrite (write_group=True): WRITE is done", ok=k_ok("", 0), audit="write server=nfw file=hwork")
+    s.add("LOCK", 1, "w2", "u", label="...a LOCK is granted", ok=k_ok("", 0))
+    s.add("WRITEU", 1, "w2", "y", label="...WRITEU is done", ok=k_ok("", 0))
+    s.add("DELETE", 1, "w3", label="...DELETE is done", ok=k_ok("", 0), audit="delete server=nfw file=hwork")
+    s.add("CLEARFILE", 1, label="...CLEARFILE is done", ok=k_ok("", 0), audit="clear server=nfw file=hwork")
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"write_group": True})
+    row("the control program ran to its end and no connection is left", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+    row("...nothing was refused, and the file on the fake is empty (every change was done, the clear last)",
+        all(x.write_ok and x.refused == [] for x in r.d[0]["sessions"]) and r.stores[0][HW] == {}, repr(([x.refused for x in r.d[0]["sessions"]], r.stores[0][HW])))
+
+    # the statements of an ordinary session, as kwrite drives them, against a target without the group
+    say("\n  -- the statements (WRITE, DELETE, READU, CLEARFILE ...) on a write-mode file whose target does not allow changes: ON ERROR, the file unchanged, the session goes on --")
+    lines = ["OPEN|1|zznw1", "READ|1|w1", "WRITE|1|w1|x", "READ|1|w1", "DELETE|1|w2", "READ|1|w2", "READU|1|w3", "CLEARFILE|1", "READ|1|w1", "CLOSE|1"]
+    r = kw_drive("zznhon", lines, (A,), cfg={"write_group": False})
+    say("    [note] the driver printed %r" % [x[:110] for x in r.kw])
+    d = r.d[0]
+    row("the statement driver ran to its end, nothing hung, no connection is left, and the fake (target) refused exactly the changes the statements sent (WRITE 16, DELETE 18, the lock of READU 30, CLEARFILE 31)",
+        not r.hung and "KW begin" in r.kw and "KW end" in r.kw and r.idle and not r.crash and all(not x["errors"] for x in r.d)
+        and d["sessions"] and d["sessions"][0].refused == [16, 18, 30, 31], kw_why(r) + " refused %r" % [x.refused for x in d["sessions"]])
+    row("...the file on the fake is as it was: w1 and w2 still hold their records, and the READs after the refused WRITE and DELETE show them unchanged",
+        r.stores[0][HW] == dict(HWREC) and kw_rec("READ", "w1", HWREC["w1"]) in r.kw and kw_rec("READ", "w2", HWREC["w2"]) in r.kw, repr((r.stores[0][HW], r.kw[-8:])))
+    row("...and the refused statements took their ON ERROR branch with STATUS() 7000 (ER$NETWORK: the server refused, as for any server error that is not one of the passed-on statuses): "
+        "WRITE, DELETE and READU (the lock) each printed 'error st=7000', none printed 'then'",
+        "KW WRITE w1 error st=7000" in r.kw and "KW DELETE w2 error st=7000" in r.kw and "KW READU w3 error st=7000 len=0 rec=[]" in r.kw
+        and not any(x.startswith(("KW WRITE w1 then", "KW DELETE w2 then", "KW READU w3 then", "KW CLEARFILE then")) for x in r.kw),
+        repr([x for x in r.kw if x.startswith(("KW WRITE", "KW DELETE", "KW READU", "KW CLEARFILE"))]))
+
+
 # ---- main -------------------------------------------------------------------------------------------------------------------------------------
 
 SECTIONS = (("login", login_section), ("args", args_section), ("pin", pin_section), ("stale", stale_section), ("keys", keys_section), ("shared", shared_section),
             ("down", down_section), ("close", close_section), ("notfound", notfound_section), ("files", files_section), ("account", account_section),
             ("locks", locks_section), ("lists", lists_section), ("wire", wire_section),
             ("handler", handler_section), ("readonly", readonly_section), ("refuse", refuse_section), ("lost", lost_section), ("timeout", timeout_section),
-            ("hwrite", hwrite_section), ("kwrite", kwrite_section),
+            ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section),
             ("kernel", kernel_section), ("gaps", gaps_section))
 
 

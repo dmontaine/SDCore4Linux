@@ -12,6 +12,7 @@
 * 17 Oct 26 dm S.65 slice 2c: CA$FILES (36), Linux only, membership of the group sdfiles.
 * 18 Oct 26 dm S.66: CA$SHARED.READ.OFF (37) and CA$SHARED.WRITE (38), Linux only, the shared-account gates.  Windows ignores
 *              the Linux block (31-40) and defines neither; the mail to the Windows agent is deferred (sequential order of 11 Oct).
+* 18 Oct 26 dm S.65 write group: CA$FILESWRITE (39), Linux only, membership of the group sdfileswrite (needs CA$FILES).  Same block, same deferral.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -65,5 +66,8 @@ $define CA$FILES          36     ;* 1 = start in the group sdfiles, the SDNet fi
 * CA$SHARED.READ.OFF is INVERTED because the delivered default of shared.read is ON (a blank register field means yes).
 $define CA$SHARED.READ.OFF 37    ;* 1 = the new account starts with ACC$SHARED.READ 'no' (withdrawn)
 $define CA$SHARED.WRITE    38    ;* 1 = the new account starts with ACC$SHARED.WRITE 'yes'
+
+* Linux only (18 Oct 26, S.65 write group): 1 = also join the Linux group sdfileswrite, so a files-only login can change files on this server.  Needs CA$FILES.
+$define CA$FILESWRITE      39    ;* 1 = start in the group sdfileswrite (with CA$FILES; S.65 write group)
 
 * END-CODE

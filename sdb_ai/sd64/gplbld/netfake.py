@@ -5,6 +5,12 @@
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 
+18 Oct 26 dm  S.65 write group (the owner's yes of that day): config write_group, and add_user(write_group=...), is the login's membership of the Linux group
+              sdfileswrite.  A files-only login WITHOUT it is refused the change set (FILES_CHANGE: 7 to 10, 16 to 19, 30 to 33, and any nonzero flag of 41) with
+              message 11521 as an ON ERROR reply, as gpl.bp/apifilesok's third argument and vb.readv do; sdapi-style (not files-only) sessions are untouched.  The
+              default is False, the real default, so a row that writes through a files-only login must say write_group=True.  And the dictionary open: "dict <name>"
+              (any case, one space) is OPEN 'DICT', name and any other name is opened as it stands; the REAL server did not understand the lower case form until
+              vb.open was fixed (the same day), and this fake had always accepted it.
 17 Oct 26 dm  New.  S.65 slice 2b.  ***NOT YET RUN AGAINST SD*** - the self-test runs it against a Python client built from RFC 7677's
               own vectors; whether SD's set.netlogin talks to it is the first run of sandbox-net.py.
 
@@ -117,6 +123,11 @@ KIND_NAMES = ("", "voc", "dict", "prog")       # the edit gate kinds, by apisrvr
 # gpl.bp/apifilesok's allow table, number by number (3, set account, is allowed once and handled in FileSession.allowed).  The self-test
 # parses the program and holds this to it, so a request added there and not here is found.
 FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + [49])
+# 18 Oct 26, S.65 write group: the part of that table a files-only login may use only if it is ALSO in the Linux group sdfileswrite (gpl.bp/apifilesok's third
+# argument, `files.chg`): the locking reads 7 to 10, the writes and deletes 16 to 19, the record lock 30, clearfile 31, filelock 32 and fileunlock 33.  Written
+# here and held to the program by the self-test.  Request 41 (readv) is in FILES_OK for a plain READV; its flags 1, 2, 5 and 6 take a lock and apisrvr's vb.readv
+# refuses any nonzero flag itself (FileSession.r_readv).
+FILES_CHANGE = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33])
 # err.h
 ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
 ER_RDONLY, ER_NOLOCK, ER_MAXRLOCK = 3018, 3023, 3060
@@ -133,6 +144,7 @@ _MSG_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file_
 _MSG_COPY = {1010: "Illegal action key", 5037: "Invalid account name", 5262: "File access is disabled", 5268: "Invalid file number",
              5269: "Invalid select list number", 10003: "User not allowed in requested account",
              11480: "This login is for files only: request %1 is not allowed",
+             11521: "This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed",
              11162: "Record lock limit (MAXRLOCK) reached",
              11405: "The VOC can only be changed by an account that has voc.edit (SDSYS can give it: modify.account <account> voc-on)",
              11406: "A dictionary can only be changed by an account that has dict.edit (SDSYS can give it: modify.account <account> dict-on)",
@@ -503,7 +515,7 @@ class FileSession:
     returns (reply error field, STATUS, reply data); the error field is SV_OK, SV_ELSE (the ELSE clause), SV_LOCKED, SV_ERROR (no data:
     the text comes with request 2, which returns error_msg) or SV_ON_ERROR (the data is the abort message)."""
 
-    def __init__(self, server, conn, userno, user, cfg, files_only):
+    def __init__(self, server, conn, userno, user, cfg, files_only, write_ok=False):
         self.server = server
         self.store = server.store
         self.cfg = cfg
@@ -511,6 +523,7 @@ class FileSession:
         self.userno = userno
         self.user = user
         self.files_only = files_only
+        self.write_ok = bool(write_ok)  # apisrvr's files.write: the login is also in the Linux group sdfileswrite (read at login; only a files-only login is gated by it)
         self.slots = []                 # slots[fno - 1] is the FakeFile open as file number fno, or None (apisrvr's files() array)
         self.lastid = {}                # the id of the last record read through each file number (FILEINFO 1012)
         self.lists = [None] * 12        # select lists 0 to 10 and the internal 11: [ids, position] or None
@@ -533,11 +546,23 @@ class FileSession:
         self.cur_fno = 0
 
     # ---- the gate: gpl.bp/apifilesok ---------------------------------------------------------------------------------------------
-    def allowed(self, ptype):
-        """!apifilesok(action, entered): 3 (set account) once only, the table for the rest, anything else (47 and 48 included) refused."""
+    def allowed(self, ptype, write_ok=None):
+        """!apifilesok(action, entered, writeok): 3 (set account) once only, the table for the rest, anything else (47 and 48 included) refused, and the change set
+        (FILES_CHANGE) only when the login is also in sdfileswrite (write_ok; the session's own when not given)."""
+        if write_ok is None:
+            write_ok = self.write_ok
         if ptype == R_ACCOUNT:
             return not self.entered
-        return ptype in FILES_OK
+        if ptype not in FILES_OK:
+            return False
+        return write_ok or ptype not in FILES_CHANGE
+
+    def refusal(self, ptype):
+        """The ON ERROR text apisrvr gives a request the gate refuses: 11521 when the write group is all that was missing (the same request with it would be
+        allowed), 11480 otherwise."""
+        if not self.write_ok and self.allowed(ptype, True):
+            return msg(11521, ptype)
+        return msg(11480, ptype)
 
     # ---- helpers -----------------------------------------------------------------------------------------------------------------
     def _fail(self, text):
@@ -689,9 +714,11 @@ class FileSession:
             self.err = SV_ON_ERROR
             self.abort_msg = msg(5262)
             return ""
-        parts = data.decode("latin-1").strip().split(None, 1)
-        want_dict = len(parts) == 2 and _lower(parts[0]) == "dict"
-        base = parts[1].strip() if want_dict else (parts[0] if parts else "")
+        # 18 Oct 26: the real rule, apisrvr's vb.open: a name whose first five characters are the word dict (any case) and a space is OPEN 'DICT', trim(the rest);
+        # any other name is opened as it stands (OPEN cmnd), so "wf dict" is a file of that name, not wf
+        text = data.decode("latin-1")
+        want_dict = text[:5].upper() == "DICT "
+        base = text[5:].strip() if want_dict else text.strip()
         if base == "":
             self.err, self.st = SV_ELSE, ER_NAM
             return ""
@@ -940,6 +967,11 @@ class FileSession:
         if f is None:
             return ""
         flags = _short(data, 2)
+        if self.files_only and not self.write_ok and flags != 0:
+            # 18 Oct 26, S.65 write group: apisrvr's vb.readv, after check.file: a locking form (any nonzero flag) is a change of state, refused as 7 to 10 are
+            self.refused.append(R_READV)
+            self.err, self.abort_msg = SV_ON_ERROR, msg(11521, R_READV)
+            return ""
         field = _long(data, 4)
         rid = _rid(data, 8)
         modes = {0: None, 1: (True, True), 2: (False, True), 5: (True, False), 6: (False, False)}
@@ -995,6 +1027,8 @@ class FakeServer(threading.Thread):
         # ---- 17 Oct 26 S.65 slice 3a: the file requests (module text) ----
         "files": False,           # serve the requests after a good login (False: record them and say nothing, as before)
         "files_only": False,      # the SDNet login: only gpl.bp/apifilesok's requests are dispatched, the rest get message 11480
+        "write_group": False,     # 18 Oct 26, S.65 write group: the files-only login is ALSO in the Linux group sdfileswrite, so it may change files and take locks
+                                  # (apifilesok's third argument).  False is the real default of a files-only login: the change requests get message 11521.
         "no_file_access": False,  # request 4 (open) answers 5262 "File access is disabled" (config SDCLIENT / the SDNet mark of apisrvr)
         "idle": 20.0,             # seconds a served connection may be silent before the server closes it
         "lock_wait": 3.0,         # seconds a waiting lock request (8, 10, 41 with flags 1 or 2) waits before it gives up with an ON ERROR reply
@@ -1050,15 +1084,17 @@ class FakeServer(threading.Thread):
         self.start()
 
     # ---- configuration and records --------------------------------------------------------------------------------------------
-    def add_user(self, name, password, salt=None, iterations=4096, files_only=False):
+    def add_user(self, name, password, salt=None, iterations=4096, files_only=False, write_group=False):
         """A user the server knows.  Returns the salt as base64 (the one in s=).  files_only=True makes every login of this user the SDNet
-        one (the sdfiles route) whatever the connection's configuration says."""
+        one (the sdfiles route) whatever the connection's configuration says; write_group=True puts the user in the group sdfileswrite as well
+        (18 Oct 26, S.65 write group), whatever the connection's configuration says."""
         salt = salt if salt is not None else os.urandom(16)
         with self.lock:
-            self.users[name] = {"password": password, "salt": salt, "iterations": int(iterations), "files_only": bool(files_only)}
+            self.users[name] = {"password": password, "salt": salt, "iterations": int(iterations), "files_only": bool(files_only),
+                                "write_group": bool(write_group)}
         return b64(salt)
 
-    def add_user_keys(self, name, salt_b64, iterations, stored_key_b64, server_key_b64, files_only=False):
+    def add_user_keys(self, name, salt_b64, iterations, stored_key_b64, server_key_b64, files_only=False, write_group=False):
         """A user the server knows by what $cred holds and not by the password: the salt, the iteration count, StoredKey and ServerKey (all
         base64 as the credential file keeps them).  The exchange on the wire is the one a password user has; a client that proves itself
         from ClientKey (SHA-256 of which is StoredKey) is accepted, a client with any other key is not.  The iteration count the server
@@ -1066,7 +1102,7 @@ class FakeServer(threading.Thread):
         with self.lock:
             self.users[name] = {"password": None, "salt": base64.b64decode(salt_b64), "iterations": int(iterations),
                                 "stored_key": base64.b64decode(stored_key_b64), "server_key": base64.b64decode(server_key_b64),
-                                "files_only": bool(files_only)}
+                                "files_only": bool(files_only), "write_group": bool(write_group)}
 
     @property
     def pin(self):
@@ -1314,7 +1350,8 @@ class FakeServer(threading.Thread):
             if cfg["files"]:
                 # registered BEFORE the reply that tells the client it is in, so that a test which looks at self.sessions after its login
                 # has returned always finds the session (and its user number)
-                ses = FileSession(self, n, self.userno_base + n, user, cfg, bool(cfg["files_only"] or rec.get("files_only")))
+                ses = FileSession(self, n, self.userno_base + n, user, cfg, bool(cfg["files_only"] or rec.get("files_only")),
+                                  bool(cfg["write_group"] or rec.get("write_group")))
                 with self.lock:
                     self.sessions.append(ses)
             self.reply(tls, ("x=" if cfg["no_v"] else "v=") + b64(v))
@@ -1357,7 +1394,8 @@ class FakeServer(threading.Thread):
                     continue
                 if ses.files_only and not ses.allowed(ptype):
                     ses.refused.append(ptype)
-                    res = (SV_ON_ERROR, 0, msg(11480, ptype))         # apisrvr: server.error = SV$ON.ERROR, abort.message = sysmsg(11480, action)
+                    # apisrvr: server.error = SV$ON.ERROR, abort.message = sysmsg(11480, action), or sysmsg(11521, action) when the write group is all that was missing
+                    res = (SV_ON_ERROR, 0, ses.refusal(ptype))
                 else:
                     res = self.injected_fault(ses, ptype)
                     if res is None:
@@ -1559,6 +1597,17 @@ def _apifilesok_numbers():
     except OSError:
         return None
     return frozenset(int(x) for x in re.findall(r"^files\.ok := '(\d+),'", text, re.M))
+
+
+def _apifilesok_change():
+    """The request numbers gpl.bp/apifilesok refuses to a login without the write group, read from its `files.chg := 'N,'` lines (None when the tree is not there)."""
+    path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdsys", "gpl.bp", "apifilesok"))
+    try:
+        with open(path, encoding="latin-1") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    return frozenset(int(x) for x in re.findall(r"^files\.chg := '(\d+),'", text, re.M))
 
 
 def selftest_files(srv, cert, row):
@@ -1845,7 +1894,7 @@ def selftest_files(srv, cert, row):
     wait_closed(ses4)
 
     # ---- D  the files-only gate ----------------------------------------------------------------------------------------------------
-    c = connect(files_only=True)
+    c = connect(files_only=True, write_group=True)        # 18 Oct 26: a request the gate allows reaches the dispatch only for a login in sdfileswrite (the group rows are in section D2)
     ses = srv.sessions[-1]
     refusal = "This login is for files only: request 20 is not allowed"
     r = c.req(20, b"\x00\x00")
@@ -2028,10 +2077,10 @@ def selftest_writes(srv, row):
         for u in (7, 8):
             st.drop_user(u)
 
-    def connect(timeout=5, **cfg):
+    def connect(timeout=5, user="alice", pw="pw-one", **cfg):
         srv.configure(files=True, **cfg)
         cl = ApiClient(srv.port, timeout=timeout)
-        r = cl.login("alice", "pw-one")
+        r = cl.login(user, pw)
         if r[0] != "ok":
             raise RuntimeError("netfake self-test: login gave %r" % (r,))
         return cl
@@ -2552,7 +2601,7 @@ def selftest_writes(srv, row):
     c.close()
     wait_closed(ses)
     reset()
-    c = connect(files_only=True)
+    c = connect(files_only=True, write_group=True)
     ses = srv.sessions[-1]
     f1, f2 = opened(c, "wf", "wtmp")
     rs = [c.req(R_WRITE, W(f1, "fo", "1")), c.req(R_WRITEU, W(f1, "fo", "2")), c.req(R_LOCKRECORD, K(f1, 3, "a")), c.req(R_DELETEU, D(f1, "fo")),
@@ -2560,8 +2609,97 @@ def selftest_writes(srv, row):
     row("files-only: 16, 17, 18, 19, 30 and 31 are all on the gate's allow list and are DISPATCHED (served, none refused); a plain file is of no gated kind",
         all(v == (0, 0, b"") for v in rs) and ses.refused == [] and "fo" not in st.records("wf") and st.records("wtmp") == {}, repr((rs, ses.refused)))
     bye(c, ses)
+
+    # ---- W12  the write group (18 Oct 26, S.65): a files-only login WITHOUT sdfileswrite is refused every change and lock ---------------------------------
+    reset()
+    c = connect(files_only=True)
+    ses = srv.sessions[-1]
+    f1, f2 = opened(c, "wf", "wtmp")
+    before = {n: dict(st.records(n)) for n in ("wf", "wtmp")}
+    reqs = [("write", R_WRITE, W(f1, "gw", "x")), ("writeu", R_WRITEU, W(f1, "gw2", "x")), ("delete", R_DELETE, D(f1, "a")), ("deleteu", R_DELETEU, D(f1, "b")),
+            ("lock record", R_LOCKRECORD, K(f1, 1, "c")), ("clearfile", R_CLEARFILE, _S(f2)), ("readl", R_READL, _S(f1) + b"a"), ("readlw", R_READLW, _S(f1) + b"a"),
+            ("readu", R_READU, _S(f1) + b"a"), ("readuw", R_READUW, _S(f1) + b"a"), ("filelock", 32, _S(f1) + _S(0)), ("fileunlock", 33, _S(f1))]
+    rs = {name: c.req(pt, data) for name, pt, data in reqs}
+    want = {name: (1, 0, msg(11521, pt).encode("latin-1")) for name, pt, data in reqs}
+    row("files-only without sdfileswrite: write, writeu, delete, deleteu, lock record, clearfile, readl, readlw, readu, readuw, filelock and fileunlock are each answered with "
+        "the ON ERROR reply that carries message 11521 naming the request, and none is dispatched",
+        rs == want and ses.refused == [pt for _, pt, _ in reqs], repr({k: v for k, v in rs.items() if v != want[k]}))
+    row("... and the store is as it was: no record written, none deleted, nothing cleared, no lock taken (the disk is the evidence)",
+        {n: dict(st.records(n)) for n in before} == before and st.locks_of(ses.userno) == [], repr((st.records("wf"), st.records("wtmp"), st.locks_of(ses.userno))))
+    r = c.req(R_READV, _S(f1) + _S(1) + _L(1) + b"a")
+    row("... readv with a lock flag (1) is refused too, with 11521 naming request 41, and takes no lock",
+        r == (1, 0, msg(11521, R_READV).encode("latin-1")) and ses.refused[-1] == R_READV and st.locks_of(ses.userno) == [], repr((r, st.locks_of(ses.userno))))
+    rr = [c.req(R_READV, _S(f1) + _S(f) + _L(1) + b"a") for f in (2, 5, 6, 3)]
+    row("... and so are readv flags 2, 5, 6 and 3 (apisrvr's vb.readv refuses any nonzero flag)", all(x == (1, 0, msg(11521, R_READV).encode("latin-1")) for x in rr), repr(rr))
+    reads = [c.req(R_READ, _S(f1) + b"a"), c.req(R_READV, _S(f1) + _S(0) + _L(1) + b"a"), c.req(R_RECORDLOCKED, _S(f1) + b"a"),
+             c.req(R_SELECTLIST, _S(f1)), c.req(R_FILEINFO, _S(f1) + _L(0)), c.req(R_RELEASE, _S(0)), c.req(R_REVISION)]
+    row("CONTROL: the same login still reads - read, readv with flag 0, recordlocked, selectlist, fileinfo, release and revision are served, none refused (only the 13 above)",
+        all(x[0] == 0 for x in reads) and reads[0][2] == b"one" and len(ses.refused) == len(reqs) + 5, repr((reads, ses.refused)))
+    r = c.req(20, b"\x00\x00")
+    row("CONTROL: a request that is not allowed to ANY files-only login (20, call) keeps message 11480: the new text is only for the write group",
+        r == (1, 0, msg(11480, 20).encode("latin-1")) and r[2] != msg(11521, 20).encode("latin-1"), repr(r))
+    bye(c, ses)
+    c = connect(files_only=True, write_group=True)
+    ses = srv.sessions[-1]
+    f1, f2 = opened(c, "wf", "wtmp")
+    rs = [c.req(R_READU, _S(f1) + b"a"), c.req(R_WRITE, W(f1, "gw", "x")), c.req(R_DELETE, D(f1, "b")), c.req(R_READV, _S(f1) + _S(1) + _L(1) + b"c"),
+          c.req(R_LOCKRECORD, K(f1, 1, "c")), c.req(R_CLEARFILE, _S(f2))]
+    row("the same requests from a login IN sdfileswrite (write_group=True): all dispatched, none refused; the record is written, the other deleted, the file cleared",
+        all(x[0] == 0 for x in rs) and ses.refused == [] and st.records("wf").get("gw") == "x" and "b" not in st.records("wf") and st.records("wtmp") == {}, repr((rs, ses.refused)))
+    bye(c, ses)
+    reset()
+    c = connect(files_only=False)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    rs = [c.req(R_WRITE, W(f1, "api", "x")), c.req(R_READU, _S(f1) + b"a"), c.req(R_READV, _S(f1) + _S(1) + _L(1) + b"b")]
+    row("CONTROL: an sdapi login (not files-only) is untouched by the write group, with write_group off: write, readu and a locking readv are served, none refused",
+        all(x[0] == 0 for x in rs) and ses.refused == [] and st.records("wf").get("api") == "x", repr((rs, ses.refused)))
+    bye(c, ses)
+    reset()
+    srv.add_user("dave", "pw-dave", files_only=True, write_group=True)
+    srv.add_user("erin", "pw-erin", files_only=True)
+    cd = connect(user="dave", pw="pw-dave")
+    sesd = srv.sessions[-1]
+    fd, = opened(cd, "wf")
+    rd = cd.req(R_WRITE, W(fd, "dv", "x"))
+    ce = connect(user="erin", pw="pw-erin", files_only=False)
+    sese = srv.sessions[-1]
+    fe, = opened(ce, "wf")
+    re_ = ce.req(R_WRITE, W(fe, "er", "x"))
+    row("the group belongs to the USER too (add_user(write_group=...)): dave, files-only and in the group, writes; erin, files-only and not, is refused with 11521",
+        rd == (0, 0, b"") and re_ == (1, 0, msg(11521, R_WRITE).encode("latin-1")) and "dv" in st.records("wf") and "er" not in st.records("wf")
+        and sesd.files_only and sese.files_only and sesd.write_ok and not sese.write_ok, repr((rd, re_, sesd.write_ok, sese.write_ok)))
+    bye(cd, sesd)
+    bye(ce, sese)
     reset()
     srv.configure()
+    # ---- W13  the dictionary open (18 Oct 26, S.65): the real server's rule, as gpl.bp/apisrvr's vb.open now applies it ------------------------------------------
+    # The fake accepted "dict <name>" from the first day; the REAL server did not (the single-argument OPEN looked the VOC for a file called "dict wf", which _voc_ref
+    # understands only with an upper case DICT, so a remote dictionary was never opened and every row here passed).  The server now opens a name that begins with the
+    # word dict (any case) and one space as OPEN 'DICT', <rest, trimmed>.  These rows pin the fake to that rule, so it cannot be wrong in the other direction.
+    reset()
+    c = connect(files_only=True)
+    ses = srv.sessions[-1]
+    rs = [c.req(R_OPEN, n) for n in ("dict wf", "DICT wf", "Dict wf", "dict  wf")]
+    items = [c.req(R_READ, _S(i) + b"d1") for i in (1, 2, 3, 4)]
+    row("vb.open: \"dict wf\", \"DICT wf\", \"Dict wf\" and \"dict  wf\" (two spaces) each open the dictionary of wf, in four file numbers, and a read of its item d1 through each gives the item",
+        [x[:2] for x in rs] == [(0, 0)] * 4 and [x[2] for x in rs] == [_S(1), _S(2), _S(3), _S(4)] and all(x == (0, 0, ("D" + FMc + "1").encode("latin-1")) for x in items),
+        repr((rs, items)))
+    nots = [c.req(R_OPEN, n) for n in ("dictwf", "dict", "dict nosuch", "dicts wf", "wf dict")]
+    row("... and a name that is not that form is a plain file name: \"dictwf\", \"dict\", \"dict nosuch\", \"dicts wf\" and \"wf dict\" are SV$ELSE, no file number",
+        all(x[0] == SV_ELSE and x[2] == b"" for x in nots), repr(nots))
+    r = c.req(R_READ, _S(1) + b"a")
+    row("... and the dictionary's file number holds the dictionary, not the data: its records are the items, so the data record a is not there", r[0] == SV_ELSE, repr(r))
+    bye(c, ses)
+    reset()
+    want_chg = _apifilesok_change()
+    if want_chg is None:
+        print("  [SKIP] gpl.bp/apifilesok is not there: the change set is not compared")
+    else:
+        row("FILES_CHANGE is gpl.bp/apifilesok's change set (files.chg), number for number, and a subset of FILES_OK", FILES_CHANGE == want_chg and FILES_CHANGE <= FILES_OK,
+            repr(sorted(FILES_CHANGE ^ want_chg)))
+    row("the copy of message 11521 in this file is the one sdsys/messages holds, and it names the verb that gives the group", msg(11521, 16) == _MSG_COPY[11521].replace("%1", "16")
+        and "files-write-on" in msg(11521, 16), repr(msg(11521, 16)))
     row("the fake noted nothing wrong with the client in the write rows", srv.errors == [], repr(srv.errors))
 
 

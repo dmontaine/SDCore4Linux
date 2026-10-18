@@ -9,6 +9,11 @@
 # parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files); no flag runs all of them.
 #
 # START-HISTORY:
+# 18 Oct 26 dm  S.65 write group (the owner's yes of that day): section "files" grows the third argument of !apifilesok (the login's membership of the Linux
+#               group sdfileswrite): the probe asks every request number 0 to 80 with the flag 0 and 1, the change set (7 to 10, 16 to 19, 30 to 33) is refused without
+#               it and allowed with it, the reads are unaffected, a flag that is not exactly 1 reads as "no write"; the words FILES-WRITE-ON / FILES-WRITE-OFF in
+#               MODIFY.ACCOUNT and CREATE.ACCOUNT where no root is needed (including 11523 for a person who is not in sdfiles), the manifest key route.files.write,
+#               and messages 11521 to 11523.  What a sandbox cannot do is as for the sdfiles route: a real files-only login refused on the wire (witness).
 # 17 Oct 26 dm  New.  S.65 slice 1: register field 15 (ACC$NET), K_NET 127, the user table's UG_NET bit, MODIFY.ACCOUNT NET-ON / NET-OFF,
 #               the manifest key net, LOGIN / CPROC's logto (and the way back under OPTION STACKED.ACCOUNT); and the SDSYS-only verbs
 #               set.server, delete.server and list.servers with the file netservers they keep (!netdefs).  NOTHING OPENS A REMOTE FILE
@@ -78,6 +83,7 @@
 
 import datetime
 import errno
+import getpass
 import grp
 import hashlib
 import importlib.util
@@ -221,17 +227,26 @@ ZZNKSET = "\n".join([
 # a row can show it ran as an ordinary session, and an end line so that a probe that stopped early cannot pass.  It is $internal because the function is.
 ZZFOK = "\n".join([
     "$internal", "program zznfok", "$catalog $zznfok", "$include keys.h", "$include int$keys.h",
-    "deffun apifilesok(action, entered) calling '!apifilesok'",
+    "deffun apifilesok(action, entered, writeok) calling '!apifilesok'",
     "   crt 'FOK admin=':kernel(K$ADMINISTRATOR, -1)",
     "   odd = '|abc|-1|1000|81|4x|x4|3x'",
-    "   for e = 0 to 1",
-    "      for a = 0 to 80",
-    "         crt 'FOK e=':e:' a=':a:' r=':apifilesok(a, e)",
-    "      next a",
-    "      for q = 1 to 8",
-    "         crt 'FQ e=':e:' q=':q:' r=':apifilesok(field(odd, '|', q), e)",
-    "      next q",
-    "   next e",
+    # 18 Oct 26, S.65 write group: the third argument, the login's membership of sdfileswrite, 0 and 1; also the values that are neither (empty, unassigned
+    # is not askable from here, text, 2) which must read as "no write"
+    "   for w = 0 to 1",
+    "      for e = 0 to 1",
+    "         for a = 0 to 80",
+    "            crt 'FOK w=':w:' e=':e:' a=':a:' r=':apifilesok(a, e, w)",
+    "         next a",
+    "         for q = 1 to 8",
+    "            crt 'FQ w=':w:' e=':e:' q=':q:' r=':apifilesok(field(odd, '|', q), e, w)",
+    "         next q",
+    "      next e",
+    "   next w",
+    "   for each wv in '':@fm:'abc':@fm:'0':@fm:'no'",
+    "      for each ca in 16:@fm:17:@fm:18:@fm:30:@fm:31:@fm:9:@fm:6",
+    "         crt 'FW v=':wv:' a=':ca:' r=':apifilesok(ca, 1, wv)",
+    "      next ca",
+    "   next wv",
     "   crt 'FOK end'", "end", ""])
 ZZFINFO = "\n".join([
     "$internal", "program zznfinfo", "$catalog $zznfinfo", "$include keys.h", "$include int$keys.h",
@@ -250,10 +265,21 @@ ZZFINFO = "\n".join([
 FILES_RANGES = ((1, 2), (4, 19), (26, 26), (30, 46), (49, 49))
 
 
-def files_want(n, entered):
+# 18 Oct 26, S.65 write group (owner's yes of that day): the requests that CHANGE state or take a lock need the login to be in the group sdfileswrite as well:
+# 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock.  Written here again from
+# the spec (.claude/s65-write-group-spec.md), not read from the program.  The rest of the owner's list is the READ SET.
+CHANGE_SET = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33])
+
+
+def files_want(n, entered, write=1):
     if n == 3:
         return 0 if entered else 1
+    if not write and n in CHANGE_SET:
+        return 0
     return 1 if any(lo <= n <= hi for lo, hi in FILES_RANGES) else 0
+
+
+READ_SET = frozenset(a for a in range(81) if files_want(a, 1) and a not in CHANGE_SET and a != 3)
 
 
 def fixer_text():
@@ -1911,10 +1937,10 @@ def netlogin_section():
 
 # ---- slice 2c: the files-only route (section "files") --------------------------------------------------------------------------------------
 
-def sdfiles_members():
-    """The members of the Linux group sdfiles on THIS machine as /etc/group holds them, or None when there is no such group."""
+def sdfiles_members(group="sdfiles"):
+    """The members of the Linux group sdfiles (or the one named: sdfileswrite, 18 Oct 26) on THIS machine as /etc/group holds them, or None when there is no such group."""
     try:
-        return sorted(grp.getgrnam("sdfiles").gr_mem)
+        return sorted(grp.getgrnam(group).gr_mem)
     except KeyError:
         return None
 
@@ -1940,45 +1966,79 @@ def files_section():
         g.has(out, r"^Compiled 9 program\(s\) with no errors") and not g.has(out, r"not assigned a value"), repr(out[-8:]))
 
     out = g.plain("zznoff", ["ZZNFOK"])
-    ans, odd, admin = {}, {}, None
+    ans, odd, admin, fw = {}, {}, None, {}
     for ln in out:
-        m = re.match(r"^FOK e=(\d) a=(\d+) r=(\S*)$", ln)
+        m = re.match(r"^FOK w=(\d) e=(\d) a=(\d+) r=(\S*)$", ln)
         if m:
-            ans[(int(m.group(1)), int(m.group(2)))] = m.group(3)
-        m = re.match(r"^FQ e=(\d) q=(\d) r=(\S*)$", ln)
+            ans[(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = m.group(4)
+        m = re.match(r"^FQ w=(\d) e=(\d) q=(\d) r=(\S*)$", ln)
         if m:
-            odd[(int(m.group(1)), int(m.group(2)))] = m.group(3)
+            odd[(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = m.group(4)
+        m = re.match(r"^FW v=(\S*) a=(\d+) r=(\S*)$", ln)
+        if m:
+            fw[(m.group(1), int(m.group(2)))] = m.group(3)
         m = re.match(r"^FOK admin=(\d+)$", ln)
         if m:
             admin = m.group(1)
-    row("the probe ran as an ORDINARY session (admin=0), answered all 162 questions (81 request numbers, the account not entered and entered) and the 16 about values "
-        "that are not request numbers, and reached its end line - a probe that did nothing fails here, not in the comparisons",
-        admin == "0" and len(ans) == 162 and len(odd) == 16 and has_line(out, "FOK end"), "admin=%r answers=%d odd=%d tail=%r" % (admin, len(ans), len(odd), out[-3:]))
+    # 18 Oct 26, S.65 write group: the function now takes the login's write flag.  The numbers a login WITH the write group may ask for are the owner's list as
+    # before (ans[(1, e, a)]); the numbers a login WITHOUT it may ask for are that list less the change set (ans[(0, e, a)]).
+    row("the probe ran as an ORDINARY session (admin=0), answered all 324 questions (81 request numbers, the account not entered and entered, the write flag 0 and 1) and the 32 about "
+        "values that are not request numbers, and reached its end line - a probe that did nothing fails here, not in the comparisons",
+        admin == "0" and len(ans) == 324 and len(odd) == 32 and has_line(out, "FOK end"), "admin=%r answers=%d odd=%d tail=%r" % (admin, len(ans), len(odd), out[-3:]))
     for e in (0, 1):
-        bad = [(a, ans.get((e, a)), files_want(a, e)) for a in range(81) if ans.get((e, a)) != str(files_want(a, e))]
-        row("entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
+        bad = [(a, ans.get((1, e, a)), files_want(a, e)) for a in range(81) if ans.get((1, e, a)) != str(files_want(a, e))]
+        row("write=1, entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
             % (e, "the first request 3 is still to come" if e == 0 else "the account has been entered", sum(files_want(a, e) for a in range(81))),
-            len(ans) == 162 and not bad, "(number, got, wanted): %r" % bad[:8])
-    ones0 = sum(1 for a in range(81) if ans.get((0, a)) == "1")
-    ones1 = sum(1 for a in range(81) if ans.get((1, a)) == "1")
+            len(ans) == 324 and not bad, "(number, got, wanted): %r" % bad[:8])
+        badw = [(a, ans.get((0, e, a)), files_want(a, e, 0)) for a in range(81) if ans.get((0, e, a)) != str(files_want(a, e, 0))]
+        row("write=0, entered=%d: all 81 answers equal the owner's list LESS the change set %s (%d numbers allowed): the reads, select, readv, fileinfo, the indices, "
+            "recordlocked and release are still allowed, every change and every lock is refused" % (e, sorted(CHANGE_SET), sum(files_want(a, e, 0) for a in range(81))),
+            len(ans) == 324 and not badw, "(number, got, wanted): %r" % badw[:8])
+    ones0 = sum(1 for a in range(81) if ans.get((1, 0, a)) == "1")
+    ones1 = sum(1 for a in range(81) if ans.get((1, 1, a)) == "1")
     row("CONTROL: the answers are neither all 0 nor all 1 (a function that returned a constant, or a probe that printed a constant, fails): 38 allowed before the account is "
         "entered and 37 after", (ones0, ones1) == (38, 37), repr((ones0, ones1)))
-    row("request 3 (set account) is allowed the first time and refused once the account is entered, and no other answer depends on `entered`",
-        ans.get((0, 3)) == "1" and ans.get((1, 3)) == "0" and all(ans.get((0, a)) == ans.get((1, a)) for a in range(81) if a != 3), repr((ans.get((0, 3)), ans.get((1, 3)))))
+    nw0 = sum(1 for a in range(81) if ans.get((0, 0, a)) == "1")
+    nw1 = sum(1 for a in range(81) if ans.get((0, 1, a)) == "1")
+    row("CONTROL: without the write group %d are allowed before the account is entered and %d after (38 and 37 less the %d of the change set): the set is neither empty nor everything"
+        % (38 - len(CHANGE_SET), 37 - len(CHANGE_SET), len(CHANGE_SET)), (nw0, nw1) == (38 - len(CHANGE_SET), 37 - len(CHANGE_SET)), repr((nw0, nw1)))
+    row("request 3 (set account) is allowed the first time and refused once the account is entered, and no other answer depends on `entered`, with or without the write group",
+        all(ans.get((w, 0, 3)) == "1" and ans.get((w, 1, 3)) == "0" and all(ans.get((w, 0, a)) == ans.get((w, 1, a)) for a in range(81) if a != 3) for w in (0, 1)),
+        repr((ans.get((0, 0, 3)), ans.get((0, 1, 3)), ans.get((1, 0, 3)), ans.get((1, 1, 3)))))
+    row("the change set is refused without the write group and allowed with it, request by request: 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, "
+        "19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock",
+        all(ans.get((0, 1, a)) == "0" and ans.get((1, 1, a)) == "1" for a in CHANGE_SET), repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(CHANGE_SET)]))
+    row("the plain reads do not need it (4 open, 5 close, 6 read, 11 select, 12 readnext, 13 clearselect, 14 readlist, 15 release, 26 selectindex, 34 recordlocked, 35 to 40, "
+        "41 readv, 42 to 46, 49 revision) and are allowed with or without the write group",
+        all(ans.get((0, 1, a)) == "1" and ans.get((1, 1, a)) == "1" for a in READ_SET), repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(READ_SET) if ans.get((0, 1, a)) != "1"]))
+    row("a write flag that is not exactly 1 (empty, text, 0, the word no) leaves the change set refused: 16, 17, 18, 30, 31 and 9 are 0 for each, and a plain read (6) is still 1 - "
+        "fail closed, and a flag that is text does not read as true",
+        len(fw) == 28 and all(fw.get((v, a)) == ("1" if a == 6 else "0") for v in ("", "abc", "0", "no") for a in (16, 17, 18, 30, 31, 9, 6)),
+        repr({k: v for k, v in fw.items() if v != ("1" if k[1] == 6 else "0")}))
     never = [("0, no such request", [0]), ("20 call", [20]), ("21 execute", [21]), ("22 respond and 23 end command", [22, 23]), ("24 and 25, the other logins", [24, 25]),
              ("27 and 28", [27, 28]), ("29 open sdnet file", [29]), ("47 and 48, the SCRAM login itself (only before logged.in)", [47, 48]), ("50 getvar", [50]),
              ("51 system", [51]), ("52 and 53 trans", [52, 53]), ("54 transactions", [54]), ("55 to 60 evaluate and the conversions", list(range(55, 61))),
              ("61 to 69 the sequential files", list(range(61, 70))), ("70 to 80, numbers this tree does not know", list(range(70, 81)))]
     for label, nums in never:
-        row("refused in both states: %s" % label, all(ans.get((e, a)) == "0" for e in (0, 1) for a in nums), repr([(e, a, ans.get((e, a))) for e in (0, 1) for a in nums if ans.get((e, a)) != "0"][:6]))
+        row("refused in both states, with or without the write group: %s" % label, all(ans.get((w, e, a)) == "0" for w in (0, 1) for e in (0, 1) for a in nums),
+            repr([(w, e, a, ans.get((w, e, a))) for w in (0, 1) for e in (0, 1) for a in nums if ans.get((w, e, a)) != "0"][:6]))
     names = ["empty", "abc", "-1", "1000", "81", "4x", "x4", "3x"]
-    row("values that are not request numbers are refused in both states, so a malformed request number cannot slip through (%s)" % ", ".join(names),
-        len(odd) == 16 and all(v == "0" for v in odd.values()), repr({names[q - 1]: v for (e, q), v in odd.items() if v != "0"}))
+    row("values that are not request numbers are refused in both states, with or without the write group, so a malformed request number cannot slip through (%s)" % ", ".join(names),
+        len(odd) == 32 and all(v == "0" for v in odd.values()), repr({names[q - 1]: v for (w, e, q), v in odd.items() if v != "0"}))
 
     # ---------------------------------------------------------------- the words
     fix = {"zznfilu": ["/tmp/zznfilu", "", "sdu_zznfilu", "", "", "", "no", "no"],      # a USER account whose Linux user does not exist on this machine
            "zznfilg": ["/tmp/zznfilg", "", "sdg_zznfilg", "", "", "", "", "", "", "", "", "", "", "", ""],     # a GROUP account
            "zznfilo": ["/tmp/zznfilo", "", "zznfilgrp", "", "", "", "", ""]}         # an account that is neither (its group field is not an SD group)
+    # 18 Oct 26, S.65 write group: a USER account whose Linux user is the one running this test.  DON IS TRANSITORY - the name is whoever runs it, never a literal; the
+    # rows that use it need that person to be in sdusers and in neither sdfiles nor sdfileswrite, and are skipped out loud otherwise.
+    me = getpass.getuser()
+    try:
+        in_sdusers = me in grp.getgrnam("sdusers").gr_mem
+    except KeyError:
+        in_sdusers = False
+    if in_sdusers and me not in (sdfiles_members() or []) and me not in (sdfiles_members("sdfileswrite") or []) and re.match(r"^[a-z_][a-z0-9_-]*$", me):
+        fix["zznfilw"] = ["/tmp/zznfilw", "", "sdu_" + me, "", "", "", "no", "no"]
     for n, rec in fix.items():
         g.reg_write(n, rec)
     row("CONTROL: the Linux user zznfilu does not exist on this machine (so FILES-OFF has nothing to remove and FILES-ON finds it in no group)", not linux_user_exists("zznfilu"), "")
@@ -1986,10 +2046,12 @@ def files_section():
     row("CONTROL: the fixture accounts are in the register and a plain session in zznoff is not an administrator (the ordinary-session rows rely on it)",
         all(os.path.exists(os.path.join(g.SYS, "accounts", n)) for n in fix) and kf is not None and kf[0] == "0", repr(kf))
     regs = lambda: {n: g.reg_read(n) for n in list(fix) + ["sdsys"]}
-    mem0, reg0 = sdfiles_members(), regs()
-    unchanged = lambda: sdfiles_members() == mem0 and regs() == reg0
+    mem0, reg0, memw0 = sdfiles_members(), regs(), sdfiles_members("sdfileswrite")
+    unchanged = lambda: sdfiles_members() == mem0 and regs() == reg0 and sdfiles_members("sdfileswrite") == memw0
     out = g.adm(["MODIFY.ACCOUNT"])
     row("MODIFY.ACCOUNT's syntax lines name files-on | files-off", g.has(out, r"modify\.account <account> files-on \| files-off"), repr(out[-9:]))
+    row("MODIFY.ACCOUNT's syntax lines also name files-write-on | files-write-off (18 Oct 26, S.65 write group)",
+        g.has(out, r"modify\.account <account> files-on \| files-off \| files-write-on \| files-write-off"), repr(out[-9:]))
     out = g.adm(["MODIFY.ACCOUNT zznfilu FILESON"])
     # an unknown second word is not a route word: modify.account's older code reads it as a group name to act on and refuses it its own way
     # ("... is not a valid Linux Group"), so the row asserts what matters here: no files wording, and nothing changed
@@ -2018,15 +2080,76 @@ def files_section():
     out = g.plain("zznoff", ["MODIFY.ACCOUNT zznfilu FILES-ON"])
     row("an ordinary account cannot run MODIFY.ACCOUNT (it is not in its VOC) and nothing changed", g.has(out, r"(?i)is not in your VOC|not found in VOC") and unchanged(), repr(out[-3:]))
 
+    # ---- 18 Oct 26, S.65 write group: FILES-WRITE-ON / FILES-WRITE-OFF, only where no root is needed
+    for word in ("files-write-off", "FILES-WRITE-OFF"):
+        out = g.adm(["modify.account zznfilu " + word])
+        row("%s on a user whose Linux user is in no group: 'already had that access' (10080), no 11522 line, nothing changed (and sd-elevate never run)" % word,
+            has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has files-write") and unchanged(), repr(out[-3:]))
+    for word in ("files-write-on", "FILES-WRITE-ON"):
+        out = g.adm(["MODIFY.ACCOUNT zznfilu " + word])
+        row("%s for a user who is not in sdusers: refused with 10081, status 2, no 11522 line, nothing changed" % word,
+            has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has files-write") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
+    for word in ("files-write-on", "files-write-off"):
+        out = g.adm(["modify.account zznfilg " + word])
+        row("%s on a GROUP account: refused (10087), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilo " + word])
+        row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
+            has_line(out, msg(10081, "zznfilo", 2)) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account sdsys " + word])
+        row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilnosuch " + word])
+        row("%s on an account that is not in the register: refused (6003), nothing changed, no record made" % word,
+            has_line(out, msg(6003)) and unchanged() and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilnosuch")), repr(out[-3:]))
+    out = g.plain("zznoff", ["MODIFY.ACCOUNT zznfilu FILES-WRITE-ON"])
+    row("an ordinary account cannot give files-write-on either (MODIFY.ACCOUNT is not in its VOC) and nothing changed", g.has(out, r"(?i)is not in your VOC|not found in VOC") and unchanged(), repr(out[-3:]))
+    # the person who is running this test is a real user: in sdusers (an installed SD's users are) and in neither sdfiles nor sdfileswrite on a machine that has not used
+    # these words, so FILES-WRITE-ON for them reaches the check "the person must already be in sdfiles" (11523) without any root.  Skipped out loud otherwise.
+    if "zznfilw" in fix:
+        for word in ("files-write-on", "FILES-WRITE-ON"):
+            out = g.adm(["modify.account zznfilw " + word])
+            row("%s for a person in sdusers who is NOT in sdfiles (the user running this): refused with 11523, no 11522 line, the register and both groups untouched - the write "
+                "group on its own gives nothing, so it is not handed out" % word,
+                has_line(out, msg(11523, "zznfilw")) and not has_text(out, "has FILES") and not has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilw files-write-off"])
+        row("files-write-off for the same person (in neither group): 'already had that access' (10080), nothing changed", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilw files-off"])
+        row("files-off for the same person (in neither group): 'already had that access' (10080), nothing changed - the removal of the write group on files-off only happens "
+            "after a real removal from sdfiles, which a sandbox does not do", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+    else:
+        say("  [skip] files-write-on for a person in sdusers who is not in sdfiles: the user running this (%s) is not in sdusers, or is already in sdfiles or sdfileswrite" % getpass.getuser())
+
     # CREATE.ACCOUNT: only the refusals that come before anything is made
     out = g.adm(["CREATE.ACCOUNT"])
-    row("CREATE.ACCOUNT's syntax line names {files-on} and its text says what the word is", g.has(out, r"\{net-on\} \{files-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on\)"), repr(out[-9:]))
+    row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} and its text says what the words are",
+        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
     out = g.adm(["create.account group zznfilgx files-on"])
     row("create.account group ... files-on: refused (10087), and no account, no register record and no directory was made",
         has_line(out, msg(10087, "zznfilgx")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgx")), repr(out[-3:]))
     out = g.adm(["create.account other zznfiloo /tmp/zznfiloo files-on"])
     row("create.account other ... files-on: refused (10081, status 2), and no register record was made",
         has_line(out, msg(10081, "zznfiloo", 2)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfiloo")), repr(out[-3:]))
+    # 18 Oct 26, S.65 write group: the refusals that come before anything is made
+    out = g.adm(["create.account group zznfilgy files-write-on"])
+    row("create.account group ... files-write-on: refused (10087), and no account, no register record and no directory was made",
+        has_line(out, msg(10087, "zznfilgy")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgy")), repr(out[-3:]))
+    out = g.adm(["create.account other zznfilop /tmp/zznfilop files-write-on"])
+    row("create.account other ... files-write-on: refused (10081, status 2), and no register record was made",
+        has_line(out, msg(10081, "zznfilop", 2)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilop")), repr(out[-3:]))
+    if not linux_user_exists("zznfilwx"):
+        out = g.adm(["create.account user zznfilwx files-write-on no.query"])
+        row("create.account user ... files-write-on WITHOUT files-on: refused with 11523 BEFORE it makes anything - no Linux user, no register record, no 'has FILES' line "
+            "(the write group alone gives nothing)",
+            has_line(out, msg(11523, "zznfilwx")) and not has_text(out, "has FILES") and not linux_user_exists("zznfilwx")
+            and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilwx")), repr(out[-3:]))
+    if sdfiles_members() is None and not linux_user_exists("zznfilwy"):
+        out = g.adm(["create.account user zznfilwy files-on files-write-on no.query"])
+        row("THIS MACHINE HAS NO GROUP sdfiles: create.account user ... files-on files-write-on says so (10024, sdfiles first) BEFORE it makes anything",
+            has_line(out, msg(10024, "sdfiles")) and not linux_user_exists("zznfilwy") and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilwy")), repr(out[-3:]))
+    if sdfiles_members() is not None and sdfiles_members("sdfileswrite") is None and not linux_user_exists("zznfilwz"):
+        out = g.adm(["create.account user zznfilwz files-on files-write-on no.query"])
+        row("THIS MACHINE HAS sdfiles BUT NO GROUP sdfileswrite (an install from before this release): create.account user ... files-on files-write-on says so (10024, "
+            "sdfileswrite) BEFORE it makes anything", has_line(out, msg(10024, "sdfileswrite")) and not linux_user_exists("zznfilwz")
+            and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilwz")), repr(out[-3:]))
     if sdfiles_members() is None and not linux_user_exists("zznfilx"):
         out = g.adm(["create.account user zznfilx files-on no.query"])
         row("THIS MACHINE HAS NO GROUP sdfiles: create.account user ... files-on says so (10024) BEFORE it makes anything - no Linux user, no register record",
@@ -2037,13 +2160,16 @@ def files_section():
     # the manifest
     out = g.adm(["RUN gpl.bp zznfinfo"], internal=True)
     pick = lambda a: [x for x in out if x.startswith("FI %s " % a)]
-    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
-        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
-    row("zznfilg (a GROUP account): type GROUP and no route.files key (only a user account has one)",
+    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then route.files.write: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
+        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|route\.files\.write: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
+    row("zznfilg (a GROUP account): type GROUP and no route.files key and no route.files.write key (only a user account has one)",
         g.has(pick("zznfilg"), r"type: GROUP") and not g.has(pick("zznfilg"), r"route\.files"), repr(pick("zznfilg")[:2]))
 
     # the messages
-    for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has FILES %2")):
+    for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has FILES %2"),
+                    (11521, "This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed"),
+                    (11522, "Account %1 has files-write %2"),
+                    (11523, "Account %1 does not have files access, so it cannot be given files-write: use files-on first")):
         p = os.path.join(g.SYS, "messages", str(n))
         got = open(p, encoding="utf-8", errors="replace").read().strip("\n") if os.path.exists(p) else None
         row("the sandbox holds message %d, one line: %r" % (n, text), got == text, repr(got))

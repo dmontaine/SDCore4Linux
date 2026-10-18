@@ -17,7 +17,9 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
-* 18 Oct 26 dm S.66: the shared account.  The name shared is reserved (11516) for every type unless the installer's marker is present for a GROUP from an
+* 18 Oct 26 dm S.65 write group: CA$FILESWRITE joins the new user to the Linux group sdfileswrite after sdfiles; refused without CA$FILES (11523) and for a group or
+*              other account (10087, 10081 as CA$FILES); the group is looked for before anything is made; the state line 11522 is read off /etc/group.
+* 18 Oct 26 dm S.66: the shared account. The name shared is reserved (11516) for every type unless the installer's marker is present for a GROUP from an
 *              -internal session; the gates ACC$SHARED.READ / ACC$SHARED.WRITE are written from CA$SHARED.READ.OFF / CA$SHARED.WRITE ('yes'/'no' explicit for
 *              a user, written only when asked otherwise), reported with 11515 after 11411; set.owner gives the shared directory the group sdusers.
 * 17 Oct 26 dm S.65 slice 2c: CA$FILES joins the new user to the Linux group sdfiles (the files-only SDNet login route) after the sdssh / sdapi joins; the
@@ -149,6 +151,8 @@ deffun valid_os_path(path) calling '!valid_os_path'
    net.want = (settings<CA$NET> = 1)
 * 17 Oct 26 dm - S.65 slice 2c: the files-only login (membership of sdfiles), the same rule: off unless named (FILES-ON), exactly 1 to be a request.
    files.want = (settings<CA$FILES> = 1)
+* 18 Oct 26 dm - S.65 write group: FILES-WRITE-ON, the same rule; it is a request only with FILES-ON (sdfileswrite alone gives nothing).
+   files.write.want = (settings<CA$FILESWRITE> = 1)
 * 18 Oct 26 dm - S.66: the shared-account gates.  Read is ON by default (a blank field means yes), so its setting is inverted: exactly 1 withdraws it.
 *   Write is OFF by default: exactly 1 grants it.
    shared.read.off = (settings<CA$SHARED.READ.OFF> = 1)
@@ -206,6 +210,27 @@ deffun valid_os_path(path) calling '!valid_os_path'
        if not(files.found) then
          @system.return.code = -ER$FAILED
          err = 10024:@vm:'sdfiles' ;* %1 is not a valid Linux Group
+         goto exit.create
+       end
+     end
+
+* 18 Oct 26 dm - S.65 write group: FILES-WRITE-ON needs FILES-ON (11523), and the group sdfileswrite is looked for before anything is made, as sdfiles is.
+     if files.write.want then
+       if not(files.want) then
+         @system.return.code = -ER$ARGS
+         err = 11523:@vm:acc.name ;* %1 does not have files access, so it cannot be given files-write: use files-on first
+         goto exit.create
+       end
+       files.found = is_group('sdfileswrite')
+       files.stat = status()
+       if files.stat # 0 then
+         @system.return.code = -ER$FAILED
+         err = 10081:@vm:acc.uname:@vm:files.stat ;* Unable to change remote access for %1
+         goto exit.create
+       end
+       if not(files.found) then
+         @system.return.code = -ER$FAILED
+         err = 10024:@vm:'sdfileswrite' ;* %1 is not a valid Linux Group
          goto exit.create
        end
      end
@@ -333,7 +358,7 @@ PW.TRY.AGAIN:
        goto exit.create
      end
 * 17 Oct 26 dm - S.65 slice 2c: and no files-only login to give (10087; the group account is reached with logto).
-     if files.want then
+     if files.want or files.write.want then
        @system.return.code = -ER$ARGS
        err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access
        goto exit.create
@@ -351,7 +376,7 @@ PW.TRY.AGAIN:
        goto exit.create
      end
 * 17 Oct 26 dm - S.65 slice 2c: nor a files-only login (10081 with status 2, as MODIFY.ACCOUNT says it for an account with no Linux user).
-     if files.want then
+     if files.want or files.write.want then
        @system.return.code = -ER$ARGS
        err = 10081:@vm:acc.name:@vm:2 ;* Unable to change remote access for %1, status: 2
        goto exit.create
@@ -477,6 +502,17 @@ PW.TRY.AGAIN:
             goto exit.create
          end
       end
+* 18 Oct 26 dm - S.65 write group: and the write group, after sdfiles, the same way (the group's existence was checked above).  The state line (11522) is
+*   printed with the others.
+      if files.write.want then
+         os.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc.uname:" sdfileswrite"
+         route.stat = OS.ERROR()
+         if route.stat # 0 then
+            @system.return.code = -ER$FAILED
+            err = 10081:@vm:acc.uname:@vm:route.stat ;* Unable to change remote access for %1
+            goto exit.create
+         end
+      end
       begin case
          case access.ssh and access.api
             crt sysmsg(10078, acc.uname)  ;* SD routes for %1: ssh and the API.
@@ -570,6 +606,8 @@ PW.TRY.AGAIN:
      crt sysmsg(11515, acc.name, acc.rec<ACC$SHARED.READ>, acc.rec<ACC$SHARED.WRITE>)  ;* Account %1 has shared.read %2, shared.write %3
 *    17 Oct 26, S.65 slice 2c: FILES is membership of sdfiles, so the line is read off /etc/group, not off the request.
      crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has FILES %2
+*    18 Oct 26, S.65 write group: the same, for sdfileswrite.
+     crt sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')  ;* Account %1 has files-write %2
    end
 
 * A GROUP account's members, when the caller names them (RESTORE.ACCOUNT does;

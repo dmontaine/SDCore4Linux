@@ -969,13 +969,15 @@ def checks_2c(srcs, c, ck):
        init == "," and not wrong and sorted(nums) == sorted(FILES_ALLOWED) and 3 not in nums and len(FILES_ALLOWED) == 37, repr((init, wrong[:6], sorted(set(nums) ^ set(FILES_ALLOWED)))))
     odd = [a for a in ("", "abc", "-1", "1000", "81", "70", "4x", "x4", "3x") if files_ok_model(allow, a, 0) or files_ok_model(allow, a, 1)]
     ck("W2 ...and the tests after the table are exactly these, in this order: an empty action is 0, a non-number is 0, 3 is 0 when entered and 1 before, "
-       "a number is 1 only if ',N,' (commas on both sides, so 4 cannot match 49 or 14) is in the table, and the default is 0 (fail closed)",
+       "a number is 0 unless ',N,' (commas on both sides, so 4 cannot match 49 or 14) is in the table, then (18 Oct 26, the write group) a login whose writeok is not exactly 1 "
+       "is refused the change set and everything else is allowed (the model above is run with the write group, the table's own answer)",
        not odd and re.search(r"if action = '' then return 0\s*\n\s*if not\(num\(action\)\) then return 0\s*\n\s*if action = 3 then\s*\n\s*if entered then return 0\s*\n"
-                             r"\s*return 1\s*\n\s*end\s*\n\s*if index\(files\.ok, ',' : action : ',', 1\) then return 1\s*\n\s*return 0\s*\n\s*end\s*$", fo) is not None
+                             r"\s*return 1\s*\n\s*end\s*\n\s*if not\(index\(files\.ok, ',' : action : ',', 1\)\) then return 0\s*\n"
+                             r"\s*if writeok # 1 then\s*\n\s*if index\(files\.chg, ',' : action : ',', 1\) then return 0\s*\n\s*end\s*\n\s*return 1\s*\n\s*end\s*$", fo) is not None
        and ordered(fo, "files.ok := ", "if action = '' then return 0"), repr(odd))
     ck("W3 ...it is a $internal function catalogued once as !apifilesok, and it is PURE: no read, no write, no open, no kernel call, no execute, no prompt - "
        "a sandbox asks it about every number and the server asks it about every request",
-       "$internal" in fo and re.search(r"^function apifilesok\(action, entered\)\s*$", fo, re.M) is not None and re.search(r"^\$catalog !apifilesok\s*$", fo, re.M) is not None
+       "$internal" in fo and re.search(r"^function apifilesok\(action, entered, writeok\)\s*$", fo, re.M) is not None and re.search(r"^\$catalog !apifilesok\s*$", fo, re.M) is not None
        and len([n for n, t in bps.items() if "$catalog !apifilesok" in t]) == 1
        and not re.search(r"\b(?:kernel|read|readv|readu|readt|open|openseq|openpath|write|writeu|writev|writeseq|delete|execute|os\.execute|select|readnext|input|crt|display|print|call|gosub|goto|void)\b", strip_strings(fo)), "")
 
@@ -986,7 +988,7 @@ def checks_2c(srcs, c, ck):
     fin = ap[fi:] if fi >= 0 else ""
     ck("W4 apisrvr declares !apifilesok, keeps the files-only mark in the COMMON block /$APISRVR/ (a plain variable is set afresh by a runtime abort "
        "while logged.in survives it, which would hand a files-only login the whole API) and starts it false ONCE, in the first-time block beside master.login.done",
-       re.search(r"^deffun apifilesok\(action, entered\) calling '!apifilesok'\s*$", ap, re.M) is not None and re.search(r"^files\.only,", cm, re.M) is not None
+       re.search(r"^deffun apifilesok\(action, entered, writeok\) calling '!apifilesok'\s*$", ap, re.M) is not None and re.search(r"^files\.only,", cm, re.M) is not None
        and ap.count("files.only = @false") == 1
        and ordered(ap, "if not(kernel(K$CPROC.LEVEL,0)) then", "master.login.done = @false", "files.only = @false", 'openpath "voc" to voc else'), "")
     others = [n for n, t in bps.items() if n != "apisrvr" and re.search(r"\bfiles\.only\b", t)]
@@ -1029,14 +1031,14 @@ def checks_2c(srcs, c, ck):
        "it asks !apifilesok with master.login.done as `entered`; a refusal is audited, is an error answer (SV$ON.ERROR), says 11480 with the request number, and "
        "goes to return.status.set - the reply is written and the dispatch is skipped",
        ap.count("if files.only then") == 1 and 0 <= nl_ < gi < ap.find("cproc.date = date()") < dsp
-       and "if not(apifilesok(action, master.login.done)) then" in gb
-       and re.search(r"void kernel\(K\$AUDIT, 'api refused request=' : action : ' route=sdfiles user=' : @logname\)", gb) is not None
+       and "if not(apifilesok(action, master.login.done, files.write)) then" in gb
+       and re.search(r"void kernel\(K\$AUDIT, 'api refused request=' : action : ' route=sdfiles write=' : write\.word : ' user=' : @logname\)", gb) is not None
        and ordered(gb, "kernel(K$AUDIT", "server.error = SV$ON.ERROR", "abort.message = sysmsg(11480, action)", "st = status()", "goto return.status.set")
-       and ap.count("apifilesok(") == 2 and "\nreturn.status.set:" in ap and ap.find("\nreturn.status.set:") > dsp, "")
+       and ap.count("apifilesok(") == 3 and "\nreturn.status.set:" in ap and ap.find("\nreturn.status.set:") > dsp, "")
     ck("W12 'entered' is real: master.login.done is set true exactly once, at the first successful entry (vb.account), after the first-time `if not(master.login.done)` "
        "tests; a request 3 is therefore allowed until then and refused after; and the audit words are lower case: api login route=sdfiles user=, api refused request=",
        ap.count("master.login.done = @true") == 1 and ordered(ap, "if not(master.login.done) then\n   void kernel(K$VOC.EDIT", "master.login.done = @true")
-       and "void kernel(K$AUDIT, 'api login route=sdfiles user=' : scram.user)" in fin and "'api refused request='" in ap, "")
+       and "void kernel(K$AUDIT, 'api login route=sdfiles write=' : write.word : ' user=' : scram.user)" in fin and "'api refused request='" in ap, "")
 
     # ---- W13-W15. the messages ---------------------------------------------------------------------------------------------------------
     m80, m82 = srcs.get("msg:11480"), srcs.get("msg:11482")
@@ -1060,35 +1062,37 @@ def checks_2c(srcs, c, ck):
     sf = routine_body(mo, "set.files")
     ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
        "touched by set.files",
-       all(re.search(r"case action = '%s'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
-       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, suspended or unsuspended" in mo
+       all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
+       and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, suspended or unsuspended" in mo
        and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
     ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
        "name is checked with valid_os_name; the Linux user is the one the account's group names (the manifest reads the same)",
        ordered(sf, "if group.name[1,4] # 'sdu_' then", "sysmsg(10087, acc.name)", "sysmsg(10081, acc.name, 2)", "files.user = group.name[5,999]", "valid_os_name(files.user)", "os.execute")
-       and sf.count("os.execute") == 2, "")
+       and sf.count("os.execute") == 3, "")      # 18 Oct 26: addgroup, delgroup, and the delgroup of sdfileswrite that FILES-OFF adds
     ck("W18 ...membership is read three-valued (status read at once, a lookup that cannot answer changes NOTHING and says 10081 with the status); FILES-ON also needs sdusers "
        "(else status 2 - the login would refuse them first); FILES-OFF is never gated on sdusers",
-       re.search(r"has\.files = is_grp_member\(files\.user, 'sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and files\.want then\s*\n"
+       re.search(r"has\.files = is_grp_member\(files\.user, files\.grp\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and files\.want then\s*\n"
                  r"\s*in\.sdusers = is_grp_member\(files\.user, 'sdusers'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and not\(in\.sdusers\) then files\.stat = 2\s*\n"
                  r"\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return", sf) is not None
        and ordered(sf, "if files.stat # 0 then", "if has.files = files.want then", "sysmsg(10080, acc.name)", "os.execute"), "")
     ck("W19 ...already in the wanted state is 10080 and nothing is run; FILES-ON when the group sdfiles does not exist is 10024 and nothing is run; the change is the SAME "
        "helper and verbs the api word uses (sd-elevate addgroup / delgroup <user> sdfiles)",
-       ordered(sf, "if has.files = files.want then", "sysmsg(10080, acc.name)", "return", "files.found = is_group('sdfiles')", "sysmsg(10024, 'sdfiles')", "os.execute")
-       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files\.user : " sdfiles"', sf) is not None
-       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files\.user : " sdfiles"', sf) is not None
-       and ordered(sf, "files.found = is_group('sdfiles')", 'addgroup " : files.user', 'delgroup " : files.user'), "")
+       ordered(sf, "if has.files = files.want then", "sysmsg(10080, acc.name)", "return", "files.found = is_group(files.grp)", "sysmsg(10024, files.grp)", "os.execute")
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files\.user : " " : files\.grp', sf) is not None
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files\.user : " " : files\.grp', sf) is not None
+       and ordered(sf, "files.found = is_group(files.grp)", 'addgroup " : files.user', 'delgroup " : files.user'), "")
     ck("W20 ...after the change the membership is READ BACK from /etc/group, a read back that does not show the wanted state is a failure (10081, status 2), the audit line "
        "(lower case) comes only after it, and the line printed (11482) is the read-back value and not the request",
-       re.search(r"files\.stat = OS\.ERROR\(\)\s*\n\s*if files\.stat = 0 then\s*\n\s*now\.files = is_grp_member\(files\.user, 'sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n"
+       re.search(r"if files\.stat = 0 then\s*\n\s*now\.files = is_grp_member\(files\.user, files\.grp\)\s*\n\s*files\.stat = status\(\)\s*\n"
                  r"\s*if files\.stat = 0 and now\.files # files\.want then files\.stat = 2\s*\n\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
                  r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*@system\.return\.code = 0\s*\n"
                  r"\s*void kernel\(K\$AUDIT, 'modify\.account ' : downcase\(action\) : ' account=' : acc\.name\)\s*\n"
-                 r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None, "")
+                 r"\s*if files\.grp = 'sdfileswrite' then\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.files then 'yes' else 'no'\)[^\n]*\n\s*end else\s*\n"
+                 r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None
+       and re.search(r"files\.stat = OS\.ERROR\(\)\s*\n", sf) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILES>\s*=", cr)) == 1
-       and "{net-on} {files-on} {no.query}" in cr and "(files-on)" in cr, "")
+       and "{net-on} {files-on} {files-write-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
        re.search(r"\$define\s+CA\$FILES\s+36\b", c["createacc.h"]) is not None and re.search(r"\$define\s+CA\$NET\s+35\b", c["createacc.h"]) is not None
@@ -1101,8 +1105,8 @@ def checks_2c(srcs, c, ck):
        and re.search(r"if files\.want then\s*\n\s*files\.found = is_group\('sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
                      r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:files\.stat\s*\n\s*goto exit\.create\s*\n\s*end\s*\n"
                      r"\s*if not\(files\.found\) then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10024:@vm:'sdfiles'\s*\n\s*goto exit\.create", ca2) is not None
-       and re.search(r"case acc\.type = 'GROUP'.*?if files\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10087:@vm:acc\.name\s*\n\s*goto exit\.create.*?case acc\.type = 'OTHER'.*?"
-                     r"if files\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10081:@vm:acc\.name:@vm:2\s*\n\s*goto exit\.create", ca2.replace('"', "'"), re.S) is not None, "")
+       and re.search(r"case acc\.type = 'GROUP'.*?if files\.want or files\.write\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10087:@vm:acc\.name\s*\n\s*goto exit\.create.*?case acc\.type = 'OTHER'.*?"
+                     r"if files\.want or files\.write\.want then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 10081:@vm:acc\.name:@vm:2\s*\n\s*goto exit\.create", ca2.replace('"', "'"), re.S) is not None, "")
     ck("W23 ...the join is sd-elevate addgroup <user> sdfiles, only when asked, AFTER the sdssh and sdapi joins; a failed join is 10081 with its status and the account stops; "
        "and a user account is told its state (11482), read off /etc/group, right after the NET line",
        re.search(r'if files\.want then\s*\n\s*os\.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc\.uname:" sdfiles"\s*\n\s*route\.stat = OS\.ERROR\(\)\s*\n\s*if route\.stat # 0 then\s*\n'
@@ -1113,30 +1117,30 @@ def checks_2c(srcs, c, ck):
     # ---- W24-W26. the manifest and the restore -------------------------------------------------------------------------------------------
     ck("W24 the account manifest carries `route.files: 1|0` for a USER account, read from membership of sdfiles, after route.api and before os.sh, and before the GROUP branch; "
        "the key is NOT `files` - the backup writes `files: N` (the file count) into the same section and RESTORE.ACCOUNT reads it as that count",
-       ordered(ai, "'route.api: '", "'route.files: ':(if is_grp_member(user, 'sdfiles') then 1 else 0)", "'os.sh: '", "case grp[1,4] = 'sdg_'")
-       and "'files: '" not in ai and ai.count("route.files") == 1 and "'files: ':files" in c["bp:backupa"] and re.search(r"= 'files'\s*; m\.files = kv", rs) is not None, "")
+       ordered(ai, "'route.api: '", "'route.files: ':(if is_grp_member(user, 'sdfiles') then 1 else 0)", "'route.files.write: '", "'os.sh: '", "case grp[1,4] = 'sdg_'")
+       and "'files: '" not in ai and ai.count("'route.files: '") == 1 and ai.count("route.files") == 2 and "'files: ':files" in c["bp:backupa"] and re.search(r"= 'files'\s*; m\.files = kv", rs) is not None, "")
     ck("W25 RESTORE.ACCOUNT reads route.files, clears it for each section, hands it on as CA$FILES (a manifest without the key restores as NOT in the group), and still reads "
        "`files` as the count",
        re.search(r"= 'route\.files'\s*; m\.route\.files = kv", rs) is not None and "settings<CA$FILES> = m.route.files" in rs and "m.net = '' ; m.route.files = ''" in rs
        and re.search(r"= 'files'\s*; m\.files = kv", rs) is not None, "")
 
     # ---- W26-W28. the group: installer, deletesdcore, sd-elevate ----------------------------------------------------------------------------
-    ck("W26 the installer makes sdfiles beside sdssh and sdapi: one loop `for sd_route_group in sdssh sdapi sdfiles`, groupadd --system, only when the group is missing",
+    ck("W26 the installer makes sdfiles (and, 18 Oct 26, sdfileswrite) beside sdssh and sdapi: one loop `for sd_route_group in sdssh sdapi sdfiles sdfileswrite`, groupadd --system, only when the group is missing",
        inst.count("for sd_route_group in") == 1
-       and re.search(r'for sd_route_group in sdssh sdapi sdfiles; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None, "")
-    li = dele.find("for sd_route_group in sdssh sdapi sdfiles; do")
+       and re.search(r'for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do\s*\n\s*if ! getent group "\$sd_route_group" &>/dev/null; then\s*\n(?:[^\n]*\n){0,2}?\s*sudo groupadd --system "\$sd_route_group"', inst) is not None, "")
+    li = dele.find("for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do")
     br = dele.rfind('if [ "$keep_accts" = "DELETE" ]; then', 0, li) if li >= 0 else -1
     el = dele.find("\nelse\n", li) if li >= 0 else -1
     fi_ = dele.find("\nfi", el) if el >= 0 else -1
     ck("W27 deletesdcore removes it with the others ONLY on a full DELETE (the loop and its groupdel inside the DELETE branch, no end of branch between them) and says it kept it "
        "when the accounts are kept (in the else branch)",
        dele.count("for sd_route_group in") == 1 and 0 <= br < li < el and "\nfi" not in dele[br:li] and 'sudo groupdel "$sd_route_group"' in dele[li:el]
-       and "route groups sdssh, sdapi and sdfiles were kept" in dele[el:el + 200] and fi_ > el and "groupdel" not in dele[el:fi_], "")
+       and "route groups sdssh, sdapi, sdfiles and sdfileswrite were kept" in dele[el:el + 200] and fi_ > el and "groupdel" not in dele[el:fi_], "")
     ck("W28 sd-elevate whitelists sdfiles by its exact name for addgroup, delgroup and groupadd (require_sd_group), says so in its refusal text, and never deletes it with groupdel "
        "(it is one of the system groups)",
-       re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\) : ;;\s*\n\s*sdu_\?\*\|sdg_\?\*\) : ;;", se) is not None
-       and "(want sdusers, sdssh, sdapi, sdfiles, sdu_*, or sdg_*)" in se
-       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\)\s*\n\s*die \"'\$1' is one of SD's system groups and is never deleted here\"", se) is not None
+       re.search(r"case \$group in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\) : ;;\s*\n\s*sdu_\?\*\|sdg_\?\*\) : ;;", se) is not None
+       and "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdu_*, or sdg_*)" in se
+       and re.search(r"case \$1 in\s*\n\s*sdusers\|sdssh\|sdapi\|sdfiles\|sdfileswrite\)\s*\n\s*die \"'\$1' is one of SD's system groups and is never deleted here\"", se) is not None
        and "sdfiles*" not in se, "")
 
 
@@ -2973,8 +2977,8 @@ mut("apifilesok: 3 is not special (it falls to the table)", AFO, "if action = 3 
 mut("apifilesok: an empty action is tested no more", AFO, "if action = '' then return 0\n", "")
 mut("apifilesok: a non-number is tested no more", AFO, "if not(num(action)) then return 0\n", "")
 mut("apifilesok: the table is searched without its commas (4 matches 49)", AFO, "',' : action : ','", "action")
-mut("apifilesok: the default is yes", AFO, rx(r"(if index\(files\.ok[^\n]*\n\s*)return 0", r"\g<1>return 1"))
-mut("apifilesok: an unknown number is yes", AFO, "if index(files.ok, ',' : action : ',', 1) then return 1", "if index(files.ok, ',' : action : ',', 1) or action > 69 then return 1")
+mut("apifilesok: the default is yes", AFO, "if not(index(files.ok, ',' : action : ',', 1)) then return 0", "if not(index(files.ok, ',' : action : ',', 1)) then return 1")
+mut("apifilesok: an unknown number is yes", AFO, "if not(index(files.ok, ',' : action : ',', 1)) then return 0", "if not(index(files.ok, ',' : action : ',', 1) or action > 69) then return 0")
 mut("apifilesok: it is not $internal", AFO, "$internal\nfunction", "function")
 mut("apifilesok: it is catalogued under another name", AFO, "$catalog !apifilesok", "$catalog !apifilesk")
 mut("apifilesok: it asks the kernel something", AFO, "$catalog !apifilesok\n", "$catalog !apifilesok\nx = kernel(K$USERNAME, 0)\n")
@@ -3008,23 +3012,23 @@ mut("apisrvr: an unreadable sdfiles route is let in", AP2, "scram.refuse.reason 
     "scram.refuse.reason = 'the sdfiles route could not be read, status ' : api.files.stat\n                        api.files.login = @true\n")
 mut("apisrvr: sdsys is not exempt by name", AP2, "if not(downcase(scram.user) = 'sdsys') then", "if @true then")
 mut("apisrvr: sdsys's name is compared in the case it was typed", AP2, "if not(downcase(scram.user) = 'sdsys') then", "if not(scram.user = 'sdsys') then")
-mut("apisrvr: the login by this route is not audited", AP2, drop_line(r"'api login route=sdfiles user='"))
-mut("apisrvr: the login audit line is upper case", AP2, "'api login route=sdfiles user='", "'API LOGIN route=sdfiles user='")
-mut("apisrvr: the login audit line names the wrong route", AP2, "'api login route=sdfiles user='", "'api login route=sdapi user='")
+mut("apisrvr: the login by this route is not audited", AP2, drop_line(r"'api login route=sdfiles write='"))
+mut("apisrvr: the login audit line is upper case", AP2, "'api login route=sdfiles write='", "'API LOGIN route=sdfiles write='")
+mut("apisrvr: the login audit line names the wrong route", AP2, "'api login route=sdfiles write='", "'api login route=sdapi write='")
 # apisrvr: the gate
 mut("apisrvr: the gate is not taken", AP2, "   if files.only then\n", "   if 0 then\n")
 mut("apisrvr: the gate is taken for every session", AP2, "   if files.only then\n", "   if @true then\n")
-mut("apisrvr: the gate asks no function", AP2, "if not(apifilesok(action, master.login.done)) then", "if 0 then")
-mut("apisrvr: the account is always 'not yet entered' (3 allowed for ever)", AP2, "apifilesok(action, master.login.done)", "apifilesok(action, @false)")
-mut("apisrvr: the account is always 'entered' (the first 3 is refused)", AP2, "apifilesok(action, master.login.done)", "apifilesok(action, @true)")
+mut("apisrvr: the gate asks no function", AP2, "if not(apifilesok(action, master.login.done, files.write)) then", "if 0 then")
+mut("apisrvr: the account is always 'not yet entered' (3 allowed for ever)", AP2, "apifilesok(action, master.login.done, files.write)", "apifilesok(action, @false, files.write)")
+mut("apisrvr: the account is always 'entered' (the first 3 is refused)", AP2, "apifilesok(action, master.login.done, files.write)", "apifilesok(action, @true, files.write)")
 mut("apisrvr: the refusal does not skip the dispatch", AP2, "         goto return.status.set\n", "         null\n")
-mut("apisrvr: the refusal is not an error answer", AP2, "         server.error = SV$ON.ERROR\n         abort.message = sysmsg(11480, action)", "         abort.message = sysmsg(11480, action)")
+mut("apisrvr: the refusal is not an error answer", AP2, "         server.error = SV$ON.ERROR\n*", "*")
 mut("apisrvr: the refusal says another message", AP2, "sysmsg(11480, action)", "sysmsg(5270)")
 mut("apisrvr: the refusal does not name the request", AP2, "sysmsg(11480, action)", "sysmsg(11480)")
 mut("apisrvr: the refusal is not audited", AP2, drop_line(r"'api refused request='"))
 mut("apisrvr: the refusal audit line is upper case", AP2, "'api refused request='", "'API REFUSED request='")
-mut("apisrvr: the refusal audit line has no route", AP2, " route=sdfiles user=' : @logname)", " user=' : @logname)")
-mut("apisrvr: the refusal audit line uses a plain variable that an abort loses", AP2, "' route=sdfiles user=' : @logname)", "' route=sdfiles user=' : logname)")
+mut("apisrvr: the refusal audit line has no route", AP2, "' route=sdfiles write=' : write.word : ' user=' : @logname)", "' write=' : write.word : ' user=' : @logname)")
+mut("apisrvr: the refusal audit line uses a plain variable that an abort loses", AP2, "' route=sdfiles write=' : write.word : ' user=' : @logname)", "' route=sdfiles write=' : write.word : ' user=' : logname)")
 mut("apisrvr: the gate comes after the dispatch",
     AP2, lambda t: t.replace(t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")], "", 1).replace("   st = status()\nreturn.status.set:", t[t.index("   if files.only then\n"):t.index("   cproc.date = date()")] + "   st = status()\nreturn.status.set:", 1))
 mut("apisrvr: the gate comes before the not-logged-in test",
@@ -3034,31 +3038,31 @@ mut("apisrvr: master.login.done is set at another place too", AP2, "   tty = 'ap
 # MODIFY.ACCOUNT
 mut("modifya: the word FILES-ON is not a word", MOD, "case action = 'FILES-ON'", "case action = 'FILES-ONX'")
 mut("modifya: the word FILES-OFF is not a word", MOD, "case action = 'FILES-OFF'", "case action = 'FILES-OFX'")
-mut("modifya: FILES-ON asks for off", MOD, "files.want = @true\n         gosub set.files", "files.want = @false\n         gosub set.files")
-mut("modifya: FILES-OFF asks for on", MOD, "files.want = @false\n         gosub set.files", "files.want = @true\n         gosub set.files")
+mut("modifya: FILES-ON asks for off", MOD, "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files")
+mut("modifya: FILES-OFF asks for on", MOD, "files.grp = 'sdfiles'\n         files.want = @false\n         gosub set.files", "files.grp = 'sdfiles'\n         files.want = @true\n         gosub set.files")
 mut("modifya: the syntax lines do not name the words", MOD, drop_line(r"modify\.account <account> files-on \| files-off"))
-mut("modifya: the list of words does not name them", MOD, "files-on, files-off, suspended or unsuspended", "suspended or unsuspended")
+mut("modifya: the list of words does not name them", MOD, "files-on, files-off, files-write-on, files-write-off, suspended or unsuspended", "suspended or unsuspended")
 mut("modifya: set.files lets a group account through", MOD, "   if group.name[1,4] # 'sdu_' then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then",
     "   if 0 then\n      @system.return.code = -ER$FAILED\n      if group.name[1,4] = 'sdg_' then")
 mut("modifya: a group account is told 10081 and not 10087", MOD, "crt sysmsg(10087, acc.name)  ;* %1 is a group account and has no remote access; reach it with logto\n      end else\n         crt sysmsg(10081, acc.name, 2)",
     "crt sysmsg(10081, acc.name, 2)\n      end else\n         crt sysmsg(10081, acc.name, 2)")
 mut("modifya: the Linux user is not checked for its name", MOD, "if not(valid_os_name(files.user)) then", "if 0 then")
 mut("modifya: the Linux user comes from the account name", MOD, "files.user = group.name[5,999]", "files.user = acc.name")
-mut("modifya: membership is not read three-valued", MOD, "has.files = is_grp_member(files.user, 'sdfiles')\n   files.stat = status()", "has.files = is_grp_member(files.user, 'sdfiles')\n   files.stat = 0")
+mut("modifya: membership is not read three-valued", MOD, "has.files = is_grp_member(files.user, files.grp)\n   files.stat = status()", "has.files = is_grp_member(files.user, files.grp)\n   files.stat = 0")
 mut("modifya: FILES-ON does not need sdusers", MOD, "in.sdusers = is_grp_member(files.user, 'sdusers')", "in.sdusers = @true")
 mut("modifya: FILES-OFF needs sdusers too", MOD, "if files.stat = 0 and files.want then\n      in.sdusers", "if files.stat = 0 then\n      in.sdusers")
 mut("modifya: already in the state is not noticed", MOD, "if has.files = files.want then", "if 0 then")
-mut("modifya: the group's existence is not checked", MOD, "files.found = is_group('sdfiles')", "files.found = @true")
-mut("modifya: FILES-ON adds to sdapi", MOD, "addgroup \" : files.user : \" sdfiles\"", "addgroup \" : files.user : \" sdapi\"")
-mut("modifya: FILES-OFF takes the person out of sdapi", MOD, "delgroup \" : files.user : \" sdfiles\"", "delgroup \" : files.user : \" sdapi\"")
+mut("modifya: the group's existence is not checked", MOD, "files.found = is_group(files.grp)", "files.found = @true")
+mut("modifya: FILES-ON adds to sdapi", MOD, "addgroup \" : files.user : \" \" : files.grp", "addgroup \" : files.user : \" sdapi\"")
+mut("modifya: FILES-OFF takes the person out of sdapi", MOD, "delgroup \" : files.user : \" \" : files.grp", "delgroup \" : files.user : \" sdapi\"")
 mut("modifya: the helper is not sd-elevate", MOD, "sudo /usr/local/sbin/sd-elevate addgroup \" : files.user", "sudo /usr/sbin/usermod -aG sdfiles \" : files.user")
-mut("modifya: the change is not read back", MOD, "now.files = is_grp_member(files.user, 'sdfiles')", "now.files = files.want")
+mut("modifya: the change is not read back", MOD, "now.files = is_grp_member(files.user, files.grp)", "now.files = files.want")
 mut("modifya: a read back that differs is a success", MOD, "if files.stat = 0 and now.files # files.want then files.stat = 2", "null")
 mut("modifya: the line shows the request and not the read back", MOD, "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if files.want then 'yes' else 'no')")
 mut("modifya: the audit line is upper case",
-    MOD, "void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   crt sysmsg(11482", "void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)\n   crt sysmsg(11482")
+    MOD, "void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then", "void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then")
 mut("modifya: the audit line is written before the change",
-    MOD, lambda t: t.replace("   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   crt sysmsg(11482", "   crt sysmsg(11482", 1).replace("   if files.want then\n      files.found = is_group('sdfiles')", "   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.want then\n      files.found = is_group('sdfiles')", 1))
+    MOD, lambda t: t.replace("   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then", "   if files.grp = 'sdfileswrite' then", 1).replace("   if files.want then\n      files.found = is_group(files.grp)", "   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.want then\n      files.found = is_group(files.grp)", 1))
 mut("modifya: a failed change is reported as done", MOD, "   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      crt sysmsg(10081, acc.name, files.stat)\n      return\n   end\n\n   @system.return.code = 0\n   void kernel",
     "   @system.return.code = 0\n   void kernel")
 # CREATEA and CREATE.ACCOUNT
@@ -3075,9 +3079,9 @@ mut("create_account: an unreadable /etc/group is not looked at", CAC, "if files.
 mut("create_account: the group is looked for AFTER the Linux user is made",
     CAC, lambda t: (lambda m: t.replace(m.group(1), "", 1).replace("      if not(is_grp_member(acc.uname,'sdusers')) then", m.group(1) + "      if not(is_grp_member(acc.uname,'sdusers')) then", 1))(
         re.search(r"(\* 17 Oct 26 dm - S\.65 slice 2c: the group sdfiles is looked for.*?\n     end\n)", t, re.S)))
-mut("create_account: a GROUP account is not refused", CAC, "if files.want then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create",
+mut("create_account: a GROUP account is not refused", CAC, "if files.want or files.write.want then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create",
     "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10087:@vm:acc.name ;* %1 is a group account and has no remote access\n       goto exit.create")
-mut("create_account: an OTHER account is not refused", CAC, "if files.want then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2", "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2")
+mut("create_account: an OTHER account is not refused", CAC, "if files.want or files.write.want then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2", "if 0 then\n       @system.return.code = -ER$ARGS\n       err = 10081:@vm:acc.name:@vm:2")
 mut("create_account: the join goes to sdapi", CAC, "sd-elevate addgroup \":acc.uname:\" sdfiles\"", "sd-elevate addgroup \":acc.uname:\" sdapi\"")
 mut("create_account: the join is not asked for", CAC, "      if files.want then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfiles\"", "      if @true then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfiles\"")
 mut("create_account: a failed join is not reported", CAC, "         route.stat = OS.ERROR()\n         if route.stat # 0 then", "         route.stat = OS.ERROR()\n         if 0 then")
@@ -3096,15 +3100,15 @@ mut("restorea: it is not cleared for each section", "restorea", " ; m.route.file
 mut("restorea: the file count is lost", "restorea", "case sec.keys<s.idx,kp> = 'files'       ; m.files = kv", "case sec.keys<s.idx,kp> = 'filez'       ; m.files = kv")
 mut("backupa: the file count is renamed route.files", "bp:backupa", "m<-1> = 'files: ':files", "m<-1> = 'route.files: ':files")
 # the group
-mut("the installer does not make sdfiles", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles; do", "for sd_route_group in sdssh sdapi; do")
+mut("the installer does not make sdfiles", "installsdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do", "for sd_route_group in sdssh sdapi sdfileswrite; do")
 mut("the installer makes sdfiles a login group", "installsdcore.sh", "sudo groupadd --system \"$sd_route_group\"", "sudo groupadd \"$sd_route_group\"")
-mut("deletesdcore does not remove sdfiles", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles; do", "for sd_route_group in sdssh sdapi; do")
-mut("deletesdcore says it kept two groups", "deletesdcore.sh", "route groups sdssh, sdapi and sdfiles were kept", "route groups sdssh and sdapi were kept")
+mut("deletesdcore does not remove sdfiles", "deletesdcore.sh", "for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do", "for sd_route_group in sdssh sdapi sdfileswrite; do")
+mut("deletesdcore says it kept two groups", "deletesdcore.sh", "route groups sdssh, sdapi, sdfiles and sdfileswrite were kept", "route groups sdssh and sdapi were kept")
 mut("deletesdcore removes sdfiles when the accounts are kept", "deletesdcore.sh", "else\n    echo \"sd ACCOUNTS were saved", "else\n    sudo groupdel sdfiles\n    echo \"sd ACCOUNTS were saved")
-mut("sd-elevate does not whitelist sdfiles", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi) : ;;")
-mut("sd-elevate whitelists sdfiles* (a prefix)", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles) : ;;", "sdusers|sdssh|sdapi|sdfiles*) : ;;")
-mut("sd-elevate lets groupdel delete sdfiles", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles)\n        die", "      sdusers|sdssh|sdapi)\n        die")
-mut("sd-elevate's refusal does not name sdfiles", "sd-elevate", "(want sdusers, sdssh, sdapi, sdfiles, sdu_*, or sdg_*)", "(want sdusers, sdssh, sdapi, sdu_*, or sdg_*)")
+mut("sd-elevate does not whitelist sdfiles", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;", "sdusers|sdssh|sdapi|sdfileswrite) : ;;")
+mut("sd-elevate whitelists sdfiles* (a prefix)", "sd-elevate", "sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;", "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite) : ;;")
+mut("sd-elevate lets groupdel delete sdfiles", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die", "      sdusers|sdssh|sdapi|sdfileswrite)\n        die")
+mut("sd-elevate's refusal does not name sdfiles", "sd-elevate", "(want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdu_*, or sdg_*)", "(want sdusers, sdssh, sdapi, sdfileswrite, sdu_*, or sdg_*)")
 # the messages
 mut("message 11480 is missing", "msg:11480", lambda t: None)
 mut("message 11480 says another thing", "msg:11480", lambda t: t.replace("files only", "files and more", 1))
@@ -3840,7 +3844,7 @@ mut("the suite has no lock watcher", NFSUITE, "class LockWatch(", "class LockWat
 mut("the suite's holder is never released", NFSUITE, "                time.sleep(self.delay)\n                self.srv.store.drop_user(self.userno)", "                time.sleep(self.delay)")
 mut("the suite's T prefix does nothing", NFSUITE, "      if nm[1,1] = 'T' then\n         intxn = @true", "      if nm[1,1] = 'T' then\n         intxn = @false")
 mut("the suite's marks in an id are not converted", NFSUITE, "b = change(b, '<F>', @fm) ; ", "")
-mut("the suite runs hwrite after kernel", NFSUITE, '("hwrite", hwrite_section), ("kwrite", kwrite_section),\n            ("kernel", kernel_section), ("gaps", gaps_section))', '("kernel", kernel_section), ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("gaps", gaps_section))')
+mut("the suite runs hwrite after kernel", NFSUITE, '("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section),\n            ("kernel", kernel_section), ("gaps", gaps_section))', '("kernel", kernel_section), ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section), ("gaps", gaps_section))')
 mut("the suite's KALLOWED changes", NFSUITE, "KALLOWED = {47, 48, 3, 4, 5, 6, 1}  ", "KALLOWED = {47, 48, 3, 4, 5, 6, 1, 16}  ")
 mut("the suite's write wire allows request 32", NFSUITE, "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 34}", "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 32, 34}")
 mut("the suite's refusal matrix loses recordlocku", NFSUITE, '    km("recordlocku", "recordlocku f', '    km("recordlockx", "recordlocku f')
@@ -3849,7 +3853,7 @@ mut("the map does not select netfile for op_kernel.c", NFMAP, "editgates net net
 mut("the map does not select netfile for cproc", NFMAP, "classinit net netfile", "classinit net")
 mut("the map does not select netfile for edit_guard", NFMAP, "sdsys/gpl.bp/edit_guard      : editgates @editors netfile", "sdsys/gpl.bp/edit_guard      : editgates @editors")
 mut("the suite loses the hwrite section", NFSUITE, '("hwrite", hwrite_section), ', "")
-mut("the suite loses the kwrite section", NFSUITE, '("kwrite", kwrite_section),\n', "\n")
+mut("the suite loses the kwrite section", NFSUITE, '("kwrite", kwrite_section), ', "")
 mut("the suite's driver loses WRITEU", NFSUITE, "            op = NF$WRITEU\n", "            op = 14\n")
 mut("the suite's driver loses RELEASE", NFSUITE, "            op = NF$RELEASE\n", "            op = 16\n")
 mut("the suite's history line for slice 3e is gone", NFSUITE, "# 18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS", "# 18 Oct 26 dm  slice 3e: WRITES AND LOCKS")
