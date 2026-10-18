@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 18 Oct 26 dm  container and viewport.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -37,6 +38,7 @@ $catalog $sl_widget_init
       case wt = 'table' ; call $sl_table('init', w, '', '', r)
       case wt = 'tree' ; call $sl_tree('init', w, '', '', r)
       case wt = 'scroll' ; call $sl_scroll('init', w, '', '', r)
+      case wt = 'container' or wt = 'viewport' ; call $sl_viewport('init', w, '', '', r)
    end case
 
    return
