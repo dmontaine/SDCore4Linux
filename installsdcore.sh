@@ -66,6 +66,10 @@
 #   17 Oct 2026 dm - S.65 slice 2c: the group sdfiles is created beside sdssh
 #   and sdapi (the SDNet files-only API route; empty on a fresh install).
 #
+#   18 Oct 2026 dm - S.65 write group: the group sdfileswrite is created
+#   beside them (the right to CHANGE files over that route; empty on a fresh
+#   install, and created by an upgrade install that lacks it).
+#
 #   18 Oct 2026 dm - S.66: the install creates the shared account (a group
 #   account named shared, group sdg_shared), after the installing user's own
 #   account and before the kept accounts are brought forward.  shared_preflight
@@ -694,7 +698,11 @@ fi
 #   install: nobody joins it until the administrator says FILES-ON for an
 #   account (or CREATE.ACCOUNT is given FILES-ON), exactly as sdapi is off by
 #   default.
-for sd_route_group in sdssh sdapi sdfiles; do
+# 18 Oct 26 dm - S.65 write group: sdfileswrite is the FOURTH, the right to change
+#   files over the sdfiles route (write, delete, lock, clear).  Empty on a fresh
+#   install; an upgrade install that lacks it creates it empty here (the loop
+#   makes any that is missing), and nobody is added by the installer.
+for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do
   if ! getent group "$sd_route_group" &>/dev/null; then
     echo "Creating group: $sd_route_group."
     sudo groupadd --system "$sd_route_group"

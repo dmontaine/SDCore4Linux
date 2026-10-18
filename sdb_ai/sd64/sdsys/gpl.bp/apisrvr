@@ -19,6 +19,13 @@
 *
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.65 write group: a files-only login may change state or take a lock only if the user is ALSO in the Linux group sdfileswrite (off for a
+*           new account; SDSYS gives it with modify.account files-write-on).  vb.scram.final reads it (three-valued, like sdfiles) into files.write
+*           (common block, set with files.only, never cleared); !apifilesok takes it as a third argument; a request refused for want of it is
+*           audited with write=off and answered with 11521.  The login line gains write=on|off.  sdapi members are untouched.  vb.readv asks for itself
+*           (request 41 is in the table for a plain READV; its flags 1, 2, 5 and 6 take a lock, refused the same way).  vb.open opens
+*           "dict <file>" in any case as a DICTIONARY (open 'DICT', name): the SDNet handler sends it in lower case, which _voc_ref (upper case
+*           DICT only) did not understand, so a remote dictionary was never opened.
 * 18 Oct 26 dm S.66: the shared-account gates (K$SHARED.READ / .WRITE) are read from ACC$SHARED.READ / .WRITE and loaded at every entry to an account,
 *           as NET is (read ON unless the record says no; both OFF for a path or an unreadable register); the sdsys pair gets both ON.  The
 *           refusal of a write to a guarded file takes its text from !edit_msg, which knows the kinds the kernel can now report.
@@ -171,13 +178,14 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 *   vb.scram.first calls it too, and phase 5 retires vb.login.
 deffun valid_os_name(name) calling '!valid_os_name'
 * 17 Oct 26 dm - S.65 slice 2c: the one place that decides what a files-only session may ask for (pure; see the program).
-deffun apifilesok(action, entered) calling '!apifilesok'
+deffun apifilesok(action, entered, writeok) calling '!apifilesok'
 * 18 Oct 26 dm - S.66: the text of an edit refusal for the kind the kernel reports (1 VOC, 2 dictionary, 3 program file, 4 shared file, 5 shared structure).
 deffun edit_msg(kind) calling '!edit_msg'
 
 
 common /$APISRVR/ logged.in,          ;* Process is logged in
 files.only,         ;* 17 Oct 26 S.65 2c: this login is FILES ONLY (sdfiles route, not sdapi): set in vb.scram.final, never cleared
+files.write,        ;* 18 Oct 26 S.65: a files-only login that is also in the Linux group sdfileswrite: set with files.only, never cleared
 files(100),        ;* Array of file variables
 logging,            ;* Logging network traffic?
 master.login.done,  ;* The MASTER.LOGIN paragraph has been run (it is run once per session)
@@ -246,6 +254,7 @@ if not(kernel(K$CPROC.LEVEL,0)) then
 *   so does logged.in, but every plain variable set outside this block (scram.stage and the rest) is set afresh.  A mark kept in a
 *   plain variable would be false again after the first abort while the session stayed logged in: a files-only login with the whole API.
    files.only = @false
+   files.write = @false       ;* 18 Oct 26, S.65: the same reason; false unless vb.scram.final finds the user in sdfileswrite
 
    openpath "voc" to voc else
       abort.message = sysmsg(2026) ;* Cannot open VOC
@@ -352,10 +361,17 @@ loop
 *   succeeded, so the first request 3 is allowed and a later one (an SDLogto) is not.  The SDCLIENT and SDNet tests in vb.open and
 *   the rest still apply to what is allowed through.
    if files.only then
-      if not(apifilesok(action, master.login.done)) then
-         void kernel(K$AUDIT, 'api refused request=' : action : ' route=sdfiles user=' : @logname)  ;* @logname, not logname: a plain variable does not survive an abort
+      if not(apifilesok(action, master.login.done, files.write)) then
+         if files.write then write.word = 'on' else write.word = 'off'
+         void kernel(K$AUDIT, 'api refused request=' : action : ' route=sdfiles write=' : write.word : ' user=' : @logname)  ;* @logname, not logname: a plain variable does not survive an abort
          server.error = SV$ON.ERROR
-         abort.message = sysmsg(11480, action) ;* This login is for files only: request %1 is not allowed
+* 18 Oct 26 dm - S.65 write group: a request the files-only table ALLOWS but that changes state, refused for want of the group, has its own text.
+*   The test is the same call with the write flag made true: allowed then means the group is all that was missing.
+         if not(files.write) and apifilesok(action, master.login.done, @true) then
+            abort.message = sysmsg(11521, action) ;* This login can read files but is not allowed to change them: request %1 is not allowed
+         end else
+            abort.message = sysmsg(11480, action) ;* This login is for files only: request %1 is not allowed
+         end
          st = status()
          goto return.status.set
       end
@@ -745,16 +761,33 @@ i = n + 1
 vb.open.continue:
 * Open file to file table entry i
 
-open cmnd to files(i)
-on error server.error = SV$ON.ERROR
-then
-   if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
-      server.error = SV$ELSE
+* 18 Oct 26 dm - S.65: "dict <file>" in ANY case is a dictionary, opened as OPEN 'DICT', <file>.  The single-argument OPEN looks the VOC for a
+*   file named "dict <file>", which _voc_ref understands only with an upper case DICT; the SDNet handler (and netfile) send it in lower case, so a
+*   remote dictionary was never opened (ELSE 3007) and COUNT, LIST, SORT and SELECT on a remote file stopped at "Cannot open dictionary".  Only
+*   the word and the one space are taken off: the name goes to the same OPEN, so every refusal that applies to a file applies to the dictionary.
+if upcase(cmnd[1,5]) = 'DICT ' then
+   open 'DICT', trim(cmnd[6,9999]) to files(i)
+   on error server.error = SV$ON.ERROR
+   then
+      if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+         server.error = SV$ELSE
       end else
          response = iconv(i, 'ISL')
       end
    end
    else server.error = SV$ELSE
+end else
+   open cmnd to files(i)
+   on error server.error = SV$ON.ERROR
+   then
+      if bitand(fileinfo(files(i), FL$FLAGS), FL$FLAGS.TRUSTED) then
+         server.error = SV$ELSE
+      end else
+         response = iconv(i, 'ISL')
+      end
+   end
+   else server.error = SV$ELSE
+end
 
       return
 
@@ -1539,6 +1572,7 @@ vb.scram.final:
 *   BOTH groups: could not tell refuses, with its own reason, and sdsys is exempt from both by name (it has the whole API through its
 *   own doors below).  A user in neither is refused exactly as before, same reason, same 10073.  Both groups are off for a new account.
                api.files.login = @false
+               api.files.write = @false
                if not(downcase(scram.user) = 'sdsys') then
                   api.in.sdapi = is_grp_member(scram.user, 'sdapi')
                   api.route.stat = status()
@@ -1564,6 +1598,19 @@ vb.scram.final:
                         goto exit.vb.scram.fail
                      end
                      api.files.login = @true
+*
+* 18 Oct 26 dm - S.65 WRITE GROUP.  A files-only login may change state or take a lock only if the user is ALSO in sdfileswrite, which is
+*   off for a new account (core direction 1; SDSYS gives it with modify.account files-write-on).  Read three-valued, like sdfiles above: a
+*   group file that cannot be read refuses the login with its own reason, because "could not tell" must not become either answer.  A group
+*   that does not exist reads as "not a member": no write, the login stands.  sdapi members never get here, so they are untouched.
+                     api.files.write = is_grp_member(scram.user, 'sdfileswrite')
+                     api.write.stat = status()
+                     if api.write.stat # 0 then
+                        scram.refuse.reason = 'the sdfileswrite route could not be read, status ' : api.write.stat
+                        abort.message = sysmsg(10073, scram.user) ;* %1 is not permitted to use the API
+                        server.error = SV$ON.ERROR
+                        goto exit.vb.scram.fail
+                     end
                   end
                end
 
@@ -1681,7 +1728,9 @@ vb.scram.final:
 *   in the common block (see its declaration), so an abort does not lose it.  The login is audited as a login by this route.
                if api.files.login then
                   files.only = @true
-                  void kernel(K$AUDIT, 'api login route=sdfiles user=' : scram.user)
+                  files.write = api.files.write   ;* 18 Oct 26, S.65 write group: in the common block for the same reason as files.only
+                  if files.write then write.word = 'on' else write.word = 'off'
+                  void kernel(K$AUDIT, 'api login route=sdfiles write=' : write.word : ' user=' : scram.user)
                end
 
                response = 'v=' : scram.ssig
@@ -2120,6 +2169,15 @@ vb.readv:
 
                                                 flags = oconv(cmnd[3,2], 'ISL')
                                                 field_no = oconv(cmnd[5,4], 'ILL')
+
+* 18 Oct 26 dm - S.65 write group: request 41 is allowed to a files-only login for a plain READV (flags 0), but flags 1, 2, 5 and 6 take a record lock, which
+*   is a change of state like requests 7 to 10 and 30.  !apifilesok sees only the number, so the flags are asked here, the same refusal, the same audit line.
+                                                if files.only and not(files.write) and flags # 0 then
+                                                   void kernel(K$AUDIT, 'api refused request=41 route=sdfiles write=off user=' : @logname)
+                                                   server.error = SV$ON.ERROR
+                                                   abort.message = sysmsg(11521, 41) ;* This login can read files but is not allowed to change them: request %1 is not allowed
+                                                   return
+                                                end
 
                                                 id = cmnd[9,99]
 

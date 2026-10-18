@@ -642,6 +642,24 @@ def main():
         day = (datetime.date(2026, 10, 15) - datetime.date(1967, 12, 31)).days
         dfno = lib.SDOpen(b"DICT zzcl")
         row("H0: the dictionary opens through the API (SDOpen of DICT zzcl)", dfno >= 1, str(dfno))
+        # 18 Oct 26, S.65: the word dict in ANY case.  The SDNet handler (gpl.bp/netfile) sends "dict <name>" in lower case; apisrvr's vb.open used the single-argument OPEN, which
+        # _voc_ref understands only with an upper case DICT, so a REMOTE dictionary was never opened (ELSE 3007) and the fake server, which had always accepted it, hid the defect.
+        # The oracle is the same dictionary item read through the upper case open.
+        d_item = lib.SDRead(dfno, b"DOUBLE", ctypes.byref(ctypes.c_int()))
+        want_item = text(d_item)
+        for spelling in (b"dict zzcl", b"Dict zzcl", b"dIcT zzcl", b"dict  zzcl"):
+            lo = lib.SDOpen(spelling)
+            got_item = text(lib.SDRead(lo, b"DOUBLE", ctypes.byref(ctypes.c_int()))) if lo >= 1 else None
+            row("H0a: SDOpen of %r opens the dictionary of zzcl (a file number, and the item DOUBLE reads back as through DICT zzcl)" % s(spelling),
+                lo >= 1 and want_item is not None and got_item == want_item and len(want_item.split(FM)) == 6, "fno=%s item=%r want=%r err=%s" % (lo, got_item, want_item, s(err())))
+        no_such = lib.SDOpen(b"dict nosuchfile")
+        row("H0b: SDOpen of dict and a file that is not there gives 0, no file number", no_such == 0, "fno=%s err=%s" % (no_such, s(err())))
+        plain = lib.SDOpen(b"zzcl")
+        plain_item = text(lib.SDRead(plain, b"DOUBLE", ctypes.byref(ctypes.c_int()))) if plain >= 1 else None
+        row("H0c: CONTROL: the DATA file zzcl opened by its plain name does not hold the dictionary item DOUBLE (so the opens above reached the dictionary, not the data)",
+            plain >= 1 and plain_item in (None, ""), "fno=%s item=%r" % (plain, plain_item))
+        no_dict = lib.SDOpen(b"dictzzcl")
+        row("H0d: CONTROL: 'dictzzcl' (no space) is a plain file name, not a dictionary open: gives 0", no_dict == 0, "fno=%s" % no_dict)
 
         def ev(name, data=rec1, id=b"r1", fn="SDEvaluate", f=None):
             return call(fn, dfno if f is None else f, name, data, id)
