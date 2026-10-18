@@ -600,6 +600,7 @@ def checks(srcs):
     checks_3b(srcs, c, ck)
     checks_3c(srcs, c, ck)
     checks_3d(srcs, c, ck)
+    checks_3e(srcs, c, ck)
     return rows
 
 
@@ -1936,7 +1937,7 @@ def checks_3d(srcs, c, ck):
        and ordered(ix1, "switch (fvar->type) {", "case DYNAMIC_FILE:", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
        and ordered(ix2, "if (fvar->type == DYNAMIC_FILE) {", "} else {", "switch (fvar->type) {", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
        and ix1.count("case ") == 1 and ix2.count("case ") == 0, "")
-    # ---- NK17. the DICT form
+    # ---- NK17. the DICT form (NK18 above: INDICES; the record cache and the gate's close are checks_3e, NK19 to NK25)
     i = vr.find('case type = "N"')
     case_n = vr[i:vr.find("\n         case 1", i)] if i >= 0 else ""
     chk = routine_body(vr, "check.n.pointer")
@@ -1946,6 +1947,83 @@ def checks_3d(srcs, c, ck):
        and len("dict ") == 5 and "ER$VNF" not in case_n and chk != "" and "' '" not in chk and "dict" not in chk
        and ordered(case_n, "gosub check.n.pointer", "set.status ER$NAM", "return", "if fno = 3 then n.file = 'dict ':n.file", "pathname = ")
        and re.search(r"#define\s+NET_FILE_NAME_MAX\s+\(NET_FILE_MAX\s*\+\s*5\)", nf) is not None and re.search(r"#define\s+NET_FILE_MAX\s+63\b", nf) is not None, repr(case_n[:120]))
+
+
+def checks_3e(srcs, c, ck):
+    """S.65, 18 Oct 26: the record cache of netfiles.c (NK19-NK24) and K_NET closing the remote files when the account scope changes (NK25).  Text only: the
+    cache's behaviour (a hit, an expiry, a copy) is sandbox-netfile.py's, and `make` is the compiler."""
+    nf, kn = c["netfiles.c"], c["op_kernel.c"]
+
+    def fn(name):
+        return c_functions(nf).get(name, "")
+
+    # ---- NK19. the constants, the include and the entry
+    ent = re.search(r"typedef struct \{(.*?)\} NET_CACHE_ENTRY;", nf, re.S)
+    ent = ent.group(1) if ent else ""
+    ck("NK19 THE RECORD CACHE's constants: NET_CACHE_SLOTS 64, NET_CACHE_TTL 2 (seconds), NET_CACHE_REC_MAX 32768; <time.h> is included BEFORE sd.h; an entry holds used, absent, the handle AND the epoch AND the id "
+       "length AND the id (MAX_ID_LEN + 1 bytes), the record chain and the time; the table is NET_CACHE_SLOTS entries and the ring cursor starts at 0",
+       re.search(r"#define\s+NET_CACHE_SLOTS\s+64\b", nf) is not None and re.search(r"#define\s+NET_CACHE_TTL\s+2\b", nf) is not None and re.search(r"#define\s+NET_CACHE_REC_MAX\s+32768\b", nf) is not None
+       and ordered(nf, "#include <time.h>", '#include "sd.h"') and ent != ""
+       and ordered(ent, "bool used;", "bool absent;", "int16_t handle;", "u_int16_t epoch;", "int16_t id_len;", "char id[MAX_ID_LEN + 1];", "STRING_CHUNK* rec;", "time_t when;")
+       and re.search(r"NET_CACHE_ENTRY\s+net_cache\[NET_CACHE_SLOTS\];", nf) is not None and re.search(r"int\s+net_cache_next\s*=\s*0;", nf) is not None, "")
+    # ---- NK20. net_cache_find
+    fd = fn("net_cache_find")
+    ck("NK20 net_cache_find: an entry is a hit only when handle AND epoch AND id length AND the id bytes (memcmp over id_len) all agree - so one file variable's record is never given to another, nor "
+       "an epoch's to the next; every used entry it passes is aged first, and one older than NET_CACHE_TTL or from the FUTURE (the clock went back) is freed and skipped, before the comparison",
+       fd != "" and ordered(fd, "time(NULL)", "if (!e->used)", "continue;", "(now < e->when) || ((now - e->when) > NET_CACHE_TTL)", "net_cache_free(e);", "continue;", "(e->handle == fvar->access.net.handle)",
+                            "(e->epoch == fvar->access.net.epoch)", "(e->id_len == id_len)", "(memcmp(e->id, id, id_len) == 0)", "return e;", "return NULL;")
+       and re.search(r"\(e->handle == fvar->access\.net\.handle\) && \(e->epoch == fvar->access\.net\.epoch\) && \(e->id_len == id_len\) && \(memcmp\(e->id, id, id_len\) == 0\)", fd) is not None
+       and fd.count("net_cache_free(") == 1, "")
+    # ---- NK21. net_cache_put
+    pt = fn("net_cache_put")
+    ck("NK21 net_cache_put: an id of length under 1 or over MAX_ID_LEN, and a record over NET_CACHE_REC_MAX, are not kept (returned before any slot is touched); a free slot is taken first, and when there is none the "
+       "OLDEST by ring (net_cache_next, advanced modulo NET_CACHE_SLOTS) after its old record is freed; the entry gets its handle, epoch, id bytes, absent flag and a COPY of the record (k_copy_string - never the "
+       "caller's chain) and the time it was stored",
+       pt != "" and ordered(pt, "(id_len < 1) || (id_len > MAX_ID_LEN)", "(rec != NULL) && (rec->string_len > NET_CACHE_REC_MAX)", "return;", "if (!net_cache[i].used)", "if (e == NULL) {",
+                            "e = &net_cache[net_cache_next];", "net_cache_next = (net_cache_next + 1) % NET_CACHE_SLOTS;", "net_cache_free(e);", "e->used = TRUE;", "e->absent = absent;",
+                            "e->handle = fvar->access.net.handle;", "e->epoch = fvar->access.net.epoch;", "e->id_len = id_len;", "memcpy(e->id, id, id_len);",
+                            "e->rec = (rec != NULL) ? k_copy_string(rec) : NULL;", "e->when = time(NULL);")
+       and not re.search(r"e->rec\s*=\s*rec\b", pt) and pt.count("k_copy_string(") == 1 and pt.count("net_cache_free(") == 1, "")
+    # ---- NK22. free and drop
+    fr, dr = fn("net_cache_free"), fn("net_cache_drop")
+    ck("NK22 net_cache_free releases the record (s_free) when there is one, clears the pointer and then the used flag; net_cache_drop(0) frees every used entry and net_cache_drop(h) only the used entries of "
+       "handle h - the test is `used && (handle == 0 || entry handle == h)` and nothing else",
+       fr != "" and ordered(fr, "if (e->rec != NULL)", "s_free(e->rec);", "e->rec = NULL;", "e->used = FALSE;")
+       and re.search(r"if \(net_cache\[i\]\.used && \(\(handle == 0\) \|\| \(net_cache\[i\]\.handle == handle\)\)\)\s*net_cache_free\(&net_cache\[i\]\);", dr) is not None
+       and re.search(r"for \(i = 0; i < NET_CACHE_SLOTS; i\+\+\)", dr) is not None, "")
+    # ---- NK23. net_read and net_readv
+    rd, rv = fn("net_read"), fn("net_readv")
+    gap = rd[rd.find("if (status < 0)"):rd.find("if (status > 0)")] if "if (status < 0)" in rd else "x"
+    ck("NK23 net_read: the cache is consulted only when the file variable is not stale (a closed one is not answered from it - net_op says why), after the empty-id test and before net_op; a hit on an ABSENT "
+       "entry is ER_RNF, any other hit is a COPY of the cached chain (never the chain itself, which the caller may change or free); after net_op a record is put (what was read, FALSE), an ABSENT entry only "
+       "when the status is exactly ER_RNF (not for any other positive status), and nothing at all on an error; net_cache_find is called here only, net_cache_put twice; net_readv does not use the cache",
+       rd != "" and ordered(rd, "if (id_len < 1)", "return ER_IID;", "if (!net_stale(fvar)) {", "net_cache_find(fvar, id, id_len)", "if (hit->absent)", "return ER_RNF;",
+                            "*rec = (hit->rec != NULL) ? k_copy_string(hit->rec) : NULL;", "return 0;", "net_op(fvar, NF_READ", "if (status < 0)", "return net_raise(status, entry);",
+                            "if (status > 0) {", "if (status == ER_RNF)", "net_cache_put(fvar, id, id_len, NULL, TRUE);", "return status;", "*rec = net_take_string(&out);", "k_release(&out);",
+                            "net_cache_put(fvar, id, id_len, *rec, FALSE);", "return 0;")
+       and inside(rd, "if (!net_stale(fvar)) {", "net_cache_find(") and not re.search(r"\*rec\s*=\s*hit->rec", rd) and "net_cache_put(" not in gap
+       and rd.count("net_cache_put(") == 2 and nf.count("net_cache_find(") == 2 and nf.count("net_cache_put(") == 3      # a definition and the uses
+       and rv != "" and "net_cache" not in rv, "")
+    # ---- NK24. where the entries go
+    ns, cl, ca = fn("net_select"), fn("net_close"), fn("net_close_all")
+    ck("NK24 the entries of a file variable go when it is SELECTed again (net_select drops that handle BEFORE net_op), when it is closed (net_close drops that handle - only a real handle, `handle > 0`, since "
+       "drop(0) would drop everything - BEFORE the net_stale test and before the handle is zeroed, so a stale or already queued variable loses them too) and when the connections are dropped (net_close_all: "
+       "net_cache_drop(0), right after the epoch moves and BEFORE the `net_used` return, so it happens even when nothing was opened); net_cache_drop is called from nowhere else",
+       ns != "" and ordered(ns, "net_cache_drop(fvar->access.net.handle);", "net_op(fvar, NF_SELECT")
+       and ordered(cl, "fvar->type != NET_FILE", "handle = fvar->access.net.handle;", "if (handle > 0)", "net_cache_drop(handle);", "if (net_stale(fvar))", "fvar->access.net.handle = 0;")
+       and ordered(ca, "net_epoch++;", "net_pending_ct = 0;", "net_cache_drop(0);", "if (!net_used)", "net_call_raw(NF_CLOSEALL")
+       and nf.count("net_cache_drop(") == 4, "")
+    # ---- NK25. K_NET closes the remote files when the gate is set
+    i = kn.find("case K_NET:")
+    blk = kn[i:kn.find("case K_EDIT_OK:", i)] if i >= 0 else ""
+    after = blk[blk.find("net_close_all();"):] if "net_close_all();" in blk else "descr"
+    ck("NK25 K_NET: a $internal caller that SETS the gate (n >= 0) changes the bit, computes the answer, saves process.status in n, calls net_close_all() (the remote files and connections belong to the account "
+       "scope that ended), restores process.status and leaves - in that order, the call AFTER the bit is changed and inside the HDR_INTERNAL block; the -1 ask form and a caller that is not $internal never call "
+       "it (net_close_all appears once in the case); nothing uses `descr` after the call, because the handler is BASIC and moves the e-stack",
+       blk != "" and blk.count("net_close_all()") == 1
+       and ordered(blk, "if (n >= 0) {", "if (process.program.flags & HDR_INTERNAL) {", "my_uptr->gates |= UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_NET;",
+                   "result.data.value = (my_uptr->gates & UG_NET) != 0;", "n = process.status;", "net_close_all();", "process.status = n;", "break;", "result.data.value = (my_uptr->gates & UG_NET) != 0;", "break;")
+       and inside(blk, "if (process.program.flags & HDR_INTERNAL) {", "net_close_all()") and "descr" not in after, "")
 
 
 def mutate(srcs, name, old, new=None):
@@ -1994,7 +2072,8 @@ mut("CA$NET is 36", "createacc.h", rx(r"(\$define\s+CA\$NET\s+)35", r"\g<1>36"))
 mut("K_NET can be set by a user program", "op_kernel.c", rx(r"if \(process\.program\.flags & HDR_INTERNAL\) \{(\s*)if \(n > 0\)(\s*)my_uptr->gates \|= UG_NET;", r"if (1) {\1if (n > 0)\2my_uptr->gates |= UG_NET;"))
 mut("K_NET switches on the wrong bit", "op_kernel.c", "my_uptr->gates |= UG_NET;", "my_uptr->gates |= UG_BP_EDIT;")
 mut("K_NET switches off the wrong bit", "op_kernel.c", "my_uptr->gates &= (u_int16_t)~UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_DICT_EDIT;")
-mut("K_NET always answers 1", "op_kernel.c", "result.data.value = (my_uptr->gates & UG_NET) != 0;", "result.data.value = 1;")
+mut("K_NET always answers 1", "op_kernel.c", "      }\n      result.data.value = (my_uptr->gates & UG_NET) != 0;", "      }\n      result.data.value = 1;")
+mut("K_NET always answers 1 when it sets the gate", "op_kernel.c", "          result.data.value = (my_uptr->gates & UG_NET) != 0;\n          n = process.status;", "          result.data.value = 1;\n          n = process.status;")
 # ---- B
 mut("LOGIN forgets the NET gate", "login", drop_line(r"void kernel\(K\$NET,"))
 mut("LOGIN turns the gate on for a blank field", "login", "upcase(trim(acc.rec<ACC$NET>)) = 'YES')", "upcase(trim(acc.rec<ACC$NET>)) # 'NO')")
@@ -2847,7 +2926,7 @@ mut("a stale variable ignores the epoch", NFC, " || (fvar->access.net.epoch != n
 mut("a stale variable ignores its type", NFC, "return (fvar->type != NET_FILE) || (fvar->access.net.handle <= 0)", "return (fvar->access.net.handle <= 0)")
 mut("net_close_all does not move the epoch", NFC, "  net_epoch++;\n", "")
 mut("net_close_all calls the handler even when nothing was opened", NFC, "  if (!net_used)\n    return;\n", "")
-mut("net_close_all keeps the queue", NFC, "  net_pending_ct = 0;\n\n  if (!net_used)", "\n  if (!net_used)")
+mut("net_close_all keeps the queue", NFC, "  net_pending_ct = 0;\n  net_cache_drop(0);", "  net_cache_drop(0);")
 mut("net_op flushes before it asks whether the handle is stale", NFC,
     lambda t: t.replace("  net_flush_pending();\n  ran = net_call_raw(op, hs,", "  ran = net_call_raw(op, hs,", 1)
     .replace("  if (net_stale(fvar)) {\n    snprintf(hs, sizeof(hs), \"%d\", (int)fvar->access.net.handle);\n    net_set_message(MSG_BAD_HANDLE", "  net_flush_pending();\n  if (net_stale(fvar)) {\n    snprintf(hs, sizeof(hs), \"%d\", (int)fvar->access.net.handle);\n    net_set_message(MSG_BAD_HANDLE", 1))
@@ -3013,6 +3092,60 @@ mut("FILEINFO FL_FLAGS is not restricted to $internal programs", OD2, "n = (proc
 mut("FILEINFO FL_FLAGS answers 0 to an $internal program", OD2, "n = (process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "n = 0;")
 mut("FILEINFO FL_FLAGS of a NET_FILE goes to the server", OD2, "        case FL_FLAGS: /* 10001  The query processor asks for the NOCASE bit", "        case 99996: /* 10001  The query processor asks for the NOCASE bit")
 mut("FILEINFO FL_FLAGS of a NET_FILE reads the file table", OD2, "(process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;", "(process.program.flags & HDR_INTERNAL) ? FPtr(fvar->file_id)->flags : 0;")
+
+# ---- 18 Oct 26: the record cache (NK19-NK24) and K_NET closing the remote files (NK25)
+mut("the cache has 65 slots", NFC, "#define NET_CACHE_SLOTS 64", "#define NET_CACHE_SLOTS 65")
+mut("the cache keeps a record for 3 seconds", NFC, "#define NET_CACHE_TTL 2 ", "#define NET_CACHE_TTL 3 ")
+mut("the cache keeps records of 64 KB", NFC, "#define NET_CACHE_REC_MAX 32768", "#define NET_CACHE_REC_MAX 65536")
+mut("netfiles.c does not include time.h", NFC, "#include <time.h>\n", "")
+mut("a cache entry has no epoch", NFC, "  u_int16_t epoch;\n  int16_t id_len;", "  int16_t id_len;")
+mut("a cache hit ignores the handle", NFC, "(e->handle == fvar->access.net.handle) && ", "")
+mut("a cache hit ignores the epoch", NFC, " && (e->epoch == fvar->access.net.epoch)", "")
+mut("a cache hit ignores the id length", NFC, " && (e->id_len == id_len)", "")
+mut("a cache hit ignores the id bytes", NFC, "(memcmp(e->id, id, id_len) == 0)", "1")
+mut("the cache never expires an entry", NFC, "(now < e->when) || ((now - e->when) > NET_CACHE_TTL)", "(now < e->when)")
+mut("the cache trusts an entry from the future", NFC, "(now < e->when) || ((now - e->when) > NET_CACHE_TTL)", "((now - e->when) > NET_CACHE_TTL)")
+mut("an expired entry is skipped but not freed", NFC, edit_func("net_cache_find", r"net_cache_free\(e\);\s*continue;", "continue;"))
+mut("the cache keeps an id of length 0", NFC, "(id_len < 1) || (id_len > MAX_ID_LEN)", "(id_len > MAX_ID_LEN)")
+mut("the cache keeps an id over MAX_ID_LEN", NFC, "(id_len < 1) || (id_len > MAX_ID_LEN)", "(id_len < 1)")
+mut("the cache keeps a record over NET_CACHE_REC_MAX", NFC, " || ((rec != NULL) && (rec->string_len > NET_CACHE_REC_MAX))", "")
+mut("the cache keeps the caller's chain, not a copy", NFC, "e->rec = (rec != NULL) ? k_copy_string(rec) : NULL;", "e->rec = rec;")
+mut("a full cache does not free the old record of the slot it takes", NFC, edit_func("net_cache_put", r"net_cache_free\(e\);", ""))
+mut("a full cache always takes slot 0", NFC, "e = &net_cache[net_cache_next];", "e = &net_cache[0];")
+mut("the cache's ring does not advance", NFC, "net_cache_next = (net_cache_next + 1) % NET_CACHE_SLOTS;", "net_cache_next = net_cache_next;")
+mut("a cache entry has no time", NFC, "  e->when = time(NULL);", "  e->when = 0;")
+mut("a cache entry is stored without its epoch", NFC, "  e->epoch = fvar->access.net.epoch;\n", "")
+mut("net_cache_free leaks the record", NFC, "    s_free(e->rec);", "    ;")
+mut("net_cache_free leaves the entry in use", NFC, "  e->used = FALSE;\n}", "}")
+mut("net_cache_drop(0) drops only handle 0", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "(net_cache[i].handle == handle)")
+mut("net_cache_drop(h) drops nothing", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "(handle == 0)")
+mut("net_cache_drop(h) drops every handle", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "1")
+mut("net_read consults the cache for a stale file variable", NFC, "  if (!net_stale(fvar)) {\n    NET_CACHE_ENTRY* hit", "  {\n    NET_CACHE_ENTRY* hit")
+mut("net_read serves an absent entry as another status", NFC, "      if (hit->absent)\n        return ER_RNF;", "      if (hit->absent)\n        return ER_FNF;")
+mut("net_read gives the cached chain itself", NFC, "*rec = (hit->rec != NULL) ? k_copy_string(hit->rec) : NULL;", "*rec = hit->rec;")
+mut("net_read caches an absent entry for any positive status", NFC, "    if (status == ER_RNF)\n      net_cache_put(fvar, id, id_len, NULL, TRUE);", "    net_cache_put(fvar, id, id_len, NULL, TRUE);")
+mut("net_read caches nothing it read", NFC, "  net_cache_put(fvar, id, id_len, *rec, FALSE);\n", "")
+mut("net_read caches on an error", NFC, edit_func("net_read", r"  if \(status < 0\)\s*return net_raise\(status, entry\);", "  if (status < 0) {\n    net_cache_put(fvar, id, id_len, NULL, TRUE);\n    return net_raise(status, entry);\n  }"))
+mut("net_read never consults the cache", NFC, "NET_CACHE_ENTRY* hit = net_cache_find(fvar, id, id_len);", "NET_CACHE_ENTRY* hit = NULL;")
+mut("net_readv uses the cache", NFC, edit_func("net_readv", r"  status = net_op\(fvar, NF_READV", "  (void)net_cache_find(fvar, id, id_len);\n  status = net_op(fvar, NF_READV"))
+mut("net_select does not drop the handle's entries", NFC, "  net_cache_drop(fvar->access.net.handle); /* a new query is a new look at the file */\n", "")
+mut("net_select drops them after the request", NFC, lambda t: t.replace("  net_cache_drop(fvar->access.net.handle); /* a new query is a new look at the file */\n", "", 1).replace("  process.op_flags = entry;\n  if (status < 0)\n    return net_raise(status, entry);\n  if (status > 0)\n    return status;\n\n  s = net_take_string", "  net_cache_drop(fvar->access.net.handle);\n  process.op_flags = entry;\n  if (status < 0)\n    return net_raise(status, entry);\n  if (status > 0)\n    return status;\n\n  s = net_take_string", 1))
+mut("net_close does not drop the handle's entries", NFC, "  if (handle > 0)\n    net_cache_drop(handle);\n", "")
+mut("net_close drops them after the stale test", NFC, "  if (handle > 0)\n    net_cache_drop(handle);\n  if (net_stale(fvar))\n    return;", "  if (net_stale(fvar))\n    return;\n  if (handle > 0)\n    net_cache_drop(handle);")
+mut("net_close drops handle 0, which is everything", NFC, "  if (handle > 0)\n    net_cache_drop(handle);", "  net_cache_drop(handle);")
+mut("net_close_all keeps the cache", NFC, "  net_cache_drop(0);\n", "")
+mut("net_close_all drops the cache only when something was opened", NFC, "  net_cache_drop(0);\n\n  if (!net_used)\n    return;\n", "\n  if (!net_used)\n    return;\n  net_cache_drop(0);\n")
+mut("a second place drops the cache", NFC, lambda t: t + "\nvoid zz_drop(void) {\n  net_cache_drop(0);\n}\n")
+# K_NET
+mut("K_NET never closes the remote files", "op_kernel.c", "          net_close_all();\n", "")
+mut("K_NET's ask form closes the remote files", "op_kernel.c", "      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND", "      net_close_all();\n      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND")
+mut("K_NET closes the remote files for a caller that is not $internal", "op_kernel.c", "          net_close_all();\n          process.status = n;\n          break;\n        }\n      }\n", "          process.status = n;\n          break;\n        }\n        net_close_all();\n      }\n")
+mut("K_NET closes the remote files before it changes the gate", "op_kernel.c", lambda t: t.replace("          net_close_all();\n", "", 1).replace("          if (n > 0)\n            my_uptr->gates |= UG_NET;", "          net_close_all();\n          if (n > 0)\n            my_uptr->gates |= UG_NET;", 1))
+mut("K_NET does not save the caller's STATUS()", "op_kernel.c", "          n = process.status; /* the handler is BASIC and leaves its own STATUS() behind; the caller's is given back */\n", "")
+mut("K_NET does not give the caller's STATUS() back", "op_kernel.c", "          process.status = n;\n          break;", "          break;")
+mut("K_NET uses descr after the handler ran", "op_kernel.c", "          process.status = n;\n          break;", "          process.status = n;\n          result.data.value = descr->data.value;\n          break;")
+mut("K_NET computes the answer after the handler ran", "op_kernel.c", lambda t: t.replace("          result.data.value = (my_uptr->gates & UG_NET) != 0;\n          n = process.status;", "          n = process.status;", 1).replace("          net_close_all();\n          process.status = n;\n", "          net_close_all();\n          process.status = n;\n          result.data.value = (my_uptr->gates & UG_NET) != 0;\n", 1))
+mut("K_NET falls through after the close", "op_kernel.c", "          process.status = n;\n          break;\n        }\n      }\n      result.data.value", "          process.status = n;\n        }\n      }\n      result.data.value")
 
 
 def run(srcs):

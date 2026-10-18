@@ -2049,6 +2049,7 @@ def kn_driver():
     for tag, stmt, src in (("SELECT", "select {f} to lno on error oc = 'error'", "lno"), ("SELECTV", "selectv {f} to lv on error oc = 'error'", "lv"), ("SSELECT", "sselect {f} to lno", "lno")):
         L += kn_case(tag, stmt, ["st = status()", "ids = ''", "n.sel = @selected", "loop", "   readnext x from %s else exit" % src, "   ids<-1> = x", "repeat",
                                  "crt 'KR %s ':oc:' st=':st:' n=':n.sel:' ids=[':change(ids, @fm, ','):']'" % tag], pre=["lno = a3 + 0"])
+    L += ["         case op = 'SLEEP'", "            sleep a2 + 0", "            crt 'KR SLEEP ':a2"]
     L += ["         case op = 'EXEC'", "            execute a2", "            crt 'KR EXEC ':a2:' who=':@who",
           "         case 1", "            crt 'KR UNKNOWN ':op", "      end case", "   repeat", "   crt 'KR end'", "   stop", "",
           "shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100",
@@ -2412,17 +2413,19 @@ def kn_runtime(A, B):
     fields = c1.split(FMC)
     fkeys = (0, 1, 2, 1001, 1009, 1022, 1030, 1032, 1038)
     lines = ["OPEN|1|zznet1"] + ["READ|1|" + k for k in ("c1", "c2", "c3", "m1", "big", "nosuch")]
-    lines += ["READV|1|c1|2", "READV|1|c1|1", "READV|1|c1|9", "READV|1|c1|0", "READV|1|nosuch|1", "MATREAD|1|c2", "MATREAD|1|nosuch"]
+    # SLEEP|3 lets the record cache's entries (2 seconds) go, so that every READ below goes to the server whatever the machine's speed; the cache is the
+    # subject of its own rows in kn_query
+    lines += ["READV|1|c1|2", "READV|1|c1|1", "READV|1|c1|9", "READV|1|c1|0", "READV|1|nosuch|1", "SLEEP|3", "MATREAD|1|c2", "MATREAD|1|nosuch"]
     lines += ["FI|1|%d" % k for k in fkeys]
-    lines += ["OPEN|2|zznetempty", "READ|2|x", "OPEN|3|zznet1", "READ|3|c3", "CLOSE|1", "READ|3|c2", "READ|2|x", "CLOSE|2", "CLOSE|3"]
+    lines += ["OPEN|2|zznetempty", "READ|2|x", "OPEN|3|zznet1", "READ|3|c3", "CLOSE|1", "READ|3|c2", "SLEEP|3", "READ|2|x", "CLOSE|2", "CLOSE|3"]
     want = ["KR OPEN zznet1 then st=0", kn_read_line("c1", c1), kn_read_line("c2", c2), kn_read_line("c3", c3), kn_read_line("m1", m1), kn_read_line("big", big),
             kn_read_line("nosuch", "", "else", 3006),
             kn_readv_line("c1", 2, fields[1]), kn_readv_line("c1", 1, fields[0]), kn_readv_line("c1", 9, ""), kn_readv_line("c1", 0, "c1"),
-            kn_readv_line("nosuch", 1, "", "else", 3006),
+            kn_readv_line("nosuch", 1, "", "else", 3006), "KR SLEEP 3",
             "KR MATREAD c2 then st=0 [Jones][50][]", "KR MATREAD nosuch else st=3006 [][][]"]
     want += ["KR FI 0 [1]", "KR FI 1 [zznet1]", "KR FI 2 []", "KR FI 1001 [1]", "KR FI 1009 [-1]", "KR FI 1022 [1]", "KR FI 1030 [0]", "KR FI 1032 [1]", "KR FI 1038 [0]"]
     want += ["KR OPEN zznetempty then st=0", kn_read_line("x", "", "else", 3006), "KR OPEN zznet1 then st=0", kn_read_line("c3", c3),
-             "KR CLOSE 1", kn_read_line("c2", c2), kn_read_line("x", "", "else", 3006), "KR CLOSE 2", "KR CLOSE 3"]
+             "KR CLOSE 1", kn_read_line("c2", c2), "KR SLEEP 3", kn_read_line("x", "", "else", 3006), "KR CLOSE 2", "KR CLOSE 3"]
     W = [(3, b"acct"), (4, b"hcust")] + [(6, FNO(1) + k.encode()) for k in ("c1", "c2", "c3", "m1", "big", "nosuch")]
     W += [(6, FNO(1) + b"c1")] * 4 + [(6, FNO(1) + b"nosuch")] + [(6, FNO(1) + b"c2"), (6, FNO(1) + b"nosuch")]
     W += [(4, b"hempty"), (6, FNO(2) + b"x"), (4, b"hcust"), (6, FNO(3) + b"c3"), (5, FNO(1)), (6, FNO(3) + b"c2"), (6, FNO(2) + b"x"), (5, FNO(2)), (5, FNO(3))]
@@ -2590,6 +2593,17 @@ def kn_gates(A, B):
     row("...the fake never saw a request for the account zznhunl: one connection, ACCOUNT acct only once", r.d[0]["conns"] == 1 and kn_wire(r.d[0])[:3] == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"c1")], repr(kn_wire(r.d[0])[:4]))
     row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
 
+    # LOGTO drops the connections (18 Oct 26: the NET gate is reloaded at LOGTO, and the kernel key that sets it calls net_close_all()): going to another account
+    # and BACK to the first is not a way to keep a file variable - it is an ERROR on return, the connection of the first visit is closed, and a new OPEN dials again
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "EXEC|LOGTO zznhunl", "EXEC|LOGTO zznhon", "READ|1|c1", "OPEN|2|zznet1", "READ|2|c1", "CLOSE|2"], (A,))
+    got = [x for x in r.kr if not x.startswith(("KR begin", "KR end"))]
+    d = r.d[0]
+    row("LOGTO DROPS THE CONNECTIONS: out to zznhunl and back to zznhon, a READ on the variable opened before is an ERROR (STATUS() 7000), while a new OPEN works and reads c1 - "
+        "and the fake saw TWO connections, the first one ended by LOGTO's CLOSEALL (it holds no session after the second connection began)",
+        kn_sane(r) and kn_read_line("c1", "", "error", 7000) in got and got.count(kn_read_line("c1", RECS["c1"])) == 2 and "KR OPEN zznet1 then st=0" in got and d["conns"] == 2
+        and len(d["sessions"]) == 2 and all(s.closed for s in d["sessions"]), kn_why(r) + " got=%r conns=%s" % (got, d["conns"]))
+    row("...and nothing on the fake changed", kn_snapshot(A) == before, "")
+
 
 def kn_matrix(A):
     say("\n  -- THE REFUSAL MATRIX: every other statement given an open NET file variable --")
@@ -2702,6 +2716,25 @@ def kn_query(A, B):
     r = kn_run("zznhon", ["ZZNKI"], (A,))
     seg = kn_segments(r.out).get("ki", [])
     row("...and an $internal program gets FL$FLAGS 16 (DHF_NOCASE: every hashed file is NOCASE), type 7 and coll 0", not r.hung and "KR ki flags=16 type=7 coll=0" in seg, repr(seg))
+
+    # the record cache (18 Oct 26): a READ answered a moment ago is not asked again
+    def reads(run):
+        return run.d[0]["types"].count(6)
+
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "READ|1|c1", "READ|1|c1", "READ|1|nosuch", "READ|1|nosuch", "READ|1|big", "READ|1|big", "CLOSE|1"], (A,))
+    row("THE RECORD CACHE: three READs of c1 are ONE request, two READs of an id the server does not have are ONE request, and every answer is the same (the record each time, ELSE with STATUS() 3006 each time); "
+        "a 70,000 byte record is over the limit and is asked for twice - 4 read requests in all",
+        kn_sane(r) and r.kr.count(kn_read_line("c1", RECS["c1"])) == 3 and [x for x in r.kr if x.startswith("KR READ nosuch")] == ["KR READ nosuch else st=3006 len=0 rec=[]"] * 2
+        and r.kr.count(kn_read_line("big", RECS["big"])) == 2 and reads(r) == 4, "reads=%d %s" % (reads(r), kn_why(r)))
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "SELECT|1|2", "READ|1|c1", "CLOSE|1", "OPEN|1|zznet1", "READ|1|c1", "CLOSE|1"], (A,))
+    row("...a SELECT of the file, and a CLOSE and a new OPEN, each start the cache again: READ, SELECT, READ, CLOSE, OPEN, READ is THREE read requests",
+        kn_sane(r) and r.kr.count(kn_read_line("c1", RECS["c1"])) == 3 and reads(r) == 3, "reads=%d %s" % (reads(r), kn_why(r)))
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "READ|1|c1", "SLEEP|3", "READ|1|c1", "READ|1|c1", "CLOSE|1"], (A,))
+    row("...an entry is kept for 2 seconds: READ, three seconds later READ, READ is TWO read requests (the second READ sees what the server holds NOW)",
+        kn_sane(r) and r.kr.count(kn_read_line("c1", RECS["c1"])) == 3 and reads(r) == 2, "reads=%d %s" % (reads(r), kn_why(r)))
+    r = kn_drive("zznhon", ["OPEN|1|zznet1", "OPEN|2|zznet1", "ODICT|3|zznet1", "READ|1|c1", "READ|2|c1", "READ|3|name", "READ|1|name", "CLOSE|1", "CLOSE|2", "CLOSE|3"], (A,))
+    row("...an entry belongs to ONE file variable: two opens of the same file each ask once, and the dictionary's 'name' and the data file's 'name' (absent there) are two requests - 4 in all",
+        kn_sane(r) and reads(r) == 4 and kn_read_line("name", DICT_ITEMS["name"]) in r.kr and "KR READ name else st=3006 len=0 rec=[]" in r.kr, "reads=%d %s" % (reads(r), kn_why(r)))
 
     # the dictionary
     r = kn_drive("zznhon", ["OPEN|1|zznet1", "ODICT|2|zznet1", "READ|2|name", "READ|2|bal", "READ|2|nosuch", "READV|2|name|2", "FI|2|1", "FI|2|3", "SELECT|2|2", "CLOSE|2", "CLOSE|1"], (A,))
