@@ -86,6 +86,15 @@ because the handler runs BASIC; @SELECTED set; list 11 never used), NK16 op_file
 any FPtr; the value 7 in both keys.h files) and NK17 the DICT form (_voc_ref adds 'dict ' only for fno 3 and only after the shape check; the file name buffer and the length test hold the 5 more
 characters).  NK5 and NK5b were rewritten for it.  WHAT THIS CANNOT SAY: that a remote SELECT returns the server's ids or that a dictionary opens - sandbox-netfile.py.
 
+18 Oct 26 dm  S.65 slice 3e (stage 2, writes and locks on a file of a server whose definition says mode=write; the spec is .claude/s65-stage2-design.md).  Section S2 reads: the mode
+(S2a), act.change's order and its one request (S2b, S2c), after.rq's signed status and lost.fail's two messages (S2d), act.release (S2e), the quiet object (S2f), the class sdclient -
+quiet, LastError, LastText, the guarded aborts, recordlock's flag, clearfile (S2g, S2h), net_gate's order (S2i), net_change_op and its two cache drops (S2j), the server's status passed on for
+five entry points (S2k), net_lock_step (S2l), net_release / net_release_all / net_flush_closes (S2m), the chain that is never flattened (S2n), the NET arms of op_write / op_delete / op_clrfile
+(S2o), MUSTLOCK and AUTOLOCK (S2p), retry_pc (S2q), the lock block of read_record and op_readv (S2r), op_lockrec / op_release / op_rlsfile / op_rlsall (S2s, S2t), FILEINFO (S2u),
+edit_kind_of_net_name and the union (S2v), K_EDIT_OK / K_EDIT_KIND / K_NET -2 (S2w), CPROC and edit_guard (S2x), messages 11509-11512 (S2y) and the history lines (S2z).  NF1, NF4b, NF5, NF5a, NF7, NF7a, NF7b,
+NF9, NF10, NF11, NK1, NK1b, NK3a, NK3b, NK4, NK4b, NK4c, NK7b, NK9, NK23, NK24, B3, B5 and Z11 were rewritten for it.  WHAT THIS CANNOT SAY: that a write lands, a lock waits or a gate refuses -
+sandbox-netfile.py, the sections hwrite and kwrite.
+
 ***AND THE CHECKS ARE THEMSELVES CHECKED.***  --selftest breaks each invariant in the way an edit plausibly would and requires some
 check to notice.  A mutant that nothing catches is reported as a FAILURE of the self-test.
 """
@@ -105,7 +114,7 @@ ROOT = os.path.dirname(os.path.dirname(SD64))
 MSGDIR = os.path.join(SDSYS, "messages")
 
 NK_C = ("netfiles.c", "descr.h", "sd.h", "op_dio1.c", "op_dio2.c", "op_dio3.c", "op_dio4.c", "op_lock.c", "dh_ak.c", "dh_misc.c", "analyse.c", "k_error.c", "pdump.c")   # slice 3c
-C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c", "op_sdext.c") + NK_C
+C_FILES = ("keys.h", "sysseg.h", "op_kernel.c", "sd_tls.c", "sd_tls.h", "op_skt.c", "op_sdext.c", "op_sh.c") + NK_C       # op_sh.c: slice 3e (edit_kind_of_net_name)
 MAIN_BP = ("login", "cproc", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea",
            "netdefs", "setserver", "deleteserver", "listservers", "netcred", "setnetlogin", "deletenetlogin", "bcomp", "apifilesok", "netfile")
 VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteserver", "$deleteserver"),
@@ -113,8 +122,9 @@ VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteser
 NL_VERBS = (("set.netlogin", "setnetlogin", "$setnetlogin"), ("delete.netlogin", "deletenetlogin", "$deletenetlogin"))   # slice 2b: in newvoc AND voc_template
 MSG_FIRST, MSG_LAST = 11411, 11446      # 11411-11439 slice 1, 11440-11446 slice 2a (CONNECT); 11447-11449 are free
 NL_MSG_FIRST, NL_MSG_LAST = 11450, 11479    # slice 2b: the person's login (the whole block is this slice's)
-NF_MSG_FIRST, NF_MSG_LAST, NF_MSG_USED = 11490, 11519, 11506    # slice 3b: the remote file handler's block; 11490-11506 are written and used by the handler
-NF_MSG_KERNEL = (11507, 11508)                                  # slice 3c: the kernel's own two (netfiles.c); 11509-11519 are kept free
+NF_MSG_FIRST, NF_MSG_LAST, NF_MSG_USED = 11490, 11519, 11512    # slice 3b: the remote file handler's block; 11490-11506 written and used by the handler; slice 3e: 11509-11512
+NF_MSG_KERNEL = (11507, 11508)                                  # slice 3c: the kernel's own two (netfiles.c); slice 3e: 11510 and 11511 are the kernel's as well (NF_MSG_BOTH, NF_MSG_KERNEL_ONLY)
+NF_MSG_KERNEL_ONLY = (11507, 11508, 11511)                      # never used by the handler (11511 is net_gate's / net_refuse's); 11510 is cited by both; 11513-11519 are kept free
 LINUX_BLOCK = (11000, 11999)
 SH_FILES = ("installsdcore.sh", "deletesdcore.sh", "sd-elevate", "sdcore.sudoers", "regress.sh", "regress-map.txt")      # shell-style comments (#)
 
@@ -240,6 +250,7 @@ def load():
     get("regress.sh", os.path.join(HERE, "regress.sh"))                    # slice 3a: the netfile suite is wired in
     get("regress-map.txt", os.path.join(HERE, "regress-map.txt"))
     get("sandbox-netfile.py", os.path.join(HERE, "sandbox-netfile.py"))
+    get("netfake.py", os.path.join(HERE, "netfake.py"))                    # slice 3e: its history line is checked (S2z)
     for fname in sorted(os.listdir(GPL)):
         p = os.path.join(GPL, fname)
         if os.path.isfile(p):
@@ -302,7 +313,7 @@ def checks(srcs):
     # ---- C. the kernel ---------------------------------------------------------------------------------------------------
     kn = c["op_kernel.c"]
     i = kn.find("case K_NET:")
-    body = kn[i:kn.find("break;", i)] if i >= 0 else ""
+    body = kn[i:kn.find("case K_EDIT_OK:", i)] if i >= 0 else ""      # the whole K_NET case (it holds the -2 branch before the set branch since slice 3e)
     ck("C1 K_NET sets the gate only from a $internal program (n >= 0, then HDR_INTERNAL, then the bit), -1 only asks",
        kn.count("case K_NET:") == 1 and "GetInt(descr)" in body and ordered(body, "n >= 0", "HDR_INTERNAL", "n > 0", "gates |= UG_NET"), "")
     ck("C2 ...clears with UG_NET, answers the UG_NET bit as 1 or 0, and touches no other gate",
@@ -321,7 +332,7 @@ def checks(srcs):
     ck("B3 CPROC holds it in stk.net with the other account-scoped gates and gives it back in revert.account, before the revert audit line",
        re.search(r"stk\.sd\.accounts = kernel\(K\$SD\.ACCOUNTS, -1\)\s*\n\s*stk\.net = kernel\(K\$NET, -1\)", cp) is not None
        and ordered(cp, "revert.account:", "void kernel(K$SD.ACCOUNTS, stk.sd.accounts)", "void kernel(K$NET, stk.net)", "'logto revert account='")
-       and len(re.findall(r"kernel\(K\$NET,", cp)) == 3, "")
+       and len(re.findall(r"kernel\(K\$NET,", cp)) == 4, "")      # slice 3e: the fourth is kernel(K$NET, -2) in para.reset.environment (S2 checks it)
     ck("B4 the API server starts api.net.grant false at every entry, reads it from ACC$NET with the other grants, and loads K$NET with SD.ACCOUNTS",
        re.search(r"api\.net\.grant = @false", ap) is not None
        and re.search(r"api\.net\.grant = \(upcase\(trim\(acc\.rec<ACC\$NET>\)\) = 'YES'\)", ap) is not None
@@ -338,8 +349,9 @@ def checks(srcs):
             n = len(re.findall(r"kernel\(K\$NET,", text))
             if n:
                 sites[name[3:]] = n
-    ck("B5 no program but LOGIN (1), CPROC (3), the API server (1), set.netlogin (1) and the remote file handler netfile (1) mentions K$NET - the last two only ASK: K$NET, -1 (see U2, NF6)",
-       sites == {"login": 1, "cproc": 3, "apisrvr": 1, "setnetlogin": 1, "netfile": 1}, repr(sites))
+    ck("B5 no program but LOGIN (1), CPROC (4: three of the gate's own, and since slice 3e kernel(K$NET, -2) in para.reset.environment), the API server (1), set.netlogin (1) and the remote file handler "
+       "netfile (1) mentions K$NET - the last two only ASK: K$NET, -1 (see U2, NF6)",
+       sites == {"login": 1, "cproc": 4, "apisrvr": 1, "setnetlogin": 1, "netfile": 1}, repr(sites))
     bad = [n[3:] for n, t in c.items() if n.startswith("bp:") and re.search(r"kernel\(K\$NET,\s*(?!-1\))(\d+|@true|1\b)", t)]
     ck("B6 nothing turns the gate on by a literal (K$NET with a number other than -1, or @true)", not bad, repr(bad))
     ups = {n[3:]: t for n, t in c.items() if n.startswith("bp:upgrade_")}
@@ -601,6 +613,7 @@ def checks(srcs):
     checks_3c(srcs, c, ck)
     checks_3d(srcs, c, ck)
     checks_3e(srcs, c, ck)
+    checks_s2(srcs, c, ck)
     return rows
 
 
@@ -1233,7 +1246,7 @@ def checks_3a(srcs, c, ck):
     ck("Z11 the bounded read: read.packet reads the header and the data with io.ms (both of its read.socket calls, and no literal 0 timeout is left in it); create.object starts io.ms at 0 so "
        "that connect() still waits for ever; settimeout accepts only a number of 0 or more (it aborts 'Illegal timeout') and sets io.ms; io.ms is a private variable",
        len(re.findall(r"read\.socket\(skt, n, SKT\$BLOCKING, io\.ms\)", rp)) == 2 and not re.search(r"read\.socket\([^)]*, 0\)", rp)
-       and re.search(r"public subroutine create\.object\s*\n(?:[^\n]*\n){0,6}?\s*io\.ms = 0\s*\nend", sc) is not None
+       and re.search(r"public subroutine create\.object\s*\n(?:[^\n]*\n){0,6}?\s*io\.ms = 0\s*\n(?:\s*(?:quiet|LastError|LastText) = [^\n]*\n){0,3}end", sc) is not None      # slice 3e: quiet, LastError, LastText after it
        and re.search(r"public subroutine settimeout\(ms\)\s*\n\s*if not\(num\(ms\)\) or ms < 0 then abort 'Illegal timeout'\s*\n\s*io\.ms = ms \+ 0\s*\nend", sc) is not None
        and re.search(r"private context,[^\n]*\n(?:[^\n]*\n){0,4}?\s*io\.ms\b", sc) is not None, "")
     dv = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define (NET\.[A-Z.]+)\s+(\d+)", sc)}
@@ -1266,12 +1279,16 @@ def checks_3a(srcs, c, ck):
 # ---- N. S.65 slice 3b: gpl.bp/netfile, the handler for every operation on a remote file ---------------------------------------------------------
 
 NF_OPS = {"NF$OPEN": 1, "NF$CLOSE": 2, "NF$READ": 3, "NF$READV": 4, "NF$RECORDLOCKED": 5, "NF$SELECT": 6, "NF$FILEINFO": 7, "NF$CLOSEALL": 8,
-          "NF$WRITE": 9, "NF$DELETE": 10, "NF$CLEARFILE": 11, "NF$LOCK": 12, "NF$STATE": 13}
-NF_DEFS = dict(NF_OPS, **{"NF$RC.OK": 0, "NF$RC.ELSE": 2, "NF$RC.ERROR": 3, "NF$MAX.SERVERS": 10, "NF$MAX.HANDLES": 100})
+          "NF$WRITE": 9, "NF$DELETE": 10, "NF$CLEARFILE": 11, "NF$LOCK": 12, "NF$STATE": 13,
+          "NF$WRITEU": 14, "NF$DELETEU": 15, "NF$RELEASE": 16}                                    # slice 3e: 14 to 16; 17 to 20 are not used
+NF_DEFS = dict(NF_OPS, **{"NF$RC.OK": 0, "NF$RC.ELSE": 2, "NF$RC.ERROR": 3, "NF$RC.LOCKED": 4, "NF$MAX.SERVERS": 10, "NF$MAX.HANDLES": 100})
 NF_REASONS = ("gate", "server", "list", "credential", "limit", "file")
-NF_METHODS = {"connect.keys", "settimeout", "open", "close", "read", "select", "readlist", "recordlocked", "disconnect", "error", "ServerStatus"}
+# the methods and properties of the class the handler uses; slice 3e added the changing and locking ones and the two properties of the quiet object
+NF_METHODS = {"connect.keys", "settimeout", "open", "close", "read", "select", "readlist", "recordlocked", "disconnect", "error", "ServerStatus",
+              "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile", "quiet", "LastError"}
+NF_REQUEST_METHODS = ("open", "close", "read", "select", "readlist", "recordlocked", "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile")
 NF_SECRET_LOCALS = r"\b(cred|ruser|rsalt|riter|rck|rsk|pin|pw|password)\b"
-NF_SUITE_SECTIONS = ("handler", "readonly", "refuse", "lost", "timeout", "gaps")
+NF_SUITE_SECTIONS = ("handler", "readonly", "refuse", "lost", "timeout", "hwrite", "kwrite", "gaps")      # slice 3e: hwrite and kwrite
 NF_FORBIDDEN = (r"(?<![\w.$])(write|writeu|writev|writevu|writeseq|writeblk|weofseq|delete|deleteu|deleteseq|create|openseq|openpath|osrename|osdelete|"
                 r"execute|perform|sh|logto|clearfile|recordlock|release|mkdir|chdir)(?![\w.$])")
 
@@ -1285,14 +1302,17 @@ def checks_3b(srcs, c, ck):
     main = nf[:nf.find("\nact.open:")] if "\nact.open:" in nf else nf
     body = {lab: routine_body(nf, lab) for lab in ("act.open", "act.close", "act.read", "act.recordlocked", "act.select", "act.fileinfo", "act.closeall", "act.refuse",
                                                    "act.state", "get.handle", "check.gate", "check.id", "connect.new", "shape.names", "after.rq", "lost.fail", "drop.conn",
-                                                   "refuse", "fail", "idle.release")}
+                                                   "refuse", "fail", "idle.release", "act.change", "act.release", "release.every", "mode.now", "audit.once", "server.fail",
+                                                   "check.id.chg", "check.id.shape", "rc.locked")}
     ao, gh = body["act.open"], body["get.handle"]
 
     # ---- N1. the numbers the kernel slice will mirror
     got = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(NF\$[A-Z.]+)\s+(-?\d+)", nfh)}
-    ck("NF1 netfile.h: the 13 operation codes are 1 to 13 in this order (OPEN CLOSE READ READV RECORDLOCKED SELECT FILEINFO CLOSEALL WRITE DELETE CLEARFILE LOCK STATE), the results are "
-       "NF$RC.OK 0, ELSE 2, ERROR 3, the limits are 10 servers and 100 files, and no name or number is defined twice (the kernel slice mirrors these in C)",
-       got == NF_DEFS and len(re.findall(r"\$define\s+NF\$", nfh)) == len(NF_DEFS) and len(set(got[k] for k in NF_OPS)) == 13, repr({k: v for k, v in got.items() if NF_DEFS.get(k) != v}))
+    ck("NF1 netfile.h: the 16 operation codes are 1 to 13 in this order (OPEN CLOSE READ READV RECORDLOCKED SELECT FILEINFO CLOSEALL WRITE DELETE CLEARFILE LOCK STATE) and, since slice 3e, WRITEU 14, "
+       "DELETEU 15 and RELEASE 16 (17 to 20 are not used), the results are NF$RC.OK 0, ELSE 2, ERROR 3 and LOCKED 4, the limits are 10 servers and 100 files, and no name or number is defined twice "
+       "(the kernel mirrors these in C)",
+       got == NF_DEFS and len(re.findall(r"\$define\s+NF\$", nfh)) == len(NF_DEFS) and len(set(got[k] for k in NF_OPS)) == 16
+       and not any(17 <= v <= 20 for v in got.values()), repr({k: v for k, v in got.items() if NF_DEFS.get(k) != v}))
     ck("NF2 netfile is an internal subroutine `netfile(op, a, b, c, out, rc)` catalogued as $netfile (only an internal program can call a dollar name), and includes netfile.h",
        re.match(r"\s*\$internal\s*\nsubroutine netfile\(op, a, b, c, out, rc\)\s*\n\$catalog \$netfile\s*\n", nf) is not None and "$include netfile.h" in nf
        and nf.count("$catalog") == 1 and nf.count("subroutine ") == 1, "")
@@ -1327,21 +1347,32 @@ def checks_3b(srcs, c, ck):
                "obj->connect.keys(host, port, ruser, rsalt, riter, rck, rsk, racct, pin)", "ruser = ''", "rsalt = ''", "riter = ''", "rck = ''", "rsk = ''",
                "obj->settimeout(NF$REQUEST.MS)", "nf.s.obj(slot) = obj", "vartype(nf.s.obj(slot)) # V$OBJ"), "")
     meth = set(re.findall(r"->([A-Za-z.]+)", nf))
-    ck("NF4b the handler calls only these methods and properties of the class: connect.keys, settimeout, open, close, read, select, readlist, recordlocked, disconnect, error, ServerStatus "
-       "(no write, delete, lock, execute, call, logto, sequential-file or password login method)", meth <= NF_METHODS, repr(sorted(meth - NF_METHODS)))
+    ck("NF4b the handler calls only these methods and properties of the class: connect.keys, settimeout, open, close, read, select, readlist, recordlocked, disconnect, error, ServerStatus and, "
+       "since slice 3e, write, writeu, delete, deleteu, recordlock, release, clearfile, quiet and LastError (no readu or readl, execute, call, logto, sequential-file, readv or password login method; "
+       "the changing ones are NOT in the list for any other reason: NF5 holds where they may stand)", meth <= NF_METHODS, repr(sorted(meth - NF_METHODS)))
 
     # ---- N5. nothing is written to the remote server, nothing is stored
-    ck("NF5 READ ONLY: no statement of netfile writes, deletes, creates, opens a file, runs a command or releases a lock; $netcred is called with 'READ' only and !netdefs with 'READ' only; "
-       "kernel() is called for K$AUDIT, and for K$ADMINISTRATOR and K$NET with -1 only; nothing is shown (no crt, print or display)",
-       not re.search(NF_FORBIDDEN, re.sub(r"->[\w.]+", "", ns), re.I) and re.findall(r"call \$netcred\('(\w+)'", nf) == ["READ"] and re.findall(r"call !netdefs\('(\w+)'", nf) == ["READ"]
+    own = re.sub(r"->[\w.]+", "", ns)
+    ac, ar, arl = body["act.change"], body["act.refuse"], body["act.release"]
+    writers = re.findall(r"obj->(write|writeu|delete|deleteu|recordlock|clearfile)\(", nf)
+    ck("NF5 WHAT THE HANDLER MAY CHANGE (slice 3e; it was READ ONLY before): no statement of netfile itself writes, deletes, creates, opens a file or runs a command; the six changing and locking methods of "
+       "the class (write, writeu, delete, deleteu, recordlock, clearfile) are called ONCE EACH and only inside act.change, release only inside act.release and release.every; $netcred is called with 'READ' "
+       "only and !netdefs with 'READ' only (act.open and mode.now); kernel() is called for K$AUDIT, and for K$ADMINISTRATOR and K$NET with -1 only; nothing is shown (no crt, print or display)",
+       not re.search(NF_FORBIDDEN, own, re.I) and re.findall(r"call \$netcred\('(\w+)'", nf) == ["READ"] and re.findall(r"call !netdefs\('(\w+)'", nf) == ["READ", "READ"]
+       and sorted(writers) == sorted(["write", "writeu", "delete", "deleteu", "recordlock", "clearfile"]) and all(re.search(r"obj->%s\(" % w, ac) for w in set(writers))
+       and not re.search(r"obj->(write|writeu|delete|deleteu|recordlock|clearfile)\(", nf.replace(ac, ""))
+       and len(re.findall(r"obj->release\(", nf)) == 2 and "obj->release(" in arl and "obj->release(" in body["release.every"] and "obj->release(" not in ac
        and all(m.group(1) == "K$AUDIT" or (m.group(1) in ("K$ADMINISTRATOR", "K$NET") and m.group(2).strip() == "-1") for m in re.finditer(r"kernel\((K\$[A-Z.]+)\s*,\s*([^)\n]*)", nf))
-       and not re.search(r"(?<![\w.$])(crt|print|display)(?![\w.$])", ns), repr(re.findall(NF_FORBIDDEN, re.sub(r"->[\w.]+", "", ns), re.I)[:4]))
-    ar = body["act.refuse"]
-    ck("NF5a write, delete, clear.file and lock are ONE case that gosubs act.refuse, which asks for a handle of this account and answers 11501 naming the server and the operation - and "
-       "touches no object, no connection and no request (the word obj is not in it)",
-       re.search(r"case op = NF\$WRITE or op = NF\$DELETE or op = NF\$CLEARFILE or op = NF\$LOCK\s*\n\s*gosub act\.refuse", main) is not None
-       and ordered(ar, "gosub get.handle", "'write'", "'delete'", "'clear.file'", "'lock'", "fail.num = 11501", "fail.a1 = srvname", "fail.a2 = opname", "gosub fail")
-       and not re.search(r"\bobj\b|nf\.s\.obj|nf\.s\.state|connect|requests", ar), "")
+       and not re.search(r"(?<![\w.$])(crt|print|display)(?![\w.$])", ns), repr((re.findall(NF_FORBIDDEN, own, re.I)[:4], writers)))
+    ck("NF5a act.refuse (the refusal of a change or lock on a READ-MODE handle, 11501 naming the server and the operation) touches no object, no connection and no request (the word obj is not in "
+       "it); act.change reaches it as its FIRST test after the handle of this account is found (get.handle without the gate or the connection, a lost handle will do), before the gate and the connection "
+       "are asked, before the definition is re-read and before any object is named; the dispatch sends the six operations to act.change and RELEASE to act.release",
+       re.search(r"case op = NF\$WRITE or op = NF\$WRITEU or op = NF\$DELETE or op = NF\$DELETEU or op = NF\$CLEARFILE or op = NF\$LOCK\s*\n\s*gosub act\.change", main) is not None
+       and re.search(r"case op = NF\$RELEASE\s*;?\s*gosub act\.release", main) is not None
+       and ordered(ar, "fail.num = 11501", "fail.a1 = srvname", "fail.a2 = opname", "gosub fail") and not re.search(r"\bobj\b|nf\.s\.obj|nf\.s\.state|connect|requests", ar)
+       and ordered(ac, "need.gate = @false ; need.conn = @false ; any.acct = @false ; allow.lost = @true", "gosub get.handle", "if failed then return", "if nf.h.mode(hx) # 'write' then",
+                   "gosub act.refuse", "return", "need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "gosub get.handle", "gosub mode.now")
+       and not re.search(r"\bobj\b|nf\.s\.obj", ac[:ac.find("need.gate = @true")]), "")
 
     # ---- N6. the gate is asked by the handler itself, and only asked
     cg = body["check.gate"]
@@ -1357,20 +1388,27 @@ def checks_3b(srcs, c, ck):
 
     # ---- N7. a request, a lost connection and no retry
     lines = [ln for ln in nf.split("\n") if ln.strip()]
-    reqs = [i for i, ln in enumerate(lines) if re.search(r"obj->(open|close|read|select|readlist|recordlocked)\(", ln)]
+    reqs = [i for i, ln in enumerate(lines) if re.search(r"obj->(%s)\(" % "|".join(NF_REQUEST_METHODS), ln)]
     unmarked = [lines[i].strip() for i in reqs if not any("obj->ServerStatus = NF$NOREPLY" in p for p in lines[max(0, i - 3):i])]
-    ck("NF7 EVERY request is preceded by the 'no reply' mark (obj->ServerStatus = NF$NOREPLY, three lines before at most): %d request sites, none unmarked; a reply of any kind overwrites it, "
-       "so after.rq reads a mark still in place as a lost connection (rq.lost = ServerStatus < 0), and NF$NOREPLY is -1" % len(reqs),
-       len(reqs) == 7 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st < 0)" in body["after.rq"]
-       and re.search(r"\$define NF\$NOREPLY\s+-1\b", nf) is not None, repr(unmarked))
-    ck("NF7a a lost connection is dropped and reported, NEVER retried or reconnected inside an operation: lost.fail drops the connection then answers 11497; the only connect.new is in NF$OPEN; the "
+    ck("NF7 EVERY request is preceded by the 'no reply' mark (obj->ServerStatus = NF$NOREPLY, three lines before at most): %d request sites (open, close, read, select, readlist, recordlocked and, since "
+       "slice 3e, write, writeu, delete, deleteu, recordlock, clearfile and release twice), none unmarked - the CLEARFILE one has settimeout(NF$CLEAR.MS) BEFORE the mark lines; a reply of any kind "
+       "overwrites it, so after.rq reads a mark still in place as a lost connection (rq.lost = ServerStatus = NF$NOREPLY: NOT a sign test, a changing request can be answered with -3023), and NF$NOREPLY is -2000000001, a value no STATUS() takes (18 Oct 26)" % len(reqs),
+       len(reqs) == 15 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st = NF$NOREPLY)" in body["after.rq"]
+       and re.search(r"\$define NF\$NOREPLY\s+-2000000001\b", nf) is not None
+       and ordered(ac, "obj->settimeout(NF$CLEAR.MS)", "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "obj->clearfile(nf.h.fno(hx))", "if not(rq.lost) then obj->settimeout(NF$REQUEST.MS)"), repr(unmarked))
+    ck("NF7a a lost connection is dropped and reported, NEVER retried or reconnected inside an operation: lost.fail drops the connection then answers 11497 - and, for a CHANGING request (changing is set in "
+       "act.change: everything but a lock), writes the audit line `netfile lost server=<name> op=<operation>` and answers 11509 instead (the outcome is not known); the only connect.new is in NF$OPEN; the "
        "handler holds no loop construct at all (no loop, no repeat, no while); drop.conn frees the slot and marks every handle on it lost (state 2)",
-       ordered(body["lost.fail"], "gosub drop.conn", "fail.num = 11497") and "connect.new" not in body["lost.fail"] + body["drop.conn"]
+       ordered(body["lost.fail"], "gosub drop.conn", "if changing then", "kernel(K$AUDIT, 'netfile lost server=' : srvname : ' op=' : opname)", "fail.num = 11509", "end else", "fail.num = 11497")
+       and "connect.new" not in body["lost.fail"] + body["drop.conn"]
        and not re.search(r"(?<![\w.$])(loop|repeat|while|goto)(?![\w.$])", ns) and "nf.h.state(hy) = 2" in body["drop.conn"]
        and ordered(body["drop.conn"], "nf.s.obj(slot) = 0", "nf.s.state(slot) = 0", "nf.h.state(hy) = 2"), "")
-    ck("NF7b the 30 second request bound: NF$REQUEST.MS is 30000 and is given to the object once, in connect.new; a handle of a lost connection answers 11495 (not a new connection) and CLOSE of it frees "
+    ck("NF7b the 30 second request bound: NF$REQUEST.MS is 30000 and is given to the object in connect.new (the only place it is set for good); the one longer wait is the CLEARFILE's (NF$CLEAR.MS, "
+       "300000, set in act.change before the request and put back to NF$REQUEST.MS after it); a handle of a lost connection answers 11495 (not a new connection) and CLOSE of it frees "
        "it without a word (allow.lost)",
-       re.search(r"\$define NF\$REQUEST\.MS\s+30000\b", nf) is not None and nf.count("settimeout(") == 1
+       re.search(r"\$define NF\$REQUEST\.MS\s+30000\b", nf) is not None and re.search(r"\$define NF\$CLEAR\.MS\s+300000\b", nf) is not None
+       and nf.count("settimeout(") == 3 and "obj->settimeout(NF$REQUEST.MS)" in cn and cn.count("settimeout(") == 1
+       and nf.count("settimeout(NF$CLEAR.MS)") == 1 and "settimeout(NF$CLEAR.MS)" in ac and ac.count("settimeout(") == 2
        and ordered(gh, "if nf.h.state(hx) = 2 then", "if allow.lost then return", "fail.num = 11495")
        and re.search(r"act\.close:\s*\n\s*need\.gate = @false ; need\.conn = @false ; any\.acct = @true ; allow\.lost = @true", body["act.close"]) is not None, "")
     ck("NF7c CLOSEALL ends every connection and forgets every handle, is never refused (no gate, no list) and sends nothing but the quit that disconnect sends; STATE asks nothing and sends nothing",
@@ -1384,10 +1422,21 @@ def checks_3b(srcs, c, ck):
     # ---- N9. the audit trail and the messages carry nothing secret
     audits = re.findall(r"kernel\(K\$AUDIT,[^\n]*", nf)
     fails = re.findall(r"fail\.a\d = [^\n;]*", nf)
-    ck("NF9 exactly two audit lines, both lower case with fixed words and values: `netfile open server=<name> file=<remote file>` and `netfile refused server=<name> reason=<word>`; no secret local "
-       "(login, keys, salt, pin, password) is in an audit line or becomes an argument of a message",
-       audits == ["kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)", "kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)"]
-       and not any(re.search(NF_SECRET_LOCALS, a, re.I) for a in audits) and not any(re.search(NF_SECRET_LOCALS, f) for f in fails), repr((audits, [f for f in fails if re.search(NF_SECRET_LOCALS, f)])))
+    aud_lines = re.findall(r"aud\.line = 'netfile[^\n]*", nf)
+    ck("NF9 the audit lines are fixed words and values, all lower case, and never an id, a record or a secret: `netfile open server=<name> file=<remote file>` (and ` mode=write` after it for a write-mode "
+       "handle - the read line is byte for byte the line of slice 3b), `netfile refused server=<name> reason=<word>` (the six open reasons, and mode), and, since slice 3e, `netfile write server=<name> "
+       "file=<f>` and `netfile delete server=<name> file=<f>` (the first of each through a handle, by audit.once), `netfile clear server=<name> file=<f>` (every CLEARFILE) and `netfile lost server=<name> "
+       "op=<operation>`; no secret local (login, keys, salt, pin, password) is in an audit line or becomes an argument of a message",
+       sorted(audits) == sorted(["kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)",
+                                 "kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname : ' mode=write')",
+                                 "kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)",
+                                 "kernel(K$AUDIT, 'netfile clear server=' : srvname : ' file=' : nf.h.file(hx))",
+                                 "kernel(K$AUDIT, 'netfile lost server=' : srvname : ' op=' : opname)",
+                                 "kernel(K$AUDIT, aud.line)"])
+       and sorted(aud_lines) == sorted(["aud.line = 'netfile refused server=' : srvname : ' reason=mode'", "aud.line = 'netfile write server=' : srvname : ' file=' : nf.h.file(hx)",
+                                        "aud.line = 'netfile delete server=' : srvname : ' file=' : nf.h.file(hx)"])
+       and ordered(raw, "' mode=write'") and not re.search(r"[A-Z]", "".join(re.findall(r"'(netfile [^']*)'", nf)))
+       and not any(re.search(NF_SECRET_LOCALS, a, re.I) for a in audits + aud_lines) and not any(re.search(NF_SECRET_LOCALS, f) for f in fails), repr((audits, aud_lines, [f for f in fails if re.search(NF_SECRET_LOCALS, f)])))
     ck("NF9a the shapes that guard the names: a server name is a lower case letter then up to 15 lower case letters or digits; a remote file name is letters, digits and . _ - $ up to MAX.ID.LEN with "
        "'dict ' in front for a dictionary - and no slash, so no pathname can be asked for",
        ordered(body["shape.names"], "chk.set = lc.set:digits", "len(srv) <= 16", "index(lc.set, srv[1, 1], 1)", "fname[1, 5] = 'dict '", "chk.set = lc.set:digits:'._-$'", "len(body) <= MAX.ID.LEN")
@@ -1400,29 +1449,38 @@ def checks_3b(srcs, c, ck):
     block_used = {n for n in lits if NF_MSG_FIRST <= n <= NF_MSG_LAST}
     texts = {n: srcs.get("msg:%d" % n) for n in range(NF_MSG_FIRST, NF_MSG_LAST + 1)}
     places = {n: max([int(x) for x in re.findall(r"%(\d)", t)] or [0]) for n, t in texts.items() if t}
-    ck("NF10 messages 11490 to 11506 all exist (one line each, inside the Linux block 11000-11999), all are used by netfile, 11507 and 11508 are the KERNEL's (slice 3c: netfiles.c, one line each, "
-       "never used by netfile), 11509 to 11519 are kept free (no file, no use), and no other program of gpl.bp cites a number of the block",
+    handler_msgs = set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) - set(NF_MSG_KERNEL_ONLY)            # 11490-11506, 11509, 11510, 11512
+    ck("NF10 messages 11490 to 11512 all exist (one line each, inside the Linux block 11000-11999); the handler uses 11490-11506 and, since slice 3e, 11509 (a changing request got no reply), 11510 (a "
+       "transaction is open) and 11512 (a bad lock kind); 11507, 11508 and 11511 are the KERNEL's (netfiles.c, never used by netfile; 11510 is the kernel's as well); 11513 to 11519 are kept free (no file, "
+       "no use), and no other program of gpl.bp cites a number of the block",
        all(texts[n] is not None and texts[n].strip() != "" and "\n" not in texts[n].rstrip("\n") for n in range(NF_MSG_FIRST, NF_MSG_USED + 1))
-       and all(texts[n] is not None and texts[n].strip() != "" and "\n" not in texts[n].rstrip("\n") for n in NF_MSG_KERNEL)
-       and block_used == set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) and all(texts[n] is None for n in range(NF_MSG_KERNEL[1] + 1, NF_MSG_LAST + 1))
+       and block_used == handler_msgs and all(texts[n] is None for n in range(NF_MSG_USED + 1, NF_MSG_LAST + 1))
        and LINUX_BLOCK[0] <= NF_MSG_FIRST and NF_MSG_LAST <= LINUX_BLOCK[1]
        and not [k for k, t in c.items() if k.startswith("bp:") and k not in ("bp:netfile", "bp:netfile.h") and re.search(r"\b115[01]\d\b|\b1149\d\b", t)],
-       repr(sorted(set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) ^ block_used)))
+       repr(sorted(handler_msgs ^ block_used)))
     short = [(n, k, places.get(n, 0)) for n, ks in lits.items() if n in places for k in ks if k < places.get(n, 0)]
     ck("NF10a each message has at most three %n places (rc carries three arguments), and every place a message has is given an argument at the line that raises it (11460, reused, gets two - its "
-       "server is rc<4>, which the text does not print)",
-       all(v <= 3 for v in places.values()) and not short and places.get(11497) == 2 and places.get(11500) == 3 and places.get(11494) == 1, repr(short))
+       "server is rc<4>, which the text does not print); 11509, 11510, 11511 and 11512 each have exactly two places (the server and the operation, or the bad lock kind)",
+       all(v <= 3 for v in places.values()) and not short and places.get(11497) == 2 and places.get(11500) == 3 and places.get(11494) == 1
+       and all(places.get(n) == 2 for n in (11509, 11510, 11511, 11512)), repr(short))
     ck("NF10b the wording the suite relies on: 11494 names the handle, 11495 and 11497 and 11499 and 11500 name the server, 11497 says the connection was LOST during an operation and that nothing "
-       "more is sent, 11501 says the file is read only and that nothing was sent, 11493 says 10 servers is the limit by its argument",
-       all("%1" in (texts.get(n) or "") for n in (11493, 11494, 11495, 11496, 11497, 11498, 11499, 11500, 11501)) and "lost during" in (texts.get(11497) or "")
+       "more is sent, 11501 says the file is read only and that nothing was sent, 11493 says 10 servers is the limit by its argument; 11509 says the connection was lost during the operation, that it is "
+       "NOT KNOWN whether the change was made, that nothing more is sent and how to find out; 11510 says a change or lock is refused inside a transaction and that nothing was sent; 11511 says the "
+       "operation is not available for a file on the server and that nothing was sent; 11512 says the lock kind is not valid",
+       all("%1" in (texts.get(n) or "") for n in (11493, 11494, 11495, 11496, 11497, 11498, 11499, 11500, 11501, 11509, 11510, 11511, 11512)) and "lost during" in (texts.get(11497) or "")
        and "Nothing more is sent" in (texts.get(11497) or "") and "read only" in (texts.get(11501) or "") and "Nothing was sent" in (texts.get(11501) or "")
-       and "%1 servers" in (texts.get(11493) or ""), "")
+       and "%1 servers" in (texts.get(11493) or "")
+       and "was lost during" in (texts.get(11509) or "") and "not known whether the change was made" in (texts.get(11509) or "") and "Nothing more is sent" in (texts.get(11509) or "")
+       and "read the record to find out" in (texts.get(11509) or "")
+       and "inside a transaction" in (texts.get(11510) or "") and "Nothing was sent" in (texts.get(11510) or "")
+       and "not available" in (texts.get(11511) or "") and "Nothing was sent" in (texts.get(11511) or "") and "lock kind" in (texts.get(11512) or ""), "")
 
     # ---- N11. the suite and the map
     drv = suite[suite.find("NFH_DRIVER = r"):suite.find("NFH_SUB = r")]
     k_errs = {int(x) for x in re.findall(r"k_err\((\d+)", suite)}
-    ck("NF11 the suite sandbox-netfile.py drives EVERY operation by its NF$ name (13 names in the driver), compiles netcred, netfile and its two test programs, has the sections handler, readonly, "
-       "refuse, lost, timeout and gaps, runs gaps only when it is named (it is red by design), and every message number it expects is a message of the tree",
+    ck("NF11 the suite sandbox-netfile.py drives EVERY operation by its NF$ name (16 names in the driver), compiles netcred, netfile and its two test programs, has the sections handler, readonly, "
+       "refuse, lost, timeout, hwrite (the handler in write mode, slice 3e), kwrite (the statements, slice 3e) and gaps, runs gaps only when it is named (it is red by design), and every message "
+       "number it expects is a message of the tree",
        all(re.search(r"op = %s\b" % re.escape(k).replace(r"\$", "[$]"), drv) for k in NF_OPS)
        and "BASIC gpl.bp netcred netfile zznfh zznfhx" in suite and r"Compiled 4 program\(s\) with no errors" in suite
        and all('("%s", %s_section)' % (s, s) in suite for s in NF_SUITE_SECTIONS) and 'OPT_IN = ("gaps",)' in suite
@@ -1442,7 +1500,8 @@ def checks_3b(srcs, c, ck):
 
 # ---- NK. S.65 slice 3c: the kernel half - the NET_FILE type, netfiles.c, the VOC pointer, and the refusal of every other statement ----------------------
 
-NK_FUNCS = ("net_path_is_net", "net_open", "net_close", "net_read", "net_readv", "net_fileinfo", "net_select", "net_refuse", "net_close_all", "net_message")   # net_select: slice 3d
+NK_FUNCS = ("net_path_is_net", "net_open", "net_close", "net_read", "net_readv", "net_fileinfo", "net_select", "net_refuse", "net_close_all", "net_message",   # net_select: slice 3d
+            "net_gate", "net_write", "net_delete", "net_clear", "net_lock", "net_lock_step", "net_check_lock", "net_release", "net_release_all", "net_flush_closes")   # slice 3e
 NK_TYPES = {"DIRECTORY_FILE": 1, "DYNAMIC_FILE": 2, "SEQ_FILE": 3, "NET_FILE": 4}
 # what a refusal must come before: the first of these in the function (a NET_FILE has no file table entry, so each of them reads or WRITES memory in front of the table)
 NK_DANGER = ("FPtr(", "access.dh", "lock_record(", "unlock_record(", "check_lock(", "end_select(", "clear_select(", "log_permissions_error(", "edit_refusal(", "txn_read(", "k_recurse(")
@@ -1491,12 +1550,14 @@ NK_SAFE.update({("lnxport.c", "op_getport"): "SEQ_FILE", ("lnxport.c", "op_setpo
 # the rest of the census: SUPPORT (OPEN, CLOSE and the release of a variable) and IGNORE with a reason (generic descriptor code; the IPC file is opened with OPENPATH; the debugger prints a type; triggers
 # are reached from the DYNAMIC and DIRECTORY arms only)
 NK_OTHER = {("op_dio1.c", "op_close"), ("op_dio1.c", "open_file"), ("op_dio3.c", "call_trigger"), ("k_funcs.c", "k_dereference"), ("k_funcs.c", "k_get_file"), ("k_funcs.c", "k_incr_refct"),
-            ("k_funcs.c", "k_release"), ("kernel.c", "process_events"), ("kernel.c", "dump_status"), ("op_debug.c", "get_var_info"), ("op_loads.c", "op_dup")}
+            ("k_funcs.c", "k_release"), ("kernel.c", "process_events"), ("kernel.c", "dump_status"), ("op_debug.c", "get_var_info"), ("op_loads.c", "op_dup"),
+            ("op_kernel.c", "op_kernel")}      # slice 3e: K_EDIT_OK / K_EDIT_KIND take the FILE VARIABLE of a remote file (k_get_file); decided by the S2 checks (U11), not a refusal
 NK_SITES_WITH_H = {"read_record", "op_readv", "op_clrfile", "op_delete", "op_write", "op_writev"}
 NK_SUITE_MATRIX = ("write", "writeu", "writev", "matwrite", "delete", "clearfile", "readu", "readl", "readvu", "readvl", "matreadu", "matreadl", "recordlocku", "release", "filelock",
                    "fileunlock", "recordlocked", "selectindex", "selectright", "setleft", "setright", "fcontrol6", "fiexcl", "txnwrite")
 NK_MAP_FILES = ("gplsrc/netfiles.c", "gplsrc/op_dio1.c", "gplsrc/op_dio2.c", "gplsrc/op_dio3.c", "gplsrc/op_dio4.c", "gplsrc/op_lock.c", "gplsrc/dh_ak.c", "gplsrc/dh_misc.c",
-                "gplsrc/analyse.c", "gplsrc/k_error.c", "gplsrc/pdump.c", "gplsrc/descr.h", "gplsrc/sd.h", "gpl.src", "sdsys/gpl.bp/_voc_ref")
+                "gplsrc/analyse.c", "gplsrc/k_error.c", "gplsrc/pdump.c", "gplsrc/descr.h", "gplsrc/sd.h", "gpl.src", "sdsys/gpl.bp/_voc_ref",
+                "gplsrc/op_sh.c", "gplsrc/op_kernel.c", "sdsys/gpl.bp/cproc", "sdsys/gpl.bp/edit_guard")      # slice 3e
 
 
 @functools.lru_cache(maxsize=None)
@@ -1623,14 +1684,15 @@ def checks_3c(srcs, c, ck):
     def fn(fname, name):
         return c_functions(ct(fname)).get(name, "")
 
-    nw, nraw = fn("netfiles.c", "net_open_work"), fn("netfiles.c", "net_call_raw")
+    nw, nraw = fn("netfiles.c", "net_open_work"), fn("netfiles.c", "net_call_core")     # slice 3e: net_call_raw is a wrapper over net_call_core
 
     # ---- NK1. the type, the union member, the limits
     allf = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+([A-Z_]+_FILE)\s+(\d+)\b", dsc)}
     ck("NK1 descr.h: the file variable types are DIRECTORY_FILE 1, DYNAMIC_FILE 2, SEQ_FILE 3 and NET_FILE 4 (4 is NET_FILE's alone, and 5 stays unused), and the union member `net` holds, in this "
-       "order, the two pointer-sized words that read as a NULL access.dir.trg (void *zero[2]), the handler's handle (int16_t), the epoch (u_int16_t) and the server name (NET_SERVER_LEN + 1 bytes)",
+       "order, the two pointer-sized words that read as a NULL access.dir.trg (void *zero[2]), the handler's handle (int16_t), the epoch (u_int16_t), the server name (NET_SERVER_LEN + 1 bytes) and, since slice 3e, AFTER the name and in this order the write flag "
+       "(u_char write: the server's mode at the open) and the S.64 edit kind of the remote file's name (u_char edit_kind)",
        all(allf.get(k) == v for k, v in NK_TYPES.items()) and [k for k, v in allf.items() if v == 4] == ["NET_FILE"] and 5 not in allf.values()
-       and re.search(r"struct\s*\{\s*void\s*\*\s*zero\[2\];\s*int16_t\s+handle;\s*u_int16_t\s+epoch;\s*char\s+server\[NET_SERVER_LEN\s*\+\s*1\];\s*\}\s*net;", dsc) is not None, repr(allf))
+       and re.search(r"struct\s*\{\s*void\s*\*\s*zero\[2\];\s*int16_t\s+handle;\s*u_int16_t\s+epoch;\s*char\s+server\[NET_SERVER_LEN\s*\+\s*1\];\s*u_char\s+write;\s*u_char\s+edit_kind;\s*\}\s*net;", dsc) is not None, repr(allf))
     nfh = c["bp:netfile.h"]
     handles = re.search(r"\$define\s+NF\$MAX\.HANDLES\s+(\d+)", nfh)
     ck("NK1a the limits agree across C and BASIC: NET_MAX_HANDLES is netfile.h's NF$MAX.HANDLES (100); NET_SERVER_LEN is 16, the length _voc_ref and the handler allow for a server name; NET_FILE_MAX is 63, "
@@ -1639,10 +1701,13 @@ def checks_3c(srcs, c, ck):
        and re.search(r"#define\s+NET_SERVER_LEN\s+16\b", dsc) is not None and "len(srv) <= 16" in c["bp:netfile"] and "len(n.srv) > 16" in vr
        and re.search(r"#define\s+NET_FILE_MAX\s+63\b", nf) is not None and "len(n.file) > 63" in vr and "up to 63 characters" in (srcs.get("msg:11491") or ""), "")
     codes = {"NF_OPEN": "NF$OPEN", "NF_CLOSE": "NF$CLOSE", "NF_READ": "NF$READ", "NF_READV": "NF$READV", "NF_FILEINFO": "NF$FILEINFO", "NF_CLOSEALL": "NF$CLOSEALL",
-             "NF_RC_OK": "NF$RC.OK", "NF_RC_ELSE": "NF$RC.ELSE", "NF_RC_ERROR": "NF$RC.ERROR"}
+             "NF_RC_OK": "NF$RC.OK", "NF_RC_ELSE": "NF$RC.ELSE", "NF_RC_ERROR": "NF$RC.ERROR",
+             "NF_RECORDLOCKED": "NF$RECORDLOCKED", "NF_SELECT": "NF$SELECT", "NF_WRITE": "NF$WRITE", "NF_DELETE": "NF$DELETE", "NF_CLEARFILE": "NF$CLEARFILE", "NF_LOCK": "NF$LOCK",   # slice 3e
+             "NF_WRITEU": "NF$WRITEU", "NF_DELETEU": "NF$DELETEU", "NF_RELEASE": "NF$RELEASE", "NF_RC_LOCKED": "NF$RC.LOCKED"}
     cdef = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+(NF_[A-Z_]+)\s+(\d+)\b", nf)}
     bdef = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(NF\$[A-Z.]+)\s+(-?\d+)", nfh)}
-    ck("NK1b the operation and result codes netfiles.c mirrors are netfile.h's, name for name (OPEN, CLOSE, READ, READV, FILEINFO, CLOSEALL; the results OK 0, ELSE 2, ERROR 3)",
+    ck("NK1b the operation and result codes netfiles.c mirrors are netfile.h's, name for name (OPEN, CLOSE, READ, READV, RECORDLOCKED, SELECT, FILEINFO, CLOSEALL, and since slice 3e WRITE, DELETE, CLEARFILE, LOCK, "
+       "WRITEU, DELETEU, RELEASE; the results OK 0, ELSE 2, ERROR 3, LOCKED 4)",
        all(k in cdef and bdef.get(v) == cdef[k] for k, v in codes.items()), repr({k: (cdef.get(k), bdef.get(v)) for k, v in codes.items() if bdef.get(v) != cdef.get(k)}))
 
     # ---- NK2. the nine functions, once each, and every declaration of them says the same
@@ -1667,8 +1732,9 @@ def checks_3c(srcs, c, ck):
        and not re.search(r"net_call_raw\(|net_flush_pending\(|load_object\(|k_call\(", nw[:nw.find("if (!net_gate_ok())")]) if "if (!net_gate_ok())" in nw else False, "")
     gate = fn("netfiles.c", "net_gate_ok")
     ck("NK3a THE GATE: the administrator (USR_ADMIN in the session's flags) or an account holding the NET gate (UG_NET in its gates), asked of the session and of nothing else; an $internal program is NOT "
-       "exempt (HDR_INTERNAL is not in netfiles.c at all); the refusal is message 11460 with the account, audited as 'netfile refused server=<name> reason=gate' with the server name made safe",
-       re.search(r"return\s*\(\(my_uptr->flags & USR_ADMIN\) != 0\)\s*\|\|\s*\(\(my_uptr->gates & UG_NET\) != 0\);", gate) is not None and "HDR_INTERNAL" not in nf
+       "exempt (HDR_INTERNAL is in netfiles.c once, in net_gate()'s S.64 edit test of slice 3e, and not in the NET gate, the open or the handler call); the refusal is message 11460 with the account, audited as 'netfile refused server=<name> reason=gate' with the server name made safe",
+       re.search(r"return\s*\(\(my_uptr->flags & USR_ADMIN\) != 0\)\s*\|\|\s*\(\(my_uptr->gates & UG_NET\) != 0\);", gate) is not None
+       and "HDR_INTERNAL" not in gate + nw + fn("netfiles.c", "net_call_core") and nf.count("HDR_INTERNAL") == 1 and "HDR_INTERNAL" in fn("netfiles.c", "net_gate")     # slice 3e: net_gate's edit test only
        and ordered(nw, "net_set_message(MSG_NO_GATE, account(), safe", "\"netfile refused server=%s reason=gate\"") and "#define MSG_NO_GATE 11460" in nf
        and re.search(r"safe\[i\]\s*=\s*\(\(\(server\[i\] >= 'a'\) && \(server\[i\] <= 'z'\)\) \|\| \(\(server\[i\] >= '0'\) && \(server\[i\] <= '9'\)\)\) \? server\[i\] : '\?';", nw) is not None, "")
     ck("NK3b net_call_raw: the program is looked for FIRST (load_object of $netfile, so a tree without it says message 11507 and does not stop the process), the six arguments are pushed, the handler is "
@@ -1680,12 +1746,18 @@ def checks_3c(srcs, c, ck):
        and nf.count("\"$netfile\"") == 2 and not [k for k, t in c.items() if k != "netfiles.c" and (k.endswith(".c") or k.startswith("c:")) and "\"$netfile\"" in t], "")
 
     # ---- NK4. what each public function may and may not do
-    refuse, close_, closeall, stale, op_ = (fn("netfiles.c", n) for n in ("net_refuse", "net_close", "net_close_all", "net_stale", "net_op"))
+    refuse, close_, closeall, stale, op_ = (fn("netfiles.c", n) for n in ("net_refuse", "net_close", "net_close_all", "net_stale", "net_op_ex"))
+    refwith, lowerw = fn("netfiles.c", "net_refuse_with"), fn("netfiles.c", "net_lower_what")
     ck("NK4 net_refuse RUNS NO BASIC and touches nothing: no handler call, no queue flush, no k_call, no k_run_program; it takes the server from the variable only when it is a NET_FILE, writes the statement "
-       "in lower case, builds message 11501 (server, statement) and returns net_raise(-ER_NETWORK) - which does not return without ON ERROR",
-       refuse != "" and not re.search(r"net_call_raw\(|net_flush_pending\(|net_op\(|k_call\(|k_run_program\(|load_object\(", refuse)
-       and ordered(refuse, "fvar->type == NET_FILE", "server = fvar->access.net.server;", "'A') && (what[i] <= 'Z')", "net_set_message(MSG_READ_ONLY, server, op", "return net_raise(-ER_NETWORK, entry);")
-       and "#define MSG_READ_ONLY 11501" in nf, "")
+       "in lower case, builds the message (server, statement) and returns net_raise(status) - which does not return without ON ERROR.  Since slice 3e it is a thin front for net_refuse_with(): message 11501 "
+       "(read only) with status -ER_NETWORK for a file variable of a read-mode server, 11511 (not available) with the same status for a write-mode one - and net_gate()'s read-mode refusal is "
+       "net_refuse_with(.., MSG_READ_ONLY, -ER_NETWORK), the same text and status",
+       refuse != "" and refwith != "" and not re.search(r"net_call_raw\(|net_flush_pending\(|net_op\(|net_op_ex\(|k_call\(|k_run_program\(|load_object\(", refuse + refwith + lowerw)
+       and ordered(refuse, "fvar->access.net.write", "net_refuse_with(fvar, what, write ? MSG_UNAVAILABLE : MSG_READ_ONLY, -ER_NETWORK)")
+       and ordered(refwith, "fvar->type == NET_FILE", "server = fvar->access.net.server;", "net_lower_what(what, op", "net_set_message(msg_no, server, op", "return net_raise(status, entry);")
+       and ordered(lowerw, "(what[i] >= 'A') && (what[i] <= 'Z')", "? (char)(what[i] - 'A' + 'a') : what[i];")
+       and "#define MSG_READ_ONLY 11501" in nf and "#define MSG_UNAVAILABLE 11511" in nf and "#define MSG_TXN 11510" in nf
+       and "net_refuse_with(fvar, what, MSG_READ_ONLY, -ER_NETWORK)" in fn("netfiles.c", "net_gate"), "")
     ck("NK4a net_close: the handler is run only under explicit_close (the CLOSE statement), the handle is cleared BEFORE anything is sent, a stale variable is not sent at all, and any other release (an unwind, a "
        "scope exit, kill_process) is only QUEUED - BASIC must not run where the e-stack may be gone",
        ordered(close_, "fvar->type != NET_FILE", "if (net_stale(fvar))", "fvar->access.net.handle = 0;", "if (explicit_close) {", "net_flush_pending();", "net_call_raw(NF_CLOSE", "} else if (net_pending_ct < NET_MAX_HANDLES) {",
@@ -1693,13 +1765,16 @@ def checks_3c(srcs, c, ck):
        and not re.search(r"net_call_raw\(", close_[close_.find("} else if"):]), "")
     ck("NK4b net_stale is closed, not a NET_FILE, or from an earlier epoch; net_op asks it BEFORE the queue is flushed or the handler called (message 11494 for a stale handle); net_close_all moves the epoch on and "
        "empties the queue BEFORE it calls the handler (NF_CLOSEALL), and only if this process ever opened a remote file",
-       ordered(stale, "fvar->type != NET_FILE", "access.net.handle <= 0", "access.net.epoch != net_epoch") and ordered(op_, "if (net_stale(fvar))", "MSG_BAD_HANDLE", "net_flush_pending();", "net_call_raw(op")
+       ordered(stale, "fvar->type != NET_FILE", "access.net.handle <= 0", "access.net.epoch != net_epoch") and ordered(op_, "if (net_stale(fvar))", "MSG_BAD_HANDLE", "net_flush_pending();", "net_call_core(op")
        and ordered(closeall, "net_epoch++;", "net_pending_ct = 0;", "if (!net_used)", "net_call_raw(NF_CLOSEALL"), "")
     opn = nw
-    ck("NK4c a NET_FILE is made LAST and only on success: the union is zeroed, the handle (1 to NET_MAX_HANDLES, digits only) is checked, then the epoch, the server name, file_id -1, FV_RDONLY | FV_NON_TXN and the "
-       "type - and `type = NET_FILE` occurs once, so no failed open leaves a variable the other statements would treat as remote",
+    ck("NK4c a NET_FILE is made LAST and only on success: the union is zeroed, the handle (1 to NET_MAX_HANDLES, digits only) is checked, then the epoch, the server name, the mode the handler reported (rc<7>) "
+       "and the S.64 edit kind of the file's name (slice 3e), file_id -1, FV_NON_TXN, FV_RDONLY only when the handle is NOT write-mode, and the type - and `type = NET_FILE` occurs once, so no failed open "
+       "leaves a variable the other statements would treat as remote; a read-mode handle is read only exactly as in slice 3c",
        ordered(opn, "(handle < 1) || (handle > NET_MAX_HANDLES)", "memset(&fvar->access, 0, sizeof(fvar->access));", "fvar->access.net.handle = (int16_t)handle;", "fvar->access.net.epoch = net_epoch;",
-               "strcpy(fvar->access.net.server, server);", "fvar->file_id = -1;", "fvar->flags |= FV_RDONLY | FV_NON_TXN;", "fvar->type = NET_FILE;")
+               "strcpy(fvar->access.net.server, server);", "fvar->access.net.write = rc.mode_write ? 1 : 0;", "fvar->access.net.edit_kind = (u_char)edit_kind_of_net_name(file);",
+               "fvar->file_id = -1;", "fvar->flags |= FV_NON_TXN;", "if (!fvar->access.net.write)", "fvar->flags |= FV_RDONLY;", "fvar->type = NET_FILE;")
+       and "FV_RDONLY" not in opn.replace("fvar->flags |= FV_RDONLY;", "")
        and len(re.findall(r"type\s*=\s*NET_FILE", nf)) == 1 and "hs[i] < '0') || (hs[i] > '9'" in opn, "")
     rd = fn("netfiles.c", "net_read")
     ck("NK4d net_read and net_readv answer an empty id with ER_IID WITHOUT calling the handler; an error is raised by net_raise with the message the handler gave unless the statement has ON ERROR, the ELSE branch is "
@@ -1784,10 +1859,14 @@ def checks_3c(srcs, c, ck):
        not badg, repr(badg))
     hdr = fn("op_dio3.c", "refuse_net_file")
     rc_ = fn("op_dio3.c", "read_record")
-    ck("NK7b the helper refuse_net_file: not a NET_FILE is FALSE and nothing else happens; for one it hands net_refuse ONLY the ON ERROR bit, takes the negative status (never a non-negative one), and "
-       "without ON ERROR still raises message 11501 itself if net_refuse returned; READU / READL / MATREADU / MATREADL are refused in read_record behind (type NET_FILE and P_REC_LOCKS) and a NET_FILE's "
-       "transaction id is forced to 0 (txn_read would read the file table); READ and MATREAD have their own `case NET_FILE:` that calls net_read",
-       ordered(hdr, "fvar->type != NET_FILE", "return FALSE;", "process.op_flags = op_flags & P_ON_ERROR;", "net_refuse(fvar, what)", "process.op_flags = 0;", "(st < 0) ? st : -ER_PERM", "k_error(sysmsg(11501)")
+    ck("NK7b the helper refuse_net_file (slice 3e: it takes the KIND of statement): not a NET_FILE is FALSE and nothing else happens; for one it hands net_gate ONLY the ON ERROR bit (and the statement's own "
+       "op_flags, for CREATING.SEQKEY), the kind and the statement's name, returns FALSE when the gate passes it, otherwise takes the negative status (never a non-negative one), and without ON ERROR still "
+       "raises net_gate's own message (net_message()) itself if net_gate returned; READU / READL / MATREADU / MATREADL are asked in read_record behind (type NET_FILE and P_REC_LOCKS) with NETG_LOCK and a "
+       "NET_FILE's transaction id is forced to 0 (txn_read would read the file table); READ and MATREAD have their own `case NET_FILE:` that calls net_read",
+       ordered(hdr, "fvar->type != NET_FILE", "return FALSE;", "process.op_flags = op_flags & P_ON_ERROR;", "st = net_gate(fvar, kind, op_flags, what);", "process.op_flags = 0;", "if (st == 0)", "return FALSE;",
+               "(st < 0) ? st : -ER_PERM", "k_error(\"%s\", net_message())")
+       and "net_refuse(" not in hdr
+       and re.search(r"refuse_net_file\(FILE_VAR\s*\*\s*fvar,\s*u_int16_t\s+op_flags,\s*const\s+char\s*\*\s*what,\s*int\s+kind\)\s*\{", c["op_dio3.c"]) is not None
        and "(fvar->type == NET_FILE) && (op_flags & P_REC_LOCKS)" in rc_ and "(fvar->type == NET_FILE)) ? 0 : process.txn_id" in rc_ and ordered(rc_, "case NET_FILE: {", "net_read(fvar, id, id_len, &net_rec)"), "")
     ro = fn("op_dio3.c", "op_readv")
     ck("NK7c READV of a NET_FILE never runs the recursive _readv (which would READ, and cut the field in BASIC): the NET branch is the first branch, reads through net_readv, refuses READVU / READVL, and "
@@ -1818,9 +1897,11 @@ def checks_3c(srcs, c, ck):
     m7, m8 = srcs.get("msg:11507"), srcs.get("msg:11508")
     used = {int(x) for x in re.findall(r"#define\s+MSG_\w+\s+(\d+)", nf)}
     ck("NK9 the kernel's own messages: 11507 (the handler could not be used: %1) and 11508 (the VOC entry is not valid: %1) are one line each with ONE place; every message number netfiles.c names exists as a "
-       "one-line message (11460, 11461, 11494, 11496, 11501, 11507, 11508); the kernel cites no number the handler's block does not hold apart from those two",
+       "one-line message (11460, 11461, 11494, 11496, 11500, 11501, 11503, 11507, 11508 and, since slice 3e, 11510 (a transaction is open) and 11511 (not available on a write-mode server)); the "
+       "S.64 edit-gate messages net_gate() raises are 11404 + the kind (11405 to 11407) and exist; the kernel cites no number the handler's block does not hold apart from 11507, 11508 and 11511",
        m7 is not None and m8 is not None and m7.count("\n") <= 1 and m8.count("\n") <= 1 and "%1" in m7 and "%1" in m8 and not re.search(r"%[2-9]", m7 + m8)
-       and used == {11460, 11461, 11494, 11496, 11501, 11507, 11508} and all(os.path.exists(os.path.join(MSGDIR, str(n))) for n in used), repr(sorted(used)))
+       and used == {11460, 11461, 11494, 11496, 11500, 11501, 11503, 11507, 11508, 11510, 11511} and all(os.path.exists(os.path.join(MSGDIR, str(n))) for n in used | {11405, 11406, 11407})
+       and "net_set_message(11404 + ek" in fn("netfiles.c", "net_gate"), repr(sorted(used)))
     src_list = srcs["gpl.src"].split()
     ck("NK10 the Makefile builds from gpl.src: `netfiles` is in it exactly once, after `messages`, and gplsrc/netfiles.c exists; sd.h no longer says NETFILES.C was removed",
        src_list.count("netfiles") == 1 and src_list.index("netfiles") == src_list.index("messages") + 1 and os.path.exists(os.path.join(GPLSRC, "netfiles.c"))
@@ -1997,33 +2078,368 @@ def checks_3e(srcs, c, ck):
     ck("NK23 net_read: the cache is consulted only when the file variable is not stale (a closed one is not answered from it - net_op says why), after the empty-id test and before net_op; a hit on an ABSENT "
        "entry is ER_RNF, any other hit is a COPY of the cached chain (never the chain itself, which the caller may change or free); after net_op a record is put (what was read, FALSE), an ABSENT entry only "
        "when the status is exactly ER_RNF (not for any other positive status), and nothing at all on an error; net_cache_find is called here only, net_cache_put twice; net_readv does not use the cache",
-       rd != "" and ordered(rd, "if (id_len < 1)", "return ER_IID;", "if (!net_stale(fvar)) {", "net_cache_find(fvar, id, id_len)", "if (hit->absent)", "return ER_RNF;",
+       rd != "" and ordered(rd, "if (id_len < 1)", "return ER_IID;", "if (!net_stale(fvar) && !fvar->access.net.write) {", "net_cache_find(fvar, id, id_len)", "if (hit->absent)", "return ER_RNF;",
                             "*rec = (hit->rec != NULL) ? k_copy_string(hit->rec) : NULL;", "return 0;", "net_op(fvar, NF_READ", "if (status < 0)", "return net_raise(status, entry);",
                             "if (status > 0) {", "if (status == ER_RNF)", "net_cache_put(fvar, id, id_len, NULL, TRUE);", "return status;", "*rec = net_take_string(&out);", "k_release(&out);",
                             "net_cache_put(fvar, id, id_len, *rec, FALSE);", "return 0;")
-       and inside(rd, "if (!net_stale(fvar)) {", "net_cache_find(") and not re.search(r"\*rec\s*=\s*hit->rec", rd) and "net_cache_put(" not in gap
+       and inside(rd, "if (!net_stale(fvar) && !fvar->access.net.write) {", "net_cache_find(") and not re.search(r"\*rec\s*=\s*hit->rec", rd) and "net_cache_put(" not in gap
        and rd.count("net_cache_put(") == 2 and nf.count("net_cache_find(") == 2 and nf.count("net_cache_put(") == 3      # a definition and the uses
        and rv != "" and "net_cache" not in rv, "")
     # ---- NK24. where the entries go
     ns, cl, ca = fn("net_select"), fn("net_close"), fn("net_close_all")
     ck("NK24 the entries of a file variable go when it is SELECTed again (net_select drops that handle BEFORE net_op), when it is closed (net_close drops that handle - only a real handle, `handle > 0`, since "
        "drop(0) would drop everything - BEFORE the net_stale test and before the handle is zeroed, so a stale or already queued variable loses them too) and when the connections are dropped (net_close_all: "
-       "net_cache_drop(0), right after the epoch moves and BEFORE the `net_used` return, so it happens even when nothing was opened); net_cache_drop is called from nowhere else",
+       "net_cache_drop(0), right after the epoch moves and BEFORE the `net_used` return, so it happens even when nothing was opened); net_cache_drop is called from nowhere else but net_change_op() "
+       "(slice 3e: twice, by handle, U6) - a definition and five uses",
        ns != "" and ordered(ns, "net_cache_drop(fvar->access.net.handle);", "net_op(fvar, NF_SELECT")
        and ordered(cl, "fvar->type != NET_FILE", "handle = fvar->access.net.handle;", "if (handle > 0)", "net_cache_drop(handle);", "if (net_stale(fvar))", "fvar->access.net.handle = 0;")
        and ordered(ca, "net_epoch++;", "net_pending_ct = 0;", "net_cache_drop(0);", "if (!net_used)", "net_call_raw(NF_CLOSEALL")
-       and nf.count("net_cache_drop(") == 4, "")
+       and nf.count("net_cache_drop(") == 6 and fn("net_change_op").count("net_cache_drop(") == 2, "")
     # ---- NK25. K_NET closes the remote files when the gate is set
     i = kn.find("case K_NET:")
     blk = kn[i:kn.find("case K_EDIT_OK:", i)] if i >= 0 else ""
-    after = blk[blk.find("net_close_all();"):] if "net_close_all();" in blk else "descr"
+    blk0 = blk[:blk.find("else if")] if "else if" in blk else blk            # slice 3e: the -2 branch (S2w) follows the set branch; the set branch is what NK25 reads
+    after = blk0[blk0.find("net_close_all();"):] if "net_close_all();" in blk0 else "descr"
     ck("NK25 K_NET: a $internal caller that SETS the gate (n >= 0) changes the bit, computes the answer, saves process.status in n, calls net_close_all() (the remote files and connections belong to the account "
        "scope that ended), restores process.status and leaves - in that order, the call AFTER the bit is changed and inside the HDR_INTERNAL block; the -1 ask form and a caller that is not $internal never call "
        "it (net_close_all appears once in the case); nothing uses `descr` after the call, because the handler is BASIC and moves the e-stack",
        blk != "" and blk.count("net_close_all()") == 1
-       and ordered(blk, "if (n >= 0) {", "if (process.program.flags & HDR_INTERNAL) {", "my_uptr->gates |= UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_NET;",
-                   "result.data.value = (my_uptr->gates & UG_NET) != 0;", "n = process.status;", "net_close_all();", "process.status = n;", "break;", "result.data.value = (my_uptr->gates & UG_NET) != 0;", "break;")
+       and ordered(blk0, "if (n >= 0) {", "if (process.program.flags & HDR_INTERNAL) {", "my_uptr->gates |= UG_NET;", "my_uptr->gates &= (u_int16_t)~UG_NET;",
+                   "result.data.value = (my_uptr->gates & UG_NET) != 0;", "n = process.status;", "net_close_all();", "process.status = n;", "break;")
+       and re.search(r"net_close_all\(\);\s*process\.status = n;\s*break;\s*\}\s*\}\s*result\.data\.value = ", blk) is not None      # the set branch LEAVES the case (a fall-through gives the same answer, so only the text can tell)
+       and re.search(r"result\.data\.value = \(my_uptr->gates & UG_NET\) != 0;\s*break;\s*$", blk) is not None      # the ask form ends the case (slice 3e put a -2 branch before it)
        and inside(blk, "if (process.program.flags & HDR_INTERNAL) {", "net_close_all()") and "descr" not in after, "")
+
+
+# ---- S2. S.65 slice 3e (18 Oct 26): writes and locks on a file of a server whose definition says mode=write -----------------------------------------
+
+S2_MSG_TEXTS = {   # the binding texts of the spec (.claude/s65-stage2-design.md, 1.3), one line each
+    11509: "The connection to server %1 was lost during %2, so it is not known whether the change was made.  Nothing more is sent on it.  Open the file again and read the record to find out",
+    11510: "A file on server %1 cannot be changed or locked inside a transaction: %2 is refused.  Nothing was sent",
+    11511: "%2 is not available for a file on server %1.  Nothing was sent",
+    11512: "The lock kind for the file on server %1 is not valid (%2)"}
+S2_NET_DANGER = ("FPtr(", "access.dh", "lock_record(", "unlock_record(", "check_lock(", "log_permissions_error(", "edit_refusal(", "txn_read(", "k_recurse(", "end_select(", "clear_select(")
+
+
+def seg(body, start, end, include_end=True):
+    """The text from START to the first END after it (END included unless include_end is false), or ''."""
+    i = body.find(start)
+    j = body.find(end, i + len(start)) if i >= 0 else -1
+    return body[i:j + (len(end) if include_end else 0)] if i >= 0 and j >= 0 else ""
+
+
+def checks_s2(srcs, c, ck):
+    """S.65 slice 3e, the spec .claude/s65-stage2-design.md (U1 to U12): writes, deletes, CLEARFILE and record locks on a file of a server whose definition says
+    mode write.  Text only.  U1 (the codes) is NF1 and NK1b; U10 (the messages) is NF10 and the exact texts here.  ***WHAT THIS CANNOT SAY: that any statement writes,
+    locks, waits or refuses - the sections hwrite and kwrite of sandbox-netfile.py - or that any of it compiles (`make` is the compiler).***  The checks on the class,
+    the K_EDIT_OK key, descr.h, CPROC and edit_guard are written from the SPEC; they were held against a hand-made reading of it (see PROJECT_STATUS)."""
+    nf, hb, hraw = c["netfiles.c"], c["bp:netfile"], srcs["bp:netfile"]
+    d3, lk, d2, sdh, dsc, kn_, shc = c["op_dio3.c"], c["op_lock.c"], c["op_dio2.c"], c["sd.h"], c["descr.h"], c["op_kernel.c"], c["op_sh.c"]
+    sc, cp, eg = c["bp:sdclient"], c["bp:cproc"], c["bp:edit_guard"]
+
+    def fn(fname, name):
+        return c_functions(c.get(fname) or c.get("c:" + fname, "")).get(name, "")
+
+    def rb(label):
+        return routine_body(hb, label)
+
+    ao, ac, arl, rev, mn, arq, lf, rl_ = (rb(x) for x in ("act.open", "act.change", "act.release", "release.every", "mode.now", "after.rq", "lost.fail", "rc.locked"))
+    cn, ard, asel = rb("connect.new"), rb("act.read"), rb("act.select")
+
+    # ---- S2a. the mode: where it is read, kept, told to the kernel and read again
+    ck("S2a THE MODE (spec 2): act.open takes it from the definition's field 6 AFTER the accounts list and the checks that need no network and BEFORE the stored login - `read` unless the field is exactly "
+       "`write` (anything else fails closed) - writes the open audit line (` mode=write` only for write), keeps it in nf.h.mode(hx) beside the account, and answers rc<7> = 1 for write only; the "
+       "common block holds nf.h.mode and nf.h.aud and clear.handle empties both; mode.now re-reads the definition with !netdefs READ, starts false, needs eight fields, the same server name and "
+       "field 6 `write`, and no other value or failure makes it true",
+       ordered(ao, "if not(is.admin) then", "fmode = 'read'", "if defs<found,6> = 'write' then fmode = 'write'", "call $netcred('READ'", "if fmode = 'write' then", "' mode=write')", "end else",
+               "nf.h.mode(hx) = fmode", "out = hx", "if fmode = 'write' then rc<7> = 1")
+       and "defs<found,6> = 'write'" in ao and ao.count("rc<7>") == 1 and "nf.h.mode(hx) = fmode" in ao and "nf.h.acct(hx) = acc" in ao
+       and re.search(r"nf\.h\.mode\(NF\$MAX\.HANDLES\)", hb) is not None and re.search(r"nf\.h\.aud\(NF\$MAX\.HANDLES\)", hb) is not None
+       and "nf.h.mode(hy) = ''" in rb("clear.handle") and "nf.h.aud(hy) = ''" in rb("clear.handle")
+       and ordered(mn, "mode.ok = @false", "call !netdefs('READ', defs, err)", "if err = '' then", "dcount(defs<dx>, @vm) = 8", "defs<dx,1> = nf.h.srv(hx)", "if defs<dx,6> = 'write' then mode.ok = @true")
+       and mn.count("mode.ok = @true") == 1 and "@true" not in mn.replace("mode.ok = @true", ""), "")
+
+    # ---- S2b. act.change: the order of the checks, and one request
+    ck("S2b act.change, in this ORDER (spec 3.5): the handle of this account (a lost one will do), a handle that is not write-mode is REFUSED (act.refuse, 11501) before anything else, the handle "
+       "again with the gate and the connection, the definition read AGAIN (not write now: the audit line `refused ... reason=mode` once per handle, then 11501), the transaction (11510, from "
+       "system(SYS$TRANS_LEVEL)), the record id (not for CLEARFILE: an empty id is an error 11503 here, not the ELSE branch) and the lock kind (11512), the audit line, and only then the object and the request",
+       ordered(ac, "need.gate = @false ; need.conn = @false ; any.acct = @false ; allow.lost = @true", "gosub get.handle", "changing = (op # NF$LOCK)", "if nf.h.mode(hx) # 'write' then", "gosub act.refuse",
+               "return", "need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "gosub get.handle", "gosub mode.now", "if not(mode.ok) then", "aud.k = 'r'",
+               "aud.line = 'netfile refused server=' : srvname : ' reason=mode'", "gosub audit.once", "gosub act.refuse", "return", "if system(SYS$TRANS_LEVEL) # 0 then", "fail.num = 11510",
+               "if op # NF$CLEARFILE then", "gosub check.id.chg", "if op = NF$LOCK then", "if c # 'l' and c # 'u' then", "fail.num = 11512", "upd = (c = 'u')", "netfile write server=", "netfile delete server=",
+               "netfile clear server=", "obj = nf.s.obj(slot)")
+       and "11510" in ac and ac.count("fail.num = 11510") == 1 and ac.count("fail.num = 11512") == 1 and "changing = (op # NF$LOCK)" in ac
+       and ordered(rb("check.id.chg"), "id = b", "if id = '' then", "fail.num = 11503", "fail.a2 = 'empty'", "gosub fail", "return", "end", "gosub check.id.shape")      # an empty id is an ERROR for a change
+       and rb("check.id.chg").count("rc.else") == 0, "")
+    ck("S2c ...and the request and its result (spec 3.5 items 9 and 10): each of the six methods once, a lock only ever in the NO-WAIT form (recordlock's last argument is @false and no other form is "
+       "written), the kind of the reply read from obj->LastError, a missing reply (LastError -1) counted as LOST, then lost (11509 for a change, through lost.fail), a server error (rq.err), 0 done, 4 busy "
+       "for a LOCK only (rc.locked, not an error), 1 an ON ERROR reply with the STATUS shown and not the text, anything else 11504; NOTHING is retried and the handler holds no sleep",
+       ordered(ac, "obj->write(nf.h.fno(hx), id, c)", "obj->writeu(nf.h.fno(hx), id, c)", "obj->delete(nf.h.fno(hx), id)", "obj->deleteu(nf.h.fno(hx), id)", "obj->clearfile(nf.h.fno(hx))",
+               "obj->recordlock(nf.h.fno(hx), id, upd, @false)", "lerr = obj->LastError", "gosub after.rq", "if lerr = -1 then rq.lost = @true", "if rq.lost then", "gosub lost.fail", "return",
+               "if rq.err then", "gosub server.fail", "return", "if lerr = NF$LE.OK then return", "if op = NF$LOCK and lerr = NF$LE.LOCKED then", "gosub rc.locked", "return",
+               "if lerr = NF$LE.ERROR then", "rq.txt = 'status ':rq.st", "gosub server.fail", "return", "fail.num = 11504")
+       and re.findall(r"obj->recordlock\(([^\n]*)\)\s*$", hb, re.M) == ["nf.h.fno(hx), id, upd, @false"] and not re.search(r"(?<![\w.$])(sleep|wait)(?![\w.$])", strip_strings(hb))
+       and ordered(rl_, "rc = ''", "rc<1> = NF$RC.LOCKED", "rc<6> = rq.st") and "failed" not in rl_
+       and re.search(r"\$define NF\$LE\.OK\s+0\b", hb) is not None and re.search(r"\$define NF\$LE\.ERROR\s+1\b", hb) is not None and re.search(r"\$define NF\$LE\.LOCKED\s+4\b", hb) is not None, "")
+    ck("S2d after.rq decides `lost` by EQUALITY with the mark (rq.lost = (st = NF$NOREPLY); a changing request can be answered with a negative status, so a sign test is wrong - the class reads the status as a "
+       "SIGNED 32 bit value, measured 18 Oct 26) and only then makes a status above 2147483647 negative - and on a success the status is never read into a message; lost.fail writes `netfile lost` for a change and answers 11509, for a lock 11497",
+       ordered(arq, "rq.lost = (st = NF$NOREPLY)", "if not(rq.lost) then", "if st > 2147483647 then st -= 4294967296", "rq.st = st", "if rq.lost then rq.st = 0")
+       and arq.count("st -= 4294967296") == 1 and arq.count("rq.lost = (st = NF$NOREPLY)") == 1 and arq.find("rq.lost = (st = NF$NOREPLY)") < arq.find("st -= 4294967296")
+       and ordered(lf, "gosub drop.conn", "if changing then", "kernel(K$AUDIT, 'netfile lost server=' : srvname : ' op=' : opname)", "fail.num = 11509", "end else", "fail.num = 11497"), "")
+    ck("S2e act.release (spec 3.8): it asks no gate, no mode and no transaction (releasing changes no data) and writes no audit line; `0` means every write-mode connection (release.every), a lost handle is "
+       "answered OK with nothing sent, an id over MAX.ID.LEN is the only error it gives (11503), a connection that is not an object is dropped, a lost reply drops the connection and RELEASE does not fail; "
+       "release.every sends one release per server that has a write-mode handle open (nf.h.mode = 'write') and goes on after a lost reply",
+       ordered(arl, "need.gate = @false ; need.conn = @false ; any.acct = @false ; allow.lost = @true", "if a matches '1N0N' then", "release.all = (a + 0 = 0)", "gosub release.every", "return",
+               "gosub get.handle", "if failed then return", "if nf.h.state(hx) # 1 then return", "len(id) > MAX.ID.LEN", "fail.num = 11503", "vartype(nf.s.obj(slot)) # V$OBJ", "gosub drop.conn",
+               "obj->release(nf.h.fno(hx), id)", "gosub after.rq", "if rq.lost then gosub drop.conn")
+       and not re.search(r"mode\.now|SYS\$TRANS_LEVEL|K\$AUDIT|audit\.once", arl) and arl.count("gosub fail") == 1 and arl.count("fail.num =") == 1
+       and ordered(rev, "if nf.s.state(sx) = 1 then", "nf.h.slot(hy) = sx and nf.h.mode(hy) = 'write'", "if n > 0 and vartype(nf.s.obj(sx)) = V$OBJ then", "obj->release(0, '')", "gosub after.rq",
+               "if rq.lost then", "gosub drop.conn") and "fail" not in rev, "")
+    ck("S2f the other handler rules of slice 3e: connect.new makes the object QUIET after connect.keys succeeded and BEFORE the request bound is set (an abort cannot be caught here); act.read and "
+       "act.select take an ON ERROR reply (e = 1) as a server error that shows the STATUS, not the text; get.handle for a lost handle is unchanged; the dispatch of NF$RELEASE is act.release",
+       ordered(cn, "ok = obj->connect.keys(", "if not(ok) then", "obj->quiet = @true", "obj->settimeout(NF$REQUEST.MS)", "nf.s.obj(slot) = obj") and hb.count("obj->quiet = @true") == 1
+       and ordered(ard, "case e = 0", "case e = 2", "case e = 1", "rq.txt = 'status ':rq.st", "gosub server.fail", "case 1", "fail.num = 11504")
+       and ordered(asel, "if e = 1 then", "rq.txt = 'status ':rq.st", "gosub server.fail", "return", "if e # 0 then"), "")
+
+    # ---- S2g. the class gpl.bp/sdclient (spec 3.3)
+    pub = re.search(r"^public debugging,.*?(?=\n\s*\n)", sc, re.S | re.M)
+    pub = pub.group(0) if pub else ""
+    co = re.search(r"public subroutine create\.object\s*\n(.*?)\nend", sc, re.S)
+    co = co.group(1) if co else ""
+    mp = re.search(r"local function message\.pair\(pkt\.type, pkt\)\s*\n(.*?)\nend", sc, re.S)
+    mp = mp.group(1) if mp else ""
+    gr = re.search(r"local function get\.response\(\)\s*\n(.*?)\nend", sc, re.S)
+    gr = gr.group(1) if gr else ""
+    sites = re.findall(r"([^\n]*)\n\s*abort '(\w+) generated an abort event'", sc)
+    guarded = sorted(v for prev, v in sites if "not(quiet)" in prev)
+    ck("S2g THE CLASS, quiet (spec 3.3, items 1 to 3): the public properties quiet, LastError and LastText exist and create.object starts them @false, -1 and ''; message.pair resets LastError and LastText "
+       "BEFORE it writes the packet; get.response sets LastError = server.error as soon as read.packet succeeded (and LastText for an ON ERROR reply) BEFORE it tests for SV$ERROR; the abort of each of "
+       "write, writeu, delete (twice: delete and deleteu), recordlock, release, read.record and the new clearfile is guarded by `and not(quiet)`, no other abort is (CLOSE, SELECT, ... are unchanged); the "
+       "pre-send `abort 'Illegal record id'` of write and writeu does `LastError = SV$ON.ERROR` and returns when quiet",
+       all(re.search(r"\b%s\b" % w, pub) for w in ("quiet", "LastError", "LastText", "ServerStatus", "error"))
+       and re.search(r"quiet = @false", co) is not None and re.search(r"LastError = -1", co) is not None and re.search(r"LastText = ''", co) is not None
+       and ordered(mp, "LastError = -1", "LastText = ''", "write.packet(")
+       and ordered(gr, "read.packet()", "LastError = server.error", "if server.error = SV$ON.ERROR then LastText = in.pkt", "if server.error = SV$ERROR then")
+       and guarded == sorted(["DELETE", "DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE"])
+       and not [v for prev, v in sites if v not in ("DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE") and "quiet" in prev]
+       and len(re.findall(r"if quiet then\s*\n\s*LastError = SV\$ON\.ERROR\s*\n\s*return\s*\n\s*end\s*\n\s*abort 'Illegal record id'", sc)) == 2, repr((guarded, [v for p, v in sites if "quiet" not in p])))
+    rlk = re.search(r"public subroutine recordlock\(fno, id, update, wait\)\s*\n(.*?)\nend", sc, re.S)
+    rlk = rlk.group(1) if rlk else ""
+    clf = re.search(r"public subroutine clearfile\(fno\)\s*\n(.*?)\nend", sc, re.S)
+    clf = clf.group(1) if clf else ""
+    ck("S2h ...recordlock's wait flag is the right way round (the defect fixed: flag 2 is NO wait, so `if not(wait) then flags += 2`; the old `if wait then flags += 2` is gone), and the new "
+       "clearfile(fno) sends request 31 (SrvrClearfile) with the file number and nothing else, takes its abort only when not quiet, and SrvrClearfile is still 31",
+       "if not(wait) then flags += 2" in rlk and not re.search(r"if wait then flags \+= 2", sc)
+       and ordered(clf, "pkt = iconv(fno, 'ISL')", "message.pair(SrvrClearfile, pkt)", "not(quiet)", "abort 'CLEARFILE generated an abort event'")
+       and re.search(r"\$define SrvrClearfile\s+31\b", sc) is not None and re.search(r"\$define SrvrLockRecord\s+30\b", sc) is not None, "")
+
+    # ---- S2i. net_gate (spec 5.2) and the entry points
+    ng = fn("netfiles.c", "net_gate")
+    ck("S2i net_gate, in this ORDER (spec 5.2): the caller's ON ERROR bit is the only flag it puts in process.op_flags (given back as found at every one of its returns); 1 a handle that is read-mode or "
+       "FV_RDONLY is refused with 11501 and -ER_NETWORK and NOTHING below runs for it; 2 WRITE ... CREATING.SEQKEY is refused with 11511; 3 a transaction, tested on process.txn_id and NOT on the local txn_id "
+       "(which is 0 for every NET_FILE), is refused with 11510 and -ER_TXN, for every kind; 4 the S.64 edit gate of the remote file's name for WRITE, DELETE and CLEAR only (never a lock): an $internal caller "
+       "(process.program.flags & HDR_INTERNAL, read here before any BASIC runs - net_gate runs none) and the administrator are exempt, otherwise edit_permitted(kind) decides, refusal 11404 + kind "
+       "(11405 to 11407) with -ER_PERM raised unless the caller said ON ERROR; 5 else 0 (so process.op_flags is given back at five returns)",
+       ng != "" and ordered(ng, "process.op_flags = op_flags & P_ON_ERROR;", "!fvar->access.net.write || (fvar->flags & FV_RDONLY)", "net_refuse_with(fvar, what, MSG_READ_ONLY, -ER_NETWORK)",
+                            "(kind == NETG_WRITE) && (op_flags & P_SEQKEY)", "MSG_UNAVAILABLE, -ER_NETWORK", "process.txn_id != 0", "net_refuse_with(fvar, what, MSG_TXN, -ER_TXN)",
+                            "(kind == NETG_WRITE) || (kind == NETG_DELETE) || (kind == NETG_CLEAR)", "fvar->access.net.edit_kind", "!(process.program.flags & HDR_INTERNAL)", "!(my_uptr->flags & USR_ADMIN)",
+                            "!edit_permitted(ek)", "net_set_message(11404 + ek", "net_raise(-ER_PERM, op_flags & P_ON_ERROR)", "return 0;")
+       and not re.search(r"(?<![\w.])txn_id", ng.replace("process.txn_id", "")) and ng.count("process.op_flags = entry;") == 5
+       and not re.search(r"net_call_core\(|net_call_raw\(|net_op_ex\(|net_op\(|net_flush_pending\(|k_call\(|k_run_program\(|load_object\(", ng) and "NETG_LOCK" not in ng, "")
+    nk, nl = fn("netfiles.c", "net_change_op"), fn("netfiles.c", "net_lock_step")
+    ck("S2j net_change_op (the body of net_write, net_delete, net_clear and net_lock): the handle's cache entries are dropped BEFORE the request and AGAIN after the answer - success, error or no reply - and "
+       "BOTH before net_raise, which longjmps, so a drop placed after it would never run; the drop is by handle (`handle > 0`, never net_cache_drop(0)); the request is made ONCE (net_op_ex with the "
+       "server's status passed on), an ELSE answer is not usable, STATUS() is set to 0 on a success and is never the server's (except the holder of a busy lock); a busy answer is understood for a lock only",
+       nk != "" and ordered(nk, "int handle = fvar->access.net.handle;", "if (handle > 0)", "net_cache_drop(handle);", "net_was_locked = FALSE;", "net_op_ex(fvar, op, b, blen, c, clen, chain, use_chain, 0, lock_op, TRUE, &out)",
+                            "busy = lock_op && net_was_locked;", "if ((status > 0) && !busy)", "MSG_HANDLER", "if (status == 0)", "k_release(&out);", "if (handle > 0)", "net_cache_drop(handle);",
+                            "if (status < 0)", "return net_raise(status, entry);", "if (!busy)", "process.status = 0;")
+       and nk.count("net_cache_drop(handle)") == 2 and "net_cache_drop(0)" not in nk and nk.count("net_op_ex(") == 1
+       and ordered(fn("netfiles.c", "net_answer"), "case NF_RC_LOCKED:", "if (!lock_ok) {", "MSG_HANDLER", "return -ER_NETWORK;", "net_was_locked = TRUE;", "process.status = rc->status;", "return ER_LCK;"), "")
+    ck("S2k the server's own status is passed on, negated, for the changing and locking entry points only: net_error_status passes it only for message 11500 and only with pass_status, from the list "
+       "ER_IID, ER_RDONLY, ER_TRIGGER, ER_NOLOCK, ER_PERM, ER_MAXRLOCK - everything else (a server's edit-gate refusal, a lost connection, an unknown error) is -ER_NETWORK; net_op_ex is called with "
+       "pass_status TRUE from net_change_op and net_check_lock only (the read paths keep 7000: net_op is a thin front with FALSE FALSE); net_parse_rc reads field 7 as write only for an exact 1",
+       ordered(fn("netfiles.c", "net_passed_status"), "case ER_IID:", "case ER_RDONLY:", "case ER_TRIGGER:", "case ER_NOLOCK:", "case ER_PERM:", "case ER_MAXRLOCK:", "return -s;", "return -ER_NETWORK;")
+       and ordered(fn("netfiles.c", "net_error_status"), "case MSG_SERVER_ERROR:", "if (pass_status)", "return net_passed_status(rc->status);", "return -ER_NETWORK;")
+       and nf.count("net_op_ex(") == 5 and "NULL, FALSE, else_status, FALSE, FALSE, out)" in fn("netfiles.c", "net_op")
+       and "lock_op, TRUE, &out)" in fn("netfiles.c", "net_change_op") and "FALSE, TRUE, &out)" in fn("netfiles.c", "net_check_lock") and "FALSE, FALSE, &out)" in fn("netfiles.c", "net_release")
+       and ordered(fn("netfiles.c", "net_parse_rc"), "(rc->result != NF_RC_LOCKED)", "net_field(buf, 7, num, sizeof(num))", "rc->mode_write = (atoi(num) == 1);"), "")
+    ck("S2l net_lock_step: the lock is asked once in the no-wait form with only the ON ERROR bit set; held answers NET_LOCK_HELD; an error is returned as it is; a busy record with a LOCKED clause answers "
+       "NET_LOCK_LOCKED with the holder in process.status; a busy record without one sets the opcode up to run again (pc = retry_pc, process.op_flags = op_flags), processes events, beeps and sleeps 250 ms and "
+       "answers NET_LOCK_WAIT; process.op_flags is 0 on every return but that one; the handler is never asked to wait (net_lock sends NF_LOCK with the kind letter u or l)",
+       nl != "" and ordered(nl, "process.op_flags = op_flags & P_ON_ERROR;", "net_lock(fvar, id, id_len, update)", "process.op_flags = 0;", "return NET_LOCK_HELD;", "if (st != ER_LCK)", "return st;",
+                            "holder = process.status;", "if (op_flags & P_LOCKED)", "return NET_LOCK_LOCKED;", "pc = retry_pc;", "process.op_flags = op_flags;", "process_events();", "lock_beep();", "Sleep(250);",
+                            "return NET_LOCK_WAIT;")
+       and nf.count("pc = retry_pc;") == 1 and 'update ? "u" : "l"' in fn("netfiles.c", "net_lock") and "NF_LOCK" in fn("netfiles.c", "net_lock"), "")
+    rel, rela, flc = fn("netfiles.c", "net_release"), fn("netfiles.c", "net_release_all"), fn("netfiles.c", "net_flush_closes")
+    ck("S2m net_release, net_release_all and net_flush_closes NEVER raise and give process.status, process.op_flags and the last message back as they found them; net_release ignores an id over NET_ID_MAX; "
+       "net_release_all does nothing, and runs no BASIC, unless this process ever opened a write-mode file (net_used_write, set in net_open_work, cleared by net_close_all) and asks for handle 0; "
+       "net_flush_closes sends only what is queued",
+       rel != "" and rela != "" and flc != "" and not re.search(r"net_raise\(|k_error\(", rel + rela + flc)
+       and ordered(rel, "int32_t status_keep = process.status;", "id_len > NET_ID_MAX", "return;", "net_op_ex(fvar, NF_RELEASE", "process.op_flags = entry;", "process.status = status_keep;", "memcpy(net_msg, msg_keep")
+       and ordered(rela, "if (!net_used_write)", "return;", "net_flush_pending();", "net_call_raw(NF_RELEASE, \"0\", 1", "process.op_flags = entry;", "process.status = status_keep;")
+       and ordered(flc, "if (net_pending_ct == 0)", "return;", "net_flush_pending();", "process.op_flags = entry;", "process.status = status_keep;")
+       and "net_used_write = TRUE;" in fn("netfiles.c", "net_open_work") and "net_used_write = FALSE;" in fn("netfiles.c", "net_close_all"), "")
+
+    # ---- S2n. the cache (spec 8) and the chain (spec 5.1)
+    nwr, ndl, ncl, nlk, ncore = (fn("netfiles.c", x) for x in ("net_write", "net_delete", "net_clear", "net_lock", "net_call_core"))
+    ck("S2n U6/U7 the four entry points each go through net_change_op (which drops the handle's cache before and after) and nothing else drops the cache but the three slice 3c places; the id is checked "
+       "(1 to NET_ID_MAX) before anything is sent (net_bad_id: 11503 and -ER_IID); the RECORD is passed as the chain the program holds - net_write hands net_change_op `rec` with use_chain TRUE and "
+       "the core pushes a STRING descriptor with its reference count up (the caller keeps its own) - and is never flattened: no k_get_c_string of a record anywhere in netfiles.c's write path",
+       all("net_change_op(" in b for b in (nwr, ndl, ncl, nlk)) and "net_change_op(fvar, keep_lock ? NF_WRITEU : NF_WRITE, id, id_len, \"\", 0, rec, TRUE, FALSE)" in nwr
+       and "net_change_op(fvar, keep_lock ? NF_DELETEU : NF_DELETE, id, id_len, \"\", 0, NULL, FALSE, FALSE)" in ndl and "net_change_op(fvar, NF_CLEARFILE" in ncl
+       and "net_change_op(fvar, NF_LOCK, id, id_len, update ? \"u\" : \"l\", 1, NULL, FALSE, TRUE)" in nlk
+       and all("(id_len < 1) || (id_len > NET_ID_MAX)" in b and "net_bad_id(fvar, id_len)" in b for b in (nwr, ndl, nlk))
+       and ordered(ncore, "if (use_chain) {", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = cchain;", "if (cchain != NULL)", "(cchain->ref_ct)++;", "} else {", "net_push_string(c, clen);")
+       and "k_get_c_string" not in nwr + nk + ncore and "k_get_string" not in nwr + nk + ncore
+       and ordered(fn("netfiles.c", "net_read"), "if (!net_stale(fvar) && !fvar->access.net.write) {", "net_cache_find(", "net_cache_put("), "")
+
+    # ---- S2o. op_dio3.c: the NET arms, the retry point, the lock rules
+    ow, od, oc_, rr, orv = (fn("op_dio3.c", x) for x in ("op_write", "op_delete", "op_clrfile", "read_record", "op_readv"))
+    ok_ = []
+    for name, body, call, stop in (("op_write", ow, "net_write(", "goto exit_op_write;"), ("op_delete", od, "net_delete(", "goto exit_op_delete;"), ("op_clrfile", oc_, "net_clear(", "return;")):
+        i = body.find("if (fvar->type == NET_FILE) {")
+        j = body.find(stop, body.find(call, i)) if i >= 0 and body.find(call, i) >= 0 else -1
+        arm = body[i:j] if i >= 0 and j > i else ""
+        ok_.append((name, arm != "" and not any(x in arm for x in S2_NET_DANGER) and body.find("refuse_net_file(") < i
+                    and "process.status = net_st;" in body[i:j + 80] and "pc = " not in arm))      # the status of the call is the statement's STATUS(); pc is net_lock_step's alone
+    ck("S2o U8 the NET arms of op_write, op_delete and op_clrfile come AFTER refuse_net_file (the gate) and touch nothing of the file table: no FPtr, no local lock, no check_lock, no edit_refusal, no "
+       "transaction cache, no recursion; op_delete tests the empty id FIRST (-ER_IID, as locally) and a record id over NET_ID_MAX before it locks or sends; op_write reads the id and the record "
+       "(through k_get_string, so a COLL value is made a string as for any other file), refuses an id that is not valid or over NET_ID_MAX, copies it for the lock, and calls net_write with the CHAIN "
+       "and keep_lock; op_clrfile calls net_clear and pushes the status as an integer",
+       all(ok for _n, ok in ok_) and ordered(od, "id_len <= 0", "-ER_IID", "refuse_net_file(fvar, op_flags, \"DELETE\", NETG_DELETE)", "id_len > NET_ID_MAX", "net_pre_change_lock(", "net_delete(fvar, id, id_len, keep_lock)")
+       and ordered(ow, "refuse_net_file(fvar, op_flags, keep_lock ? \"WRITEU\" : \"WRITE\", NETG_WRITE)", "if (fvar->type == NET_FILE) {", "k_get_string(src_descr);", "!valid_id(id, id_len) || (id_len > NET_ID_MAX)",
+                    "-ER_IID", "net_pre_change_lock(", "net_write(fvar, id, id_len, src_descr->data.str.saddr, keep_lock)", "goto exit_op_write;")
+       and ordered(oc_, "refuse_net_file(fvar, op_flags, \"CLEARFILE\", NETG_CLEAR)", "if (fvar->type == NET_FILE) {", "net_clear(fvar)", "k_dismiss();", "InitDescr(e_stack, INTEGER);", "return;"), repr(ok_))
+    npc = fn("op_dio3.c", "net_pre_change_lock")
+    ck("S2p MUSTLOCK and $MODE AUTOLOCK are honoured for a remote WRITE and DELETE (spec 5.3, decision 11): net_pre_change_lock takes the update lock with net_lock_step when AUTOLOCK is on (LOCKED taken off: "
+       "it waits by re-running the opcode, NETL_WAIT, and the caller returns AT ONCE) and, under MUSTLOCK, asks the server (net_check_lock) whether this session holds it and answers -ER_NOLOCK when it does "
+       "not; both op_write and op_delete call it BEFORE the request and return on NETL_WAIT without touching the stack",
+       npc != "" and ordered(npc, "if (op_flags & P_AUTOLOCK) {", "net_lock_step(fvar, id, id_len, TRUE, op_flags & ~P_LOCKED, retry_pc)", "case NET_LOCK_HELD:", "return NETL_GO;", "case NET_LOCK_WAIT:",
+                             "return NETL_WAIT;", "default:", "return NETL_FAIL;", "if (pcfg.must_lock) {", "net_check_lock(fvar, id, id_len)", "-ER_NOLOCK", "return NETL_FAIL;", "return NETL_GO;")
+       and all(ordered(b, "net_pre_change_lock(", "case NETL_WAIT:", "return;", "case NETL_FAIL:", "net_write(" if b is ow else "net_delete(") for b in (ow, od))
+       and "check_lock(" not in npc.replace("net_check_lock(", "") and "lock_record(" not in npc, "")
+    bad_pc = []
+    for fname, name in (("op_dio3.c", "read_record"), ("op_dio3.c", "op_readv"), ("op_lock.c", "op_lockrec"), ("op_dio3.c", "op_write"), ("op_dio3.c", "op_delete")):
+        body = fn(fname, name)
+        first = min([m.start() for m in re.finditer(r"\bnet_(?:gate|lock_step|write|delete|read|readv|pre_change_lock|release|refuse)\(|\brefuse_net_file\(", body)] or [10 ** 9])
+        decl = re.search(r"u_char\s*\*\s*retry_pc\s*=\s*op_pc;", body)
+        others = [m.start() for m in re.finditer(r"\bop_pc\b", body) if not decl or m.start() != decl.end() - len("op_pc;")]      # the LOCAL lock wait uses it after lock_record()
+        local_lock = body.find("lock_record(")
+        if not decl or decl.start() > first or "pc = retry_pc" in body or any(local_lock < 0 or p < local_lock for p in others):
+            bad_pc.append(name)
+        for m in re.finditer(r"net_lock_step\(([^;]*)\)", body):
+            if not m.group(1).rstrip().rstrip(")").rstrip().endswith("retry_pc"):
+                bad_pc.append(name + ": net_lock_step without retry_pc")
+    lrb = fn("op_lock.c", "op_lockrec")
+    if lrb and lrb.find("pc--") != -1 and (lrb.find("txn_id = (fvar->flags") < 0 or lrb.find("pc--") < lrb.find("txn_id = (fvar->flags")):
+        bad_pc.append("op_lockrec: pc-- on the remote path (before the local lock code begins)")
+    ck("S2q U5 the five opcodes that can wait for a remote lock (READU and its kin in read_record, READVU/L in op_readv, RECORDLOCKU/L in op_lockrec, and the WRITE and DELETE that AUTOLOCK) take "
+       "`u_char *retry_pc = op_pc;` BEFORE their first net_ or refuse_net_file call (the handler's own opcodes overwrite op_pc, and k_return restores pc but not op_pc), name op_pc nowhere else but "
+       "the LOCAL lock wait that follows lock_record, "
+       "never assign pc themselves (net_lock_step does: `pc = retry_pc` appears once, in netfiles.c) and pass retry_pc as the last argument of every net_lock_step; the local `pc--` of op_lockrec is "
+       "nowhere on the remote path", not bad_pc, repr(bad_pc))
+    lock_blk = seg(rr, "if ((op_flags & P_REC_LOCKS) && (fvar->type == NET_FILE)) {", "} else if (op_flags & P_REC_LOCKS)")
+    ck("S2r read_record, in the lock block: a remote file asks net_lock_step (not lock_record) BEFORE the local lock code, finds the operands again from the stack (net_reload_read_operands: the handler ran "
+       "BASIC), leaves at once on NET_LOCK_WAIT without popping anything, takes ER_LCK on NET_LOCK_LOCKED, and goes to the exit on an error; refuse_net_file is asked with NETG_LOCK behind (type NET_FILE and "
+       "P_REC_LOCKS) before the target is cleared; op_readv asks it only for the locking forms (a plain READV is allowed in every mode), locks BEFORE net_readv, returns before anything is popped on a "
+       "wait and does not overwrite the holder in STATUS() when the record is busy",
+       lock_blk != "" and ordered(lock_blk, "net_lock_step(fvar, id, id_len, (op_flags & P_ULOCK) != 0, op_flags, retry_pc)", "net_reload_read_operands(", "case NET_LOCK_HELD:", "case NET_LOCK_WAIT:",
+                                  "return;", "case NET_LOCK_LOCKED:", "status = ER_LCK;", "goto exit_op_read;", "default:", "goto exit_op_read;") and "lock_record(" not in lock_blk
+       and ordered(rr, "refuse_net_file(fvar, op_flags,", "NETG_LOCK", "if (!(op_flags & P_PICKREAD)) {", "net_lock_step(")
+       and ordered(orv, "if ((op_flags & P_REC_LOCKS) && refuse_net_file(", "NETG_LOCK", "net_st = 0;", "if (op_flags & P_REC_LOCKS) {", "net_st = net_lock_step(fvar, id, id_len, (op_flags & P_ULOCK) != 0, op_flags, retry_pc)",
+                    "case NET_LOCK_WAIT:", "return;", "case NET_LOCK_LOCKED:", "net_st = ER_LCK;", "if (net_st == 0) {", "net_st = net_readv(fvar, id, id_len, field_no, &net_str)", "if (net_st != ER_LCK)",
+                    "process.status = net_st;"), "")
+
+    # ---- S2s. op_lock.c
+    olr, ore, orf, ora = (fn("op_lock.c", x) for x in ("op_lockrec", "op_release", "op_rlsfile", "op_rlsall"))
+    ck("S2s U9 op_lockrec: the empty id is refused first (k_illegal_id); a NET_FILE that is read-mode or FV_RDONLY gets the slice 3c block UNCHANGED (net_refuse unless ON ERROR, STATUS() -ER_PERM, two dismisses, "
+       "push); a write-mode one asks net_gate(NETG_LOCK) and then net_lock_step with retry_pc - waiting returns at once with the operands left, a busy record pushes ER_LCK, held pushes 0, an error "
+       "pushes process.status, and process.op_flags is cleared before the two dismisses",
+       olr != "" and ordered(olr[:olr.find("txn_id = (fvar->flags")], "k_illegal_id(id_descr);", "if (fvar->type == NET_FILE)", "!fvar->access.net.write || (fvar->flags & FV_RDONLY)",
+                             "net_refuse(fvar, update ? \"RECORDLOCKU\" : \"RECORDLOCKL\")", "process.status = -ER_PERM;", "k_dismiss();", "k_dismiss();", "net_gate(fvar, NETG_LOCK, op_flags,",
+                             "net_lock_step(fvar, id, id_len, update, op_flags, retry_pc)", "case NET_LOCK_HELD:", "case NET_LOCK_WAIT:", "return;", "case NET_LOCK_LOCKED:", "status = ER_LCK;", "default:",
+                             "(int16_t)process.status", "process.op_flags = 0;", "k_dismiss();", "k_dismiss();", "return;"), "")
+    ck("S2t ...op_release and op_rlsfile: a read-mode handle still ends in net_refuse (slice 3c); a write-mode one sends the release only outside a transaction (process.txn_id == 0 - the local statement does "
+       "nothing inside one) and, for the record form, only for an id of 1 to NET_ID_MAX, then dismisses its operands and pushes 0 - NEVER raising; op_rlsall calls net_release_all inside its "
+       "process.txn_id == 0 test before unlock_record; the backstops in check_lock, lock_record and unlock_record are kept; FILELOCK, FILEUNLOCK, GETLOCKS and RECORDLOCKED() still end in net_refuse",
+       ordered(ore, "if (fvar->type == NET_FILE) {", "if (!fvar->access.net.write)", "net_refuse(fvar, \"RELEASE\")", "process.txn_id == 0 && id_len > 0 && id_len <= NET_ID_MAX", "net_release(fvar, id, id_len);",
+               "k_dismiss();", "k_dismiss();", "(e_stack++)->data.value = 0;", "return;")
+       and ordered(orf, "if (fvar->type == NET_FILE) {", "if (!fvar->access.net.write)", "net_refuse(fvar, \"RELEASE\")", "if (process.txn_id == 0)", "net_release(fvar, NULL, 0);", "k_dismiss();",
+                   "(e_stack++)->data.value = 0;", "return;")
+       and "net_raise" not in ore + orf + ora and ordered(ora, "if (process.txn_id == 0) {", "net_release_all();", "unlock_record(NULL")
+       and all("NET_FILE" in fn("op_lock.c", x) for x in ("check_lock", "lock_record", "unlock_record"))
+       and all("net_refuse(" in fn("op_lock.c", x) for x in ("op_filelock", "op_flunlock", "op_getlocks", "op_reclckd")), "")
+
+    # ---- S2u. FILEINFO, the mode and the S.64 key (spec 2.5, 5.5)
+    fi = fn("op_dio2.c", "op_fileinfo")
+    br = seg(fi, "if (ftype == NET_FILE) {", "fptr = FPtr(fvar->file_id);", include_end=False)
+    ck("S2u FILEINFO of a NET_FILE (spec 2.5): FL$READONLY answers the variable's OWN flag ((fvar->flags & FV_RDONLY) != 0: 1 for a read-mode server, 0 for write); FL$SETRDONLY sets FV_RDONLY only for an "
+       "$internal program and answers 0 (net_gate then refuses every change); FL$NON.TXN and FL$NETFILE stay 1 and FL$TXN.UPDATE 0; the branch still reads no FPtr",
+       br != "" and "FPtr(" not in br and ordered(br, "case FL_READONLY:", "n = ((fvar->flags & FV_RDONLY) != 0);", "goto set_integer;", "case FL_NON_TXN:", "case FL_NETFILE:", "n = 1;")
+       and ordered(br, "case FL_SETRDONLY:", "if (process.program.flags & HDR_INTERNAL)", "fvar->flags |= FV_RDONLY;", "n = 0;", "goto set_integer;")
+       and re.search(r"case FL_TXN_UPDATE:\s*\n\s*case FL_INDEX_SCAN:\s*\n\s*n = 0;", br) is not None, "")
+    kio = fn("op_sh.c", "edit_kind_of_net_name")
+    ck("S2v THE EDIT KIND OF A REMOTE NAME (spec 5.5, 7): op_sh.c defines edit_kind_of_net_name once - `dict ` in front is a dictionary, otherwise edit_kind_of_name (voc, *.dic, bp, bp.out, *.bp, *.bp.out); "
+       "it does NOT use edit_kind_of_path (its private-catalogue test resolves against the working directory, wrong for a remote name); sd.h declares it; net_open_work stores it in the file variable AFTER the "
+       "union is zeroed; and the union member holds the two u_char after the server name without growing (the layout is 16 + 2 + 2 + NET_SERVER_LEN + 1 + 2 bytes, 39, in the same 40 byte aligned size as before)",
+       kio != "" and ordered(kio, "strncasecmp(name, \"dict \", 5) == 0", "return EDIT_DICT;", "return edit_kind_of_name(name);") and "edit_kind_of_path" not in kio and "getcwd" not in kio
+       and c_header(shc, "edit_kind_of_net_name") == "intedit_kind_of_net_name(constchar*)" == c_proto(sdh, "edit_kind_of_net_name")
+       and ordered(fn("netfiles.c", "net_open_work"), "memset(&fvar->access, 0, sizeof(fvar->access));", "fvar->access.net.edit_kind = (u_char)edit_kind_of_net_name(file);")
+       and (lambda n: n is not None and (16 + 2 + 2 + int(n.group(1)) + 1 + 2 + 7) // 8 * 8 == (16 + 2 + 2 + int(n.group(1)) + 1 + 7) // 8 * 8 == 40)(re.search(r"#define\s+NET_SERVER_LEN\s+(\d+)", dsc)), "")
+    ke = seg(kn_, "case K_EDIT_OK:", "case K_EDIT_OS_OK:")
+    kj = seg(kn_, "case K_NET:", "case K_EDIT_OK:")
+    ck("S2w K_EDIT_OK and K_EDIT_KIND take the FILE VARIABLE of a remote file as well as a pathname (spec 5.5): when the argument is a file reference (FILE_REF, k_get_file) of a NET_FILE the kind is the "
+       "file variable's access.net.edit_kind and K_EDIT_OK is the administrator, or kind EDIT_NONE, or edit_permitted(kind); any OTHER file variable is refused (0) - a gate that fails open is decoration; a "
+       "string argument behaves as before. K_NET -2 from a $internal program saves process.status, sends the queued closes (net_flush_closes) and gives the status back, and answers the gate as -1 does; "
+       "from any other program -2 is -1 (the ask form); net_flush_closes is called nowhere else",
+       ke != "" and ordered(ke, "if (descr->type == FILE_REF) {", "descr->data.fvar", "edit_fvar->type == NET_FILE", "access.net.edit_kind", "USR_ADMIN", "EDIT_NONE", "edit_permitted(",
+                            "break;", "edit_ok_for_path(edit_name)", "edit_kind_of_path(edit_name)")
+       and re.search(r"else\s+result\.data\.value = [\w>.\-]*kind[\w]*;", ke) is not None            # K_EDIT_KIND answers the kind
+       and re.search(r"if \(action == K_EDIT_OK\) \{\s*if \(my_uptr->flags & USR_ADMIN\)\s*result\.data\.value = 1;\s*else if \(edit_fvar->type == NET_FILE\)\s*"
+                     r"result\.data\.value = \(\(edit_fkind == EDIT_NONE\) \|\| edit_permitted\(edit_fkind\)\) \? 1 : 0;\s*\} else\s*result\.data\.value = edit_fkind;\s*break;", ke) is not None   # the whole file-variable arm, as one shape
+       and kj != "" and ordered(kj, "(n == -2)", "process.program.flags & HDR_INTERNAL", "n = process.status;", "net_flush_closes();", "process.status = n;", "result.data.value = (my_uptr->gates & UG_NET) != 0;", "break;")
+       and re.search(r"if \(\(n == -2\) && \(process\.program\.flags & HDR_INTERNAL\)\) \{\s*n = process\.status;\s*net_flush_closes\(\);\s*process\.status = n;\s*"
+                     r"result\.data\.value = \(my_uptr->gates & UG_NET\) != 0;\s*break;\s*\}", kj) is not None      # the -2 branch as one shape: only a $internal program, and the answer is the gate
+       and kn_.count("net_flush_closes()") == 1 and sum(t.count("net_flush_closes(") for k, t in c.items() if (k.endswith(".c") or k.startswith("c:")) and k not in ("netfiles.c", "op_kernel.c")) == 0, "")
+    ck("S2x CPROC and edit_guard (spec 3.9): para.reset.environment calls kernel(K$NET, -2) as the very next line after the OS path cache flush (so a lock does not outlive its file variable at the "
+       "prompt) and nowhere else; edit_guard, in the branch where the file has no pathname and BEFORE the administrator test, asks for a file on another server (fileinfo FL$NETFILE) and then K$EDIT.OK and "
+       "K$EDIT.KIND of the FILE VARIABLE, clamps the kind to 1 to 3 and shows message 11404 + kind (11405 to 11407); a local file has FL$NETFILE 0 and takes the old path",
+       re.search(r"para\.reset\.environment:\s*\n\s*i = ospath\(\"\", os\$flush\.cache\)\s*\n\s*void kernel\(K\$NET, -2\)", cp) is not None and cp.count("kernel(K$NET, -2)") == 1
+       and ordered(eg, "p = fileinfo(f, FL$PATH)", "if p = '' then", "if fileinfo(f, FL$NETFILE) then", "if kernel(K$EDIT.OK, f) then return @true", "kind = kernel(K$EDIT.KIND, f)",
+                   "if kind < 1 or kind > 3 then kind = 1", "display sysmsg(11404 + kind)", "return @false", "end", "if kernel(K$ADMINISTRATOR, -1) then return @true", "display sysmsg(11410)")
+       and re.search(r"if fileinfo\(f, FL\$NETFILE\) then\s*if kernel\(K\$EDIT\.OK, f\) then return @true\s*kind = kernel\(K\$EDIT\.KIND, f\)\s*if kind < 1 or kind > 3 then kind = 1\s*"
+                     r"display sysmsg\(11404 \+ kind\)\s*return @false\s*end\s*if kernel\(K\$ADMINISTRATOR, -1\) then return @true", eg) is not None, "")      # the remote branch as one shape
+
+    # ---- S2y. messages, history, the suite
+    ck("S2y U10 messages 11509 to 11512 exist with EXACTLY the texts of the spec (one line each; the 231 byte bound once expanded is test-msglen-units.py's), 11513 to 11519 do not exist",
+       all((srcs.get("msg:%d" % n) or "").rstrip("\n") == t for n, t in S2_MSG_TEXTS.items())
+       and all(srcs.get("msg:%d" % n) is None for n in range(11513, 11520)), repr([n for n, t in S2_MSG_TEXTS.items() if (srcs.get("msg:%d" % n) or "").rstrip("\n") != t]))
+    consts = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+((?:NETG|NET_LOCK|NET_ID)_[A-Z]+)\s+(\d+)\b", sdh)}
+    mid = re.search(r"\$define\s+MAX\.ID\.LEN\s+(\d+)", c["syscom/keys.h"])
+    ck("S2zb sd.h's constants for the entry points (spec 1.4): the statement kinds NETG_WRITE 1, NETG_DELETE 2, NETG_CLEAR 3, NETG_LOCK 4; the answers of net_lock_step NET_LOCK_HELD 0, NET_LOCK_WAIT 1, "
+       "NET_LOCK_LOCKED 2; NET_ID_MAX 63, which is the class's MAX.ID.LEN (syscom/keys.h) - the id a remote file can hold, tested before anything is sent",
+       consts == {"NETG_WRITE": 1, "NETG_DELETE": 2, "NETG_CLEAR": 3, "NETG_LOCK": 4, "NET_LOCK_HELD": 0, "NET_LOCK_WAIT": 1, "NET_LOCK_LOCKED": 2, "NET_ID_MAX": 63}
+       and mid is not None and int(mid.group(1)) == consts.get("NET_ID_MAX"), repr(consts))
+    suite = srcs["sandbox-netfile.py"]
+    drv = suite[suite.find("NFH_DRIVER = r"):suite.find("NFH_SUB = r")]
+    ck("S2za THE SUITE sandbox-netfile.py (spec 10 and 11): nfw and nfwb are defined MODE WRITE and nfa and nfb are not (the read-mode control stays as it was); the handler's driver calls the new operations "
+       "and its prefix T makes a call inside BEGIN TRANSACTION; the marks of a record or an id are typed as place holders; the wire of the write rows is checked against encoders written in the suite from "
+       "the spec (W_WRITE, W_DEL, W_LOCK - flags 3 and 2, the no-wait forms -, W_REL, W_CLEAR); the lock table is WATCHED during a session and a holder is let go a fixed time after the first lock request; the "
+       "sections hwrite and kwrite run after timeout and before kernel and gaps; the refusal matrix KM and KALLOWED stand as they were",
+       re.search(r'define\("nfw", A\.port, pa, [^\n]*mode="write"\)', suite) is not None and re.search(r'define\("nfa", A\.port, pa, "[^"]*", alA\)\n', suite) is not None
+       and re.search(r'define\("nfb", B\.port, pb, "[^"]*", alB\)\n', suite) is not None and re.search(r'define\("nfwb", B\.port, pb, [^\n]*mode="write"\)', suite) is not None
+       and re.search(r"if nm\[1,1\] = 'T' then\s*\n\s*intxn = @true", drv) is not None and "begin transaction" in drv and all(re.search(r"op = %s\b" % re.escape(k).replace(r"\$", "[$]"), drv) for k in ("NF$WRITEU", "NF$DELETEU", "NF$RELEASE"))
+       and "change(b, '<F>', @fm)" in drv and "change(c, '<F>', @fm)" in drv and "NM_RX" in suite
+       and "struct.pack(\"<h\", 3 if upd else 2)" in suite and all(("def %s(" % f) in suite for f in ("W_WRITE", "W_DEL", "W_LOCK", "W_REL", "W_CLEAR", "W_RLK", "W_READ", "wreset", "hw_go"))
+       and "class LockWatch(" in suite and "class HolderRelease(" in suite and re.search(r"time\.sleep\(self\.delay\)\s*\n\s*self\.srv\.store\.drop_user\(self\.userno\)", suite) is not None
+       and "30 in ses.requests" in suite
+       and suite.find('("timeout", timeout_section)') < suite.find('("hwrite", hwrite_section)') < suite.find('("kwrite", kwrite_section)') < suite.find('("kernel", kernel_section)') < suite.find('("gaps", gaps_section)')
+       and 'KALLOWED = {47, 48, 3, 4, 5, 6, 1}' in suite and 'km("write", "write \'zz\' to f, \'c1\'"' in suite and 'km("recordlocku"' in suite and 'km("release"' in suite
+       and 'KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 34}' in suite, "")
+    texts_ = {n: (srcs.get(n) or "") for n in ("netfiles.c", "sd.h", "op_dio2.c", "op_dio3.c", "op_lock.c", "bp:netfile", "bp:netfile.h", "sandbox-netfile.py", "netfake.py")}
+    lack = [n for n, t in texts_.items() if not re.search(r"18 Oct 26 dm\s+S\.65 slice 3e", t)]
+    ck("S2z the dated history lines are there: every file slice 3e changed says `18 Oct 26 dm  S.65 slice 3e` (%d files here; the six others are checked with their own checks), and this check's own file says so"
+       % len(texts_), not lack and "slice 3e" in (__doc__ or "") and "S2" in (__doc__ or ""), repr(lack))
 
 
 def mutate(srcs, name, old, new=None):
@@ -2755,7 +3171,7 @@ mut("read.packet's header read waits for ever", SCL, "      s = read.socket(skt,
     "      s = read.socket(skt, n, SKT$BLOCKING, 0)\n      if status() then return @false\n      pkt.header := s")
 mut("read.packet's data read waits for ever", SCL, "      s = read.socket(skt, n, SKT$BLOCKING, io.ms)\n      if status() then return @false\n      if debugging then",
     "      s = read.socket(skt, n, SKT$BLOCKING, 0)\n      if status() then return @false\n      if debugging then")
-mut("create.object does not start io.ms", SCL, "   debugging = @false\n   io.ms = 0\nend", "   debugging = @false\nend")
+mut("create.object does not start io.ms", SCL, rx(r"(public subroutine create\.object\n(?:[^\n]*\n){0,6}?)   io\.ms = 0\n", r"\1"))
 mut("settimeout takes a negative", SCL, "if not(num(ms)) or ms < 0 then abort 'Illegal timeout'", "if not(num(ms)) then abort 'Illegal timeout'")
 mut("settimeout does not set the bound", SCL, "   io.ms = ms + 0\nend", "   null\nend")
 mut("NET.CONNECT.SECS is 50", SCL, "$define NET.CONNECT.SECS  5 ", "$define NET.CONNECT.SECS  50")
@@ -2765,8 +3181,8 @@ mut("the class text for a pin mismatch changes", SCL, "'PIN MISMATCH: the public
 mut("the class text for a stale salt changes", SCL, "The server's salt is not the stored one: the stored login", "The server salt is not the stored one: the stored login")
 mut("sdclient's history line is gone", SCL, "* 17 Oct 26 dm S.65 slice 3a: connect.keys()", "* 17 Oct 26 dm slice 3a: connect.keys()")
 mut("sdclient's description does not list connect.keys", SCL, "* bool = obj->connect.keys(host, port, username, salt, iterations, client.key, server.key, account, pin)\n", "")
-mut("regress.sh does not list netfile", "regress.sh", ' editgates net netfile"', ' editgates net"')
-mut("regress.sh lists netfile twice", "regress.sh", ' editgates net netfile"', ' editgates net netfile netfile"')
+mut("regress.sh does not list netfile", "regress.sh", ' editgates net netfile ', ' editgates net ')
+mut("regress.sh lists netfile twice", "regress.sh", ' editgates net netfile ', ' editgates net netfile netfile ')
 mut("the map does not select netfile for sdclient", "regress-map.txt", "sdsys/gpl.bp/sdclient        : qmclient netfile net", "sdsys/gpl.bp/sdclient        : qmclient net")
 mut("the map does not select netfile for netcred", "regress-map.txt", "sdsys/gpl.bp/netcred         : net netfile", "sdsys/gpl.bp/netcred         : net")
 mut("the map does not select netfile for setnetlogin", "regress-map.txt", "sdsys/gpl.bp/setnetlogin     : net netfile", "sdsys/gpl.bp/setnetlogin     : net")
@@ -2807,7 +3223,7 @@ mut("the open is audited after the connection is made", NFP,
     lambda t: t.replace("   void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n\n   created = @false", "   created = @false", 1)
     .replace("   fno = obj->open(fname)\n", "   void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n   fno = obj->open(fname)\n", 1))
 mut("a refusal is not audited", NFP, "   void kernel(K$AUDIT, 'netfile refused server=' : safe : ' reason=' : refused.why)\n", "")
-mut("the open audit line names the pin", NFP, "' file=' : fname)\n\n   created", "' file=' : fname : ' pin=' : pin)\n\n   created")
+mut("the open audit line names the pin", NFP, "      void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n", "      void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname : ' pin=' : pin)\n")
 mut("the open audit line is in capitals", NFP, "'netfile open server='", "'NETFILE OPEN server='")
 mut("a refusal reason outside the six", NFP, "refused.why = 'credential' ; gosub refuse", "refused.why = 'secret' ; gosub refuse")
 mut("a refusal falls through without a return", NFP, "refused.why = 'list' ; gosub refuse\n         return\n", "refused.why = 'list' ; gosub refuse\n")
@@ -2820,7 +3236,7 @@ mut("the request bound is not given to the object", NFP, "   obj->settimeout(NF$
 mut("the request bound is 0", NFP, "$define NF$REQUEST.MS 30000", "$define NF$REQUEST.MS 0")
 mut("a refused operation calls a write method", NFP, "   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n",
     "   obj = nf.s.obj(nf.h.slot(hx))\n   obj->write(nf.h.fno(hx), b, c)\n   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n")
-mut("LOCK is no longer refused", NFP, "case op = NF$WRITE or op = NF$DELETE or op = NF$CLEARFILE or op = NF$LOCK", "case op = NF$WRITE or op = NF$DELETE or op = NF$CLEARFILE")
+mut("LOCK is no longer dispatched to act.change", NFP, "op = NF$DELETEU or op = NF$CLEARFILE or op = NF$LOCK\n         gosub act.change", "op = NF$DELETEU or op = NF$CLEARFILE\n         gosub act.change")
 mut("a read takes a lock", NFP, "rec = obj->read(nf.h.fno(hx), id, e)", "rec = obj->readu(nf.h.fno(hx), id, 0, e)")
 mut("the handler executes a command on the server", NFP, lambda t: t + "\n   obj->execute('x', e)\n")
 mut("the handler writes a file", NFP, lambda t: t + "\n   writeseq 'x' to f else null\n")
@@ -2835,10 +3251,10 @@ mut("a handle is not tied to its account", NFP, "      if nf.h.acct(hx) # acc th
 mut("the account is not stored with the handle", NFP, "   nf.h.acct(hx) = acc\n", "   nf.h.acct(hx) = ''\n")
 mut("the account is the log name", NFP, "   acc = downcase(@who)", "   acc = downcase(@logname)")
 mut("a request is sent without the no-reply mark", NFP, "   obj->ServerStatus = NF$NOREPLY\n   e = ''\n   rec = obj->read(", "   e = ''\n   rec = obj->read(")
-mut("a lost connection is not noticed", NFP, "   rq.lost = (st < 0)", "   rq.lost = (st = 0)")
-mut("the no-reply mark is 0", NFP, "$define NF$NOREPLY    -1", "$define NF$NOREPLY    0")
-mut("a lost connection is reconnected", NFP, "   gosub drop.conn\n   fail.num = 11497", "   gosub drop.conn\n   gosub connect.new\n   fail.num = 11497")
-mut("a lost connection is retried in a loop", NFP, "   gosub drop.conn\n   fail.num = 11497", "   gosub drop.conn\n   loop\n   until 1 do\n   repeat\n   fail.num = 11497")
+mut("a lost connection is not noticed", NFP, "   rq.lost = (st = NF$NOREPLY)", "   rq.lost = (st = 0)")
+mut("the no-reply mark is 0", NFP, "$define NF$NOREPLY    -2000000001", "$define NF$NOREPLY    0")
+mut("a lost connection is reconnected", NFP, "   gosub drop.conn\n   if changing then", "   gosub drop.conn\n   gosub connect.new\n   if changing then")
+mut("a lost connection is retried in a loop", NFP, "   gosub drop.conn\n   if changing then", "   gosub drop.conn\n   loop\n   until 1 do\n   repeat\n   if changing then")
 mut("a lost handle is let through", NFP, "      if allow.lost then return\n", "")
 mut("CLOSE of a lost handle is refused", NFP, "need.gate = @false ; need.conn = @false ; any.acct = @true ; allow.lost = @true", "need.gate = @false ; need.conn = @false ; any.acct = @true ; allow.lost = @false")
 mut("CLOSEALL asks the gate", NFP, "act.closeall:\n   for sx = 1", "act.closeall:\n   gosub check.gate\n   for sx = 1")
@@ -2913,9 +3329,9 @@ mut("the handler is not looked for first", NFC, "if (load_object(\"$netfile\", F
 mut("the handler is not marked as a trigger", NFC, "  process.program.flags |= PF_IS_TRIGGER;\n", "")
 mut("the handler's reference count is not given back", NFC, "if (returned && (--(hdr->ext_hdr.prog.refs) == 0) && (hdr->id < 0))", "if (returned && ((hdr->ext_hdr.prog.refs) == 0) && (hdr->id < 0))")
 mut("the handler is called with five arguments", NFC, "k_call(\"$netfile\", 6, NULL, 0);", "k_call(\"$netfile\", 5, NULL, 0);")
-mut("net_refuse flushes the queue (runs BASIC)", NFC, "  net_set_message(MSG_READ_ONLY, server, op, \"\");", "  net_flush_pending();\n  net_set_message(MSG_READ_ONLY, server, op, \"\");")
+mut("net_refuse flushes the queue (runs BASIC)", NFC, "  net_set_message(msg_no, server, op, \"\");", "  net_flush_pending();\n  net_set_message(msg_no, server, op, \"\");")
 mut("net_refuse does not lower case the statement", NFC, "op[i] = ((what[i] >= 'A') && (what[i] <= 'Z')) ? (char)(what[i] - 'A' + 'a') : what[i];", "op[i] = what[i];")
-mut("net_refuse returns 0", NFC, "  return net_raise(-ER_NETWORK, entry);\n}\n\n/* END-CODE */", "  return 0;\n}\n\n/* END-CODE */")
+mut("net_refuse returns 0", NFC, edit_func("net_refuse_with", r"  return net_raise\(status, entry\);", "  return 0;"))
 mut("net_refuse reads the server of any variable", NFC, "  if ((fvar != NULL) && (fvar->type == NET_FILE))\n    server = fvar->access.net.server;", "  server = fvar->access.net.server;")
 mut("the refusal message is another number", NFC, "#define MSG_READ_ONLY 11501", "#define MSG_READ_ONLY 11500")
 mut("net_close talks to the server for every release", NFC, "  if (explicit_close) {\n    explicit_close = FALSE;", "  if (1) {\n    explicit_close = FALSE;")
@@ -2928,11 +3344,11 @@ mut("net_close_all does not move the epoch", NFC, "  net_epoch++;\n", "")
 mut("net_close_all calls the handler even when nothing was opened", NFC, "  if (!net_used)\n    return;\n", "")
 mut("net_close_all keeps the queue", NFC, "  net_pending_ct = 0;\n  net_cache_drop(0);", "  net_cache_drop(0);")
 mut("net_op flushes before it asks whether the handle is stale", NFC,
-    lambda t: t.replace("  net_flush_pending();\n  ran = net_call_raw(op, hs,", "  ran = net_call_raw(op, hs,", 1)
+    lambda t: t.replace("  net_flush_pending();\n  ran = net_call_core(op, hs,", "  ran = net_call_core(op, hs,", 1)
     .replace("  if (net_stale(fvar)) {\n    snprintf(hs, sizeof(hs), \"%d\", (int)fvar->access.net.handle);\n    net_set_message(MSG_BAD_HANDLE", "  net_flush_pending();\n  if (net_stale(fvar)) {\n    snprintf(hs, sizeof(hs), \"%d\", (int)fvar->access.net.handle);\n    net_set_message(MSG_BAD_HANDLE", 1))
 mut("the type is set before the handler has answered", NFC, lambda t: t.replace("  fvar->type = NET_FILE;\n  net_used = TRUE;", "  net_used = TRUE;", 1).replace("  net_flush_pending();\n  ran = net_call_raw(NF_OPEN", "  fvar->type = NET_FILE;\n  net_flush_pending();\n  ran = net_call_raw(NF_OPEN", 1))
-mut("a NET_FILE may be written", NFC, "  fvar->flags |= FV_RDONLY | FV_NON_TXN;", "  fvar->flags |= FV_NON_TXN;")
-mut("a NET_FILE may be in a transaction", NFC, "  fvar->flags |= FV_RDONLY | FV_NON_TXN;", "  fvar->flags |= FV_RDONLY;")
+mut("a read-mode NET_FILE may be written", NFC, "  if (!fvar->access.net.write)\n    fvar->flags |= FV_RDONLY;\n", "")
+mut("a NET_FILE may be in a transaction", NFC, "  fvar->flags |= FV_NON_TXN;\n", "")
 mut("a NET_FILE has a file table entry", NFC, "  fvar->file_id = -1;\n  fvar->flags", "  fvar->file_id = 0;\n  fvar->flags")
 mut("the union is not zeroed", NFC, "  memset(&fvar->access, 0, sizeof(fvar->access));\n", "")
 mut("a handle may be \"3x\"", NFC, "if ((hs[i] < '0') || (hs[i] > '9'))", "if (0)")
@@ -2979,8 +3395,8 @@ mut("op_filelock refuses AFTER it reads the file table", "op_lock.c",
         edit_func("op_filelock", r"if \(fvar->type == NET_FILE\)\s*net_refuse\(fvar, \"FILELOCK\"\);[^\n]*\n", "")(t)))
 mut("op_getlocks reads file_id before it refuses", "op_lock.c", lambda t: edit_func("op_getlocks", r"if \(descr->data\.fvar->type == NET_FILE\)\s*net_refuse\(descr->data\.fvar, \"GETLOCKS\"\);",
                                                                                     "file_id = descr->data.fvar->file_id;\n    net_refuse(descr->data.fvar, \"GETLOCKS\");")(t))
-mut("op_write refuses after the edit gate", "op_dio3.c", lambda t: edit_func("op_write", r"if \(refuse_net_file\(fvar, op_flags, keep_lock \? \"WRITEU\" : \"WRITE\"\)\)\s*goto exit_op_write;", "")(t)
-    .replace("    int edit_kind = edit_refusal(fvar);\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));", "    int edit_kind = edit_refusal(fvar);\n    if (refuse_net_file(fvar, op_flags, \"WRITE\"))\n      goto exit_op_write;\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));", 1))
+mut("op_write refuses after the edit gate", "op_dio3.c", lambda t: edit_func("op_write", r"if \(refuse_net_file\(fvar, op_flags, keep_lock \? \"WRITEU\" : \"WRITE\", NETG_WRITE\)\)\s*goto exit_op_write;", "")(t)
+    .replace("    int edit_kind = edit_refusal(fvar);\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));", "    int edit_kind = edit_refusal(fvar);\n    if (refuse_net_file(fvar, op_flags, \"WRITE\", NETG_WRITE))\n      goto exit_op_write;\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));", 1))
 # guards and supported statements
 mut("the file status of a NET_FILE reads the file table", "op_dio2.c", edit_func("get_file_status", r"if \(ftype == NET_FILE\)\s*return NULL;", ""))
 mut("the permissions log reads the file table of a NET_FILE", "k_error.c", edit_func("log_permissions_error", r"fvar->type == NET_FILE", "0"))
@@ -2996,7 +3412,7 @@ mut("a locking read of a NET_FILE is not refused", "op_dio3.c", "if ((fvar->type
 mut("READ of a NET_FILE has no case", "op_dio3.c", edit_func("read_record", r"case NET_FILE: \{", "case 77: {"))
 mut("the helper refuses every file", "op_dio3.c", "  if ((fvar == NULL) || (fvar->type != NET_FILE))\n    return FALSE;\n\n  process.op_flags", "  if (fvar == NULL)\n    return FALSE;\n\n  process.op_flags")
 mut("the helper takes a non-negative status", "op_dio3.c", "process.status = (st < 0) ? st : -ER_PERM;", "process.status = st;")
-mut("the helper gives net_refuse the whole op_flags", "op_dio3.c", "process.op_flags = op_flags & P_ON_ERROR; /* net_refuse() reads it", "process.op_flags = op_flags; /* net_refuse() reads it")
+mut("the helper gives net_gate the whole op_flags", "op_dio3.c", "process.op_flags = op_flags & P_ON_ERROR; /* net_gate() raises", "process.op_flags = op_flags; /* net_gate() raises")
 # the census scan
 mut("a new function reads a file variable", "op_dio4.c", lambda t: t + "\nvoid op_zzz() {\n  DESCRIPTOR* d = e_stack - 1;\n  k_get_file(d);\n}\n")
 mut("a new function in another kernel file reads a file variable", "c:op_seqio.c", lambda t: t + "\nvoid op_zzz() {\n  DESCRIPTOR* d = e_stack - 1;\n  k_get_file(d);\n}\n")
@@ -3120,7 +3536,7 @@ mut("net_cache_free leaves the entry in use", NFC, "  e->used = FALSE;\n}", "}")
 mut("net_cache_drop(0) drops only handle 0", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "(net_cache[i].handle == handle)")
 mut("net_cache_drop(h) drops nothing", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "(handle == 0)")
 mut("net_cache_drop(h) drops every handle", NFC, "((handle == 0) || (net_cache[i].handle == handle))", "1")
-mut("net_read consults the cache for a stale file variable", NFC, "  if (!net_stale(fvar)) {\n    NET_CACHE_ENTRY* hit", "  {\n    NET_CACHE_ENTRY* hit")
+mut("net_read consults the cache for a stale file variable", NFC, "  if (!net_stale(fvar) && !fvar->access.net.write) {\n    NET_CACHE_ENTRY* hit", "  if (!fvar->access.net.write) {\n    NET_CACHE_ENTRY* hit")
 mut("net_read serves an absent entry as another status", NFC, "      if (hit->absent)\n        return ER_RNF;", "      if (hit->absent)\n        return ER_FNF;")
 mut("net_read gives the cached chain itself", NFC, "*rec = (hit->rec != NULL) ? k_copy_string(hit->rec) : NULL;", "*rec = hit->rec;")
 mut("net_read caches an absent entry for any positive status", NFC, "    if (status == ER_RNF)\n      net_cache_put(fvar, id, id_len, NULL, TRUE);", "    net_cache_put(fvar, id, id_len, NULL, TRUE);")
@@ -3130,22 +3546,318 @@ mut("net_read never consults the cache", NFC, "NET_CACHE_ENTRY* hit = net_cache_
 mut("net_readv uses the cache", NFC, edit_func("net_readv", r"  status = net_op\(fvar, NF_READV", "  (void)net_cache_find(fvar, id, id_len);\n  status = net_op(fvar, NF_READV"))
 mut("net_select does not drop the handle's entries", NFC, "  net_cache_drop(fvar->access.net.handle); /* a new query is a new look at the file */\n", "")
 mut("net_select drops them after the request", NFC, lambda t: t.replace("  net_cache_drop(fvar->access.net.handle); /* a new query is a new look at the file */\n", "", 1).replace("  process.op_flags = entry;\n  if (status < 0)\n    return net_raise(status, entry);\n  if (status > 0)\n    return status;\n\n  s = net_take_string", "  net_cache_drop(fvar->access.net.handle);\n  process.op_flags = entry;\n  if (status < 0)\n    return net_raise(status, entry);\n  if (status > 0)\n    return status;\n\n  s = net_take_string", 1))
-mut("net_close does not drop the handle's entries", NFC, "  if (handle > 0)\n    net_cache_drop(handle);\n", "")
+mut("net_close does not drop the handle's entries", NFC, edit_func("net_close", r"  if \(handle > 0\)\s*net_cache_drop\(handle\);\n", ""))
 mut("net_close drops them after the stale test", NFC, "  if (handle > 0)\n    net_cache_drop(handle);\n  if (net_stale(fvar))\n    return;", "  if (net_stale(fvar))\n    return;\n  if (handle > 0)\n    net_cache_drop(handle);")
-mut("net_close drops handle 0, which is everything", NFC, "  if (handle > 0)\n    net_cache_drop(handle);", "  net_cache_drop(handle);")
+mut("net_close drops handle 0, which is everything", NFC, edit_func("net_close", r"  if \(handle > 0\)\s*net_cache_drop\(handle\);", "  net_cache_drop(handle);"))
 mut("net_close_all keeps the cache", NFC, "  net_cache_drop(0);\n", "")
 mut("net_close_all drops the cache only when something was opened", NFC, "  net_cache_drop(0);\n\n  if (!net_used)\n    return;\n", "\n  if (!net_used)\n    return;\n  net_cache_drop(0);\n")
 mut("a second place drops the cache", NFC, lambda t: t + "\nvoid zz_drop(void) {\n  net_cache_drop(0);\n}\n")
 # K_NET
 mut("K_NET never closes the remote files", "op_kernel.c", "          net_close_all();\n", "")
 mut("K_NET's ask form closes the remote files", "op_kernel.c", "      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND", "      net_close_all();\n      result.data.value = (my_uptr->gates & UG_NET) != 0;\n      break;\n\n    /* K_EDIT_OK / K_EDIT_KIND")
-mut("K_NET closes the remote files for a caller that is not $internal", "op_kernel.c", "          net_close_all();\n          process.status = n;\n          break;\n        }\n      }\n", "          process.status = n;\n          break;\n        }\n        net_close_all();\n      }\n")
+mut("K_NET closes the remote files for a caller that is not $internal", "op_kernel.c", rx(r"          net_close_all\(\);\n          process\.status = n;\n          break;\n        \}\n", "          process.status = n;\n          break;\n        }\n        net_close_all();\n"))
 mut("K_NET closes the remote files before it changes the gate", "op_kernel.c", lambda t: t.replace("          net_close_all();\n", "", 1).replace("          if (n > 0)\n            my_uptr->gates |= UG_NET;", "          net_close_all();\n          if (n > 0)\n            my_uptr->gates |= UG_NET;", 1))
 mut("K_NET does not save the caller's STATUS()", "op_kernel.c", "          n = process.status; /* the handler is BASIC and leaves its own STATUS() behind; the caller's is given back */\n", "")
-mut("K_NET does not give the caller's STATUS() back", "op_kernel.c", "          process.status = n;\n          break;", "          break;")
+mut("K_NET does not give the caller's STATUS() back", "op_kernel.c", rx(r"          process\.status = n;\n          break;", "          break;"))
 mut("K_NET uses descr after the handler ran", "op_kernel.c", "          process.status = n;\n          break;", "          process.status = n;\n          result.data.value = descr->data.value;\n          break;")
 mut("K_NET computes the answer after the handler ran", "op_kernel.c", lambda t: t.replace("          result.data.value = (my_uptr->gates & UG_NET) != 0;\n          n = process.status;", "          n = process.status;", 1).replace("          net_close_all();\n          process.status = n;\n", "          net_close_all();\n          process.status = n;\n          result.data.value = (my_uptr->gates & UG_NET) != 0;\n", 1))
-mut("K_NET falls through after the close", "op_kernel.c", "          process.status = n;\n          break;\n        }\n      }\n      result.data.value", "          process.status = n;\n        }\n      }\n      result.data.value")
+mut("K_NET falls through after the close", "op_kernel.c", rx(r"          process\.status = n;\n          break;\n        \}\n", "          process.status = n;\n        }\n"))
+
+# ---- 18 Oct 26, slice 3e: writes and locks (S2a to S2z and the checks rewritten for it) --------------------------------------------------------------
+M3E_START = len(M)         # the mutants from here on are slice 3e's
+SH, OLK, D3, D2, KRN, EGD, CPR = "op_sh.c", "op_lock.c", "op_dio3.c", "op_dio2.c", "op_kernel.c", "bp:edit_guard", "bp:cproc"
+# ---- the codes and the messages
+mut("netfile.h: NF$WRITEU is 15 (DELETEU's)", NFHD, rx(r"(\$define\s+NF\$WRITEU\s+)14", r"\g<1>15"))
+mut("netfile.h: NF$DELETEU is 17", NFHD, rx(r"(\$define\s+NF\$DELETEU\s+)15", r"\g<1>17"))
+mut("netfile.h: NF$RELEASE is 17", NFHD, rx(r"(\$define\s+NF\$RELEASE\s+)16", r"\g<1>17"))
+mut("netfile.h: NF$RC.LOCKED is 5", NFHD, rx(r"(\$define\s+NF\$RC\.LOCKED\s+)4", r"\g<1>5"))
+mut("netfile.h: NF$LOCK is 18", NFHD, rx(r"(\$define\s+NF\$LOCK\s+)12", r"\g<1>18"))
+mut("netfiles.c: NF_WRITEU is 13 (STATE's)", NFC, rx(r"(#define\s+NF_WRITEU\s+)14", r"\g<1>13"))
+mut("netfiles.c: NF_DELETEU is 16", NFC, rx(r"(#define\s+NF_DELETEU\s+)15", r"\g<1>16"))
+mut("netfiles.c: NF_RELEASE is 17", NFC, rx(r"(#define\s+NF_RELEASE\s+)16", r"\g<1>17"))
+mut("netfiles.c: NF_RC_LOCKED is 5", NFC, rx(r"(#define\s+NF_RC_LOCKED\s+)4", r"\g<1>5"))
+mut("netfiles.c: NF_LOCK is 13", NFC, rx(r"(#define\s+NF_LOCK\s+)12", r"\g<1>13"))
+mut("netfiles.c: NF_WRITE is 8", NFC, rx(r"(#define\s+NF_WRITE\s+)9", r"\g<1>8"))
+mut("message 11509 changes its words", "msg:11509", lambda t: t.replace("not known whether", "unknown whether"))
+mut("message 11509 is gone", "msg:11509", lambda t: None)
+mut("message 11510 loses its server place", "msg:11510", lambda t: t.replace("server %1", "the server"))
+mut("message 11510 says allowed", "msg:11510", lambda t: t.replace("cannot be changed or locked", "may be changed or locked"))
+mut("message 11511 is gone", "msg:11511", lambda t: None)
+mut("message 11511 has a third place", "msg:11511", lambda t: t.rstrip("\n") + " %3\n")
+mut("message 11512 takes two lines", "msg:11512", lambda t: t.rstrip("\n") + "\nsecond line\n")
+mut("message 11513 exists", "msg:11513", lambda t: "x\n")
+mut("the handler cites 11511", NFP, "fail.num = 11512 ; fail.a1 = srvname ; fail.a2 = out.txt", "fail.num = 11511 ; fail.a1 = srvname ; fail.a2 = out.txt")
+mut("another program cites 11510", "bp:cd", lambda t: t + "\n   crt sysmsg(11510)\n")
+# ---- the handler: the mode
+mut("act.open takes the mode from field 7", NFP, "if defs<found,6> = 'write' then fmode = 'write'", "if defs<found,7> = 'write' then fmode = 'write'")
+mut("act.open: the default mode is write", NFP, "   fmode = 'read'\n   if defs<found,6> = 'write' then fmode = 'write'", "   fmode = 'write'\n   if defs<found,6> = 'write' then fmode = 'write'")
+mut("act.open: any mode but read is write", NFP, "if defs<found,6> = 'write' then fmode = 'write'", "if defs<found,6> # 'read' then fmode = 'write'")
+mut("act.open: rc<7> is never set", NFP, "   if fmode = 'write' then rc<7> = 1\n", "")
+mut("act.open: rc<7> is always set", NFP, "   if fmode = 'write' then rc<7> = 1\n", "   rc<7> = 1\n")
+mut("act.open: the mode is not kept for the handle", NFP, "   nf.h.mode(hx) = fmode\n", "")
+mut("act.open: the read audit line says mode=read", NFP, "      void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname)\n", "      void kernel(K$AUDIT, 'netfile open server=' : srv : ' file=' : fname : ' mode=read')\n")
+mut("act.open: the write audit line has no mode", NFP, " : ' mode=write')", ")")
+mut("act.open: the mode is decided before the accounts list", NFP, "   fmode = 'read'\n   if defs<found,6> = 'write' then fmode = 'write'\n", "")
+mut("clear.handle keeps the mode", NFP, "   nf.h.mode(hy) = ''\n", "")
+mut("clear.handle keeps the audit letters", NFP, "   nf.h.aud(hy) = ''\n", "")
+mut("the common block has no mode array", NFP, "nf.h.mode(NF$MAX.HANDLES),", "nf.h.modeq(NF$MAX.HANDLES),")
+mut("mode.now starts true", NFP, "   mode.ok = @false\n   defs = ''", "   mode.ok = @true\n   defs = ''")
+mut("mode.now accepts any mode but read", NFP, "if defs<dx,6> = 'write' then mode.ok = @true", "if defs<dx,6> # 'read' then mode.ok = @true")
+mut("mode.now does not look at the server's name", NFP, " and defs<dx,1> = nf.h.srv(hx) then", " then")
+mut("mode.now takes a short definition", NFP, "if dcount(defs<dx>, @vm) = 8 and defs<dx,1> = nf.h.srv(hx) then", "if defs<dx,1> = nf.h.srv(hx) then")
+mut("mode.now is never asked", NFP, "   gosub mode.now\n   if not(mode.ok) then", "   mode.ok = @true\n   if not(mode.ok) then")
+mut("the handle's own mode is not tested", NFP, "   if nf.h.mode(hx) # 'write' then\n      gosub act.refuse\n      return\n   end", "   if 0 then\n      gosub act.refuse\n      return\n   end")
+mut("the refusal for the definition is audited directly", NFP, "      aud.line = 'netfile refused server=' : srvname : ' reason=mode'\n      gosub audit.once\n", "      void kernel(K$AUDIT, 'netfile refused server=' : srvname : ' reason=mode')\n")
+mut("the refusal for the definition is not audited", NFP, "      aud.line = 'netfile refused server=' : srvname : ' reason=mode'\n      gosub audit.once\n", "")
+mut("the transaction is not tested by the handler", NFP, "   if system(SYS$TRANS_LEVEL) # 0 then", "   if 0 then")
+mut("the handler tests the transaction with the wrong word", NFP, "if system(SYS$TRANS_LEVEL) # 0 then", "if system(1007) # 0 then")
+mut("an empty id is not an error for a change", NFP, "check.id.chg:\n   id = b\n   if id = '' then", "check.id.chg:\n   id = b\n   if 0 then")
+mut("a lock kind is not checked", NFP, "      if c # 'l' and c # 'u' then", "      if 0 then")
+mut("a lock kind is checked case blind", NFP, "      if c # 'l' and c # 'u' then", "      if downcase(c) # 'l' and downcase(c) # 'u' then")
+mut("CLEARFILE is given an id check", NFP, "   if op # NF$CLEARFILE then\n      gosub check.id.chg", "   if 1 then\n      gosub check.id.chg")
+# ---- the handler: the requests
+mut("a lock may wait on the server", NFP, "obj->recordlock(nf.h.fno(hx), id, upd, @false)", "obj->recordlock(nf.h.fno(hx), id, upd, @true)")
+mut("a lock is always an update lock", NFP, "      upd = (c = 'u')", "      upd = @true")
+mut("a change is sent twice", NFP, "         obj->write(nf.h.fno(hx), id, c)\n", "         obj->write(nf.h.fno(hx), id, c)\n         obj->write(nf.h.fno(hx), id, c)\n")
+mut("WRITEU is sent as WRITE", NFP, "obj->writeu(nf.h.fno(hx), id, c)", "obj->write(nf.h.fno(hx), id, c)")
+mut("DELETEU is sent as DELETE", NFP, "obj->deleteu(nf.h.fno(hx), id)", "obj->delete(nf.h.fno(hx), id)")
+mut("a change is sent without the no-reply mark", NFP, "         obj->ServerStatus = NF$NOREPLY\n         obj->deleteu(", "         obj->deleteu(")
+mut("CLEARFILE has no long bound", NFP, "         obj->settimeout(NF$CLEAR.MS)\n", "")
+mut("CLEARFILE keeps its long bound", NFP, "      if not(rq.lost) then obj->settimeout(NF$REQUEST.MS)\n", "")
+mut("NF$CLEAR.MS is 30000", NFP, rx(r"(\$define NF\$CLEAR\.MS\s+)300000", r"\g<1>30000"))
+mut("a missing reply (LastError -1) is not lost", NFP, "   if lerr = -1 then rq.lost = @true\n", "")
+mut("a change that got no reply is 11497", NFP, "      fail.num = 11509 ; fail.a1 = srvname ; fail.a2 = opname", "      fail.num = 11497 ; fail.a1 = srvname ; fail.a2 = opname")
+mut("a lock that got no reply is 11509", NFP, "   end else\n      fail.num = 11497", "   end else\n      fail.num = 11509")
+mut("a lost change is not audited", NFP, "      void kernel(K$AUDIT, 'netfile lost server=' : srvname : ' op=' : opname)\n", "")
+mut("a lost change is audited in capitals", NFP, "'netfile lost server='", "'NETFILE LOST server='")
+mut("the unsigned status is not made negative", NFP, "      if st > 2147483647 then st -= 4294967296\n", "")
+mut("the unsigned fix is off by one", NFP, "st -= 4294967296", "st -= 4294967295")
+mut("lost is decided by a sign test (the defect of the first 3e build: -3023 is a reply, not a lost connection)", NFP, "   rq.lost = (st = NF$NOREPLY)\n", "   rq.lost = (st < 0)\n")
+mut("an ON ERROR reply to a change shows the text", NFP, "      rq.txt = 'status ':rq.st\n      gosub server.fail\n      return\n   end\n   fail.num = 11504", "      gosub server.fail\n      return\n   end\n   fail.num = 11504")
+mut("a busy lock is a server error", NFP, "      gosub rc.locked\n      return", "      gosub server.fail\n      return")
+mut("a busy lock is not recognised", NFP, "   if op = NF$LOCK and lerr = NF$LE.LOCKED then", "   if 0 then")
+mut("any change may be busy", NFP, "   if op = NF$LOCK and lerr = NF$LE.LOCKED then", "   if lerr = NF$LE.LOCKED then")
+mut("rc.locked loses the holder", NFP, "   rc<1> = NF$RC.LOCKED\n   rc<6> = rq.st", "   rc<1> = NF$RC.LOCKED")
+mut("rc.locked is an ELSE", NFP, "   rc<1> = NF$RC.LOCKED", "   rc<1> = NF$RC.ELSE")
+mut("rc.locked sets failed", NFP, "   rc<6> = rq.st\n   return\n\n* ======================================================================\n* mode.now", "   rc<6> = rq.st\n   failed = @true\n   return\n\n* ======================================================================\n* mode.now")
+mut("NF$LE.LOCKED is 3", NFP, rx(r"(\$define NF\$LE\.LOCKED\s+)4", r"\g<1>3"))
+# ---- the handler: RELEASE and the quiet object
+mut("act.release asks the mode", NFP, "   opname = 'release'\n   release.all", "   gosub mode.now\n   opname = 'release'\n   release.all")
+mut("act.release refuses in a transaction", NFP, "   opname = 'release'\n   release.all", "   opname = 'release'\n   if system(SYS$TRANS_LEVEL) # 0 then return\n   release.all")
+mut("act.release audits", NFP, "   obj->release(nf.h.fno(hx), id)\n", "   void kernel(K$AUDIT, 'netfile release server=' : srvname)\n   obj->release(nf.h.fno(hx), id)\n")
+mut("act.release does not take 0 for every server", NFP, "      if len(a) <= 9 then release.all = (a + 0 = 0)", "      if len(a) <= 9 then release.all = @false")
+mut("release.every includes read-mode handles", NFP, "nf.h.slot(hy) = sx and nf.h.mode(hy) = 'write'", "nf.h.slot(hy) = sx")
+mut("a lost RELEASE is an error", NFP, "   obj->release(nf.h.fno(hx), id)\n   gosub after.rq\n   nf.requests += 1\n   if rq.lost then gosub drop.conn", "   obj->release(nf.h.fno(hx), id)\n   gosub after.rq\n   nf.requests += 1\n   if rq.lost then gosub lost.fail")
+mut("a RELEASE of a long id is sent", NFP, "   if len(id) > MAX.ID.LEN then\n      fail.num = 11503 ; fail.a1 = srvname ; fail.a2 = 'too long'\n      gosub fail\n      return\n   end\n   if vartype", "   if vartype")
+mut("the object is not quiet", NFP, "   obj->quiet = @true\n", "")
+mut("the object is made quiet after the bound is set", NFP, "   obj->quiet = @true\n   obj->settimeout(NF$REQUEST.MS)\n", "   obj->settimeout(NF$REQUEST.MS)\n   obj->quiet = @true\n")
+mut("a READ answered with ON ERROR is not an error", NFP, rx(r"case e = 1\n", "case e = 9\n"))
+mut("a SELECT answered with ON ERROR is not an error", NFP, "   if e = 1 then\n      rq.txt = 'status ':rq.st", "   if e = 9 then\n      rq.txt = 'status ':rq.st")
+mut("a second object is made for a write", NFP, lambda t: t + "\n   obj2 = object('!sdclient')\n")
+# ---- the handler: the audit
+mut("the write audit is in capitals", NFP, "'netfile write server='", "'NETFILE WRITE server='")
+mut("the delete audit names the id", NFP, "aud.line = 'netfile delete server=' : srvname : ' file=' : nf.h.file(hx)", "aud.line = 'netfile delete server=' : srvname : ' file=' : nf.h.file(hx) : ' id=' : id")
+mut("the write audit names the record", NFP, "aud.line = 'netfile write server=' : srvname : ' file=' : nf.h.file(hx)", "aud.line = 'netfile write server=' : srvname : ' file=' : nf.h.file(hx) : ' record=' : c")
+mut("CLEARFILE is audited once only", NFP, "      void kernel(K$AUDIT, 'netfile clear server=' : srvname : ' file=' : nf.h.file(hx))", "      aud.k = 'c' ; aud.line = 'netfile clear server=' : srvname : ' file=' : nf.h.file(hx) ; gosub audit.once")
+mut("a change names the credential in the audit", NFP, "aud.line = 'netfile write server=' : srvname : ' file=' : nf.h.file(hx)", "aud.line = 'netfile write server=' : srvname : ' file=' : nf.h.file(hx) : ' pin=' : pin")
+# ---- the kernel: netfiles.c
+mut("net_gate lets a read-mode handle through", NFC, edit_func("net_gate", r"if \(!fvar->access\.net\.write \|\| \(fvar->flags & FV_RDONLY\)\) \{", "if (0) {"))
+mut("net_gate ignores FV_RDONLY", NFC, edit_func("net_gate", r" \|\| \(fvar->flags & FV_RDONLY\)", ""))
+mut("net_gate lets CREATING.SEQKEY through", NFC, edit_func("net_gate", r"if \(\(kind == NETG_WRITE\) && \(op_flags & P_SEQKEY\)\) \{", "if (0) {"))
+mut("net_gate tests the transaction on the local txn_id", NFC, edit_func("net_gate", r"process\.txn_id != 0", "txn_id != 0"))
+mut("net_gate refuses a transaction with another status", NFC, edit_func("net_gate", r"MSG_TXN, -ER_TXN", "MSG_TXN, -ER_PERM"))
+mut("net_gate does not refuse a transaction", NFC, edit_func("net_gate", r"if \(process\.txn_id != 0\) \{", "if (0) {"))
+mut("net_gate does not ask the edit gate", NFC, edit_func("net_gate", r"if \(\(kind == NETG_WRITE\) \|\| \(kind == NETG_DELETE\) \|\| \(kind == NETG_CLEAR\)\) \{", "if (0) {"))
+mut("net_gate asks the edit gate for a lock", NFC, edit_func("net_gate", r"\(kind == NETG_CLEAR\)\) \{", "(kind == NETG_CLEAR) || (kind == NETG_LOCK)) {"))
+mut("net_gate does not exempt an $internal caller", NFC, edit_func("net_gate", r" && !\(process\.program\.flags & HDR_INTERNAL\)", ""))
+mut("net_gate does not exempt the administrator", NFC, edit_func("net_gate", r" && !\(my_uptr->flags & USR_ADMIN\)", ""))
+mut("net_gate refuses the edit gate with another status", NFC, edit_func("net_gate", r"net_raise\(-ER_PERM,", "net_raise(-ER_NETWORK,"))
+mut("net_gate names the dictionary message for every kind", NFC, edit_func("net_gate", r"11404 \+ ek", "11406"))
+mut("net_gate raises the edit refusal even with ON ERROR", NFC, edit_func("net_gate", r"net_raise\(-ER_PERM, op_flags & P_ON_ERROR\)", "net_raise(-ER_PERM, 0)"))
+mut("net_gate leaves process.op_flags changed", NFC, edit_func("net_gate", r"  process\.op_flags = entry;\n  return 0;", "  return 0;"))
+mut("net_gate runs BASIC", NFC, edit_func("net_gate", r"  int st;\n", "  int st;\n  net_flush_pending();\n"))
+mut("net_gate asks the edit kind of the wrong place", NFC, edit_func("net_gate", r"ek = fvar->access\.net\.edit_kind;", "ek = EDIT_VOC;"))
+mut("net_change_op does not drop the cache before the request", NFC, edit_func("net_change_op", r"  if \(handle > 0\)\n    net_cache_drop\(handle\);\n\n  net_was_locked", "  net_was_locked"))
+mut("net_change_op drops the cache after the raise", NFC, edit_func("net_change_op", r"  if \(handle > 0\)\n    net_cache_drop\(handle\);\n\n  if \(status < 0\)\n    return net_raise\(status, entry\);",
+                                                       "  if (status < 0)\n    return net_raise(status, entry);\n  if (handle > 0)\n    net_cache_drop(handle);"))
+mut("net_change_op drops the whole cache", NFC, edit_func("net_change_op", r"net_cache_drop\(handle\);", "net_cache_drop(0);", count=2))
+mut("net_change_op trusts the server's status", NFC, edit_func("net_change_op", r"  if \(!busy\)\n    process\.status = 0;", ""))
+mut("net_change_op takes an ELSE for a success", NFC, edit_func("net_change_op", r"if \(\(status > 0\) && !busy\) \{", "if (0) {"))
+mut("net_change_op sends the request again", NFC, edit_func("net_change_op", r"  busy = lock_op && net_was_locked;", "  busy = lock_op && net_was_locked;\n  if (status < 0)\n    status = net_op_ex(fvar, op, b, blen, c, clen, chain, use_chain, 0, lock_op, TRUE, &out);"))
+mut("net_change_op does not pass the server's status on", NFC, edit_func("net_change_op", r"lock_op, TRUE, &out\)", "lock_op, FALSE, &out)"))
+mut("net_answer understands the answer 4 for any statement", NFC, edit_func("net_answer", r"if \(!lock_ok\) \{", "if (0) {"))
+mut("net_answer forgets the holder", NFC, edit_func("net_answer", r"      process\.status = rc->status;\n      return ER_LCK;", "      return ER_LCK;"))
+mut("net_error_status passes the status for every statement", NFC, edit_func("net_error_status", r"if \(pass_status\)", "if (1)"))
+mut("net_passed_status loses ER_NOLOCK", NFC, edit_func("net_passed_status", r"    case ER_NOLOCK:\n", ""))
+mut("net_passed_status loses ER_MAXRLOCK", NFC, edit_func("net_passed_status", r"    case ER_MAXRLOCK:\n", ""))
+mut("net_passed_status passes a status as positive", NFC, edit_func("net_passed_status", r"      return -s;", "      return s;"))
+mut("net_op passes the status", NFC, edit_func("net_op", r"FALSE, FALSE, out\)", "FALSE, TRUE, out)"))
+mut("net_check_lock does not pass the status", NFC, edit_func("net_check_lock", r"FALSE, TRUE, &out\)", "FALSE, FALSE, &out)"))
+mut("net_parse_rc takes any non-zero mode for write", NFC, edit_func("net_parse_rc", r"\(atoi\(num\) == 1\)", "(atoi(num) != 0)"))
+mut("net_parse_rc does not read field 7", NFC, edit_func("net_parse_rc", r"  \(void\)net_field\(buf, 7, num, sizeof\(num\)\);\n", "  num[0] = '1'; num[1] = '\\0';\n"))
+mut("net_parse_rc refuses the answer 4", NFC, edit_func("net_parse_rc", r" && \(rc->result != NF_RC_LOCKED\)", ""))
+mut("net_write flattens the record", NFC, edit_func("net_write", r"id_len, \"\", 0, rec, TRUE, FALSE\)", "id_len, \"\", 0, NULL, FALSE, FALSE)"))
+mut("net_call_core does not count its reference to the chain", NFC, edit_func("net_call_core", r"    if \(cchain != NULL\)\n      \(cchain->ref_ct\)\+\+;\n", ""))
+mut("net_call_core flattens the chain", NFC, edit_func("net_call_core", r"  if \(use_chain\) \{\n", "  if (use_chain) {\n    (void)k_get_c_string(NULL, NULL, 0);\n"))
+mut("net_write accepts an id of 64", NFC, edit_func("net_write", r"id_len > NET_ID_MAX", "id_len > 64"))
+mut("net_delete accepts an empty id", NFC, edit_func("net_delete", r"\(id_len < 1\) \|\| ", ""))
+mut("net_lock waits on the server", NFC, edit_func("net_lock", r'update \? "u" : "l"', 'update ? "uw" : "lw"'))
+mut("net_lock_step does not sleep", NFC, edit_func("net_lock_step", r"  Sleep\(250\);\n", ""))
+mut("net_lock_step does not run the opcode again", NFC, edit_func("net_lock_step", r"  pc = retry_pc;\n", ""))
+mut("net_lock_step leaves process.op_flags set after a lock", NFC, edit_func("net_lock_step", r"  st = net_lock\(fvar, id, id_len, update\);\n  process\.op_flags = 0;", "  st = net_lock(fvar, id, id_len, update);"))
+mut("net_lock_step ignores the LOCKED clause", NFC, edit_func("net_lock_step", r"if \(op_flags & P_LOCKED\) \{", "if (0) {"))
+mut("net_lock_step raises with ON ERROR", NFC, edit_func("net_lock_step", r"process\.op_flags = op_flags & P_ON_ERROR;", "process.op_flags = 0;"))
+mut("net_lock_step loses the holder", NFC, edit_func("net_lock_step", r"holder = process\.status;", "holder = 0;"))
+mut("net_lock_step does not process events", NFC, edit_func("net_lock_step", r"    process_events\(\);", "    ;"))
+mut("net_release raises", NFC, edit_func("net_release", r"memcpy\(net_msg, msg_keep, sizeof\(net_msg\)\);", "(void)net_raise(-ER_NETWORK, entry);"))
+mut("net_release forgets the status", NFC, edit_func("net_release", r"  process\.status = status_keep;\n", ""))
+mut("net_release sends an id over NET_ID_MAX", NFC, edit_func("net_release", r"  if \(id_len > NET_ID_MAX\)\n    return;[^\n]*\n", ""))
+mut("net_release_all ignores net_used_write", NFC, edit_func("net_release_all", r"  if \(!net_used_write\)\n    return;\n", ""))
+mut("net_open_work never sets net_used_write", NFC, edit_func("net_open_work", r"    net_used_write = TRUE;", "    ;"))
+mut("net_close_all keeps net_used_write", NFC, edit_func("net_close_all", r"  net_used_write = FALSE;\n", ""))
+mut("net_flush_closes sends without a queue", NFC, edit_func("net_flush_closes", r"  if \(net_pending_ct == 0\)\n    return;\n\n", ""))
+mut("net_flush_closes forgets the status", NFC, edit_func("net_flush_closes", r"  process\.status = status_keep;\n", ""))
+mut("net_open_work: every handle is write", NFC, edit_func("net_open_work", r"rc\.mode_write \? 1 : 0", "1"))
+mut("net_open_work: a write handle is read only too", NFC, edit_func("net_open_work", r"  if \(!fvar->access\.net\.write\)\n    fvar->flags \|= FV_RDONLY;", "  fvar->flags |= FV_RDONLY;"))
+mut("net_open_work: a read handle is not read only", NFC, edit_func("net_open_work", r"  if \(!fvar->access\.net\.write\)\n    fvar->flags \|= FV_RDONLY;\n", ""))
+mut("net_open_work: no edit kind", NFC, edit_func("net_open_work", r"  fvar->access\.net\.edit_kind = \(u_char\)edit_kind_of_net_name\(file\);\n", ""))
+mut("net_open_work: the edit kind is that of the server name", NFC, edit_func("net_open_work", r"edit_kind_of_net_name\(file\)", "edit_kind_of_net_name(server)"))
+mut("net_read: a write-mode handle is cached", NFC, edit_func("net_read", r" && !fvar->access\.net\.write", ""))
+mut("net_refuse says read only on a write handle", NFC, edit_func("net_refuse", r"write \? MSG_UNAVAILABLE : MSG_READ_ONLY", "MSG_READ_ONLY"))
+mut("net_refuse says not available on a read handle", NFC, edit_func("net_refuse", r"write \? MSG_UNAVAILABLE : MSG_READ_ONLY", "MSG_UNAVAILABLE"))
+mut("MSG_UNAVAILABLE is 11512", NFC, rx(r"(#define MSG_UNAVAILABLE )11511", r"\g<1>11512"))
+mut("MSG_TXN is 11509", NFC, rx(r"(#define MSG_TXN )11510", r"\g<1>11509"))
+mut("sd.h: NETG_LOCK is 5", "sd.h", rx(r"(#define NETG_LOCK )4", r"\g<1>5"))
+mut("sd.h: NET_ID_MAX is 64", "sd.h", rx(r"(#define NET_ID_MAX )63", r"\g<1>64"))
+mut("sd.h: net_lock_step loses retry_pc", "sd.h", "bool update, u_int16_t op_flags, u_char * retry_pc);", "bool update, u_int16_t op_flags);")
+mut("sd.h: net_write takes a flat record", "sd.h", "int net_write(FILE_VAR * fvar, char * id, int16_t id_len, STRING_CHUNK * rec, bool keep_lock);", "int net_write(FILE_VAR * fvar, char * id, int16_t id_len, char * rec, bool keep_lock);")
+mut("sd.h loses net_gate", "sd.h", "int net_gate(FILE_VAR * fvar, int kind, u_int16_t op_flags, const char * what);\n", "")
+mut("sd.h loses edit_kind_of_net_name", "sd.h", rx(r"int edit_kind_of_net_name\(const char \* name\);[^\n]*\n", ""))
+mut("descr.h: the union member loses the write flag", "descr.h", rx(r"      u_char write;[^\n]*\n", ""))
+mut("descr.h: the edit kind comes before the write flag", "descr.h", lambda t: t.replace("      u_char write;", "      u_char edit_kind_tmp;", 1).replace("      u_char edit_kind;", "      u_char write;", 1).replace("      u_char edit_kind_tmp;", "      u_char edit_kind;", 1))
+mut("descr.h: the write flag is a word", "descr.h", rx(r"      u_char write;", "      int32_t write;"))
+# ---- the kernel: op_dio3.c, op_lock.c, op_dio2.c
+mut("refuse_net_file does not ask net_gate", D3, edit_func("refuse_net_file", r"st = net_gate\(fvar, kind, op_flags, what\);", "st = net_refuse(fvar, what);"))
+mut("refuse_net_file loses the kind", D3, edit_func("refuse_net_file", r"net_gate\(fvar, kind, op_flags, what\)", "net_gate(fvar, NETG_WRITE, op_flags, what)"))
+mut("refuse_net_file refuses everything", D3, edit_func("refuse_net_file", r"  if \(st == 0\)\n    return FALSE;\n\n", ""))
+mut("op_write: the NET arm takes the lock locally", D3, edit_func("op_write", r"net_pre_change_lock\(fvar, id, id_len, op_flags, retry_pc\)", "lock_record(fvar, id, id_len, TRUE, 0, FALSE)"))
+mut("op_write: an id over NET_ID_MAX is sent", D3, edit_func("op_write", r" \|\| \(id_len > NET_ID_MAX\)", ""))
+mut("op_write: the record is sent flat", D3, edit_func("op_write", r"net_write\(fvar, id, id_len, src_descr->data\.str\.saddr, keep_lock\)", "net_write(fvar, id, id_len, NULL, keep_lock)"))
+mut("op_write: the record is not made a string", D3, edit_func("op_write", r"    k_get_string\(src_descr\);\n\n    if \(!valid_id", "    if (!valid_id"))
+mut("op_write: the status of the call is lost", D3, edit_func("op_write", r"    process\.status = net_st;\n    goto exit_op_write;", "    goto exit_op_write;"))
+mut("op_write: the retry point is not taken", D3, edit_func("op_write", r"u_char \*retry_pc = op_pc;", "u_char *retry_pc = NULL;"))
+mut("op_write: the opcode sets pc itself", D3, edit_func("op_write", r"    process\.op_flags = op_flags & P_ON_ERROR;\n    net_st = net_write", "    pc = retry_pc;\n    process.op_flags = op_flags & P_ON_ERROR;\n    net_st = net_write"))
+mut("op_delete: the retry point is taken from pc", D3, edit_func("op_delete", r"u_char \*retry_pc = op_pc;", "u_char *retry_pc = pc;"))
+mut("op_delete: an id over NET_ID_MAX is sent", D3, edit_func("op_delete", r"    if \(id_len > NET_ID_MAX\) \{\n      process\.status = -ER_IID;\n      goto exit_op_delete;\n    \}\n", ""))
+mut("op_delete: the NET arm checks the local lock", D3, edit_func("op_delete", r"    switch \(net_pre_change_lock", "    (void)check_lock(fvar, id, id_len, 0);\n    switch (net_pre_change_lock"))
+mut("op_delete: a keep_lock DELETE is a plain one", D3, edit_func("op_delete", r"net_delete\(fvar, id, id_len, keep_lock\)", "net_delete(fvar, id, id_len, FALSE)"))
+mut("op_delete: the NET arm comes before the empty-id test", D3, edit_func("op_delete", r"  if \(id_len <= 0\) \{\n    process\.status = -ER_IID;\n    goto exit_op_delete; [^\n]*\n  \}\n", ""))
+mut("op_clrfile: the NET arm reads the file table", D3, edit_func("op_clrfile", r"    net_st = net_clear\(fvar\);", "    net_st = net_clear(fvar);\n    (void)FPtr(fvar->file_id);"))
+mut("op_clrfile: the status of the call is lost", D3, edit_func("op_clrfile", r"    process\.status = net_st;\n", ""))
+mut("net_pre_change_lock: MUSTLOCK is not honoured", D3, edit_func("net_pre_change_lock", r"  if \(pcfg\.must_lock\) \{", "  if (0) {"))
+mut("net_pre_change_lock: AUTOLOCK does not wait", D3, edit_func("net_pre_change_lock", r"      case NET_LOCK_WAIT:\n        return NETL_WAIT;", "      case NET_LOCK_WAIT:\n        return NETL_GO;"))
+mut("net_pre_change_lock: AUTOLOCK takes a shared lock", D3, edit_func("net_pre_change_lock", r"net_lock_step\(fvar, id, id_len, TRUE,", "net_lock_step(fvar, id, id_len, FALSE,"))
+mut("net_pre_change_lock: AUTOLOCK keeps the LOCKED clause", D3, edit_func("net_pre_change_lock", r"op_flags & ~P_LOCKED", "op_flags"))
+mut("net_pre_change_lock: a missing lock is another status", D3, edit_func("net_pre_change_lock", r"process\.status = -ER_NOLOCK;\n      return NETL_FAIL;\n    \}\n    if \(st < 0\)", "process.status = -ER_PERM;\n      return NETL_FAIL;\n    }\n    if (st < 0)"))
+mut("op_write does not wait for an AUTOLOCK", D3, edit_func("op_write", r"      case NETL_WAIT:\n        return;", "      case NETL_WAIT:\n        break;"))
+mut("read_record: a NET_FILE locks locally", D3, edit_func("read_record", r"\(op_flags & P_REC_LOCKS\) && \(fvar->type == NET_FILE\)\) \{\n", "(op_flags & P_REC_LOCKS) && (fvar->type == 99)) {\n"))
+mut("read_record: a busy remote lock is not waited for", D3, edit_func("read_record", r"        case NET_LOCK_WAIT:\n          return;", "        case NET_LOCK_WAIT:\n          break;"))
+mut("read_record: the operands are not found again", D3, edit_func("read_record", r"      net_reload_read_operands\(&rid_descr, &fvar_descr, &tgt_descr\);\n      if \(!matread\)\n        str_descr = tgt_descr;\n", ""))
+mut("read_record: LOCKED does not give ER_LCK", D3, edit_func("read_record", r"        case NET_LOCK_LOCKED:\n          status = ER_LCK;", "        case NET_LOCK_LOCKED:\n          status = 0;"))
+mut("read_record: the gate is asked as a write", D3, edit_func("read_record", r", NETG_LOCK\)\) \{", ", NETG_WRITE)) {"))
+mut("read_record: the retry point is not taken", D3, edit_func("read_record", r"u_char \*retry_pc = op_pc;", "u_char *retry_pc = NULL;"))
+mut("op_readv: a plain READV is gated", D3, edit_func("op_readv", r"\(op_flags & P_REC_LOCKS\) && refuse_net_file\(", "refuse_net_file("))
+mut("op_readv: READVU does not lock", D3, edit_func("op_readv", r"        if \(op_flags & P_REC_LOCKS\) \{\n          net_st = net_lock_step", "        if (0) {\n          net_st = net_lock_step"))
+mut("op_readv: a busy lock overwrites the holder", D3, edit_func("op_readv", r"          if \(net_st != ER_LCK\)\n            process\.status = net_st;", "          process.status = net_st;"))
+mut("op_readv: a wait does not leave", D3, edit_func("op_readv", r"            case NET_LOCK_WAIT:\n              return;", "            case NET_LOCK_WAIT:\n              break;"))
+mut("op_readv: the record is read after a busy lock", D3, edit_func("op_readv", r"        if \(net_st == 0\) \{\n          process\.op_flags = op_flags & P_ON_ERROR;", "        if (1) {\n          process.op_flags = op_flags & P_ON_ERROR;"))
+mut("op_lockrec: a read-mode handle reaches net_lock_step", OLK, edit_func("op_lockrec", r"if \(!fvar->access\.net\.write \|\| \(fvar->flags & FV_RDONLY\)\)", "if (0)"))
+mut("op_lockrec: the gate is not asked", OLK, edit_func("op_lockrec", r"status = net_gate\(fvar, NETG_LOCK, op_flags, update \? \"RECORDLOCKU\" : \"RECORDLOCKL\"\);", "status = 0;"))
+mut("op_lockrec: a busy record pushes 0", OLK, edit_func("op_lockrec", r"          status = ER_LCK;", "          status = 0;"))
+mut("op_lockrec: a wait does not return", OLK, edit_func("op_lockrec", r"        case NET_LOCK_WAIT: [^\n]*\n          return;", "        case NET_LOCK_WAIT:\n          break;"))
+mut("op_lockrec: the retry point is not taken", OLK, edit_func("op_lockrec", r"u_char\* retry_pc = op_pc;", "u_char* retry_pc = NULL;"))
+mut("op_lockrec: the remote wait uses pc--", OLK, edit_func("op_lockrec", r"        case NET_LOCK_WAIT: [^\n]*\n          return;", "        case NET_LOCK_WAIT:\n          pc--;\n          return;"))
+mut("op_lockrec: the flags are left set", OLK, edit_func("op_lockrec", r"      process\.op_flags = 0;\n    \}\n\n    k_dismiss\(\);", "    }\n\n    k_dismiss();"))
+mut("op_release: a read-mode handle is not refused", OLK, edit_func("op_release", r"    if \(!fvar->access\.net\.write\)\n      net_refuse\(fvar, \"RELEASE\"\);", ""))
+mut("op_release: the transaction is not looked at", OLK, edit_func("op_release", r"process\.txn_id == 0 && id_len > 0 && id_len <= NET_ID_MAX", "id_len > 0 && id_len <= NET_ID_MAX"))
+mut("op_release: an id over NET_ID_MAX is sent", OLK, edit_func("op_release", r" && id_len <= NET_ID_MAX", ""))
+mut("op_release: a failing RELEASE raises", OLK, edit_func("op_release", r"      net_release\(fvar, id, id_len\);", "      net_release(fvar, id, id_len);\n    (void)net_raise(-ER_NETWORK, 0);"))
+mut("op_rlsfile: the transaction is not looked at", OLK, edit_func("op_rlsfile", r"    if \(process\.txn_id == 0\)\n      net_release\(fvar, NULL, 0\);", "    net_release(fvar, NULL, 0);"))
+mut("op_rlsfile: a read-mode handle is not refused", OLK, edit_func("op_rlsfile", r"    if \(!fvar->access\.net\.write\)\n      net_refuse\(fvar, \"RELEASE\"\);", ""))
+mut("op_rlsall never lets the remote locks go", OLK, edit_func("op_rlsall", r"    net_release_all\(\);[^\n]*\n", ""))
+mut("op_rlsall lets them go outside the transaction test", OLK, edit_func("op_rlsall", r"  if \(process\.txn_id == 0\) \{\n    net_release_all\(\);[^\n]*\n", "  net_release_all();\n  if (process.txn_id == 0) {\n"))
+mut("op_filelock is not refused any more", OLK, edit_func("op_filelock", r"net_refuse\(", "(void)("))
+mut("lock_record loses its NET_FILE backstop", OLK, edit_func("lock_record", r"  if \(fvar->type == NET_FILE\)", "  if (0)"))
+mut("FILEINFO FL$READONLY is always 1 for a NET_FILE", D2, edit_func("op_fileinfo", r"n = \(\(fvar->flags & FV_RDONLY\) != 0\);", "n = 1;"))
+mut("FILEINFO FL$SETRDONLY is open to any program", D2, edit_func("op_fileinfo", r"          if \(process\.program\.flags & HDR_INTERNAL\)\n            fvar->flags \|= FV_RDONLY;", "          fvar->flags |= FV_RDONLY;"))
+mut("FILEINFO FL$SETRDONLY does nothing", D2, edit_func("op_fileinfo", r"            fvar->flags \|= FV_RDONLY;", "            ;"))
+# ---- op_sh.c, op_kernel.c, CPROC, edit_guard
+mut("edit_kind_of_net_name uses the path rule", SH, edit_func("edit_kind_of_net_name", r"return edit_kind_of_name\(name\);", "return edit_kind_of_path(name);"))
+mut("edit_kind_of_net_name does not know a dictionary", SH, edit_func("edit_kind_of_net_name", r"strncasecmp\(name, \"dict \", 5\) == 0", "0"))
+mut("edit_kind_of_net_name takes dict without the space", SH, edit_func("edit_kind_of_net_name", r"\"dict \", 5\)", "\"dict\", 4)"))
+mut("K_EDIT_OK of a file variable is open", KRN, "            result.data.value = ((edit_fkind == EDIT_NONE) || edit_permitted(edit_fkind)) ? 1 : 0;", "            result.data.value = 1;")
+mut("K_EDIT_OK of another file variable is open", KRN, "          else if (edit_fvar->type == NET_FILE)\n            result.data.value = ((edit_fkind", "          else\n            result.data.value = ((edit_fkind")
+mut("K_EDIT_KIND of a file variable answers 0", KRN, "        } else\n          result.data.value = edit_fkind;", "        } else\n          result.data.value = 0;")
+mut("K_EDIT_OK does not exempt the administrator", KRN, "          if (my_uptr->flags & USR_ADMIN)\n            result.data.value = 1;\n          else if (edit_fvar->type == NET_FILE)", "          if (edit_fvar->type == NET_FILE)")
+mut("K_NET -2 is open to any program", KRN, "if ((n == -2) && (process.program.flags & HDR_INTERNAL)) {", "if (n == -2) {")
+mut("K_NET -2 never flushes", KRN, "        net_flush_closes();\n", "")
+mut("K_NET -2 loses the caller's STATUS()", KRN, "        n = process.status;\n        net_flush_closes();\n        process.status = n;\n", "        net_flush_closes();\n")
+mut("K_NET -2 answers 0", KRN, "        process.status = n;\n        result.data.value = (my_uptr->gates & UG_NET) != 0;\n        break;", "        process.status = n;\n        result.data.value = 0;\n        break;")
+mut("CPROC forgets the flush", CPR, drop_line(r"void kernel\(K\$NET, -2\)"))
+mut("CPROC flushes before the OS path cache", CPR, rx(r"(   i = ospath\(\"\", os\$flush\.cache\)\n)(   void kernel\(K\$NET, -2\)[^\n]*\n)", r"\2\1"))
+mut("CPROC flushes twice", CPR, lambda t: t + "\n   void kernel(K$NET, -2)\n")
+mut("CPROC sets the gate to -2", CPR, "void kernel(K$NET, -2)", "void kernel(K$NET, 2)")
+mut("edit_guard asks the administrator first", EGD, rx(r"(   p = fileinfo\(f, FL\$PATH\)\n   if p = '' then\n(?:\*[^\n]*\n)*)(      if fileinfo\(f, FL\$NETFILE\) then.*?\n      end\n)(      if kernel\(K\$ADMINISTRATOR, -1\) then return @true\n)", r"\1\3\2", re.S))
+mut("edit_guard does not know a remote file", EGD, "      if fileinfo(f, FL$NETFILE) then", "      if 0 then")
+mut("edit_guard asks for a pathname", EGD, "         if kernel(K$EDIT.OK, f) then return @true", "         if kernel(K$EDIT.OK, p) then return @true")
+mut("edit_guard does not clamp the kind of a remote file", EGD, "         if kind < 1 or kind > 3 then kind = 1\n         display sysmsg(11404 + kind)", "         display sysmsg(11404 + kind)")
+mut("edit_guard lets a remote file through", EGD, "         display sysmsg(11404 + kind) ;* 11405 VOC, 11406 dictionary, 11407 program file\n         return @false", "         display sysmsg(11404 + kind) ;* 11405 VOC, 11406 dictionary, 11407 program file\n         return @true")
+# ---- the class
+mut("sdclient: quiet is not public", SCL, rx(r"       quiet,[^\n]*\n", ""))
+mut("sdclient: quiet starts true", SCL, "   quiet = @false\n", "   quiet = @true\n")
+mut("sdclient: LastError starts 0", SCL, "   LastError = -1\n   LastText = ''\nend", "   LastError = 0\n   LastText = ''\nend")
+mut("sdclient: message.pair does not reset LastError", SCL, "   LastError = -1\n   LastText = ''\n   if (write.packet(pkt.type, pkt)) then", "   LastText = ''\n   if (write.packet(pkt.type, pkt)) then")
+mut("sdclient: get.response forgets LastError", SCL, " LastError = server.error\n", "")
+mut("sdclient: get.response sets LastError after the SV$ERROR test", SCL, " LastError = server.error\n if server.error = SV$ON.ERROR then LastText = in.pkt\n\n if server.error = SV$ERROR then", " if server.error = SV$ON.ERROR then LastText = in.pkt\n\n if server.error = SV$ERROR then")
+mut("sdclient: the abort of WRITE is not guarded", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'WRITE generated an abort event'", "         if server.error = SV$ON.ERROR then\n            abort 'WRITE generated an abort event'")
+mut("sdclient: the abort of WRITEU is not guarded", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'WRITEU generated", "         if server.error = SV$ON.ERROR then\n            abort 'WRITEU generated")
+mut("sdclient: the abort of DELETE is not guarded", SCL, "      if server.error = SV$ON.ERROR and not(quiet) then\n         abort 'DELETE generated an abort event'", "      if server.error = SV$ON.ERROR then\n         abort 'DELETE generated an abort event'")
+mut("sdclient: the abort of RECORDLOCK is not guarded", SCL, "      if server.error = SV$ON.ERROR and not(quiet) then\n         abort 'RECORDLOCK", "      if server.error = SV$ON.ERROR then\n         abort 'RECORDLOCK")
+mut("sdclient: the abort of RELEASE is not guarded", SCL, "      if server.error = SV$ON.ERROR and not(quiet) then\n         abort 'RELEASE", "      if server.error = SV$ON.ERROR then\n         abort 'RELEASE")
+mut("sdclient: the abort of READ is not guarded", SCL, "case server.error = SV$ON.ERROR and not(quiet)\n               abort 'READ", "case server.error = SV$ON.ERROR\n               abort 'READ")
+mut("sdclient: the abort of CLEARFILE is not guarded", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'CLEARFILE", "         if server.error = SV$ON.ERROR then\n            abort 'CLEARFILE")
+mut("sdclient: an unrelated abort is made quiet too", SCL, "         if server.error = SV$ON.ERROR then\n            abort 'CLEARSELECT generated an abort event'", "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'CLEARSELECT generated an abort event'")
+mut("sdclient: an illegal id aborts when quiet", SCL, "         if quiet then\n            LastError = SV$ON.ERROR\n            return\n         end\n         abort 'Illegal record id'\n      end\n\n      pkt = iconv(fno, 'ISL')\n      pkt := iconv(len(id), 'ISL')\n      pkt := id : data\n\n      if message.pair(SrvrWrite, pkt)",
+    "         abort 'Illegal record id'\n      end\n\n      pkt = iconv(fno, 'ISL')\n      pkt := iconv(len(id), 'ISL')\n      pkt := id : data\n\n      if message.pair(SrvrWrite, pkt)")
+mut("sdclient: recordlock's wait flag is the old way round", SCL, "         if not(wait) then flags += 2", "         if wait then flags += 2")
+mut("sdclient: clearfile sends the wrong request", SCL, "message.pair(SrvrClearfile, pkt)", "message.pair(SrvrClose, pkt)")
+mut("sdclient: SrvrClearfile is 32", SCL, rx(r"(\$define SrvrClearfile\s+)31", r"\g<1>32"))
+mut("sdclient: clearfile aborts when quiet", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'CLEARFILE", "         if server.error = SV$ON.ERROR then\n            abort 'CLEARFILE")
+# ---- the suite, the map, the history
+mut("the suite defines nfw as read", NFSUITE, 'alA, mode="write")\n    define("nfwb"', 'alA)\n    define("nfwb"')
+mut("the suite defines nfa as write", NFSUITE, 'define("nfa", A.port, pa, "zznhon,zznhoff", alA)', 'define("nfa", A.port, pa, "zznhon,zznhoff", alA, mode="write")')
+mut("the suite's lock request waits", NFSUITE, 'struct.pack("<h", 3 if upd else 2)', 'struct.pack("<h", 1 if upd else 0)')
+mut("the suite has no lock watcher", NFSUITE, "class LockWatch(", "class LockWatchX(")
+mut("the suite's holder is never released", NFSUITE, "                time.sleep(self.delay)\n                self.srv.store.drop_user(self.userno)", "                time.sleep(self.delay)")
+mut("the suite's T prefix does nothing", NFSUITE, "      if nm[1,1] = 'T' then\n         intxn = @true", "      if nm[1,1] = 'T' then\n         intxn = @false")
+mut("the suite's marks in an id are not converted", NFSUITE, "b = change(b, '<F>', @fm) ; ", "")
+mut("the suite runs hwrite after kernel", NFSUITE, '("hwrite", hwrite_section), ("kwrite", kwrite_section),\n            ("kernel", kernel_section), ("gaps", gaps_section))', '("kernel", kernel_section), ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("gaps", gaps_section))')
+mut("the suite's KALLOWED changes", NFSUITE, "KALLOWED = {47, 48, 3, 4, 5, 6, 1}  ", "KALLOWED = {47, 48, 3, 4, 5, 6, 1, 16}  ")
+mut("the suite's write wire allows request 32", NFSUITE, "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 34}", "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 32, 34}")
+mut("the suite's refusal matrix loses recordlocku", NFSUITE, '    km("recordlocku", "recordlocku f', '    km("recordlockx", "recordlocku f')
+mut("the map does not select netfile for op_sh.c", NFMAP, "gplsrc/op_sh.c               : gates sdaccts editgates netfile", "gplsrc/op_sh.c               : gates sdaccts editgates")
+mut("the map does not select netfile for op_kernel.c", NFMAP, "editgates net netfile", "editgates net")
+mut("the map does not select netfile for cproc", NFMAP, "classinit net netfile", "classinit net")
+mut("the map does not select netfile for edit_guard", NFMAP, "sdsys/gpl.bp/edit_guard      : editgates @editors netfile", "sdsys/gpl.bp/edit_guard      : editgates @editors")
+mut("the suite loses the hwrite section", NFSUITE, '("hwrite", hwrite_section), ', "")
+mut("the suite loses the kwrite section", NFSUITE, '("kwrite", kwrite_section),\n', "\n")
+mut("the suite's driver loses WRITEU", NFSUITE, "            op = NF$WRITEU\n", "            op = 14\n")
+mut("the suite's driver loses RELEASE", NFSUITE, "            op = NF$RELEASE\n", "            op = 16\n")
+mut("the suite's history line for slice 3e is gone", NFSUITE, "# 18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS", "# 18 Oct 26 dm  slice 3e: WRITES AND LOCKS")
+mut("netfake's history line for slice 3e is gone", "netfake.py", "18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS.", "18 Oct 26 dm  slice 3e: WRITES AND LOCKS.")
+mut("netfiles.c's history line for slice 3e is gone", "netfiles.c", rx(r"18 Oct 26 dm\s+S\.65 slice 3e", "18 Oct 26 dm  slice 3e"))
+mut("op_lock.c's history line for slice 3e is gone", "op_lock.c", rx(r"18 Oct 26 dm\s+S\.65 slice 3e", "18 Oct 26 dm  slice 3e"))
+mut("netfile's history line for slice 3e is gone", NFP, rx(r"18 Oct 26 dm\s+S\.65 slice 3e", "18 Oct 26 dm  slice 3e"))
 
 
 def run(srcs):
@@ -3161,7 +3873,8 @@ def main():
             print("test-net-units: the unmutated source already fails: %s" % bad)
             return 2
         missed = 0
-        for label, name, old, new in M:
+        start = int(next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--from=")), "0"))          # --from=N: only the mutants from the Nth on (M3E_START is slice 3e's first)
+        for label, name, old, new in M[start:]:
             try:
                 rows = checks(mutate(srcs, name, old, new))
             except KeyError as e:
@@ -3174,7 +3887,7 @@ def main():
             else:
                 print("  [FAIL] MUTANT NOT CAUGHT: %s" % label)
                 missed += 1
-        print("\ntest-net-units --selftest: %d mutants, %d missed" % (len(M), missed))
+        print("\ntest-net-units --selftest: %d mutants, %d missed" % (len(M) - start, missed))
         return 1 if missed else 0
     rows = run(srcs)
     failed = 0

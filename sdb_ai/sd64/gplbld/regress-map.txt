@@ -76,6 +76,8 @@ gplbld/*                     : @core
 # THE KERNEL (gplsrc).  Specific files first.
 # S.65 slice 3c (17 Oct 26): the NET_FILE file variable type.  Every file that opens, reads, refuses or names a file variable selects the netfile suite,
 # whose section kernel runs real statements against a NET file and its refusal matrix.  netfiles.c is the kernel half of the handler.
+# 18 Oct 26, slice 3e (writes and locks on a remote file): op_sh.c (edit_kind_of_net_name), op_kernel.c (K_EDIT_OK of a file variable, K_NET -2), cproc (kernel(K$NET, -2))
+# and edit_guard (the remote branch) select the netfile suite too, as netfiles.c, op_dio3.c, op_lock.c, op_dio2.c, sd.h and descr.h already do.
 gplsrc/netfiles.c            : netfile
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile
 gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile
@@ -149,7 +151,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient
 gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
-gplsrc/op_sh.c               : gates sdaccts editgates
+gplsrc/op_sh.c               : gates sdaccts editgates netfile
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates
 gplsrc/op_sdpyobj.c          : gates
@@ -160,7 +162,7 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
@@ -178,6 +180,11 @@ gplsrc/*.c                   : @core
 # hunks cannot be known (--files, a file git has not been told about) every sub-rule applies.
 # S.65 slice 1 (17 Oct 26): the SDNet server definitions and their verbs.  They come before the coarse patterns that would take their names
 # (set*, *list*, the catch-all), which would select suites that know nothing of them.
+# 18 Oct 26: the QM4 evaluation's two defects (a user conversion code reaching a $ program through _oconv / _iconv; a print unit's SPOOLER string run
+# through system() by an account without the OS access gate): qm4def, and the conversion suite for the two routines.
+gplsrc/linuxprt.c            : qm4def
+sdsys/gpl.bp/_oconv          : qm4def conv-b3
+sdsys/gpl.bp/_iconv          : qm4def conv-b3
 # S.65 slice 3c (17 Oct 26): _voc_ref answers the N pointer (a file on another server) with the encoded path open_file() hands to net_open().
 sdsys/gpl.bp/_voc_ref        : @core netfile
 sdsys/gpl.bp/netdefs         : net netfile
@@ -246,7 +253,7 @@ sdsys/gpl.bp/ide             : ide editgates
 sdsys/gpl.bp/ced*            : ced editgates
 sdsys/gpl.bp/ed              : @editors edext editgates
 sdsys/gpl.bp/edit            : @editors editgates
-sdsys/gpl.bp/edit_guard      : editgates @editors
+sdsys/gpl.bp/edit_guard      : editgates @editors netfile
 sdsys/gpl.bp/clearfl         : editgates @files
 sdsys/gpl.bp/delete          : editgates @files
 sdsys/gpl.bp/deletef         : editgates @files
@@ -311,7 +318,7 @@ sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system sdaccts editgates net
 sdsys/gpl.bp/classmain       : classinit
-sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net
+sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient

@@ -17,6 +17,10 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  spool_print_job(): a print unit's own SPOOLER string (SETPTR ... SPOOLER, SETPU PU$SPOOLER: any program can set it) is the start
+ *               of a shell command handed to system(), so it is used only by a session that holds the OS access gate (the administrator or
+ *               OS.EXECUTE, os_gate_open()); anyone else prints through the configured spooler or lp.  Found by the QM4 evaluation and
+ *               reproduced: an ordinary account with SH and OS.EXECUTE off ran "touch ...; true" through it.
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
  *
@@ -136,7 +140,7 @@ void spool_print_job(PRINT_UNIT* pu) {
   int n;
   char qbuf[300];
 
-  if (pu->spooler != NULL) {
+  if ((pu->spooler != NULL) && os_gate_open()) {
     n = snprintf(cmd, sizeof(cmd), "%s ", pu->spooler);
   } else if (pcfg.spooler[0] != '\0') {
     n = snprintf(cmd, sizeof(cmd), "%s ", pcfg.spooler);

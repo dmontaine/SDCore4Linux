@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 18 Oct 26 dm S.65 slice 3e: para.reset.environment asks the kernel to send the queued closes of remote files (the K$NET argument -2),
+*               so that a record lock taken on a remote file does not outlive its file variable at the prompt.
 * 17 Oct 26 dm S.65 slice 1: the NET gate (K$NET, SDNet remote files; does nothing yet) is account-scoped like SD.ACCOUNTS: loaded at LOGTO from
 *           the new account's record and restored when LOGTO returns (stk.net).
 * 17 Oct 26 dm S.64 part 2: the stack commands ask the voc.edit gate.  ".S name" may still make a NEW saved sentence or paragraph
@@ -979,7 +981,8 @@ reset.environment:
 
 para.reset.environment:
    i = ospath("", os$flush.cache)
-   printer close on -3     ;* Close all printers at this or higher level
+   void kernel(K$NET, -2)   ;* 18 Oct 26, S.65 slice 3e: send the queued closes of remote files, so that a lock does not outlive its file variable at the prompt
+   printer close on -3    ;* Close all printers at this or higher level
    printer off
    heading ""              ;* Ensure no heading or...
    footing ""              ;* ...footing on default print unit

@@ -8,10 +8,25 @@
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named parts
 # (login, args, pin, stale, keys, shared, down, close, notfound, files, account, locks, lists, wire - the class, slice 3a; handler, readonly,
-# refuse, lost, timeout - the handler gpl.bp/netfile, slice 3b; kernel - the NET_FILE type through real OPEN / READ / READV / FILEINFO / CLOSE
+# refuse, lost, timeout - the handler gpl.bp/netfile, slice 3b; hwrite - the handler in WRITE mode, slice 3e; kwrite - the statements on a write-mode file, slice 3e;
+# kernel - the NET_FILE type through real OPEN / READ / READV / FILEINFO / CLOSE
 # statements and the refusal of everything else, slice 3c; gaps - OPT-IN ONLY, see below); no flag runs all of them except gaps.
 #
 # START-HISTORY:
+# 18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS ON A REMOTE FILE, for a server whose definition says mode=write (spec .claude/s65-stage2-design.md, 10 and 11).  Two new
+#               sections.  hwrite drives the HANDLER ($netfile) against the fake's new write requests (16 to 19, 30, 31, 15): the definition's mode at the open (rc<7>, the
+#               audit line), WRITE / WRITEU / DELETE / DELETEU / CLEARFILE / LOCK / RELEASE with the exact bytes on the wire and the record, the lock and the busy answer on the
+#               fake, a bad id and a bad lock kind (nothing sent), the mode READ AGAIN (a server set back to read stops a handle that is open), a transaction, a lost
+#               connection before and after the change (11509, the outcome unknown, never a second request), the server's own errors (MUSTLOCK, a read only file, the server's
+#               edit gate, MAXRLOCK), a success status that is not trusted, and the READ answered with an ON ERROR (the old gaps row, moved here).  kwrite drives the
+#               STATEMENTS of an ordinary session (WRITE, WRITEU, MATWRITE, WRITEV, WRITEVU, DELETE, DELETEU, CLEARFILE, READU/L, MATREADU/L, READVU/L, RECORDLOCKU/L, RELEASE) on
+#               a write-mode file: what each does on the fake, STATUS() afterwards, with and without ON ERROR / THEN / ELSE / LOCKED, the busy record that is waited for by
+#               polling (the fake sees only lock requests, no read), a transaction (1010 and 11510), the S.64 edit gate by the remote file's NAME (voc, dict, bp) for an
+#               account without the gate, one with it, the administrator and an $internal program, edit_guard, the cache (a write-mode handle is never cached), a lost
+#               connection, MUSTLOCK and AUTOLOCK, the lock that outlives its file variable until the next prompt, FILEINFO, and the statements that stay refused (11511).  EVERY
+#               EXISTING ROW THAT EXPECTED THE REFUSAL OF AN IN-SCOPE STATEMENT (readonly, the refusal matrix KM, KALLOWED) STANDS AS THE MODE=READ CONTROL: the definitions
+#               nfa and nfb are mode read, the new nfw and nfwb are mode write.  ***NOT YET RUN*** - written without a sandbox to run it on; the first run is the first evidence for
+#               the suite, the handler, the kernel and the fake's write requests together; read a red row as a wrong expectation here as well as a fault there.
 # 17 Oct 26 dm  S.65 slice 3c: the section kernel - a VOC pointer of type N opened by an ORDINARY session's OPEN statement (the C gate, the handler, the
 #               fake), READ / READV / MATREAD / FILEINFO / CLOSE as statements with THEN, ELSE and ON ERROR, two opens sharing a connection, a loop of 150
 #               opens (the queue of released handles), a LOGTO; the NET gate off, an unlisted account, no credential, a pin mismatch, a malformed pointer
@@ -1001,10 +1016,16 @@ def wire_section():
 HACCT = {"zznhon": "yes", "zznhoff": "no", "zznhunl": "yes"}      # fixture account -> register field 15 (the NET gate)
 HFILE, HEMPTY = "hcust", "hempty"                                  # the files the handler rows open on the fakes (own files: the class rows use "customers")
 HNSV = 11                                                          # definitions nfs01 .. nfs11 for the limit rows
+# slice 3e: the files the WRITE rows work on (own files again: a write must not change what a read row expects).  wreset() puts them back.
+HW, HWBP, HWVOC, HWNC = "hwork", "bp", "voc", "hnocase"
+HWREC = {"w1": "alpha" + FMC + "1", "w2": "beta" + FMC + "2", "w3": "gamma"}
+HWFILES = ((HW, HWREC, "/data/hwork", False), (HWBP, {"prog1": "x"}, "/data/bp", False), (HWVOC, {"verb1": "V"}, "/data/voc", False), (HWNC, {"Mixed": "m"}, "/data/hnocase", True))
+HNED = "zznhned"                                                   # slice 3e: the NET gate on and NO edit gate (voc.edit, bp.edit, dict.edit all off once the programs are compiled)
 OPT_IN = ("gaps",)
 H = {}                                                             # what the handler sections made
 NH_RX = re.compile(r"^NH (\d+) (\S+) rc=(\S*) m=(\S*) st=(\S*) len=(\d+) out=\[(.*)\]$")
 NA_RX = re.compile(r"^NA (\d+) (\d) \[(.*)\]$")
+NM_RX = re.compile(r"^NM (\d+) \[(.*)\]$")                                 # slice 3e: rc<7>, the mode the handler reports for an open
 
 NFH_DRIVER = r"""$internal
 program zznfh
@@ -1025,9 +1046,17 @@ $include netfile.h
       a = field(ln, '|', 2)
       b = field(ln, '|', 3)
       c = field(ln, '|', 4)
+*     slice 3e: a record or an id with marks in it is typed with the place holders <I> <F> <V> <S>; a terminal line cannot be trusted with the marks themselves
+      b = change(b, '<I>', @im) ; b = change(b, '<F>', @fm) ; b = change(b, '<V>', @vm) ; b = change(b, '<S>', @sm)
+      c = change(c, '<I>', @im) ; c = change(c, '<F>', @fm) ; c = change(c, '<V>', @vm) ; c = change(c, '<S>', @sm)
       via = @false
       if nm[1,1] = 'X' then
          via = @true
+         nm = nm[2, 99]
+      end
+      intxn = @false
+      if nm[1,1] = 'T' then
+         intxn = @true
          nm = nm[2, 99]
       end
       op = -1
@@ -1056,6 +1085,12 @@ $include netfile.h
             op = NF$CLEARFILE
          case nm = 'LOCK'
             op = NF$LOCK
+         case nm = 'WRITEU'
+            op = NF$WRITEU
+         case nm = 'DELETEU'
+            op = NF$DELETEU
+         case nm = 'RELEASE'
+            op = NF$RELEASE
          case nm = 'STATE'
             op = NF$STATE
          case nm = 'EXEC'
@@ -1075,6 +1110,13 @@ $include netfile.h
          case op = -2
             execute a
             crt 'NH ':n.call:' ':nm:' rc= m= st= len=0 out=[]'
+         case intxn = @true
+*           slice 3e: the call is made INSIDE a transaction (system(SYS$TRANS_LEVEL) is not 0 in the handler)
+            begin transaction
+               call $netfile(op, a, b, c, out, rc)
+               commit
+            end transaction
+            gosub show.call
          case via = @true
             call $zznfhx(op, a, b, c, out, rc)
             gosub show.call
@@ -1093,6 +1135,7 @@ show.call: * the line for the call just made, and one for each argument of the m
    for k = 3 to 5
       if rc<k> # '' then crt 'NA ':n.call:' ':(k - 2):' [':rc<k>:']'
    next k
+   if rc<7> # '' then crt 'NM ':n.call:' [':rc<7>:']'
    return
 
 shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100
@@ -1118,6 +1161,16 @@ end
 
 def FNO(n):
     return struct.pack("<h", n)
+
+
+def wreset(srv):
+    """Slice 3e: the files the write rows work on, as they were at the start (a record changed, deleted or cleared is back), and no lock held by anybody.  Only between
+    sessions: a session that has a file open holds the OLD file object."""
+    for name, recs, path, nocase in HWFILES:
+        srv.store.add_file(name, dict(recs), dict_items=dict(DICT_ITEMS), path=path, nocase=nocase)
+    with srv.store.cond:
+        srv.store.locks.clear()
+        srv.store.filelocks.clear()
 
 
 class Script:
@@ -1214,10 +1267,11 @@ def audit_since(off):
 
 
 def h_audits(text):
-    """The handler's audit lines in a stretch of the trail, as   open server=nfa file=hcust   /   refused server=nfa reason=gate."""
+    """The handler's audit lines in a stretch of the trail, as   open server=nfa file=hcust   /   refused server=nfa reason=gate.  Since slice 3e also
+    open server=nfw file=hwork mode=write,  write / delete / clear server=nfw file=hwork  and  lost server=nfw op=write  (the key word is the one the line has)."""
     out = []
-    for m in re.finditer(r"netfile (open|refused) server=(\S+) (?:file|reason)=([^\r\n]*?)\s*$", text or "", re.M):
-        out.append("%s server=%s %s=%s" % (m.group(1), m.group(2), "file" if m.group(1) == "open" else "reason", m.group(3)))
+    for m in re.finditer(r"netfile (open|refused|write|delete|clear|lost) server=(\S+) (file|reason|op)=([^\r\n]*?)\s*$", text or "", re.M):
+        out.append("%s server=%s %s=%s" % (m.group(1), m.group(2), m.group(3), m.group(4)))
     return out
 
 
@@ -1226,13 +1280,17 @@ def h_calls(lines):
     for ln in lines:
         m = NH_RX.match(ln)
         if m:
-            c = {"n": int(m.group(1)), "nm": m.group(2), "rc": m.group(3), "m": m.group(4), "st": m.group(5), "len": int(m.group(6)), "out": m.group(7), "args": ["", "", ""]}
+            c = {"n": int(m.group(1)), "nm": m.group(2), "rc": m.group(3), "m": m.group(4), "st": m.group(5), "len": int(m.group(6)), "out": m.group(7), "args": ["", "", ""], "r7": ""}
             calls.append(c)
             by[c["n"]] = c
             continue
         m = NA_RX.match(ln)
         if m and int(m.group(1)) in by:
             by[int(m.group(1))]["args"][int(m.group(2)) - 1] = m.group(3)
+            continue
+        m = NM_RX.match(ln)
+        if m and int(m.group(1)) in by:
+            by[int(m.group(1))]["r7"] = m.group(2)           # slice 3e: rc<7>, printed only when it is not null
     return calls
 
 
@@ -1382,18 +1440,22 @@ def h_prep():
         recs[extra[0]] = extra[1]
         srv.store.add_file(HFILE, recs, dict_items=dict(DICT_ITEMS), path="/data/hcust")
         srv.store.add_file(HEMPTY)
+        wreset(srv)                                            # slice 3e: the files the write rows work on
 
     # the definitions (name|host|port|account|pin|mode|accounts|date) and the stored logins
     today = datetime.date.today().isoformat()
     L = []
     cred = {}
 
-    def define(name, port, pin, accounts, who, credpin=None, account="acct", host="127.0.0.1"):
-        L.append("|".join([name, host, str(port), account, pin, "read", accounts, today]))
+    def define(name, port, pin, accounts, who, credpin=None, account="acct", host="127.0.0.1", mode="read"):
+        L.append("|".join([name, host, str(port), account, pin, mode, accounts, today]))
         if who is not None:
             cred[name] = h_cred_line(who, credpin or pin)
     define("nfa", A.port, pa, "zznhon,zznhoff", alA)
     define("nfb", B.port, pb, "zznhon", alB)
+    # slice 3e: the same two fakes as WRITE-mode servers (the mode is the deliberate act of SDSYS: set.server ... write); nfa and nfb stay read, the control
+    define("nfw", A.port, pa, "zznhon,zznhoff," + HNED + ",zznhnov", alA, mode="write")
+    define("nfwb", B.port, pb, "zznhon," + HNED, alB, mode="write")
     define("nfcase", A.port, pa, "ZZNHON", alA)                      # the list is upper case: the test is case blind
     define("nfnocred", A.port, pa, "zznhon,zznhoff", None)             # defined and listed, no stored login
     define("nfcpin", A.port, pa, "zznhon", alA, credpin=pb)            # the stored login was made for ANOTHER key than the definition has now
@@ -1412,8 +1474,9 @@ def h_prep():
             H["defs_prior"] = f.read()
     except OSError:
         H["defs_prior"] = None
+    H["defs_text"] = "\n".join(L) + "\n"                      # slice 3e: what the write rows put back after they changed a mode
     with open(sdefs, "w", encoding="ascii") as f:
-        f.write("\n".join(L) + "\n")
+        f.write(H["defs_text"])
     os.chmod(sdefs, 0o644)
     for name, line in cred.items():
         cp = os.path.join(H["dir"], name)
@@ -1622,7 +1685,8 @@ def handler_section():
 # ---- H2. read only ----------------------------------------------------------------------------------------------------------------------------
 
 def readonly_section():
-    say("\n--- $netfile is READ ONLY in this stage: write, delete, clear.file and lock are refused with message 11501 and NOTHING is sent ---")
+    say("\n--- MODE READ (the delivered default, THE CONTROL for slice 3e): write, writeu, delete, deleteu, clear.file and lock on a handle of a read-mode server are refused with "
+        "message 11501 and NOTHING is sent ---")
     if not h_prep():
         return
     A = S["A"]
@@ -1631,10 +1695,12 @@ def readonly_section():
     s = Script()
     s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1), req=[(3, b"acct"), (4, b"hcust")], audit="open server=nfa file=hcust")
     s.add("READ", 1, "c1", ok=k_rec(c1), req=[(6, FNO(1) + b"c1")])
-    s.add("WRITE", 1, "c1", "changed", label="WRITE is refused: 11501 naming the server and the operation (write)", ok=k_err(11501, "nfa", "write"))
-    s.add("DELETE", 1, "c1", label="DELETE is refused: 11501 (delete)", ok=k_err(11501, "nfa", "delete"))
-    s.add("CLEARFILE", 1, label="CLEARFILE is refused: 11501 (clear.file)", ok=k_err(11501, "nfa", "clear.file"))
-    s.add("LOCK", 1, "c1", label="LOCK is refused: 11501 (lock)", ok=k_err(11501, "nfa", "lock"))
+    s.add("WRITE", 1, "c1", "changed", label="MODE READ: WRITE is refused: 11501 naming the server and the operation (write)", ok=k_err(11501, "nfa", "write"))
+    s.add("WRITEU", 1, "c1", "changed", label="MODE READ: WRITEU is refused: 11501 (writeu)", ok=k_err(11501, "nfa", "writeu"))
+    s.add("DELETE", 1, "c1", label="MODE READ: DELETE is refused: 11501 (delete)", ok=k_err(11501, "nfa", "delete"))
+    s.add("DELETEU", 1, "c1", label="MODE READ: DELETEU is refused: 11501 (deleteu)", ok=k_err(11501, "nfa", "deleteu"))
+    s.add("CLEARFILE", 1, label="MODE READ: CLEARFILE is refused: 11501 (clear.file)", ok=k_err(11501, "nfa", "clear.file"))
+    s.add("LOCK", 1, "c1", "u", label="MODE READ: LOCK is refused: 11501 (lock), whatever the lock kind", ok=k_err(11501, "nfa", "lock"))
     s.add("WRITE", 99, "c1", "x", label="WRITE on a handle that is not open is 11494, not a refusal that hides it", ok=k_err(11494, 99))
     s.add("RAW", 9, 1, "c1", label="the same operation by its number (RAW 9) is the refusal too", ok=k_err(11501, "nfa", "write"))
     s.add("RAW", 99, label="an operation number the handler does not know is 11490 naming it", ok=k_err(11490, 99))
@@ -1727,7 +1793,7 @@ def refuse_section():
     for fv in ("x", "-1", "", "1234567", "1.5"):
         s.add("READV", 1, "c1", fv, label="READV with the field number %r is 11506, nothing sent" % fv, ok=k_err(11506, "nfa", fv))
     s.add("FILEINFO", 1, "abc", label="FILEINFO with a key that is not a number is 11502, nothing sent", ok=k_err(11502, "nfa", "abc"))
-    s.add("RAW", 14, label="an operation number the kernel might mistake (14) is 11490", ok=k_err(11490, 14))
+    s.add("RAW", 17, label="an operation number that is kept free (17, for a possible combined lock-and-read; 14 to 16 are WRITEU, DELETEU and RELEASE since slice 3e) is 11490", ok=k_err(11490, 17))
     s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
     r = h_go("zznhon", s, (A,))
     row("the argument-shape program ran to the end and no connection is left", h_sane(r), h_why(r))
@@ -1918,14 +1984,8 @@ def gaps_section():
           ok=lambda c: c["rc"] == "3")
     r = h_go("zznhon", s, (A,), cfg={"no_file_access": True})
     judge(r, s)
-    s = Script()
-    s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
-    s.add("READ", 1, "c1", label="GAP: a READ the server answers with an ON ERROR is rc 3 with 11500 naming the server, the operation and the text; the class ABORTS the calling program instead and "
-          "the handler cannot catch it", ok=k_err(11500, "nfa", "read", "boom"))
-    s.add("CLOSEALL", ok=k_ok("", 0))
-    r = h_go("zznhon", s, (A,), cfg={"fail": {6: (netfake.SV_ON_ERROR, "boom")}})
-    row("GAP: the program that made that READ reached its end", r.began and r.ended, h_why(r))
-    judge(r, s)
+    # (18 Oct 26, slice 3e: the row that stood here - a READ the server answers with an ON ERROR is an error rc 3 / 11500 and does not abort the handler - is built: the class is
+    # QUIET since slice 3e.  It is in the normal section hwrite now, H14.)
 
     # the connection object sits in a named common block that ANY program can name (the kernel slice is to refuse that: op_common in op_array.c)
     path = os.path.join(acct_path("zznhon"), "bp", "zznsniff")
@@ -1960,6 +2020,537 @@ def gaps_section():
             kn_sane(r) and r.kr.count(kn_read_line("c1", "", "error", 7000)) == 1 and kn_wire(r.d[0]) == [(3, b"acct"), (4, b"hcust"), (6, FNO(1) + b"c1")], kn_why(r) + " wire=%r" % (kn_wire(r.d[0]),))
 
 
+# ---- H7. the handler in WRITE mode (S.65 slice 3e, section hwrite) ---------------------------------------------------------------------------------
+#
+# The definitions nfw (on fake A) and nfwb (on fake B) say MODE WRITE; nfa and nfb, which every section above uses, say read and are the control.  The same driver zznfh
+# calls $netfile with the new operations (WRITE, WRITEU, DELETE, DELETEU, CLEARFILE, LOCK, RELEASE; the prefix T makes the call INSIDE a transaction; <F> <V> <S> <I> in an
+# id or a record are the marks).  THE FAKE IS THE WITNESS: its packet log says what was sent, byte for byte (W_WRITE and the others below write the layouts of apisrvr as
+# numbers and struct.pack, from the spec, not from the class), and its store and lock table say what the requests did - RECORDLOCKED (request 34) asks it, in the middle of a
+# session, whether this session holds a lock.  After every session the files are put back (wreset).  EXPECTED VALUES come from this file.
+#
+# WHAT IT CANNOT SHOW.  (1) That the KERNEL reaches the handler for these operations (kwrite).  (2) The 5 minute bound of a CLEARFILE (the 30 second one is the section
+# timeout's).  (3) A reply cut in the middle (the handler counts LastError -1 as lost; the fake has no such fault).  (4) Anything on a real apisrvr: the fake is a model of it.
+
+def W_WRITE(fno, rid, rec, keep=False):
+    return (17 if keep else 16, FNO(fno) + struct.pack("<h", len(rid)) + rid.encode("latin-1") + rec.encode("latin-1"))
+
+
+def W_DEL(fno, rid, keep=False):
+    return (19 if keep else 18, FNO(fno) + rid.encode("latin-1"))
+
+
+def W_CLEAR(fno):
+    return (31, FNO(fno))
+
+
+def W_LOCK(fno, rid, upd):
+    return (30, FNO(fno) + struct.pack("<h", 3 if upd else 2) + rid.encode("latin-1"))        # flags: 1 update, 2 NO wait - the handler only ever asks without waiting
+
+
+def W_REL(fno, rid=""):
+    return (15, FNO(fno) + rid.encode("latin-1"))
+
+
+def W_RLK(fno, rid):
+    return (34, FNO(fno) + rid.encode("latin-1"))
+
+
+def W_READ(fno, rid):
+    return (6, FNO(fno) + rid.encode("latin-1"))
+
+
+def W_OPEN(name):
+    return (4, name.encode("latin-1"))
+
+
+ACCT_REQ = (3, b"acct")
+NEWREC_PH = "new<F>rec<V>x<S>y<I>z"                                 # typed with place holders: a terminal line is not trusted with the marks
+NEWREC = "new" + FMC + "rec" + VMC + "x" + SMC + "y" + IMC + "z"
+OPEN_W_AUD = "open server=nfw file=hwork mode=write"
+
+
+def k_open_w(hx):
+    """An OPEN of a write-mode handle: handle hx, rc<7> = 1."""
+    return lambda c: k_ok(str(hx), len(str(hx)))(c) and c["r7"] == "1"
+
+
+def k_open_r(hx):
+    """An OPEN of a read-mode handle: handle hx and NO rc<7>."""
+    return lambda c: k_ok(str(hx), len(str(hx)))(c) and c["r7"] == ""
+
+
+def k_locked(holder):
+    """rc 4: another user holds the record; rc<6> is its number; no message, no arguments, nothing in out."""
+    return lambda c: c["rc"] == "4" and c["m"] == "" and c["st"] == str(holder) and c["args"] == ["", "", ""] and c["len"] == 0
+
+
+def k_srverr(op, st, text=None, srv="nfw"):
+    """The server answered with an error (11500 naming the server and the operation).  An ON ERROR reply shows 'status <n>' and rc<6> is n; an error with a text (SV$ERROR: the
+    server's edit gate) shows the text cut to 100 characters, and its status is 0."""
+    def f(c):
+        if not (c["rc"] == "3" and c["m"] == "11500" and c["args"][0] == srv and c["args"][1] == op and c["len"] == 0):
+            return False
+        if text is None:
+            return c["args"][2] == "status %d" % st and c["st"] == str(st)
+        return c["args"][2] == text[:100]
+    return f
+
+
+def hw_go(acct, script, fakes=(), cfg=None, admin=False):
+    """h_go, then what each fake's files held at the end (r.stores), then the files put back."""
+    r = h_go(acct, script, fakes, cfg, admin)
+    r.stores = [{n: f.store.records(n) for n in (HW, HWBP, HWVOC, HWNC)} for f in fakes]
+    for f in fakes:
+        wreset(f)
+    return r
+
+
+def hw_wires(r, expected):
+    """Row text and verdict for a list of per-fake request lists: each fake's requests after the login equal the expected list."""
+    return all(h_wire(d) == e for d, e in zip(r.d, expected))
+
+
+def hw_first_diff(d, exp):
+    got = h_wire(d)
+    return next(((a, b) for a, b in zip(got, exp) if a != b), (len(got), len(exp)))
+
+
+def hw_defs(mode):
+    """The text of the definitions file with the mode of nfw (and only nfw) set to MODE."""
+    out = []
+    for ln in H["defs_text"].splitlines():
+        f = ln.split("|")
+        if f[0] == "nfw" and len(f) == 8:
+            f[5] = mode
+        out.append("|".join(f))
+    return "\n".join(out) + "\n"
+
+
+def hw_flip_files():
+    """Prepare the two files the helper programs rename over the definitions: .h9a says nfw is read, .h9b says write (each is used up by its program)."""
+    sdefs = os.path.join(g.SYS, "netservers")
+    for suffix, mode in ((".h9a", "read"), (".h9b", "write")):
+        with open(sdefs + suffix, "w", encoding="ascii") as f:
+            f.write(hw_defs(mode))
+        os.chmod(sdefs + suffix, 0o644)
+
+
+def hw_restore_defs():
+    sdefs = os.path.join(g.SYS, "netservers")
+    with open(sdefs, "w", encoding="ascii") as f:
+        f.write(H["defs_text"])
+    os.chmod(sdefs, 0o644)
+    for suffix in (".h9a", ".h9b"):
+        try:
+            os.remove(sdefs + suffix)
+        except OSError:
+            pass
+
+
+def hw_prep():
+    """The two helper programs that flip the mode of nfw in the definitions file (H9): zznfhm1 makes it read, zznfhm2 write again; each renames a prepared file over
+    <sandbox>/sys/netservers.  Written by the suite, compiled by the administrator (they are $internal: OSRENAME is)."""
+    if "hw_ready" in H:
+        return H["hw_ready"]
+    H["hw_ready"] = False
+    if not h_prep():
+        return False
+    sdefs = os.path.join(g.SYS, "netservers")
+    for n, suffix in ((1, ".h9a"), (2, ".h9b")):
+        g.put(os.path.join(g.SYS, "bp", "zznfhm%d" % n), "\n".join([
+            "$internal", "   src = '%s'" % (sdefs + suffix), "   dst = '%s'" % sdefs,
+            "   if osrename(src, dst) then crt 'HFM %d renamed' else crt 'HFM %d FAILED'" % (n, n), "end", ""]))
+    out = g.adm(["BASIC bp zznfhm1 zznfhm2"], internal=True)
+    ok = g.has(out, r"^Compiled 2 program\(s\) with no errors") and not any(re.search(r"warning|not assigned", ln, re.I) for ln in out)
+    row("SETUP: the two helper programs that flip the mode of nfw in the definitions file compile (administrator, $internal)", ok, repr(out[-6:]))
+    H["hw_ready"] = ok
+    return ok
+
+
+def hwrite_section():
+    say("\n--- $netfile in WRITE mode (slice 3e): the definition says write, and WRITE, WRITEU, DELETE, DELETEU, CLEARFILE, LOCK and RELEASE are sent to the fake - read mode is the control ---")
+    if not hw_prep():
+        return
+    A, B = S["A"], S["B"]
+    hw_open(A)
+    hw_writes(A)
+    hw_deletes(A)
+    hw_locks(A, B)
+    hw_ids(A)
+    hw_mode(A)
+    hw_txn(A)
+    hw_lost(A)
+    hw_errors(A)
+    hw_misc(A)
+
+
+def hw_open(A):
+    say("\n  -- the open: the mode is told to the kernel (rc<7>) and audited; read mode is unchanged --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, label="MODE WRITE: OPEN of nfw (the definition says write; a stored login, the gate, listed) is handle 1 with rc<7> = 1 - the mode, told to the kernel",
+          ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("OPEN", "nfa", HFILE, label="CONTROL: OPEN of nfa (mode read) is handle 2 with NO rc<7>, and its audit line is the line of slice 3b byte for byte (no ' mode=' in it)",
+          ok=k_open_r(2), req=[ACCT_REQ, W_OPEN(HFILE)], audit="open server=nfa file=hcust")
+    s.add("OPEN", "NFW", "DICT HWORK", label="the dictionary of a write-mode file opens in write mode too (handle 3, the name in lower case on the wire, the same connection)",
+          ok=k_open_w(3), req=[W_OPEN("dict hwork")], audit="open server=nfw file=dict hwork mode=write")
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b""), (1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the open program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the requests were those listed (two connections: nfw and nfa), and the audit trail has exactly the three open lines in order", a_wire(r, s) and r.audits == s.audits(),
+        repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+
+def hw_writes(A):
+    say("\n  -- WRITE and WRITEU: the exact bytes, the record on the fake, the lock the server lets go of or keeps --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("LOCK", 1, "w1", "u", ok=k_ok("", 0), req=[W_LOCK(1, "w1", True)])
+    s.add("RLOCKED", 1, "w1", label="(setup) the fake holds an UPDATE lock for this session on w1: RECORDLOCKED is 2", ok=k_ok("2", 1), req=[W_RLK(1, "w1")])
+    s.add("WRITE", 1, "w1", NEWREC_PH, label="WRITE: rc 0, no message, nothing in out - and the request is request 16 with the file number, the id length, the id and the record WITH ITS FOUR MARKS "
+          "(a record is any bytes)", ok=k_ok("", 0), req=[W_WRITE(1, "w1", NEWREC)], audit="write server=nfw file=hwork")
+    s.add("RLOCKED", 1, "w1", label="...a plain WRITE let go of the lock the session held: RECORDLOCKED 0", ok=k_ok("0", 1), req=[W_RLK(1, "w1")])
+    s.add("LOCK", 1, "w2", "u", ok=k_ok("", 0), req=[W_LOCK(1, "w2", True)])
+    s.add("WRITEU", 1, "w2", "kept", label="WRITEU: rc 0, request 17", ok=k_ok("", 0), req=[W_WRITE(1, "w2", "kept", True)])
+    s.add("RLOCKED", 1, "w2", label="...WRITEU KEPT the lock: RECORDLOCKED 2", ok=k_ok("2", 1), req=[W_RLK(1, "w2")])
+    s.add("WRITE", 1, "wnew", "created", label="WRITE of an id the file does not hold creates the record", ok=k_ok("", 0), req=[W_WRITE(1, "wnew", "created")])
+    s.add("WRITE", 1, "w3", "", label="WRITE of a null record: the request ends after the id (no record bytes), the record becomes null", ok=k_ok("", 0), req=[W_WRITE(1, "w3", "")])
+    s.add("WRITE", 1, "a" * 63, "edge", label="an id of exactly 63 bytes is accepted (the server's limit)", ok=k_ok("", 0), req=[W_WRITE(1, "a" * 63, "edge")])
+    n_req = s.nreq()
+    s.add("STATE", label="STATE: 1 server, 1 file, 1 opened, %d requests - the handler's own count equals what the fake received - none dropped or lost; the connection is still an object" % n_req,
+          ok=k_state(1, 1, 1, n_req, 0, 0, conns=[("nfw", 15, 1)]))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the write program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    d = r.d[0]
+    row("...THE REQUESTS, in order, with their bytes: ACCOUNT, OPEN, then LOCK (30, flags 3), RECORDLOCKED, WRITE (16), RECORDLOCKED, LOCK, WRITEU (17), RECORDLOCKED, three WRITEs, Quit",
+        a_wire(r, s), "first difference: %r" % (hw_first_diff(d, s.wire()),))
+    exp = dict(HWREC)
+    exp.update({"w1": NEWREC, "w2": "kept", "w3": "", "wnew": "created", "a" * 63: "edge"})
+    row("...THE FILE ON THE FAKE holds exactly what was written: w1 with its marks, w2 'kept', w3 null, wnew 'created', the 63 byte id - and nothing else changed", r.stores[0][HW] == exp,
+        repr({k: v for k, v in r.stores[0][HW].items() if exp.get(k) != v}))
+    row("...the audit trail has the open line and ONE 'netfile write server=nfw file=hwork' line (the first WRITE through the handle; WRITEU and the other writes add none), no id and no record in it, "
+        "and nothing secret", r.audits == s.audits() and secret_free(r.audit), repr(r.audits))
+    row("...the other files of the fake are as they were", all(r.stores[0][n] == dict(rec) for n, rec, _p, _c in HWFILES if n != HW), "")
+
+
+def hw_deletes(A):
+    say("\n  -- DELETE, DELETEU and CLEARFILE --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("LOCK", 1, "w1", "u", ok=k_ok("", 0), req=[W_LOCK(1, "w1", True)])
+    s.add("DELETE", 1, "w1", label="DELETE: rc 0, request 18 with the file number and the id", ok=k_ok("", 0), req=[W_DEL(1, "w1")], audit="delete server=nfw file=hwork")
+    s.add("RLOCKED", 1, "w1", label="...a plain DELETE let go of the lock: RECORDLOCKED 0", ok=k_ok("0", 1), req=[W_RLK(1, "w1")])
+    s.add("LOCK", 1, "w2", "u", ok=k_ok("", 0), req=[W_LOCK(1, "w2", True)])
+    s.add("DELETEU", 1, "w2", label="DELETEU: rc 0, request 19", ok=k_ok("", 0), req=[W_DEL(1, "w2", True)])
+    s.add("RLOCKED", 1, "w2", label="...DELETEU KEPT the lock: RECORDLOCKED 2", ok=k_ok("2", 1), req=[W_RLK(1, "w2")])
+    s.add("DELETE", 1, "nosuch", label="DELETE of a record that is not there is a SUCCESS (rc 0): the request is still sent", ok=k_ok("", 0), req=[W_DEL(1, "nosuch")])
+    s.add("CLEARFILE", 1, label="CLEARFILE: rc 0, request 31 with the file number only", ok=k_ok("", 0), req=[W_CLEAR(1)], audit="clear server=nfw file=hwork")
+    s.add("READ", 1, "w3", label="...and the connection is still served after it (the 30 second bound was put back): READ of w3 is the ELSE branch, the file is empty", ok=k_else(3006),
+          req=[W_READ(1, "w3")])
+    s.add("CLEARFILE", 1, label="CLEARFILE again: audited again (every CLEARFILE is)", ok=k_ok("", 0), req=[W_CLEAR(1)], audit="clear server=nfw file=hwork")
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the delete program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE REQUESTS, in order, with their bytes", a_wire(r, s), "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+    row("...THE FILE ON THE FAKE is empty, and the other files are as they were", r.stores[0][HW] == {} and all(r.stores[0][n] == dict(rec) for n, rec, _p, _c in HWFILES if n != HW), repr(r.stores[0][HW]))
+    row("...the audit trail: the open line, ONE 'delete' line (DELETE and DELETEU share it), TWO 'clear' lines, in order - no id", r.audits == s.audits(), repr(r.audits))
+
+
+def hw_locks(A, B):
+    say("\n  -- LOCK (the no-wait form only), the busy answer, RELEASE in its three forms --")
+    A.store.hold(HW, "w2", 7, "update")
+    A.store.hold(HW, "w3", 8, "shared")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("LOCK", 1, "w1", "l", label="LOCK l of a free record: rc 0, request 30 with flags 2 (shared, NO WAIT)", ok=k_ok("", 0), req=[W_LOCK(1, "w1", False)])
+    s.add("LOCK", 1, "w1", "u", label="...LOCK u by the same session raises it: rc 0, flags 3 (update, no wait)", ok=k_ok("", 0), req=[W_LOCK(1, "w1", True)])
+    s.add("LOCK", 1, "w2", "u", label="LOCK u of a record another user (7) holds an update lock on: rc 4 (not an error), rc<6> the holder's number, no message", ok=k_locked(7), req=[W_LOCK(1, "w2", True)])
+    s.add("LOCK", 1, "w2", "l", label="...LOCK l of it is busy too: holder 7", ok=k_locked(7), req=[W_LOCK(1, "w2", False)])
+    s.add("LOCK", 1, "w3", "l", label="LOCK l of a record another user holds a READ lock on is granted (shared with shared): rc 0", ok=k_ok("", 0), req=[W_LOCK(1, "w3", False)])
+    s.add("LOCK", 1, "w3", "u", label="...LOCK u of it is busy: holder 8", ok=k_locked(8), req=[W_LOCK(1, "w3", True)])
+    s.add("LOCK", 1, "w1", "x", label="a lock kind that is not l or u (x) is 11512 naming the server and the kind; NOTHING is sent", ok=k_err(11512, "nfw", "x"))
+    s.add("LOCK", 1, "w1", "uu", label="...'uu' is 11512 too", ok=k_err(11512, "nfw", "uu"))
+    s.add("LOCK", 1, "w1", "", label="...and so is a null kind", ok=k_err(11512, "nfw", ""))
+    s.add("LOCK", 1, "w1", "U", label="...and an upper case U (the kinds are exactly one lower case letter)", ok=k_err(11512, "nfw", "U"))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the lock program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE REQUESTS, in order: every lock is request 30 with flags 2 or 3 - never 0 or 1, which WAIT on the server - and the four bad kinds sent nothing", a_wire(r, s),
+        "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+    row("...the file on the fake is as it was (a lock changes nothing)", r.stores[0][HW] == dict(HWREC), "")
+
+    # RELEASE: record form, file form, and 0 = every lock of the session on every connected server
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("OPEN", "nfwb", HW, ok=k_open_w(2), audit="open server=nfwb file=hwork mode=write")
+    s.add("LOCK", 1, "w1", "u", ok=k_ok("", 0))
+    s.add("LOCK", 1, "w2", "u", ok=k_ok("", 0))
+    s.add("LOCK", 2, "w1", "u", ok=k_ok("", 0))
+    s.add("RELEASE", 1, "w1", label="RELEASE (record form): rc 0", ok=k_ok("", 0))
+    s.add("RLOCKED", 1, "w1", label="...the lock on w1 is gone (0)", ok=k_ok("0", 1))
+    s.add("RLOCKED", 1, "w2", label="...the lock on w2 is still held (2)", ok=k_ok("2", 1))
+    s.add("RELEASE", 1, label="RELEASE (file form, no id): rc 0", ok=k_ok("", 0))
+    s.add("RLOCKED", 1, "w2", label="...every lock on the file is gone", ok=k_ok("0", 1))
+    s.add("LOCK", 1, "w1", "u", ok=k_ok("", 0))
+    s.add("LOCK", 2, "w3", "u", ok=k_ok("", 0))
+    s.add("RELEASE", 0, label="RELEASE with the handle 0 (RELEASE alone): rc 0 - the request goes to EVERY connection that has a write-mode handle open", ok=k_ok("", 0))
+    s.add("RLOCKED", 1, "w1", label="...server A holds nothing for the session now", ok=k_ok("0", 1))
+    s.add("RLOCKED", 2, "w1", label="...server B: w1 is free", ok=k_ok("0", 1))
+    s.add("RLOCKED", 2, "w3", label="...server B: w3 is free", ok=k_ok("0", 1))
+    s.add("RELEASE", 99, label="RELEASE on a handle that is not open is the ordinary 11494 (rc 3), nothing sent", ok=k_err(11494, 99))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A, B))
+    row("the release program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    expA = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_LOCK(1, "w2", True), W_REL(1, "w1"), W_RLK(1, "w1"), W_RLK(1, "w2"), W_REL(1), W_RLK(1, "w2"), W_LOCK(1, "w1", True), W_REL(0),
+            W_RLK(1, "w1"), (1, b"")]
+    expB = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_LOCK(1, "w3", True), W_REL(0), W_RLK(1, "w1"), W_RLK(1, "w3"), (1, b"")]
+    row("...THE REQUESTS on each server: the record form carries file number and id (15), the file form the file number only, the 0 form file number 0 and no id (15) - on BOTH servers",
+        hw_wires(r, [expA, expB]), "A %r / B %r" % (hw_first_diff(r.d[0], expA), hw_first_diff(r.d[1], expB)))
+
+
+def hw_ids(A):
+    say("\n  -- a record id that is not valid is refused BEFORE anything is sent --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    for nm, extra in (("WRITE", "x"), ("WRITEU", "x"), ("DELETE", ""), ("DELETEU", ""), ("LOCK", "u")):
+        s.add(nm, 1, "", extra, label="%s with an EMPTY id is an error 11503 'empty' - not the ELSE branch (a write has none)" % nm, ok=k_err(11503, "nfw", "empty"))
+    for nm, extra in (("WRITE", "x"), ("DELETE", ""), ("LOCK", "u")):
+        s.add(nm, 1, "x" * 64, extra, label="%s with an id of 64 bytes is 11503 'too long'" % nm, ok=k_err(11503, "nfw", "too long"))
+    for nm, extra in (("WRITE", "x"), ("DELETEU", ""), ("LOCK", "l")):
+        s.add(nm, 1, "a<F>b", extra, label="%s with a mark in the id is 11503 'holds a mark'" % nm, ok=k_err(11503, "nfw", "holds a mark"))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the bad-id program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE SAW only ACCOUNT, OPEN and the Quit: not one request for a refused id", a_wire(r, s), repr(h_wire(r.d[0])))
+    row("...and the file on the fake is as it was, and the audit trail has no 'write' or 'delete' line (a refused call is not audited as a change)", r.stores[0][HW] == dict(HWREC) and r.audits == s.audits(),
+        repr(r.audits))
+
+
+def hw_mode(A):
+    say("\n  -- the mode is read AGAIN at every change: a server set back to read stops a handle that is open (the definitions file is rewritten by the administrator in the session) --")
+    hw_flip_files()
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("WRITE", 1, "w1", "first", label="(setup) WRITE while the definition says write: rc 0", ok=k_ok("", 0), req=[W_WRITE(1, "w1", "first")], audit="write server=nfw file=hwork")
+    s.add("EXEC", "RUN bp zznfhm1", label="(the administrator's helper makes nfw MODE READ in the definitions file)", ok=lambda c: c["rc"] == "")
+    s.add("WRITE", 1, "w1", "second", label="THE MODE IS READ AGAIN: WRITE on the open handle is refused with 11501 (the read-mode text) naming the server and the operation; NOTHING is sent",
+          ok=k_err(11501, "nfw", "write"), audit="refused server=nfw reason=mode")
+    s.add("WRITE", 1, "w1", "third", label="...the refusal is repeated, and the audit line 'refused ... reason=mode' is written ONCE for the handle", ok=k_err(11501, "nfw", "write"))
+    s.add("DELETE", 1, "w1", label="...DELETE, CLEARFILE and LOCK are refused the same way (delete, clear.file, lock)", ok=k_err(11501, "nfw", "delete"))
+    s.add("CLEARFILE", 1, ok=k_err(11501, "nfw", "clear.file"))
+    s.add("LOCK", 1, "w1", "u", ok=k_err(11501, "nfw", "lock"))
+    s.add("READ", 1, "w1", label="...a READ is not affected by the mode: it is served and shows the record the first WRITE made", ok=k_rec("first"), req=[W_READ(1, "w1")])
+    s.add("RELEASE", 1, "w1", label="...and RELEASE is never refused for the mode (it changes no data): rc 0, the request is sent", ok=k_ok("", 0), req=[W_REL(1, "w1")])
+    s.add("EXEC", "RUN bp zznfhm2", label="(the helper makes nfw MODE WRITE again)", ok=lambda c: c["rc"] == "")
+    s.add("WRITE", 1, "w1", "fourth", label="set back to write, the same handle writes again: rc 0", ok=k_ok("", 0), req=[W_WRITE(1, "w1", "fourth")])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    try:
+        r = hw_go(None, s, (A,), admin=True)
+    finally:
+        hw_restore_defs()
+    row("the mode-flip program ran to the end and no connection is left", h_sane(r), h_why(r))
+    row("...both helper programs renamed their file (the definitions changed twice)", g.has(r.out, r"^HFM 1 renamed$") and g.has(r.out, r"^HFM 2 renamed$"), repr([ln for ln in r.out if ln.startswith("HFM")]))
+    judge(r, s)
+    row("...THE FAKE SAW ONLY the two good WRITEs (16), the READ and the RELEASE - not the three refused changes", a_wire(r, s), "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+    row("...the audit trail: the open line, one 'write' line, ONE 'refused ... reason=mode' line", r.audits == s.audits(), repr(r.audits))
+    row("...the file holds the last good write", r.stores[0][HW].get("w1") == "fourth", repr(r.stores[0][HW].get("w1")))
+
+    # a handle opened while the mode was read never writes after the mode becomes write (it must be opened again)
+    hw_flip_files()
+    s = Script()
+    s.add("EXEC", "RUN bp zznfhm1", ok=lambda c: c["rc"] == "")
+    s.add("OPEN", "nfw", HW, label="OPEN while the definition says READ: handle 1 with NO rc<7>, and the read form of the audit line", ok=k_open_r(1), req=[ACCT_REQ, W_OPEN(HW)],
+          audit="open server=nfw file=hwork")
+    s.add("EXEC", "RUN bp zznfhm2", ok=lambda c: c["rc"] == "")
+    s.add("WRITE", 1, "w1", "x", label="...set to write afterwards, the OLD handle is still read: WRITE is 11501 (it must be opened again), nothing sent, and NO 'reason=mode' line (the refusal is the handle's own)",
+          ok=k_err(11501, "nfw", "write"))
+    s.add("OPEN", "nfw", HW, label="...a new OPEN now is a write-mode handle (rc<7> = 1)", ok=k_open_w(2), req=[W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    try:
+        r = hw_go(None, s, (A,), admin=True)
+    finally:
+        hw_restore_defs()
+    row("the open-while-read program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the requests and the audit trail are as listed", a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+
+def hw_txn(A):
+    say("\n  -- a change or a lock inside a transaction is refused (11510), a read is not --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    for nm, extra, op in (("WRITE", "x", "write"), ("WRITEU", "x", "writeu"), ("DELETE", "", "delete"), ("DELETEU", "", "deleteu"), ("CLEARFILE", "", "clear.file")):
+        s.add("T" + nm, 1, "w1" if nm != "CLEARFILE" else "", extra, label="INSIDE A TRANSACTION: %s is refused with 11510 naming the server and the operation (%s); nothing is sent" % (nm, op),
+              ok=k_err(11510, "nfw", op))
+    s.add("TLOCK", 1, "w1", "u", label="...LOCK is refused too (lock)", ok=k_err(11510, "nfw", "lock"))
+    s.add("TREAD", 1, "w1", label="...but a READ in the same transaction is served", ok=k_rec(HWREC["w1"]), req=[W_READ(1, "w1")])
+    s.add("TRELEASE", 1, "w1", label="...and RELEASE is not refused (it changes no data): rc 0", ok=k_ok("", 0), req=[W_REL(1, "w1")])
+    s.add("WRITE", 1, "w1", "after", label="after the transaction the same handle writes: rc 0", ok=k_ok("", 0), req=[W_WRITE(1, "w1", "after")], audit="write server=nfw file=hwork")
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the transaction program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE SAW only the READ, the RELEASE and the good WRITE after the transaction", a_wire(r, s), "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+    row("...no audit line for the refused changes (the handler's own test is a defence; the kernel refuses first)", r.audits == s.audits(), repr(r.audits))
+
+
+def hw_lost(A):
+    say("\n  -- a connection lost DURING a change: 11509, the outcome unknown, never sent twice --")
+
+    def case(label, kind, req_type, stmt, op, reads_new, audits, store_check):
+        # kind: drop_before or drop_after (the first request of that type in the session); stmt: the script line that makes the request; audits: the whole audit trail expected
+        s = Script()
+        s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+        nm, a, b, c = stmt
+        msg_ = 11497 if op == "lock" else 11509
+        s.add(nm, a, b, c, label="%s: %s is %d naming the server and '%s'%s" % (label, nm, msg_, op, "" if msg_ == 11509 else " (a lock changes no data: the old message, as for a read)"),
+              ok=k_err(msg_, "nfw", op))
+        s.add("READ", 1, "w1", label="...the next use of the handle is 11495 (the connection was lost; it is not reopened)", ok=k_err(11495, "nfw", 1))
+        s.add(nm, a, b, c, label="...a second %s on the lost handle is 11495 too: THE REQUEST IS NEVER SENT AGAIN" % nm, ok=k_err(11495, "nfw", 1))
+        s.add("OPEN", "nfw", HW, label="...a new OPEN dials again (handle 2)", ok=k_open_w(2))
+        s.add("READ", 2, "w1", label=reads_new[0], ok=reads_new[1])
+        s.add("CLOSE", 1, ok=k_ok("", 0))
+        s.add("CLOSEALL", ok=k_ok("", 0))
+        r = hw_go("zznhon", s, (A,), cfg={kind: {req_type: 1}})
+        row("%s: the program ran to the end and no connection is left" % label, r.began and r.ended and len(r.calls) == r.n and r.idle and all(not d["errors"] for d in r.d), h_why(r))
+        judge(r, s)
+        ses = r.d[0]["sessions"]
+        row("...the fake saw TWO connections and request type %d exactly ONCE (never retried); the first connection's last request is that one" % req_type,
+            len(ses) == 2 and sum(x.requests.count(req_type) for x in ses) == 1 and ses[0].requests[-1] == req_type, repr([x.requests for x in ses]))
+        row("...the audit trail: %s" % " / ".join(audits), r.audits == audits, repr(r.audits))
+        row("...THE FILE: %s" % store_check[0], store_check[1](r.stores[0][HW]), repr(r.stores[0][HW]))
+        return r
+
+    case("DROPPED BEFORE the WRITE was executed", "drop_before", 16, ("WRITE", 1, "w1", "lost"), "write",
+         ("a READ through the new connection finds the record UNCHANGED (the change was not made)", k_rec(HWREC["w1"])),
+         [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=write", OPEN_W_AUD], ("w1 is unchanged", lambda st: st.get("w1") == HWREC["w1"]))
+    case("DROPPED AFTER the WRITE was executed", "drop_after", 16, ("WRITE", 1, "w1", "lost"), "write",
+         ("a READ through the new connection finds the record CHANGED (the change was made - the same message 11509 cannot say which)", k_rec("lost")),
+         [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=write", OPEN_W_AUD], ("w1 holds the new record", lambda st: st.get("w1") == "lost"))
+    case("DROPPED AFTER the WRITEU was executed", "drop_after", 17, ("WRITEU", 1, "w1", "lost"), "writeu",
+         ("a READ through the new connection finds the record CHANGED", k_rec("lost")),
+         [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=writeu", OPEN_W_AUD], ("w1 holds the new record", lambda st: st.get("w1") == "lost"))
+    case("DROPPED AFTER the DELETE was executed", "drop_after", 18, ("DELETE", 1, "w1", ""), "delete",
+         ("a READ through the new connection finds the record GONE", k_else(3006)),
+         [OPEN_W_AUD, "delete server=nfw file=hwork", "lost server=nfw op=delete", OPEN_W_AUD], ("w1 is gone", lambda st: "w1" not in st))
+    case("DROPPED BEFORE the CLEARFILE", "drop_before", 31, ("CLEARFILE", 1, "", ""), "clear.file",
+         ("a READ through the new connection finds the record (the file was not cleared)", k_rec(HWREC["w1"])),
+         [OPEN_W_AUD, "clear server=nfw file=hwork", "lost server=nfw op=clear.file", OPEN_W_AUD], ("the file still holds its three records", lambda st: st == HWREC))
+    case("DROPPED AFTER the LOCK was executed", "drop_after", 30, ("LOCK", 1, "w1", "u"), "lock",
+         ("a READ through the new connection works", k_rec(HWREC["w1"])),
+         [OPEN_W_AUD, OPEN_W_AUD], ("w1 is unchanged (a lock changes nothing)", lambda st: st.get("w1") == HWREC["w1"]))
+
+
+def hw_errors(A):
+    say("\n  -- the server's own errors are errors of the call (11500 with the status), never an abort of the handler --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("WRITE", 1, "w1", "x", label="MUSTLOCK on the server, no lock held: WRITE is an error, rc 3, message 11500 naming the server and the operation, 'status -3023', rc<6> -3023 (signed)",
+          ok=k_srverr("write", -3023), audit="write server=nfw file=hwork")
+    s.add("DELETE", 1, "w2", label="...DELETE: -3023", ok=k_srverr("delete", -3023), audit="delete server=nfw file=hwork")
+    s.add("LOCK", 1, "w1", "u", ok=k_ok("", 0))
+    s.add("WRITEU", 1, "w1", "y", label="...with the update lock held the same WRITEU is done", ok=k_ok("", 0))
+    s.add("READ", 1, "w1", label="...and the handler goes on: the record is 'y'", ok=k_rec("y"))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"must_lock": True})
+    row("the MUSTLOCK program ran to the end (no abort) and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the file: w1 'y', w2 untouched", r.stores[0][HW].get("w1") == "y" and r.stores[0][HW].get("w2") == HWREC["w2"], repr(r.stores[0][HW]))
+    row("...the audit trail: the open, the first write and the first delete - the refused attempts are audited like the good ones (the line is written BEFORE the request)", r.audits == s.audits(), repr(r.audits))
+
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+    s.add("WRITE", 1, "w1", "x", label="a file the server's OS user cannot write: WRITE is -3018 (status -3018, rc<6> -3018)", ok=k_srverr("write", -3018))
+    s.add("DELETE", 1, "w1", label="...DELETE: -3018", ok=k_srverr("delete", -3018))
+    s.add("CLEARFILE", 1, label="...CLEARFILE: -3018", ok=k_srverr("clear.file", -3018))
+    s.add("LOCK", 1, "w1", "u", label="...a lock on it is granted (a lock needs no write permission)", ok=k_ok("", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"readonly": (HW,)})
+    row("the read-only-file program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...nothing changed on the fake", r.stores[0][HW] == dict(HWREC), "")
+
+    s = Script()
+    s.add("OPEN", "nfw", HWBP, ok=k_open_w(1))
+    s.add("OPEN", "nfw", HWVOC, ok=k_open_w(2))
+    s.add("OPEN", "nfw", "dict " + HW, ok=k_open_w(3))
+    s.add("OPEN", "nfw", HW, ok=k_open_w(4))
+    s.add("WRITE", 1, "prog1", "x", label="THE SERVER'S OWN EDIT GATE (the files-only login has none by default): WRITE to the file bp is an error with the server's text (11407), nothing written",
+          ok=k_srverr("write", 0, text=msg(11407)))
+    s.add("WRITE", 2, "verb1", "x", label="...to voc: the text of 11405", ok=k_srverr("write", 0, text=msg(11405)))
+    s.add("WRITE", 3, "name", "x", label="...to a dictionary (dict hwork): 11406", ok=k_srverr("write", 0, text=msg(11406)))
+    s.add("DELETE", 1, "prog1", label="...DELETE from bp: 11407", ok=k_srverr("delete", 0, text=msg(11407)))
+    s.add("CLEARFILE", 2, label="...CLEARFILE of voc: 11405", ok=k_srverr("clear.file", 0, text=msg(11405)))
+    s.add("WRITE", 4, "w1", "plain", label="CONTROL: an ordinary file is written", ok=k_ok("", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,))
+    row("the server-edit-gate program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...nothing changed on bp, voc or the dictionary, and the ordinary file holds the control write", r.stores[0][HWBP] == {"prog1": "x"} and r.stores[0][HWVOC] == {"verb1": "V"}
+        and r.stores[0][HW].get("w1") == "plain", repr(r.stores[0]))
+    s = Script()
+    s.add("OPEN", "nfw", HWBP, ok=k_open_w(1))
+    s.add("WRITE", 1, "prog1", "changed", label="CONTROL: with the server's gate for program files (bp.edit) open the same WRITE is done", ok=k_ok("", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"edit_allow": frozenset(["prog"])})
+    judge(r, s)
+    row("...and bp holds the record", r.stores[0][HWBP].get("prog1") == "changed", repr(r.stores[0][HWBP]))
+
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+    s.add("LOCK", 1, "w1", "u", label="MAXRLOCK on the server (1 lock): the first lock is granted", ok=k_ok("", 0))
+    s.add("LOCK", 1, "w2", "u", label="...a SECOND, new lock is -3060 (status -3060, rc<6> -3060)", ok=k_srverr("lock", -3060))
+    s.add("LOCK", 1, "w1", "u", label="...a lock the session already holds is not a new one: rc 0", ok=k_ok("", 0))
+    s.add("READ", 1, "w1", label="...and the handler goes on", ok=k_rec(HWREC["w1"]))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"maxrlock": 1})
+    row("the MAXRLOCK program ran to the end (no abort) and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+
+    # the answer to a READ that the server gave with an ON ERROR: the old gaps row, built since the class is quiet
+    s = Script()
+    s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+    s.add("OPEN", "nfw", HW, ok=k_open_w(2))
+    s.add("READ", 1, "c1", label="A READ the server answers with an ON ERROR (read mode handle): rc 3 with 11500 naming the server, the operation and 'status 0' - the handler does NOT abort (the class is quiet)",
+          ok=k_srverr("read", 0, srv="nfa"))
+    s.add("READ", 2, "w1", label="...the same on a write-mode handle", ok=k_srverr("read", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"fail": {6: (netfake.SV_ON_ERROR, "boom")}})
+    row("the program that made those READs reached its end", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+
+
+def hw_misc(A):
+    say("\n  -- a success status the client must not read; STATE; the other statements of the gate --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+    s.add("WRITE", 1, "w1", "x", label="the fake sends STATUS() 3006 with every successful change: WRITE is still rc 0 with NO status (the client never reads the status of a success)", ok=k_ok("", 0))
+    s.add("DELETE", 1, "w2", ok=k_ok("", 0))
+    s.add("LOCK", 1, "w3", "u", label="...LOCK too", ok=k_ok("", 0))
+    s.add("RELEASE", 1, "w3", ok=k_ok("", 0))
+    s.add("CLEARFILE", 1, ok=k_ok("", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"success_status": 3006})
+    row("the success-status program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+
+    # the account that is not listed or has no gate cannot change a thing
+    s = Script()
+    s.add("OPEN", "nfw", HW, label="THE NET GATE OFF (zznhoff): OPEN of the write-mode server is 11460 - the mode loosens nothing the gate holds", ok=k_err(11460, "zznhoff", "nfw"),
+          audit="refused server=nfw reason=gate")
+    s.add("WRITE", 1, "w1", "x", label="...and a WRITE on a handle that is not open is 11494", ok=k_err(11494, 1))
+    r = hw_go("zznhoff", s, (A,))
+    row("the gate-off program ran to the end", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...nothing was dialled", all(d["conns"] == 0 for d in r.d) and r.audits == s.audits(), repr(r.audits))
+
+
 # ---- K. the kernel: a NET_FILE through real statements (slice 3c) ---------------------------------------------------------------------------------
 #
 # S.65 slice 3c.  Until now nothing in the kernel called the handler: the sections above drive $netfile from a BASIC program that CALLs it.  Here an
@@ -1987,7 +2578,8 @@ KDRV = "zznk1"                                      # the input driven program (
 KLOOP, KTXN, KVOC, KSENT, KGATE = "zznkl", "zznkt", "zznkv", "zznksent", "zznkg"
 KOFF = "zznhnov"                                    # the NET gate on, voc.edit OFF
 KSLOTS = 4                                          # the driver's file variables f1 .. f4
-KALLOWED = {47, 48, 3, 4, 5, 6, 1}                  # the requests a read only session may send: login, account, open, close, read, quit
+KALLOWED = {47, 48, 3, 4, 5, 6, 1}                  # the requests a read only session may send: login, account, open, close, read, quit.  Since slice 3e this is the set of a
+                                                    # session on a MODE READ server (nfa, nfb): the refusal matrix below is the mode=read CONTROL of the section kwrite
 KBAD = [("zznbad1", "1abc", HFILE), ("zznbad2", "nfa b", HFILE), ("zznbad3", "", HFILE), ("zznbad4", "nfa", ""), ("zznbad5", "nfa", "a/b"),
         ("zznbad6", "nfa", "dict hcust"), ("zznbad7", "nfa", "x" * 64), ("zznbad8", "a" + "b" * 16, HFILE), ("zznbad9", "nfa", "a;b")]
 
@@ -2157,6 +2749,8 @@ end
 # such clause), the messages the abort may give as (number, second argument), the STATUS() the ON ERROR branch sees).  The server in every message
 # is nfa, the server of zznet1.  7000 is ER_NETWORK, 3035 ER_PERM: the statements that take the S.64 edit-gate convention (RECORDLOCKU / L)
 # give 3035, the others the net_refuse() status.  SELECT and SELECTV are not here since slice 3d: they work (kn_query).  Every statement uses the open file variable f and the record c1.
+# 18 Oct 26 (slice 3e): nfa is MODE READ, so EVERY ROW OF THE MATRIX STANDS UNCHANGED AS THE MODE=READ CONTROL - the write, delete, lock and release statements are refused with 11501 (or 3035)
+# and nothing reaches the server.  The same statements on a MODE WRITE server are the section kwrite's; the ones that stay refused there (11511) are re-run from this table by kw_prep.
 
 
 def km(tag, a, e, op, st, pre=(), num=11501):
@@ -2515,9 +3109,10 @@ def kn_opens_refused(A, B):
     row("OPEN 'DICT', 'zznet1' (slice 3d: the dictionary of a remote file is opened as 'dict hcust' on the server) is the THEN branch with STATUS() 0, and so is the dictionary of the upper case pointer",
         "KR ODICT zznet1 then st=0" in r.kr and "KR ODICT zznetup then st=0" in r.kr, repr([x for x in r.kr if x.startswith("KR ODICT")]))
     da, db = r.d
-    expect_a = [[47, 48, 3, 4], [47, 48, 3, 4, 4, 6, 6, 4, 5, 4]]
+    expect_a = [[47, 48, 3, 4], [47, 48, 3, 4, 4, 6, 6, 4, 5, 4, 5, 5, 5]]
     row("...WHAT WAS DIALLED: server A saw two connections - the first ACCOUNT and OPEN nosuchfile (then the handler's Quit), the second ACCOUNT, OPEN, OPEN, READ, READ, the first dictionary OPEN, the CLOSE "
-        "of it that the second one's assignment queued, and the second dictionary OPEN, and "
+        "of it that the second one's assignment queued, and the second dictionary OPEN, then (slice 3e: CPROC flushes the queued closes at the prompt, kernel(K$NET, -2)) the three CLOSEs of the file variables the "
+        "driver let go, and "
         "nothing else (so no pointer of the refused kind and none of the nine bad ones made a request; a Quit at the end of a connection is not compared)", kn_conns(da) == expect_a, repr(by_conn(da)))
     row("...server B (the pin mismatch) saw one connection and a completed handshake, ZERO request packets and ZERO application bytes: nothing was sent to a server whose key is not the pinned one",
         db["conns"] == 1 and db["handshakes"] == 1 and db["types"] == [] and db["app_bytes"] == 0, repr({k: db[k] for k in ("conns", "handshakes", "types", "app_bytes")}))
@@ -2792,12 +3387,906 @@ def kn_after(A):
         "double free, after every row had its answer; the class objects the handler keeps in common ran their destroy code on a freed e-stack)", not KN.get("crashes"), repr(KN.get("crashes")))
 
 
+# ---- K2. the kernel on a WRITE-mode file: real statements (S.65 slice 3e, section kwrite) -----------------------------------------------------------
+#
+# An ORDINARY session's OPEN statement names a VOC record of type N whose server is nfw (mode write).  The statements WRITE, WRITEU, MATWRITE, WRITEV, WRITEVU, DELETE, DELETEU,
+# CLEARFILE, READU, READL, MATREADU, MATREADL, READVU, READVL, RECORDLOCKU, RECORDLOCKL and RELEASE are then SENT to the server (through the kernel's net_gate and net_write ...,
+# and the handler).  THE FAKE IS THE WITNESS, as in hwrite: its packet log (what was sent, in order, byte for byte), its store (what was done) and its lock table.  The lock
+# table is watched DURING a session by a thread that polls it every 50 ms (LockWatch) while the driver SLEEPs a second between statements, so that the lock a statement took is
+# seen while it is held and not only the empty table after the session ended.  A record that is busy (held by a user number the test made up: store.hold) is waited for by the
+# kernel, which polls with lock requests every 250 ms - the fake must see lock requests and NO read until the holder lets go (HolderRelease does that, a fixed time after the
+# first lock request).  The driver zznk2 prints "KW <op> <id> <outcome> st=<STATUS()> ..." for each statement: the outcome is which of THEN, ELSE, LOCKED and ON ERROR ran.
+# STATUS() after an ON ERROR is the positive number (abs).  The S.64 gates are tried in three accounts: zznhon (all on), zznhnov (voc.edit off) and zznhned (all three off).
+# The read-mode control is the existing sections (the refusal matrix KM), which stand unchanged on nfa.
+#
+# WHAT IT CANNOT SHOW.  (1) That the break key ends a wait. (2) The 5 minute CLEARFILE bound. (3) COLL values written to a remote file (no collection is made here).
+# (4) The cost of the handler asking the definitions file at every change.
+
+KW = {}                                                    # what the section made
+KWDRV = "zznk2"                                            # the input driven program
+KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 34}      # the requests a write-mode session of these rows may send: ours plus RECORDLOCKED (MUSTLOCK)
+KW_PTRS = (("zznw1", "nfw", HW), ("zznwb", "nfwb", HW), ("zznwr", "nfa", HW), ("zznwbp", "nfw", HWBP), ("zznwvoc", "nfw", HWVOC), ("zznwnc", "nfw", HWNC))
+KW_EO = "on error oc = 'error'"
+KW_LK = " locked oc = 'locked'"
+KW_EL = " else oc = 'else'"
+# the statements the driver runs: name -> (lines before, the statement with {f} for the file variable, how the outcome is shown)
+KW_STMTS = {
+    "OPEN": ([], "open a3 to {f} " + KW_EO + KW_EL, "plain"),
+    "ODICT": ([], "open 'DICT', a3 to {f} " + KW_EO + KW_EL, "plain"),
+    "READ": ([], "read rec from {f}, a3 " + KW_EO + KW_EL, "rec"),
+    "READU": ([], "readu rec from {f}, a3 " + KW_EO + KW_LK + KW_EL, "rec"),
+    "READL": ([], "readl rec from {f}, a3 " + KW_EO + KW_LK + KW_EL, "rec"),
+    "READUW": ([], "readu rec from {f}, a3 " + KW_EO + KW_EL, "rec"),                  # no LOCKED clause: a busy record is waited for
+    "READLW": ([], "readl rec from {f}, a3 " + KW_EO + KW_EL, "rec"),
+    "READVU": (["fld = a4 + 0"], "readvu rec from {f}, a3, fld " + KW_EO + KW_LK + KW_EL, "rec"),
+    "READVL": (["fld = a4 + 0"], "readvl rec from {f}, a3, fld " + KW_EO + KW_LK + KW_EL, "rec"),
+    "READVUW": (["fld = a4 + 0"], "readvu rec from {f}, a3, fld " + KW_EO + KW_EL, "rec"),
+    "MATREADU": ([], "matreadu m from {f}, a3 " + KW_EO + KW_LK + KW_EL, "mat"),
+    "MATREADL": ([], "matreadl m from {f}, a3 " + KW_EO + KW_LK + KW_EL, "mat"),
+    "WRITE": ([], "write a4 to {f}, a3 " + KW_EO, "plain"),
+    "WRITEU": ([], "writeu a4 to {f}, a3 " + KW_EO, "plain"),
+    "MATWRITE": (["mw(1) = field(a4, @fm, 1)", "mw(2) = field(a4, @fm, 2)"], "matwrite mw to {f}, a3 " + KW_EO, "plain"),
+    "WRITEV": (["fld = a5 + 0"], "writev a4 to {f}, a3, fld " + KW_EO, "plain"),
+    "WRITEVU": (["fld = a5 + 0"], "writevu a4 to {f}, a3, fld " + KW_EO, "plain"),
+    "DELETE": ([], "delete {f}, a3 " + KW_EO, "plain"),
+    "DELETEU": ([], "deleteu {f}, a3 " + KW_EO, "plain"),
+    "CLEARFILE": ([], "clearfile {f} " + KW_EO, "plain"),
+    "RLOCKU": ([], "recordlocku {f}, a3 " + KW_EO + KW_LK, "plain"),
+    "RLOCKL": ([], "recordlockl {f}, a3 " + KW_EO + KW_LK, "plain"),
+    "RLOCKUW": ([], "recordlocku {f}, a3 " + KW_EO, "plain"),
+    "RELEASE": ([], "release {f}, a3", "plain"),
+    "RELEASEF": ([], "release {f}", "plain"),
+    "RELEASEA": ([], "release", "plain"),
+    "CLOSE": ([], "close {f}", "close"),
+    "FI": (["fkey = a3 + 0"], "x = fileinfo({f}, fkey)", "fi"),
+}
+KW_TXN_OPS = ("WRITE", "WRITEU", "MATWRITE", "WRITEV", "WRITEVU", "DELETE", "DELETEU", "CLEARFILE", "READ", "READU", "READL", "READVU", "MATREADU", "RLOCKU", "RLOCKL", "RELEASE", "RELEASEF")
+
+
+def kw_show(name, kind):
+    """The lines that print the outcome of a statement; tid is the id as it was TYPED (place holders and all), never the marks themselves."""
+    if kind == "rec":
+        return ["v = rec ; gosub shw", "crt 'KW %s ':tid:' ':oc:' st=':st:' len=':len(rec):' rec=[':sv:']'" % name]
+    if kind == "mat":
+        return ["crt 'KW %s ':tid:' ':oc:' st=':st:' [':m(1):'][':m(2):'][':m(3):']'" % name]
+    if kind == "close":
+        return ["crt 'KW %s ':slot" % name]
+    if kind == "fi":
+        return ["v = x ; gosub shw", "crt 'KW %s ':tid:' [':sv:']'" % name]
+    return ["crt 'KW %s ':tid:' ':oc:' st=':st" % name]
+
+
+def kw_case(name, pre, stmt, kind, txn=False):
+    """One case of the driver: the statement once for each of the four file variables (the slot picks one); inside a transaction when TXN, then the lines that print."""
+    shown = ("T" if txn else "") + name
+    out = ["         case op = '%s'" % shown] + ["            " + p for p in pre]
+    pad = "               " if txn else "            "
+    if txn:
+        out.append("            begin transaction")
+    out.append(pad + "begin case")
+    for n in range(1, KSLOTS + 1):
+        out.append(pad + "   case slot = %d" % n)
+        out.append(pad + "      " + stmt.replace("{f}", "f%d" % n))
+        out.append(pad + "      st = status()")
+    out.append(pad + "end case")
+    if txn:
+        out += ["               rollback", "            end transaction"]
+    return out + ["            " + s for s in kw_show(shown, kind)]
+
+
+def kw_driver():
+    L = ["$include err.h", "   dim m(4)", "   dim mw(2)"] + ["   f%d = ''" % n for n in range(1, KSLOTS + 1)]
+    L += ["   x = ''", "   fkey = 0", "   v = ''", "   sv = ''", "   tid = ''", "   rec = ''"]                    # assigned first for BCOMP: a warning fails the bootstrap
+    L += ["   crt 'KW begin'", "   done = @false", "   loop", "      input ln", "      done = (ln = 'END') or (ln = '' and status() = ER$EOF)", "   until done do",
+          "      op = field(ln, '|', 1)", "      a2 = field(ln, '|', 2)", "      a3 = field(ln, '|', 3)", "      a4 = field(ln, '|', 4)", "      a5 = field(ln, '|', 5)", "      tid = a3"]
+    for v in ("a3", "a4"):
+        for ph, mk in (("<I>", "@im"), ("<F>", "@fm"), ("<V>", "@vm"), ("<S>", "@sm")):
+            L.append("      %s = change(%s, '%s', %s)" % (v, v, ph, mk))
+    L += ["      slot = 0", "      if op # 'EXEC' and op # 'SLEEP' and op # 'TIME' then slot = a2 + 0", "      oc = 'then'", "      rec = ''", "      st = 0", "      fld = 0",
+          "      mat m = ''", "      mat mw = ''", "      begin case"]
+    for name, (pre, stmt, kind) in KW_STMTS.items():
+        L += kw_case(name, pre, stmt, kind)
+        if name in KW_TXN_OPS:
+            L += kw_case(name, pre, stmt, kind, txn=True)
+    L += ["         case op = 'SLEEP'", "            sleep a2 + 0", "            crt 'KW SLEEP ':a2", "         case op = 'TIME'", "            crt 'KW TIME ':time()",
+          "         case op = 'EXEC'", "            execute a2", "            crt 'KW EXEC ':a2:' who=':@who",
+          "         case 1", "            crt 'KW UNKNOWN ':op", "      end case", "   repeat", "   crt 'KW end'", "   stop", "",
+          "shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100",
+          "   sv = v", "   sv = change(sv, @im, '<I>')", "   sv = change(sv, @fm, '<F>')", "   sv = change(sv, @vm, '<V>')", "   sv = change(sv, @sm, '<S>')",
+          "   if len(sv) > 100 then sv = sv[1,40] : '..' : sv[len(sv) - 39, 40]", "   return", "", "end", ""]
+    return "\n".join(L)
+
+
+def kw_prog(tag, ptr, middle, pre=(), dict_open=False):
+    """A small program that opens the pointer ptr into f, runs MIDDLE and says SURVIVED when it was not stopped by the statement."""
+    L = ["   " + p for p in pre]
+    opn = ("open 'DICT', '%s' to f" if dict_open else "open '%s' to f") % ptr
+    L += ["   crt 'KW %s begin'" % tag, "   %s else crt 'KW %s openfail st=':status() ; stop" % (opn, tag)]
+    L += ["   " + x for x in middle] + ["   crt 'KW %s SURVIVED st=':status()" % tag, "end", ""]
+    return "\n".join(L)
+
+
+# programs that must STOP (no ON ERROR): (tag, pointer, statements, lines before, DICT open, accounts, the abort message (a function), the pre lines)
+def _txn(*stmts):
+    return ["begin transaction"] + list(stmts) + ["rollback", "end transaction"]
+
+
+KWA = [
+    # a change or a lock inside a transaction: 11510 naming the server and the statement (net_gate), nothing sent
+    ("tw", "zznw1", _txn("write 'x' to f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "write")]),
+    ("twu", "zznw1", _txn("writeu 'x' to f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "writeu")]),
+    ("tmw", "zznw1", _txn("matwrite mw to f, 'w1'"), ("dim mw(2)", "mat mw = 'a'"), False, ("zznhon",), lambda: [msg(11510, "nfw", "write"), msg(11510, "nfw", "writeu")]),
+    ("twv", "zznw1", _txn("writev 'x' to f, 'w1', 1"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "writev")]),
+    ("tdl", "zznw1", _txn("delete f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "delete")]),
+    ("tdu", "zznw1", _txn("deleteu f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "delete"), msg(11510, "nfw", "deleteu")]),
+    ("tcl", "zznw1", _txn("clearfile f"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "clearfile")]),
+    ("tru", "zznw1", _txn("readu r from f, 'w1' else null"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "readu")]),
+    ("trl", "zznw1", _txn("readl r from f, 'w1' else null"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "readl")]),
+    ("trv", "zznw1", _txn("readvu v from f, 'w1', 1 else null"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "readvu")]),
+    ("tlu", "zznw1", _txn("recordlocku f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "recordlocku")]),
+    ("tll", "zznw1", _txn("recordlockl f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "recordlockl")]),
+    # the S.64 edit gate of the REMOTE file's name, asked of the account that is signed in: no ON ERROR, the abort says which gate
+    ("gb", "zznwbp", ["write 'x' to f, 'prog1'"], (), False, ("zznhned",), lambda: [msg(11407)]),
+    ("gv", "zznwvoc", ["write 'x' to f, 'verb1'"], (), False, ("zznhned", KOFF), lambda: [msg(11405)]),
+    ("gd", "zznw1", ["write 'x' to f, 'name'"], (), True, ("zznhned",), lambda: [msg(11406)]),
+    ("gbd", "zznwbp", ["delete f, 'prog1'"], (), False, ("zznhned",), lambda: [msg(11407)]),
+    ("gvc", "zznwvoc", ["clearfile f"], (), False, ("zznhned", KOFF), lambda: [msg(11405)]),
+    ("gbv", "zznwbp", ["writev 'x' to f, 'prog1', 1"], (), False, ("zznhned",), lambda: [msg(11407)]),
+    ("gbm", "zznwbp", ["matwrite mw to f, 'prog1'"], ("dim mw(2)", "mat mw = 'a'"), False, ("zznhned",), lambda: [msg(11407)]),
+    # an id that cannot be sent: the statement stops (no ON ERROR), nothing is sent
+    ("iw", "zznw1", ["write 'x' to f, ''"], (), False, ("zznhon",), None),
+    ("iw64", "zznw1", ["write 'x' to f, str('a', 64)"], (), False, ("zznhon",), None),
+    ("id", "zznw1", ["delete f, ''"], (), False, ("zznhon",), None),
+]
+# statements that stay refused on a write-mode handle (message 11511 'not available', not 11501 'read only'): the matrix KM's entries, taken to the pointer zznw1
+KW_STILL_REFUSED = ("filelock", "fileunlock", "recordlocked", "selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright", "fcontrol6", "fcontrol1",
+                    "fiexcl", "fistaton", "fistatoff")
+# internal programs (global catalogue, verbs in the accounts): a gate that must not exempt them, the MUSTLOCK setting only they can make, the S.64 key edit_guard asks
+KWI_TEXT = """$internal
+program zznkwi
+$catalog $zznkwi
+   oc = 'then'
+   crt 'KW i begin'
+   open 'zznwbp' to f else crt 'KW i openfail st=':status() ; stop
+   write 'viaint' to f, 'prog1' on error oc = 'error'
+   crt 'KW i bp ':oc:' st=':status()
+   open 'zznw1' to f2 else crt 'KW i openfail2 st=':status() ; stop
+   x = fileinfo(f2, 10005)
+   crt 'KW i setrdonly answer=':x
+   oc = 'then'
+   write 'x' to f2, 'w1' on error oc = 'error'
+   crt 'KW i setrdonly ':oc:' st=':status()
+   crt 'KW i readonly=':fileinfo(f2, 1001)
+   crt 'KW i end'
+end
+"""
+KWG_TEXT = """$internal
+program zznkwg
+$catalog $zznkwg
+deffun edit_guard(f) calling '!edit_guard'
+   crt 'KW g begin'
+   open 'zznwbp' to f1 else crt 'KW g openfail st=':status() ; stop
+   ok = edit_guard(f1)
+   crt 'KW g bp ok=':ok
+   open 'zznwvoc' to f2 else crt 'KW g openfail st=':status() ; stop
+   ok = edit_guard(f2)
+   crt 'KW g voc ok=':ok
+   open 'DICT', 'zznw1' to f3 else crt 'KW g openfail st=':status() ; stop
+   ok = edit_guard(f3)
+   crt 'KW g dict ok=':ok
+   open 'zznw1' to f4 else crt 'KW g openfail st=':status() ; stop
+   ok = edit_guard(f4)
+   crt 'KW g data ok=':ok
+   crt 'KW g end'
+end
+"""
+KWM_TEXT = """$internal
+program zznkwm
+$catalog $zznkwm
+   oc = 'then'
+   crt 'KW m begin'
+   open 'zznw1' to f else crt 'KW m openfail st=':status() ; stop
+   if pconfig('MUSTLOCK', 1) then null
+   write 'x' to f, 'w1' on error oc = 'error'
+   crt 'KW m write-nolock ':oc:' st=':status()
+   oc = 'then'
+   delete f, 'w2' on error oc = 'error'
+   crt 'KW m delete-nolock ':oc:' st=':status()
+   oc = 'then'
+   readu rec from f, 'w1' on error oc = 'error' locked oc = 'locked' else oc = 'else'
+   crt 'KW m readu ':oc:' st=':status():' rec=[':rec:']'
+   oc = 'then'
+   write 'y' to f, 'w1' on error oc = 'error'
+   crt 'KW m write-locked ':oc:' st=':status()
+   if pconfig('MUSTLOCK', 0) then null      ;* MUSTLOCK belongs to the whole process: left on, the command processor's own WRITEs are refused (3023) and it never gets back to the prompt
+   crt 'KW m end'
+end
+"""
+# AUTOLOCK: $MODE AUTOLOCK makes a WRITE and a DELETE take the update lock themselves (compile time; an ordinary program)
+KWAL_TEXT = """$mode autolock
+   crt 'KW al begin'
+   open 'zznw1' to f else crt 'KW al openfail st=':status() ; stop
+   write 'by-autolock' to f, 'w1' on error crt 'KW al write error st=':status()
+   crt 'KW al write st=':status()
+   delete f, 'w2' on error crt 'KW al delete error st=':status()
+   crt 'KW al delete st=':status()
+   crt 'KW al end'
+end
+"""
+KWAL2_TEXT = """$mode autolock
+   crt 'KW al2 begin'
+   open 'zznw1' to f else crt 'KW al2 openfail st=':status() ; stop
+   crt 'KW al2 time ':time()
+   write 'after-wait' to f, 'w3' on error crt 'KW al2 write error st=':status()
+   crt 'KW al2 write st=':status()
+   crt 'KW al2 time ':time()
+   crt 'KW al2 end'
+end
+"""
+# the lock that outlives its file variable until the next prompt, and the program that keeps the session alive after it
+KWL1_TEXT = """   crt 'KW l1 begin'
+   open 'zznw1' to f else crt 'KW l1 openfail st=':status() ; stop
+   readu rec from f, 'w1' else null
+   crt 'KW l1 locked'
+end
+"""
+KWL2_TEXT = """   crt 'KW l2 begin'
+   sleep 4
+   crt 'KW l2 end'
+end
+"""
+KWADM_TEXT = """   crt 'KW adm begin'
+   oc = 'then'
+   open 'voc' to v else crt 'KW adm novoc' ; stop
+   write 'N':@fm:'nfw':@fm:'hwork' to v, 'zznwadm'
+   write 'N':@fm:'nfw':@fm:'bp' to v, 'zznwadmbp'
+   open 'zznwadm' to f else crt 'KW adm openfail st=':status() ; stop
+   open 'zznwadmbp' to fb else crt 'KW adm openfail2 st=':status() ; stop
+   write 'one' to f, 'w1' on error oc = 'error'
+   crt 'KW adm write1 ':oc:' st=':status()
+   oc = 'then'
+   write 'viaadmin' to fb, 'prog1' on error oc = 'error'
+   crt 'KW adm bp ':oc:' st=':status()
+   execute 'RUN bp zznfhm1'
+   oc = 'then'
+   write 'two' to f, 'w1' on error oc = 'error'
+   crt 'KW adm write2 ':oc:' st=':status()
+   execute 'RUN bp zznfhm2'
+   oc = 'then'
+   write 'three' to f, 'w1' on error oc = 'error'
+   crt 'KW adm write3 ':oc:' st=':status()
+   crt 'KW adm end'
+end
+"""
+
+
+def kw_voc():
+    """The VOC records the administrator writes: account -> [(id, fields)]."""
+    ptrs = [(v, ["N", s, f]) for v, s, f in KW_PTRS]
+    return {"zznhon": ptrs + [("zznkwm", ["V", "CA", "$zznkwm"]), ("zznkwg", ["V", "CA", "$zznkwg"])],
+            HNED: ptrs + [("zznkwi", ["V", "CA", "$zznkwi"]), ("zznkwg", ["V", "CA", "$zznkwg"])],
+            KOFF: ptrs}
+
+
+def kw_fix_text():
+    root = os.path.join(g.BOX, "user_accounts")
+    out = ["$internal"]
+    for acct, recs in kw_voc().items():
+        out.append("   openpath '%s' to v else crt 'KWFIX no voc %s' ; stop" % (os.path.join(root, acct, "voc"), acct))
+        for rid, flds in recs:
+            out.append("   write %s to v, '%s'" % (":@fm:".join("'%s'" % x for x in flds), rid))
+        out.append("   close v")
+    out += ["   crt 'KWFIX done'", "end", ""]
+    return "\n".join(out)
+
+
+def kw_prep():
+    """Once: the account with the NET gate and no edit gate (HNED), the driver, the programs that must stop, the internal programs and the pointers."""
+    if "ready" in KW:
+        return KW["ready"]
+    KW["ready"] = False
+    if not kn_prep() or not hw_prep():
+        return False
+    g.EXTRA_FIXTURES[HNED] = ("no", "no")
+    path = g.build_account(HNED)
+    gates_on = [path, "", g.GROUP, "", "", "", "no", "no", "", "yes", "yes", "yes", "", "", "yes"]
+    g.reg_write(HNED, gates_on)                                    # while the programs are compiled: they need bp.edit
+    drv = kw_driver()
+    plan = {"zznhon": {KWDRV: drv, "zznkwal": KWAL_TEXT, "zznkwal2": KWAL2_TEXT, "zznkwl1": KWL1_TEXT, "zznkwl2": KWL2_TEXT},
+            HNED: {KWDRV: drv}, KOFF: {KWDRV: drv}}
+    KW["abort"] = {}
+    for i, (tag, ptr, middle, pre, dict_open, accts, _m) in enumerate(KWA, 1):
+        name = "zznkwa%02d" % i
+        KW["abort"][name] = i - 1
+        for a in accts:
+            plan.setdefault(a, {})[name] = kw_prog(tag, ptr, middle, pre, dict_open)
+    # the refusals that remain on a write-mode handle: the matrix' programs, taken to the pointer zznw1 (write mode)
+    KW["still"] = {}
+    for i, (tag, pre, a_lines, _e, want, _st) in enumerate(KM, 1):
+        if tag in KW_STILL_REFUSED:
+            name = "zznkws%02d" % i
+            KW["still"][name] = (tag, want)
+            plan["zznhon"][name] = kw_prog(tag, "zznw1", a_lines, pre)
+    missing, warn, total = {}, [], 0
+    for acct, progs in plan.items():
+        for name, text in progs.items():
+            g.put(os.path.join(acct_path(acct), "bp", name), text)
+        out, miss = kn_compile(acct, list(progs))
+        total += len(progs)
+        warn += [ln for ln in out if re.search(r"warning|not assigned", ln, re.I)]
+        if miss:
+            missing[acct] = (miss, [ln for ln in out if any(n in ln for n in miss) or re.search(r"error", ln, re.I)][:10])
+    row("SETUP: the %d programs of the write section (the driver in three accounts, %d that must stop, %d refusals that remain, AUTOLOCK, the lock lifetime) compile in ORDINARY sessions "
+        "with no error and no warning" % (total, len(KWA), len(KW["still"])), not missing and not warn, repr((missing, warn[:4])))
+
+    # the internal programs, the pointers (written by the administrator) and the admin's program
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkwi"), KWI_TEXT)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkwg"), KWG_TEXT)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkwm"), KWM_TEXT)
+    out = g.adm(["BASIC gpl.bp zznkwi zznkwg zznkwm"], internal=True)
+    ok_i = g.has(out, r"^Compiled 3 program\(s\) with no errors") and not any(re.search(r"warning|not assigned", ln, re.I) for ln in out)
+    g.put(os.path.join(g.SYS, "bp", "zznkwadm"), KWADM_TEXT)
+    out1 = g.adm(["BASIC bp zznkwadm"], internal=True)
+    ok_a = g.has(out1, r"^Compiled 1 program\(s\) with no errors")
+    g.put(os.path.join(g.SYS, "bp", "zznkwfix"), kw_fix_text())
+    out2 = g.adm(["BASIC bp zznkwfix", "RUN bp zznkwfix"], internal=True)
+    ok_f = g.has(out2, r"^KWFIX done$")
+    npt = sum(len(v) for v in kw_voc().values())
+    row("SETUP: the three internal test programs and the administrator's program compile, and the administrator wrote %d VOC records (pointers to the write-mode files and the verbs) into three accounts"
+        % npt, ok_i and ok_a and ok_f, repr((out[-4:], out1[-4:], out2[-4:])))
+    if missing or not (ok_i and ok_a and ok_f):
+        return False
+    g.reg_write(HNED, [path, "", g.GROUP, "", "", "", "no", "no", "", "no", "no", "no", "", "", "yes"])        # NOW the account has the NET gate and NO edit gate
+    f = g.flags(g.plain(HNED, ["ZZKF"]))
+    row("CONTROL: the account %s is an ordinary session (admin=0) and its edit gates are off: it cannot write the VOC, a program file or a dictionary of its own" % HNED,
+        f is not None and f[0] == "0", repr(f))
+    KW["ready"] = f is not None and f[0] == "0"
+    return KW["ready"]
+
+
+# ---- running a session on the write-mode files ------------------------------------------------------------------------------------------------
+
+class LockWatch(threading.Thread):
+    """Polls a fake's lock table every 50 ms for the lock set of the FIRST session begun after it was started, and keeps each change as (locks, session already ended)."""
+
+    def __init__(self, srv):
+        threading.Thread.__init__(self, daemon=True)
+        self.srv = srv
+        with srv.lock:
+            self.n0 = len(srv.sessions)
+        self.states = []
+        self.closed_at = None                     # when the connection was first seen ended
+        self.stop_ev = threading.Event()
+
+    def run(self):
+        last = None
+        while not self.stop_ev.is_set():
+            with self.srv.lock:
+                ses = self.srv.sessions[self.n0] if len(self.srv.sessions) > self.n0 else None
+            if ses is not None:
+                st = (tuple(self.srv.store.locks_of(ses.userno)), ses.closed)
+                if st != last:
+                    self.states.append(st)
+                    last = st
+                if ses.closed and self.closed_at is None:
+                    self.closed_at = time.time()
+            time.sleep(0.05)
+
+    def seq(self):
+        """The lock sets seen, one after the other, a repeat left out."""
+        out = []
+        for locks, _closed in self.states:
+            if not out or out[-1] != locks:
+                out.append(locks)
+        return out
+
+    def alive_empty_after_lock(self):
+        """Was a state with NO locks seen while the session was still open, after one with locks?"""
+        seen = False
+        for locks, closed in self.states:
+            if locks:
+                seen = True
+            elif seen and not closed:
+                return True
+        return False
+
+
+class HolderRelease(threading.Thread):
+    """Lets user USERNO (a lock the test made with store.hold) go DELAY seconds after the first session begun after this was started has sent its first lock request."""
+
+    def __init__(self, srv, userno, delay):
+        threading.Thread.__init__(self, daemon=True)
+        self.srv, self.userno, self.delay = srv, userno, delay
+        with srv.lock:
+            self.n0 = len(srv.sessions)
+        self.released = None
+
+    def run(self):
+        t0 = time.time()
+        while time.time() - t0 < 90:
+            with self.srv.lock:
+                ses = self.srv.sessions[self.n0] if len(self.srv.sessions) > self.n0 else None
+            if ses is not None and 30 in ses.requests:
+                time.sleep(self.delay)
+                self.srv.store.drop_user(self.userno)
+                self.released = time.time()
+                return
+            time.sleep(0.05)
+
+
+def kw_run(acct, cmds, fakes, cfg=None, watch=(), holders=()):
+    """kn_run, with the lock watchers and holder releases started before it; r.kw is what the driver printed, r.watch the watchers, r.stores what each fake's files held at the end."""
+    ws = [LockWatch(f) for f in watch]
+    hs = [HolderRelease(f, u, dl) for f, u, dl in holders]
+    for t in ws + hs:
+        t.start()
+    try:
+        r = kn_run(acct, cmds, fakes, cfg)
+        t_end = time.time()
+    finally:
+        for w in ws:
+            w.stop_ev.set()
+        for w in ws:
+            w.join(timeout=2)
+    r.watch, r.holders, r.t_end = ws, hs, t_end
+    r.kw = [ln for ln in r.out if ln.startswith("KW ")]
+    r.stores = [{n: f.store.records(n) for n in (HW, HWBP, HWVOC, HWNC)} for f in fakes]
+    for f in fakes:
+        wreset(f)
+    return r
+
+
+def kw_drive(acct, lines, fakes, cfg=None, watch=(), holders=()):
+    return kw_run(acct, ["RUN bp " + KWDRV] + list(lines) + ["END"], fakes, cfg, watch, holders)
+
+
+def kw_sane(r, need_end=True):
+    """The driver began and ended, the session did not hang, no fake found anything malformed or refused a request, no connection is left."""
+    return (not r.hung and "KW begin" in r.kw and ("KW end" in r.kw or not need_end) and r.idle and not r.crash
+            and all(not d["errors"] for d in r.d) and all(not s.refused for d in r.d for s in d["sessions"]))
+
+
+def kw_why(r, n=6):
+    return "hung=%s began=%s ended=%s idle=%s crash=%s fake errors=%r\n      kw: %r\n      tail: %r" % (
+        r.hung, "KW begin" in r.kw, "KW end" in r.kw, r.idle, r.crash, [d["errors"] for d in r.d], r.kw[-n:], r.out[-3:])
+
+
+def kw_rec(op, rid, rec, oc="then", st=0):
+    return "KW %s %s %s st=%d len=%d rec=[%s]" % (op, rid, oc, st, len(rec), show(rec))
+
+
+def kw_plain(op, rid="", oc="then", st=0):
+    return "KW %s %s %s st=%d" % (op, rid, oc, st)
+
+
+def kw_segments(out):
+    """The lines each program printed, by its tag: from its  KW <tag> begin  line to the next one."""
+    segs, cur = {}, None
+    for ln in out:
+        m = re.match(r"^KW (\S+) begin$", ln)
+        if m:
+            cur = m.group(1)
+            segs[cur] = []
+        elif cur is not None:
+            segs[cur].append(ln)
+    return segs
+
+
+def kw_types_ok(r, allowed=KWALLOWED):
+    return all(set(d["types"]) <= allowed for d in r.d)
+
+
+def kwrite_section():
+    say("\n--- kernel, WRITE mode (slice 3e): WRITE, WRITEU, MATWRITE, WRITEV, WRITEVU, DELETE, DELETEU, CLEARFILE, READU/L, MATREADU/L, READVU/L, RECORDLOCKU/L and RELEASE on a file of a "
+        "server whose definition says write ---")
+    if not kw_prep():
+        return
+    A, B = S["A"], S["B"]
+    kw_basic(A)
+    kw_writev(A)
+    kw_locks(A)
+    kw_busy(A)
+    kw_release(A, B)
+    kw_txn(A)
+    kw_gate(A)
+    kw_lost(A)
+    kw_lifetime(A)
+    kw_fileinfo(A)
+    kw_locking_modes(A)
+    kw_mode_admin(A)
+    kw_refused(A)
+    kw_misc(A)
+
+
+def kw_basic(A):
+    say("\n  -- WRITE, WRITEU, MATWRITE, DELETE, DELETEU on a write-mode file: the request, the record, STATUS(), no cache --")
+    rec_new = NEWREC
+    lines = ["OPEN|1|zznw1", "READ|1|w1", "WRITE|1|w1|" + NEWREC_PH, "READ|1|w1", "WRITE|1|wnew|created", "MATWRITE|1|wmat|p<F>q", "READ|1|wmat", "WRITEU|1|w2|kept",
+             "DELETE|1|w3", "READ|1|w3", "DELETEU|1|wnew", "READ|1|wnew", "DELETE|1|nosuch", "WRITE|1|a<F>b|x", "WRITE|1||x", "DELETE|1||", "WRITE|1|" + "a" * 63 + "|edge", "WRITE|1|" + "a" * 64 + "|toolong", "CLOSE|1"]
+    want = ["KW OPEN zznw1 then st=0", kw_rec("READ", "w1", HWREC["w1"]), kw_plain("WRITE", "w1"), kw_rec("READ", "w1", rec_new),
+            kw_plain("WRITE", "wnew"), kw_plain("MATWRITE", "wmat"), kw_rec("READ", "wmat", "p" + FMC + "q"), kw_plain("WRITEU", "w2"),
+            kw_plain("DELETE", "w3"), kw_rec("READ", "w3", "", "else", 3006), kw_plain("DELETEU", "wnew"), kw_rec("READ", "wnew", "", "else", 3006),
+            kw_plain("DELETE", "nosuch"), "KW WRITE a<F>b error st=3000", "KW WRITE  error st=3000", "KW DELETE  error st=3000", kw_plain("WRITE", "a" * 63), "KW WRITE " + "a" * 64 + " error st=3000", "KW CLOSE 1"]
+    wire = [ACCT_REQ, W_OPEN(HW), W_READ(1, "w1"), W_WRITE(1, "w1", rec_new), W_READ(1, "w1"), W_WRITE(1, "wnew", "created"), W_WRITE(1, "wmat", "p" + FMC + "q"), W_READ(1, "wmat"),
+            W_WRITE(1, "w2", "kept", True), W_DEL(1, "w3"), W_READ(1, "w3"), W_DEL(1, "wnew", True), W_READ(1, "wnew"), W_DEL(1, "nosuch"), W_WRITE(1, "a" * 63, "edge"), (5, FNO(1))]
+    r = kw_drive("zznhon", lines, (A,))
+    row("an ordinary session in zznhon (the NET gate on, listed for nfw) ran the write driver to its end: no hang, nothing malformed, no connection left", kw_sane(r), kw_why(r))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    row("...EVERY STATEMENT DID WHAT IT SHOULD, line for line (%d lines): OPEN, READ, WRITE then READ AT ONCE (the record just written: a write-mode handle is not cached), WRITE of a new id, MATWRITE, "
+        "WRITEU, DELETE and READ (ELSE 3006), DELETEU, DELETE of a record that is not there (THEN, STATUS() 0), an id with a mark / an empty id (ON ERROR, STATUS() 3000, nothing sent)" % len(want),
+        got == want, "first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    d = r.d[0]
+    row("...THE REQUESTS, in order, with their bytes: only what the statements need - WRITE is 16, WRITEU 17, DELETE 18, DELETEU 19, a READ after a WRITE is a new READ (no cache), the three bad ids "
+        "sent NOTHING, CLOSE is 5", kn_wire(d) == wire, "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(d), wire) if a != b), (len(kn_wire(d)), len(wire))),))
+    exp = dict(HWREC)
+    exp.update({"w1": rec_new, "w2": "kept", "wmat": "p" + FMC + "q", "a" * 63: "edge"})
+    del exp["w3"]
+    row("...THE FILE ON THE FAKE: w1 with its four marks, w2 'kept', wmat 'p<F>q', w3 gone, wnew created and deleted, the 63 byte id written - and nothing else (not the 64 byte id)", r.stores[0][HW] == exp,
+        repr({k: v for k, v in r.stores[0][HW].items() if exp.get(k) != v}))
+    row("...the audit trail: the open line (mode=write), one 'write', one 'delete' - no id, no record", r.audits == [OPEN_W_AUD, "write server=nfw file=hwork", "delete server=nfw file=hwork"] and secret_free(r.audit),
+        repr(r.audits))
+    row("...and every request type the session sent is one of: login, account, open, close, read, release, write, writeu, delete, deleteu, lock, clearfile, recordlocked", kw_types_ok(r), repr(sorted(set(r.d[0]["types"]))))
+
+    # a write-mode handle is never cached, a read-mode handle of the same file is (the control), and then it can show a record up to 2 seconds old
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "OPEN|2|zznwr", "READ|2|w1", "WRITE|1|w1|changed", "READ|2|w1", "READ|1|w1", "SLEEP|3", "READ|2|w1", "CLOSE|1", "CLOSE|2"], (A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end", "KW SLEEP"))]
+    want = ["KW OPEN zznw1 then st=0", "KW OPEN zznwr then st=0", kw_rec("READ", "w1", HWREC["w1"]), kw_plain("WRITE", "w1"), kw_rec("READ", "w1", HWREC["w1"]), kw_rec("READ", "w1", "changed"),
+            kw_rec("READ", "w1", "changed"), "KW CLOSE 1", "KW CLOSE 2"]
+    row("THE CACHE: a READ-mode handle (zznwr, nfa) of the same file shows the record it read a moment ago for up to 2 seconds - after another handle's WRITE its second READ is the OLD record "
+        "(the documented limit, the CONTROL), the write-mode handle reads the NEW one at once, and 3 seconds later the read-mode handle sees it too", kw_sane(r) and got == want,
+        kw_why(r) + " got=%r" % got)
+    row("...THE FAKE SAW THREE READ requests in all: the read-mode handle's first READ, the write-mode handle's READ, and the read-mode handle's READ after the entry had expired - its second "
+        "READ was answered from the cache (%d)" % r.d[0]["types"].count(6), r.d[0]["types"].count(6) == 3, repr(r.d[0]["types"]))
+    row("...nothing in the session wrote to any file but hwork: the control files are as they were", all(r.stores[0][n] == dict(rec) for n, rec, _p, _c in HWFILES if n != HW), "")
+
+    # a NOCASE remote file keeps the key it already has
+    r = kw_drive("zznhon", ["OPEN|1|zznwnc", "WRITE|1|MIXED|new", "READ|1|mixed", "CLOSE|1"], (A,))
+    row("A NOCASE remote file: WRITE under another spelling (MIXED) goes to the record that is there (Mixed), and a READ under a third (mixed) finds it - the file, not the client, folds the case",
+        kw_sane(r) and kw_rec("READ", "mixed", "new") in r.kw and r.stores[0][HWNC] == {"Mixed": "new"}, kw_why(r) + " store=%r" % (r.stores[0][HWNC],))
+
+
+def kw_writev(A):
+    say("\n  -- WRITEV and WRITEVU go through the recursive pcode: READ, change the field, WRITE or WRITEU --")
+    lines = ["OPEN|1|zznw1", "WRITEV|1|w1|zz|2", "READ|1|w1", "WRITEV|1|nonew|v|3", "READ|1|nonew", "WRITEV|1|w2|x|0", "READ|1|w2", "WRITEV|1|w2|app|-1", "READ|1|w2",
+             "WRITEVU|1|w3|u|2", "READ|1|w3", "CLOSE|1"]
+    want = ["KW OPEN zznw1 then st=0", kw_plain("WRITEV", "w1"), kw_rec("READ", "w1", "alpha" + FMC + "zz"), kw_plain("WRITEV", "nonew"), kw_rec("READ", "nonew", FMC + FMC + "v"),
+            kw_plain("WRITEV", "w2"), kw_rec("READ", "w2", "x" + FMC + "2"), kw_plain("WRITEV", "w2"), kw_rec("READ", "w2", "x" + FMC + "2" + FMC + "app"),
+            kw_plain("WRITEVU", "w3"), kw_rec("READ", "w3", "gamma" + FMC + "u"), "KW CLOSE 1"]
+    r = kw_drive("zznhon", lines, (A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    row("WRITEV of field 2 changes that field only (alpha<F>zz), of a record that is not there CREATES it (field 3: <F><F>v), field 0 is field 1, a negative field appends, WRITEVU keeps working "
+        "- each with STATUS() 0 and the READ that follows showing the result", kw_sane(r) and got == want, kw_why(r) + " first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    d = r.d[0]
+    n16, n17 = d["types"].count(16), d["types"].count(17)
+    row("...the fake saw only reads and writes for them: four WRITEs (16) and one WRITEU (17) in all - the inner READ and the inner WRITE of each WRITEV are ordinary statements (%d, %d)" % (n16, n17),
+        kw_types_ok(r) and n16 == 4 and n17 == 1, repr(d["types"]))
+    row("...THE FILE: w1, nonew, w2 and w3 as the READs showed, the other records untouched", r.stores[0][HW].get("w1") == "alpha" + FMC + "zz" and r.stores[0][HW].get("nonew") == FMC + FMC + "v"
+        and r.stores[0][HW].get("w2") == "x" + FMC + "2" + FMC + "app" and r.stores[0][HW].get("w3") == "gamma" + FMC + "u", repr(r.stores[0][HW]))
+
+
+def kw_locks(A):
+    say("\n  -- locking reads and RECORDLOCK: the lock first (30), then the read; the lock watched in the fake's table while the session is open --")
+    lines = ["OPEN|1|zznw1", "SLEEP|1", "READU|1|w1", "SLEEP|1", "READL|1|w2", "SLEEP|1", "READVU|1|w3|1", "SLEEP|1", "MATREADU|1|nosuch", "SLEEP|1", "RELEASE|1|w1", "SLEEP|1", "RELEASEF|1", "SLEEP|1",
+             "READU|1|w1", "SLEEP|1", "CLOSE|1", "SLEEP|1"]
+    wire = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_READ(1, "w1"), W_LOCK(1, "w2", False), W_READ(1, "w2"), W_LOCK(1, "w3", True), W_READ(1, "w3"), W_LOCK(1, "nosuch", True),
+            W_READ(1, "nosuch"), W_REL(1, "w1"), W_REL(1), W_LOCK(1, "w1", True), W_READ(1, "w1"), (5, FNO(1))]
+    r = kw_drive("zznhon", lines, (A,), watch=(A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end", "KW SLEEP"))]
+    want = ["KW OPEN zznw1 then st=0", kw_rec("READU", "w1", HWREC["w1"]), kw_rec("READL", "w2", HWREC["w2"]), kw_rec("READVU", "w3", "gamma"),
+            "KW MATREADU nosuch else st=3006 [][][]", kw_plain("RELEASE", "w1"), kw_plain("RELEASEF", ""), kw_rec("READU", "w1", HWREC["w1"]), "KW CLOSE 1"]
+    row("the locking statements ran to the end and no connection is left", kw_sane(r), kw_why(r))
+    row("...READU, READL, READVU (field 1) and MATREADU gave the record with STATUS() 0; MATREADU of a record that is not there took ELSE with STATUS() 3006 (the lock is held all the same, as locally)",
+        got == want, "first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    row("...THE REQUESTS: each locking read is a LOCK request (30, flags 3 for U, 2 for L: no wait) and then a READ (6) - never request 7 to 10 (the server's own locking reads) or 41; RELEASE w1 is 15 with "
+        "the id, RELEASE f is 15 with the file number only, CLOSE is 5", kn_wire(r.d[0]) == wire, "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(r.d[0]), wire) if a != b), (len(kn_wire(r.d[0])), len(wire))),))
+    ls = r.watch[0].seq()
+    e = lambda *ids: tuple(sorted((HW, i, k) for i, k in ids))
+    exp = [(), e(("w1", "update")), e(("w1", "update"), ("w2", "shared")), e(("w1", "update"), ("w2", "shared"), ("w3", "update")),
+           e(("nosuch", "update"), ("w1", "update"), ("w2", "shared"), ("w3", "update")), e(("nosuch", "update"), ("w2", "shared"), ("w3", "update")), (), e(("w1", "update")), ()]
+    row("...THE LOCK TABLE OF THE FAKE, watched while the session ran: none, w1 update, + w2 shared, + w3 update, + nosuch update (the lock on a missing record), - w1 (RELEASE f, id), none (RELEASE f), "
+        "w1 update, none (CLOSE)", ls == exp, repr(ls))
+    row("...the lock was held on the server DURING the session and gone BEFORE it ended (CLOSE let it go): a state with no lock was seen while the session was still open", r.watch[0].alive_empty_after_lock(),
+        repr(r.watch[0].states[-3:]))
+
+    # a busy record with a LOCKED clause: the branch is taken, STATUS() is the holder, nothing is read
+    A.store.hold(HW, "w2", 7, "update")
+    A.store.hold(HW, "w3", 8, "shared")
+    lines = ["OPEN|1|zznw1", "READU|1|w2", "READL|1|w2", "READVU|1|w2|1", "MATREADU|1|w2", "RLOCKU|1|w2", "RLOCKL|1|w2", "RLOCKU|1|w3", "READL|1|w3", "READU|1|w1", "CLOSE|1"]
+    r = kw_drive("zznhon", lines, (A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    want = ["KW OPEN zznw1 then st=0", "KW READU w2 locked st=7 len=0 rec=[]", "KW READL w2 locked st=7 len=0 rec=[]", "KW READVU w2 locked st=7 len=0 rec=[]", "KW MATREADU w2 locked st=7 [][][]",
+            "KW RLOCKU w2 locked st=7", "KW RLOCKL w2 locked st=7", "KW RLOCKU w3 locked st=8", kw_rec("READL", "w3", HWREC["w3"]), kw_rec("READU", "w1", HWREC["w1"]), "KW CLOSE 1"]
+    row("A BUSY RECORD WITH A LOCKED CLAUSE (user 7 holds w2 for update, user 8 holds w3 for read): READU, READL, READVU, MATREADU, RECORDLOCKU and RECORDLOCKL take the LOCKED branch with STATUS() the "
+        "holder's number (7), the target is left empty; RECORDLOCKU of a record held shared is busy (8), READL of it is granted", kw_sane(r) and got == want,
+        kw_why(r) + " first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    ww = kn_wire(r.d[0])
+    exp_w = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w2", True), W_LOCK(1, "w2", False), W_LOCK(1, "w2", True), W_LOCK(1, "w2", True), W_LOCK(1, "w2", True), W_LOCK(1, "w2", False), W_LOCK(1, "w3", True),
+             W_LOCK(1, "w3", False), W_READ(1, "w3"), W_LOCK(1, "w1", True), W_READ(1, "w1"), (5, FNO(1))]
+    row("...THE FAKE SAW only lock requests for the busy records (no READ of w2 - the record is not read when the lock is refused), then LOCK and READ for the two that were granted",
+        ww == exp_w, "first difference: %r" % (next(((a, b) for a, b in zip(ww, exp_w) if a != b), (len(ww), len(exp_w))),))
+
+
+def kw_busy(A):
+    say("\n  -- a busy record without a LOCKED clause is WAITED FOR by polling: lock requests every 250 ms, no read, until the holder lets go --")
+    # (the statement as written, the driver's name for the form without a LOCKED clause, the line it must print, whether a record is read)
+    for what, opname, lines, want_line, reads in (
+            ("READU", "READUW", ["OPEN|1|zznw1", "TIME", "READUW|1|w2", "TIME", "CLOSE|1"], kw_rec("READUW", "w2", HWREC["w2"]), 1),
+            ("READL", "READLW", ["OPEN|1|zznw1", "TIME", "READLW|1|w2", "TIME", "CLOSE|1"], kw_rec("READLW", "w2", HWREC["w2"]), 1),
+            ("READVU", "READVUW", ["OPEN|1|zznw1", "TIME", "READVUW|1|w2|1", "TIME", "CLOSE|1"], kw_rec("READVUW", "w2", "beta"), 1),
+            ("RECORDLOCKU", "RLOCKUW", ["OPEN|1|zznw1", "TIME", "RLOCKUW|1|w2", "TIME", "CLOSE|1"], kw_plain("RLOCKUW", "w2"), 0)):
+        A.store.hold(HW, "w2", 7, "update")
+        r = kw_drive("zznhon", lines, (A,), holders=((A, 7, 3.0),))
+        times = [int(m.group(1)) for m in (re.match(r"^KW TIME (\d+)$", x) for x in r.kw) if m]
+        types = r.d[0]["types"]
+        n30 = types.count(30)
+        row("%s on a record another user holds, no LOCKED clause: the statement WAITS (the holder lets go about 3 seconds after the first lock request) and then succeeds with STATUS() 0 - %s"
+            % (what, "the record is read" if reads else "the lock is held"), kw_sane(r) and want_line in r.kw and len(times) == 2 and 2 <= (times[1] - times[0]) % 86400 <= 30, kw_why(r) + " times=%r" % times)
+        row("...THE FAKE SAW %d LOCK requests (one every 250 ms or so), NO request of type 7 to 10 (the server's own locking reads, which wait on the server) and exactly %d READ, after the lock was taken: %s"
+            % (n30, reads, sorted(set(types))), n30 >= 5 and not {7, 8, 9, 10} & set(types) and types.count(6) == reads, repr(types))
+
+    # AUTOLOCK: $MODE AUTOLOCK makes a WRITE and a DELETE take the lock themselves
+    r = kw_run("zznhon", ["RUN bp zznkwal"], (A,))
+    seg = kw_segments(r.out).get("al", [])
+    wire = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_WRITE(1, "w1", "by-autolock"), W_LOCK(1, "w2", True), W_DEL(1, "w2")]
+    row("$MODE AUTOLOCK: a WRITE and a DELETE of a remote record take the update lock first (30, flags 3) and then write (16) or delete (18) - the lock is let go by the plain WRITE and DELETE; "
+        "STATUS() 0 for both", not r.hung and "KW al write st=0" in seg and "KW al delete st=0" in seg and "KW al end" in seg and kn_wire(r.d[0])[:len(wire)] == wire and r.idle,
+        repr((seg, kn_wire(r.d[0])[:8])))
+    row("...the file: w1 written, w2 gone", r.stores[0][HW].get("w1") == "by-autolock" and "w2" not in r.stores[0][HW], repr(r.stores[0][HW]))
+    A.store.hold(HW, "w3", 8, "update")
+    r = kw_run("zznhon", ["RUN bp zznkwal2"], (A,), holders=((A, 8, 3.0),))
+    seg = kw_segments(r.out).get("al2", [])
+    tms = [int(m.group(1)) for m in (re.match(r"^KW al2 time (\d+)$", x) for x in seg) if m]
+    row("...AUTOLOCK on a record another user holds: the WRITE waits for the lock (polling) and is then made", not r.hung and "KW al2 write st=0" in seg and len(tms) == 2 and 2 <= (tms[1] - tms[0]) % 86400 <= 30
+        and r.stores[0][HW].get("w3") == "after-wait" and r.d[0]["types"].count(30) >= 5 and r.d[0]["types"].count(16) == 1, repr((seg, r.d[0]["types"])))
+
+    # MUSTLOCK on the CLIENT (pconfig, an internal program): a write without the lock is refused as it would be for a local file
+    r = kw_run("zznhon", ["ZZNKWM"], (A,))
+    seg = kw_segments(r.out).get("m", [])
+    ww = kn_wire(r.d[0])
+    row("MUSTLOCK (the client's, set by an internal program): WRITE and DELETE of a record the session has NOT locked take ON ERROR with STATUS() 3023 and send NO change (the server is asked whether the "
+        "lock is held: request 34); after READU the same WRITE is made", not r.hung and "KW m write-nolock error st=3023" in seg and "KW m delete-nolock error st=3023" in seg
+        and "KW m write-locked then st=0" in seg and "KW m end" in seg and r.stores[0][HW].get("w1") == "y" and r.stores[0][HW].get("w2") == HWREC["w2"], repr(seg))
+    exp_w = [ACCT_REQ, W_OPEN(HW), W_RLK(1, "w1"), W_RLK(1, "w2"), W_LOCK(1, "w1", True), W_READ(1, "w1"), W_RLK(1, "w1"), W_WRITE(1, "w1", "y")]
+    row("...THE FAKE: two RECORDLOCKED requests (34) for the two refused changes, then LOCK, READ, RECORDLOCKED and the WRITE (16): exactly one change on the wire",
+        ww[:len(exp_w)] == exp_w and r.idle and sum(1 for t in r.d[0]["types"] if t in (16, 17, 18, 19)) == 1, "first difference: %r" % (next(((a, b) for a, b in zip(ww, exp_w) if a != b), (len(ww), len(exp_w))),))
+
+
+def kw_release(A, B):
+    say("\n  -- RELEASE in its three forms, and in a transaction --")
+    lines = ["OPEN|1|zznw1", "OPEN|2|zznwb", "READU|1|w1", "READU|1|w2", "READU|2|w3", "SLEEP|1", "RELEASE|1|w1", "SLEEP|1", "RELEASEF|1", "SLEEP|1", "READU|1|w1", "READU|2|w1", "SLEEP|1",
+             "RELEASEA|1", "SLEEP|1", "READU|1|w2", "SLEEP|1", "TRELEASE|1|w2", "SLEEP|1", "TRELEASEF|1", "SLEEP|1", "CLOSE|1", "CLOSE|2"]
+    r = kw_drive("zznhon", lines, (A, B), watch=(A, B))
+    row("the release program ran to the end and no connection is left", kw_sane(r), kw_why(r))
+    e = lambda *ids: tuple(sorted((HW, i, "update") for i in ids))
+    sa, sb = r.watch[0].seq(), r.watch[1].seq()
+    row("...SERVER A's lock table, watched: none, w1, w1+w2, (RELEASE f, id) w2, (RELEASE f) none, w1, (RELEASE alone) none, w2, (RELEASE inside a transaction: NOTHING SENT) w2, (RELEASE f in a transaction: "
+        "nothing sent) w2, (CLOSE) none", sa == [(), e("w1"), e("w1", "w2"), e("w2"), (), e("w1"), (), e("w2"), ()], repr(sa))
+    row("...SERVER B: none, w3, w1+w3, (RELEASE alone sent to every connection with a write-mode file) none", sb[:4] == [(), e("w3"), e("w1", "w3"), ()], repr(sb))
+    types = r.d[0]["types"]
+    row("...A received exactly three RELEASE requests (record form, file form, and the 0 form) - the two inside the transaction sent nothing", types.count(15) == 3, repr(types))
+    row("...and the transaction's RELEASE statements gave STATUS() 0", kw_plain("TRELEASE", "w2") in r.kw and kw_plain("TRELEASEF", "") in r.kw, repr([x for x in r.kw if "RELEASE" in x]))
+    # (RELEASE on a READ-mode handle is refused as in slice 3c: the refusal matrix KM has "release" and "releasef" on zznet1, which is nfa - the control stands)
+
+
+def kw_txn(A):
+    say("\n  -- a change or a lock inside a transaction: refused (STATUS() 1010 / message 11510), a READ is not --")
+    ops = ["TWRITE|1|w1|x", "TWRITEU|1|w1|x", "TMATWRITE|1|w1|a<F>b", "TWRITEV|1|w1|x|1", "TWRITEVU|1|w1|x|1", "TDELETE|1|w1", "TDELETEU|1|w1", "TCLEARFILE|1", "TREADU|1|w1", "TREADL|1|w1",
+           "TREADVU|1|w1|1", "TMATREADU|1|w1", "TRLOCKU|1|w1", "TRLOCKL|1|w1"]
+    r = kw_drive("zznhon", ["OPEN|1|zznw1"] + ops + ["TREAD|1|w1", "TRELEASE|1|w1", "TRELEASEF|1", "WRITE|1|w1|after", "CLOSE|1"], (A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    names = [o.split("|")[0] for o in ops]
+    refused_ok = all(any(re.match(r"^KW %s \S* error st=1010( len=0 rec=\[\]| \[\]\[\]\[\])?$" % re.escape(nm), x) for x in got) for nm in names)
+    row("INSIDE BEGIN TRANSACTION every one of WRITE, WRITEU, MATWRITE, WRITEV, WRITEVU, DELETE, DELETEU, CLEARFILE, READU, READL, READVU, MATREADU, RECORDLOCKU and RECORDLOCKL took ON ERROR with "
+        "STATUS() 1010 (ER_TXN)", kw_sane(r) and refused_ok, kw_why(r) + " got=%r" % [x for x in got if "error" not in x][:4])
+    row("...a READ in a transaction is served (the record), RELEASE gave STATUS() 0 and sent nothing, and after the transaction the same handle writes", kw_rec("TREAD", "w1", HWREC["w1"]) in got and kw_plain("TRELEASE", "w1") in got
+        and kw_plain("TRELEASEF", "") in got and kw_plain("WRITE", "w1") in got, repr(got[-6:]))
+    wire = kn_wire(r.d[0])
+    row("...THE FAKE SAW only the OPEN, the READ in the transaction and the WRITE after it: not one change, lock or release request", wire == [ACCT_REQ, W_OPEN(HW), W_READ(1, "w1"), W_WRITE(1, "w1", "after"), (5, FNO(1))],
+        "first difference: %r" % (wire,))
+    row("...and the file holds the last write only", r.stores[0][HW].get("w1") == "after" and r.stores[0][HW].get("w2") == HWREC["w2"], repr(r.stores[0][HW]))
+
+    # the abort forms: no ON ERROR
+    names_ = [n for n, i in sorted(KW["abort"].items(), key=lambda kv: kv[1]) if KWA[i][0][0] == "t"]
+    r = kw_run("zznhon", ["RUN bp " + n for n in names_], (A,))
+    segs = kw_segments(r.out)
+    row("the %d transaction programs ran in ONE session, each aborting and the next going on, and no connection is left" % len(names_),
+        not r.hung and r.idle and all(KWA[KW["abort"][n]][0] in segs for n in names_), "hung=%s missing=%r" % (r.hung, [KWA[KW["abort"][n]][0] for n in names_ if KWA[KW["abort"][n]][0] not in segs][:6]))
+    for n in names_:
+        tag, _p, _m, _pre, _d, _a, texts = KWA[KW["abort"][n]]
+        seg = segs.get(tag, [])
+        got = kn_abort(seg)
+        row("%s INSIDE A TRANSACTION without ON ERROR: the program stops with %r and prints nothing after it" % (tag, texts()[0]), got in texts() and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+    row("...and the fake saw nothing but login, account, open, close and quit for all of them", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d), repr(sorted(set(r.d[0]["types"]))))
+
+
+def kw_gate(A):
+    say("\n  -- the S.64 edit gates apply to a remote file by its NAME (voc, a dictionary, bp), asked of the account that is signed in --")
+    allow = {"edit_allow": frozenset(["voc", "dict", "prog"])}          # the REMOTE gates are open: only the client's decide
+    lines = ["OPEN|1|zznwbp", "OPEN|2|zznwvoc", "ODICT|3|zznw1", "OPEN|4|zznw1", "WRITE|1|prog1|x", "WRITE|2|verb1|x", "WRITE|3|name|x", "WRITE|4|w1|plain", "DELETE|1|prog1", "CLEARFILE|2",
+             "WRITEV|1|prog1|x|1", "MATWRITE|1|prog1|a<F>b", "WRITEU|3|name|x", "READ|1|prog1", "CLOSE|1"]
+    r = kw_drive(HNED, lines, (A,), cfg=allow)
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    want = ["KW OPEN zznwbp then st=0", "KW OPEN zznwvoc then st=0", "KW ODICT zznw1 then st=0", "KW OPEN zznw1 then st=0", "KW WRITE prog1 error st=3035", "KW WRITE verb1 error st=3035",
+            "KW WRITE name error st=3035", kw_plain("WRITE", "w1"), "KW DELETE prog1 error st=3035", "KW CLEARFILE  error st=3035", "KW WRITEV prog1 error st=3035", "KW MATWRITE prog1 error st=3035",
+            "KW WRITEU name error st=3035", kw_rec("READ", "prog1", "x"), "KW CLOSE 1"]
+    row("AN ACCOUNT WITHOUT THE EDIT GATES (zznhned: the NET gate only): WRITE to the file bp, to voc and to the dictionary of a data file each take ON ERROR with STATUS() 3035 (ER_PERM); DELETE, CLEARFILE, "
+        "WRITEV, MATWRITE and WRITEU the same; WRITE to an ordinary data file is made; a READ of bp is not asked", kw_sane(r) and got == want,
+        kw_why(r) + " first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    row("...THE FAKE SAW exactly ONE change request (the WRITE to the ordinary data file): nothing was sent for a refused change, and bp and voc are as they were",
+        sum(1 for t in r.d[0]["types"] if t in (16, 17, 18, 19, 31)) == 1 and r.d[0]["types"].count(16) == 1 and r.stores[0][HWBP] == {"prog1": "x"} and r.stores[0][HWVOC] == {"verb1": "V"}
+        and r.stores[0][HW].get("w1") == "plain", repr(r.d[0]["types"]))
+
+    # the same account, abort forms: the message names the gate
+    names_ = [n for n, i in sorted(KW["abort"].items(), key=lambda kv: kv[1]) if KWA[i][0][0] == "g" and HNED in KWA[i][5]]
+    r = kw_run(HNED, ["RUN bp " + n for n in names_], (A,), cfg=allow)
+    segs = kw_segments(r.out)
+    row("the %d gate programs ran in one session in zznhned, each aborting, and no connection is left" % len(names_), not r.hung and r.idle and all(KWA[KW["abort"][n]][0] in segs for n in names_), "hung=%s" % r.hung)
+    for n in names_:
+        tag, _p, _m, _pre, _d, _a, texts = KWA[KW["abort"][n]]
+        seg = segs.get(tag, [])
+        row("%s without ON ERROR: the program stops with %r (the gate named by the remote file's name) and prints nothing after it" % (tag, texts()[0][:60]), kn_abort(seg) in texts() and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+    row("...and nothing reached the fake that changes anything: only login, account, open, close and quit", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d), repr(sorted(set(r.d[0]["types"]))))
+
+    # with the gates: zznhon (all on) writes; the account without voc.edit writes bp and the dictionary but not voc
+    r = kw_drive("zznhon", ["OPEN|1|zznwbp", "OPEN|2|zznwvoc", "ODICT|3|zznw1", "WRITE|1|prog1|ok1", "WRITE|2|verb1|ok2", "WRITE|3|name|ok3", "CLOSE|1"], (A,), cfg=allow)
+    row("CONTROL: the account with all three gates (zznhon) writes bp, voc and the dictionary", kw_sane(r) and kw_plain("WRITE", "prog1") in r.kw and kw_plain("WRITE", "verb1") in r.kw and kw_plain("WRITE", "name") in r.kw
+        and r.stores[0][HWBP] == {"prog1": "ok1"} and r.stores[0][HWVOC] == {"verb1": "ok2"}, kw_why(r))
+    r = kw_drive(KOFF, ["OPEN|1|zznwbp", "OPEN|2|zznwvoc", "ODICT|3|zznw1", "WRITE|1|prog1|ok1", "WRITE|2|verb1|ok2", "WRITE|3|name|ok3", "CLOSE|1"], (A,), cfg=allow)
+    row("...the account with bp.edit and dict.edit but NOT voc.edit (zznhnov) writes bp and the dictionary and is refused voc (STATUS() 3035)", kw_sane(r) and kw_plain("WRITE", "prog1") in r.kw
+        and "KW WRITE verb1 error st=3035" in r.kw and kw_plain("WRITE", "name") in r.kw and r.stores[0][HWVOC] == {"verb1": "V"}, kw_why(r))
+    names_ = [n for n, i in sorted(KW["abort"].items(), key=lambda kv: kv[1]) if KOFF in KWA[i][5]]
+    r = kw_run(KOFF, ["RUN bp " + n for n in names_], (A,), cfg=allow)
+    segs = kw_segments(r.out)
+    for n in names_:
+        tag, _p, _m, _pre, _d, _a, texts = KWA[KW["abort"][n]]
+        seg = segs.get(tag, [])
+        row("...in the account without voc.edit (zznhnov) %s without ON ERROR stops with %r" % (tag, texts()[0][:60]), not r.hung and kn_abort(seg) in texts() and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+
+    # the REMOTE gate is a second layer: the same account (all gates) and the server's own default (no gates) is refused by the server
+    r = kw_drive("zznhon", ["OPEN|1|zznwbp", "WRITE|1|prog1|x", "READ|1|prog1", "CLOSE|1"], (A,))
+    row("THE SECOND LAYER: the client's gate passes (zznhon) and the server's own gate for a files-only login (off by default) refuses: WRITE takes ON ERROR with STATUS() 7000, the message is the "
+        "server's (11500 with the text of 11407), nothing is written", kw_sane(r) and "KW WRITE prog1 error st=7000" in r.kw and kw_rec("READ", "prog1", "x") in r.kw, kw_why(r))
+
+    # the administrator and an $internal program are exempt from the CLIENT's gate; edit_guard asks the key
+    r = kw_run(HNED, ["ZZNKWI"], (A,), cfg=allow)
+    seg = kw_segments(r.out).get("i", [])
+    row("AN $INTERNAL PROGRAM IS EXEMPT from the client's edit gate (as for a local file): in zznhned it writes bp (THEN, STATUS() 0); FILEINFO(f, FL$SETRDONLY) from it makes the handle read only: the next "
+        "WRITE takes ON ERROR with STATUS() 7000 and FL$READONLY is 1", not r.hung and "KW i bp then st=0" in seg and "KW i setrdonly error st=7000" in seg and "KW i readonly=1" in seg and r.stores[0][HWBP] == {"prog1": "viaint"}, repr(seg))
+    r = kw_run(HNED, ["ZZNKWG"], (A,))
+    seg = kw_segments(r.out).get("g", [])
+    row("edit_guard (asked by the $internal verbs ED, COPY, DELETE, CLEAR.FILE for a file the user names) of a remote file: in zznhned it answers 0 for bp, voc and a dictionary and 1 for a data file, and shows "
+        "the messages 11407, 11405 and 11406", not r.hung and "KW g bp ok=0" in seg and "KW g voc ok=0" in seg and "KW g dict ok=0" in seg and "KW g data ok=1" in seg
+        and all(any(msg(n) in ln for ln in r.out) for n in (11405, 11406, 11407)), repr(seg))
+    r = kw_run("zznhon", ["ZZNKWG"], (A,))
+    seg = kw_segments(r.out).get("g", [])
+    row("...and in zznhon (all three gates) it answers 1 for all four", not r.hung and all(("KW g %s ok=1" % w) in seg for w in ("bp", "voc", "dict", "data")), repr(seg))
+
+
+def kw_lost(A):
+    say("\n  -- a lost connection during a change: ON ERROR 7000 / message 11509, the next READ on the variable is an error, a new OPEN reconnects, nothing is sent twice --")
+    lines = ["OPEN|1|zznw1", "WRITE|1|w1|lost", "READ|1|w1", "WRITE|1|w1|again", "OPEN|2|zznw1", "READ|2|w1", "CLOSE|1", "CLOSE|2"]
+    r = kw_drive("zznhon", lines, (A,), cfg={"drop_after": {16: 1}})
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    want = ["KW OPEN zznw1 then st=0", "KW WRITE w1 error st=7000", kw_rec("READ", "w1", "", "error", 7000), "KW WRITE w1 error st=7000", "KW OPEN zznw1 then st=0", kw_rec("READ", "w1", "lost"),
+            "KW CLOSE 1", "KW CLOSE 2"]
+    row("A CONNECTION DROPPED AFTER A WRITE WAS EXECUTED: the WRITE takes ON ERROR with STATUS() 7000, the READ and the second WRITE on the same variable are errors (7000: the handle is lost), a new OPEN "
+        "reconnects and reads the record the dropped WRITE DID make", kw_sane(r) and got == want, kw_why(r) + " first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+    ses = r.d[0]["sessions"]
+    row("...the fake saw two connections and exactly ONE WRITE (16): the lost one was not sent again, and the second WRITE on the lost variable sent nothing", len(ses) == 2 and sum(x.requests.count(16) for x in ses) == 1, repr([x.requests for x in ses]))
+    row("...the audit trail: open, write, lost (op=write), open", r.audits == [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=write", OPEN_W_AUD], repr(r.audits))
+
+
+def kw_lifetime(A):
+    say("\n  -- a lock does not outlive its file variable past the next prompt; LOGTO drops the connections and the locks --")
+    r = kw_run("zznhon", ["RUN bp zznkwl1", "RUN bp zznkwl2"], (A,), watch=(A,))
+    seg1, seg2 = kw_segments(r.out).get("l1", []), kw_segments(r.out).get("l2", [])
+    w = r.watch[0]
+    e = ((HW, "w1", "update"),)
+    row("A program READUs a record and ends without CLOSE: the lock is on the fake while it runs, and is GONE after the next command at the prompt - while the SESSION IS STILL OPEN (the next program sleeps "
+        "4 seconds): the queued close is sent by kernel(K$NET, -2) in CPROC's paragraph that resets the environment", not r.hung and "KW l1 locked" in seg1 and "KW l2 end" in seg2 and e in w.seq() and w.alive_empty_after_lock(), repr((w.states, seg1, seg2)))
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "READU|1|w1", "SLEEP|2", "EXEC|LOGTO zznhunl", "SLEEP|3", "EXEC|LOGTO zznhon", "SLEEP|1"], (A,), watch=(A,))
+    w = r.watch[0]
+    row("LOGTO to another account closes the connections: the lock on w1 was on the fake, and the CONNECTION (with its locks) was closed at least 3 seconds before the session ended (the driver goes on "
+        "sleeping after the LOGTO)", kw_sane(r) and e in w.seq() and w.seq()[-1] == () and w.closed_at is not None and r.t_end - w.closed_at >= 3.0, repr((w.states, w.closed_at, r.t_end, r.kw[-4:])))
+
+
+def kw_fileinfo(A):
+    say("\n  -- FILEINFO of a write-mode and a read-mode handle --")
+    keys = (1001, 1022, 1032, 1038, 1009, 3)
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "OPEN|2|zznwr"] + ["FI|1|%d" % k for k in keys] + ["FI|2|1001", "FI|2|1022", "CLOSE|1", "CLOSE|2"], (A,))
+    got = [x for x in r.kw if x.startswith("KW FI")]
+    want = ["KW FI 1001 [0]", "KW FI 1022 [1]", "KW FI 1032 [1]", "KW FI 1038 [0]", "KW FI 1009 [-1]", "KW FI 3 [7]", "KW FI 1001 [1]", "KW FI 1022 [1]"]
+    row("FILEINFO: FL$READONLY is 0 on the write-mode handle and 1 on the read-mode one (the control); FL$NETFILE 1, FL$NON.TXN 1, FL$TXN.UPDATE 0, FL$FILENO -1 and FL$TYPE 7 as before", kw_sane(r) and got == want, kw_why(r) + " got=%r" % got)
+
+
+def kw_locking_modes(A):
+    say("\n  -- the lock table of the server when the session just ends --")
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "READU|1|w1", "READU|1|w2", "SLEEP|2"], (A,), watch=(A,))
+    w = r.watch[0]
+    row("a session that ends while it holds locks (no CLOSE, no RELEASE) lets them go with its connection: the fake's table ends empty and a state with two locks was seen", kw_sane(r, need_end=False) and w.seq()[-1] == ()
+        and any(len(x) == 2 for x in w.seq()), repr(w.states))
+
+
+def kw_mode_admin(A):
+    say("\n  -- the mode read again at a statement: the administrator's session, the definitions file changed in the middle --")
+    hw_flip_files()
+    try:
+        A.configure(files=True, files_only=True, edit_allow=frozenset(["prog"]))          # the server's own gate for program files is open: only the client's decides
+        m = A.mark()
+        a0 = audit_size()
+        out = g.adm(["RUN bp zznkwadm"], internal=True)
+        A.settle(quiet=0.3)
+        idle = quiet(A)
+        d = A.delta(m)
+        A.configure()
+        audits = h_audits(audit_since(a0))
+        stores = {n: A.store.records(n) for n in (HW, HWBP)}
+        wreset(A)
+    finally:
+        hw_restore_defs()
+    kw = [ln for ln in out if ln.startswith("KW ")]
+    row("THE ADMINISTRATOR, a pointer written at run time: WRITE (THEN, 0), WRITE to bp (exempt from the edit gate: THEN, 0), then the definitions make nfw MODE READ: WRITE takes ON ERROR with STATUS() 7000, "
+        "then MODE WRITE again: WRITE is made", "KW adm write1 then st=0" in kw and "KW adm bp then st=0" in kw and "KW adm write2 error st=7000" in kw and "KW adm write3 then st=0" in kw and "KW adm end" in kw
+        and idle and not d["errors"], repr((kw, out[-3:])))
+    row("...the fake saw THREE changes only in all (the refused one was not sent), the file holds the third value and bp the administrator's", d["types"].count(16) == 3 and stores[HW].get("w1") == "three"
+        and stores[HWBP].get("prog1") == "viaadmin", repr((d["types"], stores)))
+    row("...the audit trail: the open of each pointer, the first write, ONE 'refused ... reason=mode' line", audits.count("refused server=nfw reason=mode") == 1 and "write server=nfw file=hwork" in audits, repr(audits))
+
+
+def kw_refused(A):
+    say("\n  -- what stays refused on a WRITE-mode handle says 11511 ('not available'), not 11501 ('read only'); the read-mode control is the existing refusal matrix --")
+    names_ = sorted(KW["still"])
+    r = kw_run("zznhon", ["RUN bp " + n for n in names_], (A,))
+    segs = kw_segments(r.out)
+    row("the %d programs ran in ONE session, each aborting and the next going on, and no connection is left" % len(names_), not r.hung and r.idle and all(KW["still"][n][0] in segs for n in names_),
+        "hung=%s missing=%r" % (r.hung, [KW["still"][n][0] for n in names_ if KW["still"][n][0] not in segs][:6]))
+    for n in names_:
+        tag, want = KW["still"][n]
+        seg = segs.get(tag, [])
+        texts = [msg(11511, "nfw", op) for _num, op in want]
+        got = kn_abort(seg)
+        row("%s on a WRITE-mode handle: the program stops with %r and prints nothing after it" % (tag.upper(), texts[0] if len(texts) == 1 else texts), got in texts and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+    row("...the fake saw no request for any of them (only login, account, open, close and quit)", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d), repr(sorted(set(r.d[0]["types"]))))
+
+    # an id that cannot be sent without ON ERROR
+    names2 = [n for n, i in sorted(KW["abort"].items(), key=lambda kv: kv[1]) if KWA[i][0][0] == "i"]
+    r = kw_run("zznhon", ["RUN bp " + n for n in names2], (A,))
+    segs = kw_segments(r.out)
+    for n in names2:
+        tag = KWA[KW["abort"][n]][0]
+        seg = segs.get(tag, [])
+        row("%s: a record id that cannot be sent (empty, or 64 bytes) without ON ERROR stops the program and nothing is sent" % tag, kn_abort(seg) is not None and not any("SURVIVED" in x for x in seg), repr(seg[-3:]))
+    row("...the fake saw only login, account, open, close and quit", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d), repr(sorted(set(r.d[0]["types"]))))
+
+
+def kw_misc(A):
+    say("\n  -- a connection lost without ON ERROR, the verbs, and the whole write section's wire --")
+    # the abort form of a lost connection needs its own program in its own session
+    g.put(os.path.join(acct_path("zznhon"), "bp", "zznkwlw"), kw_prog("lw", "zznw1", ["write 'x' to f, 'w1'"]))
+    out, miss = kn_compile("zznhon", ["zznkwlw"])
+    r = kw_run("zznhon", ["RUN bp zznkwlw"], (A,), cfg={"drop_after": {16: 1}}) if not miss else None
+    if r is not None:
+        seg = kw_segments(r.out).get("lw", [])
+        row("A WRITE whose connection is lost, without ON ERROR: the program stops with message 11509 (%r) - the outcome is not known - and prints nothing after it" % msg(11509, "nfw", "write"),
+            not r.hung and kn_abort(seg) == msg(11509, "nfw", "write") and not any("SURVIVED" in x for x in seg) and r.idle, repr(seg[-3:]))
+    else:
+        row("A WRITE whose connection is lost, without ON ERROR: the program compiled", False, repr(out[-4:]))
+    # CLEAR.FILE and DELETE as verbs on the VOC name: they only use the statements above; the spec calls them untried
+    for cmd in ("CLEAR.FILE zznwbp", "CLEAR.FILE zznw1"):
+        acct = HNED if cmd.endswith("zznwbp") else "zznhon"
+        r = kw_run(acct, [cmd], (A,), cfg={"edit_allow": frozenset(["voc", "dict", "prog"])})
+        say("    [note] %s -> %r (requests: %s)" % (cmd, [x for x in r.out if not x.startswith("KW ")][:4], sorted(set(r.d[0]["types"]))))
+        row("%s: the session survived, and the fake saw only requests the section knows%s" % (cmd, " (the gate of the account refused the verb: no CLEARFILE request)" if cmd.endswith("zznwbp") else ""),
+            not r.hung and kw_types_ok(r) and (not cmd.endswith("zznwbp") or 31 not in r.d[0]["types"]) and r.idle, repr(r.out[-4:]))
+
+
 # ---- main -------------------------------------------------------------------------------------------------------------------------------------
 
 SECTIONS = (("login", login_section), ("args", args_section), ("pin", pin_section), ("stale", stale_section), ("keys", keys_section), ("shared", shared_section),
             ("down", down_section), ("close", close_section), ("notfound", notfound_section), ("files", files_section), ("account", account_section),
             ("locks", locks_section), ("lists", lists_section), ("wire", wire_section),
             ("handler", handler_section), ("readonly", readonly_section), ("refuse", refuse_section), ("lost", lost_section), ("timeout", timeout_section),
+            ("hwrite", hwrite_section), ("kwrite", kwrite_section),
             ("kernel", kernel_section), ("gaps", gaps_section))
 
 

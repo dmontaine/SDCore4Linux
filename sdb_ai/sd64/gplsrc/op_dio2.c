@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  S.65 slice 3e: FILEINFO FL$READONLY of a NET_FILE answers the file variable's own read-only flag (1 for a file of a read-mode
+ *               server, 0 for a write-mode one), and FL$SETRDONLY from a $internal program sets it, as for a local file.
  * 17 Oct 26 dm  S.65 slice 3c: FILEINFO of a NET_FILE (a file on another SD server) is answered before anything reads the file table
  *               at FPtr(file_id), which it has not: the keys that are about the file variable are answered here, the 10000 range
  *               (it writes the file table) is refused, and every other key is asked of the server through net_fileinfo().
@@ -193,7 +195,10 @@ void op_fileinfo() {
           p = (fvar->voc_name != NULL) ? fvar->voc_name : "";
           goto set_string;
 
-        case FL_READONLY: /* 1001  Read only: stage 1 reads, nothing else */
+        case FL_READONLY: /* 1001  Read only: yes for a file variable of a read-mode server (or one made read only), no for a write-mode one (slice 3e) */
+          n = ((fvar->flags & FV_RDONLY) != 0);
+          goto set_integer;
+
         case FL_NON_TXN:  /* 1032  Opened NON.TRANSACTIONAL: it is never in a transaction */
         case FL_NETFILE:  /* 1022  A file on another server */
           n = 1;
@@ -216,9 +221,14 @@ void op_fileinfo() {
           n = (process.program.flags & HDR_INTERNAL) ? DHF_NOCASE : 0;
           goto set_integer;
 
+        case FL_SETRDONLY: /* 10005  Set read only, from a $internal program only (as for a local file): net_gate() then refuses every change (slice 3e) */
+          if (process.program.flags & HDR_INTERNAL)
+            fvar->flags |= FV_RDONLY;
+          n = 0;
+          goto set_integer;
+
         case FL_TXN_UPDATE:  /* 1038 */
         case FL_INDEX_SCAN:  /* 1030 */
-        case FL_SETRDONLY:   /* 10005  It is read only already */
           n = 0;
           goto set_integer;
 

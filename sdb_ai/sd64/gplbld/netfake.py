@@ -52,12 +52,29 @@ It is a daemon thread with a lifetime limit, handles one connection at a time, a
               whatever the last statement of the session left in it.  (2) The text of an ABORT reply is the bare message (1010 for an
               unknown FILEINFO key); the real one is the kernel's error text, which names the program and line.  (3) A waiting lock
               request (8, 10, and 41 with an update or shared flag) gives up after cfg lock_wait seconds with an ON ERROR reply that
-              says so; the real server waits for ever.  (4) Closing a file does not release the locks taken through it (what the real
-              CLOSE does to them was not checked); a connection that ends releases all of its locks.
+              says so; the real server waits for ever.  (4) [changed by slice 3e, below] A connection that
+              ends releases all of its locks.
               (5) SELECT returns the ids in insertion order; the real order is the hash order, so a test must not depend on either.
-              (6) NOT BUILT, answered with an error that says so and noted in errors: writes and deletes (16 to 19), the locks of
-              30 to 33, the indices (26, 35, 36, 38, 39, 42 to 45), and everything from 20 on that apisrvr offers (call, execute,
-              sequential files, trans, transactions ...).
+              (6) NOT BUILT, answered with an error that says so and noted in errors: the file locks of 32 and 33, the indices
+              (26, 35, 36, 38, 39, 42 to 45), and everything from 20 on that apisrvr offers (call, execute, sequential files,
+              trans, transactions ...).  [Writes, deletes, record locks and CLEARFILE, 16 to 19, 30 and 31, are built since slice 3e.]
+
+18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS.  ***NOT YET RUN AGAINST SD*** (this self-test is the only thing that has run them; whether the
+              $netfile handler and the kernel's NET_FILE statements agree with them is the first run of sandbox-netfile.py's write section).
+              Requests 16 WRITE, 17 WRITEU, 18 DELETE, 19 DELETEU, 30 RECORDLOCK and 31 CLEARFILE are served in the reply formats of
+              gpl.bp/apisrvr (vb.write, vb.writeu, vb.delete, vb.deleteu, vb.lock.record, vb.clearfile), from the spec
+              .claude/s65-stage2-design.md section 10.  What a WRITE does: the session's record lock on the id (read or update) is let go,
+              WRITEU / DELETEU keep it; a DELETE of a record that is not there is a success; a NOCASE file keeps the key it already holds.
+              CLOSE now lets go of the record locks taken through THAT file number (FileSession.taken: {file number: {(lock name, lock
+              id)}}); a RELEASE and a plain WRITE or DELETE through any slot prune the sets by file and id, as unlock_record does.
+              ***WHAT IT DOES NOT BE FAITHFUL TO, added by 3e***  (7) STATUS() after a success is cfg success_status (0 unless a row says
+              otherwise), never what the last statement left; the real server sends whatever it left, which is why the client must not
+              read it.  (8) If two file numbers of one session both hold the same record lock (the second asked for what it already
+              had), closing either one lets it go; the real CLOSE was not traced.  (9) CLEARFILE does not look at record locks, only at
+              another user's file lock, and does not touch the lock table.  (10) A request packet may be up to 16 MB (the old limit was
+              64 KB, enough for requests that carry an id).  (11) The text of an ON ERROR reply for a read only file, an id that is not
+              valid and a lock on a null id is the fake's own wording (the real one is the kernel's, with the program and line).
+              Faults added: success_status, must_lock, readonly, edit_allow, maxrlock, drop_before, drop_after (see DEFAULTS).
 """
 
 import base64
@@ -88,13 +105,21 @@ R_QUIT, R_GETERROR, R_ACCOUNT, R_OPEN, R_CLOSE = 1, 2, 3, 4, 5
 R_READ, R_READL, R_READLW, R_READU, R_READUW = 6, 7, 8, 9, 10
 R_SELECT, R_READNEXT, R_CLEARSELECT, R_READLIST, R_RELEASE = 11, 12, 13, 14, 15
 R_RECORDLOCKED, R_SELECTLIST, R_FILEINFO, R_READV, R_MARKMAPPING, R_REVISION = 34, 37, 40, 41, 46, 49
+# 18 Oct 26 S.65 slice 3e: the changing and locking requests.
+R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE = 16, 17, 18, 19, 30, 31
 # The requests apisrvr has a handler for that this fake does not build (see the module text); a number apisrvr has no handler for is "illegal".
-NOT_BUILT = frozenset(list(range(16, 27)) + [29, 30, 31, 32, 33, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
+NOT_BUILT = frozenset(list(range(20, 27)) + [29, 32, 33, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
+# The requests whose successful reply carries cfg success_status (the STATUS() apisrvr leaves for the client, which the client must not trust).
+STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE])
+MAX_PACKET = 16 * 1024 * 1024   # the largest request packet this server reads; a WRITE carries the whole record
+MAX_ID = 63                     # the server's longest record id (MAXIDLEN); the client refuses a longer one before it sends
+KIND_NAMES = ("", "voc", "dict", "prog")       # the edit gate kinds, by apisrvr's numbering: 11404 + kind is the message
 # gpl.bp/apifilesok's allow table, number by number (3, set account, is allowed once and handled in FileSession.allowed).  The self-test
 # parses the program and holds this to it, so a request added there and not here is found.
 FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + [49])
 # err.h
 ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
+ER_RDONLY, ER_NOLOCK, ER_MAXRLOCK = 3018, 3023, 3060
 FL_TYPE_DH, FL_TYPE_DIR = 3, 4
 # FILEINFO keys op_dio2.c knows (a key outside this set is an abort: "Illegal action key", message 1010).  The key is cut to a signed 16 bit
 # integer first, as op_dio2.c does ((int16_t)).
@@ -107,7 +132,12 @@ USERNO_BASE = 100               # the user number of the first connection is USE
 _MSG_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdsys", "messages"))
 _MSG_COPY = {1010: "Illegal action key", 5037: "Invalid account name", 5262: "File access is disabled", 5268: "Invalid file number",
              5269: "Invalid select list number", 10003: "User not allowed in requested account",
-             11480: "This login is for files only: request %1 is not allowed"}
+             11480: "This login is for files only: request %1 is not allowed",
+             11162: "Record lock limit (MAXRLOCK) reached",
+             11405: "The VOC can only be changed by an account that has voc.edit (SDSYS can give it: modify.account <account> voc-on)",
+             11406: "A dictionary can only be changed by an account that has dict.edit (SDSYS can give it: modify.account <account> dict-on)",
+             11407: "A program file can only be changed by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)",
+             11410: "The pathname of the file cannot be read, so a change to it is refused"}
 _LOW = {c: c + 32 for c in range(65, 91)}
 _UP = {c: c - 32 for c in range(97, 123)}
 
@@ -223,6 +253,19 @@ class FakeFile:
             self._dict = d
         return self._dict
 
+    def edit_kind(self):
+        """The S.64 edit gate this file falls under, by apisrvr's numbering: 0 none, 1 VOC, 2 dictionary, 3 program file.  The real server
+        answers by the LAST COMPONENT OF THE PATHNAME of the open file (so a Q-pointer to a VOC is caught): voc, *.dic, bp, bp.out, *.bp,
+        *.bp.out; a file opened as "dict <name>" is a dictionary whatever its path."""
+        leaf = self.path.replace("\\", "/").rsplit("/", 1)[-1].lower()
+        if self.name.startswith("dict ") or leaf.endswith(".dic"):
+            return 2
+        if leaf == "voc":
+            return 1
+        if leaf in ("bp", "bp.out") or leaf.endswith(".bp") or leaf.endswith(".bp.out"):
+            return 3
+        return 0
+
 
 class FakeStore:
     """The data and the lock table of the fake server, shared by every connection (it is the server's, not the session's).  A test
@@ -267,6 +310,51 @@ class FakeStore:
     def records(self, name):
         with self.cond:
             return dict(self.files[_lower(name)].records)
+
+    # ---- what a served WRITE, DELETE and CLEARFILE do (18 Oct 26, slice 3e) ---------------------------------------------------------
+    def write_rec(self, f, rid, text):
+        """A nocase file keeps the key it already holds (the new text goes under it); a new record gets the id as sent."""
+        with self.cond:
+            k = f.find(rid)
+            f.records[rid if k is None else k] = text
+
+    def delete_rec(self, f, rid):
+        with self.cond:
+            k = f.find(rid)
+            if k is not None:
+                del f.records[k]
+
+    def clear_file(self, f):
+        with self.cond:
+            f.records.clear()
+
+    def filelock_wait(self, f, me, timeout):
+        """0 when no OTHER user holds the file lock (at once, or within timeout seconds); else the holder still in the way."""
+        end = time.time() + timeout
+        with self.cond:
+            while True:
+                h = self.filelocks.get(f.lockname, 0)
+                if h == 0 or h == me:
+                    return 0
+                left = end - time.time()
+                if left <= 0:
+                    return h
+                self.cond.wait(min(left, 0.1))
+
+    def holds(self, f, rid, me):
+        """True when user me holds a read or an update lock on the record."""
+        with self.cond:
+            ent = self.locks.get((f.lockname, f.lockid(rid)))
+            return bool(ent) and (ent["u"] == me or me in ent["s"])
+
+    def holds_update(self, f, rid, me):
+        with self.cond:
+            ent = self.locks.get((f.lockname, f.lockid(rid)))
+            return bool(ent) and ent["u"] == me
+
+    def count_locks(self, me):
+        """How many record locks user me holds (MAXRLOCK counts these)."""
+        return len(self.locks_of(me))
 
     # ---- the lock table: op_lock.c lock_record() ---------------------------------------------------------------------------------
     def _try(self, f, rid, update, me):
@@ -343,8 +431,12 @@ class FakeStore:
             return 0, 0
 
     def release_one(self, f, rid, me):
+        self.release_key(f.lockname, f.lockid(rid), me)
+
+    def release_key(self, lockname, lockid, me):
+        """Let go of user me's lock (read or update) on one (lock name, lock id); the other users' are not touched."""
         with self.cond:
-            key = (f.lockname, f.lockid(rid))
+            key = (lockname, lockid)
             ent = self.locks.get(key)
             if ent:
                 if ent["u"] == me:
@@ -430,6 +522,8 @@ class FileSession:
         self.refused = []               # the types the files-only gate refused
         self.injected = []              # (type, "no_reply" | "fail") for faults this session injected
         self.fail_counts = {}
+        self.type_counts = {}           # request type -> how many of that type this session has sent (drop_before / drop_after count these)
+        self.taken = {}                 # file number -> {(lock name, lock id)}: the record locks taken through that slot (CLOSE lets them go)
         self.nreq = 0
         self.done = False
         self.closed = False
@@ -470,12 +564,21 @@ class FileSession:
     def _lock(self, f, rid, update, wait):
         """The lock a locking read takes before it reads (op_dio3.c: the lock first, so a record that is not there is locked all the same).
         True when held.  Not waiting: the LOCKED clause with STATUS() the holder's user number (op_lock.c / op_dio3.c: process.status =
-        lock_record()).  Waiting: the real server waits for ever; this one gives up after cfg lock_wait seconds (module text, 3)."""
+        lock_record()).  Waiting: the real server waits for ever; this one gives up after cfg lock_wait seconds (module text, 3).
+        cfg maxrlock: a NEW lock (the session holds nothing on the record yet) when the session already holds that many is an ON ERROR
+        reply, STATUS() -3060 and message 11162, before the lock table is looked at."""
+        limit = self.cfg["maxrlock"]
+        if limit is not None and not self.store.holds(f, rid, self.userno) and self.store.count_locks(self.userno) >= limit:
+            self.err = SV_ON_ERROR
+            self.st = -ER_MAXRLOCK
+            self.abort_msg = msg(11162)
+            return False
         if wait:
             h = self.store.lock_wait(f, rid, update, self.userno, self.cfg["lock_wait"])
         else:
             h = self.store.lock_try(f, rid, update, self.userno)
         if h == 0:
+            self.taken.setdefault(self.cur_fno, set()).add((f.lockname, f.lockid(rid)))
             return True
         if wait:
             self.err = SV_ON_ERROR
@@ -485,6 +588,46 @@ class FileSession:
             self.err = SV_LOCKED
             self.st = h
         return False
+
+    def _unlock(self, f, rid):
+        """A plain WRITE or DELETE lets go of the session's lock on the id (read or update), whichever slot took it: unlock_record() goes by
+        file and id."""
+        self.store.release_one(f, rid, self.userno)
+        key = (f.lockname, f.lockid(rid))
+        for s in self.taken.values():
+            s.discard(key)
+
+    def _fail_on_error(self, status, text):
+        """The ON ERROR reply: server.error = SV$ON.ERROR, the abort message, and the (negative) STATUS() of the statement."""
+        self.err = SV_ON_ERROR
+        self.st = status
+        self.abort_msg = text
+        return ""
+
+    def _change_gate(self, f, rid=None):
+        """What stands between a changing request and the file, in the order of the real server: check.edit (the session's edit gates, by
+        the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (-3018), a record id that is
+        not valid (-3000: empty, over 63 bytes or holding a mark), and MUSTLOCK (-3023: no update lock held on the record).  rid None is
+        CLEARFILE.  True when the change may go on; otherwise the reply is set."""
+        if not f.path:
+            self._fail(msg(11410))
+            return False
+        k = f.edit_kind()
+        if k and KIND_NAMES[k] not in self.cfg["edit_allow"]:
+            self._fail(msg(11404 + k))
+            return False
+        if f.vocname in self.cfg["readonly"] or f.name in self.cfg["readonly"]:
+            self._fail_on_error(-ER_RDONLY, "netfake: the file is read only for the server's user")
+            return False
+        if rid is None:
+            return True
+        if rid == "" or len(rid) > MAX_ID or any(248 <= ord(ch) <= 255 for ch in rid):
+            self._fail_on_error(-ER_IID, "netfake: illegal record id")
+            return False
+        if self.cfg["must_lock"] and not self.store.holds_update(f, rid, self.userno):
+            self._fail_on_error(-ER_NOLOCK, "")
+            return False
+        return True
 
     def _found(self, f, rid, rec):
         if rec is None:
@@ -506,6 +649,8 @@ class FileSession:
                 self._fail("Illegal action code (%d)" % ptype)         # apisrvr vb.illegal.action
             return self.err, self.st, ""
         resp = h(self, data)
+        if self.err == SV_OK and ptype in STATUS_REQUESTS:
+            self.st = self.cfg["success_status"]          # apisrvr sends whatever the last statement left in STATUS(); a client must not read it
         if self.err == SV_ON_ERROR:
             resp = self.abort_msg            # apisrvr return.status.set: response = @abort.message
         elif self.err == SV_ERROR:
@@ -567,6 +712,8 @@ class FileSession:
         """vb.close: check.file, then the slot is free for the next open."""
         f = self._file(data)
         if f is not None:
+            for name, lid in self.taken.pop(self.cur_fno, ()):          # slice 3e: the locks taken through THIS slot go with it
+                self.store.release_key(name, lid, self.userno)
             self.slots[self.cur_fno - 1] = None
         return ""
 
@@ -654,10 +801,87 @@ class FileSession:
         rid = _rid(data, 2)
         if fno == 0:
             self.store.release_all(self.userno)
+            self.taken.clear()
         elif rid == "":
             self.store.release_file(f, self.userno)
+            for s in self.taken.values():
+                s.difference_update([k for k in s if k[0] == f.lockname])
         else:
-            self.store.release_one(f, rid, self.userno)
+            self._unlock(f, rid)
+        return ""
+
+    # ---- 18 Oct 26, S.65 slice 3e: the changing and locking requests ------------------------------------------------------------
+    def _write(self, data, keep):
+        """vb.write / vb.writeu: fno (short), id length (short), the id (no padding), the record is the rest.  check.edit, then the statement."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        n = max(_short(data, 2), 0)
+        rid = data[4:4 + n].decode("latin-1")
+        rec = data[4 + n:].decode("latin-1")
+        if not self._change_gate(f, rid):
+            return ""
+        self.store.write_rec(f, rid, rec)
+        if not keep:
+            self._unlock(f, rid)
+        return ""
+
+    def _delete(self, data, keep):
+        """vb.delete / vb.deleteu: fno (short), the id is the rest (99 bytes at most).  A record that is not there is a success."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        rid = _rid(data, 2)
+        if not self._change_gate(f, rid):
+            return ""
+        self.store.delete_rec(f, rid)
+        if not keep:
+            self._unlock(f, rid)
+        return ""
+
+    def r_write(self, data):
+        return self._write(data, False)
+
+    def r_writeu(self, data):
+        return self._write(data, True)
+
+    def r_delete(self, data):
+        return self._delete(data, False)
+
+    def r_deleteu(self, data):
+        return self._delete(data, True)
+
+    def r_clearfile(self, data):
+        """vb.clearfile: check.file, check.edit, then CLEARFILE: waits (here: cfg lock_wait seconds) while ANOTHER user holds the file lock,
+        then every record goes.  The lock table is not touched."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        if not self._change_gate(f):
+            return ""
+        h = self.store.filelock_wait(f, self.userno, self.cfg["lock_wait"])
+        if h:
+            self.err = SV_ON_ERROR
+            self.abort_msg = "netfake: gave up after %s seconds waiting for the file lock on %s held by user %d" % (self.cfg["lock_wait"], f.vocname, h)
+            self.server.note(self.abort_msg)
+            return ""
+        self.store.clear_file(f)
+        return ""
+
+    def r_lockrecord(self, data):
+        """vb.lock.record: fno (short), flags (short: 1 = update lock, 2 = no wait), the id.  0 and 1 wait (here: lock_wait seconds, then an ON
+        ERROR reply), 2 and 3 are the LOCKED clause: SV$LOCKED with STATUS() the holder's user number.  Any other flags value does nothing
+        and succeeds, as the begin case of apisrvr has no branch for it."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        flags = _short(data, 2)
+        rid = _rid(data, 4)
+        if flags not in (0, 1, 2, 3):
+            return ""
+        if rid == "":
+            return self._fail_on_error(0, "netfake: null record id")
+        self._lock(f, rid, bool(flags & 1), not (flags & 2))
         return ""
 
     def r_recordlocked(self, data):
@@ -746,7 +970,9 @@ class FileSession:
     HANDLERS = {R_QUIT: r_quit, R_GETERROR: r_geterror, R_ACCOUNT: r_account, R_OPEN: r_open, R_CLOSE: r_close, R_READ: r_read,
                 R_READL: r_readl, R_READLW: r_readlw, R_READU: r_readu, R_READUW: r_readuw, R_SELECT: r_select, R_READNEXT: r_readnext,
                 R_CLEARSELECT: r_clearselect, R_READLIST: r_readlist, R_RELEASE: r_release, R_RECORDLOCKED: r_recordlocked,
-                R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision}
+                R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision,
+                R_WRITE: r_write, R_WRITEU: r_writeu, R_DELETE: r_delete, R_DELETEU: r_deleteu, R_LOCKRECORD: r_lockrecord,
+                R_CLEARFILE: r_clearfile}
 
 
 class FakeServer(threading.Thread):
@@ -778,6 +1004,14 @@ class FakeServer(threading.Thread):
         "no_reply": (),           # request types that are read, recorded and never answered (the client's timeout is the test)
         "fail": None,             # {request type or "*": (error field, text) or (error field, text, count)}: answer with that error and do not
                                   # dispatch; count = the first COUNT times only.  Error field SV_ERROR makes text the answer to request 2.
+        # ---- 18 Oct 26 S.65 slice 3e: writes, record locks and CLEARFILE (module text) ----
+        "success_status": 0,      # the STATUS() sent with every successful 15 to 19, 30 and 31 reply (a row sets it non-zero to prove the client never reads it)
+        "must_lock": False,       # 16 to 19: no update lock held on the record -> ON ERROR, STATUS() -3023, nothing changed (the server's MUSTLOCK=1)
+        "readonly": (),           # VOC names (lower case) of files 16 to 19 and 31 refuse: ON ERROR, STATUS() -3018 (the OS user cannot write them)
+        "edit_allow": frozenset(),  # the edit gates the session has: any of "voc" "dict" "prog".  Empty is the real default of a files-only login.
+        "maxrlock": None,         # N: a session holding N record locks that asks for another NEW one gets ON ERROR, -3060, message 11162
+        "drop_before": None,      # {request type: n}: the n-th request of that type is read and the connection closed WITHOUT executing or replying
+        "drop_after": None,       # {request type: n}: the n-th is executed (the store changes) and the connection closed WITHOUT replying
     }
 
     def __init__(self, cert, key, life=1800):
@@ -945,7 +1179,7 @@ class FakeServer(threading.Thread):
             if head is None:
                 return None
             length, ptype = struct.unpack("<IH", head)
-            if length < 6 or length > 65536:
+            if length < 6 or length > MAX_PACKET:
                 self.note("a request packet of length %d" % length)
                 return None
             data = self.read_exact(tls, length - 6) if length > 6 else b""
@@ -1098,9 +1332,10 @@ class FakeServer(threading.Thread):
 
     # ---- the served connection ---------------------------------------------------------------------------------------------------
     def serve(self, tls, n, ses):
-        """apisrvr's main loop for one logged-in connection.  Order for each request: read and record it; drop_request; no_reply; the files-only
-        gate (apisrvr: after the logged-in test and before the dispatch, so nothing goes round it); fail; the dispatch; the delay; the reply;
-        then quit and close_after_requests end the connection.  The session's locks are let go when it ends, as a process's are."""
+        """apisrvr's main loop for one logged-in connection.  Order for each request: read and record it; drop_request; drop_before; no_reply;
+        the files-only gate (apisrvr: after the logged-in test and before the dispatch, so nothing goes round it); fail; the dispatch;
+        drop_after (the request has been executed, the connection closes without a reply); the delay; the reply; then quit and
+        close_after_requests end the connection.  The session's locks are let go when it ends, as a process's are."""
         cfg = ses.cfg
         tls.settimeout(cfg["idle"])
         try:
@@ -1111,7 +1346,11 @@ class FakeServer(threading.Thread):
                 ptype, data = pk
                 ses.nreq += 1
                 ses.requests.append(ptype)
+                ses.type_counts[ptype] = ses.type_counts.get(ptype, 0) + 1
                 if cfg["drop_request"] == ses.nreq:
+                    break
+                if (cfg["drop_before"] or {}).get(ptype) == ses.type_counts[ptype]:
+                    ses.injected.append((ptype, "drop_before"))
                     break
                 if ptype in cfg["no_reply"]:
                     ses.injected.append((ptype, "no_reply"))
@@ -1123,6 +1362,9 @@ class FakeServer(threading.Thread):
                     res = self.injected_fault(ses, ptype)
                     if res is None:
                         res = ses.dispatch(ptype, data)
+                if (cfg["drop_after"] or {}).get(ptype) == ses.type_counts[ptype]:
+                    ses.injected.append((ptype, "drop_after"))      # the request was executed (the store has changed); the reply is never sent
+                    break
                 self.pause(cfg, ptype)
                 self.reply(tls, res[2], res[0], res[1])
                 if ses.done or cfg["close_after_requests"] == ses.nreq:
@@ -1619,12 +1861,12 @@ def selftest_files(srv, cert, row):
     r = c.req(R_OPEN, "customers")
     r2 = c.req(R_READ, r[2] + b"c1")
     row("files-only: open and read are allowed through", r2 == (0, 0, rec_c1.encode("latin-1")), repr((r, r2)))
-    r = c.req(16, _S(1) + _S(2) + b"c9x")
-    row("files-only: a request the gate allows and the fake does not build (16, write) reaches the dispatch: SV$ERROR \"not implemented\"",
-        r[0] == 3 and "not implemented" in c.error_text() and 16 not in ses.refused, repr(r))
+    r = c.req(32, _S(1) + _S(0))
+    row("files-only: a request the gate allows and the fake does not build (32, filelock) reaches the dispatch: SV$ERROR \"not implemented\"",
+        r[0] == 3 and "not implemented" in c.error_text() and 32 not in ses.refused, repr(r))
     c.close()
     wait_closed(ses)
-    row("... and the write is the one thing the fake noted", srv.errors == ["request 16 is not built in netfake"], repr(srv.errors))
+    row("... and the file lock is the one thing the fake noted", srv.errors == ["request 32 is not built in netfake"], repr(srv.errors))
     srv.errors.clear()
     c = connect(user="carol", pw="pw-carol")
     ses = srv.sessions[-1]
@@ -1646,8 +1888,8 @@ def selftest_files(srv, cert, row):
         print("  [SKIP] gpl.bp/apifilesok is not there: the allow list is not compared")
     else:
         row("FILES_OK is gpl.bp/apifilesok's table, number for number (and 3 is allowed once)", FILES_OK == want, repr(sorted(FILES_OK ^ want)))
-    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 15, 34, 37, 40, 41, 46, 49",
-        set(FileSession.HANDLERS) == set(range(1, 16)) | {34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
+    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30, 31, 34, 37, 40, 41, 46, 49",
+        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
     row("NOT_BUILT and the built requests do not overlap", not (NOT_BUILT & set(FileSession.HANDLERS)), repr(sorted(NOT_BUILT & set(FileSession.HANDLERS))))
     bad_msgs = []
     for num, copy in _MSG_COPY.items():
@@ -1755,6 +1997,574 @@ def selftest_files(srv, cert, row):
     srv.configure()
 
 
+def selftest_writes(srv, row):
+    """The slice 3e rows (18 Oct 26): requests 16 to 19, 30 and 31 in apisrvr's reply formats (each row names its vb. label), the lock
+    bookkeeping per file number, and the gates and faults added to DEFAULTS: success_status, must_lock, readonly, edit_allow, maxrlock,
+    drop_before, drop_after.  Every group has a control (the behaviour with the setting off, or the neighbouring request).  The statuses
+    of an ON ERROR reply are compared as the 32 bit unsigned the wire carries (-3023 is 2**32 - 3023)."""
+    FMc = "\xfe"
+    marks = "".join(chr(x) for x in range(248, 256))
+    st = srv.store
+    base = {"wf": {"a": "one", "b": "two", "c": "three"}, "wn": {"Key": "orig"}, "wcs": {"Key": "orig"}, "voc": {"x": "v"},
+            "wbp": {"p": "prog"}, "ptr": {"q": "v"}, "nopath": {"z": "1"}, "wtmp": {"t1": "x", "t2": "y"}}
+    st.add_file("wf", base["wf"], dict_items={"d1": "D" + FMc + "1"})
+    st.add_file("wn", base["wn"], nocase=True)
+    st.add_file("wcs", base["wcs"])
+    st.add_file("voc", base["voc"])                                    # the path /fake/voc: the last component is voc
+    st.add_file("wbp", base["wbp"], path="/data/acct/wbp.bp")
+    st.add_file("ptr", base["ptr"], path="/data/acct/voc")             # a Q-pointer to a VOC: caught by the PATHNAME
+    st.add_file("nopath", base["nopath"], path="")
+    st.add_file("wtmp", base["wtmp"])
+    NEG = lambda n: (2 ** 32 - n) & 0xFFFFFFFF                           # a negative STATUS() as the reply carries it
+
+    def reset():
+        for name, recs in base.items():
+            f = st.file(name)
+            f.records.clear()
+            f.records.update(recs)
+        d = st.file("wf").dict_items
+        d.clear()
+        d["d1"] = "D" + FMc + "1"
+        for u in (7, 8):
+            st.drop_user(u)
+
+    def connect(timeout=5, **cfg):
+        srv.configure(files=True, **cfg)
+        cl = ApiClient(srv.port, timeout=timeout)
+        r = cl.login("alice", "pw-one")
+        if r[0] != "ok":
+            raise RuntimeError("netfake self-test: login gave %r" % (r,))
+        return cl
+
+    def wait_closed(ses, limit=4.0):
+        t0 = time.time()
+        while not ses.closed and time.time() - t0 < limit:
+            time.sleep(0.05)
+        return ses.closed
+
+    def bye(cl, ses):
+        cl.close()
+        wait_closed(ses)
+
+    def gone(cl, ses, ptype, data):
+        """The request is sent and the server closes without a reply."""
+        try:
+            cl.req(ptype, data)
+            return False
+        except (EOFError, OSError):
+            return wait_closed(ses)
+
+    def W(fno, rid, rec):
+        return _S(fno) + _S(len(rid)) + rid.encode("latin-1") + rec.encode("latin-1")
+
+    def D(fno, rid):
+        return _S(fno) + rid.encode("latin-1")
+
+    def K(fno, flags, rid):
+        return _S(fno) + _S(flags) + rid.encode("latin-1")
+
+    def opened(cl, *names):
+        """Open each name; the file numbers, which are 1, 2 ... on a fresh connection."""
+        return [struct.unpack("<h", cl.req(R_OPEN, n)[2])[0] for n in names]
+
+    # ---- W1  WRITE / WRITEU / DELETE / DELETEU: the formats and what each does to the lock ---------------------------------------
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    u = ses.userno
+    f1, = opened(c, "wf")
+    rec = "A" + FMc + "b\xfdc" + marks
+    r = c.req(R_WRITE, W(f1, "new", rec))
+    row("vb.write: error 0, STATUS 0, no data; the record is stored with its marks (field, value and the eight characters 248-255) as sent",
+        r == (0, 0, b"") and st.records("wf").get("new") == rec, repr((r, st.records("wf").get("new"))))
+    r = c.req(R_WRITE, W(f1, "a", ""))
+    row("vb.write: a null record is a record (stored as the null string), the id the same file already holds is replaced",
+        r == (0, 0, b"") and st.records("wf").get("a") == "" and "a" in st.records("wf"), repr(st.records("wf")))
+    r = c.req(R_READ, _S(f1) + b"new")
+    row("a record written is read back by request 6 at once, byte for byte", r == (0, 0, rec.encode("latin-1")), repr(r))
+    r2 = c.req(R_SELECTLIST, _S(f1))
+    row("... and request 37 lists its id", b"new" in r2[2].split(b"\xfe"), repr(r2))
+    reset()
+    c.req(R_READU, _S(f1) + b"a")
+    row("CONTROL for the lock rows: a readu took the update lock", st.locks_of(u) == [("wf", "a", "update")], repr(st.locks_of(u)))
+    r = c.req(R_WRITE, W(f1, "a", "w1"))
+    row("vb.write lets go of the session's update lock on the id", r == (0, 0, b"") and st.locks_of(u) == [] and st.records("wf")["a"] == "w1",
+        repr((r, st.locks_of(u))))
+    c.req(R_READL, _S(f1) + b"b")
+    r = c.req(R_WRITE, W(f1, "b", "w2"))
+    row("vb.write lets go of a READ lock too (unlock_record() goes by id)", r == (0, 0, b"") and st.locks_of(u) == [], repr(st.locks_of(u)))
+    c.req(R_READU, _S(f1) + b"a")
+    r = c.req(R_WRITEU, W(f1, "a", "w3"))
+    row("vb.writeu writes and KEEPS the lock (the control for the two rows above)",
+        r == (0, 0, b"") and st.records("wf")["a"] == "w3" and st.locks_of(u) == [("wf", "a", "update")], repr((r, st.locks_of(u))))
+    r = c.req(R_WRITEU, W(f1, "fresh", "w4"))
+    row("vb.writeu of a record that is not there creates it and takes no lock", r == (0, 0, b"") and st.records("wf")["fresh"] == "w4" and
+        st.locks_of(u) == [("wf", "a", "update")], repr(st.locks_of(u)))
+    r = c.req(R_DELETE, D(f1, "a"))
+    row("vb.delete: error 0, STATUS 0, no data; the record is gone and the lock with it",
+        r == (0, 0, b"") and "a" not in st.records("wf") and st.locks_of(u) == [], repr((r, st.locks_of(u))))
+    r = c.req(R_DELETE, D(f1, "no-such-record"))
+    row("vb.delete of a record that is not there is a success (error 0, STATUS 0) and changes nothing", r == (0, 0, b"") and set(st.records("wf")) == {"b", "c", "fresh"},
+        repr((r, sorted(st.records("wf")))))
+    c.req(R_READU, _S(f1) + b"b")
+    r = c.req(R_DELETEU, D(f1, "b"))
+    row("vb.deleteu removes the record and KEEPS the lock", r == (0, 0, b"") and "b" not in st.records("wf") and st.locks_of(u) == [("wf", "b", "update")],
+        repr((r, st.locks_of(u))))
+    r = c.req(R_DELETEU, D(f1, "never-there"))
+    row("vb.deleteu of a record that is not there is a success too", r == (0, 0, b""), repr(r))
+    c.req(R_RELEASE, _S(0))
+    bye(c, ses)
+
+    # ---- W2  ids ---------------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    row("ids: an EMPTY id is refused for write, writeu, delete and deleteu: ON ERROR (error 1), STATUS -3000, nothing stored",
+        all(c.req(t, d)[:2] == (1, NEG(3000)) for t, d in ((R_WRITE, W(f1, "", "x")), (R_WRITEU, W(f1, "", "x")), (R_DELETE, D(f1, "")), (R_DELETEU, D(f1, ""))))
+        and st.records("wf") == base["wf"], repr(st.records("wf")))
+    i63, i64 = "i" * 63, "j" * 64
+    r63, r64 = c.req(R_WRITE, W(f1, i63, "x")), c.req(R_WRITE, W(f1, i64, "x"))
+    row("ids: 63 bytes is stored, 64 is refused with -3000 (the server's MAXIDLEN)", r63 == (0, 0, b"") and i63 in st.records("wf") and r64[:2] == (1, NEG(3000))
+        and i64 not in st.records("wf"), repr((r63, r64)))
+    rm = c.req(R_WRITE, W(f1, "m" + chr(250), "x"))
+    rh = c.req(R_WRITE, W(f1, "h" + chr(247), "x"))
+    row("ids: a record mark (248-255) is refused with -3000; a byte of 128-247 is an ordinary character (the owner's 12 Oct exception)",
+        rm[:2] == (1, NEG(3000)) and rh == (0, 0, b"") and "h" + chr(247) in st.records("wf") and "m" + chr(250) not in st.records("wf"), repr((rm, rh)))
+    bye(c, ses)
+
+    # ---- W3  nocase ------------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    u = ses.userno
+    fn, fc = opened(c, "wn", "wcs")
+    c.req(R_WRITE, W(fn, "KEY", "new1"))
+    row("a write to a NOCASE file under another spelling replaces the record it already holds and keeps ITS key", st.records("wn") == {"Key": "new1"}, repr(st.records("wn")))
+    c.req(R_WRITE, W(fn, "Other", "o"))
+    row("... a new id is stored as it was sent", st.records("wn") == {"Key": "new1", "Other": "o"}, repr(st.records("wn")))
+    c.req(R_WRITE, W(fc, "KEY", "new2"))
+    row("CONTROL: a file that is not nocase keeps the two spellings apart", st.records("wcs") == {"Key": "orig", "KEY": "new2"}, repr(st.records("wcs")))
+    c.req(R_DELETE, D(fn, "oTHER"))
+    row("vb.delete finds the record whatever the case in a nocase file", st.records("wn") == {"Key": "new1"}, repr(st.records("wn")))
+    c.req(R_LOCKRECORD, K(fn, 3, "KEY"))
+    held = st.locks_of(u)
+    c.req(R_WRITE, W(fn, "key", "new3"))
+    row("a lock on a nocase file is by the folded id: a write under another spelling lets it go",
+        held == [("wn", "KEY", "update")] and st.locks_of(u) == [] and st.records("wn") == {"Key": "new3"}, repr((held, st.locks_of(u))))
+    bye(c, ses)
+
+    # ---- W4  request 30, RECORDLOCK ---------------------------------------------------------------------------------------------
+    reset()
+    c = connect(lock_wait=0.5)
+    ses = srv.sessions[-1]
+    u = ses.userno
+    f1, f2 = opened(c, "wf", "wtmp")
+    out = []
+    for flags, kind in ((0, "shared"), (1, "update"), (2, "shared"), (3, "update")):
+        r = c.req(R_LOCKRECORD, K(f1, flags, "a"))
+        out.append((flags, r, st.locks_of(u)))
+        c.req(R_RELEASE, D(f1, "a"))
+        if r != (0, 0, b"") or out[-1][2] != [("wf", "a", kind)]:
+            out.append("BAD")
+    row("vb.lock.record: flags 0 shared + wait, 1 update + wait, 2 shared no-wait, 3 update no-wait each take that lock on a free record: error 0, no data",
+        "BAD" not in out and len(out) == 4, repr(out))
+    r = c.req(R_LOCKRECORD, K(f1, 9, "b"))
+    row("vb.lock.record: any other flags value does nothing and succeeds (the begin case has no branch)", r == (0, 0, b"") and st.locks_of(u) == [], repr((r, st.locks_of(u))))
+    r = c.req(R_LOCKRECORD, K(f1, 3, ""))
+    row("vb.lock.record: a null id is an ON ERROR reply, not a lock", r[0] == 1 and st.locks_of(u) == [], repr(r))
+    st.hold("wf", "a", 7)
+    r2, r3 = c.req(R_LOCKRECORD, K(f1, 2, "a")), c.req(R_LOCKRECORD, K(f1, 3, "a"))
+    row("a no-wait lock on a record another user holds is SV$LOCKED, no data, STATUS() the HOLDER's user number (flags 2 and 3)",
+        r2 == (SV_LOCKED, 7, b"") and r3 == (SV_LOCKED, 7, b"") and st.locks_of(u) == [], repr((r2, r3)))
+    t0 = time.time()
+    r0 = c.req(R_LOCKRECORD, K(f1, 0, "a"))
+    r1 = c.req(R_LOCKRECORD, K(f1, 1, "a"))
+    el = time.time() - t0
+    row("a WAITING lock (flags 0, 1) on a held record gives up after lock_wait with an ON ERROR reply that says so, and the fake notes it (measured %.2f s)" % el,
+        r0[0] == 1 and r1[0] == 1 and r0[2].startswith(b"netfake: gave up") and 0.9 <= el < 4 and sum("gave up" in e for e in srv.errors) == 2, repr((r0, r1, el)))
+    srv.errors.clear()
+    st.drop_user(7)
+    st.hold("wf", "a", 7, kind="shared")
+    ra, rb = c.req(R_LOCKRECORD, K(f1, 2, "a")), c.req(R_LOCKRECORD, K(f1, 3, "a"))
+    row("CONTROL: another user's READ lock lets a shared no-wait lock through (error 0) and blocks an update one (SV$LOCKED, the holder)",
+        ra == (0, 0, b"") and rb == (SV_LOCKED, 7, b""), repr((ra, rb)))
+    c.req(R_RELEASE, _S(0))
+    st.drop_user(7)
+    st.hold_file("wf", 8)
+    r = c.req(R_LOCKRECORD, K(f1, 3, "b"))
+    row("another user's FILE lock blocks a record lock: SV$LOCKED with the file lock holder's number", r == (SV_LOCKED, 8, b""), repr(r))
+    st.drop_user(8)
+    c.req(R_LOCKRECORD, K(f1, 3, "a"))
+    box = {}
+    ses2 = None
+    c2 = connect(lock_wait=5)
+    ses2 = srv.sessions[-1]
+    g1, = opened(c2, "wf")
+
+    def waiter():
+        t1 = time.time()
+        try:
+            box["r"] = c2.req(R_LOCKRECORD, K(g1, 1, "a"))
+        except Exception as ex_:
+            box["r"] = ex_
+        box["t"] = time.time() - t1
+    th = threading.Thread(target=waiter)
+    th.start()
+    time.sleep(0.6)
+    c.req(R_RELEASE, D(f1, "a"))
+    th.join(8)
+    row("flags 1 (update, waiting) waits for the holder and gets the lock when it lets go (about 0.6 s here)",
+        box.get("r") == (0, 0, b"") and 0.4 <= box.get("t", 0) < 3.0 and st.locks_of(ses2.userno) == [("wf", "a", "update")], repr(box))
+    bye(c2, ses2)
+    c.req(R_RELEASE, _S(0))
+    row("CONTROL: the lock table is empty again for the first session", st.locks_of(u) == [], repr(st.locks_of(u)))
+    bye(c, ses)
+
+    # ---- W5  the locks of a file number: CLOSE, RELEASE, a write through another slot -------------------------------------------------
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    u = ses.userno
+    s1, s2 = opened(c, "wf", "wf")
+    c.req(R_LOCKRECORD, K(s1, 3, "a"))
+    c.req(R_LOCKRECORD, K(s2, 3, "b"))
+    c.req(R_READU, _S(s1) + b"c")
+    row("two slots of one file: the locks taken through each are in the lock table and in that slot's set",
+        st.locks_of(u) == [("wf", "a", "update"), ("wf", "b", "update"), ("wf", "c", "update")] and ses.taken == {s1: {("wf", "a"), ("wf", "c")}, s2: {("wf", "b")}},
+        repr((st.locks_of(u), ses.taken)))
+    r = c.req(R_CLOSE, _S(s1))
+    row("vb.close lets go of the record locks taken through THAT file number and no other (a and c go, b stays)",
+        r == (0, 0, b"") and st.locks_of(u) == [("wf", "b", "update")], repr((r, st.locks_of(u))))
+    c.req(R_CLOSE, _S(s2))
+    row("... and closing the other slot lets go of b", st.locks_of(u) == [], repr(st.locks_of(u)))
+    s1, s2 = opened(c, "wf", "wf")
+    c.req(R_LOCKRECORD, K(s1, 3, "a"))
+    r = c.req(R_WRITE, W(s2, "a", "via-2"))
+    row("a lock taken through slot 1 is let go by a plain write through slot 2 of the same file (by file and id), and slot 1's set forgets it",
+        r == (0, 0, b"") and st.locks_of(u) == [] and ses.taken.get(s1, set()) == set(), repr((st.locks_of(u), ses.taken)))
+    c.req(R_LOCKRECORD, K(s1, 3, "a"))
+    c.req(R_LOCKRECORD, K(s1, 3, "b"))
+    c.req(R_RELEASE, D(s2, "a"))
+    row("vb.release through slot 2 lets go of what slot 1 took on that id and prunes the set (b stays)",
+        st.locks_of(u) == [("wf", "b", "update")] and ses.taken[s1] == {("wf", "b")}, repr((st.locks_of(u), ses.taken)))
+    c.req(R_LOCKRECORD, K(s1, 3, "c"))
+    c.req(R_RELEASE, _S(s2))
+    row("vb.release with an empty id lets go of every lock on the file and empties the sets", st.locks_of(u) == [] and ses.taken[s1] == set(), repr((st.locks_of(u), ses.taken)))
+    c.req(R_LOCKRECORD, K(s1, 3, "c"))
+    c.req(R_RELEASE, _S(0))
+    row("vb.release with file number 0 lets go of everything and clears the sets", st.locks_of(u) == [] and ses.taken == {}, repr((st.locks_of(u), ses.taken)))
+    c.req(R_LOCKRECORD, K(s1, 3, "a"))
+    c.req(R_WRITEU, W(s2, "a", "kept"))
+    row("CONTROL: writeu through the other slot does not let the lock go, and the set keeps it", st.locks_of(u) == [("wf", "a", "update")] and ses.taken[s1] == {("wf", "a")},
+        repr((st.locks_of(u), ses.taken)))
+    c.close()
+    wait_closed(ses)
+    row("a connection that ends lets go of everything it held", st.locks_of(u) == [], repr(st.locks_of(u)))
+
+    # ---- W6  CLEARFILE ----------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect(lock_wait=0.5)
+    ses = srv.sessions[-1]
+    u = ses.userno
+    f1, f2 = opened(c, "wf", "wtmp")
+    c.req(R_LOCKRECORD, K(f2, 3, "t1"))
+    r = c.req(R_CLEARFILE, _S(f2))
+    row("vb.clearfile: error 0, STATUS 0, no data; every record goes, the other file is untouched, and the lock table is not touched",
+        r == (0, 0, b"") and st.records("wtmp") == {} and st.records("wf") == base["wf"] and st.locks_of(u) == [("wtmp", "t1", "update")], repr((r, st.records("wtmp"), st.locks_of(u))))
+    r = c.req(R_CLEARFILE, _S(f2))
+    row("vb.clearfile of an empty file is a success", r == (0, 0, b""), repr(r))
+    r = c.req(R_READ, _S(f2) + b"t1")
+    row("... a read after it is the ELSE clause (ER$RNF)", r == (SV_ELSE, 3006, b""), repr(r))
+    c.req(R_RELEASE, _S(0))
+    st.hold_file("wtmp", 8)
+    reset_recs = st.file("wtmp").records
+    reset_recs.update(base["wtmp"])
+    t0 = time.time()
+    r = c.req(R_CLEARFILE, _S(f2))
+    el = time.time() - t0
+    row("vb.clearfile while ANOTHER user holds the file lock waits lock_wait seconds, then an ON ERROR reply that says so; nothing is cleared (measured %.2f s)" % el,
+        r[0] == 1 and r[2].startswith(b"netfake: gave up") and 0.4 <= el < 3.0 and st.records("wtmp") == base["wtmp"] and any("gave up" in e for e in srv.errors),
+        repr((r, el, st.records("wtmp"))))
+    srv.errors.clear()
+    st.drop_user(8)
+    r = c.req(R_CLEARFILE, _S(f2))
+    row("... and once that user is gone the clear goes through", r == (0, 0, b"") and st.records("wtmp") == {}, repr((r, st.records("wtmp"))))
+    bye(c, ses)
+    reset()
+    c = connect(lock_wait=5)
+    ses = srv.sessions[-1]
+    f2, = opened(c, "wtmp")
+    st.hold_file("wtmp", 8)
+    box = {}
+
+    def clearer():
+        t1 = time.time()
+        try:
+            box["r"] = c.req(R_CLEARFILE, _S(f2))
+        except Exception as ex_:
+            box["r"] = ex_
+        box["t"] = time.time() - t1
+    th = threading.Thread(target=clearer)
+    th.start()
+    time.sleep(0.6)
+    st.drop_user(8)
+    th.join(8)
+    row("vb.clearfile waits for the other user's file lock and clears when it is let go (about 0.6 s here)",
+        box.get("r") == (0, 0, b"") and 0.4 <= box.get("t", 0) < 3.0 and st.records("wtmp") == {}, repr(box))
+    bye(c, ses)
+
+    # ---- W7  a file number that is not open, in every new request ----------------------------------------------------------------
+    c = connect()
+    ses = srv.sessions[-1]
+    bad = {t: c.req(t, d) for t, d in ((R_WRITE, W(9, "a", "x")), (R_WRITEU, W(9, "a", "x")), (R_DELETE, D(9, "a")), (R_DELETEU, D(9, "a")),
+                                      (R_LOCKRECORD, K(9, 3, "a")), (R_CLEARFILE, _S(9)))}
+    row("a file number that was never opened is SV$ERROR with no data in 16, 17, 18, 19, 30 and 31, and request 2 returns 5268 each time",
+        all(v == (3, 0, b"") for v in bad.values()) and all((c.req(t, d)[0] == 3 and c.error_text() == msg(5268)) for t, d in ((R_WRITE, W(9, "a", "x")), (R_CLEARFILE, _S(9)))),
+        repr(bad))
+    bye(c, ses)
+
+    # ---- W8  success_status: the STATUS() of a good reply is configuration, and a client must not read it -------------------------------
+    reset()
+    c = connect(success_status=4242)
+    ses = srv.sessions[-1]
+    f1, f2 = opened(c, "wf", "wtmp")
+    got = {"write": c.req(R_WRITE, W(f1, "a", "x")), "writeu": c.req(R_WRITEU, W(f1, "a", "y")), "delete": c.req(R_DELETE, D(f1, "b")),
+           "deleteu": c.req(R_DELETEU, D(f1, "c")), "lock": c.req(R_LOCKRECORD, K(f1, 3, "a")), "badflags": c.req(R_LOCKRECORD, K(f1, 9, "a")),
+           "release": c.req(R_RELEASE, D(f1, "a")), "clear": c.req(R_CLEARFILE, _S(f2))}
+    row("success_status=4242: the reply to 15, 16, 17, 18, 19, 30 (also an unknown flags value) and 31 carries that STATUS(); data and error field unchanged",
+        all(v == (0, 4242, b"") for v in got.values()), repr(got))
+    r, rr, re_ = c.req(R_READ, _S(f1) + b"a"), c.req(R_READ, _S(f1) + b"nope"), c.req(R_WRITE, W(f1, "", "x"))
+    row("CONTROL: a read still has STATUS 0, a read that finds nothing 3006 (ER$RNF), and an ON ERROR reply its own status (-3000), never 4242",
+        r == (0, 0, b"y") and rr == (SV_ELSE, 3006, b"") and re_[:2] == (1, NEG(3000)), repr((r, rr, re_)))
+    bye(c, ses)
+
+    # ---- W9  must_lock ---------------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect(must_lock=True)
+    ses = srv.sessions[-1]
+    u = ses.userno
+    f1, f2, fn = opened(c, "wf", "wtmp", "wn")
+    refused = [c.req(t, d) for t, d in ((R_WRITE, W(f1, "a", "x")), (R_WRITEU, W(f1, "a", "x")), (R_DELETE, D(f1, "a")), (R_DELETEU, D(f1, "a")))]
+    row("must_lock: a write, writeu, delete and deleteu without the update lock are ON ERROR with STATUS -3023 and no data, and change nothing",
+        all(v == (1, NEG(3023), b"") for v in refused) and st.records("wf") == base["wf"], repr((refused, st.records("wf"))))
+    c.req(R_READL, _S(f1) + b"a")
+    r = c.req(R_WRITE, W(f1, "a", "x"))
+    row("must_lock: a READ lock is not enough (the update lock is what MUSTLOCK wants)", r == (1, NEG(3023), b"") and st.records("wf") == base["wf"], repr(r))
+    c.req(R_READU, _S(f1) + b"a")
+    r = c.req(R_WRITE, W(f1, "a", "x"))
+    row("must_lock: with the update lock (taken by readu) the write goes through, and releases it", r == (0, 0, b"") and st.records("wf")["a"] == "x" and st.locks_of(u) == [], repr(r))
+    c.req(R_LOCKRECORD, K(f1, 3, "b"))
+    r = c.req(R_DELETE, D(f1, "b"))
+    row("must_lock: an update lock taken by request 30 counts too, for delete", r == (0, 0, b"") and "b" not in st.records("wf"), repr(r))
+    c.req(R_LOCKRECORD, K(fn, 3, "KEY"))
+    r = c.req(R_WRITE, W(fn, "key", "x"))
+    row("must_lock: on a nocase file the lock is by the folded id", r == (0, 0, b"") and st.records("wn") == {"Key": "x"}, repr(r))
+    r = c.req(R_CLEARFILE, _S(f2))
+    row("must_lock does not apply to CLEARFILE (it has no record)", r == (0, 0, b"") and st.records("wtmp") == {}, repr(r))
+    bye(c, ses)
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    r = c.req(R_WRITE, W(f1, "a", "x"))
+    row("CONTROL: with must_lock off (the default) the same write without a lock goes through", r == (0, 0, b"") and st.records("wf")["a"] == "x", repr(r))
+    bye(c, ses)
+
+    # ---- W10  readonly ------------------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect(readonly=("wf",))
+    ses = srv.sessions[-1]
+    f1, f2 = opened(c, "wf", "wcs")
+    ro = [c.req(t, d) for t, d in ((R_WRITE, W(f1, "a", "x")), (R_WRITEU, W(f1, "a", "x")), (R_DELETE, D(f1, "a")), (R_DELETEU, D(f1, "a")), (R_CLEARFILE, _S(f1)))]
+    row("readonly=('wf',): 16, 17, 18, 19 and 31 are ON ERROR with STATUS -3018 and change nothing",
+        all(v[:2] == (1, NEG(3018)) for v in ro) and st.records("wf") == base["wf"], repr((ro, st.records("wf"))))
+    rd, rl = c.req(R_READ, _S(f1) + b"a"), c.req(R_READU, _S(f1) + b"a")
+    rw = c.req(R_WRITE, W(f2, "n", "x"))
+    row("CONTROL: reads and locks on that file still work, and a write to another file goes through",
+        rd == (0, 0, b"one") and rl == (0, 0, b"one") and rw == (0, 0, b"") and st.records("wcs").get("n") == "x", repr((rd, rl, rw)))
+    bye(c, ses)
+
+    # ---- W11  edit_allow: check.edit by the pathname ------------------------------------------------------------------------------------
+    def change_all(cl, fno, rid):
+        """The five changing requests on one file: [(reply, the text request 2 gives right after it when the reply is SV$ERROR)]."""
+        out_ = []
+        for t, d in ((R_WRITE, W(fno, rid, "x")), (R_WRITEU, W(fno, rid, "x")), (R_DELETE, D(fno, rid)), (R_DELETEU, D(fno, rid)), (R_CLEARFILE, _S(fno))):
+            r_ = cl.req(t, d)
+            out_.append((r_, cl.error_text() if r_[0] == SV_ERROR else None))
+        return out_
+
+    def denied(cl, rs, num):
+        """Every reply is SV$ERROR with no data and request 2 gave message num right after it."""
+        return all(v[0] == (3, 0, b"") and v[1] == msg(num) for v in rs)
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    fv, fp, fb, fd, fnp, fok = opened(c, "voc", "ptr", "wbp", "dict wf", "nopath", "wcs")
+    rv, rp, rb, rd_, rn = change_all(c, fv, "x"), change_all(c, fp, "q"), change_all(c, fb, "p"), change_all(c, fd, "d1"), change_all(c, fnp, "z")
+    row("edit_allow empty (the files-only default): all five changing requests on the VOC are SV$ERROR, request 2 gives 11405, nothing changes",
+        denied(c, rv, 11405) and st.records("voc") == base["voc"], repr(rv))
+    row("... on a Q-pointer to a VOC (a file called ptr whose PATH ends voc) the same: the gate goes by the pathname", denied(c, rp, 11405) and st.records("ptr") == base["ptr"], repr(rp))
+    row("... on a program file (path ends .bp): 11407", denied(c, rb, 11407) and st.records("wbp") == base["wbp"], repr(rb))
+    row("... on a dictionary (opened as 'dict wf'): 11406", denied(c, rd_, 11406) and st.file("wf").dict_items == {"d1": "D" + FMc + "1"}, repr(rd_))
+    row("... on a file whose path cannot be read: 11410", denied(c, rn, 11410) and st.records("nopath") == base["nopath"], repr(rn))
+    rc = change_all(c, fok, "n")
+    row("CONTROL: a file of no special kind is changed by an empty edit_allow (write, writeu, delete, deleteu, clear all succeed)",
+        all(v[0] == (0, 0, b"") for v in rc) and st.records("wcs") == {}, repr(rc))
+    rr = [c.req(R_READ, _S(fv) + b"x"), c.req(R_READ, _S(fb) + b"p"), c.req(R_LOCKRECORD, K(fv, 3, "x"))]
+    row("CONTROL: reads and record locks of those files are never gated", rr[0] == (0, 0, b"v") and rr[1] == (0, 0, b"prog") and rr[2] == (0, 0, b""), repr(rr))
+    bye(c, ses)
+    reset()
+    c = connect(edit_allow=frozenset({"voc", "dict", "prog"}))
+    ses = srv.sessions[-1]
+    fv, fp, fb, fd, fnp = opened(c, "voc", "ptr", "wbp", "dict wf", "nopath")
+    rv, rb, rd_ = c.req(R_WRITE, W(fv, "x", "new")), c.req(R_WRITE, W(fb, "p", "new")), c.req(R_WRITE, W(fd, "d2", "new"))
+    row("edit_allow=voc, dict, prog: a write to the VOC, a program file and a dictionary goes through (the dictionary item is stored)",
+        rv == (0, 0, b"") and rb == (0, 0, b"") and rd_ == (0, 0, b"") and st.records("voc")["x"] == "new" and st.records("wbp")["p"] == "new"
+        and st.file("wf").dict_items.get("d2") == "new", repr((rv, rb, rd_)))
+    rn = c.req(R_WRITE, W(fnp, "z", "new"))
+    row("... but a file whose path cannot be read is still 11410 (the gates do not matter without a path)", rn == (3, 0, b"") and c.error_text() == msg(11410) and st.records("nopath") == base["nopath"], repr(rn))
+    bye(c, ses)
+    reset()
+    c = connect(edit_allow=frozenset({"dict"}))
+    ses = srv.sessions[-1]
+    fv, fb, fd = opened(c, "voc", "wbp", "dict wf")
+    rd_, rv = c.req(R_DELETE, D(fd, "d1")), c.req(R_DELETE, D(fv, "x"))
+    rb = c.req(R_CLEARFILE, _S(fb))
+    row("edit_allow=dict: the dictionary delete goes through, the VOC (11405) and the program file clear (11407) do not - each kind is its own gate",
+        rd_ == (0, 0, b"") and "d1" not in st.file("wf").dict_items and rv == (3, 0, b"") and st.records("voc") == base["voc"] and rb == (3, 0, b"")
+        and c.error_text() == msg(11407) and st.records("wbp") == base["wbp"], repr((rd_, rv, rb)))
+    bye(c, ses)
+
+    # ---- W12  maxrlock ----------------------------------------------------------------------------------------------------------------
+    reset()
+    c = connect(maxrlock=2)
+    ses = srv.sessions[-1]
+    u = ses.userno
+    f1, = opened(c, "wf")
+    c.req(R_LOCKRECORD, K(f1, 3, "a"))
+    c.req(R_LOCKRECORD, K(f1, 2, "b"))
+    want = (1, NEG(3060), msg(11162).encode())
+    r = c.req(R_LOCKRECORD, K(f1, 3, "c"))
+    row("maxrlock=2: a third NEW lock by request 30 is ON ERROR, STATUS -3060, data message 11162 (Record lock limit (MAXRLOCK) reached)", r == want and len(st.locks_of(u)) == 2, repr(r))
+    rs = [c.req(R_READU, _S(f1) + b"c"), c.req(R_READL, _S(f1) + b"c"), c.req(R_READUW, _S(f1) + b"c"), c.req(R_READLW, _S(f1) + b"c"),
+          c.req(R_READV, _S(f1) + _S(1) + _L(1) + b"c"), c.req(R_READV, _S(f1) + _S(6) + _L(1) + b"c")]
+    row("... and by readu, readl, readuw, readlw and readv with a lock flag (requests 9, 7, 10, 8, 41)", all(v == want for v in rs) and len(st.locks_of(u)) == 2, repr(rs))
+    ru = c.req(R_LOCKRECORD, K(f1, 3, "b"))
+    row("CONTROL: a lock the session already holds is not a NEW lock: upgrading b from a read lock to an update lock is allowed", ru == (0, 0, b"") and ("wf", "b", "update") in st.locks_of(u), repr((ru, st.locks_of(u))))
+    rp = c.req(R_READ, _S(f1) + b"c")
+    row("CONTROL: a plain read takes no lock and is never refused", rp == (0, 0, b"three"), repr(rp))
+    st.hold("wf", "c", 7)
+    rh = c.req(R_LOCKRECORD, K(f1, 2, "c"))
+    row("the count is checked before the lock table: a record someone else holds is refused with -3060 too, not SV$LOCKED", rh == want, repr(rh))
+    st.drop_user(7)
+    c.req(R_RELEASE, D(f1, "a"))
+    rg = c.req(R_LOCKRECORD, K(f1, 3, "c"))
+    row("after one lock is released the third goes through", rg == (0, 0, b"") and len(st.locks_of(u)) == 2, repr((rg, st.locks_of(u))))
+    bye(c, ses)
+    reset()
+    c = connect()
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    for rid in "abc":
+        c.req(R_LOCKRECORD, K(f1, 3, rid))
+    row("CONTROL: with maxrlock off (the default) three locks are taken", len(st.locks_of(ses.userno)) == 3, repr(st.locks_of(ses.userno)))
+    bye(c, ses)
+
+    # ---- W13  drop_before and drop_after ----------------------------------------------------------------------------------------------
+    reset()
+    c = connect(drop_before={R_WRITE: 2}, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    c.req(R_LOCKRECORD, K(f1, 3, "c"))
+    r1 = c.req(R_WRITE, W(f1, "x1", "one"))
+    r_d = c.req(R_DELETE, D(f1, "b"))
+    dropped = gone(c, ses, R_WRITE, W(f1, "x2", "two"))
+    row("drop_before={16: 2}: the first write is served, the second is read and recorded and the connection closes - the store is NOT changed",
+        r1 == (0, 0, b"") and dropped and "x1" in st.records("wf") and "x2" not in st.records("wf") and ses.injected == [(R_WRITE, "drop_before")]
+        and ses.requests.count(R_WRITE) == 2, repr((r1, dropped, ses.injected, ses.requests)))
+    row("... and the session's locks went with the connection, as a process's do; a delete (another type) between the writes did not count",
+        r_d == (0, 0, b"") and st.locks_of(ses.userno) == [], repr(st.locks_of(ses.userno)))
+    c.close()
+    reset()
+    c = connect(drop_after={R_WRITE: 1}, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    dropped = gone(c, ses, R_WRITE, W(f1, "x1", "one"))
+    row("drop_after={16: 1}: the write is EXECUTED (the store has the record) and the connection closes without a reply - the client cannot tell this from drop_before",
+        dropped and st.records("wf").get("x1") == "one" and ses.injected == [(R_WRITE, "drop_after")], repr((dropped, st.records("wf"), ses.injected)))
+    c.close()
+    for ptype, data_of, check, label in (
+            (R_WRITEU, lambda f: W(f, "a", "wu"), lambda: st.records("wf")["a"] == "wu", "writeu"),
+            (R_DELETE, lambda f: D(f, "a"), lambda: "a" not in st.records("wf"), "delete"),
+            (R_DELETEU, lambda f: D(f, "a"), lambda: "a" not in st.records("wf"), "deleteu"),
+            (R_CLEARFILE, lambda f: _S(f), lambda: st.records("wf") == {}, "clearfile")):
+        reset()
+        c = connect(drop_after={ptype: 1}, timeout=3)
+        ses = srv.sessions[-1]
+        f1, = opened(c, "wf")
+        dropped = gone(c, ses, ptype, data_of(f1))
+        row("drop_after on %s: executed, then closed with no reply" % label, dropped and check(), repr((dropped, st.records("wf"))))
+        c.close()
+    reset()
+    c = connect(drop_after={R_LOCKRECORD: 1}, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    dropped = gone(c, ses, R_LOCKRECORD, K(f1, 3, "a"))
+    row("drop_after on a lock: recorded as injected and the lock goes with the connection", dropped and ses.injected == [(R_LOCKRECORD, "drop_after")]
+        and st.locks_of(ses.userno) == [], repr((dropped, ses.injected, st.locks_of(ses.userno))))
+    c.close()
+    reset()
+    c = connect(drop_before={R_DELETE: 1}, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    dropped = gone(c, ses, R_DELETE, D(f1, "a"))
+    row("drop_before on a delete: closed, the record is still there", dropped and "a" in st.records("wf") and ses.injected == [(R_DELETE, "drop_before")], repr((dropped, st.records("wf"))))
+    c.close()
+    reset()
+    c = connect(drop_before={R_WRITE: 1}, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    r = c.req(R_DELETE, D(f1, "a"))
+    r2 = c.req(R_READ, _S(f1) + b"b")
+    row("CONTROL: drop_before names a request TYPE: other requests are served as usual and nothing is dropped", r == (0, 0, b"") and r2 == (0, 0, b"two") and ses.injected == [], repr((r, r2, ses.injected)))
+    bye(c, ses)
+
+    # ---- W14  the older fault switches reach the new requests; the files-only gate lets them through ---------------------------------
+    reset()
+    c = connect(fail={R_WRITE: (1, "boom")})
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    r = c.req(R_WRITE, W(f1, "x", "y"))
+    row("fail={16: ...}: the write is answered with the injected error and NOT executed", r == (1, 0, b"boom") and "x" not in st.records("wf") and ses.injected == [(R_WRITE, "fail")], repr((r, ses.injected)))
+    bye(c, ses)
+    c = connect(no_reply=(R_WRITE,), timeout=1)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    try:
+        c.req(R_WRITE, W(f1, "x", "y"))
+        outcome = "answered"
+    except TimeoutError:
+        outcome = "timeout"
+    except (EOFError, OSError):
+        outcome = "closed"
+    row("no_reply=(16,): the write is recorded and never answered, and (as for a read) not executed", outcome == "timeout" and ses.requests[-1] == R_WRITE and "x" not in st.records("wf"), repr((outcome, ses.requests)))
+    c.close()
+    wait_closed(ses)
+    reset()
+    c = connect(files_only=True)
+    ses = srv.sessions[-1]
+    f1, f2 = opened(c, "wf", "wtmp")
+    rs = [c.req(R_WRITE, W(f1, "fo", "1")), c.req(R_WRITEU, W(f1, "fo", "2")), c.req(R_LOCKRECORD, K(f1, 3, "a")), c.req(R_DELETEU, D(f1, "fo")),
+          c.req(R_DELETE, D(f1, "fo")), c.req(R_CLEARFILE, _S(f2)), c.req(R_RELEASE, _S(0))]
+    row("files-only: 16, 17, 18, 19, 30 and 31 are all on the gate's allow list and are DISPATCHED (served, none refused); a plain file is of no gated kind",
+        all(v == (0, 0, b"") for v in rs) and ses.refused == [] and "fo" not in st.records("wf") and st.records("wtmp") == {}, repr((rs, ses.refused)))
+    bye(c, ses)
+    reset()
+    srv.configure()
+    row("the fake noted nothing wrong with the client in the write rows", srv.errors == [], repr(srv.errors))
+
+
 def selftest():
     passed = failed = 0
 
@@ -1813,6 +2623,7 @@ def selftest():
         row("the exchange record holds the binding shape the client sent and an independent proof check agrees",
             ex["cbind"].startswith(GS2) and ex["verified"] is True and ex["iterations"] == 5000 and len(ex["proof"]) == 32, repr(ex)[:200])
         selftest_files(srv, c, row)
+        selftest_writes(srv, row)
     finally:
         if srv is not None:
             srv.shutdown()
