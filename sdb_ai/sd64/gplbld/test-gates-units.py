@@ -494,11 +494,11 @@ def _gate_only_raw_print_path(srcs):
     "$hold ../.." marker is never asked."""
     s = dict(srcs)
     t = s["to_file.c"]
-    gate = ("    if (!os_path_ok_for_account(fn)) {\n      k_error(sysmsg(11180), process.username);\n    }\n\n  open_file:")
+    gate = ("    if (!os_path_ok_for_account(fn)) {\n      k_error(sysmsg(11180), process.username);\n    }\n")      # 18 Oct 26 (S.66): no longer followed by the open_file label
     raw = "      strcpy(fn, pu->file_name);\n    }\n"
     if gate not in t or raw not in t:
         return s
-    t = t.replace(gate, "  open_file:", 1)
+    t = t.replace(gate, "", 1)
     t = t.replace(raw, "      if (!os_path_ok_for_account(pu->file_name)) {\n        k_error(sysmsg(11180), process.username);\n      }\n" + raw, 1)
     s["to_file.c"] = t
     return s
@@ -524,7 +524,7 @@ MUTANTS = [
     ("key K_OS_EXEC clashes with K_SH", sub("keys.h", "#define K_OS_EXEC            94", "#define K_OS_EXEC            93")),
     ("USR_SH and USR_OS_EXEC share a bit", sub("sysseg.h", "USR_OS_EXEC     0x0200", "USR_OS_EXEC     0x0100")),
     ("LOGTO no longer loads the grants", sub("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n", "")),
-    ("LOGTO loads them after the audit line", swap("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')\n   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'\n\n", "   void kernel(K$AUDIT, 'logto account=' : new.account)")),
+    ("LOGTO loads them after the audit line", swap("cproc", "   void kernel(K$SH,      upcase(trim(acc.record<ACC$SH>)) = 'YES')\n   void kernel(K$OS.EXEC, upcase(trim(acc.record<ACC$OS.EXEC>)) = 'YES')\n   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')   ;* 16 Oct 26: the SD.ACCOUNTS gate, off unless 'yes'\n", "   void kernel(K$AUDIT, 'logto account=' : new.account)")),      # 18 Oct 26 (S.66): the NET and shared loads now sit between this line and the audit line
     ("LOGTO no longer loads the SD.ACCOUNTS gate", sub("cproc", "   void kernel(K$SD.ACCOUNTS, upcase(trim(acc.record<ACC$SD.ACCOUNTS>)) = 'YES')", "   void kernel(K$SD.ACCOUNTS, 1)")),
     ("LOGIN grants the SD.ACCOUNTS gate to everyone", sub("login", "void kernel(K$SD.ACCOUNTS, upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')", "void kernel(K$SD.ACCOUNTS, 1)")),
     ("the SD.ACCOUNTS test lets a suspended account in", sub("op_sh.c", "if (!strcasecmp(line[4], \"SUSPENDED\"))\n      continue;", "")),

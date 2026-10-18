@@ -28,6 +28,7 @@
 *               prompt: the file's next sequential id is taken as the edit begins ($seqkey).
 * 17 Oct 26 dm  S.64, the edit gates: saving, exporting and deleting a record of a VOC, a dictionary or a program file ask the kernel
 *               (check.edit.file, K$EDIT.OK) and say why in the message line when the session has not the gate.
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * END-HISTORY
 *
 *
@@ -121,6 +122,8 @@ $include dictdict.h
 $include parser.h
 $include revstamp.h
 $include sl.h
+
+   deffun edit_msg(emk) calling '!edit_msg'       ;* 18 Oct 26 dm, S.66
 
    parser = '!PARSER'
    source.control = "source.control"
@@ -3853,8 +3856,7 @@ check.edit.file:
    if kernel(K$EDIT.OK, edit.p) then return
    edit.ok = @false
    edit.kind = kernel(K$EDIT.KIND, edit.p)
-   if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
-   message = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   message = edit_msg(edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
    gosub error
    return
 

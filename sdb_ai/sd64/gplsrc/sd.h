@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  S.66: EDIT_SHARED_WRITE and EDIT_SHARED_STRUCT; prototypes of the shared-account tests (op_sh.c), of shared_structure_refusal()
+ *               (op_dio3.c) and of get_voc_file_reference_ex() (op_dio1.c).
  * 18 Oct 26 dm  S.65 slice 3e: prototypes and constants of the write and lock entry points of netfiles.c (net_gate, net_write, net_delete, net_clear,
  *               net_lock, net_lock_step, net_check_lock, net_release, net_release_all, net_flush_closes) and edit_kind_of_net_name().
  * 17 Oct 26 dm  S.65 slice 3c: prototypes of netfiles.c (net_open, net_close, net_read, net_readv, net_fileinfo, net_refuse, net_close_all, net_message).
@@ -421,6 +423,9 @@ void free_btree_element(BTREE_ELEMENT * element, int16_t keys);
 void dio_close(FILE_VAR * fvar);
 bool get_voc_file_reference(char * voc_name, bool get_dict_name,
                             char * path, char * vflags);
+/* 18 Oct 26 S.66: the same with a fifth argument; only open_file() passes TRUE, and only then may _voc_ref fall back to the shared account */
+bool get_voc_file_reference_ex(char * voc_name, bool get_dict_name,
+                               char * path, char * vflags, bool allow_shared);
 void flush_dh_cache(void);
 
 /* OP_DIO3.C - line terminator modes of directory and sequential files (16 Oct 26, QM4 Fixes item 452) */
@@ -442,6 +447,20 @@ bool os_path_inside(const char * rootdir, const char * name);
 #define EDIT_VOC  1
 #define EDIT_DICT 2
 #define EDIT_PROG 3
+/* 18 Oct 26 S.66: a record write to a file of the shared account needs shared.write (4); a structure change to one is SDSYS's alone (5, raised by
+   the kernel structure refusals only, which print their own text; K$EDIT.KIND never answers 5) */
+#define EDIT_SHARED_WRITE  4
+#define EDIT_SHARED_STRUCT 5
+bool shared_root_get(char * out);
+bool path_in_shared(const char * canon);
+bool path_resolved_in_shared(const char * name);
+bool shared_write_ok(void);
+int edit_refusal_for_canon(const char * canon);
+int edit_refusal_for_name(const char * name);
+bool shared_ref_ok(const char * path, int fno, const char * catname);
+bool shared_once(const char * name);
+int edit_refused_message(int kind);
+int shared_structure_refusal(FILE_VAR * fvar);
 int edit_kind_of_path(const char * path);
 int edit_kind_of_net_name(const char * name); /* 18 Oct 26 S.65 slice 3e: the same, for the name of a file on another server ("dict " prefix and all); op_sh.c */
 bool edit_permitted(int kind);

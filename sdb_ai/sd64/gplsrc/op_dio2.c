@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  S.66: OSPATH keys OS_DELETE, OS_MKDIR and OS_MKPATH, and OSRENAME (either name), do nothing and answer false (STATUS() ER_PERM)
+ *               for a path inside the shared account unless the session is the administrator, a $internal program included.
  * 18 Oct 26 dm  S.65 slice 3e: FILEINFO FL$READONLY of a NET_FILE answers the file variable's own read-only flag (1 for a file of a read-mode
  *               server, 0 for a write-mode one), and FL$SETRDONLY from a $internal program sets it, as for a local file.
  * 17 Oct 26 dm  S.65 slice 3c: FILEINFO of a NET_FILE (a file on another SD server) is answered before anything reads the file table
@@ -935,6 +937,14 @@ void op_ospath() {
   UpperCaseString(path);
 #endif
 
+  /* 18 Oct 26 S.66: deleting or making a file or directory inside the shared account is a structure change, SDSYS's alone; a $internal
+     program is not exempt.  Nothing is done; the answer is false (0) and STATUS() ER_PERM.  OS_CHOWN is not asked. */
+  if (((key == OS_DELETE) || (key == OS_MKDIR) || (key == OS_MKPATH)) && !(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(path)) {
+    process.status = ER_PERM;
+    status = 0;
+    goto set_status;
+  }
+
   switch (key) {
     case OS_PATHNAME: /* Test if valid pathname */
       p = path;
@@ -1227,6 +1237,13 @@ void op_osrename() {
 #ifdef CASE_INSENSITIVE_FILE_SYSTEM
   UpperCaseString(old_path);
 #endif
+
+  /* 18 Oct 26 S.66: renaming into, out of or within the shared account changes its structure: SDSYS's alone, a $internal program included.
+     Nothing is done; the answer is 0 (ER_PERM).  */
+  if (!(my_uptr->flags & USR_ADMIN) && (path_resolved_in_shared(old_path) || path_resolved_in_shared(new_path))) {
+    process.status = ER_PERM;
+    goto exit_osrename;
+  }
 
   /* Check old path exists */
 

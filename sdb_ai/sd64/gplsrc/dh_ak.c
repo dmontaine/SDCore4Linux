@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY):
+ * 18 Oct 26 dm  S.66: CREATE.AK, DELETE.AK, CLEAR.AK and AKENABLE refuse an index of a file in the shared account (message 11514) for anyone but the
+ *               administrator, a $internal program included (op_createak and op_deleteak are given pathnames: path_resolved_in_shared; the other
+ *               two a file variable: shared_structure_refusal).  AKWRITE and AKDELETE, which maintain an index on every WRITE, are not asked.
  * 17 Oct 26 dm  S.65 slice 3d: INDICES (both forms) of a NET_FILE is the null string, no longer a refusal: the query processor asks it of every file.
  * 17 Oct 26 dm  S.65 slice 3c: AKDELETE, AKREAD, AKWRITE, CLEAR.AK, AKENABLE, AKMAP, INDICES (both), SELECTINDEX (both), SELECTRIGHT/LEFT and SETRIGHT/LEFT refuse a NET_FILE (net_refuse) before touching access.dh
  * 15 Oct 26 dm  create_ak() and delete_ak() write DH_HEADER_SHARED_SIZE bytes of the primary header, not the whole of it, so that
@@ -457,6 +460,9 @@ void op_akclear() {
   fvar = descr->data.fvar;
   if (fvar->type == NET_FILE) /* 17 Oct 26 S.65 */
     net_refuse(fvar, "CLEAR.AK");
+  /* 18 Oct 26 S.66: emptying an index of a file in the shared account is a structure change, SDSYS's alone ($internal is not exempt) */
+  if (shared_structure_refusal(fvar) != EDIT_NONE)
+    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
   if (fvar->type != DYNAMIC_FILE)
     goto exit_op_akclear; /* Not DH file */
   dh_file = fvar->access.dh.dh_file;
@@ -515,6 +521,10 @@ void op_akenable() {
 
   if (fvar->type == NET_FILE) /* 17 Oct 26 S.65 */
     net_refuse(fvar, "AKENABLE");
+
+  /* 18 Oct 26 S.66: enabling or disabling an index of a file in the shared account is a structure change, SDSYS's alone ($internal is not exempt) */
+  if (shared_structure_refusal(fvar) != EDIT_NONE)
+    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
 
   if (fvar->type == DYNAMIC_FILE && akno < MAX_INDICES) {
     dh_file = fvar->access.dh.dh_file;
@@ -697,6 +707,12 @@ void op_createak() {
     goto exit_op_createak;
   }
 
+  /* 18 Oct 26 S.66: an index of a file in the shared account is part of its STRUCTURE, SDSYS's alone ($internal is not exempt).  This op is
+     given PATHNAMES, not a file variable: the file's and the index directory's.  Before anything is made.  (akwrite and akdelete, which
+     maintain an index on every WRITE, are not asked.) */
+  if (!(my_uptr->flags & USR_ADMIN) && (path_resolved_in_shared(data_path) || path_resolved_in_shared(ak_path)))
+    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
+
   if (create_ak(data_path, ak_path, ak_name, fno, flags, dict_rec, collation_map_name, collation_map) == 0) {
     process.status = dh_err;
     goto exit_op_createak;
@@ -752,6 +768,10 @@ void op_deleteak() {
     process.status = DHE_INVA_FILE_NAME;
     goto exit_op_deleteak;
   }
+
+  /* 18 Oct 26 S.66: as op_createak(): the file's pathname is inside the shared account, so the index is part of its structure (SDSYS's alone) */
+  if (!(my_uptr->flags & USR_ADMIN) && path_resolved_in_shared(pathname))
+    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
 
   if (!delete_ak(pathname, akno)) {
     process.status = dh_err;

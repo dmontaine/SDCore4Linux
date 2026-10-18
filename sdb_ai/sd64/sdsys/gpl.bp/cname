@@ -27,6 +27,7 @@
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * 11 Sep 26        Exclusive-access refusal names the file and the sessions
 *                  holding it (10168/10169, FL$HOLDERS; port PRE_RELEASE 16).
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -59,6 +60,7 @@ $include parser.h
 $include dictdict.h
 
 deffun edit_guard(f) calling '!edit_guard'   ;* 17 Oct 26 dm, S.64
+deffun edit_msg(emk) calling '!edit_msg'     ;* 18 Oct 26 dm, S.66
 
    parser = "!PARSER"
 
@@ -149,8 +151,7 @@ rename.file:
          if not(kernel(K$EDIT.OK, ek.path)) then
             @system.return.code = -ER$PERM
             ek.kind = kernel(K$EDIT.KIND, ek.path)
-            if ek.kind < 1 or ek.kind > 3 then ek.kind = 1
-            stop sysmsg(11404 + ek.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+            stop edit_msg(ek.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
          end
       end
    next ek

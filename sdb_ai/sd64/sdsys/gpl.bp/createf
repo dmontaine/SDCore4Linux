@@ -39,6 +39,7 @@
 *               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 * rev 0.9.0 Jan 25 mab change dyn file prefix to %
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -76,6 +77,8 @@ $include int$keys.h
 $include parser.h
 $include keys.h
 $include err.h
+
+deffun edit_msg(emk) calling '!edit_msg'     ;* 18 Oct 26 dm, S.66
 
 $define default.merge.load 50
 $define default.split.load 80
@@ -627,9 +630,8 @@ edit.check.existing:
       if ek.path # '' then
          if not(kernel(K$EDIT.OK, ek.path)) then
             ek.kind = kernel(K$EDIT.KIND, ek.path)
-            if ek.kind < 1 or ek.kind > 3 then ek.kind = 1
             @system.return.code = -ER$PERM
-            stop sysmsg(11404 + ek.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+            stop edit_msg(ek.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
          end
       end
    next ek

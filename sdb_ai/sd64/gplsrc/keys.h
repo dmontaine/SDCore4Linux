@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  S.66: K_SHARED_READ, K_SHARED_WRITE, K_SHARED_REF and K_SHARED_ONCE (128-131), the shared account's gates and lookup test.
  * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111), the SDEXT private-file test.
  * 17 Oct 26 dm  S.65 slice 1: K_NET (127), the per-account NET gate for SDNet remote files.
  * 31 Dec 23 SD launch - prior history suppressed 
@@ -398,6 +399,20 @@
    returns) and by the API server, as K_SD_ACCOUNTS is.  The administrator is never refused.  The gate takes effect for the remote-file
    slices that follow and does nothing yet.  GPL.BP/INT$KEYS.H carries the same number. */
 #define K_NET                127
+/* 18 Oct 26 dm - S.66 (the shared account).  K_SHARED_READ and K_SHARED_WRITE: like K_NET, 1 / 0 sets (only from a $internal program,
+   n >= 0), -1 asks; the answer is the bit as 1 / 0.  ACCOUNT-SCOPED: loaded at sign-on (LOGIN), at LOGTO (CPROC, restored when LOGTO returns)
+   and by the API server.  Each touches its own bit of the gates word and nothing else (not net_close_all).  shared.read is tested by the
+   BASIC lookup at OPEN (GPL.BP/_VOC_REF, !SHARED_REF); shared.write by the kernel at every write to a file inside the shared account's
+   directory (op_sh.c edit_refusal_for_canon); the administrator is never refused.
+     K_SHARED_REF  the argument is  pathname <FM> fno <FM> catname  (FM = char 254): 1 if that F-pointer target is acceptable as a file of
+                   the shared account that other accounts may open by name (op_sh.c shared_ref_ok), else 0.  Reads only; any $internal caller.
+     K_SHARED_ONCE the argument is a file name: 1 the first time THIS PROCESS is asked about that name (case aside), 0 afterwards, so that the
+                   audit line is written once per name per session.  64 names are remembered; when full it answers 1.
+   GPL.BP/INT$KEYS.H carries the same numbers.  Linux only: Windows defines no kernel key above 117. */
+#define K_SHARED_READ        128
+#define K_SHARED_WRITE       129
+#define K_SHARED_REF         130
+#define K_SHARED_ONCE        131
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
 

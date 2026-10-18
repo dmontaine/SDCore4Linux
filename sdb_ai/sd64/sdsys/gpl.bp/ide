@@ -6,6 +6,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * 17 Oct 26 dm  S.64, the edit gates: save, save as and new record ask the kernel (edit.check, K$EDIT.OK) before they write into a VOC, a
 *               dictionary or a program file, and say why in the message line.
 * 14 Oct 26 dm  New (owner: "go ahead and build the ide").  Stages 1 and 2 of the plan in screenlib-design.md
@@ -43,6 +44,8 @@ $include keyin.h
 $include syscom keys.h
 $include int$keys.h
 $include sl.h
+
+   deffun edit_msg(kind) calling '!edit_msg'      ;* 18 Oct 26 dm, S.66
 
    prompt ''
    if system(25) then stop                 ;* a phantom has no terminal
@@ -845,8 +848,7 @@ edit.check:
    if kernel(K$EDIT.OK, edit.p) then return
    edit.ok = @false
    edit.kind = kernel(K$EDIT.KIND, edit.p)
-   if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
-   msg = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   msg = edit_msg(edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
    return
 
 * In: sv.i.  Out: sv.ok

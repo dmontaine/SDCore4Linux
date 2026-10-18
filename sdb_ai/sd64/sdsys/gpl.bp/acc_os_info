@@ -3,6 +3,7 @@
 * Copyright (c) String Database
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.66: the manifest keys shared.read (1 unless ACC$SHARED.READ says no: a blank field means on) and shared.write (1 only if yes), USER arm only.
 * 17 Oct 26 dm S.65 slice 2c: the manifest key route.files (1 if the user is in the group sdfiles, the files-only SDNet login), beside route.ssh and
 *              route.api.  NOT `files`: the backup writes `files: N` (the file count) into the same section, and restorea reads it as that count.
 * 17 Oct 26 dm S.65 slice 1: the manifest key net (1 only if ACC$NET says yes), beside edit.voc, edit.bp and edit.dict; the NET gate does nothing yet.
@@ -72,6 +73,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
          info<-1> = 'edit.bp: ':(if upcase(trim(acc.rec<ACC$BP.EDIT>)) = 'YES' then 1 else 0)
          info<-1> = 'edit.dict: ':(if upcase(trim(acc.rec<ACC$DICT.EDIT>)) = 'YES' then 1 else 0)
          info<-1> = 'net: ':(if upcase(trim(acc.rec<ACC$NET>)) = 'YES' then 1 else 0)     ;* 17 Oct 26, S.65 slice 1: the NET gate (does nothing yet)
+         info<-1> = 'shared.read: ':(if upcase(trim(acc.rec<ACC$SHARED.READ>)) # 'NO' then 1 else 0)     ;* 18 Oct 26, S.66: BLANK MEANS ON, so only the word no gives 0
+         info<-1> = 'shared.write: ':(if upcase(trim(acc.rec<ACC$SHARED.WRITE>)) = 'YES' then 1 else 0)
 
       case grp[1,4] = 'sdg_'
          info<-1> = 'type: GROUP'

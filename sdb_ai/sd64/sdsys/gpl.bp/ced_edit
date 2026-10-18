@@ -5,6 +5,7 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * 17 Oct 26 dm  S.64: save.record asks the kernel (K$EDIT.OK) before it writes into a VOC, a dictionary or a program file, and says why in
 *               the message line when the session has not the gate.
 * 12 Oct 26 dm  New.  Written from the openQM pages for CED and !CED(); the keys are theirs, the
@@ -55,6 +56,8 @@ $include keyin.h
 $include syscom keys.h
 $include int$keys.h
 $include sl.h
+
+   deffun edit_msg(emk) calling '!edit_msg'       ;* 18 Oct 26 dm, S.66
 
    result = ''
    kind = jtype(c)
@@ -834,8 +837,7 @@ save.record:
       edit.p = fileinfo(fv, FL$PATH)
       if not(kernel(K$EDIT.OK, edit.p)) then
          edit.kind = kernel(K$EDIT.KIND, edit.p)
-         if edit.kind < 1 or edit.kind > 3 then edit.kind = 1
-         message.text = sysmsg(11404 + edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+         message.text = edit_msg(edit.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
          save.ok = @false
          return
       end

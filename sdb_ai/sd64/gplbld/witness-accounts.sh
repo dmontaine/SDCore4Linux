@@ -66,6 +66,20 @@
 #       user itself and asks for that user's password (answered from a pipe,
 #       thrown away, never printed).  Checked: a plain account - three
 #       register fields, no tier, no suspension, in sdusers only.
+#   2d  (18 Oct 26, S.66) The shared-account words on the account 2b made:
+#       MODIFY.ACCOUNT shared-read-off / -on and shared-write-on / -off, each
+#       with its report (11515) and its register field (13 and 14), "already"
+#       (10080) on a repeat, the BLANK-MEANS-ON rule (a blank field 13 is read
+#       ON, so shared-read-on says "already" and shared-read-off WRITES the no),
+#       the other fields untouched, and the audit lines in lower case.
+#   2e  (18 Oct 26, S.66) The shared account on a REAL install: the register
+#       record, the directory's owner, group and mode (sdsys:sdusers 2775, files
+#       664), sdg_shared holding root and sdsys only, DELETE.ACCOUNT shared
+#       refused (11517), CREATE.ACCOUNT GROUP shared and USER shared refused
+#       (11516) with no Linux user made, and LOGTO shared refused for an
+#       ordinary user (the audit line says reason=not granted).
+#   ***2d AND 2e WERE WRITTEN, NOT RUN: they need sudo and an install that has
+#   the S.66 build, and the agent that wrote them could run neither.***
 #   3   DELETE.ACCOUNT on the account SD created: the SD-created branch -
 #       the LONGER confirmation (10084, naming the Linux user), the data
 #       warning (10158), and 10028 "OS User: <name> Deleted".  The Linux
@@ -467,6 +481,11 @@ if [ "$COMMIT" -eq 1 ]; then
         ck "A3g fields 10-12 (VOC.EDIT / BP.EDIT / DICT.EDIT) are no / no / no: a new account has none of the three" "no no no" \
            "$(sed -n '10p' "$REGISTER/$ACC_UC") $(sed -n '11p' "$REGISTER/$ACC_UC") $(sed -n '12p' "$REGISTER/$ACC_UC")"
         ck_says "A3h CREATE.ACCOUNT reported the three edit gates off (11409)" "Account $ACC has VOC.EDIT no, BP.EDIT no, DICT.EDIT no" "$OUT"
+        # 18 Oct 26 - S.66: the two shared-account gates are written explicitly for a USER account, read 'yes' (the delivered
+        #   default is ON, and a decided state is told from a blank) and write 'no', and the command says so aloud (11515).
+        ck "A3i fields 13-14 (SHARED.READ / SHARED.WRITE) are yes / no: a new account can read the shared account's files and cannot write them" "yes no" \
+           "$(sed -n '13p' "$REGISTER/$ACC_UC") $(sed -n '14p' "$REGISTER/$ACC_UC")"
+        ck_says "A3j CREATE.ACCOUNT reported both (11515)" "Account $ACC has shared.read yes, shared.write no" "$OUT"
     else
         not_reached "A2 field 5 blank"
         not_reached "A3 field 4 not written"
@@ -477,6 +496,8 @@ if [ "$COMMIT" -eq 1 ]; then
         not_reached "A3f in neither route group"
         not_reached "A3g fields 10-12 are no / no / no"
         not_reached "A3h the three edit gates off said"
+        not_reached "A3i fields 13-14 are yes / no"
+        not_reached "A3j both shared gates said (11515)"
     fi
     if [ -d "$ACCOUNTS_ROOT/$ACC" ]; then
         ck "A4 directory is $ACC:sdu_$ACC, mode 2775" "$ACC sdu_$ACC 2775" \
@@ -496,6 +517,163 @@ if [ "$COMMIT" -eq 1 ]; then
     # installer create sdapi (and sdssh) before any account, so "does not exist" measured a
     # decision that had been taken back and failed on every fresh install since.
     ck "A7c the sdapi group EXISTS (S.29: membership is the API route)" yes "$(yesno_group sdapi)"
+fi
+
+# ==========================================================================
+head2 "2d. MODIFY.ACCOUNT shared-read-on|off, shared-write-on|off on that account (S.66) - WRITTEN, NOT RUN"
+
+# The register field a row reads is the DISK, not what the verb said; the verb's report is the second instrument.  The same
+# gating as phase 3: no registered account, no rows (they would measure nothing).
+set_field() {   # set_field FILE N VALUE - one line of a register record replaced in place (root, so the file's owner and mode stay)
+    local f="$1" n="$2" v="$3"
+    awk -v n="$n" -v v="$v" 'NR == n { print v; next } { print }' "$f" > "$f.tmp.$$" && cat "$f.tmp.$$" > "$f"
+    rm -f "$f.tmp.$$"
+}
+reg_rest() { sed -n '1,12p;15,99p' "$REGISTER/$ACC_UC" | md5sum | cut -d' ' -f1; }   # every field but 13 and 14
+AUD="$SDSYS/audit"
+
+if [ "$COMMIT" -eq 1 ] && [ "$CREATED" -ne 1 ]; then
+    for r in "M1 shared-read-off" "M2 repeat says already" "M3 shared-read-on" "M4 shared-write-on" "M5 repeat says already" \
+             "M6 shared-write-off" "M7 blank field: read-on says already" "M8 blank field: read-off writes no" "M9 other fields untouched" "M10 audit lines lower case"; do
+        not_reached "$r"
+    done
+else
+    REST0=""; AUD0=0
+    if [ "$COMMIT" -eq 1 ]; then
+        REST0=$(reg_rest); AUD0=$(wc -l < "$AUD" 2>/dev/null || echo 0)
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-read-off" "MODIFY.ACCOUNT $ACC shared-read-off")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M1 reported both states (11515)" "Account $ACC has shared.read no, shared.write no" "$OUT"
+        ck "M1b field 13 is no, field 14 is no" "no no" "$(sed -n '13p' "$REGISTER/$ACC_UC") $(sed -n '14p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-read-off, again" "MODIFY.ACCOUNT $ACC shared-read-off")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M2 a repeat says it already had that access (10080)" "$ACC already had that access; nothing changed" "$OUT"
+        ck "M2b and field 13 is still no" no "$(sed -n '13p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-read-on" "MODIFY.ACCOUNT $ACC shared-read-on")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M3 reported both states" "Account $ACC has shared.read yes, shared.write no" "$OUT"
+        ck "M3b field 13 is yes (a decided state, not blank)" yes "$(sed -n '13p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-write-on" "MODIFY.ACCOUNT $ACC shared-write-on")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M4 reported both states" "Account $ACC has shared.read yes, shared.write yes" "$OUT"
+        ck "M4b field 14 is yes" yes "$(sed -n '14p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-write-on, again" "MODIFY.ACCOUNT $ACC shared-write-on")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M5 a repeat says it already had that access (10080)" "$ACC already had that access; nothing changed" "$OUT"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-write-off" "MODIFY.ACCOUNT $ACC shared-write-off")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M6 reported both states" "Account $ACC has shared.read yes, shared.write no" "$OUT"
+        ck "M6b field 14 is no" no "$(sed -n '14p' "$REGISTER/$ACC_UC")"
+    fi
+    # THE BLANK-MEANS-ON ROWS.  A blank field 13 is read ON, so shared-read-on has nothing to do, and shared-read-off MUST write
+    # the no: if os.was were "= yes" the gate could never be withdrawn from an account whose field is blank.
+    if [ "$COMMIT" -eq 1 ]; then
+        set_field "$REGISTER/$ACC_UC" 13 ""
+        ck "M7 precondition: field 13 is blank now (the null case of the two rows below)" "" "$(sed -n '13p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-read-on on a BLANK field 13" "MODIFY.ACCOUNT $ACC shared-read-on")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "M7 blank means ON, so shared-read-on says it already had that access (10080)" "$ACC already had that access; nothing changed" "$OUT"
+        ck "M7b and field 13 was not written" "" "$(sed -n '13p' "$REGISTER/$ACC_UC")"
+    fi
+    OUT=$(run_sd "MODIFY.ACCOUNT $ACC shared-read-off on a BLANK field 13" "MODIFY.ACCOUNT $ACC shared-read-off")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_silent "M8 shared-read-off on a blank field does NOT say it already had that access" "already had that access" "$OUT"
+        ck_says "M8b it reported shared.read no" "Account $ACC has shared.read no" "$OUT"
+        ck "M8c and WROTE the no into field 13" no "$(sed -n '13p' "$REGISTER/$ACC_UC")"
+        ck "M9 no other field of the record changed through the whole sequence (fields 1-12 and 15 up)" "$REST0" "$(reg_rest)"
+        NEWAUD=$(tail -n +"$((AUD0 + 1))" "$AUD" 2>/dev/null)
+        printf '%s\n' "$NEWAUD" | grep -F 'modify.account' | sed -e 's/^/      | /'
+        ck_says "M10 the audit trail names the words in lower case" "modify.account shared-read-off account=$ACC" "$NEWAUD"
+        ck_silent "M10b and none of them in upper case" "SHARED-READ-OFF" "$NEWAUD"
+    fi
+fi
+
+# ==========================================================================
+head2 "2e. the shared account on this install (S.66) - WRITTEN, NOT RUN: the installer made it; SD refuses what must be refused"
+
+SHARED_REG="$REGISTER/shared"
+SHARED_DIR=/home/sd/group_accounts/shared
+SHARED_OK=0
+if [ "$COMMIT" -eq 1 ]; then
+    if [ -e "$SHARED_REG" ] && [ -d "$SHARED_DIR" ]; then
+        SHARED_OK=1
+        say "  the shared account's register record:"
+        awk '{printf "      %d: %s\n", NR, $0}' "$SHARED_REG"
+    else
+        say "  THERE IS NO SHARED ACCOUNT on this install (register $(yesno_file "$SHARED_REG"), directory $(yesno_dir "$SHARED_DIR")):"
+        say "  this install predates S.66, or its creation failed; the rows below count as NOT REACHED."
+    fi
+fi
+if [ "$COMMIT" -eq 1 ] && [ "$SHARED_OK" -ne 1 ]; then
+    for r in "S1 the register says where the account is and its group" "S2 the directory is sdsys:sdusers 2775" "S3 every file in it is 664" \
+             "S4 sdg_shared holds root and sdsys only" "S5 DELETE.ACCOUNT shared is refused" "S6 CREATE.ACCOUNT GROUP shared is refused" \
+             "S7 CREATE.ACCOUNT USER shared is refused and makes no Linux user" "S8 LOGTO shared is refused for an ordinary user"; do
+        not_reached "$r"
+    done
+else
+    if [ "$COMMIT" -eq 1 ]; then
+        ck "S1 line 1 of the register record is the directory, line 3 the group" "$SHARED_DIR sdg_shared" "$(sed -n '1p' "$SHARED_REG") $(sed -n '3p' "$SHARED_REG")"
+        ck "S2 the directory is sdsys:sdusers, mode 2775 (every SD user's own process can read the files through the kernel)" "sdsys sdusers 2775" \
+           "$(stat -c '%U %G %a' "$SHARED_DIR")"
+        BAD=$(find "$SHARED_DIR" -type f ! -perm 664 2>/dev/null | head -3 | tr '\n' ' ')
+        ck "S3 no file in it has a mode other than 664 (these do: ${BAD:-none})" "" "$BAD"
+        ck "S4 sdg_shared holds root and sdsys and nobody else (only SDSYS can sign on to the account: withdrawing shared.read is a real wall)" "root,sdsys" \
+           "$(getent group sdg_shared | cut -d: -f4 | tr ',' '\n' | sort | paste -sd, -)"
+    fi
+    REGSUM=""
+    [ "$COMMIT" -eq 1 ] && REGSUM=$(md5sum < "$SHARED_REG")
+    OUT=$(run_sd "DELETE.ACCOUNT shared (no confirmation is asked: the refusal comes first)" "DELETE.ACCOUNT shared")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S5 refused with 11517's words" "The shared account cannot be deleted" "$OUT"
+        ck "S5b the register record is as it was" "$REGSUM" "$(md5sum < "$SHARED_REG")"
+        ck "S5c and the directory is still there" yes "$(yesno_dir "$SHARED_DIR")"
+    fi
+    OUT=$(run_sd "CREATE.ACCOUNT GROUP shared, with no marker" "CREATE.ACCOUNT GROUP shared")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S6 refused with 11516's words" "reserved for the shared account" "$OUT"
+        ck "S6b the register record is as it was" "$REGSUM" "$(md5sum < "$SHARED_REG")"
+        ck "S6c and sdg_shared still holds root and sdsys only" "root,sdsys" "$(getent group sdg_shared | cut -d: -f4 | tr ',' '\n' | sort | paste -sd, -)"
+    fi
+    # The ground first: a Linux user or group that is already called shared would make S7b measure nothing.
+    SHUSER_BEFORE=no
+    if [ "$COMMIT" -eq 1 ]; then
+        SHUSER_BEFORE=$(yesno_user shared)
+        [ "$SHUSER_BEFORE" = yes ] && say "  a Linux user named shared EXISTS before S7: S7b and S7c are NOT REACHED (they could not tell a refusal from that user)"
+    fi
+    OUT=$(run_sd "CREATE.ACCOUNT USER shared" "CREATE.ACCOUNT USER shared")
+    if [ "$COMMIT" -eq 1 ]; then
+        ck_says "S7 refused with 11516's words" "reserved for the shared account" "$OUT"
+        if [ "$SHUSER_BEFORE" = no ] && [ "$(yesno_group sdu_shared)" = no ]; then
+            ck "S7b NO Linux user named shared was made (the refusal comes before any user or group is)" no "$(yesno_user shared)"
+            ck "S7c and no group sdu_shared" no "$(yesno_group sdu_shared)"
+        else
+            not_reached "S7b no Linux user named shared was made"
+            not_reached "S7c no group sdu_shared"
+        fi
+        # whatever SD did, this run does not leave a user it made
+        if [ "$SHUSER_BEFORE" = no ] && [ "$(yesno_user shared)" = yes ]; then
+            userdel -r shared >/dev/null 2>&1 && say "  S7 cleanup: userdel -r shared (SD should have refused first)" || say "  S7 cleanup: userdel -r shared FAILED - remove it by hand"
+        fi
+    fi
+    # An ORDINARY session: the account created in 2c, running as its own Linux user.  Entering shared needs membership of sdg_shared.
+    if [ "$COMMIT" -eq 1 ] && [ "$CREATED" -eq 1 ]; then
+        say "  --- sd session as $ACC (an ordinary user): LOGTO shared ---"
+        AUD1=$(wc -l < "$AUD" 2>/dev/null || echo 0)
+        OUT=$(printf '\nTERM 200,9999\nLOGTO shared\nOFF\n' | timeout 90 sudo -u "$ACC" "$SD" 2>&1 | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+        printf '%s\n' "$OUT" | sed -e 's/^/      | /' >&2
+        NEWAUD=$(tail -n +"$((AUD1 + 1))" "$AUD" 2>/dev/null)
+        ck_says "S8 refused with 10003's words" "User not allowed in requested account" "$OUT"
+        ck_says "S8b and audited as not granted" "logto refused account=shared reason=not granted" "$NEWAUD"
+    elif [ "$COMMIT" -eq 1 ]; then
+        not_reached "S8 LOGTO shared is refused for an ordinary user (no ordinary account was made in 2c)"
+    fi
 fi
 
 # ==========================================================================

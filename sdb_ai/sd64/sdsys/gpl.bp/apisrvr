@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.66: the shared-account gates (K$SHARED.READ / .WRITE) are read from ACC$SHARED.READ / .WRITE and loaded at every entry to an account,
+*           as NET is (read ON unless the record says no; both OFF for a path or an unreadable register); the sdsys pair gets both ON.  The
+*           refusal of a write to a guarded file takes its text from !edit_msg, which knows the kinds the kernel can now report.
 * 17 Oct 26 dm S.65 slice 2c: a second API route, files only.  A user in sdusers and sdfiles but not in sdapi logs in (vb.scram.final)
 *           and the session is marked (files.only, in the common block, set once and never cleared); sdapi wins when both.  The
 *           request loop asks !apifilesok before the dispatch and refuses, with 11480, anything it does not allow.  The SDNet login.
@@ -169,6 +172,8 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 deffun valid_os_name(name) calling '!valid_os_name'
 * 17 Oct 26 dm - S.65 slice 2c: the one place that decides what a files-only session may ask for (pure; see the program).
 deffun apifilesok(action, entered) calling '!apifilesok'
+* 18 Oct 26 dm - S.66: the text of an edit refusal for the kind the kernel reports (1 VOC, 2 dictionary, 3 program file, 4 shared file, 5 shared structure).
+deffun edit_msg(kind) calling '!edit_msg'
 
 
 common /$APISRVR/ logged.in,          ;* Process is logged in
@@ -537,6 +542,8 @@ acc.suspended = @false
 api.sh.grant = @false
 api.os.grant = @false
 api.sd.grant = @false      ;* 16 Oct 26: the SD.ACCOUNTS gate
+api.shared.read.grant = @false    ;* 18 Oct 26, S.66: the shared-account gates; account-scoped, so loaded at every entry.  FAIL CLOSED: a name given as a path
+api.shared.write.grant = @false   ;*   or an unreadable register leaves both off (read is ON only when a record exists and does not say 'no')
 api.net.grant = @false     ;* 17 Oct 26, S.65 slice 1: the NET gate (SDNet remote files; does nothing yet); account-scoped, so loaded at every entry
 api.voc.grant = @false     ;* 17 Oct 26, S.64: the edit gates; loaded at the FIRST entry only (below)
 api.bp.grant = @false
@@ -550,6 +557,8 @@ if index(new.account, @ds, 1) = 0 then
          api.os.grant = (upcase(trim(acc.rec<ACC$OS.EXEC>)) = 'YES')
          api.sd.grant = (upcase(trim(acc.rec<ACC$SD.ACCOUNTS>)) = 'YES')
          api.net.grant = (upcase(trim(acc.rec<ACC$NET>)) = 'YES')
+         api.shared.read.grant = (upcase(trim(acc.rec<ACC$SHARED.READ>)) # 'NO')     ;* 18 Oct 26, S.66: blank = ON
+         api.shared.write.grant = (upcase(trim(acc.rec<ACC$SHARED.WRITE>)) = 'YES')
          api.voc.grant = (upcase(trim(acc.rec<ACC$VOC.EDIT>)) = 'YES')
          api.bp.grant = (upcase(trim(acc.rec<ACC$BP.EDIT>)) = 'YES')
          api.dict.grant = (upcase(trim(acc.rec<ACC$DICT.EDIT>)) = 'YES')
@@ -569,7 +578,9 @@ if downcase(@logname) = 'sdsys' and downcase(new.account) = 'sdsys' then
    api.voc.grant = @true
    api.bp.grant = @true
    api.dict.grant = @true
-   api.net.grant = @true     ;* 17 Oct 26, S.65 slice 1: the administrator passes the NET gate too (it does nothing yet)
+   api.shared.read.grant = @true    ;* 18 Oct 26, S.66: an API session of sdsys follows shared and can write its records (it has no administrator flag, so no structure change)
+   api.shared.write.grant = @true
+   api.net.grant = @true    ;* 17 Oct 26, S.65 slice 1: the administrator passes the NET gate too (it does nothing yet)
 end
 
 * 11 Sep 26 dm - A SUSPENDED ACCOUNT IS NOT ENTERED (PORT_ADOPTION 12; the
@@ -649,7 +660,9 @@ i = kernel(K$PRIVATE.CATALOGUE, private.catalogue)
 void kernel(K$SH,      api.sh.grant)
 void kernel(K$OS.EXEC, api.os.grant)
 void kernel(K$SD.ACCOUNTS, api.sd.grant)
-void kernel(K$NET, api.net.grant)   ;* 17 Oct 26, S.65 slice 1: account-scoped like SD.ACCOUNTS, so every entry and every SDLogto loads it
+void kernel(K$SHARED.READ,  api.shared.read.grant)    ;* 18 Oct 26, S.66: account-scoped like NET, so every entry and every SDLogto loads them
+void kernel(K$SHARED.WRITE, api.shared.write.grant)
+void kernel(K$NET, api.net.grant)  ;* 17 Oct 26, S.65 slice 1: account-scoped like SD.ACCOUNTS, so every entry and every SDLogto loads it
 
 * 17 Oct 26 dm - S.64: the edit gates are the SIGN-ON account's (owner, 17 Oct), so they are loaded at the first entry to an account
 *   and never again; an SDLogto leaves them as they were.  master.login.done is set just below, once, at that same first entry.
@@ -2611,9 +2624,8 @@ if ed.path = '' then
 end
 if not(kernel(K$EDIT.OK, ed.path)) then
    ed.kind = kernel(K$EDIT.KIND, ed.path)
-   if ed.kind < 1 or ed.kind > 3 then ed.kind = 1
    server.error = SV$ERROR
-   error.msg = sysmsg(11404 + ed.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   error.msg = edit_msg(ed.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared file (18 Oct 26, S.66)
    return
 end
 err = @false

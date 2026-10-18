@@ -122,9 +122,9 @@ VERBS = (("set.server", "setserver", "$setserver"), ("delete.server", "deleteser
 NL_VERBS = (("set.netlogin", "setnetlogin", "$setnetlogin"), ("delete.netlogin", "deletenetlogin", "$deletenetlogin"))   # slice 2b: in newvoc AND voc_template
 MSG_FIRST, MSG_LAST = 11411, 11446      # 11411-11439 slice 1, 11440-11446 slice 2a (CONNECT); 11447-11449 are free
 NL_MSG_FIRST, NL_MSG_LAST = 11450, 11479    # slice 2b: the person's login (the whole block is this slice's)
-NF_MSG_FIRST, NF_MSG_LAST, NF_MSG_USED = 11490, 11519, 11512    # slice 3b: the remote file handler's block; 11490-11506 written and used by the handler; slice 3e: 11509-11512
+NF_MSG_FIRST, NF_MSG_LAST, NF_MSG_USED = 11490, 11512, 11512    # slice 3b: the remote file handler's block; 11490-11506 written and used by the handler; slice 3e: 11509-11512; 18 Oct 26 S.66: 11513-11520 are the shared account's (test-shared-units.py), no longer kept free here
 NF_MSG_KERNEL = (11507, 11508)                                  # slice 3c: the kernel's own two (netfiles.c); slice 3e: 11510 and 11511 are the kernel's as well (NF_MSG_BOTH, NF_MSG_KERNEL_ONLY)
-NF_MSG_KERNEL_ONLY = (11507, 11508, 11511)                      # never used by the handler (11511 is net_gate's / net_refuse's); 11510 is cited by both; 11513-11519 are kept free
+NF_MSG_KERNEL_ONLY = (11507, 11508, 11511)                      # never used by the handler (11511 is net_gate's / net_refuse's); 11510 is cited by both; 11513 onwards are the shared account's since S.66 (test-shared-units.py)
 LINUX_BLOCK = (11000, 11999)
 SH_FILES = ("installsdcore.sh", "deletesdcore.sh", "sd-elevate", "sdcore.sudoers", "regress.sh", "regress-map.txt")      # shell-style comments (#)
 
@@ -298,14 +298,15 @@ def checks(srcs):
     ck("K3 int$keys.h: K$NET is 127 and nothing else there is", bas.get("K$NET") == 127 and sum(1 for v in bas.values() if v == 127) == 1,
        repr(bas.get("K$NET")))
     acc = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(ACC\$[A-Z0-9.]+)\s+(\d+)", c["syscom/keys.h"])}
-    ck("K4 syscom/keys.h: ACC$NET is register field 15; 13 and 14 stay free (reserved for the shared-account gates) and no field is used twice",
-       acc.get("ACC$NET") == 15 and 13 not in acc.values() and 14 not in acc.values()
+    ck("K4 syscom/keys.h: ACC$NET is register field 15; 13 and 14 are the shared-account gates since S.66 (ACC$SHARED.READ 13, ACC$SHARED.WRITE 14, test-shared-units.py S1) and no field is used twice",
+       acc.get("ACC$NET") == 15 and acc.get("ACC$SHARED.READ") == 13 and acc.get("ACC$SHARED.WRITE") == 14
        and len(set(acc.values())) == len(acc.values()), repr(acc))
     ss = c["sysseg.h"]
     ug = {m.group(1): int(m.group(2), 16) for m in re.finditer(r"#define\s+(UG_[A-Z_]+)\s+(0x[0-9A-Fa-f]+)", ss)}
-    ck("K5 sysseg.h: UG_NET is 0x0008 in the gates word, on its own bit, and 0x0010 and 0x0020 stay free for the shared gates",
-       ug.get("UG_NET") == 8 and len(set(ug.values())) == len(ug) and all(v & (v - 1) == 0 for v in ug.values())
-       and 0x10 not in ug.values() and 0x20 not in ug.values() and re.search(r"u_int16_t\s+gates\s*;", ss) is not None, repr(ug))
+    ck("K5 sysseg.h: UG_NET is 0x0008 in the gates word, on its own bit, and 0x0010 and 0x0020 are the shared gates since S.66 (UG_SHARED_READ, UG_SHARED_WRITE), each on its own bit",
+       ug.get("UG_NET") == 8 and ug.get("UG_SHARED_READ") == 0x10 and ug.get("UG_SHARED_WRITE") == 0x20
+       and len(set(ug.values())) == len(ug) and all(v & (v - 1) == 0 for v in ug.values())
+       and re.search(r"u_int16_t\s+gates\s*;", ss) is not None, repr(ug))
     ca = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(CA\$[A-Z0-9.]+)\s+(\d+)", c["createacc.h"])}
     ck("K6 createacc.h: CA$NET is 35, after CA$DICT.EDIT 34, and no setting is used twice",
        ca.get("CA$NET") == 35 and ca.get("CA$DICT.EDIT") == 34 and len(set(ca.values())) == len(ca.values()), repr(ca.get("CA$NET")))
@@ -341,7 +342,7 @@ def checks(srcs):
     ck("B4b ...the load is at EVERY entry (account-scoped), so it is not inside the master.login.done test the edit gates sit in",
        0 <= at(ap, "void kernel(K$NET, api.net.grant)") < at(ap, "if not(master.login.done) then\n   void kernel(K$VOC.EDIT"), "")
     ck("B4c ...and the OS user sdsys entering the sdsys account holds it ON (the administrator passes), before the refusals and the load",
-       re.search(r"if downcase\(@logname\) = 'sdsys' and downcase\(new\.account\) = 'sdsys' then(?:\s*\n\s*api\.\w+\.grant = @true)*\s*\n\s*api\.net\.grant = @true\s*\n\s*end", ap) is not None
+       re.search(r"if downcase\(@logname\) = 'sdsys' and downcase\(new\.account\) = 'sdsys' then(?:\s*\n\s*api\.[\w.]+\.grant = @true)*\s*\n\s*api\.net\.grant = @true\s*\n\s*end", ap) is not None
        and 0 <= at(ap, "downcase(@logname) = 'sdsys'") < at(ap, "void kernel(K$NET, api.net.grant)"), "")
     sites = {}
     for name, text in c.items():
@@ -1107,7 +1108,7 @@ def checks_2c(srcs, c, ck):
        re.search(r'if files\.want then\s*\n\s*os\.execute "sudo /usr/local/sbin/sd-elevate addgroup ":acc\.uname:" sdfiles"\s*\n\s*route\.stat = OS\.ERROR\(\)\s*\n\s*if route\.stat # 0 then\s*\n'
                  r'\s*@system\.return\.code = -ER\$FAILED\s*\n\s*err = 10081:@vm:acc\.uname:@vm:route\.stat\s*\n\s*goto exit\.create', ca2) is not None
        and ordered(ca2, 'addgroup ":acc.uname:" sdssh"', 'addgroup ":acc.uname:" sdapi"', 'addgroup ":acc.uname:" sdfiles"')
-       and re.search(r"crt sysmsg\(11411, acc\.name, acc\.rec<ACC\$NET>\)\s*\n\s*crt sysmsg\(11482, acc\.name, if is_grp_member\(acc\.uname, 'sdfiles'\) then 'yes' else 'no'\)", ca2) is not None, "")
+       and re.search(r"crt sysmsg\(11411, acc\.name, acc\.rec<ACC\$NET>\)[^\n]*\n(?:\s*crt sysmsg\(11515, acc\.name, acc\.rec<ACC\$SHARED\.READ>, acc\.rec<ACC\$SHARED\.WRITE>\)[^\n]*\n)?\s*crt sysmsg\(11482, acc\.name, if is_grp_member\(acc\.uname, 'sdfiles'\) then 'yes' else 'no'\)", ca2) is not None, "")
 
     # ---- W24-W26. the manifest and the restore -------------------------------------------------------------------------------------------
     ck("W24 the account manifest carries `route.files: 1|0` for a USER account, read from membership of sdfiles, after route.api and before os.sh, and before the GROUP branch; "
@@ -1451,12 +1452,12 @@ def checks_3b(srcs, c, ck):
     places = {n: max([int(x) for x in re.findall(r"%(\d)", t)] or [0]) for n, t in texts.items() if t}
     handler_msgs = set(range(NF_MSG_FIRST, NF_MSG_USED + 1)) - set(NF_MSG_KERNEL_ONLY)            # 11490-11506, 11509, 11510, 11512
     ck("NF10 messages 11490 to 11512 all exist (one line each, inside the Linux block 11000-11999); the handler uses 11490-11506 and, since slice 3e, 11509 (a changing request got no reply), 11510 (a "
-       "transaction is open) and 11512 (a bad lock kind); 11507, 11508 and 11511 are the KERNEL's (netfiles.c, never used by netfile; 11510 is the kernel's as well); 11513 to 11519 are kept free (no file, "
-       "no use), and no other program of gpl.bp cites a number of the block",
+       "transaction is open) and 11512 (a bad lock kind); 11507, 11508 and 11511 are the KERNEL's (netfiles.c, never used by netfile; 11510 is the kernel's as well); 11513 onwards are the shared account's since S.66 "
+       "(test-shared-units.py S3), and no other program of gpl.bp cites a number of the block",
        all(texts[n] is not None and texts[n].strip() != "" and "\n" not in texts[n].rstrip("\n") for n in range(NF_MSG_FIRST, NF_MSG_USED + 1))
        and block_used == handler_msgs and all(texts[n] is None for n in range(NF_MSG_USED + 1, NF_MSG_LAST + 1))
        and LINUX_BLOCK[0] <= NF_MSG_FIRST and NF_MSG_LAST <= LINUX_BLOCK[1]
-       and not [k for k, t in c.items() if k.startswith("bp:") and k not in ("bp:netfile", "bp:netfile.h") and re.search(r"\b115[01]\d\b|\b1149\d\b", t)],
+       and not [k for k, t in c.items() if k.startswith("bp:") and k not in ("bp:netfile", "bp:netfile.h") and re.search(r"\b1150\d\b|\b1151[0-2]\b|\b1149\d\b", t)],
        repr(sorted(handler_msgs ^ block_used)))
     short = [(n, k, places.get(n, 0)) for n, ks in lits.items() if n in places for k in ks if k < places.get(n, 0)]
     ck("NF10a each message has at most three %n places (rc carries three arguments), and every place a message has is given an argument at the line that raises it (11460, reused, gets two - its "
@@ -1811,7 +1812,7 @@ def checks_3c(srcs, c, ck):
     of = fn("op_dio1.c", "open_file")
     ck("NK6 open_file: the encoded path is recognised right after the VOC lookup, INSIDE the `if (map_name)` block (so OPEN by name only), BEFORE fullpath(), the OS path test, the transaction cache and the "
        "file table; OPENPATH and OPENTEMP call open_file(FALSE) and the kernel never calls net_open or net_path_is_net anywhere else",
-       ordered(of, "get_voc_file_reference(voc_name, open_dict, mapped_name, vflags)", "if (net_path_is_net(mapped_name)) {", "net_open(fvar, mapped_name)", "goto net_file_opened;", "fullpath(pathname, mapped_name);",
+       ordered(of, "get_voc_file_reference_ex(voc_name, open_dict, mapped_name, vflags, TRUE)", "if (net_path_is_net(mapped_name)) {", "net_open(fvar, mapped_name)", "goto net_file_opened;", "fullpath(pathname, mapped_name);",
                "os_path_open_ok(", "txn_open(", "dh_open(", "get_file_entry(")
        and inside(of, "if (map_name) {", "if (net_path_is_net(mapped_name))") and "open_file(FALSE)" in fn("op_dio1.c", "op_openpath") and "open_file(FALSE)" in fn("op_dio1.c", "op_opentemp")
        and not re.search(r"net_", fn("op_dio1.c", "op_openpath")) and not re.search(r"net_", fn("op_dio1.c", "op_opentemp"))
@@ -2403,17 +2404,16 @@ def checks_s2(srcs, c, ck):
        and kn_.count("net_flush_closes()") == 1 and sum(t.count("net_flush_closes(") for k, t in c.items() if (k.endswith(".c") or k.startswith("c:")) and k not in ("netfiles.c", "op_kernel.c")) == 0, "")
     ck("S2x CPROC and edit_guard (spec 3.9): para.reset.environment calls kernel(K$NET, -2) as the very next line after the OS path cache flush (so a lock does not outlive its file variable at the "
        "prompt) and nowhere else; edit_guard, in the branch where the file has no pathname and BEFORE the administrator test, asks for a file on another server (fileinfo FL$NETFILE) and then K$EDIT.OK and "
-       "K$EDIT.KIND of the FILE VARIABLE, clamps the kind to 1 to 3 and shows message 11404 + kind (11405 to 11407); a local file has FL$NETFILE 0 and takes the old path",
+       "K$EDIT.KIND of the FILE VARIABLE and shows edit_msg(kind) (S.66: the text for 11405 to 11407, 11513, 11514; the clamp is edit_msg's); a local file has FL$NETFILE 0 and takes the old path",
        re.search(r"para\.reset\.environment:\s*\n\s*i = ospath\(\"\", os\$flush\.cache\)\s*\n\s*void kernel\(K\$NET, -2\)", cp) is not None and cp.count("kernel(K$NET, -2)") == 1
        and ordered(eg, "p = fileinfo(f, FL$PATH)", "if p = '' then", "if fileinfo(f, FL$NETFILE) then", "if kernel(K$EDIT.OK, f) then return @true", "kind = kernel(K$EDIT.KIND, f)",
-                   "if kind < 1 or kind > 3 then kind = 1", "display sysmsg(11404 + kind)", "return @false", "end", "if kernel(K$ADMINISTRATOR, -1) then return @true", "display sysmsg(11410)")
-       and re.search(r"if fileinfo\(f, FL\$NETFILE\) then\s*if kernel\(K\$EDIT\.OK, f\) then return @true\s*kind = kernel\(K\$EDIT\.KIND, f\)\s*if kind < 1 or kind > 3 then kind = 1\s*"
-                     r"display sysmsg\(11404 \+ kind\)\s*return @false\s*end\s*if kernel\(K\$ADMINISTRATOR, -1\) then return @true", eg) is not None, "")      # the remote branch as one shape
+                   "display edit_msg(kind)", "return @false", "end", "if kernel(K$ADMINISTRATOR, -1) then return @true", "display sysmsg(11410)")
+       and re.search(r"if fileinfo\(f, FL\$NETFILE\) then\s*if kernel\(K\$EDIT\.OK, f\) then return @true\s*kind = kernel\(K\$EDIT\.KIND, f\)\s*"
+                     r"display edit_msg\(kind\)\s*return @false\s*end\s*if kernel\(K\$ADMINISTRATOR, -1\) then return @true", eg) is not None, "")      # the remote branch as one shape
 
     # ---- S2y. messages, history, the suite
-    ck("S2y U10 messages 11509 to 11512 exist with EXACTLY the texts of the spec (one line each; the 231 byte bound once expanded is test-msglen-units.py's), 11513 to 11519 do not exist",
-       all((srcs.get("msg:%d" % n) or "").rstrip("\n") == t for n, t in S2_MSG_TEXTS.items())
-       and all(srcs.get("msg:%d" % n) is None for n in range(11513, 11520)), repr([n for n, t in S2_MSG_TEXTS.items() if (srcs.get("msg:%d" % n) or "").rstrip("\n") != t]))
+    ck("S2y U10 messages 11509 to 11512 exist with EXACTLY the texts of the spec (one line each; the 231 byte bound once expanded is test-msglen-units.py's); 11513 onwards are the shared account's since S.66",
+       all((srcs.get("msg:%d" % n) or "").rstrip("\n") == t for n, t in S2_MSG_TEXTS.items()), repr([n for n, t in S2_MSG_TEXTS.items() if (srcs.get("msg:%d" % n) or "").rstrip("\n") != t]))
     consts = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+((?:NETG|NET_LOCK|NET_ID)_[A-Z]+)\s+(\d+)\b", sdh)}
     mid = re.search(r"\$define\s+MAX\.ID\.LEN\s+(\d+)", c["syscom/keys.h"])
     ck("S2zb sd.h's constants for the entry points (spec 1.4): the statement kinds NETG_WRITE 1, NETG_DELETE 2, NETG_CLEAR 3, NETG_LOCK 4; the answers of net_lock_step NET_LOCK_HELD 0, NET_LOCK_WAIT 1, "
@@ -2496,7 +2496,7 @@ mut("LOGIN turns the gate on for a blank field", "login", "upcase(trim(acc.rec<A
 mut("LOGIN loads the gate from the wrong field", "login", "upcase(trim(acc.rec<ACC$NET>)) = 'YES')", "upcase(trim(acc.rec<ACC$SH>)) = 'YES')")
 mut("CPROC's logto forgets the NET gate", "cproc", drop_line(r"void kernel\(K\$NET, upcase\(trim\(acc\.record"))
 mut("CPROC's logto loads it from the old account's record", "cproc", "void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')", "void kernel(K$NET, upcase(trim(acc.rec<ACC$NET>)) = 'YES')")
-mut("CPROC's logto loads the gate after the audit line", "cproc", rx(r"(   void kernel\(K\$NET, upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)\n)(\n   void kernel\(K\$AUDIT, 'logto account=' : new\.account\)[^\n]*\n)", r"\2\1"))
+mut("CPROC's logto loads the gate after the audit line", "cproc", rx(r"(   void kernel\(K\$NET, upcase\(trim\(acc\.record<ACC\$NET>\)\) = 'YES'\)\n(?:\*[^\n]*\n)*(?:   void kernel\(K\$SHARED\.[A-Z]+,[^\n]*\n)*)(\n   void kernel\(K\$AUDIT, 'logto account=' : new\.account\)[^\n]*\n)", r"\2\1"))
 mut("CPROC never holds the gate", "cproc", drop_line(r"stk\.net = kernel"))
 mut("CPROC does not give the gate back", "cproc", drop_line(r"void kernel\(K\$NET, stk\.net\)"))
 mut("CPROC gives the gate back after the revert audit line", "cproc", rx(r"(   void kernel\(K\$NET, stk\.net\)[^\n]*\n)(   void kernel\(K\$AUDIT, 'logto revert account=' : who\)\n)", r"\2\1"))
@@ -3275,7 +3275,7 @@ mut("another program cites 11502", "bp:cd", lambda t: t + "\n   crt sysmsg(11502
 mut("the map loses the handler rule", NFMAP, "sdsys/gpl.bp/netfile         : netfile\n", "")
 mut("the map loses the header rule", NFMAP, "sdsys/gpl.bp/netfile.h       : netfile\n", "")
 mut("the map loses a message rule", NFMAP, "sdsys/messages/1150*         : netfile\n", "")
-mut("the map's last message rule comes after the none rule", NFMAP, "sdsys/messages/1151*         : netfile\nsdsys/messages/*             : none", "sdsys/messages/*             : none\nsdsys/messages/1151*         : netfile")
+mut("the map's last message rule comes after the none rule", NFMAP, "sdsys/messages/1151*         : netfile shared\nsdsys/messages/*             : none", "sdsys/messages/*             : none\nsdsys/messages/1151*         : netfile shared")
 mut("the map's header rule comes after the *.h rule", NFMAP,
     lambda t: t.replace("sdsys/gpl.bp/netfile.h       : netfile\n", "", 1).replace("sdsys/gpl.bp/*.h             : @compiler @core\n", "sdsys/gpl.bp/*.h             : @compiler @core\nsdsys/gpl.bp/netfile.h       : netfile\n", 1))
 mut("the suite loses a section", NFSUITE, '("lost", lost_section), ', "")
@@ -3432,8 +3432,8 @@ mut("the suite expects a message that is not there", NFSUITE, 'msg(11501, "nfa",
 mut("the suite loses its hang guard", NFSUITE, "    except subprocess.TimeoutExpired:\n        out, hung = [], True", "    except ValueError:\n        out, hung = [], True")
 mut("the map loses the op_dio3 rule's suite", NFMAP, "gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile", "gplsrc/op_dio3.c             : @files @seq prof lockown editgates")
 mut("the map loses the netfiles.c rule", NFMAP, "gplsrc/netfiles.c            : netfile\n", "")
-mut("the map loses the _voc_ref rule", NFMAP, "sdsys/gpl.bp/_voc_ref        : @core netfile\n", "")
-mut("the map's dh_ak rule is gone", NFMAP, "gplsrc/dh_ak.c               : @files netfile\n", "")
+mut("the map loses the _voc_ref rule", NFMAP, "sdsys/gpl.bp/_voc_ref        : @core netfile shared\n", "")
+mut("the map's dh_ak rule is gone", NFMAP, "gplsrc/dh_ak.c               : @files netfile shared\n", "")
 mut("descr.h's history line is gone", "descr.h", "S.65 slice 3c: NET_FILE (4) is back", "S.65: NET_FILE (4) is back")
 mut("netfiles.c's history line is gone", NFC, "17 Oct 26 dm  S.65 slice 3c: written.", "17 Oct 26 dm  written.")
 mut("_voc_ref's history line is gone", VR, "S.65 slice 3c: a new VOC pointer type N", "S.65: a new VOC pointer type N")
@@ -3585,7 +3585,6 @@ mut("message 11510 says allowed", "msg:11510", lambda t: t.replace("cannot be ch
 mut("message 11511 is gone", "msg:11511", lambda t: None)
 mut("message 11511 has a third place", "msg:11511", lambda t: t.rstrip("\n") + " %3\n")
 mut("message 11512 takes two lines", "msg:11512", lambda t: t.rstrip("\n") + "\nsecond line\n")
-mut("message 11513 exists", "msg:11513", lambda t: "x\n")
 mut("the handler cites 11511", NFP, "fail.num = 11512 ; fail.a1 = srvname ; fail.a2 = out.txt", "fail.num = 11511 ; fail.a1 = srvname ; fail.a2 = out.txt")
 mut("another program cites 11510", "bp:cd", lambda t: t + "\n   crt sysmsg(11510)\n")
 # ---- the handler: the mode
@@ -3810,8 +3809,8 @@ mut("CPROC sets the gate to -2", CPR, "void kernel(K$NET, -2)", "void kernel(K$N
 mut("edit_guard asks the administrator first", EGD, rx(r"(   p = fileinfo\(f, FL\$PATH\)\n   if p = '' then\n(?:\*[^\n]*\n)*)(      if fileinfo\(f, FL\$NETFILE\) then.*?\n      end\n)(      if kernel\(K\$ADMINISTRATOR, -1\) then return @true\n)", r"\1\3\2", re.S))
 mut("edit_guard does not know a remote file", EGD, "      if fileinfo(f, FL$NETFILE) then", "      if 0 then")
 mut("edit_guard asks for a pathname", EGD, "         if kernel(K$EDIT.OK, f) then return @true", "         if kernel(K$EDIT.OK, p) then return @true")
-mut("edit_guard does not clamp the kind of a remote file", EGD, "         if kind < 1 or kind > 3 then kind = 1\n         display sysmsg(11404 + kind)", "         display sysmsg(11404 + kind)")
-mut("edit_guard lets a remote file through", EGD, "         display sysmsg(11404 + kind) ;* 11405 VOC, 11406 dictionary, 11407 program file\n         return @false", "         display sysmsg(11404 + kind) ;* 11405 VOC, 11406 dictionary, 11407 program file\n         return @true")
+mut("edit_guard shows the old 11404 + kind text for a remote file", EGD, "         display edit_msg(kind) ;* 11405 VOC", "         display sysmsg(11404 + kind) ;* 11405 VOC")
+mut("edit_guard lets a remote file through", EGD, "         display edit_msg(kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure\n         return @false", "         display edit_msg(kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure\n         return @true")
 # ---- the class
 mut("sdclient: quiet is not public", SCL, rx(r"       quiet,[^\n]*\n", ""))
 mut("sdclient: quiet starts true", SCL, "   quiet = @false\n", "   quiet = @true\n")

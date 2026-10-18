@@ -65,6 +65,12 @@
 #
 #   17 Oct 2026 dm - S.65 slice 2c: the group sdfiles is created beside sdssh
 #   and sdapi (the SDNet files-only API route; empty on a fresh install).
+#
+#   18 Oct 2026 dm - S.66: the install creates the shared account (a group
+#   account named shared, group sdg_shared), after the installing user's own
+#   account and before the kept accounts are brought forward.  shared_preflight
+#   stops the install, before anything is changed, when an account named shared
+#   already exists that is not SD's own.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -166,6 +172,45 @@ net_preflight() {   # net_preflight HOST PORT
   echo "as: SD_SKIP_NET_CHECK=1 bash <this script>"
   printf "%b\n" "$NC"
   exit 1
+}
+# --------------------
+
+# 18 Oct 26 - S.66: THE NAME shared BELONGS TO SD'S SHARED ACCOUNT.  The install makes
+#            a group account of that name (the creation block further down), and
+#            CREATE.ACCOUNT refuses the name to everybody else.  An account the
+#            administrator already made with that name cannot become SD's: its group,
+#            its members and its files were not chosen for this, and every account
+#            would be able to read it by file name.  So the install stops, BEFORE
+#            ANYTHING IS CHANGED, and says which register record to look at.
+#            An account is "ours" only when its register record says what this
+#            installer writes: line 1 /home/sd/group_accounts/shared and line 3
+#            sdg_shared (a kept install from an earlier run of this script).  Both
+#            places a register can be are looked at: the saved one (/home/sd/accounts,
+#            what a DELETE that keeps accounts leaves) and the live one.  It needs
+#            sudo (a register record is owned by sdsys), so it runs right after sudo -v.
+#            It returns 1 and prints; the caller exits.  test-install-shared.sh runs this.
+shared_preflight() {
+  local reg line1 line3
+  for reg in "/home/sd/accounts/shared" "${sdsysdir}/accounts/shared"; do
+    sudo test -f "$reg" || continue
+    line1=$(sudo sed -n '1p' "$reg" 2>/dev/null || true)
+    line3=$(sudo sed -n '3p' "$reg" 2>/dev/null || true)
+    if [ "$line1" = "/home/sd/group_accounts/shared" ] && [ "$line3" = "sdg_shared" ]; then
+      continue
+    fi
+    printf "%b\n" "$RED"
+    echo "An SD account named shared already exists, and it is not SD's own."
+    echo "The name shared is reserved for the shared account that this installer makes,"
+    echo "whose files every account can open by file name."
+    echo "Nothing has been changed."
+    echo "Rename the existing account by hand, then run this installer again."
+    echo "Its register record is:  $reg"
+    echo "  line 1 is '${line1:-<empty>}' (SD's own is /home/sd/group_accounts/shared)"
+    echo "  line 3 is '${line3:-<empty>}' (SD's own is sdg_shared)"
+    printf "%b\n" "$NC"
+    return 1
+  done
+  return 0
 }
 # --------------------
 
@@ -380,6 +425,11 @@ if ! sudo -v; then
     echo "This installer needs sudo, and ${USER} cannot use it."
     echo "sudo is not installed, or ${USER} is not in the sudo group."
     printf "%b\n" "$NC"
+    exit 1
+fi
+# 18 Oct 26 - S.66: an account already named shared that is not SD's own stops the
+#            install here, before the first package or change to the machine.
+if ! shared_preflight; then
     exit 1
 fi
 # --------------------
@@ -1385,6 +1435,107 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
       printf "%b\n" "$NC"
     fi
 fi
+
+# 18 Oct 26 dm - S.66: THE SHARED ACCOUNT.  A group account named shared, whose files every
+#            account can open by file name (SD's own accounts have shared.read on unless
+#            SDSYS withdraws it, and shared.write off).  It is made HERE, after the
+#            installing user's account and BEFORE the kept accounts are brought forward
+#            below, so UPDATE.ACCOUNTS ALL gives its VOC the current verbs on an upgrade.
+#
+#            THE MARKER IS WRITTEN HERE AND NEVER SHIPPED (the $attach marker's rule):
+#            CREATE.ACCOUNT refuses the name shared to everybody, and accepts it only
+#            for a GROUP account, from -internal, while this one-shot file exists.  It
+#            is removed again whatever happens, so a failed create cannot leave the
+#            door open - that is why the create is not allowed to end the script.
+#
+#            IT IS JUDGED ON WHAT THE SYSTEM NOW HOLDS, NOT ON sd'S EXIT CODE (sd exits 0
+#            when a command was refused).  The success line is printed only when the
+#            register, the directory and the group all say what they should: the
+#            register says group sdg_shared, the directory is sdusers with mode 2775 (so
+#            every SD user's own process can read the DH files through the kernel) and
+#            sdg_shared has no members but root and sdsys (the only accounts that may
+#            LOGTO shared).  Anything else prints a WARNING and no success line.
+#            test-install-shared.sh runs this block between its marker lines.
+# SHARED-CREATE-BEGIN
+shared_reg="${sdsysdir}/accounts/shared"
+shared_dir="/home/sd/group_accounts/shared"
+if sudo test -f "$shared_reg"; then
+    echo "The shared account is already registered and is kept."
+elif sudo test -d "$shared_dir"; then
+    printf "%b\n" "$RED"
+    echo "WARNING: ${shared_dir} exists but the shared account is not registered."
+    echo "  It has been left exactly as it is, and the shared account was NOT made."
+    echo "  Move or remove that directory, then uninstall and install SD again."
+    printf "%b\n" "$NC"
+else
+    echo
+    echo "Creating the shared account."
+    shared_marker="${sdsysdir}/\$shared.make"
+    shared_rc=0
+    sudo touch "$shared_marker"
+    sudo bin/sd -internal create-account GROUP shared || shared_rc=$?
+    sudo rm -f "$shared_marker"
+
+    # The instrument rule: say what the system ACTUALLY holds.
+    shared_ok=yes
+    shared_line1=$(sudo sed -n '1p' "$shared_reg" 2>/dev/null || true)
+    shared_line3=$(sudo sed -n '3p' "$shared_reg" 2>/dev/null || true)
+    shared_stat=$(sudo stat -c '%G %a' "$shared_dir" 2>/dev/null || true)
+    shared_members=$(getent group sdg_shared 2>/dev/null | cut -d: -f4 || true)
+    shared_extra=$(printf '%s\n' "$shared_members" | tr ',' '\n' | awk 'NF && $0 != "root" && $0 != "sdsys"' | paste -sd, - || true)
+    echo "  register ${shared_reg}: line 1 '${shared_line1:-<none>}', line 3 '${shared_line3:-<none>}'"
+    echo "  directory ${shared_dir}: group and mode '${shared_stat:-<none>}'"
+    echo "  members of sdg_shared: '${shared_members:-<none>}'"
+    if [ -z "$shared_line1" ]; then
+        shared_ok=no
+        printf "%b\n" "$RED"
+        echo "WARNING: the shared account was not registered (create-account exit code ${shared_rc})."
+        echo "  The install goes on without it.  Uninstall keeping the accounts and install"
+        echo "  again to retry; the output above says why it was refused."
+        printf "%b\n" "$NC"
+    else
+        if [ "$shared_line3" != "sdg_shared" ]; then
+            shared_ok=no
+            printf "%b\n" "$RED"
+            echo "WARNING: shared was registered with group '${shared_line3:-<none>}', not sdg_shared."
+            echo "  Inspect the register record before using SD:  cat ${shared_reg}"
+            printf "%b\n" "$NC"
+        fi
+        if [ "$shared_line1" != "$shared_dir" ]; then
+            shared_ok=no
+            printf "%b\n" "$RED"
+            echo "WARNING: shared was registered at '${shared_line1}', not ${shared_dir}."
+            printf "%b\n" "$NC"
+        fi
+        if [ "$shared_stat" != "sdusers 2775" ]; then
+            shared_ok=no
+            printf "%b\n" "$RED"
+            echo "WARNING: the shared directory is group and mode '${shared_stat:-<none>}', not 'sdusers 2775'."
+            echo "  Until that is right, the files in it may not be readable by every SD user."
+            printf "%b\n" "$NC"
+        fi
+        if [ -z "$shared_members" ]; then
+            shared_ok=no
+            printf "%b\n" "$RED"
+            echo "WARNING: the group sdg_shared does not exist or has no members (root and sdsys expected)."
+            printf "%b\n" "$NC"
+        elif [ -n "$shared_extra" ]; then
+            shared_ok=no
+            printf "%b\n" "$RED"
+            echo "WARNING: sdg_shared has members besides root and sdsys: ${shared_extra}"
+            echo "  They can sign on to the shared account and change its files.  Probably left by"
+            echo "  an earlier install; remove them with:  sudo gpasswd -d <name> sdg_shared"
+            printf "%b\n" "$NC"
+        fi
+    fi
+    if [ "$shared_ok" = yes ]; then
+      echo "Registered shared as a group account (group: sdg_shared)."
+      echo "  Every account can open the shared account's files by file name, with no LOGTO, unless"
+      echo "  SDSYS withdraws it:  modify.account <name> shared-read-off"
+      echo "  No account can write them unless SDSYS gives it:  modify.account <name> shared-write-on"
+    fi
+fi
+# SHARED-CREATE-END
 
 # 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
 #            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on

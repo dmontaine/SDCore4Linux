@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 18 Oct 26 dm  S.66: op_settrig() and the actions of op_fcontrol() / pub_fcontrol() that change a setting of the file (journalling, akpath,
+ *               non-transactional, split/merge, no-resize, set mode; FC$SYNC, FC$CRLF and FC$MINMOD with a qualifier other than -1) refuse a file in
+ *               the shared account with message 11514 for anyone but the administrator, a $internal program included (shared_structure_refusal).
  * 17 Oct 26 dm  S.65 slice 3c: op_fcontrol() and pub_fcontrol() refuse a NET_FILE (net_refuse)
  * 15 Oct 26 dm  pub_fcontrol(): the public FCONTROL() with openQM's action numbers (op_fcontrol is FCONTROL.INT).
  * 15 Oct 26 dm  Audit of the sequential id counter (CREATING.SEQKEY): dh_seq_key() writes only the counter's four bytes and
@@ -158,6 +161,21 @@ void op_fcontrol() {
 
   descr = e_stack - 1;
   k_get_value(descr);
+
+  /* 18 Oct 26 S.66: every action that CHANGES a setting of the file is a structure change, and for a file in the shared account it is
+     SDSYS's alone ($internal is not exempt).  Refused before anything is changed.  FC_SET_SEQ_KEY and FC_GET_SEQ_KEY are record level. */
+  switch (action) {
+    case FC_SET_JNL_FNO:
+    case FC_KILL_JNL:
+    case FC_SET_AKPATH:
+    case FC_NON_TXN:
+    case FC_SPLIT_MERGE:
+    case FC_NO_RESIZE:
+    case FC_SET_MODE:
+      if (shared_structure_refusal(fvar) != EDIT_NONE)
+        k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
+      break;
+  }
 
   switch (action) {
     case FC_SET_JNL_FNO: /* Set jnl_fno field of file header */
@@ -429,6 +447,15 @@ void pub_fcontrol() {
 
   descr = e_stack - 1;
   k_get_value(descr);
+
+  /* 18 Oct 26 S.66: FC$SYNC, FC$CRLF and FC$MINMOD CHANGE the file's setting when the qualifier sets (-1 only asks); for a file in the
+     shared account that is a structure change, SDSYS's alone ($internal is not exempt).  Refused before anything is changed.  2, 3, 5 and 6
+     (the sequential key counter, the field access test, the valid id test) are record level and are left alone. */
+  if (((action == 1) || (action == 4) || (action == 7)) && (shared_structure_refusal(fvar) != EDIT_NONE)) {
+    GetInt(descr); /* the cases below convert it the same way */
+    if (descr->data.value != -1)
+      k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
+  }
 
   switch (action) {
     case 1: /* FC$SYNC: forced writes of a hashed file (QM4 Fixes item 102).  The previous state is the result; -1 asks only. */
@@ -728,6 +755,11 @@ void op_settrig() {
   descr = e_stack - 3;
   k_get_file(descr);
   fvar = descr->data.fvar;
+
+  /* 18 Oct 26 S.66: a trigger is part of the STRUCTURE of a file; in the shared account it is SDSYS's alone ($internal is not exempt).
+     Before anything is read or written.  (A NET_FILE has no pathname and is answered NONE here; as before, it goes on to ER_NDYN.) */
+  if (shared_structure_refusal(fvar) != EDIT_NONE)
+    k_error(sysmsg(edit_refused_message(EDIT_SHARED_STRUCT)));
 
   /* A directory file has no header to put it in: the trigger goes into its %header% file (16 Oct 26, QM4 Fixes item 177) */
 

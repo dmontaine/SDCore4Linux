@@ -53,6 +53,7 @@
 * 10 Sep 26 dm  Parity audit: Enter is N at the system-account prompt (port
 *               PRE_RELEASE_FIXES 79).
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
+* 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -71,6 +72,8 @@ $include int$keys.h
 $include parser.h
 $include syscom keys.h
 $include syscom err.h
+
+deffun edit_msg(emk) calling '!edit_msg'     ;* 18 Oct 26 dm, S.66
 
 $define max.name.len 12
 
@@ -553,9 +556,8 @@ check.sdsys.file:
 edit.check.path:
    if kernel(K$EDIT.OK, ef.path) then return
    ef.kind = kernel(K$EDIT.KIND, ef.path)
-   if ef.kind < 1 or ef.kind > 3 then ef.kind = 1
    @system.return.code = -ER$PERM
-   stop sysmsg(11404 + ef.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file
+   stop edit_msg(ef.kind) ;* 11405 VOC, 11406 dictionary, 11407 program file, 11513 shared record, 11514 shared structure
 
    * Avoid compiler warnings
    dummy = dummy

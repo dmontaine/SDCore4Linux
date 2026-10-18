@@ -18,6 +18,9 @@
 * 
 * 
 * START-HISTORY:
+* 18 Oct 26 dm S.66: the shared-account gates (K$SHARED.READ / .WRITE) are account-scoped like NET: loaded at LOGTO from the new account's record
+*           (a path-attached account has none: both off), held in stk.shared.read / .write and restored by revert.account.  acc.record is
+*           cleared before the register read so that a failed open cannot leave the previous LOGTO's record to be read.
 * 18 Oct 26 dm S.65 slice 3e: para.reset.environment asks the kernel to send the queued closes of remote files (the K$NET argument -2),
 *               so that a record lock taken on a remote file does not outlive its file variable at the prompt.
 * 17 Oct 26 dm S.65 slice 1: the NET gate (K$NET, SDNet remote files; does nothing yet) is account-scoped like SD.ACCOUNTS: loaded at LOGTO from
@@ -776,6 +779,8 @@ $endif
          stk.os.exec = kernel(K$OS.EXEC, -1)
          stk.sd.accounts = kernel(K$SD.ACCOUNTS, -1)
          stk.net = kernel(K$NET, -1)   ;* 17 Oct 26, S.65 slice 1: the NET gate is account-scoped, so it is held and given back with the rest (does nothing yet)
+         stk.shared.read = kernel(K$SHARED.READ, -1)    ;* 18 Oct 26, S.66: the shared-account gates are account-scoped too
+         stk.shared.write = kernel(K$SHARED.WRITE, -1)
 
          pa.name = ""
          pa.rec = "PA" : @fm : xeq.command
@@ -3084,6 +3089,9 @@ int.logto:
 
    @system.return.code = -ER$ARGS
 
+* 18 Oct 26 dm - S.66: clear the record first.  A failed openpath of the register would otherwise leave the PREVIOUS LOGTO's record in the
+*   variable, and the account-scoped gates below are read from it.
+   acc.record = ''
    openpath @sdsys:@ds:'accounts' to acc.f then
 *      readv acc.rec from acc.f, upcase(new.account), ACC$PATH then
       read acc.record from acc.f, downcase(new.account) then
@@ -3209,6 +3217,11 @@ int.logto:
 * 17 Oct 26 dm - S.65 slice 1: the NET gate (SDNet remote files) is account-scoped like SD.ACCOUNTS: reloaded here from the new account's own
 *   record, off unless 'yes'.  It takes effect for the remote-file slices that follow and does nothing yet.
    void kernel(K$NET, upcase(trim(acc.record<ACC$NET>)) = 'YES')
+* 18 Oct 26 dm - S.66: the shared-account gates, account-scoped like NET.  Read is ON unless the record says 'no' (a blank field is on), but ONLY
+*   for an account that has a register record: a path-attached LOGTO has none (acc.record is blank, so is its path field) and reads OFF, as does
+*   write.  Fail closed.  new.account cannot tell the two cases apart (it is reassigned from the path above); the record's path field can.
+   void kernel(K$SHARED.READ,  (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.READ>)) # 'NO'))
+   void kernel(K$SHARED.WRITE, (acc.record<ACC$PATH> # '') and (upcase(trim(acc.record<ACC$SHARED.WRITE>)) = 'YES'))
 
    void kernel(K$AUDIT, 'logto account=' : new.account)  ;* 11 Sep 26 - PORT_ADOPTION 13; lower case 07 Oct 26 PAL-24
 
@@ -3283,6 +3296,8 @@ revert.account:
    voc = new.voc ; new.voc = 0
    void kernel(K$SH,      stk.sh)
    void kernel(K$OS.EXEC, stk.os.exec)
+   void kernel(K$SHARED.READ,  stk.shared.read)    ;* 18 Oct 26, S.66: before the SD.ACCOUNTS line, so stk.net stays next to the revert audit line
+   void kernel(K$SHARED.WRITE, stk.shared.write)
    void kernel(K$SD.ACCOUNTS, stk.sd.accounts)
    void kernel(K$NET, stk.net)   ;* 17 Oct 26, S.65 slice 1
    void kernel(K$AUDIT, 'logto revert account=' : who)

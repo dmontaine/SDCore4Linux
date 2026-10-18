@@ -10,6 +10,8 @@
 *              new password - owner's ruling that day); comment only.
 * 17 Oct 26 dm S.65 slice 1: CA$NET (35), Linux only, the NET gate (as CA$VOC.EDIT etc. of S.64).
 * 17 Oct 26 dm S.65 slice 2c: CA$FILES (36), Linux only, membership of the group sdfiles.
+* 18 Oct 26 dm S.66: CA$SHARED.READ.OFF (37) and CA$SHARED.WRITE (38), Linux only, the shared-account gates.  Windows ignores
+*              the Linux block (31-40) and defines neither; the mail to the Windows agent is deferred (sequential order of 11 Oct).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -58,5 +60,10 @@ $define CA$DICT.EDIT      34     ;* ACC$DICT.EDIT 'yes'
 * The gate takes effect for the remote-file slices that follow and does nothing yet.
 $define CA$NET            35     ;* ACC$NET 'yes'
 $define CA$FILES          36     ;* 1 = start in the group sdfiles, the SDNet files-only API route (Linux only; S.65 slice 2c)
+
+* Linux only (18 Oct 26, S.66, the shared account).  Both are requests only when exactly 1; anything else leaves the default.
+* CA$SHARED.READ.OFF is INVERTED because the delivered default of shared.read is ON (a blank register field means yes).
+$define CA$SHARED.READ.OFF 37    ;* 1 = the new account starts with ACC$SHARED.READ 'no' (withdrawn)
+$define CA$SHARED.WRITE    38    ;* 1 = the new account starts with ACC$SHARED.WRITE 'yes'
 
 * END-CODE

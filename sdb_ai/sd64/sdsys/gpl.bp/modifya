@@ -19,6 +19,9 @@
 * 
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.66: SHARED-READ-ON / -OFF and SHARED-WRITE-ON / -OFF, the shared-account gates (register fields 13 and 14), through os.set; allowed on a
+*           group account (and on the account shared itself, which is not refused); reported with 11515.  SHARED-READ is the one gate whose blank field means ON,
+*           so os.set reads its "was" as "is not no" and writes 'yes' / 'no'.  Account-scoped: they take effect at the person's next account entry.
 * 17 Oct 26 dm S.65 slice 2c: FILES-ON / FILES-OFF put the account's person in or out of the Linux group sdfiles (the files-only SDNet login route) through
 *           sd-elevate addgroup / delgroup, as the api word does for sdapi (set.files); refused for a group or other account; reported with 11482.
 * 17 Oct 26 dm S.65 slice 1: NET-ON / NET-OFF, the NET gate for SDNet remote files (register field 15), through os.set; allowed on a group account as
@@ -177,6 +180,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       crt '                 modify.account <account> sd-on | sd-off'
       crt '                 modify.account <account> voc-on | voc-off | bp-on | bp-off | dict-on | dict-off'
       crt '                 modify.account <account> net-on | net-off'
+      crt '                 modify.account <account> shared-read-on | shared-read-off | shared-write-on | shared-write-off'
       crt '                 modify.account <account> files-on | files-off'
       crt '                 modify.account <account> suspended | unsuspended'
       stop
@@ -282,6 +286,26 @@ deffun valid_os_name(name) calling '!valid_os_name'
          stop
       case action = 'NET-OFF'
          os.field = ACC$NET ; os.want = @false
+         gosub os.set
+         stop
+* 18 Oct 26 dm - S.66 (the shared account): SHARED-READ-ON / SHARED-READ-OFF and SHARED-WRITE-ON / SHARED-WRITE-OFF, the two gates for the files of the
+*   group account named shared.  Allowed on a group account as NET-ON is (and on the account shared itself: the words on THAT account decide what the
+*   members of its Linux group can do inside it).  Account-scoped: they take effect at the person's next account entry.  The register says 'yes' or
+*   'no' (a decided state); read is ON when the field is blank, so SHARED-READ-OFF must write 'no' even to a blank record (os.set's os.was).
+      case action = 'SHARED-READ-ON'
+         os.field = ACC$SHARED.READ ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'SHARED-READ-OFF'
+         os.field = ACC$SHARED.READ ; os.want = @false
+         gosub os.set
+         stop
+      case action = 'SHARED-WRITE-ON'
+         os.field = ACC$SHARED.WRITE ; os.want = @true
+         gosub os.set
+         stop
+      case action = 'SHARED-WRITE-OFF'
+         os.field = ACC$SHARED.WRITE ; os.want = @false
          gosub os.set
          stop
 * 17 Oct 26 dm - S.65 slice 2c: FILES-ON / FILES-OFF, membership of the Linux group sdfiles, the files-only SDNet login route (an API login
@@ -390,6 +414,7 @@ deffun valid_os_name(name) calling '!valid_os_name'
       end else
          crt 'modify.account Action Must Be add, delete, ssh, api, both, none,'
          crt '   sh-on, sh-off, os-on, os-off, sd-on, sd-off, voc-on, voc-off, bp-on, bp-off, dict-on, dict-off, net-on, net-off,'
+         crt '   shared-read-on, shared-read-off, shared-write-on, shared-write-off,'
          crt '   files-on, files-off, suspended or unsuspended'
       end
 
@@ -694,13 +719,20 @@ os.set:
 *   A GROUP or OTHER account is entered by whoever its Linux group admits, so a shell granted to it would
 *   be a shell granted to all of them, decided by group membership rather than by the administrator who
 *   typed SH-ON.  sdu_ is the only group that names one person (the Windows port's 10105).
-   if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS and os.field # ACC$VOC.EDIT and os.field # ACC$BP.EDIT and os.field # ACC$DICT.EDIT and os.field # ACC$NET then
+   if group.name[1,4] # 'sdu_' and os.field # ACC$SD.ACCOUNTS and os.field # ACC$VOC.EDIT and os.field # ACC$BP.EDIT and os.field # ACC$DICT.EDIT and os.field # ACC$SHARED.READ and os.field # ACC$SHARED.WRITE and os.field # ACC$NET then
       @system.return.code = -ER$FAILED
       crt sysmsg(10105, acc.name)  ;* %1 is a group account and has no Linux user
       return
    end
 
-   os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
+*   18 Oct 26, S.66: shared.read is the one gate whose BLANK field means ON, so "was" is "not no" for it; for every other field it is "is yes".
+*   Without this, SHARED-READ-OFF on a blank record would find was = want = false, say "already" (10080) and write nothing, and the gate could never
+*   be withdrawn from an account whose field is blank.  SHARED-READ-ON on a blank record likewise says "already".
+   if os.field = ACC$SHARED.READ then
+      os.was = (upcase(trim(acc.rec<os.field>)) # 'NO')
+   end else
+      os.was = (upcase(trim(acc.rec<os.field>)) = 'YES')
+   end
    if os.was = os.want then
       crt sysmsg(10080, acc.name)  ;* %1 already had that access; nothing changed
       return
@@ -725,6 +757,16 @@ os.set:
    os.ex.now = 'no'
    if upcase(trim(acc.new<ACC$OS.EXEC>)) = 'YES' then os.ex.now = 'yes'
    void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)
+   if os.field = ACC$SHARED.READ or os.field = ACC$SHARED.WRITE then
+*     18 Oct 26, S.66: both shared fields, as for the edit gates: SHARED-READ-OFF says nothing about write.  Read is 'no' only when the field
+*     says NO (a blank field is on); write is 'yes' only when it says YES.
+      sh.read.now = 'yes'
+      if upcase(trim(acc.new<ACC$SHARED.READ>)) = 'NO' then sh.read.now = 'no'
+      sh.write.now = 'no'
+      if upcase(trim(acc.new<ACC$SHARED.WRITE>)) = 'YES' then sh.write.now = 'yes'
+      crt sysmsg(11515, acc.name, sh.read.now, sh.write.now)  ;* Account %1 has shared.read %2, shared.write %3
+      return
+   end
    if os.field = ACC$SD.ACCOUNTS then
       crt sysmsg(11385, acc.name, if upcase(trim(acc.new<ACC$SD.ACCOUNTS>)) = 'YES' then 'yes' else 'no')   ;* Account %1 has SD.ACCOUNTS %2
    end else

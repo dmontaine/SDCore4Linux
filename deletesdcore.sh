@@ -8,6 +8,9 @@
 #   rev 2.0  Mar 15 2026 mab - echo -e to printf
 #   - prior history suppressed
 #
+#   18 Oct 2026 dm - S.66: the group sdg_shared (the shared account's group)
+#   is removed on a full DELETE and kept when the accounts are kept.
+#
 #   17 Oct 2026 dm - S.65 slice 2c: the route group sdfiles (the SDNet
 #   files-only API route) is removed with sdssh and sdapi on a full DELETE and
 #   kept when the accounts are kept.
@@ -455,6 +458,17 @@ if [ "$keep_accts" = "DELETE" ]; then
         echo "Removed orphan sdsys group."
     fi
     # --------------------
+    # 18 Oct 26 dm - S.66: sdg_shared goes here, in the DELETE path ONLY.  The next install
+    #   makes the shared account again, and its group is made by CREATE.ACCOUNT as root and
+    #   sdsys only; a group that survives a delete keeps whatever members an earlier install
+    #   or an administrator gave it, and the reinstall would silently admit them to the
+    #   shared account (sdg_shared's members are who may sign on to it).  On a keep-accounts
+    #   cycle the register and /home/sd/group_accounts/shared survive and the group must
+    #   too, so it is not touched there.
+    if getent group sdg_shared &>/dev/null; then
+        sudo groupdel sdg_shared || true
+        echo "Removed group sdg_shared."
+    fi
     echo "Note: for complete clean up groups sdu_* and sdg_* may need to be manually removed"
 else
     echo "sd ACCOUNTS were saved, therefore"

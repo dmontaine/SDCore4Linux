@@ -18,6 +18,7 @@
 *
 *
 * START-HISTORY:
+* 18 Oct 26 dm  S.66: DELETE.ACCOUNT shared is refused (11517), after the SDSYS test and before anything else is read or asked.
 * 06 Oct 26 dm  PAL-15 (parity audit J-3): an account deleted is audited.
 * 19 Sep 26 dm  The account directory goes through sd-elevate rmtree-account
 *               when the session is not root, and one left behind is named
@@ -150,6 +151,12 @@ deffun is_grp_member(user,group) calling '!is_grp_member'
 
    if acc.name = 'sdsys' then
       stop sysmsg(6025) ;* Cannot delete SDSYS account
+   end
+
+* 18 Oct 26 dm - S.66: the shared account is part of the system, like SDSYS: the installer makes it and the remover takes it away.  Refused before the
+*   own-account test, the register is read, any prompt is shown or anything is removed.
+   if acc.name = 'shared' then
+      stop sysmsg(11517) ;* The shared account cannot be deleted
    end
 
    if acc.name = @who then

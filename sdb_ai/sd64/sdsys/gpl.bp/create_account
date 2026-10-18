@@ -17,6 +17,9 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 18 Oct 26 dm S.66: the shared account.  The name shared is reserved (11516) for every type unless the installer's marker is present for a GROUP from an
+*              -internal session; the gates ACC$SHARED.READ / ACC$SHARED.WRITE are written from CA$SHARED.READ.OFF / CA$SHARED.WRITE ('yes'/'no' explicit for
+*              a user, written only when asked otherwise), reported with 11515 after 11411; set.owner gives the shared directory the group sdusers.
 * 17 Oct 26 dm S.65 slice 2c: CA$FILES joins the new user to the Linux group sdfiles (the files-only SDNet login route) after the sdssh / sdapi joins; the
 *              group is looked for BEFORE the Linux user is made (10024 if it is missing, nothing created); a group or other account is refused
 *              (10087, 10081); a user account made without the word is not in the group.  The membership is the state: no register field.
@@ -104,6 +107,23 @@ deffun valid_os_path(path) calling '!valid_os_path'
    if umask(002) then null
 
    acc.type = upcase(trim(acc.type))
+
+* 18 Oct 26 dm - S.66: THE NAME shared IS RESERVED for the shared account, which the installer makes.  Refused for every type, a user included
+*   (for a USER acc.name is the user name here), BEFORE any Linux user or group is made.  The one way through is the installer's: a GROUP
+*   account, from an -internal session, with the one-shot marker it wrote (as ATTACH's), which is consumed at once.  RESTORE.ACCOUNT and a
+*   hand-typed CREATE.ACCOUNT never have it.
+   acc.shared = (downcase(trim(acc.name)) = 'shared')
+   if acc.shared then
+      shared.marker = @sdsys:@ds:'$shared.make'
+      if acc.type = 'GROUP' and kernel(K$INTERNAL, -1) and ospath(shared.marker, OS$EXISTS) then
+         void ospath(shared.marker, OS$DELETE)
+      end else
+         @system.return.code = -ER$ARGS
+         err = 11516 ;* The account name shared is reserved for the shared account, which the installer makes
+         return
+      end
+   end
+
    acc.uname = ''
    uid = ''
    group_name = ''
@@ -129,6 +149,10 @@ deffun valid_os_path(path) calling '!valid_os_path'
    net.want = (settings<CA$NET> = 1)
 * 17 Oct 26 dm - S.65 slice 2c: the files-only login (membership of sdfiles), the same rule: off unless named (FILES-ON), exactly 1 to be a request.
    files.want = (settings<CA$FILES> = 1)
+* 18 Oct 26 dm - S.66: the shared-account gates.  Read is ON by default (a blank field means yes), so its setting is inverted: exactly 1 withdraws it.
+*   Write is OFF by default: exactly 1 grants it.
+   shared.read.off = (settings<CA$SHARED.READ.OFF> = 1)
+   shared.write.want = (settings<CA$SHARED.WRITE> = 1)
    no.query = settings<CA$NO.QUERY> = 1
    reuse.sd.user = settings<CA$REUSE.SD.USER> = 1
 
@@ -518,6 +542,10 @@ PW.TRY.AGAIN:
      acc.rec<ACC$DICT.EDIT> = if edit.dict.want then 'yes' else 'no'
 * 17 Oct 26 dm - S.65 slice 1: the NET gate, written explicitly for a user account; the gate does nothing yet.
      acc.rec<ACC$NET> = if net.want then 'yes' else 'no'
+* 18 Oct 26 dm - S.66: the shared-account gates, written explicitly for a user account (read 'yes' unless withdrawn, write 'no' unless granted), so that a
+*   decided state can be told from a blank one.
+     acc.rec<ACC$SHARED.READ> = if shared.read.off then 'no' else 'yes'
+     acc.rec<ACC$SHARED.WRITE> = if shared.write.want then 'yes' else 'no'
    case acc.type = "GROUP"
      acc.rec<ACC$GROUP> = group_name
    end case
@@ -528,6 +556,8 @@ PW.TRY.AGAIN:
      if edit.bp.want then acc.rec<ACC$BP.EDIT> = 'yes'
      if edit.dict.want then acc.rec<ACC$DICT.EDIT> = 'yes'
      if net.want then acc.rec<ACC$NET> = 'yes'
+     if shared.read.off then acc.rec<ACC$SHARED.READ> = 'no'      ;* 18 Oct 26, S.66: blank stays the default (read on, write off)
+     if shared.write.want then acc.rec<ACC$SHARED.WRITE> = 'yes'
    end
    if settings<CA$SUSPENDED> = 1 then acc.rec<ACC$SUSPENDED> = 'SUSPENDED'
 
@@ -537,6 +567,7 @@ PW.TRY.AGAIN:
      crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
      crt sysmsg(11409, acc.name, acc.rec<ACC$VOC.EDIT>, acc.rec<ACC$BP.EDIT>, acc.rec<ACC$DICT.EDIT>)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4
      crt sysmsg(11411, acc.name, acc.rec<ACC$NET>)  ;* Account %1 has NET %2
+     crt sysmsg(11515, acc.name, acc.rec<ACC$SHARED.READ>, acc.rec<ACC$SHARED.WRITE>)  ;* Account %1 has shared.read %2, shared.write %3
 *    17 Oct 26, S.65 slice 2c: FILES is membership of sdfiles, so the line is read off /etc/group, not off the request.
      crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has FILES %2
    end
@@ -711,6 +742,10 @@ set.owner:
       case acc.type = 'GROUP'
         uid='sdsys'
         gid= group_name
+* 18 Oct 26 dm - S.66: the directory of the shared account (and everything in it) belongs to the group sdusers, so that every SD user's own
+*   process can read its files through the kernel (and write them, with shared.write).  The register still names sdg_shared as the account's
+*   group, and that group (root and sdsys only) is who may LOGTO the account: so only SDSYS enters it, and withdrawing shared.read is a wall.
+        if acc.name = 'shared' then gid = 'sdusers'
       case 1
         uid='root'
         gid='sdusers'

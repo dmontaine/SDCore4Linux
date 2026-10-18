@@ -201,11 +201,13 @@ def checks(srcs, messages_dir):
        0 <= at(dl, "FV_RDONLY") < at(dl, "edit_refusal(fvar)") < at(dl, "check_lock("), "")
     cl = func_body(d3, "void op_clrfile()")
     ck("C9 op_clrfile asks before it takes the file lock (StartExclusive)", 0 <= at(cl, "edit_refusal(fvar)") < at(cl, "StartExclusive("), "")
-    ck("C10 a refusal without ON ERROR is an error that gives the reason (k_error with message 11404 + kind)",
-       d3.count("k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)))") >= 4 and "#define EDIT_REFUSED_MSG(kind) (11404 + (kind))" in d3, "")
+    ck("C10 a refusal without ON ERROR is an error that gives the reason (k_error with the message of edit_refused_message(kind): 11405 to 11407 for the S.64 kinds, 11513 and 11514 since S.66, op_sh.c)",
+       d3.count("k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)))") >= 4 and "#define EDIT_REFUSED_MSG(kind) edit_refused_message(kind)" in d3
+       and re.search(r"int edit_refused_message\(int kind\) \{[^}]*11404 \+ kind", c["op_sh.c"]) is not None, "")
     kn = c["op_kernel.c"]
-    setter = kn[at(kn, "case K_VOC_EDIT:"):at(kn, "case K_EDIT_OK:")]
-    ck("C11 the three gate keys are set only from a $internal program", "HDR_INTERNAL" in setter and "my_uptr->gates |= edit_bit" in setter, "")
+    setter = kn[at(kn, "case K_VOC_EDIT:"):at(kn, "case K_NET:")]      # 18 Oct 26 (S.66): to the next case, not to K_EDIT_OK - the NET and shared cases have HDR_INTERNAL tests of their own
+    ck("C11 the three gate keys are set only from a $internal program",
+       re.search(r"if \(n >= 0\) \{\s*if \(process\.program\.flags & HDR_INTERNAL\) \{\s*if \(n > 0\)\s*my_uptr->gates \|= edit_bit;", setter) is not None, "")
     okh = kn[at(kn, "case K_EDIT_OK:"):at(kn, "case K_EDIT_OS_OK:")]
     ck("C12 K_EDIT_OK passes the administrator, refuses an empty pathname (it starts with no name and the answer starts at 0) and asks edit_ok_for_path",
        "USR_ADMIN" in okh and re.search(r"edit_name\[0\] = '\\0';\s*result\.data\.value = 0;", okh) is not None and "edit_ok_for_path(edit_name)" in okh, "")
@@ -249,7 +251,7 @@ def checks(srcs, messages_dir):
     dh = func_body(d1, "void op_create_dh()")
     ck("C21b op_create_dh asks create_edit_refusal AFTER the name check and BEFORE the file is made (dh_create_file), -ER_PERM with the reason unless ON ERROR",
        0 <= at(dh, "name_len < 1") < at(dh, "create_edit_refusal(path_name)") < at(dh, "dh_create_file(")
-       and "k_error(sysmsg(11404 + edit_kind))" in dh and "process.status = -ER_PERM" in dh, "")
+       and "k_error(sysmsg(edit_refused_message(edit_kind)))" in dh and "process.status = -ER_PERM" in dh, "")
     t1 = func_body(d1, "void op_create_t1()")
     ck("C21c op_create_t1 asks BEFORE make_path, and only for a name that was given (name_len > 0)",
        0 <= at(t1, "create_edit_refusal(path_name)") < at(t1, "make_path(path_name)") and "(name_len > 0) ? create_edit_refusal(path_name)" in t1, "")
@@ -329,12 +331,12 @@ def checks(srcs, messages_dir):
        c["deletef"].count("gosub edit.check.path") == 2 and at(c["deletef"], "edit.check.path:") > at(c["deletef"], "delete.dict:"), "")
     sd = c["sed"]
     ck("G5 SED asks before it saves, exports and deletes a record, and puts the reason in the message line (not a DISPLAY)",
-       sd.count("gosub check.edit.file") >= 3 and "message = sysmsg(11404 + edit.kind)" in sd and "check.edit.file:" in sd, "")
+       sd.count("gosub check.edit.file") >= 3 and "message = edit_msg(edit.kind)" in sd and "check.edit.file:" in sd, "")
     ck("G6 SED leaves its -EXT extension record out of a file the session may not change",
        sd.count("kernel(K$EDIT.OK, fileinfo(file(current.buffer), FL$PATH))") >= 2, "")
     ide = c["ide"]
     ck("G7 IDE asks before it saves, saves as and makes a new record (msg, not DISPLAY)",
-       ide.count("gosub edit.check") >= 3 and "msg = sysmsg(11404 + edit.kind)" in ide and "$include syscom keys.h" in ide, "")
+       ide.count("gosub edit.check") >= 3 and "msg = edit_msg(edit.kind)" in ide and "$include syscom keys.h" in ide, "")
     ce = c["ced_edit"]
     ck("G8 CED asks before it writes a record, and includes the header that defines FL$PATH",
        "kernel(K$EDIT.OK, edit.p)" in ce and "$include syscom keys.h" in ce, "")
@@ -390,7 +392,7 @@ def checks(srcs, messages_dir):
     di = sv[at(sv, "delete.item:"):]
     di = di[:di.find("show.data.page:")]
     ck("G17 SP.VIEW asks the KERNEL (not edit_guard: it would DISPLAY over the page) at the top of delete.item, before the Y/N question, the lock and the delete",
-       "kernel(K$EDIT.OK, edit.p)" in di and "sysmsg(11404 + edit.kind)" in di and "edit_guard" not in sv
+       "kernel(K$EDIT.OK, edit.p)" in di and "edit_msg(edit.kind)" in di and "edit_guard" not in sv
        and 0 <= at(di, "edit.p = fileinfo(data.f, FL$PATH)") < at(di, "kernel(K$EDIT.OK, edit.p)") < at(di, "sysmsg(11105") < at(di, "readvu dummy")
        < at(di, "delete data.f, item.name") and "$include keys.h" in sv and "$include int$keys.h" in sv, "")
     qp = c["qproc"]
@@ -418,7 +420,7 @@ def checks(srcs, messages_dir):
     ck("G22 CREATE.FILE on an EXISTING pointer asks (edit.check.existing: every data path of the record, the dictionary path not) BEFORE the Convert question",
        cf.count("gosub edit.check.existing") == 1 and 0 <= at(cf, "gosub edit.check.existing") < at(cf, "display sysmsg(6195, file.name, file.name)")
        and re.search(r"edit\.check\.existing:\s*\n\s*for ek = 1 to dcount\(voc\.rec<2>, @vm\)", cf) is not None
-       and "kernel(K$EDIT.OK, ek.path)" in cf and "stop sysmsg(11404 + ek.kind)" in cf and "voc.rec<3>" not in cf[at(cf, "edit.check.existing:"):], "")
+       and "kernel(K$EDIT.OK, ek.path)" in cf and "stop edit_msg(ek.kind)" in cf and "voc.rec<3>" not in cf[at(cf, "edit.check.existing:"):], "")
     wl, mk = c["writelist"], c["_mksavedlists"]
     ck("G23 !WRITELIST makes the $savedlists pointer through !MKSAVEDLISTS (so a session without voc.edit can still save a list) and no longer writes it itself",
        "call !mksavedlists(mk.err)" in wl and "write 'F'" not in wl and "'$svlists'" not in wl, "")
@@ -437,7 +439,7 @@ def checks(srcs, messages_dir):
        and len(re.findall(r"gosub check\.edit[^\n]*\n\s*if err then return", ap2)) == 6 and "clearfile files(i)" not in ap2, "")
     ck("G25b check.edit refuses an unreadable pathname (11410) and a file the session may not change (K$EDIT.OK, kind by K$EDIT.KIND), as an error",
        re.search(r"check\.edit:\s*\nerr = @true\s*\ned\.path = fileinfo\(files\(fno\), FL\$PATH\)\s*\nif ed\.path = '' then", ap2) is not None
-       and "sysmsg(11410)" in ap2 and "kernel(K$EDIT.OK, ed.path)" in ap2 and "sysmsg(11404 + ed.kind)" in ap2, "")
+       and "sysmsg(11410)" in ap2 and "kernel(K$EDIT.OK, ed.path)" in ap2 and "edit_msg(ed.kind)" in ap2, "")
     ck("G25c SDOpenSeq opens READ ONLY (os.m = 1) when the pathname or the file is one the session may not change",
        "os.edit.ok = kernel(K$EDIT.OS.OK, os.name)" in ap2 and "os.edit.ok = kernel(K$EDIT.OK, fileinfo(os.tf, FL$PATH))" in ap2
        and 0 <= at(ap2, "os.m = 0") < at(ap2, "if not(os.edit.ok) then os.m = 1") < at(ap2, "case os.path and os.m = 0"), "")
@@ -488,7 +490,7 @@ MUTANTS = [
     ("op_clrfile asks after the lock", "op_dio3.c", "    int edit_kind = edit_refusal(fvar); /* 17 Oct 26 S.64: the edit gates */\n\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));\n      /* ON ERROR", "    int edit_kind = EDIT_NONE; /* 17 Oct 26 S.64: the edit gates */\n\n    if (edit_kind != EDIT_NONE) {\n      if (!(op_flags & P_ON_ERROR))\n        k_error(sysmsg(EDIT_REFUSED_MSG(edit_kind)));\n      /* ON ERROR"),
     ("edit_permitted looks at the gate before the administrator", "op_sh.c", "bool edit_permitted(int kind) {\n  if (my_uptr->flags & USR_ADMIN)\n    return TRUE;\n  switch (kind) {\n    case EDIT_VOC:\n      return (my_uptr->gates & UG_VOC_EDIT) != 0;", "bool edit_permitted(int kind) {\n  switch (kind) {\n    case EDIT_VOC:\n      return (my_uptr->gates & UG_VOC_EDIT) != 0;"),
     ("a bp.out file is no longer a program file", "op_sh.c", '  if ((n == 6) && (strncasecmp(last, "bp.out", 6) == 0))\n    return EDIT_PROG;\n', ""),
-    ("K_EDIT_OK answers 1 for an empty pathname", "op_kernel.c", "  edit_name[0] = '\\0';\n      result.data.value = 0;\n      if (action == K_EDIT_OK) {", "  edit_name[0] = '\\0';\n      result.data.value = 1;\n      if (action == K_EDIT_OK) {"),
+    ("K_EDIT_OK answers 1 for an empty pathname", "op_kernel.c", "edit_name[0] = '\\0';\n      result.data.value = 0;\n", "edit_name[0] = '\\0';\n      result.data.value = 1;\n"),
     ("the gate keys can be set from a user program", "op_kernel.c", "      if (n >= 0) {\n        if (process.program.flags & HDR_INTERNAL) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;", "      if (n >= 0) {\n        if (1) {\n          if (n > 0)\n            my_uptr->gates |= edit_bit;"),
     ("OPENSEQ no longer makes a blocked file read only", "op_seqio.c", "      if ((op_flags & P_READONLY) || access(fullpathname, 2) || edit_blocked) {", "      if ((op_flags & P_READONLY) || access(fullpathname, 2)) {"),
     ("DELETESEQ asks after the file is looked at", "op_seqio.c", "  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }\n\n  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }", "  /* Check file exists */\n\n  if (stat(file_name, &stat_buf) != 0) {\n    process.status = ER_FNF;\n    goto exit_op_delseq;\n  }\n\n  if (!(process.program.flags & HDR_INTERNAL) && (edit_os_path_refusal(file_name, FALSE) != EDIT_NONE)) {\n    process.status = ER_PERM;\n    goto exit_op_delseq;\n  }"),

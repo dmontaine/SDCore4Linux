@@ -3,6 +3,7 @@
       * Copyright (c) 2004, Ladybridge Systems, All Rights Reserved
       
       $list off
+      * 18 Oct 26 dm  S.66: ACC$SHARED.READ (13) and ACC$SHARED.WRITE (14), the shared-account gates.
       * 17 Oct 26 dm  S.65 slice 1: ACC$NET (15), the per-account NET gate.
       * 09 Sep 26 dm  add ACC$TIER (5) and ACC$PRIOR.TIER (6), matching the
       *               Windows port.  PRE_RELEASE 18.
@@ -395,8 +396,19 @@
       *   another SD server.  yes/no; BLANK MEANS NO.  ACCOUNT-SCOPED like ACC$SD.ACCOUNTS: loaded as K$NET at sign-on, at LOGTO (restored
       *   when LOGTO returns) and by the API server.  No upgrade walk: nothing existing used it, so every existing account stays off.
       *   SDSYS switches it (MODIFY.ACCOUNT NET-ON / NET-OFF; CREATE.ACCOUNT takes NET-ON).  The gate takes effect for the remote-file
-      *   slices that follow and does nothing yet.  Fields 13 and 14 are reserved for the shared-account gates (S.66).
+      *   slices that follow and does nothing yet.
       $define ACC$NET          15    ;* may open a file on another SD server (yes/no)
+      * 18 Oct 26 dm - FIELDS 13 AND 14: the shared-account gates (S.66; owner's rulings of 17 Oct).  Whether the account may open the
+      *   files of the group account named SHARED by file name, with no LOGTO and no Q-pointer (13), and whether it may write records in
+      *   them (14).  yes/no.  FIELD 13 IS THE ONE GATE WHOSE BLANK MEANS YES: only the word NO withdraws it, so every account that
+      *   exists when this ships can read shared and nothing has to be migrated.  Field 14 is like the gates above: BLANK MEANS NO.
+      *   A loader reads field 13 as UPCASE(TRIM(x)) # 'NO' and field 14 as = 'YES'.  ACCOUNT-SCOPED like ACC$NET: loaded as
+      *   K$SHARED.READ / K$SHARED.WRITE at sign-on, at LOGTO (restored when LOGTO returns) and by the API server.  An account reached by
+      *   a path has no register record, so it has read OFF.  Either field may sit on a USER, GROUP or OTHER account.  SDSYS switches
+      *   them: MODIFY.ACCOUNT SHARED-READ-ON / SHARED-READ-OFF / SHARED-WRITE-ON / SHARED-WRITE-OFF; CREATE.ACCOUNT takes
+      *   SHARED-READ-OFF and SHARED-WRITE-ON.
+      $define ACC$SHARED.READ  13    ;* may open the files of the shared account by name (yes/no; BLANK = yes)
+      $define ACC$SHARED.WRITE 14    ;* may write records in the files of the shared account (yes/no; blank = no)
       deffun parse.pathname.tokens(path) calling "!PATHTKN"
       
       * encrytption decryption  *
