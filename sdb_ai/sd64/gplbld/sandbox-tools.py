@@ -695,6 +695,37 @@ def verifier_rows():
         rc == 0 and ("Index directory is " + where) in out and ("Index directory is " + where) in q(d), "%r %r" % (rc, q(d)[-200:]))
 
 
+def sdconv_rows():
+    """sdconv (owner's choice A, 18 Oct 26): a hashed file is refused with a message and status 1, nothing changed; a compiled program is not refused."""
+    say("\n=== sdconv ===============================================================================================")
+    d = fresh("c-hashed")
+    before = blob(d)
+    rc, out, to = tool("sdconv", d)
+    row("C1 a hashed file is refused: the message says so and the status is 1",
+        rc == 1 and "is a hashed file: sdconv converts compiled programs only, nothing was changed" in out, "%r %r" % (rc, out[-250:]))
+    row("C2 ... and the file is byte for byte as it was", blob(d) == before and ls(d) == ["%0", "%1", "%2"], repr(ls(d)))
+    for opt in ("-L", "-B"):
+        rc, out, to = tool("sdconv", opt, d)
+        row("C3 %s on a hashed file: the same refusal, status 1, nothing changed" % opt,
+            rc == 1 and "is a hashed file" in out and blob(d) == before, "%r %r" % (rc, out[-200:]))
+    rc, out, to = tool("sdconv", d, d)
+    row("C4 two hashed files named: refused twice, status 1", rc == 1 and out.count("is a hashed file") == 2, "%r %r" % (rc, out[-250:]))
+    # controls: something that is neither a hashed file nor a program is left alone and is not an error
+    txt = os.path.join(WORK, "c-plain.txt")
+    with open(txt, "w") as fh:
+        fh.write("not a file sdconv knows\n")
+    rc, out, to = tool("sdconv", txt)
+    row("C5 (control) an ordinary file: no refusal, status 0", rc == 0 and "hashed file" not in out, "%r %r" % (rc, out[-200:]))
+    prog = os.path.join(SYSD, "bp.out", "zztf" + RUN)
+    cp = os.path.join(WORK, "c-prog")
+    if os.path.exists(prog):
+        shutil.copy(prog, cp)
+        rc, out, to = tool("sdconv", cp)
+        row("C6 (control) a compiled program is not refused: status 0 and no 'hashed file' in the output", rc == 0 and "hashed file" not in out, "%r %r" % (rc, out[-250:]))
+    else:
+        row("C6 (control) the compiled fixture program exists in bp.out", False, prog)
+
+
 # --------------------------------------------------------------------------------------------------------------------
 def main():
     global BOX, SYSD, BIN, WORK, CONF, FIX
@@ -719,7 +750,7 @@ def main():
         say("sandbox-tools: built, bootstrap passed")
     elif not os.path.isfile(os.path.join(BIN, "sd")):
         bail("%s holds no built sandbox (use --build, or point it at one)" % BOX)
-    for t in ("sdidx", "sdfix"):
+    for t in ("sdidx", "sdfix", "sdconv"):
         if not os.path.isfile(os.path.join(BIN, t)):
             bail("%s is not in the sandbox" % t)
         with open(os.path.join(BIN, t), "rb") as fh:
@@ -747,6 +778,7 @@ def main():
         sdfix_rows()
         open_rows()
         verifier_rows()
+        sdconv_rows()
     finally:
         say("\n--- cleanup -------------------------------------------------------------------------------------")
         sess("DELETE.FILE %s" % F)
