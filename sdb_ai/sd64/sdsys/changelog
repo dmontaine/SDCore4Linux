@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+18 Oct 26  THE SCREEN LIBRARY HAS CONTAINERS AND VIEWPORTS: A FORM CAN BE BIGGER THAN THE WINDOW IT IS SHOWN IN.
+
+             What        SCREEN CONTAINER f, id makes a bordered rectangle that owns widgets: SCREEN IN f, id says that the widgets added next
+                        are inside it (SCREEN IN f, '' ends it, and a container added inside another nests).  Their AT is counted from the
+                        first cell inside the border.  They move with the container (SCREEN MOVE), are hidden, disabled or put on a tab page
+                        with it, and are taken out with it (SCREEN DELETE, which says how many went).  What they draw, and where a click
+                        reaches them, is cut at the container's edge.  SCREEN VIEWPORT f, id ... CONTENT cw,ch is a container whose inside
+                        is a window on a larger sheet: a bar appears in the right column when the sheet is higher than the window and in the
+                        bottom row when it is wider.  With the viewport focused the arrow keys, Page Up and Down, Home and End scroll it; the
+                        wheel scrolls three rows and Shift-wheel three columns, a click on a bar's arrow moves one and on its track a page,
+                        and the thumb can be dragged.  A widget that takes the focus (Tab, a click, SCREEN FOCUS before the form is shown)
+                        is scrolled into view.  A scroll is a change event of the viewport's id; SCREEN SCROLL f, id TO x,y / BY dx,dy moves
+                        it from the program and SCREEN GET answers where it is.
+             Why         The full-screen administrator and developer apps and the screen builder need a form larger than a 140 by 42
+                        terminal, and a canvas of any size.  Measured: 200 by 60 of sheet (630 widgets) scrolls in about a tenth of a second.
+             Also        A combo box's list is drawn over the whole screen, not inside the viewport it is in.  While the focused widget is not
+                        wholly in view the cursor is hidden and comes back with the widget.
+             Does not    It does not make a widget taller than the window usable in a viewport: such a widget scrolls itself but has no
+                        cursor there, so give a memo or table a size that fits.  Dragging a widget with the mouse (for the screen builder)
+                        is a separate piece.  A form that uses none of this is drawn exactly as before.
+
 18 Oct 26  THE SHARED ACCOUNT: FILES THAT EVERY ACCOUNT CAN OPEN BY NAME, WITHOUT LOGTO OR A POINTER (S.66).
 
              What        The installer now makes a group account named shared (its directory is /home/sd/group_accounts/shared and its

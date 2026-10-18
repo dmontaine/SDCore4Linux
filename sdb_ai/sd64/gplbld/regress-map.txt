@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core        = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho
+@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport
 # the debugger
 @debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
@@ -236,7 +236,7 @@ sdsys/gpl.bp/bcomp ~ st.matwrite*   : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ back.end       : wdthenelse lockown
 sdsys/gpl.bp/bcomp ~ st.open*       : openzero stdfil sync
 sdsys/gpl.bp/bcomp ~ st.execute*    : execlist stacklist chained cmd-a9
-sdsys/gpl.bp/bcomp ~ st.screen*     : screen
+sdsys/gpl.bp/bcomp ~ st.screen*     : screen viewport
 sdsys/gpl.bp/bcomp ~ in.*           : func-b4 func-q1 epoch conv-b3 numexp mlmask
 sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
@@ -246,8 +246,8 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared
 sdsys/gpl.bp/ide             : ide editgates shared
 sdsys/gpl.bp/ced*            : ced editgates shared
