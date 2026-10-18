@@ -1,6 +1,56 @@
 Next release - in progress
 --------------------------
 
+18 Oct 26  A LOGIN ON ANOTHER SD SERVER CAN CHANGE FILES THERE ONLY IF THAT SERVER'S ADMINISTRATOR ALLOWS IT (THE WRITE GROUP); AND A REMOTE DICTIONARY CAN BE OPENED.
+
+             What        A files-only login (the Linux group sdfiles, the route SDNet uses) is now a READ-ONLY login on the server it reaches unless
+                        the remote user is also in a new Linux group, sdfileswrite.  Without it the server refuses writes, deletes, record locks,
+                        file locks, clearing a file, the locking forms of a read (and a READV that takes a lock) and does not carry them out; with
+                        it they work as before.  Reading, selecting, file information, the indices, testing a lock and releasing one need sdfiles
+                        alone.  A user in sdapi has the whole API as before, with or without the new group.
+             Why it      Until now a server defined "write" on the CLIENT was the only thing between a stored login and a change: the client
+             matters    enforced it and the server did not know.  Now the administrator of the server being reached decides: off for a new
+                        account, given by SDSYS.
+             Words       modify.account name files-write-on / files-write-off, and files-write-on after files-on in create.account user.  After a
+                        change SD says "Account fred has files-write yes" (or no), read back from the group file.  files-write-on needs the person to
+                        be in sdfiles already (the group on its own gives nothing) and says so; files-off takes the person out of sdfileswrite as
+                        well, so a later files-on does not hand the write back.  A group or other account is refused the words as it is for files-on.
+             What you    A server defined "write" on a client STOPS WRITING the day the target runs this release, until the remote user is given
+             will see    files-write-on there (one word).  The refusal is "This login can read files but is not allowed to change them (the
+                        administrator of this server can allow it: modify.account account files-write-on): request n is not allowed".  The person
+                        at the client sees only that the change failed (status 0); the reason is in the target's audit trail, where a refused change
+                        is recorded as api refused request=16 route=sdfiles write=off user=... and the login line says write=on or write=off.  The
+                        group is read at login, so a change reaches the person at their next login.
+             Also        Opening the dictionary of a file on another SD server (dict <file> in lower case, which is how the client sends it) failed
+                        before, so COUNT, LIST, SORT and SELECT on a remote file stopped with "Cannot open dictionary".  It now works.
+             Does not    It does not touch accounts that have the API (sdapi), and it does not change what a client sees for a read.
+
+18 Oct 26  SDIDX AND SDFIX, THE STAND-ALONE FILE TOOLS, NO LONGER DO SEVERAL WRONG THINGS.
+
+             sdidx       When it moved indexes out of a file's own directory, or deleted them, it removed the old %2, %3 ... through a name buffer
+                        only 33 bytes long, so on almost any real data path the old index file stayed behind while the program reported success.
+                        The leftover then stopped you moving the indexes back (error 17).  The buffer now holds any path the file header can hold.
+                        If you used an older sdidx, look for a stray %2 beside %0 and %1 and delete it by hand once you have checked the index is
+                        where the header says.  sdidx -d answered n at "Delete ... (Y/N)?" used to say "All indices deleted" and clear the header
+                        anyway, leaving the index files on disk with nothing pointing at them; it now stops ("Indices not deleted", exit status 1),
+                        and input that ends at the question counts as n.  sdidx -m and -d used to delete the whole old index directory with
+                        everything in it; they now delete only the index files the header lists and remove the directory only if that leaves it
+                        empty.  sdidx -p now prints what -q prints.  A relative index path given to -m or -p is made absolute from the current
+                        directory before it is stored; a path argument longer than 255 characters is refused.
+             sdfix       -F could not delete an index file in the file's own directory: it printed "Corrected" and removed nothing; it can now.
+                        The repair for "Invalid split and/or merge loads" wrote split 50 and merge 80, the very values the check rejects; it now
+                        writes the defaults SD gives a new file, split 80 and merge 50.  -Q looped for ever if its input ended while it was asking
+                        "Fix?" (and at the dump-and-rebuild question and the interactive prompt): the end of input now counts as "no" and says so.
+                        The interactive W command reads its address and value as the hex its help always said and writes the bytes in the order
+                        typed (it read decimal and swapped bytes).  -R together with -F or -Q is refused with a message (run the fix first, then -R
+                        alone).  sdfix now refuses a file that is open within a running SD, as sdidx always did.  A file whose path is 252
+                        characters or more is refused: with a path that long the names of the higher index files were cut short to the overflow
+                        subfile's name, and -F then deleted that subfile together with the real index.  The exit status is 1 if any named file
+                        failed.
+             Does not    Neither tool takes a backup and neither can be undone; sdidx still cannot move one index and leave the others; sdfix
+                        still only reports an index tree that is damaged; and sdconv was not touched (it converts compiled programs only and does
+                        nothing to a hashed file).
+
 18 Oct 26  ENCRYPTING A FIELD: AN ORDINARY PROGRAM CAN NOW MAKE A KEY, AND A LISTING CAN SHOW THE FIELD DECRYPTED FOR WHOEVER HOLDS IT.
 
              What        Three new BASIC functions, open to every program: SDSALT() gives a fresh random salt; SDKEY(passphrase, salt) gives the 256-bit key
@@ -1220,7 +1270,7 @@ Next release - in progress
              directory file is refused.  CONFIGURE.FILE file NEXT n sets the
              counter and NEXT QUERY shows it; FILEINFO(file, 1031) is the id
              of the last record written this way; rebuilding a file with
-             CONFIGURE.FILE carries the counter over; sdconv reverses it.
+             CONFIGURE.FILE carries the counter over.
              (Unlike openQM, SD skips an id that already names a record - see
              the entry above.)
              SDWriteSeqKey(fno, rec) and SDWriteuSeqKey(fno, rec) do the same

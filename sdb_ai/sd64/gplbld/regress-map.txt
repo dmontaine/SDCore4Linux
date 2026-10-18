@@ -30,7 +30,7 @@
 # select lists and everything that makes or reads one
 @lists       = sselectv pickrn chained execlist stacklist list-q2 list-a7 selectv-mode verbs-q8 mode-q16 q4
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
-@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil mfilepath lock-b6 coll fix-b10 sync crlf dirtrig
+@files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil mfilepath lock-b6 coll fix-b10 sync crlf dirtrig tools
 # sequential files and CSV
 @seq         = csv-b5 file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
 # strings, conversions, functions, dates, locate and sort
@@ -92,8 +92,8 @@ gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files
 gplsrc/reccache.c            : @files
 gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc @core
-gplsrc/sdfix.c               : sdfixseq akcase fixes-b12
-gplsrc/sdidx.c               : akcase idx-nocase
+gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
+gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
 gplsrc/op_seqio.c            : @seq prof getdev editgates
 gplsrc/op_coll.c             : coll collfile dbgcoll
