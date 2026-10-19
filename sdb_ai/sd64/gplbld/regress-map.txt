@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core        = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize
+@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small ide-sed winsize eofkeys
 # the debugger
 @debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
@@ -247,10 +247,10 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed
-sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys
+sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
+sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small
 sdsys/gpl.bp/ed              : @editors edext editgates
 sdsys/gpl.bp/edit            : @editors editgates

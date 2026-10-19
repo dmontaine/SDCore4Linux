@@ -12,6 +12,8 @@
 * 18 Oct 26 dm  Terminal 140 by 42, phase 3: the cursor is hidden and shown through $sl_curat, which also tells the cursor lock;
 *               the key guardquit is not a widget's, and a modal form reads it as Esc.
 * 18 Oct 26 dm  The op drawwidget: one widget drawn again, not the whole form (the IDE changing record rewrote the whole screen, which showed as a flash).
+* 19 Oct 26 dm  wait.event: a null key is a timeout only when STATUS() is ER$TIMEOUT; an input that has ended is end, with or without a timeout
+*               (the IDE's timeout 1 turned the end into timeouts for ever, at full CPU; sandbox-eofkeys.py).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -76,6 +78,7 @@ subroutine sl_form(op, f, scr, key, ret)
 $catalog $sl_form
 
 $include sl.h
+$include err.h
 
    ret = ''
    wkey = ''                                 ;* the key handed to a widget: none for init, draw ...
@@ -968,7 +971,10 @@ wait.event:
       call $sl_key(tmo, kk)
       if kk = '' then
          evt = 'end'
-         if tmo # '' then evt = 'timeout'
+         * 19 Oct 26: only the time running out is a timeout.  An input that has ended also gives a null key at once, and a
+         * program that waits with a timeout (the IDE waits a second at a time) took it for the time passing and went round
+         * again for ever, at full CPU.  $sl_key leaves STATUS() at ER$TIMEOUT when it was the time.
+         if tmo # '' and status() = ER$TIMEOUT then evt = 'timeout'
       end else
          nw = inmat(f{'widgets'})
          fi0 = f{'focus'} + 0

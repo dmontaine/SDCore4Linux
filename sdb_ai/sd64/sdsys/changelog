@@ -1,6 +1,23 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  SED AND THE IDE NO LONGER USE ALL OF A CPU FOR EVER WHEN THEIR INPUT HAS ENDED, AND SCREEN WAIT TELLS THE END OF INPUT FROM THE TIME RUNNING OUT.
+
+             What        A SED or IDE session whose input was a pipe (a script, a test, a login that was not a terminal) went on for as long as
+                        it was left once the pipe had ended, using all of a CPU and drawing nothing new: 8.0 seconds of CPU in 8.3 seconds on a
+                        private SD. SED took the empty key that an ended input gives for "no key yet" and asked again. The screen library's SCREEN
+                        WAIT gave that empty key back as a timeout whenever the program had asked for a timeout, and the IDE asks for one every
+                        second. SED now ends as it does when its cursor lock is left: the record locks given back, the terminal's modes given
+                        back, the screen cleared, nothing asked, because nobody is there to answer. SCREEN WAIT now answers end, not timeout, so
+                        the IDE ends and so does a program that waits with a timeout and acts on the end event.
+             Why it      A session that spins holds a user slot, its record locks and a CPU until somebody kills it, and nothing on the screen
+             matters    says so.
+             Does not    The end of the input is not an answer to "save the changes?": text typed into SED and not saved is not saved, and the IDE
+                        leaves its unsaved text as it is. It does not change a wait that really times out (SCREEN WAIT still answers timeout
+                        when the time runs out), and SCREEN KEY still gives one empty answer for both the time running out and the input ending,
+                        as its documentation says, so a program that loops on SCREEN KEY with a timeout still has to count the empty answers
+                        itself, as CED does. ED, the classic line editor, is not changed and still spins in the same way.
+
 18 Oct 26  THE API'S "OPEN AN SDNET FILE" REQUEST (NUMBER 29) NO LONGER OPENS ANY ACCOUNT'S FILE FOR ANY LOGIN, EVEN WITH NETFILES BIT 2 SET.
 
              What        Request 29 is the old form of "open the file named account;file". It was refused unless bit 2 of NETFILES in sd.conf was set,
