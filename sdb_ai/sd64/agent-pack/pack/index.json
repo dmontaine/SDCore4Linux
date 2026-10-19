@@ -25898,7 +25898,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "0.9.0",
 "tier": "reference",
-"words": 96
+"words": 117
 },
 "tcl:modify.password": {
 "kind": "tcl.verb",
