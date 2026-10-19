@@ -5,6 +5,11 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The editor is laid out for at least 140 by 42 and refuses a
+*               smaller window at the start with the library's one message ($sl_need, 11197; the result tells a caller with more
+*               records to stop).  A window made smaller after the start shows the upper left corner of the layout (read.layout:
+*               the layout never shrinks below 140 by 42), and while the selected row is off the screen $sl_key takes the keyboard
+*               ($sl_guardmode); Ctrl-Q, y there leaves without keeping anything (the key guardquit).
 * 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * 17 Oct 26 dm  S.64: save.record asks the kernel (K$EDIT.OK) before it writes into a VOC, a dictionary or a program file, and says why in
 *               the message line when the session has not the gate.
@@ -59,9 +64,19 @@ $include sl.h
 
    deffun edit_msg(emk) calling '!edit_msg'       ;* 18 Oct 26 dm, S.66
 
+   LAYW = 140                         ;* what the screen is laid out for (a bigger window is used whole)
+   LAYH = 42
    result = ''
    kind = jtype(c)
    if kind # 'collection' and kind # 'array' then return
+
+   * A window smaller than the layout is refused (the library's one check and message); the caller with more records stops
+   call $sl_need('CED', LAYW, LAYH, need.msg, '')
+   if need.msg # '' then
+      display need.msg
+      result<2> = @true
+      return
+   end
 
    prompt ''
    * Ctrl-C is a key here (copy), so neither the break key nor the terminal's break character may act on
@@ -79,9 +94,9 @@ $include sl.h
       void pterm(PT$BREAK, saved.trap)
       return
    end
+   call $sl_guardmode('CED', LAYW, LAYH)   ;* the cursor lock: the keys are not the editor's while its cursor is off the screen
 
-   w = @crtwide
-   h = @crthigh
+   gosub read.layout
    gosub size.screen
 
    * Characters shown as a dot: the control characters and the SD marks
@@ -127,12 +142,20 @@ $include sl.h
    return
 
 * ======================================================================
+* read.layout  -  w and h, the size the screen is laid out for: the window, and never less than LAYW by LAYH (a window made smaller
+*                 after the start shows the upper left corner of the layout; the library cuts what falls outside)
+
+read.layout:
+   call $sl_window(w, h)
+   if w < LAYW then w = LAYW
+   if h < LAYH then h = LAYH
+   return
+
+* ======================================================================
 * size.screen  -  The rows of the screen from w and h
 
 size.screen:
-   if w < 40 then w = 40
-   if h < 10 then h = 10
-   per.page = h - 5                  ;* element lines
+   per.page = h - 5                 ;* element lines
    first.row = 2
    path.row = h - 2
    msg.row = h - 1
@@ -248,10 +271,11 @@ element.info:
 
 paint:
    call $sl_scr('get', scr)
-   if scr<SL.S.W> # w or scr<SL.S.H> # h then
+   ow = w
+   oh = h
+   gosub read.layout
+   if w # ow or h # oh then
       * the terminal's window changed size: lay the screen out again
-      w = scr<SL.S.W> + 0
-      h = scr<SL.S.H> + 0
       gosub size.screen
       gosub build.list
    end
@@ -296,6 +320,10 @@ handle.key:
    begin case
       case c.key = 'resize'
          null                        ;* paint finds the new size and lays the screen out again
+      case c.key = 'guardquit'
+         gosub revert                ;* the user left from the cursor lock ($sl_guardmode): nothing is kept
+         quit.all = @true
+         done = @true
       case c.key = 'up'
          if sel > 1 then sel -= 1
          gosub fix.window

@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 13 Oct 26 dm  Sorting, row marks (multi), horizontal scrolling by column, column width changes.
+* 18 Oct 26 dm  The cursor is placed through $sl_curat (which tells the cursor lock where it is).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -457,7 +458,7 @@ paint:
       end
       call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 1 + r, line : sbc[r + 1, 1], str(code, tw) : wc)
    next r
-   if focused and cur >= 1 then display @(w{'ax'} + 0, w{'ay'} + 1 + cur - top) :
+   if focused and cur >= 1 then call $sl_curat(w{'ax'} + 0, w{'ay'} + 1 + cur - top)
    return
 
 * cell = the text of one cell of column c, made exactly the column's width and aligned as it says

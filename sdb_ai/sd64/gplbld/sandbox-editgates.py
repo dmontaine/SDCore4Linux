@@ -383,10 +383,10 @@ def pty_edit(account, cmd, keys, leave):
     env.pop("SDTEST_ADMIN", None)
     env.pop("SSH_CONNECTION", None)
     say("    > pty %s: %s | keys %r" % (account, cmd, keys))
-    s = PtySession([g.SD, "-a" + account], acct_path(account), env, 120, 36)
+    s = PtySession([g.SD, "-a" + account], acct_path(account), env, 140, 42)       # 18 Oct 26: SED is 140 by 42 (it was 120 by 36)
     s.settle(1.0)
     s.type("TERM xterm\r")
-    s.type("TERM 120,36\r")
+    s.type("TERM 140,42\r")
     s.type(cmd + "\r", idle=1.2)
     for k in keys:
         s.type(k, idle=0.7)

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  tio_init(): the display starts at DEFAULT_WIDTH by DEFAULT_DEPTH + 1 (140 by 43, was 120 by 37), from tio.h
  * 16 Oct 26 dm  end_attribute(): @(-6), @(-12), @(-14) and @(-59) use eblink, edim, erev and ebold when the terminfo entry has them
  * 15 Jun 24 mab remove or disable op_ttyset and op_ttyget
  * 31 Dec 23 SD launch - prior history suppressed
@@ -3327,7 +3328,11 @@ bool tio_init() {
   tio.lptr_0.next = NULL;
   tio.lptr_0.unit = 0;
 
-  tio_set_printer(DISPLAY, PRINT_TO_DISPLAY, 37, 120, 0, 0, 0);
+  /* 18 Oct 26 dm - the display before anything is known: DEFAULT_WIDTH wide and one line deeper than DEFAULT_DEPTH (the
+     original text had 37 for 36, and nothing records why).  A console session has it overwritten with DEFAULT_DEPTH in
+     init_console() at once; a phantom or API session keeps it.  The relation is kept.                                  */
+
+  tio_set_printer(DISPLAY, PRINT_TO_DISPLAY, DEFAULT_DEPTH + 1, DEFAULT_WIDTH, 0, 0, 0);
 
   tio_set_printer(0, PRINT_TO_PRINTER, pcfg.lptrhigh, pcfg.lptrwide, 0, 0, 0);
 

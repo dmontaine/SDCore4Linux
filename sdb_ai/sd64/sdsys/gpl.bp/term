@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 18 Oct 26 dm  TERM DEFAULT gives 140 x 42 (DEFAULT.WIDTH and DEFAULT.DEPTH, were 120 x 36).
 * 12 Oct 26 dm  1.2-0 openQM 466: prt.cols and prt.lines set the default printer's
 *               size; the depth check read MAX.WIDTH where it meant MAX.DEPTH.
 * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
@@ -30,7 +31,7 @@
 *    TERM {width} {, lines} {, prt.cols} {, prt.lines} { type}
 *                                    Set to given values
 *    TERM COLOUR {bgc}{,fgc}         Set display colour
-*    TERM DEFAULT                    Set to defaults (120 x 36; the printer is not touched)
+*    TERM DEFAULT                    Set to defaults (140 x 42; the printer is not touched)
 *    TERM DISPLAY                    Display terminfo bindings
 *
 * @SYSTEM.RETURN.CODE
@@ -166,7 +167,7 @@ $include syscom terminfo.h
 * therefore wrapped every standard report.  The constants it should have used
 * are in INT$KEYS.H beside MIN.WIDTH, and LOGIN lines 85 and 90 already use them
 * to size a session that says nothing else, so this now restores exactly what a
-* session starts with: 120 x 36.
+* session starts with: 120 x 36 (140 x 42 since 18 Oct 26, when the two constants changed).
 *
 * (The old line read: depth = if @term.type = 'sdterm' then 25 else 24.  The sdterm case went, and with it
 * the terminal: SD does not support SDTerm.)

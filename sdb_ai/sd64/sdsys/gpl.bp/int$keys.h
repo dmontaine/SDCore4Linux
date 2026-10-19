@@ -21,6 +21,7 @@
 	  * 19 Jan 04  0.6.1 SD launch. Earlier history details suppressed.
 	  * 29 Sep 26 dm  K$SET.LANGUAGE (38) retired: SD is English only.
 	  * 17 Oct 26 dm S.65 slice 1: K$NET (127), the per-account NET gate.
+	  * 18 Oct 26 dm DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36); gplsrc/tio.h has the same two.
 	  * 18 Oct 26 dm S.66: K$SHARED.READ (128), K$SHARED.WRITE (129), K$SHARED.REF (130), K$SHARED.ONCE (131).
 	  * END-HISTORY
       *
@@ -38,10 +39,10 @@
 
       * Screen parameters, also defined in csrc tio.h
       $define MIN.WIDTH           20
-      $define DEFAULT.WIDTH      120
+      $define DEFAULT.WIDTH      140
       $define MAX.WIDTH        32767
       $define MIN.DEPTH           10
-      $define DEFAULT.DEPTH       36
+      $define DEFAULT.DEPTH       42
       $define MAX.DEPTH        32767
 
 

@@ -29,6 +29,15 @@
 * 17 Oct 26 dm  S.64, the edit gates: saving, exporting and deleting a record of a VOC, a dictionary or a program file ask the kernel
 *               (check.edit.file, K$EDIT.OK) and say why in the message line when the session has not the gate.
 * 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
+* 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phases 2 and 4).  SED is laid out for 140 by 42 (was 120 by 36); the
+*               refusal of a smaller window is the library's ($sl_need, message 11197 reworded).  A window made smaller after
+*               SED has started is survived: the window is read at every redraw and while SED waits for a key (read.window), the
+*               upper left corner of the layout is drawn and nothing past the edge (clip.w, clip.h; put.at, put.cursor and the
+*               clip in zoned.update), and while the cursor is off the screen the keys are ignored and a warning is shown
+*               ($sl_guard, from wait.key) until the window is made bigger or the user leaves with Ctrl-Q.
+* 18 Oct 26 dm  $sl_need takes a fifth argument (the debugger's fall-back to line mode); SED passes null, it refuses.
+* 18 Oct 26 dm  Started from the IDE (named common /sedide/, set by the IDE's Ctrl-E): a successful save ends the edit and returns to the IDE,
+*               and the common tells the IDE whether the record was opened for editing (2) or SED stopped on a message first (1).
 * END-HISTORY
 *
 *
@@ -312,19 +321,24 @@ $include sl.h
 
 * Get screen characteristics
 
-   * 13 Oct 26 (owner: "sed should have a default size of 120x36, the sd default terminal size"): SED is laid out for
-   * 120 columns by 36 lines whatever the size of the window, the size it insisted on until 12 Oct and the size SD's own
-   * default page is.  It does not follow a window that is resized (it read the size once and went wrong when the window
-   * changed), and a terminal that says it is smaller than that is refused, since SED would draw off the edge of it.  A
-   * session with no window to ask (a pipe, a phantom) has nothing to refuse.
-   equ SED.COLS to 120
-   equ SED.ROWS to 36
-   ws = kernel(K$WINSIZE, '')
-   if ws # '' then
-      if ws<1> < SED.COLS or ws<2> < SED.ROWS then
-         stop sysmsg(11197, ws<1>, ws<2>)       ;* SED needs a window of at least 120 columns by 36 lines; this one is %1 by %2
-      end
-   end
+   * 13 Oct 26 (owner: "sed should have a default size of 120x36, the sd default terminal size"): SED is laid out for a fixed
+   * number of columns and lines whatever the size of the window.  18 Oct 26 (owner, 14 Oct: the default is 140x42): 140 by 42.
+   * A window that is smaller than that when SED starts is refused ($sl_need: the same check and message every full-screen
+   * program of SD's own uses).  A window made smaller after SED has started shows the upper left corner of the layout: clip.w
+   * by clip.h is the part that shows, read again at every redraw and while SED waits for a key (read.window), and nothing is
+   * drawn outside it (put.at, put.cursor, zoned.update).  While the cursor is off the screen the keys are ignored (wait.key,
+   * $sl_guard).  A window bigger than the layout leaves the rest of it blank.
+   equ SED.COLS to 140
+   equ SED.ROWS to 42
+   call $sl_need('SED', SED.COLS, SED.ROWS, message, '')
+   if message # '' then stop message
+
+   clip.w = SED.COLS                  ;* the part of the layout the window shows (read.window changes it)
+   clip.h = SED.ROWS
+   win.changed = @false               ;* read.window found the window changed and update.screen has not yet drawn it again
+   resize.key = char(255)             ;* what getch hands back when the window changed (nothing the keyboard can send)
+   resize.refresh = @false            ;* the key get.key last returned was the window changing, not a Ctrl-L
+   cur.x = 0 ; cur.y = 0              ;* where SED wants the cursor, in the layout's cells (place.cursor, get.string)
 
    * The top terminal row is the menu bar: every row below is the editor's row 0 up
    screen.lines = SED.ROWS - 1
@@ -361,7 +375,8 @@ $include sl.h
    for mz = 1 to 6
       bar.w<19 + mz> = bar.titles<mz>
    next mz
-   scr<SL.S.W> = screen.width ; scr<SL.S.H> = screen.lines + 1
+   gosub read.window ; win.changed = @false          ;* (the same as the layout, or SED would have been refused)
+   gosub set.scr.size
    call $sl_menu('init', bar.w, scr, '', mz)
 
    last.action = 0
@@ -469,6 +484,15 @@ $include sl.h
    dim refresh(screen.lines + 1)     ;* Refresh this line?
    refresh.file = @true              ;* Refresh file line?
    refresh.other = @false            ;* Refresh "other" window?
+
+   * 18 Oct 26 dm - Part B of the 140x42 plan: the IDE (Ctrl-E) hands a record to SED and takes it back.  It says so in the named common
+   *   /sedide/, which SED reads once and clears, so a SED started any other way is as it always was (nothing on the command line).  From
+   *   the IDE a successful save ENDS the edit, which returns to the IDE with the saved text.  ide.call is 1 while SED is being started, and
+   *   SED makes it 2 once the record is open for editing: the IDE tells from it a SED that stopped on a message (a record locked by someone
+   *   else, a record it may not edit) from one that was used.
+   common /sedide/ ide.call
+   from.ide = (ide.call + 0 = 1)
+   if not(from.ide) then ide.call = 0
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
@@ -948,6 +972,8 @@ edit:
 
    gosub get.current
 
+   if from.ide then ide.call = 2           ;* the record is open for editing (see /sedide/ at the top)
+
    if ext.start.up then   ;* Look for START.UP extension
       key.char = '' ; prefix.count = 1
       ext.name = 'START.UP' ; ext.arg.count = 0 ; gosub run.extension
@@ -961,6 +987,9 @@ edit:
       if not(keyready) then
          gosub update.screen
          gosub place.cursor
+      end else
+         gosub scroll.to.cursor            ;* 18 Oct 26: keys are waiting, so nothing is drawn, but where the cursor is must be known
+         gosub track.cursor
       end
       menu.ok = @true
       gosub mouse.arm                      ;* the terminal is asked for mouse reports only while SED waits for a key
@@ -1205,7 +1234,7 @@ pre.expand.char:
       spos = count(s<1,vpos>, @sm) + 1
       ss[16,18] = '<' : line : ',' : vpos : ',' : spos : '>'
 
-      display @(0, status.line + 1) : bar.attr : ss : attr :
+      pa.x = 0 ; pa.y = status.line + 1 ; pa.s = ss ; pa.a = bar.attr ; gosub put.at
       gosub wait.input
       gosub refresh.status
    end
@@ -1273,9 +1302,9 @@ pre.run:
    goto null.prelude
 
 null.prelude:
-      * Save for macro?
+      * Save for macro?  (Not a refresh that is only the window changing: a macro replays what the user did)
 
-      if collect then
+      if collect and not(resize.refresh) then
          macro<-1> = rpt : @fm : action : @fm : n : macro.qualifiers
       end
 
@@ -1286,6 +1315,7 @@ do.action:    ;* Come here from prelude split if not to save in macro
       last.n = n
 
       gosub action.split           ;* Do the action
+      resize.refresh = @false
       last.low.level.action = action
 
 skip.function:
@@ -1713,6 +1743,7 @@ a.swap.mark:
 * Refresh screen
 
 a.refresh:
+   if resize.refresh then return          ;* 18 Oct 26: the window changed; get.key has cleared the screen, and the cursor line stays where it is
    gosub save.current
    if rpt.set and rpt >= 1 and rpt <= live.height then
       top.line = line - (rpt - 1)
@@ -3951,6 +3982,10 @@ save.record:
 
       gosub get.current
       record.updated = @false
+      * Started from the IDE: the save ends the edit and returns to it - but only when this is the only record SED holds.  With others open
+      *   (Ctrl-O) the end would drop their unsaved edits without a question (the verifier's AA in the IDE's record, lost by a save of BB in the
+      *   second one); SED then goes on as it always does, and the IDE comes back when SED is left.
+      if from.ide and no.of.buffers = 1 then terminate = TERMINATE.ALL
    end else
       s = buffer(current.buffer)
       file.name = s<BUFF.FILE.NAME>
@@ -4041,7 +4076,7 @@ get.string.common:
    gosub zoned.update
    display attr :
 
-   display @(len(prefix), get.line + 1) :
+   pc.x = len(prefix) ; pc.y = get.line + 1 ; gosub put.cursor
 
    gosub get.key
    if action = F.NEWLINE then goto exit.get.string   ;* Use last string
@@ -4157,7 +4192,7 @@ get.string.common:
       gosub zoned.update
       display attr :
 
-      display @(len(prefix) + x - gs.pan, get.line + 1) :
+      pc.x = len(prefix) + x - gs.pan ; pc.y = get.line + 1 ; gosub put.cursor
       gosub get.key
    repeat
 
@@ -4187,6 +4222,8 @@ exit.get.string:
 * UPDATE.SCREEN  -  Update screen image
 
 update.screen:
+   gosub read.window                      ;* 18 Oct 26: the window is looked at every time the screen is drawn
+   if win.changed then gosub apply.window
    if bar.dirty then
       bar.dirty = @false
       call $sl_menu('draw', bar.w, scr, '', mz)
@@ -4199,23 +4236,7 @@ update.screen:
       end
    end
 
-   * Horizontal panning checks
-
-   if col > line.len then pan.col = line.len + 1
-   else pan.col = col
-   if (pan.col < pan) or (pan.col >= (pan + screen.width - lcol)) then
-      pan = (int((pan.col - 1) / PAN.INCREMENT) * PAN.INCREMENT) - 20
-      if pan <= 0 then pan = 1
-      gosub refresh.all
-   end
-
-   * Vertical scrolling checks
-
-   if (line < top.line) or (line >= (top.line + live.height)) then
-      top.line = line - int(live.height / 2)
-      if top.line < 1 then top.line = 1
-      gosub refresh.all
-   end
+   gosub scroll.to.cursor
 
    * Refresh lines that have changed
 
@@ -4230,7 +4251,7 @@ update.screen:
       if refresh(i) then
          if n > lines then
             if image(i) # sw.space or simage(i) # '' then
-               display @(0, ln + 1) : @(-4) :
+               gosub clear.row
                image(i) = sw.space
                simage(i) = ''
             end
@@ -4265,7 +4286,7 @@ update.screen:
             if refresh(i) then
                if n > lines then
                   if image(i) # sw.space or simage(i) # '' then
-                     display @(0, ln + 1) : @(-4) :
+                     gosub clear.row
                      image(i) = sw.space
                      simage(i) = ''
                   end
@@ -4308,7 +4329,7 @@ update.screen:
                i = ln + 1
                if n > other.lines then
                   if image(i) # sw.space then
-                     display @(0, ln + 1) : @(-4) :
+                     gosub clear.row
                      image(i) = sw.space
                   end
                end else
@@ -4344,6 +4365,29 @@ update.screen:
    gosub paint.status.line
 
 exit.update.screen:
+   return
+
+* Pan and scroll so that the cursor is in the layout's text area.  (18 Oct 26: taken out of update.screen, which still runs it
+* first, so that the main loop can find where the cursor will be when keys are waiting and the screen is not drawn.)
+scroll.to.cursor:
+   * Horizontal panning checks
+
+   if col > line.len then pan.col = line.len + 1
+   else pan.col = col
+   if (pan.col < pan) or (pan.col >= (pan + screen.width - lcol)) then
+      pan = (int((pan.col - 1) / PAN.INCREMENT) * PAN.INCREMENT) - 20
+      if pan <= 0 then pan = 1
+      gosub refresh.all
+   end
+
+   * Vertical scrolling checks
+
+   if (line < top.line) or (line >= (top.line + live.height)) then
+      top.line = line - int(live.height / 2)
+      if top.line < 1 then top.line = 1
+      gosub refresh.all
+   end
+
    return
 
 paint.file.line:
@@ -4416,6 +4460,14 @@ paint.status.line:
 * Position cursor
 
 place.cursor:
+   gosub track.cursor
+   gosub put.cursor
+
+   return
+
+* Where the text cursor is, to pc.x and pc.y, without moving the terminal's.  The main loop asks it before it reads a key even
+* when the screen is not drawn (keys are waiting), so that wait.key knows the cursor is off the screen as soon as it is.
+track.cursor:
    if col > line.len then
       cx = (line.len + 1) - pan
       if cx < 0 then cx = 0
@@ -4423,7 +4475,10 @@ place.cursor:
       cx = col - pan
    end
 
-   display @(cx + lcol, live.top + line - top.line + 1) :
+   pc.x = cx + lcol
+   pc.y = live.top + line - top.line + 1
+   cur.x = pc.x
+   cur.y = pc.y
 
    return
 
@@ -4448,6 +4503,7 @@ set.lcol:
 
 zoned.update:
    left = 0
+   if ln + 1 >= clip.h then return        ;* 18 Oct 26: a row the window does not show is not drawn (nor remembered: image is what the terminal has)
    image.line = image(ln + 1)
    text.line = convert(banned, replacements, ss) : sw.space
 
@@ -4456,12 +4512,12 @@ zoned.update:
 *   other window always.  Anything else is drawn in runs of one style.
    if sty # '' or simage(ln + 1) # '' then goto zoned.update.styled
 
-   for cl = 1 to screen.width
+   for cl = 1 to clip.w                   ;* 18 Oct 26: the columns the window shows (screen.width when it shows all of them)
       if text.line[cl,1] # image.line[cl,1] then
          left = cl ; right = cl
          loop
             cl += 1
-         while cl <= screen.width
+         while cl <= clip.w
             if text.line[cl,1] # image.line[cl,1] then right = cl
          repeat
 
@@ -4484,12 +4540,12 @@ zoned.update.styled:
    zs.old = simage(ln + 1)
    if zs.old = '' then zs.old = str('n', screen.width)
    left = 0
-   for cl = 1 to screen.width
+   for cl = 1 to clip.w
       if text.line[cl,1] # image.line[cl,1] or zs.new[cl,1] # zs.old[cl,1] then
          left = cl ; right = cl
          loop
             cl += 1
-         while cl <= screen.width
+         while cl <= clip.w
             if text.line[cl,1] # image.line[cl,1] or zs.new[cl,1] # zs.old[cl,1] then right = cl
          repeat
          exit
@@ -4752,9 +4808,17 @@ get.key:
 
    rpt = 1
    rpt.set = @false
+   resize.refresh = @false
 
    loop
       gosub getch
+
+      if c = resize.key then              ;* 18 Oct 26: the window changed while SED waited, or the cursor lock ended
+         gosub apply.window               ;* the screen is cleared and drawn again; the caller gets a refresh (a.refresh does nothing more)
+         resize.refresh = @true
+         action = F.REFRESH
+         return
+      end
 
 parse.key:
       n = seq(c)
@@ -4785,7 +4849,7 @@ parse.key:
             rpt = c + 0
             gosub update.screen
             loop
-               display bar.attr : @(65, status.line + 1) : (("Repeat " : rpt) "14L") : attr :
+               pa.x = 65 ; pa.y = status.line + 1 ; pa.s = (("Repeat " : rpt) "14L") ; pa.a = bar.attr ; gosub put.at
                gosub place.cursor
                gosub getch
 
@@ -4793,11 +4857,11 @@ parse.key:
                rpt = (rpt * 10) + c
                if rpt > 99999 then
                   display @sys.bell :
-                  display bar.attr : @(65, status.line + 1) : space(14) : attr :
+                  pa.x = 65 ; pa.y = status.line + 1 ; pa.s = space(14) ; pa.a = bar.attr ; gosub put.at
                   goto get.key  ;* Start again
                end
             repeat
-            display bar.attr : @(65, status.line + 1) : space(14) : attr :
+            pa.x = 65 ; pa.y = status.line + 1 ; pa.s = space(14) ; pa.a = bar.attr ; gosub put.at
             rpt.set = @true
             goto parse.key
          end
@@ -4845,7 +4909,7 @@ key.found:
 
       case action = F.QUOTE.CHAR
          action = F.INSERT  ;* For all except K mode below
-         display bar.attr : @(0, file.line + 1) : ("Quote char" swm1.fmt) : attr :
+         pa.x = 0 ; pa.y = file.line + 1 ; pa.s = ("Quote char" swm1.fmt) ; pa.a = bar.attr ; gosub put.at
          gosub place.cursor
 
          gosub getch
@@ -4855,7 +4919,7 @@ key.found:
             case n >= 48 and n <= 50   ;* Digit 0 - 2
                n -= 48
                for i = 1 to 2
-                  display bar.attr : @(11, file.line + 1) : fmt(n, "3'0'R") : attr :
+                  pa.x = 11 ; pa.y = file.line + 1 ; pa.s = fmt(n, "3'0'R") ; pa.a = bar.attr ; gosub put.at
                   gosub place.cursor
                   gosub getch
                while index("0123456789", c, 1)
@@ -4888,7 +4952,7 @@ key.found:
                goto get.key   ;* Start again
          end case
 
-         display bar.attr : @(0, file.line + 1) : swm1.space : attr :
+         pa.x = 0 ; pa.y = file.line + 1 ; pa.s = swm1.space ; pa.a = bar.attr ; gosub put.at
          refresh.file = @true
    end case
 
@@ -4920,10 +4984,55 @@ getch:
       c = pending.char[1,1]
       pending.char = pending.char[2,999999]
    end else
-      c = keyin()
+      gosub wait.key
       if keyin.case.conversion then convert keyin.from to keyin.to in c
    end
    return
+
+*****************************************************************************
+* wait.key  -  The next key from the keyboard, to c (18 Oct 26).  Two things come before it.
+*
+* THE WINDOW CHANGED.  SED waits for a key a second at a time (a session with AUTOLOGOUT waits for the key alone, since a
+* shorter wait would stop AUTOLOGOUT firing, and notices the new size at its next key), and looks at the window each time round.
+* When it is not what it was, c is resize.key, which get.key turns into a redraw.
+*
+* THE CURSOR IS OFF THE SCREEN.  The keys would be typed blind, so $sl_guard takes the keyboard: it ignores every key until
+* the window is bigger or the user leaves with Ctrl-Q (it asks first).  Leaving is the library's own, never SED's prompt, which
+* may be on a row nobody can see.  When the window is big enough again SED draws the whole screen again.
+wait.key:
+   wk.slice = 1
+   if kernel(K$AUTOLOGOUT, -1) then wk.slice = 0
+
+   loop
+      gosub read.window
+      if win.changed and not(keyready()) then      ;* (a key waiting is read first: a key sequence must not be cut in two by the news)
+         c = resize.key
+         return
+      end
+
+      if cur.x >= clip.w or cur.y >= clip.h then
+         call $sl_guard('SED', SED.COLS, SED.ROWS, cur.x, cur.y, wk.result)
+         if wk.result = 'quit' then goto leave.sed
+         gosub read.window
+         win.changed = @true                ;* the guard drew over the screen
+         c = resize.key
+         return
+      end
+
+      if wk.slice then c = keyin(wk.slice) else c = keyin()
+   until c # '' or status() # ER$TIMEOUT
+   repeat
+
+   return
+
+* The user left from the cursor lock: end SED as its own Exit does - the record locks given back, the terminal's modes given
+* back (mouse reports off, the syntax theme), the screen cleared - without asking about changes, since the question was asked
+* in the guard's box, and SED's own may be on a row that cannot be seen.  The gosubs still open are given up by final.exit.
+leave.sed:
+   gosub save.buffer
+   gosub clear.screen
+   gosub exit.edit
+   goto exit.sed
 
 *****************************************************************************
 * Set default key bindings.  The defaults are the ones most editors have (12 Oct 26 dm, owner: "I would
@@ -5283,8 +5392,8 @@ wait.return:
 wait.input:
    if len(pending.char) = 0 then
       gosub place.cursor
-      pending.char = keyin()
-      if keyin.case.conversion then convert keyin.from to keyin.to in pending.char
+      gosub getch                        ;* (18 Oct 26: through wait.key, so that a resize and the cursor lock are seen here too)
+      pending.char = c
    end
 
    return
@@ -5337,12 +5446,12 @@ read.record:
       if len(dict.flag) then full.name = "DICT "
       else full.name = ""
       full.name := file.name : " " : record.name : buffer.comment
-      display bar.attr : @(0, file.line + 1) : ((" " : full.name[1, swm2]) swm1.fmt) : attr
-      display @(0, status.line + 1) : bar.attr : swm1.space : attr :
+      pa.x = 0 ; pa.y = file.line + 1 ; pa.s = ((" " : full.name[1, swm2]) swm1.fmt) ; pa.a = bar.attr ; gosub put.at
+      pa.x = 0 ; pa.y = status.line + 1 ; pa.s = swm1.space ; pa.a = bar.attr ; gosub put.at
 
       * Read record
 
-      display @(0, status.line + 1) : bar.attr : sysmsg(6661) : attr : ;* Reading record...
+      pa.x = 0 ; pa.y = status.line + 1 ; pa.s = sysmsg(6661) ; pa.a = bar.attr ; gosub put.at ;* Reading record...
 
       read.only = @false
       record.locked = @true
@@ -5402,7 +5511,7 @@ read.record:
       gosub get.current
       gosub refresh.all
       gosub update.screen
-      display bar.attr : @(0, status.line + 1) : ((sysmsg(6665) : '  ' : line : "." : col) swm1.fmt) : attr :
+      pa.x = 0 ; pa.y = status.line + 1 ; pa.s = ((sysmsg(6665) : '  ' : line : "." : col) swm1.fmt) ; pa.a = bar.attr ; gosub put.at
       gosub wait.input
    end
 
@@ -6439,7 +6548,8 @@ a.show.buffer.list:
 
    ln = no.of.buffers
    s = str('=', screen.width)
-   display @(0, ln + 1) : s : @(0, file.line + 1) :
+   pa.x = 0 ; pa.y = ln + 1 ; pa.s = s ; pa.a = '' ; gosub put.at
+   pc.x = 0 ; pc.y = file.line + 1 ; gosub put.cursor
    image(ln + 1) = s
 
    selected.buffer = current.buffer
@@ -6506,7 +6616,8 @@ show.buffer.info:    ;* Show information for buffer i
    end
 
    s = fmt(s[1,screen.width], sw.fmt)
-   display @(0, i) : s : @(0, file.line + 1) :
+   pa.x = 0 ; pa.y = i ; pa.s = s ; pa.a = '' ; gosub put.at
+   pc.x = 0 ; pc.y = file.line + 1 ; gosub put.cursor
    image(i) = s
 
    return
@@ -6537,11 +6648,11 @@ error:
    return
 
 file.msg:
-   display bar.attr : @(0, file.line + 1) : (message swm1.fmt) : attr :
+   pa.x = 0 ; pa.y = file.line + 1 ; pa.s = (message swm1.fmt) ; pa.a = bar.attr ; gosub put.at
    return
 
 status.msg:
-   display bar.attr : @(0, status.line + 1) : (message swm1.fmt) : attr :
+   pa.x = 0 ; pa.y = status.line + 1 ; pa.s = (message swm1.fmt) ; pa.a = bar.attr ; gosub put.at
    return
 
 *****************************************************************************
@@ -6812,15 +6923,68 @@ build.scr:
    * The screen context for the library: what is on the screen (row r of the terminal is
    * value r + 1; the editor's own row r is the terminal's row r + 1) and which rows are reverse
    scr = ''
-   scr<SL.S.W> = screen.width
-   scr<SL.S.H> = screen.lines + 1
-   scr<SL.S.CLIP> = 0 : @vm : 0 : @vm : screen.width - 1 : @vm : screen.lines
+   gosub set.scr.size
    for mz = 0 to screen.lines - 1
       scr<SL.S.SHADOW, mz + 2> = convert(@fm : @vm : @sm : @tm : char(255), '.....', image(mz + 1))
       if mz = file.line or mz = status.line or (split.window and mz = split.line - 1) then
          scr<SL.S.RATTR, mz + 2> = 'R'
       end
    next mz
+   return
+
+* The library draws, centres its boxes and clips to the size of the screen context: the part of the layout the window shows
+set.scr.size:
+   scr<SL.S.W> = clip.w
+   scr<SL.S.H> = clip.h
+   scr<SL.S.CLIP> = 0 : @vm : 0 : @vm : clip.w - 1 : @vm : clip.h - 1
+   return
+
+*****************************************************************************
+* THE WINDOW (18 Oct 26).  SED is laid out for SED.COLS by SED.ROWS.  A window that is smaller than that when SED starts is
+* refused; one that is made smaller afterwards shows the upper left corner of the layout (clip.w by clip.h) and nothing else
+* is drawn.  Where the cursor is matters: with it off the screen the user would type blind, so wait.key hands the keyboard to
+* $sl_guard, which ignores every key until the window is big enough or the user leaves with Ctrl-Q.
+
+* The part of the layout the window shows, now.  win.changed is set when it is not what it was; update.screen (or get.key, for a
+* resize that came while SED waited) draws the whole screen again and clears it.
+read.window:
+   call $sl_window(rw.w, rw.h)
+   if rw.w > SED.COLS then rw.w = SED.COLS
+   if rw.h > SED.ROWS then rw.h = SED.ROWS
+   if rw.w # clip.w or rw.h # clip.h then
+      clip.w = rw.w
+      clip.h = rw.h
+      win.changed = @true
+   end
+   return
+
+* The window changed: what is on the terminal is not what SED believes, so SED forgets what it drew and draws it all again
+apply.window:
+   win.changed = @false
+   gosub set.scr.size
+   gosub clear.screen
+   mat simage = ''
+   gosub refresh.all
+   return
+
+* Text (plain, no escape sequences) at column pa.x of terminal row pa.y in attribute pa.a (null: the one SED is in), cut at the
+* edge of the part of the layout the window shows.  @(x, y) outside the window puts the cursor nowhere, or on a row of its own, so
+* text there would land in the wrong place.
+put.at:
+   if pa.y >= clip.h or pa.x >= clip.w then return
+   display pa.a : @(pa.x, pa.y) : pa.s[1, clip.w - pa.x] : attr :
+   return
+
+* Row ln of the editor (terminal row ln + 1) blank from its left edge, if the window shows it
+clear.row:
+   if ln + 1 < clip.h then display @(0, ln + 1) : @(-4) :
+   return
+
+* The terminal's cursor to column pc.x of row pc.y, and a note of where SED wants it (wait.key asks whether it can be seen)
+put.cursor:
+   cur.x = pc.x
+   cur.y = pc.y
+   if pc.x < clip.w and pc.y < clip.h then display @(pc.x, pc.y) :
    return
 
 add.item:
@@ -7510,7 +7674,7 @@ ext.command:
          printer off
          printer close
 
-         display @(0, status.line + 1) : bar.attr : swm1.space : attr :
+         pa.x = 0 ; pa.y = status.line + 1 ; pa.s = swm1.space ; pa.a = bar.attr ; gosub put.at
 
       case c = 'STAMP'
          if read.only then

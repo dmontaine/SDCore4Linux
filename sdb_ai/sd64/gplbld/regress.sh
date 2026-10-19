@@ -122,6 +122,12 @@
 # 18 Oct 26 dm  req29 added (API request 29, vb.open.sdnet, a real `sd -Q` server on pipes: with NETFILES bit 2 set it opened the file of an account the
 #               caller may not LOGTO, a suspended one, one named by a path, one with the NET gate off, and under SDCLIENT=1; 16 rows, 5 red on the tree
 #               before, the evidence the planted record read back from the disk).
+# 18 Oct 26 dm  ide-sed added (Part B of the 140x42 plan: Ctrl-E in the IDE hands the record to SED, SED's save returns with the new text, leaving
+#               without saving returns unchanged, a changed buffer is saved first or the hand-over cancelled, the Go menu entry, End still ends a row,
+#               a record locked by someone else opens read only; 26 rows on one pseudo-terminal).
+# 18 Oct 26 dm  winsize, sed-small and ide-small added (the 140 by 42 terminal work: winsize is the default size of a session with no terminal and the
+#               TERM answers, 42 rows; sed-small is SED refusing below 140 by 42, surviving a shrink and the cursor guard, 104 rows, pty-bound, about 4
+#               minutes; ide-small is the same for the IDE, CED and the debugger's line-mode fallback, 154 rows, with mutants named in its header).
 # 18 Oct 26 dm  qm4def added (two defects the QM4 evaluation noticed, reproduced and fixed: a user conversion code reaching a $ program, a print
 #               unit's SPOOLER string run through system() by an ordinary account; 13 rows on a private SD, 4 of them red on the tree before the fix).
 # 18 Oct 26 dm  shared (the shared account, S.66: a group account named shared whose files an account with the shared.read gate opens by NAME with no
@@ -138,7 +144,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient edseqkey sdfixseq fcontrol selectv-mode listf-mult q5 restricted dbgequ cll xml stacked prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype callfile editgates net netfile qm4def shared viewport crypt tools req29"
+ALL_SUITES="screen ide ced sed-menu sed-edit sed-small ide-small ide-sed winsize syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient edseqkey sdfixseq fcontrol selectv-mode listf-mult q5 restricted dbgequ cll xml stacked prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype callfile editgates net netfile qm4def shared viewport crypt tools req29"
 
 ONLY=""
 SKIP=""

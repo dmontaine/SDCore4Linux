@@ -72,7 +72,7 @@ def sess(box, *cmds):
 class Ide:
     """One run of the IDE on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd="IDE", cols=120, rows=36, utf8=False):
+    def __init__(self, box, cmd="IDE", cols=140, rows=42, utf8=False, term=None):
         self.box = box
         # the locale decides whether the IDE draws its borders with line-drawing characters, so every run sets it:
         # C (plain + - |) unless the row is about UTF-8
@@ -81,7 +81,7 @@ class Ide:
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows, utf8=utf8)
         self.s.settle(1.0)
         self.s.type("TERM xterm\r")
-        self.s.type("TERM %d,%d\r" % (cols, rows))
+        self.s.type("TERM %s\r" % (term or "%d,%d" % (cols, rows)))        # term: a display that is not the window (19 Oct 26, verifier F4)
         self.log = [cmd]
         self.s.type(cmd + "\r", idle=1.2)
 
@@ -117,6 +117,36 @@ def has(L, *words):
     return all(w in t for w in words)
 
 
+CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z])")
+
+
+def cells_written(raw):
+    """(cells, rows): how many cells the bytes write to the screen and the set of rows they touch (0-based), from the cursor
+    positions and the printable text after each.  A screen of 140 by 42 is 5880 cells."""
+    s = raw.decode("latin-1")
+    n = 0
+    rows = set()
+    r = c = 0
+    pos = 0
+    for m in CSI.finditer(s):
+        txt = re.sub(r"[\x00-\x1f]", "", s[pos:m.start()])
+        if txt:
+            n += len(txt)
+            rows.add(r)
+            c += len(txt)
+        pos = m.end()
+        if m.group(2) == "H":
+            p = m.group(1).split(";")
+            r = int(p[0] or 1) - 1
+            c = int(p[1] or 1) - 1 if len(p) > 1 else 0
+    return n, rows
+
+
+def click(x, y):
+    """A left click and its release at the cell x, y (0-based) in the SGR mouse form."""
+    return "\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x + 1, y + 1, x + 1, y + 1)
+
+
 def rec_text(box, rid):
     """The record rid of the bp file, as the account sees it (CT through a pipe session)."""
     out = sess(box, "CT bp %s" % rid)
@@ -142,15 +172,22 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    A, B, C, D = ("zzi%s%s" % (RUN, c) for c in "abcd")   # a program with an error, a good one, a text with words, a spare
+    A, B, C, D, E, G = ("zzi%s%s" % (RUN, c) for c in "abcdeg")   # a program with an error, a good one, a text with words, a spare, a long line, 25,000 lines
     fixture = """   open 'bp' to f else stop 'no bp'
+   s = ''
+   for i = 1 to 25000
+      s := 'line ' : i : ' ' : str('x', 40) : @fm
+   next i
+   s = s[1, len(s) - 1]
+   write s on f, '%(g)s'
+   write str('0123456789', 25):@fm:'short' on f, '%(e)s'
    write 'crt "one"':@fm:'x = = 1':@fm:'crt "three"':@fm:'end' on f, '%(a)s'
    write 'crt "IDE-RAN-OK"':@fm:'end' on f, '%(b)s'
    write 'alpha':@fm:'the needle is here':@fm:'beta':@fm:'another NEEDLE line':@fm:'gamma' on f, '%(c)s'
    write 'first':@fm:'second':@fm:'third':@fm:'fourth' on f, '%(d)s'
    crt 'FIXTURE DONE'
 end
-""" % {"a": A, "b": B, "c": C, "d": D}
+""" % {"a": A, "b": B, "c": C, "d": D, "e": E, "g": G}
     fix = "zzifx" + RUN
     with open(os.path.join(sysd, "bp", fix), "w") as fh:
         fh.write(fixture)
@@ -390,16 +427,29 @@ end
 
         # ---- the window follows the terminal ------------------------------------------------------------------------
         say("\n--- the window --------------------------------------------------------------------------------------------")
+        # 18 Oct 26 (terminal 140 by 42): the IDE is laid out for at least 140 by 42 and a window that becomes smaller shows the upper left
+        # corner of that layout; sandbox-ide-small.py has the rows for the refusal, the shrink and the cursor lock.
         e = Ide(box, "IDE bp %s" % B)
+        row("at 140 by 42 the form's frame ends on the row before the status line (row 40) and the status line is the last row",
+            re.match(r"^\+-+\+$", e.lines()[40].strip()) is not None and ("bp %s" % B) in e.status(), "\n".join(e.lines()[38:42]))
         e.s.resize(100, 30, idle=1.5)
+        time.sleep(1.8)
+        e.s.settle(0.8)
         L = e.lines()
-        row("a resize to 100 by 30 lays the screen out again: the form's frame ends on the row before the status line",
-            re.match(r"^\+-+\+$", L[28].strip()) is not None or any(re.match(r"^\+-+\+$", l.strip()) for l in L[26:30]), "\n".join(L[24:30]))
-        row("...and the record is still there", ("bp %s" % B) in e.status() or ("bp %s" % B) in "\n".join(L[-3:]), "\n".join(L[-3:]))
+        row("a resize to 100 by 30 shows the upper left corner of the same layout: the menu bar and the frame's top, no row wider than 100",
+            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and max(len(l) for l in L) <= 100, "\n".join(l[:60] for l in L[:3]))
+        row("...the record is still open in its tab", "[%s]" % B in L[2], L[2])
+        e.s.resize(160, 50, idle=1.5)
+        time.sleep(1.8)
+        e.s.settle(0.8)
+        L = e.lines()
+        row("a resize to 160 by 50 makes the layout the window's: the frame is 160 wide and the status line is the last row (49)",
+            len(L[1].rstrip()) == 160 and ("bp %s" % B) in L[49], repr(L[1][-6:]) + repr(L[49][:30]))
         e.end()
         e = Ide(box, "IDE", cols=50, rows=12)
-        row("a terminal smaller than 60 by 16 is refused with a message",
-            "needs a terminal of at least 60 columns by 16 lines" in " ".join(e.text().split()), e.text()[:300])
+        row("a terminal smaller than 140 by 42 is refused with the library's message, and nothing is drawn",
+            "".join("IDE needs a window of at least 140 columns by 42 lines; this one is 50 by 12".split()) in "".join(e.text().split())   # the message wraps at column 50
+            and not re.search(r"File\s+Go\s+Search", e.lines()[0]), e.text()[:300])
         e.end()
 
         # ---- a record somebody else changed ---------------------------------------------------------------------------
@@ -419,6 +469,103 @@ end
         L = e.keys(ESC)
         row("Cancel leaves the disk as the other session made it", "other" in rec_text(box, D) and "Qfirst" not in rec_text(box, D), "")
         e.keys(CTRL_Q, DOWN, RET)
+        e.end()
+
+        # ---- the owner's three reports, 18 Oct 26: no cursor at the start, the whole screen flashing at each record, no horizontal bar ----
+        say("\n--- the cursor, what choosing a record writes, and the horizontal bar ----------------------------------------")
+        e = Ide(box)
+        scr = e.s.screen
+        row("started with no record: the cursor is shown, on the tree (left of the editor), not at the end of the status row",
+            scr.cursor_visible and 2 <= scr.r <= 39 and scr.c < 28, repr((scr.r, scr.c, scr.cursor_visible)))
+        at = (scr.r, scr.c)
+        m = len(e.s.raw)
+        e.quiet()
+        e.quiet()
+        idle = len(e.s.raw) - m
+        row("an idle IDE writes next to nothing: %d bytes in 3 seconds (it wrote the whole status line ten times a second)" % idle, idle < 400, repr(idle))
+        row("...and the cursor has not moved", (scr.r, scr.c) == at, "%r then %r" % (at, (scr.r, scr.c)))
+
+        e.keys("b", RET)                                  # the file's records are listed under it
+        e.keys("z", RET)                                  # the first of the fixture's records opens (A)
+        e.keys(F3)                                        # back to the tree
+        e.keys(DOWN)                                      # the record after A
+        m = len(e.s.raw)
+        L = e.keys(RET)                                   # ... opens in a second tab
+        raw = bytes(e.s.raw[m:])
+        n, rws = cells_written(raw)
+        row("the second record is open in its own tab, and the cursor is shown in the editor", has(L[2:3], A, B) and scr.cursor_visible and scr.c >= 29,
+            "%s | cursor %r" % (L[2][:80], (scr.r, scr.c, scr.cursor_visible)))
+        row("choosing it writes less than one screen's worth of cells (%d of the screen's 5880; it wrote 14800 when it drew the form three times)" % n,
+            n < 5880, repr(n))
+        row("...nothing in the menu bar or the form's title row (rows 1 and 2), and no clear-screen", not (rws & {0, 1}) and b"\x1b[2J" not in raw, repr(sorted(rws))[:80])
+        m = len(e.s.raw)
+        L = e.keys(F6)                                    # the other tab
+        n, rws = cells_written(bytes(e.s.raw[m:]))
+        row("F6, to the other tab, writes under one screen's worth too (%d cells) and leaves the title row alone" % n, n < 5880 and 1 not in rws, repr((n, sorted(rws))))
+        m = len(e.s.raw)
+        e.keys(F3)
+        n, rws = cells_written(bytes(e.s.raw[m:]))
+        row("F3 puts the cursor on the tree at once (SCREEN FOCUS alone moves a pointer and draws nothing)", scr.cursor_visible and scr.c < 28 and 2 <= scr.r <= 39,
+            repr((scr.r, scr.c, scr.cursor_visible)))
+        row("...and F3 draws only the two widgets that change (%d cells; the editor and the tree), not the form" % n, n < 5880 and not (rws & {0, 1}), repr((n, sorted(rws))))
+        e.end()
+
+        e = Ide(box, "IDE bp %s" % A)
+        L = e.lines()
+        bars = [i for i, l in enumerate(L) if re.search(r"<[#-]+>", l)]
+        row("the cursor is shown in the editor of a record opened from the command line", e.s.screen.cursor_visible and e.s.screen.c >= 29,
+            repr((e.s.screen.r, e.s.screen.c, e.s.screen.cursor_visible)))
+        row("a record whose lines all fit has the bar, with no thumb on it (nothing to scroll sideways)", len(bars) == 1 and "#" not in L[bars[0]],
+            "\n".join(l[:60] for l in L[28:36]))
+        m = len(e.s.raw)
+        e.keys("\x1b[24~")                                # F12: neither the editor's nor the IDE's, so nothing changes and nothing is drawn
+        e.quiet()
+        n, _ = cells_written(bytes(e.s.raw[m:]))
+        row("a key that neither the editor nor the IDE uses draws nothing (%d cells; the editor drew all its rows again for it)" % n, n < 300, repr(n))
+        e.end()
+
+        e = Ide(box, "IDE bp %s" % E)
+        L = e.lines()
+        bars = [i for i, l in enumerate(L) if re.search(r"<[#-]+>", l)]
+        row("a record with a 250-character line has the bar under the text, with a thumb", len(bars) == 1 and "#" in L[bars[0]], "\n".join(l[:70] for l in L[28:36]))
+        if len(bars) == 1:
+            br = bars[0]
+            t0 = L[br].index("#")
+            row("...the text area is one row shorter: the bar is the row under the last line shown and the table's heading is below it",
+                "Messages" in L[br + 1], "\n".join(l[:70] for l in L[br - 1:br + 3]))
+            L = e.keys(END)
+            t1 = L[br].index("#") if "#" in L[br] else -1
+            row("End on the long line moves the thumb to the right (%d to %d)" % (t0, t1), t1 > t0, L[br][:140])
+            L = e.keys(HOME)
+            row("Home brings it back to the left", "#" in L[br] and L[br].index("#") == t0, L[br][:140])
+            right = L[br].rindex(">")
+            L = e.keys(click(right, br))
+            row("a click on the right arrow scrolls the text sideways (the thumb moves right)", "#" in L[br] and L[br].index("#") > t0, L[br][:140])
+            L = e.keys(click(L[br].index("<"), br))
+            row("a click on the left arrow scrolls it back", "#" in L[br] and L[br].index("#") == t0, L[br][:140])
+        e.end()
+
+        # ---- the independent verifier's findings, 19 Oct 26 --------------------------------------------------------------------------
+        say("\n--- a record of 25,000 lines, and a display bigger than the window -----------------------------------------------")
+        e = Ide(box, "IDE bp %s" % G)
+        e.quiet()
+        row("control: a record of 25,000 lines opens (its first line is on the screen, the bar is under it)", "line 1 xxxx" in e.lines()[3], e.lines()[3][:80])
+        t0 = time.time()
+        e.s.type("x" * 40, idle=0.05)
+        while time.time() - t0 < 25:
+            e.s.settle(0.05)
+            if ("x" * 40 + "line 1") in e.lines()[3]:
+                break
+        took = time.time() - t0
+        row("40 typed characters in it show in %.2f s (the horizontal bar measured the whole text at every key: 3.5 s; without a bar 0.2 s)" % took,
+            ("x" * 40 + "line 1") in e.lines()[3] and took < 1.5, e.lines()[3][:80])
+        e.end()
+
+        e = Ide(box, "IDE bp %s" % A, term="200,60")
+        L = e.lines()
+        row("a display of 200 by 60 on a window of 140 by 42 (TERM 200,60): the IDE is laid out for the window - menu bar on row 0, title on row 1, status line on the last row",
+            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[41],
+            "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41])))
         e.end()
     finally:
         pass

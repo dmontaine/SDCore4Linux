@@ -10,6 +10,9 @@
 #
 # START-HISTORY:
 # 12 Oct 26 dm  Written with CED (gpl.bp/ced, ced_edit, ced_sub), from the keys on the openQM pages for CED and !CED().
+# 18 Oct 26 dm  The window is 140 by 42 (CED is laid out for it and refuses a smaller one, plan-terminal-140x42.md phase 3): the default
+#               size of Ced(), the width at which the scroll bar is cut off, the page of 37 elements, and the piped session that
+#               ends its input.  The refusal, the shrink and the cursor lock are sandbox-ide-small.py's.
 # END-HISTORY
 #
 # HOW IT DRIVES THE EDITOR.  On a PSEUDO-TERMINAL (ptydrive.py), not a pipe: SD reads a piped stdin a byte at a time
@@ -82,7 +85,7 @@ def sess(box, *cmds):
 class Ced:
     """One run of a command on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd, cols=100, rows=30, pre=()):
+    def __init__(self, box, cmd, cols=140, rows=42, pre=()):
         self.box = box
         self.cols = cols
         self.rows = rows
@@ -122,8 +125,8 @@ def elements(lines):
     for l in lines[2:]:
         if l.startswith("Path:"):
             break
-        if len(l) >= 100:
-            l = l[:99]                    # the table's scroll bar is the last column (^ | # v), not part of a value
+        if len(l) >= 140:
+            l = l[:139]                   # the table's scroll bar is the last column (^ | # v), not part of a value
         m = re.match(r"^([> ]) ?(\S+)\s+(string|number|boolean|null|collection|array|\?)\s*(.*?)\s*$", l)
         if m:
             out.append(m.groups())
@@ -349,12 +352,12 @@ end
 
         # ---- paging ---------------------------------------------------------------------------------------
         say("\n--- paging ---------------------------------------------------------------------------------------")
-        e = Ced(box, "CED %s big" % C, rows=12)
+        e = Ced(box, "CED %s big" % C)
         L = e.lines()
         per = len(names(L))
-        row("a window of 12 lines shows 7 elements at a time", per == 7 and nth(names(L), 0) == "k01", repr(names(L)))
+        row("a window of 42 lines shows 37 elements at a time", per == 37 and nth(names(L), 0) == "k01", repr(names(L)))
         L = e.keys(PGDN)
-        row("Page down moves to the next page", nth(names(L), 0) == "k08" and selected(L) == "k08", "%r %r" % (names(L)[:2], selected(L)))
+        row("Page down moves to the next page", nth(names(L), 0) == "k38" and selected(L) == "k38", "%r %r" % (names(L)[:2], selected(L)))
         L = e.keys(PGUP)
         row("Page up moves back", nth(names(L), 0) == "k01" and selected(L) == "k01", "%r %r" % (names(L)[:2], selected(L)))
         L = e.keys(END)
@@ -698,7 +701,7 @@ end
         e.s.type("PTERM DISPLAY\r", idle=0.8)
         row("after the editor the break key is trapped again (PTERM shows Break trapping: On)", ran and "Break trapping: On" in e.text(), e.text()[-300:])
         e.end()
-        p = subprocess.run([os.path.join(sysd, "bin", "sd")], input=("\nTERM 100,20\nCED %s e38\n" % C).encode(), cwd=os.path.join(box, "user_accounts"),
+        p = subprocess.run([os.path.join(sysd, "bin", "sd")], input=("\nTERM 140,42\nCED %s e38\n" % C).encode(), cwd=os.path.join(box, "user_accounts"),
                            env=dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf")), capture_output=True, timeout=90)
         row("when its input ends (a pipe, a dropped line) the editor gives up and the session ends: it does not loop",
             p.returncode == 0 and b"Collection editor" in p.stdout, "exit %s, editor drawn: %s" % (p.returncode, b"Collection editor" in p.stdout))

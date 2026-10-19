@@ -13,6 +13,9 @@
 # 13 Oct 26 dm  Written when the debugger's drawing moved onto the screen library (owner: "use the TUI on ced and
 #               debugger").  The debugger's own command-by-command suite is sandbox-dbgcoll.py, which has no terminal and
 #               so never reaches the full-screen code.
+# 18 Oct 26 dm  The window is 140 by 42 (the full-screen display is laid out for it and uses line mode below it, plan-terminal-140x42.md
+#               phase 3): the size of Term(), and every row number that follows from it (the command line is row 41, the data area
+#               rows 36 to 40).  The line mode, the shrink and the cursor lock are sandbox-ide-small.py's.
 # END-HISTORY
 #
 # HOW IT DRIVES THE DEBUGGER.  A program compiled with BASIC ... DEBUGGING and holding a DEBUG statement is run on a
@@ -74,7 +77,7 @@ def sess(box, *cmds):
 
 
 class Term:
-    def __init__(self, box, cmd, cols=100, rows=30):
+    def __init__(self, box, cmd, cols=140, rows=42):
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm")
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows)
         self.s.settle(1.5)
@@ -147,35 +150,34 @@ def main():
             r3 is not None and t.style(r3, 10) != t.style(r3 - 1, 10) and t.style(r3, 10)[1] == 2, repr((r3, t.style(r3 or 0, 10), t.style((r3 or 1) - 1, 10))))
         row("the source is white on blue (the 'text' style)", sr is not None and t.style(sr[0] - 1, 10)[1] == 4, repr(t.style((sr or (1, 0))[0] - 1, 10)))
         last = max(i for i, l in enumerate(L) if l.strip())
-        cl = 28                                         # the command line: the last row but one is the data area's last
         row("the command line is on the last row, with the > prompt, in the bar style",
-            L[29].startswith(">") and t.style(29, 0)[:2] == (0, 7), repr((L[29], t.style(29, 0))))
+            L[41].startswith(">") and t.style(41, 0)[:2] == (0, 7), repr((L[41], t.style(41, 0))))
 
         say("\n--- commands ------------------------------------------------------------------------------------------")
         L = t.keys("/s", RET)
-        row("a variable's value appears in the data area, above the command line", any("String (5 bytes)" in l and "plain" in l for l in L[22:29]), "\n".join(L[22:30]))
-        row("...and the command typed is echoed there with its prompt", any(l.startswith(">/s") for l in L[22:29]), "\n".join(L[22:30]))
+        row("a variable's value appears in the data area, above the command line", any("String (5 bytes)" in l and "plain" in l for l in L[34:41]), "\n".join(L[34:42]))
+        row("...and the command typed is echoed there with its prompt", any(l.startswith(">/s") for l in L[34:41]), "\n".join(L[34:42]))
         # 16 Oct 26: QM4 Fixes 550 (the ^ command) and 193 (WINDOW n)
         L = t.keys("/t", RET)
-        row("550: CONTROL: a tab in a string is shown as ?", any('String (3 bytes): "a?b"' in l for l in L[22:29]), "\n".join(L[22:30]))
+        row("550: CONTROL: a tab in a string is shown as ?", any('String (3 bytes): "a?b"' in l for l in L[34:41]), "\n".join(L[34:42]))
         L = t.keys("^", RET)
-        row("550: ^ says the characters are now shown as ^nnn", any("Non-printing characters are shown as ^nnn" in l for l in L[22:29]), "\n".join(L[22:30]))
+        row("550: ^ says the characters are now shown as ^nnn", any("Non-printing characters are shown as ^nnn" in l for l in L[34:41]), "\n".join(L[34:42]))
         L = t.keys("/t", RET)
-        row("550: ... and the tab is shown as ^9, the length still 3", any('String (3 bytes): "a^9b"' in l for l in L[22:29]), "\n".join(L[22:30]))
+        row("550: ... and the tab is shown as ^9, the length still 3", any('String (3 bytes): "a^9b"' in l for l in L[34:41]), "\n".join(L[34:42]))
         L = t.keys("^", RET, "/t", RET)
-        row("550: a second ^ puts the ? back", any('String (3 bytes): "a?b"' in l for l in L[22:29]), "\n".join(L[22:30]))
-        before = t.style(20, 0)[:2]
+        row("550: a second ^ puts the ? back", any('String (3 bytes): "a?b"' in l for l in L[34:41]), "\n".join(L[34:42]))
+        before = t.style(31, 0)[:2]
         L = t.keys("window 10", RET)
-        row("193: CONTROL: with the usual 5 rows, row 20 was source (white on blue)", before == (7, 4) or before[1] == 4, repr(before))
-        row("193: WINDOW 10 makes the data area ten rows: row 20 is now in the command style (black on white)", t.style(20, 0)[:2] == (0, 7), repr(t.style(20, 0)))
-        row("193: ... the command line is still the last row", L[29].startswith(">"), repr(L[29]))
+        row("193: CONTROL: with the usual 5 rows, row 31 was source (white on blue)", before == (7, 4) or before[1] == 4, repr(before))
+        row("193: WINDOW 10 makes the data area ten rows: row 31 is now in the command style (black on white)", t.style(31, 0)[:2] == (0, 7), repr(t.style(31, 0)))
+        row("193: ... the command line is still the last row", L[41].startswith(">"), repr(L[41]))
         L = t.keys("/s", RET)
-        row("193: ... and a value shows in the larger area", any("String (5 bytes)" in l and "plain" in l for l in L[19:29]), "\n".join(L[18:30]))
-        row("193: ... the source is still shown above it", any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L[1:19]), "\n".join(L[:6]))
+        row("193: ... and a value shows in the larger area", any("String (5 bytes)" in l and "plain" in l for l in L[31:41]), "\n".join(L[30:42]))
+        row("193: ... the source is still shown above it", any(re.match(r"^\s*1:\s+s = 'plain'", l) for l in L[1:31]), "\n".join(L[:6]))
         L = t.keys("window 3", RET)
-        row("193: WINDOW 3 is refused with the message of the range", any("The data area must be 5 to 15 lines" in l for l in L[19:29]), "\n".join(L[19:30]))
+        row("193: WINDOW 3 is refused with the message of the range", any("The data area must be 5 to 15 lines" in l for l in L[31:41]), "\n".join(L[31:42]))
         L = t.keys("window 5", RET, "/s", RET)
-        row("193: WINDOW 5 puts it back: row 20 is source again", t.style(20, 0)[1] == 4, repr(t.style(20, 0)))
+        row("193: WINDOW 5 puts it back: row 31 is source again", t.style(31, 0)[1] == 4, repr(t.style(31, 0)))
         L = t.keys("brk 5", RET)
         r5 = next((i for i, l in enumerate(L) if re.match(r"^\s*5: ", l)), None)
         r6 = next((i for i, l in enumerate(L) if re.match(r"^\s*6: ", l)), None)
@@ -189,7 +191,7 @@ def main():
         L = t.keys(F1)
         row("F1 shows the help in a box with an OK button, over the debugger's screen", "[ OK ]" in "\n".join(L), "\n".join(L[:20]))
         L = t.keys(RET)
-        row("Return closes it: the source and the command line are back", "[ OK ]" not in "\n".join(L) and L[29].startswith(">"), "\n".join(L[:4] + L[28:30]))
+        row("Return closes it: the source and the command line are back", "[ OK ]" not in "\n".join(L) and L[41].startswith(">"), "\n".join(L[:4] + L[40:42]))
 
         say("\n--- leaving ------------------------------------------------------------------------------------------")
         L = t.keys("r", RET, idle=1.0)
