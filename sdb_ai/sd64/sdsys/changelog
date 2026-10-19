@@ -1,6 +1,16 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE IDE SHOWS WHICH PANE IS ACTIVE WITH A [*] OR [-] IN ITS TOP RIGHT CORNER.
+
+             What        Each pane that can have the keyboard now carries a small mark in its top right corner: [*] on the one that has it and
+                        [-] on the other three. The four are the files (on the frame above the tree), the editor (on the frame above it), the tab
+                        strip (at the right end of the strip) and the messages (at the right end of their bar), and Tab moves the [*] round them
+                        in that order. Only the two marks that change are drawn again.
+             Why it      A keyboard user pressing Tab could not tell where the keys would go. The status line names the pane and the editor
+                        highlights its cursor, but a mark on the pane itself is what the eye finds first.
+             Does not    It is not clickable, and it does not change the Tab order or what any key does.
+
 19 Oct 26  THE IDE: CHOOSING A RECORD OR A FILE NO LONGER FLASHES THE WHOLE SCREEN, A CLICK ON THE MENU BAR OPENS THE MENU, THE PANE WITH THE FOCUS IS NAMED, AND THE EDITOR SHOWS ITS CURSOR.
 
              What        Four reports from using the IDE. (1) Every choice in the tree wrote every widget again - a file wrote 3,078 characters to the

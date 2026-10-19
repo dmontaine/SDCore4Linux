@@ -91,6 +91,27 @@ def cells(runs):
     return sum(n for _r, _c, n in runs)
 
 
+def panes_state(L):
+    """{pane: text} for the four [*] / [-] indicators on the screen lines L, found by where they are (the top border above the tree, the border above
+    the editor, the right end of the tab strip, the right end of the messages bar); a pane with none or two is left out of the answer or marked '??'."""
+    found = {}
+    for r, line in enumerate(L):
+        for m in re.finditer(r"\[[*-]\]", line):
+            c = m.start()
+            if r == 1 and c < 28:
+                key = "tree"
+            elif r == 1 and c >= 100:
+                key = "ed"
+            elif r == 2 and c >= 100:
+                key = "tabs"
+            elif r >= 30 and c >= 100:
+                key = "err"
+            else:
+                continue
+            found[key] = "??" if key in found else m.group(0)
+    return found
+
+
 def tree_cells(runs):
     """Cells written in the tree's columns (the tree is the left 28), below the menu bar and the title, above the status line."""
     return sum(n for r, c, n in runs if c < 28 and 2 <= r <= 39)
@@ -224,6 +245,50 @@ end
         e.keys(sb.F3)
         e.quiet()
         row("F3 moves the focus to the tree and the line says [Files]", e.status().startswith("[Files]") and A in e.status(), e.status())
+        e.end()
+
+        # ---- (3b) a [*] / [-] indicator in the top right corner of each pane -------------------------------------------------------
+        say("\n--- (3b) the indicators: [*] on the pane that has the focus, [-] on the others -------------------------------------")
+        # The owner's request, later the same day: "a small visual indicator in the top right corner of each pane to indicate that it is active:
+        # [-] for off, [*] for on".  Four panes can have the focus (Tab goes round them): the files, the tab strip, the editor, the messages.
+        e = sb.Ide(box)
+        ps = panes_state(e.lines())
+        row("at the start there is an indicator in each of the four panes: %s" % ps, sorted(ps) == ["ed", "err", "tabs", "tree"] and "??" not in ps.values(), repr(ps))
+        row("...[*] on the files (they have the focus) and [-] on the other three",
+            ps.get("tree") == "[*]" and [ps.get(k) for k in ("tabs", "ed", "err")] == ["[-]"] * 3, repr(ps))
+        order = []
+        for _ in range(4):
+            e.keys(sb.TAB)
+            e.quiet()
+            ps = panes_state(e.lines())
+            on = [k for k, v in ps.items() if v == "[*]"]
+            order.append(on[0] if len(on) == 1 and len(ps) == 4 else "BAD:" + repr(ps))
+        row("Tab moves the [*] round the panes, one at a time: %s" % order, order == ["tabs", "ed", "err", "tree"], repr(order))
+        e.keys(sb.F10)
+        e.keys(sb.RIGHT)
+        e.keys(sb.ESC)
+        e.quiet()
+        ps = panes_state(e.lines())
+        row("after a menu has been opened and closed over the bar the four are as they were", sorted(ps) == ["ed", "err", "tabs", "tree"] and ps.get("tree") == "[*]", repr(ps))
+        m = len(e.s.raw)
+        e.keys(sb.TAB)
+        e.quiet()
+        runs = written(bytes(e.s.raw[m:]))
+        row("a Tab writes %d cells: the two indicators that change and the status line, not the form" % cells(runs), cells(runs) < 400, repr(cells(runs)))
+        e.end()
+        e = sb.Ide(box, "IDE bp %s" % A)
+        ps = panes_state(e.lines())
+        row("a record opened from the command line: [*] on the editor, [-] on the rest", ps.get("ed") == "[*]" and [ps.get(k) for k in ("tree", "tabs", "err")] == ["[-]"] * 3, repr(ps))
+        e.keys(sb.F3)
+        e.quiet()
+        ps = panes_state(e.lines())
+        row("F3: the [*] goes to the files and leaves the editor", ps.get("tree") == "[*]" and ps.get("ed") == "[-]", repr(ps))
+        e.end()
+        e = sb.Ide(box, "IDE bp %s" % A)
+        e.s.resize(200, 60, idle=3.0)
+        ps = panes_state(e.lines())
+        row("the window made 200 by 60 after the start: the layout takes it and the four indicators are at its corners, one on %s" % ps,
+            sorted(ps) == ["ed", "err", "tabs", "tree"] and list(ps.values()).count("[*]") == 1 and ps.get("ed") == "[*]", repr(ps))
         e.end()
 
         # ---- (4) the cursor in the editor ------------------------------------------------------------------------------------

@@ -27,6 +27,7 @@
 * 19 Oct 26 dm  A click on the menu bar opens the menu under it (SCREEN MENUBAR ... CLICK); it did nothing until Esc had opened the menu.
 * 19 Oct 26 dm  The pane that has the focus is named first on the status line (messages 11237-11240), and the editor highlights the character at
 *               its cursor while it has the focus (the memo's softcur), for a keyboard user whose terminal shows little else of where the focus is.
+* 19 Oct 26 dm  A [*] / [-] indicator in the top right corner of each pane that can have the focus (the owner's request): [*] on the one that has it.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -374,6 +375,18 @@ new.form:
    f{'activate'} = 1
    f{'bgclick'} = 1                     ;* a left click on no widget (the menu bar) comes back as the key mouse: the bar is the IDE's, not a widget
 
+   * 19 Oct 26 dm - the owner: "a small visual indicator in the top right corner of each pane to indicate that it is active, [-] for off, [*] for on".
+   *   One three-cell label to a pane that can have the focus, added last so that it is drawn over the pane's own top edge: the files on the form's top
+   *   border above the tree, the editor on the border above it, the tabs at the right end of their strip, the messages at the right end of their bar.
+   ind.ids = 'ixtree' : @fm : 'ixtabs' : @fm : 'ixed' : @fm : 'ixerr'
+   ind.panes = 'tree' : @fm : 'tabs' : @fm : 'ed' : @fm : 'err'
+   gosub indicator.texts
+   screen label f, 'ixtree', ind.want<1> at tw - 4,0 width 3 attr 'window'
+   screen label f, 'ixtabs', ind.want<2> at ex + ew - 3,1 width 3 attr 'tab'
+   screen label f, 'ixed', ind.want<3> at ex + ew - 4,0 width 3 attr 'window'
+   screen label f, 'ixerr', ind.want<4> at ex + ew - 3,err.y width 3 attr 'window'
+   ind.cur = ind.want
+
    gosub tree.apply
    if nbuf > 0 then gosub memo.cursor
    screen focus f, focus.id
@@ -647,9 +660,38 @@ is.dirty:
    return
 
 * ======================================================================
+* The pane indicators: [*] on the pane that has the focus (focus.id), [-] on the others
+
+* ind.want = the four texts, in the order of ind.panes
+indicator.texts:
+   ind.want = ''
+   for ix = 1 to 4
+      ind.want<ix> = if focus.id = ind.panes<ix> then '[*]' else '[-]'
+   next ix
+   return
+
+* The ones that changed are set and drawn again, alone: the form is not drawn again (f{'quiet'}), and a label that has not changed is not touched
+set.indicators:
+   gosub indicator.texts
+   if ind.want = ind.cur then return
+   f{'quiet'} = 1
+   for ix = 1 to 4
+      if ind.want<ix> # ind.cur<ix> then screen set f, ind.ids<ix> text ind.want<ix>
+   next ix
+   f{'quiet'} = 0
+   call $sl_scr('get', scr)
+   for ix = 1 to 4
+      if ind.want<ix> # ind.cur<ix> then call $sl_form('drawwidget', f, scr, ind.ids<ix>, rr)
+   next ix
+   call $sl_scr('put', scr)
+   ind.cur = ind.want
+   return
+
+* ======================================================================
 * The status line, and the bar
 
 status.line:
+   gosub set.indicators
    t = ''
    if nbuf > 0 then
       gosub stash.current

@@ -142,6 +142,24 @@ def cells_written(raw):
     return n, rows
 
 
+def row_cells(raw, want):
+    """How many cells the bytes write on the row `want` (0-based).  19 Oct 26: the form's title row (1) carries the [*] / [-] marks of the files
+    and the editor, which change with the focus, so 'nothing is written there' became 'only the two marks (6 cells)'."""
+    s = raw.decode("latin-1")
+    n = 0
+    r = 0
+    pos = 0
+    for m in CSI.finditer(s):
+        txt = re.sub(r"[\x00-\x1f]", "", s[pos:m.start()])
+        if txt and r == want:
+            n += len(txt)
+        pos = m.end()
+        if m.group(2) == "H":
+            p = m.group(1).split(";")
+            r = int(p[0] or 1) - 1
+    return n
+
+
 def click(x, y):
     """A left click and its release at the cell x, y (0-based) in the SGR mouse form."""
     return "\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (x + 1, y + 1, x + 1, y + 1)
@@ -497,7 +515,8 @@ end
             "%s | cursor %r" % (L[2][:80], (scr.r, scr.c, scr.cursor_visible)))
         row("choosing it writes less than one screen's worth of cells (%d of the screen's 5880; it wrote 14800 when it drew the form three times)" % n,
             n < 5880, repr(n))
-        row("...nothing in the menu bar or the form's title row (rows 1 and 2), and no clear-screen", not (rws & {0, 1}) and b"\x1b[2J" not in raw, repr(sorted(rws))[:80])
+        row("...nothing in the menu bar, only the two [*] / [-] marks (6 cells) on the form's title row, and no clear-screen",
+            0 not in rws and row_cells(raw, 1) <= 6 and b"\x1b[2J" not in raw, repr(sorted(rws))[:80] + " title row cells " + str(row_cells(raw, 1)))
         m = len(e.s.raw)
         L = e.keys(F6)                                    # the other tab
         n, rws = cells_written(bytes(e.s.raw[m:]))
@@ -507,7 +526,9 @@ end
         n, rws = cells_written(bytes(e.s.raw[m:]))
         row("F3 puts the cursor on the tree at once (SCREEN FOCUS alone moves a pointer and draws nothing)", scr.cursor_visible and scr.c < 28 and 2 <= scr.r <= 39,
             repr((scr.r, scr.c, scr.cursor_visible)))
-        row("...and F3 draws only the two widgets that change (%d cells; the editor and the tree), not the form" % n, n < 5880 and not (rws & {0, 1}), repr((n, sorted(rws))))
+        raw = bytes(e.s.raw[m:])
+        row("...and F3 draws only the two widgets that change (%d cells; the editor and the tree, and their two [*] / [-] marks), not the form" % n,
+            n < 5880 and 0 not in rws and row_cells(raw, 1) <= 6, repr((n, sorted(rws))) + " title row cells " + str(row_cells(raw, 1)))
         e.end()
 
         e = Ide(box, "IDE bp %s" % A)
