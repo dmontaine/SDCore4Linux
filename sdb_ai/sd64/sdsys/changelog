@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+18 Oct 26  MODIFY.ACCOUNT NO LONGER DOES THE FIRST OF TWO WORDS AND SAYS NOTHING OF THE SECOND; RESTORE.ACCOUNT NO LONGER OVERWRITES A DIFFERENT GLOBAL PROGRAM.
+
+             modify.     modify.account fred voc-off bp-off used to do voc-off and ignore bp-off without a word, and modify.account group add a b
+             account    added a and ignored b.  It now refuses, before anything is changed, and names the word it would not carry out: "modify.account
+                        does one action at a time, and nothing was changed: bp-off was not carried out (give each action in a command of its own)".
+             Why it      A verb that changes who may do what and reports a partial result as if it were the whole is worse than one that refuses.
+             matters
+             restore.    When an account was restored, a globally catalogued program in its archive was supposed to be left alone if a DIFFERENT
+             account    program already held that name on this system ("different program already there, left alone").  The check looked the name up
+                        in capitals, the catalogue keeps lower case, so it never found anything and the archive's program replaced the one on the
+                        system; the message also named it in capitals.  The name is now looked up in lower case (an archive written before the
+                        lower-case change is read the same way), so a different program is left alone and listed, as intended.
+             Does not    Neither changes what a correct command does; they change what a wrong or unusual one does.  RESTORE.ACCOUNT still needs
+                        sudo, and the restore of an account's files is untouched.
+
 18 Oct 26  A LOGIN ON ANOTHER SD SERVER CAN CHANGE FILES THERE ONLY IF THAT SERVER'S ADMINISTRATOR ALLOWS IT (THE WRITE GROUP); AND A REMOTE DICTIONARY CAN BE OPENED.
 
              What        A files-only login (the Linux group sdfiles, the route SDNet uses) is now a READ-ONLY login on the server it reaches unless

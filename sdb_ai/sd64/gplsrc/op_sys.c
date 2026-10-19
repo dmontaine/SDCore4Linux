@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 18 Oct 26 dm  SYSTEM(1057): the parent's user NUMBER was tested against max_users, the count of user table cells; user numbers run
+ *               to hi_user_no (USERPOOL, 1023 by default), so a phantom whose parent had number 694 on 20 cells was told "no parent".
+ *               Found by the Windows agent's first verify-carry run.
  * rev 0.9.1 Mar 25 mab return to single rev track
  * 02 Jul 24 mab add 9010 and 9011 
  * 31 Dec 23 SD launch - prior history suppressed
@@ -706,7 +709,8 @@ void op_system() {
         USER_ENTRY* puptr;
 
         descr->data.value = 0;
-        if ((pu > 0) && (pu <= sysseg->max_users) && ((puptr = UserPtr(pu)) != NULL) && (puptr->uid == pu))
+        /* pu is a user NUMBER, bounded by hi_user_no (as SYSTEM(1053) reports it), not by max_users, the number of cells */
+        if ((pu > 0) && (pu <= sysseg->hi_user_no) && ((puptr = UserPtr(pu)) != NULL) && (puptr->uid == pu))
           descr->data.value = pu;
       }
       break;

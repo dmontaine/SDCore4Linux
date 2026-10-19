@@ -1065,6 +1065,23 @@ def main():
     out = adm(["MODIFY.ACCOUNT"])
     row("G: the usage lists the four words", has(out, r"modify\.account <account> sh-on \| sh-off") and
         has(out, r"modify\.account <account> os-on \| os-off"), "out=%r" % (out[:6],))
+    # 18 Oct 26: a word after the action used to be read by nobody, so the first action was done and the second dropped without a word.
+    before = fields("zzmod")
+    out = mod("zzmod", "SH-ON", "OS-ON")
+    row("G: two actions in one command are refused (11714), naming the second, and the FIRST was not done either",
+        has(out, r"^modify\.account does one action at a time, and nothing was changed: OS-ON was not carried out") and
+        fields("zzmod") == before == ("no", "no"), "out=%r reg=%r (was %r)" % (out[-2:], fields("zzmod"), before))
+    out = mod("zzmod", "SH-ON")
+    row("G: CONTROL: the same first action alone is done", has(out, "^Account zzmod has SH yes, OS.EXECUTE no$") and fields("zzmod") == ("yes", "no"),
+        "out=%r reg=%r" % (out[-2:], fields("zzmod")))
+    mod("zzmod", "SH-OFF")
+    # ADD is only read for an account whose Linux group exists, so this account carries the sandbox user's own group; the refusal comes
+    # before the membership test and the sudo call, which is why nothing in /etc/group can change here.
+    reg_write("zzadd", ["/x", "", GROUP])
+    out = mod("zzadd", "ADD", "zzperson", "zzperson2")
+    row("G: ADD with two user names is refused (11714) before anything is done: no 'added' and no 'not a member' line",
+        has(out, r"^modify\.account does one action at a time, and nothing was changed: zzperson2 was not carried out") and
+        not has(out, r"added to group|not a member of|is already a member"), "out=%r" % (out[-3:],))
 
     # the end-to-end row: the switch an administrator sets is what the next session in the account gets.  MODIFY.ACCOUNT
     # needs an sdu_ group in the record; the session needs a group the sandbox user is really in.  So: the record gets

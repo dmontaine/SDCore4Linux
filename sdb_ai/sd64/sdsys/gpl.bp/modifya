@@ -19,6 +19,8 @@
 * 
 *
 * START-HISTORY:
+* 18 Oct 26 dm A word after the action (or after the user name of ADD / DELETE) is refused with message 11714 and nothing is changed; it was
+*           silently ignored, so MODIFY.ACCOUNT acc VOC-OFF BP-OFF did the first and said nothing of the second (VM witness, open-defects item 1).
 * 18 Oct 26 dm S.65 write group: FILES-WRITE-ON / FILES-WRITE-OFF put the account's person in or out of the Linux group sdfileswrite, which lets a files-only
 *           (sdfiles) login CHANGE files on this server; set.files now takes the group from files.grp (it was sdfiles only).  FILES-WRITE-ON is refused
 *           for a person who is not in sdfiles (11523) and when the group does not exist (10024); FILES-OFF takes the person out of sdfileswrite as well,
@@ -218,6 +220,16 @@ deffun valid_os_name(name) calling '!valid_os_name'
    call @parser(PARSER$GET.TOKEN, token.type, action, keyword)
    action = upcase(action)
 
+* 18 Oct 26 dm - A word after the action was read by nobody: MODIFY.ACCOUNT acc VOC-OFF BP-OFF did the first and said nothing of the
+*   second.  A security verb that does half of what it was asked and is silent about the rest is refused instead, before anything is
+*   changed.  ADD and DELETE read a user name next, and are checked after it (further down).
+   if (action # 'ADD') and (action # 'DELETE') then
+      call @parser(PARSER$GET.TOKEN, token.type, extra.word, keyword)
+      if token.type # PARSER$END then
+         stop sysmsg(11714, extra.word)  ;* modify.account does one action at a time, and nothing was changed: %1 was not carried out
+      end
+   end
+
 * 20 Sep 26 dm - S.29, THE ROUTE WORDS.  Each NAMES THE STATE WANTED, as the
 *   Windows port's do (its modifya:284-296), so the same four words mean the
 *   same thing here and at CREATE.ACCOUNT, and the door opens both ways: SSH
@@ -365,7 +377,12 @@ deffun valid_os_name(name) calling '!valid_os_name'
          if token.type = PARSER$END then
             stop sysmsg(10016)  ;* Missing User Name
          end
-         
+*        18 Oct 26 dm - one user name only; a second was added or removed by nobody (see the check after the action word above)
+         call @parser(PARSER$GET.TOKEN, token.type, extra.word, keyword)
+         if token.type # PARSER$END then
+            stop sysmsg(11714, extra.word)  ;* modify.account does one action at a time, and nothing was changed: %1 was not carried out
+         end
+
          if (upcase(action) = 'ADD') then
 
 * 18 Sep 26 dm - TEARDOWN (S.25).  The upward-grant gate is gone with the tier
