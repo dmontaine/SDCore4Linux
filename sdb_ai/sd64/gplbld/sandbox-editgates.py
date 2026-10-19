@@ -472,8 +472,10 @@ def modify_section():
     out = g.adm(["MODIFY.ACCOUNT"])
     row("MODIFY.ACCOUNT's syntax lines name the six words", g.has(out, r"voc-on \| voc-off \| bp-on \| bp-off \| dict-on \| dict-off"), repr(out[-8:]))
     out = g.adm(["MODIFY.ACCOUNT zzoff VOCON"])
-    row("a word that is not one of them is refused, and the list of words names the six",
-        g.has(out, r"modify\.account Action Must Be") and g.has(out, r"voc-on, voc-off, bp-on, bp-off, dict-on, dict-off"), repr(out[-4:]))
+    # 19 Oct 26: a word that is not an action is refused BEFORE anything is done, by name (11790); it used to print the "Action Must Be ..." list, which only
+    # a group account ever reached.  The list of words is the usage, which the row above reads.
+    row("a word that is not one of them is refused (11790), named as typed, and nothing is done",
+        g.has(out, r"^VOCON is not a modify\.account action, and nothing was changed") and not g.has(out, r"Action Must Be"), repr(out[-4:]))
 
 
 def logto_section():

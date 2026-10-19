@@ -513,7 +513,7 @@ def checks(srcs):
        "{dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {no.query}" in cr
        and re.search(r"case upcase\(token\) = 'SHARED-READ-OFF'\s*\n\s*settings<CA\$SHARED\.READ\.OFF> = 1\s*\n\s*case upcase\(token\) = 'SHARED-WRITE-ON'\s*\n\s*settings<CA\$SHARED\.WRITE> = 1", cr) is not None
        and "SHARED-READ-ON" not in cr and "SHARED-WRITE-OFF" not in cr, "")
-    cases_ok = all(re.search(r"case action = '%s'\s*\n\s*os\.field = %s ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*stop" % (w, f, b), mo)
+    cases_ok = all(re.search(r"case action = '%s'\s*\n\s*os\.field = %s ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*return" % (w, f, b), mo)
                    for w, f, b in (("SHARED-READ-ON", "ACC\\$SHARED\\.READ", "true"), ("SHARED-READ-OFF", "ACC\\$SHARED\\.READ", "false"),
                                    ("SHARED-WRITE-ON", "ACC\\$SHARED\\.WRITE", "true"), ("SHARED-WRITE-OFF", "ACC\\$SHARED\\.WRITE", "false")))
     ck("G8 modifya has the four words, each through os.set with its own field; the syntax line and the 'Action Must Be' list name them on lines of their own (net-on, net-off stays intact); and nothing "
@@ -781,7 +781,7 @@ MUTANTS = [
     ("the remover keeps sdg_shared", "sh:deletesdcore.sh", "        sudo groupdel sdg_shared || true\n", "        true\n"),
     ("the remover removes the group only in the keep path", "sh:deletesdcore.sh", "    if getent group sdg_shared &>/dev/null; then\n        sudo groupdel sdg_shared || true\n        echo \"Removed group sdg_shared.\"\n    fi\n    echo \"Note: for complete clean up", "    echo \"Note: for complete clean up"),
     # ---- the suite ----
-    ("regress.sh forgets the suite", "txt:regress.sh", " netfile qm4def shared\"", " netfile qm4def\""),
+    ("regress.sh forgets the suite", "txt:regress.sh", " qm4def shared viewport", " qm4def viewport"),   # 19 Oct 26: it ended the list (' shared"') until suites were added after it
 ]
 
 

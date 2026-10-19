@@ -1,6 +1,45 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE UNINSTALLER REMOVES THE STORED SDNET LOGINS WHEN THE ACCOUNTS OR THE CONFIGURATION ARE DELETED.
+
+             What        /var/lib/sd-net holds, for each person who ran set.netlogin, the keys of a login to a remote SD server, as good as that
+                        server's password. deletesdcore.sh left it behind in every case, so an uninstall that deleted everything still left
+                        every stored login on the disk. It now removes the directory when you answer N to keeping the accounts (and type DELETE) or
+                        N to keeping the configuration, keeps it only when you kept both, and says which it did.
+             Why it      A login with no server definition is useless but is still a secret, and nobody looks in /var/lib for it.
+             matters
+             Does not    It changes nothing when both are kept (a reinstall that keeps your database keeps your logins). After a reinstall that
+                        removed them, each person runs set.netlogin again.
+
+19 Oct 26  THE CREATE.ACCOUNT AUDIT LINE NAMES THE GATES IT GRANTED.
+
+             What        The audit trail line for a new account was "create.account account=jane type=user", whatever was granted. A command such
+                        as create.account user jane ssh sh-on files-on files-write-on made four grants and left no trace of them (modify.account
+                        had always written one line for each word). The line now ends with gates=, the words of the command that grant or withdraw
+                        an access, in lower case: "create.account account=jane type=user gates=ssh,sh-on,files-on,files-write-on", or gates=none.
+             Why it      An auditor reading the trail could see that an account was made but not what it was allowed to do from the first minute.
+             matters
+             Does not    The words before gates= are unchanged, so a program that reads the start of the line still works. The Linux group changes
+                        behind ssh, api and the files words are still recorded only in the log of the helper that makes them.
+
+19 Oct 26  MODIFY.ACCOUNT TAKES MORE THAN ONE ACTION IN A COMMAND, SO AN ACCOUNT CAN BE GIVEN SEVERAL GATES AT ONCE.
+
+             What        Any number of its actions except add and delete may follow the account: modify.account fred sh-on os-on voc-on bp-on gives
+                        fred all four. SD reads every word first and then carries out all of them, or none: an unknown word, two words that set one
+                        access to different states (sh-on with sh-off, ssh with api, files-off with files-write-on) and add or delete among other
+                        words refuse the whole command before anything is changed, naming the word. The words are carried out in one fixed order
+                        whatever order they were typed (the routes, the switches, files-on before files-write-on, the suspension last), each
+                        reported and audited as if it had been given alone, and a command of more than one action ends with a line saying which
+                        were carried out ("Account fred: 4 actions carried out: sh-on, os-on, voc-on, bp-on") and, if one could not be, which were
+                        not. modify.account with an account and no action now prints the usage; it said "sdu_fred is not a valid Linux Group".
+             Why it      Giving a person what they need took one command a word, eleven for everything, and on 18 October a second word had become
+             matters    an error. The fault that made it one (a second word read by nobody, so the first was done and the second dropped without a
+                        message) is still impossible: every word is done, refused, or named as not done.
+             Does not    add and delete still take a user name and stand alone. It does not make the words one atomic change: a Linux group change
+                        can fail after a register change was made, and the closing line names what was not done instead of hiding it. It does not
+                        change what any single word does, who may run the verb, or the audit trail (one line for each word).
+
 19 Oct 26  A GUIDE, A GENERATED REFERENCE AND A CLAUDE CODE SKILL FOR AI AGENTS THAT WORK ON AN SD SYSTEM ARE IN THE SOURCE (agent-pack/).
 
              What        An AI agent asked to write SD BASIC meets a language that looks like OpenQM, UniVerse or D3 and is not, and guesses names SD

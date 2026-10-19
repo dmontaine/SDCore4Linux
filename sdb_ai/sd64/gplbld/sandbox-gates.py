@@ -1065,23 +1065,82 @@ def main():
     out = adm(["MODIFY.ACCOUNT"])
     row("G: the usage lists the four words", has(out, r"modify\.account <account> sh-on \| sh-off") and
         has(out, r"modify\.account <account> os-on \| os-off"), "out=%r" % (out[:6],))
-    # 18 Oct 26: a word after the action used to be read by nobody, so the first action was done and the second dropped without a word.
+    # 18 Oct 26: a word after the action used to be read by nobody, so the first action was done and the second dropped without a word; it was
+    # then REFUSED (11714).  19 Oct 26 (owner: "modify.account should be changed to handle more than one gate at a time"): the words are now ALL
+    # done, in a fixed order whatever order they are typed, or the whole command is refused BEFORE anything changes (an unknown word 11790, two
+    # words that set one access to different states 11791, ADD / DELETE mixed with another word 11714), and a run of more than one action ends
+    # with a line saying which were done (11793) or which were not (11794).  The usage rows above are unchanged.
     before = fields("zzmod")
     out = mod("zzmod", "SH-ON", "OS-ON")
-    row("G: two actions in one command are refused (11714), naming the second, and the FIRST was not done either",
-        has(out, r"^modify\.account does one action at a time, and nothing was changed: OS-ON was not carried out") and
-        fields("zzmod") == before == ("no", "no"), "out=%r reg=%r (was %r)" % (out[-2:], fields("zzmod"), before))
-    out = mod("zzmod", "SH-ON")
-    row("G: CONTROL: the same first action alone is done", has(out, "^Account zzmod has SH yes, OS.EXECUTE no$") and fields("zzmod") == ("yes", "no"),
-        "out=%r reg=%r" % (out[-2:], fields("zzmod")))
-    mod("zzmod", "SH-OFF")
+    row("G: multi - sh-on and os-on in ONE command are both done, each reported, and a summary names them (11793)",
+        has(out, "^Account zzmod has SH yes, OS.EXECUTE no$") and has(out, "^Account zzmod has SH yes, OS.EXECUTE yes$") and
+        has(out, r"^Account zzmod: 2 actions carried out: sh-on, os-on$") and fields("zzmod") == ("yes", "yes") and before == ("no", "no"),
+        "out=%r reg=%r (was %r)" % (out[-4:], fields("zzmod"), before))
+    out = mod("zzmod", "SH-OFF", "OS-OFF")
+    row("G: multi - sh-off and os-off in one command: both written as the word no",
+        has(out, r"^Account zzmod: 2 actions carried out: sh-off, os-off$") and fields("zzmod") == ("no", "no"),
+        "out=%r reg=%r" % (out[-3:], fields("zzmod")))
+    out = mod("zzmod", "OS-ON", "SH-ON")
+    at_sh = [i for i, ln in enumerate(out) if re.search(r"^Account zzmod has SH yes, OS.EXECUTE no$", ln)]
+    at_os = [i for i, ln in enumerate(out) if re.search(r"^Account zzmod has SH yes, OS.EXECUTE yes$", ln)]
+    row("G: multi - typed os-on first, sh-on second: done in the fixed order (sh first), the same end state and the same summary",
+        at_sh and at_os and at_sh[0] < at_os[0] and has(out, r"^Account zzmod: 2 actions carried out: sh-on, os-on$") and fields("zzmod") == ("yes", "yes"),
+        "out=%r reg=%r" % (out[-4:], fields("zzmod")))
+    mod("zzmod", "SH-OFF", "OS-OFF")
+    before = fields("zzmod")
+    out = mod("zzmod", "SH-ON", "SH-OFF")
+    row("G: multi - sh-on and sh-off together set one access to different states: refused (11791), naming both, NOTHING done",
+        has(out, r"^sh-on and sh-off set the same access to different states, and nothing was changed: give one of them$") and
+        fields("zzmod") == before == ("no", "no"), "out=%r reg=%r (was %r)" % (out[-3:], fields("zzmod"), before))
+    out = mod("zzmod", "SH-ON", "BOGUS")
+    row("G: multi - an unknown word in the list: refused (11790), naming it as typed, and the sh-on before it was NOT done either",
+        has(out, r"^BOGUS is not a modify\.account action, and nothing was changed") and fields("zzmod") == before,
+        "out=%r reg=%r (was %r)" % (out[-3:], fields("zzmod"), before))
+    out = mod("zzmod", "BOGUS", "SH-ON")
+    row("G: multi - an unknown word FIRST is refused the same way, and nothing after it is done",
+        has(out, r"^BOGUS is not a modify\.account action, and nothing was changed") and fields("zzmod") == before,
+        "out=%r reg=%r (was %r)" % (out[-3:], fields("zzmod"), before))
+    out = mod("zzmod", "SSH", "API")
+    row("G: multi - ssh and api together set the routes to different states: refused (11791) before anything, 'both' is the word",
+        has(out, r"^ssh and api set the same access to different states, and nothing was changed") and fields("zzmod") == before,
+        "out=%r reg=%r" % (out[-3:], fields("zzmod")))
+    out = mod("zzmod", "SH-ON", "SH-ON")
+    row("G: multi - the same word twice is done once (one report, no summary), as a control for the dedupe",
+        len([ln for ln in out if re.search(r"^Account zzmod has SH", ln)]) == 1 and not has(out, r"actions carried out") and
+        fields("zzmod") == ("yes", "no"), "out=%r reg=%r" % (out[-3:], fields("zzmod")))
+    out = mod("zzmod", "SH-ON", "OS-ON")
+    row("G: multi - an action the account already has says so (10080) and still counts as carried out beside the one that changed",
+        has(out, r"^zzmod already had that access; nothing changed$") and has(out, r"^Account zzmod has SH yes, OS.EXECUTE yes$") and
+        has(out, r"^Account zzmod: 2 actions carried out: sh-on, os-on$") and fields("zzmod") == ("yes", "yes"),
+        "out=%r reg=%r" % (out[-4:], fields("zzmod")))
+    mod("zzmod", "SH-OFF", "OS-OFF")
+    out = mod("zzmod")
+    row("G: multi - no action at all prints the usage (it used to say sdu_zzmod 'is not a valid Linux Group') and changes nothing",
+        has(out, r"modify\.account <account> sh-on \| sh-off") and not has(out, "valid Linux Group") and fields("zzmod") == ("no", "no"),
+        "out=%r reg=%r" % (out[:4], fields("zzmod")))
+    # a GROUP account is allowed the switches that need no Linux user and refused the others, one action at a time: voc-on is done, sh-on is
+    # refused (10105), and the end says so (11794) with the register showing exactly the one that was done.
+    grp_before = reg_read("zzgrp")
+    out = mod("zzgrp", "VOC-ON", "SH-ON")
+    grp_after = reg_read("zzgrp")
+    row("G: multi - on a group account voc-on is done and sh-on refused (10105): the summary says which (11794) and the register shows only voc-on",
+        has(out, r"^zzgrp is a group account and has no Linux user, so it has no shell to permit$") and
+        has(out, r"^Account zzgrp: NOT every action was carried out\. Done: voc-on\. Not done: sh-on$") and
+        len(grp_after) > 9 and grp_after[9] == "yes" and (len(grp_after) < 7 or grp_after[6] == ""),
+        "out=%r reg=%r (was %r)" % (out[-4:], grp_after[:11], grp_before[:11]))
+    reg_write("zzgrp", ["/x", "", "sdg_zzgrp"])
     # ADD is only read for an account whose Linux group exists, so this account carries the sandbox user's own group; the refusal comes
     # before the membership test and the sudo call, which is why nothing in /etc/group can change here.
     reg_write("zzadd", ["/x", "", GROUP])
     out = mod("zzadd", "ADD", "zzperson", "zzperson2")
-    row("G: ADD with two user names is refused (11714) before anything is done: no 'added' and no 'not a member' line",
-        has(out, r"^modify\.account does one action at a time, and nothing was changed: zzperson2 was not carried out") and
+    row("G: ADD with two user names is refused (11714, now about add and delete standing alone) before anything is done: no 'added' and no 'not a member' line",
+        has(out, r"^add and delete take a user name and stand alone, and nothing was changed: zzperson2 was not carried out") and
         not has(out, r"added to group|not a member of|is already a member"), "out=%r" % (out[-3:],))
+    add_before = reg_read("zzadd")
+    out = mod("zzadd", "SH-ON", "ADD", "zzperson")
+    row("G: multi - ADD after another action is refused the same way (11714), naming ADD, and sh-on was not done",
+        has(out, r"^add and delete take a user name and stand alone, and nothing was changed: ADD was not carried out") and
+        reg_read("zzadd") == add_before, "out=%r" % (out[-3:],))
 
     # the end-to-end row: the switch an administrator sets is what the next session in the account gets.  MODIFY.ACCOUNT
     # needs an sdu_ group in the record; the session needs a group the sandbox user is really in.  So: the record gets

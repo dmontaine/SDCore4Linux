@@ -364,7 +364,7 @@ def checks(srcs):
     # ---- M. the verbs that set it, the manifest ------------------------------------------------------------------------------
     mo = c["modifya"]
     ck("M1 MODIFY.ACCOUNT has NET-ON and NET-OFF, each through os.set with ACC$NET",
-       all(re.search(r"case action = '%s'\s*\n\s*os\.field = ACC\$NET ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*stop" % (w, b), mo)
+       all(re.search(r"case action = '%s'\s*\n\s*os\.field = ACC\$NET ; os\.want = @%s\s*\n\s*gosub os\.set\s*\n\s*return" % (w, b), mo)
            for w, b in (("NET-ON", "true"), ("NET-OFF", "false"))), "")
     ck("M2 ...os.set lets the words through on a group account (as SD-ON), and says only the NET state with 11411 (the other lines unchanged)",
        re.search(r"if group\.name\[1,4\] # 'sdu_' and .*os\.field # ACC\$NET then", mo) is not None
@@ -1062,7 +1062,7 @@ def checks_2c(srcs, c, ck):
     sf = routine_body(mo, "set.files")
     ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
        "touched by set.files",
-       all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
+       all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*return" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
        and "modify.account <account> files-on | files-off" in mo and "files-on, files-off, files-write-on, files-write-off, suspended or unsuspended" in mo
        and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
     ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
@@ -1091,7 +1091,7 @@ def checks_2c(srcs, c, ck):
                  r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None
        and re.search(r"files\.stat = OS\.ERROR\(\)\s*\n", sf) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
-       re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILES>\s*=", cr)) == 1
+       re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILES>\s*=", cr)) == 1
        and "{net-on} {files-on} {files-write-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
     ck("W21b createacc.h defines CA$FILES as 36 right after CA$NET 35 (the compiler warns 'not assigned a value' and reads 0 errors without it: test-includes-units.py), "
        "and no register field is added - the membership of the group IS the state",
@@ -3067,8 +3067,8 @@ mut("modifya: a failed change is reported as done", MOD, "   if files.stat # 0 t
     "   @system.return.code = 0\n   void kernel")
 # CREATEA and CREATE.ACCOUNT
 mut("createa: FILES-ON is not a word", CRA, "case upcase(token) = 'FILES-ON'", "case upcase(token) = 'FILES-ONX'")
-mut("createa: FILES-ON sets the NET gate", CRA, "settings<CA$FILES> = 1", "settings<CA$NET> = 1")
-mut("createa: FILES-ON sets the setting to 2", CRA, "settings<CA$FILES> = 1", "settings<CA$FILES> = 2")
+mut("createa: FILES-ON sets the NET gate", CRA, "'FILES-ON'\n            settings<CA$FILES> = 1", "'FILES-ON'\n            settings<CA$NET> = 1")   # the parser's line (19 Oct 26: the audit builder reads the same setting once more)
+mut("createa: FILES-ON sets the setting to 2", CRA, "'FILES-ON'\n            settings<CA$FILES> = 1", "'FILES-ON'\n            settings<CA$FILES> = 2")
 mut("createa: the syntax line does not name it", CRA, " {files-on}", "")
 mut("createacc.h: CA$FILES is 35 (the NET setting's number)", "createacc.h", rx(r"(\$define\s+CA\$FILES\s+)36", r"\g<1>35"))
 mut("createacc.h: CA$FILES is not defined", "createacc.h", drop_line(r"\$define\s+CA\$FILES"))

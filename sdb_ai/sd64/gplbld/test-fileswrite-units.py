@@ -231,7 +231,7 @@ def run_checks(raw):
     sf = routine_body(mo, "set.files")
     ck("F10 MODIFY.ACCOUNT: FILES-WRITE-ON and FILES-WRITE-OFF are words (files.grp = 'sdfileswrite', files.want true / false, set.files, stop), in the syntax lines and in the list of words; "
        "FILES-ON / FILES-OFF set files.grp = 'sdfiles' (the helper takes the group from it)",
-       all(re.search(r"case action = '%s'\s*\n\s*files\.grp = '%s'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, g_, b), mo)
+       all(re.search(r"case action = '%s'\s*\n\s*files\.grp = '%s'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*return" % (w, g_, b), mo)
            for w, g_, b in (("FILES-ON", "sdfiles", "true"), ("FILES-OFF", "sdfiles", "false"), ("FILES-WRITE-ON", "sdfileswrite", "true"), ("FILES-WRITE-OFF", "sdfileswrite", "false")))
        and "modify.account <account> files-on | files-off | files-write-on | files-write-off" in mo
        and "files-on, files-off, files-write-on, files-write-off, suspended or unsuspended" in mo and sf != "", "")
@@ -250,7 +250,7 @@ def run_checks(raw):
        "CREATE.ACCOUNT: a request is exactly 1, it needs FILES-ON (11523, before anything is made), the group sdfileswrite is looked for before the Linux user is made (10024), a group or "
        "other account is refused as for FILES-ON, the join is sd-elevate addgroup <user> sdfileswrite AFTER the sdfiles join, and the state line 11522 is read off /etc/group",
        re.search(r"\$define\s+CA\$FILESWRITE\s+39\b", hdr) is not None and len(re.findall(r"\$define\s+\S+\s+39\b", hdr)) == 1
-       and re.search(r"case upcase\(token\) = 'FILES-WRITE-ON'\s*\n\s*settings<CA\$FILESWRITE> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILESWRITE>\s*=", cr)) == 1
+       and re.search(r"case upcase\(token\) = 'FILES-WRITE-ON'\s*\n\s*settings<CA\$FILESWRITE> = 1\s*\n", cr) is not None and len(re.findall(r"(?<!if )settings<CA\$FILESWRITE>\s*=", cr)) == 1
        and "{files-on} {files-write-on} {no.query}" in cr
        and "files.write.want = (settings<CA$FILESWRITE> = 1)" in ca2
        and re.search(r"if files\.write\.want then\s*\n\s*if not\(files\.want\) then\s*\n\s*@system\.return\.code = -ER\$ARGS\s*\n\s*err = 11523:@vm:acc\.name[^\n]*\n\s*goto exit\.create\s*\n\s*end", ca2) is not None
@@ -340,7 +340,7 @@ def mutants(raw):
     m("files-off leaves the write group", "modifya", "if files.stat = 0 and files.grp = 'sdfiles' and not(files.want) then", "if 0 then")
     m("the write group's line is the other message", "modifya", "crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')")
     # createa / create_account / restorea / acc_os_info
-    m("FILES-WRITE-ON sets nothing", "createa", "settings<CA$FILESWRITE> = 1", "settings<CA$FILES> = 1")
+    m("FILES-WRITE-ON sets nothing", "createa", "'FILES-WRITE-ON'\n            settings<CA$FILESWRITE> = 1", "'FILES-WRITE-ON'\n            settings<CA$FILES> = 1")   # the parser's line: 19 Oct 26 the audit builder reads the same setting once more
     m("the write group is joined before the files group", "create_account", "      if files.write.want then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfileswrite\"",
       "      if files.write.want then\n         os.execute \"sudo /usr/local/sbin/sd-elevate addgroup \":acc.uname:\" sdfiles\"")
     m("the write group needs no files-on", "create_account", "       if not(files.want) then\n         @system.return.code = -ER$ARGS\n         err = 11523",

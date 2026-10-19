@@ -5748,10 +5748,46 @@ cited by: `encryptkey`
 cited by: `encryptkey`
 
 ### msg:11714
-> kind=message tier=reference since=- src=sdsys/messages/11714:1#58cf29ca
+> kind=message tier=reference since=- src=sdsys/messages/11714:1#423d2cc1
 
 ```
-modify.account does one action at a time, and nothing was changed: %1 was not carried out (give each action in a command of its own)
+add and delete take a user name and stand alone, and nothing was changed: %1 was not carried out (give it in a command of its own)
+```
+
+cited by: `modifya`
+
+### msg:11790
+> kind=message tier=reference since=- src=sdsys/messages/11790:1#9c87fe87
+
+```
+%1 is not a modify.account action, and nothing was changed: give modify.account with an account and no action to see them
+```
+
+cited by: `modifya`
+
+### msg:11791
+> kind=message tier=reference since=- src=sdsys/messages/11791:1#717722fc
+
+```
+%1 and %2 set the same access to different states, and nothing was changed: give one of them
+```
+
+cited by: `modifya`
+
+### msg:11793
+> kind=message tier=reference since=- src=sdsys/messages/11793:1#51d7eea7
+
+```
+Account %1: %2 actions carried out: %3
+```
+
+cited by: `modifya`
+
+### msg:11794
+> kind=message tier=reference since=- src=sdsys/messages/11794:1#10e20236
+
+```
+Account %1: NOT every action was carried out. Done: %2. Not done: %3
 ```
 
 cited by: `modifya`

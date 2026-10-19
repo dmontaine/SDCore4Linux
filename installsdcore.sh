@@ -279,7 +279,7 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
     else
         printf "%b\n" "$RED"
         echo "WARNING: these access gates are NOT open for ${user}:${gate_missing}"
-        echo "  Signed in as sdsys, give each one, one word per command:  modify.account ${acct} <word>"
+        echo "  Signed in as sdsys, give each one (several words may be given in one command):  modify.account ${acct} <word> ..."
         printf "%b\n" "$NC"
     fi
 }
@@ -1518,7 +1518,7 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
         echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
         # 17 Oct 26 (S.64): and, the same way, no right to save changes to a VOC, a program file or a dictionary.
         echo "  It also starts without the right to change the VOC, a program file (or compile and catalogue) or a dictionary."
-        echo "  Signed in as sdsys, give it what it needs, one word per command:"
+        echo "  Signed in as sdsys, give it what it needs (several words may be given in one command, for example modify.account ${tuser_lc} sh-on os-on):"
         echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
         echo "      modify.account ${tuser_lc} sh-on"
         echo "      modify.account ${tuser_lc} os-on"

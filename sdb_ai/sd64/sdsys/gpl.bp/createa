@@ -18,6 +18,8 @@
 * 
 * 
 * START-HISTORY:
+* 19 Oct 26 dm The audit line carries gates=, the words of the sentence that grant or withdraw an access (owner: "create-account should record what
+*           gates were granted"); the words up to type= are unchanged.
 * 18 Oct 26 dm S.65 write group: FILES-WRITE-ON (joins sdfileswrite as well, with FILES-ON); CA$FILESWRITE in createacc.h.
 * 18 Oct 26 dm S.66: SHARED-READ-OFF and SHARED-WRITE-ON (the shared-account gates); CA$SHARED.READ.OFF and CA$SHARED.WRITE in createacc.h.
 * 17 Oct 26 dm S.65 slice 2c: FILES-ON (joins the Linux group sdfiles, the files-only SDNet login route) beside the other switches; CA$FILES in createacc.h.
@@ -272,7 +274,27 @@ $include createacc.h
 *   reported no error.
 * 07 Oct 26 dm - PAL-24, the owner's lower-case rule: the command words are lower case,
 *   so create.account and type=user (acc.type is USER or GROUP inside create_account).
-   void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type))
+* 19 Oct 26 dm - THE GATES GRANTED AT CREATION ARE ON THE AUDIT LINE (owner, 19 Oct 2026: "create-account should record what gates were granted";
+*   SDNet audit K8f).  modify.account audits each word it applies, but create.account user NAME files-on files-write-on made the same grants and left
+*   one line that named none of them.  gates= lists, in lower case and in the order of the usage line, every word of the sentence that grants or
+*   withdraws an access (the settings !create_account was given), and says none when there is none.  The sd-elevate group changes behind ssh, api and
+*   the files words are still only in its own log.  The words up to type= are unchanged (PAL-15: the same string on both ports), so the new tail is
+*   the Linux template and Windows follows.
+   gates = ''
+   if settings<CA$ROUTE.SSH> = 1 then gates<-1> = 'ssh'
+   if settings<CA$ROUTE.API> = 1 then gates<-1> = 'api'
+   if settings<CA$OS.SH> = 1 then gates<-1> = 'sh-on'
+   if settings<CA$OS.EXECUTE> = 1 then gates<-1> = 'os-on'
+   if settings<CA$VOC.EDIT> = 1 then gates<-1> = 'voc-on'
+   if settings<CA$BP.EDIT> = 1 then gates<-1> = 'bp-on'
+   if settings<CA$DICT.EDIT> = 1 then gates<-1> = 'dict-on'
+   if settings<CA$NET> = 1 then gates<-1> = 'net-on'
+   if settings<CA$FILES> = 1 then gates<-1> = 'files-on'
+   if settings<CA$FILESWRITE> = 1 then gates<-1> = 'files-write-on'
+   if settings<CA$SHARED.READ.OFF> = 1 then gates<-1> = 'shared-read-off'
+   if settings<CA$SHARED.WRITE> = 1 then gates<-1> = 'shared-write-on'
+   if gates = '' then gates = 'none' else gates = convert(@fm, ',', gates)
+   void kernel(K$AUDIT, 'create.account account=' : acc.name : ' type=' : downcase(acc.type) : ' gates=' : gates)
 
    return
 

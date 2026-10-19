@@ -415,8 +415,9 @@ def modify_section():
     out = g.adm(["MODIFY.ACCOUNT"])
     row("MODIFY.ACCOUNT's syntax lines name net-on | net-off", g.has(out, r"net-on \| net-off"), repr(out[-8:]))
     out = g.adm(["MODIFY.ACCOUNT zznmod NETON"])
-    row("a word that is not one of them is refused, and the list of words names net-on and net-off",
-        g.has(out, r"modify\.account Action Must Be") and g.has(out, r"net-on, net-off"), repr(out[-4:]))
+    # 19 Oct 26: refused by name before anything is done (11790); the list of words is the usage, read by the row above.
+    row("a word that is not one of them is refused (11790), named as typed, and nothing is done",
+        g.has(out, r"^NETON is not a modify\.account action, and nothing was changed") and not g.has(out, r"Action Must Be"), repr(out[-4:]))
     sdsys_before = g.reg_read("sdsys")
     out = g.adm(["modify.account sdsys net-on"])
     row("sdsys is refused (2202) and its register record is the same", has_line(out, msg(2202)) and g.reg_read("sdsys") == sdsys_before, repr(out[-3:]))

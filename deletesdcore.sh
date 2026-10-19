@@ -166,17 +166,37 @@ read -r -p "Keep your existing configuration? (Y/n) " yn
 #            here makes the saved config land where the installer looks for it
 #            (/home/sd/sd.conf); when the accounts were kept, this is a no-op.
 sudo mkdir -p "$acct_path"
+conf_deleted=no
 case $yn in
     [yY] ) echo
            sudo mv /etc/sd.conf "$acct_path"
            echo Configuration file saved;;
     [nN] ) echo
+           conf_deleted=yes
            echo Configuration file will be deleted;;
      *)    echo
            sudo mv /etc/sd.conf "$acct_path"
            echo Configuration file saved;;
 esac
 printf "%b\n" "$NC"
+
+# 19 Oct 26 dm - THE STORED SDNET LOGINS (SDNet audit K8e; owner, 19 Oct 2026: "if accounts OR config is deleted then sdnet credentials are deleted,
+#            only if both are retained should the sdnet info be retained").  /var/lib/sd-net/<user> holds, for every user who ran set.netlogin, the
+#            ClientKey and ServerKey of a remote server: as good as that server's password, and outside the account directory on purpose, so no
+#            DELETE of an account reached it.  They are removed when the accounts were deleted (the DELETE answer) or the configuration was
+#            deleted (the N answer), and kept only when BOTH were kept; either way the script says which.  test-delete-sdnet.sh runs this block.
+# SDNET-LOGINS-BEGIN
+if [ "$keep_accts" = "DELETE" ] || [ "$conf_deleted" = yes ]; then
+    if sudo test -d /var/lib/sd-net; then
+        sudo rm -rf /var/lib/sd-net
+        echo "Removed /var/lib/sd-net (every user's stored SDNet logins), because the accounts or the configuration were deleted."
+    fi
+else
+    if sudo test -d /var/lib/sd-net; then
+        echo "Kept /var/lib/sd-net (the stored SDNet logins), because both the accounts and the configuration were kept."
+    fi
+fi
+# SDNET-LOGINS-END
 
 # Modified by Composer AI - 2026/06/10.
 # Stop SD and systemd services before removing binaries and unit files.
