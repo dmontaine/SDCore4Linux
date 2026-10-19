@@ -34,13 +34,14 @@ HELPER = os.path.join(HERE, "sd-elevate")
 ALLOW, REFUSE = "ALLOW", "REFUSE"
 
 
-def run(args, helper=None):
+def run(args, helper=None, env=None):
     """Run the helper in dry-run mode.  Returns (exit_code, stdout+stderr).
 
-    `helper` is a mutated copy when --selftest drives the group rows."""
+    `helper` is a mutated copy when --selftest drives the group rows; `env` adds variables (SD_ACCT_ROOT, for the record-file rows)."""
     p = subprocess.run(
         ["bash", helper or HELPER, "--dry-run"] + args,
         capture_output=True, text=True,
+        env=dict(os.environ, **env) if env else None,
     )
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
@@ -137,6 +138,95 @@ GROUP_MUTANTS = [
 ]
 
 
+# ---- 19 Oct 26, the group-account warning seen in the w21 witness: `create.account group witg` printed
+# ---- "Unable change ownership of directory error .../voc/%1 err: 0" four times, and the four files (voc/%0, voc/%1,
+# ---- $hold.dic/%0, $hold.dic/%1) stayed sdsys:sdusers 664, writable by every SD user.  chown-account's sdsys shape went through
+# ---- require_sd_path, which is also setgid's check and wants a DIRECTORY; the user shape had no such rule, so a user account's
+# ---- same four files were chowned without complaint.  The rows run against a scratch accounts root (SD_ACCT_ROOT) so they need
+# ---- no install, and each REFUSE names the reason the helper must give, because "is not a directory" is what it said before.
+def record_rows(helper=None):
+    """Returns (rows, skipped).  A row is (label, ok, detail)."""
+    rows = []
+    td = tempfile.mkdtemp(prefix="sdelev-rec-")
+    try:
+        root = os.path.realpath(td)
+        acc = os.path.join(root, "sd", "group_accounts", "probe")
+        outside = os.path.join(root, "outside")
+        dirs = {n: os.path.join(acc, n) for n in ("voc", "$hold.dic", "lnk", "lnk2", "hl")}
+        for d in list(dirs.values()) + [outside]:
+            os.makedirs(d)
+
+        def touch(path):
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("x")
+        for d in ("voc", "$hold.dic"):
+            for n in ("%0", "%1"):
+                touch(os.path.join(dirs[d], n))
+        touch(os.path.join(dirs["voc"], "readme"))
+        touch(os.path.join(dirs["voc"], "%2"))
+        touch(os.path.join(outside, "%0"))
+        touch(os.path.join(outside, "secret"))
+        touch(os.path.join(acc, "hlsrc"))
+        os.symlink(os.path.join(outside, "secret"), os.path.join(dirs["lnk"], "%0"))
+        os.symlink(os.path.join(dirs["voc"], "readme"), os.path.join(dirs["lnk2"], "%1"))
+        os.link(os.path.join(acc, "hlsrc"), os.path.join(dirs["hl"], "%0"))
+        env = {"SD_ACCT_ROOT": os.path.join(root, "sd")}
+
+        def ask(label, argv, check):
+            code, out = run(argv, helper, env)
+            first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+            rows.append((label, check(code, out), f"exit {code}: {first}"))
+
+        def allowed(real):
+            return lambda code, out: code == 0 and f"chown -- sdsys:sdg_probe {real}" in out
+
+        def refused(reason):
+            return lambda code, out: code != 0 and "REFUSED" in out and reason in out
+
+        grp = "sdg_probe"
+        for rel, why in (("", "the group account's directory (control: always allowed)"),
+                         ("voc", "its voc directory (control)"),
+                         ("voc/%0", "voc/%0, a dictionary record file"),
+                         ("voc/%1", "voc/%1, the file the witness named"),
+                         ("$hold.dic/%0", "$hold.dic/%0"),
+                         ("$hold.dic/%1", "$hold.dic/%1")):
+            path = os.path.join(acc, rel) if rel else acc
+            ask(f"sdsys chowns {why}", ["chown-account", "sdsys", grp, path], allowed(path))
+        ask("a file with any other name is refused: only %0 and %1",
+            ["chown-account", "sdsys", grp, os.path.join(dirs["voc"], "readme")], refused("only the dictionary record files"))
+        ask("a file called %2 is refused: the names are %0 and %1, not a pattern",
+            ["chown-account", "sdsys", grp, os.path.join(dirs["voc"], "%2")], refused("only the dictionary record files"))
+        ask("a file outside the accounts root is refused even when it is called %0",
+            ["chown-account", "sdsys", grp, os.path.join(outside, "%0")], refused("outside the accounts root"))
+        ask("a %0 that is a symlink to a file outside the root is refused",
+            ["chown-account", "sdsys", grp, os.path.join(dirs["lnk"], "%0")], refused("outside the accounts root"))
+        ask("a %1 that is a symlink to a file with another name is refused",
+            ["chown-account", "sdsys", grp, os.path.join(dirs["lnk2"], "%1")], refused("only the dictionary record files"))
+        ask("a %0 with a second hard link is refused",
+            ["chown-account", "sdsys", grp, os.path.join(dirs["hl"], "%0")], refused("more than one hard link"))
+        ask("setgid still wants a directory: a record file is refused (the other user of the shared check)",
+            ["setgid", os.path.join(dirs["voc"], "%0")], refused("is not a directory"))
+    finally:
+        shutil.rmtree(td, ignore_errors=True)
+    return rows, []
+
+
+_ONLYDIR = "  [[ -d $real ]] || die \"path '$real' is not a directory\"\n"
+RECORD_MUTANTS = [
+    ("files refused again (directories only)",
+     "  [[ -f $real ]] || die \"path '$real' is neither a directory nor a file\"\n", "  die \"path '$real' is not a directory\"\n"),
+    ("any regular file accepted", "    %0|%1) : ;;\n", "    *) : ;;\n"),
+    ("the names widened to %*", "    %0|%1) : ;;\n", "    %*) : ;;\n"),
+    ("the hard link check removed",
+     "  [[ $(stat -c %h -- \"$real\") == 1 ]] || die \"path '$real' has more than one hard link\"\n", "  :\n"),
+    ("the accounts-root check removed",
+     "  [[ $real == \"$root\"/* ]] || die \"path '$real' is outside the accounts root '$root'\"\n", "  :\n"),
+    ("chown-account's sdsys shape back on the directory check",
+     "      require_sd_chown_path \"$path\"\n", "      require_sd_path \"$path\"\n"),
+    ("setgid made to accept a file", _ONLYDIR, _ONLYDIR.replace("-d", "-e", 1)),
+]
+
+
 def selftest():
     """The group rows must pass on the real helper and fail on every mutant."""
     if not os.path.exists(HELPER):
@@ -155,25 +245,49 @@ def selftest():
         print(f"    FAIL {label} | {detail}")
     if bad:
         return 1
+    survivors = _kill_mutants(src, GROUP_MUTANTS, group_rows)
+    if survivors is None:
+        return 2
+    print(f"{len(GROUP_MUTANTS) - survivors} of {len(GROUP_MUTANTS)} mutants killed")
+    # 19 Oct 26: the record-file rows, the same way.  The control comes first: the real helper must pass every one.
+    rrows, _ = record_rows()
+    rbad = [r for r in rrows if not r[1]]
+    print(f"  control: the real helper, {len(rrows)} record-file rows, {len(rbad)} failed")
+    for label, ok, detail in rbad:
+        print(f"    FAIL {label} | {detail}")
+    if len(rrows) < 10:
+        print(f"REFUSING - only {len(rrows)} record-file rows ran", file=sys.stderr)
+        return 2
+    if rbad:
+        return 1
+    rsurvivors = _kill_mutants(src, RECORD_MUTANTS, record_rows)
+    if rsurvivors is None:
+        return 2
+    print(f"{len(RECORD_MUTANTS) - rsurvivors} of {len(RECORD_MUTANTS)} record-file mutants killed")
+    return 1 if (survivors or rsurvivors) else 0
+
+
+def _kill_mutants(src, mutants, rows_fn):
+    """Applies each (name, old, new) to the helper's text and runs rows_fn on the copy.  Returns the number that SURVIVED
+    (no row went red), or None when a mutant's text does not occur exactly once (a refusal, printed)."""
     survivors = 0
     with tempfile.TemporaryDirectory() as td:
-        for name, old, new in GROUP_MUTANTS:
+        for name, old, new in mutants:
             if src.count(old) != 1:
                 print(f"REFUSING - mutant '{name}': its text occurs {src.count(old)} times, not once",
                       file=sys.stderr)
-                return 2
+                return None
             path = os.path.join(td, "sd-elevate-mutant")
             with open(path, "w", encoding="utf-8") as f:
                 f.write(src.replace(old, new))
-            mrows, _ = group_rows(path)
+            mrows, _ = rows_fn(path)
             caught = [r for r in mrows if not r[1]]
             if caught:
                 print(f"  [KILLED  ] {name:42} | {len(caught)} row(s), first: {caught[0][0]}")
             else:
                 survivors += 1
                 print(f"  [SURVIVED] {name}")
-    print(f"{len(GROUP_MUTANTS) - survivors} of {len(GROUP_MUTANTS)} mutants killed")
-    return 1 if survivors else 0
+    return survivors
 
 
 # Each row: (expectation, argv, note).  `note` says WHY the row exists, so a
@@ -430,6 +544,21 @@ def main():
         else:
             failed += 1
             failures.append(([label], "group rule", "broken", detail))
+
+    # ---- 19 Oct 26: THE RECORD FILES OF A GROUP ACCOUNT.  See record_rows() above; `--selftest` runs the same rows
+    # ---- against mutated copies of the helper.
+    rrows, _ = record_rows()
+    for label, ok, detail in rrows:
+        print(f"  [{'PASS' if ok else 'FAIL'}] RECORD {label:60} | {detail}")
+        if ok:
+            passed += 1
+            if label.startswith("sdsys chowns"):
+                n_allow += 1
+            else:
+                n_refuse += 1
+        else:
+            failed += 1
+            failures.append(([label], "record-file rule", "broken", detail))
 
     # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
     # ---- exit code of 0 says the word was accepted, not that ON opens the

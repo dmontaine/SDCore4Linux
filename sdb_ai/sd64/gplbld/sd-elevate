@@ -545,16 +545,46 @@ require_sd_group() {
   esac
 }
 
-# setgid is restricted to the accounts root.  realpath first, so a symlink
-# planted inside the tree cannot aim the chmod outside it.
-require_sd_path() {
-  local path=$1 real root
+# Absolute, existing and inside the accounts root.  realpath first, so a symlink
+# planted inside the tree cannot aim the chmod or the chown outside it.  Sets
+# real (the canonical path) and root in the caller, which declares them local.
+# 19 Oct 26 dm - pulled out of require_sd_path so that require_sd_chown_path
+#   below has the same first half.
+resolve_in_accounts_root() {
+  local path=$1
   [[ -n $path ]] || die "path is empty"
   [[ $path == /* ]] || die "path '$path' is not absolute"
   real=$(realpath -e -- "$path" 2>/dev/null) || die "path '$path' does not exist"
   root=$(realpath -e -- "$SD_ACCT_ROOT" 2>/dev/null) || die "accounts root '$SD_ACCT_ROOT' does not exist"
-  [[ -d $real ]] || die "path '$real' is not a directory"
   [[ $real == "$root"/* ]] || die "path '$real' is outside the accounts root '$root'"
+}
+
+# setgid is restricted to the accounts root, and to directories.
+require_sd_path() {
+  local path=$1 real root
+  resolve_in_accounts_root "$path"
+  [[ -d $real ]] || die "path '$real' is not a directory"
+}
+
+# 19 Oct 26 dm - THE SDSYS SHAPE OF CHOWN-ACCOUNT TAKES A DIRECTORY OR ONE OF TWO RECORD FILES.  It used require_sd_path, which wants a
+#   directory, so for a GROUP account the four files createa's set.owner names inside its directory files - voc/%0, voc/%1,
+#   $hold.dic/%0 and $hold.dic/%1 - were refused ("is not a directory"), createa printed "Unable change ownership of directory
+#   error ... err: 0" four times, and the files stayed sdsys:sdusers 664: writable by every SD user, in an account only the group
+#   may enter.  A user account's same four files were chowned without complaint (that shape has no directory rule).  A file is
+#   accepted only when its canonical name is %0 or %1 and nothing else links to it: a hard link would let the chown reach an inode
+#   outside the tree.  Nothing wider than the directory case already allowed: once sdsys owns a directory it can replace what is in it.
+require_sd_chown_path() {
+  local path=$1 real root
+  resolve_in_accounts_root "$path"
+  if [[ -d $real ]]; then
+    return 0
+  fi
+  [[ -f $real ]] || die "path '$real' is neither a directory nor a file"
+  case ${real##*/} in
+    %0|%1) : ;;
+    *) die "path '$real' is a file, and only the dictionary record files %0 and %1 are chowned" ;;
+  esac
+  [[ $(stat -c %h -- "$real") == 1 ]] || die "path '$real' has more than one hard link"
 }
 
 # 18 Sep 26 dm - CHOWN-ACCOUNT, FOR CREATE.ACCOUNT'S OWN STEP (the A4 finding of
@@ -568,7 +598,8 @@ require_sd_path() {
 # set.owner computes, and nothing else is accepted:
 #
 #   <user>  sdu_<user>    the account's own directory      (createa:365-366)
-#   sdsys   <sdg_ group>  a GROUP account's directory
+#   sdsys   <sdg_ group>  a GROUP account's directory, and (19 Oct 26) the
+#                         record files %0 and %1 of a directory file in it
 #   root    sdusers       an OTHER account's attached path
 #
 # A PERSON IS CONFINED TO ITS OWN ACCOUNT DIRECTORY and to its own sdu_ group,
@@ -589,7 +620,7 @@ require_account_owner() {
       [[ $group == sdusers ]] || die "an OTHER account's owner is root:sdusers, not root:$group"
       ;;
     sdsys)
-      require_sd_path "$path"
+      require_sd_chown_path "$path"
       ;;
     *)
       require_sd_user "$user"

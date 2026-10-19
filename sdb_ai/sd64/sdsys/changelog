@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  CREATE.ACCOUNT GROUP NO LONGER FAILS TO GIVE THE GROUP ITS FOUR RECORD FILES.
+
+             What        Making a group account printed "Unable change ownership of directory error ..." four times, for voc/%0, voc/%1,
+                        $hold.dic/%0 and $hold.dic/%1 in the new account's directory. The helper that changes ownership on the administrator's
+                        behalf would only change a directory, so those four files stayed owned by the group sdusers with mode 664. They are now
+                        changed with everything else in the account: owner sdsys, the account's own group sdg_<name>, mode 664. The helper takes a
+                        file for this only when it is inside the accounts directory, is called %0 or %1, and has no other name linked to it.
+             Why it      Every SD user belongs to sdusers, so any of them could write those four files from outside SD. voc/%0 and voc/%1 are the
+             matters     two parts of the account's VOC, the list that says what each word and file name means to the people who sign on to it,
+                        so a person who was not in the group could change it without the voc-on gate or the group ever being asked.
+                        $hold.dic/%0 and /%1 are the same for the dictionary of its print-hold file.
+             Does not    It does not repair a group account made before this release: its four files keep the old group until someone gives them
+                        the right one (as root: chown sdsys:sdg_<name> on each of them, <name> being the account). User accounts and the shared
+                        account were never affected.
+
 19 Oct 26  THE UNINSTALLER REMOVES THE STORED SDNET LOGINS WHEN THE ACCOUNTS OR THE CONFIGURATION ARE DELETED.
 
              What        /var/lib/sd-net holds, for each person who ran set.netlogin, the keys of a login to a remote SD server, as good as that
