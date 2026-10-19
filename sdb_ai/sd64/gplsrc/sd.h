@@ -468,6 +468,13 @@ bool edit_ok_for_path(const char * path);
 int edit_os_path_refusal(const char * name, bool include_leaf);
 bool edit_leaf_counts(const char * name);
 
+/* MASTERS.C  (19 Oct 26, S.67 stage 1): the file-change hook and the master files */
+void masters_note_record(DH_FILE * dh, char op, const char * id, int id_len); /* op w (written) or d (deleted); called by dh_write and dh_delete */
+void masters_note_dh(DH_FILE * dh, char op);                                  /* op c (cleared); called by dh_clear */
+void masters_note_name(const char * name, char op);                           /* op n (made) x (removed) or r (renamed) for a path; dh_create_file, OSPATH, OSRENAME */
+void masters_open_hook(const char * canon);                                   /* the administrator opening a master file drains the journal first */
+void masters_request(const char * req, DESCRIPTOR * result);                   /* K_MASTERS */
+
 /* OP_DIO2.C */
 bool delete_path(char * path);
 bool fullpath(char * path, char * name);

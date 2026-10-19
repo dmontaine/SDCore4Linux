@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 1: x_ospath() key 5 (delete) calls masters_note_name() for the path it removed (journalled for the master files).
  * 18 Oct 26 dm  XF_SDSALT, XF_SDKEY, XF_SDRANDKEY: encryption layer 2, for any program (sd_encrypt_sodium.c).  The first XFUN
  *               functions that take no arguments (bcomp's in.xfun skips get.args for a row that writes none).
  * 17 Oct 26 dm  S.64 part 2: x_ospath() asks the edit gates (edit_os_path_refusal) before OSPATH key 5 (delete) and keys 13 and 14 (make a
@@ -1085,6 +1086,7 @@ Private void x_ospath() {
         value = (rmdir(path) == 0);
       else
         value = (unlink(path) == 0);
+      masters_note_name(path, 'x'); /* 19 Oct 26 S.67: an (empty) dictionary directory removed; the path need not exist any more */
       break;
 
     case 6: /* Is it open in SD? */

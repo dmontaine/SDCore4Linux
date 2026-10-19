@@ -5567,6 +5567,175 @@ Account %1 does not have files access, so it cannot be given files-write: use fi
 
 cited by: `modifya`
 
+### msg:11560
+> kind=message tier=reference since=- src=sdsys/messages/11560:1#e57b2080
+
+```
+Usage: sync.masters {account}
+```
+
+cited by: `masters`
+
+### msg:11561
+> kind=message tier=reference since=- src=sdsys/messages/11561:1#584085a5
+
+```
+Usage: check.masters {account}
+```
+
+cited by: `masters`
+
+### msg:11562
+> kind=message tier=reference since=- src=sdsys/messages/11562:1#24997c5f
+
+```
+Usage: list.master.pending
+```
+
+cited by: `masters`
+
+### msg:11563
+> kind=message tier=reference since=- src=sdsys/messages/11563:1#f758d39b
+
+```
+%1 is not a registered account
+```
+
+cited by: `masters`
+
+### msg:11564
+> kind=message tier=reference since=- src=sdsys/messages/11564:1#27dea5b9
+
+```
+The master files have not been set up on this system. Run sync.masters to set them up
+```
+
+cited by: `masters`
+
+### msg:11565
+> kind=message tier=reference since=- src=sdsys/messages/11565:1#65fa1b6c
+
+```
+The master files are set up: $master.journal, voc_master, dict_master and master_state, in the SDSYS account
+```
+
+cited by: `masters`
+
+### msg:11566
+> kind=message tier=reference since=- src=sdsys/messages/11566:1#5fb93c1d
+
+```
+Account %1: %2 VOC record(s), %3 dictionary file(s), %4 dictionary record(s)
+```
+
+cited by: `masters`
+
+### msg:11567
+> kind=message tier=reference since=- src=sdsys/messages/11567:1#c439cb05
+
+```
+Journal: %1 line(s) applied to %2 key(s) and %3 file(s)
+```
+
+cited by: `masters`
+
+### msg:11568
+> kind=message tier=reference since=- src=sdsys/messages/11568:1#64c00259
+
+```
+Every master copy matches its account
+```
+
+cited by: `masters`
+
+### msg:11569
+> kind=message tier=reference since=- src=sdsys/messages/11569:1#c6688665
+
+```
+Checked %1 account(s): %2 difference(s)
+```
+
+cited by: `masters`
+
+### msg:11570
+> kind=message tier=reference since=- src=sdsys/messages/11570:1#6782850d
+
+```
+%1: %2 %3
+```
+
+cited by: `masters`
+
+### msg:11571
+> kind=message tier=reference since=- src=sdsys/messages/11571:1#48dc4d79
+
+```
+The journal holds %1 byte(s) and %2 line(s) that have not been applied
+```
+
+cited by: `masters`
+
+### msg:11572
+> kind=message tier=reference since=- src=sdsys/messages/11572:1#8cd65443
+
+```
+Stale: %1 journal write(s) have failed since SD started, so a master copy may be out of date. Run sync.masters with no account
+```
+
+cited by: `masters`
+
+### msg:11573
+> kind=message tier=reference since=- src=sdsys/messages/11573:1#f03be926
+
+```
+Resync needed: the journal reached its size limit and %1 line(s) were dropped. Run sync.masters with no account
+```
+
+cited by: `masters`
+
+### msg:11574
+> kind=message tier=reference since=- src=sdsys/messages/11574:1#6f5d64ca
+
+```
+Nothing is waiting in the journal
+```
+
+cited by: `masters`
+
+### msg:11575
+> kind=message tier=reference since=- src=sdsys/messages/11575:1#7a6d50e9
+
+```
+%1 master key(s) are longer than MAXIDLEN allows and are not mirrored; raise MAXIDLEN in sd.conf (up to 255) to mirror them
+```
+
+### msg:11576
+> kind=message tier=reference since=- src=sdsys/messages/11576:1#4a85fb65
+
+```
+The master files could not be opened (%1)
+```
+
+cited by: `masters`
+
+### msg:11577
+> kind=message tier=reference since=- src=sdsys/messages/11577:1#6be538b0
+
+```
+The journal could not be applied (%1)
+```
+
+cited by: `masters`
+
+### msg:11578
+> kind=message tier=reference since=- src=sdsys/messages/11578:1#10c25b02
+
+```
+   %1 master record(s) written, %2 removed, %3 left out because the key is too long
+```
+
+cited by: `masters`
+
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
 
@@ -7053,7 +7222,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 10 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 11 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 19 Oct 26 dm S.67 stage 1: after the register record is written the account's VOC and dictionaries are copied to the master files (kernel(K$MASTERS, 'sync')).
 * 18 Oct 26 dm S.65 write group: CA$FILESWRITE joins the new user to the Linux group sdfileswrite after sdfiles; refused without CA$FILES (11523) and for a group or
 *              other account (10087, 10081 as CA$FILES); the group is looked for before anything is made; the state line 11522 is read off /etc/group.
 * 18 Oct 26 dm S.66: the shared account. The name shared is reserved (11516) for every type unless the installer's marker is present for a GROUP from an
@@ -599,6 +600,10 @@ PW.TRY.AGAIN:
 
    write acc.rec to acc.f, acc.name
    locked = @false
+*  19 Oct 26 dm - S.67 stage 1: the new account's VOC and dictionaries are copied to the master files, now that the register says where they are.  Until
+*  then the hook could not tell whose they were.  The answer is not looked at: status 1 is a system whose master files are not set up (nothing to do), and
+*  anything else is found by CHECK.MASTERS.
+   void kernel(K$MASTERS, 'sync' : @fm : downcase(acc.name))
    if acc.type = "USER" then
      crt sysmsg(10102, acc.name, acc.rec<ACC$SH>, acc.rec<ACC$OS.EXEC>)  ;* Account %1 has SH %2, OS.EXECUTE %3
      crt sysmsg(11409, acc.name, acc.rec<ACC$VOC.EDIT>, acc.rec<ACC$BP.EDIT>, acc.rec<ACC$DICT.EDIT>)  ;* Account %1 has VOC.EDIT %2, BP.EDIT %3, DICT.EDIT %4

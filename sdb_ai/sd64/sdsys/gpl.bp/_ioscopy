@@ -13,6 +13,7 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 19 Oct 26 dm  S.67 stage 1: after the copy the journal is told the target's path (kernel(K$MASTERS, 'note')), as in _OSCOPY.
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 as in _OSCOPY.
 * 12 Oct 26 dm  1.2-0 openQM ref 369.  The syntax is SD's own.
 * END-HISTORY
@@ -62,6 +63,8 @@ $include int$keys.h
    out = ''
    os.execute "cp -R -f -- '" : source : "' '" : target : "' 2>&1" capturing out
    status = os.error()
+*  19 Oct 26 dm - S.67: as in !OSCOPY, the journal is told the target's path
+   void kernel(K$MASTERS, 'note' : @fm : target)
    return
 end
 

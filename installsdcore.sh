@@ -1739,6 +1739,27 @@ if [ "$accounts_kept" = yes ]; then
     fi
 fi
 
+# 19 Oct 26 dm - S.67 stage 1 (owner, 17 Oct 2026).  THE MASTER FILES ARE SET UP AND FILLED, every install, kept accounts or not.  voc_master and
+#            dict_master (in the SDSYS account) hold a copy of every account's VOC records and dictionary records, master_state their checksums, and
+#            $master.journal is where the file-change hook writes the keys of what changed until SDSYS next opens a master file.  upgrade_masters makes
+#            them (!masters_setup), sets their modes (SDSYS and its group only) and copies every registered account into them.  It runs here, as the
+#            root session of the install, after the accounts have been brought forward (the copy then holds the finished VOCs) and before the register is
+#            handed to sdsys.  It prints COMPLETE on a line of its own when every account was copied; a run that did not is reported and the install goes
+#            on, because nothing else depends on the master files and the next install, or SYNC.MASTERS as SDSYS, does it again.
+echo
+echo "Setting up the master files and copying every account's VOC and dictionaries into them."
+om_rc=0
+om_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_masters 2>&1) || om_rc=$?
+printf '%s\n' "$om_out"
+om_plain=$(printf '%s\n' "$om_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+if [ "$om_rc" -ne 0 ] || ! printf '%s\n' "$om_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+    printf "%b\n" "$RED"
+    echo "WARNING: the master files were not all set up or filled."
+    echo "  Nothing else is affected.  Run this installer again, or sign on as sdsys and run:"
+    echo "      sync.masters"
+    printf "%b\n" "$NC"
+fi
+
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
 #            Records are sdsys:sdusers 644: a local sdsys session writes them
 #            without root (CREATE.ACCOUNT, MODIFY.ACCOUNT, DELETE.ACCOUNT all

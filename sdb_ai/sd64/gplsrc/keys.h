@@ -415,6 +415,13 @@
 #define K_SHARED_ONCE        131
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
+/* 19 Oct 26 dm - S.67 stage 1 (the master files, masters.c).  K_MASTERS: the argument is an op, then a field mark and its argument; the answer is a
+   string whose first field is the status (0 done, 1 the master files are not set up, 2 refused - not the administrator, 3 bad argument, 4 the
+   account is not registered, 5 error).  Only "ready" (is it set up?) and "note" (add a journal line for a path: !OSCOPY) are open to any $internal
+   program; every other op needs the administrator (USR_ADMIN) and is refused otherwise, changing nothing.  Ops: init, pending, peek n, drain, sync
+   account, syncbegin, syncend position, drop account, check {account}, accounts.  Number 150, apart from the 121-131 block of the gates, because
+   another lane was adding keys at 132 and up (merge safety only).  GPL.BP/INT$KEYS.H carries the same number. */
+#define K_MASTERS            150
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

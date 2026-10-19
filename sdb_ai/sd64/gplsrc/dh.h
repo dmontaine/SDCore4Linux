@@ -138,6 +138,11 @@ struct DH_FILE {
 #define DHF_FSYNC 0x01000000 /* fsync pending - see txn.c */
 #define DHF_SYNC 0x02000000  /* Forced writes: every write and delete is flushed to disk (OPEN ... SYNC, FCONTROL FC$SYNC, the S flag
                                 of the VOC entry; QM4 Fixes item 102).  Internal, in this process's DH_FILE only. */
+/* 19 Oct 26 dm - S.67 stage 1 (masters.c): what this process has worked out about the file's NAME, so that a write to a file that is neither a
+   VOC nor a dictionary costs one flag test.  Internal, in this process's DH_FILE only, never in a file header. */
+#define DHF_MST_NONE 0x04000000 /* its last component is neither "voc" nor "*.dic" */
+#define DHF_MST_VOC  0x08000000 /* the last component is "voc" */
+#define DHF_MST_DICT 0x10000000 /* the last component ends ".dic" */
                              /* File information */
   int16_t open_count;
   int16_t no_of_subfiles;

@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 stage 1: a successful delete calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
  * 11 Oct 26 dm  The index routine is given the id of the record as STORED, not an
  *           upper case copy of the id the caller used (see dh_write.c): a delete
  *           of r3 left r3 in every index (sandbox-akcase.py).
@@ -376,8 +377,14 @@ exit_dh_delete:
   }
   /* -------------------- */
 
-  if (dh_err == 0)
+  if (dh_err == 0) {
     dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
+
+    /* 19 Oct 26 S.67: a VOC or dictionary record has been deleted.  This function succeeds for a record that was not there (it only does not
+       count it), and that changed nothing, so only a record that WAS found is journalled.  See the call in dh_write.c. */
+    if (found)
+      masters_note_record(dh_file, 'd', id, id_len);
+  }
 
   return (dh_err == 0);
 }

@@ -12,9 +12,9 @@ Every ordinary account's VOC is `newvoc` in full (`create.account` copies it; `u
 ### voc:layer:voc_template
 > kind=voc.layer tier=reference since=- src=sdsys/voc_template/!:1#c9ee5681
 
-495 records in `sdsys/voc_template`, by the type letter of field 1: F 15, K 271, PA 5, PH 2, Q 2, R 10, S 2, V 187, X 1.
+498 records in `sdsys/voc_template`, by the type letter of field 1: F 15, K 271, PA 5, PH 2, Q 2, R 10, S 2, V 190, X 1.
 
-SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (36): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.readu`, `list.servers`, `list.shared`, `listu`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.ssh`, `restore.account`, `second.compile`, `set.backup.directory`, `set.date`, `set.server`, `settings.report`, `third.compile`, `unlock`, `update.accounts`.
+SDSYS's own VOC is `voc_template` in full: a superset of `newvoc`. The records only SDSYS has (39): `$hold`, `accounts`, `backup.account`, `bp`, `bp.out`, `check.masters`, `clean.account`, `clear.locks`, `config`, `create.account`, `delete.account`, `delete.server`, `first.compile`, `gpl.bp`, `gpl.bp.out`, `inhibit.login`, `list.locks`, `list.master.pending`, `list.readu`, `list.servers`, `list.shared`, `listu`, `lock`, `lock.tracer`, `messages`, `modify.account`, `qfile`, `remote.api`, `remote.ssh`, `restore.account`, `second.compile`, `set.backup.directory`, `set.date`, `set.server`, `settings.report`, `sync.masters`, `third.compile`, `unlock`, `update.accounts`.
 
 ### voc:type:F
 > kind=voc.type tier=reference since=- src=docs:User/markdown/32-sd-voc-structure-and-usage.md:83#98baf5a6

@@ -1,6 +1,34 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  SDSYS NOW KEEPS A COPY OF EVERY ACCOUNT'S VOC RECORDS AND DICTIONARY RECORDS (voc_master AND dict_master), KEPT UP TO DATE BY A JOURNAL, AND THREE NEW VERBS MANAGE THEM: sync.masters, check.masters AND list.master.pending.
+
+             What        Two files in the SDSYS account hold a copy of every VOC record of every account, keyed account*recordid, and of every
+                        dictionary record, keyed account*filename*recordid (the account is the one whose directory holds the dictionary); a
+                        third file, master_state, holds the checksum and time of each copy. Whenever any program, editor, restore or SD itself
+                        writes, deletes or clears a VOC or a dictionary, or makes, removes, renames or copies into one, SD appends ONE line to
+                        $master.journal in the SDSYS directory: the account, the file, the record id and what was done, never the data. The next time
+                        SDSYS opens a master file (or runs sync.masters) the journal is applied: each key is made to match the account's record as it
+                        is then, so applying a line twice does no harm. sync.masters makes the first copy of every account (the installer runs it on
+                        every install and creating or restoring an account runs it for that account), check.masters compares every copy with its
+                        account and lists what differs, what is missing, what is extra, what is too long to mirror, what could not be read and
+                        which VOC and dictionary files lack group write, and changes nothing, and list.master.pending shows what the journal
+                        holds that has not been applied. A write inside a transaction is journalled when the transaction commits and not at all
+                        when it is rolled back.
+             Why it      SDSYS can read and, in the next stage, edit every account's VOC and dictionaries from one place without signing on to
+                        each account. This first stage keeps the copies true; the account is the truth.
+             Does not    An edit made to a master record is NOT delivered to the account (that is the next stage, which also needs sdsys to be in
+                        every account's group), and the next change of that record in the account, or sync.masters, overwrites the edit. A
+                        VOC id so long that account*id would pass MAXIDLEN (63 unless sd.conf says more; the state record needs two more characters)
+                        is not copied; check.masters lists it as toolong, and raising MAXIDLEN to as much as 255 copies it. A journal that cannot be
+                        written, or has gone missing where the master files exist, never stops the write that caused it: a flag (stale) is raised
+                        for check.masters and list.master.pending to report,
+                        and a journal that reaches 4 MB raises another (resync) and takes no more lines until sync.masters with no account has
+                        run; the flags are held in shared memory and start again when SD restarts, and check.masters compares every record in
+                        any case. A change made outside SD (a shell command, a program run by an account that holds OS.EXECUTE) is not seen until
+                        sync.masters. The ownership of the journal and the master files (sdsys, group sdusers or sdsys) is set by the installer's
+                        session and has not been seen on an install.
+
 19 Oct 26  A GUIDE, A GENERATED REFERENCE AND A CLAUDE CODE SKILL FOR AI AGENTS THAT WORK ON AN SD SYSTEM ARE IN THE SOURCE (agent-pack/).
 
              What        An AI agent asked to write SD BASIC meets a language that looks like OpenQM, UniVerse or D3 and is not, and guesses names SD

@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 stage 1: a successful write calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
  * 11 Oct 26 dm  The index routine is given the record id as STORED, not an upper
  *           case copy of the id as written.  Every hashed file is NOCASE (D2), and
  *           BUILD.INDEX stores the stored spelling, so the upper-cased id indexed a
@@ -505,8 +506,14 @@ exit_dh_write:
     }
   }
 
-  if (dh_err == 0)
+  if (dh_err == 0) {
     dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
+
+    /* 19 Oct 26 S.67: a VOC or dictionary record has been written.  Every writer passes here - a transaction's COMMIT, a restore, an
+       $internal program, the kernel itself - so this is where the master files hear of it.  It never fails and never waits long; a
+       file that is neither costs one flag test (masters.c). */
+    masters_note_record(dh_file, 'w', id, id_len);
+  }
 
   return (dh_err == 0);
 }

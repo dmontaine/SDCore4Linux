@@ -23,6 +23,7 @@
 	  * 17 Oct 26 dm S.65 slice 1: K$NET (127), the per-account NET gate.
 	  * 18 Oct 26 dm DEFAULT.WIDTH 140 and DEFAULT.DEPTH 42 (were 120 and 36); gplsrc/tio.h has the same two.
 	  * 18 Oct 26 dm S.66: K$SHARED.READ (128), K$SHARED.WRITE (129), K$SHARED.REF (130), K$SHARED.ONCE (131).
+	  * 19 Oct 26 dm S.67 stage 1: K$MASTERS (150), the master files.
 	  * END-HISTORY
       *
       *  START-DESCRIPTION:
@@ -226,6 +227,7 @@
       $define K$SHARED.ONCE     131     ;* a file name: 1 the first time this process is asked about it, 0 afterwards (the audit of a shared open) (18 Oct 26, S.66)
       $define K$PROFILER        116   ;* n > 0 start the application event profiler (the events in n), 0 stop, -1 ask, -2 the table (16 Oct 26)
       $define K$PROFILER.USER   117     ;* user * 4096 + 2048 + n start it in another process, user * 4096 alone stop it and have it write F<user> to $ipc; administrator only
+      $define K$MASTERS         150     ;* the master files (voc_master, dict_master, master_state): op:@fm:argument, the answer's first field is the status (0 done, 1 not set up, 2 not the administrator, 3 bad argument, 4 no such account, 5 error); only 'ready' and 'note' are open to every $internal program (19 Oct 26, S.67)
       $define K$LOCK.TRACE      115     ;* 1 start lock tracing (administrator: makes the locktrace file), 0 stop, -1 ask; the state, -1 if refused (16 Oct 26)
 
       * PTERM() action keys

@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 stage 1: a created VOC or dictionary calls masters_note_name() (journalled for the master files).
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
  *
@@ -222,6 +223,9 @@ bool dh_create_file(char path[],
   fu = INVALID_FILE_HANDLE;
 
   status = TRUE;
+
+  /* 19 Oct 26 S.67: a VOC or a dictionary was made (any other file is none of the master files' business) */
+  masters_note_name(path, 'n');
 
 exit_dh_create_file:
   if (status == FALSE) {
