@@ -1,6 +1,20 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  AN UPGRADE PUTS THE FOUR RECORD FILES OF EVERY EXISTING GROUP ACCOUNT BACK IN ITS OWN GROUP.
+
+             What        When you keep your accounts and install again, the installer now looks at each group account except shared and
+                        gives voc/%0, voc/%1, $hold.dic/%0 and $hold.dic/%1 the group of the account's directory (owner sdsys, mode as it
+                        was). They had been left in the group sdusers by the version before, which is the fix just below for NEW accounts.
+                        It prints each file it changes and how many, changes nothing that is already right, and so does nothing on a later
+                        install. It does the change through sd-elevate, which checks every file again.
+             Why it      Until then, any SD user could still write the stored VOC of a group account made before the fix, from outside SD.
+             matters
+             Does not    It never follows a symbolic link, because a member of a group can write in the account's directory and the installer
+                        runs as root: a link, an account whose directory is not in an sdg_ group, or a file sd-elevate refuses is named in a
+                        warning and left as it is, and the install goes on. It does not touch shared (its group is sdusers by design), user
+                        accounts, or any other file of a group account. A fresh install has no group account but shared and so does nothing.
+
 19 Oct 26  CREATE.ACCOUNT GROUP NO LONGER FAILS TO GIVE THE GROUP ITS FOUR RECORD FILES.
 
              What        Making a group account printed "Unable change ownership of directory error ..." four times, for voc/%0, voc/%1,

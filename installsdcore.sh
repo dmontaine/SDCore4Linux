@@ -283,6 +283,79 @@ open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RE
         printf "%b\n" "$NC"
     fi
 }
+# 19 Oct 26  THE RECORD FILES OF A GROUP ACCOUNT MADE BEFORE 981a36a (owner, 19 Oct 2026: "in the installer's upgrade, for each group
+#            account except shared, give voc/%0, voc/%1 and $hold.dic/%0|%1 the group of the account directory (owner sdsys)").
+#            create.account group used to leave those four files - the two parts of the account's VOC and of the dictionary of its
+#            print-hold file - in the group sdusers with mode 664, and every SD user is in sdusers, so any of them could write a group
+#            account's VOC from outside SD.  sd-elevate refused them ("is not a directory"); since 981a36a it chowns them and so does
+#            create.account for a new account.  This gives the same to the accounts already made.  It asks sd-elevate for each file
+#            (`chown-account sdsys <group> <file>`), so the helper's own rules judge the file (inside the accounts directory, called %0
+#            or %1, no second hard link) and nothing here chowns by itself.  What it adds is the part the helper cannot know, which
+#            account the file belongs to: the directory's group must be an sdg_ group (the shared account's is sdusers, by design, and
+#            is skipped by name), and neither the account directory, nor voc, nor the file may be or sit behind a symbolic link, because
+#            a member of the group can write in its directory and could otherwise aim this at another account's files.  A file that is
+#            already sdsys:<group> is not touched, so a second install does nothing.  A refusal is reported in a WARNING and the install
+#            goes on.  Only the files that exist are looked at.  It runs under this script's IFS and set -e: every list is literal.
+repair_group_account_files() {   # repair_group_account_files ACCOUNTS_ROOT
+    local root="$1" gdir gname gcanon ggroup rel f fcanon cur
+    local fixed=0 left=0
+    for gdir in "$root"/group_accounts/*; do
+        [ -d "$gdir" ] || continue
+        gname="${gdir##*/}"
+        if [ "$gname" = shared ]; then
+            continue
+        fi
+        gcanon=$(realpath -e -- "$gdir" 2>/dev/null) || continue
+        if [ "$gcanon" != "$(realpath -e -- "$root")/group_accounts/$gname" ]; then
+            echo "  group account ${gname}: its directory is a symbolic link; left alone"
+            left=$((left+1))
+            continue
+        fi
+        ggroup=$(stat -c %G "$gdir" 2>/dev/null) || ggroup=""
+        case "$ggroup" in
+            sdg_?*) ;;
+            *)
+                echo "  group account ${gname}: its directory belongs to '${ggroup:-?}', not to an sdg_ group; left alone"
+                left=$((left+1))
+                continue ;;
+        esac
+        for rel in voc/%0 voc/%1 '$hold.dic/%0' '$hold.dic/%1'; do
+            f="$gdir/$rel"
+            if [ ! -e "$f" ] && [ ! -L "$f" ]; then
+                continue
+            fi
+            fcanon=$(realpath -e -- "$f" 2>/dev/null) || fcanon=""
+            if [ "$fcanon" != "$gcanon/$rel" ]; then
+                echo "  group account ${gname}: ${rel} is a link or sits behind one; left alone"
+                left=$((left+1))
+                continue
+            fi
+            cur=$(stat -c %U:%G "$f" 2>/dev/null) || cur=""
+            if [ "$cur" = "sdsys:${ggroup}" ]; then
+                continue
+            fi
+            if sudo /usr/local/sbin/sd-elevate chown-account sdsys "$ggroup" "$f"; then
+                echo "  group account ${gname}: ${rel} now belongs to ${ggroup} (it was ${cur:-unknown})"
+                fixed=$((fixed+1))
+            else
+                echo "  group account ${gname}: sd-elevate refused ${rel}; left as it is"
+                left=$((left+1))
+            fi
+        done
+    done
+    if [ "$left" -gt 0 ]; then
+        printf "%b\n" "$RED"
+        echo "WARNING: ${left} record file(s) of the group accounts were left as they are (listed above)."
+        echo "  Each is a file of a group account's VOC or print-hold dictionary that is not in the account's own group, so any SD user"
+        echo "  can write it.  Look at each, then give it its group:  sudo /usr/local/sbin/sd-elevate chown-account sdsys <sdg_ group> <file>"
+        printf "%b\n" "$NC"
+    fi
+    if [ "$fixed" -gt 0 ]; then
+        echo "  Gave ${fixed} record file(s) of the group accounts their own group."
+    elif [ "$left" -eq 0 ]; then
+        echo "  Every group account's record files are already in its group."
+    fi
+}
 # --------------------
 
 # Modified by Composer AI - 2026/06/10.
@@ -1741,6 +1814,12 @@ if [ "$accounts_kept" = yes ]; then
         echo "      modify.account <account> dict-on"
         printf "%b\n" "$NC"
     fi
+
+# 19 Oct 26 dm - the record files of the kept GROUP accounts go back into their own group (see repair_group_account_files above).
+#            It needs only sudo and the helper installed earlier in this run, not the sd session, so it comes last in this block.
+    echo
+    echo "Checking the record files of the kept group accounts."
+    repair_group_account_files "$ACCT_PATH"
 fi
 
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.
