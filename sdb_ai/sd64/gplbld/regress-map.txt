@@ -79,17 +79,19 @@ gplbld/*                     : @core
 # 18 Oct 26, slice 3e (writes and locks on a remote file): op_sh.c (edit_kind_of_net_name), op_kernel.c (K_EDIT_OK of a file variable, K_NET -2), cproc (kernel(K$NET, -2))
 # and edit_guard (the remote branch) select the netfile suite too, as netfiles.c, op_dio3.c, op_lock.c, op_dio2.c, sd.h and descr.h already do.
 gplsrc/netfiles.c            : netfile
+# S.67 stage 1 (19 Oct 26): the master files.  masters.c is theirs; the DH layer's write, delete, clear and create, OSPATH and OSRENAME, open_file and K_MASTERS call it.
+gplsrc/masters.c             : masters @files
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile
 gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared
-gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared
-gplsrc/op_dio1.c             : @files cll prof lockown netfile shared
+gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
+gplsrc/op_dio1.c             : @files cll prof lockown netfile shared masters
 gplsrc/dh_ak.c               : @files netfile shared
 gplsrc/dh_misc.c             : @files netfile shared
 gplsrc/analyse.c             : fixes-b12 misc-a9 netfile
 gplsrc/dh_split.c            : @files splitfull
-gplsrc/dh_*.c                : @files
+gplsrc/dh_*.c                : @files masters
 gplsrc/dh_*.h                : @files
-gplsrc/dh.h                  : @files
+gplsrc/dh.h                  : @files masters
 gplsrc/reccache.c            : @files
 gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
@@ -99,7 +101,7 @@ gplsrc/op_seqio.c            : @seq prof getdev editgates
 gplsrc/op_coll.c             : coll collfile dbgcoll
 gplsrc/op_array.c            : coll list-q2 @core
 gplsrc/op_skt.c              : opensock gates qmclient oq2
-gplsrc/op_xfun.c             : @functions getdev ospath
+gplsrc/op_xfun.c             : @functions getdev ospath masters
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
 gplsrc/op_iconv.c            : @functions crypt
@@ -129,16 +131,16 @@ gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
 gplsrc/sdlnxd.c              : q5
-gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared @core
+gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters @core
 gplsrc/profiler.c            : prof
-gpl.src                      : @core prof netfile
+gpl.src                      : @core prof netfile masters
 gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc
 gplsrc/k_error.c             : sysexc try @core netfile
 gplsrc/messages.c            : sysexc @core
-gplsrc/sd.h                  : sysexc try editgates @core netfile shared
+gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
@@ -163,11 +165,11 @@ gplsrc/descr.h               : restricted classas nameindex @core netfile
 gplsrc/op_jumps.c            : @core try partial prof fixes-b12 classinit sysexc callfile callcase
 gplsrc/op_stop.c             : @core try
 gplsrc/op_loads.c            : @core
-gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared
+gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netfile shared masters
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters
 gplsrc/sd.c                  : @core fixes-b12
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -243,7 +245,7 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize masters
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
@@ -263,7 +265,7 @@ sdsys/gpl.bp/deletef         : editgates @files shared
 sdsys/gpl.bp/copy            : editgates @files
 sdsys/gpl.bp/copyp           : editgates @files
 sdsys/gpl.bp/cname           : editgates @files shared
-sdsys/gpl.bp/restorea        : editgates net shared @system
+sdsys/gpl.bp/restorea        : editgates net shared masters @system
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
@@ -310,6 +312,7 @@ sdsys/gpl.bp/sort*           : @lists @functions
 sdsys/gpl.bp/_sort*          : @lists @functions
 sdsys/gpl.bp/_multisort      : @lists @functions
 sdsys/gpl.bp/write_install_dicts : dictfold nocase upgradenocase
+sdsys/gpl.bp/upgrade_masters : masters
 sdsys/gpl.bp/upgrade_*       : upgradenocase nocase gates editgates
 sdsys/gpl.bp/option          : option-a4 option-q17 mode-q16 cll stacked lockown
 sdsys/gpl.bp/_option         : option-a4 option-q17 mode-q16
@@ -340,8 +343,8 @@ sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
-sdsys/gpl.bp/_ioscopy        : gates oq2 editgates
-sdsys/gpl.bp/_oscopy         : gates oq2 editgates
+sdsys/gpl.bp/_ioscopy        : gates oq2 editgates masters
+sdsys/gpl.bp/_oscopy         : gates oq2 editgates masters
 sdsys/gpl.bp/oscopya         : gates oq2
 sdsys/gpl.bp/catalog         : callcase bcomp-a1 misc-a9 fixes-b12 editgates
 sdsys/gpl.bp/delcat          : callcase misc-a9 fixes-b12 editgates
@@ -355,7 +358,10 @@ sdsys/gpl.bp/stdfil*         : stdfil
 sdsys/gpl.bp/shared_ref      : shared @core
 sdsys/gpl.bp/edit_msg        : shared editgates
 sdsys/gpl.bp/listshared      : shared
-sdsys/gpl.bp/delacc          : shared gates @system
+sdsys/gpl.bp/delacc          : shared gates masters @system
+sdsys/gpl.bp/create_account  : masters gates editgates shared @core
+sdsys/gpl.bp/masters         : masters
+sdsys/gpl.bp/masters_setup   : masters
 sdsys/gpl.bp/spview          : shared editgates @core
 sdsys/gpl.bp/*               : @core
 
@@ -374,6 +380,9 @@ sdsys/voc_template/set.server    : net
 sdsys/voc_template/delete.server : net
 sdsys/voc_template/list.servers  : net
 sdsys/voc_template/list.shared   : shared
+sdsys/voc_template/sync.masters  : masters
+sdsys/voc_template/check.masters : masters
+sdsys/voc_template/list.master.pending : masters
 sdsys/voc_template/encrypt.key   : crypt
 sdsys/voc_template/*         : @core dictfold misc-a9
 sdsys/messages/117*          : crypt
@@ -387,6 +396,8 @@ sdsys/messages/11240         : ide idedraw
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared
+sdsys/messages/1156[0-9]     : masters
+sdsys/messages/1157[0-9]     : masters
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none
