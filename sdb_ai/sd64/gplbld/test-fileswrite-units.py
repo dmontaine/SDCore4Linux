@@ -6,6 +6,11 @@
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.
 
+19 Oct 26 (K1, K4a): F15 bounds message 11521 at 100 characters (the SDNet client shows an ON ERROR reply's text cut there); F11 is rewritten for set.files after K4a - the write
+group is read before the 'already had it' answer, FILES-OFF has nothing to do only for a person in neither group, the write group goes out FIRST and every group change is
+change.files.group, which reads the membership back - with 13 new mutants (60 in all), one of which moves the write block after the group change (the 18 Oct order).  The
+program itself is RUN by sandbox-filesgrp.py against a scratch group file.
+
 THE RULE (owner, 18 Oct 2026, "yes"): a files-only login (the Linux group sdfiles) may CHANGE files on this server and take record or file locks only if
 the user is ALSO in the Linux group sdfileswrite, which is off for a new account and given by SDSYS (modify.account <account> files-write-on).  The change
 set is requests 7 to 10 (the locking reads), 16 to 19 (write, writeu, delete, deleteu), 30 (lock record), 31 (clearfile), 32 (filelock), 33 (fileunlock),
@@ -235,17 +240,30 @@ def run_checks(raw):
            for w, g_, b in (("FILES-ON", "sdfiles", "true"), ("FILES-OFF", "sdfiles", "false"), ("FILES-WRITE-ON", "sdfileswrite", "true"), ("FILES-WRITE-OFF", "sdfileswrite", "false")))
        and "modify.account <account> files-on | files-off | files-write-on | files-write-off" in mo
        and "files-on, files-off, files-write-on, files-write-off, suspended or unsuspended" in mo and sf != "", "")
+    cgf = routine_body(mo, "change.files.group")
     ck("F11 set.files: FILES-WRITE-ON is refused for a person who is not in sdfiles (11523, read three-valued) BEFORE the 'already had it' answer and before anything is run; "
-       "FILES-OFF takes the person out of sdfileswrite as well, after the removal from sdfiles and before the read back, so a later files-on does not hand the write back; "
-       "the line printed is 11522 for the write group and 11482 for the other, read back from /etc/group",
-       ordered(sf, "has.files = is_grp_member(files.user, files.grp)", "if files.grp = 'sdfileswrite' and files.want then", "in.files = is_grp_member(files.user, 'sdfiles')",
-               "sysmsg(11523, acc.name)", "if has.files = files.want then", "sysmsg(10080, acc.name)", "os.execute")
+       "(K4a, 19 Oct 26) for FILES-ON and FILES-OFF the write group is read too, three-valued (10081 when it cannot be read), BEFORE that answer, and FILES-OFF has nothing to do only for a "
+       "person who is in NEITHER group - the orphan, in sdfileswrite and not in sdfiles, was told 'nothing changed' and kept the membership; the write group is taken out FIRST, before the group "
+       "itself, so a failure of the second removal leaves read access and never write access without read; FILES-ON takes a stray write membership away BEFORE it adds sdfiles and stops "
+       "with 10081 when it cannot; every group change is change.files.group, which reads the membership back; the line printed is 11522 for the write group (first, when it was taken "
+       "away) and 11482 for the other, read back",
+       ordered(sf, "has.files = is_grp_member(files.user, files.grp)", "has.write = is_grp_member(files.user, 'sdfileswrite')", "if files.grp = 'sdfileswrite' and files.want then",
+               "in.files = is_grp_member(files.user, 'sdfiles')", "sysmsg(11523, acc.name)", "nothing.to.do = not(has.files) and not(has.write)", "nothing.to.do = (has.files = files.want)",
+               "if nothing.to.do then", "sysmsg(10080, acc.name)", "files.found = is_group(files.grp)", "gosub change.files.group")
        and re.search(r"in\.files = is_grp_member\(files\.user, 'sdfiles'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
                      r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*if not\(in\.files\) then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
                      r"\s*crt sysmsg\(11523, acc\.name\)[^\n]*\n\s*return\s*\n\s*end", sf) is not None
-       and re.search(r"if files\.stat = 0 and files\.grp = 'sdfiles' and not\(files\.want\) then\s*\n\s*had\.write = is_grp_member\(files\.user, 'sdfileswrite'\)\s*\n\s*files\.stat = status\(\)\s*\n"
-                     r"\s*if files\.stat = 0 and had\.write then\s*\n\s*os\.execute \"sudo /usr/local/sbin/sd-elevate delgroup \" : files\.user : \" sdfileswrite\"", sf) is not None
-       and ordered(sf, "delgroup \" : files.user : \" sdfileswrite\"", "now.files = is_grp_member(files.user, files.grp)", "sysmsg(11522, acc.name", "sysmsg(11482, acc.name"), "")
+       and re.search(r"if files\.grp = 'sdfiles' then\s*\n\s*has\.write = is_grp_member\(files\.user, 'sdfileswrite'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat # 0 then\s*\n"
+                     r"\s*@system\.return\.code = -ER\$FAILED\s*\n\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end", sf) is not None
+       and ordered(sf, "write.removed = @false", "if files.grp = 'sdfiles' and has.write then", "cg.group = 'sdfileswrite'", "cg.want = @false", "gosub change.files.group",
+                   "if files.stat # 0 then", "sysmsg(10081, acc.name, files.stat)", "return", "now.write = cg.now", "write.removed = @true",
+                   "if files.grp = 'sdfiles' and not(files.want) and not(has.files) then", "now.files = @false", "end else", "cg.group = files.grp", "cg.want = files.want",
+                   "gosub change.files.group", "now.files = cg.now")
+       and sf.count("gosub change.files.group") == 2 and sf.count("os.execute") == 0 and cgf.count("os.execute") == 2
+       and ordered(cgf, "cg.now = @false", "if cg.want then", 'sd-elevate addgroup " : files.user : " " : cg.group', "end else", 'sd-elevate delgroup " : files.user : " " : cg.group',
+                   "files.stat = OS.ERROR()", "cg.now = is_grp_member(files.user, cg.group)", "files.stat = status()", "if files.stat = 0 and cg.now # cg.want then files.stat = 2")
+       and ordered(sf, "sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "if write.removed then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')",
+                   "sysmsg(11482, acc.name, if now.files then 'yes' else 'no')"), "")
     ck("F12 createacc.h defines CA$FILESWRITE as 39 (after CA$SHARED.WRITE 38, unique); CREATEA: FILES-WRITE-ON sets it to 1 (nothing else does) and the syntax line names it; "
        "CREATE.ACCOUNT: a request is exactly 1, it needs FILES-ON (11523, before anything is made), the group sdfileswrite is looked for before the Linux user is made (10024), a group or "
        "other account is refused as for FILES-ON, the join is sd-elevate addgroup <user> sdfileswrite AFTER the sdfiles join, and the state line 11522 is read off /etc/group",
@@ -284,13 +302,16 @@ def run_checks(raw):
             with open(p, encoding="utf-8", errors="replace") as f:
                 if re.search(r"\b1152[123]\b", strip_bas(f.read())):
                     stray.append(fname)
-    ck("F15 messages 11521 to 11523 exist, ONE line each, with the words they name in lower case (files-write-on, files-on); 11521 names the request (%1) and what the administrator can do; "
+    ck("F15 messages 11521 to 11523 exist, ONE line each, with the words they name in lower case (files-write-on, files-on); 11521 names the request (%1) and what the administrator can do, "
+       "and is AT MOST 100 CHARACTERS with a request number in it (19 Oct 26, K1: the SDNet client shows an ON ERROR reply's text cut to 100 characters, gpl.bp/netfile clean.text, and the first text "
+       "was 175 - the person at the client saw 'status 0' where the reason should have been); "
        "11522 is 'Account %1 has files-write %2' (lower case, the owner's rule: a keyword SD prints); and each is used where it should be and nowhere else: 11521 by apisrvr only, twice (the gate, ONE argument; vb.readv, request 41), "
-       "11522 by MODIFY.ACCOUNT and CREATE.ACCOUNT once each with the account and yes or no, 11523 by MODIFY.ACCOUNT (sysmsg) and CREATE.ACCOUNT (err =) once each with the account",
+       "11522 by MODIFY.ACCOUNT (twice since 19 Oct 26: the write words, and FILES-OFF / FILES-ON when the write group went too) and CREATE.ACCOUNT (once) with the account and yes or no, 11523 by MODIFY.ACCOUNT (sysmsg) and CREATE.ACCOUNT (err =) once each with the account",
        "\n" not in m21 and "\n" not in m22 and "\n" not in m23 and "%1" in m21 and "files-write-on" in m21 and m22 == "Account %1 has files-write %2" and "files-on" in m23 and "%1" in m23 and "FILES" not in m21 + m22 + m23
+       and len(m21.replace("%1", "41")) <= 100 and len(m21.replace("%1", "41")) > 40
        and len(re.findall(r"sysmsg\(11521, (?:action|41)\)", ap)) == 2 and ap.count("11521") == 2 and mo.count("sysmsg(11522, acc.name, if now.files then 'yes' else 'no')") == 1
        and ca2.count("sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')") == 1 and mo.count("sysmsg(11523, acc.name)") == 1
-       and ca2.count("err = 11523:@vm:acc.name") == 1 and mo.count("11522") == 1 and ca2.count("11522") == 1 and mo.count("11523") == 1 and ca2.count("11523") == 1
+       and ca2.count("err = 11523:@vm:acc.name") == 1 and mo.count("11522") == 2 and mo.count("sysmsg(11522, acc.name, if now.write then 'yes' else 'no')") == 1 and ca2.count("11522") == 1 and mo.count("11523") == 1 and ca2.count("11523") == 1
        and not any(re.search(r"\b1152[123]\b", c[n_]) for n_ in ("createa", "acc_os_info", "restorea", "apifilesok")) and not stray,
        repr((m21, m22, m23, stray)))
     return res
@@ -337,7 +358,28 @@ def mutants(raw):
     m("FILES-WRITE-ON sets the wrong group", "modifya", "         files.grp = 'sdfileswrite'\n         files.want = @true", "         files.grp = 'sdfiles'\n         files.want = @true")
     m("FILES-WRITE-OFF is not a word", "modifya", "case action = 'FILES-WRITE-OFF'", "case action = 'FILES-WRITE-OFFX'")
     m("the person need not be in sdfiles", "modifya", "      if not(in.files) then", "      if 0 then")
-    m("files-off leaves the write group", "modifya", "if files.stat = 0 and files.grp = 'sdfiles' and not(files.want) then", "if 0 then")
+    m("files-off leaves the write group", "modifya", "if files.grp = 'sdfiles' and has.write then\n      cg.group = 'sdfileswrite'", "if 0 then\n      cg.group = 'sdfileswrite'")
+    m("files-on leaves a stray write membership (K4a: it became write access at the next files-on)", "modifya", "if files.grp = 'sdfiles' and has.write then\n      cg.group = 'sdfileswrite'",
+      "if files.grp = 'sdfiles' and has.write and not(files.want) then\n      cg.group = 'sdfileswrite'")
+    m("the orphan (write group, not sdfiles) is told nothing changed", "modifya", "nothing.to.do = not(has.files) and not(has.write)", "nothing.to.do = not(has.files)")
+    m("the write group is not read for the pair", "modifya", "if files.grp = 'sdfiles' then\n      has.write = is_grp_member(files.user, 'sdfileswrite')", "if 0 then\n      has.write = is_grp_member(files.user, 'sdfileswrite')")
+    m("the write group is not read three-valued", "modifya", "has.write = is_grp_member(files.user, 'sdfileswrite')\n      files.stat = status()", "has.write = is_grp_member(files.user, 'sdfileswrite')\n      files.stat = 0")
+    m("a failed removal of the write group does not stop the command", "modifya",
+      "      gosub change.files.group\n      if files.stat # 0 then\n         @system.return.code = -ER$FAILED\n         crt sysmsg(10081, acc.name, files.stat)\n         return\n      end\n      now.write = cg.now",
+      "      gosub change.files.group\n      now.write = cg.now")
+    m("sdfiles is taken from a person who is not in it", "modifya", "if files.grp = 'sdfiles' and not(files.want) and not(has.files) then", "if 0 then")
+    m("a group change is not read back", "modifya", "cg.now = is_grp_member(files.user, cg.group)", "cg.now = cg.want")
+    m("a read back that differs is a success", "modifya", "if files.stat = 0 and cg.now # cg.want then files.stat = 2", "null")
+    m("set.files runs the helper itself again (a second place that changes a group)", "modifya", "   write.removed = @false\n", "   write.removed = @false\n   os.execute \"sudo /usr/local/sbin/sd-elevate delgroup \" : files.user : \" sdfileswrite\"\n")
+    m("the line for the write group that went is not printed", "modifya", "if write.removed then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')", "if 0 then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')")
+
+    def write_group_last(t):
+        """The block that takes the person out of sdfileswrite is moved to AFTER the group change: the order of the 18 Oct build."""
+        i = t.index("   write.removed = @false\n")
+        j = t.index("\n* The group itself")
+        k = t.index("   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      crt sysmsg(10081, acc.name, files.stat)\n      return\n   end\n\n   @system.return.code = 0")
+        return t[:i] + t[j + 1:k] + t[i:j + 1] + t[k:]
+    m("the write group is taken out AFTER sdfiles (the order that could leave the orphan)", "modifya", write_group_last, None)
     m("the write group's line is the other message", "modifya", "crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')")
     # createa / create_account / restorea / acc_os_info
     m("FILES-WRITE-ON sets nothing", "createa", "settings<CA$FILESWRITE> = 1", "settings<CA$FILES> = 1")
@@ -356,6 +398,8 @@ def mutants(raw):
     m("sd-elevate may delete the group", "sd-elevate", "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die", "      sdusers|sdssh|sdapi|sdfiles)\n        die")
     # messages
     m("message 11521 does not name the verb", "msg:11521", "files-write-on", "the-write-word")
+    m("message 11521 is longer than the 100 characters the client shows (the first text was 175)", "msg:11521", "ask the administrator for", "ask the administrator of this server, who can allow it, for")
+    m("message 11521 loses its place for the request", "msg:11521", "(request %1)", "(request)")
     m("message 11522 is another text", "msg:11522", "Account %1 has files-write %2", "Account %1 has write %2")
     m("message 11522 spells its keyword in capitals (the lower case rule)", "msg:11522", "Account %1 has files-write %2", "Account %1 has FILES-WRITE %2")
     m("message 11523 spells its keywords in capitals (the lower case rule)", "msg:11523", "so it cannot be given files-write:", "so it cannot be given FILES-WRITE:")
@@ -382,11 +426,17 @@ def main():
         if f not in raw:
             print("  [REFUSED ] %s - no such file %s" % (name, f))
             return 2
-        if raw[f].count(old) != 1:
+        if not callable(old) and raw[f].count(old) != 1:
             print("  [REFUSED ] %s - its text occurs %d times in %s, not once" % (name, raw[f].count(old), f))
             return 2
         mr = dict(raw)
-        mr[f] = raw[f].replace(old, new)
+        if callable(old):                      # a mutant made by a function of the source (19 Oct 26: the order of two blocks cannot be changed by one replacement)
+            mr[f] = old(raw[f])
+            if mr[f] == raw[f]:
+                print("  [REFUSED ] %s - the function changed nothing in %s" % (name, f))
+                return 2
+        else:
+            mr[f] = raw[f].replace(old, new)
         got = run_checks(mr)
         caught = [k.split(" ")[0] for k, (ok, _d) in got.items() if not ok]
         if caught:

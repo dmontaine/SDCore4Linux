@@ -5301,10 +5301,10 @@ This login is for files only: request %1 is not allowed
 cited by: `apisrvr`
 
 ### msg:11482
-> kind=message tier=reference since=- src=sdsys/messages/11482:1#60ce50cb
+> kind=message tier=reference since=- src=sdsys/messages/11482:1#9afe6a42
 
 ```
-Account %1 has FILES %2
+Account %1 has files %2
 ```
 
 cited by: `create_account`, `modifya`
@@ -5541,10 +5541,10 @@ Account %1 has shared.read off, so it cannot open the files of the shared accoun
 cited by: `listshared`
 
 ### msg:11521
-> kind=message tier=reference since=- src=sdsys/messages/11521:1#96b20df4
+> kind=message tier=reference since=- src=sdsys/messages/11521:1#7d01653f
 
 ```
-This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed
+This login cannot change or lock files here: ask the administrator for files-write-on (request %1)
 ```
 
 cited by: `apisrvr`

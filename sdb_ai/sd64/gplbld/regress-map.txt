@@ -52,7 +52,8 @@ gplbld/sandbox-fromtree.py   : @core @pty
 gplbld/sandbox-txnfail.py    : @core
 gplbld/sandbox-english.py    : @core
 # S.65 slice 3a (17 Oct 26): the fake API server is used by the net suite and by the netfile suite.
-gplbld/netfake.py            : net netfile
+# 19 Oct 26 (K1): sandbox-req29 imports its REAL_ON_ERROR table, which it holds to what a real `sd -Q` answers.
+gplbld/netfake.py            : net netfile req29
 gplbld/sandbox-netfile.py    : @self
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
@@ -61,6 +62,8 @@ gplbld/regress-map.txt       : none
 gplbld/regress-changed.py    : none
 gplbld/ptydrive.py           : @pty
 gplbld/termscreen.py         : @pty
+# 19 Oct 26 (the S.65 finish): the SDNet witness scripts carry the SD BASIC programs they write into the client's bp; the witness-programs suite compiles them.
+gplbld/witness-sdnet-*       : witness-programs
 gplbld/witness-*             : none
 gplbld/FILES_DICTS/voc.dic^* : dictfold listf-mult misc-a9 qproc-a3 nocase
 gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
@@ -125,9 +128,9 @@ gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
 gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates
-gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5
-gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12
-gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5
+gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
+gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile
+gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/sdlnxd.c              : q5
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared @core
 gplsrc/profiler.c            : prof
@@ -336,7 +339,10 @@ sdsys/gpl.bp/phantom         : q5 q4 listu-a5
 sdsys/gpl.bp/set*            : gates sys-b2 conf-b1 stmt-q3
 sdsys/gpl.bp/py_*            : gates
 sdsys/gpl.bp/acc*            : gates @system editgates net shared
-sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared
+sdsys/gpl.bp/modifya         : gates @system sdaccts editgates net shared filesgrp
+# 19 Oct 26 (K4a): the program that filesgrp runs reads these two lookups; it makes its own copies, but a change to the originals is a change to what it copies.
+sdsys/gpl.bp/is_grp_member   : filesgrp net gates
+sdsys/gpl.bp/is_group        : filesgrp net gates
 sdsys/gpl.bp/oswrite         : gates
 sdsys/gpl.bp/osread          : gates
 sdsys/gpl.bp/osdelete        : gates
@@ -384,6 +390,9 @@ sdsys/messages/1121[5]       : ide ide-small ide-sed
 sdsys/messages/11226         : ide ide-sed
 sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw
+# 19 Oct 26 (K2, K1): 11482 is printed by MODIFY.ACCOUNT and CREATE.ACCOUNT, 11521 is the refusal the netfile suite shows and the net suite pins; 11522 and 11523 are filesgrp's lines.
+sdsys/messages/1148*         : net filesgrp
+sdsys/messages/1152*         : net netfile filesgrp
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared

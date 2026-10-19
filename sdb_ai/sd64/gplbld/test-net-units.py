@@ -86,6 +86,10 @@ because the handler runs BASIC; @SELECTED set; list 11 never used), NK16 op_file
 any FPtr; the value 7 in both keys.h files) and NK17 the DICT form (_voc_ref adds 'dict ' only for fno 3 and only after the shape check; the file name buffer and the length test hold the 5 more
 characters).  NK5 and NK5b were rewritten for it.  WHAT THIS CANNOT SAY: that a remote SELECT returns the server's ids or that a dictionary opens - sandbox-netfile.py.
 
+19 Oct 26 dm  K1, K2, K3, K4a, K8c, K8d (the S.65 finish).  S2k: on.error.text, the one place an ON ERROR reply becomes text (the handler showed 'status <n>' whatever the server
+said); S2l: the ceiling on a reply (sdclient read.packet tests the announced length before it reads, maxpacket, $netfile sets it); W10 names both routes in the refusal reason;
+W13 pins message 11482 in lower case; W17 to W20 follow set.files after K4a (change.files.group); T3, U4, Z3, Z5, Z12, NF4a, NF7, NF7b follow the timeouts becoming the parameters
+NETWAIT and NETREPLY (request.limits); NF4b allows LastText and maxpacket.  1324 mutants now (1306 before; about a dozen were rewritten for the new source text), 0 missed.
 18 Oct 26 dm  S.65 slice 3e (stage 2, writes and locks on a file of a server whose definition says mode=write; the spec is .claude/s65-stage2-design.md).  Section S2 reads: the mode
 (S2a), act.change's order and its one request (S2b, S2c), after.rq's signed status and lost.fail's two messages (S2d), act.release (S2e), the quiet object (S2f), the class sdclient -
 quiet, LastError, LastText, the guarded aborts, recordlock's flag, clearfile (S2g, S2h), net_gate's order (S2i), net_change_op and its two cache drops (S2j), the server's status passed on for
@@ -509,11 +513,11 @@ def checks(srcs):
        and 0 <= gate < at(ss_, "readu lock.rec") < at(ss_, "call !netdefs('READ'") < at(ss_, "sysmsg(11422") < at(ss_, "sysmsg(11423") < p_call
        and p_call < at(ss_, "call !netdefs('WRITE'") and at(ss_, "pin.how = 'confirmed'") < at(ss_, "call !netdefs('WRITE'"),
        repr((gate, p_call)))
-    ck("T3 the socket is opened in the routine only (the typed pin makes no connection), once, with SKT$BLOCKING + SKT$TLS and the 5 second timeout, "
-       "and the status and the operating system error are read at once",
+    ck("T3 the socket is opened in the routine only (the typed pin makes no connection), once, with SKT$BLOCKING + SKT$TLS and the NETWAIT timeout (5 seconds by default; the "
+       "configuration parameter since 19 Oct 26, K8d), and the status and the operating system error are read at once",
        ss_.count("open.socket(") == 1 and cpb.count("open.socket(") == 1
-       and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, NET\.CONNECT\.SECS\)\s*\n\s*st = status\(\)\s*\n\s*oserr = os\.error\(\)", cpb) is not None
-       and re.search(r"\$define NET\.CONNECT\.SECS 5\b", ss_) is not None and re.search(r"^\$include keys\.h", ss_, re.M) is not None, "")
+       and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, config\('NETWAIT'\)\)\s*\n\s*st = status\(\)\s*\n\s*oserr = os\.error\(\)", cpb) is not None
+       and "NET.CONNECT.SECS" not in ss_ and re.search(r"^\$include keys\.h", ss_, re.M) is not None, "")
     ck("T4 a handshake only: the hash is read, the socket is closed (once), and all of that BEFORE anything is shown or asked; nothing is read from "
        "or written to the socket",
        ordered(cpb, "open.socket(", "if st # 0 then", "socket.info(skt, SKT$INFO.TLS.SPKI)", "close.socket skt", "sysmsg(11440", "display spki", "sysmsg(11441", "sysmsg(11442", "input yn")
@@ -788,7 +792,7 @@ def checks_2b(srcs, c, ck):
        and sn.count("os.execute") == 1 and sn.count("kernel(K$USERNAME") == 1 and not re.search(r"@logname", sn), "")
     ck("U4 ONE connection, TLS, to the host and port of the DEFINITION, and the key it presents is tested BEFORE a byte is sent or read: open.socket (once) -> the hash "
        "(socket.info .. SKT$INFO.TLS.SPKI, once, lower case) must be 64 hex digits (11479) -> `spki # pin` gives 11471 through give.up -> only then the Ack read and the first packet",
-       sn.count("open.socket(") == 1 and sn.count("socket.info(skt, SKT$INFO.TLS.SPKI)") == 1 and "open.socket(host, port, SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)" in sn
+       sn.count("open.socket(") == 1 and sn.count("socket.info(skt, SKT$INFO.TLS.SPKI)") == 1 and "open.socket(host, port, SKT$BLOCKING + SKT$TLS, config('NETWAIT'))" in sn and "NET.CONNECT.SECS" not in sn
        and ordered(sn, "open.socket(", "spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))", "fail.num = 11479", "if spki # pin then", "fail.num = 11471", "gosub give.up",
                    "read.socket(skt, 1, SKT$BLOCKING, NET.READ.MS)", "ptype = SrvrScramFirst")
        and re.search(r"if spki # pin then\s*\n\s*fail\.num = 11471[^\n]*\n\s*gosub give\.up\s*\n\s*end", sn) is not None
@@ -1018,9 +1022,10 @@ def checks_2c(srcs, c, ck):
        and re.search(r"api\.in\.sdfiles = is_grp_member\(scram\.user, 'sdfiles'\)\s*\n\s*api\.files\.stat = status\(\)\s*\n\s*if api\.files\.stat # 0 then\s*\n"
                      r"\s*scram\.refuse\.reason = 'the sdfiles route could not be read, status ' : api\.files\.stat\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
                      r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None, "")
-    ck("W10 a user in NEITHER group is refused EXACTLY as before: the same reason ('not a member of sdapi'), the same message 10073, the same exit; and a user not in sdusers "
+    ck("W10 a user in NEITHER group is refused with the same message 10073 and the same exit as before, and the audit reason NAMES BOTH ROUTES ('not a member of sdapi or sdfiles': "
+       "19 Oct 26, K3 - the route code decides on both groups, so the reason that named only sdapi sent the administrator looking for the wrong one); and a user not in sdusers "
        "is still refused first with 5009",
-       re.search(r"if not\(api\.in\.sdfiles\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdapi'\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
+       re.search(r"if not\(api\.in\.sdfiles\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdapi or sdfiles'\s*\n\s*abort\.message = sysmsg\(10073, scram\.user\)\s*\n"
                  r"\s*server\.error = SV\$ON\.ERROR\s*\n\s*goto exit\.vb\.scram\.fail", fin) is not None
        and re.search(r"if not\(is_grp_member\(scram\.user, 'sdusers'\)\) then\s*\n\s*scram\.refuse\.reason = 'not a member of sdusers'\s*\n\s*abort\.message = sysmsg\(5009\)", fin) is not None, "")
     gi = ap.find("if files.only then")
@@ -1049,8 +1054,8 @@ def checks_2c(srcs, c, ck):
                 cited.setdefault(num_, []).append((n_, len(args_)))
     stray = sorted({int(x) for t_ in bps.values() for x in re.findall(r"\b(1148\d)\b", t_)} - {11480, 11482})
     ck("W13 message 11480 and 11482 exist, one line each, inside the Linux block, with the wording the logins and the verbs rely on: 11480 'This login is for files only: request %1 "
-       "is not allowed', 11482 'Account %1 has FILES %2'",
-       m80 is not None and m82 is not None and m80.strip() == "This login is for files only: request %1 is not allowed" and m82.strip() == "Account %1 has FILES %2"
+       "is not allowed', 11482 'Account %1 has files %2' (lower case since 19 Oct 26, K2: a keyword SD prints is lower case, and its sibling 11522 already was)",
+       m80 is not None and m82 is not None and m80.strip() == "This login is for files only: request %1 is not allowed" and m82.strip() == "Account %1 has files %2"
        and "\n" not in m80.rstrip("\n") and "\n" not in m82.rstrip("\n") and LINUX_BLOCK[0] <= 11480 <= 11489 <= LINUX_BLOCK[1], repr((m80, m82)))
     ck("W14 11480 is cited only by apisrvr with ONE argument (the request number); 11482 only by MODIFY.ACCOUNT and CREATE.ACCOUNT with TWO (the account, yes or no); "
        "no program cites 11481 or 11483 to 11489, or writes such a number any other way (the block 11480-11489 is this slice's and only 11480 and 11482 are used)",
@@ -1060,6 +1065,7 @@ def checks_2c(srcs, c, ck):
 
     # ---- W16-W22. the words: MODIFY.ACCOUNT, CREATE.ACCOUNT, CREATEA ----------------------------------------------------------------------
     sf = routine_body(mo, "set.files")
+    cgf = routine_body(mo, "change.files.group")        # 19 Oct 26, K4a: the one place set.files changes a group
     ck("W16 MODIFY.ACCOUNT: FILES-ON and FILES-OFF are words (files.want true / false, set.files, stop), in the syntax lines and in the list of words; sdapi and sdssh are not "
        "touched by set.files",
        all(re.search(r"case action = '%s'\s*\n\s*files\.grp = 'sdfiles'\s*\n\s*files\.want = @%s\s*\n\s*gosub set\.files\s*\n\s*stop" % (w, b), mo) for w, b in (("FILES-ON", "true"), ("FILES-OFF", "false")))
@@ -1067,29 +1073,29 @@ def checks_2c(srcs, c, ck):
        and sf != "" and "sdapi" not in sf and "sdssh" not in sf, "")
     ck("W17 set.files refuses what has no Linux user BEFORE it runs anything: a group account (10087) and any other account that is not sdu_ (10081, status 2), then the "
        "name is checked with valid_os_name; the Linux user is the one the account's group names (the manifest reads the same)",
-       ordered(sf, "if group.name[1,4] # 'sdu_' then", "sysmsg(10087, acc.name)", "sysmsg(10081, acc.name, 2)", "files.user = group.name[5,999]", "valid_os_name(files.user)", "os.execute")
-       and sf.count("os.execute") == 3, "")      # 18 Oct 26: addgroup, delgroup, and the delgroup of sdfileswrite that FILES-OFF adds
+       ordered(sf, "if group.name[1,4] # 'sdu_' then", "sysmsg(10087, acc.name)", "sysmsg(10081, acc.name, 2)", "files.user = group.name[5,999]", "valid_os_name(files.user)", "gosub change.files.group")
+       and sf.count("os.execute") == 0 and cgf.count("os.execute") == 2, "")      # 19 Oct 26 (K4a): set.files runs nothing itself; change.files.group does the addgroup and the delgroup
     ck("W18 ...membership is read three-valued (status read at once, a lookup that cannot answer changes NOTHING and says 10081 with the status); FILES-ON also needs sdusers "
        "(else status 2 - the login would refuse them first); FILES-OFF is never gated on sdusers",
        re.search(r"has\.files = is_grp_member\(files\.user, files\.grp\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and files\.want then\s*\n"
                  r"\s*in\.sdusers = is_grp_member\(files\.user, 'sdusers'\)\s*\n\s*files\.stat = status\(\)\s*\n\s*if files\.stat = 0 and not\(in\.sdusers\) then files\.stat = 2\s*\n"
                  r"\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return", sf) is not None
-       and ordered(sf, "if files.stat # 0 then", "if has.files = files.want then", "sysmsg(10080, acc.name)", "os.execute"), "")
+       and ordered(sf, "if files.stat # 0 then", "nothing.to.do = (has.files = files.want)", "if nothing.to.do then", "sysmsg(10080, acc.name)", "gosub change.files.group"), "")
     ck("W19 ...already in the wanted state is 10080 and nothing is run; FILES-ON when the group sdfiles does not exist is 10024 and nothing is run; the change is the SAME "
-       "helper and verbs the api word uses (sd-elevate addgroup / delgroup <user> sdfiles)",
-       ordered(sf, "if has.files = files.want then", "sysmsg(10080, acc.name)", "return", "files.found = is_group(files.grp)", "sysmsg(10024, files.grp)", "os.execute")
-       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files\.user : " " : files\.grp', sf) is not None
-       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files\.user : " " : files\.grp', sf) is not None
-       and ordered(sf, "files.found = is_group(files.grp)", 'addgroup " : files.user', 'delgroup " : files.user'), "")
-    ck("W20 ...after the change the membership is READ BACK from /etc/group, a read back that does not show the wanted state is a failure (10081, status 2), the audit line "
-       "(lower case) comes only after it, and the line printed (11482) is the read-back value and not the request",
-       re.search(r"if files\.stat = 0 then\s*\n\s*now\.files = is_grp_member\(files\.user, files\.grp\)\s*\n\s*files\.stat = status\(\)\s*\n"
-                 r"\s*if files\.stat = 0 and now\.files # files\.want then files\.stat = 2\s*\n\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
-                 r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*@system\.return\.code = 0\s*\n"
-                 r"\s*void kernel\(K\$AUDIT, 'modify\.account ' : downcase\(action\) : ' account=' : acc\.name\)\s*\n"
-                 r"\s*if files\.grp = 'sdfileswrite' then\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.files then 'yes' else 'no'\)[^\n]*\n\s*end else\s*\n"
-                 r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None
-       and re.search(r"files\.stat = OS\.ERROR\(\)\s*\n", sf) is not None, "")
+       "helper and verbs the api word uses (sd-elevate addgroup / delgroup <user> sdfiles), in change.files.group",
+       ordered(sf, "if nothing.to.do then", "sysmsg(10080, acc.name)", "return", "files.found = is_group(files.grp)", "sysmsg(10024, files.grp)", "gosub change.files.group")
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate addgroup " : files\.user : " " : cg\.group', cgf) is not None
+       and re.search(r'os\.execute "sudo /usr/local/sbin/sd-elevate delgroup " : files\.user : " " : cg\.group', cgf) is not None
+       and ordered(cgf, "if cg.want then", 'addgroup " : files.user', "end else", 'delgroup " : files.user'), "")
+    ck("W20 ...after EVERY change the membership is READ BACK from /etc/group (change.files.group), a read back that does not show the wanted state is a failure (10081, status 2), "
+       "the audit line (lower case) comes only after it, and the line printed (11482) is the read-back value (cg.now copied into now.files) and not the request",
+       ordered(cgf, "files.stat = OS.ERROR()", "if files.stat = 0 then", "cg.now = is_grp_member(files.user, cg.group)", "files.stat = status()", "if files.stat = 0 and cg.now # cg.want then files.stat = 2")
+       and re.search(r"gosub change\.files\.group\s*\n\s*now\.files = cg\.now\s*\n\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
+                     r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*@system\.return\.code = 0\s*\n"
+                     r"\s*void kernel\(K\$AUDIT, 'modify\.account ' : downcase\(action\) : ' account=' : acc\.name\)\s*\n"
+                     r"\s*if files\.grp = 'sdfileswrite' then\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.files then 'yes' else 'no'\)[^\n]*\n\s*end else\s*\n"
+                     r"\s*if write\.removed then crt sysmsg\(11522, acc\.name, if now\.write then 'yes' else 'no'\)[^\n]*\n"
+                     r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILES>\s*=", cr)) == 1
        and "{net-on} {files-on} {files-write-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
@@ -1200,8 +1206,9 @@ def checks_3a(srcs, c, ck):
            r"if salt = '' or client\.key = '' or server\.key = '' then\s*\n\s*error = 'The stored login is incomplete'\s*\n\s*return @false",
            r"if len\(iterations\) < 1 or len\(iterations\) > 8 or not\(iterations matches '1N0N'\) then\s*\n\s*error = 'The stored iteration count is not a whole number'\s*\n\s*return @false",
            r"if iterations < SCRAM\$MIN\.ITER or iterations > SCRAM\$MAX\.ITER then\s*\n\s*error = 'The stored iteration count is unacceptable'\s*\n\s*return @false")), "")
-    ck("Z3 ...the shape checks are all BEFORE the socket is opened (no network is touched for a bad argument), the socket is opened once, with SKT$TLS and the 5 second connect timeout",
-       kb.count("open.socket(") == 1 and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, NET\.CONNECT\.SECS\)", kb) is not None
+    ck("Z3 ...the shape checks are all BEFORE the socket is opened (no network is touched for a bad argument), the socket is opened once, with SKT$TLS and the NETWAIT connect timeout "
+       "(5 seconds by default, from the configuration since 19 Oct 26)",
+       kb.count("open.socket(") == 1 and re.search(r"skt = open\.socket\(host, port, SKT\$BLOCKING \+ SKT\$TLS, config\('NETWAIT'\)\)", kb) is not None and "NET.CONNECT.SECS" not in kb
        and not re.search(r"socket|SDEXT|message\.pair", kb[:kb.find("open.socket(")]), "")
     ck("Z4 ...NOTHING IS SENT BEFORE THE PIN IS CHECKED: between the open and the comparison of the key hash there is no write, no read, no packet, no exchange and no disconnect "
        "(the only thing done is SOCKET.INFO); the comparison is of TEXT - each side has a letter in front, because two all-digit strings would be compared as numbers - and a mismatch "
@@ -1211,8 +1218,9 @@ def checks_3a(srcs, c, ck):
        and re.search(r"if spki = '' then\s*\n\s*error = '[^']*nothing was sent'\s*\n\s*goto keys\.fail", kb) is not None
        and not re.search(r"if spki # pin|if pin # spki", kb), "")
     ck("Z5 ...the Ack is awaited with the BOUNDED read (io.ms, a byte at a time, a limited number of tries), and the exchange is entered only after it; connect.keys sets the bound to "
-       "NET.READ.MS only when it is still 0, so that settimeout() called first wins",
-       re.search(r"if io\.ms = 0 then io\.ms = NET\.READ\.MS", kb) is not None and ordered(kb, "if io.ms = 0 then io.ms = NET.READ.MS", "tries += 1", "read.socket(skt, 1, SKT$BLOCKING, io.ms)",
+       "NETREPLY seconds (30 by default, from the configuration since 19 Oct 26) only when it is still 0, so that settimeout() called first wins",
+       re.search(r"if io\.ms = 0 then io\.ms = config\('NETREPLY'\) \* 1000", kb) is not None and "NET.READ.MS" not in kb
+       and ordered(kb, "if io.ms = 0 then io.ms = config('NETREPLY') * 1000", "tries += 1", "read.socket(skt, 1, SKT$BLOCKING, io.ms)",
                                                                                          "until acked or tries >= NET.ACK.TRIES", "scram.exchange(") and kb.count("read.socket(") == 1, "")
     ck("Z6 ...the keys are dropped the moment the exchange has returned (client.key and server.key set to null before the result is tested), and on EVERY failure path through keys.fail, which "
        "also closes the socket and returns false; every failure after the open goes through it; a refusal of the account fails the call",
@@ -1251,11 +1259,12 @@ def checks_3a(srcs, c, ck):
     ck("Z11 the bounded read: read.packet reads the header and the data with io.ms (both of its read.socket calls, and no literal 0 timeout is left in it); create.object starts io.ms at 0 so "
        "that connect() still waits for ever; settimeout accepts only a number of 0 or more (it aborts 'Illegal timeout') and sets io.ms; io.ms is a private variable",
        len(re.findall(r"read\.socket\(skt, n, SKT\$BLOCKING, io\.ms\)", rp)) == 2 and not re.search(r"read\.socket\([^)]*, 0\)", rp)
-       and re.search(r"public subroutine create\.object\s*\n(?:[^\n]*\n){0,6}?\s*io\.ms = 0\s*\n(?:\s*(?:quiet|LastError|LastText) = [^\n]*\n){0,3}end", sc) is not None      # slice 3e: quiet, LastError, LastText after it
+       and re.search(r"public subroutine create\.object\s*\n(?:[^\n]*\n){0,6}?\s*io\.ms = 0\s*\n(?:\s*(?:quiet|LastError|LastText|maxpacket) = [^\n]*\n){0,4}end", sc) is not None      # slice 3e: quiet, LastError, LastText after it; 19 Oct 26 (K8c): maxpacket
        and re.search(r"public subroutine settimeout\(ms\)\s*\n\s*if not\(num\(ms\)\) or ms < 0 then abort 'Illegal timeout'\s*\n\s*io\.ms = ms \+ 0\s*\nend", sc) is not None
        and re.search(r"private context,[^\n]*\n(?:[^\n]*\n){0,4}?\s*io\.ms\b", sc) is not None, "")
     dv = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define (NET\.[A-Z.]+)\s+(\d+)", sc)}
-    ck("Z12 the three defines: NET.CONNECT.SECS 5 (the plan's connect timeout), NET.READ.MS 30000 (a read), NET.ACK.TRIES 16", dv == {"NET.CONNECT.SECS": 5, "NET.READ.MS": 30000, "NET.ACK.TRIES": 16}, repr(dv))
+    ck("Z12 the one define left in the class: NET.ACK.TRIES 16 (the connect timeout 5 and the read wait 30 are the configuration parameters NETWAIT and NETREPLY since 19 Oct 26, K8d)",
+       dv == {"NET.ACK.TRIES": 16}, repr(dv))
 
     # ---- Z13. nothing secret in a message
     leak = [ln.strip() for ln in strip_strings(sc).split("\n") if re.search(r"\berror\s*=", ln) and re.search(
@@ -1290,7 +1299,7 @@ NF_DEFS = dict(NF_OPS, **{"NF$RC.OK": 0, "NF$RC.ELSE": 2, "NF$RC.ERROR": 3, "NF$
 NF_REASONS = ("gate", "server", "list", "credential", "limit", "file")
 # the methods and properties of the class the handler uses; slice 3e added the changing and locking ones and the two properties of the quiet object
 NF_METHODS = {"connect.keys", "settimeout", "open", "close", "read", "select", "readlist", "recordlocked", "disconnect", "error", "ServerStatus",
-              "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile", "quiet", "LastError"}
+              "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile", "quiet", "LastError", "LastText", "maxpacket"}      # LastText: 19 Oct 26, K1 (on.error.text); maxpacket: K8c
 NF_REQUEST_METHODS = ("open", "close", "read", "select", "readlist", "recordlocked", "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile")
 NF_SECRET_LOCALS = r"\b(cred|ruser|rsalt|riter|rck|rsk|pin|pw|password)\b"
 NF_SUITE_SECTIONS = ("handler", "readonly", "refuse", "lost", "timeout", "hwrite", "kwrite", "gaps")      # slice 3e: hwrite and kwrite
@@ -1308,7 +1317,7 @@ def checks_3b(srcs, c, ck):
     body = {lab: routine_body(nf, lab) for lab in ("act.open", "act.close", "act.read", "act.recordlocked", "act.select", "act.fileinfo", "act.closeall", "act.refuse",
                                                    "act.state", "get.handle", "check.gate", "check.id", "connect.new", "shape.names", "after.rq", "lost.fail", "drop.conn",
                                                    "refuse", "fail", "idle.release", "act.change", "act.release", "release.every", "mode.now", "audit.once", "server.fail",
-                                                   "check.id.chg", "check.id.shape", "rc.locked")}
+                                                   "check.id.chg", "check.id.shape", "rc.locked", "request.limits")}
     ao, gh = body["act.open"], body["get.handle"]
 
     # ---- N1. the numbers the kernel slice will mirror
@@ -1350,10 +1359,10 @@ def checks_3b(srcs, c, ck):
        "account and pin, clears each copy at once, sets the 30 second read bound, and only then puts the object in common (and refuses if it did not stay an object)",
        ordered(cn, "ruser = cred<1>", "rsalt = cred<2>", "riter = cred<3>", "rck = cred<4>", "rsk = cred<5>", "cred = ''", "obj = object('!sdclient')",
                "obj->connect.keys(host, port, ruser, rsalt, riter, rck, rsk, racct, pin)", "ruser = ''", "rsalt = ''", "riter = ''", "rck = ''", "rsk = ''",
-               "obj->settimeout(NF$REQUEST.MS)", "nf.s.obj(slot) = obj", "vartype(nf.s.obj(slot)) # V$OBJ"), "")
+               "gosub request.limits", "obj->settimeout(req.ms)", "nf.s.obj(slot) = obj", "vartype(nf.s.obj(slot)) # V$OBJ"), "")
     meth = set(re.findall(r"->([A-Za-z.]+)", nf))
     ck("NF4b the handler calls only these methods and properties of the class: connect.keys, settimeout, open, close, read, select, readlist, recordlocked, disconnect, error, ServerStatus and, "
-       "since slice 3e, write, writeu, delete, deleteu, recordlock, release, clearfile, quiet and LastError (no readu or readl, execute, call, logto, sequential-file, readv or password login method; "
+       "since slice 3e, write, writeu, delete, deleteu, recordlock, release, clearfile, quiet and LastError, and since 19 Oct 26 LastText and maxpacket (no readu or readl, execute, call, logto, sequential-file, readv or password login method; "
        "the changing ones are NOT in the list for any other reason: NF5 holds where they may stand)", meth <= NF_METHODS, repr(sorted(meth - NF_METHODS)))
 
     # ---- N5. nothing is written to the remote server, nothing is stored
@@ -1396,11 +1405,11 @@ def checks_3b(srcs, c, ck):
     reqs = [i for i, ln in enumerate(lines) if re.search(r"obj->(%s)\(" % "|".join(NF_REQUEST_METHODS), ln)]
     unmarked = [lines[i].strip() for i in reqs if not any("obj->ServerStatus = NF$NOREPLY" in p for p in lines[max(0, i - 3):i])]
     ck("NF7 EVERY request is preceded by the 'no reply' mark (obj->ServerStatus = NF$NOREPLY, three lines before at most): %d request sites (open, close, read, select, readlist, recordlocked and, since "
-       "slice 3e, write, writeu, delete, deleteu, recordlock, clearfile and release twice), none unmarked - the CLEARFILE one has settimeout(NF$CLEAR.MS) BEFORE the mark lines; a reply of any kind "
+       "slice 3e, write, writeu, delete, deleteu, recordlock, clearfile and release twice), none unmarked - the CLEARFILE one has settimeout(clear.ms) BEFORE the mark lines; a reply of any kind "
        "overwrites it, so after.rq reads a mark still in place as a lost connection (rq.lost = ServerStatus = NF$NOREPLY: NOT a sign test, a changing request can be answered with -3023), and NF$NOREPLY is -2000000001, a value no STATUS() takes (18 Oct 26)" % len(reqs),
        len(reqs) == 15 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st = NF$NOREPLY)" in body["after.rq"]
        and re.search(r"\$define NF\$NOREPLY\s+-2000000001\b", nf) is not None
-       and ordered(ac, "obj->settimeout(NF$CLEAR.MS)", "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "obj->clearfile(nf.h.fno(hx))", "if not(rq.lost) then obj->settimeout(NF$REQUEST.MS)"), repr(unmarked))
+       and ordered(ac, "gosub request.limits", "obj->settimeout(clear.ms)", "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "obj->clearfile(nf.h.fno(hx))", "if not(rq.lost) then obj->settimeout(req.ms)"), repr(unmarked))
     ck("NF7a a lost connection is dropped and reported, NEVER retried or reconnected inside an operation: lost.fail drops the connection then answers 11497 - and, for a CHANGING request (changing is set in "
        "act.change: everything but a lock), writes the audit line `netfile lost server=<name> op=<operation>` and answers 11509 instead (the outcome is not known); the only connect.new is in NF$OPEN; the "
        "handler holds no loop construct at all (no loop, no repeat, no while); drop.conn frees the slot and marks every handle on it lost (state 2)",
@@ -1408,12 +1417,15 @@ def checks_3b(srcs, c, ck):
        and "connect.new" not in body["lost.fail"] + body["drop.conn"]
        and not re.search(r"(?<![\w.$])(loop|repeat|while|goto)(?![\w.$])", ns) and "nf.h.state(hy) = 2" in body["drop.conn"]
        and ordered(body["drop.conn"], "nf.s.obj(slot) = 0", "nf.s.state(slot) = 0", "nf.h.state(hy) = 2"), "")
-    ck("NF7b the 30 second request bound: NF$REQUEST.MS is 30000 and is given to the object in connect.new (the only place it is set for good); the one longer wait is the CLEARFILE's (NF$CLEAR.MS, "
-       "300000, set in act.change before the request and put back to NF$REQUEST.MS after it); a handle of a lost connection answers 11495 (not a new connection) and CLOSE of it frees "
+    rl = body["request.limits"]
+    ck("NF7b the request bound (19 Oct 26, K8d: NETREPLY, 30 seconds by default, from the configuration; it was the constant NF$REQUEST.MS 30000): request.limits sets req.ms = NETREPLY * 1000 and "
+       "clear.ms = the longer of NF$CLEAR.MIN.MS (300000) and req.ms; req.ms is given to the object in connect.new (the only place it is set for good); the one longer wait is the CLEARFILE's "
+       "(clear.ms, set in act.change before the request and put back to req.ms after it); a handle of a lost connection answers 11495 (not a new connection) and CLOSE of it frees "
        "it without a word (allow.lost)",
-       re.search(r"\$define NF\$REQUEST\.MS\s+30000\b", nf) is not None and re.search(r"\$define NF\$CLEAR\.MS\s+300000\b", nf) is not None
-       and nf.count("settimeout(") == 3 and "obj->settimeout(NF$REQUEST.MS)" in cn and cn.count("settimeout(") == 1
-       and nf.count("settimeout(NF$CLEAR.MS)") == 1 and "settimeout(NF$CLEAR.MS)" in ac and ac.count("settimeout(") == 2
+       re.search(r"\$define NF\$CLEAR\.MIN\.MS\s+300000\b", nf) is not None and "NF$REQUEST.MS" not in nf and "NF$CLEAR.MS" not in nf
+       and ordered(rl, "req.ms = config('NETREPLY') * 1000", "clear.ms = NF$CLEAR.MIN.MS", "if req.ms > clear.ms then clear.ms = req.ms", "return")
+       and nf.count("settimeout(") == 3 and "obj->settimeout(req.ms)" in cn and cn.count("settimeout(") == 1 and "gosub request.limits" in cn
+       and nf.count("settimeout(clear.ms)") == 1 and "settimeout(clear.ms)" in ac and ac.count("settimeout(") == 2
        and ordered(gh, "if nf.h.state(hx) = 2 then", "if allow.lost then return", "fail.num = 11495")
        and re.search(r"act\.close:\s*\n\s*need\.gate = @false ; need\.conn = @false ; any\.acct = @true ; allow\.lost = @true", body["act.close"]) is not None, "")
     ck("NF7c CLOSEALL ends every connection and forgets every handle, is never refused (no gate, no list) and sends nothing but the quit that disconnect sends; STATE asks nothing and sends nothing",
@@ -2178,11 +2190,12 @@ def checks_s2(srcs, c, ck):
        and rb("check.id.chg").count("rc.else") == 0, "")
     ck("S2c ...and the request and its result (spec 3.5 items 9 and 10): each of the six methods once, a lock only ever in the NO-WAIT form (recordlock's last argument is @false and no other form is "
        "written), the kind of the reply read from obj->LastError, a missing reply (LastError -1) counted as LOST, then lost (11509 for a change, through lost.fail), a server error (rq.err), 0 done, 4 busy "
-       "for a LOCK only (rc.locked, not an error), 1 an ON ERROR reply with the STATUS shown and not the text, anything else 11504; NOTHING is retried and the handler holds no sleep",
+       "for a LOCK only (rc.locked, not an error), 1 an ON ERROR reply shown through on.error.text (the reply's text, or the status when it has none: 19 Oct 26, K1), anything else 11504; "
+       "NOTHING is retried and the handler holds no sleep",
        ordered(ac, "obj->write(nf.h.fno(hx), id, c)", "obj->writeu(nf.h.fno(hx), id, c)", "obj->delete(nf.h.fno(hx), id)", "obj->deleteu(nf.h.fno(hx), id)", "obj->clearfile(nf.h.fno(hx))",
                "obj->recordlock(nf.h.fno(hx), id, upd, @false)", "lerr = obj->LastError", "gosub after.rq", "if lerr = -1 then rq.lost = @true", "if rq.lost then", "gosub lost.fail", "return",
                "if rq.err then", "gosub server.fail", "return", "if lerr = NF$LE.OK then return", "if op = NF$LOCK and lerr = NF$LE.LOCKED then", "gosub rc.locked", "return",
-               "if lerr = NF$LE.ERROR then", "rq.txt = 'status ':rq.st", "gosub server.fail", "return", "fail.num = 11504")
+               "if lerr = NF$LE.ERROR then", "gosub on.error.text", "gosub server.fail", "return", "fail.num = 11504")
        and re.findall(r"obj->recordlock\(([^\n]*)\)\s*$", hb, re.M) == ["nf.h.fno(hx), id, upd, @false"] and not re.search(r"(?<![\w.$])(sleep|wait)(?![\w.$])", strip_strings(hb))
        and ordered(rl_, "rc = ''", "rc<1> = NF$RC.LOCKED", "rc<6> = rq.st") and "failed" not in rl_
        and re.search(r"\$define NF\$LE\.OK\s+0\b", hb) is not None and re.search(r"\$define NF\$LE\.ERROR\s+1\b", hb) is not None and re.search(r"\$define NF\$LE\.LOCKED\s+4\b", hb) is not None, "")
@@ -2201,10 +2214,18 @@ def checks_s2(srcs, c, ck):
        and ordered(rev, "if nf.s.state(sx) = 1 then", "nf.h.slot(hy) = sx and nf.h.mode(hy) = 'write'", "if n > 0 and vartype(nf.s.obj(sx)) = V$OBJ then", "obj->release(0, '')", "gosub after.rq",
                "if rq.lost then", "gosub drop.conn") and "fail" not in rev, "")
     ck("S2f the other handler rules of slice 3e: connect.new makes the object QUIET after connect.keys succeeded and BEFORE the request bound is set (an abort cannot be caught here); act.read and "
-       "act.select take an ON ERROR reply (e = 1) as a server error that shows the STATUS, not the text; get.handle for a lost handle is unchanged; the dispatch of NF$RELEASE is act.release",
-       ordered(cn, "ok = obj->connect.keys(", "if not(ok) then", "obj->quiet = @true", "obj->settimeout(NF$REQUEST.MS)", "nf.s.obj(slot) = obj") and hb.count("obj->quiet = @true") == 1
-       and ordered(ard, "case e = 0", "case e = 2", "case e = 1", "rq.txt = 'status ':rq.st", "gosub server.fail", "case 1", "fail.num = 11504")
-       and ordered(asel, "if e = 1 then", "rq.txt = 'status ':rq.st", "gosub server.fail", "return", "if e # 0 then"), "")
+       "act.select take an ON ERROR reply (e = 1) as a server error whose text comes from on.error.text (the reply's own text, or the status when it has none); get.handle for a lost handle is unchanged; "
+       "the dispatch of NF$RELEASE is act.release",
+       ordered(cn, "ok = obj->connect.keys(", "if not(ok) then", "obj->quiet = @true", "obj->settimeout(req.ms)", "nf.s.obj(slot) = obj") and hb.count("obj->quiet = @true") == 1
+       and ordered(ard, "case e = 0", "case e = 2", "case e = 1", "gosub on.error.text", "gosub server.fail", "case 1", "fail.num = 11504")
+       and ordered(asel, "if e = 1 then", "gosub on.error.text", "gosub server.fail", "return", "if e # 0 then"), "")
+    ooe = rb("on.error.text")
+    ck("S2k on.error.text, the ONE place an ON ERROR reply becomes text (19 Oct 26, K1): it takes the text of THIS reply from obj->LastText (the class empties it before every request), cleans it like any "
+       "text that came from another machine (printable ASCII, at most 100 characters), shows it when there is one and falls back to 'status <n>' when there is none; the three places that used to say "
+       "'status <n>' whatever the reply said (a refused write or lock, a READ, a SELECT) call it, and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
+       ordered(ooe, "txt = obj->LastText", "gosub clean.text", "if out.txt = '' then", "rq.txt = 'status ':rq.st", "end else", "rq.txt = out.txt", "return")
+       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 3 and "'status '" not in (ao + ac + ard + asel + arq + lf)
+       and "never shown" not in hraw and "is never shown, it can be stale" not in hraw, repr(ooe[:200]))
 
     # ---- S2g. the class gpl.bp/sdclient (spec 3.3)
     pub = re.search(r"^public debugging,.*?(?=\n\s*\n)", sc, re.S | re.M)
@@ -2230,6 +2251,18 @@ def checks_s2(srcs, c, ck):
        and len(re.findall(r"if quiet then\s*\n\s*LastError = SV\$ON\.ERROR\s*\n\s*return\s*\n\s*end\s*\n\s*abort 'Illegal record id'", sc)) == 2, repr((guarded, [v for p, v in sites if "quiet" not in p])))
     rlk = re.search(r"public subroutine recordlock\(fno, id, update, wait\)\s*\n(.*?)\nend", sc, re.S)
     rlk = rlk.group(1) if rlk else ""
+    rpk = re.search(r"local function read\.packet\(\)\s*\n(.*?)\nend", sc, re.S)
+    rpk = rpk.group(1) if rpk else ""
+    ck("S2l THE CEILING ON A REPLY (19 Oct 26, K8c): sdclient's read.packet tests the length the header announces BEFORE it trusts or reads anything else - a count below 10 (the count is read "
+       "as a SIGNED 32 bit value, so 2 GB and over arrives negative) fails the call, and so does a count above maxpacket when that is above 0 - and it does so BEFORE server.error and ServerStatus "
+       "are set (a caller that marks ServerStatus first sees the mark: no reply) and before the loop that reads the body; maxpacket is a public property that create.object starts at 0 (no "
+       "ceiling: other users of the class are unchanged); $netfile sets it to NF$MAX.PACKET, 1073741832 (the largest string SD holds, 1073741822, and the ten byte header), right after quiet "
+       "and before the timeout, once",
+       ordered(rpk, "pkt.bytes = oconv(pkt.header[1,4], 'ILL')", "if pkt.bytes < 10 then return @false", "if maxpacket > 0 and pkt.bytes > maxpacket then return @false",
+               "server.error = oconv(pkt.header[5,2], 'ISL')", "ServerStatus = oconv(pkt.header[7,4], 'ILL')", "n = pkt.bytes - 10", "in.pkt = ''", "loop")
+       and re.search(r"\bmaxpacket\b", pub) is not None and "maxpacket = 0" in co
+       and re.search(r"\$define NF\$MAX\.PACKET\s+1073741832\b", hb) is not None
+       and ordered(cn, "obj->quiet = @true", "obj->maxpacket = NF$MAX.PACKET", "obj->settimeout(req.ms)") and hb.count("obj->maxpacket") == 1, repr(rpk[:300]))
     clf = re.search(r"public subroutine clearfile\(fno\)\s*\n(.*?)\nend", sc, re.S)
     clf = clf.group(1) if clf else ""
     ck("S2h ...recordlock's wait flag is the right way round (the defect fixed: flag 2 is NO wait, so `if not(wait) then flags += 2`; the old `if wait then flags += 2` is gone), and the new "
@@ -2674,8 +2707,9 @@ mut("a typed pin opens a socket too", "setserver", lambda t: t.replace("   d = d
 mut("the sockets keys are not included", "setserver", rx(r"^\$include keys\.h\n", "", re.M))
 # T3-T4: the socket
 mut("the socket is opened without TLS", "setserver", "SKT$BLOCKING + SKT$TLS", "SKT$BLOCKING")
-mut("the socket is opened with no timeout", "setserver", ", NET.CONNECT.SECS)", ")")
-mut("the timeout is 50 seconds", "setserver", "$define NET.CONNECT.SECS 5", "$define NET.CONNECT.SECS 50")
+mut("the socket is opened with no timeout", "setserver", ", config('NETWAIT'))", ")")
+mut("the timeout is 50 seconds whatever NETWAIT says", "setserver", "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING + SKT$TLS, 50)")
+mut("the timeout is the constant it used to be", "setserver", "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)")
 mut("the socket is not closed", "setserver", drop_line(r"^   close\.socket skt"))
 mut("the socket is closed after the question", "setserver",
     lambda t: t.replace("   close.socket skt\n", "", 1).replace("   pin = spki\n", "   close.socket skt\n   pin = spki\n", 1))
@@ -2864,7 +2898,8 @@ mut("the user is asked twice", SNL, lambda t: t.replace("   input ru\n", "   inp
 mut("an empty user goes on", SNL, "if ru = '' or len(ru) > MAX.USERNAME.LEN or not(chk.ok) then", "if 0 then")
 mut("an empty password goes on", SNL, "   if pw = '' then\n      @system.return.code = -ER$ARGS\n      stop sysmsg(11468)", "   if 0 then\n      @system.return.code = -ER$ARGS\n      stop sysmsg(11468)")
 mut("the socket is opened without TLS", SNL, "SKT$BLOCKING + SKT$TLS", "SKT$BLOCKING")
-mut("the socket is opened with no timeout", SNL, ", NET.CONNECT.SECS)", ")")
+mut("the socket is opened with no timeout", SNL, ", config('NETWAIT'))", ")")
+mut("the timeout is the constant it used to be", SNL, "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)")
 mut("a second socket is opened", SNL, lambda t: t.replace("   spki = downcase(", "   skt2 = open.socket(host, port, SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)\n   spki = downcase(", 1))
 mut("the host is not the definition's", SNL, "host = defs<found,2>", "host = 'localhost'")
 mut("the pin is not the definition's", SNL, "pin = downcase(defs<found,5>)", "pin = ''")
@@ -3002,9 +3037,10 @@ mut("apisrvr: sdfiles is read before sdapi",
 mut("apisrvr: sdapi does not win (the sdfiles route is read for everybody)", AP2, "                  if not(api.in.sdapi) then\n", "                  if @true then\n")
 mut("apisrvr: a member of sdapi is marked files-only too", AP2, "                     api.files.login = @true\n", "                     api.files.login = @true\n                  end\n                  if api.in.sdapi then\n                     api.files.login = @true\n")
 mut("apisrvr: neither group is not refused", AP2, "if not(api.in.sdfiles) then", "if 0 then")
-mut("apisrvr: neither group gives another reason", AP2, "scram.refuse.reason = 'not a member of sdapi'", "scram.refuse.reason = 'not a member of sdfiles'")
-mut("apisrvr: neither group gives another message", AP2, "                        scram.refuse.reason = 'not a member of sdapi'\n                        abort.message = sysmsg(10073, scram.user)",
-    "                        scram.refuse.reason = 'not a member of sdapi'\n                        abort.message = sysmsg(5009)")
+mut("apisrvr: neither group gives another reason", AP2, "scram.refuse.reason = 'not a member of sdapi or sdfiles'", "scram.refuse.reason = 'not a member of sdfiles'")
+mut("apisrvr: neither group names only sdapi (the reason before 19 Oct 26)", AP2, "scram.refuse.reason = 'not a member of sdapi or sdfiles'", "scram.refuse.reason = 'not a member of sdapi'")
+mut("apisrvr: neither group gives another message", AP2, "                        scram.refuse.reason = 'not a member of sdapi or sdfiles'\n                        abort.message = sysmsg(10073, scram.user)",
+    "                        scram.refuse.reason = 'not a member of sdapi or sdfiles'\n                        abort.message = sysmsg(5009)")
 mut("apisrvr: the sdfiles lookup that cannot answer is not looked at", AP2, "if api.files.stat # 0 then", "if 0 then")
 mut("apisrvr: the sdfiles status is not read", AP2, "api.files.stat = status()", "api.files.stat = 0")
 mut("apisrvr: the sdapi lookup that cannot answer is not looked at", AP2, "if api.route.stat # 0 then", "if 0 then")
@@ -3051,13 +3087,13 @@ mut("modifya: the Linux user comes from the account name", MOD, "files.user = gr
 mut("modifya: membership is not read three-valued", MOD, "has.files = is_grp_member(files.user, files.grp)\n   files.stat = status()", "has.files = is_grp_member(files.user, files.grp)\n   files.stat = 0")
 mut("modifya: FILES-ON does not need sdusers", MOD, "in.sdusers = is_grp_member(files.user, 'sdusers')", "in.sdusers = @true")
 mut("modifya: FILES-OFF needs sdusers too", MOD, "if files.stat = 0 and files.want then\n      in.sdusers", "if files.stat = 0 then\n      in.sdusers")
-mut("modifya: already in the state is not noticed", MOD, "if has.files = files.want then", "if 0 then")
+mut("modifya: already in the state is not noticed", MOD, "if nothing.to.do then", "if 0 then")
 mut("modifya: the group's existence is not checked", MOD, "files.found = is_group(files.grp)", "files.found = @true")
-mut("modifya: FILES-ON adds to sdapi", MOD, "addgroup \" : files.user : \" \" : files.grp", "addgroup \" : files.user : \" sdapi\"")
-mut("modifya: FILES-OFF takes the person out of sdapi", MOD, "delgroup \" : files.user : \" \" : files.grp", "delgroup \" : files.user : \" sdapi\"")
+mut("modifya: FILES-ON adds to sdapi", MOD, "addgroup \" : files.user : \" \" : cg.group", "addgroup \" : files.user : \" sdapi\"")
+mut("modifya: FILES-OFF takes the person out of sdapi", MOD, "delgroup \" : files.user : \" \" : cg.group", "delgroup \" : files.user : \" sdapi\"")
 mut("modifya: the helper is not sd-elevate", MOD, "sudo /usr/local/sbin/sd-elevate addgroup \" : files.user", "sudo /usr/sbin/usermod -aG sdfiles \" : files.user")
-mut("modifya: the change is not read back", MOD, "now.files = is_grp_member(files.user, files.grp)", "now.files = files.want")
-mut("modifya: a read back that differs is a success", MOD, "if files.stat = 0 and now.files # files.want then files.stat = 2", "null")
+mut("modifya: the change is not read back", MOD, "cg.now = is_grp_member(files.user, cg.group)", "cg.now = cg.want")
+mut("modifya: a read back that differs is a success", MOD, "if files.stat = 0 and cg.now # cg.want then files.stat = 2", "null")
 mut("modifya: the line shows the request and not the read back", MOD, "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if files.want then 'yes' else 'no')")
 mut("modifya: the audit line is upper case",
     MOD, "void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then", "void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then")
@@ -3114,7 +3150,8 @@ mut("message 11480 is missing", "msg:11480", lambda t: None)
 mut("message 11480 says another thing", "msg:11480", lambda t: t.replace("files only", "files and more", 1))
 mut("message 11480 loses its place for the request", "msg:11480", lambda t: t.replace("%1", "", 1))
 mut("message 11482 is two lines", "msg:11482", lambda t: t.rstrip("\n") + "\nsecond line\n")
-mut("message 11482 says NET", "msg:11482", lambda t: t.replace("FILES", "NET", 1))
+mut("message 11482 says NET", "msg:11482", lambda t: t.replace("files", "net", 1))
+mut("message 11482 spells its keyword in capitals again (the lower case rule, 19 Oct 26)", "msg:11482", lambda t: t.replace("files", "FILES", 1))
 mut("message 11481 is cited by a program", "bp:cd", lambda t: t + "\n   crt sysmsg(11481)\n")
 mut("a program cites 11483", "bp:cd", lambda t: t + "\n   crt sysmsg(11483)\n")
 mut("a second program cites 11480", "bp:cd", lambda t: t + "\n   crt sysmsg(11480, 1)\n")
@@ -3135,11 +3172,11 @@ mut("connect.keys: the Ack is read before the pin is checked", SCL, "   spki = d
     "   void read.socket(skt, 1, SKT$BLOCKING, 5000)\n   spki = downcase(trim(socket.info(skt, SKT$INFO.TLS.SPKI)))")
 mut("connect.keys: the pin is not lowered", SCL, "   pin = downcase(trim(pin))", "   pin = trim(pin)")
 mut("connect.keys: the pin's shape is not checked", SCL, "if len(pin) # 64 or len(convert('0123456789abcdef', '', pin)) # 0 then", "if 0 then")
-mut("connect.keys: no connect timeout", SCL, "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)", "SKT$BLOCKING + SKT$TLS)")
-mut("connect.keys: the socket is opened without TLS", SCL, "SKT$BLOCKING + SKT$TLS, NET.CONNECT.SECS)", "SKT$BLOCKING, NET.CONNECT.SECS)")
+mut("connect.keys: no connect timeout", SCL, "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING + SKT$TLS)")
+mut("connect.keys: the socket is opened without TLS", SCL, "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING, config('NETWAIT'))")
 mut("connect.keys: the Ack wait is for ever", SCL, "      b = read.socket(skt, 1, SKT$BLOCKING, io.ms)", "      b = read.socket(skt, 1, SKT$BLOCKING, 0)")
 mut("connect.keys: the Ack loop has no limit", SCL, "   until acked or tries >= NET.ACK.TRIES", "   until acked")
-mut("connect.keys: the read bound is always 30 s (settimeout() before it is lost)", SCL, "   if io.ms = 0 then io.ms = NET.READ.MS", "   io.ms = NET.READ.MS")
+mut("connect.keys: the read bound is always NETREPLY (settimeout() before it is lost)", SCL, "   if io.ms = 0 then io.ms = config('NETREPLY') * 1000", "   io.ms = config('NETREPLY') * 1000")
 mut("connect.keys: the iteration bounds are not checked", SCL, "   if iterations < SCRAM$MIN.ITER or iterations > SCRAM$MAX.ITER then\n      error = 'The stored iteration count is unacceptable'",
     "   if 0 then\n      error = 'The stored iteration count is unacceptable'")
 mut("connect.keys: an incomplete login is let through", SCL, "if salt = '' or client.key = '' or server.key = '' then", "if salt = '' then")
@@ -3178,8 +3215,10 @@ mut("read.packet's data read waits for ever", SCL, "      s = read.socket(skt, n
 mut("create.object does not start io.ms", SCL, rx(r"(public subroutine create\.object\n(?:[^\n]*\n){0,6}?)   io\.ms = 0\n", r"\1"))
 mut("settimeout takes a negative", SCL, "if not(num(ms)) or ms < 0 then abort 'Illegal timeout'", "if not(num(ms)) then abort 'Illegal timeout'")
 mut("settimeout does not set the bound", SCL, "   io.ms = ms + 0\nend", "   null\nend")
-mut("NET.CONNECT.SECS is 50", SCL, "$define NET.CONNECT.SECS  5 ", "$define NET.CONNECT.SECS  50")
-mut("NET.READ.MS is 0", SCL, "$define NET.READ.MS   30000", "$define NET.READ.MS       0")
+mut("connect.keys waits 50 seconds whatever NETWAIT says", SCL, "SKT$BLOCKING + SKT$TLS, config('NETWAIT'))", "SKT$BLOCKING + SKT$TLS, 50)")
+mut("connect.keys reads with no bound whatever NETREPLY says", SCL, "   if io.ms = 0 then io.ms = config('NETREPLY') * 1000", "   if io.ms = 0 then io.ms = 0")
+mut("connect.keys reads NETWAIT where it should read NETREPLY", SCL, "   if io.ms = 0 then io.ms = config('NETREPLY') * 1000", "   if io.ms = 0 then io.ms = config('NETWAIT') * 1000")
+mut("sdclient brings back the define of the connect timeout", SCL, "$define NET.ACK.TRIES    16", "$define NET.CONNECT.SECS  5\n$define NET.ACK.TRIES    16")
 mut("NET.ACK.TRIES is 1", SCL, "$define NET.ACK.TRIES    16", "$define NET.ACK.TRIES     1")
 mut("the class text for a pin mismatch changes", SCL, "'PIN MISMATCH: the public key of '", "'PIN MISSMATCH: the public key of '")
 mut("the class text for a stale salt changes", SCL, "The server's salt is not the stored one: the stored login", "The server salt is not the stored one: the stored login")
@@ -3236,8 +3275,12 @@ mut("the password login is used", NFP, "obj->connect.keys(host, port, ruser, rsa
 mut("the copies of the keys are not cleared", NFP, "   ruser = ''\n   rsalt = ''\n   riter = ''\n   rck = ''\n   rsk = ''\n   if not(ok) then", "   if not(ok) then")
 mut("the credential is not cleared before the object is made", NFP, "   cred = ''\n   obj = object('!sdclient')", "   obj = object('!sdclient')")
 mut("a second place makes an object", NFP, lambda t: t + "\n   obj2 = object('!sdclient')\n")
-mut("the request bound is not given to the object", NFP, "   obj->settimeout(NF$REQUEST.MS)\n", "")
-mut("the request bound is 0", NFP, "$define NF$REQUEST.MS 30000", "$define NF$REQUEST.MS 0")
+mut("the request bound is not given to the object", NFP, "   obj->settimeout(req.ms)\n", "")
+mut("the request bound is 0", NFP, "   req.ms = config('NETREPLY') * 1000\n", "   req.ms = 0\n")
+mut("the request bound is read from NETWAIT", NFP, "   req.ms = config('NETREPLY') * 1000\n", "   req.ms = config('NETWAIT') * 1000\n")
+mut("the request bound is in seconds, not milliseconds", NFP, "   req.ms = config('NETREPLY') * 1000\n", "   req.ms = config('NETREPLY')\n")
+mut("the CLEARFILE bound may be shorter than the request bound", NFP, "   if req.ms > clear.ms then clear.ms = req.ms\n", "")
+mut("the request bound is not read before the object gets it", NFP, "   gosub request.limits\n   obj->settimeout(req.ms)\n", "   obj->settimeout(req.ms)\n")
 mut("a refused operation calls a write method", NFP, "   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n",
     "   obj = nf.s.obj(nf.h.slot(hx))\n   obj->write(nf.h.fno(hx), b, c)\n   fail.num = 11501 ; fail.a1 = srvname ; fail.a2 = opname\n")
 mut("LOCK is no longer dispatched to act.change", NFP, "op = NF$DELETEU or op = NF$CLEARFILE or op = NF$LOCK\n         gosub act.change", "op = NF$DELETEU or op = NF$CLEARFILE\n         gosub act.change")
@@ -3625,9 +3668,9 @@ mut("a change is sent twice", NFP, "         obj->write(nf.h.fno(hx), id, c)\n",
 mut("WRITEU is sent as WRITE", NFP, "obj->writeu(nf.h.fno(hx), id, c)", "obj->write(nf.h.fno(hx), id, c)")
 mut("DELETEU is sent as DELETE", NFP, "obj->deleteu(nf.h.fno(hx), id)", "obj->delete(nf.h.fno(hx), id)")
 mut("a change is sent without the no-reply mark", NFP, "         obj->ServerStatus = NF$NOREPLY\n         obj->deleteu(", "         obj->deleteu(")
-mut("CLEARFILE has no long bound", NFP, "         obj->settimeout(NF$CLEAR.MS)\n", "")
-mut("CLEARFILE keeps its long bound", NFP, "      if not(rq.lost) then obj->settimeout(NF$REQUEST.MS)\n", "")
-mut("NF$CLEAR.MS is 30000", NFP, rx(r"(\$define NF\$CLEAR\.MS\s+)300000", r"\g<1>30000"))
+mut("CLEARFILE has no long bound", NFP, "         obj->settimeout(clear.ms)\n", "")
+mut("CLEARFILE keeps its long bound", NFP, "      if not(rq.lost) then obj->settimeout(req.ms)\n", "")
+mut("NF$CLEAR.MIN.MS is 30000", NFP, rx(r"(\$define NF\$CLEAR\.MIN\.MS\s+)300000", r"\g<1>30000"))
 mut("a missing reply (LastError -1) is not lost", NFP, "   if lerr = -1 then rq.lost = @true\n", "")
 mut("a change that got no reply is 11497", NFP, "      fail.num = 11509 ; fail.a1 = srvname ; fail.a2 = opname", "      fail.num = 11497 ; fail.a1 = srvname ; fail.a2 = opname")
 mut("a lock that got no reply is 11509", NFP, "   end else\n      fail.num = 11497", "   end else\n      fail.num = 11509")
@@ -3636,7 +3679,16 @@ mut("a lost change is audited in capitals", NFP, "'netfile lost server='", "'NET
 mut("the unsigned status is not made negative", NFP, "      if st > 2147483647 then st -= 4294967296\n", "")
 mut("the unsigned fix is off by one", NFP, "st -= 4294967296", "st -= 4294967295")
 mut("lost is decided by a sign test (the defect of the first 3e build: -3023 is a reply, not a lost connection)", NFP, "   rq.lost = (st = NF$NOREPLY)\n", "   rq.lost = (st < 0)\n")
-mut("an ON ERROR reply to a change shows the text", NFP, "      rq.txt = 'status ':rq.st\n      gosub server.fail\n      return\n   end\n   fail.num = 11504", "      gosub server.fail\n      return\n   end\n   fail.num = 11504")
+mut("an ON ERROR reply to a change shows neither its text nor its status", NFP, "      gosub on.error.text\n      gosub server.fail\n      return\n   end\n   fail.num = 11504", "      gosub server.fail\n      return\n   end\n   fail.num = 11504")
+mut("an ON ERROR reply to a change shows the status again whatever the server said (the text before 19 Oct 26, K1)", NFP, "      gosub on.error.text\n      gosub server.fail\n      return\n   end\n   fail.num = 11504", "      rq.txt = 'status ':rq.st\n      gosub server.fail\n      return\n   end\n   fail.num = 11504")
+mut("an ON ERROR reply to a READ shows the status again whatever the server said", NFP, "         gosub on.error.text\n         gosub server.fail\n      case 1\n", "         rq.txt = 'status ':rq.st\n         gosub server.fail\n      case 1\n")
+mut("an ON ERROR reply to a SELECT shows the status again whatever the server said", NFP, "   if e = 1 then\n      gosub on.error.text", "   if e = 1 then\n      rq.txt = 'status ':rq.st")
+mut("on.error.text ignores the reply's text", NFP, "   txt = obj->LastText\n   gosub clean.text", "   txt = ''\n   gosub clean.text")
+mut("on.error.text shows the text without cleaning it", NFP, "   txt = obj->LastText\n   gosub clean.text\n   if out.txt = ''", "   txt = obj->LastText\n   out.txt = txt\n   if out.txt = ''")
+mut("on.error.text has no status to fall back on", NFP, "   if out.txt = '' then\n      rq.txt = 'status ':rq.st\n   end else", "   if 0 then\n      rq.txt = 'status ':rq.st\n   end else")
+mut("on.error.text falls back to nothing", NFP, "   if out.txt = '' then\n      rq.txt = 'status ':rq.st\n   end else", "   if out.txt = '' then\n      rq.txt = ''\n   end else")
+mut("on.error.text reads the error text of the object, not the ON ERROR payload", NFP, "   txt = obj->LastText\n   gosub clean.text\n   if out.txt = ''", "   txt = obj->error\n   gosub clean.text\n   if out.txt = ''")
+mut("the handler's header says again that the ON ERROR text is never shown", NFP, "is shown, cleaned, by on.error.text, and a reply with no text shows 'status <n>' (19 Oct 26).", "is never shown, it can be stale.")
 mut("a busy lock is a server error", NFP, "      gosub rc.locked\n      return", "      gosub server.fail\n      return")
 mut("a busy lock is not recognised", NFP, "   if op = NF$LOCK and lerr = NF$LE.LOCKED then", "   if 0 then")
 mut("any change may be busy", NFP, "   if op = NF$LOCK and lerr = NF$LE.LOCKED then", "   if lerr = NF$LE.LOCKED then")
@@ -3653,9 +3705,9 @@ mut("release.every includes read-mode handles", NFP, "nf.h.slot(hy) = sx and nf.
 mut("a lost RELEASE is an error", NFP, "   obj->release(nf.h.fno(hx), id)\n   gosub after.rq\n   nf.requests += 1\n   if rq.lost then gosub drop.conn", "   obj->release(nf.h.fno(hx), id)\n   gosub after.rq\n   nf.requests += 1\n   if rq.lost then gosub lost.fail")
 mut("a RELEASE of a long id is sent", NFP, "   if len(id) > MAX.ID.LEN then\n      fail.num = 11503 ; fail.a1 = srvname ; fail.a2 = 'too long'\n      gosub fail\n      return\n   end\n   if vartype", "   if vartype")
 mut("the object is not quiet", NFP, "   obj->quiet = @true\n", "")
-mut("the object is made quiet after the bound is set", NFP, "   obj->quiet = @true\n   obj->settimeout(NF$REQUEST.MS)\n", "   obj->settimeout(NF$REQUEST.MS)\n   obj->quiet = @true\n")
+mut("the object is made quiet after the bound is set", NFP, "   obj->quiet = @true\n   obj->maxpacket = NF$MAX.PACKET\n   gosub request.limits\n   obj->settimeout(req.ms)\n", "   obj->maxpacket = NF$MAX.PACKET\n   gosub request.limits\n   obj->settimeout(req.ms)\n   obj->quiet = @true\n")
 mut("a READ answered with ON ERROR is not an error", NFP, rx(r"case e = 1\n", "case e = 9\n"))
-mut("a SELECT answered with ON ERROR is not an error", NFP, "   if e = 1 then\n      rq.txt = 'status ':rq.st", "   if e = 9 then\n      rq.txt = 'status ':rq.st")
+mut("a SELECT answered with ON ERROR is not an error", NFP, "   if e = 1 then\n      gosub on.error.text", "   if e = 9 then\n      gosub on.error.text")
 mut("a second object is made for a write", NFP, lambda t: t + "\n   obj2 = object('!sdclient')\n")
 # ---- the handler: the audit
 mut("the write audit is in capitals", NFP, "'netfile write server='", "'NETFILE WRITE server='")
@@ -3818,9 +3870,23 @@ mut("edit_guard lets a remote file through", EGD, "         display edit_msg(kin
 # ---- the class
 mut("sdclient: quiet is not public", SCL, rx(r"       quiet,[^\n]*\n", ""))
 mut("sdclient: quiet starts true", SCL, "   quiet = @false\n", "   quiet = @true\n")
-mut("sdclient: LastError starts 0", SCL, "   LastError = -1\n   LastText = ''\nend", "   LastError = 0\n   LastText = ''\nend")
+mut("sdclient: LastError starts 0", SCL, "   LastError = -1\n   LastText = ''\n   maxpacket = 0\nend", "   LastError = 0\n   LastText = ''\n   maxpacket = 0\nend")
 mut("sdclient: message.pair does not reset LastError", SCL, "   LastError = -1\n   LastText = ''\n   if (write.packet(pkt.type, pkt)) then", "   LastText = ''\n   if (write.packet(pkt.type, pkt)) then")
 mut("sdclient: get.response forgets LastError", SCL, " LastError = server.error\n", "")
+# ---- the ceiling on a reply (19 Oct 26, K8c)
+mut("sdclient: read.packet does not test a length below the header", SCL, "   if pkt.bytes < 10 then return @false\n", "")
+mut("sdclient: read.packet does not test the ceiling", SCL, "   if maxpacket > 0 and pkt.bytes > maxpacket then return @false\n", "")
+mut("sdclient: read.packet tests the length after it has set server.error and ServerStatus",
+    SCL, "   if pkt.bytes < 10 then return @false\n   if maxpacket > 0 and pkt.bytes > maxpacket then return @false\n\n   server.error = oconv(pkt.header[5,2], 'ISL')\n   ServerStatus = oconv(pkt.header[7,4], 'ILL')",
+    "   server.error = oconv(pkt.header[5,2], 'ISL')\n   ServerStatus = oconv(pkt.header[7,4], 'ILL')\n   if pkt.bytes < 10 then return @false\n   if maxpacket > 0 and pkt.bytes > maxpacket then return @false")
+mut("sdclient: read.packet tests the ceiling with the wrong comparison", SCL, "if maxpacket > 0 and pkt.bytes > maxpacket then return @false", "if maxpacket > 0 and pkt.bytes < maxpacket then return @false")
+mut("sdclient: maxpacket starts at 1 (every reply fails for its users)", SCL, "   LastText = ''\n   maxpacket = 0\nend", "   LastText = ''\n   maxpacket = 1\nend")
+mut("sdclient: maxpacket is not declared as a public property", SCL, "       LastText,        ;* The payload of the last ON ERROR reply\n       maxpacket        ;* The longest reply, header included, this object will read: a longer one fails the call.  0 = no ceiling (the default).  19 Oct 26, K8c",
+    "       LastText         ;* The payload of the last ON ERROR reply")
+mut("netfile: the ceiling is not set", NFP, "   obj->maxpacket = NF$MAX.PACKET\n", "")
+mut("netfile: the ceiling is set after the timeout", NFP, "   obj->maxpacket = NF$MAX.PACKET\n   gosub request.limits\n   obj->settimeout(req.ms)\n", "   gosub request.limits\n   obj->settimeout(req.ms)\n   obj->maxpacket = NF$MAX.PACKET\n")
+mut("netfile: the ceiling is 3000000000 (more than a 32 bit count holds)", NFP, rx(r"(\$define NF\$MAX\.PACKET\s+)1073741832", r"\g<1>3000000000"))
+mut("netfile: the ceiling is 100 MB (it would refuse a legal record)", NFP, rx(r"(\$define NF\$MAX\.PACKET\s+)1073741832", r"\g<1>104857600"))
 mut("sdclient: get.response sets LastError after the SV$ERROR test", SCL, " LastError = server.error\n if server.error = SV$ON.ERROR then LastText = in.pkt\n\n if server.error = SV$ERROR then", " if server.error = SV$ON.ERROR then LastText = in.pkt\n\n if server.error = SV$ERROR then")
 mut("sdclient: the abort of WRITE is not guarded", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'WRITE generated an abort event'", "         if server.error = SV$ON.ERROR then\n            abort 'WRITE generated an abort event'")
 mut("sdclient: the abort of WRITEU is not guarded", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'WRITEU generated", "         if server.error = SV$ON.ERROR then\n            abort 'WRITEU generated")

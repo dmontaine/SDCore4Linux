@@ -9,6 +9,8 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  K8d (S.65): NETWAIT (5 seconds) and NETREPLY (30), the two SDNet timeouts.  Their defaults, CONFIG's set and its refusal of 0 and 3601, the CONFIG listing,
+#               the values read back after SD is started with NETWAIT=9 NETREPLY=41, and four values out of range that stop SD starting.  Red on the tree of HEAD: 9 of the 67 rows.
 # 18 Oct 26 dm  SYSTEM(1057) with a parent whose user NUMBER is above NUMUSERS (the Windows agent's finding: op_sys.c bounded
 #               the number by the count of user table cells).  Restart with NUMUSERS=3, three logins, then a phantom's parent.
 # 12 Oct 26 dm  The rest of B-1: LGNWAIT (46), DHCACHE (90), PWDELAY (106), MAXRLOCK (313), USERPOOL (551), the
@@ -57,7 +59,16 @@ CASES = [
     ("106: PWDELAY is set and read back in a session, and a value out of range is refused and changes nothing",
      "execute 'CONFIG PWDELAY 7' capturing j\nx = config('PWDELAY')\nexecute 'CONFIG PWDELAY 4000' capturing j\n"
      "x = x:'/':config('PWDELAY'):'/':(index(j, 'Invalid value', 1) > 0)", "7/7/1"),
+    # 19 Oct 26, K8d (S.65): the two SDNet timeouts.  K8D_READ below is the first of these; main() restarts SD with other values and runs it again.
+    ("K8d: NETWAIT defaults to 5 seconds and NETREPLY to 30 (the plan, 4.6; the constants they replaced)", "x = config('NETWAIT'):'/':config('NETREPLY')", "5/30"),
+    ("K8d: NETWAIT is set and read back in a session; 0 and 3601 are refused and change nothing (zero would wait for ever)",
+     "execute 'CONFIG NETWAIT 7' capturing j\nx = config('NETWAIT')\nexecute 'CONFIG NETWAIT 0' capturing j\ny = (index(j, 'Invalid value', 1) > 0)\n"
+     "execute 'CONFIG NETWAIT 3601' capturing j\nx = x:'/':config('NETWAIT'):'/':y:'/':(index(j, 'Invalid value', 1) > 0)", "7/7/1/1"),
+    ("K8d: NETREPLY is set and read back in a session; 0 and 3601 are refused and change nothing",
+     "execute 'CONFIG NETREPLY 3600' capturing j\nx = config('NETREPLY')\nexecute 'CONFIG NETREPLY 0' capturing j\ny = (index(j, 'Invalid value', 1) > 0)\n"
+     "execute 'CONFIG NETREPLY 3601' capturing j\nx = x:'/':config('NETREPLY'):'/':y:'/':(index(j, 'Invalid value', 1) > 0)", "3600/3600/1/1"),
 ]
+K8D_READ = next(i for i, c in enumerate(CASES) if c[0].startswith("K8d: NETWAIT defaults"))      # the program that prints NETWAIT/NETREPLY
 
 # ---- 313 MAXRLOCK: locks of one process, every way a lock is taken.  A lock the process holds already is not
 # counted again, an unlock gives the place back, and with no ON ERROR the process stops with message 11162.
@@ -289,6 +300,10 @@ def main():
             got = tagged(out, "C%02d" % i)
             row("%s: wanted %r" % (label, want), got == want, "got %r" % got if got is not None else "no output")
 
+        out = sess(box, "CONFIG")
+        row("K8d: the CONFIG verb lists NETWAIT and NETREPLY with their unit (the listing itself, as a session prints it)",
+            re.search(r"(?m)^NETWAIT\s+5 seconds\s*$", out) is not None and re.search(r"(?m)^NETREPLY\s+30 seconds\s*$", out) is not None, "got %r" % out[:400])
+
         say("\n--- sd -status ----------------------------------------------------------------")
         p = status(box)
         say("    " + p.replace("\n", "\n    ").rstrip())
@@ -387,7 +402,14 @@ def main():
                 bool(mp) and mp.group(2) == mp.group(1), "got %r" % (mp and mp.group(0)))
         else:
             row("1057: SD starts with NUMUSERS=3", False, "did not start")
-        for bad in ("USERPOOL=20000", "LGNWAIT=40000", "DHCACHE=2000", "MAXRLOCK=-1", "PWDELAY=5000"):
+        say("\n--- K8d NETWAIT and NETREPLY in sd.conf ----------------------------------------------")
+        if restart(box, "NETWAIT=9", "NETREPLY=41"):
+            out = sess(box, "RUN bp zzb1%02d" % K8D_READ)
+            got = tagged(out, "C%02d" % K8D_READ)
+            row("K8d: NETWAIT=9 and NETREPLY=41 in sd.conf are read back as 9/41 (the defaults row above reads 5/30 on the same program)", got == "9/41", "got %r" % got)
+        else:
+            row("K8d: SD starts with NETWAIT=9 and NETREPLY=41", False, "did not start")
+        for bad in ("USERPOOL=20000", "LGNWAIT=40000", "DHCACHE=2000", "MAXRLOCK=-1", "PWDELAY=5000", "NETWAIT=0", "NETWAIT=3601", "NETREPLY=0", "NETREPLY=3601"):
             up = restart(box, bad)
             log = ""
             try:

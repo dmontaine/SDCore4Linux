@@ -5,14 +5,19 @@
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 
+19 Oct 26 dm  K1, K8b, K8c.  (1) The ON ERROR replies this fake imitates now follow the REAL server (REAL_ON_ERROR, measured by sandbox-req29.py section G on a real `sd -Q`): the
+              sign of STATUS() (+3000 and +3018, not -3000 and -3018), no text for a statement with an ON ERROR clause, and for one without (CLEARFILE, request 30) STATUS() 0
+              and the kernel's text with the program and line.  (2) The text of an ON ERROR reply is shown by the $netfile handler since this change, so the message of the
+              files-only refusal (11521) reaches the person at the client.  (3) bad_length: a reply that is a header alone with a length that cannot be true, then silence.
+              (4) The "NOT YET RUN AGAINST SD" notes below were true when written and are not now.
 18 Oct 26 dm  S.65 write group (the owner's yes of that day): config write_group, and add_user(write_group=...), is the login's membership of the Linux group
               sdfileswrite.  A files-only login WITHOUT it is refused the change set (FILES_CHANGE: 7 to 10, 16 to 19, 30 to 33, and any nonzero flag of 41) with
               message 11521 as an ON ERROR reply, as gpl.bp/apifilesok's third argument and vb.readv do; sdapi-style (not files-only) sessions are untouched.  The
               default is False, the real default, so a row that writes through a files-only login must say write_group=True.  And the dictionary open: "dict <name>"
               (any case, one space) is OPEN 'DICT', name and any other name is opened as it stands; the REAL server did not understand the lower case form until
               vb.open was fixed (the same day), and this fake had always accepted it.
-17 Oct 26 dm  New.  S.65 slice 2b.  ***NOT YET RUN AGAINST SD*** - the self-test runs it against a Python client built from RFC 7677's
-              own vectors; whether SD's set.netlogin talks to it is the first run of sandbox-net.py.
+17 Oct 26 dm  New.  S.65 slice 2b.  (RUN AGAINST SD since: sandbox-net.py section netlogin drives set.netlogin against it - 19 Oct 26, K8b.)  The self-test runs it
+              against a Python client built from RFC 7677's own vectors.
 
 WHAT IT IS.  A TLS 1.3 server on 127.0.0.1 (the ssl module, a certificate and key the caller made, no client certificate) that does what
 the other end of a set.netlogin does, byte for byte as gpl.bp/sdclient and gpl.bp/apisrvr speak it:
@@ -43,9 +48,9 @@ WHAT IT RECORDS (so that a row can say what the client DID, not only what it pri
   scram_ok / scram_bad   proofs that verified / that did not;   errors   things this server found wrong with the CLIENT's messages
 It is a daemon thread with a lifetime limit, handles one connection at a time, and puts a 10 second limit on every connection.
 
-17 Oct 26 dm  S.65 slice 3a: THE FILE REQUESTS.  ***NOT YET RUN AGAINST SD*** (the self-test drives it with a Python client written from
-              gpl.bp/apisrvr and gpl.bp/sdclient; whether the BASIC class and, later, the $netfile handler agree with it is the first run
-              of slices 3a to 3c).  With configure(files=True) a connection that has logged in is SERVED instead of listened to: the
+17 Oct 26 dm  S.65 slice 3a: THE FILE REQUESTS.  (RUN AGAINST SD since: sandbox-netfile.py drives the BASIC class and the $netfile handler against it, and
+              19 Oct 26 sandbox-req29.py section G holds its ON ERROR replies to what a real `sd -Q` answers - K8b; the self-test drives it with a Python client
+              written from gpl.bp/apisrvr and gpl.bp/sdclient.)  With configure(files=True) a connection that has logged in is SERVED instead of listened to: the
               requests of apisrvr that a files-only session needs, in the reply formats apisrvr writes (see FileSession; every handler
               names the apisrvr label it copies), against an in-memory store (FakeStore: files, records, dictionary items, a lock table
               that lives across connections, so that a second connection is told a record is locked and by whom).  Such a connection
@@ -65,8 +70,8 @@ It is a daemon thread with a lifetime limit, handles one connection at a time, a
               (26, 35, 36, 38, 39, 42 to 45), and everything from 20 on that apisrvr offers (call, execute, sequential files,
               trans, transactions ...).  [Writes, deletes, record locks and CLEARFILE, 16 to 19, 30 and 31, are built since slice 3e.]
 
-18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS.  ***NOT YET RUN AGAINST SD*** (this self-test is the only thing that has run them; whether the
-              $netfile handler and the kernel's NET_FILE statements agree with them is the first run of sandbox-netfile.py's write section).
+18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS.  (RUN AGAINST SD since: sandbox-netfile.py sections hwrite, kwrite and wgroup drive the $netfile handler and the kernel's
+              NET_FILE statements against them - 19 Oct 26, K8b.)
               Requests 16 WRITE, 17 WRITEU, 18 DELETE, 19 DELETEU, 30 RECORDLOCK and 31 CLEARFILE are served in the reply formats of
               gpl.bp/apisrvr (vb.write, vb.writeu, vb.delete, vb.deleteu, vb.lock.record, vb.clearfile), from the spec
               .claude/s65-stage2-design.md section 10.  What a WRITE does: the session's record lock on the id (read or update) is let go,
@@ -131,6 +136,27 @@ FILES_CHANGE = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33])
 # err.h
 ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
 ER_RDONLY, ER_NOLOCK, ER_MAXRLOCK = 3018, 3023, 3060
+
+# 19 Oct 26 (K1).  WHAT THE REAL SERVER ANSWERS where this fake imitates an ON ERROR reply, MEASURED on a real `sd -Q` by sandbox-req29.py section G: one row there for each
+# entry, which compares the server with THESE values, so that a change in the server turns that row red and this table cannot go stale quietly.  (error field, STATUS() as
+# the wire carries it, the whole text as a regex).  Three things the first versions of this fake got wrong: (1) the SIGN - an over-long or empty id and a read only file
+# answer +3000 and +3018 (MUSTLOCK, -3023, is from op_dio3.c and was not measured on a real server); (2) a statement WITH an ON ERROR clause (write, delete, readu ...) sends
+# NO text - the server empties its message at the top of each request - while one WITHOUT (clearfile, lock record) aborts, and an abort's reply is STATUS() 0 and the
+# KERNEL's text, "<8 hex digits>: <message> at line <n> of $apisrvr"; (3) MAXRLOCK is the first kind for a locking read and the second for request 30.
+REAL_ON_ERROR = {
+    "write_bad_id": (1, ER_IID, r""),
+    "delete_bad_id": (1, ER_IID, r""),
+    "write_readonly": (1, ER_RDONLY, r""),
+    "delete_readonly": (1, ER_RDONLY, r""),
+    "clearfile_readonly": (1, 0, r"[0-9A-F]{8}: CLEARFILE on read-only file at line \d+ of \$apisrvr"),
+    "readu_maxrlock": (1, ER_MAXRLOCK, r""),
+    "lockrecord_maxrlock": (1, 0, r"[0-9A-F]{8}: Record lock limit \(MAXRLOCK\) reached at line \d+ of \$apisrvr"),
+}
+
+
+def abort_text(message, line):
+    """The text of an abort reply as the real server sends it, with a stand-in address; the line is the line apisrvr had on 19 Oct 26 and no row depends on it."""
+    return "%08X: %s at line %d of $apisrvr" % (0x25DD, message, line)
 FL_TYPE_DH, FL_TYPE_DIR = 3, 4
 # FILEINFO keys op_dio2.c knows (a key outside this set is an abort: "Illegal action key", message 1010).  The key is cut to a signed 16 bit
 # integer first, as op_dio2.c does ((int16_t)).
@@ -144,7 +170,7 @@ _MSG_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file_
 _MSG_COPY = {1010: "Illegal action key", 5037: "Invalid account name", 5262: "File access is disabled", 5268: "Invalid file number",
              5269: "Invalid select list number", 10003: "User not allowed in requested account",
              11480: "This login is for files only: request %1 is not allowed",
-             11521: "This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed",
+             11521: "This login cannot change or lock files here: ask the administrator for files-write-on (request %1)",
              11162: "Record lock limit (MAXRLOCK) reached",
              11405: "The VOC can only be changed by an account that has voc.edit (SDSYS can give it: modify.account <account> voc-on)",
              11406: "A dictionary can only be changed by an account that has dict.edit (SDSYS can give it: modify.account <account> dict-on)",
@@ -586,17 +612,22 @@ class FileSession:
             return False
         return True
 
-    def _lock(self, f, rid, update, wait):
+    def _lock(self, f, rid, update, wait, as_abort=False):
         """The lock a locking read takes before it reads (op_dio3.c: the lock first, so a record that is not there is locked all the same).
         True when held.  Not waiting: the LOCKED clause with STATUS() the holder's user number (op_lock.c / op_dio3.c: process.status =
         lock_record()).  Waiting: the real server waits for ever; this one gives up after cfg lock_wait seconds (module text, 3).
         cfg maxrlock: a NEW lock (the session holds nothing on the record yet) when the session already holds that many is an ON ERROR
-        reply, STATUS() -3060 and message 11162, before the lock table is looked at."""
+        reply before the lock table is looked at.  AS THE REAL SERVER ANSWERS (REAL_ON_ERROR, measured 19 Oct 26): a locking READ has an ON ERROR clause, so it is STATUS()
+        +3060 and no text; request 30 (as_abort) has none, so it aborts: STATUS() 0 and the kernel's text, message 11162 with the program and line."""
         limit = self.cfg["maxrlock"]
         if limit is not None and not self.store.holds(f, rid, self.userno) and self.store.count_locks(self.userno) >= limit:
             self.err = SV_ON_ERROR
-            self.st = -ER_MAXRLOCK
-            self.abort_msg = msg(11162)
+            if as_abort:
+                self.st = 0
+                self.abort_msg = abort_text(msg(11162), 2077)
+            else:
+                self.st = ER_MAXRLOCK
+                self.abort_msg = ""
             return False
         if wait:
             h = self.store.lock_wait(f, rid, update, self.userno, self.cfg["lock_wait"])
@@ -631,9 +662,10 @@ class FileSession:
 
     def _change_gate(self, f, rid=None):
         """What stands between a changing request and the file, in the order of the real server: check.edit (the session's edit gates, by
-        the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (-3018), a record id that is
-        not valid (-3000: empty, over 63 bytes or holding a mark), and MUSTLOCK (-3023: no update lock held on the record).  rid None is
-        CLEARFILE.  True when the change may go on; otherwise the reply is set."""
+        the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (STATUS() +3018, no text; CLEARFILE has no ON ERROR clause and
+        aborts: STATUS() 0 and the kernel's text), a record id that is not valid (+3000, no text: empty, over 63 bytes, or - in this fake only, the real server was seen to
+        accept character 250 in the id of a dynamic file on 19 Oct 26 - holding a mark), and MUSTLOCK (-3023: no update lock held on the record; from op_dio3.c, not
+        measured on a real server).  The signs and texts are REAL_ON_ERROR's.  rid None is CLEARFILE.  True when the change may go on; otherwise the reply is set."""
         if not f.path:
             self._fail(msg(11410))
             return False
@@ -642,12 +674,15 @@ class FileSession:
             self._fail(msg(11404 + k))
             return False
         if f.vocname in self.cfg["readonly"] or f.name in self.cfg["readonly"]:
-            self._fail_on_error(-ER_RDONLY, "netfake: the file is read only for the server's user")
+            if rid is None:
+                self._fail_on_error(0, abort_text("CLEARFILE on read-only file", 2099))
+            else:
+                self._fail_on_error(ER_RDONLY, "")
             return False
         if rid is None:
             return True
         if rid == "" or len(rid) > MAX_ID or any(248 <= ord(ch) <= 255 for ch in rid):
-            self._fail_on_error(-ER_IID, "netfake: illegal record id")
+            self._fail_on_error(ER_IID, "")
             return False
         if self.cfg["must_lock"] and not self.store.holds_update(f, rid, self.userno):
             self._fail_on_error(-ER_NOLOCK, "")
@@ -908,7 +943,7 @@ class FileSession:
             return ""
         if rid == "":
             return self._fail_on_error(0, "netfake: null record id")
-        self._lock(f, rid, bool(flags & 1), not (flags & 2))
+        self._lock(f, rid, bool(flags & 1), not (flags & 2), as_abort=True)
         return ""
 
     def r_recordlocked(self, data):
@@ -1041,11 +1076,16 @@ class FakeServer(threading.Thread):
         # ---- 18 Oct 26 S.65 slice 3e: writes, record locks and CLEARFILE (module text) ----
         "success_status": 0,      # the STATUS() sent with every successful 15 to 19, 30 and 31 reply (a row sets it non-zero to prove the client never reads it)
         "must_lock": False,       # 16 to 19: no update lock held on the record -> ON ERROR, STATUS() -3023, nothing changed (the server's MUSTLOCK=1)
-        "readonly": (),           # VOC names (lower case) of files 16 to 19 and 31 refuse: ON ERROR, STATUS() -3018 (the OS user cannot write them)
+        "readonly": (),           # VOC names (lower case) of files 16 to 19 and 31 refuse: ON ERROR, STATUS() +3018 and no text (31, which aborts: STATUS() 0 and the kernel's text) - REAL_ON_ERROR
         "edit_allow": frozenset(),  # the edit gates the session has: any of "voc" "dict" "prog".  Empty is the real default of a files-only login.
-        "maxrlock": None,         # N: a session holding N record locks that asks for another NEW one gets ON ERROR, -3060, message 11162
+        "maxrlock": None,         # N: a session holding N record locks that asks for another NEW one gets ON ERROR - STATUS() +3060 for a locking read, STATUS() 0 and the kernel's text for 30
         "drop_before": None,      # {request type: n}: the n-th request of that type is read and the connection closed WITHOUT executing or replying
         "drop_after": None,       # {request type: n}: the n-th is executed (the store changes) and the connection closed WITHOUT replying
+        # ---- 19 Oct 26 K8c ----
+        "bad_length": None,       # {request type: N}: the request is executed, and the reply is its 10 byte HEADER ALONE with the total length field N (any 32 bit value) and then silence: the
+                                  # connection is held open for bad_length_hold seconds or until the client closes it.  A client with no ceiling waits for the body (its own timeout); one with a
+                                  # ceiling, or that tests for a length below 10, drops the connection at once, which is what the rows time.
+        "bad_length_hold": 45.0,
     }
 
     def __init__(self, cert, key, life=1800):
@@ -1404,6 +1444,12 @@ class FakeServer(threading.Thread):
                     ses.injected.append((ptype, "drop_after"))      # the request was executed (the store has changed); the reply is never sent
                     break
                 self.pause(cfg, ptype)
+                bl = (cfg["bad_length"] or {}).get(ptype)
+                if bl is not None:
+                    ses.injected.append((ptype, "bad_length"))
+                    tls.sendall(struct.pack("<IHI", bl & 0xFFFFFFFF, res[0], res[1] & 0xFFFFFFFF))        # the header only: the length it announces is not the length that follows
+                    self.hold_open(tls, cfg["bad_length_hold"])
+                    break
                 self.reply(tls, res[2], res[0], res[1])
                 if ses.done or cfg["close_after_requests"] == ses.nreq:
                     break
@@ -1429,6 +1475,20 @@ class FakeServer(threading.Thread):
             ses.error_msg = text
             return (SV_ERROR, 0, "")
         return (err, 0, text)
+
+    @staticmethod
+    def hold_open(tls, seconds):
+        """Say nothing more and read whatever the client sends until it closes the connection or SECONDS have passed (a client that gives up sends a quit and closes)."""
+        end = time.time() + seconds
+        tls.settimeout(1.0)
+        while time.time() < end:
+            try:
+                if tls.recv(4096) == b"":
+                    return
+            except socket.timeout:
+                continue
+            except (OSError, ssl.SSLError):
+                return
 
     @staticmethod
     def pause(cfg, ptype):
@@ -2169,17 +2229,18 @@ def selftest_writes(srv, row):
     c = connect()
     ses = srv.sessions[-1]
     f1, = opened(c, "wf")
-    row("ids: an EMPTY id is refused for write, writeu, delete and deleteu: ON ERROR (error 1), STATUS -3000, nothing stored",
-        all(c.req(t, d)[:2] == (1, NEG(3000)) for t, d in ((R_WRITE, W(f1, "", "x")), (R_WRITEU, W(f1, "", "x")), (R_DELETE, D(f1, "")), (R_DELETEU, D(f1, ""))))
+    row("ids: an EMPTY id is refused for write, writeu, delete and deleteu: ON ERROR (error 1), STATUS +3000 and NO text (REAL_ON_ERROR, measured on the real server 19 Oct 26), nothing stored",
+        all(c.req(t, d) == (1, 3000, b"") for t, d in ((R_WRITE, W(f1, "", "x")), (R_WRITEU, W(f1, "", "x")), (R_DELETE, D(f1, "")), (R_DELETEU, D(f1, ""))))
         and st.records("wf") == base["wf"], repr(st.records("wf")))
     i63, i64 = "i" * 63, "j" * 64
     r63, r64 = c.req(R_WRITE, W(f1, i63, "x")), c.req(R_WRITE, W(f1, i64, "x"))
-    row("ids: 63 bytes is stored, 64 is refused with -3000 (the server's MAXIDLEN)", r63 == (0, 0, b"") and i63 in st.records("wf") and r64[:2] == (1, NEG(3000))
+    row("ids: 63 bytes is stored, 64 is refused with +3000 and no text (the server's MAXIDLEN)", r63 == (0, 0, b"") and i63 in st.records("wf") and r64 == (1, 3000, b"")
         and i64 not in st.records("wf"), repr((r63, r64)))
     rm = c.req(R_WRITE, W(f1, "m" + chr(250), "x"))
     rh = c.req(R_WRITE, W(f1, "h" + chr(247), "x"))
-    row("ids: a record mark (248-255) is refused with -3000; a byte of 128-247 is an ordinary character (the owner's 12 Oct exception)",
-        rm[:2] == (1, NEG(3000)) and rh == (0, 0, b"") and "h" + chr(247) in st.records("wf") and "m" + chr(250) not in st.records("wf"), repr((rm, rh)))
+    row("ids: a record mark (248-255) is refused with +3000 (THE FAKE ONLY: the real server accepted character 250 in the id of a dynamic file, 19 Oct 26 - no row of "
+        "sandbox-netfile.py sends one, the handler refuses it first); a byte of 128-247 is an ordinary character (the owner's 12 Oct exception)",
+        rm == (1, 3000, b"") and rh == (0, 0, b"") and "h" + chr(247) in st.records("wf") and "m" + chr(250) not in st.records("wf"), repr((rm, rh)))
     bye(c, ses)
 
     # ---- W3  nocase ------------------------------------------------------------------------------------------------------------
@@ -2384,8 +2445,8 @@ def selftest_writes(srv, row):
     row("success_status=4242: the reply to 15, 16, 17, 18, 19, 30 (also an unknown flags value) and 31 carries that STATUS(); data and error field unchanged",
         all(v == (0, 4242, b"") for v in got.values()), repr(got))
     r, rr, re_ = c.req(R_READ, _S(f1) + b"a"), c.req(R_READ, _S(f1) + b"nope"), c.req(R_WRITE, W(f1, "", "x"))
-    row("CONTROL: a read still has STATUS 0, a read that finds nothing 3006 (ER$RNF), and an ON ERROR reply its own status (-3000), never 4242",
-        r == (0, 0, b"y") and rr == (SV_ELSE, 3006, b"") and re_[:2] == (1, NEG(3000)), repr((r, rr, re_)))
+    row("CONTROL: a read still has STATUS 0, a read that finds nothing 3006 (ER$RNF), and an ON ERROR reply its own status (+3000), never 4242",
+        r == (0, 0, b"y") and rr == (SV_ELSE, 3006, b"") and re_[:2] == (1, 3000), repr((r, rr, re_)))
     bye(c, ses)
 
     # ---- W9  must_lock ---------------------------------------------------------------------------------------------------------------
@@ -2426,8 +2487,10 @@ def selftest_writes(srv, row):
     ses = srv.sessions[-1]
     f1, f2 = opened(c, "wf", "wcs")
     ro = [c.req(t, d) for t, d in ((R_WRITE, W(f1, "a", "x")), (R_WRITEU, W(f1, "a", "x")), (R_DELETE, D(f1, "a")), (R_DELETEU, D(f1, "a")), (R_CLEARFILE, _S(f1)))]
-    row("readonly=('wf',): 16, 17, 18, 19 and 31 are ON ERROR with STATUS -3018 and change nothing",
-        all(v[:2] == (1, NEG(3018)) for v in ro) and st.records("wf") == base["wf"], repr((ro, st.records("wf"))))
+    row("readonly=('wf',): 16, 17, 18 and 19 are ON ERROR with STATUS +3018 and no text, and 31 (CLEARFILE, which has no ON ERROR clause) aborts: ON ERROR, STATUS 0 and the kernel's "
+        "text with the program and line - as REAL_ON_ERROR, measured on the real server 19 Oct 26 - and nothing changes",
+        all(v == (1, 3018, b"") for v in ro[:4]) and ro[4][:2] == (1, 0) and re.fullmatch(REAL_ON_ERROR["clearfile_readonly"][2], ro[4][2].decode("latin-1")) is not None
+        and st.records("wf") == base["wf"], repr((ro, st.records("wf"))))
     rd, rl = c.req(R_READ, _S(f1) + b"a"), c.req(R_READU, _S(f1) + b"a")
     rw = c.req(R_WRITE, W(f2, "n", "x"))
     row("CONTROL: reads and locks on that file still work, and a write to another file goes through",
@@ -2493,19 +2556,25 @@ def selftest_writes(srv, row):
     f1, = opened(c, "wf")
     c.req(R_LOCKRECORD, K(f1, 3, "a"))
     c.req(R_LOCKRECORD, K(f1, 2, "b"))
-    want = (1, NEG(3060), msg(11162).encode())
+    # AS THE REAL SERVER ANSWERS (REAL_ON_ERROR, measured 19 Oct 26): request 30 has no ON ERROR clause and aborts - STATUS() 0 and the kernel's text with message 11162 in it;
+    # a locking READ has the clause - STATUS() +3060 and no text
+    want_read = (1, 3060, b"")
+
+    def want_abort(v):
+        return v[:2] == (1, 0) and re.fullmatch(REAL_ON_ERROR["lockrecord_maxrlock"][2], v[2].decode("latin-1")) is not None and msg(11162) in v[2].decode("latin-1")
     r = c.req(R_LOCKRECORD, K(f1, 3, "c"))
-    row("maxrlock=2: a third NEW lock by request 30 is ON ERROR, STATUS -3060, data message 11162 (Record lock limit (MAXRLOCK) reached)", r == want and len(st.locks_of(u)) == 2, repr(r))
+    row("maxrlock=2: a third NEW lock by request 30 is ON ERROR, STATUS 0 and the abort text '<address>: Record lock limit (MAXRLOCK) reached at line <n> of $apisrvr'",
+        want_abort(r) and len(st.locks_of(u)) == 2, repr(r))
     rs = [c.req(R_READU, _S(f1) + b"c"), c.req(R_READL, _S(f1) + b"c"), c.req(R_READUW, _S(f1) + b"c"), c.req(R_READLW, _S(f1) + b"c"),
           c.req(R_READV, _S(f1) + _S(1) + _L(1) + b"c"), c.req(R_READV, _S(f1) + _S(6) + _L(1) + b"c")]
-    row("... and by readu, readl, readuw, readlw and readv with a lock flag (requests 9, 7, 10, 8, 41)", all(v == want for v in rs) and len(st.locks_of(u)) == 2, repr(rs))
+    row("... and by readu, readl, readuw, readlw and readv with a lock flag (requests 9, 7, 10, 8, 41) it is ON ERROR, STATUS +3060 and NO text", all(v == want_read for v in rs) and len(st.locks_of(u)) == 2, repr(rs))
     ru = c.req(R_LOCKRECORD, K(f1, 3, "b"))
     row("CONTROL: a lock the session already holds is not a NEW lock: upgrading b from a read lock to an update lock is allowed", ru == (0, 0, b"") and ("wf", "b", "update") in st.locks_of(u), repr((ru, st.locks_of(u))))
     rp = c.req(R_READ, _S(f1) + b"c")
     row("CONTROL: a plain read takes no lock and is never refused", rp == (0, 0, b"three"), repr(rp))
     st.hold("wf", "c", 7)
     rh = c.req(R_LOCKRECORD, K(f1, 2, "c"))
-    row("the count is checked before the lock table: a record someone else holds is refused with -3060 too, not SV$LOCKED", rh == want, repr(rh))
+    row("the count is checked before the lock table: a record someone else holds is refused with the MAXRLOCK abort too, not SV$LOCKED", want_abort(rh), repr(rh))
     st.drop_user(7)
     c.req(R_RELEASE, D(f1, "a"))
     rg = c.req(R_LOCKRECORD, K(f1, 3, "c"))
@@ -2609,6 +2678,36 @@ def selftest_writes(srv, row):
     row("files-only: 16, 17, 18, 19, 30 and 31 are all on the gate's allow list and are DISPATCHED (served, none refused); a plain file is of no gated kind",
         all(v == (0, 0, b"") for v in rs) and ses.refused == [] and "fo" not in st.records("wf") and st.records("wtmp") == {}, repr((rs, ses.refused)))
     bye(c, ses)
+
+    # ---- W15  bad_length (19 Oct 26, K8c): a reply that is its header alone, with a length that is not the length that follows, then silence ------------------------------
+    for announced in (3000000000, 2000000000, 4):
+        reset()
+        c = connect(bad_length={R_READ: announced}, bad_length_hold=6.0, timeout=3)
+        ses = srv.sessions[-1]
+        f1, = opened(c, "wf")
+        c.send(R_READ, _S(f1) + b"a")
+        hdr = c._rd(10)
+        length, err, status = struct.unpack("<IHI", hdr)
+        c.tls.settimeout(0.5)
+        try:
+            more = c.tls.recv(10)
+        except (socket.timeout, TimeoutError):
+            more = None
+        row("bad_length={6: %d}: the reply to a READ is the 10 header bytes alone, announcing %d and error 0 status 0, and then NOTHING (the connection stays open and silent)" % (announced, announced),
+            length == announced and (err, status) == (0, 0) and more is None and ses.injected == [(R_READ, "bad_length")] and not ses.closed, repr((length, err, status, more, ses.injected)))
+        t0 = time.time()
+        c.close()
+        row("...and the server lets go as soon as the client closes (inside 4 s, not at the end of its %s second hold)" % 6, wait_closed(ses, 4.0) and time.time() - t0 < 4.0, "")
+    reset()
+    c = connect(bad_length={R_WRITE: 3000000000}, bad_length_hold=6.0, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    c.send(R_WRITE, W(f1, "bl", "1"))
+    hdr = c._rd(10)
+    row("bad_length on a WRITE: the write is EXECUTED first (the record is stored) and the reply is the bogus header - the client cannot tell this from a lost reply",
+        struct.unpack("<IHI", hdr)[0] == 3000000000 and st.records("wf").get("bl") == "1", repr((hdr, st.records("wf"))))
+    c.close()
+    wait_closed(ses, 4.0)
 
     # ---- W12  the write group (18 Oct 26, S.65): a files-only login WITHOUT sdfileswrite is refused every change and lock ---------------------------------
     reset()
