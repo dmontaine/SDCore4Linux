@@ -1,6 +1,26 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE IDE: CHOOSING A RECORD OR A FILE NO LONGER FLASHES THE WHOLE SCREEN, A CLICK ON THE MENU BAR OPENS THE MENU, THE PANE WITH THE FOCUS IS NAMED, AND THE EDITOR SHOWS ITS CURSOR.
+
+             What        Four reports from using the IDE. (1) Every choice in the tree wrote every widget again - a file wrote 3,078 characters to the
+                        terminal, a record 6,635 (a screen is 5,880), Down in the tree 1,026, the tree itself three times over - which showed as the
+                        whole screen flashing. The screen library now keeps in step with what the terminal shows, and a form that is drawn again
+                        writes only the text that changed: a file 570, a record 780, Down in the tree 54. (2) The menu bar is not a widget, so a click
+                        on it was dropped and the menu opened only after F10 or Esc. A click on a title now opens that menu, and a click on the
+                        bar beside the titles does nothing. (3) With the keyboard only there was no sign of which pane Tab had moved to: the
+                        status line now begins with the pane, [Files], [Tabs], [Editor] or [Messages]. (4) The editor now shows the character at
+                        its cursor in the highlight style while it has the focus, so the place shows on a terminal that draws its own cursor poorly
+                        or not at all. SCREEN MENUBAR takes CLICK x for a program that is told of a click on its bar: the menu whose title is over
+                        column x opens instead of the first.
+             Why it      The flash made the IDE look unfinished and tired the eye; the dropped click and the missing focus signs made it hard to use
+             matters    without remembering which key does what.
+             Does not    The saving is for forms (SCREEN FORM and what is on one) on a screen opened with SCREEN OPEN CLEAR. SCREEN TEXT, BOX, the
+                        dialogues, and any screen opened without CLEAR write what they are told, as before. A form that is drawn again does not
+                        repair what the program PRINTed over it; SCREEN REFRESH does that, as it always did. The Tab order is unchanged, and the
+                        terminal's own cursor is still put in the editor. A program compiled before today that uses SCREEN MENUBAR must be
+                        compiled again (the statement passes one more value).
+
 19 Oct 26  ED, THE CLASSIC LINE EDITOR, NO LONGER USES ALL OF A CPU FOR EVER WHEN ITS INPUT HAS ENDED.
 
              What        An ED session whose input was a pipe (a script, a test, a login that was not a terminal) went on for as long as it was

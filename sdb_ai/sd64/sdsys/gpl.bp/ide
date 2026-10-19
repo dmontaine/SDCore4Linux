@@ -24,6 +24,9 @@
 *               together: the shell, open and save, compile with the error table that jumps, run, catalogue,
 *               debug, search in the records of a file, a tab for each open record, and a layout that follows
 *               the window.
+* 19 Oct 26 dm  A click on the menu bar opens the menu under it (SCREEN MENUBAR ... CLICK); it did nothing until Esc had opened the menu.
+* 19 Oct 26 dm  The pane that has the focus is named first on the status line (messages 11237-11240), and the editor highlights the character at
+*               its cursor while it has the focus (the memo's softcur), for a keyboard user whose terminal shows little else of where the focus is.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -156,6 +159,7 @@ $include sl.h
       focus.id = 'ed'
    end
 
+   menu.click = ''                          ;* the column of a click on the menu bar, while the menu it opens is being started
    loop
       gosub status.line
       * A second of quiet is an event (timeout), so that the status line follows what is typed: the editor
@@ -359,6 +363,7 @@ new.form:
    mw = f{'widgets', en}
    mw{'hbar'} = 1
    mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End)
+   mw{'softcur'} = 1                             ;* 19 Oct 26: the character under the cursor is highlighted while the editor has the focus
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
    * A bar of its own above the table: the table is drawn like the editor (the text style), and with nothing
@@ -367,6 +372,7 @@ new.form:
    screen table f, 'err', cols, err.rows at ex,err.y + 1 size ew,eh - 1
    * Return in the tree and in the table is an event of its own (activate), not the press of a default button
    f{'activate'} = 1
+   f{'bgclick'} = 1                     ;* a left click on no widget (the menu bar) comes back as the key mouse: the bar is the IDE's, not a widget
 
    gosub tree.apply
    if nbuf > 0 then gosub memo.cursor
@@ -661,6 +667,21 @@ status.line:
    *   where the widget with the focus had left it.
    * The line is written only when its text has changed since it was last written: the loop comes here about ten times a second, and an idle IDE
    *   wrote 140 cells each time (new.form, which makes the screen again, forgets the text so that the line is written then)
+   * 19 Oct 26 dm - which pane has the focus, first on the line (the owner, using the keyboard only: "no visible indication of which box is active"):
+   *   Tab moves the focus from the files to the tabs, the editor and the messages, and the terminal's own cursor is the only other sign of it
+   begin case
+      case focus.id = 'tree'
+         pn = sysmsg(11237)
+      case focus.id = 'tabs'
+         pn = sysmsg(11238)
+      case focus.id = 'ed'
+         pn = sysmsg(11239)
+      case focus.id = 'err'
+         pn = sysmsg(11240)
+      case 1
+         pn = ''
+   end case
+   if pn # '' then t = '[' : pn : ']' : (if t = '' then '' else '  ' : t)
    t = fmt(t[1, lw], lw : 'L')
    if t = last.status then return
    last.status = t
@@ -711,6 +732,14 @@ do.key:
          cmd = 'find'                    ;* in the records of the file
       case edata = 'guardquit'
          done = @true                    ;* the user left from the cursor lock ($sl_guardmode): nothing is saved
+      case edata = 'mouse'
+         * The bar is not a widget, so a click on it comes here as a key the form had no use for.  19 Oct 26 dm: the left button on the bar's
+         * row (0) opens the menu whose title is under it; the menu was opened only by F10 or Esc before, and a click did nothing until then.
+         call $sl_mouse('get', mev)
+         if mev<1> = 'press' and mev<2> = 1 and mev<4> = 0 then
+            menu.click = mev<3>
+            cmd = 'menu'
+         end
    end case
    if cmd # '' then gosub run.cmd
    return
@@ -718,9 +747,18 @@ do.key:
 run.cmd:
    begin case
       case cmd = 'menu'
-         screen menubar menus returning mc then
-            cmd = mc
-            gosub run.cmd
+         mk = menu.click
+         menu.click = ''
+         if mk = '' then
+            screen menubar menus returning mc then
+               cmd = mc
+               gosub run.cmd
+            end
+         end else
+            screen menubar menus click mk returning mc then      ;* the menu under the click; the space beside the titles opens nothing
+               cmd = mc
+               gosub run.cmd
+            end
          end
       case cmd = 'help'
          s = convert(char(13), '', sysmsg(11214) : sysmsg(11215) : sysmsg(11216))

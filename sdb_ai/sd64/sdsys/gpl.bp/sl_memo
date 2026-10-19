@@ -9,6 +9,7 @@
 * 18 Oct 26 dm  The cursor is placed through $sl_curat (which tells the cursor lock where it is).
 * 18 Oct 26 dm  passkeys: key names the area leaves to the program.
 * 18 Oct 26 dm  hbar: an optional horizontal scroll bar in the last row of the area ($sl_hscrollbar), clicks on it, and one row less of text.
+* 19 Oct 26 dm  softcur: an optional highlighted character at the cursor while the area has the focus (the IDE).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -25,7 +26,9 @@
 *   (what Ctrl-Z and Ctrl-Y go back to), lastop (what the last key did, so that a run of typing is one undo), hbar
 *   (1: a horizontal scroll bar in the last row of the area, drawn by $sl_hscrollbar, and one row less of text; none
 *   when the text wraps; a click on its arrows scrolls 8 columns and on its track a page; set by the program, not by SCREEN MEMO), and
-*   passkeys (key names, as values, that the area leaves alone and answers 'unhandled': the program uses them itself)
+*   passkeys (key names, as values, that the area leaves alone and answers 'unhandled': the program uses them itself), and
+*   softcur (1: while the area has the focus the character under the cursor is drawn in the highlight style, as well as the terminal's
+*   own cursor being put there; not in a readonly area; set by the program, not by SCREEN MEMO)
 *
 *     init    w and h from what was given (at least 3 by 1); a linefeed in the text is taken as the end of a
 *             line; the cursor goes to the start; no selection and nothing to undo
@@ -809,6 +812,15 @@ paint:
    call $sl_attr('gutter', gc)                  ;* 14 Oct 26: was 'disabled', whose background is the window's, not the text's
    call $sl_scrollbar(mh, top, nr, mh, bar)
    gosub sel.range
+   * 19 Oct 26: softcur (1) draws the character under the cursor in the highlight style while the area has the focus, so that the place in the
+   * text shows on a terminal whose own cursor does not (the owner could not see it in the IDE, nor which pane had the focus).  Opt in.
+   sc.row = -1
+   sc.col = 0                                    ;* (both sides of an AND are evaluated: sc.col must have a value when sc.row is tested)
+   if w{'softcur'} + 0 and w{'focused'} and not(ro) then
+      gosub row.of
+      sc.row = dr - top
+      sc.col = dcx - left + 1
+   end
    sl.line = 0                                   ;* the line whose syntax styles are in sty (rows of a wrapped line share them)
    for r = 0 to mh - 1
       rr = top + r
@@ -843,6 +855,7 @@ paint:
             if inside then attrs[k, 1] = hc
          next k
       end
+      if r = sc.row and sc.col >= 1 and sc.col <= tw then attrs[sc.col, 1] = hc
       if gut then
          * The line numbers: on the first row of a line (a wrapped line's other rows, and the rows past the text, have none)
          gnum = space(gut)

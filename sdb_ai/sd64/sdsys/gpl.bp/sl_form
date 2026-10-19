@@ -14,6 +14,8 @@
 * 18 Oct 26 dm  The op drawwidget: one widget drawn again, not the whole form (the IDE changing record rewrote the whole screen, which showed as a flash).
 * 19 Oct 26 dm  wait.event: a null key is a timeout only when STATUS() is ER$TIMEOUT; an input that has ended is end, with or without a timeout
 *               (the IDE's timeout 1 turned the end into timeouts for ever, at full CPU; sandbox-eofkeys.py).
+* 19 Oct 26 dm  f{'bgclick'} = 1: a press of the left button on no widget comes back as the key mouse (SCREEN MOUSE says where) instead of
+*               being ignored, so that the IDE can open its menu from a click on the bar.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -82,6 +84,7 @@ $include err.h
 
    ret = ''
    wkey = ''                                 ;* the key handed to a widget: none for init, draw ...
+   scr<SL.S.DIFF> = scr<SL.S.SYNC> + 0       ;* 19 Oct 26: on a screen the terminal of which is known to match its shadow, $sl_put leaves out what is shown already
 
    begin case
       case op = 'init'
@@ -165,6 +168,8 @@ $include err.h
          gosub find.widget
          if fw > 0 then gosub delete.widget
    end case
+
+   scr<SL.S.DIFF> = 0
 
    return
 
@@ -623,7 +628,11 @@ route.key:
       * The terminal's size changed ($sl_key says so).  This form's screen context is the live one (the kept one is only
       * updated when the statement ends), so it is made the new size and drawn again here, form and all; the key is then
       * passed on as one nobody used, which WAIT turns into the event resize.
+      sw0 = scr<SL.S.W> ; sh0 = scr<SL.S.H>
       call $sl_resize(scr)
+      * 19 Oct 26: a resize key with the size unchanged is the lift of the cursor lock ($sl_guard cleared the terminal and drew its own
+      *   box): the terminal no longer matches the shadow, so the screen is drawn again from it, which also makes it match for what follows
+      if scr<SL.S.W> = sw0 and scr<SL.S.H> = sh0 and scr<SL.S.OWNED> then call $sl_repaint(scr)
       ret = 'unhandled' : @fm : key
       return
    end
@@ -691,7 +700,11 @@ route.mouse:
          end
       end
    next i
-   if hit = 0 then return
+   if hit = 0 then
+      * a press of the left button on nothing: ignored, unless the program asked for it (f{'bgclick'} = 1, the IDE: the menu bar is not a widget)
+      if mk = 'press' and f{'bgclick'} + 0 = 1 then ret = 'unhandled' : @fm : 'mouse'
+      return
+   end
    keepf = 0
    if mk = 'wheel' then gosub wheel.target
    if hit # f{'focus'} + 0 and keepf = 0 then
@@ -957,7 +970,8 @@ show.form:
 *   button  (eid the button's id)           cancel  (Esc, eid null; or the form's cancel button, eid its id)
 *   change  (eid, edata the new value: a check box, radio group, list or combo changed)
 *   focus   (eid the widget the focus went to, edata the one it left)
-*   key     (edata the key's name: one the form had no use for)    timeout    end (the input ended)
+*   key     (edata the key's name: one the form had no use for; also mouse, for a press of the left button on no widget, when the
+*           program has set f{'bgclick'} = 1)    timeout    end (the input ended)
 *   activate  (eid the tree's or table's id, edata its value: Return in one of them, only when the program has set
 *             f{'activate'} = 1 and the form has no default button; otherwise Return moves the focus on)
 wait.event:

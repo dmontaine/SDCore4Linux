@@ -221,7 +221,7 @@ def part_a():
     e = Term(BOX, "IDE %s r1" % F)
     base = list(e.lines())
     row("control: the IDE is up at 140 by 42 with the record in the editor (status line on row 41)",
-        base[41].startswith(F + " r1") and "L01 the quick" in base[3] and ide_at(e) == (1, 1), repr(base[41][:50]) + repr(base[3][:50]))
+        base[41].startswith("[Editor]  " + F + " r1") and "L01 the quick" in base[3] and ide_at(e) == (1, 1), repr(base[41][:50]) + repr(base[3][:50]))
     row("the menu bar is row 0 and the frame starts on row 1", " File" in base[0] and base[1].startswith("+- IDE"), repr(base[0][:40]) + repr(base[1][:20]))
     row("the frame's right edge is column 139 (the layout is 140 wide)", len(base[1].rstrip()) == 140 and base[1].rstrip().endswith("+"), repr(base[1][-8:]))
     row("a row never reaches past column 140", max(len(l) for l in base) <= LAY_W, str(max(len(l) for l in base)))
@@ -229,7 +229,7 @@ def part_a():
     e = Term(BOX, "IDE %s r1" % F, 200, 60)
     L = e.lines()
     row("200 by 60: the IDE uses the whole window: the status line is row 59 and the frame is 200 wide",
-        L[59].startswith(F + " r1") and len(L[1].rstrip()) == 200, repr(L[59][:40]) + str(len(L[1].rstrip())))
+        L[59].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200, repr(L[59][:40]) + str(len(L[1].rstrip())))
     leave(e)
 
     e = Term(BOX, "CED %s j1" % F)
@@ -370,7 +370,7 @@ def part_c():
     e.resize(200, 60)
     L = e.lines()
     row("IDE grown to 200 by 60: the layout takes the window (status line on row 59, frame 200 wide), nothing is lost",
-        L[59].startswith(F + " r1") and len(L[1].rstrip()) == 200 and "L01 the quick" in L[3], repr(L[59][:30]) + str(len(L[1].rstrip())))
+        L[59].startswith("[Editor]  " + F + " r1") and len(L[1].rstrip()) == 200 and "L01 the quick" in L[3], repr(L[59][:30]) + str(len(L[1].rstrip())))
     leave(e)
 
     say("\n--- C: the debugger, shrunk in width only (the command line is still on the screen) ---------------------------------")
@@ -396,6 +396,11 @@ def part_d():
     burst = DOWN * 45
     e = Term(BOX, "IDE %s r1" % F)
     L = e.keys(burst, idle=1.0)
+    # 19 Oct 26: the IDE writes its status line one second after the last key (the timeout of its wait), and the screen library now writes
+    # so little for a key that the terminal is quiet for a second BEFORE that: the row waits for the line, not for the silence
+    time.sleep(1.5)
+    e.s.settle(0.4)
+    L = e.lines()
     row("control, 140x42: 45 Downs are all accepted (line 46) and no warning shows", ide_at(e) == (46, 1) and "The window is" not in text(L, 6), repr(ide_at(e)))
     leave(e)
 
