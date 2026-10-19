@@ -17,6 +17,9 @@
 #               prints a message and uses line mode; a window made smaller after the start shows the upper left corner of the layout
 #               and nothing past the edge; and while the cursor is off the screen the keys are ignored behind a warning until the
 #               window is made bigger or the user leaves with Ctrl-Q, y ($sl_guardmode, $sl_key, $sl_guard).
+# 18 Oct 26 dm  Phase 3 checked: the message box puts the cursor on its button while a guarded program has it up (a box below the rows
+#               the window shows is locked, not typed into blind), the menu and the box close on the lock's way out, and the mutant
+#               "nomap" was aimed at a program the IDE's question does not use (it survived); it is $screen_ask now.
 # END-HISTORY
 #
 # HOW IT DRIVES THEM.  On a PSEUDO-TERMINAL (ptydrive.py), the window size set BEFORE SD starts (it asks the tty when it starts) and
@@ -456,6 +459,53 @@ def part_d():
         text(L, 8))
     e.end()
 
+    say("\n--- D: a menu open, and a message box open (Save them?), while the window is made smaller ---------------------------")
+    e = Term(BOX, "IDE %s r1" % F)
+    e.keys(F10)
+    L = e.keys(DOWN * 4)
+    row("setup: F10 opens the File menu and four Downs select its last item, Quit (menu rows 1 to 5)", any(l.lstrip().startswith("Quit") for l in L[1:7]), text(L, 8))
+    e.resize(140, 4)
+    L = e.lines()
+    row("140x4 with the menu open: the selected item is on row 5, which this window does not show: locked", warn_shown(L, 140, 4, "IDE"), text(L, 5))
+    L = e.keys("xyz", RET, idle=0.6)
+    row("...keys are ignored (a Return would have chosen Quit and left the IDE)", warn_shown(L, 140, 4, "IDE"), text(L, 5))
+    e.keys(CTRL("q"))
+    L = e.keys("y", idle=1.2)
+    row("...Ctrl-Q, y closes the menu as Esc does and leaves the IDE (SD at its prompt, not looping in the menu)", prompt_shown(e), text(L, 6))
+    e.end()
+
+    e = Term(BOX, "IDE %s r1" % F)
+    e.keys("Z")
+    e.keys(F10)
+    L = e.keys(DOWN * 3, RET, idle=0.8)
+    row("setup: Close record on a changed record asks 'Save them?' in a box over the editor (its buttons are on row 19)",
+        any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
+    e.resize(140, 10)
+    L = e.lines()
+    row("140x10 with the box open: its button is on row 19, which this window does not show: locked at once", warn_shown(L, 140, 10, "IDE"), text(L, 5))
+    L = e.keys("d", "s", RET, idle=0.6)
+    row("...keys are ignored: Discard, Save and Return were not taken (the warning is still up)", warn_shown(L, 140, 10, "IDE"), text(L, 5))
+    e.keys(CTRL("q"))
+    L = e.keys("y", idle=1.2)
+    row("...Ctrl-Q, y closes the box as Esc does and leaves the IDE (SD at its prompt)", prompt_shown(e), text(L, 6))
+    row("...nothing was saved: the record on disk is as it was", rec("r1") == RECORD, repr(rec("r1"))[:100])
+    e.end()
+    e = Term(BOX, "IDE %s r1" % F)
+    e.keys("Z")
+    e.keys(F10)
+    e.keys(DOWN * 3, RET, idle=0.8)
+    e.resize(140, 24)
+    L = e.lines()
+    row("control: the same box in a window of 24 lines (its button is on row 19, shown): no warning, the box is up",
+        "The window is" not in text(L, 6) and any("[ Save ]" in l for l in L[17:22]), text(L[15:24], 9))
+    L = e.keys("c", idle=1.0)
+    row("...and its keys work: c chooses Cancel, the box closes and the record is still open with its change (line 1 reads ZL01)",
+        "[ Save ]" not in "\n".join(L) and "ZL01" in L[3], text(L[2:5], 3))
+    e.keys(CTRL("q"), idle=0.8)
+    e.keys("d", idle=1.0)                       # Discard: the change must not reach the record for the parts that follow
+    row("...Ctrl-Q, d leaves without saving: the record on disk is as it was", rec("r1") == RECORD, repr(rec("r1"))[:100])
+    e.end()
+
 
 def part_e():
     say("\n--- E: the cursor lock: CED ---------------------------------------------------------------------------------------------")
@@ -577,7 +627,10 @@ def part_f():
 #   dbgnoneed    the debugger does not fall back to line mode: it is full screen on any window.                         B
 #   dbgnoguard   the debugger's wait.key never calls $sl_guard.                                                         F
 #   dbgnoquit    the debugger's wait.key takes the user's y for a lift.                                                 F
-#   nomap        the dialogues of the library do not read guardquit as Esc.                                             D (the question)
+#   nomap        the question box (screen ask) does not read guardquit as Esc.                                         D (the question)
+#   nomapmenu    the menu does not read guardquit as Esc.                                                               D (the menu)
+#   nomapbox     the message box does not read guardquit as Esc.                                                        D (the box)
+#   nomsgcur     the message box does not tell the cursor lock where its button is.                                     D (the box)
 MUTANTS = {
     "noguard": ("sl_key", "      if not(g.quit) then gosub guard.cursor\n", "      null\n", "d,e"),
     "nocurat": ("sl_curat", "         cu.has = 1\n", "         cu.has = 0\n", "d,e"),
@@ -590,7 +643,10 @@ MUTANTS = {
     "dbgnoguard": ("debug", "      if cur.x >= win.w or command.line >= win.h then\n", "      if 0 then\n", "f"),
     "dbgnoquit": ("debug", "         if guard.result = 'quit' then\n            key.quit = @true\n            return\n         end\n",
                   "         if guard.result = 'quit' then\n            null\n         end\n", "f"),
-    "nomap": ("sl_prompt", "            if key = '' or key = 'guardquit' then key = 'esc'", "            if key = '' then key = 'esc'", "d"),
+    "nomap": ("screen_ask", "      if k = '' or k = 'guardquit' then k = 'esc'", "      if k = '' then k = 'esc'", "d"),
+    "nomapmenu": ("sl_menu", "            if key = '' or key = 'guardquit' then key = 'esc'", "            if key = '' then key = 'esc'", "d"),
+    "nomapbox": ("sl_msgbox", "            if key = '' or key = 'guardquit' then key = 'esc'", "            if key = '' then key = 'esc'", "d"),
+    "nomsgcur": ("sl_msgbox", "   if g.on then call $sl_curat(bx + sx + 1, by + nl + 2)", "   if 0 then call $sl_curat(bx + sx + 1, by + nl + 2)", "d"),
 }
 
 

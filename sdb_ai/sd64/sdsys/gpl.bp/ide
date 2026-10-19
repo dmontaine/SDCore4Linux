@@ -300,6 +300,9 @@ size.layout:
 
 * The form and everything on it, from the state
 new.form:
+   last.status = char(1)                ;* the screen is made again: the status line has to be written (status.line writes only a changed text)
+   lc.nodraw = @false                   ;* see load.current
+   did.focus = @false
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
    h = scr<SL.S.H> + 0
@@ -341,6 +344,10 @@ new.form:
    end else
       screen memo f, 'ed', ed.text at ex,2 size ew,mh syntax ed.syn lnum
    end
+   * 18 Oct 26 dm - a horizontal scroll bar in the editor's last row (the owner: "there is no horizontal scroll bar"); the text has one row less
+   call $sl_form('find', f, '', 'ed', en)
+   mw = f{'widgets', en}
+   mw{'hbar'} = 1
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
    * A bar of its own above the table: the table is drawn like the editor (the text style), and with nothing
@@ -460,8 +467,10 @@ stash.current:
 * The editor shows the record cb: its text, its language, its cursor; the tab strip says which
 load.current:
    gosub tab.labels
+   f{'quiet'} = 1                        ;* SCREEN SET draws the whole form after each set: the strip and the editor are drawn below, alone
    screen set f, 'tabs' items labels
    screen set f, 'tabs' value tab.n
+   f{'quiet'} = 0
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    if nbuf > 0 then
@@ -483,7 +492,10 @@ load.current:
    mw{'synlang'} = nl + 0
    mw{'readonly'} = ro
    if nbuf > 0 then gosub memo.cursor
-   gosub redraw
+   * 18 Oct 26 dm - only the tab strip and the editor have changed: drawing the whole form again wrote every cell of the screen, which the
+   *   owner saw as a flash each time a record was chosen ("flashes the whole screen").  A caller that is about to focus the editor (which
+   *   draws it) sets lc.nodraw and draws the tab strip itself.
+   if not(lc.nodraw) then gosub redraw.editor
    return
 
 * The cursor of the record cb goes back where it was
@@ -509,6 +521,37 @@ memo.cursor:
 redraw:
    call $sl_scr('get', scr)
    call $sl_form('redraw', f, scr, '', rr)
+   call $sl_scr('put', scr)
+   return
+
+* The tab strip and the editor only (a record chosen, a tab closed or switched); the rest of the screen is as it was
+redraw.editor:
+   call $sl_scr('get', scr)
+   call $sl_form('drawwidget', f, scr, 'tabbar', rr)       ;* the blank bar under the strip: a strip that got shorter leaves no label behind
+   call $sl_form('drawwidget', f, scr, 'tabs', rr)
+   call $sl_form('drawwidget', f, scr, 'ed', rr)
+   call $sl_scr('put', scr)
+   return
+
+* The focus goes to widget ft.id and is shown there: the widget that had it and the one that has it are drawn, and the cursor goes to the new one
+focus.to:
+   focus.id = ft.id
+   call $sl_scr('get', scr)
+   call $sl_form('focus', f, scr, ft.id, rr)
+   call $sl_scr('put', scr)
+   return
+
+redraw.tabs:
+   call $sl_scr('get', scr)
+   call $sl_form('drawwidget', f, scr, 'tabbar', rr)
+   call $sl_form('drawwidget', f, scr, 'tabs', rr)
+   call $sl_scr('put', scr)
+   return
+
+* The tree only (a file opened or closed in it)
+redraw.tree:
+   call $sl_scr('get', scr)
+   call $sl_form('drawwidget', f, scr, 'tree', rr)
    call $sl_scr('put', scr)
    return
 
@@ -583,7 +626,18 @@ status.line:
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
    if msg # '' then t := '   ' : msg
-   screen text fmt(t[1, lw], lw : 'L') at 0,lh - 1 attr 'reverse'     ;* the layout's last row: off the screen in a smaller window
+   * 18 Oct 26 dm - SCREEN TEXT leaves the cursor after the text, so the cursor stayed at the end of the status row and the editor showed none
+   *   (found by the owner: "no cursor when it is first started"; the loop writes this line once a second and on every key).  It is put back
+   *   where the widget with the focus had left it.
+   * The line is written only when its text has changed since it was last written: the loop comes here about ten times a second, and an idle IDE
+   *   wrote 140 cells each time (new.form, which makes the screen again, forgets the text so that the line is written then)
+   t = fmt(t[1, lw], lw : 'L')
+   if t = last.status then return
+   last.status = t
+   keep.cur = ''
+   call $sl_curat('get', keep.cur)
+   screen text t at 0,lh - 1 attr 'reverse'     ;* the layout's last row: off the screen in a smaller window
+   call $sl_curat('back', keep.cur)
    return
 
 * ======================================================================
@@ -643,8 +697,8 @@ run.cmd:
       case cmd = 'save'
          gosub save.current
       case cmd = 'tree'
-         screen focus f, 'tree'
-         focus.id = 'tree'
+         ft.id = 'tree'                    ;* SCREEN FOCUS moves the pointer and draws nothing: the form's own op shows the change
+         gosub focus.to
       case cmd = 'nexterr'
          gosub next.error
       case cmd = 'nexttab'
@@ -707,11 +761,13 @@ run.cmd:
          if theme.n > dcount(themes, @fm) then theme.n = 1
          gosub apply.theme
          screen refresh
+         last.status = char(1)          ;* everything was drawn again, the status line too
    end case
    return
 
 * Return in the tree, the table or the tab strip (the form's default button)
 do.act:
+   did.focus = @false
    begin case
       case focus.id = 'tree'
          screen get f, 'tree' returning code
@@ -735,15 +791,22 @@ do.act:
                end
                cur.code = code
                gosub tree.apply
-               gosub redraw
+               gosub redraw.tree
             case code[1, 2] = 'R:'
                or.file = field(code, ':', 2)
                or.id = code[len(or.file) + 4, 9999]
                cur.code = code
+               * 18 Oct 26 dm - the editor is drawn once: by the focus that follows, not also by open.record (which drew the whole form, and then
+               *   again at the end of this routine).  SCREEN FOCUS only moves the form's pointer and draws nothing, so the focus goes through the
+               *   form's own op, which draws the widget that had it (the tree) and the one that has it (the editor, with the cursor in its text).
+               lc.nodraw = @true
                gosub open.record
+               lc.nodraw = @false
                if nbuf > 0 then
-                  screen focus f, 'ed'
-                  focus.id = 'ed'
+                  ft.id = 'ed'
+                  gosub focus.to
+                  did.focus = @true
+                  gosub redraw.tabs
                end
          end case
       case focus.id = 'err'
@@ -755,7 +818,7 @@ do.act:
       case 1
          null
    end case
-   screen focus f, focus.id
+   if not(did.focus) then screen focus f, focus.id
    return
 
 * The row k2 of the table: go to what it names
@@ -790,9 +853,8 @@ goto.line:
    tp = gl.n - int(mh / 2)
    if tp < 1 then tp = 1
    mw{'top'} = tp
-   gosub redraw
-   screen focus f, 'ed'
-   focus.id = 'ed'
+   ft.id = 'ed'                         ;* the widget that had the focus and the editor are drawn, the cursor in the editor
+   gosub focus.to
    return
 
 * F4: the row after the current one of the table, and what it names
@@ -1149,10 +1211,10 @@ do.new:
    or.id = nm
    gosub open.record
    gosub tree.apply
-   gosub redraw
+   gosub redraw.tree
    if nbuf > 0 then
-      screen focus f, 'ed'
-      focus.id = 'ed'
+      ft.id = 'ed'
+      gosub focus.to
    end
    return
 

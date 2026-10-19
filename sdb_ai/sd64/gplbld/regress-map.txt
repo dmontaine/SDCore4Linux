@@ -24,7 +24,7 @@
 # Any kernel or BASIC source with no rule of its own selects these.
 @core        = oq2 coll gates q4 func-q1 stmt-q3 mode-q16 bcomp-a1 nocase list-q2
 # the pseudo-terminal suites (a terminal, keys, the screen library)
-@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport
+@pty         = screen ide ced sed-menu sed-edit syntax dbgui input inputif inputraw inputfill inputtrap noecho viewport sed-small ide-small winsize
 # the debugger
 @debugger    = dbgui dbgcoll dbgwatch dbgequ edbug bpv dbgcase
 # select lists and everything that makes or reads one
@@ -242,15 +242,15 @@ sdsys/gpl.bp/bcomp ~ *              : @compiler
 sdsys/gpl.bp/bcomp.h         : @compiler
 sdsys/gpl.bp/tokens.h        : @compiler
 sdsys/gpl.bp/opcodes.h       : @compiler
-sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared
+sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport
-sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared
-sdsys/gpl.bp/ide             : ide editgates shared
-sdsys/gpl.bp/ced*            : ced editgates shared
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small
+sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small
+sdsys/gpl.bp/ide             : ide editgates shared ide-small
+sdsys/gpl.bp/ced*            : ced editgates shared ide-small
 sdsys/gpl.bp/ed              : @editors edext editgates
 sdsys/gpl.bp/edit            : @editors editgates
 sdsys/gpl.bp/edit_guard      : editgates @editors netfile shared
@@ -264,8 +264,8 @@ sdsys/gpl.bp/restorea        : editgates net shared @system
 sdsys/gpl.bp/seqkey          : edseqkey fcontrol
 sdsys/gpl.bp/settrig         : file-a8 dirtrig
 sdsys/gpl.bp/listtrg         : file-a8 dirtrig
-sdsys/gpl.bp/debug           : @debugger
-sdsys/gpl.bp/debug.h         : @debugger
+sdsys/gpl.bp/debug           : @debugger ide-small
+sdsys/gpl.bp/debug.h         : @debugger ide-small
 sdsys/gpl.bp/pdbg            : @debugger sysexc
 sdsys/gpl.bp/pdebug          : @debugger
 sdsys/gpl.bp/ftype           : listf-mult dictfold
@@ -316,7 +316,8 @@ sdsys/gpl.bp/profiler        : prof
 sdsys/gpl.bp/locktracer      : q5
 sdsys/gpl.bp/inhibit         : inhibit-q8
 sdsys/gpl.bp/login_inhibit   : inhibit-q8
-sdsys/gpl.bp/login           : @system sdaccts editgates net shared
+sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize
+sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared
 sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared
@@ -369,6 +370,8 @@ sdsys/voc_template/delete.server : net
 sdsys/voc_template/list.servers  : net
 sdsys/voc_template/list.shared   : shared
 sdsys/voc_template/*         : @core dictfold misc-a9
+sdsys/messages/11197         : sed-menu sed-small
+sdsys/messages/1160[0-2]     : sed-small ide-small
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared

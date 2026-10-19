@@ -11,6 +11,7 @@
 *               hidden while the focused widget is not wholly in view.  A form with no parents is drawn as before.
 * 18 Oct 26 dm  Terminal 140 by 42, phase 3: the cursor is hidden and shown through $sl_curat, which also tells the cursor lock;
 *               the key guardquit is not a widget's, and a modal form reads it as Esc.
+* 18 Oct 26 dm  The op drawwidget: one widget drawn again, not the whole form (the IDE changing record rewrote the whole screen, which showed as a flash).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -40,6 +41,8 @@
 *     init    fills in the form's own elements (and the size and place, if left out)
 *     find    key is a widget id; ret is its number, 0 if there is none
 *     draw    the frame, then every widget, the focused one last (it leaves the cursor in itself)
+*     drawwidget  key is a widget id: that one widget is drawn again, and the cursor goes back to the focused widget (no frame,
+*             no other widget; nothing if the form is not shown)
 *     focus   key is a widget id (or number); the focus goes there, both widgets redrawn
 *     key     one key goes to the widget that has the focus.  ret<1> is 'handled', 'done' or 'cancel'
 *             (ret<2> the id of the button that ended the form; for Esc, that of the form's cancel
@@ -119,6 +122,20 @@ $include sl.h
             gosub init.page
             gosub layout
             gosub draw.all
+         end
+
+      case op = 'drawwidget'
+         * 18 Oct 26: key is a widget id: that widget alone is drawn again (where it is, as the last layout left it), and the cursor
+         * goes back to the focused widget.  A program that changed one widget need not repaint the whole form (every cell of the
+         * screen written again is seen as a flash).  Nothing if the form is not shown or there is no such widget.
+         if f{'shown'} then
+            id = key
+            gosub find.widget
+            if fw > 0 then
+               di = fw
+               gosub draw.one
+               gosub park.cursor
+            end
          end
 
       case op = 'layout'
