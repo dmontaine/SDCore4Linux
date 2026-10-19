@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+18 Oct 26  THE API'S "OPEN AN SDNET FILE" REQUEST (NUMBER 29) NO LONGER OPENS ANY ACCOUNT'S FILE FOR ANY LOGIN, EVEN WITH NETFILES BIT 2 SET.
+
+             What        Request 29 is the old form of "open the file named account;file". It was refused unless bit 2 of NETFILES in sd.conf was set,
+                        and the bit was the ONLY test. With it set, any API login could open and read the VOC-named file of any account: one it was
+                        not allowed to enter with logto, a suspended one, one given as a path, one whose NET switch was off, and it ignored
+                        SDCLIENT. We ran it on a private SD and the planted record came back from the disk. It now asks the rules that logto
+                        asks (a member of the account's group, the account not suspended), wants a register record for the account (a path has
+                        none), wants the account's net-on switch on (SDSYS's own account is excepted), and refuses under SDCLIENT as request 4 does.
+                        Each refusal is on the audit trail as api refused request=29 reason=....
+             Why it      The bit looks like a switch for a feature; it was in fact the whole wall around every account's files for anyone with an
+             matters    API login. As delivered the bit is 0, so nothing was open on a delivered system; the hole was there for an
+                        administrator who set it, which is what the documentation told him not to do.
+             Does not    It does not change what is delivered (bit 2 stays 0 and the request is still refused), the other requests, or how a program
+                        opens a file on another SD server (the N pointer, the NET switch and set.server), which never used this request.
+
 18 Oct 26  MODIFY.ACCOUNT NO LONGER DOES THE FIRST OF TWO WORDS AND SAYS NOTHING OF THE SECOND; RESTORE.ACCOUNT NO LONGER OVERWRITES A DIFFERENT GLOBAL PROGRAM.
 
              modify.     modify.account fred voc-off bp-off used to do voc-off and ignore bp-off without a word, and modify.account group add a b

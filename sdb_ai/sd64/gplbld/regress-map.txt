@@ -322,7 +322,7 @@ sdsys/gpl.bp/login_inhibit   : inhibit-q8
 sdsys/gpl.bp/login           : @system sdaccts editgates net shared
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
