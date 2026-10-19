@@ -76,6 +76,7 @@ if [ "${1:-}" = "--selftest" ]; then
   mutant groups-never-judged       '/^open_installer_gates() {/,/^}/ s/^            \*",\${user},"\*) ;;$/            *) ;;/'
   mutant groups-judged-on-account-name '/^open_installer_gates() {/,/^}/ s/\*",\${user},"\*)/*",${acct},"*)/'
   mutant groups-failing-aborts     '/^open_installer_gates() {/,/^}/ s/ | cut -d: -f4) || gate_members=""$/ | cut -d: -f4)/'
+  mutant ifs-left-strict           '/^open_installer_gates() {/,/^}/{/^    local IFS=/d}'
   mutant wrong-register-line      '/^open_installer_gates() {/,/^}/ s/gate_reg 10 voc-on/gate_reg 9 voc-on/'
   mutant files-write-group-forgotten '/^open_installer_gates() {/,/^}/{/gate_grp sdfileswrite files-write-on/d}'
   mutant function-never-called     's/^        open_installer_gates "\$tuser" "\$tuser_lc" "\$acct_reg"$/        true/'
@@ -85,12 +86,17 @@ if [ "${1:-}" = "--selftest" ]; then
   exit $?
 fi
 
-OPTS=$(grep -m1 -E '^set -' "$INST")
+# THE INSTALLER'S OWN set AND IFS.  Its IFS is $'\n\t' (installsdcore.sh:91, "predictable word splitting"): a space does NOT split a word, so an
+# unquoted list in a for loop is ONE word.  This test first ran the function under the set line alone and was green; the first real install
+# (19 Oct 2026, the VM) handed SD one argument "both sh-on os-on ..." and SD refused it ("does one action at a time").  Both lines now.
+OPTS=$(grep -E '^(set -|IFS=)' "$INST" | head -2)
 FUNC=$(awk '/^open_installer_gates\(\) \{/{f=1} f{print} f&&/^\}/{exit}' "$INST")
 ASK=$(awk '/^# GATES-ASK-BEGIN/{f=1;next} /^# GATES-ASK-END/{f=0} f{print}' "$INST")
 echo "installer : $INST"
 echo "options   : ${OPTS:-<none found>}"
 [ -z "$OPTS" ] && { echo "test-install-opengates: CANNOT RUN - no set line in the installer"; exit 2; }
+printf '%s\n' "$OPTS" | grep -q '^IFS=' || { echo "test-install-opengates: CANNOT RUN - no IFS line in the installer (the function must be run under it)"; exit 2; }
+printf '%s\n' "$OPTS" | grep -q '^set -' || { echo "test-install-opengates: CANNOT RUN - no set line in the installer"; exit 2; }
 [ -z "$FUNC" ] && { echo "test-install-opengates: CANNOT RUN - no function open_installer_gates in the installer (nothing to check)"; exit 2; }
 [ -z "$ASK" ]  && { echo "test-install-opengates: CANNOT RUN - no block between GATES-ASK-BEGIN and GATES-ASK-END (nothing to check)"; exit 2; }
 [ -r "$MODIFYA" ] || { echo "test-install-opengates: CANNOT RUN - $MODIFYA is not readable"; exit 2; }
@@ -119,7 +125,7 @@ run_ask() {   # run_ask ANSWER [exists]   - prints the output, then OPEN_GATES=y
       eval "$OPTS"
       YELLOW=; NC=
       tuser=Don
-      read() { printf "%s\n" "$*" >> "$T/read.log"; builtin read "$@"; }
+      read() { ( IFS=" "; printf "%s\n" "$*" ) >> "$T/read.log"; builtin read "$@"; }
       eval "$ASK_T"
       echo "OPEN_GATES=$open_gates"' <<< "$1" 2>&1
 }
@@ -176,7 +182,7 @@ run_open() {   # env knobs: REFUSE CRASH NOEFFECT HALFBOTH NOREG GRPBLIND ; prin
   fi
   ( cd "$T/work" && OPTS="$OPTS" FUNC="$FUNC" T="$T" SDLOG="$T/sd.log" REG="$T/reg/don" bash -c '
       eval "$OPTS"; RED=; NC=
-      sudo() { printf "%s\n" "$*" >> "$T/sudo.log"; "$@"; }
+      sudo() { ( IFS=" "; printf "%s\n" "$*" ) >> "$T/sudo.log"; "$@"; }
       getent() { [ -z "${GRPFAIL:-}" ] || return 2; if [ "$1" = group ] && [ -z "${GRPBLIND:-}" ]; then printf "%s:x:900:%s\n" "$2" "$(cat "$T/groups/$2" 2>/dev/null)"; fi; }
       eval "$FUNC"
       # called as a plain statement, as the installer calls it: under set -e a command the function lets fail ends the shell here,

@@ -239,6 +239,10 @@ shared_preflight() {
 open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RECORD
     local user="$1" acct="$2" reg="$3"
     local gate_words gate_word gate_missing gate_members
+    # This script's IFS is $'\n\t' (line 91): a SPACE DOES NOT SPLIT a word, so "for gate_word in $gate_words" was ONE word and
+    # sd got the single argument "both sh-on os-on ..." (the first real install, 19 Oct 2026: "modify.account does one action at a
+    # time ... sh-on was not carried out", nothing opened, the WARNING below said so).  Local to this function and its helpers.
+    local IFS=' '
     gate_words="both sh-on os-on sd-on voc-on bp-on dict-on net-on shared-write-on files-on files-write-on"
     gate_missing=""
     echo "  Opening every access gate for ${user}, as you asked."
