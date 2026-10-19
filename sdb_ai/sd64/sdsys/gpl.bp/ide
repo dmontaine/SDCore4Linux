@@ -6,6 +6,11 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  Part B of the 140x42 plan: Ctrl-E, and File / Edit in SED, hand the record to SED and take it back when SED saves it (do.sed;
+*               the editor's passkeys leave Ctrl-E to the IDE, so End is the key for the end of a row here).  Also the owner's three reports:
+*               the cursor is put back after the status line (and the line is written only when it changes), a record or a tab is drawn
+*               by its own widgets (redraw.editor, redraw.tree, focus.to; SCREEN FOCUS moves a pointer and draws nothing), and the editor
+*               has a horizontal scroll bar (hbar).
 * 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The IDE is laid out for at least 140 by 42 (it was 60 by 16) and
 *               refuses a smaller window at the start with the library's one message ($sl_need, 11197; 11198 is no longer used).
 *               A window of more than that is still used whole.  A window made smaller after the start shows the upper left corner
@@ -348,6 +353,7 @@ new.form:
    call $sl_form('find', f, '', 'ed', en)
    mw = f{'widgets', en}
    mw{'hbar'} = 1
+   mw{'passkeys'} = 'ctrl-e'                     ;* Ctrl-E hands the record to SED (the area's own meaning of it, end of row, is End)
 
    cols = sysmsg(11221) : @sm : '6R' : @vm : sysmsg(11222) : @sm : (ew - 11) : 'L'
    * A bar of its own above the table: the table is drawn like the editor (the text style), and with nothing
@@ -671,6 +677,8 @@ do.key:
          cmd = 'quit'
       case edata = 'ctrl-w'
          cmd = 'writeas'                 ;* SED's write record
+      case edata = 'ctrl-e'
+         cmd = 'sed'                     ;* the record goes to SED and comes back (the editor leaves this key to the IDE: passkeys)
       case edata = 'ctrl-l'
          cmd = 'goto'
       case edata = 'ctrl-r'
@@ -735,6 +743,8 @@ run.cmd:
          end
       case cmd = 'close'
          gosub close.current
+      case cmd = 'sed'
+         gosub do.sed
       case cmd = 'quit'
          gosub do.quit
       case cmd = 'goto'
@@ -1073,11 +1083,61 @@ leave.screen:
 retake.screen:
    display sysmsg(11223)
    input junk
+* Without the pause (SED handed the record back and has nothing left to be read): the same, straight on
+retake.quiet:
    void pterm(PT$BREAK, @false)
    break off
    gosub open.screen
    gosub apply.theme
    gosub new.form
+   return
+
+* ======================================================================
+* Ctrl-E, File / Edit in SED: the record goes to SED and comes back (Part B of the 140x42 plan).  SED edits the record ON DISK, so a changed
+* buffer is saved first (asked; Cancel leaves everything as it is).  SED ends its edit at its first successful save (it is told so by the
+* named common /sedide/, see gpl.bp/sed), or the user leaves it without saving; the IDE then reads the record again (the disk is the truth),
+* forgets the compile errors (they named lines of the old text), takes the screen back WITHOUT the "press Return" pause of Run, and says
+* which it was.  SED makes ide.call 2 once the record is open for editing: if it is still 1 on the way back SED stopped on a message of its
+* own (a record locked by another session, a refusal), and the IDE waits for a key so that the message can be read.
+do.sed:
+   common /sedide/ ide.call
+   if nbuf = 0 then
+      msg = sysmsg(11218)
+      return
+   end
+   gosub stash.current
+   i = cb
+   gosub is.dirty
+   if dirty then
+      screen msgbox sysmsg(11603, bn<cb>, bi<cb>) buttons 'Save,Cancel' default 1 returning b else b = 2
+      if b # 1 then return
+      sv.i = cb
+      gosub save.one
+      if not(sv.ok) then return
+   end
+   sd.file = bn<cb>
+   sd.id = bi<cb>
+   sd.u = bu<cb>
+   k = 's' : sd.u
+   sd.was = bx{k}
+   gosub leave.screen
+   ide.call = 1
+   execute 'sed ' : sd.file : ' ' : sd.id trapping aborts
+   sd.used = (ide.call = 2)
+   ide.call = 0
+   disk = sd.was
+   open sd.file to fv then
+      read disk from fv, sd.id else disk = sd.was
+   end
+   k = 's' : sd.u
+   bx{k} = disk
+   k = 't' : sd.u
+   bx{k} = disk
+   err.rows = ''
+   err.lines = ''
+   out.kind = ''
+   if sd.used then gosub retake.quiet else gosub retake.screen
+   if disk # sd.was then msg = sysmsg(11604, sd.file, sd.id) else msg = sysmsg(11605, sd.file, sd.id)
    return
 
 * The window changed size: the form is made again at the new size from the state

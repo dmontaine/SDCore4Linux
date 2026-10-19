@@ -1,6 +1,76 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE IDE CAN HAND A RECORD TO SED AND TAKE IT BACK (CTRL-E), SHOWS ITS CURSOR AT ONCE, NO LONGER REWRITES THE SCREEN FOR EVERY KEY, AND HAS A HORIZONTAL SCROLL BAR.
+
+             What        Ctrl-E in the IDE (or Go, Edit in SED) opens the record in SED.  SED edits the record on disk, so a record with unsaved
+                        changes is saved first: the IDE asks "Save them, then edit in SED?" and Cancel leaves everything as it was.  SED's first
+                        successful save ends the edit and the IDE comes back with the new text in the editor, the compile errors forgotten (they
+                        named lines of the old text) and "Back from SED: ... is saved" in the status bar; leaving SED with Ctrl-Q returns too, with
+                        the record as it was.  A record that someone else holds locked opens in SED read only, with SED's message, as it does
+                        from the command line.  Nothing else about SED changes: the IDE tells it by a flag in the process (a named common), not
+                        by a word on the command line.  The IDE's editor leaves Ctrl-E to the IDE (End is the key for the end of a row there).
+                        Three reports from the owner are fixed in the same sitting.  The cursor: the IDE showed none at the start because its
+                        status line, written ten times a second, left the cursor at the end of the bottom row; the cursor now stays where the
+                        widget with the focus put it.  The flash: choosing a record in the tree rewrote the whole screen two and a half times
+                        (about 15,000 cells; a 140 by 42 screen is 5,880) and an idle IDE rewrote its status line ten times a second; a record
+                        is now drawn by the widgets that changed (about 5,500 cells), a tab switch about 3,500, an idle IDE nothing, and an
+                        editor no longer repaints its whole area for a key it does not use (a function key).  The bar: the editor has a horizontal
+                        scroll bar in its last row, with arrows (a click scrolls 8 columns) and a thumb as long as the visible part is of the
+                        longest line; its text has one row less.  F3, Ctrl-L and a new record now show the focus at once.
+             Why it      Moving between the IDE and SED had meant leaving one and starting the other.  A cursor you cannot see, a screen that
+             matters    flashes at every record and a long line you cannot scroll to are what a person notices first in an editor.
+             Does not    Programs that use SCREEN MEMO are drawn exactly as before (the bar and the reserved key are options the IDE sets for itself),
+                        and nothing about a record changes unless SED saves it.
+
+19 Oct 26  THE IDE, CED AND THE DEBUGGER ARE LAID OUT FOR 140 BY 42, SURVIVE A WINDOW MADE SMALLER, AND DO NOT TAKE KEYS WHILE YOU CANNOT SEE THE CURSOR.
+
+             What        The IDE and CED are laid out for 140 columns by 42 lines (the IDE's floor was 60 by 16), and a window smaller than that is
+                        refused at the start in words ("IDE needs a window of at least 140 columns by 42 lines; this one is 100 by 30"), with nothing
+                        drawn; the debugger does not refuse, it says the same in one line and is line by line for the session.  A window made smaller
+                        while one of them runs shows the upper left corner of the layout and nothing past the edge, and while the cursor is off
+                        the screen the program takes no keys and shows a warning until the window is made bigger; Ctrl-Q, y there leaves, the IDE
+                        and CED without saving and the debugger as F3 does.  A message box, a menu and a question put up by those programs follow
+                        the same rule: the cursor goes to the selected button while a box is up, and a box in a part of the screen the window does not
+                        show is closed on the way out instead of being typed into blind.  A SCREEN OPEN program of your own is not held to any of
+                        this: it asks for the size it needs with minsize.
+             Why it      The same rule SED already had (below), applied to the rest of SD's own full-screen programs, with one refusal text.
+             matters
+             Does not    It does not ask your terminal to resize itself, and a window bigger than 140 by 42 shows the layout in its upper left.
+
+19 Oct 26  SED IS 140 BY 42, SURVIVES A WINDOW MADE SMALLER, AND DOES NOT TAKE KEYS WHILE YOU CANNOT SEE THE CURSOR.
+
+             What        SED is laid out for 140 columns by 42 lines, SD's new default terminal size (it was 120 by 36).  A window smaller than that
+                        when SED starts is refused in words ("SED needs a window of at least 140 columns by 42 lines; this one is 100 by 30") and SED
+                        draws nothing; ED is the editor for a small window.  If the window is made smaller while SED is running (a dragged corner, a
+                        tiling window manager), SED looks at it about once a second and every time it draws, clears the screen and draws the upper left
+                        corner of its layout, and nothing past the edge: nothing wraps and nothing lands on the wrong row.  Nothing pans; the upper
+                        left is always the anchor.  Make the window bigger and the whole layout is drawn again.  While the cursor is off the screen
+                        (on a line below the window, past its right edge, or at a search or line-number prompt on a row the window does not show) SED
+                        does not take keys, because you would be typing where you cannot see: it shows a warning in reverse video in the upper left
+                        corner and throws away every key and mouse click.  Make the window big enough to show the cursor and the warning goes by
+                        itself, with the cursor where it was.  Ctrl-Q is the one key that does anything: it asks "Leave? (changes are NOT saved) y/n"
+                        in the same box, and y leaves SED with the record unlocked and nothing saved.
+             Why it      The terminal default became 140 by 42 and SED, which had been the one program that did not follow a resized window, could
+             matters    draw off the edge of a smaller one and let you type blind.  The way out asks its question in its own box because SED's own
+                        questions may be on a row you cannot see.
+             Does not    It does not ask your terminal to resize itself.  A window bigger than 140 by 42 shows SED in its upper left corner with the
+                        rest blank.  A session with AUTOLOGOUT set waits for the keyboard alone so the time-out can still fire, so it notices a new
+                        window size at the next key rather than within a second.
+
+19 Oct 26  THE DEFAULT TERMINAL IS NOW 140 COLUMNS BY 42 LINES (it was 120 by 36).
+
+             What        A session that has no terminal to ask - a phantom, a piped script, a service, the API - now starts with a display 140
+                        columns wide and 42 lines deep, and a LIST fills 41 lines before it pauses instead of 35.  term default puts a session back to
+                        140 by 42 on any window.  The terminfo entries that named a width and depth (xterm, vt100, ansi, dumb and the rest) say 140
+                        and 42 now, and the term help text and the documentation say so.
+             Why it      The full-screen programs are being made for a larger window, and 120 by 36 was the size of a terminal from an earlier age.
+             matters
+             Does not    A real terminal still decides its own size: a window of 80 by 24 is an 80 by 24 display, and term w,h still sets any width
+                        from 20 to 32767 and any depth from 10 to 32767, exactly as typed.  LINES and COLUMNS in the environment still win over the
+                        terminfo entry for a session with no terminal.  The 132-column terminal types keep their own depth, and ms-vt100 keeps its
+                        25 lines.  To get the old default back for a session, type term 120,36.
+
 18 Oct 26  THE SCREEN LIBRARY HAS CONTAINERS AND VIEWPORTS: A FORM CAN BE BIGGER THAN THE WINDOW IT IS SHOWN IN.
 
              What        SCREEN CONTAINER f, id makes a bordered rectangle that owns widgets: SCREEN IN f, id says that the widgets added next

@@ -36,6 +36,8 @@
 *               clip in zoned.update), and while the cursor is off the screen the keys are ignored and a warning is shown
 *               ($sl_guard, from wait.key) until the window is made bigger or the user leaves with Ctrl-Q.
 * 18 Oct 26 dm  $sl_need takes a fifth argument (the debugger's fall-back to line mode); SED passes null, it refuses.
+* 18 Oct 26 dm  Started from the IDE (named common /sedide/, set by the IDE's Ctrl-E): a successful save ends the edit and returns to the IDE,
+*               and the common tells the IDE whether the record was opened for editing (2) or SED stopped on a message first (1).
 * END-HISTORY
 *
 *
@@ -482,6 +484,15 @@ $include sl.h
    dim refresh(screen.lines + 1)     ;* Refresh this line?
    refresh.file = @true              ;* Refresh file line?
    refresh.other = @false            ;* Refresh "other" window?
+
+   * 18 Oct 26 dm - Part B of the 140x42 plan: the IDE (Ctrl-E) hands a record to SED and takes it back.  It says so in the named common
+   *   /sedide/, which SED reads once and clears, so a SED started any other way is as it always was (nothing on the command line).  From
+   *   the IDE a successful save ENDS the edit, which returns to the IDE with the saved text.  ide.call is 1 while SED is being started, and
+   *   SED makes it 2 once the record is open for editing: the IDE tells from it a SED that stopped on a message (a record locked by someone
+   *   else, a record it may not edit) from one that was used.
+   common /sedide/ ide.call
+   from.ide = (ide.call + 0 = 1)
+   if not(from.ide) then ide.call = 0
 
    call @parser(PARSER$RESET, 0, @sentence, 0)
    call @parser(PARSER$GET.TOKEN, token.type, token, keyword) ;* Verb
@@ -960,6 +971,8 @@ edit:
    gosub refresh.all
 
    gosub get.current
+
+   if from.ide then ide.call = 2           ;* the record is open for editing (see /sedide/ at the top)
 
    if ext.start.up then   ;* Look for START.UP extension
       key.char = '' ; prefix.count = 1
@@ -3969,6 +3982,7 @@ save.record:
 
       gosub get.current
       record.updated = @false
+      if from.ide then terminate = TERMINATE.ALL   ;* started from the IDE: the save ends the edit and returns to it
    end else
       s = buffer(current.buffer)
       file.name = s<BUFF.FILE.NAME>

@@ -7,6 +7,7 @@
 * 12 Oct 26 dm  New.
 * 13 Oct 26 dm  Word wrap (WRAP), a selection (mark, cut, copy, paste), undo and redo, find, word movement.
 * 18 Oct 26 dm  The cursor is placed through $sl_curat (which tells the cursor lock where it is).
+* 18 Oct 26 dm  passkeys: key names the area leaves to the program.
 * 18 Oct 26 dm  hbar: an optional horizontal scroll bar in the last row of the area ($sl_hscrollbar), clicks on it, and one row less of text.
 * END-HISTORY
 *
@@ -23,7 +24,8 @@
 *   other end of the selection, 0 when there is none), find (the text last searched for), undo and redo
 *   (what Ctrl-Z and Ctrl-Y go back to), lastop (what the last key did, so that a run of typing is one undo), hbar
 *   (1: a horizontal scroll bar in the last row of the area, drawn by $sl_hscrollbar, and one row less of text; none
-*   when the text wraps; a click on its arrows scrolls 8 columns and on its track a page; set by the program, not by SCREEN MEMO)
+*   when the text wraps; a click on its arrows scrolls 8 columns and on its track a page; set by the program, not by SCREEN MEMO), and
+*   passkeys (key names, as values, that the area leaves alone and answers 'unhandled': the program uses them itself)
 *
 *     init    w and h from what was given (at least 3 by 1); a linefeed in the text is taken as the end of a
 *             line; the cursor goes to the start; no selection and nothing to undo
@@ -527,6 +529,14 @@ handle.key:
    w{'lastop'} = ''
    kind = ''
    vert = @false
+   * 18 Oct 26: passkeys (values) are key names the program keeps for itself; the area does not use them (the IDE's Ctrl-E, which hands
+   *   the record to SED, is the end-of-row key here).  Nothing is changed or drawn for one.
+   if w{'passkeys'} # '' then
+      if index(@vm : w{'passkeys'} : @vm, @vm : key : @vm, 1) then
+         ret = 'unhandled' : @fm : key
+         return
+      end
+   end
    gosub sel.range
    begin case
       case key = 'esc'
