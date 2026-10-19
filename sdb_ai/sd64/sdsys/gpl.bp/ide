@@ -311,6 +311,11 @@ new.form:
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
    h = scr<SL.S.H> + 0
+   * 19 Oct 26 dm - the layout is made for the WINDOW as well as the display, like SED, CED and the debugger (a display of 200 by 60 typed with TERM on a
+   *   140 by 42 window made the IDE lay out 200 by 60, which scrolled and garbled the screen): the smaller of the two.
+   call $sl_window(ww0, wh0)
+   if ww0 < w then w = ww0
+   if wh0 < h then h = wh0
    gosub size.layout
    t = sysmsg(11199, @who)
    screen form title t at 0,1 size fw,fh returning f
@@ -539,6 +544,25 @@ redraw.editor:
    call $sl_scr('put', scr)
    return
 
+* A file name and a record id for a command line: qp.file and qp.id in, qp.f and qp.i out, each in quotes when it holds a blank (the command
+* parser reads one word to a name otherwise, and the verifier's Ctrl-E on the record "my rec" opened a new record "my" in SED).  A name that
+* holds both kinds of quote is left as it is.
+quote.pair:
+   qp.f = qp.file
+   qp.i = qp.id
+   for qp.k = 1 to 2
+      qp.v = if qp.k = 1 then qp.file else qp.id
+      if index(qp.v, ' ', 1) or index(qp.v, '"', 1) or index(qp.v, "'", 1) then
+         if not(index(qp.v, '"', 1)) then
+            qp.v = '"' : qp.v : '"'
+         end else
+            if not(index(qp.v, "'", 1)) then qp.v = "'" : qp.v : "'"
+         end
+      end
+      if qp.k = 1 then qp.f = qp.v else qp.i = qp.v
+   next qp.k
+   return
+
 * The focus goes to widget ft.id and is shown there: the widget that had it and the one that has it are drawn, and the cursor goes to the new one
 focus.to:
    focus.id = ft.id
@@ -722,7 +746,8 @@ run.cmd:
          c.opt = ''
          gosub do.compile
          if c.ok then
-            execute 'catalog ' : c.file : ' ' : c.id capturing co
+            qp.file = c.file ; qp.id = c.id ; gosub quote.pair
+            execute 'catalog ' : qp.f : ' ' : qp.i capturing co
             msg = sysmsg(11207, c.file, c.id)
          end
       case cmd = 'run'
@@ -730,7 +755,8 @@ run.cmd:
          gosub do.compile
          if c.ok then
             gosub leave.screen
-            execute 'run ' : c.file : ' ' : c.id trapping aborts
+            qp.file = c.file ; qp.id = c.id ; gosub quote.pair
+            execute 'run ' : qp.f : ' ' : qp.i trapping aborts
             gosub retake.screen
          end
       case cmd = 'debug'
@@ -738,7 +764,8 @@ run.cmd:
          gosub do.compile
          if c.ok then
             gosub leave.screen
-            execute 'debug ' : c.file : ' ' : c.id trapping aborts
+            qp.file = c.file ; qp.id = c.id ; gosub quote.pair
+            execute 'debug ' : qp.f : ' ' : qp.i trapping aborts
             gosub retake.screen
          end
       case cmd = 'close'
@@ -1032,7 +1059,8 @@ do.compile:
    if not(sv.ok) then return
    c.file = bn<cb>
    c.id = bi<cb>
-   execute 'basic ' : c.file : ' ' : c.id : c.opt capturing c.out
+   qp.file = c.file ; qp.id = c.id ; gosub quote.pair
+   execute 'basic ' : qp.f : ' ' : qp.i : c.opt capturing c.out
    c.ok = (@system.return.code # 0)
    err.rows = ''
    err.lines = ''
@@ -1122,7 +1150,8 @@ do.sed:
    sd.was = bx{k}
    gosub leave.screen
    ide.call = 1
-   execute 'sed ' : sd.file : ' ' : sd.id trapping aborts
+   qp.file = sd.file ; qp.id = sd.id ; gosub quote.pair
+   execute 'sed ' : qp.f : ' ' : qp.i trapping aborts
    sd.used = (ide.call = 2)
    ide.call = 0
    disk = sd.was

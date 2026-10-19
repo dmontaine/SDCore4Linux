@@ -72,7 +72,7 @@ def sess(box, *cmds):
 class Ide:
     """One run of the IDE on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd="IDE", cols=140, rows=42, utf8=False):
+    def __init__(self, box, cmd="IDE", cols=140, rows=42, utf8=False, term=None):
         self.box = box
         # the locale decides whether the IDE draws its borders with line-drawing characters, so every run sets it:
         # C (plain + - |) unless the row is about UTF-8
@@ -81,7 +81,7 @@ class Ide:
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows, utf8=utf8)
         self.s.settle(1.0)
         self.s.type("TERM xterm\r")
-        self.s.type("TERM %d,%d\r" % (cols, rows))
+        self.s.type("TERM %s\r" % (term or "%d,%d" % (cols, rows)))        # term: a display that is not the window (19 Oct 26, verifier F4)
         self.log = [cmd]
         self.s.type(cmd + "\r", idle=1.2)
 
@@ -172,8 +172,14 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    A, B, C, D, E = ("zzi%s%s" % (RUN, c) for c in "abcde")   # a program with an error, a good one, a text with words, a spare, a long line
+    A, B, C, D, E, G = ("zzi%s%s" % (RUN, c) for c in "abcdeg")   # a program with an error, a good one, a text with words, a spare, a long line, 25,000 lines
     fixture = """   open 'bp' to f else stop 'no bp'
+   s = ''
+   for i = 1 to 25000
+      s := 'line ' : i : ' ' : str('x', 40) : @fm
+   next i
+   s = s[1, len(s) - 1]
+   write s on f, '%(g)s'
    write str('0123456789', 25):@fm:'short' on f, '%(e)s'
    write 'crt "one"':@fm:'x = = 1':@fm:'crt "three"':@fm:'end' on f, '%(a)s'
    write 'crt "IDE-RAN-OK"':@fm:'end' on f, '%(b)s'
@@ -181,7 +187,7 @@ def main():
    write 'first':@fm:'second':@fm:'third':@fm:'fourth' on f, '%(d)s'
    crt 'FIXTURE DONE'
 end
-""" % {"a": A, "b": B, "c": C, "d": D, "e": E}
+""" % {"a": A, "b": B, "c": C, "d": D, "e": E, "g": G}
     fix = "zzifx" + RUN
     with open(os.path.join(sysd, "bp", fix), "w") as fh:
         fh.write(fixture)
@@ -537,6 +543,29 @@ end
             row("a click on the right arrow scrolls the text sideways (the thumb moves right)", "#" in L[br] and L[br].index("#") > t0, L[br][:140])
             L = e.keys(click(L[br].index("<"), br))
             row("a click on the left arrow scrolls it back", "#" in L[br] and L[br].index("#") == t0, L[br][:140])
+        e.end()
+
+        # ---- the independent verifier's findings, 19 Oct 26 --------------------------------------------------------------------------
+        say("\n--- a record of 25,000 lines, and a display bigger than the window -----------------------------------------------")
+        e = Ide(box, "IDE bp %s" % G)
+        e.quiet()
+        row("control: a record of 25,000 lines opens (its first line is on the screen, the bar is under it)", "line 1 xxxx" in e.lines()[3], e.lines()[3][:80])
+        t0 = time.time()
+        e.s.type("x" * 40, idle=0.05)
+        while time.time() - t0 < 25:
+            e.s.settle(0.05)
+            if ("x" * 40 + "line 1") in e.lines()[3]:
+                break
+        took = time.time() - t0
+        row("40 typed characters in it show in %.2f s (the horizontal bar measured the whole text at every key: 3.5 s; without a bar 0.2 s)" % took,
+            ("x" * 40 + "line 1") in e.lines()[3] and took < 1.5, e.lines()[3][:80])
+        e.end()
+
+        e = Ide(box, "IDE bp %s" % A, term="200,60")
+        L = e.lines()
+        row("a display of 200 by 60 on a window of 140 by 42 (TERM 200,60): the IDE is laid out for the window - menu bar on row 0, title on row 1, status line on the last row",
+            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and ("bp %s" % A) in L[41],
+            "\n".join(l[:70] for l in (L[0], L[1], L[2], L[40], L[41])))
         e.end()
     finally:
         pass

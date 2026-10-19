@@ -3982,7 +3982,10 @@ save.record:
 
       gosub get.current
       record.updated = @false
-      if from.ide then terminate = TERMINATE.ALL   ;* started from the IDE: the save ends the edit and returns to it
+      * Started from the IDE: the save ends the edit and returns to it - but only when this is the only record SED holds.  With others open
+      *   (Ctrl-O) the end would drop their unsaved edits without a question (the verifier's AA in the IDE's record, lost by a save of BB in the
+      *   second one); SED then goes on as it always does, and the IDE comes back when SED is left.
+      if from.ide and no.of.buffers = 1 then terminate = TERMINATE.ALL
    end else
       s = buffer(current.buffer)
       file.name = s<BUFF.FILE.NAME>

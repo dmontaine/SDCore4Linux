@@ -132,14 +132,17 @@ def main():
         bail("%s holds no built sandbox (use --build, or point it at one)" % box)
     subprocess.run([sys.executable, TOOL, box, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
-    P, Q, L1, L2 = ("zzie%s%s" % (RUN, c) for c in "pqlm")   # a program with an error, a plain text, two records for the lock row
+    P, Q, L1, L2, R2 = ("zzie%s%s" % (RUN, c) for c in "pqlmr")   # a program with an error, a plain text, two records for the lock row, a second buffer
+    SP = "zz1 sp" + RUN                                         # an id with a blank in it; sorts before the others, so the tree's z key finds it
     fixture = """   open 'bp' to f else stop 'no bp'
    write 'crt "one"':@fm:'x = = 1':@fm:'crt "three"':@fm:'end' on f, '%(p)s'
    write 'first':@fm:'second':@fm:'third' on f, '%(q)s'
    write 'locked text':@fm:'second line' on f, '%(l1)s'
+   write 'blank one':@fm:'blank two' on f, '%(sp)s'
+   write 'rr1':@fm:'rr2' on f, '%(r2)s'
    crt 'FIXTURE DONE'
 end
-""" % {"p": P, "q": Q, "l1": L1}
+""" % {"p": P, "q": Q, "l1": L1, "sp": SP, "r2": R2}
     holder = """   open 'bp' to f else stop 'no bp'
    readu r from f, '%(l1)s' else stop 'no record'
    crt 'HOLDING'
@@ -244,6 +247,44 @@ end
         L = e.quiet()
         m = re.search(r"column (\d+)", e.status())
         row("End moves the cursor to the end of the row (the status line reads a column past 1)", m is not None and int(m.group(1)) > 1, e.status())
+        e.end()
+
+        say("\n--- a record id with a blank in it goes to SED whole (the verifier's F1, 19 Oct 26) ----------------------------------")
+        e = IdeK(box)
+        e.keys("b", RET)
+        L = e.keys("z", RET)
+        row("control: the record %r is open in the IDE, opened from the tree (its tab, its first line)" % SP,
+            ("[%s]" % SP) in L[2] and "blank one" in "\n".join(L[3:6]), L[2][:90] + " | " + L[3][28:70])
+        e.keys(CTRL_E, idle=1.0)
+        L = wait(e)
+        row("Ctrl-E opens SED on THAT record: its first line is the record's and SED does not say 'New record'",
+            in_sed(L) and "blank one" in L[1] and "new record" not in "\n".join(L[-3:]).lower(), L[1][:60] + " | " + L[-1][:80])
+        e.keys("Q", idle=0.5)
+        e.keys(CTRL_S, idle=0.8)
+        L = wait(e)
+        txt = ID.sess(box, 'CT bp "%s"' % SP)
+        row("...its save returns to the IDE and the record under its whole id now begins Qblank one", in_ide(L) and "Qblank one" in txt, e.status() + " | " + txt[-120:])
+        e.end()
+
+        say("\n--- a save in a second buffer of SED does not end the edit and lose the first (the verifier's F2) --------------------")
+        e = IdeK(box, "IDE bp %s" % Q)
+        e.keys(CTRL_E, idle=1.0)
+        L = wait(e)
+        e.keys("AA", idle=0.5)
+        L = e.keys(CTRL("o"), idle=1.0)
+        say("      screen after Ctrl-O: " + " | ".join(l.strip()[:70] for l in L if l.strip())[:300])
+        e.keys("bp %s" % R2, idle=0.3)
+        L = e.keys(RET, idle=1.0)
+        L = wait(e)
+        row("control: SED has the second record open next to the first", in_sed(L) and "rr1" in "\n".join(L[:6]), "\n".join(l[:70] for l in L[:4]) + " | " + L[-1][:80])
+        e.keys("BB", idle=0.5)
+        e.keys(CTRL_S, idle=0.8)
+        L = wait(e)
+        row("saving the SECOND buffer does not end SED (the IDE does not come back), the first buffer's typing is still there",
+            in_sed(L) and "BBrr1" in ID.rec_text(box, R2), L[-1][:80] + " | " + ID.rec_text(box, R2)[-100:])
+        row("...and the first record on disk has no AA: it was not saved and not thrown away silently", "AA" not in ID.rec_text(box, Q), ID.rec_text(box, Q)[-100:])
+        L = leave_sed(e)
+        row("...leaving SED (and answering its question) returns to the IDE", in_ide(L), L[0][:60] + " | " + e.status())
         e.end()
 
         say("\n--- a record somebody else holds locked ---------------------------------------------------------------------------")
