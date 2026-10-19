@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  ED, THE CLASSIC LINE EDITOR, NO LONGER USES ALL OF A CPU FOR EVER WHEN ITS INPUT HAS ENDED.
+
+             What        An ED session whose input was a pipe (a script, a test, a login that was not a terminal) went on for as long as it was
+                        left once the pipe had ended, printing its ----: prompt without end and using all of a CPU: 6.1 seconds of CPU in 6.1
+                        seconds, and 8.0 in 8.0 on a private SD. ED took the empty line that an ended input gives for an empty command, which
+                        only means "show the next line", and asked again. It now leaves the record as Q does when it is answered Y, but asks
+                        nothing because nobody is there: the record is not written and its lock is given back. It does not go on to
+                        the next record of a list of names, a select list or a "Record name?" prompt. The line-number questions of LOAD and
+                        UNLOAD (start line, end line) cancel the command when the input ends. An UNLOAD used to take the whole record there
+                        and write it to the target record, with nobody to say so; a LOAD from a record with no lines could not be answered at
+                        all, so it asked for ever.
+             Why it      A session that spins holds a user slot, its record locks and a CPU until somebody kills it, and nothing on the screen
+             matters    says so. The questions that were not asked of the person (Overwrite? Are you sure you want to delete? OK to quit?) were
+                        already answered no, as Enter answers them, so the end of the input did not delete or file a record; a test holds the
+                        delete and the quit.
+             Does not    The end of the input is not an answer to "save the changes?": text typed into ED and not filed with FI is lost, as it is
+                        with Q answered Y. A script that wants its work kept ends with FI (or SAVE). Nothing changes for a person at a terminal:
+                        pressing Enter at the ----: prompt is still an empty command and shows the next line, because a terminal does not end
+                        like this. The UNLOAD end-line prompt still has no colon after it, unlike the start-line prompt and LOAD's (left as it
+                        was).
+
 19 Oct 26  SED AND THE IDE NO LONGER USE ALL OF A CPU FOR EVER WHEN THEIR INPUT HAS ENDED, AND SCREEN WAIT TELLS THE END OF INPUT FROM THE TIME RUNNING OUT.
 
              What        A SED or IDE session whose input was a pipe (a script, a test, a login that was not a terminal) went on for as long as
@@ -16,7 +37,8 @@ Next release - in progress
                         leaves its unsaved text as it is. It does not change a wait that really times out (SCREEN WAIT still answers timeout
                         when the time runs out), and SCREEN KEY still gives one empty answer for both the time running out and the input ending,
                         as its documentation says, so a program that loops on SCREEN KEY with a timeout still has to count the empty answers
-                        itself, as CED does. ED, the classic line editor, is not changed and still spins in the same way.
+                        itself, as CED does. (ED, the classic line editor, spun in the same way and was changed after this: see the entry
+                        above.)
 
 18 Oct 26  THE API'S "OPEN AN SDNET FILE" REQUEST (NUMBER 29) NO LONGER OPENS ANY ACCOUNT'S FILE FOR ANY LOGIN, EVEN WITH NETFILES BIT 2 SET.
 
