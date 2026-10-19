@@ -6,6 +6,12 @@
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  Terminal 140 by 42 (plan-terminal-140x42.md, phase 3).  The IDE is laid out for at least 140 by 42 (it was 60 by 16) and
+*               refuses a smaller window at the start with the library's one message ($sl_need, 11197; 11198 is no longer used).
+*               A window of more than that is still used whole.  A window made smaller after the start shows the upper left corner
+*               of the layout (the layout stays 140 by 42, the library cuts what falls outside the window), and when the editor's
+*               or the tree's cursor is off the screen $sl_key takes the keyboard (the cursor lock, $sl_guardmode) until the window
+*               is made bigger; Ctrl-Q, y there makes $sl_key return guardquit, and the IDE leaves without saving.
 * 18 Oct 26 dm  S.66: the refusal text comes from !edit_msg, which also knows the shared account's two refusals (11513, 11514).
 * 17 Oct 26 dm  S.64, the edit gates: save, save as and new record ask the kernel (edit.check, K$EDIT.OK) before they write into a VOC, a
 *               dictionary or a program file, and say why in the message line.
@@ -52,8 +58,8 @@ $include sl.h
 
    MAXREC = 2000                           ;* records listed for a file
    MAXHIT = 500                            ;* lines a search lists
-   MINW = 60
-   MINH = 16
+   LAYW = 140                              ;* what the layout is made for; a bigger window is used whole, a smaller one is refused at
+   LAYH = 42                               ;* the start and clipped (upper left corner) if it becomes smaller while the IDE runs
 
    fn0 = field(@sentence, ' ', 2)
    id0 = field(@sentence, ' ', 3)
@@ -71,6 +77,15 @@ $include sl.h
    loc = upcase(loc)
    utf8 = (index(loc, 'UTF-8', 1) > 0 or index(loc, 'UTF8', 1) > 0)
 
+   * A window smaller than the layout is refused before the screen is taken (the library's one check and message)
+   call $sl_need('IDE', LAYW, LAYH, need.msg, '')
+   if need.msg # '' then
+      break on
+      void pterm(PT$BREAK, saved.trap)
+      display need.msg
+      stop
+   end
+
    gosub open.screen
    if not(opened) then
       break on
@@ -81,13 +96,6 @@ $include sl.h
    call $sl_scr('get', scr)
    w = scr<SL.S.W> + 0
    h = scr<SL.S.H> + 0
-   if w < MINW or h < MINH then
-      screen close
-      break on
-      void pterm(PT$BREAK, saved.trap)
-      display sysmsg(11198, MINW, MINH)
-      stop
-   end
 
    * blue first: in classic the bar and the window are the same black on white, so the menu bar and its
    * drop-downs do not stand out from the form under them
@@ -211,6 +219,8 @@ open.screen:
          opened = @true
       end
    end
+   * The cursor lock: when the cursor is off the screen the keys are not the IDE's (it is laid out for LAYW by LAYH)
+   if opened then call $sl_guardmode('IDE', LAYW, LAYH)
    return
 
 * ======================================================================
@@ -271,8 +281,8 @@ load.file:
 size.layout:
    lw = w
    lh = h
-   if lw < MINW then lw = MINW
-   if lh < MINH then lh = MINH
+   if lw < LAYW then lw = LAYW                 ;* the window is smaller only after the start: the layout keeps its size and the
+   if lh < LAYH then lh = LAYH                 ;* library cuts what falls outside (the upper left corner shows)
    fw = lw
    fh = lh - 2
    iw = fw - 2
@@ -573,7 +583,7 @@ status.line:
       t := '   ' : sysmsg(11213, mw{'cy'}, mw{'cx'})
    end
    if msg # '' then t := '   ' : msg
-   screen text fmt(t[1, w], w : 'L') at 0,h - 1 attr 'reverse'
+   screen text fmt(t[1, lw], lw : 'L') at 0,lh - 1 attr 'reverse'     ;* the layout's last row: off the screen in a smaller window
    return
 
 * ======================================================================
@@ -613,6 +623,8 @@ do.key:
          cmd = 'replace'                 ;* SED's replace
       case edata = 'f11'
          cmd = 'find'                    ;* in the records of the file
+      case edata = 'guardquit'
+         done = @true                    ;* the user left from the cursor lock ($sl_guardmode): nothing is saved
    end case
    if cmd # '' then gosub run.cmd
    return

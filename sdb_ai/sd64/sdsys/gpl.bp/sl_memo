@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 13 Oct 26 dm  Word wrap (WRAP), a selection (mark, cut, copy, paste), undo and redo, find, word movement.
+* 18 Oct 26 dm  The cursor is placed through $sl_curat (which tells the cursor lock where it is).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -765,7 +766,7 @@ paint:
    next r
    if w{'focused'} then
       gosub row.of
-      display @(w{'ax'} + gut + dcx - left, w{'ay'} + dr - top) :
+      call $sl_curat(w{'ax'} + gut + dcx - left, w{'ay'} + dr - top)
    end
    return
 

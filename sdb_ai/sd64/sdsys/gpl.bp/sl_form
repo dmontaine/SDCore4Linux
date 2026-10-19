@@ -9,6 +9,8 @@
 *               number), laid out from it, clipped to it, hidden / disabled / deleted with it; the ops scroll and delete;
 *               the wheel, a drag on a bar's thumb, a child taking the focus scrolling into view, the hardware cursor
 *               hidden while the focused widget is not wholly in view.  A form with no parents is drawn as before.
+* 18 Oct 26 dm  Terminal 140 by 42, phase 3: the cursor is hidden and shown through $sl_curat, which also tells the cursor lock;
+*               the key guardquit is not a widget's, and a modal form reads it as Esc.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -160,7 +162,10 @@ hide.form:
 show.cursor:
    if f{'curhid'} + 0 then
       f{'curhid'} = 0
-      if scr<SL.S.CURON> then display @(-31) :
+      if scr<SL.S.CURON> then
+         display @(-31) :
+         call $sl_curat('on', '')
+      end
    end
    return
 
@@ -337,6 +342,7 @@ park.cursor:
    end
    if phide then
       display @(-32) :
+      call $sl_curat('off', '')
       f{'curhid'} = 1
    end else
       gosub show.cursor
@@ -599,6 +605,10 @@ route.key:
       * passed on as one nobody used, which WAIT turns into the event resize.
       call $sl_resize(scr)
       ret = 'unhandled' : @fm : key
+      return
+   end
+   if key = 'guardquit' then
+      ret = 'unhandled' : @fm : key               ;* the user left from the cursor lock ($sl_guardmode): no widget's key, the program's
       return
    end
    nw = inmat(f{'widgets'})
@@ -876,7 +886,7 @@ run.modal:
    gosub show.form
    loop
       call $sl_key('', kk)
-      if kk = '' then kk = 'esc'
+      if kk = '' or kk = 'guardquit' then kk = 'esc'
       key = kk
       gosub route.key
       st = ret<1>

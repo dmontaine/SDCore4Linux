@@ -35,6 +35,7 @@
 *               upper left corner of the layout is drawn and nothing past the edge (clip.w, clip.h; put.at, put.cursor and the
 *               clip in zoned.update), and while the cursor is off the screen the keys are ignored and a warning is shown
 *               ($sl_guard, from wait.key) until the window is made bigger or the user leaves with Ctrl-Q.
+* 18 Oct 26 dm  $sl_need takes a fifth argument (the debugger's fall-back to line mode); SED passes null, it refuses.
 * END-HISTORY
 *
 *
@@ -327,7 +328,7 @@ $include sl.h
    * $sl_guard).  A window bigger than the layout leaves the rest of it blank.
    equ SED.COLS to 140
    equ SED.ROWS to 42
-   call $sl_need('SED', SED.COLS, SED.ROWS, message)
+   call $sl_need('SED', SED.COLS, SED.ROWS, message, '')
    if message # '' then stop message
 
    clip.w = SED.COLS                  ;* the part of the layout the window shows (read.window changes it)

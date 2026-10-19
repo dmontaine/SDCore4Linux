@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 18 Oct 26 dm  Takes the cursor lock off ($sl_guardmode), so that it never reaches the next program.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -45,6 +46,7 @@ $include sl.h
    display @(0, @crthigh - 1) :
    scr = ''
    call $sl_scr('close', scr)
+   call $sl_guardmode('', 0, 0)                       ;* the cursor lock belongs to the program that asked for it
    call $sl_theme('reset', '', '', '', '', r)         ;* the next program starts from mono, having asked for nothing
    call $sl_line('on', 0, r)                          ;* and from plain borders
 

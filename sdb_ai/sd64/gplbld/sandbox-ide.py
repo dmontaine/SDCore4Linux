@@ -72,7 +72,7 @@ def sess(box, *cmds):
 class Ide:
     """One run of the IDE on a pseudo-terminal: type to it, read its screen."""
 
-    def __init__(self, box, cmd="IDE", cols=120, rows=36, utf8=False):
+    def __init__(self, box, cmd="IDE", cols=140, rows=42, utf8=False):
         self.box = box
         # the locale decides whether the IDE draws its borders with line-drawing characters, so every run sets it:
         # C (plain + - |) unless the row is about UTF-8
@@ -390,16 +390,29 @@ end
 
         # ---- the window follows the terminal ------------------------------------------------------------------------
         say("\n--- the window --------------------------------------------------------------------------------------------")
+        # 18 Oct 26 (terminal 140 by 42): the IDE is laid out for at least 140 by 42 and a window that becomes smaller shows the upper left
+        # corner of that layout; sandbox-ide-small.py has the rows for the refusal, the shrink and the cursor lock.
         e = Ide(box, "IDE bp %s" % B)
+        row("at 140 by 42 the form's frame ends on the row before the status line (row 40) and the status line is the last row",
+            re.match(r"^\+-+\+$", e.lines()[40].strip()) is not None and ("bp %s" % B) in e.status(), "\n".join(e.lines()[38:42]))
         e.s.resize(100, 30, idle=1.5)
+        time.sleep(1.8)
+        e.s.settle(0.8)
         L = e.lines()
-        row("a resize to 100 by 30 lays the screen out again: the form's frame ends on the row before the status line",
-            re.match(r"^\+-+\+$", L[28].strip()) is not None or any(re.match(r"^\+-+\+$", l.strip()) for l in L[26:30]), "\n".join(L[24:30]))
-        row("...and the record is still there", ("bp %s" % B) in e.status() or ("bp %s" % B) in "\n".join(L[-3:]), "\n".join(L[-3:]))
+        row("a resize to 100 by 30 shows the upper left corner of the same layout: the menu bar and the frame's top, no row wider than 100",
+            re.search(r"File\s+Go\s+Search", L[0]) is not None and L[1].startswith("+- IDE") and max(len(l) for l in L) <= 100, "\n".join(l[:60] for l in L[:3]))
+        row("...the record is still open in its tab", "[%s]" % B in L[2], L[2])
+        e.s.resize(160, 50, idle=1.5)
+        time.sleep(1.8)
+        e.s.settle(0.8)
+        L = e.lines()
+        row("a resize to 160 by 50 makes the layout the window's: the frame is 160 wide and the status line is the last row (49)",
+            len(L[1].rstrip()) == 160 and ("bp %s" % B) in L[49], repr(L[1][-6:]) + repr(L[49][:30]))
         e.end()
         e = Ide(box, "IDE", cols=50, rows=12)
-        row("a terminal smaller than 60 by 16 is refused with a message",
-            "needs a terminal of at least 60 columns by 16 lines" in " ".join(e.text().split()), e.text()[:300])
+        row("a terminal smaller than 140 by 42 is refused with the library's message, and nothing is drawn",
+            "".join("IDE needs a window of at least 140 columns by 42 lines; this one is 50 by 12".split()) in "".join(e.text().split())   # the message wraps at column 50
+            and not re.search(r"File\s+Go\s+Search", e.lines()[0]), e.text()[:300])
         e.end()
 
         # ---- a record somebody else changed ---------------------------------------------------------------------------

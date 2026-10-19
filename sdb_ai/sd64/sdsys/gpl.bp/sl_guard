@@ -90,9 +90,9 @@ $include err.h
 * The warning, or the question, in reverse video from the top left, as wide as the window lets it be
 draw.box:
    if asking then
-      text = sysmsg(11487)
+      text = sysmsg(11601)
    end else
-      text = sysmsg(11486, w : ' by ' : h, name, minw : ' by ' : minh)
+      text = sysmsg(11600, w : ' by ' : h, name, minw : ' by ' : minh)
    end
    bw = w
    if bw > BOX.WIDE then bw = BOX.WIDE

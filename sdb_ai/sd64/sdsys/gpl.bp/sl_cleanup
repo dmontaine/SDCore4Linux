@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 13 Oct 26 dm  New.
+* 18 Oct 26 dm  Takes the cursor lock off ($sl_guardmode).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -35,6 +36,7 @@ $include sl.h
 
    if system(25) then return                  ;* a phantom has no terminal
 
+   call $sl_guardmode('', 0, 0)               ;* a program that stopped without SCREEN CLOSE leaves no cursor lock behind
    call $sl_scr('get', scr)
    if not(scr<SL.S.OWNED>) then return        ;* the library holds nothing
 
