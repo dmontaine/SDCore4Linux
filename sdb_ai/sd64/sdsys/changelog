@@ -1,6 +1,25 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  THE INSTALL ASKS WHETHER TO OPEN EVERY ACCESS GATE FOR THE INSTALLING USER'S OWN ACCOUNT, AND THE ANSWER IS NO UNLESS YOU TYPE y.
+
+             What        A new SD account starts with every access gate closed - ssh, the API, the shell, OS.EXECUTE, SD.ACCOUNTS, saving changes
+                        to a VOC, a program file or a dictionary, SDNet, and writing the shared account's files - and that includes the account the
+                        installer makes for the person running it. On a first install the installer now asks one more question, beside its two
+                        about remote access: "Open every access gate for <you>'s SD account? (y/N)". Only y or yes (any case) says yes. After the
+                        account is made, a yes gives it each of those gates with modify.account, one word at a time (both, sh-on, os-on, sd-on,
+                        voc-on, bp-on, dict-on, net-on, shared-write-on, files-on, files-write-on), and the installer then reads the register
+                        and the Linux groups back: it prints "Opened every access gate for <you>" only if every one is open, and otherwise a
+                        warning that names each gate that did not open and the word to give for it. A refused word does not stop the install.
+             Why it      On a machine you are testing on, the installing user otherwise had to sign in as sdsys and type eleven commands before the
+             matters    API, ssh or the editors would answer, and the verbs for that (modify.account, remote.api) are not in an ordinary account's
+                        VOC at all, which looks like a missing verb.
+             Does not    It is not asked, and nothing changes, when the installing user's account already exists: an upgrade keeps what it has. The
+                        default, Enter, and every answer except y and yes leave the account closed exactly as before. It opens the installing user's
+                        own account only - every other account is still made closed - and sdsys closes any gate again with modify.account
+                        <account> <word>-off (none closes ssh and the API). It does not decide who can reach the computer from the network: that is
+                        still the two questions about ssh and the API above it.
+
 19 Oct 26  THE IDE SHOWS WHICH PANE IS ACTIVE WITH A [*] OR [-] IN ITS TOP RIGHT CORNER.
 
              What        Each pane that can have the keyboard now carries a small mark in its top right corner: [*] on the one that has it and

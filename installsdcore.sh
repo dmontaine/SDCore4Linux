@@ -75,6 +75,14 @@
 #   account and before the kept accounts are brought forward.  shared_preflight
 #   stops the install, before anything is changed, when an account named shared
 #   already exists that is not SD's own.
+#
+#   19 Oct 2026 dm - the install asks once, up front, whether to open every
+#   access gate for the installing user's own SD account (default No; not asked
+#   when that account already exists).  A new SD account still starts with all of
+#   them closed, the installing user's too; a y opens ssh, the API, the shell,
+#   OS.EXECUTE, SD.ACCOUNTS, the three edit gates, SDNet, writing the shared
+#   account's files and the files-only login, through MODIFY.ACCOUNT, and the
+#   install says which ones the register and the Linux groups really hold.
 
 # Modified by Composer AI - 2026/06/10.
 # Enable strict mode and predictable word splitting for safer installation.
@@ -215,6 +223,61 @@ shared_preflight() {
     return 1
   done
   return 0
+}
+# 19 Oct 26  THE INSTALLING USER'S ACCESS GATES, OPENED ONLY AFTER A y.  An SD account starts with every access gate
+#            closed (S.63, S.64, S.65, S.66), the installing user's too, and that stays the delivered state.  The owner
+#            (19 Oct 2026, warned that this is a looser default: "installer asks once; y opens all gates for the installing
+#            user's account, default No") chose a QUESTION: the GATES-ASK block below asks it up front, the answer is No
+#            unless y is typed, and this function runs only after a y.  It is MODIFY.ACCOUNT, one word at a time, run the way
+#            CREATE.ACCOUNT is (sudo bin/sd -internal, on the install's own cproc), and NOT extra words on the create line: a
+#            word that CREATE.ACCOUNT refuses leaves the person with no account at all, while a refused modify leaves the
+#            account and a WARNING naming the gate.  sd exits 0 when it refused, so the result is JUDGED ON WHAT THE SYSTEM
+#            HOLDS: the register lines (read as the group is, line N for field N) and the Linux groups, never the exit status.
+#            The word list is every word modify.account accepts to turn something on (shared-read-on excepted: it is on
+#            already); test-install-opengates.sh holds it to modifya, so a gate added later fails there until it is decided
+#            here.  Its input is /dev/null, so a question would end rather than hang the install.
+open_installer_gates() {   # open_installer_gates LINUX_USER ACCOUNT REGISTER_RECORD
+    local user="$1" acct="$2" reg="$3"
+    local gate_words gate_word gate_missing gate_members
+    gate_words="both sh-on os-on sd-on voc-on bp-on dict-on net-on shared-write-on files-on files-write-on"
+    gate_missing=""
+    echo "  Opening every access gate for ${user}, as you asked."
+    for gate_word in $gate_words; do
+        sudo bin/sd -internal modify.account "$acct" "$gate_word" < /dev/null || true
+    done
+    gate_reg() {   # gate_reg LINE WORD: does register line LINE hold yes?  If not, WORD is still to be given
+        [ "$(sudo sed -n "${1}p" "$reg" 2>/dev/null | LC_ALL=C tr 'A-Z' 'a-z')" = yes ] || gate_missing="${gate_missing} $2"
+    }
+    gate_grp() {   # gate_grp GROUP WORD: is the Linux user in GROUP?  If not, WORD (once) is still to be given
+        gate_members=$(getent group "$1" 2>/dev/null | cut -d: -f4) || gate_members=""
+        case ",${gate_members}," in
+            *",${user},"*) ;;
+            *) case " ${gate_missing} " in *" $2 "*) ;; *) gate_missing="${gate_missing} $2" ;; esac ;;
+        esac
+    }
+    gate_reg 7 sh-on
+    gate_reg 8 os-on
+    gate_reg 9 sd-on
+    gate_reg 10 voc-on
+    gate_reg 11 bp-on
+    gate_reg 12 dict-on
+    gate_reg 14 shared-write-on
+    gate_reg 15 net-on
+    gate_grp sdssh both
+    gate_grp sdapi both
+    gate_grp sdfiles files-on
+    gate_grp sdfileswrite files-write-on
+    if [ -z "$gate_missing" ]; then
+        echo "  Opened every access gate for ${user}, read back from the register and the Linux groups:"
+        echo "      ssh, the API, the shell, OS.EXECUTE, SD.ACCOUNTS, changing the VOC, programs and dictionaries,"
+        echo "      SDNet, writing the shared account's files, and the files-only login with its write group."
+        echo "  Signed in as sdsys, close any again with  modify.account ${acct} <word>-off  (ssh and the API: modify.account ${acct} none)."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: these access gates are NOT open for ${user}:${gate_missing}"
+        echo "  Signed in as sdsys, give each one, one word per command:  modify.account ${acct} <word>"
+        printf "%b\n" "$NC"
+    fi
 }
 # --------------------
 
@@ -405,6 +468,24 @@ read -r -p "Allow ssh access from other computers? enables sshd at boot, opens p
 case $yn_ssh in [yY]|[yY][eE][sS] ) allow_ssh=y;; esac
 read -r -p "Allow API access from other computers? opens TCP port $sd_api_port (y/N) " yn_api
 case $yn_api in [yY]|[yY][eE][sS] ) allow_api=y;; esac
+# 19 Oct 26  THE QUESTION ABOUT THE INSTALLING USER'S ACCESS GATES (owner, in chat: "installer asks once; y opens all gates
+#            for the installing user's account, default No").  Asked here, up front with the two above, so the rest of the
+#            install runs unattended.  The answer is NO unless y or yes is typed.  It is not asked when the account already
+#            exists: an upgrade keeps what it has and nothing below touches an existing account.  open_installer_gates (above)
+#            does the opening, after the account is made; test-install-opengates.sh runs this block.
+# GATES-ASK-BEGIN
+open_gates=n
+tuser_lc=$(printf '%s' "$tuser" | LC_ALL=C tr 'A-Z' 'a-z')
+if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
+    echo
+    echo "A new SD account starts with every access gate closed: ssh, the API, the shell, OS.EXECUTE,"
+    echo "SD.ACCOUNTS, changing the VOC, programs and dictionaries, SDNet, and writing the shared account's files."
+    echo "On a machine you are testing on, you can open all of them for ${tuser}'s account now."
+    echo "SDSYS can close any of them again later with modify.account."
+    read -r -p "Open every access gate for ${tuser}'s SD account? (y/N) " yn_gates
+    case $yn_gates in [yY]|[yY][eE][sS] ) open_gates=y;; esac
+fi
+# GATES-ASK-END
 printf "%b\n" "$NC"
 # --------------------
 #
@@ -1422,19 +1503,25 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     seeded_group=$(sudo sed -n '3p' "$acct_reg" 2>/dev/null)
     if [ "$seeded_group" = "sdu_${tuser_lc}" ]; then
       echo "Registered ${tuser} as a plain SD account (group: ${seeded_group})."
-      # 13 Oct 26 (S.63, owner, second sitting): every new account starts with ssh, the API, sh and
-      # OS.EXECUTE off, the installing user's too.  Said here because this is the first account anyone
-      # signs in to and it would otherwise be a surprise that sh and the editors refuse.
-      echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
-      # 17 Oct 26 (S.64): and, the same way, no right to save changes to a VOC, a program file or a dictionary.
-      echo "  It also starts without the right to change the VOC, a program file (or compile and catalogue) or a dictionary."
-      echo "  Signed in as sdsys, give it what it needs, one word per command:"
-      echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
-      echo "      modify.account ${tuser_lc} sh-on"
-      echo "      modify.account ${tuser_lc} os-on"
-      echo "      modify.account ${tuser_lc} voc-on"
-      echo "      modify.account ${tuser_lc} bp-on"
-      echo "      modify.account ${tuser_lc} dict-on"
+      # 19 Oct 26: the person said y to the question asked up front (GATES-ASK): open every access gate, then say
+      # what the register and the Linux groups really hold.  Anything else leaves the account closed, as below.
+      if [ "$open_gates" = y ]; then
+        open_installer_gates "$tuser" "$tuser_lc" "$acct_reg"
+      else
+        # 13 Oct 26 (S.63, owner, second sitting): every new account starts with ssh, the API, sh and
+        # OS.EXECUTE off, the installing user's too.  Said here because this is the first account anyone
+        # signs in to and it would otherwise be a surprise that sh and the editors refuse.
+        echo "  ${tuser} starts with no ssh, no API, no shell and no OS.EXECUTE, like every account SD makes."
+        # 17 Oct 26 (S.64): and, the same way, no right to save changes to a VOC, a program file or a dictionary.
+        echo "  It also starts without the right to change the VOC, a program file (or compile and catalogue) or a dictionary."
+        echo "  Signed in as sdsys, give it what it needs, one word per command:"
+        echo "      modify.account ${tuser_lc} both        (ssh and the API; or ssh, or api)"
+        echo "      modify.account ${tuser_lc} sh-on"
+        echo "      modify.account ${tuser_lc} os-on"
+        echo "      modify.account ${tuser_lc} voc-on"
+        echo "      modify.account ${tuser_lc} bp-on"
+        echo "      modify.account ${tuser_lc} dict-on"
+      fi
     else
       printf "%b\n" "$RED"
       echo "WARNING: ${tuser} was registered with group '${seeded_group:-<none>}',"
