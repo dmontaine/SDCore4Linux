@@ -17,6 +17,9 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 18 Oct 26 dm  The register's path goes through parse.pathname.tokens (!PATHTKN) as backupa, delacc and apisrvr read it.  Core's register holds full
+*               paths, so nothing changes here; Solo's holds a token (@USRDIR/name), where the Windows Solo port found the caller's own account answered a
+*               null string because the K$PATH.OK test below was given the unexpanded token (Windows agent's mail T2158).
 * 15 Oct 26 dm  Written for QM4 gaps bundle Q-4 (ACCOUNT.PATH), as a function in BASIC that bcomp knows by name.
 * END-HISTORY
 *
@@ -47,7 +50,7 @@ $include int$keys.h
    name = downcase(trim(account))
    if name # '' then
       openpath @sdsys:@ds:'accounts' to acc.f then
-         read acc.rec from acc.f, name then path = acc.rec<ACC$PATH>
+         read acc.rec from acc.f, name then path = parse.pathname.tokens(acc.rec<ACC$PATH>)
          close acc.f
       end
    end
