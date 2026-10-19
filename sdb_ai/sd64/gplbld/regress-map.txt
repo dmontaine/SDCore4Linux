@@ -36,7 +36,7 @@
 # strings, conversions, functions, dates, locate and sort
 @functions   = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp mlmask trans-b43 oq2 audit-b9 audit-b9b
 # the compiler and what it compiles: statements, modes, classes, TRY, INPUT forms
-@compiler    = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 stdfil partial wdthenelse numexp classas openzero pickrn execlist selectv-mode sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9
+@compiler    = bcomp-a1 lang-a15 lang-b45 stmt-b5 stmt-q3 func-b4 func-q1 mode-q16 stdfil partial wdthenelse numexp classas openzero pickrn execlist selectv-mode sselectv try forcereload input inputif inputraw inputfill inputtrap epoch txnstatus misc-a9 cmd-a9 guide
 # what a change to the select-list statements in the compiler needs
 @lists-compile = sselectv pickrn selectv-mode execlist chained stacklist list-q2 mode-q16
 # the query processor and dictionaries
@@ -400,6 +400,12 @@ etc/*                        : none
 examples/*                   : none
 contrib/*                    : none
 Documentation/*              : none
+# S.69 rows 1 and 1b (19 Oct 26): the AI agent pack - generator, generated pack, hand-written guide, skill, templates, recipe.  Nothing
+# here is compiled or installed; gplbld/test-pack-units.py (a free check) guards the generated pack against the tree and the docs.
+agent-pack/guide/*           : guide
+agent-pack/pack/*            : pack-examples
+agent-pack/skill/*           : none
+agent-pack/*                 : none
 bin/*                        : none
 gplobj/*                     : none
 screenlib-design.md          : none

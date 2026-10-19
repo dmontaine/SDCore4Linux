@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  A GUIDE, A GENERATED REFERENCE AND A CLAUDE CODE SKILL FOR AI AGENTS THAT WORK ON AN SD SYSTEM ARE IN THE SOURCE (agent-pack/).
+
+             What        An AI agent asked to write SD BASIC meets a language that looks like OpenQM, UniVerse or D3 and is not, and guesses names SD
+                        does not have. The source now holds, under sdb_ai/sd64/agent-pack/: a guide of about eight thousand words (the language, the system
+                        around it, what SD does not have, and twenty-three worked programs, every one compiled and run on a private SD); a reference
+                        generated from the sources, not typed (every TCL verb and query keyword, the VOC record types, the dictionary item types and
+                        conversion codes, the BASIC statements and functions, the messages, the system's keys and settings, 3,932 entries each with its
+                        source); a Claude Code skill made from the two; a CLAUDE.md template for a project that lives in an SD account; and a recipe
+                        for giving an agent an account of its own. mkpack.py rebuilds the reference, and a check fails when the committed copy no longer
+                        agrees with the verbs, messages and tables it was made from. Two new documentation pages describe it: User 41 and Administrator 18.
+             Why it      An agent that is handed facts from this version of the code, and the gates stated as walls it must not try to defeat,
+             matters    makes the commonest mistakes cheap to avoid.
+             Does not    The installer does not install it: it is in the source tree and the release, not in /usr/local/sdsys. It gives no agent any
+                        access to a system: an agent signs in as its own SD account, with the gates the administrator has opened for that account
+                        and no others. There is no sdctl and no MCP server yet, and the .mcp.json file in the pack is a shape that does not work yet,
+                        and says so. SD calls no AI model. Nobody has measured whether the guide improves a model's results, and Claude Code has
+                        not been run with the skill.
+
 19 Oct 26  THE INSTALL ASKS WHETHER TO OPEN EVERY ACCESS GATE FOR THE INSTALLING USER'S OWN ACCOUNT, AND THE ANSWER IS NO UNLESS YOU TYPE y.
 
              What        A new SD account starts with every access gate closed - ssh, the API, the shell, OS.EXECUTE, SD.ACCOUNTS, saving changes
