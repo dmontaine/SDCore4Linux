@@ -5,6 +5,9 @@
   python3 .../test-gates-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 13 Oct 26.
+19 Oct 26 (integration): the mutant "CREATE.ACCOUNT OS-ON sets the wrong field" is anchored on the OS-ON case line.  1daee9d's `gates=` audit line
+added a second `settings<CA$OS.EXECUTE> = 1` ahead of the parse, sub() changes the first occurrence only, and so the mutant changed the audit text and
+nothing noticed: 70 of 71 on Dev 2a81059 itself (71 of 71 on both lanes, which lack that commit).
 
 ***WHAT THIS IS, AND WHAT IT IS NOT.***  It reads the C and BASIC sources as text, with comments removed, so a gate that
 survives only in a comment does not count.  ***IT DOES NOT RUN ANYTHING, SO IT CANNOT SAY THAT THE GATE REFUSES ANYBODY***:
@@ -538,7 +541,7 @@ MUTANTS = [
     ("ATTACH turns the four on again for the installing user", sub("create_account", "      end\n* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026, second sitting:", "      end\n      access.ssh = @true\n      os.sh.want = @true\n* 13 Oct 26 dm - S.63 (owner, 13 Oct 2026, second sitting:")),
     ("a GROUP account may be given a shell", sub("create_account", "     if os.sh.want or os.exec.want then\n       @system.return.code = -ER$ARGS\n       err = 10105:@vm:acc.name ;* %1 is a group account", "     if @false then\n       @system.return.code = -ER$ARGS\n       err = 10105:@vm:acc.name ;* %1 is a group account")),
     ("the register is written without the gate fields", sub("create_account", "     acc.rec<ACC$SH> = if os.sh.want then 'yes' else 'no'\n", "")),
-    ("CREATE.ACCOUNT OS-ON sets the wrong field", sub("createa", "settings<CA$OS.EXECUTE> = 1", "settings<CA$OS.SH> = 1")),
+    ("CREATE.ACCOUNT OS-ON sets the wrong field", sub("createa", "         case upcase(token) = 'OS-ON'\n            settings<CA$OS.EXECUTE> = 1", "         case upcase(token) = 'OS-ON'\n            settings<CA$OS.SH> = 1")),
     ("MODIFY.ACCOUNT SH-OFF turns the shell on", sub("modifya", "os.field = ACC$SH ; os.want = @false", "os.field = ACC$SH ; os.want = @true")),
     ("MODIFY.ACCOUNT OS-ON changes the shell field", sub("modifya", "os.field = ACC$OS.EXEC ; os.want = @true", "os.field = ACC$SH ; os.want = @true")),
     ("os.set writes without the lock", sub("modifya", "   readu acc.new from acc.f, acc.name else acc.new = acc.rec\n   if os.want", "   acc.new = acc.rec\n   if os.want")),

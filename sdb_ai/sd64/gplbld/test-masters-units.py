@@ -5,6 +5,8 @@
   python3 .../test-masters-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 19 Oct 26.
+19 Oct 26 (integration): the mutant "regress.sh forgets the suite" is anchored on the end of the ALL_SUITES line (` masters"`), no longer on the suite
+before it: the SDNet lane's `filesgrp witness-programs` sit there now, and the old anchor made the mutant "not applicable" (a FAILURE of the self-test).
 
 ***WHAT THIS IS, AND WHAT IT IS NOT.***  It reads the C, BASIC and shell sources as text, with comments removed, so a rule that survives only in a
 comment does not count.  ***IT DOES NOT RUN ANYTHING, SO IT CANNOT SAY THAT A JOURNAL LINE IS WRITTEN, THAT A MASTER COPY EQUALS ITS ACCOUNT'S
@@ -948,7 +950,7 @@ MUTANTS = [
      lambda t: t, None),
     ("the installer does not report a run that failed", "sh:installsdcore.sh", 'if [ "$om_rc" -ne 0 ] || ! printf', 'if false || ! printf'),
     # ---- wiring ----
-    ("regress.sh forgets the suite", "txt:regress.sh", " pack-examples masters\"", " pack-examples\""),
+    ("regress.sh forgets the suite", "txt:regress.sh", " masters\"", "\""),
     ("the map forgets the new program", "txt:regress-map.txt", "sdsys/gpl.bp/masters_setup   : masters\n", ""),
     ("the map forgets the DH files", "txt:regress-map.txt", "gplsrc/dh_*.c                : @files masters", "gplsrc/dh_*.c                : @files"),
 

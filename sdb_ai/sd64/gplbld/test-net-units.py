@@ -5,6 +5,8 @@
   python3 .../test-net-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 17 Oct 26.
+19 Oct 26 (integration): the mutant "the map's 1151 message rule comes after the none rule" is made by a function, since the masters lane's rules for
+11560-11596 now stand between those two rules (the text-anchored version was "not applicable", a FAILURE of the self-test).
 
 ***WHAT THIS IS, AND WHAT IT IS NOT.***  It reads the C and BASIC sources as text, with comments removed, so a gate that survives only
 in a comment does not count.  ***IT DOES NOT RUN ANYTHING, SO IT CANNOT SAY THAT THE GATE ANSWERS OR THAT A VERB WRITES OR REFUSES***:
@@ -3338,7 +3340,10 @@ mut("another program cites 11502", "bp:cd", lambda t: t + "\n   crt sysmsg(11502
 mut("the map loses the handler rule", NFMAP, "sdsys/gpl.bp/netfile         : netfile\n", "")
 mut("the map loses the header rule", NFMAP, "sdsys/gpl.bp/netfile.h       : netfile\n", "")
 mut("the map loses a message rule", NFMAP, "sdsys/messages/1150*         : netfile\n", "")
-mut("the map's last message rule comes after the none rule", NFMAP, "sdsys/messages/1151*         : netfile shared\nsdsys/messages/*             : none", "sdsys/messages/*             : none\nsdsys/messages/1151*         : netfile shared")
+# 19 Oct 26 (integration): made by a function.  The masters lane's four rules for 11560-11596 now stand between the 1151 rule and the none rule, so the
+# old text "1151 rule, newline, none rule" is not there; the mutant moves the 1151 rule to after the none rule whatever stands between them.
+mut("the map's 1151 message rule comes after the none rule", NFMAP,
+    lambda t: t.replace("sdsys/messages/1151*         : netfile shared\n", "", 1).replace("sdsys/messages/*             : none\n", "sdsys/messages/*             : none\nsdsys/messages/1151*         : netfile shared\n", 1))
 mut("the map's header rule comes after the *.h rule", NFMAP,
     lambda t: t.replace("sdsys/gpl.bp/netfile.h       : netfile\n", "", 1).replace("sdsys/gpl.bp/*.h             : @compiler @core\n", "sdsys/gpl.bp/*.h             : @compiler @core\nsdsys/gpl.bp/netfile.h       : netfile\n", 1))
 mut("the suite loses a section", NFSUITE, '("lost", lost_section), ', "")
