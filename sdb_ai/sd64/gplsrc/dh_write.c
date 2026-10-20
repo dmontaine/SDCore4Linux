@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 stage 2: dh_write asks masters_before_write() first (SDSYS saving a master record writes the account's file; a refusal fails the
+ *               write with DHE_MASTER_REFUSED and changes nothing).
  * 19 Oct 26 dm  S.67 stage 1: a successful write calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
  * 11 Oct 26 dm  The index routine is given the record id as STORED, not an upper
  *           case copy of the id as written.  Every hashed file is NOCASE (D2), and
@@ -89,6 +91,19 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   char stored_id[MAX_ID_LEN]; /* Id as an existing record is stored */
   char* store_id = id;        /* Id to store and to give the index */
   bool found = FALSE;
+
+  /* 19 Oct 26 S.67 stage 2: MASTER TO ACCOUNT.  SDSYS saving a record of voc_master or dict_master writes the account's own file, here, first of all (the
+     comparison with master_state, the try-lock, the group, the audit line: masters.c).  A refusal changes nothing and fails the write with
+     DHE_MASTER_REFUSED; the bit tested is set once per open file for every file that is not one of the two, so the cost to any other write is this test. */
+  if (!(dh_file->flags & DHF_MST_NOMASTER)) {
+    int master_refusal = masters_before_write(dh_file, id, id_len, new_data);
+
+    if (master_refusal != 0) {
+      dh_err = master_refusal;
+      process.os_error = 0;
+      return FALSE;
+    }
+  }
 
   dh_err = 0;
   process.os_error = 0;

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 (the master files): DHF_MST_NONE, DHF_MST_VOC and DHF_MST_DICT (stage 1, what a file's name says it is) and DHF_MST_NOMASTER,
+ *           DHF_MST_VM and DHF_MST_DM (stage 2, whether it is voc_master or dict_master).  Internal bits, never in a file header.
  * 07 Oct 26 dm  PAL-1 D2 (the Windows port's RELEASE_1.1 5, 72d4a533): DHF_KEEPCASE,
  *           a creation REQUEST bit that is never stored.
  * 31 Dec 23 SD launch - prior history suppressed
@@ -143,6 +145,11 @@ struct DH_FILE {
 #define DHF_MST_NONE 0x04000000 /* its last component is neither "voc" nor "*.dic" */
 #define DHF_MST_VOC  0x08000000 /* the last component is "voc" */
 #define DHF_MST_DICT 0x10000000 /* the last component ends ".dic" */
+/* 19 Oct 26 dm - S.67 stage 2 (master to account): what this process has worked out about whether the file IS one of the two master files that deliver
+   a saved record to an account (voc_master, dict_master).  Worked out once per open file, on its first write or delete; internal, never in a header. */
+#define DHF_MST_NOMASTER 0x20000000 /* neither voc_master nor dict_master */
+#define DHF_MST_VM       0x40000000 /* voc_master */
+#define DHF_MST_DM       0x80000000 /* dict_master */
                              /* File information */
   int16_t open_count;
   int16_t no_of_subfiles;

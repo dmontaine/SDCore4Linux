@@ -34,7 +34,8 @@ GPLSRC = os.path.join(SD64, "gplsrc")
 ROOT = os.path.dirname(os.path.dirname(SD64))
 MSGDIR = os.path.join(SDSYS, "messages")
 
-MSG_FIRST, MSG_LAST = 11560, 11578
+MSG_FIRST, MSG_LAST = 11560, 11578           # stage 1
+MSG2_FIRST, MSG2_LAST = 11579, 11594         # stage 2 (master to account)
 BP_NAMED = ("masters", "masters_setup", "upgrade_masters", "create_account", "delacc", "restorea", "_oscopy", "_ioscopy")
 C_NAMED = ("masters.c", "dh_write.c", "dh_del.c", "dh_clear.c", "dh_creat.c", "op_dio1.c", "op_dio2.c", "op_dio3.c", "op_xfun.c", "op_kernel.c",
            "txn.c", "keys.h", "sysseg.h", "sd.h", "dh.h")
@@ -164,6 +165,7 @@ def load():
             print("test-masters-units: CANNOT RUN - %s is missing" % os.path.join(GPL, n))
             sys.exit(2)
     get("sh:installsdcore.sh", os.path.join(ROOT, "installsdcore.sh"))
+    get("sh:sd-elevate", os.path.join(HERE, "sd-elevate"))
     get("txt:regress.sh", os.path.join(HERE, "regress.sh"))
     get("txt:regress-map.txt", os.path.join(HERE, "regress-map.txt"))
     get("txt:gpl.src", os.path.join(SD64, "gpl.src"))
@@ -171,10 +173,10 @@ def load():
         get("voc:" + v, os.path.join(SDSYS, "voc_template", v))
     srcs["newvoc.list"] = "\n".join(sorted(os.listdir(os.path.join(SDSYS, "newvoc"))))
     srcs["voc_template.list"] = "\n".join(sorted(os.listdir(os.path.join(SDSYS, "voc_template"))))
-    for n in range(MSG_FIRST, MSG_LAST + 1):
+    for n in range(MSG_FIRST, MSG2_LAST + 1):
         p = os.path.join(MSGDIR, str(n))
         srcs["msg:%d" % n] = open(p, encoding="utf-8", errors="replace").read() if os.path.exists(p) else None
-    for t in ("sandbox-masters.py", "test-masters-units.py"):
+    for t in ("sandbox-masters.py", "test-masters-units.py", "witness-masters.sh", "test-install-sdsysgroups.sh"):
         srcs["file:" + t] = open(os.path.join(HERE, t), encoding="utf-8", errors="replace").read() if os.path.exists(os.path.join(HERE, t)) else None
     return srcs
 
@@ -231,8 +233,8 @@ def checks(srcs):
     cited = set()
     for name in ("masters", "masters_setup", "upgrade_masters"):
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", B(name)))
-    ck("N9 every message the verb program cites exists and lies in 11560 to 11578, and its substitution never takes more than 4 arguments (the compiler's SYSMSG limit)",
-       all(MSG_FIRST <= n <= MSG_LAST or n == 2001 for n in cited) and all(texts.get(n) is not None for n in cited if n != 2001)
+    ck("N9 every message the verb program cites exists and lies in 11560 to 11594 (stage 2 added 11593, the CHECK.MASTERS hint, and 11594, the last refusal), and its substitution never takes more than 4 arguments (the compiler's SYSMSG limit)",
+       all(MSG_FIRST <= n <= MSG2_LAST or n == 2001 for n in cited) and all(srcs.get("msg:%d" % n) is not None for n in cited if n != 2001)
        and max(sysmsg_arg_counts(B("masters")) + [0]) <= 4 and len(sysmsg_arg_counts(B("masters"))) >= 15, repr((sorted(cited), sysmsg_arg_counts(B("masters")))))
     big = [n for n, t in texts.items() if t is not None and max([int(x) for x in re.findall(r"%(\d)", t)] + [0]) > 4]
     ck("N10 no message of the block has a %5 or higher", not big, repr(big))
@@ -263,8 +265,9 @@ def checks(srcs):
     d1 = C("op_dio1.c")
     ck("H7 op_dio1.c: open_file() calls masters_open_hook(pathname) after fullpath() and before the OS-access test of OPENPATH and before the transaction and cache lookups",
        d1.count("masters_open_hook(pathname)") == 1 and ordered(d1, "fullpath(pathname, mapped_name);", "masters_open_hook(pathname);", "if (!map_name && !os_path_open_ok(pathname))", "txn_open(pathname)"), "")
-    ck("H8 the record opcodes and the transaction code do NOT call the hook: it is in the DH layer, which a COMMIT passes through (a call in op_dio3.c or txn.c would deliver "
-       "an uncommitted write and a rolled-back one)", "masters_" not in C("op_dio3.c") and "masters_" not in C("txn.c"), "")
+    ck("H8 the record opcodes and the transaction code do NOT call the JOURNAL hook: it is in the DH layer, which a COMMIT passes through (a call in op_dio3.c or txn.c would deliver "
+       "an uncommitted write and a rolled-back one).  Stage 2: op_dio3.c asks only masters_txn_refusal and masters_refusal_text (S7), and txn.c nothing",
+       set(re.findall(r"\bmasters_\w+", C("op_dio3.c"))) <= {"masters_txn_refusal", "masters_refusal_text"} and "masters_" not in C("txn.c"), repr(set(re.findall(r"\bmasters_\w+", C("op_dio3.c")))))
     callers = sorted(n for n, t in c.items() if n.startswith("c:") and re.search(r"\bmasters_(note_record|note_dh|note_name|open_hook|request)\(", t) and n != "c:masters.c" and n != "c:sd.h")
     ck("H9 exactly these files call into masters.c: dh_write, dh_del, dh_clear, dh_creat, op_dio1, op_dio2, op_kernel, op_xfun",
        callers == ["c:dh_clear.c", "c:dh_creat.c", "c:dh_del.c", "c:dh_write.c", "c:op_dio1.c", "c:op_dio2.c", "c:op_kernel.c", "c:op_xfun.c"], repr(callers))
@@ -320,9 +323,11 @@ def checks(srcs):
     oh = func_body(m, "void masters_open_hook(const char *canon)")
     ck("D1 masters_open_hook does nothing unless the session is the administrator and the path is one of the three master files, and it cannot recurse (busy)",
        ordered(oh, "busy ||", "USR_ADMIN", "mst_is_master_path(canon)", "busy = TRUE;", "mst_drain(&cx, -1, &dr)", "busy = FALSE;"), "")
-    ck("D2 the three master paths are voc_master, dict_master and master_state under the SYSTEM directory as the OS resolves it (not a name that a VOC entry could give another file)",
-       "mst_sysdir_real()" in func_body(m, "Private bool mst_is_master_path(const char *canon)") and "MST_VOC_MASTER" in func_body(m, "Private bool mst_is_master_path(const char *canon)")
-       and "MST_DICT_MASTER" in func_body(m, "Private bool mst_is_master_path(const char *canon)") and "MST_STATE" in func_body(m, "Private bool mst_is_master_path(const char *canon)"), "")
+    mw = func_body(m, "Private int mst_master_which(const char *canon)")
+    ck("D2 the three master paths are voc_master, dict_master and master_state under the SYSTEM directory as the OS resolves it (not a name that a VOC entry could give another file); "
+       "mst_is_master_path is 'which is not 0'",
+       "mst_sysdir_real()" in mw and "MST_VOC_MASTER" in mw and "MST_DICT_MASTER" in mw and "MST_STATE" in mw
+       and re.search(r"mst_is_master_path\(const char \*canon\) \{\s*return mst_master_which\(canon\) != 0;", m) is not None, "")
     dr = func_body(m, "Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res)")
     ck("D3 mst_drain: the journal is locked with flock(LOCK_EX) before anything is read, the saved position is read before the lines, the lines are read only up to the last newline "
        "(a half line stays), the state is written AFTER the compaction decision, and unlocked last",
@@ -350,8 +355,8 @@ def checks(srcs):
     sk = func_body(m, "Private int mst_sync_key(MST_CTX *cx, int kind, const char *acct, const char *root, const char *file, const char *id, int id_len)")
     ck("D10 mst_sync_key: a key too long to mirror is refused BEFORE any file is touched (MS_LONG), the account's record is read before the master's, the master is written only when it "
        "differs, a record the account lacks is removed from the master and from the state, and the state record is written only when its checksum differs",
-       ordered(sk, "mst_keys(kind, acct, file, id, id_len, mkey, skey) < 0", "return MS_LONG;", "dh_read(adh,", "dh_read(mdh, mkey", "!mst_str_equal(rec, mrec)", "dh_write(mdh, mkey")
-       and ordered(sk, "if (!found) {", "dh_delete(mdh, mkey", "dh_delete(cx->st, skey") and ordered(sk, "mst_checksum(rec, cks);", "strcmp(cks, scks) != 0", "mst_put(cx->st, skey"), "")
+       ordered(sk, "mst_keys(kind, acct, file, id, id_len, mkey, skey) < 0", "return MS_LONG;", "dh_read(adh,", "dh_read(mdh, mkey", "!mst_str_equal(rec, mrec)", "mst_mwrite(mdh, mkey")
+       and ordered(sk, "if (!found) {", "mst_mdelete(mdh, mkey", "dh_delete(cx->st, skey") and ordered(sk, "mst_checksum(rec, cks);", "strcmp(cks, scks) != 0", "mst_put(cx->st, skey"), "")
     mk = func_body(m, "Private int mst_keys(int kind, const char *acct, const char *file, const char *id, int id_len, char *mkey, char *skey)")
     ck("D11 mst_keys: a master key must fit MAXIDLEN less the two characters of the state key (a master file holding a longer id cannot be opened again), and never exceed 255; the state key is the "
        "kind letter, an asterisk and the master key", "sysseg->maxidlen - 2" in mk and "MAX_KEY_LEN - 2" in mk and "skey[0] = (kind == MST_VOC) ? 'v' : 'd';" in mk and "skey[1] = '*';" in mk, "")
@@ -382,8 +387,8 @@ def checks(srcs):
        ordered(rq, 'strcmp(op, "ready") == 0', 'strcmp(op, "note") == 0', "if (!admin) {", "mst_status(&out, MSA_REFUSED);", 'strcmp(op, "init") == 0', "mst_is_set_up()")
        and ordered(rq, "if (!admin) {", 'strcmp(op, "pending") == 0', 'strcmp(op, "drain") == 0', 'strcmp(op, "sync") == 0', 'strcmp(op, "drop") == 0', 'strcmp(op, "check") == 0'), "")
     ck("K2 ...admin is the user table's administrator flag", "bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);" in rq, "")
-    ck("K3 ...the ops are exactly: ready note init pending peek drain sync syncbegin syncend drop check accounts",
-       sorted(re.findall(r'strcmp\(op, "(\w+)"\) == 0', rq)) == sorted(["ready", "note", "init", "pending", "peek", "drain", "sync", "syncbegin", "syncend", "drop", "check", "accounts"]),
+    ck("K3 ...the ops are exactly: ready note refusal init pending peek drain sync syncbegin syncend drop check accounts (refusal is stage 2's)",
+       sorted(re.findall(r'strcmp\(op, "(\w+)"\) == 0', rq)) == sorted(["ready", "note", "refusal", "init", "pending", "peek", "drain", "sync", "syncbegin", "syncend", "drop", "check", "accounts"]),
        repr(sorted(re.findall(r'strcmp\(op, "(\w+)"\) == 0', rq))))
     ck("K4 'note' adds a journal line for a path and nothing else (the op that an ordinary session may reach through !OSCOPY)",
        re.search(r'strcmp\(op, "note"\) == 0\) \{\s*masters_note_name\(arg, \'n\'\);\s*mst_status\(&out, MSA_OK\);\s*mst_answer\(result, &out\);\s*return;\s*\}', rq) is not None, "")
@@ -469,7 +474,180 @@ def checks(srcs):
     ck("R2 the kernel files the feature touches select the suite: dh_*.c, dh.h, op_dio1.c, op_dio2.c, op_xfun.c, op_kernel.c, keys.h, sd.h, sysseg, gpl.src and int$keys.h",
        all(re.search(r"^%s\s*:.*\bmasters\b" % re.escape(p), mp_, re.M) for p in ("gplsrc/dh_*.c", "gplsrc/dh.h", "gplsrc/op_dio1.c", "gplsrc/op_dio2.c", "gplsrc/op_xfun.c", "gplsrc/op_kernel.c",
                                                                                   "gplsrc/keys.h", "gplsrc/sd.h", "gplsrc/sysseg.[ch]", "gpl.src", "sdsys/gpl.bp/int$keys.h")), "")
-    ck("R3 the two test files exist (this one and the sandbox suite)", all(srcs.get("file:" + t) for t in ("sandbox-masters.py", "test-masters-units.py")), "")
+    ck("R3 the test files exist (this one, the sandbox suite, the installer block test and the witness)", all(srcs.get("file:" + t) for t in ("sandbox-masters.py", "test-masters-units.py", "witness-masters.sh", "test-install-sdsysgroups.sh")), "")
+
+    # ===== S. STAGE 2, MASTER TO ACCOUNT (D7) ========================================================================================================
+    # ---- S1-S4 numbers and messages -------------------------------------------------------------------------------------------------------------
+    sdh = C("sd.h")
+    ck("S1 DHE_MASTER_REFUSED is 8910, defined in sd.h and NOT in err.h (err.h is generated into SYSCOM/ERR.H and ERRTEXT.H); no #define of err.h has that value",
+       re.search(r"#define DHE_MASTER_REFUSED 8910\b", sdh) is not None and "DHE_MASTER_REFUSED" not in C("err.h") and not re.findall(r"#define\s+\w+\s+8910\b", C("err.h")), "")
+    bits2 = [dh.get(k) for k in ("DHF_MST_NOMASTER", "DHF_MST_VM", "DHF_MST_DM")]
+    ck("S2 dh.h: DHF_MST_NOMASTER 0x20000000, DHF_MST_VM 0x40000000, DHF_MST_DM 0x80000000 - one bit each in the INTERNAL half of the word, none shared with another flag",
+       bits2 == [0x20000000, 0x40000000, 0x80000000] and len(set(dh.values())) == len(dh.values()), repr(bits2))
+    t2 = {n: srcs.get("msg:%d" % n) for n in range(MSG2_FIRST, MSG2_LAST + 1)}
+    cexp = {11580: 1, 11581: 2, 11582: 2, 11583: 2, 11584: 2, 11585: 2, 11586: 2, 11587: 3, 11588: 1, 11589: 1, 11590: 1, 11591: 2, 11592: 2}   # the %s places each C message has
+    c_ok = all(t2.get(n) is not None and t2[n].count("\n") == 1 and t2[n].count("%s") == k and not re.findall(r"%[^s]", t2[n]) for n, k in cexp.items())
+    short = all(len(t2[n].replace("%s", "")) <= 175 for n in cexp if t2.get(n))
+    ck("S3 messages 11579 to 11594 exist, each one line.  11580 to 11592 are written for C (printf's %s, exactly the places masters.c passes, no other conversion, none with %1) and short enough "
+       "for k_error's 231-character buffer (the part that says what to do is the last); 11579 (%1 %2), 11593 (none) and 11594 (%1) are BASIC and have no %s",
+       all(t2.get(n) is not None for n in range(MSG2_FIRST, MSG2_LAST + 1)) and c_ok and short and "%s" not in (t2.get(11579) or "") and "%2" in (t2.get(11579) or "") and "%s" not in (t2.get(11593) or "")
+       and "%" not in (t2.get(11593) or "") and "%1" in (t2.get(11594) or "") and "%s" not in (t2.get(11594) or ""), repr([n for n in cexp if t2.get(n) is None or t2[n].count("%s") != cexp[n]]))
+    ck("S3a ...in lower case wherever a command word is written: sync.masters, check.masters, sd-elevate, sdsys-join, voc_master; no verb in capitals",
+       all(re.search(r"\b[A-Z]{3,}\.[A-Z]{3,}\b", t) is None for t in t2.values() if t) and "sd-elevate sdsys-join" in " ".join(t for t in t2.values() if t)
+       and "sync.masters" in (t2.get(11583) or "") + (t2.get(11588) or ""), "")
+    msgnum = {mm.group(1): int(mm.group(2)) for mm in re.finditer(r"#define (MSG_\w+) (\d+)", m)}
+    calls = re.findall(r"mst_refuse\((MSG_\w+),\s*([^,]+),\s*([^,]+),\s*([^)]+)\)", m)
+    ck("S4 every mst_refuse call passes at least as many real arguments (not NULL) as its message has %s places, never more than three, and every message of 11580-11592 is used by one",
+       len(calls) >= 18 and all(msgnum.get(n) in cexp and sum(1 for a in (x, y, z) if a.strip() != "NULL") >= cexp[msgnum[n]] for n, x, y, z in calls)
+       and {msgnum[n] for n, _, _, _ in calls if n in msgnum} == set(cexp), repr(sorted({n for n, x, y, z in calls if msgnum.get(n) not in cexp or sum(1 for a in (x, y, z) if a.strip() != "NULL") < cexp.get(msgnum.get(n), 0)})))
+
+    # ---- S5-S8 where the DH layer and the opcodes ask ----------------------------------------------------------------------------------------
+    ck("S5 dh_write.c asks masters_before_write ONCE, first of all - behind the one-bit test, before dh_err is cleared and before any buffer is taken - and a refusal returns FALSE with dh_err the refusal",
+       dw.count("masters_before_write(") == 1 and ordered(dw, "if (!(dh_file->flags & DHF_MST_NOMASTER)) {", "masters_before_write(dh_file, id, id_len, new_data)", "dh_err = master_refusal;", "return FALSE;",
+                                                        "dh_err = 0;", "k_alloc(16, group_bytes)"), "")
+    ck("S6 dh_del.c asks masters_before_delete ONCE, first of all, the same way",
+       dd.count("masters_before_delete(") == 1 and ordered(dd, "if (!(dh_file->flags & DHF_MST_NOMASTER)) {", "masters_before_delete(dh_file, id, id_len)", "dh_err = master_refusal;", "return FALSE;",
+                                                        "dh_err = 0;", "k_alloc(5, group_bytes)"), "")
+    d3 = C("op_dio3.c")
+    ck("S7 op_dio3.c: a WRITE or a DELETE of a master record inside a transaction is refused BEFORE it reaches the transaction's cache (masters_txn_refusal, once in each, ahead of txn_write / txn_delete), "
+       "with status -DHE_MASTER_REFUSED; both tails print masters_refusal_text() through \"%s\" (not as a format) in place of the generic error",
+       d3.count("masters_txn_refusal(") == 2
+       and re.search(r"if \(txn_id != 0\) \{[^{}]*if \(masters_txn_refusal\(dh_file, id, id_len\) != 0\) \{\s*process\.status = -DHE_MASTER_REFUSED;\s*goto exit_op_write;\s*\}\s*if \(!txn_write\(fvar, id, id_len, str\)\)", d3) is not None
+       and re.search(r"if \(masters_txn_refusal\(dh_file, id, id_len\) != 0\)\s*process\.status = -DHE_MASTER_REFUSED;\s*else\s*txn_delete\(fvar, id, id_len\);", d3) is not None
+       and d3.count('k_error("%s", masters_refusal_text())') == 2 and d3.count("process.status == -DHE_MASTER_REFUSED") == 2, "")
+    ck("S8 dh_creat.c calls masters_fix_modes(path) ONCE, after the file is made and journalled, and never as an error: after masters_note_name, before the exit label",
+       dcr.count("masters_fix_modes(") == 1 and ordered(dcr, "masters_note_name(path, 'n');", "masters_fix_modes(path);", "exit_dh_create_file:"), "")
+
+    # ---- S9-S11 the classification and the two refusals --------------------------------------------------------------------------------------
+    bw = func_body(m, "int masters_before_write(DH_FILE *dh, char *id, int id_len, STRING_CHUNK *data)")
+    mkd = func_body(m, "Private int mst_master_kind(DH_FILE *dh)")
+    ck("S9 masters_before_write does nothing for a file that is not a delivering master, and nothing while the stage 1 code is writing (mst_inside): the bit test, the classification, the inside test, only then mst_deliver",
+       ordered(bw, "DHF_MST_NOMASTER", "mst_master_kind(dh)", "mst_inside > 0", "return mst_deliver(kind, id, id_len, data);"), "")
+    ck("S10 mst_master_kind: the file is voc_master or dict_master by its exact path (mst_master_which 1 or 2) and remembered in the flags; master_state (3) and everything else is NOMASTER - "
+       "a write to master_state is never taken for a save",
+       ordered(mkd, "mst_master_which((const char *)FPtr(dh->file_id)->pathname)", "w == 1", "DHF_MST_VM", "w == 2", "DHF_MST_DM", "dh->flags |= DHF_MST_NOMASTER;") and "w == 3" not in mkd and "w >= 1" not in mkd, "")
+    bd = func_body(m, "int masters_before_delete(DH_FILE *dh, char *id, int id_len)")
+    bt = func_body(m, "int masters_txn_refusal(DH_FILE *dh, char *id, int id_len)")
+    ck("S11 masters_before_delete refuses EVERY delete of a master record (message 11588), whoever asks, except while the stage 1 code is deleting; masters_txn_refusal refuses a write or delete inside a "
+       "transaction (11589) the same way; neither takes a lock or writes",
+       ordered(bd, "DHF_MST_NOMASTER", "mst_master_kind(dh) == 0", "mst_inside > 0", "return mst_refuse(MSG_DELETE") and ordered(bt, "DHF_MST_NOMASTER", "mst_master_kind(dh) == 0", "mst_inside > 0", "return mst_refuse(MSG_TXN")
+       and re.search(r"\b(dh_write|dh_delete|lock_record|audit_message|mst_put)\s*\(", bd + bt) is None and "USR_ADMIN" not in bd + bt, "")
+
+    # ---- S12-S15 the delivery -----------------------------------------------------------------------------------------------------------------
+    dv = func_body(m, "Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data)")
+    ck("S12 mst_deliver does its steps in the order D7 gives: the administrator, the key, the registered account, the account's file, the permission test, the keys, the try-lock, the account's record against "
+       "master_state, the write, master_state, the unlock, the audit line",
+       ordered(dv, "USR_ADMIN", "memchr(id, '*'", "mst_valid_account_name(acct)", "mst_acc_by_name(acct)", "mst_acct_file(&cx, which", "mst_write_check(path, gname", "mst_keys(which, a->name",
+               "check_lock(&fv", "lock_record(&fv", "dh_read(adh", "mst_state_get(&cx, skey", "strcmp(cks, scks) != 0", "dh_write(adh", "mst_checksum(data, ncks)", "mst_put(cx.st, skey",
+               "unlock_record(&fv", "audit_message(line)"), "")
+    ck("S12a ...the administrator test is the first thing it does and the answer is a refusal (MSG_NOTADMIN) for anyone else",
+       re.search(r"mst_shown\(keytxt, sizeof\(keytxt\), id, id_len\);\s*/\*[^*]*\*/\s*if \(\(my_uptr == NULL\) \|\| !\(my_uptr->flags & USR_ADMIN\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None
+       or re.search(r"if \(\(my_uptr == NULL\) \|\| !\(my_uptr->flags & USR_ADMIN\)\)\s*return mst_refuse\(MSG_NOTADMIN", dv) is not None, "")
+    ck("S12c ...the permission test is made TWICE and the second is the preflight: after the account's file is opened and before the keys and the lock, a refusal goes to the reasons (goto refuse_rights)",
+       dv.count("mst_write_check(") == 2 and ordered(dv, "mst_acct_file(&cx, which", "goto refuse_rights;", "why = mst_write_check(path, gname, sizeof(gname));", "if (why != MST_W_OK) {", "goto refuse_rights;", "mst_keys(which, a->name"), "")
+    ck("S12b ...the key is cut at the FIRST asterisk (account), and for a dictionary at the next one (file) - the rest is the record id, which may hold asterisks - and the file name must pass the rule "
+       "the journal uses (no .., no slash at the front, no control character)",
+       ordered(dv, "p1 = memchr(id, '*', (size_t)id_len);", "p2 = memchr(p1 + 1, '*'", "mst_file_ok(file)") and "strchr(" not in dv and "strrchr(" not in dv and "strtok" not in dv, "")
+    ck("S13 THE TRY-LOCK: lock_record is called ONCE with update TRUE, transaction 0 and no_wait TRUE (it returns at once; the account's process may hold the record and be waiting on the master); a lock this "
+       "process holds already (check_lock) is not taken again and, below, not let go (took); a lock that cannot be had is a refusal (MSG_LOCKED) before anything is read or written",
+       len(re.findall(r"(?<![\w])lock_record\(", dv)) == 1 and "lock_record(&fv, (char *)rid, (int16_t)rid_len, TRUE, 0, TRUE)" in dv
+       and re.search(r"if \(!check_lock\(&fv, \(char \*\)rid, \(int16_t\)rid_len\)\) \{\s*lk = lock_record\([^;]*;\s*if \(lk != 0\) \{[^{}]*return mst_refuse\(MSG_LOCKED[^;]*;\s*\}\s*took = TRUE;", dv) is not None
+       and "Sleep(" not in dv and "pc--" not in dv, "")
+    ck("S13a ...the file variable the lock is taken on belongs to no program: type DYNAMIC_FILE, the account file's file_id, index -2",
+       "fv.type = DYNAMIC_FILE;" in dv and "fv.file_id = adh->file_id;" in dv and "fv.index = -2;" in dv, "")
+    after_lock = dv[dv.find("lock_record("):dv.find("audit_message(line);")]
+    unl = list(re.finditer(r"return mst_refuse\(", after_lock))
+    guard_ok = all(re.search(r"if \(took\)\s*unlock_record\(&fv, \(char \*\)rid, \(int16_t\)rid_len\);\s*(\w+\s*=\s*[^;]*;\s*)?mst_ctx_close\(&cx\);\s*$", after_lock[max(0, u.start() - 400):u.start()]) is not None
+                   for u in unl[1:])           # every refusal after the lock (the first is the lock's own) lets the lock go first
+    ck("S13b ...and every refusal and the success path after the lock lets it go, and only when this call took it: each `unlock_record` is behind `if (took)`, there are four, and every refusal after the "
+       "lock is preceded by one", dv.count("unlock_record(") == 4 and len(re.findall(r"if \(took\)\s*unlock_record\(", dv)) == 4 and guard_ok and len(unl) >= 4, "")
+    ck("S14 THE CHECKSUM TEST: the account's record is read after the lock, its checksum compared with master_state's; a difference is a refusal (MSG_CHANGED) before anything is written; an absent record and an "
+       "absent state record agree (both empty) so a new record is a save; the state record is written ONCE, only after dh_write succeeded",
+       ordered(dv, "lock_record(", "rec = dh_read(adh", "mst_checksum(rec, cks);", "cks[0] = '\\0';", "mst_state_get(&cx, skey, mk + 2, scks);", "return mst_refuse(MSG_CHANGED", "if (!dh_write(adh")
+       and dv.count("mst_put(") == 1 and dv.count("dh_write(") == 1 and ordered(dv, "if (!dh_write(adh", "return mst_refuse(MSG_WRITEFAIL", "mst_put(cx.st"), "")
+    ck("S14a ...the account's file is written by dh_write like any other writer (so it is journalled, and its indices are kept) and by nothing else: no open(), fopen(), write(), rename(), chmod(), unlink() "
+       "and no mst_inside in mst_deliver",
+       re.search(r"(?<![\w_])(open|fopen|openat|creat|rename|chmod|fchmod|unlink|truncate|ftruncate|system|execl|execv|popen)\s*\(", dv) is None and re.search(r"(?<![\w_])write\s*\(", dv) is None
+       and "mst_inside" not in dv, "")
+    ck("S15 THE AUDIT LINE: written once, after the write and after the lock is given back, in lower case, 'master edit account=%s file=%s id=%s', through audit_message (which adds the user and the "
+       "process); a refused save writes none (the one call is after every refusal)",
+       dv.count("audit_message(") == 1 and 'snprintf(line, sizeof(line), "master edit account=%s file=%s id=%s", a->name, filetxt, idtxt);' in dv
+       and ordered(dv, "if (!dh_write(adh", "mst_put(cx.st", "unlock_record(&fv", 'snprintf(line, sizeof(line), "master edit account=', "audit_message(line);", "return 0;")
+       and "return mst_refuse(" not in dv[dv.find("audit_message(line);"):dv.find("refuse_rights:")], "")
+
+    # ---- S16 the stage 1 writes are marked ------------------------------------------------------------------------------------------------------
+    mww = func_body(m, "Private bool mst_mwrite(DH_FILE *dh, char *key, int16_t klen, STRING_CHUNK *rec)")
+    mdd = func_body(m, "Private bool mst_mdelete(DH_FILE *dh, char *key, int16_t klen)")
+    ck("S16 the stage 1 code's own writes to the masters go through mst_mwrite / mst_mdelete, which raise mst_inside for the ONE call (up before, down after, no code in between); nothing else in masters.c "
+       "raises it, and no dh_write or dh_delete outside those two (and mst_put, the state file's, and the delivery's own) names a master",
+       ordered(mww, "mst_inside++;", "dh_write(dh, key, klen, rec)", "mst_inside--;") and ordered(mdd, "mst_inside++;", "dh_delete(dh, key, klen)", "mst_inside--;")
+       and len(re.findall(r"mst_inside\+\+", m)) == 2 and len(re.findall(r"mst_inside--", m)) == 2 and re.search(r"dh_(write|delete)\((mdh|cx->vm|cx->dm|cx->h)", m) is None
+       and m.count("mst_mwrite(") >= 2 and m.count("mst_mdelete(") >= 4, "")
+
+    # ---- S17 can this session write the file ---------------------------------------------------------------------------------------------------
+    wc = func_body(m, "Private int mst_write_check(const char *dirpath, char *gname, size_t gsz)")
+    wy = func_body(m, "Private int mst_write_why(const struct stat *sb)")
+    gw = func_body(m, "Private bool mst_group_writable(const char *dirpath)")
+    ck("S17 mst_write_check asks the operating system (access): search on the account file's directory, write on %0 and on %1, BEFORE any lock or write; the reason is read off the mode and the group "
+       "lists - the owner's class first, then the group bit, then the groups this process was STARTED with (getgroups), then /etc/group's list for the user (stale session) - and the four words are "
+       "mode, stale-session, not-a-member, no-write",
+       ordered(wc, 'snprintf(p, sizeof(p), "%s", dirpath)', 'snprintf(p, sizeof(p), "%s/%%%d", dirpath, i - 1)', "access(p, (i == 0) ? X_OK : W_OK)", "mst_write_why(&sb)")
+       and ordered(wy, "sb->st_uid == geteuid()", "S_IWUSR", "MST_W_MODE", "sb->st_mode & S_IWGRP", "mst_gid_in_groups(sb->st_gid)", "mst_user_listed(sb->st_gid)", "MST_W_STALE", "MST_W_NOTMEMBER")
+       and all(w in m for w in ('"mode"', '"stale-session"', '"not-a-member"', '"no-write"')) and "NGROUPS_MAX" not in m.replace("limits.h", "") and "getgroups(0, NULL)" in m, "")
+    ck("S17a ...a refusal for each reason says it in the words of its message: stale (11586), not a member (11587), anything else the mode (11585); the permission test comes BEFORE the lock",
+       ordered(dv, "mst_write_check(path, gname", "check_lock(&fv") and re.search(r"case MST_W_STALE:\s*return mst_refuse\(MSG_STALE", dv) is not None
+       and re.search(r"case MST_W_NOTMEMBER:\s*return mst_refuse\(MSG_NOTMEMBER, keytxt, gname, gname\)", dv) is not None and re.search(r"default:\s*return mst_refuse\(MSG_MODE", dv) is not None, "")
+    ck("S17b ...CHECK.MASTERS: a VOC or dictionary whose DIRECTORY lacks group write and search, or whose %0 or %1 lacks group write, is nonwritable; one whose modes are right and which this session cannot write is "
+       "norights, with the reason as the last word - and the two are never both said of one file",
+       re.search(r"\(sb\.st_mode & \(S_IWGRP \| S_IXGRP\)\) != \(S_IWGRP \| S_IXGRP\)", gw) is not None and re.search(r"if \(!\(sb\.st_mode & S_IWGRP\)\)", gw) is not None
+       and re.search(r'if \(!mst_group_writable\(path\)\) \{\s*mst_row\(ck, "nonwritable", acct, what, file, NULL, 0\);\s*\} else \{[^}]*mst_write_check\(path, gname, sizeof\(gname\)\)[^}]*"norights"', m) is not None, "")
+    ck("S17c ...and the BASIC prints the hint (11593) when a nonwritable or norights row is among the rows, once, and the verb program still stops nothing: the hint is a display",
+       ordered(B("masters"), "if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1", "if hint then display sysmsg(11593)") and B("masters").count("sysmsg(11593)") == 1, "")
+
+    # ---- S18 the modes of what SD makes --------------------------------------------------------------------------------------------------------
+    fm = func_body(m, "void masters_fix_modes(const char *path)")
+    ck("S18 masters_fix_modes adds GROUP bits only (g+rwx and setgid on the directory, g+rw on %0 and %1) and takes nothing away: the bits OR-ed in are S_IRWXG | S_ISGID and S_IRGRP | S_IWGRP, there is no mask, no "
+       "other bit (S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH, S_ISUID), no chmod() by name - only fchmod on descriptors opened O_NOFOLLOW",
+       "(ds.st_mode & 07777) | S_IRWXG | S_ISGID" in fm and "(fs.st_mode & 07777) | S_IRGRP | S_IWGRP" in fm and re.search(r"S_IRWXO|S_IROTH|S_IWOTH|S_IXOTH|S_ISUID|~", fm) is None
+       and re.search(r"(?<![\w_])chmod\s*\(", fm) is None and fm.count("fchmod(") == 2 and fm.count("O_NOFOLLOW") == 2, "")
+    ck("S18a ...only where the account's own directory lets its group write, and only what THIS process made and what has that directory's group: S_IWGRP of the account directory, owner = the effective user, "
+       "group = the account directory's; and only the VOC itself (rel is voc) or a directory whose last component ends .dic, in a registered account",
+       ordered(fm, "mst_acc_for_path(full, &rel)", 'strcmp(rel, "voc") == 0', "stat(a->root, &ra)", "ra.st_mode & S_IWGRP", "O_DIRECTORY | O_NOFOLLOW", "ds.st_uid != geteuid()", "ds.st_gid != ra.st_gid", "fchmod(dfd")
+       and "fs.st_uid == geteuid()" in fm and "fs.st_gid == ra.st_gid" in fm and "S_ISREG(fs.st_mode)" in fm and "S_ISDIR(ds.st_mode)" in fm, "")
+
+    # ---- S19 the BASIC and the installer -------------------------------------------------------------------------------------------------------
+    ca2 = B("create_account")
+    ck("S19 create_account puts the sdsys user in a user account's group through sd-elevate's sdsys-join, only when it is not a member already (is_grp_member), only in the USER branch after create.group and before "
+       "the account is made, and a failure is said (11012, 11579) without stopping the account (no goto exit.create in join.sdsys)",
+       ordered(ca2, 'group_name = "sdu_":downcase(acc.uname)', "gosub create.group", "gosub join.sdsys", 'case acc.type = "GROUP"', "gosub make.account")
+       and ca2.count("gosub join.sdsys") == 1 and ca2.count("sd-elevate sdsys-join") == 1 and 'os.execute "sudo /usr/local/sbin/sd-elevate sdsys-join ":group_name' in ca2
+       and ordered(between(ca2, "join.sdsys:", "end\n   return\n"), "is_grp_member('sdsys', group_name)", "os.execute", "sysmsg(11011", "sysmsg(11012", "sysmsg(11579")
+       and "goto exit.create" not in between(ca2, "join.sdsys:", "end\n   return\n"), "")
+    ins2 = c["sh:installsdcore.sh"]
+    jf = re.search(r"^join_sdsys_groups\(\) \{.*?^\}", c["sh:installsdcore.sh"], re.M | re.S)
+    jf = jf.group(0) if jf else ""
+    ck("S20 the installer's join_sdsys_groups: sdsys-join only for a group named sdu_<something> (the case arm), and only when /etc/group does not already list sdsys; group-write only for a path directly under "
+       "/home/sd/user_accounts or /home/sd/group_accounts, a group sdu_ or sdg_, and only when the directory's group IS the register's group; judged on sd-elevate's own success line; never exits; "
+       "called once, with the register, before upgrade_masters",
+       len(jf) > 1500 and "sd-elevate sdsys-join \"$group\"" in jf and jf.count("sdsys-join") == 2 and ordered(jf, "sdu_?*)", "getent group", "sdsys-join \"$group\"")
+       and ordered(jf, "sdu_?*|sdg_?*)", "/home/sd/user_accounts/*|/home/sd/group_accounts/*)", 'dir_group=$(sudo stat -c', '[ "$dir_group" = "$group" ]', "sd-elevate group-write \"$path\"")
+       and "group-write: 0 directories and 0 file(s) changed" in jf and re.search(r"\b(exit|return 1)\b", jf) is None and ins2.count("join_sdsys_groups \"$sdsysdir/accounts\"") == 1
+       and ordered(ins2, "-internal RUN gpl.bp upgrade_editgates", 'join_sdsys_groups "$sdsysdir/accounts"', "-internal RUN gpl.bp upgrade_masters"), "")
+    se = c["sh:sd-elevate"]
+    ck("S21 sd-elevate has the two verbs: sdsys-join builds usermod -aG GROUP -- sdsys (the user written in the helper, never an argument; -aG appends) after require_account_group; group-write runs the worker "
+       "on one validated account directory and exits with its status; their rules are measured by test-sd-elevate.py and test-accelevate-units.py",
+       ordered(between(se, "sdsys-join)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_account_group "$1"', 'cmd=(usermod -aG "$1" -- sdsys)') and "SUDO_USER" not in between(se, "sdsys-join)", ";;")
+       and ordered(between(se, "group-write)", ";;"), "[[ $# -eq 1 ]] || usage", 'require_group_write_target "$1"', "need_root", 'python3 -c "$GW_PY"', "exit $?"), "")
+    ck("S22 wiring: the map has rules for messages 11579-11599, sd-elevate and the two new tests (or the coarse rules take them), and the new installer test is a free check that names the function",
+       re.search(r"^sdsys/messages/1157\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^sdsys/messages/1158\[0-9\]\s*:.*\bmasters\b", mp_, re.M) is not None
+       and re.search(r"^sdsys/messages/1159\[0-4\]\s*:.*\bmasters\b", mp_, re.M) is not None and re.search(r"^gplbld/sd-elevate\s*:\s*none\b", mp_, re.M) is not None
+       and "join_sdsys_groups" in (srcs.get("file:test-install-sdsysgroups.sh") or ""), "")
+    ck("S23 the op 'refusal' is the administrator's (it comes after the 'if (!admin)' refusal) and answers the stage 2 buffer and nothing else; ED asks it at both its write-error sites, only for status 8910, and "
+       "displays the second field; CHECK.MASTERS and LIST.MASTER.PENDING each end with it (message 11594)",
+       ordered(rq, "if (!admin) {", 'strcmp(op, "refusal") == 0', "masters_refusal_text()", 'strcmp(op, "init") == 0')
+       and ordered(B("ed"), "write.status = status()", "gosub master.refusal") and B("ed").count("gosub master.refusal") == 2
+       and ordered(B("ed"), "master.refusal:", "if write.status = 8910 then", "kernel(K$MASTERS, 'refusal')", "display refusal.reply<2>")
+       and B("masters").count("gosub last.refusal") == 2 and ordered(B("masters"), "last.refusal:", "kernel(K$MASTERS, 'refusal')", "sysmsg(11594"), "")
     return rows
 
 
@@ -575,7 +753,7 @@ MUTANTS = [
     ("a key too long is written", "c:masters.c", "  if (mst_keys(kind, acct, file, id, id_len, mkey, skey) < 0) {\n    cx->toolong++;\n    return MS_LONG;\n  }", "  mst_keys(kind, acct, file, id, id_len, mkey, skey);"),
     ("the key limit ignores the state key", "c:masters.c", "int limit = sysseg->maxidlen - 2;", "int limit = sysseg->maxidlen;"),
     ("the master is written even when it is the same", "c:masters.c", "  if (!mfound || !mst_str_equal(rec, mrec)) {", "  if (1) {"),
-    ("a record the account lacks stays in the master", "c:masters.c", "      if (!dh_delete(mdh, mkey, (int16_t)mk)) {", "      if (0) {"),
+    ("a record the account lacks stays in the master", "c:masters.c", "      if (!mst_mdelete(mdh, mkey, (int16_t)mk)) {", "      if (0) {"),
     ("the state is written every time", "c:masters.c", "  if (strcmp(cks, scks) != 0) {", "  if (1) {"),
     ("a file that cannot be read through has its master copies deleted", "c:masters.c", "  } else if ((adh != NULL) || !absent) {\n    cx->errs++; /* could not be opened, or could not be read through: leave the master copies alone */\n    mst_ids_free(&ids);\n    return;\n  } else {", "  } else if (adh != NULL) {\n    cx->errs++;\n  } else {"),
     ("a file that cannot be opened is taken for one that is not there", "c:masters.c", "(stat(sub, &sb) != 0) && (errno == ENOENT);", "TRUE;"),
@@ -585,13 +763,13 @@ MUTANTS = [
     ("a VOC may be any file called voc below the root", "c:masters.c", '  if ((strcmp(rel, "voc") == 0) || (strncmp(rel, "voc/", 4) == 0))', '  if (strstr(rel, "voc") != NULL)'),
     ("the sync forgets the dictionaries the account no longer has", "c:masters.c", "    mst_delete_keys(cx, MST_DICT, &gone);\n    mst_ids_free(&gone);\n  }\n\n  /* state records", "    mst_ids_free(&gone);\n  }\n\n  /* state records"),
     # ---- the ops ----
-    ("an ordinary session may init", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n\n  if (strcmp(op, \"init\") == 0) {", "  if (strcmp(op, \"init\") == 0) {"),
+    ("an ordinary session may init", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n", ""),
     ("the administrator test comes after the first op", "c:masters.c", "  if (strcmp(op, \"ready\") == 0) {", "  if (strcmp(op, \"drain\") == 0) {\n    mst_status(&out, MSA_OK);\n    mst_answer(result, &out);\n    return;\n  }\n  if (strcmp(op, \"ready\") == 0) {"),
     ("admin is anyone", "c:masters.c", "bool admin = (my_uptr != NULL) && ((my_uptr->flags & USR_ADMIN) != 0);", "bool admin = (my_uptr != NULL);"),
     ("note does more than note", "c:masters.c", "    masters_note_name(arg, 'n');\n    mst_status(&out, MSA_OK);", "    masters_note_name(arg, 'n');\n    (void)mst_init(&out);\n    mst_status(&out, MSA_OK);"),
     ("a new op", "c:masters.c", '  } else if (strcmp(op, "accounts") == 0) {', '  } else if (strcmp(op, "wipe") == 0) {\n    mst_status(&out, MSA_OK);\n  } else if (strcmp(op, "accounts") == 0) {'),
     ("check repairs", "c:masters.c", '      mst_row(ck, "differs", acct, what, file, id, id_len);', '      { dh_write(mdh, mkey, (int16_t)mk, rec); mst_row(ck, "differs", acct, what, file, id, id_len); }'),
-    ("check forgets the unwritable files", "c:masters.c", "    if (!mst_group_writable(path))\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);", ""),
+    ("check forgets the unwritable files", "c:masters.c", "    if (!mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {", "    if (0) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {"),
     ("the group write test looks at the owner bit", "c:masters.c", "if (!(sb.st_mode & S_IWGRP))", "if (!(sb.st_mode & S_IWUSR))"),
     ("syncbegin leaves the flags up", "c:masters.c", "    __sync_fetch_and_and(&sysseg->masters_flags, (u_int16_t)~(MST_F_STALE | MST_F_RESYNC));\n", ""),
     ("syncend forgets the orphans", "c:masters.c", "    long dropped = mst_drop_orphans(&cx);\n    int rc", "    long dropped = 0;\n    int rc"),
@@ -636,6 +814,120 @@ MUTANTS = [
     ("regress.sh forgets the suite", "txt:regress.sh", " pack-examples masters\"", " pack-examples\""),
     ("the map forgets the new program", "txt:regress-map.txt", "sdsys/gpl.bp/masters_setup   : masters\n", ""),
     ("the map forgets the DH files", "txt:regress-map.txt", "gplsrc/dh_*.c                : @files masters", "gplsrc/dh_*.c                : @files"),
+
+    # ================== STAGE 2: MASTER TO ACCOUNT ==================
+    # ---- numbers and messages ----
+    ("DHE_MASTER_REFUSED is a record-not-found value", "c:sd.h", "#define DHE_MASTER_REFUSED 8910", "#define DHE_MASTER_REFUSED 8301"),
+    ("DHE_MASTER_REFUSED is added to err.h (which is generated)", "c:err.h", "#define DHE_ECB_TYPE             8900 /* ECB has incorrect type */", "#define DHE_ECB_TYPE             8900 /* ECB has incorrect type */\n#define DHE_MASTER_REFUSED 8910"),
+    ("DHF_MST_NOMASTER shares a bit with DHF_MST_DICT", "c:dh.h", "#define DHF_MST_NOMASTER 0x20000000", "#define DHF_MST_NOMASTER 0x10000000"),
+    ("DHF_MST_DM is a header bit", "c:dh.h", "#define DHF_MST_DM       0x80000000", "#define DHF_MST_DM       0x00000004"),
+    ("a message loses a %s", "msg:11583", "the record in %s has changed", "the record in the account has changed"),
+    ("a message takes the BASIC form", "msg:11587", "sd-elevate sdsys-join %s)", "sd-elevate sdsys-join %3)"),
+    ("a message is too long for k_error", "msg:11585", "(see check.masters). Nothing was changed", "(see check.masters). Nothing was changed, and what follows is a very long extension of this message so that it can no longer fit in the buffer k_error has, which is 231 characters less the 10 of the offset and the name of the program, so the last words, the ones that say what to do, are cut"),
+    ("a message names a verb in capitals", "msg:11588", "then run sync.masters", "then run SYNC.MASTERS"),
+    ("the BASIC message takes a %s", "msg:11579", "account %1 until", "account %s until"),
+    ("a refusal passes too few arguments", "c:masters.c", "return mst_refuse(MSG_CHANGED, keytxt, a->name, NULL);", "return mst_refuse(MSG_CHANGED, keytxt, NULL, NULL);"),
+    ("the lock refusal does not say who", "c:masters.c", '(lk > 0) ? num : "the lock table is full or the limit is reached", NULL);', "NULL, NULL);"),
+    ("a refusal is never used", "c:masters.c", "return mst_refuse(MSG_NOACCOUNT, keytxt, acct, NULL);", "return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);"),
+    # ---- where the DH layer and the opcodes ask ----
+    ("dh_write never asks", "c:dh_write.c", "    int master_refusal = masters_before_write(dh_file, id, id_len, new_data);", "    int master_refusal = 0;"),
+    ("dh_write asks without the bit test", "c:dh_write.c", "  if (!(dh_file->flags & DHF_MST_NOMASTER)) {\n    int master_refusal = masters_before_write", "  {\n    int master_refusal = masters_before_write"),
+    ("dh_write goes on after a refusal", "c:dh_write.c", "      dh_err = master_refusal;\n      process.os_error = 0;\n      return FALSE;", "      dh_err = master_refusal;\n      process.os_error = 0;"),
+    ("dh_write asks after it has cleared dh_err", "c:dh_write.c", "  if (!(dh_file->flags & DHF_MST_NOMASTER)) {\n    int master_refusal = masters_before_write(dh_file, id, id_len, new_data);\n\n    if (master_refusal != 0) {\n      dh_err = master_refusal;\n      process.os_error = 0;\n      return FALSE;\n    }\n  }\n\n  dh_err = 0;\n  process.os_error = 0;",
+     "  dh_err = 0;\n  process.os_error = 0;\n  if (!(dh_file->flags & DHF_MST_NOMASTER)) {\n    int master_refusal = masters_before_write(dh_file, id, id_len, new_data);\n\n    if (master_refusal != 0) {\n      dh_err = master_refusal;\n      process.os_error = 0;\n      return FALSE;\n    }\n  }"),
+    ("dh_delete never asks", "c:dh_del.c", "    int master_refusal = masters_before_delete(dh_file, id, id_len);", "    int master_refusal = 0;"),
+    ("dh_delete goes on after a refusal", "c:dh_del.c", "      dh_err = master_refusal;\n      process.os_error = 0;\n      return FALSE;", "      dh_err = master_refusal;\n      process.os_error = 0;"),
+    ("a write inside a transaction is not refused", "c:op_dio3.c", "        if (masters_txn_refusal(dh_file, id, id_len) != 0) {\n          process.status = -DHE_MASTER_REFUSED;\n          goto exit_op_write;\n        }\n", ""),
+    ("a delete inside a transaction is not refused", "c:op_dio3.c", "        if (masters_txn_refusal(dh_file, id, id_len) != 0)\n          process.status = -DHE_MASTER_REFUSED;\n        else\n          txn_delete(fvar, id, id_len);", "        txn_delete(fvar, id, id_len);"),
+    ("the refusal is printed as a format", "c:op_dio3.c", 'k_error("%s", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: SDSYS\'s save', 'k_error(masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: SDSYS\'s save'),
+    ("the write tail prints the generic error", "c:op_dio3.c", "    else if (process.status == -DHE_MASTER_REFUSED)\n      k_error(\"%s\", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: SDSYS's save of a master record was refused; the reason is in plain words */\n", ""),
+    ("dh_create_file never fixes modes", "c:dh_creat.c", "  masters_fix_modes(path);\n", ""),
+    ("dh_create_file fixes modes before it journals", "c:dh_creat.c", "  masters_note_name(path, 'n');\n\n  /* 19 Oct 26 S.67 stage 2: and the group of the account may write it, where the account's own directory lets that group write (whatever the UMASK\n     of this session): SDSYS, a member of the group, writes master edits into the VOC and the dictionaries.  Never an error. */\n  masters_fix_modes(path);",
+     "  masters_fix_modes(path);\n  masters_note_name(path, 'n');"),
+    # ---- the classification and the two refusals ----
+    ("master_state is taken for a master that delivers", "c:masters.c", "  if (w == 2) {\n    dh->flags |= DHF_MST_DM;\n    return MST_DICT;\n  }", "  if ((w == 2) || (w == 3)) {\n    dh->flags |= DHF_MST_DM;\n    return MST_DICT;\n  }"),
+    ("dict_master does not deliver", "c:masters.c", "  if (w == 2) {\n    dh->flags |= DHF_MST_DM;", "  if (0) {\n    dh->flags |= DHF_MST_DM;"),
+    ("the classification is not remembered", "c:masters.c", "  dh->flags |= DHF_MST_NOMASTER;\n  return 0;", "  return 0;"),
+    ("the stage 1 writes are taken for saves", "c:masters.c", "  if (((kind = mst_master_kind(dh)) == 0) || (mst_inside > 0))\n    return 0;\n  return mst_deliver", "  if ((kind = mst_master_kind(dh)) == 0)\n    return 0;\n  return mst_deliver"),
+    ("a delete is let through", "c:masters.c", "  return mst_refuse(MSG_DELETE, keytxt, NULL, NULL);\n}", "  return 0;\n}"),
+    ("the administrator's delete is let through", "c:masters.c", "  mst_shown(keytxt, sizeof(keytxt), id, id_len);\n  return mst_refuse(MSG_DELETE", "  if ((my_uptr != NULL) && (my_uptr->flags & USR_ADMIN))\n    return 0;\n  mst_shown(keytxt, sizeof(keytxt), id, id_len);\n  return mst_refuse(MSG_DELETE"),
+    ("a transaction is let through", "c:masters.c", "  return mst_refuse(MSG_TXN, keytxt, NULL, NULL);", "  return 0;"),
+    # ---- the delivery ----
+    ("anyone's save is delivered", "c:masters.c", "  if ((my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN))\n    return mst_refuse(MSG_NOTADMIN, keytxt, NULL, NULL);\n", ""),
+    ("an unregistered account is accepted", "c:masters.c", "  if ((a = mst_acc_by_name(acct)) == NULL)\n    return mst_refuse(MSG_NOACCOUNT, keytxt, acct, NULL);", "  a = mst_acc_by_name(acct);"),
+    ("the second asterisk is looked for from the first", "c:masters.c", "p2 = memchr(p1 + 1, '*'", "p2 = memchr(p1, '*'"),
+    ("a dictionary name is not checked", "c:masters.c", "    if (!mst_file_ok(file))\n      return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);\n", ""),
+    ("an account name is not checked", "c:masters.c", " || !mst_valid_account_name(acct))\n    return mst_refuse(MSG_BADKEY", ")\n    return mst_refuse(MSG_BADKEY"),
+    ("the permission preflight is gone", "c:masters.c", "  /* 3 can this process write the file?  Before a lock is taken or a byte is written */\n  why = mst_write_check(path, gname, sizeof(gname));\n  if (why != MST_W_OK) {\n    mst_ctx_close(&cx);\n    goto refuse_rights;\n  }\n", ""),
+    ("the lock WAITS", "c:masters.c", "(int16_t)rid_len, TRUE, 0, TRUE);\n    if (lk != 0) {", "(int16_t)rid_len, TRUE, 0, FALSE);\n    if (lk != 0) {"),
+    ("the lock is a read lock", "c:masters.c", "(int16_t)rid_len, TRUE, 0, TRUE);\n    if (lk != 0) {", "(int16_t)rid_len, FALSE, 0, TRUE);\n    if (lk != 0) {"),
+    ("a lock this process holds is taken again", "c:masters.c", "  if (!check_lock(&fv, (char *)rid, (int16_t)rid_len)) {\n    lk = lock_record", "  {\n    lk = lock_record"),
+    ("a lock this process held is let go", "c:masters.c", "    if (took)\n      unlock_record(&fv, (char *)rid, (int16_t)rid_len);\n    mst_ctx_close(&cx);\n    return mst_refuse(MSG_CHANGED", "    unlock_record(&fv, (char *)rid, (int16_t)rid_len);\n    mst_ctx_close(&cx);\n    return mst_refuse(MSG_CHANGED"),
+    ("the lock is kept after a refusal", "c:masters.c", "    if (took)\n      unlock_record(&fv, (char *)rid, (int16_t)rid_len);\n    mst_ctx_close(&cx);\n    return mst_refuse(MSG_CHANGED", "    mst_ctx_close(&cx);\n    return mst_refuse(MSG_CHANGED"),
+    ("the lock is kept after a write that failed", "c:masters.c", "    if (took)\n      unlock_record(&fv, (char *)rid, (int16_t)rid_len);\n    mst_ctx_close(&cx);\n    return mst_refuse(MSG_WRITEFAIL", "    mst_ctx_close(&cx);\n    return mst_refuse(MSG_WRITEFAIL"),
+    ("the lock is kept after a good save", "c:masters.c", "  if (took)\n    unlock_record(&fv, (char *)rid, (int16_t)rid_len);\n  mst_ctx_close(&cx);\n\n  /* 9 the audit line", "  mst_ctx_close(&cx);\n\n  /* 9 the audit line"),
+    ("the checksum test is gone", "c:masters.c", "  if (strcmp(cks, scks) != 0) {\n    if (took)", "  if (0) {\n    if (took)"),
+    ("master_state is written before the account", "c:masters.c", "  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {", "  mst_checksum(data, ncks);\n  svl = snprintf(sv, sizeof(sv), \"%s%c%lld%c\", ncks, MST_FM, (long long)time(NULL), MST_FM);\n  (void)mst_put(cx.st, skey, mk + 2, sv, svl);\n  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {"),
+    ("master_state is never brought up to date", "c:masters.c", "  (void)mst_put(cx.st, skey, mk + 2, sv, svl);\n", ""),
+    ("the audit line is never written", "c:masters.c", "  audit_message(line);\n  return 0;", "  return 0;"),
+    ("the audit words are in capitals", "c:masters.c", '"master edit account=%s file=%s id=%s"', '"MASTER EDIT account=%s file=%s id=%s"'),
+    ("the account's file is opened and written by the OS", "c:masters.c", "  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {", "  if ((open(path, O_WRONLY) < 0) && !dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {"),
+    ("the delivery raises the stage 1 mark", "c:masters.c", "  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {", "  mst_inside++;\n  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {"),
+    ("the keys are built from the account name as typed", "c:masters.c", "mst_keys(which, a->name, file, rid, rid_len, mkey, skey)", "mst_keys(which, acct, file, rid, rid_len, mkey, skey)"),
+    ("a stale session is called a mode problem", "c:masters.c", "    case MST_W_STALE:\n      return mst_refuse(MSG_STALE, keytxt, gname, NULL);", "    case MST_W_STALE:\n      return mst_refuse(MSG_MODE, keytxt, whattxt, NULL);"),
+    ("a non-member is not told the group twice", "c:masters.c", "return mst_refuse(MSG_NOTMEMBER, keytxt, gname, gname);", "return mst_refuse(MSG_NOTMEMBER, keytxt, gname, NULL);"),
+    ("the stage 1 write marks are gone", "c:masters.c", "  mst_inside++;\n  ok = dh_write(dh, key, klen, rec);\n  mst_inside--;", "  ok = dh_write(dh, key, klen, rec);"),
+    ("a stage 1 delete bypasses the mark", "c:masters.c", "      (void)mst_mdelete(dh, (char *)gone.d + p + 1, gone.d[p]);", "      (void)dh_delete(dh, (char *)gone.d + p + 1, gone.d[p]);"),
+    ("the mark is raised across a stretch of code", "c:masters.c", "  mst_inside++;\n  ok = dh_delete(dh, key, klen);\n  mst_inside--;\n  return ok;", "  mst_inside++;\n  ok = dh_delete(dh, key, klen);\n  return ok;"),
+    # ---- can this session write the file ----
+    ("the preflight only asks for existence", "c:masters.c", "access(p, (i == 0) ? X_OK : W_OK)", "access(p, F_OK)"),
+    ("the owner's class is read after the group bit", "c:masters.c", "  if (sb->st_uid == geteuid())\n    return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE; /* the owner's class applies to the owner, whatever the group bits say */\n  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;",
+     "  if (!(sb->st_mode & S_IWGRP))\n    return MST_W_MODE;\n  if (sb->st_uid == geteuid())\n    return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE;"),
+    ("stale and not-a-member are swapped", "c:masters.c", "return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_NOTMEMBER;", "return mst_user_listed(sb->st_gid) ? MST_W_NOTMEMBER : MST_W_STALE;"),
+    ("the process's groups are not read", "c:masters.c", "  if (mst_gid_in_groups(sb->st_gid))\n    return MST_W_NOWRITE;", "  if (1)\n    return MST_W_NOWRITE;"),
+    ("the group list is a big array on the stack", "c:masters.c", "getgroups(0, NULL)", "getgroups(NGROUPS_MAX, NULL)"),
+    ("check never says norights", "c:masters.c", '        mst_row(ck, "norights", acct, what, file, w, (int)strlen(w));\n', ""),
+    ("check says both", "c:masters.c", "    if (!mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    } else {", "    if (!mst_group_writable(path)) {\n      mst_row(ck, \"nonwritable\", acct, what, file, NULL, 0);\n    }\n    {"),
+    ("the directory's modes are not looked at", "c:masters.c", "  if ((stat(dirpath, &sb) != 0) || ((sb.st_mode & (S_IWGRP | S_IXGRP)) != (S_IWGRP | S_IXGRP)))\n    return FALSE;\n", ""),
+    ("the hint is never shown", "bp:masters", "   if hint then display sysmsg(11593)", "   if 0 then display sysmsg(11593)"),
+    # ---- the modes of what SD makes ----
+    ("the other bits are added too", "c:masters.c", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID", "(ds.st_mode & 07777) | S_IRWXG | S_ISGID | S_IRWXO"),
+    ("the mode is set by name", "c:masters.c", "  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));", "  chmod(full, 0775);\n  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));"),
+    ("a link can take the place of the directory", "c:masters.c", "open(full, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)", "open(full, O_RDONLY | O_DIRECTORY | O_CLOEXEC)"),
+    ("the account directory's group write is not asked", "c:masters.c", "  if ((stat(a->root, &ra) != 0) || !(ra.st_mode & S_IWGRP))\n    return;", "  if (stat(a->root, &ra) != 0)\n    return;"),
+    ("what another user made is changed", "c:masters.c", "(ds.st_uid != geteuid()) || ", ""),
+    ("what another group has is changed", "c:masters.c", " || (ds.st_gid != ra.st_gid)", ""),
+    ("a file of another group is changed", "c:masters.c", " && (fs.st_gid == ra.st_gid)", ""),
+    ("any path with voc in it is the VOC", "c:masters.c", 'if (!((strcmp(rel, "voc") == 0) ||', 'if (!((strstr(rel, "voc") != NULL) ||'),
+    # ---- the BASIC, the installer and the helper ----
+    ("create_account never joins sdsys", "bp:create_account", "      gosub join.sdsys\n\n   case acc.type = \"GROUP\"", "\n   case acc.type = \"GROUP\""),
+    ("create_account joins even a member", "bp:create_account", "   if is_grp_member('sdsys', group_name) then return\n", ""),
+    ("create_account stops the account when the join fails", "bp:create_account", "      crt sysmsg(11579, acc.name, group_name) ;* master edits cannot be written into account %1 until the sdsys user is in group %2\n", "      crt sysmsg(11579, acc.name, group_name) ;* master edits cannot be written into account %1 until the sdsys user is in group %2\n      goto exit.create\n"),
+    ("create_account joins a group account too", "bp:create_account", "      group_name = downcase(\"sdg_\" : acc.name)\n      gosub create.group\n      if err # '' then goto exit.create\n", "      group_name = downcase(\"sdg_\" : acc.name)\n      gosub create.group\n      if err # '' then goto exit.create\n      gosub join.sdsys\n"),
+    ("the installer's walk joins any group", "sh:installsdcore.sh", "            sdu_?*)\n                members=", "            *)\n                members="),
+    ("the installer's walk changes modes of any group", "sh:installsdcore.sh", "            sdu_?*|sdg_?*)\n                case \"$path\" in", "            *)\n                case \"$path\" in"),
+    ("the installer's walk skips the directory-group test", "sh:installsdcore.sh", '                        if [ "$dir_group" = "$group" ]; then', "                        if true; then"),
+    ("the installer's walk does not judge the success line", "sh:installsdcore.sh", "                                    *'group-write: 0 directories and 0 file(s) changed'*) n_ok=$((n_ok+1)) ;;\n", ""),
+    ("the installer's walk can stop the install", "sh:installsdcore.sh", '    echo "  The sdsys user is put in the group of every account, and the VOC', '    exit 1; echo "  The sdsys user is put in the group of every account, and the VOC'),
+    ("the installer's walk is called twice", "sh:installsdcore.sh", 'join_sdsys_groups "$sdsysdir/accounts"\n\n# 19 Oct 26 dm - S.67 stage 1', 'join_sdsys_groups "$sdsysdir/accounts"\njoin_sdsys_groups "$sdsysdir/accounts"\n\n# 19 Oct 26 dm - S.67 stage 1'),
+    ("sdsys-join replaces the groups", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -G "$1" -- sdsys)'),
+    ("sdsys-join takes the user from sudo", "sh:sd-elevate", 'cmd=(usermod -aG "$1" -- sdsys)', 'cmd=(usermod -aG "$1" -- "${SUDO_USER:-sdsys}")'),
+    ("sdsys-join skips the group rule", "sh:sd-elevate", '    require_account_group "$1"\n    [[ $DRY -eq 1 ]] || id -u sdsys', '    [[ $DRY -eq 1 ]] || id -u sdsys'),
+    ("group-write needs no root", "sh:sd-elevate", '    need_root\n    python3 -c "$GW_PY"', '    python3 -c "$GW_PY"'),
+    ("group-write forgets the worker's status", "sh:sd-elevate", '"$GW_OWNERS" "$DRY"\n    exit $?', '"$GW_OWNERS" "$DRY"\n    exit 0'),
+    ("group-write skips the account rule", "sh:sd-elevate", '    require_group_write_target "$1"\n    printf', '    printf'),
+    ("an ordinary session may ask why a save was refused", "c:masters.c", "  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n",
+     "  if (strcmp(op, \"refusal\") == 0) {\n    mst_status(&out, MSA_OK);\n    mst_fld_s(&out, masters_refusal_text());\n    mst_answer(result, &out);\n    return;\n  }\n  if (!admin) {\n    mst_status(&out, MSA_REFUSED);\n    mst_answer(result, &out);\n    return;\n  }\n"),
+    ("the refusal op answers something else", "c:masters.c", "    mst_fld_s(&out, masters_refusal_text());", "    mst_fld_s(&out, \"\");"),
+    ("ED does not ask why at the unload", "bp:ed", "            gosub error\n            gosub master.refusal\n            goto abort.unload", "            gosub error\n            goto abort.unload"),
+    ("ED asks why for every write error", "bp:ed", "   if write.status = 8910 then\n      refusal.reply", "   if 1 then\n      refusal.reply"),
+    ("ED asks and says nothing", "bp:ed", "      if refusal.reply<2> # '' then display refusal.reply<2>", "      if refusal.reply<2> # '' then null"),
+    ("CHECK.MASTERS does not say why a save was refused", "bp:masters", "   display sysmsg(11569, ans<2>, ans<3>)\n   gosub last.refusal\n", "   display sysmsg(11569, ans<2>, ans<3>)\n"),
+    ("LIST.MASTER.PENDING does not say why", "bp:masters", "   gosub last.refusal\n   @system.return.code = 0\n   return\n\n* ======================================================================\n* last.refusal", "   @system.return.code = 0\n   return\n\n* ======================================================================\n* last.refusal"),
+    # ---- wiring ----
+    ("the map forgets messages 11580 to 11589", "txt:regress-map.txt", "sdsys/messages/1158[0-9]     : masters\n", ""),
+    ("the map forgets sd-elevate", "txt:regress-map.txt", "gplbld/sd-elevate            : none\n", ""),
+    ("the witness is missing", "file:witness-masters.sh", X(r"(?s).*"), ""),
 ]
 def _installer_after_chown(srcs):
     """The installer's upgrade_masters block moved to just after the line that hands the register to sdsys."""

@@ -1,0 +1,1 @@
+The files listed as nonwritable or norights cannot be written by SDSYS, so a master edit to them is refused: nonwritable is a mode (the installer's upgrade, sd-elevate group-write, puts it right); norights says why this session cannot (mode, stale-session: sign on again, not-a-member: sd-elevate sdsys-join)

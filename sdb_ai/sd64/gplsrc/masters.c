@@ -17,9 +17,16 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 19 Oct 26 dm  Stage 2 (D7, owner 17 Oct 2026, warned): MASTER TO ACCOUNT.  When SDSYS saves a record of voc_master or dict_master the kernel
+ *               compares the account's current record with master_state, and REFUSES (DHE_MASTER_REFUSED, nothing changed) if they differ; else it
+ *               takes the account's record with a try-lock that never waits, writes the account's own file itself, brings master_state up to date and
+ *               writes an audit line.  A delete of a master record, a save inside a transaction and a save by anyone but the administrator are
+ *               refused.  A new VOC or dictionary is given group write where the account's directory has it (masters_fix_modes), CHECK.MASTERS
+ *               lists what a master edit could not be written into (nonwritable, norights), and the stage 1 writes to the masters are marked so
+ *               that they are not taken for saves.
  * 19 Oct 26 dm  New (S.67 stage 1, owner's request of 17 Oct: "two master files, voc_master and dict_master in the SDSYS account ...
- *               synchronized so that SDSYS can edit any account Voc or Dict record by editing its copy").  THIS FILE IS THE ACCOUNT-TO-MASTER
- *               HALF; the master-to-account half (SDSYS saves a master record and the kernel writes the account's file) is stage 2.
+ *               synchronized so that SDSYS can edit any account Voc or Dict record by editing its copy").  THIS FILE WAS THE ACCOUNT-TO-MASTER
+ *               HALF; the master-to-account half (SDSYS saves a master record and the kernel writes the account's file) is stage 2, below.
  * END-HISTORY
  *
  * START-DESCRIPTION:
@@ -47,11 +54,26 @@
  *  A key longer than MAXIDLEN (minus the two characters of the state key) cannot be mirrored - a master file holding a longer id could not
  *  be opened again - and is counted and reported, never dropped silently.
  *
- *  master_state keeps, for every mirrored key, the checksum of the account's record as last copied and the time.  Stage 2 will refuse a save
+ *  master_state keeps, for every mirrored key, the checksum of the account's record as last copied and the time.  Stage 2 refuses a save
  *  of a master record when the account's record no longer has that checksum.
+ *
+ *  MASTER TO ACCOUNT (stage 2).  masters_before_write is called by dh_write for EVERY write, first of all, and does nothing for a file that is not
+ *  voc_master or dict_master (one flag test once the file's name has been looked at).  For those two it is the whole of D7:
+ *    1 only the administrator; 2 the key (account*id, account*file*id) names a registered account and, for a dictionary, a dictionary it has;
+ *    3 the account's files can be written by THIS process (access(), and why not if they cannot: the mode, a session that began before SDSYS
+ *      joined the group, a group SDSYS is not in); 4 the account's record is locked by a try-lock that returns at once (lock_record with no_wait),
+ *      unless this process holds it already; 5 the record as it is now has the checksum master_state holds for it - the account has not changed since
+ *      SDSYS read the copy - else REFUSED and nothing is lost; 6 the account's file is written HERE, by this process (so it needs the group), through
+ *      dh_write like any other writer, which journals it; 7 master_state is brought up to date; 8 the lock is let go; 9 the audit line.
+ *  Every refusal comes back as DHE_MASTER_REFUSED with its reason in masters_refusal_text(); op_write and op_delete print it unless the statement has
+ *  ON ERROR.  A DELETE of a master record is refused (the plan says SDSYS SAVES; deleting a copy is not deleting the account's record), and so is a
+ *  save or a delete inside a transaction (the write reaches the DH layer at COMMIT, where a refusal would be half way through other writes).
+ *  The stage 1 code writes the masters itself (the drain, the syncs): those writes go through mst_mwrite / mst_mdelete, which raise mst_inside for the
+ *  one call, so they are not taken for saves.
  *
  *  Public:
  *   masters_note_record  masters_note_dh  masters_note_name  masters_open_hook  masters_request
+ *   masters_before_write  masters_before_delete  masters_txn_refusal  masters_refusal_text  masters_fix_modes
  *
  * END-DESCRIPTION
  *
@@ -883,6 +905,30 @@ Private int mst_keys(int kind, const char *acct, const char *file, const char *i
   return n;
 }
 
+/* Stage 2.  The stage 1 code writes and deletes records of voc_master and dict_master itself (the drain, the syncs, the drop).  dh_write and dh_delete ask
+   masters_before_write / masters_before_delete first, and for a master file that is the question "is this a save by SDSYS?"; mst_inside is how the code
+   in this file says "no, it is mine".  It is raised for the ONE call and put back, never across a stretch of code, so that a k_error out of the middle of
+   a drain cannot leave it up (it can only be up while dh_write or dh_delete is running). */
+Private int mst_inside = 0;
+
+Private bool mst_mwrite(DH_FILE *dh, char *key, int16_t klen, STRING_CHUNK *rec) {
+  bool ok;
+
+  mst_inside++;
+  ok = dh_write(dh, key, klen, rec);
+  mst_inside--;
+  return ok;
+}
+
+Private bool mst_mdelete(DH_FILE *dh, char *key, int16_t klen) {
+  bool ok;
+
+  mst_inside++;
+  ok = dh_delete(dh, key, klen);
+  mst_inside--;
+  return ok;
+}
+
 /* write a small record (a state record) from a C buffer */
 Private bool mst_put(DH_FILE *dh, const char *key, int klen, const char *data, int dlen) {
   DESCRIPTOR d;
@@ -973,7 +1019,7 @@ Private int mst_sync_key(MST_CTX *cx, int kind, const char *acct, const char *ro
   if (!found) {
     rc = MS_ABSENT;
     if (mfound) {
-      if (!dh_delete(mdh, mkey, (int16_t)mk)) {
+      if (!mst_mdelete(mdh, mkey, (int16_t)mk)) {
         cx->errs++;
         rc = MS_ERR;
       } else {
@@ -994,7 +1040,7 @@ Private int mst_sync_key(MST_CTX *cx, int kind, const char *acct, const char *ro
 
   rc = MS_SAME;
   if (!mfound || !mst_str_equal(rec, mrec)) {
-    if (!dh_write(mdh, mkey, (int16_t)mk, rec)) {
+    if (!mst_mwrite(mdh, mkey, (int16_t)mk, rec)) {
       cx->errs++;
       k_deref_string(rec);
       k_deref_string(mrec);
@@ -1095,7 +1141,7 @@ Private void mst_delete_keys(MST_CTX *cx, int kind, const MST_IDS *keys) {
   for (p = 0; p < keys->len; p += 1 + (size_t)keys->d[p]) {
     k = (const char *)keys->d + p + 1;
     kl = keys->d[p];
-    (void)dh_delete(mdh, (char *)k, (int16_t)kl);
+    (void)mst_mdelete(mdh, (char *)k, (int16_t)kl);
     cx->deleted++;
     if (kl + 2 < (int)sizeof(skey)) {
       skey[0] = (kind == MST_VOC) ? 'v' : 'd';
@@ -1504,7 +1550,7 @@ Private long mst_drop_orphans(MST_CTX *cx) {
         (void)mst_ids_add(&gone, k, all.d[p]);
     }
     for (p = 0; p < gone.len; p += 1 + (size_t)gone.d[p]) {
-      (void)dh_delete(dh, (char *)gone.d + p + 1, gone.d[p]);
+      (void)mst_mdelete(dh, (char *)gone.d + p + 1, gone.d[p]);
       total++;
     }
     mst_ids_free(&all);
@@ -1543,12 +1589,15 @@ Private void mst_row(MST_CHECK *ck, const char *type, const char *acct, const ch
   }
 }
 
-/* are the subfiles of this directory file writable by their group?  (stage 2 writes them as a member of the account's group) */
+/* Is this hashed file - its directory and its two subfiles - writable by its GROUP?  Stage 2 writes a master edit into an account's file as a member of
+   the account's group (sdsys joins every account's group, D7), so the mode must say the group may: the directory rwx (775, setgid) and %0 and %1 rw (664). */
 Private bool mst_group_writable(const char *dirpath) {
   char p[MAX_PATHNAME_LEN + 8];
   struct stat sb;
   int i;
 
+  if ((stat(dirpath, &sb) != 0) || ((sb.st_mode & (S_IWGRP | S_IXGRP)) != (S_IWGRP | S_IXGRP)))
+    return FALSE;
   for (i = 0; i < 2; i++) {
     snprintf(p, sizeof(p), "%s/%%%d", dirpath, i);
     if (stat(p, &sb) != 0)
@@ -1557,6 +1606,109 @@ Private bool mst_group_writable(const char *dirpath) {
       return FALSE;
   }
   return TRUE;
+}
+
+/* ----------------------------------------------------------------------
+   Can THIS process write the hashed file whose directory is DIRPATH, and if it cannot, why not?  The question a master edit has to ask BEFORE it
+   changes anything, and the one CHECK.MASTERS asks of every account.  access() answers it (it uses the process's real ids and the groups it was
+   STARTED with); the answer to "why" is read off the mode and the group lists:
+     MST_W_MODE       the mode itself does not let this process write: the group has no write bit, or this process is the owner and the owner has none
+     MST_W_STALE      the group may write, this process is not in the group, but the group's member list in /etc/group names this user: the session
+                      began before the user was added, and a session's groups are fixed when it starts (D7: sign on again)
+     MST_W_NOTMEMBER  the group may write and the user is not in it at all
+     MST_W_NOWRITE    the mode and the groups look right and it still cannot (a mount, an ACL, the directory's search bit)
+   It needs write on %0 and %1 and search on the directory; GNAME gets the file's group.                                                  */
+
+#define MST_W_OK 0
+#define MST_W_MODE 1
+#define MST_W_STALE 2
+#define MST_W_NOTMEMBER 3
+#define MST_W_NOWRITE 4
+
+Private bool mst_gid_in_groups(gid_t gid) {
+  gid_t *list;
+  int n, i;
+  bool found = FALSE;
+
+  if (getegid() == gid)
+    return TRUE;
+  if ((n = getgroups(0, NULL)) <= 0)
+    return FALSE;
+  if ((list = (gid_t *)malloc(sizeof(gid_t) * (size_t)n)) == NULL)
+    return FALSE;
+  n = getgroups(n, list);
+  for (i = 0; i < n; i++) {
+    if (list[i] == gid)
+      found = TRUE;
+  }
+  free(list);
+  return found;
+}
+
+/* does /etc/group (or the passwd file's primary group) say that the user running this process is in the group? */
+Private bool mst_user_listed(gid_t gid) {
+  struct passwd *pw = getpwuid(geteuid());
+  struct group *gr;
+  char **m;
+
+  if (pw == NULL)
+    return FALSE;
+  if (pw->pw_gid == gid)
+    return TRUE;
+  if ((gr = getgrgid(gid)) == NULL)
+    return FALSE;
+  for (m = gr->gr_mem; (m != NULL) && (*m != NULL); m++) {
+    if (strcmp(*m, pw->pw_name) == 0)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+Private int mst_write_why(const struct stat *sb) {
+  if (sb->st_uid == geteuid())
+    return (sb->st_mode & S_IWUSR) ? MST_W_NOWRITE : MST_W_MODE; /* the owner's class applies to the owner, whatever the group bits say */
+  if (!(sb->st_mode & S_IWGRP))
+    return MST_W_MODE;
+  if (mst_gid_in_groups(sb->st_gid))
+    return MST_W_NOWRITE;
+  return mst_user_listed(sb->st_gid) ? MST_W_STALE : MST_W_NOTMEMBER;
+}
+
+Private int mst_write_check(const char *dirpath, char *gname, size_t gsz) {
+  char p[MAX_PATHNAME_LEN + 8];
+  struct stat sb;
+  struct group *gr;
+  int i;
+
+  gname[0] = '\0';
+  for (i = 0; i < 3; i++) {
+    if (i == 0)
+      snprintf(p, sizeof(p), "%s", dirpath);
+    else
+      snprintf(p, sizeof(p), "%s/%%%d", dirpath, i - 1);
+    if (stat(p, &sb) != 0)
+      return MST_W_NOWRITE;
+    if ((gr = getgrgid(sb.st_gid)) != NULL)
+      snprintf(gname, gsz, "%s", gr->gr_name);
+    else
+      snprintf(gname, gsz, "%u", (unsigned)sb.st_gid);
+    if (access(p, (i == 0) ? X_OK : W_OK) != 0)
+      return mst_write_why(&sb);
+  }
+  return MST_W_OK;
+}
+
+Private const char *mst_why_word(int why) {
+  switch (why) {
+    case MST_W_MODE:
+      return "mode";
+    case MST_W_STALE:
+      return "stale-session";
+    case MST_W_NOTMEMBER:
+      return "not-a-member";
+    default:
+      return "no-write";
+  }
 }
 
 Private void mst_check_file(MST_CTX *cx, MST_CHECK *ck, int kind, const char *acct, const char *root, const char *file, const MST_IDS *mkeys, size_t prefixlen) {
@@ -1586,8 +1738,19 @@ Private void mst_check_file(MST_CTX *cx, MST_CHECK *ck, int kind, const char *ac
       snprintf(path, sizeof(path), "%s/voc", root);
     else
       snprintf(path, sizeof(path), "%s/%s.dic", root, file);
-    if (!mst_group_writable(path))
+    if (!mst_group_writable(path)) {
       mst_row(ck, "nonwritable", acct, what, file, NULL, 0);
+    } else {
+      /* the mode is right: can THIS session write it?  (an account made after this session began; a group SDSYS is not in) */
+      char gname[64];
+      int why = mst_write_check(path, gname, sizeof(gname));
+
+      if (why != MST_W_OK) {
+        const char *w = mst_why_word(why);
+
+        mst_row(ck, "norights", acct, what, file, w, (int)strlen(w));
+      }
+    }
   }
   for (p = 0; p < ids.len; p += 1 + (size_t)ids.d[p]) {
     STRING_CHUNK *rec, *mrec;
@@ -2037,7 +2200,8 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
 /* ======================================================================
    The open hook                                                          */
 
-Private bool mst_is_master_path(const char *canon) {
+/* Which master file is this canonical path: 1 voc_master, 2 dict_master, 3 master_state, 0 none of them */
+Private int mst_master_which(const char *canon) {
   static char vm[PATH_MAX + 16], dm[PATH_MAX + 16], st[PATH_MAX + 16];
   static bool have = FALSE;
   char tmp[PATH_MAX + 16];
@@ -2047,7 +2211,7 @@ Private bool mst_is_master_path(const char *canon) {
   if (!have) {
     real = mst_sysdir_real();
     if (real == NULL)
-      return FALSE;
+      return 0;
     snprintf(vm, sizeof(vm), "%s/%s", real, MST_VOC_MASTER);
     snprintf(dm, sizeof(dm), "%s/%s", real, MST_DICT_MASTER);
     snprintf(st, sizeof(st), "%s/%s", real, MST_STATE);
@@ -2057,7 +2221,17 @@ Private bool mst_is_master_path(const char *canon) {
   n = strlen(tmp);
   while ((n > 1) && (tmp[n - 1] == '/'))
     tmp[--n] = '\0';
-  return (strcmp(tmp, vm) == 0) || (strcmp(tmp, dm) == 0) || (strcmp(tmp, st) == 0);
+  if (strcmp(tmp, vm) == 0)
+    return 1;
+  if (strcmp(tmp, dm) == 0)
+    return 2;
+  if (strcmp(tmp, st) == 0)
+    return 3;
+  return 0;
+}
+
+Private bool mst_is_master_path(const char *canon) {
+  return mst_master_which(canon) != 0;
 }
 
 void masters_open_hook(const char *canon) {
@@ -2319,6 +2493,15 @@ void masters_request(const char *req, DESCRIPTOR *result) {
     return;
   }
 
+  /* 19 Oct 26 stage 2: why the last save of a master record in THIS session was refused (empty when it was not, or none was made).  An editor that
+     catches the refusal as a bare "write error 8910" (ED does) asks for the sentence; the verbs check.masters and list.master.pending print it. */
+  if (strcmp(op, "refusal") == 0) {
+    mst_status(&out, MSA_OK);
+    mst_fld_s(&out, masters_refusal_text());
+    mst_answer(result, &out);
+    return;
+  }
+
   if (strcmp(op, "init") == 0) {
     mst_status(&out, MSA_OK);
     mst_buf_add(&out, (const char *)&(char){MST_FM}, 1);
@@ -2458,6 +2641,335 @@ void masters_request(const char *req, DESCRIPTOR *result) {
   }
   mst_ctx_close(&cx);
   mst_answer(result, &out);
+}
+
+/* ======================================================================
+   MASTER TO ACCOUNT (stage 2, D7)                                        */
+
+/* The reason for the last refusal, as a sentence: set by mst_refuse(), read by op_write and op_delete (masters_refusal_text) */
+Private char mst_refusal_buf[1400];
+
+/* Messages 11580 to 11592 are written for C: printf's %s where the arguments go, three at most (test-masters-units.py holds them to that). */
+#define MSG_BADKEY 11580
+#define MSG_NOACCOUNT 11581
+#define MSG_NOFILE 11582
+#define MSG_CHANGED 11583
+#define MSG_LOCKED 11584
+#define MSG_MODE 11585
+#define MSG_STALE 11586
+#define MSG_NOTMEMBER 11587
+#define MSG_DELETE 11588
+#define MSG_TXN 11589
+#define MSG_NOTADMIN 11590
+#define MSG_WRITEFAIL 11591
+#define MSG_NOSTATE 11592
+
+Private int mst_refuse(int msg, const char *a, const char *b, const char *c) {
+  snprintf(mst_refusal_buf, sizeof(mst_refusal_buf), sysmsg(msg), (a != NULL) ? a : "", (b != NULL) ? b : "", (c != NULL) ? c : "");
+  return DHE_MASTER_REFUSED;
+}
+
+const char *masters_refusal_text(void) {
+  return mst_refusal_buf;
+}
+
+/* a key as it can be shown: a control byte or a byte above DEL is a question mark, and it is cut short */
+Private void mst_shown(char *dst, size_t dsz, const char *s, int len) {
+  size_t i, o = 0;
+
+  for (i = 0; (i < (size_t)len) && (o + 1 < dsz) && (o < 120); i++) {
+    unsigned char c = (unsigned char)s[i];
+
+    dst[o++] = ((c < 32) || (c > 126)) ? '?' : (char)c;
+  }
+  dst[o] = '\0';
+}
+
+/* Which of the two files that deliver a saved record this DH_FILE is: MST_VOC (voc_master), MST_DICT (dict_master) or 0.  Worked out from the file's
+   pathname once per open file and kept in its flags, so that a write to any other file costs one test of a bit. */
+Private int mst_master_kind(DH_FILE *dh) {
+  int w;
+
+  if (dh->flags & DHF_MST_NOMASTER)
+    return 0;
+  if (dh->flags & DHF_MST_VM)
+    return MST_VOC;
+  if (dh->flags & DHF_MST_DM)
+    return MST_DICT;
+  w = mst_master_which((const char *)FPtr(dh->file_id)->pathname);
+  if (w == 1) {
+    dh->flags |= DHF_MST_VM;
+    return MST_VOC;
+  }
+  if (w == 2) {
+    dh->flags |= DHF_MST_DM;
+    return MST_DICT;
+  }
+  dh->flags |= DHF_MST_NOMASTER;
+  return 0;
+}
+
+/* the directory of an account's VOC or dictionary */
+Private void mst_account_file_path(int kind, const char *root, const char *file, char *out, size_t outsz) {
+  if (kind == MST_VOC)
+    snprintf(out, outsz, "%s%cvoc", root, DS);
+  else
+    snprintf(out, outsz, "%s%c%s.dic", root, DS, file);
+}
+
+/* SDSYS saves the record ID of voc_master (WHICH = MST_VOC) or dict_master (MST_DICT): the whole of D7.  0 to go on and write the master record too,
+   else DHE_MASTER_REFUSED with nothing changed anywhere.  Called by dh_write before it does anything. */
+Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
+  char keytxt[160];
+  char acct[MAX_ACCOUNT_NAME_LEN + 4];
+  char file[MST_FILE_MAX + 4];
+  char path[MAX_PATHNAME_LEN + 16];
+  char gname[64];
+  char mkey[512], skey[520];
+  char actual[256];
+  char cks[17], scks[17], ncks[17];
+  char sv[64];
+  char line[1000], idtxt[160], filetxt[MST_FILE_MAX + 12], whattxt[MST_FILE_MAX + MAX_ACCOUNT_NAME_LEN + 40];
+  char num[32];
+  const char *p1, *p2, *rid;
+  int rid_len, acctlen, filelen, mk, svl, why, lk;
+  const MST_ACC *a;
+  MST_CTX cx;
+  DH_FILE *adh;
+  FILE_VAR fv;
+  STRING_CHUNK *rec;
+  bool found, took = FALSE;
+
+  mst_refusal_buf[0] = '\0';
+  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+
+  /* 1 the administrator, signed on at a terminal, and nobody else */
+  if ((my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN))
+    return mst_refuse(MSG_NOTADMIN, keytxt, NULL, NULL);
+
+  /* 2 the key: account*id, or account*file*id with the first one or two asterisks the separators (an id may hold more) */
+  p1 = memchr(id, '*', (size_t)id_len);
+  if ((p1 == NULL) || (p1 == id) || ((acctlen = (int)(p1 - id)) > MAX_ACCOUNT_NAME_LEN))
+    return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
+  memcpy(acct, id, (size_t)acctlen);
+  acct[acctlen] = '\0';
+  file[0] = '\0';
+  if (which == MST_VOC) {
+    rid = p1 + 1;
+    rid_len = id_len - acctlen - 1;
+  } else {
+    p2 = memchr(p1 + 1, '*', (size_t)(id_len - acctlen - 1));
+    if ((p2 == NULL) || (p2 == p1 + 1) || ((filelen = (int)(p2 - (p1 + 1))) > MST_FILE_MAX))
+      return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
+    memcpy(file, p1 + 1, (size_t)filelen);
+    file[filelen] = '\0';
+    if (!mst_file_ok(file))
+      return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
+    rid = p2 + 1;
+    rid_len = (int)((id + id_len) - rid);
+  }
+  if ((rid_len < 1) || (rid_len > 255) || !mst_valid_account_name(acct))
+    return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
+  mst_shown(idtxt, sizeof(idtxt), rid, rid_len);
+
+  /* the account must be registered (the register is read afresh for a name the administrator gives) */
+  if ((a = mst_acc_by_name(acct)) == NULL)
+    return mst_refuse(MSG_NOACCOUNT, keytxt, acct, NULL);
+  snprintf(filetxt, sizeof(filetxt), "%s", (which == MST_VOC) ? "voc" : "");
+  if (which == MST_DICT)
+    snprintf(filetxt, sizeof(filetxt), "%s.dic", file);
+  snprintf(whattxt, sizeof(whattxt), "%s of %s", (which == MST_VOC) ? "VOC" : filetxt, a->name); /* "VOC of zmone", "zmf9.dic of zmone" */
+
+  memset(&cx, 0, sizeof(cx));
+  if (!mst_master_path(MST_STATE, path, sizeof(path)) || ((cx.st = mst_open_path(path)) == NULL))
+    return mst_refuse(MSG_NOSTATE, keytxt, "master_state", NULL);
+  adh = mst_acct_file(&cx, which, a->root, file);
+  mst_account_file_path(which, a->root, file, path, sizeof(path));
+  if (adh == NULL) {
+    if (cx.last_absent) {
+      mst_ctx_close(&cx);
+      return mst_refuse(MSG_NOFILE, keytxt, (which == MST_VOC) ? "VOC" : "dictionary of that name", NULL);
+    }
+    /* it is there and cannot be opened: say why in the words of the write test below */
+    why = mst_write_check(path, gname, sizeof(gname));
+    mst_ctx_close(&cx);
+    if (why == MST_W_OK) /* it could be written and still would not open: the file itself is wrong */
+      return mst_refuse(MSG_WRITEFAIL, keytxt, "the file would not open", NULL);
+    goto refuse_rights;
+  }
+
+  /* 3 can this process write the file?  Before a lock is taken or a byte is written */
+  why = mst_write_check(path, gname, sizeof(gname));
+  if (why != MST_W_OK) {
+    mst_ctx_close(&cx);
+    goto refuse_rights;
+  }
+
+  /* the keys of master_state: from the stored spelling when the record is there, as stage 1 makes them */
+  if (mst_keys(which, a->name, file, rid, rid_len, mkey, skey) < 0) {
+    mst_ctx_close(&cx);
+    return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
+  }
+  mk = (int)strlen(mkey);
+
+  /* 4 the account's record, locked by a try-lock that returns at once.  The account's own process may hold this record and be waiting on the master;
+     waiting here would be a deadlock nobody could see.  A lock this process already holds (SDSYS signed on to the account) is used and left alone. */
+  memset(&fv, 0, sizeof(fv));
+  fv.type = DYNAMIC_FILE;
+  fv.file_id = adh->file_id;
+  fv.index = -2; /* belongs to no file variable of the program */
+  if (!check_lock(&fv, (char *)rid, (int16_t)rid_len)) {
+    lk = lock_record(&fv, (char *)rid, (int16_t)rid_len, TRUE, 0, TRUE);
+    if (lk != 0) {
+      snprintf(num, sizeof(num), "%d", lk);
+      mst_ctx_close(&cx);
+      return mst_refuse(MSG_LOCKED, keytxt, (lk > 0) ? num : "the lock table is full or the limit is reached", NULL);
+    }
+    took = TRUE;
+  }
+
+  /* 5 the account's record as it is NOW against the checksum master_state holds for it */
+  memset(actual, 0, sizeof(actual));
+  rec = dh_read(adh, (char *)rid, (int16_t)rid_len, actual);
+  found = (dh_err == 0);
+  if (!found && (dh_err != DHE_RECORD_NOT_FOUND)) {
+    k_deref_string(rec);
+    if (took)
+      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
+    mst_ctx_close(&cx);
+    return mst_refuse(MSG_NOSTATE, keytxt, "the account's record", NULL);
+  }
+  if (found)
+    mst_checksum(rec, cks);
+  else
+    cks[0] = '\0';
+  k_deref_string(rec);
+  (void)mst_state_get(&cx, skey, mk + 2, scks);
+  if (strcmp(cks, scks) != 0) {
+    if (took)
+      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
+    mst_ctx_close(&cx);
+    return mst_refuse(MSG_CHANGED, keytxt, a->name, NULL);
+  }
+
+  /* 6 write the account's own file, here, like any other writer (dh_write journals it for the drain, and keeps its indices) */
+  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {
+    snprintf(num, sizeof(num), "%d", (int)dh_err);
+    if (took)
+      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
+    mst_ctx_close(&cx);
+    return mst_refuse(MSG_WRITEFAIL, keytxt, num, NULL);
+  }
+
+  /* 7 master_state follows, so that a second save with no re-read in between is not refused as a change */
+  mst_checksum(data, ncks);
+  svl = snprintf(sv, sizeof(sv), "%s%c%lld%c", ncks, MST_FM, (long long)time(NULL), MST_FM);
+  (void)mst_put(cx.st, skey, mk + 2, sv, svl);
+
+  /* 8 the lock goes back */
+  if (took)
+    unlock_record(&fv, (char *)rid, (int16_t)rid_len);
+  mst_ctx_close(&cx);
+
+  /* 9 the audit line: who (audit_message adds the user and the process), what was written where */
+  snprintf(line, sizeof(line), "master edit account=%s file=%s id=%s", a->name, filetxt, idtxt);
+  audit_message(line);
+  return 0;
+
+refuse_rights:
+  switch (why) {
+    case MST_W_STALE:
+      return mst_refuse(MSG_STALE, keytxt, gname, NULL);
+    case MST_W_NOTMEMBER:
+      return mst_refuse(MSG_NOTMEMBER, keytxt, gname, gname);
+    default:
+      return mst_refuse(MSG_MODE, keytxt, whattxt, NULL);
+  }
+}
+
+int masters_before_write(DH_FILE *dh, char *id, int id_len, STRING_CHUNK *data) {
+  int kind;
+
+  if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
+    return 0;
+  if (((kind = mst_master_kind(dh)) == 0) || (mst_inside > 0))
+    return 0;
+  return mst_deliver(kind, id, id_len, data);
+}
+
+/* A DELETE of a master record is refused: the plan says SDSYS SAVES a master record, and deleting a copy is not deleting the account's record.  (The
+   owner can decide that a delete should be delivered; it is a different act, and it is not decided.) */
+int masters_before_delete(DH_FILE *dh, char *id, int id_len) {
+  char keytxt[160];
+
+  if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
+    return 0;
+  if ((mst_master_kind(dh) == 0) || (mst_inside > 0))
+    return 0;
+  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+  return mst_refuse(MSG_DELETE, keytxt, NULL, NULL);
+}
+
+/* A write or a delete of a master record inside a transaction: the statement is refused before it reaches the transaction's cache, because the DH layer
+   sees it only at COMMIT, where a refusal would come half way through the other writes of the transaction. */
+int masters_txn_refusal(DH_FILE *dh, char *id, int id_len) {
+  char keytxt[160];
+
+  if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
+    return 0;
+  if ((mst_master_kind(dh) == 0) || (mst_inside > 0))
+    return 0;
+  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+  return mst_refuse(MSG_TXN, keytxt, NULL, NULL);
+}
+
+/* ======================================================================
+   THE MODES OF WHAT SD MAKES (stage 2)
+
+   A VOC or a dictionary that has just been made is given group write - the directory g+rwx and setgid, %0 and %1 g+rw - where the account's directory
+   has it, so that SDSYS (a member of the group) can write a master edit into it whatever the UMASK of the session that made it.  Only the GROUP bits
+   are added, nothing is taken away and the other bits are not touched.  The rule is the account directory's own: if its group may write there, the
+   group may write the VOC and the dictionaries, which it could already delete and make again; if the group may not (a directory of 755), nothing is
+   added, and in particular nothing is added for a group that the account directory does not give write to.  Done on descriptors opened with O_NOFOLLOW
+   and fchmod, so a link put in the place of the new directory by somebody else cannot aim the chmod at another file; only what this process made
+   (owner = the effective user) and what has the account directory's group is changed.  A refusal changes nothing and is not an error. */
+void masters_fix_modes(const char *path) {
+  char full[PATH_MAX + 1];
+  const MST_ACC *a;
+  const char *rel, *base;
+  struct stat ra, ds, fs;
+  size_t n;
+  int dfd, ffd, i;
+  static const char *subs[2] = {"%0", "%1"};
+
+  if ((path == NULL) || ((n = strlen(path)) < 3) || (n > MAX_PATHNAME_LEN))
+    return;
+  if (!(((n > 4) && (strcasecmp(path + n - 4, ".dic") == 0)) || (strcasecmp(path + n - 3, "voc") == 0)))
+    return;
+  if (!fullpath(full, (char *)path) || ((a = mst_acc_for_path(full, &rel)) == NULL))
+    return;
+  base = strrchr(rel, '/');
+  base = (base == NULL) ? rel : base + 1;
+  n = strlen(base);
+  if (!((strcmp(rel, "voc") == 0) || ((n > 4) && (strcasecmp(base + n - 4, ".dic") == 0))))
+    return;
+  if ((stat(a->root, &ra) != 0) || !(ra.st_mode & S_IWGRP))
+    return;
+  if ((dfd = open(full, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)) < 0)
+    return;
+  if ((fstat(dfd, &ds) != 0) || !S_ISDIR(ds.st_mode) || (ds.st_uid != geteuid()) || (ds.st_gid != ra.st_gid)) {
+    close(dfd);
+    return;
+  }
+  (void)fchmod(dfd, (mode_t)((ds.st_mode & 07777) | S_IRWXG | S_ISGID));
+  for (i = 0; i < 2; i++) {
+    if ((ffd = openat(dfd, subs[i], O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)) < 0)
+      continue;
+    if ((fstat(ffd, &fs) == 0) && S_ISREG(fs.st_mode) && (fs.st_uid == geteuid()) && (fs.st_gid == ra.st_gid))
+      (void)fchmod(ffd, (mode_t)((fs.st_mode & 07777) | S_IRGRP | S_IWGRP));
+    close(ffd);
+  }
+  close(dfd);
 }
 
 /* END-CODE */

@@ -17,6 +17,9 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 2: WRITE and DELETE of a record of voc_master or dict_master INSIDE A TRANSACTION are refused before they reach the
+ *               transaction's cache (masters_txn_refusal), and a refusal from the DH layer (DHE_MASTER_REFUSED, status -8910) is reported with its reason
+ *               in plain words (masters_refusal_text) in place of "Error 8910 writing record".
  * 18 Oct 26 dm  S.66: edit_refusal() asks edit_refusal_for_canon() (op_sh.c: the administrator, then shared.write for a file inside the shared
  *               account, then the S.64 kind) after its own HDR_INTERNAL and administrator returns; EDIT_REFUSED_MSG() is edit_refused_message()
  *               (11513 and 11514 as well as 11405-11407); shared_structure_refusal() (no HDR_INTERNAL exemption) is asked by CLEARFILE before the
@@ -673,7 +676,11 @@ void op_delete() {
       }
 
       if (txn_id != 0) {
-        txn_delete(fvar, id, id_len);
+        /* 19 Oct 26 S.67 stage 2: not a master record inside a transaction (see op_write) */
+        if (masters_txn_refusal(dh_file, id, id_len) != 0)
+          process.status = -DHE_MASTER_REFUSED;
+        else
+          txn_delete(fvar, id, id_len);
       } else {
         if ((!dh_delete(dh_file, id, id_len)) && (dh_err != DHE_RECORD_NOT_FOUND)) {
           process.status = -dh_err;
@@ -777,8 +784,12 @@ exit_op_delete:
     if (!keep_lock && (txn_id == 0) && (id_len != 0)) {
       unlock_record(fvar, id, id_len);
     }
-  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE)))
-    k_error(sysmsg(1405), process.status);
+  } else if (!(op_flags & P_ON_ERROR) && !((process.status == -ER_TRIGGER) && (op_flags & P_THEN_ELSE))) {
+    if (process.status == -DHE_MASTER_REFUSED)
+      k_error("%s", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: a master record is not deleted from here; the reason is in plain words */
+    else
+      k_error(sysmsg(1405), process.status);
+  }
 }
 
 /* ======================================================================
@@ -1390,6 +1401,12 @@ void op_write() {
 
       str = src_descr->data.str.saddr;
       if (txn_id != 0) {
+        /* 19 Oct 26 S.67 stage 2: a master record is not saved inside a transaction (the DH layer sees the write at COMMIT, half way through the
+           transaction's other writes, where a refusal could not be undone) */
+        if (masters_txn_refusal(dh_file, id, id_len) != 0) {
+          process.status = -DHE_MASTER_REFUSED;
+          goto exit_op_write;
+        }
         if (!txn_write(fvar, id, id_len, str))
           goto exit_op_write;
       } else {
@@ -1494,6 +1511,8 @@ exit_op_write:
       k_error(sysmsg(10151), -process.status);
     else if ((process.status == -ER_NDYN) && (op_flags & P_SEQKEY))
       k_error(sysmsg(11348)); /* CREATING.SEQKEY needs a hashed file */
+    else if (process.status == -DHE_MASTER_REFUSED)
+      k_error("%s", masters_refusal_text()); /* 19 Oct 26 S.67 stage 2: SDSYS's save of a master record was refused; the reason is in plain words */
     else
       k_error(sysmsg(1407), -process.status, process.os_error);
   }

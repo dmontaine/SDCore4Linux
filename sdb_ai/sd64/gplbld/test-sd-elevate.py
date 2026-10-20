@@ -3,6 +3,8 @@
 
 Written 09 Sep 26 for PRE_RELEASE 14.
 
+19 Oct 26 dm S.67 stage 2 (D7): rows for `sdsys-join` (sdsys_rows), the one verb that puts the sdsys user into a group - only sdu_<user>, only for
+an existing SD user, only an existing group - with their own mutants in `--selftest` (SDSYS_MUTANTS).
 17 Oct 26 dm S.65 slice 2c: rows for the route group sdfiles (group_rows) and
 `--selftest`, which runs them against eight mutated copies of the helper.
 18 Oct 26 dm S.65 write group: the same rows for sdfileswrite, lookalike names, and three more mutants (eleven in all).
@@ -34,13 +36,19 @@ HELPER = os.path.join(HERE, "sd-elevate")
 ALLOW, REFUSE = "ALLOW", "REFUSE"
 
 
-def run(args, helper=None):
+def run(args, helper=None, env=None, dry=True):
     """Run the helper in dry-run mode.  Returns (exit_code, stdout+stderr).
 
-    `helper` is a mutated copy when --selftest drives the group rows."""
+    `helper` is a mutated copy when --selftest drives the group rows.  `env` is added to the environment (a fixture the helper honours on a
+    dry run only); `dry` False runs the helper WITHOUT --dry-run, which as an ordinary user can only refuse (its checks come before its test
+    for root) - the rows that need to see a fixture ignored use it."""
+    e = dict(os.environ)
+    for k in ("SD_GROUP_FIXTURE", "SD_GW_GROUP_FIXTURE"):
+        e.pop(k, None)                      # nothing leaks in; a row sets what it needs
+    e.update(env or {})
     p = subprocess.run(
-        ["bash", helper or HELPER, "--dry-run"] + args,
-        capture_output=True, text=True,
+        ["bash", helper or HELPER] + (["--dry-run"] if dry else []) + args,
+        capture_output=True, text=True, env=e,
     )
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
@@ -137,42 +145,157 @@ GROUP_MUTANTS = [
 ]
 
 
+# ---- 19 Oct 26, S.67 stage 2 (D7): sdsys-join.  THE ONE VERB THAT PUTS THE sdsys USER INTO A GROUP.  The owner chose that sdsys is a member of
+# ---- every account's group so that SDSYS can write a master edit into an account's own file; this is the whole of what the helper allows toward
+# ---- it.  The REFUSE rows are run with SD_GROUP_FIXTURE naming every group they use, so that the ONLY thing which can refuse them is the rule
+# ---- under test (a group that does not exist would refuse them all, and a rule removed would go unnoticed).  The one row that asks whether the
+# ---- group exists uses a user whose sdu_ group is NOT on this machine, found rather than assumed: this box may have an SD install, and
+# ---- sdu_<you> may be a real group here.
+def _reason(code, out, text):
+    return code != 0 and text in out
+
+
+def _no_group_user():
+    """An existing account the helper accepts as an SD user whose sdu_<name> group is not on this machine, or None."""
+    import grp
+    import pwd
+    for p in sorted(pwd.getpwall(), key=lambda p: p.pw_uid):
+        if p.pw_name in ("root", "sdsys") or p.pw_uid < 1000 or not p.pw_name[:1].isalpha() or p.pw_name != p.pw_name.lower() or len(p.pw_name) > 27:
+            continue
+        if not p.pw_name.replace("_", "a").replace("-", "a").isalnum():
+            continue
+        try:
+            grp.getgrnam("sdu_" + p.pw_name)
+        except KeyError:
+            return p.pw_name
+    return None
+
+
+def sdsys_rows(helper=None):
+    """Returns (rows, skipped).  A row is (label, ok, detail)."""
+    import getpass
+    rows = []
+    skipped = []
+
+    def ask(label, argv, check, env=None, dry=True):
+        code, out = run(argv, helper, env=env, dry=dry)
+        first = out.strip().splitlines()[0] if out.strip() else "(no output)"
+        rows.append((label, check(code, out), f"exit {code}: {first}"))
+
+    who = getpass.getuser()
+    code, out = run(["passwd", who], helper)
+    if code != 0:
+        skipped.append(f"sdsys-join: '{who}' is not an SD user here ({out.strip().splitlines()[0] if out.strip() else 'no output'})")
+        return rows, skipped
+    every = ",".join(["sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdg_probe", "sudo", "wheel", "docker", "lxd", "adm", "root", "sdu_",
+                      "sdu_root", "sdu_sdsys", "sdu_daemon", "sdu_zzprobenouser", "sdu_-rf", "sdu_" + who])
+    fx = {"SD_GROUP_FIXTURE": every}
+    mine = "sdu_" + who
+
+    # ---- ALLOW: the control.  A helper that refused everything would pass every REFUSE row below.
+    ask(f"sdsys-join {mine} is accepted (its group exists)", ["sdsys-join", mine],
+        lambda c, o: c == 0 and f"usermod -aG {mine} -- sdsys" in o, fx)
+    ask("...and the command it resolves puts sdsys, and only sdsys, in the group: usermod -aG GROUP -- sdsys", ["sdsys-join", mine],
+        lambda c, o: c == 0 and o.strip().splitlines()[-1].endswith(" -aG %s -- sdsys" % mine) and " -G " not in o, fx)
+    ask("...whoever asked: SUDO_USER and USER set to somebody else change nothing (the user is written in the helper, not taken from the environment)",
+        ["sdsys-join", mine], lambda c, o: c == 0 and o.strip().splitlines()[-1].endswith(" -aG %s -- sdsys" % mine) and "attacker" not in o,
+        dict(fx, SUDO_USER="attacker", USER="attacker", LOGNAME="attacker"))
+    # ---- REFUSE: groups that are not an account's own.  The reason is the rule's own sentence.
+    for g in ("sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite"):
+        ask(f"sdsys-join {g} is refused: SD's own groups are not account groups", ["sdsys-join", g],
+            lambda c, o: _reason(c, o, "is not an account group"), fx)
+    ask("sdsys-join sdg_probe is refused: a group account's group is made with sdsys in it, and is not this verb's", ["sdsys-join", "sdg_probe"],
+        lambda c, o: _reason(c, o, "is not an account group"), fx)
+    for g in ("sudo", "wheel", "docker", "lxd", "adm", "root"):
+        ask(f"sdsys-join {g} is refused: not one of SD's groups", ["sdsys-join", g], lambda c, o: _reason(c, o, "is not an account group"), fx)
+    ask("sdsys-join sdu_ (no user) is refused", ["sdsys-join", "sdu_"], lambda c, o: _reason(c, o, "is not an account group"), fx)
+    # ---- REFUSE: the user part must be an SD user
+    ask("sdsys-join sdu_root is refused: root is never a target", ["sdsys-join", "sdu_root"], lambda c, o: _reason(c, o, "root is never a target"), fx)
+    ask("sdsys-join sdu_sdsys is refused: sdsys is SD's own administrator account (it joins no group of its own name)", ["sdsys-join", "sdu_sdsys"],
+        lambda c, o: _reason(c, o, "sdsys is SD's own administrator account"), fx)
+    ask("sdsys-join sdu_daemon is refused: a system account (below UID_MIN) or no such user", ["sdsys-join", "sdu_daemon"],
+        lambda c, o: _reason(c, o, "below UID_MIN") or _reason(c, o, "does not exist"), fx)
+    ask("sdsys-join sdu_zzprobenouser is refused: there is no such user", ["sdsys-join", "sdu_zzprobenouser"],
+        lambda c, o: _reason(c, o, "does not exist"), fx)
+    ask("sdsys-join sdu_-rf is refused: a leading dash in the user part would read as an option", ["sdsys-join", "sdu_-rf"],
+        lambda c, o: _reason(c, o, "is not a valid name"), fx)
+    ask("sdsys-join -rf is refused: a leading dash", ["sdsys-join", "-rf"], lambda c, o: _reason(c, o, "is not a valid name"), fx)
+    ask("sdsys-join SDU_%s is refused: upper case is not a valid name" % who.upper(), ["sdsys-join", "SDU_" + who.upper()],
+        lambda c, o: _reason(c, o, "is not a valid name"), fx)
+    ask("sdsys-join with no group is refused", ["sdsys-join"], lambda c, o: _reason(c, o, "privileged helper"), fx)
+    ask("sdsys-join takes one group: a second argument is refused (the user is never an argument)", ["sdsys-join", mine, "don"],
+        lambda c, o: _reason(c, o, "privileged helper"), fx)
+    ask("sdsys-join takes one group: sdsys cannot be named a second time as 'the user'", ["sdsys-join", "sdsys", mine],
+        lambda c, o: _reason(c, o, "privileged helper"), fx)
+    # ---- the group must exist, and the fixture is for a dry run only
+    nogrp = _no_group_user()
+    if nogrp is None:
+        skipped.append("sdsys-join: every ordinary user on this machine has an sdu_ group, so the 'group does not exist' rows are left out")
+    else:
+        ask(f"sdsys-join sdu_{nogrp} is refused when sdu_{nogrp} is not a group on this machine", ["sdsys-join", "sdu_" + nogrp],
+            lambda c, o: _reason(c, o, "does not exist"))
+        ask(f"a fixture naming sdu_{nogrp} is honoured on a dry run", ["sdsys-join", "sdu_" + nogrp],
+            lambda c, o: c == 0 and f"usermod -aG sdu_{nogrp} -- sdsys" in o, {"SD_GROUP_FIXTURE": "sdu_" + nogrp})
+        ask(f"...and IGNORED when the run is not a dry run (the group is still not there; the helper refuses before it asks for root)",
+            ["sdsys-join", "sdu_" + nogrp], lambda c, o: _reason(c, o, "does not exist"), {"SD_GROUP_FIXTURE": "sdu_" + nogrp}, dry=False)
+    return rows, skipped
+
+
+SDSYS_MUTANTS = [
+    ("the account-group pattern widened to sd*", "[[ $group == sdu_?* ]] || die \"'$group' is not an account group", "[[ $group == sd* ]] || die \"'$group' is not an account group"),
+    ("sdg_ groups accepted too", "[[ $group == sdu_?* ]] || die \"'$group' is not an account group", "[[ $group == sd[ug]_?* ]] || die \"'$group' is not an account group"),
+    ("the pattern test gone", "[[ $group == sdu_?* ]] || die \"'$group' is not an account group", "true || die \"'$group' is not an account group"),
+    ("the user part is not checked as an SD user", "  user=${group#sdu_}\n  require_sd_user \"$user\"\n", "  user=${group#sdu_}\n"),
+    ("the group need not exist", "  group_exists \"$group\" || die \"group '$group' does not exist\"\n", ""),
+    ("the group name is not checked", "  require_name \"group\" \"$group\"\n  [[ $group == sdu_?* ]]", "  [[ $group == sdu_?* ]]"),
+    ("the user is taken from the caller", "cmd=(usermod -aG \"$1\" -- sdsys)", "cmd=(usermod -aG \"$1\" -- \"${SUDO_USER:-sdsys}\")"),
+    ("the group is REPLACED, not added to (usermod -G)", "cmd=(usermod -aG \"$1\" -- sdsys)", "cmd=(usermod -G \"$1\" -- sdsys)"),
+    ("a second argument is accepted", "sdsys-join)\n    [[ $# -eq 1 ]] || usage", "sdsys-join)\n    [[ $# -ge 1 ]] || usage"),
+    ("the group fixture is honoured on a real run too", "if [[ $DRY -eq 1 && -n ${SD_GROUP_FIXTURE:-} ]]; then\n    [[ \",$SD_GROUP_FIXTURE,\"",
+     "if [[ -n ${SD_GROUP_FIXTURE:-} ]]; then\n    [[ \",$SD_GROUP_FIXTURE,\""),
+]
+
+
 def selftest():
     """The group rows must pass on the real helper and fail on every mutant."""
     if not os.path.exists(HELPER):
         print(f"REFUSING - helper not found at {HELPER}", file=sys.stderr)
         return 2
     src = open(HELPER, encoding="utf-8").read()
-    rows, skipped = group_rows()
-    for s in skipped:
-        print(f"  SKIPPED {s}")
-    if len(rows) < 10:
-        print(f"REFUSING - only {len(rows)} group rows ran", file=sys.stderr)
-        return 2
-    bad = [r for r in rows if not r[1]]
-    print(f"  control: the real helper, {len(rows)} group rows, {len(bad)} failed")
-    for label, ok, detail in bad:
-        print(f"    FAIL {label} | {detail}")
-    if bad:
-        return 1
     survivors = 0
-    with tempfile.TemporaryDirectory() as td:
-        for name, old, new in GROUP_MUTANTS:
-            if src.count(old) != 1:
-                print(f"REFUSING - mutant '{name}': its text occurs {src.count(old)} times, not once",
-                      file=sys.stderr)
-                return 2
-            path = os.path.join(td, "sd-elevate-mutant")
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(src.replace(old, new))
-            mrows, _ = group_rows(path)
-            caught = [r for r in mrows if not r[1]]
-            if caught:
-                print(f"  [KILLED  ] {name:42} | {len(caught)} row(s), first: {caught[0][0]}")
-            else:
-                survivors += 1
-                print(f"  [SURVIVED] {name}")
-    print(f"{len(GROUP_MUTANTS) - survivors} of {len(GROUP_MUTANTS)} mutants killed")
+    total = 0
+    # 19 Oct 26 (S.67 stage 2): two families of rows, each with the mutants that must break it: the route groups (S.65) and sdsys-join (S.67).
+    for family, rows_fn, mutants in (("group", group_rows, GROUP_MUTANTS), ("sdsys-join", sdsys_rows, SDSYS_MUTANTS)):
+        rows, skipped = rows_fn()
+        for s in skipped:
+            print(f"  SKIPPED {s}")
+        if len(rows) < 10:
+            print(f"REFUSING - only {len(rows)} {family} rows ran", file=sys.stderr)
+            return 2
+        bad = [r for r in rows if not r[1]]
+        print(f"  control: the real helper, {len(rows)} {family} rows, {len(bad)} failed")
+        for label, ok, detail in bad:
+            print(f"    FAIL {label} | {detail}")
+        if bad:
+            return 1
+        with tempfile.TemporaryDirectory() as td:
+            for name, old, new in mutants:
+                total += 1
+                if src.count(old) != 1:
+                    print(f"REFUSING - mutant '{name}': its text occurs {src.count(old)} times, not once",
+                          file=sys.stderr)
+                    return 2
+                path = os.path.join(td, "sd-elevate-mutant")
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(src.replace(old, new))
+                mrows, _ = rows_fn(path)
+                caught = [r for r in mrows if not r[1]]
+                if caught:
+                    print(f"  [KILLED  ] {name:42} | {len(caught)} row(s), first: {caught[0][0]}")
+                else:
+                    survivors += 1
+                    print(f"  [SURVIVED] {name}")
+    print(f"{total - survivors} of {total} mutants killed")
     return 1 if survivors else 0
 
 
@@ -430,6 +553,25 @@ def main():
         else:
             failed += 1
             failures.append(([label], "group rule", "broken", detail))
+
+    # ---- 19 Oct 26, S.67 stage 2 (D7): sdsys-join, see sdsys_rows() above.  The ALLOW rows are the control that makes the REFUSE rows mean something.
+    srows, sskipped = sdsys_rows()
+    for s in sskipped:
+        print(f"  SKIPPED {s}")
+    for label, ok, detail in srows:
+        print(f"  [{'PASS' if ok else 'FAIL'}] SDSYS  {label:52} | {detail}")
+        if ok:
+            passed += 1
+            if label.startswith("sdsys-join") and " is accepted" in label or label.startswith("...and the command") or "honoured on a dry run" in label:
+                n_allow += 1
+            else:
+                n_refuse += 1
+        else:
+            failed += 1
+            failures.append(([label], "sdsys-join rule", "broken", detail))
+    if not srows:
+        failed += 1
+        failures.append((["sdsys-join"], "rows", "none ran", "the sdsys-join rows did not run: a test that did nothing must fail"))
 
     # ---- 14 Sep 26: WHAT THE REMOTE VERBS WOULD DO, read off the dry run.  An
     # ---- exit code of 0 says the word was accepted, not that ON opens the

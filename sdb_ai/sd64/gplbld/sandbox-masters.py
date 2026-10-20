@@ -8,10 +8,14 @@
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Sections: setup, hook, drain, race, txn, fail, check,
-# gate, life, keys, perf, upgrade.  Only one private SD can exist per keyset (SDBOX_KEYSET, shared memory keys 0x53434c91/92 + 0x20 per keyset):
+# deliver, gate, life, keys, perf, upgrade.  Only one private SD can exist per keyset (SDBOX_KEYSET, shared memory keys 0x53434c91/92 + 0x20 per keyset):
 # stop it afterwards with sandbox-fromtree.py <dir> stop.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Stage 2 (master to account, D7): section M (deliver) - SDSYS saves a master record and it reaches the account's own file, the checksum
+#               refusal, a try-lock that never waits, the mode preflight, the audit line, the modes SD gives what it makes - and the programs zmsave, zmhold
+#               and zmna.  Rows C13 and F2-F5 of stage 1 CHANGED: a master record can no longer be edited into a difference, so C13 now says the edit is
+#               delivered and F2-F5 plant their differences by changing an account while the journal is away (plant_away).
 # 19 Oct 26 dm  New (S.67 stage 1).  Written BEFORE the code, from the design in .claude/plan-net-gates-masters-shared-replication.md section 6,
 #               and run red on the unchanged tree first (the numbers are in PROJECT_STATUS).
 # END-HISTORY
@@ -41,7 +45,7 @@ spec = importlib.util.spec_from_file_location("sandbox_gates", os.path.join(HERE
 g = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(g)
 passed = failed = 0
-SECTIONS = ["setup", "hook", "drain", "race", "txn", "fail", "check", "gate", "life", "keys", "perf", "upgrade"]
+SECTIONS = ["setup", "hook", "drain", "race", "txn", "fail", "check", "deliver", "gate", "life", "keys", "perf", "upgrade"]
 
 
 def say(s=""):
@@ -332,6 +336,7 @@ end
 #   REN|old|new                  OSREN of two paths (an administrator-only way to move a dictionary)
 #   MKD|path                     make an account's empty directory (for the OSPATH delete row)
 #   KEYS|kind|acct               the master keys that begin  acct*  (the count and the first few)
+#   AGET|acct|kind|file|id       the ACCOUNT's own record, read by path (it opens no master, so it does not drain)
 ZMTOOL = """\
 $internal
 program zmtool
@@ -358,6 +363,7 @@ $include int$keys.h
          case cmd = 'REN' ; gosub ren
          case cmd = 'MKD' ; gosub mkd
          case cmd = 'KEYS' ; gosub keys
+         case cmd = 'AGET' ; gosub aget
          case 1 ; crt 'ZT unknown ':cmd
       end case
    repeat
@@ -516,6 +522,16 @@ mkd:
    if ospath(field(line, '|', 2), 13) then crt 'ZT MKD done' else crt 'ZT MKD failed ':status()
    return
 
+aget:
+   acct = field(line, '|', 2) ; kind = field(line, '|', 3) ; file = field(line, '|', 4) ; id = field(line, '|', 5)
+   gosub acct.root
+   if kind = 'v' then apath = root:@ds:'voc' else apath = root:@ds:file:'.dic'
+   openpath apath to af then
+      read ar from af, id then crt 'ZT AGET ':acct:' ':kind:' ':file:' ':id:' = ':convert(@fm, '|', ar) else crt 'ZT AGET ':acct:' ':kind:' ':file:' ':id:' ABSENT'
+      close af
+   end else crt 'ZT AGET ':acct:' ':kind:' ':file:' ':id:' NOOPEN'
+   return
+
 keys:
    kind = field(line, '|', 2) ; acct = field(line, '|', 3)
    mname = (if kind = 'v' then 'voc_master' else 'dict_master')
@@ -557,6 +573,100 @@ $include int$keys.h
 end
 """
 
+# ZMSAVE: SDSYS saves master records (S.67 stage 2).  An ORDINARY program run by the administrator in the SDSYS account.  Lines of zm.args:  op|kind|key|value
+#   W   WRITE with ON ERROR       prints  ZS W v <key> OK  or  REFUSED status=<n>
+#   WN  WRITE with NO error clause: a refusal prints its message and ends the program (so one WN per run)
+#   D   DELETE with ON ERROR      DN  DELETE with no error clause      T   WRITE inside a transaction, ON ERROR      V   WRITEV of field 2, ON ERROR
+#   C   the account's record is changed by this very process AFTER the master was opened, and then the master record is saved (ON ERROR); CN the same with no
+#       error clause.  Fields 5 to 7: the path of the account's file, the id in it, the new text.
+ZMSAVE = """\
+* zmsave - SDSYS saves master records (sandbox-masters.py).  Lines: op|kind|key|value   (value: fields separated by ~)
+   openseq 'zm.args' to a else crt 'ZS noargs' ; stop
+   loop
+      readseq line from a else exit
+      op = field(line, '|', 1) ; kind = field(line, '|', 2) ; key = field(line, '|', 3) ; val = convert('~', @fm, field(line, '|', 4))
+      if kind = 'v' then
+         open 'voc_master' to f else crt 'ZS noopen ':kind ; continue
+      end else
+         open 'dict_master' to f else crt 'ZS noopen ':kind ; continue
+      end
+      ok = 1 ; tst = 0
+      begin case
+         case op = 'W'
+            write val to f, key on error ok = 0
+         case op = 'WN'
+            write val to f, key
+         case op = 'D'
+            delete f, key on error ok = 0
+         case op = 'W2'
+*           two saves of the same key on ONE open of the master (no drain between them): field 5 is the second text
+            write val to f, key on error ok = 0
+            if ok then write convert('~', @fm, field(line, '|', 5)) to f, key on error ok = 0
+         case op = 'WL'
+*           a save, and then, in the same session, who is WAITING for a lock (a try-lock leaves no one waiting)
+            write val to f, key on error ok = 0
+            tst = status()
+            execute 'LIST.READU WAIT' capturing lr
+            crt 'ZS WAITS ':count(lr, ' WAIT ')
+         case op = 'DN'
+            delete f, key
+         case op = 'C' or op = 'CN'
+*           the ACCOUNT changes after this session opened the master (this process writes the account's own file by path), and then the master record
+*           is saved: the window the checksum test exists for.  Fields 5, 6, 7: the path of the account's file, the id there, and the new text.
+            openpath field(line, '|', 5) to av else crt 'ZS noaccount' ; continue
+            write convert('~', @fm, field(line, '|', 7)) to av, field(line, '|', 6)
+            close av
+            if op = 'C' then
+               write val to f, key on error ok = 0
+            end else
+               write val to f, key
+            end
+         case op = 'V'
+            writev field(val, @fm, 1) to f, key, 2 on error ok = 0
+         case op = 'T'
+            begin transaction
+               readu x from f, key else null
+               write val to f, key on error ok = 0
+               tst = status()
+               if ok then commit else rollback
+            end transaction
+      end case
+      st = status()
+      if op = 'T' or op = 'WL' then st = tst            ;* after END TRANSACTION status() is the rollback's, and after EXECUTE it is the command's
+      crt 'ZS ':op:' ':kind:' ':key:' ':(if ok then 'OK' else 'REFUSED status=':st)
+      close f
+   repeat
+   closeseq a
+   crt 'ZS end'
+end
+"""
+
+# ZMHOLD: an ordinary session in an account takes the update lock on one VOC record and holds it until it is given a line.  Line of zm.args: id
+ZMHOLD = """\
+* zmhold - takes an update lock on a VOC record and holds it (sandbox-masters.py)
+   openseq 'zm.args' to a else crt 'ZH noargs' ; stop
+   readseq id from a else crt 'ZH empty' ; stop
+   closeseq a
+   open 'voc' to f else crt 'ZH noopen' ; stop
+   readu x from f, id else null
+   crt 'ZH held ':id
+   input w
+   release f, id
+   crt 'ZH released ':id
+end
+"""
+
+# ZMNA: an ORDINARY session tries to write a master file by path (the gate of S.63 may refuse the open already; the kernel's own refusal is under it)
+ZMNA = """\
+* zmna - an ordinary session writes voc_master by path (sandbox-masters.py)
+   openpath @sdsys:@ds:'voc_master' to f else crt 'ZN noopen status=':status() ; stop
+   write 'X':@fm:'by an ordinary session' to f, 'zmos*zmna1' on error crt 'ZN REFUSED status=':status() ; stop
+   crt 'ZN OK'
+end
+"""
+
+ORDINARY["zmhold"] = ZMHOLD          # compiled in each fixture account like the others (the holder runs in one of them)
+ORDINARY["zmna"] = ZMNA
 INTERNALS = {"zmtool": ZMTOOL, "zmkop": ZMKOP, "zmdrain": ZMDRAIN}
 
 
@@ -698,6 +808,9 @@ def prepare_all():
     out = g.adm(["BASIC gpl.bp zmkop"], internal=True)
     row("the probe zmkop (kernel(K$MASTERS)) compiles with no warning - on a tree without the key the compiler says 'is not assigned a value' at 0 errors, which is the red state",
         g.has(out, r"^Compiled 1 program\(s\) with no errors") and not any("is not assigned a value" in ln for ln in out), repr(out[-4:]))
+    g.put(os.path.join(g.SYS, "bp", "zmsave"), ZMSAVE)
+    out = g.adm(["BASIC bp zmsave"])
+    row("the probe zmsave (an ordinary program: SDSYS saves master records) compiles", g.has(out, r"^Compiled 1 program\(s\) with no errors"), repr(out[-4:]))
     for n in ACCOUNTS:
         g.build_account(n)
     # VOC verbs for the probes, in the SDSYS VOC and in each fixture VOC; the ordinary program in each account's bp
@@ -1032,10 +1145,11 @@ def drain_section():
         "the good entry after them is still applied", cmp_res(o, "zmone", "v", "-", "zmw7") == "SAME" and any(ln.endswith("ABSENT") for ln in zt(o, "MGET")) and
         len([ln for ln in zt(o, "MGET") if ln.endswith("ABSENT")]) == 2, repr(zt(o, "CMP") + zt(o, "MGET")))
     row("C12a: the journal was compacted all the same (bad lines are consumed, not kept for ever)", jsize() == 0, repr(jsize()))
-    # a master edit by SDSYS is not pushed: the account is the truth in stage 1
-    tool(["MPUT|v|zmone*zmw7|X~edited in the master"])
-    o = tool(["CMP|zmone|v|-|zmw7"])
-    row("C13: (stage 1) an edit of a master record is NOT pushed to the account, and CHECK sees the difference: CMP says DIFF", cmp_res(o, "zmone", "v", "-", "zmw7") == "DIFF", repr(zt(o, "CMP")))
+    # a master edit by SDSYS is delivered to the account (stage 2; in stage 1 it was left in the master and CHECK saw the difference)
+    o = tool(["MPUT|v|zmone*zmw7|X~edited in the master"])
+    o = tool(["CMP|zmone|v|-|zmw7", "AGET|zmone|v|-|zmw7"])
+    row("C13: (stage 2) an edit of a master record IS delivered to the account: CMP says SAME and the account's own record has the edit (the stage 1 row said DIFF)",
+        cmp_res(o, "zmone", "v", "-", "zmw7") == "SAME" and any(ln.endswith("= X|edited in the master") for ln in zt(o, "AGET")), repr(zt(o, "CMP") + zt(o, "AGET")))
     zw("zmone", ["VW|-|zmw7|X~account changed again"])
     o = tool(["OPENV|zmone*zmw7", "CMP|zmone|v|-|zmw7"])
     row("C14: the next change of that key in the account overwrites the master copy: the account is the truth", cmp_res(o, "zmone", "v", "-", "zmw7") == "SAME", repr(zt(o, "CMP")))
@@ -1188,17 +1302,32 @@ def check_section():
     say("\n--- F. CHECK.MASTERS: read only; finds what differs, what is missing, what is extra, what cannot be written -----------------------------")
     out = adm(["CHECK.MASTERS"])
     row("F1: on a system whose masters are right, CHECK.MASTERS says so (11568) and counts no differences", has_msg(out, 11568) and any("0" in ln for ln in out if re.search(msg_rx(11569), ln)), repr(out[-6:]))
-    tool(["MPUT|v|zmone*bp|X~changed in the master", "MDEL|v|zmone*zmw3", "MPUT|v|zmone*ghostrec|X~extra",
-          "MPUT|d|zmone*nosuchfile*x|D~1", "MPUT|v|zmghost*oldrec|X~account long gone"])
+    # Stage 2: a master record can no longer be edited into a difference (SDSYS's save is delivered to the account or refused), so the differences that
+    # CHECK.MASTERS exists to find are made the way they arise: the account changes and the journal does not hear of it (a change made outside SD, or a
+    # lost journal line).  The journal is moved away while the account is changed, which is what that looks like to the master files.
+    g.FIXTURES["zmghost"] = ("no", "no")
+    g.build_account("zmghost")
+    adm(["SYNC.MASTERS zmghost"])
+    zw("zmone", ["VW|-|zmextra1|X~will be extra"])
+    g.plain("zmone", ["CREATE.FILE nosuchfile DYNAMIC"])
+    zw("zmone", ["DW|nosuchfile|x|D~1"])
+    tool(["OPENV|zmone*bp"])                    # the master copies of those exist now
+
+    def behind():
+        zw("zmone", ["VW|-|zmw4|X~changed behind the master", "VW|-|zmmiss1|X~the master never heard of this", "VD|-|zmextra1|"])
+    plant_away(behind)
+    shutil.rmtree(os.path.join(acct_path("zmone"), "nosuchfile.dic"))
+    shutil.rmtree(os.path.join(acct_path("zmone"), "nosuchfile"))
+    os.remove(os.path.join(g.SYS, "accounts", "zmghost"))
     snap = masters_snapshot()
     out = adm(["CHECK.MASTERS"])
     snap2 = masters_snapshot()
     txt = "\n".join(out)
-    row("F2: a changed master record is reported as differing (account zmone, VOC record bp)", re.search(r"differs\S*\s+zmone\s+.*\bbp\b", txt) is not None, repr(out[-14:]))
-    row("F3: a master record whose account record exists is reported missing when the master lacks it (zmw3)", re.search(r"missing\S*\s+zmone\s+.*zmw3", txt) is not None, repr(out[-14:]))
-    row("F4: a master record the account does not have is reported extra (ghostrec)", re.search(r"extra\S*\s+zmone\s+.*ghostrec", txt) is not None, repr(out[-14:]))
+    row("F2: a record the account changed behind the master's back is reported as differing (account zmone, VOC record zmw4)", re.search(r"differs\S*\s+zmone\s+.*\bzmw4\b", txt) is not None, repr(out[-14:]))
+    row("F3: a record the account has and the master lacks is reported missing (zmmiss1)", re.search(r"missing\S*\s+zmone\s+.*zmmiss1", txt) is not None, repr(out[-14:]))
+    row("F4: a master record the account no longer has is reported extra (zmextra1)", re.search(r"extra\S*\s+zmone\s+.*zmextra1", txt) is not None, repr(out[-14:]))
     row("F5: so is a dictionary record of a file the account has no dictionary for (nosuchfile), and a record of an account that is not registered (zmghost)",
-        re.search(r"extra\S*\s+zmone\s+.*nosuchfile", txt) is not None and re.search(r"extra\S*\s+zmghost\s+.*oldrec", txt) is not None, repr(out[-14:]))
+        re.search(r"extra\S*\s+zmone\s+.*nosuchfile", txt) is not None and re.search(r"extra\S*\s+zmghost\s+", txt) is not None, repr(out[-14:]))
     row("F6: CHECK.MASTERS (it ran: it counted the differences) changed nothing: every byte of the three master files is as it was before the check (it is read only)",
         has_msg(out, 11569) and len(snap) == 3 and snap == snap2, "differences: %r" % [m for m in snap if snap[m] != snap2.get(m)])
     out = adm(["CHECK.MASTERS zmtwo"])
@@ -1210,6 +1339,7 @@ def check_section():
     out2 = adm(["CHECK.MASTERS"])
     row("F9: SYNC.MASTERS with no account repairs all of it - the changed, the missing, the extra, the dictionary record of no file and the unregistered account's record "
         "(CHECK.MASTERS is clean again)", has_msg(out2, 11568), repr(out2[-8:]))
+    zw("zmone", ["VD|-|nosuchfile|"])           # the pointer to the dictionary the row above removed from the disk
     # not writable
     p0 = os.path.join(acct_path("zmone"), "voc", "%0")
     pd = os.path.join(acct_path("zmone"), "zmf3.dic", "%0")
@@ -1263,6 +1393,375 @@ def check_section():
         re.search(r"unreadable\S*\s+zmone\s+.*zmf3", "\n".join(chk)) is not None and not re.search(r"extra\S*\s+zmone\s+.*zmf3", "\n".join(chk)), repr(chk[-6:]))
     out = adm(["CHECK.MASTERS zmone"])
     row("F17: with the modes put back the account is clean again (nothing was lost)", has_msg(out, 11568), repr(out[-4:]))
+
+
+# ---- M. master to account (stage 2) -------------------------------------------------------------------------------------------------------
+
+FM = "\xfe"
+
+
+def fnv1a(text):
+    """The checksum master_state keeps: FNV-1a 64 over the bytes of the record, 16 hex digits.  TEXT has the field marks as ~ (as zmsave takes it)."""
+    h = 14695981039346656037
+    for b in text.replace("~", FM).encode("latin-1"):
+        h ^= b
+        h = (h * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return "%016x" % h
+
+
+def cmsg_rx(n):
+    """A regular expression for message N written for C (printf %s where the arguments go)."""
+    t = msg(n)
+    if t is None:
+        return r"\A\Z-no-such-message-%d" % n
+    return "(.*)".join(re.escape(p).replace(r"\ ", " ") for p in re.split(r"%s", t))
+
+
+def has_cmsg(out, n):
+    rx = cmsg_rx(n)
+    return any(re.search(rx, ln) for ln in out) or re.search(rx, squash_nl(" ".join(out))) is not None
+
+
+def squash_nl(s):
+    return re.sub(r"\s+", " ", s)
+
+
+def audit_path():
+    return os.path.join(g.SYS, "audit")
+
+
+def audit_size():
+    try:
+        return os.path.getsize(audit_path())
+    except OSError:
+        return None
+
+
+def master_edits(since):
+    """The 'master edit' lines the audit trail gained after byte SINCE: [(account, file, id, whole line)]."""
+    try:
+        with open(audit_path(), "rb") as f:
+            f.seek(since)
+            text = f.read().decode("latin-1")
+    except OSError:
+        return None
+    out = []
+    for ln in text.splitlines():
+        m = re.search(r" master edit account=(\S+) file=(\S+) id=(.*)$", ln)
+        if m:
+            out.append((m.group(1), m.group(2), m.group(3), ln))
+    return out
+
+
+def save(lines):
+    """ZMSAVE as the administrator.  Returns ({(op, key): 'OK' | 'REFUSED status=n'}, the output lines)."""
+    args(g.SYS, lines)
+    out = g.sd(g.SYS, ["RUN bp zmsave"], admin=True)
+    d = {}
+    for ln in out:
+        m = re.match(r"^ZS (\S+) (\S) (\S+) (OK|REFUSED status=-?\d+)$", ln)
+        if m:
+            d[(m.group(1), m.group(3))] = m.group(4)
+    return d, out
+
+
+def aget(acct, kind, file, ident):
+    """The account's own record as zmtool reads it by path: its text with | for the field mark, 'ABSENT' or 'NOOPEN'."""
+    o = tool(["AGET|%s|%s|%s|%s" % (acct, kind, file, ident)])
+    for ln in zt(o, "AGET"):
+        if ln.endswith(" ABSENT"):
+            return "ABSENT"
+        if ln.endswith(" NOOPEN"):
+            return "NOOPEN"
+        m = re.search(r" = (.*)$", ln)
+        if m:
+            return m.group(1)
+    return None
+
+
+def state_of(key):
+    """master_state's record for KEY as (checksum, time) or None when there is none (zmtool opens master_state, which drains)."""
+    o = tool(["SGET|" + key])
+    for ln in zt(o, "SGET"):
+        m = re.search(r"= ([0-9a-f]{16})\|(\d+)\|?$", ln)
+        if m:
+            return m.group(1), m.group(2)
+    return None
+
+
+class Held:
+    """An ordinary session on a pipe kept open: it takes the update lock on one VOC record of ACCT and holds it until it is given a line."""
+
+    def __init__(self, acct, ident):
+        args(acct_path(acct), [ident])
+        self.out = os.path.join(g.BOX, "live-hold-%s.out" % ident)
+        self.fh = open(self.out, "w")
+        self.p = subprocess.Popen([g.SD, "-a" + acct], stdin=subprocess.PIPE, stdout=self.fh, stderr=subprocess.STDOUT, cwd=acct_path(acct), env=g.env(False), text=True)
+        self.p.stdin.write("\nTERM 200,9999\nRUN bp zmhold\n")
+        self.p.stdin.flush()
+        say("    > live holder in %s: RUN bp zmhold (%s)" % (acct, ident))
+
+    def text(self):
+        self.fh.flush()
+        return g.ANSI.sub("", open(self.out, errors="replace").read())
+
+    def wait_for(self, pat, secs):
+        t0 = time.time()
+        while time.time() - t0 < secs:
+            if re.search(pat, self.text()):
+                return True
+            time.sleep(0.2)
+        return False
+
+    def release(self):
+        try:
+            self.p.stdin.write("go\nOFF\n")
+            self.p.stdin.flush()
+            self.p.wait(timeout=60)
+        except Exception:
+            self.p.kill()
+        finally:
+            self.fh.close()
+
+
+def plant_away(fn):
+    """Run FN with the journal moved away, so that what it changes in an account reaches no master copy (the way a change made outside SD would not).
+    Returns what FN returned.  The journal is put back, and the stale flag this raises is cleared by the sync that the caller runs."""
+    away = J() + ".away"
+    os.rename(J(), away)
+    try:
+        return fn()
+    finally:
+        os.rename(away, J())
+
+
+def deliver_section():
+    say("\n--- M. MASTER TO ACCOUNT: SDSYS saves a record of voc_master or dict_master and the kernel writes the account's own file (S.67 stage 2, D7) -----")
+    if not os.path.exists(audit_path()):
+        open(audit_path(), "a").close()
+        os.chmod(audit_path(), 0o666)           # the installer makes it sdsys:sdusers 0620; here one operating-system user writes and reads it
+    os.chmod(acct_path("zmone"), 0o775)         # the layout of a real account: its group can write the directory (the forced modes of M31 follow it)
+    g.plain("zmone", ["CREATE.FILE zmf3 DYNAMIC"])       # the dictionary M9a writes into (section hook makes it too; a second CREATE.FILE only says it is there)
+    adm(["SYNC.MASTERS"])
+    tool(["OPENV|zmone*bp"])
+    row("M0: (control) the system is quiet to begin with: the journal is empty and CHECK.MASTERS finds no difference", jsize() == 0 and has_msg(adm(["CHECK.MASTERS"]), 11568), repr(jsize()))
+    # ---- a saved master record reaches the account
+    zw("zmone", ["VW|-|zmw7|X~v1"])
+    tool(["OPENV|zmone*bp"])
+    a0 = audit_size()
+    j0 = jsize()
+    d, o = save(["W|v|zmone*zmw7|X~from the master"])
+    row("M1: SDSYS saves the master record zmone*zmw7: the WRITE is accepted (status 0)", d.get(("W", "zmone*zmw7")) == "OK", repr(o[-3:]))
+    got = aget("zmone", "v", "-", "zmw7")
+    row("M2: ...and the ACCOUNT's own record has the new text, read by path from its VOC (the master file is not what is being read)", got == "X|from the master", repr(got))
+    ed = master_edits(a0)
+    row("M3: ...with ONE audit line, in lower case, naming the account, the file and the id: 'master edit account=zmone file=voc id=zmw7'",
+        ed is not None and [e[:3] for e in ed] == [("zmone", "voc", "zmw7")], repr(ed))
+    row("M3a: ...which also carries the user and the process (audit_message's stamp), so the edit is attributable", bool(ed) and re.search(r"user=\S+ .*uid=\d+ pid=\d+ master edit ", ed[0][3]) is not None, repr(ed))
+    jt = evs(jtail(j0))
+    row("M4: the account's write went through the hook like any other: the journal holds  v w zmone - zmw7  (nothing else)", jt == [("v", "w", "zmone", "-", "zmw7")], repr(jt))
+    st = state_of("v*zmone*zmw7")
+    row("M5: master_state holds the checksum of the new record (FNV-1a over its bytes), not the old one",
+        st is not None and st[0] == fnv1a("X~from the master") and st[0] != fnv1a("X~v1"), repr((st, fnv1a("X~from the master"))))
+    o = tool(["CMP|zmone|v|-|zmw7"])
+    row("M6: master and account are the same record (CMP: SAME)", cmp_res(o, "zmone", "v", "-", "zmw7") == "SAME", repr(zt(o, "CMP")))
+    d, o = save(["W|v|zmone*zmw7|X~second", "W|v|zmone*zmw7|X~third"])
+    row("M7: two saves in a row, with no re-read in between, are both accepted (master_state was brought up to date by the first)",
+        d.get(("W", "zmone*zmw7")) == "OK" and aget("zmone", "v", "-", "zmw7") == "X|third", repr((d, o[-3:])))
+    d, o = save(["W2|v|zmone*zmw7|X~one on one open|X~two on one open"])
+    row("M7b: two saves of one key on ONE open of the master (no drain between them) are both accepted: the first brought master_state up to date",
+        d.get(("W2", "zmone*zmw7")) == "OK" and aget("zmone", "v", "-", "zmw7") == "X|two on one open", repr((d, o[-3:])))
+    d, o = save(["W|v|zmone*zmw7|X~third"])
+    row("M7a: saving the same text again is accepted and changes nothing", d.get(("W", "zmone*zmw7")) == "OK" and aget("zmone", "v", "-", "zmw7") == "X|third", repr(d))
+    # ---- a dictionary record
+    g.plain("zmone", ["CREATE.FILE zmf9 DYNAMIC"])
+    zw("zmone", ["DW|zmf9|F1|D~1~~Field one~10L~S"])
+    tool(["OPENV|zmone*bp"])
+    a0 = audit_size()
+    d, o = save(["W|d|zmone*zmf9*F1|D~2~~Field one changed~12R~S"])
+    row("M8: a record of dict_master (zmone*zmf9*F1) is saved and reaches the dictionary zmf9.dic of the account",
+        d.get(("W", "zmone*zmf9*F1")) == "OK" and aget("zmone", "d", "zmf9", "F1") == "D|2||Field one changed|12R|S", repr((d, aget("zmone", "d", "zmf9", "F1"))))
+    ed = master_edits(a0)
+    row("M8a: the audit line names the dictionary file as the account has it: file=zmf9.dic", ed is not None and [e[:3] for e in ed] == [("zmone", "zmf9.dic", "F1")], repr(ed))
+    d, o = save(["W|v|ZMONE*ZMW7|X~upper case key"])
+    ed = master_edits(a0)
+    row("M9: the key is case-insensitive like the master file: ZMONE*ZMW7 is zmone*zmw7 (the account's record is written), and the audit line has the account in its own (lower) case and the id as typed",
+        d.get(("W", "ZMONE*ZMW7")) == "OK" and aget("zmone", "v", "-", "zmw7") == "X|upper case key" and ed is not None and ("zmone", "voc", "ZMW7") in [e[:3] for e in ed], repr((d, ed)))
+    d, o = save(["W|d|zmone*zmf3*P2|D~7"])
+    row("M9a: a dictionary held by zmone and reached from zmos by an F-pointer is zmone's (D8): zmone*zmf3*P2 is written into zmone's zmf3.dic", d.get(("W", "zmone*zmf3*P2")) == "OK"
+        and aget("zmone", "d", "zmf3", "P2") == "D|7", repr((d, aget("zmone", "d", "zmf3", "P2"))))
+    # ---- SDSYS's own account is an account like any other
+    d, o = save(["W|v|sdsys*zmq1|X~sdsys own"])
+    row("M9b: the SDSYS account's own VOC takes a master edit too (sdsys*zmq1)", d.get(("W", "sdsys*zmq1")) == "OK" and aget("sdsys", "v", "-", "zmq1") == "X|sdsys own", repr((d, aget("sdsys", "v", "-", "zmq1"))))
+    # ---- creation
+    d, o = save(["W|v|zmone*zmm1|X~made from the master"])
+    row("M10: a key the account does not have yet CREATES the record in the account (a save of a new master record is a save)",
+        d.get(("W", "zmone*zmm1")) == "OK" and aget("zmone", "v", "-", "zmm1") == "X|made from the master", repr((d, aget("zmone", "v", "-", "zmm1"))))
+    # ---- the checksum test: the account changed after SDSYS opened the master
+    tool(["OPENV|zmone*bp"])
+    zw("zmone", ["VW|-|zmw8|X~v1"])
+    tool(["OPENV|zmone*bp"])
+    snap0 = masters_snapshot()
+    a0 = audit_size()
+    d, o = save(["C|v|zmone*zmw8|X~v3|%s/voc|zmw8|X~v2" % acct_path("zmone")])
+    snap1 = masters_snapshot()
+    row("M11: the account's record CHANGED after the master was opened: SDSYS's save is REFUSED, with the status 8910 (a program with ON ERROR sees it)",
+        d.get(("C", "zmone*zmw8")) == "REFUSED status=8910", repr((d, o[-3:])))
+    row("M12: ...the account's record is the account's own newer one (v2) - nothing was lost", aget("zmone", "v", "-", "zmw8") == "X|v2", repr(aget("zmone", "v", "-", "zmw8")))
+    row("M13: ...no byte of the three master files changed (the master record was not written either; the drain at the open had nothing to apply)",
+        len(snap0) == 3 and snap0 == snap1, repr([m for m in snap0 if snap0[m] != snap1.get(m)]))
+    ed = master_edits(a0)
+    row("M14: ...and a refused save leaves NO 'master edit' audit line (nothing was written)", ed == [], repr(ed))
+    d, o = save(["CN|v|zmone*zmw8|X~v3|%s/voc|zmw8|X~v2b" % acct_path("zmone")])
+    row("M15: without an error clause the refusal is an error with its reason in plain words (message 11583, naming the key and the account)",
+        has_cmsg(o, 11583) and "zmone*zmw8" in " ".join(o), repr(o[-6:]))
+    tool(["OPENV|zmone*bp"])
+    d, o = save(["W|v|zmone*zmw8|X~v4"])
+    row("M16: after SDSYS opens the master again (the drain brings master and state up to date) the same save is accepted and delivered",
+        d.get(("W", "zmone*zmw8")) == "OK" and aget("zmone", "v", "-", "zmw8") == "X|v4", repr((d, aget("zmone", "v", "-", "zmw8"))))
+    d, o = save(["C|v|zmone*zmm2|X~from the master|%s/voc|zmm2|X~the account made it first" % acct_path("zmone")])
+    row("M17: a NEW record the account made first, after the open, is not overwritten either (the account has a record, master_state has none: they differ)",
+        d.get(("C", "zmone*zmm2")) == "REFUSED status=8910" and aget("zmone", "v", "-", "zmm2") == "X|the account made it first", repr((d, aget("zmone", "v", "-", "zmm2"))))
+    d, o = save(["C|d|zmone*zmf9*F1|D~3|%s/zmf9.dic|F1|D~9~~changed by the account" % acct_path("zmone")])
+    row("M17a: and so for a dictionary record", d.get(("C", "zmone*zmf9*F1")) == "REFUSED status=8910" and aget("zmone", "d", "zmf9", "F1") == "D|9||changed by the account", repr((d, aget("zmone", "d", "zmf9", "F1"))))
+    tool(["OPENV|zmone*bp"])
+    # ---- keys that mean nothing
+    snap0 = masters_snapshot()
+    a0 = audit_size()
+    bad = [("v", "zmghost*x"), ("v", "nostar"), ("v", "zmone*"), ("v", "*x"), ("d", "zmone*zmf9"), ("d", "zmone**x"), ("d", "zmone*zmf9*"), ("d", "zmone*nodictionary*x")]
+    d, o = save(["W|%s|%s|X~y" % kv for kv in bad])
+    row("M18: keys that name no account, no id, or a dictionary the account has not got are refused, each with 8910 (%s)" % ", ".join(k for _, k in bad),
+        all(d.get(("W", k)) == "REFUSED status=8910" for _, k in bad), repr(d))
+    row("M18a: ...and nothing was made: no master file changed, no audit line", masters_snapshot() == snap0 and master_edits(a0) == [], repr(master_edits(a0)))
+    for key, kind, n in (("zmghost*x", "v", 11581), ("nostar", "v", 11580), ("zmone*nodictionary*x", "d", 11582)):
+        d, o = save(["WN|%s|%s|X~y" % (kind, key)])
+        row("M18b: %s without an error clause says why in plain words (message %d)" % (key, n), has_cmsg(o, n), repr(o[-4:]))
+    # ---- deleting
+    snap0 = masters_snapshot()
+    d, o = save(["D|v|zmone*zmw7"])
+    row("M19: DELETE of a master record is REFUSED (8910): deleting a copy is not deleting the account's record", d.get(("D", "zmone*zmw7")) == "REFUSED status=8910", repr((d, o[-3:])))
+    row("M19a: ...the account's record is there, and no master file changed", aget("zmone", "v", "-", "zmw7") == "X|upper case key" and masters_snapshot() == snap0, "")
+    d, o = save(["DN|v|zmone*zmw7"])
+    row("M19b: without an error clause it says so in plain words (message 11588)", has_cmsg(o, 11588), repr(o[-4:]))
+    # ---- a transaction
+    d, o = save(["T|v|zmone*zmw7|X~inside a transaction"])
+    row("M20: a master record is not saved inside a transaction (8910): its commit could fail half way through other writes", d.get(("T", "zmone*zmw7")) == "REFUSED status=8910"
+        and aget("zmone", "v", "-", "zmw7") == "X|upper case key", repr((d, o[-3:])))
+    # ---- locks
+    tool(["OPENV|zmone*bp"])
+    h = Held("zmone", "zmlock1")
+    try:
+        held = h.wait_for(r"ZH held zmlock1", 60)
+        row("M21: (control) the holder session has the update lock on zmone's record zmlock1", held, repr(h.text()[-200:]))
+        timer = None
+        import threading
+        timer = threading.Timer(40.0, h.release)       # a save that WAITED for the lock would be set free by this, late, and fail the timing row
+        timer.start()
+        t0 = time.time()
+        d, o = save(["W|v|zmone*zmlock1|X~wanted"])
+        el = time.time() - t0
+        timer.cancel()
+        row("M22: while another session holds the update lock on the account's record the save is REFUSED (8910), not made to wait", held and d.get(("W", "zmone*zmlock1")) == "REFUSED status=8910"
+            and el < 20, repr((d, round(el, 1), o[-3:])))
+        d, o = save(["WN|v|zmone*zmlock1|X~wanted"])
+        row("M22a: ...and says who has it (message 11584)", held and has_cmsg(o, 11584) and aget("zmone", "v", "-", "zmlock1") == "ABSENT", repr(o[-4:]))
+        d, o = save(["WL|v|zmone*zmlock1|X~wanted"])
+        row("M22b: ...and the refused save leaves its session NOT waiting (a try-lock registers no wait: LIST.READU WAIT, run by the same session just after, shows no WAIT row)",
+            held and d.get(("WL", "zmone*zmlock1")) == "REFUSED status=8910" and "ZS WAITS 0" in o, repr(o[-4:]))
+    finally:
+        h.release()
+    d, o = save(["W|v|zmone*zmlock1|X~wanted"])
+    row("M23: once the holder has let go the same save is accepted", d.get(("W", "zmone*zmlock1")) == "OK" and aget("zmone", "v", "-", "zmlock1") == "X|wanted", repr((d, o[-3:])))
+    # ---- who may write a file: the mode preflight (the sandbox has ONE operating-system user, so the owner class is what a mode can take away)
+    p0 = os.path.join(acct_path("zmone"), "voc", "%0")
+    tool(["OPENV|zmone*bp"])
+    os.chmod(p0, 0o444)
+    d, o = save(["W|v|zmone*zmw7|X~no write"])
+    row("M24: an account VOC whose subfile cannot be written is refused BEFORE anything is changed (8910); the account's record is as it was", d.get(("W", "zmone*zmw7")) == "REFUSED status=8910"
+        and aget("zmone", "v", "-", "zmw7") == "X|upper case key", repr((d, o[-3:])))
+    d, o = save(["WN|v|zmone*zmw7|X~no write"])
+    row("M24a: it says the account's files are not writable by their group (message 11585)", has_cmsg(o, 11585), repr(o[-4:]))
+    chk = adm(["CHECK.MASTERS zmone"])
+    row("M24b: CHECK.MASTERS lists it as nonwritable (the group has no write bit)", re.search(r"nonwritable\S*\s+zmone\s+.*voc", "\n".join(chk)) is not None, repr(chk[-6:]))
+    os.chmod(p0, 0o464)            # the group may write, the owner may not: for the one user of the sandbox the open fails, as it does for a user who is not in the group
+    d, o = save(["W|v|zmone*zmw7|X~group bit set"])
+    chk = adm(["CHECK.MASTERS zmone"])
+    row("M25: a file the group may write but THIS session cannot (mode 464, the owner's class applies to the sandbox user) is refused too, and CHECK.MASTERS lists it as norights, with the reason",
+        d.get(("W", "zmone*zmw7")) == "REFUSED status=8910" and re.search(r"norights\S*\s+zmone\s+.*voc\s+mode", "\n".join(chk)) is not None and not any(ln.startswith("nonwritable") for ln in chk), repr((d, chk[-6:])))
+    os.chmod(p0, 0o664)
+    d, o = save(["W|v|zmone*zmw7|X~mode put back"])
+    row("M26: with the mode put back the save is accepted", d.get(("W", "zmone*zmw7")) == "OK" and aget("zmone", "v", "-", "zmw7") == "X|mode put back", repr((d, o[-3:])))
+    pdict = os.path.join(acct_path("zmone"), "zmf9.dic")
+    os.chmod(pdict, 0o755)
+    chk = adm(["CHECK.MASTERS zmone"])
+    os.chmod(pdict, 0o2775)
+    row("M27: a dictionary DIRECTORY that lacks group write is listed by CHECK.MASTERS (nonwritable, zmf9) although its subfiles are fine", re.search(r"nonwritable\S*\s+zmone\s+.*zmf9", "\n".join(chk)) is not None, repr(chk[-6:]))
+    chk = adm(["CHECK.MASTERS zmone"])
+    row("M27a: with the mode put back the account is clean", has_msg(chk, 11568), repr(chk[-4:]))
+    # ---- SDSYS only
+    d = g.plain("zmos", ["RUN bp zmna"])
+    row("M28: an ORDINARY session that writes voc_master by path is refused - at the open by the OS-access gate, or at the write by the kernel (8910) - and the master is unchanged",
+        any(re.match(r"^ZN (noopen status=\d+|REFUSED status=8910)$", ln) for ln in d) and not any(ln == "ZN OK" for ln in d), repr(d[-4:]))
+    o = tool(["MGET|v|zmos*zmna1"])
+    row("M28a: ...and the record is not in the master", any(ln.endswith("ABSENT") for ln in zt(o, "MGET")), repr(zt(o, "MGET")))
+    # ---- an editor
+    a0 = audit_size()
+    o = adm(["ED voc_master zmone*zmed2"] + ed_lines())
+    row("M29: ED on a master record (a save through a line editor): the record reaches the account", aget("zmone", "v", "-", "zmed2") not in ("ABSENT", "NOOPEN", None), repr((o[-4:], aget("zmone", "v", "-", "zmed2"))))
+    ed = master_edits(a0)
+    row("M29a: ...with its audit line", ed is not None and ("zmone", "voc", "zmed2") in [e[:3] for e in ed], repr(ed))
+    p0 = os.path.join(acct_path("zmone"), "voc", "%0")
+    os.chmod(p0, 0o444)
+    try:
+        # the editor stays open after a refused save: Q and its answer take us out of it, THEN the verb is typed at TCL (typed inside ED it is an unrecognised command)
+        o = adm(["ED voc_master zmone*zmedx", "I", "X", "typed into ed", "", "FI", "Q", "Y", "CHECK.MASTERS zmone"])
+    finally:
+        os.chmod(p0, 0o664)
+    row("M29b: a REFUSED save from ED says what ED says of any write error AND why, in the kernel's words (the editor stays open with the text: ED's own generic line is 'Original data will be lost if you leave the editor now')",
+        any(re.search(r"Write error 8910 \(o/s error 0\)", ln) for ln in o) and has_cmsg(o, 11585) and aget("zmone", "v", "-", "zmedx") == "ABSENT", repr(o[-8:]))
+    row("M29c: ...and CHECK.MASTERS, run next in the same session, ends with the last refusal (11594), because an editor shows only the bare status",
+        any(ln.startswith("The last save of a master record in this session was refused: Master record zmone*zmedx not saved") for ln in o), repr(o[-4:]))
+    o = adm(["CHECK.MASTERS zmone"])
+    row("M29d: a session that has refused nothing prints no such line", not any(ln.startswith("The last save of a master record") for ln in o), repr(o[-3:]))
+    # ---- clearing a master does not touch the accounts
+    before = tool(["CNT|zmone|v|-"])
+    o = adm(["CLEAR.FILE VOC_MASTER"])
+    after = tool(["CNT|zmone|v|-"])
+    ab = re.search(r"account=(\d+) master=(\d+)", " ".join(zt(before, "CNT")))
+    aa = re.search(r"account=(\d+) master=(\d+)", " ".join(zt(after, "CNT")))
+    row("M30: CLEAR.FILE of voc_master (a structure change, not a save) touches no account: zmone's VOC holds as many records afterwards (%s)" % (ab.group(1) if ab else None),
+        bool(ab) and bool(aa) and ab.group(1) == aa.group(1) and int(ab.group(1)) > 100 and aa.group(2) == "0", repr((zt(before, "CNT"), zt(after, "CNT"))))
+    adm(["SYNC.MASTERS"])
+    row("M30a: SYNC.MASTERS puts the master copies back from the accounts", has_msg(adm(["CHECK.MASTERS"]), 11568), "")
+    # ---- the modes SD gives what it makes
+    # Every session starts with umask 002 (cproc sets it at sign-on), so a user who has not touched it makes 664 files and 775 directories already; the rule
+    # is for the user who has (the UMASK verb), and a session of an API or a phantom.  The UMASK command is the first line of each session below.
+    g.plain("zmone", ["UMASK 022", "CREATE.FILE zmfm1 DYNAMIC"])
+    g.plain("zmone", ["UMASK 027", "CREATE.FILE zmfm3 DYNAMIC"])
+    os.chmod(acct_path("zmtwo"), 0o755)
+    try:
+        g.plain("zmtwo", ["UMASK 022", "CREATE.FILE zmfm2 DYNAMIC"])
+    finally:
+        os.chmod(acct_path("zmtwo"), 0o775)
+    zo = acct_path("zmone")
+    row("M30b: (control) the UMASK verb takes effect in the session: the data file made under UMASK 022 is 755 / 644 and the one under UMASK 027 is 750 / 640",
+        mode_of(os.path.join(zo, "zmfm1")) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644 and mode_of(os.path.join(zo, "zmfm3")) == 0o750 and mode_of(os.path.join(zo, "zmfm3", "%0")) == 0o640,
+        repr([oct(mode_of(os.path.join(zo, n) + s) or 0) for n in ("zmfm1", "zmfm3") for s in ("", "/%0")]))
+    row("M31: a dictionary made by an ordinary session under UMASK 022 in an account whose directory the group can write is group-writable: the directory 2775 (setgid), %0 and %1 664",
+        mode_of(os.path.join(zo, "zmfm1.dic")) == 0o2775 and mode_of(os.path.join(zo, "zmfm1.dic", "%0")) == 0o664 and mode_of(os.path.join(zo, "zmfm1.dic", "%1")) == 0o664,
+        repr([oct(mode_of(os.path.join(zo, "zmfm1.dic") + s) or 0) for s in ("", "/%0", "/%1")]))
+    row("M31a: the data file next to it is NOT touched: it keeps what the umask gave it (755, 644)", mode_of(os.path.join(zo, "zmfm1")) == 0o755 and mode_of(os.path.join(zo, "zmfm1", "%0")) == 0o644,
+        repr([oct(mode_of(os.path.join(zo, "zmfm1") + s) or 0) for s in ("", "/%0")]))
+    row("M32: under umask 027 only the GROUP bits are added: the other bits stay clear (dictionary directory 2770, subfiles 660)",
+        mode_of(os.path.join(zo, "zmfm3.dic")) == 0o2770 and mode_of(os.path.join(zo, "zmfm3.dic", "%0")) == 0o660, repr([oct(mode_of(os.path.join(zo, "zmfm3.dic") + s) or 0) for s in ("", "/%0")]))
+    zt2 = acct_path("zmtwo")
+    row("M33: where the account's directory is NOT group-writable (755) nothing is added: its new dictionary is 755 / 644 as the umask made it",
+        mode_of(os.path.join(zt2, "zmfm2.dic")) == 0o755 and mode_of(os.path.join(zt2, "zmfm2.dic", "%0")) == 0o644, repr([oct(mode_of(os.path.join(zt2, "zmfm2.dic") + s) or 0) for s in ("", "/%0")]))
+    g.plain("zmtwo", ["DELETE.FILE zmfm2 NO.QUERY", "Y"])      # its dictionary was made 755 on purpose; CHECK.MASTERS would (rightly) list it below
+    # ---- the end state: everything the section did is consistent
+    tool(["OPENV|zmone*bp"])
+    chk = adm(["CHECK.MASTERS"])
+    row("M34: after all of it a drain makes master and account agree everywhere: CHECK.MASTERS finds no difference (the journal lines of the delivered writes are harmless)", has_msg(chk, 11568), repr(chk[-6:]))
 
 
 # ---- G. who may do what ----------------------------------------------------------------------------------------------------------------
@@ -1455,7 +1954,7 @@ def main():
     say("\n--- preparation ---------------------------------------------------------------------------------------------------------------------")
     prepare_all()
     controls()
-    table = {"setup": setup_section, "hook": hook_section, "drain": drain_section, "race": race_section, "txn": txn_section, "fail": fail_section, "check": check_section,
+    table = {"setup": setup_section, "hook": hook_section, "drain": drain_section, "race": race_section, "txn": txn_section, "fail": fail_section, "check": check_section, "deliver": deliver_section,
              "gate": gate_section, "life": life_section, "keys": keys_section, "perf": perf_section, "upgrade": upgrade_section}
     # the sections run in this order whatever --sections says, because each leaves the state the next one needs
     for s in SECTIONS:

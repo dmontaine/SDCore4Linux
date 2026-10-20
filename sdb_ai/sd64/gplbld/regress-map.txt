@@ -62,6 +62,10 @@ gplbld/regress-changed.py    : none
 gplbld/ptydrive.py           : @pty
 gplbld/termscreen.py         : @pty
 gplbld/witness-*             : none
+# S.67 stage 2 (19 Oct 26): sd-elevate runs as root through sudo and no sandbox suite can reach it (a sandbox has no sudo); its checks are the free tests
+# test-sd-elevate.py, test-accelevate-units.py and test-bakdir-elevate-units.py, which regress.sh --changed always adds.  Before this rule it fell under
+# gplbld/* and chose the ten @core suites for a change they cannot see.
+gplbld/sd-elevate            : none
 gplbld/FILES_DICTS/voc.dic^* : dictfold listf-mult misc-a9 qproc-a3 nocase
 gplbld/FILES_DICTS/*         : dictfold misc-a9 upgradenocase nocase fixes-b12
 gplbld/pcode_bld.py          : @core
@@ -398,6 +402,8 @@ sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared
 sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
+sdsys/messages/1158[0-9]     : masters
+sdsys/messages/1159[0-4]     : masters
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

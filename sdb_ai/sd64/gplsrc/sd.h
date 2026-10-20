@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67: prototypes of masters.c (stage 1: the hook and K_MASTERS; stage 2: masters_before_write, masters_before_delete,
+ *               masters_txn_refusal, masters_refusal_text, masters_fix_modes and the status DHE_MASTER_REFUSED).
  * 18 Oct 26 dm  S.66: EDIT_SHARED_WRITE and EDIT_SHARED_STRUCT; prototypes of the shared-account tests (op_sh.c), of shared_structure_refusal()
  *               (op_dio3.c) and of get_voc_file_reference_ex() (op_dio1.c).
  * 18 Oct 26 dm  S.65 slice 3e: prototypes and constants of the write and lock entry points of netfiles.c (net_gate, net_write, net_delete, net_clear,
@@ -474,6 +476,16 @@ void masters_note_dh(DH_FILE * dh, char op);                                  /*
 void masters_note_name(const char * name, char op);                           /* op n (made) x (removed) or r (renamed) for a path; dh_create_file, OSPATH, OSRENAME */
 void masters_open_hook(const char * canon);                                   /* the administrator opening a master file drains the journal first */
 void masters_request(const char * req, DESCRIPTOR * result);                   /* K_MASTERS */
+/* S.67 stage 2 (19 Oct 26), master to account: SDSYS saves a record of voc_master or dict_master and the kernel writes it into the account's own file
+   at once.  dh_write and dh_delete ask first and fail with DHE_MASTER_REFUSED (the reason is masters_refusal_text()); op_write and op_delete ask for a
+   write or delete inside a transaction; dh_create_file gives a new VOC or dictionary its group's write bit.  The status is kept out of err.h, which is
+   generated into SYSCOM/ERR.H: it is the status of a refusal that has a message, and a program sees it as -8910. */
+#define DHE_MASTER_REFUSED 8910
+int masters_before_write(DH_FILE * dh, char * id, int id_len, STRING_CHUNK * data); /* 0: go on; else DHE_MASTER_REFUSED, nothing has been changed */
+int masters_before_delete(DH_FILE * dh, char * id, int id_len);                       /* 0: go on; else DHE_MASTER_REFUSED */
+int masters_txn_refusal(DH_FILE * dh, char * id, int id_len);                         /* 0: go on; else DHE_MASTER_REFUSED (a master record is not changed inside a transaction) */
+const char * masters_refusal_text(void);                                              /* the plain sentence for the last refusal */
+void masters_fix_modes(const char * path);                                            /* a VOC or dictionary was just made: its group may write it where the account's group may write the account */
 
 /* OP_DIO2.C */
 bool delete_path(char * path);

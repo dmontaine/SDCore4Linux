@@ -3,6 +3,9 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 19 Oct 26 dm S.67 stage 2 (D7, owner 17 Oct 2026, warned): sdsys-join, the one verb that puts the sdsys user into a group (only sdu_<user>, for an
+#               SD user that exists, in a group that exists), and group-write, which gives an account's own group write on its VOC and dictionaries
+#               (only where that group already owns them; file descriptors and O_NOFOLLOW, so a link a user plants cannot aim root's chmod).
 # 18 Oct 26 dm S.65 write group: sdfileswrite, the right to change files over the files-only route, joins the same two places as sdfiles
 #               (require_sd_group, groupdel's undeletable set).
 # 17 Oct 26 dm S.65 slice 2c: sdfiles, the SDNet files-only API route group, joins sdusers, sdssh and sdapi in
@@ -160,6 +163,12 @@ sd-elevate - SD Core's privileged helper.  Invoked through sudo by SD.
                                   (makes it for sdsys, mode 0700, only below /media, /run/media,
                                   /mnt, /var/backups, /srv, /opt, /home/sdsys or a place listed
                                   in /etc/sd-backup-roots)
+  sd-elevate [--dry-run] sdsys-join <sdu_ group>
+                                  (puts the user sdsys, and no other user, into the group of an SD
+                                  user's account, so that a master edit can be written into it)
+  sd-elevate [--dry-run] group-write <account directory>
+                                  (gives the account's own group write on its VOC and dictionaries,
+                                  only where that group already owns them)
 
 --dry-run validates and prints the command that would run, and acts on nothing.
 EOF
@@ -1143,6 +1152,149 @@ conf_set_backupdir() {   # conf_set_backupdir FILE PATH - one BACKUPDIR= line, l
 }
 # END bakdir_functions
 
+# ------------------------------------------- the sdsys user in the account groups (S.67 stage 2, D7)
+#
+# 19 Oct 26 dm - THE OWNER'S DECISION OF 17 OCT 2026 (D7), TAKEN WITH THE WIDER OF TWO OPTIONS AND WARNED: SDSYS WRITES A MASTER EDIT INTO THE ACCOUNT'S
+# OWN VOC OR DICTIONARY, so the sdsys OPERATING-SYSTEM USER is a member of every account's group and those files are group-writable.
+# ***THAT GIVES THE sdsys OS USER WRITE ACCESS TO EVERY ACCOUNT'S VOC AND DICTIONARIES (and, through the group, to what else the group may write)***: a
+# compromised sdsys is a code-execution route into every account (a VOC entry or an I-type is code that runs in the account).  The tighter option was an
+# outbox the account applies itself; the owner chose not to.  What follows is the narrowest way of carrying out the choice, and nothing wider:
+#
+#   sdsys-join GROUP     puts the user sdsys - ONLY sdsys, whatever else is typed - into GROUP, which must be sdu_<user> for an SD user that exists
+#                        (require_sd_user: not root, not sdsys, not a system account) and must itself exist.  Not sdusers, not a route group, not an
+#                        sdg_ group (a group account's group is made with sdsys in it already), not any group that is not an account's own.
+#   group-write DIR      for ONE account directory (the same canonical-path rules as rmtree-account), gives the account's own group write on its VOC
+#                        and on its dictionaries (the directories named voc and *.dic below it): g+rwxs on each directory, g+rw on the files directly in
+#                        it.  Only where the object's group IS the account's own group (sdu_<name> in user_accounts, sdg_<name> in group_accounts -
+#                        never sdusers, which every SD user is in) and its owner is the account directory's owner or sdsys; nothing else is changed.
+#                        It is done on file descriptors opened with O_NOFOLLOW (python's os.fwalk), so a symbolic link a user plants in the tree
+#                        cannot make root change the mode of a file elsewhere, and it does not leave the account directory's filesystem.
+#
+# SD_GROUP_FIXTURE and SD_GW_GROUP_FIXTURE are for --dry-run only (a free test needs a group the machine does not have); a real run ignores them.
+
+group_exists() {   # group_exists NAME - /etc/group, or on a dry run SD_GROUP_FIXTURE (a comma list) when it is set
+  if [[ $DRY -eq 1 && -n ${SD_GROUP_FIXTURE:-} ]]; then
+    [[ ",$SD_GROUP_FIXTURE," == *",$1,"* ]]
+  else
+    getent group "$1" >/dev/null 2>&1
+  fi
+}
+
+require_account_group() {   # require_account_group GROUP - dies unless GROUP is sdu_<an SD user> and exists
+  local group=$1 user
+  require_name "group" "$group"
+  [[ $group == sdu_?* ]] || die "'$group' is not an account group (want sdu_<user>; sdsys is put into no other group)"
+  user=${group#sdu_}
+  require_sd_user "$user"
+  group_exists "$group" || die "group '$group' does not exist"
+}
+
+# BEGIN gw_worker
+# The work of group-write, as python3 text so that it can be run on a scratch tree by gplbld/test-accelevate-units.py.  Arguments: the account
+# directory, the gid its group must have, the uids that may own what is changed (comma list), and 1 for a dry run.
+read -r -d '' GW_PY <<'GW_PY_END' || true
+import os
+import stat
+import sys
+
+top = sys.argv[1]
+gid = int(sys.argv[2])
+owners = set(int(x) for x in sys.argv[3].split(",") if x)
+dry = sys.argv[4] == "1"
+PROG = "sd-elevate"
+D_BITS = stat.S_IRWXG | stat.S_ISGID
+F_BITS = stat.S_IRGRP | stat.S_IWGRP
+changed_d = changed_f = same = skipped = 0
+
+
+def say(s):
+    print("%s: %s" % (PROG, s))
+
+
+def refuse(s):
+    sys.stderr.write("%s: REFUSED - %s\n" % (PROG, s))
+    sys.exit(2)
+
+
+def ours(st):
+    return st.st_gid == gid and st.st_uid in owners
+
+
+def fix(fd, st, bits, word, rel):
+    global changed_d, changed_f, same
+    old = stat.S_IMODE(st.st_mode)
+    new = old | bits
+    if new == old:
+        same += 1
+        return
+    say("chmod %s %s" % (word, rel))
+    if not dry:
+        os.fchmod(fd, new)
+    if word == "g+rwxs":
+        changed_d += 1
+    else:
+        changed_f += 1
+
+
+try:
+    topfd = os.open(top, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+except OSError as e:
+    refuse("cannot open %s: %s" % (top, e.strerror))
+tst = os.fstat(topfd)
+if tst.st_gid != gid:
+    refuse("%s is not owned by the group the account has (gid %d, not %d)" % (top, tst.st_gid, gid))
+dev = tst.st_dev
+for dirpath, dirnames, filenames, dirfd in os.fwalk(top, follow_symlinks=False):
+    dst = os.fstat(dirfd)
+    if dst.st_dev != dev:
+        dirnames[:] = []
+        continue
+    rel = os.path.relpath(dirpath, top)
+    if dirpath == top or not (rel == "voc" or os.path.basename(dirpath).endswith(".dic")):
+        continue
+    dirnames[:] = []
+    if not (stat.S_ISDIR(dst.st_mode) and ours(dst)):
+        say("skipped %s: not owned by the account's own group and owner" % rel)
+        skipped += 1
+        continue
+    fix(dirfd, dst, D_BITS, "g+rwxs", rel)
+    for name in filenames:
+        frel = os.path.join(rel, name)
+        try:
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY, dir_fd=dirfd)
+        except OSError as e:
+            say("skipped %s: %s" % (frel, e.strerror))
+            skipped += 1
+            continue
+        try:
+            fst = os.fstat(fd)
+            if not (stat.S_ISREG(fst.st_mode) and ours(fst) and fst.st_dev == dev):
+                say("skipped %s: not a plain file of the account's own group and owner" % frel)
+                skipped += 1
+            else:
+                fix(fd, fst, F_BITS, "g+rw", frel)
+        finally:
+            os.close(fd)
+say("group-write: %d director%s and %d file(s) %s, %d already right, %d skipped%s" % (
+    changed_d, "y" if changed_d == 1 else "ies", changed_f, "would be changed" if dry else "changed", same, skipped,
+    " (dry run - nothing changed)" if dry else ""))
+GW_PY_END
+# END gw_worker
+
+require_group_write_target() {   # require_group_write_target DIR - dies unless DIR is an account directory whose group is the account's own; sets GW_GROUP GW_GID GW_OWNERS
+  local kind dirgroup sdsys_uid
+  account_dir_checked "$1"
+  kind=${ACCT_REAL%/*}
+  kind=${kind##*/}
+  if [[ $kind == user_accounts ]]; then GW_GROUP=sdu_$ACCT_NAME; else GW_GROUP=sdg_$ACCT_NAME; fi
+  if [[ $DRY -eq 1 && -n ${SD_GW_GROUP_FIXTURE:-} ]]; then GW_GROUP=$SD_GW_GROUP_FIXTURE; fi
+  dirgroup=$(stat -c %G -- "$ACCT_REAL" 2>/dev/null) || die "cannot read '$ACCT_REAL'"
+  [[ $dirgroup == "$GW_GROUP" ]] \
+    || die "'$ACCT_REAL' belongs to group '$dirgroup', not to the account's own group '$GW_GROUP': nothing is changed (a group that other accounts are in is never given write here)"
+  GW_GID=$(stat -c %g -- "$ACCT_REAL") && GW_OWNERS=$(stat -c %u -- "$ACCT_REAL") || die "cannot read '$ACCT_REAL'"
+  if sdsys_uid=$(id -u sdsys 2>/dev/null) && [[ $sdsys_uid =~ ^[0-9]+$ ]]; then GW_OWNERS=$GW_OWNERS,$sdsys_uid; fi
+}
+
 # ---------------------------------------------------------------------- main
 
 DRY=0
@@ -1422,6 +1574,25 @@ case $verb in
     logger -t sd-elevate "bakdir-make: made $BAK_MADE for sdsys" 2>/dev/null || true
     printf '%s: BACKUPDIR directory made %s (as %s)\n' "$PROG" "$1" "$BAK_MADE"
     exit 0
+    ;;
+
+  # 19 Oct 26 dm - S.67 stage 2 (D7).  See "the sdsys user in the account groups" above.  The user is NOT an argument: it is sdsys, written
+  # here, so the verb cannot put anybody else in a group, nor sdsys in a group that is not an account's own.
+  sdsys-join)
+    [[ $# -eq 1 ]] || usage
+    require_account_group "$1"
+    [[ $DRY -eq 1 ]] || id -u sdsys >/dev/null 2>&1 || die "the user sdsys does not exist"
+    cmd=(usermod -aG "$1" -- sdsys)
+    ;;
+
+  # The work is the python3 text GW_PY; the account is checked here first.  The result line is the one witness-masters.sh anchors on.
+  group-write)
+    [[ $# -eq 1 ]] || usage
+    require_group_write_target "$1"
+    printf '%s: group-write %s (group %s, gid %s; owners uid %s)\n' "$PROG" "$ACCT_REAL" "$GW_GROUP" "$GW_GID" "$GW_OWNERS"
+    need_root
+    python3 -c "$GW_PY" "$ACCT_REAL" "$GW_GID" "$GW_OWNERS" "$DRY"
+    exit $?
     ;;
 
   # The success line is the one !acc_os_bakdir anchors on: nothing else prints "BACKUPDIR is now".

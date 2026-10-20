@@ -18,6 +18,7 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 stage 2: and calls masters_fix_modes() (a new VOC or dictionary is given its group's write bit where the account's directory has it).
  * 19 Oct 26 dm  S.67 stage 1: a created VOC or dictionary calls masters_note_name() (journalled for the master files).
  * rev 0.9.0 Jan 25 mab change dyn file prefix to %
  * END-HISTORY
@@ -226,6 +227,10 @@ bool dh_create_file(char path[],
 
   /* 19 Oct 26 S.67: a VOC or a dictionary was made (any other file is none of the master files' business) */
   masters_note_name(path, 'n');
+
+  /* 19 Oct 26 S.67 stage 2: and the group of the account may write it, where the account's own directory lets that group write (whatever the UMASK
+     of this session): SDSYS, a member of the group, writes master edits into the VOC and the dictionaries.  Never an error. */
+  masters_fix_modes(path);
 
 exit_dh_create_file:
   if (status == FALSE) {

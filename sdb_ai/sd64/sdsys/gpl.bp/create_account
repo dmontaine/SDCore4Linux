@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 19 Oct 26 dm S.67 stage 2 (D7): a user account's group gets the sdsys user as a member when it was not made with it (sd-elevate sdsys-join), so that SDSYS
+*              can write a master edit into the account's own files; a failure is said (11012, 11579) and the account is still made.
 * 19 Oct 26 dm S.67 stage 1: after the register record is written the account's VOC and dictionaries are copied to the master files (kernel(K$MASTERS, 'sync')).
 * 18 Oct 26 dm S.65 write group: CA$FILESWRITE joins the new user to the Linux group sdfileswrite after sdfiles; refused without CA$FILES (11523) and for a group or
 *              other account (10087, 10081 as CA$FILES); the group is looked for before anything is made; the state line 11522 is read off /etc/group.
@@ -548,6 +550,10 @@ PW.TRY.AGAIN:
       group_name = "sdu_":downcase(acc.uname)
       gosub create.group
       if err # '' then goto exit.create
+* 19 Oct 26 dm - S.67 stage 2 (D7): the sdsys user must be in the account's group, so that SDSYS can write a master edit into the account's own VOC.  The
+*   group made just above has it (create.group's groupadd names root,sdsys and the user); a group that was already there (an attached user, an account
+*   made again) may not.  A failure is said and the account is still made: the edit is refused with the reason until the join is made.
+      gosub join.sdsys
 
    case acc.type = "GROUP"
       group_name = downcase("sdg_" : acc.name)
@@ -840,6 +846,23 @@ create.group:
       end else
          err = 10015:@vm:group_name:@vm:group_stat ;* Unable to create group: %1 status: %2
       end
+   end
+   return
+
+* ======================================================================
+* join.sdsys - group_name is sdu_<user>.  Puts the sdsys operating-system user in it when it is not in it already, through sd-elevate's sdsys-join (the
+*   one verb that does it: only sdsys, only an existing sdu_<user> group).  ***THE sdsys USER IN EVERY ACCOUNT'S GROUP GIVES IT WRITE ACCESS TO EVERY
+*   ACCOUNT'S VOC AND DICTIONARIES*** - the owner's decision of 17 Oct 2026 (D7), warned.  A session of SDSYS that began before this has its groups fixed
+*   at its start and cannot write the account until SDSYS signs on again; the save of a master record says so.
+join.sdsys:
+   if is_grp_member('sdsys', group_name) then return
+   os.execute "sudo /usr/local/sbin/sd-elevate sdsys-join ":group_name
+   stat = OS.ERROR()
+   if stat = 0 then
+      crt sysmsg(11011, 'sdsys', group_name)  ;* %1 added to %2
+   end else
+      crt sysmsg(11012, 'sdsys', group_name, stat) ;* %1 could not be added to %2 (status %3)
+      crt sysmsg(11579, acc.name, group_name) ;* master edits cannot be written into account %1 until the sdsys user is in group %2
    end
    return
 

@@ -1,6 +1,50 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  SDSYS CAN NOW CHANGE ANY ACCOUNT'S VOC OR DICTIONARY BY SAVING THE ACCOUNT'S MASTER COPY: THE SAVE IS WRITTEN INTO THE ACCOUNT AT ONCE, OR REFUSED WITH ITS REASON AND NOTHING CHANGED. TO DO IT THE sdsys OPERATING-SYSTEM USER IS NOW A MEMBER OF EVERY ACCOUNT'S GROUP, AND EVERY ACCOUNT'S VOC AND DICTIONARIES CAN BE WRITTEN BY THAT GROUP.
+
+             Warning      This gives the sdsys operating-system user write access to the VOC and the dictionaries of EVERY account, and to
+                        anything else in an account that the account's group may write. A VOC entry or an I-type is code that runs inside the
+                        account, so a stolen sdsys login is a way into every account. It is not a way in from the network (sdsys has no
+                        remote access at all), and a process that is not a real sdsys login is not an administrator. The owner chose this on
+                        17 October 2026 in place of a tighter arrangement, an outbox the account applies for itself, which would have given
+                        sdsys no such access. To take the access away for one account: gpasswd -d sdsys sdu_<account>; saves for that
+                        account are then refused with a message and everything else works.
+             What        SDSYS opens voc_master (key account*recordid) or dict_master (key account*file*recordid) and writes the record with
+                        ED, COPY, a program's WRITE, or any other way a record is written. Before the write is accepted SD checks that the
+                        caller is the administrator, that the key names a registered account and a VOC or dictionary record, that the account's
+                        own record is exactly the one the copy was made from (the checksum kept in master_state), that nothing holds the
+                        account's record locked, and that this session can write the account's files. If all of that holds, SD writes the
+                        account's own file, from the SDSYS session, in the same call, and writes ONE audit line:
+                        master edit account=<account> file=<file> id=<id>. The lock on the account's record is a try-lock: it refuses and
+                        never waits, so a save cannot hang behind an account's long job. If anything fails the save is refused with a
+                        message that says why (numbers 11580 to 11592), the status is 8910, and neither the account nor the master copy is
+                        changed. An editor shows only "Write error 8910", so CHECK.MASTERS and LIST.MASTER.PENDING now end with the reason the
+                        last save of a master record in this session was refused (message 11594). The refusals are: the account's record
+                        changed since the copy was made (open the master file again and repeat the edit, which is what keeps SDSYS from
+                        overwriting an account's own change it has never seen), the record is locked, the account is not registered, the
+                        file does not exist, the key means nothing, the caller is not the administrator, the files are not writable (the
+                        mode, a session that began before sdsys joined the account's group, an sdsys that is not in the group, or no write
+                        permission, each with its own wording), master_state is missing, a transaction is open, and a delete.
+             Group        CREATE.ACCOUNT puts sdsys in the new account's group (sdu_<account>) through a new sd-elevate verb, sdsys-join, which
+                        can add ONLY the user sdsys and ONLY to a group that exists and is named sdu_<something>; if it cannot, the account is
+                        still made and a warning gives the command (message 11579). The installer's upgrade adds sdsys to the group of every
+                        account that exists and says so, and a second new verb, group-write, makes each account's VOC and dictionaries
+                        writable by the account's group (directories 775 with the group bit set, files 664) without following a link and only
+                        under an account directory that belongs to sdu_<account>. From now on SD makes the VOC and every dictionary it creates
+                        group-writable when the account's directory is. CHECK.MASTERS lists a VOC or dictionary that is not writable as
+                        nonwritable, and one that the mode allows but this session cannot write as norights, with the reason (message 11593).
+                        The shared account and an account outside /home/sd are left as they were.
+             Why it      SDSYS can correct or add a verb, a dictionary item or an I-type in any account from one place, and the change is in
+                        the account's own file at once, with an audit line, instead of a sign-on to each account.
+             Does not    A master record cannot be DELETED from SDSYS (the save is refused; delete in the account and the copy follows) and
+                        cannot be saved inside a transaction. Creating, removing or renaming a dictionary file is still done in the account.
+                        A session of SDSYS that was already open when sdsys joined a group cannot use the new membership: sign on again (SD
+                        says so). The group membership, the 775 and 664 modes and the ownership that decide whether a save is accepted are
+                        set by the root session of an install and by sd-elevate, and have been checked here only as far as one operating-system
+                        user allows: the real groups, the real modes after the upgrade and an edit reaching a second user's VOC are tested by
+                        gplbld/witness-masters.sh, run with sudo by the owner, and have not been seen on an install.
+
 19 Oct 26  SDSYS NOW KEEPS A COPY OF EVERY ACCOUNT'S VOC RECORDS AND DICTIONARY RECORDS (voc_master AND dict_master), KEPT UP TO DATE BY A JOURNAL, AND THREE NEW VERBS MANAGE THEM: sync.masters, check.masters AND list.master.pending.
 
              What        Two files in the SDSYS account hold a copy of every VOC record of every account, keyed account*recordid, and of every
@@ -17,8 +61,7 @@ Next release - in progress
                         when it is rolled back.
              Why it      SDSYS can read and, in the next stage, edit every account's VOC and dictionaries from one place without signing on to
                         each account. This first stage keeps the copies true; the account is the truth.
-             Does not    An edit made to a master record is NOT delivered to the account (that is the next stage, which also needs sdsys to be in
-                        every account's group), and the next change of that record in the account, or sync.masters, overwrites the edit. A
+             Does not    (This was the first stage; the entry above is the second, which delivers a saved master record to the account.) A
                         VOC id so long that account*id would pass MAXIDLEN (63 unless sd.conf says more; the state record needs two more characters)
                         is not copied; check.masters lists it as toolong, and raising MAXIDLEN to as much as 255 copies it. A journal that cannot be
                         written, or has gone missing where the master files exist, never stops the write that caused it: a flag (stale) is raised
