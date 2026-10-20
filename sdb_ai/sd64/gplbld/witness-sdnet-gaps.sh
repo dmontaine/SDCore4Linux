@@ -24,7 +24,8 @@
 #       manifest key existed.
 #   Z   put back: nothing of the account is left.
 #
-# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-gaps-<time>.log, handed back to the owner.
+# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-gaps-<time>.<six random characters>.log, handed back to the owner.
+# Changed 19 Oct 26 (finish 2, the verifier's findings): the backup directory is made with wl_mkdir_new, and the audit offset is the physical line count (wl_audit_offset).
 #
 set -u
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
@@ -123,7 +124,7 @@ OUT=$(wl_sd_admin "list.servers (does an sd session as sdsys work?)" "LIST.SERVE
 GROUND_CLEAR=1
 say "  ground clear: none of $ACC exists"
 
-mkdir -p -- "$BK" && chmod 755 "$BK" || need "cannot make $BK"
+wl_mkdir_new "$BK" 755
 install -m 755 "$HERE/witness-sdnet-probe.py" "$BK/probe.py" || need "cannot copy witness-sdnet-probe.py beside this script"
 
 # ================================================================== T. TLS

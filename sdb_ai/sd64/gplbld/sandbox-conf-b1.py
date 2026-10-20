@@ -9,6 +9,8 @@
 # THIS tree (it must be empty or absent).  Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Finish 2 (verifier): NETWAIT=65541 and NETREPLY=65541 (65536 + 5) join the values that stop SD starting.  sd.conf is read into an int and the two fields were 16 bit, so 65541 wrapped
+#               to 5 before the range test and SD started with a 5 second wait; the fields are 32 bit now.  Red on the tree before: both rows (SD started, no message).
 # 19 Oct 26 dm  K8d (S.65): NETWAIT (5 seconds) and NETREPLY (30), the two SDNet timeouts.  Their defaults, CONFIG's set and its refusal of 0 and 3601, the CONFIG listing,
 #               the values read back after SD is started with NETWAIT=9 NETREPLY=41, and four values out of range that stop SD starting.  Red on the tree of HEAD: 9 of the 67 rows.
 # 18 Oct 26 dm  SYSTEM(1057) with a parent whose user NUMBER is above NUMUSERS (the Windows agent's finding: op_sys.c bounded
@@ -409,7 +411,8 @@ def main():
             row("K8d: NETWAIT=9 and NETREPLY=41 in sd.conf are read back as 9/41 (the defaults row above reads 5/30 on the same program)", got == "9/41", "got %r" % got)
         else:
             row("K8d: SD starts with NETWAIT=9 and NETREPLY=41", False, "did not start")
-        for bad in ("USERPOOL=20000", "LGNWAIT=40000", "DHCACHE=2000", "MAXRLOCK=-1", "PWDELAY=5000", "NETWAIT=0", "NETWAIT=3601", "NETREPLY=0", "NETREPLY=3601"):
+        for bad in ("USERPOOL=20000", "LGNWAIT=40000", "DHCACHE=2000", "MAXRLOCK=-1", "PWDELAY=5000", "NETWAIT=0", "NETWAIT=3601", "NETREPLY=0", "NETREPLY=3601",
+                    "NETWAIT=65541", "NETREPLY=65541"):        # 65541 is 65536 + 5: stored in a 16 bit field it wrapped to 5, passed the range test and SD started with a 5 second wait (19 Oct 26 verifier)
             up = restart(box, bad)
             log = ""
             try:

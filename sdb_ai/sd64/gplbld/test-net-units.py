@@ -86,6 +86,11 @@ because the handler runs BASIC; @SELECTED set; list 11 never used), NK16 op_file
 any FPtr; the value 7 in both keys.h files) and NK17 the DICT form (_voc_ref adds 'dict ' only for fno 3 and only after the shape check; the file name buffer and the length test hold the 5 more
 characters).  NK5 and NK5b were rewritten for it.  WHAT THIS CANNOT SAY: that a remote SELECT returns the server's ids or that a dictionary opens - sandbox-netfile.py.
 
+19 Oct 26 dm  Finish 2 (verifier findings).  W20 follows set.files after the failure path learned to say what happened (the audit line modify.account files-write-off and the write group's line,
+through the new internal write.removed.line, BEFORE the failure message, and not the audit line of the action asked for); S2g allows the guarded aborts of select and readlist (a quiet
+object returns); S2f reads act.select's two ON ERROR branches in order (after the SELECT proper, then after the READLIST); S2k counts four calls of on.error.text.  1327 mutants now (1324 +
+three for the failure after the write group went), 0 missed: the first selftest after this change reported 1324 mutants, 1 missed - the mutant "a failed change is reported as done" anchored on the
+old failure block and was "not applicable"; it is cut by a pattern now.
 19 Oct 26 dm  K1, K2, K3, K4a, K8c, K8d (the S.65 finish).  S2k: on.error.text, the one place an ON ERROR reply becomes text (the handler showed 'status <n>' whatever the server
 said); S2l: the ceiling on a reply (sdclient read.packet tests the announced length before it reads, maxpacket, $netfile sets it); W10 names both routes in the refusal reason;
 W13 pins message 11482 in lower case; W17 to W20 follow set.files after K4a (change.files.group); T3, U4, Z3, Z5, Z12, NF4a, NF7, NF7b follow the timeouts becoming the parameters
@@ -1091,11 +1096,16 @@ def checks_2c(srcs, c, ck):
        "the audit line (lower case) comes only after it, and the line printed (11482) is the read-back value (cg.now copied into now.files) and not the request",
        ordered(cgf, "files.stat = OS.ERROR()", "if files.stat = 0 then", "cg.now = is_grp_member(files.user, cg.group)", "files.stat = status()", "if files.stat = 0 and cg.now # cg.want then files.stat = 2")
        and re.search(r"gosub change\.files\.group\s*\n\s*now\.files = cg\.now\s*\n\s*end\s*\n\s*if files\.stat # 0 then\s*\n\s*@system\.return\.code = -ER\$FAILED\s*\n"
+                     # 19 Oct 26 (finish 2): when the write group HAS gone and the step after it failed, the failure path says what happened first - the audit line for THE REMOVAL
+                     # (files-write-off, never the action asked for) and the write group's line - and only then the failure (10081)
+                     r"\s*if write\.removed then\s*\n(?:\s*\*[^\n]*\n)*\s*void kernel\(K\$AUDIT, 'modify\.account files-write-off account=' : acc\.name\)\s*\n\s*gosub write\.removed\.line\s*\n\s*end\s*\n"
                      r"\s*crt sysmsg\(10081, acc\.name, files\.stat\)\s*\n\s*return\s*\n\s*end\s*\n\s*@system\.return\.code = 0\s*\n"
                      r"\s*void kernel\(K\$AUDIT, 'modify\.account ' : downcase\(action\) : ' account=' : acc\.name\)\s*\n"
                      r"\s*if files\.grp = 'sdfileswrite' then\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.files then 'yes' else 'no'\)[^\n]*\n\s*end else\s*\n"
-                     r"\s*if write\.removed then crt sysmsg\(11522, acc\.name, if now\.write then 'yes' else 'no'\)[^\n]*\n"
-                     r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None, "")
+                     r"\s*if write\.removed then gosub write\.removed\.line[^\n]*\n"
+                     r"\s*crt sysmsg\(11482, acc\.name, if now\.files then 'yes' else 'no'\)", sf) is not None
+       and re.search(r"^write\.removed\.line:\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.write then 'yes' else 'no'\)[^\n]*\n\s*return\s*$", mo, re.M) is not None
+       and mo.count("modify.account files-write-off account=") == 1, "")
     ck("W21 CREATEA: the word FILES-ON sets CA$FILES = 1 (and nothing sets it to anything else), the syntax line names {files-on} and the text says what it is",
        re.search(r"case upcase\(token\) = 'FILES-ON'\s*\n\s*settings<CA\$FILES> = 1\s*\n", cr) is not None and len(re.findall(r"settings<CA\$FILES>\s*=", cr)) == 1
        and "{net-on} {files-on} {files-write-on} {no.query}" in cr and "files-only login (files-on" in cr, "")
@@ -2218,13 +2228,15 @@ def checks_s2(srcs, c, ck):
        "the dispatch of NF$RELEASE is act.release",
        ordered(cn, "ok = obj->connect.keys(", "if not(ok) then", "obj->quiet = @true", "obj->settimeout(req.ms)", "nf.s.obj(slot) = obj") and hb.count("obj->quiet = @true") == 1
        and ordered(ard, "case e = 0", "case e = 2", "case e = 1", "gosub on.error.text", "gosub server.fail", "case 1", "fail.num = 11504")
-       and ordered(asel, "if e = 1 then", "gosub on.error.text", "gosub server.fail", "return", "if e # 0 then"), "")
+       and ordered(asel, "obj->select(nf.h.fno(hx), NF$LIST)", "if obj->LastError = NF$LE.ERROR then", "gosub on.error.text", "gosub server.fail", "return", "obj->readlist(NF$LIST, e)",
+                   "if e = 1 then", "gosub on.error.text", "gosub server.fail", "return", "if e # 0 then"), "")
     ooe = rb("on.error.text")
     ck("S2k on.error.text, the ONE place an ON ERROR reply becomes text (19 Oct 26, K1): it takes the text of THIS reply from obj->LastText (the class empties it before every request), cleans it like any "
-       "text that came from another machine (printable ASCII, at most 100 characters), shows it when there is one and falls back to 'status <n>' when there is none; the three places that used to say "
-       "'status <n>' whatever the reply said (a refused write or lock, a READ, a SELECT) call it, and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
+       "text that came from another machine (printable ASCII, at most 100 characters), shows it when there is one and falls back to 'status <n>' when there is none; the places that used to say "
+       "'status <n>' whatever the reply said (a refused write or lock, a READ, a SELECT) call it - four since 19 Oct 26, finish 2, because the SELECT proper and its READLIST are both looked at (the "
+       "class used to abort on either, even when quiet, so neither branch could run) - and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
        ordered(ooe, "txt = obj->LastText", "gosub clean.text", "if out.txt = '' then", "rq.txt = 'status ':rq.st", "end else", "rq.txt = out.txt", "return")
-       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 3 and "'status '" not in (ao + ac + ard + asel + arq + lf)
+       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 4 and "'status '" not in (ao + ac + ard + asel + arq + lf)
        and "never shown" not in hraw and "is never shown, it can be stale" not in hraw, repr(ooe[:200]))
 
     # ---- S2g. the class gpl.bp/sdclient (spec 3.3)
@@ -2240,14 +2252,14 @@ def checks_s2(srcs, c, ck):
     guarded = sorted(v for prev, v in sites if "not(quiet)" in prev)
     ck("S2g THE CLASS, quiet (spec 3.3, items 1 to 3): the public properties quiet, LastError and LastText exist and create.object starts them @false, -1 and ''; message.pair resets LastError and LastText "
        "BEFORE it writes the packet; get.response sets LastError = server.error as soon as read.packet succeeded (and LastText for an ON ERROR reply) BEFORE it tests for SV$ERROR; the abort of each of "
-       "write, writeu, delete (twice: delete and deleteu), recordlock, release, read.record and the new clearfile is guarded by `and not(quiet)`, no other abort is (CLOSE, SELECT, ... are unchanged); the "
-       "pre-send `abort 'Illegal record id'` of write and writeu does `LastError = SV$ON.ERROR` and returns when quiet",
+       "write, writeu, delete (twice: delete and deleteu), recordlock, release, read.record, the new clearfile and (19 Oct 26, finish 2) select and readlist is guarded by `and not(quiet)`, no other abort is "
+       "(CLOSE, ... are unchanged); the pre-send `abort 'Illegal record id'` of write and writeu does `LastError = SV$ON.ERROR` and returns when quiet",
        all(re.search(r"\b%s\b" % w, pub) for w in ("quiet", "LastError", "LastText", "ServerStatus", "error"))
        and re.search(r"quiet = @false", co) is not None and re.search(r"LastError = -1", co) is not None and re.search(r"LastText = ''", co) is not None
        and ordered(mp, "LastError = -1", "LastText = ''", "write.packet(")
        and ordered(gr, "read.packet()", "LastError = server.error", "if server.error = SV$ON.ERROR then LastText = in.pkt", "if server.error = SV$ERROR then")
-       and guarded == sorted(["DELETE", "DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE"])
-       and not [v for prev, v in sites if v not in ("DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE") and "quiet" in prev]
+       and guarded == sorted(["DELETE", "DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST"])
+       and not [v for prev, v in sites if v not in ("DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST") and "quiet" in prev]
        and len(re.findall(r"if quiet then\s*\n\s*LastError = SV\$ON\.ERROR\s*\n\s*return\s*\n\s*end\s*\n\s*abort 'Illegal record id'", sc)) == 2, repr((guarded, [v for p, v in sites if "quiet" not in p])))
     rlk = re.search(r"public subroutine recordlock\(fno, id, update, wait\)\s*\n(.*?)\nend", sc, re.S)
     rlk = rlk.group(1) if rlk else ""
@@ -3099,8 +3111,12 @@ mut("modifya: the audit line is upper case",
     MOD, "void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then", "void kernel(K$AUDIT, 'MODIFY.ACCOUNT ' : action : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then")
 mut("modifya: the audit line is written before the change",
     MOD, lambda t: t.replace("   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.grp = 'sdfileswrite' then", "   if files.grp = 'sdfileswrite' then", 1).replace("   if files.want then\n      files.found = is_group(files.grp)", "   void kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)\n   if files.want then\n      files.found = is_group(files.grp)", 1))
-mut("modifya: a failed change is reported as done", MOD, "   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      crt sysmsg(10081, acc.name, files.stat)\n      return\n   end\n\n   @system.return.code = 0\n   void kernel",
-    "   @system.return.code = 0\n   void kernel")
+mut("modifya: a failed change is reported as done",     # 19 Oct 26 (finish 2): the failure block now begins with the write.removed lines, so the whole block is cut by a pattern
+    MOD, lambda t: re.sub(r"   if files\.stat # 0 then\n      @system\.return\.code = -ER\$FAILED\n      if write\.removed then\n.*?      crt sysmsg\(10081, acc\.name, files\.stat\)\n      return\n   end\n\n   @system\.return\.code = 0\n   void kernel",
+                          "   @system.return.code = 0\n   void kernel", t, count=1, flags=re.S))
+mut("modifya: a failure after the write group went writes no audit line for the removal", MOD, "         void kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)\n", "")
+mut("modifya: a failure after the write group went does not print the write group's line", MOD, "         gosub write.removed.line\n      end\n      crt sysmsg(10081, acc.name, files.stat)", "      end\n      crt sysmsg(10081, acc.name, files.stat)")
+mut("modifya: a failure after the write group went audits the action asked for", MOD, "'modify.account files-write-off account=' : acc.name)", "'modify.account ' : downcase(action) : ' account=' : acc.name)")
 # CREATEA and CREATE.ACCOUNT
 mut("createa: FILES-ON is not a word", CRA, "case upcase(token) = 'FILES-ON'", "case upcase(token) = 'FILES-ONX'")
 mut("createa: FILES-ON sets the NET gate", CRA, "settings<CA$FILES> = 1", "settings<CA$NET> = 1")

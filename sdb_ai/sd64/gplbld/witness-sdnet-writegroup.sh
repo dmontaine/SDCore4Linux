@@ -32,7 +32,9 @@
 # NOT COVERED: a helper that FAILS half way (it cannot be made to fail on a real machine without breaking it) - the scratch-file suite does that - and a real files-only LOGIN
 # (witness-sdnet-files-route.sh does that).
 #
-# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-writegroup-<time>.log, handed back to the owner.
+# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-writegroup-<time>.<six random characters>.log, handed back to the owner.
+# Changed 19 Oct 26 (finish 2, the verifier's findings): the log is made by mktemp, in the library's logging routine.  Nothing else here: this script only runs commands that WORK on the real groups; the second
+# removal failing after the write group went (the case the program now reports) cannot be made to happen on a real machine, and is sandbox-filesgrp.py's C4, C10b and C11b.
 #
 set -u
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"

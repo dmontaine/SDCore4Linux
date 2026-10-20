@@ -30,6 +30,7 @@
 *               (sysseg.c:400), which the Windows port could not do.  There is no
 *               APIPORT to report: the API port is fixed at 4247 and its on, local
 *               and off states are the firewall's, reported by REMOTE.API.
+* 19 Oct 26 dm  K8d (S.65): the listing gains NETREPLY and NETWAIT, in seconds.  (This line was missing from the K8d change: a dated history line to each file changed.)
 * END-HISTORY
 *
 * START-DESCRIPTION:

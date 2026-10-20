@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 19 Oct 26 dm  NETWAIT and NETREPLY are held in 32 bit fields (config.h): 65541 in sd.conf wrapped to 5 in the 16 bit field BEFORE rangecheck, so SD started with a 5 second wait instead of
+ *               refusing the value.  (PWDELAY and DHCACHE are 16 bit fields read the same way and wrap the same way; they are not changed here.)
  * 19 Oct 26 dm  NETWAIT (5) and NETREPLY (30): the two SDNet timeouts, seconds, 1 to 3600, per process (K8d, S.65).  Zero is refused (openQM's NETWAIT 0 means no limit).
  * 14 Sep 26 Windows port - the global catalogue check names gcat/$cproc
  *           (RELEASE_1.1 5 stage 3a)

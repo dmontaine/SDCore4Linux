@@ -1059,7 +1059,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `matreadu` *matrix* `from` *file.var*, *id* {`locked` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/12-sdnet.md` line 913
+- docs: `Administrator/markdown/12-sdnet.md` line 922
 
 ### basic:stmt:matwrite
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:435#827ce807 src2=docs:tools/syntax-shapes.txt:145#922888f4

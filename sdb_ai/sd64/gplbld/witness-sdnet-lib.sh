@@ -7,6 +7,8 @@
 # What it holds: say / pass / fail / need, the three expect_* comparisons, the sessions (one piped sd session as SDSYS through the loginuid bridge, one as an ordinary user),
 # the Linux group readers, the audit-trail offset and reader, the install's commit stamp, the log re-exec (every byte a script prints also goes to a log), and a
 # selftest of its own comparisons (wl_selftest).  It does not elevate anything itself: a script that sources it is started with sudo and says so.
+# Changed 19 Oct 26 (finish 2, the verifier's findings): wl_audit_offset prints ONE number and counts the physical lines wl_audit_since starts from; wl_mkdir_new and wl_state_dir (nothing in the
+# shared /var/tmp is made "if missing" by a command that follows a link); the log is made by mktemp.
 #
 # AN INSTRUMENT SHOWS WHAT IT DID.  Every session prints the lines it was given and the text it got back; a session that prints NOTHING says so and the row that needed
 # it FAILS (the null case); a PASS needs the success wording AND the state (the group, the file, the audit line) and a refusal row needs the success wording to be absent.
@@ -57,14 +59,32 @@ wl_summary() {
   return 0
 }
 
+# THE SCRIPTS RUN AS ROOT AND KEEP THEIR FILES IN /var/tmp, WHICH EVERY USER CAN WRITE INTO, UNDER NAMES ANYONE CAN WORK OUT (a time stamp to the second, a fixed word).  So nothing is made
+# there "if it is missing" by a command that follows a link or accepts a directory somebody else made first (a planted link at $WL_TMP/witness-sdnet-two-machines.pw would have had its
+# target overwritten and chowned to the owner; a directory made beforehand by another user would have been written into as root).  (Verifier finding of 19 Oct 2026.)
+# wl_mkdir_new PATH MODE   make PATH, which must not exist (mkdir refuses an existing name, a link included), with exactly MODE; CANNOT RUN when it cannot.
+wl_mkdir_new() { mkdir -m "$2" -- "$1" 2>/dev/null || need "cannot make $1 (it is there already, or its directory is not writable): remove it first"; }
+# wl_state_dir PATH   a directory a script keeps its state in BETWEEN runs: made 0755 when it is not there; when it is, it must be a real directory (not a link) that root owns and that
+# nobody else can write into; CANNOT RUN otherwise.
+wl_state_dir() {
+  if [ -L "$1" ]; then need "$1 is a symbolic link: this script will not use it"; fi
+  if [ -e "$1" ]; then
+    [ -d "$1" ] && [ "$(stat -c '%u' -- "$1")" = "$EUID" ] && [ "$(( 0$(stat -c '%a' -- "$1") & 022 ))" = 0 ] \
+      || need "$1 exists and is not a directory that only the user running this script (uid $EUID, root on a real run) can write into: remove it, or leave it if it is yours from an earlier run"
+    return 0
+  fi
+  mkdir -m 755 -- "$1" 2>/dev/null || need "cannot make $1"
+}
+
 # wl_logged SELF LOGPREFIX ARGS...   Called first by a script that needs sudo: checks root and SUDO_USER, then re-runs itself with every byte also going to the log.
 # A script calls it as   wl_logged "$SELF" witness-sdnet-x "$@"   and then continues as the logged copy when "--logged" is its first argument.
+# The log is made by mktemp (a new file, mode 0600, a random tail: witness-sdnet-x-<time>.<6 characters>.log) and handed to the owner when the run ends.
 wl_logged() {
   local self=$1 prefix=$2; shift 2
   if [ "${1:-}" != "--logged" ]; then
     [ "$(id -u)" -eq 0 ] || need "run it with sudo: sudo bash $self"
     [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != root ] || need "SUDO_USER must name a person (run it with sudo from the owner's login, not from a root shell)"
-    WL_LOG=$WL_TMP/$prefix-$(date +%Y%m%dT%H%M%S).log
+    WL_LOG=$(mktemp "$WL_TMP/$prefix-$(date +%Y%m%dT%H%M%S).XXXXXX.log") || need "cannot make a log file in $WL_TMP"
     exec bash -c 'bash "$0" --logged "${@:2}" 2>&1 | tee "$1"; rc=${PIPESTATUS[0]}; chown "${SUDO_USER:-root}" "$1" 2>/dev/null; exit $rc' "$self" "$WL_LOG" "$@"
   fi
   [ "$(id -u)" -eq 0 ] || need "not root"
@@ -141,8 +161,10 @@ wl_set_state() {
   return 0
 }
 
-# wl_audit_offset   the number of lines the audit trail has now (root reads it).    wl_audit_since OFFSET   the lines added since.
-wl_audit_offset() { grep -a -c . "$WL_AUDIT" 2>/dev/null || echo 0; }
+# wl_audit_offset   the number of lines the audit trail has now (root reads it): ONE number, 0 for an empty or missing file.    wl_audit_since OFFSET   the lines added since.
+# Both count PHYSICAL lines (wc -l and tail -n +N count newlines), so an offset taken here and used there always agree - it counted the non-empty lines before, which differ from the
+# physical ones as soon as the trail holds a blank line, and `grep -c ... || echo 0` printed "0" twice for an empty file (grep prints 0 AND exits 1).
+wl_audit_offset() { local n; n=$({ wc -l < "$WL_AUDIT"; } 2>/dev/null); printf '%s\n' "$(( ${n:-0} + 0 ))"; }
 wl_audit_since() { tail -n +$(( $1 + 1 )) "$WL_AUDIT" 2>/dev/null; }
 
 # wl_account_user ACCOUNT    the Linux user an SD account's register record names (field 3 is sdu_<user>); empty when the record is not a user account.
@@ -188,7 +210,7 @@ wl_zip_member() {
 wl_backup_routes() {
   local acc=$1 d=$2 z
   case $d in "$WL_TMP"/witness-sdnet-*) ;; *) say "      (wl_backup_routes refuses $d: it must be under $WL_TMP/witness-sdnet-)" >&2; return 1 ;; esac
-  rm -rf -- "$d"; mkdir -p -- "$d"; chmod 777 "$d"
+  rm -rf -- "$d"; wl_mkdir_new "$d" 777
   wl_sd_admin "backup.account $acc" "BACKUP.ACCOUNT $acc TO $d" >&2
   z=$(ls "$d"/*.zip 2>/dev/null | head -1)
   [ -n "$z" ] || return 0
@@ -240,6 +262,31 @@ wl_selftest() {
     [ "$(wl_account_path ann)" = "/home/sd/user_accounts/ann" ] && [ "$(wl_account_user ann)" = ann ] && [ -z "$(wl_account_path nobody)" ] \
       || { echo "SELFTEST-WRONG: wl_account_path / wl_account_user"; SELF_BAD=1; }
     WL_SDSYS=$saved_sdsys
+    # wl_audit_offset: ONE number whatever the file holds (an empty file printed two lines "0" before), counted in the physical lines wl_audit_since starts from
+    local saved_audit=$WL_AUDIT
+    WL_AUDIT=$tmp/audit
+    : > "$WL_AUDIT"
+    [ "$(wl_audit_offset)" = 0 ] && [ "$(wl_audit_offset | wc -l)" = 1 ] || { echo "SELFTEST-WRONG: wl_audit_offset of an EMPTY file is not the one line 0"; SELF_BAD=1; }
+    printf 'one\n\ntwo\n' > "$WL_AUDIT"
+    [ "$(wl_audit_offset)" = 3 ] && [ "$(wl_audit_since 2)" = "two" ] && [ -z "$(wl_audit_since 3)" ] && [ "$(wl_audit_since 0 | wc -l)" = 3 ] \
+      || { echo "SELFTEST-WRONG: wl_audit_offset / wl_audit_since disagree about a trail with a blank line"; SELF_BAD=1; }
+    WL_AUDIT=$tmp/no-such-file
+    [ "$(wl_audit_offset)" = 0 ] && [ "$(wl_audit_offset | wc -l)" = 1 ] || { echo "SELFTEST-WRONG: wl_audit_offset of a MISSING file is not the one line 0"; SELF_BAD=1; }
+    WL_AUDIT=$saved_audit
+    # wl_mkdir_new / wl_state_dir (a directory somebody else made first, a link, a file): each is run in a subshell because a refusal is `need`, which exits
+    ( wl_mkdir_new "$tmp/new" 750 ) >/dev/null 2>&1 && [ "$(stat -c %a "$tmp/new")" = 750 ] || { echo "SELFTEST-WRONG: wl_mkdir_new did not make a new directory with the mode asked"; SELF_BAD=1; }
+    ( wl_mkdir_new "$tmp/new" 750 ) >/dev/null 2>&1 && { echo "SELFTEST-WRONG: wl_mkdir_new accepted a name that is there"; SELF_BAD=1; }
+    ln -s "$tmp/new" "$tmp/lnk"
+    ( wl_mkdir_new "$tmp/lnk" 750 ) >/dev/null 2>&1 && { echo "SELFTEST-WRONG: wl_mkdir_new accepted a link"; SELF_BAD=1; }
+    ( wl_state_dir "$tmp/st" ) >/dev/null 2>&1 && [ "$(stat -c %a "$tmp/st")" = 755 ] || { echo "SELFTEST-WRONG: wl_state_dir did not make a missing directory 755"; SELF_BAD=1; }
+    ( wl_state_dir "$tmp/st" ) >/dev/null 2>&1 || { echo "SELFTEST-WRONG: wl_state_dir refused its own directory"; SELF_BAD=1; }
+    ln -s "$tmp/st" "$tmp/stlnk"
+    ( wl_state_dir "$tmp/stlnk" ) >/dev/null 2>&1 && { echo "SELFTEST-WRONG: wl_state_dir accepted a link"; SELF_BAD=1; }
+    chmod 775 "$tmp/st"
+    ( wl_state_dir "$tmp/st" ) >/dev/null 2>&1 && { echo "SELFTEST-WRONG: wl_state_dir accepted a directory that the group can write into"; SELF_BAD=1; }
+    chmod 755 "$tmp/st"
+    : > "$tmp/afile"
+    ( wl_state_dir "$tmp/afile" ) >/dev/null 2>&1 && { echo "SELFTEST-WRONG: wl_state_dir accepted a file"; SELF_BAD=1; }
     rm -rf -- "$tmp"
   fi
   # wl_in_group on a canned group: use a private function that stands in for the group file

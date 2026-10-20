@@ -30,7 +30,9 @@
 #   server-teardown DELETES the account (DELETE.ACCOUNT, userdel -r, its home) and the password file.
 # It does not install and does not uninstall.
 #
-# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-two-machines-<time>.log on each machine.
+# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-two-machines-<time>.<six random characters>.log on each machine.
+# Changed 19 Oct 26 (finish 2, the verifier's findings): the password file is created exclusively and a planted link is DIRTY; the state and backup directories are made with wl_mkdir_new (no
+# directory that somebody else made first in /var/tmp is used); row Z1 compares the restored register record with its checksum, owner and mode worked out BEFORE the copy was taken.
 #
 set -u
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
@@ -87,11 +89,12 @@ if [ "$ROLE" = server-setup ]; then
   wl_group_exists "sdu_$ACC" && { say "  DIRTY: group sdu_$ACC exists"; DIRTY=1; }
   [ -d "/home/$ACC" ] && { say "  DIRTY: /home/$ACC exists"; DIRTY=1; }
   [ -d "/home/sd/user_accounts/$ACC" ] && { say "  DIRTY: /home/sd/user_accounts/$ACC exists"; DIRTY=1; }
-  [ -e "$STATE_DIR" ] && { say "  DIRTY: $STATE_DIR exists (a previous run: run --role server-teardown first)"; DIRTY=1; }
+  [ -e "$STATE_DIR" ] || [ -L "$STATE_DIR" ] && { say "  DIRTY: $STATE_DIR exists (a previous run: run --role server-teardown first)"; DIRTY=1; }
+  [ -e "$PWFILE" ] || [ -L "$PWFILE" ] && { say "  DIRTY: $PWFILE exists (a previous run, or somebody else's file: remove it, or give --pwfile another name)"; DIRTY=1; }
   [ "$DIRTY" -eq 0 ] || need "the ground is not clear (above): this script will not touch state it did not create"
   OUT=$(wl_sd_admin "list.servers (does an sd session as sdsys work?)" "LIST.SERVERS")
   [ -n "$OUT" ] || need "LIST.SERVERS printed nothing: an sd session as sdsys does not work here (is sd.service running?)"
-  mkdir -p -- "$STATE_DIR" && chmod 700 "$STATE_DIR" || need "cannot make $STATE_DIR"
+  wl_mkdir_new "$STATE_DIR" 700
   printf 'account=%s\nstarted=%s\naudit_offset=%s\n' "$ACC" "$(date '+%Y-%m-%d %H:%M:%S')" "$(wl_audit_offset)" > "$SERVER_STATE"
   PWO=$(wl_newpw); PWS=$(wl_newpw); WL_SECRETS=("$PWO" "$PWS")
 
@@ -115,7 +118,9 @@ if [ "$ROLE" = server-setup ]; then
   expect_re "SS2 zzwfile holds 3 records" "$OUT" '^3 record\(s\) counted'
 
   say ""; say "== SS3. the password file for the client =="
-  : > "$PWFILE" && chown "$SUDO_USER" "$PWFILE" && chmod 600 "$PWFILE" && printf '%s\n' "$PWS" > "$PWFILE" || need "cannot write $PWFILE"
+  # created EXCLUSIVELY (set -C: O_EXCL, which refuses a file that is there and a link, even a dangling one) in a directory every user can write into, by a script that runs as root and
+  # chowns it: a link planted at this predictable name would otherwise have had its target overwritten and handed to the owner (verifier finding of 19 Oct 2026)
+  ( umask 077; set -C; : > "$PWFILE" ) && chown "$SUDO_USER" "$PWFILE" && chmod 600 "$PWFILE" && printf '%s\n' "$PWS" > "$PWFILE" || need "cannot create $PWFILE (it is there already, or the directory is not writable)"
   pass "SS3 the password is in $PWFILE (mode 0600, owner $SUDO_USER): copy it to the client machine, same path, mode 0600, with scp from your login. It is not printed here."
 
   say ""; say "== SS4. THE FACTS THE CLIENT NEEDS (type them, or read them off this screen: the hash must come to the client by a way that does not use the network under test) =="
@@ -202,8 +207,13 @@ printf '%s\n' "$OUT" | grep -a -q -E "^$SRV[[:space:]]" && need "a server named 
 PROGS="zzwtmk zzwtrw zzwtcl"
 for p in $PROGS; do [ -e "$CDIR/bp/$p" ] && need "$CDIR/bp/$p exists: this script will not touch state it did not create"; done
 BK=$WL_TMP/witness-sdnet-two-machines-$STAMP.d
-mkdir -p -- "$BK" && chmod 755 "$BK" || need "cannot make $BK"
+wl_mkdir_new "$BK" 755
+# What the restore at the end is judged against is worked out from the LIVE record BEFORE the copy is taken (its checksum, its owner and group and its mode), not from the copy: a row that
+# compared the copy with the file it had just been copied onto could only fail if cp failed (verifier finding of 19 Oct 2026).
+REG_SUM=$(sha256sum -- "$WL_SDSYS/accounts/$CLIENT" | cut -d' ' -f1)
+REG_ATTR=$(stat -c '%U:%G %a' -- "$WL_SDSYS/accounts/$CLIENT")
 cp -p -- "$WL_SDSYS/accounts/$CLIENT" "$BK/register-$CLIENT" || need "cannot copy the register record of $CLIENT"
+[ -n "$REG_SUM" ] && [ "$(sha256sum -- "$BK/register-$CLIENT" | cut -d' ' -f1)" = "$REG_SUM" ] || need "the saved copy of the register record of $CLIENT is not the record it was taken from"
 REG_SAVED=1; MADE_SERVER=0; MADE_NETLOGIN=0; MADE_VOC=0; MADE_PROGS=0
 say "  client  : account $CLIENT, Linux user $CUSER, directory $CDIR; the register record is saved in $BK"
 say "  server  : $HOST:$PORT   account $ACC   pin to find: ${SHASH:0:16}..."
@@ -219,9 +229,11 @@ cleanup() {
   if [ "$MADE_SERVER" -eq 1 ]; then wl_sd_admin "delete.server $SRV" "DELETE.SERVER $SRV" >/dev/null; fi
   if [ "$MADE_PROGS" -eq 1 ]; then for p in $PROGS; do rm -f -- "$CDIR/bp/$p" "$CDIR/bp.out/$p"; done; say "  removed the programs $PROGS"; fi
   if [ "$REG_SAVED" -eq 1 ]; then
+    if [ "$(sha256sum -- "$WL_SDSYS/accounts/$CLIENT" | cut -d' ' -f1)" = "$REG_SUM" ]; then say "  (the register record of $CLIENT was not changed by the run: nothing to put back)"
+    else say "  (the run changed the register record of $CLIENT - the gate words of C4 - and the saved copy is put back)"; fi
     cp -p -- "$BK/register-$CLIENT" "$WL_SDSYS/accounts/$CLIENT"
-    if cmp -s -- "$BK/register-$CLIENT" "$WL_SDSYS/accounts/$CLIENT"; then pass "Z1 the register record of $CLIENT is identical to the copy taken before the run"
-    else fail "Z1 the register record of $CLIENT differs from the copy (the copy is in $BK)"; fi
+    expect_eq "Z1 the register record of $CLIENT is back as it was before the run: its checksum, then its owner, group and mode (worked out from the live record before the copy was taken)" \
+      "$(sha256sum -- "$WL_SDSYS/accounts/$CLIENT" | cut -d' ' -f1) $(stat -c '%U:%G %a' -- "$WL_SDSYS/accounts/$CLIENT")" "$REG_SUM $REG_ATTR"
   fi
   OUT=$(wl_sd_admin "list.servers (is $SRV gone?)" "LIST.SERVERS")
   if [ -z "$OUT" ]; then fail "Z2 LIST.SERVERS printed nothing (the null case)"

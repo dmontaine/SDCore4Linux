@@ -19,6 +19,11 @@
 * 
 *
 * START-HISTORY:
+* 19 Oct 26 dm K4a, finish 2 (verifier).  When the removal from sdfileswrite worked and the next step (the removal from sdfiles, or the ADD of sdfiles after a stray write membership
+*           went) failed, the person had lost write access and the command printed only "Unable to change remote access" and wrote no audit line; the K4a note said "the state as it
+*           was", which is true of the FIRST removal only.  It now prints the write group's line (11522, new internal write.removed.line, which the success path uses too) and writes an
+*           audit line for the removal that happened (modify.account files-write-off account=<name>) before the failure message.  The files-off / files-on audit line is still written only
+*           when the whole command worked.  Proved by gplbld/sandbox-filesgrp.py (C4, C10b, C11b).
 * 19 Oct 26 dm K4a (S.65 follow-up).  FILES-OFF and FILES-ON look at the write group too, BEFORE they answer "already had that access", and the write group is taken out
 *           FIRST: (1) a person who is in sdfileswrite and not in sdfiles (the leftover of a removal that stopped half way) is no longer told "nothing changed" and left
 *           with the membership; (2) a failure of the second removal can no longer leave that orphan, because the order is now write group, then sdfiles, each read back
@@ -770,7 +775,9 @@ set.files:
 
 * 19 Oct 26 dm - K4a.  THE WRITE GROUP GOES FIRST, for FILES-OFF (so a failure of the second removal leaves the person with read access and no more, never write access without
 *   read: the orphan the 18 Oct build could leave) and for FILES-ON with a stray membership (so sdfiles is not added to a person who already holds write).  Each removal is read back
-*   by change.files.group before the next step, and a removal that did not happen stops everything with 10081 and the state as it was.
+*   by change.files.group before the next step.  A write removal that did not happen stops everything with 10081 and the state as it was.  A SECOND step that fails AFTER the write
+*   group went does not leave the state as it was - the person has lost the write access - so the command says what did happen (the write group's line, and an audit line for that
+*   removal) before it reports the failure (verifier finding of 19 Oct 26).
    write.removed = @false
    if files.grp = 'sdfiles' and has.write then
       cg.group = 'sdfileswrite'
@@ -797,6 +804,12 @@ set.files:
    end
    if files.stat # 0 then
       @system.return.code = -ER$FAILED
+      if write.removed then
+*        The write group HAS gone and the step after it failed: the person has lost the write access, and neither the screen nor the audit trail may say otherwise.  The audit
+*        line is the removal that happened (files-write-off), not the action asked for: files-off and files-on are written only when the whole command worked.
+         void kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)
+         gosub write.removed.line
+      end
       crt sysmsg(10081, acc.name, files.stat)
       return
    end
@@ -806,9 +819,17 @@ set.files:
    if files.grp = 'sdfileswrite' then
       crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has files-write %2
    end else
-      if write.removed then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')  ;* the write group went too (or a stray one was taken away)
+      if write.removed then gosub write.removed.line  ;* the write group went too (or a stray one was taken away)
       crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')  ;* Account %1 has files %2
    end
+   return
+
+*****************************************************************************
+* WRITE.REMOVED.LINE  -  the line for a write group that was taken away (FILES-OFF, or FILES-ON over a stray membership): 11522 with the state read back from /etc/group.  The
+* success path and the failure of the step after the removal print the same line.
+
+write.removed.line:
+   crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')  ;* Account %1 has files-write %2
    return
 
 *****************************************************************************

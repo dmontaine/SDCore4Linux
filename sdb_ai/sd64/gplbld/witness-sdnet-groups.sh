@@ -30,7 +30,8 @@
 #
 # WHAT EACH ROW NEEDS: the saved state of the SAME four groups (a missing or half-written state file is "cannot run", never a pass), the wording the installer or remover prints
 # when you give the log, and the real group file.  A null case - a group the script could not read at all - fails the row.
-# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-groups-<time>.log.
+# Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-groups-<time>.<six random characters>.log.
+# Changed 19 Oct 26 (finish 2, the verifier's findings): the state directory is made or checked with wl_state_dir (a link, or a directory others can write into, is refused).
 #
 set -u
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
@@ -73,7 +74,7 @@ show_groups() { local g; for g in $GROUPS4; do say "    $g: $(grp_desc "$g")"; d
 
 save_state() {   # save_state PREFIX
   local p=$1 g tmp
-  mkdir -p -- "$STATE_DIR" && chmod 755 "$STATE_DIR" || need "cannot make $STATE_DIR"
+  wl_state_dir "$STATE_DIR"
   touch "$STATE"
   tmp=$(mktemp "$STATE_DIR/tmp.XXXXXX") || need "cannot make a temporary file"
   grep -a -v "^$p|" "$STATE" > "$tmp" || true

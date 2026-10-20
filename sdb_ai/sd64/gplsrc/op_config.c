@@ -17,7 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
- * 19 Oct 26 dm  NETWAIT and NETREPLY, the two SDNet timeouts (K8d): CONFIG() reads them and PCONFIG sets them for the process, 1 to 3600 seconds.
+ * 19 Oct 26 dm  NETWAIT and NETREPLY, the two SDNet timeouts (K8d): CONFIG() reads them and PCONFIG sets them for the process, 1 to 3600 seconds.  The fields are 32 bit now (no cast).
  * 15 Oct 26 dm  TIMEZONE, a private parameter: the zone of the epoch functions (QM4 gaps Q-3, SET.TIMEZONE).
  * 10 Sep 26 dm  Parity audit: CONFIG() with a name over eight characters
  *               returns "" with ER_NOT_FOUND instead of an uninitialised
@@ -397,12 +397,12 @@ void op_pconfig() {
     GetInt(descr);
     if ((descr->data.value < 1) || (descr->data.value > 3600))
       goto exit_op_pconfig;
-    pcfg.netwait = (int16_t)(descr->data.value);
+    pcfg.netwait = descr->data.value;
   } else if (!strcmp(param, "NETREPLY")) {
     GetInt(descr);
     if ((descr->data.value < 1) || (descr->data.value > 3600))
       goto exit_op_pconfig;
-    pcfg.netreply = (int16_t)(descr->data.value);
+    pcfg.netreply = descr->data.value;
   } else if (!strcmp(param, "PWDELAY")) {
     GetInt(descr);
     if ((descr->data.value < 0) || (descr->data.value > 3600))

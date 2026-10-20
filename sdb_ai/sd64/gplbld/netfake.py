@@ -5,6 +5,13 @@
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 
+19 Oct 26 dm  Verifier finding (finish 2): stall_first (the Ack is sent and client-first read, then silence: the wait for the first reply of the login) beside ack=False (silence before the Ack).
+              With ack=False a client of this fake waits to the fake's own 5 second close, not to NETREPLY, because the TLS 1.3 session tickets the server sends after the handshake make the
+              socket readable and READ.SOCKET's timeout is then spent (op_skt.c; measured by turning the tickets off in a scratch copy: 3.0 s).
+19 Oct 26 dm  Verifier finding (finish 2): HangingListener (a listener whose accept queue is full, so a connect to it hangs) and restart_with_conf (sd.conf plus lines, SD restarted), the two
+              things the NETWAIT and NETREPLY rows of sandbox-net.py and sandbox-netfile.py share; sandbox-netfile.py's own copy of the restart is gone.
+19 Oct 26 dm  Verifier finding (finish 2): the ids this fake refuses are those holding the FIVE MARKS, bytes 251 to 255 (sddefs.h TEXT_MARK to ITEM_MARK), not 248 to 255: the real
+              server accepts 248, 249 and 250 in an id (measured, sandbox-req29.py section G, which sends 250 and 251 to a real `sd -Q`).
 19 Oct 26 dm  K1, K8b, K8c.  (1) The ON ERROR replies this fake imitates now follow the REAL server (REAL_ON_ERROR, measured by sandbox-req29.py section G on a real `sd -Q`): the
               sign of STATUS() (+3000 and +3018, not -3000 and -3018), no text for a statement with an ON ERROR clause, and for one without (CLEARFILE, request 30) STATUS() 0
               and the kernel's text with the program and line.  (2) The text of an ON ERROR reply is shown by the $netfile handler since this change, so the message of the
@@ -663,8 +670,8 @@ class FileSession:
     def _change_gate(self, f, rid=None):
         """What stands between a changing request and the file, in the order of the real server: check.edit (the session's edit gates, by
         the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (STATUS() +3018, no text; CLEARFILE has no ON ERROR clause and
-        aborts: STATUS() 0 and the kernel's text), a record id that is not valid (+3000, no text: empty, over 63 bytes, or - in this fake only, the real server was seen to
-        accept character 250 in the id of a dynamic file on 19 Oct 26 - holding a mark), and MUSTLOCK (-3023: no update lock held on the record; from op_dio3.c, not
+        aborts: STATUS() 0 and the kernel's text), a record id that is not valid (+3000, no text: empty, over 63 bytes, or holding one of the five marks, bytes 251 to 255 -
+        the real server accepts 248 to 250, measured by sandbox-req29.py section G), and MUSTLOCK (-3023: no update lock held on the record; from op_dio3.c, not
         measured on a real server).  The signs and texts are REAL_ON_ERROR's.  rid None is CLEARFILE.  True when the change may go on; otherwise the reply is set."""
         if not f.path:
             self._fail(msg(11410))
@@ -681,7 +688,7 @@ class FileSession:
             return False
         if rid is None:
             return True
-        if rid == "" or len(rid) > MAX_ID or any(248 <= ord(ch) <= 255 for ch in rid):
+        if rid == "" or len(rid) > MAX_ID or any(251 <= ord(ch) <= 255 for ch in rid):
             self._fail_on_error(ER_IID, "")
             return False
         if self.cfg["must_lock"] and not self.store.holds_update(f, rid, self.userno):
@@ -1050,6 +1057,7 @@ class FakeServer(threading.Thread):
     DEFAULTS = {
         "ack": True,              # send the Ack byte after the handshake
         "close_after": None,      # 'handshake' (before the Ack) | 'ack' | 'first' (after reading client-first) | 'final' | None
+        "stall_first": None,      # N seconds: the Ack is sent and client-first read, then NOTHING is sent; the connection is held N seconds or until the client closes it (19 Oct 26, finish 2)
         "nonce": "extend",        # 'extend' | 'wrong' (does not start with the client's) | 'same' (the client's, nothing added)
         "offer_iter": None,       # iteration count offered (and used) instead of the user's
         "iter_text": None,        # i= text instead of a number (the derivation still uses the user's count)
@@ -1293,6 +1301,20 @@ class FakeServer(threading.Thread):
                 self.reply(tls, "unexpected packet", SV_ON_ERROR)
                 return
             if cfg["close_after"] == "first":
+                return
+            if cfg["stall_first"]:
+                # 19 Oct 26 (finish 2): the Ack went, client-first was read, and the reply never comes.  The connection is held for stall_first seconds, or until the client closes it
+                # (a recv with a short timeout, so that the fake lets go as soon as the client gives up and the rows can say that no socket is left open)
+                end = time.time() + cfg["stall_first"]
+                tls.settimeout(0.2)
+                while time.time() < end:
+                    try:
+                        if tls.recv(1) == b"":
+                            break
+                    except socket.timeout:
+                        continue
+                    except (OSError, ssl.SSLError):
+                        break
                 return
             if cfg["first_error"] is not None:
                 self.reply(tls, cfg["first_error"][1], cfg["first_error"][0])
@@ -2236,11 +2258,15 @@ def selftest_writes(srv, row):
     r63, r64 = c.req(R_WRITE, W(f1, i63, "x")), c.req(R_WRITE, W(f1, i64, "x"))
     row("ids: 63 bytes is stored, 64 is refused with +3000 and no text (the server's MAXIDLEN)", r63 == (0, 0, b"") and i63 in st.records("wf") and r64 == (1, 3000, b"")
         and i64 not in st.records("wf"), repr((r63, r64)))
-    rm = c.req(R_WRITE, W(f1, "m" + chr(250), "x"))
+    rm = c.req(R_WRITE, W(f1, "m" + chr(251), "x"))
+    rn = [c.req(R_WRITE, W(f1, "n" + chr(x), "x")) for x in (248, 249, 250)]
     rh = c.req(R_WRITE, W(f1, "h" + chr(247), "x"))
-    row("ids: a record mark (248-255) is refused with +3000 (THE FAKE ONLY: the real server accepted character 250 in the id of a dynamic file, 19 Oct 26 - no row of "
-        "sandbox-netfile.py sends one, the handler refuses it first); a byte of 128-247 is an ordinary character (the owner's 12 Oct exception)",
-        rm == (1, 3000, b"") and rh == (0, 0, b"") and "h" + chr(247) in st.records("wf") and "m" + chr(250) not in st.records("wf"), repr((rm, rh)))
+    rall = [c.req(R_WRITE, W(f1, "k" + chr(x), "x")) for x in range(251, 256)]
+    row("ids: a MARK byte (251 to 255, the five marks) is refused with +3000, every one of the five (measured on the real server by sandbox-req29.py section G: 247 to 250 accepted, 251 refused - "
+        "the fake refused 248 to 255 before 19 Oct 26); a byte of 128-250 is an ordinary character (the owner's 12 Oct exception)",
+        rm == (1, 3000, b"") and all(x == (1, 3000, b"") for x in rall) and rh == (0, 0, b"") and all(x == (0, 0, b"") for x in rn) and "h" + chr(247) in st.records("wf")
+        and all("n" + chr(x) in st.records("wf") for x in (248, 249, 250)) and "m" + chr(251) not in st.records("wf") and not any("k" + chr(x) in st.records("wf") for x in range(251, 256)),
+        repr((rm, rn, rh, rall)))
     bye(c, ses)
 
     # ---- W3  nocase ------------------------------------------------------------------------------------------------------------
@@ -2802,6 +2828,100 @@ def selftest_writes(srv, row):
     row("the fake noted nothing wrong with the client in the write rows", srv.errors == [], repr(srv.errors))
 
 
+# ---- a connection that hangs, and the sandbox's sd.conf (19 Oct 26, finish 2: the NETWAIT and NETREPLY rows of sandbox-net.py and sandbox-netfile.py) ------------------------------
+
+class HangingListener:
+    """A TCP listener on 127.0.0.1 whose accept queue is FULL, so that a further connect() neither completes nor is refused (the SYN is dropped): the connection NETWAIT is for.  Nothing ever
+    accepts.  hangs() is the precondition a row depends on, shown by a connect of its own that must time out; on a machine that does not behave so it is False and the row that needed it FAILS (it
+    does not pass over nothing).  fill=False leaves the queue empty: hangs() must then say False (the instrument can say no).  The technique is sandbox-opensock.py's."""
+
+    def __init__(self, fill=True):
+        self.sock = socket.socket()
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(0 if fill else 16)
+        self.port = self.sock.getsockname()[1]
+        self.keep = []
+        for _ in range(6 if fill else 0):
+            c = socket.socket()
+            c.setblocking(False)
+            try:
+                c.connect(("127.0.0.1", self.port))
+            except BlockingIOError:
+                pass
+            self.keep.append(c)
+            time.sleep(0.1)
+
+    def hangs(self):
+        """True when a connect to this listener, given one second, neither completes nor fails."""
+        probe = socket.socket()
+        probe.settimeout(1)
+        try:
+            probe.connect(("127.0.0.1", self.port))
+            return False             # it completed: the queue is not full
+        except socket.timeout:
+            return True
+        except OSError:
+            return False             # refused, or failed at once
+        finally:
+            probe.close()
+
+    def close(self):
+        for c in self.keep:
+            try:
+                c.close()
+            except OSError:
+                pass
+        self.keep = []
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+
+SD_CONF_MARK = "# --- sd.conf lines of the SDNet timeout rows below ---"
+
+
+def restart_with_conf(box, tool, original, lines):
+    """Stop the sandbox's SD, write its sd.conf as ORIGINAL (the text it had) plus LINES below a marker (none: the file as it was), start it again, and say whether SD is running.  A session takes its
+    configuration from the shared memory the daemon filled when it STARTED, so a line in sd.conf needs the daemon stopped and started.  tool is sandbox-fromtree.py.  Used by sandbox-net.py and
+    sandbox-netfile.py for NETWAIT and NETREPLY; a row that needs the new value must fail when this says False."""
+    subprocess.run([sys.executable, tool, box, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+    conf = os.path.join(box, "sd.conf")
+    with open(conf, "w") as f:
+        f.write(original.rstrip("\n") + "\n" + (SD_CONF_MARK + "\n" + "".join(x + "\n" for x in lines) if lines else ""))
+    subprocess.run([sys.executable, tool, box, "start"], capture_output=True, text=True, errors="replace", timeout=180)
+    p = subprocess.run([os.path.join(box, "sys", "bin", "sd"), "-status"], capture_output=True, text=True, errors="replace", env=dict(os.environ, SD_CONFIG=conf), timeout=60)
+    return re.search(r"(?m)^Started\s+20\d\d-", p.stdout + p.stderr) is not None
+
+
+def selftest_hanging(row):
+    """HangingListener on its own: a full queue hangs a connect, an empty one does not, and a listener with room completes at once."""
+    hl, empty = HangingListener(), HangingListener(fill=False)
+    free = socket.socket()
+    free.bind(("127.0.0.1", 0))
+    free.listen(16)
+    try:
+        t0 = time.time()
+        hangs = hl.hangs()
+        el = time.time() - t0
+        no_hang = empty.hangs()
+        c = socket.socket()
+        c.settimeout(1)
+        try:
+            c.connect(("127.0.0.1", free.getsockname()[1]))
+            control = True
+        except OSError:
+            control = False
+        finally:
+            c.close()
+        row("HangingListener: a connect to a listener whose accept queue is FULL neither completes nor is refused within a second (the connection NETWAIT is for); one to a listener with an empty queue "
+            "completes (hangs() says False: the instrument can say no), and so does one with room (the control)", hangs and not no_hang and control and 0.9 <= el < 3, repr((hangs, no_hang, control, el)))
+    finally:
+        hl.close()
+        empty.close()
+        free.close()
+
+
 def selftest():
     passed = failed = 0
 
@@ -2854,6 +2974,18 @@ def selftest():
         run("a wrong v=: the client sees the signature differ", "bad-v", cfg={"bad_v": True}, types=[47, 48], ok=1, bad=0)
         run("no Ack: the client sees the connection closed", "closed", cfg={"close_after": "handshake"}, types=[])
         run("closed after client-first", "closed", cfg={"close_after": "first"}, types=[47])
+        # stall_first: the reply to client-first never comes.  The probe's own wait is long, so the fake holds the connection for 1.5 s and then closes it: the probe sees the close after
+        # 1.5 s and not at once (the hold), and the fake saw packet 47 only.  (That the fake lets go as soon as a client gives up first is seen in sandbox-netfile.py, by its "no socket left open" rows.)
+        srv.configure(stall_first=1.5)
+        m = srv.mark()
+        t0 = time.time()
+        res = _probe(srv.port, "alice", "pw-one")
+        el = time.time() - t0
+        srv.settle(quiet=0.3)
+        d = srv.delta(m)
+        row("stall_first=1.5: the Ack is sent, client-first is read and nothing more is sent; the connection is held and then closed (the probe saw it closed after %.1f s, 1.4 to 4 expected)" % el,
+            res[0] == "closed" and 1.4 <= el < 4 and d["types"] == [47] and d["conns"] == 1 and d["errors"] == [], "client saw %r after %.1f s, server saw %r" % (res, el, d))
+        srv.configure()
         run("first_error: the error field and text reach the client", "error", cfg={"first_error": (SV_ON_ERROR, "no thanks")}, types=[47])
         run("an iteration count of 5000 is used by both ends", "ok", cfg={"offer_iter": 5000}, types=[47, 48], ok=1, bad=0)
         ex = srv.exchanges[-1]
@@ -2861,6 +2993,7 @@ def selftest():
             ex["cbind"].startswith(GS2) and ex["verified"] is True and ex["iterations"] == 5000 and len(ex["proof"]) == 32, repr(ex)[:200])
         selftest_files(srv, c, row)
         selftest_writes(srv, row)
+        selftest_hanging(row)
     finally:
         if srv is not None:
             srv.shutdown()

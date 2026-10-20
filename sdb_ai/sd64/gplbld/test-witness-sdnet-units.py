@@ -15,6 +15,9 @@ WHAT IS CHECKED, and what is NOT.
   S  static: no BOM, no CR, bash -n, the header says "NEEDS sudo" and gives an absolute command, --selftest passes, a run without sudo says CANNOT RUN and exits 2 before it changes anything,
      every message number a wl_msg call names exists in this tree with enough text for its arguments, every grep the premises make on the installed tree finds its string in THIS tree
      (so a renamed message or program fails here, not on the VM), the probe's python compiles and refuses a missing password file and a missing library;
+  P  the shared temporary directory (19 Oct 26, the verifier's finding): the scripts run as root and keep their files in /var/tmp under names anyone can work out, so nothing there may be made
+     with mkdir -p, `: >` or a name worked out from the time; the library's wl_mkdir_new and wl_state_dir refuse a name that is there / a link / a directory others can write into, and the model
+     PLANTS a link where two-machines would write its password file and its state directory and shows the link's target untouched (the old script, run on the same link, overwrote it);
   L  the helpers (witness-sdnet-lib.sh) with one fault at a time: each must make --selftest fail (an empty text that passes, a substring group match, an order test the wrong way round, a
      mask that masks nothing, a message that is not filled in ...);
   M  the MODEL: the scripts are run with PATH stubs for sudo, id, getent, gpasswd, groupdel, userdel, ss and openssl and a fake `sd` (this file with --fake-sd) that answers the verbs
@@ -1062,6 +1065,48 @@ def static_checks():
         check("S10 %s: no MODIFY.ACCOUNT command carries two actions (the Dev build before 18 Oct refuses them with 11714)" % f, not bad, bad[:2])
 
 
+# ---- P. the shared temporary directory (19 Oct 26, the verifier's finding on the witness scripts)
+def private_dir_checks():
+    """The scripts run as root and keep their files in a directory every user can write into, under names anyone can work out.  They must not make a name "if it is missing" with a command
+    that follows a link or takes over a directory somebody else made first.  Text rows say what the scripts no longer do; the model rows PLANT a link where the script would write and show the
+    link's target untouched.  (The old script, run on the same planted link, overwrote the target: observed 19 Oct 26 by running git's copy of the script in the model.)"""
+    for f in [LIB] + SCRIPTS:
+        text = strip_comments_sh(read(os.path.join(HERE, f)).decode("utf-8"))
+        bad = [l.strip() for l in text.split("\n") if re.search(r'mkdir -p -- "\$(BK|STATE_DIR)"', l) or re.search(r'(?<!set -C; ): > "\$PWFILE"', l) or re.search(r'chmod 7[0-7]5 "\$(BK|STATE_DIR)"', l)]
+        check("P1 %s: nothing in the shared temporary directory is made with mkdir -p, a chmod after it, or `: >` (a link or somebody else's directory would be followed)" % f, not bad, bad[:2])
+    lib = strip_comments_sh(read(os.path.join(HERE, LIB)).decode("utf-8"))
+    check("P2 the library makes the log with mktemp (a new file, mode 0600) and not a name worked out from the time", 'WL_LOG=$(mktemp "$WL_TMP/$prefix-' in lib and "WL_LOG=$WL_TMP/" not in lib, "wl_logged")
+    two = strip_comments_sh(read(os.path.join(HERE, "witness-sdnet-two-machines.sh")).decode("utf-8"))
+    check("P3 two-machines creates the password file EXCLUSIVELY (set -C: O_EXCL, which refuses a link) before it chowns it, and treats an existing one as DIRTY",
+          re.search(r'\( umask 077; set -C; : > "\$PWFILE" \) && chown', two) is not None and re.search(r'\[ -e "\$PWFILE" \] \|\| \[ -L "\$PWFILE" \] && \{ say "  DIRTY', two) is not None, "")
+    check("P3 two-machines compares the register record with what was worked out BEFORE the copy (checksum, owner, mode), not with the copy it had just put there",
+          'REG_SUM=$(sha256sum -- "$WL_SDSYS/accounts/$CLIENT"' in two and "cmp -s" not in two, "Z1")
+    w = World("")
+    try:
+        victim = os.path.join(w.root, "victim")
+        with open(victim, "w") as f:
+            f.write("THE OWNER'S FILE\n")
+        os.symlink(victim, os.path.join(w.root, "tmp", "witness-sdnet-two-machines.pw"))
+        before = read(victim)
+        r = w.run("witness-sdnet-two-machines.sh", "--role", "server-setup")
+        check("P4 a LINK planted at the password file's name: server-setup stops (exit 2, 'DIRTY'), and the link's target is exactly as it was (it was overwritten before)",
+              r.returncode == 2 and "DIRTY" in r.stdout and read(victim) == before, "rc=%d target %r\n%s" % (r.returncode, read(victim)[:40], r.stdout[-300:]))
+        check("P4 ...and it made no account and no state directory first", not os.path.exists(os.path.join(w.root, "tmp", "witness-sdnet-two-machines.d")) and not os.path.exists(os.path.join(w.root, "sdsys", "accounts", "zzwtwo")),
+              os.listdir(os.path.join(w.root, "tmp")))
+    finally:
+        w.close()
+    w = World("")
+    try:
+        victim_dir = os.path.join(w.root, "victim.d")
+        os.mkdir(victim_dir)
+        os.symlink(victim_dir, os.path.join(w.root, "tmp", "witness-sdnet-two-machines.d"))
+        r = w.run("witness-sdnet-two-machines.sh", "--role", "server-setup")
+        check("P5 a LINK planted at the state directory's name: server-setup stops (exit 2, 'DIRTY') and writes nothing into the directory the link points at",
+              r.returncode == 2 and "DIRTY" in r.stdout and os.listdir(victim_dir) == [], "rc=%d victim holds %r\n%s" % (r.returncode, os.listdir(victim_dir), r.stdout[-300:]))
+    finally:
+        w.close()
+
+
 # ---- L. the helpers with one fault at a time
 LIB_MUTANTS = [
     ("expect_has accepts an empty wording", 'if [ -z "$3" ]; then fail "$1 - the wording to look for is EMPTY (a message that could not be read? an empty wording is in every text)"; return; fi\n  if [ -z "$2" ]; then fail "$1 - the text to look in is EMPTY (the null case): wanted: $3"; return; fi', 'if [ -z "$2" ]; then fail "$1 - the text to look in is EMPTY (the null case): wanted: $3"; return; fi'),
@@ -1076,6 +1121,14 @@ LIB_MUTANTS = [
     ("wl_summary passes a failure", 'if [ "$WL_FAIL" -gt 0 ]; then return 1; fi', ''),
     ("wl_state reads sdfileswrite from sdfiles", "wl_in_group \"$1\" sdfileswrite && b=1", "wl_in_group \"$1\" sdfiles && b=1"),
     ("expect_eq compares loosely", 'if [ "$2" = "$3" ]; then pass', 'if [ "${2:0:3}" = "${3:0:3}" ]; then pass'),
+    # 19 Oct 26, finish 2 (verifier): wl_audit_offset printed "0" twice for an empty trail (grep prints 0 and exits 1, then echo 0), and counted the non-empty lines while wl_audit_since counts physical ones
+    ("wl_audit_offset prints two lines for an empty trail", r"""local n; n=$({ wc -l < "$WL_AUDIT"; } 2>/dev/null); printf '%s\n' "$(( ${n:-0} + 0 ))";""", """grep -a -c . "$WL_AUDIT" 2>/dev/null || echo 0;"""),
+    ("wl_audit_offset counts the non-empty lines", '{ wc -l < "$WL_AUDIT"; }', '{ grep -a -c . "$WL_AUDIT"; }'),
+    # a directory in the shared /var/tmp that somebody else made first is written into as root: wl_mkdir_new must refuse an existing name, wl_state_dir an unsafe one
+    ("wl_mkdir_new accepts a name that is there (mkdir -p)", 'mkdir -m "$2" -- "$1" 2>/dev/null ||', 'mkdir -p -m "$2" -- "$1" 2>/dev/null ||'),
+    # (no mutant for the `-L` test in wl_state_dir: stat reports a link's OWN mode, 0777, so the group/other-write test refuses a link too - the test stays for its message, and the selftest row for a link
+    # is held by that test; a mutant that removed only the -L line would be equivalent)
+    ("wl_state_dir accepts a directory others can write into", ' && [ "$(( 0$(stat -c \'%a\' -- "$1") & 022 ))" = 0 ]', ''),
 ]
 
 
@@ -1409,6 +1462,22 @@ def two_machines_models(selftest):
             check("M two-machines mutant: a wrong pin still reaches the server - the client fails C5 (%s)" % ",".join(sorted(failed)), r2.returncode != 0 and any(f.startswith("C5") for f in failed), r2.stdout[-300:])
         finally:
             w.close()
+        # 19 Oct 26 (verifier): row Z1 compared the saved copy with the file the copy had just been copied onto, so it could only fail if cp failed.  A restore that restores NOTHING (the script's
+        # cp of the saved copy replaced by `true`) must now fail Z1 - provided the run changed the record, which the gate words of C4 do
+        w = World("")
+        try:
+            p = os.path.join(w.root, "gplbld", "witness-sdnet-two-machines.sh")
+            text = read(p).decode("utf-8")
+            old = 'cp -p -- "$BK/register-$CLIENT" "$WL_SDSYS/accounts/$CLIENT"'
+            check("M two-machines mutant: the restore's cp occurs once in the script", text.count(old) == 1, "occurs %d times" % text.count(old))
+            with open(p, "w") as f:
+                f.write(text.replace(old, "true"))
+            server_setup(w)
+            r2 = client(w)
+            failed = {i for i, _d in rows_of(r2.stdout)["FAIL"]}
+            check("M two-machines mutant: a restore that restores nothing - the client fails Z1 (%s)" % ",".join(sorted(failed)), r2.returncode != 0 and any(f.startswith("Z1") for f in failed), r2.stdout[-400:])
+        finally:
+            w.close()
 
 
 def main():
@@ -1445,6 +1514,7 @@ def main():
             models[n](selftest)
     else:
         static_checks()
+        private_dir_checks()
         lib_mutants()
         writegroup_models(selftest)
         groups_models(selftest)

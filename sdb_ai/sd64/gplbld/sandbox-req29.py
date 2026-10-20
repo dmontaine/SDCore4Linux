@@ -10,6 +10,13 @@
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Finish 2 (verifier findings).  (F) The BLOCKING form of request 32 (the wait flag set) had no row: the stale `files(i)` could be put back on that branch alone and everything stayed
+#               green.  F10 to F19 hold S1's file lock and send S2 the request with the flag and no answer is read for 3 seconds (the stale index would lock the file S2 opened last and answer
+#               at once), then release and read the answer, then look at which file is locked; --mutant=filelock-wait puts the stale index back on that branch only and exactly F11, F13, F14,
+#               F15, F18 and F19 fail (Wire.send / recv hold a request back).  (G) G8: ids with a high byte - 247 to 250 are written and read back, the five marks 251 to 255 each take the ON ERROR of
+#               an id that is not valid (+3000, no text) and COUNT afterwards says four records; netfake.py had refused 248 to 255 and its notes said the real server accepted 250.  (H) H4 asserted
+#               nothing about the CR (it stripped it before comparing) and User page 42 says it is KEPT: it asserts x CR, field mark, y CR now; H5b asserts that D1 is NOT found in a directory file
+#               written as d1 (the page says so; the evidence line was all there was).
 # 19 Oct 26 dm  K8a, K1 (server half) and K8g.  (F) API requests 32 and 33, filelock and fileunlock, used `files(i)`, the scratch variable of the last open, instead of
 #               files(fno): a lock or an unlock went to whichever file had been opened last.  Three files are opened, the first is locked by number, and a SECOND session on the
 #               same account asks for the file lock on each (no wait): LOCKED says where the first session's lock is.  Red on the apisrvr of HEAD: F4, F5 and F6.  (G) The text
@@ -118,6 +125,7 @@ class Wire:
 
     def __init__(self, tag_):
         self.tag = tag_
+        self.pending = None         # what send() last sent, for the line recv() prints
         r1, w1 = os.pipe()          # server -> client
         r2, w2 = os.pipe()          # client -> server
         env = dict(os.environ, SD_CONFIG=os.path.join(q3.BOX, "sd.conf"))
@@ -145,18 +153,44 @@ class Wire:
             buf += chunk
         return buf
 
-    def req(self, ptype, data=b"", shown=None):
+    def _write(self, ptype, data):
+        """Send one request packet (length int32 LE including the 6 byte header, type int16 LE, data); returns the data as bytes."""
         if isinstance(data, str):
             data = data.encode("latin-1")
         os.write(self.wr, struct.pack("<iH", len(data) + 6, ptype) + data)
+        return data
+
+    def _answer(self, secs):
+        """Read one reply: (error, status, body).  Raises TimeoutError when nothing (or not the whole of it) comes within SECS, EOFError when the server closes the pipe."""
+        h = self._read(10, secs)
+        n, err, st = struct.unpack("<ihi", h)
+        return err, st, (self._read(n - 10, secs) if n > 10 else b"")
+
+    def req(self, ptype, data=b"", shown=None, secs=30):
+        data = self._write(ptype, data)
+        what = shown if shown is not None else data[:60]
         try:
-            h = self._read(10)
-            n, err, st = struct.unpack("<ihi", h)
-            body = self._read(n - 10) if n > 10 else b""
+            err, st, body = self._answer(secs)
         except (TimeoutError, EOFError) as e:
-            say("      %s request %d %r -> %s" % (self.tag, ptype, shown if shown is not None else data[:60], e))
+            say("      %s request %d %r -> %s" % (self.tag, ptype, what, e))
             return None
-        say("      %s request %d %r -> error %d (%s) status %d data %r" % (self.tag, ptype, shown if shown is not None else data[:60], err, SV.get(err, "?"), st, body[:70]))
+        say("      %s request %d %r -> error %d (%s) status %d data %r" % (self.tag, ptype, what, err, SV.get(err, "?"), st, body[:70]))
+        return err, st, body
+
+    def send(self, ptype, data=b"", shown=None):
+        """Send a request and do NOT wait for its answer: recv() reads it.  For a request the server is meant to hold back (a file lock with the wait flag)."""
+        data = self._write(ptype, data)
+        self.pending = shown if shown is not None else data[:60]
+        say("      %s request %d %r -> (sent; the answer is read later)" % (self.tag, ptype, self.pending))
+
+    def recv(self, secs):
+        """The answer to the request sent with send(), or None when nothing came within SECS seconds (the request is then still pending and a later recv() can read its answer)."""
+        try:
+            err, st, body = self._answer(secs)
+        except (TimeoutError, EOFError) as e:
+            say("      %s answer to %r -> %s (within %s s)" % (self.tag, self.pending, e, secs))
+            return None
+        say("      %s answer to %r -> error %d (%s) status %d data %r" % (self.tag, self.pending, err, SV.get(err, "?"), st, body[:70]))
         return err, st, body
 
     def errtext(self):
@@ -193,6 +227,10 @@ class Wire:
     def filelock(self, fno, wait=0):
         """Request 32: fno and the wait flag, two short integers.  wait 0 is the form with a LOCKED clause (error 4 when another user holds the file lock)."""
         return self.req(32, struct.pack("<hh", fno, wait), shown="filelock fno %r wait %d" % (fno, wait))
+
+    def filelock_wait(self, fno):
+        """Request 32 with the wait flag set, sent and NOT answered here: the server holds it back until the lock is free.  Read the answer with recv()."""
+        self.send(32, struct.pack("<hh", fno, 1), shown="filelock fno %r wait 1" % (fno,))
 
     def fileunlock(self, fno):
         """Request 33: fno, a short integer."""
@@ -276,6 +314,42 @@ def section_f():
         s2.fileunlock(a2)
     r = s1.filelock(99, 0)
     row("F9 CONTROL: a file number that is not open (99) is the invalid-file-number error (error ERROR 3), not a lock", r is not None and r[0] == 3, repr(r))
+
+    # ---- the BLOCKING form, request 32 with the wait flag set.  The verifier of 19 Oct 26 found that nothing sent it: the stale `files(i)` could be put back on that branch alone
+    #      and every row above stayed green.  S1 holds zzsec; S2 asks for it WITH the wait flag, which the server must hold back until S1 lets go.  The stale index would lock
+    #      S2's last-opened file (zzsec3) and answer at once - which is what the 3 second wait is the evidence against.
+    say("\n  -- the blocking form: the wait flag set (the server holds the request until the lock is free) --")
+    r = s1.filelock(a1, 0)
+    row("F10 S1 takes the file lock on zzsec (no wait): OK - S2 has something to wait for", r is not None and r[0] == 0, repr(r))
+    s2.filelock_wait(a2)
+    held = s2.recv(3)
+    row("F11 S2 asks for the file lock on zzsec WITH the wait flag: NO answer in 3 seconds - the server holds the request while S1 has the lock (the stale `files(i)` would lock zzsec3, the "
+        "file S2 opened last, and answer at once)", held is None, repr(held))
+    r = s1.fileunlock(a1)
+    row("F12 S1 releases zzsec: OK", r is not None and r[0] == 0, repr(r))
+    got = s2.recv(15)
+    row("F13 ...and the request S2 was held back on is then answered, OK (error 0) - S2 has the lock on zzsec now", got is not None and got[0] == 0, repr(got))
+    r = s1.filelock(a1, 0)
+    row("F14 S1 asks for the file lock on zzsec (no wait): LOCKED (error 4) - it is S2 that holds it, and zzsec is the file the wait was for", r is not None and r[0] == 4, repr(r))
+    r = s1.filelock(c1, 0)
+    row("F15 CONTROL: S1 asks for the file lock on zzsec3, the file S2 opened last (no wait): granted (OK) - the wait did not lock the stale index's file", r is not None and r[0] == 0, repr(r))
+    if r is not None and r[0] == 0:
+        s1.fileunlock(c1)
+    s2.fileunlock(a2)
+    r = s1.filelock(a1, 0)
+    row("F16 S2 let go of zzsec: S1 gets it (OK); S1 holds zzsec again for the next rows", r is not None and r[0] == 0, repr(r))
+    s2.filelock_wait(b2)
+    free = s2.recv(3)
+    row("F17 S2 asks WITH the wait flag for zzsec2, which nobody holds, while S1 holds zzsec: granted at once (error 0, inside 3 seconds) - waiting is only for a lock that is taken",
+        free is not None and free[0] == 0, repr(free))
+    r = s1.filelock(b1, 0)
+    row("F18 ...and the lock S2 was granted is on zzsec2: S1 asking for it (no wait) is LOCKED (error 4)", r is not None and r[0] == 4, repr(r))
+    r = s1.filelock(c1, 0)
+    row("F19 CONTROL: S1 asks for zzsec3 (no wait): granted (OK) - the wait on a free file did not lock the stale index's file either", r is not None and r[0] == 0, repr(r))
+    if r is not None and r[0] == 0:
+        s1.fileunlock(c1)
+    s2.fileunlock(b2)
+    s1.fileunlock(a1)
     s1.close()
     s2.close()
 
@@ -323,10 +397,10 @@ def section_g():
     #      about the server again.  A row compares the server with the table, never the table with itself.
     say("\n  -- what netfake.py claims the real server answers (REAL_ON_ERROR): an id that is not valid, a read only file, MAXRLOCK")
 
-    def real(key, got, label, extra_ok=True):
+    def real(key, got, label, extra_ok=True, tag="G6"):
         kind, status, pat = netfake.REAL_ON_ERROR[key]
         text = got[2].decode("latin-1") if got is not None else None
-        row("G6 %s: ON ERROR (error %d), STATUS() %d and %s" % (label, kind, status, ("the text matching " + pat) if pat else "NO text"),
+        row("%s %s: ON ERROR (error %d), STATUS() %d and %s" % (tag, label, kind, status, ("the text matching " + pat) if pat else "NO text"),
             got is not None and got[0] == kind and got[1] == status and re.fullmatch(pat, text) is not None and extra_ok, repr(got))
     if os.geteuid() == 0:
         q3.bail("this is root: a file mode does not stop root, so the read only file below would prove nothing")
@@ -339,6 +413,34 @@ def section_g():
     real("write_bad_id", w.req(16, struct.pack("<hh", f1, 64) + b"a" * 64 + b"x", shown="write, an id of 64 characters"), "a WRITE with an id of 64 characters (MAXIDLEN is 63)")
     real("delete_bad_id", w.req(18, struct.pack("<h", f1) + b"a" * 64, shown="delete, an id of 64 characters"), "a DELETE with an id of 64 characters")
     w.close()
+
+    # ---- ids with a high byte (verifier finding of 19 Oct 26).  netfake.py refused every id holding a byte of 248 to 255, and its notes said the real server had accepted 250; the marks are
+    #      251 to 255 (sddefs.h).  Measured here, in a file of its own so that the disk can be counted: 247 to 250 are written and read back, 251 to 255 each take the ON ERROR of an id that
+    #      is not valid, and COUNT afterwards says four records - the refused ids were not stored.
+    say("\n  -- ids with a high byte: 247 to 250 are ordinary characters, the five marks 251 to 255 are not an id (netfake.py is held to this) --")
+    out = q3.plain("zzad", ["CREATE.FILE zzmk DYNAMIC"])
+    say("    [setup] CREATE.FILE zzmk DYNAMIC -> %r" % (out[-2:],))
+    w = Wire("Gmk")
+    e, t = w.login("zzad")
+    fmk, _r = w.open4("zzmk")
+    row("G8a the file zzmk opens (a file number comes back)", fmk is not None, repr(_r))
+    if fmk is None:
+        q3.bail("the file zzmk did not open")
+    seen = {}
+    for x in (247, 248, 249, 250):
+        ident = b"m" + bytes([x])
+        wrote = w.req(16, struct.pack("<hh", fmk, len(ident)) + ident + b"d%d" % x, shown="write id 'm' + byte %d" % x)
+        back = w.req(6, struct.pack("<h", fmk) + ident, shown="read id 'm' + byte %d" % x)
+        seen[x] = (wrote, back)
+    row("G8b an id holding byte 247, 248, 249 or 250 is written (OK, STATUS() 0) and READ gives its data back: ordinary characters, the real server accepted 250 and the fake refused 248 to 255 "
+        "until 19 Oct 26", all(v[0] is not None and v[0][:2] == (0, 0) and v[1] is not None and v[1][0] == 0 and v[1][2] == b"d%d" % x for x, v in seen.items()), repr(seen))
+    for x in range(251, 256):
+        ident = b"m" + bytes([x])
+        real("write_bad_id", w.req(16, struct.pack("<hh", fmk, len(ident)) + ident + b"data", shown="write id 'm' + byte %d" % x), "a WRITE with byte %d (a mark) in the id" % x, tag="G8c")
+    w.close()
+    out = q3.plain("zzad", ["COUNT zzmk"])
+    say("      [evidence] COUNT zzmk (the disk) -> %r" % (out[-3:],))
+    row("G8d ...and COUNT in an ordinary session says 4 records are in zzmk (247 to 250): none of the five refused ids was stored", has(out, r"^4 record\(s\) counted"), repr(out[-3:]))
 
     out = q3.plain("zzad", ["CREATE.FILE zzsecro DYNAMIC"])
     w = Wire("Gro")
@@ -430,13 +532,18 @@ def section_h():
         f.write(b"x\r\ny\r\n")
     r = rd(fd, "d2")
     say("      [evidence] a file planted on the disk as 'x CR LF y CR LF' reads over the wire as %r" % (r and r[2],))
-    row("H4 a directory file whose lines end CR LF is read as two fields (the line ends are not part of them) - measured, the CR is %s" % ("KEPT in the field" if r and b"\r" in r[2] else "dropped"),
-        r is not None and r[0] == 0 and r[2].split(b"\xfe")[0].rstrip(b"\r") == b"x" and r[2].count(b"\xfe") == 1, repr(r))
+    # 19 Oct 26 (verifier, finish 2): this row passed whether the CR was kept or dropped (it stripped the CR before comparing), while User page 42 says the CR is KEPT.  It now asserts what was
+    # measured on 19 Oct 26 (x CR, field mark, y CR), so a change in either direction fails it and the page.
+    row("H4 a directory file whose lines end CR LF is read as two fields with the CR KEPT at the end of each (what User page 42 says; measured 19 Oct 26): x CR, field mark, y CR",
+        r is not None and r[0] == 0 and r[2] == b"x\r\xfey\r", repr(r))
     r = wr(fs, "AbC", b"mixed")
     r2 = rd(fs, "abc")
     row("H5 a DYNAMIC file made today folds the case of ids: a record written as AbC is read as abc", r is not None and r[0] == 0 and r2 is not None and r2[0] == 0 and r2[2] == b"mixed", repr((r, r2)))
     r3 = rd(fd, "D1")
     say("      [evidence] a read of D1 from the directory file (written as d1) answers error %r data %r" % (r3 and r3[0], r3 and r3[2]))
+    r3b = rd(fd, "d1")
+    row("H5b a directory file keeps ids as given (User page 42): D1 is NOT found (error ELSE 2, no data) although d1 is - the read of d1 right after still gives the two fields",
+        r3 is not None and r3[0] == 2 and r3[2] == b"" and r3b is not None and r3b[0] == 0 and r3b[2] == b"alpha\xfebeta", repr((r3, r3b)))
     for label, size in (("1 MB", 1024 * 1024), ("20 MB", 20 * 1024 * 1024)):
         body = (b"0123456789abcdef" * (size // 16))
         r = wr(fb, "big", body)
@@ -456,7 +563,13 @@ MUTANTS = {
     "register": ("if not(net.found) then", "if 0 then", ("C5a",)),                                                               # a record is required: the empty record is then refused by the OTHER rule, so only the reason shows
     "netgate": ("if not(upcase(trim(net.rec<ACC$NET>)) = 'YES' or (downcase(@logname) = 'sdsys' and net.acct = 'sdsys')) then", "if 0 then", ("D1", "D1a")),
     "sdclient": ("if config('SDCLIENT') # 0 then", "if 0 then", ("E2",)),                                                       # request 29's own SDCLIENT test (vb.open.sdnet; request 4 has its own)
+    # 19 Oct 26 (verifier finding, finish 2): the BLOCKING branch of request 32 with the stale loop variable of K8a put back, and nothing else.  Section F runs after A to E for this one
+    # (F_MUTANTS); A to E must all pass.  The rows of F that must fail are listed here BEFORE the first run: F11 (the request is answered at once, on the file S2 opened last), F13 (so
+    # there is nothing left to answer), F14 and F15 (the lock is on zzsec3, not zzsec), F18 and F19 (the same for the wait on a free file).  F10, F12, F16 and F17 pass with it.
+    "filelock-wait": ("filelock files(fno)   ;* 19 Oct 26 (K8a): was files(i), the stale loop variable of the last open, as vb.clearfile's was",
+                      "filelock files(i)   ;* MUTANT: the stale index on the wait branch", ("F11", "F13", "F14", "F15", "F18", "F19")),
 }
+F_MUTANTS = ("filelock-wait",)         # the mutants judged by section F, which runs for them after A to E
 TREE_APISRVR = os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", "apisrvr")
 
 
@@ -651,8 +764,9 @@ def main():
         w.close()
 
         # ------------------------------------------------------------------------------------------------------------------------
-        if mutant is None:
+        if mutant is None or mutant in F_MUTANTS:
             section_f()
+        if mutant is None:
             section_g()
             section_h()
     finally:

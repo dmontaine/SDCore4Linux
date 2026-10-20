@@ -6,6 +6,10 @@
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.
 
+19 Oct 26 (finish 2, verifier): F11 follows set.files after its failure path learned to say what happened - when the write group went and the step after it failed, the audit line for THAT removal
+(modify.account files-write-off, not the action asked for) and the write group's line (write.removed.line, the routine the success path prints it with too) come before the failure message - with
+3 new mutants for it (and the one for the success path's line rewritten for the new text).  The anchor of the mutant that moves the write block after the group change (write_group_last) is
+the start of the failure block, which now begins with the write.removed lines: without that the --selftest stopped on it (found 19 Oct 26 by running the selftest; 63 of 63 mutants killed after).
 19 Oct 26 (K1, K4a): F15 bounds message 11521 at 100 characters (the SDNet client shows an ON ERROR reply's text cut there); F11 is rewritten for set.files after K4a - the write
 group is read before the 'already had it' answer, FILES-OFF has nothing to do only for a person in neither group, the write group goes out FIRST and every group change is
 change.files.group, which reads the membership back - with 13 new mutants (60 in all), one of which moves the write block after the group change (the 18 Oct order).  The
@@ -262,8 +266,13 @@ def run_checks(raw):
        and sf.count("gosub change.files.group") == 2 and sf.count("os.execute") == 0 and cgf.count("os.execute") == 2
        and ordered(cgf, "cg.now = @false", "if cg.want then", 'sd-elevate addgroup " : files.user : " " : cg.group', "end else", 'sd-elevate delgroup " : files.user : " " : cg.group',
                    "files.stat = OS.ERROR()", "cg.now = is_grp_member(files.user, cg.group)", "files.stat = status()", "if files.stat = 0 and cg.now # cg.want then files.stat = 2")
-       and ordered(sf, "sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "if write.removed then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')",
-                   "sysmsg(11482, acc.name, if now.files then 'yes' else 'no')"), "")
+       and ordered(sf, "sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "if write.removed then gosub write.removed.line",
+                   "sysmsg(11482, acc.name, if now.files then 'yes' else 'no')")
+       # 19 Oct 26 (finish 2, verifier): the step after the write removal FAILED, the write group having gone: the audit line for THAT removal (files-write-off, not the action asked for) and the
+       # write group's line come BEFORE the failure message, and the line is the same routine the success path uses
+       and ordered(sf, "now.files = cg.now", "if write.removed then", "kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)", "gosub write.removed.line", "sysmsg(10081, acc.name, files.stat)",
+                   "@system.return.code = 0", "kernel(K$AUDIT, 'modify.account ' : downcase(action) : ' account=' : acc.name)")
+       and re.search(r"^write\.removed\.line:\s*\n\s*crt sysmsg\(11522, acc\.name, if now\.write then 'yes' else 'no'\)[^\n]*\n\s*return\s*$", mo, re.M) is not None, "")
     ck("F12 createacc.h defines CA$FILESWRITE as 39 (after CA$SHARED.WRITE 38, unique); CREATEA: FILES-WRITE-ON sets it to 1 (nothing else does) and the syntax line names it; "
        "CREATE.ACCOUNT: a request is exactly 1, it needs FILES-ON (11523, before anything is made), the group sdfileswrite is looked for before the Linux user is made (10024), a group or "
        "other account is refused as for FILES-ON, the join is sd-elevate addgroup <user> sdfileswrite AFTER the sdfiles join, and the state line 11522 is read off /etc/group",
@@ -371,13 +380,17 @@ def mutants(raw):
     m("a group change is not read back", "modifya", "cg.now = is_grp_member(files.user, cg.group)", "cg.now = cg.want")
     m("a read back that differs is a success", "modifya", "if files.stat = 0 and cg.now # cg.want then files.stat = 2", "null")
     m("set.files runs the helper itself again (a second place that changes a group)", "modifya", "   write.removed = @false\n", "   write.removed = @false\n   os.execute \"sudo /usr/local/sbin/sd-elevate delgroup \" : files.user : \" sdfileswrite\"\n")
-    m("the line for the write group that went is not printed", "modifya", "if write.removed then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')", "if 0 then crt sysmsg(11522, acc.name, if now.write then 'yes' else 'no')")
+    m("the line for the write group that went is not printed", "modifya", "if write.removed then gosub write.removed.line", "if 0 then gosub write.removed.line")
+    # 19 Oct 26, finish 2 (verifier): the step after the write removal fails - the failure path must say the write group went, in the audit trail and on the screen, before the failure message
+    m("a failure after the write group went writes no audit line for the removal", "modifya", "         void kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)\n", "")
+    m("a failure after the write group went does not print the write group's line", "modifya", "         gosub write.removed.line\n      end\n      crt sysmsg(10081, acc.name, files.stat)", "      end\n      crt sysmsg(10081, acc.name, files.stat)")
+    m("a failure after the write group went audits the action asked for", "modifya", "'modify.account files-write-off account=' : acc.name)", "'modify.account ' : downcase(action) : ' account=' : acc.name)")
 
     def write_group_last(t):
         """The block that takes the person out of sdfileswrite is moved to AFTER the group change: the order of the 18 Oct build."""
         i = t.index("   write.removed = @false\n")
         j = t.index("\n* The group itself")
-        k = t.index("   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      crt sysmsg(10081, acc.name, files.stat)\n      return\n   end\n\n   @system.return.code = 0")
+        k = t.index("   if files.stat # 0 then\n      @system.return.code = -ER$FAILED\n      if write.removed then\n")       # 19 Oct 26: the failure block now begins with the write.removed lines
         return t[:i] + t[j + 1:k] + t[i:j + 1] + t[k:]
     m("the write group is taken out AFTER sdfiles (the order that could leave the orphan)", "modifya", write_group_last, None)
     m("the write group's line is the other message", "modifya", "crt sysmsg(11522, acc.name, if now.files then 'yes' else 'no')", "crt sysmsg(11482, acc.name, if now.files then 'yes' else 'no')")

@@ -6,9 +6,12 @@
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named
-# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files); no flag runs all of them.
+# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files); no flag runs all of them.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Finish 2 (verifier): the section "timeouts".  Nothing at runtime showed NETWAIT bounding a connection; with 5 hard-coded at set.server ... connect and at set.netlogin every suite
+#               was green and only test-net-units read the source.  SD is restarted with NETWAIT=2, a listener whose accept queue is full stands in for a host that does not answer, and the
+#               time each command takes is measured from outside against the same command to a closed port.
 # 19 Oct 26 dm  K2 and K1.  Message 11482 reads "Account %1 has files %2" (it was "has FILES"), so every row that said a line must NOT appear used a text that nothing prints
 #               any more and would have passed for ever: they now use files_state_line(), the exact positive form of the sandbox's own message ('Account <name> has files
 #               yes|no'; "has files" alone would also match 11522's "has files-write"), with a row that shows the helper on lines whose answer is known.  Message 11521 is
@@ -75,9 +78,9 @@
 # fixture account's user, so the mode (0644) is read from the disk but whether an unprivileged user can write the file is not tried; an
 # ordinary account's refusal here is the S.63 OS-access gate (status 3035), which an os-on account does not meet.  (3) The audit lines of
 # an INSTALL (they are in a file only root reads); the section "connect" reads the SANDBOX's own audit file, <sandbox>/sys/audit, and a row
-# that needs it fails when it cannot be read.  (4) CREATE.ACCOUNT, which makes Linux users.  (5) A connection that is never answered: the
-# 5 second connect timeout needs an address that drops packets, which a sandbox cannot count on, so only refused, reset, non-TLS and
-# unresolvable targets are tried.
+# that needs it fails when it cannot be read.  (4) CREATE.ACCOUNT, which makes Linux users.  (5) A connection that is never answered: section "connect" tries only refused,
+# reset, non-TLS and unresolvable targets; the connect timeout (NETWAIT) is section "timeouts", with a listener whose accept queue is full (netfake.HangingListener), which a machine
+# may not behave as (the section's first row then fails).
 #
 # THE INSTRUMENTS.  zznk (a $internal verb in every fixture account) prints "NK net=<0|1> admin=<0|1>": the kernel's own answer to
 # K$NET and whether the session is an administrator; zznkset sets it from internal code and reads it back.  For the verbs the evidence is
@@ -2210,10 +2213,83 @@ def files_section():
             os.remove(p)
 
 
+def timeouts_section():
+    """NETWAIT (sd.conf) bounds the connection that set.server ... connect and set.netlogin make.  19 Oct 26, finish 2 (verifier): hard-coding 5 at both call sites left every suite green;
+    only test-net-units read the source.  A listener whose accept queue is full (netfake.HangingListener) hangs a connect; SD is restarted with NETWAIT=2; the time each command takes is
+    measured from outside and the time the same command takes against a CLOSED port (refused at once: the session's own cost) is taken off.  The connection that $netfile's connect.keys
+    makes (sdclient.connect.keys, the third call site) is timed in sandbox-netfile.py, with NETREPLY."""
+    say("\n--- NETWAIT=2 in sd.conf bounds the connection of set.server ... connect and of set.netlogin: a listener whose accept queue is full, the time measured from outside (this section takes about 30 s) ---")
+    if not nl_prepare():
+        return
+    dead = closed_port()
+    H = "127.0.0.1"
+    prior = snap()
+    for p in (netfile(), netfile() + ".new", netfile() + ".lock"):
+        if os.path.exists(p):
+            os.remove(p)
+    conf = os.path.join(g.BOX, "sd.conf")
+    with open(conf) as f:
+        original = f.read()
+    hang = netfake.HangingListener()
+    try:
+        row("SETUP: a connect to the full listener on port %d hangs (so a row can show a timeout: on a machine that does not hang a connect that way these rows FAIL, they do not pass)" % hang.port,
+            hang.hangs(), "the connect completed or failed at once")
+        adm1("set.server tmoh %s %d reader %s read accounts zznon" % (H, hang.port, PIN_A), "set.server tmod %s %d reader %s read accounts zznon" % (H, dead, PIN_A))
+        row("SETUP: two definitions with typed pins (nothing dialled), tmoh at the full listener and tmod at a closed port, listed for zznon", entry("tmoh") is not None and entry("tmod") is not None,
+            repr(file_lines()))
+        started = netfake.restart_with_conf(g.BOX, g.TOOL, original, ("NETWAIT=2",))
+        row("SD starts with NETWAIT=2 in sd.conf (a row below that needs the new value fails if it did not)", started, "")
+        if not started:
+            return
+
+        # -- set.server ... connect
+        t0 = time.time()
+        out, b, a, au, dials = conn_run(conn_cmd("tmoctl", dead), [])
+        base = time.time() - t0
+        row("CONTROL (the session's own cost): set.server ... connect to a closed port is refused at once with the CANNOT CONNECT message (11444), nothing written (%.1f s for the whole session)" % base,
+            g.has(out, msg_re(11444, re.escape(H), str(dead), r"\d+", str(errno.ECONNREFUSED))) and b == a and entry("tmoctl") is None, repr((b == a, out[-3:])))
+        t0 = time.time()
+        out, b, a, au, dials = conn_run(conn_cmd("tmoctl", hang.port), [])
+        took = time.time() - t0 - base
+        row("NETWAIT=2 BOUNDS set.server ... connect (a listener whose accept queue is full): the CANNOT CONNECT message (11444), nothing written, and about 2 seconds more than the control - %.1f s "
+            "(1.5 to 3.9 expected; the 5 it used to be fixed at would be 5)" % took,
+            g.has(out, msg_re(11444, re.escape(H), str(hang.port), r"\d+", r"\d+")) and not g.has(out, msg_re(11445, ".*", ".*")) and b == a and entry("tmoctl") is None and 1.5 <= took <= 3.9,
+            repr((b == a, "%.1f s over the control" % took, out[-3:])))
+
+        # -- set.netlogin (the credential directory stays as it was: the connection never completes).  The stand-in for the helper makes the person's directory, so it is made here first, as
+        #    the refusal rows of section netlogin do: otherwise "nothing stored" would differ between before (no directory) and after (an empty one).
+        reset_root()
+        os.makedirs(NL["dir"], exist_ok=True)
+
+        def netlogin(server):
+            t0_ = time.time()
+            r = nl_run("zznon", "set.netlogin " + server, [NL_REMOTE, NL_PW])
+            return r, time.time() - t0_
+        r, nl_base = netlogin("tmod")
+        row("CONTROL (the session's own cost): set.netlogin tmod (a closed port) is refused at once with the CANNOT CONNECT message (11469) and stores nothing (%.1f s for the whole session)" % nl_base,
+            g.has(r["out"], msg_re(11469, re.escape(H), str(dead), r"\d+", r"\d+")) and not g.has(r["out"], SUCC) and r["before"] == r["after"], repr(r["out"][-4:]))
+        r, nl_took = netlogin("tmoh")
+        nl_took -= nl_base
+        row("NETWAIT=2 BOUNDS set.netlogin (a listener whose accept queue is full): the CANNOT CONNECT message (11469), nothing stored, about 2 seconds more than the control - %.1f s "
+            "(1.5 to 3.9 expected; the 5 it used to be fixed at would be 5)" % nl_took,
+            g.has(r["out"], msg_re(11469, re.escape(H), str(hang.port), r"\d+", r"\d+")) and not g.has(r["out"], SUCC) and r["before"] == r["after"] and 1.5 <= nl_took <= 3.9,
+            repr((r["before"] == r["after"], "%.1f s over the control" % nl_took, r["out"][-4:])))
+    finally:
+        hang.close()
+        if not netfake.restart_with_conf(g.BOX, g.TOOL, original, ()):
+            row("SD starts again with the sd.conf it had (the rows after this section need it)", False, "did not start")
+        for p in (netfile(), netfile() + ".new", netfile() + ".lock"):
+            if os.path.exists(p):
+                os.remove(p)
+        if prior is not None:
+            with open(netfile(), "wb") as f:
+                f.write(prior)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files)")
+        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files)")
     g.BOX = os.path.abspath(args[0])
     g.SYS = os.path.join(g.BOX, "sys")
     g.SD = os.path.join(g.SYS, "bin", "sd")
@@ -2255,7 +2331,7 @@ def main():
 
     for name, section in (("gate", gate_section), ("logto", logto_section), ("modify", modify_section), ("manifest", manifest_section),
                           ("defs", defs_section), ("connect", connect_section), ("netcred", netcred_section), ("netlogin", netlogin_section),
-                          ("ordinary", ordinary_section), ("files", files_section)):
+                          ("timeouts", timeouts_section), ("ordinary", ordinary_section), ("files", files_section)):
         if run(name):
             section()
     nl_cleanup()
