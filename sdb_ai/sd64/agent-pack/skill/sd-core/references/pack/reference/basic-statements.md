@@ -327,6 +327,7 @@ clause of `execute` and `os.execute` — take the output
 `create` *file.var* `then` … `else` …
 
 - a statement of SD BASIC
+- docs: `Administrator/markdown/15-sdidx.md` line 124
 
 ### basic:stmt:create.ak
 > kind=basic.restricted tier=reference since=- src=sdsys/gpl.bp/bcomp:489#e47dcc59 src2=docs:tools/syntax-shapes.txt:48#7ec8b29e

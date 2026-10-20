@@ -3001,7 +3001,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 17
 },
 "basic:stmt:create.ak": {
 "kind": "basic.restricted",
