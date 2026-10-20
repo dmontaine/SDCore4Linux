@@ -8,11 +8,28 @@
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named parts
 # (login, args, pin, stale, keys, shared, down, close, notfound, files, account, locks, lists, wire - the class, slice 3a; handler, readonly,
-# refuse, lost, timeout - the handler gpl.bp/netfile, slice 3b; hwrite - the handler in WRITE mode, slice 3e; kwrite - the statements on a write-mode file, slice 3e;
+# refuse, lost, timeout, oversize (K8c) - the handler gpl.bp/netfile, slice 3b; hwrite - the handler in WRITE mode, slice 3e; kwrite - the statements on a write-mode file, slice 3e;
 # kernel - the NET_FILE type through real OPEN / READ / READV / FILEINFO / CLOSE
 # statements and the refusal of everything else, slice 3c; gaps - OPT-IN ONLY, see below); no flag runs all of them except gaps.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Finish 2 (verifier findings).  (1) Section hwrite: a SELECT whose READLIST (request 14) the server answers with an ON ERROR text - the third place the handler shows the
+#               server's text (act.select) had no row; two rows and a control with no text.  (2) Section timeout, in the same restart as the NETREPLY=3 row (now NETREPLY=3 and NETWAIT=2): a
+#               server that sends the Ack, reads client-first and goes silent (netfake stall_first) costs connect.keys NETREPLY seconds (no TMO first), and a listener whose accept queue is
+#               full costs it NETWAIT seconds, each measured against a control (a closed port) so the session's own cost is taken off; the restart is netfake.restart_with_conf and the
+#               hanging listener netfake.HangingListener.  THE FIRST VERSION OF THE NETREPLY ROW USED A SERVER THAT NEVER SENDS THE ACK AND WAS RED ON THE TREE UNDER TEST (5.0 s, not 3): that
+#               wait is not bounded by NETREPLY, because TLS 1.3's session tickets end READ.SOCKET's wait and the SSL_read behind it then blocks (evidence in the section); it is kept as a
+#               row labelled KNOWN LIMIT, and the question is the owner's.  (3) kwrite:
+#               the row "A program READUs a record and ends without CLOSE" failed in 3 of 4 runs of an unchanged tree because the lock lived for less than one poll of LockWatch; the program
+#               (KWL1_TEXT) now sleeps a second holding it.
+# 19 Oct 26 dm  K1, K8b, K8c, K8d (the S.65 finish).  (K1) The handler shows the TEXT of an ON ERROR reply, or 'status <n>' when it has none: the wgroup rows now expect the
+#               text of message 11521 with each request number (they expected 'status 0'), the injected ON ERROR rows expect their text, there is a control with no text, one
+#               with an escape character and a long tail, and the MAXRLOCK row expects the kernel's abort text; k_srverr has a text mode that also checks rc<6>.  The read only
+#               file rows follow the real server (+3018, and an abort with the kernel's text for CLEARFILE): netfake.REAL_ON_ERROR, measured by sandbox-req29.py section G.
+#               (K8c) The section oversize: a reply that is a header alone announcing 3,000,000,000, 2,000,000,000 or 4 bytes is a lost connection AT ONCE (it cost the 30 seconds of a
+#               body that never came), for a READ and for a WRITE (11509, the outcome unknown).  (K8d) The timeout section runs again with NETREPLY=3 in sd.conf (the daemon of the
+#               sandbox is stopped and started for it, and again afterwards).  (K8b) The comments that called the suite unrun are corrected.  Red-then-green, 19 Oct 26: 12 of the
+#               hwrite and wgroup rows red on the handler of HEAD, 10 of the 33 oversize rows red on the class and the handler of HEAD.
 # 18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS ON A REMOTE FILE, for a server whose definition says mode=write (spec .claude/s65-stage2-design.md, 10 and 11).  Two new
 #               sections.  hwrite drives the HANDLER ($netfile) against the fake's new write requests (16 to 19, 30, 31, 15): the definition's mode at the open (rc<7>, the
 #               audit line), WRITE / WRITEU / DELETE / DELETEU / CLEARFILE / LOCK / RELEASE with the exact bytes on the wire and the record, the lock and the busy answer on the
@@ -315,6 +332,11 @@ DRIVER = r"""$include err.h
          case op = 'TMO'
             obj->settimeout(a2)
             crt 'FX TMO ':a2
+         case op = 'QUIET'
+            obj->quiet = (a2 = '1')
+            crt 'FX QUIET ':a2
+         case op = 'LERR'
+            crt 'FX LERR ':obj->LastError:' text=[':obj->LastText:']'
          case op = 'OPEN'
             n = obj->open(a2)
             if a3 # '' then fns<a3> = n
@@ -963,6 +985,21 @@ def lists_section():
         "FX ERR [%s]" % msg(5269) in r.fx, repr(r.fx[-6:]))
     row("an empty file selects nothing: READNEXT on its list is e=2, and the driver went on to its end after the refused select",
         "FX OPEN empty n=2" in r.fx and "FX NEXT 3 e=2 id=[]" in r.fx and sane(r), repr(r.fx[-5:]))
+
+    # 19 Oct 26, finish 2 (verifier): select() and readlist() honour `quiet` as read(), write() and delete() do.  A server ON ERROR reply to either used to ABORT the caller even from a quiet
+    # object, so the $netfile handler's own branch for it (act.select) could never run.  The fake answers request 11 (SELECT) or 14 (READLIST) with an ON ERROR carrying the text 'boom'.
+    open_ops = ["OPEN|customers|1"]
+    for req, nm, abort_text, ops_after in ((14, "READLIST", "READLIST generated an abort event", ["SELECT|1|4", "LIST|4"]), (11, "SELECT", "SELECT generated an abort event", ["SELECT|1|4"])):
+        cfg = {"fail": {req: (netfake.SV_ON_ERROR, "boom")}}
+        r = go(keys(alice, A) + open_ops + ops_after, A, cfg=cfg)
+        row("CONTROL (the default object is not quiet): a server ON ERROR reply to %s ABORTS the program as it always did - '%s' - and the driver does not reach its end" % (nm, abort_text),
+            sane(r, need_end=False) and any(abort_text in ln for ln in r.out) and not r.ended and r.d["types"].count(req) == 1, why(r))
+        r = go(keys(alice, A) + ["QUIET|1"] + open_ops + ops_after + ["LERR", "DISC"], A, cfg=cfg)
+        want = ["FX LIST 4 e=1 []"] if req == 14 else ["FX SELECT list=4"]
+        row("A QUIET object does not abort on that reply: %s returns%s, LastError is 1 (ON ERROR) and LastText is the server's text 'boom', and the driver reaches its end"
+            % (nm, " with e=1 and no list" if req == 14 else ""), sane(r) and all(x in r.fx for x in want) and "FX LERR 1 text=[boom]" in r.fx and not any(abort_text in ln for ln in r.out), why(r))
+        r = go(keys(alice, A) + ["QUIET|1"] + open_ops + ops_after + ["LERR", "DISC"], A, cfg={"fail": {req: (netfake.SV_ON_ERROR, "")}})
+        row("...and an ON ERROR reply with NO text leaves LastText empty (LastError is still 1)", sane(r) and "FX LERR 1 text=[]" in r.fx, why(r))
 
 
 # ---- N. what the class puts on the wire ------------------------------------------------------------------------------------------------------
@@ -1963,6 +2000,108 @@ def timeout_section():
     judge(r, s)
     row("...it waited about 30 seconds and not for ever or for 1: the whole session took %.0f s (28 to 60 expected)" % r.el, 28 <= r.el <= 60, "%.1f s" % r.el)
 
+    # 19 Oct 26, K8d: the wait is the configuration parameter NETREPLY, 30 seconds by default.  A session takes its configuration from the shared memory the daemon filled when it
+    # STARTED (sysseg.c copies pcfg), so a line in sd.conf needs the sandbox's daemon stopped and started again, here and again afterwards to put the file and the daemon back.
+    conf = os.path.join(g.BOX, "sd.conf")
+    with open(conf) as f:
+        original = f.read()
+
+    def daemon(*lines):
+        return netfake.restart_with_conf(g.BOX, g.TOOL, original, lines)
+    try:
+        started = daemon("NETREPLY=3", "NETWAIT=2")
+        row("SD starts with NETREPLY=3 and NETWAIT=2 in sd.conf (a row below that needs the new values fails if it did not)", started, "")
+        # 19 Oct 26, finish 2 (verifier): nothing showed NETREPLY bounding the LOGIN exchange of connect.keys, or NETWAIT bounding the connection it makes; the source-text checks of
+        # test-net-units were the only guard (a hard-coded 5 and a hard-coded 30 left every suite green).  The class driver is used (op KEYS), with no TMO first, so the waits are the
+        # configuration's: a server that goes silent after the Ack costs NETREPLY, a listener whose accept queue is full costs NETWAIT.  A control (a closed port, refused at once) gives the
+        # session's own cost, which is taken off.
+        A_ = S["A"]
+        alice_ = S["alice"][id(A_)]
+        hang = netfake.HangingListener()
+        try:
+            row("SETUP: a connect to the full listener on port %d hangs (so a row can show a timeout; a machine that does not hang a connect that way fails the NETWAIT row, it does not pass it)" % hang.port,
+                hang.hangs(), "the connect completed or failed at once")
+            base = go(keys(alice_, A_, port=str(S["dead"])), A_)
+            row("CONTROL (the session's own cost): a connect to a closed port is refused at once, ok=0 'Cannot connect' (%.1f s for the whole session)" % base.el,
+                sane(base) and any(ln.startswith("FX KEYS ok=0 err=[Cannot connect") for ln in base.fx), why(base))
+            r = go(keys(alice_, A_, port=str(hang.port)), A_)
+            took = r.el - base.el
+            m = re.fullmatch(r"FX KEYS ok=0 err=\[Cannot connect to 127\.0\.0\.1:%d \(status (\d+)\)\]" % hang.port, next(iter(fx_lines(r, "KEYS")), ""))
+            row("NETWAIT=2 BOUNDS THE CONNECTION connect.keys makes (a listener whose accept queue is full): ok=0 'Cannot connect to 127.0.0.1:%d', about 2 seconds more than the control - %.1f s "
+                "(1.5 to 3.9 expected; the 5 it used to be fixed at would be 5)" % (hang.port, took), sane(r) and m is not None and 1.5 <= took <= 3.9, why(r) + " took %.1f s over the control" % took)
+        finally:
+            hang.close()
+        # THE LOGIN EXCHANGE.  First what is bounded: the fake sends the Ack, reads client-first and then says nothing for up to 12 seconds (netfake stall_first; it lets go as soon as the client
+        # does).  The wait for the server's first message is a read after the Ack, so NETREPLY applies: 3 seconds, and 'No reply ... during the login'.  A client that waited the 30 seconds it
+        # used to be fixed at would still be waiting when the fake lets go at 12, so the window ends well below that.
+        no_reply = "No reply from 127.0.0.1:%d during the login (the connection failed or timed out)" % A_.port
+        r = go(keys(alice_, A_), A_, cfg={"stall_first": 12.0})
+        took = r.el - base.el
+        row("NETREPLY=3 BOUNDS THE LOGIN EXCHANGE of connect.keys (no TMO first): a server that sends the Ack, reads client-first and then says nothing - ok=0 'No reply ... during the login', "
+            "the fake saw packet 47 only, about 3 seconds more than the control - %.1f s (2.5 to 4.5 expected; the fake holds the connection for 12, and the 30 it used to be fixed at would run to that)" % took,
+            sane(r) and kline(0, no_reply) in r.fx and r.d["types"] == [47] and 2.5 <= took <= 4.5, why(r) + " took %.1f s over the control" % took)
+        # AND WHAT IS NOT (found by this row's first version, 19 Oct 26): a server that completes the TLS 1.3 handshake and never sends the Ack is NOT given up on at NETREPLY.  After the
+        # handshake the server sends the session tickets; they make the socket readable, READ.SOCKET's wait (op_skt.c, socket_wait) ends, and the SSL_read behind it takes the tickets and
+        # then blocks without a timeout until the server sends something or closes.  THE FAKE CLOSES A SILENT CONNECTION AT 5 SECONDS (netfake.FakeServer.handle: tls.settimeout(5) while it
+        # waits for client-first), so the wait ends at 5.0 s here, not at 3.  With the tickets turned off in a scratch copy of the fake (ssl num_tickets = 0) the same row took 3.0 s: that is
+        # the evidence for the cause.  The row records the behaviour as it is; it fails the day READ.SOCKET is made to honour the timeout, and the changelog, Administrator pages 11 and 12 and
+        # the owner's question about it change with it.
+        no_ack = "No acknowledgement from 127.0.0.1:%d at the start of the session" % A_.port
+        r = go(keys(alice_, A_), A_, cfg={"ack": False})
+        took = r.el - base.el
+        row("KNOWN LIMIT (a question to the owner, not a pass of the claim): a server that completes the handshake and never sends the Ack is NOT given up on at NETREPLY=3 - it ran to the "
+            "fake's own close at 5 s: ok=0 'No acknowledgement', NOTHING sent, %.1f s more than the control (4.3 to 7 expected today; 3.0 when READ.SOCKET honours its timeout)" % took,
+            sane(r) and kline(0, no_ack) in r.fx and r.d["types"] == [] and 4.3 <= took <= 7, why(r) + " took %.1f s over the control" % took)
+        r = go(keys(alice_, A_) + ["DISC"], A_)
+        row("CONTROL: the same fake, nothing wrong, logs in while those values are in force", sane(r) and kline(1, "") in r.fx, why(r))
+        s = Script()
+        s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+        s.add("READ", 1, "c1", label="THE REQUEST TIMEOUT FROM THE CONFIGURATION (NETREPLY=3 in sd.conf): a READ the server never answers is 11497 'lost during read'", ok=k_err(11497, "nfa", "read"))
+        s.add("STATE", label="...and the connection is dropped, as after the 30 seconds", ok=k_state(0, 0, 1, 2, 1, 1))
+        r = h_go("zznhon", s, (A,), cfg={"no_reply": (6,), "idle": 60.0})
+    finally:
+        daemon()
+    row("the NETREPLY=3 program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...it waited about 3 seconds and not 30: the whole session took %.0f s (2 to 20 expected)" % r.el, 2 <= r.el <= 20, "%.1f s" % r.el)
+
+
+# ---- H5b. the ceiling on a reply (19 Oct 26, K8c; this section takes about 15 s) -------------------------------------------------------------------
+
+def oversize_section():
+    say("\n--- a reply whose header announces a length that cannot be true (K8c, 19 Oct 26): the handler drops the connection AT ONCE and does not wait 30 s for a body that is not coming ---")
+    if not hw_prep():
+        return
+    A = S["A"]
+    for announced, why in ((3000000000, "3,000,000,000 (the count is read as a SIGNED 32 bit value, so it arrives negative)"),
+                           (2000000000, "2,000,000,000 (positive, and more than the largest string SD holds plus a header: the ceiling NF$MAX.PACKET)"),
+                           (4, "4 (less than the 10 byte header it is part of)")):
+        s = Script()
+        s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+        s.add("READ", 1, "w1", label="a READ answered with a header that announces %s: the connection is lost, 11497 'lost during read' naming the server" % why, ok=k_err(11497, "nfw", "read"))
+        s.add("STATE", label="...the connection is dropped: no server connected, the file lost", ok=k_state(0, 0, 1, 2, 1, 1))
+        s.add("CLOSEALL", ok=k_ok("", 0))
+        r = hw_go("zznhon", s, (A,), cfg={"bad_length": {6: announced}, "bad_length_hold": 45.0, "idle": 60.0})
+        row("announcing %d: the program ran to the end and no connection is left" % announced, h_sane(r), h_why(r))
+        judge(r, s)
+        ses = r.d[0]["sessions"] if r.d else []
+        row("...the fake sent the bogus header for the READ and saw the client CLOSE the connection (a client without the ceiling would have waited out its 30 seconds)",
+            len(ses) == 1 and ses[0].injected == [(6, "bad_length")] and ses[0].requests.count(6) == 1 and ses[0].closed, repr([(x.requests, x.injected, x.closed) for x in ses]))
+        row("...it took %.0f s in all, not the 30 s or more a body that never comes costs (under 20 s expected)" % r.el, r.el < 20, "%.1f s" % r.el)
+
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("WRITE", 1, "w1", "changed", label="a WRITE answered with a header that announces 3,000,000,000: the outcome is UNKNOWN, 11509 naming the server and 'write' (never a second request)",
+          ok=k_err(11509, "nfw", "write"), audit="write server=nfw file=hwork")
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"bad_length": {16: 3000000000}, "bad_length_hold": 45.0, "idle": 60.0})
+    row("the WRITE program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    ses = r.d[0]["sessions"] if r.d else []
+    row("...the audit trail: the open, the write, and 'lost server=nfw op=write'", r.audits == [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=write"], repr(r.audits))
+    row("...the fake executed the WRITE exactly ONCE (the record holds the new text - the client cannot know) and saw the client close the connection at once",
+        len(ses) == 1 and ses[0].requests.count(16) == 1 and ses[0].closed and r.stores[0][HW].get("w1") == "changed" and r.el < 20, repr(([x.requests for x in ses], r.el, r.stores[0][HW].get("w1"))))
+
 
 # ---- H6. what the plan asks and the handler does not do yet (OPT-IN: --sections=gaps) -----------------------------------------------------------
 
@@ -2086,14 +2225,15 @@ def k_locked(holder):
 
 
 def k_srverr(op, st, text=None, srv="nfw"):
-    """The server answered with an error (11500 naming the server and the operation).  An ON ERROR reply shows 'status <n>' and rc<6> is n; an error with a text (SV$ERROR: the
-    server's edit gate) shows the text cut to 100 characters, and its status is 0."""
+    """The server answered with an error (11500 naming the server and the operation).  An ON ERROR reply WITHOUT a text shows 'status <n>' and rc<6> is n; one WITH a text
+    (a refusal such as 11521, an abort, a server's edit gate) shows the text cut to 100 characters (19 Oct 26, K1: it showed 'status <n>' whatever the server said) and rc<6> is
+    its status, 0 unless the row says otherwise."""
     def f(c):
         if not (c["rc"] == "3" and c["m"] == "11500" and c["args"][0] == srv and c["args"][1] == op and c["len"] == 0):
             return False
         if text is None:
             return c["args"][2] == "status %d" % st and c["st"] == str(st)
-        return c["args"][2] == text[:100]
+        return c["args"][2] == text[:100] and c["st"] == str(st)
     return f
 
 
@@ -2467,9 +2607,11 @@ def hw_errors(A):
 
     s = Script()
     s.add("OPEN", "nfw", HW, ok=k_open_w(1))
-    s.add("WRITE", 1, "w1", "x", label="a file the server's OS user cannot write: WRITE is -3018 (status -3018, rc<6> -3018)", ok=k_srverr("write", -3018))
-    s.add("DELETE", 1, "w1", label="...DELETE: -3018", ok=k_srverr("delete", -3018))
-    s.add("CLEARFILE", 1, label="...CLEARFILE: -3018", ok=k_srverr("clear.file", -3018))
+    s.add("WRITE", 1, "w1", "x", label="a file the server's OS user cannot write: WRITE is +3018 and no text, so 'status 3018', rc<6> 3018 (the real server's, REAL_ON_ERROR - measured 19 Oct 26)",
+          ok=k_srverr("write", 3018))
+    s.add("DELETE", 1, "w1", label="...DELETE: 'status 3018'", ok=k_srverr("delete", 3018))
+    s.add("CLEARFILE", 1, label="...CLEARFILE has no ON ERROR clause and aborts: STATUS() 0 and the kernel's TEXT, shown (19 Oct 26, K1), rc<6> 0",
+          ok=k_srverr("clear.file", 0, text=netfake.abort_text("CLEARFILE on read-only file", 2099)))
     s.add("LOCK", 1, "w1", "u", label="...a lock on it is granted (a lock needs no write permission)", ok=k_ok("", 0))
     s.add("CLOSEALL", ok=k_ok("", 0))
     r = hw_go("zznhon", s, (A,), cfg={"readonly": (HW,)})
@@ -2506,7 +2648,8 @@ def hw_errors(A):
     s = Script()
     s.add("OPEN", "nfw", HW, ok=k_open_w(1))
     s.add("LOCK", 1, "w1", "u", label="MAXRLOCK on the server (1 lock): the first lock is granted", ok=k_ok("", 0))
-    s.add("LOCK", 1, "w2", "u", label="...a SECOND, new lock is -3060 (status -3060, rc<6> -3060)", ok=k_srverr("lock", -3060))
+    s.add("LOCK", 1, "w2", "u", label="...a SECOND, new lock (request 30 has no ON ERROR clause: an abort) shows the kernel's TEXT with message 11162 in it (19 Oct 26, K1; it was 'status -3060', a status "
+          "the real server does not send for this request), rc<6> 0", ok=k_srverr("lock", 0, text=netfake.abort_text(msg(11162), 2077)))
     s.add("LOCK", 1, "w1", "u", label="...a lock the session already holds is not a new one: rc 0", ok=k_ok("", 0))
     s.add("READ", 1, "w1", label="...and the handler goes on", ok=k_rec(HWREC["w1"]))
     s.add("CLOSEALL", ok=k_ok("", 0))
@@ -2518,12 +2661,60 @@ def hw_errors(A):
     s = Script()
     s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
     s.add("OPEN", "nfw", HW, ok=k_open_w(2))
-    s.add("READ", 1, "c1", label="A READ the server answers with an ON ERROR (read mode handle): rc 3 with 11500 naming the server, the operation and 'status 0' - the handler does NOT abort (the class is quiet)",
-          ok=k_srverr("read", 0, srv="nfa"))
-    s.add("READ", 2, "w1", label="...the same on a write-mode handle", ok=k_srverr("read", 0))
+    s.add("READ", 1, "c1", label="A READ the server answers with an ON ERROR that has a TEXT (read mode handle): rc 3 with 11500 naming the server, the operation and THE TEXT 'boom' (19 Oct 26, K1; it showed "
+          "'status 0'), rc<6> 0 - the handler does NOT abort (the class is quiet)", ok=k_srverr("read", 0, text="boom", srv="nfa"))
+    s.add("READ", 2, "w1", label="...the same on a write-mode handle", ok=k_srverr("read", 0, text="boom"))
     s.add("CLOSEALL", ok=k_ok("", 0))
     r = hw_go("zznhon", s, (A,), cfg={"fail": {6: (netfake.SV_ON_ERROR, "boom")}})
     row("the program that made those READs reached its end", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+
+    # an ON ERROR reply with NO text (the server's ON ERROR clause had nothing to say, and the server empties its message at the top of every request): the status is shown, as before
+    s = Script()
+    s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+    s.add("OPEN", "nfw", HW, ok=k_open_w(2))
+    s.add("READ", 1, "c1", label="CONTROL: the same READ answered with an ON ERROR with NO text shows 'status 0' - the status is what is left to show, as it was before 19 Oct 26",
+          ok=k_srverr("read", 0, srv="nfa"))
+    s.add("READ", 2, "w1", label="...the same on a write-mode handle", ok=k_srverr("read", 0))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"fail": {6: (netfake.SV_ON_ERROR, "")}})
+    row("the program that made those READs reached its end", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+
+    # 19 Oct 26, finish 2 (verifier): the third place that shows an ON ERROR reply's text is act.select, which sends two requests - the SELECT (11) and the READLIST (14) - and either can be
+    # answered with an ON ERROR.  Replacing its call of on.error.text with 'status <n>' left this suite green, because no row sent either request an ON ERROR.  The first row of this kind
+    # found why: the class ABORTED on such a reply even from a quiet object ("READLIST generated an abort event"), so the branch could not run; select() and readlist() honour quiet now
+    # (gpl.bp/sdclient) and act.select looks at obj->LastError after the SELECT too.
+    for req, which in ((14, "READLIST (request 14, the second of the two)"), (11, "SELECT (request 11, the first of the two)")):
+        s = Script()
+        s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+        s.add("SELECT", 1, label="A SELECT whose %s the server answers with an ON ERROR that has a TEXT: rc 3 with 11500 naming the server, 'select' and THE TEXT 'boom' (not 'status 0'), "
+              "and the program is not aborted" % which, ok=k_srverr("select", 0, text="boom", srv="nfa"))
+        s.add("CLOSEALL", ok=k_ok("", 0))
+        r = hw_go("zznhon", s, (A,), cfg={"fail": {req: (netfake.SV_ON_ERROR, "boom")}})
+        row("the program that made that SELECT reached its end (it was aborted before: 'READLIST generated an abort event')", r.began and r.ended and r.idle, h_why(r))
+        judge(r, s)
+        inj = r.d[0]["sessions"][0].injected if r.d and r.d[0]["sessions"] else None
+        row("...the fake received the %s request once and answered it with the injected ON ERROR%s" % ("READLIST" if req == 14 else "SELECT", " (the SELECT before it was served)" if req == 14 else " (and no READLIST followed)"),
+            r.d[0]["types"].count(11) == 1 and r.d[0]["types"].count(14) == (1 if req == 14 else 0) and inj == [(req, "fail")], repr((r.d[0]["types"], inj)))
+        s = Script()
+        s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+        s.add("SELECT", 1, label="CONTROL: the same SELECT with the ON ERROR on request %d having NO text shows 'status 0'" % req, ok=k_srverr("select", 0, srv="nfa"))
+        s.add("CLOSEALL", ok=k_ok("", 0))
+        r = hw_go("zznhon", s, (A,), cfg={"fail": {req: (netfake.SV_ON_ERROR, "")}})
+        row("the program that made that SELECT reached its end", r.began and r.ended and r.idle, h_why(r))
+        judge(r, s)
+
+    # a text with characters a terminal would act on, and one longer than 100: cleaned and cut like any text from another machine
+    raw_text = "\x1b[31mred " + "z" * 150
+    want_text = "".join(ch for ch in raw_text[:100] if 32 <= ord(ch) <= 126)        # clean.text cuts to 100 characters FIRST, then keeps the printable ones
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+    s.add("READ", 1, "c1", label="an ON ERROR text with an escape character and a long tail: printable ASCII only and at most 100 characters (cut to 100 first, then the escape is dropped: %d "
+          "characters)" % len(want_text), ok=lambda c: c["rc"] == "3" and c["m"] == "11500" and c["args"][1] == "read" and c["args"][2] == want_text and len(want_text) == 99 and "\x1b" not in c["args"][2])
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"fail": {6: (netfake.SV_ON_ERROR, raw_text)}})
+    row("the program that made that READ reached its end", r.began and r.ended and r.idle, h_why(r))
     judge(r, s)
 
 
@@ -3629,8 +3820,13 @@ KWL1_TEXT = """   crt 'KW l1 begin'
    open 'zznw1' to f else crt 'KW l1 openfail st=':status() ; stop
    readu rec from f, 'w1' else null
    crt 'KW l1 locked'
+   sleep 1
 end
 """
+# 19 Oct 26 (verifier, finish 2): the `sleep 1` above is the fix for the row "A program READUs a record and ends without CLOSE", which failed in 3 of 4 runs of --sections=kwrite on an
+# unchanged tree.  LockWatch polls the fake's lock table every 50 ms; the program used to end the moment it had the lock, the queued close went at the next prompt, and the whole life of the lock
+# was shorter than a poll, so the watcher saw no lock at all (states empty) and the row failed with nothing wrong in the code.  The lock is now held for a second while the program is still
+# running, which the watcher cannot miss; the row's claim (it is GONE after the next command while the session is open) is unchanged.
 KWL2_TEXT = """   crt 'KW l2 begin'
    sleep 4
    crt 'KW l2 end'
@@ -4287,26 +4483,29 @@ def kw_misc(A):
 # the owner's yes of 18 Oct 2026).  A server DEFINITION that says mode=write on the client is necessary and no longer enough: the target's administrator decides.  The fake
 # models the target with the cfg write_group (False is the real default), and refuses the change set with message 11521 as an ON ERROR reply.  WHAT THE FAKE CANNOT SHOW:
 # that the REAL apisrvr does the same for a real files-only login (the group is read from /etc/group at the SCRAM login), which is the VM witness.  What the CLIENT shows
-# for a refusal is "11500 ... status 0": the text of an ON ERROR reply is never shown (it can be stale), so the person at the client sees that the change failed and the
-# administrator of the target sees why in the target's audit trail (api refused request=N route=sdfiles write=off).
+# for a refusal is "11500 ... <the text of 11521>" since 19 Oct 26 (K1): the handler shows the text of an ON ERROR reply, and message 11521 is short enough (98 characters) not to
+# be cut at 100.  Until then it showed "status 0" and the person at the client only saw that the change failed; the administrator of the target also sees the request number in
+# the target's audit trail (api refused request=N route=sdfiles write=off).  The rows build the expected text from the sandbox's own message file, never from the reply.
 
 def wgroup_section():
     say("\n--- the write group (18 Oct 26): a files-only login on the target WITHOUT sdfileswrite can read and select but every change and every lock is refused; WITH it the same program changes the file ---")
     if not hw_prep() or not kw_prep():
         return
     A = S["A"]
+    row("INSTRUMENT: message 11521 (the refusal's text) is at most 100 characters for each request number below, so the rows compare the WHOLE text the client shows and not its first 100 - "
+        "a text that was cut would agree with itself", all(0 < len(msg(11521, n)) <= 100 for n in (16, 17, 18, 19, 30, 31)), repr([len(msg(11521, n)) for n in (16, 17, 18, 19, 30, 31)]))
     s = Script()
     s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
     s.add("READ", 1, "w1", label="WITHOUT the group: a READ is served (the record comes back) - reading needs sdfiles alone", ok=k_rec(HWREC["w1"]))
     s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED is served too (a test of a lock is a read)", ok=k_ok("0", 1))
-    s.add("WRITE", 1, "w1", "x", label="...WRITE is refused: rc 3, message 11500 naming the server and 'write', 'status 0' (the target's reason is in ITS audit trail, not in the reply the client shows)",
-          ok=k_srverr("write", 0), audit="write server=nfw file=hwork")
-    s.add("WRITEU", 1, "w2", "x", label="...WRITEU is refused", ok=k_srverr("writeu", 0))
-    s.add("DELETE", 1, "w3", label="...DELETE is refused", ok=k_srverr("delete", 0), audit="delete server=nfw file=hwork")
-    s.add("DELETEU", 1, "w3", label="...DELETEU is refused", ok=k_srverr("deleteu", 0))
-    s.add("LOCK", 1, "w1", "u", label="...a LOCK (update) is refused: a lock is a change of state on the target", ok=k_srverr("lock", 0))
-    s.add("LOCK", 1, "w1", "l", label="...a LOCK (shared) is refused too", ok=k_srverr("lock", 0))
-    s.add("CLEARFILE", 1, label="...CLEARFILE is refused", ok=k_srverr("clear.file", 0), audit="clear server=nfw file=hwork")
+    s.add("WRITE", 1, "w1", "x", label="...WRITE is refused: rc 3, message 11500 naming the server and 'write', and the TEXT of message 11521 with the request number (16) - the target's reason, "
+          "shown to the person at the client since 19 Oct 26 (K1; it was 'status 0'), rc<6> 0", ok=k_srverr("write", 0, text=msg(11521, 16)), audit="write server=nfw file=hwork")
+    s.add("WRITEU", 1, "w2", "x", label="...WRITEU is refused (request 17)", ok=k_srverr("writeu", 0, text=msg(11521, 17)))
+    s.add("DELETE", 1, "w3", label="...DELETE is refused (request 18)", ok=k_srverr("delete", 0, text=msg(11521, 18)), audit="delete server=nfw file=hwork")
+    s.add("DELETEU", 1, "w3", label="...DELETEU is refused (request 19)", ok=k_srverr("deleteu", 0, text=msg(11521, 19)))
+    s.add("LOCK", 1, "w1", "u", label="...a LOCK (update) is refused: a lock is a change of state on the target (request 30)", ok=k_srverr("lock", 0, text=msg(11521, 30)))
+    s.add("LOCK", 1, "w1", "l", label="...a LOCK (shared) is refused too (request 30)", ok=k_srverr("lock", 0, text=msg(11521, 30)))
+    s.add("CLEARFILE", 1, label="...CLEARFILE is refused (request 31)", ok=k_srverr("clear.file", 0, text=msg(11521, 31)), audit="clear server=nfw file=hwork")
     s.add("READ", 1, "w1", label="...and the handler goes on: the same READ is served again, the record unchanged", ok=k_rec(HWREC["w1"]))
     s.add("CLOSEALL", ok=k_ok("", 0))
     for it, rq in zip(s.items, [[ACCT_REQ, W_OPEN(HW)], [W_READ(1, "w1")], [W_RLK(1, "w1")], [W_WRITE(1, "w1", "x")], [W_WRITE(1, "w2", "x", True)], [W_DEL(1, "w3")],
@@ -4362,7 +4561,7 @@ def wgroup_section():
 SECTIONS = (("login", login_section), ("args", args_section), ("pin", pin_section), ("stale", stale_section), ("keys", keys_section), ("shared", shared_section),
             ("down", down_section), ("close", close_section), ("notfound", notfound_section), ("files", files_section), ("account", account_section),
             ("locks", locks_section), ("lists", lists_section), ("wire", wire_section),
-            ("handler", handler_section), ("readonly", readonly_section), ("refuse", refuse_section), ("lost", lost_section), ("timeout", timeout_section),
+            ("handler", handler_section), ("readonly", readonly_section), ("refuse", refuse_section), ("lost", lost_section), ("timeout", timeout_section), ("oversize", oversize_section),
             ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section),
             ("kernel", kernel_section), ("gaps", gaps_section))
 

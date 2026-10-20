@@ -17,6 +17,7 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 19 Oct 26 dm Finish 2 (verifier): the comment after the files state line quotes message 11482 as "has files" (it read "has FILES" since K2 made the message lower case); comment only.
 * 18 Oct 26 dm S.65 write group: CA$FILESWRITE joins the new user to the Linux group sdfileswrite after sdfiles; refused without CA$FILES (11523) and for a group or
 *              other account (10087, 10081 as CA$FILES); the group is looked for before anything is made; the state line 11522 is read off /etc/group.
 * 18 Oct 26 dm S.66: the shared account. The name shared is reserved (11516) for every type unless the installer's marker is present for a GROUP from an
@@ -605,7 +606,7 @@ PW.TRY.AGAIN:
      crt sysmsg(11411, acc.name, acc.rec<ACC$NET>)  ;* Account %1 has NET %2
      crt sysmsg(11515, acc.name, acc.rec<ACC$SHARED.READ>, acc.rec<ACC$SHARED.WRITE>)  ;* Account %1 has shared.read %2, shared.write %3
 *    17 Oct 26, S.65 slice 2c: FILES is membership of sdfiles, so the line is read off /etc/group, not off the request.
-     crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has FILES %2
+     crt sysmsg(11482, acc.name, if is_grp_member(acc.uname, 'sdfiles') then 'yes' else 'no')  ;* Account %1 has files %2
 *    18 Oct 26, S.65 write group: the same, for sdfileswrite.
      crt sysmsg(11522, acc.name, if is_grp_member(acc.uname, 'sdfileswrite') then 'yes' else 'no')  ;* Account %1 has files-write %2
    end

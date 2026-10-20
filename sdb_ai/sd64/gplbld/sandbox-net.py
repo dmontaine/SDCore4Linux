@@ -6,9 +6,17 @@
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named
-# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files); no flag runs all of them.
+# parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files); no flag runs all of them.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  Finish 2 (verifier): the section "timeouts".  Nothing at runtime showed NETWAIT bounding a connection; with 5 hard-coded at set.server ... connect and at set.netlogin every suite
+#               was green and only test-net-units read the source.  SD is restarted with NETWAIT=2, a listener whose accept queue is full stands in for a host that does not answer, and the
+#               time each command takes is measured from outside against the same command to a closed port.
+# 19 Oct 26 dm  K2 and K1.  Message 11482 reads "Account %1 has files %2" (it was "has FILES"), so every row that said a line must NOT appear used a text that nothing prints
+#               any more and would have passed for ever: they now use files_state_line(), the exact positive form of the sandbox's own message ('Account <name> has files
+#               yes|no'; "has files" alone would also match 11522's "has files-write"), with a row that shows the helper on lines whose answer is known.  Message 11521 is
+#               98 characters (it was 175), under the 100 the SDNet client shows, and a row says so for every request number it is used with.  Observed red on the old message
+#               files: the free checks test-net-units W13 and test-fileswrite-units F15; this suite's own rows for them were not run against the old files.
 # 18 Oct 26 dm  S.65 write group (the owner's yes of that day): section "files" grows the third argument of !apifilesok (the login's membership of the Linux
 #               group sdfileswrite): the probe asks every request number 0 to 80 with the flag 0 and 1, the change set (7 to 10, 16 to 19, 30 to 33) is refused without
 #               it and allowed with it, the reads are unaffected, a flag that is not exactly 1 reads as "no write"; the words FILES-WRITE-ON / FILES-WRITE-OFF in
@@ -70,9 +78,9 @@
 # fixture account's user, so the mode (0644) is read from the disk but whether an unprivileged user can write the file is not tried; an
 # ordinary account's refusal here is the S.63 OS-access gate (status 3035), which an os-on account does not meet.  (3) The audit lines of
 # an INSTALL (they are in a file only root reads); the section "connect" reads the SANDBOX's own audit file, <sandbox>/sys/audit, and a row
-# that needs it fails when it cannot be read.  (4) CREATE.ACCOUNT, which makes Linux users.  (5) A connection that is never answered: the
-# 5 second connect timeout needs an address that drops packets, which a sandbox cannot count on, so only refused, reset, non-TLS and
-# unresolvable targets are tried.
+# that needs it fails when it cannot be read.  (4) CREATE.ACCOUNT, which makes Linux users.  (5) A connection that is never answered: section "connect" tries only refused,
+# reset, non-TLS and unresolvable targets; the connect timeout (NETWAIT) is section "timeouts", with a listener whose accept queue is full (netfake.HangingListener), which a machine
+# may not behave as (the section's first row then fails).
 #
 # THE INSTRUMENTS.  zznk (a $internal verb in every fixture account) prints "NK net=<0|1> admin=<0|1>": the kernel's own answer to
 # K$NET and whether the session is an administrator; zznkset sets it from internal code and reads it back.  For the verbs the evidence is
@@ -111,6 +119,10 @@ passed = failed = 0
 
 PIN_A = "0123456789abcdef" * 4
 PIN_B = "fedcba9876543210" * 4
+
+# message 11521 as it must read since 19 Oct 26 (K1): at most 100 characters once %1 (a request number of two digits) is in, because the SDNet client shows an ON ERROR
+# reply's text cut to 100 characters (gpl.bp/netfile clean.text); the old text was 175 characters and the person at the client saw "status 0" in its place
+NEW_11521 = "This login cannot change or lock files here: ask the administrator for files-write-on (request %1)"
 
 # name -> (register field 8 ACC$OS.EXEC, register field 15 ACC$NET); None for field 15 means a record that has no such field at all
 ACCOUNTS = {
@@ -174,6 +186,23 @@ def has_line(out, text):
 
 def has_text(out, text):
     return any(text in ln for ln in out)
+
+
+def files_state_line(out):
+    """True when a line of `out` is message 11482 for ANY account and either answer, in the form the sandbox's own message file gives it ('Account <name> has files yes|no').
+    The exact positive form on purpose (19 Oct 26, K2): 'has files' alone would also match 11522 ('has files-write'), and the old capitals ('has FILES') match nothing once the
+    message is lower case, so a negative row built on them would pass for ever and measure nothing.  files_state_line_selfcheck() runs it on lines whose answer is known."""
+    pat = re.escape(msg(11482, "\x00", "\x01")).replace("\x00", r"\S+").replace("\x01", r"(?:yes|no)")
+    return any(re.fullmatch(pat, ln) for ln in out)
+
+
+def files_state_line_selfcheck():
+    """The instrument for the 'no 11482 line' rows, shown on lines whose answer is known: a true 11482 line is recognised, so is the other answer, and 11522's line,
+    an unrelated line, an empty list and the old capitals are not.  A helper that recognised nothing (or everything) fails here, once, instead of letting every
+    negative row pass."""
+    good = ["Account fred has files yes", "Account fred has files no"]
+    other = ["Account fred has files-write yes", "Account fred has FILES yes", "fred has files yes", "Account fred has files maybe", "", "10080 already"]
+    return all(files_state_line([x]) for x in good) and not any(files_state_line([x]) for x in other) and not files_state_line([]) and files_state_line(["x"] + good[:1])
 
 
 def snap():
@@ -2049,6 +2078,8 @@ def files_section():
     regs = lambda: {n: g.reg_read(n) for n in list(fix) + ["sdsys"]}
     mem0, reg0, memw0 = sdfiles_members(), regs(), sdfiles_members("sdfileswrite")
     unchanged = lambda: sdfiles_members() == mem0 and regs() == reg0 and sdfiles_members("sdfileswrite") == memw0
+    row("INSTRUMENT: the test for a line of message 11482 (used by every 'no 11482 line' row below) recognises 'Account <name> has files yes|no' and nothing else - not 11522's "
+        "'has files-write', not the old capitals, not an unrelated line, not an empty list", files_state_line_selfcheck(), "")
     out = g.adm(["MODIFY.ACCOUNT"])
     row("MODIFY.ACCOUNT's syntax lines name files-on | files-off", g.has(out, r"modify\.account <account> files-on \| files-off"), repr(out[-9:]))
     row("MODIFY.ACCOUNT's syntax lines also name files-write-on | files-write-off (18 Oct 26, S.65 write group)",
@@ -2057,22 +2088,22 @@ def files_section():
     # an unknown second word is not a route word: modify.account's older code reads it as a group name to act on and refuses it its own way
     # ("... is not a valid Linux Group"), so the row asserts what matters here: no files wording, and nothing changed
     row("a word that is not one of them (FILESON) is refused: no 'has FILES' line, the register and the group sdfiles untouched",
-        not g.has(out, r"has FILES") and unchanged(), repr(out[-4:]))
+        not files_state_line(out) and unchanged(), repr(out[-4:]))
     for word in ("files-off", "FILES-OFF"):
         out = g.adm(["modify.account zznfilu " + word])
         row("%s on a user whose Linux user is in no group: 'already had that access' (10080), no 11482 line, the register and the group sdfiles untouched, and sd-elevate "
             "was never run (the change is not asked for)" % word,
-            has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10080, "zznfilu")) and not files_state_line(out) and unchanged(), repr(out[-3:]))
     for word in ("files-on", "FILES-ON"):
         out = g.adm(["MODIFY.ACCOUNT zznfilu " + word])
         row("%s for a user who is not in sdusers: refused with 10081, status 2 (the login would refuse them first), no 11482 line, nothing changed" % word,
-            has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has FILES") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10081, "zznfilu", 2)) and not files_state_line(out) and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
     for word in ("files-on", "files-off"):
         out = g.adm(["modify.account zznfilg " + word])
-        row("%s on a GROUP account: refused (10087 - reached with logto), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        row("%s on a GROUP account: refused (10087 - reached with logto), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilo " + word])
         row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
-            has_line(out, msg(10081, "zznfilo", 2)) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10081, "zznfilo", 2)) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account sdsys " + word])
         row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilnosuch " + word])
@@ -2092,10 +2123,10 @@ def files_section():
             has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has files-write") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
     for word in ("files-write-on", "files-write-off"):
         out = g.adm(["modify.account zznfilg " + word])
-        row("%s on a GROUP account: refused (10087), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+        row("%s on a GROUP account: refused (10087), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilo " + word])
         row("%s on an account that is neither a user nor a group: refused (10081, status 2), nothing changed" % word,
-            has_line(out, msg(10081, "zznfilo", 2)) and not has_text(out, "has FILES") and unchanged(), repr(out[-3:]))
+            has_line(out, msg(10081, "zznfilo", 2)) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account sdsys " + word])
         row("%s on sdsys: refused (2202), nothing changed" % word, has_line(out, msg(2202)) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilnosuch " + word])
@@ -2110,7 +2141,7 @@ def files_section():
             out = g.adm(["modify.account zznfilw " + word])
             row("%s for a person in sdusers who is NOT in sdfiles (the user running this): refused with 11523, no 11522 line, the register and both groups untouched - the write "
                 "group on its own gives nothing, so it is not handed out" % word,
-                has_line(out, msg(11523, "zznfilw")) and not has_text(out, "has FILES") and not has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+                has_line(out, msg(11523, "zznfilw")) and not files_state_line(out) and not has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilw files-write-off"])
         row("files-write-off for the same person (in neither group): 'already had that access' (10080), nothing changed", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilw files-off"])
@@ -2140,7 +2171,7 @@ def files_section():
         out = g.adm(["create.account user zznfilwx files-write-on no.query"])
         row("create.account user ... files-write-on WITHOUT files-on: refused with 11523 BEFORE it makes anything - no Linux user, no register record, no 'has FILES' line "
             "(the write group alone gives nothing)",
-            has_line(out, msg(11523, "zznfilwx")) and not has_text(out, "has FILES") and not linux_user_exists("zznfilwx")
+            has_line(out, msg(11523, "zznfilwx")) and not files_state_line(out) and not linux_user_exists("zznfilwx")
             and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilwx")), repr(out[-3:]))
     if sdfiles_members() is None and not linux_user_exists("zznfilwy"):
         out = g.adm(["create.account user zznfilwy files-on files-write-on no.query"])
@@ -2167,23 +2198,99 @@ def files_section():
         g.has(pick("zznfilg"), r"type: GROUP") and not g.has(pick("zznfilg"), r"route\.files"), repr(pick("zznfilg")[:2]))
 
     # the messages
-    for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has FILES %2"),
-                    (11521, "This login can read files but is not allowed to change them (the administrator of this server can allow it: modify.account <account> files-write-on): request %1 is not allowed"),
+    for n, text in ((11480, "This login is for files only: request %1 is not allowed"), (11482, "Account %1 has files %2"),
+                    (11521, NEW_11521),
                     (11522, "Account %1 has files-write %2"),
                     (11523, "Account %1 does not have files access, so it cannot be given files-write: use files-on first")):
         p = os.path.join(g.SYS, "messages", str(n))
         got = open(p, encoding="utf-8", errors="replace").read().strip("\n") if os.path.exists(p) else None
         row("the sandbox holds message %d, one line: %r" % (n, text), got == text, repr(got))
+    shown = [len(msg(11521, r)) for r in (7, 10, 16, 19, 30, 33, 41)]
+    row("message 11521 as the person at the SDNet client sees it (%%1 a request number: 7 to 10, 16 to 19, 30 to 33, 41) is at most 100 characters - the cut of gpl.bp/netfile clean.text - "
+        "and still names files-write-on: %r" % shown, len(shown) == 7 and max(shown) <= 100 and "files-write-on" in msg(11521, 41), repr(shown))
     for n in fix:
         p = os.path.join(g.SYS, "accounts", n)
         if os.path.isfile(p):
             os.remove(p)
 
 
+def timeouts_section():
+    """NETWAIT (sd.conf) bounds the connection that set.server ... connect and set.netlogin make.  19 Oct 26, finish 2 (verifier): hard-coding 5 at both call sites left every suite green;
+    only test-net-units read the source.  A listener whose accept queue is full (netfake.HangingListener) hangs a connect; SD is restarted with NETWAIT=2; the time each command takes is
+    measured from outside and the time the same command takes against a CLOSED port (refused at once: the session's own cost) is taken off.  The connection that $netfile's connect.keys
+    makes (sdclient.connect.keys, the third call site) is timed in sandbox-netfile.py, with NETREPLY."""
+    say("\n--- NETWAIT=2 in sd.conf bounds the connection of set.server ... connect and of set.netlogin: a listener whose accept queue is full, the time measured from outside (this section takes about 30 s) ---")
+    if not nl_prepare():
+        return
+    dead = closed_port()
+    H = "127.0.0.1"
+    prior = snap()
+    for p in (netfile(), netfile() + ".new", netfile() + ".lock"):
+        if os.path.exists(p):
+            os.remove(p)
+    conf = os.path.join(g.BOX, "sd.conf")
+    with open(conf) as f:
+        original = f.read()
+    hang = netfake.HangingListener()
+    try:
+        row("SETUP: a connect to the full listener on port %d hangs (so a row can show a timeout: on a machine that does not hang a connect that way these rows FAIL, they do not pass)" % hang.port,
+            hang.hangs(), "the connect completed or failed at once")
+        adm1("set.server tmoh %s %d reader %s read accounts zznon" % (H, hang.port, PIN_A), "set.server tmod %s %d reader %s read accounts zznon" % (H, dead, PIN_A))
+        row("SETUP: two definitions with typed pins (nothing dialled), tmoh at the full listener and tmod at a closed port, listed for zznon", entry("tmoh") is not None and entry("tmod") is not None,
+            repr(file_lines()))
+        started = netfake.restart_with_conf(g.BOX, g.TOOL, original, ("NETWAIT=2",))
+        row("SD starts with NETWAIT=2 in sd.conf (a row below that needs the new value fails if it did not)", started, "")
+        if not started:
+            return
+
+        # -- set.server ... connect
+        t0 = time.time()
+        out, b, a, au, dials = conn_run(conn_cmd("tmoctl", dead), [])
+        base = time.time() - t0
+        row("CONTROL (the session's own cost): set.server ... connect to a closed port is refused at once with the CANNOT CONNECT message (11444), nothing written (%.1f s for the whole session)" % base,
+            g.has(out, msg_re(11444, re.escape(H), str(dead), r"\d+", str(errno.ECONNREFUSED))) and b == a and entry("tmoctl") is None, repr((b == a, out[-3:])))
+        t0 = time.time()
+        out, b, a, au, dials = conn_run(conn_cmd("tmoctl", hang.port), [])
+        took = time.time() - t0 - base
+        row("NETWAIT=2 BOUNDS set.server ... connect (a listener whose accept queue is full): the CANNOT CONNECT message (11444), nothing written, and about 2 seconds more than the control - %.1f s "
+            "(1.5 to 3.9 expected; the 5 it used to be fixed at would be 5)" % took,
+            g.has(out, msg_re(11444, re.escape(H), str(hang.port), r"\d+", r"\d+")) and not g.has(out, msg_re(11445, ".*", ".*")) and b == a and entry("tmoctl") is None and 1.5 <= took <= 3.9,
+            repr((b == a, "%.1f s over the control" % took, out[-3:])))
+
+        # -- set.netlogin (the credential directory stays as it was: the connection never completes).  The stand-in for the helper makes the person's directory, so it is made here first, as
+        #    the refusal rows of section netlogin do: otherwise "nothing stored" would differ between before (no directory) and after (an empty one).
+        reset_root()
+        os.makedirs(NL["dir"], exist_ok=True)
+
+        def netlogin(server):
+            t0_ = time.time()
+            r = nl_run("zznon", "set.netlogin " + server, [NL_REMOTE, NL_PW])
+            return r, time.time() - t0_
+        r, nl_base = netlogin("tmod")
+        row("CONTROL (the session's own cost): set.netlogin tmod (a closed port) is refused at once with the CANNOT CONNECT message (11469) and stores nothing (%.1f s for the whole session)" % nl_base,
+            g.has(r["out"], msg_re(11469, re.escape(H), str(dead), r"\d+", r"\d+")) and not g.has(r["out"], SUCC) and r["before"] == r["after"], repr(r["out"][-4:]))
+        r, nl_took = netlogin("tmoh")
+        nl_took -= nl_base
+        row("NETWAIT=2 BOUNDS set.netlogin (a listener whose accept queue is full): the CANNOT CONNECT message (11469), nothing stored, about 2 seconds more than the control - %.1f s "
+            "(1.5 to 3.9 expected; the 5 it used to be fixed at would be 5)" % nl_took,
+            g.has(r["out"], msg_re(11469, re.escape(H), str(hang.port), r"\d+", r"\d+")) and not g.has(r["out"], SUCC) and r["before"] == r["after"] and 1.5 <= nl_took <= 3.9,
+            repr((r["before"] == r["after"], "%.1f s over the control" % nl_took, r["out"][-4:])))
+    finally:
+        hang.close()
+        if not netfake.restart_with_conf(g.BOX, g.TOOL, original, ()):
+            row("SD starts again with the sd.conf it had (the rows after this section need it)", False, "did not start")
+        for p in (netfile(), netfile() + ".new", netfile() + ".lock"):
+            if os.path.exists(p):
+                os.remove(p)
+        if prior is not None:
+            with open(netfile(), "wb") as f:
+                f.write(prior)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
-        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, ordinary, files)")
+        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files)")
     g.BOX = os.path.abspath(args[0])
     g.SYS = os.path.join(g.BOX, "sys")
     g.SD = os.path.join(g.SYS, "bin", "sd")
@@ -2225,7 +2332,7 @@ def main():
 
     for name, section in (("gate", gate_section), ("logto", logto_section), ("modify", modify_section), ("manifest", manifest_section),
                           ("defs", defs_section), ("connect", connect_section), ("netcred", netcred_section), ("netlogin", netlogin_section),
-                          ("ordinary", ordinary_section), ("files", files_section)):
+                          ("timeouts", timeouts_section), ("ordinary", ordinary_section), ("files", files_section)):
         if run(name):
             section()
     nl_cleanup()

@@ -69,6 +69,93 @@ Next release - in progress
                         can fail after a register change was made, and the closing line names what was not done instead of hiding it. It does not
                         change what any single word does, who may run the verb, or the audit trail (one line for each word).
 
+19 Oct 26  A REMOTE SELECT THAT THE OTHER SERVER ANSWERS WITH AN ERROR NO LONGER STOPS THE PROGRAM.
+
+             What        When a program makes a list of the records of a file on another SD server (SDNet) and the server answers either request of
+                        the SELECT - the SELECT itself or the read of the list - with an error of the kind that takes an ON ERROR clause, the program
+                        was stopped with "READLIST generated an abort event" (or "SELECT generated an abort event"), which an ON ERROR clause cannot
+                        trap. It now gets the same error as every other remote file statement: message 11500 with the server's own words, or "status 0"
+                        when the server sent none. The client class (the BASIC class that talks to an SD server) lets an object that has been made
+                        quiet carry on after such a reply, as it already did for a READ, a WRITE and a DELETE; the remote file handler is the one
+                        user that makes its object quiet.
+             Why it      A server that was broken, or that was not to be trusted, could end a client's program at will, and the reason for a refusal never
+             matters    reached the person.
+             Does not    An object that is not quiet - the default, and every program that uses the client class directly - is stopped exactly as
+                        before. It does not change which requests a server refuses or what it says. It was found by a test written for the case; no real
+                        server was seen to send this reply.
+
+19 Oct 26  A REMOTE FILE CHANGE THAT THE OTHER SERVER REFUSES NOW SHOWS WHY.
+
+             What        When a program changes a file on another SD server (SDNet) and that server's answer to the change is an error, the error message
+                        now carries the server's own words. Before, it said only "status 0", whatever the reason. The case that matters is a login on
+                        the other server that has the files route but not the right to change files (sdfileswrite): the person at the client now reads
+                        "This login cannot change or lock files here: ask the administrator for files-write-on (request 16)". Message 11521, that
+                        sentence, was 175 characters and the client shows 100, so it is now 98. The same holds for any other error the server
+                        answers with a text of that kind, such as MAXRLOCK on a lock request or a CLEARFILE of a file the server cannot write. An
+                        error the server answers with no text still shows "status <n>", as before. The server also empties its error text at the start of every
+                        request now: it used to send the text of its last refusal again with an unrelated error (a write with an id that is too long
+                        answered "Invalid call name" after a call with no name), which would have been shown to the person.
+             Why it      "Status 0" does not say that the fix is a word the administrator of the other machine has to give; the sentence does.
+             matters
+             Does not    It does not change which requests are refused, or who may be given the right. A program that traps the error with ON ERROR
+                        still sees STATUS() 7000, as before: the text is in the message that is shown when the program does not trap it.
+
+19 Oct 26  MODIFY.ACCOUNT FILES-OFF AND FILES-ON NOW DEAL WITH A LEFTOVER WRITE-GROUP MEMBERSHIP, ITS LINE IS IN LOWER CASE, AND A REFUSED LOGIN NAMES BOTH ROUTES.
+
+             What        (1) Someone could be in the Linux group sdfileswrite and not in sdfiles - a removal that stopped half way, or a change made by
+                        hand. That left them inert until the next files-on, which added sdfiles and made the leftover into the right to change files on
+                        this server without the administrator saying so. files-off now removes the write group first and then sdfiles, reading each
+                        back, and does the work for a person who is in only one of them (it used to answer "already had that access" and leave the
+                        membership); if the second removal fails the person is left in sdfiles alone - read access, never write access without read -
+                        and the command says the change failed AND says what did happen: it prints "Account <name> has files-write no" and writes
+                        the audit line "modify.account files-write-off account=<name>" for the removal that worked, then reports the failure. (The
+                        audit line for files-off or files-on itself is written only when the whole command worked.) files-on removes a leftover write
+                        membership before it adds sdfiles, and stops with the same failure message if it cannot; if the write membership went and the
+                        add of sdfiles then fails, the person is left in neither group and the command says so in the same way. When the write
+                        group went, a line "Account <name> has files-write no" comes before the usual one. (2) The usual line is now "Account <name> has files yes" (or no): it said "FILES" in capitals. (3) A login
+                        that is in neither sdapi nor sdfiles is refused as before, but the audit reason now says "not a member of sdapi or sdfiles"; it
+                        named only sdapi.
+             Why it      A permission the administrator never gave must not come back at the next, unrelated command, and the audit line should
+             matters    send the administrator to the right group.
+             Does not    The wording of the other lines of modify.account is unchanged. files-write-on and files-write-off do what they did. The real
+                        group changes still need root; they were run against a scratch group file and a stand-in for the helper, and on a real machine
+                        only by the witness scripts.
+
+19 Oct 26  THE API'S FILE LOCK AND UNLOCK (REQUESTS 32 AND 33) ACT ON THE FILE THEY ARE ASKED ABOUT.
+
+             What        A client that locked or unlocked a whole file through the API (the wire requests filelock and fileunlock) locked or
+                        unlocked whichever file the server had opened last, not the one the request named. It was found by opening three files, locking
+                        the first, and asking from a second session which files were locked. They now act on the file named. The client library
+                        has no function for these two requests yet, so the programs that could meet this are ones that speak the protocol directly.
+             Why it      A lock on the wrong file protects nothing and blocks someone else's work.
+             matters
+             Does not    It does not add a client function, and it does not change record locks.
+
+19 Oct 26  SDNET: A REPLY THAT CANNOT BE TRUE IS REFUSED AT ONCE, AND THE TWO WAITS ARE SETTINGS (NETWAIT, NETREPLY).
+
+             What        (1) A remote file's client now checks the length a reply announces before it reads the body. A server that announces less than
+                        its own ten-byte header, or more than the largest string SD holds, is treated as a lost connection immediately; before, the
+                        client read for as long as the server sent, and waited 30 seconds for a body that was never coming. The ordinary client class
+                        is unchanged except for lengths below ten. (2) The seconds to wait for a connection (5) and for each reply (30) were fixed in
+                        the programs. They are the new sd.conf settings NETWAIT and NETREPLY, 1 to 3600 seconds, with those defaults, read by
+                        set.server ... connect, set.netlogin and every remote file; CONFIG lists them. A zero is refused, so SD does not start with
+                        NETWAIT=0 (openQM reads that as wait for ever). A CLEARFILE waits the longer of five minutes and NETREPLY.
+                        (3) A value of 65541 (65536 + 5) for NETWAIT or NETREPLY in sd.conf was read into a 16 bit field, came out as 5 and passed the
+                        1 to 3600 test, so SD started with a 5 second wait instead of refusing the value; the fields are 32 bit now and SD does not start.
+                        (PWDELAY and DHCACHE are read the same way and have the same fault; they are not changed here.)
+             Why it      A compromised or broken server can no longer hold a client for a long time with a bad length once the login is over, and an
+             matters    administrator who has a slow link or a slow server can say how long is too long.
+             Does not    It does not cap the size of a legitimate record, and the setting is per computer, not per server definition. NETWAIT and
+                        NETREPLY have nothing to do with the QMClient programs. The ceiling is set after the login, not during it: the login exchange
+                        itself still has no limit on the length a reply announces (only the test for a length under ten bytes), so a pinned server
+                        that is hostile can still announce a large length in a login reply and send slowly, for NETREPLY seconds a read.
+                        A server that completes the TLS handshake and then sends nothing at all, not even its acknowledgement byte, is NOT given up
+                        on after NETREPLY seconds: the client waits until the server sends something or closes the connection. (The session tickets
+                        that TLS 1.3 sends after the handshake end the first read early, and the read that follows has no time limit. Against the
+                        test server, which closes a silent connection after 5 seconds, a client set to wait 3 waited 5; with the tickets turned off
+                        it waited 3.) A server that sends the acknowledgement and then goes silent IS given up on after NETREPLY seconds, as
+                        intended (3.0 seconds measured with NETREPLY=3). The first case is measured and reported to the owner, and not fixed here.
+
 19 Oct 26  A GUIDE, A GENERATED REFERENCE AND A CLAUDE CODE SKILL FOR AI AGENTS THAT WORK ON AN SD SYSTEM ARE IN THE SOURCE (agent-pack/).
 
              What        An AI agent asked to write SD BASIC meets a language that looks like OpenQM, UniVerse or D3 and is not, and guesses names SD
