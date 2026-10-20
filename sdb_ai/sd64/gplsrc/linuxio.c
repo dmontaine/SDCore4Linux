@@ -555,6 +555,15 @@ bool keyready() {
   if (piped_input)
     return TRUE;
 
+  /* 20 Oct 26 dm - S.71: nothing is ready from a connection that has gone, and nothing will be.  A hung-up descriptor is always
+     "readable", so poll() below said there was something, keyin() gave back a character, and CLEARINPUT (op_clrinput(), and the
+     input clearing in the break handler) turned for ever on `while (keyready()) keyin(0)`.  The ring still counts: what arrived before
+     the loss is ready.                                                                                                              */
+  if (connection_lost && (ring_in == ring_out)) {
+    k_exit_cause = K_TERMINATE;
+    return FALSE;
+  }
+
   input_handler_enabled = FALSE;
 
   /* Check if there is anything pending on stdin. We may have had
@@ -646,6 +655,20 @@ int16_t keyin(timeout) int timeout; /* Milliseconds */
 
     while (ring_in == ring_out) /* Nothing in ring buffer */
     {
+      /* 20 Oct 26 dm - S.71: A LOST CONNECTION IS FINAL.  Once do_input() has seen the end of the connection there is nothing more
+         to wait for, and the loop below cannot leave on its own: poll() says POLLHUP at once and the connection is never read
+         again (do_input() does nothing after the loss), so the only way out was k_exit_cause holding an interrupt bit.  Measured
+         with gdb on a spinning server: connection_lost 1, k_exit_cause 0 - something had cleared it (what is NOT established; the
+         candidate is kernel.c zeroing it when a program starts, after the input signal had recorded the loss), and an API
+         server whose client went before its first request polled at 100% of a processor for ever.  So the loss is told again here,
+         every time, whatever cleared k_exit_cause: terminate, and give back 0 as every other interrupt does, without waiting.  The
+         ring is read first (the test is inside this loop), so what the client sent before it went is still read.              */
+      if (connection_lost) {
+        k_exit_cause = K_TERMINATE;
+        input_handler_enabled = TRUE;
+        return 0;
+      }
+
       /* Do our own i/o wait so that we can handle events while we are
          waiting. The paths that return special values all re-enable the
          signal handler. If any input arrives between the call to poll()
@@ -885,12 +908,25 @@ bool restore_cursor;
 
 /* Interludes to map onto Windows style interfaces */
 
+/* 20 Oct 26 dm - S.71: read_socket() gave up on nothing.  It took keyin(0) once for each byte asked for and never looked at what keyin()
+   said, so a connection that had gone, or a process told to terminate, turned the rest of the read into a loop of zero bytes
+   (and, behind op_readpkt(), one 16 KB chunk of memory for every 16,358 of them, for a length of 1,651,663,207).  keyin() answers 0 with
+   an interrupt cause set when it has given up (a lost connection sets K_TERMINATE, as above), or -1 at the end of piped input: the
+   read ends there, FALSE and ER_EOF, as the callers already test.                                                                 */
 bool read_socket(str, bytes) char *str;
 int bytes;
 {
-  while (bytes--)
-    *(str++) = (char)keyin(0);
-  return 1;
+  int16_t c;
+
+  while (bytes--) {
+    c = keyin(0);
+    if ((c < 0) || ((c == 0) && (k_exit_cause & K_INTERRUPT))) {
+      process.status = ER_EOF;
+      return FALSE;
+    }
+    *(str++) = (char)c;
+  }
+  return TRUE;
 }
 
 char socket_byte() {

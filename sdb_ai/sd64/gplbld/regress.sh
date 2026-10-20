@@ -140,6 +140,10 @@
 #               gate off, compile, the gate words; written from the code, NEVER RUN when this line was added - see sandbox-shared.py): the 126th.
 # 19 Oct 26 dm  masters (the master files, S.67 stage 1: the file-change hook in the DH layer, the journal $master.journal, voc_master / dict_master /
 #               master_state, the drain on open, SYNC.MASTERS / CHECK.MASTERS / LIST.MASTER.PENDING, account to master only): the 127th.
+# 20 Oct 26 dm  apispin (S.71: an API client that closes, or declares a packet it will never send, left its server process at 100% of a processor:
+#               a real `sd -n -q` behind the real TLS relay with a Python client that closes at once, a `sd -Q -C` over pipes given bad lengths, CLEARINPUT
+#               after the connection has gone, a 20 MB record still read and written, and the length test (apipkt.h) compiled apart; the evidence is the
+#               server's process family in /proc; --mutants takes each part of the repair out of the sandbox's own copy): the 128th.
 # 16 Oct 26 dm  --snapshot also copies deletesdcore.sh: test-newvocmods-units.py reads it, and in the snapshot it was missing, so the
 #               free check answered CANNOT RUN and the run exited 1 (found in the audit of Fixes batch A; test-regress-units.py has the row).
 # END-HISTORY
@@ -150,7 +154,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TREE=$(dirname "$HERE")
 
 # The suites, the longest first (measured 14 Oct 26), so that a queue shared by several workers ends together.
-ALL_SUITES="screen ide ced sed-menu sed-edit sed-small ide-small ide-sed winsize syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient edseqkey sdfixseq fcontrol selectv-mode listf-mult q5 restricted dbgequ cll xml stacked prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype callfile editgates net netfile qm4def shared viewport crypt tools req29 eofkeys idedraw guide pack-examples filesgrp witness-programs masters"
+ALL_SUITES="screen ide ced sed-menu sed-edit sed-small ide-small ide-sed winsize syntax oq2 listu-a5 conf-b1 file-b8 lock-b6 dbgui footpause sys-b2 coll try qproc-a3 gates bcomp-a1 collfile fix-b10 edbug openzero pickrn mlmask chained execlist partial classas stdfil wdthenelse bpv numexp forcereload pgheading mfilepath dbgcoll akcase stmt-b5 func-b4 dict-a2 conv-b3 misc-a9 list-a7 input nocase callcase dictfold audit-b9 file-a8 option-a4 proc-a5 upgradenocase lang-a15 cmd-a9 lang-b45 idx-nocase trans-b43 csv-b5 locate-b5 noecho flushdh stacklist inputif inputraw inputfill inputtrap sselectv epoch txnstatus opensock dbgwatch audit-b9b option-q17 mode-q16 func-q1 sys-q18 qproc-q20 list-q2 verbs-q8 inhibit-q8 stmt-q3 q4 qmclient apispin edseqkey sdfixseq fcontrol selectv-mode listf-mult q5 restricted dbgequ cll xml stacked prof qdefaults qproc-when vert-fmt vlist-a3 incsearch lockown sdaccts fixes-b12 dbgcase sortwide splitfull nameindex terminfo-ext resetall classinit sync getdev itypemode edext ospath crlf dirtrig sysexc ltype callfile editgates net netfile qm4def shared viewport crypt tools req29 eofkeys idedraw guide pack-examples filesgrp witness-programs masters"
 
 ONLY=""
 SKIP=""
