@@ -17,6 +17,8 @@
 * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 *
 * START-HISTORY:
+* 19 Oct 26 dm  S.67, the verifier's finding F7: SYNC.MASTERS with no account makes ONE kernel call for every account (kernel(K$MASTERS, 'syncall')), where it made one
+*               for each and each read the whole of every master file: with 200 accounts that was about three times as long as with 100, not twice.
 * 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS and LIST.MASTER.PENDING end with the reason the last save of a master record in this session was refused, if one
 *               was (kernel(K$MASTERS, 'refusal'), message 11594): an editor shows only "write error 8910".
 * 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS lists the files a master edit could not be written into - nonwritable (the group has no write permission) and
@@ -47,8 +49,8 @@
 *   LIST.MASTER.PENDING    The journal lines not yet applied (it applies none), and the flags.
 *
 * Master to account (stage 2): a master record that SDSYS SAVES is written into the account's own file by the kernel at once, or refused with its reason
-* and nothing changed (the account's record changed since the copy was made; the account's record is locked; the files cannot be written by this
-* session; the account is not registered; the key means nothing).  A master record is not DELETED from here and is not saved inside a transaction.
+* and nothing changed (the account's record changed since this session READ it, or the session has not read a record the account has; the account's record
+* is locked; the files cannot be written by this session; the account is not registered; the key means nothing).  A master record is not DELETED from here and is not saved inside a transaction.
 * Nothing in this program does it: it is in the DH layer (masters.c), so ED, COPY, a program's WRITE and the rest all reach it.
 *
 * END-DESCRIPTION
@@ -73,7 +75,7 @@ $include err.h
    ans = ''
    st = 0
    rep = ''
-   accounts = ''
+   rowv = ''
    n = 0
    i = 0
    fields = ''
@@ -151,12 +153,19 @@ do.sync:
       ans = kernel(K$MASTERS, 'syncbegin')
       s0 = ans<2>
       void kernel(K$AUDIT, 'sync.masters account=*')
-      ans = kernel(K$MASTERS, 'accounts')
-      accounts = ans
-      n = dcount(accounts, @fm)
+*     Every account in ONE call (19 Oct 26): the kernel reads each master file once, where one call for each account read the whole of them for each.  One field for
+*     each account: its name, then the seven numbers 'sync' gives, as values.
+      ans = kernel(K$MASTERS, 'syncall')
+      if ans<1> # 0 then
+         @system.return.code = -ER$FAILED
+         stop sysmsg(11576, ans<2>)
+      end
+      n = dcount(ans, @fm)
       for i = 2 to n
-         account = accounts<i>
-         gosub sync.one
+         rowv = ans<i>
+         display sysmsg(11566, rowv<1, 1>, rowv<1, 2>, rowv<1, 3>, rowv<1, 4>)
+         display sysmsg(11578, rowv<1, 5>, rowv<1, 6>, rowv<1, 7>)
+         if rowv<1, 8> > 0 then display sysmsg(11577, rowv<1, 8>)
       next i
       ans = kernel(K$MASTERS, 'syncend' : @fm : s0)
       if ans<1> = 0 then

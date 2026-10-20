@@ -4,8 +4,8 @@
 #                      the sdsys operating-system user in the account groups, the modes of the VOC and dictionaries, an SDSYS edit reaching a user's
 #                      VOC at once, the refusal when the SDSYS session is older than the group membership, and the upgrade's repair of the modes.
 #
-#   bash      /home/don/Projects/SDCore4Linux-wt-s67/sdb_ai/sd64/gplbld/witness-masters.sh               (a dry run: says what it would do, changes nothing)
-#   sudo bash /home/don/Projects/SDCore4Linux-wt-s67/sdb_ai/sd64/gplbld/witness-masters.sh --commit      (does it)
+#   bash      /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-masters.sh               (a dry run: says what it would do, changes nothing)
+#   sudo bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/witness-masters.sh --commit      (does it)
 #
 # ***sudo IS NEEDED, AND ONLY FOR --commit.***  Run it from the owner's login (SUDO_USER must name a person).  The dry run needs no privilege.
 # Exit 0 every row passed, 1 a row failed or was not reached, 2 it could not run.  The log is /tmp/witness-masters.<time>.log.
@@ -142,7 +142,10 @@ cleanup() {
     if [ -n "$STALE_PID" ] && kill -0 "$STALE_PID" 2>/dev/null; then kill "$STALE_PID" 2>/dev/null; say "  stopped the long-lived SDSYS session ($STALE_PID)"; fi
     exec 3>&- 2>/dev/null
     for a in "$A1" "$A2"; do
-        if [ -e "$REGISTER/$a" ]; then
+        # ONLY a record this run made (MADE_A1 / MADE_A2, set after the ground was found clear and the record was seen to appear).  A record that was there before is not ours: a run that
+        # stopped at "CANNOT RUN - the ground is not clear" made nothing, and used to delete the very account it had refused to touch.
+        MADE=$([ "$a" = "$A1" ] && echo "$MADE_A1" || echo "$MADE_A2")
+        if [ "$MADE" -eq 1 ] && [ -e "$REGISTER/$a" ]; then
             say "  $a is still registered; deleting it through SD (as sdsys)"
             printf '%s' $'\n''TERM 200,9999'$'\n'"DELETE.ACCOUNT $a"$'\n''y'$'\n''OFF'$'\n' \
                 | timeout 90 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$SD" >/dev/null 2>&1
@@ -371,6 +374,39 @@ elif [ "$COMMIT" -eq 1 ]; then
     for r in 5a 5b 5c 5d 5e 5f 5g 5h 5i 5j 5k; do not_reached "$r (no account from section 3)"; done
 else
     say "  (dry run: would break the modes and the membership of $A1, run the installer's join_sdsys_groups on a one-record register with the real helper, and look)"
+fi
+
+# ==========================================================================
+head2 "6. the master files are the sdsys user's alone (verifier F1, 19 Oct 26): no group bit, no other bit, and a user who IS in sdusers cannot open them"
+if [ "$COMMIT" -eq 1 ]; then
+    # the owner, group and mode of what the install made (the sandbox has one user, so only here can the owner and the group be seen)
+    LIST=""
+    for f in voc_master dict_master master_state; do
+        for p in "$SDSYS/$f" "$SDSYS/$f/%0" "$SDSYS/$f/%1" "$SDSYS/$f.dic" "$SDSYS/$f.dic/%0" "$SDSYS/$f.dic/%1"; do
+            say "      $(stat -c '%U:%G %a  %n' -- "$p" 2>&1)"
+            LIST="$LIST$(stat -c '%U %a' -- "$p" 2>/dev/null)
+"
+        done
+    done
+    OWNERS=$(printf '%s' "$LIST" | awk 'NF{print $1}' | sort -u | tr '\n' ' ')
+    ck "6a master files: owner, group and mode - every one of the 18 paths is owned by sdsys" "sdsys " "$OWNERS"
+    DIRS=$(printf '%s' "$LIST" | awk 'NF{print $2}' | sort | uniq -c | awk '{printf "%s x%s ", $2, $1}')
+    ck "6b ...the six directories are 700 and the twelve subfiles 600" "600 x12 700 x6 " "$DIRS"
+    LOOSE=0
+    while read -r own mode; do [ -n "$mode" ] && [ $((8#$mode & 8#077)) -ne 0 ] && LOOSE=$((LOOSE + 1)); done <<< "$LIST"
+    ck "6c ...and not one of them has a group or other bit set (no group or other bit: the group SDSYS runs in is sdusers, which every SD user is in)" "0" "$LOOSE"
+    ck "6d the journal is sdsys:sdusers 620 (every SD user's session appends to it, nobody but sdsys reads it)" "sdsys:sdusers 620" "$(stat -c '%U:%G %a' -- "$SDSYS/\$master.journal" 2>&1)"
+    if [ "$MADE_A1" -eq 1 ] && [ "$(has_member sdusers "$A1")" = yes ]; then
+        R1=$(sudo -u "$A1" sh -c 'cat "$1" >/dev/null 2>&1 && echo OPENED || echo DENIED' sh "$SDSYS/voc_master/%0")
+        R2=$(sudo -u "$A1" sh -c 'ls "$1" >/dev/null 2>&1 && echo LISTED || echo DENIED' sh "$SDSYS/voc_master")
+        R3=$(sudo -u "$A1" sh -c 'cat "$1" >/dev/null 2>&1 && echo OPENED || echo DENIED' sh "$SDSYS/dict_master.dic/%0")
+        ck "6e $A1 is in sdusers, which every SD user is: it cannot read voc_master's subfile, list its directory or read dict_master's dictionary (the group these files used to have gave it all three)" \
+           "DENIED DENIED DENIED" "$R1 $R2 $R3"
+    else
+        not_reached "6e a member of sdusers cannot open the master files (needs $A1 from section 3 in sdusers)"
+    fi
+else
+    say "  (dry run: would stat the 18 paths of the three master files, their dictionaries and subfiles and the journal, require sdsys as the owner, 700 / 600 and no group or other bit, and try to open them as a member of sdusers)"
 fi
 
 # ==========================================================================

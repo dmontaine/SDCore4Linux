@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67, the verifier's findings: masters_note_read, masters_cas_on and masters_cas_check (a save of a master record is judged against the record the
+ *               session read, and again inside the account's write).
  * 19 Oct 26 dm  S.67: prototypes of masters.c (stage 1: the hook and K_MASTERS; stage 2: masters_before_write, masters_before_delete,
  *               masters_txn_refusal, masters_refusal_text, masters_fix_modes and the status DHE_MASTER_REFUSED).
  * 18 Oct 26 dm  S.66: EDIT_SHARED_WRITE and EDIT_SHARED_STRUCT; prototypes of the shared-account tests (op_sh.c), of shared_structure_refusal()
@@ -486,6 +488,13 @@ int masters_before_delete(DH_FILE * dh, char * id, int id_len);                 
 int masters_txn_refusal(DH_FILE * dh, char * id, int id_len);                         /* 0: go on; else DHE_MASTER_REFUSED (a master record is not changed inside a transaction) */
 const char * masters_refusal_text(void);                                              /* the plain sentence for the last refusal */
 void masters_fix_modes(const char * path);                                            /* a VOC or dictionary was just made: its group may write it where the account's group may write the account */
+/* 19 Oct 26, the verifier's findings F3 and F4.  masters_note_read: op_read tells masters.c of every read of a DYNAMIC file, so that a save of a master record is
+   judged against the record the session READ (err is dh_err: 0, or DHE_RECORD_NOT_FOUND).  masters_cas_on / masters_cas_check: while SDSYS's save is writing the
+   account's own file, dh_write asks - with the record's group locked and the old record found, or found absent - whether the account's record is still the one the
+   save was accepted against; 0 to go on, else DHE_MASTER_REFUSED with nothing changed. */
+void masters_note_read(DH_FILE * dh, const char * id, int id_len, STRING_CHUNK * rec, int err);
+extern int masters_cas_on;
+int masters_cas_check(DH_FILE * dh, const char * id, int id_len, STRING_CHUNK * current, bool found);
 
 /* OP_DIO2.C */
 bool delete_path(char * path);

@@ -1835,7 +1835,7 @@ join_sdsys_groups "$sdsysdir/accounts"
 # 19 Oct 26 dm - S.67 stage 1 (owner, 17 Oct 2026).  THE MASTER FILES ARE SET UP AND FILLED, every install, kept accounts or not.  voc_master and
 #            dict_master (in the SDSYS account) hold a copy of every account's VOC records and dictionary records, master_state their checksums, and
 #            $master.journal is where the file-change hook writes the keys of what changed until SDSYS next opens a master file.  upgrade_masters makes
-#            them (!masters_setup), sets their modes (SDSYS and its group only) and copies every registered account into them.  It runs here, as the
+#            them (!masters_setup), sets their modes (0700 and 0600, owned by the sdsys user alone) and copies every registered account into them.  It runs here, as the
 #            root session of the install, after the accounts have been brought forward (the copy then holds the finished VOCs) and before the register is
 #            handed to sdsys.  It prints COMPLETE on a line of its own when every account was copied; a run that did not is reported and the install goes
 #            on, because nothing else depends on the master files and the next install, or SYNC.MASTERS as SDSYS, does it again.

@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 (verifier F3): the read of a DYNAMIC file tells masters_note_read(), so that a save of a master record is judged against the record the
+ *               session read.
  * 19 Oct 26 dm  S.67 stage 2: WRITE and DELETE of a record of voc_master or dict_master INSIDE A TRANSACTION are refused before they reach the
  *               transaction's cache (masters_txn_refusal), and a refusal from the DH layer (DHE_MASTER_REFUSED, status -8910) is reported with its reason
  *               in plain words (masters_refusal_text) in place of "Error 8910 writing record".
@@ -1834,6 +1836,9 @@ Private void read_record(bool matread) {
       if (matread && (dh_file->flags & DHF_COLLECTION))
         k_error(sysmsg(11127)); /* MATREAD makes no sense for a data collection */
       str = dh_read(dh_file, id, id_len, actual_id);
+      /* 19 Oct 26 S.67 (verifier F3): a read of voc_master or dict_master is remembered, so that a later save is judged against the record that was READ (masters.c) */
+      if (!(dh_file->flags & DHF_MST_NOMASTER))
+        masters_note_read(dh_file, id, id_len, str, dh_err);
       switch (dh_err) {
         case 0:
           if ((op_flags & P_PICKREAD)) {

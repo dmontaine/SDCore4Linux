@@ -5767,10 +5767,10 @@ Master record %s not saved: the account has no %s. Nothing was changed
 ```
 
 ### msg:11583
-> kind=message tier=reference since=- src=sdsys/messages/11583:1#2a88892b
+> kind=message tier=reference since=- src=sdsys/messages/11583:1#03192b3a
 
 ```
-Master record %s not saved: the record in %s has changed since this copy was made. Open the master file again and repeat the edit. Nothing was changed
+Master record %s not saved: the record in %s has changed since you read it. Nothing was changed. Read it again and repeat the edit
 ```
 
 ### msg:11584
@@ -5788,10 +5788,10 @@ Master record %s not saved: this session cannot write the %s (see check.masters)
 ```
 
 ### msg:11586
-> kind=message tier=reference since=- src=sdsys/messages/11586:1#f3f23bd4
+> kind=message tier=reference since=- src=sdsys/messages/11586:1#adf7f485
 
 ```
-Master record %s not saved: this session began before sdsys was put in group %s. Sign on again and repeat the edit. Nothing was changed
+Master record %s not saved: this session began before sdsys joined group %s. Sign on again and repeat the edit. Nothing was changed
 ```
 
 ### msg:11587
@@ -5853,6 +5853,20 @@ The last save of a master record in this session was refused: %1
 ```
 
 cited by: `masters`
+
+### msg:11595
+> kind=message tier=reference since=- src=sdsys/messages/11595:1#796a5ab9
+
+```
+Master record %s not saved: no lock could be taken on the account's record (the lock table is full or a limit was reached). Nothing was changed
+```
+
+### msg:11596
+> kind=message tier=reference since=- src=sdsys/messages/11596:1#73fe4f94
+
+```
+Master record %s not saved: this session has not read it, and the account has a record of that name. Read the record first, then save it. Nothing was changed
+```
 
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed

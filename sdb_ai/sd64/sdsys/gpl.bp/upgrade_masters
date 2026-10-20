@@ -16,6 +16,8 @@
 * at a terminal, as SDSYS) does it again.
 *
 * START-HISTORY:
+* 19 Oct 26 dm  The verifier's finding F7: ONE kernel call for every account ('syncall') in place of one for each, each of which read the whole of every master file
+*               (a full sync of 400 accounts took over a minute and a half, and the installer runs one on every install).
 * 19 Oct 26 dm  New.
 * END-HISTORY
 *
@@ -31,6 +33,7 @@ $include int$keys.h
    ans = ''
    s0 = 0
    account = ''
+   rowv = ''
    failed = 0
    copied = 0
    i = 0
@@ -48,19 +51,19 @@ $include int$keys.h
       stop
    end
    s0 = ans<2>
-   ans = kernel(K$MASTERS, 'accounts')
+*  Every account in one call; one field for each, its name and then the seven numbers 'sync' gives, as values.
+   ans = kernel(K$MASTERS, 'syncall')
+   if ans<1> # 0 then
+      crt 'The accounts could not be copied (status ' : ans<1> : ').'
+      stop
+   end
    for i = 2 to dcount(ans, @fm)
-      account = ans<i>
-      rep = kernel(K$MASTERS, 'sync' : @fm : account)
-      if rep<1> = 0 then
-         copied += 1
-         if rep<8> > 0 then
-            failed += 1
-            crt 'Account ' : account : ': ' : rep<8> : ' error(s) while copying'
-         end
-      end else
+      rowv = ans<i>
+      account = rowv<1, 1>
+      copied += 1
+      if rowv<1, 8> > 0 then
          failed += 1
-         crt 'Account ' : account : ' could not be copied (status ' : rep<1> : ')'
+         crt 'Account ' : account : ': ' : rowv<1, 8> : ' error(s) while copying'
       end
    next i
    rep = kernel(K$MASTERS, 'syncend' : @fm : s0)

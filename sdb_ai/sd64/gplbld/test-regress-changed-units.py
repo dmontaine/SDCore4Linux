@@ -119,6 +119,10 @@ def part_a():
     row("a file no rule matches is unmapped, not skipped", un == [p + "zzz/unknown.bin"] and sel == [], "%r %r" % (sel, un))
     sel, un, _ = pick([p + "gplbld/sandbox-notasuite.py"])
     row("a sandbox-*.py that is not in ALL_SUITES is refused (register it)", un == [p + "gplbld/sandbox-notasuite.py"], "%r %r" % (sel, un))
+    for kf in ("gplsrc/op_dio3.c", "sdsys/gpl.bp/ed", "gplsrc/op_lock.c", "gplsrc/txn.c", "gplsrc/k_error.c"):
+        sel, un, _ = pick([p + kf])
+        row("%s selects the master files' suite (S.67: its transaction refusal, its 8910 text, the read note, the lock the save takes, the audit line - tested by that suite alone)" % kf,
+            "masters" in sel and not un, repr(sel))
     bc = p + "sdsys/gpl.bp/bcomp"
     sel, _, _ = pick([bc], ["st.input.common"])
     row("bcomp, a hunk under st.input.common: the INPUT suites, not the select-list ones", "inputtrap" in sel and "selectv-mode" not in sel, repr(sel))

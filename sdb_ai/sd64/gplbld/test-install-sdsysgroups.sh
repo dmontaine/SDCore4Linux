@@ -3,8 +3,8 @@
 # test-install-sdsysgroups.sh - the installer's walk that puts the sdsys user in the group of every account and makes each account's VOC and
 # dictionaries writable by that group (S.67 stage 2, D7; owner 17 Oct 2026, warned).  The function is join_sdsys_groups.
 #
-#   bash /home/don/Projects/SDCore4Linux-wt-s67/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh
-#   bash /home/don/Projects/SDCore4Linux-wt-s67/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh --selftest
+#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh
+#   bash /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-install-sdsysgroups.sh --selftest
 #   INSTALLER=<a copy of the installer> bash .../test-install-sdsysgroups.sh        (what --selftest uses)
 #
 # FREE CHECK: no sudo (it is a function here), no install, no sd-elevate (a stub script), no groups made or changed, no root.  Everything

@@ -18,6 +18,8 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 (verifier F4): while SDSYS's save of a master record is writing an account's record, dh_write asks masters_cas_check with the group locked,
+ *               both when it finds the old record and when it finds none: a record changed in the window is not overwritten (masters_cas_on, one int test otherwise).
  * 19 Oct 26 dm  S.67 stage 2: dh_write asks masters_before_write() first (SDSYS saving a master record writes the account's file; a refusal fails the
  *               write with DHE_MASTER_REFUSED and changes nothing).
  * 19 Oct 26 dm  S.67 stage 1: a successful write calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
@@ -217,6 +219,22 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
       if (found) {
         ak_mode = AK_MOD;
 
+        /* 19 Oct 26 S.67 (verifier F4): SDSYS's save of a master record is writing this account's record.  The group is locked and the old record is in front of
+           us: ask whether it is still the one the save was accepted against, before a byte is changed.  A plain WRITE by the account's user takes no record lock,
+           so the try-lock the save took cannot have seen one that landed in between.  One test of an int for every other write. */
+        if (masters_cas_on) {
+          STRING_CHUNK* cas_cur = dh_read_record(dh_file, rec_ptr);
+          int cas_refusal = masters_cas_check(dh_file, id, id_len, cas_cur, TRUE);
+
+          k_deref_string(cas_cur);
+          if (cas_refusal != 0) {
+            dh_err = cas_refusal;
+            if (big_rec) /* Give away big record space just written */
+              (void)dh_free_big_rec(dh_file, new_big_rec_head, NULL);
+            goto exit_dh_write;
+          }
+        }
+
         /* The spelling already stored wins.  On a NOCASE file the id we were
            given may differ from it in case; take a copy now because the record
            is overwritten below if it has to be added again.                  */
@@ -363,6 +381,15 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
     subfile = OVERFLOW_SUBFILE;
     grp = GetFwdLink(dh_file, buff->next);
   } while (1);
+
+  /* 19 Oct 26 S.67 (verifier F4): there is no record of this id.  If SDSYS's save was accepted against a record that was there, the account's user deleted it in
+     the window, and the save must not put it back. */
+  if (masters_cas_on && (masters_cas_check(dh_file, id, id_len, NULL, FALSE) != 0)) {
+    dh_err = DHE_MASTER_REFUSED;
+    if (big_rec) /* Give away big record space just written */
+      (void)dh_free_big_rec(dh_file, new_big_rec_head, NULL);
+    goto exit_dh_write;
+  }
 
   /* Add new record */
 

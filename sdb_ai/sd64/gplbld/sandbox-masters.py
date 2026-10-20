@@ -4,14 +4,22 @@
 #                      verbs SYNC.MASTERS, CHECK.MASTERS and LIST.MASTER.PENDING (account to master only), through ORDINARY sessions on a
 #                      private SD.  No install, no sudo.
 #
-#   SDBOX_KEYSET=3 python3 /home/don/Projects/SDCore4Linux-wt-s67/sdb_ai/sd64/gplbld/sandbox-masters.py <dir> [--build] [--sections=a,b]
+#   SDBOX_KEYSET=3 python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-masters.py <dir> [--build] [--sections=a,b]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent); without it
 # <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  Sections: setup, hook, drain, race, txn, fail, check,
-# deliver, gate, life, keys, perf, upgrade.  Only one private SD can exist per keyset (SDBOX_KEYSET, shared memory keys 0x53434c91/92 + 0x20 per keyset):
-# stop it afterwards with sandbox-fromtree.py <dir> stop.
+# deliver, gate, life, keys, perf, upgrade, vfix (the independent verifier's findings, 19 Oct 26), uaf (62 s of waiting), scale (200 accounts) and window (it builds
+# a copy of the kernel with a pause in it, in the sandbox only).  Only one private SD can exist per keyset (SDBOX_KEYSET, shared memory keys 0x53434c91/92 + 0x20 per
+# keyset): stop it afterwards with sandbox-fromtree.py <dir> stop.  gplbld/mutate-masters.py runs this suite against mutants of the kernel built in a sandbox's own copy.
 #
 # START-HISTORY:
+# 19 Oct 26 dm  The independent verifier's findings on stages 1 and 2 (S.67), each reproduced RED on the unchanged build first (25 of 268 rows failed on the kernel of
+#               01a109c, with this file): the modes of the master files (A4a to A4d, L4; A4d is the repair of a system made by the earlier build), what a save is judged against
+#               (N1, N1d, N2), the freed table of accounts (N3), the unlistable account (N4), the linked dictionary (N5), the capital in a dictionary key (N6), the guards nothing
+#               stood behind (N20 to N27), the scaling of SYNC.MASTERS and CHECK.MASTERS (O) and the window between the checksum test and the write (P).  zmsave reads a key
+#               before it saves it, as an editor does (WB and WNB do not; RV reads it with READV); G2 has a positive control.  The performance row K2 runs its three loops in
+#               turns and is bounded against the data file's write as well as against the journal-less VOC write (mutate-masters.py slows each and the row fails).  The perf
+#               section makes its own data file, so that it stands alone with the setup section.
 # 19 Oct 26 dm  Stage 2 (master to account, D7): section M (deliver) - SDSYS saves a master record and it reaches the account's own file, the checksum
 #               refusal, a try-lock that never waits, the mode preflight, the audit line, the modes SD gives what it makes - and the programs zmsave, zmhold
 #               and zmna.  Rows C13 and F2-F5 of stage 1 CHANGED: a master record can no longer be edited into a difference, so C13 now says the edit is
@@ -21,7 +29,8 @@
 # END-HISTORY
 #
 # WHAT IT CAN AND CANNOT SHOW.  The sandbox has ONE operating-system user, so it cannot show who OWNS the journal or the master files, or that
-# another user cannot read them; it shows their MODES (0620, 0660, 0770), which the code sets.  Ownership and group are the witness's
+# another user cannot read them; it shows their MODES (0620 for the journal, 0600 and 0700 for the master files), which the code sets - and, with a setgid directory of another group
+# (A4c), that they have no group bit whatever group they were made in.  Ownership and group are the witness's
 # (stage 2).  An administrator session is `sd` with SDTEST_ADMIN=1 (sandbox-gates.py's way); every other session is ordinary.  The EVIDENCE of
 # a hook event is the journal FILE, read from here; the evidence of a master copy is read by an administrator program (zmtool) that opens the
 # masters BY NAME, which is itself the drain trigger - so the rows that look at the journal always look BEFORE anything opens a master.
@@ -45,7 +54,7 @@ spec = importlib.util.spec_from_file_location("sandbox_gates", os.path.join(HERE
 g = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(g)
 passed = failed = 0
-SECTIONS = ["setup", "hook", "drain", "race", "txn", "fail", "check", "deliver", "gate", "life", "keys", "perf", "upgrade"]
+SECTIONS = ["setup", "hook", "drain", "race", "txn", "fail", "check", "deliver", "gate", "life", "keys", "perf", "upgrade", "vfix", "uaf", "scale", "window"]
 
 
 def say(s=""):
@@ -420,6 +429,7 @@ mput:
    kind = field(line, '|', 2) ; key = field(line, '|', 3) ; val = convert('~', @fm, field(line, '|', 4))
    mname = (if kind = 'v' then 'voc_master' else 'dict_master')
    open mname to mf then
+      read x from mf, key else null          ;* an edit is made to a record that was READ (verifier F3): a blind save of a record the account has is refused
       write val to mf, key
       close mf
       crt 'ZT MPUT ':kind:' ':key:' done'
@@ -579,6 +589,10 @@ end
 #   D   DELETE with ON ERROR      DN  DELETE with no error clause      T   WRITE inside a transaction, ON ERROR      V   WRITEV of field 2, ON ERROR
 #   C   the account's record is changed by this very process AFTER the master was opened, and then the master record is saved (ON ERROR); CN the same with no
 #       error clause.  Fields 5 to 7: the path of the account's file, the id in it, the new text.
+#   Every op but WB, WNB, D and DN READS the key before it does anything else, as an editor does: a save is judged against the record the session READ (19 Oct 26,
+#   verifier fix F3).  WB / WNB are BLIND saves (with / without an error clause); DR reads, lets the account change, drains by a second open WITHOUT reading through it,
+#   then saves through the first handle (prints ZS DR2 <the journal's size after the account's change> <its size after the second open>: the drain emptied it);
+#   SL pauses field 5 seconds between the read and the save.
 ZMSAVE = """\
 * zmsave - SDSYS saves master records (sandbox-masters.py).  Lines: op|kind|key|value   (value: fields separated by ~)
    openseq 'zm.args' to a else crt 'ZS noargs' ; stop
@@ -591,8 +605,37 @@ ZMSAVE = """\
          open 'dict_master' to f else crt 'ZS noopen ':kind ; continue
       end
       ok = 1 ; tst = 0
+*     An editor reads a record before it saves it, and a save is judged against what was READ (verifier fix F3, 19 Oct 26): so every op but the BLIND ones
+*     (WB, WNB, D, DN) reads the key first, as ED does.
+      if op # 'WB' and op # 'WNB' and op # 'D' and op # 'DN' and op # 'RV' then read rd from f, key else rd = ''
       begin case
          case op = 'W'
+            write val to f, key on error ok = 0
+         case op = 'RV'
+*           the key is read with READV (field 1), not READ: READV of a local file runs recursive code that reads the record, and that has to count as a read
+            readv fld from f, key, 1 else fld = ''
+            write val to f, key on error ok = 0
+         case op = 'WB'
+*           a BLIND save: this session has not read the record
+            write val to f, key on error ok = 0
+         case op = 'WNB'
+            write val to f, key
+         case op = 'DR'
+*           read; then the account changes (this process writes the account's own file by path); then a SECOND open of the master (which drains, so the copy
+*           and master_state move to the account's newer record); then the save through the FIRST handle.  Fields 5, 6, 7: the account's file, the id, the text.
+            openpath field(line, '|', 5) to av else crt 'ZS noaccount' ; continue
+            write convert('~', @fm, field(line, '|', 7)) to av, field(line, '|', 6)
+            close av
+            call !zmjsize(j1)                ;* what the account's change left in the journal (more than nothing)
+            mname = (if kind = 'v' then 'voc_master' else 'dict_master')
+            open mname to f2 else crt 'ZS noopen2' ; continue
+            call !zmjsize(j2)                ;* and after the second open, which drains and empties it (0)
+            close f2
+            crt 'ZS DR2 ':j1:' ':j2
+            write val to f, key on error ok = 0
+         case op = 'SL'
+*           the save is made after a pause (field 5 is the seconds): the account table of this process is a minute old when the save is made
+            sleep field(line, '|', 5) + 0
             write val to f, key on error ok = 0
          case op = 'WN'
             write val to f, key
@@ -857,9 +900,42 @@ def controls():
 
 # ---- A. setup ---------------------------------------------------------------------------------------------------------------------------
 
+def setgid_emulation():
+    """Verifier fix F1.  A real SDSYS session makes the master files with the group of the process it runs in (sdusers) or of a setgid directory, never a group of their own.  The
+    sandbox has one user, so the nearest thing is to make the SDSYS directory a SETGID directory of a group the sandbox user is in but is not its primary group, BEFORE the master
+    files are made.  Returns (group name, gid) or None when the user is in no other group."""
+    try:
+        primary = os.getgid()
+        others = sorted(x for x in set(os.getgroups()) if x != primary)
+        if not others:
+            return None
+        import grp
+        pick = others[0]
+        for x in others:
+            try:
+                if grp.getgrgid(x).gr_name == "sdusers":
+                    pick = x
+            except KeyError:
+                pass
+        os.chown(g.SYS, -1, pick)
+        os.chmod(g.SYS, stat.S_IMODE(os.stat(g.SYS).st_mode) | stat.S_ISGID)
+        try:
+            return (grp.getgrgid(pick).gr_name, pick)
+        except KeyError:
+            return (str(pick), pick)
+    except OSError as e:
+        say("    (the setgid directory could not be made: %s)" % e)
+        return None
+
+
 def setup_section():
     say("\n--- A. SYNC.MASTERS sets the master files up and mirrors every account -------------------------------------------------------------")
+    emul = setgid_emulation()
     out = adm(["SYNC.MASTERS"])
+    setgid_ground = None
+    if emul is not None:
+        seen = [(m, os.stat(os.path.join(g.SYS, m)).st_gid) for m in MASTERS if os.path.isdir(os.path.join(g.SYS, m))]
+        setgid_ground = (emul[0], seen, bool(seen) and all(gid == emul[1] for _, gid in seen))
     row("A1: SYNC.MASTERS (no account) says the master files are set up (11565)", has_msg(out, 11565), repr(out[-8:]))
     for a in ["sdsys"] + ACCOUNTS:
         row("A2: it reports the account %s (11566)" % a, has_msg(out, 11566, a), repr(out[-12:]))
@@ -873,12 +949,37 @@ def setup_section():
         p = os.path.join(g.SYS, m)
         row("A4: %s is a directory file with its subfiles %%0 and %%1" % m,
             os.path.isdir(p) and os.path.exists(os.path.join(p, "%0")) and os.path.exists(os.path.join(p, "%1")), "")
-        row("A4a: %s has its directory at mode 0770 and its subfiles at 0660 (SDSYS and its group; no other SD user)" % m,
-            mode_of(p) == 0o770 and mode_of(os.path.join(p, "%0")) == 0o660 and mode_of(os.path.join(p, "%1")) == 0o660,
+        row("A4a: %s has its directory at mode 0700 and its subfiles at 0600 (the sdsys user alone: no group bit, no other bit - verifier fix F1)" % m,
+            mode_of(p) == 0o700 and mode_of(os.path.join(p, "%0")) == 0o600 and mode_of(os.path.join(p, "%1")) == 0o600,
             "%s %s %s" % (oct(mode_of(p) or 0), oct(mode_of(os.path.join(p, "%0")) or 0), oct(mode_of(os.path.join(p, "%1")) or 0)))
-        row("A4b: %s.dic exists and is closed to other users in the same way" % m,
-            os.path.isdir(p + ".dic") and mode_of(p + ".dic") == 0o770 and mode_of(os.path.join(p + ".dic", "%0")) == 0o660,
-            "%s" % (oct(mode_of(p + ".dic") or 0),))
+        row("A4b: %s.dic exists and is closed in the same way (0700, subfiles 0600)" % m,
+            os.path.isdir(p + ".dic") and mode_of(p + ".dic") == 0o700 and mode_of(os.path.join(p + ".dic", "%0")) == 0o600 and mode_of(os.path.join(p + ".dic", "%1")) == 0o600,
+            "%s %s %s" % (oct(mode_of(p + ".dic") or 0), oct(mode_of(os.path.join(p + ".dic", "%0")) or 0), oct(mode_of(os.path.join(p + ".dic", "%1")) or 0)))
+    if setgid_ground is None:
+        say("  [SKIP] A4c: the sandbox user is in no group but its own, so the setgid directory of another group cannot be made here (the modes above are what A4a/A4b show)")
+    else:
+        names, seen, inherited = setgid_ground
+        allm = [os.path.join(g.SYS, m + s) for m in MASTERS for s in ("", ".dic")]
+        paths = allm + [os.path.join(p, f) for p in allm for f in ("%0", "%1")]
+        loose = ["%s %s" % (os.path.relpath(p, g.SYS), oct(mode_of(p) or 0)) for p in paths if mode_of(p) is None or (mode_of(p) & 0o077)]
+        row("A4c-pre: (the null case) the SDSYS directory is setgid and of group %s, and the new master directory really inherited it (seen: %s) - without that the row below proves nothing" % (names, seen),
+            inherited, repr(seen))
+        row("A4c: every master file, dictionary and subfile made under that setgid directory has NO group or other permission bit (%d paths): a file group-writable by sdusers would let every SD user "
+            "read every account's VOC and dictionary copies, and the group SDSYS runs in does not decide it" % len(paths), inherited and not loose, "loose: %r" % loose[:6])
+    # THE REPAIR.  A system whose master files were made with the modes of the build before the independent review (0770 and 0660) is put right by the next SYNC.MASTERS, and so
+    # by the next install, which runs it: the kernel sets the modes every time it is asked to, whatever they are.
+    every = [os.path.join(g.SYS, m + s) for m in MASTERS for s in ("", ".dic")]
+    for p in every:
+        os.chmod(p, 0o770)
+        for f_ in ("%0", "%1"):
+            os.chmod(os.path.join(p, f_), 0o660)
+    before = [(os.path.relpath(p, g.SYS), oct(mode_of(p) or 0), oct(mode_of(os.path.join(p, "%0")) or 0)) for p in every]
+    row("A4d-pre: (the null case) the %d master directories were put back to 0770 with subfiles at 0660, the modes of the earlier build, before the sync below" % len(every),
+        all(mode_of(p) == 0o770 and mode_of(os.path.join(p, "%0")) == 0o660 and mode_of(os.path.join(p, "%1")) == 0o660 for p in every), repr(before))
+    adm(["SYNC.MASTERS"])
+    after = [(os.path.relpath(p, g.SYS), oct(mode_of(p) or 0), oct(mode_of(os.path.join(p, "%0")) or 0), oct(mode_of(os.path.join(p, "%1")) or 0)) for p in every]
+    row("A4d: SYNC.MASTERS puts every one of them right: directories 0700, subfiles 0600 (a system made by the earlier build is repaired by the next install)",
+        all(mode_of(p) == 0o700 and mode_of(os.path.join(p, "%0")) == 0o600 and mode_of(os.path.join(p, "%1")) == 0o600 for p in every), repr(after))
     out = tool(["FI"])
     for m in MASTERS:
         row("A5: %s is a hashed file (type 3) with case-insensitive ids" % m, any(ln == "ZT FI %s type=3 nocase=1" % m for ln in out), repr(zt(out, "FI")))
@@ -1437,6 +1538,13 @@ def audit_size():
         return None
 
 
+def ensure_audit():
+    """The audit file must be there before a save is made (the installer makes it sdsys:sdusers 0620; here one operating-system user writes and reads it)."""
+    if not os.path.exists(audit_path()):
+        open(audit_path(), "a").close()
+        os.chmod(audit_path(), 0o666)
+
+
 def master_edits(since):
     """The 'master edit' lines the audit trail gained after byte SINCE: [(account, file, id, whole line)]."""
     try:
@@ -1537,9 +1645,7 @@ def plant_away(fn):
 
 def deliver_section():
     say("\n--- M. MASTER TO ACCOUNT: SDSYS saves a record of voc_master or dict_master and the kernel writes the account's own file (S.67 stage 2, D7) -----")
-    if not os.path.exists(audit_path()):
-        open(audit_path(), "a").close()
-        os.chmod(audit_path(), 0o666)           # the installer makes it sdsys:sdusers 0620; here one operating-system user writes and reads it
+    ensure_audit()
     os.chmod(acct_path("zmone"), 0o775)         # the layout of a real account: its group can write the directory (the forced modes of M31 follow it)
     g.plain("zmone", ["CREATE.FILE zmf3 DYNAMIC"])       # the dictionary M9a writes into (section hook makes it too; a second CREATE.FILE only says it is there)
     adm(["SYNC.MASTERS"])
@@ -1774,8 +1880,12 @@ def gate_section():
     row("G1: the verbs are records of voc_template and of NO other VOC source (newvoc, which every account is made from)",
         all(os.path.exists(os.path.join(tmpl, v)) for v in verbs) and not any(os.path.exists(os.path.join(newvoc, v)) for v in verbs), "")
     for a in ACCOUNTS:
-        o = g.plain(a, ["SYNC.MASTERS", "CHECK.MASTERS", "LIST.MASTER.PENDING"])
-        row("G2: in %s (an ordinary account) none of the three verbs exists" % a, not has_msg(o, 11565) and not has_msg(o, 11566) and not has_msg(o, 11568) and not has_msg(o, 11571), repr(o[-6:]))
+        o = g.plain(a, ["ZZKF", "SYNC.MASTERS", "CHECK.MASTERS", "LIST.MASTER.PENDING"])
+        fl = g.flags(o)
+        row("G2: in %s (an ordinary account) none of the three verbs exists: the session ran (it printed its flags, admin=0) and said of each one '... is not in your VOC' (the success wording a "
+            "session that printed nothing cannot fake), and none of the verbs' own messages appeared" % a,
+            fl is not None and fl[0] == "0" and all("%s is not in your VOC" % v in o for v in ("SYNC.MASTERS", "CHECK.MASTERS", "LIST.MASTER.PENDING"))
+            and not has_msg(o, 11565) and not has_msg(o, 11566) and not has_msg(o, 11568) and not has_msg(o, 11571), repr(o[-6:]))
     # plant the verbs in a fixture VOC and run them as an ordinary session
     g.put(os.path.join(g.SYS, "bp", "zmplant"), "\n".join([
         "$internal", "   openpath '%s/voc' to v else crt 'ZP no voc' ; stop" % acct_path("zmtwo"),
@@ -1854,8 +1964,9 @@ def keys_section():
 
 def perf_section():
     say("\n--- K. what the journal costs on the write path --------------------------------------------------------------------------------------")
+    g.plain("zmone", ["CREATE.FILE zmdata DYNAMIC"])        # the data file of the third loop (the hook section makes it too; a second CREATE.FILE only says it is there), so that this section stands alone
     tool(["OPENV|zmone*bp"])
-    N = 2000
+    N = 5000
     ROUNDS = 3
 
     def loop(prefix, target):
@@ -1869,27 +1980,42 @@ def perf_section():
         return xs[len(xs) // 2] if xs else None
 
     off = jsize()
-    with_j = [loop("zmp%d" % r, "voc") for r in range(ROUNDS)]
+    # The three kinds of loop are run in ROUNDS turns, one of each in a turn, so that a change in the load of the machine falls on all three alike (the whole of the first kind
+    # and then the whole of the others, as this was first written, put a drift between them).  The second kind is run with the journal moved away: every append is ENOENT,
+    # which costs one failed open.
+    saved = J() + ".away"
+    with_j, no_j, data = [], [], []
+    for r in range(ROUNDS):
+        with_j.append(loop("zmp%d" % r, "voc"))
+        os.rename(J(), saved)
+        try:
+            no_j.append(loop("zmq%d" % r, "voc"))
+            data.append(loop("zmd%d" % r, "data"))
+        finally:
+            os.rename(saved, J())
     lines = len([e for e in evs(jtail(off)) if e[0] != "?"])
     row("K1: %d VOC writes in each of %d loops add exactly %d journal lines (the null case: a loop that wrote nothing would fail here)" % (N, ROUNDS, N * ROUNDS), lines == N * ROUNDS, repr((lines, with_j)))
     # the time the drain takes to apply them (it is the next thing that opens a master)
     t0 = time.time()
     tool(["OPENV|zmone*bp"])
     drain_s = time.time() - t0
-    # the same loops with the journal moved away: every append is ENOENT, which costs one failed open
-    saved = J() + ".away"
-    os.rename(J(), saved)
-    no_j = [loop("zmq%d" % r, "voc") for r in range(ROUNDS)]
-    data = [loop("zmd%d" % r, "data") for r in range(ROUNDS)]
-    os.rename(saved, J())
     ms1, ms2, ms3 = median(with_j), median(no_j), median(data)
     say("    MEASURED (median of %d, %d writes each, in a session's loop on tmpfs; one session start included in none of them):" % (ROUNDS, N))
     say("      VOC writes with the journal      %s ms  =  %s microseconds each" % (ms1, "%.1f" % (ms1 * 1000.0 / N) if ms1 is not None else None))
     say("      VOC writes, no journal file      %s ms  =  %s microseconds each" % (ms2, "%.1f" % (ms2 * 1000.0 / N) if ms2 is not None else None))
     say("      data file writes (not mirrored)  %s ms  =  %s microseconds each" % (ms3, "%.1f" % (ms3 * 1000.0 / N) if ms3 is not None else None))
     say("      the drain of %d lines (opening voc_master, which includes one session start): %.2f s" % (N * ROUNDS, drain_s))
-    row("K2: all loops ran and reported a time (the numbers are printed above); the journal did not multiply the cost of a VOC write by more than 3",
-        None not in (ms1, ms2, ms3) and ms1 <= max(3 * ms2, ms2 + 400), "with %s ms, without %s ms, data %s ms" % (ms1, ms2, ms3))
+    # 19 Oct 26 (verifier, low): the old bound (three times, or 400 ms more) passed a write that cost half as much again, and it compared the journal with itself: the hook's OTHER
+    # cost (it asks for the journal before it knows whose file it is, a failed open and a stat on a system with no master files) is in both of its loops and no bound could
+    # see it.  A VOC write and a data file's write cost the same on the build before the master files (12.8 and 13.4 microseconds, measured 19 Oct 26), and the hook is the
+    # only difference now, so the data file's write is the baseline for the whole of the hook and the journal-less VOC write for the journal alone.
+    # (a) the append is one open, one write and a close: 1 to 3 microseconds on a write of 19, so one and a half times the journal-less write is a change somebody must look at -
+    #     an fsync, a lock held, an O_SYNC would be tens of times that.
+    # (b) the whole hook, journal included, cost 65 percent more than the data file's write when this was written (21.8 against 13.2 microseconds, and 19.5 against 12.7 over
+    #     100,000 writes): a VOC write more than two and a half times a data write is a regression of the hook of another 50 percent.  4 ms on each is the noise of a loop this long.
+    row("K2: all loops ran and reported a time (printed above); (a) the journal's append added no more than half to the cost of a VOC write: %s ms with it, %s ms without; (b) a VOC write "
+        "with the journal cost no more than 2.5 times a data file's write: %s ms against %s ms (+4 ms of noise on each)" % (ms1, ms2, ms1, ms3),
+        None not in (ms1, ms2, ms3) and ms1 <= 1.5 * ms2 + 4 and ms1 <= 2.5 * ms3 + 4, "with %s ms, without %s ms, data %s ms" % (ms1, ms2, ms3))
     t0 = time.time()
     out = adm(["SYNC.MASTERS"])
     full_s = time.time() - t0
@@ -1915,7 +2041,7 @@ def upgrade_section():
     row("L3: (the starting point) the journal and the master files are gone", not os.path.exists(J()) and not os.path.isdir(os.path.join(g.SYS, "voc_master")), "")
     out = g.adm(["RUN gpl.bp upgrade_masters"], internal=True)
     row("L4: on a system with no master files it makes them and copies every account: COMPLETE, and the journal and the files are there with their modes",
-        any(ln.strip() == "COMPLETE" for ln in out) and os.path.isfile(J()) and mode_of(J()) == 0o620 and all(os.path.isdir(os.path.join(g.SYS, m)) and mode_of(os.path.join(g.SYS, m)) == 0o770
+        any(ln.strip() == "COMPLETE" for ln in out) and os.path.isfile(J()) and mode_of(J()) == 0o620 and all(os.path.isdir(os.path.join(g.SYS, m)) and mode_of(os.path.join(g.SYS, m)) == 0o700
         for m in MASTERS), repr(out[-6:]))
     chk = adm(["CHECK.MASTERS"])
     row("L5: ...and CHECK.MASTERS finds no difference in any account", has_msg(chk, 11568), repr(chk[-4:]))
@@ -1925,6 +2051,409 @@ def upgrade_section():
     out = g.adm(["RUN gpl.bp upgrade_masters"], internal=True)
     say("      upgrade_masters on a system already set up: %.2f s (session start included)" % (time.time() - t0))
     row("L7: run again it prints COMPLETE and leaves the journal empty", any(ln.strip() == "COMPLETE" for ln in out) and jsize() == 0, repr((out[-3:], jsize())))
+
+
+# ---- N. the independent verifier's findings, 19 Oct 26 ------------------------------------------------------------------------------------
+# Each finding was reproduced RED on the build before the fix (the numbers are in PROJECT_STATUS) and these rows are what keeps it fixed.  F1 (the modes and the group of the
+# master files) is rows A4a, A4b and A4c above; the rest are here.  The mutant rows (N20 to N29) stand between the guards the verifier found NOTHING standing behind.
+
+def save_env(lines, extra_env):
+    """save() with extra environment variables for the SDSYS session.  MALLOC_PERTURB_ fills every block that is freed, so a read of freed memory shows the fill on every run."""
+    old = g.env
+    g.env = lambda admin: dict(old(admin), **extra_env)
+    try:
+        return save(lines)
+    finally:
+        g.env = old
+
+
+def nkeys(kind, acct):
+    """How many master keys of the kind (v or d) begin  acct*  (zmtool opens the master, which drains first).  None when it cannot be told."""
+    for ln in zt(tool(["KEYS|%s|%s" % (kind, acct)]), "KEYS"):
+        m = re.match(r"ZT KEYS \S+ \S+ n=(\d+)", ln)
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def drain_fields(out):
+    """kernel(K$MASTERS, 'drain') as zmkop prints it: [status, lines, keys, files, errors, bad-and-skipped, compacted]; None when there is no such line."""
+    for ln in out:
+        m = re.match(r"^ZK drain (.*?) -> (.*)$", ln)
+        if m:
+            return [int(x) if re.fullmatch(r"-?\d+", x) else x for x in m.group(2).split("|")]
+    return None
+
+
+def append_journal(lines):
+    with open(J(), "ab") as f:
+        f.write(("\n".join(lines) + "\n").encode("latin-1"))
+
+
+def vfix_section():
+    say("\n--- N. the verifier's findings: what a save is judged against, the unlistable account, the linked dictionary, the forged lines (N3, the freed table, is its own section) --")
+    ensure_audit()
+    adm(["SYNC.MASTERS"])
+    tool(["OPENV|zmone*bp"])
+    zo = acct_path("zmone")
+    zt2 = acct_path("zmtwo")
+    # ---- F3: a save is judged against the record the session READ (not against master_state, which moves at every drain)
+    zw("zmone", ["VW|-|zmv1|X~account text one"])
+    tool(["OPENV|zmone*bp"])
+    snap0 = masters_snapshot()
+    a0 = audit_size()
+    d, o = save(["WB|v|zmone*zmv1|X~blind overwrite"])
+    row("N1: a BLIND save (this session has not read the record) of a key the account HAS is refused (8910); the account's record, the masters and the audit trail are untouched",
+        d.get(("WB", "zmone*zmv1")) == "REFUSED status=8910" and aget("zmone", "v", "-", "zmv1") == "X|account text one" and masters_snapshot() == snap0 and master_edits(a0) == [],
+        repr((d, o[-3:], master_edits(a0))))
+    d, o = save(["WNB|v|zmone*zmv1|X~blind overwrite"])
+    row("N1a: without an error clause it says why in plain words (message 11596: read the record first)", has_cmsg(o, 11596), repr(o[-4:]))
+    d, o = save(["WB|v|zmone*zmv2|X~blind new record"])
+    row("N1b: (control) a blind save of a key the account does NOT have creates the record - an editor's new record is such a save", d.get(("WB", "zmone*zmv2")) == "OK"
+        and aget("zmone", "v", "-", "zmv2") == "X|blind new record", repr((d, aget("zmone", "v", "-", "zmv2"))))
+    d, o = save(["W|v|zmone*zmv1|X~read first"])
+    row("N1c: (control) the same key saved after READING it is accepted", d.get(("W", "zmone*zmv1")) == "OK" and aget("zmone", "v", "-", "zmv1") == "X|read first", repr((d, o[-3:])))
+    d, o = save(["RV|v|zmone*zmv1|X~after a READV"])
+    row("N1d: the same key saved after a READV of it (not a READ) is accepted - READV counts as a read (a blind save of this key is refused, N1)",
+        d.get(("RV", "zmone*zmv1")) == "OK" and aget("zmone", "v", "-", "zmv1") == "X|after a READV", repr((d, o[-3:])))
+    zw("zmone", ["VW|-|zmv3|X~original text"])
+    tool(["OPENV|zmone*bp"])
+    d, o = save(["DR|v|zmone*zmv3|X~SDSYS EDIT MADE FROM THE ORIGINAL|%s/voc|zmv3|X~THE USERS OWN NEWER CHANGE" % zo])
+    m2 = [re.match(r"^ZS DR2 (\d+) (\d+)$", ln) for ln in o]
+    m2 = [x for x in m2 if x]
+    row("N2a: (the instrument) the SECOND open of the master DID drain: the journal held the account's change before it (%s bytes) and nothing after it (%s), so master_state had moved to the newer record"
+        % (m2[0].group(1) if m2 else None, m2[0].group(2) if m2 else None), bool(m2) and int(m2[0].group(1)) > 0 and int(m2[0].group(2)) == 0, repr(o[-5:]))
+    row("N2: SDSYS read the original, the account changed it, a drain brought the copy and master_state to the newer text, and the save through the FIRST handle is REFUSED (8910): the "
+        "save is judged against what SDSYS read, not against the version of the last drain", d.get(("DR", "zmone*zmv3")) == "REFUSED status=8910", repr((d, o[-4:])))
+    row("N2b: ...and the account still holds its own newer change", aget("zmone", "v", "-", "zmv3") == "X|THE USERS OWN NEWER CHANGE", repr(aget("zmone", "v", "-", "zmv3")))
+    d, o = save(["W|v|zmone*zmv3|X~after reading it again"])
+    row("N2c: (control) after READING the newer record, the save is accepted", d.get(("W", "zmone*zmv3")) == "OK" and aget("zmone", "v", "-", "zmv3") == "X|after reading it again", repr((d, o[-3:])))
+    # ---- F5: an account whose directory cannot be listed keeps its dictionary copies
+    adm(["SYNC.MASTERS zmone"])
+    kd0 = nkeys("d", "zmone")
+    kv0 = nkeys("v", "zmone")
+    om = mode_of(zo)
+    os.chmod(zo, 0o000)
+    try:
+        out = adm(["SYNC.MASTERS zmone"])
+        chk = adm(["CHECK.MASTERS zmone"])
+    finally:
+        os.chmod(zo, om)
+    kd1 = nkeys("d", "zmone")
+    kv1 = nkeys("v", "zmone")
+    row("N4: SDSYS cannot list or open the account's directory (mode 000), SYNC.MASTERS zmone is run: the dictionary copies (%s keys) and the VOC copies (%s) are all still there - a copy is never "
+        "deleted for want of being able to read the original" % (kd0, kv0), kd0 is not None and kd0 > 0 and kv0 is not None and kv0 > 100 and kd1 == kd0 and kv1 == kv0, repr((kd0, kd1, kv0, kv1)))
+    row("N4a: ...and the sync SAYS it could not read (message 11577) and CHECK.MASTERS reports the VOC and the dictionaries unreadable and calls none of the copies extra",
+        has_msg(out, 11577) and re.search(r"unreadable\S*\s+zmone\s+.*voc", "\n".join(chk)) is not None and not re.search(r"extra\S*\s+zmone\s+", "\n".join(chk)), repr((out[-3:], chk[-5:])))
+    # the directory can be searched but not LISTED (mode 0300: the owner may write and search it): the VOC opens, so only the listing says the list of dictionaries is not complete.  A
+    # dictionary no VOC entry names (a copy made at the operating system level) is found only by the listing.
+    shutil.copytree(os.path.join(zo, "zmf3.dic"), os.path.join(zo, "zmnov.dic"))
+    adm(["SYNC.MASTERS zmone"])
+    kn0 = nkeys("d", "zmone")
+    os.chmod(zo, 0o300)
+    try:
+        out = adm(["SYNC.MASTERS zmone"])
+        chk = adm(["CHECK.MASTERS zmone"])
+    finally:
+        os.chmod(zo, om)
+    kn1 = nkeys("d", "zmone")
+    shutil.rmtree(os.path.join(zo, "zmnov.dic"))
+    row("N4b: the directory can be searched but not listed (mode 0300), SYNC.MASTERS zmone is run: the copies of a dictionary that only the listing finds (zmnov.dic, no VOC entry) are all still there "
+        "(%s keys before, %s after), the sync says it could not read, and CHECK.MASTERS says the dictionaries are unreadable and calls no copy extra" % (kn0, kn1),
+        kn0 is not None and kn1 == kn0 and has_msg(out, 11577) and re.search(r"unreadable\S*\s+zmone\s+dict\b", "\n".join(chk)) is not None and not re.search(r"extra\S*\s+zmone\s+", "\n".join(chk)),
+        repr((kn0, kn1, out[-3:], chk[-4:])))
+    adm(["SYNC.MASTERS zmone"])
+    # ---- F6: a *.dic that is a link to another account's dictionary is not this account's dictionary
+    g.plain("zmtwo", ["CREATE.FILE zpf3 DYNAMIC"])
+    zw("zmtwo", ["DW|zpf3|ZP1|D~1"])
+    link = os.path.join(zo, "zplink.dic")
+
+    def dfiles_of(acct):
+        """The number of dictionary files SYNC.MASTERS says the account holds (the second number of message 11566)."""
+        for ln in adm(["SYNC.MASTERS " + acct]):
+            mm = re.search(r"Account %s: (\d+) VOC record\(s\), (\d+) dictionary file\(s\)" % acct, ln)
+            if mm:
+                return int(mm.group(2))
+        return None
+    n_before = dfiles_of("zmone")
+    os.symlink(os.path.join(zt2, "zpf3.dic"), link)
+    try:
+        adm(["SYNC.MASTERS zmtwo"])
+        n_with = dfiles_of("zmone")
+        o = tool(["MGET|d|zmtwo*zpf3*ZP1", "MGET|d|zmone*zplink*ZP1"])
+        mg = zt(o, "MGET")
+        row("N5: (control) zmtwo's own dictionary zpf3 is mirrored under zmtwo; the link zmone/zplink.dic to it is NOT mirrored under zmone (no copy zmone*zplink*ZP1), and zmone is not said to hold "
+            "one dictionary file more for it (%s files before the link, %s with it)" % (n_before, n_with),
+            len(mg) == 2 and "= D|1" in mg[0] and mg[1].endswith("ABSENT") and n_before is not None and n_with == n_before, repr((mg, n_before, n_with)))
+        before = aget("zmtwo", "d", "zpf3", "PLNK1")
+        snap0 = masters_snapshot()
+        a0 = audit_size()
+        d, o = save(["WN|d|zmone*zplink*PLNK1|D~9"])
+        row("N5a: a save to  zmone*zplink*PLNK1  is refused (the account has no dictionary of that name: 11582), nothing reaches zmtwo's dictionary, and no master or audit line changes",
+            has_cmsg(o, 11582) and before == "ABSENT" and aget("zmtwo", "d", "zpf3", "PLNK1") == "ABSENT" and masters_snapshot() == snap0 and master_edits(a0) == [], repr((o[-4:], aget("zmtwo", "d", "zpf3", "PLNK1"))))
+    finally:
+        os.remove(link)
+    adm(["SYNC.MASTERS zmone"])
+    # ---- the file part of a dictionary key is case-insensitive like the master file
+    a0 = audit_size()
+    d, o = save(["W|d|ZMONE*ZMF3*ZP3|D~8"])
+    row("N6: a dictionary key typed in capitals (ZMONE*ZMF3*ZP3) is zmone's zmf3.dic: the save is accepted and the record is in the account's dictionary, with an audit line for file=zmf3.dic",
+        d.get(("W", "ZMONE*ZMF3*ZP3")) == "OK" and aget("zmone", "d", "zmf3", "ZP3") == "D|8" and ("zmone", "zmf3.dic", "ZP3") in [e[:3] for e in (master_edits(a0) or [])], repr((d, o[-3:], master_edits(a0))))
+    # ---- a BIG record (more than 80 percent of a group, 819 bytes in a file of the default shape): the old record is read from its chain of blocks by the comparison inside the write, and
+    # the new one is written as a chain that a refusal must give back
+    big_a, big_b, big_c = "A" * 3000, "B" * 3000, "C" * 3000
+    zw("zmone", ["VW|-|zmbig1|X~" + big_a])
+    tool(["OPENV|zmone*bp"])
+    d, o = save(["W|v|zmone*zmbig1|X~" + big_b])
+    row("N8: a save of a 3,000-byte record over a 3,000-byte record (both big) is accepted and the account holds the new text", d.get(("W", "zmone*zmbig1")) == "OK" and aget("zmone", "v", "-", "zmbig1") == "X|" + big_b,
+        repr((d, o[-2:])))
+    tool(["OPENV|zmone*bp"])
+    d, o = save(["DR|v|zmone*zmbig1|X~" + big_a + "|%s/voc|zmbig1|X~%s" % (zo, big_c)])
+    row("N8a: ...and when the account's user changes the big record after it was read the save is refused (8910) and the user's 3,000 bytes are the account's (the comparison reads the old big record "
+        "from its blocks)", d.get(("DR", "zmone*zmbig1")) == "REFUSED status=8910" and aget("zmone", "v", "-", "zmbig1") == "X|" + big_c, repr((d, o[-3:])))
+    d, o = save(["W|v|zmone*zmsmall1|X~small over nothing", "W|v|zmone*zmsmall1|X~" + big_a, "W|v|zmone*zmsmall1|X~small again"])
+    row("N8b: a record grows from small to big and back to small by saves in one session (the new record's chain is written, the old one given back, each against what the save before it wrote)",
+        d.get(("W", "zmone*zmsmall1")) == "OK" and aget("zmone", "v", "-", "zmsmall1") == "X|small again", repr((d, o[-4:])))
+    # ---- the guards the verifier found nothing standing behind (mutants K2, K3, K4, K5, K9, K48 to K51, K57)
+    g.plain("zmtwo", ["CREATE.FILE zqd1 DYNAMIC"])
+    adm(["SYNC.MASTERS zmtwo"])
+    snap0 = masters_snapshot()
+    a0 = audit_size()
+    zq0 = aget("zmtwo", "d", "zqd1", "TRAV1")
+    cases = [("d", "zmone*../zmtwo/zqd1*TRAV1", 11580, "a .. in the file part: it would climb into zmtwo"), ("d", "zmone*zm\x01f*X1", 11580, "a control character in the file part"),
+             ("d", "zmone*..*X1", 11580, "the file part .."), ("d", "zmone*a//b*X1", 11580, "an empty component in the file part"), ("v", "zm one*x", 11580, "a space in the account name")]
+    for kind, key, n, why in cases:
+        d, o = save(["WN|%s|%s|X~y" % (kind, key)])
+        row("N20: %s: the save of %r is refused as a bad key (message %d), not as a missing account or file" % (why, key.replace("\x01", "^A")[:40], n), has_cmsg(o, n), repr(o[-3:]))
+    row("N20a: ...and none of them wrote anything: no master changed, no audit line, and zmtwo's dictionary zqd1 has no TRAV1 (it was %s)" % zq0,
+        masters_snapshot() == snap0 and master_edits(a0) == [] and zq0 == "ABSENT" and aget("zmtwo", "d", "zqd1", "TRAV1") == "ABSENT", repr(master_edits(a0)))
+    tool(["OPENV|zmone*bp"])
+    drain_fields(kop(["drain"], admin=True))        # the journal empty
+    now = int(time.time())
+    append_journal(["%d d w zmone ../zmtwo/zqd1 @id" % now, "%d v w zmone - zmx extra" % now, "%d d w zmone a/../b @id" % now, "%d v w zmghost - recx" % now, "%d v w zmone - zmv1" % now])
+    o = kop(["drain"], admin=True)
+    fl = drain_fields(o)
+    mg = zt(tool(["MGET|d|zmone*../zmtwo/zqd1*@id"]), "MGET")
+    row("N21: five forged journal lines - a .. in the file field, a SEVENTH field, a .. in the middle of it, an account that is not registered, and one good line - are counted exactly: "
+        "5 lines, 1 key applied, 4 refused (the parser does that, not the paths it would have led to)", fl is not None and fl[:3] == [0, 5, 1] and fl[5] == 4, repr((fl, o[-2:])))
+    row("N21a: ...and no master key was made for the line that climbed into zmtwo", len(mg) == 1 and mg[0].endswith("ABSENT"), repr(mg))
+    # a drain event for a key whose account VOC cannot be opened leaves the copy alone (K9)
+    m0 = zt(tool(["MGET|v|zmone*zmv1"]), "MGET")
+    vo = os.path.join(zo, "voc")
+    for n in ("%0", "%1"):
+        os.chmod(os.path.join(vo, n), 0o000)
+    try:
+        append_journal(["%d v w zmone - zmv1" % int(time.time())])
+        fl = drain_fields(kop(["drain"], admin=True))
+    finally:
+        for n in ("%0", "%1"):
+            os.chmod(os.path.join(vo, n), 0o664)
+    m1 = zt(tool(["MGET|v|zmone*zmv1"]), "MGET")
+    row("N22: a journal line for a record of a VOC that exists and cannot be opened (its subfiles at mode 0) leaves the master copy alone and counts an error (the copy is %s)" % (m0[0][-40:] if m0 else None),
+        len(m0) == 1 and "ABSENT" not in m0[0] and m1 == m0 and fl is not None and fl[4] >= 1, repr((m0, m1, fl)))
+    adm(["SYNC.MASTERS zmone"])
+    # the journal is a link: nothing is appended or truncated through it (K49, K50)
+    tool(["OPENV|zmone*bp"])
+    tgt = os.path.join(g.BOX, "journal-target.txt")
+    payload = b"1760000000 v w zmone - zmv1\n"
+    with open(tgt, "wb") as f:
+        f.write(payload)
+    jp = J()
+    saved = jp + ".saved2"
+    os.rename(jp, saved)
+    os.symlink(tgt, jp)
+    try:
+        d, o = zw("zmone", ["VW|-|zmv5|X~written while the journal is a link"])
+        after_hook = open(tgt, "rb").read()
+        fl = drain_fields(kop(["drain"], admin=True))
+        after_drain = open(tgt, "rb").read()
+        tool(["OPENV|zmone*bp"])             # the drain that opening a master runs does not go through the 'ready' test the op does
+        after_open = open(tgt, "rb").read()
+    finally:
+        os.remove(jp)
+        os.rename(saved, jp)
+    row("N23: the journal is a symbolic link to a file: a user's WRITE still succeeds, and not one byte is appended to the file it points at", d.get(("VW", "-", "zmv5")) == "OK" and after_hook == payload, repr((d, after_hook)))
+    row("N23a: ...and the administrator's drain does not read, apply or truncate through the link either: the 'drain' op answers that nothing is set up (status 1), and the drain that "
+        "OPENING a master runs - which has no such test in front of it - leaves the file as it was, line and all",
+        fl is not None and fl[0] == 1 and after_drain == payload and after_open == payload, repr((fl, after_drain, after_open)))
+    adm(["SYNC.MASTERS"])
+    # the drain holds the journal's lock (K51): while another process holds it, a drain waits
+    import fcntl
+    args(g.SYS, ["drain"])
+    fd = os.open(J(), os.O_RDWR)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    out_f = os.path.join(g.BOX, "live-flock.out")
+    waiting = None
+    try:
+        with open(out_f, "w") as fh:
+            p = subprocess.Popen([g.SD], stdin=subprocess.PIPE, stdout=fh, stderr=subprocess.STDOUT, cwd=g.SYS, env=g.env(True), text=True)
+            p.stdin.write("\nTERM 200,9999\nZMKOP\nOFF\n")
+            p.stdin.flush()
+            say("    > a drain is started while this test holds the journal's lock (flock) for 4 s")
+            time.sleep(4)
+            waiting = p.poll() is None
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+    try:
+        p.wait(timeout=60)
+    except subprocess.TimeoutExpired:
+        p.kill()
+    done = g.ANSI.sub("", open(out_f, errors="replace").read())
+    row("N24: a drain started while another process holds the journal's lock WAITS for it (still running after 4 s), and finishes with status 0 when it is let go",
+        waiting is True and re.search(r"ZK drain\s+-> 0\|", done) is not None, repr((waiting, done[-120:])))
+    # a dictionary directory the group may write but not search is nonwritable (K57)
+    dd = os.path.join(zo, "zmf3.dic")
+    om = mode_of(dd)
+    os.chmod(dd, 0o2725)
+    try:
+        chk = adm(["CHECK.MASTERS zmone"])
+    finally:
+        os.chmod(dd, om)
+    row("N25: a dictionary directory whose GROUP may write but not search it (mode 2725) is listed nonwritable: a save is written as a member of the group, which needs both",
+        re.search(r"nonwritable\S*\s+zmone\s+.*zmf3", "\n".join(chk)) is not None, repr(chk[-5:]))
+    # a partial last line (a crashed writer, or one forged) does not swallow the next line
+    tool(["OPENV|zmone*bp"])
+    with open(J(), "ab") as f:
+        f.write(b"1760000000 v w zmone")      # no newline, and not a line even when it has one
+    kop(["drain"], admin=True)
+    zw("zmone", ["VW|-|zmq1|X~after the partial line", "VW|-|zmq2|X~and another"])
+    got = evs(jtext())
+    row("N26: an UNTERMINATED last line in the journal (a crashed or forged writer) is ended by the next drain, so the two lines written after it are two lines of their own and not one "
+        "glued to it: the journal holds the partial line as a line of its own and then  v w zmone - zmq1  and  v w zmone - zmq2",
+        len(got) == 3 and got[0][0] == "?" and got[1:] == [("v", "w", "zmone", "-", "zmq1"), ("v", "w", "zmone", "-", "zmq2")], repr(got))
+    adm(["SYNC.MASTERS"])
+    chk = adm(["CHECK.MASTERS"])
+    row("N27: after all of it a full sync leaves no difference anywhere", has_msg(chk, 11568), repr(chk[-4:]))
+
+
+def uaf_section():
+    say("\n--- N3. the table of accounts is read again INSIDE a save made more than a minute after the master was opened (this section waits 62 s) -----------------------")
+    ensure_audit()
+    adm(["SYNC.MASTERS"])
+    tool(["OPENV|zmone*bp"])
+    a0 = audit_size()
+    t0 = time.time()
+    d, o = save_env(["SL|v|zmone*zmv4|X~saved after a minute|62"], {"MALLOC_PERTURB_": "165"})
+    el = time.time() - t0
+    ed = master_edits(a0)
+    row("N3: a save made 62 s after the master was opened (the process's table of accounts is read again INSIDE the write, which frees the table the save was holding a pointer into) is accepted "
+        "AND its audit line names the account: 'master edit account=zmone file=voc id=zmv4', read back from the audit file (freed memory was filled, so a read of it cannot look right)",
+        d.get(("SL", "zmone*zmv4")) == "OK" and el >= 61 and ed is not None and [e[:3] for e in ed] == [("zmone", "voc", "zmv4")], repr((d, round(el), ed)))
+
+
+def scale_section():
+    say("\n--- O. SYNC.MASTERS scales with the number of accounts (it used to scan the whole master for each account) -------------------------------------------")
+    base = acct_path("zmtwo")
+    made = []
+
+    def add(lo, hi):
+        for i in range(lo, hi):
+            name = "zs%03d" % i
+            dst = acct_path(name)
+            shutil.copytree(base, dst, symlinks=True)
+            g.reg_write(name, [dst, "", g.GROUP, "", "", "", "no", "no"])
+            made.append(name)
+
+    def timed(cmd):
+        t0 = time.time()
+        out = adm([cmd])
+        return time.time() - t0, out
+
+    N1, N2 = 100, 200
+    add(0, N1)
+    timed("SYNC.MASTERS")
+    t1, o1 = timed("SYNC.MASTERS")            # nothing changed: the walk and the comparison only
+    tc1, c1 = timed("CHECK.MASTERS")
+    add(N1, N2)
+    timed("SYNC.MASTERS")
+    t2, o2 = timed("SYNC.MASTERS")
+    tc2, c2 = timed("CHECK.MASTERS")
+    say("      %d accounts: SYNC (nothing changed) %.1f s, CHECK %.1f s;  %d accounts: SYNC %.1f s, CHECK %.1f s;  ratios %.2f and %.2f (twice the accounts: 2.0 is linear, 4.0 quadratic)"
+        % (N1 + 4, t1, tc1, N2 + 4, t2, tc2, t2 / max(t1, 0.001), tc2 / max(tc1, 0.001)))
+    ran = all(has_msg(o, 11566, "zs%03d" % (N2 - 1)) for o in (o2,)) and has_msg(c1, 11568) and has_msg(c2, 11568)
+    row("O1: (the null case) both syncs ran over every account (the last account is reported) and both checks found no difference", ran, repr((o2[-3:], c2[-3:])))
+    row("O2: SYNC.MASTERS over %d accounts takes less than 2.7 times as long as over %d (%.1f s and %.1f s; the scan-per-account version took 3.2 times)" % (N2 + 4, N1 + 4, t2, t1),
+        t1 >= 0.2 and t2 / t1 < 2.7, "%.2f / %.2f" % (t2, t1))
+    row("O3: CHECK.MASTERS over %d accounts takes less than 2.7 times as long as over %d (%.1f s and %.1f s; the scan-per-account version took 2.9 times)" % (N2 + 4, N1 + 4, tc2, tc1),
+        tc1 >= 0.2 and tc2 / tc1 < 2.7, "%.2f / %.2f" % (tc2, tc1))
+    for name in made:
+        os.remove(os.path.join(g.SYS, "accounts", name))
+        shutil.rmtree(acct_path(name))
+    out = adm(["SYNC.MASTERS"])
+    chk = adm(["CHECK.MASTERS"])
+    row("O4: the extra accounts removed, a full sync takes their copies away and CHECK.MASTERS is clean again", has_msg(chk, 11568), repr((out[-2:], chk[-3:])))
+
+
+WINDOW_ANCHOR = "  /* 6 write the account's own file, here, like any other writer"
+
+
+def window_section():
+    say("\n--- P. the window between the checksum test and the write: a plain WRITE by the account's user is not lost (a PAUSE is built into the sandbox's own copy of masters.c) ---")
+    src = os.path.join(g.BOX, "tree", "gplsrc", "masters.c")
+    orig_sd = os.path.join(g.SYS, "bin", "sd")
+    keep_sd = os.path.join(g.BOX, "sd.unpatched")
+    reached = os.path.join(g.BOX, "window.reached")
+    go = os.path.join(g.BOX, "window.go")
+    for f_ in (reached, go):
+        if os.path.exists(f_):
+            os.remove(f_)
+    if not os.path.isfile(src):
+        row("P0: the sandbox holds its own copy of the source (tree/gplsrc/masters.c)", False, src)
+        return
+    text = open(src, encoding="latin-1").read()
+    if text.count(WINDOW_ANCHOR) != 1:
+        row("P0: the pause can be placed: the comment that begins step 6 occurs exactly once", False, "%d times" % text.count(WINDOW_ANCHOR))
+        return
+    pause = ('  { struct stat _ws; int _wi; FILE *_wf = fopen("%s", "w"); if (_wf != NULL) fclose(_wf); for (_wi = 0; (_wi < 600) && (stat("%s", &_ws) != 0); _wi++) usleep(50000); } /* TEST PAUSE */\n'
+             % (reached, go))
+    zw("zmone", ["VW|-|zwin1|X~original text"])
+    tool(["OPENV|zmone*bp"])
+    subprocess.run([sys.executable, g.TOOL, g.BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+    shutil.copy2(orig_sd, keep_sd)
+    open(src, "w", encoding="latin-1").write(text.replace(WINDOW_ANCHOR, pause + WINDOW_ANCHOR))
+    saver = None
+    try:
+        r = subprocess.run(["make"], cwd=os.path.join(g.BOX, "tree"), capture_output=True, text=True, errors="replace", timeout=900)
+        built = r.returncode == 0
+        row("P0: the sandbox's copy of the kernel, with the pause, builds", built, (r.stdout + r.stderr)[-300:])
+        if not built:
+            return
+        shutil.copy2(os.path.join(g.BOX, "tree", "bin", "sd"), orig_sd)
+        subprocess.run([sys.executable, g.TOOL, g.BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
+        j0 = jsize()
+        args(g.SYS, ["W|v|zmone*zwin1|X~SDSYS EDIT MADE FROM THE ORIGINAL COPY"])
+        out_f = os.path.join(g.BOX, "live-window.out")
+        with open(out_f, "w") as fh:
+            saver = subprocess.Popen([g.SD], stdin=subprocess.PIPE, stdout=fh, stderr=subprocess.STDOUT, cwd=g.SYS, env=g.env(True), text=True)
+            saver.stdin.write("\nTERM 200,9999\nRUN bp zmsave\nOFF\n")
+            saver.stdin.flush()
+        say("    > SDSYS's save of zmone*zwin1 is started; it will stop between its checksum test and its write")
+        t0 = time.time()
+        while not os.path.exists(reached) and time.time() - t0 < 60:
+            time.sleep(0.2)
+        row("P1: (the instrument) the save reached the pause - it has passed the checksum test and not yet written", os.path.exists(reached), "no marker after 60 s")
+        d, o = zw("zmone", ["VW|-|zwin1|X~THE USER WROTE THIS IN THE WINDOW"])
+        row("P1a: (control) the account's user wrote the record during the pause with a plain WRITE and no lock", d.get(("VW", "-", "zwin1")) == "OK", repr(o[-3:]))
+        open(go, "w").close()
+        try:
+            saver.wait(timeout=90)
+        except subprocess.TimeoutExpired:
+            saver.kill()
+        sout = g.ANSI.sub("", open(out_f, errors="replace").read())
+        row("P2: SDSYS's save is REFUSED (8910): the record was compared again under the file's own lock, in the write", re.search(r"ZS W v zmone\*zwin1 REFUSED status=8910", sout) is not None, repr(sout[-200:]))
+        row("P2a: ...and the user's text is in the account's VOC - it was not overwritten", aget("zmone", "v", "-", "zwin1") == "X|THE USER WROTE THIS IN THE WINDOW", repr(aget("zmone", "v", "-", "zwin1")))
+        jl = [e for e in evs(jtail(j0)) if e[0] != "?" and e[4] == "zwin1"]
+        row("P2b: ...and the journal holds ONE line for the record - the user's. The refused write left none (a failed write is not journalled)", len(jl) == 1, repr(jl))
+    finally:
+        open(go, "w").close()
+        if saver is not None and saver.poll() is None:
+            saver.kill()
+        subprocess.run([sys.executable, g.TOOL, g.BOX, "stop"], capture_output=True, text=True, errors="replace", timeout=120)
+        open(src, "w", encoding="latin-1").write(text)
+        if os.path.exists(keep_sd):
+            shutil.copy2(keep_sd, orig_sd)
+        subprocess.run([sys.executable, g.TOOL, g.BOX, "start"], capture_output=True, text=True, errors="replace", timeout=120)
 
 
 # ---- main ------------------------------------------------------------------------------------------------------------------------------
@@ -1955,7 +2484,8 @@ def main():
     prepare_all()
     controls()
     table = {"setup": setup_section, "hook": hook_section, "drain": drain_section, "race": race_section, "txn": txn_section, "fail": fail_section, "check": check_section, "deliver": deliver_section,
-             "gate": gate_section, "life": life_section, "keys": keys_section, "perf": perf_section, "upgrade": upgrade_section}
+             "gate": gate_section, "life": life_section, "keys": keys_section, "perf": perf_section, "upgrade": upgrade_section, "vfix": vfix_section, "uaf": uaf_section, "scale": scale_section,
+             "window": window_section}
     # the sections run in this order whatever --sections says, because each leaves the state the next one needs
     for s in SECTIONS:
         if s in sections:

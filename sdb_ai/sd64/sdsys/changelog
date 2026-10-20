@@ -1,6 +1,51 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  AN INDEPENDENT REVIEW OF THE TWO MASTER-FILES ENTRIES BELOW FOUND SEVEN FAULTS AND EVERY ONE IS FIXED: THE MASTER FILES COULD BE READ BY EVERY SD USER, A SAVE COULD OVERWRITE AN ACCOUNT'S NEWER CHANGE, AND A FULL SYNC TOOK THE SQUARE OF THE NUMBER OF ACCOUNTS.
+
+             What        1. The master files (voc_master, dict_master, master_state) and their dictionaries were made mode 0770 and 0660 with a group
+                        that was never set, so they kept the group of the SDSYS session, sdusers, which every SD user is in: any SD user could read
+                        every account's VOC and dictionary copies (pointer paths, I-types) and write them. They are now owned by sdsys with
+                        mode 0700 (directories) and 0600 (files), made under umask 077, so they have no group bit and no other bit whatever group
+                        they are made in. sync.masters run by sdsys, or the next install, puts a system that has the old modes right.
+                        CHECK.MASTERS no longer asks the SDSYS account's own files for group write (sdsys writes them as their owner).
+                        2. A save was compared with master_state, which is the version of the last drain. A drain made by anyone between SDSYS
+                        reading a record and saving it (another administrator session opening a master file, CHECK.MASTERS, SYNC.MASTERS) moved
+                        master_state to the account's newer record, and the save of an edit made from the older copy was accepted and overwrote the
+                        account's change. A save is now compared with the record THIS SESSION READ: the last 128 master records it read are
+                        remembered, and the save is refused (8910, message 11583) when the account's record is no longer the one that was read. A
+                        save of a record the session has not read is refused when the account has a record of that name (message 11596: read it
+                        first). ED reads first, so it is not affected; a program that writes master records without reading them must read them.
+                        3. A change made in the instant between the test and the write, by a plain WRITE, took no record lock and was overwritten
+                        without a sign. The comparison is now made again INSIDE the write, with the record's group locked in the file.
+                        4. A save made more than a minute after the master was opened could write a garbled account name into the audit line (the
+                        table of accounts was read again inside the write and the save kept using the old one).
+                        5. An account whose directory SDSYS could not list lost every dictionary copy when SYNC.MASTERS ran, as files it no longer
+                        had. Nothing is deleted for want of being able to read the original now; CHECK.MASTERS says the dictionaries are unreadable.
+                        6. A name.dic that was a symbolic link to another account's dictionary was taken for this account's: its records were
+                        copied under this account's keys, and a save to it was written into the OTHER account's dictionary. A VOC or dictionary
+                        that is not inside the account's directory is not the account's file.
+                        7. SYNC.MASTERS and CHECK.MASTERS read every master file once for each account: 204 accounts took 2.7 to 3.2 times as long
+                        as 104. Each master is now read once and each account's records are found in it, and SYNC.MASTERS makes one call for all
+                        the accounts: a full sync with nothing changed went from 32.2 s to 4.3 s for 204 accounts and from 11.9 s to 2.8 s for
+                        104; the check from 12.5 s to 2.6 s (4.5 s to 1.7 s). The installer runs a full sync on every install.
+                        Smaller: a dictionary key typed in capitals (ZMONE*ZMF3*X) finds the dictionary; a journal that ends in a line with no
+                        newline (a writer that died, or a forged one) no longer swallows the next line; messages 11583, 11584 and 11586 fit what an
+                        error message has room for and say that nothing was changed before a long key can push that out, and a full lock table
+                        has its own message (11595); the key in a message is cut at 60 characters.
+             Why it      The master files are the one place that holds every account's VOC and dictionary records, and the one way into an account's
+                        own files from outside it: they must be closed to everyone but sdsys, a save must not undo a change it has never seen, and
+                        a sync must still take a sensible time on a system with hundreds of accounts.
+             Does not    The membership of sdsys in every account's group is still put back by every install and upgrade: taking it away with
+                        gpasswd -d lasts until the next one, and there is no switch (the owner has not decided whether there should be). A
+                        plain WRITE by an account's user just after SDSYS's save has finished is the account's later change, as with any two
+                        writers. A write to a VOC or a dictionary costs about 4 to 6 microseconds more than it did before the master files
+                        (15.5 microseconds for a VOC record before them, 19.4 on this build before the master files exist, 21.6 with them,
+                        measured on 100,000 writes; a quieter run gave 13.1, 18.3 and 19.5); a data file's write is not touched. The modes and
+                        the owner of the master files, and the refusal for a member of sdusers, are checked on one operating-system user in
+                        the sandbox (the modes, and the group through a setgid directory) and in gplbld/witness-masters.sh, which the owner
+                        runs with sudo on an install; it has not been run.
+
 19 Oct 26  SDSYS CAN NOW CHANGE ANY ACCOUNT'S VOC OR DICTIONARY BY SAVING THE ACCOUNT'S MASTER COPY: THE SAVE IS WRITTEN INTO THE ACCOUNT AT ONCE, OR REFUSED WITH ITS REASON AND NOTHING CHANGED. TO DO IT THE sdsys OPERATING-SYSTEM USER IS NOW A MEMBER OF EVERY ACCOUNT'S GROUP, AND EVERY ACCOUNT'S VOC AND DICTIONARIES CAN BE WRITTEN BY THAT GROUP.
 
              Warning      This gives the sdsys operating-system user write access to the VOC and the dictionaries of EVERY account, and to
@@ -9,20 +54,22 @@ Next release - in progress
                         remote access at all), and a process that is not a real sdsys login is not an administrator. The owner chose this on
                         17 October 2026 in place of a tighter arrangement, an outbox the account applies for itself, which would have given
                         sdsys no such access. To take the access away for one account: gpasswd -d sdsys sdu_<account>; saves for that
-                        account are then refused with a message and everything else works.
+                        account are then refused with a message and everything else works. THE NEXT INSTALL OR UPGRADE PUTS THE MEMBERSHIP BACK
+                        (its walk adds sdsys to the group of every account, and says so): there is no switch that keeps it away.
              What        SDSYS opens voc_master (key account*recordid) or dict_master (key account*file*recordid) and writes the record with
                         ED, COPY, a program's WRITE, or any other way a record is written. Before the write is accepted SD checks that the
                         caller is the administrator, that the key names a registered account and a VOC or dictionary record, that the account's
-                        own record is exactly the one the copy was made from (the checksum kept in master_state), that nothing holds the
+                        own record is still the one this session READ (a checksum of what it read), that nothing holds the
                         account's record locked, and that this session can write the account's files. If all of that holds, SD writes the
                         account's own file, from the SDSYS session, in the same call, and writes ONE audit line:
                         master edit account=<account> file=<file> id=<id>. The lock on the account's record is a try-lock: it refuses and
                         never waits, so a save cannot hang behind an account's long job. If anything fails the save is refused with a
-                        message that says why (numbers 11580 to 11592), the status is 8910, and neither the account nor the master copy is
-                        changed. An editor shows only "Write error 8910", so CHECK.MASTERS and LIST.MASTER.PENDING now end with the reason the
-                        last save of a master record in this session was refused (message 11594). The refusals are: the account's record
-                        changed since the copy was made (open the master file again and repeat the edit, which is what keeps SDSYS from
-                        overwriting an account's own change it has never seen), the record is locked, the account is not registered, the
+                        message that says why (numbers 11580 to 11592, 11595 and 11596), the status is 8910, and neither the account nor the
+                        master copy is changed. An editor shows only "Write error 8910", so CHECK.MASTERS and LIST.MASTER.PENDING now end with
+                        the reason the last save of a master record in this session was refused (message 11594). The refusals are: the
+                        account's record changed since this session read it, or the session has not read a record the account has (read the
+                        record again and repeat the edit, which is what keeps SDSYS from overwriting an account's own change it has never
+                        seen), the record is locked, the account is not registered, the
                         file does not exist, the key means nothing, the caller is not the administrator, the files are not writable (the
                         mode, a session that began before sdsys joined the account's group, an sdsys that is not in the group, or no write
                         permission, each with its own wording), master_state is missing, a transaction is open, and a delete.
@@ -69,8 +116,8 @@ Next release - in progress
                         and a journal that reaches 4 MB raises another (resync) and takes no more lines until sync.masters with no account has
                         run; the flags are held in shared memory and start again when SD restarts, and check.masters compares every record in
                         any case. A change made outside SD (a shell command, a program run by an account that holds OS.EXECUTE) is not seen until
-                        sync.masters. The ownership of the journal and the master files (sdsys, group sdusers or sdsys) is set by the installer's
-                        session and has not been seen on an install.
+                        sync.masters. The ownership of the journal (sdsys, group sdusers, mode 0620) and of the master files (sdsys, mode 0700 for
+                        the directories and 0600 for the files) is set by the installer's session and has not been seen on an install.
 
 19 Oct 26  A GUIDE, A GENERATED REFERENCE AND A CLAUDE CODE SKILL FOR AI AGENTS THAT WORK ON AN SD SYSTEM ARE IN THE SOURCE (agent-pack/).
 

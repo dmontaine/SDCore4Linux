@@ -86,7 +86,7 @@ gplsrc/netfiles.c            : netfile
 # S.67 stage 1 (19 Oct 26): the master files.  masters.c is theirs; the DH layer's write, delete, clear and create, OSPATH and OSRENAME, open_file and K_MASTERS call it.
 gplsrc/masters.c             : masters @files
 gplsrc/op_dio4.c             : @lists fixes-b12 netfile
-gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared
+gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile shared masters
 gplsrc/op_dio2.c             : @files fixes-b12 sys-b2 netfile shared masters
 gplsrc/op_dio1.c             : @files cll prof lockown netfile shared masters
 gplsrc/dh_ak.c               : @files netfile shared
@@ -97,7 +97,7 @@ gplsrc/dh_*.c                : @files masters
 gplsrc/dh_*.h                : @files
 gplsrc/dh.h                  : @files masters
 gplsrc/reccache.c            : @files
-gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc @core
+gplsrc/txn.c                 : trans-b43 txnstatus wdthenelse coll collfile sysexc masters @core
 gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
@@ -118,7 +118,7 @@ gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
 gplsrc/op_misc.c             : @functions epoch txnstatus
-gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files netfile
+gplsrc/op_lock.c             : lock-b6 listu-a5 conf-b1 cll @files netfile masters
 gplsrc/locks.h               : lock-b6 listu-a5 conf-b1
 gplsrc/op_tio.c              : @pty terminfo-ext
 gplsrc/linuxio.c             : @pty
@@ -142,7 +142,7 @@ gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof rese
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc
-gplsrc/k_error.c             : sysexc try @core netfile
+gplsrc/k_error.c             : sysexc try @core netfile masters
 gplsrc/messages.c            : sysexc @core
 gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll
@@ -260,7 +260,7 @@ sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgate
 sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys idedraw
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small
 # 19 Oct 26: ed selects eofkeys too (ED's command prompt, record-name prompt, list of ids and the LOAD / UNLOAD line-number prompts end when piped input ends)
-sdsys/gpl.bp/ed              : @editors edext editgates eofkeys
+sdsys/gpl.bp/ed              : @editors edext editgates eofkeys masters
 sdsys/gpl.bp/edit            : @editors editgates
 sdsys/gpl.bp/edit_guard      : editgates @editors netfile shared
 sdsys/gpl.bp/clearfl         : editgates @files
@@ -403,7 +403,7 @@ sdsys/messages/1151*         : netfile shared
 sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters
-sdsys/messages/1159[0-4]     : masters
+sdsys/messages/1159[0-6]     : masters
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

@@ -17,6 +17,15 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 19 Oct 26 dm  The independent verifier's findings on stages 1 and 2, fixed.  F1 the master files and their dictionaries are 0700 and 0600 (the group they were
+ *               given was never set, and the group of an SDSYS session is sdusers); F2 mst_deliver copies the account out of the table it was found in (the table
+ *               is read again inside the write, which freed what the audit line then read); F3 a save is judged against the record the session READ
+ *               (masters_note_read; a blind save of a record the account has is refused), not against master_state, which moves at every drain; F4 the
+ *               comparison is made again INSIDE dh_write, under the file's own group lock (masters_cas_check), so a plain WRITE in the window is not lost;
+ *               F5 an account whose directory cannot be listed keeps its dictionary copies; F6 a *.dic that links out of the account is not the account's;
+ *               F7 SYNC.MASTERS and CHECK.MASTERS read each master file once (an index sorted by key), not once per account, and sync has one op for all
+ *               accounts (syncall); a dictionary key in capitals finds the dictionary; a journal line is never glued to an unterminated one; messages
+ *               11583, 11584 and 11586 fit k_error and say "Nothing was changed" before the key can push it out.
  * 19 Oct 26 dm  Stage 2 (D7, owner 17 Oct 2026, warned): MASTER TO ACCOUNT.  When SDSYS saves a record of voc_master or dict_master the kernel
  *               compares the account's current record with master_state, and REFUSES (DHE_MASTER_REFUSED, nothing changed) if they differ; else it
  *               takes the account's record with a try-lock that never waits, writes the account's own file itself, brings master_state up to date and
@@ -54,17 +63,20 @@
  *  A key longer than MAXIDLEN (minus the two characters of the state key) cannot be mirrored - a master file holding a longer id could not
  *  be opened again - and is counted and reported, never dropped silently.
  *
- *  master_state keeps, for every mirrored key, the checksum of the account's record as last copied and the time.  Stage 2 refuses a save
- *  of a master record when the account's record no longer has that checksum.
+ *  master_state keeps, for every mirrored key, the checksum of the account's record as last copied and the time.  (Stage 2 compared a save with
+ *  it; since the verifier's F3 a save is compared with the record the session READ, and master_state is consulted only for a key the session did
+ *  not read, to see that the account has not deleted what the copy still holds.)
  *
  *  MASTER TO ACCOUNT (stage 2).  masters_before_write is called by dh_write for EVERY write, first of all, and does nothing for a file that is not
  *  voc_master or dict_master (one flag test once the file's name has been looked at).  For those two it is the whole of D7:
  *    1 only the administrator; 2 the key (account*id, account*file*id) names a registered account and, for a dictionary, a dictionary it has;
  *    3 the account's files can be written by THIS process (access(), and why not if they cannot: the mode, a session that began before SDSYS
  *      joined the group, a group SDSYS is not in); 4 the account's record is locked by a try-lock that returns at once (lock_record with no_wait),
- *      unless this process holds it already; 5 the record as it is now has the checksum master_state holds for it - the account has not changed since
- *      SDSYS read the copy - else REFUSED and nothing is lost; 6 the account's file is written HERE, by this process (so it needs the group), through
- *      dh_write like any other writer, which journals it; 7 master_state is brought up to date; 8 the lock is let go; 9 the audit line.
+ *      unless this process holds it already; 5 the record as it is now has the checksum of the record THIS SESSION READ (masters_note_read keeps the
+ *      last 128) - the account has not changed it since - else REFUSED and nothing is lost; a key the session did not read may create a record and
+ *      may not overwrite one; 6 the account's file is written HERE, by this process (so it needs the group), through dh_write like any other
+ *      writer, which journals it, and which asks the comparison of 5 again (masters_cas_check) with the record's group locked; 7 master_state and
+ *      the session's read are brought up to date; 8 the lock is let go; 9 the audit line.
  *  Every refusal comes back as DHE_MASTER_REFUSED with its reason in masters_refusal_text(); op_write and op_delete print it unless the statement has
  *  ON ERROR.  A DELETE of a master record is refused (the plan says SDSYS SAVES; deleting a copy is not deleting the account's record), and so is a
  *  save or a delete inside a transaction (the write reaches the DH layer at COMMIT, where a refusal would be half way through other writes).
@@ -74,6 +86,7 @@
  *  Public:
  *   masters_note_record  masters_note_dh  masters_note_name  masters_open_hook  masters_request
  *   masters_before_write  masters_before_delete  masters_txn_refusal  masters_refusal_text  masters_fix_modes
+ *   masters_note_read  masters_cas_check  (and the int masters_cas_on)
  *
  * END-DESCRIPTION
  *
@@ -121,6 +134,7 @@ bool fullpath(char *path, char *name);
 #define MST_ACC_MISS 5                        /* ... and the least between two reads caused by a miss */
 #define MST_CHECK_ROWS 2000                   /* the most difference rows CHECK returns */
 #define MST_FILE_MAX 200                      /* the longest dictionary name the journal carries */
+#define MST_SYSTEM_ACCOUNT "sdsys"            /* the administrator's own account: its files belong to the user that runs SDSYS's sessions */
 
 /* the answers of K_MASTERS: the first field */
 #define MSA_OK 0
@@ -363,10 +377,15 @@ typedef struct {
   size_t rlen;
 } MST_ACC;
 
+/* THE TABLE IS REPLACED BY A READ, AND A READ CAN COME FROM ANY CALL THAT CLASSIFIES A PATH (the hook inside every write, mst_acc_for_path).  So nothing keeps a
+   pointer into acc_tab across a call that can write or open a file: mst_acc_by_name gives a COPY, and the loops copy the entry they work on (verifier F2: a pointer
+   kept across the inner write read freed memory in the audit line). */
 Private MST_ACC *acc_tab = NULL;
+Private int *acc_sorted = NULL; /* the indexes of acc_tab in name order (case blind), for a binary search by name */
 Private int acc_n = 0;
 Private time_t acc_loaded = 0;
 Private time_t acc_miss_load = 0;
+Private const MST_ACC *mst_acc_ctx = NULL; /* the table being sorted by name (qsort has no argument for it) */
 
 Private int mst_acc_cmp(const void *pa, const void *pb) {
   const MST_ACC *a = (const MST_ACC *)pa;
@@ -375,6 +394,10 @@ Private int mst_acc_cmp(const void *pa, const void *pb) {
   if (a->rlen != b->rlen)
     return (a->rlen > b->rlen) ? -1 : 1; /* the longest root first: the account that holds a path is the nearest one */
   return strcmp(a->name, b->name);
+}
+
+Private int mst_acc_idx_cmp(const void *pa, const void *pb) {
+  return strcasecmp(mst_acc_ctx[*(const int *)pa].name, mst_acc_ctx[*(const int *)pb].name);
 }
 
 Private bool mst_valid_account_name(const char *n) {
@@ -402,6 +425,7 @@ Private void mst_acc_load(void) {
   size_t got, n, i;
   char *p;
   MST_ACC *tab = NULL;
+  int *idx = NULL;
   int cnt = 0, cap = 0;
 
   acc_loaded = time(NULL);
@@ -450,9 +474,45 @@ Private void mst_acc_load(void) {
   closedir(d);
   if (cnt > 1)
     qsort(tab, (size_t)cnt, sizeof(MST_ACC), mst_acc_cmp);
+  if (cnt > 0) {
+    idx = (int *)malloc(sizeof(int) * (size_t)cnt);
+    if (idx != NULL) {
+      for (i = 0; i < (size_t)cnt; i++)
+        idx[i] = (int)i;
+      mst_acc_ctx = tab;
+      qsort(idx, (size_t)cnt, sizeof(int), mst_acc_idx_cmp);
+    }
+  }
   free(acc_tab);
+  free(acc_sorted);
   acc_tab = tab;
+  acc_sorted = idx; /* NULL when there was no memory or no account: mst_acc_find then looks at every entry */
   acc_n = cnt;
+}
+
+/* the index in acc_tab of the account of that name (case blind), or -1 */
+Private int mst_acc_find(const char *name) {
+  int lo = 0, hi = acc_n - 1, i;
+
+  if (acc_sorted == NULL) {
+    for (i = 0; i < acc_n; i++) {
+      if (strcasecmp(acc_tab[i].name, name) == 0)
+        return i;
+    }
+    return -1;
+  }
+  while (lo <= hi) {
+    int mid = (lo + hi) / 2;
+    int c = strcasecmp(acc_tab[acc_sorted[mid]].name, name);
+
+    if (c == 0)
+      return acc_sorted[mid];
+    if (c < 0)
+      lo = mid + 1;
+    else
+      hi = mid - 1;
+  }
+  return -1;
 }
 
 Private const MST_ACC *mst_acc_scan_path(const char *canon, const char **rel) {
@@ -482,20 +542,20 @@ Private const MST_ACC *mst_acc_for_path(const char *canon, const char **rel) {
   return a;
 }
 
-Private const MST_ACC *mst_acc_by_name(const char *name) {
+/* The account of that name, COPIED into OUT (see the note on acc_tab).  The table is used as it is when it has been read and the name is in it; a name that is not
+   in it is looked for again after a fresh read, because the administrator may be naming an account made a moment ago. */
+Private bool mst_acc_by_name(const char *name, MST_ACC *out) {
   int pass, i;
 
   for (pass = 0; pass < 2; pass++) {
     if ((pass == 1) || (acc_loaded == 0))
-      mst_acc_load(); /* always a fresh read for a name asked by the administrator */
-    for (i = 0; i < acc_n; i++) {
-      if (strcasecmp(acc_tab[i].name, name) == 0)
-        return &acc_tab[i];
+      mst_acc_load();
+    if ((i = mst_acc_find(name)) >= 0) {
+      *out = acc_tab[i];
+      return TRUE;
     }
-    if (pass == 0)
-      continue;
   }
-  return NULL;
+  return FALSE;
 }
 
 /* ======================================================================
@@ -645,6 +705,7 @@ Private void mst_journal_line(int fd, int kind, char op, const char *acct, const
   char line[1600]; /* at most 10 + 2 + 2 + 33 + 604 + 772 + 6 bytes, under PIPE_BUF, so the append is atomic */
   int len;
   struct stat st;
+  bool have_size;
 
   if ((mst_enc(fenc, sizeof(fenc), file, (int)strlen(file)) < 0) || (mst_enc(ienc, sizeof(ienc), id, id_len) < 0)) {
     close(fd);
@@ -660,10 +721,19 @@ Private void mst_journal_line(int fd, int kind, char op, const char *acct, const
   /* The size test and the append are made under the same semaphore as the drain's truncation (below), so an entry cannot fall between the
      drain's last look at the size and its truncate.  ERRLOG_SEM is the audit file's. */
   StartExclusive(ERRLOG_SEM, 72);
-  if ((fstat(fd, &st) == 0) && (st.st_size >= MST_JOURNAL_CAP)) {
+  have_size = (fstat(fd, &st) == 0);
+  if (have_size && (st.st_size >= MST_JOURNAL_CAP)) {
     mst_flag(MST_F_RESYNC);
-  } else if (write(fd, line, (size_t)len) != len) {
-    mst_flag(MST_F_STALE);
+  } else {
+    ssize_t w = write(fd, line, (size_t)len);
+
+    if (w != len) {
+      /* A short write leaves the front of a line at the end of the journal, and the next line would be glued to it and refused with it.  We hold the semaphore every
+         SD appender and the drain's truncation take, so the size we read is still the size: cut back to it. */
+      if ((w > 0) && have_size)
+        (void)ftruncate(fd, st.st_size);
+      mst_flag(MST_F_STALE);
+    }
   }
   EndExclusive(ERRLOG_SEM);
   close(fd);
@@ -730,14 +800,24 @@ typedef struct {
   bool absent; /* dh is NULL because there is no such file (as opposed to one that could not be opened) */
 } MST_H;
 
+/* the sorted keys of one master, read once (see mst_ctx_index below) */
+typedef struct {
+  MST_IDS ids;
+  MST_SET set;
+  bool have;
+} MST_INDEX;
+
 typedef struct {
   DH_FILE *vm, *dm, *st; /* the three masters */
+  MST_INDEX *ix[3];       /* the sorted keys of voc_master, dict_master and master_state, when the operation is over every account (else NULL) */
   MST_H h[32];            /* account files opened during this operation */
   int nh;
   int rr;                 /* next slot to give up when the cache is full */
   bool last_absent;       /* set by mst_acct_file: a NULL answer meant "no such file", not "could not be opened" */
   long wrote, deleted, same, toolong, errs, files, recs;
 } MST_CTX;
+
+Private void mst_index_free(MST_INDEX *ix);
 
 Private DH_FILE *mst_open_path(const char *path) {
   char p[MAX_PATHNAME_LEN + 1];
@@ -779,6 +859,13 @@ Private void mst_ctx_close(MST_CTX *cx) {
       dh_close(cx->h[i].dh);
   }
   cx->nh = 0;
+  for (i = 0; i < 3; i++) {
+    if (cx->ix[i] != NULL) {
+      mst_index_free(cx->ix[i]);
+      free(cx->ix[i]);
+      cx->ix[i] = NULL;
+    }
+  }
   if (cx->vm != NULL)
     dh_close(cx->vm);
   if (cx->dm != NULL)
@@ -788,16 +875,35 @@ Private void mst_ctx_close(MST_CTX *cx) {
   cx->vm = cx->dm = cx->st = NULL;
 }
 
+/* Does PATH, as the operating system resolves it, lie inside the directory ROOT (a canonical path, as the account table holds)?  TRUE also when it cannot be resolved
+   (nothing there, or no right to look): the caller's own tests say "not there" or "cannot be opened" in those cases.  REAL gets the resolved path when there is one. */
+Private bool mst_inside_root(const char *path, const char *root, char *real, size_t realsz) {
+  char r[PATH_MAX + 1];
+  size_t rl = strlen(root);
+
+  real[0] = '\0';
+  if (realpath(path, r) == NULL)
+    return TRUE;
+  snprintf(real, realsz, "%s", r);
+  return (strncmp(r, root, rl) == 0) && (r[rl] == '/');
+}
+
 /* An account's VOC or dictionary, opened (or remembered from earlier in this operation).  NULL when it could not be: cx->last_absent then says
    whether that is because THERE IS NO SUCH FILE (the account holds nothing there, and its master copies are to go) or because it exists and could
    not be opened (a permission, a file with an id longer than MAXIDLEN, damage: the master copies are to be LEFT ALONE and the failure counted - a
-   copy is never deleted for want of being able to read the original).                                                                          */
+   copy is never deleted for want of being able to read the original).
+
+   19 Oct 26 (verifier F6): THE ACCOUNT'S FILE IS A FILE IN THE ACCOUNT.  A name.dic (or a voc) that is a link to a place outside the account's directory - another
+   account's dictionary, say - is not this account's file: it counts as NOT THERE (so no copy is made of it under this account's keys, and a save to it is refused as
+   "the account has no dictionary of that name"), and nothing is opened through it.  After the open the file's device and inode are compared with those of the path as
+   it was resolved, so a link put in the place between the test and the open opens nothing.                                                                       */
 Private DH_FILE *mst_acct_file(MST_CTX *cx, int kind, const char *root, const char *file) {
   char path[MAX_PATHNAME_LEN + 1];
   char sub[MAX_PATHNAME_LEN + 8];
-  struct stat sb;
+  char real[PATH_MAX + 1];
+  struct stat sb, rs;
   int i;
-  DH_FILE *dh;
+  DH_FILE *dh = NULL;
   bool absent = FALSE;
 
   cx->last_absent = FALSE;
@@ -814,9 +920,20 @@ Private DH_FILE *mst_acct_file(MST_CTX *cx, int kind, const char *root, const ch
       return cx->h[i].dh;
     }
   }
-  dh = mst_open_path(path);
-  if (dh == NULL) {
-    absent = (snprintf(sub, sizeof(sub), "%s%c%%0", path, DS) < (int)sizeof(sub)) && (stat(sub, &sb) != 0) && (errno == ENOENT);
+  if (!mst_inside_root(path, root, real, sizeof(real))) {
+    absent = TRUE; /* a link out of the account: not the account's file */
+  } else {
+    dh = mst_open_path(path);
+    if ((dh != NULL) && (real[0] != '\0') && (stat(real, &rs) == 0)) {
+      FILE_ENTRY *fe = FPtr(dh->file_id);
+
+      if (((fe->device != 0) || (fe->inode != 0)) && ((fe->device != (u_int32_t)rs.st_dev) || (fe->inode != (u_int32_t)rs.st_ino))) {
+        dh_close(dh); /* not the file the path resolved to a moment ago: it was changed under us */
+        dh = NULL;
+      }
+    } else if (dh == NULL) {
+      absent = (snprintf(sub, sizeof(sub), "%s%c%%0", path, DS) < (int)sizeof(sub)) && (stat(sub, &sb) != 0) && (errno == ENOENT);
+    }
   }
   if (cx->nh >= (int)(sizeof(cx->h) / sizeof(cx->h[0]))) {
     i = cx->rr++ % cx->nh;
@@ -1131,6 +1248,100 @@ Private bool mst_scan_prefixed(DH_FILE *dh, const char *prefix, MST_IDS *out) {
   return ok;
 }
 
+/* ----------------------------------------------------------------------
+   The keys of a master file read ONCE, sorted, so that the keys of one account are found by a binary search (verifier F7).  Every per-account step used to scan the whole
+   of voc_master, dict_master and master_state for the keys that begin  account*  - which is quadratic in the number of accounts.  The index is built by the operations
+   that visit every account (syncall, check, the drain's whole-file lines) and is NOT kept between operations.  What an account's own sync writes or deletes is that
+   account's keys, which no other account looks for, so an index taken before the first account is synced is as good for the last.  The keys are in the order of
+   mst_id_cmp, which is the lexicographic order of the folded bytes, so the keys that begin with a prefix are next to each other.                          */
+
+Private bool mst_index_build(DH_FILE *dh, MST_INDEX *ix) {
+  memset(ix, 0, sizeof(*ix));
+  if (!mst_scan_ids(dh, &ix->ids) || !mst_set_build(&ix->set, &ix->ids)) {
+    mst_ids_free(&ix->ids);
+    return FALSE;
+  }
+  ix->have = TRUE;
+  return TRUE;
+}
+
+Private void mst_index_free(MST_INDEX *ix) {
+  if (ix->have)
+    mst_set_free(&ix->set);
+  mst_ids_free(&ix->ids);
+  ix->have = FALSE;
+}
+
+/* 0 when KEY begins with PREFIX (case blind); else where it sorts, before (<0) or after (>0) every key that does */
+Private int mst_prefix_cmp(const char *key, int klen, const char *prefix, size_t plen) {
+  size_t n = ((size_t)klen < plen) ? (size_t)klen : plen, i;
+
+  for (i = 0; i < n; i++) {
+    int x = mst_fold((unsigned char)key[i]);
+    int y = mst_fold((unsigned char)prefix[i]);
+
+    if (x != y)
+      return x - y;
+  }
+  return ((size_t)klen < plen) ? -1 : 0;
+}
+
+/* the keys of the index that begin with PREFIX, added to OUT */
+Private bool mst_index_slice(const MST_INDEX *ix, const char *prefix, MST_IDS *out) {
+  size_t plen = strlen(prefix);
+  int lo = 0, hi = ix->set.n;
+
+  while (lo < hi) { /* the first key that does not sort before the prefix */
+    int mid = (lo + hi) / 2;
+    size_t o = ix->set.off[mid];
+
+    if (mst_prefix_cmp((const char *)ix->ids.d + o + 1, ix->ids.d[o], prefix, plen) < 0)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+  for (; lo < ix->set.n; lo++) {
+    size_t o = ix->set.off[lo];
+
+    if (mst_prefix_cmp((const char *)ix->ids.d + o + 1, ix->ids.d[o], prefix, plen) != 0)
+      break;
+    if (!mst_ids_add(out, (const char *)ix->ids.d + o + 1, ix->ids.d[o]))
+      return FALSE;
+  }
+  return TRUE;
+}
+
+#define MST_IX_VOC 0
+#define MST_IX_DICT 1
+#define MST_IX_STATE 2
+
+/* Build the indexes of the masters into CX (those that can be built: an operation goes on without one, scanning).  Done once, by an operation over every account.
+   WITH_STATE: master_state as well (a check does not read it). */
+Private void mst_ctx_index(MST_CTX *cx, bool with_state) {
+  DH_FILE *dh[3];
+  int i;
+
+  dh[MST_IX_VOC] = cx->vm;
+  dh[MST_IX_DICT] = cx->dm;
+  dh[MST_IX_STATE] = cx->st;
+  for (i = 0; i < (with_state ? 3 : 2); i++) {
+    cx->ix[i] = (MST_INDEX *)calloc(1, sizeof(MST_INDEX));
+    if ((cx->ix[i] != NULL) && !mst_index_build(dh[i], cx->ix[i])) {
+      free(cx->ix[i]);
+      cx->ix[i] = NULL;
+    }
+  }
+}
+
+/* the keys of one master that begin with PREFIX: from the index when the operation has one, else by scanning the file.  FALSE when they could not be read. */
+Private bool mst_keys_of(MST_CTX *cx, int which, const char *prefix, MST_IDS *out) {
+  DH_FILE *dh = (which == MST_IX_VOC) ? cx->vm : ((which == MST_IX_DICT) ? cx->dm : cx->st);
+
+  if ((cx->ix[which] != NULL) && cx->ix[which]->have)
+    return mst_index_slice(cx->ix[which], prefix, out);
+  return mst_scan_prefixed(dh, prefix, out);
+}
+
 Private void mst_delete_keys(MST_CTX *cx, int kind, const MST_IDS *keys) {
   size_t p;
   DH_FILE *mdh = (kind == MST_VOC) ? cx->vm : cx->dm;
@@ -1252,17 +1463,23 @@ Private bool mst_file_ok(const char *f) {
   return TRUE;
 }
 
-Private void mst_account_dicts(MST_CTX *cx, const MST_ACC *a, char ***names, int *n) {
+/* The dictionaries the account holds, by name, in NAMES (sorted).  The answer is TRUE only when the list is COMPLETE: the account's directory could be listed and its VOC
+   could be read (or there is none).  When it is not, the caller must not take a dictionary's absence from the list to mean the account no longer has it (verifier F5:
+   an account whose directory SDSYS could not list lost every dictionary copy, as "files the account no longer has"). */
+Private bool mst_account_dicts(MST_CTX *cx, const MST_ACC *a, char ***names, int *n) {
   int cap = 0;
   DIR *d;
   struct dirent *ent;
-  char p[MAX_PATHNAME_LEN * 2 + 8];
+  char dpath[MAX_PATHNAME_LEN * 2 + 8];
+  char p[MAX_PATHNAME_LEN * 2 + 16];
+  char lreal[PATH_MAX + 1];
   struct stat sb;
   size_t l;
   DH_FILE *vdh;
   MST_IDS vids = {NULL, 0, 0, 0};
   size_t o;
   char f[MST_FILE_MAX + 8];
+  bool complete = TRUE;
 
   *names = NULL;
   *n = 0;
@@ -1271,19 +1488,30 @@ Private void mst_account_dicts(MST_CTX *cx, const MST_ACC *a, char ***names, int
       l = strlen(ent->d_name);
       if ((l <= 4) || (strcasecmp(ent->d_name + l - 4, ".dic") != 0))
         continue;
-      if (snprintf(p, sizeof(p), "%s/%s/%%0", a->root, ent->d_name) >= (int)sizeof(p))
+      if (snprintf(dpath, sizeof(dpath), "%s/%s", a->root, ent->d_name) >= (int)sizeof(dpath))
+        continue;
+      if (snprintf(p, sizeof(p), "%s/%%0", dpath) >= (int)sizeof(p))
         continue;
       if (stat(p, &sb) != 0)
         continue;
+      if (!mst_inside_root(dpath, a->root, lreal, sizeof(lreal)))
+        continue; /* a link out of the account: another account's dictionary, or nobody's (verifier F6) */
       snprintf(f, sizeof(f), "%.*s", (int)(l - 4), ent->d_name);
       if (mst_file_ok(f))
         mst_names_add(names, n, &cap, f);
     }
     closedir(d);
+  } else {
+    complete = FALSE;
   }
   /* and those the VOC points at: an F entry whose field 3 is a path that ends .dic below the account's directory */
   vdh = mst_acct_file(cx, MST_VOC, a->root, "");
-  if ((vdh != NULL) && mst_scan_ids(vdh, &vids)) {
+  if (vdh == NULL) {
+    if (!cx->last_absent)
+      complete = FALSE; /* the VOC is there and cannot be opened: the dictionaries it names are not known */
+  } else if (!mst_scan_ids(vdh, &vids)) {
+    complete = FALSE;
+  } else {
     for (o = 0; o < vids.len; o += 1 + (size_t)vids.d[o]) {
       STRING_CHUNK *rec = dh_read(vdh, (char *)vids.d + o + 1, vids.d[o], NULL);
       char buf[2 * MAX_PATHNAME_LEN + 8];
@@ -1338,6 +1566,7 @@ Private void mst_account_dicts(MST_CTX *cx, const MST_ACC *a, char ***names, int
   mst_ids_free(&vids);
   if (*n > 1)
     qsort(*names, (size_t)*n, sizeof(char *), mst_cmp_str);
+  return complete;
 }
 
 /* ======================================================================
@@ -1375,15 +1604,18 @@ Private bool mst_sync_account(MST_CTX *cx, const MST_ACC *a, MST_SYNCRES *res) {
   char filebuf[MST_FILE_MAX + 4];
   MST_IDS stale_state = {NULL, 0, 0, 0};
   MST_IDS skeys = {NULL, 0, 0, 0};
+  bool dcomplete;
 
   snprintf(prefix, sizeof(prefix), "%s*", a->name);
-  if (!mst_scan_prefixed(cx->vm, prefix, &vkeys) || !mst_scan_prefixed(cx->dm, prefix, &dkeys)) {
+  if (!mst_keys_of(cx, MST_IX_VOC, prefix, &vkeys) || !mst_keys_of(cx, MST_IX_DICT, prefix, &dkeys)) {
     cx->errs++;
     mst_ids_free(&vkeys);
     mst_ids_free(&dkeys);
     return FALSE;
   }
-  mst_account_dicts(cx, a, &dn, &dnn);
+  dcomplete = mst_account_dicts(cx, a, &dn, &dnn);
+  if (!dcomplete)
+    cx->errs++; /* the list of the account's dictionaries is not complete: the pruning below is skipped, and the sync says so */
 
   /* the VOC */
   mst_sync_file(cx, MST_VOC, a->name, a->root, "", &vkeys, strlen(prefix));
@@ -1405,8 +1637,8 @@ Private bool mst_sync_account(MST_CTX *cx, const MST_ACC *a, MST_SYNCRES *res) {
   res->dfiles = dnn;
   res->drecs = cx->recs - before_recs;
 
-  /* master keys of dictionary files the account no longer has */
-  {
+  /* master keys of dictionary files the account no longer has - but only when the list of its dictionaries is complete (verifier F5) */
+  if (dcomplete) {
     MST_IDS gone = {NULL, 0, 0, 0};
 
     for (p = 0; p < dkeys.len; p += 1 + (size_t)dkeys.d[p]) {
@@ -1429,9 +1661,9 @@ Private bool mst_sync_account(MST_CTX *cx, const MST_ACC *a, MST_SYNCRES *res) {
 
   /* state records that no master key backs */
   snprintf(sub, sizeof(sub), "v*%s*", a->name);
-  (void)mst_scan_prefixed(cx->st, sub, &skeys);
+  (void)mst_keys_of(cx, MST_IX_STATE, sub, &skeys);
   snprintf(sub, sizeof(sub), "d*%s*", a->name);
-  (void)mst_scan_prefixed(cx->st, sub, &skeys);
+  (void)mst_keys_of(cx, MST_IX_STATE, sub, &skeys);
   for (p = 0; p < skeys.len; p += 1 + (size_t)skeys.d[p]) {
     const char *sk = (const char *)skeys.d + p + 1;
     int sl = skeys.d[p];
@@ -1496,12 +1728,9 @@ Private long mst_drop_account(MST_CTX *cx, const char *acct) {
 Private bool mst_in_register(const char *name) {
   char p[2 * MAX_PATHNAME_LEN + 8];
   struct stat sb;
-  int i;
 
-  for (i = 0; i < acc_n; i++) {
-    if (strcasecmp(acc_tab[i].name, name) == 0)
-      return TRUE;
-  }
+  if (mst_acc_find(name) >= 0)
+    return TRUE;
   if (!mst_valid_account_name(name) || (sysseg == NULL))
     return FALSE;
   return (snprintf(p, sizeof(p), "%s%caccounts%c%s", (const char *)sysseg->sysdir, DS, DS, name) < (int)sizeof(p)) && (stat(p, &sb) == 0);
@@ -1738,7 +1967,9 @@ Private void mst_check_file(MST_CTX *cx, MST_CHECK *ck, int kind, const char *ac
       snprintf(path, sizeof(path), "%s/voc", root);
     else
       snprintf(path, sizeof(path), "%s/%s.dic", root, file);
-    if (!mst_group_writable(path)) {
+    /* The group-bit test is for a file SDSYS writes as a MEMBER of the account's group.  The SDSYS account's own files (the master files' dictionaries among them,
+       0700 since verifier F1) are the sdsys user's own, written as their owner: for them only the real test below is asked. */
+    if (strcasecmp(acct, MST_SYSTEM_ACCOUNT) != 0 && !mst_group_writable(path)) {
       mst_row(ck, "nonwritable", acct, what, file, NULL, 0);
     } else {
       /* the mode is right: can THIS session write it?  (an account made after this session began; a group SDSYS is not in) */
@@ -1799,15 +2030,18 @@ Private void mst_check_account(MST_CTX *cx, MST_CHECK *ck, const MST_ACC *a) {
   char sub[MST_FILE_MAX + MAX_ACCOUNT_NAME_LEN + 8];
   char filebuf[MST_FILE_MAX + 4];
   size_t p;
+  bool dcomplete;
 
   snprintf(prefix, sizeof(prefix), "%s*", a->name);
-  if (!mst_scan_prefixed(cx->vm, prefix, &vkeys) || !mst_scan_prefixed(cx->dm, prefix, &dkeys)) {
+  if (!mst_keys_of(cx, MST_IX_VOC, prefix, &vkeys) || !mst_keys_of(cx, MST_IX_DICT, prefix, &dkeys)) {
     mst_row(ck, "unreadable", a->name, "master", NULL, NULL, 0);
     mst_ids_free(&vkeys);
     mst_ids_free(&dkeys);
     return;
   }
-  mst_account_dicts(cx, a, &dn, &dnn);
+  dcomplete = mst_account_dicts(cx, a, &dn, &dnn);
+  if (!dcomplete)
+    mst_row(ck, "unreadable", a->name, "dict", NULL, NULL, 0); /* the list of its dictionaries is not complete: no copy is called extra below */
   mst_check_file(cx, ck, MST_VOC, a->name, a->root, "", &vkeys, strlen(prefix));
   for (i = 0; i < dnn; i++) {
     MST_IDS slice = {NULL, 0, 0, 0};
@@ -1820,7 +2054,7 @@ Private void mst_check_account(MST_CTX *cx, MST_CHECK *ck, const MST_ACC *a) {
     mst_check_file(cx, ck, MST_DICT, a->name, a->root, dn[i], &slice, strlen(sub));
     mst_ids_free(&slice);
   }
-  for (p = 0; p < dkeys.len; p += 1 + (size_t)dkeys.d[p]) {
+  for (p = 0; dcomplete && (p < dkeys.len); p += 1 + (size_t)dkeys.d[p]) {
     bool known = FALSE;
 
     if (mst_file_cmp_prefix((const char *)dkeys.d + p + 1, dkeys.d[p], a->name, filebuf, sizeof(filebuf))) {
@@ -2005,7 +2239,6 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
   long nev = 0, evcap = 0;
   long consumed;
   bool can_write = TRUE;
-  size_t p;
   char *lstart, *nl;
 
   memset(res, 0, sizeof(*res));
@@ -2089,16 +2322,7 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
     long keep = 0;
 
     for (i = 0; i < nev; i++) {
-      bool known = FALSE;
-      int a;
-
-      for (a = 0; a < acc_n; a++) {
-        if (strcasecmp(acc_tab[a].name, ev[i].acct) == 0) {
-          known = TRUE;
-          break;
-        }
-      }
-      if (known)
+      if (mst_acc_find(ev[i].acct) >= 0)
         ev[keep++] = ev[i];
       else
         res->skipped++;
@@ -2108,11 +2332,10 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
   if (nev > 1)
     qsort(ev, (size_t)nev, sizeof(MST_EVT), mst_evt_cmp);
 
-  /* the master keys of every file that is to be synced whole, found with one scan of each master */
+  /* the master keys of every file that is to be synced whole, found with one scan of each master (an index, so that each file's keys are found by a search) */
   {
-    MST_IDS vall = {NULL, 0, 0, 0};
-    MST_IDS dall = {NULL, 0, 0, 0};
-    bool need_v = FALSE, need_d = FALSE;
+    MST_INDEX vall, dall;
+    bool need_v = FALSE, need_d = FALSE, have_v = FALSE, have_d = FALSE;
     long j;
 
     for (i = 0; i < nev; i++) {
@@ -2123,15 +2346,16 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
       else
         need_d = TRUE;
     }
-    if (need_v && !mst_scan_ids(cx->vm, &vall))
+    if (need_v && !(have_v = mst_index_build(cx->vm, &vall)))
       cx->errs++;
-    if (need_d && !mst_scan_ids(cx->dm, &dall))
+    if (need_d && !(have_d = mst_index_build(cx->dm, &dall)))
       cx->errs++;
 
     for (i = 0; i < nev;) {
       MST_EVT *e = &ev[i];
       bool filelevel = (e->op != 'w') && (e->op != 'd');
-      const MST_ACC *a = mst_acc_by_name(e->acct);
+      MST_ACC acc; /* a copy: see the note on acc_tab */
+      const MST_ACC *a = mst_acc_by_name(e->acct, &acc) ? &acc : NULL;
       int kind = (e->kind == 'v') ? MST_VOC : MST_DICT;
 
       if (a == NULL) {
@@ -2142,16 +2366,13 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
       if (filelevel) {
         MST_IDS slice = {NULL, 0, 0, 0};
         char sub[MST_FILE_MAX + MAX_ACCOUNT_NAME_LEN + 8];
-        const MST_IDS *src = (kind == MST_VOC) ? &vall : &dall;
 
         if (kind == MST_VOC)
           snprintf(sub, sizeof(sub), "%s*", a->name);
         else
           snprintf(sub, sizeof(sub), "%s*%s*", a->name, e->file);
-        for (p = 0; p < src->len; p += 1 + (size_t)src->d[p]) {
-          if ((src->d[p] >= strlen(sub)) && (strncasecmp((const char *)src->d + p + 1, sub, strlen(sub)) == 0))
-            (void)mst_ids_add(&slice, (const char *)src->d + p + 1, src->d[p]);
-        }
+        if ((kind == MST_VOC) ? have_v : have_d)
+          (void)mst_index_slice((kind == MST_VOC) ? &vall : &dall, sub, &slice);
         mst_sync_file(cx, kind, a->name, a->root, e->file, &slice, strlen(sub));
         mst_ids_free(&slice);
         res->files++;
@@ -2172,8 +2393,10 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
         i = k + 1;
       }
     }
-    mst_ids_free(&vall);
-    mst_ids_free(&dall);
+    if (have_v)
+      mst_index_free(&vall);
+    if (have_d)
+      mst_index_free(&dall);
   }
   free(ev);
   res->errs = cx->errs;
@@ -2185,6 +2408,18 @@ Private int mst_drain(MST_CTX *cx, long start, MST_DRAIN *res) {
     if ((fstat(fd, &st) == 0) && ((long)st.st_size == consumed) && (ftruncate(fd, 0) == 0)) {
       res->offset_after = 0;
       res->compacted = 1;
+    }
+    EndExclusive(ERRLOG_SEM);
+  } else if (can_write && (consumed < (long)st.st_size)) {
+    /* The journal ends in a line with no newline (a writer that died half way, or one forged: the file is group-writable by every SD user so that they can
+       append).  The next appended line would be glued to it and both refused, and a legitimate change would be lost from the journal.  End the line: it is then a
+       line of its own, refused by the next drain.  Under the semaphore every SD appender takes, so no line is being written as we look. */
+    StartExclusive(ERRLOG_SEM, 74);
+    if ((fstat(fd, &st) == 0) && ((long)st.st_size > consumed)) {
+      char last = '\n';
+
+      if ((pread(fd, &last, 1, st.st_size - 1) == 1) && (last != '\n'))
+        (void)pwrite(fd, "\n", 1, st.st_size);
     }
     EndExclusive(ERRLOG_SEM);
   }
@@ -2275,6 +2510,29 @@ Private void mst_fld_s(MST_BUF *b, const char *s) {
   mst_buf_str(b, s);
 }
 
+/* a number after a value mark, inside a field */
+Private void mst_vm_num(MST_BUF *b, long v) {
+  mst_buf_add(b, (const char *)&(char){MST_VM}, 1);
+  mst_buf_num(b, v);
+}
+
+/* A copy of the whole table of accounts, read afresh, for an operation that goes through every account (the caller frees it).  A copy, because the table is replaced
+   whenever anything in the process classifies a path (see the note on acc_tab).  NULL when there is no account or no memory. */
+Private MST_ACC *mst_acc_snapshot(int *n) {
+  MST_ACC *c;
+
+  *n = 0;
+  mst_acc_load();
+  if (acc_n <= 0)
+    return NULL;
+  c = (MST_ACC *)malloc(sizeof(MST_ACC) * (size_t)acc_n);
+  if (c == NULL)
+    return NULL;
+  memcpy(c, acc_tab, sizeof(MST_ACC) * (size_t)acc_n);
+  *n = acc_n;
+  return c;
+}
+
 /* the set-up state: the journal and the three masters are there */
 Private bool mst_is_set_up(void) {
   char p[MAX_PATHNAME_LEN + 1];
@@ -2303,19 +2561,19 @@ Private void mst_init(MST_BUF *out) {
   int fd;
   struct stat sb;
   uid_t want_uid = (uid_t)-1;
-  gid_t sdusers_gid = (gid_t)-1, sdsys_gid = (gid_t)-1;
+  gid_t sdusers_gid = (gid_t)-1, sys_gid = (gid_t)-1;
   struct passwd *pw;
   struct group *gr;
   const char *names[3] = {MST_VOC_MASTER, MST_DICT_MASTER, MST_STATE};
   int i, j;
   long modes = 0;
 
-  if ((pw = getpwnam("sdsys")) != NULL)
+  if ((pw = getpwnam("sdsys")) != NULL) {
     want_uid = pw->pw_uid;
+    sys_gid = pw->pw_gid; /* the sdsys user's own group.  (There is NO group called sdsys: asking for one gave -1 and the files kept the group of the process that made them.) */
+  }
   if ((gr = getgrnam("sdusers")) != NULL)
     sdusers_gid = gr->gr_gid;
-  if ((gr = getgrnam("sdsys")) != NULL)
-    sdsys_gid = gr->gr_gid;
 
   if (!mst_sysfile(MST_JOURNAL_NAME, p, sizeof(p))) {
     mst_buf_str(out, "nojournalpath");
@@ -2339,7 +2597,9 @@ Private void mst_init(MST_BUF *out) {
     close(fd);
     modes++;
   }
-  /* the master files and their dictionaries: SDSYS and its group only */
+  /* The master files and their dictionaries: THE SDSYS USER ALONE (verifier F1).  They hold every account's Q-pointer paths and I-types, and nothing but the
+     administrator's session may read them: no group bit and no other bit, whatever group the process that made them was in (an SDSYS session is in sdusers, which
+     every SD user is in - the group these files used to get, with group rwx).  Root bypasses the mode, and the installer's root session hands them to sdsys. */
   for (i = 0; i < 3; i++) {
     for (j = 0; j < 2; j++) {
       char dirpath[MAX_PATHNAME_LEN + 16];
@@ -2350,19 +2610,19 @@ Private void mst_init(MST_BUF *out) {
       snprintf(dirpath, sizeof(dirpath), "%s%s", p, (j == 0) ? "" : ".dic");
       if (stat(dirpath, &sb) != 0)
         continue;
-      if (chmod(dirpath, 0770) == 0)
+      if (chmod(dirpath, 0700) == 0)
         modes++;
       if (getuid() == 0)
-        (void)chown(dirpath, want_uid, sdsys_gid);
+        (void)chown(dirpath, want_uid, sys_gid);
       for (k = 0; k < 2; k++) {
         if (snprintf(q, sizeof(q), "%s/%%%d", dirpath, k) >= (int)sizeof(q))
           continue;
         if (stat(q, &sb) != 0)
           continue;
-        if (chmod(q, 0660) == 0)
+        if (chmod(q, 0600) == 0)
           modes++;
         if (getuid() == 0)
-          (void)chown(q, want_uid, sdsys_gid);
+          (void)chown(q, want_uid, sys_gid);
       }
     }
   }
@@ -2550,14 +2810,14 @@ void masters_request(const char *req, DESCRIPTOR *result) {
     mst_fld(&out, dr.bad + dr.skipped);
     mst_fld(&out, dr.compacted);
   } else if (strcmp(op, "sync") == 0) {
-    const MST_ACC *a = mst_acc_by_name(arg);
+    MST_ACC acc;
     MST_SYNCRES r;
 
-    if (a == NULL) {
+    if (!mst_acc_by_name(arg, &acc)) {
       mst_status(&out, MSA_NOACC);
     } else {
       memset(&r, 0, sizeof(r));
-      (void)mst_sync_account(&cx, a, &r);
+      (void)mst_sync_account(&cx, &acc, &r);
       mst_status(&out, MSA_OK);
       mst_fld(&out, r.voc);
       mst_fld(&out, r.dfiles);
@@ -2566,6 +2826,32 @@ void masters_request(const char *req, DESCRIPTOR *result) {
       mst_fld(&out, r.removed);
       mst_fld(&out, r.notmirrored);
       mst_fld(&out, r.errs);
+    }
+  } else if (strcmp(op, "syncall") == 0) {
+    /* Every registered account in ONE call (verifier F7): each master file is read once, into an index, and each account's keys are found in it.  One field per
+       account, in the order of "accounts": its name, then the seven numbers "sync" gives, separated by value marks. */
+    int n = 0, i;
+    MST_ACC *all = mst_acc_snapshot(&n);
+
+    mst_status(&out, MSA_OK);
+    if (all != NULL) {
+      mst_ctx_index(&cx, TRUE);
+      for (i = 0; i < n; i++) {
+        MST_SYNCRES r;
+
+        memset(&r, 0, sizeof(r));
+        (void)mst_sync_account(&cx, &all[i], &r);
+        mst_buf_add(&out, (const char *)&(char){MST_FM}, 1);
+        mst_buf_str(&out, all[i].name);
+        mst_vm_num(&out, r.voc);
+        mst_vm_num(&out, r.dfiles);
+        mst_vm_num(&out, r.drecs);
+        mst_vm_num(&out, r.wrote);
+        mst_vm_num(&out, r.removed);
+        mst_vm_num(&out, r.notmirrored);
+        mst_vm_num(&out, r.errs);
+      }
+      free(all);
     }
   } else if (strcmp(op, "syncbegin") == 0) {
     char jp[MAX_PATHNAME_LEN + 1];
@@ -2599,20 +2885,27 @@ void masters_request(const char *req, DESCRIPTOR *result) {
     memset(&ck, 0, sizeof(ck));
     mst_acc_load();
     if (arg[0] != '\0') {
-      const MST_ACC *a = mst_acc_by_name(arg);
+      MST_ACC acc;
 
-      if (a == NULL) {
+      if (!mst_acc_by_name(arg, &acc)) {
         mst_status(&out, MSA_NOACC);
         mst_ctx_close(&cx);
         mst_answer(result, &out);
         return;
       }
-      mst_check_account(&cx, &ck, a);
+      mst_check_account(&cx, &ck, &acc);
       accounts = 1;
     } else {
-      for (i = 0; i < acc_n; i++) {
-        mst_check_account(&cx, &ck, &acc_tab[i]);
-        accounts++;
+      int n = 0;
+      MST_ACC *all = mst_acc_snapshot(&n);
+
+      if (all != NULL) {
+        mst_ctx_index(&cx, FALSE); /* each master read once, not once per account (verifier F7) */
+        for (i = 0; i < n; i++) {
+          mst_check_account(&cx, &ck, &all[i]);
+          accounts++;
+        }
+        free(all);
       }
       mst_check_orphans(&cx, &ck);
     }
@@ -2649,7 +2942,8 @@ void masters_request(const char *req, DESCRIPTOR *result) {
 /* The reason for the last refusal, as a sentence: set by mst_refuse(), read by op_write and op_delete (masters_refusal_text) */
 Private char mst_refusal_buf[1400];
 
-/* Messages 11580 to 11592 are written for C: printf's %s where the arguments go, three at most (test-masters-units.py holds them to that). */
+/* Messages 11580 to 11592, 11595 and 11596 are written for C: printf's %s where the arguments go, three at most (test-masters-units.py holds them to that, and to
+   the room k_error gives a message: 231 characters once the arguments are in). */
 #define MSG_BADKEY 11580
 #define MSG_NOACCOUNT 11581
 #define MSG_NOFILE 11582
@@ -2663,6 +2957,8 @@ Private char mst_refusal_buf[1400];
 #define MSG_NOTADMIN 11590
 #define MSG_WRITEFAIL 11591
 #define MSG_NOSTATE 11592
+#define MSG_NOLOCK 11595
+#define MSG_NOTREAD 11596
 
 Private int mst_refuse(int msg, const char *a, const char *b, const char *c) {
   snprintf(mst_refusal_buf, sizeof(mst_refusal_buf), sysmsg(msg), (a != NULL) ? a : "", (b != NULL) ? b : "", (c != NULL) ? c : "");
@@ -2673,11 +2969,14 @@ const char *masters_refusal_text(void) {
   return mst_refusal_buf;
 }
 
-/* a key as it can be shown: a control byte or a byte above DEL is a question mark, and it is cut short */
-Private void mst_shown(char *dst, size_t dsz, const char *s, int len) {
+/* a key as it can be shown: a control byte or a byte above DEL is a question mark, and it is cut short (at 60: with the account, a group or a user beside it the
+   sentence has to fit what k_error has room for, and the part that says nothing was changed must not be the part that is cut off) */
+#define MST_SHOWN_MAX 60
+#define MST_SHOWN_AUDIT 150 /* the audit line is not a message and has the room: it names the whole id */
+Private void mst_shown(char *dst, size_t dsz, const char *s, int len, size_t most) {
   size_t i, o = 0;
 
-  for (i = 0; (i < (size_t)len) && (o + 1 < dsz) && (o < 120); i++) {
+  for (i = 0; (i < (size_t)len) && (o + 1 < dsz) && (o < most); i++) {
     unsigned char c = (unsigned char)s[i];
 
     dst[o++] = ((c < 32) || (c > 126)) ? '?' : (char)c;
@@ -2717,10 +3016,117 @@ Private void mst_account_file_path(int kind, const char *root, const char *file,
     snprintf(out, outsz, "%s%c%s.dic", root, DS, file);
 }
 
+/* ----------------------------------------------------------------------
+   WHAT THIS SESSION HAS READ (verifier F3).  A save of a master record is an edit of a record the session READ, and it is judged against that record: the account's
+   record must still be the one that was read.  op_read tells us (masters_note_read) of every read of voc_master or dict_master: the key and the checksum of what came
+   back, or "" for a record that was not there.  The last MST_READ_N keys are kept, in a ring; a key that has fallen out of it counts as not read, and the save is refused
+   with a message that says to read it again.  Nothing here is shared: it is this process's memory.                                                                 */
+#define MST_READ_N 128
+
+typedef struct {
+  unsigned char kind; /* MST_VOC or MST_DICT; 0 for a slot never used */
+  unsigned char idlen;
+  char id[256];
+  char cks[17]; /* the checksum of the record as it was read; "" when the read found none */
+} MST_READ;
+
+Private MST_READ mst_reads[MST_READ_N];
+Private int mst_read_next = 0;
+
+Private MST_READ *mst_read_find(int kind, const char *id, int id_len) {
+  int i;
+
+  for (i = 0; i < MST_READ_N; i++) {
+    MST_READ *r = &mst_reads[i];
+
+    if ((r->kind == kind) && ((int)r->idlen == id_len) && (mst_id_cmp(r->id, r->idlen, id, id_len) == 0))
+      return r;
+  }
+  return NULL;
+}
+
+Private void mst_read_put(int kind, const char *id, int id_len, const char *cks) {
+  MST_READ *r;
+
+  if ((id_len < 1) || (id_len > 255))
+    return;
+  if ((r = mst_read_find(kind, id, id_len)) == NULL) {
+    r = &mst_reads[mst_read_next];
+    mst_read_next = (mst_read_next + 1) % MST_READ_N;
+  }
+  r->kind = (unsigned char)kind;
+  r->idlen = (unsigned char)id_len;
+  memcpy(r->id, id, (size_t)id_len);
+  snprintf(r->cks, sizeof(r->cks), "%s", cks);
+}
+
+/* op_read calls this after every read of a DYNAMIC file (the one place a program's READ, READU, READV and MATREAD all pass).  A file that is not voc_master or dict_master
+   costs the test of one bit once the file's name has been looked at (mst_master_kind sets it). */
+void masters_note_read(DH_FILE *dh, const char *id, int id_len, STRING_CHUNK *rec, int err) {
+  int kind;
+  char cks[17];
+
+  if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
+    return;
+  if ((kind = mst_master_kind(dh)) == 0)
+    return;
+  if (err == 0)
+    mst_checksum(rec, cks);
+  else if (err == DHE_RECORD_NOT_FOUND)
+    cks[0] = '\0';
+  else
+    return;
+  mst_read_put(kind, id, id_len, cks);
+}
+
+/* ----------------------------------------------------------------------
+   THE COMPARISON INSIDE THE WRITE (verifier F4).  mst_deliver has compared the account's record with what the session read; between that and its write an account's
+   user may WRITE the record with a plain WRITE, which takes no record lock and which the try-lock therefore cannot see.  So mst_deliver arms this (masters_cas_on, the
+   file, the key and the checksum it accepted) and dh_write, when it has the record's group locked and has found the record - or found there is none - asks
+   masters_cas_check before it changes a byte.  A different checksum fails the write with DHE_MASTER_REFUSED and the words of message 11583 are in the refusal buffer;
+   nothing has been changed.  It answers for the one write that was armed for it - the file and the key must be the ones armed - and is spent when it has answered. */
+int masters_cas_on = 0;
+
+Private struct {
+  DH_FILE *dh;
+  char id[256];
+  int idlen;
+  char expect[17]; /* the checksum the account's record must have; "" for a record that must not be there */
+  char keytxt[64];
+  char acct[MAX_ACCOUNT_NAME_LEN + 4];
+} mst_cas;
+
+int masters_cas_check(DH_FILE *dh, const char *id, int id_len, STRING_CHUNK *current, bool found) {
+  char cks[17];
+
+  if (!masters_cas_on || (dh != mst_cas.dh) || (id_len != mst_cas.idlen) || (memcmp(id, mst_cas.id, (size_t)id_len) != 0))
+    return 0; /* not the write that was armed */
+  masters_cas_on = 0;
+  if (found)
+    mst_checksum(current, cks);
+  else
+    cks[0] = '\0';
+  if (strcmp(cks, mst_cas.expect) == 0)
+    return 0;
+  return mst_refuse(MSG_CHANGED, mst_cas.keytxt, mst_cas.acct, NULL);
+}
+
+/* The way out of mst_deliver for every refusal made after the lock was asked for (a refactor of five copies of the same three lines, 19 Oct 26): the lock goes back when THIS
+   call took it, what the call opened is closed, and the words are those of MSG with its arguments.  MSG 0: the refusal buffer holds the words already (the comparison inside
+   the write set them) and only the status is returned. */
+Private int mst_deliver_stop(MST_CTX *cx, FILE_VAR *fv, bool took, const char *rid, int rid_len, int msg, const char *a, const char *b, const char *c) {
+  if (took)
+    unlock_record(fv, (char *)rid, (int16_t)rid_len);
+  mst_ctx_close(cx);
+  if (msg == 0)
+    return DHE_MASTER_REFUSED;
+  return mst_refuse(msg, a, b, c);
+}
+
 /* SDSYS saves the record ID of voc_master (WHICH = MST_VOC) or dict_master (MST_DICT): the whole of D7.  0 to go on and write the master record too,
    else DHE_MASTER_REFUSED with nothing changed anywhere.  Called by dh_write before it does anything. */
 Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
-  char keytxt[160];
+  char keytxt[MST_SHOWN_MAX + 4];
   char acct[MAX_ACCOUNT_NAME_LEN + 4];
   char file[MST_FILE_MAX + 4];
   char path[MAX_PATHNAME_LEN + 16];
@@ -2732,16 +3138,18 @@ Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
   char line[1000], idtxt[160], filetxt[MST_FILE_MAX + 12], whattxt[MST_FILE_MAX + MAX_ACCOUNT_NAME_LEN + 40];
   char num[32];
   const char *p1, *p2, *rid;
-  int rid_len, acctlen, filelen, mk, svl, why, lk;
-  const MST_ACC *a;
+  int rid_len, acctlen, filelen, mk, svl, why, lk, k;
+  MST_ACC acc; /* a COPY of the account's table entry: the table is read again inside the write below (see the note on acc_tab) */
+  const MST_ACC *a = &acc;
   MST_CTX cx;
   DH_FILE *adh;
   FILE_VAR fv;
   STRING_CHUNK *rec;
-  bool found, took = FALSE;
+  MST_READ *rd;
+  bool found, took = FALSE, wok;
 
   mst_refusal_buf[0] = '\0';
-  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);
 
   /* 1 the administrator, signed on at a terminal, and nobody else */
   if ((my_uptr == NULL) || !(my_uptr->flags & USR_ADMIN))
@@ -2770,20 +3178,38 @@ Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
   }
   if ((rid_len < 1) || (rid_len > 255) || !mst_valid_account_name(acct))
     return mst_refuse(MSG_BADKEY, keytxt, NULL, NULL);
-  mst_shown(idtxt, sizeof(idtxt), rid, rid_len);
+  mst_shown(idtxt, sizeof(idtxt), rid, rid_len, MST_SHOWN_AUDIT);
 
   /* the account must be registered (the register is read afresh for a name the administrator gives) */
-  if ((a = mst_acc_by_name(acct)) == NULL)
+  if (!mst_acc_by_name(acct, &acc))
     return mst_refuse(MSG_NOACCOUNT, keytxt, acct, NULL);
-  snprintf(filetxt, sizeof(filetxt), "%s", (which == MST_VOC) ? "voc" : "");
-  if (which == MST_DICT)
-    snprintf(filetxt, sizeof(filetxt), "%s.dic", file);
-  snprintf(whattxt, sizeof(whattxt), "%s of %s", (which == MST_VOC) ? "VOC" : filetxt, a->name); /* "VOC of zmone", "zmf9.dic of zmone" */
 
   memset(&cx, 0, sizeof(cx));
   if (!mst_master_path(MST_STATE, path, sizeof(path)) || ((cx.st = mst_open_path(path)) == NULL))
     return mst_refuse(MSG_NOSTATE, keytxt, "master_state", NULL);
   adh = mst_acct_file(&cx, which, a->root, file);
+  if ((adh == NULL) && cx.last_absent && (which == MST_DICT)) {
+    /* The key's file part is case blind like the master file, and every dictionary SD makes is named in lower case: ZMONE*ZMF3*X is zmone's zmf3.dic.  (A dictionary
+       that is really there under a capital was found by the first try.) */
+    for (k = 0; file[k] != '\0'; k++) {
+      if ((file[k] >= 'A') && (file[k] <= 'Z')) {
+        for (; file[k] != '\0'; k++)
+          file[k] = (char)tolower((unsigned char)file[k]);
+        adh = mst_acct_file(&cx, which, a->root, file);
+        break;
+      }
+    }
+  }
+  snprintf(filetxt, sizeof(filetxt), "%s", (which == MST_VOC) ? "voc" : "");
+  if (which == MST_DICT)
+    snprintf(filetxt, sizeof(filetxt), "%s.dic", file);
+  snprintf(whattxt, sizeof(whattxt), "%s of %s", (which == MST_VOC) ? "VOC" : filetxt, a->name); /* "VOC of zmone", "zmf9.dic of zmone" */
+  if (strlen(whattxt) > 60) {
+    whattxt[57] = '.';
+    whattxt[58] = '.';
+    whattxt[59] = '.';
+    whattxt[60] = '\0'; /* the sentence has the room k_error gives it, and no more */
+  }
   mst_account_file_path(which, a->root, file, path, sizeof(path));
   if (adh == NULL) {
     if (cx.last_absent) {
@@ -2823,48 +3249,65 @@ Private int mst_deliver(int which, char *id, int id_len, STRING_CHUNK *data) {
     if (lk != 0) {
       snprintf(num, sizeof(num), "%d", lk);
       mst_ctx_close(&cx);
-      return mst_refuse(MSG_LOCKED, keytxt, (lk > 0) ? num : "the lock table is full or the limit is reached", NULL);
+      if (lk > 0)
+        return mst_refuse(MSG_LOCKED, keytxt, num, NULL);
+      return mst_refuse(MSG_NOLOCK, keytxt, NULL, NULL); /* the lock table is full, a deadlock was seen or the limit is reached: no user holds it */
     }
     took = TRUE;
   }
 
-  /* 5 the account's record as it is NOW against the checksum master_state holds for it */
+  /* 5 the account's record as it is NOW against the record this session READ (verifier F3).  master_state is the version of the last DRAIN, and a drain that
+     comes between the read and the save - a second open of the master, CHECK.MASTERS - moves it to the account's newer record; compared with that, a save made from
+     the older copy would overwrite the account's change.  So the comparison is with what the session read (masters_note_read).  A key it did not read counts as
+     not read: it may create a record (the account has none and master_state has none), and may not overwrite one. */
   memset(actual, 0, sizeof(actual));
   rec = dh_read(adh, (char *)rid, (int16_t)rid_len, actual);
   found = (dh_err == 0);
   if (!found && (dh_err != DHE_RECORD_NOT_FOUND)) {
     k_deref_string(rec);
-    if (took)
-      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
-    mst_ctx_close(&cx);
-    return mst_refuse(MSG_NOSTATE, keytxt, "the account's record", NULL);
+    return mst_deliver_stop(&cx, &fv, took, rid, rid_len, MSG_NOSTATE, keytxt, "the account's record", NULL);
   }
   if (found)
     mst_checksum(rec, cks);
   else
     cks[0] = '\0';
   k_deref_string(rec);
-  (void)mst_state_get(&cx, skey, mk + 2, scks);
-  if (strcmp(cks, scks) != 0) {
-    if (took)
-      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
-    mst_ctx_close(&cx);
-    return mst_refuse(MSG_CHANGED, keytxt, a->name, NULL);
+  rd = mst_read_find(which, (const char *)id, id_len);
+  if (rd != NULL) {
+    if (strcmp(cks, rd->cks) != 0) /* the account's record is no longer the one that was read */
+      return mst_deliver_stop(&cx, &fv, took, rid, rid_len, MSG_CHANGED, keytxt, a->name, NULL);
+  } else {
+    (void)mst_state_get(&cx, skey, mk + 2, scks);
+    if (cks[0] != '\0') /* not read, and the account has the record */
+      return mst_deliver_stop(&cx, &fv, took, rid, rid_len, MSG_NOTREAD, keytxt, NULL, NULL);
+    if (scks[0] != '\0') /* not read, the account has none now, and master_state remembers that it had one: the account deleted it */
+      return mst_deliver_stop(&cx, &fv, took, rid, rid_len, MSG_CHANGED, keytxt, a->name, NULL);
   }
 
-  /* 6 write the account's own file, here, like any other writer (dh_write journals it for the drain, and keeps its indices) */
-  if (!dh_write(adh, (char *)rid, (int16_t)rid_len, data)) {
+  /* 6 write the account's own file, here, like any other writer (dh_write journals it for the drain, and keeps its indices).  The comparison is made AGAIN inside the
+     write, under the file's own lock on the record's group (masters_cas_check, called by dh_write when it has found the record or found there is none): a plain WRITE by
+     the account's user needs no record lock, and one that landed after the test above would have been overwritten without a sign (verifier F4). */
+  snprintf(mst_cas.expect, sizeof(mst_cas.expect), "%s", cks);
+  snprintf(mst_cas.keytxt, sizeof(mst_cas.keytxt), "%s", keytxt);
+  snprintf(mst_cas.acct, sizeof(mst_cas.acct), "%s", a->name);
+  memcpy(mst_cas.id, rid, (size_t)rid_len);
+  mst_cas.idlen = rid_len;
+  mst_cas.dh = adh;
+  masters_cas_on = 1;
+  wok = dh_write(adh, (char *)rid, (int16_t)rid_len, data);
+  masters_cas_on = 0;
+  if (!wok) {
+    if ((int)dh_err == DHE_MASTER_REFUSED) /* the comparison in the write refused it, and its words are in the refusal buffer already */
+      return mst_deliver_stop(&cx, &fv, took, rid, rid_len, 0, NULL, NULL, NULL);
     snprintf(num, sizeof(num), "%d", (int)dh_err);
-    if (took)
-      unlock_record(&fv, (char *)rid, (int16_t)rid_len);
-    mst_ctx_close(&cx);
-    return mst_refuse(MSG_WRITEFAIL, keytxt, num, NULL);
+    return mst_deliver_stop(&cx, &fv, took, rid, rid_len, MSG_WRITEFAIL, keytxt, num, NULL);
   }
 
-  /* 7 master_state follows, so that a second save with no re-read in between is not refused as a change */
+  /* 7 master_state follows, and so does what this session has read of the key, so that a second save with no re-read in between is not refused as a change */
   mst_checksum(data, ncks);
   svl = snprintf(sv, sizeof(sv), "%s%c%lld%c", ncks, MST_FM, (long long)time(NULL), MST_FM);
   (void)mst_put(cx.st, skey, mk + 2, sv, svl);
+  mst_read_put(which, (const char *)id, id_len, ncks);
 
   /* 8 the lock goes back */
   if (took)
@@ -2900,26 +3343,26 @@ int masters_before_write(DH_FILE *dh, char *id, int id_len, STRING_CHUNK *data) 
 /* A DELETE of a master record is refused: the plan says SDSYS SAVES a master record, and deleting a copy is not deleting the account's record.  (The
    owner can decide that a delete should be delivered; it is a different act, and it is not decided.) */
 int masters_before_delete(DH_FILE *dh, char *id, int id_len) {
-  char keytxt[160];
+  char keytxt[MST_SHOWN_MAX + 4];
 
   if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
     return 0;
   if ((mst_master_kind(dh) == 0) || (mst_inside > 0))
     return 0;
-  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);
   return mst_refuse(MSG_DELETE, keytxt, NULL, NULL);
 }
 
 /* A write or a delete of a master record inside a transaction: the statement is refused before it reaches the transaction's cache, because the DH layer
    sees it only at COMMIT, where a refusal would come half way through the other writes of the transaction. */
 int masters_txn_refusal(DH_FILE *dh, char *id, int id_len) {
-  char keytxt[160];
+  char keytxt[MST_SHOWN_MAX + 4];
 
   if ((dh == NULL) || (dh->flags & DHF_MST_NOMASTER))
     return 0;
   if ((mst_master_kind(dh) == 0) || (mst_inside > 0))
     return 0;
-  mst_shown(keytxt, sizeof(keytxt), id, id_len);
+  mst_shown(keytxt, sizeof(keytxt), id, id_len, MST_SHOWN_MAX);
   return mst_refuse(MSG_TXN, keytxt, NULL, NULL);
 }
 
