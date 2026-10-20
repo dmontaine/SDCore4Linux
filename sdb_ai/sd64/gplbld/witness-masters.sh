@@ -293,7 +293,9 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     # a user in an ORDINARY umask-077 session makes a dictionary: SD gives its group the write bit
     OUT4=$(run_user "$A1" "UMASK 077, then CREATE.FILE zzfile (a dictionary made under a closed umask)" "UMASK 077" "CREATE.FILE zzfile DYNAMIC")
     DM="$(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile.dic" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile.dic/%0" 2>/dev/null) $(stat -c '%a' "$ACCOUNTS_ROOT/$A1/zzfile" 2>/dev/null)"
-    ck "3j the dictionary made under UMASK 077 has its GROUP bits (2770, 660) and the data file next to it does not (700)" "2770 660 700" "$DM"
+    # 19 Oct 26: the expected data directory is 2700, not 700: the account's directory is setgid, a directory made under it inherits the bit (the first real run said 2700),
+    # and what the row is about - no GROUP read, write or search bit - holds either way.
+    ck "3j the dictionary made under UMASK 077 has its GROUP bits (2770, 660) and the data file's directory next to it does not (2700: owner only, with the setgid bit it inherits)" "2770 660 2700" "$DM"
 elif [ "$COMMIT" -eq 1 ]; then
     for r in "3b sdsys in the group" "3c owner and group" "3d modes" "3e the edit reaches the VOC" "3f audit line" "3g owner kept" "3h check" "3i no norights" "3j dictionary modes"; do not_reached "$r"; done
 fi
@@ -317,11 +319,14 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     ck "4b the register record of $A2 exists, and sdsys is in sdu_$A2 by /etc/group" "yes yes" "$(yesno_path "$REGISTER/$A2") $(has_member "sdu_$A2" sdsys)"
     if [ "$MADE_A2" -eq 1 ]; then
         : > "$WORK/stale.mark"
-        printf '%s\n' "ED voc_master $A2*zzstale" "I" "X" "written by the old session" "" "FI" "CHECK.MASTERS $A2" >&3
+        # 19 Oct 26: after the refused FI the editor is STILL OPEN with the record changed (the first real run typed CHECK.MASTERS into ED: "Invalid string delimiter").
+        # EX asks "Record changed - OK to quit?" and Y answers it; only then is the next line a TCL command.
+        printf '%s\n' "ED voc_master $A2*zzstale" "I" "X" "written by the old session" "" "FI" "EX" "Y" "CHECK.MASTERS $A2" >&3
         sleep 8
         STALE_TEXT=$(sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g' "$OUT_STALE")
         printf '%s\n' "$STALE_TEXT" | sed -e 's/^/      | /' >&2
-        ck_says "4c the OLD session's save is refused and says why (11586: this session began before sdsys was put in the group)" "this session began before sdsys was put in group sdu_$A2" "$STALE_TEXT"
+        # 19 Oct 26: message 11586 says "joined group" (the verifier round reworded it); the script still had the first draft's "was put in group".
+        ck_says "4c the OLD session's save is refused and says why (11586: this session began before sdsys joined the group)" "this session began before sdsys joined group sdu_$A2" "$STALE_TEXT"
         OUT5=$(run_user "$A2" "the user looks for the record" "CT VOC zzstale")
         ck_silent "4d ...and the account's VOC has no such record: nothing was changed" "written by the old session" "$OUT5"
         ck_says "4e CHECK.MASTERS in the old session says norights, with the reason stale-session" "norights: $A2 voc stale-session" "$STALE_TEXT"
@@ -347,7 +352,8 @@ if [ "$COMMIT" -eq 1 ] && [ "$CREATED1" -eq 1 ]; then
     # break it as an old install would have it: no group write on the VOC and the dictionary, and sdsys out of the group
     chmod 0755 "$A/voc" "$A/zzfile.dic" 2>/dev/null; chmod 0644 "$A/voc/%0" "$A/voc/%1" "$A/zzfile.dic/%0" "$A/zzfile.dic/%1" 2>/dev/null
     gpasswd -d sdsys "sdu_$A1" >/dev/null 2>&1
-    ck "5a (control) broken: sdsys is out of sdu_$A1, and the VOC is 755 / 644" "no 755 644" "$(has_member "sdu_$A1" sdsys) $(stat -c '%a' "$A/voc") $(stat -c '%a' "$A/voc/%0")"
+    # 19 Oct 26: chmod 0755 on a setgid directory keeps the setgid bit (GNU chmod), so stat says 2755 (the first real run), as 5h below says 2775 after the repair.
+    ck "5a (control) broken: sdsys is out of sdu_$A1, and the VOC is 755 (setgid kept: 2755) / 644" "no 2755 644" "$(has_member "sdu_$A1" sdsys) $(stat -c '%a' "$A/voc") $(stat -c '%a' "$A/voc/%0")"
     OUT=$(run_sd "CHECK.MASTERS $A1 (a fresh session: sdsys is not in the group any more)" "CHECK.MASTERS $A1")
     ck_says "5b CHECK.MASTERS lists the VOC as nonwritable" "nonwritable: $A1 voc" "$OUT"
     ck_says "5c ...and the dictionary" "nonwritable: $A1 dict zzfile" "$OUT"
