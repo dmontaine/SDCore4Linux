@@ -877,6 +877,12 @@ def stub(name, argv):
         return 0
     if name == "openssl":
         return fake_openssl(argv)
+    if name == "pgrep":
+        # The API server processes (sd -n -q).  None in the faithful model; under "api-left-behind" one appears when a TLS 1.3 probe has been made and stays (S.71).
+        if mutant() == "api-left-behind" and os.path.exists(os.path.join(os.environ["FAKE_WORLD"], "api-left")):
+            print("424242 sd -n -q")
+            return 0
+        return 1
     sys.stderr.write("model: no stub for %s\n" % name)
     return 127
 
@@ -894,8 +900,12 @@ def fake_openssl(argv):
             if mutant() == "tls12-accepted":
                 print("New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384\n    Protocol  : TLSv1.2")
             else:
-                print("tlsv1 alert protocol version\nCipher    : (NONE)")
+                # What openssl 3 really prints for a refused TLS 1.2 handshake (seen on the VM, 19 Oct): the version it ASKED for is on the failure path too,
+                # in "Protocol: TLSv1.2" and in the SSL-Session block, next to "Cipher    : 0000".  A model without them let a row that anchored on them pass here.
+                print("tlsv1 alert protocol version\nNew, (NONE), Cipher is (NONE)\nProtocol: TLSv1.2\nSSL-Session:\n    Protocol  : TLSv1.2\n    Cipher    : 0000")
             return 0
+        if mutant() == "api-left-behind":
+            open(os.path.join(os.environ["FAKE_WORLD"], "api-left"), "w").close()   # the server process this connection started does not end
         print("New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384\n    Protocol  : TLSv1.3")
         return 0
     if sub == "x509":
@@ -960,6 +970,12 @@ def fake_probe(argv):
                 if n == 54 and mutant() == "gaps-54-allowed":
                     show(label)
                     continue
+                if n in (22, 23) and mutant() != "gaps-22-23-sent":
+                    # The real client library sends neither unless a command is executing (SDRespond / SDEndCommand test the session's context first), and a
+                    # files-only login can never be executing one, so no request reaches the server: no refusal, no abort text, no audit line.  The 19 Oct
+                    # run on the VM showed it; this model said otherwise, which is why the first version of the witness's rows passed here and failed there.
+                    show(label)
+                    continue
                 refuse_audit(n, write, user)
                 print("%s generated an abort event%s" % (name, msg(11480, n)))
                 show(label)
@@ -1016,6 +1032,13 @@ def static_checks():
         env = {k: v for k, v in os.environ.items() if not k.startswith("WL_") and not k.startswith("FAKE_")}
         r = sh(["bash", os.path.join(HERE, f)], env=env, timeout=60, input="")
         check("S5 %s run without sudo says CANNOT RUN and exits 2" % f, r.returncode == 2 and "CANNOT RUN" in r.stdout and "sudo" in r.stdout, "rc=%d %s" % (r.returncode, r.stdout[:200]))
+    # S7p (20 Oct 26).  The first real two-machine run (Debian 13 VM) stopped at SS3: the script chowned the password file to the owner and THEN wrote to it as root, and
+    # fs.protected_regular=2 (the Debian 13 and Ubuntu default) refuses root's O_CREAT open of a file in a sticky world-writable directory that somebody else owns.  The model's
+    # world has no such rule, so only the order can be tested here: write while the file is still root's, hand it over afterwards.
+    tm = read(os.path.join(HERE, "witness-sdnet-two-machines.sh")).decode("utf-8")
+    w_i = tm.find("printf '%s\\n' \"$PWS\" > \"$PWFILE\"")
+    c_i = tm.find("chown \"$SUDO_USER\" \"$PWFILE\"")
+    check("S7p witness-sdnet-two-machines.sh writes the password file BEFORE it chowns it to the owner (fs.protected_regular=2)", w_i > 0 and c_i > 0 and w_i < c_i, "write at %d, chown at %d" % (w_i, c_i))
     # the probe
     r = sh([sys.executable, os.path.join(HERE, PROBE)])
     check("S6 the probe with no arguments prints its usage and exits 2", r.returncode == 2 and "P USAGE" in r.stdout, r.stdout[:200])
@@ -1078,7 +1101,7 @@ def private_dir_checks():
     check("P2 the library makes the log with mktemp (a new file, mode 0600) and not a name worked out from the time", 'WL_LOG=$(mktemp "$WL_TMP/$prefix-' in lib and "WL_LOG=$WL_TMP/" not in lib, "wl_logged")
     two = strip_comments_sh(read(os.path.join(HERE, "witness-sdnet-two-machines.sh")).decode("utf-8"))
     check("P3 two-machines creates the password file EXCLUSIVELY (set -C: O_EXCL, which refuses a link) before it chowns it, and treats an existing one as DIRTY",
-          re.search(r'\( umask 077; set -C; : > "\$PWFILE" \) && chown', two) is not None and re.search(r'\[ -e "\$PWFILE" \] \|\| \[ -L "\$PWFILE" \] && \{ say "  DIRTY', two) is not None, "")
+          re.search(r'\( umask 077; set -C; : > "\$PWFILE" \) && printf .%s\\n. "\$PWS" > "\$PWFILE" && chown', two) is not None and re.search(r'\[ -e "\$PWFILE" \] \|\| \[ -L "\$PWFILE" \] && \{ say "  DIRTY', two) is not None, "")
     check("P3 two-machines compares the register record with what was worked out BEFORE the copy (checksum, owner, mode), not with the copy it had just put there",
           'REG_SUM=$(sha256sum -- "$WL_SDSYS/accounts/$CLIENT"' in two and "cmp -s" not in two, "Z1")
     w = World("")
@@ -1179,7 +1202,7 @@ class World:
         reg_env = dict(FAKE_WORLD=r)
         os.environ.update(reg_env)
         reg_write(self.user, os.path.join(r, "home", "user_accounts", self.user), self.user, [])
-        for name in ("sudo", "id", "getent", "gpasswd", "groupdel", "userdel", "ss", "openssl"):
+        for name in ("sudo", "id", "getent", "gpasswd", "groupdel", "userdel", "ss", "openssl", "pgrep"):
             self.wrapper(name, '#!/bin/sh\nexec python3 "$FAKE_TESTPY" --stub %s "$@"\n' % name)
         self.wrapper("chown", '#!/bin/sh\nexit 0\n')        # the model's accounts are not operating system users, and this check never runs as root
         self.wrapper("sd", '#!/bin/sh\nexec python3 "$FAKE_TESTPY" --fake-sd "$@"\n')
@@ -1398,7 +1421,9 @@ def files_route_models(selftest):
 
 GAPS_MUTANTS = [
     ("request 54 is allowed", "gaps-54-allowed", ("W1", "W3")),
+    ("requests 22 and 23 reach the server (the model of the first version)", "gaps-22-23-sent", ("W1", "W3")),
     ("TLS 1.2 is accepted", "tls12-accepted", ("T1",)),
+    ("a TLS probe leaves an API server process running (S.71)", "api-left-behind", ("T3", "R0")),
     ("a restore does not give the write group back", "restore-drops-write", ("R2",)),
     ("a restore gives the write group to a write-off archive", "restore-gives-write", ("R1",)),
 ]
@@ -1460,6 +1485,16 @@ def two_machines_models(selftest):
             r2 = client(w)
             failed = {i for i, _d in rows_of(r2.stdout)["FAIL"]}
             check("M two-machines mutant: a wrong pin still reaches the server - the client fails C5 (%s)" % ",".join(sorted(failed)), r2.returncode != 0 and any(f.startswith("C5") for f in failed), r2.stdout[-300:])
+        finally:
+            w.close()
+        w = World("api-left-behind")
+        try:
+            server_setup(w)
+            client(w)
+            r3 = w.run("witness-sdnet-two-machines.sh", "--role", "server-check")
+            failed = {i for i, _d in rows_of(r3.stdout)["FAIL"]}
+            check("M two-machines mutant: a client connection leaves an API server process running (S.71) - server-check fails SC6 (%s)" % ",".join(sorted(failed)),
+                  r3.returncode != 0 and any(f.startswith("SC6") for f in failed), r3.stdout[-400:])
         finally:
             w.close()
         # 19 Oct 26 (verifier): row Z1 compared the saved copy with the file the copy had just been copied onto, so it could only fail if cp failed.  A restore that restores NOTHING (the script's

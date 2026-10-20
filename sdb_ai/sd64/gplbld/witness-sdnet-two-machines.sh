@@ -120,7 +120,9 @@ if [ "$ROLE" = server-setup ]; then
   say ""; say "== SS3. the password file for the client =="
   # created EXCLUSIVELY (set -C: O_EXCL, which refuses a file that is there and a link, even a dangling one) in a directory every user can write into, by a script that runs as root and
   # chowns it: a link planted at this predictable name would otherwise have had its target overwritten and handed to the owner (verifier finding of 19 Oct 2026)
-  ( umask 077; set -C; : > "$PWFILE" ) && chown "$SUDO_USER" "$PWFILE" && chmod 600 "$PWFILE" && printf '%s\n' "$PWS" > "$PWFILE" || need "cannot create $PWFILE (it is there already, or the directory is not writable)"
+  # The password is written while the file is still root's and handed over afterwards: with fs.protected_regular=2 (the default on Debian 13 and Ubuntu) root's O_CREAT open of a
+  # file in a sticky world-writable directory that another user owns is refused, so chown-then-write died with "Permission denied" on the first real run (20 Oct 2026).
+  ( umask 077; set -C; : > "$PWFILE" ) && printf '%s\n' "$PWS" > "$PWFILE" && chown "$SUDO_USER" "$PWFILE" && chmod 600 "$PWFILE" || need "cannot create $PWFILE (it is there already, or the directory is not writable)"
   pass "SS3 the password is in $PWFILE (mode 0600, owner $SUDO_USER): copy it to the client machine, same path, mode 0600, with scp from your login. It is not printed here."
 
   say ""; say "== SS4. THE FACTS THE CLIENT NEEDS (type them, or read them off this screen: the hash must come to the client by a way that does not use the network under test) =="
@@ -154,6 +156,10 @@ if [ "$ROLE" = server-check ]; then
   expect_re "SC3 the record t1 is as it was" "$OUT" '^1: Smith *$'
   SOCK=$(ss -tnH state established "sport = :$PORT" 2>/dev/null | wc -l)
   expect_eq "SC4 no connection to port $PORT is left open by the client's run" "$SOCK" "0"
+  # SC6 (20 Oct 26, S.71): a client that completes the TLS handshake and closes at once can leave its server process polling at 100% of a processor, on THIS machine, where the client
+  # cannot see it.  Read only: it ends nothing.  pgrep is required, since an empty answer would pass the row.
+  command -v pgrep >/dev/null 2>&1 || need "pgrep is not installed (the SC6 row looks for API server processes)"
+  expect_eq "SC6 no API server process is left running by the client's connections (S.71)" "$(wl_api_pids | tr '\n' ' ')" ""
   AW=$(python3 "$HERE/verify-auditwords.py" --file "$WL_AUDIT" --since "$STARTED" 2>&1); AWRC=$?     # not "| tee": a pipe inside $( ) would give the status of tee
   printf '%s\n' "$AW" >&2
   expect_eq "SC5 verify-auditwords exits 0 over the records since the setup" "$AWRC" "0"

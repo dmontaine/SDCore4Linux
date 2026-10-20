@@ -89,8 +89,11 @@ def main(argv):
     else:
         c.SDCall(b'zzprobe', 0); show('20 SDCall')
         c.SDExecute(b'LIST.SERVERS', ctypes.byref(st)); show('21 SDExecute')
-        c.SDRespond(b'y', ctypes.byref(st)); show('22 SDRespond')
-        c.SDEndCommand(); show('23 SDEndCommand')
+        # The library sends 22 and 23 only while a command is executing (it tests the session's context first and returns), and a files-only login
+        # cannot be executing one, so these two calls put nothing on the wire: the server is never asked, and the script expects NO refusal for them.
+        # The server's refusal of 22 and 23 is proved on the wire by sandbox-net.py (the "never" list).
+        c.SDRespond(b'y', ctypes.byref(st)); show('22 SDRespond', '(not sent)')
+        c.SDEndCommand(); show('23 SDEndCommand', '(not sent)')
         c.SDTxn(1); show('54 SDTxn')
         c.SDOpenSeq(b'bp', b'zzprobe', 0); show('61 SDOpenSeq')
         c.SDLogto(account.encode()); show('3 SDLogto (the second 3)')

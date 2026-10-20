@@ -193,7 +193,9 @@ have_line() { printf '%s\n' "$1" | grep -a -q -E -- "$2"; }
 # ================================================================== S. set-up
 say ""; say "== S1. CREATE.ACCOUNT USER $REMOTE with the files route and the edit gates it needs =="
 MADE_USER=1; MADE_ACCOUNT=1
-OUT=$(wl_sd_admin "create.account $REMOTE" "CREATE.ACCOUNT USER $REMOTE FILES-ON VOC-ON BP-ON" "$PWO" "$PWO")
+# 19 Oct 26: DICT-ON added.  The seeding below runs ED DICT on the account's files, which SD refuses without dict.edit ("A dictionary can only be changed by an account that has
+# dict.edit"); the first real run (sdsrv, merged Dev) left ED open on that refusal, every later line was taken as ED input and 74 rows failed.  The 18 Oct private step had all four words.
+OUT=$(wl_sd_admin "create.account $REMOTE" "CREATE.ACCOUNT USER $REMOTE FILES-ON VOC-ON BP-ON DICT-ON" "$PWO" "$PWO")
 [ -e "$WL_SDSYS/accounts/$REMOTE" ] && pass "S1 the register record exists" || fail "S1 no register record for $REMOTE (the create did not happen: every later row is void)"
 id -u "$REMOTE" >/dev/null 2>&1 && pass "S1 the Linux user exists" || fail "S1 no Linux user $REMOTE"
 expect_eq "S1 the real groups: sdfiles only, no write group" "$(wl_state "$REMOTE")" "sdfiles=1 sdfileswrite=0"
