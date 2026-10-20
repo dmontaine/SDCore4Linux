@@ -1,6 +1,27 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  AN API CLIENT THAT HANGS UP AT THE WRONG MOMENT NO LONGER LEAVES ITS SERVER PROCESS RUNNING AT 100% OF A PROCESSOR.
+
+             What        The server process that answers one API connection (sd -n -q, started for each client, running as root until the
+                        client has logged in) used to go round a loop for ever if the connection ended before it had read the client's
+                        first request: it asked the operating system for input, was told the line had hung up, and asked again, using a
+                        whole processor each time. On a 2-processor test machine about half of the clients that completed the encrypted
+                        handshake and closed straight away left one behind, and so did one that closed after a single newline. A client
+                        that sent four bytes which read as a huge length made it worse: the server tried to read that many bytes and
+                        grew by about 1 MB a second, for about 27 minutes and 1.6 GB, then did the same again for the next one. Now a
+                        connection that has ended ends the session: the server stops reading and exits. CLEARINPUT, which looped the same
+                        way after a connection had gone, now returns. The first four bytes of a packet are also checked: a length below
+                        the 6-byte header or over 65,536 bytes before the client has logged in, or over the largest SD string (the same
+                        number the client library already uses) after it, ends the session at once and leaves one line in the system log.
+             Why it      No login was needed to cause it: anyone who could reach the API port could leave one spinning process per
+             matters     connection, at the cost of a connection and a few bytes, until the machine had no processor left for anyone
+                        else. Backups also refused to run while such a process was alive.
+             Does not    It does not change what a logged-in client may send (a record of up to the largest string still goes through, a
+                        20 MB one is tested), the login, or the port. It does not end a client that connects, completes the handshake
+                        and then simply says nothing: that connection stays open, idle, as it always did (a timeout for that is a
+                        separate decision). Servers started before the upgrade keep the old code until they end.
+
 19 Oct 26  SDIDX -M SAYS WHY WHEN IT CANNOT MAKE THE DIRECTORY.
 
              What        Moving the indexes of a file to a directory that cannot be made (a parent you may not write, or a path that goes
