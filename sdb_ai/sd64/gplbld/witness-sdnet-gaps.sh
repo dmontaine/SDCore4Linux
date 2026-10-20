@@ -15,9 +15,11 @@
 #   T   TLS 1.2 is REFUSED by the API port and TLS 1.3 completes (openssl s_client).  The docs say TLS 1.3 only; the unit tests read the source and the relay test uses
 #       a local server, so the real listener had not been asked.
 #   W   the wire probe as a FILES-ONLY login (sdfiles, not sdapi) sends the requests the allow table refuses whether or not the write group is on - 20 call, 21 execute,
-#       22 respond, 23 end command, 54 transaction, 61 open sequential file, and a SECOND 3 (SDLogto) - and every one is refused with message 11480 and the audit line
-#       "api refused request=N route=sdfiles write=<off|on>"; a read still works.  Run twice: files-on alone, then files-write-on.  (Request 29 has no function in the client
-#       library: gplbld/sandbox-req29.py sends it on the wire, and this script does not.)
+#       54 transaction, 61 open sequential file, and a SECOND 3 (SDLogto) - and every one is refused with message 11480 and the audit line
+#       "api refused request=N route=sdfiles write=<off|on>"; a read still works.  Run twice: files-on alone, then files-write-on.  22 respond and 23 end command are
+#       called too but the client library sends them only while a command is executing, so they are checked to put NOTHING on the wire (no 11480 text, no audit line);
+#       the server's refusal of them is gplbld/sandbox-net.py's, on the wire.  (Request 29 has no function in the client library either: gplbld/sandbox-req29.py
+#       sends it on the wire, and this script does not.)
 #   A   verify-auditwords.py over the REAL audit file, judged from the moment this script started: every event word the run wrote is lower case.
 #   R   BACKUP.ACCOUNT then DELETE.ACCOUNT then RESTORE.ACCOUNT of an account with the write group off and then on: the manifest says route.files.write 0 / 1, and the
 #       restored Linux user is in exactly the groups the manifest said (sdfiles=1 sdfileswrite=0 / sdfiles=1 sdfileswrite=1).  The 18 Oct restore run (w20) was made before the
@@ -129,12 +131,23 @@ install -m 755 "$HERE/witness-sdnet-probe.py" "$BK/probe.py" || need "cannot cop
 
 # ================================================================== T. TLS
 say ""; say "== T. the API port: TLS 1.2 refused, TLS 1.3 completes =="
+command -v pgrep >/dev/null 2>&1 || need "pgrep is not installed (the T3 and R0 rows look for API server processes)"
+API0=$(wl_api_pids)
+if [ -n "$API0" ]; then say "  API server processes before the TLS probes: $(printf '%s' "$API0" | tr '\n' ' ')"; else say "  API server processes before the TLS probes: none"; fi
 T12=$(echo | timeout 20 openssl s_client -connect "$HOST:$PORT" -tls1_2 2>&1 | tee /dev/stderr)
 T13=$(echo | timeout 20 openssl s_client -connect "$HOST:$PORT" -tls1_3 2>&1 | tee /dev/stderr)
 expect_re "T1 TLS 1.2 is refused (a protocol, handshake or no-ciphers alert, and no negotiated cipher)" "$T12" 'alert protocol version|handshake failure|no protocols available|wrong version number|Cipher *(is|:) *\(NONE\)'
-expect_lacks "T1 and no TLS 1.2 session was set up" "$T12" "Protocol  : TLSv1.2"
+# openssl 3 prints an "SSL-Session:" block with "Protocol  : TLSv1.2" and "Cipher    : 0000" even when the handshake failed (the line only names the version it
+# asked for), so that line is on the failure path too and is no evidence of a session.  The wording only a session that was set up prints is "New, TLSv1.2, Cipher is <name>".
+expect_lacks "T1 and no TLS 1.2 session was set up" "$T12" "New, TLSv1.2, Cipher is"
 expect_re "T2 TLS 1.3 completes (the protocol line names it)" "$T13" 'Protocol *: *TLSv1\.3|New, TLSv1\.3'
 expect_lacks "T2 and it was not refused" "$T13" "alert protocol version"
+# T3: S.71.  A client that completes the handshake and closes at once leaves its server process running at 100% of a processor about half the time, and nothing ends it.
+# This row says so by name; it is a row of THIS witness because the process it leaves is what makes the backup below refuse.  It ends nothing.
+sleep 3
+LEFT=$(wl_api_left "$API0")
+if [ -z "$LEFT" ]; then pass "T3 the TLS probes left no API server process running"
+else fail "T3 the TLS probes left an API server process running (S.71): pid $(printf '%s' "$LEFT" | tr '\n' ' ') - a client that closes at once leaves it polling at 100% of a processor; end it with: sudo kill -KILL <pid>"; fi
 
 # ================================================================== the fixture account
 say ""; say "== S. the fixture: account $ACC with the files route and a file =="
@@ -162,9 +175,16 @@ probe_run() {
   say "  audit lines added by the $tag probe:"; printf '%s\n' "$aud" | grep -a -E 'api' | cut -c1-200 | sed -e 's/^/      | /'
   expect_has "$tag NULL CASE: the probe connected, opened the file and finished" "$pout" "P DONE"
   expect_has "$tag the login is a files-only login with write=$w" "$aud" "api login route=sdfiles write=$w user=$ACC"
-  for n in 20 21 22 23 54 61 3; do
+  for n in 20 21 54 61 3; do
     expect_has "$tag request $n: the person sees the 11480 text" "$pout" "$(wl_msg 11480 $n)"
     expect_has "$tag request $n: the server audit says api refused request=$n route=sdfiles write=$w user=$ACC" "$aud" "api refused request=$n route=sdfiles write=$w user=$ACC"
+  done
+  # 22 and 23: the first run on the VM (19 Oct) wanted a refusal and got none.  The client library sends SDRespond and SDEndCommand only while a command is executing and
+  # a files-only login cannot be (21 is refused), so the calls return at once and nothing reaches the server.  What is checked here is what is true: no refusal text, no
+  # audit line, a probe that ran (the NULL CASE row above).  The server's refusal of 22 and 23 on the wire is sandbox-net.py's "never" list.
+  for n in 22 23; do
+    expect_lacks "$tag request $n: the client library sent nothing, so the person saw no 11480 text for it" "$pout" "$(wl_msg 11480 $n)"
+    expect_lacks "$tag request $n: and the server audit has no refusal of it" "$aud" "api refused request=$n "
   done
   expect_eq "$tag the second 3 is the ONE refused 3 (the first, the account entry after login, was allowed)" "$(count_re "$aud" "api refused request=3 route=sdfiles")" 1
   expect_re "$tag control: a read is still allowed after all those refusals" "$pout" '^P 6 SDRead \(control, still allowed\) +status=0 ret=True'
@@ -174,9 +194,12 @@ probe_run() {
 count_re() { local n; n=$(printf '%s\n' "$1" | grep -a -c -E -- "$2"); printf '%s' "${n:-0}"; }
 
 # ================================================================== W. the requests no files-only login may make
-say ""; say "== W1. files-on alone: 20 21 22 23 54 61 and a second 3 are refused =="
+say ""; say "== W1. files-on alone: 20 21 54 61 and a second 3 are refused, 22 and 23 are never sent =="
 probe_run W1 off
 say ""; say "== take a backup now (write group OFF), then turn it on =="
+# R0: BACKUP.ACCOUNT refuses while any other session is logged in, and an API server process is a session.  Named here so that the rows below are not read as a fault of the backup.
+STRAY=$(wl_api_pids)
+expect_eq "R0 no API server process is running, so BACKUP.ACCOUNT can take every other session out" "$(printf '%s' "$STRAY" | tr '\n' ' ')" ""
 R_OFF=$(wl_backup_routes "$ACC" "$BK/bak-off")
 expect_re "W2 manifest, write group off: route.files: 1 route.files.write: 0" "$R_OFF" "\[account $ACC\] route\.files: 1 route\.files\.write: 0"
 OUT=$(wl_sd_admin "files-write-on" "MODIFY.ACCOUNT $ACC FILES-WRITE-ON")

@@ -167,6 +167,13 @@ wl_set_state() {
 wl_audit_offset() { local n; n=$({ wc -l < "$WL_AUDIT"; } 2>/dev/null); printf '%s\n' "$(( ${n:-0} + 0 ))"; }
 wl_audit_since() { tail -n +$(( $1 + 1 )) "$WL_AUDIT" 2>/dev/null; }
 
+# wl_api_pids   the pids of the API server processes (sd -n -q) running now, one a line.   wl_api_left "BEFORE"   those of them that are not in BEFORE (a list of pids, one a line).
+# 20 Oct 26.  A client that completes the TLS handshake and closes at once leaves its server process in a poll loop at 100% of a processor about half the time (S.71, measured on the VM),
+# and BACKUP.ACCOUNT then refuses with "1 other session(s) are logged in", which showed in a witness only as an empty manifest.  These name the process instead.  READ-ONLY: nothing is ended
+# here; a witness that ended the process would erase the evidence it exists to give.
+wl_api_pids() { pgrep -x sd -a 2>/dev/null | grep -F -- ' -n -q' | awk '{print $1}' | sort -n; }
+wl_api_left() { local p; for p in $(wl_api_pids); do printf '%s\n' "$1" | grep -q -x -F -- "$p" || printf '%s\n' "$p"; done; }
+
 # wl_account_user ACCOUNT    the Linux user an SD account's register record names (field 3 is sdu_<user>); empty when the record is not a user account.
 wl_account_user() {
   local g
