@@ -34,19 +34,19 @@ need() { say "CANNOT RUN: $1"; exit 2; }
 expect_has() {
   if [ -z "$3" ]; then fail "$1 - the wording to look for is EMPTY (a message that could not be read? an empty wording is in every text)"; return; fi
   if [ -z "$2" ]; then fail "$1 - the text to look in is EMPTY (the null case): wanted: $3"; return; fi
-  if printf '%s\n' "$2" | grep -q -F -- "$3"; then pass "$1"; else fail "$1 - wanted: $3"; fi
+  if grep -q -F -- "$3" <<<"$2"; then pass "$1"; else fail "$1 - wanted: $3"; fi     # a here-string, not `printf | grep -q`: grep -q leaves at the first match and the printf then died with "Broken pipe" noise in the log
 }
 # expect_lacks "name" "$OUT" "wording"  PASS only when the text is not empty and the wording is not in it
 expect_lacks() {
   if [ -z "$3" ]; then fail "$1 - the wording that must be absent is EMPTY (a message that could not be read? an empty wording is in every text)"; return; fi
   if [ -z "$2" ]; then fail "$1 - the text to look in is EMPTY (the null case), so its absence proves nothing: $3"; return; fi
-  if printf '%s\n' "$2" | grep -q -F -- "$3"; then fail "$1 - must not contain: $3"; else pass "$1"; fi
+  if grep -q -F -- "$3" <<<"$2"; then fail "$1 - must not contain: $3"; else pass "$1"; fi
 }
 # expect_re "name" "$OUT" "regex"       PASS only when the (extended, case sensitive) regex matches a line of a text that is not empty
 expect_re() {
   if [ -z "$3" ]; then fail "$1 - the pattern is EMPTY (it matches every line)"; return; fi
   if [ -z "$2" ]; then fail "$1 - the text to look in is EMPTY (the null case): wanted /$3/"; return; fi
-  if printf '%s\n' "$2" | grep -q -a -E -- "$3"; then pass "$1"; else fail "$1 - wanted /$3/"; fi
+  if grep -q -a -E -- "$3" <<<"$2"; then pass "$1"; else fail "$1 - wanted /$3/"; fi
 }
 # expect_eq "name" "got" "want"
 expect_eq() { if [ "$2" = "$3" ]; then pass "$1 ($2)"; else fail "$1 - got '$2', wanted '$3'"; fi; }
