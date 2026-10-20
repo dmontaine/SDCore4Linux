@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 1: open_file() calls masters_open_hook() on the resolved pathname, so that the administrator opening voc_master,
+ *           dict_master or master_state finds the journal applied (masters.c).
  * 18 Oct 26 dm  S.66: the shared account.  get_voc_file_reference() is a wrapper over get_voc_file_reference_ex(..., allow_shared), which gives
  *           _voc_ref a FIFTH argument (k_recurse(pcode_voc_ref, 5)); only open_file()'s map_name call passes TRUE, so OPENSEQ, DELETESEQ and
  *           CALL "file prog" never follow the shared account.  create_edit_refusal() refuses anything made INSIDE the shared account to
@@ -841,6 +843,10 @@ Private void open_file(bool map_name) /* Map file name via VOC entry */
   }
 
   fullpath(pathname, mapped_name);
+
+  /* 19 Oct 26 S.67: the administrator opening voc_master, dict_master or master_state, by name or by path, finds the journal applied first.
+     One flag test for everybody else; the drain is idempotent and does not touch the file being opened (masters.c). */
+  masters_open_hook(pathname);
 
   /* 13 Oct 26 S.63: OPENPATH names an OS path directly, which is "a file external to SD".  An account that has
      not been given OS.EXECUTE reaches only paths inside its own directory (a $internal program is trusted, and

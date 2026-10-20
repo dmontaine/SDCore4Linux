@@ -1,0 +1,1 @@
+%1 master key(s) are longer than MAXIDLEN allows and are not mirrored; raise MAXIDLEN in sd.conf (up to 255) to mirror them

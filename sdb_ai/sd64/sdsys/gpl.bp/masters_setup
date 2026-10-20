@@ -1,0 +1,117 @@
+* MASTERS_SETUP
+* Make the master files and the journal if they are not there (S.67 stage 1)
+* Copyright (c) 2026 SD Core for Linux
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 19 Oct 26 dm  The verifier's finding F1: the files are made under umask 077 (the modes are 0700 and 0600 now, set by the kernel as well), and the umask is put back.
+* 19 Oct 26 dm  New, S.67 stage 1.  Called by the SYNC.MASTERS verb and by upgrade_masters (the installer).  The journal is made BEFORE the files
+*               (the first kernel(K$MASTERS, 'init')), because a system that has master files and no journal raises the stale flag, and the files'
+*               modes are set by a second 'init' after they are made.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*    call !masters_setup(report)
+*
+* REPORT<1> is 0 when the master files and the journal are in place, else a status (1 the SDSYS VOC cannot be opened, 2 a file cannot be made, 3 the
+* kernel's set-up failed); <2> says what was wrong or, when all is well, what the kernel did (journal=created|exists modes=n); <3> is 1 when
+* anything was made by this call.
+*
+* The three master files (voc_master, dict_master, master_state) are hashed and case-insensitive like every file this system makes, each with a
+* dictionary holding the default @id record, and each with an F entry in the SDSYS VOC (and in NO other VOC: a new account is made from NEWVOC, which
+* has none).  The files are made by path, so the account the administrator happens to be in does not matter.  The modes (0700 directories, 0600
+* files: the sdsys user alone) and the journal ($master.journal, mode 0620, created here and never by a session) are set by the kernel
+* (kernel(K$MASTERS, 'init')).  It is safe to run again: whatever is there is left alone, and its modes are set again.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine masters_setup(report)
+$catalog !masters_setup
+
+$include int$keys.h
+$include keys.h
+
+   report = ''
+   made = 0
+   um = 0
+   ans = ''
+   nm = ''
+   dp = ''
+
+   openpath @sdsys:@ds:'voc' to sv else
+      report = 1 : @fm : 'the SDSYS VOC cannot be opened' : @fm : 0
+      return
+   end
+
+*  The journal first: from here on a change to a VOC or a dictionary is written to it, and while the files below are being made nothing is lost (a system that
+*  has master files and no journal raises the stale flag, which this avoids).  The files' modes are set by the second call.
+   ans = kernel(K$MASTERS, 'init')
+   if ans<1> # 0 then
+      close sv
+      report = 3 : @fm : 'the kernel refused its set-up (status ' : ans<1> : ')' : @fm : 0
+      return
+   end
+   if index(ans<2>, 'journal=created', 1) then made = 1
+
+*  The files are made under a umask of 077 (63): the sdsys user alone may open them from the moment they exist, whatever this session's umask and the group of the
+*  directory they are made in (the kernel sets the modes again below; this closes the time before it does).  Put back on every way out.
+   um = umask(63)
+   for each nm in 'voc_master' : @fm : 'dict_master' : @fm : 'master_state'
+      dp = @sdsys : @ds : nm
+      if not(ospath(dp, OS$EXISTS)) then
+         create.file dp dynamic on error
+            close sv
+            if umask(um) then null
+            report = 2 : @fm : 'cannot make ' : nm : @fm : made
+            return
+         end
+         made = 1
+      end
+      if not(ospath(dp : '.dic', OS$EXISTS)) then
+         create.file dp : '.dic' dynamic on error
+            close sv
+            if umask(um) then null
+            report = 2 : @fm : 'cannot make ' : nm : '.dic' : @fm : made
+            return
+         end
+         made = 1
+         openpath dp : '.dic' to df then
+            write 'D' : @fm : '0' : @fm : '' : @fm : nm : @fm : '30L' : @fm : 'S' to df, '@id'
+            close df
+         end
+      end
+      read x from sv, nm else
+         write 'F' : @fm : nm : @fm : nm : '.dic' to sv, nm
+         made = 1
+      end
+   next nm
+   close sv
+   if umask(um) then null
+
+   ans = kernel(K$MASTERS, 'init')        ;* again, for the modes of the files that are there now
+   if ans<1> # 0 then
+      report = 3 : @fm : 'the kernel refused its set-up (status ' : ans<1> : ')' : @fm : made
+      return
+   end
+   report = 0 : @fm : ans<2> : @fm : made
+   return
+end
+
+* END-CODE

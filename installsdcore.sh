@@ -356,6 +356,92 @@ repair_group_account_files() {   # repair_group_account_files ACCOUNTS_ROOT
         echo "  Every group account's record files are already in its group."
     fi
 }
+
+# 19 Oct 26  S.67 stage 2 (owner, 17 Oct 2026, D7, WARNED).  ***THE sdsys OPERATING-SYSTEM USER IS PUT IN THE GROUP OF EVERY ACCOUNT, AND EVERY ACCOUNT'S
+#            VOC AND DICTIONARIES MADE WRITABLE BY THAT GROUP, SO THAT SDSYS CAN WRITE A MASTER EDIT INTO AN ACCOUNT'S OWN FILES.  THAT GIVES THE sdsys USER
+#            WRITE ACCESS TO THOSE FILES IN EVERY ACCOUNT: a compromised sdsys is a route into every account.***  The tighter option was an outbox the account
+#            applies itself; he chose this one.  A new account gets the membership from CREATE.ACCOUNT; this is the walk for the accounts that are already
+#            there (a kept install brings forward accounts whose groups lost sdsys when the old sdsys user was removed).  Two sd-elevate verbs, each
+#            confined: sdsys-join puts ONLY sdsys into an existing sdu_<user> group, and group-write gives an account's own group (sdu_<name> in
+#            user_accounts, sdg_<name> in group_accounts, never sdusers) write on the VOC and dictionaries of THAT account.  The shared account (group
+#            sdusers) and an account outside /home/sd are left as they are.  Nothing here stops the install: a failure is reported with the command that
+#            repairs it, and running this installer again repeats the walk.  It prints what it did.  test-install-sdsysgroups.sh runs this.
+join_sdsys_groups() {   # join_sdsys_groups REGISTER_DIR
+    local reg_dir="$1" rec path group members dir_group out rc
+    local n_join=0 n_have=0 n_fail=0 n_fix=0 n_ok=0 n_left=0 n_fixfail=0 failed=""
+    echo "  The sdsys user is put in the group of every account, and the VOC and dictionaries of each account are made writable by that group,"
+    echo "  so that SDSYS can write a master edit into an account's own files.  This gives the sdsys user write access to those files in every account, and to anything else in an account that its group may write."
+    for rec in $(sudo find "$reg_dir" -maxdepth 1 -type f -printf '%f\n' 2>/dev/null | LC_ALL=C sort || true); do
+        case "$rec" in
+            ''|.*|%*|*[!a-z0-9._-]*) continue ;;
+        esac
+        path=$(sudo sed -n '1p' "$reg_dir/$rec" 2>/dev/null || true)
+        group=$(sudo sed -n '3p' "$reg_dir/$rec" 2>/dev/null || true)
+        # 1 the membership: a user account's group sdu_<user>; a group account's group was made with sdsys in it
+        case "$group" in
+            sdu_?*)
+                members=$(getent group "$group" 2>/dev/null | cut -d: -f4 || true)
+                case ",${members}," in
+                    *",sdsys,"*) n_have=$((n_have+1)) ;;
+                    *)
+                        rc=0
+                        out=$(sudo /usr/local/sbin/sd-elevate sdsys-join "$group" 2>&1) || rc=$?
+                        if [ "$rc" -eq 0 ]; then
+                            n_join=$((n_join+1))
+                            echo "  sdsys is now in the group ${group} (account ${rec})"
+                        else
+                            n_fail=$((n_fail+1))
+                            failed="${failed} ${group}"
+                            echo "  sdsys could not be put in ${group} (account ${rec}): $(printf '%s\n' "$out" | tail -n 1)"
+                        fi
+                        ;;
+                esac
+                ;;
+        esac
+        # 2 the modes: only an account directory directly in user_accounts or group_accounts, and only when its group is the account's own
+        case "$group" in
+            sdu_?*|sdg_?*)
+                case "$path" in
+                    /home/sd/user_accounts/*|/home/sd/group_accounts/*)
+                        dir_group=$(sudo stat -c '%G' "$path" 2>/dev/null || true)
+                        if [ "$dir_group" = "$group" ]; then
+                            rc=0
+                            out=$(sudo /usr/local/sbin/sd-elevate group-write "$path" 2>&1) || rc=$?
+                            if [ "$rc" -ne 0 ]; then
+                                n_fixfail=$((n_fixfail+1))
+                                echo "  the VOC and dictionaries of ${rec} could not be made group-writable: $(printf '%s\n' "$out" | tail -n 1)"
+                            else
+                                # judged on the success line sd-elevate prints and nothing else: exit 0 without it is not "made right"
+                                case "$out" in
+                                    *'group-write: 0 directories and 0 file(s) changed'*) n_ok=$((n_ok+1)) ;;
+                                    *'group-write: '*' file(s) changed, '*)
+                                        n_fix=$((n_fix+1))
+                                        echo "  ${rec}: $(printf '%s\n' "$out" | tail -n 1 | sed -e 's/^sd-elevate: //')"
+                                        ;;
+                                    *)
+                                        n_fixfail=$((n_fixfail+1))
+                                        echo "  the VOC and dictionaries of ${rec}: sd-elevate group-write did not say what it did"
+                                        ;;
+                                esac
+                            fi
+                        else
+                            n_left=$((n_left+1))
+                        fi
+                        ;;
+                esac
+                ;;
+        esac
+    done
+    echo "  sdsys put in the group of ${n_join} account(s); it was in ${n_have} already.  Modes made right for ${n_fix} account(s); ${n_ok} were right already; ${n_left} left as they are (their directory's group is not the account's own, as the shared account's)."
+    if [ "$n_fail" -gt 0 ] || [ "$n_fixfail" -gt 0 ]; then
+        printf "%b\n" "$RED"
+        echo "WARNING: SDSYS cannot yet write master edits into every account: ${n_fail} group(s) without sdsys, ${n_fixfail} account(s) whose modes were not changed."
+        echo "  Run this installer again, or for each group:  sudo /usr/local/sbin/sd-elevate sdsys-join <group>"
+        echo "  and for each account:  sudo /usr/local/sbin/sd-elevate group-write /home/sd/user_accounts/<account>"
+        echo "  check.masters (as SDSYS) lists what is still not writable.  Groups: ${failed:-none}"
+        printf "%b\n" "$NC"
+    fi
+}
 # --------------------
 
 # Modified by Composer AI - 2026/06/10.
@@ -1820,6 +1906,35 @@ if [ "$accounts_kept" = yes ]; then
     echo
     echo "Checking the record files of the kept group accounts."
     repair_group_account_files "$ACCT_PATH"
+fi
+
+# 19 Oct 26 dm - S.67 stage 2 (owner, 17 Oct 2026, D7).  SDSYS JOINS EVERY ACCOUNT'S GROUP, and each account's VOC and dictionaries are made writable by
+#            it, every install, kept accounts or not (a fresh install has the installing user's account and shared; a kept install has all the rest, whose
+#            groups lost the old sdsys user when it was removed).  join_sdsys_groups (above) says what it did, and warns without stopping the install.  It
+#            runs before the master files are filled so that the first CHECK.MASTERS finds the modes right.
+echo
+echo "Putting the sdsys user in the group of every account, and making each account's VOC and dictionaries writable by that group."
+join_sdsys_groups "$sdsysdir/accounts"
+
+# 19 Oct 26 dm - S.67 stage 1 (owner, 17 Oct 2026).  THE MASTER FILES ARE SET UP AND FILLED, every install, kept accounts or not.  voc_master and
+#            dict_master (in the SDSYS account) hold a copy of every account's VOC records and dictionary records, master_state their checksums, and
+#            $master.journal is where the file-change hook writes the keys of what changed until SDSYS next opens a master file.  upgrade_masters makes
+#            them (!masters_setup), sets their modes (0700 and 0600, owned by the sdsys user alone) and copies every registered account into them.  It runs here, as the
+#            root session of the install, after the accounts have been brought forward (the copy then holds the finished VOCs) and before the register is
+#            handed to sdsys.  It prints COMPLETE on a line of its own when every account was copied; a run that did not is reported and the install goes
+#            on, because nothing else depends on the master files and the next install, or SYNC.MASTERS as SDSYS, does it again.
+echo
+echo "Setting up the master files and copying every account's VOC and dictionaries into them."
+om_rc=0
+om_out=$(sudo "$sdsysdir/bin/sd" -internal RUN gpl.bp upgrade_masters 2>&1) || om_rc=$?
+printf '%s\n' "$om_out"
+om_plain=$(printf '%s\n' "$om_out" | sed -e 's/\x1b\[[0-9;?]*[A-Za-z]//g' -e 's/\r//g')
+if [ "$om_rc" -ne 0 ] || ! printf '%s\n' "$om_plain" | grep -qx '[[:space:]]*COMPLETE[[:space:]]*'; then
+    printf "%b\n" "$RED"
+    echo "WARNING: the master files were not all set up or filled."
+    echo "  Nothing else is affected.  Run this installer again, or sign on as sdsys and run:"
+    echo "      sync.masters"
+    printf "%b\n" "$NC"
 fi
 
 # 18 Sep 26 dm - TEARDOWN (S.26).  THE REGISTER BELONGS TO THE ADMINISTRATOR.

@@ -18,6 +18,11 @@
  * 
  * START-HISTORY:
  * 31 Dec 23 SD launch - prior history suppressed
+ * 19 Oct 26 dm  S.67 (verifier F4): while SDSYS's save of a master record is writing an account's record, dh_write asks masters_cas_check with the group locked,
+ *               both when it finds the old record and when it finds none: a record changed in the window is not overwritten (masters_cas_on, one int test otherwise).
+ * 19 Oct 26 dm  S.67 stage 2: dh_write asks masters_before_write() first (SDSYS saving a master record writes the account's file; a refusal fails the
+ *               write with DHE_MASTER_REFUSED and changes nothing).
+ * 19 Oct 26 dm  S.67 stage 1: a successful write calls masters_note_record() (a VOC or dictionary record is journalled for the master files).
  * 11 Oct 26 dm  The index routine is given the record id as STORED, not an upper
  *           case copy of the id as written.  Every hashed file is NOCASE (D2), and
  *           BUILD.INDEX stores the stored spelling, so the upper-cased id indexed a
@@ -88,6 +93,19 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
   char stored_id[MAX_ID_LEN]; /* Id as an existing record is stored */
   char* store_id = id;        /* Id to store and to give the index */
   bool found = FALSE;
+
+  /* 19 Oct 26 S.67 stage 2: MASTER TO ACCOUNT.  SDSYS saving a record of voc_master or dict_master writes the account's own file, here, first of all (the
+     comparison with master_state, the try-lock, the group, the audit line: masters.c).  A refusal changes nothing and fails the write with
+     DHE_MASTER_REFUSED; the bit tested is set once per open file for every file that is not one of the two, so the cost to any other write is this test. */
+  if (!(dh_file->flags & DHF_MST_NOMASTER)) {
+    int master_refusal = masters_before_write(dh_file, id, id_len, new_data);
+
+    if (master_refusal != 0) {
+      dh_err = master_refusal;
+      process.os_error = 0;
+      return FALSE;
+    }
+  }
 
   dh_err = 0;
   process.os_error = 0;
@@ -200,6 +218,22 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
 
       if (found) {
         ak_mode = AK_MOD;
+
+        /* 19 Oct 26 S.67 (verifier F4): SDSYS's save of a master record is writing this account's record.  The group is locked and the old record is in front of
+           us: ask whether it is still the one the save was accepted against, before a byte is changed.  A plain WRITE by the account's user takes no record lock,
+           so the try-lock the save took cannot have seen one that landed in between.  One test of an int for every other write. */
+        if (masters_cas_on) {
+          STRING_CHUNK* cas_cur = dh_read_record(dh_file, rec_ptr);
+          int cas_refusal = masters_cas_check(dh_file, id, id_len, cas_cur, TRUE);
+
+          k_deref_string(cas_cur);
+          if (cas_refusal != 0) {
+            dh_err = cas_refusal;
+            if (big_rec) /* Give away big record space just written */
+              (void)dh_free_big_rec(dh_file, new_big_rec_head, NULL);
+            goto exit_dh_write;
+          }
+        }
 
         /* The spelling already stored wins.  On a NOCASE file the id we were
            given may differ from it in case; take a copy now because the record
@@ -347,6 +381,15 @@ bool dh_write(DH_FILE* dh_file,       /* File descriptor */
     subfile = OVERFLOW_SUBFILE;
     grp = GetFwdLink(dh_file, buff->next);
   } while (1);
+
+  /* 19 Oct 26 S.67 (verifier F4): there is no record of this id.  If SDSYS's save was accepted against a record that was there, the account's user deleted it in
+     the window, and the save must not put it back. */
+  if (masters_cas_on && (masters_cas_check(dh_file, id, id_len, NULL, FALSE) != 0)) {
+    dh_err = DHE_MASTER_REFUSED;
+    if (big_rec) /* Give away big record space just written */
+      (void)dh_free_big_rec(dh_file, new_big_rec_head, NULL);
+    goto exit_dh_write;
+  }
 
   /* Add new record */
 
@@ -505,8 +548,14 @@ exit_dh_write:
     }
   }
 
-  if (dh_err == 0)
+  if (dh_err == 0) {
     dh_forced_write(dh_file); /* a file in forced write mode (Fixes item 102) */
+
+    /* 19 Oct 26 S.67: a VOC or dictionary record has been written.  Every writer passes here - a transaction's COMMIT, a restore, an
+       $internal program, the kernel itself - so this is where the master files hear of it.  It never fails and never waits long; a
+       file that is neither costs one flag test (masters.c). */
+    masters_note_record(dh_file, 'w', id, id_len);
+  }
 
   return (dh_err == 0);
 }

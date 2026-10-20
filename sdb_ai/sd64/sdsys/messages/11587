@@ -1,0 +1,1 @@
+Master record %s not saved: sdsys is not in group %s (sd-elevate sdsys-join %s). Nothing was changed

@@ -1,0 +1,269 @@
+* MASTERS
+* SYNC.MASTERS, CHECK.MASTERS and LIST.MASTER.PENDING verbs (S.67 stage 1)
+* Copyright (c) 2026 SD Core for Linux
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 3, or (at your option)
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software Foundation,
+* Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* START-HISTORY:
+* 19 Oct 26 dm  S.67, the verifier's finding F7: SYNC.MASTERS with no account makes ONE kernel call for every account (kernel(K$MASTERS, 'syncall')), where it made one
+*               for each and each read the whole of every master file: with 200 accounts that was about three times as long as with 100, not twice.
+* 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS and LIST.MASTER.PENDING end with the reason the last save of a master record in this session was refused, if one
+*               was (kernel(K$MASTERS, 'refusal'), message 11594): an editor shows only "write error 8910".
+* 19 Oct 26 dm  S.67 stage 2: CHECK.MASTERS lists the files a master edit could not be written into - nonwritable (the group has no write permission) and
+*               norights (the mode is right and this session still cannot: mode, stale-session, not-a-member, no-write) - and says what each means (11593).
+* 19 Oct 26 dm  New, S.67 stage 1 (owner, 17 Oct 2026: voc_master and dict_master in the SDSYS account).  ACCOUNT TO MASTER only.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SYNC.MASTERS {account}
+*   CHECK.MASTERS {account}
+*   LIST.MASTER.PENDING
+*
+* One program, three verbs: the word typed says which.  Administrator only (SDSYS signed on at a terminal); the kernel asks again for each op
+* (kernel(K$MASTERS)), so a copy of this program in another VOC does nothing for anyone else.  Their VOC records are in voc_template and in
+* NO other VOC source.
+*
+*   SYNC.MASTERS           Sets the master files up if they are not (the journal, voc_master, dict_master, master_state: !masters_setup), applies the
+*                          journal, then makes the master copies of EVERY registered account match the accounts, and removes the master copies of
+*                          accounts that are not registered.  It is what a new system, a restore and an upgrade need, and the only thing that clears the
+*                          "stale" and "resync" flags, because a lost journal line could have been anyone's.
+*   SYNC.MASTERS account   The same for one account.  It does not clear the flags.
+*   CHECK.MASTERS {account}  Applies the journal (opening the master files does), then compares and REPORTS, changing nothing: a record that differs
+*                          from the account's, a record the master lacks (missing) or has too many of (extra), a VOC or dictionary whose directory or
+*                          files lack group permission (nonwritable: a master edit is written into them as a member of the account's group), one the
+*                          mode lets the group write but THIS session cannot (norights, with the reason), a key too long for MAXIDLEN to mirror
+*                          (toolong), a file that could not be read (unreadable).  The stale and resync flags are reported too.
+*   LIST.MASTER.PENDING    The journal lines not yet applied (it applies none), and the flags.
+*
+* Master to account (stage 2): a master record that SDSYS SAVES is written into the account's own file by the kernel at once, or refused with its reason
+* and nothing changed (the account's record changed since this session READ it, or the session has not read a record the account has; the account's record
+* is locked; the files cannot be written by this session; the account is not registered; the key means nothing).  A master record is not DELETED from here and is not saved inside a transaction.
+* Nothing in this program does it: it is in the DH layer (masters.c), so ED, COPY, a program's WRITE and the rest all reach it.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program masters
+$catalog $masters
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   @system.return.code = -ER$ARGS      ;* Preset for command format errors
+
+*  Assigned first for BCOMP: an "is not assigned a value" warning fails the bootstrap.
+   words = ''
+   verb = ''
+   nw = 0
+   account = ''
+   ans = ''
+   st = 0
+   rep = ''
+   rowv = ''
+   n = 0
+   i = 0
+   fields = ''
+   s0 = 0
+   hint = 0
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = trim(@sentence)
+   verb = downcase(field(words, ' ', 1))
+   nw = dcount(words, ' ')
+
+   begin case
+      case verb = 'sync.masters'
+         if nw > 2 then
+            display sysmsg(11560)
+            stop
+         end
+         if nw = 2 then account = downcase(field(words, ' ', 2))
+         gosub do.sync
+      case verb = 'check.masters'
+         if nw > 2 then
+            display sysmsg(11561)
+            stop
+         end
+         if nw = 2 then account = downcase(field(words, ' ', 2))
+         gosub do.check
+      case verb = 'list.master.pending'
+         if nw > 1 then
+            display sysmsg(11562)
+            stop
+         end
+         gosub do.pending
+      case 1
+         display sysmsg(11560)
+         display sysmsg(11561)
+         display sysmsg(11562)
+         stop
+   end case
+
+   stop
+
+* ======================================================================
+* Apply the journal and say so when it had something to apply.
+
+drain.journal:
+   ans = kernel(K$MASTERS, 'drain')
+   st = ans<1>
+   if st = 0 then
+      if ans<3> + ans<4> > 0 then display sysmsg(11567, ans<2>, ans<3>, ans<4>)
+   end
+   return
+
+* ======================================================================
+
+do.sync:
+   call !masters_setup(rep)
+   if rep<1> # 0 then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11576, rep<2>)
+   end
+   if rep<3> then display sysmsg(11565)
+
+   if account # '' then
+      gosub drain.journal
+      void kernel(K$AUDIT, 'sync.masters account=' : account)
+      gosub sync.one
+      if st = 4 then
+         @system.return.code = -ER$ARGS
+         stop sysmsg(11563, account)
+      end
+   end else
+      ans = kernel(K$MASTERS, 'syncbegin')
+      s0 = ans<2>
+      void kernel(K$AUDIT, 'sync.masters account=*')
+*     Every account in ONE call (19 Oct 26): the kernel reads each master file once, where one call for each account read the whole of them for each.  One field for
+*     each account: its name, then the seven numbers 'sync' gives, as values.
+      ans = kernel(K$MASTERS, 'syncall')
+      if ans<1> # 0 then
+         @system.return.code = -ER$FAILED
+         stop sysmsg(11576, ans<2>)
+      end
+      n = dcount(ans, @fm)
+      for i = 2 to n
+         rowv = ans<i>
+         display sysmsg(11566, rowv<1, 1>, rowv<1, 2>, rowv<1, 3>, rowv<1, 4>)
+         display sysmsg(11578, rowv<1, 5>, rowv<1, 6>, rowv<1, 7>)
+         if rowv<1, 8> > 0 then display sysmsg(11577, rowv<1, 8>)
+      next i
+      ans = kernel(K$MASTERS, 'syncend' : @fm : s0)
+      if ans<1> = 0 then
+         if ans<2> + ans<3> > 0 then display sysmsg(11567, 0, ans<2>, ans<3>)
+      end
+   end
+   @system.return.code = 0
+   return
+
+sync.one:
+   ans = kernel(K$MASTERS, 'sync' : @fm : account)
+   st = ans<1>
+   if st = 0 then
+      display sysmsg(11566, account, ans<2>, ans<3>, ans<4>)
+      display sysmsg(11578, ans<5>, ans<6>, ans<7>)
+      if ans<8> > 0 then display sysmsg(11577, ans<8>)
+   end
+   return
+
+* ======================================================================
+
+do.check:
+   ans = kernel(K$MASTERS, 'ready')
+   if ans<2> # 1 then
+      @system.return.code = -ER$FNF
+      stop sysmsg(11564)
+   end
+   gosub drain.journal
+   if account # '' then ans = kernel(K$MASTERS, 'check' : @fm : account) else ans = kernel(K$MASTERS, 'check')
+   st = ans<1>
+   begin case
+      case st = 1
+         @system.return.code = -ER$FNF
+         stop sysmsg(11564)
+      case st = 4
+         @system.return.code = -ER$ARGS
+         stop sysmsg(11563, account)
+      case st # 0
+         @system.return.code = -ER$FAILED
+         stop sysmsg(11576, ans<2>)
+   end case
+   fields = dcount(ans, @fm)
+   hint = 0
+   for i = 7 to fields
+      if ans<i> = 'truncated' then
+         display '...'
+      end else
+         display sysmsg(11570, ans<i, 1>, ans<i, 2>, ans<i, 3>)
+         if ans<i, 1> = 'nonwritable' or ans<i, 1> = 'norights' then hint = 1
+      end
+   next i
+   if hint then display sysmsg(11593)         ;* S.67 stage 2: a master edit cannot be written into what is listed above
+   if bitand(ans<4>, 1) then display sysmsg(11572, ans<5>)
+   if bitand(ans<4>, 2) then display sysmsg(11573, ans<6>)
+   if ans<3> = 0 then display sysmsg(11568)
+   display sysmsg(11569, ans<2>, ans<3>)
+   gosub last.refusal
+   @system.return.code = 0
+   return
+
+* ======================================================================
+
+do.pending:
+   ans = kernel(K$MASTERS, 'pending')
+   st = ans<1>
+   if st = 1 then
+      @system.return.code = -ER$FNF
+      stop sysmsg(11564)
+   end
+   if st # 0 then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11576, ans<2>)
+   end
+   if ans<4> = 0 and ans<5> = 0 then
+      display sysmsg(11574)
+   end else
+      if ans<4> > 0 then
+         display sysmsg(11571, ans<2> - ans<3>, ans<4>)
+         rep = kernel(K$MASTERS, 'peek' : @fm : 100)
+         for i = 2 to dcount(rep, @fm)
+            display '  ' : rep<i>
+         next i
+      end
+      if bitand(ans<5>, 1) then display sysmsg(11572, ans<6>)
+      if bitand(ans<5>, 2) then display sysmsg(11573, ans<8>)
+   end
+   gosub last.refusal
+   @system.return.code = 0
+   return
+
+* ======================================================================
+* last.refusal - why the last save of a master record in this session was refused, when there was one (an editor shows only "write error 8910")
+
+last.refusal:
+   rep = kernel(K$MASTERS, 'refusal')
+   if rep<2> # '' then display sysmsg(11594, rep<2>)
+   return
+
+end
+
+* END-CODE

@@ -13,6 +13,7 @@
 * GNU General Public License for more details.
 *
 * START-HISTORY:
+* 19 Oct 26 dm  S.67 stage 1: after the copy the journal is told the target's path (kernel(K$MASTERS, 'note')), so a copy into a dictionary reaches the master files.
 * 13 Oct 26 dm  S.63: asks the OS-access gate (K$PATH.OK) for both paths; status -4 is a path outside the account
 *               for an account without OS.EXECUTE.  A measured !OSCOPY by such an account read AND wrote files
 *               outside its directory.
@@ -69,6 +70,8 @@ $include int$keys.h
    out = ''
    os.execute cmd : " 2>&1" capturing out
    status = os.error()
+*  19 Oct 26 dm - S.67: a copy into a dictionary or a VOC changed it behind the hook's back; the journal is told the path (any $internal caller may say so)
+   void kernel(K$MASTERS, 'note' : @fm : target)
    return
 
 check.paths:

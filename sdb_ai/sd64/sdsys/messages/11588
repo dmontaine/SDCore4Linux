@@ -1,0 +1,1 @@
+Master record %s not deleted: that does not delete the account's record. Delete it in the account, then run sync.masters

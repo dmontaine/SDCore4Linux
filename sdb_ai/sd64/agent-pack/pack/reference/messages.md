@@ -5567,6 +5567,307 @@ Account %1 does not have files access, so it cannot be given files-write: use fi
 
 cited by: `modifya`
 
+### msg:11560
+> kind=message tier=reference since=- src=sdsys/messages/11560:1#e57b2080
+
+```
+Usage: sync.masters {account}
+```
+
+cited by: `masters`
+
+### msg:11561
+> kind=message tier=reference since=- src=sdsys/messages/11561:1#584085a5
+
+```
+Usage: check.masters {account}
+```
+
+cited by: `masters`
+
+### msg:11562
+> kind=message tier=reference since=- src=sdsys/messages/11562:1#24997c5f
+
+```
+Usage: list.master.pending
+```
+
+cited by: `masters`
+
+### msg:11563
+> kind=message tier=reference since=- src=sdsys/messages/11563:1#f758d39b
+
+```
+%1 is not a registered account
+```
+
+cited by: `masters`
+
+### msg:11564
+> kind=message tier=reference since=- src=sdsys/messages/11564:1#27dea5b9
+
+```
+The master files have not been set up on this system. Run sync.masters to set them up
+```
+
+cited by: `masters`
+
+### msg:11565
+> kind=message tier=reference since=- src=sdsys/messages/11565:1#65fa1b6c
+
+```
+The master files are set up: $master.journal, voc_master, dict_master and master_state, in the SDSYS account
+```
+
+cited by: `masters`
+
+### msg:11566
+> kind=message tier=reference since=- src=sdsys/messages/11566:1#5fb93c1d
+
+```
+Account %1: %2 VOC record(s), %3 dictionary file(s), %4 dictionary record(s)
+```
+
+cited by: `masters`
+
+### msg:11567
+> kind=message tier=reference since=- src=sdsys/messages/11567:1#c439cb05
+
+```
+Journal: %1 line(s) applied to %2 key(s) and %3 file(s)
+```
+
+cited by: `masters`
+
+### msg:11568
+> kind=message tier=reference since=- src=sdsys/messages/11568:1#64c00259
+
+```
+Every master copy matches its account
+```
+
+cited by: `masters`
+
+### msg:11569
+> kind=message tier=reference since=- src=sdsys/messages/11569:1#c6688665
+
+```
+Checked %1 account(s): %2 difference(s)
+```
+
+cited by: `masters`
+
+### msg:11570
+> kind=message tier=reference since=- src=sdsys/messages/11570:1#6782850d
+
+```
+%1: %2 %3
+```
+
+cited by: `masters`
+
+### msg:11571
+> kind=message tier=reference since=- src=sdsys/messages/11571:1#48dc4d79
+
+```
+The journal holds %1 byte(s) and %2 line(s) that have not been applied
+```
+
+cited by: `masters`
+
+### msg:11572
+> kind=message tier=reference since=- src=sdsys/messages/11572:1#8cd65443
+
+```
+Stale: %1 journal write(s) have failed since SD started, so a master copy may be out of date. Run sync.masters with no account
+```
+
+cited by: `masters`
+
+### msg:11573
+> kind=message tier=reference since=- src=sdsys/messages/11573:1#f03be926
+
+```
+Resync needed: the journal reached its size limit and %1 line(s) were dropped. Run sync.masters with no account
+```
+
+cited by: `masters`
+
+### msg:11574
+> kind=message tier=reference since=- src=sdsys/messages/11574:1#6f5d64ca
+
+```
+Nothing is waiting in the journal
+```
+
+cited by: `masters`
+
+### msg:11575
+> kind=message tier=reference since=- src=sdsys/messages/11575:1#7a6d50e9
+
+```
+%1 master key(s) are longer than MAXIDLEN allows and are not mirrored; raise MAXIDLEN in sd.conf (up to 255) to mirror them
+```
+
+### msg:11576
+> kind=message tier=reference since=- src=sdsys/messages/11576:1#4a85fb65
+
+```
+The master files could not be opened (%1)
+```
+
+cited by: `masters`
+
+### msg:11577
+> kind=message tier=reference since=- src=sdsys/messages/11577:1#6be538b0
+
+```
+The journal could not be applied (%1)
+```
+
+cited by: `masters`
+
+### msg:11578
+> kind=message tier=reference since=- src=sdsys/messages/11578:1#10c25b02
+
+```
+   %1 master record(s) written, %2 removed, %3 left out because the key is too long
+```
+
+cited by: `masters`
+
+### msg:11579
+> kind=message tier=reference since=- src=sdsys/messages/11579:1#57318c51
+
+```
+Master edits cannot be written into account %1 until the sdsys user is in the group %2. From the sdsys login run  sudo /usr/local/sbin/sd-elevate sdsys-join %2  then sign on again
+```
+
+cited by: `create_account`
+
+### msg:11580
+> kind=message tier=reference since=- src=sdsys/messages/11580:1#4654a061
+
+```
+Master record %s not saved: its key must be account*id or account*file*id of a registered account. Nothing was changed
+```
+
+### msg:11581
+> kind=message tier=reference since=- src=sdsys/messages/11581:1#e96b829d
+
+```
+Master record %s not saved: %s is not a registered account. Nothing was changed
+```
+
+### msg:11582
+> kind=message tier=reference since=- src=sdsys/messages/11582:1#e831dfe2
+
+```
+Master record %s not saved: the account has no %s. Nothing was changed
+```
+
+### msg:11583
+> kind=message tier=reference since=- src=sdsys/messages/11583:1#03192b3a
+
+```
+Master record %s not saved: the record in %s has changed since you read it. Nothing was changed. Read it again and repeat the edit
+```
+
+### msg:11584
+> kind=message tier=reference since=- src=sdsys/messages/11584:1#319cf7ea
+
+```
+Master record %s not saved: the account's record is locked by user %s, and a save never waits. Try again later. Nothing was changed
+```
+
+### msg:11585
+> kind=message tier=reference since=- src=sdsys/messages/11585:1#a461fef2
+
+```
+Master record %s not saved: this session cannot write the %s (see check.masters). Nothing was changed
+```
+
+### msg:11586
+> kind=message tier=reference since=- src=sdsys/messages/11586:1#adf7f485
+
+```
+Master record %s not saved: this session began before sdsys joined group %s. Sign on again and repeat the edit. Nothing was changed
+```
+
+### msg:11587
+> kind=message tier=reference since=- src=sdsys/messages/11587:1#5d785221
+
+```
+Master record %s not saved: sdsys is not in group %s (sd-elevate sdsys-join %s). Nothing was changed
+```
+
+### msg:11588
+> kind=message tier=reference since=- src=sdsys/messages/11588:1#64356be1
+
+```
+Master record %s not deleted: that does not delete the account's record. Delete it in the account, then run sync.masters
+```
+
+### msg:11589
+> kind=message tier=reference since=- src=sdsys/messages/11589:1#225112e0
+
+```
+Master record %s not saved: a master record cannot be changed inside a transaction. Nothing was changed
+```
+
+### msg:11590
+> kind=message tier=reference since=- src=sdsys/messages/11590:1#7db7a96d
+
+```
+Master record %s not saved: only SDSYS, signed on at a terminal, can change a master file
+```
+
+### msg:11591
+> kind=message tier=reference since=- src=sdsys/messages/11591:1#ecc2b20e
+
+```
+Master record %s not saved: the account's file could not be written (%s). Run check.masters
+```
+
+### msg:11592
+> kind=message tier=reference since=- src=sdsys/messages/11592:1#debd26c8
+
+```
+Master record %s not saved: %s could not be read. Nothing was changed
+```
+
+### msg:11593
+> kind=message tier=reference since=- src=sdsys/messages/11593:1#e2fcf4b9
+
+```
+The files listed as nonwritable or norights cannot be written by SDSYS, so a master edit to them is refused: nonwritable is a mode (the installer's upgrade, sd-elevate group-write, puts it right); norights says why this session cannot (mode, stale-session: sign on again, not-a-member: sd-elevate sdsys-join)
+```
+
+cited by: `masters`
+
+### msg:11594
+> kind=message tier=reference since=- src=sdsys/messages/11594:1#356bc298
+
+```
+The last save of a master record in this session was refused: %1
+```
+
+cited by: `masters`
+
+### msg:11595
+> kind=message tier=reference since=- src=sdsys/messages/11595:1#796a5ab9
+
+```
+Master record %s not saved: no lock could be taken on the account's record (the lock table is full or a limit was reached). Nothing was changed
+```
+
+### msg:11596
+> kind=message tier=reference since=- src=sdsys/messages/11596:1#73fe4f94
+
+```
+Master record %s not saved: this session has not read it, and the account has a record of that name. Read the record first, then save it. Nothing was changed
+```
+
 ### msg:11600
 > kind=message tier=reference since=- src=sdsys/messages/11600:1#64ada5ed
 
@@ -7089,7 +7390,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 10 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 11 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524

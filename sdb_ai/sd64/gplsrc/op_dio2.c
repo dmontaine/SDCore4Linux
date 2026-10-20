@@ -17,6 +17,8 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 1: OSPATH OS_DELETE and OSRENAME call masters_note_name() for the paths they remove, move and make (a VOC or dictionary
+ *               file is journalled for the master files).
  * 18 Oct 26 dm  S.66: OSPATH keys OS_DELETE, OS_MKDIR and OS_MKPATH, and OSRENAME (either name), do nothing and answer false (STATUS() ER_PERM)
  *               for a path inside the shared account unless the session is the administrator, a $internal program included.
  * 18 Oct 26 dm  S.65 slice 3e: FILEINFO FL$READONLY of a NET_FILE answers the file variable's own read-only flag (1 for a file of a read-mode
@@ -1010,6 +1012,7 @@ void op_ospath() {
     case OS_DELETE:
       flush_dh_cache();
       status = (int32_t)delete_path(path);
+      masters_note_name(path, 'x'); /* 19 Oct 26 S.67: a dictionary (or what is in one) removed; the path need not exist any more */
       break;
 
     case OS_CWD:
@@ -1258,6 +1261,10 @@ void op_osrename() {
     process.status = ER_FAILED;
     goto exit_osrename;
   }
+
+  /* 19 Oct 26 S.67: a VOC or dictionary moved away from its name and to another: the master copies of both are made to match */
+  masters_note_name(old_path, 'x');
+  masters_note_name(new_path, 'n');
 
 exit_osrename:
   k_dismiss();

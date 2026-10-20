@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 1: a cleared VOC or dictionary calls masters_note_dh() (journalled for the master files).
  * 12 Oct 26 dm  A file with the NO.RESIZE flag keeps its modulus when it is cleared (openQM item 590).
  * 31 Dec 23 SD launch - prior history suppressed
  * END-HISTORY
@@ -127,6 +128,9 @@ bool dh_clear(DH_FILE* dh_file) {
   }
 
   status = TRUE;
+
+  /* 19 Oct 26 S.67: a VOC or a dictionary was emptied; the master copies of the file are made to match at the next drain */
+  masters_note_dh(dh_file, 'c');
 
 exit_dh_clear:
 

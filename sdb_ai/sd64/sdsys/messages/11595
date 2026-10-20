@@ -1,0 +1,1 @@
+Master record %s not saved: no lock could be taken on the account's record (the lock table is full or a limit was reached). Nothing was changed

@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67 stage 1: K_MASTERS (150), the master files: one request string in, one answer string out (masters.c masters_request).
  * 18 Oct 26 dm  S.66: K_SHARED_READ and K_SHARED_WRITE (the shared-account gates, set from $internal only), K_SHARED_REF (the acceptance test for an
  *               F-pointer into the shared account) and K_SHARED_ONCE (the audit line once per name); K_EDIT_KIND answers the REFUSING kind, 4 for
  *               shared.write (edit_refusal_for_name); K_EDIT_OK includes the shared.write rule.
@@ -845,6 +846,16 @@ void op_kernel() {
       shared_name[0] = '\0';
       (void)k_get_c_string(descr, shared_name, MAX_PATHNAME_LEN);
       result.data.value = shared_once(shared_name) ? 1 : 0;
+    } break;
+
+    /* 19 Oct 26 dm - S.67 stage 1: the master files.  The request is an op, then a field mark and its argument; the answer is a string whose first
+       field is the status.  masters.c decides who may ask what (the administrator for everything but "ready" and "note"); see keys.h. */
+    case K_MASTERS: {
+      char masters_req[(2 * MAX_PATHNAME_LEN) + 64];
+
+      masters_req[0] = '\0';
+      (void)k_get_c_string(descr, masters_req, (int)sizeof(masters_req) - 1);
+      masters_request(masters_req, &result);
     } break;
 
     /* May THIS ACCOUNT open this pathname?  An $internal program is exempt from the gate itself (it has to

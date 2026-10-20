@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 19 Oct 26 dm  S.67: K_MASTERS (150), the master files (stage 1), and its op "refusal", the reason the last save of a master record was refused (stage 2).
  * 18 Oct 26 dm  S.66: K_SHARED_READ, K_SHARED_WRITE, K_SHARED_REF and K_SHARED_ONCE (128-131), the shared account's gates and lookup test.
  * 17 Oct 26 dm  S.65 slice 2b: SD_FILE_PRIVATE (111), the SDEXT private-file test.
  * 17 Oct 26 dm  S.65 slice 1: K_NET (127), the per-account NET gate for SDNet remote files.
@@ -415,6 +416,14 @@
 #define K_SHARED_ONCE        131
 #define K_PROFILER           116
 #define K_PROFILER_USER      117
+/* 19 Oct 26 dm - S.67 stage 1 (the master files, masters.c).  K_MASTERS: the argument is an op, then a field mark and its argument; the answer is a
+   string whose first field is the status (0 done, 1 the master files are not set up, 2 refused - not the administrator, 3 bad argument, 4 the
+   account is not registered, 5 error).  Only "ready" (is it set up?) and "note" (add a journal line for a path: !OSCOPY) are open to any $internal
+   program; every other op needs the administrator (USR_ADMIN) and is refused otherwise, changing nothing.  Ops: init, pending, peek n, drain, sync
+   account, syncbegin, syncend position, drop account, check {account}, accounts, and (stage 2, 19 Oct 26) refusal: why the last save of a master
+   record in this session was refused, field 2 (empty if it was not).  Number 150, apart from the 121-131 block of the gates, because
+   another lane was adding keys at 132 and up (merge safety only).  GPL.BP/INT$KEYS.H carries the same number. */
+#define K_MASTERS            150
 
 /* PTERM() function action keys */
 #define PT_BREAK              1

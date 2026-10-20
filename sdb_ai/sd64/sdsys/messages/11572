@@ -1,0 +1,1 @@
+Stale: %1 journal write(s) have failed since SD started, so a master copy may be out of date. Run sync.masters with no account

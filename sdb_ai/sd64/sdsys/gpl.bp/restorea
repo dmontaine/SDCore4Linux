@@ -15,6 +15,7 @@
 *              account with the NET gate off.  The gate does nothing yet.
 * 17 Oct 26 dm S.64: the manifest keys edit.voc, edit.bp and edit.dict (acc_os_info) are read and handed to !create_account (CA$VOC.EDIT and the
 *              others); a manifest that has none gives an account with the edit gates off.
+* 19 Oct 26 dm S.67 stage 1: a restored account is synced into the master files (kernel(K$MASTERS, 'sync')); Linux only so far, see the call.
 * 06 Oct 26 dm PAL-15 (parity audit J-3): each account restored is audited.
 * 01 Oct 26 dm Written for S.50 (owner's request of 30 Sep 2026, rulings of
 *              1 Oct; part of 1.1-3 on all four products).  SHARED WITH SD CORE
@@ -384,6 +385,10 @@ $include createacc.h
          zip.leaf = field(zip.leaf, @ds, dcount(zip.leaf, @ds))
 * 07 Oct 26 dm - PAL-24: the command word is lower case.
          void kernel(K$AUDIT, 'restore.account account=' : acc.name : ' archive=' : zip.leaf)
+* 19 Oct 26 dm - S.67 stage 1: the restored tree replaced the account's VOC and dictionaries by a copy at the operating system level, which the
+*   hook cannot see; the master copies are made to match.  NOT IN THE WINDOWS COPY (it has no master files yet): this program is no longer
+*   byte for byte the Windows one, and the Windows carry of S.67 owes it.  Status 1 (master files not set up) does nothing.
+         void kernel(K$MASTERS, 'sync' : @fm : downcase(acc.name))
       end else
          failed += 1
          display sysmsg(13037, acc.name) ;* was not restored
