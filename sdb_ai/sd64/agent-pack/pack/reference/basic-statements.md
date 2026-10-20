@@ -1059,7 +1059,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `matreadu` *matrix* `from` *file.var*, *id* {`locked` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/12-sdnet.md` line 857
+- docs: `Administrator/markdown/12-sdnet.md` line 929
 
 ### basic:stmt:matwrite
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:435#827ce807 src2=docs:tools/syntax-shapes.txt:145#922888f4
@@ -1507,7 +1507,7 @@ clause of `open`, `openpath` and `openseq`
 `readvu` *var* `from` *file.var*, *id*, *field* {`locked` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/12-sdnet.md` line 857
+- docs: `User/markdown/42-sd-programming-with-a-remote-file.md` line 29
 
 ### basic:stmt:recordlockl
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:447#0774cf9e src2=docs:tools/syntax-shapes.txt:193#9e7e72ce
@@ -2290,4 +2290,4 @@ clause of `loop`: `loop` … `while` *condition* … `repeat`
 `writevu` *var* `to` *file.var*, *id*, *field* {`on error` …}
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/12-sdnet.md` line 854
+- docs: `User/markdown/42-sd-programming-with-a-remote-file.md` line 28

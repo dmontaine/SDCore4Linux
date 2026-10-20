@@ -10309,7 +10309,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 33
+"words": 20
 },
 "msg:11522": {
 "kind": "message",
@@ -23672,7 +23672,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "sys:param:dumpdir": {
 "kind": "sys.param",
@@ -23835,6 +23835,20 @@
 "tier": "reference",
 "words": 12
 },
+"sys:param:netreply": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
+"sys:param:netwait": {
+"kind": "sys.param",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 25
+},
 "sys:param:numfiles": {
 "kind": "sys.param",
 "part": "reference/system.md",
@@ -23896,7 +23910,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 25
 },
 "sys:param:reccache": {
 "kind": "sys.param",
@@ -24111,7 +24125,7 @@
 "sys:word:files-off": {
 "kind": "sys.word",
 "part": "reference/system.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 27
 },
@@ -24995,7 +25009,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "0.6.3",
 "tier": "reference",
-"words": 65
+"words": 66
 },
 "tcl:create.file": {
 "kind": "tcl.verb",
