@@ -1,6 +1,17 @@
 Next release - in progress
 --------------------------
 
+19 Oct 26  SDIDX -M SAYS WHY WHEN IT CANNOT MAKE THE DIRECTORY.
+
+             What        Moving the indexes of a file to a directory that cannot be made (a parent you may not write, or a path that goes
+                        through a file) ended with status 1 and not one word. It now prints "Cannot create directory <the path you typed>:
+                        <the reason>" (the operating system's reason, or "a file of that name exists") and still ends with status 1. Nothing is
+                        moved: the indexes and the file header are where they were.
+             Why it      A tool that fails without a message sends the person to look at permissions, mount points and spelling with nothing
+             matters     to go on. The Windows version is being given the same two lines, so a message means the same on both.
+             Does not    It changes nothing when the directory can be made, and not the message for a target that already exists. Other
+                        errors in the tools keep their own wording.
+
 19 Oct 26  AN UPGRADE PUTS THE FOUR RECORD FILES OF EVERY EXISTING GROUP ACCOUNT BACK IN ITS OWN GROUP.
 
              What        When you keep your accounts and install again, the installer now looks at each group account except shared and
