@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  S.72b: op_reclckd() of a NET_FILE is refused for a read mode one (message 11501, nothing sent) inside net_recordlocked; the server refuses request 34 to a login without sdfileswrite.
  * 20 Oct 26 dm  S.72 (QMNet parity, tiers A and B): op_filelock() and op_flunlock() act on a write mode NET_FILE (net_filelock_step, net_fileunlock; a read mode one is still refused with
  *               11501), op_reclckd() asks the server for any NET_FILE (net_recordlocked) and op_getlocks() gives a NET_FILE the local view - the counters and no lock line (NO_LOCAL_FILE)
  * 18 Oct 26 dm  S.65 slice 3e: op_lockrec(), op_release(), op_rlsfile() and op_rlsall() act on a write mode NET_FILE (net_gate, net_lock_step, net_release, net_release_all); a read mode one is refused as before
@@ -821,7 +822,7 @@ void op_reclckd() {
   k_get_file(descr);
   fvar = descr->data.fvar;
 
-  if (fvar->type == NET_FILE) /* 20 Oct 26 S.72: the server says; STATUS() is the owner's user number on the server */
+  if (fvar->type == NET_FILE) /* 20 Oct 26 S.72: the server says; STATUS() is the owner's user number on the server.  S.72b: a read-mode handle is refused inside, nothing is sent */
   {
     status = (int16_t)net_recordlocked(fvar, id, id_len); /* an error is raised, always; the handler runs BASIC: the stack is found by e_stack from here on */
 

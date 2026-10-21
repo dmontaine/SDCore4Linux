@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  * START-HISTORY:
+ * 20 Oct 26 dm  S.72b: NETG_PEEK (net_gate's read-mode test alone, for RECORDLOCKED()).
  * 19 Oct 26 dm  S.67, the verifier's findings: masters_note_read, masters_cas_on and masters_cas_check (a save of a master record is judged against the record the
  *               session read, and again inside the account's write).
  * 19 Oct 26 dm  S.67: prototypes of masters.c (stage 1: the hook and K_MASTERS; stage 2: masters_before_write, masters_before_delete,
@@ -358,6 +359,7 @@ const char * net_message(void);
 #define NETG_DELETE 2  /* DELETE */
 #define NETG_CLEAR 3   /* CLEARFILE */
 #define NETG_LOCK 4    /* READU READL MATREADU MATREADL READVU READVL RECORDLOCKU RECORDLOCKL */
+#define NETG_PEEK 5    /* RECORDLOCKED(): only the read-mode test of net_gate (S.72b) - it changes nothing, so a transaction does not matter */
 #define NET_LOCK_HELD 0
 #define NET_LOCK_WAIT 1
 #define NET_LOCK_LOCKED 2

@@ -42,11 +42,11 @@
   },
   "basic.function": {
    "chunks": 256,
-   "sha256": "0fc34bd30191403bab794ad515a0b9dec7f46359d8c37a4cb439fd217b1c1647"
+   "sha256": "5264b7f8c684bdd7264bf97ea1a1ec8699a47b01fb1e62e5bfb8118d377a50f1"
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "0f58815d8c7d9b12e21605a581533f795c955f73d9709bb8c96a05632c75c67e"
+   "sha256": "b765026f385491edf506feec0344410505f4bedddb9262af531851c91d397146"
   },
   "basic.mode": {
    "chunks": 44,
@@ -58,11 +58,11 @@
   },
   "basic.restricted": {
    "chunks": 34,
-   "sha256": "bdf4debe6c5f5be1e10f537480cbae8257c98bea50fd65a688e121f5851b2505"
+   "sha256": "151885085decb076f344394f7970e36af74a4974dd8a94dbdb8daefeadb5d50c"
   },
   "basic.statement": {
    "chunks": 224,
-   "sha256": "1d105a6230c7c6e6c5345bac8bfba43889bbbd6750cb83148b04a98b42bc5aa5"
+   "sha256": "c26f9a9d48c367191d344076107e8336496bbc6a159ccc27dbd825c85c911f3c"
   },
   "core.digest": {
    "chunks": 5,
@@ -118,7 +118,7 @@
   },
   "sys.param": {
    "chunks": 63,
-   "sha256": "838857127439545aaa9b7c0694b1a82bba632f4b557c63cf37cd31c55adc90f1"
+   "sha256": "b4fda1a1c7214030ff38ba192c47180d124bf3286873da23ef6d6d0499d1be9d"
   },
   "sys.releases": {
    "chunks": 1,
@@ -184,7 +184,7 @@
   },
   "reference/basic-functions.md": {
    "chunks": 293,
-   "sha256": "5f535c4de4ee88efa75c87edddec24e20cebd94619374f02304a599fc9ba0d5d",
+   "sha256": "669a511f08d1a6174e450791fbc5f31d17f7b1a14de3bd82acc28cfa571d874d",
    "words": 4662
   },
   "reference/basic-modes.md": {
@@ -194,7 +194,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 292,
-   "sha256": "d7441f827a94659249100097ee12c07aa04f5a6224adf597e34ac6375f833028",
+   "sha256": "aca72295dff9c4e5df8b5e63ef3612f258c70cc9b921be19a514d25268b9a616",
    "words": 6126
   },
   "reference/dictionaries.md": {
@@ -214,7 +214,7 @@
   },
   "reference/system.md": {
    "chunks": 95,
-   "sha256": "c1735ddd24cbf4e08d3afbd90e9c28450d5e9b67035fb4d6e42813be42db0c25",
+   "sha256": "fb17e60e589b02222c2cbb77d4656552d17452540c246fb3e44ca599b0d7b85c",
    "words": 2524
   },
   "reference/tcl-keywords.md": {

@@ -10,6 +10,18 @@
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.
 #
 # START-HISTORY:
+# 20 Oct 26 dm  S.72b (owner, 20 Oct 2026: of the five S.72 loosenings only RECORDLOCKED() is tightened; request 34 joins gpl.bp/apifilesok's change set, so a files-only login WITHOUT
+#               the group sdfileswrite is refused it with message 11521 and the audit line `api refused request=34 route=sdfiles write=off user=<name>`).  ***THIS SUITE'S LOGIN IS NOT A
+#               FILES-ONLY LOGIN***: the local door (request 25, then 3) never sets apisrvr's files.only, which only the SCRAM final does for a user who is in sdfiles and not in sdapi (needs
+#               TLS, a credential and the Linux groups: the VM witness).  So no row of F (22, 27, 28, 32 ask request 34) can flip: they are the sdapi login, which the change leaves UNTOUCHED, and
+#               they stay green.  What this suite CAN do is run the REAL gate for request 34: (I) the sandbox's apisrvr gets a TEST DEVICE - two lines before the gate that make request 27 mark the
+#               calling session files-only and request 28 mark it files-only AND in the group (it sets the two common variables the SCRAM final sets, nothing else) - so the production gate, the
+#               production !apifilesok, message 11521/11480 and the audit line are what answer.  Three sessions of one account: H stays an ordinary session holding a record lock, N is marked
+#               files-only without the group, G files-only with it.  The rows were written from the spec and run on the unchanged tree (f64e7ff) first: 135 passed, 4 failed - exactly I4, I5, I6
+#               and I13, because request 34 was SERVED to N (code -2 with H's user number in STATUS(), no refusal, no audit line); on the S.72b tree 139 passed, 0 failed.
+#               --mutant=wall-gone (the sandbox's apifilesok loses `files.chg := '34,'`: I4 I5 I6 I13), wall-too-wide (the gate also takes an ordinary login's request 34: I1a I2 I6 I8 I10
+#               I12 I13) and group-ignored (the gate passes write flag 0 whatever the session: I9 I10 I10a I13) are judged by section I (after A to E, which must pass); each failed exactly the
+#               rows listed with it.  Not covered: files.only being set by the SCRAM final from the Linux groups (the VM witness).
 # 20 Oct 26 dm  S.72 (QMNet parity, tier B).  (F) F20 to F49 MEASURE what netfake.py's requests 32 and 33 (FILELOCK, FILEUNLOCK) now claim about the real server; they pass on the
 #               server as it was, they are the controls that hold the fake to it.  FILEUNLOCK answers SV$OK with STATUS() 0 (the holder's), 3012 (nobody holds the lock) or 3011 (another
 #               session does, and the lock stays); a no-wait FILELOCK that finds the file locked answers LOCKED with STATUS() the holder's user number (found by request 50, getvar USERNO)
@@ -425,7 +437,8 @@ def section_f_s72():
     what every STATUS() below is compared with; request 34's owner number for a record lock (F32) is a second route to the same number.  Every fact has a CONTROL row: the same
     request answered differently when nothing is in the way, so a server that answered LOCKED (or OK) to everything fails there.  Only the form with the wait flag 0 is used (the
     S.72 client never sends the other): the F10 to F19 rows above hold the blocking form, and the mutant filelock-wait puts the stale index on that branch only, so none of
-    these rows is touched by it."""
+    these rows is touched by it.  (20 Oct 26, S.72b: the sessions here are the LOCAL door, not a files-only login, so the wall that now refuses request 34 to a files-only login without the
+    write group does not reach F22, F27, F28 and F32: they are the sdapi login and stay as they were.  Section I runs request 34 through the real files-only gate.)"""
     say("\n  -- S.72 (20 Oct 26): FILELOCK / FILEUNLOCK / RECORDLOCKED around a file lock, measured on the real server (what netfake.py claims) --")
 
     def ok(r):
@@ -837,11 +850,162 @@ def set_apisrvr(old=None, new=None):
         q3.bail("the sandbox's apisrvr did not compile:\n" + "\n".join(out[-8:]))
 
 
+# ---- S.72b (20 Oct 26): section I, request 34 behind the REAL files-only gate -------------------------------------------------------------------------------------------------------
+# THE TEST DEVICE.  Two lines put before apisrvr's gate in the SANDBOX's copy (never the tree's): request 27 (which apisrvr has no use for) sets files.only for the calling session, request 28
+# sets files.only and files.write.  Those are the two common variables vb.scram.final sets from the user's Linux groups (sdfiles / sdapi, sdfileswrite); everything after is the production code:
+# the gate, !apifilesok, messages 11480 and 11521, the audit line.  The marker request is itself refused by the gate (it is not in the table) with 11480: the first row after it is the proof that the
+# device took.  What it does NOT do is read a group: that is the SCRAM final, covered only by the VM witness.
+GATE_OLD = "   if files.only then\n      if not(apifilesok(action, master.login.done, files.write)) then"
+DEVICE = ("   if action = 27 then files.only = @true      ;* TEST DEVICE (sandbox-req29.py section I): request 27 marks this session files-only, without the write group\n"
+          "   if action = 28 then                         ;* TEST DEVICE: request 28 marks it files-only AND in the group sdfileswrite\n"
+          "      files.only = @true\n"
+          "      files.write = @true\n"
+          "   end\n")
+# name -> (program changed, text, what it becomes, the rows that must fail and nothing else).  Every one starts with the device above in the sandbox's apisrvr.
+I_MUTANTS = {
+    # the wall disappears: request 34 leaves the change set in the sandbox's apifilesok.  N is then told what H holds: its refusal, the audit line, the repeat on a free record and the exact audit list.
+    "wall-gone": ("apifilesok", "files.chg := '34,'", "files.chg := ''", ("I4", "I5", "I6", "I13")),
+    # the gate reaches an ORDINARY login's request 34 (the "sdapi login is untouched" half): H is refused before and after, N (still unmarked) is refused too, and the audit list grows.
+    # Written before the first run, from the rows: H's own request 34 is refused (I1a, and I6, I8, I10, I12 which ask it again), N before its marker (I2), and the audit list grows (I13).
+    "wall-too-wide": ("apisrvr", GATE_OLD, "   if files.only or action = 34 then\n      if not(apifilesok(action, master.login.done, files.write)) then", ("I1a", "I2", "I6", "I8", "I10", "I12", "I13")),
+    # the gate ignores the group: a session marked in the group is refused as one that is not: G is not served request 34 (I9) or request 30 (I10), is not told 0 after its release (I10a: its 34 is
+    # refused), and the audit list differs (I13).  H, N and the marker rows do not change.
+    "group-ignored": ("apisrvr", "if not(apifilesok(action, master.login.done, files.write)) then", "if not(apifilesok(action, master.login.done, 0)) then", ("I9", "I10", "I10a", "I13")),
+}
+
+
+def set_prog(name, edits):
+    """Write the sandbox's gpl.bp/<name> from the TREE's with each (old, new) of EDITS applied in turn (each old must occur exactly once at its turn) and compile it there.  No edits: the tree's own."""
+    with open(os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", name), encoding="utf-8", errors="replace") as f:
+        src = f.read()
+    for old, new in edits:
+        if src.count(old) != 1:
+            q3.bail("section I: the text to change in %s is found %d times, not once: %r" % (name, src.count(old), old[:70]))
+        src = src.replace(old, new)
+    with open(os.path.join(q3.SYS, "gpl.bp", name), "w", encoding="utf-8") as f:
+        f.write(src)
+    out = q3.adm(["BASIC gpl.bp " + name], internal=True)
+    if not has(out, r"^Compiled 1 program\(s\) with no errors"):
+        q3.bail("the sandbox's %s did not compile:\n%s" % (name, "\n".join(out[-8:])))
+
+
+def section_i(mutant=None):
+    """I. S.72b, request 34 (RECORDLOCKED) behind the REAL files-only gate.  Three sessions of zzad: H (ordinary, never marked: the sdapi login), N (request 27: files-only, no group) and G
+    (request 28: files-only and in the group).  H holds an update lock on zzsec/k1 and asks for it again and for a free record (k9); N asks the same, before its marker (what the wall must
+    hide) and after it; G takes a lock of its own.  Every request is printed with its bytes and reply; the audit trail is read after each step.  The expected audit list is written here, in the
+    order the requests are sent: 27 off, 34 off, 34 off, 32 off, 30 off, 28 on, 20 on - and nothing else, so an H that is refused a thing, or a refusal that is not audited, shows."""
+    say("\n--- I. S.72b: request 34 behind the real files-only gate (a TEST DEVICE marks sessions files-only: the gate, !apifilesok, the messages and the audit line are the production code) ---")
+    if not q3.restart():
+        q3.bail("SD does not start with the sandbox's own sd.conf")
+    me = getpass.getuser()
+    edits = [(GATE_OLD, DEVICE + GATE_OLD)]
+    prog_edit = {"apisrvr": [], "apifilesok": []}
+    if mutant is not None:
+        prog, old, new = I_MUTANTS[mutant][:3]
+        prog_edit[prog].append((old, new))
+        say("\nsandbox-req29: MUTANT %s: the sandbox's %s has %r changed to %r; the rows that must fail, and nothing else: %s" % (mutant, prog, old[:70], new[:70], ", ".join(I_MUTANTS[mutant][3])))
+    try:
+        set_prog("apifilesok", prog_edit["apifilesok"])
+        set_prog("apisrvr", edits + prog_edit["apisrvr"])
+        say("  [device] the sandbox's apisrvr has request 27 (files-only) and 28 (files-only + group) in front of its gate; the account is zzad, the file zzsec, the record k1 (held by H), k9 (free)")
+        H, N, G = Wire("IH"), Wire("IN"), Wire("IG")
+        logins = [w.login("zzad") for w in (H, N, G)]
+        row("I0 three members sign on to zzad (OK all): H stays an ordinary session for the whole section, N will be marked files-only without the write group, G with it",
+            all(e == 0 for e, t in logins), repr(logins))
+        if not all(e == 0 for e, t in logins):
+            q3.bail("the control logins did not work, so no row below can be believed")
+        uH, uN, uG = H.userno(), N.userno(), G.userno()
+        row("I0a the user numbers, by request 50 on each session before any marker: three different positive integers (the numbers the rows below expect in STATUS())",
+            None not in (uH, uN, uG) and len({uH, uN, uG}) == 3 and min(uH, uN, uG) > 0, repr((uH, uN, uG)))
+        fno = [w.open4("zzsec")[0] for w in (H, N, G)]
+        if None in fno + [uH, uN, uG]:
+            q3.bail("a file did not open or a user number was not given, so no row below can be believed")
+        fH, fN, fG = fno
+        back = N.read_back(fN)
+        row("I0b CONTROL: N reads the record planted in zzad's zzsec/k1 (%r) through its open file number - the file is the one the disk holds" % planted_zzad(), back == planted_zzad(), repr(back))
+        rH = H.readlock(fH, b"k1", True)
+        row("I1 H (ordinary) takes an update lock on zzsec/k1 (READU, request 9): OK", rH is not None and rH[0] == 0, repr(rH))
+        h1, h9 = H.reclocked(fH, b"k1"), H.reclocked(fH, b"k9")
+        row("I1a H (an sdapi login: never marked, not in any group) asks RECORDLOCKED: k1 is code 2 (its own update lock) with STATUS() its own number %r, the free record k9 is code 0 with STATUS() 0 - served, "
+            "the wall does not reach an ordinary login" % uH, h1[:2] == (2, uH) and h9[:2] == (0, 0), repr((h1[:3], h9[:3])))
+        n0 = N.reclocked(fN, b"k1")
+        row("I2 CONTROL (what the wall must hide): N, still unmarked, is told k1 is locked by ANOTHER user - code -2 with STATUS() H's number %r" % uH, n0[:2] == (-2, uH), repr(n0[:3]))
+        off = audit_off()
+        row("I2a the audit file can be read (a row that needs a line from it fails, it does not pass for want of one)", off is not None, repr(off))
+        # ---- N: marker 27, then request 34
+        r27 = N.req(27, shown="TEST DEVICE: mark this session files-only (no group)")
+        t27 = msg(11480).replace("%1", "27")
+        row("I3 the marker: request 27 is refused by the gate - error ON.ERROR (1) with message 11480 for request 27 (%r) - so N is now a files-only session without the group and the device took" % t27,
+            r27 is not None and r27[0] == 1 and r27[2].decode("latin-1") == t27, repr(r27))
+        if not (r27 is not None and r27[0] == 1 and r27[2].decode("latin-1") == t27):
+            q3.bail("the test device did not take: request 27 was not refused by the files-only gate, so no row below measures the gate")
+        c34, s34, raw = N.reclocked(fN, b"k1")
+        t34 = msg(11521).replace("%1", "34")
+        row("I4 N (files-only, NOT in the group) asks RECORDLOCKED of zzsec/k1, which H holds: refused - error ON.ERROR (1), the text is message 11521 for request 34 (%r), no 4 byte code, and the reply "
+            "does not carry H's number %r in STATUS()" % (t34, uH),
+            raw is not None and raw[0] == 1 and raw[2].decode("latin-1") == t34 and t34.endswith("(request 34)") and c34 is None and raw[1] != uH, repr(raw))
+        new = audit_new(off)
+        row("I5 ...and the server audited it: 'api refused request=34 route=sdfiles write=off user=%s' (the marker's own 'request=27' line is before it)" % me,
+            audit_has(new, r"api refused request=34 route=sdfiles write=off user=%s$" % re.escape(me)), repr(new))
+        c9, s9, raw9 = N.reclocked(fN, b"k9")
+        h_again = H.reclocked(fH, b"k1")
+        row("I6 the refusal does not depend on the lock: the same request for the FREE record k9 is refused the same way (%r), N took nothing, and H still holds k1 (code 2, STATUS() %r)" % (t34, uH),
+            raw9 is not None and raw9[0] == 1 and raw9[2].decode("latin-1") == t34 and c9 is None and h_again[:2] == (2, uH), repr((raw9, h_again[:3])))
+        # ---- N: the reads still work, the neighbours of 34 are refused as before
+        back = N.read_back(fN)
+        rr = N.release(fN, b"k9")
+        row("I7 N still reads (request 6: the planted record) and still releases (request 15, k9): the reads and 15 need sdfiles alone", back == planted_zzad() and rr is not None and rr[0] == 0, repr((back, rr)))
+        rfl = N.filelock(fN, 0)
+        rlk = N.lockrec(fN, 3, b"k9")
+        row("I8 CONTROL: N's FILELOCK (32) and lock record (30) are refused as before - error ON.ERROR with message 11521 for requests 32 and 30; N holds nothing (H asks RECORDLOCKED of k9: code 0)",
+            rfl is not None and rfl[0] == 1 and rfl[2].decode("latin-1") == msg(11521).replace("%1", "32") and rlk is not None and rlk[0] == 1
+            and rlk[2].decode("latin-1") == msg(11521).replace("%1", "30") and H.reclocked(fH, b"k9")[:2] == (0, 0), repr((rfl, rlk)))
+        # ---- G: marker 28 (files-only AND in the group)
+        r28 = G.req(28, shown="TEST DEVICE: mark this session files-only and in the group sdfileswrite")
+        t28 = msg(11480).replace("%1", "28")
+        row("I9a the marker: request 28 is refused too, with message 11480 for request 28 (%r) - G is files-only and in the group" % t28, r28 is not None and r28[0] == 1 and r28[2].decode("latin-1") == t28, repr(r28))
+        g1, g9 = G.reclocked(fG, b"k1"), G.reclocked(fG, b"k9")
+        row("I9 G (files-only, IN the group) asks RECORDLOCKED: served - k1 is code -2 with STATUS() H's number %r, the free k9 is code 0 with STATUS() 0 (the same answers as N was given before its marker)" % uH,
+            g1[:2] == (-2, uH) and g9[:2] == (0, 0), repr((g1[:3], g9[:3])))
+        rl = G.lockrec(fG, 3, b"k9")
+        g2 = G.reclocked(fG, b"k9")
+        h2 = H.reclocked(fH, b"k9")
+        row("I10 G takes an update lock on k9 (request 30, flags 3): OK; RECORDLOCKED then says code 2 to G (STATUS() %r) and code -2 to H (STATUS() %r) - the group may lock, and what it is told is real" % (uG, uG),
+            rl is not None and rl[0] == 0 and g2[:2] == (2, uG) and h2[:2] == (-2, uG), repr((rl, g2[:3], h2[:3])))
+        G.release(fG, b"k9")
+        g3 = G.reclocked(fG, b"k9")
+        row("I10a ...and after G lets k9 go (request 15) G is told code 0 again - the lock above was G's", g3[:2] == (0, 0), repr(g3[:3]))
+        r20 = G.req(20, b"\x00\x00", shown="call (not in the table)")
+        row("I11 a request outside the table (20, call) is refused to G as well - message 11480 for request 20: the group lifts the change set only", r20 is not None and r20[0] == 1
+            and r20[2].decode("latin-1") == msg(11480).replace("%1", "20"), repr(r20))
+        # ---- H: still an ordinary session at the end
+        h3, h4 = H.reclocked(fH, b"k1"), H.reclocked(fH, b"k9")
+        row("I12 CONTROL AFTER EVERYTHING: H (never marked) is still served RECORDLOCKED - k1 code 2 with STATUS() %r, k9 code 0 - and was not refused once" % uH, h3[:2] == (2, uH) and h4[:2] == (0, 0), repr((h3[:3], h4[:3])))
+        new = audit_new(off)
+        got = re.findall(r"api refused request=(\d+) route=sdfiles write=(on|off) user=(\S+)$", new or "", re.M)
+        want = [("27", "off", me), ("34", "off", me), ("34", "off", me), ("32", "off", me), ("30", "off", me), ("28", "on", me), ("20", "on", me)]
+        row("I13 the audit trail gained EXACTLY these 'api refused request=N route=sdfiles write=W user=%s' lines, in this order, and no other (nothing for H, nothing for the reads, the group's "
+            "request 34 and 30): %s" % (me, " ".join("%s/%s" % (a, b) for a, b, c in want)), got == want, repr(got))
+        for w in (H, N, G):
+            w.close()
+    finally:
+        set_prog("apisrvr", [])
+        set_prog("apifilesok", [])
+
+
+_planted = {}
+
+
+def planted_zzad():
+    """The record the preparation planted in zzad's zzsec/k1 and read back (set in main)."""
+    return _planted.get("zzad")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     mutant = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
-    if len(args) != 1 or (mutant is not None and mutant not in MUTANTS):
-        q3.bail("usage: sandbox-req29.py <dir> [--build] [--mutant=%s]" % "|".join(MUTANTS))
+    if len(args) != 1 or (mutant is not None and mutant not in MUTANTS and mutant not in I_MUTANTS):
+        q3.bail("usage: sandbox-req29.py <dir> [--build] [--mutant=%s]" % "|".join(list(MUTANTS) + list(I_MUTANTS)))
     q3.BOX = os.path.abspath(args[0])
     q3.SYS = os.path.join(q3.BOX, "sys")
     q3.SD = os.path.join(q3.SYS, "bin", "sd")
@@ -886,13 +1050,14 @@ def main():
         if got != [planted[n]]:
             q3.bail("the fixture file of %s does not hold the planted record: %r" % (n, out[-4:]))
     say("  [done] planted and read back in an ordinary session of each account: %r" % planted)
+    _planted.update(planted)
     # only now are the register records changed (the sign-on above needed the user's own group)
     register("zzaa", q3.GROUP, net="no")            # a member, the NET gate OFF
     register("zzab", NOT_MEMBER_GROUP, net="yes")   # NOT a member, the NET gate on: isolates the membership rule
     register("zzac", q3.GROUP, susp="SUSPENDED", net="yes")      # a member, suspended, NET on
     register("zzad", q3.GROUP, net="yes")           # a member, NET on: the control
     path_b = os.path.join(BOX, "user_accounts", "zzab")
-    if mutant is not None:
+    if mutant in MUTANTS:
         old, new_, kills = MUTANTS[mutant]
         set_apisrvr(old, new_)
         say("\nsandbox-req29: MUTANT %s: the sandbox's apisrvr has %r changed to %r; the rows that must fail, and nothing else: %s" % (mutant, old[:70], new_, ", ".join(kills)))
@@ -1018,6 +1183,8 @@ def main():
         if mutant is None:
             section_g()
             section_h()
+        if mutant is None or mutant in I_MUTANTS:
+            section_i(mutant)
     finally:
         q3.restart()
         if mutant is not None:
@@ -1026,7 +1193,7 @@ def main():
 
     say("\nsandbox-req29: %d passed, %d failed" % (q3.passed, q3.failed))
     if mutant is not None:
-        want, got = sorted(set(MUTANTS[mutant][2])), sorted(set(FAILED_IDS))
+        want, got = sorted(set(MUTANTS[mutant][2] if mutant in MUTANTS else I_MUTANTS[mutant][3])), sorted(set(FAILED_IDS))
         ok = want == got
         say("sandbox-req29: MUTANT %s: the rows that failed are %s; they had to be exactly %s -> %s" % (mutant, got, want, "KILLED BY ITS OWN ROWS" if ok else "NOT AS EXPECTED"))
         return 0 if ok else 1
