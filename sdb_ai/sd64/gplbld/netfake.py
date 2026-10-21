@@ -5,6 +5,16 @@
 
 No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-away certificate) and the loopback interface.
 
+20 Oct 26 dm  S.72 (QMNet parity, tier B): requests 32 FILELOCK and 33 FILEUNLOCK are served, as gpl.bp/apisrvr's vb.filelock and vb.fileunlock do with the kernel's op_filelock() and
+              op_flunlock() (gplsrc/op_lock.c): FILELOCK is fno and wait (two signed 16 bit integers); wait 0 answers SV$LOCKED with STATUS() the holder's user number (another user's file
+              lock, else the owner of a record lock in the file held by ANOTHER user), a wait that is not 0 waits cfg lock_wait seconds and then gives up with the ON ERROR reply the
+              other waits use; the success STATUS() is cfg success_status (apisrvr sends whatever the last statement left); a second FILELOCK of a file the session already holds succeeds
+              and does not change which file number owns the lock.  FILEUNLOCK answers SV$OK with STATUS() 0 (it was ours: let go, waiters woken), 3011 (ER$LCK: another user holds it, left
+              held) or 3012 (ER$NLK: nobody holds it); that STATUS() is the answer and success_status never replaces it.  The lock is bound to the FILE NUMBER that took it (the kernel binds
+              it to the file variable, fptr->fvar_index): CLOSE of that file number lets it go (op_dio1.c dio_close), CLOSE of another file number of the same file does not; request 15 with
+              file number 0 lets go of every file lock of the session and request 15 with an empty id lets go of the file lock if THAT file number took it (op_lock.c unlock_record(), what
+              RLSALL and RLSFILE call); the end of the session lets it go (clopts.c).  FakeStore.locks_of(userno) lists a file lock as (lock name, "", "file").  The gate is as before:
+              32 and 33 are in FILES_CHANGE.  The self-test rows are in selftest_writes, section W16; sandbox-req29.py section F holds the facts to a real `sd -Q`.
 19 Oct 26 dm  Verifier finding (finish 2): stall_first (the Ack is sent and client-first read, then silence: the wait for the first reply of the login) beside ack=False (silence before the Ack).
               With ack=False a client of this fake waits to the fake's own 5 second close, not to NETREPLY, because the TLS 1.3 session tickets the server sends after the handshake make the
               socket readable and READ.SOCKET's timeout is then spent (op_skt.c; measured by turning the tickets off in a scratch copy: 3.0 s).
@@ -73,9 +83,10 @@ It is a daemon thread with a lifetime limit, handles one connection at a time, a
               says so; the real server waits for ever.  (4) [changed by slice 3e, below] A connection that
               ends releases all of its locks.
               (5) SELECT returns the ids in insertion order; the real order is the hash order, so a test must not depend on either.
-              (6) NOT BUILT, answered with an error that says so and noted in errors: the file locks of 32 and 33, the indices
+              (6) NOT BUILT, answered with an error that says so and noted in errors: the indices
               (26, 35, 36, 38, 39, 42 to 45), and everything from 20 on that apisrvr offers (call, execute, sequential files,
-              trans, transactions ...).  [Writes, deletes, record locks and CLEARFILE, 16 to 19, 30 and 31, are built since slice 3e.]
+              trans, transactions ...).  [Writes, deletes, record locks and CLEARFILE, 16 to 19, 30 and 31, are built since slice 3e;
+              the file locks of 32 and 33 since S.72, 20 Oct 26.]
 
 18 Oct 26 dm  S.65 slice 3e: WRITES AND LOCKS.  (RUN AGAINST SD since: sandbox-netfile.py sections hwrite, kwrite and wgroup drive the $netfile handler and the kernel's
               NET_FILE statements against them - 19 Oct 26, K8b.)
@@ -93,6 +104,11 @@ It is a daemon thread with a lifetime limit, handles one connection at a time, a
               64 KB, enough for requests that carry an id).  (11) The text of an ON ERROR reply for a read only file, an id that is not
               valid and a lock on a null id is the fake's own wording (the real one is the kernel's, with the program and line).
               Faults added: success_status, must_lock, readonly, edit_allow, maxrlock, drop_before, drop_after (see DEFAULTS).
+
+20 Oct 26 dm  ***WHAT IT DOES NOT BE FAITHFUL TO, added by S.72***  (12) FILELOCK with a wait flag that is not 0 gives up after cfg lock_wait seconds with an ON ERROR reply (the real
+              server waits for ever; the S.72 client never sends it, it asks again every 250 ms with the flag 0).  (13) When record locks of several OTHER users stand in the way of a
+              FILELOCK the user number reported is the lowest; the kernel reports the first one in the lock table's own order.  (14) A file lock does not count toward cfg maxrlock
+              (the kernel's MAXRLOCK counts record locks).
 """
 
 import base64
@@ -125,10 +141,12 @@ R_SELECT, R_READNEXT, R_CLEARSELECT, R_READLIST, R_RELEASE = 11, 12, 13, 14, 15
 R_RECORDLOCKED, R_SELECTLIST, R_FILEINFO, R_READV, R_MARKMAPPING, R_REVISION = 34, 37, 40, 41, 46, 49
 # 18 Oct 26 S.65 slice 3e: the changing and locking requests.
 R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE = 16, 17, 18, 19, 30, 31
+# 20 Oct 26, S.72: the file lock requests.
+R_FILELOCK, R_FILEUNLOCK = 32, 33
 # The requests apisrvr has a handler for that this fake does not build (see the module text); a number apisrvr has no handler for is "illegal".
-NOT_BUILT = frozenset(list(range(20, 27)) + [29, 32, 33, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
-# The requests whose successful reply carries cfg success_status (the STATUS() apisrvr leaves for the client, which the client must not trust).
-STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE])
+NOT_BUILT = frozenset(list(range(20, 27)) + [29, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
+# The requests whose successful reply carries cfg success_status (the STATUS() apisrvr leaves for the client, which the client must not trust).  R_FILEUNLOCK is NOT here: its STATUS() is the answer.
+STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE, R_FILELOCK])
 MAX_PACKET = 16 * 1024 * 1024   # the largest request packet this server reads; a WRITE carries the whole record
 MAX_ID = 63                     # the server's longest record id (MAXIDLEN); the client refuses a longer one before it sends
 KIND_NAMES = ("", "voc", "dict", "prog")       # the edit gate kinds, by apisrvr's numbering: 11404 + kind is the message
@@ -143,6 +161,7 @@ FILES_CHANGE = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33])
 # err.h
 ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
 ER_RDONLY, ER_NOLOCK, ER_MAXRLOCK = 3018, 3023, 3060
+ER_LCK, ER_NLK = 3011, 3012     # FILEUNLOCK: another user holds the file lock / nobody does
 
 # 19 Oct 26 (K1).  WHAT THE REAL SERVER ANSWERS where this fake imitates an ON ERROR reply, MEASURED on a real `sd -Q` by sandbox-req29.py section G: one row there for each
 # entry, which compares the server with THESE values, so that a change in the server turns that row red and this table cannot go stale quietly.  (error field, STATUS() as
@@ -322,7 +341,8 @@ class FakeStore:
         st.accounts = {"acct"}                    # the accounts request 3 accepts; None (the default) accepts any valid name
         st.hold("customers", "c1", userno=7)      # another process holds an update lock (kind="shared" for a read lock)
         st.hold_file("customers", userno=7)       # ... or the file lock;  st.drop_user(7) lets everything of that user go
-        st.locks_of(userno) -> [(file, id, "update"|"shared")]     srv.sessions[i].userno is a connection's user number
+        st.locks_of(userno) -> [(file, id, "update"|"shared")] and, since S.72, (file, "", "file") for a file lock     srv.sessions[i].userno is a connection's user number
+        st.filelock_try(st.file("customers"), 7)  # 0: user 7 now holds the file lock (or already did); else the holder in the way (S.72; filelock_acquire waits, filelock_release unlocks)
     """
 
     def __init__(self):
@@ -398,8 +418,9 @@ class FakeStore:
             return bool(ent) and ent["u"] == me
 
     def count_locks(self, me):
-        """How many record locks user me holds (MAXRLOCK counts these)."""
-        return len(self.locks_of(me))
+        """How many RECORD locks user me holds (MAXRLOCK counts these; a file lock is not one of them)."""
+        with self.cond:
+            return sum((ent["u"] == me) + (me in ent["s"]) for ent in self.locks.values())
 
     # ---- the lock table: op_lock.c lock_record() ---------------------------------------------------------------------------------
     def _try(self, f, rid, update, me):
@@ -475,6 +496,66 @@ class FakeStore:
                 return -1, sorted(ent["s"])[-1]
             return 0, 0
 
+    # ---- 20 Oct 26, S.72: the file lock, op_lock.c op_filelock() and op_flunlock() ---------------------------------------------------
+    def filelock_holder(self, f):
+        """The user number that holds the file lock on f, 0 when nobody does."""
+        with self.cond:
+            return self.filelocks.get(f.lockname, 0)
+
+    def _filelock_try(self, f, me):
+        """op_filelock(): 0 when user me holds the file lock afterwards (it is taken now, or it was already mine), else the user number in the way: the holder of another
+        user's file lock, or the owner of a record lock in the file held by ANOTHER user (when several, the lowest number: the kernel reports the first in its lock table).
+        The caller holds self.cond."""
+        h = self.filelocks.get(f.lockname, 0)
+        if h:
+            return 0 if h == me else h
+        others = set()
+        for (name, _lid), ent in self.locks.items():
+            if name != f.lockname:
+                continue
+            if ent["u"] is not None and ent["u"] != me:
+                others.add(ent["u"])
+            others.update(s for s in ent["s"] if s != me)
+        if others:
+            return min(others)
+        self.filelocks[f.lockname] = me
+        return 0
+
+    def filelock_try(self, f, me):
+        """0 when the file lock on f is user me's (taken now, or it already was), else the holder in the way (not waiting)."""
+        with self.cond:
+            return self._filelock_try(f, me)
+
+    def filelock_acquire(self, f, me, timeout):
+        """As filelock_try, but waits up to timeout seconds for the one in the way to let go (every release notifies)."""
+        end = time.time() + timeout
+        with self.cond:
+            while True:
+                h = self._filelock_try(f, me)
+                if h == 0:
+                    return 0
+                left = end - time.time()
+                if left <= 0:
+                    return h
+                self.cond.wait(min(left, 0.1))
+
+    def filelock_release(self, lockname, me):
+        """op_flunlock(): 0 when user me held the file lock (now let go, waiters woken), ER$LCK 3011 when another user holds it (left held), ER$NLK 3012 when nobody does."""
+        with self.cond:
+            h = self.filelocks.get(lockname, 0)
+            if h == me:
+                del self.filelocks[lockname]
+                self.cond.notify_all()
+                return 0
+            return ER_LCK if h else ER_NLK
+
+    def release_filelocks(self, me):
+        """RLSALL: every file lock of user me goes; the other users' are not touched."""
+        with self.cond:
+            for k in [k for k, v in self.filelocks.items() if v == me]:
+                del self.filelocks[k]
+            self.cond.notify_all()
+
     def release_one(self, f, rid, me):
         self.release_key(f.lockname, f.lockid(rid), me)
 
@@ -533,6 +614,7 @@ class FakeStore:
             self.filelocks[_lower(name)] = userno
 
     def locks_of(self, userno):
+        """Every lock of the user, sorted: (lock name, id, "update" | "shared") for a record lock and, since S.72, (lock name, "", "file") for a file lock."""
         with self.cond:
             out = []
             for (name, lid), ent in self.locks.items():
@@ -540,6 +622,9 @@ class FakeStore:
                     out.append((name, lid, "update"))
                 if userno in ent["s"]:
                     out.append((name, lid, "shared"))
+            for name, holder in self.filelocks.items():
+                if holder == userno:
+                    out.append((name, "", "file"))
             return sorted(out)
 
 
@@ -570,6 +655,7 @@ class FileSession:
         self.fail_counts = {}
         self.type_counts = {}           # request type -> how many of that type this session has sent (drop_before / drop_after count these)
         self.taken = {}                 # file number -> {(lock name, lock id)}: the record locks taken through that slot (CLOSE lets them go)
+        self.flslot = {}                # lock name -> the file number that TOOK this session's file lock (the kernel's fptr->fvar_index): CLOSE of that number lets it go (S.72)
         self.nreq = 0
         self.done = False
         self.closed = False
@@ -783,6 +869,9 @@ class FileSession:
         if f is not None:
             for name, lid in self.taken.pop(self.cur_fno, ()):          # slice 3e: the locks taken through THIS slot go with it
                 self.store.release_key(name, lid, self.userno)
+            if self.flslot.get(f.lockname) == self.cur_fno:             # S.72, op_dio1.c dio_close(): the file lock goes with the file number that took it, and only with that one
+                del self.flslot[f.lockname]
+                self.store.filelock_release(f.lockname, self.userno)
             self.slots[self.cur_fno - 1] = None
         return ""
 
@@ -860,7 +949,9 @@ class FileSession:
         return "" if lst is None else FM.join(lst[0][lst[1]:])
 
     def r_release(self, data):
-        """vb.release: file number 0 releases every lock of the session; an empty id every lock on the file; else the one record's."""
+        """vb.release: file number 0 releases every lock of the session; an empty id every lock on the file; else the one record's.  Since S.72 (20 Oct 26; gplsrc/op_lock.c
+        unlock_record(), which RLSALL and RLSFILE call): file number 0 lets go of every FILE lock of the session too, and an empty id lets go of the file lock if the
+        file number it is sent through is the one that TOOK it; one record's id never touches a file lock."""
         fno = _short(data, 0)
         f = None
         if fno:
@@ -870,11 +961,16 @@ class FileSession:
         rid = _rid(data, 2)
         if fno == 0:
             self.store.release_all(self.userno)
+            self.store.release_filelocks(self.userno)
             self.taken.clear()
+            self.flslot.clear()
         elif rid == "":
             self.store.release_file(f, self.userno)
             for s in self.taken.values():
                 s.difference_update([k for k in s if k[0] == f.lockname])
+            if self.flslot.get(f.lockname) == fno:
+                del self.flslot[f.lockname]
+                self.store.filelock_release(f.lockname, self.userno)
         else:
             self._unlock(f, rid)
         return ""
@@ -951,6 +1047,46 @@ class FileSession:
         if rid == "":
             return self._fail_on_error(0, "netfake: null record id")
         self._lock(f, rid, bool(flags & 1), not (flags & 2), as_abort=True)
+        return ""
+
+    def r_filelock(self, data):
+        """vb.filelock (20 Oct 26, S.72): fno (short), wait (short).  wait 0 is FILELOCK with a LOCKED clause: SV$LOCKED with STATUS() the user number in the way - the holder of another
+        user's file lock, else the owner of a record lock in the file held by ANOTHER user (op_lock.c op_filelock()); a user who holds the file lock already succeeds.  A wait that
+        is not 0 waits (here: lock_wait seconds, then the ON ERROR reply the other waits give; the real server waits for ever).  The file number that TAKES the lock is
+        remembered (the kernel's fptr->fvar_index): a second FILELOCK of a lock the user already holds, through any number, leaves the owner as it was.  The success STATUS() is
+        cfg success_status (STATUS_REQUESTS)."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        wait = _short(data, 2)
+        mine = self.store.filelock_holder(f) == self.userno
+        if wait:
+            h = self.store.filelock_acquire(f, self.userno, self.cfg["lock_wait"])
+        else:
+            h = self.store.filelock_try(f, self.userno)
+        if h == 0:
+            if not mine:
+                self.flslot[f.lockname] = self.cur_fno
+            return ""
+        if wait:
+            self.err = SV_ON_ERROR
+            self.abort_msg = "netfake: gave up after %s seconds waiting for the file lock on %s held by user %d" % (self.cfg["lock_wait"], f.vocname, h)
+            self.server.note(self.abort_msg)
+        else:
+            self.err = SV_LOCKED
+            self.st = h
+        return ""
+
+    def r_fileunlock(self, data):
+        """vb.fileunlock (20 Oct 26, S.72): fno (short).  SV$OK with STATUS() 0 when the session held the file lock (now let go, waiters woken), ER$LCK 3011 when another user holds
+        it (left held), ER$NLK 3012 when nobody does (op_lock.c op_flunlock()).  The STATUS() is the answer: success_status never replaces it.  It goes by the USER, not the file
+        number, so any number of the file may unlock."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        self.st = self.store.filelock_release(f.lockname, self.userno)
+        if self.st == 0:
+            self.flslot.pop(f.lockname, None)
         return ""
 
     def r_recordlocked(self, data):
@@ -1046,7 +1182,7 @@ class FileSession:
                 R_CLEARSELECT: r_clearselect, R_READLIST: r_readlist, R_RELEASE: r_release, R_RECORDLOCKED: r_recordlocked,
                 R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision,
                 R_WRITE: r_write, R_WRITEU: r_writeu, R_DELETE: r_delete, R_DELETEU: r_deleteu, R_LOCKRECORD: r_lockrecord,
-                R_CLEARFILE: r_clearfile}
+                R_CLEARFILE: r_clearfile, R_FILELOCK: r_filelock, R_FILEUNLOCK: r_fileunlock}
 
 
 class FakeServer(threading.Thread):
@@ -1992,12 +2128,13 @@ def selftest_files(srv, cert, row):
     r = c.req(R_OPEN, "customers")
     r2 = c.req(R_READ, r[2] + b"c1")
     row("files-only: open and read are allowed through", r2 == (0, 0, rec_c1.encode("latin-1")), repr((r, r2)))
-    r = c.req(32, _S(1) + _S(0))
-    row("files-only: a request the gate allows and the fake does not build (32, filelock) reaches the dispatch: SV$ERROR \"not implemented\"",
-        r[0] == 3 and "not implemented" in c.error_text() and 32 not in ses.refused, repr(r))
+    r = c.req(35, _S(1))
+    row("files-only: a request the gate allows and the fake does not build (35, indices) reaches the dispatch: SV$ERROR \"not implemented\"",
+        r[0] == 3 and "not implemented" in c.error_text() and 35 not in ses.refused, repr(r))
     c.close()
     wait_closed(ses)
-    row("... and the file lock is the one thing the fake noted", srv.errors == ["request 32 is not built in netfake"], repr(srv.errors))
+    row("... and the indices request is the one thing the fake noted (S.72, 20 Oct 26: it was the file lock, request 32, until that was built)",
+        srv.errors == ["request 35 is not built in netfake"], repr(srv.errors))
     srv.errors.clear()
     c = connect(user="carol", pw="pw-carol")
     ses = srv.sessions[-1]
@@ -2019,8 +2156,8 @@ def selftest_files(srv, cert, row):
         print("  [SKIP] gpl.bp/apifilesok is not there: the allow list is not compared")
     else:
         row("FILES_OK is gpl.bp/apifilesok's table, number for number (and 3 is allowed once)", FILES_OK == want, repr(sorted(FILES_OK ^ want)))
-    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30, 31, 34, 37, 40, 41, 46, 49",
-        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
+    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30 to 34, 37, 40, 41, 46, 49 (32 and 33, the file locks, since S.72)",
+        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 32, 33, 34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
     row("NOT_BUILT and the built requests do not overlap", not (NOT_BUILT & set(FileSession.HANDLERS)), repr(sorted(NOT_BUILT & set(FileSession.HANDLERS))))
     bad_msgs = []
     for num, copy in _MSG_COPY.items():
@@ -2816,6 +2953,279 @@ def selftest_writes(srv, row):
     r = c.req(R_READ, _S(1) + b"a")
     row("... and the dictionary's file number holds the dictionary, not the data: its records are the items, so the data record a is not there", r[0] == SV_ELSE, repr(r))
     bye(c, ses)
+
+    # ---- W16  the file locks, requests 32 and 33 (20 Oct 26, S.72) ---------------------------------------------------------------------------------------------
+    # The expected values are written from the spec (gpl.bp/apisrvr vb.filelock and vb.fileunlock, gplsrc/op_lock.c op_filelock() and op_flunlock(), op_dio1.c dio_close(),
+    # unlock_record()), not from this file's own handlers; sandbox-req29.py section F holds the same facts to a real `sd -Q`.  Every request is printed as it crosses: the session,
+    # the request number, the bytes sent, and the reply (error field, STATUS(), data).  The rows use plain numbers and the names SV$LOCKED = 4 and the messages 5268, 11521.
+    FL, FU = 32, 33
+
+    def FLK(fno, wait=0):
+        return _S(fno) + _S(wait)
+
+    def tx(cl, who, ptype, data):
+        rep = cl.req(ptype, data)
+        print("      %s sent %d [%s] -> %r" % (who, ptype, data.hex(" "), rep))
+        return rep
+
+    reset()
+    c1 = connect()
+    s1 = srv.sessions[-1]
+    c2 = connect(lock_wait=0.5)
+    s2 = srv.sessions[-1]
+    u1, u2 = s1.userno, s2.userno
+    a1, = opened(c1, "wf")
+    a2, = opened(c2, "wf")
+    row("W16 setup (the null state): two sessions with different user numbers, wf open as file number 1 in each, and NO file lock held by anybody - so a 'held' below is not a pass over nothing",
+        u1 != u2 and (a1, a2) == (1, 1) and st.locks_of(u1) == [] and st.locks_of(u2) == [] and st.filelocks == {}, repr((u1, u2, a1, a2, st.filelocks)))
+
+    # -- a free file, and the holder asking again
+    r = tx(c1, "c1", FL, FLK(a1))
+    row("vb.filelock, wait 0, a free file: error 0, STATUS 0, no data; c1 now holds the file lock and locks_of lists it as (wf, '', file)",
+        r == (0, 0, b"") and st.locks_of(u1) == [("wf", "", "file")] and st.filelocks == {"wf": u1}, repr((r, st.locks_of(u1), st.filelocks)))
+    r = tx(c1, "c1", FL, FLK(a1))
+    row("vb.filelock by the holder again: success (op_filelock: file_lock is mine -> locked_it), still one file lock, still c1's",
+        r == (0, 0, b"") and st.locks_of(u1) == [("wf", "", "file")] and st.filelocks == {"wf": u1}, repr((r, st.filelocks)))
+
+    # -- another session: LOCKED with the holder's number; the wait flag
+    r = tx(c2, "c2", FL, FLK(a2))
+    row("a second session's filelock (wait 0) is SV$LOCKED (4), no data, STATUS() the HOLDER's user number (c1's); c2 holds nothing and the lock is still c1's",
+        r == (4, u1, b"") and st.locks_of(u2) == [] and st.filelocks == {"wf": u1}, repr((r, u1, st.filelocks)))
+    t0 = time.time()
+    r = tx(c2, "c2", FL, FLK(a2, 1))
+    el = time.time() - t0
+    row("filelock with a wait flag that is not 0 on a file another user holds waits lock_wait (0.5 s) and then gives up with the ON ERROR reply that says so, and the fake notes it (measured %.2f s)" % el,
+        r[0] == 1 and r[2].startswith(b"netfake: gave up") and ("held by user %d" % u1).encode() in r[2] and 0.4 <= el < 3.0 and any("gave up" in e for e in srv.errors)
+        and st.filelocks == {"wf": u1}, repr((r, el, srv.errors)))
+    srv.errors.clear()
+
+    # -- the file lock blocks another session's record lock
+    ru = tx(c2, "c2", R_READU, _S(a2) + b"c")
+    rl = tx(c2, "c2", R_LOCKRECORD, K(a2, 3, "c"))
+    rk2 = tx(c2, "c2", R_RECORDLOCKED, _S(a2) + b"c")
+    rk1 = tx(c1, "c1", R_RECORDLOCKED, _S(a1) + b"c")
+    row("c1's file lock blocks c2's record lock: readu and request 30 (flags 3, no wait) are SV$LOCKED with STATUS() c1's number; recordlocked gives c2 -3 and c1 3, STATUS() c1's number for both",
+        ru == (4, u1, b"") and rl == (4, u1, b"") and rk2 == (0, u1, _L(-3)) and rk1 == (0, u1, _L(3)) and st.locks_of(u2) == [], repr((ru, rl, rk2, rk1)))
+    ro = tx(c1, "c1", R_READU, _S(a1) + b"a")
+    row("... but c1's own record lock under its own file lock is allowed, and locks_of lists the file lock and the record lock together, sorted ((wf, '', file) first)",
+        ro == (0, 0, b"one") and st.locks_of(u1) == [("wf", "", "file"), ("wf", "a", "update")], repr((ro, st.locks_of(u1))))
+
+    # -- fileunlock: 3011, 0, 3012
+    r = tx(c2, "c2", FU, _S(a2))
+    row("vb.fileunlock by a session that does NOT hold it while another does: SV$OK with STATUS() 3011 (ER$LCK), no data, and the lock is still c1's",
+        r == (0, 3011, b"") and st.filelocks == {"wf": u1}, repr((r, st.filelocks)))
+    r = tx(c1, "c1", FU, _S(a1))
+    row("vb.fileunlock by the holder: SV$OK with STATUS() 0; the file lock is gone and the record lock c1 also holds is not touched",
+        r == (0, 0, b"") and st.filelocks == {} and st.locks_of(u1) == [("wf", "a", "update")], repr((r, st.filelocks, st.locks_of(u1))))
+    r = tx(c1, "c1", FU, _S(a1))
+    row("vb.fileunlock when nobody holds the lock: SV$OK with STATUS() 3012 (ER$NLK), no data", r == (0, 3012, b"") and st.filelocks == {}, repr((r, st.filelocks)))
+    ru = tx(c2, "c2", R_READU, _S(a2) + b"c")
+    row("CONTROL for the blocking rows: with the file lock let go, the same readu by c2 takes its record lock and reads it (error 0, 'three')",
+        ru == (0, 0, b"three") and st.locks_of(u2) == [("wf", "c", "update")], repr((ru, st.locks_of(u2))))
+    tx(c2, "c2", R_RELEASE, _S(a2) + b"c")
+
+    # -- a record lock held by another user blocks the file lock (an update lock, then a read lock); the holder's own do not
+    r = tx(c2, "c2", FL, FLK(a2))
+    row("a record lock held by ANOTHER user blocks the file lock: c2's filelock (wait 0) is SV$LOCKED with STATUS() the record lock owner's number (c1, who holds wf/a); c2 holds no file lock",
+        r == (4, u1, b"") and st.locks_of(u2) == [] and st.filelocks == {}, repr((r, st.locks_of(u2), st.filelocks)))
+    tx(c1, "c1", R_RELEASE, _S(a1) + b"a")
+    r = tx(c2, "c2", FL, FLK(a2))
+    row("CONTROL: once c1 lets that record lock go the same filelock succeeds (error 0) and is c2's", r == (0, 0, b"") and st.filelocks == {"wf": u2}, repr((r, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+    tx(c1, "c1", R_READL, _S(a1) + b"b")
+    r = tx(c2, "c2", FL, FLK(a2))
+    row("a READ lock held by another user blocks the file lock too: SV$LOCKED, STATUS() c1's number", r == (4, u1, b"") and st.filelocks == {}, repr((r, st.filelocks)))
+    tx(c1, "c1", R_RELEASE, _S(a1) + b"b")
+    tx(c2, "c2", R_READU, _S(a2) + b"c")
+    r = tx(c2, "c2", FL, FLK(a2))
+    row("record locks held by the SAME user do not block the file lock: c2 holds wf/c and takes the file lock (error 0)",
+        r == (0, 0, b"") and st.locks_of(u2) == [("wf", "", "file"), ("wf", "c", "update")], repr((r, st.locks_of(u2))))
+    tx(c2, "c2", FU, _S(a2))
+    tx(c2, "c2", R_RELEASE, _S(a2) + b"c")
+    row("W16 CONTROL: every lock is gone again (the next rows start from the null state)", st.filelocks == {} and st.locks_of(u1) == [] and st.locks_of(u2) == [], repr((st.filelocks, st.locks_of(u1), st.locks_of(u2))))
+
+    # -- a waiting filelock is woken by the holder's fileunlock
+    c3 = connect(lock_wait=5)
+    s3 = srv.sessions[-1]
+    u3 = s3.userno
+    a3, = opened(c3, "wf")
+    tx(c1, "c1", FL, FLK(a1))
+    box = {}
+
+    def fl_waiter():
+        t1 = time.time()
+        try:
+            box["r"] = c3.req(FL, FLK(a3, 1))
+        except Exception as ex_:
+            box["r"] = ex_
+        box["t"] = time.time() - t1
+    th = threading.Thread(target=fl_waiter)
+    th.start()
+    time.sleep(0.6)
+    held_while_waiting = dict(st.filelocks)
+    tx(c1, "c1", FU, _S(a1))
+    th.join(8)
+    print("      c3 sent %d [%s] (waiting) -> %r after %.2f s" % (FL, FLK(a3, 1).hex(" "), box.get("r"), box.get("t", -1)))
+    row("filelock with the wait flag on a held file waits, and the holder's fileunlock wakes it: c3 gets it (error 0) after about 0.6 s and holds it",
+        held_while_waiting == {"wf": u1} and box.get("r") == (0, 0, b"") and 0.4 <= box.get("t", 0) < 3.0 and st.filelocks == {"wf": u3}, repr((held_while_waiting, box, st.filelocks)))
+    tx(c3, "c3", FU, _S(a3))
+    bye(c3, s3)
+
+    # -- the lock belongs to the FILE NUMBER that took it: close of that number lets it go, close of another number of the same file does not
+    c4 = connect()
+    s4 = srv.sessions[-1]
+    u4 = s4.userno
+    p1, p2 = opened(c4, "wf", "wf")
+    row("W16 setup: c4 has wf open twice, as file numbers 1 and 2", (p1, p2) == (1, 2), repr((p1, p2)))
+    for first, second, order in ((p1, p2, "number 1, then number 2"), (p2, p1, "number 2, then number 1")):
+        ra = tx(c4, "c4", FL, FLK(first))
+        rb = tx(c4, "c4", FL, FLK(second))
+        rv = tx(c2, "c2", FL, FLK(a2))
+        row("filelock through %s of one file: both succeed (the second finds it already c4's), the rival c2 is SV$LOCKED with c4's number" % order,
+            ra == (0, 0, b"") and rb == (0, 0, b"") and rv == (4, u4, b"") and st.filelocks == {"wf": u4}, repr((ra, rb, rv, st.filelocks)))
+        rc = tx(c4, "c4", R_CLOSE, _S(second))
+        rv2 = tx(c2, "c2", FL, FLK(a2))
+        row("... closing the file number that did NOT take the lock (number %d) leaves it held: the rival is still SV$LOCKED with c4's number" % second,
+            rc == (0, 0, b"") and rv2 == (4, u4, b"") and st.filelocks == {"wf": u4}, repr((rc, rv2, st.filelocks)))
+        rd = tx(c4, "c4", R_CLOSE, _S(first))
+        rv3 = tx(c2, "c2", FL, FLK(a2))
+        row("... closing the file number that TOOK it (number %d) lets it go: the rival gets the lock (error 0) and holds it" % first,
+            rd == (0, 0, b"") and rv3 == (0, 0, b"") and st.filelocks == {"wf": u2}, repr((rd, rv3, st.filelocks)))
+        tx(c2, "c2", FU, _S(a2))
+        p1, p2 = opened(c4, "wf", "wf")
+    tx(c4, "c4", FL, FLK(p1))
+    rx = tx(c4, "c4", FU, _S(p2))
+    row("filelock through number 1, fileunlock through number 2: SV$OK, STATUS() 0 (op_flunlock goes by the user, not the file variable); the lock is gone",
+        rx == (0, 0, b"") and st.filelocks == {}, repr((rx, st.filelocks)))
+    tx(c4, "c4", FL, FLK(p2))
+    tx(c4, "c4", R_CLOSE, _S(p1))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    row("... locked again through number 2 it belongs to number 2: closing number 1 leaves it held (the rival is SV$LOCKED)", rv == (4, u4, b"") and st.filelocks == {"wf": u4}, repr((rv, st.filelocks)))
+    tx(c4, "c4", R_CLOSE, _S(p2))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    row("... and closing number 2 lets it go", rv == (0, 0, b"") and st.filelocks == {"wf": u2}, repr((rv, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+
+    # -- the end of a session lets it go; so does FakeStore.drop_user
+    p1, = opened(c4, "wf")
+    tx(c4, "c4", FL, FLK(p1))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    c4.close()
+    wait_closed(s4)
+    rv2 = tx(c2, "c2", FL, FLK(a2))
+    row("a session that ends (its connection closes) lets go of its file lock: before, the rival was SV$LOCKED with c4's number; after, it gets the lock",
+        rv == (4, u4, b"") and rv2 == (0, 0, b"") and st.filelocks == {"wf": u2} and st.locks_of(u4) == [], repr((rv, rv2, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+    wfile = st.file("wf")
+    try:
+        got = (st.filelock_try(wfile, 7), st.filelock_try(wfile, 8), st.filelock_try(wfile, 7))
+    except AttributeError as ex_:          # a store without the method is a failed row, not a stopped self-test
+        got = ("no filelock_try", str(ex_))
+    row("FakeStore.filelock_try: 0 for the first taker (user 7), the holder's number (7) for another user (8), 0 for the holder asking again", got == (0, 7, 0) and st.filelocks == {"wf": 7}, repr((got, st.filelocks)))
+    if got != (0, 7, 0):
+        st.hold_file("wf", 7)              # the rows below still run when the row above failed: put the lock there the way a test does
+    rv = tx(c2, "c2", FL, FLK(a2))
+    st.drop_user(7)
+    rv2 = tx(c2, "c2", FL, FLK(a2))
+    row("a file lock held by a process that is not a connection is reported by its number, and drop_user lets it go: SV$LOCKED with 7, then the lock is c2's",
+        rv == (4, 7, b"") and rv2 == (0, 0, b"") and st.filelocks == {"wf": u2}, repr((rv, rv2, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+
+    # -- request 15, RELEASE: file number 0 lets go of every file lock of the session; an empty id lets go of it only through the file number that took it; one record's id does not
+    c5 = connect()
+    s5 = srv.sessions[-1]
+    u5 = s5.userno
+    q1, q2 = opened(c5, "wf", "wf")
+    b2, = opened(c2, "wtmp")
+    q3, = opened(c5, "wtmp")
+    tx(c5, "c5", FL, FLK(q1))
+    rr = tx(c5, "c5", R_RELEASE, _S(q2))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    row("release of the file with an empty id through a file number that did NOT take the file lock leaves it held (reply error 0): the rival is SV$LOCKED with c5's number",
+        rr == (0, 0, b"") and rv == (4, u5, b"") and st.filelocks == {"wf": u5}, repr((rr, rv, st.filelocks)))
+    rr = tx(c5, "c5", R_RELEASE, _S(q1))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    row("release of the file with an empty id through the file number that TOOK it lets the file lock go: the rival gets it", rr == (0, 0, b"") and rv == (0, 0, b"") and st.filelocks == {"wf": u2}, repr((rr, rv, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+    tx(c5, "c5", FL, FLK(q1))
+    rr = tx(c5, "c5", R_RELEASE, _S(q1) + b"a")
+    rv = tx(c2, "c2", FL, FLK(a2))
+    row("release of ONE record's id does not touch the file lock: the rival is SV$LOCKED with c5's number", rr == (0, 0, b"") and rv == (4, u5, b"") and st.filelocks == {"wf": u5}, repr((rr, rv, st.filelocks)))
+    tx(c2, "c2", FL, FLK(b2))
+    rl = tx(c5, "c5", FL, FLK(q3))
+    rr = tx(c5, "c5", R_RELEASE, _S(0))
+    rv = tx(c2, "c2", FL, FLK(a2))
+    rl2 = tx(c5, "c5", FL, FLK(q3))
+    row("release with file number 0 lets go of EVERY file lock of the session (c5's on wf) and of no other user's: the rival takes wf, while c2's own lock on wtmp is still c2's (c5 is SV$LOCKED on wtmp with c2's number, before and after)",
+        rl == (4, u2, b"") and rr == (0, 0, b"") and rv == (0, 0, b"") and rl2 == (4, u2, b"") and st.filelocks == {"wf": u2, "wtmp": u2}, repr((rl, rr, rv, rl2, st.filelocks)))
+    tx(c2, "c2", FU, _S(a2))
+    tx(c2, "c2", FU, _S(b2))
+    bye(c5, s5)
+
+    # -- the gate: a files-only login without sdfileswrite is refused 32 and 33 with message 11521 (control: one in the group is served)
+    cg = connect(files_only=True)
+    sg = srv.sessions[-1]
+    g1, = opened(cg, "wf")
+    rs = [tx(cg, "cg", FL, FLK(g1)), tx(cg, "cg", FU, _S(g1))]
+    row("files-only login WITHOUT sdfileswrite: filelock (32) and fileunlock (33) are each the ON ERROR reply with message 11521 naming the request, not dispatched, and no file lock is taken",
+        rs == [(1, 0, msg(11521, 32).encode("latin-1")), (1, 0, msg(11521, 33).encode("latin-1"))] and sg.refused == [32, 33] and st.filelocks == {} and st.locks_of(sg.userno) == [],
+        repr((rs, sg.refused, st.filelocks)))
+    bye(cg, sg)
+    cg = connect(files_only=True, write_group=True)
+    sg = srv.sessions[-1]
+    g1, = opened(cg, "wf")
+    rl = tx(cg, "cg", FL, FLK(g1))
+    held = dict(st.filelocks)
+    ru = tx(cg, "cg", FU, _S(g1))
+    row("CONTROL: the same two requests from a files-only login IN sdfileswrite are dispatched and served: filelock error 0 (the lock is the login's), fileunlock STATUS() 0, nothing refused",
+        rl == (0, 0, b"") and held == {"wf": sg.userno} and ru == (0, 0, b"") and sg.refused == [] and st.filelocks == {}, repr((rl, held, ru, sg.refused)))
+    bye(cg, sg)
+
+    # -- the success STATUS() of filelock is cfg success_status (never to be read by a client); the status of fileunlock is its answer and is not replaced
+    cs = connect(success_status=4242)
+    ss = srv.sessions[-1]
+    z1, = opened(cs, "wf")
+    r_lock = tx(cs, "cs", FL, FLK(z1))
+    r_again = tx(cs, "cs", FL, FLK(z1))
+    r_unl = tx(cs, "cs", FU, _S(z1))
+    r_none = tx(cs, "cs", FU, _S(z1))
+    tx(c1, "c1", FL, FLK(a1))
+    r_other = tx(cs, "cs", FU, _S(z1))
+    tx(c1, "c1", FU, _S(a1))
+    row("success_status=4242: a successful filelock carries STATUS() 4242 (twice: new, and already ours); fileunlock's answers are NOT replaced: 0 when it was ours, 3012 when nobody held it, 3011 when c1 did",
+        r_lock == (0, 4242, b"") and r_again == (0, 4242, b"") and r_unl == (0, 0, b"") and r_none == (0, 3012, b"") and r_other == (0, 3011, b""),
+        repr((r_lock, r_again, r_unl, r_none, r_other)))
+    tx(c1, "c1", FL, FLK(a1))
+    r_busy = tx(cs, "cs", FL, FLK(z1))
+    tx(c1, "c1", FU, _S(a1))
+    row("... and the LOCKED reply keeps the holder's number in STATUS() (c1's), not 4242", r_busy == (4, u1, b""), repr(r_busy))
+    bye(cs, ss)
+
+    # -- a file number that is not open
+    r1_ = tx(c1, "c1", FL, FLK(9))
+    t1_ = c1.error_text()
+    r2_ = tx(c1, "c1", FU, _S(9))
+    t2_ = c1.error_text()
+    row("a file number that was never opened is SV$ERROR with no data for filelock and for fileunlock, and request 2 returns 5268 each time",
+        r1_ == (3, 0, b"") and r2_ == (3, 0, b"") and t1_ == msg(5268) and t2_ == msg(5268), repr((r1_, t1_, r2_, t2_)))
+
+    # -- a file lock does not count toward maxrlock (the limit is on record locks)
+    cm = connect(maxrlock=2)
+    sm = srv.sessions[-1]
+    m1, = opened(cm, "wf")
+    tx(cm, "cm", R_READU, _S(m1) + b"a")
+    rfl = tx(cm, "cm", FL, FLK(m1))
+    rb = tx(cm, "cm", R_READU, _S(m1) + b"b")
+    rc = tx(cm, "cm", R_READU, _S(m1) + b"c")
+    row("maxrlock=2: one record lock and the file lock, then a second record lock is allowed (the file lock is not counted); the THIRD record lock is refused (+3060, no text): the limit still bites",
+        rfl == (0, 0, b"") and rb == (0, 0, b"two") and rc == (1, 3060, b"") and st.locks_of(sm.userno) == [("wf", "", "file"), ("wf", "a", "update"), ("wf", "b", "update")],
+        repr((rfl, rb, rc, st.locks_of(sm.userno))))
+    bye(cm, sm)
+
+    bye(c1, s1)
+    bye(c2, s2)
+    row("W16 CONTROL: with every session ended no lock of any kind is left, and the fake noted nothing wrong with the client", st.filelocks == {} and srv.errors == [] and
+        all(st.locks_of(s.userno) == [] for s in (s1, s2, s3, s4, s5, sg, ss, sm)), repr((st.filelocks, srv.errors)))
     reset()
     want_chg = _apifilesok_change()
     if want_chg is None:

@@ -13,6 +13,15 @@
 # statements and the refusal of everything else, slice 3c; gaps - OPT-IN ONLY, see below); no flag runs all of them except gaps.
 #
 # START-HISTORY:
+# 20 Oct 26 dm  S.72 (QMNet parity, tiers A and B): FILELOCK, FILEUNLOCK, RECORDLOCKED() and GETLOCKS() of a remote file.  Class rows (class_filelocks: requests 32 and 33 with their bytes, LOCKED with the
+#               holder, FILEUNLOCK's 0 / 3011 / 3012, CLOSE of the locking number against another number, a session that ends, a login without the write group); handler rows (hw_filelocks: operations
+#               18 and 19 driven by number through the RAW line so that the driver compiles on a tree that does not define them, rc<8>, the audit line once for the handle, the read-mode handle, the
+#               transaction, the mode read again - FILEUNLOCK is not stopped by it -, a connection lost after the server did it); statement rows (kw_filelocks: the local control first, then the
+#               statements of an ordinary session on a write-mode and a read-mode file, the wait by asking again with the wait flag always 0, the life of a file lock, RELEASE f, GETLOCKS() in an
+#               internal program, MUSTLOCK with a file lock, a lost connection without ON ERROR); wgroup rows (32 and 33 refused for a login without sdfileswrite, RECORDLOCKED served).  Changed rows:
+#               the matrix lost `recordlocked` and the still-refused list lost filelock / fileunlock / recordlocked; GETLOCKS of a remote file survives; the verb CLEAR.FILE now clears a write-mode
+#               remote file (it locks the file first) and LIST ... LOCKING takes the file lock.  THE ROWS WERE RUN RED ON THE UNCHANGED SOURCE (a built copy of Dev 573d2d3 with these test files over it), then
+#               green on the changed tree; the counts are in PROJECT_STATUS S.72.
 # 19 Oct 26 dm  Finish 2 (verifier findings).  (1) Section hwrite: a SELECT whose READLIST (request 14) the server answers with an ON ERROR text - the third place the handler shows the
 #               server's text (act.select) had no row; two rows and a control with no text.  (2) Section timeout, in the same restart as the NETREPLY=3 row (now NETREPLY=3 and NETWAIT=2): a
 #               server that sends the Ack, reads client-first and goes silent (netfake stall_first) costs connect.keys NETREPLY seconds (no TMO first), and a listener whose accept queue is
@@ -359,6 +368,14 @@ DRIVER = r"""$include err.h
             gosub getfn
             obj->release(fnum, a3)
             crt 'FX RELEASE ':a3
+         case op = 'FLOCK'
+            gosub getfn
+            obj->filelock(fnum, a3 + 0)
+            crt 'FX FLOCK ':a2:' wait=':a3:' err=':obj->LastError:' st=':obj->ServerStatus
+         case op = 'FUNLOCK'
+            gosub getfn
+            obj->fileunlock(fnum)
+            crt 'FX FUNLOCK ':a2:' err=':obj->LastError:' st=':obj->ServerStatus
          case op = 'SELECT'
             gosub getfn
             obj->select(fnum, a3)
@@ -957,6 +974,71 @@ def locks_section():
     finally:
         st.drop_user(7)
         st.drop_user(8)
+    class_filelocks(A, alice)
+
+
+def class_filelocks(A, alice):
+    """S.72 (20 Oct 26): FILELOCK and FILEUNLOCK through the class, requests 32 and 33, against the fake, whose answers are held to the real server by sandbox-req29.py section F.
+    The class sends the wait flag it is given; the HANDLER only ever gives it 0 (the next sections).  Expected values are written from the spec, never from the reply."""
+    say("\n  -- FILELOCK / FILEUNLOCK (S.72): the class methods filelock(fno, wait) and fileunlock(fno), requests 32 and 33 --")
+    st = A.store
+
+    def w32(fno, wait=0):
+        return (32, FNO(fno) + struct.pack("<h", wait))
+
+    ops = keys(alice, A) + ["OPEN|customers|1", "FLOCK|1|0", "RLOCKED|1|c1", "FLOCK|1|0", "FUNLOCK|1", "RLOCKED|1|c1", "FUNLOCK|1", "DISC"]
+    r = go(ops, A)
+    row("FILELOCK (wait 0) on a free file: the reply is OK (LastError 0); RECORDLOCKED of any record then says 3 (this session holds the file lock); FILELOCK again is OK (already ours); "
+        "FILEUNLOCK is OK with ServerStatus 0 and RECORDLOCKED says 0; a second FILEUNLOCK is OK with ServerStatus 3012 (ER$NLK: nobody holds it)",
+        sane(r) and fx_lines(r, "FLOCK") == ["FX FLOCK 1 wait=0 err=0 st=0", "FX FLOCK 1 wait=0 err=0 st=0"]
+        and fx_lines(r, "RLOCKED") == ["FX RLOCKED c1 n=3", "FX RLOCKED c1 n=0"] and fx_lines(r, "FUNLOCK") == ["FX FUNLOCK 1 err=0 st=0", "FX FUNLOCK 1 err=0 st=3012"], why(r))
+    exp = [(3, b"acct"), (4, b"customers"), w32(1), (34, FNO(1) + b"c1"), w32(1), (33, FNO(1)), (34, FNO(1) + b"c1"), (33, FNO(1)), (1, b"")]
+    row("...THE REQUESTS: 32 carries the file number and the wait flag as two 16 bit numbers (1, 0), 33 the file number only, and RECORDLOCKED (34) is asked in between", h_wire(r.d) == exp,
+        "first difference: %r" % (next(((a, b) for a, b in zip(h_wire(r.d), exp) if a != b), (len(h_wire(r.d)), len(exp))),))
+    ses = r.ses[0] if r.ses else None
+    row("...the file lock is not left behind: the fake's table has no file lock for this connection, and the file name is free", ses is not None and st.filelocks.get("customers") is None, repr(dict(st.filelocks)))
+
+    # another user holds the file lock: LOCKED with the holder in ServerStatus, FILEUNLOCK leaves it alone and says so
+    st.hold_file("customers", 7)
+    try:
+        ops = keys(alice, A) + ["OPEN|customers|1", "FLOCK|1|0", "RLOCKED|1|c1", "FUNLOCK|1", "RLOCKED|1|c1", "DISC"]
+        r = go(ops, A)
+        row("a file lock held by another user (7): FILELOCK (wait 0) is LOCKED (LastError 4) with ServerStatus 7 (the holder); RECORDLOCKED says -3; FILEUNLOCK is OK with ServerStatus 3011 "
+            "(ER$LCK: the lock is another user's) and the lock stays (-3 again)",
+            sane(r) and fx_lines(r, "FLOCK") == ["FX FLOCK 1 wait=0 err=4 st=7"] and fx_lines(r, "RLOCKED") == ["FX RLOCKED c1 n=-3", "FX RLOCKED c1 n=-3"]
+            and fx_lines(r, "FUNLOCK") == ["FX FUNLOCK 1 err=0 st=3011"] and st.filelocks.get("customers") == 7, why(r))
+    finally:
+        st.drop_user(7)
+
+    # a record lock another user holds in the file keeps a file lock from being taken
+    st.hold("customers", "c2", 8, "update")
+    try:
+        r = go(keys(alice, A) + ["OPEN|customers|1", "FLOCK|1|0", "DISC"], A)
+        row("an update lock another user (8) holds on a record of the file: FILELOCK (wait 0) is LOCKED with ServerStatus 8", sane(r) and fx_lines(r, "FLOCK") == ["FX FLOCK 1 wait=0 err=4 st=8"]
+            and st.filelocks.get("customers") is None, why(r))
+    finally:
+        st.drop_user(8)
+
+    # closing the file number that took the lock lets it go; closing another number of the same file does not
+    ops = keys(alice, A) + ["OPEN|customers|1", "OPEN|customers|2", "OPEN|customers|3", "FLOCK|1|0", "FLOCK|2|0", "CLOSE|2", "RLOCKED|3|c1", "CLOSE|1", "RLOCKED|3|c1", "DISC"]
+    r = go(ops, A)
+    row("CLOSE of the file number that took the file lock releases it, CLOSE of another number of the same file does not: the lock is taken through 1 and asked for again through 2 (OK both), "
+        "after CLOSE 2 RECORDLOCKED through a third number says 3 (this session still holds it), after CLOSE 1 it says 0",
+        sane(r) and fx_lines(r, "RLOCKED") == ["FX RLOCKED c1 n=3", "FX RLOCKED c1 n=0"] and fx_lines(r, "FLOCK") == ["FX FLOCK 1 wait=0 err=0 st=0", "FX FLOCK 2 wait=0 err=0 st=0"], why(r))
+
+    # a session that ends while it holds the file lock lets it go
+    r = go(keys(alice, A) + ["OPEN|customers|1", "FLOCK|1|0"], A)
+    ses = r.ses[0] if r.ses else None
+    row("a session that ends while it holds the file lock (no FILEUNLOCK, no CLOSE): the fake lets it go with the connection", sane(r, need_end=False) and ses is not None and ses.closed
+        and st.filelocks.get("customers") is None and any(x == "FX FLOCK 1 wait=0 err=0 st=0" for x in r.fx), why(r) + repr(dict(st.filelocks)))
+
+    # a login WITHOUT the write group on the target: both are refused with 11521 (an ON ERROR reply), and the class says so when it is quiet
+    carol = S["carol"]
+    r = go(keys(carol, A) + ["QUIET|1", "OPEN|customers|1", "FLOCK|1|0", "LERR", "FUNLOCK|1", "LERR", "RLOCKED|1|c1", "DISC"], A)
+    t32, t33 = msg(11521, 32), msg(11521, 33)
+    row("a files-only login WITHOUT sdfileswrite: FILELOCK and FILEUNLOCK take the ON ERROR reply (LastError 1) with the text of message 11521 and the request number (32, 33); RECORDLOCKED is "
+        "still served (0) - no abort for a quiet caller", sane(r) and any(x.startswith("FX LERR 1 text=[%s" % t32) for x in r.fx) and any(x.startswith("FX LERR 1 text=[%s" % t33) for x in r.fx)
+        and "FX RLOCKED c1 n=0" in r.fx and r.ses and r.ses[0].refused == [32, 33], why(r) + repr([s.refused for s in r.ses]))
 
 
 # ---- M. select lists --------------------------------------------------------------------------------------------------------------------------
@@ -1063,6 +1145,7 @@ H = {}                                                             # what the ha
 NH_RX = re.compile(r"^NH (\d+) (\S+) rc=(\S*) m=(\S*) st=(\S*) len=(\d+) out=\[(.*)\]$")
 NA_RX = re.compile(r"^NA (\d+) (\d) \[(.*)\]$")
 NM_RX = re.compile(r"^NM (\d+) \[(.*)\]$")                                 # slice 3e: rc<7>, the mode the handler reports for an open
+NS_RX = re.compile(r"^NS (\d+) \[(.*)\]$")                                 # S.72: rc<8>, the server's reply STATUS() for RECORDLOCKED (the lock owner) and FILEUNLOCK (0, 3011, 3012)
 
 NFH_DRIVER = r"""$internal
 program zznfh
@@ -1173,6 +1256,7 @@ show.call: * the line for the call just made, and one for each argument of the m
       if rc<k> # '' then crt 'NA ':n.call:' ':(k - 2):' [':rc<k>:']'
    next k
    if rc<7> # '' then crt 'NM ':n.call:' [':rc<7>:']'
+   if rc<8> # '' then crt 'NS ':n.call:' [':rc<8>:']'
    return
 
 shw: * SV = V with the four marks made visible, cut to its first and last 40 characters when over 100
@@ -1307,7 +1391,7 @@ def h_audits(text):
     """The handler's audit lines in a stretch of the trail, as   open server=nfa file=hcust   /   refused server=nfa reason=gate.  Since slice 3e also
     open server=nfw file=hwork mode=write,  write / delete / clear server=nfw file=hwork  and  lost server=nfw op=write  (the key word is the one the line has)."""
     out = []
-    for m in re.finditer(r"netfile (open|refused|write|delete|clear|lost) server=(\S+) (file|reason|op)=([^\r\n]*?)\s*$", text or "", re.M):
+    for m in re.finditer(r"netfile (open|refused|write|delete|clear|lost|filelock) server=(\S+) (file|reason|op)=([^\r\n]*?)\s*$", text or "", re.M):
         out.append("%s server=%s %s=%s" % (m.group(1), m.group(2), m.group(3), m.group(4)))
     return out
 
@@ -1317,7 +1401,7 @@ def h_calls(lines):
     for ln in lines:
         m = NH_RX.match(ln)
         if m:
-            c = {"n": int(m.group(1)), "nm": m.group(2), "rc": m.group(3), "m": m.group(4), "st": m.group(5), "len": int(m.group(6)), "out": m.group(7), "args": ["", "", ""], "r7": ""}
+            c = {"n": int(m.group(1)), "nm": m.group(2), "rc": m.group(3), "m": m.group(4), "st": m.group(5), "len": int(m.group(6)), "out": m.group(7), "args": ["", "", ""], "r7": "", "r8": ""}
             calls.append(c)
             by[c["n"]] = c
             continue
@@ -1328,6 +1412,10 @@ def h_calls(lines):
         m = NM_RX.match(ln)
         if m and int(m.group(1)) in by:
             by[int(m.group(1))]["r7"] = m.group(2)           # slice 3e: rc<7>, printed only when it is not null
+            continue
+        m = NS_RX.match(ln)
+        if m and int(m.group(1)) in by:
+            by[int(m.group(1))]["r8"] = m.group(2)           # S.72: rc<8>, printed only when it is not null
     return calls
 
 
@@ -2195,6 +2283,19 @@ def W_RLK(fno, rid):
     return (34, FNO(fno) + rid.encode("latin-1"))
 
 
+# S.72 (20 Oct 26).  The handler's operations 18 (NF$FILELOCK) and 19 (NF$FILEUNLOCK) are driven by number (the RAW line of the driver), so that the driver compiles on a tree that does
+# not define them yet.  Request 32 carries the file number and the wait flag (always 0: the handler never makes the server block), request 33 the file number only.
+NF_FILELOCK, NF_FILEUNLOCK = 18, 19
+
+
+def W_FLK(fno, wait=0):
+    return (32, FNO(fno) + struct.pack("<h", wait))
+
+
+def W_FUL(fno):
+    return (33, FNO(fno))
+
+
 def W_READ(fno, rid):
     return (6, FNO(fno) + rid.encode("latin-1"))
 
@@ -2317,6 +2418,7 @@ def hwrite_section():
     hw_writes(A)
     hw_deletes(A)
     hw_locks(A, B)
+    hw_filelocks(A)
     hw_ids(A)
     hw_mode(A)
     hw_txn(A)
@@ -2452,6 +2554,163 @@ def hw_locks(A, B):
     expB = [ACCT_REQ, W_OPEN(HW), W_LOCK(1, "w1", True), W_LOCK(1, "w3", True), W_REL(0), W_RLK(1, "w1"), W_RLK(1, "w3"), (1, b"")]
     row("...THE REQUESTS on each server: the record form carries file number and id (15), the file form the file number only, the 0 form file number 0 and no id (15) - on BOTH servers",
         hw_wires(r, [expA, expB]), "A %r / B %r" % (hw_first_diff(r.d[0], expA), hw_first_diff(r.d[1], expB)))
+
+
+def k_rlk(code, owner=None):
+    """RECORDLOCKED through the handler (S.72): out is the code, no message, no rc<6>; rc<8> is the server's STATUS(), the owner's user number: OWNER when it is given, 0 when the code is 0,
+    and for a lock of this session (codes 1 to 3) any whole number above 0 (the fake numbers its connections itself)."""
+    def f(c):
+        if not (c["rc"] == "0" and c["m"] == "" and c["st"] == "" and c["args"] == ["", "", ""] and c["out"] == str(code) and c["len"] == len(str(code))):
+            return False
+        if owner is not None:
+            return c["r8"] == str(owner)
+        if code == 0:
+            return c["r8"] == "0"
+        return re.fullmatch(r"[1-9][0-9]*", c["r8"]) is not None
+    return f
+
+
+def k_unlocked(status):
+    """FILEUNLOCK through the handler: rc 0, nothing in out, rc<8> the server's reply STATUS(): 0 it was ours and is free, 3011 another user's (left held), 3012 nobody's."""
+    return lambda c: c["rc"] == "0" and c["m"] == "" and c["st"] == "" and c["args"] == ["", "", ""] and c["len"] == 0 and c["r8"] == str(status)
+
+
+def hw_filelocks(A):
+    say("\n  -- FILELOCK and FILEUNLOCK (S.72): operations 18 and 19, the no-wait form only; RECORDLOCKED on a read-mode and a write-mode handle --")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_FILELOCK, 1, label="FILELOCK of a free file: rc 0, request 32 with the file number and the wait flag 0 (NO WAIT - the handler never makes the server block)", ok=k_ok("", 0),
+          req=[W_FLK(1)], audit="filelock server=nfw file=hwork")
+    s.add("RAW", NF_FILELOCK, 1, label="...a second FILELOCK of the same handle is rc 0 (already ours), request 32 again, and NO second audit line (one for each handle)", ok=k_ok("", 0), req=[W_FLK(1)])
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED of any record now says 3 (this session holds the file lock) and rc<8> is a user number", ok=k_rlk(3), req=[W_RLK(1, "w1")])
+    s.add("RAW", NF_FILEUNLOCK, 1, label="FILEUNLOCK of the lock this session holds: rc 0, nothing in out, rc<8> = 0, request 33 with the file number only", ok=k_unlocked(0), req=[W_FUL(1)])
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED says 0 and rc<8> is 0", ok=k_rlk(0), req=[W_RLK(1, "w1")])
+    s.add("RAW", NF_FILEUNLOCK, 1, label="FILEUNLOCK when nobody holds the lock: rc 0 (not an error), rc<8> = 3012 (ER$NLK)", ok=k_unlocked(3012), req=[W_FUL(1)])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the file lock program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE REQUESTS, in order, with their bytes: 32 (file, wait 0) twice, 34, 33, 34, 33 - never a request 32 with the wait flag set", a_wire(r, s), "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+    row("...the audit trail: the open line and ONE 'filelock' line (written before the first request, once for the handle), no id and no record data", r.audits == s.audits(), repr(r.audits))
+    row("...the file is as it was (a lock changes nothing)", r.stores[0][HW] == dict(HWREC), repr(r.stores[0][HW]))
+
+    # another user holds the file lock / a record lock in the file
+    A.store.hold_file(HW, 7)
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_FILELOCK, 1, label="FILELOCK when user 7 holds the file lock: rc 4 (NF$RC.LOCKED, not an error), rc<6> the holder's number (7), no message", ok=k_locked(7), req=[W_FLK(1)],
+          audit="filelock server=nfw file=hwork")
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED says -3 (another user holds the file lock) and rc<8> is 7", ok=k_rlk(-3, 7), req=[W_RLK(1, "w1")])
+    s.add("RAW", NF_FILEUNLOCK, 1, label="...FILEUNLOCK is rc 0 with rc<8> = 3011 (ER$LCK: the lock is another user's) - it is sent, it is the server that knows - and the lock stays", ok=k_unlocked(3011),
+          req=[W_FUL(1)])
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED still says -3", ok=k_rlk(-3, 7), req=[W_RLK(1, "w1")])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    try:
+        r = hw_go("zznhon", s, (A,))
+    finally:
+        A.store.drop_user(7)
+    row("the busy-file program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE: the requests as listed, and the audit trail has the open and the filelock line (that user 7 still held the lock after the FILEUNLOCK is the last RECORDLOCKED: -3)",
+        a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+    A.store.hold(HW, "w2", 8, "update")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_FILELOCK, 1, label="FILELOCK when user 8 holds an update lock on a record of the file: rc 4 with rc<6> 8", ok=k_locked(8), req=[W_FLK(1)], audit="filelock server=nfw file=hwork")
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    try:
+        r = hw_go("zznhon", s, (A,))
+    finally:
+        A.store.drop_user(8)
+    row("the record-lock program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+
+    # RECORDLOCKED: another user's record locks, a READ-mode handle, a bad id
+    A.store.hold(HW, "w2", 7, "update")
+    A.store.hold(HW, "w3", 8, "shared")
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("OPEN", "nfa", HFILE, ok=k_open_r(2), req=[ACCT_REQ, W_OPEN(HFILE)], audit="open server=nfa file=hcust")
+    s.add("RLOCKED", 1, "w2", label="RECORDLOCKED of a record another user (7) holds an update lock on: out -2, rc<8> 7", ok=k_rlk(-2, 7), req=[W_RLK(1, "w2")])
+    s.add("RLOCKED", 1, "w3", label="...a read lock of user 8: out -1, rc<8> 8", ok=k_rlk(-1, 8), req=[W_RLK(1, "w3")])
+    s.add("RLOCKED", 1, "w1", label="...a record nobody holds: out 0, rc<8> 0", ok=k_rlk(0), req=[W_RLK(1, "w1")])
+    s.add("RLOCKED", 2, "c1", label="A READ-MODE handle (nfa) is served too - RECORDLOCKED changes nothing and the files-only login may ask request 34 whatever the mode: out 0, request 34 sent",
+          ok=k_rlk(0), req=[W_RLK(1, "c1")])      # (file number 1: it is the first file open on the second CONNECTION)
+    s.add("RLOCKED", 1, "", label="an empty id is the ELSE branch with the remote status 3000, as for a READ - nothing is sent", ok=k_else(3000))
+    s.add("RLOCKED", 1, "x" * 64, label="an id of 64 bytes is 11503 'too long' - nothing is sent", ok=k_err(11503, "nfw", "too long"))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b""), (1, b"")])
+    try:
+        r = hw_go("zznhon", s, (A,))
+    finally:
+        A.store.drop_user(7)
+        A.store.drop_user(8)
+    row("the RECORDLOCKED program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE REQUESTS: 34 for the four good ones (file number and id), none for the empty and the long id", a_wire(r, s), "first difference: %r" % (hw_first_diff(r.d[0], s.wire()),))
+
+    # a read-mode handle: both lock statements are refused with 11501 and nothing is sent (the read-mode control)
+    s = Script()
+    s.add("OPEN", "nfa", HFILE, ok=k_open_r(1), req=[ACCT_REQ, W_OPEN(HFILE)], audit="open server=nfa file=hcust")
+    s.add("RAW", NF_FILELOCK, 1, label="A READ-MODE handle: FILELOCK is refused with 11501 naming the server and 'filelock'; nothing is sent, nothing is audited", ok=k_err(11501, "nfa", "filelock"))
+    s.add("RAW", NF_FILEUNLOCK, 1, label="...FILEUNLOCK is refused too (fileunlock): a read-mode handle can hold no file lock", ok=k_err(11501, "nfa", "fileunlock"))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the read-mode program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE SAW only the open and the quit, and the audit trail has the open line only", a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+    # inside a transaction: refused, nothing sent
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("TRAW", NF_FILELOCK, 1, label="INSIDE A TRANSACTION: FILELOCK is refused with 11510 naming the server and 'filelock'; nothing is sent", ok=k_err(11510, "nfw", "filelock"))
+    s.add("TRAW", NF_FILEUNLOCK, 1, label="...FILEUNLOCK too (fileunlock)", ok=k_err(11510, "nfw", "fileunlock"))
+    s.add("TRLOCKED", 1, "w1", label="...RECORDLOCKED is served in the same transaction (it changes nothing)", ok=k_rlk(0), req=[W_RLK(1, "w1")])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the transaction program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE SAW only the open, the RECORDLOCKED and the quit, and no 'filelock' audit line was written", a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+    # the mode read again: FILELOCK stops, FILEUNLOCK does not (giving a lock back changes no data - and RELEASE is the same)
+    hw_flip_files()
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_FILELOCK, 1, label="(setup) FILELOCK while the definition says write: rc 0", ok=k_ok("", 0), req=[W_FLK(1)], audit="filelock server=nfw file=hwork")
+    s.add("EXEC", "RUN bp zznfhm1", label="(the administrator's helper makes nfw MODE READ in the definitions file)", ok=lambda c: c["rc"] == "")
+    s.add("RAW", NF_FILELOCK, 1, label="THE MODE IS READ AGAIN: FILELOCK on the open handle is refused with 11501 naming the server and 'filelock'; nothing is sent",
+          ok=k_err(11501, "nfw", "filelock"), audit="refused server=nfw reason=mode")
+    s.add("RAW", NF_FILEUNLOCK, 1, label="...FILEUNLOCK is NOT refused for the mode (it changes no data and gives the lock back): rc 0, request 33 is sent, rc<8> 0", ok=k_unlocked(0), req=[W_FUL(1)])
+    s.add("EXEC", "RUN bp zznfhm2", label="(the helper makes nfw MODE WRITE again)", ok=lambda c: c["rc"] == "")
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    try:
+        r = hw_go(None, s, (A,), admin=True)
+    finally:
+        hw_restore_defs()
+    row("the mode-flip program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...THE FAKE SAW the first FILELOCK and the FILEUNLOCK only, and the audit trail has the open, ONE 'filelock' line and ONE 'refused ... reason=mode' line",
+        a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+    # a lock that is asked for through a handle whose id or lock table the fake has lost: the connection dropped
+    lost_cases =(("FILELOCK", "drop_after", 32, ("RAW", NF_FILELOCK, 1, ""), "filelock"), ("FILEUNLOCK", "drop_after", 33, ("RAW", NF_FILEUNLOCK, 1, ""), "fileunlock"))
+    for what, kind, req_type, stmt, op in lost_cases:
+        s = Script()
+        s.add("OPEN", "nfw", HW, ok=k_open_w(1))
+        s.add(*stmt, label="%s whose connection is lost after the server did it: 11497 naming the server and '%s' (a lock changes no data: the message of a read, not 11509)" % (what, op),
+              ok=k_err(11497, "nfw", op))
+        s.add("RAW", NF_FILELOCK, 1, label="...a second call on the lost handle is 11495: THE REQUEST IS NEVER SENT AGAIN", ok=k_err(11495, "nfw", 1))
+        s.add("OPEN", "nfw", HW, label="...a new OPEN dials again (handle 2)", ok=k_open_w(2))
+        s.add("RLOCKED", 2, "w1", label="...whatever the first connection held went with it: RECORDLOCKED through the new connection says 0 (the file lock of a FILELOCK that was done and lost is gone)", ok=k_rlk(0))
+        s.add("CLOSE", 1, ok=k_ok("", 0))
+        s.add("CLOSEALL", ok=k_ok("", 0))
+        r = hw_go("zznhon", s, (A,), cfg={kind: {req_type: 1}})
+        row("%s lost: the program ran to the end and no connection is left" % what, r.began and r.ended and len(r.calls) == r.n and r.idle and all(not d["errors"] for d in r.d), h_why(r))
+        judge(r, s)
+        ses = r.d[0]["sessions"]
+        row("...the fake saw TWO connections and request type %d exactly ONCE (never retried)" % req_type,
+            len(ses) == 2 and sum(x.requests.count(req_type) for x in ses) == 1, repr([x.requests for x in ses]))
+        aud = [OPEN_W_AUD] + (["filelock server=nfw file=hwork"] if what == "FILELOCK" else []) + [OPEN_W_AUD]
+        row("...the audit trail: the opens%s and NO 'lost' line (a lock changes no data: message 11497, not 11509)" % (", the 'filelock' line" if what == "FILELOCK" else ""), r.audits == aud, repr(r.audits))
 
 
 def hw_ids(A):
@@ -2913,7 +3172,7 @@ $catalog $zznkj
    crt 'KR kj begin'
    open 'zznet1' to f else crt 'KR kj openfail st=':status() ; stop
    locks = getlocks(f, '')
-   crt 'KR kj SURVIVED ':locks
+   crt 'KR kj SURVIVED fields=':dcount(locks, @fm):' values=':dcount(locks<1>, @vm):' numeric=':num(change(locks<1>, @vm, '')):' null=':(locks = '')
 end
 """
 
@@ -2970,7 +3229,8 @@ KM = [
     km("releasef", "release f", None, "release", None),
     km("filelock", "filelock f", None, "filelock", None),
     km("fileunlock", "fileunlock f", None, "fileunlock", None),
-    km("recordlocked", "x = recordlocked(f, 'c1')", None, "recordlocked", None),
+    # S.72 (20 Oct 26): RECORDLOCKED() is no longer refused, on a read-mode or a write-mode handle (hw_filelocks, kw_filelocks), and GETLOCKS() is the local view (kn_gates, kw_filelocks).  FILELOCK and
+    # FILEUNLOCK stay in this matrix as the MODE=READ CONTROL: a read-mode handle still refuses both with 11501.
     km("selectindex", "selectindex 'CITY' from f to 5", None, "selectindex", None),
     km("selectindexv", "selectindex 'CITY', 'Paris' from f to 5", None, "selectindex", None),
     km("selectright", "selectright 'CITY' from f to 5", None, "selectright/selectleft", None),
@@ -3366,8 +3626,10 @@ def kn_gates(A, B):
     row("CONTROL: the same internal program in zznhon (gate on) opens it and reads the record", not r.hung and "KR ki open then st=0" in seg and "KR ki read len=%d" % len(RECS["c1"]) in seg and r.idle, repr(seg))
     r = kn_run("zznhon", ["ZZNKJ"], (A,))
     seg = kn_segments(r.out).get("kj", [])
-    row("GETLOCKS(f, '') on a NET file from an internal program stops with 11501 (getlocks) - without the refusal file_id -1 would mean ALL FILES and list every lock of every user",
-        not r.hung and kn_abort(seg) == msg(11501, "nfa", "getlocks") and not any("SURVIVED" in x for x in seg), repr(seg))
+    row("GETLOCKS(f, '') on a NET file from an internal program (S.72, 20 Oct 26: it was refused with 11501 until then) is the LOCAL view: the program goes on and gets ONE field of three numbers "
+        "(NUMLOCKS, the current record lock count, the peak) and no lock line - without the special case file_id -1 would mean ALL FILES and list every lock of every user",
+        not r.hung and kn_abort(seg) is None and "KR kj SURVIVED fields=1 values=3 numeric=1 null=0" in seg, repr(seg))
+    row("...and the fake was asked nothing for it: not a request after the OPEN and the CLOSE", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d), repr([d["types"] for d in r.d]))
 
     # LOGTO: the handle does not follow the user
     lines = ["OPEN|1|zznet1", "READ|1|c1", "EXEC|LOGTO zznhunl", "READ|1|c1", "OPEN|2|zznet1", "CLOSE|1"]
@@ -3629,10 +3891,16 @@ KW_STMTS = {
     "RELEASE": ([], "release {f}, a3", "plain"),
     "RELEASEF": ([], "release {f}", "plain"),
     "RELEASEA": ([], "release", "plain"),
+    # S.72 (20 Oct 26): FILELOCK with a LOCKED clause, without one (a busy file is waited for), FILEUNLOCK, and RECORDLOCKED() whose value and STATUS() are printed
+    "FLOCK": ([], "filelock {f} " + KW_EO + KW_LK, "plain"),
+    "FLOCKW": ([], "filelock {f} " + KW_EO, "plain"),
+    "FUNLOCK": ([], "fileunlock {f} " + KW_EO, "plain"),
+    "RLCKD": ([], "x = recordlocked({f}, a3)", "x"),
     "CLOSE": ([], "close {f}", "close"),
     "FI": (["fkey = a3 + 0"], "x = fileinfo({f}, fkey)", "fi"),
 }
-KW_TXN_OPS = ("WRITE", "WRITEU", "MATWRITE", "WRITEV", "WRITEVU", "DELETE", "DELETEU", "CLEARFILE", "READ", "READU", "READL", "READVU", "MATREADU", "RLOCKU", "RLOCKL", "RELEASE", "RELEASEF")
+KW_TXN_OPS = ("WRITE", "WRITEU", "MATWRITE", "WRITEV", "WRITEVU", "DELETE", "DELETEU", "CLEARFILE", "READ", "READU", "READL", "READVU", "MATREADU", "RLOCKU", "RLOCKL", "RELEASE", "RELEASEF",
+              "FLOCK", "FUNLOCK", "RLCKD")
 
 
 def kw_show(name, kind):
@@ -3645,6 +3913,8 @@ def kw_show(name, kind):
         return ["crt 'KW %s ':slot" % name]
     if kind == "fi":
         return ["v = x ; gosub shw", "crt 'KW %s ':tid:' [':sv:']'" % name]
+    if kind == "x":
+        return ["crt 'KW %s ':tid:' x=':x:' st=':st" % name]
     return ["crt 'KW %s ':tid:' ':oc:' st=':st" % name]
 
 
@@ -3717,6 +3987,9 @@ KWA = [
     ("trv", "zznw1", _txn("readvu v from f, 'w1', 1 else null"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "readvu")]),
     ("tlu", "zznw1", _txn("recordlocku f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "recordlocku")]),
     ("tll", "zznw1", _txn("recordlockl f, 'w1'"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "recordlockl")]),
+    # S.72: a file lock and its release inside a transaction are refused as every other lock is
+    ("tfl", "zznw1", _txn("filelock f"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "filelock")]),
+    ("tfu", "zznw1", _txn("fileunlock f"), (), False, ("zznhon",), lambda: [msg(11510, "nfw", "fileunlock")]),
     # the S.64 edit gate of the REMOTE file's name, asked of the account that is signed in: no ON ERROR, the abort says which gate
     ("gb", "zznwbp", ["write 'x' to f, 'prog1'"], (), False, ("zznhned",), lambda: [msg(11407)]),
     ("gv", "zznwvoc", ["write 'x' to f, 'verb1'"], (), False, ("zznhned", KOFF), lambda: [msg(11405)]),
@@ -3729,10 +4002,12 @@ KWA = [
     ("iw", "zznw1", ["write 'x' to f, ''"], (), False, ("zznhon",), None),
     ("iw64", "zznw1", ["write 'x' to f, str('a', 64)"], (), False, ("zznhon",), None),
     ("id", "zznw1", ["delete f, ''"], (), False, ("zznhon",), None),
+    # S.72: RECORDLOCKED() of an id of 64 bytes stops the program (the function has no ON ERROR clause) and sends nothing
+    ("irl", "zznw1", ["x = recordlocked(f, str('a', 64))"], (), False, ("zznhon",), None),
 ]
 # statements that stay refused on a write-mode handle (message 11511 'not available', not 11501 'read only'): the matrix KM's entries, taken to the pointer zznw1
-KW_STILL_REFUSED = ("filelock", "fileunlock", "recordlocked", "selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright", "fcontrol6", "fcontrol1",
-                    "fiexcl", "fistaton", "fistatoff")
+KW_STILL_REFUSED = ("selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright", "fcontrol6", "fcontrol1",
+                    "fiexcl", "fistaton", "fistatoff")      # S.72: filelock, fileunlock and recordlocked are not here any more - they work on a write-mode handle (kw_filelocks)
 # internal programs (global catalogue, verbs in the accounts): a gate that must not exempt them, the MUSTLOCK setting only they can make, the S.64 key edit_guard asks
 KWI_TEXT = """$internal
 program zznkwi
@@ -3832,6 +4107,84 @@ KWL2_TEXT = """   crt 'KW l2 begin'
    crt 'KW l2 end'
 end
 """
+# S.72 (20 Oct 26): the same two programs for a FILE lock - the first takes it, holds it for a second and ends without CLOSE or FILEUNLOCK; the second keeps the session alive
+KWF1_TEXT = """   crt 'KW f1 begin'
+   open 'zznw1' to f else crt 'KW f1 openfail st=':status() ; stop
+   filelock f locked crt 'KW f1 LOCKED'
+   crt 'KW f1 locked'
+   sleep 1
+end
+"""
+KWF2_TEXT = """   crt 'KW f2 begin'
+   sleep 4
+   crt 'KW f2 end'
+end
+"""
+# S.72: GETLOCKS() is an internal function.  A remote file (write mode and read mode), a LOCAL file with a record lock this session holds, and 'not a file' (every file): the remote view is the
+# counters only, never another file's locks.  readu locks the record zznw1 of the account's own VOC, a local lock the remote answers must not show.
+KWK_TEXT = """$internal
+program zznkwk
+$catalog $zznkwk
+   crt 'KW k begin'
+   open 'zznw1' to f else crt 'KW k openfail st=':status() ; stop
+   open 'zznwr' to fr else crt 'KW k openfail2 st=':status() ; stop
+   open 'voc' to lf else crt 'KW k novoc' ; stop
+   readu x from lf, 'zznw1' else crt 'KW k voc-else' ; stop
+   if len(x) = 0 then crt 'KW k voc-empty'        ;* (x is used: an assigned and unused variable is a compiler warning, and a warning fails the setup row)
+   a = getlocks(f, 0)
+   b = getlocks(fr, 0)
+   c = getlocks(lf, 0)
+   d = getlocks(0, 0)
+   e = getlocks(f, 12345)
+   crt 'KW k remote fields=':dcount(a, @fm):' values=':dcount(a<1>, @vm)
+   crt 'KW k remote-read fields=':dcount(b, @fm):' values=':dcount(b<1>, @vm)
+   crt 'KW k remote-user fields=':dcount(e, @fm):' values=':dcount(e<1>, @vm)
+   crt 'KW k local fields=':dcount(c, @fm):' id=':c<2,5>:' type=':c<2,4>
+   crt 'KW k all fields=':dcount(d, @fm):' has-local=':(index(upcase(d), 'ZZNW1', 1) # 0)       ;* the VOC is a no-case file: the lock is held under the upper case id
+   crt 'KW k counters-equal=':(a<1> = b<1> and a<1> = c<1> and a<1> = d<1> and a<1> = e<1>)
+   crt 'KW k remote-has-local-lock=':(index(upcase(a), 'ZZNW1', 1) # 0)
+   release lf
+   crt 'KW k end'
+end
+"""
+# S.72: MUSTLOCK (the client's, set by an internal program) and a file lock: the file lock this session holds covers every record (as check_lock() does for a local file), so a WRITE is made;
+# after FILEUNLOCK the same WRITE is refused with 3023
+KWM2_TEXT = """$internal
+program zznkwm2
+$catalog $zznkwm2
+   oc = 'then'
+   crt 'KW m2 begin'
+   open 'zznw1' to f else crt 'KW m2 openfail st=':status() ; stop
+   if pconfig('MUSTLOCK', 1) then null
+   filelock f locked oc = 'locked'
+   crt 'KW m2 filelock ':oc
+   oc = 'then'
+   write 'viafilelock' to f, 'w1' on error oc = 'error'
+   crt 'KW m2 write-under-filelock ':oc:' st=':status()
+   fileunlock f
+   oc = 'then'
+   write 'afterunlock' to f, 'w1' on error oc = 'error'
+   crt 'KW m2 write-after-unlock ':oc:' st=':status()
+   if pconfig('MUSTLOCK', 0) then null
+   crt 'KW m2 end'
+end
+"""
+# S.72: THE LOCAL CONTROL.  The same statements on a LOCAL file (the account's own VOC): what a remote file must give back, from the kernel that has no remote file in it.  FILELOCK leaves STATUS()
+# alone when it succeeds (locally), so it is not printed; the rest is what kw_filelocks expects of the remote file.
+KWC_TEXT = """   crt 'KW c begin'
+   open 'voc' to f else crt 'KW c novoc' ; stop
+   filelock f locked crt 'KW c LOCKED'
+   x = recordlocked(f, 'zznw1')
+   crt 'KW c recordlocked-own-filelock x=':x
+   fileunlock f
+   crt 'KW c unlock-own st=':status()
+   x = recordlocked(f, 'zznw1')
+   crt 'KW c recordlocked-free x=':x:' st=':status()
+   fileunlock f
+   crt 'KW c unlock-nobody st=':status()
+   crt 'KW c end'
+end
+"""
 KWADM_TEXT = """   crt 'KW adm begin'
    oc = 'then'
    open 'voc' to v else crt 'KW adm novoc' ; stop
@@ -3860,7 +4213,7 @@ end
 def kw_voc():
     """The VOC records the administrator writes: account -> [(id, fields)]."""
     ptrs = [(v, ["N", s, f]) for v, s, f in KW_PTRS]
-    return {"zznhon": ptrs + [("zznkwm", ["V", "CA", "$zznkwm"]), ("zznkwg", ["V", "CA", "$zznkwg"])],
+    return {"zznhon": ptrs + [("zznkwm", ["V", "CA", "$zznkwm"]), ("zznkwg", ["V", "CA", "$zznkwg"]), ("zznkwk", ["V", "CA", "$zznkwk"]), ("zznkwm2", ["V", "CA", "$zznkwm2"])],
             HNED: ptrs + [("zznkwi", ["V", "CA", "$zznkwi"]), ("zznkwg", ["V", "CA", "$zznkwg"])],
             KOFF: ptrs}
 
@@ -3889,7 +4242,7 @@ def kw_prep():
     gates_on = [path, "", g.GROUP, "", "", "", "no", "no", "", "yes", "yes", "yes", "", "", "yes"]
     g.reg_write(HNED, gates_on)                                    # while the programs are compiled: they need bp.edit
     drv = kw_driver()
-    plan = {"zznhon": {KWDRV: drv, "zznkwal": KWAL_TEXT, "zznkwal2": KWAL2_TEXT, "zznkwl1": KWL1_TEXT, "zznkwl2": KWL2_TEXT},
+    plan = {"zznhon": {KWDRV: drv, "zznkwal": KWAL_TEXT, "zznkwal2": KWAL2_TEXT, "zznkwl1": KWL1_TEXT, "zznkwl2": KWL2_TEXT, "zznkwf1": KWF1_TEXT, "zznkwf2": KWF2_TEXT, "zznkwc": KWC_TEXT},
             HNED: {KWDRV: drv}, KOFF: {KWDRV: drv}}
     KW["abort"] = {}
     for i, (tag, ptr, middle, pre, dict_open, accts, _m) in enumerate(KWA, 1):
@@ -3920,8 +4273,10 @@ def kw_prep():
     g.put(os.path.join(g.SYS, "gpl.bp", "zznkwi"), KWI_TEXT)
     g.put(os.path.join(g.SYS, "gpl.bp", "zznkwg"), KWG_TEXT)
     g.put(os.path.join(g.SYS, "gpl.bp", "zznkwm"), KWM_TEXT)
-    out = g.adm(["BASIC gpl.bp zznkwi zznkwg zznkwm"], internal=True)
-    ok_i = g.has(out, r"^Compiled 3 program\(s\) with no errors") and not any(re.search(r"warning|not assigned", ln, re.I) for ln in out)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkwk"), KWK_TEXT)
+    g.put(os.path.join(g.SYS, "gpl.bp", "zznkwm2"), KWM2_TEXT)
+    out = g.adm(["BASIC gpl.bp zznkwi zznkwg zznkwm zznkwk zznkwm2"], internal=True)
+    ok_i = g.has(out, r"^Compiled 5 program\(s\) with no errors") and not any(re.search(r"warning|not assigned", ln, re.I) for ln in out)
     g.put(os.path.join(g.SYS, "bp", "zznkwadm"), KWADM_TEXT)
     out1 = g.adm(["BASIC bp zznkwadm"], internal=True)
     ok_a = g.has(out1, r"^Compiled 1 program\(s\) with no errors")
@@ -3929,8 +4284,8 @@ def kw_prep():
     out2 = g.adm(["BASIC bp zznkwfix", "RUN bp zznkwfix"], internal=True)
     ok_f = g.has(out2, r"^KWFIX done$")
     npt = sum(len(v) for v in kw_voc().values())
-    row("SETUP: the three internal test programs and the administrator's program compile, and the administrator wrote %d VOC records (pointers to the write-mode files and the verbs) into three accounts"
-        % npt, ok_i and ok_a and ok_f, repr((out[-4:], out1[-4:], out2[-4:])))
+    row("SETUP: the five internal test programs (S.72: GETLOCKS and MUSTLOCK with a file lock were added) and the administrator's program compile, and the administrator wrote %d VOC records (pointers to the write-mode files and the verbs) into three accounts"
+        % npt, ok_i and ok_a and ok_f, repr((out[-4:], out1[-4:], out2[-4:], [ln for ln in out if re.search(r"warning|not assigned", ln, re.I)][:6])))
     if missing or not (ok_i and ok_a and ok_f):
         return False
     g.reg_write(HNED, [path, "", g.GROUP, "", "", "", "no", "no", "", "no", "no", "no", "", "", "yes"])        # NOW the account has the NET gate and NO edit gate
@@ -4003,7 +4358,7 @@ class HolderRelease(threading.Thread):
         while time.time() - t0 < 90:
             with self.srv.lock:
                 ses = self.srv.sessions[self.n0] if len(self.srv.sessions) > self.n0 else None
-            if ses is not None and 30 in ses.requests:
+            if ses is not None and (30 in ses.requests or 32 in ses.requests):
                 time.sleep(self.delay)
                 self.srv.store.drop_user(self.userno)
                 self.released = time.time()
@@ -4093,6 +4448,7 @@ def kwrite_section():
     kw_mode_admin(A)
     kw_refused(A)
     kw_misc(A)
+    kw_filelocks(A)
 
 
 def kw_basic(A):
@@ -4473,8 +4829,180 @@ def kw_misc(A):
         acct = HNED if cmd.endswith("zznwbp") else "zznhon"
         r = kw_run(acct, [cmd], (A,), cfg={"edit_allow": frozenset(["voc", "dict", "prog"])})
         say("    [note] %s -> %r (requests: %s)" % (cmd, [x for x in r.out if not x.startswith("KW ")][:4], sorted(set(r.d[0]["types"]))))
+        # S.72 (20 Oct 26): the verb CLEAR.FILE locks the file first ($clearfl: filelock, clearfile, fileunlock), so 32 and 33 are requests this section knows now; until then the lock was refused
+        # ("filelock is not available for a file on server nfw") and the verb could not clear a write-mode remote file
         row("%s: the session survived, and the fake saw only requests the section knows%s" % (cmd, " (the gate of the account refused the verb: no CLEARFILE request)" if cmd.endswith("zznwbp") else ""),
-            not r.hung and kw_types_ok(r) and (not cmd.endswith("zznwbp") or 31 not in r.d[0]["types"]) and r.idle, repr(r.out[-4:]))
+            not r.hung and kw_types_ok(r, KWALLOWED | {32, 33}) and (not cmd.endswith("zznwbp") or 31 not in r.d[0]["types"]) and r.idle, repr(r.out[-4:]))
+        if cmd.endswith("zznw1"):
+            t = r.d[0]["types"]
+            i32, i31, i33 = (t.index(n) if n in t else -1 for n in (32, 31, 33))
+            row("...the verb now CLEARS the write-mode remote file (S.72: it locks the file first, FILELOCK 32, then CLEARFILE 31, then FILEUNLOCK 33, in that order) and the file on the fake is empty "
+                "- the same login could already do it with a CLEARFILE statement; before 20 Oct 2026 the verb stopped at its FILELOCK with 'filelock is not available'",
+                0 <= i32 < i31 < i33 and r.stores[0][HW] == {} and "not available" not in " ".join(r.out), repr((t, r.stores[0][HW], r.out[-4:])))
+    # the LOCKING keyword of the query verbs locks the source file first (qproc: filelock data.f)
+    r = kw_run("zznhon", ["LIST zznw1 LOCKING"], (A,))
+    t = r.d[0]["types"]
+    say("    [note] LIST zznw1 LOCKING -> %r (requests: %s)" % ([x for x in r.out if not x.startswith("KW ")][:6], sorted(set(t))))
+    row("LIST zznw1 LOCKING (S.72, the query processor's LOCKING keyword locks the source file): the session survived, the list was printed (3 records), the file lock was asked for (request 32) before the "
+        "select (11) and the reads of the records, and the fake saw only requests the section knows (the query's own: the dictionary reads, select, readlist, reads)",
+        not r.hung and kw_types_ok(r, KWALLOWED | {11, 14, 32, 33}) and 32 in t and 11 in t and t.index(32) < t.index(11) and any(re.match(r"^3 record\(s\) listed", x) for x in r.out) and r.idle,
+        repr((t, r.out[-6:])))
+
+
+def kw_filelocks(A):
+    say("\n  -- FILELOCK, FILEUNLOCK, RECORDLOCKED() and GETLOCKS() (S.72, 20 Oct 26): the statements of an ordinary session on a write-mode file, and on a read-mode one --")
+    FL = (HW, "", "file")                                              # how the fake's lock table shows a file lock (FakeStore.locks_of)
+    own = r"[1-9][0-9]*"                                                  # a user number of the fake (it numbers its connections itself)
+
+    # THE LOCAL CONTROL: the same statements on a local file say what a remote one must say
+    r = kw_run("zznhon", ["RUN bp zznkwc"], (A,))
+    seg = kw_segments(r.out).get("c", [])
+    row("CONTROL (a LOCAL file, the account's VOC): FILELOCK, RECORDLOCKED() 3 while this session holds it, FILEUNLOCK leaves STATUS() 0, RECORDLOCKED() 0 with STATUS() 0 once free, a second "
+        "FILEUNLOCK leaves STATUS() 3012 (ER$NLK) - the values the rows below require of a remote file",
+        not r.hung and seg == ["KW c recordlocked-own-filelock x=3", "KW c unlock-own st=0", "KW c recordlocked-free x=0 st=0", "KW c unlock-nobody st=3012", "KW c end"] and r.idle, repr(seg))
+
+    # 1. a free file, the whole life of a file lock, the wire and the audit trail
+    lines = ["OPEN|1|zznw1", "FLOCK|1", "SLEEP|1", "RLCKD|1|w1", "FLOCK|1", "FUNLOCK|1", "SLEEP|1", "RLCKD|1|w1", "FUNLOCK|1", "CLOSE|1"]
+    r = kw_drive("zznhon", lines, (A,), watch=(A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end", "KW SLEEP"))]
+    want_re = [r"^KW OPEN zznw1 then st=0$", r"^KW FLOCK  then st=0$", r"^KW RLCKD w1 x=3 st=%s$" % own, r"^KW FLOCK  then st=0$", r"^KW FUNLOCK  then st=0$", r"^KW RLCKD w1 x=0 st=0$",
+               r"^KW FUNLOCK  then st=3012$", r"^KW CLOSE 1$"]
+    row("FILELOCK on a free file of a write-mode server: THEN, STATUS() 0; RECORDLOCKED() 3 (this session holds the file lock) with STATUS() the server's user number; FILELOCK again: still 0; "
+        "FILEUNLOCK: STATUS() 0; RECORDLOCKED() 0 with STATUS() 0; a second FILEUNLOCK leaves STATUS() 3012 - the values of the local control above",
+        kw_sane(r) and len(got) == len(want_re) and all(re.match(p, x) for p, x in zip(want_re, got)), kw_why(r) + " got=%r" % got)
+    wire = kn_wire(r.d[0])
+    exp = [ACCT_REQ, W_OPEN(HW), W_FLK(1), W_RLK(1, "w1"), W_FLK(1), W_FUL(1), W_RLK(1, "w1"), W_FUL(1), (5, FNO(1))]
+    row("...THE REQUESTS: 32 (file number, wait flag 0) twice, 34 for each RECORDLOCKED(), 33 twice, then the CLOSE (5) - the wait flag is never set", wire == exp,
+        "first difference: %r" % (next(((a, b) for a, b in zip(wire, exp) if a != b), (len(wire), len(exp))),))
+    ls = r.watch[0].seq()
+    row("...THE FAKE'S LOCK TABLE, watched during the session: no lock, the FILE lock (%s), no lock again after FILEUNLOCK" % (FL,), ls == [(), (FL,), ()], repr(ls))
+    row("...the audit trail: the open line and ONE 'filelock server=nfw file=hwork' line (once for the handle, written before the first request; no id, no record)",
+        r.audits == [OPEN_W_AUD, "filelock server=nfw file=hwork"], repr(r.audits))
+
+    # 2. another user holds the file lock, or a record lock in the file
+    A.store.hold_file(HW, 7)
+    try:
+        r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "RLCKD|1|w1", "FUNLOCK|1", "RLCKD|1|w1", "CLOSE|1"], (A,))
+    finally:
+        A.store.drop_user(7)
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+    want = ["KW OPEN zznw1 then st=0", "KW FLOCK  locked st=7", "KW RLCKD w1 x=-3 st=7", "KW FUNLOCK  then st=3011", "KW RLCKD w1 x=-3 st=7", "KW CLOSE 1"]
+    row("A FILE LOCK ANOTHER USER (7) HOLDS: FILELOCK takes the LOCKED branch with STATUS() 7 (the holder); RECORDLOCKED() -3 with STATUS() 7; FILEUNLOCK leaves STATUS() 3011 (ER$LCK) and the lock "
+        "is still user 7's (the last RECORDLOCKED() says -3 again, with 7)", kw_sane(r) and got == want, kw_why(r) + " got=%r" % (got,))
+    row("...THE REQUESTS: 32, 34, 33, 34 and the close", kn_wire(r.d[0]) == [ACCT_REQ, W_OPEN(HW), W_FLK(1), W_RLK(1, "w1"), W_FUL(1), W_RLK(1, "w1"), (5, FNO(1))], repr(kn_wire(r.d[0])))
+    A.store.hold(HW, "w2", 8, "update")
+    try:
+        r = kw_drive("zznhon", ["OPEN|1|zznw1", "SLEEP|1", "FLOCK|1", "SLEEP|1", "CLOSE|1"], (A,), watch=(A,))
+    finally:
+        A.store.drop_user(8)
+    row("AN UPDATE LOCK ANOTHER USER (8) HOLDS ON A RECORD of the file: FILELOCK takes the LOCKED branch with STATUS() 8, and no file lock was taken (the fake's table, watched, never held one for this session)",
+        kw_sane(r) and "KW FLOCK  locked st=8" in r.kw and all(FL not in locks for locks in r.watch[0].seq()), kw_why(r) + repr(r.watch[0].seq()))
+
+    # 3. no LOCKED clause: a busy file is waited for by asking again, never by making the server wait
+    A.store.hold_file(HW, 7)
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "TIME", "FLOCKW|1", "TIME", "RLCKD|1|w1", "CLOSE|1"], (A,), holders=((A, 7, 3.0),))
+    times = [int(m.group(1)) for m in (re.match(r"^KW TIME (\d+)$", x) for x in r.kw) if m]
+    types = r.d[0]["types"]
+    waits = [struct.unpack("<h", d[2:4])[0] for _c, t, d in r.d[0]["packets"] if t == 32]
+    row("FILELOCK with no LOCKED clause on a file another user holds: the statement WAITS (the holder lets go about 3 seconds after the first request) and then succeeds with STATUS() 0, and the file "
+        "lock is this session's (RECORDLOCKED() 3)", kw_sane(r) and "KW FLOCKW  then st=0" in r.kw and len(times) == 2 and 2 <= (times[1] - times[0]) % 86400 <= 30
+        and any(re.match(r"^KW RLCKD w1 x=3 st=%s$" % own, x) for x in r.kw), kw_why(r) + " times=%r" % times)
+    row("...THE FAKE SAW %d requests of type 32, every one with the wait flag 0 (%s) - the server was never asked to block - and none of the server's own waiting forms (30, 7 to 10)" % (len(waits), sorted(set(waits))),
+        len(waits) >= 5 and set(waits) == {0} and not {7, 8, 9, 10, 30} & set(types), repr((types, waits)))
+
+    # 4. how long a file lock lives
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "SLEEP|1", "CLOSE|1", "SLEEP|1"], (A,), watch=(A,))
+    w = r.watch[0]
+    row("CLOSE of the file variable releases the file lock: it was on the fake's table during the session and gone BEFORE the session ended (a state with no lock was seen while it was still open)",
+        kw_sane(r) and (FL,) in w.seq() and w.alive_empty_after_lock(), repr(w.states))
+    r = kw_run("zznhon", ["RUN bp zznkwf1", "RUN bp zznkwf2"], (A,), watch=(A,))
+    seg1, seg2 = kw_segments(r.out).get("f1", []), kw_segments(r.out).get("f2", [])
+    w = r.watch[0]
+    row("A program takes the file lock and ends without CLOSE or FILEUNLOCK: the lock is on the fake while it runs and is GONE after the next command at the prompt, while the session is still open "
+        "(the next program sleeps 4 seconds)", not r.hung and "KW f1 locked" in seg1 and "KW f2 end" in seg2 and (FL,) in w.seq() and w.alive_empty_after_lock(), repr((w.states, seg1, seg2)))
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "SLEEP|2", "EXEC|LOGTO zznhunl", "SLEEP|3", "EXEC|LOGTO zznhon", "SLEEP|1"], (A,), watch=(A,))
+    w = r.watch[0]
+    row("LOGTO to another account closes the connection and the file lock goes with it: the lock was on the fake, and the connection ended at least 3 seconds before the session did",
+        kw_sane(r) and (FL,) in w.seq() and w.seq()[-1] == () and w.closed_at is not None and r.t_end - w.closed_at >= 3.0, repr((w.states, w.closed_at, r.t_end, r.kw[-4:])))
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "SLEEP|2"], (A,), watch=(A,))
+    w = r.watch[0]
+    row("a session that ends while it holds the file lock (no FILEUNLOCK, no CLOSE) lets it go with its connection: the fake's table, watched, showed the lock and then none", kw_sane(r, need_end=False)
+        and (FL,) in w.seq() and w.seq()[-1] == (), repr(w.states))
+
+    # RELEASE f and a bare RELEASE give a file lock back too (measured on the real server by sandbox-req29.py F44-F47: the server's RELEASE does)
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "RLCKD|1|w1", "RELEASEF|1", "RLCKD|1|w1", "FLOCK|1", "RLCKD|1|w1", "RELEASEA|1", "RLCKD|1|w1", "CLOSE|1"], (A,))
+    got = [x for x in r.kw if x.startswith("KW RLCKD")]
+    want_re = [r"^KW RLCKD w1 x=3 st=%s$" % own, r"^KW RLCKD w1 x=0 st=0$", r"^KW RLCKD w1 x=3 st=%s$" % own, r"^KW RLCKD w1 x=0 st=0$"]
+    row("RELEASE f (the file form) and a bare RELEASE give the file lock back, as on the server's own files: RECORDLOCKED() says 3 while it is held and 0 after each",
+        kw_sane(r) and len(got) == 4 and all(re.match(p, x) for p, x in zip(want_re, got)), kw_why(r) + " got=%r" % got)
+    exp = [ACCT_REQ, W_OPEN(HW), W_FLK(1), W_RLK(1, "w1"), W_REL(1), W_RLK(1, "w1"), W_FLK(1), W_RLK(1, "w1"), W_REL(0), W_RLK(1, "w1"), (5, FNO(1))]
+    row("...THE REQUESTS: RELEASE f is request 15 with the file number only, a bare RELEASE is request 15 with file number 0", kn_wire(r.d[0]) == exp,
+        "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(r.d[0]), exp) if a != b), (len(kn_wire(r.d[0])), len(exp))),))
+
+    # 5. RECORDLOCKED() on a write-mode and a READ-mode handle, and the record locks of other users
+    A.store.hold(HW, "w2", 7, "update")
+    A.store.hold(HW, "w3", 8, "shared")
+    try:
+        lines = ["OPEN|1|zznw1", "OPEN|2|zznwr", "RLCKD|1|w1", "RLCKD|1|w2", "RLCKD|1|w3", "RLCKD|2|w2", "RLCKD|2|w1", "READU|1|w1", "RLCKD|1|w1", "RLCKD|2|w1", "RELEASE|1|w1", "RLCKD|1|w1",
+                 "READL|1|w1", "RLCKD|1|w1", "CLOSE|1", "CLOSE|2"]
+        r = kw_drive("zznhon", lines, (A,))
+    finally:
+        A.store.drop_user(7)
+        A.store.drop_user(8)
+    got = [x for x in r.kw if x.startswith("KW RLCKD")]
+    # (the two handles are two connections of the fake, nfw and nfa, so two users: what handle 1 locks is ANOTHER USER's lock to handle 2)
+    want_re = [r"^KW RLCKD w1 x=0 st=0$", r"^KW RLCKD w2 x=-2 st=7$", r"^KW RLCKD w3 x=-1 st=8$", r"^KW RLCKD w2 x=-2 st=7$", r"^KW RLCKD w1 x=0 st=0$", r"^KW RLCKD w1 x=2 st=%s$" % own,
+               r"^KW RLCKD w1 x=-2 st=%s$" % own, r"^KW RLCKD w1 x=0 st=0$", r"^KW RLCKD w1 x=1 st=%s$" % own]
+    row("RECORDLOCKED() on a write-mode handle (1) and a READ-MODE one (2, the definition nfa): free 0 (STATUS() 0), another user's update lock -2 (STATUS() 7), another user's read lock -1 (8), this "
+        "session's update lock 2 and read lock 1 (STATUS() its own server user number), 0 after RELEASE; the second handle is another connection, so to it the first's update lock is -2",
+        kw_sane(r) and len(got) == len(want_re) and all(re.match(p, x) for p, x in zip(want_re, got)), kw_why(r) + " got=%r" % got)
+    exp = [ACCT_REQ, W_OPEN(HW), ACCT_REQ, W_OPEN(HW), W_RLK(1, "w1"), W_RLK(1, "w2"), W_RLK(1, "w3"), W_RLK(1, "w2"), W_RLK(1, "w1"), W_LOCK(1, "w1", True), W_READ(1, "w1"), W_RLK(1, "w1"),
+           W_RLK(1, "w1"), W_REL(1, "w1"), W_RLK(1, "w1"), W_LOCK(1, "w1", False), W_READ(1, "w1"), W_RLK(1, "w1"), (5, FNO(1)), (5, FNO(1)), (1, b"")]
+    row("...THE REQUESTS: every RECORDLOCKED() is request 34 with the file number (1 on each connection) and the id; the read-mode handle's connection sent nothing else (the last request is the quit "
+        "one of the two connections sends when the process ends, after both CLOSEs)", kn_wire(r.d[0]) == exp,
+        "first difference: %r; the last three on the wire: %r" % (next(((a, b) for a, b in zip(kn_wire(r.d[0]), exp) if a != b), (len(kn_wire(r.d[0])), len(exp))), kn_wire(r.d[0])[-3:]))
+    r = kw_drive("zznhon", ["OPEN|1|zznwr", "FLOCK|1", "FUNLOCK|1", "RLCKD|1|w1", "CLOSE|1"], (A,))
+    row("CONTROL, a READ-mode handle: FILELOCK and FILEUNLOCK take ON ERROR with STATUS() 7000 (message 11501, nothing sent); RECORDLOCKED() is served (0)", kw_sane(r) and "KW FLOCK  error st=7000" in r.kw
+        and "KW FUNLOCK  error st=7000" in r.kw and "KW RLCKD w1 x=0 st=0" in r.kw and set(r.d[0]["types"]) <= {47, 48, 3, 4, 34, 5, 1}, kw_why(r))
+
+    # 6. RECORDLOCKED() in a transaction is a read and is served; FILELOCK and FILEUNLOCK there are refused
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "TFLOCK|1", "TFUNLOCK|1", "TRLCKD|1|w1", "FLOCK|1", "FUNLOCK|1", "CLOSE|1"], (A,))
+    row("INSIDE A TRANSACTION FILELOCK and FILEUNLOCK take ON ERROR with STATUS() 1010 (ER_TXN, message 11510), RECORDLOCKED() is served (a read); after it the same handle locks and unlocks",
+        kw_sane(r) and "KW TFLOCK  error st=1010" in r.kw and "KW TFUNLOCK  error st=1010" in r.kw and "KW TRLCKD w1 x=0 st=0" in r.kw and "KW FLOCK  then st=0" in r.kw
+        and "KW FUNLOCK  then st=0" in r.kw and kn_wire(r.d[0]) == [ACCT_REQ, W_OPEN(HW), W_RLK(1, "w1"), W_FLK(1), W_FUL(1), (5, FNO(1))], kw_why(r) + repr(kn_wire(r.d[0])))
+
+    # 7. GETLOCKS(): the local view
+    r = kw_run("zznhon", ["ZZNKWK"], (A,))
+    seg = kw_segments(r.out).get("k", [])
+    want = ["KW k remote fields=1 values=3", "KW k remote-read fields=1 values=3", "KW k remote-user fields=1 values=3", "KW k local fields=2 id=ZZNW1 type=RU", "KW k all fields=2 has-local=1",
+            "KW k counters-equal=1", "KW k remote-has-local-lock=0", "KW k end"]
+    row("GETLOCKS() (an internal function) of a remote file, write mode or read mode, with a user number or without, is the LOCAL view: ONE field of three numbers (NUMLOCKS, the lock count, the peak) and "
+        "no lock line - not the local record lock this session holds, which GETLOCKS() of a local file and of 'every file' do list (the control) - and the counters are the local table's own",
+        not r.hung and seg == want, repr(seg))
+    row("...and the fake was asked NOTHING for it: only the two opens and the closes", all(set(d["types"]) <= {47, 48, 3, 4, 5, 1} for d in r.d) and r.idle, repr([d["types"] for d in r.d]))
+
+    # 8. MUSTLOCK: a file lock covers every record, as locally
+    r = kw_run("zznhon", ["ZZNKWM2"], (A,))
+    seg = kw_segments(r.out).get("m2", [])
+    wire = kn_wire(r.d[0])
+    exp = [ACCT_REQ, W_OPEN(HW), W_FLK(1), W_RLK(1, "w1"), W_WRITE(1, "w1", "viafilelock"), W_FUL(1), W_RLK(1, "w1")]
+    row("MUSTLOCK (the client's) and a file lock: with the file lock held a WRITE of a record the session has NOT locked is made (the server says 3: the session holds the file lock), after FILEUNLOCK the same "
+        "WRITE is refused with 3023 and sends no change", not r.hung and seg == ["KW m2 filelock then", "KW m2 write-under-filelock then st=0", "KW m2 write-after-unlock error st=3023", "KW m2 end"]
+        and wire[:len(exp)] == exp and sum(1 for t in r.d[0]["types"] if t in (16, 17, 18, 19)) == 1 and r.stores[0][HW].get("w1") == "viafilelock", repr((seg, wire[:8])))
+
+    # 9. a connection lost without ON ERROR: the lock statements stop with 11497, not 11509 (they change no data)
+    for tag, stmt, cfg, op in (("lf", "filelock f", {"drop_after": {32: 1}}, "filelock"), ("lu", "fileunlock f", {"drop_after": {33: 1}}, "fileunlock"),
+                               ("lr", "x = recordlocked(f, 'w1')", {"drop_after": {34: 1}}, "recordlocked")):
+        name = "zznkwx" + tag
+        g.put(os.path.join(acct_path("zznhon"), "bp", name), kw_prog(tag, "zznw1", [stmt]))
+        out, miss = kn_compile("zznhon", [name])
+        if miss:
+            row("%s with the connection lost, without ON ERROR: the program compiled" % op, False, repr(out[-4:]))
+            continue
+        r = kw_run("zznhon", ["RUN bp " + name], (A,), cfg=cfg)
+        seg = kw_segments(r.out).get(tag, [])
+        row("%s whose connection is lost after the server did it, without ON ERROR: the program stops with message 11497 (%r) and prints nothing after it" % (op.upper(), msg(11497, "nfw", op)),
+            not r.hung and kn_abort(seg) == msg(11497, "nfw", op) and not any("SURVIVED" in x for x in seg) and r.idle, repr(seg[-3:]))
 
 
 # ---- W. the write group (18 Oct 26, section wgroup) ---------------------------------------------------------------------------------------------
@@ -4554,6 +5082,26 @@ def wgroup_section():
         "KW WRITE w1 error st=7000" in r.kw and "KW DELETE w2 error st=7000" in r.kw and "KW READU w3 error st=7000 len=0 rec=[]" in r.kw
         and not any(x.startswith(("KW WRITE w1 then", "KW DELETE w2 then", "KW READU w3 then", "KW CLEARFILE then")) for x in r.kw),
         repr([x for x in r.kw if x.startswith(("KW WRITE", "KW DELETE", "KW READU", "KW CLEARFILE"))]))
+
+    # S.72 (20 Oct 26): FILELOCK and FILEUNLOCK are in the same change set (apifilesok 32 and 33): refused for a login without the group, RECORDLOCKED() is not
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_FILELOCK, 1, label="WITHOUT the group: FILELOCK is refused (S.72): rc 3, message 11500 naming the server and 'filelock', and the TEXT of message 11521 with the request number (32), rc<6> 0",
+          ok=k_srverr("filelock", 0, text=msg(11521, 32)), req=[W_FLK(1)], audit="filelock server=nfw file=hwork")
+    s.add("RAW", NF_FILEUNLOCK, 1, label="...FILEUNLOCK is refused too (request 33)", ok=k_srverr("fileunlock", 0, text=msg(11521, 33)), req=[W_FUL(1)])
+    s.add("RLOCKED", 1, "w1", label="...RECORDLOCKED is served (a test of a lock is a read): out 0", ok=k_rlk(0), req=[W_RLK(1, "w1")])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,), cfg={"write_group": False})
+    row("the file-lock program ran to its end and no connection is left", r.began and r.ended and r.idle, h_why(r))
+    judge(r, s)
+    sess = r.d[0]["sessions"]
+    row("...THE FAKE (the target) saw the requests with their bytes and REFUSED exactly 32 and 33 (the RECORDLOCKED after them says 0: no lock was taken), and the audit trail has the open and the 'filelock' "
+        "line (written before the request, as for a change)", a_wire(r, s) and len(sess) == 1 and not sess[0].write_ok and sess[0].refused == [32, 33] and r.audits == s.audits(),
+        "first difference: %r refused %r %r" % (hw_first_diff(r.d[0], s.wire()), [x.refused for x in sess], r.audits))
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "FUNLOCK|1", "RLCKD|1|w1", "CLOSE|1"], (A,), cfg={"write_group": False})
+    row("the statements FILELOCK and FILEUNLOCK on a write-mode file whose target does not allow changes take ON ERROR with STATUS() 7000 (the server refused), RECORDLOCKED() is served (0), and the fake "
+        "refused exactly 32 and 33", not r.hung and "KW begin" in r.kw and "KW end" in r.kw and r.idle and not r.crash and all(not x["errors"] for x in r.d) and "KW FLOCK  error st=7000" in r.kw and "KW FUNLOCK  error st=7000" in r.kw and "KW RLCKD w1 x=0 st=0" in r.kw
+        and r.d[0]["sessions"] and r.d[0]["sessions"][0].refused == [32, 33], kw_why(r) + " refused %r" % [x.refused for x in r.d[0]["sessions"]])
 
 
 # ---- main -------------------------------------------------------------------------------------------------------------------------------------

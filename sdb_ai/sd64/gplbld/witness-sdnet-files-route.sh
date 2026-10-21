@@ -12,7 +12,7 @@
 #   * DEFINES a server zzloop, the client's stored login for it and two VOC pointers in the client account, and removes all three;
 #   * TURNS ON the NET, VOC and BP gates of the client account (default: the account of SUDO_USER) and puts its register record back byte for byte from a copy it
 #     takes first (the copy is kept under /var/tmp/witness-sdnet-files-route-<time>/ and the script says so);
-#   * writes ten small programs zzwn* into the client's bp, and removes them.
+#   * writes nineteen small programs zzwn* into the client's bp, and removes them.
 # It refuses to start when anything it would make already exists.  It does not install and does not uninstall, and it never touches the VM's other installs.
 #
 # WHY IT EXISTS.  The 18 Oct VM runs (round 2 on 5315c65, round 3 on c42aa13) were made before the S.65 finish.  Since then these changed and have been proved only in
@@ -28,10 +28,13 @@
 #   S   set-up: CREATE.ACCOUNT, MODIFY.PASSWORD, seed two files, THE KEY (set.server ... connect shows the hash; sd-elevate tls-key and the docs' openssl pipeline give the
 #       SAME hash - the "not confirmed" line of 12-sdnet.md), the definition, the stored login, the gates, the VOC pointers
 #   R   read: COUNT / LIST / SORT through the pointer, a read, a dictionary open
-#   A   files-on only (no write group): every change or lock is refused BY THE SERVER; the text a person sees is K1's; the audit lines; the file did not change; the
-#       probe (the C client library through ctypes) sends 7-10, 16-19 and 30 directly
-#   M   the definition says READ: the client refuses a write before it is sent (11501); a WRONG PIN: nothing reaches the server (11455, no new login line)
-#   B   files-write-on: the same programs now work, the server file changed, two sessions see each other's lock, the audit says write=on and has no refusal
+#   A   files-on only (no write group): every change or lock is refused BY THE SERVER - FILELOCK and FILEUNLOCK (requests 32 and 33, S.72) included; RECORDLOCKED() (34) is a
+#       read and is served; the text a person sees is K1's; the audit lines; the file did not change; the probe (the C client library through ctypes) sends 7-10, 16-19 and 30
+#       directly (the library has NO call for 32 and 33: those two are sent by the netfile programs)
+#   M   the definition says READ: the client refuses a write, FILELOCK and FILEUNLOCK before they are sent (11501); RECORDLOCKED() is served; a WRONG PIN: nothing reaches the
+#       server (11455, no new login line)
+#   B   files-write-on: the same programs now work, the server file changed, two sessions see each other's lock - a record lock (B10) and a FILE lock (B11) - the life of a
+#       file lock on the real server read from its own LIST.READU (B12: CLOSE, a program that ends holding it, RELEASE), a transaction (B13), the audit says write=on and has no refusal
 #   C   files-write-off, files-off (K3: the login is refused with the new reason), files-on (K2), the manifest key route.files.write at each step
 #   Z   put back: the register record is identical to the copy, nothing the script made is left
 # NOT COVERED HERE (other scripts): the orphan and the order of the two group changes (witness-sdnet-writegroup.sh), the requests no files-only login may make, TLS 1.2,
@@ -41,6 +44,10 @@
 #
 # Exit 0 every row passed, 1 a row failed, 2 it could not run.  The log is /var/tmp/witness-sdnet-files-route-<time>.<six random characters>.log, handed back to the owner.
 # Changed 19 Oct 26 (finish 2, the verifier's findings): the backup directory is made with wl_mkdir_new, and the audit offset is the physical line count (wl_audit_offset).
+# Changed 20 Oct 26 (S.72, QMNet parity tiers A and B): FILELOCK, FILEUNLOCK and RECORDLOCKED() on a remote file.  The rows are in A (zzwn1 X10-X12, zzwn5, zzwn6), M (zzwn5-7), B (zzwn3 Y8-Y12,
+# B11 zzwnfa/zzwnfb, B12 zzwnfl/zzwnfd/zzwnfe, B13 zzwn8/zzwn9) and C (zzwn5, zzwn6).  The server's own lock table is read through LIST.READU AS THE ADMINISTRATOR (the verb is not in an ordinary
+# account's VOC: the first run on the VM found out that a client program cannot run it): polled for the two-session row (B11), and by a SAMPLER session that runs beside the programs of B12 and is
+# tied to them by clock time (see state_fx).  A file lock shows there as type FX with an EMPTY id; fxrows / fxsamples join the path pieces (the verb cuts a path at 31 characters).
 #
 set -u
 SELF="$(cd "$(dirname "$0")" 2>/dev/null && pwd)/$(basename "$0")"
@@ -80,7 +87,7 @@ say "  working : $BK   (the copy of the client's register record, the password f
 
 # ------------------------------------------------------------------ the things this run may have made (set BEFORE the command that makes them)
 MADE_USER=0; MADE_ACCOUNT=0; MADE_SERVER=0; MADE_NETLOGIN=0; MADE_VOC=0; MADE_PROGS=0; GROUND_CLEAR=0; REG_SAVED=0; CLEANED=0
-PROGS="zzwnmk zzwnrd zzwn1 zzwn2 zzwn3 zzwn4 zzwnla zzwnlb zzwncl"
+PROGS="zzwnmk zzwnrd zzwn1 zzwn2 zzwn3 zzwn4 zzwn5 zzwn6 zzwn7 zzwn8 zzwn9 zzwnla zzwnlb zzwnfa zzwnfb zzwnfl zzwnfd zzwnfe zzwncl"
 
 cleanup() {
   local rc=$? p
@@ -143,6 +150,7 @@ grep -q 'has files %2' "$WL_SDSYS/messages/11482" 2>/dev/null || need "the insta
 grep -q 'not a member of sdapi or sdfiles' "$WL_SDSYS/gpl.bp/apisrvr" 2>/dev/null || need "the installed apisrvr has no 'not a member of sdapi or sdfiles' (K3)"
 grep -q 'change.files.group' "$WL_SDSYS/gpl.bp/modifya" 2>/dev/null || need "the installed modifya has no change.files.group (K4a)"
 grep -q 'NETREPLY' "$WL_SDSYS/gpl.bp/config" 2>/dev/null || need "the installed config verb does not list NETREPLY (K8d)"
+grep -q 'act.fileunlock' "$WL_SDSYS/gpl.bp/netfile" 2>/dev/null || need "the installed netfile handler has no act.fileunlock: this install predates S.72 (FILELOCK, FILEUNLOCK and RECORDLOCKED() on a remote file, 20 Oct 2026); install a newer Dev"
 [ -x "$WL_ELEVATE" ] || need "$WL_ELEVATE is not installed"
 CUSER=$(wl_account_user "$CLIENT")
 [ -n "$CUSER" ] || need "the register record of account '$CLIENT' is not a user account (field 3 is not sdu_<user>): give --client ACCOUNT"
@@ -189,6 +197,48 @@ defs() {   # defs PIN MODE   (re)define the server $SRV with the typed pin; prin
   wl_sd_admin "set.server $SRV (pin typed, mode $2)" "SET.SERVER $SRV $HOST $PORT $REMOTE $1 $2 ACCOUNTS $CLIENT NO.QUERY" "LIST.SERVERS"
 }
 have_line() { printf '%s\n' "$1" | grep -a -q -E -- "$2"; }
+# fxrows TEXT FILE   the FILE locks (type FX or SX, and no id) that a LIST.READU text shows on the file FILE, one a line: "<user> <type> <path>".  LIST.READU cuts a path into pieces of 31
+# characters (fmt T) and prints the rest on the lines below the row, so the pieces are joined before the file is looked for (as a path component: a dynamic file may show its directory
+# or a part of it).  A record lock row has an id and is not a file lock; the verb's other rows end the one before.  20 Oct 26 (S.72): the type and the empty id were measured on the real server.
+fxrows() {
+  printf '%s\n' "$1" | awk -v want="$2" '
+    function flush() { if (type != "" && index(path "/", "/" want "/") > 0) print user, type, path; type = "" }
+    $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ && NF == 4 && ($4 == "FX" || $4 == "SX") { flush(); user = $1; path = $3; type = $4; cont = 1; next }
+    cont && substr($0, 1, 10) == "          " && substr($0, 11, 1) ~ /[^ ]/ { path = path $1; next }
+    { flush(); cont = 0 }
+    END { flush() }'
+}
+# fxsamples TEXT FILE   TEXT is the output of a session that ran  TIME / LIST.READU  over and over.  One line for each LIST.READU in it:  "<second of the day> <file locks on FILE> <their owners, comma
+# separated, or -> <answered>".  The second is the one the TIME verb printed just before; ANSWERED is 1 when the sample holds the verb's own header or its message 6450 ("no active locks") and 0
+# when it holds neither (the verb did not run: "LIST.READU is not in your VOC" was what an ordinary account got on the first VM run) - a sample that did not answer is no evidence of anything.
+fxsamples() {
+  printf '%s\n' "$1" | awk -v want="$2" -v none="$(wl_msg 6450)" '
+    function finish() { if (type != "" && index(path "/", "/" want "/") > 0) { n++; u = (u == "" ? user : u "," user) } type = "" }
+    function flush() { finish(); if (have) print sec, n, (u == "" ? "-" : u), ans; have = 0 }
+    $0 ~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9] [A-Za-z]+ [0-9][0-9][0-9][0-9]$/ { flush(); split($1, a, ":"); sec = a[1] * 3600 + a[2] * 60 + a[3]; have = 1; n = 0; u = ""; ans = 0; cont = 0; next }
+    !have { next }
+    $0 ~ /^User +File +Path/ { ans = 1; next }
+    none != "" && index($0, none) == 1 { ans = 1; next }
+    $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ && NF == 4 && ($4 == "FX" || $4 == "SX") { finish(); user = $1; path = $3; type = $4; cont = 1; next }
+    cont && substr($0, 1, 10) == "          " && substr($0, 11, 1) ~ /[^ ]/ { path = path $1; next }
+    { finish(); cont = 0 }
+    END { flush() }'
+}
+# evsec OUT TAG   the second of the day at which a program printed its line "TAG hh:mm:ss ...", or nothing
+evsec() { printf '%s\n' "$1" | awk -v t="$2" '$1 == t && $2 ~ /^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$/ { split($2, a, ":"); print a[1] * 3600 + a[2] * 60 + a[3]; exit }'; }
+# state_fx NAME OUT TAG WANT SAMPLES FILE   the program printed TAG right after an action and then slept 5 seconds, so every sample taken 1 to 3 seconds after that second was taken in that state:
+# each of them must answer and show exactly WANT file locks on FILE; a window with no sample in it, or a sample that did not answer, FAILS (the null cases).  The samples it used are printed.
+state_fx() {
+  local name=$1 out=$2 tag=$3 want=$4 samples=$5 file=$6 p w n bad
+  p=$(evsec "$out" "$tag")
+  if [ -z "$p" ]; then fail "$name - the program printed no line $tag with a time (the null case)"; return; fi
+  w=$(fxsamples "$samples" "$file" | awk -v p="$p" '{ d = ($1 - p + 86400) % 86400; if (d >= 1 && d <= 3) print }')
+  n=$(count_re "$w" '.')
+  say "      $tag at second $p: samples 1-3 s later (second, file locks on $file, owners, answered): [$(printf '%s' "$w" | tr '\n' ';')]"
+  if [ "$n" -lt 1 ]; then fail "$name - no LIST.READU sample was taken 1 to 3 seconds after $tag (the null case: the row would mean nothing)"; return; fi
+  bad=$(printf '%s\n' "$w" | awk -v want="$want" '$4 != 1 || $2 != want' | head -1)
+  if [ -z "$bad" ]; then pass "$name ($n sample(s), each answered and each with $want file lock(s) on $file)"; else fail "$name - a sample is [$bad] (second, file locks, owners, answered), wanted answered with $want file lock(s)"; fi
+}
 
 # ================================================================== S. set-up
 say ""; say "== S1. CREATE.ACCOUNT USER $REMOTE with the files route and the edit gates it needs =="
@@ -297,6 +347,12 @@ prog zzwn1 <<'EOP'
    crt 'X8 READV p3 (control, no lock) branch=':oc:' STATUS()=':status():' value=[':v:']'
    oc = 'then' ; clearfile f on error oc = 'error'
    crt 'X9 CLEARFILE branch=':oc:' STATUS()=':status()
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   crt 'X10 FILELOCK branch=':oc:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'X11 FILEUNLOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 'p3')
+   crt 'X12 RECORDLOCKED p3 (a read, served) x=':x:' STATUS()=':status()
    release
    close f
    crt 'XZ done'
@@ -325,6 +381,16 @@ prog zzwn3 <<'EOP'
    oc = 'then' ; readvu v from f, 'p1', 1 on error oc = 'error' locked oc = 'locked' else oc = 'else'
    crt 'Y6 READVU p1 branch=':oc:' STATUS()=':status():' value=[':v:']'
    release
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   crt 'Y8 FILELOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 'p1')
+   crt 'Y9 RECORDLOCKED p1 (we hold the file lock) x=':x:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'Y10 FILEUNLOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 'p1')
+   crt 'Y11 RECORDLOCKED p1 (given back) x=':x:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'Y12 FILEUNLOCK again (nobody holds it) branch=':oc:' STATUS()=':status()
    crt 'YZ done'
 end
 EOP
@@ -333,6 +399,58 @@ prog zzwn4 <<'EOP'
    oc = 'then' ; clearfile f on error oc = 'error'
    crt 'Y7 CLEARFILE branch=':oc:' STATUS()=':status()
    close f
+end
+EOP
+# S.72.  zzwn5 / zzwn6: one FILELOCK / FILEUNLOCK with NO ON ERROR clause - the text a person sees when it is refused (and the line that must not appear)
+prog zzwn5 <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   filelock f
+   crt 'L9 REACHED (the file lock was not refused)'
+end
+EOP
+prog zzwn6 <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   fileunlock f
+   crt 'U9 REACHED (the file unlock was not refused)'
+end
+EOP
+# zzwn7: the three statements under a definition that says READ (phase M).  A FILELOCK or FILEUNLOCK is refused by the client (11501) and nothing is sent; RECORDLOCKED() is a read and is served
+prog zzwn7 <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   crt 'R1 FILELOCK branch=':oc:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'R2 FILEUNLOCK branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 'p1')
+   crt 'R3 RECORDLOCKED p1 (a read, served) x=':x:' STATUS()=':status()
+   close f
+   crt 'RZ done'
+end
+EOP
+# zzwn8 / zzwn9: the same inside BEGIN TRANSACTION (the client refuses a lock there: 11510, STATUS() 1010; RECORDLOCKED() is a read and is served).  The RECORDLOCKED() after the refused
+# FILELOCK says 0, not 3: the file lock was not taken
+prog zzwn8 <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   begin transaction
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   crt 'T1 FILELOCK in a transaction branch=':oc:' STATUS()=':status()
+   oc = 'then' ; fileunlock f on error oc = 'error'
+   crt 'T2 FILEUNLOCK in a transaction branch=':oc:' STATUS()=':status()
+   x = recordlocked(f, 'p1')
+   crt 'T3 RECORDLOCKED p1 in a transaction x=':x:' STATUS()=':status()
+   rollback
+   end transaction
+   close f
+   crt 'TZ done'
+end
+EOP
+prog zzwn9 <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   begin transaction
+   filelock f
+   crt 'T9 REACHED (the file lock was not refused)'
+   rollback
+   end transaction
 end
 EOP
 # zzwnla / zzwnlb: two sessions and one lock.  The holder keeps lk1 for 12 seconds; B takes it with the LOCKED clause, then waits for it with a plain READU
@@ -358,6 +476,9 @@ prog zzwnlb <<'EOP'
    recordlocku f, fid on error oc = 'error' locked oc = 'locked'
    st = status()
    crt 'B ':oconv(time(), 'MTS'):' B3 RECORDLOCKU ':fid:' LOCKED-clause branch=':oc:' STATUS()=':st
+   x = recordlocked(f, fid)
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' B4 RECORDLOCKED ':fid:' (another user holds the update lock) x=':x:' STATUS()=':st
    t1 = time()
    oc = 'then' ; r = ''
    readu r from f, fid on error oc = 'error' else oc = 'else'
@@ -367,6 +488,127 @@ prog zzwnlb <<'EOP'
    close f
 end
 EOP
+# S.72, two sessions and one FILE lock (B11).  zzwnfa holds the file lock for 12 seconds.  zzwnfb: F1 FILELOCK with a LOCKED clause takes that branch, STATUS() the holder's user number on the
+# server; F2 READU of p1 is kept out too (a file lock keeps every record lock out); F3 RECORDLOCKED() says -3 with the same number; F4 FILEUNLOCK of a lock that is not ours leaves 3011 and the
+# lock where it is; F5 a plain FILELOCK waits for the holder (3 s or more) and gets the lock; F6 RECORDLOCKED() says 3 with OUR number; it keeps the lock 8 seconds so that the administrator's
+# LIST.READU can show it; F7 FILEUNLOCK leaves 0; F8 RECORDLOCKED() says 0.
+prog zzwnfa <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   oc = 'then'
+   filelock f on error oc = 'error' locked oc = 'locked'
+   if oc # 'then' then crt 'FILELOCK branch=':oc:' STATUS()=':status() ; stop
+   crt 'A ':oconv(time(), 'MTS'):' holds the file lock (remote)'
+   sleep 12
+   oc = 'then'
+   fileunlock f on error oc = 'error'
+   crt 'A ':oconv(time(), 'MTS'):' gave the file lock back, branch=':oc:' STATUS()=':status()
+   close f
+end
+EOP
+prog zzwnfb <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   r = ''
+   oc = 'then'
+   filelock f on error oc = 'error' locked oc = 'locked'
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F1 FILELOCK LOCKED-clause branch=':oc:' STATUS()=':st
+   oc = 'then'
+   readu r from f, 'p1' on error oc = 'error' locked oc = 'locked' else oc = 'else'
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F2 READU p1 LOCKED-clause branch=':oc:' STATUS()=':st:' record=[':change(r, @fm, '/'):']'
+   x = recordlocked(f, 'p1')
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F3 RECORDLOCKED p1 (the other user holds the file lock) x=':x:' STATUS()=':st
+   oc = 'then'
+   fileunlock f on error oc = 'error'
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F4 FILEUNLOCK of the other user lock branch=':oc:' STATUS()=':st
+   t1 = time()
+   oc = 'then'
+   filelock f on error oc = 'error'
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F5 plain FILELOCK returned branch=':oc:' STATUS()=':st:' waited ':(time() - t1):' s'
+   x = recordlocked(f, 'p1')
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F6 RECORDLOCKED p1 (we hold the file lock) x=':x:' STATUS()=':st
+   sleep 8
+   oc = 'then'
+   fileunlock f on error oc = 'error'
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F7 FILEUNLOCK branch=':oc:' STATUS()=':st
+   x = recordlocked(f, 'p1')
+   st = status()
+   crt 'B ':oconv(time(), 'MTS'):' F8 RECORDLOCKED p1 (given back) x=':x:' STATUS()=':st
+   close f
+end
+EOP
+# S.72, the life of a file lock on the real server (B12).  The client account has NO LIST.READU in its VOC (an administrator verb: run 1 of this script on the VM, 20 Oct 26, found "LIST.READU is
+# not in your VOC" where it had expected the table - and its rows for "no file lock" passed on that message), so a program cannot read the lock table itself.  The table is read by an administrator
+# SAMPLER that runs beside the programs (TIME, LIST.READU, SLEEP 1, over and over), and every state is tied to the sampler by CLOCK TIME: a program prints "<tag> hh:mm:ss ..." right after each
+# action and then sleeps 5 seconds, so the samples taken 1 to 3 seconds after that print were taken in that state.  state_fx does the arithmetic and refuses a window with no sample in it.
+# zzwnfl: L0 nothing locked; L1 FILELOCK; L2 RECORDLOCKED() 3 with our number; CLOSE of the locking variable, then a SECOND variable on the same file: L3 RECORDLOCKED() 0 and no lock in the
+# table; L4 FILELOCK through the second variable; RELEASE g: L5 0 and no lock; L6 FILELOCK again; a bare RELEASE: L7 0 and no lock.
+prog zzwnfl <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   crt 'L0 ':oconv(time(), 'MTS'):' nothing is locked yet'
+   sleep 5
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   st = status()
+   crt 'L1 ':oconv(time(), 'MTS'):' FILELOCK branch=':oc:' STATUS()=':st
+   x = recordlocked(f, 'p1')
+   st = status()
+   crt 'L2 ':oconv(time(), 'MTS'):' RECORDLOCKED p1 x=':x:' STATUS()=':st
+   sleep 5
+   close f
+   open 'zzrw' to g else crt 'OPEN 2 FAILED st=':status() ; stop
+   x = recordlocked(g, 'p1')
+   st = status()
+   crt 'L3 ':oconv(time(), 'MTS'):' after CLOSE of the locking variable, a second variable: RECORDLOCKED p1 x=':x:' STATUS()=':st
+   sleep 5
+   oc = 'then' ; filelock g on error oc = 'error' locked oc = 'locked'
+   st = status()
+   crt 'L4 ':oconv(time(), 'MTS'):' FILELOCK through the second variable branch=':oc:' STATUS()=':st
+   sleep 5
+   release g
+   x = recordlocked(g, 'p1')
+   st = status()
+   crt 'L5 ':oconv(time(), 'MTS'):' after RELEASE g: RECORDLOCKED p1 x=':x:' STATUS()=':st
+   sleep 5
+   oc = 'then' ; filelock g on error oc = 'error' locked oc = 'locked'
+   st = status()
+   crt 'L6 ':oconv(time(), 'MTS'):' FILELOCK again branch=':oc:' STATUS()=':st
+   sleep 5
+   release
+   x = recordlocked(g, 'p1')
+   st = status()
+   crt 'L7 ':oconv(time(), 'MTS'):' after a bare RELEASE: RECORDLOCKED p1 x=':x:' STATUS()=':st
+   sleep 5
+   close g
+   crt 'LZ ':oconv(time(), 'MTS'):' done'
+end
+EOP
+# zzwnfd and zzwnfe, RUN one after the other in ONE session: zzwnfd takes the file lock (D1: held while it sleeps) and ENDS without CLOSE and without FILEUNLOCK; the NEXT command, zzwnfe (E1: the
+# session is still open), asks RECORDLOCKED() through a new variable after five seconds (E2): the lock went with the variable at the prompt, and the sampler shows no file lock during E1.
+prog zzwnfd <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   oc = 'then' ; filelock f on error oc = 'error' locked oc = 'locked'
+   st = status()
+   crt 'D1 ':oconv(time(), 'MTS'):' FILELOCK branch=':oc:' STATUS()=':st
+   sleep 5
+   crt 'DZ ':oconv(time(), 'MTS'):' ends WITHOUT CLOSE and WITHOUT FILEUNLOCK'
+end
+EOP
+prog zzwnfe <<'EOP'
+   crt 'E1 ':oconv(time(), 'MTS'):' the next command begins'
+   sleep 5
+   open 'zzrw' to g else crt 'OPEN FAILED st=':status() ; stop
+   x = recordlocked(g, 'p1')
+   st = status()
+   crt 'E2 ':oconv(time(), 'MTS'):' the next command, a new file variable: RECORDLOCKED p1 x=':x:' STATUS()=':st
+   close g
+   crt 'EZ ':oconv(time(), 'MTS'):' done'
+end
+EOP
 prog zzwncl <<'EOP'
    open 'voc' to v else crt 'NO VOC' ; stop
    delete v, 'zzrc'
@@ -374,9 +616,10 @@ prog zzwncl <<'EOP'
    crt 'zzwncl done'
 end
 EOP
-OUT=$(wl_sd_user "$CUSER" "compile the nine programs" \
-  "BASIC bp zzwnmk" "BASIC bp zzwnrd" "BASIC bp zzwn1" "BASIC bp zzwn2" "BASIC bp zzwn3" "BASIC bp zzwn4" "BASIC bp zzwnla" "BASIC bp zzwnlb" "BASIC bp zzwncl")
-expect_eq "S7 nine programs compiled with '0 error(s)'" "$(count_re "$OUT" '^0 error\(s\)')" 9
+OUT=$(wl_sd_user "$CUSER" "compile the nineteen programs" \
+  "BASIC bp zzwnmk" "BASIC bp zzwnrd" "BASIC bp zzwn1" "BASIC bp zzwn2" "BASIC bp zzwn3" "BASIC bp zzwn4" "BASIC bp zzwn5" "BASIC bp zzwn6" "BASIC bp zzwn7" "BASIC bp zzwn8" "BASIC bp zzwn9" \
+  "BASIC bp zzwnla" "BASIC bp zzwnlb" "BASIC bp zzwnfa" "BASIC bp zzwnfb" "BASIC bp zzwnfl" "BASIC bp zzwnfd" "BASIC bp zzwnfe" "BASIC bp zzwncl")
+expect_eq "S7 nineteen programs compiled with '0 error(s)'" "$(count_re "$OUT" '^0 error\(s\)')" 19
 
 say ""; say "== S8. the client's stored login (set.netlogin) and the two VOC pointers =="
 OUT=$(wl_sd_user "$CUSER" "set.netlogin $SRV" "SET.NETLOGIN $SRV" "$REMOTE" "$PWS")
@@ -419,6 +662,8 @@ B_IDS=$(srvids zzwgf); AUD0=$(wl_audit_offset)
 expect_eq "A0 the server file holds lk1 p1 p2 p3 before the runs" "$B_IDS" "lk1 p1 p2 p3 "
 OUT1=$(wl_sd_user "$CUSER" "run zzwn1" "RUN bp zzwn1")
 OUT2=$(wl_sd_user "$CUSER" "run zzwn2 (a write with no ON ERROR)" "RUN bp zzwn2")
+OUT5=$(wl_sd_user "$CUSER" "run zzwn5 (a FILELOCK with no ON ERROR)" "RUN bp zzwn5")
+OUT6=$(wl_sd_user "$CUSER" "run zzwn6 (a FILEUNLOCK with no ON ERROR)" "RUN bp zzwn6")
 POUT=$(sudo -u "$CUSER" python3 "$BK/probe.py" files "$HOST" "$PORT" "$REMOTE" "$BK/pw" "$REMOTE" zzwgf p1 2>&1 | tee /dev/stderr)
 sleep 2
 AUD=$(wl_audit_since "$AUD0")
@@ -429,12 +674,18 @@ expect_has "A1 NULL CASE: run 1 reached its end" "$OUT1" "XZ done"
 expect_has "A1 NULL CASE: the probe connected, opened and finished" "$POUT" "P DONE"
 expect_re "A2 control X1: a READ works through the files-only login (record 'one')" "$OUT1" '^X1 READ p1 \(control\) branch=then STATUS\(\)=0 record=\[one\]'
 expect_re "A2 control X8: a READV without a lock works" "$OUT1" '^X8 READV p3 .*branch=then STATUS\(\)=0 value=\[three\]'
-for x in "X2 WRITE n1" "X3 WRITEU n2" "X4 DELETE p2" "X5 READU p3" "X6 RECORDLOCKU p3" "X7 READVU p3" "X9 CLEARFILE"; do
+expect_re "A2 control X12 (S.72): RECORDLOCKED() is a read - the server answers (request 34): x=0 and STATUS()=0, no refusal" "$OUT1" '^X12 RECORDLOCKED p3 \(a read, served\) x=0 STATUS\(\)=0( |$)'
+for x in "X2 WRITE n1" "X3 WRITEU n2" "X4 DELETE p2" "X5 READU p3" "X6 RECORDLOCKU p3" "X7 READVU p3" "X9 CLEARFILE" "X10 FILELOCK" "X11 FILEUNLOCK"; do
   expect_re "A3 $x refused: the ON ERROR branch, STATUS() 7000" "$OUT1" "^$x branch=error STATUS\(\)=7000"
 done
 expect_has "A4 K1: the person sees the server's own reason ($TXT_WRITE_REFUSED)" "$OUT2" "$(wl_msg 11500 "$SRV" write "$TXT_WRITE_REFUSED")"
 expect_lacks "A4 K1: not the old 'status 0' text" "$OUT2" "answered write with an error: status"
 expect_lacks "A4 and the program did not go on after the refused write" "$OUT2" "W9 REACHED"
+expect_has "A4 S.72: a FILELOCK with no ON ERROR clause: the person sees the server's reason, with the request number 32" "$OUT5" "$(wl_msg 11500 "$SRV" filelock "$(wl_msg 11521 32)")"
+expect_lacks "A4 S.72: ... and the program did not go on after the refused FILELOCK" "$OUT5" "L9 REACHED"
+expect_has "A4 S.72: a FILEUNLOCK with no ON ERROR clause: the server's reason, with the request number 33" "$OUT6" "$(wl_msg 11500 "$SRV" fileunlock "$(wl_msg 11521 33)")"
+expect_lacks "A4 S.72: ... and the program did not go on after the refused FILEUNLOCK" "$OUT6" "U9 REACHED"
+# (the probe sends 7-10, 16-19 and 30.  It cannot send 32 and 33: the client library has no call for them - the netfile programs above are what sends them, and the audit rows below count them)
 for n in 7 8 9 10 16 17 18 19 30; do
   expect_has "A5 probe: request $n refused with the 11521 text" "$POUT" "$(wl_msg 11521 $n)"
 done
@@ -447,9 +698,14 @@ done
 for n in 7 8 9 10 19; do
   expect_has "A6 server audit: api refused request=$n (only the probe sends it)" "$AUD" "api refused request=$n route=sdfiles write=off user=$REMOTE"
 done
+# S.72: 32 and 33 were each sent twice (zzwn1 and zzwn5; zzwn1 and zzwn6) and refused once each time: a refusal is not asked for again
+expect_eq "A6 server audit S.72: request 32 (FILELOCK) refused exactly twice - zzwn1 and zzwn5, each asked once" "$(count_re "$AUD" "api refused request=32 route=sdfiles write=off user=$REMOTE")" 2
+expect_eq "A6 server audit S.72: request 33 (FILEUNLOCK) refused exactly twice - zzwn1 and zzwn6" "$(count_re "$AUD" "api refused request=33 route=sdfiles write=off user=$REMOTE")" 2
+expect_eq "A6 client audit S.72: the FILELOCK attempts are audited before the request, once for each handle (zzwn1, zzwn5): netfile filelock server=$SRV file=zzwgf" "$(count_re "$AUD" "netfile filelock server=$SRV file=zzwgf")" 2
 expect_lacks "A6 server audit: no write=on line in this phase" "$AUD" "write=on"
 expect_lacks "A6 server audit: request 6 and 15 are never refused" "$AUD" "api refused request=6 "
 expect_lacks "A6 server audit: ... nor 15" "$AUD" "api refused request=15 "
+expect_lacks "A6 server audit S.72: ... nor 34 (RECORDLOCKED() is a read: X12 was served)" "$AUD" "api refused request=34 "
 [ "$(count_re "$AUD" "api login route=sdfiles write=off user=$REMOTE")" -ge 3 ] && pass "A6 server audit: at least three logins say write=off (two netfile runs and the probe)" || fail "A6 fewer than three 'api login route=sdfiles write=off' lines"
 if printf '%s\n' "$AUD" | grep -a -q -E '^[0-9: -]+ user=[A-Za-z0-9_-]+( sudo=[A-Za-z0-9_-]+)? uid=[0-9]+ pid=[0-9]+ (api|netfile) '; then
   if printf '%s\n' "$AUD" | grep -a -q -E '^[0-9: -]+ user=[A-Za-z0-9_-]+( sudo=[A-Za-z0-9_-]+)? uid=[0-9]+ pid=[0-9]+ (api|netfile) [^=]*[A-Z]'; then fail "A6 server audit: an upper-case letter in an event word"; else pass "A6 server audit: the event words of the api and netfile lines are lower case"; fi
@@ -462,10 +718,22 @@ OUT=$(defs "$PIN" READ)
 expect_re "M0 the definition now says read" "$OUT" "^$SRV +$HOST:$PORT +$REMOTE/read +"
 AUD0=$(wl_audit_offset)
 OUT=$(wl_sd_user "$CUSER" "run zzwn2 under READ" "RUN bp zzwn2")
+OUT5=$(wl_sd_user "$CUSER" "run zzwn5 under READ (a FILELOCK with no ON ERROR)" "RUN bp zzwn5")
+OUT6=$(wl_sd_user "$CUSER" "run zzwn6 under READ (a FILEUNLOCK with no ON ERROR)" "RUN bp zzwn6")
+OUT7=$(wl_sd_user "$CUSER" "run zzwn7 under READ (FILELOCK, FILEUNLOCK, RECORDLOCKED with ON ERROR / printed)" "RUN bp zzwn7")
 sleep 2; AUD=$(wl_audit_since "$AUD0")
 expect_has "M1 the client refused the write before sending it (11501)" "$OUT" "$(wl_msg 11501 "$SRV" write)"
 expect_lacks "M1 the program did not go on" "$OUT" "W9 REACHED"
-expect_lacks "M1 nothing was refused by the server (no api refused line): the client never sent the write" "$AUD" "api refused"
+expect_has "M1 S.72: the client refused a FILELOCK before sending it (11501 filelock)" "$OUT5" "$(wl_msg 11501 "$SRV" filelock)"
+expect_lacks "M1 S.72: ... and the program did not go on" "$OUT5" "L9 REACHED"
+expect_has "M1 S.72: the client refused a FILEUNLOCK before sending it (11501 fileunlock)" "$OUT6" "$(wl_msg 11501 "$SRV" fileunlock)"
+expect_lacks "M1 S.72: ... and the program did not go on" "$OUT6" "U9 REACHED"
+expect_re "M1 S.72: FILELOCK ON ERROR under READ takes the error branch, STATUS() 7000" "$OUT7" '^R1 FILELOCK branch=error STATUS\(\)=7000'
+expect_re "M1 S.72: FILEUNLOCK ON ERROR under READ takes the error branch, STATUS() 7000" "$OUT7" '^R2 FILEUNLOCK branch=error STATUS\(\)=7000'
+expect_re "M1 S.72: RECORDLOCKED() under READ is SERVED (a read): x=0 (STATUS() is printed; with nothing held it is whatever the server's last statement left)" "$OUT7" '^R3 RECORDLOCKED p1 \(a read, served\) x=0 STATUS\(\)=[0-9]+( |$)'
+expect_has "M1 S.72: ... zzwn7 reached its end" "$OUT7" "RZ done"
+expect_lacks "M1 nothing was refused by the server (no api refused line): the client never sent the write, the FILELOCK or the FILEUNLOCK" "$AUD" "api refused"
+expect_lacks "M1 S.72: and the handler was never asked for a file lock (no netfile filelock audit line)" "$AUD" "netfile filelock"
 BAD=$(printf 'f%.0s' $(seq 1 64))
 OUT=$(defs "$BAD" WRITE)
 expect_re "M2 the definition holds the wrong pin (ffff...)" "$OUT" "^$SRV +$HOST:$PORT +$REMOTE/write +ffffffffffffffff\.\.\. "
@@ -504,9 +772,15 @@ for y in "Y1 WRITE n1" "Y2 WRITEU n2" "Y3 DELETE p2" "Y5 RECORDLOCKU p1"; do
 done
 expect_re "B4 Y4 READU p3 now succeeds and reads 'three'" "$OUT3" '^Y4 READU p3 branch=then STATUS\(\)=0 record=\[three\]'
 expect_re "B4 Y6 READVU p1 now succeeds (value 'one')" "$OUT3" '^Y6 READVU p1 branch=then STATUS\(\)=0 value=\[one\]'
+expect_re "B4 Y8 S.72: FILELOCK now succeeds" "$OUT3" '^Y8 FILELOCK branch=then STATUS\(\)=0( |$)'
+expect_re "B4 Y9 S.72: RECORDLOCKED() says 3 (this session holds the file lock) and STATUS() is a user number on the server" "$OUT3" '^Y9 RECORDLOCKED p1 \(we hold the file lock\) x=3 STATUS\(\)=[1-9][0-9]*( |$)'
+expect_re "B4 Y10 S.72: FILEUNLOCK of our own lock leaves STATUS() 0" "$OUT3" '^Y10 FILEUNLOCK branch=then STATUS\(\)=0( |$)'
+expect_re "B4 Y11 S.72: RECORDLOCKED() says 0 once the lock is given back, with STATUS() 0" "$OUT3" '^Y11 RECORDLOCKED p1 \(given back\) x=0 STATUS\(\)=0( |$)'
+expect_re "B4 Y12 S.72: a second FILEUNLOCK (nobody holds it) leaves STATUS() 3012 (ER\$NLK) and is not an error" "$OUT3" '^Y12 FILEUNLOCK again \(nobody holds it\) branch=then STATUS\(\)=3012( |$)'
 expect_eq "B5 SERVER evidence: after zzwn3 the file holds lk1 n1 n2 p1 p3 and NOT p2" "$MID_IDS" "lk1 n1 n2 p1 p3 "
 expect_re "B5 n1 holds 'viaremote'" "$N1" '^1: viaremote *$'
 expect_re "B5 n2 holds 'viaremoteu'" "$N2" '^1: viaremoteu *$'
+# (32 and 33 are not in this list: the client library has no call to send them; zzwn3's Y8-Y12 above and B11-B13 below are what sends them to a login that may write)
 for n in 7 8 9 10 16 17 18 19 30; do expect_lacks "B6 probe: request $n is no longer refused" "$POUT" "(request $n)"; done
 case " $PRB_IDS " in *" p3-w "*) pass "B7 SERVER evidence: the probe's SDWrite made p3-w" ;; *) fail "B7 p3-w is not on the server (got: $PRB_IDS)" ;; esac
 case " $PRB_IDS " in *" p3-wu "*) pass "B7 SERVER evidence: the probe's SDWriteu made p3-wu" ;; *) fail "B7 p3-wu is not on the server (got: $PRB_IDS)" ;; esac
@@ -519,6 +793,7 @@ expect_lacks "B9 audit: no write=off login in phase B" "$AUD" "route=sdfiles wri
 expect_has "B9 audit: the client's own lines for the write, the delete and the clear" "$AUD" "netfile write server=$SRV file=zzwgf"
 expect_has "B9 audit: ... delete" "$AUD" "netfile delete server=$SRV file=zzwgf"
 expect_has "B9 audit: ... clear" "$AUD" "netfile clear server=$SRV file=zzwgf"
+expect_eq "B9 audit S.72: ONE 'netfile filelock server=$SRV file=zzwgf' line for the run (zzwn3 locked and unlocked through one handle; no id, no record)" "$(count_re "$AUD" "netfile filelock server=$SRV file=zzwgf")" 1
 
 say ""; say "== B10. two sessions, one lock: A holds lk1 on the server for 12 s; B takes it with LOCKED, then waits =="
 reseed
@@ -540,7 +815,116 @@ expect_has "B10 NULL CASE: the holder held the lock" "$HOT" "holds lk1 (remote)"
 expect_re "B10 B1 took the LOCKED branch (not then, else or error) and read nothing" "$BOT" 'B1 READU lk1 LOCKED-clause branch=locked STATUS\(\)=[0-9-]+ record=\[\]'
 [ -n "$HUN" ] && expect_re "B10 B1's STATUS() is the holder's user number in the server's lock table ($HUN)" "$BOT" "B1 READU lk1 LOCKED-clause branch=locked STATUS\(\)=$HUN record" || fail "B10 the lock table showed no holder for lk1 (the null case): the user number cannot be compared"
 [ -n "$HUN" ] && expect_re "B10 B3 RECORDLOCKU also took the LOCKED branch with the same holder" "$BOT" "B3 RECORDLOCKU lk1 LOCKED-clause branch=locked STATUS\(\)=$HUN" || fail "B10 B3 cannot be compared (no holder)"
+[ -n "$HUN" ] && expect_re "B10 B4 S.72: RECORDLOCKED() sees the other user's update lock: -2 and the holder's user number in the server's lock table" "$BOT" "B4 RECORDLOCKED lk1 \(another user holds the update lock\) x=-2 STATUS\(\)=$HUN( |\$)" || fail "B10 B4 cannot be compared (no holder)"
 expect_re "B10 B2 plain READU waited for the release (3 s or more) and then got the record" "$BOT" 'B2 plain READU lk1 returned branch=then STATUS\(\)=0 record=\[lock me\] waited ([3-9]|1[0-9]) s'
+
+say ""; say "== B11. two sessions, one FILE lock (S.72): A holds it on the server for 12 s; B is told (LOCKED), is kept out of a record, waits, gets it, gives it back =="
+reseed
+AUD0=$(wl_audit_offset)
+HO="$BK/filelock-holder.out"; BO="$BK/filelock-b.out"
+( cd / && printf '\nTERM 200,9999\nRUN bp zzwnfa\nOFF\n' | timeout 100 sudo -u "$CUSER" "$WL_SD" 2>&1 | strip > "$HO" ) &
+HP=$!
+sleep 4
+( cd / && printf '\nTERM 200,9999\nRUN bp zzwnfb\nOFF\n' | timeout 100 sudo -u "$CUSER" "$WL_SD" 2>&1 | strip > "$BO" ) &
+BP=$!
+sleep 3
+LR1=$(wl_sd_admin "list.readu while A holds the file lock" "LIST.READU")
+FX1=$(fxrows "$LR1" zzwgf)
+HUN=$(printf '%s\n' "$FX1" | awk 'NR == 1 {print $1}')
+BUN=""
+if [ -n "$HUN" ]; then            # B gets the lock when A lets go and keeps it 8 s: look for a file lock held by somebody else than A
+  for k in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 1
+    LR2=$(wl_sd_admin "list.readu: does B hold the file lock yet? (try $k)" "LIST.READU")
+    BUN=$(fxrows "$LR2" zzwgf | awk -v h="$HUN" '$1 != h {print $1; exit}')
+    [ -n "$BUN" ] && break
+  done
+fi
+wait "$HP" "$BP"
+LR3=$(wl_sd_admin "list.readu after both programs ended" "LIST.READU")
+FX3=$(fxrows "$LR3" zzwgf)
+sleep 2; AUD=$(wl_audit_since "$AUD0")
+HOT=$(cat "$HO" 2>/dev/null); BOT=$(cat "$BO" 2>/dev/null)
+say "  holder session:"; grep -a -E '^A |FAILED|ERROR' "$HO" | cut -c1-160 | sed -e 's/^/      | /'
+say "  session B:"; grep -a -E '^B |FAILED|ERROR' "$BO" | cut -c1-200 | sed -e 's/^/      | /'
+say "  the server's file locks on zzwgf (the FX rows of LIST.READU): while A held it [$(printf '%s' "$FX1" | tr '\n' '|' | cut -c1-150)] holder user number [$HUN]; while B held it, B's number [$BUN]; after both ended [$(printf '%s' "$FX3" | tr '\n' '|' | cut -c1-150)]"
+expect_has "B11 NULL CASE: the holder held the file lock" "$HOT" "holds the file lock (remote)"
+expect_eq "B11 SERVER evidence: while A held it, LIST.READU as the administrator shows ONE file lock on zzwgf (type FX, no id)" "$(count_re "$FX1" '^[0-9]+ FX ')" 1
+if [ -n "$HUN" ]; then
+  expect_re "B11 F1 took the LOCKED branch (not then, else or error); STATUS() is the holder's user number in the server's lock table ($HUN)" "$BOT" "F1 FILELOCK LOCKED-clause branch=locked STATUS\(\)=$HUN( |\$)"
+  expect_re "B11 F2 READU p1 was kept out by the file lock: the LOCKED branch with the same holder, nothing read" "$BOT" "F2 READU p1 LOCKED-clause branch=locked STATUS\(\)=$HUN record=\[\]"
+  expect_re "B11 F3 RECORDLOCKED() sees the other user's FILE lock: -3 and the holder's user number" "$BOT" "F3 RECORDLOCKED p1 \(the other user holds the file lock\) x=-3 STATUS\(\)=$HUN( |\$)"
+else
+  fail "B11 the lock table showed no file lock held by A (the null case): F1, F2 and F3 cannot be compared"
+fi
+expect_re "B11 F4 FILEUNLOCK of a lock that is not ours is no error and leaves STATUS() 3011 (ER\$LCK); the lock stayed A's, as F5's wait shows" "$BOT" 'F4 FILEUNLOCK of the other user lock branch=then STATUS\(\)=3011( |$)'
+expect_re "B11 F5 a plain FILELOCK waited for the release (3 s or more) and then got the lock" "$BOT" 'F5 plain FILELOCK returned branch=then STATUS\(\)=0 waited ([3-9]|1[0-9]) s'
+if [ -n "$BUN" ]; then
+  pass "B11 SERVER evidence: once A let go, LIST.READU shows the file lock held by ANOTHER user number ($BUN; A's was $HUN)"
+  expect_re "B11 F6 RECORDLOCKED() says 3 (this session holds the file lock) and STATUS() is OUR user number as the server's table shows it ($BUN)" "$BOT" "F6 RECORDLOCKED p1 \(we hold the file lock\) x=3 STATUS\(\)=$BUN( |\$)"
+else
+  fail "B11 the lock table never showed the file lock held by a user other than A (the null case): B's number cannot be compared"
+fi
+expect_re "B11 F7 FILEUNLOCK of our own lock leaves STATUS() 0" "$BOT" 'F7 FILEUNLOCK branch=then STATUS\(\)=0( |$)'
+expect_re "B11 F8 RECORDLOCKED() says 0 once the lock is given back, STATUS() 0" "$BOT" 'F8 RECORDLOCKED p1 \(given back\) x=0 STATUS\(\)=0( |$)'
+expect_re "B11 the holder gave its lock back at the end of its sleep: FILEUNLOCK left STATUS() 0" "$HOT" 'A [0-9:]+ gave the file lock back, branch=then STATUS\(\)=0( |$)'
+{ have_line "$LR3" '^User +File +Path' || have_line "$LR3" "^$(wl_msg 6450)"; } && pass "B11 NULL CASE: LIST.READU answered after both programs ended" || fail "B11 NULL CASE: LIST.READU printed nothing useful after both programs ended (the rows below mean nothing)"
+expect_eq "B11 SERVER evidence: after both programs ended, LIST.READU shows NO file lock on zzwgf" "$(count_re "$FX3" '.')" 0
+expect_eq "B11 audit S.72: exactly TWO 'netfile filelock server=$SRV file=zzwgf' lines - A's handle and B's - though B asked for the lock many times while it waited (once for a handle)" "$(count_re "$AUD" "netfile filelock server=$SRV file=zzwgf")" 2
+expect_lacks "B11 audit: no api refused line" "$AUD" "api refused"
+
+say ""; say "== B12. the life of a file lock on the real server, read from its own LIST.READU by an administrator sampler beside the programs (S.72): CLOSE, RELEASE f, a bare RELEASE, a program that ends holding it =="
+reseed
+SMP="$BK/lock-sampler.out"
+SBODY=$'\n''TERM 200,9999'; for k in $(seq 1 75); do SBODY="$SBODY"$'\nTIME\nLIST.READU\nSLEEP 1'; done; SBODY="$SBODY"$'\nOFF\n'
+say "  the sampler (an sd session as sdsys: TIME, LIST.READU, SLEEP 1, 75 times; it ends by itself about 80 seconds after it starts; its whole output is $SMP) starts first"
+( cd "$WL_SDSYS" && printf '%s' "$SBODY" | timeout 200 sudo sh -c 'printf "%s\n" "$(id -u sdsys)" > /proc/self/loginuid 2>/dev/null; exec sudo -u sdsys "$1"' sd-run "$WL_SD" 2>&1 | strip > "$SMP" ) &
+SP=$!
+sleep 3
+LF=$(wl_sd_user "$CUSER" "run zzwnfl (FILELOCK, CLOSE, RELEASE f, a bare RELEASE: a state every 5 seconds, each printed with its time)" "RUN bp zzwnfl")
+LD=$(wl_sd_user "$CUSER" "run zzwnfd and then zzwnfe in ONE session (a program that ends holding the file lock; the next command)" "RUN bp zzwnfd" "RUN bp zzwnfe")
+wait "$SP"
+SAMP=$(cat "$SMP" 2>/dev/null)
+SAMPLES=$(fxsamples "$SAMP" zzwgf)
+say "  the sampler took $(count_re "$SAMPLES" '.') samples, $(count_re "$SAMPLES" ' 1$') of them answered; the first three (second, file locks on zzwgf, owners, answered): [$(printf '%s' "$SAMPLES" | head -3 | tr '\n' ';')]"
+[ "$(count_re "$SAMPLES" '.')" -ge 40 ] && [ "$(count_re "$SAMPLES" ' 1$')" = "$(count_re "$SAMPLES" '.')" ] && pass "B12 NULL CASE: the sampler's LIST.READU ran and ANSWERED every time ($(count_re "$SAMPLES" '.') samples; an answer is the verb's own header or its 'no active locks' message)" \
+  || fail "B12 NULL CASE: the sampler took $(count_re "$SAMPLES" '.') samples and $(count_re "$SAMPLES" ' 1$') answered (at least 40, all answered, are needed): the rows below mean nothing"
+expect_re "B12 NULL CASE: zzwnfl ran to its end" "$LF" '^LZ [0-9:]+ done'
+state_fx "B12 L0 SERVER evidence: before the program locked anything, NO file lock on zzwgf" "$LF" L0 0 "$SAMP" zzwgf
+expect_re "B12 L1 FILELOCK succeeds" "$LF" '^L1 [0-9:]+ FILELOCK branch=then STATUS\(\)=0( |$)'
+state_fx "B12 L1 SERVER evidence: after FILELOCK, ONE file lock on zzwgf (type FX, no id) in LIST.READU" "$LF" L1 1 "$SAMP" zzwgf
+P1=$(evsec "$LF" L1); OWN=$(printf '%s\n' "$SAMPLES" | awk -v p="${P1:-0}" '{ d = ($1 - p + 86400) % 86400; if (d >= 1 && d <= 3 && $2 == 1) { print $3; exit } }')
+[ -n "$OWN" ] && expect_re "B12 L2 RECORDLOCKED() says 3 and STATUS() is the owner the table shows ($OWN)" "$LF" "^L2 [0-9:]+ RECORDLOCKED p1 x=3 STATUS\(\)=$OWN( |\$)" || fail "B12 L2 cannot be compared with the table (no owner was seen in it)"
+expect_re "B12 (a) L3 CLOSE of the locking variable released the lock: RECORDLOCKED() through a second variable says 0 (not 3)" "$LF" '^L3 [0-9:]+ after CLOSE of the locking variable, a second variable: RECORDLOCKED p1 x=0 STATUS\(\)=[0-9]+( |$)'
+state_fx "B12 (a) L3 SERVER evidence: after the CLOSE, NO file lock on zzwgf in LIST.READU" "$LF" L3 0 "$SAMP" zzwgf
+expect_re "B12 L4 FILELOCK through the second variable succeeds" "$LF" '^L4 [0-9:]+ FILELOCK through the second variable branch=then STATUS\(\)=0( |$)'
+state_fx "B12 L4 SERVER evidence: ONE file lock on zzwgf again" "$LF" L4 1 "$SAMP" zzwgf
+expect_re "B12 (c) L5 RELEASE g (the file form) gave the lock back: RECORDLOCKED() says 0 (not 3)" "$LF" '^L5 [0-9:]+ after RELEASE g: RECORDLOCKED p1 x=0 STATUS\(\)=[0-9]+( |$)'
+state_fx "B12 (c) L5 SERVER evidence: after RELEASE g, NO file lock on zzwgf in LIST.READU" "$LF" L5 0 "$SAMP" zzwgf
+expect_re "B12 L6 FILELOCK again succeeds" "$LF" '^L6 [0-9:]+ FILELOCK again branch=then STATUS\(\)=0( |$)'
+state_fx "B12 L6 SERVER evidence: ONE file lock on zzwgf again" "$LF" L6 1 "$SAMP" zzwgf
+expect_re "B12 (c) L7 a bare RELEASE gave the lock back: RECORDLOCKED() says 0 (not 3)" "$LF" '^L7 [0-9:]+ after a bare RELEASE: RECORDLOCKED p1 x=0 STATUS\(\)=[0-9]+( |$)'
+state_fx "B12 (c) L7 SERVER evidence: after the bare RELEASE, NO file lock on zzwgf in LIST.READU" "$LF" L7 0 "$SAMP" zzwgf
+expect_re "B12 NULL CASE: zzwnfd ended as designed (no CLOSE, no FILEUNLOCK)" "$LD" '^DZ [0-9:]+ ends WITHOUT CLOSE and WITHOUT FILEUNLOCK'
+expect_re "B12 NULL CASE: the next command, zzwnfe, ran to its end in the same session" "$LD" '^EZ [0-9:]+ done'
+expect_re "B12 (b) D1 zzwnfd's FILELOCK succeeds" "$LD" '^D1 [0-9:]+ FILELOCK branch=then STATUS\(\)=0( |$)'
+state_fx "B12 (b) D1 SERVER evidence: while zzwnfd slept, ONE file lock on zzwgf in LIST.READU" "$LD" D1 1 "$SAMP" zzwgf
+state_fx "B12 (b) E1 SERVER evidence: in the NEXT command of the same session (still open), NO file lock on zzwgf in LIST.READU - the lock went with the variable at the prompt" "$LD" E1 0 "$SAMP" zzwgf
+expect_re "B12 (b) E2 the next command's RECORDLOCKED() through a new variable says 0 (not 3)" "$LD" '^E2 [0-9:]+ the next command, a new file variable: RECORDLOCKED p1 x=0 STATUS\(\)=[0-9]+( |$)'
+
+say ""; say "== B13. a transaction (S.72): FILELOCK and FILEUNLOCK are refused there (11510, STATUS() 1010) and send nothing; RECORDLOCKED() is a read and is served =="
+AUD0=$(wl_audit_offset)
+OUT8=$(wl_sd_user "$CUSER" "run zzwn8 (FILELOCK, FILEUNLOCK and RECORDLOCKED inside BEGIN TRANSACTION)" "RUN bp zzwn8")
+OUT9=$(wl_sd_user "$CUSER" "run zzwn9 (a FILELOCK with no ON ERROR inside BEGIN TRANSACTION)" "RUN bp zzwn9")
+sleep 2; AUD=$(wl_audit_since "$AUD0")
+expect_has "B13 NULL CASE: zzwn8 ran to its end" "$OUT8" "TZ done"
+expect_re "B13 T1 FILELOCK inside the transaction takes the ON ERROR branch, STATUS() 1010" "$OUT8" '^T1 FILELOCK in a transaction branch=error STATUS\(\)=1010( |$)'
+expect_re "B13 T2 FILEUNLOCK inside the transaction takes the ON ERROR branch, STATUS() 1010" "$OUT8" '^T2 FILEUNLOCK in a transaction branch=error STATUS\(\)=1010( |$)'
+expect_re "B13 T3 RECORDLOCKED() inside the transaction is served: x=0 (not 3: the refused FILELOCK took no lock)" "$OUT8" '^T3 RECORDLOCKED p1 in a transaction x=0 STATUS\(\)=[0-9]+( |$)'
+expect_has "B13 zzwn9: with no ON ERROR the person sees message 11510 naming the server and filelock" "$OUT9" "$(wl_msg 11510 "$SRV" filelock)"
+expect_lacks "B13 zzwn9: ... and the program did not go on" "$OUT9" "T9 REACHED"
+expect_lacks "B13 nothing was refused by the server (no api refused line): the client sent nothing" "$AUD" "api refused"
+expect_lacks "B13 the handler was never asked for a lock (no netfile filelock audit line)" "$AUD" "netfile filelock"
 
 # ================================================================== C. taking the group away again
 say ""; say "== C. files-write-off, files-off, files-on - and the manifest key at each step =="
@@ -555,7 +939,13 @@ expect_has "C2 the line says files-write no" "$OUT" "$(wl_msg 11522 "$REMOTE" no
 expect_eq "C2 the real groups: sdfiles kept, write gone" "$(wl_state "$REMOTE")" "sdfiles=1 sdfileswrite=0"
 OUT2=$(wl_sd_user "$CUSER" "run zzwn2 after files-write-off" "RUN bp zzwn2")
 POUT=$(sudo -u "$CUSER" python3 "$BK/probe.py" files "$HOST" "$PORT" "$REMOTE" "$BK/pw" "$REMOTE" zzwgf p1 2>&1 | tee /dev/stderr)
+OUT5=$(wl_sd_user "$CUSER" "run zzwn5 after files-write-off (a FILELOCK)" "RUN bp zzwn5")
+OUT6=$(wl_sd_user "$CUSER" "run zzwn6 after files-write-off (a FILEUNLOCK)" "RUN bp zzwn6")
 expect_has "C2 a netfile write is refused again with the 11521 text" "$OUT2" "$TXT_WRITE_REFUSED"
+expect_has "C2 S.72: a FILELOCK is refused again with the 11521 text (request 32), and the program does not go on" "$OUT5" "$(wl_msg 11500 "$SRV" filelock "$(wl_msg 11521 32)")"
+expect_lacks "C2 S.72: ... L9 is not reached" "$OUT5" "L9 REACHED"
+expect_has "C2 S.72: a FILEUNLOCK is refused again with the 11521 text (request 33), and the program does not go on" "$OUT6" "$(wl_msg 11500 "$SRV" fileunlock "$(wl_msg 11521 33)")"
+expect_lacks "C2 S.72: ... U9 is not reached" "$OUT6" "U9 REACHED"
 expect_has "C2 a direct write (16) is refused again" "$POUT" "$(wl_msg 11521 16)"
 expect_has "C2 NULL CASE: the probe connected and opened before it was refused" "$POUT" "P OPEN ok"
 expect_eq "C2 the server file is unchanged by the refused tries" "$(srvids zzwgf)" "$B_IDS"

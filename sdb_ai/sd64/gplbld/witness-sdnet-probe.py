@@ -10,7 +10,9 @@ connects over TCP to HOST:PORT as USER, enters ACCOUNT, opens FILE and sends the
 
     files   6 read (control, allowed), 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record,
             15 release (control, allowed).  The requests the write group governs (S.65).  It WRITES: FILE gets ID-w and ID-wu, and ID is
-            deleted, when the login may write; use a scratch file.
+            deleted, when the login may write; use a scratch file.  NOT 32 (file lock) and 33 (file unlock), which the same group governs: the client library
+            has no call that sends them (SDRecordlock is request 30; there is no SDFilelock or SDFileunlock in sdclilib.h or sdclient.py, checked 20 Oct 26).  The
+            netfile programs of witness-sdnet-files-route.sh (zzwn1, zzwn5, zzwn6, ...) send 32 and 33 through the SDNet client, and the server's audit lines count them.
     gaps    20 call, 21 execute, 22 respond, 23 end command, 54 transaction, 61 open sequential file, and a SECOND request 3 (SDLogto).  None is
             in the files-only allow table (!apifilesok), so a files-only login must be refused every one whether or not it has the write
             group, and nothing is dispatched.  Request 29 (open SDNet file) has no function in the client library, so it is not sent here;

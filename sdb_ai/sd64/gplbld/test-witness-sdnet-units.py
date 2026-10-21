@@ -3,8 +3,10 @@
 
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-witness-sdnet-units.py            (the free check, about 25 s: static rows, the helpers' mutants, the write-group and groups scripts against their models)
   python3 .../test-witness-sdnet-units.py --selftest      (the same, and the write-group and groups models broken one way at a time: about 100 s)
-  python3 .../test-witness-sdnet-units.py --full          (also files-route, gaps and the two-machines roles against their models, each broken one way at a time: about 12 minutes)
+  python3 .../test-witness-sdnet-units.py --full          (also files-route, gaps and the two-machines roles against their models, each broken one way at a time: about 12 minutes before S.72; since then files-route has 26 mutants, run 13 at a time)
   python3 .../test-witness-sdnet-units.py --only=files-route [--selftest]     (one model: writegroup, groups, files-route, gaps or two-machines; --only may be given more than once)
+  python3 .../test-witness-sdnet-units.py --only=files-route --selftest --only-mutant=NAME     (just that mutant of the files-route model, repeatable; the faithful run is skipped.  The files-route mutants
+                                                                                                run WSU_JOBS (default 13) at a time: about 8 minutes in all since the S.72 rows - the faithful model and 26 mutants, 20 Oct 26)
 
 No sudo, no install, no sd, no network.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  REFUSES to run as root: the scripts it exercises do real work when they are
 root (the re-exec, the groups), and this check must never be the way a witness script runs on a real machine.
@@ -26,6 +28,11 @@ WHAT IS CHECKED, and what is NOT.
      gives the write right away ...) must make exactly the rows built to catch it fail.  THE MODEL IS MY READING OF THE REAL SYSTEM, so a pass says the script and the model agree and the
      script can fail; it does not say the real system does what the model does.  That is the witness's own job, on a machine.
 
+Changed 20 Oct 2026 (S.72, FILELOCK / FILEUNLOCK / RECORDLOCKED() on a remote file): the model has ONE lock table for every session (file locks FX and record locks RU, with an owner, a connection and the
+file variable that took them), LIST.READU in the real layout of gpl.bp/listrdu (a path cut at 31 characters, a file lock with an empty id), the programs zzwn5-zzwn9 and zzwnfa-zzwnfe, the step a program still
+has to do after its session's verbs (a sleep holding a lock, a wait for one: AFTER; a program with sleeps in it: PENDING), LIST.READU for the administrator only (an ordinary account's VOC has none: found by the first
+run on the VM), and 18 mutants whose failed rows must be EXACTLY the rows built to catch them (FR_EXACT, model_run_exact).
+
 Written 19 Oct 2026.  THE MODEL IS NOT THE SYSTEM: the outputs it prints are copied from the 18 Oct VM logs where there are some and from the message files where there are not.
 """
 import fcntl
@@ -40,8 +47,10 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TESTPY = os.path.abspath(__file__)
@@ -307,8 +316,14 @@ def fake_sd(argv):
             if cmd.upper() == "OFF":
                 break
             out.append(":" + cmd)
+            if cmd.upper().startswith("SLEEP "):      # S.72: the SLEEP verb pauses the session and holds nothing (it must not hold the model's state lock)
+                time.sleep(float(cmd.split()[1]))
+                continue
             with Locked():
                 i = dispatch(user, cmd, lines, i, out)
+            while PENDING:                            # S.72: a program with sleeps in it goes on after its verb's turn: each step takes the lock for itself, the sleeps hold nothing
+                for secs in PENDING.pop(0):
+                    time.sleep(secs)
     except Exception as e:  # a bug in the model must be seen, not turned into a pass
         out.append("MODEL ERROR: %s: %s" % (type(e).__name__, e))
     sys.stdout.write("\n".join(out) + "\n")
@@ -511,11 +526,10 @@ def dispatch(user, cmd, lines, i, out):
     elif verb == "CONFIG":
         out.append("NETWAIT   5 seconds")
         out.append("NETREPLY  30 seconds")
-    elif verb == "LIST.READU":
-        out.append("User  Pid  File Id")
-        for key, lk in sorted(st.get("locks", {}).items()):
-            if lk["until"] > time.time():
-                out.append("%4d %5d  %s" % (lk["user"], 4242, key.replace("|", "  ")))
+    elif verb == "TIME":
+        out.append(time.strftime("%H:%M:%S %d %b %Y").upper())          # the TIME verb: "15:54:04 20 OCT 2026"
+    elif verb == "LIST.READU" and admin and mutant() != "readu-not-in-voc":              # an administrator verb: an ordinary account's VOC has no LIST.READU ("LIST.READU is not in your VOC", seen on the VM, 20 Oct 26)
+        out.extend(readu_lines(st))
     elif verb in ("CREATE.FILE", "CLEAR.FILE", "COUNT", "LIST", "SORT", "CT", "ED", "BASIC", "RUN", "SHELL"):
         i = data_verbs(st, g, user, verb, parts, lines, i, out)
     else:
@@ -631,26 +645,215 @@ def remote_open(st, g, user, ptr, out, quiet=False):
         else:
             out.append("000000C2: " + msg(11498, server, "credential") + " at line 1 of /model/bp.out/prog")
         return None
-    return {"server": server, "ru": nl["ru"], "write": write, "mode": d["mode"], "vf": vfile(st, d["account"], fname), "cuser": user, "fname": fname}
+    return {"server": server, "ru": nl["ru"], "write": write, "mode": d["mode"], "vf": vfile(st, d["account"], fname), "cuser": user, "fname": fname,
+            "acct": d["account"], "userno": 0, "cid": "", "aud": set(), "txn": False}
 
 
 STATUS_REFUSED = 7000
+STATUS_TXN = 1010
+
+
+# ---- S.72 (20 Oct 26): the lock table of the model.  ONE table for every session of the world, as the real server has one, and LIST.READU reads it.  A key is "<account>|<file>|<id>";
+# the id of a file lock is empty.  A lock belongs to a connection (cid) and to the file variable that took it (fvar).  Locks do not expire: a program that holds one on purpose (the two
+# holders) gives it back itself, at the end of its sleep; every other lock goes at the end of its program (the variable goes out of scope: the close is queued and sent at the prompt)
+# or at the end of its session.
+FILE_IDS = {"zzcust": 2, "zzwgf": 3}
+USER_NOS = {"zzwnla": 7, "zzwnlb": 9, "zzwnfa": 7, "zzwnfb": 9}      # the user numbers the server gives the API sessions of the two-session programs; every other program is user 12
+DEFAULT_USER_NO = 12
+CONN_SEQ = [0]
+SESSION_CIDS = []
+
+
+def hhmmss():
+    return time.strftime("%H:%M:%S")
+
+
+def account_dir(acct):
+    return os.path.join(W(), "home", "user_accounts", acct)
+
+
+def lk_key(acct, fname, rid=""):
+    return "%s|%s|%s" % (acct, fname, rid)
+
+
+def locks_of(st):
+    return st.setdefault("locks", {})
+
+
+def lk_put(st, conn, rid, typ, fvar=1):
+    locks_of(st)[lk_key(conn["acct"], conn["fname"], rid)] = {"user": conn["userno"], "type": typ, "acct": conn["acct"], "file": conn["fname"], "id": rid, "cid": conn["cid"], "fvar": fvar}
+
+
+def lk_drop(st, conn, fvar=None, only_records=False):
+    """Give back what this connection holds: all of it, or what one file variable took; only_records keeps a file lock."""
+    tab = locks_of(st)
+    for k, lk in list(tab.items()):
+        if lk["cid"] != conn["cid"] or (fvar is not None and lk["fvar"] != fvar) or (only_records and lk["type"] == "FX"):
+            continue
+        del tab[k]
+
+
+def file_busy(st, conn):
+    """op_filelock on the server: another user's file lock is busy (its owner is the holder), then a record lock of another user in the file (its owner), else 0 (free to take)."""
+    tab = locks_of(st)
+    fx = tab.get(lk_key(conn["acct"], conn["fname"], ""))
+    if fx is not None and fx["user"] != conn["userno"]:
+        return fx["user"]
+    for lk in tab.values():
+        if lk["acct"] == conn["acct"] and lk["file"] == conn["fname"] and lk["type"] != "FX" and lk["user"] != conn["userno"]:
+            return lk["user"]
+    return 0
+
+
+def rec_busy(st, conn, rid):
+    """lock_record on the server: another user's file lock keeps every record lock out (the owner of the file lock), else another user's lock on the record, else 0."""
+    tab = locks_of(st)
+    fx = tab.get(lk_key(conn["acct"], conn["fname"], ""))
+    if fx is not None and fx["user"] != conn["userno"]:
+        return fx["user"]
+    rl = tab.get(lk_key(conn["acct"], conn["fname"], rid))
+    if rl is not None and rl["user"] != conn["userno"]:
+        return rl["user"]
+    return 0
+
+
+def file_lock_try(st, conn, fvar):
+    """Request 32 with the wait flag 0: ('ok', 0) when the file lock is ours now, ('locked', holder) when it is not."""
+    holder = file_busy(st, conn)
+    if holder:
+        return "locked", (0 if mutant() == "locked-holder-lost" else holder)
+    lk_put(st, conn, "", "FX", fvar)
+    return "ok", 0
+
+
+def file_unlock(st, conn):
+    """Request 33: 0 the lock was ours and is free, 3011 (ER$LCK) another user's, left held, 3012 (ER$NLK) nobody's."""
+    tab = locks_of(st)
+    key = lk_key(conn["acct"], conn["fname"], "")
+    fx = tab.get(key)
+    if fx is None:
+        return 0 if mutant() == "unlock-nobody-as-0" else 3012
+    if fx["user"] != conn["userno"]:
+        if mutant() == "unlock-others-lock-given":      # the bug that matters: another user's lock is given away
+            del tab[key]
+            return 0
+        if mutant() == "unlock-others-status-0":        # a wrong answer only: the lock stays where it is
+            return 0
+        return 3011
+    del tab[key]
+    return 0
+
+
+def lock_code(st, conn, rid):
+    """RECORDLOCKED() on the server: (code, owner) - -3 -2 -1 another user holds a file / update / read lock, 0 nobody, 1 2 3 this session holds a read / update / file lock."""
+    tab = locks_of(st)
+    me = conn["userno"]
+    fx = tab.get(lk_key(conn["acct"], conn["fname"], ""))
+    if fx is not None:
+        return (3, me) if fx["user"] == me else (-3, fx["user"])
+    rl = tab.get(lk_key(conn["acct"], conn["fname"], rid))
+    if rl is not None:
+        return (2, me) if rl["user"] == me else (-2, rl["user"])
+    return 0, 0
+
+
+def readu_lines(st):
+    """LIST.READU as gpl.bp/listrdu prints it: a header, then a row for each lock - the user, the file id, the path cut into pieces of 31 characters (fmt T), the type, the id cut into pieces
+    of 32 - with what does not fit on the lines below the row.  A file lock is FX with an EMPTY id (measured on the real server by the Core agent, 20 Oct 26)."""
+    tab = locks_of(st)
+    rows = [lk for _k, lk in sorted(tab.items()) if lk["type"] == "FX"] + [lk for _k, lk in sorted(tab.items()) if lk["type"] != "FX"]
+    if mutant() == "holder-lock-not-shown":
+        rows = [lk for lk in rows if lk["type"] != "FX"]
+    if not rows:
+        return [msg(6450)]
+    out = ["User File Path........................... Type Id.............................."]
+    for lk in rows:
+        path = os.path.join(account_dir(lk["acct"]), lk["file"])
+        pieces = [path[n:n + 31] for n in range(0, len(path), 31)] or [""]
+        ids = [lk["id"][n:n + 32] for n in range(0, len(lk["id"]), 32)] or [""]
+        for j in range(max(len(pieces), len(ids))):
+            cells = list(" " * 79)
+
+            def put(col, text):
+                cells[col - 1:col - 1 + len(text)] = list(text)
+            if j == 0:
+                put(1, "%4d" % lk["user"])
+                put(6, "%4d" % FILE_IDS.get(lk["file"], 9))
+                put(43, "%-4s" % lk["type"])
+            if j < len(pieces):
+                put(11, pieces[j].ljust(31))
+            if j < len(ids):
+                put(48, ids[j].ljust(32))
+            out.append("".join(cells))
+    return out
+
+
+AUDIT_KIND = {"write": ("w", "write"), "writeu": ("w", "write"), "delete": ("d", "delete"), "deleteu": ("d", "delete"), "filelock": ("f", "filelock")}
+
+
+def server_allows(conn, req):
+    """apifilesok on the target: a request that changes state or takes a lock needs the write group.  Two mutants let one request number through."""
+    m = mutant()
+    if conn["write"]:
+        return True
+    return (m == "filelock-without-group" and req == 32) or (m == "fileunlock-without-group" and req == 33)
 
 
 def netfile_change(st, conn, opname, req, ctx):
-    """One change or lock through an open remote file.  Returns (branch, status, text) as the program would print them."""
-    if conn["mode"] != "write":
+    """One change or lock through an open remote file.  Returns (branch, status, text) as the program would print them.  THE ORDER of act.change and net_gate: a read-mode handle (11501),
+    a transaction (11510, status 1010), the audit line - BEFORE the request, once for the handle, whatever the server answers -, then the request, which the server refuses to a login without
+    the write group (11500 with the text of 11521)."""
+    m = mutant()
+    if conn["mode"] != "write" and not (m == "read-mode-filelock-sent" and opname == "filelock"):
         return "error", STATUS_REFUSED, msg(11501, conn["server"], opname)
-    if not conn["write"]:
+    if conn["txn"] and not (m == "txn-filelock-sent" and opname == "filelock"):
+        return "error", STATUS_TXN, msg(11510, conn["server"], opname)
+    if opname in AUDIT_KIND and not (m == "filelock-audit-after-request" and opname == "filelock" and not server_allows(conn, req)):
+        kind, word = AUDIT_KIND[opname]
+        if kind not in conn["aud"] or (m == "filelock-audited-every-time" and opname == "filelock"):
+            conn["aud"].add(kind)
+            audit(conn["cuser"], "netfile %s server=%s file=%s" % (word, conn["server"], conn["fname"]))
+    elif opname == "clear.file":
+        audit(conn["cuser"], "netfile clear server=%s file=%s" % (conn["server"], conn["fname"]))
+    if not server_allows(conn, req):
         refuse_audit(req, False, conn["ru"])
         txt = msg(11521, req)
-        if mutant() == "k1-old-text":
+        if m == "k1-old-text":
             txt = "status 0"
         return "error", STATUS_REFUSED, msg(11500, conn["server"], opname, txt)
-    word = {"write": "write", "writeu": "write", "delete": "delete", "deleteu": "delete", "clear.file": "clear"}.get(opname)
-    if word:                     # the client's own audit line for a change it made (the 18 Oct VM run showed write, delete and clear)
-        audit(conn["cuser"], "netfile %s server=%s file=%s" % (word, conn["server"], conn["fname"]))
     return "then", 0, ""
+
+
+def stmt_filelock(st, conn, fvar=1):
+    """FILELOCK f ON ERROR ... LOCKED ...: (branch, status, text).  A busy file takes the LOCKED branch with STATUS() the holder."""
+    br, sts, txt = netfile_change(st, conn, "filelock", 32, None)
+    if br != "then":
+        return br, sts, txt
+    res, holder = file_lock_try(st, conn, fvar)
+    return ("then", 0, "") if res == "ok" else ("locked", holder, "")
+
+
+def stmt_fileunlock(st, conn):
+    """FILEUNLOCK f ON ERROR ...: (branch, status, text).  The client asks net_gate (11501, 11510) but NOT the definition's mode again; the answer of the server is STATUS() (0, 3011, 3012)."""
+    if conn["mode"] != "write":
+        return "error", STATUS_REFUSED, msg(11501, conn["server"], "fileunlock")
+    if conn["txn"]:
+        return "error", STATUS_TXN, msg(11510, conn["server"], "fileunlock")
+    if not server_allows(conn, 33):
+        refuse_audit(33, False, conn["ru"])
+        return "error", STATUS_REFUSED, msg(11500, conn["server"], "fileunlock", msg(11521, 33))
+    return "then", file_unlock(st, conn), ""
+
+
+def stmt_recordlocked(st, conn, rid):
+    """RECORDLOCKED(f, id): a read, served for a read-mode handle and in a transaction.  Returns (code, owner, text); code is None when the request was refused."""
+    if mutant() == "recordlocked-refused" and not conn["write"]:
+        refuse_audit(34, False, conn["ru"])
+        return None, 0, msg(11500, conn["server"], "recordlocked", msg(11521, 34))
+    code, owner = lock_code(st, conn, rid)
+    if mutant() == "recordlocked-owner-lost":
+        owner = 0
+    return code, owner, ""
 
 
 def run_program(st, g, user, parts, out, i):
@@ -686,11 +889,15 @@ def run_program(st, g, user, parts, out, i):
             c1 = conn["vf"]["data"].get("c1", [])
             out.append("c1=[%s]" % "/".join(c1))
             out.append("dict open ok")
-    elif prog in ("zzwn1", "zzwn2", "zzwn3", "zzwn4", "zzwtrw", "zzwnla", "zzwnlb"):
+    elif prog in ("zzwn1", "zzwn2", "zzwn3", "zzwn4", "zzwn5", "zzwn6", "zzwn7", "zzwn8", "zzwn9", "zzwtrw", "zzwnla", "zzwnlb", "zzwnfa", "zzwnfb", "zzwnfl", "zzwnfd", "zzwnfe"):
         ptr = voc.get("zzrw") or voc.get("zzrt")
         conn = remote_open(st, g, user, ptr, out) if ptr else None
         if conn is None:
             return i
+        conn["userno"] = USER_NOS.get(prog, DEFAULT_USER_NO)         # S.72: the user number the server gives this program's API session (it shows in LIST.READU and in STATUS() of RECORDLOCKED())
+        CONN_SEQ[0] += 1
+        conn["cid"] = "%d-%d" % (os.getpid(), CONN_SEQ[0])
+        SESSION_CIDS.append(conn["cid"])
         vf = conn["vf"]["data"]
         if prog == "zzwn1":
             out.append("X0 opened zzrw")
@@ -710,7 +917,16 @@ def run_program(st, g, user, parts, out, i):
             if br == "then":
                 vf.clear()
             out.append("X9 CLEARFILE branch=%s STATUS()=%d" % (br, sts))
-            out.append("XZ done")
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("X10 FILELOCK branch=%s STATUS()=%d" % (br, sts))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("X11 FILEUNLOCK branch=%s STATUS()=%d" % (br, sts))
+            code, owner, txt = stmt_recordlocked(st, conn, "p3")
+            if code is None:       # RECORDLOCKED() has no ON ERROR clause: a refusal ends the program with the message
+                out.append("000000E1: " + txt + " at line 33 of /model/bp.out/zzwn1")
+            else:
+                out.append("X12 RECORDLOCKED p3 (a read, served) x=%d STATUS()=%d" % (code, owner))
+                out.append("XZ done")
         elif prog == "zzwn2":
             br, sts, txt = netfile_change(st, conn, "write", 16, None)
             if br == "then":
@@ -730,7 +946,54 @@ def run_program(st, g, user, parts, out, i):
             step("Y4 READU p3", "lock", 30, lambda: None, " record=[%s]" % "/".join(vf.get("p3", [])))
             step("Y5 RECORDLOCKU p1", "lock", 30, lambda: None)
             step("Y6 READVU p1", "lock", 30, lambda: None, " value=[%s]" % (vf.get("p1", [""])[0]))
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("Y8 FILELOCK branch=%s STATUS()=%d" % (br, sts))
+            code, owner, _t = stmt_recordlocked(st, conn, "p1")
+            out.append("Y9 RECORDLOCKED p1 (we hold the file lock) x=%d STATUS()=%d" % (code, owner))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("Y10 FILEUNLOCK branch=%s STATUS()=%d" % (br, sts))
+            code, owner, _t = stmt_recordlocked(st, conn, "p1")
+            out.append("Y11 RECORDLOCKED p1 (given back) x=%d STATUS()=%d" % (code, owner))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("Y12 FILEUNLOCK again (nobody holds it) branch=%s STATUS()=%d" % (br, sts))
             out.append("YZ done")
+        elif prog in ("zzwn5", "zzwn6"):                  # one FILELOCK / FILEUNLOCK with no ON ERROR clause: a refusal ends the program with the message
+            if prog == "zzwn5":
+                br, sts, txt = stmt_filelock(st, conn)
+                reached = "L9 REACHED (the file lock was not refused)"
+            else:
+                br, sts, txt = stmt_fileunlock(st, conn)
+                reached = "U9 REACHED (the file unlock was not refused)"
+            if br == "error":
+                out.append("000000D9: " + txt + " at line 3 of /model/bp.out/" + prog)
+            else:
+                out.append(reached)
+        elif prog == "zzwn7":                             # the lock statements under a definition that says READ
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("R1 FILELOCK branch=%s STATUS()=%d" % (br, sts))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("R2 FILEUNLOCK branch=%s STATUS()=%d" % (br, sts))
+            code, owner, _t = stmt_recordlocked(st, conn, "p1")
+            out.append("R3 RECORDLOCKED p1 (a read, served) x=%d STATUS()=%d" % (code, owner))
+            out.append("RZ done")
+        elif prog == "zzwn8":                             # the same inside BEGIN TRANSACTION
+            conn["txn"] = True
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("T1 FILELOCK in a transaction branch=%s STATUS()=%d" % (br, sts))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("T2 FILEUNLOCK in a transaction branch=%s STATUS()=%d" % (br, sts))
+            code, owner, _t = stmt_recordlocked(st, conn, "p1")
+            out.append("T3 RECORDLOCKED p1 in a transaction x=%d STATUS()=%d" % (code, owner))
+            conn["txn"] = False
+            out.append("TZ done")
+        elif prog == "zzwn9":                             # FILELOCK with no ON ERROR inside a transaction
+            conn["txn"] = True
+            br, sts, txt = stmt_filelock(st, conn)
+            conn["txn"] = False
+            if br == "error":
+                out.append("000000D9: " + txt + " at line 4 of /model/bp.out/zzwn9")
+            else:
+                out.append("T9 REACHED (the file lock was not refused)")
         elif prog == "zzwn4":
             br, sts, _t = netfile_change(st, conn, "clear.file", 31, None)
             if br == "then":
@@ -748,52 +1011,186 @@ def run_program(st, g, user, parts, out, i):
             if not conn["write"]:
                 out.append("READU ERROR st=7000")
                 return i
-            key = "%s|%s" % ("zzwgf", "lk1")
-            st.setdefault("locks", {})[key] = {"user": 7, "until": time.time() + 9}
-            out.append("A %s holds lk1 (remote)" % time.strftime("%H:%M:%S"))
-            st_save(st)
-            groups_write(g)
+            lk_put(st, conn, "lk1", "RU")
+            conn["keep"] = True                         # the program sleeps holding it: the AFTER step below gives it back
+            out.append("A %s holds lk1 (remote)" % hhmmss())
             rel = time.time() + 9
-            # the verb holds the state lock while it sleeps in the real world? No: it must not. Release the model lock around the sleep.
-            LOCK_HOLD.append(rel)
+
+            def hold_lk1(out_, rel=rel, conn=conn):
+                time.sleep(max(0.0, rel - time.time()))
+                with Locked():
+                    st2 = st_load()
+                    locks_of(st2).pop(lk_key(conn["acct"], conn["fname"], "lk1"), None)
+                    st_save(st2)
+                out_.append("A %s released lk1" % hhmmss())
+            AFTER.append(hold_lk1)
         elif prog == "zzwnlb":
             fid = parts[3].lower() if len(parts) > 3 else "lk1"
-            key = "%s|%s" % ("zzwgf", fid)
-            lk = st.get("locks", {}).get(key)
-            held = lk is not None and lk["until"] > time.time()
-            if held:
-                out.append("B %s B1 READU %s LOCKED-clause branch=locked STATUS()=%d record=[]" % (time.strftime("%H:%M:%S"), fid, lk["user"]))
-                out.append("B %s B3 RECORDLOCKU %s LOCKED-clause branch=locked STATUS()=%d" % (time.strftime("%H:%M:%S"), fid, lk["user"]))
-                WAIT_FOR.append((key, time.time(), fid, "/".join(vf.get(fid, []))))
+            holder = rec_busy(st, conn, fid)
+            if holder:
+                out.append("B %s B1 READU %s LOCKED-clause branch=locked STATUS()=%d record=[]" % (hhmmss(), fid, holder))
+                out.append("B %s B3 RECORDLOCKU %s LOCKED-clause branch=locked STATUS()=%d" % (hhmmss(), fid, holder))
+                code, owner, _t = stmt_recordlocked(st, conn, fid)
+                out.append("B %s B4 RECORDLOCKED %s (another user holds the update lock) x=%d STATUS()=%d" % (hhmmss(), fid, code, owner))
+                t0, rec = time.time(), "/".join(vf.get(fid, []))
+
+                def wait_rec(out_, conn=conn, fid=fid, t0=t0, rec=rec):
+                    while True:
+                        with Locked():
+                            busy = rec_busy(st_load(), conn, fid)
+                        if not busy:
+                            break
+                        time.sleep(0.25)
+                    out_.append("B %s B2 plain READU %s returned branch=then STATUS()=0 record=[%s] waited %d s" % (hhmmss(), fid, rec, int(time.time() - t0)))
+                AFTER.append(wait_rec)
             else:
-                out.append("B %s B1 READU %s LOCKED-clause branch=then STATUS()=0 record=[%s]" % (time.strftime("%H:%M:%S"), fid, "/".join(vf.get(fid, []))))
+                out.append("B %s B1 READU %s LOCKED-clause branch=then STATUS()=0 record=[%s]" % (hhmmss(), fid, "/".join(vf.get(fid, []))))
+        elif prog == "zzwnfa":                            # S.72: the holder of a FILE lock
+            br, sts, txt = stmt_filelock(st, conn)
+            if br != "then":
+                out.append("FILELOCK branch=%s STATUS()=%d" % (br, sts))
+                return i
+            conn["keep"] = True
+            out.append("A %s holds the file lock (remote)" % hhmmss())
+            rel = time.time() + 9
+
+            def hold_file(out_, rel=rel, conn=conn):
+                time.sleep(max(0.0, rel - time.time()))
+                with Locked():
+                    st2 = st_load()
+                    status = file_unlock(st2, conn)
+                    lk_drop(st2, conn)
+                    st_save(st2)
+                out_.append("A %s gave the file lock back, branch=then STATUS()=%d" % (hhmmss(), status))
+            AFTER.append(hold_file)
+        elif prog == "zzwnfb":                            # S.72: session B against the holder of a FILE lock
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("B %s F1 FILELOCK LOCKED-clause branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+            holder = rec_busy(st, conn, "p1")
+            if holder:
+                out.append("B %s F2 READU p1 LOCKED-clause branch=locked STATUS()=%d record=[]" % (hhmmss(), holder))
+            else:
+                out.append("B %s F2 READU p1 LOCKED-clause branch=then STATUS()=0 record=[%s]" % (hhmmss(), "/".join(vf.get("p1", []))))
+            code, owner, _t = stmt_recordlocked(st, conn, "p1")
+            out.append("B %s F3 RECORDLOCKED p1 (the other user holds the file lock) x=%d STATUS()=%d" % (hhmmss(), code, owner))
+            br, sts, _t = stmt_fileunlock(st, conn)
+            out.append("B %s F4 FILEUNLOCK of the other user lock branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+            t0 = time.time()
+            conn["keep"] = True
+
+            def wait_and_hold(out_, conn=conn, t0=t0):
+                while True:                              # a plain FILELOCK asks again every 250 ms, each time through the handler (the audit line is once for the handle); the server is never made to wait
+                    with Locked():
+                        st2 = st_load()
+                        netfile_change(st2, conn, "filelock", 32, None)
+                        if not file_busy(st2, conn):
+                            lk_put(st2, conn, "", "FX")
+                            st_save(st2)
+                            break
+                    time.sleep(0.25)
+                out_.append("B %s F5 plain FILELOCK returned branch=then STATUS()=0 waited %d s" % (hhmmss(), int(time.time() - t0)))
+                with Locked():
+                    code2, owner2, _t2 = stmt_recordlocked(st_load(), conn, "p1")
+                out_.append("B %s F6 RECORDLOCKED p1 (we hold the file lock) x=%d STATUS()=%d" % (hhmmss(), code2, owner2))
+                time.sleep(3)                            # the program sleeps 8 s holding it; the administrator's LIST.READU looks meanwhile
+                with Locked():
+                    st3 = st_load()
+                    _br3, status, _t3 = stmt_fileunlock(st3, conn)
+                    st_save(st3)
+                out_.append("B %s F7 FILEUNLOCK branch=then STATUS()=%d" % (hhmmss(), status))
+                with Locked():
+                    st4 = st_load()
+                    code3, owner3, _t4 = stmt_recordlocked(st4, conn, "p1")
+                    lk_drop(st4, conn)
+                    st_save(st4)
+                out_.append("B %s F8 RECORDLOCKED p1 (given back) x=%d STATUS()=%d" % (hhmmss(), code3, owner3))
+            AFTER.append(wait_and_hold)
+        elif prog in ("zzwnfl", "zzwnfd", "zzwnfe"):      # S.72: programs with SLEEPs in them - a state every 5 seconds, each printed with its time; the session's turn goes on after this verb (PENDING)
+            conn["keep"] = True                         # the program gives its locks back itself, at its own end (below)
+
+            def step(fn):                               # one statement or more on the model's state, under the lock (the sleeps between them hold nothing)
+                with Locked():
+                    st2 = st_load()
+                    res = fn(st2)
+                    st_save(st2)
+                return res
+
+            def prog_end():                             # the file variable goes out of scope with the program: the close is queued and sent at the prompt, which gives its locks back
+                if not (prog == "zzwnfd" and mutant() == "end-of-program-keeps-lock"):
+                    step(lambda s: lk_drop(s, conn))
+
+            def life():                                 # zzwnfl: the life of a file lock
+                out.append("L0 %s nothing is locked yet" % hhmmss())
+                yield 5
+                br, sts, _t = step(lambda s: stmt_filelock(s, conn, 1))
+                out.append("L1 %s FILELOCK branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+                code, owner, _t = step(lambda s: stmt_recordlocked(s, conn, "p1"))
+                out.append("L2 %s RECORDLOCKED p1 x=%d STATUS()=%d" % (hhmmss(), code, owner))
+                yield 5
+                if mutant() != "close-keeps-filelock":
+                    step(lambda s: lk_drop(s, conn, fvar=1))    # CLOSE f: the file lock is bound to the file variable that took it
+                code, owner, _t = step(lambda s: stmt_recordlocked(s, conn, "p1"))
+                out.append("L3 %s after CLOSE of the locking variable, a second variable: RECORDLOCKED p1 x=%d STATUS()=%d" % (hhmmss(), code, owner))
+                yield 5
+                br, sts, _t = step(lambda s: stmt_filelock(s, conn, 2))
+                out.append("L4 %s FILELOCK through the second variable branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+                yield 5
+                step(lambda s: lk_drop(s, conn, only_records=(mutant() == "release-keeps-filelock")))          # RELEASE g
+                code, owner, _t = step(lambda s: stmt_recordlocked(s, conn, "p1"))
+                out.append("L5 %s after RELEASE g: RECORDLOCKED p1 x=%d STATUS()=%d" % (hhmmss(), code, owner))
+                yield 5
+                br, sts, _t = step(lambda s: stmt_filelock(s, conn, 2))
+                out.append("L6 %s FILELOCK again branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+                yield 5
+                step(lambda s: lk_drop(s, conn, only_records=(mutant() == "bare-release-keeps-filelock")))     # a bare RELEASE
+                code, owner, _t = step(lambda s: stmt_recordlocked(s, conn, "p1"))
+                out.append("L7 %s after a bare RELEASE: RECORDLOCKED p1 x=%d STATUS()=%d" % (hhmmss(), code, owner))
+                yield 5
+                out.append("LZ %s done" % hhmmss())
+                prog_end()
+
+            def holds():                                # zzwnfd: takes the file lock, sleeps, ends WITHOUT CLOSE and WITHOUT FILEUNLOCK
+                br, sts, _t = step(lambda s: stmt_filelock(s, conn, 1))
+                out.append("D1 %s FILELOCK branch=%s STATUS()=%d" % (hhmmss(), br, sts))
+                yield 5
+                out.append("DZ %s ends WITHOUT CLOSE and WITHOUT FILEUNLOCK" % hhmmss())
+                prog_end()
+
+            def next_command():                         # zzwnfe: the NEXT command of the same session
+                out.append("E1 %s the next command begins" % hhmmss())
+                yield 5
+                code, owner, _t = step(lambda s: stmt_recordlocked(s, conn, "p1"))
+                out.append("E2 %s the next command, a new file variable: RECORDLOCKED p1 x=%d STATUS()=%d" % (hhmmss(), code, owner))
+                out.append("EZ %s done" % hhmmss())
+                prog_end()
+            PENDING.append({"zzwnfl": life, "zzwnfd": holds, "zzwnfe": next_command}[prog]())
+        if not conn.get("keep"):
+            lk_drop(st, conn)                           # the file variable goes out of scope with the program: the close is queued and sent at the prompt, which gives its locks back
     else:
         out.append("model: no behaviour for program %s" % prog)
     return i
 
 
-LOCK_HOLD = []
-WAIT_FOR = []
+PENDING = []        # generators of programs with sleeps in them (see "zzwnfl"): started by their verb, run by fake_sd right after it, each yield is a sleep in seconds
+AFTER = []          # what a program of the session still does when the session's verbs are over - a sleep holding a lock, a wait for one -: functions called in order with the lines to print
 
 
 def after_verb_sleeps(out):
-    """The lock holder sleeps AFTER the verb (outside the state lock); the waiting session polls until the lock is gone."""
-    for rel in LOCK_HOLD:
-        time.sleep(max(0.0, rel - time.time()))
-        with Locked():
-            st = st_load()
-            st.get("locks", {}).pop("zzwgf|lk1", None)
-            st_save(st)
-        out.append("A %s released lk1" % time.strftime("%H:%M:%S"))
-    for key, t0, fid, rec in WAIT_FOR:
-        while True:
-            with Locked():
-                lk = st_load().get("locks", {}).get(key)
-            if lk is None or lk["until"] <= time.time():
-                break
-            time.sleep(0.25)
-        waited = int(time.time() - t0)
-        out.append("B %s B2 plain READU %s returned branch=then STATUS()=0 record=[%s] waited %d s" % (time.strftime("%H:%M:%S"), fid, rec, waited))
+    """The lock holders sleep AFTER the verb (outside the state lock); a waiting session polls until the lock is free."""
+    for fn in AFTER:
+        fn(out)
+
+
+def session_end():
+    """The session is over: its connections end and the server lets go of every lock they still held (the end of a process gives a file lock back)."""
+    if not SESSION_CIDS:
+        return
+    with Locked():
+        st = st_load()
+        tab = locks_of(st)
+        for k in [k for k, lk in tab.items() if lk["cid"] in SESSION_CIDS]:
+            del tab[k]
+        st_save(st)
 
 
 # ======================================================================================================================================== THE STUBS
@@ -1178,8 +1575,15 @@ def lib_mutants():
 
 
 # ---- M. the model
+WORLD_LOCK = threading.Lock()      # a World is made one at a time: its register record is written through the process-wide FAKE_WORLD (S.72: the files-route mutants run in threads)
+
+
 class World:
     def __init__(self, mut=""):
+        with WORLD_LOCK:
+            self._make(mut)
+
+    def _make(self, mut):
         self.root = tempfile.mkdtemp(prefix="wsu-world-")
         self.mut = mut
         self.user = getpass.getuser()
@@ -1412,11 +1816,85 @@ FR_MUTANTS = [
 ]
 
 
+# S.72 (20 Oct 26).  The mutants of the rows for FILELOCK, FILEUNLOCK and RECORDLOCKED() on a remote file.  Each is run once and EXACTLY the rows built to catch it must fail: every failed
+# row has to match one of the patterns (a row that fails for another reason is a row that is not as independent as it looks) and every pattern has to match a failed row (a row that could not
+# fail is no check).  A pattern is a regular expression on the row's id and text, "A3 X10 FILELOCK refused: ...".  The first group are the four breaks the brief names.
+FR_EXACT = [
+    ("FILELOCK (request 32) is allowed to a login without the write group", "filelock-without-group",
+     [r"^A3 X10 ", r"^A2 control X12", r"^A4 S\.72: a FILELOCK with no ON ERROR", r"^A4 S\.72: \.\.\. and the program did not go on after the refused FILELOCK",
+      r"^A6 server audit S\.72: request 32 ", r"^C2 S\.72: a FILELOCK is refused again", r"^C2 S\.72: \.\.\. L9"]),
+    ("FILEUNLOCK (request 33) is allowed to a login without the write group", "fileunlock-without-group",
+     [r"^A3 X11 ", r"^A4 S\.72: a FILEUNLOCK with no ON ERROR", r"^A4 S\.72: \.\.\. and the program did not go on after the refused FILEUNLOCK",
+      r"^A6 server audit S\.72: request 33 ", r"^C2 S\.72: a FILEUNLOCK is refused again", r"^C2 S\.72: \.\.\. U9"]),
+    ("LIST.READU does not show a file lock (the holder's lock is not shown)", "holder-lock-not-shown",
+     [r"^B11 SERVER evidence: while A held it", r"^B11 the lock table showed no file lock held by A", r"^B11 the lock table never showed", r"^B12 L1 SERVER evidence", r"^B12 L2 cannot be compared",
+      r"^B12 L4 SERVER evidence", r"^B12 L6 SERVER evidence", r"^B12 \(b\) D1 SERVER evidence"]),
+    ("a second FILEUNLOCK (nobody holds the lock) leaves STATUS() 0 instead of 3012", "unlock-nobody-as-0", [r"^B4 Y12 "]),
+    ("FILEUNLOCK of another user's lock leaves STATUS() 0 instead of 3011 (the lock stays)", "unlock-others-status-0", [r"^B11 F4 "]),
+    ("FILEUNLOCK of another user's lock GIVES IT AWAY", "unlock-others-lock-given",
+     [r"^B11 SERVER evidence: while A held it", r"^B11 the lock table showed no file lock held by A", r"^B11 F4 ", r"^B11 F5 ", r"^B11 the lock table never showed", r"^B11 the holder gave its lock back"]),
+    ("RECORDLOCKED() (request 34) is refused to a login without the write group", "recordlocked-refused",
+     [r"^A1 NULL CASE: run 1 reached its end", r"^A2 control X12", r"^A6 server audit S\.72: \.\.\. nor 34", r"^M1 S\.72: RECORDLOCKED\(\) under READ", r"^M1 S\.72: \.\.\. zzwn7 reached its end",
+      r"^M1 nothing was refused by the server"]),
+    ("RECORDLOCKED() leaves STATUS() 0 instead of the owner's user number", "recordlocked-owner-lost", [r"^B4 Y9 ", r"^B10 B4 ", r"^B11 F3 ", r"^B11 F6 ", r"^B12 L2 "]),
+    ("a busy FILELOCK leaves STATUS() 0 instead of the holder", "locked-holder-lost", [r"^B11 F1 "]),
+    ("a read-mode definition lets FILELOCK through to the server", "read-mode-filelock-sent",
+     [r"^M1 S\.72: the client refused a FILELOCK", r"^M1 nothing was refused by the server", r"^M1 S\.72: and the handler was never asked"]),
+    ("FILELOCK inside a transaction is sent to the server", "txn-filelock-sent",
+     [r"^B13 T1 ", r"^B13 T3 ", r"^B13 zzwn9: with no ON ERROR", r"^B13 zzwn9: \.\.\. and the program did not go on", r"^B13 the handler was never asked"]),
+    ("CLOSE of the locking file variable does not give the file lock back", "close-keeps-filelock", [r"^B12 \(a\) L3 "]),
+    ("RELEASE f does not give the file lock back", "release-keeps-filelock", [r"^B12 \(c\) L5 "]),
+    ("a bare RELEASE does not give the file lock back", "bare-release-keeps-filelock", [r"^B12 \(c\) L7 "]),
+    ("a program that ends holding the file lock leaves it held after the prompt", "end-of-program-keeps-lock", [r"^B12 \(b\) E1 ", r"^B12 \(b\) E2 "]),
+    ("every FILELOCK attempt is audited, not once for the handle", "filelock-audited-every-time", [r"^B11 audit S\.72: exactly TWO"]),
+    ("the FILELOCK audit line is written only after a request the server accepted", "filelock-audit-after-request", [r"^A6 client audit S\.72"]),
+    # What the first run on the VM found (20 Oct 26): LIST.READU did not run ("is not in your VOC") and the rows for "no file lock" PASSED on that message.  Now no table row may pass on a verb
+    # that did not answer: the positive rows and the negative rows of B10, B11 and B12 all fail, and the sampler's own null-case row says why.
+    ("LIST.READU does not run, even for the administrator ('is not in your VOC')", "readu-not-in-voc",
+     [r"^B10 the lock table showed no holder", r"^B10 B3 cannot be compared", r"^B10 B4 cannot be compared", r"^B11 SERVER evidence: while A held it", r"^B11 the lock table showed no file lock held by A",
+      r"^B11 the lock table never showed", r"^B11 NULL CASE: LIST.READU printed nothing useful", r"^B12 NULL CASE: the sampler took", r"^B12 L0 SERVER evidence", r"^B12 L1 SERVER evidence",
+      r"^B12 L2 cannot be compared", r"^B12 \(a\) L3 SERVER evidence", r"^B12 L4 SERVER evidence", r"^B12 \(c\) L5 SERVER evidence", r"^B12 L6 SERVER evidence", r"^B12 \(c\) L7 SERVER evidence",
+      r"^B12 \(b\) D1 SERVER evidence", r"^B12 \(b\) E1 SERVER evidence"]),
+]
+FR_JOBS = int(os.environ.get("WSU_JOBS", "13"))     # the mutants are run this many at a time (each run is mostly waiting for the model's sleeps: B10-B12 take about two minutes by themselves)
+ONLY_MUTANTS = []                                    # --only-mutant=NAME (given more than once): run just these mutants of the files-route model, and not the faithful one
+
+
+def model_run_exact(label, script, mut, patterns, timeout=900):
+    """One mutant of a model: the script must fail, and EXACTLY the rows the patterns name must be the ones that fail."""
+    w = World(mut)
+    try:
+        r = w.run(script, timeout=timeout)
+        rows = rows_of(r.stdout)
+        shell = [l for l in (r.stdout + r.stderr).split("\n") if SHELL_ERR.search(l) and not l.lstrip().startswith(("FAIL", "|", ">", "     ")) and "NOTE" not in l]
+        check("M %s: no shell error in the run" % label, not shell, " / ".join(shell[:3]))
+        texts = ["%s %s" % (i, d) for i, d in rows["FAIL"]]
+        unexpected = [t for t in texts if not any(re.search(p, t) for p in patterns)]
+        unmet = [p for p in patterns if not any(re.search(p, t) for t in texts)]
+        check("M %s: exit non-zero, and the %d failed row(s) are EXACTLY the ones the %d pattern(s) built to catch it name" % (label, len(texts), len(patterns)),
+              r.returncode != 0 and not unexpected and not unmet,
+              "rc=%d, failed rows no pattern names: %s; patterns no failed row matches: %s" % (r.returncode, [t[:110] for t in unexpected[:5]], unmet))
+    finally:
+        w.close()
+
+
 def files_route_models(selftest):
-    model_run("files-route, faithful model", "witness-sdnet-files-route.sh", [], "", True, min_pass=100, timeout=900)
+    names = [m for _n, m, _i in FR_MUTANTS] + [m for _n, m, _p in FR_EXACT]
+    for o in ONLY_MUTANTS:
+        check("M files-route: --only-mutant=%s names a mutant of this model" % o, o in names, "known: %s" % " ".join(names))
+    if not ONLY_MUTANTS:
+        model_run("files-route, faithful model", "witness-sdnet-files-route.sh", [], "", True, min_pass=239, timeout=900)
     if selftest:
+        jobs = []
         for name, m, ids in FR_MUTANTS:
-            model_run("files-route, mutant: %s" % name, "witness-sdnet-files-route.sh", [], m, False, ids, timeout=900)
+            if not ONLY_MUTANTS or m in ONLY_MUTANTS:
+                jobs.append(lambda name=name, m=m, ids=ids: model_run("files-route, mutant: %s" % name, "witness-sdnet-files-route.sh", [], m, False, ids, timeout=900))
+        for name, m, patterns in FR_EXACT:
+            if not ONLY_MUTANTS or m in ONLY_MUTANTS:
+                jobs.append(lambda name=name, m=m, patterns=patterns: model_run_exact("files-route, mutant: %s" % name, "witness-sdnet-files-route.sh", m, patterns))
+        with ThreadPoolExecutor(max_workers=FR_JOBS) as ex:
+            for fut in [ex.submit(j) for j in jobs]:
+                fut.result()
 
 
 GAPS_MUTANTS = [
@@ -1523,6 +2001,8 @@ def main():
         after_verb_sleeps(out)
         if out:
             sys.stdout.write("\n".join(out) + "\n")
+            sys.stdout.flush()
+        session_end()
         return rc
     if argv[:1] == ["--stub"]:
         return stub(argv[1], argv[2:])
@@ -1540,6 +2020,7 @@ def main():
             print("test-witness-sdnet-units: CANNOT RUN - no %s" % f)
             return 2
     only = [a[len("--only="):] for a in argv if a.startswith("--only=")]
+    ONLY_MUTANTS.extend(a[len("--only-mutant="):] for a in argv if a.startswith("--only-mutant="))
     models = {"writegroup": writegroup_models, "groups": groups_models, "files-route": files_route_models, "gaps": gaps_models, "two-machines": two_machines_models}
     if only:
         for n in only:

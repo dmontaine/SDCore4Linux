@@ -6,6 +6,10 @@
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.
 
+20 Oct 26 (S.72, QMNet parity, tiers A and B): F16 and F17 and 9 more mutants (72 in all). The SDNet client now sends requests 32, 33 and 34 for FILELOCK, FILEUNLOCK and RECORDLOCKED(), so apisrvr's
+vb.filelock (both branches: the waiting one and the no-wait one with the LOCKED clause), vb.fileunlock and vb.recordlocked are held to the file number the request NAMED (files(fno), never the stale files(i) of the
+last open - the K8a fault of 19 Oct, whose blocking branch had no row and a mutant that survived: the runtime rows are sandbox-req29.py F10-F19) and to handing STATUS() back; 32 and 33 stay in the change set and 34 stays out.
+
 19 Oct 26 (finish 2, verifier): F11 follows set.files after its failure path learned to say what happened - when the write group went and the step after it failed, the audit line for THAT removal
 (modify.account files-write-off, not the action asked for) and the write group's line (write.removed.line, the routine the success path prints it with too) come before the failure message - with
 3 new mutants for it (and the one for the success path's line rewritten for the new text).  The anchor of the mutant that moves the write block after the group change (write_group_last) is
@@ -236,6 +240,23 @@ def run_checks(raw):
        ordered(vob, "if kernel(K$SDNET, -1)  or config(\"SDCLIENT\") # 0 then", "if upcase(cmnd[1,5]) = 'DICT ' then", "open 'DICT', trim(cmnd[6,9999]) to files(i)", "end else", "open cmnd to files(i)")
        and vob.count("FL$FLAGS.TRUSTED") == 2 and vob.count("else server.error = SV$ELSE") == 2 and "cmnd[1,5] = 'DICT '" not in vob, repr(vob[-400:]))
 
+    # ---- F16. S.72: the three lock requests an SDNet client now sends reach the file the request NAMED, on every branch ------------------------------
+    fl, fu, rk = (routine_body(ap, lab) for lab in ("vb.filelock", "vb.fileunlock", "vb.recordlocked"))
+    ck("F16 S.72 (20 Oct 26; K8a of 19 Oct, whose BLOCKING branch had no row and a mutant that survived): vb.filelock reads the file number and the wait flag (two 16 bit numbers), checks the file, then locks "
+       "files(fno) on BOTH branches - the waiting one (the flag set; the server blocks) and the no-wait one with `locked server.error = SV$LOCKED` - and never the scratch variable of the last open, files(i); "
+       "vb.fileunlock unlocks files(fno); vb.recordlocked asks recordlocked(files(fno), id) and hands STATUS() back to the client with set.status (the lock owner's user number, which RECORDLOCKED() of a "
+       "remote file gives the program). The runtime proof is sandbox-req29.py F10-F19 and F20-F49 against a real sd -Q; this is the order",
+       ordered(fl, "fno = oconv(cmnd[1,2], 'ISL')", "wait = oconv(cmnd[3,2], 'ISL')", "gosub check.file", "if err then return", "if wait then", "filelock files(fno)", "end else",
+               "filelock files(fno) locked server.error = SV$LOCKED", "return")
+       and fl.count("filelock files(fno)") == 2 and "files(i)" not in fl and "files(1)" not in fl
+       and ordered(fu, "fno = oconv(cmnd[1,2], 'ISL')", "gosub check.file", "if err then return", "fileunlock files(fno)", "return") and fu.count("fileunlock files(fno)") == 1 and "files(i)" not in fu
+       and ordered(rk, "fno = oconv(cmnd[1,2], 'ISL')", "gosub check.file", "if err then return", "id = cmnd[3,99]", "recordlocked(files(fno), id)", "st = status()", "set.status st", "return")
+       and re.search(r"st = status\(\)\s*\n\s*response = iconv\(i, 'ILL'\);\s*\n\s*set\.status st\b", rk) is not None
+       and "files(i)" not in rk and "files(1)" not in rk,
+       repr((fl[:200], fu[:160], rk[:200])))
+    ck("F17 S.72: request 34 (recordlocked) stays in the allow table and OUT of the change set, 32 and 33 stay IN it (a files-only login without sdfileswrite is refused the file lock and its release; "
+       "asking whether a record is locked needs sdfiles alone, which is what lets a read-mode SDNet handle ask)", 34 in ok_nums and 34 not in chg and 32 in chg and 33 in chg, repr((34 in ok_nums, 34 in chg, 32 in chg, 33 in chg)))
+
     # ---- F10-F13. the words -------------------------------------------------------------------------------------------------------------
     sf = routine_body(mo, "set.files")
     ck("F10 MODIFY.ACCOUNT: FILES-WRITE-ON and FILES-WRITE-OFF are words (files.grp = 'sdfileswrite', files.want true / false, set.files, stop), in the syntax lines and in the list of words; "
@@ -338,6 +359,17 @@ def mutants(raw):
     m("clearfile is no longer in the change set (31)", "apifilesok", "files.chg := '31,'   ;* clearfile\n", "")
     m("filelock is no longer in the change set (32)", "apifilesok", "files.chg := '32,'   ;* filelock\n", "")
     m("a number joins the change set that the table does not allow (20, call)", "apifilesok", "files.chg := '7,'    ;* readl\n", "files.chg := '20,'   ;* call\nfiles.chg := '7,'    ;* readl\n")
+    # S.72 / K8a: the lock requests reach the file the request named (the first of these is the mutant the 19 Oct audit said survived)
+    m("vb.filelock: the WAITING branch locks the file opened last (the stale files(i))", "apisrvr",
+      "filelock files(fno)   ;* 19 Oct 26 (K8a): was files(i), the stale loop variable of the last open, as vb.clearfile's was", "filelock files(i)   ;* 19 Oct 26 (K8a): was files(i), the stale loop variable of the last open, as vb.clearfile's was")
+    m("vb.filelock: the NO-WAIT branch locks the file opened last", "apisrvr", "filelock files(fno) locked server.error = SV$LOCKED", "filelock files(i) locked server.error = SV$LOCKED")
+    m("vb.filelock: the no-wait branch has no LOCKED clause (a busy file would block the server)", "apisrvr", "filelock files(fno) locked server.error = SV$LOCKED", "filelock files(fno)")
+    m("vb.filelock: the wait flag is read from the file number's bytes", "apisrvr", "wait = oconv(cmnd[3,2], 'ISL')", "wait = oconv(cmnd[1,2], 'ISL')")
+    m("vb.fileunlock: unlocks the file opened last", "apisrvr", "fileunlock files(fno)   ;* 19 Oct 26 (K8a): was files(i)", "fileunlock files(i)   ;* 19 Oct 26 (K8a): was files(i)")
+    m("vb.recordlocked: asks about the first file", "apisrvr", "i = recordlocked(files(fno), id)", "i = recordlocked(files(1), id)")
+    m("vb.recordlocked: does not hand STATUS() back (the owner's number)", "apisrvr", "response = iconv(i, 'ILL');", "response = iconv(i, 'ILL'); st = 0")
+    m("recordlocked (34) joins the change set", "apifilesok", "files.chg := '33,'   ;* fileunlock\n", "files.chg := '33,'   ;* fileunlock\nfiles.chg := '34,'   ;* recordlocked\n")
+    m("fileunlock (33) leaves the change set", "apifilesok", "files.chg := '33,'   ;* fileunlock\n", "")
     m("the write flag is tested as a boolean, not as exactly 1", "apifilesok", "if writeok # 1 then", "if not(writeok) then")
     m("the write flag is ignored", "apifilesok", "if writeok # 1 then", "if 0 then")
     m("the change set is tested BEFORE the table (a number outside the table is answered by the wrong test)", "apifilesok",
