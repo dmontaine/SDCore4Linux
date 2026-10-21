@@ -39,6 +39,9 @@ ALLOWED = {
     ("login", "10172"): "update.accounts all: Core says log in as sdsys, Solo says the installer runs it",
     ("backupa", "13006"): "the syntax line: Solo has one account, so no names",
     ("restorea", "13016"): "the syntax line: Solo has one account, so no names",
+    # 20 Oct 26, PAL-32: Solo's OS switch (owner's permission) has no accounts, so the way to give OS access is its own verb
+    ("qproc", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32)",
+    ("setptr", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32)",
 }
 passed = failed = 0
 
