@@ -17,6 +17,8 @@
 # 18 Oct 26 dm  Cold-start rows: each is the first libsodium call of a session of its own.  The rows of one session share a libsodium
 #               that an early SDSALT() started, so SDKEY() as a process's first call (sodium_malloc() before sodium_init(): an assertion
 #               that kills the process) passed unseen.
+# 20 Oct 26 dm  SD_SODIUM_LIB: the reference key's libsodium can be named by its full path (asked for by the Windows port, mail T2315);
+#               a library that is found but cannot be loaded is the same "no reference" stop as one not found.
 # END-HISTORY
 #
 # THE INSTRUMENT is the value a BASIC program printed between brackets (as sandbox-func-b4.py).  A row that compares two
@@ -52,10 +54,15 @@ OPSLIMIT, MEMLIMIT, ALG_ARGON2ID13 = 2, 67108864, 2
 
 
 def reference_key():
-    path = ctypes.util.find_library("sodium")
+    # SD_SODIUM_LIB names the library by its full path where ctypes cannot find it by itself (the Windows port's MSYS2 build calls it
+    # cygsodium-26.dll); unset, the lookup is what it always was.
+    path = os.environ.get("SD_SODIUM_LIB") or ctypes.util.find_library("sodium")
     if not path:
         return None
-    lib = ctypes.CDLL(path)
+    try:
+        lib = ctypes.CDLL(path)
+    except OSError:
+        return None
     if lib.sodium_init() < 0:
         return None
     out = ctypes.create_string_buffer(32)
@@ -919,7 +926,8 @@ def main():
     say("sandbox-crypt: sandbox %s (SDBOX_KEYSET %s)" % (box, os.environ.get("SDBOX_KEYSET", "0")))
     ref = reference_key()
     if ref is None:
-        bail("libsodium could not be loaded through ctypes: the fixed-vector row has no reference")
+        bail("libsodium could not be loaded through ctypes (set SD_SODIUM_LIB to its full path if it is not found by name): "
+             "the fixed-vector row has no reference")
     say("sandbox-crypt: reference key for the fixed vector (libsodium via ctypes): %s" % ref)
     if "--build" in sys.argv:
         if os.path.exists(box) and os.listdir(box):
