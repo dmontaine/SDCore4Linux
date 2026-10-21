@@ -112,7 +112,8 @@ gplsrc/op_json.c             : coll jsonx
 gplsrc/op_xml.c              : xmlx jsonx
 gplsrc/op_str5.c             : @functions csvb
 gplsrc/op_array.c            : coll list-q2 @core
-gplsrc/op_skt.c              : opensock gates qmclient oq2
+# 20 Oct 26 (S.73 item 2, the silent server): READ.SOCKET's TLS read and the handshake bound are timed by netfile (section timeout) and net (set.netlogin).
+gplsrc/op_skt.c              : opensock gates qmclient oq2 netfile net
 gplsrc/op_xfun.c             : @functions getdev ospath masters csvb jsonx xmlx
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
@@ -160,7 +161,7 @@ gplsrc/sd.h                  : sysexc try editgates @core netfile shared masters
 gplsrc/k_funcs.c             : @core cll
 gplsrc/options.h             : option-a4 option-q17 mode-q16 conf-b1
 gplsrc/clopts.c              : conf-b1 sys-q18
-gplsrc/sd_tls*.c             : qmclient apispin
+gplsrc/sd_tls*.c             : qmclient apispin netfile net
 gplsrc/sd_scram.c            : qmclient
 gplsrc/scram_client.h        : qmclient
 gplsrc/sdclilib.c            : qmclient

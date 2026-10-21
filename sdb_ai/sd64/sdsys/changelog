@@ -174,6 +174,29 @@ Next release - in progress
                         LOCKING, and it adds no message. A login in sdfileswrite on a server whose definition here says read still cannot
                         ask RECORDLOCKED(): the definition is the administrator's choice on this machine, so change it to write to have it.
 
+20 Oct 26  A SERVER ON ANOTHER SD MACHINE THAT GOES SILENT IS NOW GIVEN UP ON AT NETREPLY (AND NETWAIT FOR THE TLS HANDSHAKE), IN EVERY CASE WE KNOW OF.
+
+             What        READ.SOCKET on a TLS socket (what SDNet uses to talk to another SD server) waited for the time it was given only while
+                        nothing had arrived. After the handshake a TLS 1.3 server sends its session tickets, and a server or a link that stops in
+                        the middle of a record leaves half of one; either made the socket readable, and the read behind it then waited with no limit
+                        of its own. Measured on a private SD with NETREPLY=3: a server that completed the handshake and never sent its acknowledgement
+                        byte was waited for 5.0 s (it was the test server's own close), one that sent half a record and then nothing 12 s. The read now
+                        never blocks: it waits on the connection for the time that is LEFT, so the tickets and the half record cost what they used
+                        and no more. The same server is given up on in 3.0 s now, the half records in 3.0 and 3.1 s, and a server that answers
+                        1.5 s late inside a limit of 3 is still read. Second, the TLS handshake of a connection was bound by 15 seconds fixed, whatever
+                        NETWAIT said (the Administrator pages said NETWAIT bounds "the connection"): a server that accepts the connection and never
+                        answers the hello was waited for 15 s with NETWAIT=2, and is given up on in 2.0 s now. NETWAIT bounds the TCP connect and then
+                        the handshake, each. Third, a reply that stopped in the middle of its BODY (the header read, part of the record not) was
+                        reported as "a reply that cannot be used (answer -1)", message 11504, and the connection was kept although its stream was out
+                        of step; it is the same lost connection as a reply that never started now: message 11497 for a read, 11509 for a change, and
+                        the connection is dropped.
+             Why it      A pinned server that hangs held the session that was waiting on it for as long as it stayed that way, or until its own idle
+             matters    limit; the owner of that session could not stop it with NETREPLY, which is what the setting is for.
+             Does not    It does not make a slow server a failed one: a server that answers inside NETREPLY is read as before. A change that got no
+                        answer is still never sent again (11509). The limit is for each read, not for a whole reply: a server that trickles one byte at
+                        a time and never stops is still waited for one read at a time. It does not change the API client library (libsdcli.so), whose
+                        waits are its callers' own.
+
 20 Oct 26  THE API'S "OPEN AN SDNET FILE" REQUEST NO LONGER FOLLOWS A VOC POINTER OUT OF THE ACCOUNT UNLESS THE ACCOUNT HAS OS-ON.
 
              What        API request 29 opens a file named in an account's VOC for a client that is not a person at a terminal. It is

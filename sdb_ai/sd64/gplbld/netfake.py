@@ -16,6 +16,12 @@ No sd, no sudo.  The self-test needs the openssl command line (it makes a throw-
               whether each failed exactly the rows listed with it (MUTANTS, at the end of the file): 34 out of FILES_CHANGE (11 rows), the audit line not kept (7), the audit write word always off
               (1), request 34 answered with 11480 instead of 11521 (4), request 34 refused to the group (6), request 34 refused to an sdapi login too (6), 15 in FILES_CHANGE (4), request 34
               refused in words but still dispatched (4); 8 of 8 as listed on 20 Oct 26.
+
+20 Oct 26 dm  S.73 item 2 (the silent server): three more kinds of silence, each with self-test rows.  cfg short_reply {request type: N} sends only the first N bytes of the reply PACKET and holds
+              the connection (a reply cut in the middle of its header or its body).  SilentListener accepts TCP connections and never answers the TLS hello (silent AT the handshake).
+              PartialRecordServer is a TLS 1.3 server built on ssl's memory BIOs, so that it can send HALF OF ONE TLS RECORD and fall silent: cut='ack' (the Ack), cut='first' (the reply to client-first),
+              cut=None (the control).  A client that reads with a blocking SSL_read waits for the rest of the record; sandbox-netfile.py section timeout measures what SD does (3.0 s now, 12 s before).
+
 20 Oct 26 dm  S.72 (QMNet parity, tier B): requests 32 FILELOCK and 33 FILEUNLOCK are served, as gpl.bp/apisrvr's vb.filelock and vb.fileunlock do with the kernel's op_filelock() and
               op_flunlock() (gplsrc/op_lock.c): FILELOCK is fno and wait (two signed 16 bit integers); wait 0 answers SV$LOCKED with STATUS() the holder's user number (another user's file
               lock, else the owner of a record lock in the file held by ANOTHER user), a wait that is not 0 waits cfg lock_wait seconds and then gives up with the ON ERROR reply the
@@ -1250,6 +1256,10 @@ class FakeServer(threading.Thread):
                                   # connection is held open for bad_length_hold seconds or until the client closes it.  A client with no ceiling waits for the body (its own timeout); one with a
                                   # ceiling, or that tests for a length below 10, drops the connection at once, which is what the rows time.
         "bad_length_hold": 45.0,
+        # ---- 20 Oct 26 (the silent server, item 2 of S.73) ----
+        "short_reply": None,      # {request type: N}: the request is executed, and only the first N bytes of the reply PACKET (the 10 byte header and then the body) are sent, N below the packet's length,
+                                  # and then silence: the connection is held for short_reply_hold seconds or until the client closes it.  A reply cut in the middle, as a server that dies mid-reply leaves it.
+        "short_reply_hold": 45.0,
     }
 
     def __init__(self, cert, key, life=1800):
@@ -1627,6 +1637,15 @@ class FakeServer(threading.Thread):
                     tls.sendall(struct.pack("<IHI", bl & 0xFFFFFFFF, res[0], res[1] & 0xFFFFFFFF))        # the header only: the length it announces is not the length that follows
                     self.hold_open(tls, cfg["bad_length_hold"])
                     break
+                sr = (cfg["short_reply"] or {}).get(ptype)
+                if sr is not None:
+                    data_ = res[2].encode("latin-1") if isinstance(res[2], str) else res[2]
+                    packet = struct.pack("<IHI", 10 + len(data_), res[0], res[1] & 0xFFFFFFFF) + data_
+                    if sr < len(packet):                  # a cut that is not a cut (N at or above the length) would be an ordinary reply: the row that asks for it says so
+                        ses.injected.append((ptype, "short_reply"))
+                        tls.sendall(packet[:sr])
+                        self.hold_open(tls, cfg["short_reply_hold"])
+                        break
                 self.reply(tls, res[2], res[0], res[1])
                 if ses.done or cfg["close_after_requests"] == ses.nreq:
                     break
@@ -2891,6 +2910,33 @@ def selftest_writes(srv, row):
     c.close()
     wait_closed(ses, 4.0)
 
+    # ---- W11b  short_reply (20 Oct 26, S.73 item 2): a reply CUT in the middle ----
+    reset()
+    c = connect(short_reply={R_READ: 14}, short_reply_hold=6.0, timeout=3)
+    ses = srv.sessions[-1]
+    f1, = opened(c, "wf")
+    st.put("wf", "sr1", "abcdefgh")
+    c.send(R_READ, _S(f1) + b"sr1")
+    got = c._rd(14)
+    length, err, status = struct.unpack("<IHI", got[:10])
+    c.tls.settimeout(0.5)
+    try:
+        more = c.tls.recv(10)
+    except (socket.timeout, TimeoutError):
+        more = None
+    row("short_reply={6: 14}: the reply to a READ of an 8 byte record announces %d bytes (10 header + 8) but only the first 14 reach the client (the header and 4 bytes of the record), and then NOTHING "
+        "- the connection stays open" % length,
+        length == 18 and (err, status) == (0, 0) and got[10:] == b"abcd" and more is None and ses.injected == [(R_READ, "short_reply")] and not ses.closed, repr((length, err, status, got[10:], more, ses.injected)))
+    c.close()
+    row("...and the server lets go as soon as the client closes", wait_closed(ses, 4.0), "")
+    reset()
+    c = connect(short_reply={R_READ: 14}, timeout=3)
+    f1, = opened(c, "wf")
+    st.put("wf", "sr2", "xy")
+    r = c.req(R_READ, _S(f1) + b"sr2")
+    row("CONTROL: a record so short that the reply is shorter than the 14 bytes (10 + 2) is sent whole - the cut applies only to a reply longer than N", r == (0, 0, b"xy"), repr(r))
+    c.close()
+
     # ---- W12  the write group (18 Oct 26, S.65): a files-only login WITHOUT sdfileswrite is refused every change and lock ---------------------------------
     reset()
     c = connect(files_only=True)
@@ -3353,6 +3399,191 @@ class HangingListener:
             pass
 
 
+class SilentListener(threading.Thread):
+    """A TCP listener that ACCEPTS every connection and then does nothing at all: it never writes, so a TLS client's hello is received by the kernel and never answered.  The server that is
+    silent AT THE HANDSHAKE (20 Oct 26, S.73 item 2).  .accepted counts the connections taken, count_closed() the ones the client has given up; close() ends it.
+    HangingListener is the other kind of silence: there the connect itself never completes."""
+
+    def __init__(self):
+        threading.Thread.__init__(self, daemon=True)
+        self.sock = socket.socket()
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(16)
+        self.sock.settimeout(0.1)
+        self.port = self.sock.getsockname()[1]
+        self.accepted = 0
+        self.held = []
+        self.stop = threading.Event()
+        self.start()
+
+    def run(self):
+        while not self.stop.is_set():
+            try:
+                c, _a = self.sock.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            self.accepted += 1
+            c.setblocking(False)
+            self.held.append(c)
+
+    def count_closed(self):
+        """How many of the accepted connections the client has closed (the peer's FIN reads as end of file; what the client sent is read and thrown away, which is all the listener ever does with it)."""
+        n = 0
+        for h in self.held:
+            try:
+                while True:
+                    if h.recv(65536) == b"":
+                        n += 1
+                        break
+            except BlockingIOError:
+                continue
+            except OSError:
+                n += 1
+        return n
+
+    def close(self):
+        self.stop.set()
+        for h in self.held:
+            try:
+                h.close()
+            except OSError:
+                pass
+        self.held = []
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+
+class PartialRecordServer(threading.Thread):
+    """A TLS 1.3 server that sends HALF OF ONE TLS RECORD and then falls silent, so that the client's socket becomes readable and what it reads is not a whole record: the server that dies, or
+    whose link stalls, in the middle of a record (20 Oct 26, S.73 item 2).  It is made with ssl's memory BIOs, so it holds every byte it sends and can cut one.  cut="ack": after the handshake
+    (the session tickets are sent whole) the one-byte Ack is sent as HALF a record.  cut="first": the Ack is whole, the client's first SCRAM packet is read, and the reply to it is sent as half a
+    record.  cut=None: nothing is cut, the Ack is sent and the first packet answered with an error text (the control: the same server, nothing wrong).  hold is how long the connection is kept
+    after the cut, or until the client closes it.  What it did is in .log: dicts with the connection's cut, the bytes of the cut record sent and its whole length, and the seconds from the cut to the
+    client's close (None while it is open)."""
+
+    def __init__(self, cert, key, cut="ack", hold=12.0):
+        threading.Thread.__init__(self, daemon=True)
+        self.ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        self.ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+        self.ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+        self.ctx.load_cert_chain(cert, key)
+        self.cut, self.hold = cut, hold
+        self.log = []
+        self.stop = threading.Event()
+        self.sock = socket.socket()
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(8)
+        self.sock.settimeout(0.1)
+        self.port = self.sock.getsockname()[1]
+        self.start()
+
+    def run(self):
+        while not self.stop.is_set():
+            try:
+                c, _a = self.sock.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            threading.Thread(target=self.one, args=(c,), daemon=True).start()
+
+    @staticmethod
+    def _flush(conn, out):
+        b = out.read()
+        if b:
+            conn.sendall(b)
+
+    def one(self, conn):
+        entry = {"cut": self.cut, "sent": None, "whole": None, "closed_after": None, "handshake": False}
+        self.log.append(entry)
+        try:
+            conn.settimeout(10)
+            inc, out = ssl.MemoryBIO(), ssl.MemoryBIO()
+            obj = self.ctx.wrap_bio(inc, out, server_side=True)
+            while True:
+                try:
+                    obj.do_handshake()
+                    break
+                except ssl.SSLWantReadError:
+                    pass
+                self._flush(conn, out)
+                data = conn.recv(65536)
+                if not data:
+                    return
+                inc.write(data)
+            self._flush(conn, out)              # whatever the handshake left to send, the session tickets included, goes whole
+            entry["handshake"] = True
+            if self.cut == "ack":
+                obj.write(ACK)
+                self.send_cut(conn, out, entry)
+                return
+            obj.write(ACK)
+            self._flush(conn, out)
+            need, got = 6, b""
+            while True:                         # the first request packet: 4 bytes of length (LE, the packet's own 6 header bytes included), 2 bytes of type
+                try:
+                    got += obj.read(65536)
+                except ssl.SSLWantReadError:
+                    data = conn.recv(65536)
+                    if not data:
+                        return
+                    inc.write(data)
+                    continue
+                if len(got) >= 6:
+                    need = struct.unpack("<I", got[:4])[0]
+                if len(got) >= need:
+                    break
+            body = b"no thanks"
+            obj.write(struct.pack("<IHI", 10 + len(body), SV_ON_ERROR, 0) + body)
+            if self.cut == "first":
+                self.send_cut(conn, out, entry)
+            else:
+                self._flush(conn, out)
+                self.wait_close(conn, entry, 3.0)
+        except (OSError, ssl.SSLError):
+            pass
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    def send_cut(self, conn, out, entry):
+        rec = out.read()
+        half = max(1, len(rec) // 2)
+        entry["sent"], entry["whole"] = half, len(rec)
+        conn.sendall(rec[:half])
+        self.wait_close(conn, entry, self.hold)
+
+    @staticmethod
+    def wait_close(conn, entry, seconds):
+        t0 = time.time()
+        conn.settimeout(0.2)
+        while time.time() - t0 < seconds:
+            try:
+                if conn.recv(4096) == b"":
+                    entry["closed_after"] = time.time() - t0
+                    return
+            except socket.timeout:
+                continue
+            except OSError:
+                entry["closed_after"] = time.time() - t0
+                return
+
+    def close(self):
+        self.stop.set()
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+
 SD_CONF_MARK = "# --- sd.conf lines of the SDNet timeout rows below ---"
 
 
@@ -3395,6 +3626,82 @@ def selftest_hanging(row):
         hl.close()
         empty.close()
         free.close()
+
+
+def _tls_client(port, timeout):
+    """A TLS 1.3 client (no certificate check) with a socket timeout, connected to 127.0.0.1:PORT; the handshake is done by the wrap."""
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+    ctx.maximum_version = ssl.TLSVersion.TLSv1_3
+    raw = socket.create_connection(("127.0.0.1", port), timeout=timeout)
+    try:
+        return ctx.wrap_socket(raw)
+    except Exception:
+        raw.close()
+        raise
+
+
+def selftest_silent(row, cert, key):
+    """The three kinds of silence of 20 Oct 26 (S.73 item 2) that are not a FakeServer setting: SilentListener (accepts and says nothing: silent at the handshake), and PartialRecordServer
+    (half of one TLS record, in place of the Ack and in place of the reply to client-first), each with its control."""
+    sl = SilentListener()
+    try:
+        t0 = time.time()
+        try:
+            c = _tls_client(sl.port, 1.2)
+            c.close()
+            shook = True
+        except (socket.timeout, TimeoutError, ssl.SSLError, OSError):
+            shook = False
+        el = time.time() - t0
+        time.sleep(0.2)
+        row("SilentListener: a TCP connect completes (accepted %d) but the TLS handshake gets no answer - it times out after the client's own 1.2 s (%.1f s), it does not complete and it is not refused"
+            % (sl.accepted, el), (not shook) and sl.accepted == 1 and 1.0 <= el < 3.0, repr((shook, sl.accepted, el)))
+        closed = sl.count_closed()
+        row("...and the client's close is seen (the connection was held open until then)", closed == 1, repr(closed))
+    finally:
+        sl.close()
+    for cut, want_ack in (("ack", False), ("first", True), (None, True)):
+        ps = PartialRecordServer(cert, key, cut=cut, hold=6.0)
+        try:
+            c = _tls_client(ps.port, 1.2)
+            c.settimeout(1.0)
+            try:
+                b1 = c.recv(1)
+            except (socket.timeout, TimeoutError):
+                b1 = None
+            row("PartialRecordServer cut=%r: after the handshake the first byte the client gets is %s" % (cut, "the Ack (char 6)" if want_ack else "NOTHING (the Ack is half of a record, and a client cannot decrypt half)"),
+                b1 == (ACK if want_ack else None), repr(b1))
+            got = None
+            if want_ack:
+                bare = b"p=tls-exporter,,n=u,r=abc"
+                c.sendall(struct.pack("<IH", len(bare) + 6, PKT_FIRST) + bare)
+                try:
+                    got = c.recv(10)
+                except (socket.timeout, TimeoutError):
+                    got = None
+                if cut is None:
+                    ln = struct.unpack("<I", got[:4])[0] if got else 0
+                    rest = c.recv(ln - len(got)) if got and ln > len(got) else b""
+                    row("...cut=None (the control): the reply to client-first arrives whole - the header and the text 'no thanks' (error 1)", got is not None and ln == 19 and rest == b"no thanks" and got[4:6] == b"\x01\x00", repr((got, rest)))
+                else:
+                    row("...cut='first': the reply to client-first does NOT arrive (half of its record was sent)", got is None, repr(got))
+            time.sleep(0.2)
+            e = ps.log[-1]
+            if cut is not None:
+                row("...the server's log: handshake done, %d of %d bytes of the cut record sent (a part, not none and not all)" % (e["sent"] or 0, e["whole"] or 0),
+                    e["handshake"] and e["sent"] is not None and 0 < e["sent"] < e["whole"], repr(e))
+                c.close()
+                time.sleep(0.4)
+                e = ps.log[-1]
+                row("...and the client's close is seen at once, not after the server's hold of 6 s (it was %s s)" % ("%.1f" % e["closed_after"] if e["closed_after"] is not None else "never"),
+                    e["closed_after"] is not None and e["closed_after"] < 3.0, repr(e))
+            else:
+                c.close()
+        finally:
+            ps.close()
 
 
 def selftest():
@@ -3469,6 +3776,7 @@ def selftest():
         selftest_files(srv, c, row)
         selftest_writes(srv, row)
         selftest_hanging(row)
+        selftest_silent(row, c, k)
     finally:
         if srv is not None:
             srv.shutdown()

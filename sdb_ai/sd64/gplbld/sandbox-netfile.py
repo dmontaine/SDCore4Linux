@@ -26,6 +26,13 @@
 #               THE ROWS WERE RUN RED ON THE UNCHANGED SOURCE (a built copy of f64e7ff with this file and the S.72b netfake.py over it), then green on the changed tree; the counts are in PROJECT_STATUS.
 #               Rows N2, N6, N7, N11 and N13 need the CLASS to be quiet-aware on request 34: sdclient's recordlocked() goes through text.request(), which aborts on an ON ERROR reply whatever quiet says, so
 #               the handler's "Server nfw answered recordlocked with an error: <the text of 11521>" cannot come until recordlocked() returns for a quiet object and leaves LastError / LastText, as filelock() does.
+# 20 Oct 26 dm  S.73 item 2, THE SILENT SERVER (the owner delegated it: "silent-server your choice").  The row labelled KNOWN LIMIT of the timeout section is FLIPPED: a server that completes the
+#               handshake and never sends the Ack is given up on at NETREPLY=3 (5.0 s on the tree before, the fake's own close).  New rows, each printing the real seconds: a listener that accepts and
+#               never answers the TLS hello (netfake.SilentListener) is given up on at NETWAIT=2 (15.0 s before: the handshake had 15 seconds fixed in op_skt.c); half of a TLS record in place of the Ack
+#               and in place of the reply to client-first (netfake.PartialRecordServer; 12.0 and 12.1 s before, the server's own hold); a server that answers 1.5 s late inside NETREPLY=3 is not given
+#               up on; a reply cut in the middle (netfake short_reply) is 11497 for a READ and 11509 for a WRITE within NETREPLY (the READ was "answer -1", message 11504, with the connection kept:
+#               gpl.bp/sdclient read.packet took the header's error and status before the body).  RED ON THE UNCHANGED TREE (a git archive of the commit before, with these two test files over it): 6 rows;
+#               green 42 of 42 on the changed tree (--sections=timeout).  Four runtime mutants on scratch copies, each killed by the rows written down before it ran (see PROJECT_STATUS S.73).
 # 20 Oct 26 dm  S.72 (QMNet parity, tiers A and B): FILELOCK, FILEUNLOCK, RECORDLOCKED() and GETLOCKS() of a remote file.  Class rows (class_filelocks: requests 32 and 33 with their bytes, LOCKED with the
 #               holder, FILEUNLOCK's 0 / 3011 / 3012, CLOSE of the locking number against another number, a session that ends, a login without the write group); handler rows (hw_filelocks: operations
 #               18 and 19 driven by number through the RAW line so that the driver compiles on a tree that does not define them, rc<8>, the audit line once for the handle, the read-mode handle, the
@@ -597,6 +604,7 @@ def setup():
         return False
     A, B = netfake.FakeServer(c1, k1), netfake.FakeServer(c2, k2)
     S["A"], S["B"] = A, B
+    S["certs"] = {id(A): (c1, k1), id(B): (c2, k2)}     # 20 Oct 26: netfake.PartialRecordServer is a TLS server of its own and needs a certificate and key
     S["pin"] = {id(A): pin_a, id(B): pin_b}
     S["pins"] = (pin_a, pin_b)
     for srv in (A, B):
@@ -2230,30 +2238,107 @@ def timeout_section():
         row("NETREPLY=3 BOUNDS THE LOGIN EXCHANGE of connect.keys (no TMO first): a server that sends the Ack, reads client-first and then says nothing - ok=0 'No reply ... during the login', "
             "the fake saw packet 47 only, about 3 seconds more than the control - %.1f s (2.5 to 4.5 expected; the fake holds the connection for 12, and the 30 it used to be fixed at would run to that)" % took,
             sane(r) and kline(0, no_reply) in r.fx and r.d["types"] == [47] and 2.5 <= took <= 4.5, why(r) + " took %.1f s over the control" % took)
-        # AND WHAT IS NOT (found by this row's first version, 19 Oct 26): a server that completes the TLS 1.3 handshake and never sends the Ack is NOT given up on at NETREPLY.  After the
-        # handshake the server sends the session tickets; they make the socket readable, READ.SOCKET's wait (op_skt.c, socket_wait) ends, and the SSL_read behind it takes the tickets and
-        # then blocks without a timeout until the server sends something or closes.  THE FAKE CLOSES A SILENT CONNECTION AT 5 SECONDS (netfake.FakeServer.handle: tls.settimeout(5) while it
-        # waits for client-first), so the wait ends at 5.0 s here, not at 3.  With the tickets turned off in a scratch copy of the fake (ssl num_tickets = 0) the same row took 3.0 s: that is
-        # the evidence for the cause.  The row records the behaviour as it is; it fails the day READ.SOCKET is made to honour the timeout, and the changelog, Administrator pages 11 and 12 and
-        # the owner's question about it change with it.
+        # THE SILENT SERVER AFTER THE HANDSHAKE (found by this row's first version, 19 Oct 26, and kept as a KNOWN LIMIT until 20 Oct 26): a server that completes the TLS 1.3 handshake and
+        # never sends the Ack.  After the handshake the server sends the session tickets; they make the socket readable, READ.SOCKET's wait (op_skt.c, socket_wait) ends, and the SSL_read behind
+        # it took the tickets and then blocked without a timeout until the server sent something or closed.  THE FAKE CLOSES A SILENT CONNECTION AT 5 SECONDS (netfake.FakeServer.handle:
+        # tls.settimeout(5) while it waits for client-first), so the wait ended at 5.0 s here, not at 3 (measured 19 Oct 26: 5.0 s; with the tickets turned off in a scratch copy of the fake, 3.0).
+        # S.73 item 2 (the owner delegated the choice, 20 Oct 26: "silent-server your choice"): READ.SOCKET reads a TLS socket with a non-blocking SSL_read and waits on the descriptor for the time
+        # that is LEFT, so the tickets and a half record cost the wait they have used and no more.  The row is the old known-limit row, flipped: it expects NETREPLY.
         no_ack = "No acknowledgement from 127.0.0.1:%d at the start of the session" % A_.port
         r = go(keys(alice_, A_), A_, cfg={"ack": False})
         took = r.el - base.el
-        row("KNOWN LIMIT (a question to the owner, not a pass of the claim): a server that completes the handshake and never sends the Ack is NOT given up on at NETREPLY=3 - it ran to the "
-            "fake's own close at 5 s: ok=0 'No acknowledgement', NOTHING sent, %.1f s more than the control (4.3 to 7 expected today; 3.0 when READ.SOCKET honours its timeout)" % took,
-            sane(r) and kline(0, no_ack) in r.fx and r.d["types"] == [] and 4.3 <= took <= 7, why(r) + " took %.1f s over the control" % took)
+        say("      [timing] silent AFTER the handshake (the Ack never comes), NETREPLY=3: the session took %.2f s, the control (a closed port) %.2f s, so the wait was %.2f s" % (r.el, base.el, took))
+        row("A SERVER THAT COMPLETES THE HANDSHAKE AND NEVER SENDS THE ACK IS GIVEN UP ON AT NETREPLY=3 (it ran to the fake's own close at 5 s until 20 Oct 26): ok=0 'No acknowledgement', NOTHING sent, "
+            "%.1f s more than the control (2.5 to 4.5 expected; the fake would have closed at 5.0)" % took,
+            sane(r) and kline(0, no_ack) in r.fx and r.d["types"] == [] and 2.5 <= took <= 4.5, why(r) + " took %.1f s over the control" % took)
         r = go(keys(alice_, A_) + ["DISC"], A_)
         row("CONTROL: the same fake, nothing wrong, logs in while those values are in force", sane(r) and kline(1, "") in r.fx, why(r))
+        # THE SILENCE AT THE HANDSHAKE (S.73 item 2): a listener that accepts the connection and never answers the TLS hello.  NETWAIT is "the connection" (set.server connect, set.netlogin and the
+        # first use of a defined server all say so) but the handshake had a bound of its own, 15 seconds fixed in op_skt.c (SD_TLS_HANDSHAKE_MS + 5000), so NETWAIT=2 did not bound it.  It does now.
+        silent = netfake.SilentListener()
+        try:
+            r = go(keys(alice_, A_, port=str(silent.port)), A_)
+            took = r.el - base.el
+            time.sleep(0.5)
+            m = re.fullmatch(r"FX KEYS ok=0 err=\[The TLS handshake with 127\.0\.0\.1:%d did not complete \(status (\d+)\)\]" % silent.port, next(iter(fx_lines(r, "KEYS")), ""))
+            say("      [timing] silent AT the handshake (TCP accepted, the hello never answered), NETWAIT=2: the session took %.2f s, the control %.2f s, so the wait was %.2f s (the listener accepted %d, saw the client close %d)"
+                % (r.el, base.el, took, silent.accepted, silent.count_closed()))
+            row("NETWAIT=2 BOUNDS THE TLS HANDSHAKE: a server that accepts the connection and never answers the hello - ok=0 'The TLS handshake with 127.0.0.1:%d did not complete', %.1f s more than the control "
+                "(1.5 to 3.9 expected; the 15 s that were fixed would be 15)" % (silent.port, took),
+                sane(r) and m is not None and silent.accepted == 1 and 1.5 <= took <= 3.9, why(r) + " took %.1f s over the control; accepted %d" % (took, silent.accepted))
+            row("...and the client closed the connection itself (the listener saw the close)", silent.count_closed() == 1, "closed %d" % silent.count_closed())
+        finally:
+            silent.close()
+        # HALF A TLS RECORD (S.73 item 2): the socket is readable and what is in it is not a record, so a blocking SSL_read waits for the rest: the same hang as the tickets, from a server that
+        # dies or stalls in the middle of a record.  netfake.PartialRecordServer sends the Ack as half a record (cut='ack'), or the reply to client-first as half a record (cut='first').
+        # The evidence of the time is the server's own log, from the cut to the client's close, as well as the session's.
+        c_, k_ = S["certs"][id(A_)]
+        for cut, what, wants in (("ack", "the Ack as half of a TLS record", "No acknowledgement from 127.0.0.1:%d at the start of the session"),
+                                 ("first", "the reply to client-first as half of a TLS record (MID-REPLY)", "No reply from 127.0.0.1:%d during the login (the connection failed or timed out)")):
+            ps = netfake.PartialRecordServer(c_, k_, cut=cut, hold=12.0)
+            try:
+                r = go(keys(alice_, A_, port=str(ps.port)), A_)
+                took = r.el - base.el
+                time.sleep(0.6)
+                e = ps.log[-1] if ps.log else {}
+                say("      [timing] silent after %s, NETREPLY=3: the session took %.2f s, the control %.2f s, so the wait was %.2f s; the server sent %s of %s bytes of the record and the client closed %s s after"
+                    % (what, r.el, base.el, took, e.get("sent"), e.get("whole"), ("%.2f" % e["closed_after"]) if e.get("closed_after") is not None else "never"))
+                row("NETREPLY=3 BOUNDS A READ THAT HOLDS HALF A TLS RECORD - %s: ok=0 '%s', %.1f s more than the control and the client closed %s s after the cut (2.5 to 4.5 expected; the server would have held it 12 s)"
+                    % (what, wants.split(" from ")[0], took, ("%.1f" % e["closed_after"]) if e.get("closed_after") is not None else "never"),
+                    sane(r) and kline(0, wants % ps.port) in r.fx and e.get("handshake") is True and e.get("sent") is not None and 0 < e["sent"] < e["whole"]
+                    and 2.5 <= took <= 4.5 and e.get("closed_after") is not None and 2.0 <= e["closed_after"] <= 4.5,
+                    why(r) + " took %.1f s over the control; server log %r" % (took, e))
+            finally:
+                ps.close()
+        # THE LEGITIMATE SLOW SERVER (S.73 item 2): a server that answers inside NETREPLY must not be given up on.  The fake holds the reply to a READ back 1.5 s (delay {6: 1.5}; the fake's delay
+        # is for the requests after the login) with NETREPLY=3 in force: the READ returns its record, and the session takes about that long more than the same session with no delay.
+        ops = keys(alice_, A_) + ["OPEN|customers|1", "READ|1|c1", "DISC"]
+        r0 = go(ops, A_)
+        r = go(ops, A_, cfg={"delay": {6: 1.5}})
+        extra = r.el - r0.el
+        say("      [timing] a SLOW server (1.5 s before the reply to a READ), NETREPLY=3: the session took %.2f s, the same session with no delay %.2f s, so the extra was %.2f s" % (r.el, r0.el, extra))
+        row("A SLOW SERVER INSIDE NETREPLY IS NOT GIVEN UP ON: the reply to a READ comes after 1.5 s, NETREPLY=3 - the record is read (err 0), %.1f s more than the same session with no delay (1.2 to 2.6 expected)" % extra,
+            sane(r) and sane(r0) and rl("READ", "c1", 0, RECS["c1"]) in r.fx and 1.2 <= extra <= 2.6, why(r) + " extra %.1f s" % extra)
         s = Script()
         s.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
         s.add("READ", 1, "c1", label="THE REQUEST TIMEOUT FROM THE CONFIGURATION (NETREPLY=3 in sd.conf): a READ the server never answers is 11497 'lost during read'", ok=k_err(11497, "nfa", "read"))
         s.add("STATE", label="...and the connection is dropped, as after the 30 seconds", ok=k_state(0, 0, 1, 2, 1, 1))
         r = h_go("zznhon", s, (A,), cfg={"no_reply": (6,), "idle": 60.0})
+        # MID-REPLY, THE HANDLER (S.73 item 2): the server executes the request and sends only the first 14 bytes of the reply packet (the 10 byte header and 4 bytes of the record), then nothing.
+        # A READ is 11497 'lost during read'; a WRITE whose reply is cut in its header (6 of 10 bytes) is 11509, the outcome unknown, and is never sent a second time.  Both within NETREPLY=3.
+        s2 = Script()
+        s2.add("OPEN", "nfa", HFILE, ok=k_ok("1", 1))
+        s2.add("READ", 1, "c1", label="MID-REPLY, NETREPLY=3: a READ whose reply stops after 14 of its bytes is 11497 'lost during read'", ok=k_err(11497, "nfa", "read"))
+        s2.add("STATE", label="...and the connection is dropped: 0 servers, 1 file lost", ok=k_state(0, 0, 1, 2, 1, 1))
+        r2 = h_go("zznhon", s2, (A,), cfg={"short_reply": {6: 14}, "short_reply_hold": 45.0, "idle": 60.0})
+        r3 = s3 = None
+        if hw_prep():
+            s3 = Script()
+            s3.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+            s3.add("WRITE", 1, "w1", "changed", label="MID-REPLY, NETREPLY=3: a WRITE whose reply stops after 6 of its 10 header bytes is 11509 (the outcome is UNKNOWN: never sent a second time)",
+                   ok=k_err(11509, "nfw", "write"), audit="write server=nfw file=hwork")
+            s3.add("CLOSEALL", ok=k_ok("", 0))
+            r3 = hw_go("zznhon", s3, (A,), cfg={"short_reply": {16: 6}, "short_reply_hold": 45.0, "idle": 60.0})
     finally:
         daemon()
     row("the NETREPLY=3 program ran to the end and no connection is left", h_sane(r), h_why(r))
     judge(r, s)
     row("...it waited about 3 seconds and not 30: the whole session took %.0f s (2 to 20 expected)" % r.el, 2 <= r.el <= 20, "%.1f s" % r.el)
+    say("      [timing] a READ whose reply is cut after 14 bytes, NETREPLY=3: the whole session took %.2f s" % r2.el)
+    row("the mid-reply READ program ran to the end and no connection is left", h_sane(r2), h_why(r2))
+    judge(r2, s2)
+    ses2 = r2.d[0]["sessions"] if r2.d else []
+    row("...the fake cut the reply (it saw the READ once, injected short_reply, and the client CLOSED the connection - the fake's hold is 45 s) and the session took %.0f s (2 to 20 expected)" % r2.el,
+        len(ses2) == 1 and ses2[0].requests.count(6) == 1 and ses2[0].injected == [(6, "short_reply")] and ses2[0].closed and 2 <= r2.el <= 20, repr(([x.requests for x in ses2], [x.injected for x in ses2], r2.el)))
+    if r3 is not None:
+        say("      [timing] a WRITE whose reply is cut after 6 bytes, NETREPLY=3: the whole session took %.2f s" % r3.el)
+        row("the mid-reply WRITE program ran to the end and no connection is left", h_sane(r3), h_why(r3))
+        judge(r3, s3)
+        ses3 = r3.d[0]["sessions"] if r3.d else []
+        row("...the audit trail: the open, the write, and 'lost server=nfw op=write'", r3.audits == [OPEN_W_AUD, "write server=nfw file=hwork", "lost server=nfw op=write"], repr(r3.audits))
+        row("...the fake executed the WRITE exactly ONCE (the record holds the new text) and the client closed the connection; the session took %.0f s (2 to 20 expected)" % r3.el,
+            len(ses3) == 1 and ses3[0].requests.count(16) == 1 and ses3[0].injected == [(16, "short_reply")] and ses3[0].closed and r3.stores[0][HW].get("w1") == "changed" and 2 <= r3.el <= 20,
+            repr(([x.requests for x in ses3], [x.injected for x in ses3], r3.el, r3.stores[0][HW].get("w1"))))
 
 
 # ---- H5b. the ceiling on a reply (19 Oct 26, K8c; this section takes about 15 s) -------------------------------------------------------------------

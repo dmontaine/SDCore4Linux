@@ -19,6 +19,9 @@
 * 
 * START-HISTORY:
 * 20 Oct 26 dm S.72b: recordlocked() honours quiet (message.pair, not text.request): an ON ERROR reply aborts the caller only when quiet is not set.  A login without the server's sdfileswrite group is refused request 34 that way (11521).
+* 20 Oct 26 dm S.73 item 2 (the silent server): read.packet takes server.error and ServerStatus from the header only when the BODY has been read as well.  A reply cut in the middle of its body
+*               used to leave them set from the header it had read, so the $netfile handler saw an answer ("answer -1", message 11504) and kept a connection that was out of step; it is the
+*               same loss as a reply that never started now (message 11497, or 11509 for a change), as the K8c checks above already were.
 * 20 Oct 26 dm S.72 (QMNet parity): filelock(fno, wait) (request 32) and fileunlock(fno) (request 33).  The two requests were in the table of codes and in apisrvr and had no method here.
 *               Like clearfile() and recordlock() they abort the caller on a server ON ERROR reply unless quiet is set.  The $netfile handler is the one user of them.
 * 19 Oct 26 dm K8d: connect.keys waits NETWAIT seconds (5) for the connection and NETREPLY seconds (30) for each read, from the configuration (sd.conf) and no longer from two $defines.
@@ -1534,14 +1537,16 @@ local function read.packet()
    if pkt.bytes < 10 then return @false
    if maxpacket > 0 and pkt.bytes > maxpacket then return @false
 
-   server.error = oconv(pkt.header[5,2], 'ISL')
-   ServerStatus = oconv(pkt.header[7,4], 'ILL')
+*  20 Oct 26 dm (S.73 item 2).  The header's error and status are KEPT APART until the body is in.  They were put into server.error and ServerStatus here, before the body was read, so a
+*   reply that stopped in the middle of its body left them set and the call false: the handler read that as an answer ('answer -1') and kept a connection whose stream was out of step.
+   hdr.error = oconv(pkt.header[5,2], 'ISL')
+   hdr.status = oconv(pkt.header[7,4], 'ILL')
 
    * Read packet data
 
    n = pkt.bytes - 10
    if debugging then
-      display 'Incoming packet: ' : n : ' data bytes. Error ' : server.error :', Status ' : ServerStatus
+      display 'Incoming packet: ' : n : ' data bytes. Error ' : hdr.error :', Status ' : hdr.status
    end
 
    in.pkt = ''
@@ -1556,6 +1561,8 @@ local function read.packet()
       n -= len(s)
    repeat
 
+   server.error = hdr.error
+   ServerStatus = hdr.status
    return @true
 end
 
