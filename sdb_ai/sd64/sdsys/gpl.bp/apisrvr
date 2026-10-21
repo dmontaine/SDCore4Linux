@@ -20,7 +20,7 @@
 *
 * START-HISTORY:
 * 20 Oct 26 dm Request 29 (vb.open.sdnet) asks the OS switch of the account it names for a VOC pointer that leads out of the account: an F-pointer outside the account's directory
-*           is refused (error ELSE, status 3035, audit 'api refused request=29 reason=os gate off ...') unless that account holds os-on (or SDSYS in its own account).  It
+*           is refused (error ELSE, status 3035, the audit line says reason=os gate off) unless that account holds os-on (or SDSYS in its own account).  It
 *           opened any such file for a caller the NET gate admitted.  Proved on a real `sd -Q` by sandbox-req29.py section X.
 * 19 Oct 26 dm S.65 follow-ups (K1, K3, K8a).  (1) The message of an ON ERROR reply is emptied at the top of every request, so an ON ERROR clause that had nothing to say no
 *           longer sends the text of the last refusal (measured: a WRITE with an over-long id answered 'Invalid call name'); the SDNet client now shows an ON ERROR reply's

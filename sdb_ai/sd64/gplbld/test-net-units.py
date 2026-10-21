@@ -2328,7 +2328,8 @@ def checks_s2(srcs, c, ck):
        "ceiling: other users of the class are unchanged); $netfile sets it to NF$MAX.PACKET, 1073741832 (the largest string SD holds, 1073741822, and the ten byte header), right after quiet "
        "and before the timeout, once",
        ordered(rpk, "pkt.bytes = oconv(pkt.header[1,4], 'ILL')", "if pkt.bytes < 10 then return @false", "if maxpacket > 0 and pkt.bytes > maxpacket then return @false",
-               "server.error = oconv(pkt.header[5,2], 'ISL')", "ServerStatus = oconv(pkt.header[7,4], 'ILL')", "n = pkt.bytes - 10", "in.pkt = ''", "loop")
+               "hdr.error = oconv(pkt.header[5,2], 'ISL')", "hdr.status = oconv(pkt.header[7,4], 'ILL')", "n = pkt.bytes - 10", "in.pkt = ''", "loop",
+               "server.error = hdr.error", "ServerStatus = hdr.status")       # 20 Oct 26, S.73 item 2: the header's error and status are kept apart until the BODY is in (test-tlsread-units.py T8)
        and re.search(r"\bmaxpacket\b", pub) is not None and "maxpacket = 0" in co
        and re.search(r"\$define NF\$MAX\.PACKET\s+1073741832\b", hb) is not None
        and ordered(cn, "obj->quiet = @true", "obj->maxpacket = NF$MAX.PACKET", "obj->settimeout(req.ms)") and hb.count("obj->maxpacket") == 1, repr(rpk[:300]))
