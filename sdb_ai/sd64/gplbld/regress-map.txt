@@ -116,7 +116,7 @@ gplsrc/op_oconv.c            : @functions crypt
 gplsrc/op_chnge.c            : @functions
 gplsrc/op_locat.c            : @functions
 gplsrc/op_find.c             : @functions
-gplsrc/op_sort.c             : @functions @lists sortwide
+gplsrc/op_sort.c             : @functions @lists sortwide sortord
 gplsrc/op_btree.c            : @functions
 gplsrc/op_arith.c            : @functions
 gplsrc/op_logic.c            : @functions lang-b45 partial
