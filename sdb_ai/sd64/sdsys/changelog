@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  THE REFUSAL "HAS NO OS ACCESS" FOR A PRINT FILE NOW NAMES THE ACCOUNT INSTEAD OF PRINTING "%1".
+
+             What        An account without the OS-access setting cannot make a print file outside its own directory: SETPU, SETPTR ... AS
+                        PATHNAME and a "$hold" print name that climbs out with ".." are all refused. The refusal itself was right but its
+                        message read "%1 has no OS access, so a file or directory outside its own account cannot be reached by pathname
+                        (SDSYS can give it: modify.account %1 os-on)", with the two %1 markers left in. It now reads the same with the
+                        account's name in both places, so the sentence can be followed as written.
+             Why it      The second half of the message is the instruction the administrator needs, and with the marker in it the
+             matters     account to give the access to had to be guessed. The Windows port found it.
+             Does not    It does not change who is refused or who is allowed: only the words. The same message raised by SD BASIC
+                        programs (OSCOPY, SELECT.DIR, SETPTR, the editor) already named the account.
+
 20 Oct 26  FILELOCK, FILEUNLOCK, RECORDLOCKED() AND GETLOCKS() NOW WORK ON A FILE ON ANOTHER SD SERVER (SDNET).
 
              What        A program that opens a remote file through a VOC pointer of type N could not use these four statements: each stopped

@@ -304,6 +304,7 @@ u_int32_t GetUnsignedInt(DESCRIPTOR * descr);
 /* MESSAGES.C */
 bool init_messages(void);
 char * sysmsg(int msg_no);
+char * sysmsg_arg1(int msg_no, const char * arg);
 int sysmsg_number_of(const char * p);
 
 /* NETFILES.C - files on another SD server (SDNet, S.65 slice 3c).  Gone in plan G4, back in a new form: the kernel holds no socket code, it

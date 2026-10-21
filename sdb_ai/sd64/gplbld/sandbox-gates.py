@@ -630,16 +630,17 @@ def main():
                 "output=%r exists=%s" % (out, os.path.exists(printed)))
         else:
             row("D2: %s the SETPU statement cannot print into a file outside the account: refused at print time, no file, "
-                "the program stopped" % name,
-                has(out, "has no OS access") and not os.path.exists(printed) and not has(out, r"^T print-end$"),
+                "the program stopped, and the refusal names the account (20 Oct 26: the C caller printed '%%1' unsubstituted)" % name,
+                has(out, re.escape("%s has no OS access" % name)) and not os.path.exists(printed) and not has(out, r"^T print-end$"),
                 "output=%r exists=%s" % (out, os.path.exists(printed)))
         out = plain(name, ["RUN bp zzhold"])
         if osx:
             row("D2: %s a '$hold ../../..' print name reaches outside the account (it may: it holds OS.EXECUTE)" % name,
                 os.path.exists(holdfile) and has(out, r"^T hold-end$"), "output=%r exists=%s" % (out, os.path.exists(holdfile)))
         else:
-            row("D2: %s a '$hold ../../..' print name does NOT climb out of the account: refused, no file, the program stopped"
-                % name, has(out, "has no OS access") and not os.path.exists(holdfile) and not has(out, r"^T hold-end$"),
+            row("D2: %s a '$hold ../../..' print name does NOT climb out of the account: refused, no file, the program stopped, "
+                "and the refusal names the account" % name,
+                has(out, re.escape("%s has no OS access" % name)) and not os.path.exists(holdfile) and not has(out, r"^T hold-end$"),
                 "output=%r exists=%s" % (out, os.path.exists(holdfile)))
     shutil.rmtree(outside, ignore_errors=True)
 

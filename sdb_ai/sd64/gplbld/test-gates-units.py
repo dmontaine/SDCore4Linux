@@ -248,7 +248,7 @@ def checks(srcs, messages_dir):
     ck("C19 a print unit's FINAL path - whether it came from a raw pathname or from the '$hold name' marker, which a SETPU program "
        "can write itself and which must not climb out with '..' - is asked of the ACCOUNT (not the printing program, which is "
        "usually $internal) after every branch has built it and before dio_open(), and the refusal is 11180",
-       0 < tsf < tmark < tgate < topen and tcpy < tgate and "sysmsg(11180)" in tf[tgate:topen]
+       0 < tsf < tmark < tgate < topen and tcpy < tgate and "sysmsg_arg1(11180, account())" in tf[tgate:topen]   # 20 Oct 26: names the ACCOUNT, %1 filled in C
        and "os_path_open_ok" not in tf[tsf:topen],
        "start_file %s, marker %s, raw copy %s, gate %s, open_file %s" % (tsf, tmark, tcpy, tgate, topen))
 
@@ -497,12 +497,12 @@ def _gate_only_raw_print_path(srcs):
     "$hold ../.." marker is never asked."""
     s = dict(srcs)
     t = s["to_file.c"]
-    gate = ("    if (!os_path_ok_for_account(fn)) {\n      k_error(sysmsg(11180), process.username);\n    }\n")      # 18 Oct 26 (S.66): no longer followed by the open_file label
+    gate = ("    if (!os_path_ok_for_account(fn)) {\n      k_error(sysmsg_arg1(11180, account()));\n    }\n")      # 18 Oct 26 (S.66): no longer followed by the open_file label
     raw = "      strcpy(fn, pu->file_name);\n    }\n"
     if gate not in t or raw not in t:
         return s
     t = t.replace(gate, "", 1)
-    t = t.replace(raw, "      if (!os_path_ok_for_account(pu->file_name)) {\n        k_error(sysmsg(11180), process.username);\n      }\n" + raw, 1)
+    t = t.replace(raw, "      if (!os_path_ok_for_account(pu->file_name)) {\n        k_error(sysmsg_arg1(11180, account()));\n      }\n" + raw, 1)
     s["to_file.c"] = t
     return s
 
