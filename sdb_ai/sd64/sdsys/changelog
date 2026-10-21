@@ -32,6 +32,22 @@ Next release - in progress
                         for the administrator of the other server: a login in sdfileswrite on a write server can now hold a whole file
                         against everyone; list.readu shows the lock (type FX) and unlock file <n> filelock clears it.
 
+20 Oct 26  THE INSTALLER PUTS THE SD BASIC GUIDE AND THE KNOWLEDGE PACK FOR AI AGENTS IN /USR/LOCAL/SDSYS/AGENT-PACK.
+
+             What        Two folders of plain text are copied into the installed tree: guide/ (the SD BASIC dialect guide, whose examples
+                        were compiled and run) and pack/ (a generated reference with one entry for each TCL verb, query keyword, VOC and
+                        dictionary type, conversion code, BASIC statement and function, message, account word and setting, each naming the
+                        file and line it came from). They describe the version that is installed, and the installer checks that: a pack
+                        written for another version is not copied, and neither is a missing or half-complete one (an older release has
+                        none); the install says so and goes on. The files belong to sdsys and no SD user can write them.
+             Why it      An administrator who sets up an AI agent to work on an SD project can copy the description of the installed system
+             matters    from the machine it describes, instead of finding the right version in the source repository. The mode matters:
+                        an agent is told to trust this text, so a file any SD user could change would let one user plant instructions for
+                        another user's agent.
+             Does not    Nothing in SD reads these files, and an ordinary account cannot read them from inside SD (a path outside an account
+                        needs os-on). The skill, the CLAUDE.md template, the account recipe and the generator are not installed: they stay
+                        in the source repository's agent-pack/ folder. It does not connect an agent to SD, give it a key or open a gate.
+
 20 Oct 26  AN API CLIENT THAT HANGS UP AT THE WRONG MOMENT NO LONGER LEAVES ITS SERVER PROCESS RUNNING AT 100% OF A PROCESSOR.
 
              What        The server process that answers one API connection (sd -n -q, started for each client, running as root until the

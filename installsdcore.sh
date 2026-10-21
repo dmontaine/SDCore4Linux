@@ -1150,6 +1150,31 @@ sudo cp terminfo.src "$sdsysdir"
 # rest of the tree.
 sudo cp -r gplbld/microcfg "$sdsysdir"
 #
+# 20 Oct 26 dm - S.69 rows 1 and 1b (owner, 20 Oct 2026: "ship the guide and the pack under /usr/local/sdsys/agent-pack/ via the
+#            installer; the skill stays repo-only").  TEXT ONLY: the SD BASIC guide and the generated knowledge pack, for an
+#            administrator to copy to the machine where an AI agent runs.  Nothing here is read by SD itself.  The skill, the
+#            templates, the recipe and the generator are NOT installed (the agent-pack/ directory of the repository has them).
+#            It lands sdsys:sdusers because it is before the chown below; the file mode block further down makes the files 644 once
+#            "chmod -R 755" has run.  SKIPPED WITH A NOTE, NEVER AN ERROR: when the download holds no complete pack (an older tag),
+#            or when its manifest is for another version than the one installed (a pack that describes version X on a machine
+#            running Y is worse than none).  A missing revstamp.h or manifest must not stop the install under set -euo pipefail:
+#            hence the "|| x=''" on each read.  test-install-agentpack.sh runs these two blocks.
+# AGENTPACK-BEGIN
+if [ -f agent-pack/guide/sd-basic-guide.md ] && [ -f agent-pack/pack/manifest.json ] && [ -f agent-pack/pack/core.md ]; then
+    pack_stamp=$(sed -n '/"rev_stamp"/{s/^[^:]*: *"\([^"]*\)".*/\1/p;q}' agent-pack/pack/manifest.json) || pack_stamp=""
+    tree_stamp=$(sudo sed -n '/^\$define SD\.REV\.STAMP/{s/^[^"]*"\([^"]*\)".*/\1/p;q}' "$sdsysdir/gpl.bp/revstamp.h" 2>/dev/null) || tree_stamp=""
+    if [ -n "$pack_stamp" ] && [ "$pack_stamp" = "$tree_stamp" ]; then
+        sudo mkdir -p "$sdsysdir/agent-pack"
+        sudo cp -R agent-pack/guide agent-pack/pack "$sdsysdir/agent-pack/"
+        echo "Installed the AI guide and knowledge pack (version ${pack_stamp}): $sdsysdir/agent-pack"
+    else
+        echo "Note: the AI knowledge pack in the download is for version '${pack_stamp:-?}' and this is '${tree_stamp:-?}', so it was not installed."
+    fi
+else
+    echo "Note: the download holds no complete AI guide and knowledge pack (agent-pack/), so none was installed."
+fi
+# AGENTPACK-END
+#
 # 10 Sep 26 dm - AND nano's, SYSTEM-WIDE.  The NANO verb (GPL.BP/EDIT) runs nano
 # (owner, 10 Sep 2026: Microsoft Edit is not packaged for Linux).  Unlike micro,
 # nano HAS a system-wide syntax directory - Debian's /etc/nanorc includes
@@ -1200,6 +1225,14 @@ sudo chmod 644 /etc/sd.conf
 sudo chmod -R 755 "$sdsysdir"
 sudo chmod 775 "$sdsysdir/errlog"
 sudo chmod -R 775 "$sdsysdir/prt"
+# 20 Oct 26 dm - the AI guide and pack are text, not programs: 644 for the files (the chmod -R 755 above made them 755), directories stay
+#            755.  Nobody in sdusers can write them, and that is the point: an agent is told to trust this text, so a file any SD
+#            user could edit would be a way to plant instructions for every other user's agent.  AFTER the chmod -R above.
+# AGENTPACK-MODE-BEGIN
+if [ -d "$sdsysdir/agent-pack" ]; then
+    sudo find "$sdsysdir/agent-pack" -type f -exec chmod 644 {} +
+fi
+# AGENTPACK-MODE-END
 
 # 09 Sep 26 dm - PRE_RELEASE 8.  THE INSTALL STAMP, read from the clone above.
 # assert-current.py compares "commit" against the working tree's HEAD, which is

@@ -1,6 +1,6 @@
 # agent-pack: what an AI agent needs to work in SD Core for Linux
 
-S.69 rows 1 and 1b of the AI plan. Documents, a generator and free and sandbox checks. **Nothing here is installed, compiled into SD or shipped by the installer** (it reads `sdsys`, `bin`, `gplsrc`, `gplobj`, `terminfo` and a few `gplbld` files; this directory is none of those), and nothing here calls a model, holds a key, opens a gate or changes ssh.
+S.69 rows 1 and 1b of the AI plan. Documents, a generator and free and sandbox checks. **Only two parts of this directory are installed, and only as text:** `guide/` and `pack/` are copied by `installsdcore.sh` to `/usr/local/sdsys/agent-pack/{guide,pack}` (owner, 20 Oct 2026), owned `sdsys:sdusers` and writable by no SD user, and skipped with a note when the download holds none or holds a pack for another version (`gplbld/test-install-agentpack.sh` runs that block). The skill, the templates, the recipe, the generator and these notes are not installed. Nothing here is compiled into SD, nothing in SD reads it, and nothing here calls a model, holds a key, opens a gate or changes ssh. An ordinary account cannot read the installed copy from inside SD (a path outside the account needs `os-on`); it is there for the administrator to copy to the machine where an agent runs, and for `sdctl pack` when that exists.
 
 | path | what | made by |
 |---|---|---|
