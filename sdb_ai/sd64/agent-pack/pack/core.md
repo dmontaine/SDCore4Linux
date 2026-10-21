@@ -103,7 +103,6 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`build.index`** *file* *field* … | **`all`**
 - **`catalog`** {*file* {*call.name*}} {*program*} {**`local`** | **`global`** | **`pcode`**} {**`no.xref`**}
 - **`catalogue`** — the same verb as **`catalog`**
-- **`cd`** {**`dict`** | **`data`**} *file* {*i-type* …} {**`no.query`**} {**`no.page`**}  ·  **`cd local`**  ·  **`cd all`**
 - **`copy.listp`** {{**`dict`**} *file*} {*name* … | **`*`**} {**`(`***options*}
 - **`copyp`** {**`dict`**} *file* *id* … {**`(options`**}
 - **`count`** {**`dict`**} *file* {*selection*}
@@ -115,6 +114,7 @@ The 30 verbs the User pages 19-24 and the tutorial use most (counted in their ex
 - **`display`** *text*
 - **`ed`** {**`dict`**} *file* {*id* … | **`creating.seqkey`**}
 - **`fstat`** *file* **`on`** | **`off`** | {**`lptr`**}  ·  **`fstat global`** {**`lptr`**}  ·  **`fstat reset`**  ·  **`fstat`**
+- **`generate`** {**`dict`**} *file* *record* …
 - **`list`** {**`dict`**} *file* {*selection*} {*fields*} {*options*}
 - **`list.index`** *file* {*field* …}
 - **`logto`** *account* {**`reset`** {**`all`**}}
