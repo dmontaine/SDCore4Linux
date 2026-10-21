@@ -5,6 +5,20 @@
   python3 .../test-net-units.py --selftest
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 17 Oct 26.
+20 Oct 26 dm  S.72b (RECORDLOCKED() of a remote file becomes write-governed: of the five loosenings of S.72 the owner tightened this one alone, the same day).  Written BEFORE the code, from the spec, and shown
+red on the unchanged tree.  The wall is the SERVER's (request 34 joins the change set of !apifilesok, so a files-only login without sdfileswrite is refused with message 11521 and the audit line
+`api refused request=34 route=sdfiles write=off ...`: S72n here, F1 / F2a / F2d / F17 / F18 of test-fileswrite-units.py) and the clear text is the KERNEL's: a new gate kind NETG_PEEK (sd.h, 5, beside NETG_LOCK) runs
+net_gate's FIRST test only - a read-mode file variable is refused with 11501 and -7000, nothing is sent - and not the CREATING.SEQKEY test, the transaction test (11510) or the edit gate, because RECORDLOCKED()
+changes nothing; net_recordlocked asks net_gate(fvar, NETG_PEEK, 0, "RECORDLOCKED") FIRST (op_flags the literal 0: the function has no ON ERROR clause, so the refusal is always raised); and the handler's
+act.recordlocked refuses a handle whose mode is not write through act.refuse, as act.fileunlock does, so the two layers agree.  MUSTLOCK (net_check_lock, net_pre_change_lock) is NOT gated: it is reached only from
+a write path that has passed net_gate.  CHANGED: S2i (the NETG_PEEK arm in net_gate), S2zb (NETG_PEEK 5 and its comment), NF6a (act.recordlocked no longer begins with the gate: it begins as act.fileunlock does),
+S72d (net_recordlocked ASKS the gate, and only that gate), S72n (34 IS in the change set), S72q (the read-mode matrix of sandbox-netfile.py has `km("recordlocked"` again: nothing is sent, KALLOWED stays), S2k
+(on.error.text has SIX callers: act.recordlocked answers the server's ON ERROR reply now).  NEW: S72r (the handler's mode refusal, in ORDER), S72s (net_gate's NETG_PEEK arm, in ORDER), S72t (NETG_PEEK has one user),
+S72u (MUSTLOCK is not gated), S72v (the history lines), S72w (the class's recordlocked() honours quiet: message.pair, not text.request; the abort only when not quiet), S72x (act.recordlocked reads LastError and answers
+lost / server error / ON ERROR / unknown like act.fileunlock).  The reason for the last two: a login without sdfileswrite is refused request 34 with an ON ERROR reply, and a class that aborted on it would
+stop the handler's own program, and a handler that did not read LastError would answer `not locked` (0) for a refused request.  The mutants of S.72 that tested the old design
+(`recordlocked joins the change set`, `the suite's matrix has recordlocked again`, `net_recordlocked asks net_gate`) are replaced by their opposites.  WHAT THIS CANNOT SAY: that
+nothing reaches the server from a read-mode handle, that the server answers 11521 or that a MUSTLOCK write ends with 11500 - sandbox-netfile.py (the fake), sandbox-req29.py and sandbox-net.py (the real server) and the VM witness.
 20 Oct 26 dm  S.72 (QMNet parity, tiers A and B: RECORDLOCKED() and GETLOCKS() of a remote file, FILELOCK and FILEUNLOCK of one on a write-mode server).  Written BEFORE the code, from the
 spec, and shown red on the unchanged tree.  Section S72 (checks_s72, S72a to S72q) reads: op_filelock's NET branch in ORDER - `retry_pc = op_pc` taken first, the NET_FILE test before the first
 FPtr(, net_filelock_step, the HELD / WAIT / LOCKED / default switch, the status pushed - and no net_refuse left in the four opcodes (S72a, S72f, S72g, S72h, S72i); net_filelock_step and the
@@ -1426,11 +1440,13 @@ def checks_3b(srcs, c, ck):
        "it is the only place either is mentioned, and it is gosubbed from NF$OPEN first of all and from get.handle",
        "is.admin = kernel(K$ADMINISTRATOR, -1)" in cg and re.search(r"if not\(is\.admin\) and not\(kernel\(K\$NET, -1\)\) then gate\.ok = @false", cg) is not None
        and nf.count("kernel(K$NET") == 1 and nf.count("kernel(K$ADMINISTRATOR") == 1 and nf.count("gosub check.gate") == 2, "")
-    ck("NF6a ...every operation that sends a request asks it again through get.handle (need.gate = @true in read, readv, recordlocked, select and fileinfo), the gate test comes BEFORE the test that "
+    ck("NF6a ...every operation that sends a request asks it again through get.handle (need.gate = @true in read, readv, select and fileinfo as the FIRST thing they do; in recordlocked, since S.72b, in its "
+       "SECOND get.handle - its first is the lost-handle-will-do one of the mode refusal, S72r, like act.fileunlock's), the gate test comes BEFORE the test that "
        "the handle belongs to this account, and a handle belongs to the account that opened it (stored lower case, compared with the lower cased @who)",
-       all(re.match(r"act\.[a-z]+:\s*\n\s*need\.gate = @true", body[l]) for l in ("act.read", "act.recordlocked", "act.select", "act.fileinfo"))
+       all(re.match(r"act\.[a-z]+:\s*\n\s*need\.gate = @true", body[l]) for l in ("act.read", "act.select", "act.fileinfo"))
+       and ordered(body["act.recordlocked"], "gosub act.refuse", "need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "gosub get.handle", "gosub check.id", "obj->recordlocked(")
        and ordered(gh, "if need.gate then", "gosub check.gate", "fail.num = 11460", "if not(any.acct) then", "nf.h.acct(hx) # acc", "fail.num = 11494")
-       and "nf.h.acct(hx) = acc" in ao, "")
+       and "nf.h.acct(hx) = acc" in ao, repr(body["act.recordlocked"][:130]))
 
     # ---- N7. a request, a lost connection and no retry
     lines = [ln for ln in nf.split("\n") if ln.strip()]
@@ -1589,8 +1605,9 @@ NK_REFUSE = {
     ("analyse.c", "op_analyse"): ("R", ()),
 }
 # FILELOCK, FILEUNLOCK, GETLOCKS() and RECORDLOCKED() were REFUSE sites in slices 3c and 3e; since S.72 (20 Oct 26) they are not refusals at all: FILELOCK and FILEUNLOCK ask net_gate (a read-mode handle is
-# refused THERE, with 11501) and then the server, RECORDLOCKED() asks the server for any NET_FILE, and GETLOCKS() gives a NET_FILE the local view (the counters, no lock line).  They are decided here, and S72a,
-# S72f, S72g, S72h and S72i read what each does.  None of the four may call net_refuse any more.
+# refused THERE, with 11501) and then the server, RECORDLOCKED() asks net_recordlocked - which, since S.72b (20 Oct 26), asks net_gate(NETG_PEEK) first, so a read-mode handle is refused INSIDE it with 11501 and
+# nothing is sent (S72d, S72s) - and GETLOCKS() gives a NET_FILE the local view (the counters, no lock line).  They are decided here, and S72a,
+# S72f, S72g, S72h and S72i read what each does.  None of the four may call net_refuse or refuse_net_file in its own body any more.
 NK_LOCKSITES = {("op_lock.c", "op_filelock"), ("op_lock.c", "op_flunlock"), ("op_lock.c", "op_getlocks"), ("op_lock.c", "op_reclckd")}
 # SELECT and SELECTV were REFUSE sites in slice 3c; since slice 3d they ask the server (NK14, NK15), and are decided here
 NK_SELECT ={("op_dio4.c", "op_select"), ("op_dio4.c", "op_selectv")}
@@ -1909,7 +1926,7 @@ def checks_3c(srcs, c, ck):
     ck("NK7 THE CENSUS: each of the %d statements the census of 17 Oct 26 says REFUSE (CONFIGURE.FILE, the locking reads, READVU, CLEARFILE, DELETE, WRITE, WRITEV, "
        "RECORDLOCKU/L, RELEASE and RLSFILE, the ten index operations other than INDICES, both FCONTROLs, ANALYSE.FILE) calls net_refuse (or refuse_net_file) behind a NET_FILE test and BEFORE the first read or "
        "write of the file table, a lock, a select list or an edit-gate decision in the function (SELECT and SELECTV are not in it since slice 3d: NK14, NK15; nor is INDICES: NK18; nor, since S.72, FILELOCK, "
-       "FILEUNLOCK, GETLOCKS and RECORDLOCKED(), which refuse nothing: NK_LOCKSITES, S72a to S72i)" % seen, not bad and seen == 23, repr(bad))
+       "FILEUNLOCK, GETLOCKS and RECORDLOCKED(), which call neither in their own body - the gate of net_filelock_step, net_fileunlock and, since S.72b, net_recordlocked decides: NK_LOCKSITES, S72a to S72i)" % seen, not bad and seen == 23, repr(bad))
     badg = []
     for fname, name in NK_GUARD:
         body = fn(fname, name)
@@ -1981,7 +1998,7 @@ def checks_3c(srcs, c, ck):
     ck("NK11 the suite sandbox-netfile.py has the section kernel (before gaps), its refusal matrix names every statement of the census (%d tags, %s missing), the fake's allowed request types are exactly "
        "login, account, open, close, read and quit, every message number the section expects is a message of the tree, and the map sends every kernel file of this slice to the netfile suite "
        "(%s unmapped)" % (len(tags), sorted(set(NK_SUITE_MATRIX) - tags), unmapped),
-       '("kernel", kernel_section), ("gaps", gaps_section)' in suite and not (set(NK_SUITE_MATRIX) - tags) and "KALLOWED = {47, 48, 3, 4, 5, 6, 1}" in suite and "except subprocess.TimeoutExpired:" in suite
+       '("kernel", kernel_section), ("mustlock", mustlock_section), ("gaps", gaps_section)' in suite and not (set(NK_SUITE_MATRIX) - tags) and "KALLOWED = {47, 48, 3, 4, 5, 6, 1}" in suite and "except subprocess.TimeoutExpired:" in suite
        and nums and all(os.path.exists(os.path.join(MSGDIR, str(n))) for n in nums) and not unmapped, repr((sorted(set(NK_SUITE_MATRIX) - tags), unmapped, sorted(nums))))
     texts_ = {n: (srcs.get(n) or "") for n in ("netfiles.c", "descr.h", "sd.h", "op_dio1.c", "op_dio2.c", "op_dio3.c", "op_dio4.c", "op_lock.c", "dh_ak.c", "dh_misc.c", "analyse.c", "k_error.c", "pdump.c",
                                                  "bp:_voc_ref", "sandbox-netfile.py")}
@@ -2272,9 +2289,11 @@ def checks_s2(srcs, c, ck):
        "text that came from another machine (printable ASCII, at most 100 characters), shows it when there is one and falls back to 'status <n>' when there is none; the places that used to say "
        "'status <n>' whatever the reply said (a refused write or lock, a READ, a SELECT) call it - four since 19 Oct 26, finish 2, because the SELECT proper and its READLIST are both looked at (the "
        "class used to abort on either, even when quiet, so neither branch could run), five since S.72, because act.fileunlock answers an ON ERROR reply (the files-only login without the write group) "
-       "in the same way - and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
+       "in the same way, six since S.72b, because act.recordlocked does too (request 34 is refused to that login: message 11521 as an ON ERROR reply, shown by the program as 11500 with the server's text) "
+       "- and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
        ordered(ooe, "txt = obj->LastText", "gosub clean.text", "if out.txt = '' then", "rq.txt = 'status ':rq.st", "end else", "rq.txt = out.txt", "return")
-       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 5 and "gosub on.error.text" in afu and "'status '" not in (ao + ac + ard + asel + arq + lf + afu)
+       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 6 and "gosub on.error.text" in afu and "gosub on.error.text" in rb("act.recordlocked")
+       and "'status '" not in (ao + ac + ard + asel + arq + lf + afu + rb("act.recordlocked"))
        and "never shown" not in hraw and "is never shown, it can be stale" not in hraw, repr(ooe[:200]))
 
     # ---- S2g. the class gpl.bp/sdclient (spec 3.3)
@@ -2323,16 +2342,18 @@ def checks_s2(srcs, c, ck):
 
     # ---- S2i. net_gate (spec 5.2) and the entry points
     ng = fn("netfiles.c", "net_gate")
-    ck("S2i net_gate, in this ORDER (spec 5.2): the caller's ON ERROR bit is the only flag it puts in process.op_flags (given back as found at every one of its returns); 1 a handle that is read-mode or "
-       "FV_RDONLY is refused with 11501 and -ER_NETWORK and NOTHING below runs for it; 2 WRITE ... CREATING.SEQKEY is refused with 11511; 3 a transaction, tested on process.txn_id and NOT on the local txn_id "
-       "(which is 0 for every NET_FILE), is refused with 11510 and -ER_TXN, for every kind; 4 the S.64 edit gate of the remote file's name for WRITE, DELETE and CLEAR only (never a lock): an $internal caller "
+    ck("S2i net_gate, in this ORDER (spec 5.2; S.72b added step 1a): the caller's ON ERROR bit is the only flag it puts in process.op_flags (given back as found at every one of its returns); 1 a handle that is read-mode or "
+       "FV_RDONLY is refused with 11501 and -ER_NETWORK and NOTHING below runs for it; 1a (S.72b) NETG_PEEK, the kind of RECORDLOCKED(), is answered 0 HERE - after step 1, so a read-mode handle is refused, and before "
+       "all the rest, so it needs no CREATING.SEQKEY, no transaction and no edit gate (it changes nothing); 2 WRITE ... CREATING.SEQKEY is refused with 11511; 3 a transaction, tested on process.txn_id and NOT on the local txn_id "
+       "(which is 0 for every NET_FILE), is refused with 11510 and -ER_TXN, for every kind but NETG_PEEK; 4 the S.64 edit gate of the remote file's name for WRITE, DELETE and CLEAR only (never a lock): an $internal caller "
        "(process.program.flags & HDR_INTERNAL, read here before any BASIC runs - net_gate runs none) and the administrator are exempt, otherwise edit_permitted(kind) decides, refusal 11404 + kind "
-       "(11405 to 11407) with -ER_PERM raised unless the caller said ON ERROR; 5 else 0 (so process.op_flags is given back at five returns)",
+       "(11405 to 11407) with -ER_PERM raised unless the caller said ON ERROR; 5 else 0 (so process.op_flags is given back at six returns: the four refusals, the PEEK answer and the end)",
        ng != "" and ordered(ng, "process.op_flags = op_flags & P_ON_ERROR;", "!fvar->access.net.write || (fvar->flags & FV_RDONLY)", "net_refuse_with(fvar, what, MSG_READ_ONLY, -ER_NETWORK)",
+                            "kind == NETG_PEEK", "return 0;",
                             "(kind == NETG_WRITE) && (op_flags & P_SEQKEY)", "MSG_UNAVAILABLE, -ER_NETWORK", "process.txn_id != 0", "net_refuse_with(fvar, what, MSG_TXN, -ER_TXN)",
                             "(kind == NETG_WRITE) || (kind == NETG_DELETE) || (kind == NETG_CLEAR)", "fvar->access.net.edit_kind", "!(process.program.flags & HDR_INTERNAL)", "!(my_uptr->flags & USR_ADMIN)",
                             "!edit_permitted(ek)", "net_set_message(11404 + ek", "net_raise(-ER_PERM, op_flags & P_ON_ERROR)", "return 0;")
-       and not re.search(r"(?<![\w.])txn_id", ng.replace("process.txn_id", "")) and ng.count("process.op_flags = entry;") == 5
+       and not re.search(r"(?<![\w.])txn_id", ng.replace("process.txn_id", "")) and ng.count("process.op_flags = entry;") == 6
        and not re.search(r"net_call_core\(|net_call_raw\(|net_op_ex\(|net_op\(|net_flush_pending\(|k_call\(|k_run_program\(|load_object\(", ng) and "NETG_LOCK" not in ng, "")
     nk, nl = fn("netfiles.c", "net_change_op"), fn("netfiles.c", "net_lock_step")
     ck("S2j net_change_op (the body of net_write, net_delete, net_clear and net_lock): the handle's cache entries are dropped BEFORE the request and AGAIN after the answer - success, error or no reply - and "
@@ -2512,9 +2533,11 @@ def checks_s2(srcs, c, ck):
        all((srcs.get("msg:%d" % n) or "").rstrip("\n") == t for n, t in S2_MSG_TEXTS.items()), repr([n for n, t in S2_MSG_TEXTS.items() if (srcs.get("msg:%d" % n) or "").rstrip("\n") != t]))
     consts = {m.group(1): int(m.group(2)) for m in re.finditer(r"#define\s+((?:NETG|NET_LOCK|NET_ID)_[A-Z]+)\s+(\d+)\b", sdh)}
     mid = re.search(r"\$define\s+MAX\.ID\.LEN\s+(\d+)", c["syscom/keys.h"])
-    ck("S2zb sd.h's constants for the entry points (spec 1.4): the statement kinds NETG_WRITE 1, NETG_DELETE 2, NETG_CLEAR 3, NETG_LOCK 4; the answers of net_lock_step NET_LOCK_HELD 0, NET_LOCK_WAIT 1, "
+    ck("S2zb sd.h's constants for the entry points (spec 1.4): the statement kinds NETG_WRITE 1, NETG_DELETE 2, NETG_CLEAR 3, NETG_LOCK 4 and (S.72b) NETG_PEEK 5 - defined right after NETG_LOCK, with a comment "
+       "that says what it is for (RECORDLOCKED(): the read-mode test of net_gate only); the answers of net_lock_step NET_LOCK_HELD 0, NET_LOCK_WAIT 1, "
        "NET_LOCK_LOCKED 2; NET_ID_MAX 63, which is the class's MAX.ID.LEN (syscom/keys.h) - the id a remote file can hold, tested before anything is sent",
-       consts == {"NETG_WRITE": 1, "NETG_DELETE": 2, "NETG_CLEAR": 3, "NETG_LOCK": 4, "NET_LOCK_HELD": 0, "NET_LOCK_WAIT": 1, "NET_LOCK_LOCKED": 2, "NET_ID_MAX": 63}
+       consts == {"NETG_WRITE": 1, "NETG_DELETE": 2, "NETG_CLEAR": 3, "NETG_LOCK": 4, "NETG_PEEK": 5, "NET_LOCK_HELD": 0, "NET_LOCK_WAIT": 1, "NET_LOCK_LOCKED": 2, "NET_ID_MAX": 63}
+       and re.search(r"#define NETG_LOCK 4[^\n]*\n#define NETG_PEEK 5[ \t]+/\*[^*\n]*RECORDLOCKED\(\)[^*\n]*read-mode[^*\n]*\*/", srcs["sd.h"]) is not None
        and mid is not None and int(mid.group(1)) == consts.get("NET_ID_MAX"), repr(consts))
     suite = srcs["sandbox-netfile.py"]
     drv = suite[suite.find("NFH_DRIVER = r"):suite.find("NFH_SUB = r")]
@@ -2540,7 +2563,7 @@ def checks_s2(srcs, c, ck):
 
 # ---- S72. S.72 (20 Oct 26): QMNet parity, tiers A and B ---------------------------------------------------------------------------------------------
 
-S72_FILES_CHG = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33)      # the requests a files-only login may make ONLY with the write group (apifilesok files.chg): 32 and 33 are in it, 34 (recordlocked, a read) is not
+S72_FILES_CHG = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34)      # the requests a files-only login may make ONLY with the write group (apifilesok files.chg): 32, 33 and, since S.72b (20 Oct 26), 34 (recordlocked)
 
 
 def checks_s72(srcs, c, ck):
@@ -2607,12 +2630,17 @@ def checks_s72(srcs, c, ck):
 
     # ---- S72d. net_recordlocked, net_lock_code, net_check_lock
     rk, lc, ncl = fn("netfiles.c", "net_recordlocked"), fn("netfiles.c", "net_lock_code"), fn("netfiles.c", "net_check_lock")
-    ck("S72d net_recordlocked (RECORDLOCKED() of a remote file): NO net_gate (it is a read: a read-mode handle and a transaction are served, as a remote READ is) and no net_refuse; errors are RAISED ALWAYS - "
+    gate_call = 'net_gate(fvar, NETG_PEEK, 0, "RECORDLOCKED")'
+    gpos, lpos = rk.find(gate_call), rk.find("net_lock_code(fvar, id, id_len, &code)")
+    ck("S72d net_recordlocked (RECORDLOCKED() of a remote file), S.72b: net_gate(fvar, NETG_PEEK, 0, \"RECORDLOCKED\") is asked FIRST, before net_lock_code and so before anything is sent - the read-mode test of the gate "
+       "and nothing else: a read-mode handle is 11501 and -7000, a transaction is NOT refused (it is a read: the recorded choice) - with the LITERAL 0 for the statement's flags (never process.op_flags, never P_ON_ERROR: "
+       "RECORDLOCKED() has no ON ERROR clause, so the refusal is always raised); it is the ONLY gate in the function, and a nonzero answer returns at once, before the request; no net_refuse; errors are RAISED ALWAYS - "
        "process.op_flags is set to 0 BEFORE the request, so that a flag a previous statement left (an ON ERROR) cannot swallow an error of a function that has no ON ERROR clause; the code is the "
        "server's, -3 to 3, and a code outside it is an error (11507, -ER_NETWORK, raised with 0); STATUS() is the owner's user number from net_reply_status ONLY when it is 0 to 32767, else 0.  The request "
-       "is net_lock_code, the Private core it shares with net_check_lock (MUSTLOCK): empty or long id first (net_bad_id), net_op_ex of NF_RECORDLOCKED with pass_status TRUE, process.op_flags back, an ELSE "
+       "is net_lock_code, the Private core it shares with net_check_lock (MUSTLOCK) and which asks NO gate: empty or long id first (net_bad_id), net_op_ex of NF_RECORDLOCKED with pass_status TRUE, process.op_flags back, an ELSE "
        "answer an error, a negative status raised, the code read from the answer; net_check_lock keeps its meaning (1 for the codes 2 and 3, 0 for the rest, process.status 0) and is no more than a caller of it",
-       rk != "" and lc != "" and ncl != "" and "net_gate(" not in rk + lc and "net_refuse(" not in rk + lc
+       rk != "" and lc != "" and ncl != "" and rk.count("net_gate(") == 1 and rk.count(gate_call) == 1 and 0 <= gpos < lpos and re.search(r"\breturn\b", rk[gpos:lpos]) is not None
+       and 0 <= rk.find("process.op_flags = 0;") < lpos and "net_gate(" not in lc + ncl and "net_refuse(" not in rk + lc + ncl
        and ordered(rk, "process.op_flags = 0;", "net_lock_code(fvar, id, id_len, &code)", "if ((code < -3) || (code > 3)) {", "net_set_message(MSG_HANDLER", "net_raise(-ER_NETWORK, 0)", "owner = net_reply_status;",
                    "process.status = ((owner >= 0) && (owner <= 32767)) ? owner : 0;", "return code;")
        and ordered(lc, "*code = 0;", "(id_len < 1) || (id_len > NET_ID_MAX)", "return net_bad_id(fvar, id_len);", "net_op_ex(fvar, NF_RECORDLOCKED, id, id_len,", "FALSE, TRUE, &out)", "process.op_flags = entry;",
@@ -2683,7 +2711,8 @@ def checks_s72(srcs, c, ck):
         dang = [body.find(x) for x in NK_DANGER if body.find(x) >= 0]      # the old NK7 rule, kept: nothing that reads or writes the file table, a lock or a select list comes first
         if dang and min(dang) < body.find("NET_FILE"):
             bad4.append("%s: %r comes before the NET_FILE test" % (name, body[min(dang):min(dang) + 24]))
-    ck("S72i THE FOUR LOCK SITES (NK_LOCKSITES: op_filelock, op_flunlock, op_getlocks, op_reclckd) refuse nothing since S.72 - none calls net_refuse or refuse_net_file - and each tests for NET_FILE "
+    ck("S72i THE FOUR LOCK SITES (NK_LOCKSITES: op_filelock, op_flunlock, op_getlocks, op_reclckd) refuse nothing in their own body since S.72 - none calls net_refuse or refuse_net_file (a read-mode handle is "
+       "refused by the gate inside net_filelock_step, net_fileunlock and, since S.72b, net_recordlocked) - and each tests for NET_FILE "
        "BEFORE its first FPtr( or read of a file id; none of them is in the census table NK_REFUSE (NK7 counts %d sites) and the table of the decided ones holds all four (NK8)" % len(NK_REFUSE),
        not bad4 and len(NK_LOCKSITES) == 4 and not (NK_LOCKSITES & set(NK_REFUSE)), repr(bad4))
 
@@ -2751,13 +2780,13 @@ def checks_s72(srcs, c, ck):
        and re.search(r"vb\.filelock:\s*\n\s*fno = oconv\(cmnd\[1,2\], 'ISL'\)\s*\n\s*wait = oconv\(cmnd\[3,2\], 'ISL'\)", ap) is not None
        and re.search(r"vb\.fileunlock:\s*\n\s*fno = oconv\(cmnd\[1,2\], 'ISL'\)", ap) is not None, "")
 
-    # ---- S72n. the server does not change: 32 and 33 are in the change set, 34 is not
+    # ---- S72n. the server: 32, 33 and (S.72b) 34 are in the change set
     chg = sorted(int(x) for x in re.findall(r"^files\.chg := '(\d+),'", fo, re.M))
     ok_ = sorted(int(x) for x in re.findall(r"^files\.ok := '(\d+),'", fo, re.M))
-    ck("S72n apifilesok (it does NOT change for S.72): a files-only login without the write group is refused the CHANGE SET %s, which holds 32 (filelock) and 33 (fileunlock) and does not hold 34 "
-       "(recordlocked is a read); all three are in the allowed table, so a login with the group may make them and a files-on-only login is refused 32 and 33 with 11521 and audited as "
-       "`api refused request=<n> route=sdfiles write=off`" % (S72_FILES_CHG,),
-       chg == sorted(S72_FILES_CHG) and 32 in chg and 33 in chg and 34 not in chg and {32, 33, 34} <= set(ok_) and "files.chg = ','" in fo, repr((chg, ok_)))
+    ck("S72n apifilesok (S.72b, 20 Oct 26: request 34 JOINS the change set; until then it was a read): a files-only login without the write group is refused the CHANGE SET %s, which holds 32 (filelock), "
+       "33 (fileunlock) and 34 (recordlocked - the answer is the lock owner's user number on this server), once each; all three are in the allowed table (which does not change: 37 numbers), so a login with the "
+       "group may make them and a files-on-only login is refused 32, 33 and 34 with 11521 and audited as `api refused request=<n> route=sdfiles write=off` (apisrvr's generic refusal, not changed)" % (S72_FILES_CHG,),
+       chg == sorted(S72_FILES_CHG) and 32 in chg and 33 in chg and 34 in chg and {32, 33, 34} <= set(ok_) and len(ok_) == 37 and "files.chg = ','" in fo, repr((chg, ok_)))
 
     # ---- S72o. the numbers agree across the files (netfile.h, netfiles.c and the suite are NF1, NK1b, NF11)
     ck("S72o the NUMBERS the three layers share: the handler's header says the rc<8> values 3011 (ER$LCK) and 3012 (ER$NLK) and the operation codes 18 and 19; ER_LCK is 3011 and ER_NLK 3012 (err.h) - "
@@ -2775,13 +2804,93 @@ def checks_s72(srcs, c, ck):
     kws = re.search(r"KW_STILL_REFUSED = \(([^)]*)\)", suite)
     still = re.findall(r'"(\w+)"', kws.group(1)) if kws else ["?"]
     ck("S72q THE SUITE sandbox-netfile.py carries the S.72 rows: class_filelocks (the class methods, requests 32 and 33), hw_filelocks (the handler's operations 18 and 19 and the rc<8> of RECORDLOCKED) and "
-       "kw_filelocks (the statements, GETLOCKS() and the local control) are defined and CALLED, W_FLK and W_FUL encode the two requests, the refusal matrix KM has no `recordlocked` (the read-mode "
-       "control keeps filelock and fileunlock) and KW_STILL_REFUSED no longer holds filelock, fileunlock or recordlocked, and the GETLOCKS row expects the program to SURVIVE",
+       "kw_filelocks (the statements, GETLOCKS() and the local control) are defined and CALLED, W_FLK and W_FUL encode the two requests, the refusal matrix KM has `recordlocked` AGAIN (S.72b: a read-mode "
+       "handle stops RECORDLOCKED() with 11501 and sends nothing - the matrix holds that its packet log has nothing but the requests of KALLOWED, which does not hold 34 - beside filelock and fileunlock) "
+       "and KW_STILL_REFUSED does not hold filelock, fileunlock or recordlocked (a WRITE-mode handle serves them), and the GETLOCKS row expects the program to SURVIVE",
        all(("def %s(" % f) in suite for f in ("class_filelocks", "hw_filelocks", "kw_filelocks", "W_FLK", "W_FUL"))
        and re.search(r"^[ \t]+class_filelocks\(A, alice\)[ \t]*$", suite, re.M) is not None and re.search(r"^[ \t]+hw_filelocks\(A\)[ \t]*$", suite, re.M) is not None
        and re.search(r"^[ \t]+kw_filelocks\(A\)[ \t]*$", suite, re.M) is not None
-       and 'km("recordlocked"' not in suite and 'km("filelock"' in suite and 'km("fileunlock"' in suite and kws is not None and not ({"filelock", "fileunlock", "recordlocked"} & set(still))
-       and "KR kj SURVIVED fields=1 values=3" in suite and "getlocks(f, '')" in suite, repr(still))
+       and 'km("recordlocked"' in suite and 'km("filelock"' in suite and 'km("fileunlock"' in suite and 'KALLOWED = {47, 48, 3, 4, 5, 6, 1}' in suite
+       and kws is not None and not ({"filelock", "fileunlock", "recordlocked"} & set(still))
+       and "KR kj SURVIVED fields=1 values=3" in suite and "getlocks(f, '')" in suite, repr((still, 'km("recordlocked"' in suite)))
+
+    # ---- S72r. S.72b: act.recordlocked refuses a handle that is not write-mode (the same act.refuse as act.fileunlock)
+    ck("S72r act.recordlocked (NF$RECORDLOCKED), S.72b, in this ORDER as act.fileunlock is: the handle of this account (a lost one will do: no gate and no connection yet); its name is 'recordlocked' - set BEFORE the "
+       "refusal, so that message 11501 names it; a handle whose mode is not write is REFUSED (act.refuse: 11501, nothing sent) BEFORE the gate and the connection are asked, so the kernel's refusal of a read-mode "
+       "handle and this one say the same thing; then the handle again with the gate and the connection, the id, the request with the no-reply mark, a lost reply, a server error, `out = lk` and rc<8> last.  It "
+       "does NOT read the definition again (no mode.now: a handle that was write when it was opened is asked, and the server's wall - request 34 in the change set - answers for the group), is NOT refused in a "
+       "transaction (RECORDLOCKED() changes nothing: the recorded choice - no SYS$TRANS_LEVEL, no 11510), is not audited and is not a change",
+       arl != "" and ordered(arl, "need.gate = @false ; need.conn = @false ; any.acct = @false ; allow.lost = @true", "gosub get.handle", "if failed then return", "opname = 'recordlocked'",
+                             "if nf.h.mode(hx) # 'write' then", "gosub act.refuse", "return",
+                             "need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "gosub get.handle", "if failed then return", "gosub check.id", "if failed then return",
+                             "obj = nf.s.obj(slot)", "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "obj->recordlocked(nf.h.fno(hx), id)", "gosub after.rq", "nf.requests += 1",
+                             "if rq.lost then", "gosub lost.fail", "return", "if rq.err then", "gosub server.fail", "return", "out = lk", "rc<8> = rq.st", "return")
+       and re.search(r"if nf\.h\.mode\(hx\) # 'write' then\s*\n\s*gosub act\.refuse\s*\n\s*return\s*\n\s*end", arl) is not None
+       and arl.count("opname = 'recordlocked'") == 1 and arl.count("gosub act.refuse") == 1 and arl.count("get.handle") == 2 and arl.count("obj->recordlocked(") == 1
+       and not re.search(r"mode\.now|mode\.ok|K\$AUDIT|audit\.once|\bchanging\b|SYS\$TRANS_LEVEL|11510|rc\.locked|NF\$LE\.LOCKED", arl), repr(arl[:120]))
+
+    # ---- S72s. S.72b: net_gate's NETG_PEEK arm
+    ng = fn("netfiles.c", "net_gate")
+    ck("S72s net_gate's NETG_PEEK arm (S.72b), in this ORDER: the first test of net_gate - a read-mode file variable, `!fvar->access.net.write || (fvar->flags & FV_RDONLY)`, 11501 and -ER_NETWORK - is the same for every kind, "
+       "NETG_PEEK included and with no `kind` in it; the PEEK arm is the SECOND test: `if (kind == NETG_PEEK) { process.op_flags = entry; return 0; }` - it gives process.op_flags back and answers 0, nothing else - "
+       "and it stands BEFORE the CREATING.SEQKEY test (11511), the transaction test (11510) and the edit gate (11404 + kind), so a PEEK is never refused for any of them (RECORDLOCKED() changes nothing; "
+       "inside BEGIN TRANSACTION it is served); NETG_PEEK is named ONCE in net_gate, not in the SEQKEY, transaction or edit-gate tests",
+       ng != "" and re.search(r"if \(!fvar->access\.net\.write \|\| \(fvar->flags & FV_RDONLY\)\) \{\s*st = net_refuse_with\(fvar, what, MSG_READ_ONLY, -ER_NETWORK\);", ng) is not None
+       and re.search(r"if \(kind == NETG_PEEK\) \{\s*process\.op_flags = entry;\s*return 0;\s*\}", ng) is not None and ng.count("NETG_PEEK") == 1
+       and ordered(ng, "MSG_READ_ONLY, -ER_NETWORK", "if (kind == NETG_PEEK) {", "(kind == NETG_WRITE) && (op_flags & P_SEQKEY)", "process.txn_id != 0", "(kind == NETG_WRITE) || (kind == NETG_DELETE) || (kind == NETG_CLEAR)")
+       and ng.find("kind == NETG_PEEK") < ng.find("process.txn_id") and ng.find("kind == NETG_PEEK") < ng.find("edit_permitted"), repr(ng[:160]))
+
+    # ---- S72t. S.72b: NETG_PEEK has one user
+    peek_files = sorted(n for n, t in c.items() if (n.endswith((".c", ".h")) or n.startswith("c:")) and "NETG_PEEK" in t)
+    peek_funcs = sorted((n, name) for n, t in c.items() if (n.endswith(".c") or n.startswith("c:")) for name, b in c_functions(t).items() if "NETG_PEEK" in b)
+    ck("S72t NETG_PEEK has ONE user (S.72b): every kernel source is searched and the word stands in sd.h (the define) and netfiles.c only, and in netfiles.c in net_gate (the arm) and net_recordlocked (the call) "
+       "only - no write path (WRITE, DELETE, CLEARFILE, a record lock, MUSTLOCK) is given the read-mode-only test, and no other statement asks the gate for a PEEK; the PEEK call in net_recordlocked is the only "
+       "one in the kernel",
+       peek_files == ["netfiles.c", "sd.h"] and peek_funcs == [("netfiles.c", "net_gate"), ("netfiles.c", "net_recordlocked")], repr((peek_files, peek_funcs)))
+
+    # ---- S72u. S.72b: MUSTLOCK is not gated
+    npc, ow_, od_ = fn("op_dio3.c", "net_pre_change_lock"), fn("op_dio3.c", "op_write"), fn("op_dio3.c", "op_delete")
+    chk_callers = sorted((n, name) for n, t in c.items() if (n.endswith(".c") or n.startswith("c:")) for name, b in c_functions(t).items() if "net_check_lock(" in b and name != "net_check_lock")
+    ck("S72u MUSTLOCK is NOT gated (S.72b): net_check_lock, net_lock_code (which it shares with net_recordlocked) and net_pre_change_lock mention no gate - no net_gate, refuse_net_file, net_refuse or NETG_ kind - because "
+       "the check is reached only from a write path AFTER the gate has passed: net_check_lock has ONE caller, net_pre_change_lock, and op_write and op_delete call refuse_net_file(... NETG_WRITE / NETG_DELETE) BEFORE "
+       "net_pre_change_lock, i.e. only with a WRITE-mode handle.  So MUSTLOCK with the write group is unchanged (3023 when the record is not locked, the write goes on when it is), and a login WITHOUT the group "
+       "gets the server's refusal of request 34 (11521, shown by the program as 11500 with the request number) instead of `not locked` - the wall is the server's",
+       all(b != "" and not re.search(r"net_gate\(|refuse_net_file\(|net_refuse\(|NETG_", b) for b in (ncl, lc, npc)) and chk_callers == [("op_dio3.c", "net_pre_change_lock")]
+       and ordered(ow_, "refuse_net_file(fvar, op_flags, keep_lock ? \"WRITEU\" : \"WRITE\", NETG_WRITE)", "net_pre_change_lock(")
+       and ordered(od_, "refuse_net_file(fvar, op_flags, \"DELETE\", NETG_DELETE)", "net_pre_change_lock("), repr((chk_callers, npc[:60])))
+
+    # ---- S72w. S.72b: the class's recordlocked() honours quiet
+    rkc = re.search(r"public function recordlocked\(fno, id\)\s*\n(.*?)\nend\s*\n", sc, re.S)
+    rkc = rkc.group(1) if rkc else ""
+    ck("S72w THE CLASS recordlocked(fno, id) (gpl.bp/sdclient), S.72b: it honours quiet as filelock(), fileunlock() and clearfile() do - request 34 (SrvrRecordlocked) with the file number as a 16 bit number and then the "
+       "id, sent through message.pair (which empties LastError and LastText before it writes and sets them from the reply) and NOT through text.request, which aborts on an ON ERROR reply whatever quiet says and would "
+       "stop the $netfile handler's own program with 'RECORDLOCKED generated an abort event' instead of giving the person message 11500 and the server's text; the answer of an OK reply is its four bytes made signed; "
+       "the abort is taken on an ON ERROR reply ONLY when not(quiet); a quiet object returns 0 and LastError / LastText say what the reply was; an unconnected object and a short reply are 0",
+       rkc != "" and ordered(rkc, "reply = ''", "if not(context.error(CX.CONNECTED)) then", "if message.pair(SrvrRecordlocked, iconv(fno, 'ISL') : id) then", "begin case", "case server.error = SV$OK",
+                             "reply = in.pkt", "case server.error = SV$ON.ERROR", "if not(quiet) then abort 'RECORDLOCKED generated an abort event'", "end case", "if len(reply) < 4 then return 0",
+                             "n = oconv(reply[1,4], 'ILL')", "if n > 2147483647 then n -= 4294967296", "return n")
+       and "text.request" not in rkc and rkc.count("message.pair(") == 1 and rkc.count("abort '") == 1 and sc.count("SrvrRecordlocked") == 2 and "text.request(SrvrRecordlocked" not in sc
+       and re.search(r"case server\.error = SV\$OK\s*\n\s*reply = in\.pkt\s*\n\s*case server\.error = SV\$ON\.ERROR\s*\n\s*if not\(quiet\) then abort 'RECORDLOCKED generated an abort event'\s*\n\s*end case", rkc) is not None,
+       repr(rkc[:140]))
+
+    # ---- S72x. S.72b: act.recordlocked reads the reply
+    arc = rb("act.recordlocked")
+    arc_seg, afu_seg = seg(arc, "if lerr = -1 then rq.lost = @true", "gosub fail"), seg(afu, "if lerr = -1 then rq.lost = @true", "gosub fail")
+    ck("S72x act.recordlocked reads the REPLY (S.72b: a login without sdfileswrite is refused request 34 with an ON ERROR reply, message 11521, and the class - quiet - returns 0 and says so in LastError): "
+       "`lerr = obj->LastError` straight after the request and BEFORE after.rq; a missing reply (lerr = -1) is LOST (rq.lost: 11497 through lost.fail - not 11509, a lock test changes no data), a server "
+       "error (rq.err) is server.fail, an ON ERROR reply is shown through on.error.text and then server.fail - so the program stops with message 11500 naming the server, `recordlocked` and the server's own text "
+       "with `(request 34)` - and any other kind but OK is 11504; only on success are `out = lk` and rc<8> = rq.st set (a refused request gives no code and no owner number); these branches are the very ones "
+       "of act.fileunlock, the same words in the same order (S72k)",
+       arc != "" and arc_seg != "" and nospace(arc_seg) == nospace(afu_seg)
+       and ordered(arc, "lk = obj->recordlocked(nf.h.fno(hx), id)", "lerr = obj->LastError", "gosub after.rq", "nf.requests += 1", "if lerr = -1 then rq.lost = @true", "if rq.lost then", "gosub lost.fail", "return",
+                   "if rq.err then", "gosub server.fail", "return", "if lerr = NF$LE.ERROR then", "gosub on.error.text", "gosub server.fail", "return", "if lerr # NF$LE.OK then", "fail.num = 11504", "gosub fail",
+                   "return", "out = lk", "rc<8> = rq.st", "return")
+       and arc.count("lerr = obj->LastError") == 1 and arc.count("gosub on.error.text") == 1 and arc.count("fail.num = 11504") == 1 and arc.count("out = lk") == 1 and arc.count("rc<8>") == 1, repr((arc_seg[:60], afu_seg[:60])))
+
+    # ---- S72v. S.72b: the history lines
+    lack = [n for n in ("netfiles.c", "op_lock.c", "sd.h", "bp:netfile", "bp:sdclient", "apifilesok") if not re.search(r"20 Oct 26 dm\s+S\.72b", srcs[n])]
+    ck("S72v the dated history lines of S.72b are there: every production file it changed (netfiles.c, op_lock.c, sd.h, gpl.bp/netfile, gpl.bp/sdclient, gpl.bp/apifilesok) says `20 Oct 26 dm  S.72b`, and this check's own file says so",
+       not lack and "20 Oct 26 dm  S.72b" in (__doc__ or ""), repr(lack))
 
 
 def mutate(srcs, name, old, new=None):
@@ -2807,6 +2916,15 @@ def rx(pattern, repl, flags=0):
 def drop_line(pattern):
     """The first line that matches PATTERN is taken out."""
     return rx(r"^[^\n]*" + pattern + r"[^\n]*\n", "", re.M)
+
+
+def every(old, new):
+    """A mutant (a function of the source text) that changes EVERY place OLD stands to NEW (mutate() changes the first only); KeyError when OLD is not there."""
+    def f(text):
+        if old not in text:
+            raise KeyError("text not in the source: %r" % old[:70])
+        return text.replace(old, new)
+    return f
 
 
 M = []   # (label, source name, old text | function, new text | None)
@@ -3780,11 +3898,11 @@ mut("netfiles.c names a message that is not there", NFC, "#define MSG_HANDLER 11
 mut("gpl.src loses netfiles", "gpl.src", "netfiles\n", "")
 mut("gpl.src lists netfiles before messages", "gpl.src", "messages\nnetfiles\n", "netfiles\nmessages\n")
 mut("sd.h says netfiles was removed", "sd.h", "/* NETFILES.C - files on another SD server", "/* NETFILES.C removed - files on another SD server")
-mut("the suite loses the kernel section", NFSUITE, '("kernel", kernel_section), ("gaps", gaps_section)', '("gaps", gaps_section)')
+mut("the suite loses the kernel section", NFSUITE, '("kernel", kernel_section), ("mustlock", mustlock_section), ("gaps", gaps_section)', '("mustlock", mustlock_section), ("gaps", gaps_section)')
 mut("the suite allows a write request", NFSUITE, "KALLOWED = {47, 48, 3, 4, 5, 6, 1}", "KALLOWED = {47, 48, 3, 4, 5, 6, 1, 16}")
 mut("the suite loses a matrix statement", NFSUITE, 'km("delete", "delete f', 'km("deletx", "delete f')
 mut("the suite expects a message that is not there (S.72: FILEUNLOCK in a transaction)", NFSUITE, 'msg(11510, "nfw", "fileunlock")', 'msg(11599, "nfw", "fileunlock")')
-mut("the suite loses its hang guard", NFSUITE, "    except subprocess.TimeoutExpired:\n        out, hung = [], True", "    except ValueError:\n        out, hung = [], True")
+mut("the suite loses its hang guard (EVERY `except subprocess.TimeoutExpired:` of it: S.72b gave the suite a second runner with one)", NFSUITE, every("except subprocess.TimeoutExpired:", "except ValueError:"))
 mut("the map loses the op_dio3 rule's suite", NFMAP, "gplsrc/op_dio3.c             : @files @seq prof lockown editgates netfile", "gplsrc/op_dio3.c             : @files @seq prof lockown editgates")
 mut("the map loses the netfiles.c rule", NFMAP, "gplsrc/netfiles.c            : netfile\n", "")
 mut("the map loses the _voc_ref rule", NFMAP, "sdsys/gpl.bp/_voc_ref        : @core netfile shared\n", "")
@@ -4218,7 +4336,7 @@ mut("the suite has no lock watcher", NFSUITE, "class LockWatch(", "class LockWat
 mut("the suite's holder is never released", NFSUITE, "                time.sleep(self.delay)\n                self.srv.store.drop_user(self.userno)", "                time.sleep(self.delay)")
 mut("the suite's T prefix does nothing", NFSUITE, "      if nm[1,1] = 'T' then\n         intxn = @true", "      if nm[1,1] = 'T' then\n         intxn = @false")
 mut("the suite's marks in an id are not converted", NFSUITE, "b = change(b, '<F>', @fm) ; ", "")
-mut("the suite runs hwrite after kernel", NFSUITE, '("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section),\n            ("kernel", kernel_section), ("gaps", gaps_section))', '("kernel", kernel_section), ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section), ("gaps", gaps_section))')
+mut("the suite runs hwrite after kernel", NFSUITE, '("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section),\n            ("kernel", kernel_section), ("mustlock", mustlock_section), ("gaps", gaps_section))', '("kernel", kernel_section), ("hwrite", hwrite_section), ("kwrite", kwrite_section), ("wgroup", wgroup_section), ("mustlock", mustlock_section), ("gaps", gaps_section))')
 mut("the suite's KALLOWED changes", NFSUITE, "KALLOWED = {47, 48, 3, 4, 5, 6, 1}  ", "KALLOWED = {47, 48, 3, 4, 5, 6, 1, 16}  ")
 mut("the suite's write wire allows request 32", NFSUITE, "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 34}", "KWALLOWED = {47, 48, 3, 4, 5, 6, 1, 15, 16, 17, 18, 19, 30, 31, 32, 34}")
 mut("the suite's refusal matrix loses recordlocku", NFSUITE, '    km("recordlocku", "recordlocku f', '    km("recordlockx", "recordlocku f')
@@ -4329,9 +4447,8 @@ mut("S72: net_fileunlock returns 0 whatever it was told", NFC, edit_func("net_fi
 mut("S72: net_fileunlock understands a busy answer", NFC, edit_func("net_fileunlock", r"NULL, FALSE, FALSE\)", "NULL, FALSE, TRUE)"))
 mut("S72: net_fileunlock sends NF_FILELOCK", NFC, edit_func("net_fileunlock", r"NF_FILEUNLOCK", "NF_FILELOCK"))
 mut("S72: net_fileunlock takes the whole op_flags", NFC, edit_func("net_fileunlock", r"process\.op_flags = op_flags & P_ON_ERROR;", "process.op_flags = op_flags;"))
-mut("S72: net_recordlocked asks net_gate", NFC, edit_func("net_recordlocked", r"  process\.op_flags = 0;", '  if (net_gate(fvar, NETG_LOCK, 0, "RECORDLOCKED") != 0)\n    return 0;\n  process.op_flags = 0;'))
 mut("S72: net_recordlocked lets process.op_flags through (an ON ERROR could swallow the error)", NFC, edit_func("net_recordlocked", r"  process\.op_flags = 0;\n", ""))
-mut("S72: net_recordlocked clears process.op_flags after the request", NFC, edit_func("net_recordlocked", r"  process\.op_flags = 0;\n(  \(void\)net_lock_code\(fvar, id, id_len, &code\);[^\n]*\n)", r"\1  process.op_flags = 0;\n"))
+mut("S72: net_recordlocked clears process.op_flags after the request", NFC, edit_func("net_recordlocked", r"  process\.op_flags = 0;\n(.*?  \(void\)net_lock_code\(fvar, id, id_len, &code\);[^\n]*\n)", r"\1  process.op_flags = 0;\n"))
 mut("S72: net_recordlocked takes any owner number", NFC, edit_func("net_recordlocked", r"\(\(owner >= 0\) && \(owner <= 32767\)\) \? owner : 0", "owner"))
 mut("S72: net_recordlocked takes a negative owner number", NFC, edit_func("net_recordlocked", r"\(owner >= 0\) && ", ""))
 mut("S72: net_recordlocked takes an owner number above 32767", NFC, edit_func("net_recordlocked", r"\(owner <= 32767\)", "(owner <= 65535)"))
@@ -4399,9 +4516,9 @@ mut("S72: netfile.h's history line is gone", NFHD, rx(r"20 Oct 26 dm\s+S\.72", "
 # apifilesok: it does not change; the change set holds 32 and 33 and not 34
 mut("S72: apifilesok: filelock leaves the change set", AFO, drop_line(r"files\.chg := '32,'"))
 mut("S72: apifilesok: fileunlock leaves the change set", AFO, drop_line(r"files\.chg := '33,'"))
-mut("S72: apifilesok: recordlocked joins the change set", AFO, rx(r"(files\.chg := '33,'[^\n]*\n)", r"\1files.chg := '34,'    ;* recordlocked\n"))
+mut("S72b: apifilesok: recordlocked leaves the change set (S72 had it out; S.72b put it in)", AFO, drop_line(r"files\.chg := '34,'"))
 # the suite
-mut("S72: the suite's matrix has recordlocked again", NFSUITE, 'km("fileunlock", "fileunlock f", None, "fileunlock", None),\n', 'km("fileunlock", "fileunlock f", None, "fileunlock", None),\n    km("recordlocked", "x = recordlocked(f, \'c1\')", None, "recordlocked", None),\n')
+mut("S72b: the suite's matrix loses recordlocked (a read-mode handle is refused again, and the matrix must hold it)", NFSUITE, rx(r'[ \t]*km\("recordlocked"[^\n]*\n', ""))
 mut("S72: the suite's matrix loses the filelock control", NFSUITE, 'km("filelock", "filelock f", None, "filelock", None),\n', "")
 mut("S72: the suite's KW_STILL_REFUSED holds filelock again", NFSUITE, 'KW_STILL_REFUSED = ("selectindex",', 'KW_STILL_REFUSED = ("filelock", "selectindex",')
 mut("S72: the suite's GETLOCKS row expects the refusal again", NFSUITE, "KR kj SURVIVED fields=1 values=3", "KR kj REFUSED")
@@ -4411,6 +4528,88 @@ mut("S72: the suite's driver loses the RAW line", NFSUITE, "         case nm = '
 mut("S72: the suite loses the handler's file lock rows", NFSUITE, "    hw_filelocks(A)\n", "")
 mut("S72: the suite loses the statements' file lock rows", NFSUITE, "    kw_filelocks(A)\n", "")
 mut("S72: the suite loses the class's file lock rows", NFSUITE, "    class_filelocks(A, alice)\n", "")
+
+# ---- 20 Oct 26, S.72b: RECORDLOCKED() of a remote file is write-governed (S2i, S2zb, NF6a, S72d, S72n, S72q changed; S72r to S72v new) -----------------------------------------------
+M_S72B = len(M)        # --selftest --from=<this number> runs S.72b's mutants alone
+PEEK_GATE = r'  if \(net_gate\(fvar, NETG_PEEK, 0, "RECORDLOCKED"\) != 0\)\n    return 0;[^\n]*\n'      # net_recordlocked's call of the gate, with the line after it that returns
+PEEK_ARM = r"  if \(kind == NETG_PEEK\) \{.*?\n  \}\n\n"                                               # net_gate's arm for it (the end of the block: a brace at the margin of the function's body, a blank line)
+# sd.h: the constant and its comment
+mut("S72b: sd.h: NETG_PEEK is 4 (NETG_LOCK's: the gate would ask for a lock)", "sd.h", rx(r"(#define NETG_PEEK )5", r"\g<1>4"))
+mut("S72b: sd.h: NETG_PEEK is 6", "sd.h", rx(r"(#define NETG_PEEK )5", r"\g<1>6"))
+mut("S72b: sd.h: NETG_PEEK has no comment", "sd.h", rx(r"(#define NETG_PEEK 5)[ \t]+/\*[^\n]*\*/", r"\1"))
+mut("S72b: sd.h: NETG_PEEK is not defined", "sd.h", rx(r"#define NETG_PEEK 5[^\n]*\n", ""))
+# net_gate: the arm, its place, its answer
+mut("S72b: net_gate: NETG_PEEK is not special (the arm is gone: it meets the transaction test)", NFC, edit_func("net_gate", PEEK_ARM, ""))
+mut("S72b: net_gate: the PEEK arm stands BEFORE the read-mode test (a read-mode handle is served)", NFC,
+    edit_func("net_gate", r"(  if \(!fvar->access\.net\.write .*?\n  \}\n\n)(" + PEEK_ARM + r")", r"\2\1"))
+mut("S72b: net_gate: the PEEK arm stands AFTER the transaction test (RECORDLOCKED() inside BEGIN TRANSACTION is refused with 11510)", NFC,
+    edit_func("net_gate", r"(" + PEEK_ARM + r")(  if \(\(kind == NETG_WRITE\) && \(op_flags & P_SEQKEY\)\) \{.*?\n  \}\n\n)(  if \(process\.txn_id != 0\) \{.*?\n  \}\n\n)", r"\2\3\1"))
+mut("S72b: net_gate: the PEEK arm does not give process.op_flags back", NFC, edit_func("net_gate", r"(  if \(kind == NETG_PEEK\) \{[^\n]*\n)    process\.op_flags = entry;\n", r"\1"))
+mut("S72b: net_gate: the PEEK arm answers a refusal, not 0", NFC, edit_func("net_gate", r"(  if \(kind == NETG_PEEK\) \{[^\n]*\n    process\.op_flags = entry;\n    )return 0;", r"\1return -ER_NETWORK;"))
+mut("S72b: net_gate: the PEEK arm refuses inside a transaction", NFC,
+    edit_func("net_gate", r"(  if \(kind == NETG_PEEK\) \{[^\n]*\n)", r"\1    if (process.txn_id != 0)\n      return net_refuse_with(fvar, what, MSG_TXN, -ER_TXN);\n"))
+mut("S72b: net_gate: the read-mode test is skipped for NETG_PEEK (a read-mode handle asks the server)", NFC,
+    edit_func("net_gate", r"if \(!fvar->access\.net\.write \|\| \(fvar->flags & FV_RDONLY\)\) \{", "if ((kind != NETG_PEEK) && (!fvar->access.net.write || (fvar->flags & FV_RDONLY))) {"))
+mut("S72b: net_gate: the edit gate is asked for NETG_PEEK too", NFC, edit_func("net_gate", r"\(kind == NETG_CLEAR\)\) \{", "(kind == NETG_CLEAR) || (kind == NETG_PEEK)) {"))
+# net_recordlocked: the gate, FIRST, with kind PEEK and the literal 0
+mut("S72b: net_recordlocked asks no gate (a read-mode handle sends request 34)", NFC, edit_func("net_recordlocked", PEEK_GATE, ""))
+mut("S72b: net_recordlocked asks the gate AFTER the request", NFC,
+    edit_func("net_recordlocked", r"(" + PEEK_GATE + r")(  \(void\)net_lock_code\(fvar, id, id_len, &code\);[^\n]*\n)", r"\2\1"))
+mut("S72b: net_recordlocked asks the gate as a lock (a transaction is refused: 11510)", NFC, edit_func("net_recordlocked", r"NETG_PEEK", "NETG_LOCK"))
+mut("S72b: net_recordlocked asks the gate as a write (the edit gate and CREATING.SEQKEY apply)", NFC, edit_func("net_recordlocked", r"NETG_PEEK", "NETG_WRITE"))
+mut("S72b: net_recordlocked gives the gate the flags a previous statement left (an ON ERROR swallows the refusal)", NFC, edit_func("net_recordlocked", r"net_gate\(fvar, NETG_PEEK, 0, ", "net_gate(fvar, NETG_PEEK, process.op_flags, "))
+mut("S72b: net_recordlocked gives the gate P_ON_ERROR (the refusal is swallowed)", NFC, edit_func("net_recordlocked", r"net_gate\(fvar, NETG_PEEK, 0, ", "net_gate(fvar, NETG_PEEK, P_ON_ERROR, "))
+mut("S72b: net_recordlocked goes on after a refusal (the answer of the gate is not looked at)", NFC, edit_func("net_recordlocked", PEEK_GATE, '  (void)net_gate(fvar, NETG_PEEK, 0, "RECORDLOCKED");\n'))
+mut("S72b: net_recordlocked names another statement to the gate (the message says recordlock)", NFC, edit_func("net_recordlocked", r'"RECORDLOCKED"\) != 0', '"RECORDLOCK") != 0'))
+# MUSTLOCK is not gated
+mut("S72b: net_check_lock (MUSTLOCK) asks the gate", NFC,
+    edit_func("net_check_lock", r"  int status = net_lock_code\(fvar, id, id_len, &code\);", '  int status = net_gate(fvar, NETG_PEEK, 0, "MUSTLOCK");\n\n  if (status == 0)\n    status = net_lock_code(fvar, id, id_len, &code);'))
+mut("S72b: net_pre_change_lock gates the MUSTLOCK check", D3,
+    edit_func("net_pre_change_lock", r"if \(pcfg\.must_lock\) \{", 'if (pcfg.must_lock) {\n    if (refuse_net_file(fvar, op_flags, "MUSTLOCK", NETG_LOCK))\n      return NETL_FAIL;'))
+mut("S72b: a second kernel function asks the gate for a PEEK", OLK, edit_func("op_reclckd", r"  if \(fvar->type == NET_FILE\)", '  if ((fvar->type == NET_FILE) && (net_gate(fvar, NETG_PEEK, 0, "RECORDLOCKED") != 0))\n    return;\n  if (fvar->type == NET_FILE)'))
+# the handler: the mode refusal of act.recordlocked
+mut("S72b: act.recordlocked is not refused for a read-mode handle", NFP, after("\nact.recordlocked:", "   if nf.h.mode(hx) # 'write' then\n      gosub act.refuse\n      return\n   end\n", ""))
+mut("S72b: act.recordlocked does not stop after the refusal (the request goes on)", NFP, after("\nact.recordlocked:", "      gosub act.refuse\n      return\n", "      gosub act.refuse\n"))
+mut("S72b: act.recordlocked refuses AFTER the gate and the connection are asked", NFP,
+    rx(r"(\nact\.recordlocked:\n)(   need\.gate = @false ; need\.conn = @false ; any\.acct = @false ; allow\.lost = @true\n   gosub get\.handle\n   if failed then return\n)"
+       r"(   opname = 'recordlocked'\n   if nf\.h\.mode\(hx\) # 'write' then\n      gosub act\.refuse\n      return\n   end\n)(   need\.gate = @true[^\n]*\n   gosub get\.handle\n   if failed then return\n)", r"\1\4\3"))
+mut("S72b: act.recordlocked asks the gate and the connection in its first get.handle only (the second is gone)", NFP,
+    after("\nact.recordlocked:", "   need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false\n   gosub get.handle\n   if failed then return\n", ""))
+mut("S72b: act.recordlocked does not ask the gate in its second get.handle", NFP,
+    after("\nact.recordlocked:", "   need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "   need.gate = @false ; need.conn = @true ; any.acct = @false ; allow.lost = @false"))
+mut("S72b: act.recordlocked reads the definition now (mode.now)", NFP,
+    after("\nact.recordlocked:", "   need.gate = @true ; need.conn = @true", "   gosub mode.now\n   if not(mode.ok) then\n      gosub act.refuse\n      return\n   end\n   need.gate = @true ; need.conn = @true"))
+mut("S72b: act.recordlocked is refused in a transaction (11510)", NFP,
+    after("\nact.recordlocked:", "   obj = nf.s.obj(slot)\n", "   if system(SYS$TRANS_LEVEL) # 0 then\n      fail.num = 11510 ; fail.a1 = srvname ; fail.a2 = opname\n      gosub fail\n      return\n   end\n   obj = nf.s.obj(slot)\n"))
+mut("S72b: act.recordlocked names no operation (the refusal says nothing about the statement)", NFP, after("\nact.recordlocked:", "   opname = 'recordlocked'\n", ""))
+mut("S72b: act.recordlocked is audited", NFP, after("\nact.recordlocked:", "   obj = nf.s.obj(slot)\n", "   void kernel(K$AUDIT, 'netfile recordlocked server=' : srvname)\n   obj = nf.s.obj(slot)\n"))
+# the handler reads the reply: a refused request 34 is an ON ERROR reply (S72x, S2k)
+mut("S72b: act.recordlocked has no ON ERROR branch (a refusal is shown as 11504, or not at all)", NFP,
+    after("\nact.recordlocked:", "   if lerr = NF$LE.ERROR then\n      gosub on.error.text\n      gosub server.fail\n      return\n   end\n", ""))
+mut("S72b: act.recordlocked shows the ON ERROR reply without its text (the status instead)", NFP,
+    after("\nact.recordlocked:", "   if lerr = NF$LE.ERROR then\n      gosub on.error.text\n", "   if lerr = NF$LE.ERROR then\n      rq.txt = 'status ':rq.st\n"))
+mut("S72b: act.recordlocked does not read LastError", NFP, after("\nact.recordlocked:", "   lerr = obj->LastError\n", ""))
+mut("S72b: act.recordlocked reads LastError after after.rq", NFP, after("\nact.recordlocked:", "   lerr = obj->LastError\n   gosub after.rq\n", "   gosub after.rq\n   lerr = obj->LastError\n"))
+mut("S72b: act.recordlocked does not take a missing reply (lerr = -1) for a lost one", NFP, after("\nact.recordlocked:", "   if lerr = -1 then rq.lost = @true\n", ""))
+mut("S72b: act.recordlocked has no unknown-answer branch (11504)", NFP,
+    after("\nact.recordlocked:", "   if lerr # NF$LE.OK then\n      fail.num = 11504 ; fail.a1 = srvname ; fail.a2 = opname ; fail.a3 = 'answer ':lerr\n      gosub fail\n      return\n   end\n", ""))
+mut("S72b: act.recordlocked answers a refused request with the code (out = lk before the branches)", NFP,
+    after("\nact.recordlocked:", "   lerr = obj->LastError\n", "   lerr = obj->LastError\n   out = lk\n"))
+mut("S72b: act.recordlocked gives the server error no message (rq.err is not looked at)", NFP,
+    after("\nact.recordlocked:", "   if rq.err then\n      gosub server.fail\n      return\n   end\n", ""))
+# the class: recordlocked() honours quiet
+mut("S72b: sdclient: recordlocked aborts even when quiet", SCL, "if not(quiet) then abort 'RECORDLOCKED generated an abort event'", "abort 'RECORDLOCKED generated an abort event'")
+mut("S72b: sdclient: recordlocked has no ON ERROR case (a refusal is read as data)", SCL,
+    "            case server.error = SV$ON.ERROR\n               if not(quiet) then abort 'RECORDLOCKED generated an abort event'\n", "")
+mut("S72b: sdclient: recordlocked goes back to text.request (it aborts whatever quiet says)", SCL,
+    rx(r"(public function recordlocked\(fno, id\)\n).*?(   if len\(reply\) < 4 then return 0)", r"\1   reply = text.request(SrvrRecordlocked, iconv(fno, 'ISL') : id, 'RECORDLOCKED generated an abort event')\n\2", re.S))
+mut("S72b: sdclient: recordlocked sends request 33", SCL, after("public function recordlocked(fno, id)", "message.pair(SrvrRecordlocked,", "message.pair(SrvrFileunlock,"))
+mut("S72b: sdclient: recordlocked leaves the id out", SCL, after("public function recordlocked(fno, id)", "iconv(fno, 'ISL') : id)", "iconv(fno, 'ISL'))"))
+mut("S72b: sdclient: recordlocked does not make the answer signed", SCL, after("public function recordlocked(fno, id)", "   if n > 2147483647 then n -= 4294967296\n", ""))
+mut("S72b: sdclient: recordlocked takes the reply of an ON ERROR as data", SCL, after("public function recordlocked(fno, id)", "            case server.error = SV$OK\n", "            case server.error = SV$OK or server.error = SV$ON.ERROR\n"))
+# the history lines
+for _f, _n in (("netfiles.c", NFC), ("op_lock.c", OLK), ("sd.h", "sd.h"), ("gpl.bp/netfile", NFP), ("gpl.bp/sdclient", SCL), ("gpl.bp/apifilesok", AFO)):
+    mut("S72b: %s's S.72b history line is gone" % _f, _n, rx(r"20 Oct 26 dm\s+S\.72b", "20 Oct 26 dm  S.7x"))
 
 
 def run(srcs):

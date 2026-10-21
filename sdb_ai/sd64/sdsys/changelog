@@ -1,13 +1,32 @@
 Next release - in progress
 --------------------------
 
+20 Oct 26  RECORDLOCKED() OF A FILE ON ANOTHER SD SERVER NEEDS A WRITE DEFINITION AND THE WRITE GROUP, LIKE A LOCK (SDNET).
+
+             What        RECORDLOCKED(f, id) of a remote file is asked of the other server only when this machine's definition of that server
+                        says write AND the login there is in the other server's sdfileswrite group. A definition that says read stops the
+                        program at once with message 11501 ("... is read only: recordlocked is refused. Nothing was sent"); the function has
+                        no ON ERROR clause, so it always stops. On the other server, request 34 (the one RECORDLOCKED() sends) joins the
+                        requests that a login in sdfiles but not in sdfileswrite may not make: that login is refused with message 11521 and
+                        the audit line api refused request=34 route=sdfiles write=off user=<name>, whatever the client's definition says, and
+                        the program stops with message 11500 and that text. Inside BEGIN TRANSACTION it still works for a write definition (it
+                        changes nothing, so a rollback has nothing to undo). MUSTLOCK asks the same request ("do I hold this lock?"), so for a
+                        login without the write group the check is refused as well: a write or delete ends with STATUS() 7000 and message
+                        11500 naming request 34, where it used to end with STATUS() 3023. Nothing is written either way.
+             Why it      The answer names the holder of a lock by his user number on the other server. A login that may read and nothing
+             matters     else has no business learning who is editing what, and a check made only by the client's own definition can be
+                        walked round by a program that speaks the API directly; the refusal on the other server cannot.
+             Does not    It changes nothing about GETLOCKS() (still the local view), FILELOCK, FILEUNLOCK, the record locks, CLEAR.FILE or
+                        LOCKING, and it adds no message. A login in sdfileswrite on a server whose definition here says read still cannot
+                        ask RECORDLOCKED(): the definition is the administrator's choice on this machine, so change it to write to have it.
+
 20 Oct 26  FILELOCK, FILEUNLOCK, RECORDLOCKED() AND GETLOCKS() NOW WORK ON A FILE ON ANOTHER SD SERVER (SDNET).
 
              What        A program that opens a remote file through a VOC pointer of type N could not use these four statements: each stopped
                         with "not available" or "read only". RECORDLOCKED(f, id) now asks the other server and gives the code a local file
                         gives (-3 -2 -1 another user holds a file, update or read lock, 0 nobody, 1 2 3 this session holds a read, update or
-                        file lock), and STATUS() afterwards is the lock owner's user number ON THAT SERVER. It works on a server defined
-                        read as well as one defined write, and inside BEGIN TRANSACTION (it changes nothing). GETLOCKS(f, user) of a remote
+                        file lock), and STATUS() afterwards is the lock owner's user number ON THAT SERVER. It needs the same two things as
+                        FILELOCK (see the entry above this one). GETLOCKS(f, user) of a remote
                         file is the local view, as in openQM: the three counters of this machine's lock table and no lock line, because a
                         remote lock lives on the server and never appears here; it asks the server nothing. FILELOCK f and FILEUNLOCK f work
                         only for a server defined write AND a login that is in the other machine's sdfileswrite group, exactly as a remote

@@ -3,10 +3,10 @@
 
   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/test-witness-sdnet-units.py            (the free check, about 25 s: static rows, the helpers' mutants, the write-group and groups scripts against their models)
   python3 .../test-witness-sdnet-units.py --selftest      (the same, and the write-group and groups models broken one way at a time: about 100 s)
-  python3 .../test-witness-sdnet-units.py --full          (also files-route, gaps and the two-machines roles against their models, each broken one way at a time: about 12 minutes before S.72; since then files-route has 26 mutants, run 13 at a time)
+  python3 .../test-witness-sdnet-units.py --full          (also files-route, gaps and the two-machines roles against their models, each broken one way at a time: about 12 minutes before S.72; since then files-route has 26 mutants, 33 since S.72b, run 13 at a time)
   python3 .../test-witness-sdnet-units.py --only=files-route [--selftest]     (one model: writegroup, groups, files-route, gaps or two-machines; --only may be given more than once)
   python3 .../test-witness-sdnet-units.py --only=files-route --selftest --only-mutant=NAME     (just that mutant of the files-route model, repeatable; the faithful run is skipped.  The files-route mutants
-                                                                                                run WSU_JOBS (default 13) at a time: about 8 minutes in all since the S.72 rows - the faithful model and 26 mutants, 20 Oct 26)
+                                                                                                run WSU_JOBS (default 13) at a time: about 8 minutes in all since the S.72 rows - the faithful model and 26 mutants, 20 Oct 26; 33 mutants since S.72b)
 
 No sudo, no install, no sd, no network.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  REFUSES to run as root: the scripts it exercises do real work when they are
 root (the re-exec, the groups), and this check must never be the way a witness script runs on a real machine.
@@ -32,6 +32,13 @@ Changed 20 Oct 2026 (S.72, FILELOCK / FILEUNLOCK / RECORDLOCKED() on a remote fi
 file variable that took them), LIST.READU in the real layout of gpl.bp/listrdu (a path cut at 31 characters, a file lock with an empty id), the programs zzwn5-zzwn9 and zzwnfa-zzwnfe, the step a program still
 has to do after its session's verbs (a sleep holding a lock, a wait for one: AFTER; a program with sleeps in it: PENDING), LIST.READU for the administrator only (an ordinary account's VOC has none: found by the first
 run on the VM), and 18 mutants whose failed rows must be EXACTLY the rows built to catch them (FR_EXACT, model_run_exact).
+
+Changed 20 Oct 2026 (S.72b, RECORDLOCKED() of a remote file is write-governed - the owner's decision): request 34 is in the change set of the model's server (CHANGE_REQS), so a login without the write group
+is refused it (message 11500 with the text of 11521, "(request 34)", and the audit line `api refused request=34 ...`); a handle whose definition says read stops the program with 11501 and sends nothing (the
+client's NETG_PEEK); the write group and a write definition serve it, inside BEGIN TRANSACTION too.  RECORDLOCKED() has no ON ERROR clause, so it has programs of its own: zzwnrl (refused in A, M and C, served in
+B) and zzwnrt (served inside a transaction while the session holds a file lock); zzwn1's X12 and zzwn7's R3 are gone.  The probe sends 34 after an update lock on ID-rl (served: it answers 2; refused: 0 and the abort text).
+Eight mutants (recordlocked-without-group, read-mode-recordlocked-sent, s72b-not-built = the tree before S.72b, recordlocked-no-audit, recordlocked-text-number, recordlocked-txn-refused, probe-skips-34,
+probe-34-lock-not-seen) replace the S.72 mutant recordlocked-refused, which is the faithful behaviour now.  NOT modelled: MUSTLOCK (the script has no internal program to set it; see the header of the script).
 
 Written 19 Oct 2026.  THE MODEL IS NOT THE SYSTEM: the outputs it prints are copied from the 18 Oct VM logs where there are some and from the message files where there are not.
 """
@@ -259,7 +266,9 @@ def modify_files(st, g, acc, word, out):
 
 
 # ---- the remote side of the files-only route (apisrvr + !apifilesok), as the 18 Oct VM logs showed it
-CHANGE_REQS = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33)
+CHANGE_REQS = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34)      # S.72b (20 Oct 26): 34 (recordlocked) joined the change set of gpl.bp/apifilesok
+S72B_NO_WALL = ("recordlocked-without-group", "s72b-not-built")       # the mutants in which the SERVER lets request 34 through to a login without the write group (the tree before S.72b is the second)
+S72B_NO_PEEK = ("read-mode-recordlocked-sent", "s72b-not-built")      # the mutants in which the CLIENT does not stop RECORDLOCKED() on a read-mode handle (net_gate without NETG_PEEK)
 
 
 def remote_login(st, g, ru, pw, route_audit=True):
@@ -792,11 +801,12 @@ AUDIT_KIND = {"write": ("w", "write"), "writeu": ("w", "write"), "delete": ("d",
 
 
 def server_allows(conn, req):
-    """apifilesok on the target: a request that changes state or takes a lock needs the write group.  Two mutants let one request number through."""
+    """apifilesok on the target: a request that changes state or takes a lock needs the write group - and since S.72b (20 Oct 26) so does request 34, RECORDLOCKED().  Three mutants let one
+    request number through."""
     m = mutant()
-    if conn["write"]:
+    if conn["write"] or req not in CHANGE_REQS:
         return True
-    return (m == "filelock-without-group" and req == 32) or (m == "fileunlock-without-group" and req == 33)
+    return (m == "filelock-without-group" and req == 32) or (m == "fileunlock-without-group" and req == 33) or (m in S72B_NO_WALL and req == 34)
 
 
 def netfile_change(st, conn, opname, req, ctx):
@@ -846,12 +856,21 @@ def stmt_fileunlock(st, conn):
 
 
 def stmt_recordlocked(st, conn, rid):
-    """RECORDLOCKED(f, id): a read, served for a read-mode handle and in a transaction.  Returns (code, owner, text); code is None when the request was refused."""
-    if mutant() == "recordlocked-refused" and not conn["write"]:
-        refuse_audit(34, False, conn["ru"])
-        return None, 0, msg(11500, conn["server"], "recordlocked", msg(11521, 34))
+    """RECORDLOCKED(f, id), write-governed since S.72b (20 Oct 26, the owner's decision).  Two layers, in this order.  THE CLIENT (net_gate with NETG_PEEK): a read-mode handle - the server's
+    definition says read - stops the program with message 11501 and nothing is sent; a transaction does not matter (the statement changes nothing).  THE SERVER (request 34 is in the change set of
+    !apifilesok): a handle whose login has no write group sends the request and is refused - message 11500 with the text of 11521 - and the refusal is audited.  RECORDLOCKED() has no ON ERROR
+    clause, so a refusal always ends the program.  Returns (code, owner, text); code is None when the program was stopped, and text is what it was stopped with."""
+    m = mutant()
+    if conn["mode"] != "write" and m not in S72B_NO_PEEK:
+        return None, 0, msg(11501, conn["server"], "recordlocked")
+    if conn["txn"] and m == "recordlocked-txn-refused":
+        return None, 0, msg(11510, conn["server"], "recordlocked")
+    if not server_allows(conn, 34):
+        if m != "recordlocked-no-audit":
+            refuse_audit(34, False, conn["ru"])
+        return None, 0, msg(11500, conn["server"], "recordlocked", msg(11521, 32 if m == "recordlocked-text-number" else 34))
     code, owner = lock_code(st, conn, rid)
-    if mutant() == "recordlocked-owner-lost":
+    if m == "recordlocked-owner-lost":
         owner = 0
     return code, owner, ""
 
@@ -889,7 +908,7 @@ def run_program(st, g, user, parts, out, i):
             c1 = conn["vf"]["data"].get("c1", [])
             out.append("c1=[%s]" % "/".join(c1))
             out.append("dict open ok")
-    elif prog in ("zzwn1", "zzwn2", "zzwn3", "zzwn4", "zzwn5", "zzwn6", "zzwn7", "zzwn8", "zzwn9", "zzwtrw", "zzwnla", "zzwnlb", "zzwnfa", "zzwnfb", "zzwnfl", "zzwnfd", "zzwnfe"):
+    elif prog in ("zzwn1", "zzwn2", "zzwn3", "zzwn4", "zzwn5", "zzwn6", "zzwn7", "zzwn8", "zzwn9", "zzwnrl", "zzwnrt", "zzwtrw", "zzwnla", "zzwnlb", "zzwnfa", "zzwnfb", "zzwnfl", "zzwnfd", "zzwnfe"):
         ptr = voc.get("zzrw") or voc.get("zzrt")
         conn = remote_open(st, g, user, ptr, out) if ptr else None
         if conn is None:
@@ -921,12 +940,7 @@ def run_program(st, g, user, parts, out, i):
             out.append("X10 FILELOCK branch=%s STATUS()=%d" % (br, sts))
             br, sts, _t = stmt_fileunlock(st, conn)
             out.append("X11 FILEUNLOCK branch=%s STATUS()=%d" % (br, sts))
-            code, owner, txt = stmt_recordlocked(st, conn, "p3")
-            if code is None:       # RECORDLOCKED() has no ON ERROR clause: a refusal ends the program with the message
-                out.append("000000E1: " + txt + " at line 33 of /model/bp.out/zzwn1")
-            else:
-                out.append("X12 RECORDLOCKED p3 (a read, served) x=%d STATUS()=%d" % (code, owner))
-                out.append("XZ done")
+            out.append("XZ done")                         # (S.72b: no RECORDLOCKED() here any more - it has no ON ERROR clause, so a refusal would end the program: it has its own, zzwnrl)
         elif prog == "zzwn2":
             br, sts, txt = netfile_change(st, conn, "write", 16, None)
             if br == "then":
@@ -968,24 +982,45 @@ def run_program(st, g, user, parts, out, i):
                 out.append("000000D9: " + txt + " at line 3 of /model/bp.out/" + prog)
             else:
                 out.append(reached)
-        elif prog == "zzwn7":                             # the lock statements under a definition that says READ
+        elif prog == "zzwn7":                             # the lock statements under a definition that says READ (S.72b: RECORDLOCKED() is not among them: it has no ON ERROR clause, see zzwnrl)
             br, sts, _t = stmt_filelock(st, conn)
             out.append("R1 FILELOCK branch=%s STATUS()=%d" % (br, sts))
             br, sts, _t = stmt_fileunlock(st, conn)
             out.append("R2 FILEUNLOCK branch=%s STATUS()=%d" % (br, sts))
-            code, owner, _t = stmt_recordlocked(st, conn, "p1")
-            out.append("R3 RECORDLOCKED p1 (a read, served) x=%d STATUS()=%d" % (code, owner))
             out.append("RZ done")
+        elif prog == "zzwnrl":                            # S.72b: one RECORDLOCKED() with no way to catch an error: a refusal ends the program with the message
+            out.append("Q0 opened zzrw")
+            code, owner, txt = stmt_recordlocked(st, conn, "p1")
+            if code is None:
+                out.append("000000E2: " + txt + " at line 3 of /model/bp.out/zzwnrl")
+            else:
+                out.append("Q9 REACHED (RECORDLOCKED() was not refused) x=%d STATUS()=%d" % (code, owner))
+        elif prog == "zzwnrt":                            # S.72b: RECORDLOCKED() inside BEGIN TRANSACTION while the session HOLDS a file lock taken before it (so that a served answer is not 0)
+            br, sts, _t = stmt_filelock(st, conn)
+            out.append("V1 FILELOCK before the transaction branch=%s STATUS()=%d" % (br, sts))
+            conn["txn"] = True
+            code, owner, txt = stmt_recordlocked(st, conn, "p1")
+            conn["txn"] = False
+            if code is None:
+                out.append("000000E3: " + txt + " at line 7 of /model/bp.out/zzwnrt")
+            else:
+                out.append("V2 RECORDLOCKED p1 inside the transaction (we hold the file lock) x=%d STATUS()=%d" % (code, owner))
+                br, sts, _t = stmt_fileunlock(st, conn)
+                out.append("V3 FILEUNLOCK after the transaction branch=%s STATUS()=%d" % (br, sts))
+                out.append("VZ done")
         elif prog == "zzwn8":                             # the same inside BEGIN TRANSACTION
             conn["txn"] = True
             br, sts, _t = stmt_filelock(st, conn)
             out.append("T1 FILELOCK in a transaction branch=%s STATUS()=%d" % (br, sts))
             br, sts, _t = stmt_fileunlock(st, conn)
             out.append("T2 FILEUNLOCK in a transaction branch=%s STATUS()=%d" % (br, sts))
-            code, owner, _t = stmt_recordlocked(st, conn, "p1")
-            out.append("T3 RECORDLOCKED p1 in a transaction x=%d STATUS()=%d" % (code, owner))
+            code, owner, txt = stmt_recordlocked(st, conn, "p1")
             conn["txn"] = False
-            out.append("TZ done")
+            if code is None:                              # (only a mutant stops here: RECORDLOCKED() in a transaction is served)
+                out.append("000000E1: " + txt + " at line 11 of /model/bp.out/zzwn8")
+            else:
+                out.append("T3 RECORDLOCKED p1 in a transaction x=%d STATUS()=%d" % (code, owner))
+                out.append("TZ done")
         elif prog == "zzwn9":                             # FILELOCK with no ON ERROR inside a transaction
             conn["txn"] = True
             br, sts, txt = stmt_filelock(st, conn)
@@ -1348,7 +1383,8 @@ def fake_probe(argv):
         if mode == "files":
             show("6 SDRead (control)", "ret=%s" % (rid in vf))
             seq = [(7, "7 SDReadl", "Read", "wait=0"), (8, "8 SDReadl wait", "Read", "wait=1"), (9, "9 SDReadu", "Read", "wait=0"), (10, "10 SDReadu wait", "Read", "wait=1"),
-                   (16, "16 SDWrite", "Write", ""), (17, "17 SDWriteu", "Write", ""), (18, "18 SDDelete", "DELETE", ""), (19, "19 SDDeleteu", "DELETE", ""), (30, "30 SDRecordlock", "RECORDLOCK", "")]
+                   (16, "16 SDWrite", "Write", ""), (17, "17 SDWriteu", "Write", ""), (18, "18 SDDelete", "DELETE", ""), (19, "19 SDDeleteu", "DELETE", ""), (30, "30 SDRecordlock", "RECORDLOCK", ""),
+                   (30, "30 SDRecordlock %s-rl" % rid, "RECORDLOCK", "update")]
             for n, label, name, extra in seq:
                 if not write:
                     refuse_audit(n, False, user)
@@ -1360,6 +1396,16 @@ def fake_probe(argv):
                 elif n in (18, 19):
                     vf.pop(rid, None)
                 show(label, extra)
+            # S.72b: 34 SDRecordlocked on the id the probe has just locked with an UPDATE lock.  Write group: the server answers 2 (this session holds an update lock).  No write group: the request is
+            # refused like the other changes (the library prints "Recordlocked generated an abort event" and the text of 11521) and the library's answer stays 0.
+            if mutant() != "probe-skips-34":
+                if write or mutant() in S72B_NO_WALL:
+                    show("34 SDRecordlocked", "id=%s-rl ret=%d" % (rid, 2 if (write and mutant() != "probe-34-lock-not-seen") else 0))
+                else:
+                    if mutant() != "recordlocked-no-audit":
+                        refuse_audit(34, False, user)
+                    print("Recordlocked generated an abort event%s" % msg(11521, 32 if mutant() == "recordlocked-text-number" else 34))
+                    show("34 SDRecordlocked", "id=%s-rl ret=0" % rid)
             show("15 SDRelease (control)")
         else:
             for n, label, name in ((20, "20 SDCall", "CALL"), (21, "21 SDExecute", "EXECUTE"), (22, "22 SDRespond", "EXECUTE"), (23, "23 SDEndCommand", "EndCommand"),
@@ -1821,7 +1867,7 @@ FR_MUTANTS = [
 # fail is no check).  A pattern is a regular expression on the row's id and text, "A3 X10 FILELOCK refused: ...".  The first group are the four breaks the brief names.
 FR_EXACT = [
     ("FILELOCK (request 32) is allowed to a login without the write group", "filelock-without-group",
-     [r"^A3 X10 ", r"^A2 control X12", r"^A4 S\.72: a FILELOCK with no ON ERROR", r"^A4 S\.72: \.\.\. and the program did not go on after the refused FILELOCK",
+     [r"^A3 X10 ", r"^A4 S\.72: a FILELOCK with no ON ERROR", r"^A4 S\.72: \.\.\. and the program did not go on after the refused FILELOCK",
       r"^A6 server audit S\.72: request 32 ", r"^C2 S\.72: a FILELOCK is refused again", r"^C2 S\.72: \.\.\. L9"]),
     ("FILEUNLOCK (request 33) is allowed to a login without the write group", "fileunlock-without-group",
      [r"^A3 X11 ", r"^A4 S\.72: a FILEUNLOCK with no ON ERROR", r"^A4 S\.72: \.\.\. and the program did not go on after the refused FILEUNLOCK",
@@ -1833,10 +1879,30 @@ FR_EXACT = [
     ("FILEUNLOCK of another user's lock leaves STATUS() 0 instead of 3011 (the lock stays)", "unlock-others-status-0", [r"^B11 F4 "]),
     ("FILEUNLOCK of another user's lock GIVES IT AWAY", "unlock-others-lock-given",
      [r"^B11 SERVER evidence: while A held it", r"^B11 the lock table showed no file lock held by A", r"^B11 F4 ", r"^B11 F5 ", r"^B11 the lock table never showed", r"^B11 the holder gave its lock back"]),
-    ("RECORDLOCKED() (request 34) is refused to a login without the write group", "recordlocked-refused",
-     [r"^A1 NULL CASE: run 1 reached its end", r"^A2 control X12", r"^A6 server audit S\.72: \.\.\. nor 34", r"^M1 S\.72: RECORDLOCKED\(\) under READ", r"^M1 S\.72: \.\.\. zzwn7 reached its end",
-      r"^M1 nothing was refused by the server"]),
-    ("RECORDLOCKED() leaves STATUS() 0 instead of the owner's user number", "recordlocked-owner-lost", [r"^B4 Y9 ", r"^B10 B4 ", r"^B11 F3 ", r"^B11 F6 ", r"^B12 L2 "]),
+    # S.72b (20 Oct 26): RECORDLOCKED() of a remote file is write-governed.  The mutants below break one thing each.  The SERVER's wall (request 34 in the change set of !apifilesok), the CLIENT's line (NETG_PEEK:
+    # a read-mode handle stops the program with 11501 and sends nothing), the audit, the text, the transaction, the probe's call.  "s72b-not-built" is the tree BEFORE S.72b - neither wall nor line:
+    # the rows that would fail on the VM if the install did not have the change.
+    ("RECORDLOCKED() (request 34) is allowed to a login without the write group - the server's wall is gone", "recordlocked-without-group",
+     [r"^A4 S\.72b: a RECORDLOCKED\(\)", r"^A4 S\.72b: \.\.\. and the program did not go on after the refused RECORDLOCKED", r"^A5 probe: request 34 refused", r"^A6 server audit S\.72b: request 34 \(RECORDLOCKED\(\)\) refused exactly once",
+      r"^A6 server audit S\.72b: request 34 refused exactly twice", r"^C2 S\.72b: a RECORDLOCKED\(\) is refused again", r"^C2 S\.72b: \.\.\. Q9", r"^C2 S\.72b: server audit: request 34",
+      r"^C2 S\.72b: a direct request 34", r"^C4 S\.72b: a RECORDLOCKED\(\) is refused again", r"^C4 S\.72b: \.\.\. Q9"]),
+    ("the client does not stop RECORDLOCKED() on a read-mode handle: it sends request 34 (the server's wall still refuses it)", "read-mode-recordlocked-sent",
+     [r"^M1 S\.72b: the client refused a RECORDLOCKED\(\) before sending it", r"^M1 S\.72b: \.\.\. and what the person saw is NOT the server's reason", r"^M1 nothing was refused by the server",
+      r"^M1 S\.72b: \.\.\. in particular no 'api refused request=34' line"]),
+    ("the tree before S.72b: no wall at the server and no line at the client (a read definition is served, so is a login without the group)", "s72b-not-built",
+     [r"^A4 S\.72b: a RECORDLOCKED\(\)", r"^A4 S\.72b: \.\.\. and the program did not go on after the refused RECORDLOCKED", r"^A5 probe: request 34 refused", r"^A6 server audit S\.72b: request 34 \(RECORDLOCKED\(\)\) refused exactly once",
+      r"^A6 server audit S\.72b: request 34 refused exactly twice", r"^M1 S\.72b: the client refused a RECORDLOCKED\(\) before sending it", r"^M1 S\.72b: \.\.\. and the program did not go on",
+      r"^C2 S\.72b: a RECORDLOCKED\(\) is refused again", r"^C2 S\.72b: \.\.\. Q9", r"^C2 S\.72b: server audit: request 34", r"^C2 S\.72b: a direct request 34", r"^C4 S\.72b: a RECORDLOCKED\(\) is refused again", r"^C4 S\.72b: \.\.\. Q9"]),
+    ("the server refuses request 34 but writes no audit line", "recordlocked-no-audit",
+     [r"^A6 server audit S\.72b: request 34 \(RECORDLOCKED\(\)\) refused exactly once", r"^A6 server audit S\.72b: request 34 refused exactly twice", r"^C2 S\.72b: server audit: request 34"]),
+    ("the refusal of request 34 names another request number (the text says 32)", "recordlocked-text-number",
+     [r"^A4 S\.72b: a RECORDLOCKED\(\)", r"^A5 probe: request 34 refused", r"^C2 S\.72b: a RECORDLOCKED\(\) is refused again", r"^C2 S\.72b: a direct request 34", r"^C4 S\.72b: a RECORDLOCKED\(\) is refused again"]),
+    ("RECORDLOCKED() is refused inside a transaction (the client tests the transaction for it too)", "recordlocked-txn-refused",
+     [r"^B13 NULL CASE: zzwn8 ran to its end", r"^B13 T3 ", r"^B13 NULL CASE: zzwnrt ran to its end", r"^B13 V2 ", r"^B13 V3 "]),
+    ("the probe does not send request 34 at all", "probe-skips-34",
+     [r"^A5 probe: request 34 refused", r"^A5 probe NULL CASE \(S\.72b\)", r"^A6 server audit S\.72b: request 34 refused exactly twice", r"^B6 probe S\.72b: 34 SDRecordlocked is SERVED", r"^C2 S\.72b: a direct request 34"]),
+    ("the server serves the probe's request 34 but does not see the update lock the probe took (answers 0)", "probe-34-lock-not-seen", [r"^B6 probe S\.72b: 34 SDRecordlocked is SERVED"]),
+    ("RECORDLOCKED() leaves STATUS() 0 instead of the owner's user number", "recordlocked-owner-lost", [r"^B4 Y9 ", r"^B10 B4 ", r"^B11 F3 ", r"^B11 F6 ", r"^B12 L2 ", r"^B13 V2 "]),
     ("a busy FILELOCK leaves STATUS() 0 instead of the holder", "locked-holder-lost", [r"^B11 F1 "]),
     ("a read-mode definition lets FILELOCK through to the server", "read-mode-filelock-sent",
      [r"^M1 S\.72: the client refused a FILELOCK", r"^M1 nothing was refused by the server", r"^M1 S\.72: and the handler was never asked"]),
@@ -1883,7 +1949,7 @@ def files_route_models(selftest):
     for o in ONLY_MUTANTS:
         check("M files-route: --only-mutant=%s names a mutant of this model" % o, o in names, "known: %s" % " ".join(names))
     if not ONLY_MUTANTS:
-        model_run("files-route, faithful model", "witness-sdnet-files-route.sh", [], "", True, min_pass=239, timeout=900)
+        model_run("files-route, faithful model", "witness-sdnet-files-route.sh", [], "", True, min_pass=266, timeout=900)
     if selftest:
         jobs = []
         for name, m, ids in FR_MUTANTS:

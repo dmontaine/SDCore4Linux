@@ -6,9 +6,19 @@
 
 No sudo, no install, no sd.  Exit 0 every check passed, 1 a check failed, 2 it could not run.  Written 18 Oct 26.
 
+20 Oct 26 (S.72b, RECORDLOCKED() of a remote file becomes write-governed; the owner's decision of that day): request 34 JOINS THE CHANGE SET, so a files-only login without sdfileswrite that sends
+request 34 is refused by the generic gate of apisrvr (message 11521, the audit line `api refused request=34 route=sdfiles write=off ...`), exactly as for 32 and 33, and a login with the group is served as before.  The
+reads (6, 40, 41 with flag 0 ...) and release (15) still need sdfiles alone.  Written BEFORE the code and shown red on the unchanged tree.  CHANGE gains 34 (F1 and F2a follow); F17 flips (34 stays in the allow table AND
+is now in the change set with 32 and 33); the old mutant `recordlocked (34) joins the change set` is the baseline reality now and is replaced by `recordlocked (34) leaves the change set`; F2d is new (the model of
+apisrvr's whole decision for a files-only login - served or refused, and which text - printed for request 34 and its neighbours, with the null case that a model which refuses everything or serves everything fails
+it), F18 is new (request 34 is refused by the SAME generic gate and by no code of its own: no request number in the gate block, no gate in vb.recordlocked, the dispatch slot is still vb.recordlocked), with 6 new
+mutants and one replaced (77 in all, selftest ~7 s): the change set loses 34, the allow table loses 34, the change set holds 34 twice, the gate of apisrvr has an exception for 34, vb.recordlocked refuses on its own, the
+dispatch loses an entry before slot 34.  F18 passes on the unchanged tree on purpose: it pins "apisrvr is not changed", it does not flip.
+
 20 Oct 26 (S.72, QMNet parity, tiers A and B): F16 and F17 and 9 more mutants (72 in all). The SDNet client now sends requests 32, 33 and 34 for FILELOCK, FILEUNLOCK and RECORDLOCKED(), so apisrvr's
 vb.filelock (both branches: the waiting one and the no-wait one with the LOCKED clause), vb.fileunlock and vb.recordlocked are held to the file number the request NAMED (files(fno), never the stale files(i) of the
-last open - the K8a fault of 19 Oct, whose blocking branch had no row and a mutant that survived: the runtime rows are sandbox-req29.py F10-F19) and to handing STATUS() back; 32 and 33 stay in the change set and 34 stays out.
+last open - the K8a fault of 19 Oct, whose blocking branch had no row and a mutant that survived: the runtime rows are sandbox-req29.py F10-F19) and to handing STATUS() back; 32 and 33 stay in the change set
+(and 34 stayed out in this sitting - S.72b above, the same day, put it in).
 
 19 Oct 26 (finish 2, verifier): F11 follows set.files after its failure path learned to say what happened - when the write group went and the step after it failed, the audit line for THAT removal
 (modify.account files-write-off, not the action asked for) and the write group's line (write.removed.line, the routine the success path prints it with too) come before the failure message - with
@@ -22,8 +32,9 @@ program itself is RUN by sandbox-filesgrp.py against a scratch group file.
 THE RULE (owner, 18 Oct 2026, "yes"): a files-only login (the Linux group sdfiles) may CHANGE files on this server and take record or file locks only if
 the user is ALSO in the Linux group sdfileswrite, which is off for a new account and given by SDSYS (modify.account <account> files-write-on).  The change
 set is requests 7 to 10 (the locking reads), 16 to 19 (write, writeu, delete, deleteu), 30 (lock record), 31 (clearfile), 32 (filelock), 33 (fileunlock),
-and any nonzero flag of 41 (readv takes a lock with flags 1, 2, 5 and 6).  Reads, selects, readv with flag 0, fileinfo, the indices, recordlocked and
-release (15) need sdfiles alone.  A member of sdapi has the whole API as before.  And the dictionary open: apisrvr's vb.open takes "dict <file>" in any case.
+34 (recordlocked, since S.72b: it tells who holds a lock, by his user number on this server) and any nonzero flag of 41 (readv takes a lock with flags 1, 2, 5 and 6).
+Reads, selects, readv with flag 0, fileinfo, the indices and release (15) need sdfiles alone.  A member of sdapi has the whole API as before.  And the
+dictionary open: apisrvr's vb.open takes "dict <file>" in any case.
 
 ***WHAT THIS IS, AND WHAT IT IS NOT.***  It reads the BASIC and shell sources as text with the comments removed, so a gate that survives only in a comment
 does not count.  IT RUNS NOTHING, so it cannot say that the gate refuses anybody: sandbox-net.py (the REAL !apifilesok compiled and asked about every number
@@ -48,7 +59,7 @@ SDSYS = os.path.join(SD64, "sdsys")
 BP = ("apifilesok", "apisrvr", "modifya", "createa", "create_account", "acc_os_info", "restorea")
 SH = {"installsdcore.sh": ROOT, "deletesdcore.sh": ROOT, "sd-elevate": HERE}
 
-CHANGE = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33)        # written here from the spec, not read from the program
+CHANGE = (7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34)    # written here from the spec, not read from the program (34, recordlocked: S.72b, 20 Oct 26)
 ALLOWED = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 49)
 
 
@@ -135,6 +146,36 @@ def model_filesok(fo, action, entered, writeok):
     return 1
 
 
+def model_gate(fo, action, files_write):
+    """What apisrvr's gate does with request ACTION for a files-only login (the account entered) whose write flag is FILES_WRITE (0 or 1): the two tests of the gate block, run on the tables of
+    !apifilesok (the text of the block is held to exactly these two tests by F6): `served`, or `refused <message> write=<on|off>` - 11521 only when the same request WOULD be allowed with the
+    group, 11480 otherwise.  (20 Oct 26, S.72b)"""
+    if model_filesok(fo, action, 1, files_write):
+        return "served"
+    word = "on" if files_write else "off"
+    if not files_write and model_filesok(fo, action, 1, 1):
+        return "refused 11521 write=" + word
+    return "refused 11480 write=" + word
+
+
+# S.72b, written here from the owner's decision and not read from the program: what apisrvr does with a request of a files-only login, by the write flag of the login (0 without sdfileswrite, 1 with it).
+# Request 34 is the new row; 32 and 33 are its neighbours that were already refused; the reads (6, 40, 41 - flag 0 is vb.readv's own test, F8 -, 12, 26) and release (15) need sdfiles alone; 29, 20 and 21 are
+# not in the allow table at all (11480, whatever the group says), and the audit word follows the login's own flag.
+F2D_WANT = (
+    (34, 0, "refused 11521 write=off"), (34, 1, "served"),
+    (32, 0, "refused 11521 write=off"), (32, 1, "served"),
+    (33, 0, "refused 11521 write=off"), (33, 1, "served"),
+    (30, 0, "refused 11521 write=off"), (30, 1, "served"),
+    (16, 0, "refused 11521 write=off"), (16, 1, "served"),
+    (6, 0, "served"), (6, 1, "served"),
+    (15, 0, "served"), (15, 1, "served"),
+    (40, 0, "served"), (41, 0, "served"), (12, 0, "served"), (26, 0, "served"), (35, 0, "served"),
+    (29, 0, "refused 11480 write=off"), (29, 1, "refused 11480 write=on"),
+    (20, 0, "refused 11480 write=off"), (21, 1, "refused 11480 write=on"),
+)
+SHOW = ("F2d",)          # the checks whose detail is printed even when they pass (the real inputs and the answers they were compared with)
+
+
 def sysmsg_calls(text):
     out = []
     for m in re.finditer(r"sysmsg\(\s*(\d+)\s*(?:,([^)\n]*))?\)", text):
@@ -156,7 +197,7 @@ def run_checks(raw):
     # ---- F1-F2. !apifilesok -------------------------------------------------------------------------------------------------------------
     chg = [int(x) for x in re.findall(r"^files\.chg := '(\d+),'", fo, re.M)]
     ok_nums = [int(x) for x in re.findall(r"^files\.ok := '(\d+),'", fo, re.M)]
-    ck("F1 the change set is exactly 7 8 9 10 16 17 18 19 30 31 32 33, once each, starts from ',', and is a subset of the allow table (the table's own 37 numbers are untouched)",
+    ck("F1 the change set is exactly 7 8 9 10 16 17 18 19 30 31 32 33 34 (S.72b: recordlocked is the last), once each, starts from ',', and is a subset of the allow table (the table's own 37 numbers are untouched)",
        sorted(chg) == sorted(CHANGE) and re.search(r"^files\.chg = ','\s*$", fo, re.M) is not None and set(chg) <= set(ok_nums) and sorted(ok_nums) == sorted(ALLOWED),
        repr((sorted(set(chg) ^ set(CHANGE)), sorted(set(ok_nums) ^ set(ALLOWED)))))
     wrong = []
@@ -188,6 +229,18 @@ def run_checks(raw):
        "$internal" in fo and re.search(r"^function apifilesok\(action, entered, writeok\)\s*$", fo, re.M) is not None and re.search(r"^\$catalog !apifilesok\s*$", fo, re.M) is not None
        and not re.search(r"\b(?:kernel|read|readv|readu|open|openseq|openpath|write|writeu|writev|delete|execute|os\.execute|select|readnext|input|crt|display|print|call|gosub|goto|void)\b",
                          strip_strings(fo)), "")
+
+    got_ = [(n, w, model_gate(fo, str(n), w), want) for n, w, want in F2D_WANT]
+    bad_ = [(n, w, g_, want) for n, w, g_, want in got_ if g_ != want]
+    nul_ = [model_gate("", str(n), w) == want for n, w, want in F2D_WANT]          # the same rows on a program with NO tables at all
+    ck("F2d S.72b (20 Oct 26) THE WHOLE DECISION OF THE GATE, run in Python on the tables read from the source, for a files-only login without sdfileswrite (flag 0) and with it (flag 1): request 34 "
+       "(recordlocked) is REFUSED with message 11521 and the audit word write=off without the group and SERVED with it - exactly as 30 (lock record), 32, 33 and 16 -, the reads 6, 12, 26, 35, 40, 41 and "
+       "release 15 are served to both, and 29, 20 and 21 (not in the allow table) are 11480 whatever the group says, with write=on when the login has it.  THE NULL CASE: the same %d rows asked of a program "
+       "with no tables at all must NOT all agree (a model that refuses everything, or serves everything, passes none of the pairs).  Printed: every request, flag and answer"
+       % len(F2D_WANT),
+       not bad_ and not all(nul_) and any(g_ == "served" for _n, _w, g_, _x in got_) and any(g_.startswith("refused 11521") for _n, _w, g_, _x in got_),
+       "; ".join("%d/w%d -> %s" % (n, w, g_) for n, w, g_, _x in got_) + ("   WRONG: " + repr(bad_[:6]) if bad_ else "")
+       + "   | NULL CASE (a program with no tables): %d of %d rows agree with the wanted answers" % (sum(nul_), len(nul_)))
 
     # ---- F3-F8. apisrvr -----------------------------------------------------------------------------------------------------------------
     cm_i = ap.find("common /$APISRVR/")
@@ -254,8 +307,23 @@ def run_checks(raw):
        and re.search(r"st = status\(\)\s*\n\s*response = iconv\(i, 'ILL'\);\s*\n\s*set\.status st\b", rk) is not None
        and "files(i)" not in rk and "files(1)" not in rk,
        repr((fl[:200], fu[:160], rk[:200])))
-    ck("F17 S.72: request 34 (recordlocked) stays in the allow table and OUT of the change set, 32 and 33 stay IN it (a files-only login without sdfileswrite is refused the file lock and its release; "
-       "asking whether a record is locked needs sdfiles alone, which is what lets a read-mode SDNet handle ask)", 34 in ok_nums and 34 not in chg and 32 in chg and 33 in chg, repr((34 in ok_nums, 34 in chg, 32 in chg, 33 in chg)))
+    ck("F17 S.72b (20 Oct 26; it said the opposite on the morning of S.72): request 34 (recordlocked) stays in the allow table AND IS NOW IN the change set with 32 and 33 (a files-only login without "
+       "sdfileswrite is refused the file lock, its release and the question who holds a lock - the answer is a user number of THIS server; a login with the group is served; the allow table itself is untouched, so "
+       "the group can ask)", 34 in ok_nums and 34 in chg and 32 in chg and 33 in chg and 34 in ALLOWED and 34 in CHANGE,
+       repr((34 in ok_nums, 34 in chg, 32 in chg, 33 in chg)))
+    di = ap.find("on action + 1 gosub")
+    dj = ap.find("\n\n", di) if di >= 0 else -1
+    slots = [s for s in re.split(r"[\s,]+", ap[di + len("on action + 1 gosub"):dj]) if s] if 0 <= di < dj else []
+    digits = sorted(set(re.findall(r"(?<![\w.$])\d+(?![\w.$])", strip_strings(gb))))
+    ck("F18 S.72b: request 34 is refused by the SAME generic gate as 32 and 33 and by NO CODE OF ITS OWN (apisrvr is not changed for it): the gate block names no request number (the only numbers in it are the "
+       "messages 11521 and 11480), asks apifilesok for `action` and nothing else, comes before the dispatch; vb.recordlocked has no test of the login in it (no files.only, no files.write, no sysmsg, no audit "
+       "line - a second place that could say a different thing); and the dispatch still puts vb.filelock at 32, vb.fileunlock at 33 and vb.recordlocked at 34 (an entry lost before them would shift every "
+       "request after it onto the wrong routine), with the table 71 entries long (actions 0 to 69, vb.writeuseqkey last of them, and the trailing vb.illegal.action)",
+       digits == ["11480", "11521"] and "action = 34" not in gb and "action # 34" not in gb and gb.count("apifilesok(") == 2 and ordered(ap, "if files.only then", "if not(apifilesok(action, master.login.done, files.write)) then", "on action + 1 gosub")
+       and not re.search(r"files\.only|files\.write|sysmsg|K\$AUDIT|server\.error", rk)
+       and len(slots) == 71 and slots[32:35] == ["vb.filelock", "vb.fileunlock", "vb.recordlocked"] and slots[0] == "vb.illegal.action" and slots[1] == "vb.quit"
+       and slots[69] == "vb.writeuseqkey" and slots[70] == "vb.illegal.action",
+       repr((digits, slots[31:36], len(slots))))
 
     # ---- F10-F13. the words -------------------------------------------------------------------------------------------------------------
     sf = routine_body(mo, "set.files")
@@ -368,7 +436,20 @@ def mutants(raw):
     m("vb.fileunlock: unlocks the file opened last", "apisrvr", "fileunlock files(fno)   ;* 19 Oct 26 (K8a): was files(i)", "fileunlock files(i)   ;* 19 Oct 26 (K8a): was files(i)")
     m("vb.recordlocked: asks about the first file", "apisrvr", "i = recordlocked(files(fno), id)", "i = recordlocked(files(1), id)")
     m("vb.recordlocked: does not hand STATUS() back (the owner's number)", "apisrvr", "response = iconv(i, 'ILL');", "response = iconv(i, 'ILL'); st = 0")
-    m("recordlocked (34) joins the change set", "apifilesok", "files.chg := '33,'   ;* fileunlock\n", "files.chg := '33,'   ;* fileunlock\nfiles.chg := '34,'   ;* recordlocked\n")
+    # S.72b (20 Oct 26): 34 is IN the change set now, so the old mutant `recordlocked (34) joins the change set` is the baseline reality and is gone; these are the faults that undo it
+    def line_out(pattern):
+        """The first line of the source that matches PATTERN is taken out (the mutant applies to apifilesok's own table lines, whatever the comment after the number says)."""
+        def f(t):
+            return re.sub(r"^[^\n]*" + pattern + r"[^\n]*\n", "", t, count=1, flags=re.M)
+        return f
+    m("recordlocked (34) leaves the change set", "apifilesok", line_out(r"files\.chg := '34,'"), None)
+    m("recordlocked (34) leaves the allow table too (a login with the group could not ask)", "apifilesok", line_out(r"files\.ok := '34,'"), None)
+    m("recordlocked (34) is in the change set twice", "apifilesok", lambda t: re.sub(r"(^files\.chg := '34,'[^\n]*\n)", r"\1\1", t, count=1, flags=re.M), None)
+    m("the gate of apisrvr lets request 34 through for a files-only login", "apisrvr", "if not(apifilesok(action, master.login.done, files.write)) then",
+      "if action # 34 and not(apifilesok(action, master.login.done, files.write)) then")
+    m("vb.recordlocked refuses a login without the group on its own (a second place)", "apisrvr", "i = recordlocked(files(fno), id)",
+      "if files.only and not(files.write) then i = 0 else i = recordlocked(files(fno), id)")
+    m("the dispatch loses an entry before request 34 (every request after it shifts)", "apisrvr", "   vb.fileunlock,     ;*  33   Release file lock\n", "")
     m("fileunlock (33) leaves the change set", "apifilesok", "files.chg := '33,'   ;* fileunlock\n", "")
     m("the write flag is tested as a boolean, not as exactly 1", "apifilesok", "if writeok # 1 then", "if not(writeok) then")
     m("the write flag is ignored", "apifilesok", "if writeok # 1 then", "if 0 then")
@@ -456,7 +537,8 @@ def main():
     res = run_checks(raw)
     failed = [k for k, (ok, _d) in res.items() if not ok]
     for k, (ok, d) in res.items():
-        print("  [%s] %s%s" % ("PASS" if ok else "FAIL", k[:400], "" if ok or not d else "   <- " + d[:500]))
+        shown = (not ok or k.split(" ")[0] in SHOW) and d          # a failing check says what it saw; so does a check in SHOW (S.72b: F2d prints every request, flag and answer it compared)
+        print("  [%s] %s%s" % ("PASS" if ok else "FAIL", k[:400], "" if not shown else "   <- " + d[:1500]))
     print("\ntest-fileswrite-units: %d checks, %d failed" % (len(res), len(failed)))
     print("NOT MEASURED HERE: whether the gate refuses anybody.  That is sandbox-net.py (the real !apifilesok), sandbox-netfile.py wgroup and netfake.py (the refusal on the fake), "
           "sandbox-qmclient.py H0a-H0d (the dictionary open on a real API server) and the VM witness.")

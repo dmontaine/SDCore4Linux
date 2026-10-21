@@ -8,11 +8,14 @@ Run as an ordinary user, by a witness script that has made the password file (mo
 installed client library (WL_SDSYS, default /usr/local/sdsys: bin/sdclilib.so is opened by a relative path, so it changes directory there),
 connects over TCP to HOST:PORT as USER, enters ACCOUNT, opens FILE and sends the requests of MODE one at a time:
 
-    files   6 read (control, allowed), 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record,
-            15 release (control, allowed).  The requests the write group governs (S.65).  It WRITES: FILE gets ID-w and ID-wu, and ID is
-            deleted, when the login may write; use a scratch file.  NOT 32 (file lock) and 33 (file unlock), which the same group governs: the client library
-            has no call that sends them (SDRecordlock is request 30; there is no SDFilelock or SDFileunlock in sdclilib.h or sdclient.py, checked 20 Oct 26).  The
-            netfile programs of witness-sdnet-files-route.sh (zzwn1, zzwn5, zzwn6, ...) send 32 and 33 through the SDNet client, and the server's audit lines count them.
+    files   6 read (control, allowed), 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record (twice: ID, a read
+            lock, and ID-rl, an update lock), 34 recordlocked (on ID-rl), 15 release (control, allowed).  The requests the write group governs (S.65; request 34
+            joined them in S.72b, 20 Oct 26).  It WRITES: FILE gets ID-w and ID-wu, and ID is deleted, when the login may write; use a scratch file.  34 comes after
+            the update lock on ID-rl: a login that may write is told 2 (this session holds an update lock; the library's answer is 0 for a refusal AND for "not locked",
+            so the 2 is what shows the request was served), a login that may not is refused like the others.  NOT 32 (file lock) and 33 (file unlock), which the same group
+            governs: the client library has no call that sends them (SDRecordlock is request 30; there is no SDFilelock or SDFileunlock in sdclilib.h or sdclient.py,
+            checked 20 Oct 26).  The netfile programs of witness-sdnet-files-route.sh (zzwn1, zzwn5, zzwn6, ...) send 32 and 33 through the SDNet client, and the
+            server's audit lines count them.
     gaps    20 call, 21 execute, 22 respond, 23 end command, 54 transaction, 61 open sequential file, and a SECOND request 3 (SDLogto).  None is
             in the files-only allow table (!apifilesok), so a files-only login must be refused every one whether or not it has the write
             group, and nothing is dispatched.  Request 29 (open SDNet file) has no function in the client library, so it is not sent here;
@@ -87,6 +90,11 @@ def main(argv):
         c.SDDelete(fno, rid_b); show('18 SDDelete')
         c.SDDeleteu(fno, rid_b); show('19 SDDeleteu')
         c.SDRecordlock(fno, rid_b, 0, 0); show('30 SDRecordlock')
+        # S.72b: request 34 on a record nobody else has touched, locked a moment ago with an UPDATE lock (update_lock=1, wait=0).  The library returns 0 for a refusal as well as for "not
+        # locked", so the id is locked first: a served answer is 2 and a refused one is 0 with the abort text, and the two cannot be mistaken for each other.
+        lk_b = rid_b + b'-rl'
+        c.SDRecordlock(fno, lk_b, 1, 0); show('30 SDRecordlock %s-rl' % rid, 'update')
+        r = c.SDRecordlocked(fno, lk_b); show('34 SDRecordlocked', 'id=%s-rl ret=%s' % (rid, r))
         c.SDRelease(fno, rid_b); show('15 SDRelease (control)')
     else:
         c.SDCall(b'zzprobe', 0); show('20 SDCall')

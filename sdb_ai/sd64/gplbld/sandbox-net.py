@@ -2,13 +2,25 @@
 #
 # sandbox-net.py - the NET gate and the SDNet server definitions (S.65 slice 1, the owner's request of 17 Oct 2026).  No install, no sudo.
 #
-#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-net.py <dir> [--build] [--sections=a,b]
+#   python3 /home/don/Projects/SDCore4Linux/sdb_ai/sd64/gplbld/sandbox-net.py <dir> [--build] [--sections=a,b] [--mutant=NAME]
 #
 # <dir> is a sandbox made by sandbox-fromtree.py.  With --build it is built first from THIS tree (it must be empty or absent);
 # without it <dir> must already be built.  Exit 0 every row passed, 1 a row failed, 2 it could not run.  --sections= runs only the named
 # parts (gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files); no flag runs all of them.
+# --mutant=NAME (S.72b) changes the sandbox's copy of gpl.bp/apifilesok, runs the section "files" only, and exits 0 only if exactly the rows listed in MUTANTS failed.
 #
 # START-HISTORY:
+# 20 Oct 26 dm  S.72b (owner, 20 Oct 2026: of the five S.72 loosenings only RECORDLOCKED() is tightened).  Section "files": request 34 (recordlocked) JOINS THE CHANGE SET, so the REAL
+#               !apifilesok answers 0 for 34 with the write flag 0 and 1 with the flag 1 (the allow table is unchanged: 34 stays in it, 37 numbers once the account is entered).  The
+#               change set written in this file is 7 8 9 10 16 17 18 19 30 31 32 33 34; request 34 is no longer in the READ set; the fail-closed row asks 34 (and 6 and 15, which stay
+#               allowed) with a flag of "", abc, 0 and no; FS-34 holds the numbers of 34 and of the reads around it (6, 15, 40, 41) number by number; message 11521 is measured with 34
+#               too.  Rows that the mutants judge carry an id (FS-...).  NEW: --mutant=NAME takes ONE line out of (or puts one into) the SANDBOX's copy of gpl.bp/apifilesok (never the
+#               tree's), runs the section "files" alone and says whether the rows that failed are exactly the ones listed for that mutant (MUTANTS below, written before the first run):
+#               34-leaves-change-set, 34-leaves-allow-table, 15-joins-change-set.  What a sandbox still cannot do is a files-only login refused on the wire (sandbox-req29.py section I
+#               routes a local login through apisrvr's real gate and refusal for request 34; the VM witness has the SCRAM files route).  Run first on the unchanged tree (f64e7ff): 450 passed,
+#               6 failed - exactly FS-w0e0, FS-w0e1, FS-count, FS-chg, FS-failclosed and FS-34 (the real !apifilesok answered 1 for 34 with the write flag 0); on the S.72b tree 456 passed, 0 failed;
+#               each mutant failed exactly the rows listed with it (34-leaves-change-set: those six; 34-leaves-allow-table: FS-w1e0 FS-w1e1 FS-ones FS-chg FS-34; 15-joins-change-set:
+#               FS-w0e0 FS-w0e1 FS-count FS-reads FS-failclosed FS-34).
 # 19 Oct 26 dm  Finish 2 (verifier): the section "timeouts".  Nothing at runtime showed NETWAIT bounding a connection; with 5 hard-coded at set.server ... connect and at set.netlogin every suite
 #               was green and only test-net-units read the source.  SD is restarted with NETWAIT=2, a listener whose accept queue is full stands in for a host that does not answer, and the
 #               time each command takes is measured from outside against the same command to a closed port.
@@ -152,6 +164,7 @@ def row(name, ok, detail=""):
         say("  [PASS] " + name)
     else:
         failed += 1
+        FAILED_IDS.append(name.split()[0])         # the first word is the row's id (FS-...) where it has one: a mutant run says which rows it killed
         say("  [FAIL] " + name + ("   <- " + detail if detail else ""))
 
 
@@ -272,7 +285,7 @@ ZZFOK = "\n".join([
     "      next e",
     "   next w",
     "   for each wv in '':@fm:'abc':@fm:'0':@fm:'no'",
-    "      for each ca in 16:@fm:17:@fm:18:@fm:30:@fm:31:@fm:9:@fm:6",
+    "      for each ca in 16:@fm:17:@fm:18:@fm:30:@fm:31:@fm:9:@fm:6:@fm:34:@fm:15",       # S.72b: 34 joins the change set (it must stay refused); 6 and 15 stay allowed with any flag
     "         crt 'FW v=':wv:' a=':ca:' r=':apifilesok(ca, 1, wv)",
     "      next ca",
     "   next wv",
@@ -295,9 +308,9 @@ FILES_RANGES = ((1, 2), (4, 19), (26, 26), (30, 46), (49, 49))
 
 
 # 18 Oct 26, S.65 write group (owner's yes of that day): the requests that CHANGE state or take a lock need the login to be in the group sdfileswrite as well:
-# 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock.  Written here again from
-# the spec (.claude/s65-write-group-spec.md), not read from the program.  The rest of the owner's list is the READ SET.
-CHANGE_SET = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33])
+# 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, 19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock and (20 Oct 26, S.72b) 34 recordlocked.
+# Written here again from the spec (.claude/s65-write-group-spec.md; for 34 the S.72b spec), not read from the program.  The rest of the owner's list is the READ SET.
+CHANGE_SET = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34])
 
 
 def files_want(n, entered, write=1):
@@ -1983,7 +1996,61 @@ def linux_user_exists(name):
         return False
 
 
+# MUTANTS (S.72b, 20 Oct 26).  --mutant=NAME changes ONE line of the SANDBOX's copy of gpl.bp/apifilesok (never the tree's file: the sandbox's copy is written back from the tree's at the end and
+# recompiled) and runs the section "files" alone.  THE ROWS THAT MUST FAIL ARE LISTED HERE, WRITTEN BEFORE THE FIRST RUN, and the run says whether the rows that failed are exactly those:
+# a mutant that fails fewer rows is a rule no row guards, one that fails more is a row that guards the wrong thing.  A row's id is the first word of its text.
+#   name                    the text of apifilesok that is changed, what it becomes                                                the rows that must fail, and nothing else
+MUTANTS = {
+    # 34 leaves the change set: the write flag 0 is no longer refused it.  The tables of the numbers a login WITHOUT the group may ask for (FS-w0e0, FS-w0e1), their count (FS-count), the
+    # request-by-request row (FS-chg), the values that are not exactly 1 (FS-failclosed) and the row for 34 itself (FS-34) see it; the rows for the write flag 1 do not.
+    "34-leaves-change-set": ("files.chg := '34,'", "files.chg := ''",
+                             ("FS-w0e0", "FS-w0e1", "FS-count", "FS-chg", "FS-failclosed", "FS-34")),
+    # 34 leaves the ALLOW TABLE (the table must stay 37 numbers): 34 answers 0 even with the write flag 1.  Seen by the tables for the flag 1 (FS-w1e0, FS-w1e1), the 38 / 37 control (FS-ones),
+    # the request-by-request row (FS-chg: with the flag 1 it must be allowed) and FS-34.  The count without the group (FS-count) does NOT change (34 is refused either way).
+    "34-leaves-allow-table": ("files.ok := '34,'", "files.ok := ''",
+                              ("FS-w1e0", "FS-w1e1", "FS-ones", "FS-chg", "FS-34")),
+    # 15 (release) joins the change set: a login without the group is refused to let go of a lock.  The reads must still need sdfiles alone: the tables (FS-w0e0, FS-w0e1), the count (FS-count),
+    # the plain reads row (FS-reads), the values that are not exactly 1 (FS-failclosed: 15 must stay allowed) and FS-34 (6, 15, 40 and 41 are in it).
+    "15-joins-change-set": ("files.chg := '34,'", "files.chg := '34,15,'",
+                            ("FS-w0e0", "FS-w0e1", "FS-count", "FS-reads", "FS-failclosed", "FS-34")),
+}
+MUTANT = None                    # the name given with --mutant=, or None
+FAILED_IDS = []                  # the ids (first words) of the rows that failed, for a mutant run
+TREE_APIFILESOK = os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", "apifilesok")
+
+
+def set_apifilesok(old=None, new=None):
+    """Write the sandbox's gpl.bp/apifilesok from the TREE's, with `old` replaced by `new` when given (it must occur exactly once), and compile it there.  Returns the compile output."""
+    with open(TREE_APIFILESOK, encoding="utf-8", errors="replace") as f:
+        src = f.read()
+    if old is not None:
+        if src.count(old) != 1:
+            bail("mutant: the text to change is found %d times, not once: %r" % (src.count(old), old[:70]))
+        src = src.replace(old, new)
+    with open(os.path.join(g.SYS, "gpl.bp", "apifilesok"), "w", encoding="utf-8") as f:
+        f.write(src)
+    return g.adm(["BASIC gpl.bp apifilesok"], internal=True)
+
+
 def files_section():
+    """The section "files", and for a mutant run the sandbox's apifilesok changed first and put back after."""
+    if MUTANT is None:
+        files_section_body()
+        return
+    old, new, kills = MUTANTS[MUTANT]
+    out = set_apifilesok(old, new)
+    if not g.has(out, r"^Compiled 1 program\(s\) with no errors"):
+        bail("the mutated apifilesok did not compile in the sandbox:\n" + "\n".join(out[-6:]))
+    say("\nsandbox-net: MUTANT %s: the sandbox's apifilesok has %r changed to %r; the rows that must fail, and nothing else: %s" % (MUTANT, old.strip(), new.strip(), ", ".join(kills)))
+    try:
+        files_section_body()
+    finally:
+        out = set_apifilesok()
+        if not g.has(out, r"^Compiled 1 program\(s\) with no errors"):
+            say("sandbox-net: the sandbox's apifilesok could not be put back:\n" + "\n".join(out[-6:]))
+
+
+def files_section_body():
     say("\n--- S.65 slice 2c, the files-only route: the REAL !apifilesok for every request number; the words FILES-ON / FILES-OFF where no root is needed ---")
     # ---------------------------------------------------------------- the function
     g.put(os.path.join(g.SYS, "gpl.bp", "zznfok"), ZZFOK)
@@ -2017,34 +2084,41 @@ def files_section():
         admin == "0" and len(ans) == 324 and len(odd) == 32 and has_line(out, "FOK end"), "admin=%r answers=%d odd=%d tail=%r" % (admin, len(ans), len(odd), out[-3:]))
     for e in (0, 1):
         bad = [(a, ans.get((1, e, a)), files_want(a, e)) for a in range(81) if ans.get((1, e, a)) != str(files_want(a, e))]
-        row("write=1, entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
-            % (e, "the first request 3 is still to come" if e == 0 else "the account has been entered", sum(files_want(a, e) for a in range(81))),
+        row("FS-w1e%d write=1, entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
+            % (e, e, "the first request 3 is still to come" if e == 0 else "the account has been entered", sum(files_want(a, e) for a in range(81))),
             len(ans) == 324 and not bad, "(number, got, wanted): %r" % bad[:8])
         badw = [(a, ans.get((0, e, a)), files_want(a, e, 0)) for a in range(81) if ans.get((0, e, a)) != str(files_want(a, e, 0))]
-        row("write=0, entered=%d: all 81 answers equal the owner's list LESS the change set %s (%d numbers allowed): the reads, select, readv, fileinfo, the indices, "
-            "recordlocked and release are still allowed, every change and every lock is refused" % (e, sorted(CHANGE_SET), sum(files_want(a, e, 0) for a in range(81))),
+        row("FS-w0e%d write=0, entered=%d: all 81 answers equal the owner's list LESS the change set %s (%d numbers allowed): the reads, select, readv, fileinfo, the indices "
+            "and release are still allowed, every change, every lock and (S.72b) recordlocked is refused" % (e, e, sorted(CHANGE_SET), sum(files_want(a, e, 0) for a in range(81))),
             len(ans) == 324 and not badw, "(number, got, wanted): %r" % badw[:8])
     ones0 = sum(1 for a in range(81) if ans.get((1, 0, a)) == "1")
     ones1 = sum(1 for a in range(81) if ans.get((1, 1, a)) == "1")
-    row("CONTROL: the answers are neither all 0 nor all 1 (a function that returned a constant, or a probe that printed a constant, fails): 38 allowed before the account is "
-        "entered and 37 after", (ones0, ones1) == (38, 37), repr((ones0, ones1)))
+    row("FS-ones CONTROL: the answers are neither all 0 nor all 1 (a function that returned a constant, or a probe that printed a constant, fails): 38 allowed before the account is "
+        "entered and 37 after (the allow table is unchanged by S.72b: 34 is still in it)", (ones0, ones1) == (38, 37), repr((ones0, ones1)))
     nw0 = sum(1 for a in range(81) if ans.get((0, 0, a)) == "1")
     nw1 = sum(1 for a in range(81) if ans.get((0, 1, a)) == "1")
-    row("CONTROL: without the write group %d are allowed before the account is entered and %d after (38 and 37 less the %d of the change set): the set is neither empty nor everything"
-        % (38 - len(CHANGE_SET), 37 - len(CHANGE_SET), len(CHANGE_SET)), (nw0, nw1) == (38 - len(CHANGE_SET), 37 - len(CHANGE_SET)), repr((nw0, nw1)))
+    row("FS-count CONTROL: without the write group %d are allowed before the account is entered and %d after (38 and 37 less the %d of the change set): the set is neither empty nor everything"
+        % (38 - len(CHANGE_SET), 37 - len(CHANGE_SET), len(CHANGE_SET)), (nw0, nw1) == (38 - len(CHANGE_SET), 37 - len(CHANGE_SET)) == (25, 24), repr((nw0, nw1)))
     row("request 3 (set account) is allowed the first time and refused once the account is entered, and no other answer depends on `entered`, with or without the write group",
         all(ans.get((w, 0, 3)) == "1" and ans.get((w, 1, 3)) == "0" and all(ans.get((w, 0, a)) == ans.get((w, 1, a)) for a in range(81) if a != 3) for w in (0, 1)),
         repr((ans.get((0, 0, 3)), ans.get((0, 1, 3)), ans.get((1, 0, 3)), ans.get((1, 1, 3)))))
-    row("the change set is refused without the write group and allowed with it, request by request: 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, "
-        "19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock",
-        all(ans.get((0, 1, a)) == "0" and ans.get((1, 1, a)) == "1" for a in CHANGE_SET), repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(CHANGE_SET)]))
-    row("the plain reads do not need it (4 open, 5 close, 6 read, 11 select, 12 readnext, 13 clearselect, 14 readlist, 15 release, 26 selectindex, 34 recordlocked, 35 to 40, "
-        "41 readv, 42 to 46, 49 revision) and are allowed with or without the write group",
-        all(ans.get((0, 1, a)) == "1" and ans.get((1, 1, a)) == "1" for a in READ_SET), repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(READ_SET) if ans.get((0, 1, a)) != "1"]))
-    row("a write flag that is not exactly 1 (empty, text, 0, the word no) leaves the change set refused: 16, 17, 18, 30, 31 and 9 are 0 for each, and a plain read (6) is still 1 - "
-        "fail closed, and a flag that is text does not read as true",
-        len(fw) == 28 and all(fw.get((v, a)) == ("1" if a == 6 else "0") for v in ("", "abc", "0", "no") for a in (16, 17, 18, 30, 31, 9, 6)),
-        repr({k: v for k, v in fw.items() if v != ("1" if k[1] == 6 else "0")}))
+    row("FS-chg the change set is refused without the write group and allowed with it, request by request: 7 readl, 8 readlw, 9 readu, 10 readuw, 16 write, 17 writeu, 18 delete, "
+        "19 deleteu, 30 lock record, 31 clearfile, 32 filelock, 33 fileunlock, 34 recordlocked (S.72b)",
+        all(ans.get((0, 1, a)) == "0" and ans.get((1, 1, a)) == "1" for a in CHANGE_SET) and len(CHANGE_SET) == 13, repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(CHANGE_SET)]))
+    row("FS-34 S.72b, request 34 (recordlocked) and the reads around it, number by number (write flag 0 / 1, account entered / not): 34 is 0 / 1 / 0 / 1 for (flag 0, not entered), "
+        "(flag 1, not entered), (flag 0, entered), (flag 1, entered) - it needs the write group like 30 to 33 - and is still in the allow table (1 with the flag); the reads 6 (read), 15 (release), "
+        "40 (fileinfo) and 41 (readv) are 1 in all four states, so only recordlocked moved",
+        [ans.get((w, e, 34)) for e in (0, 1) for w in (0, 1)] == ["0", "1", "0", "1"]
+        and all(ans.get((w, e, a)) == "1" for a in (6, 15, 40, 41) for w in (0, 1) for e in (0, 1)),
+        repr({a: [ans.get((w, e, a)) for e in (0, 1) for w in (0, 1)] for a in (6, 15, 34, 40, 41)}))
+    row("FS-reads the plain reads do not need it (4 open, 5 close, 6 read, 11 select, 12 readnext, 13 clearselect, 14 readlist, 15 release, 26 selectindex, 35 to 40, "
+        "41 readv, 42 to 46, 49 revision) and are allowed with or without the write group; recordlocked (34) is NOT among them since S.72b",
+        all(ans.get((0, 1, a)) == "1" and ans.get((1, 1, a)) == "1" for a in READ_SET) and 34 not in READ_SET and 15 in READ_SET and len(READ_SET) == 24,
+        repr([(a, ans.get((0, 1, a)), ans.get((1, 1, a))) for a in sorted(READ_SET) if ans.get((0, 1, a)) != "1"]) + " read set size %d" % len(READ_SET))
+    row("FS-failclosed a write flag that is not exactly 1 (empty, text, 0, the word no) leaves the change set refused: 16, 17, 18, 30, 31, 9 and (S.72b) 34 are 0 for each, and a plain read (6) "
+        "and release (15) are still 1 - fail closed, and a flag that is text does not read as true",
+        len(fw) == 36 and all(fw.get((v, a)) == ("1" if a in (6, 15) else "0") for v in ("", "abc", "0", "no") for a in (16, 17, 18, 30, 31, 9, 34, 6, 15)),
+        repr({k: v for k, v in fw.items() if v != ("1" if k[1] in (6, 15) else "0")}) + " answers %d" % len(fw))
     never = [("0, no such request", [0]), ("20 call", [20]), ("21 execute", [21]), ("22 respond and 23 end command", [22, 23]), ("24 and 25, the other logins", [24, 25]),
              ("27 and 28", [27, 28]), ("29 open sdnet file", [29]), ("47 and 48, the SCRAM login itself (only before logged.in)", [47, 48]), ("50 getvar", [50]),
              ("51 system", [51]), ("52 and 53 trans", [52, 53]), ("54 transactions", [54]), ("55 to 60 evaluate and the conversions", list(range(55, 61))),
@@ -2205,9 +2279,10 @@ def files_section():
         p = os.path.join(g.SYS, "messages", str(n))
         got = open(p, encoding="utf-8", errors="replace").read().strip("\n") if os.path.exists(p) else None
         row("the sandbox holds message %d, one line: %r" % (n, text), got == text, repr(got))
-    shown = [len(msg(11521, r)) for r in (7, 10, 16, 19, 30, 33, 41)]
-    row("message 11521 as the person at the SDNet client sees it (%%1 a request number: 7 to 10, 16 to 19, 30 to 33, 41) is at most 100 characters - the cut of gpl.bp/netfile clean.text - "
-        "and still names files-write-on: %r" % shown, len(shown) == 7 and max(shown) <= 100 and "files-write-on" in msg(11521, 41), repr(shown))
+    shown = [len(msg(11521, r)) for r in (7, 10, 16, 19, 30, 33, 34, 41)]
+    row("message 11521 as the person at the SDNet client sees it (%%1 a request number: 7 to 10, 16 to 19, 30 to 34, 41) is at most 100 characters - the cut of gpl.bp/netfile clean.text - "
+        "and still names files-write-on and ends '(request 34)' for recordlocked (S.72b): %r" % shown,
+        len(shown) == 8 and max(shown) <= 100 and "files-write-on" in msg(11521, 41) and msg(11521, 34).endswith("(request 34)"), repr(shown))
     for n in fix:
         p = os.path.join(g.SYS, "accounts", n)
         if os.path.isfile(p):
@@ -2288,13 +2363,18 @@ def timeouts_section():
 
 
 def main():
+    global MUTANT
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if len(args) != 1:
-        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files)")
+    MUTANT = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--mutant=")), None)
+    if len(args) != 1 or (MUTANT is not None and MUTANT not in MUTANTS):
+        bail("usage: sandbox-net.py <dir> [--build] [--sections=a,b] [--mutant=%s]   (parts: gate, logto, modify, manifest, defs, connect, netcred, netlogin, timeouts, ordinary, files)"
+             % "|".join(MUTANTS))
     g.BOX = os.path.abspath(args[0])
     g.SYS = os.path.join(g.BOX, "sys")
     g.SD = os.path.join(g.SYS, "bin", "sd")
     sections = next((set(a.split("=", 1)[1].split(",")) for a in sys.argv[1:] if a.startswith("--sections=")), None)
+    if MUTANT is not None:
+        sections = {"files"}               # a mutant of apifilesok is judged by the section "files" alone
 
     def run(part):
         return sections is None or part in sections
@@ -2339,6 +2419,11 @@ def main():
 
     say("")
     say("sandbox-net: %d passed, %d failed" % (passed, failed))
+    if MUTANT is not None:
+        want, got = sorted(set(MUTANTS[MUTANT][2])), sorted(set(FAILED_IDS))
+        ok = want == got and len(FAILED_IDS) == len(got)
+        say("sandbox-net: MUTANT %s: the rows that failed are %s; they had to be exactly %s -> %s" % (MUTANT, got, want, "KILLED BY ITS OWN ROWS" if ok else "NOT AS EXPECTED"))
+        sys.exit(0 if ok else 1)
     sys.exit(1 if failed else 0)
 
 
