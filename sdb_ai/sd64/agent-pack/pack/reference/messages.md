@@ -2760,7 +2760,7 @@ cited by: `movelist`
 %1 has no OS access, so a file or directory outside its own account cannot be reached by pathname (SDSYS can give it: modify.account %1 os-on)
 ```
 
-cited by: `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
+cited by: `convertdata`, `importdata`, `oscopya`, `qproc`, `sed`, `seldir`, `setptr`
 
 ### msg:1119
 > kind=message tier=reference since=- src=sdsys/messages/1119:1#0860c7cd
@@ -6093,6 +6093,119 @@ Account %1: NOT every action was carried out. Done: %2. Not done: %3
 
 cited by: `modifya`
 
+### msg:11850
+> kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
+
+```
+NO.QUERY and APPENDING cannot be used together
+```
+
+cited by: `qproc`
+
+### msg:11851
+> kind=message tier=reference since=- src=sdsys/messages/11851:1#3a145389
+
+```
+AS needs a directory file, and %1 is not one
+```
+
+cited by: `qproc`
+
+### msg:11852
+> kind=message tier=reference since=- src=sdsys/messages/11852:1#a87e0a1a
+
+```
+Output record id required
+```
+
+cited by: `qproc`
+
+### msg:11853
+> kind=message tier=reference since=- src=sdsys/messages/11853:1#8d6a4ebe
+
+```
+%1: %2 record(s) written, %3 skipped
+```
+
+cited by: `importdata`
+
+### msg:11854
+> kind=message tier=reference since=- src=sdsys/messages/11854:1#2a8038e8
+
+```
+%1 is not a collection file, and IMPORT.JSON writes each object as a record of one (CREATE.FILE name COLLECTION)
+```
+
+cited by: `importdata`
+
+### msg:11855
+> kind=message tier=reference since=- src=sdsys/messages/11855:1#4f312111
+
+```
+%1 is not valid %2 (status %3, near character %4)
+```
+
+cited by: `convertdata`, `importdata`
+
+### msg:11856
+> kind=message tier=reference since=- src=sdsys/messages/11856:1#2a4dc216
+
+```
+The format of %1 is not known: end its name in .csv, .json, .jsonl or .xml
+```
+
+cited by: `convertdata`
+
+### msg:11857
+> kind=message tier=reference since=- src=sdsys/messages/11857:1#a57b83cf
+
+```
+The data of %1 cannot be written as %2: %3
+```
+
+cited by: `convertdata`
+
+### msg:11858
+> kind=message tier=reference since=- src=sdsys/messages/11858:1#f7a5cbc0
+
+```
+import.csv pathname file {header} {delimiter x} {quote x} {escape x} {id column | generate} {dict} {overwriting}
+```
+
+cited by: `importdata`
+
+### msg:11859
+> kind=message tier=reference since=- src=sdsys/messages/11859:1#94a6c57f
+
+```
+import.json pathname collection.file {id name | generate} {overwriting}
+```
+
+### msg:11860
+> kind=message tier=reference since=- src=sdsys/messages/11860:1#f870f86d
+
+```
+import.xml pathname file {id name | generate} {overwriting}
+```
+
+### msg:11861
+> kind=message tier=reference since=- src=sdsys/messages/11861:1#ae1f1a55
+
+```
+convert.data from.pathname to.pathname {csv | json | jsonl | xml} {header} {no.query}
+```
+
+cited by: `convertdata`
+
+### msg:11862
+> kind=message tier=reference since=- src=sdsys/messages/11862:1#3170eb05
+
+```
+%1: %2 value(s) in the XML had no field of that name in the dictionary of %3 and were left out
+```
+
+cited by: `importdata`
+
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
 
@@ -6873,7 +6986,7 @@ Rolling back uncommitted transactions\n
 Cannot open %1
 ```
 
-cited by: `basic`, `configf`, `fstat`, `qdisp`, `qproc`
+cited by: `basic`, `configf`, `convertdata`, `fstat`, `importdata`, `qdisp`, `qproc`
 
 ### msg:1428
 > kind=message tier=reference since=- src=sdsys/messages/1428:1#b8e47e99
@@ -6927,7 +7040,7 @@ cited by: `como`, `phantom`, `setqueue`
 Record '%1' is locked by user %2
 ```
 
-cited by: `ced`, `cname`, `ed`
+cited by: `ced`, `cname`, `ed`, `qproc`
 
 ### msg:1434
 > kind=message tier=reference since=- src=sdsys/messages/1434:1#b88599a8
@@ -20155,7 +20268,7 @@ cited by: `qproc`
 Y or N required
 ```
 
-cited by: `qproc`
+cited by: `convertdata`, `qproc`
 
 ### msg:7280
 > kind=message tier=reference since=- src=sdsys/messages/7280:1#fba793fe
@@ -20387,7 +20500,7 @@ cited by: `cproc`, `qproc`
 %1 already exists. Overwrite(y/<n>)? 
 ```
 
-cited by: `qproc`
+cited by: `convertdata`, `qproc`
 
 ### msg:7306
 > kind=message tier=reference since=- src=sdsys/messages/7306:1#d3e994e6

@@ -879,7 +879,19 @@ def routes_section():
                 "REFORMAT zzd 'zzdr' zzf zzf TO bp", "REFORMAT zzd 'zzdr' zzf zzf TO voc",
                 "REFORMAT zzd 'zzdr2' zzf zzf", "bp",
                 "LIST zzd zzf DELIMITER ',' TO 'bp/zzcsv' NO.QUERY", "LIST zzd zzf DELIMITER ',' TO 'bp/zzold' APPENDING",
-                "LIST zzd zzf DELIMITER ',' TO 'zzcsvc.bp' NO.QUERY", "LIST zzd zzf DELIMITER ',' TO '../zzegout.txt' NO.QUERY"]))
+                "LIST zzd zzf DELIMITER ',' TO 'zzcsvc.bp' NO.QUERY", "LIST zzd zzf DELIMITER ',' TO '../zzegout.txt' NO.QUERY",
+                # 20 Oct 26: AS file id, the same report as a record of a directory file (the program file bp, and an ordinary one)
+                "LIST zzd zzf DELIMITER ',' AS bp zzcsva NO.QUERY", "LIST zzd zzf CSV AS bp zzold APPENDING",
+                "CREATE.FILE zzasd DIRECTORY", "LIST zzd zzf DELIMITER ',' AS zzasd zzcsvb NO.QUERY"]))
+            # 20 Oct 26 (the CSV / JSON / XML task): IMPORT.CSV and CONVERT.DATA ask the OS-access gate for both pathnames and the edit gates for what they write
+            with open(os.path.join(path, "zzcvin.csv"), "w") as f:
+                f.write("id,name\r\n10,Ann\r\n20,Bob\r\n")
+            with open(os.path.join(os.path.dirname(path), "zzcvout.csv"), "w") as f:
+                f.write("id,name\r\n99,Zed\r\n")
+            t3d = "\n".join(sess(n, [
+                "IMPORT.CSV zzcvin.csv zzasd HEADER", "IMPORT.CSV zzcvin.csv bp HEADER", "IMPORT.CSV ../zzcvout.csv zzasd HEADER",
+                "CONVERT.DATA zzcvin.csv zzcvo1.json NO.QUERY", "CONVERT.DATA zzcvin.csv bp/zzcvo2.json NO.QUERY",
+                "CONVERT.DATA zzcvin.csv ../zzcvo3.json NO.QUERY", "CONVERT.DATA ../zzcvout.csv zzcvo4.json NO.QUERY"]))
             t3b = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ bp zzseq"]))
             t3c = "\n".join(sess(n, ["LIST zzd 'zzdr' PAGESEQ voc zzseq"]))
             t4 = "\n".join(sess(n, ["CD DATA bp zzcdrec", "CD DATA zzd zzcdrec2"]))
@@ -915,6 +927,21 @@ def routes_section():
             row("%s: ... APPENDING to bp/zzold adds to the program record exactly when bp.edit is on" % tag,
                 (os.path.getsize(os.path.join(path, "bp", "zzold")) > zzold_before) == bp,
                 "size %d -> %d" % (zzold_before, os.path.getsize(os.path.join(path, "bp", "zzold"))))
+            row("%s: LIST ... DELIMITER AS bp zzcsva (the report as a record of the program file) writes it exactly when bp.edit is on" % tag,
+                os.path.exists(os.path.join(path, "bp", "zzcsva")) == bp, "")
+            row("%s: CONTROL ... AS zzasd zzcsvb (an ordinary directory file) is written for everybody" % tag,
+                os.path.exists(os.path.join(path, "zzasd", "zzcsvb")), "")
+            row("%s: CONTROL IMPORT.CSV into an ordinary directory file (zzasd) makes the records for everybody" % tag,
+                os.path.exists(os.path.join(path, "zzasd", "10")) and os.path.exists(os.path.join(path, "zzasd", "20")), t3d[:300])
+            row("%s: IMPORT.CSV into the program file bp makes the records exactly when bp.edit is on" % tag,
+                os.path.exists(os.path.join(path, "bp", "20")) == bp, t3d[:300])
+            row("%s: IMPORT.CSV of a file outside the account (no OS access) is refused for everybody, with message 11180, and makes no record" % tag,
+                not os.path.exists(os.path.join(path, "zzasd", "99")) and "has no OS access" in t3d, t3d[:300])
+            row("%s: CONTROL CONVERT.DATA inside the account is written for everybody" % tag, os.path.exists(os.path.join(path, "zzcvo1.json")), t3d[:300])
+            row("%s: CONVERT.DATA to bp/zzcvo2.json (the program file's directory, by pathname) is written exactly when bp.edit is on" % tag,
+                os.path.exists(os.path.join(path, "bp", "zzcvo2.json")) == bp, t3d[:300])
+            row("%s: CONVERT.DATA to ../zzcvo3.json (outside the account) and from ../zzcvout.csv are refused for everybody and write nothing" % tag,
+                not os.path.exists(os.path.join(os.path.dirname(path), "zzcvo3.json")) and not os.path.exists(os.path.join(path, "zzcvo4.json")), t3d[:300])
             row("%s: CONTROL ... TO 'zzcsvc.bp' (a plain file called x.bp in the account) is written for everybody" % tag,
                 os.path.exists(os.path.join(path, "zzcsvc.bp")), "")
             row("%s: ... TO '../zzegout.txt' (outside the account, no OS access) is refused for everybody, with message 11180" % tag,

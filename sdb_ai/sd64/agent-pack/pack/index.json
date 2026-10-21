@@ -343,12 +343,33 @@
 "tier": "reference",
 "words": 12
 },
+"basic:func:csvbuild": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
 "basic:func:csvdq": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 18
+},
+"basic:func:csvopen": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"basic:func:csvparse": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 16
 },
 "basic:func:date": {
 "kind": "basic.function",
@@ -838,7 +859,14 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 16
+},
+"basic:func:jmerge": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 20
 },
 "basic:func:jnull": {
 "kind": "basic.function",
@@ -854,12 +882,33 @@
 "tier": "reference",
 "words": 14
 },
+"basic:func:jpatch": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
+"basic:func:jpath": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
 "basic:func:jtype": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
 "words": 12
+},
+"basic:func:jvalidate": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 20
 },
 "basic:func:kernel": {
 "kind": "basic.internal",
@@ -1967,12 +2016,33 @@
 "tier": "reference",
 "words": 15
 },
+"basic:func:xbuild": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
 "basic:func:xlate": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
 "words": 16
+},
+"basic:func:xparse": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 24
+},
+"basic:func:xpath": {
+"kind": "basic.function",
+"part": "reference/basic-functions.md",
+"since": "-",
+"tier": "reference",
+"words": 20
 },
 "basic:func:xtd": {
 "kind": "basic.function",
@@ -3036,7 +3106,7 @@
 "part": "reference/basic-statements.md",
 "since": "next",
 "tier": "reference",
-"words": 15
+"words": 19
 },
 "basic:stmt:current.level": {
 "kind": "basic.clause",
@@ -3139,7 +3209,7 @@
 "basic:stmt:delimiter": {
 "kind": "basic.clause",
 "part": "reference/basic-statements.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 30
 },
@@ -3638,7 +3708,7 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 19
+"words": 25
 },
 "basic:stmt:matreadl": {
 "kind": "basic.statement",
@@ -3988,7 +4058,14 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 21
+"words": 27
+},
+"basic:stmt:readjson": {
+"kind": "basic.statement",
+"part": "reference/basic-statements.md",
+"since": "-",
+"tier": "reference",
+"words": 32
 },
 "basic:stmt:readl": {
 "kind": "basic.statement",
@@ -4695,7 +4772,14 @@
 "part": "reference/basic-statements.md",
 "since": "-",
 "tier": "reference",
-"words": 20
+"words": 26
+},
+"basic:stmt:writejson": {
+"kind": "basic.statement",
+"part": "reference/basic-statements.md",
+"since": "-",
+"tier": "reference",
+"words": 19
 },
 "basic:stmt:writelist": {
 "kind": "basic.statement",
@@ -4779,7 +4863,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 253
+"words": 243
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -7999,7 +8083,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 35
+"words": 37
 },
 "msg:1119": {
 "kind": "message",
@@ -10759,6 +10843,97 @@
 "tier": "reference",
 "words": 18
 },
+"msg:11850": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11851": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:11852": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 9
+},
+"msg:11853": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11854": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 24
+},
+"msg:11855": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
+"msg:11856": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11857": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 15
+},
+"msg:11858": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11859": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11860": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 10
+},
+"msg:11861": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 17
+},
+"msg:11862": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 26
+},
 "msg:1200": {
 "kind": "message",
 "part": "reference/messages.md",
@@ -11443,7 +11618,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 12
+"words": 14
 },
 "msg:1428": {
 "kind": "message",
@@ -11485,7 +11660,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 14
+"words": 15
 },
 "msg:1434": {
 "kind": "message",
@@ -22202,7 +22377,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 10
 },
 "msg:7280": {
 "kind": "message",
@@ -22384,7 +22559,7 @@
 "part": "reference/messages.md",
 "since": "-",
 "tier": "reference",
-"words": 9
+"words": 10
 },
 "msg:7306": {
 "kind": "message",
@@ -23350,7 +23525,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1155
+"words": 1190
 },
 "sys:err:erai$": {
 "kind": "sys.keys",
@@ -23478,6 +23653,13 @@
 "tier": "reference",
 "words": 196
 },
+"sys:keys:csv$": {
+"kind": "sys.keys",
+"part": "reference/system-keys.md",
+"since": "-",
+"tier": "reference",
+"words": 138
+},
 "sys:keys:fc$": {
 "kind": "sys.keys",
 "part": "reference/system-keys.md",
@@ -23602,7 +23784,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 1196
+"words": 1228
 },
 "sys:keys:vt$": {
 "kind": "sys.keys",
@@ -23610,6 +23792,13 @@
 "since": "-",
 "tier": "reference",
 "words": 91
+},
+"sys:keys:xml$": {
+"kind": "sys.keys",
+"part": "reference/system-keys.md",
+"since": "-",
+"tier": "reference",
+"words": 68
 },
 "sys:param:apilogin": {
 "kind": "sys.param",
@@ -24456,14 +24645,14 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 34
+"words": 50
 },
 "tcl:as": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 56
+"words": 82
 },
 "tcl:assoc": {
 "kind": "tcl.keyword",
@@ -24948,6 +25137,13 @@
 "tier": "reference",
 "words": 51
 },
+"tcl:convert.data": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 48
+},
 "tcl:copies": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25051,7 +25247,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 35
+"words": 55
 },
 "tcl:ct": {
 "kind": "tcl.verb",
@@ -25217,9 +25413,9 @@
 "tcl:delimiter": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
-"words": 35
+"words": 56
 },
 "tcl:det.sup": {
 "kind": "tcl.keyword",
@@ -25660,7 +25856,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 36
+"words": 60
 },
 "tcl:heading": {
 "kind": "tcl.keyword",
@@ -25725,6 +25921,27 @@
 "tier": "reference",
 "words": 55
 },
+"tcl:import.csv": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 54
+},
+"tcl:import.json": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 47
+},
+"tcl:import.xml": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 46
+},
 "tcl:in": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",
@@ -25780,6 +25997,20 @@
 "since": "-",
 "tier": "reference",
 "words": 36
+},
+"tcl:json": {
+"kind": "tcl.keyword",
+"part": "reference/tcl-keywords.md",
+"since": "-",
+"tier": "reference",
+"words": 61
+},
+"tcl:json.lines": {
+"kind": "tcl.keyword",
+"part": "reference/tcl-keywords.md",
+"since": "-",
+"tier": "reference",
+"words": 60
 },
 "tcl:keep": {
 "kind": "tcl.keyword",
@@ -26206,7 +26437,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 54
+"words": 58
 },
 "tcl:nano": {
 "kind": "tcl.verb",
@@ -26325,7 +26556,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "0.6.3",
 "tier": "reference",
-"words": 54
+"words": 52
 },
 "tcl:no.resize": {
 "kind": "tcl.keyword",
@@ -26773,7 +27004,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 36
+"words": 59
 },
 "tcl:report.src": {
 "kind": "tcl.verb",
@@ -27067,7 +27298,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 54
+"words": 59
 },
 "tcl:sleep": {
 "kind": "tcl.verb",
@@ -27312,7 +27543,7 @@
 "part": "reference/tcl-keywords.md",
 "since": "-",
 "tier": "reference",
-"words": 55
+"words": 78
 },
 "tcl:top.margin": {
 "kind": "tcl.keyword",

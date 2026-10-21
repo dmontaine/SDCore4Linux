@@ -32,7 +32,7 @@
 # files: directory and hashed file i/o, indices, triggers, the record id rules, transactions
 @files       = collfile file-b8 file-a8 fcontrol edseqkey sdfixseq akcase idx-nocase nocase upgradenocase flushdh wdthenelse trans-b43 openzero stdfil mfilepath lock-b6 coll fix-b10 sync crlf dirtrig tools
 # sequential files and CSV
-@seq         = csv-b5 file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
+@seq         = csv-b5 csvq csvb file-b8 gates qmclient oq2 fcontrol audit-b9 crlf
 # strings, conversions, functions, dates, locate and sort
 @functions   = func-b4 func-q1 conv-b3 stmt-q3 stmt-b5 mode-q16 locate-b5 epoch numexp mlmask trans-b43 oq2 audit-b9 audit-b9b
 # the compiler and what it compiles: statements, modes, classes, TRY, INPUT forms
@@ -40,7 +40,7 @@
 # what a change to the select-list statements in the compiler needs
 @lists-compile = sselectv pickrn selectv-mode execlist chained stacklist list-q2 mode-q16
 # the query processor and dictionaries
-@query       = qproc-a3 qproc-q20 xml qdefaults qproc-when vert-fmt vlist-a3 dict-a2 footpause pgheading dictfold misc-a9 listf-mult coll
+@query       = qproc-a3 qproc-q20 xml csvq qdefaults qproc-when vert-fmt vlist-a3 dict-a2 footpause pgheading dictfold misc-a9 listf-mult coll
 # accounts, logins, gates, configuration, sessions, the API
 @system      = gates conf-b1 inhibit-q8 listu-a5 proc-a5 sys-b2 sys-q18 option-a4 option-q17 qmclient lock-b6 q5
 # ED and the commands around it
@@ -105,10 +105,15 @@ gplsrc/sdfix.c               : sdfixseq akcase fixes-b12 tools
 gplsrc/sdidx.c               : akcase idx-nocase tools
 gplsrc/sdconv.c              : nocase upgradenocase
 gplsrc/op_seqio.c            : @seq prof getdev editgates
-gplsrc/op_coll.c             : coll collfile dbgcoll
+gplsrc/op_coll.c             : coll collfile dbgcoll jsonx
+# 20 Oct 26 (the CSV / JSON / XML task): op_csv.c is FORMCSV and the CSV intrinsics, op_json.c is merge / patch / path / validate, op_xml.c is XPARSE / XBUILD / XPATH.
+gplsrc/op_csv.c              : csv-b5 csvb csvq xml func-b4
+gplsrc/op_json.c             : coll jsonx
+gplsrc/op_xml.c              : xmlx jsonx
+gplsrc/op_str5.c             : @functions csvb
 gplsrc/op_array.c            : coll list-q2 @core
 gplsrc/op_skt.c              : opensock gates qmclient oq2
-gplsrc/op_xfun.c             : @functions getdev ospath masters
+gplsrc/op_xfun.c             : @functions getdev ospath masters csvb jsonx xmlx
 gplsrc/op_str[1-5].c         : @functions
 gplsrc/op_mvfun.c            : @functions list-q2
 gplsrc/op_iconv.c            : @functions crypt
@@ -137,7 +142,7 @@ gplsrc/ti_names.h            : @pty terminfo-ext
 gplsrc/op_debug.c            : @debugger
 gplsrc/debug*.h              : @debugger
 gplsrc/pdump.c               : @debugger listu-a5 netfile
-gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates
+gplsrc/op_sys.c              : sys-b2 sys-q18 conf-b1 gates csvb
 gplsrc/op_config.c           : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
 gplsrc/config.c              : conf-b1 option-a4 option-q17 sys-q18 q5 fixes-b12 netfile
 gplsrc/config.h              : conf-b1 option-a4 option-q17 sys-q18 q5 netfile
@@ -145,7 +150,7 @@ gplsrc/sdlnxd.c              : q5
 gplsrc/sysseg.[ch]           : q5 conf-b1 prof editgates net shared masters @core
 gplsrc/profiler.c            : prof
 gpl.src                      : @core prof netfile masters
-gplsrc/kernel.c              : @core q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin
+gplsrc/kernel.c              : @core csvb q5 listu-a5 inhibit-q8 stdfil cll prof resetall stacked classinit sysexc try editgates apispin
 # object loading: since S.64 part 2 an object runs as $internal only from the global catalogue or for the administrator, which
 # every non-administrator session that runs a program meets
 gplsrc/object.c              : @core @pty editgates sdaccts q5 listu-a5 inhibit-q8 qmclient sysexc
@@ -164,7 +169,7 @@ gplsrc/sdclient.h            : qmclient
 gplsrc/sdclient.c            : qmclient
 gplsrc/sd_encrypt_sodium.c   : qmclient crypt
 gplsrc/sd_keyring.c          : crypt
-gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof
+gplsrc/op_exec.c             : @core cmd-a9 execlist stacklist chained forcereload stdfil prof csvb
 gplsrc/op_sh.c               : gates sdaccts editgates netfile shared
 gplsrc/to_file.c             : editgates gates @core
 gplsrc/op_sdext.c            : gates crypt
@@ -180,7 +185,7 @@ gplsrc/op_kernel.c           : @core q5 prof sdaccts resetall editgates net netf
 gplsrc/pcode.h               : @core
 gplsrc/opcodes.h             : @compiler
 gplsrc/tokens.h              : @compiler
-gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters
+gplsrc/keys.h                : @core fcontrol edseqkey file-b8 sys-b2 q5 prof fixes-b12 editgates net shared masters csvb jsonx xmlx
 gplsrc/sd.c                  : @core fixes-b12
 gplsrc/err.h                 : @core
 gplsrc/*.h                   : @core
@@ -216,6 +221,17 @@ sdsys/gpl.bp/listservers     : net
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
 sdsys/gpl.bp/bcomp ~ emit.equate.table : dbgequ
 sdsys/gpl.bp/bcomp ~ process.include : incsearch
+# 20 Oct 26 (the CSV / JSON / XML task): the CSV statements and clauses, the JSON statements and the new intrinsics.  They come before st.write*, st.select* and in.*,
+# which would take the names (st.writecsv, st.keepselect, in.xfun) for the wrong areas.
+sdsys/gpl.bp/bcomp ~ st.*csv*        : csv-b5 csvb csvq
+sdsys/gpl.bp/bcomp ~ emit.csv.list   : csv-b5 csvb
+sdsys/gpl.bp/bcomp ~ emit.print.list : csv-b5 csvb stmt-b5
+sdsys/gpl.bp/bcomp ~ in.csvdq        : csv-b5 csvb func-b4
+sdsys/gpl.bp/bcomp ~ in.json         : coll jsonx
+sdsys/gpl.bp/bcomp ~ in.xfun         : func-b4 func-q1 csvb jsonx xmlx
+sdsys/gpl.bp/bcomp ~ xfun.table.load : func-b4 func-q1 csvb jsonx xmlx
+sdsys/gpl.bp/bcomp ~ st.keepselect   : jsonx csvb @lists-compile
+sdsys/gpl.bp/bcomp ~ is.statement    : bcomp-a1 jsonx
 sdsys/gpl.bp/bcomp ~ set.*   : stdfil dbgequ mode-q16
 sdsys/gpl.bp/bcomp ~ st.restricted  : restricted classas classinit
 sdsys/gpl.bp/bcomp ~ st.public*     : restricted classas classinit
@@ -288,7 +304,14 @@ sdsys/gpl.bp/ftype           : listf-mult dictfold
 sdsys/gpl.bp/listfl          : listf-mult listu-a5
 sdsys/gpl.bp/listcom         : misc-a9
 sdsys/gpl.bp/delcom          : misc-a9
-sdsys/gpl.bp/qproc           : @query ltype
+sdsys/gpl.bp/qproc           : @query ltype editgates jsonx
+# 20 Oct 26 (the CSV / JSON / XML task): the programs the new statements and verbs call, and the verbs themselves.  Before the coarse "*" rule.
+sdsys/gpl.bp/readcsvrow      : csv-b5 csvb
+sdsys/gpl.bp/matwritecsv     : csv-b5 csvb
+sdsys/gpl.bp/readjsonrow     : jsonx
+sdsys/gpl.bp/writejsonrow    : jsonx
+sdsys/gpl.bp/importdata      : xmlx
+sdsys/gpl.bp/convertdata     : xmlx
 sdsys/gpl.bp/qdisp           : @query
 sdsys/gpl.bp/qselect         : @query
 sdsys/gpl.bp/_itype          : @query
@@ -381,14 +404,19 @@ sdsys/gpl.bp/*               : @core
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # THE REST OF WHAT SHIPS.
-sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared
+sdsys/syscom/keys.h          : @core fcontrol edseqkey file-b8 sys-b2 qmclient ospath editgates net shared csvb jsonx xmlx
 sdsys/syscom/createacc.h     : editgates net shared @system
-sdsys/syscom/parser.h        : @query @core
+sdsys/syscom/parser.h        : @query @core jsonx
 sdsys/syscom/sdclient.*      : qmclient
 sdsys/syscom/sdclilib*       : qmclient
 sdsys/syscom/*               : @compiler @core
 sdsys/sd.voclib/listf*       : listf-mult
 sdsys/sd.voclib/*            : @core dictfold
+# 20 Oct 26: the verbs of the CSV / JSON / XML task, and the JSON / JSON.LINES query keywords (qproc, jsonx).
+sdsys/newvoc/import.*        : xmlx
+sdsys/newvoc/convert.data    : xmlx
+sdsys/newvoc/json            : jsonx
+sdsys/newvoc/json.lines      : jsonx
 sdsys/newvoc/*               : @core dictfold misc-a9
 sdsys/voc_template/set.server    : net
 sdsys/voc_template/delete.server : net
@@ -398,6 +426,10 @@ sdsys/voc_template/sync.masters  : masters
 sdsys/voc_template/check.masters : masters
 sdsys/voc_template/list.master.pending : masters
 sdsys/voc_template/encrypt.key   : crypt
+sdsys/voc_template/import.*      : xmlx
+sdsys/voc_template/convert.data  : xmlx
+sdsys/voc_template/json          : jsonx
+sdsys/voc_template/json.lines    : jsonx
 sdsys/voc_template/*         : @core dictfold misc-a9
 sdsys/messages/117*          : crypt
 sdsys/messages/11197        : sed-menu sed-small
@@ -413,6 +445,11 @@ sdsys/messages/1152*         : net netfile filesgrp
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared
+# 20 Oct 26 (the CSV / JSON / XML task): 11850-11852 are the query processor's lines for AS / APPENDING / NO.QUERY; 11853-11862 are IMPORT.CSV / IMPORT.JSON /
+# IMPORT.XML / CONVERT.DATA (importdata, convertdata), which the xmlx suite runs.
+sdsys/messages/1185[0-2]     : csvq
+sdsys/messages/1185[3-9]     : xmlx
+sdsys/messages/1186[0-2]     : xmlx
 sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters
