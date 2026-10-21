@@ -1382,7 +1382,7 @@
 "basic:func:recordlocked": {
 "kind": "basic.function",
 "part": "reference/basic-functions.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 21
 },
@@ -3279,7 +3279,7 @@
 "basic:stmt:fileunlock": {
 "kind": "basic.statement",
 "part": "reference/basic-statements.md",
-"since": "-",
+"since": "next",
 "tier": "reference",
 "words": 16
 },

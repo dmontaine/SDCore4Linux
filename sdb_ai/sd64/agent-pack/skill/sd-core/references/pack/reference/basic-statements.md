@@ -636,7 +636,7 @@ clause of `if`, and of every statement that has a `then`
 - docs: `User/markdown/01-sd-basic-program-structure.md` line 393
 
 ### basic:stmt:fileunlock
-> kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:422#055cf47a src2=docs:tools/syntax-shapes.txt:91#679c92b1
+> kind=basic.statement tier=reference since=next src=sdsys/gpl.bp/bcomp:422#055cf47a src2=docs:tools/syntax-shapes.txt:91#679c92b1
 
 `fileunlock` *file.var* {`on error` …}
 
@@ -1060,7 +1060,7 @@ clause of `readu`, `readl`, `readvu`, `readvl`, `matreadu`, `matreadl`, `fileloc
 `matreadu` *matrix* `from` *file.var*, *id* {`locked` …} `then` … `else` …
 
 - a statement of SD BASIC
-- docs: `Administrator/markdown/12-sdnet.md` line 929
+- docs: `Administrator/markdown/12-sdnet.md` line 933
 
 ### basic:stmt:matwrite
 > kind=basic.statement tier=reference since=- src=sdsys/gpl.bp/bcomp:435#827ce807 src2=docs:tools/syntax-shapes.txt:145#922888f4
