@@ -19,6 +19,9 @@
 *
 *
 * START-HISTORY:
+* 20 Oct 26 dm Request 29 (vb.open.sdnet) asks the OS switch of the account it names for a VOC pointer that leads out of the account: an F-pointer outside the account's directory
+*           is refused (error ELSE, status 3035, audit 'api refused request=29 reason=os gate off ...') unless that account holds os-on (or SDSYS in its own account).  It
+*           opened any such file for a caller the NET gate admitted.  Proved on a real `sd -Q` by sandbox-req29.py section X.
 * 19 Oct 26 dm S.65 follow-ups (K1, K3, K8a).  (1) The message of an ON ERROR reply is emptied at the top of every request, so an ON ERROR clause that had nothing to say no
 *           longer sends the text of the last refusal (measured: a WRITE with an over-long id answered 'Invalid call name'); the SDNet client now shows an ON ERROR reply's
 *           text.  Message 11521 was shortened to 98 characters, under the 100 the client shows.  (2) The refusal of a login that is in neither sdapi nor sdfiles is audited
@@ -2041,6 +2044,25 @@ vb.open.sdnet.continue:
                                  if path[1,1] # @ds then
                                     * Convert voc item to absolute path
                                     path = acc : @ds : path
+                                 end
+
+                                 * 20 Oct 26 dm - THE OS SWITCH, ASKED OF A POINTER THAT LEADS OUT OF THE ACCOUNT (S.63 closed in this request; the owner delegated the
+                                 *   choice).  The file is opened below with openpath from an internal program, which the OS gate exempts, so an F-pointer in the account's
+                                 *   VOC at a directory outside the account (a path, a relative path that climbs out, a link, another account's directory, a system file)
+                                 *   was opened for any caller the NET gate admitted.  DIR, OPENSEQ, the OSCOPY verbs and every OPEN in a program ask the question, and now so
+                                 *   does this.  It is asked of the account NAMED, by its register record read a moment ago in sdnet.account.check, not of the account this
+                                 *   session is in: the pointer is that account's, and a caller who could LOGTO it and OPEN the name there is held to that account's switch.
+                                 *   An account with os on passes, and so does SDSYS in its own account; any other path must be inside the account's directory (K$PATH.IN is
+                                 *   the geometry alone, with ".." and links resolved, and a name that merely begins with the account's name is not inside).  _voc_ref lets a
+                                 *   restricted account follow the stock VOC's own pointers to system files; a remote caller needs none of those, so they are refused here.
+                                 net.free = (upcase(trim(net.rec<ACC$OS.EXEC>)) = 'YES' or (downcase(@logname) = 'sdsys' and net.acct = 'sdsys'))
+                                 if not(net.free) then
+                                    if not(kernel(K$PATH.IN, acc : @fm : path)) then
+                                       void kernel(K$AUDIT, 'api refused request=29 reason=os gate off user=' : @logname : ' account=' : net.acct : ' path=' : path)
+                                       set.status ER$PERM
+                                       server.error = SV$ELSE
+                                       return
+                                    end
                                  end
 
                                  openpath path to files(i)

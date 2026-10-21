@@ -79,6 +79,7 @@ import importlib.util
 import os
 import re
 import select
+import shutil
 import struct
 import subprocess
 import sys
@@ -333,10 +334,10 @@ def msg(n):
         return f.read().strip("\n")
 
 
-def register(name, group, susp="", net="yes"):
+def register(name, group, susp="", net="yes", os_exec="no"):
     path = os.path.join(q3.BOX, "user_accounts", name)
     # 1 path, 3 group, 5 suspended, 7 sh, 8 os.exec, 9 sd.accounts, 10-12 the edit gates, 13-14 shared (blank), 15 net
-    fields = [path, "", group, "", susp, "", "no", "no", "no", "yes", "yes", "yes", "", "", net]
+    fields = [path, "", group, "", susp, "", "no", os_exec, "no", "yes", "yes", "yes", "", "", net]
     put(os.path.join(q3.SYS, "accounts", name), "\n".join(fields) + "\n")
 
 
@@ -815,6 +816,167 @@ def section_h():
     w.close()
 
 
+PLANT_OUT = "outside every account"
+PLANT_SIB = "next door, and a prefix is not inside"
+X_POINTER_ERR = 3035      # ER$PERM: the status the os rule answers with (error ELSE), as DIR / OPENSEQ answer a path they may not reach
+
+
+def x_pointer_program(acc, out, sib):
+    """The text of the internal program that writes the F-pointers of section X into the VOC of the account whose directory is ACC (the VOC is the administrator's: an ordinary session
+    of the account cannot write it).  Returns (the text, [(id, path, dictionary path)])."""
+    pointers = [
+        ("zzpabs", out, ""),                      # an absolute path outside every account directory
+        ("zzprel", "../../zzoutside", ""),        # a relative path that climbs out of the account (acc/../../zzoutside is the same directory)
+        ("zzplnk", "zzlink", ""),                 # a name inside the account that is a symbolic link to the outside directory
+        ("zzpsib", sib, ""),                      # the directory next to the account whose name begins with the account's own name
+        ("zzpsys", "@SDSYS/newvoc", ""),          # a system file: the stock VOC's own pointers lead there (newvoc, syscom, sd.voclib)
+        ("zzpdic", "zzsec", out),                 # the data half is the account's own file, the DICTIONARY half is outside
+        ("zzpin", "zzsec", ""),                   # the control: a file of the account, by a relative path
+        ("zzpinab", acc + "/zzsec", ""),          # the control: the same file by an absolute path inside the account
+    ]
+    lines = ["$internal", "   openpath '%s/voc' to v else crt 'FIX no voc' ; stop" % acc]
+    for pid, path, dpath in pointers:
+        lines.append("   write 'F':@fm:'%s':@fm:'%s' to v, '%s'" % (path, dpath, pid))
+    lines += ["   crt 'FIX done'", "end", ""]
+    return "\n".join(lines), pointers
+
+
+def section_x():
+    """X. a VOC pointer OUTSIDE the account (20 Oct 26, the owner delegated the choice: close it).  Request 29 opens the file the account's VOC names with `openpath` from an
+    internal program, so the OS switch was never asked of a path that leads out of the account (DIR, OPENSEQ, the OSCOPY verbs and every OPEN in a program ask it).  Two accounts, the
+    same eight F-pointers in each: zzae holds NO os switch, zzaf holds it.  The oracle is the disk: the planted record in the outside directory, read back over the wire."""
+    me = getpass.getuser()
+    say("\n--- X. an F-pointer OUTSIDE the account: refused unless the account holds the os switch (S.63 rule, closed in request 29 on 20 Oct 26) ------------")
+    if not q3.restart("NETFILES=2"):
+        q3.bail("SD does not start with NETFILES=2 in sd.conf")
+    box = q3.BOX
+    out = os.path.join(box, "zzoutside")
+    shutil.rmtree(out, ignore_errors=True)
+    os.makedirs(out)
+    put(os.path.join(out, "k1"), PLANT_OUT)
+    for n in ("zzae", "zzaf"):
+        q3.build_account(n)
+        o = q3.plain(n, ["CREATE.FILE zzsec DYNAMIC", "RUN bp zzmk " + n])
+        if tag(o, "MK") != ["secret of " + n]:
+            q3.bail("the fixture file of %s does not hold the planted record: %r" % (n, o[-4:]))
+    for n, os_exec in (("zzae", "no"), ("zzaf", "yes")):
+        acc = os.path.join(box, "user_accounts", n)
+        sib = acc + "-sib"
+        shutil.rmtree(sib, ignore_errors=True)
+        os.makedirs(sib)
+        put(os.path.join(sib, "k1"), PLANT_SIB)
+        link = os.path.join(acc, "zzlink")
+        if os.path.lexists(link):
+            os.remove(link)
+        os.symlink(out, link)
+        text, pointers = x_pointer_program(acc, out, sib)
+        put(os.path.join(q3.SYS, "bp", "zzptrfix"), text)
+        o = q3.adm(["BASIC bp zzptrfix", "RUN bp zzptrfix"], internal=True)
+        row("X0 %s: the eight F-pointers are written into its VOC by an internal program" % n, has(o, r"^FIX done$"), repr(o[-4:]))
+        if not has(o, r"^FIX done$"):
+            q3.bail("the pointers were not written into the VOC of %s, so no row below can be believed" % n)
+        register(n, q3.GROUP, net="yes", os_exec=os_exec)
+        with open(os.path.join(q3.SYS, "accounts", n), encoding="ascii") as f:
+            fields = f.read().split("\n")
+        say("    [evidence] register record of %s: field 8 (os) %r, field 15 (net) %r, path %r; outside directory %s holds k1 = %r; link %s -> %s; sibling %s holds k1 = %r"
+            % (n, fields[7], fields[14], fields[0], out, open(os.path.join(out, "k1")).read(), link, os.readlink(link), sib, open(os.path.join(sib, "k1")).read()))
+        row("X0a %s: the register record says os %r (the row below is only meaningful if it says what this account is meant to be)" % (n, os_exec), fields[7] == os_exec and fields[14] == "yes", repr(fields[:15]))
+        if fields[7] != os_exec:
+            q3.bail("the register record of %s does not say os %s" % (n, os_exec))
+
+    cases = [    # (what the request names, what it is, the record the disk holds in what it leads to; None: only the file number is judged)
+        ("zzpabs", "an absolute path outside every account directory", PLANT_OUT),
+        ("zzprel", "a relative path that climbs out of the account (../../zzoutside)", PLANT_OUT),
+        ("zzplnk", "a name inside the account that is a symbolic link to the outside directory", PLANT_OUT),
+        ("zzpsib", "the directory next to the account whose name begins with the account's own name", PLANT_SIB),
+        ("zzpsys", "a system file of the installation (@SDSYS/newvoc)", None),
+        ("DICT zzpdic", "a pointer whose DICTIONARY half is outside (its data half is the account's own file)", PLANT_OUT),
+    ]
+    controls = [    # (what the request names, what it is): inside the account, they must open whatever the os switch says
+        ("zzpin", "the account's own file by a relative path"),
+        ("zzpinab", "the account's own file by an absolute path inside the account"),
+        ("zzpdic", "the data half of the dictionary pointer (the account's own file)"),
+    ]
+
+    # ---- zzae: NO os switch -------------------------------------------------------------------------------------------------------
+    w = Wire("Xa")
+    e, t = w.login("zzae")
+    row("X1a a member signs on to zzae (OK)", e == 0, repr((e, t)))
+    if e != 0:
+        q3.bail("the control login did not work, so no row below can be believed")
+    off = audit_off()
+    fno, r = w.open29("zzae;zzsec")
+    back = w.read_back(fno) if fno is not None else None
+    new = audit_new(off)
+    row("X1b CONTROL: request 29 'zzae;zzsec' (the account's own file, no pointer) opens and reads 'secret of zzae', and adds no refusal to the audit trail",
+        fno is not None and back == "secret of zzae" and new is not None and "request=29" not in new, repr((fno, back, r, new)))
+    for i, (name, what, planted) in enumerate(cases):
+        off = audit_off()
+        fno, r = w.open29("zzae;" + name)
+        back = w.read_back(fno) if fno is not None else None
+        new = audit_new(off)
+        say("      [evidence] request 29 'zzae;%s' (%s): file number %r, READ k1 %r, the disk holds %r" % (name, what, fno, back, planted))
+        row("X%d request 29 'zzae;%s' - %s: refused with error ELSE and status %d (permission), no file number, and the planted record is not read" % (2 + i, name, what, X_POINTER_ERR),
+            fno is None and r is not None and r[0] == 2 and r[1] == X_POINTER_ERR and (planted is None or back != planted),
+            "OPENED fno %r and READ %r  <- the claim is true; reply %r" % (fno, back, r))
+        if i in (0, 5):
+            row("X%da ...and the refusal is on the audit trail, in lower case: 'api refused request=29 reason=os gate off user=%s account=zzae path=<the path the pointer names>'" % (2 + i, me),
+                audit_has(new, r"api refused request=29 reason=os gate off user=%s account=zzae path=/.+$" % re.escape(me)), repr(new))
+    for i, (name, what) in enumerate(controls):
+        off = audit_off()
+        fno, r = w.open29("zzae;" + name)
+        back = w.read_back(fno) if fno is not None else None
+        new = audit_new(off)
+        row("X8%s CONTROL (inside the account): request 29 'zzae;%s' - %s - opens and reads 'secret of zzae', and the audit trail gains no refusal" % ("abc"[i], name, what),
+            fno is not None and back == "secret of zzae" and new is not None and "request=29" not in new, repr((fno, back, r, new)))
+    fno, r = w.open29("zzae;zzsec")
+    back = w.read_back(fno) if fno is not None else None
+    row("X9 CONTROL AFTER THE REFUSALS: 'zzae;zzsec' still opens and reads 'secret of zzae' (so the refusals above are the rule and not a broken session)",
+        fno is not None and back == "secret of zzae", repr((fno, back)))
+    w.close()
+
+    # ---- zzaf: the os switch ON ---------------------------------------------------------------------------------------------------
+    w = Wire("Xb")
+    e, t = w.login("zzaf")
+    row("X10 a member signs on to zzaf (OK)", e == 0, repr((e, t)))
+    if e != 0:
+        q3.bail("the control login did not work, so no row below can be believed")
+    off = audit_off()
+    for i, (name, what, planted) in enumerate(cases):
+        fno, r = w.open29("zzaf;" + name)
+        back = w.read_back(fno) if fno is not None else None
+        say("      [evidence] request 29 'zzaf;%s' (%s): file number %r, READ k1 %r, the disk holds %r" % (name, what, fno, back, planted))
+        if planted is None:
+            row("X%d request 29 'zzaf;%s' - %s - with the os switch ON: opens (a file number comes back)" % (11 + i, name, what), fno is not None, repr((fno, r)))
+        else:
+            row("X%d request 29 'zzaf;%s' - %s - with the os switch ON: opens and reads the planted %r" % (11 + i, name, what, planted), fno is not None and back == planted, repr((fno, back, r)))
+    new = audit_new(off)
+    row("X17 ...and no refusal is on the audit trail for any of them", new is not None and "request=29" not in new, repr(new))
+    for i, (name, what) in enumerate(controls):
+        fno, r = w.open29("zzaf;" + name)
+        back = w.read_back(fno) if fno is not None else None
+        row("X18%s CONTROL: request 29 'zzaf;%s' - %s - opens and reads 'secret of zzaf'" % ("abc"[i], name, what), fno is not None and back == "secret of zzaf", repr((fno, back, r)))
+    w.close()
+
+    # ---- the os switch is read when the request is made, not when the session signed on -------------------------------------------
+    w = Wire("Xc")
+    e, t = w.login("zzaf")
+    register("zzaf", q3.GROUP, net="yes", os_exec="no")
+    fno, r = w.open29("zzaf;zzpabs")
+    back = w.read_back(fno) if fno is not None else None
+    row("X19 the os switch is taken off zzaf's register record AFTER the session signed on: request 29 'zzaf;zzpabs' is refused now (the register is read at each request, as the NET gate is)",
+        fno is None and r is not None and r[0] == 2 and r[1] == X_POINTER_ERR and back != PLANT_OUT, "OPENED fno %r and READ %r; reply %r" % (fno, back, r))
+    w.close()
+    register("zzaf", q3.GROUP, net="yes", os_exec="yes")
+    for p_ in ("bp", "bp.out"):
+        fp_ = os.path.join(q3.SYS, p_, "zzptrfix")
+        if os.path.exists(fp_):
+            os.remove(fp_)
+    shutil.rmtree(out, ignore_errors=True)
+    for n in ("zzae", "zzaf"):
+        shutil.rmtree(os.path.join(box, "user_accounts", n + "-sib"), ignore_errors=True)
+
+
 # MUTANTS (K8g, 19 Oct 26).  --mutant=NAME takes one rule of request 29 out of the SANDBOX's copy of apisrvr (never the tree: the base is the tree's file, rewritten and
 # recompiled each time, and put back at the end) and runs sections A to E.  THE ROWS THAT MUST FAIL ARE LISTED HERE, WRITTEN BEFORE THE FIRST RUN, and the run says whether the
 # rows that failed are exactly those: a mutant that fails fewer rows is a rule no row guards, one that fails more is a row that guards the wrong thing.
@@ -832,6 +994,19 @@ MUTANTS = {
                       "filelock files(i)   ;* MUTANT: the stale index on the wait branch", ("F11", "F13", "F14", "F15", "F18", "F19")),
 }
 F_MUTANTS = ("filelock-wait",)         # the mutants judged by section F, which runs for them after A to E
+# 20 Oct 26: the OS switch asked of a pointer that leads out of the account (section X).  The rows that must fail were written BEFORE the first run of each mutant.
+#   os-path    the geometry test never refuses: every pointer outside opens for a restricted account (X2 to X7 and their audit rows, and X19, which takes the switch off after sign-on)
+#   os-free    nobody is free of the test: an account with os ON is refused too (X11 to X16 and X17, the audit row that says nothing was refused)
+#   os-audit   the refusal is not on the audit trail under its own words (X2a, X7a)
+#   os-status  the refusal answers with another status (X2 to X7: the status is part of what they judge)
+MUTANTS.update({
+    "os-path": ("if not(kernel(K$PATH.IN, acc : @fm : path)) then", "if 0 then", ("X2", "X2a", "X3", "X4", "X5", "X6", "X7", "X7a", "X19")),
+    "os-free": ("net.free = (upcase(trim(net.rec<ACC$OS.EXEC>)) = 'YES' or (downcase(@logname) = 'sdsys' and net.acct = 'sdsys'))", "net.free = @false",
+                ("X11", "X12", "X13", "X14", "X15", "X16", "X17")),
+    "os-audit": ("'api refused request=29 reason=os gate off user=' : @logname", "'api refused request=29 reason=changed user=' : @logname", ("X2a", "X7a")),
+    "os-status": ("set.status ER$PERM", "set.status ER$XREMOTE", ("X2", "X3", "X4", "X5", "X6", "X7", "X19")),
+})
+X_MUTANTS = ("os-path", "os-free", "os-audit", "os-status")    # the mutants judged by section X (20 Oct 26), which runs for them after A to E
 TREE_APISRVR = os.path.join(os.path.dirname(HERE), "sdsys", "gpl.bp", "apisrvr")
 
 
@@ -1178,6 +1353,8 @@ def main():
         w.close()
 
         # ------------------------------------------------------------------------------------------------------------------------
+        if mutant is None or mutant in X_MUTANTS:
+            section_x()
         if mutant is None or mutant in F_MUTANTS:
             section_f()
         if mutant is None:
