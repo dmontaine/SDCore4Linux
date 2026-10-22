@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 21 Oct 26 dm S.73 item 3: FILES-ADMIN-ON (joins sdfilesadmin as well, with FILES-ON and FILES-WRITE-ON); CA$FILESADMIN in createacc.h; the audit gates= list names it.
 * 19 Oct 26 dm The audit line carries gates=, the words of the sentence that grant or withdraw an access (owner: "create-account should record what
 *           gates were granted"); the words up to type= are unchanged.
 * 18 Oct 26 dm S.65 write group: FILES-WRITE-ON (joins sdfileswrite as well, with FILES-ON); CA$FILESWRITE in createacc.h.
@@ -167,6 +168,8 @@
 *                 files and do nothing else; sdapi, when also given, still gives the whole API.  A user account only (10087, 10105)
 *     FILES-WRITE-ON (18 Oct 26, S.65) with FILES-ON: the person also joins sdfileswrite, so that files-only login may CHANGE files on this
 *                 server (write, delete, lock, clear); without it it can read.  Off unless typed.
+*     FILES-ADMIN-ON (21 Oct 26, S.73 item 3) with FILES-ON and FILES-WRITE-ON: the person also joins sdfilesadmin, so that files-only login may
+*                 ADMINISTER files on this server (configure, index, create, delete, the file's counter).  Off unless typed.
 *   SH-ON and OS-ON are two independent switches, so "SH-ON OS-ON" gives both and neither cancels the
 *   other.  A GROUP or OTHER account has no Linux user of its own, so it is refused all four (10087,
 *   10105).  MODIFY.ACCOUNT changes any of them later, either way.  ATTACH is install-only and says only
@@ -252,7 +255,7 @@ $include createacc.h
      gosub more.args
 
    case 1
-    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {no.query}'
+    crt 'Command Syntax: create.account user <user name> {ssh | api | both | none} {sh-on} {os-on} {voc-on} {bp-on} {dict-on} {shared-read-off} {shared-write-on} {net-on} {files-on} {files-write-on} {files-admin-on} {no.query}'
     crt '                create.account group <group name> {no.query}'
     crt '                create.account other <account name> <pathname> {no.query}'
     crt '  A new user account starts with no ssh, no API, no shell (sh), no os.execute, and no right to change'
@@ -291,6 +294,7 @@ $include createacc.h
    if settings<CA$NET> = 1 then gates<-1> = 'net-on'
    if settings<CA$FILES> = 1 then gates<-1> = 'files-on'
    if settings<CA$FILESWRITE> = 1 then gates<-1> = 'files-write-on'
+   if settings<CA$FILESADMIN> = 1 then gates<-1> = 'files-admin-on'
    if settings<CA$SHARED.READ.OFF> = 1 then gates<-1> = 'shared-read-off'
    if settings<CA$SHARED.WRITE> = 1 then gates<-1> = 'shared-write-on'
    if gates = '' then gates = 'none' else gates = convert(@fm, ',', gates)
@@ -358,6 +362,11 @@ more.args:
 *   unless typed.  !create_account refuses it without FILES-ON (11523), and for a GROUP or OTHER account as it refuses FILES-ON.
          case upcase(token) = 'FILES-WRITE-ON'
             settings<CA$FILESWRITE> = 1
+
+* 21 Oct 26 dm - S.73 item 3: FILES-ADMIN-ON, the person also joins sdfilesadmin, so a files-only login may administer files on this server.  Off unless typed.
+*   !create_account refuses it without FILES-ON and FILES-WRITE-ON (11526), and for a GROUP or OTHER account as it refuses FILES-ON.
+         case upcase(token) = 'FILES-ADMIN-ON'
+            settings<CA$FILESADMIN> = 1
 
 * 11 Sep 26 dm - ATTACH (renamed from ADOPT 19 Sep).  ***THE TESTS ARE IN THE
 *   CASE CONDITION, AND THAT IS THE POINT***: with either gate shut the word

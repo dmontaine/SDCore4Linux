@@ -3,6 +3,8 @@
 # sd-elevate - the single privileged helper for SD Core for Linux.
 #
 # START-HISTORY:
+# 21 Oct 26 dm S.73 item 3: sdfilesadmin, the right to administer files over the files-only route, joins the same two places as sdfileswrite
+#               (require_sd_group, groupdel's undeletable set).
 # 19 Oct 26 dm S.67 stage 2 (D7, owner 17 Oct 2026, warned): sdsys-join, the one verb that puts the sdsys user into a group (only sdu_<user>, for an
 #               SD user that exists, in a group that exists), and group-write, which gives an account's own group write on its VOC and dictionaries
 #               (only where that group already owns them; file descriptors and O_NOFOLLOW, so a link a user plants cannot aim root's chmod).
@@ -90,7 +92,7 @@
 #             test to cover sdsys would have stopped covering it, silently, on
 #             the next install.  It never did, and this note is here so the
 #             next person to touch either rule knows the two are independent.
-#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdu_*, sdg_*.
+#   groups  - must be one of SD's own: sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdu_*, sdg_*.
 #             Nothing else is addressable, so "add me to sudo" has no spelling
 #             here.
 #   paths   - setgid only under the SD accounts root, and the path is resolved
@@ -547,10 +549,12 @@ require_sd_group() {
   # to files and nothing else).  Exact name, like the other two.
   # 18 Oct 26 dm - S.65 write group: sdfileswrite is the fourth, the right to CHANGE files over that route (a files-only login in it may write,
   # delete, lock and clear; one outside it may read).  Exact name again: sdfiles* would let a lookalike through.
+  # 21 Oct 26 dm - S.73 item 3: sdfilesadmin is the fifth, the right to ADMINISTER files over that route (configure, index, create and delete
+  # a file, the file's counter).  Exact name, for the same reason.
   case $group in
-    sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;
+    sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;
     sdu_?*|sdg_?*) : ;;
-    *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdu_*, or sdg_*)" ;;
+    *) die "'$group' is not an SD group (want sdusers, sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin, sdu_*, or sdg_*)" ;;
   esac
 }
 
@@ -1411,8 +1415,9 @@ case $verb in
     # does not exist refuses everybody at once.
     # 17 Oct 26 dm - S.65 slice 2c: sdfiles joins them, for the same reason.
     # 18 Oct 26 dm - S.65 write group: and sdfileswrite.
+    # 21 Oct 26 dm - S.73 item 3: and sdfilesadmin.
     case $1 in
-      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)
+      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)
         die "'$1' is one of SD's system groups and is never deleted here" ;;
     esac
     getent group "$1" >/dev/null 2>&1 || die "group '$1' does not exist"

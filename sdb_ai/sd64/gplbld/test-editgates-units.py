@@ -192,8 +192,10 @@ def checks(srcs, messages_dir):
     ck("C5 edit_refusal: a $internal program and the administrator pass BEFORE the path is read",
        0 <= at(ref, "HDR_INTERNAL") < at(ref, "->pathname") and 0 <= at(ref, "USR_ADMIN") < at(ref, "->pathname"), "")
     wr = func_body(d3, "void op_write()")
-    ck("C6 op_write asks edit_refusal BEFORE a CREATING.SEQKEY id is taken from the file",
-       0 <= at(wr, "edit_refusal(fvar)") < at(wr, "P_SEQKEY"), "")
+    # 21 Oct 26 (S.73 item 3): the NET arm (a remote file) handles P_SEQKEY first and is behind refuse_net_file, whose net_gate asks the edit gate by the REMOTE file's name; the local
+    # CREATING.SEQKEY id is still taken after edit_refusal(fvar), the next P_SEQKEY after it
+    ck("C6 op_write asks edit_refusal BEFORE a CREATING.SEQKEY id is taken from the file (a local file; a remote file's SEQKEY write is behind refuse_net_file, which comes first)",
+       0 <= at(wr, "refuse_net_file(") < at(wr, "P_SEQKEY") < at(wr, "edit_refusal(fvar)") < at(wr, "P_SEQKEY", at(wr, "edit_refusal(fvar)")), "")
     wv = func_body(d3, "void op_writev()")
     ck("C7 op_writev asks BEFORE the recursive pcode, whose flags are internal", 0 <= at(wv, "edit_refusal(") < at(wv, "k_recurse(pcode_writev"), "")
     dl = func_body(d3, "void op_delete()")
@@ -430,13 +432,15 @@ def checks(srcs, messages_dir):
        and re.search(r"read s from @voc, '\$savedlists' then\s*\n\s*release @voc, '\$savedlists'\s*\n\s*return\s*\n\s*end", mk) is not None
        and mk.count("write ") == 1 and "write 'F' : @fm : '$svlists' to @voc, '$savedlists'" in mk, "")
     ap2 = c["apisrvr"]
-    ck("G25 the API server's file operations ask check.edit BEFORE the statement: write, writeu, delete, deleteu, clearfile and the SEQKEY writes",
-       ap2.count("gosub check.edit") == 6 and all(
+    # 21 Oct 26 (S.73 item 3): eight calls - the six and two more: the file administration verb (every operation but the report) and FCONTROL (every key but the question)
+    ck("G25 the API server's file operations ask check.edit BEFORE the statement: write, writeu, delete, deleteu, clearfile, the SEQKEY writes, the file administration verb and FCONTROL",
+       ap2.count("gosub check.edit") == 8 and all(
            0 <= at(ap2, lbl) < at(ap2, "gosub check.edit", at(ap2, lbl)) < at(ap2, stmt, at(ap2, lbl))
            for lbl, stmt in (("vb.write:", "write cmnd["), ("vb.writeu:", "writeu cmnd["), ("vb.delete:", "delete files(fno), id"),
                               ("vb.deleteu:", "deleteu files(fno), id"), ("vb.clearfile:", "clearfile files(fno)"),
-                              ("writeseqkey.common:", "writeu wk.data to files(fno) creating.seqkey")))
-       and len(re.findall(r"gosub check\.edit[^\n]*\n\s*if err then return", ap2)) == 6 and "clearfile files(i)" not in ap2, "")
+                              ("writeseqkey.common:", "writeu wk.data to files(fno) creating.seqkey"),
+                              ("vb.fileadmin:", "execute fa.cmd capturing response"), ("vb.fcontrol:", "response = fcontrol(files(fno), fc.key)")))
+       and len(re.findall(r"gosub check\.edit[^\n]*\n\s*if err then return", ap2)) == 8 and "clearfile files(i)" not in ap2, "")
     ck("G25b check.edit refuses an unreadable pathname (11410) and a file the session may not change (K$EDIT.OK, kind by K$EDIT.KIND), as an error",
        re.search(r"check\.edit:\s*\nerr = @true\s*\ned\.path = fileinfo\(files\(fno\), FL\$PATH\)\s*\nif ed\.path = '' then", ap2) is not None
        and "sysmsg(11410)" in ap2 and "kernel(K$EDIT.OK, ed.path)" in ap2 and "edit_msg(ed.kind)" in ap2, "")

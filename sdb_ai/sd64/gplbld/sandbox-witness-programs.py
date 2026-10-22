@@ -24,7 +24,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.join(HERE, "sandbox-fromtree.py")
 ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
-SCRIPTS = {"witness-sdnet-files-route.sh": 9, "witness-sdnet-two-machines.sh": 3, "witness-sdnet-gaps.sh": 0, "witness-sdnet-writegroup.sh": 0, "witness-sdnet-groups.sh": 0}
+# witness-sdnet-files-route.sh: 9 programs when written, 21 after S.72 (whose change did not run this suite), 22 with S.73 item 3's zzwnad
+SCRIPTS = {"witness-sdnet-files-route.sh": 22, "witness-sdnet-two-machines.sh": 3, "witness-sdnet-gaps.sh": 0, "witness-sdnet-writegroup.sh": 0, "witness-sdnet-groups.sh": 0}
 HEREDOC = re.compile(r"""^(?:prog (\w+)|sudo -u "\$CUSER" tee "\$CDIR/bp/(\w+)" >/dev/null) <<'EOP'\n(.*?)\nEOP$""", re.S | re.M)
 passed = failed = 0
 

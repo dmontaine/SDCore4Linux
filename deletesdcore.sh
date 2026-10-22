@@ -14,6 +14,8 @@
 #   18 Oct 2026 dm - S.65 write group: the route group sdfileswrite goes with
 #   sdfiles on a full DELETE and is kept when the accounts are kept.
 #
+#   21 Oct 2026 dm - S.73 item 3: so does the route group sdfilesadmin.
+#
 #   17 Oct 2026 dm - S.65 slice 2c: the route group sdfiles (the SDNet
 #   files-only API route) is removed with sdssh and sdapi on a full DELETE and
 #   kept when the accounts are kept.
@@ -427,14 +429,15 @@ if [ "$keep_accts" = "DELETE" ]; then
     # 17 Oct 26 dm - S.65 slice 2c: sdfiles (the SDNet files-only API route)
     #   goes with sdssh and sdapi, for their reason.
     # 18 Oct 26 dm - S.65 write group: and sdfileswrite, the right to change files over it.
-    for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do
+    # 21 Oct 26 dm - S.73 item 3: and sdfilesadmin, the right to administer them.
+    for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do
         if getent group "$sd_route_group" &>/dev/null; then
             sudo groupdel "$sd_route_group" || true
             echo "Removed group $sd_route_group (the accounts went with it)."
         fi
     done
 else
-    echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles and sdfileswrite were kept."
+    echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept."
 fi
 # --------------------
 

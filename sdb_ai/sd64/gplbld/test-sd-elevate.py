@@ -10,6 +10,7 @@ an existing SD user, only an existing group - with their own mutants in `--selft
 17 Oct 26 dm S.65 slice 2c: rows for the route group sdfiles (group_rows) and
 `--selftest`, which runs them against eight mutated copies of the helper.
 18 Oct 26 dm S.65 write group: the same rows for sdfileswrite, lookalike names, and three more mutants (eleven in all).
+21 Oct 26 dm S.73 item 3: the same rows for sdfilesadmin (the fifth route group), its lookalike names, and three more mutants (fourteen in all).
 
 WHAT IT IS FOR.  sd-elevate is the one command the sdsys user (SD's
 administrator) may run as root, so everything that stops that being a root
@@ -87,7 +88,9 @@ def _bad_name(code, out):
 # Names that merely begin with, end with, or look like sdfiles.
 NOT_SDFILES = ["sdfilesx", "sdfiles2", "sdfiles-x", "sdfile", "xsdfiles",
                # 18 Oct 26, S.65 write group: lookalikes of sdfileswrite
-               "sdfileswrit", "sdfileswritex", "sdfileswrite2", "sdfileswrite-x", "xsdfileswrite"]
+               "sdfileswrit", "sdfileswritex", "sdfileswrite2", "sdfileswrite-x", "xsdfileswrite",
+               # 21 Oct 26, S.73 item 3: lookalikes of sdfilesadmin
+               "sdfilesadmi", "sdfilesadminx", "sdfilesadmin2", "sdfilesadmin-x", "xsdfilesadmin"]
 
 
 def group_rows(helper=None):
@@ -110,12 +113,16 @@ def group_rows(helper=None):
     ask("groupadd sdfiles is on the whitelist", ["groupadd", "sdfiles"], _accepted)
     # 18 Oct 26, S.65 write group: sdfileswrite, the right to change files over the files-only route, is the fourth route group.
     ask("groupadd sdfileswrite is on the whitelist", ["groupadd", "sdfileswrite"], _accepted)
+    # 21 Oct 26, S.73 item 3: sdfilesadmin, the right to administer files over the files-only route, is the fifth route group.
+    ask("groupadd sdfilesadmin is on the whitelist", ["groupadd", "sdfilesadmin"], _accepted)
     if who:
         ask("addgroup <me> sdfiles is on the whitelist", ["addgroup", who, "sdfiles"], _accepted)
         ask("delgroup <me> sdfiles is on the whitelist", ["delgroup", who, "sdfiles"], _accepted)
         ask("addgroup <me> sdfileswrite is on the whitelist", ["addgroup", who, "sdfileswrite"], _accepted)
         ask("delgroup <me> sdfileswrite is on the whitelist", ["delgroup", who, "sdfileswrite"], _accepted)
-    for grp in ("sdfiles", "sdfileswrite", "sdusers", "sdssh", "sdapi"):
+        ask("addgroup <me> sdfilesadmin is on the whitelist", ["addgroup", who, "sdfilesadmin"], _accepted)
+        ask("delgroup <me> sdfilesadmin is on the whitelist", ["delgroup", who, "sdfilesadmin"], _accepted)
+    for grp in ("sdfiles", "sdfileswrite", "sdfilesadmin", "sdusers", "sdssh", "sdapi"):
         ask(f"groupdel {grp} is never deleted", ["groupdel", grp], _undeletable)
     for bad in NOT_SDFILES:
         ask(f"groupadd {bad} is not an SD group", ["groupadd", bad], _name_refused)
@@ -129,22 +136,26 @@ def group_rows(helper=None):
 
 # Each mutant is (name, old text, new text) applied to the helper's source; the
 # old text must occur exactly once, or the selftest refuses.
-_WL = "sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;"
-_UD = "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die"
+_WL = "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin) : ;;"
+_UD = "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"
 GROUP_MUTANTS = [
-    ("sdfiles dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfileswrite) : ;;"),
-    ("sdfiles matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite) : ;;"),
+    ("sdfiles dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin) : ;;"),
+    ("sdfiles matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles*|sdfileswrite|sdfilesadmin) : ;;"),
     ("whitelist widened to sd*", _WL, "sdusers|sdssh|sdapi|sd*) : ;;"),
     ("whitelist refuses nothing",
      "*) die \"'$group' is not an SD group", "*) : ;; # \"'$group' is not an SD group"),
-    ("sdfiles made deletable", _UD, "      sdusers|sdssh|sdapi|sdfileswrite)\n        die"),
-    ("sdapi made deletable", _UD, "      sdusers|sdssh|sdfiles|sdfileswrite)\n        die"),
-    ("sdssh made deletable", _UD, "      sdusers|sdapi|sdfiles|sdfileswrite)\n        die"),
-    ("sdusers made deletable", _UD, "      sdssh|sdapi|sdfiles|sdfileswrite)\n        die"),
+    ("sdfiles made deletable", _UD, "      sdusers|sdssh|sdapi|sdfileswrite|sdfilesadmin)\n        die"),
+    ("sdapi made deletable", _UD, "      sdusers|sdssh|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
+    ("sdssh made deletable", _UD, "      sdusers|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
+    ("sdusers made deletable", _UD, "      sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin)\n        die"),
     # 18 Oct 26, S.65 write group
-    ("sdfileswrite dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles) : ;;"),
-    ("sdfileswrite matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite*) : ;;"),
-    ("sdfileswrite made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles)\n        die"),
+    ("sdfileswrite dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfilesadmin) : ;;"),
+    ("sdfileswrite matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite*|sdfilesadmin) : ;;"),
+    ("sdfileswrite made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfilesadmin)\n        die"),
+    # 21 Oct 26, S.73 item 3: the fifth route group
+    ("sdfilesadmin dropped from the whitelist", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite) : ;;"),
+    ("sdfilesadmin matched as a prefix", _WL, "sdusers|sdssh|sdapi|sdfiles|sdfileswrite|sdfilesadmin*) : ;;"),
+    ("sdfilesadmin made deletable", _UD, "      sdusers|sdssh|sdapi|sdfiles|sdfileswrite)\n        die"),
 ]
 
 
@@ -279,7 +290,7 @@ def sdsys_rows(helper=None):
     if code != 0:
         skipped.append(f"sdsys-join: '{who}' is not an SD user here ({out.strip().splitlines()[0] if out.strip() else 'no output'})")
         return rows, skipped
-    every = ",".join(["sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdg_probe", "sudo", "wheel", "docker", "lxd", "adm", "root", "sdu_",
+    every = ",".join(["sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdfilesadmin", "sdg_probe", "sudo", "wheel", "docker", "lxd", "adm", "root", "sdu_",
                       "sdu_root", "sdu_sdsys", "sdu_daemon", "sdu_zzprobenouser", "sdu_-rf", "sdu_" + who])
     fx = {"SD_GROUP_FIXTURE": every}
     mine = "sdu_" + who
@@ -293,7 +304,7 @@ def sdsys_rows(helper=None):
         ["sdsys-join", mine], lambda c, o: c == 0 and o.strip().splitlines()[-1].endswith(" -aG %s -- sdsys" % mine) and "attacker" not in o,
         dict(fx, SUDO_USER="attacker", USER="attacker", LOGNAME="attacker"))
     # ---- REFUSE: groups that are not an account's own.  The reason is the rule's own sentence.
-    for g in ("sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite"):
+    for g in ("sdusers", "sdssh", "sdapi", "sdfiles", "sdfileswrite", "sdfilesadmin"):
         ask(f"sdsys-join {g} is refused: SD's own groups are not account groups", ["sdsys-join", g],
             lambda c, o: _reason(c, o, "is not an account group"), fx)
     ask("sdsys-join sdg_probe is refused: a group account's group is made with sdsys in it, and is not this verb's", ["sdsys-join", "sdg_probe"],
@@ -456,6 +467,7 @@ CASES = [
     (REFUSE, ["groupdel", "sdapi"],          "the API route register is not deletable"),
     (REFUSE, ["groupdel", "sdfiles"],        "the SDNet files-only route register is not deletable (S.65 slice 2c)"),
     (REFUSE, ["groupdel", "sdfileswrite"],   "the SDNet write register is not deletable (S.65 write group)"),
+    (REFUSE, ["groupdel", "sdfilesadmin"],   "the SDNet administration register is not deletable (S.73 item 3)"),
     # 20 Sep 26 - ***THESE TWO ROWS MEASURED THIS MACHINE, NOT THE HELPER, AND
     # THEY FLIPPED THE DAY AN INSTALL CREATED THE GROUPS.***  They asserted
     # ALLOW for `groupadd sdssh|sdapi`; sd-elevate refuses "group already

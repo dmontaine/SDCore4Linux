@@ -58,7 +58,7 @@ done
 
 STATE_DIR=$WL_TMP/witness-sdnet-groups
 STATE=$STATE_DIR/state
-GROUPS4="sdssh sdapi sdfiles sdfileswrite"
+GROUPS4="sdssh sdapi sdfiles sdfileswrite sdfilesadmin"      # (the variable keeps its first name; since S.73 item 3, 21 Oct 26, there are five route groups)
 STAMP=$(date +%Y%m%dT%H%M%S)
 
 say "witness-sdnet-groups.sh $MODE  $STAMP"
@@ -192,7 +192,7 @@ after-delete)
         if [ "$(exists_of "$(saved delete-before "$g")")" = exists ]; then expect_has "D3 the remover said it took $g out" "$LOGT" "Removed group $g (the accounts went with it)."; fi
       done
     else
-      expect_has "D3 the remover said the route groups were kept" "$LOGT" "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles and sdfileswrite were kept."
+      expect_has "D3 the remover said the route groups were kept" "$LOGT" "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept."
       expect_lacks "D3 and it did not say it removed any" "$LOGT" "(the accounts went with it)"
     fi
   else

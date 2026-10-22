@@ -289,12 +289,12 @@ def remote_login(st, g, ru, pw, route_audit=True):
     write = in_group(g, ru, "sdfiles") and in_group(g, ru, "sdfileswrite") and mutant() != "write-never"
     if mutant() == "write-without-group" and in_group(g, ru, "sdfiles"):
         write = True
-    audit("sdsys", "api login route=sdfiles write=%s user=%s" % ("on" if write else "off", ru))
+    audit("sdsys", "api login route=sdfiles write=%s admin=off user=%s" % ("on" if write else "off", ru))      # 21 Oct 26, S.73 item 3: admin=off - these accounts are never in sdfilesadmin
     return "ok", write
 
 
 def refuse_audit(n, write, ru):
-    audit("sdsys", "api refused request=%d route=sdfiles write=%s user=%s" % (n, "on" if write else "off", ru))
+    audit("sdsys", "api refused request=%d route=sdfiles write=%s admin=off user=%s" % (n, "on" if write else "off", ru))
 
 
 def files_of(st, acc):

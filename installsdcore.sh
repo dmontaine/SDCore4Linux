@@ -70,6 +70,10 @@
 #   beside them (the right to CHANGE files over that route; empty on a fresh
 #   install, and created by an upgrade install that lacks it).
 #
+#   21 Oct 2026 dm - S.73 item 3: the group sdfilesadmin is created beside them (the
+#   right to ADMINISTER files over that route; empty on a fresh install, and created
+#   by an upgrade install that lacks it).
+#
 #   18 Oct 2026 dm - S.66: the install creates the shared account (a group
 #   account named shared, group sdg_shared), after the installing user's own
 #   account and before the kept accounts are brought forward.  shared_preflight
@@ -946,7 +950,11 @@ fi
 #   files over the sdfiles route (write, delete, lock, clear).  Empty on a fresh
 #   install; an upgrade install that lacks it creates it empty here (the loop
 #   makes any that is missing), and nobody is added by the installer.
-for sd_route_group in sdssh sdapi sdfiles sdfileswrite; do
+# 21 Oct 26 dm - S.73 item 3: sdfilesadmin is the FIFTH, the right to administer files over
+#   the sdfiles route (configure, index, create and delete a file, the file's counter).  Empty
+#   on a fresh install; an upgrade install that lacks it creates it empty here, and nobody is
+#   added by the installer: the "open every gate" answer leaves files-admin-on out (owner, 20 Oct).
+for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do
   if ! getent group "$sd_route_group" &>/dev/null; then
     echo "Creating group: $sd_route_group."
     sudo groupadd --system "$sd_route_group"

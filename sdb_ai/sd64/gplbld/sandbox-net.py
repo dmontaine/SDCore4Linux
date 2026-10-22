@@ -269,24 +269,36 @@ ZZNKSET = "\n".join([
 # a row can show it ran as an ordinary session, and an end line so that a probe that stopped early cannot pass.  It is $internal because the function is.
 ZZFOK = "\n".join([
     "$internal", "program zznfok", "$catalog $zznfok", "$include keys.h", "$include int$keys.h",
-    "deffun apifilesok(action, entered, writeok) calling '!apifilesok'",
+    "deffun apifilesok(action, entered, writeok, adminok) calling '!apifilesok'",
     "   crt 'FOK admin=':kernel(K$ADMINISTRATOR, -1)",
     "   odd = '|abc|-1|1000|81|4x|x4|3x'",
     # 18 Oct 26, S.65 write group: the third argument, the login's membership of sdfileswrite, 0 and 1; also the values that are neither (empty, unassigned
-    # is not askable from here, text, 2) which must read as "no write"
+    # is not askable from here, text, 2) which must read as "no write".  21 Oct 26, S.73 item 3: the fourth argument, the administration group.  The first tables (FOK, FQ, FW) ask
+    # with it 0, as the answers were before S.73; FAD asks with it 1, FX and FY with the values that are not exactly 1
     "   for w = 0 to 1",
     "      for e = 0 to 1",
     "         for a = 0 to 80",
-    "            crt 'FOK w=':w:' e=':e:' a=':a:' r=':apifilesok(a, e, w)",
+    "            crt 'FOK w=':w:' e=':e:' a=':a:' r=':apifilesok(a, e, w, 0)",
+    "            crt 'FAD w=':w:' e=':e:' a=':a:' r=':apifilesok(a, e, w, 1)",
     "         next a",
     "         for q = 1 to 8",
-    "            crt 'FQ w=':w:' e=':e:' q=':q:' r=':apifilesok(field(odd, '|', q), e, w)",
+    "            crt 'FQ w=':w:' e=':e:' q=':q:' r=':apifilesok(field(odd, '|', q), e, w, 0)",
     "         next q",
     "      next e",
     "   next w",
     "   for each wv in '':@fm:'abc':@fm:'0':@fm:'no'",
     "      for each ca in 16:@fm:17:@fm:18:@fm:30:@fm:31:@fm:9:@fm:6:@fm:34:@fm:15",       # S.72b: 34 joins the change set (it must stay refused); 6 and 15 stay allowed with any flag
-    "         crt 'FW v=':wv:' a=':ca:' r=':apifilesok(ca, 1, wv)",
+    "         crt 'FW v=':wv:' a=':ca:' r=':apifilesok(ca, 1, wv, 0)",
+    "      next ca",
+    "   next wv",
+    "   for each av in '':@fm:'abc':@fm:'0':@fm:'no':@fm:2",
+    "      for each ca in 68:@fm:69:@fm:70:@fm:71:@fm:16:@fm:6",       # the administration set must stay refused for an administration flag that is not exactly 1; a change (16) and a read (6) do not look at it
+    "         crt 'FX v=':av:' a=':ca:' r=':apifilesok(ca, 1, 1, av)",
+    "      next ca",
+    "   next av",
+    "   for each wv in '':@fm:'abc':@fm:'0':@fm:'no':@fm:2",
+    "      for each ca in 68:@fm:69:@fm:70:@fm:71",       # a write flag that is not exactly 1 leaves the administration set refused although the administration group is held
+    "         crt 'FY v=':wv:' a=':ca:' r=':apifilesok(ca, 1, wv, 1)",
     "      next ca",
     "   next wv",
     "   crt 'FOK end'", "end", ""])
@@ -322,6 +334,17 @@ def files_want(n, entered, write=1):
 
 
 READ_SET = frozenset(a for a in range(81) if files_want(a, 1) and a not in CHANGE_SET and a != 3)
+
+# 21 Oct 26, S.73 item 3: the administration set - 68 writeseqkey, 69 writeuseqkey, 70 fileadmin, 71 fcontrol - which is in the allow table behind the write group AND the administration group.
+# Written here from the spec (.claude/s73-sdnet-admin-design.md), not read from the program.
+ADMIN_SET = frozenset([68, 69, 70, 71])
+
+
+def files_want_adm(n, entered, write=1):
+    """The answer with the administration flag 1: the administration set follows the write flag, every other number is the answer without the administration flag."""
+    if n in ADMIN_SET:
+        return 1 if write else 0
+    return files_want(n, entered, write)
 
 
 def fixer_text():
@@ -2013,6 +2036,21 @@ MUTANTS = {
     # the plain reads row (FS-reads), the values that are not exactly 1 (FS-failclosed: 15 must stay allowed) and FS-34 (6, 15, 40 and 41 are in it).
     "15-joins-change-set": ("files.chg := '34,'", "files.chg := '34,15,'",
                             ("FS-w0e0", "FS-w0e1", "FS-count", "FS-reads", "FS-failclosed", "FS-34")),
+    # 21 Oct 26, S.73 item 3.  The administration set, broken one way at a time (the rows were written before the first run).  The administration flag is ignored: 68 to 71 are
+    # allowed with the write flag alone (flag 0 for the administration group), seen by the flag-0 tables for the write flag 1, the 38 control, the "refused" row of 68 to 71 and the
+    # rows about flags that are not 1.
+    "admin-flag-ignored": ("   if adminok # 1 then return 0", "   if adminok # 1 then null",
+                           ("FS-w1e0", "FS-w1e1", "FS-ones", "FS-admfail", "refused")),
+    # The write flag is ignored inside the administration set: the administration group alone gives the four requests.  Seen by the table for the administration flag 1 with the write flag 0
+    # (FS-adm), its count (FS-admcount) and the rows about write flags that are not 1 (FS-admwritefail).
+    "admin-alone-enough": ("   if writeok # 1 then return 0", "   if writeok # 1 then null",
+                           ("FS-adm", "FS-admcount", "FS-admwritefail")),
+    # 68 leaves the administration set: it is then in the plain table, so any login that may use the files route may write under the file's counter.  Every table sees it.
+    "68-leaves-admin-set": ("files.adm := '68,'", "files.adm := ''",
+                            ("FS-w0e0", "FS-w0e1", "FS-w1e0", "FS-w1e1", "FS-ones", "FS-count", "FS-adm", "FS-admcount", "FS-admfail", "FS-admwritefail", "refused")),
+    # 69 leaves the allow table: refused to a login that holds both groups.  Only the tables for the administration flag 1 can see it.
+    "69-leaves-allow-table": ("files.ok := '69,'", "files.ok := ''",
+                              ("FS-adm", "FS-admcount")),
 }
 MUTANT = None                    # the name given with --mutant=, or None
 FAILED_IDS = []                  # the ids (first words) of the rows that failed, for a mutant run
@@ -2063,11 +2101,20 @@ def files_section_body():
         g.has(out, r"^Compiled 9 program\(s\) with no errors") and not g.has(out, r"not assigned a value"), repr(out[-8:]))
 
     out = g.plain("zznoff", ["ZZNFOK"])
-    ans, odd, admin, fw = {}, {}, None, {}
+    ans, odd, admin, fw, adm, fx, fy = {}, {}, None, {}, {}, {}, {}
     for ln in out:
         m = re.match(r"^FOK w=(\d) e=(\d) a=(\d+) r=(\S*)$", ln)
         if m:
             ans[(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = m.group(4)
+        m = re.match(r"^FAD w=(\d) e=(\d) a=(\d+) r=(\S*)$", ln)
+        if m:
+            adm[(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = m.group(4)
+        m = re.match(r"^FX v=(\S*) a=(\d+) r=(\S*)$", ln)
+        if m:
+            fx[(m.group(1), int(m.group(2)))] = m.group(3)
+        m = re.match(r"^FY v=(\S*) a=(\d+) r=(\S*)$", ln)
+        if m:
+            fy[(m.group(1), int(m.group(2)))] = m.group(3)
         m = re.match(r"^FQ w=(\d) e=(\d) q=(\d) r=(\S*)$", ln)
         if m:
             odd[(int(m.group(1)), int(m.group(2)), int(m.group(3)))] = m.group(4)
@@ -2080,8 +2127,10 @@ def files_section_body():
     # 18 Oct 26, S.65 write group: the function now takes the login's write flag.  The numbers a login WITH the write group may ask for are the owner's list as
     # before (ans[(1, e, a)]); the numbers a login WITHOUT it may ask for are that list less the change set (ans[(0, e, a)]).
     row("the probe ran as an ORDINARY session (admin=0), answered all 324 questions (81 request numbers, the account not entered and entered, the write flag 0 and 1) and the 32 about "
-        "values that are not request numbers, and reached its end line - a probe that did nothing fails here, not in the comparisons",
-        admin == "0" and len(ans) == 324 and len(odd) == 32 and has_line(out, "FOK end"), "admin=%r answers=%d odd=%d tail=%r" % (admin, len(ans), len(odd), out[-3:]))
+        "values that are not request numbers, and the 324 more with the administration flag 1 (FAD), the 30 and 20 about flags that are not exactly 1 (FX, FY), and reached its end line - a probe "
+        "that did nothing fails here, not in the comparisons",
+        admin == "0" and len(ans) == 324 and len(odd) == 32 and len(adm) == 324 and len(fx) == 30 and len(fy) == 20 and has_line(out, "FOK end"),
+        "admin=%r answers=%d odd=%d adm=%d fx=%d fy=%d tail=%r" % (admin, len(ans), len(odd), len(adm), len(fx), len(fy), out[-3:]))
     for e in (0, 1):
         bad = [(a, ans.get((1, e, a)), files_want(a, e)) for a in range(81) if ans.get((1, e, a)) != str(files_want(a, e))]
         row("FS-w1e%d write=1, entered=%d (%s): all 81 answers equal the table written here from the owner's list (%d numbers allowed) - a number wrong in either direction fails"
@@ -2119,10 +2168,24 @@ def files_section_body():
         "and release (15) are still 1 - fail closed, and a flag that is text does not read as true",
         len(fw) == 36 and all(fw.get((v, a)) == ("1" if a in (6, 15) else "0") for v in ("", "abc", "0", "no") for a in (16, 17, 18, 30, 31, 9, 34, 6, 15)),
         repr({k: v for k, v in fw.items() if v != ("1" if k[1] in (6, 15) else "0")}) + " answers %d" % len(fw))
+    badadm =[(w, e, a, adm.get((w, e, a)), files_want_adm(a, e, w)) for w in (0, 1) for e in (0, 1) for a in range(81) if adm.get((w, e, a)) != str(files_want_adm(a, e, w))]
+    row("FS-adm S.73 item 3, the administration flag 1: all 324 answers equal the table written here - 68 writeseqkey, 69 writeuseqkey, 70 fileadmin and 71 fcontrol are 1 ONLY with the write flag 1 "
+        "as well (the administration group alone gives nothing), in both states of `entered`, and every other number is the answer it was with the flag 0",
+        len(adm) == 324 and not badadm, "(write, entered, number, got, wanted): %r" % badadm[:8])
+    ones_adm = [sum(1 for a in range(81) if adm.get((w, 1, a)) == "1") for w in (0, 1)]
+    row("FS-admcount CONTROL: with the administration flag 1 and the account entered, %d are allowed without the write flag (the administration flag adds nothing to it) and %d with it (37 and the "
+        "4 of the administration set): the set is neither empty nor everything" % (37 - len(CHANGE_SET), 37 + len(ADMIN_SET)), ones_adm == [37 - len(CHANGE_SET), 37 + len(ADMIN_SET)] == [24, 41], repr(ones_adm))
+    row("FS-admfail an administration flag that is not exactly 1 (empty, text, 0, the word no, 2) leaves 68 to 71 refused although the write group is held, and does not touch a change (16) or a read (6)",
+        len(fx) == 30 and all(fx.get((v, a)) == ("1" if a in (16, 6) else "0") for v in ("", "abc", "0", "no", "2") for a in (68, 69, 70, 71, 16, 6)),
+        repr({k: v for k, v in fx.items() if v != ("1" if k[1] in (16, 6) else "0")}) + " answers %d" % len(fx))
+    row("FS-admwritefail a WRITE flag that is not exactly 1 (empty, text, 0, the word no, 2) leaves 68 to 71 refused although the administration group is held",
+        len(fy) == 20 and all(v == "0" for v in fy.values()), repr({k: v for k, v in fy.items() if v != "0"}) + " answers %d" % len(fy))
+    # 21 Oct 26, S.73 item 3: 68 to 71 are in the table now, behind BOTH groups; here they are asked with the administration flag 0 (FOK), which is the old answer: refused (FS-adm is the rest)
     never = [("0, no such request", [0]), ("20 call", [20]), ("21 execute", [21]), ("22 respond and 23 end command", [22, 23]), ("24 and 25, the other logins", [24, 25]),
              ("27 and 28", [27, 28]), ("29 open sdnet file", [29]), ("47 and 48, the SCRAM login itself (only before logged.in)", [47, 48]), ("50 getvar", [50]),
              ("51 system", [51]), ("52 and 53 trans", [52, 53]), ("54 transactions", [54]), ("55 to 60 evaluate and the conversions", list(range(55, 61))),
-             ("61 to 69 the sequential files", list(range(61, 70))), ("70 to 80, numbers this tree does not know", list(range(70, 81)))]
+             ("61 to 67 the sequential files", list(range(61, 68))), ("68 to 71 the administration set, with the administration flag 0 (with 1 it needs the write flag too: FS-adm)", list(range(68, 72))),
+             ("72 to 80, numbers this tree does not know", list(range(72, 81)))]
     for label, nums in never:
         row("refused in both states, with or without the write group: %s" % label, all(ans.get((w, e, a)) == "0" for w in (0, 1) for e in (0, 1) for a in nums),
             repr([(w, e, a, ans.get((w, e, a))) for w in (0, 1) for e in (0, 1) for a in nums if ans.get((w, e, a)) != "0"][:6]))
@@ -2195,7 +2258,14 @@ def files_section_body():
         out = g.adm(["MODIFY.ACCOUNT zznfilu " + word])
         row("%s for a user who is not in sdusers: refused with 10081, status 2, no 11522 line, nothing changed" % word,
             has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has files-write") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
-    for word in ("files-write-on", "files-write-off"):
+    # 21 Oct 26, S.73 item 3: the administration words, where no root is needed
+    out = g.adm(["modify.account zznfilu files-admin-off"])
+    row("files-admin-off on a user whose Linux user is in no group: 'already had that access' (10080), no 11525 line, nothing changed (and sd-elevate never run)",
+        has_line(out, msg(10080, "zznfilu")) and not has_text(out, "has files-admin") and unchanged(), repr(out[-3:]))
+    out = g.adm(["MODIFY.ACCOUNT zznfilu FILES-ADMIN-ON"])
+    row("files-admin-on for a user who is not in sdusers: refused with 10081, status 2, no 11525 line, nothing changed",
+        has_line(out, msg(10081, "zznfilu", 2)) and not has_text(out, "has files-admin") and not has_line(out, msg(10080, "zznfilu")) and unchanged(), repr(out[-3:]))
+    for word in ("files-write-on", "files-write-off", "files-admin-on", "files-admin-off"):
         out = g.adm(["modify.account zznfilg " + word])
         row("%s on a GROUP account: refused (10087), nothing changed" % word, has_line(out, msg(10087, "zznfilg")) and not files_state_line(out) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilo " + word])
@@ -2218,6 +2288,12 @@ def files_section_body():
                 has_line(out, msg(11523, "zznfilw")) and not files_state_line(out) and not has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilw files-write-off"])
         row("files-write-off for the same person (in neither group): 'already had that access' (10080), nothing changed", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+        # 21 Oct 26, S.73 item 3: the administration group needs sdfiles and sdfileswrite, and is refused before 'already' like the write group is
+        out = g.adm(["modify.account zznfilw files-admin-on"])
+        row("files-admin-on for the same person (in neither group): refused with 11526 (it needs files-write first), no 11525 line, not 'already', nothing changed",
+            has_line(out, msg(11526, "zznfilw")) and not has_text(out, "has files-admin") and not has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
+        out = g.adm(["modify.account zznfilw files-admin-off"])
+        row("files-admin-off for the same person (in none of the three): 'already had that access' (10080), nothing changed", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
         out = g.adm(["modify.account zznfilw files-off"])
         row("files-off for the same person (in neither group): 'already had that access' (10080), nothing changed - the removal of the write group on files-off only happens "
             "after a real removal from sdfiles, which a sandbox does not do", has_line(out, msg(10080, "zznfilw")) and unchanged(), repr(out[-3:]))
@@ -2226,8 +2302,8 @@ def files_section_body():
 
     # CREATE.ACCOUNT: only the refusals that come before anything is made
     out = g.adm(["CREATE.ACCOUNT"])
-    row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} and its text says what the words are",
-        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
+    row("CREATE.ACCOUNT's syntax line names {files-on} {files-write-on} {files-admin-on} and its text says what the words are",
+        g.has(out, r"\{net-on\} \{files-on\} \{files-write-on\} \{files-admin-on\} \{no\.query\}") and g.has(out, r"files-only login \(files-on; it cannot change files here without files-write-on\)"), repr(out[-9:]))
     out = g.adm(["create.account group zznfilgx files-on"])
     row("create.account group ... files-on: refused (10087), and no account, no register record and no directory was made",
         has_line(out, msg(10087, "zznfilgx")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgx")), repr(out[-3:]))
@@ -2241,6 +2317,19 @@ def files_section_body():
     out = g.adm(["create.account other zznfilop /tmp/zznfilop files-write-on"])
     row("create.account other ... files-write-on: refused (10081, status 2), and no register record was made",
         has_line(out, msg(10081, "zznfilop", 2)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilop")), repr(out[-3:]))
+    # 21 Oct 26, S.73 item 3: the same refusals for the administration word
+    out = g.adm(["create.account group zznfilgz files-admin-on"])
+    row("create.account group ... files-admin-on: refused (10087), and no account, no register record and no directory was made",
+        has_line(out, msg(10087, "zznfilgz")) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilgz")), repr(out[-3:]))
+    out = g.adm(["create.account other zznfilor /tmp/zznfilor files-admin-on"])
+    row("create.account other ... files-admin-on: refused (10081, status 2), and no register record was made",
+        has_line(out, msg(10081, "zznfilor", 2)) and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilor")), repr(out[-3:]))
+    if not linux_user_exists("zznfilwq"):
+        out = g.adm(["create.account user zznfilwq files-admin-on no.query"])
+        row("create.account user ... files-admin-on WITHOUT files-on and files-write-on: refused with 11526 BEFORE it makes anything - no Linux user, no register record, no state line "
+            "(the administration group alone gives nothing)",
+            has_line(out, msg(11526, "zznfilwq")) and not files_state_line(out) and not linux_user_exists("zznfilwq")
+            and not os.path.exists(os.path.join(g.SYS, "accounts", "zznfilwq")), repr(out[-3:]))
     if not linux_user_exists("zznfilwx"):
         out = g.adm(["create.account user zznfilwx files-write-on no.query"])
         row("create.account user ... files-write-on WITHOUT files-on: refused with 11523 BEFORE it makes anything - no Linux user, no register record, no 'has FILES' line "
@@ -2266,8 +2355,8 @@ def files_section_body():
     # the manifest
     out = g.adm(["RUN gpl.bp zznfinfo"], internal=True)
     pick = lambda a: [x for x in out if x.startswith("FI %s " % a)]
-    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then route.files.write: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
-        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|route\.files\.write: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
+    row("zznfilu (a user in no group): its manifest lists route.api: 0 then route.files: 0 then route.files.write: 0 then route.files.admin: 0 then os.sh, and has no bare `files:` key (that key is the backup's file count)",
+        g.has(pick("zznfilu"), r"\|route\.api: 0\|route\.files: 0\|route\.files\.write: 0\|route\.files\.admin: 0\|os\.sh: ") and not g.has(pick("zznfilu"), r"(^|\|| )files: "), repr(pick("zznfilu")[:2]))
     row("zznfilg (a GROUP account): type GROUP and no route.files key and no route.files.write key (only a user account has one)",
         g.has(pick("zznfilg"), r"type: GROUP") and not g.has(pick("zznfilg"), r"route\.files"), repr(pick("zznfilg")[:2]))
 

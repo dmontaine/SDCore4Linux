@@ -945,10 +945,10 @@ def files_section():
     # quiet aborts the program.  WITH the group, and for a login that is not files-only, it is served (the controls).
     r = go(keys(carol, A) + ["OPEN|customers|1", "READ|1|c1", "RLOCKED|1|c1", "REV", "DISC"], A)
     row("[S72b-N1b] RECORDLOCKED through a files-only login WITHOUT sdfileswrite (carol, the class not quiet): the READ before it was served, then the class aborts the program ('RECORDLOCKED generated "
-        "an abort event') - the fake refused request 34 and nothing else (refused [34], audit 'api refused request=34 route=sdfiles write=off user=carol'), the requests were 3, 4, 6, 34 and the Quit the "
+        "an abort event') - the fake refused request 34 and nothing else (refused [34], audit 'api refused request=34 route=sdfiles write=off admin=off user=carol'), the requests were 3, 4, 6, 34 and the Quit the "
         "class sends when the aborted program ends, and the driver did not reach its end",
         r.began and not r.ended and any("RECORDLOCKED generated an abort event" in ln for ln in r.out) and rl("READ", "c1", 0, RECS["c1"]) in r.fx and not fx_lines(r, "RLOCKED") and r.ses
-        and r.ses[0].refused == [34] and r.ses[0].audit == ["api refused request=34 route=sdfiles write=off user=carol"] and r.ses[0].requests == [3, 4, 6, 34, 1] and not r.d["errors"] and r.idle,
+        and r.ses[0].refused == [34] and r.ses[0].audit == ["api refused request=34 route=sdfiles write=off admin=off user=carol"] and r.ses[0].requests == [3, 4, 6, 34, 1] and not r.d["errors"] and r.idle,
         why(r) + " refused %r audit %r requests %r out %r" % ([s.refused for s in r.ses], [s.audit for s in r.ses], [s.requests for s in r.ses], r.out[-4:]))
     r = go(keys(carol, A) + ["OPEN|customers|1", "READ|1|c1", "RLOCKED|1|c1", "REV", "DISC"], A, cfg={"write_group": True})
     row("...CONTROL, the same login IN sdfileswrite (the connection's write_group): RECORDLOCKED is served (n=0), the driver reaches its end, nothing is refused and request 34 was sent",
@@ -1140,7 +1140,7 @@ def class_filelocks(A, alice):
     row("[S72b-N2] ...RECORDLOCKED too (request 34 is in the change set since S.72b): a QUIET class does not abort - the driver reaches its end, the call returns 0 - and leaves LastError 1 and LastText = "
         "the text of message 11521 with the request number 34 (the handler reads them to say 'Server nfw answered recordlocked with an error'); the fake refused 34 and audited it",
         sane(r) and fx_lines(r, "RLOCKED") == ["FX RLOCKED c1 n=0"] and len(lerr) == 1 and lerr[0].startswith("FX LERR 1 text=[%s" % t34) and r.ses and r.ses[0].refused == [34]
-        and r.ses[0].audit == ["api refused request=34 route=sdfiles write=off user=carol"], why(r) + repr([(s.refused, s.audit) for s in r.ses]) + repr(lerr))
+        and r.ses[0].audit == ["api refused request=34 route=sdfiles write=off admin=off user=carol"], why(r) + repr([(s.refused, s.audit) for s in r.ses]) + repr(lerr))
 
 
 # ---- M. select lists --------------------------------------------------------------------------------------------------------------------------
@@ -1493,7 +1493,7 @@ def h_audits(text):
     """The handler's audit lines in a stretch of the trail, as   open server=nfa file=hcust   /   refused server=nfa reason=gate.  Since slice 3e also
     open server=nfw file=hwork mode=write,  write / delete / clear server=nfw file=hwork  and  lost server=nfw op=write  (the key word is the one the line has)."""
     out = []
-    for m in re.finditer(r"netfile (open|refused|write|delete|clear|lost|filelock) server=(\S+) (file|reason|op)=([^\r\n]*?)\s*$", text or "", re.M):
+    for m in re.finditer(r"netfile (open|refused|write|delete|clear|lost|filelock|admin|fcontrol) server=(\S+) (file|reason|op)=([^\r\n]*?)\s*$", text or "", re.M):
         out.append("%s server=%s %s=%s" % (m.group(1), m.group(2), m.group(3), m.group(4)))
     return out
 
@@ -2483,6 +2483,21 @@ def W_FUL(fno):
     return (33, FNO(fno))
 
 
+def W_FCTL(fno, key, value=""):
+    """S.73 item 3: request 71, FCONTROL: the file number, the key (short), the value as text (null when the call had none)."""
+    return (71, FNO(fno) + struct.pack("<h", key) + value.encode("latin-1"))
+
+
+def W_SEQ(fno, rec, keep=False):
+    """S.73 item 3: request 68 (WRITE ... CREATING.SEQKEY) or 69 (WRITEU): the file number and the record."""
+    return (69 if keep else 68, FNO(fno) + rec.encode("latin-1"))
+
+
+def W_FADM(op, fno, text=""):
+    """S.73 item 3: request 70, a verb run on the server: the operation (short), the file number (short; 0 for create.file), the verb's words."""
+    return (70, struct.pack("<h", op) + FNO(fno) + text.encode("latin-1"))
+
+
 def W_READ(fno, rid):
     return (6, FNO(fno) + rid.encode("latin-1"))
 
@@ -3465,7 +3480,7 @@ KM += [km("fikey%d" % k, "x = fileinfo(f, %d)" % k, None, str(k), None, num=1150
 
 # the verbs on the VOC name: (the command, its extra lines, a message number the verb is known to refuse with or None)
 KVERBS = [("LIST.ITEM zznet1 c1", [], None), ("CT zznet1 c1", [], None), ("CONFIGURE.FILE zznet1 MINIMUM.MODULUS 7", [], None), ("ANALYSE.FILE zznet1", [], None),
-          ("CLEAR.FILE zznet1", [], 1431), ("DELETE.FILE zznet1", [], 2015), ("DELETE zznet1 c1", [], None),
+          ("CLEAR.FILE zznet1", [], 1431), ("DELETE.FILE zznet1 NO.QUERY", [], None), ("DELETE zznet1 c1", [], None),      # S.73 item 3: DELETE.FILE of a pointer goes to the server (asks, then deletes there); on this READ definition it stops here, after the open, with message 11501
           ("COPY FROM zznet1 TO zznetempty c1", [], None), ("ED zznet1 zznewrec", ["I hello", "FI", "Q", "Y"], None)]
 
 
@@ -4111,9 +4126,15 @@ KW_STMTS = {
     "RLCKD": ([], "x = recordlocked({f}, a3)", "x"),
     "CLOSE": ([], "close {f}", "close"),
     "FI": (["fkey = a3 + 0"], "x = fileinfo({f}, fkey)", "fi"),
+    # S.73 item 3 (21 Oct 26): FCONTROL (keys 2, 3 and 6 are the ones the fake models) and WRITE / WRITEU ... CREATING.SEQKEY of a remote file; the id the server gave is printed
+    "FCSET": ([], "x = fcontrol({f}, 2, a3 + 0)", "x"),
+    "FCGET": ([], "x = fcontrol({f}, 3)", "x"),
+    "FCVALID": ([], "x = fcontrol({f}, 6, a3)", "x"),
+    "SEQW": (["sid = ''"], "write a4 to {f} creating.seqkey sid " + KW_EO, "seq"),
+    "SEQWU": (["sid = ''"], "writeu a4 to {f} creating.seqkey sid " + KW_EO, "seq"),
 }
 KW_TXN_OPS = ("WRITE", "WRITEU", "MATWRITE", "WRITEV", "WRITEVU", "DELETE", "DELETEU", "CLEARFILE", "READ", "READU", "READL", "READVU", "MATREADU", "RLOCKU", "RLOCKL", "RELEASE", "RELEASEF",
-              "FLOCK", "FUNLOCK", "RLCKD")
+              "FLOCK", "FUNLOCK", "RLCKD", "SEQW", "SEQWU")
 
 
 def kw_show(name, kind):
@@ -4128,6 +4149,8 @@ def kw_show(name, kind):
         return ["v = x ; gosub shw", "crt 'KW %s ':tid:' [':sv:']'" % name]
     if kind == "x":
         return ["crt 'KW %s ':tid:' x=':x:' st=':st" % name]
+    if kind == "seq":
+        return ["crt 'KW %s ':tid:' ':oc:' st=':st:' id=[':sid:']'" % name]
     return ["crt 'KW %s ':tid:' ':oc:' st=':st" % name]
 
 
@@ -4151,7 +4174,7 @@ def kw_case(name, pre, stmt, kind, txn=False):
 
 def kw_driver():
     L = ["$include err.h", "   dim m(4)", "   dim mw(2)"] + ["   f%d = ''" % n for n in range(1, KSLOTS + 1)]
-    L += ["   x = ''", "   fkey = 0", "   v = ''", "   sv = ''", "   tid = ''", "   rec = ''"]                    # assigned first for BCOMP: a warning fails the bootstrap
+    L += ["   x = ''", "   fkey = 0", "   v = ''", "   sv = ''", "   tid = ''", "   rec = ''", "   sid = ''"]                    # assigned first for BCOMP: a warning fails the bootstrap
     L += ["   crt 'KW begin'", "   done = @false", "   loop", "      input ln", "      done = (ln = 'END') or (ln = '' and status() = ER$EOF)", "   until done do",
           "      op = field(ln, '|', 1)", "      a2 = field(ln, '|', 2)", "      a3 = field(ln, '|', 3)", "      a4 = field(ln, '|', 4)", "      a5 = field(ln, '|', 5)", "      tid = a3"]
     for v in ("a3", "a4"):
@@ -4224,8 +4247,8 @@ KWA = [
     ("rwg", "zznw1", ["x = recordlocked(f, 'w2')", "crt 'KW rwg x=':x:' st=':status()"], (), False, ("zznhon",), lambda: [msg(11500, "nfw", "recordlocked", msg(11521, 34))]),
 ]
 # statements that stay refused on a write-mode handle (message 11511 'not available', not 11501 'read only'): the matrix KM's entries, taken to the pointer zznw1
-KW_STILL_REFUSED = ("selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright", "fcontrol6", "fcontrol1",
-                    "fiexcl", "fistaton", "fistatoff")      # S.72: filelock, fileunlock and recordlocked are not here any more - they work on a write-mode handle (kw_filelocks)
+KW_STILL_REFUSED = ("selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright",
+                    "fiexcl", "fistaton", "fistatoff")      # S.73 item 3: fcontrol6 and fcontrol1 are not here any more - FCONTROL goes to the server (kw_admin).  S.72: filelock, fileunlock and recordlocked are not here any more - they work on a write-mode handle (kw_filelocks)
 # internal programs (global catalogue, verbs in the accounts): a gate that must not exempt them, the MUSTLOCK setting only they can make, the S.64 key edit_guard asks
 KWI_TEXT = """$internal
 program zznkwi
@@ -4684,6 +4707,7 @@ def kwrite_section():
     kw_misc(A)
     kw_filelocks(A)
     kw_peek(A)
+    kw_admin(A)
 
 
 def kw_basic(A):
@@ -5255,6 +5279,142 @@ def kw_filelocks(A):
             not r.hung and kn_abort(seg) == msg(11497, "nfw", op) and not any("SURVIVED" in x for x in seg) and r.idle, repr(seg[-3:]))
 
 
+def kw_admin(A):
+    """S.73 item 3 (21 Oct 26), QMNet tiers C and D: FCONTROL and WRITE ... CREATING.SEQKEY of a remote file, and the verbs ANALYSE.FILE, CONFIGURE.FILE, CREATE.INDEX, BUILD.INDEX, DELETE.INDEX,
+    DISABLE.INDEX, CREATE.FILE ... SERVER and DELETE.FILE of an N pointer.  THE FAKE IS THE WITNESS (what it received, byte for byte, its store, its audit and its lock table); the server's own
+    behaviour is sandbox-fileadmin.py's.  The fake's session holds the administration group only when the row says so (cfg admin_group): without it the fake refuses 68 to 71 with message 11524
+    and the client's text is 'Server nfw answered <operation> with an error: <that text>'."""
+    say("\n  -- QMNet tiers C and D (S.73 item 3, 21 Oct 26): FCONTROL, WRITE ... CREATING.SEQKEY and the file administration verbs on a write-mode file --")
+    ADM = {"admin_group": True}
+    FL_ADM = (HW, "101", "update")
+
+    def admin_audits(r):
+        return [x for x in r.audits if x.startswith(("admin ", "fcontrol "))]
+
+    def p70(r):
+        return [(t, d) for _c, t, d in r.d[0]["packets"] if t == 70]
+
+    # 1. the statements, on a free file: the counter is the server's
+    wreset(A)
+    lines = ["OPEN|1|zznw1", "FCSET|1|100", "SEQW|1||rec one", "SEQWU|1||rec two", "SLEEP|1", "FCGET|1", "FCVALID|1|abc", "FCVALID|1|" + "x" * 64, "SEQW|1||after get", "CLOSE|1"]
+    r = kw_drive("zznhon", lines, (A,), cfg=ADM, watch=(A,))
+    got = [x for x in r.kw if not x.startswith(("KW begin", "KW end", "KW SLEEP"))]
+    want = ["KW OPEN zznw1 then st=0", "KW FCSET 100 x=1 st=0", "KW SEQW  then st=0 id=[100]", "KW SEQWU  then st=0 id=[101]", "KW FCGET  x=102 st=0", "KW FCVALID abc x=1 st=0",
+            "KW FCVALID %s x=0 st=0" % ("x" * 64), "KW SEQW  then st=0 id=[103]", "KW CLOSE 1"]
+    row("FCONTROL and WRITE ... CREATING.SEQKEY of a remote file go to the SERVER's counter: FC$SET.SEQ.KEY 100 answers 1; the next WRITE gets id 100 and WRITEU id 101 (the id is in the program's variable); "
+        "FC$GET.SEQ.KEY takes 102; FC$VALID.ID says 1 for abc and 0 for 64 bytes; the next WRITE gets 103", kw_sane(r) and got == want, kw_why(r) + " got=%r" % got)
+    exp = [ACCT_REQ, W_OPEN(HW), W_FCTL(1, 2, "100"), W_SEQ(1, "rec one"), W_SEQ(1, "rec two", True), W_FCTL(1, 3, "0"), W_FCTL(1, 6, "abc"), W_FCTL(1, 6, "x" * 64), W_SEQ(1, "after get"), (5, FNO(1))]
+    row("...THE REQUESTS: 71 with the file number, the key and the value (the 0 a call without a value is given, as FCONTROL(f, 3) is); 68 and 69 with the file number and the record (no id is sent: the "
+        "server's counter gives it) - the fake's wire, byte for byte",
+        kn_wire(r.d[0]) == exp, "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(r.d[0]), exp) if a != b), (len(kn_wire(r.d[0])), len(exp))),))
+    stored = r.stores[0][HW]
+    row("...THE FAKE'S STORE: the three records are under ids 100, 101 and 103, and nothing under 102 (FC$GET.SEQ.KEY took it)", stored.get("100") == "rec one" and stored.get("101") == "rec two"
+        and stored.get("103") == "after get" and "102" not in stored, repr({k: v for k, v in stored.items() if k not in HWREC}))
+    row("...the WRITEU kept its update lock on the server while the file was open (watched) and the CLOSE gave it back", any(FL_ADM in locks for locks in r.watch[0].seq()) and r.watch[0].seq()[-1] == (),
+        repr(r.watch[0].seq()))
+    aud = [x for x in r.audits]
+    row("...the audit trail: the open line, then 'fcontrol ... key=N' for every FCONTROL and ONE 'write' line for the handle however many CREATING.SEQKEY writes",
+        aud == [OPEN_W_AUD, "fcontrol server=nfw file=hwork key=2", "write server=nfw file=hwork", "fcontrol server=nfw file=hwork key=3", "fcontrol server=nfw file=hwork key=6",
+                "fcontrol server=nfw file=hwork key=6"], repr(aud))
+
+    # 2. inside a transaction and on a read-mode handle: refused here, nothing sent
+    wreset(A)
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "TSEQW|1||no", "TSEQWU|1||no", "SEQW|1||yes", "CLOSE|1"], (A,), cfg=ADM)
+    row("INSIDE A TRANSACTION WRITE and WRITEU ... CREATING.SEQKEY take ON ERROR with STATUS() 1010 (message 11510, nothing sent) - the 21 Oct build refused them for another reason, the counter; after it "
+        "the same handle writes and gets id 1", kw_sane(r) and "KW TSEQW  error st=1010 id=[]" in r.kw and "KW TSEQWU  error st=1010 id=[]" in r.kw and "KW SEQW  then st=0 id=[1]" in r.kw
+        and [t for t in r.d[0]["types"] if t in (68, 69)] == [68], kw_why(r))
+    r = kw_drive("zznhon", ["OPEN|1|zznwr", "SEQW|1||no", "CLOSE|1"], (A,), cfg=ADM)
+    row("CONTROL, a READ-mode handle: WRITE ... CREATING.SEQKEY takes ON ERROR with STATUS() 7000 (message 11501) and sends nothing: the fake saw login, account, open, close and quit only",
+        kw_sane(r) and "KW SEQW  error st=7000 id=[]" in r.kw and set(r.d[0]["types"]) <= {47, 48, 3, 4, 5, 1}, kw_why(r))
+
+    # 3. the server's wall: a files-only login WITHOUT sdfilesadmin is refused 68 to 71 with message 11524, whatever this machine allows
+    wreset(A)
+    r = kw_drive("zznhon", ["OPEN|1|zznw1", "SEQW|1||no", "SEQWU|1||no", "CLOSE|1"], (A,), cfg={"admin_group": False})
+    ses = r.d[0]["sessions"][0] if r.d[0]["sessions"] else None
+    row("A LOGIN WITHOUT THE ADMINISTRATION GROUP: WRITE and WRITEU ... CREATING.SEQKEY take ON ERROR with STATUS() 7000, the fake refused exactly 68 and 69 (message 11524) and audited both with 'admin=off', "
+        "and nothing was written",
+        not r.hung and "KW SEQW  error st=7000 id=[]" in r.kw and "KW SEQWU  error st=7000 id=[]" in r.kw and ses is not None and ses.refused == [68, 69] and r.idle
+        and len(ses.audit) == 2 and all(re.match(r"^api refused request=(68|69) route=sdfiles write=on admin=off user=\S+$", x) for x in ses.audit) and set(r.stores[0][HW]) == set(HWREC), kw_why(r) + repr(ses and ses.audit))
+    for tag, stmt, req in (("fr", "x = fcontrol(f, 3)", 71), ("fr2", "x = fcontrol(f, 6, 'abc')", 71)):
+        name = "zznkwy" + tag
+        g.put(os.path.join(acct_path("zznhon"), "bp", name), kw_prog(tag, "zznw1", [stmt], ("x = ''",)))
+        out, miss = kn_compile("zznhon", [name])
+        if miss:
+            row("FCONTROL without the administration group: the program compiled", False, repr(out[-4:]))
+            continue
+        r = kw_run("zznhon", ["RUN bp " + name], (A,), cfg={"admin_group": False})
+        seg = kw_segments(r.out).get(tag, [])
+        ses = r.d[0]["sessions"][0] if r.d[0]["sessions"] else None
+        row("FCONTROL(f, %s) by a login WITHOUT the administration group stops the program with the server's refusal in the client's words (%r) - the question key too: the whole set is behind the group" % (
+            stmt.split(",")[1].strip(), msg(11500, "nfw", "fcontrol", msg(11524, req))),
+            not r.hung and kn_abort(seg) == msg(11500, "nfw", "fcontrol", msg(11524, req)) and ses is not None and ses.refused == [req] and r.idle, repr((seg[-3:], ses and ses.refused)))
+
+    # 4. the verbs
+    wreset(A)
+    cmds = ["ANALYSE.FILE zznw1", "CONFIGURE.FILE zznw1 minimum.modulus 7", "CREATE.INDEX zznw1 city", "BUILD.INDEX zznw1 city", "DELETE.INDEX zznw1 city", "DISABLE.INDEX zznw1 city"]
+    r = kw_drive("zznhon", ["EXEC|" + c for c in cmds], (A,), cfg=ADM)
+    shown = [x for x in r.out if re.match(r"^(analyse|configure|create|build|delete|disable)\.(file|index) hwork done$", x)]
+    row("THE SIX VERBS on a remote file each run on the SERVER for the login and print what the server's verb printed: ANALYSE.FILE, CONFIGURE.FILE, CREATE.INDEX, BUILD.INDEX, DELETE.INDEX, DISABLE.INDEX",
+        kw_sane(r) and shown == ["analyse.file hwork done", "configure.file hwork done", "create.index hwork done", "build.index hwork done", "delete.index hwork done", "disable.index hwork done"],
+        kw_why(r) + " shown=%r" % shown)
+    want70 = [W_FADM(1, 1), W_FADM(2, 1, "minimum.modulus 7"), W_FADM(3, 1, "city"), W_FADM(4, 1, "city"), W_FADM(5, 1, "city"), W_FADM(6, 1, "city")]
+    got70 = [(t, d.lower()) for t, d in p70(r)]
+    row("...THE REQUESTS: six of type 70, each with the operation (1 analyse, 2 configure, 3 create.index, 4 build.index, 5 delete.index, 6 disable.index), the file number of the verb's own open and the rest of the "
+        "command as the words (key words as typed or in capitals); the file is NAMED BY THE OPEN FILE and the name is not sent", got70 == [(t, d.lower()) for t, d in want70], repr(got70))
+    row("...the audit trail: one 'admin server=nfw file=hwork op=<verb>' line for each, in order", admin_audits(r) == ["admin server=nfw file=hwork op=" + v for v in
+        ("analyse.file", "configure.file", "create.index", "build.index", "delete.index", "disable.index")], repr(admin_audits(r)))
+    r = kw_drive("zznhon", ["EXEC|BUILD.INDEX zznw1 city"], (A,), cfg={"admin_group": True, "verbs": {4: (3021, "Cannot gain exclusive access to hwork")}})
+    row("A VERB THE SERVER REFUSES (the file is open elsewhere there): its words are shown here and the verb ends - the client does not turn the server's code into an error of its own",
+        kw_sane(r) and any(x == "Cannot gain exclusive access to hwork" for x in r.out), kw_why(r))
+
+    # 5. CREATE.FILE ... SERVER, DELETE.FILE of the pointer, and the dangling pointer
+    wreset(A)
+    A.store.files.pop("zznnew", None)
+    A.store.files.pop("zzremote", None)
+    lines = ["EXEC|CREATE.FILE zznnew SERVER nfw", "OPEN|2|zznnew", "CLOSE|2", "EXEC|CREATE.FILE zznnew2 SERVER nfw AS zzremote", "OPEN|2|zznnew2", "CLOSE|2"]
+    r = kw_drive("zznhon", lines, (A,), cfg=ADM)
+    row("CREATE.FILE name SERVER nfw makes the file on the server and, ONLY AFTER the server has confirmed it, the N pointer in this account's VOC: the verb says so (message 11533), the file is in the fake's store "
+        "(hashed), and the pointer works - a plain OPEN of the name finds it",
+        kw_sane(r) and any(x == msg(11533, "zznnew", "nfw", "zznnew") for x in r.out) and (A.store.file("zznnew") is not None) and "KW OPEN zznnew then st=0" in r.kw
+        and [t for t, _d in p70(r)] == [70, 70], kw_why(r) + " out=%r" % [x for x in r.out if "zznnew" in x])
+    row("...with AS the file has the other name THERE and the pointer here: the verb says so, the fake holds zzremote and no zznnew2, and OPEN of the pointer works",
+        any(x == msg(11533, "zzremote", "nfw", "zznnew2") for x in r.out) and A.store.file("zzremote") is not None and A.store.file("zznnew2") is None and "KW OPEN zznnew2 then st=0" in r.kw,
+        repr([x for x in r.out if "zzremote" in x]))
+    row("...THE REQUESTS: 70 with operation 8, file number 0 and the new file's name as the first word (the name there, so zzremote for AS); the audit trail names it",
+        [(t, d) for t, d in p70(r)] == [W_FADM(8, 0, "zznnew"), W_FADM(8, 0, "zzremote")] and admin_audits(r) == ["admin server=nfw file=zznnew op=create.file", "admin server=nfw file=zzremote op=create.file"],
+        repr(([d for _t, d in p70(r)], admin_audits(r))))
+    r = kw_drive("zznhon", ["EXEC|DELETE.FILE zznnew NO.QUERY", "OPEN|2|zznnew", "EXEC|DELETE.FILE zznnew2 NO.QUERY", "OPEN|2|zznnew2"], (A,), cfg=ADM)
+    row("DELETE.FILE of an N pointer deletes the file on the server and the pointer in the same act: the verb says so (message 11532), the fake no longer holds the file, and the pointer is gone (OPEN takes the "
+        "ELSE branch); with AS the file named there is the one that goes",
+        kw_sane(r) and any(x == msg(11532, "zznnew", "nfw", "zznnew") for x in r.out) and any(x == msg(11532, "zzremote", "nfw", "zznnew2") for x in r.out)
+        and A.store.file("zznnew") is None and A.store.file("zzremote") is None and sum(1 for x in r.kw if x.startswith("KW OPEN zznnew") and " else " in x) == 2,
+        kw_why(r) + " out=%r" % [x for x in r.out if "zznnew" in x or "zzremote" in x])
+    # a pointer to a file that is not there (someone removed the file on the server): the verb offers the pointer's removal, NO.QUERY takes it
+    r2 = kw_drive("zznhon", ["EXEC|CREATE.FILE zzdang SERVER nfw"], (A,), cfg=ADM)
+    A.store.files.pop("zzdang", None)
+    r3 = kw_drive("zznhon", ["EXEC|DELETE.FILE zzdang NO.QUERY", "OPEN|2|zzdang"], (A,), cfg=ADM)
+    row("A POINTER WHOSE FILE IS NOT THERE any more (removed on the server by someone else): DELETE.FILE removes the pointer and says the file was not there (message 11535) - there is no dangling pointer left; "
+        "the null case: the pointer existed (its CREATE.FILE said 11533)",
+        any(x == msg(11533, "zzdang", "nfw", "zzdang") for x in r2.out) and any(x == msg(11535, "zzdang", "zzdang", "nfw") for x in r3.out)
+        and sum(1 for x in r3.kw if x.startswith("KW OPEN zzdang") and " else " in x) == 1 and [t for t, _d in p70(r3)] == [], kw_why(r3) + " out=%r" % [x for x in r3.out if "zzdang" in x])
+
+    # 6. refusals: no administration group; a read-mode server; the pointer is not made when the server says no
+    # (typed at the prompt, not through the driver: a verb that stops with an error ends the program that EXECUTEs it)
+    r = kw_run("zznhon", ["CREATE.FILE zznbad SERVER nfw", "ANALYSE.FILE zznw1"], (A,), cfg={"admin_group": False})
+    r2 = kw_drive("zznhon", ["OPEN|2|zznbad"], (A,), cfg={"admin_group": False})
+    refused70 = [x for s in r.d[0]["sessions"] for x in s.refused]          # CREATE.FILE may use a connection of its own, so the refusals are counted over every session
+    row("WITHOUT THE ADMINISTRATION GROUP CREATE.FILE ... SERVER is refused by the server (message 11524 in the client's words), nothing is created there, and ANALYSE.FILE is refused the same way; "
+        "NO POINTER was written (a plain OPEN of the name takes the ELSE branch)",
+        not r.hung and any(msg(11500, "nfw", "create.file", msg(11524, 70)) in x for x in r.out) and any(msg(11500, "nfw", "analyse.file", msg(11524, 70)) in x for x in r.out)
+        and sum(1 for x in r2.kw if x.startswith("KW OPEN zznbad") and " else " in x) == 1 and A.store.file("zznbad") is None and refused70 == [70, 70] and r.idle,
+        kw_why(r2) + repr((refused70, [x for x in r.out if "answered" in x], len(r.d[0]["sessions"]))))
+    r = kw_run("zznhon", ["ANALYSE.FILE zznwr", "CREATE.INDEX zznwr city", "DELETE.FILE zznwr NO.QUERY", "CREATE.FILE zznbadr SERVER nfa"], (A,), cfg=ADM)
+    row("CONTROL, a READ-mode server: the verbs are refused here (message 11501: 'The file on server nfa is read only', naming the verb), CREATE.FILE ... SERVER too, nothing is sent but the open and the close; "
+        "the fake never saw a request 70",
+        not r.hung and sum(1 for x in r.out if "is read only" in x) == 4 and not any(t == 70 for t in r.d[0]["types"]) and A.store.file("zznbadr") is None and r.idle,
+        repr(([x for x in r.out if "read only" in x], r.d[0]["types"])))
+
+
 def kw_peek(A):
     """S.72b: RECORDLOCKED() of a remote file is write-governed.  The CLIENT's line: a read-mode handle (the definition says read, or the variable was made read only) stops the program with 11501 and
     nothing is sent; a write-mode handle is served.  The SERVER's wall: a files-only login WITHOUT sdfileswrite is refused request 34 (message 11521), whatever this machine does, and MUSTLOCK, which asks the
@@ -5306,7 +5466,7 @@ def kw_peek(A):
     row("[S72b-N11] RECORDLOCKED() on a WRITE-mode handle by a files-only login WITHOUT sdfileswrite: the program stops with message 11500 %r (the server's text, with the request number 34) and prints nothing "
         "after it" % text, not r_no.hung and kn_abort(seg) == text and not any("SURVIVED" in x or "x=" in x for x in seg) and r_no.idle, repr(seg[-3:]))
     row("...[S72b-N11] THE REQUEST WENT OUT AND THE SERVER REFUSED IT (the wall is the server's): exactly one request 34 on the wire, the fake refused [34] and audited 'api refused request=34 route=sdfiles write=off "
-        "user=alice'", r_no.d[0]["types"].count(34) == 1 and len(sess) == 1 and sess[0].refused == [34] and sess[0].audit == ["api refused request=34 route=sdfiles write=off user=alice"]
+        "user=alice'", r_no.d[0]["types"].count(34) == 1 and len(sess) == 1 and sess[0].refused == [34] and sess[0].audit == ["api refused request=34 route=sdfiles write=off admin=off user=alice"]
         and set(r_no.d[0]["types"]) <= {47, 48, 3, 4, 34, 5, 1}, repr((r_no.d[0]["types"], [(s.refused, s.audit) for s in sess])))
     seg = kw_segments(r_yes.out).get("rwg", [])
     row("...NULL CASE, the same program IN sdfileswrite: served - x=-2 with STATUS() 7 (user 7's lock), the program survives, nothing is refused",
@@ -5332,7 +5492,7 @@ def mustlock_section():
         "request-34 question), READU (the lock) is refused as well, and the WRITE after it is again 7000 - the lines the program printed, in order", not r.hung and seg == want and r.idle, repr(seg))
     row("...[S72b-N13] NOTHING WAS WRITTEN (the fake's file as it is, not the printed text): w1 and w2 hold their first records, the fake saw no change request (16 to 19) and refused 34, 34, 30, 34 "
         "(the MUSTLOCK question twice, the lock, the MUSTLOCK question again)", r.stores[0][HW] == dict(HWREC) and not {16, 17, 18, 19} & set(r.d[0]["types"]) and len(sess) == 1 and sess[0].refused == [34, 34, 30, 34]
-        and sess[0].audit == ["api refused request=%d route=sdfiles write=off user=alice" % n for n in (34, 34, 30, 34)], repr((r.stores[0][HW], r.d[0]["types"], [s.refused for s in sess])))
+        and sess[0].audit == ["api refused request=%d route=sdfiles write=off admin=off user=alice" % n for n in (34, 34, 30, 34)], repr((r.stores[0][HW], r.d[0]["types"], [s.refused for s in sess])))
 
 
 # ---- W. the write group (18 Oct 26, section wgroup) ---------------------------------------------------------------------------------------------
@@ -5381,9 +5541,9 @@ def wgroup_section():
     sess = d["sessions"]
     want_ref = [16, 17, 18, 19, 30, 30, 31, 34]
     row("...THE FAKE (the target) saw the requests, in order, with their bytes, and REFUSED the eight: 16, 17, 18, 19, 30, 30, 31 and 34 (the RECORDLOCKED, S.72b; and nothing else), and audited each as "
-        "'api refused request=N route=sdfiles write=off user=alice'",
+        "'api refused request=N route=sdfiles write=off admin=off user=alice'",
         a_wire(r, s) and len(sess) == 1 and sess[0].files_only and not sess[0].write_ok and sess[0].refused == want_ref
-        and sess[0].audit == ["api refused request=%d route=sdfiles write=off user=alice" % n for n in want_ref],
+        and sess[0].audit == ["api refused request=%d route=sdfiles write=off admin=off user=alice" % n for n in want_ref],
         "first difference: %r refused %r audit %r" % (hw_first_diff(d, s.wire()), [x.refused for x in sess], [x.audit for x in sess]))
     row("...THE FILE ON THE FAKE IS AS IT WAS (the records are the evidence, not the replies): no record written, w3 still there, nothing cleared, no lock in the table",
         r.stores[0][HW] == dict(HWREC) and all(r.stores[0][n] == dict(rec) for n, rec, _p, _c in HWFILES if n != HW), repr(r.stores[0][HW]))
@@ -5436,10 +5596,10 @@ def wgroup_section():
     row("the file-lock program ran to its end and no connection is left", r.began and r.ended and r.idle, h_why(r))
     judge(r, s)
     sess = r.d[0]["sessions"]
-    row("...THE FAKE (the target) saw the requests with their bytes and REFUSED exactly 32, 33 and 34 (no lock was taken), audited each as 'api refused request=N route=sdfiles write=off user=alice', and the "
+    row("...THE FAKE (the target) saw the requests with their bytes and REFUSED exactly 32, 33 and 34 (no lock was taken), audited each as 'api refused request=N route=sdfiles write=off admin=off user=alice', and the "
         "client's audit trail has the open and the 'filelock' line (written before the request, as for a change; RECORDLOCKED adds none)",
         a_wire(r, s) and len(sess) == 1 and not sess[0].write_ok and sess[0].refused == [32, 33, 34] and r.audits == s.audits()
-        and sess[0].audit == ["api refused request=%d route=sdfiles write=off user=alice" % n for n in (32, 33, 34)],
+        and sess[0].audit == ["api refused request=%d route=sdfiles write=off admin=off user=alice" % n for n in (32, 33, 34)],
         "first difference: %r refused %r %r audit %r" % (hw_first_diff(r.d[0], s.wire()), [x.refused for x in sess], r.audits, [x.audit for x in sess]))
     r = kw_drive("zznhon", ["OPEN|1|zznw1", "FLOCK|1", "FUNLOCK|1", "CLOSE|1"], (A,), cfg={"write_group": False})
     row("the statements FILELOCK and FILEUNLOCK on a write-mode file whose target does not allow changes take ON ERROR with STATUS() 7000 (the server refused), and the fake refused exactly 32 and 33",

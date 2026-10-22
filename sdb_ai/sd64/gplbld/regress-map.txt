@@ -55,6 +55,8 @@ gplbld/sandbox-english.py    : @core
 # 19 Oct 26 (K1): sandbox-req29 imports its REAL_ON_ERROR table, which it holds to what a real `sd -Q` answers.
 gplbld/netfake.py            : net netfile req29
 gplbld/sandbox-netfile.py    : @self
+# 21 Oct 26 (S.73 item 3): sandbox-fileadmin imports sandbox-req29's wire, audit and fixture helpers, so a change to one runs the other.
+gplbld/sandbox-req29.py      : @self fileadmin
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
@@ -216,7 +218,7 @@ sdsys/gpl.bp/netfile         : netfile
 sdsys/gpl.bp/netfile.h       : netfile
 sdsys/gpl.bp/deletenetlogin  : net
 sdsys/gpl.bp/setserver       : net
-sdsys/gpl.bp/apifilesok      : net qmclient
+sdsys/gpl.bp/apifilesok      : net qmclient fileadmin
 sdsys/gpl.bp/deleteserver    : net
 sdsys/gpl.bp/listservers     : net
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
@@ -363,7 +365,7 @@ sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates
@@ -442,7 +444,8 @@ sdsys/messages/1123[7-9]     : ide idedraw
 sdsys/messages/11240         : ide idedraw
 # 19 Oct 26 (K2, K1): 11482 is printed by MODIFY.ACCOUNT and CREATE.ACCOUNT, 11521 is the refusal the netfile suite shows and the net suite pins; 11522 and 11523 are filesgrp's lines.
 sdsys/messages/1148*         : net filesgrp
-sdsys/messages/1152*         : net netfile filesgrp
+sdsys/messages/1152*         : net netfile filesgrp fileadmin
+sdsys/messages/1153*         : netfile fileadmin
 sdsys/messages/1149*         : netfile
 sdsys/messages/1150*         : netfile
 sdsys/messages/1151*         : netfile shared

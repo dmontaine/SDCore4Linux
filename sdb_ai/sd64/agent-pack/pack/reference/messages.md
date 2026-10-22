@@ -5567,6 +5567,150 @@ Account %1 does not have files access, so it cannot be given files-write: use fi
 
 cited by: `modifya`
 
+### msg:11524
+> kind=message tier=reference since=- src=sdsys/messages/11524:1#5137c29b
+
+```
+This login cannot administer files here: ask the administrator for files-admin-on (request %1)
+```
+
+cited by: `apisrvr`
+
+### msg:11525
+> kind=message tier=reference since=- src=sdsys/messages/11525:1#7fb0e36f
+
+```
+Account %1 has files-admin %2
+```
+
+cited by: `create_account`, `modifya`
+
+### msg:11526
+> kind=message tier=reference since=- src=sdsys/messages/11526:1#adcef6c2
+
+```
+Account %1 does not have files-write, so it cannot be given files-admin: use files-write-on first
+```
+
+cited by: `modifya`
+
+### msg:11527
+> kind=message tier=reference since=- src=sdsys/messages/11527:1#4a9cc136
+
+```
+Delete file %2 on server %1 and everything in it (y/<n>)?
+```
+
+cited by: `deletef`
+
+### msg:11528
+> kind=message tier=reference since=- src=sdsys/messages/11528:1#5cfff581
+
+```
+%2 is not available for a file on server %1
+```
+
+cited by: `createf`, `deletef`
+
+### msg:11529
+> kind=message tier=reference since=- src=sdsys/messages/11529:1#2be5fa87
+
+```
+The file %1 now exists on server %2, but the pointer %3 could not be written to your VOC: add it by hand, nothing was deleted
+```
+
+cited by: `createf`
+
+### msg:11530
+> kind=message tier=reference since=- src=sdsys/messages/11530:1#d6c4308f
+
+```
+"%1" is not accepted here: names, numbers and the verb's keywords only (no path, no quote)
+```
+
+cited by: `apisrvr`
+
+### msg:11531
+> kind=message tier=reference since=- src=sdsys/messages/11531:1#dd8a497a
+
+```
+%1 is not a remote file administration operation
+```
+
+cited by: `apisrvr`
+
+### msg:11532
+> kind=message tier=reference since=- src=sdsys/messages/11532:1#7a24e0f1
+
+```
+File %1 on server %2 was deleted and the pointer %3 was removed from your VOC
+```
+
+cited by: `deletef`
+
+### msg:11533
+> kind=message tier=reference since=- src=sdsys/messages/11533:1#26bf71a8
+
+```
+File %1 was created on server %2 and the pointer %3 was written to your VOC
+```
+
+cited by: `createf`
+
+### msg:11534
+> kind=message tier=reference since=- src=sdsys/messages/11534:1#23cfb3ec
+
+```
+File %2 is not on server %1: remove the pointer %3 from your VOC (y/<n>)?
+```
+
+cited by: `deletef`
+
+### msg:11535
+> kind=message tier=reference since=- src=sdsys/messages/11535:1#f7d9b636
+
+```
+The pointer %1 was removed from your VOC; the file %2 was not on server %3
+```
+
+cited by: `deletef`
+
+### msg:11536
+> kind=message tier=reference since=- src=sdsys/messages/11536:1#c058a2e7
+
+```
+A server name is required after SERVER
+```
+
+cited by: `createf`
+
+### msg:11537
+> kind=message tier=reference since=- src=sdsys/messages/11537:1#e462e010
+
+```
+A file name is required after AS
+```
+
+cited by: `createf`
+
+### msg:11538
+> kind=message tier=reference since=- src=sdsys/messages/11538:1#210128e4
+
+```
+AS names the file on another server: give SERVER as well
+```
+
+cited by: `createf`
+
+### msg:11539
+> kind=message tier=reference since=- src=sdsys/messages/11539:1#65a30952
+
+```
+The name %1 is already in your VOC: nothing was created on server %2
+```
+
+cited by: `createf`
+
 ### msg:11560
 > kind=message tier=reference since=- src=sdsys/messages/11560:1#e57b2080
 

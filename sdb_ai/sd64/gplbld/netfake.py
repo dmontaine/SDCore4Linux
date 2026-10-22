@@ -160,16 +160,18 @@ R_RECORDLOCKED, R_SELECTLIST, R_FILEINFO, R_READV, R_MARKMAPPING, R_REVISION = 3
 R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE = 16, 17, 18, 19, 30, 31
 # 20 Oct 26, S.72: the file lock requests.
 R_FILELOCK, R_FILEUNLOCK = 32, 33
+# 21 Oct 26, S.73 item 3: the administration requests - the write of a record under the file's own next id (68, 69), a verb run on the server (70) and FCONTROL (71).
+R_WRITESEQKEY, R_WRITEUSEQKEY, R_FILEADMIN, R_FCONTROL = 68, 69, 70, 71
 # The requests apisrvr has a handler for that this fake does not build (see the module text); a number apisrvr has no handler for is "illegal".
-NOT_BUILT = frozenset(list(range(20, 27)) + [29, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 70)))
+NOT_BUILT = frozenset(list(range(20, 27)) + [29, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 68)))
 # The requests whose successful reply carries cfg success_status (the STATUS() apisrvr leaves for the client, which the client must not trust).  R_FILEUNLOCK is NOT here: its STATUS() is the answer.
-STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE, R_FILELOCK])
+STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE, R_FILELOCK, R_WRITESEQKEY, R_WRITEUSEQKEY])
 MAX_PACKET = 16 * 1024 * 1024   # the largest request packet this server reads; a WRITE carries the whole record
 MAX_ID = 63                     # the server's longest record id (MAXIDLEN); the client refuses a longer one before it sends
 KIND_NAMES = ("", "voc", "dict", "prog")       # the edit gate kinds, by apisrvr's numbering: 11404 + kind is the message
 # gpl.bp/apifilesok's allow table, number by number (3, set account, is allowed once and handled in FileSession.allowed).  The self-test
 # parses the program and holds this to it, so a request added there and not here is found.
-FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + [49])
+FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + [49] + [68, 69, 70, 71])      # 21 Oct 26, S.73 item 3: 68 to 71, the administration set (FILES_ADMIN below), are in the table
 # 18 Oct 26, S.65 write group: the part of that table a files-only login may use only if it is ALSO in the Linux group sdfileswrite (gpl.bp/apifilesok's third
 # argument, `files.chg`): the locking reads 7 to 10, the writes and deletes 16 to 19, the record lock 30, clearfile 31, filelock 32, fileunlock 33 and (S.72b) recordlocked 34.  Written
 # here and held to the program by the self-test.  Request 41 (readv) is in FILES_OK for a plain READV; its flags 1, 2, 5 and 6 take a lock and apisrvr's vb.readv
@@ -177,10 +179,14 @@ FILES_OK = frozenset([1, 2] + list(range(4, 20)) + [26] + list(range(30, 47)) + 
 # 20 Oct 26, S.72b: request 34 (recordlocked) is in the set too, so a files-only login without the group is refused RECORDLOCKED() as it is refused a lock; 34 stays in FILES_OK
 # (the allow table is unchanged, 37 numbers).  15 (release) and the reads (6, 40, 41 with flag 0 ...) still need sdfiles alone.
 FILES_CHANGE = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34])
+# 21 Oct 26, S.73 item 3: gpl.bp/apifilesok's `files.adm`: the part of the table a files-only login may use only if it is in sdfileswrite AND ALSO in the Linux group sdfilesadmin (the fourth argument):
+# 68 and 69 (WRITE ... CREATING.SEQKEY: it moves the file's counter), 70 (a verb run on the server for the login) and 71 (FCONTROL).  Held to the program by the self-test.
+FILES_ADMIN = frozenset([68, 69, 70, 71])
 # err.h
 ER_IID, ER_RNF, ER_NAM, ER_FNF = 3000, 3006, 3002, 3003
 ER_RDONLY, ER_NOLOCK, ER_MAXRLOCK = 3018, 3023, 3060
 ER_LCK, ER_NLK = 3011, 3012     # FILEUNLOCK: another user holds the file lock / nobody does
+ER_ARGS, ER_NDYN = 1, 3005      # FCONTROL: the value is not a number of 1 or more / the file is not a hashed one (err.h)
 
 # 19 Oct 26 (K1).  WHAT THE REAL SERVER ANSWERS where this fake imitates an ON ERROR reply, MEASURED on a real `sd -Q` by sandbox-req29.py section G: one row there for each
 # entry, which compares the server with THESE values, so that a change in the server turns that row red and this table cannot go stale quietly.  (error field, STATUS() as
@@ -217,6 +223,11 @@ _MSG_COPY = {1010: "Illegal action key", 5037: "Invalid account name", 5262: "Fi
              11480: "This login is for files only: request %1 is not allowed",
              11521: "This login cannot change or lock files here: ask the administrator for files-write-on (request %1)",
              11162: "Record lock limit (MAXRLOCK) reached",
+             5265: "Command execution is disabled",
+             11348: "WRITE ... CREATING.SEQKEY needs a hashed file",
+             11524: "This login cannot administer files here: ask the administrator for files-admin-on (request %1)",
+             11530: "\"%1\" is not accepted here: names, numbers and the verb's keywords only (no path, no quote)",
+             11531: "%1 is not a remote file administration operation",
              11405: "The VOC can only be changed by an account that has voc.edit (SDSYS can give it: modify.account <account> voc-on)",
              11406: "A dictionary can only be changed by an account that has dict.edit (SDSYS can give it: modify.account <account> dict-on)",
              11407: "A program file can only be changed by an account that has bp.edit (SDSYS can give it: modify.account <account> bp-on)",
@@ -307,6 +318,7 @@ class FakeFile:
         self.ftype = ftype
         self.fileid = fileid
         self._dict = None
+        self.seq_next = 1               # S.73 item 3: the next id of WRITE ... CREATING.SEQKEY (a hashed file's counter; requests 68 and 69, FCONTROL keys 2 and 3)
 
     def find(self, rid):
         """The id as the file holds it (a nocase file matches ids that differ in ASCII case), or None."""
@@ -652,7 +664,7 @@ class FileSession:
     returns (reply error field, STATUS, reply data); the error field is SV_OK, SV_ELSE (the ELSE clause), SV_LOCKED, SV_ERROR (no data:
     the text comes with request 2, which returns error_msg) or SV_ON_ERROR (the data is the abort message)."""
 
-    def __init__(self, server, conn, userno, user, cfg, files_only, write_ok=False):
+    def __init__(self, server, conn, userno, user, cfg, files_only, write_ok=False, admin_ok=False):
         self.server = server
         self.store = server.store
         self.cfg = cfg
@@ -661,6 +673,8 @@ class FileSession:
         self.user = user
         self.files_only = files_only
         self.write_ok = bool(write_ok)  # apisrvr's files.write: the login is also in the Linux group sdfileswrite (read at login; only a files-only login is gated by it)
+        self.admin_ok = bool(admin_ok)  # apisrvr's files.admin (S.73 item 3): the login is also in the Linux group sdfilesadmin; the administration set (68 to 71) needs it AND the write group
+        self.admin_log = []             # S.73 item 3: what request 70 ran for this session, in order: (operation, file name the open file was opened under or the new file's name, the words)
         self.slots = []                 # slots[fno - 1] is the FakeFile open as file number fno, or None (apisrvr's files() array)
         self.lastid = {}                # the id of the last record read through each file number (FILEINFO 1012)
         self.lists = [None] * 12        # select lists 0 to 10 and the internal 11: [ids, position] or None
@@ -670,12 +684,13 @@ class FileSession:
         self.account = None
         self.requests = []              # every request type received after the login, in order
         self.refused = []               # the types the files-only gate refused
-        self.audit = []                 # the audit lines apisrvr writes for those refusals ("api refused request=N route=sdfiles write=off|on user=NAME"), in order (20 Oct 26, S.72b)
+        self.audit = []                 # the audit lines apisrvr writes for those refusals ("api refused request=N route=sdfiles write=off|on admin=off|on user=NAME"), in order (20 Oct 26, S.72b; admin= since 21 Oct 26, S.73 item 3), and the "api admin request=70 ..." lines
         self.injected = []              # (type, "no_reply" | "fail") for faults this session injected
         self.fail_counts = {}
         self.type_counts = {}           # request type -> how many of that type this session has sent (drop_before / drop_after count these)
         self.taken = {}                 # file number -> {(lock name, lock id)}: the record locks taken through that slot (CLOSE lets them go)
         self.flslot = {}                # lock name -> the file number that TOOK this session's file lock (the kernel's fptr->fvar_index): CLOSE of that number lets it go (S.72)
+        self.names = {}                 # file number -> the name the file was opened under ("dict name" for a dictionary): apisrvr's file.names, which request 70 names its file by (S.73 item 3)
         self.nreq = 0
         self.done = False
         self.closed = False
@@ -685,29 +700,41 @@ class FileSession:
         self.cur_fno = 0
 
     # ---- the gate: gpl.bp/apifilesok ---------------------------------------------------------------------------------------------
-    def allowed(self, ptype, write_ok=None):
-        """!apifilesok(action, entered, writeok): 3 (set account) once only, the table for the rest, anything else (47 and 48 included) refused, and the change set
-        (FILES_CHANGE) only when the login is also in sdfileswrite (write_ok; the session's own when not given)."""
+    def allowed(self, ptype, write_ok=None, admin_ok=None):
+        """!apifilesok(action, entered, writeok, adminok): 3 (set account) once only, the table for the rest, anything else (47 and 48 included) refused, the change set
+        (FILES_CHANGE) only when the login is also in sdfileswrite (write_ok; the session's own when not given) and, since S.73 item 3, the administration set (FILES_ADMIN) only when
+        it is in sdfileswrite AND in sdfilesadmin (admin_ok; the session's own when not given)."""
         if write_ok is None:
             write_ok = self.write_ok
+        if admin_ok is None:
+            admin_ok = self.admin_ok
         if ptype == R_ACCOUNT:
             return not self.entered
         if ptype not in FILES_OK:
             return False
-        return write_ok or ptype not in FILES_CHANGE
+        if ptype in FILES_CHANGE and not write_ok:
+            return False
+        if ptype in FILES_ADMIN and not (write_ok and admin_ok):
+            return False
+        return True
 
     def refusal(self, ptype):
-        """The ON ERROR text apisrvr gives a request the gate refuses: 11521 when the write group is all that was missing (the same request with it would be
-        allowed), 11480 otherwise."""
-        if not self.write_ok and self.allowed(ptype, True):
+        """The ON ERROR text apisrvr gives a request the gate refuses, tried in the gate's order: 11521 when the write group is what is missing and the request would be allowed with
+        it, 11524 when the administration group is what is missing and the request would be allowed with it - or when both are missing and it would be allowed with both -,
+        11480 otherwise."""
+        if not self.write_ok and self.allowed(ptype, True, self.admin_ok):
             return msg(11521, ptype)
+        if not self.admin_ok and self.allowed(ptype, self.write_ok, True):
+            return msg(11524, ptype)
+        if not self.write_ok and not self.admin_ok and self.allowed(ptype, True, True):
+            return msg(11524, ptype)
         return msg(11480, ptype)
 
     def refuse(self, ptype):
         """Record a refusal the way apisrvr does (20 Oct 26, S.72b): the type goes on self.refused and the audit line on self.audit - kernel(K$AUDIT, 'api refused request=' : action :
         ' route=sdfiles write=' : write.word : ' user=' : @logname), write.word 'on' when the login is in sdfileswrite and 'off' when not.  Returns the ON ERROR text (refusal())."""
         self.refused.append(ptype)
-        self.audit.append("api refused request=%d route=sdfiles write=%s user=%s" % (ptype, "on" if self.write_ok else "off", self.user))
+        self.audit.append("api refused request=%d route=sdfiles write=%s admin=%s user=%s" % (ptype, "on" if self.write_ok else "off", "on" if self.admin_ok else "off", self.user))
         return self.refusal(ptype)
 
     # ---- helpers -----------------------------------------------------------------------------------------------------------------
@@ -780,18 +807,25 @@ class FileSession:
         self.abort_msg = text
         return ""
 
-    def _change_gate(self, f, rid=None):
-        """What stands between a changing request and the file, in the order of the real server: check.edit (the session's edit gates, by
-        the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (STATUS() +3018, no text; CLEARFILE has no ON ERROR clause and
-        aborts: STATUS() 0 and the kernel's text), a record id that is not valid (+3000, no text: empty, over 63 bytes, or holding one of the five marks, bytes 251 to 255 -
-        the real server accepts 248 to 250, measured by sandbox-req29.py section G), and MUSTLOCK (-3023: no update lock held on the record; from op_dio3.c, not
-        measured on a real server).  The signs and texts are REAL_ON_ERROR's.  rid None is CLEARFILE.  True when the change may go on; otherwise the reply is set."""
+    def _check_edit(self, f):
+        """apisrvr check.edit: the session's edit gates by the file's pathname - an empty path is 11410, a VOC, dictionary or program file without its edit gate is 11405 to 11407.
+        True when the change may go on; otherwise the reply is set (SV$ERROR).  Shared by every changing request (_change_gate) and by requests 68 to 71 (S.73 item 3)."""
         if not f.path:
             self._fail(msg(11410))
             return False
         k = f.edit_kind()
         if k and KIND_NAMES[k] not in self.cfg["edit_allow"]:
             self._fail(msg(11404 + k))
+            return False
+        return True
+
+    def _change_gate(self, f, rid=None):
+        """What stands between a changing request and the file, in the order of the real server: check.edit (the session's edit gates, by
+        the pathname; an empty path is 11410), then the statement itself - the file read only for the OS user (STATUS() +3018, no text; CLEARFILE has no ON ERROR clause and
+        aborts: STATUS() 0 and the kernel's text), a record id that is not valid (+3000, no text: empty, over 63 bytes, or holding one of the five marks, bytes 251 to 255 -
+        the real server accepts 248 to 250, measured by sandbox-req29.py section G), and MUSTLOCK (-3023: no update lock held on the record; from op_dio3.c, not
+        measured on a real server).  The signs and texts are REAL_ON_ERROR's.  rid None is CLEARFILE.  True when the change may go on; otherwise the reply is set."""
+        if not self._check_edit(f):
             return False
         if f.vocname in self.cfg["readonly"] or f.name in self.cfg["readonly"]:
             if rid is None:
@@ -886,8 +920,10 @@ class FileSession:
         for i, s in enumerate(self.slots):
             if s is None:
                 self.slots[i] = f
+                self.names[i + 1] = text
                 return struct.pack("<h", i + 1).decode("latin-1")
         self.slots.append(f)
+        self.names[len(self.slots)] = text
         return struct.pack("<h", len(self.slots)).decode("latin-1")
 
     def r_close(self, data):
@@ -900,6 +936,7 @@ class FileSession:
                 del self.flslot[f.lockname]
                 self.store.filelock_release(f.lockname, self.userno)
             self.slots[self.cur_fno - 1] = None
+            self.names.pop(self.cur_fno, None)
         return ""
 
     def _read(self, data, update=None, wait=False):
@@ -1203,12 +1240,152 @@ class FileSession:
         """vb.revision: response = system(1012)."""
         return self.server.revision
 
+    # ---- 21 Oct 26, S.73 item 3: the administration requests, 68 to 71 (gpl.bp/apifilesok's files.adm; the gate is FileSession.allowed) -------------------------------------
+    ADMIN_VERBS = {1: "analyse.file", 2: "configure.file", 3: "create.index", 4: "build.index", 5: "delete.index", 6: "disable.index", 8: "create.file", 9: "delete.file"}
+    EXCLUSIVE_OPS = frozenset([3, 4, 5, 6])      # the index verbs need the file to themselves: another session holding it open makes the verb refuse (reply OK, a non-zero STATUS())
+
+    def _seqkey(self, data, keep):
+        """vb.writeseqkey / vb.writeuseqkey: fno (short), the record is the rest.  check.file, check.edit, a hashed file only (11348); the record goes under the file's counter, which skips an
+        id in use (the 15 Oct ruling), and the counter moves on; the answer is the id.  The update lock the write takes is let go (writeseqkey) or kept (writeuseqkey)."""
+        f = self._file(data)
+        if f is None or not self._check_edit(f):
+            return ""
+        if f.ftype != FL_TYPE_DH:
+            return self._fail(msg(11348))
+        with self.store.cond:
+            while f.find(str(f.seq_next)) is not None:
+                f.seq_next += 1
+            rid = str(f.seq_next)
+            f.seq_next += 1
+        self.store.write_rec(f, rid, data[2:].decode("latin-1"))
+        if keep:
+            self._lock(f, rid, True, False)
+        return rid
+
+    def r_writeseqkey(self, data):
+        return self._seqkey(data, False)
+
+    def r_writeuseqkey(self, data):
+        return self._seqkey(data, True)
+
+    @staticmethod
+    def fa_bad_word(text):
+        """apisrvr fa.check.words: '' when every word of the text may go to the verb, else the first word that may not (or a note for two blanks and a long text): at most 200
+        characters, words of letters digits . _ - only, single blanks, never PATHNAME, LPTR, FORCE or NO.QUERY, DIRECTORY only as the last word."""
+        if len(text) > 200:
+            return text[:20] + "..."
+        if text == "":
+            return ""
+        allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+        words = text.split(" ")
+        bad = ""
+        for w, tok in enumerate(words, 1):
+            ok = tok != "" and all(c in allowed for c in tok)
+            if ok and (_upper(tok) in ("PATHNAME", "LPTR", "FORCE", "NO.QUERY") or (_upper(tok) == "DIRECTORY" and w != len(words))):
+                ok = False
+            if not ok and bad == "":
+                bad = "(two blanks)" if tok == "" else tok
+        return bad
+
+    def _others_hold(self, f):
+        """True when a session other than this one, still connected, has the file open (the verbs that need the file to themselves refuse then)."""
+        with self.server.lock:
+            return any(s is not self and not s.closed and any(x is f for x in s.slots if x is not None) for s in self.server.sessions)
+
+    def r_fileadmin(self, data):
+        """vb.fileadmin: operation (short), fno (short; 0 for operation 8), the verb's words.  In apisrvr's order: command execution disabled 5265, an operation that is none of 1 to 6, 8, 9 is
+        11531 (ON ERROR), the file number checked and the name it was opened under looked up (5268), check.edit for every operation but 1, the words checked (11530, ON ERROR), the audit
+        line, then the verb.  The verb is MODELLED, not run: create.file (8) makes the file named by the first word of the text (a directory file when the last word is DIRECTORY) unless it
+        exists, delete.file (9) removes it and frees the file number; the others leave a record in admin_log.  Every verb answers with lines (field marks between) and STATUS() = its
+        return code; cfg verbs {op: (return code, text)} replaces the answer of an operation.  An index verb with the file open in another session refuses (EXCLUSIVE_OPS)."""
+        op = _short(data, 0)
+        text = data[4:].decode("latin-1")
+        if self.cfg["no_file_access"]:
+            self.err, self.abort_msg = SV_ON_ERROR, msg(5265)
+            return ""
+        verb = self.ADMIN_VERBS.get(op)
+        if verb is None:
+            self.err, self.abort_msg = SV_ON_ERROR, msg(11531, op)
+            return ""
+        f, name = None, ""
+        if op != 8:
+            f = self._file(data[2:])
+            if f is None:
+                return ""
+            name = self.names.get(self.cur_fno, "")
+            if name == "":
+                return self._fail(msg(5268))
+            if op != 1 and not self._check_edit(f):
+                return ""
+        bad = self.fa_bad_word(text)
+        if bad != "":
+            self.err, self.abort_msg = SV_ON_ERROR, msg(11530, bad)
+            return ""
+        shown = name if op != 8 else text.split(" ")[0]
+        self.audit.append("api admin request=70 op=%s file=%s user=%s" % (verb, shown, self.user))
+        self.admin_log.append((verb, shown, text))
+        override = (self.cfg["verbs"] or {}).get(op)
+        if override is not None:
+            self.st, out = override
+            return out
+        if op in self.EXCLUSIVE_OPS and self._others_hold(f):
+            self.st = -1
+            return "Cannot gain exclusive access to %s" % shown
+        if op == 8:
+            new = _lower(shown)
+            if new == "" or self.store.file(new) is not None:
+                self.st = -1
+                return "File %s already exists" % shown
+            words = text.split(" ")
+            self.store.add_file(new, ftype=FL_TYPE_DIR if _upper(words[-1]) == "DIRECTORY" else FL_TYPE_DH)
+            return "File %s created" % new
+        if op == 9:
+            with self.store.cond:
+                self.store.files.pop(_lower(f.vocname), None)
+            self.slots[self.cur_fno - 1] = None
+            self.names.pop(self.cur_fno, None)
+            return "File %s deleted" % shown
+        return "%s %s done" % (verb, shown)
+
+    def r_fcontrol(self, data):
+        """vb.fcontrol: fno (short), key (short), the value (text; empty when the call had none).  check.file, then check.edit for every key but FC$VALID.ID (6).  MODELLED keys: 2 SET.SEQ.KEY
+        (a hashed file; the value an integer of 1 or more sets the counter and the answer is 1, else STATUS() ER$NDYN or ER$ARGS and 0), 3 GET.SEQ.KEY (takes the counter and moves it on; a
+        null string for a file that is not hashed), 6 VALID.ID (1 when the value is a valid record id: 1 to 63 bytes, none of the marks 251 to 255).  Any other key is an ON ERROR reply."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        key = _short(data, 2)
+        value = data[4:].decode("latin-1")
+        if key != 6 and not self._check_edit(f):
+            return ""
+        if key == 2:
+            if f.ftype != FL_TYPE_DH:
+                self.st = ER_NDYN
+                return "0"
+            n = int(value) if value.strip().lstrip("-").isdigit() else 0
+            if n < 1:
+                self.st = ER_ARGS
+                return "0"
+            f.seq_next = n
+            return "1"
+        if key == 3:
+            if f.ftype != FL_TYPE_DH:
+                return ""
+            n = f.seq_next
+            f.seq_next += 1
+            return str(n)
+        if key == 6:
+            return "1" if 1 <= len(value) <= MAX_ID and not any(251 <= ord(c) <= 255 for c in value) else "0"
+        self.err, self.abort_msg = SV_ON_ERROR, "netfake: FCONTROL key %d is not modelled" % key
+        return ""
+
     HANDLERS = {R_QUIT: r_quit, R_GETERROR: r_geterror, R_ACCOUNT: r_account, R_OPEN: r_open, R_CLOSE: r_close, R_READ: r_read,
                 R_READL: r_readl, R_READLW: r_readlw, R_READU: r_readu, R_READUW: r_readuw, R_SELECT: r_select, R_READNEXT: r_readnext,
                 R_CLEARSELECT: r_clearselect, R_READLIST: r_readlist, R_RELEASE: r_release, R_RECORDLOCKED: r_recordlocked,
                 R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision,
                 R_WRITE: r_write, R_WRITEU: r_writeu, R_DELETE: r_delete, R_DELETEU: r_deleteu, R_LOCKRECORD: r_lockrecord,
-                R_CLEARFILE: r_clearfile, R_FILELOCK: r_filelock, R_FILEUNLOCK: r_fileunlock}
+                R_CLEARFILE: r_clearfile, R_FILELOCK: r_filelock, R_FILEUNLOCK: r_fileunlock,
+                R_WRITESEQKEY: r_writeseqkey, R_WRITEUSEQKEY: r_writeuseqkey, R_FILEADMIN: r_fileadmin, R_FCONTROL: r_fcontrol}
 
 
 class FakeServer(threading.Thread):
@@ -1234,6 +1411,9 @@ class FakeServer(threading.Thread):
         "files_only": False,      # the SDNet login: only gpl.bp/apifilesok's requests are dispatched, the rest get message 11480
         "write_group": False,     # 18 Oct 26, S.65 write group: the files-only login is ALSO in the Linux group sdfileswrite, so it may change files and take locks
                                   # (apifilesok's third argument).  False is the real default of a files-only login: the change requests get message 11521.
+        "admin_group": False,     # 21 Oct 26, S.73 item 3: the login is ALSO in the Linux group sdfilesadmin (apifilesok's fourth argument): with the write group it may administer files
+                                  # (requests 68 to 71).  False is the real default: the administration requests get message 11524 (11521 when the write group is what is missing).
+        "verbs": None,            # S.73 item 3: {operation of request 70: (STATUS() the verb leaves, the text it prints)} for an operation the fake does not model; None models them all (admin_run)
         "no_file_access": False,  # request 4 (open) answers 5262 "File access is disabled" (config SDCLIENT / the SDNet mark of apisrvr)
         "idle": 20.0,             # seconds a served connection may be silent before the server closes it
         "lock_wait": 3.0,         # seconds a waiting lock request (8, 10, 41 with flags 1 or 2) waits before it gives up with an ON ERROR reply
@@ -1298,17 +1478,18 @@ class FakeServer(threading.Thread):
         self.start()
 
     # ---- configuration and records --------------------------------------------------------------------------------------------
-    def add_user(self, name, password, salt=None, iterations=4096, files_only=False, write_group=False):
+    def add_user(self, name, password, salt=None, iterations=4096, files_only=False, write_group=False, admin_group=False):
         """A user the server knows.  Returns the salt as base64 (the one in s=).  files_only=True makes every login of this user the SDNet
         one (the sdfiles route) whatever the connection's configuration says; write_group=True puts the user in the group sdfileswrite as well
-        (18 Oct 26, S.65 write group), whatever the connection's configuration says."""
+        (18 Oct 26, S.65 write group), whatever the connection's configuration says; admin_group=True puts the user in the group sdfilesadmin as well
+        (21 Oct 26, S.73 item 3)."""
         salt = salt if salt is not None else os.urandom(16)
         with self.lock:
             self.users[name] = {"password": password, "salt": salt, "iterations": int(iterations), "files_only": bool(files_only),
-                                "write_group": bool(write_group)}
+                                "write_group": bool(write_group), "admin_group": bool(admin_group)}
         return b64(salt)
 
-    def add_user_keys(self, name, salt_b64, iterations, stored_key_b64, server_key_b64, files_only=False, write_group=False):
+    def add_user_keys(self, name, salt_b64, iterations, stored_key_b64, server_key_b64, files_only=False, write_group=False, admin_group=False):
         """A user the server knows by what $cred holds and not by the password: the salt, the iteration count, StoredKey and ServerKey (all
         base64 as the credential file keeps them).  The exchange on the wire is the one a password user has; a client that proves itself
         from ClientKey (SHA-256 of which is StoredKey) is accepted, a client with any other key is not.  The iteration count the server
@@ -1316,7 +1497,7 @@ class FakeServer(threading.Thread):
         with self.lock:
             self.users[name] = {"password": None, "salt": base64.b64decode(salt_b64), "iterations": int(iterations),
                                 "stored_key": base64.b64decode(stored_key_b64), "server_key": base64.b64decode(server_key_b64),
-                                "files_only": bool(files_only), "write_group": bool(write_group)}
+                                "files_only": bool(files_only), "write_group": bool(write_group), "admin_group": bool(admin_group)}
 
     @property
     def pin(self):
@@ -1579,7 +1760,7 @@ class FakeServer(threading.Thread):
                 # registered BEFORE the reply that tells the client it is in, so that a test which looks at self.sessions after its login
                 # has returned always finds the session (and its user number)
                 ses = FileSession(self, n, self.userno_base + n, user, cfg, bool(cfg["files_only"] or rec.get("files_only")),
-                                  bool(cfg["write_group"] or rec.get("write_group")))
+                                  bool(cfg["write_group"] or rec.get("write_group")), bool(cfg["admin_group"] or rec.get("admin_group")))
                 with self.lock:
                     self.sessions.append(ses)
             self.reply(tls, ("x=" if cfg["no_v"] else "v=") + b64(v))
@@ -1864,6 +2045,17 @@ def _apifilesok_change():
     except OSError:
         return None
     return frozenset(int(x) for x in re.findall(r"^files\.chg := '(\d+),'", text, re.M))
+
+
+def _apifilesok_admin():
+    """The request numbers gpl.bp/apifilesok refuses to a login that is not in BOTH sdfileswrite and sdfilesadmin, read from its `files.adm := 'N,'` lines (None when the tree is not there)."""
+    path = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sdsys", "gpl.bp", "apifilesok"))
+    try:
+        with open(path, encoding="latin-1") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    return frozenset(int(x) for x in re.findall(r"^files\.adm := '(\d+),'", text, re.M))
 
 
 def selftest_files(srv, cert, row):
@@ -2156,9 +2348,10 @@ def selftest_files(srv, cert, row):
     r = c.req(20, b"\x00\x00")
     row("files-only: request 20 (call) is answered with message 11480, the ON ERROR reply, and is not dispatched",
         r == (1, 0, refusal.encode()) and msg(11480, 20) == refusal and ses.refused == [20], repr(r))
-    r = [c.req(n) for n in (0, 21, 27, 47, 50, 61, 69, 70)]
-    row("files-only: 0, 21, 27, 47, 50, 61, 69 and 70 are refused the same way", all(x[0] == 1 and x[2].startswith(b"This login is for files only") for x in r) and
-        ses.refused == [20, 0, 21, 27, 47, 50, 61, 69, 70], repr(r))
+    r = [c.req(n) for n in (0, 21, 27, 47, 50, 61, 72, 73)]
+    row("files-only: 0, 21, 27, 47, 50, 61, 72 and 73 are refused the same way (68 to 71 are in the table since S.73 item 3; 72 is the real server's test device, not a request of this fake's)",
+        all(x[0] == 1 and x[2].startswith(b"This login is for files only") for x in r) and
+        ses.refused == [20, 0, 21, 27, 47, 50, 61, 72, 73], repr(r))
     r1 = c.req(R_ACCOUNT, "acct")
     r2 = c.req(R_ACCOUNT, "acct")
     row("files-only: request 3 is allowed the first time and refused the second (the session has entered an account)",
@@ -2194,8 +2387,8 @@ def selftest_files(srv, cert, row):
         print("  [SKIP] gpl.bp/apifilesok is not there: the allow list is not compared")
     else:
         row("FILES_OK is gpl.bp/apifilesok's table, number for number (and 3 is allowed once)", FILES_OK == want, repr(sorted(FILES_OK ^ want)))
-    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30 to 34, 37, 40, 41, 46, 49 (32 and 33, the file locks, since S.72)",
-        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 32, 33, 34, 37, 40, 41, 46, 49}, repr(sorted(FileSession.HANDLERS)))
+    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30 to 34, 37, 40, 41, 46, 49 (32 and 33, the file locks, since S.72) and 68 to 71 (the administration set, since S.73 item 3)",
+        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 32, 33, 34, 37, 40, 41, 46, 49, 68, 69, 70, 71}, repr(sorted(FileSession.HANDLERS)))
     row("NOT_BUILT and the built requests do not overlap", not (NOT_BUILT & set(FileSession.HANDLERS)), repr(sorted(NOT_BUILT & set(FileSession.HANDLERS))))
     bad_msgs = []
     for num, copy in _MSG_COPY.items():
@@ -2957,9 +3150,9 @@ def selftest_writes(srv, row):
     row("... recordlocked's reply says which request it was: it is message 11521 ending '(request 34)' and naming files-write-on, and not the 11480 text that a request outside the table gets",
         rs["recordlocked"][2].decode("latin-1").endswith("(request 34)") and rs["recordlocked"][2] != msg(11480, 34).encode("latin-1") and "files-write-on" in rs["recordlocked"][2].decode("latin-1"),
         repr(rs["recordlocked"]))
-    row("... and apisrvr's audit line is kept for each refusal, in the order sent, 'api refused request=<n> route=sdfiles write=off user=<the login>': request 34's is "
-        "'api refused request=34 route=sdfiles write=off user=alice'",
-        ses.audit == ["api refused request=%d route=sdfiles write=off user=alice" % pt for _, pt, _ in reqs] and "api refused request=34 route=sdfiles write=off user=alice" in ses.audit
+    row("... and apisrvr's audit line is kept for each refusal, in the order sent, 'api refused request=<n> route=sdfiles write=off admin=off user=<the login>': request 34's is "
+        "'api refused request=34 route=sdfiles write=off admin=off user=alice'",
+        ses.audit == ["api refused request=%d route=sdfiles write=off admin=off user=alice" % pt for _, pt, _ in reqs] and "api refused request=34 route=sdfiles write=off admin=off user=alice" in ses.audit
         and ses.user == "alice", repr((ses.user, ses.audit)))
     row("... and the store is as it was: no record written, none deleted, nothing cleared, no lock taken (the disk is the evidence)",
         {n: dict(st.records(n)) for n in before} == before and st.locks_of(ses.userno) == [], repr((st.records("wf"), st.records("wtmp"), st.locks_of(ses.userno))))
@@ -2969,7 +3162,7 @@ def selftest_writes(srv, row):
     rr = [c.req(R_READV, _S(f1) + _S(f) + _L(1) + b"a") for f in (2, 5, 6, 3)]
     row("... and so are readv flags 2, 5, 6 and 3 (apisrvr's vb.readv refuses any nonzero flag)", all(x == (1, 0, msg(11521, R_READV).encode("latin-1")) for x in rr), repr(rr))
     row("... and the readv refusals are audited too, 'write=off', five of them for request 41 after the thirteen, and nothing else is in the audit list",
-        ses.audit[13:] == ["api refused request=41 route=sdfiles write=off user=alice"] * 5 and len(ses.audit) == 18 and len(ses.audit) == len(ses.refused), repr(ses.audit[13:]))
+        ses.audit[13:] == ["api refused request=41 route=sdfiles write=off admin=off user=alice"] * 5 and len(ses.audit) == 18 and len(ses.audit) == len(ses.refused), repr(ses.audit[13:]))
     reads = [c.req(R_READ, _S(f1) + b"a"), c.req(R_READV, _S(f1) + _S(0) + _L(1) + b"a"),
              c.req(R_SELECTLIST, _S(f1)), c.req(R_FILEINFO, _S(f1) + _L(0)), c.req(R_RELEASE, _S(0)), c.req(R_REVISION)]
     row("CONTROL: the same login still reads - read, readv with flag 0, selectlist, fileinfo, release (15) and revision are served, none refused (recordlocked is no longer among them: "
@@ -2977,7 +3170,7 @@ def selftest_writes(srv, row):
         all(x[0] == 0 for x in reads) and reads[0][2] == b"one" and len(ses.refused) == len(reqs) + 5 and len(ses.audit) == 18, repr((reads, ses.refused, len(ses.audit))))
     r = c.req(20, b"\x00\x00")
     row("CONTROL: a request that is not allowed to ANY files-only login (20, call) keeps message 11480: the new text is only for the write group; its audit line is the same shape",
-        r == (1, 0, msg(11480, 20).encode("latin-1")) and r[2] != msg(11521, 20).encode("latin-1") and ses.audit[-1:] == ["api refused request=20 route=sdfiles write=off user=alice"]
+        r == (1, 0, msg(11480, 20).encode("latin-1")) and r[2] != msg(11521, 20).encode("latin-1") and ses.audit[-1:] == ["api refused request=20 route=sdfiles write=off admin=off user=alice"]
         and len(ses.audit) == 19, repr((r, ses.audit[-1:], len(ses.audit))))
     bye(c, ses)
     c = connect(files_only=True, write_group=True)
@@ -2994,7 +3187,7 @@ def selftest_writes(srv, row):
         rk == (0, ses.userno, _L(2)) and rk0 == (0, 0, _L(0)) and ses.refused == [] and ses.audit == [] and 34 in ses.requests, repr((rk, rk0, ses.userno, ses.refused, ses.audit)))
     rq = c.req(20, b"\x00\x00")
     row("... a request outside the table is refused to that login too (20, call: 11480) and audited with write=on - the word is the login's group, not the refusal's kind",
-        rq == (1, 0, msg(11480, 20).encode("latin-1")) and ses.audit == ["api refused request=20 route=sdfiles write=on user=alice"] and ses.refused == [20], repr((rq, ses.audit, ses.refused)))
+        rq == (1, 0, msg(11480, 20).encode("latin-1")) and ses.audit == ["api refused request=20 route=sdfiles write=on admin=off user=alice"] and ses.refused == [20], repr((rq, ses.audit, ses.refused)))
     bye(c, ses)
     reset()
     c = connect(files_only=False)
@@ -3031,13 +3224,13 @@ def selftest_writes(srv, row):
     row("the group belongs to the USER too, for recordlocked (34): dave (in the group) is told his own lock (2, STATUS() his number), erin (not) is refused with 11521 '(request 34)' and the "
         "audit line with HER name - erin is not told dave holds the record, and dave's lock is still held",
         rd_[0] == 0 and rk_d == (0, sesd.userno, _L(2)) and rk_e == (1, 0, msg(11521, 34).encode("latin-1")) and n_before == (1, 1)
-        and sese.audit[n_before[0]:] == ["api refused request=34 route=sdfiles write=off user=erin"] and sese.refused[n_before[1]:] == [34] and sesd.audit == [] and sesd.refused == []
+        and sese.audit[n_before[0]:] == ["api refused request=34 route=sdfiles write=off admin=off user=erin"] and sese.refused[n_before[1]:] == [34] and sesd.audit == [] and sesd.refused == []
         and ("wf", "a", "update") in st.locks_of(sesd.userno), repr((n_before, rk_d, rk_e, sese.audit, sesd.audit, st.locks_of(sesd.userno))))
     rk_e2 = ce.req(R_RECORDLOCKED, _S(fe) + b"b")
     rk_d2 = cd.req(R_RECORDLOCKED, _S(fd) + b"b")
     row("... and erin's refusal does not depend on the record: the same request for a record that nobody holds ('b') is refused the same way while dave, asking the same, is told 0 (so the "
         "refusal is not the lock state), and the audit list grows by one line",
-        rk_e2 == (1, 0, msg(11521, 34).encode("latin-1")) and rk_d2 == (0, 0, _L(0)) and sese.audit[n_before[0]:] == ["api refused request=34 route=sdfiles write=off user=erin"] * 2
+        rk_e2 == (1, 0, msg(11521, 34).encode("latin-1")) and rk_d2 == (0, 0, _L(0)) and sese.audit[n_before[0]:] == ["api refused request=34 route=sdfiles write=off admin=off user=erin"] * 2
         and sese.refused[n_before[1]:] == [34, 34], repr((rk_e2, rk_d2, sese.audit)))
     bye(cd, sesd)
     bye(ce, sese)
@@ -3342,11 +3535,206 @@ def selftest_writes(srv, row):
         row("FILES_CHANGE is gpl.bp/apifilesok's change set (files.chg), number for number, and a subset of FILES_OK", FILES_CHANGE == want_chg and FILES_CHANGE <= FILES_OK,
             repr(sorted(FILES_CHANGE ^ want_chg)))
     row("S.72b: FILES_CHANGE is 7 8 9 10 16 17 18 19 30 31 32 33 34 (written out here, whatever the program says), 34 is also in FILES_OK, FILES_OK still has its 37 numbers, and 15 and 6 are not in the change set",
-        sorted(FILES_CHANGE) == [7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34] and 34 in FILES_OK and len(FILES_OK) == 37 and FILES_CHANGE <= FILES_OK
+        sorted(FILES_CHANGE) == [7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34] and 34 in FILES_OK and len(FILES_OK) == 41 and FILES_CHANGE <= FILES_OK
         and 15 not in FILES_CHANGE and 6 not in FILES_CHANGE and 40 not in FILES_CHANGE and 41 not in FILES_CHANGE, repr((sorted(FILES_CHANGE), len(FILES_OK))))
     row("the copy of message 11521 in this file is the one sdsys/messages holds, and it names the verb that gives the group", msg(11521, 16) == _MSG_COPY[11521].replace("%1", "16")
         and "files-write-on" in msg(11521, 16), repr(msg(11521, 16)))
     row("the fake noted nothing wrong with the client in the write rows", srv.errors == [], repr(srv.errors))
+
+
+def selftest_admin(srv, row):
+    """21 Oct 26, S.73 item 3: requests 68 to 71 (the administration set).  The gate (apifilesok's fourth argument: the write group AND the administration group, the message each missing
+    group gets, the audit word), then the four handlers in apisrvr's order: WRITE ... CREATING.SEQKEY, FCONTROL, and the server verb of request 70 with its words check, its exclusive-access
+    refusal and its create.file / delete.file.  Every group has a control."""
+    st = srv.store
+    FMc = "\xfe"
+    st.add_file("af", {"1": "one"})                                  # a hashed file whose id 1 is in use
+    st.add_file("afdir", {"r": "x"}, ftype=FL_TYPE_DIR)
+    st.add_file("afvoc", {"x": "v"}, path="/data/acct/voc")          # a Q-pointer to a VOC: the edit gate by the pathname
+    NAMES = {R_WRITESEQKEY: "writeseqkey", R_WRITEUSEQKEY: "writeuseqkey", R_FILEADMIN: "fileadmin", R_FCONTROL: "fcontrol"}
+
+    def connect(timeout=5, user="alice", pw="pw-one", **cfg):
+        srv.configure(files=True, **cfg)
+        cl = ApiClient(srv.port, timeout=timeout)
+        r = cl.login(user, pw)
+        if r[0] != "ok":
+            raise RuntimeError("netfake self-test: login gave %r" % (r,))
+        return cl
+
+    def bye(cl, ses):
+        cl.close()
+        t0 = time.time()
+        while not ses.closed and time.time() - t0 < 4.0:
+            time.sleep(0.05)
+
+    def opened(cl, *names):
+        return [struct.unpack("<h", cl.req(R_OPEN, n)[2])[0] for n in names]
+
+    def A(op, fno, text=""):
+        return _S(op) + _S(fno) + text.encode("latin-1")
+
+    def FC(fno, key, value=""):
+        return _S(fno) + _S(key) + value.encode("latin-1")
+
+    def probe(c):
+        """The four requests with arguments that would work for a login that may use them."""
+        return {R_WRITESEQKEY: c.req(R_WRITESEQKEY, _S(1) + b"x"), R_WRITEUSEQKEY: c.req(R_WRITEUSEQKEY, _S(1) + b"x"),
+                R_FILEADMIN: c.req(R_FILEADMIN, A(1, 1)), R_FCONTROL: c.req(R_FCONTROL, FC(1, 6, "abc"))}
+
+    # ---- the gate: apisrvr's begin case, in its order ---------------------------------------------------------------------------------
+    want_adm = _apifilesok_admin()
+    if want_adm is None:
+        print("  [SKIP] gpl.bp/apifilesok is not there: the administration set is not compared")
+    else:
+        row("FILES_ADMIN is gpl.bp/apifilesok's administration set (files.adm), number for number, and a subset of FILES_OK and disjoint from FILES_CHANGE",
+            FILES_ADMIN == want_adm and FILES_ADMIN <= FILES_OK and not (FILES_ADMIN & FILES_CHANGE), repr(sorted(FILES_ADMIN ^ want_adm)))
+    row("S.73 item 3: FILES_ADMIN is 68 69 70 71 (written out here, whatever the program says)", sorted(FILES_ADMIN) == [68, 69, 70, 71], repr(sorted(FILES_ADMIN)))
+
+    cases = [("neither group", {}, 11524, "off", "off"), ("the write group only", {"write_group": True}, 11524, "on", "off"),
+             ("the administration group only", {"admin_group": True}, 11521, "off", "on")]
+    for label, cfg, want_msg, w, a in cases:
+        c = connect(files_only=True, **cfg)
+        ses = srv.sessions[-1]
+        c.req(R_OPEN, "af")
+        rs = probe(c)
+        want = {pt: (1, 0, msg(want_msg, pt).encode("latin-1")) for pt in NAMES}
+        row("files-only login in %s: 68, 69, 70 and 71 are each the ON ERROR reply with message %d naming the request, and none is dispatched" % (label, want_msg),
+            rs == want and ses.refused == [68, 69, 70, 71] and ses.admin_log == [], repr((rs, ses.refused)))
+        row("... and each refusal is audited 'api refused request=<n> route=sdfiles write=%s admin=%s user=alice', in the order sent" % (w, a),
+            ses.audit == ["api refused request=%d route=sdfiles write=%s admin=%s user=alice" % (pt, w, a) for pt in (68, 69, 70, 71)], repr(ses.audit))
+        row("... and the file is as it was: no record written, the counter not moved", st.records("af") == {"1": "one"} and st.file("af").seq_next == 1, repr((st.records("af"), st.file("af").seq_next)))
+        bye(c, ses)
+    c = connect(files_only=True, write_group=True, admin_group=True)
+    ses = srv.sessions[-1]
+    f_af, = opened(c, "af")
+    rs = probe(c)
+    row("CONTROL: a files-only login in BOTH groups has 68 to 71 dispatched - none refused, none audited",
+        all(x[0] == 0 for x in rs.values()) and ses.refused == [] and not any(a.startswith("api refused") for a in ses.audit), repr((rs, ses.refused, ses.audit)))
+    bye(c, ses)
+    c = connect(files_only=False)
+    ses = srv.sessions[-1]
+    f_af, = opened(c, "af")
+    rs = probe(c)
+    row("CONTROL: an sdapi login (not files-only) is not gated by either group: 68 to 71 are dispatched, none refused", all(x[0] == 0 for x in rs.values()) and ses.refused == [], repr((rs, ses.refused)))
+    bye(c, ses)
+    srv.add_user("gail", "pw-gail", files_only=True, write_group=True, admin_group=True)
+    srv.add_user("hank", "pw-hank", files_only=True, write_group=True)
+    cg = connect(user="gail", pw="pw-gail")
+    sg = srv.sessions[-1]
+    ch = connect(user="hank", pw="pw-hank")
+    sh = srv.sessions[-1]
+    g1, = opened(cg, "af")
+    h1, = opened(ch, "af")
+    rg, rh = cg.req(R_FCONTROL, FC(g1, 6, "abc")), ch.req(R_FCONTROL, FC(h1, 6, "abc"))
+    row("the groups belong to the USER too (add_user(admin_group=...)): gail (both groups) is served FCONTROL, hank (write only) is refused with 11524 and the audit line with HIS name",
+        rg == (0, 0, b"1") and rh == (1, 0, msg(11524, 71).encode("latin-1")) and sh.audit == ["api refused request=71 route=sdfiles write=on admin=off user=hank"] and sg.audit == [], repr((rg, rh, sh.audit)))
+    bye(cg, sg)
+    bye(ch, sh)
+
+    # ---- WRITE ... CREATING.SEQKEY (68, 69) -----------------------------------------------------------------------------------------
+    st.file("af").records.clear()                                      # the controls above wrote through the gate: start from the file as it was made
+    st.file("af").records["1"] = "one"
+    st.file("af").seq_next = 1
+    c = connect(files_only=True, write_group=True, admin_group=True)
+    ses = srv.sessions[-1]
+    f_af, f_dir, f_voc = opened(c, "af", "afdir", "afvoc")
+    r1 = c.req(R_WRITESEQKEY, _S(f_af) + b"two")
+    r2 = c.req(R_WRITEUSEQKEY, _S(f_af) + b"three")
+    row("vb.writeseqkey gives the record the file's next id and answers it: id 1 is in use so the counter skips it (2); writeuseqkey takes the next (3) and KEEPS the update lock; the plain one lets it go",
+        r1 == (0, 0, b"2") and r2 == (0, 0, b"3") and st.records("af") == {"1": "one", "2": "two", "3": "three"} and st.locks_of(ses.userno) == [("af", "3", "update")] and st.file("af").seq_next == 4,
+        repr((r1, r2, st.records("af"), st.locks_of(ses.userno))))
+    r = c.req(R_WRITESEQKEY, _S(f_dir) + b"x")
+    row("... a directory file is SV$ERROR with message 11348 (a hashed file only) and nothing is written", r == (3, 0, b"") and c.error_text() == msg(11348) and set(st.records("afdir")) == {"r"}, repr((r, c.error_text())))
+    r = c.req(R_WRITESEQKEY, _S(f_voc) + b"x")
+    row("... and the edit gate applies by the PATHNAME (check.edit): a Q-pointer to a VOC is SV$ERROR with message 11405 and nothing is written", r == (3, 0, b"") and c.error_text() == msg(11405)
+        and set(st.records("afvoc")) == {"x"}, repr((r, c.error_text())))
+    r = c.req(R_WRITESEQKEY, _S(9) + b"x")
+    row("... a file number that is not open is SV$ERROR with 5268", r == (3, 0, b"") and c.error_text() == msg(5268), repr((r, c.error_text())))
+
+    # ---- FCONTROL (71) --------------------------------------------------------------------------------------------------------------
+    r = c.req(R_FCONTROL, FC(f_af, 2, "100"))
+    r_w = c.req(R_WRITESEQKEY, _S(f_af) + b"hundred")
+    r_g = c.req(R_FCONTROL, FC(f_af, 3))
+    r_g2 = c.req(R_FCONTROL, FC(f_af, 3))
+    row("vb.fcontrol key 2 (set the counter) answers 1; the next write gets that id; key 3 (take the counter) answers the next id and moves it on",
+        r == (0, 0, b"1") and r_w == (0, 0, b"100") and r_g == (0, 0, b"101") and r_g2 == (0, 0, b"102") and st.file("af").seq_next == 103, repr((r, r_w, r_g, r_g2)))
+    r_a, r_b, r_c = c.req(R_FCONTROL, FC(f_af, 2, "0")), c.req(R_FCONTROL, FC(f_dir, 2, "5")), c.req(R_FCONTROL, FC(f_dir, 3))
+    row("... a counter of less than 1 is STATUS() ER$ARGS (1) and the counter is not moved; a directory file is ER$NDYN (3005) for key 2 and a null string for key 3",
+        r_a == (0, 1, b"0") and r_b == (0, 3005, b"0") and r_c == (0, 0, b"") and st.file("af").seq_next == 103, repr((r_a, r_b, r_c)))
+    r_ok, r_no, r_mark, r_long = c.req(R_FCONTROL, FC(f_af, 6, "abc")), c.req(R_FCONTROL, FC(f_af, 6)), c.req(R_FCONTROL, FC(f_af, 6, "a\xfbb")), c.req(R_FCONTROL, FC(f_af, 6, "x" * 64))
+    row("... key 6 asks whether the value is a valid record id: abc yes; null, an id with a mark (251 to 255) and 64 bytes no", r_ok[2] == b"1" and r_no[2] == b"0" and r_mark[2] == b"0" and r_long[2] == b"0",
+        repr((r_ok, r_no, r_mark, r_long)))
+    r_v = c.req(R_FCONTROL, FC(f_voc, 6, "abc"))
+    r_s = c.req(R_FCONTROL, FC(f_voc, 2, "5"))
+    row("... every key but 6 goes through the edit gate: a Q-pointer to a VOC answers the question (key 6) and refuses key 2 with 11405",
+        r_v == (0, 0, b"1") and r_s == (3, 0, b"") and c.error_text() == msg(11405), repr((r_v, r_s, c.error_text())))
+    r = c.req(R_FCONTROL, FC(f_af, 99, "1"))
+    row("... a key this fake does not model is an ON ERROR reply that says so (it never answers as if it had done something)", r[0] == 1 and b"not modelled" in r[2], repr(r))
+
+    # ---- the server verb (70) --------------------------------------------------------------------------------------------------------
+    r = c.req(R_FILEADMIN, A(1, f_af))
+    row("vb.fileadmin operation 1 (analyse.file): the file is named by the OPEN FILE, the answer is the verb's lines and STATUS() its return code (0); the audit line is 'api admin request=70 op=analyse.file file=af user=alice'",
+        r == (0, 0, b"analyse.file af done") and ses.audit[-1:] == ["api admin request=70 op=analyse.file file=af user=alice"] and ses.admin_log[-1] == ("analyse.file", "af", ""), repr((r, ses.audit[-1:], ses.admin_log[-1:])))
+    r1_, r2_ = c.req(R_FILEADMIN, A(7, f_af)), c.req(R_FILEADMIN, A(10, f_af))
+    row("... an operation that is none of 1 to 6, 8 and 9 (7 is free; there is no enable.index) is an ON ERROR reply with message 11531, and nothing is audited for it",
+        r1_ == (1, 0, msg(11531, 7).encode("latin-1")) and r2_ == (1, 0, msg(11531, 10).encode("latin-1")) and ses.audit[-1:] == ["api admin request=70 op=analyse.file file=af user=alice"], repr((r1_, r2_, ses.audit[-1:])))
+    n_audit = len(ses.audit)
+    bad = {}
+    for label, words in (("pathname", "pathname /etc"), ("force", "col1 FORCE"), ("lptr", "lptr"), ("no.query", "no.query"), ("a slash", "../x"), ("a quote", "a'b"),
+                         ("two blanks", "a  b"), ("directory first", "directory x"), ("over 200", "a " * 101)):
+        bad[label] = c.req(R_FILEADMIN, A(3, f_af, words))
+    row("... the words check refuses PATHNAME, FORCE, LPTR, NO.QUERY, a slash, a quote, two blanks, DIRECTORY before the last word and a text of over 200 characters - each an ON ERROR reply with message 11530, "
+        "nothing audited, nothing run",
+        all(v[0] == 1 and "is not accepted here" in v[2].decode("latin-1") for v in bad.values()) and len(ses.audit) == n_audit
+        and ses.admin_log[-1][0] == "analyse.file", repr(bad))
+    r_ok = c.req(R_FILEADMIN, A(3, f_af, "city 2 d"))
+    row("CONTROL: ordinary words (letters, digits, . _ -) go to the verb", r_ok == (0, 0, b"create.index af done") and ses.admin_log[-1] == ("create.index", "af", "city 2 d"), repr((r_ok, ses.admin_log[-1])))
+    r_v1, r_v2 = c.req(R_FILEADMIN, A(1, f_voc)), c.req(R_FILEADMIN, A(4, f_voc))
+    row("... check.edit applies to every operation but the report: analyse.file on a Q-pointer to a VOC is served, build.index on it is SV$ERROR 11405",
+        r_v1[0] == 0 and r_v2 == (3, 0, b"") and c.error_text() == msg(11405), repr((r_v1, r_v2, c.error_text())))
+    r = c.req(R_FILEADMIN, A(1, 9))
+    row("... a file number that is not open is SV$ERROR with 5268", r == (3, 0, b"") and c.error_text() == msg(5268), repr((r, c.error_text())))
+
+    # create.file and delete.file
+    r_c = c.req(R_FILEADMIN, A(8, 0, "afnew dynamic"))
+    row("operation 8 (create.file) names a NEW file in the first word of the text and needs no open file: the file is there, hashed; the audit shows 'file=afnew'",
+        r_c == (0, 0, b"File afnew created") and st.file("afnew") is not None and st.file("afnew").ftype == FL_TYPE_DH and ses.audit[-1:] == ["api admin request=70 op=create.file file=afnew user=alice"], repr((r_c, ses.audit[-1:])))
+    r_c2 = c.req(R_FILEADMIN, A(8, 0, "afnew"))
+    r_c3 = c.req(R_FILEADMIN, A(8, 0, "afd directory"))
+    row("... a name that is taken is the verb's refusal (reply OK, STATUS() -1, nothing changed); DIRECTORY as the last word makes a directory file",
+        r_c2[0] == 0 and r_c2[1] == 2 ** 32 - 1 and b"already exists" in r_c2[2] and r_c3 == (0, 0, b"File afd created") and st.file("afd").ftype == FL_TYPE_DIR, repr((r_c2, r_c3)))
+    f_new, = opened(c, "afnew")
+    r_d = c.req(R_FILEADMIN, A(9, f_new))
+    r_after = c.req(R_READ, _S(f_new) + b"x")
+    row("operation 9 (delete.file) removes the file the OPEN FILE names and frees the file number: the file is gone, a read through the old number is SV$ERROR 5268",
+        r_d == (0, 0, b"File afnew deleted") and st.file("afnew") is None and r_after == (3, 0, b"") and c.error_text() == msg(5268), repr((r_d, r_after, c.error_text())))
+    # an index verb needs the file to itself
+    c2 = connect(files_only=True, write_group=True, admin_group=True)
+    s2 = srv.sessions[-1]
+    o2, = opened(c2, "af")
+    r_x = c.req(R_FILEADMIN, A(4, f_af))
+    row("an index verb with the file open in ANOTHER session is the verb's refusal: reply OK, STATUS() -1 and the words 'exclusive access' (the verbs need the file to themselves); analyse.file is not refused",
+        r_x[0] == 0 and r_x[1] == 2 ** 32 - 1 and b"exclusive access" in r_x[2] and c.req(R_FILEADMIN, A(1, f_af))[1] == 0, repr(r_x))
+    bye(c2, s2)
+    r_y = c.req(R_FILEADMIN, A(4, f_af))
+    row("... and once the other session has closed it the same request is served (STATUS() 0)", r_y == (0, 0, b"build.index af done"), repr(r_y))
+    f_dict, = opened(c, "dict af")
+    r_dn = c.req(R_FILEADMIN, A(1, f_dict))
+    row("a dictionary is named by the name it was opened under: 'dict af'", ses.audit[-1:] == ["api admin request=70 op=analyse.file file=dict af user=alice"] and r_dn[0] == 0, repr((r_dn, ses.audit[-1:])))
+    bye(c, ses)
+    c = connect(files_only=True, write_group=True, admin_group=True, no_file_access=True)
+    ses = srv.sessions[-1]
+    r = c.req(R_FILEADMIN, A(8, 0, "afx"))
+    row("with command execution switched off (no_file_access, SDCLIENT) request 70 is the ON ERROR reply 5265 and nothing is created", r == (1, 0, msg(5265).encode("latin-1")) and st.file("afx") is None, repr(r))
+    bye(c, ses)
+    c = connect(files_only=True, write_group=True, admin_group=True, verbs={4: (3021, "Cannot gain exclusive access")})
+    ses = srv.sessions[-1]
+    f_af, = opened(c, "af")
+    r = c.req(R_FILEADMIN, A(4, f_af))
+    r_o = c.req(R_FILEADMIN, A(3, f_af, "x"))
+    row("cfg verbs {4: (3021, text)} replaces the answer of that operation only", r == (0, 3021, b"Cannot gain exclusive access") and r_o == (0, 0, b"create.index af done"), repr((r, r_o)))
+    bye(c, ses)
+    row("the fake noted nothing wrong with the client in the administration rows", srv.errors == [], repr(srv.errors))
 
 
 # ---- a connection that hangs, and the sandbox's sd.conf (19 Oct 26, finish 2: the NETWAIT and NETREPLY rows of sandbox-net.py and sandbox-netfile.py) ------------------------------
@@ -3775,6 +4163,7 @@ def selftest():
             ex["cbind"].startswith(GS2) and ex["verified"] is True and ex["iterations"] == 5000 and len(ex["proof"]) == 32, repr(ex)[:200])
         selftest_files(srv, c, row)
         selftest_writes(srv, row)
+        selftest_admin(srv, row)
         selftest_hanging(row)
         selftest_silent(row, c, k)
     finally:
@@ -3800,14 +4189,17 @@ MUTANTS = {
          "FILES_CHANGE is gpl.bp/apifilesok's change set", "S.72b: FILES_CHANGE is 7 8 9 10"]),
     "15 joins FILES_CHANGE": ("FILES_CHANGE = frozenset([7, 8, 9, 10, 16, 17, 18, 19, 30, 31, 32, 33, 34])", "FILES_CHANGE = frozenset([7, 8, 9, 10, 15, 16, 17, 18, 19, 30, 31, 32, 33, 34])",
         ["CONTROL: the same login still reads", "CONTROL: a request that is not allowed to ANY", "FILES_CHANGE is gpl.bp/apifilesok's change set", "S.72b: FILES_CHANGE is 7 8 9 10"]),
-    "the refusal is not audited": ("        self.audit.append(\"api refused request=%d route=sdfiles write=%s user=%s\" % (ptype, \"on\" if self.write_ok else \"off\", self.user))", "        pass",
+    "the refusal is not audited": ("        self.audit.append(\"api refused request=%d route=sdfiles write=%s admin=%s user=%s\" % (ptype, \"on\" if self.write_ok else \"off\", \"on\" if self.admin_ok else \"off\", self.user))", "        pass",
         ["... and apisrvr's audit line is kept", "... and the readv refusals are audited", "CONTROL: the same login still reads", "CONTROL: a request that is not allowed to ANY",
-         "... a request outside the table is refused to that login too", "the group belongs to the USER too, for recordlocked", "... and erin's refusal does not depend"]),
-    "the audit word is always off": ("(ptype, \"on\" if self.write_ok else \"off\", self.user))", "(ptype, \"off\", self.user))",
-        ["... a request outside the table is refused to that login too"]),
-    "34 is answered with 11480": ("        if not self.write_ok and self.allowed(ptype, True):\n            return msg(11521, ptype)", "        if not self.write_ok and self.allowed(ptype, True) and ptype != R_RECORDLOCKED:\n            return msg(11521, ptype)",
+         "... a request outside the table is refused to that login too", "the group belongs to the USER too, for recordlocked", "... and erin's refusal does not depend",
+         "... and each refusal is audited 'api refused request=<n> route=sdfiles write=off admin=off", "... and each refusal is audited 'api refused request=<n> route=sdfiles write=on admin=off",
+         "... and each refusal is audited 'api refused request=<n> route=sdfiles write=off admin=on", "the groups belong to the USER too (add_user(admin_group=...))"]),
+    "the audit word is always off": ("(ptype, \"on\" if self.write_ok else \"off\", \"on\" if self.admin_ok else \"off\", self.user))", "(ptype, \"off\", \"on\" if self.admin_ok else \"off\", self.user))",
+        ["... a request outside the table is refused to that login too", "... and each refusal is audited 'api refused request=<n> route=sdfiles write=on admin=off",
+         "the groups belong to the USER too (add_user(admin_group=...))"]),
+    "34 is answered with 11480": ("        if not self.write_ok and self.allowed(ptype, True, self.admin_ok):\n            return msg(11521, ptype)", "        if not self.write_ok and self.allowed(ptype, True, self.admin_ok) and ptype != R_RECORDLOCKED:\n            return msg(11521, ptype)",
         ["files-only without sdfileswrite: write", "... recordlocked's reply says", "the group belongs to the USER too, for recordlocked", "... and erin's refusal does not depend"]),
-    "34 is refused to the group": ("        return write_ok or ptype not in FILES_CHANGE", "        return (write_ok or ptype not in FILES_CHANGE) and ptype != R_RECORDLOCKED",
+    "34 is refused to the group": ("            return False\n        return True\n\n    def refusal", "            return False\n        return ptype != R_RECORDLOCKED\n\n    def refusal",
         ["files-only without sdfileswrite: write", "... recordlocked's reply says", "... and S.72b: recordlocked (34) from that login", "... a request outside the table is refused to that login too",
          "the group belongs to the USER too, for recordlocked", "... and erin's refusal does not depend"]),
     "34 is refused to an sdapi login": ("                if ses.files_only and not ses.allowed(ptype):", "                if (ses.files_only or ptype == R_RECORDLOCKED) and not ses.allowed(ptype):",
@@ -3816,6 +4208,30 @@ MUTANTS = {
     "34 is refused in words but dispatched": ("                    res = (SV_ON_ERROR, 0, ses.refuse(ptype))      # ses.refused and ses.audit both get the entry (S.72b)",
         "                    res = (SV_ON_ERROR, 0, ses.refuse(ptype))\n                    if ptype == R_RECORDLOCKED:\n                        res = ses.dispatch(ptype, data)",
         ["files-only without sdfileswrite: write", "... recordlocked's reply says", "the group belongs to the USER too, for recordlocked", "... and erin's refusal does not depend"]),
+    # 21 Oct 26, S.73 item 3: the administration set (68 to 71), broken one way at a time; the rows each must fail were written from the rows before the first run
+    "68 to 71 are open to the write group": ("        if ptype in FILES_ADMIN and not (write_ok and admin_ok):\n            return False", "        if ptype in FILES_ADMIN and not write_ok:\n            return False",
+        # the neither-group login is told 11521 (the gate would let the write group alone through, so "write is what is missing"), not 11524; the write-only login is served, and what it wrote is
+        # still in the file when the administration-group-only login is looked at (the second "file is as it was")
+        ["files-only login in neither group: 68", "files-only login in the write group only: 68", "... and each refusal is audited 'api refused request=<n> route=sdfiles write=on", "... and the file is as it was",
+         "... and the file is as it was", "the groups belong to the USER too (add_user(admin_group=...))"]),
+    "68 to 71 are open to the administration group alone": ("        if ptype in FILES_ADMIN and not (write_ok and admin_ok):\n            return False", "        if ptype in FILES_ADMIN and not admin_ok:\n            return False",
+        ["files-only login in the administration group only: 68", "... and each refusal is audited 'api refused request=<n> route=sdfiles write=off admin=on", "... and the file is as it was"]),
+    "a missing administration group is answered with 11480": ("        if not self.admin_ok and self.allowed(ptype, self.write_ok, True):\n            return msg(11524, ptype)", "        if False:\n            return msg(11524, ptype)",
+        ["files-only login in the write group only: 68", "the groups belong to the USER too (add_user(admin_group=...))"]),
+    "the counter does not skip an id in use": ("            while f.find(str(f.seq_next)) is not None:", "            while False:",
+        ["vb.writeseqkey gives the record the file's next id"]),
+    "FCONTROL key 6 asks the edit gate": ("        if key != 6 and not self._check_edit(f):", "        if not self._check_edit(f):",
+        ["... every key but 6 goes through the edit gate"]),
+    "the words of request 70 are not checked": ("        if bad != \"\":\n            self.err, self.abort_msg = SV_ON_ERROR, msg(11530, bad)", "        if False:\n            self.err, self.abort_msg = SV_ON_ERROR, msg(11530, bad)",
+        ["... the words check refuses PATHNAME"]),
+    "an index verb does not look for another holder": ("        if op in self.EXCLUSIVE_OPS and self._others_hold(f):", "        if False:",
+        ["an index verb with the file open in ANOTHER session"]),
+    "a closed session still holds the file": ("s is not self and not s.closed and any(", "s is not self and any(",
+        ["CONTROL: ordinary words", "... and once the other session has closed it", "cfg verbs {4:"]),
+    "delete.file keeps the file": ("                self.store.files.pop(_lower(f.vocname), None)", "                pass",
+        ["operation 9 (delete.file) removes the file the OPEN FILE names"]),
+    "request 70 is not audited": ("        self.audit.append(\"api admin request=70 op=%s file=%s user=%s\" % (verb, shown, self.user))", "        pass",
+        ["vb.fileadmin operation 1 (analyse.file)", "... an operation that is none of 1 to 6", "operation 8 (create.file) names a NEW file", "a dictionary is named by the name"]),
 }
 
 

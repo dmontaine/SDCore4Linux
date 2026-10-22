@@ -96,9 +96,10 @@ def checks(src, msgs):
         by_slot.setdefault(s, set()).add(gate if s != "R" else "R")
     ck("M2b ...and two different gates never share a slot (a shared slot would call sh-on with os-on a conflict)",
        all(len(v) == 1 for v in by_slot.values()), "%s" % {k: sorted(v) for k, v in by_slot.items() if len(v) > 1})
-    ck("M3 the order of execution (the word list): the routes first, files-on before files-write-on, the suspension last",
+    ck("M3 the order of execution (the word list): the routes first, files-on before files-write-on before files-admin-on, the suspension last",
        words[:4] == ["SSH", "API", "BOTH", "NONE"] and words and words[-2:] == ["SUSPENDED", "UNSUSPENDED"]
-       and "FILES-ON" in words and "FILES-WRITE-ON" in words and words.index("FILES-ON") < words.index("FILES-WRITE-ON"), "list %s" % words)
+       and "FILES-ON" in words and "FILES-WRITE-ON" in words and "FILES-ADMIN-ON" in words
+       and words.index("FILES-ON") < words.index("FILES-WRITE-ON") < words.index("FILES-ADMIN-ON"), "list %s" % words)
 
     g = c.find("if (action # 'ADD') and (action # 'DELETE') then")
     v = c.find("gosub validate.actions")
@@ -111,10 +112,11 @@ def checks(src, msgs):
 
     val = between(c, "\nvalidate.actions:\n", "\nrun.actions:\n")
     stops = [m.start() for m in re.finditer(r"stop sysmsg\(", val)]
-    ck("M5 validate.actions refuses with stop: ADD / DELETE 11714, an unknown word 11790, a conflict 11791 (twice: a slot, and files-off with files-write-on)",
+    ck("M5 validate.actions refuses with stop: ADD / DELETE 11714, an unknown word 11790, a conflict 11791 (four ways: a slot, files-off with files-write-on, and files-admin-on with files-off or files-write-off)",
        "stop sysmsg(11714, typed.list<i>)" in val and "stop sysmsg(11790, typed.list<i>)" in val
        and "stop sysmsg(11791, downcase(actions<i>), downcase(actions<j>))" in val and "stop sysmsg(11791, 'files-off', 'files-write-on')" in val
-       and len(stops) == 4)
+       and "stop sysmsg(11791, 'files-off', 'files-admin-on')" in val and "stop sysmsg(11791, 'files-write-off', 'files-admin-on')" in val
+       and len(stops) == 6)
     ck("M5b ...each refusal sets the failure code first, and the add / delete test comes before the word lookup, which comes before the conflict test",
        all(val[max(0, s - 60):s].count("@system.return.code = -ER$ARGS") == 1 for s in stops)
        and 0 < val.find("(w = 'ADD')") < val.find("locate w in word.arr<1>") < val.find("if slot.arr<pi> = slot.arr<pj> then"))
@@ -200,8 +202,9 @@ MUTANTS = [
     ("a word is missing from the word list", ",NET-OFF,SHARED-READ-ON,", ",SHARED-READ-ON,"),
     ("the usage forgets a word", "voc-on | voc-off | bp-on | bp-off | dict-on | dict-off", "voc-on | voc-off | bp-on | dict-on | dict-off"),
     ("sh-on and os-on share a slot", "'R,R,R,R,SH,SH,OS,OS,", "'R,R,R,R,SH,SH,SH,SH,"),
-    ("files-write-on runs before files-on", "FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,SUSPENDED", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ON,FILES-OFF,SUSPENDED"),
-    ("the suspension runs first", "FILES-WRITE-OFF,SUSPENDED,UNSUSPENDED'", "FILES-WRITE-OFF,UNSUSPENDED,SUSPENDED'"),
+    ("files-write-on runs before files-on", "FILES-ON,FILES-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ON,FILES-OFF,FILES-ADMIN-ON"),
+    ("files-admin-on runs before files-write-on (21 Oct 26, S.73 item 3)", "FILES-WRITE-ON,FILES-WRITE-OFF,FILES-ADMIN-ON,FILES-ADMIN-OFF,SUSPENDED", "FILES-ADMIN-ON,FILES-ADMIN-OFF,FILES-WRITE-ON,FILES-WRITE-OFF,SUSPENDED"),
+    ("the suspension runs first", "FILES-ADMIN-OFF,SUSPENDED,UNSUSPENDED'", "FILES-ADMIN-OFF,UNSUSPENDED,SUSPENDED'"),
     ("a case of do.action ends in stop", "         gosub os.set\n         return\n      case action = 'SH-OFF'", "         gosub os.set\n         stop\n      case action = 'SH-OFF'"),
     ("the account is not read again before each action", "      read acc.rec from acc.f, acc.name else null\n", ""),
     ("the code is not cleared before each action", "      @system.return.code = 0\n      gosub do.action\n", "      gosub do.action\n"),
@@ -211,6 +214,8 @@ MUTANTS = [
     ("an unknown word is not refused", "         stop sysmsg(11790, typed.list<i>)", "         null"),
     ("the slot conflict is not tested", "            if slot.arr<pi> = slot.arr<pj> then", "            if @false then"),
     ("files-off with files-write-on is not refused", "         stop sysmsg(11791, 'files-off', 'files-write-on')", "         null"),
+    ("files-off with files-admin-on is not refused (21 Oct 26, S.73 item 3)", "         stop sysmsg(11791, 'files-off', 'files-admin-on')", "         null"),
+    ("files-write-off with files-admin-on is not refused (21 Oct 26, S.73 item 3)", "         stop sysmsg(11791, 'files-write-off', 'files-admin-on')", "         null"),
     ("add or delete among other words is accepted", "      if (w = 'ADD') or (w = 'DELETE') then", "      if @false then"),
     ("validate.actions does an action", "   n.words = dcount(actions, @fm)\n   pos.of = ''\n", "   n.words = dcount(actions, @fm)\n   gosub set.suspended\n   pos.of = ''\n"),
     ("the same word twice is a conflict", "         if actions<i> # actions<j> then", "         if @true then"),

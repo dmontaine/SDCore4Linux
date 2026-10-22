@@ -36,6 +36,10 @@
 #   B   files-write-on: the same programs now work, the server file changed, RECORDLOCKED() is served (the same zzwnrl that was refused in A), two sessions see each other's lock - a record lock (B10) and a
 #       FILE lock (B11) - the life of a file lock on the real server read from its own LIST.READU (B12: CLOSE, a program that ends holding it, RELEASE), a transaction (B13: FILELOCK refused there,
 #       RECORDLOCKED() served, also with a file lock held), the audit says write=on and has no refusal
+#   D   (S.73 item 3, 21 Oct 26 - WRITTEN AND SYNTAX-CHECKED, NOT RUN) the administration group: with the write group alone a WRITE ... CREATING.SEQKEY (68) takes ON ERROR 7000, FCONTROL (71)
+#       stops the program, ANALYSE.FILE and CREATE.FILE ... SERVER (70) are refused (message 11500 with the 11524 text) and the audit says admin=off; MODIFY.ACCOUNT FILES-ADMIN-ON; the same
+#       statements and verbs now work and the SERVER's files are the evidence (the record under the id the counter gave, an index made and enabled, a file made and deleted); the audit has the
+#       'api admin request=70 op=...' lines and no refusal; FILES-ADMIN-OFF takes only that group and 68 is refused again
 #   C   files-write-off, files-off (K3: the login is refused with the new reason), files-on (K2), the manifest key route.files.write at each step
 #   Z   put back: the register record is identical to the copy, nothing the script made is left
 # NOT COVERED HERE (other scripts): the orphan and the order of the two group changes (witness-sdnet-writegroup.sh), the requests no files-only login may make, TLS 1.2,
@@ -95,7 +99,7 @@ say "  working : $BK   (the copy of the client's register record, the password f
 
 # ------------------------------------------------------------------ the things this run may have made (set BEFORE the command that makes them)
 MADE_USER=0; MADE_ACCOUNT=0; MADE_SERVER=0; MADE_NETLOGIN=0; MADE_VOC=0; MADE_PROGS=0; GROUND_CLEAR=0; REG_SAVED=0; CLEANED=0
-PROGS="zzwnmk zzwnrd zzwn1 zzwn2 zzwn3 zzwn4 zzwn5 zzwn6 zzwn7 zzwn8 zzwn9 zzwnrl zzwnrt zzwnla zzwnlb zzwnfa zzwnfb zzwnfl zzwnfd zzwnfe zzwncl"
+PROGS="zzwnmk zzwnrd zzwn1 zzwn2 zzwn3 zzwn4 zzwn5 zzwn6 zzwn7 zzwn8 zzwn9 zzwnrl zzwnrt zzwnla zzwnlb zzwnfa zzwnfb zzwnfl zzwnfd zzwnfe zzwnad zzwncl"
 
 cleanup() {
   local rc=$? p
@@ -137,6 +141,7 @@ cleanup() {
     if [ -z "$left" ]; then pass "Z2 nothing of $REMOTE is left (register, user, group, home, account directory)"; else fail "Z2 left behind for $REMOTE:$left - remove by hand"; fi
     wl_in_group "$REMOTE" sdfiles && fail "Z3 $REMOTE is still listed in sdfiles" || pass "Z3 $REMOTE is not in sdfiles"
     wl_in_group "$REMOTE" sdfileswrite && fail "Z4 $REMOTE is still listed in sdfileswrite" || pass "Z4 $REMOTE is not in sdfileswrite"
+    wl_in_group "$REMOTE" sdfilesadmin && fail "Z5 $REMOTE is still listed in sdfilesadmin" || pass "Z5 $REMOTE is not in sdfilesadmin"
   else
     say "  (the ground was never found clear, so nothing was made and nothing is touched)"
   fi
@@ -149,7 +154,9 @@ trap cleanup EXIT
 
 # ------------------------------------------------------------------ P. premises
 [ -x "$WL_SD" ] || need "$WL_SD is not installed - run the installer first"
-for g in sdfiles sdfileswrite sdusers; do wl_group_exists "$g" || need "no Linux group $g on this machine (install from a tree that makes it)"; done
+for g in sdfiles sdfileswrite sdfilesadmin sdusers; do wl_group_exists "$g" || need "no Linux group $g on this machine (install from a tree that makes it)"; done
+[ -r "$WL_SDSYS/messages/11524" ] || need "no $WL_SDSYS/messages/11524: this install predates S.73 item 3 (the administration group, 21 Oct 2026); install a newer Dev"
+grep -q 'files.admin' "$WL_SDSYS/gpl.bp/apisrvr" 2>/dev/null || need "the installed apisrvr has no files.admin: this install predates S.73 item 3 (21 Oct 2026); install a newer Dev"
 command -v ss >/dev/null 2>&1 || need "ss is not installed"
 ss -ltn 2>/dev/null | grep -q -E "[:.]$PORT[[:space:]]" || need "nothing is listening on port $PORT (is the API server running on this install?)"
 [ -r "$WL_SDSYS/messages/11521" ] || need "no $WL_SDSYS/messages/11521"
@@ -643,17 +650,33 @@ prog zzwnfe <<'EOP'
    crt 'EZ ':oconv(time(), 'MTS'):' done'
 end
 EOP
+# zzwnad (S.73 item 3, phase D): the two statements of the administration set that have an ON ERROR form and the one that has not.  D1 WRITE ... CREATING.SEQKEY takes ON ERROR; D2 and D3 are
+# FCONTROL (no ON ERROR clause: a refusal ends the program there, so D9 is reached only when everything before it was served).  The id the server gave is printed so that the server's file can be
+# read for it.
+prog zzwnad <<'EOP'
+   open 'zzrw' to f else crt 'OPEN FAILED st=':status() ; stop
+   crt 'D0 opened zzrw'
+   oc = 'then' ; id = '' ; write 'seqrec' to f creating.seqkey id on error oc = 'error'
+   crt 'D1 WRITE CREATING.SEQKEY branch=':oc:' STATUS()=':status():' id=[':id:']'
+   x = fcontrol(f, 6, 'abc')
+   crt 'D2 FCONTROL valid.id abc x=[':x:']'
+   x = fcontrol(f, 3)
+   crt 'D3 FCONTROL get.seq.key x=[':x:']'
+   crt 'D9 REACHED'
+end
+EOP
 prog zzwncl <<'EOP'
    open 'voc' to v else crt 'NO VOC' ; stop
    delete v, 'zzrc'
    delete v, 'zzrw'
+   delete v, 'zzwnew'
    crt 'zzwncl done'
 end
 EOP
-OUT=$(wl_sd_user "$CUSER" "compile the twenty-one programs" \
+OUT=$(wl_sd_user "$CUSER" "compile the twenty-two programs" \
   "BASIC bp zzwnmk" "BASIC bp zzwnrd" "BASIC bp zzwn1" "BASIC bp zzwn2" "BASIC bp zzwn3" "BASIC bp zzwn4" "BASIC bp zzwn5" "BASIC bp zzwn6" "BASIC bp zzwn7" "BASIC bp zzwn8" "BASIC bp zzwn9" \
-  "BASIC bp zzwnrl" "BASIC bp zzwnrt" "BASIC bp zzwnla" "BASIC bp zzwnlb" "BASIC bp zzwnfa" "BASIC bp zzwnfb" "BASIC bp zzwnfl" "BASIC bp zzwnfd" "BASIC bp zzwnfe" "BASIC bp zzwncl")
-expect_eq "S7 twenty-one programs compiled with '0 error(s)'" "$(count_re "$OUT" '^0 error\(s\)')" 21
+  "BASIC bp zzwnrl" "BASIC bp zzwnrt" "BASIC bp zzwnla" "BASIC bp zzwnlb" "BASIC bp zzwnfa" "BASIC bp zzwnfb" "BASIC bp zzwnfl" "BASIC bp zzwnfd" "BASIC bp zzwnfe" "BASIC bp zzwnad" "BASIC bp zzwncl")
+expect_eq "S7 twenty-two programs compiled with '0 error(s)'" "$(count_re "$OUT" '^0 error\(s\)')" 22
 
 say ""; say "== S8. the client's stored login (set.netlogin) and the two VOC pointers =="
 OUT=$(wl_sd_user "$CUSER" "set.netlogin $SRV" "SET.NETLOGIN $SRV" "$REMOTE" "$PWS")
@@ -685,7 +708,7 @@ expect_has "R4 a record reads (c1 holds Smith and 100)" "$OUT" "c1=[Smith/100]"
 expect_has "R4 the dictionary opens" "$OUT" "dict open ok"
 sleep 2
 AUD=$(wl_audit_since "$AUD0")
-expect_re "R5 the server's audit trail has a files-only login for $REMOTE (write=off)" "$AUD" "api login route=sdfiles write=off user=$REMOTE"
+expect_re "R5 the server's audit trail has a files-only login for $REMOTE (write=off)" "$AUD" "api login route=sdfiles write=off admin=off user=$REMOTE"
 expect_lacks "R5 and no refusal: reading needs sdfiles alone" "$AUD" "api refused"
 [ "$(logins)" -gt "$L0" ] && pass "R5 the number of login lines grew ($L0 -> $(logins))" || fail "R5 the number of login lines did not grow ($L0 -> $(logins)): the session never reached the server"
 
@@ -735,22 +758,22 @@ expect_lacks "A5 probe: not the 11480 wording ('This login is for files only')" 
 expect_lacks "A5 probe control: request 6 (read) was not refused" "$POUT" "(request 6)"
 expect_lacks "A5 probe control: request 15 (release) was not refused" "$POUT" "(request 15)"
 for n in 16 17 18 30 31; do
-  expect_has "A6 server audit: api refused request=$n route=sdfiles write=off user=$REMOTE (from the netfile run)" "$AUD" "api refused request=$n route=sdfiles write=off user=$REMOTE"
+  expect_has "A6 server audit: api refused request=$n route=sdfiles write=off admin=off user=$REMOTE (from the netfile run)" "$AUD" "api refused request=$n route=sdfiles write=off admin=off user=$REMOTE"
 done
 for n in 7 8 9 10 19; do
-  expect_has "A6 server audit: api refused request=$n (only the probe sends it)" "$AUD" "api refused request=$n route=sdfiles write=off user=$REMOTE"
+  expect_has "A6 server audit: api refused request=$n (only the probe sends it)" "$AUD" "api refused request=$n route=sdfiles write=off admin=off user=$REMOTE"
 done
 # S.72: 32 and 33 were each sent twice (zzwn1 and zzwn5; zzwn1 and zzwn6) and refused once each time: a refusal is not asked for again
-expect_eq "A6 server audit S.72: request 32 (FILELOCK) refused exactly twice - zzwn1 and zzwn5, each asked once" "$(count_re "$AUD" "api refused request=32 route=sdfiles write=off user=$REMOTE")" 2
-expect_eq "A6 server audit S.72: request 33 (FILEUNLOCK) refused exactly twice - zzwn1 and zzwn6" "$(count_re "$AUD" "api refused request=33 route=sdfiles write=off user=$REMOTE")" 2
+expect_eq "A6 server audit S.72: request 32 (FILELOCK) refused exactly twice - zzwn1 and zzwn5, each asked once" "$(count_re "$AUD" "api refused request=32 route=sdfiles write=off admin=off user=$REMOTE")" 2
+expect_eq "A6 server audit S.72: request 33 (FILEUNLOCK) refused exactly twice - zzwn1 and zzwn6" "$(count_re "$AUD" "api refused request=33 route=sdfiles write=off admin=off user=$REMOTE")" 2
 expect_eq "A6 client audit S.72: the FILELOCK attempts are audited before the request, once for each handle (zzwn1, zzwn5): netfile filelock server=$SRV file=zzwgf" "$(count_re "$AUD" "netfile filelock server=$SRV file=zzwgf")" 2
 expect_lacks "A6 server audit: no write=on line in this phase" "$AUD" "write=on"
 expect_lacks "A6 server audit: request 6 and 15 are never refused" "$AUD" "api refused request=6 "
 expect_lacks "A6 server audit: ... nor 15" "$AUD" "api refused request=15 "
 # S.72b: request 34 is refused like 32 and 33.  Once for zzwnrl run on its own (its own audit window, AUDK), and twice in the whole phase: zzwnrl and the probe
-expect_eq "A6 server audit S.72b: request 34 (RECORDLOCKED()) refused exactly once in the audit lines of zzwnrl's run alone" "$(count_re "$AUDK" "api refused request=34 route=sdfiles write=off user=$REMOTE")" 1
-expect_eq "A6 server audit S.72b: request 34 refused exactly twice in the whole phase - zzwnrl and the probe" "$(count_re "$AUD" "api refused request=34 route=sdfiles write=off user=$REMOTE")" 2
-[ "$(count_re "$AUD" "api login route=sdfiles write=off user=$REMOTE")" -ge 3 ] && pass "A6 server audit: at least three logins say write=off (two netfile runs and the probe)" || fail "A6 fewer than three 'api login route=sdfiles write=off' lines"
+expect_eq "A6 server audit S.72b: request 34 (RECORDLOCKED()) refused exactly once in the audit lines of zzwnrl's run alone" "$(count_re "$AUDK" "api refused request=34 route=sdfiles write=off admin=off user=$REMOTE")" 1
+expect_eq "A6 server audit S.72b: request 34 refused exactly twice in the whole phase - zzwnrl and the probe" "$(count_re "$AUD" "api refused request=34 route=sdfiles write=off admin=off user=$REMOTE")" 2
+[ "$(count_re "$AUD" "api login route=sdfiles write=off admin=off user=$REMOTE")" -ge 3 ] && pass "A6 server audit: at least three logins say write=off (two netfile runs and the probe)" || fail "A6 fewer than three 'api login route=sdfiles write=off' lines"
 if printf '%s\n' "$AUD" | grep -a -q -E '^[0-9: -]+ user=[A-Za-z0-9_-]+( sudo=[A-Za-z0-9_-]+)? uid=[0-9]+ pid=[0-9]+ (api|netfile) '; then
   if printf '%s\n' "$AUD" | grep -a -q -E '^[0-9: -]+ user=[A-Za-z0-9_-]+( sudo=[A-Za-z0-9_-]+)? uid=[0-9]+ pid=[0-9]+ (api|netfile) [^=]*[A-Z]'; then fail "A6 server audit: an upper-case letter in an event word"; else pass "A6 server audit: the event words of the api and netfile lines are lower case"; fi
 else fail "A6 server audit: no api or netfile line to judge (the null case)"; fi
@@ -844,7 +867,7 @@ case " $PRB_IDS " in *" p3-wu "*) pass "B7 SERVER evidence: the probe's SDWriteu
 case " $PRB_IDS " in *" p3 "*) fail "B7 p3 is still on the server: the probe's deletes did nothing" ;; *) pass "B7 SERVER evidence: the probe's deletes removed p3" ;; esac
 expect_re "B8 Y7 CLEARFILE now succeeds" "$OUT4" '^Y7 CLEARFILE branch=then STATUS\(\)=0'
 expect_re "B8 SERVER evidence: the file holds 0 records afterwards (COUNT as the server's own user)" "$CLR_CNT" '^0 record\(s\) counted'
-[ "$(count_re "$AUD" "api login route=sdfiles write=on user=$REMOTE")" -ge 3 ] && pass "B9 audit: at least three logins say write=on" || fail "B9 audit: fewer than three 'api login route=sdfiles write=on' lines"
+[ "$(count_re "$AUD" "api login route=sdfiles write=on admin=off user=$REMOTE")" -ge 3 ] && pass "B9 audit: at least three logins say write=on" || fail "B9 audit: fewer than three 'api login route=sdfiles write=on' lines"
 expect_lacks "B9 audit: NO api refused line in phase B" "$AUD" "api refused"
 expect_lacks "B9 audit: no write=off login in phase B" "$AUD" "route=sdfiles write=off"
 expect_has "B9 audit: the client's own lines for the write, the delete and the clear" "$AUD" "netfile write server=$SRV file=zzwgf"
@@ -994,6 +1017,78 @@ expect_re "B13 V3 FILEUNLOCK after the transaction leaves STATUS() 0 (the lock w
 expect_eq "B13 audit S.72b: exactly ONE 'netfile filelock' line for zzwnrt (the FILELOCK before the transaction; the RECORDLOCKED() inside it writes none)" "$(count_re "$AUDT" "netfile filelock server=$SRV file=zzwgf")" 1
 expect_lacks "B13 audit S.72b: no api refused line for zzwnrt (the RECORDLOCKED() inside the transaction reached the server and was served)" "$AUDT" "api refused"
 
+# ================================================================== D. the administration group (S.73 item 3, 21 Oct 2026)
+say ""; say "== D. files-admin-on (S.73 item 3): requests 68 to 71 are refused to a login with the write group alone, served with files-admin-on, refused again after files-admin-off =="
+reseed
+D_IDS0=$(srvids zzwgf)
+expect_eq "D0 reseeded: the server file holds lk1 p1 p2 p3" "$D_IDS0" "lk1 p1 p2 p3 "
+expect_eq "D0 the real groups: sdfiles and sdfileswrite" "$(wl_state "$REMOTE")" "sdfiles=1 sdfileswrite=1"
+wl_in_group "$REMOTE" sdfilesadmin && fail "D0 $REMOTE is in sdfilesadmin before files-admin-on (a new account has it off)" || pass "D0 $REMOTE is not in sdfilesadmin"
+
+# D1. the write group alone: a WRITE ... CREATING.SEQKEY (68) takes ON ERROR with STATUS() 7000, FCONTROL (71) stops the program, ANALYSE.FILE and CREATE.FILE ... SERVER (70) are refused, and the server
+# audits each refusal with admin=off.  Nothing is changed on the server.
+AUDD0=$(wl_audit_offset)
+OUTD=$(wl_sd_user "$CUSER" "run zzwnad WITHOUT the administration group" "RUN bp zzwnad")
+OUTV=$(wl_sd_user "$CUSER" "ANALYSE.FILE and CREATE.FILE ... SERVER WITHOUT the administration group" "ANALYSE.FILE zzrw" "CREATE.FILE zzwnew SERVER $SRV")
+NF1=$(wl_sd_user "$REMOTE" "COUNT zzwnew (must not be there)" "COUNT zzwnew")
+sleep 2; AUDD=$(wl_audit_since "$AUDD0")
+say "  audit lines added by phase D1:"; printf '%s\n' "$AUDD" | grep -a -E 'api|netfile' | cut -c1-200 | sed -e 's/^/      | /'
+expect_has "D1 NULL CASE: zzwnad opened the remote file" "$OUTD" "D0 opened zzrw"
+expect_re "D1 WRITE ... CREATING.SEQKEY is refused: ON ERROR, STATUS() 7000 and no id" "$OUTD" '^D1 WRITE CREATING.SEQKEY branch=error STATUS\(\)=7000 id=\[\]'
+expect_has "D1 FCONTROL stops the program with the server's refusal in the client's words (message 11500 with 11524, request 71)" "$OUTD" "$(wl_msg 11500 "$SRV" fcontrol "$(wl_msg 11524 71)")"
+expect_lacks "D1 ... D9 is not reached" "$OUTD" "D9 REACHED"
+expect_has "D1 ANALYSE.FILE is refused with the server's words (request 70)" "$OUTV" "$(wl_msg 11500 "$SRV" analyse.file "$(wl_msg 11524 70)")"
+expect_has "D1 CREATE.FILE ... SERVER is refused with the server's words (request 70)" "$OUTV" "$(wl_msg 11500 "$SRV" create.file "$(wl_msg 11524 70)")"
+expect_eq "D1 SERVER evidence: the file is unchanged by the refused tries" "$(srvids zzwgf)" "$D_IDS0"
+expect_lacks "D1 SERVER evidence: zzwnew was not created on the server" "$NF1" "record(s) counted"
+expect_eq "D1 audit: requests 68, 71 and 70 (twice) refused, each with write=on admin=off" "$(count_re "$AUDD" "api refused request=(68|70|71) route=sdfiles write=on admin=off user=$REMOTE")" 4
+
+# D2. files-admin-on: the word, the real groups, the manifest
+OUT=$(wl_sd_admin "files-admin-on" "MODIFY.ACCOUNT $REMOTE FILES-ADMIN-ON")
+expect_has "D2 the line says files-admin yes" "$OUT" "$(wl_msg 11525 "$REMOTE" yes)"
+expect_eq "D2 the real groups: sdfiles and sdfileswrite kept" "$(wl_state "$REMOTE")" "sdfiles=1 sdfileswrite=1"
+wl_in_group "$REMOTE" sdfilesadmin && pass "D2 $REMOTE is in sdfilesadmin" || fail "D2 $REMOTE is not in sdfilesadmin"
+R_AD=$(wl_backup_routes "$REMOTE" "$BK/bak0")
+expect_re "D2 manifest while administration is on: route.files: 1 route.files.write: 1 route.files.admin: 1" "$R_AD" "\[account $REMOTE\] route\.files: 1 route\.files\.write: 1 route\.files\.admin: 1"
+
+# D3. with the group: the same programs and verbs are served, and the server's own files are the evidence
+AUDD0=$(wl_audit_offset)
+OUTD=$(wl_sd_user "$CUSER" "run zzwnad WITH the administration group" "RUN bp zzwnad")
+D_ID=$(printf '%s\n' "$OUTD" | sed -n 's/^D1 .* id=\[\([0-9][0-9]*\)\].*$/\1/p' | head -1)
+OUTV=$(wl_sd_user "$CUSER" "the verbs WITH the administration group" "ANALYSE.FILE zzrw" "CREATE.INDEX zzrc name" "BUILD.INDEX zzrc name" "CREATE.FILE zzwnew SERVER $SRV" "COUNT zzwnew" "DELETE.FILE zzwnew NO.QUERY")
+IDX=$(wl_sd_user "$REMOTE" "LIST.INDEX zzcust" "LIST.INDEX zzcust")
+SEQ=$(wl_sd_user "$REMOTE" "CT zzwgf ${D_ID:-0}" "CT zzwgf ${D_ID:-0}")
+GONE=$(wl_sd_user "$REMOTE" "COUNT zzwnew after the delete" "COUNT zzwnew")
+sleep 2; AUDD=$(wl_audit_since "$AUDD0")
+say "  audit lines added by phase D3:"; printf '%s\n' "$AUDD" | grep -a -E 'api|netfile' | cut -c1-200 | sed -e 's/^/      | /'
+expect_has "D3 NULL CASE: zzwnad opened the remote file and ran to its end" "$OUTD" "D9 REACHED"
+expect_re "D3 WRITE ... CREATING.SEQKEY is served: THEN, STATUS() 0 and an id" "$OUTD" '^D1 WRITE CREATING.SEQKEY branch=then STATUS\(\)=0 id=\[[0-9]+\]'
+[ -n "$D_ID" ] && pass "D3 the id the server's counter gave is $D_ID" || fail "D3 no id came back from the WRITE ... CREATING.SEQKEY"
+expect_has "D3 SERVER evidence: the record under that id holds 'seqrec'" "$SEQ" "seqrec"
+expect_re "D3 FCONTROL(f, valid.id, 'abc') answers 1" "$OUTD" '^D2 FCONTROL valid.id abc x=\[1\]'
+expect_re "D3 FCONTROL(f, get.seq.key) answers a number" "$OUTD" '^D3 FCONTROL get.seq.key x=\[[0-9]+\]'
+expect_re "D3 ANALYSE.FILE printed the server's report of zzwgf" "$OUTV" 'zzwgf'
+expect_re "D3 SERVER evidence: CREATE.INDEX and BUILD.INDEX made the index NAME of zzcust and enabled it (LIST.INDEX as the server's own user)" "$IDX" '^[Nn][Aa][Mm][Ee] +Y'
+expect_has "D3 CREATE.FILE ... SERVER said the file was made and the pointer written" "$OUTV" "$(wl_msg 11533 zzwnew "$SRV" zzwnew)"
+expect_re "D3 the new pointer works: COUNT zzwnew through it counted 0 records" "$OUTV" '^0 record\(s\) counted'
+expect_has "D3 DELETE.FILE said the file and the pointer are gone" "$OUTV" "$(wl_msg 11532 zzwnew "$SRV" zzwnew)"
+expect_lacks "D3 SERVER evidence: zzwnew is gone from the server" "$GONE" "record(s) counted"
+for v in "analyse.file file=zzwgf" "create.index file=zzcust" "build.index file=zzcust" "create.file file=zzwnew" "delete.file file=zzwnew"; do
+  expect_has "D3 audit: api admin request=70 op=$v user=$REMOTE" "$AUDD" "api admin request=70 op=${v% *} ${v#* } user=$REMOTE"
+done
+expect_has "D3 audit: the client's own line for the verb" "$AUDD" "netfile admin server=$SRV file=zzwgf op=analyse.file"
+expect_lacks "D3 audit: NO api refused line in phase D3" "$AUDD" "api refused"
+[ "$(count_re "$AUDD" "api login route=sdfiles write=on admin=on user=$REMOTE")" -ge 3 ] && pass "D3 audit: the logins say write=on admin=on" || fail "D3 audit: fewer than three 'api login route=sdfiles write=on admin=on' lines"
+
+# D4. files-admin-off: only the administration group goes, and the requests are refused again
+OUT=$(wl_sd_admin "files-admin-off" "MODIFY.ACCOUNT $REMOTE FILES-ADMIN-OFF")
+expect_has "D4 the line says files-admin no" "$OUT" "$(wl_msg 11525 "$REMOTE" no)"
+expect_eq "D4 the real groups: sdfiles and sdfileswrite kept" "$(wl_state "$REMOTE")" "sdfiles=1 sdfileswrite=1"
+wl_in_group "$REMOTE" sdfilesadmin && fail "D4 $REMOTE is still in sdfilesadmin" || pass "D4 $REMOTE is not in sdfilesadmin"
+OUTD=$(wl_sd_user "$CUSER" "run zzwnad after files-admin-off" "RUN bp zzwnad")
+expect_has "D4 NULL CASE: zzwnad opened the remote file" "$OUTD" "D0 opened zzrw"
+expect_re "D4 WRITE ... CREATING.SEQKEY is refused again" "$OUTD" '^D1 WRITE CREATING.SEQKEY branch=error STATUS\(\)=7000 id=\[\]'
+
 # ================================================================== C. taking the group away again
 say ""; say "== C. files-write-off, files-off, files-on - and the manifest key at each step =="
 reseed
@@ -1020,7 +1115,7 @@ expect_lacks "C2 S.72: ... U9 is not reached" "$OUT6" "U9 REACHED"
 expect_has "C2 NULL CASE: zzwnrl opened the remote file (the same program that B served)" "$OUTK" "Q0 opened zzrw"
 expect_has "C2 S.72b: a RECORDLOCKED() is refused again with the 11521 text (request 34), and the program does not go on" "$OUTK" "$(wl_msg 11500 "$SRV" recordlocked "$(wl_msg 11521 34)")"
 expect_lacks "C2 S.72b: ... Q9 is not reached" "$OUTK" "Q9 REACHED"
-expect_eq "C2 S.72b: server audit: request 34 refused exactly once in the audit lines of that run" "$(count_re "$AUDK" "api refused request=34 route=sdfiles write=off user=$REMOTE")" 1
+expect_eq "C2 S.72b: server audit: request 34 refused exactly once in the audit lines of that run" "$(count_re "$AUDK" "api refused request=34 route=sdfiles write=off admin=off user=$REMOTE")" 1
 expect_has "C2 a direct write (16) is refused again" "$POUT" "$(wl_msg 11521 16)"
 expect_has "C2 S.72b: a direct request 34 (the probe's SDRecordlocked) is refused again" "$POUT" "$(wl_msg 11521 34)"
 expect_has "C2 NULL CASE: the probe connected and opened before it was refused" "$POUT" "P OPEN ok"

@@ -1030,7 +1030,7 @@ def set_apisrvr(old=None, new=None):
 # sets files.only and files.write.  Those are the two common variables vb.scram.final sets from the user's Linux groups (sdfiles / sdapi, sdfileswrite); everything after is the production code:
 # the gate, !apifilesok, messages 11480 and 11521, the audit line.  The marker request is itself refused by the gate (it is not in the table) with 11480: the first row after it is the proof that the
 # device took.  What it does NOT do is read a group: that is the SCRAM final, covered only by the VM witness.
-GATE_OLD = "   if files.only then\n      if not(apifilesok(action, master.login.done, files.write)) then"
+GATE_OLD = "   if files.only then\n      if not(apifilesok(action, master.login.done, files.write, files.admin)) then"      # 21 Oct 26, S.73 item 3: the fourth argument
 DEVICE = ("   if action = 27 then files.only = @true      ;* TEST DEVICE (sandbox-req29.py section I): request 27 marks this session files-only, without the write group\n"
           "   if action = 28 then                         ;* TEST DEVICE: request 28 marks it files-only AND in the group sdfileswrite\n"
           "      files.only = @true\n"
@@ -1042,10 +1042,10 @@ I_MUTANTS = {
     "wall-gone": ("apifilesok", "files.chg := '34,'", "files.chg := ''", ("I4", "I5", "I6", "I13")),
     # the gate reaches an ORDINARY login's request 34 (the "sdapi login is untouched" half): H is refused before and after, N (still unmarked) is refused too, and the audit list grows.
     # Written before the first run, from the rows: H's own request 34 is refused (I1a, and I6, I8, I10, I12 which ask it again), N before its marker (I2), and the audit list grows (I13).
-    "wall-too-wide": ("apisrvr", GATE_OLD, "   if files.only or action = 34 then\n      if not(apifilesok(action, master.login.done, files.write)) then", ("I1a", "I2", "I6", "I8", "I10", "I12", "I13")),
+    "wall-too-wide": ("apisrvr", GATE_OLD, "   if files.only or action = 34 then\n      if not(apifilesok(action, master.login.done, files.write, files.admin)) then", ("I1a", "I2", "I6", "I8", "I10", "I12", "I13")),
     # the gate ignores the group: a session marked in the group is refused as one that is not: G is not served request 34 (I9) or request 30 (I10), is not told 0 after its release (I10a: its 34 is
     # refused), and the audit list differs (I13).  H, N and the marker rows do not change.
-    "group-ignored": ("apisrvr", "if not(apifilesok(action, master.login.done, files.write)) then", "if not(apifilesok(action, master.login.done, 0)) then", ("I9", "I10", "I10a", "I13")),
+    "group-ignored": ("apisrvr", "if not(apifilesok(action, master.login.done, files.write, files.admin)) then", "if not(apifilesok(action, master.login.done, 0, files.admin)) then", ("I9", "I10", "I10a", "I13")),
 }
 
 
@@ -1120,8 +1120,8 @@ def section_i(mutant=None):
             "does not carry H's number %r in STATUS()" % (t34, uH),
             raw is not None and raw[0] == 1 and raw[2].decode("latin-1") == t34 and t34.endswith("(request 34)") and c34 is None and raw[1] != uH, repr(raw))
         new = audit_new(off)
-        row("I5 ...and the server audited it: 'api refused request=34 route=sdfiles write=off user=%s' (the marker's own 'request=27' line is before it)" % me,
-            audit_has(new, r"api refused request=34 route=sdfiles write=off user=%s$" % re.escape(me)), repr(new))
+        row("I5 ...and the server audited it: 'api refused request=34 route=sdfiles write=off admin=off user=%s' (the marker's own 'request=27' line is before it; the admin word is S.73 item 3's)" % me,
+            audit_has(new, r"api refused request=34 route=sdfiles write=off admin=off user=%s$" % re.escape(me)), repr(new))
         c9, s9, raw9 = N.reclocked(fN, b"k9")
         h_again = H.reclocked(fH, b"k1")
         row("I6 the refusal does not depend on the lock: the same request for the FREE record k9 is refused the same way (%r), N took nothing, and H still holds k1 (code 2, STATUS() %r)" % (t34, uH),
@@ -1157,7 +1157,7 @@ def section_i(mutant=None):
         h3, h4 = H.reclocked(fH, b"k1"), H.reclocked(fH, b"k9")
         row("I12 CONTROL AFTER EVERYTHING: H (never marked) is still served RECORDLOCKED - k1 code 2 with STATUS() %r, k9 code 0 - and was not refused once" % uH, h3[:2] == (2, uH) and h4[:2] == (0, 0), repr((h3[:3], h4[:3])))
         new = audit_new(off)
-        got = re.findall(r"api refused request=(\d+) route=sdfiles write=(on|off) user=(\S+)$", new or "", re.M)
+        got = re.findall(r"api refused request=(\d+) route=sdfiles write=(on|off) admin=off user=(\S+)$", new or "", re.M)     # 21 Oct 26: every line carries admin= (off here: the device sets no administration flag)
         want = [("27", "off", me), ("34", "off", me), ("34", "off", me), ("32", "off", me), ("30", "off", me), ("28", "on", me), ("20", "on", me)]
         row("I13 the audit trail gained EXACTLY these 'api refused request=N route=sdfiles write=W user=%s' lines, in this order, and no other (nothing for H, nothing for the reads, the group's "
             "request 34 and 30): %s" % (me, " ".join("%s/%s" % (a, b) for a, b, c in want)), got == want, repr(got))

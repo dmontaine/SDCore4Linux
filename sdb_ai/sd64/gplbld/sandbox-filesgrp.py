@@ -9,6 +9,9 @@
 # not run.  With --mutant=NAME exit 0 means the mutant was killed by exactly the rows listed for it (MUTANTS below).
 #
 # START-HISTORY:
+# 21 Oct 26 dm  S.73 item 3: the third level, sdfilesadmin (files-admin-on / files-admin-off).  The scratch group file holds sdfilesadmin and run_case takes `sa` (the person is in it before) and a
+#               three-valued want_groups.  Cases E0 to E11 (top-down removal, the 11526 refusal, strays of the administration group, a failure at each step with what did happen said and audited), two
+#               new mutants (admin-first-skipped, admin-orphan-ignored) and the texts of four old ones followed modifya's change (the failure block calls report.removals).
 # 19 Oct 26 dm  Finish 2 (verifier findings).  (1) A failure of the SECOND removal after the write group had gone printed only the 10081 line and wrote no audit line (C4, C10b, and the new
 #               C11b for files-on); the audit trail is now read in every case (want_audit / deny_audit).  (2) The header said "No install" and the real sd-elevate's dry run asks
 #               `getent group <g>` for addgroup and delgroup, so a machine without the groups sdfiles and sdfileswrite made the cases fail for the wrong reason; the shim now gives that dry run a
@@ -175,9 +178,9 @@ def grp_line(name, gid, members):
     return "%s:x:%d:%s" % (name, gid, ",".join(members))
 
 
-def write_group(sf, sw, extra_sdusers=True):
-    """The scratch group file: SF the members of sdfiles, SW the members of sdfileswrite, ME in sdusers."""
-    lines = ["root:x:0:", grp_line("sdusers", 2000, [ME]), grp_line("sdfiles", 2001, sf), grp_line("sdfileswrite", 2002, sw), grp_line("wheel", 10, [])]
+def write_group(sf, sw, sa=(), extra_sdusers=True):
+    """The scratch group file: SF the members of sdfiles, SW the members of sdfileswrite, SA the members of sdfilesadmin (21 Oct 26, S.73 item 3), ME in sdusers."""
+    lines = ["root:x:0:", grp_line("sdusers", 2000, [ME]), grp_line("sdfiles", 2001, sf), grp_line("sdfileswrite", 2002, sw), grp_line("sdfilesadmin", 2003, list(sa)), grp_line("wheel", 10, [])]
     put(os.path.join(q3.BOX, "grp", "group"), "\n".join(lines))
 
 
@@ -201,25 +204,27 @@ def read_calls():
         return []
 
 
-def run_case(cid, label, sf, sw, command, inject, want_groups, want_calls, want_lines, deny_lines=(), want_fail=False, want_audit=(), deny_audit=(), audit_checked=False):
-    """One case.  sf / sw: ME in sdfiles / sdfileswrite before; inject: {"delgroup sdfileswrite": ["fail"]}; want_groups: (ME in sdfiles, ME in sdfileswrite) after;
+def run_case(cid, label, sf, sw, command, inject, want_groups, want_calls, want_lines, deny_lines=(), want_fail=False, want_audit=(), deny_audit=(), audit_checked=False, sa=False):
+    """One case.  sf / sw / sa: ME in sdfiles / sdfileswrite / sdfilesadmin before; inject: {"delgroup sdfileswrite": ["fail"]}; want_groups: (ME in sdfiles, ME in sdfileswrite) after, or
+    that and ME in sdfilesadmin as a third value (21 Oct 26, S.73 item 3: a case that gives three says where the administration group ended);
     want_calls: [(verb, group)] in order; want_lines: whole lines that must be in the output; deny_lines: whole lines that must not; want_fail: the 10081 line is expected.
     want_audit / deny_audit: regular expressions (multi-line, `$` = end of a line) that must / must not match what the audit trail gained during the command; audit_checked makes the audit
     row appear even when both lists are empty (a case that must leave NO `modify.account` line says so with deny_audit)."""
-    write_group([ME] if sf else [], [ME] if sw else [])
+    write_group([ME] if sf else [], [ME] if sw else [], [ME] if sa else [])
     put(os.path.join(q3.BOX, "grp", "calls.log"), "")
     put(os.path.join(q3.BOX, "grp", "inject.json"), json.dumps(inject))
     before = read_group()
     say("\n  %s %s" % (cid, label))
-    say("    [inputs] scratch group file before: sdfiles=%r sdfileswrite=%r sdusers=%r; command %r; injected into the helper: %r" % (before["sdfiles"], before["sdfileswrite"], before["sdusers"], command, inject))
+    say("    [inputs] scratch group file before: sdfiles=%r sdfileswrite=%r sdfilesadmin=%r sdusers=%r; command %r; injected into the helper: %r" % (
+        before["sdfiles"], before["sdfileswrite"], before["sdfilesadmin"], before["sdusers"], command, inject))
     off = audit_off()
     out = q3.adm([command])
     new = audit_new(off)
     after = read_group()
     calls = read_calls()
-    say("    [outputs] helper calls: %r; group file after: sdfiles=%r sdfileswrite=%r; output tail: %r" % (calls, after["sdfiles"], after["sdfileswrite"], out[-4:]))
+    say("    [outputs] helper calls: %r; group file after: sdfiles=%r sdfileswrite=%r sdfilesadmin=%r; output tail: %r" % (calls, after["sdfiles"], after["sdfileswrite"], after["sdfilesadmin"], out[-4:]))
     say("    [audit] gained during the command: %r" % (new,))
-    got = (ME in after["sdfiles"], ME in after["sdfileswrite"])
+    got = (ME in after["sdfiles"], ME in after["sdfileswrite"], ME in after["sdfilesadmin"])[:len(want_groups)]
     row("%so %s: the output has %s%s" % (cid, label, "; ".join(repr(x) for x in want_lines) if want_lines else "no line that is asked for",
                                           ("" if not deny_lines else " and none of " + "; ".join(repr(x) for x in deny_lines))),
         all(any(ln == x for ln in out) for x in want_lines) and not any(any(ln == x for ln in out) for x in deny_lines), repr(out[-6:]))
@@ -230,7 +235,8 @@ def run_case(cid, label, sf, sw, command, inject, want_groups, want_calls, want_
     if want_fail:
         pat = re.escape(msg(10081, ACCT, "\x00")).replace("\x00", r"\d+")
         row("%sf %s: and the failure is reported as 10081 with a status (never as a success)" % (cid, label), any(re.fullmatch(pat, ln) for ln in out), repr(out[-4:]))
-    row("%sg %s: the person is afterwards in sdfiles=%s sdfileswrite=%s" % (cid, label, want_groups[0], want_groups[1]), got == want_groups, repr((got, after)))
+    row("%sg %s: the person is afterwards in sdfiles=%s sdfileswrite=%s%s" % (cid, label, want_groups[0], want_groups[1], (" sdfilesadmin=%s" % want_groups[2]) if len(want_groups) > 2 else ""),
+        got == want_groups, repr((got, after)))
     exp = ["%s %s %s" % (v, ME, g) for v, g in want_calls]
     row("%sc %s: the helper was called %s" % (cid, label, ("in this order: " + ", ".join("%s %s" % x for x in want_calls)) if want_calls else "NEVER"), calls == exp, repr(calls))
     return out
@@ -282,6 +288,41 @@ def cases():
     run_case("C11b", "a stray sdfileswrite is removed and then the ADD of sdfiles FAILS, files-on", False, True, "MODIFY.ACCOUNT %s FILES-ON" % ACCT, {"addgroup sdfiles": ["fail"]}, (False, False),
              [("delgroup", "sdfileswrite"), ("addgroup", "sdfiles")], [w_no], [t_yes], want_fail=True, want_audit=[aud("files-write-off")], deny_audit=[aud("files-on")])
 
+    # ---- 21 Oct 26, S.73 item 3: the third level, sdfilesadmin.  The chain is sdfiles < sdfileswrite < sdfilesadmin: a group is never added to a person who holds one ABOVE it, a group above is taken away FIRST
+    # (top down, each read back), and a step that fails after a removal says what did happen.  Written from that rule (the owner's, 21 Oct 26), the cases first.
+    a_no, a_yes = msg(11525, ACCT, "no"), msg(11525, ACCT, "yes")
+    need_write = msg(11526, ACCT)
+    run_case("E0", "CONTROL, in all three, files-off: top down", True, True, "MODIFY.ACCOUNT %s FILES-OFF" % ACCT, {}, (False, False, False),
+             [("delgroup", "sdfilesadmin"), ("delgroup", "sdfileswrite"), ("delgroup", "sdfiles")], [a_no, w_no, t_no], [already], want_audit=[aud("files-off")], sa=True)
+    run_case("E1", "files-admin-on for a person in sdfiles and sdfileswrite", True, True, "MODIFY.ACCOUNT %s FILES-ADMIN-ON" % ACCT, {}, (True, True, True), [("addgroup", "sdfilesadmin")], [a_yes],
+             [need_write, already], want_audit=[aud("files-admin-on")])
+    run_case("E2a", "files-admin-on for a person in sdfiles only: refused (11526), nothing changed", True, False, "MODIFY.ACCOUNT %s FILES-ADMIN-ON" % ACCT, {}, (True, False, False), [], [need_write], [a_yes],
+             deny_audit=[any_mod], audit_checked=True)
+    run_case("E2b", "files-admin-on for a person in neither: refused (11526), nothing changed", False, False, "MODIFY.ACCOUNT %s FILES-ADMIN-ON" % ACCT, {}, (False, False, False), [], [need_write], [a_yes],
+             deny_audit=[any_mod], audit_checked=True)
+    run_case("E3", "files-admin-off for a person in all three: only the administration group goes", True, True, "MODIFY.ACCOUNT %s FILES-ADMIN-OFF" % ACCT, {}, (True, True, False),
+             [("delgroup", "sdfilesadmin")], [a_no], [w_no, t_no], want_audit=[aud("files-admin-off")], deny_audit=[aud("files-write-off")], sa=True)
+    run_case("E4", "files-write-off for a person in all three: the administration group goes FIRST", True, True, "MODIFY.ACCOUNT %s FILES-WRITE-OFF" % ACCT, {}, (True, False, False),
+             [("delgroup", "sdfilesadmin"), ("delgroup", "sdfileswrite")], [a_no, w_no], [t_no], want_audit=[aud("files-write-off")], sa=True)
+    run_case("E5", "a stray sdfilesadmin (in sdfiles, not in sdfileswrite), files-write-on: the stray goes before the write group is added", True, False, "MODIFY.ACCOUNT %s FILES-WRITE-ON" % ACCT, {}, (True, True, False),
+             [("delgroup", "sdfilesadmin"), ("addgroup", "sdfileswrite")], [a_no, w_yes], [already], want_audit=[aud("files-write-on")], sa=True)
+    run_case("E6", "a stray sdfilesadmin alone, files-on: the stray goes before sdfiles is added", False, False, "MODIFY.ACCOUNT %s FILES-ON" % ACCT, {}, (True, False, False),
+             [("delgroup", "sdfilesadmin"), ("addgroup", "sdfiles")], [a_no, t_yes], [already], want_audit=[aud("files-on")], sa=True)
+    run_case("E7", "in all three, files-off, the removal from sdfilesadmin FAILS: nothing changed, the rest is not touched", True, True, "MODIFY.ACCOUNT %s FILES-OFF" % ACCT, {"delgroup sdfilesadmin": ["fail"]},
+             (True, True, True), [("delgroup", "sdfilesadmin")], [], [a_no, w_no, t_no], want_fail=True, deny_audit=[any_mod], audit_checked=True, sa=True)
+    run_case("E8", "in all three, files-off, sdfilesadmin goes and the removal from sdfileswrite FAILS: the command says the administration group went", True, True, "MODIFY.ACCOUNT %s FILES-OFF" % ACCT,
+             {"delgroup sdfileswrite": ["fail"]}, (True, True, False), [("delgroup", "sdfilesadmin"), ("delgroup", "sdfileswrite")], [a_no], [t_no, w_no], want_fail=True,
+             want_audit=[aud("files-admin-off")], deny_audit=[aud("files-off"), aud("files-write-off")], sa=True)
+    run_case("E9", "in all three, files-off, both upper groups go and the removal from sdfiles FAILS: both removals are said and audited", True, True, "MODIFY.ACCOUNT %s FILES-OFF" % ACCT,
+             {"delgroup sdfiles": ["fail"]}, (True, False, False), [("delgroup", "sdfilesadmin"), ("delgroup", "sdfileswrite"), ("delgroup", "sdfiles")], [a_no, w_no], [t_no], want_fail=True,
+             want_audit=[aud("files-admin-off"), aud("files-write-off")], deny_audit=[aud("files-off")], sa=True)
+    run_case("E10a", "CONTROL, files-admin-on for a person who has it: already, nothing called", True, True, "MODIFY.ACCOUNT %s FILES-ADMIN-ON" % ACCT, {}, (True, True, True), [], [already], [a_no, a_yes],
+             deny_audit=[any_mod], audit_checked=True, sa=True)
+    run_case("E10b", "CONTROL, files-admin-off for a person who has not: already, nothing called", True, True, "MODIFY.ACCOUNT %s FILES-ADMIN-OFF" % ACCT, {}, (True, True, False), [], [already], [a_no, a_yes],
+             deny_audit=[any_mod], audit_checked=True)
+    run_case("E11", "files-off for a person in sdfilesadmin only (nothing else): the stray is removed, not 'already'", False, False, "MODIFY.ACCOUNT %s FILES-OFF" % ACCT, {}, (False, False, False),
+             [("delgroup", "sdfilesadmin")], [a_no], [already], want_audit=[aud("files-off")], sa=True)
+
 
 # MUTANTS: one fault in the SANDBOX's copy of modifya (never the tree), and the rows that must fail - written before the first run, from reading the program and the cases.  The
 # text to change must be in the tree's modifya exactly once.  A mutant that fails fewer rows is a rule no row guards; one that fails more is a row that guards the wrong thing.
@@ -300,22 +341,31 @@ MUTANTS = {
     "no-step-readback": ("if files.stat = 0 and cg.now # cg.want then files.stat = 2", "if 0 then files.stat = 2", ("C10ao", "C10af", "C10ag", "C10ac", "C10bf",
                                                                                                                    "C10aa", "C10ba")),   # + the command believes the helper and audits a success
     # a failure of the write group's removal does not stop the command: sdfiles goes next and the orphan is made
-    "write-failure-ignored": ("      gosub change.files.group\n      if files.stat # 0 then\n         @system.return.code = -ER$FAILED\n         crt sysmsg(10081, acc.name, files.stat)\n         return\n      end\n      now.write = cg.now",
+    # (21 Oct 26, S.73 item 3: the text of this one follows modifya, whose failure block now also says what the administration group did - report.removals - and the cases E8 are added to its list)
+    "write-failure-ignored": ("      gosub change.files.group\n      if files.stat # 0 then\n         @system.return.code = -ER$FAILED\n         gosub report.removals  ;* sdfilesadmin may have gone before this step\n         crt sysmsg(10081, acc.name, files.stat)\n         return\n      end\n      now.write = cg.now",
                               "      gosub change.files.group\n      now.write = cg.now", ("C3o", "C3f", "C3g", "C3c", "C10ao", "C10af", "C10ag", "C10ac", "C11o", "C11f", "C11g", "C11c",
-                                                                                                           "C3a", "C10aa", "C11a")),     # + the command goes on and audits a success
-    # sdfiles is taken from a person who is not in it
-    "sdfiles-for-nonmember": ("if files.grp = 'sdfiles' and not(files.want) and not(has.files) then\n      now.files = @false\n      files.stat = 0\n   end else",
-                              "if 0 then\n      now.files = @false\n      files.stat = 0\n   end else", ("C1c",)),
+                                                                                                           "C3a", "C10aa", "C11a",      # + the command goes on and audits a success
+                                                                                                           "E8o", "E8f", "E8g", "E8c", "E8a")),     # + E8: the administration group went, the write removal failed and the command goes on
+    # sdfiles is taken from a person who is not in it (since S.73 item 3 the test is has.target, the membership of the group asked for, whichever it is)
+    "sdfiles-for-nonmember": ("   if not(files.want) and not(has.target) then\n      now.files = @false\n      files.stat = 0\n   end else",
+                              "   if 0 then\n      now.files = @false\n      files.stat = 0\n   end else", ("C1c", "E11c")),
     # the line for the write group that went is not printed when the whole command worked
     "silent-write-removal": ("if write.removed then gosub write.removed.line  ;* the write group went too", "if 0 then gosub write.removed.line  ;* the write group went too",
                              ("C1o", "C2o", "C5o")),
     # finish 2 (verifier), written BEFORE the first run: the step after the write removal fails and the command does not say that the write group went (C4: files-off, sdfiles cannot be taken
     # away; C10b: the helper says yes and changes nothing; C11b: files-on, sdfiles cannot be added after a stray write membership was removed)
-    "failure-silent": ("         gosub write.removed.line\n      end\n      crt sysmsg(10081, acc.name, files.stat)", "      end\n      crt sysmsg(10081, acc.name, files.stat)", ("C4o", "C10bo", "C11bo")),
+    # (21 Oct 26: the failure block calls report.removals, which says the removals top down; E9 is the case where the write group's part of it matters twice)
+    "failure-silent": ("      gosub write.removed.line\n   end\n   return\n", "   end\n   return\n", ("C4o", "C10bo", "C11bo", "E9o")),
     # ... and the removal that happened has no audit line
-    "failure-unaudited": ("         void kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)\n", "", ("C4a", "C10ba", "C11ba")),
+    "failure-unaudited": ("      void kernel(K$AUDIT, 'modify.account files-write-off account=' : acc.name)\n", "", ("C4a", "C10ba", "C11ba", "E9a")),
     # ... or the audit line names the action that was ASKED for (files-off / files-on), which says the whole command worked
-    "failure-audit-asked": ("'modify.account files-write-off account=' : acc.name)", "'modify.account ' : downcase(action) : ' account=' : acc.name)", ("C4a", "C10ba", "C11ba")),
+    "failure-audit-asked": ("'modify.account files-write-off account=' : acc.name)", "'modify.account ' : downcase(action) : ' account=' : acc.name)", ("C4a", "C10ba", "C11ba", "E9a")),
+    # 21 Oct 26, S.73 item 3, written BEFORE the first run of the E cases: the administration group is not taken away first.  Every E case that holds it and removes anything sees it.
+    "admin-first-skipped": ("if (files.grp = 'sdfiles' or files.grp = 'sdfileswrite') and has.admin then", "if 0 then",
+                            ("E0o", "E0g", "E0c", "E4o", "E4g", "E4c", "E5o", "E5g", "E5c", "E6o", "E6g", "E6c", "E7o", "E7f", "E7g", "E7c", "E7a", "E8o", "E8a", "E8g", "E8c",
+                             "E9o", "E9a", "E9g", "E9c", "E11o", "E11g", "E11c")),
+    # ... FILES-OFF for a person who holds only the administration group says "already had that access" and leaves it
+    "admin-orphan-ignored": ("nothing.to.do = not(has.files) and not(has.write) and not(has.admin)", "nothing.to.do = not(has.files) and not(has.write)", ("E11o", "E11a", "E11g", "E11c")),
 }
 
 

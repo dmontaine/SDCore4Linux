@@ -149,7 +149,7 @@ if [ "$ROLE" = server-check ]; then
   say "  account $ACC, state saved $STARTED, audit offset $OFF"
   AUD=$(wl_audit_since "$OFF")
   say "  audit lines since the setup (api):"; printf '%s\n' "$AUD" | grep -a -E 'api' | cut -c1-200 | sed -e 's/^/      | /'
-  expect_re "SC1 the server's audit trail has a files-only login of $ACC with write=on (the client's login arrived)" "$AUD" "api login route=sdfiles write=on user=$ACC"
+  expect_re "SC1 the server's audit trail has a files-only login of $ACC with write=on (the client's login arrived)" "$AUD" "api login route=sdfiles write=on admin=off user=$ACC"
   expect_lacks "SC2 and no refusal of a request (the client asked only for what the account may do)" "$AUD" "api refused request="
   OUT=$(wl_sd_user "$ACC" "the records the client left" "CT zzwfile t4" "CT zzwfile t1")
   expect_re "SC3 the record t4 the CLIENT wrote is here, with its text (a write that came over the network)" "$OUT" '^1: from the client *$'

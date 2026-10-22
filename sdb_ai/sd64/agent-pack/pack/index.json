@@ -4849,7 +4849,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 162
+"words": 163
 },
 "core:start": {
 "kind": "core.start",
@@ -4863,7 +4863,7 @@
 "part": "core.md",
 "since": "-",
 "tier": "core",
-"words": 243
+"words": 247
 },
 "core:voc-types": {
 "kind": "core.digest",
@@ -10408,6 +10408,118 @@
 "since": "-",
 "tier": "reference",
 "words": 21
+},
+"msg:11524": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 18
+},
+"msg:11525": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 11
+},
+"msg:11526": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
+"msg:11527": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
+"msg:11528": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
+"msg:11529": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 31
+},
+"msg:11530": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11531": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 13
+},
+"msg:11532": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11533": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11534": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 20
+},
+"msg:11535": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 21
+},
+"msg:11536": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11537": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 12
+},
+"msg:11538": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 16
+},
+"msg:11539": {
+"kind": "message",
+"part": "reference/messages.md",
+"since": "-",
+"tier": "reference",
+"words": 19
 },
 "msg:11560": {
 "kind": "message",
@@ -23567,7 +23679,7 @@
 "part": "reference/system-keys.md",
 "since": "-",
 "tier": "reference",
-"words": 124
+"words": 187
 },
 "sys:ikeys:fl$": {
 "kind": "sys.keys",
@@ -24253,7 +24365,7 @@
 "part": "reference/system.md",
 "since": "-",
 "tier": "reference",
-"words": 255
+"words": 260
 },
 "sys:word:add": {
 "kind": "sys.word",
@@ -24310,6 +24422,20 @@
 "since": "-",
 "tier": "reference",
 "words": 62
+},
+"sys:word:files-admin-off": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 27
+},
+"sys:word:files-admin-on": {
+"kind": "sys.word",
+"part": "reference/system.md",
+"since": "-",
+"tier": "reference",
+"words": 44
 },
 "sys:word:files-off": {
 "kind": "sys.word",
@@ -25205,14 +25331,14 @@
 "part": "reference/tcl-verbs.md",
 "since": "0.6.3",
 "tier": "reference",
-"words": 66
+"words": 67
 },
 "tcl:create.file": {
 "kind": "tcl.verb",
 "part": "reference/tcl-verbs.md",
 "since": "L1.1-0",
 "tier": "reference",
-"words": 42
+"words": 46
 },
 "tcl:create.index": {
 "kind": "tcl.verb",
@@ -26416,7 +26542,7 @@
 "part": "reference/tcl-verbs.md",
 "since": "0.9.0",
 "tier": "reference",
-"words": 117
+"words": 121
 },
 "tcl:modify.password": {
 "kind": "tcl.verb",

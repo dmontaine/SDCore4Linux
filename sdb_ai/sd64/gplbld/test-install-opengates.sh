@@ -235,11 +235,16 @@ echo "--- S: static"
 inst_words=$(printf '%s\n' "$FUNC" | sed -n 's/^ *gate_words="\(.*\)"$/\1/p')
 row "S1 the function has ONE gate_words list" "$(ok "$([ -n "$inst_words" ] && [ "$(printf '%s\n' "$FUNC" | grep -c 'gate_words=')" -eq 1 ] && echo yes)")" "list: $inst_words"
 row "S1b ...and it is the list this test expects" "$(ok "$([ "$inst_words" = "$WORDS" ] && echo yes)")" "got: $inst_words"
-mod_words=$(grep -o "case action = '[A-Z.-]*'" "$MODIFYA" | sed "s/case action = '\(.*\)'/\1/" | grep -E '^(BOTH|[A-Z.-]+-ON)$' \
+all_on_words=$(grep -o "case action = '[A-Z.-]*'" "$MODIFYA" | sed "s/case action = '\(.*\)'/\1/" | grep -E '^(BOTH|[A-Z.-]+-ON)$' \
             | grep -v '^SHARED-READ-ON$' | tr 'A-Z' 'a-z' | sort | tr '\n' ' ' | sed 's/ $//')
+# 21 Oct 26, S.73 item 3 (owner, 20 Oct 2026, D4): files-admin-on is LEFT OUT of the "open every gate" answer on purpose - the right to administer files
+# on this server is turned on by hand (core direction 1, a looser default declined); S2b holds it out and S2 holds the rest to the function's list.
+mod_words=$(printf '%s\n' $all_on_words | grep -v '^files-admin-on$' | tr '\n' ' ' | sed 's/ $//')
 mine=$(printf '%s\n' $inst_words | sort | tr '\n' ' ' | sed 's/ $//')
-row "S2 the list is every word modify.account accepts to turn something on (shared-read-on is on by default): a gate added later fails here" \
+row "S2 the list is every word modify.account accepts to turn something on (shared-read-on is on by default; files-admin-on is left out on purpose, S2b): a gate added later fails here" \
     "$(ok "$([ -n "$mod_words" ] && [ "$mod_words" = "$mine" ] && echo yes)")" "modifya: $mod_words / installer: $mine"
+row "S2b files-admin-on is a word modify.account accepts and the installer's list does NOT hold it (the right to administer files is given by hand: owner, 20 Oct 2026)" \
+    "$(ok "$(case " $all_on_words " in *" files-admin-on "*) case " $mine " in *" files-admin-on "*) ;; *) echo yes;; esac;; esac)")" "modifya on-words: $all_on_words / installer: $mine"
 row "S3 files-on comes before files-write-on" \
     "$(ok "$(case " $inst_words " in *" files-on files-write-on "*) echo yes;; esac)")" "list: $inst_words"
 declare -A ACCOF=( [sh-on]='ACC$SH' [os-on]='ACC$OS.EXEC' [sd-on]='ACC$SD.ACCOUNTS' [voc-on]='ACC$VOC.EDIT' [bp-on]='ACC$BP.EDIT' [dict-on]='ACC$DICT.EDIT' [shared-write-on]='ACC$SHARED.WRITE' [net-on]='ACC$NET' )
