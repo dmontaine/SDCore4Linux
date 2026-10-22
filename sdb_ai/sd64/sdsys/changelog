@@ -1,6 +1,18 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  SCREEN SLIDER: AN ON / OFF SWITCH WITH A SLIDING KNOB FOR SD BASIC SCREENS.
+
+             What        SCREEN SLIDER f, id, text {AT x,y} {VALUE v} adds a switch to a form. It is drawn [O--] text when it is off and
+                        [==O] text when it is on. The space bar slides it the other way, Left slides it off, Right slides it on, and a
+                        click slides it the other way. SCREEN GET answers 1 or 0, SCREEN SET f, id VALUE v sets it (any value but 0 is on),
+                        and SCREEN WAIT reports a change event for it as it does for a check box.
+             Why it      An on / off choice in a full screen program (an access gate, a setting) can be shown as a switch, and Left and
+             matters     Right work on it directly, where a check box only has the space bar.
+             Does not    It is a different picture of the same two values as a check box, not a new kind of value, and it does not slide
+                        by dragging with the mouse: a click slides it the other way. A click on a switch that has not the focus gives it
+                        the focus and slides it, and the form reports the focus, not a change, as it does for a check box.
+
 21 Oct 26  THE INSTALLER NOW MAKES A SYSTEM USER, "sdai", FOR THE AI FEATURE THAT SD WILL LATER CALL ITSELF.
 
              What        The installer makes an operating system user, sdai, with its own group, no login shell, no home directory and no

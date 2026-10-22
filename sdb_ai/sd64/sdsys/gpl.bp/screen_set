@@ -54,7 +54,7 @@ $catalog !screen_set
             w{'value'} = value
             w{'pos'} = len(value) + 1
             w{'pan'} = 1
-         case wt = 'check'
+         case wt = 'check' or wt = 'slider'
             v = 0
             if value + 0 # 0 then v = 1
             w{'value'} = v

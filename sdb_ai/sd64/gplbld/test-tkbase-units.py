@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -168,6 +168,14 @@ def checks(raw):
         and "loop while not(exhausted) and n < cachecap do gosub fetch repeat" in pw and pw.count("clearselect 10") == 3 and "clearselect 10 sselect src to 10" in pw
         and "if fmode and cur >= n then gosub fetch" in pw and "if fmode and cur + lh - 1 > n then gosub fetch" in pw
         and "if fmode and not(exhausted) and cur > n - lh then gosub fetch" in pw and "if fmode then gosub file.refilter return end" in pw, "")
+    sl = sq["sl_slider"]
+    add("T31", "$sl_slider: the value is 0 or 1 from the start; the space bar slides it the other way, Left sets it off and Right sets it on (each 'handled'), any other key is 'unhandled' with its name; "
+        "a click slides it the other way; it is drawn [O--] off and [==O] on, with the cursor on the knob; it draws, reads and writes nothing else",
+        "if w{'value'} + 0 # 0 then v = 1 w{'value'} = v" in sl and "case key = ' ' ret = 'handled' v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
+        and "case key = 'left' ret = 'handled' w{'value'} = 0 gosub paint" in sl and "case key = 'right' ret = 'handled' w{'value'} = 1 gosub paint" in sl
+        and "case 1 ret = 'unhandled' : @fm : key" in sl and sl.count("case key = ") == 3 and "if key<1> = 'press' then v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
+        and "sw = '[O--] ' kx = 1 if w{'value'} then sw = '[==O] ' kx = 3 end" in sl and "call $sl_curat(w{'ax'} + kx, w{'ay'} + 0)" in sl
+        and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", sl)), "")
     return out
 
 
@@ -256,6 +264,13 @@ MUT = [
     ("sl_pickwin", "? is added to the filter", "         case k = '?'\n            helpon = 1 - helpon\n", ""),
     ("sl_pickwin", "the space picks only after a character is added to the filter", "         case k = ' ' and multi\n            gosub toggle\n", ""),
     ("sl_pickwin", "the window writes a record", "   if fmode then clearselect 10\n   if st = 'done' then status = 0", "   write items to scr, 'x'\n   if fmode then clearselect 10\n   if st = 'done' then status = 0"),
+    ("sl_slider", "the space bar does nothing", "            case key = ' '\n               ret = 'handled'", "            case key = 'zz'\n               ret = 'handled'"),
+    ("sl_slider", "Left slides it on", "               w{'value'} = 0\n               gosub paint", "               w{'value'} = 1\n               gosub paint"),
+    ("sl_slider", "Right slides it off", "               w{'value'} = 1\n               gosub paint", "               w{'value'} = 0\n               gosub paint"),
+    ("sl_slider", "a start value of 5 stays 5", "if w{'value'} + 0 # 0 then v = 1", "if 0 then v = 1"),
+    ("sl_slider", "off and on look the same", "      sw = '[==O] '", "      sw = '[O--] '"),
+    ("sl_slider", "the cursor is not put on the knob", "call $sl_curat(w{'ax'} + kx, w{'ay'} + 0)", "null"),
+    ("sl_slider", "an arrow other than Left and Right is taken", "            case 1\n               ret = 'unhandled' : @fm : key", "            case key = 'up'\n               ret = 'handled'\n            case 1\n               ret = 'unhandled' : @fm : key"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 

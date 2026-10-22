@@ -39,7 +39,7 @@ F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
 KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b",
-        "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~", "PGDN": "\x1b[6~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
+        "LEFT": "\x1bOD", "RIGHT": "\x1bOC", "F2": "\x1bOQ", "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~", "PGDN": "\x1b[6~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
 F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
@@ -752,6 +752,90 @@ def pick_rows(box, made):
         skip("the window was open when the input ended", "the pipe did not decode F9 into the key, so the window was never drawn")
 
 
+# TK-0.8.  `tktest slider` shows a form with two SCREEN SLIDER switches and a check box; the label under them reads "sh=<v> os=<v> chk=<v> last=<id>=<v> n=<changes>" (n counts
+# the change events of SCREEN WAIT, so a Left on a switch that is already off, which must report nothing, is seen as n not moving).  F2 sets the switches from the program.
+def slider_rows(box, made):
+    say("\n--- the slider, an on / off switch (TK-0.8)")
+    t = Term(box, "tktest slider")
+
+    def where(txt):
+        for r_, l_ in enumerate(t.lines()):
+            c_ = l_.find(txt)
+            if c_ >= 0:
+                return r_, c_
+        return None
+
+    def logline():
+        m_ = re.search(r"sh=(\d) os=(\d) chk=(\d) last=(\S+) n=(\d+)", "\n".join(t.lines()))
+        return m_.groups() if m_ else None
+
+    if where("Shell (sh)") is None:
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest slider never drew its form, so no row below can be believed")
+    row("the form is drawn: sh is off ([O--]), os starts on ([==O], VALUE 1), the plain check box is [ ], the label reads sh=0 os=1 chk=0 last=none n=0",
+        where("[O--] Shell (sh)") is not None and where("[==O] OS.EXECUTE") is not None and where("[ ] a plain check box") is not None and logline() == ("0", "1", "0", "none", "0"), repr((logline(), t.line(8)[40:92])))
+    r1, c1 = where("[O--] Shell (sh)") or (0, 0)
+    row("the first switch has the focus: its text is in reverse video and the second's is not", "Shell" in t.rev(r1) and "OS.EXECUTE" not in t.rev(r1), repr(t.rev(r1)))
+    t.key("SPACE")
+    row("Space slides it the other way: sh is on ([==O] Shell (sh)); one change event: last=sh=1 n=1", where("[==O] Shell (sh)") is not None and where("[O--] Shell (sh)") is None and logline() == ("1", "1", "0", "sh=1", "1"), repr(logline()))
+    t.key("LEFT")
+    row("Left slides it off ([O--]); n=2", where("[O--] Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
+    t.key("LEFT")
+    row("Left again on a switch that is already off changes nothing and reports nothing: n is still 2", where("[O--] Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
+    t.key("RIGHT")
+    t.key("RIGHT")
+    row("Right slides it on, a second Right changes nothing: [==O] Shell (sh), n=3", where("[==O] Shell (sh)") is not None and logline() == ("1", "1", "0", "sh=1", "3"), repr(logline()))
+    t.key("TAB")
+    r2, c2 = where("[==O] OS.EXECUTE") or (0, 0)
+    row("Tab moves the focus to the second switch: its text is in reverse video, the first's is not, no change event (n=3)", "OS.EXECUTE" in t.rev(r2) and "Shell" not in t.rev(r1) and logline()[4] == "3", repr((t.rev(r2), logline())))
+    t.key("LEFT")
+    row("Left on it slides os off ([O--] OS.EXECUTE); n=4", where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "0", "os=0", "4"), repr(logline()))
+    t.key("TAB")
+    t.key("SPACE")
+    row("Tab to the check box and Space: it is [x] (the check box still works beside the switches); n=5", where("[x] a plain check box") is not None and logline() == ("1", "0", "1", "chk=1", "5"), repr(logline()))
+    r2, c2 = where("[O--] OS.EXECUTE") or where("[==O] OS.EXECUTE") or (0, 0)
+    t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c2 + 3, r2 + 1, c2 + 3, r2 + 1), idle=0.6)
+    click = lambda: t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c2 + 3, r2 + 1, c2 + 3, r2 + 1), idle=0.6)
+    row("a click on the second switch, which has not the focus, slides it the other way (os is on again, [==O] OS.EXECUTE) and gives it the focus: the form reports the FOCUS, as for a check box, so n is still 5",
+        where("[==O] OS.EXECUTE") is not None and logline() == ("1", "1", "1", "chk=1", "5") and "OS.EXECUTE" in t.rev(r2), repr((logline(), t.rev(r2))))
+    click()
+    row("a second click, now that it has the focus, slides it off again ([O--]) and is a change event: n=6, last=os=0", where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "1", "os=0", "6"), repr(logline()))
+    click()
+    row("a third click slides it on: n=7, last=os=1", where("[==O] OS.EXECUTE") is not None and logline() == ("1", "1", "1", "os=1", "7"), repr(logline()))
+    t.key("F2")
+    row("SCREEN SET ... VALUE from the program: F2 sets sh to 5 (any non-zero is on: SCREEN GET answers 1, not 5) and os to 0 ([O--]); the switches are redrawn and no change event is made (n is still 7)",
+        where("[==O] Shell (sh)") is not None and where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "1", "set", "7"), repr(logline()))
+    t.key("ENTER")
+    row("Enter (the switch does not take it) presses the form's default button: the form is gone and the status line says sliders sh=1 os=0 chk=1 pressed=ok",
+        "sliders sh=1 os=0 chk=1 pressed=ok" in t.line(40) and where("Shell (sh)") is None, repr(t.line(40)))
+    t.end()
+
+    t = Term(box, "tktest slider")
+    t.key("ESC")
+    row("Esc is a cancel event: the form is gone and the status line says pressed=cancel with the values it had (sh=0 os=1 chk=0)", "sliders sh=0 os=1 chk=0 pressed=cancel" in t.line(40), repr(t.line(40)))
+    t.end()
+
+    say("    --- on a pipe: the input ends with the form up")
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
+    r0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=os.path.join(box, "user_accounts"), env=env)
+    t0 = time.time()
+    try:
+        outp, _ = p.communicate(b"\nTERM 140,43\ntktest slider\n", timeout=20)
+        ended = True
+    except subprocess.TimeoutExpired:
+        os.kill(p.pid, 1)
+        time.sleep(1)
+        p.kill()
+        outp, _ = p.communicate()
+        ended = False
+    took = time.time() - t0
+    r1_ = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu = (r1_.ru_utime - r0.ru_utime) + (r1_.ru_stime - r0.ru_stime)
+    say("    [measured] ended: %s after %.1f s, the child's CPU %.2f s, the form was drawn on the pipe: %s" % (ended, took, cpu, "yes" if b"Shell (sh)" in outp else "no"))
+    row("a piped session whose input ends with the form up ends within 20 s and does not spin (under 3 s of CPU)", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
+
+
 # TK-0.7 (G1, the paged source).  `tktest pick 12 50 1000` opens, on F11 (one record id) and F12 (several, with the first attribute as the description), the pick window over
 # the record ids of the file zzpkfile (6,000 records rec00001 to rec06000, attribute 1 'shelf <n mod 50>'), reading a page of 50 at most 1,000 ids at a time.
 PKPROG = """$internal
@@ -1141,6 +1225,7 @@ def main():
         table_rows(box, made)
         pick_rows(box, made)
         pickfile_rows(box, made)
+        slider_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

@@ -1,0 +1,104 @@
+* SL_SLIDER
+* Screen library, widget: an on/off switch with a sliding knob.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 22 Oct 26 dm  New (S.75, TK-0.8; the owner asked for a slider button for on / off, 22 Oct 2026).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call $sl_slider(op, w, scr, key, ret)      the widget contract; w is a collection (see $sl_label)
+*
+*   Elements:  id, text, x y, ax ay, value (1 on, 0 off)
+*
+*     init    w = the width of "[==O] text", h = 1; value is made 0 or 1
+*     draw    [O--] text when it is off (the knob at the left, the track empty) and [==O] text when it is on (the knob at the right, the track filled), in
+*             reverse video while it has the focus; the cursor is on the knob
+*     focus   key = 1 gives it the focus (draws), key = 0 takes it away (draws)
+*     key     the space bar slides it the other way; Left slides it off and Right slides it on (whatever it was: 'handled' either way).  Anything else is
+*             'unhandled' with the key (Return, Tab, Up, Down ...) for the form to act on.
+*     mouse   a click on it slides it the other way
+*     close   nothing to undo
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine sl_slider(op, w, scr, key, ret)
+$catalog $sl_slider
+
+$include sl.h
+
+   ret = ''
+
+   begin case
+      case op = 'init'
+         w{'type'} = 'slider'
+         w{'focusable'} = 1
+         t = w{'text'}
+         p = index(t, '&', 1)
+         if p and p < len(t) then t = t[1, p - 1] : t[p + 1, 99999]
+         w{'label'} = t
+         v = 0
+         if w{'value'} + 0 # 0 then v = 1
+         w{'value'} = v
+         w{'w'} = len(t) + 6
+         w{'h'} = 1
+
+      case op = 'draw'
+         gosub paint
+
+      case op = 'focus'
+         w{'focused'} = if key then 1 else 0
+         gosub paint
+
+      case op = 'key'
+         begin case
+            case key = ' '
+               ret = 'handled'
+               v = 1
+               if w{'value'} then v = 0
+               w{'value'} = v
+               gosub paint
+            case key = 'left'
+               ret = 'handled'
+               w{'value'} = 0
+               gosub paint
+            case key = 'right'
+               ret = 'handled'
+               w{'value'} = 1
+               gosub paint
+            case 1
+               ret = 'unhandled' : @fm : key
+         end case
+
+      case op = 'mouse'
+         ret = 'handled'
+         if key<1> = 'press' then                  ;* a click on it slides it the other way
+            v = 1
+            if w{'value'} then v = 0
+            w{'value'} = v
+            gosub paint
+         end
+   end case
+
+   return
+
+paint:
+   call $sl_attr('window', code)
+   if w{'focused'} then call $sl_attr('highlight', code)
+   sw = '[O--] '
+   kx = 1
+   if w{'value'} then
+      sw = '[==O] '
+      kx = 3
+   end
+   call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, sw : w{'label'}, code)
+   if w{'focused'} then call $sl_curat(w{'ax'} + kx, w{'ay'} + 0)
+   return
+end
+
+* END-CODE

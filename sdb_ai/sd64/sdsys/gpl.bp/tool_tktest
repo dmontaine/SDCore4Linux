@@ -10,7 +10,9 @@
 *
 * START-DESCRIPTION:
 *
-*   tktest {admin} {dialogs}
+*   tktest {admin} {dialogs}      tktest table [N] [theme]      tktest pick [N] [page] [scan]      tktest slider
+*
+*   slider shows a form with two sliders and a check box (the on / off switch, SCREEN SLIDER); a label under them shows their values and the last change.
 *
 *   dialogs starts on pane D, whose keys are F7 (a Run / Cancel box for create.file zztkdlg1 dynamic) and F8 (the same with the name zztkdlg2 to be typed): the
 *   confirm boxes of the base ($tk_explain, $tk_confirm, then $tk_run), exercised by sandbox-tk-base.py with the disk as evidence.
@@ -105,6 +107,12 @@ $include tk.h
       end
    end
 
+   * pane S: a form with two sliders (SCREEN SLIDER, TK-0.8) and a check box; the label shows their values and the last change; F2 sets them from the program
+   if field(@sentence, ' ', 2) = 'slider' then
+      pane = 'S'
+      gosub s.run
+   end
+
    loop
       call $tk_frame(ctx, keys, pane, msg)
       screen key returning k
@@ -180,6 +188,46 @@ $include tk.h
 
    call $tk_close(ctx)
    stop
+
+* the slider form: it stays on the screen between events; Enter on the button or Esc ends it and the status line says what the values were
+s.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Gates' at 40,6 size 52,14 returning sf
+   screen slider sf, 'sh', '&Shell (sh)' at 3,2
+   screen slider sf, 'os', '&OS.EXECUTE' at 3,4 value 1
+   screen check sf, 'chk', 'a plain check box' at 3,6
+   screen label sf, 'log', 'sh=0 os=1 chk=0 last=none n=0' at 3,8 width 46
+   screen button sf, 'ok', '&OK' at 20,11 default
+   slog = 'none'
+   schg = 0
+   spressed = 'end'
+   loop
+      screen wait sf returning ev then
+         if ev<1> = 'change' then slog = ev<2> : '=' : ev<3> ; schg += 1
+         if ev<1> = 'button' then
+            spressed = ev<2>
+            exit
+         end
+         if ev<1> = 'key' and ev<3> = 'f2' then
+            screen set sf, 'sh' value 5
+            screen set sf, 'os' value 0
+            slog = 'set'
+         end
+         screen get sf, 'sh' returning sv1
+         screen get sf, 'os' returning sv2
+         screen get sf, 'chk' returning sv3
+         screen set sf, 'log' text 'sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' last=' : slog : ' n=' : schg
+      end else
+         spressed = ev<1>
+         exit
+      end
+   repeat
+   screen get sf, 'sh' returning sv1
+   screen get sf, 'os' returning sv2
+   screen get sf, 'chk' returning sv3
+   screen hide sf
+   msg = 'sliders sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' pressed=' : spressed
+   return
 
 * the entries of the pick window: twelve commands with a description and a help, then item00013 and so on up to pn
 p.build:
