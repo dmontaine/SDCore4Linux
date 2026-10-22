@@ -241,7 +241,7 @@ CUSTOMER_FORM = """   cities = 'Albany':@vm:'Boston':@vm:'Chicago':@vm:'Denver'
    screen form title 'Customer' at 10,3 size 56,16 returning f
    screen label  f, 'l1', 'Name:'          at 2,2
    screen entry  f, 'name'                 at 12,2 width 30 value 'Smith'
-   screen check  f, 'vip', '&VIP customer' at 12,4 value 1
+   screen check  f, 'vip', '&VIP customer' at 12,4 value 1 place 'right'
    screen label  f, 'l2', 'Type:'          at 2,6
    screen radio  f, 'kind', 'Retail':@vm:'Wholesale':@vm:'Staff' at 12,6 value 2
    screen label  f, 'l3', 'City:'          at 2,10
@@ -310,7 +310,7 @@ end
     "zzscwt1": dialogue_program("""   screen form title 'Events' at 10,3 size 44,12 returning f
    screen label  f, 'st', 'ready' at 2,9 width 30 attr 'reverse'
    screen entry  f, 'name' at 8,2 width 20 value 'Al'
-   screen check  f, 'on', '&Enable' at 8,4 value 0
+   screen check  f, 'on', '&Enable' at 8,4 value 0 place 'right'
    screen combo  f, 'city', 'Albany':@vm:'Boston':@vm:'Chicago' at 8,6 width 12 value 'Boston'
    screen progress f, 'pg' at 2,8 width 20 value 25
    screen button f, 'go', '&Go' at 2,10 default
@@ -1229,7 +1229,7 @@ PROGS.update({
    screen page f, 1
    screen label  f, 'l1', 'Name:' at 2,3
    screen entry  f, 'name' at 10,3 width 20 value 'Smith'
-   screen check  f, 'vip', '&VIP' at 10,5 value 1
+   screen check  f, 'vip', '&VIP' at 10,5 value 1 place 'right'
    screen page f, 2
    screen label  f, 'l2', 'Street:' at 2,3
    screen entry  f, 'street' at 10,3 width 20 value 'Main St'

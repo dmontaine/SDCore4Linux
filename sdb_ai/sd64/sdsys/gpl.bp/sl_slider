@@ -8,6 +8,7 @@
 * 22 Oct 26 dm  The look is [off | ON] and [OFF | on], as the owner was first shown (the first build drew a knob on a track, [O--] and [==O], and said nothing
 *               of the change); the word in force is in capitals and in the style attr (bold unless the program says another).  A click on a word sets that
 *               state.  The words are the program's to choose (offw and onw: [left | RIGHT]); off and on when it says nothing.
+* 22 Oct 26 dm  The label goes where place says (left by default, right, above, below), through $sl_caption (TK-0.9).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -15,16 +16,18 @@
 *   call $sl_slider(op, w, scr, key, ret)      the widget contract; w is a collection (see $sl_label)
 *
 *   Elements:  id, text, x y, ax ay, value (1 on, 0 off), offw and onw (the word of each state, off and on when null), attr (the style of the word in force: any
-*   style of $sl_theme, bold when null; window leaves it as the form's own, so only the capitals show it)
+*   style of $sl_theme, bold when null; window leaves it as the form's own, so only the capitals show it), place (where the label is: left, right, above or
+*   below; left when null)
 *
-*     init    w = the width of "[off | ON] text", h = 1; value is made 0 or 1
-*     draw    [off | ON] text when it is on and [OFF | on] text when it is off: the word in force is in capitals and in the style attr, the other in lower case.
-*             While the switch has the focus the whole of it is in reverse video (the capitals still show the state) and the cursor is on the word in force
+*     init    w and h from the switch and the label (one row; two rows when the label is above or below); value is made 0 or 1
+*     draw    the label and [off | ON] when it is on, [OFF | on] when it is off (label on the left by default: text [off | ON]): the word in force is in capitals and in
+*             the style attr, the other in lower case.  While the switch has the focus the whole of it, label included, is in reverse video (the capitals still show
+*             the state) and the cursor is on the word in force
 *     focus   key = 1 gives it the focus (draws), key = 0 takes it away (draws)
 *     key     the space bar slides it the other way; Left sets it off and Right sets it on (whatever it was: 'handled' either way).  Anything else is
 *             'unhandled' with the key (Return, Tab, Up, Down ...) for the form to act on.
 *     mouse   a click on the first word (or the cells before it, or the bar) sets it off, a click on the second word (or the cells after it, the bracket) sets it
-*             on, and a click on the text after it slides it the other way
+*             on, and a click on the label slides it the other way
 *     close   nothing to undo
 *
 * END-DESCRIPTION
@@ -53,8 +56,9 @@ $include sl.h
          if w{'attr'} = '' then w{'attr'} = 'bold'
          if w{'offw'} = '' then w{'offw'} = 'off'
          if w{'onw'} = '' then w{'onw'} = 'on'
-         w{'w'} = len(t) + len(w{'offw'}) + len(w{'onw'}) + 6
-         w{'h'} = 1
+         call $sl_caption(w{'place'}, len(w{'offw'}) + len(w{'onw'}) + 5, t, geom)
+         w{'w'} = geom<1, SL.CAP.W>
+         w{'h'} = geom<1, SL.CAP.H>
 
       case op = 'draw'
          gosub paint
@@ -86,13 +90,15 @@ $include sl.h
       case op = 'mouse'
          ret = 'handled'
          if key<1> = 'press' then
-            rel = key<3> - w{'ax'}
             lo = len(w{'offw'})
             ln = len(w{'onw'})
+            call $sl_caption(w{'place'}, lo + ln + 5, w{'label'}, geom)
+            rel = key<3> - w{'ax'} - geom<1, SL.CAP.CX>
+            rrow = key<4> - w{'ay'} - geom<1, SL.CAP.CY>
             begin case
-               case rel <= lo + 2
+               case rrow = 0 and rel >= 0 and rel <= lo + 2
                   w{'value'} = 0
-               case rel <= lo + ln + 4
+               case rrow = 0 and rel >= 0 and rel <= lo + ln + 4
                   w{'value'} = 1
                case 1
                   v = 1
@@ -110,24 +116,37 @@ paint:
    if w{'focused'} then call $sl_attr('highlight', code)
    lo = len(w{'offw'})
    ln = len(w{'onw'})
-   sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : '] '
+   sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : ']'
    a0 = 1
    al = lo
    if w{'value'} then
-      sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : '] '
+      sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : ']'
       a0 = lo + 4
       al = ln
    end
-   txt = sw : w{'label'}
-   cells = str(code, len(txt))
-   if not(w{'focused'}) then
-      call $sl_attr(w{'attr'}, ac)
-      for k = 1 to al
-         cells[a0 + k, 1] = ac
-      next k
-   end
-   call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, txt, cells)
-   if w{'focused'} then call $sl_curat(w{'ax'} + a0, w{'ay'} + 0)
+   call $sl_caption(w{'place'}, len(sw), w{'label'}, geom)
+   gw = geom<1, SL.CAP.W>
+   gh = geom<1, SL.CAP.H>
+   cx = geom<1, SL.CAP.CX>
+   cy = geom<1, SL.CAP.CY>
+   lx = geom<1, SL.CAP.LX>
+   ly = geom<1, SL.CAP.LY>
+   for r = 0 to gh - 1
+      rowtext = space(gw)
+      cells = str(code, gw)
+      if r = cy then
+         rowtext[cx + 1, len(sw)] = sw
+         if not(w{'focused'}) then
+            call $sl_attr(w{'attr'}, ac)
+            for k = 1 to al
+               cells[cx + a0 + k, 1] = ac
+            next k
+         end
+      end
+      if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'}
+      call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, rowtext, cells)
+   next r
+   if w{'focused'} then call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)
    return
 end
 

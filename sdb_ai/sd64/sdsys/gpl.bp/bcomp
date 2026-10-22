@@ -525,8 +525,8 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    screen.names<-1> = "LABEL"   ; screen.defs<-1> = "!screen_label":@vm:3:@vm:"AT:2":@sm:"ATTR:1":@sm:"WIDTH:1"
    screen.names<-1> = "FRAME"   ; screen.defs<-1> = "!screen_frame":@vm:2:@vm:"AT:2":@sm:"SIZE:2":@sm:"TITLE:1"
    screen.names<-1> = "ENTRY"   ; screen.defs<-1> = "!screen_entry":@vm:2:@vm:"AT:2":@sm:"WIDTH:1":@sm:"VALUE:1":@sm:"MASK:F":@sm:"MAXLEN:1"
-   screen.names<-1> = "CHECK"   ; screen.defs<-1> = "!screen_check":@vm:3:@vm:"AT:2":@sm:"VALUE:1"
-   screen.names<-1> = "SLIDER"  ; screen.defs<-1> = "!screen_slider":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"ATTR:1":@sm:"WORDS:2"       ;* 22 Oct 26: an on / off switch (TK-0.8)
+   screen.names<-1> = "CHECK"   ; screen.defs<-1> = "!screen_check":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"PLACE:1"
+   screen.names<-1> = "SLIDER"  ; screen.defs<-1> = "!screen_slider":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"ATTR:1":@sm:"WORDS:2":@sm:"PLACE:1"       ;* 22 Oct 26: an on / off switch (TK-0.8)
    screen.names<-1> = "RADIO"   ; screen.defs<-1> = "!screen_radio":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"ACROSS:F"
    screen.names<-1> = "LIST"    ; screen.defs<-1> = "!screen_list":@vm:3:@vm:"AT:2":@sm:"SIZE:2":@sm:"VALUE:1":@sm:"MULTI:F"
    screen.names<-1> = "BUTTON"  ; screen.defs<-1> = "!screen_button":@vm:3:@vm:"AT:2":@sm:"DEFAULT:F":@sm:"CANCEL:F"

@@ -116,6 +116,12 @@ $include tk.h
       gosub s.run
    end
 
+   * pane S again: every place of the label (left, right, above, below, and none given, which is left) for a check box and a slider
+   if field(@sentence, ' ', 2) = 'place' then
+      pane = 'S'
+      gosub pl.run
+   end
+
    loop
       call $tk_frame(ctx, keys, pane, msg)
       screen key returning k
@@ -196,10 +202,10 @@ $include tk.h
 s.run:
    call $tk_frame(ctx, keys, pane, msg)
    screen form title 'Gates' at 40,6 size 52,17 returning sf
-   screen slider sf, 'sh', '&Shell (sh)' at 3,2
-   screen slider sf, 'os', '&OS.EXECUTE' at 3,4 value 1
-   screen slider sf, 'cap', 'capitals only' at 3,6 value 1 attr 'window' words 'left','right'
-   screen check sf, 'chk', 'a plain check box' at 3,8
+   screen slider sf, 'sh', '&Shell (sh)' at 3,2 place 'right'
+   screen slider sf, 'os', '&OS.EXECUTE' at 3,4 value 1 place 'right'
+   screen slider sf, 'cap', 'capitals only' at 3,6 value 1 attr 'window' words 'left','right' place 'right'
+   screen check sf, 'chk', 'a plain check box' at 3,8 place 'right'
    screen label sf, 'log', 'sh=0 os=1 chk=0 last=none n=0' at 3,10 width 46
    screen button sf, 'ok', '&OK' at 20,14 default
    slog = 'none'
@@ -231,6 +237,42 @@ s.run:
    screen get sf, 'chk' returning sv3
    screen hide sf
    msg = 'sliders sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' pressed=' : spressed
+   return
+
+* the placement form: a check box (left column) and a slider (right column) for each place of the label; the label at the foot says the last change
+pl.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Placement' at 10,3 size 120,22 returning sf
+   screen check sf, 'cl', '&check left' at 3,2 place 'left'
+   screen check sf, 'cr', 'check right' at 3,4 place 'right'
+   screen check sf, 'ca', 'check above' at 3,6 place 'above'
+   screen check sf, 'cb', 'check below' at 3,9 place 'below'
+   screen check sf, 'cd', 'check default' at 3,12
+   screen slider sf, 'sl', 'slider left' at 62,2 place 'left'
+   screen slider sf, 'sr', 'slider right' at 62,4 place 'right'
+   screen slider sf, 'sa', 'slider above' at 62,6 place 'above'
+   screen slider sf, 'sb', 'slider below' at 62,9 place 'below'
+   screen slider sf, 'sd', 'slider default' at 62,12
+   screen label sf, 'log', 'last=none n=0' at 3,15 width 100
+   screen button sf, 'ok', '&OK' at 50,18 default
+   slog = 'none'
+   schg = 0
+   spressed = 'end'
+   loop
+      screen wait sf returning ev then
+         if ev<1> = 'change' then slog = ev<2> : '=' : ev<3> ; schg += 1
+         if ev<1> = 'button' then
+            spressed = ev<2>
+            exit
+         end
+         screen set sf, 'log' text 'last=' : slog : ' n=' : schg
+      end else
+         spressed = ev<1>
+         exit
+      end
+   repeat
+   screen hide sf
+   msg = 'placement pressed=' : spressed
    return
 
 * the entries of the pick window: twelve commands with a description and a help, then item00013 and so on up to pn

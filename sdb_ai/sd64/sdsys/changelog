@@ -1,6 +1,19 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  SCREEN CHECK AND SCREEN SLIDER: THE LABEL GOES WHERE YOU SAY, AND ON THE LEFT BY DEFAULT.
+
+             What        Both statements take PLACE where: left, right, above or below. The label used to be after the check box ([x] text);
+                        it is now before it by default (text [x]) and PLACE 'right' gives the old look. ABOVE and BELOW make the control two
+                        rows high, the label on one row and the box or switch on the other, both against the left edge. A click on the label
+                        works the control (a check box is checked or unchecked, a switch slides the other way), the focus highlight covers
+                        label and control together, and the cursor sits on the box or on the word in force.
+             Why it      A column of controls can have their labels on the left, like the fields of a form, or above them, without a separate
+             matters     label statement and without the label and the control coming apart when a program moves or hides one of them.
+             Does not    It changes the look of a check box that did not say PLACE: a program written against the earlier build of the
+                        screen library, which drew [x] text, must say PLACE 'right' to keep it. No program shipped with SD uses SCREEN
+                        CHECK, so none changed. Radio groups, lists and the other controls have no PLACE.
+
 22 Oct 26  SCREEN SLIDER: AN ON / OFF SWITCH, [off | ON], WITH WORDS OF YOUR CHOICE, FOR SD BASIC SCREENS.
 
              What        SCREEN SLIDER f, id, text {AT x,y} {VALUE v} {ATTR style} {WORDS w1,w2} adds a switch to a form. It is drawn

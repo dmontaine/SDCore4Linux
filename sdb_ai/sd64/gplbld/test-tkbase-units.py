@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -177,11 +177,28 @@ def checks(raw):
         and "case key = ' ' ret = 'handled' v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
         and "case key = 'left' ret = 'handled' w{'value'} = 0 gosub paint" in sl and "case key = 'right' ret = 'handled' w{'value'} = 1 gosub paint" in sl
         and "case 1 ret = 'unhandled' : @fm : key" in sl and sl.count("case key = ") == 3
-        and "rel = key<3> - w{'ax'} lo = len(w{'offw'}) ln = len(w{'onw'}) begin case case rel <= lo + 2 w{'value'} = 0 case rel <= lo + ln + 4 w{'value'} = 1 case 1 v = 1 if w{'value'} then v = 0 w{'value'} = v end case gosub paint" in sl
-        and ("lo = len(w{'offw'}) ln = len(w{'onw'}) sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : '] ' a0 = 1 al = lo if w{'value'} then "
-             "sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : '] ' a0 = lo + 4 al = ln end") in sl
-        and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[a0 + k, 1] = ac next k end" in sl and "call $sl_curat(w{'ax'} + a0, w{'ay'} + 0)" in sl
+        and ("lo = len(w{'offw'}) ln = len(w{'onw'}) call $sl_caption(w{'place'}, lo + ln + 5, w{'label'}, geom) rel = key<3> - w{'ax'} - geom<1, SL.CAP.CX> rrow = key<4> - w{'ay'} - geom<1, SL.CAP.CY> "
+             "begin case case rrow = 0 and rel >= 0 and rel <= lo + 2 w{'value'} = 0 case rrow = 0 and rel >= 0 and rel <= lo + ln + 4 w{'value'} = 1 case 1 v = 1 if w{'value'} then v = 0 w{'value'} = v end case gosub paint") in sl
+        and ("lo = len(w{'offw'}) ln = len(w{'onw'}) sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : ']' a0 = 1 al = lo if w{'value'} then "
+             "sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : ']' a0 = lo + 4 al = ln end") in sl
+        and "call $sl_caption(w{'place'}, len(sw), w{'label'}, geom)" in sl and "call $sl_caption(w{'place'}, len(w{'offw'}) + len(w{'onw'}) + 5, t, geom)" in sl
+        and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[cx + a0 + k, 1] = ac next k end" in sl and "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)" in sl
         and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", sl)), "")
+    cp = sq["sl_caption"]
+    add("T32", "$sl_caption: the place is left unless it is right, above or below (anything else, or nothing, is left); left and right are one row, the label and the control a space apart, the control "
+        "on the right of the label for left and on the left for right; above and below are two rows, as wide as the wider of the two, the control under the label for above and over it for below; "
+        "no label gives the control alone; it draws and reads nothing",
+        ordered(cp, "p = downcase(place)", "if lw > 0 then", "case p = 'right'", "case p = 'above'", "case p = 'below'", "case 1")
+        and "gw = lw + 1 + cw cx = lw + 1" in cp and "gw = cw + 1 + lw lx = cw + 1" in cp and cp.count("gh = 2") == 2 and "cy = 1" in cp and "ly = 1" in cp
+        and cp.count("if lw > gw then gw = lw") == 2 and "geom = gw : @vm : gh : @vm : cx : @vm : cy : @vm : lx : @vm : ly" in cp
+        and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display|call)\b", re.sub(r"'[^']*'", "''", cp)), "")
+    ck = sq["sl_check"]
+    add("T33", "$sl_check: the box and the label are drawn where $sl_caption says (three cells for the box), row by row, the whole in the focus style while focused, the cursor in the box; the space bar and "
+        "a click anywhere on it, the label included, check or uncheck it; any other key is 'unhandled'",
+        "call $sl_caption(w{'place'}, 3, t, geom)" in ck and "call $sl_caption(w{'place'}, 3, w{'label'}, geom)" in ck
+        and "if r = cy then rowtext[cx + 1, 3] = mark" in ck and "if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'}" in ck
+        and "call $sl_curat(w{'ax'} + cx + 1, w{'ay'} + cy)" in ck and "if key<1> = 'press' then v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in ck
+        and "if key = ' ' then ret = 'handled'" in ck and "ret = 'unhandled' : @fm : key" in ck and "if w{'value'} + 0 # 0 then v = 1" in ck, "")
     return out
 
 
@@ -274,14 +291,23 @@ MUT = [
     ("sl_slider", "Left slides it on", "               w{'value'} = 0\n               gosub paint", "               w{'value'} = 1\n               gosub paint"),
     ("sl_slider", "Right slides it off", "               w{'value'} = 1\n               gosub paint", "               w{'value'} = 0\n               gosub paint"),
     ("sl_slider", "a start value of 5 stays 5", "if w{'value'} + 0 # 0 then v = 1", "if 0 then v = 1"),
-    ("sl_slider", "off and on look the same", "      sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : '] '", "      sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : '] '"),
+    ("sl_slider", "off and on look the same", "      sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : ']'", "      sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : ']'"),
+    ("sl_slider", "the slider ignores the place", "call $sl_caption(w{'place'}, len(sw), w{'label'}, geom)", "call $sl_caption('', len(sw), w{'label'}, geom)"),
+    ("sl_slider", "a click on the label is taken for the control", "case rrow = 0 and rel >= 0 and rel <= lo + 2", "case rel <= lo + 2"),
+    ("sl_caption", "left is the default no more", "         case 1\n            gw = lw + 1 + cw\n            cx = lw + 1", "         case 1\n            gw = cw + 1 + lw\n            lx = cw + 1"),
+    ("sl_caption", "right puts the label first", "            lx = cw + 1", "            lx = 0"),
+    ("sl_caption", "above puts the control first", "            gh = 2\n            cy = 1", "            gh = 2\n            cy = 0"),
+    ("sl_caption", "below puts the label first", "            gh = 2\n            ly = 1", "            gh = 2\n            ly = 0"),
+    ("sl_caption", "the width ignores a longer label", "            gw = cw\n            if lw > gw then gw = lw\n            gh = 2\n            cy = 1", "            gw = cw\n            gh = 2\n            cy = 1"),
+    ("sl_check", "the check box ignores the place", "call $sl_caption(w{'place'}, 3, w{'label'}, geom)", "call $sl_caption('', 3, w{'label'}, geom)"),
+    ("sl_check", "the box is drawn where the label is", "if r = cy then rowtext[cx + 1, 3] = mark", "if r = cy then rowtext[lx + 1, 3] = mark"),
     ("sl_slider", "the words of the program are not used", "         if w{'offw'} = '' then w{'offw'} = 'off'", "         w{'offw'} = 'off'"),
     ("sl_slider", "the word in force is styled one cell early", "      a0 = lo + 4\n      al = ln", "      a0 = lo + 3\n      al = ln"),
-    ("sl_slider", "the word in force is not in the style", "      call $sl_attr(w{'attr'}, ac)\n      for k = 1 to al", "      call $sl_attr('window', ac)\n      for k = 1 to al"),
+    ("sl_slider", "the word in force is not in the style", "call $sl_attr(w{'attr'}, ac)", "call $sl_attr('window', ac)"),
     ("sl_slider", "no style is the default", "if w{'attr'} = '' then w{'attr'} = 'bold'", "if w{'attr'} = '' then w{'attr'} = 'window'"),
-    ("sl_slider", "a click on the word on sets it off", "               case rel <= lo + ln + 4\n                  w{'value'} = 1", "               case rel <= lo + ln + 4\n                  w{'value'} = 0"),
+    ("sl_slider", "a click on the word on sets it off", "               case rrow = 0 and rel >= 0 and rel <= lo + ln + 4\n                  w{'value'} = 1", "               case rrow = 0 and rel >= 0 and rel <= lo + ln + 4\n                  w{'value'} = 0"),
     ("sl_slider", "a click on the text does nothing", "               case 1\n                  v = 1\n                  if w{'value'} then v = 0\n                  w{'value'} = v\n            end case", "               case 1\n                  null\n            end case"),
-    ("sl_slider", "the cursor is not put on the word in force", "call $sl_curat(w{'ax'} + a0, w{'ay'} + 0)", "null"),
+    ("sl_slider", "the cursor is not put on the word in force", "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)", "null"),
     ("sl_slider", "an arrow other than Left and Right is taken", "            case 1\n               ret = 'unhandled' : @fm : key", "            case key = 'up'\n               ret = 'handled'\n            case 1\n               ret = 'unhandled' : @fm : key"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]

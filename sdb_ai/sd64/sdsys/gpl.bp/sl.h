@@ -72,3 +72,11 @@ $define SL.S.BCLIP     11
 $define SL.S.NARROW    12
 $define SL.S.SYNC      13
 $define SL.S.DIFF      14
+*
+* The answer of $sl_caption (where a control and its label go inside the widget's rectangle), one value to a field (22 Oct 26)
+$define SL.CAP.W       1       ;* the width of the rectangle
+$define SL.CAP.H       2       ;* its height: 1, or 2 when the label is above or below the control
+$define SL.CAP.CX      3       ;* the column of the control, from the left of the rectangle
+$define SL.CAP.CY      4       ;* the row of the control
+$define SL.CAP.LX      5       ;* the column of the label
+$define SL.CAP.LY      6       ;* the row of the label

@@ -236,7 +236,7 @@ end
 # A borderless container against the same widgets in the form itself: the screens must be the same.  KIND is replaced by the lines of each.
 EQ_BODY = """   screen label f, 'a', 'ALPHA' at X1,Y1
    screen entry f, 'b' at X2,Y2 width 12 value 'bravo'
-   screen check f, 'c', '&Charlie' at X3,Y3 value 1
+   screen check f, 'c', '&Charlie' at X3,Y3 value 1 place 'right'
    screen list f, 'd', 'one':@vm:'two':@vm:'three' at X4,Y4 size 10,3
    screen button f, 'e', '&Echo' at X5,Y5 default
 """

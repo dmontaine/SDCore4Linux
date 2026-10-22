@@ -861,6 +861,88 @@ def slider_rows(box, made):
     row("a piped session whose input ends with the form up ends within 20 s and does not spin (under 3 s of CPU)", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
 
 
+# TK-0.9.  `tktest place` shows a check box (left column) and a slider (right column) for each place of the label: left, right, above, below, and none given, which is left.
+# The label at the foot reads "last=<id>=<v> n=<changes>".  A click on a widget that has not the focus moves the focus and acts, and the form reports the FOCUS
+# (n does not move); the next click on it is a change.
+def place_rows(box, made):
+    say("\n--- the place of the label of a check box and a slider (TK-0.9)")
+    t = Term(box, "tktest place")
+
+    def where(txt):
+        for r_, l_ in enumerate(t.lines()):
+            c_ = l_.find(txt)
+            if c_ >= 0:
+                return r_, c_
+        return None
+
+    def log():
+        m_ = re.search(r"last=(\S+) n=(\d+)", "\n".join(t.lines()))
+        return m_.groups() if m_ else None
+
+    def click(r_, c_):
+        t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c_ + 1, r_ + 1, c_ + 1, r_ + 1), idle=0.6)
+
+    if where("check left") is None:
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest place never drew its form, so no row below can be believed")
+    OFFW, ONW = "[OFF | on]", "[off | ON]"
+    P = {k: where(v) for k, v in (("cl", "check left [ ]"), ("cr", "[ ] check right"), ("cd", "check default [ ]"), ("sl", "slider left " + OFFW), ("sr", OFFW + " slider right"),
+                                  ("sd", "slider default " + OFFW))}
+    ca, cb, sa, sb = where("check above"), where("check below"), where("slider above"), where("slider below")
+    row("a check box with the label on the LEFT is 'check left [ ]', on the right '[ ] check right', and with no place given it is on the left: 'check default [ ]'",
+        P["cl"] is not None and P["cr"] is not None and P["cd"] is not None, repr(P))
+    row("a slider the same way: 'slider left [OFF | on]', '[OFF | on] slider right', and 'slider default [OFF | on]' with no place given",
+        P["sl"] is not None and P["sr"] is not None and P["sd"] is not None, repr(P))
+    row("ABOVE: the label is on the first row and the box under it, at the same column (two rows high); BELOW: the box first, the label under it",
+        ca is not None and t.line(ca[0] + 1)[ca[1]:ca[1] + 3] == "[ ]" and cb is not None and t.line(cb[0] - 1)[cb[1]:cb[1] + 3] == "[ ]"
+        and sa is not None and t.line(sa[0] + 1)[sa[1]:sa[1] + 10] == OFFW and sb is not None and t.line(sb[0] - 1)[sb[1]:sb[1] + 10] == OFFW, repr((ca, cb, sa, sb)))
+    rcl, ccl = P["cl"] or (0, 0)
+    row("the first widget has the focus: the whole of 'check left [ ]', label and box, is in reverse video, and the next widget's text is not", "check left [ ]" in t.rev(rcl) and "check right" not in t.rev((P["cr"] or (0, 0))[0]), repr(t.rev(rcl)))
+    click(rcl, ccl + 2)
+    row("a click on the LABEL of the focused check box checks it: 'check left [x]'; one change event, n=1", where("check left [x]") is not None and log() == ("cl=1", "1"), repr(log()))
+    click(rcl, ccl + 12)
+    row("a click on the box unchecks it: 'check left [ ]'; n=2", where("check left [ ]") is not None and log() == ("cl=0", "2"), repr(log()))
+    rcr, ccr = P["cr"] or (0, 0)
+    click(rcr, ccr + 6)
+    row("a click on the label of the check box on the right, which has not the focus, checks it ('[x] check right') and gives it the focus: the form reports the focus, n is still 2",
+        where("[x] check right") is not None and log() == ("cl=0", "2"), repr(log()))
+    rca, cca = ca or (0, 0)
+    click(rca + 1, cca + 1)
+    row("ABOVE: a click on the box (the second row) checks it, the label (the first row) is untouched; n is still 2", t.line(rca + 1)[cca:cca + 3] == "[x]" and "check above" in t.line(rca) and log() == ("cl=0", "2"), repr((t.line(rca + 1)[cca:cca + 10], log())))
+    click(rca, cca + 2)
+    row("ABOVE: a click on the label, now that it has the focus, unchecks it; n=3, last=ca=0", t.line(rca + 1)[cca:cca + 3] == "[ ]" and log() == ("ca=0", "3"), repr((t.line(rca + 1)[cca:cca + 10], log())))
+    rcb, ccb = cb or (0, 0)
+    click(rcb - 1, ccb + 1)
+    row("BELOW: a click on the box (the first row, over the label) checks it", t.line(rcb - 1)[ccb:ccb + 3] == "[x]" and "check below" in t.line(rcb), repr((t.line(rcb - 1)[ccb:ccb + 10], t.line(rcb)[ccb:ccb + 12])))
+    rcd, ccd = P["cd"] or (0, 0)
+    click(rcd, ccd + 2)
+    row("the check box with no place given: a click on its label (on the left) checks it: 'check default [x]'", where("check default [x]") is not None, repr(t.line(rcd)[ccd:ccd + 20]))
+
+    rsl, csl = P["sl"] or (0, 0)
+    click(rsl, csl + 12 + 7)
+    row("a slider with the label on the left: a click on its word ON (past the label and the bracket) sets it on, 'slider left [off | ON]', and gives it the focus (n is still 3)",
+        where("slider left " + ONW) is not None and log() == ("ca=0", "3"), repr(log()))
+    click(rsl, csl + 12 + 2)
+    row("...and a click on its word OFF sets it off again: 'slider left [OFF | on]'; n=4, last=sl=0", where("slider left " + OFFW) is not None and log() == ("sl=0", "4"), repr(log()))
+    rsr, csr = P["sr"] or (0, 0)
+    click(rsr, csr + 12)
+    row("a slider with the label on the right: a click on its label slides it the other way: '[off | ON] slider right' (focus, n is still 4)", where(ONW + " slider right") is not None and log() == ("sl=0", "4"), repr(log()))
+    rsa, csa = sa or (0, 0)
+    click(rsa + 1, csa + 7)
+    row("ABOVE: a click on the word ON of the switch (the second row) sets it on", t.line(rsa + 1)[csa:csa + 10] == ONW and "slider above" in t.line(rsa), repr(t.line(rsa + 1)[csa:csa + 12]))
+    click(rsa, csa + 2)
+    row("ABOVE: a click on the label (the first row) slides it back: off; n=5, last=sa=0", t.line(rsa + 1)[csa:csa + 10] == OFFW and log() == ("sa=0", "5"), repr((t.line(rsa + 1)[csa:csa + 12], log())))
+    rsb, csb = sb or (0, 0)
+    click(rsb - 1, csb + 7)
+    row("BELOW: a click on the word ON of the switch (the first row) sets it on, the label is the second row", t.line(rsb - 1)[csb:csb + 10] == ONW and "slider below" in t.line(rsb), repr(t.line(rsb - 1)[csb:csb + 12]))
+    rsd, csd = P["sd"] or (0, 0)
+    click(rsd, csd + 2)
+    row("LEFT (the default): a click on the label, which comes BEFORE the switch, slides an off switch on: 'slider default [off | ON]' (the label is not taken for the word OFF)", where("slider default " + ONW) is not None, repr(t.line(rsd)[csd:csd + 30]))
+    t.key("ENTER")
+    row("Enter presses the default button: the form is gone, the status line says placement pressed=ok", "placement pressed=ok" in t.line(40) and where("check left") is None, repr(t.line(40)))
+    t.end()
+
+
 # TK-0.7 (G1, the paged source).  `tktest pick 12 50 1000` opens, on F11 (one record id) and F12 (several, with the first attribute as the description), the pick window over
 # the record ids of the file zzpkfile (6,000 records rec00001 to rec06000, attribute 1 'shelf <n mod 50>'), reading a page of 50 at most 1,000 ids at a time.
 PKPROG = """$internal
@@ -1251,6 +1333,7 @@ def main():
         pick_rows(box, made)
         pickfile_rows(box, made)
         slider_rows(box, made)
+        place_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
