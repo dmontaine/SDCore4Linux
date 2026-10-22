@@ -46,7 +46,7 @@
   },
   "basic.internal": {
    "chunks": 37,
-   "sha256": "b765026f385491edf506feec0344410505f4bedddb9262af531851c91d397146"
+   "sha256": "5fdcbeb3cabe4289ce041136d88cd6a880828dcf78be9da406b53cba9d4e09c8"
   },
   "basic.mode": {
    "chunks": 44,
@@ -62,7 +62,7 @@
   },
   "basic.statement": {
    "chunks": 224,
-   "sha256": "20b2c80dc81b68ee9052c5b1122d3af39e8a48dfbc1e169a6f64fc8ac08ab829"
+   "sha256": "399a9c5bff8940c9c5403cab251bccd196451253c17afb0d2d82408b8bfe0d2c"
   },
   "core.digest": {
    "chunks": 5,
@@ -118,7 +118,7 @@
   },
   "sys.param": {
    "chunks": 63,
-   "sha256": "86abc3cddf29cf318925a044e0785c381f4ab3f0c05a07db9f50a0770cb46fce"
+   "sha256": "6275e1cd39ddb96a6cea1c7a79f992d1e8b354e81dc0e362f236e66be62268ca"
   },
   "sys.releases": {
    "chunks": 1,
@@ -138,7 +138,7 @@
   },
   "tcl.verb": {
    "chunks": 194,
-   "sha256": "5cf327f3eedd402419b71b0789f7df1a936ac9d56840582a141c90230b6ac290"
+   "sha256": "414f0ce521b420f3fc59f3193c28085600c6f9a6194e846650da97f8d838349a"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -184,7 +184,7 @@
   },
   "reference/basic-functions.md": {
    "chunks": 293,
-   "sha256": "669a511f08d1a6174e450791fbc5f31d17f7b1a14de3bd82acc28cfa571d874d",
+   "sha256": "1e75304c25cbb1f0641f427db46e37775097733a8da1688ccc4dba89e1e1bef6",
    "words": 4662
   },
   "reference/basic-modes.md": {
@@ -194,7 +194,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 292,
-   "sha256": "40ebfcc0f46813c52b250a21f5376575a11d816b28194a1fb30ba9f9a6ad2788",
+   "sha256": "2e0ccd8cd5d7540cebaa7ab88344c765a58ab69e7b8bb0b18e715686c05974ba",
    "words": 6126
   },
   "reference/dictionaries.md": {
@@ -214,7 +214,7 @@
   },
   "reference/system.md": {
    "chunks": 97,
-   "sha256": "b02329b9a80d3179c5eeaf58b14841a606645b591b6e08596b5986a54de17e3d",
+   "sha256": "4056fc68e40cbfd2e51b090539f7d349d27e5a545173815057ee9e7a64de00d7",
    "words": 2600
   },
   "reference/tcl-keywords.md": {
@@ -224,7 +224,7 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 198,
-   "sha256": "a65a80fc0ea00ac92963259c6d4eb74a01c4a1279c38dace074e09866b02fce6",
+   "sha256": "b338454c308f2ce651e1164af26f77202020f717ce94062d6e70a0e9938fd91a",
    "words": 7920
   },
   "reference/voc.md": {

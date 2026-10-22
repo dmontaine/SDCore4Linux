@@ -19,6 +19,7 @@
 *
 *
 * START-HISTORY:
+* 21 Oct 26 dm S.73 item 3, D1 (the index QUERY requests of a remote file): vb.selectright had no RETURN and ran on into vb.mark.mapping (see there); found by measuring request 45 on a real server.  vb.selectleft and vb.selectright now ask check.list (a list number outside 0 to 10 was a runtime error whose reply named a line of this program; now message 5269, as request 26).
 * 21 Oct 26 dm S.73 item 3 (QMNet tiers C and D), the gate: a files-only login may ADMINISTER files only if the user is ALSO in the Linux group sdfilesadmin (and in sdfileswrite).  vb.scram.final
 *           reads it (three-valued, like the write group) into files.admin (common block, set with files.only, never cleared); !apifilesok takes it as a fourth argument; the login
 *           line and every refusal line gain admin=on|off after write=; a request refused for want of it is answered with 11524 (11521 when the write group is what is missing).
@@ -2406,6 +2407,9 @@ vb.selectleft:
 
                                                                      listno = oconv(cmnd[3,2], 'ISL')
 
+                                                                     gosub check.list      ;* 21 Oct 26 dm, S.73 item 3 (D1): a list number outside 0 to 10 was a runtime error whose text names a line of this program
+                                                                     if err then return
+
                                                                      selectleft cmnd[5,999] from files(fno) setting response to listno
 
                                                                      return
@@ -2423,7 +2427,10 @@ vb.selectright:
 
                                                                      listno = oconv(cmnd[3,2], 'ISL')
 
-                                                                     selectright cmnd[5,999] from files(fno) setting response to listno
+                                                                     gosub check.list      ;* 21 Oct 26 dm, S.73 item 3 (D1): as vb.selectleft
+                                                                     if err then return
+
+                                                                     selectright cmnd[5,999] from files(fno) setting response to listno ; return   ;* 21 Oct 26 dm, S.73 item 3 (D1): it had no RETURN and fell into vb.mark.mapping, which switched mark mapping on (the list number was its state) and left STATUS() 0 even at the end of the scan
 
                                                                      * ======================================================================
                                                                      * MarkMapping

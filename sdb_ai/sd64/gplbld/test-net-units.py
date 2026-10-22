@@ -1350,17 +1350,20 @@ NF_OPS = {"NF$OPEN": 1, "NF$CLOSE": 2, "NF$READ": 3, "NF$READV": 4, "NF$RECORDLO
           "NF$WRITE": 9, "NF$DELETE": 10, "NF$CLEARFILE": 11, "NF$LOCK": 12, "NF$STATE": 13,
           "NF$WRITEU": 14, "NF$DELETEU": 15, "NF$RELEASE": 16,                                    # slice 3e: 14 to 16
           "NF$FILELOCK": 18, "NF$FILEUNLOCK": 19,                                                # S.72: 18 and 19; 17 is not used
-          "NF$ADMIN": 20, "NF$CREATEFILE": 21, "NF$FCONTROL": 22, "NF$SEQKEY": 23}                # S.73 item 3 (21 Oct 26): 20 to 23
+          "NF$ADMIN": 20, "NF$CREATEFILE": 21, "NF$FCONTROL": 22, "NF$SEQKEY": 23,                # S.73 item 3 (21 Oct 26): 20 to 23
+          "NF$INDEXQ": 24}                                                                      # S.73 item 3 D1 (21 Oct 26): the index query statements
 NF_DEFS = dict(NF_OPS, **{"NF$RC.OK": 0, "NF$RC.ELSE": 2, "NF$RC.ERROR": 3, "NF$RC.LOCKED": 4, "NF$MAX.SERVERS": 10, "NF$MAX.HANDLES": 100})
-NF_OPS_BY_NAME = {k: v for k, v in NF_OPS.items() if k not in ("NF$FILELOCK", "NF$FILEUNLOCK", "NF$ADMIN", "NF$CREATEFILE", "NF$FCONTROL", "NF$SEQKEY")}      # the suite's driver names these 16; 18 to 23 it drives by number (the RAW line)
+NF_OPS_BY_NAME = {k: v for k, v in NF_OPS.items() if k not in ("NF$FILELOCK", "NF$FILEUNLOCK", "NF$ADMIN", "NF$CREATEFILE", "NF$FCONTROL", "NF$SEQKEY", "NF$INDEXQ")}      # the suite's driver names these 16; 18 to 24 it drives by number (the RAW line)
 NF_REASONS = ("gate", "server", "list", "credential", "limit", "file")
 # the methods and properties of the class the handler uses; slice 3e added the changing and locking ones and the two properties of the quiet object
 NF_METHODS = {"connect.keys", "settimeout", "open", "close", "read", "select", "readlist", "recordlocked", "disconnect", "error", "ServerStatus",
               "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile", "quiet", "LastError", "LastText", "maxpacket",      # LastText: 19 Oct 26, K1 (on.error.text); maxpacket: K8c
               "filelock", "fileunlock",                                                                                                          # S.72
-              "fileadmin", "fcontrol", "writeseqkey", "writeuseqkey"}                                                                            # S.73 item 3
+              "fileadmin", "fcontrol", "writeseqkey", "writeuseqkey",                                                                            # S.73 item 3
+              "indices", "selectindexv", "selectindexk", "setleft", "setright", "selectleft", "selectright"}                                      # S.73 item 3 D1
 NF_REQUEST_METHODS = ("open", "close", "read", "select", "readlist", "recordlocked", "write", "writeu", "delete", "deleteu", "recordlock", "release", "clearfile",
-                      "filelock", "fileunlock", "fileadmin", "fcontrol", "writeseqkey", "writeuseqkey")      # S.72: 15 + 2 = 17 request sites; S.73 item 3: four more (fileadmin twice: act.admin and act.createfile)
+                      "filelock", "fileunlock", "fileadmin", "fcontrol", "writeseqkey", "writeuseqkey",      # S.72: 15 + 2 = 17 request sites; S.73 item 3: four more (fileadmin twice: act.admin and act.createfile)
+                      "indices", "selectindexv", "selectindexk", "setleft", "setright", "selectleft", "selectright")      # S.73 item 3 D1: eight more (the eight arms of act.indexq, and its second readlist)
 NF_SECRET_LOCALS = r"\b(cred|ruser|rsalt|riter|rck|rsk|pin|pw|password)\b"
 NF_SUITE_SECTIONS = ("handler", "readonly", "refuse", "lost", "timeout", "hwrite", "kwrite", "gaps")      # slice 3e: hwrite and kwrite
 NF_FORBIDDEN = (r"(?<![\w.$])(write|writeu|writev|writevu|writeseq|writeblk|weofseq|delete|deleteu|deleteseq|create|openseq|openpath|osrename|osdelete|"
@@ -1378,7 +1381,8 @@ def checks_3b(srcs, c, ck):
                                                    "act.state", "get.handle", "check.gate", "check.id", "connect.new", "shape.names", "after.rq", "lost.fail", "drop.conn",
                                                    "refuse", "fail", "idle.release", "act.change", "act.release", "release.every", "mode.now", "audit.once", "server.fail",
                                                    "check.id.chg", "check.id.shape", "rc.locked", "request.limits", "act.fileunlock",
-                                                   "check.server", "act.createfile", "act.admin", "act.fcontrol", "act.seqkey", "admin.prepare", "admin.outcome")}   # S.73 item 3
+                                                   "check.server", "act.createfile", "act.admin", "act.fcontrol", "act.seqkey", "admin.prepare", "admin.outcome",
+                                                   "act.indexq")}   # S.73 item 3; act.indexq: its D1
     ao, gh = body["act.open"], body["get.handle"]
     # 21 Oct 26 (S.73 item 3): the checks of NF$OPEN that need no network are the routine check.server, which act.open calls right after the name shapes (NF$CREATEFILE asks it too).  The rows that
     # hold their ORDER read act.open with that routine's body put where the call is.
@@ -1387,11 +1391,12 @@ def checks_3b(srcs, c, ck):
 
     # ---- N1. the numbers the kernel slice will mirror
     got = {m.group(1): int(m.group(2)) for m in re.finditer(r"\$define\s+(NF\$[A-Z.]+)\s+(-?\d+)", nfh)}
-    ck("NF1 netfile.h: the 22 operation codes are 1 to 13 in this order (OPEN CLOSE READ READV RECORDLOCKED SELECT FILEINFO CLOSEALL WRITE DELETE CLEARFILE LOCK STATE), since slice 3e WRITEU 14, "
-       "DELETEU 15 and RELEASE 16, since S.72 FILELOCK 18 and FILEUNLOCK 19, and since S.73 item 3 ADMIN 20, CREATEFILE 21, FCONTROL 22 and SEQKEY 23 (17 is not used), the results are NF$RC.OK 0, ELSE 2, ERROR 3 and LOCKED 4, the limits are 10 servers and 100 files, "
+    ck("NF1 netfile.h: the 23 operation codes are 1 to 13 in this order (OPEN CLOSE READ READV RECORDLOCKED SELECT FILEINFO CLOSEALL WRITE DELETE CLEARFILE LOCK STATE), since slice 3e WRITEU 14, "
+       "DELETEU 15 and RELEASE 16, since S.72 FILELOCK 18 and FILEUNLOCK 19, since S.73 item 3 ADMIN 20, CREATEFILE 21, FCONTROL 22 and SEQKEY 23, and since its D1 INDEXQ 24 (17 is not used), the results are NF$RC.OK 0, ELSE 2, ERROR 3 and LOCKED 4, the limits are 10 servers and 100 files, "
        "and no name or number is defined twice (the kernel mirrors these in C)",
-       got == NF_DEFS and len(re.findall(r"\$define\s+NF\$", nfh)) == len(NF_DEFS) and len(set(got[k] for k in NF_OPS)) == 22
-       and not any(v in (17,) for v in got.values()) and got.get("NF$FILELOCK") == 18 and got.get("NF$FILEUNLOCK") == 19 and got.get("NF$ADMIN") == 20 and got.get("NF$SEQKEY") == 23,
+       got == NF_DEFS and len(re.findall(r"\$define\s+NF\$", nfh)) == len(NF_DEFS) and len(set(got[k] for k in NF_OPS)) == 23
+       and not any(v in (17,) for v in got.values()) and got.get("NF$FILELOCK") == 18 and got.get("NF$FILEUNLOCK") == 19 and got.get("NF$ADMIN") == 20 and got.get("NF$SEQKEY") == 23
+       and got.get("NF$INDEXQ") == 24,
        repr({k: v for k, v in got.items() if NF_DEFS.get(k) != v}))
     ck("NF2 netfile is an internal subroutine `netfile(op, a, b, c, out, rc)` catalogued as $netfile (only an internal program can call a dollar name), and includes netfile.h",
        re.match(r"\s*\$internal\s*\nsubroutine netfile\(op, a, b, c, out, rc\)\s*\n\$catalog \$netfile\s*\n", nf) is not None and "$include netfile.h" in nf
@@ -1429,8 +1434,9 @@ def checks_3b(srcs, c, ck):
                "gosub request.limits", "obj->settimeout(req.ms)", "nf.s.obj(slot) = obj", "vartype(nf.s.obj(slot)) # V$OBJ"), "")
     meth = set(re.findall(r"->([A-Za-z.]+)", nf))
     ck("NF4b the handler calls only these methods and properties of the class: connect.keys, settimeout, open, close, read, select, readlist, recordlocked, disconnect, error, ServerStatus and, "
-       "since slice 3e, write, writeu, delete, deleteu, recordlock, release, clearfile, quiet and LastError, since 19 Oct 26 LastText and maxpacket, and since S.72 filelock and fileunlock (no readu or readl, execute, call, logto, sequential-file, readv or password login method; "
-       "the changing ones are NOT in the list for any other reason: NF5 holds where they may stand)", meth <= NF_METHODS and {"filelock", "fileunlock"} <= meth, repr(sorted(meth - NF_METHODS)))
+       "since slice 3e, write, writeu, delete, deleteu, recordlock, release, clearfile, quiet and LastError, since 19 Oct 26 LastText and maxpacket, since S.72 filelock and fileunlock, and since S.73 item 3 D1 indices, selectindexv, selectindexk, setleft, setright, selectleft and selectright (no readu or readl, execute, call, logto, sequential-file, readv or password login method; "
+       "the changing ones are NOT in the list for any other reason: NF5 holds where they may stand)", meth <= NF_METHODS and {"filelock", "fileunlock", "indices", "selectindexv", "selectindexk", "setleft", "setright", "selectleft", "selectright"} <= meth,
+       repr(sorted(meth - NF_METHODS)))
 
     # ---- N5. nothing is written to the remote server, nothing is stored
     own = re.sub(r"->[\w.]+", "", ns)
@@ -1475,12 +1481,14 @@ def checks_3b(srcs, c, ck):
 
     # ---- N7. a request, a lost connection and no retry
     lines = [ln for ln in nf.split("\n") if ln.strip()]
-    reqs = [i for i, ln in enumerate(lines) if re.search(r"obj->(%s)\(" % "|".join(NF_REQUEST_METHODS), ln)]
-    unmarked = [lines[i].strip() for i in reqs if not any("obj->ServerStatus = NF$NOREPLY" in p for p in lines[max(0, i - 3):i])]
+    req_rx = re.compile(r"obj->(%s)\(" % "|".join(NF_REQUEST_METHODS))
+    reqs = [(i, m) for i, ln in enumerate(lines) for m in [req_rx.search(ln)] if m]
+    # the mark may stand on the request's own line, BEFORE the call (S.73 item 3 D1: the eight arms of act.indexq are `case what = n ; obj->ServerStatus = NF$NOREPLY ; res = obj->...`)
+    unmarked = [lines[i].strip() for i, m in reqs if not any("obj->ServerStatus = NF$NOREPLY" in p for p in lines[max(0, i - 3):i] + [lines[i][:m.start()]])]
     ck("NF7 EVERY request is preceded by the 'no reply' mark (obj->ServerStatus = NF$NOREPLY, three lines before at most): %d request sites (open, close, read, select, readlist, recordlocked and, since "
-       "slice 3e, write, writeu, delete, deleteu, recordlock, clearfile and release twice, since S.72 filelock and fileunlock, and since S.73 item 3 fileadmin twice, fcontrol and writeseqkey / writeuseqkey), none unmarked - the CLEARFILE and fileadmin ones have settimeout(clear.ms) BEFORE the mark lines; a reply of any kind "
+       "slice 3e, write, writeu, delete, deleteu, recordlock, clearfile and release twice, since S.72 filelock and fileunlock, since S.73 item 3 fileadmin twice, fcontrol and writeseqkey / writeuseqkey, and since its D1 the eight arms of act.indexq and its second readlist), none unmarked (the mark of an act.indexq arm is on the arm's own line, before the call) - the CLEARFILE and fileadmin ones have settimeout(clear.ms) BEFORE the mark lines; a reply of any kind "
        "overwrites it, so after.rq reads a mark still in place as a lost connection (rq.lost = ServerStatus = NF$NOREPLY: NOT a sign test, a changing request can be answered with -3023), and NF$NOREPLY is -2000000001, a value no STATUS() takes (18 Oct 26)" % len(reqs),
-       len(reqs) == 22 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st = NF$NOREPLY)" in body["after.rq"]
+       len(reqs) == 31 and not unmarked and "st = obj->ServerStatus" in body["after.rq"] and "rq.lost = (st = NF$NOREPLY)" in body["after.rq"]
        and re.search(r"\$define NF\$NOREPLY\s+-2000000001\b", nf) is not None
        and ordered(ac, "gosub request.limits", "obj->settimeout(clear.ms)", "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "obj->clearfile(nf.h.fno(hx))", "if not(rq.lost) then obj->settimeout(req.ms)"), repr(unmarked))
     ck("NF7a a lost connection is dropped and reported, NEVER retried or reconnected inside an operation: lost.fail drops the connection then answers 11497 - and, for a CHANGING request (changing is set in "
@@ -1600,13 +1608,32 @@ def checks_3b(srcs, c, ck):
        and first("sdsys/messages/1151*") < first("sdsys/messages/*"), "")
     ck("NF13 the dated history lines are there: netfile, netfile.h and the suite (`17 Oct 26 dm  S.65 slice 3b`), and this check's own file says so",
        "17 Oct 26 dm  S.65 slice 3b" in raw and "17 Oct 26 dm  S.65 slice 3b" in rawh and "17 Oct 26 dm  S.65 slice 3b" in suite and "S.65 slice 3b" in (__doc__ or ""), "")
+    # ---- N8. S.73 item 3 D1: NF$INDEXQ, the index query statements
+    ai = body["act.indexq"]
+    arms = re.findall(r"case what = (\d) ; obj->ServerStatus = NF\$NOREPLY ; (?:res = )?obj->(\w+)\(", ai)
+    ck("NF14 act.indexq (NF$INDEXQ, 24; S.73 item 3 D1): dispatched from the main case; the gate and the connection are needed and no account test is skipped (get.handle, need.gate); an unknown `what` (not 1 to 8) "
+       "is 11490 naming it before anything is sent; the eight arms each set the 'no reply' mark ON THEIR OWN LINE before the one request they make (1 and 2 indices, 3 selectindexv, 4 selectindexk, 5 and 6 setleft and "
+       "setright, 7 and 8 selectleft and selectright with the list number NF$LIST); the answer goes through admin.outcome (the lost connection, the server's error and rc<8> are decided there); a scan "
+       "that found a key (what 7 or 8 and rc<8> 0) makes a SECOND marked request, READLIST, handled as act.select handles its own (lost, server error, ON ERROR text, an answer other than 0 or 1 is 11504), and "
+       "answers the key, a field mark and the ids with the first request's rc<8> put back; the routine has no mode test, no refusal for a transaction, no audit line and no changing flag - a query changes nothing",
+       re.search(r"case op = NF\$INDEXQ\s*;?\s*gosub act\.indexq", main) is not None and ai != ""
+       and ordered(ai, "need.gate = @true ; need.conn = @true ; any.acct = @false ; allow.lost = @false", "gosub get.handle", "if failed then return", "opname = 'index'", "what = 0",
+                   "if b matches '1N' then what = b + 0", "if what < 1 or what > 8 then", "fail.num = 11490", "gosub fail", "return", "iname = c ; ival = ''", "if what = 4 then",
+                   "obj = nf.s.obj(slot)", "obj->error = ''", "begin case", "end case", "gosub admin.outcome", "if failed then return", "out = res", "if what >= 7 and rc<8> = 0 then", "st1 = rc<8>",
+                   "obj->error = ''", "obj->ServerStatus = NF$NOREPLY", "lst = obj->readlist(NF$LIST, e)", "gosub after.rq", "nf.requests += 1", "if rq.lost then", "gosub lost.fail", "return",
+                   "if rq.err then", "gosub server.fail", "return", "if e = 1 then", "gosub on.error.text", "gosub server.fail", "return", "if e # 0 then", "fail.num = 11504", "gosub fail", "return",
+                   "out = key : @fm : lst", "rc<8> = st1")
+       and arms == [("1", "indices"), ("2", "indices"), ("3", "selectindexv"), ("4", "selectindexk"), ("5", "setleft"), ("6", "setright"), ("7", "selectleft"), ("8", "selectright")]
+       and ai.count("NF$LIST") == 3 and ai.count("obj->") == 20      # 2 `error`, 8 arms of a mark and a method, the second request's mark and readlist
+       and not re.search(r"mode\.now|act\.refuse|changing|nf\.h\.mode|NF\$NOREPLY ; obj->(write|delete|clearfile|recordlock|release)|kernel\(K\$AUDIT|audit\.once|txn|transaction", ai), repr((arms, ai.count("obj->"))))
 
 
 # ---- NK. S.65 slice 3c: the kernel half - the NET_FILE type, netfiles.c, the VOC pointer, and the refusal of every other statement ----------------------
 
 NK_FUNCS = ("net_path_is_net", "net_open", "net_close", "net_read", "net_readv", "net_fileinfo", "net_select", "net_refuse", "net_close_all", "net_message",   # net_select: slice 3d
             "net_gate", "net_write", "net_delete", "net_clear", "net_lock", "net_lock_step", "net_check_lock", "net_release", "net_release_all", "net_flush_closes",   # slice 3e
-            "net_filelock_step", "net_fileunlock", "net_recordlocked")   # S.72: exported, defined once, one prototype in sd.h that agrees
+            "net_filelock_step", "net_fileunlock", "net_recordlocked",   # S.72: exported, defined once, one prototype in sd.h that agrees
+            "net_index_query")   # S.73 item 3 D1
 NK_TYPES = {"DIRECTORY_FILE": 1, "DYNAMIC_FILE": 2, "SEQ_FILE": 3, "NET_FILE": 4}
 # what a refusal must come before: the first of these in the function (a NET_FILE has no file table entry, so each of them reads or WRITES memory in front of the table)
 NK_DANGER = ("FPtr(", "access.dh", "lock_record(", "unlock_record(", "check_lock(", "end_select(", "clear_select(", "log_permissions_error(", "edit_refusal(", "txn_read(", "k_recurse(")
@@ -1629,10 +1656,7 @@ NK_REFUSE = {
     ("dh_ak.c", "op_akclear"): ("R", ()),
     ("dh_ak.c", "op_akenable"): ("R", ()),
     ("dh_ak.c", "op_akmap"): ("R", ()),
-    ("dh_ak.c", "op_selindx"): ("R", ()),
-    ("dh_ak.c", "op_selindxv"): ("R", ()),
-    ("dh_ak.c", "akscan"): ("R", ()),
-    ("dh_ak.c", "setakpos"): ("R", ()),
+    # S.73 item 3 D1 (21 Oct 26): op_selindx, op_selindxv, akscan and setakpos left this table - they ask the server (NK_INDEXQ, NK18)
     ("dh_misc.c", "op_fcontrol"): ("R", ()),       # S.73 item 3: still a refusal for every key but the two internal ones of the administration verbs (FC_NET_ADMIN, FC_NET_CREATE), which it forwards first
     ("analyse.c", "op_analyse"): ("R", ()),
 }
@@ -1646,8 +1670,11 @@ NK_FCONTROL_SITES = {("dh_misc.c", "pub_fcontrol")}
 NK_LOCKSITES = {("op_lock.c", "op_filelock"), ("op_lock.c", "op_flunlock"), ("op_lock.c", "op_getlocks"), ("op_lock.c", "op_reclckd")}
 # SELECT and SELECTV were REFUSE sites in slice 3c; since slice 3d they ask the server (NK14, NK15), and are decided here
 NK_SELECT ={("op_dio4.c", "op_select"), ("op_dio4.c", "op_selectv")}
-# INDICES (both forms) were REFUSE sites in slice 3c; since slice 3d a NET_FILE gets the null string through the default arm (NK18), because the query processor asks it of every file
-NK_INDICES = {("dh_ak.c", "op_indices1"), ("dh_ak.c", "op_indices2")}
+# INDICES (both forms) were REFUSE sites in slice 3c; since slice 3d a NET_FILE got the null string through the default arm, because the query processor asks it of every file.  Since S.73 item 3 D1
+# (21 Oct 26) the six index QUERY sites ask the server (NK18): INDICES (both), SELECTINDEX (both: op_selindx, op_selindxv), SELECTLEFT / SELECTRIGHT (akscan) and SETLEFT / SETRIGHT (setakpos)
+NK_INDEXQ = {("dh_ak.c", "op_indices1"), ("dh_ak.c", "op_indices2"), ("dh_ak.c", "op_selindx"), ("dh_ak.c", "op_selindxv"), ("dh_ak.c", "akscan"), ("dh_ak.c", "setakpos")}
+# ...and the two Private helpers that akscan and the two SELECTINDEX opcodes hand over to (they take the file variable off the stack, so NK8 wants them decided; NK18a reads them)
+NK_INDEXQ_HELPERS = {("dh_ak.c", "net_selindex"), ("dh_ak.c", "net_akscan")}
 # the census says REFUSE, but by a guard on the read of the file table and not by a statement refusal: the NET_FILE test must come before the first FPtr(
 NK_GUARD = (("op_dio2.c", "get_file_status"), ("k_error.c", "log_permissions_error"), ("pdump.c", "dump_variable"), ("op_dio2.c", "op_fileinfo"))
 # the census says IGNORE because the function already answers any other kind of file: the sequential-file family (ER_NSEQ), GETPORT / SETPORT, GROUPSTAT, SET.TRIGGER, MARK.MAPPING
@@ -1662,7 +1689,7 @@ NK_OTHER = {("op_dio1.c", "op_close"), ("op_dio1.c", "open_file"), ("op_dio3.c",
             ("op_kernel.c", "op_kernel")}      # slice 3e: K_EDIT_OK / K_EDIT_KIND take the FILE VARIABLE of a remote file (k_get_file); decided by the S2 checks (U11), not a refusal
 NK_SITES_WITH_H = {"read_record", "op_readv", "op_clrfile", "op_delete", "op_write", "op_writev"}
 NK_SUITE_MATRIX = ("write", "writeu", "writev", "matwrite", "delete", "clearfile", "readu", "readl", "readvu", "readvl", "matreadu", "matreadl", "recordlocku", "release", "filelock",
-                   "fileunlock", "selectindex", "selectright", "setleft", "setright", "fcontrol6", "fiexcl", "txnwrite")
+                   "fileunlock", "fcontrol6", "fiexcl", "txnwrite")
 NK_MAP_FILES = ("gplsrc/netfiles.c", "gplsrc/op_dio1.c", "gplsrc/op_dio2.c", "gplsrc/op_dio3.c", "gplsrc/op_dio4.c", "gplsrc/op_lock.c", "gplsrc/dh_ak.c", "gplsrc/dh_misc.c",
                 "gplsrc/analyse.c", "gplsrc/k_error.c", "gplsrc/pdump.c", "gplsrc/descr.h", "gplsrc/sd.h", "gpl.src", "sdsys/gpl.bp/_voc_ref",
                 "gplsrc/op_sh.c", "gplsrc/op_kernel.c", "sdsys/gpl.bp/cproc", "sdsys/gpl.bp/edit_guard")      # slice 3e
@@ -1960,9 +1987,9 @@ def checks_3c(srcs, c, ck):
         if j and min(j) < i:
             bad.append("%s/%s: %r comes before the refusal" % (fname, name, body[min(j):min(j) + 24]))
     ck("NK7 THE CENSUS: each of the %d statements the census of 17 Oct 26 says REFUSE (CONFIGURE.FILE, the locking reads, READVU, CLEARFILE, DELETE, WRITE, WRITEV, "
-       "RECORDLOCKU/L, RELEASE and RLSFILE, the ten index operations other than INDICES, the internal FCONTROL.INT (the public FCONTROL() is the server's since S.73 item 3), ANALYSE.FILE) calls net_refuse (or refuse_net_file) behind a NET_FILE test and BEFORE the first read or "
-       "write of the file table, a lock, a select list or an edit-gate decision in the function (SELECT and SELECTV are not in it since slice 3d: NK14, NK15; nor is INDICES: NK18; nor, since S.72, FILELOCK, "
-       "FILEUNLOCK, GETLOCKS and RECORDLOCKED(), which call neither in their own body - the gate of net_filelock_step, net_fileunlock and, since S.72b, net_recordlocked decides: NK_LOCKSITES, S72a to S72i)" % seen, not bad and seen == 22, repr(bad))
+       "RECORDLOCKU/L, RELEASE and RLSFILE, the six index operations that change an index or read its tree (AKREAD, AKWRITE, AKDELETE, CLEAR.AK, AKENABLE, AKMAP), the internal FCONTROL.INT (the public FCONTROL() is the server's since S.73 item 3), ANALYSE.FILE) calls net_refuse (or refuse_net_file) behind a NET_FILE test and BEFORE the first read or "
+       "write of the file table, a lock, a select list or an edit-gate decision in the function (SELECT and SELECTV are not in it since slice 3d: NK14, NK15; nor are the six index QUERY statements since S.73 item 3 D1: NK18; nor, since S.72, FILELOCK, "
+       "FILEUNLOCK, GETLOCKS and RECORDLOCKED(), which call neither in their own body - the gate of net_filelock_step, net_fileunlock and, since S.72b, net_recordlocked decides: NK_LOCKSITES, S72a to S72i)" % seen, not bad and seen == 18, repr(bad))
     pf = fn("dh_misc.c", "pub_fcontrol")
     of_ = fn("dh_misc.c", "op_fcontrol")
     ck("NK7a S.73 item 3: pub_fcontrol answers a NET_FILE through net_fcontrol(fvar, action, value, len, &result) - the qualifier read as text, the result and STATUS() (net_last_reply_status) handed back - and jumps to "
@@ -2009,7 +2036,7 @@ def checks_3c(srcs, c, ck):
             for name, body in c_functions(t).items():
                 if "k_get_file(" in body or "data.fvar" in body:
                     found.add((k[2:] if k.startswith("c:") else k, name))
-    decided = set(NK_REFUSE) | set(NK_GUARD) | set(NK_SAFE) | NK_OTHER | NK_SELECT | NK_INDICES | NK_LOCKSITES | NK_FCONTROL_SITES
+    decided = set(NK_REFUSE) | set(NK_GUARD) | set(NK_SAFE) | NK_OTHER | NK_SELECT | NK_INDEXQ | NK_INDEXQ_HELPERS | NK_LOCKSITES | NK_FCONTROL_SITES
     safe_bad = [(f, n) for (f, n), tok in sorted(NK_SAFE.items()) if tok not in fn(f, n)]
     ck("NK8 NOTHING IS LEFT UNDECIDED: every kernel function that is given a file variable (k_get_file or ->data.fvar) is in the census table of this check - refused, guarded, answering any other kind of file by "
        "its own type test (the sequential family, GETPORT, SETPORT, GROUPSTAT, SET.TRIGGER, MARK.MAPPING - the token is still in each), served (the four lock sites of S.72: FILELOCK, FILEUNLOCK, GETLOCKS, "
@@ -2098,7 +2125,9 @@ def checks_3d(srcs, c, ck):
        and sum(t.count("net_select(") for k, t in c.items() if (k.endswith(".c") or k.startswith("c:")) and k != "netfiles.c") == 1
        and "store_select_list(list_no, head, record_count)" in fn("op_dio4.c", "dir_select")
        and c_proto(d4, "net_select_with_flags") is not None and c_proto(d4, "net_select_with_flags") == c_header(d4, "net_select_with_flags")
-       and c_proto(d4, "store_select_list") is not None and c_proto(d4, "store_select_list") == c_header(d4, "store_select_list"), repr(sel[:80]))
+       # S.73 item 3 D1 (21 Oct 26): store_select_list is exported (the index scans of dh_ak.c end with it too): no Private prototype in op_dio4.c, ONE in sd.h that says what the definition says
+       and c_proto(d4, "store_select_list") is None and c_proto(ct("sd.h"), "store_select_list") is not None
+       and c_proto(ct("sd.h"), "store_select_list") == c_header(d4, "store_select_list"), repr(sel[:80]))
     # ---- NK15. SELECTV
     sv = fn("op_dio4.c", "op_selectv")
     i0 = sv.find("if (fvar->type == NET_FILE)")
@@ -2134,14 +2163,53 @@ def checks_3d(srcs, c, ck):
        and re.fullmatch(r"case FL_TYPE:\s*n = FL_TYPE_NET;\s*", seg("case FL_TYPE:")) is not None and re.fullmatch(r"case FL_COLLECTION:\s*n = 0;\s*", seg("case FL_COLLECTION:")) is not None
        and re.fullmatch(r"case FL_FLAGS:\s*n = \(process\.program\.flags & HDR_INTERNAL\) \? DHF_NOCASE : 0;\s*", seg("case FL_FLAGS:")) is not None
        and branch.count("case FL_TYPE:") == 1 and branch.count("case FL_COLLECTION:") == 1 and branch.count("case FL_FLAGS:") == 1, repr((tdef, bt)))
-    # ---- NK18. INDICES of a remote file is the null string
+    # ---- NK18. the index QUERY statements of a remote file ask the server (S.73 item 3 D1, 21 Oct 26; before it INDICES was the null string and the rest were refused)
     ix1, ix2 = fn("dh_ak.c", "op_indices1"), fn("dh_ak.c", "op_indices2")
-    ck("NK18 INDICES(f) and INDICES(f, name) of a NET_FILE do NOT refuse: op_indices1 and op_indices2 hold no net_refuse, no refuse_net_file and no NET_FILE arm, and keep their `default:` arm that answers the null string "
-       "(a query asks it of every file; a refusal stopped every query on a remote file); the DYNAMIC_FILE arm is still the only other one",
-       ix1 != "" and ix2 != "" and not re.search(r"net_refuse\(|refuse_net_file\(|NET_FILE", ix1 + ix2)
-       and ordered(ix1, "switch (fvar->type) {", "case DYNAMIC_FILE:", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
-       and ordered(ix2, "if (fvar->type == DYNAMIC_FILE) {", "} else {", "switch (fvar->type) {", "default:", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = NULL;")
-       and ix1.count("case ") == 1 and ix2.count("case ") == 0, "")
+    sx, sxv, aks, sap = (fn("dh_ak.c", n) for n in ("op_selindx", "op_selindxv", "akscan", "setakpos"))
+    hsel, hsplit, hscan = (fn("dh_ak.c", n) for n in ("net_selindex", "net_split_scan", "net_akscan"))
+    niq = fn("netfiles.c", "net_index_query")
+    bad18 = []
+    for (fname, name) in sorted(NK_INDEXQ):
+        body = fn(fname, name)
+        i = body.find("NET_FILE")
+        j = [body.find(x) for x in NK_DANGER if body.find(x) >= 0]
+        if not body or i < 0 or (j and min(j) < i) or re.search(r"net_refuse\(|refuse_net_file\(", body):
+            bad18.append("%s/%s" % (fname, name))
+    ck("NK18 THE SIX INDEX QUERY SITES (INDICES both forms, SELECTINDEX both, SELECTLEFT / SELECTRIGHT, SETLEFT / SETRIGHT: NK_INDEXQ) refuse nothing and ask the server: each tests NET_FILE BEFORE the first read "
+       "of the file table, a lock or a select list, and none calls net_refuse or refuse_net_file; INDICES(f) and INDICES(f, name) call net_index_query (what 1 and 2) in their NET arm, dismiss their operands AFTER the "
+       "call (the handler runs BASIC and can move the stack) and push the answer as a STRING, before the DYNAMIC_FILE code; SELECTINDEX, SELECTLEFT / SELECTRIGHT test the type before end_select and clear_select and "
+       "hand over to net_selindex (FALSE for the values, TRUE for the ids) and net_akscan; SETLEFT / SETRIGHT call it with 5 and 6, keep the server's STATUS() in process.status, free the answer and dismiss the file and "
+       "the name before the DYNAMIC_FILE test",
+       not bad18 and len(NK_INDEXQ) == 6 and ix1 != "" and ix2 != ""
+       and ordered(ix1, "if (fvar->type == NET_FILE) {", "net_index_query(fvar, 1, \"\", 0, &tgt, &net_st);", "k_dismiss();", "InitDescr(e_stack, STRING);", "(e_stack++)->data.str.saddr = tgt;", "return;",
+                   "k_dismiss();", "switch (fvar->type) {", "case DYNAMIC_FILE:")
+       and ordered(ix2, "if (fvar->type == NET_FILE) {", "k_get_c_string(e_stack - 1, index_name, MAX_AK_NAME_LEN)", "net_index_query(fvar, 2, index_name, nlen, &tgt, &net_st);", "k_dismiss();", "k_dismiss();",
+                   "(e_stack++)->data.str.saddr = tgt;", "return;", "if (fvar->type == DYNAMIC_FILE) {")
+       and ordered(sx, "InvalidSelectListNo(list_no)", "if (descr->data.fvar->type == NET_FILE) {", "net_selindex(FALSE, list_no);", "return;", "end_select(list_no);", "clear_select(list_no);")
+       and ordered(sxv, "if (fvar->type == NET_FILE) {", "net_selindex(TRUE, list_no);", "return;", "end_select(list_no);", "clear_select(list_no);")
+       and ordered(aks, "if (descr->data.fvar->type == NET_FILE) {", "net_akscan(right, list_no);", "return;", "end_select(list_no);", "clear_select(list_no);")
+       and ordered(sap, "if (fvar->type == NET_FILE) {", "net_index_query(fvar, right ? 6 : 5, net_name, net_len, &net_ans, &net_st);", "s_free(net_ans);", "process.status = net_st;",
+                   "k_dismiss();", "k_dismiss();", "return;", "if (fvar->type != DYNAMIC_FILE)"), repr(bad18))
+    ck("NK18a net_selindex and net_akscan (dh_ak.c; Private): the server is asked FIRST (net_index_query, what 3 or 4 and 7 or 8) and the select list, the key variable and @SELECTED are touched only after it answered - an "
+       "error is raised before (net_raise longjmps); the ids of a status other than 0 are freed (an unknown index is an empty list and STATUS() 1); the list is ended, cleared and stored through store_select_list; "
+       "STATUS() is the server's; the operands are dismissed AFTER the call and @SELECTED is set last; net_split_scan cuts the answer at its FIRST field mark into the key and the ids, counts the ids, frees the "
+       "answer; none of the three reads the file table (no FPtr(, access.dh or lock)",
+       hsel != "" and hscan != "" and hsplit != ""
+       and ordered(hsel, "net_index_query(fvar, with_value ? 4 : 3, cbuf, clen, &ids, &net_st);", "if ((net_st != 0) && (ids != NULL)) {", "s_free(ids);", "end_select(list_no);", "clear_select(list_no);",
+                   "store_select_list(list_no, ids, count);", "process.status = net_st;", "k_pop(1);", "k_dismiss();", "SYSCOM_SELECTED", "descr->data.value = count;")
+       and ordered(hscan, "net_index_query(fvar, right ? 8 : 7, name, nlen, &ans, &net_st);", "if (net_st == 0)", "net_split_scan(ans, &key, &ids, &count);", "s_free(ans);", "end_select(list_no);",
+                   "clear_select(list_no);", "key_descr = e_stack - 2;", "key_descr->type != UNASSIGNED", "store_select_list(list_no, ids, count);", "process.status = net_st;", "k_pop(1);", "k_dismiss();",
+                   "SYSCOM_SELECTED", "descr->data.value = count;")
+       and ordered(hsplit, "ts_init(key, 64);", "c->data[i] == FIELD_MARK", "(void)ts_terminate();", "ts_init(ids, MAX_STRING_CHUNK_SIZE);", "(void)ts_terminate();", "(*count)++;", "s_free(ans);")
+       and hsel.count("clear_select(list_no)") == 1 and hsel.count("end_select(list_no)") == 1 and hscan.count("clear_select(list_no)") == 1 and hscan.count("end_select(list_no)") == 1
+       and not re.search(r"FPtr\(|access\.dh|lock_record\(|net_refuse\(|refuse_net_file\(", hsel + hscan + hsplit), "")
+    ck("NK18b net_index_query (netfiles.c): NF_INDEXQ is netfile.h's NF$INDEXQ (24); the statements have no ON ERROR clause, so process.op_flags is cleared first and an error is always raised; ONE request through "
+       "net_op_ex (never the handler directly, never net_refuse); an ELSE answer is not one a statement can use and is raised as an error; a negative status is raised by net_raise; the server's STATUS() "
+       "(net_reply_status) and the answer (net_take_string) are handed back only AFTER the raise, so a failure leaves the caller's values at 0 and NULL; it is exported, defined once and prototyped in sd.h (NK2)",
+       niq != "" and re.search(r"#define\s+NF_INDEXQ\s+24\b", nf) is not None and bdef.get("NF$INDEXQ") == 24 and niq.count("net_op_ex(") == 1 and "net_refuse(" not in niq
+       and niq.count("*server_st =") == 2 and niq.count("*answer =") == 2      # each set twice: to its null at the top, and once from the reply after the raise
+       and ordered(niq, "*answer = NULL;", "*server_st = 0;", "process.op_flags = 0;", "net_op_ex(fvar, NF_INDEXQ", "if (status > 0) {", "status = -ER_NETWORK;", "if (status < 0)", "return net_raise(status, 0);",
+                   "*server_st = net_reply_status;", "*answer = net_take_string(&out);", "k_release(&out);", "return 0;"), "")
     # ---- NK17. the DICT form (NK18 above: INDICES; the record cache and the gate's close are checks_3e, NK19 to NK25)
     i = vr.find('case type = "N"')
     case_n = vr[i:vr.find("\n         case 1", i)] if i >= 0 else ""
@@ -2340,9 +2408,10 @@ def checks_s2(srcs, c, ck):
        "in the same way, six since S.72b, because act.recordlocked does too (request 34 is refused to that login: message 11521 as an ON ERROR reply, shown by the program as 11500 with the server's text) "
        "- and 'status ' is written nowhere else in the program; the header no longer says the text is never shown",
        ordered(ooe, "txt = obj->LastText", "gosub clean.text", "if out.txt = '' then", "rq.txt = 'status ':rq.st", "end else", "rq.txt = out.txt", "return")
-       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 7 and "gosub on.error.text" in afu and "gosub on.error.text" in rb("act.recordlocked")
+       and hb.count("rq.txt = 'status ':rq.st") == 1 and hb.count("gosub on.error.text") == 8 and "gosub on.error.text" in afu and "gosub on.error.text" in rb("act.recordlocked")
        and "gosub on.error.text" in rb("admin.outcome")      # seven since S.73 item 3: admin.outcome (the answer of the four administration operations) shows the ON ERROR reply's text too
-       and "'status '" not in (ao + ac + ard + asel + arq + lf + afu + rb("act.recordlocked"))
+       and "gosub on.error.text" in rb("act.indexq")      # eight since its D1: act.indexq's READLIST of a scan that found a key (the first request goes through admin.outcome)
+       and "'status '" not in (ao + ac + ard + asel + arq + lf + afu + rb("act.recordlocked") + rb("act.indexq"))
        and "never shown" not in hraw and "is never shown, it can be stale" not in hraw, repr(ooe[:200]))
 
     # ---- S2g. the class gpl.bp/sdclient (spec 3.3)
@@ -2358,14 +2427,16 @@ def checks_s2(srcs, c, ck):
     guarded = sorted(v for prev, v in sites if "not(quiet)" in prev)
     ck("S2g THE CLASS, quiet (spec 3.3, items 1 to 3): the public properties quiet, LastError and LastText exist and create.object starts them @false, -1 and ''; message.pair resets LastError and LastText "
        "BEFORE it writes the packet; get.response sets LastError = server.error as soon as read.packet succeeded (and LastText for an ON ERROR reply) BEFORE it tests for SV$ERROR; the abort of each of "
-       "write, writeu, delete (twice: delete and deleteu), recordlock, release, read.record, the new clearfile, (19 Oct 26, finish 2) select and readlist and (S.72) the new filelock and fileunlock is guarded by `and not(quiet)`, no other abort is "
+       "write, writeu, delete (twice: delete and deleteu), recordlock, release, read.record, the new clearfile, (19 Oct 26, finish 2) select and readlist, (S.72) the new filelock and fileunlock and (S.73 item 3 D1) setleft and setright is guarded by `and not(quiet)` (recordlocked, selectleft and selectright by a one-line `if not(quiet) then abort`), no other abort is "
        "(CLOSE, ... are unchanged); the pre-send `abort 'Illegal record id'` of write and writeu does `LastError = SV$ON.ERROR` and returns when quiet",
        all(re.search(r"\b%s\b" % w, pub) for w in ("quiet", "LastError", "LastText", "ServerStatus", "error"))
        and re.search(r"quiet = @false", co) is not None and re.search(r"LastError = -1", co) is not None and re.search(r"LastText = ''", co) is not None
        and ordered(mp, "LastError = -1", "LastText = ''", "write.packet(")
        and ordered(gr, "read.packet()", "LastError = server.error", "if server.error = SV$ON.ERROR then LastText = in.pkt", "if server.error = SV$ERROR then")
-       and guarded == sorted(["DELETE", "DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST", "FILELOCK", "FILEUNLOCK"])
-       and not [v for prev, v in sites if v not in ("DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST", "FILELOCK", "FILEUNLOCK") and "quiet" in prev]
+       # S.73 item 3 D1 (21 Oct 26): SETLEFT and SETRIGHT are guarded too (the handler calls them), and so are the one-line guards `if not(quiet) then abort` of RECORDLOCKED, SELECTLEFT and SELECTRIGHT
+       and guarded == sorted(["DELETE", "DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST", "FILELOCK", "FILEUNLOCK", "SETLEFT", "SETRIGHT"])
+       and sorted(re.findall(r"if not\(quiet\) then abort '(\w+) generated an abort event'", sc)) == ["RECORDLOCKED", "SELECTLEFT", "SELECTRIGHT"]
+       and not [v for prev, v in sites if v not in ("DELETE", "RECORDLOCK", "RELEASE", "WRITE", "WRITEU", "READ", "CLEARFILE", "SELECT", "READLIST", "FILELOCK", "FILEUNLOCK", "SETLEFT", "SETRIGHT") and "quiet" in prev]
        and len(re.findall(r"if quiet then\s*\n\s*LastError = SV\$ON\.ERROR\s*\n\s*return\s*\n\s*end\s*\n\s*abort 'Illegal record id'", sc)) == 2, repr((guarded, [v for p, v in sites if "quiet" not in p])))
     rlk = re.search(r"public subroutine recordlock\(fno, id, update, wait\)\s*\n(.*?)\nend", sc, re.S)
     rlk = rlk.group(1) if rlk else ""
@@ -2422,7 +2493,8 @@ def checks_s2(srcs, c, ck):
        "net_parse_rc reads field 7 as write only for an exact 1",
        ordered(fn("netfiles.c", "net_passed_status"), "case ER_IID:", "case ER_RDONLY:", "case ER_TRIGGER:", "case ER_NOLOCK:", "case ER_PERM:", "case ER_MAXRLOCK:", "return -s;", "return -ER_NETWORK;")
        and ordered(fn("netfiles.c", "net_error_status"), "case MSG_SERVER_ERROR:", "if (pass_status)", "return net_passed_status(rc->status);", "return -ER_NETWORK;")
-       and nf.count("net_op_ex(") == 5 and "NULL, FALSE, else_status, FALSE, FALSE, out)" in fn("netfiles.c", "net_op")
+       and nf.count("net_op_ex(") == 6 and "NULL, FALSE, else_status, FALSE, FALSE, out)" in fn("netfiles.c", "net_op")
+       and "NULL, FALSE, ER_FNF, FALSE, FALSE, &out)" in fn("netfiles.c", "net_index_query")      # S.73 item 3 D1: the sixth call is the index queries', a read: no status passed on
        and "lock_op, TRUE, &out)" in fn("netfiles.c", "net_change_result") and "FALSE, TRUE, &out)" in fn("netfiles.c", "net_lock_code") and "FALSE, FALSE, &out)" in fn("netfiles.c", "net_release")
        and ordered(fn("netfiles.c", "net_parse_rc"), "(rc->result != NF_RC_LOCKED)", "net_field(buf, 7, num, sizeof(num))", "rc->mode_write = (atoi(num) == 1);"), "")
     nlr = fn("netfiles.c", "net_lock_result")      # S.72: the tail of net_lock_step, shared with net_filelock_step
@@ -2707,11 +2779,12 @@ def checks_s72(srcs, c, ck):
     ck("S72e rc<8> (the server's reply STATUS(), trusted for exactly two operations): NET_RC has `int reply_status;` after mode_write; net_parse_rc reads field 8 after field 7 (absent is 0); the Private "
        "net_reply_status is 0 at the top of net_op_ex (before the stale test, so a call that did not run leaves 0) and is set from the reply right after the handler call (0 when it did not run) and "
        "before process.op_flags is given back; and it is READ by net_fileunlock and net_recordlocked, and (S.73 item 3) by net_last_reply_status, which hands it to the administration statements "
-       "(the verb's return code, what FCONTROL left); net_create_file sets it from its own handler call as net_op_ex does - no other function of netfiles.c mentions it",
+       "(the verb's return code, what FCONTROL left), and (S.73 item 3 D1) by net_index_query, which hands it to the index statements (0 done, 1 no such index or no further key); net_create_file sets it from its own "
+       "handler call as net_op_ex does - no other function of netfiles.c mentions it",
        rcm is not None and ordered(rcm.group(1), "int mode_write;", "int reply_status;") and re.search(r"^Private int net_reply_status = 0;", nf, re.M) is not None
        and ordered(prc, "net_field(buf, 7, num, sizeof(num));", "rc->mode_write = (atoi(num) == 1);", "net_field(buf, 8, num, sizeof(num));", "rc->reply_status = atoi(num);")
        and ordered(opx, "net_reply_status = 0;", "if (net_stale(fvar))", "net_call_core(", "net_reply_status = ran ? rc.reply_status : 0;", "process.op_flags = entry;", "net_answer(")
-       and readers == ["net_create_file", "net_fileunlock", "net_last_reply_status", "net_op_ex", "net_recordlocked"], repr(readers))
+       and readers == ["net_create_file", "net_fileunlock", "net_index_query", "net_last_reply_status", "net_op_ex", "net_recordlocked"], repr(readers))
 
     # ---- S72f. op_flunlock
     ofu = fn("op_lock.c", "op_flunlock")
@@ -2809,10 +2882,12 @@ def checks_s72(srcs, c, ck):
     # ---- S72l. act.recordlocked gives the owner's number
     arl = rb("act.recordlocked")
     ck("S72l act.recordlocked (NF$RECORDLOCKED) gives the server's reply STATUS() - the user number of the lock's OWNER on the server - in rc<8> on success ONLY (after the lost and the server-error exits, "
-       "after `out = lk`); rc<8> is set in these two routines and, since S.73 item 3, in admin.outcome (the verb's return code or what FCONTROL left), and nowhere else in the handler, so the kernel reads it for exactly "
-       "those operations (RECORDLOCKED, FILEUNLOCK and the four administration operations)",
+       "after `out = lk`); rc<8> is set in these two routines and, since S.73 item 3, in admin.outcome (the verb's return code or what FCONTROL left; the index queries' server STATUS() comes the same way) and, since its D1, "
+       "act.indexq reads it after that and puts it back after the second request of a scan (st1), and nowhere else in the handler, so the kernel reads it for exactly "
+       "those operations (RECORDLOCKED, FILEUNLOCK, the four administration operations and the index queries)",
        arl != "" and ordered(arl, "gosub after.rq", "if rq.lost then", "gosub lost.fail", "return", "if rq.err then", "gosub server.fail", "return", "out = lk", "rc<8> = rq.st", "return")
-       and arl.count("rc<8>") == 1 and hb.count("rc<8>") == 3 and "rc<8>" in afu and "rc<8>" in rb("admin.outcome"), "")
+       and arl.count("rc<8>") == 1 and hb.count("rc<8>") == 6 and "rc<8>" in afu and "rc<8>" in rb("admin.outcome")
+       and ordered(rb("act.indexq"), "gosub admin.outcome", "rc<8> = 0", "st1 = rc<8>", "obj->readlist(NF$LIST, e)", "out = key : @fm : lst", "rc<8> = st1") and rb("act.indexq").count("rc<8>") == 3, "")
 
     # ---- S72m. the class
     flk = re.search(r"public subroutine filelock\(fno, wait\)\s*\n(.*?)\nend\s*\n", sc, re.S)
@@ -2868,6 +2943,27 @@ def checks_s72(srcs, c, ck):
        and 'km("recordlocked"' in suite and 'km("filelock"' in suite and 'km("fileunlock"' in suite and 'KALLOWED = {47, 48, 3, 4, 5, 6, 1}' in suite
        and kws is not None and not ({"filelock", "fileunlock", "recordlocked"} & set(still))
        and "KR kj SURVIVED fields=1 values=3" in suite and "getlocks(f, '')" in suite, repr((still, 'km("recordlocked"' in suite)))
+
+    # ---- S73i. the suite carries the D1 rows
+    ck("S73i THE SUITE sandbox-netfile.py carries the S.73 item 3 D1 rows (21 Oct 26): kw_index (the six statements on a read-mode and a write-mode pointer against the local statements' answers, the wire, "
+       "the query processor with and without an index) and hw_index (the handler's operation 24 by number, a read-mode handle, a lost connection) are defined and CALLED; the helpers W_IDX1, W_IDX2, W_SELV, "
+       "W_SELK, W_SETIDX, W_SCAN and W_RLIST encode the requests (READLIST carries no list number on the wire: the class sends none); NF_INDEXQ is 24; the refusal matrix KM no longer has the six index statements "
+       "and KW_STILL_REFUSED is fiexcl, fistaton and fistatoff; the requests the query processor makes of every file (35 and 36) are in KQALLOWED; the index the fake is given describes a SINGLE-valued "
+       "left-justified D index (the query processor takes a multivalued one for another field and uses none)",
+       all(("def %s(" % f) in suite for f in ("kw_index", "hw_index", "ni_fresh", "k_idx", "W_IDX1", "W_IDX2", "W_SELV", "W_SELK", "W_SETIDX", "W_SCAN", "W_RLIST"))
+       and re.search(r"^[ \t]+kw_index\(A\)[ \t]*$", suite, re.M) is not None and re.search(r"^[ \t]+hw_index\(A\)[ \t]*$", suite, re.M) is not None
+       and re.search(r"^NF_INDEXQ = 24$", suite, re.M) is not None and re.search(r"def W_RLIST\(lst=10\):.*?return \(14, b\"\"\)", suite, re.S) is not None
+       and not any(('km("%s"' % t) in suite for t in ("selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright"))
+       and still == ["fiexcl", "fistaton", "fistatoff"] and "KQALLOWED = KALLOWED | {11, 14, 35, 36}" in suite
+       and re.search(r'NI_INFO = "D\\xfd\\xfd\\xfd1\\xfd0\\xfdL\\xfd\\xfe1\\xfe\\xfeName\\xfeL\\xfeS"', suite) is not None, repr(still))
+
+    ck("S73j apisrvr's two scans (S.73 item 3 D1): vb.selectleft and vb.selectright read the file, then the list number, then ask check.list (and stop on its error) BEFORE the statement - a list number outside "
+       "0 to 10 was a runtime error whose reply named a line of the program; vb.selectright ends with a RETURN on the line of its statement (it ran on into vb.mark.mapping, which switched mark mapping on, and "
+       "left STATUS() 0 past the last key)",
+       re.search(r"vb\.selectleft:\s*\n\s*fno = oconv\(cmnd\[1,2\], 'ISL'\)\s*\n\s*gosub check\.file\s*\n\s*if err then return\s*\n\s*listno = oconv\(cmnd\[3,2\], 'ISL'\)\s*\n\s*gosub check\.list[^\n]*\n"
+                 r"\s*if err then return\s*\n\s*selectleft cmnd\[5,999\] from files\(fno\) setting response to listno\s*\n\s*return", ap) is not None
+       and re.search(r"vb\.selectright:\s*\n\s*fno = oconv\(cmnd\[1,2\], 'ISL'\)\s*\n\s*gosub check\.file\s*\n\s*if err then return\s*\n\s*listno = oconv\(cmnd\[3,2\], 'ISL'\)\s*\n\s*gosub check\.list[^\n]*\n"
+                   r"\s*if err then return\s*\n\s*selectright cmnd\[5,999\] from files\(fno\) setting response to listno\s*;\s*return", ap) is not None, "")
 
     # ---- S72r. S.72b: act.recordlocked refuses a handle that is not write-mode (the same act.refuse as act.fileunlock)
     ck("S72r act.recordlocked (NF$RECORDLOCKED), S.72b, in this ORDER as act.fileunlock is: the handle of this account (a lost one will do: no gate and no connection yet); its name is 'recordlocked' - set BEFORE the "
@@ -4000,7 +4096,9 @@ mut("SELECT refuses a NET_FILE again", OD4, edit_func("op_select", r"net_st = ne
 mut("the helper gives net_select the whole op_flags", OD4, "process.op_flags = op_flags & P_ON_ERROR;\n  st = net_select(fvar, ids, count);", "process.op_flags = op_flags;\n  st = net_select(fvar, ids, count);")
 mut("the helper leaves process.op_flags set", OD4, "  st = net_select(fvar, ids, count);\n  process.op_flags = 0;", "  st = net_select(fvar, ids, count);")
 mut("dir_select no longer ends with store_select_list", OD4, edit_func("dir_select", r"store_select_list\(list_no, head, record_count\);", ";"))
-mut("store_select_list is declared with another type", OD4, "Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count);", "Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int16_t record_count);")
+mut("store_select_list is declared with another type", "sd.h", "void store_select_list(int16_t list_no, STRING_CHUNK * head, int32_t record_count);", "void store_select_list(int16_t list_no, STRING_CHUNK * head, int16_t record_count);")
+mut("store_select_list is Private again in op_dio4.c", OD4, "void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count) {", "Private void store_select_list(int16_t list_no, STRING_CHUNK* head, int32_t record_count) {")
+mut("net_index_query is declared with another type", "sd.h", "int net_index_query(FILE_VAR * fvar, int what, const char * c, int clen, STRING_CHUNK ** answer, int * server_st);", "int net_index_query(FILE_VAR * fvar, int what, const char * c, int32_t clen, STRING_CHUNK ** answer, int * server_st);")
 mut("net_select_with_flags is declared with another type", OD4, "Private int net_select_with_flags(FILE_VAR* fvar, u_int16_t op_flags, STRING_CHUNK** ids, int32_t* count);", "Private int net_select_with_flags(FILE_VAR* fvar, u_int16_t op_flags, STRING_CHUNK** ids, int32_t count);")
 mut("a second place calls net_select", OD4, lambda t: t + "\nvoid zz_sel(FILE_VAR* v) {\n  net_select(v, NULL, NULL);\n}\n")
 # op_selectv
@@ -4019,9 +4117,40 @@ mut("SELECTV ignores the status", OD4, "      if (net_st != 0) {\n        proces
 mut("INDICES(f) refuses a NET_FILE again", "dh_ak.c", edit_func("op_indices1", r"fvar = descr->data\.fvar;", "fvar = descr->data.fvar;\n  if (fvar->type == NET_FILE)\n    net_refuse(fvar, \"INDICES\");"))
 mut("INDICES(f, name) refuses a NET_FILE again", "dh_ak.c", edit_func("op_indices2", r"fvar = descr->data\.fvar;", "fvar = descr->data.fvar;\n  if (fvar->type == NET_FILE)\n    net_refuse(fvar, \"INDICES\");"))
 mut("INDICES(f) refuses through the helper", "dh_ak.c", edit_func("op_indices1", r"k_dismiss\(\);", "refuse_net_file(fvar, 0, \"INDICES\");\n  k_dismiss();"))
-mut("INDICES(f) has no default arm", "dh_ak.c", edit_func("op_indices1", r"    default:", "    case 99:"))
-mut("INDICES(f, name) has no default arm", "dh_ak.c", edit_func("op_indices2", r"      default:", "      case 99:"))
-mut("INDICES(f) has a NET_FILE arm", "dh_ak.c", edit_func("op_indices1", r"    default:", "    case NET_FILE:\n      break;\n\n    default:"))
+# S.73 item 3 D1 (21 Oct 26): the six index query sites ask the server; each of these changes ONE thing NK18, NK18a, NK18b or NF14 pins
+mut("INDICES(f) asks the wrong operation", "dh_ak.c", edit_func("op_indices1", r"net_index_query\(fvar, 1,", "net_index_query(fvar, 2,"))
+mut("INDICES(f, name) asks the wrong operation", "dh_ak.c", edit_func("op_indices2", r"net_index_query\(fvar, 2,", "net_index_query(fvar, 1,"))
+mut("INDICES(f) goes on into the local switch", "dh_ak.c", edit_func("op_indices1", r"\(e_stack\+\+\)->data\.str\.saddr = tgt;\n    return;", "(e_stack++)->data.str.saddr = tgt;"))
+mut("INDICES(f, name) dismisses its operands once", "dh_ak.c", edit_func("op_indices2", r"k_dismiss\(\);\n    k_dismiss\(\);\n    InitDescr", "k_dismiss();\n    InitDescr"))
+mut("SELECTINDEX does not hand over to net_selindex", "dh_ak.c", edit_func("op_selindx", r"net_selindex\(FALSE, list_no\);", ""))
+mut("SELECTINDEX of a value hands over the wrong form", "dh_ak.c", edit_func("op_selindxv", r"net_selindex\(TRUE, list_no\);", "net_selindex(FALSE, list_no);"))
+mut("SELECTINDEX tests the type after clear_select", "dh_ak.c", edit_func("op_selindx", r"if \(descr->data\.fvar->type == NET_FILE\) \{", "clear_select(list_no);\n  if (descr->data.fvar->type == NET_FILE) {"))
+mut("SELECTLEFT / SELECTRIGHT do not hand over to net_akscan", "dh_ak.c", edit_func("akscan", r"net_akscan\(right, list_no\);", ""))
+mut("SETLEFT / SETRIGHT ask the wrong operation", "dh_ak.c", edit_func("setakpos", r"right \? 6 : 5", "right ? 5 : 6"))
+mut("SETLEFT / SETRIGHT forget the server's STATUS()", "dh_ak.c", edit_func("setakpos", r"process\.status = net_st;", ""))
+mut("SETLEFT / SETRIGHT keep the answer", "dh_ak.c", edit_func("setakpos", r"s_free\(net_ans\);", ""))
+mut("SELECTINDEX clears the list before the server answers", "dh_ak.c", edit_func("net_selindex", r"\(void\)net_index_query\(", "clear_select(list_no);\n    (void)net_index_query("))
+mut("SELECTLEFT / SELECTRIGHT clear the list before the server answers", "dh_ak.c", edit_func("net_akscan", r"\(void\)net_index_query\(", "clear_select(list_no);\n  (void)net_index_query("))
+mut("SELECTINDEX keeps the ids of an unknown index", "dh_ak.c", edit_func("net_selindex", r"if \(\(net_st != 0\) && \(ids != NULL\)\) \{", "if (0) {"))
+mut("SELECTLEFT / SELECTRIGHT split the answer of a failed scan", "dh_ak.c", edit_func("net_akscan", r"if \(net_st == 0\)", "if (1)"))
+mut("SELECTLEFT / SELECTRIGHT forget the server's STATUS()", "dh_ak.c", edit_func("net_akscan", r"process\.status = net_st;", ""))
+mut("net_index_query does not clear process.op_flags", NFC, edit_func("net_index_query", r"process\.op_flags = 0;", ""))
+mut("net_index_query accepts an ELSE answer", NFC, edit_func("net_index_query", r"if \(status > 0\) \{", "if (0) {"))
+mut("net_index_query ignores a negative status", NFC, edit_func("net_index_query", r"if \(status < 0\)\n    return net_raise\(status, 0\);", ""))
+mut("net_index_query passes the server's status on", NFC, edit_func("net_index_query", r"ER_FNF, FALSE, FALSE, &out\)", "ER_FNF, FALSE, TRUE, &out)"))
+mut("net_index_query sets the answers before it raises", NFC, edit_func("net_index_query", r"status = net_op_ex\(", "*server_st = 9;\n  status = net_op_ex("))
+mut("NF_INDEXQ is 25 in netfiles.c", NFC, rx(r"(#define\s+NF_INDEXQ\s+)24", r"\g<1>25"))
+mut("NF$INDEXQ is 25 in netfile.h", "bp:netfile.h", rx(r"(\$define\s+NF\$INDEXQ\s+)24", r"\g<1>25"))
+mut("NF$INDEXQ is not dispatched to act.indexq", NFP, rx(r"(case op = NF\$INDEXQ\s*;\s*gosub act\.)indexq", r"\1fileunlock"))
+mut("act.indexq: an arm sends without its mark", NFP, "case what = 3 ; obj->ServerStatus = NF$NOREPLY ; res = obj->selectindexv(", "case what = 3 ; res = obj->selectindexv(")
+mut("act.indexq: SELECTLEFT asks for SELECTRIGHT", NFP, "case what = 7 ; obj->ServerStatus = NF$NOREPLY ; res = obj->selectleft(", "case what = 7 ; obj->ServerStatus = NF$NOREPLY ; res = obj->selectright(")
+mut("act.indexq: the scan's second request loses its mark", NFP, "      obj->error = ''\n      obj->ServerStatus = NF$NOREPLY\n      e = ''\n      lst = obj->readlist(NF$LIST, e)\n      gosub after.rq\n      nf.requests += 1\n      if rq.lost then\n         gosub lost.fail\n         return\n      end\n      if rq.err then\n         gosub server.fail\n         return\n      end\n      if e = 1 then\n         gosub on.error.text\n         gosub server.fail\n         return\n      end\n      if e # 0 then\n         fail.num = 11504 ; fail.a1 = srvname ; fail.a2 = opname ; fail.a3 = 'answer ':e\n         gosub fail\n         return\n      end\n      out = key : @fm : lst", "      obj->error = ''\n      e = ''\n      lst = obj->readlist(NF$LIST, e)\n      gosub after.rq\n      nf.requests += 1\n      if rq.lost then\n         gosub lost.fail\n         return\n      end\n      if rq.err then\n         gosub server.fail\n         return\n      end\n      if e = 1 then\n         gosub on.error.text\n         gosub server.fail\n         return\n      end\n      if e # 0 then\n         fail.num = 11504 ; fail.a1 = srvname ; fail.a2 = opname ; fail.a3 = 'answer ':e\n         gosub fail\n         return\n      end\n      out = key : @fm : lst")
+mut("act.indexq: the scan loses the first request's status", NFP, "      rc<8> = st1\n", "")
+mut("act.indexq: a what over 8 is accepted", NFP, "if what < 1 or what > 8 then", "if what < 1 or what > 9 then")
+mut("act.indexq refuses a read-mode handle", NFP, "   opname = 'index'\n", "   opname = 'index'\n   if nf.h.mode(hx) # 'write' then gosub act.refuse\n")
+mut("act.indexq writes an audit line", NFP, "   opname = 'index'\n", "   opname = 'index'\n   kernel(K$AUDIT, 'netfile index server=' : srvname)\n")
+mut("the class: SETLEFT aborts when quiet", SCL, "         if server.error = SV$ON.ERROR and not(quiet) then\n            abort 'SETLEFT generated an abort event'", "         if server.error = SV$ON.ERROR then\n            abort 'SETLEFT generated an abort event'")
+mut("the class: SELECTRIGHT aborts when quiet", SCL, "if not(quiet) then abort 'SELECTRIGHT generated an abort event'", "abort 'SELECTRIGHT generated an abort event'")
 mut("SELECTV has no NET branch", OD4, edit_func("op_selectv", r"if \(fvar->type == NET_FILE\)", "if (0)"))
 # FILEINFO
 mut("FL_TYPE_NET is 6 in keys.h", "keys.h", rx(r"(#define\s+FL_TYPE_NET\s+)7", r"\g<1>6"))
@@ -4576,7 +4705,18 @@ mut("S72b: apifilesok: recordlocked leaves the change set (S72 had it out; S.72b
 # the suite
 mut("S72b: the suite's matrix loses recordlocked (a read-mode handle is refused again, and the matrix must hold it)", NFSUITE, rx(r'[ \t]*km\("recordlocked"[^\n]*\n', ""))
 mut("S72: the suite's matrix loses the filelock control", NFSUITE, 'km("filelock", "filelock f", None, "filelock", None),\n', "")
-mut("S72: the suite's KW_STILL_REFUSED holds filelock again", NFSUITE, 'KW_STILL_REFUSED = ("selectindex",', 'KW_STILL_REFUSED = ("filelock", "selectindex",')
+mut("S72: the suite's KW_STILL_REFUSED holds filelock again", NFSUITE, 'KW_STILL_REFUSED = ("fiexcl",', 'KW_STILL_REFUSED = ("filelock", "fiexcl",')
+mut("D1: vb.selectleft does not ask check.list", "apisrvr", rx(r"(vb\.selectleft:.*?)gosub check\.list[^\n]*\n\s*if err then return\n", r"\1", flags=re.S))
+mut("D1: vb.selectright does not ask check.list", "apisrvr", rx(r"(vb\.selectright:.*?)gosub check\.list[^\n]*\n\s*if err then return\n", r"\1", flags=re.S))
+mut("D1: vb.selectright has no RETURN again", "apisrvr", rx(r"(selectright cmnd\[5,999\] from files\(fno\) setting response to listno)\s*;\s*return", r"\1"))
+mut("D1: the suite's KW_STILL_REFUSED holds an index statement again", NFSUITE, 'KW_STILL_REFUSED = ("fiexcl",', 'KW_STILL_REFUSED = ("selectindex", "fiexcl",')
+mut("D1: the suite's matrix has an index statement again", NFSUITE, "    km(\"fcontrol6\",", "    km(\"setleft\", \"setleft 'CITY' from f\", None, \"setleft\", None),\n    km(\"fcontrol6\",")
+mut("D1: the suite loses the statements' index rows", NFSUITE, "    kw_index(A)\n", "")
+mut("D1: the suite loses the handler's index rows", NFSUITE, "    hw_index(A)\n", "")
+mut("D1: the suite's READLIST carries a list number", NFSUITE, 'return (14, b"")', 'return (14, struct.pack("<h", lst))')
+mut("D1: the suite's NF_INDEXQ is 25", NFSUITE, "NF_INDEXQ = 24", "NF_INDEXQ = 25")
+mut("D1: the suite's KQALLOWED forgets the index requests", NFSUITE, "KQALLOWED = KALLOWED | {11, 14, 35, 36}", "KQALLOWED = KALLOWED | {11, 14}")
+mut("D1: the suite's index is multivalued", NFSUITE, 'NI_INFO = "D\\xfd\\xfd\\xfd1\\xfd0\\xfdL\\xfd\\xfe1\\xfe\\xfeName\\xfeL\\xfeS"', 'NI_INFO = "D\\xfd\\xfd\\xfd1\\xfd0\\xfdL\\xfd\\xfe1\\xfe\\xfeName\\xfeL\\xfeM"')
 mut("S72: the suite's GETLOCKS row expects the refusal again", NFSUITE, "KR kj SURVIVED fields=1 values=3", "KR kj REFUSED")
 mut("S72: the suite's NF_FILEUNLOCK is 20", NFSUITE, "NF_FILELOCK, NF_FILEUNLOCK = 18, 19", "NF_FILELOCK, NF_FILEUNLOCK = 18, 20")
 mut("S72: the suite's driver names NF$FILELOCK", NFSUITE, "         case nm = 'STATE'\n            op = NF$STATE\n", "         case nm = 'STATE'\n            op = NF$STATE\n         case nm = 'FLK'\n            op = NF$FILELOCK\n")

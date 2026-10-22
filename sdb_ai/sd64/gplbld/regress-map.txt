@@ -56,7 +56,9 @@ gplbld/sandbox-english.py    : @core
 gplbld/netfake.py            : net netfile req29
 gplbld/sandbox-netfile.py    : @self
 # 21 Oct 26 (S.73 item 3): sandbox-fileadmin imports sandbox-req29's wire, audit and fixture helpers, so a change to one runs the other.
-gplbld/sandbox-req29.py      : @self fileadmin
+gplbld/sandbox-req29.py      : @self fileadmin netindex
+# 21 Oct 26 (S.73 item 3 D1): sandbox-netindex loads sandbox-fileadmin (its test device and fixtures), so a change to that one runs this one too.
+gplbld/sandbox-fileadmin.py  : @self netindex
 gplbld/sandbox-*.py          : @self
 gplbld/test-*.py             : none
 gplbld/regress.sh            : none
@@ -218,7 +220,7 @@ sdsys/gpl.bp/netfile         : netfile
 sdsys/gpl.bp/netfile.h       : netfile
 sdsys/gpl.bp/deletenetlogin  : net
 sdsys/gpl.bp/setserver       : net
-sdsys/gpl.bp/apifilesok      : net qmclient fileadmin
+sdsys/gpl.bp/apifilesok      : net qmclient fileadmin netindex
 sdsys/gpl.bp/deleteserver    : net
 sdsys/gpl.bp/listservers     : net
 sdsys/gpl.bp/bcomp           : bcomp-a1 stmt-q3 func-q1 mode-q16 restricted stdfil dbgequ
@@ -365,7 +367,7 @@ sdsys/gpl.bp/login           : @system sdaccts editgates net shared winsize
 sdsys/gpl.bp/term            : @core winsize
 sdsys/gpl.bp/classmain       : classinit
 sdsys/gpl.bp/cproc           : @system @core cmd-a9 chained execlist forcereload stacked gates sdaccts resetall classinit net netfile shared
-sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin
+sdsys/gpl.bp/apisrvr         : qmclient inhibit-q8 gates sdaccts editgates net shared req29 apispin fileadmin netindex
 sdsys/gpl.bp/sdclient        : qmclient netfile net
 sdsys/gpl.bp/remoteapi       : gates qmclient
 sdsys/gpl.bp/remotessh       : gates

@@ -162,8 +162,10 @@ R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE = 16, 17, 18, 
 R_FILELOCK, R_FILEUNLOCK = 32, 33
 # 21 Oct 26, S.73 item 3: the administration requests - the write of a record under the file's own next id (68, 69), a verb run on the server (70) and FCONTROL (71).
 R_WRITESEQKEY, R_WRITEUSEQKEY, R_FILEADMIN, R_FCONTROL = 68, 69, 70, 71
+# 21 Oct 26, S.73 item 3, D1: the index QUERY requests (the gate lets every sdfiles login send them): SELECTINDEX of a value (26), INDICES (35, 36), the indexed values (38), the ids of a value (39), the scan (42 to 45).
+R_SELECTINDEX, R_INDICES1, R_INDICES2, R_SELECTINDEXV, R_SELECTINDEXK, R_SETLEFT, R_SETRIGHT, R_SELECTLEFT, R_SELECTRIGHT = 26, 35, 36, 38, 39, 42, 43, 44, 45
 # The requests apisrvr has a handler for that this fake does not build (see the module text); a number apisrvr has no handler for is "illegal".
-NOT_BUILT = frozenset(list(range(20, 27)) + [29, 35, 36, 38, 39] + list(range(42, 46)) + [47, 48] + list(range(50, 68)))
+NOT_BUILT = frozenset(list(range(20, 26)) + [29, 47, 48] + list(range(50, 68)))      # 21 Oct 26, S.73 item 3 D1: 26, 35, 36, 38, 39 and 42 to 45 (the index queries) are built
 # The requests whose successful reply carries cfg success_status (the STATUS() apisrvr leaves for the client, which the client must not trust).  R_FILEUNLOCK is NOT here: its STATUS() is the answer.
 STATUS_REQUESTS = frozenset([R_RELEASE, R_WRITE, R_WRITEU, R_DELETE, R_DELETEU, R_LOCKRECORD, R_CLEARFILE, R_FILELOCK, R_WRITESEQKEY, R_WRITEUSEQKEY])
 MAX_PACKET = 16 * 1024 * 1024   # the largest request packet this server reads; a WRITE carries the whole record
@@ -319,6 +321,25 @@ class FakeFile:
         self.fileid = fileid
         self._dict = None
         self.seq_next = 1               # S.73 item 3: the next id of WRITE ... CREATING.SEQKEY (a hashed file's counter; requests 68 and 69, FCONTROL keys 2 and 3)
+        self.indexes = {}               # S.73 item 3 D1: {index name: {"field": field number, "kind": "text" or "num", "info": what INDICES(f, name) answers}}; the keys are worked out from the records
+
+    def index_keys(self, name):
+        """The index NAME as the server holds it: [(key, [ids])] in index order - text bytewise, a "num" index numerically - the ids of a key in id order.  Null values are not indexed; a value mark splits a
+        field into several keys (a record with two cities is under both).  None when there is no such index (the name is case sensitive)."""
+        spec = self.indexes.get(name)
+        if spec is None:
+            return None
+        keys = {}
+        for rid in sorted(self.records):
+            fields = self.records[rid].split(FM)
+            val = fields[spec["field"] - 1] if 1 <= spec["field"] <= len(fields) else ""
+            for v in val.split("\xfd"):
+                if v != "":
+                    keys.setdefault(v, [])
+                    if rid not in keys[v]:
+                        keys[v].append(rid)
+        order = (lambda k: float(k)) if spec.get("kind") == "num" else (lambda k: k)
+        return [(k, keys[k]) for k in sorted(keys, key=order)]
 
     def find(self, rid):
         """The id as the file holds it (a nocase file matches ids that differ in ASCII case), or None."""
@@ -390,6 +411,12 @@ class FakeStore:
             f = FakeFile(name, records, dict_items, fileid=len(self.files) + 1, **kw)
             self.files[name] = f
         return f
+
+    def add_index(self, name, index, field, kind="text", info=""):
+        """An index called INDEX on field number FIELD of the file NAME (S.73 item 3 D1); kind "num" is a right aligned numeric index.  info is the text INDICES(f, INDEX) answers.  The file's
+        records say what is in it, so changing them changes the index."""
+        with self.cond:
+            self.files[_lower(name)].indexes[index] = {"field": int(field), "kind": kind, "info": info}
 
     def file(self, name):
         with self.cond:
@@ -691,6 +718,7 @@ class FileSession:
         self.taken = {}                 # file number -> {(lock name, lock id)}: the record locks taken through that slot (CLOSE lets them go)
         self.flslot = {}                # lock name -> the file number that TOOK this session's file lock (the kernel's fptr->fvar_index): CLOSE of that number lets it go (S.72)
         self.names = {}                 # file number -> the name the file was opened under ("dict name" for a dictionary): apisrvr's file.names, which request 70 names its file by (S.73 item 3)
+        self.scanpos = {}               # (file number, index name) -> where the scan of that index stands for that OPEN file: ("L",) before the first key, ("R",) after the last, ("K", key) at a key (S.73 item 3 D1)
         self.nreq = 0
         self.done = False
         self.closed = False
@@ -937,6 +965,8 @@ class FileSession:
                 self.store.filelock_release(f.lockname, self.userno)
             self.slots[self.cur_fno - 1] = None
             self.names.pop(self.cur_fno, None)
+            for k in [k for k in self.scanpos if k[0] == self.cur_fno]:
+                del self.scanpos[k]
         return ""
 
     def _read(self, data, update=None, wait=False):
@@ -1379,13 +1409,139 @@ class FileSession:
         self.err, self.abort_msg = SV_ON_ERROR, "netfake: FCONTROL key %d is not modelled" % key
         return ""
 
+    # ---- 21 Oct 26, S.73 item 3 D1: the index QUERY requests.  What a real server answers is measured by sandbox-netindex.py (REAL_INDEX holds the same values); the notes below say which. ----------------
+    def _index_name(self, f, name):
+        """The index NAME of the open file f as (name, entries) - entries None when there is no such index, and then STATUS() is 1."""
+        entries = f.index_keys(name)
+        if entries is None:
+            self.st = 1
+        return entries
+
+    def r_indices1(self, data):
+        """vb.indices1: INDICES(f): the names of the file's indices, field marks between (none: the null string); STATUS() 0."""
+        f = self._file(data)
+        return "" if f is None else FM.join(f.indexes)
+
+    def r_indices2(self, data):
+        """vb.indices2: INDICES(f, name): the index's description; a name that is not an index (the case of the name matters) is the null string with STATUS() 0, not 1 (measured)."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        spec = f.indexes.get(data[2:99].decode("latin-1"))
+        return "" if spec is None else spec["info"]
+
+    def r_selectindexv(self, data):
+        """vb.selectindexv (38): the indexed values in index order, field marks between; an index that is not there: the null string and STATUS() 1."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        entries = self._index_name(f, data[2:999].decode("latin-1"))
+        return "" if entries is None else FM.join(k for k, _ids in entries)
+
+    def _keys_of(self, f, name, value):
+        """The ids that hold VALUE in index NAME (None: no such index); the scan position of this open file is the value, found or not."""
+        entries = self._index_name(f, name)
+        if entries is None:
+            return None
+        self.scanpos[(self.cur_fno, name)] = ("K", value)
+        for k, ids in entries:
+            if k == value:
+                return ids
+        return []
+
+    def r_selectindexk(self, data):
+        """vb.selectindexk (39): fno, the name's length (short), the name, the value (the rest; neither is padded) -> the ids that hold the value, field marks between; a value nobody holds is the null
+        string with STATUS() 0; an index that is not there STATUS() 1.  It sets the scan position of the index."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        n = max(_short(data, 2), 0)
+        ids = self._keys_of(f, data[4:4 + n].decode("latin-1"), data[4 + n:].decode("latin-1"))
+        return "" if not ids else FM.join(ids)
+
+    def r_selectindex(self, data):
+        """vb.selectindex (26): fno, list number, the name (length, name, a null when the length is odd), the value (the same): the ids go into the server's list (status 0, an empty list for a value
+        nobody holds; an index that is not there: STATUS() 1 and an empty list).  It sets the scan position."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        listno = _short(data, 2)
+        if not self._list(listno):
+            return ""
+        pos = 4
+        n = max(_short(data, pos), 0)
+        name = data[pos + 2:pos + 2 + n].decode("latin-1")
+        pos += 2 + n + (n & 1)
+        n = max(_short(data, pos), 0)
+        value = data[pos + 2:pos + 2 + n].decode("latin-1")
+        ids = self._keys_of(f, name, value)
+        self.lists[listno] = [list(ids or []), 0]
+        return ""
+
+    def _setpos(self, data, edge):
+        f = self._file(data)
+        if f is None:
+            return ""
+        name = data[2:99].decode("latin-1")
+        if self._index_name(f, name) is not None:
+            self.scanpos[(self.cur_fno, name)] = (edge,)
+        return ""
+
+    def r_setleft(self, data):
+        """vb.setleft (42): the scan stands before the first key; STATUS() 0, or 1 for an index that is not there."""
+        return self._setpos(data, "L")
+
+    def r_setright(self, data):
+        """vb.setright (43): the scan stands after the last key."""
+        return self._setpos(data, "R")
+
+    def _scan(self, data, right):
+        """vb.selectright (45) / vb.selectleft (44): fno, list number, the name -> the next key to the right (left) of the position, its ids in the server's list (read by READLIST), STATUS() 0; past the end
+        the null key and an empty list with STATUS() 1 (both directions since the server was fixed on 21 Oct 26: request 45 used to leave 0), and the scan stays at that end."""
+        f = self._file(data)
+        if f is None:
+            return ""
+        listno = _short(data, 2)
+        if not self._list(listno):
+            return ""
+        name = data[4:99].decode("latin-1")
+        self.lists[listno] = [[], 0]
+        entries = self._index_name(f, name)
+        if entries is None:
+            return ""
+        keys = [k for k, _ids in entries]
+        spec = f.indexes[name]
+        num = (lambda k: float(k)) if spec.get("kind") == "num" else (lambda k: k)
+        pos = self.scanpos.get((self.cur_fno, name), ("L",) if right else ("R",))
+        if right:
+            cand = keys if pos[0] == "L" else ([] if pos[0] == "R" else [k for k in keys if num(k) > num(pos[1])])
+            hit = cand[0] if cand else None
+        else:
+            cand = keys if pos[0] == "R" else ([] if pos[0] == "L" else [k for k in keys if num(k) < num(pos[1])])
+            hit = cand[-1] if cand else None
+        if hit is None:
+            self.st = 1
+            self.scanpos[(self.cur_fno, name)] = ("R",) if right else ("L",)
+            return ""
+        self.scanpos[(self.cur_fno, name)] = ("K", hit)
+        self.lists[listno] = [list(dict(entries)[hit]), 0]
+        return hit
+
+    def r_selectleft(self, data):
+        return self._scan(data, False)
+
+    def r_selectright(self, data):
+        return self._scan(data, True)
+
     HANDLERS = {R_QUIT: r_quit, R_GETERROR: r_geterror, R_ACCOUNT: r_account, R_OPEN: r_open, R_CLOSE: r_close, R_READ: r_read,
                 R_READL: r_readl, R_READLW: r_readlw, R_READU: r_readu, R_READUW: r_readuw, R_SELECT: r_select, R_READNEXT: r_readnext,
                 R_CLEARSELECT: r_clearselect, R_READLIST: r_readlist, R_RELEASE: r_release, R_RECORDLOCKED: r_recordlocked,
                 R_SELECTLIST: r_selectlist, R_FILEINFO: r_fileinfo, R_READV: r_readv, R_MARKMAPPING: r_markmapping, R_REVISION: r_revision,
                 R_WRITE: r_write, R_WRITEU: r_writeu, R_DELETE: r_delete, R_DELETEU: r_deleteu, R_LOCKRECORD: r_lockrecord,
                 R_CLEARFILE: r_clearfile, R_FILELOCK: r_filelock, R_FILEUNLOCK: r_fileunlock,
-                R_WRITESEQKEY: r_writeseqkey, R_WRITEUSEQKEY: r_writeuseqkey, R_FILEADMIN: r_fileadmin, R_FCONTROL: r_fcontrol}
+                R_WRITESEQKEY: r_writeseqkey, R_WRITEUSEQKEY: r_writeuseqkey, R_FILEADMIN: r_fileadmin, R_FCONTROL: r_fcontrol,
+                R_SELECTINDEX: r_selectindex, R_INDICES1: r_indices1, R_INDICES2: r_indices2, R_SELECTINDEXV: r_selectindexv, R_SELECTINDEXK: r_selectindexk,
+                R_SETLEFT: r_setleft, R_SETRIGHT: r_setright, R_SELECTLEFT: r_selectleft, R_SELECTRIGHT: r_selectright}
 
 
 class FakeServer(threading.Thread):
@@ -2360,12 +2516,21 @@ def selftest_files(srv, cert, row):
     r2 = c.req(R_READ, r[2] + b"c1")
     row("files-only: open and read are allowed through", r2 == (0, 0, rec_c1.encode("latin-1")), repr((r, r2)))
     r = c.req(35, _S(1))
-    row("files-only: a request the gate allows and the fake does not build (35, indices) reaches the dispatch: SV$ERROR \"not implemented\"",
-        r[0] == 3 and "not implemented" in c.error_text() and 35 not in ses.refused, repr(r))
+    row("files-only: INDICES (request 35), which the gate allows, is served (S.73 item 3, D1: it was the one request the gate allowed and this fake did not build, then): the names of the indices, none on this file",
+        r == (0, 0, b"") and 35 not in ses.refused, repr(r))
+    row("files-only: every request the gate allows has a handler in this fake (FILES_OK is within HANDLERS), so nothing the gate lets through can be 'not implemented'",
+        FILES_OK <= set(FileSession.HANDLERS), repr(sorted(FILES_OK - set(FileSession.HANDLERS))))
     c.close()
     wait_closed(ses)
-    row("... and the indices request is the one thing the fake noted (S.72, 20 Oct 26: it was the file lock, request 32, until that was built)",
-        srv.errors == ["request 35 is not built in netfake"], repr(srv.errors))
+    c = connect(files_only=False)
+    ses = srv.sessions[-1]
+    r = c.req(20, b"\x00\x00")
+    row("a request the fake does not build (20, call), from a login that is not files-only, reaches the dispatch: SV$ERROR \"not implemented\" (the instrument for 'unbuilt' is alive)",
+        r[0] == 3 and "not implemented" in c.error_text(), repr(r))
+    c.close()
+    wait_closed(ses)
+    row("... and it is the one thing the fake noted (S.73 item 3 D1, 21 Oct 26: it was the indices request, 35, until that was built)",
+        srv.errors == ["request 20 is not built in netfake"], repr(srv.errors))
     srv.errors.clear()
     c = connect(user="carol", pw="pw-carol")
     ses = srv.sessions[-1]
@@ -2387,8 +2552,9 @@ def selftest_files(srv, cert, row):
         print("  [SKIP] gpl.bp/apifilesok is not there: the allow list is not compared")
     else:
         row("FILES_OK is gpl.bp/apifilesok's table, number for number (and 3 is allowed once)", FILES_OK == want, repr(sorted(FILES_OK ^ want)))
-    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30 to 34, 37, 40, 41, 46, 49 (32 and 33, the file locks, since S.72) and 68 to 71 (the administration set, since S.73 item 3)",
-        set(FileSession.HANDLERS) == set(range(1, 20)) | {30, 31, 32, 33, 34, 37, 40, 41, 46, 49, 68, 69, 70, 71}, repr(sorted(FileSession.HANDLERS)))
+    row("FileSession.HANDLERS covers exactly the requests the module text says: 1 to 19, 30 to 34, 37, 40, 41, 46, 49 (32 and 33, the file locks, since S.72), 68 to 71 (the administration set, since S.73 item 3) "
+        "and 26, 35, 36, 38, 39, 42 to 45 (the index queries, S.73 item 3 D1)",
+        set(FileSession.HANDLERS) == set(range(1, 20)) | {26, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 49, 68, 69, 70, 71}, repr(sorted(FileSession.HANDLERS)))
     row("NOT_BUILT and the built requests do not overlap", not (NOT_BUILT & set(FileSession.HANDLERS)), repr(sorted(NOT_BUILT & set(FileSession.HANDLERS))))
     bad_msgs = []
     for num, copy in _MSG_COPY.items():
@@ -3542,6 +3708,106 @@ def selftest_writes(srv, row):
     row("the fake noted nothing wrong with the client in the write rows", srv.errors == [], repr(srv.errors))
 
 
+def selftest_index(srv, row):
+    """21 Oct 26, S.73 item 3 D1: the index QUERY requests (26, 35, 36, 38, 39, 42 to 45), held to what a REAL server answers.  The values are those sandbox-netindex.py measures (its rows I1 to S6, same
+    fixture: file zzx, indices CITY and AMT, records r1 to r6); a row here is the same question asked of the fake, and the file is searched for the two descriptions so that the two cannot drift
+    apart quietly.  A files-only login with NO group asks everything: the queries need sdfiles alone."""
+    st = srv.store
+    INFO_CITY = "D\xfd\xfd\xfd1\xfd0\xfdL\xfd\xfe1\xfe\xfeCity\xfeL\xfeM"
+    INFO_AMT = "D\xfd\xfd\xfd1\xfd1\xfdL\xfd\xfe2\xfe\xfeAmt\xfeR\xfeS"
+    st.add_file("zzx", {"r1": "Paris" + FM + "100", "r2": "Rome" + FM + "20", "r3": "Paris" + FM + "3", "r4": "Oslo" + FM + "100", "r5": "Rome" + FM + "7", "r6": "Paris\xfdOslo" + FM + "50"})
+    st.add_index("zzx", "CITY", 1, "text", INFO_CITY)
+    st.add_index("zzx", "AMT", 2, "num", INFO_AMT)
+    srv.configure(files=True, files_only=True)
+    c = ApiClient(srv.port, timeout=5)
+    if c.login("alice", "pw-one")[0] != "ok":
+        raise RuntimeError("netfake self-test: login gave a refusal")
+    ses = srv.sessions[-1]
+    fno = struct.unpack("<h", c.req(R_OPEN, "zzx")[2])[0]
+
+    def pad(s):
+        return _S(len(s)) + s.encode("latin-1") + (b"\0" if len(s) % 2 else b"")
+
+    def ans(rr, status, data):
+        return rr[0] == 0 and rr[1] == status and rr[2].decode("latin-1") == data
+
+    def scan(ptype, name, lst):
+        k = c.req(ptype, _S(fno) + _S(lst) + name.encode())
+        return k, c.req(R_READLIST, _S(lst))
+
+    try:
+        text = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sandbox-netindex.py"), encoding="utf-8").read()
+    except OSError:
+        text = None
+    row("the two descriptions this self-test expects are the ones sandbox-netindex.py holds (INFO_CITY, INFO_AMT)",
+        text is not None and ('INFO_CITY = "D\\xfd\\xfd\\xfd1\\xfd0\\xfdL\\xfd\\xfe1\\xfe\\xfeCity\\xfeL\\xfeM"' in text) and ('INFO_AMT = "D\\xfd\\xfd\\xfd1\\xfd1\\xfdL\\xfd\\xfe2\\xfe\\xfeAmt\\xfeR\\xfeS"' in text),
+        "sandbox-netindex.py not read" if text is None else "")
+    row("I1 request 35: the names of the indices, field marks between, STATUS() 0", ans(c.req(35, _S(fno)), 0, "CITY" + FM + "AMT"), "")
+    a, b, d, e = (c.req(36, _S(fno) + n.encode()) for n in ("CITY", "AMT", "NOSUCH", "city"))
+    row("I2/I3 request 36: the description of CITY and of AMT; a name that is not an index (or the wrong case) is the null string with STATUS() 0", ans(a, 0, INFO_CITY) and ans(b, 0, INFO_AMT) and ans(d, 0, "") and ans(e, 0, ""),
+        repr((a, b, d, e)))
+    a, b, d = (c.req(38, _S(fno) + n.encode()) for n in ("CITY", "AMT", "NOSUCH"))
+    row("V1/V2 request 38: the indexed values in index order (AMT numerically), STATUS() 0; an index that is not there: the null string and STATUS() 1",
+        ans(a, 0, FM.join(["Oslo", "Paris", "Rome"])) and ans(b, 0, FM.join(["3", "7", "20", "50", "100"])) and ans(d, 1, ""), repr((a, b, d)))
+    a = c.req(39, _S(fno) + _S(4) + b"CITY" + b"Paris")
+    b = c.req(39, _S(fno) + _S(4) + b"CITY" + b"Rome")
+    d = c.req(39, _S(fno) + _S(4) + b"CITY" + b"Nowhere")
+    e = c.req(39, _S(fno) + _S(4) + b"CITY")
+    f = c.req(39, _S(fno) + _S(6) + b"NOSUCH" + b"Paris")
+    g = c.req(39, _S(fno) + _S(3) + b"AMT" + b"100")
+    h = c.req(39, _S(fno) + _S(3) + b"AMT" + b"7")
+    row("K1 request 39: the ids that hold the value in id order (Paris r1 r3 r6 - r6 holds two cities -, Rome r2 r5)", ans(a, 0, FM.join(["r1", "r3", "r6"])) and ans(b, 0, FM.join(["r2", "r5"])), repr((a, b)))
+    row("K2/K3 ...a value nobody holds and a null value: the null string, STATUS() 0; no such index: STATUS() 1; the right aligned index finds 100 (r1 r4) and 7 (r5)",
+        ans(d, 0, "") and ans(e, 0, "") and ans(f, 1, "") and ans(g, 0, FM.join(["r1", "r4"])) and ans(h, 0, "r5"), repr((d, e, f, g, h)))
+    a = c.req(26, _S(fno) + _S(3) + pad("CITY") + pad("Paris"))
+    n1 = c.req(R_READNEXT, _S(3))
+    n2 = c.req(R_READLIST, _S(3))
+    b = c.req(26, _S(fno) + _S(3) + pad("NOSUCH") + pad("Paris"))
+    n3 = c.req(R_READLIST, _S(3))
+    row("K4/K5 request 26: the ids go into the server's list (readnext r1, readlist r3 r6), STATUS() 0; no such index: STATUS() 1 and an empty list",
+        ans(a, 0, "") and ans(n1, 0, "r1") and ans(n2, 0, FM.join(["r3", "r6"])) and ans(b, 1, "") and ans(n3, 0, ""), repr((a, n1, n2, b, n3)))
+    s0 = c.req(42, _S(fno) + b"CITY")
+    ks = [scan(45, "CITY", 4) for _i in range(5)]
+    row("S1 setleft, then selectright: Oslo r4 r6, Paris r1 r3 r6, Rome r2 r5, then the null key with STATUS() 1 (twice: the scan stays at the end)",
+        ans(s0, 0, "") and ans(ks[0][0], 0, "Oslo") and ans(ks[0][1], 0, FM.join(["r4", "r6"])) and ans(ks[1][0], 0, "Paris") and ans(ks[1][1], 0, FM.join(["r1", "r3", "r6"]))
+        and ans(ks[2][0], 0, "Rome") and ans(ks[2][1], 0, FM.join(["r2", "r5"])) and ans(ks[3][0], 1, "") and ans(ks[3][1], 0, "") and ans(ks[4][0], 1, ""), repr(ks))
+    s0 = c.req(43, _S(fno) + b"CITY")
+    ks = [scan(44, "CITY", 4) for _i in range(4)]
+    row("S2 setright, then selectleft: Rome, Paris, Oslo, then STATUS() 1",
+        ans(s0, 0, "") and ans(ks[0][0], 0, "Rome") and ans(ks[1][0], 0, "Paris") and ans(ks[2][0], 0, "Oslo") and ans(ks[2][1], 0, FM.join(["r4", "r6"])) and ans(ks[3][0], 1, ""), repr(ks))
+    c.req(42, _S(fno) + b"AMT")
+    ks = [scan(45, "AMT", 4) for _i in range(6)]
+    row("S3 the right aligned index scans in numeric order: 3 r3, 7 r5, 20 r2, 50 r6, 100 r1 r4, then the end",
+        [(k[0][1], k[0][2].decode("latin-1"), k[1][2].decode("latin-1")) for k in ks] == [(0, "3", "r3"), (0, "7", "r5"), (0, "20", "r2"), (0, "50", "r6"), (0, "100", FM.join(["r1", "r4"])), (1, "", "")],
+        repr(ks))
+    c.req(39, _S(fno) + _S(4) + b"CITY" + b"Paris")
+    k1 = scan(45, "CITY", 4)
+    k2 = scan(45, "CITY", 4)
+    c.req(26, _S(fno) + _S(3) + pad("CITY") + pad("Paris"))
+    k3 = scan(44, "CITY", 4)
+    row("S4/S5 SELECTINDEX of a value (39 or 26) sets the position: the next selectright is Rome r2 r5 and then the end; after request 26 the next selectleft is Oslo r4 r6",
+        ans(k1[0], 0, "Rome") and ans(k1[1], 0, FM.join(["r2", "r5"])) and ans(k2[0], 1, "") and ans(k3[0], 0, "Oslo") and ans(k3[1], 0, FM.join(["r4", "r6"])), repr((k1, k2, k3)))
+    a = c.req(44, _S(fno) + _S(4) + b"NOSUCH")
+    b = c.req(45, _S(fno) + _S(4) + b"NOSUCH")
+    d = c.req(42, _S(fno) + b"NOSUCH")
+    e = c.req(43, _S(fno) + b"NOSUCH")
+    row("S6 an index that is not there is STATUS() 1 and the null string for all four scan requests", ans(a, 1, "") and ans(b, 1, "") and ans(d, 1, "") and ans(e, 1, ""), repr((a, b, d, e)))
+    bad = [(c.req(44, _S(fno) + _S(99) + b"CITY"), c.error_text()), (c.req(45, _S(fno) + _S(-1) + b"CITY"), c.error_text()), (c.req(44, _S(fno) + _S(11) + b"CITY"), c.error_text())]
+    alive = c.req(35, _S(fno))
+    row("S7 a scan with a list number outside 0 to 10 (99, -1, 11) is SV$ERROR with message 5269 (apisrvr check.list, as request 26; before 21 Oct 26 the server answered an ON ERROR reply naming a line of its "
+        "own program), and the connection goes on", all(x[0] == 3 and t == msg(5269) for x, t in bad) and ans(alive, 0, "CITY" + FM + "AMT"), repr((bad, alive)))
+    row("G1 the login asked all of it with NO group and none was refused", ses.refused == [] and ses.files_only, repr(ses.refused))
+    c.req(R_CLOSE, _S(fno))
+    fno2 = struct.unpack("<h", c.req(R_OPEN, "zzx")[2])[0]
+    k = scan(45, "CITY", 4)
+    row("a file opened again starts its scan at the left (the position belongs to the open file)", ans(k[0], 0, "Oslo"), repr(k))
+    c.close()
+    t0 = time.time()
+    while not ses.closed and time.time() - t0 < 4.0:
+        time.sleep(0.05)
+    row("the fake noted nothing wrong with the client in the index rows", srv.errors == [], repr(srv.errors))
+
+
 def selftest_admin(srv, row):
     """21 Oct 26, S.73 item 3: requests 68 to 71 (the administration set).  The gate (apifilesok's fourth argument: the write group AND the administration group, the message each missing
     group gets, the audit word), then the four handlers in apisrvr's order: WRITE ... CREATING.SEQKEY, FCONTROL, and the server verb of request 70 with its words check, its exclusive-access
@@ -4164,6 +4430,7 @@ def selftest():
         selftest_files(srv, c, row)
         selftest_writes(srv, row)
         selftest_admin(srv, row)
+        selftest_index(srv, row)
         selftest_hanging(row)
         selftest_silent(row, c, k)
     finally:
@@ -4230,6 +4497,11 @@ MUTANTS = {
         ["CONTROL: ordinary words", "... and once the other session has closed it", "cfg verbs {4:"]),
     "delete.file keeps the file": ("                self.store.files.pop(_lower(f.vocname), None)", "                pass",
         ["operation 9 (delete.file) removes the file the OPEN FILE names"]),
+    # 21 Oct 26, S.73 item 3 D1: the scan and the position of the index queries, written before the first run
+    "the end of a scan is STATUS() 0": ("            self.st = 1\n            self.scanpos[(self.cur_fno, name)] = (\"R\",) if right else (\"L\",)", "            self.st = 0\n            self.scanpos[(self.cur_fno, name)] = (\"R\",) if right else (\"L\",)",
+        ["S1 setleft, then selectright", "S2 setright, then selectleft", "S3 the right aligned index scans", "S4/S5 SELECTINDEX of a value (39 or 26) sets the position"]),
+    "SELECTINDEX of a value does not set the position": ("        self.scanpos[(self.cur_fno, name)] = (\"K\", value)\n", "        pass\n", ["S4/S5 SELECTINDEX of a value (39 or 26) sets the position"]),
+    "a left scan answers the first key to the left, not the nearest": ("            hit = cand[-1] if cand else None", "            hit = cand[0] if cand else None", ["S2 setright, then selectleft"]),
     "request 70 is not audited": ("        self.audit.append(\"api admin request=70 op=%s file=%s user=%s\" % (verb, shown, self.user))", "        pass",
         ["vb.fileadmin operation 1 (analyse.file)", "... an operation that is none of 1 to 6", "operation 8 (create.file) names a NEW file", "a dictionary is named by the name"]),
 }
@@ -4258,6 +4530,9 @@ def mutants():
                 os.symlink(os.path.join(tree, "sdsys", "messages"), os.path.join(work, "sdsys", "messages"))
             if os.path.isfile(os.path.join(tree, "sdsys", "gpl.bp", "apifilesok")):
                 with open(os.path.join(tree, "sdsys", "gpl.bp", "apifilesok"), "rb") as fi, open(os.path.join(work, "sdsys", "gpl.bp", "apifilesok"), "wb") as fo:
+                    fo.write(fi.read())
+            if os.path.isfile(os.path.join(here, "sandbox-netindex.py")):                  # the self-test reads the two index descriptions there (S.73 item 3 D1)
+                with open(os.path.join(here, "sandbox-netindex.py"), "rb") as fi, open(os.path.join(work, "gplbld", "sandbox-netindex.py"), "wb") as fo:
                     fo.write(fi.read())
             path = os.path.join(work, "gplbld", "netfake.py")
             with open(path, "w", encoding="utf-8") as fo:

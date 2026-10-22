@@ -1537,9 +1537,28 @@ def h_wire(d):
 
 
 def h_lists_ok(d):
-    sel = [struct.unpack("<h", data[2:4])[0] for _c, t, data in d["packets"] if t == 11 and len(data) == 4]
-    rdl = [struct.unpack("<h", data[:2])[0] for _c, t, data in d["packets"] if t == 14 and len(data) == 2]
-    return sel == rdl and all(0 <= n <= 10 for n in sel)
+    """Every SELECT (request 11) is followed by a READLIST of the same list number, and the numbers are 0 to 10.  S.73 item 3 D1: a scan (request 44 or 45) that found a key is followed by a READLIST of the
+    list number the scan carried, which is not a select's and is judged on its own; a scan that found nothing has no READLIST."""
+    sel, rdl, scan_ok, last = [], [], True, None
+    for _c, t, data in d["packets"]:
+        if t == 11 and len(data) == 4:
+            n = struct.unpack("<h", data[2:4])[0]
+            sel.append(n)
+            last = None
+        elif t in (44, 45) and len(data) >= 4:
+            n = struct.unpack("<h", data[2:4])[0]
+            scan_ok = scan_ok and 0 <= n <= 10
+            last = n
+        elif t == 14 and len(data) == 2:
+            n = struct.unpack("<h", data[:2])[0]
+            if last is not None:
+                scan_ok = scan_ok and last == n
+            else:
+                rdl.append(n)
+            last = None
+        else:
+            last = None
+    return sel == rdl and all(0 <= n <= 10 for n in sel) and scan_ok
 
 
 def quit_seen(d):
@@ -2473,6 +2492,23 @@ def W_RLK(fno, rid):
 # S.72 (20 Oct 26).  The handler's operations 18 (NF$FILELOCK) and 19 (NF$FILEUNLOCK) are driven by number (the RAW line of the driver), so that the driver compiles on a tree that does
 # not define them yet.  Request 32 carries the file number and the wait flag (always 0: the handler never makes the server block), request 33 the file number only.
 NF_FILELOCK, NF_FILEUNLOCK = 18, 19
+# S.73 item 3 D1 (21 Oct 26).  Operation 24 (NF$INDEXQ), driven by number as well: a = handle, b = what (1 INDICES(f), 2 INDICES(f, name), 3 SELECTINDEX values, 4 SELECTINDEX ids, 5 SETLEFT, 6 SETRIGHT,
+# 7 SELECTLEFT, 8 SELECTRIGHT), c = the name (and for 4 the name, a field mark and the value).  The RAW line has only the fields a, b and c after the handle, so a row writes  "3|name"  as its c argument.
+NF_INDEXQ = 24
+# The single-valued left-justified D index on field 1 the fake is given in the index rows (the description INDICES(f, name) answers): the shape the query processor accepts for the dictionary item "name"
+NI_INFO = "D\xfd\xfd\xfd1\xfd0\xfdL\xfd\xfe1\xfe\xfeName\xfeL\xfeS"
+
+
+def ni_fresh(A):
+    """The files as they were at the start, a fourth record w4 under the same name as w1 (alpha), and the index "name" on field 1 of hwork."""
+    wreset(A)
+    A.store.put(HW, "w4", "alpha" + FMC + "9")
+    A.store.add_index(HW, "name", 1, "text", NI_INFO)
+
+
+def k_idx(out, st):
+    """An index query through the handler: rc 0, the answer in out (the marks shown) and rc<8> the server's STATUS() - 0 done, 1 no such index or no further key."""
+    return lambda c: c["rc"] == "0" and c["m"] == "" and c["st"] == "" and c["args"] == ["", "", ""] and c["out"] == out and c["r8"] == str(st)
 
 
 def W_FLK(fno, wait=0):
@@ -2496,6 +2532,42 @@ def W_SEQ(fno, rec, keep=False):
 def W_FADM(op, fno, text=""):
     """S.73 item 3: request 70, a verb run on the server: the operation (short), the file number (short; 0 for create.file), the verb's words."""
     return (70, struct.pack("<h", op) + FNO(fno) + text.encode("latin-1"))
+
+
+def W_IDX1(fno):
+    """S.73 item 3 D1: request 35, INDICES(f): the file number."""
+    return (35, FNO(fno))
+
+
+def W_IDX2(fno, name):
+    """Request 36, INDICES(f, name): the file number and the name (not padded)."""
+    return (36, FNO(fno) + name.encode("latin-1"))
+
+
+def W_SELV(fno, name):
+    """Request 38, SELECTINDEX name FROM f (the indexed values): the file number and the name."""
+    return (38, FNO(fno) + name.encode("latin-1"))
+
+
+def W_SELK(fno, name, value):
+    """Request 39, SELECTINDEX name, value FROM f (the ids): the file number, the length of the name, the name and the value (neither padded)."""
+    return (39, FNO(fno) + struct.pack("<h", len(name)) + name.encode("latin-1") + value.encode("latin-1"))
+
+
+def W_SETIDX(right, fno, name):
+    """Requests 42 (SETLEFT) and 43 (SETRIGHT): the file number and the name."""
+    return (43 if right else 42, FNO(fno) + name.encode("latin-1"))
+
+
+def W_SCAN(right, fno, name, lst=10):
+    """Requests 44 (SELECTLEFT) and 45 (SELECTRIGHT): the file number, the list number the handler uses on the server (NF$LIST, 10) and the name."""
+    return (45 if right else 44, FNO(fno) + struct.pack("<h", lst) + name.encode("latin-1"))
+
+
+def W_RLIST(lst=10):
+    """Request 14, READLIST of the list the last select made on the server (the class sends no list number: the server reads the list it holds): only for a scan that found a key.  lst is kept for
+    the callers that name it and is not on the wire."""
+    return (14, b"")
 
 
 def W_READ(fno, rid):
@@ -2621,6 +2693,7 @@ def hwrite_section():
     hw_deletes(A)
     hw_locks(A, B)
     hw_filelocks(A)
+    hw_index(A)
     hw_ids(A)
     hw_mode(A)
     hw_txn(A)
@@ -2936,6 +3009,63 @@ def hw_filelocks(A):
             len(ses) == 2 and sum(x.requests.count(req_type) for x in ses) == 1, repr([x.requests for x in ses]))
         aud = [OPEN_W_AUD] + (["filelock server=nfw file=hwork"] if what == "FILELOCK" else []) + [OPEN_W_AUD]
         row("...the audit trail: the opens%s and NO 'lost' line (a lock changes no data: message 11497, not 11509)" % (", the 'filelock' line" if what == "FILELOCK" else ""), r.audits == aud, repr(r.audits))
+
+
+def hw_index(A):
+    """S.73 item 3 D1 (21 Oct 26): the handler's operation 24 (NF$INDEXQ), by number.  a = handle, b = what, c = the name.  The index rows of the statements are kw_index's; these are the handler's own
+    answers - the out string, rc<8>, the requests it makes - for a write-mode and a read-mode handle alike (no gate beyond the open), and its refusals (a what it does not know, a handle that is not open)."""
+    say("\n  -- the index queries through the handler: operation 24, write-mode and read-mode handles alike --")
+    fn = FMC.join
+    ni_fresh(A)
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), req=[ACCT_REQ, W_OPEN(HW)], audit=OPEN_W_AUD)
+    s.add("RAW", NF_INDEXQ, 1, "1", label="what 1, INDICES(f): the names of the indices, rc<8> 0, request 35 with the file number", ok=k_idx("name", 0), req=[W_IDX1(1)])
+    s.add("RAW", NF_INDEXQ, 1, "2|name", label="what 2, INDICES(f, name): the description the server holds, request 36 with the name not padded", ok=k_idx(show(NI_INFO), 0), req=[W_IDX2(1, "name")])
+    s.add("RAW", NF_INDEXQ, 1, "2|nosuch", label="...a name that is not an index is the null string and rc<8> 0 (the server answers it so)", ok=k_idx("", 0), req=[W_IDX2(1, "nosuch")])
+    s.add("RAW", NF_INDEXQ, 1, "3|name", label="what 3, SELECTINDEX name: the indexed values, field marks between, request 38", ok=k_idx(show(fn(["alpha", "beta", "gamma"])), 0), req=[W_SELV(1, "name")])
+    s.add("RAW", NF_INDEXQ, 1, "3|nosuch", label="...an index that is not there: nothing, rc<8> 1", ok=k_idx("", 1), req=[W_SELV(1, "nosuch")])
+    s.add("RAW", NF_INDEXQ, 1, "5|name", label="what 5, SETLEFT: nothing in out, rc<8> 0, request 42", ok=k_idx("", 0), req=[W_SETIDX(False, 1, "name")])
+    for key, ids in (("alpha", ["w1", "w4"]), ("beta", ["w2"]), ("gamma", ["w3"])):
+        s.add("RAW", NF_INDEXQ, 1, "8|name", label="what 8, SELECTRIGHT: the next key, a field mark and its ids (%s), rc<8> 0, request 45 and then READLIST (14)" % key,
+              ok=k_idx(show(fn([key] + ids)), 0), req=[W_SCAN(True, 1, "name"), W_RLIST()])
+    s.add("RAW", NF_INDEXQ, 1, "8|name", label="...past the last key: nothing, rc<8> 1 and NO READLIST (there is no list to read)", ok=k_idx("", 1), req=[W_SCAN(True, 1, "name")])
+    s.add("RAW", NF_INDEXQ, 1, "6|name", label="what 6, SETRIGHT, then what 7, SELECTLEFT walks down: gamma first", ok=k_idx("", 0), req=[W_SETIDX(True, 1, "name")])
+    s.add("RAW", NF_INDEXQ, 1, "7|name", ok=k_idx(show(fn(["gamma", "w3"])), 0), req=[W_SCAN(False, 1, "name"), W_RLIST()])
+    s.add("TRAW", NF_INDEXQ, 1, "1", label="INSIDE A TRANSACTION an index query is served (it changes nothing, so the rule of 11510 does not apply)", ok=k_idx("name", 0), req=[W_IDX1(1)])
+    for why, what in (("0", "0"), ("9", "9"), ("a word", "x")):
+        s.add("RAW", NF_INDEXQ, 1, what + "|name", label="what %s (%s) is not one of the eight: 11490 naming it, nothing sent" % (what, why), ok=k_err(11490, what))
+    s.add("RAW", NF_INDEXQ, 7, "1", label="a handle that is not open is 11494, nothing sent", ok=k_err(11494, 7))
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the index program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the fake saw exactly the requests listed and the audit trail has only the open line (a query changes nothing and is not audited)", a_wire(r, s) and r.audits == s.audits(),
+        repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+    ni_fresh(A)
+    s = Script()
+    s.add("OPEN", "nfa", HW, ok=k_open_r(1), req=[ACCT_REQ, W_OPEN(HW)], audit="open server=nfa file=hwork")
+    s.add("RAW", NF_INDEXQ, 1, "1", label="A READ-MODE HANDLE is served the same: INDICES(f)", ok=k_idx("name", 0), req=[W_IDX1(1)])
+    s.add("RAW", NF_INDEXQ, 1, "6|name", ok=k_idx("", 0), req=[W_SETIDX(True, 1, "name")])
+    s.add("RAW", NF_INDEXQ, 1, "7|name", label="...and a scan: the key and its ids, nothing refused with 11501", ok=k_idx(show(fn(["gamma", "w3"])), 0), req=[W_SCAN(False, 1, "name"), W_RLIST()])
+    s.add("CLOSEALL", ok=k_ok("", 0), req=[(1, b"")])
+    r = hw_go("zznhon", s, (A,))
+    row("the read-mode index program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the requests were those listed and only the open is in the audit trail", a_wire(r, s) and r.audits == s.audits(), repr((hw_first_diff(r.d[0], s.wire()), r.audits)))
+
+    # a connection the server closes without a reply (the third request after the login is the query): a query changes nothing, so it is the message of a read and no 'lost' line is written
+    ni_fresh(A)
+    s = Script()
+    s.add("OPEN", "nfw", HW, ok=k_open_w(1), audit=OPEN_W_AUD)
+    s.add("RAW", NF_INDEXQ, 1, "1", label="A CONNECTION THE SERVER CLOSES WITHOUT A REPLY: INDICES(f) is 11497 'lost during index' naming the server (the message of a read, not 11509: nothing was changed)",
+          ok=k_err(11497, "nfw", "index"))
+    s.add("RAW", NF_INDEXQ, 1, "1", label="...and the handle is lost with the connection: the next query is 11495, the request is not sent again", ok=k_err(11495, "nfw", 1))
+    s.add("CLOSEALL", ok=k_ok("", 0))
+    r = hw_go("zznhon", s, (A,), cfg={"drop_request": 3})
+    row("the lost-connection index program ran to the end and no connection is left", h_sane(r), h_why(r))
+    judge(r, s)
+    row("...the fake saw the query once and the audit trail has the open and NO 'lost' line", r.d[0]["types"].count(35) == 1 and r.audits == [OPEN_W_AUD], repr((r.d[0]["types"], r.audits)))
 
 
 def hw_ids(A):
@@ -3459,12 +3589,8 @@ KM = [
     # S.72b (20 Oct 26): RECORDLOCKED() is write-governed and is back in the matrix: a read-mode handle stops the program with 11501 and the fake's packet log must hold no request 34 (KALLOWED has none).
     # It has no ON ERROR clause, so it is an A row only; kw_peek has the write-mode side and the lock held by user 7.
     km("recordlocked", "x = recordlocked(f, 'c1')", None, "recordlocked", None),
-    km("selectindex", "selectindex 'CITY' from f to 5", None, "selectindex", None),
-    km("selectindexv", "selectindex 'CITY', 'Paris' from f to 5", None, "selectindex", None),
-    km("selectright", "selectright 'CITY' from f to 5", None, "selectright/selectleft", None),
-    km("selectleft", "selectleft 'CITY' from f to 5", None, "selectright/selectleft", None),
-    km("setleft", "setleft 'CITY' from f", None, "setleft", None),
-    km("setright", "setright 'CITY' from f", None, "setright", None),
+    # S.73 item 3 D1 (21 Oct 26): SELECTINDEX, SELECTINDEX name, value, SETLEFT, SETRIGHT, SELECTLEFT and SELECTRIGHT are not refused any more, on any definition: they ask the server (no new gate, the owner's D1).
+    # They left this matrix; kw_index runs them on a read-mode and a write-mode pointer.
     km("fcontrol6", "void fcontrol(f, 6, 'c1')", None, "fcontrol", None),
     km("fcontrol1", "void fcontrol(f, 1, -1)", None, "fcontrol", None),
     km("fiexcl", "x = fileinfo(f, 10000)", None, "fileinfo", None),
@@ -3949,7 +4075,7 @@ def kn_verbs(A):
             "hung=%s sent=%s types=%s out=%r" % (r.hung, "KR sent" in r.kr, sorted(types - KALLOWED), r.out[:6]))
 
 
-KQALLOWED = KALLOWED | {11, 14}                       # slice 3d: and the two requests a SELECT makes (select, then readlist)
+KQALLOWED = KALLOWED | {11, 14, 35, 36}                # slice 3d: and the two requests a SELECT makes (select, then readlist); S.73 item 3 D1: and the two the query processor asks of every file (INDICES(f), INDICES(f, name))
 KQ_RX = re.compile(r"^KR (SELECT|SELECTV|SSELECT) (\S+) st=(\d+) n=(\d+) ids=\[(.*)\]$")
 
 
@@ -3987,9 +4113,10 @@ def kn_query(A, B):
 
     # FILEINFO: the three keys the query processor asks, from the file variable, nothing dialled for them
     r = kn_drive("zznhon", ["OPEN|1|zznet1", "FI|1|3", "FI|1|1035", "IDX|1", "IDX2|1", "CLOSE|1"], (A,))
-    row("FILEINFO(f, FL$TYPE) is 7 (FL$TYPE.NET) and FL$COLLECTION is 0; INDICES(f) and INDICES(f, name) are the null string (the query processor asks both of every file); no request but the open and the "
-        "close went to the server", kn_sane(r) and "KR FI 3 [7]" in r.kr and "KR FI 1035 [0]" in r.kr and "KR IDX []" in r.kr and "KR IDX2 []" in r.kr and set(r.d[0]["types"]) <= KALLOWED
-        and r.d[0]["types"].count(6) == 0, kn_why(r))
+    row("FILEINFO(f, FL$TYPE) is 7 (FL$TYPE.NET) and FL$COLLECTION is 0; INDICES(f) and INDICES(f, name) ask the SERVER since S.73 item 3 D1 (21 Oct 26) and a file with no index answers the null string "
+        "(the fake's zznet1 has none; the answers of a file with one are kw_index's); no request but the open, the close and exactly those two (35 and 36) went to the server",
+        kn_sane(r) and "KR FI 3 [7]" in r.kr and "KR FI 1035 [0]" in r.kr and "KR IDX []" in r.kr and "KR IDX2 []" in r.kr and set(r.d[0]["types"]) <= KALLOWED | {35, 36}
+        and r.d[0]["types"].count(35) == 1 and r.d[0]["types"].count(36) == 1 and r.d[0]["types"].count(6) == 0, kn_why(r))
     r = kn_run("zznhon", ["ZZNKI"], (A,))
     seg = kn_segments(r.out).get("ki", [])
     row("...and an $internal program gets FL$FLAGS 16 (DHF_NOCASE: every hashed file is NOCASE), type 7 and coll 0", not r.hung and "KR ki flags=16 type=7 coll=0" in seg, repr(seg))
@@ -4127,6 +4254,15 @@ KW_STMTS = {
     "CLOSE": ([], "close {f}", "close"),
     "FI": (["fkey = a3 + 0"], "x = fileinfo({f}, fkey)", "fi"),
     # S.73 item 3 (21 Oct 26): FCONTROL (keys 2, 3 and 6 are the ones the fake models) and WRITE / WRITEU ... CREATING.SEQKEY of a remote file; the id the server gave is printed
+    # S.73 item 3 D1 (21 Oct 26): the index QUERY statements.  The list statements print the server's list (read back from list 3 at once) and @SELECTED, the scans the key variable as well.
+    "INDICES": ([], "x = indices({f})", "fi"),
+    "INDICES2": ([], "x = indices({f}, a3)", "fi"),
+    "SIXV": ([], "selectindex a3 from {f} to 3", "idx"),
+    "SIXK": ([], "selectindex a3, a4 from {f} to 3", "idx"),
+    "SETL": ([], "setleft a3 from {f}", "plain"),
+    "SETR": ([], "setright a3 from {f}", "plain"),
+    "SELL": (["kv = ''"], "selectleft a3 from {f} setting kv to 3", "scan"),
+    "SELR": (["kv = ''"], "selectright a3 from {f} setting kv to 3", "scan"),
     "FCSET": ([], "x = fcontrol({f}, 2, a3 + 0)", "x"),
     "FCGET": ([], "x = fcontrol({f}, 3)", "x"),
     "FCVALID": ([], "x = fcontrol({f}, 6, a3)", "x"),
@@ -4134,7 +4270,7 @@ KW_STMTS = {
     "SEQWU": (["sid = ''"], "writeu a4 to {f} creating.seqkey sid " + KW_EO, "seq"),
 }
 KW_TXN_OPS = ("WRITE", "WRITEU", "MATWRITE", "WRITEV", "WRITEVU", "DELETE", "DELETEU", "CLEARFILE", "READ", "READU", "READL", "READVU", "MATREADU", "RLOCKU", "RLOCKL", "RELEASE", "RELEASEF",
-              "FLOCK", "FUNLOCK", "RLCKD", "SEQW", "SEQWU")
+              "FLOCK", "FUNLOCK", "RLCKD", "SEQW", "SEQWU", "INDICES", "SIXK")
 
 
 def kw_show(name, kind):
@@ -4151,6 +4287,10 @@ def kw_show(name, kind):
         return ["crt 'KW %s ':tid:' x=':x:' st=':st" % name]
     if kind == "seq":
         return ["crt 'KW %s ':tid:' ':oc:' st=':st:' id=[':sid:']'" % name]
+    if kind == "idx":
+        return ["selc = @selected", "readlist v from 3 else v = ''", "gosub shw", "crt 'KW %s ':tid:' st=':st:' sel=':selc:' list=[':sv:']'" % name]
+    if kind == "scan":
+        return ["selc = @selected", "readlist v from 3 else v = ''", "gosub shw", "crt 'KW %s ':tid:' st=':st:' sel=':selc:' key=[':kv:'] list=[':sv:']'" % name]
     return ["crt 'KW %s ':tid:' ':oc:' st=':st" % name]
 
 
@@ -4174,7 +4314,7 @@ def kw_case(name, pre, stmt, kind, txn=False):
 
 def kw_driver():
     L = ["$include err.h", "   dim m(4)", "   dim mw(2)"] + ["   f%d = ''" % n for n in range(1, KSLOTS + 1)]
-    L += ["   x = ''", "   fkey = 0", "   v = ''", "   sv = ''", "   tid = ''", "   rec = ''", "   sid = ''"]                    # assigned first for BCOMP: a warning fails the bootstrap
+    L += ["   x = ''", "   fkey = 0", "   v = ''", "   sv = ''", "   tid = ''", "   rec = ''", "   sid = ''", "   kv = ''", "   selc = 0"]                    # assigned first for BCOMP: a warning fails the bootstrap
     L += ["   crt 'KW begin'", "   done = @false", "   loop", "      input ln", "      done = (ln = 'END') or (ln = '' and status() = ER$EOF)", "   until done do",
           "      op = field(ln, '|', 1)", "      a2 = field(ln, '|', 2)", "      a3 = field(ln, '|', 3)", "      a4 = field(ln, '|', 4)", "      a5 = field(ln, '|', 5)", "      tid = a3"]
     for v in ("a3", "a4"):
@@ -4247,8 +4387,7 @@ KWA = [
     ("rwg", "zznw1", ["x = recordlocked(f, 'w2')", "crt 'KW rwg x=':x:' st=':status()"], (), False, ("zznhon",), lambda: [msg(11500, "nfw", "recordlocked", msg(11521, 34))]),
 ]
 # statements that stay refused on a write-mode handle (message 11511 'not available', not 11501 'read only'): the matrix KM's entries, taken to the pointer zznw1
-KW_STILL_REFUSED = ("selectindex", "selectindexv", "selectright", "selectleft", "setleft", "setright",
-                    "fiexcl", "fistaton", "fistatoff")      # S.73 item 3: fcontrol6 and fcontrol1 are not here any more - FCONTROL goes to the server (kw_admin).  S.72: filelock, fileunlock and recordlocked are not here any more - they work on a write-mode handle (kw_filelocks)
+KW_STILL_REFUSED = ("fiexcl", "fistaton", "fistatoff")      # S.73 item 3 D1: the six index query statements are not here any more - they ask the server (kw_index).  S.73 item 3: fcontrol6 and fcontrol1 are not here any more - FCONTROL goes to the server (kw_admin).  S.72: filelock, fileunlock and recordlocked are not here any more - they work on a write-mode handle (kw_filelocks)
 # internal programs (global catalogue, verbs in the accounts): a gate that must not exempt them, the MUSTLOCK setting only they can make, the S.64 key edit_guard asks
 KWI_TEXT = """$internal
 program zznkwi
@@ -4708,6 +4847,7 @@ def kwrite_section():
     kw_filelocks(A)
     kw_peek(A)
     kw_admin(A)
+    kw_index(A)
 
 
 def kw_basic(A):
@@ -5104,7 +5244,7 @@ def kw_misc(A):
     say("    [note] LIST zznw1 LOCKING -> %r (requests: %s)" % ([x for x in r.out if not x.startswith("KW ")][:6], sorted(set(t))))
     row("LIST zznw1 LOCKING (S.72, the query processor's LOCKING keyword locks the source file): the session survived, the list was printed (3 records), the file lock was asked for (request 32) before the "
         "select (11) and the reads of the records, and the fake saw only requests the section knows (the query's own: the dictionary reads, select, readlist, reads)",
-        not r.hung and kw_types_ok(r, KWALLOWED | {11, 14, 32, 33}) and 32 in t and 11 in t and t.index(32) < t.index(11) and any(re.match(r"^3 record\(s\) listed", x) for x in r.out) and r.idle,
+        not r.hung and kw_types_ok(r, KWALLOWED | {11, 14, 32, 33, 35, 36}) and 32 in t and 11 in t and t.index(32) < t.index(11) and any(re.match(r"^3 record\(s\) listed", x) for x in r.out) and r.idle,
         repr((t, r.out[-6:])))
 
 
@@ -5277,6 +5417,79 @@ def kw_filelocks(A):
         seg = kw_segments(r.out).get(tag, [])
         row("%s whose connection is lost after the server did it, without ON ERROR: the program stops with message 11497 (%r) and prints nothing after it" % (op.upper(), msg(11497, "nfw", op)),
             not r.hung and kn_abort(seg) == msg(11497, "nfw", op) and not any("SURVIVED" in x for x in seg) and r.idle, repr(seg[-3:]))
+
+
+def kw_index(A):
+    """S.73 item 3 D1 (21 Oct 26), the index QUERY statements of a remote file: INDICES(f) and INDICES(f, name), SELECTINDEX name FROM f and SELECTINDEX name, value FROM f, SETLEFT, SETRIGHT, SELECTLEFT and
+    SELECTRIGHT.  No new gate (the owner's D1): a READ-mode definition (pointer zznwr, server nfa) and a write one (zznw1, nfw) answer the same.  THE LOCAL STATEMENTS ARE THE ORACLE: the expected lines
+    are those a local file gave for the same sequence (probed on a sandbox file with the same keys on 21 Oct 26: st=1 sel=0 key=[] list=[] past the end of a scan, st=1 sel=0 for an index that is not there,
+    st=0 sel=0 for a value nobody holds, the next key after SELECTINDEX of a value), and the wire is the fake's record of what crossed.  The query processor then uses the index (last rows)."""
+    say("\n  -- the index QUERY statements on a remote file (S.73 item 3, D1, 21 Oct 26): no new gate, read and write definitions alike --")
+    info = NI_INFO
+
+    def fresh():
+        ni_fresh(A)
+
+    def scan_line(name, right, key, ids):
+        return "KW %s name st=%d sel=%d key=[%s] list=[%s]" % ("SELR" if right else "SELL", 0 if key else 1, len(ids), key, "<F>".join(ids))
+
+    # (the command, the line it prints, the requests it puts on the wire)
+    steps = [("INDICES|1", "KW INDICES  [name]", [W_IDX1(1)]),
+             ("INDICES2|1|name", "KW INDICES2 name [%s]" % show(info), [W_IDX2(1, "name")]),
+             ("INDICES2|1|nosuch", "KW INDICES2 nosuch []", [W_IDX2(1, "nosuch")]),
+             ("SIXV|1|name", "KW SIXV name st=0 sel=3 list=[alpha<F>beta<F>gamma]", [W_SELV(1, "name")]),
+             ("SIXK|1|name|alpha", "KW SIXK name st=0 sel=2 list=[w1<F>w4]", [W_SELK(1, "name", "alpha")]),
+             ("SIXK|1|name|nobody", "KW SIXK name st=0 sel=0 list=[]", [W_SELK(1, "name", "nobody")]),
+             ("SIXK|1|nosuch|alpha", "KW SIXK nosuch st=1 sel=0 list=[]", [W_SELK(1, "nosuch", "alpha")]),
+             ("SETL|1|name", "KW SETL name then st=0", [W_SETIDX(False, 1, "name")])]
+    for key, ids in (("alpha", ["w1", "w4"]), ("beta", ["w2"]), ("gamma", ["w3"])):
+        steps.append(("SELR|1|name", scan_line("name", True, key, ids), [W_SCAN(True, 1, "name"), W_RLIST()]))
+    steps.append(("SELR|1|name", scan_line("name", True, "", []), [W_SCAN(True, 1, "name")]))
+    steps.append(("SETR|1|name", "KW SETR name then st=0", [W_SETIDX(True, 1, "name")]))
+    for key, ids in (("gamma", ["w3"]), ("beta", ["w2"]), ("alpha", ["w1", "w4"])):
+        steps.append(("SELL|1|name", scan_line("name", False, key, ids), [W_SCAN(False, 1, "name"), W_RLIST()]))
+    steps.append(("SELL|1|name", scan_line("name", False, "", []), [W_SCAN(False, 1, "name")]))
+    steps += [("SIXK|1|name|alpha", "KW SIXK name st=0 sel=2 list=[w1<F>w4]", [W_SELK(1, "name", "alpha")]),
+              ("SELR|1|name", scan_line("name", True, "beta", ["w2"]), [W_SCAN(True, 1, "name"), W_RLIST()]),
+              ("SELL|1|nosuch", "KW SELL nosuch st=1 sel=0 key=[] list=[]", [W_SCAN(False, 1, "nosuch")])]
+
+    for ptr, mode, srv_name in (("zznwr", "READ", "nfa"), ("zznw1", "WRITE", "nfw")):
+        fresh()
+        lines = ["OPEN|1|" + ptr] + [s[0] for s in steps] + ["CLOSE|1"]
+        r = kw_drive("zznhon", lines, (A,))
+        got = [x for x in r.kw if not x.startswith(("KW begin", "KW end"))]
+        want = ["KW OPEN %s then st=0" % ptr] + [s[1] for s in steps] + ["KW CLOSE 1"]
+        row("INDEX QUERIES on a %s-mode remote file (pointer %s, server %s): INDICES, INDICES(f, name), both SELECTINDEX forms, SETLEFT / SETRIGHT and SELECTRIGHT / SELECTLEFT give the lines a LOCAL file gave "
+            "(%d lines): the indices, a description, the indexed values, the ids of a value, the keys one after another in each direction, the end of a scan (st=1 sel=0), a value nobody holds (st=0), an index "
+            "that is not there (st=1), and SELECTINDEX of a value sets the position the next scan starts from" % (mode, ptr, srv_name, len(want)), kw_sane(r) and got == want,
+            kw_why(r) + " first difference: %r" % (next(((a, b) for a, b in zip(got, want) if a != b), (len(got), len(want))),))
+        exp = [ACCT_REQ, W_OPEN(HW)] + [q for s in steps for q in s[2]] + [(5, FNO(1))]
+        row("...THE REQUESTS (%s): 35 / 36 with the name unpadded, 38 and 39 with the length of the name then the value, 42 / 43, and 44 / 45 with the handler's list number 10 followed by READLIST (14) of that list "
+            "ONLY when the scan found a key - nothing else, no lock, no read" % ptr, kn_wire(r.d[0]) == exp, "first difference: %r" % (next(((a, b) for a, b in zip(kn_wire(r.d[0]), exp) if a != b), (len(kn_wire(r.d[0])), len(exp))),))
+
+    # the audit trail has nothing for them (a SELECT is not audited either) and a transaction does not matter (they change nothing)
+    fresh()
+    r = kw_drive("zznhon", ["OPEN|1|zznwr", "TINDICES|1", "CLOSE|1"], (A,))
+    row("an index query asks nothing of the transaction rule: INDICES(f) of a READ-mode remote file works inside BEGIN TRANSACTION", kw_sane(r) and "KW TINDICES  [name]" in r.kw, kw_why(r))
+    row("...and the audit trail has only the open line (the queries change nothing and are not audited)", r.audits == ["open server=nfa file=hwork"], repr(r.audits))
+
+    # the query processor ASKS INDICES of every file: with the real answer it uses the server's index (a WITH on the indexed field is one request 39, not a scan of every record)
+    # the records of the fixture are alpha (w1, w4), beta (w2) and gamma (w3); the expected counts are those a scan gives, and the control run (no index on the file) must give the same
+    cases = [("=", "alpha", 2), (">", "alpha", 2), (">=", "beta", 2), ("<", "gamma", 3), ("<=", "beta", 3), ("LIKE", "a...", 2)]
+    for op, val, want in cases:
+        cmd = "COUNT zznwr WITH name %s \"%s\"" % (op, val)
+        fresh()
+        r = kw_run("zznhon", [cmd], (A,))
+        types = r.d[0]["types"]
+        used = [t for t in types if t in (39, 42, 43, 44, 45)]
+        row("THE QUERY PROCESSOR USES THE SERVER'S INDEX: %s counts the %d records a scan counts and the fake saw the index requests (%s) and no select of the whole file (11)" % (cmd, want, sorted(set(used))),
+            not r.hung and any(re.match(r"^%d record\(s\) counted" % want, x) for x in r.out) and used and 11 not in types and r.idle, repr((r.out[-3:], types)))
+        wreset(A)                                       # the control: the same query on a file with NO index is the old way
+        A.store.put(HW, "w4", "alpha" + FMC + "9")
+        r = kw_run("zznhon", [cmd], (A,))
+        types = r.d[0]["types"]
+        row("CONTROL: %s on a file with NO index is a scan, as before (the whole file selected, request 11) and counts the same %d records" % (cmd, want),
+            not r.hung and any(re.match(r"^%d record\(s\) counted" % want, x) for x in r.out) and 11 in types and not [t for t in types if t in (39, 42, 43, 44, 45)] and r.idle, repr((r.out[-3:], types)))
 
 
 def kw_admin(A):
