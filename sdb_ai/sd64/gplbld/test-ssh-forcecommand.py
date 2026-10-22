@@ -49,11 +49,6 @@ MESSAGES = os.path.abspath(os.path.join(HERE, os.pardir, "sdsys", "messages"))
 END_MARKER = "# --- END SD ssh-only model ---"
 NARROW_ARM = "Match Group sdusers,!sdsys,!sdssh"
 GENERAL_ARM = "Match Group sdusers,!sdsys"
-# 21 Oct 26 (AI integration slice 1, the owner's D5): the agent arm, FIRST of the Match arms after sdsys's, with its own ForceCommand and no
-# parsing of what the client typed.  The path below is the test's stand-in for /usr/local/sdsys/bin/sd-mcp and does NOT exist, on purpose:
-# the program arrives in a later slice and the arm has to install, and fail closed, without it.
-AGENT_ARM = "Match Group sdagent,!sdsys"
-MCP_BIN = "/nonexistent/sd-mcp-for-test"
 
 # A stub sshd: `sshd -t -f FILE`.  Exits 0, or 1 when STUB_FAIL=1, so the
 # rollback path can be driven without a config sshd would genuinely reject.
@@ -90,7 +85,6 @@ def run(mode, config, *, sshd, force_cmd=None, stub_fail=False,
     # 20 Sep 26 - the refusal arm's command must exist for --install to write
     # the block, so it defaults to the same stub the other target does.
     env["SD_SSH_REFUSE_BIN"] = refuse_bin if refuse_bin is not None else sshd
-    env["SD_SSH_MCP_BIN"] = MCP_BIN      # 21 Oct 26: the agent arm's target; a path that does not exist, see AGENT_ARM
     if msg_dir is not None:
         env["SD_MESSAGE_DIR"] = msg_dir
     if stub_fail:
@@ -169,33 +163,6 @@ def main():
         record("state", f"no ssh route also means no tunnel: {directive}",
                directive in read(cfg))
 
-    # 1c. 21 Oct 26 (AI integration slice 1, D5): the agent arm.  A member of sdagent is forced into sd-mcp and into nothing else, so the arm has to
-    #     be FIRST (a member of sdagent who is also in sdusers would otherwise get the no-sdssh refusal or sd), its ForceCommand is its own, the
-    #     forwarding is shut, and NOTHING reads SSH_ORIGINAL_COMMAND (the point of the arm over a dispatcher: no client string is parsed).  The
-    #     program it names does not exist here, and the install must still succeed: it fails closed when a member connects.
-    text = read(cfg)
-    lines = [ln.strip() for ln in text.splitlines()]
-    agent_at = lines.index(AGENT_ARM) if AGENT_ARM in lines else None
-    narrow, general = arm_order(text)
-    record("state", "the block carries the agent arm exactly once", lines.count(AGENT_ARM) == 1)
-    record("state", "the agent arm comes FIRST, before the no-sdssh arm and the general arm (sshd takes the first value)",
-           agent_at is not None and narrow is not None and general is not None and agent_at < narrow < general)
-    arm = []
-    if agent_at is not None:
-        for ln in lines[agent_at + 1:]:
-            if ln.startswith("Match ") or ln == END_MARKER:
-                break
-            arm.append(ln)
-    record("state", "the agent arm's ForceCommand is sd-mcp, not sd and not --refuse",
-           arm[:1] == [f"ForceCommand {MCP_BIN}"] and f"ForceCommand {stub}" not in arm and not any("--refuse" in a for a in arm))
-    for directive in ("AllowTcpForwarding no", "AllowStreamLocalForwarding no",
-                      "AllowAgentForwarding no", "PermitTunnel no"):
-        record("state", f"the agent arm shuts the tunnels as well: {directive}", directive in arm)
-    record("state", "nothing in the block reads the client's own command (no SSH_ORIGINAL_COMMAND, no dispatcher)",
-           "SSH_ORIGINAL_COMMAND" not in text)
-    record("allow", "the install succeeded although the sd-mcp target does not exist (the arm fails closed)",
-           code == 0 and not os.path.exists(MCP_BIN))
-
     # 2. Idempotent: a second install does not stack a second block.
     code, out = run("--install", cfg, sshd=stub)
     record("allow", "a second install is idempotent (exactly one block)",
@@ -223,13 +190,6 @@ def main():
     code, out = run("--install", cfg, sshd=stub)
     record("refuse", "install refuses a pre-existing Match rule naming an SD group",
            code == 2)
-
-    # 6a. 21 Oct 26: a Match rule of the administrator's that names sdagent is the same kind of conflict as one naming sdusers.
-    write(cfg, PRISTINE + "Match Group sdagent\n    X11Forwarding yes\n")
-    before = read(cfg)
-    code, out = run("--install", cfg, sshd=stub)
-    record("refuse", "install refuses a pre-existing Match rule naming sdagent", code == 2)
-    record("state", "...and leaves that config untouched", read(cfg) == before)
 
     # 6b. 18 Sep 26 (S.28): a pre-existing DenyUsers sdsys says the same thing
     #    the block says, so it is NOT a conflict - install proceeds, and the

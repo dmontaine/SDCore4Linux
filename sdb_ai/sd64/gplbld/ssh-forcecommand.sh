@@ -3,14 +3,6 @@
 # ssh-forcecommand.sh - the ssh half of the SD boundary for SD Core for Linux.
 #
 # START-HISTORY:
-# 21 Oct 26 dm AI integration slice 1 (S.69, the owner's D5 of the same day): A FOURTH ARM FOR THE AGENT DOOR.  "Match Group sdagent,!sdsys" comes
-#           FIRST after sdsys's arm and has its own ForceCommand, /usr/local/sdsys/bin/sd-mcp (SD_SSH_MCP_BIN), with the four forwarding lines shut
-#           as the refusal arm's are.  A member of sdagent is thereby forced into the agent door and into nothing else - never an interactive sd -
-#           and NOTHING PARSES SSH_ORIGINAL_COMMAND: the dispatcher the 19 Oct evaluation (A7) proposed would have compared a string the client
-#           chooses at the S.29 boundary, and the owner chose the arm without it.  Every other route is unchanged.  The program sd-mcp arrives in a
-#           later slice; until it exists a member's connection fails when sshd cannot run it, which is closed, and the install does NOT check for
-#           it (that check would stop every install until the program ships).  The group is created empty by the installer; a Match rule of the
-#           administrator's that names sdagent is a conflict like one naming sdusers.
 # 20 Sep 26 dm S.29 part 3: THE BLOCK NOW READS sdssh, AND THIS SCRIPT IS ALSO
 #           THE REFUSAL.  Parts 1 and 2 made sdssh membership the ssh route and
 #           gave MODIFY.ACCOUNT the words to change it; nothing read the group,
@@ -32,11 +24,9 @@
 #
 # START-DESCRIPTION:
 #
-# WHAT THE BLOCK IS NOW.  Four arms: sdsys is denied network login outright,
-# a member of sdagent is ForceCommanded into sd-mcp (the agent door, 21 Oct 26;
-# shown in the block written, not in the three-arm picture below), an SD account
-# WITHOUT the ssh route is refused as soon as it connects, and every other SD
-# account is ForceCommanded into sd.
+# WHAT THE BLOCK IS NOW.  Three arms: sdsys is denied network login outright,
+# an SD account WITHOUT the ssh route is refused as soon as it connects, and
+# every other SD account is ForceCommanded into sd.
 #
 #     Match User sdsys
 #         DenyUsers sdsys
@@ -165,9 +155,6 @@ SD_BIN=${SD_SSH_FORCECOMMAND:-/usr/local/sdsys/bin/sd}
 # installer or the unit test runs it from gplbld/.
 REFUSE_BIN=${SD_SSH_REFUSE_BIN:-/usr/local/sbin/ssh-forcecommand}
 
-# Where the agent arm's command lives (21 Oct 26, AI integration slice 1).  Not checked for existence: see the history line.
-MCP_BIN=${SD_SSH_MCP_BIN:-/usr/local/sdsys/bin/sd-mcp}
-
 # Where --refuse reads message 10074 from.  The installed message directory,
 # world-readable, is the single source of the wording.
 MSG_DIR=${SD_MESSAGE_DIR:-/usr/local/sdsys/messages}
@@ -203,20 +190,11 @@ find_sshd() {
 
 # The block, as one list so the writer and the test agree on it.  The ,!sdssh
 # arm is SECOND on purpose - sshd takes the first obtained value for a keyword,
-# so the narrow arm has to precede the general one (see the description).  The
-# agent arm is first of all the Match arms but sdsys's, for the same reason: a
-# member of sdagent who is also in sdusers gets the agent door, not sd and not
-# the refusal (21 Oct 26).
+# so the narrow arm has to precede the general one (see the description).
 block_lines() {
   printf '%s\n' "$BEGIN" \
     "Match User sdsys" \
     "    DenyUsers sdsys" \
-    "Match Group sdagent,!sdsys" \
-    "    ForceCommand $MCP_BIN" \
-    "    AllowTcpForwarding no" \
-    "    AllowStreamLocalForwarding no" \
-    "    AllowAgentForwarding no" \
-    "    PermitTunnel no" \
     "Match Group sdusers,!sdsys,!sdssh" \
     "    ForceCommand $REFUSE_BIN --refuse" \
     "    AllowTcpForwarding no" \
@@ -278,7 +256,7 @@ existing_conflict() {
     /^[[:space:]]*ForceCommand([[:space:]]|$)/ {
       print "a ForceCommand directive is already present: " $0; found = 1
     }
-    /^[[:space:]]*Match([[:space:]]|$)/ && (/sdusers/ || /sdsys/ || /sdagent/) {
+    /^[[:space:]]*Match([[:space:]]|$)/ && (/sdusers/ || /sdsys/) {
       print "a Match rule already names an SD group: " $0; found = 1
     }
     END { exit (found ? 0 : 1) }
@@ -326,7 +304,6 @@ production() { [[ $CONFIG == "$REAL_CONFIG" ]]; }
 report_target() {
   say "config            $CONFIG"
   say "ForceCommand ->   $SD_BIN"
-  say "sdagent arm ->    $MCP_BIN"
   say "no-sdssh arm ->   $REFUSE_BIN --refuse"
   say "10074 read from   $MSG_DIR"
   if has_block; then say "SD block present  yes (before)"; else say "SD block present  no (before)"; fi
