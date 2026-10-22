@@ -62,7 +62,7 @@
   },
   "basic.statement": {
    "chunks": 224,
-   "sha256": "c26f9a9d48c367191d344076107e8336496bbc6a159ccc27dbd825c85c911f3c"
+   "sha256": "053b9932a87de9db4213d6dafe25923fc871779882bcbb7d82f6d20a7781832f"
   },
   "core.digest": {
    "chunks": 5,
@@ -118,7 +118,7 @@
   },
   "sys.param": {
    "chunks": 63,
-   "sha256": "b4fda1a1c7214030ff38ba192c47180d124bf3286873da23ef6d6d0499d1be9d"
+   "sha256": "aa2c7f8f745c894df5249168bdd2d8f8c50bbc76971b46f0b6e55585ce056562"
   },
   "sys.releases": {
    "chunks": 1,
@@ -130,7 +130,7 @@
   },
   "sys.word": {
    "chunks": 30,
-   "sha256": "5f457302fe025695e1613966c946a7842ebe5ba47deaa975d3199aaa0e0a7a7e"
+   "sha256": "8ab0597d4f70667925ee443330b1fedf50839903e72046837c8089160455f8f6"
   },
   "tcl.keyword": {
    "chunks": 269,
@@ -138,7 +138,7 @@
   },
   "tcl.verb": {
    "chunks": 194,
-   "sha256": "22f4cf04e32f73bde499da1ac8b595c7ea3dd2079db97ff717c01b0e955aed71"
+   "sha256": "1aafc91e7c08ed13adeb5187f4ba3c242d3564d512f5458b81c8c9bf6d271c87"
   },
   "tcl.verb+keyword": {
    "chunks": 4,
@@ -194,7 +194,7 @@
   },
   "reference/basic-statements.md": {
    "chunks": 292,
-   "sha256": "aca72295dff9c4e5df8b5e63ef3612f258c70cc9b921be19a514d25268b9a616",
+   "sha256": "7a9e1f83c8b6187136b409415101e668c314ce8cf538df525122b06cee1a2e79",
    "words": 6126
   },
   "reference/dictionaries.md": {
@@ -214,7 +214,7 @@
   },
   "reference/system.md": {
    "chunks": 95,
-   "sha256": "fb17e60e589b02222c2cbb77d4656552d17452540c246fb3e44ca599b0d7b85c",
+   "sha256": "743753f42e38e24a98e1f0626d579f2abaeeaf01ddcfd4cf0eb74075e66c7604",
    "words": 2524
   },
   "reference/tcl-keywords.md": {
@@ -224,7 +224,7 @@
   },
   "reference/tcl-verbs.md": {
    "chunks": 198,
-   "sha256": "7a86dadb8c11f8d310cc5eeda2cb4b0b722f7e9d696d702535b9ce7e4c53c314",
+   "sha256": "259d70d7388660f1a2bab7fb2ff933788eb90683aa3e7e914e69bf92e2b5c303",
    "words": 7911
   },
   "reference/voc.md": {
