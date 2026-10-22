@@ -286,6 +286,8 @@ sdsys/gpl.bp/tk_*            : tk-base
 sdsys/gpl.bp/tool_tktest     : tk-base
 sdsys/gpl.bp/*.h             : @compiler @core
 sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base
+# S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
+sdsys/gpl.bp/sl_pickwin      : tk-base
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
@@ -464,6 +466,7 @@ sdsys/messages/1156[0-9]     : masters
 sdsys/messages/1157[0-9]     : masters
 sdsys/messages/1158[0-9]     : masters
 sdsys/messages/1159[0-6]     : masters
+sdsys/messages/118[0-4][0-9] : tk-base       # the toolkit's block 11800-11849 (S.75)
 sdsys/messages/*             : none
 sdsys/changelog              : none
 sdsys/licence*               : none

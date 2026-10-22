@@ -53,6 +53,8 @@ $include tk.h
    call $tk_keys('add', keys, 'f3', 'sort', 'tsort', 'T', 1)
    call $tk_keys('add', keys, 'f4', 'filter', 'filter', 'T', 1)
    call $tk_keys('add', keys, 'f6', 'refresh', 'trefresh', 'T', 1)
+   call $tk_keys('add', keys, 'f9', 'pick', 'pick', 'P', 1)
+   call $tk_keys('add', keys, 'f10', 'multi', 'pickm', 'P', 1)
    call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
    call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
@@ -83,6 +85,14 @@ $include tk.h
       call $sl_table('init', w, scr, '', tr)
       call $sl_table('focus', w, scr, 1, tr)
       gosub t.state
+   end
+
+   * pane P: the pick window (sl_pickwin, G1) over N entries (tktest pick N, 12 by default): F9 picks one, F10 several; the status line says what was chosen
+   if field(@sentence, ' ', 2) = 'pick' then
+      pane = 'P'
+      pn = field(@sentence, ' ', 3) + 0
+      if pn < 1 then pn = 12
+      gosub p.build
    end
 
    loop
@@ -128,6 +138,16 @@ $include tk.h
             end else null
          case act = 'trefresh'
             gosub t.refresh
+         case act = 'pick'
+            call $sl_pickwin(pitems, 'Pick a command', 0, 0, pr, ps)
+            msg = (if ps then 'cancelled' else 'picked ' : pr : ' (' : pitems<pr, 1> : ')')
+         case act = 'pickm'
+            call $sl_pickwin(pitems, 'Pick commands', 1, 0, pr, ps)
+            pnames = ''
+            for q = 1 to dcount(pr, @vm)
+               pnames<1, -1> = pitems<pr<1, q>, 1>
+            next q
+            msg = (if ps then 'cancelled' else 'picked ' : convert(@vm, ',', pr) : ' (' : convert(@vm, ',', pnames) : ')')
          case pane = 'T' and act = ''
             call $sl_table('key', w, scr, k, tr)
       end case
@@ -136,6 +156,23 @@ $include tk.h
 
    call $tk_close(ctx)
    stop
+
+* the entries of the pick window: twelve commands with a description and a help, then item00013 and so on up to pn
+p.build:
+   pv = 'list,sort,count,copy,delete.file,create.file,modify.account,who,listu,logto,catalog,basic'
+   pd = 'show records of a file,show records in order,count the records,copy records to a file,remove a file,make a file,change an account,who is signed on,list the users,enter another account,make a program a command,compile a program'
+   ph = 'LIST shows the records of a file on the screen,SORT is LIST in the order of an attribute,COUNT says how many records match,COPY puts records into another file,DELETE.FILE removes a file and its dictionary,'
+   ph := 'CREATE.FILE makes a file and a dictionary for it,MODIFY.ACCOUNT changes the gates of an account,WHO says who is signed on and as whom,LISTU lists the users signed on,LOGTO enters another account,'
+   ph := 'CATALOG makes a program a command,BASIC compiles a program'
+   pitems = ''
+   for q = 1 to pn
+      if q <= 12 then
+         pitems<q> = field(pv, ',', q) : @vm : field(pd, ',', q) : @vm : field(ph, ',', q)
+      end else
+         pitems<q> = 'item' : str('0', 5 - len(q)) : q : @vm : 'the ' : q : 'th entry' : @vm : 'help for item ' : q
+      end
+   next q
+   return
 
 * the data: names, a quantity, a check, a city; a row in Elgin is drawn 'disabled' and one over 90 'error'
 t.build:

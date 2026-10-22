@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -143,6 +143,21 @@ def checks(raw):
         and "if on and gi<TK.G.DEFAULT> = 'off' then lines<-1> = sysmsg(11817)" in ex and "if not(on) and gi<TK.G.DEFAULT> = 'on' then lines<-1> = sysmsg(11818)" in ex
         and "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)" in ex and "if on and gi<TK.G.BEYOND> = 1 then typed = 1" in ex and ex.count("typed = 1") == 1
         and not re.search(r"\b(execute|write|writev|readu|openpath|open|read|kernel|screen|crt|display)\b", ex), "")
+    pw = sq["sl_pickwin"]
+    add("T26", "ORDER in $sl_pickwin: a session with no terminal returns at once, the screen under the window is saved before the frame is drawn and put back (and the screen given back) after the loop, "
+        "and an Esc, an input that ended and the cursor lock's own way out all end as a cancel",
+        ordered(pw, "if system(25) then return", "call $sl_region('save'", "call $sl_frame(", "call $sl_key('', k)", "call $sl_region('restore'", "call $sl_scr('put', scr)")
+        and "if k = '' or k = 'guardquit' then k = 'esc'" in pw and "case k = 'esc' st = 'cancel'" in pw, "")
+    add("T27", "$sl_pickwin answers entries by their NUMBER IN THE LIST (oi), never by their place among the entries the filter shows, and keeps picks by that number; Enter with picks answers the picks, "
+        "without them the entry the person is on, and with nothing shown answers nothing",
+        "oi = i if fo then oi = vis<1, i> return" in pw and "ret = oi st = 'done'" in pw and "picked<1, -1> = oi" in pw and "if multi and picked # '' then ret = picked st = 'done' end else if cur >= 1 then" in pw
+        and "ret = cur" not in pw and "picked<1, -1> = cur" not in pw, "")
+    add("T28", "$sl_pickwin filters on the name and the description together, without regard to case; Backspace and Ctrl-U widen it; ? is the help line and is never part of the filter; "
+        "in a multi window the space picks; a printable character is added to the filter only after those cases",
+        "if index(upcase(items<i, 1> : ' ' : items<i, 2>), uf, 1) then vis<1, -1> = i" in pw and "uf = upcase(filt)" in pw
+        and ordered(pw, "case k = 'bs'", "case k = 'ctrl-u'", "case k = '?'", "case k = ' ' and multi", "case len(k) = 1 and seq(k) >= 32 and seq(k) < 127"), "")
+    add("T29", "$sl_pickwin only draws and reads keys: it runs, reads and writes nothing else",
+        not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", pw)), "")
     return out
 
 
@@ -210,6 +225,16 @@ MUT = [
     ("tk_explain", "the beyond-SD warning is left out", "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)", "null"),
     ("tk_explain", "the core-direction line is left out", "if on and gi<TK.G.DEFAULT> = 'off' then lines<-1> = sysmsg(11817)", "null"),
     ("tk_explain", "a planned gate is explained", "if gi<TK.G.STATUS> # 'built' then return", "null"),
+    ("sl_pickwin", "a phantom is asked to pick", "if system(25) then return", "if 0 then return"),
+    ("sl_pickwin", "the screen under the window is not put back", "call $sl_region('restore', scr, bx, by, bw, bh, under)", "null"),
+    ("sl_pickwin", "Esc does not cancel", "         case k = 'esc'\n            st = 'cancel'", "         case k = 'esc'\n            st = ''"),
+    ("sl_pickwin", "Enter answers the place", "         ret = oi\n         st = 'done'", "         ret = cur\n         st = 'done'"),
+    ("sl_pickwin", "a pick is kept by place", "         picked<1, -1> = oi\n      end\n   end\n   return", "         picked<1, -1> = cur\n      end\n   end\n   return"),
+    ("sl_pickwin", "the filter ignores the description", "upcase(items<i, 1> : ' ' : items<i, 2>)", "upcase(items<i, 1>)"),
+    ("sl_pickwin", "the filter is case sensitive", "uf = upcase(filt)", "uf = filt"),
+    ("sl_pickwin", "? is added to the filter", "         case k = '?'\n            helpon = 1 - helpon\n", ""),
+    ("sl_pickwin", "the space picks only after a character is added to the filter", "         case k = ' ' and multi\n            gosub toggle\n", ""),
+    ("sl_pickwin", "the window writes a record", "   call $sl_scr('put', scr)\n   if st = 'done' then status = 0", "   call $sl_scr('put', scr)\n   write items to scr, 'x'\n   if st = 'done' then status = 0"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 

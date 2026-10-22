@@ -39,7 +39,7 @@ F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
 KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b",
-        "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
+        "F9": "\x1b[20~", "F10": "\x1b[21~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
 F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
@@ -512,6 +512,246 @@ def table_rows(box, made):
     t.end()
 
 
+# TK-0.6 (G1).  `tktest pick N` opens the pick window (sl_pickwin) over N entries on F9 (one) and F10 (several) and puts what was chosen in the status line
+# ("picked 8 (who)", "picked 1,3 (list,count)", "cancelled").  The window's geometry is worked out here from the same rules and the rows are read from the screen.
+PV = "list,sort,count,copy,delete.file,create.file,modify.account,who,listu,logto,catalog,basic".split(",")
+PD = ["show records of a file", "show records in order", "count the records", "copy records to a file", "remove a file", "make a file", "change an account", "who is signed on",
+      "list the users", "enter another account", "make a program a command", "compile a program"]
+PH = ["LIST shows the records of a file on the screen", "SORT is LIST in the order of an attribute", "COUNT says how many records match", "COPY puts records into another file",
+      "DELETE.FILE removes a file and its dictionary", "CREATE.FILE makes a file and a dictionary for it", "MODIFY.ACCOUNT changes the gates of an account",
+      "WHO says who is signed on and as whom", "LISTU lists the users signed on", "LOGTO enters another account", "CATALOG makes a program a command", "BASIC compiles a program"]
+F_P = "F1 help  F9 pick  F10 multi  Tab next  ^Q quit"
+
+
+def pitems(n):
+    out = []
+    for q in range(1, n + 1):
+        if q <= 12:
+            out.append([PV[q - 1], PD[q - 1], PH[q - 1]])
+        else:
+            out.append(["item%05d" % q, "the %dth entry" % q, "help for item %d" % q])
+    return out
+
+
+def pgeom(items, multi, title="Pick a command", scrw=140, scrh=43):
+    nw = min(30, max(4, max(len(i[0]) for i in items)))
+    dw = max(len(i[1]) for i in items)
+    lead = 4 if multi else 1
+    lh = max(3, min(len(items), max(3, scrh - 8)))
+    lw = min(scrw - 4, max(lead + nw + 2 + dw + 1, 44, len(title) + 4))
+    bw, bh = lw + 2, lh + 4
+    bx, by = (scrw - bw) // 2, (scrh - bh) // 2
+    return dict(nw=nw, lead=lead, lh=lh, lw=lw, bw=bw, bh=bh, bx=bx, by=by, x0=bx + 1, yf=by + 1, y1=by + 2, yh=by + 2 + lh)
+
+
+def prowtext(it, g, multi, picked=False, bar=False):
+    tw = g["lw"] - (1 if bar else 0)
+    lead = ("[x] " if picked else "[ ] ") if multi else " "
+    return (lead + it[0][:g["nw"]].ljust(g["nw"]) + "  " + it[1])[:tw].rstrip()
+
+
+def pmatch(items, f):
+    return [i for i, it in enumerate(items) if f.lower() in (it[0] + " " + it[1]).lower()]
+
+
+def pfl(t, g):
+    """The filter line of the window without the border: the text inside, trailing spaces off."""
+    return t.line(g["yf"])[g["x0"]:g["x0"] + g["lw"]].rstrip()
+
+
+def pshow(t, g, items, idx, multi=False, picked=(), bar=None):
+    """The rows of the window as the screen shows them, compared with the entries idx (indices into items) in order.  bar: the scroll bar column is there (by default
+    when the entries shown are more than the rows; pass True when the window is scrolled to the last rows)."""
+    if bar is None:
+        bar = len(idx) > g["lh"]
+    want = [prowtext(items[i], g, multi, i in picked, bar) for i in idx[:g["lh"]]]
+    got = [t.line(g["y1"] + r)[g["x0"]:g["x0"] + g["lw"] - (1 if bar else 0)].rstrip() for r in range(len(want))]
+    return got == want, got, want
+
+
+def pick_rows(box, made):
+    say("\n--- the pick window (TK-0.6, G1): type to narrow, two columns, a help line, several picks")
+    its = pitems(12)
+    g = pgeom(its, False)
+    t = Term(box, "tktest pick")
+    if "F1 help" not in "\n".join(t.lines()):
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest pick never drew its function-key row, so no row below can be believed")
+    row("`tktest pick` starts on pane P: the function-key row names F9 and F10: %r" % F_P, t.line(42) == F_P, repr(t.line(42)))
+    t.key("F9")
+    scr_ = lambda: t.lines()
+    ok, got, want = pshow(t, g, its, list(range(12)))
+    row("F9 opens the window: the title in the top border, the filter line (label, empty field, '12 of 12'), and all twelve entries in two columns (name, then description)",
+        "Pick a command" in t.line(g["by"]) and t.line(g["by"])[g["bx"]] == "+" and t.line(g["yf"])[g["x0"]:g["x0"] + g["lw"]].startswith(" filter:") and pfl(t, g).endswith("12 of 12") and ok,
+        repr((t.line(g["by"])[g["bx"]:g["bx"] + 30], t.line(g["yf"])[g["bx"]:g["bx"] + g["bw"]], got[:2], want[:2])))
+    row("the first entry is the current one, in reverse video; the help line holds the reminder that ? gives help", t.rev(g["y1"]) is not None and "list" in t.rev(g["y1"]) and "sort" not in t.rev(g["y1"]) and "? shows help" in t.line(g["yh"]),
+        repr((t.rev(g["y1"]), t.line(g["yh"])[g["x0"]:g["x0"] + 60])))
+    t.s.type("li", idle=0.6)
+    idx = pmatch(its, "li")
+    ok, got, want = pshow(t, g, its, idx)
+    say("    [measured] entries holding 'li' in the name or the description: %s" % ", ".join(its[i][0] for i in idx))
+    row("typing 'li' narrows the list to the entries that hold it in the name OR the description (%d of 12), in their order; the filter line says so; the window did not change size"
+        % len(idx), ok and pfl(t, g).endswith("%d of 12" % len(idx)) and "filter: li" in t.line(g["yf"]) and t.line(g["by"] + g["bh"] - 1)[g["bx"]] == "+"
+        and t.line(g["y1"] + len(idx))[g["x0"]:g["x0"] + g["lw"]].strip() == "", repr((got, want, t.line(g["yf"])[g["x0"]:g["x0"] + g["lw"]])))
+    t.s.type("\x7f", idle=0.6)
+    idx = pmatch(its, "l")
+    ok, got, want = pshow(t, g, its, idx)
+    row("Backspace widens it: 'l' (%d entries)" % len(idx), ok and "filter: l" in t.line(g["yf"]) and "filter: li" not in t.line(g["yf"]), repr((got, want)))
+    t.s.type("\x15", idle=0.6)
+    ok, got, want = pshow(t, g, its, list(range(12)))
+    row("Ctrl-U empties the filter: all twelve again", ok and pfl(t, g).endswith("12 of 12"), repr((got, want)))
+    t.s.type("signed", idle=0.6)
+    ok, got, want = pshow(t, g, its, pmatch(its, "signed"))
+    row("'signed' is in one description only (who): the list is that one entry", ok and len(pmatch(its, "signed")) == 1 and pfl(t, g).endswith("1 of 12"), repr((got, want)))
+    t.key("ENTER")
+    row("Enter answers the number of the entry IN THE LIST (8), not its place among the entries shown (1): the status line says picked 8 (who); the window is gone and the foot of the screen is back",
+        "picked 8 (who)" in t.line(40) and "Pick a command" not in "\n".join(t.lines()) and t.line(42) == F_P and t.line(41) == "-" * 140, repr((t.line(40), t.line(42))))
+
+    t.key("F9")
+    t.s.type("zzz", idle=0.6)
+    row("a filter nothing matches: no entries, 'nothing matches' in the first row, '0 of 12'", "nothing matches" in t.line(g["y1"]) and pfl(t, g).endswith("0 of 12"), repr((t.line(g["y1"]), t.line(g["yf"]))))
+    t.key("ENTER")
+    row("Enter with nothing shown does nothing: the window is still open", "Pick a command" in "\n".join(t.lines()), "")
+    t.key("ESC")
+    row("Esc closes it: the status line says cancelled, the screen under the window is back", "cancelled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()) and t.line(42) == F_P, repr((t.line(40), t.line(42))))
+
+    t.key("F9")
+    t.key("DOWN")
+    t.key("DOWN")
+    t.s.type("?", idle=0.6)
+    row("? shows the help of the entry the person is on (count): on the help line, and the ? did not go into the filter",
+        PH[2] in t.line(g["yh"]) and "filter:" in t.line(g["yf"]) and "?" not in t.line(g["yf"]).replace("? ", ""), repr((t.line(g["yh"])[g["x0"]:g["x0"] + 70], t.line(g["yf"])[g["x0"]:g["x0"] + 40])))
+    t.key("DOWN")
+    row("the help follows the highlight: the next entry (copy)", PH[3] in t.line(g["yh"]), repr(t.line(g["yh"])[g["x0"]:g["x0"] + 70]))
+    t.s.type("?", idle=0.6)
+    row("? again hides it: the reminder is back", "? shows help" in t.line(g["yh"]) and PH[3] not in t.line(g["yh"]), repr(t.line(g["yh"])[g["x0"]:g["x0"] + 70]))
+    t.key("ENTER")
+    row("Enter on the fourth entry: picked 4 (copy)", "picked 4 (copy)" in t.line(40), repr(t.line(40)))
+
+    # several
+    gm = pgeom(its, True, "Pick commands")
+    t.key("F10")
+    ok, got, want = pshow(t, gm, its, list(range(12)), True)
+    row("F10 opens the window for several: each entry starts [ ]", ok, repr((got[:2], want[:2])))
+    t.key("SPACE")
+    t.key("DOWN")
+    t.key("DOWN")
+    t.key("SPACE")
+    ok, got, want = pshow(t, gm, its, list(range(12)), True, picked=(0, 2))
+    row("Space picks the entry it is on: list and count are [x] (the space did not go into the filter), the first line says 2 marked", ok and pfl(t, gm).endswith("2 marked  12 of 12"), repr((got[:4], want[:4], t.line(gm["yf"]).rstrip()[-30:])))
+    t.s.type("o", idle=0.6)
+    idx = pmatch(its, "o")
+    ok, got, want = pshow(t, gm, its, idx, True, picked=(0, 2))
+    row("a filter ('o') hides some entries; the marks stay on the entries (list and count, if shown, are [x]) and the count still says 2 marked", ok and "2 marked" in t.line(gm["yf"]), repr((got, want)))
+    t.s.type("\x15", idle=0.6)
+    t.key("ENTER")
+    row("Enter answers the entries picked, by their numbers in the list, in the order they were picked: picked 1,3 (list,count)", "picked 1,3 (list,count)" in t.line(40), repr(t.line(40)))
+    t.key("F10")
+    t.key("DOWN")
+    t.key("ENTER")
+    row("Enter with nothing picked answers the entry the person is on: picked 2 (sort)", "picked 2 (sort)" in t.line(40), repr(t.line(40)))
+    t.key("F10")
+    t.key("SPACE")
+    t.s.type("who", idle=0.6)
+    t.key("ENTER")
+    row("a mark on an entry the filter hides still counts: list was picked, 'who' was typed, Enter answers the PICK (1) and not the entry shown (8)", "picked 1 (list)" in t.line(40), repr(t.line(40)))
+
+    t.key("F10")
+    t.s.type("who", idle=0.6)
+    t.key("SPACE")
+    t.s.type("\x15", idle=0.6)
+    ok, got, want = pshow(t, gm, its, list(range(12)), True, picked=(7,))
+    row("a pick made while the filter shows the entry at another place is the ENTRY's: with 'who' typed (place 1) it was picked, with the filter emptied it is who (8) that is [x], and no other",
+        ok and "1 marked" in pfl(t, gm), repr((got, want)))
+    t.key("ENTER")
+    row("...and Enter answers 8 (who), not 1", "picked 8 (who)" in t.line(40), repr(t.line(40)))
+
+    # the mouse
+    t.key("F9")
+    xy = lambda r_: (gm["x0"] + 3, g["y1"] + r_)
+    def click(x, y, rel=True):
+        t.s.type("\x1b[<0;%d;%dM" % (x + 1, y + 1) + ("\x1b[<0;%d;%dm" % (x + 1, y + 1) if rel else ""), idle=0.6)
+    click(g["x0"] + 3, g["y1"] + 2)
+    row("a click on the third entry makes it current (reverse video on count); the window stays open", "count" in t.rev(g["y1"] + 2) and "Pick a command" in "\n".join(t.lines()), repr(t.rev(g["y1"] + 2)))
+    click(g["x0"] + 3, g["y1"] + 2)
+    row("a second click on it is Enter: picked 3 (count)", "picked 3 (count)" in t.line(40) and "Pick a command" not in "\n".join(t.lines()), repr(t.line(40)))
+    t.key("F9")
+    click(2, 3)
+    row("a click outside the window is Esc: cancelled", "cancelled" in t.line(40) and "Pick a command" not in "\n".join(t.lines()), repr(t.line(40)))
+    t.end()
+
+    # more entries than rows: a scroll bar, End, the last entry
+    its100 = pitems(100)
+    g100 = pgeom(its100, False)
+    t = Term(box, "tktest pick 100")
+    t.key("F9")
+    ok, got, want = pshow(t, g100, its100, list(range(100)))
+    row("100 entries in %d rows: the first %d are shown and the right-hand column is a scroll bar (^ at the top, v at the bottom)" % (g100["lh"], g100["lh"]),
+        ok and t.line(g100["y1"])[g100["x0"] + g100["lw"] - 1] == "^" and t.line(g100["y1"] + g100["lh"] - 1)[g100["x0"] + g100["lw"] - 1] == "v", repr((got[:2], want[:2], t.line(g100["y1"])[g100["x0"]:g100["x0"] + g100["lw"]])))
+    t.key("END")
+    ok, got, want = pshow(t, g100, its100, list(range(100 - g100["lh"], 100)), bar=True)
+    row("End: the last entry is current and the window has scrolled to the last %d" % g100["lh"], ok and "item00100" in t.rev(g100["y1"] + g100["lh"] - 1), repr((got[-2:], want[-2:])))
+    t.s.type("\x15", idle=0.5)
+    t.s.type("item0005", idle=0.6)
+    row("typing 'item0005' leaves item00050 to item00059: ten entries, no scroll bar any more", pshow(t, g100, its100, pmatch(its100, "item0005"))[0] and pfl(t, g100).endswith("10 of 100"), repr(pshow(t, g100, its100, pmatch(its100, "item0005"))[1:]))
+    t.key("ENTER")
+    row("Enter answers 50 (the number in the list of the first entry shown)", "picked 50 (item00050)" in t.line(40), repr(t.line(40)))
+    t.end()
+
+    # five thousand entries
+    its5k = pitems(5000)
+    g5k = pgeom(its5k, False)
+    t0 = time.time()
+    t = Term(box, "tktest pick 5000")
+    say("    [measured] start with 5,000 entries: %.1f s" % (time.time() - t0))
+
+    def waitfor(cond, limit=SLOW + 10):
+        t1 = time.time()
+        while time.time() - t1 < limit:
+            t.s.settle(0.25)
+            if cond():
+                return time.time() - t1
+        return limit
+
+    t.s.type(KEYS["F9"], settle=False)
+    el = waitfor(lambda: "Pick a command" in "\n".join(t.lines()))
+    say("    [measured] F9 over 5,000 entries until the window is drawn: %.1f s" % el)
+    row("F9 over 5,000 entries: the window is drawn within %.0f s" % SLOW, el < SLOW, "%.1f s" % el)
+    t.s.type("item049", settle=False)
+    want5k = pmatch(its5k, "item049")
+    el = waitfor(lambda: pfl(t, g5k).endswith("%d of 5000" % len(want5k)))
+    say("    [measured] typing 'item049' (%d match) over 5,000 entries: %.1f s" % (len(want5k), el))
+    row("typing a filter over 5,000 entries: %d entries shown within %.0f s" % (len(want5k), SLOW), el < SLOW, "%.1f s, %r" % (el, t.line(g5k["yf"]).rstrip()[-30:]))
+    t.s.type(KEYS["END"] + KEYS["ENTER"], settle=False)
+    el = waitfor(lambda: "picked" in t.line(40))
+    row("End, Enter: the last of the matches is answered by its number in the list (%d)" % (want5k[-1] + 1), "picked %d (%s)" % (want5k[-1] + 1, its5k[want5k[-1]][0]) in t.line(40), repr(t.line(40)))
+    t.end()
+
+    # a pipe: F9, then the input ends with the window open
+    say("    --- on a pipe: F9, then the input ends with the window open")
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
+    r0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=os.path.join(box, "user_accounts"), env=env)
+    t0 = time.time()
+    try:
+        outp, _ = p.communicate(b"\nTERM 140,43\ntktest pick\n\x1b[20~", timeout=20)
+        ended = True
+    except subprocess.TimeoutExpired:
+        os.kill(p.pid, 1)
+        time.sleep(1)
+        p.kill()
+        outp, _ = p.communicate()
+        ended = False
+    took = time.time() - t0
+    r1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu = (r1.ru_utime - r0.ru_utime) + (r1.ru_stime - r0.ru_stime)
+    seen = b"Pick a command" in outp
+    say("    [measured] ended: %s after %.1f s, the child's CPU %.2f s, the window was drawn on the pipe: %s" % (ended, took, cpu, "yes" if seen else "no"))
+    row("a piped session whose input ends with the window open ends within 20 s and does not spin (under 3 s of CPU): the end of the input is Esc", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
+    if not seen:
+        skip("the window was open when the input ended", "the pipe did not decode F9 into the key, so the window was never drawn")
+
+
 # TK-0.4 (G4).  Part 1, an internal session: $tk_explain for gates of each kind.  Part 2, a pseudo-terminal: `tktest dialogs` (F7 a Run / Cancel box for
 # `create.file zztkdlg1 dynamic`, F8 the same with a typed name `zztkdlg2`); the DISK is the evidence of what ran.  Part 3, a pipe: F7, then the input ends.
 EXPLAINCASES = [("shon", "sh", 1), ("shoff", "sh", 0), ("vocon", "voc", 1), ("vocoff", "voc", 0), ("srdoff", "shared-read", 0), ("srdon", "shared-read", 1), ("neton", "net", 1),
@@ -740,6 +980,7 @@ def main():
         gates_rows(box, made)
         dialogs_rows(box, made)
         table_rows(box, made)
+        pick_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

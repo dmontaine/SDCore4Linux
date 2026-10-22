@@ -6435,6 +6435,51 @@ nothing was run
 
 cited by: `tk_confirm`
 
+### msg:11822
+> kind=message tier=reference since=- src=sdsys/messages/11822:1#bca2b715
+
+```
+filter:
+```
+
+cited by: `sl_pickwin`
+
+### msg:11823
+> kind=message tier=reference since=- src=sdsys/messages/11823:1#16620e18
+
+```
+%1 of %2
+```
+
+cited by: `sl_pickwin`
+
+### msg:11824
+> kind=message tier=reference since=- src=sdsys/messages/11824:1#3102548b
+
+```
+%1 marked
+```
+
+cited by: `sl_pickwin`
+
+### msg:11825
+> kind=message tier=reference since=- src=sdsys/messages/11825:1#ab919e07
+
+```
+? shows help for the highlighted entry
+```
+
+cited by: `sl_pickwin`
+
+### msg:11826
+> kind=message tier=reference since=- src=sdsys/messages/11826:1#90226a14
+
+```
+nothing matches
+```
+
+cited by: `sl_pickwin`
+
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 
