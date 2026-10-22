@@ -6244,7 +6244,7 @@ cited by: `modifya`
 %1 is for the administrator only: it runs for SDSYS, logged in at the machine's own keyboard
 ```
 
-cited by: `tk_open`
+cited by: `tk_gates`, `tk_open`
 
 ### msg:11801
 > kind=message tier=reference since=- src=sdsys/messages/11801:1#d37bdde2
@@ -6308,6 +6308,24 @@ the command is too long to run from this tool
 ```
 
 cited by: `tk_run`
+
+### msg:11808
+> kind=message tier=reference since=- src=sdsys/messages/11808:1#f758d39b
+
+```
+%1 is not a registered account
+```
+
+cited by: `tk_gates`
+
+### msg:11809
+> kind=message tier=reference since=- src=sdsys/messages/11809:1#eccb1f20
+
+```
+the account register could not be opened
+```
+
+cited by: `tk_gates`
 
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e

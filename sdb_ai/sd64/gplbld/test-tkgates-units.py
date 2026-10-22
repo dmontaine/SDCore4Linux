@@ -27,6 +27,7 @@ FILES = {
     "keys": os.path.join(SDSYS, "syscom", "keys.h"),
     "ikeys": os.path.join(SDSYS, "gpl.bp", "int$keys.h"),
     "installer": os.path.join(ROOT, "installsdcore.sh"),
+    "gates": os.path.join(SDSYS, "gpl.bp", "tk_gates"),
 }
 FIELDS = ["id", "title", "on", "off", "kind", "field", "group", "key", "when", "default", "slot", "allows", "still", "beyond", "status"]
 NOT_GATE_WORDS = {"BOTH", "SUSPENDED", "UNSUSPENDED"}      # words of modify.account that are not one gate's on or off word
@@ -106,6 +107,11 @@ def checks(raw):
         {r[0] for r in rows if r[13] == "1"} == {"sh", "os", "sd", "net", "ssh", "api", "files", "files-write", "files-admin", "sockets"}, sorted(r[0] for r in rows if r[13] == "1"))
     add("G12", "no sentence is empty, holds an escape or ends in a full stop (the screens add their own punctuation), and none starts with a capital (they continue 'on allows ...')",
         all(r[11] and r[12] and not r[11].endswith(".") and not r[12].endswith(".") and r[11][0].islower() and r[12][0].islower() for r in rows), "")
+    pairs = re.findall(r"case id = '([a-z-]+)'\s*\n\s*raw = rec<(ACC\$[A-Z.]+)>", raw["gates"])
+    got = dict(pairs)
+    want = {r[0]: r[5] for r in reg}
+    add("G13", "$tk_gates reads, for each register gate, the register field the table names for it (one case each, none extra): %d gates" % len(want),
+        len(pairs) == len(got) and got == want and "case 1\n                  raw = 'no'" in raw["gates"], {k: (got.get(k), want.get(k)) for k in set(got) | set(want) if got.get(k) != want.get(k)})
     return out
 
 
@@ -130,6 +136,9 @@ MUT = [
     ("info", "a gate is not marked as reaching beyond SD", "inside its own account directory|1|built", "inside its own account directory|0|built"),
     ("info", "the gates are in another order", '   rows<-1> = "ssh|', '   rows<-1> = "files-admin|Files admin|files-admin-on|files-admin-off|group||sdfilesadmin||next login|off|FA|x|y|1|built"\n   rows<-1> = "ssh|'),
     ("info", "a sentence starts with a capital", "|sign in at the machine's own keyboard|", "|Sign in at the machine's own keyboard|"),
+    ("gates", "a gate is read from another gate's field", "raw = rec<ACC$SH>", "raw = rec<ACC$BP.EDIT>"),
+    ("gates", "a gate has no case", "               case id = 'dict'\n                  raw = rec<ACC$DICT.EDIT>\n", ""),
+    ("gates", "a case for a gate that is not in the table", "               case id = 'net'\n", "               case id = 'nett'\n"),
     ("modifya", "a word modifya knows that no row holds", "NET-ON,NET-OFF,", "NET-ON,NET-OFF,PRINT-ON,PRINT-OFF,"),
     ("tkh", "a TK.G number is out of order", "$define TK.G.TITLE     2", "$define TK.G.TITLE     3"),
 ]

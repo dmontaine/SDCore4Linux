@@ -208,8 +208,118 @@ def runtime_rows(box, made):
     row("...and after S4, which was allowed, it does (so the sentinel can fire)", line(r"^SENT after-run EXISTS\s*$") is not None, out[-400:])
 
 
+# TK-0.3.  $tk_gates reads the sandbox's own register (sys/accounts) in an internal session.  The fixtures are records this suite writes and deletes (zztk*); the
+# fields are the register's (keys.h): 1 path, 3 Linux group, 5 suspension, 7 sh, 8 os, 9 sd, 10 voc, 11 bp, 12 dict, 13 shared.read, 14 shared.write, 15 net.
+IDS = ["ssh", "api", "sh", "os", "sd", "voc", "bp", "dict", "net", "shared-read", "shared-write", "files", "files-write", "files-admin", "sockets"]
+ROUTE_GROUP = {"ssh": "sdssh", "api": "sdapi", "files": "sdfiles", "files-write": "sdfileswrite", "files-admin": "sdfilesadmin"}
+REG = {"sh": 7, "os": 8, "sd": 9, "voc": 10, "bp": 11, "dict": 12, "shared-read": 13, "shared-write": 14, "net": 15}
+#            name        group            suspension   values of fields 7 to 15 (sh os sd voc bp dict shared.read shared.write net)
+FIXTURES = [("zztkon", "sdu_zztkon", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes"),
+            ("zztkoff", "sdu_zztkoff", "", "no,no,no,no,no,no,no,no,no"),
+            ("zztkblank", "sdu_zztkblank", "", ",,,,,,,,"),
+            ("zztkmix", "sdu_zztkmix", "SUSPENDED", "yes,no,,YES, yes ,maybe,No,Yes,no"),
+            ("zztkgrp", "sdg_zztkgrp", "", "yes,,,,,,,,"),
+            ("zztkoth", "plainname", "", "yes,,,,,,,,"),
+            ("zztkreal", "sdu_@USER@", "", ",,,,,,,,"),
+            ("ZZTKUP", "sdu_zztkup", "", "yes,yes,yes,yes,yes,yes,yes,yes,yes")]       # registered under an upper-case name: only the name check can refuse it
+SHOWS = [("on", "zztkon"), ("off", "zztkoff"), ("blank", "zztkblank"), ("mix", "zztkmix"), ("grp", "zztkgrp"), ("oth", "zztkoth"), ("real", "zztkreal"),
+         ("none", "zznone"), ("upper", "ZZTKON"), ("upfix", "ZZTKUP"), ("empty", ""), ("quote", "a'b"), ("semi", "zztkon;x")]
+
+
+def gates_program(user):
+    p = ["$internal", "   crt 'TKG begin'", "   openpath @sdsys:@ds:'accounts' to f else crt 'TKG noreg' ; stop"]
+    for nm, grp, sus, vals in FIXTURES:
+        p.append("   nm = '%s' ; grp = '%s' ; sus = '%s' ; vals = '%s' ; gosub mk" % (nm, grp.replace("@USER@", user), sus, vals))
+    for tag, nm in SHOWS:
+        p.append('   tag = "%s" ; nm = "%s" ; gosub show' % (tag, nm))
+    p.append("   read x from f, 'ZZTKON' then crt 'TKG upper-found' else crt 'TKG upper-missing'")
+    p.append("   read x from f, 'ZZTKUP' then crt 'TKG up-found' else crt 'TKG up-missing'")
+    for nm, grp, sus, vals in FIXTURES:
+        p.append("   delete f, '%s'" % nm)
+    for nm, grp, sus, vals in FIXTURES:
+        p.append("   read x from f, '%s' then crt 'TKG left %s'" % (nm, nm))
+    p += ["   crt 'TKG end'", "   stop",
+          "mk:", "   rec = ''", "   rec<1> = '/tmp/' : nm", "   rec<2> = 'tkgates fixture'", "   rec<3> = grp", "   rec<5> = sus",
+          "   for k = 1 to 9", "      rec<6 + k> = field(vals, ',', k)", "   next k", "   write rec to f, nm", "   return",
+          "show:", "   call $tk_gates(nm, g, info, err)",
+          "   outl = 'G ' : tag : ' err=[' : err : '] type=' : info<1> : ' susp=' : info<2> : ' user=' : info<3> : ' |'",
+          "   for k = 1 to dcount(g, @fm)", "      outl := ' ' : g<k, 1> : '=' : g<k, 2>", "   next k", "   crt outl", "   return", "end", ""]
+    return "\n".join(p)
+
+
+def etc_group_members(group):
+    try:
+        for ln in open("/etc/group", encoding="latin-1"):
+            f = ln.rstrip("\n").split(":")
+            if f[0] == group and len(f) > 3:
+                return [m for m in f[3].split(",") if m]
+    except OSError:
+        pass
+    return []
+
+
+def gates_rows(box, made):
+    import getpass
+    user = getpass.getuser()
+    say("\n--- $tk_gates: every gate of one account, read from the register (TK-0.3)")
+    with open(os.path.join(box, "sys", "bp", "zztkgates"), "w", encoding="latin-1") as f:
+        f.write(gates_program(user))
+    made.append("zztkgates")
+    out = sess(box, "BASIC bp zztkgates", "RUN bp zztkgates")
+    if not re.search(r"^TKG begin\s*$", out, re.M) or not re.search(r"^TKG end\s*$", out, re.M):
+        say(out[-1500:])
+        bail("the TK-0.3 program did not run to its end, so no row below can be believed")
+    got = {}
+    for m in re.finditer(r"^G (\w+) err=\[(.*)\] type=(\w*) susp=(\w*) user=(\S*) \|(.*)$", out, re.M):
+        got[m.group(1)] = (m.group(2), m.group(3), m.group(4), m.group(5), dict(x.split("=", 1) for x in m.group(6).split()))
+    expect_routes = {i: ("1" if user in etc_group_members(g) else "0") for i, g in ROUTE_GROUP.items()}
+
+    def states(tag):
+        return got[tag][4] if tag in got else {}
+
+    def reg_expect(vals, default_on_ids=("shared-read",)):
+        out_ = {}
+        for i, fno in REG.items():
+            raw = vals[fno - 7].strip().upper()
+            out_[i] = ("1" if raw != "NO" else "0") if i in default_on_ids else ("1" if raw == "YES" else "0")
+        return out_
+
+    v = {nm: vals.split(",") for nm, _g, _s, vals in FIXTURES}
+    for tag, nm, typ, susp in (("on", "zztkon", "USER", "0"), ("off", "zztkoff", "USER", "0"), ("blank", "zztkblank", "USER", "0"), ("mix", "zztkmix", "USER", "1")):
+        e = dict(reg_expect(v[nm]), sockets="", **{i: "0" for i in ROUTE_GROUP})
+        g = got.get(tag)
+        row("%s (%s): type USER, suspension %s, and all 15 gates in the table's order with the states the fields give: %s" % (tag, nm, susp, " ".join("%s=%s" % (i, e[i]) for i in IDS)),
+            g is not None and g[0] == "" and g[1] == typ and g[2] == susp and g[3] == nm and states(tag) == e and list(states(tag)) == IDS, repr(g))
+    row("blank means ON for shared-read only: the blank record has shared-read=1 and every other register gate 0", states("blank").get("shared-read") == "1" and all(states("blank").get(i) == "0" for i in REG if i != "shared-read"), repr(states("blank")))
+    row("the word is read as upper case with spaces trimmed: ' yes ' and 'YES' are on, 'maybe' and an empty field are off, 'No' turns shared-read off", states("mix").get("bp") == "1" and states("mix").get("voc") == "1"
+        and states("mix").get("dict") == "0" and states("mix").get("sd") == "0" and states("mix").get("shared-read") == "0", repr(states("mix")))
+    e = dict(reg_expect(v["zztkgrp"]), sockets="", **{i: "na" for i in ROUTE_GROUP})
+    row("a GROUP account (sdg_): type GROUP, the register gates from its fields and every route gate 'na' (a group has no person to be in a Linux group)",
+        "grp" in got and got["grp"][0] == "" and got["grp"][1] == "GROUP" and got["grp"][3] == "" and states("grp") == e, repr(got.get("grp")))
+    e = dict(reg_expect(v["zztkoth"]), sockets="", **{i: "na" for i in ROUTE_GROUP})
+    row("an account whose group is neither (OTHER): the same, route gates 'na'", "oth" in got and got["oth"][1] == "OTHER" and states("oth") == e, repr(got.get("oth")))
+    e = dict(reg_expect(v["zztkreal"]), sockets="", **expect_routes)
+    members = [i for i, x in expect_routes.items() if x == "1"]
+    row("the sandbox's own Linux user (%s): the route gates equal that user's membership in /etc/group (%s)" % (user, ("in " + ", ".join(ROUTE_GROUP[i] for i in members)) if members else "in none of the five groups"),
+        "real" in got and got["real"][1] == "USER" and got["real"][3] == user and states("real") == e, repr(got.get("real")))
+    if not members:
+        skip("a route gate that is ON", "this user is in none of sdssh, sdapi, sdfiles, sdfileswrite, sdfilesadmin on this machine: only the off side is seen here (the on side is the VM witness)")
+    for tag, nm in (("none", "zznone"), ("empty", ""), ("quote", "a'b"), ("semi", "zztkon;x")):
+        g = got.get(tag)
+        row("%s: %r is refused with 11808 and nothing is returned" % (tag, nm), g is not None and "is not a registered account" in g[0] and g[1] == "" and g[4] == {}, repr(g))
+    g = got.get("upper")
+    say("    [measured] a plain READ of ZZTKON finds zztkon: %s (the register is read with case, so ZZTKON above is refused partly because nothing is called that)"
+        % ("yes" if re.search(r"^TKG upper-found\s*$", out, re.M) else "no"))
+    row("ZZTKON is refused with 11808 and nothing is returned", g is not None and "is not a registered account" in g[0] and g[4] == {}, repr(g))
+    up = got.get("upfix")
+    row("THE SENTINEL: ZZTKUP, a record that EXISTS under that exact upper-case name (a plain read finds it), is refused: only the name check can do that",
+        re.search(r"^TKG up-found\s*$", out, re.M) is not None and up is not None and "is not a registered account" in up[0] and up[4] == {}, repr(up))
+    row("...and the same record by its own name was answered a moment before (so the sentinel can fire)", "on" in got and got["on"][0] == "", "")
+    row("the fixtures are gone: the program deleted the eight records it wrote, and a read of each afterwards finds none", re.search(r"^TKG left ", out, re.M) is None, out[-300:])
+
+
 def main():
-    args =[a for a in sys.argv[1:] if not a.startswith("--")]
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
         bail("usage: sandbox-tk-base.py <dir> [--build]")
     box = os.path.abspath(args[0])
@@ -290,6 +400,7 @@ def main():
             skip("audience admin", "the sandbox session is not an administrator, so the frame cannot be shown for it")
 
         runtime_rows(box, made)
+        gates_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

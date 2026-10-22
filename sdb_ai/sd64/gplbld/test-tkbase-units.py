@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -122,6 +122,15 @@ def checks(raw):
     add("T19", "$tk_gate_info answers a list and one gate at a time from its rows, writes nothing and changes no state",
         "id = 'list' then" in gi and "convert('|', @fm, rows<i>)" in gi and gi_code.count("rows<-1> = ROW") >= 10
         and not re.search(r"\b(crt|display|print|screen|write|writev|kernel|execute)\b", gi_code), "")
+    tg = sq["tk_gates"]
+    add("T20", "ORDER in $tk_gates: the administrator is asked of the kernel (and refused with 11800) BEFORE the name is looked at, before the register is opened and before it is read; each refusal returns",
+        ordered(tg, "if not(kernel(K$ADMINISTRATOR, -1)) then err = sysmsg(11800, 'tk_gates') return", "sysmsg(11808, name) return", "if index(good, name[j, 1], 1) = 0 then err = sysmsg(11808, name) return",
+                "openpath @sdsys:@ds:'accounts' to acc.f else err = sysmsg(11809) return", "read rec from acc.f, name else", "call $tk_gate_info('list', ids)"), "")
+    add("T21", "$tk_gates only READS the register (no write, delete, lock or command), closes it on both paths, and puts nothing on the screen",
+        not re.search(r"\b(write|writev|writeu|writet|delete|readu|execute|crt|display|print|screen|os\.execute)\b", re.sub(r"'[^']*'", "''", tg)) and tg.count("close acc.f") == 2, "")
+    add("T22", "$tk_gates: a gate with its default on (shared-read) is on unless the field says no, every other register gate only if it says yes, and a route gate on an account with no person is 'na' (never a membership test of nobody)",
+        "if gi<TK.G.DEFAULT> = 'on' then state = (if raw # 'NO' then 1 else 0) end else state = (if raw = 'YES' then 1 else 0) end" in tg
+        and "if atype = 'USER' then state = (if is_grp_member(user, gi<TK.G.GROUP>) then 1 else 0) end else state = 'na' end" in tg, "")
     return out
 
 
@@ -168,7 +177,15 @@ MUT = [
     ("tk_run", "a refused sentence does not return", "err = sysmsg(11805, verb)\n      return", "err = sysmsg(11805, verb)"),
     ("tk_run", "an extra character is allowed (the semicolon)", "0123456789._-'", "0123456789._-;'"),
     ("tk_run", "the first word is matched as a prefix", "field(allow, ' ', i) = verb and verb # ''", "field(allow, ' ', i)[1, len(verb)] = verb"),
-    ("tk_gate_info", "the table is written to the screen", "   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
+    ("tk_gates", "the administrator is not asked", "if not(kernel(K$ADMINISTRATOR, -1)) then", "if 0 then"),
+    ("tk_gates", "the administrator refusal does not return", "err = sysmsg(11800, 'tk_gates')\n      return", "err = sysmsg(11800, 'tk_gates')"),
+    ("tk_gates", "the name is not checked", "if index(good, name[j, 1], 1) = 0 then", "if 0 then"),
+    ("tk_gates", "a missing account leaves the register open", "      close acc.f\n      err = sysmsg(11808, name)", "      err = sysmsg(11808, name)"),
+    ("tk_gates", "shared-read needs the word yes like the rest", "state = (if raw # 'NO' then 1 else 0)", "state = (if raw = 'YES' then 1 else 0)"),
+    ("tk_gates", "every gate is on unless the field says no", "state = (if raw = 'YES' then 1 else 0)\n            end", "state = (if raw # 'NO' then 1 else 0)\n            end"),
+    ("tk_gates", "a route is looked up for an account with no person", "if atype = 'USER' then", "if 1 then"),
+    ("tk_gates", "the register is written", "   close acc.f\n\n   grp = rec<ACC$GROUP>", "   close acc.f\n   write rec to acc.f, name\n\n   grp = rec<ACC$GROUP>"),
+    ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 
 
