@@ -1,6 +1,24 @@
 Next release - in progress
 --------------------------
 
+21 Oct 26  THE FIRST PART OF THE AGENT DOOR: A LINUX GROUP "sdagent" THAT SSH FORCES INTO THE AGENT PROGRAM AND NOTHING ELSE, AND THE SYSTEM USER "sdai".
+
+             What        The installer makes a Linux group, sdagent, empty, and the ssh block that ssh-forcecommand writes into sshd_config
+                        gets one more arm, written before the others: a Linux user in sdagent is forced into /usr/local/sdsys/bin/sd-mcp
+                        and never into an interactive sd, even if the same user is also an SD user; tunnels and forwarding are shut for
+                        it as they are for an SD user with no ssh route. Nothing reads the command the ssh client typed. The installer
+                        also makes a system user, sdai, with its own group, no login shell, no home directory and no SD group. Both are
+                        removed with the route groups on a full delete and kept when the accounts are kept.
+             Why it      This is the first piece of the AI integration the owner agreed on: an outside agent (an MCP client such as Claude
+             matters     Code) gets a door of its own, on the operating system's own account for it, instead of borrowing an SD account's
+                        ssh route.
+             Does not    The program sd-mcp does not exist yet, so a member of sdagent cannot do anything: sshd cannot run the missing
+                        program and the connection ends, which is closed. Nobody is added to sdagent by the installer. sdai has nothing to
+                        run yet. It does not change any other ssh route: a user with the sdssh route is forced into sd as before, one
+                        without it is refused as before, and a Linux user in neither group is not touched. Run under OpenSSH 10.0 on the
+                        Debian 13 test machine (which arm sshd picks for five kinds of user, and five real logins); Fedora and Ubuntu
+                        were not run.
+
 21 Oct 26  THE STATEMENTS THAT QUERY AN INDEX NOW WORK ON A FILE ON ANOTHER SD SERVER (SDNET), AND A QUERY ON ONE USES THE OTHER MACHINE'S INDEX.
 
              What        INDICES(f), INDICES(f, name), SELECTINDEX name FROM f, SELECTINDEX name, value FROM f, SETLEFT, SETRIGHT, SELECTLEFT

@@ -436,8 +436,23 @@ if [ "$keep_accts" = "DELETE" ]; then
             echo "Removed group $sd_route_group (the accounts went with it)."
         fi
     done
+    # 21 Oct 26 dm - AI integration slice 1: and sdagent, the ssh group of the agent door (not a route group of an SD account, so not in the loop).
+    if getent group sdagent &>/dev/null; then
+        sudo groupdel sdagent || true
+        echo "Removed group sdagent."
+    fi
+    # 21 Oct 26 dm - AI integration slice 1 (owner's D6): and the OS user sdai, with its own group (userdel takes the group it made).
+    if getent passwd sdai &>/dev/null; then
+        sudo userdel sdai || true
+        echo "Removed user sdai."
+    fi
+    if getent group sdai &>/dev/null; then
+        sudo groupdel sdai || true
+        echo "Removed group sdai."
+    fi
 else
     echo "sd ACCOUNTS were saved, so the route groups sdssh, sdapi, sdfiles, sdfileswrite and sdfilesadmin were kept."
+    echo "The group sdagent and the user sdai were kept with them."
 fi
 # --------------------
 

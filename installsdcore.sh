@@ -962,6 +962,24 @@ for sd_route_group in sdssh sdapi sdfiles sdfileswrite sdfilesadmin; do
     echo "Group $sd_route_group already exists."
   fi
 done
+# 21 Oct 26 dm - AI integration slice 1 (S.69, the owner's D5): sdagent is NOT one of the route groups above, which are rights an SD account holds: its
+#   members are Linux users that sshd forces into the agent door, sd-mcp (ssh-forcecommand.sh, the arm written FIRST), and into nothing else.  Empty on
+#   a fresh install; nobody is added by the installer, and an administrator makes an agent user by hand (a Linux user, then usermod -aG sdagent).
+if ! getent group sdagent &>/dev/null; then
+  echo "Creating group: sdagent."
+  sudo groupadd --system sdagent
+else
+  echo "Group sdagent already exists."
+fi
+# 21 Oct 26 dm - AI integration slice 1 (S.69, the owner's D6 of the same day): the OS user sdai, for the in-SD model call that a later slice
+#   builds.  It holds nothing but, one day, the model key: a system user with its own group, no login shell, no home directory made, in no SD
+#   group, and nothing runs as it yet.  An existing sdai is left as it is.
+if ! getent passwd sdai &>/dev/null; then
+  echo "Creating user: sdai."
+  sudo useradd --system --user-group --shell /usr/sbin/nologin --home-dir /var/lib/sd-ai --no-create-home sdai
+else
+  echo "User sdai already exists."
+fi
 sudo usermod -a -G sdusers root
 # Modified by Composer AI - 2026/06/10.
 # Use sdusers as primary group (-g). Remove orphan sdsys group when no user
