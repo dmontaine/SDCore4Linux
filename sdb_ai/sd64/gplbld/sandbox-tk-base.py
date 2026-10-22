@@ -67,8 +67,18 @@ def bail(msg):
 
 
 def sess(box, *cmds):
-    p = subprocess.run([sys.executable, TOOL, box, "sess", os.path.join(box, "sys")] + list(cmds), capture_output=True, text=True, errors="replace", timeout=900)
-    return ANSI.sub("", p.stdout + p.stderr).split(":TERM 200,9999", 1)[-1]
+    """A session in internal mode (sd -internal), the only place a $internal program compiles; the sandbox tool's own `sess` cannot (as sandbox-sortord.py's isess)."""
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"))
+    body = "\nTERM 200,9999\n" + "".join(c + "\n" for c in cmds) + "OFF\n"
+    p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd"), "-internal"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         cwd=os.path.join(box, "sys"), env=env)
+    try:
+        out, _ = p.communicate(body.encode("latin-1"), timeout=300)
+    except subprocess.TimeoutExpired:
+        p.kill()
+        p.communicate()
+        return ""
+    return ANSI.sub("", out.decode("latin-1", "replace")).split(":TERM 200,9999", 1)[-1]
 
 
 class Term:
@@ -122,7 +132,7 @@ def main():
             f.write("$internal\n   open 'VOC' to v else crt 'TKVOC no voc' ; stop\n   write 'V':@fm:'CA':@fm:'$tool_tktest' to v, 'tktest'\n   crt 'TKVOC done'\nend\n")
         made.append("zztkvoc")
         out = sess(box, "BASIC bp zztkvoc", "RUN bp zztkvoc")
-        row("SETUP: the VOC entry tktest (the throw-away app, catalogued $tool_tktest) is written", re.search(r"^TKVOC done$", out, re.M) is not None, out[-300:])
+        row("SETUP: the VOC entry tktest (the throw-away app, catalogued $tool_tktest) is written", re.search(r"^TKVOC done\s*$", out, re.M) is not None, out[-300:])
         who = sess(box, "WHO.AM.I")
         is_admin = re.search(r"Admin\?\s*:\s*Yes", who) is not None
         say("    (the sandbox session is %s)" % ("an administrator" if is_admin else "NOT an administrator"))
@@ -176,7 +186,7 @@ def main():
         if is_admin:
             t = Term(box, "tktest admin")
             row("audience admin in an administrator's session: the frame is drawn (the refusal for anyone else is a text check)", t.line(42) == F_A, repr(t.line(42)))
-            row("...and the right end of the status line names the audience: 'administrator'", "administrator" in t.line(40), repr(t.line(40)))
+            row("...and the right end of row 0 names the app and the audience: 'administrator'", "administrator" in t.line(0), repr(t.line(0)))
             t.end()
         else:
             skip("audience admin", "the sandbox session is not an administrator, so the frame cannot be shown for it")

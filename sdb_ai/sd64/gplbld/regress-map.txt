@@ -280,10 +280,14 @@ sdsys/gpl.bp/opcodes.h       : @compiler
 sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared winsize masters
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
+# S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
+sdsys/gpl.bp/tk.h            : tk-base
+sdsys/gpl.bp/tk_*            : tk-base
+sdsys/gpl.bp/tool_tktest     : tk-base
 sdsys/gpl.bp/*.h             : @compiler @core
 sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui
-sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
+sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
 sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys idedraw
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small

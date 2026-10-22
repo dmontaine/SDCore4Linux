@@ -6237,6 +6237,42 @@ Account %1: NOT every action was carried out. Done: %2. Not done: %3
 
 cited by: `modifya`
 
+### msg:11800
+> kind=message tier=reference since=- src=sdsys/messages/11800:1#dd02a6e6
+
+```
+%1 is for the administrator only: it runs for SDSYS, logged in at the machine's own keyboard
+```
+
+cited by: `tk_open`
+
+### msg:11801
+> kind=message tier=reference since=- src=sdsys/messages/11801:1#d37bdde2
+
+```
+%1 needs a terminal and cannot run as a phantom
+```
+
+cited by: `tk_open`
+
+### msg:11802
+> kind=message tier=reference since=- src=sdsys/messages/11802:1#f1e73f18
+
+```
+%1 could not take the screen
+```
+
+cited by: `tk_open`
+
+### msg:11803
+> kind=message tier=reference since=- src=sdsys/messages/11803:1#b3aca92c
+
+```
+administrator
+```
+
+cited by: `tk_open`
+
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 
