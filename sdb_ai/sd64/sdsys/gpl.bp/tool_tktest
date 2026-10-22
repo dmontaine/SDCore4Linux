@@ -10,7 +10,10 @@
 *
 * START-DESCRIPTION:
 *
-*   tktest {admin}
+*   tktest {admin} {dialogs}
+*
+*   dialogs starts on pane D, whose keys are F7 (a Run / Cancel box for create.file zztkdlg1 dynamic) and F8 (the same with the name zztkdlg2 to be typed): the
+*   confirm boxes of the base ($tk_explain, $tk_confirm, then $tk_run), exercised by sandbox-tk-base.py with the disk as evidence.
 *
 *   Two panes, A and B, one key table.  Tab moves the focus; F1 (every pane) says which pane has it; F3 (sort) is pane A's key and F5 (refresh) pane B's; Ctrl-S
 *   (save) is in the table but switched off, so the function-key row never shows it; Ctrl-Q leaves.  The word admin asks for the administrator audience.
@@ -45,11 +48,14 @@ $include tk.h
    call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'f3', 'sort', 'sort', 'A', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', 'B', 1)
+   call $tk_keys('add', keys, 'f7', 'confirm', 'confirm', 'D', 1)
+   call $tk_keys('add', keys, 'f8', 'typed', 'typed', 'D', 1)
    call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
    call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
 
    pane = 'A'
+   if field(@sentence, ' ', 2) = 'dialogs' or field(@sentence, ' ', 3) = 'dialogs' then pane = 'D'
    msg = ''
 
    loop
@@ -69,6 +75,22 @@ $include tk.h
             msg = 'sorted'
          case act = 'refresh'
             msg = 'refreshed'
+         case act = 'confirm'
+            sent = 'create.file zztkdlg1 dynamic'
+            call $tk_explain('sh', 1, el, ty)
+            call $tk_confirm(sent, el, '', res, msg)
+            if res = 'run' then
+               call $tk_run('create.file', sent, out, st, err)
+               msg = (if err # '' then err else 'ran, status ' : st)
+            end
+         case act = 'typed'
+            sent = 'create.file zztkdlg2 dynamic'
+            call $tk_explain('net', 1, el, ty)
+            call $tk_confirm(sent, el, (if ty then 'zztkdlg2' else ''), res, msg)
+            if res = 'run' then
+               call $tk_run('create.file', sent, out, st, err)
+               msg = (if err # '' then err else 'ran, status ' : st)
+            end
       end case
    repeat
 

@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -131,6 +131,18 @@ def checks(raw):
     add("T22", "$tk_gates: a gate with its default on (shared-read) is on unless the field says no, every other register gate only if it says yes, and a route gate on an account with no person is 'na' (never a membership test of nobody)",
         "if gi<TK.G.DEFAULT> = 'on' then state = (if raw # 'NO' then 1 else 0) end else state = (if raw = 'YES' then 1 else 0) end" in tg
         and "if atype = 'USER' then state = (if is_grp_member(user, gi<TK.G.GROUP>) then 1 else 0) end else state = 'na' end" in tg, "")
+    cf = sq["tk_confirm"]
+    add("T23", "ORDER in $tk_confirm: the answer starts as 'cancel' and a session with no terminal returns at once; the box starts on Cancel (default 2); anything but Run returns BEFORE the name is asked for; a name that is not the one asked for, or an Esc at the name, never reaches 'run'; 'run' is set last",
+        ordered(cf, "res = 'cancel'", "if system(25) then return", "default 2 returning b else b = 0", "if b # 1 then return", "returning ans then got = 1 else got = 0", "if not(got) then return",
+                "if trim(ans) # typed then res = 'wrong'", "res = 'run'") and cf.count("res = 'run'") == 1, "")
+    add("T24", "$tk_confirm shows the sentence wrapped at spaces but whole (a hard cut only when a word is longer than the line), draws the lines the caller gave, and runs, reads and writes nothing",
+        "wrapw" in cf and "rest = trimf(rest[cut + 1, 99999])" in cf and "loop while rest # '' do" in cf and "body<-1> = ' ' : piece" in cf and "body := @fm : lines" in cf and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display)\b", cf), "")
+    ex = sq["tk_explain"]
+    add("T25", "$tk_explain: a planned gate or one not in the table gives nothing; turning ON a gate delivered off carries the core-direction line (11817), turning OFF one delivered on carries 11818, a gate that reaches beyond SD carries 11819, and the typed name is asked only for turning ON a gate that reaches beyond SD",
+        ordered(ex, "if gi = '' then return", "if gi<TK.G.STATUS> # 'built' then return", "sysmsg(11820,")
+        and "if on and gi<TK.G.DEFAULT> = 'off' then lines<-1> = sysmsg(11817)" in ex and "if not(on) and gi<TK.G.DEFAULT> = 'on' then lines<-1> = sysmsg(11818)" in ex
+        and "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)" in ex and "if on and gi<TK.G.BEYOND> = 1 then typed = 1" in ex and ex.count("typed = 1") == 1
+        and not re.search(r"\b(execute|write|writev|readu|openpath|open|read|kernel|screen|crt|display)\b", ex), "")
     return out
 
 
@@ -185,6 +197,19 @@ MUT = [
     ("tk_gates", "every gate is on unless the field says no", "state = (if raw = 'YES' then 1 else 0)\n            end", "state = (if raw # 'NO' then 1 else 0)\n            end"),
     ("tk_gates", "a route is looked up for an account with no person", "if atype = 'USER' then", "if 1 then"),
     ("tk_gates", "the register is written", "   close acc.f\n\n   grp = rec<ACC$GROUP>", "   close acc.f\n   write rec to acc.f, name\n\n   grp = rec<ACC$GROUP>"),
+    ("tk_confirm", "the answer starts as run", "   res = 'cancel'\n   msg = sysmsg(11821)", "   res = 'run'\n   msg = sysmsg(11821)"),
+    ("tk_confirm", "a session with no terminal is asked", "if system(25) then return", "if 0 then return"),
+    ("tk_confirm", "the box starts on Run", "default 2 returning b else b = 0", "default 1 returning b else b = 0"),
+    ("tk_confirm", "Cancel does not return", "if b # 1 then return", "if 0 then return"),
+    ("tk_confirm", "an Esc at the name goes on", "if not(got) then return", "if 0 then return"),
+    ("tk_confirm", "the name is not compared", "if trim(ans) # typed then", "if 0 then"),
+    ("tk_confirm", "the name is compared without regard to case", "if trim(ans) # typed then", "if upcase(trim(ans)) # upcase(typed) then"),
+    ("tk_confirm", "the sentence is cut instead of wrapped", "rest = trimf(rest[cut + 1, 99999])", "rest = ''"),
+    ("tk_confirm", "a command is run from the box", "   res = 'run'\n   msg = ''", "   execute sentence\n   res = 'run'\n   msg = ''"),
+    ("tk_explain", "the typed name is asked for turning a gate off", "if on and gi<TK.G.BEYOND> = 1 then typed = 1", "if gi<TK.G.BEYOND> = 1 then typed = 1"),
+    ("tk_explain", "the beyond-SD warning is left out", "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)", "null"),
+    ("tk_explain", "the core-direction line is left out", "if on and gi<TK.G.DEFAULT> = 'off' then lines<-1> = sysmsg(11817)", "null"),
+    ("tk_explain", "a planned gate is explained", "if gi<TK.G.STATUS> # 'built' then return", "null"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 

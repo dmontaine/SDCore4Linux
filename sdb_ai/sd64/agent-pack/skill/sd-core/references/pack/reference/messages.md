@@ -6327,6 +6327,114 @@ the account register could not be opened
 
 cited by: `tk_gates`
 
+### msg:11810
+> kind=message tier=reference since=- src=sdsys/messages/11810:1#007ef519
+
+```
+nothing was run: what was typed is not %1
+```
+
+cited by: `tk_confirm`
+
+### msg:11811
+> kind=message tier=reference since=- src=sdsys/messages/11811:1#d52a820a
+
+```
+this will run:
+```
+
+cited by: `tk_confirm`
+
+### msg:11812
+> kind=message tier=reference since=- src=sdsys/messages/11812:1#f80473b7
+
+```
+Run this command?
+```
+
+cited by: `tk_confirm`
+
+### msg:11813
+> kind=message tier=reference since=- src=sdsys/messages/11813:1#09708d8f
+
+```
+type %1 to run it
+```
+
+cited by: `tk_confirm`
+
+### msg:11814
+> kind=message tier=reference since=- src=sdsys/messages/11814:1#5471e1fc
+
+```
+turned on it allows: %1
+```
+
+cited by: `tk_explain`
+
+### msg:11815
+> kind=message tier=reference since=- src=sdsys/messages/11815:1#712fa99d
+
+```
+turned off it still allows: %1
+```
+
+cited by: `tk_explain`
+
+### msg:11816
+> kind=message tier=reference since=- src=sdsys/messages/11816:1#d875835f
+
+```
+takes effect: %1
+```
+
+cited by: `tk_explain`
+
+### msg:11817
+> kind=message tier=reference since=- src=sdsys/messages/11817:1#cfb5561c
+
+```
+delivered off; you are turning it on - the tighter choice is to leave it off
+```
+
+cited by: `tk_explain`
+
+### msg:11818
+> kind=message tier=reference since=- src=sdsys/messages/11818:1#c56e0fdf
+
+```
+delivered on; you are turning it off
+```
+
+cited by: `tk_explain`
+
+### msg:11819
+> kind=message tier=reference since=- src=sdsys/messages/11819:1#19fca271
+
+```
+this reaches beyond SD: the operating system, the network or other servers
+```
+
+cited by: `tk_explain`
+
+### msg:11820
+> kind=message tier=reference since=- src=sdsys/messages/11820:1#6227e854
+
+```
+%1 (%2), turning it %3
+```
+
+cited by: `tk_explain`
+
+### msg:11821
+> kind=message tier=reference since=- src=sdsys/messages/11821:1#0994d85e
+
+```
+nothing was run
+```
+
+cited by: `tk_confirm`
+
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 

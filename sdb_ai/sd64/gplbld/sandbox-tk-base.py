@@ -38,7 +38,8 @@ passed = failed = skipped = 0
 F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
-KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13"}
+KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b"}
+F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
 def say(s=""):
@@ -318,6 +319,149 @@ def gates_rows(box, made):
     row("the fixtures are gone: the program deleted the eight records it wrote, and a read of each afterwards finds none", re.search(r"^TKG left ", out, re.M) is None, out[-300:])
 
 
+# TK-0.4 (G4).  Part 1, an internal session: $tk_explain for gates of each kind.  Part 2, a pseudo-terminal: `tktest dialogs` (F7 a Run / Cancel box for
+# `create.file zztkdlg1 dynamic`, F8 the same with a typed name `zztkdlg2`); the DISK is the evidence of what ran.  Part 3, a pipe: F7, then the input ends.
+EXPLAINCASES = [("shon", "sh", 1), ("shoff", "sh", 0), ("vocon", "voc", 1), ("vocoff", "voc", 0), ("srdoff", "shared-read", 0), ("srdon", "shared-read", 1), ("neton", "net", 1),
+                ("filesoff", "files", 0), ("filesadmon", "files-admin", 1), ("nosuch", "nosuch", 1), ("sockets", "sockets", 1)]
+
+
+def explain_program():
+    p = ["$internal", "   crt 'TKE begin'"]
+    for tag, gid, on in EXPLAINCASES:
+        p.append("   tag = '%s' ; id = '%s' ; on = %d ; gosub go" % (tag, gid, on))
+    p += ["   crt 'TKE end'", "   stop", "go:", "   call $tk_explain(id, on, lines, typed)", "   crt 'E ' : tag : ' typed=' : typed : ' n=' : dcount(lines, @fm)",
+          "   for k = 1 to dcount(lines, @fm)", "      crt 'E ' : tag : ' L' : k : ' ' : lines<k>", "   next k", "   return", "end", ""]
+    return "\n".join(p)
+
+
+def msg_text(n, *args):
+    """A message of the tree as the program prints it (sdsys/messages/N with %1 .. filled in)."""
+    with open(os.path.join(HERE, "..", "sdsys", "messages", str(n)), encoding="latin-1") as f:
+        t = f.read().rstrip("\n")
+    for i, a in enumerate(args, 1):
+        t = t.replace("%%%d" % i, a)
+    return t
+
+
+def on_disk(box, name):
+    r = subprocess.run(["find", os.path.join(box, "sys"), os.path.join(box, "user_accounts"), "-maxdepth", "3", "-name", name], capture_output=True, text=True)
+    return bool(r.stdout.strip())
+
+
+def dialogs_rows(box, made):
+    say("\n--- the confirm boxes (TK-0.4, G4)")
+    with open(os.path.join(box, "sys", "bp", "zztkexp"), "w", encoding="latin-1") as f:
+        f.write(explain_program())
+    made.append("zztkexp")
+    out = sess(box, "BASIC bp zztkexp", "RUN bp zztkexp")
+    if not re.search(r"^TKE begin\s*$", out, re.M) or not re.search(r"^TKE end\s*$", out, re.M):
+        say(out[-1500:])
+        bail("the TK-0.4 explain program did not run to its end, so no row below can be believed")
+    ex = {}
+    for m in re.finditer(r"^E (\w+) typed=(\d+) n=(\d+)\s*$", out, re.M):
+        ex[m.group(1)] = [int(m.group(2)), int(m.group(3)), []]
+    for m in re.finditer(r"^E (\w+) L(\d+) (.*?)\s*$", out, re.M):
+        if m.group(1) in ex:
+            ex[m.group(1)][2].append(m.group(3))
+    L = lambda tag: ex.get(tag, [None, None, []])[2]
+    beyond, dflt_off, dflt_on = msg_text(11819), msg_text(11817), msg_text(11818)
+    row("sh on: the box asks for the typed name; five lines: the title (11820), what ON allows, when, the delivered-off line, the beyond-SD line",
+        ex.get("shon", [None])[0] == 1 and len(L("shon")) == 5 and L("shon")[0] == "Shell (sh), turning it on" and L("shon")[1].startswith("turned on it allows: use the SH verb")
+        and L("shon")[2] == "takes effect: next account entry" and L("shon")[3] == dflt_off and L("shon")[4] == beyond, repr(ex.get("shon")))
+    row("sh off: no typed name; four lines: title, what it still allows, when, beyond SD; NO delivered-off line", ex.get("shoff", [None])[0] == 0 and len(L("shoff")) == 4
+        and L("shoff")[0] == "Shell (sh), turning it off" and L("shoff")[1].startswith("turned off it still allows: everything inside SD") and dflt_off not in L("shoff") and L("shoff")[3] == beyond, repr(ex.get("shoff")))
+    row("voc on (not beyond SD): no typed name, four lines with the delivered-off line and 'next sign-on only', no beyond-SD line",
+        ex.get("vocon", [None])[0] == 0 and len(L("vocon")) == 4 and "takes effect: next sign-on only" in L("vocon") and dflt_off in L("vocon") and beyond not in L("vocon"), repr(ex.get("vocon")))
+    row("voc off: three lines, no delivered line", ex.get("vocoff", [None])[0] == 0 and len(L("vocoff")) == 3 and dflt_off not in L("vocoff") and dflt_on not in L("vocoff"), repr(ex.get("vocoff")))
+    row("shared-read off (delivered ON): the 'delivered on; you are turning it off' line (11818) is there and the delivered-off one is not", dflt_on in L("srdoff") and dflt_off not in L("srdoff") and ex.get("srdoff", [None])[0] == 0, repr(ex.get("srdoff")))
+    row("shared-read on (delivered ON): neither delivered line", dflt_on not in L("srdon") and dflt_off not in L("srdon") and len(L("srdon")) == 3, repr(ex.get("srdon")))
+    row("net on and files-admin on reach beyond SD: the typed name is asked for and the warning is there", all(ex.get(t, [None])[0] == 1 and beyond in L(t) for t in ("neton", "filesadmon")), repr((ex.get("neton"), ex.get("filesadmon"))))
+    row("files OFF reaches beyond SD but turning OFF asks for no typed name (it is a tightening)", ex.get("filesoff", [None])[0] == 0 and beyond in L("filesoff"), repr(ex.get("filesoff")))
+    row("a gate that is not in the table, and the planned one (sockets), give no lines and no typed name", ex.get("nosuch") == [0, 0, []] and ex.get("sockets") == [0, 0, []], repr((ex.get("nosuch"), ex.get("sockets"))))
+
+    # part 2: the boxes on a pseudo-terminal
+    say("    --- on a pseudo-terminal (140 by 43)")
+    t = Term(box, "tktest dialogs")
+    if "F1 help" not in "\n".join(t.lines()):
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest dialogs never drew its function-key row, so no row below can be believed")
+    row("`tktest dialogs` starts on pane D: its function-key row names F7 and F8: %r" % F_D, t.line(42) == F_D, repr(t.line(42)))
+    scr = lambda: "\n".join(t.lines())
+
+    def box_up():
+        s = scr()
+        return "Run this command?" in s
+
+    t.key("F7")
+    s = scr()
+    row("F7 opens the box: the title, 'this will run:', the exact command, the explanation lines and the two buttons",
+        "Run this command?" in s and "this will run:" in s and "create.file zztkdlg1 dynamic" in s and "Shell (sh), turning it on" in s and "[ Run ]" in s and "[ Cancel ]" in s, s[-600:])
+    t.key("ENTER")
+    row("Enter alone does NOT run it: the default button is Cancel; the box is gone, the status line says nothing was run, the foot of the screen is back, and nothing is on the disk",
+        not box_up() and "nothing was run" in t.line(40) and t.line(42) == F_D and not on_disk(box, "zztkdlg1"), repr((t.line(40), t.line(42), on_disk(box, "zztkdlg1"))))
+    t.key("F7")
+    t.key("ESC")
+    row("Esc cancels: nothing was run and nothing is on the disk", not box_up() and "nothing was run" in t.line(40) and not on_disk(box, "zztkdlg1"), repr((t.line(40), on_disk(box, "zztkdlg1"))))
+    t.key("F8")
+    s = scr()
+    row("F8 opens the box for the other command, with the beyond-SD warning (net on)", "create.file zztkdlg2 dynamic" in s and "Remote files (net), turning it on" in s and msg_text(11819) in s, s[-500:])
+    t.s.type("r", idle=0.6)
+    s = scr()
+    row("choosing Run by its letter asks for the name: 'type zztkdlg2 to run it'", "type zztkdlg2 to run it" in s, s[-500:])
+    t.s.type("nope\r", idle=0.6)
+    row("a wrong name runs nothing: the status line says what name was asked for, and nothing is on the disk",
+        "nothing was run: what was typed is not zztkdlg2" in t.line(40) and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
+    t.key("F8")
+    t.s.type("r", idle=0.6)
+    t.s.type("ZZTKDLG2\r", idle=0.8)
+    row("the name is compared exactly: ZZTKDLG2 is not zztkdlg2, so nothing runs and nothing is on the disk",
+        "nothing was run: what was typed is not zztkdlg2" in t.line(40) and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
+    t.key("F8")
+    t.s.type("r", idle=0.6)
+    t.key("ESC")
+    row("Esc at the name asks nothing more and runs nothing: the status line is the plain 'nothing was run', not the wrong-name message",
+        not box_up() and t.line(40).rstrip().endswith("nothing was run") and "what was typed" not in t.line(40) and "type zztkdlg2" not in scr() and not on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
+    t.key("F8")
+    t.key("ENTER")
+    row("Enter on the first box of the typed flow is Cancel too: nothing on the disk", not box_up() and not on_disk(box, "zztkdlg2"), repr(on_disk(box, "zztkdlg2")))
+    t.key("F8")
+    t.s.type("r", idle=0.6)
+    t.s.type("zztkdlg2\r", idle=1.2)
+    row("the right name runs it: the command went through $tk_run (the status line says it ran) and the file IS on the disk (so the sentinel can fire)",
+        "ran, status" in t.line(40) and on_disk(box, "zztkdlg2"), repr((t.line(40), on_disk(box, "zztkdlg2"))))
+    t.key("F7")
+    t.s.type("r", idle=1.2)
+    row("Run chosen by its letter in the plain box runs it: the file IS on the disk", "ran, status" in t.line(40) and on_disk(box, "zztkdlg1"), repr((t.line(40), on_disk(box, "zztkdlg1"))))
+    row("...and the frame is whole after all the boxes: the function-key row and the border are where they were", t.line(42) == F_D and t.line(41) == "-" * 140, repr((t.line(41)[:20], t.line(42))))
+    t.end()
+    sess(box, "DELETE.FILE zztkdlg1 FORCE", "DELETE.FILE zztkdlg2 FORCE")
+    row("(cleanup) both files were removed again, so the pipe row below starts from nothing", not on_disk(box, "zztkdlg1") and not on_disk(box, "zztkdlg2"), "")
+
+    # part 3: a pipe, F7 typed, then the input ends with the box open
+    say("    --- on a pipe: F7, then the input ends with the box open")
+    env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
+    r0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=os.path.join(box, "user_accounts"), env=env)
+    t0 = time.time()
+    try:
+        outp, _ = p.communicate(b"\nTERM 140,43\ntktest dialogs\n\x1b[18~", timeout=20)
+        ended = True
+    except subprocess.TimeoutExpired:
+        os.kill(p.pid, 1)
+        time.sleep(1)
+        p.kill()
+        outp, _ = p.communicate()
+        ended = False
+    took = time.time() - t0
+    r1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+    cpu = (r1.ru_utime - r0.ru_utime) + (r1.ru_stime - r0.ru_stime)
+    seen = b"Run this command?" in outp
+    say("    [measured] ended: %s after %.1f s, the child's CPU %.2f s, the box was drawn on the pipe: %s" % (ended, took, cpu, "yes" if seen else "no"))
+    row("a piped session whose input ends with the box open ends within 20 s, does not spin (under 3 s of CPU) and runs nothing: no file on the disk", ended and cpu < 3.0 and not on_disk(box, "zztkdlg1"), "%.1f s, %.2f s" % (took, cpu))
+    if not seen:
+        skip("the box was open when the input ended", "the pipe did not decode F7 into the key, so the box was never drawn: the row above shows only that nothing ran")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
@@ -401,6 +545,7 @@ def main():
 
         runtime_rows(box, made)
         gates_rows(box, made)
+        dialogs_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
