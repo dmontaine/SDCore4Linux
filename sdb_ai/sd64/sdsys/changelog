@@ -1,6 +1,28 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  TOOL.KEYS: A FULL-SCREEN DIAGNOSTIC FOR THE TERMINAL AND THE KEYBOARD, FOR EVERYONE.
+
+             What        tool.keys shows the terminal type SD is using and the one in the environment, the window, the locale and
+                        whether the borders are line characters, whether the terminal can show colour, the theme and the mouse events that
+                        have arrived. Every key pressed goes to a list of the 25 newest with the name the screen library gives it (up, f5,
+                        ctrl-g, alt-s, mouse, or the character and its code), and is ticked in a grid of 52 keys: the arrows, home, end,
+                        paging, insert, delete, backspace, tab, Enter, Esc, the function keys, the control keys, an Alt-letter, a printable
+                        character and the mouse. Ctrl-R switches to raw bytes, the first eight bytes the terminal sent in hex with the
+                        characters beside them, for a key the terminal type does not name. The mouse box counts presses, releases, drags and
+                        wheel turns; a box shows the library's sixteen styles each in itself; Ctrl-T changes the theme (mono, classic, blue;
+                        a terminal with no colour keeps mono and says so), Ctrl-L clears and Ctrl-Q leaves. Every key is shown before the
+                        program acts on it. A window smaller than 140 by 43 is refused with the library's message, a window made smaller
+                        while it runs shows the cursor lock and the screen comes back when it is made larger, and the end of the input ends
+                        the program.
+             Why it      "The F5 key does nothing" and "the arrow prints ^[[A" are answered by looking: the key either has a name under
+             matters     this terminal type, or it does not and its bytes show what the terminfo entry would need. It is also the first
+                        program built on the full-screen toolkit's shared frame (status line, border, function-key row).
+             Does not    It changes nothing and reads nothing but the terminal type, window and locale the session already knows, so it
+                        is in every account's vocabulary and needs no gate. It cannot show the keys a terminal never sends (a key the
+                        window manager keeps for itself), and a key that ends the program (Ctrl-Q) can only be tested by leaving. An
+                        xterm's End sequence sent to a vt100 arrives as a stray ~, which is what a vt100 entry does with it.
+
 22 Oct 26  ACCELERATOR KEYS ON THE CONTROLS OF AN SD BASIC SCREEN, AND ALT-LETTERS FOR THE SCREEN LIBRARY.
 
              What        An entry, combo box, check box, slider, selector, radio group, list, button, tab strip, memo, tree or table takes

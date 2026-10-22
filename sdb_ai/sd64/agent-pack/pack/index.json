@@ -27881,6 +27881,13 @@
 "tier": "reference",
 "words": 78
 },
+"tcl:tool.keys": {
+"kind": "tcl.verb",
+"part": "reference/tcl-verbs.md",
+"since": "next",
+"tier": "reference",
+"words": 39
+},
 "tcl:top.margin": {
 "kind": "tcl.keyword",
 "part": "reference/tcl-keywords.md",

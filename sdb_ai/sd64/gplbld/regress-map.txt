@@ -281,15 +281,22 @@ sdsys/gpl.bp/int$keys.h      : @compiler @core fixes-b12 editgates net shared wi
 sdsys/gpl.bp/syscom.h        : @compiler @core
 sdsys/gpl.bp/header.h        : @compiler @core
 # S.75 (22 Oct 26): the full-screen toolkit's shared base (tk.h, tk_*, and the throw-away tool_tktest).
-sdsys/gpl.bp/tk.h            : tk-base
-sdsys/gpl.bp/tk_*            : tk-base
+sdsys/gpl.bp/tk.h            : tk-base tk-keys
+sdsys/gpl.bp/tk_*            : tk-base tk-keys
 sdsys/gpl.bp/tool_tktest     : tk-base
+# S.75 TK-1 (22 Oct 26): tool.keys, the first real app (a verb for everyone: newvoc and voc_template both have it)
+sdsys/gpl.bp/tool_keys       : tk-keys
+sdsys/gpl.bp/sl_key          : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys
+sdsys/gpl.bp/_keycode        : @core tk-base tk-keys eofkeys input
+sdsys/gpl.bp/_bindkey        : @core tk-base tk-keys
+sdsys/newvoc/tool.keys       : tk-keys
+sdsys/voc_template/tool.keys : tk-keys
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base tk-keys
 # S.75 (22 Oct 26): the pick window is used by the toolkit only (tktest); no other screen suite draws it.
 sdsys/gpl.bp/sl_pickwin      : tk-base
-sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
-sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
+sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys
+sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base tk-keys
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
 sdsys/gpl.bp/ide             : ide editgates shared ide-small ide-sed eofkeys idedraw
 sdsys/gpl.bp/ced*            : ced editgates shared ide-small

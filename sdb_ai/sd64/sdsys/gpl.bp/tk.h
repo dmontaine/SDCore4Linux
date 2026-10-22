@@ -27,6 +27,7 @@ $define TK.C.AUD       6       ;* the audience as the person reads it: "administ
 $define TK.C.YSTAT     7       ;* the row of the status line
 $define TK.C.YBORD     8       ;* the row of the border
 $define TK.C.YKEYS     9       ;* the row of the function keys
+$define TK.C.GEN       10      ;* a number the app raises to have $tk_frame write all of the frame again (after the screen was cleared or repainted under it)
 *
 * THE GATE TABLE ($tk_gate_info, plan section 2.4) returns one gate as a dynamic array, a field to a value:
 $define TK.G.ID        1       ;* the gate's id, the column name of the gate screen: sh, os, sd, voc ...

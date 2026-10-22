@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_tktest", "tool_keys"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -265,10 +265,32 @@ def checks(raw):
         and "case f{'achg'} # '' w = f{'widgets', f{'achg'}} evt = 'change' ; eid = w{'id'} ; edata = w{'value'} case fi1 # fi0 and fi1 >= 1" in fm
         and all("w{'amn'} = upcase(t[p + 1, 1])" in squeeze(strip_bas(raw[n])) for n in ("sl_check", "sl_slider", "sl_selector", "screen_label")) and squeeze(strip_bas(raw["sl_button"])).count("w{'amn'} = w{'mn'}") == 1 and "w{'amn'} = '' if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'}" in squeeze(strip_bas(raw["sl_button"]))
         and "amn" not in raw["sl_label"] and "p = index(t, '&', 1)" in squeeze(strip_bas(raw["screen_label"])), "")
+    tk = sq["tool_keys"]
+    add("T40", "tool.keys (TK-1): an app for everyone (audience null), that opens the base first and prints what it refuses; its keys are Ctrl-L, Ctrl-R, Ctrl-T and Ctrl-Q; every key is recorded BEFORE the table acts on it; "
+        "the end of the input and the cursor lock's own way out end it, in both reading modes, and every way out is $tk_close; names mode reads with SCREEN KEY, raw mode with KEYIN (a second at a time, a burst at 0.05) "
+        "and asks the library for the size when the window changed; the cursor waits at the start of the status line (so a smaller window shows the lock); a resize raises the frame's generation; "
+        "the grid is 52 keys (ctrl-h, i, j and m are other keys); it reads and writes no file, runs no command and asks no gate",
+        "call $tk_open('tool.keys', '', ctx, err) if err # '' then display err stop end" in tk
+        and ordered(tk, "call $tk_keys('add', keys, 'ctrl-l', 'clear', 'clear', '', 1)", "call $tk_keys('add', keys, 'ctrl-r', 'raw/names', 'raw', '', 1)", "call $tk_keys('add', keys, 'ctrl-t', 'theme', 'theme', '', 1)",
+                "call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)") and tk.count("call $tk_keys('add'") == 4
+        and "gosub record call $tk_keys('action', keys, nm, pane, act, '', '')" in tk
+        and "repeat call $tk_close(ctx) stop" in tk and "if ended then exit if nm = 'guardquit' then exit" in tk
+        and tk.count("if status() = ER$EOF then") == 2 and "if status() = ER$EOF then ended = 1 exit end" in tk
+        and "if rawmode then gosub read.raw else gosub read.names" in tk and "screen key returning nm" in tk
+        and "c = keyin(1)" in tk and "loop c = keyin(0.05) until c = '' do raw := c repeat" in tk
+        and "if @crtwide : ',' : @crthigh # lastsz then screen key timeout 1 returning nm exit end" in tk
+        and "call $sl_curat(0, ctx<TK.C.YSTAT>)" in tk
+        and "if nm = 'resize' then gosub redraw.all" in tk and "redraw.all: gen += 1 ctx<TK.C.GEN> = gen gosub draw.all return" in tk
+        and "if i # 8 and i # 9 and i # 10 and i # 13 then gnames := @fm : 'ctrl-' : downcase(char(i + 64))" in tk and "gnames := @fm : 'alt-x' : @fm : 'char' : @fm : 'mouse'" in tk
+        and "if len(nm) = 1 then cell = 'char' if nm[1, 4] = 'alt-' then cell = 'alt-x'" in tk
+        and "case mev<1> = 'wheel' and mev<2> = 'up' ; mu += 1 case mev<1> = 'wheel' ; mdn += 1" in tk
+        and "ins line before logl<1> if dcount(logl, @fm) > LOGN then del logl<LOGN + 1>" in tk
+        and "call $sl_theme('slot', 'white', 'black', '', '', cs) colour = (if cs = 'none' then 'no' else 'yes')" in tk
+        and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|openseq|readseq|kernel|os\.execute|clearfile)\b", re.sub(r"'[^']*'", "''", tk)), "")
     return out
 
 
-EXTRA = ["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label", "sl_button", "sl_label", "sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
+EXTRA =["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label", "sl_button", "sl_label", "sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
 
 
 def load():
@@ -423,7 +445,22 @@ MUT = [
     ("_keycode", "an Alt-letter is returned whether asked for or not", "if kc.alt and len(key.string) = 2", "if len(key.string) = 2"),
     ("_bindkey", "-8 leaves the Alt-letter on", "kc.alt = @false", "kc.alt = @true"),
     ("sl_button", "a button's first letter is also an Alt-letter", "            w{'mn'} = upcase(t[1, 1])\n", "            w{'mn'} = upcase(t[1, 1])\n            w{'amn'} = w{'mn'}\n"),
-    ("screen_label", "a label's letter is not kept", "w{'amn'} = upcase(t[p + 1, 1])", "null"),
+    # TK-1, tool.keys (the sitting's own mutants)
+    ("tool_keys", "the app asks for the administrator", "call $tk_open('tool.keys', '', ctx, err)", "call $tk_open('tool.keys', 'admin', ctx, err)"),
+    ("tool_keys", "a key is not shown before it is acted on", "            gosub record\n            call $tk_keys('action', keys, nm, pane, act, '', '')", "            call $tk_keys('action', keys, nm, pane, act, '', '')"),
+    ("tool_keys", "the end of the input is not seen in names mode", "      if status() = ER$EOF then ended = 1\n", "      if 0 then ended = 1\n"),
+    ("tool_keys", "the end of the input is not seen in raw mode", "      if status() = ER$EOF then\n         ended = 1\n         exit\n      end", "      if 0 then\n         ended = 1\n         exit\n      end"),
+    ("tool_keys", "the cursor is not parked", "      call $sl_curat(0, ctx<TK.C.YSTAT>)", "      null"),
+    ("tool_keys", "a resize does not have the frame written again", "   ctx<TK.C.GEN> = gen\n", "   null\n"),
+    ("tool_keys", "raw mode takes one byte of a burst", "      c = keyin(0.05)\n", "      c = ''\n"),
+    ("tool_keys", "ctrl-i has a cell of its own", "if i # 8 and i # 9 and i # 10 and i # 13 then", "if i # 8 and i # 10 and i # 13 then"),
+    ("tool_keys", "an Alt-letter has no cell", "if nm[1, 4] = 'alt-' then cell = 'alt-x'", "if 0 then cell = 'alt-x'"),
+    ("tool_keys", "Ctrl-Q does not leave", "   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)\n", "\n"),
+    ("tool_keys", "a wheel down is counted as up", "case mev<1> = 'wheel' ; mdn += 1", "case mev<1> = 'wheel' ; mu += 1"),
+    ("tool_keys", "Last keys is not cut to its 25 lines", "if dcount(logl, @fm) > LOGN then del logl<LOGN + 1>", "null"),
+    ("tool_keys", "the window is not watched in raw mode", "      if @crtwide : ',' : @crthigh # lastsz then", "      if 0 then"),
+    ("tool_keys", "a colour terminal is told it has none", "colour = (if cs = 'none' then 'no' else 'yes')", "colour = 'no'"),
+    ("screen_label", "a label's letter is not kept","w{'amn'} = upcase(t[p + 1, 1])", "null"),
     ("sl_check", "a check box's letter is not kept", "w{'amn'} = upcase(t[p + 1, 1])", "null"),
 ]
 

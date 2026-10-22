@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.1).
+* 22 Oct 26 dm  ctx<TK.C.GEN>: an app that has cleared or repainted the screen under the frame has all of it written again (TK-1, tool.keys).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -20,6 +21,7 @@
 *   (SCREEN TEXT leaves it after the text).  An app that has a menu bar draws the menu first; this writes only the right end of row 0.
 *
 *   The values it compares with are kept in a common block, so one app at a time: $tk_open starts a new app, and a changed layout (ctx) redraws the border.
+*   An app that has cleared or repainted the screen under the frame (it got the key resize) raises ctx<TK.C.GEN>, and the next call writes all four parts again.
 *
 * END-DESCRIPTION
 *
@@ -32,9 +34,17 @@ $catalog $tk_frame
 $include sl.h
 $include tk.h
 
-   common /tkframe/ last.stat, last.keys, last.bord, last.top
+   common /tkframe/ last.stat, last.keys, last.bord, last.top, last.gen
 
    lw = ctx<TK.C.W>
+   * the app raised ctx<TK.C.GEN>: the screen under the frame was cleared or repainted (a resize, the cursor lock lifted), so none of what was written is known to be there
+   if ctx<TK.C.GEN> # last.gen then
+      last.gen = ctx<TK.C.GEN>
+      last.stat = ''
+      last.keys = ''
+      last.bord = ''
+      last.top = ''
+   end
    ystat = ctx<TK.C.YSTAT>
    ybord = ctx<TK.C.YBORD>
    ykeys = ctx<TK.C.YKEYS>
