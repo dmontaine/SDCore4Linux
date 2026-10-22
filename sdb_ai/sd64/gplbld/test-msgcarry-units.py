@@ -42,6 +42,8 @@ ALLOWED = {
     # 20 Oct 26, PAL-32: Solo's OS switch (owner's permission) has no accounts, so the way to give OS access is its own verb
     ("qproc", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32)",
     ("setptr", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32)",
+    ("convertdata", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the CSV / JSON / XML task, 21 Oct 26)",
+    ("importdata", "11180"): "the way to give OS access: Core modify.account NAME os-on, Solo set.os.access os on (PAL-32; carried to Solo with the CSV / JSON / XML task, 21 Oct 26)",
     ("setnetlogin", "11460"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
     ("setserver", "11439"): "the way to give the NET gate: Core modify.account NAME net-on, Solo set.net.access on (PAL-33, Solo SDNet client)",
 }

@@ -1,0 +1,78 @@
+* TOOL_TKTEST
+* The full-screen toolkit: a THROW-AWAY app that exercises the shared base (S.75, TK-0.1).  It is not a verb of the product: no VOC entry ships for it, and
+* sandbox-tk-base.py makes the one it runs.  It goes when the first real app (tool.keys) can do its job.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 22 Oct 26 dm  New (S.75, TK-0.1).
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   tktest {admin}
+*
+*   Two panes, A and B, one key table.  Tab moves the focus; F1 (every pane) says which pane has it; F3 (sort) is pane A's key and F5 (refresh) pane B's; Ctrl-S
+*   (save) is in the table but switched off, so the function-key row never shows it; Ctrl-Q leaves.  The word admin asks for the administrator audience.
+*   The loop ends when the input ends and when the cursor lock's own way out is taken.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_tktest
+$catalog $tool_tktest
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   aud = ''
+   if field(@sentence, ' ', 2) = 'admin' then aud = 'admin'
+
+   call $tk_open('tktest', aud, ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'f3', 'sort', 'sort', 'A', 1)
+   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', 'B', 1)
+   call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
+   call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+
+   pane = 'A'
+   msg = ''
+
+   loop
+      call $tk_frame(ctx, keys, pane, msg)
+      screen key returning k
+      if k = '' and status() = ER$EOF then exit          ;* the input has ended (a pipe): no key will ever come
+      if k = 'guardquit' then exit                       ;* the cursor lock's own way out
+      call $tk_keys('action', keys, k, pane, act, '', '')
+      begin case
+         case act = 'quit'
+            exit
+         case act = 'next'
+            pane = (if pane = 'A' then 'B' else 'A')
+         case act = 'help'
+            msg = 'help for pane ' : pane
+         case act = 'sort'
+            msg = 'sorted'
+         case act = 'refresh'
+            msg = 'refreshed'
+      end case
+   repeat
+
+   call $tk_close(ctx)
+end
+
+* END-CODE
