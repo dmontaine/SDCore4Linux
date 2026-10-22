@@ -9,11 +9,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN RADIO f, id, items {AT x,y} {VALUE n} {ACROSS}
+*   SCREEN RADIO f, id, items {AT x,y} {VALUE n} {ACROSS} {COLOR fg,bg}
 *
 *   is compiled into
 *
-*   call !screen_radio(f, id, items, x, y, value, across, ret, status)
+*   call !screen_radio(f, id, items, x, y, value, across, fg, bg, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     items    the choices, as values (a field mark does as well)
@@ -24,12 +24,14 @@
 *   Up and down (left and right when across) move among the choices and select as they go, the space bar
 *   selects the one the cursor is on; SCREEN GET f, id answers the number of the selected one.
 *
+*   COLOR fg,bg gives the choices their own colours (see SCREEN ENTRY); the choice the cursor is on is still in the focus style while the group has the focus.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_radio(f, id, items, ax, ay, value, across, ret, status)
+subroutine screen_radio(f, id, items, ax, ay, value, across, fg, bg, ret, status)
 $catalog !screen_radio
 
    ret = ''
@@ -46,6 +48,8 @@ $catalog !screen_radio
    w{'value'} = value
    if across # '' then w{'across'} = 1
    call $sl_radio('init', w, '', '', r)
+   call $sl_color(w, fg, bg, cst)
+   if cst # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 

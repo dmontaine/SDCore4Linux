@@ -82,6 +82,7 @@ $include sl.h
 
 paint:
    call $sl_attr('window', code)
+   if w{'ccode'} # '' then code = w{'ccode'}
    if w{'focused'} then call $sl_attr('highlight', code)
    call $sl_caption(w{'place'}, 3, w{'label'}, geom)
    gw = geom<1, SL.CAP.W>

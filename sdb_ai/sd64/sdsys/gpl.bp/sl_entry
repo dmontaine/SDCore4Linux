@@ -143,8 +143,10 @@ paint:
    vis := space(fw - len(vis))
    if w{'focused'} then
       call $sl_attr('highlight', code)
+      if w{'cfocus'} # '' then code = w{'cfocus'}      ;* a coloured entry keeps its colours while it has the focus (underlined)
    end else
       call $sl_attr('field', code)
+      if w{'ccode'} # '' then code = w{'ccode'}
    end
    call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, vis, code)
    if w{'focused'} then call $sl_curat(w{'ax'} + p - pan, w{'ay'} + 0)

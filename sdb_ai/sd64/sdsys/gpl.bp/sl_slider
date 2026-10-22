@@ -113,6 +113,7 @@ $include sl.h
 
 paint:
    call $sl_attr('window', code)
+   if w{'ccode'} # '' then code = w{'ccode'}
    if w{'focused'} then call $sl_attr('highlight', code)
    lo = len(w{'offw'})
    ln = len(w{'onw'})

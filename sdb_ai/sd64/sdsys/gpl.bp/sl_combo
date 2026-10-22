@@ -82,7 +82,9 @@ $include sl.h
 
 arrow:
    call $sl_attr('window', code)
+   if w{'ccode'} # '' then code = w{'ccode'}
    if w{'focused'} then call $sl_attr('highlight', code)
+   if w{'focused'} and w{'cfocus'} # '' then code = w{'cfocus'}      ;* a coloured combo box keeps its colours while it has the focus, like an entry
    call $sl_put(scr, w{'ax'} + fw, w{'ay'} + 0, '[v]', code)
    if w{'focused'} then
       call $sl_curat(w{'ax'} + w{'pos'} - w{'pan'}, w{'ay'} + 0)

@@ -84,12 +84,12 @@ def sess(box, *cmds):
 
 
 class Term:
-    def __init__(self, box, cmd, cols=140, rows=43):
-        env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C", LANG="C")
+    def __init__(self, box, cmd, cols=140, rows=43, term="xterm"):
+        env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM=term, LC_ALL="C", LANG="C")
         self.s = PtySession([os.path.join(box, "sys", "bin", "sd")], os.path.join(box, "user_accounts"), env, cols, rows)
         self.cols, self.rows = cols, rows
         self.s.settle(1.0)
-        self.s.type("TERM xterm\r")
+        self.s.type("TERM %s\r" % term)
         self.s.type("TERM %d,%d\r" % (cols, rows))
         self.s.type(cmd + "\r", idle=1.0)
 
@@ -861,6 +861,64 @@ def slider_rows(box, made):
     row("a piped session whose input ends with the form up ends within 20 s and does not spin (under 3 s of CPU)", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
 
 
+# TK-0.10.  `tktest color` shows a control of each kind with a COLOR clause (two of them black on green); the style of a cell is (foreground, background, flags) with the colours
+# numbered black 0 ... white 7.  F2 changes the theme to classic.  `tktest colorfull` takes sixteen different pairs, the first again, a seventeenth and a name that is no colour.
+def color_rows(box, made):
+    say("\n--- the COLOR clause on the controls (TK-0.10)")
+    t = Term(box, "tktest color")
+
+    def where(txt):
+        for r_, l_ in enumerate(t.lines()):
+            c_ = l_.find(txt)
+            if c_ >= 0:
+                return r_, c_
+        return None
+
+    if where("black on green") is None:
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest color never drew its form, so no row below can be believed")
+    sc = lambda p, dx=0, dy=0: t.s.screen.style(p[0] + dy, p[1] + dx) if p else None
+    e1, e2, arrow, ck, sl, rd, bt = where("black on green"), where("plain entry"), where("[v]"), where("colour check"), where("colour slider"), where("red choice"), where("[ Go ]")
+    ls, lb, pg = where(">x"), where("coloured label"), where("[#")
+    say("    [measured] the cells: e1 %r  combo %r  check %r  slider label %r  radio %r  button %r  list %r  label %r  progress %r" % (sc(e1, 1), sc(arrow, -3), sc(ck, 1), sc(sl, 2), sc(rd, 5), sc(bt, 3),
+                                                                                                                                    sc(ls, 1, 1), sc(lb, 1), sc(pg, 2)))
+    row("the first entry has the focus and KEEPS its colours: black on green, underlined (the cursor and the underline show where it is)", sc(e1, 1) == (0, 2, "u"), repr(sc(e1, 1)))
+    row("a plain entry beside it is as it always was (the field style, underlined)", sc(e2, 1) == (None, None, "u"), repr(sc(e2, 1)))
+    # the emulator reports ANSI colour numbers: black 0, red 1, green 2, brown 3, blue 4, magenta 5, cyan 6, white 7
+    row("the combo box: white on blue in the field and in the [v]", sc(arrow, -3) == (7, 4, "") and sc(arrow, 1) == (7, 4, ""), repr((sc(arrow, -3), sc(arrow, 1))))
+    row("the check box, label and box together: black on cyan", sc(ck, 1) == (0, 6, "") and sc(ck, 14) == (0, 6, ""), repr((sc(ck, 1), sc(ck, 14))))
+    row("the slider: white on red (its label), the word in force still in the style ATTR names (bold)", sc(sl, 2) == (7, 1, "") and (sc(sl, 16)[2] == "b"), repr((sc(sl, 2), sc(sl, 16))))
+    row("the radio group: black on brown", sc(rd, 5) == (0, 3, ""), repr(sc(rd, 5)))
+    row("the button: white on magenta", sc(bt, 3) == (7, 5, ""), repr(sc(bt, 3)))
+    row("the list: its rows black on green, the second row (not the current one) too", sc(ls, 1, 1) == (0, 2, ""), repr(sc(ls, 1, 1)))
+    row("the label: red on white", sc(lb, 1) == (1, 7, ""), repr(sc(lb, 1)))
+    row("the progress bar: the filled part black on cyan, the empty part as the form's own", sc(pg, 2) == (0, 6, "") and sc(pg, 16) != (0, 6, ""), repr((sc(pg, 2), sc(pg, 16))))
+    t.key("TAB")
+    row("Tab moves the focus off the first entry: it is unfocused now, black on green without the underline", sc(e1, 1) == (0, 2, ""), repr(sc(e1, 1)))
+    t.key("TAB")
+    t.key("TAB")
+    row("Tab to the check box: the focus style replaces its colours while it has the focus (reverse in the default theme), as for every control but an entry",
+        sc(ck, 1) != (0, 6, "") and "r" in sc(ck, 1)[2], repr(sc(ck, 1)))
+    t.key("F2")
+    e1b, lsb, lbb = where("black on green"), where(">x"), where("coloured label")
+    row("a theme change keeps the colours the controls asked for: after F2 (classic) the log says so and the first entry, the list and the label are still black on green, black on green, red on white",
+        where("theme=classic") is not None and sc(e1b, 1) == (0, 2, "") and sc(lsb, 1, 1) == (0, 2, "") and sc(lbb, 1) == (1, 7, ""), repr((sc(e1b, 1), sc(lsb, 1, 1), sc(lbb, 1))))
+    t.key("ENTER")
+    row("Enter presses the default button; the form is gone, the status line says colours pressed=ok", "colours pressed=ok" in t.line(40), repr(t.line(40)))
+    t.end()
+
+    t = Term(box, "tktest colorfull")
+    row("sixteen different pairs are taken, the first pair again is shared (taken), a seventeenth different pair is refused and so is a name that is no colour: 17 taken, 2 refused",
+        "colours aaaaaaaaaaaaaaaaarr" in t.line(40), repr(t.line(40)))
+    t.end()
+
+    t = Term(box, "tktest color", term="vt100")
+    e1, ck = where("black on green"), where("colour check")
+    row("a terminal with no colour (vt100) ignores the clause and still shows the form: the first entry is as a plain entry (underlined, no colours), so is the check box",
+        e1 is not None and sc(e1, 1) in ((None, None, "u"), (None, None, "r")) and ck is not None and sc(ck, 1)[:2] == (None, None), repr((sc(e1, 1), sc(ck, 1))))
+    t.end()
+
+
 # TK-0.9.  `tktest place` shows a check box (left column) and a slider (right column) for each place of the label: left, right, above, below, and none given, which is left.
 # The label at the foot reads "last=<id>=<v> n=<changes>".  A click on a widget that has not the focus moves the focus and acts, and the form reports the FOCUS
 # (n does not move); the next click on it is a change.
@@ -1334,6 +1392,7 @@ def main():
         pickfile_rows(box, made)
         slider_rows(box, made)
         place_rows(box, made)
+        color_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

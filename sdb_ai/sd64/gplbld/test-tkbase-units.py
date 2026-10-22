@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -184,6 +184,22 @@ def checks(raw):
         and "call $sl_caption(w{'place'}, len(sw), w{'label'}, geom)" in sl and "call $sl_caption(w{'place'}, len(w{'offw'}) + len(w{'onw'}) + 5, t, geom)" in sl
         and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[cx + a0 + k, 1] = ac next k end" in sl and "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)" in sl
         and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", sl)), "")
+    co = sq["sl_color"]
+    add("T34", "$sl_color: a null pair of colours changes nothing; the colours are asked of $sl_theme as a user style; 'none' (no colour on this terminal) is ignored, 'full' and 'bad' refuse the control; the control gets ccode; "
+        "only an entry and a combo box also get cfocus (the same colours underlined), so that they keep their colours while focused",
+        "if trim(fg) = '' and trim(bg) = '' then return" in co and "call $sl_theme('slot', fg, bg, '', '', c1)" in co and "case c1 = 'none' return" in co and "case c1 = 'full' or c1 = 'bad' st = 1 return" in co
+        and "w{'ccode'} = c1" in co and "if t = 'entry' or t = 'combo' then call $sl_theme('slot', fg, bg, 'underline', '', c2)" in co and "if c2 # 'none' then w{'cfocus'} = c2" in co
+        and co.count("w{'cfocus'}") == 1, "")
+    th, sh = squeeze(strip_bas(raw["sl_theme"])), raw["sl.h"]
+    codes = re.search(r"\$define SL\.CODES\s+'([^']+)'", sh)
+    codes = codes.group(1) if codes else ""
+    add("T35", "the colour slots: SL.CODES has 46 different letters, the last sixteen (ACDEFHIJKLMNOQRS) being the user styles; $sl_theme names them user1 to user16 after the thirty styles it had, "
+        "keeps them across a theme change (saved before clear.defs, put back before the sequences are built), empties them at SCREEN CLOSE, and gives out the slot that already holds a pair or the first free one, refusing when none is",
+        len(codes) == 46 and len(set(codes)) == 46 and codes.endswith("ACDEFHIJKLMNOQRS") and "for q = 1 to 16 th.names := @fm : 'user' : q next q" in th
+        and "keepu<s> = th.defs<s>" in th and ordered(th, "keepu = ''", "gosub clear.defs", "if keepu<s> # '' then th.defs<s> = keepu<s>", "gosub build.seqs")
+        and "th.defs<s> = ''" in th and ordered(th, "case op = 'reset'", "th.defs<s> = ''", "gosub set.theme")
+        and "if th.defs<s, 4> = skey and have = 0 then have = s" in th and "if th.defs<s, 4> = '' and free = 0 then free = s" in th and "case free = 0 ret = 'full'" in th
+        and "th.defs<i, 4> = skey ucode = th.codes[i, 1] gosub build.seqs ret = ucode" in th and "if @(-37, 7) = '' or @(-38, 0) = '' then ret = 'none'" in th, "")
     cp = sq["sl_caption"]
     add("T32", "$sl_caption: the place is left unless it is right, above or below (anything else, or nothing, is left); left and right are one row, the label and the control a space apart, the control "
         "on the right of the label for left and on the left for right; above and below are two rows, as wide as the wider of the two, the control under the label for above and over it for below; "
@@ -202,9 +218,12 @@ def checks(raw):
     return out
 
 
+EXTRA = ["sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
+
+
 def load():
     raw = {}
-    for n in NAMES:
+    for n in NAMES + EXTRA:
         p = os.path.join(BP, n)
         if not os.path.isfile(p):
             raise FileNotFoundError(p)
@@ -299,6 +318,13 @@ MUT = [
     ("sl_caption", "above puts the control first", "            gh = 2\n            cy = 1", "            gh = 2\n            cy = 0"),
     ("sl_caption", "below puts the label first", "            gh = 2\n            ly = 1", "            gh = 2\n            ly = 0"),
     ("sl_caption", "the width ignores a longer label", "            gw = cw\n            if lw > gw then gw = lw\n            gh = 2\n            cy = 1", "            gw = cw\n            gh = 2\n            cy = 1"),
+    ("sl_color", "a null pair of colours is asked for", "if trim(fg) = '' and trim(bg) = '' then return", "if 0 then return"),
+    ("sl_color", "a full pool does not refuse the control", "      case c1 = 'full' or c1 = 'bad'\n         st = 1", "      case c1 = 'zz'\n         st = 1"),
+    ("sl_color", "an entry loses its colours when it has the focus", "if c2 # 'none' then w{'cfocus'} = c2", "null"),
+    ("sl_color", "every control gets a focus variant", "if t = 'entry' or t = 'combo' then", "if 1 then"),
+    ("sl_theme", "a theme change forgets the user styles", "if keepu<s> # '' then th.defs<s> = keepu<s>", "null"),
+    ("sl_theme", "SCREEN CLOSE leaves the user styles", "th.defs<s> = ''", "null"),
+    ("sl_theme", "the same pair takes two slots", "if th.defs<s, 4> = skey and have = 0 then have = s", "if 0 then have = s"),
     ("sl_check", "the check box ignores the place", "call $sl_caption(w{'place'}, 3, w{'label'}, geom)", "call $sl_caption('', 3, w{'label'}, geom)"),
     ("sl_check", "the box is drawn where the label is", "if r = cy then rowtext[cx + 1, 3] = mark", "if r = cy then rowtext[lx + 1, 3] = mark"),
     ("sl_slider", "the words of the program are not used", "         if w{'offw'} = '' then w{'offw'} = 'off'", "         w{'offw'} = 'off'"),

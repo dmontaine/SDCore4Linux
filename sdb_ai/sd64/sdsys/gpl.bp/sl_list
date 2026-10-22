@@ -197,6 +197,7 @@ paint:
    end
    call $sl_attr('highlight', hl)
    call $sl_attr('window', nl)
+   if w{'ccode'} # '' then nl = w{'ccode'}           ;* the rows (and the empty rows) in the colours the COLOR clause gave; the current row is still highlighted
    focused = w{'focused'} + 0
    for r = 0 to lh - 1
       i = top + r

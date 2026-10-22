@@ -1,6 +1,21 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  COLOR FG,BG ON THE CONTROLS OF AN SD BASIC SCREEN: BLACK TEXT ON GREEN, FOR EXAMPLE.
+
+             What        SCREEN LABEL, ENTRY, COMBO, CHECK, SLIDER, RADIO, LIST, BUTTON and PROGRESS take COLOR fg,bg as a last clause. The
+                        colours are black, blue, green, cyan, red, magenta, brown and white, either may be left out for the terminal's own.
+                        Each pair is one of sixteen spare styles that the program shares, however many controls use it; a seventeenth
+                        different pair, or a word that is no colour, makes the statement take its ELSE. The colours stay when the program
+                        changes the theme and go when the screen is closed. A coloured entry or combo box KEEPS its colours while it has the
+                        focus (the cursor and an underline show where it is); the other controls show their colours until they have the
+                        focus and then the focus style, as before. A label's COLOR wins over its ATTR.
+             Why it      A field that must stand out (an error, a required entry, a status) can have its own colours without a theme of its
+             matters     own, and a form can use a few colours consistently.
+             Does not    Memo, table, tree and the tab strip have no COLOR: they have their own styling. A terminal that cannot show colour
+                        ignores the clause and the control is drawn as it always was. The sixteen are shared by the whole program, so a
+                        screen that needs more than sixteen colour pairs cannot have them.
+
 22 Oct 26  SCREEN CHECK AND SCREEN SLIDER: THE LABEL GOES WHERE YOU SAY, AND ON THE LEFT BY DEFAULT.
 
              What        Both statements take PLACE where: left, right, above or below. The label used to be after the check box ([x] text);

@@ -122,6 +122,16 @@ $include tk.h
       gosub pl.run
    end
 
+   * pane S again: the COLOR clause on every control that has one (tktest color); F2 changes the theme.  tktest colorfull fills the sixteen user styles
+   if field(@sentence, ' ', 2) = 'color' then
+      pane = 'S'
+      gosub c.run
+   end
+   if field(@sentence, ' ', 2) = 'colorfull' then
+      pane = 'S'
+      gosub cf.run
+   end
+
    loop
       call $tk_frame(ctx, keys, pane, msg)
       screen key returning k
@@ -237,6 +247,64 @@ s.run:
    screen get sf, 'chk' returning sv3
    screen hide sf
    msg = 'sliders sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' pressed=' : spressed
+   return
+
+* the colour form: a control of each kind in colours of its own, two of them in the same pair (black on green); the label at the right says the theme
+c.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Colours' at 10,3 size 100,24 returning sf
+   screen entry sf, 'e1' at 3,2 width 20 value 'black on green' color 'black','green'
+   screen entry sf, 'e2' at 3,4 width 20 value 'plain entry'
+   screen combo sf, 'cb', 'one':@vm:'two' at 3,6 width 20 color 'white','blue'
+   screen check sf, 'ck', 'colour check' at 3,8 color 'black','cyan'
+   screen slider sf, 'sl', 'colour slider' at 3,10 color 'white','red'
+   screen radio sf, 'rd', 'red choice':@vm:'blue choice' at 3,12 color 'black','brown'
+   screen button sf, 'bt', '&Go' at 3,15 color 'white','magenta'
+   screen list sf, 'ls', 'x':@vm:'y':@vm:'z' at 55,2 size 12,3 color 'black','green'
+   screen label sf, 'lb', 'coloured label' at 55,7 width 20 color 'red','white'
+   screen progress sf, 'pg' at 55,9 width 24 value 50 color 'black','cyan'
+   screen label sf, 'log', 'theme=mono' at 55,12 width 30
+   screen button sf, 'ok', '&OK' at 40,19 default
+   spressed = 'end'
+   loop
+      screen wait sf returning ev then
+         if ev<1> = 'button' then
+            spressed = ev<2>
+            exit
+         end
+         if ev<1> = 'key' and ev<3> = 'f2' then
+            screen theme 'classic' returning thn
+            screen set sf, 'log' text 'theme=' : thn
+         end
+      end else
+         spressed = ev<1>
+         exit
+      end
+   repeat
+   screen hide sf
+   msg = 'colours pressed=' : spressed
+   return
+
+* the colour pool: sixteen different pairs are taken, the first pair again (shared, taken), a seventeenth different pair (refused) and a name that is no colour (refused)
+cf.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Pool' at 10,3 size 60,6 returning sf
+   cl = 'black':@fm:'blue':@fm:'green':@fm:'cyan':@fm:'red':@fm:'magenta':@fm:'brown':@fm:'white'
+   o = ''
+   for i = 1 to 16
+      fgv = cl<mod(i, 8) + 1>
+      bgv = cl<int(i / 8) + 1>
+      o := 'a'
+      screen label sf, 'c' : i, 'x' at 2,2 color fgv,bgv else o[len(o), 1] = 'r'
+   next i
+   o := 'a'
+   screen label sf, 'cdup', 'x' at 2,3 color 'blue','black' else o[len(o), 1] = 'r'
+   o := 'a'
+   screen label sf, 'cfull', 'x' at 2,3 color 'blue','green' else o[len(o), 1] = 'r'
+   o := 'a'
+   screen label sf, 'cbad', 'x' at 2,3 color 'chartreuse','red' else o[len(o), 1] = 'r'
+   screen hide sf
+   msg = 'colours ' : o
    return
 
 * the placement form: a check box (left column) and a slider (right column) for each place of the label; the label at the foot says the last change

@@ -9,11 +9,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN LABEL f, id, text {AT x,y} {ATTR style} {WIDTH n}
+*   SCREEN LABEL f, id, text {AT x,y} {ATTR style} {WIDTH n} {COLOR fg,bg}
 *
 *   is compiled into
 *
-*   call !screen_label(f, id, text, x, y, attr, width, ret, status)
+*   call !screen_label(f, id, text, x, y, attr, width, fg, bg, ret, status)
 *
 *     f        the form (SCREEN FORM)       id    the widget's name in the form: not null, not used before
 *     text     one line                     x y   its place from the form's top left corner (0,0 is the
@@ -24,12 +24,14 @@
 *              text: a status line is a label with a width.
 *     status   0 added; 1 not (f is not a form, or the id is null or already used): ELSE
 *
+*   COLOR fg,bg gives the label its own colours (see SCREEN ENTRY); it wins over ATTR.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_label(f, id, text, ax, ay, attr, width, ret, status)
+subroutine screen_label(f, id, text, ax, ay, attr, width, fg, bg, ret, status)
 $catalog !screen_label
 
    ret = ''
@@ -46,6 +48,8 @@ $catalog !screen_label
    w{'attr'} = attr
    if width # '' then w{'width'} = width + 0
    call $sl_label('init', w, '', '', r)
+   call $sl_color(w, fg, bg, cst)
+   if cst # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 

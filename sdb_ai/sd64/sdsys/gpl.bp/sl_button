@@ -80,6 +80,7 @@ $include sl.h
 
 paint:
    call $sl_attr('window', code)
+   if w{'ccode'} # '' then code = w{'ccode'}
    if w{'focused'} then call $sl_attr('highlight', code)
    call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, '[ ' : w{'label'} : ' ]', code)
    if w{'focused'} then call $sl_curat(w{'ax'} + 2, w{'ay'} + 0)
