@@ -9,11 +9,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN LIST f, id, items {AT x,y} {SIZE w,h} {VALUE n} {MULTI} {COLOR fg,bg}
+*   SCREEN LIST f, id, items {AT x,y} {SIZE w,h} {VALUE n} {MULTI} {COLOR fg,bg} {ACCEL key}
 *
 *   is compiled into
 *
-*   call !screen_list(f, id, items, x, y, w, h, value, multi, fg, bg, ret, status)
+*   call !screen_list(f, id, items, x, y, w, h, value, multi, fg, bg, accel, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     items    the entries, as values (a field mark does as well)
@@ -29,12 +29,15 @@
 *
 *   COLOR fg,bg gives the rows their own colours (see SCREEN ENTRY); the current row is still in the focus style while the list has the focus.
 *
+*   ACCEL key gives the list a key that reaches it wherever the focus is (see SCREEN ENTRY): f1 to f12, ctrl-a to ctrl-z, alt-a to alt-z or alt-0 to alt-9.  The list
+*   takes the focus.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_list(f, id, items, ax, ay, sw, sh, value, multi, fg, bg, ret, status)
+subroutine screen_list(f, id, items, ax, ay, sw, sh, value, multi, fg, bg, accel, ret, status)
 $catalog !screen_list
 
    ret = ''
@@ -72,6 +75,8 @@ $catalog !screen_list
    call $sl_list('init', w, '', '', r)
    call $sl_color(w, fg, bg, cst)
    if cst # 0 then return
+   call $sl_accel(w, accel, ast)
+   if ast # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 

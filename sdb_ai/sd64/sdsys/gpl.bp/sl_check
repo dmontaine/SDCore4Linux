@@ -41,7 +41,11 @@ $include sl.h
          w{'focusable'} = 1
          t = w{'text'}
          p = index(t, '&', 1)
-         if p and p < len(t) then t = t[1, p - 1] : t[p + 1, 99999]
+         w{'amn'} = ''
+         if p and p < len(t) then
+            w{'amn'} = upcase(t[p + 1, 1])      ;* the letter marked with & is its Alt-letter (the form acts on it)
+            t = t[1, p - 1] : t[p + 1, 99999]
+         end
          w{'label'} = t
          v = 0
          if w{'value'} + 0 # 0 then v = 1

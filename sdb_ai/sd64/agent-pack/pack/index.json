@@ -124,7 +124,7 @@
 "part": "reference/basic-functions.md",
 "since": "-",
 "tier": "reference",
-"words": 8
+"words": 13
 },
 "basic:func:bitand": {
 "kind": "basic.function",

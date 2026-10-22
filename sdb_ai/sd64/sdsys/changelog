@@ -1,6 +1,29 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  ACCELERATOR KEYS ON THE CONTROLS OF AN SD BASIC SCREEN, AND ALT-LETTERS FOR THE SCREEN LIBRARY.
+
+             What        An entry, combo box, check box, slider, selector, radio group, list, button, tab strip, memo, tree or table takes
+                        ACCEL key as a last clause: ACCEL 'alt-s', 'ctrl-g' or 'f5' (f1 to f12, ctrl-a to ctrl-z except ctrl-h, ctrl-i,
+                        ctrl-j and ctrl-m, alt-a to alt-z and alt-0 to alt-9; Alt+S, alt-s and ALT-S are one key; anything else makes the
+                        statement take its ELSE). The key reaches the control wherever the focus is, even inside a text field. A button is
+                        pressed; a check box is ticked or unticked, a slider slid and a selector moved to its next word, each with a change
+                        event; any other control takes the focus. The letter marked with & in the text of a button, check box, slider,
+                        selector or label (&Shell) is also that control's Alt-letter, and a label's Alt-letter takes the focus to the next
+                        control that can have it. A disabled control, or one on another tab's page, does not answer, and when two controls
+                        have the same key the first one added does. To make Alt-letters reach a program at all, KEYCODE() learned to
+                        return an Esc and one printable character that nothing is bound to as those two characters when BINDKEY(, -7) has
+                        asked for it (BINDKEY(, -8) switches it off; off is the default), and SCREEN KEY and SCREEN WAIT now report an
+                        Alt-letter as the key alt-x, in lower case, where the terminal used to ring the bell and drop it.
+             Why it      A full screen program can give its controls the shortcuts a user expects, and one that has a field in focus no
+             matters     longer has to leave it first.
+             Does not    It does not draw the letter underlined or in another style, so a program that wants it seen writes it in the
+                        label. It works only on a terminal that sends Alt+x as Esc and x (most do; macOS Terminal needs "Use Option as
+                        Meta key"), a terminal or window manager may keep some Alt-letters for itself, and an Esc followed by a letter
+                        within a fifth of a second is read as an Alt-letter. The command line and SED, which read raw keys, are not
+                        changed; the IDE, CED and the library's dialogs now receive an Alt-letter as a key they have no use for, where
+                        the terminal used to ring the bell.
+
 22 Oct 26  SCREEN SELECTOR: A CHOICE OF ONE WORD AMONG SEVERAL, [blue | green | RED | black], FOR SD BASIC SCREENS.
 
              What        SCREEN SELECTOR f, id, text, words {AT x,y} {VALUE n} {ATTR style} {PLACE where} {COLOR fg,bg} adds a row of words

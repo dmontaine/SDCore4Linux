@@ -43,8 +43,10 @@ $include sl.h
          w{'focusable'} = 1
          t = w{'text'}
          p = index(t, '&', 1)
+         w{'amn'} = ''
          if p and p < len(t) then
             w{'mn'} = upcase(t[p + 1, 1])
+            w{'amn'} = w{'mn'}                  ;* only a letter marked with & is also an Alt-letter
             t = t[1, p - 1] : t[p + 1, 99999]
          end else
             w{'mn'} = upcase(t[1, 1])

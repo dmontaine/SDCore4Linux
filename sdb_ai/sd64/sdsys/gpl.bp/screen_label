@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 12 Oct 26 dm  New.
+* 22 Oct 26 dm  A letter marked with & in the text is the label's Alt-letter (S.75 TK-0.12).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -26,6 +27,10 @@
 *
 *   COLOR fg,bg gives the label its own colours (see SCREEN ENTRY); it wins over ATTR.
 *
+*   A letter in the text marked with & (&Name) is dropped from the text and is the label's Alt-letter: Alt+N moves the focus to the next control that can
+*   have it, which is how an entry or a list is given a letter (put the label just before it).  Only the text given here is read for the &; SCREEN SET
+*   ... TEXT leaves an ampersand where it is.
+*
 * END-DESCRIPTION
 *
 * START-CODE
@@ -38,7 +43,15 @@ $catalog !screen_label
    status = 1
    w = collection()
    w{'id'} = id
-   w{'text'} = text
+   * a letter marked with & is the label's Alt-letter, which moves the focus to the next control (a label has none of its own); only here, not for
+   * SCREEN SET ... TEXT, so that a label that shows data does not lose an ampersand in it
+   t = text
+   p = index(t, '&', 1)
+   if p and p < len(t) then
+      w{'amn'} = upcase(t[p + 1, 1])
+      t = t[1, p - 1] : t[p + 1, 99999]
+   end
+   w{'text'} = t
    x = 1
    y = 1
    if ax # '' then x = ax + 0

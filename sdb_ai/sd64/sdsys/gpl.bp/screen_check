@@ -10,11 +10,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN CHECK f, id, text {AT x,y} {VALUE v} {PLACE where} {COLOR fg,bg}
+*   SCREEN CHECK f, id, text {AT x,y} {VALUE v} {PLACE where} {COLOR fg,bg} {ACCEL key}
 *
 *   is compiled into
 *
-*   call !screen_check(f, id, text, x, y, value, place, fg, bg, ret, status)
+*   call !screen_check(f, id, text, x, y, value, place, fg, bg, accel, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     text     the label, shown next to [x] or [ ]
@@ -27,12 +27,15 @@
 *
 *   COLOR fg,bg gives the box and its label their own colours (see SCREEN ENTRY) until the check box has the focus; it is then in the focus style.
 *
+*   ACCEL key gives the check box a key that reaches it wherever the focus is (see SCREEN ENTRY): f1 to f12, ctrl-a to ctrl-z, alt-a to alt-z or alt-0 to alt-9.  The
+*   key takes the focus to the check box and ticks or unticks it (a change event).  A letter marked with & in the text (&Shell) is also its Alt-letter.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_check(f, id, text, ax, ay, value, place, fg, bg, ret, status)
+subroutine screen_check(f, id, text, ax, ay, value, place, fg, bg, accel, ret, status)
 $catalog !screen_check
 
    ret = ''
@@ -51,6 +54,8 @@ $catalog !screen_check
    call $sl_check('init', w, '', '', r)
    call $sl_color(w, fg, bg, cst)
    if cst # 0 then return
+   call $sl_accel(w, accel, ast)
+   if ast # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 

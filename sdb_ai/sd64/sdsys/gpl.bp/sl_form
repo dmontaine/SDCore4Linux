@@ -17,6 +17,7 @@
 * 19 Oct 26 dm  f{'bgclick'} = 1: a press of the left button on no widget comes back as the key mouse (SCREEN MOUSE says where) instead of
 *               being ignored, so that the IDE can open its menu from a click on the bar.
 * 22 Oct 26 dm  selector (S.75, TK-0.10): dispatched like the slider, and a change of its value is a change event.
+* 22 Oct 26 dm  Accelerators (S.75, TK-0.12): find.accel and run.accel at the top of route.key; f{'achg'} makes the change event.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -71,6 +72,12 @@
 *   form's default button wherever the focus is (it presses a button that has the focus whether or not it
 *   is the default), and without a default button goes to the next widget; Esc is cancel; a letter is the
 *   mnemonic of a button, which is pressed.
+*
+*   Accelerators (S.75 TK-0.12): a control given ACCEL 'alt-s' (or f1 to f12, ctrl-a to ctrl-z, alt-a to alt-z, alt-0 to alt-9) gets that key wherever the
+*   focus is, even in a text field, before the focused control sees it.  An Alt-letter is also the letter marked with & in the text of a button, check
+*   box, slider, selector or label.  The first such control in the order they were added, on the page and not disabled, takes the key: a button is pressed,
+*   a check box, slider or selector is turned over (a selector goes to its next word; a change event is made), a label moves the focus to the next control
+*   that can have it, and any other control just takes the focus.
 *
 * END-DESCRIPTION
 *
@@ -622,6 +629,60 @@ other.key:
    end case
    return
 
+* The first control (in the order they were added) that is on the page, not disabled, and has this key as its ACCEL or, for an Alt-letter, as the letter
+* marked with & in its text.  A label has no focus of its own: its letter takes the focus to the next control that can have it.  ni = its number, 0 if none.
+find.accel:
+   ni = 0
+   nw = inmat(f{'widgets'})
+   for i = 1 to nw
+      w = f{'widgets', i}
+      gosub on.page
+      if vis and w{'disabled'} + 0 = 0 and ancdis = 0 and (w{'focusable'} + 0 = 1 or w{'type'} = 'label') then
+         if w{'accel'} = key then ni = i
+         if len(key) = 5 and key[1, 4] = 'alt-' and w{'amn'} # '' and w{'amn'} = upcase(key[5, 1]) then ni = i
+         if ni > 0 then exit
+      end
+   next i
+   if ni > 0 then
+      w = f{'widgets', ni}
+      if w{'type'} = 'label' then
+         lab = ni
+         ni = 0
+         for k = 1 to nw
+            lab += 1
+            if lab > nw then lab = 1
+            i = lab
+            gosub can.focus
+            if cf then ni = lab ; exit
+         next k
+         if ni = 0 then ni = -1                  ;* a label with no control to take the focus to: the key is used up, nothing happens
+      end
+   end
+   return
+
+* The accelerator found (find.accel: ni) is acted on: the control gets the focus, and then a button is pressed, a check box, slider or selector is
+* turned over / moved to its next word, and any other control just has the focus.  A change is a change event (f{'achg'}), not only the focus event.
+run.accel:
+   ret = 'handled'
+   if ni < 0 then return
+   hit = ni
+   if hit # f{'focus'} + 0 then gosub set.focus
+   wi = hit
+   w = f{'widgets', hit}
+   wt = w{'type'}
+   v1 = w{'value'}
+   begin case
+      case wt = 'button'
+         gosub press.button
+      case wt = 'check' or wt = 'slider' or wt = 'selector'
+         wop = 'key' ; wkey = ' '
+         gosub call.widget
+         gosub after.widget
+         if w{'value'} # v1 then f{'achg'} = hit
+   end case
+   gosub park.cursor
+   return
+
 route.key:
    if key = 'mouse' then
       gosub route.mouse
@@ -642,6 +703,16 @@ route.key:
    if key = 'guardquit' then
       ret = 'unhandled' : @fm : key               ;* the user left from the cursor lock ($sl_guardmode): no widget's key, the program's
       return
+   end
+   f{'achg'} = ''
+   * an accelerator (S.75 TK-0.12): the key a control was given with ACCEL, or an Alt-letter that is the & letter of a button, check box, slider,
+   * selector or label.  It goes to the control wherever the focus is, even in a text field, before the focused control sees the key.
+   if len(key) >= 2 and (key[1, 4] = 'alt-' or key[1, 5] = 'ctrl-' or (key[1, 1] = 'f' and len(key) <= 3 and num(key[2, 9]))) then
+      gosub find.accel
+      if ni > 0 then
+         gosub run.accel
+         return
+      end
    end
    nw = inmat(f{'widgets'})
    fi = f{'focus'} + 0
@@ -1021,6 +1092,9 @@ wait.event:
                   evt = 'resize'                  ;* $sl_key has drawn the screen again at its new size
                   edata = @crtwide : @vm : @crthigh
                end
+            case f{'achg'} # ''
+               w = f{'widgets', f{'achg'}}              ;* an accelerator turned a check box, slider or selector over: a change, whether or not the focus moved
+               evt = 'change' ; eid = w{'id'} ; edata = w{'value'}
             case fi1 # fi0 and fi1 >= 1
                w = f{'widgets', fi1}
                evt = 'focus' ; eid = w{'id'} ; edata = id0

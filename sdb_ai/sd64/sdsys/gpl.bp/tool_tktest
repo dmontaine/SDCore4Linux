@@ -12,6 +12,8 @@
 *
 *   tktest {admin} {dialogs}      tktest table [N] [theme]      tktest pick [N] [page] [scan]      tktest slider
 *
+*   accel shows a form with controls that have accelerator keys (ACCEL, and the letter marked with & as an Alt-letter) and the log of what the keys did.
+*
 *   selector shows a form with four choices of one word among several (SCREEN SELECTOR: label left, right with ATTR window, above, and in colours) and a label
 *   that says their numbers and the last change; F2 sets them from the program (a number above the last is brought into range, new words choose the first).
 *
@@ -135,6 +137,12 @@ $include tk.h
       gosub cf.run
    end
 
+   * pane S again: accelerator keys (tktest accel)
+   if field(@sentence, ' ', 2) = 'accel' then
+      pane = 'S'
+      gosub ac.run
+   end
+
    * pane S again: SCREEN SELECTOR (tktest selector); F2 sets the choices from the program
    if field(@sentence, ' ', 2) = 'selector' then
       pane = 'S'
@@ -256,6 +264,57 @@ s.run:
    screen get sf, 'chk' returning sv3
    screen hide sf
    msg = 'sliders sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' pressed=' : spressed
+   return
+
+* the accelerator form (TK-0.12): a label whose letter takes the focus to the entry after it, an entry given Alt+M, check boxes, a slider and a selector with a letter
+* marked with &, a radio group on f5, a list on ctrl-g, a check box that is switched off, a button on &Go, and three accelerators that are refused; the label at the foot
+* says the values, the last event (kind:id:data) and how many events there were
+ac.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Accelerators' at 20,5 size 70,22 returning sf
+   screen label sf, 'nm', '&Name' at 3,2
+   screen entry sf, 'e1' at 12,2 width 20
+   screen entry sf, 'e2' at 12,4 width 20 accel 'Alt+M'
+   screen check sf, 'ck', '&Verbose' at 3,6
+   screen check sf, 'ck2', '&Verbose again' at 3,7
+   screen slider sf, 'sl', '&Switch' at 3,8
+   screen selector sf, 'se', '&Colour', 'red':@vm:'green':@vm:'blue' at 3,10
+   screen radio sf, 'rd', 'one':@vm:'two' at 3,12 accel 'f5'
+   screen list sf, 'ls', 'first':@vm:'second':@vm:'third' at 40,2 size 20,4 accel 'ctrl-g'
+   screen check sf, 'dim', '&Dim' at 3,15
+   screen set sf, 'dim' enabled 0
+   screen button sf, 'go', '&Go' at 3,17 default
+   qref = 0
+   screen entry sf, 'b1' at 40,8 accel 'ctrl-i' else qref += 1                   ;* ctrl-i is the Tab key: refused
+   screen entry sf, 'b2' at 40,9 accel 'f13' else qref += 1                      ;* there is no f13
+   screen entry sf, 'b3' at 40,10 accel 'banana' else qref += 1                  ;* not a key
+   screen label sf, 'log', 'ck=0 ck2=0 sl=0 se=1 last=none n=0' at 3,19 width 64
+   qlog = 'none'
+   qchg = 0
+   qpressed = 'end'
+   loop
+      screen wait sf returning ev then
+         qchg += 1
+         qlog = ev<1> : ':' : ev<2> : ':' : ev<3>
+         if ev<1> = 'button' then
+            qpressed = ev<2>
+            exit
+         end
+         screen get sf, 'ck' returning q1
+         screen get sf, 'ck2' returning q2
+         screen get sf, 'sl' returning q3
+         screen get sf, 'se' returning q4
+         screen set sf, 'log' text 'ck=' : q1 : ' ck2=' : q2 : ' sl=' : q3 : ' se=' : q4 : ' last=' : qlog : ' n=' : qchg
+      end else
+         qpressed = ev<1>
+         exit
+      end
+   repeat
+   screen get sf, 'ck' returning q1
+   screen get sf, 'dim' returning q5
+   screen get sf, 'e2' returning q6
+   screen hide sf
+   msg = 'accel ck=' : q1 : ' dim=' : q5 : ' e2=' : q6 : ' refused=' : qref : ' pressed=' : qpressed
    return
 
 * the selector form: four SCREEN SELECTOR controls (label left, right with ATTR window, above, and in colours), a label that says their choices and the last change

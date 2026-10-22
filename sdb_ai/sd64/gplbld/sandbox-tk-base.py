@@ -39,7 +39,9 @@ F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
 KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b",
-        "LEFT": "\x1bOD", "RIGHT": "\x1bOC", "F2": "\x1bOQ", "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~", "PGDN": "\x1b[6~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
+        "LEFT": "\x1bOD", "RIGHT": "\x1bOC", "F2": "\x1bOQ", "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~", "PGDN": "\x1b[6~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15",
+        # a terminal sends Alt+x as Esc and x; Ctrl-G is char 7
+        "ALT-N": "\x1bn", "ALT-M": "\x1bm", "ALT-V": "\x1bv", "ALT-SHIFT-V": "\x1bV", "ALT-SHIFT-M": "\x1bM", "ALT-S": "\x1bs", "ALT-C": "\x1bc", "ALT-D": "\x1bd", "ALT-G": "\x1bg", "ALT-Z": "\x1bz", "CTRLG": "\x07"}
 F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
@@ -861,6 +863,74 @@ def slider_rows(box, made):
     row("a piped session whose input ends with the form up ends within 20 s and does not spin (under 3 s of CPU)", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
 
 
+# TK-0.12.  `tktest accel` shows a form with accelerator keys: a label &Name before the entry e1, e2 given 'Alt+M', check boxes &Verbose (and a second &Verbose again, which
+# loses the letter to the first), a slider &Switch, a selector &Colour, a radio group on f5, a list on ctrl-g, a disabled check box &Dim and a default button &Go; three accelerators
+# are refused.  The label at the foot reads "ck=<v> ck2=<v> sl=<v> se=<n> last=<event>:<id>:<data> n=<events>".  An Alt-letter reaches the terminal as Esc and the letter.
+def accel_rows(box, made):
+    say("\n--- accelerator keys (TK-0.12)")
+    t = Term(box, "tktest accel")
+
+    def where(txt):
+        for r_, l_ in enumerate(t.lines()):
+            c_ = l_.find(txt)
+            if c_ >= 0:
+                return r_, c_
+        return None
+
+    def logline():
+        m_ = re.search(r"ck=(\d) ck2=(\d) sl=(\d) se=(\d) last=(\S+) n=(\d+)", "\n".join(t.lines()))
+        return m_.groups() if m_ else None
+
+    if where("Verbose") is None:
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest accel never drew its form, so no row below can be believed")
+    row("the form is drawn: the & is not shown in any text (Name, Verbose [ ], Verbose again [ ], Switch [OFF | on], Colour [RED | green | blue], (*) one, Dim [ ], [ Go ]) and the log reads ck=0 ck2=0 sl=0 se=1 last=none n=0",
+        all(where(s) is not None for s in ("Name", "Verbose [ ]", "Verbose again [ ]", "Switch [OFF | on]", "Colour [RED | green | blue]", "(*) one", "Dim [ ]", "[ Go ]")) and where("&") is None
+        and logline() == ("0", "0", "0", "1", "none", "0"), repr((logline(), t.line(24)[20:90])))
+    t.key("ALT-M")
+    row("ACCEL 'Alt+M' (written as the program liked) on the second entry takes the focus there from the first: last=focus:e2:e1, n=1", logline() == ("0", "0", "0", "1", "focus:e2:e1", "1"), repr(logline()))
+    t.key("ALT-N")
+    row("the label's &Name letter, Alt+N, takes the focus to the next control that can have it, the first entry: last=focus:e1:e2, n=2", logline() == ("0", "0", "0", "1", "focus:e1:e2", "2"), repr(logline()))
+    t.s.type("ab", idle=0.5)
+    t.key("ALT-V")
+    row("typed text first (the first entry holds ab); then Alt+V from INSIDE the entry ticks &Verbose (Verbose [x]): a change event, last=change:ck:1, n=3; the other check box with the same letter is not touched (ck2=0)",
+        where("Verbose [x]") is not None and logline() == ("1", "0", "0", "1", "change:ck:1", "3"), repr(logline()))
+    row("...and the entry still holds ab: the Alt-letter was not typed into it",
+        "ab" in t.line((where("Name") or (0, 0))[0]) and where("abv") is None and where("ab v") is None, repr(t.line((where("Name") or (0, 0))[0])))
+    t.key("ALT-V")
+    row("Alt+V again unticks it: ck=0, last=change:ck:0, n=4", logline() == ("0", "0", "0", "1", "change:ck:0", "4"), repr(logline()))
+    t.key("ALT-SHIFT-V")
+    row("Alt+Shift+V is the same key as Alt+V: ticked again, n=5", logline() == ("1", "0", "0", "1", "change:ck:1", "5"), repr(logline()))
+    t.key("ALT-S")
+    row("Alt+S slides &Switch on ([off | ON]): sl=1, last=change:sl:1, n=6", where("Switch [off | ON]") is not None and logline() == ("1", "0", "1", "1", "change:sl:1", "6"), repr(logline()))
+    t.key("ALT-C")
+    row("Alt+C chooses the selector's next word (GREEN): se=2, last=change:se:2, n=7", where("Colour [red | GREEN | blue]") is not None and logline() == ("1", "0", "1", "2", "change:se:2", "7"), repr(logline()))
+    t.key("ALT-C")
+    t.key("ALT-C")
+    row("...twice more goes round to the first word (RED): se=1, n=9", where("Colour [RED | green | blue]") is not None and logline() == ("1", "0", "1", "1", "change:se:1", "9"), repr(logline()))
+    t.key("F5")
+    row("ACCEL 'f5' gives the radio group the focus (it has no label): last=focus:rd:se, n=10", logline() == ("1", "0", "1", "1", "focus:rd:se", "10"), repr(logline()))
+    t.key("CTRLG")
+    row("ACCEL 'ctrl-g' gives the list the focus: last=focus:ls:rd, n=11", logline() == ("1", "0", "1", "1", "focus:ls:rd", "11"), repr(logline()))
+    t.key("ALT-D")
+    row("Alt+D is the letter of &Dim, which is disabled: it does nothing to it (Dim [ ]) and the key goes on to the program as an ordinary key event, n=12",
+        where("Dim [ ]") is not None and re.fullmatch(r"key:\S*:alt-d", (logline() or ("",) * 6)[4]) is not None and (logline() or ("",) * 6)[5] == "12", repr(logline()))
+    t.key("ALT-Z")
+    row("Alt+Z, which no control has, is also an ordinary key event for the program (alt-z), n=13", re.fullmatch(r"key:\S*:alt-z", (logline() or ("",) * 6)[4]) is not None and (logline() or ("",) * 6)[5] == "13", repr(logline()))
+    t.key("ALT-SHIFT-M")
+    row("Alt+Shift+M is the key of ACCEL 'Alt+M' too (the key is named in lower case whatever was typed): the second entry takes the focus from the list, last=focus:e2:ls, n=14",
+        logline() == ("1", "0", "1", "1", "focus:e2:ls", "14"), repr(logline()))
+    t.key("ALT-G")
+    row("Alt+G presses &Go from the second entry: the form is gone and the status line says accel ck=1 dim=0 e2= refused=3 pressed=go (three bad accelerators refused: ctrl-i, f13, banana)",
+        "accel ck=1 dim=0 e2= refused=3 pressed=go" in t.line(40) and where("Verbose") is None, repr(t.line(40)))
+    t.end()
+
+    t = Term(box, "tktest accel")
+    t.key("ESC")
+    row("a lone Esc is still a cancel (the wait for a letter after it ends): pressed=cancel", "pressed=cancel" in t.line(40), repr(t.line(40)))
+    t.end()
+
+
 # TK-0.11.  `tktest selector` shows four SCREEN SELECTOR controls: c "Colour [blue | green | RED | black]" (label left by default, VALUE 3), s "[small | MEDIUM | large] size" (place right,
 # ATTR window), m (place above) "mode" over "[FAST | slow | exact]", and t "tint [EX | why | zed]" in white on blue; the label at the foot reads "c=<n> s=<n> m=<n> t=<n> last=<id>=<n> n=<changes>"
 # (n counts the change events of SCREEN WAIT).  F2 sets them from the program: c 9 (brought into range: 4), s 3 and m ITEMS one, two (the first is chosen).
@@ -1512,6 +1582,7 @@ def main():
         place_rows(box, made)
         color_rows(box, made)
         selector_rows(box, made)
+        accel_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

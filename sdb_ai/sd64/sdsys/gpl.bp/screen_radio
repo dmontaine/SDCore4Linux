@@ -9,11 +9,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN RADIO f, id, items {AT x,y} {VALUE n} {ACROSS} {COLOR fg,bg}
+*   SCREEN RADIO f, id, items {AT x,y} {VALUE n} {ACROSS} {COLOR fg,bg} {ACCEL key}
 *
 *   is compiled into
 *
-*   call !screen_radio(f, id, items, x, y, value, across, fg, bg, ret, status)
+*   call !screen_radio(f, id, items, x, y, value, across, fg, bg, accel, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     items    the choices, as values (a field mark does as well)
@@ -26,12 +26,15 @@
 *
 *   COLOR fg,bg gives the choices their own colours (see SCREEN ENTRY); the choice the cursor is on is still in the focus style while the group has the focus.
 *
+*   ACCEL key gives the group a key that reaches it wherever the focus is (see SCREEN ENTRY): f1 to f12, ctrl-a to ctrl-z, alt-a to alt-z or alt-0 to alt-9.  The group
+*   takes the focus.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_radio(f, id, items, ax, ay, value, across, fg, bg, ret, status)
+subroutine screen_radio(f, id, items, ax, ay, value, across, fg, bg, accel, ret, status)
 $catalog !screen_radio
 
    ret = ''
@@ -50,6 +53,8 @@ $catalog !screen_radio
    call $sl_radio('init', w, '', '', r)
    call $sl_color(w, fg, bg, cst)
    if cst # 0 then return
+   call $sl_accel(w, accel, ast)
+   if ast # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 

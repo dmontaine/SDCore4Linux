@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -233,10 +233,42 @@ def checks(raw):
         and "if w{'ccode'} # '' then code = w{'ccode'} if w{'focused'} then call $sl_attr('highlight', code)" in se
         and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[cx + a0 + k, 1] = ac next k end" in se and "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)" in se
         and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", se)), "")
+    ac = sq["sl_accel"]
+    add("T37", "$sl_accel: no key means no accelerator; the key is lower-cased and a + is a -; f1 to f12 (a whole number, no leading zero), ctrl-a to ctrl-z except ctrl-h, ctrl-i, ctrl-j and ctrl-m, and alt-a to alt-z "
+        "and alt-0 to alt-9 are taken (w{'accel'} is the name $sl_key reports), anything else is status 1; it draws, reads and writes nothing",
+        "st = 0 if trim(accel) = '' then return" in ac and "a = convert('+', '-', downcase(trim(accel)))" in ac and "case a[1, 1] = 'f' and tail # '' and num(tail)" in ac
+        and "if tail + 0 >= 1 and tail + 0 <= 12 and int(tail) = tail + 0 and len(tail) = len(tail + 0) then ok = 1" in ac
+        and "case len(a) = 6 and a[1, 5] = 'ctrl-' if index('abcdefghijklmnopqrstuvwxyz', a[6, 1], 1) and index('hijm', a[6, 1], 1) = 0 then ok = 1" in ac
+        and "case len(a) = 5 and a[1, 4] = 'alt-' if index('abcdefghijklmnopqrstuvwxyz0123456789', a[5, 1], 1) then ok = 1" in ac and "if ok then w{'accel'} = a else st = 1" in ac
+        and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display|call)\b", re.sub(r"'[^']*'", "''", ac)), "")
+    kk, kc, kb = squeeze(strip_bas(raw["sl_key"])), squeeze(strip_bas(raw["_keycode"])), squeeze(strip_bas(raw["_bindkey"]))
+    add("T38", "an Alt-letter: $sl_key asks KEYCODE for it (BINDKEY(, -7)) for the one read and gives the state back (-7 if it was on, else -8), and names Esc and one character alt- and the character in lower case "
+        "before it takes a longer string for a binding's; KEYCODE returns an unbound Esc and one printable character as the two characters only when kc.alt is set, before it rings the bell; BINDKEY -7 sets and -8 "
+        "clears kc.alt and each answers the old state; kc.alt is in the common block",
+        "alt.was = bindkey('', -7) k = keycode(1) kst = status() if alt.was then x = bindkey('', -7) else x = bindkey('', -8) set.status kst" in kk
+        and ordered(kk, "case len(k) = 2 and k[1,1] = char(27) name = 'alt-' : downcase(k[2,1])", "case len(k) > 1 name = k")
+        and "if kc.alt and len(key.string) = 2 and key.string[1,1] = char(27) then if seq(key.string[2,1]) > 32 and seq(key.string[2,1]) < 127 then return value key.string end display @sys.bell" in kc
+        and "case action = -7 n = kc.alt + 0 kc.alt = @true return value n case action = -8 n = kc.alt + 0 kc.alt = @false return value n" in kb
+        and "kc.alt" in raw["keycode.h"], "")
+    fm = squeeze(strip_bas(raw["sl_form"]))
+    add("T39", "the form's accelerators: before the focused control sees a key named alt-, ctrl- or f and a number it looks for a control (find.accel): the first, in the order added, that is on the page, not disabled "
+        "and focusable (or a label), whose ACCEL is the key or whose & letter is the Alt-letter; a label hands the focus to the next control that can have it; run.accel gives that control the focus, "
+        "presses a button, turns a check box, slider or selector over (as the space bar would) and makes the change event wait.event reports before the focus event; a label's letter is read only when it is created, "
+        "a button's Alt-letter only when marked with & (its plain mnemonic is separate), a check box, slider and selector keep theirs",
+        "f{'achg'} = '' if len(key) >= 2 and (key[1, 4] = 'alt-' or key[1, 5] = 'ctrl-' or (key[1, 1] = 'f' and len(key) <= 3 and num(key[2, 9]))) then gosub find.accel if ni > 0 then gosub run.accel return end end nw = inmat(f{'widgets'})" in fm
+        and ordered(fm, "if key = 'guardquit' then", "f{'achg'} = ''", "gosub find.accel", "nw = inmat(f{'widgets'}) fi = f{'focus'} + 0")
+        and ("find.accel: ni = 0 nw = inmat(f{'widgets'}) for i = 1 to nw w = f{'widgets', i} gosub on.page if vis and w{'disabled'} + 0 = 0 and ancdis = 0 and (w{'focusable'} + 0 = 1 or w{'type'} = 'label') then "
+             "if w{'accel'} = key then ni = i if len(key) = 5 and key[1, 4] = 'alt-' and w{'amn'} # '' and w{'amn'} = upcase(key[5, 1]) then ni = i if ni > 0 then exit end next i") in fm
+        and "if w{'type'} = 'label' then lab = ni ni = 0 for k = 1 to nw lab += 1 if lab > nw then lab = 1 i = lab gosub can.focus if cf then ni = lab ; exit next k if ni = 0 then ni = -1" in fm
+        and ("run.accel: ret = 'handled' if ni < 0 then return hit = ni if hit # f{'focus'} + 0 then gosub set.focus wi = hit w = f{'widgets', hit} wt = w{'type'} v1 = w{'value'} begin case case wt = 'button' "
+             "gosub press.button case wt = 'check' or wt = 'slider' or wt = 'selector' wop = 'key' ; wkey = ' ' gosub call.widget gosub after.widget if w{'value'} # v1 then f{'achg'} = hit end case gosub park.cursor return") in fm
+        and "case f{'achg'} # '' w = f{'widgets', f{'achg'}} evt = 'change' ; eid = w{'id'} ; edata = w{'value'} case fi1 # fi0 and fi1 >= 1" in fm
+        and all("w{'amn'} = upcase(t[p + 1, 1])" in squeeze(strip_bas(raw[n])) for n in ("sl_check", "sl_slider", "sl_selector", "screen_label")) and squeeze(strip_bas(raw["sl_button"])).count("w{'amn'} = w{'mn'}") == 1 and "w{'amn'} = '' if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'}" in squeeze(strip_bas(raw["sl_button"]))
+        and "amn" not in raw["sl_label"] and "p = index(t, '&', 1)" in squeeze(strip_bas(raw["screen_label"])), "")
     return out
 
 
-EXTRA =["sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
+EXTRA = ["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label", "sl_button", "sl_label", "sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
 
 
 def load():
@@ -372,6 +404,27 @@ MUT = [
     ("sl_selector", "the colour is not used", "   if w{'ccode'} # '' then code = w{'ccode'}\n", "\n"),
     ("sl_selector", "the focus is not shown", "   if w{'focused'} then call $sl_attr('highlight', code)\n", "\n"),
     ("sl_selector", "no style is the default", "if w{'attr'} = '' then w{'attr'} = 'bold'", "if w{'attr'} = '' then w{'attr'} = 'window'"),
+    # TK-0.12, the accelerators (the sitting's own mutants)
+    ("sl_accel", "ctrl-i is taken", " and index('hijm', a[6, 1], 1) = 0", ""),
+    ("sl_accel", "f13 is taken", "tail + 0 <= 12", "tail + 0 <= 13"),
+    ("sl_accel", "a + is not a -", "a = convert('+', '-', downcase(trim(accel)))", "a = downcase(trim(accel))"),
+    ("sl_accel", "no key is refused", "   if trim(accel) = '' then return\n", "\n"),
+    ("sl_accel", "a letter of any case is taken as typed", "a = convert('+', '-', downcase(trim(accel)))", "a = convert('+', '-', trim(accel))"),
+    ("sl_form", "a disabled control takes the key", "w{'disabled'} + 0 = 0 and ancdis = 0 and (w{'focusable'}", "ancdis = 0 and (w{'focusable'}"),
+    ("sl_form", "the last control with a key wins", "         if ni > 0 then exit\n", "         null\n"),
+    ("sl_form", "a button is not pressed by its key", "      case wt = 'button'\n         gosub press.button\n      case wt = 'check'", "      case wt = 'button'\n         null\n      case wt = 'check'"),
+    ("sl_form", "a turned-over control makes no change event", "if w{'value'} # v1 then f{'achg'} = hit", "null"),
+    ("sl_form", "the Alt-letter is matched as typed", "w{'amn'} = upcase(key[5, 1])", "w{'amn'} = key[5, 1]"),
+    ("sl_form", "a label with no control to go to still moves", "if ni = 0 then ni = -1", "null"),
+    ("sl_key", "the Alt-letter is not asked for", "alt.was = bindkey('', -7)", "alt.was = 0"),
+    ("sl_key", "BINDKEY's clearing of STATUS() is not undone", "      set.status kst\n", "\n"),
+    ("sl_key", "the Alt-letter stays asked for","if alt.was then x = bindkey('', -7) else x = bindkey('', -8)", "x = bindkey('', -7)"),
+    ("sl_key", "the Alt-letter keeps the case typed", "name = 'alt-' : downcase(k[2,1])", "name = 'alt-' : k[2,1]"),
+    ("_keycode", "an Alt-letter is returned whether asked for or not", "if kc.alt and len(key.string) = 2", "if len(key.string) = 2"),
+    ("_bindkey", "-8 leaves the Alt-letter on", "kc.alt = @false", "kc.alt = @true"),
+    ("sl_button", "a button's first letter is also an Alt-letter", "            w{'mn'} = upcase(t[1, 1])\n", "            w{'mn'} = upcase(t[1, 1])\n            w{'amn'} = w{'mn'}\n"),
+    ("screen_label", "a label's letter is not kept", "w{'amn'} = upcase(t[p + 1, 1])", "null"),
+    ("sl_check", "a check box's letter is not kept", "w{'amn'} = upcase(t[p + 1, 1])", "null"),
 ]
 
 

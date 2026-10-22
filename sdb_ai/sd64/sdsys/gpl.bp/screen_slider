@@ -11,11 +11,11 @@
 *
 * START-DESCRIPTION:
 *
-*   SCREEN SLIDER f, id, text {AT x,y} {VALUE v} {ATTR style} {WORDS off,on} {PLACE where} {COLOR fg,bg}
+*   SCREEN SLIDER f, id, text {AT x,y} {VALUE v} {ATTR style} {WORDS off,on} {PLACE where} {COLOR fg,bg} {ACCEL key}
 *
 *   is compiled into
 *
-*   call !screen_slider(f, id, text, x, y, value, attr, offword, onword, place, fg, bg, ret, status)
+*   call !screen_slider(f, id, text, x, y, value, attr, offword, onword, place, fg, bg, accel, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     text     shown after the switch
@@ -35,12 +35,15 @@
 *
 *   COLOR fg,bg gives the switch and its label their own colours (see SCREEN ENTRY) until the switch has the focus; the word in force is still in the style ATTR names.
 *
+*   ACCEL key gives the switch a key that reaches it wherever the focus is (see SCREEN ENTRY): f1 to f12, ctrl-a to ctrl-z, alt-a to alt-z or alt-0 to alt-9.  The key
+*   takes the focus to the switch and slides it the other way (a change event).  A letter marked with & in the text (&Shell) is also its Alt-letter.
+*
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_slider(f, id, text, ax, ay, value, attr, offword, onword, place, fg, bg, ret, status)
+subroutine screen_slider(f, id, text, ax, ay, value, attr, offword, onword, place, fg, bg, accel, ret, status)
 $catalog !screen_slider
 
    ret = ''
@@ -62,6 +65,8 @@ $catalog !screen_slider
    call $sl_slider('init', w, '', '', r)
    call $sl_color(w, fg, bg, cst)
    if cst # 0 then return
+   call $sl_accel(w, accel, ast)
+   if ast # 0 then return
    call $sl_wadd(f, w, ok)
    if ok then status = 0
 
