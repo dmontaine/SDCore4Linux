@@ -881,12 +881,34 @@ def accel_rows(box, made):
         m_ = re.search(r"ck=(\d) ck2=(\d) sl=(\d) se=(\d) last=(\S+) n=(\d+)", "\n".join(t.lines()))
         return m_.groups() if m_ else None
 
+    def ul(txt):
+        # the offsets, within txt as it is on the screen, of the cells drawn underlined (mono theme: the hotkey style is flags 'u'); None if txt is not on the screen
+        p_ = where(txt)
+        if p_ is None:
+            return None
+        return [k_ for k_ in range(len(txt)) if "u" in t.s.screen.style(p_[0], p_[1] + k_)[2]]
+
+    def flags(txt, k_):
+        p_ = where(txt)
+        return t.s.screen.style(p_[0], p_[1] + k_)[2] if p_ else None
+
     if where("Verbose") is None:
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest accel never drew its form, so no row below can be believed")
     row("the form is drawn: the & is not shown in any text (Name, Verbose [ ], Verbose again [ ], Switch [OFF | on], Colour [RED | green | blue], (*) one, Dim [ ], [ Go ]) and the log reads ck=0 ck2=0 sl=0 se=1 last=none n=0",
         all(where(s) is not None for s in ("Name", "Verbose [ ]", "Verbose again [ ]", "Switch [OFF | on]", "Colour [RED | green | blue]", "(*) one", "Dim [ ]", "[ Go ]")) and where("&") is None
         and logline() == ("0", "0", "0", "1", "none", "0"), repr((logline(), t.line(24)[20:90])))
+    # the letter marked with & is drawn in the hotkey style (mono: underline) while its control does not have the focus; the focus is on the first entry here
+    say("    [measured] mono, the first entry has the focus: underlined cells  Name %r  Verbose %r  Verbose again %r  Switch %r  Colour %r  Go %r  Dim (disabled) %r  the log label %r" % (
+        ul("Name"), ul("Verbose [ ]"), ul("Verbose again [ ]"), ul("Switch [OFF | on]"), ul("Colour [RED | green | blue]"), ul("[ Go ]"), ul("Dim [ ]"), ul("ck=0 ck2=0 sl=0 se=1 last=none n=0")))
+    row("the marked letter is underlined, and only it: the check box &Verbose (the V of 'Verbose [ ]', not the other letters, not the box), the slider &Switch (S), the selector &Colour (C)",
+        ul("Verbose [ ]") == [0] and ul("Switch [OFF | on]") == [0] and ul("Colour [RED | green | blue]") == [0], repr((ul("Verbose [ ]"), ul("Switch [OFF | on]"), ul("Colour [RED | green | blue]"))))
+    row("...the button &Go: the G of '[ Go ]', the third cell (the bracket and the space before the label are counted), not the brackets; and the label &Name: the N",
+        ul("[ Go ]") == [2] and ul("Name") == [0], repr((ul("[ Go ]"), ul("Name"))))
+    row("...the second check box (&Verbose again, whose Alt-letter V went to the first one) is drawn with its marked letter all the same: the V only",
+        ul("Verbose again [ ]") == [0], repr(ul("Verbose again [ ]")))
+    row("a control that is disabled (&Dim) shows no marked letter, and a label with no & (the log line at the foot) has no underlined cell",
+        ul("Dim [ ]") == [] and ul("ck=0 ck2=0 sl=0 se=1 last=none n=0") == [], repr((ul("Dim [ ]"), ul("ck=0 ck2=0 sl=0 se=1 last=none n=0"))))
     t.key("ALT-M")
     row("ACCEL 'Alt+M' (written as the program liked) on the second entry takes the focus there from the first: last=focus:e2:e1, n=1", logline() == ("0", "0", "0", "1", "focus:e2:e1", "1"), repr(logline()))
     t.key("ALT-N")
@@ -897,17 +919,28 @@ def accel_rows(box, made):
         where("Verbose [x]") is not None and logline() == ("1", "0", "0", "1", "change:ck:1", "3"), repr(logline()))
     row("...and the entry still holds ab: the Alt-letter was not typed into it",
         "ab" in t.line((where("Name") or (0, 0))[0]) and where("abv") is None and where("ab v") is None, repr(t.line((where("Name") or (0, 0))[0])))
+    say("    [measured] mono, &Verbose has the focus: underlined cells in 'Verbose [x]' %r, flags of its V %r and of its e %r; Switch %r" % (ul("Verbose [x]"), flags("Verbose [x]", 0), flags("Verbose [x]", 1), ul("Switch [OFF | on]")))
+    row("the check box that has the focus (Alt+V gave it the focus) has no underlined letter of its own: all of it is in the focus style (reverse), V included, the same as the letter after it; the other controls keep theirs",
+        ul("Verbose [x]") == [] and flags("Verbose [x]", 0) == flags("Verbose [x]", 1) and "r" in flags("Verbose [x]", 0) and ul("Switch [OFF | on]") == [0] and ul("Colour [RED | green | blue]") == [0],
+        repr((ul("Verbose [x]"), flags("Verbose [x]", 0), flags("Verbose [x]", 1))))
     t.key("ALT-V")
     row("Alt+V again unticks it: ck=0, last=change:ck:0, n=4", logline() == ("0", "0", "0", "1", "change:ck:0", "4"), repr(logline()))
     t.key("ALT-SHIFT-V")
     row("Alt+Shift+V is the same key as Alt+V: ticked again, n=5", logline() == ("1", "0", "0", "1", "change:ck:1", "5"), repr(logline()))
     t.key("ALT-S")
     row("Alt+S slides &Switch on ([off | ON]): sl=1, last=change:sl:1, n=6", where("Switch [off | ON]") is not None and logline() == ("1", "0", "1", "1", "change:sl:1", "6"), repr(logline()))
+    say("    [measured] mono, &Switch has the focus: underlined cells in 'Switch [off | ON]' %r, flags of its S %r and of its w %r; Verbose %r" % (ul("Switch [off | ON]"), flags("Switch [off | ON]", 0), flags("Switch [off | ON]", 1), ul("Verbose [x]")))
+    row("the slider that has the focus (Alt+S) has no underlined letter of its own: its S is in the focus style, the same as the letter after it; the check box that lost the focus has its V underlined again",
+        ul("Switch [off | ON]") == [] and flags("Switch [off | ON]", 0) == flags("Switch [off | ON]", 1) and "r" in flags("Switch [off | ON]", 0) and ul("Verbose [x]") == [0], repr((ul("Switch [off | ON]"), ul("Verbose [x]"))))
     t.key("ALT-C")
     row("Alt+C chooses the selector's next word (GREEN): se=2, last=change:se:2, n=7", where("Colour [red | GREEN | blue]") is not None and logline() == ("1", "0", "1", "2", "change:se:2", "7"), repr(logline()))
     t.key("ALT-C")
     t.key("ALT-C")
     row("...twice more goes round to the first word (RED): se=1, n=9", where("Colour [RED | green | blue]") is not None and logline() == ("1", "0", "1", "1", "change:se:1", "9"), repr(logline()))
+    say("    [measured] mono, &Colour has the focus: underlined cells in 'Colour [RED | green | blue]' %r, flags of its C %r and of its o %r; Switch %r" % (ul("Colour [RED | green | blue]"), flags("Colour [RED | green | blue]", 0), flags("Colour [RED | green | blue]", 1), ul("Switch [off | ON]")))
+    row("the selector that has the focus (Alt+C) has no underlined letter of its own: its C is in the focus style, the same as the letter after it; the slider that lost the focus has its S underlined again",
+        ul("Colour [RED | green | blue]") == [] and flags("Colour [RED | green | blue]", 0) == flags("Colour [RED | green | blue]", 1) and "r" in flags("Colour [RED | green | blue]", 0) and ul("Switch [off | ON]") == [0],
+        repr((ul("Colour [RED | green | blue]"), ul("Switch [off | ON]"))))
     t.key("F5")
     row("ACCEL 'f5' gives the radio group the focus (it has no label): last=focus:rd:se, n=10", logline() == ("1", "0", "1", "1", "focus:rd:se", "10"), repr(logline()))
     t.key("CTRLG")
@@ -920,8 +953,15 @@ def accel_rows(box, made):
     t.key("ALT-SHIFT-M")
     row("Alt+Shift+M is the key of ACCEL 'Alt+M' too (the key is named in lower case whatever was typed): the second entry takes the focus from the list, last=focus:e2:ls, n=14",
         logline() == ("1", "0", "1", "1", "focus:e2:ls", "14"), repr(logline()))
+    for _ in range(14):                       # Tab to the button, whatever the order of the controls (the log line says where the focus went)
+        if (logline() or ("",) * 6)[4].startswith("focus:go:"):
+            break
+        t.key("TAB")
+    say("    [measured] mono, &Go has the focus (last=%s): underlined cells in '[ Go ]' %r, flags of its G %r and of its o %r; Verbose %r" % ((logline() or ("",) * 6)[4], ul("[ Go ]"), flags("[ Go ]", 2), flags("[ Go ]", 3), ul("Verbose [x]")))
+    row("the button that has the focus has no underlined letter of its own: '[ Go ]' is all in the focus style (reverse), the G the same as the o",
+        (logline() or ("",) * 6)[4].startswith("focus:go:") and ul("[ Go ]") == [] and flags("[ Go ]", 2) == flags("[ Go ]", 3) and "r" in flags("[ Go ]", 2), repr((logline(), ul("[ Go ]"), flags("[ Go ]", 2), flags("[ Go ]", 3))))
     t.key("ALT-G")
-    row("Alt+G presses &Go from the second entry: the form is gone and the status line says accel ck=1 dim=0 e2= refused=3 pressed=go (three bad accelerators refused: ctrl-i, f13, banana)",
+    row("Alt+G presses &Go: the form is gone and the status line says accel ck=1 dim=0 e2= refused=3 pressed=go (three bad accelerators refused: ctrl-i, f13, banana)",
         "accel ck=1 dim=0 e2= refused=3 pressed=go" in t.line(40) and where("Verbose") is None, repr(t.line(40)))
     t.end()
 

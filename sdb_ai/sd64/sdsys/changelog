@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  THE ACCELERATOR LETTER IS SEEN: A LETTER MARKED WITH & IS DRAWN UNDERLINED ON A SCREEN.
+
+             What        The letter marked with & in the text of a SCREEN CHECK, SLIDER, SELECTOR, BUTTON or LABEL (&Shell) is now drawn
+                        in the hotkey style of the theme: underlined in the mono theme, a colour in the colour themes. It is the one cell
+                        of the label that is drawn so, wherever the label is (left, right, above or below the control; inside the
+                        brackets of a button, [ Go ]), and a COLOR or a word style the control was given still applies to the rest. While
+                        the control has the focus the whole of it is in the focus style, as before, and the letter is not drawn apart. A
+                        disabled control does not show it, since its Alt-letter does nothing. SCREEN SET ... TEXT on a label stops its
+                        letter being drawn marked (the Alt-letter stays); on the other controls the text is read for the & again.
+             Why it      A user can see which letter to press, without the program having to write the letter in the label in some other
+             matters     way.
+             Does not    It changes no key, event, statement or message, and a button's plain first-letter key is not drawn marked, since
+                        only a letter marked with & is an Alt-letter. A second control with the same marked letter is drawn marked too,
+                        though the first one added is the one that answers. The accelerator entry below, from the same release, says the
+                        letter is not drawn marked; that is no longer so.
+
 22 Oct 26  TOOL.KEYS: A FULL-SCREEN DIAGNOSTIC FOR THE TERMINAL AND THE KEYBOARD, FOR EVERYONE.
 
              What        tool.keys shows the terminal type SD is using and the one in the environment, the window, the locale and

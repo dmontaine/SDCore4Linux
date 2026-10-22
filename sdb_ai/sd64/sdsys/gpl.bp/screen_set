@@ -85,6 +85,7 @@ $catalog !screen_set
    end
    if text # '' then
       w{'text'} = text
+      if wt = 'label' then w{'apos'} = 0       ;* a label's marked letter was a place in its old text: not drawn in the new (the Alt-letter stays)
       call $sl_widget_init(w)
    end
    if items # '' then

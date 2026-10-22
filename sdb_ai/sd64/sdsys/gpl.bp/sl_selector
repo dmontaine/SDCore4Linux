@@ -7,6 +7,7 @@
 * 22 Oct 26 dm  New (S.75, TK-0.10; the owner asked for a multiple selection slider with a variable number of options whose choice is a one-based number,
 *               22 Oct 2026).  Like the slider it is drawn [word | WORD | word], the word in force in capitals and in the style attr; the slider's value is 0 or 1,
 *               this one's is the number of the word.
+* 22 Oct 26 dm  The letter marked with & in the label is drawn in the hotkey style while the control does not have the focus (apos; S.75 TK-0.12).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -49,8 +50,10 @@ $include sl.h
          t = w{'text'}
          p = index(t, '&', 1)
          w{'amn'} = ''
+         w{'apos'} = 0
          if p and p < len(t) then
             w{'amn'} = upcase(t[p + 1, 1])      ;* the letter marked with & is its Alt-letter (the form acts on it)
+            w{'apos'} = p                       ;* and is the p-th cell of the label once the & is out: paint underlines it
             t = t[1, p - 1] : t[p + 1, 99999]
          end
          w{'label'} = t
@@ -161,6 +164,7 @@ paint:
    cy = geom<1, SL.CAP.CY>
    lx = geom<1, SL.CAP.LX>
    ly = geom<1, SL.CAP.LY>
+   gosub hotkey
    for r = 0 to gh - 1
       rowtext = space(gw)
       cells = str(code, gw)
@@ -173,10 +177,23 @@ paint:
             next k
          end
       end
-      if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'}
+      if r = ly and w{'label'} # '' then
+         rowtext[lx + 1, len(w{'label'})] = w{'label'}
+         if hk then cells[lx + w{'apos'}, 1] = hcode      ;* the marked letter of the label, in the hotkey style
+      end
       call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, rowtext, cells)
    next r
    if w{'focused'} then call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)
+   return
+
+* hk = 1 when the label's marked letter is to be drawn in the hotkey style (hcode): not while the control has the focus (the whole of it is in the focus
+* style then) and not when it is disabled (its Alt-letter does nothing)
+hotkey:
+   hk = 0
+   if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'} + 0 > 0 and w{'apos'} + 0 <= len(w{'label'}) then
+      hk = 1
+      call $sl_attr('hotkey', hcode)
+   end
    return
 end
 

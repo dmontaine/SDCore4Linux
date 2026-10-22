@@ -263,7 +263,7 @@ def checks(raw):
         and ("run.accel: ret = 'handled' if ni < 0 then return hit = ni if hit # f{'focus'} + 0 then gosub set.focus wi = hit w = f{'widgets', hit} wt = w{'type'} v1 = w{'value'} begin case case wt = 'button' "
              "gosub press.button case wt = 'check' or wt = 'slider' or wt = 'selector' wop = 'key' ; wkey = ' ' gosub call.widget gosub after.widget if w{'value'} # v1 then f{'achg'} = hit end case gosub park.cursor return") in fm
         and "case f{'achg'} # '' w = f{'widgets', f{'achg'}} evt = 'change' ; eid = w{'id'} ; edata = w{'value'} case fi1 # fi0 and fi1 >= 1" in fm
-        and all("w{'amn'} = upcase(t[p + 1, 1])" in squeeze(strip_bas(raw[n])) for n in ("sl_check", "sl_slider", "sl_selector", "screen_label")) and squeeze(strip_bas(raw["sl_button"])).count("w{'amn'} = w{'mn'}") == 1 and "w{'amn'} = '' if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'}" in squeeze(strip_bas(raw["sl_button"]))
+        and all("w{'amn'} = upcase(t[p + 1, 1])" in squeeze(strip_bas(raw[n])) for n in ("sl_check", "sl_slider", "sl_selector", "screen_label")) and squeeze(strip_bas(raw["sl_button"])).count("w{'amn'} = w{'mn'}") == 1 and "w{'amn'} = '' w{'apos'} = 0 if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'}" in squeeze(strip_bas(raw["sl_button"]))
         and "amn" not in raw["sl_label"] and "p = index(t, '&', 1)" in squeeze(strip_bas(raw["screen_label"])), "")
     tk = sq["tool_keys"]
     add("T40", "tool.keys (TK-1): an app for everyone (audience null), that opens the base first and prints what it refuses; its keys are Ctrl-L, Ctrl-R, Ctrl-T and Ctrl-Q; every key is recorded BEFORE the table acts on it; "
@@ -287,10 +287,29 @@ def checks(raw):
         and "ins line before logl<1> if dcount(logl, @fm) > LOGN then del logl<LOGN + 1>" in tk
         and "call $sl_theme('slot', 'white', 'black', '', '', cs) colour = (if cs = 'none' then 'no' else 'yes')" in tk
         and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|openseq|readseq|kernel|os\.execute|clearfile)\b", re.sub(r"'[^']*'", "''", tk)), "")
+    # TK-0.12, the marked letter drawn: each control keeps where the letter is in its label (apos, 1-based, 0 when there is no &) and paints that cell in the hotkey style
+    HK_INIT = "w{'amn'} = '' w{'apos'} = 0 if p and p < len(t) then w{'amn'} = upcase(t[p + 1, 1]) w{'apos'} = p t = t[1, p - 1] : t[p + 1, 99999] end w{'label'} = t"
+    HK_ROW = ("gosub hotkey for r = 0 to gh - 1 rowtext = space(gw) cells = str(code, gw) if r = cy then ", "if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'} "
+              "if hk then cells[lx + w{'apos'}, 1] = hcode end call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, rowtext, cells) next r")
+    HK_PARA = ("hotkey: hk = 0 if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'} + 0 > 0 and w{'apos'} + 0 <= len(w{'label'}) then hk = 1 call $sl_attr('hotkey', hcode) end return end")
+    bt, lb, sl_, ss = (squeeze(strip_bas(raw[n])) for n in ("sl_button", "sl_label", "screen_label", "screen_set"))
+    add("T41", "the marked letter is drawn: the check box, slider and selector keep its place in the label with the & out (apos, 0 without one), find hotkey once before the rows and, when the control "
+        "has not the focus and is not disabled and the place is in the label, put the hotkey style on that one cell of the label's row (counted from the label's own column); the button the same in '[ label ]' "
+        "(two cells in), but not for its plain mnemonic; a label (SCREEN LABEL) keeps the place, draws it when it is in the text and in the width and is not disabled, and SCREEN SET ... TEXT clears it",
+        all(HK_INIT in s_ and HK_PARA in s_ and HK_ROW[0] in s_ and HK_ROW[1] in s_ and s_.count("call $sl_attr('hotkey', hcode)") == 1 and s_.count("w{'apos'}") == 5
+            for n_, s_ in (("sl_check", ck), ("sl_slider", sl), ("sl_selector", se)))
+        and "w{'amn'} = '' w{'apos'} = 0 if p and p < len(t) then w{'mn'} = upcase(t[p + 1, 1]) w{'amn'} = w{'mn'} w{'apos'} = p t = t[1, p - 1] : t[p + 1, 99999] end else w{'mn'} = upcase(t[1, 1]) end w{'label'} = t" in bt
+        and ("rowtext = '[ ' : w{'label'} : ' ]' cells = str(code, len(rowtext)) if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'} + 0 > 0 and w{'apos'} + 0 <= len(w{'label'}) then "
+             "call $sl_attr('hotkey', hcode) cells[w{'apos'} + 2, 1] = hcode end call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, rowtext, cells) if w{'focused'} then call $sl_curat(w{'ax'} + 2, w{'ay'} + 0) return") in bt
+        and bt.count("w{'apos'}") == 5
+        and ("cells = str(code, len(t)) if w{'disabled'} + 0 = 0 and w{'apos'} + 0 > 0 and w{'apos'} + 0 <= len(w{'text'}) and w{'apos'} + 0 <= len(t) then call $sl_attr('hotkey', hcode) "
+             "cells[w{'apos'} + 0, 1] = hcode end call $sl_put(scr, w{'ax'} + 0, w{'ay'} + 0, t, cells)") in lb and lb.count("w{'apos'}") == 4
+        and "w{'amn'} = upcase(t[p + 1, 1]) w{'apos'} = p t = t[1, p - 1] : t[p + 1, 99999] end w{'text'} = t" in sl_ and sl_.count("w{'apos'}") == 1
+        and "w{'text'} = text if wt = 'label' then w{'apos'} = 0 call $sl_widget_init(w) end" in ss and ss.count("w{'apos'}") == 1, "")
     return out
 
 
-EXTRA =["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label", "sl_button", "sl_label", "sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
+EXTRA = ["sl_form", "sl_key", "_keycode", "_bindkey", "keycode.h", "screen_label", "screen_set", "sl_button", "sl_label", "sl_theme", "sl.h"]             # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
 
 
 def load():
@@ -462,6 +481,22 @@ MUT = [
     ("tool_keys", "a colour terminal is told it has none", "colour = (if cs = 'none' then 'no' else 'yes')", "colour = 'no'"),
     ("screen_label", "a label's letter is not kept","w{'amn'} = upcase(t[p + 1, 1])", "null"),
     ("sl_check", "a check box's letter is not kept", "w{'amn'} = upcase(t[p + 1, 1])", "null"),
+    # TK-0.12, the marked letter drawn (the sitting's own mutants)
+    ("sl_check", "the check box's letter is one cell off", "w{'apos'} = p  ", "w{'apos'} = p + 1  "),
+    ("sl_check", "the check box's letter is counted from the box, not the label", "if hk then cells[lx + w{'apos'}, 1] = hcode", "if hk then cells[cx + w{'apos'}, 1] = hcode"),
+    ("sl_check", "a disabled check box still shows its letter", "and w{'disabled'} + 0 = 0 and w{'apos'}", "and w{'apos'}"),
+    ("sl_check", "the check box's letter is in another style", "call $sl_attr('hotkey', hcode)", "call $sl_attr('bar', hcode)"),
+    ("sl_slider", "the slider's letter is not drawn", "if hk then cells[lx + w{'apos'}, 1] = hcode", "if 0 then cells[lx + w{'apos'}, 1] = hcode"),
+    ("sl_slider", "the slider's letter is not looked for before the rows", "   ly = geom<1, SL.CAP.LY>\n   gosub hotkey\n", "   ly = geom<1, SL.CAP.LY>\n"),
+    ("sl_selector", "the selector's letter is drawn while it has the focus", "if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'}", "if w{'disabled'} + 0 = 0 and w{'apos'}"),
+    ("sl_selector", "the selector's letter is never kept", "w{'apos'} = p  ", "null  "),
+    ("sl_button", "the button's bracket and space are not counted", "cells[w{'apos'} + 2, 1] = hcode", "cells[w{'apos'}, 1] = hcode"),
+    ("sl_button", "a button's plain mnemonic is drawn marked", "            w{'mn'} = upcase(t[1, 1])\n", "            w{'mn'} = upcase(t[1, 1])\n            w{'apos'} = 1\n"),
+    ("sl_button", "the button's letter is drawn while it has the focus", "if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'}", "if w{'disabled'} + 0 = 0 and w{'apos'}"),
+    ("screen_label", "the label's place is not kept", "w{'apos'} = p  ", "null  "),
+    ("sl_label", "the label's letter is in another style", "call $sl_attr('hotkey', hcode)", "call $sl_attr('bar', hcode)"),
+    ("sl_label", "the label's letter may lie beyond its text", " and w{'apos'} + 0 <= len(w{'text'})", ""),
+    ("screen_set", "SCREEN SET ... TEXT keeps the label's old place", "if wt = 'label' then w{'apos'} = 0", "if 0 then w{'apos'} = 0"),
 ]
 
 

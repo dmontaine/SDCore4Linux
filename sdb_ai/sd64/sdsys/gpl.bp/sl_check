@@ -7,6 +7,7 @@
 * 12 Oct 26 dm  New.
 * 22 Oct 26 dm  The label goes where place says (left by default, right, above, below), through $sl_caption.  The owner asked for a placement option with left as
 *               the default, 22 Oct 2026: a check box used to be [x] text.
+* 22 Oct 26 dm  The letter marked with & in the label is drawn in the hotkey style while the box does not have the focus (apos; S.75 TK-0.12).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -42,8 +43,10 @@ $include sl.h
          t = w{'text'}
          p = index(t, '&', 1)
          w{'amn'} = ''
+         w{'apos'} = 0
          if p and p < len(t) then
             w{'amn'} = upcase(t[p + 1, 1])      ;* the letter marked with & is its Alt-letter (the form acts on it)
+            w{'apos'} = p                       ;* and is the p-th cell of the label once the & is out: paint underlines it
             t = t[1, p - 1] : t[p + 1, 99999]
          end
          w{'label'} = t
@@ -97,13 +100,28 @@ paint:
    ly = geom<1, SL.CAP.LY>
    mark = '[ ]'
    if w{'value'} then mark = '[x]'
+   gosub hotkey
    for r = 0 to gh - 1
       rowtext = space(gw)
+      cells = str(code, gw)
       if r = cy then rowtext[cx + 1, 3] = mark
-      if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'}
-      call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, rowtext, str(code, gw))
+      if r = ly and w{'label'} # '' then
+         rowtext[lx + 1, len(w{'label'})] = w{'label'}
+         if hk then cells[lx + w{'apos'}, 1] = hcode      ;* the marked letter of the label, in the hotkey style
+      end
+      call $sl_put(scr, w{'ax'} + 0, w{'ay'} + r, rowtext, cells)
    next r
    if w{'focused'} then call $sl_curat(w{'ax'} + cx + 1, w{'ay'} + cy)
+   return
+
+* hk = 1 when the label's marked letter is to be drawn in the hotkey style (hcode): not while the control has the focus (the whole of it is in the focus
+* style then) and not when it is disabled (its Alt-letter does nothing)
+hotkey:
+   hk = 0
+   if not(w{'focused'}) and w{'disabled'} + 0 = 0 and w{'apos'} + 0 > 0 and w{'apos'} + 0 <= len(w{'label'}) then
+      hk = 1
+      call $sl_attr('hotkey', hcode)
+   end
    return
 end
 

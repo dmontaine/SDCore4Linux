@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 22 Oct 26 dm  A letter marked with & in the text is the label's Alt-letter (S.75 TK-0.12).
+* 22 Oct 26 dm  ... and is drawn in the hotkey style (apos, its place in the text; SCREEN SET ... TEXT clears it).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -28,8 +29,9 @@
 *   COLOR fg,bg gives the label its own colours (see SCREEN ENTRY); it wins over ATTR.
 *
 *   A letter in the text marked with & (&Name) is dropped from the text and is the label's Alt-letter: Alt+N moves the focus to the next control that can
-*   have it, which is how an entry or a list is given a letter (put the label just before it).  Only the text given here is read for the &; SCREEN SET
-*   ... TEXT leaves an ampersand where it is.
+*   have it, which is how an entry or a list is given a letter (put the label just before it).  The letter is drawn in the hotkey style of the theme
+*   (underlined in mono).  Only the text given here is read for the &; SCREEN SET ... TEXT leaves an ampersand where it is and the letter is no longer
+*   drawn marked (the Alt-letter stays).
 *
 * END-DESCRIPTION
 *
@@ -49,6 +51,7 @@ $catalog !screen_label
    p = index(t, '&', 1)
    if p and p < len(t) then
       w{'amn'} = upcase(t[p + 1, 1])
+      w{'apos'} = p                             ;* the p-th cell of the text once the & is out: draw underlines it
       t = t[1, p - 1] : t[p + 1, 99999]
    end
    w{'text'} = t

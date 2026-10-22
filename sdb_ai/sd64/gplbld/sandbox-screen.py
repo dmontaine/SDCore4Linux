@@ -897,8 +897,9 @@ def part_forms(box):
         L[5][12:17] == "Name:" and L[9][12:17] == "Type:" and L[13][12:17] == "City:", "\n".join(l[8:68] for l in L[4:14]))
     row("the entry holds Smith, 30 cells wide, in reverse video because it has the focus, and the cursor is after the text",
         L[5][22:27] == "Smith" and t.attrs(5)[22:52] == "r" * 30 and t.attrs(5)[52] == "n" and t.cursor() == (27, 5), repr((L[5][20:55], t.attrs(5)[20:55], t.cursor())))
-    row("the check box is checked and has no focus: [x] VIP customer in normal video",
-        L[7][22:38] == "[x] VIP customer" and t.attrs(7)[22:38] == "n" * 16, repr((L[7][20:40], t.attrs(7)[20:40])))
+    # 22 Oct 26 (S.75 TK-0.12): the label is '&VIP customer', and the marked letter is drawn in the hotkey style (underline in mono) when the box has not the focus
+    row("the check box is checked and has no focus: [x] VIP customer in normal video, its marked letter V underlined",
+        L[7][22:38] == "[x] VIP customer" and t.attrs(7)[22:38] == "nnnnu" + "n" * 11, repr((L[7][20:40], t.attrs(7)[20:40])))
     row("the radio group is one to a row with the second selected: ( ) Retail, (*) Wholesale, ( ) Staff",
         L[9][22:32] == "( ) Retail" and L[10][22:35] == "(*) Wholesale" and L[11][22:31] == "( ) Staff", "\n".join(l[20:40] for l in L[8:13]))
     row("the list shows its four entries, the current one marked with >, as it has no focus",
