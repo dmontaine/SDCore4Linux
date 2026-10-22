@@ -82,16 +82,24 @@ $catalog !screen_set
       call $sl_widget_init(w)
    end
    if items # '' then
-      if wt = 'table' then
-         w{'rows'} = items                      ;* a table's rows are fields, their cells values: nothing is converted
+      if wt = 'table' and w{'keycol'} + 0 > 0 then
+         * 22 Oct 26, S.75 G3: a table with a key column keeps its current row, its marks, its sort and its filter across new rows, by the key
+         w{'newrows'} = items
+         w{'nopaint'} = 1                       ;* the form is drawn below, when it is on the screen
+         call $sl_table('refresh', w, '', '', r0)
+         w{'nopaint'} = 0
       end else
-         w{'items'} = convert(@fm, @vm, items)
+         if wt = 'table' then
+            w{'rows'} = items                   ;* a table's rows are fields, their cells values: nothing is converted
+         end else
+            w{'items'} = convert(@fm, @vm, items)
+         end
+         w{'picked'} = ''
+         w{'top'} = 1
+         w{'cur'} = 1
+         w{'value'} = 1
+         call $sl_widget_init(w)
       end
-      w{'picked'} = ''
-      w{'top'} = 1
-      w{'cur'} = 1
-      w{'value'} = 1
-      call $sl_widget_init(w)
    end
    if enabled # '' then
       if enabled + 0 = 0 then

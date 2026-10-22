@@ -38,7 +38,8 @@ passed = failed = skipped = 0
 F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
-KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b"}
+KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b",
+        "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
 F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
@@ -319,6 +320,198 @@ def gates_rows(box, made):
     row("the fixtures are gone: the program deleted the eight records it wrote, and a read of each afterwards finds none", re.search(r"^TKG left ", out, re.M) is None, out[-300:])
 
 
+# TK-0.5 (G3).  `tktest table N` drives sl_table directly inside the toolkit frame: 12 rows by default, N rows when given.  The status line says where the table is
+# (cur=<name> shown=<n> sort=<col>/<dir> filter=[<text>] marks=<names>), so a row reads the table's state from the screen, and the cells from the rows above it.
+NAMES12 = ["delta", "alpha", "echo", "charlie", "bravo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima"]
+CITIES = ["Albany", "Boston", "Chicago", "Denver", "Elgin", "Fresno"]
+F_T = "F1 help  F3 sort  F4 filter  F6 refresh  Tab next  ^Q quit"
+SLOW = 20.0            # seconds one table action may take on 6,000 rows: generous, the measured times are printed
+
+
+def tdata(n):
+    """The rows tool_tktest builds (t.build): name, quantity, check, city."""
+    out = []
+    for r in range(1, n + 1):
+        nm = NAMES12[r - 1] if r <= 12 else "row%05d" % r
+        out.append([nm, str((r * 7) % 100), str(r % 2), CITIES[r % 6]])
+    return out
+
+
+def trline(rw, lead=" "):
+    chk = "[x] " if int(rw[2]) else "[ ] "
+    return (lead + rw[0].ljust(14)[:14] + " " + rw[1].rjust(6) + " " + chk + " " + rw[3].ljust(10)[:10]).rstrip()
+
+
+def tstate(t):
+    m = re.search(r"cur=(\S*) shown=(\d+) sort=(\d+)/(\d+) filter=\[(.*?)\] marks=(\S*)", t.line(40))
+    if not m:
+        return None
+    return {"cur": m.group(1), "shown": int(m.group(2)), "sort": (int(m.group(3)), int(m.group(4))), "filter": m.group(5), "marks": [x for x in m.group(6).split(",") if x]}
+
+
+def tscreen(t, n):
+    """The n rows of the table below its heading, as the screen shows them (the scroll bar column cut off)."""
+    return [t.line(2 + i)[:69].rstrip() for i in range(n)]
+
+
+def table_rows(box, made):
+    say("\n--- the table additions (TK-0.5, G3): row styles, check cells, filter, refresh by key")
+    d = tdata(12)
+    t = Term(box, "tktest table")
+    if "F1 help" not in "\n".join(t.lines()):
+        say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
+        bail("tktest table never drew its function-key row, so no row below can be believed")
+    row("`tktest table` starts on pane T: the function-key row names F3, F4 and F6: %r" % F_T, t.line(42) == F_T, repr(t.line(42)))
+    head = (" " + "Name".ljust(14) + " " + "Qty".rjust(6) + " " + " On " + " " + "City").rstrip()
+    row("the heading names the four columns (the check column's heading centred in its four cells)", t.line(1)[:69].rstrip() == head, repr(t.line(1)[:69]))
+    row("the twelve rows are drawn in the order of rows, a check cell is [x] for 1 and [ ] for 0, Qty is right-aligned (the first row has the focus)",
+        tscreen(t, 12) == [trline(r, " ") for r in d] and t.line(14)[:69].strip() == "", repr(tscreen(t, 12)))
+    st = tstate(t)
+    row("the status line starts: current row delta, 12 shown, not sorted, no filter, nothing marked", st == {"cur": "delta", "shown": 12, "sort": (0, 0), "filter": "", "marks": []}, repr(st))
+    sc = t.s.screen
+    say("    [measured] in the default theme (mono) a 'disabled' row (charlie) is drawn %r, a plain row %r: mono draws 'disabled' and 'error' as text, so a row style shows only in a colour theme" % (sc.style(5, 3), sc.style(3, 3)))
+
+    t.key("F4")
+    row("F4 asks for a filter (a small entry box titled Filter)", "Filter" in "\n".join(t.lines()), "\n".join(t.lines())[-300:])
+    t.s.type("an\r", idle=0.8)
+    want = [r for r in d if any("an" in c.lower() for c in r)]
+    st = tstate(t)
+    say("    [measured] rows holding 'an' (in any cell, any case): %s" % ", ".join(r[0] for r in want))
+    row("filter 'an': only the rows that hold it are shown, in their order, nothing else on the rows below; the status says %d shown and the filter" % len(want),
+        tscreen(t, len(want)) == [trline(r, " ") for r in want] and t.line(2 + len(want))[:69].strip() == "" and st is not None and st["shown"] == len(want) and st["filter"] == "an"
+        and st["cur"] == want[0][0], repr((tscreen(t, len(want) + 1), st)))
+    t.key("F3")
+    st = tstate(t)
+    srt = sorted(want, key=lambda r: r[0].lower())
+    row("F3 sorts the filtered rows by Name: still only those rows, now in name order; sort 1/1", tscreen(t, len(srt)) == [trline(r, " ") for r in srt] and st["sort"] == (1, 1) and st["shown"] == len(want), repr((tscreen(t, len(srt)), st)))
+    t.key("F3")
+    srt = sorted(want, key=lambda r: r[0].lower(), reverse=True)
+    row("F3 again: name order reversed, filter kept; sort 1/2", tscreen(t, len(srt)) == [trline(r, " ") for r in srt] and tstate(t)["sort"] == (1, 2), repr(tscreen(t, len(srt))))
+    t.key("F3")
+    row("F3 a third time: the order of rows again (sort 0/0), the filter still in force", tscreen(t, len(want)) == [trline(r, " ") for r in want] and tstate(t)["sort"] == (0, 0) and tstate(t)["filter"] == "an", repr(tstate(t)))
+    t.key("F4")
+    t.s.type("\x15zzz\r", idle=0.8)
+    st = tstate(t)
+    row("a filter nothing matches (zzz): no rows, shown 0, no current row", st is not None and st["shown"] == 0 and st["cur"] == "" and t.line(2)[:69].strip() == "", repr((st, t.line(2)[:69])))
+    t.key("F4")
+    t.s.type("\x15\r", idle=0.8)
+    st = tstate(t)
+    row("an empty filter: all twelve rows are back, in the order of rows", tscreen(t, 12) == [trline(r, " ") for r in d] and st["shown"] == 12 and st["filter"] == "", repr(st))
+
+    # sort, mark two rows, then new rows (a sort keeps the current row, so Home first)
+    t.key("F3")
+    t.key("HOME")
+    t.key("DOWN")
+    t.key("DOWN")
+    t.key("SPACE")
+    t.key("DOWN")
+    t.key("DOWN")
+    t.key("SPACE")
+    t.key("UP")
+    st = tstate(t)
+    row("sorted by Name, delta current, charlie and echo marked", st == {"cur": "delta", "shown": 12, "sort": (1, 1), "filter": "", "marks": ["charlie", "echo"]}, repr(st))
+    t.key("F6")
+    nd = [["mike", "55", "1", "Boston"]]
+    for r in reversed(d):
+        if r[0] != "bravo":
+            nd.append([r[0], "99" if r[0] == "echo" else r[1], r[2], r[3]])
+    snd = sorted(nd, key=lambda r: r[0].lower())
+    st = tstate(t)
+    marks = [m for m in ("charlie", "echo")]
+    lines = tscreen(t, 12)
+    row("F6 gives new rows (bravo gone, mike new, echo's quantity 99, the old order reversed): shown in the SORT in force (Name, up), not in the order they were given",
+        lines == [trline(r, "*" if r[0] in marks else " ") for r in snd], repr(lines))
+    row("...and the current row is still delta, the marks are still charlie and echo (kept by the key although their places changed), the sort is still Name up, 12 shown",
+        st == {"cur": "delta", "shown": 12, "sort": (1, 1), "filter": "", "marks": ["charlie", "echo"]}, repr(st))
+    t.end()
+
+    # the row styles, in a theme that draws them (classic: 'disabled' and 'error' have colours of their own)
+    t = Term(box, "tktest table 12 classic")
+    sc = t.s.screen
+    names0 = [r[0] for r in d]
+    srow = lambda nm: 2 + names0.index(nm)
+    plain, dis = sc.style(srow("golf"), 3), sc.style(srow("charlie"), 3)
+    say("    [measured] classic: a plain row %r, a 'disabled' row (charlie, Elgin) %r" % (plain, dis))
+    row("classic theme: the row with the rowstyle 'disabled' (charlie) is drawn in that style, the rows around it (bravo, echo) and the rest are drawn in the text style",
+        dis != plain and sc.style(srow("bravo"), 3) == plain == sc.style(srow("echo"), 3) == sc.style(srow("lima"), 3), repr((plain, dis, sc.style(srow("bravo"), 3), sc.style(srow("echo"), 3))))
+    t.key("F6")
+    nm_now = [r[0] for r in [["mike"]] + [r for r in reversed(d) if r[0] != "bravo"]]
+    srow2 = lambda nm: 2 + nm_now.index(nm)
+    sc = t.s.screen
+    plain2 = sc.style(srow2("golf"), 3)
+    kind = {nm: ("plain" if sc.style(srow2(nm), 3) == plain2 else "disabled" if sc.style(srow2(nm), 3) == dis else "other") for nm in nm_now}
+    say("    [measured] row styles after F6 (rows are in the new order): %s" % ", ".join("%s %s" % (nm, kind[nm]) for nm in nm_now))
+    row("after F6 the new rowstyle went with the new rows, each at its NEW place: charlie and juliet (both in Elgin) 'disabled', echo (quantity 99) in a style of its own ('error'), "
+        "every other row (mike, new, included) plain",
+        all(kind[nm] == "disabled" for nm in ("charlie", "juliet")) and kind["echo"] == "other" and all(kind[nm] == "plain" for nm in nm_now if nm not in ("charlie", "juliet", "echo", "delta")), repr(kind))
+    row("...(delta, the current row, which the refresh moved to the last place, is in the highlight style, as it is the row with the focus)", kind["delta"] == "other" and sc.style(srow2("delta"), 3) != sc.style(srow2("echo"), 3), repr(kind["delta"]))
+    t.key("F3")
+    nm_sorted = sorted(nm_now, key=str.lower)
+    sc = t.s.screen
+    kind = {nm: ("plain" if sc.style(2 + nm_sorted.index(nm), 3) == plain2 else "disabled" if sc.style(2 + nm_sorted.index(nm), 3) == dis else "other") for nm in nm_sorted}
+    row("sorted by Name the row styles follow the ROWS, not the places on the screen: charlie and juliet 'disabled', echo 'error', the rest plain (delta is current)",
+        all(kind[nm] == "disabled" for nm in ("charlie", "juliet")) and kind["echo"] == "other" and all(kind[nm] == "plain" for nm in nm_sorted if nm not in ("charlie", "juliet", "echo", "delta")), repr(kind))
+    t.end()
+
+    # the current row is the one that goes
+    t = Term(box, "tktest table")
+    t.key("F3")
+    t.key("HOME")
+    t.key("DOWN")
+    st0 = tstate(t)
+    t.key("F6")
+    st = tstate(t)
+    row("when the current row is the one that is gone (bravo, second in name order) the current row is the one now in its place (charlie)", st0["cur"] == "bravo" and st is not None and st["cur"] == "charlie" and st["sort"] == (1, 1), repr((st0, st)))
+    t.end()
+
+    # six thousand rows
+    say("    --- 6,000 rows")
+    t0 = time.time()
+    t = Term(box, "tktest table 6000")
+    t_start = time.time() - t0
+    big = tdata(6000)
+    st = tstate(t)
+    say("    [measured] start with 6,000 rows: %.1f s" % t_start)
+    row("6,000 rows: the first screenful is drawn and the status says 6000 shown", st is not None and st["shown"] == 6000 and tscreen(t, 19) == [trline(r, " ") for r in big[:19]], repr((st, tscreen(t, 3))))
+
+    def timed(name, send, cond):
+        """Type the keys without waiting for quiet, then poll the screen until cond holds: the time is until the screen says so (a sort is SD working, not writing)."""
+        t1 = time.time()
+        send()
+        el = SLOW + 10
+        while time.time() - t1 < SLOW + 10:
+            t.s.settle(0.25)
+            s_ = tstate(t)
+            if s_ is not None and cond(s_):
+                el = time.time() - t1
+                break
+        say("    [measured] %s: %.1f s until the status line said so (the harness's own settling adds about 0.25 s)" % (name, el))
+        row("%s: the screen says so within %.0f s" % (name, SLOW), el < SLOW, "%.1f s, status %r" % (el, tstate(t)))
+        return el
+
+    def typ(*names):
+        t.s.type("".join(KEYS[n] for n in names), settle=False)
+
+    timed("F3 sort by Name", lambda: typ("F3"), lambda s_: s_["sort"] == (1, 1))
+    t.s.settle(0.5)
+    row("...the rows are in name order from the top: alpha first (delta, the current row, is the fourth)", t.line(2)[:69].rstrip().startswith(" alpha") and tstate(t)["cur"] == "delta", repr((t.line(2)[:40], tstate(t))))
+    timed("End (last row)", lambda: typ("END"), lambda s_: s_["cur"] == "row06000")
+    t.key("UP")
+    t.key("SPACE")
+    st = tstate(t)
+    row("the last but one row marked", st is not None and st["marks"] == ["row05999"] and st["cur"] == "row05999", repr(st))
+    timed("F6 refresh", lambda: typ("F6"), lambda s_: s_["cur"] == "row05999" and s_["marks"] == ["row05999"] and s_["shown"] == 6000 and s_["sort"] == (1, 1))
+    t.s.settle(0.5)
+    last = [l[:69].rstrip() for l in t.lines()[2:22]]
+    row("...the current row and the mark are kept by the key, the sort too, and the current row is where it was in the window (the last rows are on the screen)",
+        any("row05999" in l for l in last) and any("row06000" in l for l in last) and any(l.startswith("*row05999") for l in last), repr(last[-4:]))
+    nmatch = len([r for r in big if "row0059" in r[0]])
+    t.key("F4")
+    timed("filter row0059 (%d rows match)" % nmatch, lambda: t.s.type("row0059\r", settle=False), lambda s_: s_["filter"] == "row0059" and s_["shown"] == nmatch)
+    row("...the mark stays on the row the filter hides... or shows: it is KEPT (marks stay on rows the filter hides)", tstate(t) is not None and tstate(t)["marks"] == ["row05999"], repr(tstate(t)))
+    t.end()
+
+
 # TK-0.4 (G4).  Part 1, an internal session: $tk_explain for gates of each kind.  Part 2, a pseudo-terminal: `tktest dialogs` (F7 a Run / Cancel box for
 # `create.file zztkdlg1 dynamic`, F8 the same with a typed name `zztkdlg2`); the DISK is the evidence of what ran.  Part 3, a pipe: F7, then the input ends.
 EXPLAINCASES = [("shon", "sh", 1), ("shoff", "sh", 0), ("vocon", "voc", 1), ("vocoff", "voc", 0), ("srdoff", "shared-read", 0), ("srdon", "shared-read", 1), ("neton", "net", 1),
@@ -546,6 +739,7 @@ def main():
         runtime_rows(box, made)
         gates_rows(box, made)
         dialogs_rows(box, made)
+        table_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

@@ -50,6 +50,9 @@ $include tk.h
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', 'B', 1)
    call $tk_keys('add', keys, 'f7', 'confirm', 'confirm', 'D', 1)
    call $tk_keys('add', keys, 'f8', 'typed', 'typed', 'D', 1)
+   call $tk_keys('add', keys, 'f3', 'sort', 'tsort', 'T', 1)
+   call $tk_keys('add', keys, 'f4', 'filter', 'filter', 'T', 1)
+   call $tk_keys('add', keys, 'f6', 'refresh', 'trefresh', 'T', 1)
    call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
    call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
@@ -57,6 +60,30 @@ $include tk.h
    pane = 'A'
    if field(@sentence, ' ', 2) = 'dialogs' or field(@sentence, ' ', 3) = 'dialogs' then pane = 'D'
    msg = ''
+
+   * pane T: a table (sl_table, G3) of N rows (tktest table N, 12 by default) driven directly, with a filter (F4) and a refresh (F6) that changes the rows
+   if field(@sentence, ' ', 2) = 'table' then
+      pane = 'T'
+      tn = field(@sentence, ' ', 3) + 0
+      if tn < 1 then tn = 12
+      gosub t.build
+      call $sl_scr('get', scr)
+      th = field(@sentence, ' ', 4)                       ;* tktest table N classic: the mono theme draws every style but header and highlight as text
+      if th # '' then call $sl_theme('set', th, 'asked', '', '', tr)        ;* 'asked': the program wants this theme, not the site's default
+      w = collection()
+      w{'ax'} = 0
+      w{'ay'} = 1
+      w{'w'} = 70
+      w{'h'} = 20
+      w{'multi'} = 1
+      w{'keycol'} = 1
+      w{'cols'} = 'Name' : @sm : '14L' : @vm : 'Qty' : @sm : '6R' : @vm : 'On' : @sm : '4K' : @vm : 'City' : @sm : '10L'
+      w{'rows'} = trows
+      w{'rowstyle'} = tstyle
+      call $sl_table('init', w, scr, '', tr)
+      call $sl_table('focus', w, scr, 1, tr)
+      gosub t.state
+   end
 
    loop
       call $tk_frame(ctx, keys, pane, msg)
@@ -91,10 +118,89 @@ $include tk.h
                call $tk_run('create.file', sent, out, st, err)
                msg = (if err # '' then err else 'ran, status ' : st)
             end
+         case act = 'tsort'
+            call $sl_table('key', w, scr, 'f3', tr)
+         case act = 'filter'
+            ftxt = w{'filter'}
+            screen ask 'filter' width 20 value ftxt title 'Filter' returning ftxt then
+               w{'filter'} = ftxt
+               call $sl_table('filter', w, scr, '', tr)
+            end else null
+         case act = 'trefresh'
+            gosub t.refresh
+         case pane = 'T' and act = ''
+            call $sl_table('key', w, scr, k, tr)
       end case
+      if pane = 'T' then gosub t.state
    repeat
 
    call $tk_close(ctx)
+   stop
+
+* the data: names, a quantity, a check, a city; a row in Elgin is drawn 'disabled' and one over 90 'error'
+t.build:
+   names = 'delta,alpha,echo,charlie,bravo,foxtrot,golf,hotel,india,juliet,kilo,lima'
+   cities = 'Albany,Boston,Chicago,Denver,Elgin,Fresno'
+   trows = ''
+   for r = 1 to tn
+      nm = 'row' : str('0', 5 - len(r)) : r
+      if r <= 12 then nm = field(names, ',', r)
+      trows<r> = nm : @vm : mod(r * 7, 100) : @vm : mod(r, 2) : @vm : field(cities, ',', mod(r, 6) + 1)
+   next r
+   gosub t.styles
+   return
+
+t.styles:
+   tstyle = ''
+   m = dcount(trows, @fm)
+   for r = 1 to m
+      sty = ''
+      if trows<r, 4> = 'Elgin' then
+         sty = 'disabled'
+      end else
+         if trows<r, 2> + 0 > 90 then sty = 'error'
+      end
+      tstyle<1, r> = sty
+   next r
+   return
+
+* new rows: bravo is gone, echo has a new quantity, mike is new, and the order of the old rows is reversed
+t.refresh:
+   nrw = 'mike' : @vm : '55' : @vm : '1' : @vm : 'Boston'
+   m = dcount(trows, @fm)
+   for r = m to 1 step -1
+      if trows<r, 1> # 'bravo' then
+         one = trows<r>
+         if one<1, 1> = 'echo' then one<1, 2> = 99
+         nrw<-1> = one
+      end
+   next r
+   trows = nrw
+   gosub t.styles
+   w{'newrows'} = trows
+   w{'rowstyle'} = tstyle
+   call $sl_table('refresh', w, scr, '', tr)
+   return
+
+* the status line says where the table is: the current row's name, how many rows are shown, the sort, the filter and the names marked
+t.state:
+   rws = w{'rows'}
+   cn = w{'cur'} + 0
+   cname = ''
+   if cn >= 1 then
+      oi = cn
+      if w{'ord'} # '' or w{'fon'} + 0 then oi = w{'ord'}<1, cn>
+      cname = rws<oi, 1>
+   end
+   mk = ''
+   pl = w{'picked'}
+   if pl # '' then
+      for q = 1 to dcount(pl, @vm)
+         mk<1, -1> = rws<pl<1, q>, 1>
+      next q
+   end
+   msg = 'cur=' : cname : ' shown=' : w{'nshown'} : ' sort=' : w{'sortcol'} : '/' : w{'sortdir'} : ' filter=[' : w{'filter'} : '] marks=' : convert(@vm, ',', mk)
+   return
 end
 
 * END-CODE

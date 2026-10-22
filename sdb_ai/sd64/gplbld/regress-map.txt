@@ -285,7 +285,7 @@ sdsys/gpl.bp/tk.h            : tk-base
 sdsys/gpl.bp/tk_*            : tk-base
 sdsys/gpl.bp/tool_tktest     : tk-base
 sdsys/gpl.bp/*.h             : @compiler @core
-sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw
+sdsys/gpl.bp/screen_*        : screen sed-menu viewport ide-small eofkeys idedraw tk-base
 sdsys/gpl.bp/sl_*            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
 sdsys/gpl.bp/sl.h            : screen sed-menu sed-edit syntax viewport sed-small ide-small ide-sed eofkeys idedraw ide ced dbgui tk-base
 sdsys/gpl.bp/sed             : sed-menu sed-edit syntax screen edseqkey editgates shared sed-small ide-sed eofkeys
