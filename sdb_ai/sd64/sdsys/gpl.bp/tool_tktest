@@ -55,6 +55,8 @@ $include tk.h
    call $tk_keys('add', keys, 'f6', 'refresh', 'trefresh', 'T', 1)
    call $tk_keys('add', keys, 'f9', 'pick', 'pick', 'P', 1)
    call $tk_keys('add', keys, 'f10', 'multi', 'pickm', 'P', 1)
+   call $tk_keys('add', keys, 'f11', 'file', 'pickf', 'P', 1)
+   call $tk_keys('add', keys, 'f12', 'files', 'pickfm', 'P', 1)
    call $tk_keys('add', keys, 'ctrl-s', 'save', 'save', '', 0)
    call $tk_keys('add', keys, 'tab', 'next', 'next', '', 1)
    call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
@@ -92,7 +94,15 @@ $include tk.h
       pane = 'P'
       pn = field(@sentence, ' ', 3) + 0
       if pn < 1 then pn = 12
+      pg = field(@sentence, ' ', 4) + 0                  ;* tktest pick N page scan: the page and the scan of the paged source (the defaults when 0)
+      sc = field(@sentence, ' ', 5) + 0
       gosub p.build
+      pkopen = 0
+      open 'zzpkfile' to pkf then
+         pkopen = 1
+      end else
+         pkopen = 0
+      end
    end
 
    loop
@@ -138,11 +148,25 @@ $include tk.h
             end else null
          case act = 'trefresh'
             gosub t.refresh
+         case act = 'pickf'
+            if pkopen then
+               call $sl_pickwin('', 'Pick a record', 0, 0, pr, ps, pkf, '0' : @fm : pg : @fm : sc)
+               msg = (if ps then 'cancelled' else 'picked ' : pr)
+            end else
+               msg = 'no zzpkfile'
+            end
+         case act = 'pickfm'
+            if pkopen then
+               call $sl_pickwin('', 'Pick records', 1, 0, pr, ps, pkf, '1' : @fm : pg : @fm : sc)
+               msg = (if ps then 'cancelled' else 'picked ' : convert(@vm, ',', pr))
+            end else
+               msg = 'no zzpkfile'
+            end
          case act = 'pick'
-            call $sl_pickwin(pitems, 'Pick a command', 0, 0, pr, ps)
+            call $sl_pickwin(pitems, 'Pick a command', 0, 0, pr, ps, '', '')
             msg = (if ps then 'cancelled' else 'picked ' : pr : ' (' : pitems<pr, 1> : ')')
          case act = 'pickm'
-            call $sl_pickwin(pitems, 'Pick commands', 1, 0, pr, ps)
+            call $sl_pickwin(pitems, 'Pick commands', 1, 0, pr, ps, '', '')
             pnames = ''
             for q = 1 to dcount(pr, @vm)
                pnames<1, -1> = pitems<pr<1, q>, 1>

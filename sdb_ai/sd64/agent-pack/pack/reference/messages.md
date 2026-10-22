@@ -6480,6 +6480,33 @@ nothing matches
 
 cited by: `sl_pickwin`
 
+### msg:11827
+> kind=message tier=reference since=- src=sdsys/messages/11827:1#c739eecb
+
+```
+%1 shown
+```
+
+cited by: `sl_pickwin`
+
+### msg:11828
+> kind=message tier=reference since=- src=sdsys/messages/11828:1#d0ec8a24
+
+```
+%1 or more shown
+```
+
+cited by: `sl_pickwin`
+
+### msg:11829
+> kind=message tier=reference since=- src=sdsys/messages/11829:1#8919a2e8
+
+```
+none yet: %1 records searched, a key that moves down goes on
+```
+
+cited by: `sl_pickwin`
+
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 

@@ -39,7 +39,7 @@ F_A = "F1 help  F3 sort  Tab next  ^Q quit"
 F_B = "F1 help  F5 refresh  Tab next  ^Q quit"
 
 KEYS = {"F1": "\x1bOP", "F3": "\x1bOR", "F5": "\x1b[15~", "TAB": "\t", "CTRLQ": "\x11", "CTRLS": "\x13", "F7": "\x1b[18~", "F8": "\x1b[19~", "ENTER": "\r", "ESC": "\x1b",
-        "F9": "\x1b[20~", "F10": "\x1b[21~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
+        "F9": "\x1b[20~", "F10": "\x1b[21~", "F11": "\x1b[23~", "F12": "\x1b[24~", "PGDN": "\x1b[6~", "F4": "\x1bOS", "F6": "\x1b[17~", "UP": "\x1bOA", "DOWN": "\x1bOB", "HOME": "\x1b[1~", "END": "\x1b[4~", "SPACE": " ", "CTRLU": "\x15"}
 F_D = "F1 help  F7 confirm  F8 typed  Tab next  ^Q quit"
 
 
@@ -520,7 +520,7 @@ PD = ["show records of a file", "show records in order", "count the records", "c
 PH = ["LIST shows the records of a file on the screen", "SORT is LIST in the order of an attribute", "COUNT says how many records match", "COPY puts records into another file",
       "DELETE.FILE removes a file and its dictionary", "CREATE.FILE makes a file and a dictionary for it", "MODIFY.ACCOUNT changes the gates of an account",
       "WHO says who is signed on and as whom", "LISTU lists the users signed on", "LOGTO enters another account", "CATALOG makes a program a command", "BASIC compiles a program"]
-F_P = "F1 help  F9 pick  F10 multi  Tab next  ^Q quit"
+F_P = "F1 help  F9 pick  F10 multi  F11 file  F12 files  Tab next  ^Q quit"
 
 
 def pitems(n):
@@ -752,6 +752,165 @@ def pick_rows(box, made):
         skip("the window was open when the input ended", "the pipe did not decode F9 into the key, so the window was never drawn")
 
 
+# TK-0.7 (G1, the paged source).  `tktest pick 12 50 1000` opens, on F11 (one record id) and F12 (several, with the first attribute as the description), the pick window over
+# the record ids of the file zzpkfile (6,000 records rec00001 to rec06000, attribute 1 'shelf <n mod 50>'), reading a page of 50 at most 1,000 ids at a time.
+PKPROG = """$internal
+   execute 'create.file zzpkfile dynamic' capturing o1
+   open 'zzpkfile' to f else crt 'PKF noopen' ; stop
+   for n = 1 to 6000
+      rec = 'shelf-' : mod(n, 50)
+      write rec to f, 'rec' : str('0', 5 - len(n)) : n
+   next n
+   crt 'PKF done 6000'
+end
+"""
+PKIDS = ["rec%05d" % q for q in range(1, 6001)]
+PKDESC = {("rec%05d" % q): "shelf-%d" % (q % 50) for q in range(1, 6001)}
+
+
+def pkgeom(multi, dfield, title, scrw=140, scrh=43):
+    nw = 12
+    dw = 30 if dfield else 0
+    lead = 4 if multi else 1
+    lh = max(3, scrh - 8)
+    lw = min(scrw - 4, max(lead + nw + 2 + dw + 1, 44, len(title) + 4))
+    bw, bh = lw + 2, lh + 4
+    bx, by = (scrw - bw) // 2, (scrh - bh) // 2
+    return dict(nw=nw, lead=lead, lh=lh, lw=lw, bw=bw, bh=bh, bx=bx, by=by, x0=bx + 1, yf=by + 1, y1=by + 2, yh=by + 2 + lh)
+
+
+def pkrows(t, g, ids, multi=False, picked=(), dfield=False, bar=True):
+    """The rows shown, compared with the ids given (the first lh of them): ok, got, want."""
+    tw = g["lw"] - (1 if bar else 0)
+    want = []
+    for i in ids[:g["lh"]]:
+        lead = ("[x] " if i in picked else "[ ] ") if multi else " "
+        want.append((lead + i.ljust(g["nw"])[:g["nw"]] + "  " + (PKDESC[i] if dfield else ""))[:tw].rstrip())
+    got = [t.line(g["y1"] + r)[g["x0"]:g["x0"] + tw].rstrip() for r in range(len(want))]
+    return got == want, got, want
+
+
+def pickfile_rows(box, made):
+    say("\n--- the pick window over a file's record ids, a page at a time (TK-0.7, G1)")
+    with open(os.path.join(box, "sys", "bp", "zztkpkf"), "w", encoding="latin-1") as f:
+        f.write(PKPROG)
+    made.append("zztkpkf")
+    out = sess(box, "DELETE.FILE zzpkfile FORCE", "BASIC bp zztkpkf", "RUN bp zztkpkf")
+    if not re.search(r"^PKF done 6000\s*$", out, re.M):
+        say(out[-1200:])
+        bail("the program that makes the 6,000 records of zzpkfile did not finish, so no row below can be believed")
+    try:
+        g = pkgeom(False, False, "Pick a record")
+        t = Term(box, "tktest pick 12 50 1000")
+        if "F1 help" not in "\n".join(t.lines()):
+            bail("tktest pick never drew its function-key row, so no row below can be believed")
+        row("the function-key row names F11 and F12: %r" % F_P, t.line(42) == F_P, repr(t.line(42)))
+        t.key("F11")
+        ok, got, want = pkrows(t, g, PKIDS)
+        cnt = pfl(t, g)
+        say("    [measured] the first line of the window: %r" % cnt[-30:])
+        row("F11 opens the window over the file: title, the first %d ids in order (rec00001 ...), and only a page of 50 has been read: '50 or more shown', not 6000" % g["lh"],
+            "Pick a record" in t.line(g["by"]) and ok and cnt.endswith("50 or more shown"), repr((got[:2], want[:2], cnt)))
+        row("the scroll bar is there (more may come) and the first id is current", t.line(g["y1"])[g["x0"] + g["lw"] - 1] == "^" and "rec00001" in t.rev(g["y1"]), repr(t.rev(g["y1"])))
+        t.key("DOWN")
+        t.s.type(KEYS["DOWN"] * 20, idle=0.6)
+        for _ in range(3):
+            t.key("PGDN")
+        m = re.search(r"(\d+) or more shown", pfl(t, g))
+        say("    [measured] after 21 Downs and 3 Page Downs: %s" % (m.group(0) if m else pfl(t, g)[-30:]))
+        row("moving down reads more only as the cursor nears the end of what has been read: the count has grown past 50 and is far under 6000 (the cursor is on about row 100)",
+            m is not None and 100 <= int(m.group(1)) < 1000, repr(pfl(t, g)[-30:]))
+        t0 = time.time()
+        t.s.type(KEYS["END"], settle=False)
+        el = SLOW + 10
+        while time.time() - t0 < SLOW + 10:
+            t.s.settle(0.25)
+            if pfl(t, g).endswith("6000 shown"):
+                el = time.time() - t0
+                break
+        say("    [measured] End over 6,000 ids (120 pages of 50, 1,000 ids a read): %.1f s" % el)
+        ok, got, want = pkrows(t, g, PKIDS[-g["lh"]:])
+        row("End reads on to the end of the file (within %.0f s): '6000 shown' (no 'or more'), the last %d ids are on the screen and rec06000 is current" % (SLOW, g["lh"]),
+            el < SLOW and ok and "rec06000" in t.rev(g["y1"] + g["lh"] - 1), "%.1f s %r" % (el, (got[-2:], want[-2:], pfl(t, g)[-30:])))
+        t.key("ENTER")
+        row("Enter answers the record id, not a number: the status line says picked rec06000", "picked rec06000" in t.line(40), repr(t.line(40)))
+
+        t.key("F11")
+        t.s.type("rec0001", idle=1.0)
+        ten = [i for i in PKIDS if "rec0001" in i.lower()]
+        ok, got, want = pkrows(t, g, ten, bar=False)
+        row("typing 'rec0001' restarts the read with the filter: the ten ids that hold it (%s ... %s) and, since not every id has been looked at, '10 or more shown'" % (ten[0], ten[-1]),
+            len(ten) == 10 and ok and pfl(t, g).endswith("10 or more shown"), repr((got, want, pfl(t, g)[-30:])))
+        t.s.type(KEYS["END"], idle=1.0)
+        row("End reads on to the end of the file: '10 shown' now, the same ten ids", pfl(t, g).endswith("10 shown") and pkrows(t, g, ten, bar=False)[0], repr(pfl(t, g)[-30:]))
+        t.key("ENTER")
+        row("Enter answers the last of them: picked rec00019", "picked rec00019" in t.line(40), repr(t.line(40)))
+
+        # a filter that few ids match: nothing in the first reads
+        t.key("F11")
+        t.s.type("rec0500", idle=1.0)
+        first = t.line(g["y1"])[g["x0"]:g["x0"] + g["lw"]]
+        srch = re.search(r"(\d+) records searched", first)
+        row("typing 'rec0500': the ten ids that hold it are far into the file, so the first reads find none: '0 or more shown' and the first row says how many ids were searched (and that a key that moves down goes on); "
+            "the window is not full, so it read twice (the restart and the read that keeps it full), 2000 ids of 1000 each",
+            pfl(t, g).endswith("0 or more shown") and "none yet" in first and srch is not None and int(srch.group(1)) == 2000, repr((first, pfl(t, g)[-30:])))
+        downs = 0
+        while downs < 10 and "rec05000" not in "\n".join(t.lines()):
+            t.key("DOWN")
+            downs += 1
+        say("    [measured] Downs until rec05000 appeared: %d" % downs)
+        row("each Down reads on: within a few of them the matches appear (rec05000 ...)", "rec05000" in "\n".join(t.lines()) and downs <= 6, repr(downs))
+        t.s.type(KEYS["END"], idle=1.0)
+        tenb = ["rec%05d" % q for q in range(5000, 5010)]
+        row("End: '10 shown', rec05000 to rec05009", pfl(t, g).endswith("10 shown") and pkrows(t, g, tenb, bar=False)[0], repr(pfl(t, g)[-30:]))
+        t.key("ESC")
+        row("Esc closes it: cancelled, the window gone", "cancelled" in t.line(40) and "Pick a record" not in "\n".join(t.lines()), repr(t.line(40)))
+
+        # several, with the first attribute as the description; picks are kept by id across a new read
+        gm = pkgeom(True, True, "Pick records")
+        t.key("F12")
+        ok, got, want = pkrows(t, gm, PKIDS, True, (), True)
+        row("F12: several, with the description beside each id (rec00001 shelf-1, rec00002 shelf-2 ...)", ok, repr((got[:3], want[:3])))
+        t.key("SPACE")
+        t.s.type("shelf-7", idle=1.0)
+        shown = [t.line(gm["y1"] + r)[gm["x0"]:gm["x0"] + gm["lw"] - 1].rstrip() for r in range(2)]
+        row("typing 'shelf-7' filters on the DESCRIPTION: the first id is rec00007 (shelf-7), its mark is not [x] (the mark was on rec00001, which the filter hides)",
+            shown[0].startswith("[ ] rec00007") and "shelf-7" in shown[0] and "1 marked" in pfl(t, gm), repr((shown, pfl(t, gm))))
+        t.key("SPACE")
+        t.s.type("\x15", idle=1.0)
+        ok, got, want = pkrows(t, gm, PKIDS, True, ("rec00001", "rec00007"), True)
+        row("emptying the filter reads from the first id again: rec00001 and rec00007 are [x], by their ids, and the count says 2 marked", ok and "2 marked" in pfl(t, gm), repr((got[:8], pfl(t, gm)[-30:])))
+        t.key("ENTER")
+        row("Enter answers the ids picked, in the order they were picked: picked rec00001,rec00007", "picked rec00001,rec00007" in t.line(40), repr(t.line(40)))
+        t.end()
+
+        # a pipe: F11, then the input ends with the window open
+        say("    --- on a pipe: F11, then the input ends with the window open")
+        env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")
+        r0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+        p = subprocess.Popen([os.path.join(box, "sys", "bin", "sd")], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=os.path.join(box, "user_accounts"), env=env)
+        t0 = time.time()
+        try:
+            outp, _ = p.communicate(b"\nTERM 140,43\ntktest pick 12 50 1000\n\x1b[23~", timeout=20)
+            ended = True
+        except subprocess.TimeoutExpired:
+            os.kill(p.pid, 1)
+            time.sleep(1)
+            p.kill()
+            outp, _ = p.communicate()
+            ended = False
+        took = time.time() - t0
+        r1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+        cpu = (r1.ru_utime - r0.ru_utime) + (r1.ru_stime - r0.ru_stime)
+        seen = b"Pick a record" in outp
+        say("    [measured] ended: %s after %.1f s, the child's CPU %.2f s, the window was drawn on the pipe: %s" % (ended, took, cpu, "yes" if seen else "no"))
+        row("a piped session whose input ends with the paged window open ends within 20 s and does not spin (under 3 s of CPU)", ended and cpu < 3.0, "%.1f s, %.2f s" % (took, cpu))
+        if not seen:
+            skip("the window was open when the input ended", "the pipe did not decode F11 into the key, so the window was never drawn")
+    finally:
+        sess(box, "DELETE.FILE zzpkfile FORCE")
+
+
 # TK-0.4 (G4).  Part 1, an internal session: $tk_explain for gates of each kind.  Part 2, a pseudo-terminal: `tktest dialogs` (F7 a Run / Cancel box for
 # `create.file zztkdlg1 dynamic`, F8 the same with a typed name `zztkdlg2`); the DISK is the evidence of what ran.  Part 3, a pipe: F7, then the input ends.
 EXPLAINCASES = [("shon", "sh", 1), ("shoff", "sh", 0), ("vocon", "voc", 1), ("vocoff", "voc", 0), ("srdoff", "shared-read", 0), ("srdon", "shared-read", 1), ("neton", "net", 1),
@@ -981,6 +1140,7 @@ def main():
         dialogs_rows(box, made)
         table_rows(box, made)
         pick_rows(box, made)
+        pickfile_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

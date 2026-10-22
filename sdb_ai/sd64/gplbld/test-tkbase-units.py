@@ -147,17 +147,27 @@ def checks(raw):
     add("T26", "ORDER in $sl_pickwin: a session with no terminal returns at once, the screen under the window is saved before the frame is drawn and put back (and the screen given back) after the loop, "
         "and an Esc, an input that ended and the cursor lock's own way out all end as a cancel",
         ordered(pw, "if system(25) then return", "call $sl_region('save'", "call $sl_frame(", "call $sl_key('', k)", "call $sl_region('restore'", "call $sl_scr('put', scr)")
-        and "if k = '' or k = 'guardquit' then k = 'esc'" in pw and "case k = 'esc' st = 'cancel'" in pw, "")
+        and "if k = '' or k = 'guardquit' then k = 'esc'" in pw and "case k = 'esc' st = 'cancel'" in pw
+        and "call $sl_scr('put', scr) if fmode then clearselect 10 if st = 'done' then status = 0" in pw, "")
     add("T27", "$sl_pickwin answers entries by their NUMBER IN THE LIST (oi), never by their place among the entries the filter shows, and keeps picks by that number; Enter with picks answers the picks, "
         "without them the entry the person is on, and with nothing shown answers nothing",
-        "oi = i if fo then oi = vis<1, i> return" in pw and "ret = oi st = 'done'" in pw and "picked<1, -1> = oi" in pw and "if multi and picked # '' then ret = picked st = 'done' end else if cur >= 1 then" in pw
+        "oi = i if fo then oi = vis<1, i> return" in pw and "ret = oi if fmode then ret = items<oi, 1> st = 'done'" in pw and "pk = oi if fmode then pk = items<oi, 1> locate pk in picked<1, 1> setting at then del picked<1, at> end else picked<1, -1> = pk" in pw
+        and "if multi and picked # '' then ret = picked st = 'done' end else if cur >= 1 then" in pw
         and "ret = cur" not in pw and "picked<1, -1> = cur" not in pw, "")
     add("T28", "$sl_pickwin filters on the name and the description together, without regard to case; Backspace and Ctrl-U widen it; ? is the help line and is never part of the filter; "
         "in a multi window the space picks; a printable character is added to the filter only after those cases",
-        "if index(upcase(items<i, 1> : ' ' : items<i, 2>), uf, 1) then vis<1, -1> = i" in pw and "uf = upcase(filt)" in pw
+        "if index(upcase(items<i, 1> : ' ' : items<i, 2>), uf, 1) then vis<1, -1> = i" in pw and pw.count("uf = upcase(filt)") == 2
         and ordered(pw, "case k = 'bs'", "case k = 'ctrl-u'", "case k = '?'", "case k = ' ' and multi", "case len(k) = 1 and seq(k) >= 32 and seq(k) < 127"), "")
-    add("T29", "$sl_pickwin only draws and reads keys: it runs, reads and writes nothing else",
-        not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", pw)), "")
+    add("T29", "$sl_pickwin only draws and reads keys, and with a file reads ids and records: it runs, writes, locks and opens nothing",
+        not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", pw)) and pw.count("read rec from src, id then") == 1
+        and pw.count("readnext id from 10") == 1 and pw.count("sselect src to 10") == 1, "")
+    add("T30", "$sl_pickwin, paged source: one read looks at the page, the scan and the cache numbers at most and gives up when the ids are done; a record is read only when a description is asked for; the filter "
+        "is applied while reading; the cache grows only there; End reads on until the ids are done or the cache is full; the select list is cleared on every way out; a new filter starts the read again",
+        "loop while got < page and scanned < scancap and n < cachecap do readnext id from 10 else exhausted = 1 ; exit" in pw and "if exhausted or n >= cachecap then return" in pw
+        and "if dfield > 0 then read rec from src, id then" in pw and "if filt # '' then keepit = index(upcase(id : ' ' : desc), uf, 1)" in pw and pw.count("n += 1") == 1
+        and "loop while not(exhausted) and n < cachecap do gosub fetch repeat" in pw and pw.count("clearselect 10") == 3 and "clearselect 10 sselect src to 10" in pw
+        and "if fmode and cur >= n then gosub fetch" in pw and "if fmode and cur + lh - 1 > n then gosub fetch" in pw
+        and "if fmode and not(exhausted) and cur > n - lh then gosub fetch" in pw and "if fmode then gosub file.refilter return end" in pw, "")
     return out
 
 
@@ -228,13 +238,24 @@ MUT = [
     ("sl_pickwin", "a phantom is asked to pick", "if system(25) then return", "if 0 then return"),
     ("sl_pickwin", "the screen under the window is not put back", "call $sl_region('restore', scr, bx, by, bw, bh, under)", "null"),
     ("sl_pickwin", "Esc does not cancel", "         case k = 'esc'\n            st = 'cancel'", "         case k = 'esc'\n            st = ''"),
-    ("sl_pickwin", "Enter answers the place", "         ret = oi\n         st = 'done'", "         ret = cur\n         st = 'done'"),
-    ("sl_pickwin", "a pick is kept by place", "         picked<1, -1> = oi\n      end\n   end\n   return", "         picked<1, -1> = cur\n      end\n   end\n   return"),
+    ("sl_pickwin", "Enter answers the place", "         ret = oi\n         if fmode then ret = items<oi, 1>", "         ret = cur\n         if fmode then ret = items<oi, 1>"),
+    ("sl_pickwin", "a pick is kept by place", "         picked<1, -1> = pk\n      end\n   end\n   return", "         picked<1, -1> = cur\n      end\n   end\n   return"),
     ("sl_pickwin", "the filter ignores the description", "upcase(items<i, 1> : ' ' : items<i, 2>)", "upcase(items<i, 1>)"),
-    ("sl_pickwin", "the filter is case sensitive", "uf = upcase(filt)", "uf = filt"),
+    ("sl_pickwin", "the filter is case sensitive", "      uf = upcase(filt)\n      for i = 1 to n", "      uf = filt\n      for i = 1 to n"),
+    ("sl_pickwin", "the paged filter is case sensitive", "   uf = upcase(filt)\n   loop while got < page", "   uf = filt\n   loop while got < page"),
+    ("sl_pickwin", "a read ignores the scan number", "loop while got < page and scanned < scancap and n < cachecap do", "loop while got < page and n < cachecap do"),
+    ("sl_pickwin", "a read ignores the page", "loop while got < page and scanned < scancap and n < cachecap do", "loop while scanned < scancap and n < cachecap do"),
+    ("sl_pickwin", "a read ignores the cache size", "loop while got < page and scanned < scancap and n < cachecap do", "loop while got < page and scanned < scancap do"),
+    ("sl_pickwin", "the paged filter is not applied while reading", "      if filt # '' then keepit = index(upcase(id : ' ' : desc), uf, 1)", "      if 0 then keepit = index(upcase(id : ' ' : desc), uf, 1)"),
+    ("sl_pickwin", "the paged answer is a number", "         if fmode then ret = items<oi, 1>", "         if 0 then ret = items<oi, 1>"),
+    ("sl_pickwin", "a paged pick is kept by number", "      pk = oi\n      if fmode then pk = items<oi, 1>\n      locate", "      pk = oi\n      if 0 then pk = items<oi, 1>\n      locate"),
+    ("sl_pickwin", "End does not read on", "               loop while not(exhausted) and n < cachecap do\n                  gosub fetch\n               repeat", "               gosub fetch"),
+    ("sl_pickwin", "the select list is left on the way out", "   call $sl_scr('put', scr)\n   if fmode then clearselect 10\n   if st = 'done' then status = 0", "   call $sl_scr('put', scr)\n   if st = 'done' then status = 0"),
+    ("sl_pickwin", "a new filter does not start the read again", "   if fmode then\n      gosub file.refilter\n      return\n   end", "   if 0 then\n      gosub file.refilter\n      return\n   end"),
+    ("sl_pickwin", "the cache has no bound at the start of a read", "   if exhausted or n >= cachecap then return", "   if exhausted then return"),
     ("sl_pickwin", "? is added to the filter", "         case k = '?'\n            helpon = 1 - helpon\n", ""),
     ("sl_pickwin", "the space picks only after a character is added to the filter", "         case k = ' ' and multi\n            gosub toggle\n", ""),
-    ("sl_pickwin", "the window writes a record", "   call $sl_scr('put', scr)\n   if st = 'done' then status = 0", "   call $sl_scr('put', scr)\n   write items to scr, 'x'\n   if st = 'done' then status = 0"),
+    ("sl_pickwin", "the window writes a record", "   if fmode then clearselect 10\n   if st = 'done' then status = 0", "   write items to scr, 'x'\n   if fmode then clearselect 10\n   if st = 'done' then status = 0"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 
