@@ -28,6 +28,23 @@ $define TK.C.YSTAT     7       ;* the row of the status line
 $define TK.C.YBORD     8       ;* the row of the border
 $define TK.C.YKEYS     9       ;* the row of the function keys
 *
+* THE GATE TABLE ($tk_gate_info, plan section 2.4) returns one gate as a dynamic array, a field to a value:
+$define TK.G.ID        1       ;* the gate's id, the column name of the gate screen: sh, os, sd, voc ...
+$define TK.G.TITLE     2       ;* what a person calls it
+$define TK.G.ON        3       ;* the modify.account word that turns it on (null for a planned gate)
+$define TK.G.OFF       4       ;* the word that turns it off
+$define TK.G.KIND      5       ;* register (a field of the account's register record) or group (membership of a Linux group)
+$define TK.G.FIELD     6       ;* the ACC$ name of the register field (kind register)
+$define TK.G.GROUP     7       ;* the Linux group (kind group)
+$define TK.G.KEY       8       ;* the kernel key that holds it in a session, or null when only the register or a group holds it
+$define TK.G.WHEN      9       ;* when a change reaches a person
+$define TK.G.DEFAULT   10      ;* off or on, as delivered
+$define TK.G.SLOT      11      ;* modify.account refuses two words of one slot that set it to different states (11791)
+$define TK.G.ALLOWS    12      ;* one plain sentence: what ON allows
+$define TK.G.STILL     13      ;* one plain sentence: what OFF still allows
+$define TK.G.BEYOND    14      ;* 1 when the gate reaches beyond SD, to the operating system, the network or other servers
+$define TK.G.STATUS    15      ;* built or planned
+*
 * THE KEY TABLE is one dynamic array, a key to a field; the values of a field are:
 $define TK.K.KEY       1       ;* the key as $sl_key names it: f1, tab, ctrl-q ...
 $define TK.K.LABEL     2       ;* what the function-key row says it does: help, sort ...

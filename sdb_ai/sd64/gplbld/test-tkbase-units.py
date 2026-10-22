@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -108,6 +108,20 @@ def checks(raw):
         cited |= set(int(x) for x in re.findall(r"sysmsg\((\d+)", code[n]))
     have = {int(f) for f in os.listdir(os.path.join(SDSYS, "messages")) if f.isdigit()}
     add("T15", "the messages the base cites (%s) are all in the toolkit's block 11800 to 11849 and all exist" % sorted(cited), bool(cited) and all(11800 <= m <= 11849 and m in have for m in cited), sorted(m for m in cited if m not in have))
+    rn = sq["tk_run"]
+    add("T16", "ORDER in $tk_run: an empty sentence, a too long one, a first word outside the tool's list and a bad character are each refused (and return) BEFORE the one EXECUTE",
+        ordered(rn, "sysmsg(11804)", "sysmsg(11807)", "if not(ok.verb) then err = sysmsg(11805, verb)", "if index(good, w[j, 1], 1) = 0 then err = sysmsg(11806, w)",
+                "execute s trapping aborts capturing out")
+        and all(re.search(r"err = sysmsg\(%d[^)]*\) return" % m, rn) for m in (11804, 11805, 11806, 11807)), "")
+    add("T17", "$tk_run runs only the sentence it checked (s), traps aborts, hands back the return code, and writes no audit line and no screen text",
+        rn.count("execute ") == 1 and "execute sentence" not in rn and "status = @system.return.code" in rn and "K$AUDIT" not in rn and not re.search(r"\b(crt|display|print|screen)\b", rn), "")
+    add("T18", "$tk_run allows exactly a-z, 0-9, dot, dash and underscore in a word, and the first word is compared whole against the tool's list, in lower case as typed",
+        "good = 'abcdefghijklmnopqrstuvwxyz0123456789._-'" in rn and "field(allow, ' ', i) = verb and verb # ''" in rn, "")
+    gi = sq["tk_gate_info"]
+    gi_code = re.sub(r'rows<-1> = "[^"]*"', "rows<-1> = ROW", gi)          # the rows are prose: the words of a sentence are not statements
+    add("T19", "$tk_gate_info answers a list and one gate at a time from its rows, writes nothing and changes no state",
+        "id = 'list' then" in gi and "convert('|', @fm, rows<i>)" in gi and gi_code.count("rows<-1> = ROW") >= 10
+        and not re.search(r"\b(crt|display|print|screen|write|writev|kernel|execute)\b", gi_code), "")
     return out
 
 
@@ -147,6 +161,14 @@ MUT = [
     ("tk_keys", "an action is looked up by key alone", "op = 'action'", "op = 'actionx'"),
     ("tool_tktest", "end of input is taken for an empty key", "ER$EOF", "ER$XXX"),
     ("tk_open", "an escape sequence is written", "screen open clear lines", "crt char(27) : '[2J' ; screen open clear lines"),
+    ("tk_run", "the tool's list is not asked", "if not(ok.verb) then", "if 0 then"),
+    ("tk_run", "the characters of a word are not checked", "if index(good, w[j, 1], 1) = 0 then", "if 0 then"),
+    ("tk_run", "the raw sentence is run, not the checked one", "execute s trapping aborts capturing out", "execute sentence trapping aborts capturing out"),
+    ("tk_run", "aborts are not trapped", "execute s trapping aborts capturing out", "execute s capturing out"),
+    ("tk_run", "a refused sentence does not return", "err = sysmsg(11805, verb)\n      return", "err = sysmsg(11805, verb)"),
+    ("tk_run", "an extra character is allowed (the semicolon)", "0123456789._-'", "0123456789._-;'"),
+    ("tk_run", "the first word is matched as a prefix", "field(allow, ' ', i) = verb and verb # ''", "field(allow, ' ', i)[1, len(verb)] = verb"),
+    ("tk_gate_info", "the table is written to the screen", "   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]
 
 

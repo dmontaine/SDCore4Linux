@@ -110,8 +110,106 @@ class Term:
         self.s.finish()
 
 
+# TK-0.2.  A $internal program calls $tk_gate_info and $tk_run in an internal session and prints one line for each; the numbers in it are the TK.G.* fields of tk.h
+# (test-tkgates-units.py holds them).  The sentinel is a real effect: create.file zztkrunf.  Every refusal below is a sentence that WOULD make the file if it ran.
+RUNPROG = """$internal
+   crt 'TKRUN begin'
+   call $tk_gate_info('list', ids)
+   crt 'GL ' : dcount(ids, @fm) : ' ' : ids<1> : ' ' : ids<dcount(ids, @fm)>
+   call $tk_gate_info('sh', g)
+   crt 'GSH ' : g<3> : ' ' : g<4> : ' ' : g<8> : ' ' : g<11> : ' ' : g<15>
+   call $tk_gate_info('nosuch', g)
+   crt 'GNO [' : g : ']'
+   call $tk_gate_info('sockets', g)
+   crt 'GSK ' : g<15> : ' [' : g<3> : ']'
+   allow = 'who.am.i create.file'
+   tag = 'T1' ; sentence = 'who.am.i' ; gosub go
+   tag = 'T2' ; sentence = 'WHO.AM.I' ; gosub go
+   tag = 'T3' ; sentence = 'sh ls' ; gosub go
+   tag = 'T4' ; sentence = 'who' ; gosub go
+   tag = 'T5' ; sentence = 'who.am.i x;sh' ; gosub go
+   tag = 'T6' ; sentence = "who.am.i 'x'" ; gosub go
+   tag = 'T7' ; sentence = 'who.am.i' : char(9) : 'x' ; gosub go
+   tag = 'T8' ; sentence = 'who.am.i x' : @vm ; gosub go
+   tag = 'T9' ; sentence = '' ; gosub go
+   tag = 'T10' ; sentence = '   ' ; gosub go
+   tag = 'T11' ; sentence = 'who.am.i ' : str('a', 600) ; gosub go
+   tag = 'T12' ; sentence = 'who.am.i' : str(' a', 41) ; gosub go
+   tag = 'T13' ; sentence = 'who.am.i' : str(' a', 39) ; gosub go
+   tag = 'T14' ; sentence = 'who.am.i `x`' ; gosub go
+   tag = 'T15' ; sentence = 'who.am.i $x' ; gosub go
+   tag = 'S1' ; sentence = 'create.file zztkrunf;ls dynamic' ; gosub go
+   tag = 'S2' ; sentence = 'CREATE.FILE zztkrunf dynamic' ; gosub go
+   tag = 'S3' ; sentence = "create.file zztkrunf 'dynamic'" ; gosub go
+   open 'zztkrunf' to f then
+      crt 'SENT after-refusals EXISTS'
+      close f
+   end else crt 'SENT after-refusals ABSENT'
+   tag = 'S4' ; sentence = 'create.file zztkrunf dynamic' ; gosub go
+   open 'zztkrunf' to f then
+      crt 'SENT after-run EXISTS'
+      close f
+   end else crt 'SENT after-run ABSENT'
+   execute 'delete.file zztkrunf force' capturing o2
+   crt 'TKRUN end'
+   stop
+go:
+   call $tk_run(allow, sentence, out, st, err)
+   crt tag : ' st=' : st : ' err=[' : err : '] ran=' : (if index(out, 'Admin?', 1) > 0 then 1 else 0)
+   return
+end
+"""
+
+
+def runtime_rows(box, made):
+    say("\n--- the gate table and the one place a tool runs a command (TK-0.2)")
+    with open(os.path.join(box, "sys", "bp", "zztkrun"), "w", encoding="latin-1") as f:
+        f.write(RUNPROG)
+    made.append("zztkrun")
+    out = sess(box, "DELETE.FILE zztkrunf FORCE", "BASIC bp zztkrun", "RUN bp zztkrun")
+    if not re.search(r"^TKRUN begin\s*$", out, re.M) or not re.search(r"^TKRUN end\s*$", out, re.M):
+        say(out[-1200:])
+        bail("the TK-0.2 program did not run to its end, so no row below can be believed")
+    got = {}
+    for m in re.finditer(r"^(\w+) st=(-?\d+) err=\[(.*)\] ran=(\d)\s*$", out, re.M):
+        got[m.group(1)] = (int(m.group(2)), m.group(3), int(m.group(4)))
+    line = lambda pat: re.search(pat, out, re.M)
+    row("$tk_gate_info 'list' returns the 15 ids, the first ssh and the last the planned sockets", line(r"^GL 15 ssh sockets\s*$") is not None, out[-300:])
+    row("a gate by id returns its words, kernel key, conflict slot and status: sh = sh-on sh-off K$SH SH built", line(r"^GSH sh-on sh-off K\$SH SH built\s*$") is not None, "")
+    row("an id that is not in the table returns nothing", line(r"^GNO \[\]\s*$") is not None, "")
+    row("a planned gate shows as planned and has no word to run", line(r"^GSK planned \[\]\s*$") is not None, "")
+
+    NOTALLOWED, CHAR, EMPTY, LONG = "is not one of the commands this tool may run", "has a character that a command word may not have", "there is nothing to run", "the command is too long to run"
+    want = [
+        ("T1", "an allowed command runs: who.am.i (no message, it ran, and its own words came back)", lambda e, r: e == "" and r == 1),
+        ("T2", "the first word is compared as typed: WHO.AM.I in capitals is refused (11805) and did not run", lambda e, r: NOTALLOWED in e and r == 0),
+        ("T3", "a command that is not in the list (sh ls) is refused (11805)", lambda e, r: NOTALLOWED in e and r == 0),
+        ("T4", "the first word is compared whole: 'who' is not 'who.am.i'", lambda e, r: NOTALLOWED in e and r == 0),
+        ("T5", "a semicolon in an argument is refused (11806): the command did not run", lambda e, r: CHAR in e and r == 0),
+        ("T6", "a quote in an argument is refused", lambda e, r: CHAR in e and r == 0),
+        ("T7", "a tab joins the next word to the first, which is then not in the list", lambda e, r: NOTALLOWED in e and r == 0),
+        ("T8", "a value mark in an argument is refused", lambda e, r: CHAR in e and r == 0),
+        ("T9", "an empty sentence is refused (11804)", lambda e, r: EMPTY in e and r == 0),
+        ("T10", "a sentence of spaces is refused (11804)", lambda e, r: EMPTY in e and r == 0),
+        ("T11", "a sentence of 600 characters is refused (11807)", lambda e, r: LONG in e and r == 0),
+        ("T12", "a sentence of 42 words is refused (11807)", lambda e, r: LONG in e and r == 0),
+        ("T13", "a sentence of exactly 40 words is run (the boundary)", lambda e, r: e == "" and r == 1),
+        ("T14", "a backtick in an argument is refused", lambda e, r: CHAR in e and r == 0),
+        ("T15", "a dollar sign in an argument is refused", lambda e, r: CHAR in e and r == 0),
+        ("S1", "create.file with a second command after a semicolon is refused (11806)", lambda e, r: CHAR in e),
+        ("S2", "CREATE.FILE in capitals is refused (11805)", lambda e, r: NOTALLOWED in e),
+        ("S3", "create.file with a quoted word is refused (11806)", lambda e, r: CHAR in e),
+        ("S4", "create.file zztkrunf dynamic, as the tool would build it, is run: no message", lambda e, r: e == ""),
+    ]
+    for tag, what, test in want:
+        g = got.get(tag)
+        row("%s: %s" % (tag, what), g is not None and test(g[1], g[2]), repr(g))
+    row("THE SENTINEL: after S1, S2 and S3 (each would have made the file) the file zztkrunf does not exist", line(r"^SENT after-refusals ABSENT\s*$") is not None, out[-400:])
+    row("...and after S4, which was allowed, it does (so the sentinel can fire)", line(r"^SENT after-run EXISTS\s*$") is not None, out[-400:])
+
+
 def main():
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    args =[a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 1:
         bail("usage: sandbox-tk-base.py <dir> [--build]")
     box = os.path.abspath(args[0])
@@ -190,6 +288,8 @@ def main():
             t.end()
         else:
             skip("audience admin", "the sandbox session is not an administrator, so the frame cannot be shown for it")
+
+        runtime_rows(box, made)
 
         say("\n--- the end of the input ends the app (a pipe; TERM 140,43 typed so that the window is big enough)")
         env = dict(os.environ, SD_CONFIG=os.path.join(box, "sd.conf"), TERM="xterm", LC_ALL="C")

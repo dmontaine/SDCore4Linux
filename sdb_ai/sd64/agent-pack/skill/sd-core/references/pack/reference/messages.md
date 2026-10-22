@@ -6273,6 +6273,42 @@ administrator
 
 cited by: `tk_open`
 
+### msg:11804
+> kind=message tier=reference since=- src=sdsys/messages/11804:1#58a916a2
+
+```
+there is nothing to run
+```
+
+cited by: `tk_run`
+
+### msg:11805
+> kind=message tier=reference since=- src=sdsys/messages/11805:1#769214f4
+
+```
+%1 is not one of the commands this tool may run
+```
+
+cited by: `tk_run`
+
+### msg:11806
+> kind=message tier=reference since=- src=sdsys/messages/11806:1#94aef6cc
+
+```
+%1 has a character that a command word may not have: use a-z, 0-9, dot, dash or underscore
+```
+
+cited by: `tk_run`
+
+### msg:11807
+> kind=message tier=reference since=- src=sdsys/messages/11807:1#c5e7c01d
+
+```
+the command is too long to run from this tool
+```
+
+cited by: `tk_run`
+
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
 
