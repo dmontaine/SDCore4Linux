@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  f{'quiet'} = 1 stops the redraw of the whole form after a set (for a program that draws the widget itself).
+* 22 Oct 26 dm  VALUE on a selector is brought into range (1 to the number of words).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -58,6 +59,11 @@ $catalog !screen_set
             v = 0
             if value + 0 # 0 then v = 1
             w{'value'} = v
+         case wt = 'selector'
+            sv = value + 0
+            if sv > dcount(w{'items'}, @vm) then sv = dcount(w{'items'}, @vm)
+            if sv < 1 then sv = 1
+            w{'value'} = sv
          case wt = 'radio'
             w{'value'} = value + 0
             w{'cur'} = value + 0

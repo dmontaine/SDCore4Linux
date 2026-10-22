@@ -38,7 +38,7 @@ $catalog !screen_values
    for i = 1 to nw
       w = f{'widgets', i}
       wt = w{'type'}
-      if wt = 'entry' or wt = 'check' or wt = 'slider' or wt = 'radio' or wt = 'list' or wt = 'combo' or wt = 'progress' or wt = 'tabs' or wt = 'table' then
+      if wt = 'entry' or wt = 'check' or wt = 'slider' or wt = 'selector' or wt = 'radio' or wt = 'list' or wt = 'combo' or wt = 'progress' or wt = 'tabs' or wt = 'table' then
          k = w{'id'}
          c{k} = w{'value'}
       end

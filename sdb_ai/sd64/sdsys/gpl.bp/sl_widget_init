@@ -6,6 +6,7 @@
 * START-HISTORY:
 * 12 Oct 26 dm  New.
 * 18 Oct 26 dm  container and viewport.
+* 22 Oct 26 dm  selector (S.75, TK-0.10).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -29,6 +30,7 @@ $catalog $sl_widget_init
       case wt = 'list' ; call $sl_list('init', w, '', '', r)
       case wt = 'check' ; call $sl_check('init', w, '', '', r)
       case wt = 'slider' ; call $sl_slider('init', w, '', '', r)
+      case wt = 'selector' ; call $sl_selector('init', w, '', '', r)
       case wt = 'radio' ; call $sl_radio('init', w, '', '', r)
       case wt = 'button' ; call $sl_button('init', w, '', '', r)
       case wt = 'label' ; call $sl_label('init', w, '', '', r)

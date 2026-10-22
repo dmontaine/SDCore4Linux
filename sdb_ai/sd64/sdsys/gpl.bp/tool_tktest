@@ -12,6 +12,9 @@
 *
 *   tktest {admin} {dialogs}      tktest table [N] [theme]      tktest pick [N] [page] [scan]      tktest slider
 *
+*   selector shows a form with four choices of one word among several (SCREEN SELECTOR: label left, right with ATTR window, above, and in colours) and a label
+*   that says their numbers and the last change; F2 sets them from the program (a number above the last is brought into range, new words choose the first).
+*
 *   slider [theme] shows a form with three sliders and a check box (the on / off switch, SCREEN SLIDER; the third has ATTR window, so only its capitals show the state, and the words left and right);
 *   a label under them shows their values and the last change.
 *
@@ -132,6 +135,12 @@ $include tk.h
       gosub cf.run
    end
 
+   * pane S again: SCREEN SELECTOR (tktest selector); F2 sets the choices from the program
+   if field(@sentence, ' ', 2) = 'selector' then
+      pane = 'S'
+      gosub sel.run
+   end
+
    loop
       call $tk_frame(ctx, keys, pane, msg)
       screen key returning k
@@ -247,6 +256,53 @@ s.run:
    screen get sf, 'chk' returning sv3
    screen hide sf
    msg = 'sliders sh=' : sv1 : ' os=' : sv2 : ' chk=' : sv3 : ' pressed=' : spressed
+   return
+
+* the selector form: four SCREEN SELECTOR controls (label left, right with ATTR window, above, and in colours), a label that says their choices and the last change
+sel.run:
+   call $tk_frame(ctx, keys, pane, msg)
+   screen form title 'Choices' at 30,6 size 70,17 returning sf
+   screen selector sf, 'c', '&Colour', 'blue':@vm:'green':@vm:'red':@vm:'black' at 3,2 value 3
+   screen selector sf, 's', 'size', 'small':@vm:'medium':@vm:'large' at 3,4 value 2 attr 'window' place 'right'
+   screen selector sf, 'm', 'mode', 'fast':@vm:'slow':@vm:'exact' at 3,6 place 'above'
+   screen selector sf, 't', 'tint', 'ex':@vm:'why':@vm:'zed' at 3,9 color 'white','blue'
+   qref = 0
+   screen selector sf, 'nowords', 'no words', '' at 3,10 else qref += 1                  ;* no words: refused
+   screen selector sf, 'c', 'same id', 'x':@vm:'y' at 3,10 else qref += 1                 ;* an id in use: refused
+   screen label sf, 'log', 'c=3 s=2 m=1 t=1 last=none n=0' at 3,12 width 60
+   screen button sf, 'ok', '&OK' at 30,14 default
+   qlog = 'none'
+   qchg = 0
+   qpressed = 'end'
+   loop
+      screen wait sf returning ev then
+         if ev<1> = 'change' then qlog = ev<2> : '=' : ev<3> ; qchg += 1
+         if ev<1> = 'button' then
+            qpressed = ev<2>
+            exit
+         end
+         if ev<1> = 'key' and ev<3> = 'f2' then
+            screen set sf, 'c' value 9
+            screen set sf, 's' value 3
+            screen set sf, 'm' items 'one':@vm:'two'
+            qlog = 'set'
+         end
+         screen get sf, 'c' returning q1
+         screen get sf, 's' returning q2
+         screen get sf, 'm' returning q3
+         screen get sf, 't' returning q4
+         screen set sf, 'log' text 'c=' : q1 : ' s=' : q2 : ' m=' : q3 : ' t=' : q4 : ' last=' : qlog : ' n=' : qchg
+      end else
+         qpressed = ev<1>
+         exit
+      end
+   repeat
+   screen get sf, 'c' returning q1
+   screen get sf, 's' returning q2
+   screen get sf, 'm' returning q3
+   screen get sf, 't' returning q4
+   screen hide sf
+   msg = 'selectors c=' : q1 : ' s=' : q2 : ' m=' : q3 : ' t=' : q4 : ' refused=' : qref : ' pressed=' : qpressed
    return
 
 * the colour form: a control of each kind in colours of its own, two of them in the same pair (black on green); the label at the right says the theme

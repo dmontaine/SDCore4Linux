@@ -24,7 +24,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
-NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "tool_tktest"]
+NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "tool_tktest"]
 PROGRAMS = [n for n in NAMES if n != "tk.h"]
 
 
@@ -215,10 +215,28 @@ def checks(raw):
         and "if r = cy then rowtext[cx + 1, 3] = mark" in ck and "if r = ly and w{'label'} # '' then rowtext[lx + 1, len(w{'label'})] = w{'label'}" in ck
         and "call $sl_curat(w{'ax'} + cx + 1, w{'ay'} + cy)" in ck and "if key<1> = 'press' then v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in ck
         and "if key = ' ' then ret = 'handled'" in ck and "ret = 'unhandled' : @fm : key" in ck and "if w{'value'} + 0 # 0 then v = 1" in ck, "")
+    se = sq["sl_selector"]
+    add("T36", "$sl_selector: the value is brought into range (1 to the number of words); Right and Left step and stop at the last and the first, Home and End go to them, the space bar steps and "
+        "after the last goes to the first (each 'handled'), any other key is 'unhandled' with its name; a click on a word (and the space after it, and the bracket at either end) chooses it, a click on the "
+        "label the next word; it is drawn [blue | GREEN | red] with the word in force in capitals, the others in lower case, the word in the style attr (bold unless the program says another) unless it has "
+        "the focus, the cursor on that word, the label where $sl_caption says; it draws, reads and writes nothing else",
+        "v = w{'value'} + 0 if v < 1 or v > n then v = 1 w{'value'} = v" in se and "if w{'attr'} = '' then w{'attr'} = 'bold'" in se
+        and "case key = ' ' ret = 'handled' gosub nextword gosub paint" in se and "case key = 'right' ret = 'handled' if v < n then w{'value'} = v + 1 gosub paint" in se
+        and "case key = 'left' ret = 'handled' if v > 1 then w{'value'} = v - 1 gosub paint" in se and "case key = 'home' ret = 'handled' w{'value'} = 1 gosub paint" in se
+        and "case key = 'end' ret = 'handled' w{'value'} = n gosub paint" in se and "case 1 ret = 'unhandled' : @fm : key" in se and se.count("case key = ") == 5
+        and "nextword: v = w{'value'} + 0 + 1 if v > n then v = 1 w{'value'} = v return" in se
+        and ("if rrow = 0 and rel >= 0 and rel < len(sw) then chosen = n for j = n to 1 step -1 if rel <= lastc<j> + 1 then chosen = j next j w{'value'} = chosen end else gosub nextword end") in se
+        and "rel = key<3> - w{'ax'} - geom<1, SL.CAP.CX> rrow = key<4> - w{'ay'} - geom<1, SL.CAP.CY>" in se
+        and ("sw = '[' a0 = 1 al = 0 lastc = '' for j = 1 to n wd = items<1, j, 1> if j = v then wd = upcase(wd) a0 = len(sw) al = len(wd) end else wd = downcase(wd) end "
+             "lastc<j> = len(sw) + len(wd) - 1 sw := wd if j < n then sw := ' | ' next j sw := ']' return") in se
+        and se.count("call $sl_caption(w{'place'}, len(sw), w{'label'}, geom)") == 2 and "gosub layout call $sl_caption(w{'place'}, len(sw), t, geom)" in se
+        and "if w{'ccode'} # '' then code = w{'ccode'} if w{'focused'} then call $sl_attr('highlight', code)" in se
+        and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[cx + a0 + k, 1] = ac next k end" in se and "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)" in se
+        and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", se)), "")
     return out
 
 
-EXTRA = ["sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
+EXTRA =["sl_theme", "sl.h"]               # read for the colour slots; not checked as toolkit programs (the theme writes terminal sequences, which T12 forbids the base to do)
 
 
 def load():
@@ -336,6 +354,24 @@ MUT = [
     ("sl_slider", "the cursor is not put on the word in force", "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)", "null"),
     ("sl_slider", "an arrow other than Left and Right is taken", "            case 1\n               ret = 'unhandled' : @fm : key", "            case key = 'up'\n               ret = 'handled'\n            case 1\n               ret = 'unhandled' : @fm : key"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
+    # TK-0.11, the selector (the sitting's own mutants)
+    ("sl_selector", "Right goes past the last word", "               if v < n then w{'value'} = v + 1", "               w{'value'} = v + 1"),
+    ("sl_selector", "Left goes past the first word", "               if v > 1 then w{'value'} = v - 1", "               w{'value'} = v - 1"),
+    ("sl_selector", "Home goes to the last word", "            case key = 'home'\n               ret = 'handled'\n               w{'value'} = 1", "            case key = 'home'\n               ret = 'handled'\n               w{'value'} = n"),
+    ("sl_selector", "End goes to the first word", "            case key = 'end'\n               ret = 'handled'\n               w{'value'} = n", "            case key = 'end'\n               ret = 'handled'\n               w{'value'} = 1"),
+    ("sl_selector", "the space bar does not wrap", "   v = w{'value'} + 0 + 1\n   if v > n then v = 1", "   v = w{'value'} + 0 + 1\n   if v > n then v = n"),
+    ("sl_selector", "the word in force is in lower case", "         wd = upcase(wd)\n         a0 = len(sw)", "         wd = downcase(wd)\n         a0 = len(sw)"),
+    ("sl_selector", "the other words are in capitals", "         wd = downcase(wd)\n      end", "         wd = upcase(wd)\n      end"),
+    ("sl_selector", "the word in force is styled one cell early", "         a0 = len(sw)\n         al = len(wd)", "         a0 = len(sw) - 1\n         al = len(wd)"),
+    ("sl_selector", "the space after a word belongs to the next word", "if rel <= lastc<j> + 1 then chosen = j", "if rel <= lastc<j> then chosen = j"),
+    ("sl_selector", "a click on the closing bracket chooses the first word", "               chosen = n\n", "               chosen = 1\n"),
+    ("sl_selector", "a click on the label does nothing", "            end else\n               gosub nextword\n            end\n            gosub paint", "            end else\n               null\n            end\n            gosub paint"),
+    ("sl_selector", "a start value above the last word stays", "         if v < 1 or v > n then v = 1", "         if v < 1 then v = 1"),
+    ("sl_selector", "an arrow other than Left and Right is taken", "            case 1\n               ret = 'unhandled' : @fm : key", "            case key = 'up'\n               ret = 'handled'\n            case 1\n               ret = 'unhandled' : @fm : key"),
+    ("sl_selector", "the cursor is not put on the word in force", "call $sl_curat(w{'ax'} + cx + a0, w{'ay'} + cy)", "null"),
+    ("sl_selector", "the colour is not used", "   if w{'ccode'} # '' then code = w{'ccode'}\n", "\n"),
+    ("sl_selector", "the focus is not shown", "   if w{'focused'} then call $sl_attr('highlight', code)\n", "\n"),
+    ("sl_selector", "no style is the default", "if w{'attr'} = '' then w{'attr'} = 'bold'", "if w{'attr'} = '' then w{'attr'} = 'window'"),
 ]
 
 

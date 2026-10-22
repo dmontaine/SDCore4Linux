@@ -16,6 +16,7 @@
 *               (the IDE's timeout 1 turned the end into timeouts for ever, at full CPU; sandbox-eofkeys.py).
 * 19 Oct 26 dm  f{'bgclick'} = 1: a press of the left button on no widget comes back as the key mouse (SCREEN MOUSE says where) instead of
 *               being ignored, so that the IDE can open its menu from a click on the bar.
+* 22 Oct 26 dm  selector (S.75, TK-0.10): dispatched like the slider, and a change of its value is a change event.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -34,7 +35,7 @@
 *     scrolled the id of the viewport that was scrolled, then its sx, sy: WAIT turns it into a change event
 *     curhid   1 while the form has hidden the cursor because the focused widget is not wholly in view
 *
-*   A widget is any of: label frame entry check slider radio list combo button progress tabs memo table tree scroll
+*   A widget is any of: label frame entry check slider selector radio list combo button progress tabs memo table tree scroll
 *   container viewport.  It has x y,
 *   its place from the top left corner of the form (0,0 is the corner of the border), and w h, its size, once its
 *   own init has run.  disabled (1) takes it out of the focus ring.  page (a number, set by SCREEN PAGE through
@@ -414,6 +415,7 @@ call.widget:
       case wt = 'list' ; call $sl_list(wop, w, scr, wkey, wr)
       case wt = 'check' ; call $sl_check(wop, w, scr, wkey, wr)
       case wt = 'slider' ; call $sl_slider(wop, w, scr, wkey, wr)
+      case wt = 'selector' ; call $sl_selector(wop, w, scr, wkey, wr)
       case wt = 'radio' ; call $sl_radio(wop, w, scr, wkey, wr)
       case wt = 'button' ; call $sl_button(wop, w, scr, wkey, wr)
       case wt = 'label' ; call $sl_label(wop, w, scr, wkey, wr)
@@ -969,7 +971,7 @@ show.form:
 * One event: show the form if it is not shown, read keys until one of them means something to the program.
 * tmo = seconds to wait for a key (null: for ever).  ret = 'event' : evt : eid : edata where evt is
 *   button  (eid the button's id)           cancel  (Esc, eid null; or the form's cancel button, eid its id)
-*   change  (eid, edata the new value: a check box, slider, radio group, list or combo changed)
+*   change  (eid, edata the new value: a check box, slider, selector, radio group, list or combo changed)
 *   focus   (eid the widget the focus went to, edata the one it left)
 *   key     (edata the key's name: one the form had no use for; also mouse, for a press of the left button on no widget, when the
 *           program has set f{'bgclick'} = 1)    timeout    end (the input ended)
@@ -1022,7 +1024,7 @@ wait.event:
             case fi1 # fi0 and fi1 >= 1
                w = f{'widgets', fi1}
                evt = 'focus' ; eid = w{'id'} ; edata = id0
-            case fi0 >= 1 and (wt0 = 'check' or wt0 = 'slider' or wt0 = 'radio' or wt0 = 'list' or wt0 = 'combo' or wt0 = 'tabs' or wt0 = 'table' or wt0 = 'tree' or wt0 = 'scroll')
+            case fi0 >= 1 and (wt0 = 'check' or wt0 = 'slider' or wt0 = 'selector' or wt0 = 'radio' or wt0 = 'list' or wt0 = 'combo' or wt0 = 'tabs' or wt0 = 'table' or wt0 = 'tree' or wt0 = 'scroll')
                w = f{'widgets', fi0}
                if w{'value'} # v0 then
                   evt = 'change' ; eid = id0 ; edata = w{'value'}

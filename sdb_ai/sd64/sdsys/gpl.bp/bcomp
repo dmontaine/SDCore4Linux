@@ -18,6 +18,7 @@
 * 
 * 
 * START-HISTORY:
+* 22 Oct 26 dm  SCREEN SELECTOR (a choice of one word among several, S.75 TK-0.10) in the SCREEN.VERBS table.
 * 22 Oct 26 dm  SCREEN SLIDER (an on / off switch, S.75 TK-0.8) in the SCREEN.VERBS table; PLACE on CHECK and SLIDER; COLOR on ENTRY, COMBO, CHECK, SLIDER, RADIO, LIST,
 *               BUTTON, LABEL and PROGRESS.
 * 18 Oct 26 dm  SCREEN CONTAINER, VIEWPORT, IN, MOVE, DELETE and SCROLL (screen library: containers and viewports) in the SCREEN.VERBS table.
@@ -528,6 +529,7 @@ $define STACK.MARK 9999         ;* Marks start of sub-expression
    screen.names<-1> = "ENTRY"   ; screen.defs<-1> = "!screen_entry":@vm:2:@vm:"AT:2":@sm:"WIDTH:1":@sm:"VALUE:1":@sm:"MASK:F":@sm:"MAXLEN:1":@sm:"COLOR:2"
    screen.names<-1> = "CHECK"   ; screen.defs<-1> = "!screen_check":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"PLACE:1":@sm:"COLOR:2"
    screen.names<-1> = "SLIDER"  ; screen.defs<-1> = "!screen_slider":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"ATTR:1":@sm:"WORDS:2":@sm:"PLACE:1":@sm:"COLOR:2"       ;* 22 Oct 26: an on / off switch (TK-0.8)
+   screen.names<-1> = "SELECTOR" ; screen.defs<-1> = "!screen_selector":@vm:4:@vm:"AT:2":@sm:"VALUE:1":@sm:"ATTR:1":@sm:"PLACE:1":@sm:"COLOR:2"     ;* 22 Oct 26: a choice of one word among several (TK-0.10)
    screen.names<-1> = "RADIO"   ; screen.defs<-1> = "!screen_radio":@vm:3:@vm:"AT:2":@sm:"VALUE:1":@sm:"ACROSS:F":@sm:"COLOR:2"
    screen.names<-1> = "LIST"    ; screen.defs<-1> = "!screen_list":@vm:3:@vm:"AT:2":@sm:"SIZE:2":@sm:"VALUE:1":@sm:"MULTI:F":@sm:"COLOR:2"
    screen.names<-1> = "BUTTON"  ; screen.defs<-1> = "!screen_button":@vm:3:@vm:"AT:2":@sm:"DEFAULT:F":@sm:"CANCEL:F":@sm:"COLOR:2"

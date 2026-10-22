@@ -1,6 +1,22 @@
 Next release - in progress
 --------------------------
 
+22 Oct 26  SCREEN SELECTOR: A CHOICE OF ONE WORD AMONG SEVERAL, [blue | green | RED | black], FOR SD BASIC SCREENS.
+
+             What        SCREEN SELECTOR f, id, text, words {AT x,y} {VALUE n} {ATTR style} {PLACE where} {COLOR fg,bg} adds a row of words
+                        to a form, one of them in force: the word is in capitals and in a style (bold unless ATTR names another), the others
+                        in lower case. The words are a dynamic array of any length (at least one; an empty list makes the statement take
+                        its ELSE). Left and Right choose the previous and the next word and stop at the ends, Home and End go to the first
+                        and the last, the space bar chooses the next word and, after the last, the first; a click on a word (or on the space
+                        after it, or on either bracket) chooses it and a click on the text chooses the next word. SCREEN GET answers the
+                        number of the word in force, counted from one (3 for RED), SCREEN SET f, id VALUE n chooses one (a number outside
+                        the words is brought into range), SCREEN SET ... ITEMS gives it other words (the first is chosen), and SCREEN WAIT
+                        reports a change event with the number. PLACE and COLOR work as for the check box and the slider.
+             Why it      A setting with more than two states (a colour, a mode, a size) can be shown as the whole row of its values with the
+             matters     one in force marked, where a radio group takes a column of the screen and a combo box hides the other choices.
+             Does not    It is not a list: all the words are always on the screen in one row, so it suits a few short words. A row wider
+                        than the form is cut off at the form's edge as any control is. The on / off SLIDER still gives 1 or 0.
+
 22 Oct 26  COLOR FG,BG ON THE CONTROLS OF AN SD BASIC SCREEN: BLACK TEXT ON GREEN, FOR EXAMPLE.
 
              What        SCREEN LABEL, ENTRY, COMBO, CHECK, SLIDER, RADIO, LIST, BUTTON and PROGRESS take COLOR fg,bg as a last clause. The
