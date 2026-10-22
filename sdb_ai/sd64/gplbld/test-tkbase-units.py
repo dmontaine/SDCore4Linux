@@ -170,11 +170,17 @@ def checks(raw):
         and "if fmode and not(exhausted) and cur > n - lh then gosub fetch" in pw and "if fmode then gosub file.refilter return end" in pw, "")
     sl = sq["sl_slider"]
     add("T31", "$sl_slider: the value is 0 or 1 from the start; the space bar slides it the other way, Left sets it off and Right sets it on (each 'handled'), any other key is 'unhandled' with its name; "
-        "a click slides it the other way; it is drawn [O--] off and [==O] on, with the cursor on the knob; it draws, reads and writes nothing else",
-        "if w{'value'} + 0 # 0 then v = 1 w{'value'} = v" in sl and "case key = ' ' ret = 'handled' v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
+        "a click on a word sets that state and a click on the text slides it the other way; it is drawn [OFF | on] off and [off | ON] on (the owner's look) with the words the program chose, the word in force "
+        "in the style attr (bold unless the program says another) unless the switch has the focus, with the cursor on that word; it draws, reads and writes nothing else",
+        "if w{'value'} + 0 # 0 then v = 1 w{'value'} = v" in sl and "if w{'attr'} = '' then w{'attr'} = 'bold'" in sl
+        and "if w{'offw'} = '' then w{'offw'} = 'off' if w{'onw'} = '' then w{'onw'} = 'on'" in sl
+        and "case key = ' ' ret = 'handled' v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
         and "case key = 'left' ret = 'handled' w{'value'} = 0 gosub paint" in sl and "case key = 'right' ret = 'handled' w{'value'} = 1 gosub paint" in sl
-        and "case 1 ret = 'unhandled' : @fm : key" in sl and sl.count("case key = ") == 3 and "if key<1> = 'press' then v = 1 if w{'value'} then v = 0 w{'value'} = v gosub paint" in sl
-        and "sw = '[O--] ' kx = 1 if w{'value'} then sw = '[==O] ' kx = 3 end" in sl and "call $sl_curat(w{'ax'} + kx, w{'ay'} + 0)" in sl
+        and "case 1 ret = 'unhandled' : @fm : key" in sl and sl.count("case key = ") == 3
+        and "rel = key<3> - w{'ax'} lo = len(w{'offw'}) ln = len(w{'onw'}) begin case case rel <= lo + 2 w{'value'} = 0 case rel <= lo + ln + 4 w{'value'} = 1 case 1 v = 1 if w{'value'} then v = 0 w{'value'} = v end case gosub paint" in sl
+        and ("lo = len(w{'offw'}) ln = len(w{'onw'}) sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : '] ' a0 = 1 al = lo if w{'value'} then "
+             "sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : '] ' a0 = lo + 4 al = ln end") in sl
+        and "if not(w{'focused'}) then call $sl_attr(w{'attr'}, ac) for k = 1 to al cells[a0 + k, 1] = ac next k end" in sl and "call $sl_curat(w{'ax'} + a0, w{'ay'} + 0)" in sl
         and not re.search(r"\b(execute|write|writev|readu|delete|openpath|open|read|kernel|os\.execute|crt|display)\b", re.sub(r"'[^']*'", "''", sl)), "")
     return out
 
@@ -268,8 +274,14 @@ MUT = [
     ("sl_slider", "Left slides it on", "               w{'value'} = 0\n               gosub paint", "               w{'value'} = 1\n               gosub paint"),
     ("sl_slider", "Right slides it off", "               w{'value'} = 1\n               gosub paint", "               w{'value'} = 0\n               gosub paint"),
     ("sl_slider", "a start value of 5 stays 5", "if w{'value'} + 0 # 0 then v = 1", "if 0 then v = 1"),
-    ("sl_slider", "off and on look the same", "      sw = '[==O] '", "      sw = '[O--] '"),
-    ("sl_slider", "the cursor is not put on the knob", "call $sl_curat(w{'ax'} + kx, w{'ay'} + 0)", "null"),
+    ("sl_slider", "off and on look the same", "      sw = '[' : downcase(w{'offw'}) : ' | ' : upcase(w{'onw'}) : '] '", "      sw = '[' : upcase(w{'offw'}) : ' | ' : downcase(w{'onw'}) : '] '"),
+    ("sl_slider", "the words of the program are not used", "         if w{'offw'} = '' then w{'offw'} = 'off'", "         w{'offw'} = 'off'"),
+    ("sl_slider", "the word in force is styled one cell early", "      a0 = lo + 4\n      al = ln", "      a0 = lo + 3\n      al = ln"),
+    ("sl_slider", "the word in force is not in the style", "      call $sl_attr(w{'attr'}, ac)\n      for k = 1 to al", "      call $sl_attr('window', ac)\n      for k = 1 to al"),
+    ("sl_slider", "no style is the default", "if w{'attr'} = '' then w{'attr'} = 'bold'", "if w{'attr'} = '' then w{'attr'} = 'window'"),
+    ("sl_slider", "a click on the word on sets it off", "               case rel <= lo + ln + 4\n                  w{'value'} = 1", "               case rel <= lo + ln + 4\n                  w{'value'} = 0"),
+    ("sl_slider", "a click on the text does nothing", "               case 1\n                  v = 1\n                  if w{'value'} then v = 0\n                  w{'value'} = v\n            end case", "               case 1\n                  null\n            end case"),
+    ("sl_slider", "the cursor is not put on the word in force", "call $sl_curat(w{'ax'} + a0, w{'ay'} + 0)", "null"),
     ("sl_slider", "an arrow other than Left and Right is taken", "            case 1\n               ret = 'unhandled' : @fm : key", "            case key = 'up'\n               ret = 'handled'\n            case 1\n               ret = 'unhandled' : @fm : key"),
     ("tk_gate_info", "the table is written to the screen","   if id = 'list' then", "   crt 'x'\n   if id = 'list' then"),
 ]

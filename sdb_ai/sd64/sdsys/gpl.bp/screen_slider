@@ -1,36 +1,41 @@
 * SCREEN_SLIDER
-* The subroutine that SCREEN SLIDER calls: add an on / off switch with a sliding knob to a form.
+* The subroutine that SCREEN SLIDER calls: add an on / off switch to a form.
 * Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
 * it and/or modify it under the terms of the GNU General Public License, version 3 or later.
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.8).
+* 22 Oct 26 dm  The look is [off | ON] (see $sl_slider), the ATTR clause names the style of the word in force and the WORDS clause the two words.
 * END-HISTORY
 *
 * START-DESCRIPTION:
 *
-*   SCREEN SLIDER f, id, text {AT x,y} {VALUE v}
+*   SCREEN SLIDER f, id, text {AT x,y} {VALUE v} {ATTR style} {WORDS off,on}
 *
 *   is compiled into
 *
-*   call !screen_slider(f, id, text, x, y, value, ret, status)
+*   call !screen_slider(f, id, text, x, y, value, attr, offword, onword, ret, status)
 *
 *     f id     the form and the widget's name in it (as SCREEN LABEL)
 *     text     shown after the switch
 *     x y      the place of the switch from the form's top left corner, default 1,1
 *     value    1 to start on (default 0)
+*     attr     the style of the word in force, any style of $sl_theme (bold, highlight, header, error, underline ...); default bold, so the word is in capitals AND
+*              in the style the theme gives bold (a colour in a colour theme); window draws it as the form's own, so that only the capitals show the state
+*     words    two words, the first for the off state and the second for the on state: WORDS 'left','right' draws [left | RIGHT] and [LEFT | right]; default
+*              off and on
 *     status   0 added; 1 not (ELSE)
 *
-*   The switch is drawn [O--] text when it is off and [==O] text when it is on.  The space bar slides it the other way, Left slides it off, Right slides it
-*   on, a click slides it the other way.  SCREEN GET f, id answers 1 or 0; SCREEN SET f, id VALUE v sets it; a change is a change event of SCREEN WAIT, as for a
-*   check box.
+*   The switch is drawn [off | ON] text when it is on and [OFF | on] text when it is off (with the words the program chose, the one in force in capitals).  The
+*   space bar slides it the other way, Left sets it off, Right sets it on, a click on a word sets that state and a click on the text slides it the other way.
+*   SCREEN GET f, id answers 1 or 0; SCREEN SET f, id VALUE v sets it; a change is a change event of SCREEN WAIT, as for a check box.
 *
 * END-DESCRIPTION
 *
 * START-CODE
 
 $internal
-subroutine screen_slider(f, id, text, ax, ay, value, ret, status)
+subroutine screen_slider(f, id, text, ax, ay, value, attr, offword, onword, ret, status)
 $catalog !screen_slider
 
    ret = ''
@@ -45,6 +50,9 @@ $catalog !screen_slider
    w{'x'} = x
    w{'y'} = y
    w{'value'} = value
+   w{'attr'} = attr
+   w{'offw'} = offword
+   w{'onw'} = onword
    call $sl_slider('init', w, '', '', r)
    call $sl_wadd(f, w, ok)
    if ok then status = 0

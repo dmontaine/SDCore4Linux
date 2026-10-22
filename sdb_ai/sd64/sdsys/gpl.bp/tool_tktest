@@ -12,7 +12,8 @@
 *
 *   tktest {admin} {dialogs}      tktest table [N] [theme]      tktest pick [N] [page] [scan]      tktest slider
 *
-*   slider shows a form with two sliders and a check box (the on / off switch, SCREEN SLIDER); a label under them shows their values and the last change.
+*   slider [theme] shows a form with three sliders and a check box (the on / off switch, SCREEN SLIDER; the third has ATTR window, so only its capitals show the state, and the words left and right);
+*   a label under them shows their values and the last change.
 *
 *   dialogs starts on pane D, whose keys are F7 (a Run / Cancel box for create.file zztkdlg1 dynamic) and F8 (the same with the name zztkdlg2 to be typed): the
 *   confirm boxes of the base ($tk_explain, $tk_confirm, then $tk_run), exercised by sandbox-tk-base.py with the disk as evidence.
@@ -110,6 +111,8 @@ $include tk.h
    * pane S: a form with two sliders (SCREEN SLIDER, TK-0.8) and a check box; the label shows their values and the last change; F2 sets them from the program
    if field(@sentence, ' ', 2) = 'slider' then
       pane = 'S'
+      th = field(@sentence, ' ', 3)                       ;* tktest slider classic: a colour theme, to see the style of the word in force
+      if th # '' then call $sl_theme('set', th, 'asked', '', '', tr)
       gosub s.run
    end
 
@@ -192,12 +195,13 @@ $include tk.h
 * the slider form: it stays on the screen between events; Enter on the button or Esc ends it and the status line says what the values were
 s.run:
    call $tk_frame(ctx, keys, pane, msg)
-   screen form title 'Gates' at 40,6 size 52,14 returning sf
+   screen form title 'Gates' at 40,6 size 52,17 returning sf
    screen slider sf, 'sh', '&Shell (sh)' at 3,2
    screen slider sf, 'os', '&OS.EXECUTE' at 3,4 value 1
-   screen check sf, 'chk', 'a plain check box' at 3,6
-   screen label sf, 'log', 'sh=0 os=1 chk=0 last=none n=0' at 3,8 width 46
-   screen button sf, 'ok', '&OK' at 20,11 default
+   screen slider sf, 'cap', 'capitals only' at 3,6 value 1 attr 'window' words 'left','right'
+   screen check sf, 'chk', 'a plain check box' at 3,8
+   screen label sf, 'log', 'sh=0 os=1 chk=0 last=none n=0' at 3,10 width 46
+   screen button sf, 'ok', '&OK' at 20,14 default
    slog = 'none'
    schg = 0
    spressed = 'end'

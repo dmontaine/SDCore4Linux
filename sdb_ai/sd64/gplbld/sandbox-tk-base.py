@@ -752,7 +752,7 @@ def pick_rows(box, made):
         skip("the window was open when the input ended", "the pipe did not decode F9 into the key, so the window was never drawn")
 
 
-# TK-0.8.  `tktest slider` shows a form with two SCREEN SLIDER switches and a check box; the label under them reads "sh=<v> os=<v> chk=<v> last=<id>=<v> n=<changes>" (n counts
+# TK-0.8.  `tktest slider [theme]` shows a form with three SCREEN SLIDER switches ([off | ON] and [OFF | on]; the third has ATTR window) and a check box; the label under them reads "sh=<v> os=<v> chk=<v> last=<id>=<v> n=<changes>" (n counts
 # the change events of SCREEN WAIT, so a Left on a switch that is already off, which must report nothing, is seen as n not moving).  F2 sets the switches from the program.
 def slider_rows(box, made):
     say("\n--- the slider, an on / off switch (TK-0.8)")
@@ -772,39 +772,54 @@ def slider_rows(box, made):
     if where("Shell (sh)") is None:
         say("\n".join(l.rstrip() for l in t.lines() if l.strip())[:900])
         bail("tktest slider never drew its form, so no row below can be believed")
-    row("the form is drawn: sh is off ([O--]), os starts on ([==O], VALUE 1), the plain check box is [ ], the label reads sh=0 os=1 chk=0 last=none n=0",
-        where("[O--] Shell (sh)") is not None and where("[==O] OS.EXECUTE") is not None and where("[ ] a plain check box") is not None and logline() == ("0", "1", "0", "none", "0"), repr((logline(), t.line(8)[40:92])))
-    r1, c1 = where("[O--] Shell (sh)") or (0, 0)
-    row("the first switch has the focus: its text is in reverse video and the second's is not", "Shell" in t.rev(r1) and "OS.EXECUTE" not in t.rev(r1), repr(t.rev(r1)))
+    OFF, ON, CAP = "[OFF | on] ", "[off | ON] ", "[left | RIGHT] capitals only"
+    row("the form is drawn: sh is off ([OFF | on]), os and the capitals-only switch start on ([off | ON], VALUE 1), the plain check box is [ ], the label reads sh=0 os=1 chk=0 last=none n=0",
+        where(OFF + "Shell (sh)") is not None and where(ON + "OS.EXECUTE") is not None and where(CAP) is not None and where("[ ] a plain check box") is not None
+        and logline() == ("0", "1", "0", "none", "0"), repr((logline(), t.line(10)[40:92])))
+    r1, c1 = where(OFF + "Shell (sh)") or (0, 0)
+    row("the first switch has the focus: all of it is in reverse video and the second's is not", "Shell" in t.rev(r1) and "OS.EXECUTE" not in t.rev(r1), repr(t.rev(r1)))
+    ro, co = where(ON + "OS.EXECUTE") or (0, 0)
+    rc, cc = where(CAP) or (0, 0)
+    sc = t.s.screen
+    say("    [measured] mono: os (default bold) the word in force %r, the other word %r; capitals only (ATTR window) %r and %r" % (sc.style(ro, co + 7), sc.style(ro, co + 1), sc.style(rc, cc + 8), sc.style(rc, cc + 1)))
+    row("the word in force is in the style bold as well as in capitals (os, not focused: ON differs from off); with ATTR window (capitals only) the two words are alike and only the capitals show the state",
+        sc.style(ro, co + 7) != sc.style(ro, co + 1) and sc.style(rc, cc + 8) == sc.style(rc, cc + 1), repr((sc.style(ro, co + 7), sc.style(ro, co + 1), sc.style(rc, cc + 8), sc.style(rc, cc + 1))))
+    row("...and exactly the word: both letters of ON are styled alike, the space before it and the bracket after it are not",
+        sc.style(ro, co + 8) == sc.style(ro, co + 7) != sc.style(ro, co + 1) and sc.style(ro, co + 6) == sc.style(ro, co + 1) and sc.style(ro, co + 9) == sc.style(ro, co + 1),
+        repr([sc.style(ro, co + k) for k in range(5, 10)]))
+    row("the words are the program's choice: the third switch, WORDS 'left','right' and VALUE 1, is drawn [left | RIGHT] (the word in force in capitals), not [off | ON]", where(CAP) is not None and where("[off | ON] capitals only") is None, "")
     t.key("SPACE")
-    row("Space slides it the other way: sh is on ([==O] Shell (sh)); one change event: last=sh=1 n=1", where("[==O] Shell (sh)") is not None and where("[O--] Shell (sh)") is None and logline() == ("1", "1", "0", "sh=1", "1"), repr(logline()))
+    row("Space slides it the other way: sh is on ([off | ON] Shell (sh)); one change event: last=sh=1 n=1", where(ON + "Shell (sh)") is not None and where(OFF + "Shell (sh)") is None and logline() == ("1", "1", "0", "sh=1", "1"), repr(logline()))
     t.key("LEFT")
-    row("Left slides it off ([O--]); n=2", where("[O--] Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
+    row("Left sets it off ([OFF | on]); n=2", where(OFF + "Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
     t.key("LEFT")
-    row("Left again on a switch that is already off changes nothing and reports nothing: n is still 2", where("[O--] Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
+    row("Left again on a switch that is already off changes nothing and reports nothing: n is still 2", where(OFF + "Shell (sh)") is not None and logline() == ("0", "1", "0", "sh=0", "2"), repr(logline()))
     t.key("RIGHT")
     t.key("RIGHT")
-    row("Right slides it on, a second Right changes nothing: [==O] Shell (sh), n=3", where("[==O] Shell (sh)") is not None and logline() == ("1", "1", "0", "sh=1", "3"), repr(logline()))
+    row("Right sets it on, a second Right changes nothing: [off | ON] Shell (sh), n=3", where(ON + "Shell (sh)") is not None and logline() == ("1", "1", "0", "sh=1", "3"), repr(logline()))
     t.key("TAB")
-    r2, c2 = where("[==O] OS.EXECUTE") or (0, 0)
-    row("Tab moves the focus to the second switch: its text is in reverse video, the first's is not, no change event (n=3)", "OS.EXECUTE" in t.rev(r2) and "Shell" not in t.rev(r1) and logline()[4] == "3", repr((t.rev(r2), logline())))
+    r2, c2 = where(ON + "OS.EXECUTE") or (0, 0)
+    row("Tab moves the focus to the second switch: all of it is in reverse video, the first's is not, no change event (n=3)", "OS.EXECUTE" in t.rev(r2) and "Shell" not in t.rev(r1) and logline()[4] == "3", repr((t.rev(r2), logline())))
     t.key("LEFT")
-    row("Left on it slides os off ([O--] OS.EXECUTE); n=4", where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "0", "os=0", "4"), repr(logline()))
+    row("Left on it sets os off ([OFF | on] OS.EXECUTE); n=4", where(OFF + "OS.EXECUTE") is not None and logline() == ("1", "0", "0", "os=0", "4"), repr(logline()))
+    t.key("TAB")
     t.key("TAB")
     t.key("SPACE")
-    row("Tab to the check box and Space: it is [x] (the check box still works beside the switches); n=5", where("[x] a plain check box") is not None and logline() == ("1", "0", "1", "chk=1", "5"), repr(logline()))
-    r2, c2 = where("[O--] OS.EXECUTE") or where("[==O] OS.EXECUTE") or (0, 0)
-    t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c2 + 3, r2 + 1, c2 + 3, r2 + 1), idle=0.6)
-    click = lambda: t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c2 + 3, r2 + 1, c2 + 3, r2 + 1), idle=0.6)
-    row("a click on the second switch, which has not the focus, slides it the other way (os is on again, [==O] OS.EXECUTE) and gives it the focus: the form reports the FOCUS, as for a check box, so n is still 5",
-        where("[==O] OS.EXECUTE") is not None and logline() == ("1", "1", "1", "chk=1", "5") and "OS.EXECUTE" in t.rev(r2), repr((logline(), t.rev(r2))))
-    click()
-    row("a second click, now that it has the focus, slides it off again ([O--]) and is a change event: n=6, last=os=0", where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "1", "os=0", "6"), repr(logline()))
-    click()
-    row("a third click slides it on: n=7, last=os=1", where("[==O] OS.EXECUTE") is not None and logline() == ("1", "1", "1", "os=1", "7"), repr(logline()))
+    row("Tab, Tab to the check box and Space: it is [x] (the check box still works beside the switches); n=5", where("[x] a plain check box") is not None and logline() == ("1", "0", "1", "chk=1", "5"), repr(logline()))
+    r2, c2 = where(OFF + "OS.EXECUTE") or where(ON + "OS.EXECUTE") or (0, 0)
+    click = lambda dx: t.s.type("\x1b[<0;%d;%dM\x1b[<0;%d;%dm" % (c2 + dx + 1, r2 + 1, c2 + dx + 1, r2 + 1), idle=0.6)
+    click(7)
+    row("a click on the word ON of the second switch, which has not the focus, sets it on ([off | ON]) and gives it the focus: the form reports the FOCUS, as for a check box, so n is still 5",
+        where(ON + "OS.EXECUTE") is not None and logline() == ("1", "1", "1", "chk=1", "5") and "OS.EXECUTE" in t.rev(r2), repr((logline(), t.rev(r2))))
+    click(2)
+    row("a click on the word OFF, now that it has the focus, sets it off ([OFF | on]) and is a change event: n=6, last=os=0", where(OFF + "OS.EXECUTE") is not None and logline() == ("1", "0", "1", "os=0", "6"), repr(logline()))
+    click(2)
+    row("a click on OFF when it is already off changes nothing and reports nothing: n is still 6", where(OFF + "OS.EXECUTE") is not None and logline() == ("1", "0", "1", "os=0", "6"), repr(logline()))
+    click(14)
+    row("a click on the text after the switch slides it the other way: on again, n=7, last=os=1", where(ON + "OS.EXECUTE") is not None and logline() == ("1", "1", "1", "os=1", "7"), repr(logline()))
     t.key("F2")
-    row("SCREEN SET ... VALUE from the program: F2 sets sh to 5 (any non-zero is on: SCREEN GET answers 1, not 5) and os to 0 ([O--]); the switches are redrawn and no change event is made (n is still 7)",
-        where("[==O] Shell (sh)") is not None and where("[O--] OS.EXECUTE") is not None and logline() == ("1", "0", "1", "set", "7"), repr(logline()))
+    row("SCREEN SET ... VALUE from the program: F2 sets sh to 5 (any non-zero is on: SCREEN GET answers 1, not 5) and os to 0 ([OFF | on]); the switches are redrawn and no change event is made (n is still 7)",
+        where(ON + "Shell (sh)") is not None and where(OFF + "OS.EXECUTE") is not None and logline() == ("1", "0", "1", "set", "7"), repr(logline()))
     t.key("ENTER")
     row("Enter (the switch does not take it) presses the form's default button: the form is gone and the status line says sliders sh=1 os=0 chk=1 pressed=ok",
         "sliders sh=1 os=0 chk=1 pressed=ok" in t.line(40) and where("Shell (sh)") is None, repr(t.line(40)))
@@ -813,6 +828,16 @@ def slider_rows(box, made):
     t = Term(box, "tktest slider")
     t.key("ESC")
     row("Esc is a cancel event: the form is gone and the status line says pressed=cancel with the values it had (sh=0 os=1 chk=0)", "sliders sh=0 os=1 chk=0 pressed=cancel" in t.line(40), repr(t.line(40)))
+    t.end()
+
+    # a colour theme: the word in force is in the colour the theme gives bold, the other word and the ATTR window switch are not
+    t = Term(box, "tktest slider classic")
+    ro, co = (lambda p: p or (0, 0))(next(((r_, l_.find(ON + "OS.EXECUTE")) for r_, l_ in enumerate(t.lines()) if ON + "OS.EXECUTE" in l_), None))
+    rc, cc = (lambda p: p or (0, 0))(next(((r_, l_.find(CAP)) for r_, l_ in enumerate(t.lines()) if CAP in l_), None))
+    sc = t.s.screen
+    act, ina, cact, cina = sc.style(ro, co + 7), sc.style(ro, co + 1), sc.style(rc, cc + 8), sc.style(rc, cc + 1)
+    say("    [measured] classic: os the word in force %r, the other word %r; capitals only %r and %r" % (act, ina, cact, cina))
+    row("classic theme: the word in force has colours of its own (not the other word's), and with ATTR window both words are alike", act[:2] != ina[:2] and act[:2] != (None, None) and cact == cina, repr((act, ina, cact, cina)))
     t.end()
 
     say("    --- on a pipe: the input ends with the form up")
