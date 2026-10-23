@@ -1,0 +1,111 @@
+* SETVIEWER
+* SET.VIEWER verb: the programs that may be started without the account's OS.EXECUTE switch (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.6).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New (S.75; the owner: "an admin screen to setup which programs are allowed to bypass the os.execute restriction globally ... normally GUI programs
+*               that do not allow actual access to the OS").
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   SET.VIEWER                          says which programs are allowed
+*   SET.VIEWER ADD pdf program          allows the program for pdf
+*   SET.VIEWER REMOVE pdf program       stops allowing it
+*
+*   The administrator's verb.  NOTHING IS ALLOWED AS DELIVERED: PDF says no viewer has been allowed until one is added here.  The program is an absolute path, or a
+*   bare name that is looked for in /usr/bin, /usr/local/bin and /bin (the Bypass programs page passes names, because the commands it may run have no slash in them).
+*   A program is added only if !VIEWLIST's test passes (an existing regular file owned by root, not writable by group or others, executable by everyone, not under a
+*   place users can write), and the same test is made each time PDF starts it.  Passing the test does not make a program safe: a graphical viewer can open other files
+*   its user may read and follow links, which is why this is the administrator's list and not a setting of an account.  Takes effect at once.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program set.viewer
+$catalog $setviewer
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   @system.return.code = -ER$ARGS
+
+   if not(kernel(K$ADMINISTRATOR, -1)) then
+      stop sysmsg(2001) ;* Command requires administrator privileges
+   end
+
+   words = trim(@sentence)
+   n.words = dcount(words, ' ')
+
+   if n.words = 1 then
+      gosub list.all
+      @system.return.code = 0
+      stop
+   end
+   if n.words # 4 then stop sysmsg(11890)                        ;* set.viewer {add | remove} pdf program
+
+   action = downcase(field(words, ' ', 2))
+   purpose = downcase(field(words, ' ', 3))
+   arg = field(words, ' ', 4)
+   if action # 'add' and action # 'remove' then stop sysmsg(11890)
+   if purpose # 'pdf' then stop sysmsg(11897, purpose[1, 40])    ;* %1 is not a purpose; only pdf can be set
+
+   gosub find.program
+   call !viewlist('get', purpose, paths, 0)
+   locate path in paths<1> setting p then there = 1 else there = 0
+
+   if action = 'add' then
+      if path = '' then stop sysmsg(11899, arg[1, 60])           ;* %1 was not found in /usr/bin, /usr/local/bin or /bin
+      if there then
+         @system.return.code = 0
+         stop sysmsg(11893, path, purpose)                       ;* %1 was already allowed for %2; nothing changed
+      end
+      call !viewlist('check', path, why, 0)
+      if why # '' then stop sysmsg(11849, path, why)             ;* The viewer %1 cannot be used: %2
+      paths<-1> = path
+   end else
+      if not(there) then
+         @system.return.code = 0
+         stop sysmsg(11894, arg[1, 60], purpose)                 ;* %1 was not allowed for %2; nothing changed
+      end
+      del paths<p>
+   end
+   call !viewlist('put', purpose, paths, wrote)
+   if not(wrote) then
+      @system.return.code = -ER$FAILED
+      stop sysmsg(11898)                                         ;* The list of allowed programs could not be written
+   end
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'set.viewer ' : action : ' purpose=' : purpose : ' program=' : path)
+   display sysmsg((if action = 'add' then 11891 else 11892), path, purpose)
+   stop
+
+* The program asked for: as typed when it is an absolute path, else the first of the three directories that holds a file of that name; null if none (on REMOVE the
+* name as typed is also looked for on the list, since the program may be gone from the disk)
+find.program:
+   path = ''
+   if arg[1, 1] = @ds then
+      path = arg
+   end else
+      call !viewlist('find', arg, path, 0)
+   end
+   if action = 'remove' and path = '' then path = arg
+   return
+
+list.all:
+   found = 0
+   call !viewlist('get', 'pdf', paths, 0)
+   for i = 1 to dcount(paths, @fm)
+      display sysmsg(11895, 'pdf', paths<i>)                     ;* Allowed for %1: %2
+      found = 1
+   next i
+   if not(found) then display sysmsg(11896)                      ;* No program is allowed to be started without os.execute
+   return
+
+end
+
+* END-CODE

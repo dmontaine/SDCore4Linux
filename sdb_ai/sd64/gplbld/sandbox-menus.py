@@ -130,8 +130,8 @@ def main():
         if "What this means" not in T:
             dump(h)
             bail("tool.menus never drew its page, so no row below can be believed")
-        row("the page: boxes Accounts, Menu, What this means, System default and Help; the function keys 'Enter change  Tab pane  F5 refresh  ^Q quit'",
-            all(w in T for w in ("Accounts", "Menu", "What this means", "System default", "Help")) and h.line(42) == "Enter change  Tab pane  F5 refresh  ^Q quit", repr(h.line(42)))
+        row("the page: boxes Accounts, Menu, What this means, System default and Help; the function keys 'F1 help  Enter change  Tab pane  F5 refresh  ^Q quit'",
+            all(w in T for w in ("Accounts", "Menu", "What this means", "System default", "Help")) and h.line(42) == "F1 help  Enter change  Tab pane  F5 refresh  ^Q quit", repr(h.line(42)))
         row("the accounts, in order, without SDSYS: zzhd zzhm zzhs zzht zzhv (zzhs is marked suspended), each with where it starts (own word, or 'default (terminal)')",
             all(re.search(p, h.line(r)) for p, r in ((r"zzhd\s+OTHER\s+default \(terminal\)", 3), (r"zzhm\s+OTHER\s+menu", 4), (r"zzhs\s+OTHER \(s\)\s+menu", 5), (r"zzht\s+OTHER\s+terminal", 6), (r"zzhv\s+OTHER\s+menu", 7)))
             and "sdsys" not in T.replace("administrator", ""), repr([h.line(r)[:60] for r in range(2, 9)]))

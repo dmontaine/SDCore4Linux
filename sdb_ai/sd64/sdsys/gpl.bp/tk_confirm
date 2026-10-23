@@ -5,6 +5,7 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New (S.75, TK-0.4).
+* 23 Oct 26 dm  The wrapping loop is $tk_wrap now (the same algorithm, moved; the menu management page and the help box use it too).
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -45,20 +46,10 @@ $include tk.h
    if wrapw < 20 then wrapw = 20
 
    body = sysmsg(11811)
-   rest = sentence
-   loop while rest # '' do
-      if len(rest) <= wrapw then
-         piece = rest
-         rest = ''
-      end else
-         cut = wrapw
-         loop while cut > 1 and rest[cut, 1] # ' ' do cut -= 1 repeat
-         if cut <= 1 then cut = wrapw
-         piece = rest[1, cut]
-         rest = trimf(rest[cut + 1, 99999])
-      end
-      body<-1> = '  ' : piece
-   repeat
+   call $tk_wrap(sentence, wrapw, pieces)
+   for p = 1 to dcount(pieces, @fm)
+      body<-1> = '  ' : pieces<p>
+   next p
    if lines # '' then
       body<-1> = ''
       body := @fm : lines

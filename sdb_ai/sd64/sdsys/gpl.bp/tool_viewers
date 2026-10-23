@@ -1,0 +1,353 @@
+* TOOL_VIEWERS
+* The administrator's Bypass programs page (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.6; owner, 23 Oct 2026: "an admin screen to setup which programs are
+* allowed to bypass the os.execute restriction globally").  An administrator app.
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New.
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   TOOL.VIEWERS
+*
+*   For the administrator only (it is refused, before anything is read, for anyone else; it is in SDSYS's VOC only).  A full-screen page, in the toolkit's frame
+*   (140 columns by 43 lines at least), for the programs that the PDF verb may start for ANY account, even one whose OS.EXECUTE switch is off:
+*
+*     Allowed    the programs on the list now (the file viewers in the SD system directory), each with whether it still passes the test made when it is started
+*     Found      the PDF readers this machine has in /usr/bin, /usr/local/bin or /bin, each with whether it could be allowed and whether it is
+*
+*   Keys: Up and Down move in the box, Tab changes box, Enter or the space bar allows the program under the cursor (in Found) or stops allowing it (in either
+*   box), F5 reads the machine again, F1 or ? or a click on a [?] explains the box, Ctrl-Q leaves.
+*
+*   THE PAGE WRITES NOTHING ITSELF.  Every change is SET.VIEWER add | remove pdf name, shown with its effect in a box answered Run or Cancel (Cancel is what Enter
+*   chooses) and run by $tk_run.  ALLOWING a program asks for its name to be typed, as turning on any switch that reaches beyond SD does.  A program that is on the
+*   list under a path outside the three directories is shown, and is removed at the prompt (SET.VIEWER REMOVE pdf /full/path), because the commands this page may run
+*   carry no slash.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program $tool_viewers
+$catalog $tool_viewers
+
+$include keys.h
+$include int$keys.h
+$include err.h
+$include sl.h
+$include tk.h
+
+   prompt ''
+
+   allow = 'set.viewer'                                          ;* the one command this page may run
+
+   call $tk_open('tool.viewers', 'admin', ctx, err)
+   if err # '' then
+      display err
+      stop
+   end
+   void kernel(K$AUDIT, 'tool start app=tool.viewers')
+
+   keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
+   call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
+   call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
+   call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
+   call $tk_keys('add', keys, 'ctrl-q', 'quit', 'quit', '', 1)
+
+   cnames = 'evince' : @fm : 'okular' : @fm : 'zathura' : @fm : 'atril' : @fm : 'xreader' : @fm : 'mupdf' : @fm : 'qpdfview' : @fm : 'xpdf' : @fm : 'gv' : @fm : 'xdg-open'
+   pnames = 'Allowed' : @fm : 'Found'
+
+   VIS = 10
+   pane = 2
+   ai = 1                                                        ;* the row selected in Allowed
+   fi = 1                                                        ;* the row selected in Found
+   gen = 0
+   msg = 'Tab changes box, Enter allows or stops allowing the program under the cursor'
+   done = 0
+
+   gosub read.all
+   gosub draw.all
+
+   loop
+      call $tk_frame(ctx, keys, pnames<pane>, msg)
+      call $sl_curat(0, ctx<TK.C.YSTAT>)
+      nm = ''
+      screen key returning nm
+      begin case
+         case nm = ''
+            if status() = ER$EOF then exit
+         case nm = 'guardquit'
+            exit
+         case nm = 'resize'
+            gen += 1
+            ctx<TK.C.GEN> = gen
+            gosub draw.all
+         case nm = 'mouse'
+            gosub on.mouse
+         case 1
+            gosub on.key
+      end case
+      if done then exit
+   repeat
+
+   call $tk_close(ctx)
+   stop
+
+* ------------------------------------------------------------------------------------------------- what the machine says
+
+* The list, and the readers found; for each, whether the test passes now
+read.all:
+   call !viewlist('get', 'pdf', paths, 0)
+   na = dcount(paths, @fm)
+   awhy = ''
+   for i = 1 to na
+      call !viewlist('check', paths<i>, why, 0)
+      awhy<i> = why
+   next i
+   fn = 0
+   fpath = ''
+   fname = ''
+   fwhy = ''
+   fon = ''
+   for i = 1 to dcount(cnames, @fm)
+      call !viewlist('find', cnames<i>, pth, 0)
+      if pth # '' then
+         fn += 1
+         fname<fn> = cnames<i>
+         fpath<fn> = pth
+         call !viewlist('check', pth, why, 0)
+         fwhy<fn> = why
+         locate pth in paths<1> setting lp then fon<fn> = 1 else fon<fn> = 0
+      end
+   next i
+   if ai > na then ai = na
+   if ai < 1 then ai = 1
+   if fi > fn then fi = fn
+   if fi < 1 then fi = 1
+   return
+
+* ------------------------------------------------------------------------------------------------- drawing
+
+draw.all:
+   cw = ctx<TK.C.W>
+   chh = ctx<TK.C.H> - 5
+   screen clear at 0,1 size cw,chh
+   screen box at 1,1 size 70,14 title 'Allowed for pdf'
+   screen box at 72,1 size 67,14 title 'Found on this machine'
+   screen box at 1,15 size 138,17 title 'What this means'
+   screen box at 1,32 size 138,5 title 'Help'
+   gosub draw.allowed
+   gosub draw.found
+   gosub draw.effect
+   gosub draw.help
+   return
+
+draw.allowed:
+   screen text fmt('Program', '40L') : 'Test now' at 3,2 attr 'header' width 62
+   for r = 1 to VIS
+      s = ''
+      if r <= na then s = fmt(paths<r>[1, 38], '40L') : (if awhy<r> = '' then 'passes' else 'FAILS: ' : awhy<r>[1, 20])
+      screen text s at 3,2 + r attr (if r = ai and r <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 62
+   next r
+   if na = 0 then screen text 'None.  pdf says that no viewer has been allowed.' at 3,4 width 62
+   call $tk_help('mark', 66, 2, 0, 0)
+   return
+
+draw.found:
+   screen text fmt('Reader', '12L') : fmt('Allowed', '9L') : 'Could it be allowed' at 74,2 attr 'header' width 59
+   for r = 1 to VIS
+      s = ''
+      if r <= fn then s = fmt(fname<r>, '12L') : fmt((if fon<r> then 'yes' else 'no'), '9L') : (if fwhy<r> = '' then 'yes' else 'no: ' : fwhy<r>[1, 30])
+      screen text s at 74,2 + r attr (if r = fi and r <= fn then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 59
+   next r
+   if fn = 0 then screen text 'No known PDF reader is in /usr/bin, /usr/local/bin or /bin.' at 74,4 width 59
+   call $tk_help('mark', 134, 2, 0, 0)
+   return
+
+* In plain sentences, for what is selected
+draw.effect:
+   lines = ''
+   lines<-1> = 'A program on this list is started by the pdf verb for ANY account, even one whose os.execute switch is off, to show a document of the shared account.'
+   lines<-1> = "The program is given one argument, the document, which is always a file of the shared account's pdf directory and never a path the person types."
+   lines<-1> = 'Nothing is allowed as delivered: until you allow a reader here, pdf says that no viewer has been allowed.'
+   lines<-1> = ''
+   lines<-1> = 'A graphical reader can still open other files its user may read, and follow links.  Allow only programs you trust, and only ones that are not shells.'
+   lines<-1> = 'The test is made again each time the program is started: an absolute path of a regular file owned by root, not writable by group or others.'
+   lines<-1> = ''
+   if pane = 1 and na > 0 then
+      lines<-1> = 'Selected: ' : paths<ai> : (if awhy<ai> = '' then ' passes the test now.' else ' FAILS the test now (' : awhy<ai> : ') and is not started.')
+   end
+   if pane = 2 and fn > 0 then
+      lines<-1> = 'Selected: ' : fpath<fi> : (if fon<fi> then ' is allowed.  Enter stops allowing it.' else (if fwhy<fi> = '' then ' is not allowed.  Enter allows it.' else ' cannot be allowed: ' : fwhy<fi> : '.'))
+   end
+   gosub wrap.lines
+   for r = 1 to 15
+      screen text lines<r> at 3,16 + r width 134
+   next r
+   return
+
+* A SCREEN TEXT longer than its width is cut, not wrapped
+wrap.lines:
+   wrapped = ''
+   for wi = 1 to dcount(lines, @fm)
+      call $tk_wrap(lines<wi>, 134, pieces)
+      wrapped<-1> = pieces
+   next wi
+   lines = wrapped
+   return
+
+draw.help:
+   screen text 'Up and Down move.  Tab changes box.  Enter allows or stops allowing.  F1 or ? explains the box.' at 3,33 width 134
+   screen text 'Each change is shown as its command; you answer Run or Cancel.  Allowing a program asks for its name to be typed.' at 3,34 width 134
+   screen text 'F5 reads the machine again.  Ctrl-Q leaves.' at 3,35 width 134
+   return
+
+* ------------------------------------------------------------------------------------------------- keys and mouse
+
+on.key:
+   msg = ''
+   begin case
+      case nm = 'up'
+         if pane = 1 and ai > 1 then
+            ai -= 1
+            gosub redraw
+         end
+         if pane = 2 and fi > 1 then
+            fi -= 1
+            gosub redraw
+         end
+      case nm = 'down'
+         if pane = 1 and ai < na then
+            ai += 1
+            gosub redraw
+         end
+         if pane = 2 and fi < fn then
+            fi += 1
+            gosub redraw
+         end
+      case nm = 'tab' or nm = 'right' or nm = 'btab' or nm = 'left'
+         pane = (if pane = 1 then 2 else 1)
+         gosub redraw
+      case nm = 'enter' or nm = ' '
+         gosub change
+      case nm = 'f1' or nm = '?'
+         gosub help.here
+      case nm = 'f5'
+         gosub read.all
+         gosub draw.all
+         msg = 'read the machine again'
+      case nm = 'ctrl-q'
+         done = 1
+   end case
+   return
+
+redraw:
+   gosub draw.allowed
+   gosub draw.found
+   gosub draw.effect
+   return
+
+on.mouse:
+   screen mouse returning mev else mev = ''
+   if mev = '' then return
+   call $tk_help('hit', mev, 66, 2, hit.allowed)
+   call $tk_help('hit', mev, 134, 2, hit.found)
+   if hit.allowed or hit.found then
+      pane = (if hit.allowed then 1 else 2)
+      gosub redraw
+      gosub help.here
+      return
+   end
+   if mev<1> = 'press' and mev<2> = 1 then
+      mx = mev<3>
+      my = mev<4>
+      begin case
+         case mx >= 2 and mx <= 69 and my >= 3 and my <= 2 + VIS
+            if my - 2 <= na then ai = my - 2
+            pane = 1
+            gosub redraw
+         case mx >= 73 and mx <= 138 and my >= 3 and my <= 2 + VIS
+            if my - 2 <= fn then fi = my - 2
+            pane = 2
+            gosub redraw
+      end case
+   end
+   return
+
+help.here:
+   call $tk_help('box', (if pane = 1 then 'tool.viewers.allowed' else 'tool.viewers.found'), hm, 0, 0)
+   if hm # '' then msg = hm
+   return
+
+* ------------------------------------------------------------------------------------------------- changing something: the command, its effect, Run or Cancel, then the machine's answer
+
+change:
+   acct.name = ''
+   if pane = 2 then
+      if fn = 0 then return
+      pname = fname<fi>
+      ppath = fpath<fi>
+      on.now = fon<fi>
+      pwhy = fwhy<fi>
+      if not(on.now) and pwhy # '' then
+         msg = pname : ' cannot be allowed: ' : pwhy
+         return
+      end
+   end else
+      if na = 0 then return
+      ppath = paths<ai>
+      on.now = 1
+      pwhy = ''
+      gosub name.of
+      if pname = '' then
+         msg = 'Not in /usr/bin, /usr/local/bin or /bin: at the prompt, set.viewer remove pdf ' : ppath
+         return
+      end
+   end
+   sent = 'set.viewer ' : (if on.now then 'remove' else 'add') : ' pdf ' : pname
+   el = ''
+   typed = ''
+   if on.now then
+      el<-1> = 'pdf will no longer start ' : ppath : '.'
+      el<-1> = 'The documents stay where they are; with no viewer allowed, pdf says that none has been allowed.'
+   end else
+      el<-1> = 'pdf will start ' : ppath : ' for every account, even one whose os.execute switch is off, to show a document of the shared account.'
+      el<-1> = 'The program gets one argument, the document; it can still open other files its user may read and follow links.'
+      typed = pname
+   end
+   el<-1> = 'It takes effect at once.'
+   call $tk_confirm(sent, el, typed, res, cmsg)
+   if res = 'run' then
+      call $tk_run(allow, sent, out, st, err)
+      if err # '' then
+         msg = err
+      end else
+         said = trim(change(out, @fm, ' '))
+         msg = (if said # '' then said[1, 130] else 'ran, status ' : st)
+      end
+      gosub read.all
+      gosub draw.all
+   end else
+      msg = cmsg
+   end
+   return
+
+* The bare name of the program on the Allowed row, if the three directories give that name back as this very path; else null
+name.of:
+   pname = ''
+   cut = 0
+   for ci = 1 to len(ppath)
+      if ppath[ci, 1] = @ds then cut = ci
+   next ci
+   cand = ppath[cut + 1, 99]
+   call !viewlist('find', cand, back, 0)
+   if back = ppath then pname = cand
+   return
+
+end
+
+* END-CODE

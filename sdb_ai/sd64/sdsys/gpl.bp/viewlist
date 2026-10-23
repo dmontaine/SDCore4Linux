@@ -1,0 +1,172 @@
+* VIEWLIST
+* The list of programs the administrator has allowed to be started WITHOUT the account's OS.EXECUTE switch, and the test a program must pass to be on it (S.75, plan
+* .claude/plan-fullscreen-toolkit.md section 14.6).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New (S.75; the owner: "an admin screen to setup which programs are allowed to bypass the os.execute restriction globally").
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   call !viewlist(op, a, b, c)
+*
+*     'get'    a = purpose (pdf)                    b = returned: the absolute paths allowed for it, in the order they were added, one to a field
+*     'put'    a = purpose, b = the paths (one to a field)       c = returned 1 when the list was written, else 0.  Replaces that purpose's lines; the lines of
+*              other purposes are kept.  The file is then made mode 0644 (a file the SD users could write would let one of them name a program that runs as another).
+*     'check'  a = a path                           b = returned: null when a program may be on the list, else the reason in words
+*     'find'   a = a bare name                      b = returned: its absolute path in /usr/bin, /usr/local/bin or /bin (the first that has it), else null
+*
+*   THE LIST is the file  viewers  in the SD system directory, one line to an entry:  purpose, a space, the absolute path.  Lines that are blank or begin with # are
+*   ignored.  It is EMPTY as delivered: nothing is allowed until the administrator names it (SET.VIEWER, or the Bypass programs page TOOL.VIEWERS).
+*
+*   THE TEST 'check' makes is made when a program is added AND again each time one is started, so a program replaced afterwards is refused: an absolute path of
+*   a-z A-Z 0-9 / . _ + - with no .. in it and not under /tmp, /var/tmp, /dev, /home, /run, /proc, /sys, /mnt or /media; an existing REGULAR file (stat follows a symbolic
+*   link to its target); owned by root; with no setuid, setgid or sticky bit; not writable by group or others; executable by others.  It is the test sudo makes of
+*   what it runs, less the parent directories.  It does not say the program is safe: a graphical viewer can open other files its user may read and follow links, and
+*   naming one is the administrator's judgement.
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+subroutine viewlist(op, a, b, c)
+$catalog !viewlist
+
+$include int$keys.h
+$include err.h
+
+   lfile = @sdsys : @ds : 'viewers'
+
+   begin case
+      case op = 'get'
+         gosub read.all
+         b = ''
+         for i = 1 to dcount(pur, @fm)
+            if pur<i> = a then b<-1> = pth<i>
+         next i
+      case op = 'put'
+         gosub read.all
+         keep.pur = ''
+         keep.pth = ''
+         nk = 0
+         for i = 1 to dcount(pur, @fm)
+            if pur<i> # a then
+               nk += 1
+               keep.pur<nk> = pur<i>
+               keep.pth<nk> = pth<i>
+            end
+         next i
+         for i = 1 to dcount(b, @fm)
+            nk += 1
+            keep.pur<nk> = a
+            keep.pth<nk> = b<i>
+         next i
+         gosub write.all
+      case op = 'check'
+         gosub check.program
+      case op = 'find'
+         gosub find.name
+   end case
+   return
+
+* The program of that bare name in the first of /usr/bin, /usr/local/bin and /bin that has it, or null (a name of a-z 0-9 . _ + - not starting with a dot)
+find.name:
+   b = ''
+   if a # '' and a[1, 1] # '.' and trim(convert('abcdefghijklmnopqrstuvwxyz0123456789._+-', space(39), a)) = '' then
+      dirs = '/usr/bin' : @fm : '/usr/local/bin' : @fm : '/bin'
+      for d = 1 to 3
+         if b = '' and ospath(dirs<d> : @ds : a, OS$EXISTS) then b = dirs<d> : @ds : a
+      next d
+   end
+   return
+
+* The file, as two lists: the purpose and the path of each entry
+read.all:
+   pur = ''
+   pth = ''
+   n = 0
+   openseq lfile readonly to lf then                  ;* READONLY: an absent file is not made
+      loop
+         readseq line from lf else exit
+         line = trim(line)
+         if line = '' or line[1, 1] = '#' then continue
+         n += 1
+         sp = index(line, ' ', 1)
+         pur<n> = downcase(line[1, sp - 1])
+         pth<n> = trim(line[sp + 1, 999])
+      repeat
+      closeseq lf
+   end
+   return
+
+write.all:
+   c = 0
+   openseq lfile overwrite to lf else null          ;* ELSE means the file did not exist and was created; only a status is a failure
+   if status() = 0 then
+      c = 1
+      for i = 1 to nk
+         writeseq keep.pur<i> : ' ' : keep.pth<i> to lf else c = 0
+      next i
+      closeseq lf
+   end
+   if c then os.execute "chmod 0644 '" : lfile : "'" capturing mo
+   return
+
+* Why a program may not be on the list, or null
+check.program:
+   b = ''
+   p = a
+   okc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/._+-'
+   begin case
+      case p[1, 1] # '/' or len(p) < 2 or len(p) > 200
+         b = 'it is not an absolute path'
+      case trim(convert(okc, space(len(okc)), p)) # ''
+         b = 'its path has a character that is not allowed (letters, digits and / . _ + - only)'
+      case index(p, '..', 1) > 0
+         b = 'its path has .. in it'
+      case 1
+         bad.roots = '/tmp/' : @fm : '/var/tmp/' : @fm : '/dev/' : @fm : '/home/' : @fm : '/run/' : @fm : '/proc/' : @fm : '/sys/' : @fm : '/mnt/' : @fm : '/media/'
+         bad.root = ''
+         for br = 1 to dcount(bad.roots, @fm)
+            if p[1, len(bad.roots<br>)] = bad.roots<br> then bad.root = bad.roots<br>
+         next br
+         if bad.root # '' then b = 'it is under ' : bad.root[1, len(bad.root) - 1] : ', which users can write'
+   end case
+   if b # '' then return
+   os.execute "stat -L -c '%u %a %F' '" : p : "'" capturing so
+   info = trim(change(so, @fm, ' '))
+   if info = '' then
+      b = 'it does not exist'
+      return
+   end
+   own = field(info, ' ', 1)
+   mode = field(info, ' ', 2)
+   kind = trim(info[index(info, ' ', 2) + 1, 99])
+   if own # '0' then
+      b = 'it is not owned by root'
+   end else
+      if kind[1, 7] # 'regular' then
+         b = 'it is not a regular file'
+      end else
+         lm = len(mode)
+         if lm > 3 and mode[1, lm - 3] + 0 # 0 then
+            b = 'it has the setuid, setgid or sticky bit set'
+         end else
+            gb = mode[lm - 1, 1] + 0
+            ob = mode[lm, 1] + 0
+            begin case
+               case bitand(gb, 2) or bitand(ob, 2)
+                  b = 'it can be written by group or others'
+               case not(bitand(ob, 1))
+                  b = 'it is not executable by everyone'
+            end case
+         end
+      end
+   end
+   return
+end
+
+* END-CODE

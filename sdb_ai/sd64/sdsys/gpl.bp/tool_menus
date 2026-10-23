@@ -6,6 +6,8 @@
 *
 * START-HISTORY:
 * 22 Oct 26 dm  New.
+* 23 Oct 26 dm  A [?] button on every setting (the rows of the Menu box, the system default, and the Accounts list), F1 and ? on the selected row: the help is the record
+*               of the file context.help of the shared account ($tk_help).  The line wrapping is $tk_wrap.
 * END-HISTORY
 *
 * START-DESCRIPTION:
@@ -20,7 +22,8 @@
 *     Default     where an account with no setting of its own starts
 *
 *   Keys: Up and Down move in the pane, Tab and Back-tab (or Left and Right) change pane, Enter or the space bar changes the setting under the cursor, F5 reads the
-*   register again, Ctrl-Q leaves.  A click selects a row.
+*   register again, Ctrl-Q leaves.  A click selects a row.  F1 or ? on the selected row, or a click on the [?] at the end of a setting's row, shows what the
+*   setting means (keys tool.menus.accounts, tool.menus.starts-in, tool.menus.pins, tool.menus.tile.<id>, tool.menus.default; the text is in helptext/).
 *
 *   THE PAGE WRITES NOTHING ITSELF.  Every change is a command the administrator already has, shown with its effect in a box that is answered Run or Cancel (Cancel is the
 *   button Enter chooses), and then run by $tk_run: SET.TILE account tile on | off, MODIFY.ACCOUNT account START-MENU | START-TERMINAL | START-DEFAULT, SET.START.DEFAULT
@@ -53,6 +56,7 @@ $include tk.h
    void kernel(K$AUDIT, 'tool start app=tool.menus')
 
    keys = ''
+   call $tk_keys('add', keys, 'f1', 'help', 'help', '', 1)
    call $tk_keys('add', keys, 'enter', 'change', 'change', '', 1)
    call $tk_keys('add', keys, 'tab', 'pane', 'pane', '', 1)
    call $tk_keys('add', keys, 'f5', 'refresh', 'refresh', '', 1)
@@ -196,6 +200,7 @@ draw.accounts:
       end
       screen text s at 3,2 + r attr (if k = ai and k <= na then (if pane = 1 then 'highlight' else 'bold') else 'normal') width 66
    next r
+   call $tk_help('mark', 66, 2, 0, 0)                             ;* F1, ? or a click: what this box shows
    return
 
 draw.menu:
@@ -217,7 +222,8 @@ draw.menu:
             t = r - 2
             s = (if index(' ' : aoff<ai> : ' ', ' ' : tids<t> : ' ', 1) > 0 then '[ ]' else '[x]') : ' ' : fmt(tlabs<t>, '16L') : fmt(tids<t>, '10L') : (if tids<t> = 'signout' then 'cannot be turned off' else '')
       end case
-      screen text s at 74,1 + r attr (if r = si then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 63
+      screen text s at 74,1 + r attr (if r = si then (if pane = 2 then 'highlight' else 'bold') else 'normal') width 59
+      call $tk_help('mark', 134, 1 + r, 0, 0)                     ;* the [?] button of the setting on this row
    next r
    screen text 'Enter changes the row.  [x] is on as delivered, [ ] is off.' at 74,12 attr 'disabled' width 63
    return
@@ -260,16 +266,8 @@ draw.effect:
 wrap.lines:
    wrapped = ''
    for wi = 1 to dcount(lines, @fm)
-      wl = lines<wi>
-      loop
-      while len(wl) > 63 do
-         wp = 64
-         loop while wp > 1 and wl[wp, 1] # ' ' do wp -= 1 repeat
-         if wp <= 1 then wp = 64
-         wrapped<-1> = wl[1, wp - 1]
-         wl = trim(wl[wp + 1, len(wl)])
-      repeat
-      wrapped<-1> = wl
+      call $tk_wrap(lines<wi>, 63, pieces)
+      wrapped<-1> = pieces
    next wi
    lines = wrapped
    return
@@ -278,6 +276,7 @@ draw.default:
    screen text 'An account with no setting of its own starts in the' at 3,32 width 66
    screen text (if defword = 'menu' then 'home screen (menu)' else 'command prompt (terminal)') at 3,33 attr (if pane = 3 then 'highlight' else 'bold') width 66
    screen text 'Enter changes it for every account that follows the default.' at 3,34 attr 'disabled' width 66
+   call $tk_help('mark', 66, 32, 0, 0)
    return
 
 draw.help:
@@ -328,6 +327,8 @@ on.key:
          gosub redraw.panes
       case nm = 'enter' or nm = ' '
          gosub change
+      case nm = 'f1' or nm = '?'
+         gosub help.here
       case nm = 'f5'
          gosub read.all
          gosub draw.all
@@ -353,6 +354,8 @@ redraw.panes:
 on.mouse:
    screen mouse returning mev else mev = ''
    if mev = '' then return
+   gosub help.click
+   if clicked then return
    if mev<1> = 'press' and mev<2> = 1 then
       mx = mev<3>
       my = mev<4>
@@ -373,6 +376,60 @@ on.mouse:
             pane = 3
             gosub redraw.panes
       end case
+   end
+   return
+
+* ------------------------------------------------------------------------------------------------- help: the [?] buttons, F1 and ?
+
+* The key of the help for what is selected: the Accounts list, the setting on the selected row of the Menu box, or the system default
+help.key:
+   hk = 'tool.menus.accounts'
+   if pane = 2 then
+      begin case
+         case si = 1
+            hk = 'tool.menus.starts-in'
+         case si = 2
+            hk = 'tool.menus.pins'
+         case 1
+            hk = 'tool.menus.tile.' : tids<si - 2>
+      end case
+   end
+   if pane = 3 then hk = 'tool.menus.default'
+   return
+
+help.here:
+   gosub help.key
+   call $tk_help('box', hk, hm, 0, 0)
+   if hm # '' then msg = hm
+   return
+
+* A left press on a [?]: that setting is selected and its help is shown
+help.click:
+   clicked = 0
+   hit.row = 0
+   if na > 0 then
+      for hr = 1 to 9
+         call $tk_help('hit', mev, 134, 1 + hr, hit.now)
+         if hit.now then hit.row = hr
+      next hr
+   end
+   call $tk_help('hit', mev, 66, 32, hit.default)
+   call $tk_help('hit', mev, 66, 2, hit.accounts)
+   begin case
+      case hit.row
+         si = hit.row
+         pane = 2
+         clicked = 1
+      case hit.default
+         pane = 3
+         clicked = 1
+      case hit.accounts
+         pane = 1
+         clicked = 1
+   end case
+   if clicked then
+      gosub redraw.panes
+      gosub help.here
    end
    return
 

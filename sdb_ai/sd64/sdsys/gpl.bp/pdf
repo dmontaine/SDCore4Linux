@@ -1,0 +1,118 @@
+* PDF
+* PDF verb: show a documentation PDF in the installed reader, for any account (S.75, plan .claude/plan-fullscreen-toolkit.md section 14.6).
+* Copyright (c) 2026, SD Core for Linux.  This program is free software; you can redistribute
+* it and/or modify it under the terms of the GNU General Public License, version 3 or later.
+*
+* START-HISTORY:
+* 23 Oct 26 dm  New (S.75; the owner: "a verb pdf that will display the file in the installed pdf reader ... available even if os.execute is not allowed for the
+*               account as a system bypass").
+* END-HISTORY
+*
+* START-DESCRIPTION:
+*
+*   PDF            lists the documents (the PDF files in the pdf directory of the shared account)
+*   PDF name       opens name.pdf in the viewer the administrator has allowed (SET.VIEWER, the Bypass programs page TOOL.VIEWERS)
+*
+*   THIS IS A BYPASS OF ONE THING.  It starts a program outside SD for an account whose OS.EXECUTE switch is off, which is why it is $internal and why it is
+*   narrow.  Two commands are run, no more: find (the documents, regular files only) and the viewer.  What it will start, and with what:
+*     1  the program is the first one on the administrator's list for pdf (the file viewers, !VIEWLIST) that passes !VIEWLIST's test AGAIN now (an absolute path, a
+*        regular file owned by root, not writable by group or others, executable by everyone).  The list is EMPTY as delivered, so this verb says that no viewer has
+*        been allowed until the administrator names one;
+*     2  the file is a REGULAR file (find -type f: not a symbolic link) of the pdf directory of the shared account, named by the caller with a-z 0-9 dot dash underscore, not
+*        starting with a dot, up to 80 characters, with .pdf added.  The caller never supplies a path;
+*     3  the program gets that one file as its one argument, through quoted words built from the two checked parts, started in the background with nohup and no
+*        input or output of SD's;
+*     4  no graphical display in the session (DISPLAY and WAYLAND_DISPLAY both empty, as over plain ssh) is refused in words, not tried;
+*     5  one audit line:  pdf open file=name viewer=path.
+*   It does not look at the account's OS switches and it is not an account gate; the administrator's list is the control.  A graphical reader can itself open other
+*   files its user may read and follow links, so naming one is the administrator's judgement (the Bypass programs page says so).
+*
+* END-DESCRIPTION
+*
+* START-CODE
+
+$internal
+program pdf
+$catalog $pdf
+
+$include int$keys.h
+$include keys.h
+$include err.h
+
+   @system.return.code = -ER$ARGS
+
+   words = trim(@sentence)
+   if dcount(words, ' ') > 2 then stop sysmsg(11843)             ;* pdf {name}
+
+* The directory of documents: the pdf directory of the shared account
+   openpath @sdsys : @ds : 'accounts' to acc.f else stop sysmsg(11888)
+   read arec from acc.f, 'shared' else arec = ''
+   close acc.f
+   spath = arec<ACC$PATH>
+   if upcase(trim(arec<ACC$SUSPENDED>)) = 'SUSPENDED' then spath = ''
+   if spath[1, 1] # @ds or len(spath) < 2 or trim(convert('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/._-', space(66), spath)) # '' then
+      stop sysmsg(11888)                                          ;* There are no documents
+   end
+   pdfdir = spath : @ds : 'pdf'
+   os.execute "find '" : pdfdir : "' -maxdepth 1 -type f -name '*.pdf' -print" capturing found       ;* REGULAR files only: a link or a directory is not a document
+   docs = ''
+   for i = 1 to dcount(found, @fm)
+      nm = trim(found<i>)[len(pdfdir) + 2, 999]                   ;* the path is pdfdir/name
+      if nm = downcase(nm) and nm[len(nm) - 3, 4] = '.pdf' and nm[1, 1] # '.' then docs<-1> = nm[1, len(nm) - 4]
+   next i
+   if docs = '' then stop sysmsg(11888)
+
+   if dcount(words, ' ') = 1 then
+      listed = ''
+      for i = 1 to dcount(docs, @fm)
+         locate docs<i> in listed<1> by 'AL' setting p else
+            ins docs<i> before listed<p>
+         end
+      next i
+      display sysmsg(11887, dcount(listed, @fm))                  ;* Documents (%1); pdf name opens one:
+      for i = 1 to dcount(listed, @fm)
+         display '  ' : listed<i>
+      next i
+      @system.return.code = 0
+      stop
+   end
+
+* The name
+   name = downcase(field(words, ' ', 2))
+   if name[len(name) - 3, 4] = '.pdf' then name = name[1, len(name) - 4]
+   ok = (len(name) >= 1 and len(name) <= 80 and name[1, 1] # '.')
+   if ok then
+      if trim(convert('abcdefghijklmnopqrstuvwxyz0123456789._-', space(39), name)) # '' then ok = 0
+   end
+   if not(ok) then
+      shown = field(words, ' ', 2)
+      stop sysmsg(11844, shown[1, 60])                              ;* %1 is not a document name
+   end
+   locate name in docs<1> setting dp else stop sysmsg(11845, name)     ;* There is no document %1
+   docfile = pdfdir : @ds : name : '.pdf'
+
+* The viewer
+   call !viewlist('get', 'pdf', paths, 0)
+   viewer = ''
+   why = ''
+   for i = 1 to dcount(paths, @fm)
+      if viewer = '' then
+         call !viewlist('check', paths<i>, why, 0)
+         if why = '' then viewer = paths<i>
+      end
+   next i
+   if viewer = '' then
+      if paths = '' then stop sysmsg(11846)                       ;* No viewer has been allowed
+      stop sysmsg(11849, paths<1>, why)                           ;* The viewer %1 cannot be used: %2
+   end
+
+   if env('DISPLAY') = '' and env('WAYLAND_DISPLAY') = '' then stop sysmsg(11847)
+
+   os.execute "nohup '" : viewer : "' '" : docfile : "' </dev/null >/dev/null 2>&1 &" capturing out
+   @system.return.code = 0
+   void kernel(K$AUDIT, 'pdf open file=' : name : ' viewer=' : viewer)
+   display sysmsg(11848, name, viewer)                            ;* Opened %1 with %2
+   stop
+end
+
+* END-CODE

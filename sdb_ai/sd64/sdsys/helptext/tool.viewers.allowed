@@ -1,0 +1,5 @@
+Programs allowed to start without os.execute
+01-accounts-and-security
+The programs here are started by the pdf verb for any account, including one whose os.execute switch is off. That is the one bypass of the switch, and it is yours to grant: nothing is allowed as delivered.
+The program is given one argument, a document of the shared account's pdf directory. It is started only if it still passes the test made when it was added: an absolute path of a regular file owned by root, not writable by group or others, executable by everyone, and not under a place users can write. A program that fails the test is shown as FAILS and is not started.
+A graphical reader can open other files its user may read and follow links, so allow only programs you trust, and never a shell or an editor. Enter on a row stops allowing it. At the prompt: set.viewer remove pdf name.

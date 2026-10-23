@@ -6201,6 +6201,51 @@ add and delete take a user name and stand alone, and nothing was changed: %1 was
 
 cited by: `modifya`
 
+### msg:11720
+> kind=message tier=reference since=- src=sdsys/messages/11720:1#8146a258
+
+```
+docs.install directory; copies the PDF files of that directory into the pdf directory of the shared account
+```
+
+cited by: `docsinst`
+
+### msg:11721
+> kind=message tier=reference since=- src=sdsys/messages/11721:1#3115c3d1
+
+```
+The directory %1 cannot be read, or is not a plain path of letters, digits and / . _ -
+```
+
+cited by: `docsinst`
+
+### msg:11722
+> kind=message tier=reference since=- src=sdsys/messages/11722:1#ab42e73a
+
+```
+Copied %1 document(s) into the shared account; skipped %2
+```
+
+cited by: `docsinst`
+
+### msg:11723
+> kind=message tier=reference since=- src=sdsys/messages/11723:1#ec85ac26
+
+```
+Skipped %1: %2
+```
+
+cited by: `docsinst`
+
+### msg:11724
+> kind=message tier=reference since=- src=sdsys/messages/11724:1#5b70efa9
+
+```
+The shared account has no pdf directory (the installer makes it), so there is nowhere to copy the documents
+```
+
+cited by: `docsinst`
+
 ### msg:11790
 > kind=message tier=reference since=- src=sdsys/messages/11790:1#9c87fe87
 
@@ -6506,6 +6551,159 @@ none yet: %1 records searched, a key that moves down goes on
 ```
 
 cited by: `sl_pickwin`
+
+### msg:11830
+> kind=message tier=reference since=- src=sdsys/messages/11830:1#0d88e05f
+
+```
+No help has been written for this yet
+```
+
+cited by: `tk_help`
+
+### msg:11831
+> kind=message tier=reference since=- src=sdsys/messages/11831:1#60382113
+
+```
+The file context.help of the shared account has no record %1.
+```
+
+cited by: `tk_help`
+
+### msg:11832
+> kind=message tier=reference since=- src=sdsys/messages/11832:1#9d038fb1
+
+```
+Help is not installed here: the shared account has no file context.help.  The administrator loads it with load.help.
+```
+
+cited by: `tk_help`
+
+### msg:11835
+> kind=message tier=reference since=- src=sdsys/messages/11835:1#8113ac02
+
+```
+The help text directory %1 is missing or empty
+```
+
+cited by: `loadhelp`
+
+### msg:11836
+> kind=message tier=reference since=- src=sdsys/messages/11836:1#6d56e55c
+
+```
+There is no shared account, so there is nowhere to load the help text
+```
+
+cited by: `loadhelp`
+
+### msg:11837
+> kind=message tier=reference since=- src=sdsys/messages/11837:1#384cda4e
+
+```
+Could not enter the shared account
+```
+
+cited by: `loadhelp`
+
+### msg:11838
+> kind=message tier=reference since=- src=sdsys/messages/11838:1#718a5a61
+
+```
+Could not make the file context.help in the shared account
+```
+
+cited by: `loadhelp`
+
+### msg:11839
+> kind=message tier=reference since=- src=sdsys/messages/11839:1#e835147b
+
+```
+Context help in the shared account: %1 new, %2 changed, %3 already current, %4 added by the administrator and kept
+```
+
+cited by: `loadhelp`
+
+### msg:11840
+> kind=message tier=reference since=- src=sdsys/messages/11840:1#170e2ed3
+
+```
+Skipped %1 in the help text directory: %2
+```
+
+cited by: `loadhelp`
+
+### msg:11841
+> kind=message tier=reference since=- src=sdsys/messages/11841:1#ee3ede9e
+
+```
+Could not write the help record %1
+```
+
+cited by: `loadhelp`
+
+### msg:11843
+> kind=message tier=reference since=- src=sdsys/messages/11843:1#dfadd38c
+
+```
+pdf {name}; pdf alone lists the documents
+```
+
+cited by: `pdf`
+
+### msg:11844
+> kind=message tier=reference since=- src=sdsys/messages/11844:1#6bca02b4
+
+```
+%1 is not a document name
+```
+
+cited by: `pdf`
+
+### msg:11845
+> kind=message tier=reference since=- src=sdsys/messages/11845:1#8ac76c92
+
+```
+There is no document %1; pdf alone lists them
+```
+
+cited by: `pdf`
+
+### msg:11846
+> kind=message tier=reference since=- src=sdsys/messages/11846:1#1e07ab40
+
+```
+No viewer has been allowed for documents.  The administrator names one with set.viewer.
+```
+
+cited by: `pdf`
+
+### msg:11847
+> kind=message tier=reference since=- src=sdsys/messages/11847:1#42ce07ac
+
+```
+This session has no graphical display (DISPLAY and WAYLAND_DISPLAY are empty), so a viewer cannot show the document
+```
+
+cited by: `pdf`
+
+### msg:11848
+> kind=message tier=reference since=- src=sdsys/messages/11848:1#b7ba323d
+
+```
+Opened %1 with %2
+```
+
+cited by: `pdf`
+
+### msg:11849
+> kind=message tier=reference since=- src=sdsys/messages/11849:1#6c44f3bb
+
+```
+The viewer %1 cannot be used: %2
+```
+
+cited by: `pdf`, `setviewer`
 
 ### msg:11850
 > kind=message tier=reference since=- src=sdsys/messages/11850:1#78bdb47e
@@ -6822,6 +7020,110 @@ The administrator has not allowed this account to add its own programs to the ho
 ```
 
 cited by: `mymenu`
+
+### msg:11887
+> kind=message tier=reference since=- src=sdsys/messages/11887:1#c66934eb
+
+```
+Documents (%1); pdf name opens one:
+```
+
+cited by: `pdf`
+
+### msg:11888
+> kind=message tier=reference since=- src=sdsys/messages/11888:1#65eb55d5
+
+```
+There are no documents: the shared account has no pdf directory, or it holds none
+```
+
+cited by: `pdf`
+
+### msg:11890
+> kind=message tier=reference since=- src=sdsys/messages/11890:1#4388825a
+
+```
+set.viewer {add | remove} pdf program; set.viewer alone says which programs are allowed
+```
+
+cited by: `setviewer`
+
+### msg:11891
+> kind=message tier=reference since=- src=sdsys/messages/11891:1#1cdbc8d8
+
+```
+The program %1 is now allowed for %2
+```
+
+### msg:11892
+> kind=message tier=reference since=- src=sdsys/messages/11892:1#78f8eedd
+
+```
+The program %1 is no longer allowed for %2
+```
+
+### msg:11893
+> kind=message tier=reference since=- src=sdsys/messages/11893:1#92cc2076
+
+```
+The program %1 was already allowed for %2; nothing changed
+```
+
+cited by: `setviewer`
+
+### msg:11894
+> kind=message tier=reference since=- src=sdsys/messages/11894:1#646e654a
+
+```
+The program %1 was not allowed for %2; nothing changed
+```
+
+cited by: `setviewer`
+
+### msg:11895
+> kind=message tier=reference since=- src=sdsys/messages/11895:1#d6afcbdd
+
+```
+Allowed for %1: %2
+```
+
+cited by: `setviewer`
+
+### msg:11896
+> kind=message tier=reference since=- src=sdsys/messages/11896:1#904741c4
+
+```
+No program is allowed to be started without os.execute
+```
+
+cited by: `setviewer`
+
+### msg:11897
+> kind=message tier=reference since=- src=sdsys/messages/11897:1#22d7f490
+
+```
+%1 is not a purpose that can be set; only pdf can
+```
+
+cited by: `setviewer`
+
+### msg:11898
+> kind=message tier=reference since=- src=sdsys/messages/11898:1#fe5cbe39
+
+```
+The list of allowed programs could not be written
+```
+
+cited by: `setviewer`
+
+### msg:11899
+> kind=message tier=reference since=- src=sdsys/messages/11899:1#008f8e7a
+
+```
+%1 was not found in /usr/bin, /usr/local/bin or /bin
+```
+
+cited by: `setviewer`
 
 ### msg:1200
 > kind=message tier=reference since=- src=sdsys/messages/1200:1#514b21ce
@@ -8120,7 +8422,7 @@ User is not an administrator
 Command requires administrator privileges
 ```
 
-cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `inhibit` and 13 more
+cited by: `backupa`, `catalog`, `cproc`, `createa`, `delacc`, `delcat`, `deleteserver`, `docsinst` and 16 more
 
 ### msg:2002
 > kind=message tier=reference since=- src=sdsys/messages/2002:1#b8493524
@@ -14352,7 +14654,7 @@ Account already exists
 Account name is invalid
 ```
 
-cited by: `modifya`, `settile`
+cited by: `loadhelp`, `modifya`, `settile`
 
 ### msg:6004
 > kind=message tier=reference since=- src=sdsys/messages/6004:1#34da8e01

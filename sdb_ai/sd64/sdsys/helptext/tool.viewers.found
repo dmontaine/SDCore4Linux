@@ -1,0 +1,5 @@
+PDF readers found on this machine
+01-accounts-and-security
+The list holds the PDF readers this page knows by name that are installed in /usr/bin, /usr/local/bin or /bin. Allowed says whether pdf may start the reader now. The last column says whether it could be allowed, or why not.
+Enter on a reader that is not allowed shows the command, set.viewer add pdf name, and its effect, and asks you to type the reader's name before it runs. Enter on one that is allowed stops allowing it.
+A reader that is not in the list, or installed somewhere else, is added at the prompt with set.viewer add pdf /full/path, and passes the same test.

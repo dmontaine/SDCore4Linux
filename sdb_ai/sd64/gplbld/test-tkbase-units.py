@@ -26,7 +26,7 @@ SDSYS = os.path.normpath(os.path.join(HERE, "..", "sdsys"))
 BP = os.path.join(SDSYS, "gpl.bp")
 NAMES = ["tk.h", "tk_open", "tk_close", "tk_frame", "tk_fkeys", "tk_keys", "sl_pickwin", "sl_slider", "sl_caption", "sl_check", "sl_color", "sl_selector", "sl_accel", "tool_keys"]
 # the programs of the gate pages and the throw-away test app: checked when the tree has them (Core), skipped when it has not (Solo's carry 13 leaves them for the gate page, 22 Oct 26)
-OPTIONAL = ["tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tool_tktest"]
+OPTIONAL = ["tk_gate_info", "tk_run", "tk_gates", "tk_explain", "tk_confirm", "tk_wrap", "tool_tktest"]
 
 
 def strip_bas(src):
@@ -143,7 +143,11 @@ def checks(raw):
         ordered(cf, "res = 'cancel'", "if system(25) then return", "default 2 returning b else b = 0", "if b # 1 then return", "returning ans then got = 1 else got = 0", "if not(got) then return",
                 "if trim(ans) # typed then res = 'wrong'", "res = 'run'") and cf.count("res = 'run'") == 1, "")
     optadd("tk_confirm", "T24", "$tk_confirm shows the sentence wrapped at spaces but whole (a hard cut only when a word is longer than the line), draws the lines the caller gave, and runs, reads and writes nothing",
-        "wrapw" in cf and "rest = trimf(rest[cut + 1, 99999])" in cf and "loop while rest # '' do" in cf and "body<-1> = ' ' : piece" in cf and "body := @fm : lines" in cf and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display)\b", cf), "")
+        "wrapw" in cf and "call $tk_wrap(sentence, wrapw, pieces)" in cf and "body<-1> = ' ' : pieces<p>" in cf and "body := @fm : lines" in cf and "rest[cut" not in cf and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display)\b", cf), "")
+    tw = sq.get("tk_wrap", "")
+    optadd("tk_wrap", "T24b", "$tk_wrap (23 Oct 26: the wrapping loop of $tk_confirm, moved so that the menu management page and the help box use it too) cuts at the last space that keeps a piece within the width, whole words, a hard cut only for a word longer than the width, and touches nothing outside its three arguments",
+        "loop while rest # '' do" in tw and "loop while cut > 1 and rest[cut, 1] # ' ' do cut -= 1 repeat" in tw and "rest = trimf(rest[cut + 1, 99999])" in tw and "if cut <= 1 then cut = wrapw" in tw
+        and not re.search(r"\b(execute|write|writev|readu|delete|kernel|os\.execute|crt|display|screen|openpath|open|read)\b", tw), "")
     ex = sq.get("tk_explain", "")
     optadd("tk_explain", "T25", "$tk_explain: a planned gate or one not in the table gives nothing; turning ON a gate delivered off carries the core-direction line (11817), turning OFF one delivered on carries 11818, a gate that reaches beyond SD carries 11819, and the typed name is asked only for turning ON a gate that reaches beyond SD",
         ordered(ex, "if gi = '' then return", "if gi<TK.G.STATUS> # 'built' then return", "sysmsg(11820,")
@@ -379,7 +383,10 @@ MUT = [
     ("tk_confirm", "an Esc at the name goes on", "if not(got) then return", "if 0 then return"),
     ("tk_confirm", "the name is not compared", "if trim(ans) # typed then", "if 0 then"),
     ("tk_confirm", "the name is compared without regard to case", "if trim(ans) # typed then", "if upcase(trim(ans)) # upcase(typed) then"),
-    ("tk_confirm", "the sentence is cut instead of wrapped", "rest = trimf(rest[cut + 1, 99999])", "rest = ''"),
+    ("tk_wrap", "the sentence is cut instead of wrapped", "rest = trimf(rest[cut + 1, 99999])", "rest = ''"),
+    ("tk_wrap", "a word is cut at the wrong place", "loop while cut > 1 and rest[cut, 1] # ' ' do cut -= 1 repeat", "loop while cut > 1 and rest[cut, 1] # 'x' do cut -= 1 repeat"),
+    ("tk_wrap", "the wrapper writes something", "   out<-1> = piece\n", "   out<-1> = piece\n   write piece to 0, 'x'\n"),
+    ("tk_confirm", "the confirm box has its own wrapping loop again", "call $tk_wrap(sentence, wrapw, pieces)", "rest[cut"),
     ("tk_confirm", "a command is run from the box", "   res = 'run'\n   msg = ''", "   execute sentence\n   res = 'run'\n   msg = ''"),
     ("tk_explain", "the typed name is asked for turning a gate off", "if on and gi<TK.G.BEYOND> = 1 then typed = 1", "if gi<TK.G.BEYOND> = 1 then typed = 1"),
     ("tk_explain", "the beyond-SD warning is left out", "if gi<TK.G.BEYOND> = 1 then lines<-1> = sysmsg(11819)", "null"),

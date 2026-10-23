@@ -190,6 +190,7 @@ build.page:
       g += 1
       gr<g> = 'System' : @vm : bnd : @vm : 6
       id = 'menus' ; grp = g ; label = 'Menu management' ; glyph = '[=]' ; sub = 'tiles and start' ; act = 'cmd:tool.menus' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
+      id = 'viewers' ; grp = g ; label = 'Bypass programs' ; glyph = '[!]' ; sub = 'readers for pdf' ; act = 'cmd:tool.viewers' ; pal = 'rust' ; size = 'n' ; pause = 0 ; why = '' ; gosub add.tile
    end
    bnd += 1
    g += 1

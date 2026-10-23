@@ -701,7 +701,7 @@ Account word `pins-off`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> pins-off`
 - turns the `pins-` gate OFF for the account
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1051
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1057
 
 ### sys:word:pins-on
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965
@@ -826,7 +826,7 @@ Account word `start-terminal`
 Account word `suspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> suspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1057
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1063
 
 ### sys:word:unsuspended
 > kind=sys.word tier=reference since=L1.1-0 src=sdsys/gpl.bp/modifya:543#ffefe965
@@ -834,7 +834,7 @@ Account word `suspended`
 Account word `unsuspended`
 
 - typed by the administrator (SDSYS) only: `modify.account <account> unsuspended`
-- docs: `Administrator/markdown/01-accounts-and-security.md` line 1057
+- docs: `Administrator/markdown/01-accounts-and-security.md` line 1063
 
 ### sys:word:voc-off
 > kind=sys.word tier=reference since=- src=sdsys/gpl.bp/modifya:543#ffefe965

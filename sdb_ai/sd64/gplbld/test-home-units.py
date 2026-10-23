@@ -57,6 +57,8 @@ def load():
     src["sandbox-fromtree.py"] = read(os.path.join(HERE, "sandbox-fromtree.py"))
     src["files"] = {p: os.path.exists(os.path.join(SDSYS, p)) for p in (
         "newvoc/home", "newvoc/exit", "voc_template/home", "voc_template/exit", "voc_template/set.start.default", "newvoc/set.start.default", "voc_template/set.tile", "newvoc/set.tile", "newvoc/my.menu", "voc_template/my.menu", "voc_template/tool.menus", "newvoc/tool.menus")}
+    src["menu.n"] = read(os.path.join(SDSYS, "newvoc", "menu")) if os.path.exists(os.path.join(SDSYS, "newvoc", "menu")) else ""
+    src["menu.t"] = read(os.path.join(SDSYS, "voc_template", "menu")) if os.path.exists(os.path.join(SDSYS, "voc_template", "menu")) else ""
     src["msgs"] = {n: read(os.path.join(SDSYS, "messages", n)) if os.path.exists(os.path.join(SDSYS, "messages", n)) else None for n in MSGS}
     return src
 
@@ -89,7 +91,7 @@ def checks(s):
        "call $tk_open('home', '', ctx, err)" in th and "is.admin = kernel(K$ADMINISTRATOR, -1)" in th and "if is.admin then ctx<TK.C.AUD> = sysmsg(11803)" in th)
     cmds = re.findall(r"act = '(cmd:[^']*|terminal|switch|signout)' ; pal", th)       # the rows of the table (the case lines of start.tile also say act = ...)
     ck("H4 tool_home: every tile of the table has a fixed action (cmd:sed, ide, ced, tool.keys, tool.menus, my.menu), terminal, switch or signout; the ONLY other action is a person's own program (H25)",
-       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "cmd:tool.menus", "cmd:my.menu"]), repr(cmds))
+       sorted(cmds) == sorted(["cmd:sed", "cmd:ide", "cmd:ced", "terminal", "cmd:tool.keys", "switch", "signout", "cmd:tool.menus", "cmd:tool.viewers", "cmd:my.menu"]), repr(cmds))
     ck("H4b ...execute is given only a sentence from that table, 'quit', or the logto of an account picked from the register list",
        sorted(re.findall(r"execute ([^\n]+)", th)) == sorted(["sentence", "'quit'", "'quit'", "'logto ' : acct"]), repr(re.findall(r"execute ([^\n]+)", th)))     # 'quit' twice: sign out, and the confined account
     fin = between(th, "\nfinish:\n", "\nreturn")
@@ -149,6 +151,8 @@ def checks(s):
     f = s["files"]
     ck("H15 the VOC: HOME and EXIT for every account (newvoc) and for SDSYS (voc_template); SET.START.DEFAULT for SDSYS ONLY", f["newvoc/home"] and f["newvoc/exit"] and f["voc_template/home"] and f["voc_template/exit"]
        and f["voc_template/set.start.default"] and not f["newvoc/set.start.default"], repr(f))
+    ck("H15c MENU (23 Oct, the owner's word for the way to the full-screen menu) is a verb of every VOC that runs the same program as HOME, in both places",
+       all(len(t.split("\n")) >= 3 and t.split("\n")[0][:1].upper() == "V" and t.split("\n")[2] == "$tool_home" for t in (s["menu.n"], s["menu.t"])), repr((s["menu.n"][:60], s["menu.t"][:20])))
     m = s["msgs"]
     ck("H15b ...SET.TILE too is SDSYS's only", f["voc_template/set.tile"] and not f["newvoc/set.tile"], repr(f))
     ck("H16 messages 11863 to 11884 exist, each one line, none with a capital command word", all(m[n] and m[n].count("\n") == 1 for n in MSGS), repr([n for n in MSGS if not m[n] or m[n].count("\n") != 1]))
@@ -182,9 +186,10 @@ def checks(s):
        "tiles.off" not in st_ and "'all'" not in st_ and "readu acc.rec from acc.f, who else" in st_ and "acc.rec<ACC$TILES.OFF> = new.list" in st_ and "write acc.rec to acc.f, who on error ok = @false" in st_
        and "sysmsg(11877, tile, state, who)" in st_ and "K$AUDIT, 'set.tile '" in st_ and "sysmsg(11883, tile)" in st_ and "standard = 'editor ide ced terminal keys switch signout'" in st_)
     ck("H23c ...and the standard ids it knows are the ids of the table of tool_home (every id in the table is standard, every standard id is in the table)",
-       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - {"menus", "mymenu"}) == sorted("editor ide ced terminal keys switch signout".split()), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
-    ck("H23d ...and the one tile that is not standard, Menu management ('menus'), is built for the administrator only (inside `if is.admin then`), and runs tool.menus",
-       re.search(r"if is\.admin then\n\s+bnd \+= 1\n\s+g \+= 1\n\s+gr<g> = 'System'[^\n]*\n\s+id = 'menus' ; grp = g ;[^\n]*act = 'cmd:tool\.menus'", th) is not None and th.count("id = 'menus'") == 1)
+       sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)) - {"menus", "viewers", "mymenu"}) == sorted("editor ide ced terminal keys switch signout".split()), repr(sorted(set(re.findall(r"id = '([a-z]+)' ; grp = ", th)))))
+    ck("H23d ...and the two tiles that are not standard, Menu management ('menus') and Bypass programs ('viewers'), are built for the administrator only (inside `if is.admin then`), and run tool.menus and tool.viewers",
+       re.search(r"if is\.admin then\n\s+bnd \+= 1\n\s+g \+= 1\n\s+gr<g> = 'System'[^\n]*\n\s+id = 'menus' ; grp = g ;[^\n]*act = 'cmd:tool\.menus'[^\n]*\n\s+id = 'viewers' ; grp = g ;[^\n]*act = 'cmd:tool\.viewers'[^\n]*\n\s+end\n", th) is not None
+       and th.count("id = 'menus'") == 1 and th.count("id = 'viewers'") == 1)
     hp = strip(s["home_pins"])
     mm = strip(s["mymenu"])
     tm = strip(s["tool_menus"])
@@ -259,6 +264,9 @@ MUTANTS = [
     ("modify.account writes another field", "modifya", "acc.new<ACC$START> = start.want", "acc.new<ACC$SH> = start.want"),
     ("the register field moves", "keys.h", "$define ACC$START        16 ", "$define ACC$START        15 "),
     ("the scroll bar goes black again in blue", "sl_theme", "'scroll=black,cyan,bold'", "'scroll=black,cyan,'"),
+    ("the Bypass programs tile is built for everyone", "tool_home", "gosub add.tile\n      id = 'viewers' ;", "gosub add.tile\n   end\n   if @true then\n      id = 'viewers' ;"),
+    ("MENU runs another program for every account", "menu.n", "$tool_home", "$exit"),
+    ("MENU is missing from SDSYS's VOC", "menu.t", "$tool_home", ""),
     ("the sandbox no longer starts at the terminal", "sandbox-fromtree.py", "f.write(\"terminal\\n\")", "f.write(\"menu\\n\")"),
 ]
 

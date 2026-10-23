@@ -653,6 +653,29 @@ if [ ! -d "/home/sd/user_accounts/${tuser_lc}" ]; then
     case $yn_gates in [yY]|[yY][eE][sS] ) open_gates=y;; esac
 fi
 # GATES-ASK-END
+# 23 Oct 26  THE QUESTION ABOUT A PDF READER (owner, 23 Oct 2026: the pdf verb "should be available even if os.execute is not allowed for the account
+#            as a system bypass").  That is a looser default, so the list of readers it may start is EMPTY as delivered and the installer asks once, up
+#            front with the others; the answer is NO unless y or yes is typed.  It is asked only when a known PDF reader is installed in /usr/bin,
+#            /usr/local/bin or /bin and the list (/usr/local/sdsys/viewers, which an upgrade keeps) has no pdf line yet.  Nothing is allowed here: the
+#            SHARED-CONTENT block below runs set.viewer, which makes its own test of the program.  test-install-docs.sh runs this block.
+# VIEWER-ASK-BEGIN
+allow_viewer=n
+allow_viewer_name=""
+if ! grep -qs '^pdf ' "${sdsysdir}/viewers"; then
+    for v in evince okular zathura atril xreader mupdf qpdfview xpdf; do
+        for d in /usr/bin /usr/local/bin /bin; do
+            if [ -x "${d}/${v}" ] && [ -z "$allow_viewer_name" ]; then allow_viewer_name="$v"; fi
+        done
+    done
+fi
+if [ -n "$allow_viewer_name" ]; then
+    echo
+    echo "The pdf verb shows the documentation in a PDF reader for every account, even one that is not allowed to run programs."
+    echo "It starts only a reader that SDSYS has allowed, and nothing is allowed as delivered.  ${allow_viewer_name} is installed here."
+    read -r -p "Allow ${allow_viewer_name} to show the documentation for every account? (y/N) " yn_viewer
+    case $yn_viewer in [yY]|[yY][eE][sS] ) allow_viewer=y;; esac
+fi
+# VIEWER-ASK-END
 printf "%b\n" "$NC"
 # --------------------
 #
@@ -1846,6 +1869,44 @@ else
     fi
 fi
 # SHARED-CREATE-END
+
+# 23 Oct 26 dm - S.75: THE SHARED ACCOUNT'S DOCUMENTATION.  The context help the [?] buttons show (the file context.help of the shared account,
+#            loaded from /usr/local/sdsys/helptext by load.help: idempotent, so an upgrade refreshes it and keeps what the administrator added) and the
+#            directory the pdf verb reads (pdf in the shared directory: owner sdsys, group sdusers, mode 755, so no SD user can add a document; the PDFs
+#            themselves are put there by docs.install, they are generated and not part of the source).  Then the reader the person said yes to above is
+#            allowed, with set.viewer, which tests the program; the result is judged on the list, not on sd's exit code (sd exits 0 when it refused).
+#            None of this stops the install: a failure prints a WARNING and says what to run.  test-install-docs.sh runs this block.
+# SHARED-CONTENT-BEGIN
+if sudo test -f "$shared_reg" && sudo test -d "$shared_dir"; then
+    sudo mkdir -p "${shared_dir}/pdf"
+    sudo chown sdsys:sdusers "${shared_dir}/pdf"
+    sudo chmod 755 "${shared_dir}/pdf"
+    echo
+    echo "Loading the context help into the shared account."
+    sudo bin/sd -internal load.help < /dev/null || true
+    if sudo test -e "${shared_dir}/context.help"; then
+        echo "Context help is loaded (the file context.help in the shared account)."
+    else
+        printf "%b\n" "$RED"
+        echo "WARNING: the file context.help was not made in the shared account, so the [?] buttons have no text."
+        echo "  Signed in as sdsys, run:  load.help"
+        printf "%b\n" "$NC"
+    fi
+    if [ "$allow_viewer" = y ] && [ -n "$allow_viewer_name" ]; then
+        sudo bin/sd -internal set.viewer add pdf "$allow_viewer_name" < /dev/null || true
+        if sudo grep -qs '^pdf ' "${sdsysdir}/viewers"; then
+            echo "Allowed ${allow_viewer_name} to show the documentation (pdf)."
+            echo "  The PDFs go in ${shared_dir}/pdf :  docs.install <directory of PDFs>  (signed in as sdsys)."
+        else
+            printf "%b\n" "$RED"
+            echo "WARNING: ${allow_viewer_name} was not allowed.  Signed in as sdsys, run:  set.viewer add pdf ${allow_viewer_name}"
+            printf "%b\n" "$NC"
+        fi
+    fi
+else
+    echo "The shared account is not there, so its help text and documentation directory were not set up."
+fi
+# SHARED-CONTENT-END
 
 # 11 Sep 26  AN UPGRADE BRINGS EVERY ACCOUNT'S VOC FORWARD (PORT_ADOPTION 16,
 #            port PRE_RELEASE_FIXES 70).  Replacing NEWVOC and VOC_TEMPLATE on
